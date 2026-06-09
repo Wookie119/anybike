@@ -1,4 +1,5 @@
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -141,6 +142,11 @@
     .mobileCards{display:none;flex-direction:column;gap:10px;margin-top:12px}
     .leadCard{border:1px solid var(--line);border-radius:16px;padding:12px;background:rgba(255,255,255,.035)}
     .divider{height:1px;background:var(--line);margin:12px 0}
+    .stockGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+    .stockActions{display:flex;gap:8px;flex-wrap:wrap}
+    .notice{border:1px solid rgba(255,255,255,.14);border-radius:14px;padding:10px;background:rgba(237,28,36,.08);color:#fff;margin-top:10px;font-size:13px}
+    @media(max-width:1100px){.stockGrid{grid-template-columns:1fr 1fr}}
+    @media(max-width:760px){.stockGrid{grid-template-columns:1fr}}
     @media(max-width:1100px){.grid,.stats{grid-template-columns:1fr}}
     @media(max-width:760px){
       .wrap{padding:10px}
@@ -190,6 +196,70 @@
         <div class="stat"><div class="k">Countries</div><div class="v" id="statCountries">0</div></div>
         <div class="stat"><div class="k">Potential Stock</div><div class="v" id="statValue">£0</div></div>
       </div>
+    </div>
+
+
+
+    <div class="card" id="stockCard">
+      <h2>Stock Management — GBP master price with live exchange-rate display</h2>
+      <div class="notice">Store prices in GBP. Converted prices are estimates only. Final invoices should be confirmed in GBP unless agreed otherwise.</div>
+
+      <div class="stockGrid" style="margin-top:12px;">
+        <input id="s_stock_no" placeholder="Stock no">
+        <input id="s_registration" placeholder="Registration">
+        <input id="s_make" placeholder="Make">
+        <input id="s_model" placeholder="Model">
+        <input id="s_year" type="number" placeholder="Year">
+        <input id="s_mileage" type="number" placeholder="Mileage">
+        <input id="s_purchase" type="number" placeholder="Purchase price GBP">
+        <input id="s_sale" type="number" placeholder="Sale price GBP">
+        <input id="s_transport" type="number" placeholder="Transport cost GBP">
+        <input id="s_prep" type="number" placeholder="Prep cost GBP">
+        <select id="s_currency">
+          <option value="GBP">GBP - British Pound</option>
+          <option value="EUR">EUR - Euro</option>
+          <option value="USD">USD - US Dollar</option>
+          <option value="AUD">AUD - Australian Dollar</option>
+          <option value="NZD">NZD - New Zealand Dollar</option>
+          <option value="ZAR">ZAR - South African Rand</option>
+          <option value="AED">AED - UAE Dirham</option>
+          <option value="JPY">JPY - Japanese Yen</option>
+        </select>
+        <select id="s_status">
+          <option>In Stock</option>
+          <option>Reserved</option>
+          <option>Deposit Taken</option>
+          <option>Sold</option>
+          <option>Exported</option>
+        </select>
+        <input id="s_location" placeholder="Location">
+        <input id="s_country" placeholder="Country / target market">
+        <input id="s_photo" placeholder="Photo URL">
+      </div>
+
+      <div class="controls" style="margin-top:10px;">
+        <textarea id="s_notes" placeholder="Stock notes, condition, export comments..."></textarea>
+      </div>
+
+      <div class="controls" style="margin-top:10px;">
+        <button id="stockSaveBtn" class="btn">Add Stock Bike</button>
+        <button id="stockClearBtn" class="btn outline">Clear</button>
+        <button id="stockRefreshBtn" class="btn outline">Refresh Stock</button>
+        <span id="stockFxPreview" class="small"></span>
+      </div>
+      <div id="stockMsg" class="msg"></div>
+
+      <div class="tableWrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Created</th><th>Stock No</th><th>Bike</th><th>Mileage</th><th>Cost</th><th>Sale GBP</th><th>Converted</th><th>Status</th><th>Profit</th><th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="stockRows"></tbody>
+        </table>
+      </div>
+      <div id="stockCountLine" class="small" style="margin-top:10px;"></div>
     </div>
 
     <div class="grid">
@@ -310,6 +380,8 @@
   const $ = id => document.getElementById(id);
 
   let leads = [];
+  let stockBikes = [];
+  let selectedStock = null;
   let selected = null;
   let map, markers;
 
@@ -320,6 +392,27 @@
   function allowed(email){ return email && ALLOWED_EMAILS.includes(email.toLowerCase().trim()); }
   function bikeText(l){ return [l.registration, [l.make,l.model].filter(Boolean).join(" "), l.bike_year, l.mileage?l.mileage+" miles":""].filter(Boolean).join(" | ") || l.requested_bike || "—"; }
   function valueText(l){ return l.lead_type==="Request Bike" ? money(l.budget) : money(l.asking_price); }
+  function num(id){ const v = $(id)?.value; if(v === "" || v === null || v === undefined) return null; const n = Number(v); return Number.isFinite(n) ? n : null; }
+  function text(id){ return ($(id)?.value || "").trim() || null; }
+  function profitEstimate(b){
+    const sale = Number(b.sale_price_gbp)||0;
+    const purchase = Number(b.purchase_price_gbp)||0;
+    const transport = Number(b.transport_cost)||0;
+    const prep = Number(b.prep_cost)||0;
+    return sale - purchase - transport - prep;
+  }
+  async function convertFromGBP(amountGBP, targetCurrency){
+    if(!amountGBP || targetCurrency === "GBP"){
+      return { rate:1, converted:amountGBP || 0, date:new Date().toISOString().slice(0,10) };
+    }
+    const url = `https://api.frankfurter.dev/v2/rates?base=GBP&quotes=${encodeURIComponent(targetCurrency)}`;
+    const res = await fetch(url);
+    if(!res.ok) throw new Error("Exchange-rate lookup failed");
+    const data = await res.json();
+    const rate = data.rates?.[targetCurrency];
+    if(!rate) throw new Error("No exchange rate returned");
+    return { rate, converted:(amountGBP * rate), date:data.date };
+  }
 
   function initMap(){
     if(map) return;
@@ -362,6 +455,7 @@
     initMap();
     setTimeout(() => map.invalidateSize(), 200);
     await fetchLeads();
+    await fetchStock();
   }
 
   async function fetchLeads(){
@@ -535,6 +629,138 @@
     applyFilters();
   }
 
+
+
+  async function fetchStock(){
+    const { data, error } = await sb.from("stock_bikes").select("*").order("created_at", {ascending:false}).limit(1000);
+    if(error){ msg($("stockMsg"), "❌ Could not load stock.\n\n"+error.message, "bad"); return; }
+    stockBikes = data || [];
+    renderStock();
+  }
+
+  async function updateStockFxPreview(){
+    const sale = num("s_sale");
+    const currency = $("s_currency").value;
+    const preview = $("stockFxPreview");
+    if(!sale){ preview.textContent = ""; return null; }
+    try{
+      const fx = await convertFromGBP(sale, currency);
+      preview.textContent = `Approx: ${currency} ${fx.converted.toLocaleString(undefined,{maximumFractionDigits:2})} | Rate ${fx.rate}`;
+      return fx;
+    }catch(e){
+      preview.textContent = "Exchange-rate preview unavailable";
+      return { rate:1, converted:sale, date:new Date().toISOString().slice(0,10) };
+    }
+  }
+
+  function clearStockForm(){
+    selectedStock = null;
+    ["s_stock_no","s_registration","s_make","s_model","s_year","s_mileage","s_purchase","s_sale","s_transport","s_prep","s_location","s_country","s_photo","s_notes"].forEach(id => { if($(id)) $(id).value=""; });
+    $("s_currency").value = "GBP";
+    $("s_status").value = "In Stock";
+    $("stockSaveBtn").textContent = "Add Stock Bike";
+    $("stockFxPreview").textContent = "";
+    msg($("stockMsg"), "", "");
+  }
+
+  function editStock(b){
+    selectedStock = b;
+    $("s_stock_no").value = b.stock_no || "";
+    $("s_registration").value = b.registration || "";
+    $("s_make").value = b.make || "";
+    $("s_model").value = b.model || "";
+    $("s_year").value = b.year || "";
+    $("s_mileage").value = b.mileage || "";
+    $("s_purchase").value = b.purchase_price_gbp || "";
+    $("s_sale").value = b.sale_price_gbp || "";
+    $("s_transport").value = b.transport_cost || "";
+    $("s_prep").value = b.prep_cost || "";
+    $("s_currency").value = b.display_currency || "GBP";
+    $("s_status").value = b.status || "In Stock";
+    $("s_location").value = b.location || "";
+    $("s_country").value = b.country || "";
+    $("s_photo").value = b.photo_url || "";
+    $("s_notes").value = b.notes || "";
+    $("stockSaveBtn").textContent = "Update Stock Bike";
+    updateStockFxPreview();
+    $("stockCard").scrollIntoView({behavior:"smooth",block:"start"});
+  }
+
+  async function saveStock(){
+    const sale = num("s_sale") || 0;
+    const currency = $("s_currency").value;
+    let fx;
+    try { fx = await convertFromGBP(sale, currency); }
+    catch(e){ fx = { rate:1, converted:sale, date:new Date().toISOString().slice(0,10) }; }
+
+    const patch = {
+      stock_no: text("s_stock_no"),
+      registration: text("s_registration"),
+      make: text("s_make"),
+      model: text("s_model"),
+      year: num("s_year"),
+      mileage: num("s_mileage"),
+      purchase_price_gbp: num("s_purchase"),
+      sale_price_gbp: num("s_sale"),
+      transport_cost: num("s_transport"),
+      prep_cost: num("s_prep"),
+      base_currency: "GBP",
+      display_currency: currency,
+      exchange_rate: fx.rate,
+      sale_price_converted: fx.converted,
+      exchange_rate_date: fx.date,
+      location: text("s_location"),
+      country: text("s_country"),
+      status: $("s_status").value,
+      photo_url: text("s_photo"),
+      notes: text("s_notes")
+    };
+
+    if(!patch.make && !patch.model){ msg($("stockMsg"), "Enter at least make or model.", "bad"); return; }
+
+    $("stockSaveBtn").disabled = true;
+    const result = selectedStock
+      ? await sb.from("stock_bikes").update(patch).eq("id", selectedStock.id).select("*").single()
+      : await sb.from("stock_bikes").insert(patch).select("*").single();
+    $("stockSaveBtn").disabled = false;
+
+    if(result.error){ msg($("stockMsg"), "❌ Stock save failed.\n\n"+result.error.message, "bad"); return; }
+    msg($("stockMsg"), selectedStock ? "✅ Stock bike updated." : "✅ Stock bike added.", "ok");
+    clearStockForm();
+    await fetchStock();
+  }
+
+  async function deleteStock(id){
+    if(!confirm("Delete this stock bike?")) return;
+    const { error } = await sb.from("stock_bikes").delete().eq("id", id);
+    if(error){ msg($("stockMsg"), "❌ Delete failed.\n\n"+error.message, "bad"); return; }
+    await fetchStock();
+  }
+
+  function renderStock(){
+    $("stockRows").innerHTML = stockBikes.map(b => {
+      const bike = [b.registration, b.make, b.model, b.year].filter(Boolean).join(" | ") || "—";
+      const converted = b.display_currency && b.display_currency !== "GBP" ? `${esc(b.display_currency)} ${Number(b.sale_price_converted||0).toLocaleString(undefined,{maximumFractionDigits:2})}` : money(b.sale_price_gbp);
+      const cost = (Number(b.purchase_price_gbp)||0) + (Number(b.transport_cost)||0) + (Number(b.prep_cost)||0);
+      const profit = profitEstimate(b);
+      return `<tr data-stock-id="${esc(b.id)}">
+        <td>${esc(dt(b.created_at))}</td>
+        <td>${esc(b.stock_no || "—")}</td>
+        <td>${esc(bike)}<div class="small">${esc(b.location || "")}${b.country ? " • "+esc(b.country) : ""}</div></td>
+        <td>${esc(b.mileage ? b.mileage + " miles" : "—")}</td>
+        <td>${money(cost)}</td>
+        <td>${money(b.sale_price_gbp)}</td>
+        <td>${converted}<div class="small">Rate: ${esc(b.exchange_rate || 1)} ${esc(b.exchange_rate_date || "")}</div></td>
+        <td><span class="pill">${esc(b.status || "In Stock")}</span></td>
+        <td>${money(profit)}</td>
+        <td class="stockActions"><button class="btn outline small editStockBtn" data-stock-id="${esc(b.id)}">Edit</button><button class="btn outline small deleteStockBtn" data-stock-id="${esc(b.id)}">Delete</button></td>
+      </tr>`;
+    }).join("");
+    $("stockCountLine").textContent = `${stockBikes.length} stock bike(s)`;
+    document.querySelectorAll(".editStockBtn").forEach(btn => btn.addEventListener("click", ev => { ev.stopPropagation(); const b = stockBikes.find(x => String(x.id) === String(btn.dataset.stockId)); if(b) editStock(b); }));
+    document.querySelectorAll(".deleteStockBtn").forEach(btn => btn.addEventListener("click", ev => { ev.stopPropagation(); deleteStock(btn.dataset.stockId); }));
+  }
+
   function csvCell(v){ const s=v==null?"":(typeof v==="object"?JSON.stringify(v):String(v)); return `"${s.replace(/"/g,'""')}"`; }
   function exportCsv(){
     const rows = applyFilters();
@@ -560,7 +786,7 @@
   });
 
   $("signOutBtn").addEventListener("click", () => sb.auth.signOut());
-  $("refreshBtn").addEventListener("click", fetchLeads);
+  $("refreshBtn").addEventListener("click", async () => { await fetchLeads(); await fetchStock(); });
   $("exportBtn").addEventListener("click", exportCsv);
   ["searchBox","filterType","filterStatus","filterCountry"].forEach(id => {
     $(id).addEventListener("input", applyFilters);
@@ -568,6 +794,13 @@
   });
   $("saveBtn").addEventListener("click", saveLead);
   $("deleteBtn").addEventListener("click", deleteLead);
+  $("stockSaveBtn").addEventListener("click", saveStock);
+  $("stockClearBtn").addEventListener("click", clearStockForm);
+  $("stockRefreshBtn").addEventListener("click", fetchStock);
+  ["s_sale","s_currency"].forEach(id => {
+    $(id).addEventListener("input", updateStockFxPreview);
+    $(id).addEventListener("change", updateStockFxPreview);
+  });
 
   loadSession();
 </script>
