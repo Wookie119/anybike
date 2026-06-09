@@ -1,0 +1,498 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>AnyBike — Leads Dashboard</title>
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIINfQ7Po5nMTVKccK0pHRSgCJOIBV2I0M=" crossorigin=""/>
+
+  <style>
+    :root {
+      --red:#ed1c24;
+      --black:#090909;
+      --dark:#121212;
+      --panel:#1b1b1b;
+      --text:#fff;
+      --muted:#bdbdbd;
+      --line:rgba(255,255,255,.14);
+      --ok:#29c66f;
+      --bad:#ff6b6b;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--black);color:var(--text);font-family:Arial,Helvetica,sans-serif;line-height:1.45}
+    .wrap{max-width:1500px;margin:0 auto;padding:18px}
+    .topbar{display:flex;justify-content:space-between;gap:14px;align-items:center;border:1px solid var(--line);background:rgba(255,255,255,.04);border-radius:18px;padding:14px}
+    .brand{display:flex;align-items:center;gap:12px;min-width:0}
+    .brand img{width:48px;height:48px;object-fit:contain;background:#fff;border-radius:10px;padding:4px}
+    .brand strong{display:block;font-size:18px}
+    .brand span{display:block;color:var(--muted);font-size:13px}
+    .btn{background:var(--red);color:#fff;border:1px solid var(--red);border-radius:999px;padding:10px 14px;font-weight:800;cursor:pointer}
+    .btn.outline{background:transparent;border-color:rgba(255,255,255,.28)}
+    .btn.small{padding:7px 10px;font-size:12px}
+    .btn:disabled{opacity:.55;cursor:not-allowed}
+    .card{margin-top:14px;border:1px solid var(--line);border-radius:18px;background:rgba(255,255,255,.045);padding:14px}
+    h2{font-size:16px;margin:0 0 12px}
+    .login{max-width:760px}
+    .controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+    input,select,textarea{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);border-radius:12px;color:#fff;padding:10px;min-height:42px;font:inherit;outline:none}
+    input::placeholder,textarea::placeholder{color:rgba(255,255,255,.52)}
+    select option{color:#111}
+    textarea{width:100%;min-height:130px;resize:vertical}
+    .grid{display:grid;grid-template-columns:1.2fr .8fr;gap:14px;align-items:start}
+    .stats{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+    .stat{border:1px solid var(--line);border-radius:16px;padding:14px;background:rgba(255,255,255,.035)}
+    .stat .k{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em}
+    .stat .v{font-size:24px;font-weight:900;margin-top:4px}
+    .tableWrap{overflow:auto;border-radius:14px;margin-top:12px}
+    table{width:100%;min-width:1050px;border-collapse:collapse}
+    th,td{padding:10px;border-bottom:1px solid rgba(255,255,255,.09);font-size:13px;vertical-align:top;text-align:left}
+    th{color:var(--muted);font-size:12px;white-space:nowrap}
+    tr{cursor:pointer}
+    tr:hover{background:rgba(237,28,36,.06)}
+    .pill{display:inline-block;border:1px solid rgba(255,255,255,.22);border-radius:999px;padding:4px 8px;font-size:12px;white-space:nowrap}
+    .pill.red{border-color:var(--red);color:#fff;background:rgba(237,28,36,.16)}
+    .small{color:var(--muted);font-size:12px}
+    .msg{display:none;margin-top:10px;border:1px solid var(--line);border-radius:12px;padding:10px;white-space:pre-wrap;font-size:13px}
+    .msg.ok{display:block;border-color:var(--ok);color:var(--ok)}
+    .msg.bad{display:block;border-color:var(--bad);color:var(--bad)}
+    .detailGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .kv{border:1px solid var(--line);border-radius:14px;padding:10px;background:rgba(255,255,255,.03);min-width:0}
+    .kv .k{color:var(--muted);font-size:12px;margin-bottom:4px}
+    .kv .v{word-break:break-word;white-space:pre-wrap;font-size:13px}
+    #map{height:360px;border-radius:16px;margin-top:10px;background:#222;border:1px solid var(--line)}
+    .mobileCards{display:none;flex-direction:column;gap:10px;margin-top:12px}
+    .leadCard{border:1px solid var(--line);border-radius:16px;padding:12px;background:rgba(255,255,255,.035)}
+    .divider{height:1px;background:var(--line);margin:12px 0}
+    @media(max-width:1100px){.grid,.stats{grid-template-columns:1fr}}
+    @media(max-width:760px){
+      .wrap{padding:10px}
+      .topbar{flex-direction:column;align-items:stretch}
+      .controls{flex-direction:column;align-items:stretch}
+      .controls>*{width:100%!important}
+      .tableWrap{display:none}
+      .mobileCards{display:flex}
+      .detailGrid{grid-template-columns:1fr}
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div class="brand">
+      <img src="anybike-logo.jpg" alt="AnyBike logo">
+      <div>
+        <strong>AnyBike — Leads Dashboard</strong>
+        <span id="subTitle">Sign in to manage leads</span>
+      </div>
+    </div>
+    <div class="controls">
+      <button id="refreshBtn" class="btn outline" disabled>Refresh</button>
+      <button id="exportBtn" class="btn outline" disabled>Export CSV</button>
+      <button id="signOutBtn" class="btn outline" style="display:none;">Sign out</button>
+    </div>
+  </div>
+
+  <div class="card login" id="loginCard">
+    <h2>Admin sign-in</h2>
+    <div class="controls">
+      <input id="loginEmail" type="email" placeholder="Admin email" style="min-width:260px">
+      <input id="loginPassword" type="password" placeholder="Password" style="min-width:220px">
+      <button id="loginBtn" class="btn">Sign in</button>
+    </div>
+    <div id="loginMsg" class="msg"></div>
+    <div class="small" style="margin-top:10px;">Allowed admin: sales@anybike.co.uk</div>
+  </div>
+
+  <div id="dash" style="display:none;">
+    <div class="card">
+      <div class="stats">
+        <div class="stat"><div class="k">Total Leads</div><div class="v" id="statTotal">0</div></div>
+        <div class="stat"><div class="k">Sell Bike</div><div class="v" id="statSell">0</div></div>
+        <div class="stat"><div class="k">Request Bike</div><div class="v" id="statRequest">0</div></div>
+        <div class="stat"><div class="k">Countries</div><div class="v" id="statCountries">0</div></div>
+        <div class="stat"><div class="k">Potential Stock</div><div class="v" id="statValue">£0</div></div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h2>Leads</h2>
+        <div class="controls">
+          <input id="searchBox" placeholder="Search name, country, bike, email, postcode…" style="flex:1;min-width:250px">
+          <select id="filterType">
+            <option value="">All lead types</option>
+            <option>Sell Bike</option>
+            <option>Request Bike</option>
+            <option>Contact</option>
+          </select>
+          <select id="filterStatus">
+            <option value="">All statuses</option>
+            <option>New</option><option>Reviewed</option><option>Contacted</option><option>More Info Needed</option>
+            <option>Offer Made</option><option>Offer Accepted</option><option>Collection Arranged</option>
+            <option>Purchased</option><option>Sourcing</option><option>Quoted</option>
+            <option>Rejected</option><option>No Response</option><option>Spam</option>
+          </select>
+          <select id="filterCountry"><option value="">All countries</option></select>
+        </div>
+        <div id="mainMsg" class="msg"></div>
+
+        <div id="map"></div>
+
+        <div class="tableWrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th><th>Type</th><th>Country</th><th>Seller / Buyer</th>
+                <th>Bike / Request</th><th>Asking / Budget</th><th>Status</th><th>Open</th>
+              </tr>
+            </thead>
+            <tbody id="leadRows"></tbody>
+          </table>
+        </div>
+        <div id="mobileCards" class="mobileCards"></div>
+        <div id="countLine" class="small" style="margin-top:10px;"></div>
+      </div>
+
+      <div class="card">
+        <h2>Lead details</h2>
+        <div id="detailHint" class="small">Click a lead or map marker.</div>
+        <div id="detailPanel" style="display:none;">
+          <div class="detailGrid">
+            <div class="kv"><div class="k">Lead type</div><div class="v" id="d_type"></div></div>
+            <div class="kv"><div class="k">Status</div><div class="v" id="d_status"></div></div>
+            <div class="kv"><div class="k">Country</div><div class="v" id="d_country"></div></div>
+            <div class="kv"><div class="k">Detected country</div><div class="v" id="d_detected"></div></div>
+            <div class="kv"><div class="k">Name</div><div class="v" id="d_name"></div></div>
+            <div class="kv"><div class="k">Seller type</div><div class="v" id="d_seller_type"></div></div>
+            <div class="kv"><div class="k">Mobile / WhatsApp</div><div class="v" id="d_mobile"></div></div>
+            <div class="kv"><div class="k">Email</div><div class="v" id="d_email"></div></div>
+            <div class="kv"><div class="k">Postcode</div><div class="v" id="d_postcode"></div></div>
+            <div class="kv"><div class="k">Dealer</div><div class="v" id="d_dealer"></div></div>
+
+            <div class="kv"><div class="k">Registration</div><div class="v" id="d_reg"></div></div>
+            <div class="kv"><div class="k">Bike</div><div class="v" id="d_bike"></div></div>
+            <div class="kv"><div class="k">Year / mileage</div><div class="v" id="d_year_miles"></div></div>
+            <div class="kv"><div class="k">Condition</div><div class="v" id="d_condition"></div></div>
+            <div class="kv"><div class="k">Asking price</div><div class="v" id="d_asking"></div></div>
+            <div class="kv"><div class="k">Our offer</div><div class="v" id="d_offer"></div></div>
+
+            <div class="kv"><div class="k">Requested bike</div><div class="v" id="d_requested"></div></div>
+            <div class="kv"><div class="k">Quantity / budget</div><div class="v" id="d_qty_budget"></div></div>
+            <div class="kv"><div class="k">Destination / shipper</div><div class="v" id="d_destination"></div></div>
+
+            <div class="kv" style="grid-column:1/-1;"><div class="k">Notes</div><div class="v" id="d_notes"></div></div>
+          </div>
+
+          <div class="divider"></div>
+          <h2>Manage</h2>
+          <div class="controls">
+            <select id="a_status">
+              <option>New</option><option>Reviewed</option><option>Contacted</option><option>More Info Needed</option>
+              <option>Offer Made</option><option>Offer Accepted</option><option>Collection Arranged</option>
+              <option>Purchased</option><option>Sourcing</option><option>Quoted</option>
+              <option>Rejected</option><option>No Response</option><option>Spam</option>
+            </select>
+            <input id="a_assigned" placeholder="Assigned to">
+            <input id="a_followup" type="date">
+            <input id="a_offer" type="number" placeholder="Our offer £">
+            <input id="a_resale" type="number" placeholder="Estimated resale £">
+            <input id="a_profit" type="number" placeholder="Estimated profit £">
+            <select id="a_export">
+              <option value="">Export suitability</option>
+              <option>Excellent export stock</option>
+              <option>Good export stock</option>
+              <option>UK retail only</option>
+              <option>Parts / project</option>
+              <option>Not suitable</option>
+            </select>
+          </div>
+          <label class="small" style="display:block;margin:10px 0 6px;">Internal notes</label>
+          <textarea id="a_notes" placeholder="Internal notes, offer reasoning, profit notes, export suitability..."></textarea>
+          <div class="controls" style="margin-top:10px;">
+            <button id="saveBtn" class="btn">Save</button>
+            <button id="deleteBtn" class="btn outline">Delete</button>
+          </div>
+          <div id="detailMsg" class="msg"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+  integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+<script type="module">
+  import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+  const SUPABASE_URL = "https://tuehtnezhdnkqbbhttgp.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
+  const ALLOWED_EMAILS = ["sales@anybike.co.uk"].map(x => x.toLowerCase().trim());
+
+  const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const $ = id => document.getElementById(id);
+
+  let leads = [];
+  let selected = null;
+  let map, markers;
+
+  function esc(s){ return String(s ?? "").replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m])); }
+  function money(v){ if(v===null||v===undefined||v==="") return "—"; const n=Number(String(v).replace(/[^0-9.-]/g,"")); return Number.isFinite(n)?new Intl.NumberFormat("en-GB",{style:"currency",currency:"GBP",maximumFractionDigits:0}).format(n):String(v); }
+  function dt(iso){ if(!iso) return "—"; const d=new Date(iso); return isNaN(d)?iso:d.toLocaleString("en-GB",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"}); }
+  function msg(el, text, kind){ el.className="msg"+(kind?" "+kind:""); el.textContent=text||""; el.style.display=text?"block":"none"; }
+  function allowed(email){ return email && ALLOWED_EMAILS.includes(email.toLowerCase().trim()); }
+  function bikeText(l){ return [l.registration, [l.make,l.model].filter(Boolean).join(" "), l.bike_year, l.mileage?l.mileage+" miles":""].filter(Boolean).join(" | ") || l.requested_bike || "—"; }
+  function valueText(l){ return l.lead_type==="Request Bike" ? money(l.budget) : money(l.asking_price); }
+
+  function initMap(){
+    if(map) return;
+    map = L.map("map").setView([20,0], 2);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 18,
+      attribution: "&copy; OpenStreetMap"
+    }).addTo(map);
+    markers = L.layerGroup().addTo(map);
+  }
+
+  async function loadSession(){
+    const { data: { session } } = await sb.auth.getSession();
+    await onAuth(session);
+    sb.auth.onAuthStateChange((_e, session2) => onAuth(session2));
+  }
+
+  async function onAuth(session){
+    const user = session?.user || null;
+    if(!user){
+      $("loginCard").style.display="block";
+      $("dash").style.display="none";
+      $("signOutBtn").style.display="none";
+      $("refreshBtn").disabled=true;
+      $("exportBtn").disabled=true;
+      $("subTitle").textContent="Sign in to manage leads";
+      return;
+    }
+    if(!allowed(user.email)){
+      await sb.auth.signOut();
+      msg($("loginMsg"), "❌ This email is not authorised for the dashboard.", "bad");
+      return;
+    }
+    $("loginCard").style.display="none";
+    $("dash").style.display="block";
+    $("signOutBtn").style.display="inline-block";
+    $("refreshBtn").disabled=false;
+    $("exportBtn").disabled=false;
+    $("subTitle").textContent="Signed in as " + user.email;
+    initMap();
+    setTimeout(() => map.invalidateSize(), 200);
+    await fetchLeads();
+  }
+
+  async function fetchLeads(){
+    msg($("mainMsg"), "", "");
+    const { data, error } = await sb.from("anybike_leads").select("*").order("created_at", {ascending:false}).limit(3000);
+    if(error){ msg($("mainMsg"), "❌ Could not load leads.\n\n"+error.message, "bad"); return; }
+    leads = data || [];
+    buildCountryFilter();
+    applyFilters();
+  }
+
+  function buildCountryFilter(){
+    const keep = $("filterCountry").value;
+    const countries = [...new Set(leads.map(l => l.country || l.detected_country).filter(Boolean))].sort();
+    $("filterCountry").innerHTML = '<option value="">All countries</option>' + countries.map(c=>`<option>${esc(c)}</option>`).join("");
+    $("filterCountry").value = countries.includes(keep) ? keep : "";
+  }
+
+  function applyFilters(){
+    const q = ($("searchBox").value||"").toLowerCase().trim();
+    const type = $("filterType").value;
+    const status = $("filterStatus").value;
+    const country = $("filterCountry").value;
+    let rows = leads.slice();
+    if(type) rows = rows.filter(l => l.lead_type === type);
+    if(status) rows = rows.filter(l => l.status === status);
+    if(country) rows = rows.filter(l => (l.country || l.detected_country) === country);
+    if(q) rows = rows.filter(l => [
+      l.lead_type,l.status,l.country,l.detected_country,l.name,l.email,l.mobile,l.whatsapp,l.postcode,
+      l.seller_type,l.dealership_name,l.registration,l.make,l.model,l.bike_year,l.mileage,
+      l.condition,l.service_history,l.asking_price,l.requested_bike,l.budget,l.destination_port,
+      l.shipping_company,l.notes,l.internal_notes
+    ].join(" ").toLowerCase().includes(q));
+    render(rows);
+    renderStats();
+    renderMap(rows);
+    $("countLine").textContent = `${rows.length} lead(s) shown${rows.length!==leads.length ? " out of "+leads.length : ""}`;
+    return rows;
+  }
+
+  function renderStats(){
+    $("statTotal").textContent = leads.length;
+    $("statSell").textContent = leads.filter(l=>l.lead_type==="Sell Bike").length;
+    $("statRequest").textContent = leads.filter(l=>l.lead_type==="Request Bike").length;
+    $("statCountries").textContent = new Set(leads.map(l=>l.country || l.detected_country).filter(Boolean)).size;
+    const stock = leads.filter(l=>l.lead_type==="Sell Bike").reduce((a,l)=>a+(Number(l.asking_price)||0),0);
+    $("statValue").textContent = money(stock);
+  }
+
+  function render(rows){
+    $("leadRows").innerHTML = rows.map(l => `
+      <tr data-id="${esc(l.id)}">
+        <td>${esc(dt(l.created_at))}</td>
+        <td><span class="pill red">${esc(l.lead_type)}</span></td>
+        <td>${esc(l.country || l.detected_country || "—")}</td>
+        <td><strong>${esc(l.name || "")}</strong><div class="small">${esc(l.mobile || l.whatsapp || "")}</div><div class="small">${esc(l.email || "")}</div></td>
+        <td>${esc(bikeText(l))}</td>
+        <td>${esc(valueText(l))}</td>
+        <td><span class="pill">${esc(l.status || "New")}</span></td>
+        <td><button class="btn outline small openBtn" data-id="${esc(l.id)}">Open</button></td>
+      </tr>`).join("");
+
+    $("mobileCards").innerHTML = rows.map(l => `
+      <div class="leadCard" data-id="${esc(l.id)}">
+        <div><span class="pill red">${esc(l.lead_type)}</span> <span class="pill">${esc(l.status||"New")}</span></div>
+        <div style="margin-top:8px;"><strong>${esc(l.name||"")}</strong></div>
+        <div class="small">${esc(l.country || l.detected_country || "—")} • ${esc(dt(l.created_at))}</div>
+        <div style="margin-top:8px;">${esc(bikeText(l))}</div>
+        <div class="small">${esc(valueText(l))}</div>
+      </div>`).join("");
+
+    document.querySelectorAll("tr[data-id], .leadCard[data-id], .openBtn").forEach(el => {
+      el.addEventListener("click", ev => {
+        ev.stopPropagation();
+        const id = el.getAttribute("data-id");
+        const lead = leads.find(x => x.id === id);
+        if(lead) openLead(lead);
+      });
+    });
+  }
+
+  function renderMap(rows){
+    initMap();
+    markers.clearLayers();
+    const bounds = [];
+    rows.forEach(l => {
+      const lat = Number(l.latitude), lon = Number(l.longitude);
+      if(!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+      const marker = L.marker([lat, lon]).addTo(markers);
+      marker.bindPopup(`<strong>${esc(l.name||"Lead")}</strong><br>${esc(l.lead_type)}<br>${esc(l.country || l.detected_country || "")}<br>${esc(bikeText(l))}`);
+      marker.on("click", () => openLead(l));
+      bounds.push([lat, lon]);
+    });
+    if(bounds.length) map.fitBounds(bounds, {padding:[30,30], maxZoom:7});
+  }
+
+  function openLead(l){
+    selected = l;
+    $("detailHint").style.display="none";
+    $("detailPanel").style.display="block";
+    msg($("detailMsg"), "", "");
+
+    $("d_type").textContent = l.lead_type || "—";
+    $("d_status").textContent = l.status || "New";
+    $("d_country").textContent = l.country || "—";
+    $("d_detected").textContent = l.detected_country || "—";
+    $("d_name").textContent = l.name || "—";
+    $("d_seller_type").textContent = l.seller_type || "—";
+    $("d_mobile").textContent = [l.mobile,l.whatsapp].filter(Boolean).join(" / ") || "—";
+    $("d_email").textContent = l.email || "—";
+    $("d_postcode").textContent = l.postcode || "—";
+    $("d_dealer").textContent = l.dealership_name || "—";
+
+    $("d_reg").textContent = l.registration || "—";
+    $("d_bike").textContent = [l.make,l.model].filter(Boolean).join(" ") || "—";
+    $("d_year_miles").textContent = [l.bike_year, l.mileage?l.mileage+" miles":""].filter(Boolean).join(" / ") || "—";
+    $("d_condition").textContent = [l.condition,l.service_history].filter(Boolean).join(" / ") || "—";
+    $("d_asking").textContent = money(l.asking_price);
+    $("d_offer").textContent = money(l.our_offer);
+
+    $("d_requested").textContent = l.requested_bike || "—";
+    $("d_qty_budget").textContent = [l.quantity?l.quantity+" bike(s)":"", l.budget?money(l.budget):""].filter(Boolean).join(" / ") || "—";
+    $("d_destination").textContent = [l.destination_port,l.shipping_company].filter(Boolean).join(" / ") || "—";
+    $("d_notes").textContent = l.notes || "—";
+
+    $("a_status").value = l.status || "New";
+    $("a_assigned").value = l.assigned_to || "";
+    $("a_followup").value = l.follow_up_date || "";
+    $("a_offer").value = l.our_offer || "";
+    $("a_resale").value = l.estimated_resale || "";
+    $("a_profit").value = l.estimated_profit || "";
+    $("a_export").value = l.export_suitability || "";
+    $("a_notes").value = l.internal_notes || "";
+    $("detailPanel").scrollIntoView({behavior:"smooth",block:"start"});
+  }
+
+  async function saveLead(){
+    if(!selected) return;
+    const patch = {
+      status: $("a_status").value,
+      assigned_to: $("a_assigned").value.trim() || null,
+      follow_up_date: $("a_followup").value || null,
+      our_offer: $("a_offer").value || null,
+      estimated_resale: $("a_resale").value || null,
+      estimated_profit: $("a_profit").value || null,
+      export_suitability: $("a_export").value || null,
+      internal_notes: $("a_notes").value.trim() || null
+    };
+    $("saveBtn").disabled=true;
+    const { error } = await sb.from("anybike_leads").update(patch).eq("id", selected.id);
+    $("saveBtn").disabled=false;
+    if(error){ msg($("detailMsg"), "❌ Save failed.\n\n"+error.message, "bad"); return; }
+    selected = {...selected, ...patch};
+    leads = leads.map(l => l.id===selected.id ? selected : l);
+    msg($("detailMsg"), "✅ Saved.", "ok");
+    applyFilters();
+    openLead(selected);
+  }
+
+  async function deleteLead(){
+    if(!selected || !confirm("Delete this lead?")) return;
+    const { error } = await sb.from("anybike_leads").delete().eq("id", selected.id);
+    if(error){ msg($("detailMsg"), "❌ Delete failed.\n\n"+error.message, "bad"); return; }
+    leads = leads.filter(l => l.id !== selected.id);
+    selected = null;
+    $("detailPanel").style.display="none";
+    $("detailHint").style.display="block";
+    applyFilters();
+  }
+
+  function csvCell(v){ const s=v==null?"":(typeof v==="object"?JSON.stringify(v):String(v)); return `"${s.replace(/"/g,'""')}"`; }
+  function exportCsv(){
+    const rows = applyFilters();
+    const cols = ["created_at","lead_type","status","country","detected_country","seller_type","dealership_name","name","email","mobile","whatsapp","postcode","registration","make","model","bike_year","mileage","condition","service_history","asking_price","requested_bike","quantity","budget","destination_port","shipping_company","our_offer","estimated_resale","estimated_profit","export_suitability","follow_up_date","assigned_to","notes","internal_notes"];
+    const csv = [cols.join(","), ...rows.map(r => cols.map(c => csvCell(r[c])).join(","))].join("\n");
+    const blob = new Blob([csv], {type:"text/csv"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href=url; a.download="anybike_leads_"+new Date().toISOString().slice(0,10)+".csv"; a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  $("loginBtn").addEventListener("click", async () => {
+    const email = $("loginEmail").value.trim();
+    const password = $("loginPassword").value;
+    msg($("loginMsg"), "", "");
+    if(!email || !password){ msg($("loginMsg"), "Enter email and password.", "bad"); return; }
+    if(!allowed(email)){ msg($("loginMsg"), "❌ This email is not authorised.", "bad"); return; }
+    $("loginBtn").disabled=true;
+    const { error } = await sb.auth.signInWithPassword({ email, password });
+    $("loginBtn").disabled=false;
+    if(error) msg($("loginMsg"), "❌ Login failed.\n\n"+error.message, "bad");
+  });
+
+  $("signOutBtn").addEventListener("click", () => sb.auth.signOut());
+  $("refreshBtn").addEventListener("click", fetchLeads);
+  $("exportBtn").addEventListener("click", exportCsv);
+  ["searchBox","filterType","filterStatus","filterCountry"].forEach(id => {
+    $(id).addEventListener("input", applyFilters);
+    $(id).addEventListener("change", applyFilters);
+  });
+  $("saveBtn").addEventListener("click", saveLead);
+  $("deleteBtn").addEventListener("click", deleteLead);
+
+  loadSession();
+</script>
+</body>
+</html>
