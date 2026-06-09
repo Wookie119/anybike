@@ -715,8 +715,9 @@
       $("convertToStockBtn").textContent = (l.status === "Purchased" || l.status === "Offer Accepted") ? "Convert Purchased Lead to Stock" : "Convert to Stock";
     }
     if($("convertToBuyerBtn")){
-      $("convertToBuyerBtn").style.display = l.lead_type === "Request Bike" ? "inline-block" : "none";
-      $("convertToBuyerBtn").textContent = "Convert Request to Buyer";
+      // Show this on every enquiry so any lead can be added to the Worldwide Buyer Database.
+      $("convertToBuyerBtn").style.display = "inline-block";
+      $("convertToBuyerBtn").textContent = l.lead_type === "Request Bike" ? "Convert Request to Buyer" : "Add Enquiry as Buyer";
     }
     $("detailPanel").scrollIntoView({behavior:"smooth",block:"start"});
   }
@@ -918,12 +919,15 @@
 
   async function convertLeadToBuyer(){
     if(!selected){ return; }
-    if(selected.lead_type !== "Request Bike"){
-      msg($("detailMsg"), "Only Request Bike leads can be converted into buyer profiles.", "bad");
-      return;
-    }
 
-    const pref = splitPreferredBike(selected.requested_bike);
+    // Any lead can become a buyer profile:
+    // - Request Bike leads use requested_bike / budget.
+    // - Sell Bike leads or Contact enquiries use the bike fields / notes where available.
+    const wantedText = selected.requested_bike
+      || [selected.make, selected.model].filter(Boolean).join(" ")
+      || selected.notes
+      || "Buyer enquiry";
+    const pref = splitPreferredBike(wantedText);
     const buyerRecord = {
       source_lead_id: selected.id || null,
       name: selected.name || null,
@@ -932,184 +936,54 @@
       whatsapp: selected.whatsapp || null,
       country: selected.country || selected.detected_country || null,
       postcode: selected.postcode || null,
-      requested_bike: selected.requested_bike || null,
+      requested_bike: wantedText,
       preferred_make: selected.make || pref.make,
       preferred_model: selected.model || pref.model,
-      quantity: selected.quantity ? Number(selected.quantity) : null,
-      budget_gbp: selected.budget ? Number(selected.budget) : null,
+      quantity: selected.quantity ? Number(selected.quantity) : 1,
+      budget_gbp: selected.budget ? Number(selected.budget) : (selected.asking_price ? Number(selected.asking_price) : null),
       destination_port: selected.destination_port || null,
       shipping_company: selected.shipping_company || null,
       status: "Active Buyer",
       notes: [
-        `Converted from AnyBike Request Bike lead on ${new Date().toLocaleString("en-GB")}.`,
+        `Converted from AnyBike ${selected.lead_type || "enquiry"} lead on ${new Date().toLocaleString("en-GB")}.`,
         selected.notes ? `Customer notes: ${selected.notes}` : "",
         selected.internal_notes ? `Internal notes: ${selected.internal_notes}` : ""
       ].filter(Boolean).join("\n")
     };
 
     if(!buyerRecord.name && !buyerRecord.email && !buyerRecord.mobile && !buyerRecord.whatsapp){
-      msg($("detailMsg"), "This request needs at least a name, email or phone number before it can become a buyer profile.", "bad");
+      msg($("detailMsg"), "This lead needs at least a name, email or phone number before it can become a buyer profile.", "bad");
       return;
     }
 
-    if(!confirm("Convert this Request Bike lead into a worldwide buyer profile? The lead will stay in Leads.")) return;
+    if(!confirm("Add this enquiry to the Worldwide Buyer Database? The original lead will stay in Leads.")) return;
 
     $("convertToBuyerBtn").disabled = true;
     const inserted = await sb.from("buyer_profiles").insert(buyerRecord).select("*").single();
     $("convertToBuyerBtn").disabled = false;
 
     if(inserted.error){
-      msg($("detailMsg"), "❌ Could not convert to buyer.\n\n" + inserted.error.message, "bad");
+      msg($("detailMsg"), "❌ Could not add buyer.\n\n" + inserted.error.message, "bad");
       return;
     }
 
-    const noteLine = `Converted to buyer profile on ${new Date().toLocaleString("en-GB")}.`;
+    const noteLine = `Added to buyer database on ${new Date().toLocaleString("en-GB")}.`;
     const updatedNotes = [selected.internal_notes, noteLine].filter(Boolean).join("\n");
-    const leadPatch = { status: "Sourcing", internal_notes: updatedNotes };
+    const nextStatus = selected.lead_type === "Request Bike" ? "Sourcing" : (selected.status || "Contacted");
+    const leadPatch = { status: nextStatus, internal_notes: updatedNotes };
     const leadUpdate = await sb.from("anybike_leads").update(leadPatch).eq("id", selected.id).select("*").single();
     if(leadUpdate.error){
-      msg($("detailMsg"), `✅ Buyer profile created, but the lead note/status could not be updated.\n\n${leadUpdate.error.message}`, "bad");
+      msg($("detailMsg"), `✅ Buyer created, but the lead note/status could not be updated.\n\n${leadUpdate.error.message}`, "bad");
       await fetchBuyers();
       return;
     }
 
     selected = leadUpdate.data;
     leads = leads.map(l => l.id === selected.id ? selected : l);
-    msg($("detailMsg"), "✅ Converted to buyer profile.", "ok");
+    msg($("detailMsg"), "✅ Added to Worldwide Buyer Database.", "ok");
     await fetchBuyers();
     applyFilters();
     openLead(selected);
-  }
-
-
-  async function fetchStock(){
-    const { data, error } = await sb.from("stock_bikes").select("*").order("created_at", {ascending:false}).limit(1000);
-    if(error){ msg($("stockMsg"), "❌ Could not load stock.\n\n"+error.message, "bad"); return; }
-    stockBikes = data || [];
-    renderStock();
-  }
-
-  async function updateStockFxPreview(){
-    const sale = num("s_sale");
-    const currency = $("s_currency").value;
-    const preview = $("stockFxPreview");
-    if(!sale){ preview.textContent = ""; return null; }
-    try{
-      const fx = await convertFromGBP(sale, currency);
-      preview.textContent = `Approx: ${formatAnyCurrency(fx.converted, currency)} | Rate ${fx.rate}`;
-      return fx;
-    }catch(e){
-      preview.textContent = "Exchange-rate preview unavailable";
-      return { rate:1, converted:sale, date:new Date().toISOString().slice(0,10) };
-    }
-  }
-
-  function clearStockForm(){
-    selectedStock = null;
-    ["s_stock_no","s_registration","s_make","s_model","s_year","s_mileage","s_purchase","s_sale","s_transport","s_prep","s_location","s_country","s_photo","s_notes"].forEach(id => { if($(id)) $(id).value=""; });
-    $("s_currency").value = "GBP";
-    $("s_status").value = "In Stock";
-    $("stockSaveBtn").textContent = "Add Stock Bike";
-    $("stockFxPreview").textContent = "";
-    msg($("stockMsg"), "", "");
-  }
-
-  function editStock(b){
-    selectedStock = b;
-    $("s_stock_no").value = b.stock_no || "";
-    $("s_registration").value = b.registration || "";
-    $("s_make").value = b.make || "";
-    $("s_model").value = b.model || "";
-    $("s_year").value = b.year || "";
-    $("s_mileage").value = b.mileage || "";
-    $("s_purchase").value = b.purchase_price_gbp || "";
-    $("s_sale").value = b.sale_price_gbp || "";
-    $("s_transport").value = b.transport_cost || "";
-    $("s_prep").value = b.prep_cost || "";
-    $("s_currency").value = b.display_currency || "GBP";
-    $("s_status").value = b.status || "In Stock";
-    $("s_location").value = b.location || "";
-    $("s_country").value = b.country || "";
-    $("s_photo").value = b.photo_url || "";
-    $("s_notes").value = b.notes || "";
-    $("stockSaveBtn").textContent = "Update Stock Bike";
-    updateStockFxPreview();
-    $("stockCard").scrollIntoView({behavior:"smooth",block:"start"});
-  }
-
-  async function saveStock(){
-    const sale = num("s_sale") || 0;
-    const currency = $("s_currency").value;
-    let fx;
-    try { fx = await convertFromGBP(sale, currency); }
-    catch(e){ fx = { rate:1, converted:sale, date:new Date().toISOString().slice(0,10) }; }
-
-    const patch = {
-      stock_no: text("s_stock_no"),
-      registration: text("s_registration"),
-      make: text("s_make"),
-      model: text("s_model"),
-      year: num("s_year"),
-      mileage: num("s_mileage"),
-      purchase_price_gbp: num("s_purchase"),
-      sale_price_gbp: num("s_sale"),
-      transport_cost: num("s_transport"),
-      prep_cost: num("s_prep"),
-      base_currency: "GBP",
-      display_currency: currency,
-      exchange_rate: fx.rate,
-      sale_price_converted: fx.converted,
-      exchange_rate_date: fx.date,
-      location: text("s_location"),
-      country: text("s_country"),
-      status: $("s_status").value,
-      photo_url: text("s_photo"),
-      notes: text("s_notes")
-    };
-
-    if(!patch.make && !patch.model){ msg($("stockMsg"), "Enter at least make or model.", "bad"); return; }
-
-    $("stockSaveBtn").disabled = true;
-    const result = selectedStock
-      ? await sb.from("stock_bikes").update(patch).eq("id", selectedStock.id).select("*").single()
-      : await sb.from("stock_bikes").insert(patch).select("*").single();
-    $("stockSaveBtn").disabled = false;
-
-    if(result.error){ msg($("stockMsg"), "❌ Stock save failed.\n\n"+result.error.message, "bad"); return; }
-    msg($("stockMsg"), selectedStock ? "✅ Stock bike updated." : "✅ Stock bike added.", "ok");
-    clearStockForm();
-    await fetchStock();
-  }
-
-  async function deleteStock(id){
-    if(!confirm("Delete this stock bike?")) return;
-    const { error } = await sb.from("stock_bikes").delete().eq("id", id);
-    if(error){ msg($("stockMsg"), "❌ Delete failed.\n\n"+error.message, "bad"); return; }
-    await fetchStock();
-  }
-
-  function renderStock(){
-    $("stockRows").innerHTML = stockBikes.map(b => {
-      const bike = [b.registration, b.make, b.model, b.year].filter(Boolean).join(" | ") || "—";
-      const converted = b.display_currency && b.display_currency !== "GBP" ? formatAnyCurrency(Number(b.sale_price_converted||0), b.display_currency) : money(b.sale_price_gbp);
-      const cost = (Number(b.purchase_price_gbp)||0) + (Number(b.transport_cost)||0) + (Number(b.prep_cost)||0);
-      const profit = profitEstimate(b);
-      return `<tr data-stock-id="${esc(b.id)}">
-        <td>${esc(dt(b.created_at))}</td>
-        <td>${esc(b.stock_no || "—")}</td>
-        <td>${esc(bike)}<div class="small">${esc(b.location || "")}${b.country ? " • "+esc(b.country) : ""}</div></td>
-        <td>${esc(b.mileage ? b.mileage + " miles" : "—")}</td>
-        <td>${money(cost)}</td>
-        <td>${money(b.sale_price_gbp)}</td>
-        <td>${converted}<div class="small">Rate: ${esc(b.exchange_rate || 1)} ${esc(b.exchange_rate_date || "")}</div></td>
-        <td><span class="pill">${esc(b.status || "In Stock")}</span></td>
-        <td>${money(profit)}</td>
-        <td class="stockActions"><button class="btn outline small editStockBtn" data-stock-id="${esc(b.id)}">Edit</button><button class="btn outline small deleteStockBtn" data-stock-id="${esc(b.id)}">Delete</button></td>
-      </tr>`;
-    }).join("");
-    $("stockCountLine").textContent = `${stockBikes.length} stock bike(s)`;
-    document.querySelectorAll(".editStockBtn").forEach(btn => btn.addEventListener("click", ev => { ev.stopPropagation(); const b = stockBikes.find(x => String(x.id) === String(btn.dataset.stockId)); if(b) editStock(b); }));
-    document.querySelectorAll(".deleteStockBtn").forEach(btn => btn.addEventListener("click", ev => { ev.stopPropagation(); deleteStock(btn.dataset.stockId); }));
   }
 
   function csvCell(v){ const s=v==null?"":(typeof v==="object"?JSON.stringify(v):String(v)); return `"${s.replace(/"/g,'""')}"`; }
