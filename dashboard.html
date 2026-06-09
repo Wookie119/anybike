@@ -6,8 +6,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>AnyBike — Leads Dashboard</title>
 
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    integrity="sha256-p4NxAoJBhIINfQ7Po5nMTVKccK0pHRSgCJOIBV2I0M=" crossorigin=""/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
   <style>
     :root {
@@ -62,7 +61,83 @@
     .kv{border:1px solid var(--line);border-radius:14px;padding:10px;background:rgba(255,255,255,.03);min-width:0}
     .kv .k{color:var(--muted);font-size:12px;margin-bottom:4px}
     .kv .v{word-break:break-word;white-space:pre-wrap;font-size:13px}
-    #map{height:360px;border-radius:16px;margin-top:10px;background:#222;border:1px solid var(--line)}
+
+    /* Leaflet fallback CSS - keeps map tiles contained if CDN CSS is delayed/blocked */
+    .leaflet-container {
+      overflow: hidden;
+      position: relative;
+      touch-action: none;
+      background: #ddd;
+      outline-offset: 1px;
+    }
+    .leaflet-pane,
+    .leaflet-tile,
+    .leaflet-marker-icon,
+    .leaflet-marker-shadow,
+    .leaflet-tile-container,
+    .leaflet-pane > svg,
+    .leaflet-pane > canvas,
+    .leaflet-zoom-box,
+    .leaflet-image-layer,
+    .leaflet-layer {
+      position: absolute;
+      left: 0;
+      top: 0;
+    }
+    .leaflet-tile {
+      width: 256px;
+      height: 256px;
+      user-select: none;
+      -webkit-user-drag: none;
+    }
+    .leaflet-tile-pane {
+      z-index: 200;
+    }
+    .leaflet-overlay-pane {
+      z-index: 400;
+    }
+    .leaflet-marker-pane {
+      z-index: 600;
+    }
+    .leaflet-tooltip-pane {
+      z-index: 650;
+    }
+    .leaflet-popup-pane {
+      z-index: 700;
+    }
+    .leaflet-control {
+      position: relative;
+      z-index: 800;
+      pointer-events: auto;
+    }
+    .leaflet-top,
+    .leaflet-bottom {
+      position: absolute;
+      z-index: 1000;
+      pointer-events: none;
+    }
+    .leaflet-top { top: 0; }
+    .leaflet-right { right: 0; }
+    .leaflet-bottom { bottom: 0; }
+    .leaflet-left { left: 0; }
+    .leaflet-control-zoom {
+      border: 1px solid rgba(255,255,255,.25);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .leaflet-control-zoom a {
+      display: block;
+      width: 30px;
+      height: 30px;
+      line-height: 30px;
+      text-align: center;
+      background: #fff;
+      color: #111;
+      text-decoration: none;
+      font-weight: 900;
+    }
+
+    #map{height:420px;width:100%;border-radius:16px;margin-top:10px;background:#222;border:1px solid var(--line);overflow:hidden;position:relative}
     .mobileCards{display:none;flex-direction:column;gap:10px;margin-top:12px}
     .leadCard{border:1px solid var(--line);border-radius:16px;padding:12px;background:rgba(255,255,255,.035)}
     .divider{height:1px;background:var(--line);margin:12px 0}
@@ -222,8 +297,7 @@
   </div>
 </div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-  integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script type="module">
   import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -323,7 +397,10 @@
     ].join(" ").toLowerCase().includes(q));
     render(rows);
     renderStats();
-    renderMap(rows);
+    setTimeout(() => {
+      if (map) map.invalidateSize();
+      renderMap(rows);
+    }, 50);
     $("countLine").textContent = `${rows.length} lead(s) shown${rows.length!==leads.length ? " out of "+leads.length : ""}`;
     return rows;
   }
