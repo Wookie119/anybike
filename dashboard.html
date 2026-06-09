@@ -198,6 +198,28 @@
       </div>
     </div>
 
+    <div class="card" id="phoneQuoteCard">
+      <h2>Phone Currency Quote — quick client discussion tool</h2>
+      <div class="notice">Type a GBP amount, choose the client currency, and read the converted figure while speaking to the client. This is an estimate only; final invoice should be confirmed in GBP unless agreed otherwise.</div>
+      <div class="stockGrid" style="margin-top:12px;">
+        <input id="q_amount" type="number" placeholder="GBP amount to quote, e.g. 5995">
+        <select id="q_currency">
+          <option value="GBP">GBP - British Pound</option>
+          <option value="EUR">EUR - Euro</option>
+          <option value="USD">USD - US Dollar</option>
+          <option value="AUD">AUD - Australian Dollar</option>
+          <option value="NZD">NZD - New Zealand Dollar</option>
+          <option value="ZAR">ZAR - South African Rand</option>
+          <option value="AED">AED - UAE Dirham</option>
+          <option value="JPY">JPY - Japanese Yen</option>
+        </select>
+        <button id="q_convertBtn" class="btn">Convert</button>
+        <button id="q_copyBtn" class="btn outline">Copy wording</button>
+      </div>
+      <div id="q_result" style="margin-top:12px;font-size:28px;font-weight:900;">—</div>
+      <div id="q_rate" class="small" style="margin-top:6px;"></div>
+      <div id="q_msg" class="msg"></div>
+    </div>
 
 
     <div class="card" id="stockCard">
@@ -412,6 +434,63 @@
     const rate = data.rates?.[targetCurrency];
     if(!rate) throw new Error("No exchange rate returned");
     return { rate, converted:(amountGBP * rate), date:data.date };
+  }
+
+
+  const CURRENCY_META = {
+    GBP:{name:"British Pound", symbol:"£"},
+    EUR:{name:"Euro", symbol:"€"},
+    USD:{name:"US Dollar", symbol:"$"},
+    AUD:{name:"Australian Dollar", symbol:"A$"},
+    NZD:{name:"New Zealand Dollar", symbol:"NZ$"},
+    ZAR:{name:"South African Rand", symbol:"R"},
+    AED:{name:"UAE Dirham", symbol:"AED "},
+    JPY:{name:"Japanese Yen", symbol:"¥"}
+  };
+
+  function formatAnyCurrency(amount, currency){
+    const n = Number(amount) || 0;
+    const meta = CURRENCY_META[currency] || {symbol: currency + " "};
+    const decimals = currency === "JPY" ? 0 : 2;
+    return meta.symbol + n.toLocaleString(undefined,{minimumFractionDigits:decimals, maximumFractionDigits:decimals});
+  }
+
+  async function updatePhoneQuote(){
+    const amount = Number($("q_amount")?.value || 0);
+    const currency = $("q_currency")?.value || "GBP";
+    msg($("q_msg"), "", "");
+    if(!amount){
+      $("q_result").textContent = "—";
+      $("q_rate").textContent = "Enter a GBP amount to convert.";
+      return null;
+    }
+    try{
+      const fx = await convertFromGBP(amount, currency);
+      const gbpText = formatAnyCurrency(amount, "GBP") + " GBP";
+      const convertedText = formatAnyCurrency(fx.converted, currency) + " " + currency;
+      $("q_result").textContent = currency === "GBP" ? gbpText : `${gbpText} ≈ ${convertedText}`;
+      $("q_rate").textContent = `Rate used: 1 GBP = ${fx.rate} ${currency} | Date: ${fx.date}`;
+      return {amount, currency, fx, gbpText, convertedText};
+    }catch(e){
+      $("q_result").textContent = "Could not load rate";
+      $("q_rate").textContent = "";
+      msg($("q_msg"), "❌ Exchange-rate lookup failed. Please check internet connection and try again.", "bad");
+      return null;
+    }
+  }
+
+  async function copyPhoneQuote(){
+    const quote = await updatePhoneQuote();
+    if(!quote) return;
+    const text = quote.currency === "GBP"
+      ? `The price is ${quote.gbpText}.`
+      : `The price is ${quote.gbpText}, which is approximately ${quote.convertedText} at today's rate. Final invoice is confirmed in GBP unless agreed otherwise.`;
+    try{
+      await navigator.clipboard.writeText(text);
+      msg($("q_msg"), "✅ Quote wording copied.", "ok");
+    }catch(e){
+      msg($("q_msg"), text, "ok");
+    }
   }
 
   function initMap(){
@@ -797,6 +876,13 @@
   $("stockSaveBtn").addEventListener("click", saveStock);
   $("stockClearBtn").addEventListener("click", clearStockForm);
   $("stockRefreshBtn").addEventListener("click", fetchStock);
+
+  ["q_amount","q_currency"].forEach(id => {
+    $(id)?.addEventListener("input", updatePhoneQuote);
+    $(id)?.addEventListener("change", updatePhoneQuote);
+  });
+  $("q_convertBtn")?.addEventListener("click", updatePhoneQuote);
+  $("q_copyBtn")?.addEventListener("click", copyPhoneQuote);
   ["s_sale","s_currency"].forEach(id => {
     $(id).addEventListener("input", updateStockFxPreview);
     $(id).addEventListener("change", updateStockFxPreview);
