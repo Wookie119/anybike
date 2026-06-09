@@ -381,6 +381,7 @@
           <textarea id="a_notes" placeholder="Internal notes, offer reasoning, profit notes, export suitability..."></textarea>
           <div class="controls" style="margin-top:10px;">
             <button id="saveBtn" class="btn">Save</button>
+            <button id="convertToStockBtn" class="btn outline" style="display:none;">Convert to Stock</button>
             <button id="deleteBtn" class="btn outline">Delete</button>
           </div>
           <div id="detailMsg" class="msg"></div>
@@ -397,10 +398,7 @@
 
   const SUPABASE_URL = "https://tuehtnezhdnkqbbhttgp.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
-  const ALLOWED_EMAILS = [
-  "sales@anybike.co.uk",
-  "sellyourmotorbike@gmail.com"
-].map(x => x.toLowerCase().trim());
+  const ALLOWED_EMAILS = ["sales@anybike.co.uk"].map(x => x.toLowerCase().trim());
 
   const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   const $ = id => document.getElementById(id);
@@ -429,59 +427,15 @@
   }
   async function convertFromGBP(amountGBP, targetCurrency){
     const amount = Number(amountGBP) || 0;
-
     if(!amount || targetCurrency === "GBP"){
-      return {
-        rate: 1,
-        converted: amount,
-        date: new Date().toISOString().slice(0,10),
-        source: "GBP"
-      };
+      return { rate:1, converted:amount, date:new Date().toISOString().slice(0,10) };
     }
-
-    // Reliable public endpoint. No API key required.
-    // Fallback rates keep the phone quote tool usable if the live lookup is blocked/down.
-    const fallbackRates = {
-      EUR: 1.17,
-      USD: 1.34,
-      AUD: 2.06,
-      NZD: 2.25,
-      ZAR: 24.10,
-      AED: 4.91,
-      JPY: 194
-    };
-
-    try{
-      const res = await fetch(
-        `https://api.frankfurter.app/latest?from=GBP&to=${encodeURIComponent(targetCurrency)}`,
-        { cache: "no-store" }
-      );
-
-      if(!res.ok) throw new Error("Exchange-rate lookup failed");
-
-      const data = await res.json();
-      const rate = Number(data.rates?.[targetCurrency]);
-
-      if(!rate) throw new Error("No exchange rate returned");
-
-      return {
-        rate,
-        converted: amount * rate,
-        date: data.date || new Date().toISOString().slice(0,10),
-        source: "live"
-      };
-    }catch(err){
-      const fallback = fallbackRates[targetCurrency];
-      if(fallback){
-        return {
-          rate: fallback,
-          converted: amount * fallback,
-          date: new Date().toISOString().slice(0,10),
-          source: "fallback"
-        };
-      }
-      throw err;
-    }
+    const res = await fetch(`https://api.frankfurter.app/latest?from=GBP&to=${encodeURIComponent(targetCurrency)}`);
+    if(!res.ok) throw new Error("Exchange-rate lookup failed");
+    const data = await res.json();
+    const rate = Number(data.rates?.[targetCurrency]);
+    if(!rate) throw new Error("No exchange rate returned");
+    return { rate, converted:(amount * rate), date:data.date || new Date().toISOString().slice(0,10) };
   }
 
 
@@ -517,7 +471,7 @@
       const gbpText = formatAnyCurrency(amount, "GBP") + " GBP";
       const convertedText = formatAnyCurrency(fx.converted, currency) + " " + currency;
       $("q_result").textContent = currency === "GBP" ? gbpText : `${gbpText} ≈ ${convertedText}`;
-      $("q_rate").textContent = `Rate used: 1 GBP = ${fx.rate} ${currency} | Date: ${fx.date}${fx.source === "fallback" ? " | Fallback rate used" : ""}`;
+      $("q_rate").textContent = `Rate used: 1 GBP = ${fx.rate} ${currency} | Date: ${fx.date}`;
       return {amount, currency, fx, gbpText, convertedText};
     }catch(e){
       $("q_result").textContent = "Could not load rate";
@@ -719,6 +673,10 @@
     $("a_profit").value = l.estimated_profit || "";
     $("a_export").value = l.export_suitability || "";
     $("a_notes").value = l.internal_notes || "";
+    if($("convertToStockBtn")){
+      $("convertToStockBtn").style.display = l.lead_type === "Sell Bike" ? "inline-block" : "none";
+      $("convertToStockBtn").textContent = (l.status === "Purchased" || l.status === "Offer Accepted") ? "Convert Purchased Lead to Stock" : "Convert to Stock";
+    }
     $("detailPanel").scrollIntoView({behavior:"smooth",block:"start"});
   }
 
@@ -756,6 +714,114 @@
     applyFilters();
   }
 
+  function makeStockNoFromLead(l){
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth()+1).padStart(2,"0");
+    const day = String(d.getDate()).padStart(2,"0");
+    const shortId = String(l.id || Math.floor(Math.random()*999999)).replace(/[^a-zA-Z0-9]/g,"").slice(-6).toUpperCase();
+    return `AB-${y}${m}${day}-${shortId || Math.floor(Math.random()*999999)}`;
+  }
+
+  function leadStockNotes(l, purchasePrice, salePrice){
+    const parts = [
+      `Converted from AnyBike lead on ${new Date().toLocaleString("en-GB")}.`,
+      `Seller: ${l.name || ""}`.trim(),
+      `Phone/WhatsApp: ${[l.mobile,l.whatsapp].filter(Boolean).join(" / ") || ""}`.trim(),
+      `Email: ${l.email || ""}`.trim(),
+      `Seller type: ${l.seller_type || ""}`.trim(),
+      `Condition: ${[l.condition,l.service_history].filter(Boolean).join(" / ") || ""}`.trim(),
+      `Original asking price: ${money(l.asking_price)}`,
+      `Purchase price entered: ${money(purchasePrice)}`,
+      salePrice ? `Expected sale price entered: ${money(salePrice)}` : "",
+      l.notes ? `Customer notes: ${l.notes}` : "",
+      l.internal_notes ? `Internal notes: ${l.internal_notes}` : ""
+    ].filter(Boolean);
+    return parts.join("\n");
+  }
+
+  async function convertLeadToStock(){
+    if(!selected){ return; }
+    if(selected.lead_type !== "Sell Bike"){
+      msg($("detailMsg"), "Only Sell Bike leads can be converted into stock.", "bad");
+      return;
+    }
+
+    const defaultPurchase = selected.our_offer || selected.asking_price || "";
+    const purchaseInput = prompt("Purchase price paid / agreed in GBP", defaultPurchase);
+    if(purchaseInput === null) return;
+    const purchasePrice = Number(String(purchaseInput).replace(/[^0-9.-]/g,""));
+    if(!Number.isFinite(purchasePrice) || purchasePrice < 0){
+      msg($("detailMsg"), "Enter a valid purchase price before converting to stock.", "bad");
+      return;
+    }
+
+    const saleInput = prompt("Expected sale price in GBP (optional)", selected.estimated_resale || "");
+    if(saleInput === null) return;
+    const salePrice = saleInput === "" ? null : Number(String(saleInput).replace(/[^0-9.-]/g,""));
+    if(saleInput !== "" && (!Number.isFinite(salePrice) || salePrice < 0)){
+      msg($("detailMsg"), "Enter a valid sale price or leave it blank.", "bad");
+      return;
+    }
+
+    if(!confirm("Convert this lead into a stock bike? The lead will stay in Leads and a new bike will be added to Stock.")) return;
+
+    const stockRecord = {
+      stock_no: makeStockNoFromLead(selected),
+      registration: selected.registration || null,
+      make: selected.make || null,
+      model: selected.model || null,
+      year: selected.bike_year ? Number(selected.bike_year) : null,
+      mileage: selected.mileage ? Number(selected.mileage) : null,
+      purchase_price_gbp: purchasePrice,
+      sale_price_gbp: salePrice,
+      transport_cost: null,
+      prep_cost: null,
+      base_currency: "GBP",
+      display_currency: "GBP",
+      exchange_rate: 1,
+      sale_price_converted: salePrice,
+      exchange_rate_date: new Date().toISOString().slice(0,10),
+      location: selected.postcode || null,
+      country: selected.country || selected.detected_country || null,
+      status: "In Stock",
+      photo_url: null,
+      notes: leadStockNotes(selected, purchasePrice, salePrice)
+    };
+
+    $("convertToStockBtn").disabled = true;
+    const inserted = await sb.from("stock_bikes").insert(stockRecord).select("*").single();
+    $("convertToStockBtn").disabled = false;
+
+    if(inserted.error){
+      msg($("detailMsg"), "❌ Could not convert to stock.\n\n" + inserted.error.message, "bad");
+      return;
+    }
+
+    const stockNo = inserted.data?.stock_no || stockRecord.stock_no;
+    const noteLine = `Converted to stock ${stockNo} on ${new Date().toLocaleString("en-GB")}.`;
+    const updatedNotes = [selected.internal_notes, noteLine].filter(Boolean).join("\n");
+    const leadPatch = {
+      status: "Purchased",
+      our_offer: purchasePrice,
+      estimated_resale: salePrice,
+      internal_notes: updatedNotes
+    };
+
+    const leadUpdate = await sb.from("anybike_leads").update(leadPatch).eq("id", selected.id).select("*").single();
+    if(leadUpdate.error){
+      msg($("detailMsg"), `✅ Stock bike created (${stockNo}), but the lead note/status could not be updated.\n\n${leadUpdate.error.message}`, "bad");
+      await fetchStock();
+      return;
+    }
+
+    selected = leadUpdate.data;
+    leads = leads.map(l => l.id === selected.id ? selected : l);
+    msg($("detailMsg"), `✅ Converted to stock: ${stockNo}`, "ok");
+    await fetchStock();
+    applyFilters();
+    openLead(selected);
+  }
 
 
   async function fetchStock(){
@@ -772,7 +838,7 @@
     if(!sale){ preview.textContent = ""; return null; }
     try{
       const fx = await convertFromGBP(sale, currency);
-      preview.textContent = `Approx: ${formatAnyCurrency(fx.converted, currency)} | Rate ${fx.rate}${fx.source === "fallback" ? " | fallback" : ""}`;
+      preview.textContent = `Approx: ${formatAnyCurrency(fx.converted, currency)} | Rate ${fx.rate}`;
       return fx;
     }catch(e){
       preview.textContent = "Exchange-rate preview unavailable";
@@ -867,7 +933,7 @@
   function renderStock(){
     $("stockRows").innerHTML = stockBikes.map(b => {
       const bike = [b.registration, b.make, b.model, b.year].filter(Boolean).join(" | ") || "—";
-      const converted = b.display_currency && b.display_currency !== "GBP" ? formatAnyCurrency(Number(b.sale_price_converted || 0), b.display_currency) : money(b.sale_price_gbp);
+      const converted = b.display_currency && b.display_currency !== "GBP" ? formatAnyCurrency(Number(b.sale_price_converted||0), b.display_currency) : money(b.sale_price_gbp);
       const cost = (Number(b.purchase_price_gbp)||0) + (Number(b.transport_cost)||0) + (Number(b.prep_cost)||0);
       const profit = profitEstimate(b);
       return `<tr data-stock-id="${esc(b.id)}">
@@ -920,6 +986,7 @@
     $(id).addEventListener("change", applyFilters);
   });
   $("saveBtn").addEventListener("click", saveLead);
+  $("convertToStockBtn")?.addEventListener("click", convertLeadToStock);
   $("deleteBtn").addEventListener("click", deleteLead);
   $("stockSaveBtn").addEventListener("click", saveStock);
   $("stockClearBtn").addEventListener("click", clearStockForm);
