@@ -715,8 +715,8 @@
       $("convertToStockBtn").textContent = (l.status === "Purchased" || l.status === "Offer Accepted") ? "Convert Purchased Lead to Stock" : "Convert to Stock";
     }
     if($("convertToBuyerBtn")){
-      $("convertToBuyerBtn").style.display = l.lead_type === "Request Bike" ? "inline-block" : "none";
-      $("convertToBuyerBtn").textContent = "Convert Request to Buyer";
+      $("convertToBuyerBtn").style.display = "inline-block";
+      $("convertToBuyerBtn").textContent = l.lead_type === "Request Bike" ? "Convert Request to Buyer" : "Add Enquiry as Buyer";
     }
     $("detailPanel").scrollIntoView({behavior:"smooth",block:"start"});
   }
@@ -918,12 +918,9 @@
 
   async function convertLeadToBuyer(){
     if(!selected){ return; }
-    if(selected.lead_type !== "Request Bike"){
-      msg($("detailMsg"), "Only Request Bike leads can be converted into buyer profiles.", "bad");
-      return;
-    }
 
-    const pref = splitPreferredBike(selected.requested_bike);
+    const requestedText = selected.requested_bike || [selected.make, selected.model, selected.bike_year].filter(Boolean).join(" ") || selected.notes || "Buyer enquiry";
+    const pref = splitPreferredBike(requestedText);
     const buyerRecord = {
       source_lead_id: selected.id || null,
       name: selected.name || null,
@@ -932,16 +929,16 @@
       whatsapp: selected.whatsapp || null,
       country: selected.country || selected.detected_country || null,
       postcode: selected.postcode || null,
-      requested_bike: selected.requested_bike || null,
+      requested_bike: requestedText || null,
       preferred_make: selected.make || pref.make,
       preferred_model: selected.model || pref.model,
-      quantity: selected.quantity ? Number(selected.quantity) : null,
-      budget_gbp: selected.budget ? Number(selected.budget) : null,
+      quantity: selected.quantity ? Number(selected.quantity) : 1,
+      budget_gbp: selected.budget ? Number(selected.budget) : (selected.asking_price ? Number(selected.asking_price) : null),
       destination_port: selected.destination_port || null,
       shipping_company: selected.shipping_company || null,
       status: "Active Buyer",
       notes: [
-        `Converted from AnyBike Request Bike lead on ${new Date().toLocaleString("en-GB")}.`,
+        `Added to Buyer Database from AnyBike ${selected.lead_type || "enquiry"} lead on ${new Date().toLocaleString("en-GB")}.`,
         selected.notes ? `Customer notes: ${selected.notes}` : "",
         selected.internal_notes ? `Internal notes: ${selected.internal_notes}` : ""
       ].filter(Boolean).join("\n")
@@ -952,7 +949,10 @@
       return;
     }
 
-    if(!confirm("Convert this Request Bike lead into a worldwide buyer profile? The lead will stay in Leads.")) return;
+    const confirmText = selected.lead_type === "Request Bike"
+      ? "Convert this Request Bike lead into a worldwide buyer profile? The lead will stay in Leads."
+      : "Add this enquiry into the Worldwide Buyer Database? The original lead will stay in Leads.";
+    if(!confirm(confirmText)) return;
 
     $("convertToBuyerBtn").disabled = true;
     const inserted = await sb.from("buyer_profiles").insert(buyerRecord).select("*").single();
@@ -963,9 +963,9 @@
       return;
     }
 
-    const noteLine = `Converted to buyer profile on ${new Date().toLocaleString("en-GB")}.`;
+    const noteLine = `Added to buyer profile on ${new Date().toLocaleString("en-GB")}.`;
     const updatedNotes = [selected.internal_notes, noteLine].filter(Boolean).join("\n");
-    const leadPatch = { status: "Sourcing", internal_notes: updatedNotes };
+    const leadPatch = { status: selected.lead_type === "Request Bike" ? "Sourcing" : (selected.status || "Contacted"), internal_notes: updatedNotes };
     const leadUpdate = await sb.from("anybike_leads").update(leadPatch).eq("id", selected.id).select("*").single();
     if(leadUpdate.error){
       msg($("detailMsg"), `✅ Buyer profile created, but the lead note/status could not be updated.\n\n${leadUpdate.error.message}`, "bad");
