@@ -1,5 +1,6 @@
 
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -424,16 +425,60 @@
     return sale - purchase - transport - prep;
   }
   async function convertFromGBP(amountGBP, targetCurrency){
-    if(!amountGBP || targetCurrency === "GBP"){
-      return { rate:1, converted:amountGBP || 0, date:new Date().toISOString().slice(0,10) };
+    const amount = Number(amountGBP) || 0;
+
+    if(!amount || targetCurrency === "GBP"){
+      return {
+        rate: 1,
+        converted: amount,
+        date: new Date().toISOString().slice(0,10),
+        source: "GBP"
+      };
     }
-    const url = `https://api.frankfurter.dev/v2/rates?base=GBP&quotes=${encodeURIComponent(targetCurrency)}`;
-    const res = await fetch(url);
-    if(!res.ok) throw new Error("Exchange-rate lookup failed");
-    const data = await res.json();
-    const rate = data.rates?.[targetCurrency];
-    if(!rate) throw new Error("No exchange rate returned");
-    return { rate, converted:(amountGBP * rate), date:data.date };
+
+    // Reliable public endpoint. No API key required.
+    // Fallback rates keep the phone quote tool usable if the live lookup is blocked/down.
+    const fallbackRates = {
+      EUR: 1.17,
+      USD: 1.34,
+      AUD: 2.06,
+      NZD: 2.25,
+      ZAR: 24.10,
+      AED: 4.91,
+      JPY: 194
+    };
+
+    try{
+      const res = await fetch(
+        `https://api.frankfurter.app/latest?from=GBP&to=${encodeURIComponent(targetCurrency)}`,
+        { cache: "no-store" }
+      );
+
+      if(!res.ok) throw new Error("Exchange-rate lookup failed");
+
+      const data = await res.json();
+      const rate = Number(data.rates?.[targetCurrency]);
+
+      if(!rate) throw new Error("No exchange rate returned");
+
+      return {
+        rate,
+        converted: amount * rate,
+        date: data.date || new Date().toISOString().slice(0,10),
+        source: "live"
+      };
+    }catch(err){
+      const fallback = fallbackRates[targetCurrency];
+      if(fallback){
+        return {
+          rate: fallback,
+          converted: amount * fallback,
+          date: new Date().toISOString().slice(0,10),
+          source: "fallback"
+        };
+      }
+      throw err;
+    }
   }
 
 
@@ -469,7 +514,7 @@
       const gbpText = formatAnyCurrency(amount, "GBP") + " GBP";
       const convertedText = formatAnyCurrency(fx.converted, currency) + " " + currency;
       $("q_result").textContent = currency === "GBP" ? gbpText : `${gbpText} ≈ ${convertedText}`;
-      $("q_rate").textContent = `Rate used: 1 GBP = ${fx.rate} ${currency} | Date: ${fx.date}`;
+      $("q_rate").textContent = `Rate used: 1 GBP = ${fx.rate} ${currency} | Date: ${fx.date}${fx.source === "fallback" ? " | Fallback rate used" : ""}`;
       return {amount, currency, fx, gbpText, convertedText};
     }catch(e){
       $("q_result").textContent = "Could not load rate";
@@ -724,7 +769,7 @@
     if(!sale){ preview.textContent = ""; return null; }
     try{
       const fx = await convertFromGBP(sale, currency);
-      preview.textContent = `Approx: ${currency} ${fx.converted.toLocaleString(undefined,{maximumFractionDigits:2})} | Rate ${fx.rate}`;
+      preview.textContent = `Approx: ${formatAnyCurrency(fx.converted, currency)} | Rate ${fx.rate}${fx.source === "fallback" ? " | fallback" : ""}`;
       return fx;
     }catch(e){
       preview.textContent = "Exchange-rate preview unavailable";
@@ -819,7 +864,7 @@
   function renderStock(){
     $("stockRows").innerHTML = stockBikes.map(b => {
       const bike = [b.registration, b.make, b.model, b.year].filter(Boolean).join(" | ") || "—";
-      const converted = b.display_currency && b.display_currency !== "GBP" ? `${esc(b.display_currency)} ${Number(b.sale_price_converted||0).toLocaleString(undefined,{maximumFractionDigits:2})}` : money(b.sale_price_gbp);
+      const converted = b.display_currency && b.display_currency !== "GBP" ? formatAnyCurrency(Number(b.sale_price_converted || 0), b.display_currency) : money(b.sale_price_gbp);
       const cost = (Number(b.purchase_price_gbp)||0) + (Number(b.transport_cost)||0) + (Number(b.prep_cost)||0);
       const profit = profitEstimate(b);
       return `<tr data-stock-id="${esc(b.id)}">
