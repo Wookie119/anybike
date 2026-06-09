@@ -199,6 +199,37 @@
       </div>
     </div>
 
+    <div class="card" id="buyerCard">
+      <h2>Worldwide Buyer Database — Request Bike leads converted to buyers</h2>
+      <div class="notice">Convert Request Bike leads into reusable buyer profiles. Later this will allow stock bikes to be matched against buyers by make, model, country and budget.</div>
+      <div class="controls" style="margin-top:12px;">
+        <input id="buyerSearchBox" placeholder="Search buyer, country, requested bike, email, WhatsApp…" style="flex:1;min-width:260px">
+        <select id="buyerStatusFilter">
+          <option value="">All buyer statuses</option>
+          <option>Active Buyer</option>
+          <option>Contacted</option>
+          <option>Bike Found</option>
+          <option>Offer Sent</option>
+          <option>Deposit Paid</option>
+          <option>Completed</option>
+          <option>Lost</option>
+        </select>
+        <button id="buyerRefreshBtn" class="btn outline">Refresh Buyers</button>
+      </div>
+      <div id="buyerMsg" class="msg"></div>
+      <div class="tableWrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Created</th><th>Status</th><th>Country</th><th>Buyer</th><th>Wanted Bike</th><th>Qty</th><th>Budget</th><th>Destination</th><th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="buyerRows"></tbody>
+        </table>
+      </div>
+      <div id="buyerCountLine" class="small" style="margin-top:10px;"></div>
+    </div>
+
     <div class="card" id="phoneQuoteCard">
       <h2>Phone Currency Quote — quick client discussion tool</h2>
       <div class="notice">Type a GBP amount, choose the client currency, and read the converted figure while speaking to the client. This is an estimate only; final invoice should be confirmed in GBP unless agreed otherwise.</div>
@@ -382,6 +413,7 @@
           <div class="controls" style="margin-top:10px;">
             <button id="saveBtn" class="btn">Save</button>
             <button id="convertToStockBtn" class="btn outline" style="display:none;">Convert to Stock</button>
+            <button id="convertToBuyerBtn" class="btn outline" style="display:none;">Convert to Buyer</button>
             <button id="deleteBtn" class="btn outline">Delete</button>
           </div>
           <div id="detailMsg" class="msg"></div>
@@ -398,13 +430,17 @@
 
   const SUPABASE_URL = "https://tuehtnezhdnkqbbhttgp.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
-  const ALLOWED_EMAILS = ["sales@anybike.co.uk"].map(x => x.toLowerCase().trim());
+  const ALLOWED_EMAILS = [
+    "sales@anybike.co.uk",
+    "sellyourmotorbike@gmail.com"
+  ].map(x => x.toLowerCase().trim());
 
   const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   const $ = id => document.getElementById(id);
 
   let leads = [];
   let stockBikes = [];
+  let buyers = [];
   let selectedStock = null;
   let selected = null;
   let map, markers;
@@ -537,6 +573,7 @@
     setTimeout(() => map.invalidateSize(), 200);
     await fetchLeads();
     await fetchStock();
+    await fetchBuyers();
   }
 
   async function fetchLeads(){
@@ -676,6 +713,10 @@
     if($("convertToStockBtn")){
       $("convertToStockBtn").style.display = l.lead_type === "Sell Bike" ? "inline-block" : "none";
       $("convertToStockBtn").textContent = (l.status === "Purchased" || l.status === "Offer Accepted") ? "Convert Purchased Lead to Stock" : "Convert to Stock";
+    }
+    if($("convertToBuyerBtn")){
+      $("convertToBuyerBtn").style.display = l.lead_type === "Request Bike" ? "inline-block" : "none";
+      $("convertToBuyerBtn").textContent = "Convert Request to Buyer";
     }
     $("detailPanel").scrollIntoView({behavior:"smooth",block:"start"});
   }
@@ -819,6 +860,123 @@
     leads = leads.map(l => l.id === selected.id ? selected : l);
     msg($("detailMsg"), `✅ Converted to stock: ${stockNo}`, "ok");
     await fetchStock();
+    applyFilters();
+    openLead(selected);
+  }
+
+
+  function buyerText(b){ return [b.preferred_make, b.preferred_model].filter(Boolean).join(" ") || b.requested_bike || "—"; }
+
+  async function fetchBuyers(){
+    if(!$('buyerRows')) return;
+    const { data, error } = await sb.from("buyer_profiles").select("*").order("created_at", {ascending:false}).limit(2000);
+    if(error){ msg($("buyerMsg"), "❌ Could not load buyers.\n\n"+error.message, "bad"); return; }
+    buyers = data || [];
+    renderBuyers();
+  }
+
+  function renderBuyers(){
+    if(!$('buyerRows')) return;
+    const q = ($("buyerSearchBox")?.value || "").toLowerCase().trim();
+    const status = $("buyerStatusFilter")?.value || "";
+    let rows = buyers.slice();
+    if(status) rows = rows.filter(b => (b.status || "Active Buyer") === status);
+    if(q) rows = rows.filter(b => [
+      b.status,b.name,b.email,b.mobile,b.whatsapp,b.country,b.postcode,b.requested_bike,b.preferred_make,b.preferred_model,
+      b.quantity,b.budget_gbp,b.destination_port,b.shipping_company,b.notes
+    ].join(" ").toLowerCase().includes(q));
+
+    $("buyerRows").innerHTML = rows.map(b => `
+      <tr data-buyer-id="${esc(b.id)}">
+        <td>${esc(dt(b.created_at))}</td>
+        <td><span class="pill">${esc(b.status || "Active Buyer")}</span></td>
+        <td>${esc(b.country || "—")}<div class="small">${esc(b.postcode || "")}</div></td>
+        <td><strong>${esc(b.name || "—")}</strong><div class="small">${esc(b.mobile || b.whatsapp || "")}</div><div class="small">${esc(b.email || "")}</div></td>
+        <td>${esc(buyerText(b))}</td>
+        <td>${esc(b.quantity || "—")}</td>
+        <td>${money(b.budget_gbp)}</td>
+        <td>${esc([b.destination_port,b.shipping_company].filter(Boolean).join(" / ") || "—")}</td>
+        <td><button class="btn outline small deleteBuyerBtn" data-buyer-id="${esc(b.id)}">Delete</button></td>
+      </tr>`).join("");
+    $("buyerCountLine").textContent = `${rows.length} buyer profile(s) shown${rows.length !== buyers.length ? " out of "+buyers.length : ""}`;
+    document.querySelectorAll(".deleteBuyerBtn").forEach(btn => btn.addEventListener("click", ev => { ev.stopPropagation(); deleteBuyer(btn.dataset.buyerId); }));
+  }
+
+  async function deleteBuyer(id){
+    if(!confirm("Delete this buyer profile?")) return;
+    const { error } = await sb.from("buyer_profiles").delete().eq("id", id);
+    if(error){ msg($("buyerMsg"), "❌ Delete failed.\n\n"+error.message, "bad"); return; }
+    await fetchBuyers();
+  }
+
+  function splitPreferredBike(textValue){
+    const raw = String(textValue || "").trim();
+    if(!raw) return {make:null, model:null};
+    const parts = raw.split(/\s+/);
+    return { make: parts[0] || null, model: parts.slice(1).join(" ") || null };
+  }
+
+  async function convertLeadToBuyer(){
+    if(!selected){ return; }
+    if(selected.lead_type !== "Request Bike"){
+      msg($("detailMsg"), "Only Request Bike leads can be converted into buyer profiles.", "bad");
+      return;
+    }
+
+    const pref = splitPreferredBike(selected.requested_bike);
+    const buyerRecord = {
+      source_lead_id: selected.id || null,
+      name: selected.name || null,
+      email: selected.email || null,
+      mobile: selected.mobile || null,
+      whatsapp: selected.whatsapp || null,
+      country: selected.country || selected.detected_country || null,
+      postcode: selected.postcode || null,
+      requested_bike: selected.requested_bike || null,
+      preferred_make: selected.make || pref.make,
+      preferred_model: selected.model || pref.model,
+      quantity: selected.quantity ? Number(selected.quantity) : null,
+      budget_gbp: selected.budget ? Number(selected.budget) : null,
+      destination_port: selected.destination_port || null,
+      shipping_company: selected.shipping_company || null,
+      status: "Active Buyer",
+      notes: [
+        `Converted from AnyBike Request Bike lead on ${new Date().toLocaleString("en-GB")}.`,
+        selected.notes ? `Customer notes: ${selected.notes}` : "",
+        selected.internal_notes ? `Internal notes: ${selected.internal_notes}` : ""
+      ].filter(Boolean).join("\n")
+    };
+
+    if(!buyerRecord.name && !buyerRecord.email && !buyerRecord.mobile && !buyerRecord.whatsapp){
+      msg($("detailMsg"), "This request needs at least a name, email or phone number before it can become a buyer profile.", "bad");
+      return;
+    }
+
+    if(!confirm("Convert this Request Bike lead into a worldwide buyer profile? The lead will stay in Leads.")) return;
+
+    $("convertToBuyerBtn").disabled = true;
+    const inserted = await sb.from("buyer_profiles").insert(buyerRecord).select("*").single();
+    $("convertToBuyerBtn").disabled = false;
+
+    if(inserted.error){
+      msg($("detailMsg"), "❌ Could not convert to buyer.\n\n" + inserted.error.message, "bad");
+      return;
+    }
+
+    const noteLine = `Converted to buyer profile on ${new Date().toLocaleString("en-GB")}.`;
+    const updatedNotes = [selected.internal_notes, noteLine].filter(Boolean).join("\n");
+    const leadPatch = { status: "Sourcing", internal_notes: updatedNotes };
+    const leadUpdate = await sb.from("anybike_leads").update(leadPatch).eq("id", selected.id).select("*").single();
+    if(leadUpdate.error){
+      msg($("detailMsg"), `✅ Buyer profile created, but the lead note/status could not be updated.\n\n${leadUpdate.error.message}`, "bad");
+      await fetchBuyers();
+      return;
+    }
+
+    selected = leadUpdate.data;
+    leads = leads.map(l => l.id === selected.id ? selected : l);
+    msg($("detailMsg"), "✅ Converted to buyer profile.", "ok");
+    await fetchBuyers();
     applyFilters();
     openLead(selected);
   }
@@ -979,7 +1137,7 @@
   });
 
   $("signOutBtn").addEventListener("click", () => sb.auth.signOut());
-  $("refreshBtn").addEventListener("click", async () => { await fetchLeads(); await fetchStock(); });
+  $("refreshBtn").addEventListener("click", async () => { await fetchLeads(); await fetchStock(); await fetchBuyers(); });
   $("exportBtn").addEventListener("click", exportCsv);
   ["searchBox","filterType","filterStatus","filterCountry"].forEach(id => {
     $(id).addEventListener("input", applyFilters);
@@ -987,6 +1145,7 @@
   });
   $("saveBtn").addEventListener("click", saveLead);
   $("convertToStockBtn")?.addEventListener("click", convertLeadToStock);
+  $("convertToBuyerBtn")?.addEventListener("click", convertLeadToBuyer);
   $("deleteBtn").addEventListener("click", deleteLead);
   $("stockSaveBtn").addEventListener("click", saveStock);
   $("stockClearBtn").addEventListener("click", clearStockForm);
@@ -1002,6 +1161,12 @@
     $(id).addEventListener("input", updateStockFxPreview);
     $(id).addEventListener("change", updateStockFxPreview);
   });
+
+  ["buyerSearchBox","buyerStatusFilter"].forEach(id => {
+    $(id)?.addEventListener("input", renderBuyers);
+    $(id)?.addEventListener("change", renderBuyers);
+  });
+  $("buyerRefreshBtn")?.addEventListener("click", fetchBuyers);
 
   loadSession();
 </script>
