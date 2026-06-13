@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Register Free | AnyBike</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--red:#ed1c24;--black:#050505;--line:rgba(255,255,255,.14)}
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:linear-gradient(135deg,#050505,#111);color:#fff}
+header{background:rgba(5,5,5,.92);border-bottom:1px solid var(--line);padding:16px 22px}
+.header-inner{max-width:1100px;margin:auto;display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap}
+.logo{width:220px;background:#fff;border-radius:12px;padding:5px}
+nav a{color:#ddd;text-decoration:none;font-weight:800;margin-left:18px}
+nav a:hover{color:#fff}
+.wrap{max-width:760px;margin:55px auto;padding:0 18px}
+.card{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:24px;padding:28px;box-shadow:0 24px 70px rgba(0,0,0,.45)}
+h1{margin:0 0 10px;font-size:42px}
+p{color:#d0d0d0}
+label{display:block;font-weight:900;margin:14px 0 6px}
+input,select{width:100%;padding:14px;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.08);color:#fff;font-size:16px}
+select option{color:#111}
+button{width:100%;margin-top:18px;padding:14px;border:0;border-radius:999px;background:var(--red);color:#fff;font-weight:900;font-size:16px;cursor:pointer}
+button.secondary{background:#fff;color:#111}
+.msg{margin-top:14px;font-weight:800;white-space:pre-wrap}
+.ok{color:#36d37e}.bad{color:#ff7676}
+.hidden{display:none}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <a href="index.html"><img class="logo" src="anybike-logo-new.jpg" alt="AnyBike"></a>
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="available-stock.html">Available Stock</a>
+      <a href="index.html#contact">Contact</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="card">
+    <h1>Register Free</h1>
+    <p>Create your AnyBike account to save bikes, build a watchlist and receive matching stock alerts later.</p>
+
+    <div id="registerBox">
+      <label>Full name</label>
+      <input id="fullName" placeholder="Your name">
+
+      <label>Email</label>
+      <input id="email" type="email" placeholder="you@example.com">
+
+      <label>Password</label>
+      <input id="password" type="password" placeholder="Create a password">
+
+      <label>Country</label>
+      <select id="country">
+        <option value="">Select country</option>
+        <option>United Kingdom</option>
+        <option>Germany</option>
+        <option>France</option>
+        <option>Spain</option>
+        <option>United Arab Emirates</option>
+        <option>Australia</option>
+        <option>New Zealand</option>
+        <option>South Africa</option>
+        <option>United States</option>
+        <option>Canada</option>
+        <option>Other</option>
+      </select>
+
+      <label>Preferred currency</label>
+      <select id="currency">
+        <option value="GBP">GBP £</option>
+        <option value="EUR">EUR €</option>
+        <option value="USD">USD $</option>
+        <option value="AUD">AUD A$</option>
+        <option value="NZD">NZD NZ$</option>
+        <option value="CAD">CAD C$</option>
+        <option value="AED">AED د.إ</option>
+      </select>
+
+      <label>Preferred language</label>
+      <select id="language">
+        <option value="en">English</option>
+        <option value="de">Deutsch</option>
+        <option value="fr">Français</option>
+        <option value="es">Español</option>
+        <option value="ar">العربية</option>
+      </select>
+
+      <button onclick="register()">Create Free Account</button>
+      <button class="secondary" onclick="login()">Already registered? Login</button>
+    </div>
+
+    <div id="loggedInBox" class="hidden">
+      <h2>Account ready</h2>
+      <p>You are logged in. Next we will add your watchlist and interested makes/models.</p>
+      <button onclick="location.href='available-stock.html'">View Available Stock</button>
+      <button class="secondary" onclick="logout()">Logout</button>
+    </div>
+
+    <div id="msg" class="msg"></div>
+  </section>
+</main>
+
+<script>
+const SUPABASE_URL = "https://tuehtnezhdnkqbbhttgp.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+function showMsg(text, ok=true){
+  const el=document.getElementById("msg");
+  el.textContent=text;
+  el.className="msg " + (ok ? "ok" : "bad");
+}
+
+async function checkSession(){
+  const {data:{user}} = await sb.auth.getUser();
+  if(user){
+    document.getElementById("registerBox").classList.add("hidden");
+    document.getElementById("loggedInBox").classList.remove("hidden");
+  }
+}
+
+async function register(){
+  const email=document.getElementById("email").value.trim();
+  const password=document.getElementById("password").value;
+  const full_name=document.getElementById("fullName").value.trim();
+  const country=document.getElementById("country").value;
+  const preferred_currency=document.getElementById("currency").value;
+  const preferred_language=document.getElementById("language").value;
+
+  if(!email || !password || !full_name){
+    showMsg("Please enter name, email and password.", false);
+    return;
+  }
+
+  showMsg("Creating account...");
+
+  const {data,error} = await sb.auth.signUp({email,password});
+
+  if(error){
+    showMsg(error.message, false);
+    return;
+  }
+
+  const user = data.user;
+
+  if(!user){
+    showMsg("Account created. Please check your email to confirm registration.");
+    return;
+  }
+
+  const {error:profileError} = await sb.from("customer_profiles").insert({
+    id:user.id,
+    email,
+    full_name,
+    country,
+    preferred_currency,
+    preferred_language
+  });
+
+  if(profileError){
+    showMsg("Account created, but profile could not be saved: " + profileError.message, false);
+    return;
+  }
+
+  showMsg("Account created successfully.");
+  checkSession();
+}
+
+async function login(){
+  const email=document.getElementById("email").value.trim();
+  const password=document.getElementById("password").value;
+
+  if(!email || !password){
+    showMsg("Enter email and password to login.", false);
+    return;
+  }
+
+  const {error} = await sb.auth.signInWithPassword({email,password});
+
+  if(error){
+    showMsg(error.message, false);
+    return;
+  }
+
+  showMsg("Logged in successfully.");
+  checkSession();
+}
+
+async function logout(){
+  await sb.auth.signOut();
+  location.reload();
+}
+
+checkSession();
+</script>
+
+</body>
+</html>
