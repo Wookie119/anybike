@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>My Watchlist | AnyBike</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+:root{
+  --red:#ed1c24;
+  --black:#050505;
+  --line:rgba(255,255,255,.13);
+}
+
+*{box-sizing:border-box}
+
+body{
+  margin:0;
+  font-family:Arial,Helvetica,sans-serif;
+  background:linear-gradient(135deg,#050505 0%,#090909 60%,#111111 100%);
+  color:#fff;
+  min-height:100vh;
+}
+
+body:before{
+  content:"";
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  background-image:
+    linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);
+  background-size:48px 48px;
+  opacity:.45;
+  z-index:-1;
+}
+
+header{
+  background:rgba(5,5,5,.92);
+  backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--line);
+  position:sticky;
+  top:0;
+  z-index:20;
+}
+
+.header-inner{
+  max-width:1400px;
+  margin:auto;
+  padding:10px 18px;
+  display:grid;
+  grid-template-columns:220px 1fr auto;
+  align-items:center;
+  gap:18px;
+}
+
+.logo{
+  width:210px;
+  background:#fff;
+  border-radius:12px;
+  padding:5px;
+}
+
+nav{
+  display:flex;
+  gap:18px;
+  justify-content:center;
+  flex-wrap:wrap;
+}
+
+nav a{
+  color:#d8d8d8;
+  text-decoration:none;
+  font-weight:800;
+  font-size:14px;
+}
+
+nav a:hover,
+nav a.active{
+  color:var(--red);
+}
+
+#userArea{
+  white-space:nowrap;
+  text-align:right;
+  font-weight:800;
+  font-size:14px;
+}
+
+#userArea a{
+  color:#fff;
+  text-decoration:none;
+}
+
+#userArea a:hover{
+  color:var(--red);
+}
+
+.user-name{
+  color:var(--red);
+  font-weight:900;
+}
+
+.hero{
+  text-align:center;
+  padding:55px 18px 30px;
+}
+
+.hero h1{
+  margin:0 0 10px;
+  font-size:clamp(36px,5vw,60px);
+}
+
+.hero span{
+  color:var(--red);
+}
+
+.hero p{
+  margin:0 auto;
+  max-width:760px;
+  color:#ddd;
+  font-size:18px;
+}
+
+.wrap{
+  max-width:1180px;
+  margin:auto;
+  padding:24px 18px 50px;
+}
+
+.status{
+  background:rgba(255,255,255,.055);
+  border:1px solid var(--line);
+  border-radius:18px;
+  padding:18px;
+  margin-bottom:22px;
+  color:#ddd;
+}
+
+.grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:20px;
+}
+
+.card{
+  background:rgba(17,17,17,.92);
+  border:1px solid rgba(255,255,255,.1);
+  border-radius:18px;
+  overflow:hidden;
+  box-shadow:0 18px 48px rgba(0,0,0,.32);
+  display:flex;
+  flex-direction:column;
+}
+
+.placeholder{
+  height:210px;
+  background:linear-gradient(135deg,#151515,#242424);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  position:relative;
+  border-bottom:1px solid rgba(255,255,255,.08);
+  text-align:center;
+}
+
+.placeholder img{
+  position:absolute;
+  width:75%;
+  max-width:285px;
+  opacity:.12;
+  background:#fff;
+  border-radius:14px;
+  padding:8px;
+}
+
+.placeholder strong{
+  position:relative;
+  z-index:2;
+  font-size:20px;
+  text-transform:uppercase;
+}
+
+.real-image{
+  width:100%;
+  height:210px;
+  object-fit:cover;
+  display:block;
+}
+
+.body{
+  padding:18px;
+  display:flex;
+  flex-direction:column;
+  flex:1;
+}
+
+.badge{
+  width:max-content;
+  background:rgba(237,28,36,.14);
+  border:1px solid rgba(237,28,36,.5);
+  border-radius:999px;
+  padding:6px 10px;
+  font-size:12px;
+  font-weight:900;
+  margin-bottom:10px;
+}
+
+h2{
+  margin:0 0 8px;
+  font-size:23px;
+  min-height:54px;
+}
+
+.variant{
+  color:#dedede;
+  font-weight:700;
+  min-height:24px;
+  margin-bottom:8px;
+}
+
+.meta{
+  color:#cfcfcf;
+  line-height:1.65;
+}
+
+.price{
+  color:var(--red);
+  font-size:28px;
+  font-weight:950;
+  margin:14px 0 4px;
+}
+
+.note{
+  color:#bdbdbd;
+  font-size:12px;
+  margin-bottom:14px;
+}
+
+.actions{
+  display:grid;
+  gap:9px;
+  margin-top:auto;
+}
+
+button,
+.btn{
+  width:100%;
+  border:0;
+  border-radius:12px;
+  padding:13px 12px;
+  font-size:15px;
+  font-weight:900;
+  cursor:pointer;
+  text-align:center;
+  text-decoration:none;
+  display:block;
+}
+
+.primary{
+  background:var(--red);
+  color:#fff;
+}
+
+.light{
+  background:#fff;
+  color:#111;
+}
+
+.outline{
+  background:transparent;
+  color:#fff;
+  border:2px solid rgba(255,255,255,.35);
+}
+
+.empty{
+  text-align:center;
+  background:rgba(255,255,255,.055);
+  border:1px solid var(--line);
+  border-radius:22px;
+  padding:34px;
+}
+
+.empty h2{
+  min-height:auto;
+}
+
+.footer{
+  background:rgba(5,5,5,.95);
+  border-top:1px solid rgba(255,255,255,.1);
+  text-align:center;
+  padding:32px 16px;
+}
+
+.footer strong{
+  display:block;
+  font-size:20px;
+  letter-spacing:1px;
+  margin-bottom:8px;
+}
+
+.footer span{
+  color:#ddd;
+}
+
+@media(max-width:950px){
+  .grid{grid-template-columns:1fr 1fr}
+  .header-inner{grid-template-columns:1fr;text-align:center}
+  nav{justify-content:center}
+  #userArea{text-align:center}
+}
+
+@media(max-width:650px){
+  .grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <div class="header-inner">
+    <a href="index.html"><img class="logo" src="anybike-logo-new.jpg" alt="AnyBike"></a>
+
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="available-stock.html">Available Stock</a>
+      <a class="active" href="my-watchlist.html">My Watchlist</a>
+      <a href="index.html#sellbike">Sell Your Motorcycle</a>
+      <a href="index.html#requestbike">Request a Motorcycle</a>
+      <a href="index.html#contact">Contact</a>
+    </nav>
+
+    <div id="userArea">Checking login...</div>
+  </div>
+</header>
+
+<section class="hero">
+  <h1>My <span>Watchlist</span></h1>
+  <p>Your saved motorcycles. Use this page to review bikes you are interested in and contact AnyBike when ready.</p>
+</section>
+
+<main class="wrap">
+  <div class="status" id="statusBox">Loading your watchlist...</div>
+  <section class="grid" id="grid"></section>
+</main>
+
+<footer class="footer">
+  <strong>ANYBIKE.CO.UK</strong>
+  <span>UK Motorcycle Export Specialists — Worldwide sourcing and export services.</span>
+</footer>
+
+<script>
+const SUPABASE_URL = "https://tuehtnezhdnkqbbhttgp.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const logoFile = "anybike-logo-new.jpg";
+let currentUser = null;
+let watchlistRows = [];
+
+function safe(v){return v===undefined || v===null ? "" : String(v)}
+
+function money(gbp){
+  const n = Number(gbp || 0);
+  if(!n) return "Price on request";
+  return "£" + Math.round(n).toLocaleString("en-GB");
+}
+
+function miles(n){
+  return n ? Number(n).toLocaleString("en-GB") + " miles" : "Mileage TBC";
+}
+
+async function loadUser(){
+  const { data:{ user } } = await sb.auth.getUser();
+  currentUser = user || null;
+
+  const userArea = document.getElementById("userArea");
+
+  if(!currentUser){
+    userArea.innerHTML = `<a href="customer-register.html">Login / Register</a>`;
+    document.getElementById("statusBox").innerHTML =
+      `Please <a href="customer-register.html" style="color:#ed1c24;font-weight:900">login or register</a> to view your watchlist.`;
+    document.getElementById("grid").innerHTML = "";
+    return false;
+  }
+
+  const { data:profile } = await sb
+    .from("customer_profiles")
+    .select("full_name")
+    .eq("id", currentUser.id)
+    .maybeSingle();
+
+  const name = profile?.full_name || currentUser.email;
+
+  userArea.innerHTML = `
+    👤 <span class="user-name">${name}</span>
+    |
+    <a href="#" onclick="logout()">Logout</a>
+  `;
+
+  return true;
+}
+
+async function logout(){
+  await sb.auth.signOut();
+  location.href = "available-stock.html";
+}
+
+async function loadWatchlist(){
+  if(!currentUser) return;
+
+  document.getElementById("statusBox").textContent = "Loading your saved bikes...";
+
+  const { data, error } = await sb
+    .from("customer_watchlist")
+    .select(`
+      id,
+      created_at,
+      bike_id,
+      available_stock (
+        id,
+        make,
+        model,
+        variant,
+        year,
+        mileage,
+        engine_cc,
+        price_gbp,
+        colour,
+        status,
+        image_url
+      )
+    `)
+    .eq("customer_id", currentUser.id)
+    .order("created_at",{ascending:false});
+
+  if(error){
+    console.error(error);
+    document.getElementById("statusBox").textContent =
+      "Could not load watchlist: " + error.message;
+    return;
+  }
+
+  watchlistRows = data || [];
+  render();
+}
+
+function render(){
+  const validRows = watchlistRows.filter(row => row.available_stock);
+
+  if(!validRows.length){
+    document.getElementById("statusBox").innerHTML =
+      `You have no bikes in your watchlist yet. <a href="available-stock.html" style="color:#ed1c24;font-weight:900">Browse Available Stock</a>`;
+    document.getElementById("grid").innerHTML = "";
+    return;
+  }
+
+  document.getElementById("statusBox").textContent =
+    `${validRows.length} bike${validRows.length===1 ? "" : "s"} saved in your watchlist.`;
+
+  document.getElementById("grid").innerHTML =
+    validRows.map(row => cardHTML(row)).join("");
+}
+
+function imageHTML(b){
+  if(b.image_url){
+    return `<img class="real-image" src="${b.image_url}" alt="${safe(b.make)} ${safe(b.model)}" onerror="this.outerHTML=placeholderHTML()">`;
+  }
+
+  return placeholderHTML();
+}
+
+function placeholderHTML(){
+  return `
+    <div class="placeholder">
+      <img src="${logoFile}" alt="">
+      <strong>Register Free<br>To View Images</strong>
+    </div>
+  `;
+}
+
+function cardHTML(row){
+  const b = row.available_stock;
+  const title = `${safe(b.make)} ${safe(b.model)}`;
+  const variant = safe(b.variant) || "&nbsp;";
+  const yearText = b.year || "Year TBC";
+  const ccText = b.engine_cc ? `${b.engine_cc}cc` : "CC TBC";
+
+  return `
+    <article class="card">
+      ${imageHTML(b)}
+
+      <div class="body">
+        <span class="badge">${safe(b.status) || "Available"}</span>
+
+        <h2>${title}</h2>
+        <div class="variant">${variant}</div>
+
+        <div class="meta">
+          <div>${yearText} | ${miles(b.mileage)} | ${ccText}</div>
+          ${b.colour ? `<div>${safe(b.colour)}</div>` : ""}
+        </div>
+
+        <div class="price">${money(b.price_gbp)}</div>
+        <div class="note">Base motorcycle price. Export costs quoted separately.</div>
+
+        <div class="actions">
+          <button class="primary" onclick="enquire('${b.id}')">Request More Information</button>
+          <button class="light" onclick="buyBike('${b.id}')">I Would Like To Buy This Bike</button>
+          <button class="outline" onclick="removeWatch('${row.id}')">Remove From Watchlist</button>
+        </div>
+      </div>
+    </article>
+  `;
+}
+
+function findBikeFromWatchlist(id){
+  const row = watchlistRows.find(r => String(r.bike_id) === String(id));
+  return row?.available_stock || null;
+}
+
+function enquire(id){
+  const b = findBikeFromWatchlist(id);
+  if(!b) return;
+
+  const subject = encodeURIComponent(`Request more information: ${safe(b.make)} ${safe(b.model)}`);
+  const body = encodeURIComponent(
+`Hello AnyBike,
+
+I am interested in this bike from my watchlist:
+
+${safe(b.make)} ${safe(b.model)}
+${safe(b.variant)}
+${b.year || ""}
+${money(b.price_gbp)}
+
+Destination country:
+Name:
+Phone:
+
+Thanks`
+  );
+
+  window.location.href = `mailto:sales@anybike.co.uk?subject=${subject}&body=${body}`;
+}
+
+function buyBike(id){
+  const b = findBikeFromWatchlist(id);
+  if(!b) return;
+
+  const subject = encodeURIComponent(`I would like to buy this bike: ${safe(b.make)} ${safe(b.model)}`);
+  const body = encodeURIComponent(
+`Hello AnyBike,
+
+I would like to buy this bike from my watchlist:
+
+${safe(b.make)} ${safe(b.model)}
+${safe(b.variant)}
+${b.year || ""}
+${money(b.price_gbp)}
+
+Destination country:
+Name:
+Phone:
+
+Thanks`
+  );
+
+  window.location.href = `mailto:sales@anybike.co.uk?subject=${subject}&body=${body}`;
+}
+
+async function removeWatch(rowId){
+  const { error } = await sb
+    .from("customer_watchlist")
+    .delete()
+    .eq("id", rowId)
+    .eq("customer_id", currentUser.id);
+
+  if(error){
+    alert("Could not remove bike: " + error.message);
+    return;
+  }
+
+  watchlistRows = watchlistRows.filter(row => String(row.id) !== String(rowId));
+  render();
+}
+
+(async function init(){
+  const loggedIn = await loadUser();
+  if(loggedIn){
+    await loadWatchlist();
+  }
+})();
+</script>
+
+</body>
+</html>
