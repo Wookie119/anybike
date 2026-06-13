@@ -89,32 +89,12 @@ nav a{
   white-space:nowrap;
 }
 
-nav a:hover,
-nav a.active{
-  color:var(--red2);
-}
-
 #userArea{
   white-space:nowrap;
   text-align:right;
   font-weight:700;
   color:#fff;
   font-size:14px;
-}
-
-#userArea a{
-  color:#ffffff;
-  text-decoration:none;
-  font-weight:800;
-}
-
-#userArea a:hover{
-  color:var(--red2);
-}
-
-#userArea .user-name{
-  color:var(--red2);
-  font-weight:900;
 }
 .hero{
   background:transparent;
@@ -529,13 +509,12 @@ button.watch.active{
     <nav>
   <a href="index.html">Home</a>
   <a class="active" href="available-stock.html">Available Stock</a>
-  <a href="my-watchlist.html">My Watchlist</a>
-  <a href="my-searches.html">Saved Searches</a>
   <a href="index.html#sellbike">Sell Your Motorcycle</a>
   <a href="index.html#requestbike">Request a Motorcycle</a>
+  <a href="index.html#services">Export Services</a>
   <a href="index.html#contact">Contact</a>
 </nav>
-<div id="userArea"></div>
+<div id="userArea" style="color:white;font-weight:700"></div>
   </div>
 </header>
 
@@ -754,9 +733,13 @@ const words = {
   }
 };
 
-function lang(){return document.getElementById("language").value}
+function lang(){
+  return localStorage.getItem("anybike_language") || document.getElementById("language").value || "en";
+}
 function t(k){return words[lang()][k] || words.en[k]}
-function currency(){return document.getElementById("currency").value}
+function currency(){
+  return localStorage.getItem("anybike_currency") || document.getElementById("currency").value || "GBP";
+}
 function safe(v){return v===undefined||v===null ? "" : String(v)}
 
 function money(gbp){
@@ -1135,7 +1118,7 @@ async function loadUserInfo(){
   const name = profile?.full_name || currentUser.email;
 
   userArea.innerHTML = `
-    👤 <span class="user-name">${name}</span>
+    <span>👤 ${name}</span>
     <span>|</span>
     <a href="#" onclick="logout()">Logout</a>
   `;
@@ -1228,10 +1211,21 @@ document.getElementById("make").addEventListener("change",()=>{
 });
 
 ["currency","language"].forEach(id=>{
-  document.getElementById(id).addEventListener("change",render);
+  document.getElementById(id).addEventListener("change",()=>{
+    if(id === "currency"){
+      localStorage.setItem("anybike_currency", document.getElementById("currency").value);
+    }
+    if(id === "language"){
+      localStorage.setItem("anybike_language", document.getElementById("language").value);
+    }
+    render();
+  });
 });
 
 (async function init(){
+  document.getElementById("currency").value = localStorage.getItem("anybike_currency") || "GBP";
+  document.getElementById("language").value = localStorage.getItem("anybike_language") || "en";
+
   applyLanguage();
   await loadUserInfo();
   await loadWatchlist();
