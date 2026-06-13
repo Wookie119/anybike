@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -94,6 +95,25 @@ nav a.active{
 nav a.active{
   color:var(--red2);
 }
+
+#userArea{
+  color:#fff;
+  font-weight:800;
+  white-space:nowrap;
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+
+#userArea a{
+  color:#fff;
+  text-decoration:none;
+}
+
+#userArea a:hover{
+  color:var(--red2);
+}
+
 
 .hero{
   background:transparent;
@@ -514,6 +534,7 @@ button.watch.active{
   <a href="index.html#services">Export Services</a>
   <a href="index.html#contact">Contact</a>
 </nav>
+<div id="userArea" style="color:white;font-weight:700"></div>
   </div>
 </header>
 
@@ -611,6 +632,8 @@ if(currentPage < 1) currentPage = 1;
 let totalRows = 0;
 let bikes = [];
 let filterRows = [];
+let currentUser = null;
+let watchedBikeIds = new Set();
 
 const rates = {
   GBP:{symbol:"£",rate:1},
@@ -1091,32 +1114,98 @@ Thanks`
   window.location.href = `mailto:sales@anybike.co.uk?subject=${subject}&body=${body}`;
 }
 
-function getWatchlist(){
-  return JSON.parse(localStorage.getItem("anybike_watchlist") || "[]");
+async function loadUserInfo(){
+  const { data:{ user } } = await sb.auth.getUser();
+  currentUser = user || null;
+
+  const userArea = document.getElementById("userArea");
+
+  if(!currentUser){
+    userArea.innerHTML = `<a href="customer-register.html">Login / Register</a>`;
+    return;
+  }
+
+  const { data:profile } = await sb
+    .from("customer_profiles")
+    .select("full_name")
+    .eq("id", currentUser.id)
+    .maybeSingle();
+
+  const name = profile?.full_name || currentUser.email;
+
+  userArea.innerHTML = `
+    <span>👤 ${name}</span>
+    <span>|</span>
+    <a href="#" onclick="logout()">Logout</a>
+  `;
 }
 
-function saveWatchlist(list){
-  localStorage.setItem("anybike_watchlist", JSON.stringify(list));
+async function logout(){
+  await sb.auth.signOut();
+  location.reload();
+}
+
+async function loadWatchlist(){
+  watchedBikeIds = new Set();
+
+  if(!currentUser) return;
+
+  const { data, error } = await sb
+    .from("customer_watchlist")
+    .select("bike_id")
+    .eq("customer_id", currentUser.id);
+
+  if(error){
+    console.error(error);
+    return;
+  }
+
+  watchedBikeIds = new Set((data || []).map(row => String(row.bike_id)));
 }
 
 function isWatched(id){
-  return getWatchlist().map(String).includes(String(id));
+  return watchedBikeIds.has(String(id));
 }
 
-function toggleWatch(id,btn){
-  let list = getWatchlist().map(String);
-
-  if(!list.includes(String(id))){
-    list.push(String(id));
-    const email = localStorage.getItem("anybike_email") ||
-      prompt("Enter your email to save this bike to your future AnyBike dashboard:");
-
-    if(email){
-      localStorage.setItem("anybike_email", email);
-    }
+async function toggleWatch(id,btn){
+  if(!currentUser){
+    location.href = "customer-register.html";
+    return;
   }
 
-  saveWatchlist(list);
+  const bikeId = Number(id);
+
+  if(isWatched(bikeId)){
+    const { error } = await sb
+      .from("customer_watchlist")
+      .delete()
+      .eq("customer_id", currentUser.id)
+      .eq("bike_id", bikeId);
+
+    if(error){
+      alert("Could not remove from watchlist: " + error.message);
+      return;
+    }
+
+    watchedBikeIds.delete(String(bikeId));
+    btn.textContent = t("watch");
+    btn.classList.remove("active");
+    return;
+  }
+
+  const { error } = await sb
+    .from("customer_watchlist")
+    .insert({
+      customer_id: currentUser.id,
+      bike_id: bikeId
+    });
+
+  if(error){
+    alert("Could not add to watchlist: " + error.message);
+    return;
+  }
+
+  watchedBikeIds.add(String(bikeId));
   btn.textContent = t("watched");
   btn.classList.add("active");
 }
@@ -1143,6 +1232,8 @@ document.getElementById("make").addEventListener("change",()=>{
 
 (async function init(){
   applyLanguage();
+  await loadUserInfo();
+  await loadWatchlist();
   await loadFilterOptions();
   await loadPage(currentPage);
 })();
