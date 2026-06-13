@@ -4,6 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Available Stock | AnyBike</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <style>
 :root{
@@ -183,11 +184,19 @@ select:focus{
   border-bottom:1px solid #eee;
 }
 
-.placeholder img{
+.placeholder img.bg-logo{
   position:absolute;
   width:78%;
   max-width:290px;
   opacity:.08;
+}
+
+.real-image{
+  width:100%;
+  height:220px;
+  object-fit:cover;
+  display:block;
+  border-bottom:1px solid #eee;
 }
 
 .placeholder-text{
@@ -306,6 +315,14 @@ button.watch{
 button.watch:hover,
 button.watch.active{
   background:var(--red);
+  color:#fff;
+}
+
+.load-more{
+  max-width:320px;
+  margin:30px auto 0;
+  display:block;
+  background:#111;
   color:#fff;
 }
 
@@ -453,6 +470,8 @@ button.watch.active{
 
   <section class="grid" id="grid"></section>
 
+  <button id="loadMoreBtn" class="load-more" onclick="loadMore()">Load More</button>
+
 </main>
 
 <footer class="footer">
@@ -461,6 +480,10 @@ button.watch.active{
 </footer>
 
 <script>
+const SUPABASE_URL = "https://tuehtnezhdnkqbbhttgp.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
 const logoFile = "anybike-logo-new.jpg";
 
 const rates = {
@@ -521,14 +544,11 @@ const words = {
   }
 };
 
-const bikes = [
-  {id:"AB001",make:"Honda",model:"CBR600RR",variant:"ABS",year:"2019",mileage:8200,cc:599,price:6495,status:"Available"},
-  {id:"AB002",make:"Yamaha",model:"MT-09",variant:"",year:"2021",mileage:5400,cc:890,price:6995,status:"Available"},
-  {id:"AB003",make:"BMW",model:"R1250GS",variant:"TE",year:"2020",mileage:14500,cc:1254,price:10995,status:"Available"},
-  {id:"AB004",make:"Triumph",model:"Street Triple",variant:"RS",year:"2022",mileage:3900,cc:765,price:8495,status:"Available"},
-  {id:"AB005",make:"Kawasaki",model:"Z900",variant:"",year:"2021",mileage:6100,cc:948,price:7295,status:"Available"},
-  {id:"AB006",make:"Ducati",model:"Panigale V2",variant:"",year:"2020",mileage:4800,cc:955,price:11995,status:"Available"}
-];
+let bikes = [];
+let filteredBikes = [];
+let shownCount = 0;
+const PAGE_SIZE = 24;
+const INITIAL_LOAD = 1000;
 
 function currentLang(){
   return document.getElementById("language").value;
@@ -543,23 +563,67 @@ function currentCurrency(){
 }
 
 function formatPrice(gbp){
+  const n = Number(gbp || 0);
+  if(!n) return "Price on request";
+
   const c = rates[currentCurrency()];
-  const converted = Math.round(gbp * c.rate);
+  const converted = Math.round(n * c.rate);
   return c.symbol + converted.toLocaleString("en-GB");
 }
 
 function formatMiles(n){
+  if(!n) return "Mileage TBC";
   return Number(n).toLocaleString("en-GB") + " miles";
 }
 
+function safeText(v){
+  if(v === undefined || v === null) return "";
+  return String(v);
+}
+
+async function loadBikes(){
+  document.getElementById("count").textContent = "Loading available stock...";
+
+  const { data, error } = await sb
+    .from("available_stock")
+    .select("id,make,model,variant,year,mileage,engine_cc,price_gbp,colour,status,image_url,created_at")
+    .not("make","is",null)
+    .not("model","is",null)
+    .order("created_at",{ascending:false})
+    .limit(INITIAL_LOAD);
+
+  if(error){
+    console.error(error);
+    document.getElementById("count").textContent = "Stock could not be loaded.";
+    return;
+  }
+
+  bikes = (data || []).map(b => ({
+    id:b.id,
+    make:safeText(b.make),
+    model:safeText(b.model),
+    variant:safeText(b.variant),
+    year:b.year || "",
+    mileage:b.mileage || 0,
+    cc:b.engine_cc || "",
+    price:Number(b.price_gbp || 0),
+    colour:safeText(b.colour),
+    status:safeText(b.status) || "Available",
+    image_url:safeText(b.image_url)
+  }));
+
+  populateFilters();
+  applyFilters();
+}
+
 function populateFilters(){
-  const makes = [...new Set(bikes.map(b => b.make))].sort();
+  const makes = [...new Set(bikes.map(b => b.make).filter(Boolean))].sort();
 
   document.getElementById("make").innerHTML =
     '<option value="">All Makes</option>' +
     makes.map(x => `<option>${x}</option>`).join("");
 
-  const years = [...new Set(bikes.map(b => b.year))].sort((a,b)=>b-a);
+  const years = [...new Set(bikes.map(b => b.year).filter(Boolean))].sort((a,b)=>b-a);
 
   document.getElementById("year").innerHTML =
     '<option value="">All Years</option>' +
@@ -575,6 +639,7 @@ function updateModels(){
     bikes
       .filter(b => !selectedMake || b.make === selectedMake)
       .map(b => b.model)
+      .filter(Boolean)
   )].sort();
 
   document.getElementById("model").innerHTML =
@@ -582,80 +647,119 @@ function updateModels(){
     models.map(x => `<option>${x}</option>`).join("");
 }
 
-function render(){
+function applyFilters(){
   const q = document.getElementById("search").value.toLowerCase();
   const make = document.getElementById("make").value;
   const model = document.getElementById("model").value;
   const year = document.getElementById("year").value;
   const priceRange = document.getElementById("priceRange").value;
 
-  const list = bikes.filter(b => {
-    const haystack = `${b.make} ${b.model} ${b.variant} ${b.year}`.toLowerCase();
+  filteredBikes = bikes.filter(b => {
+    const haystack = `${b.make} ${b.model} ${b.variant} ${b.year} ${b.colour}`.toLowerCase();
 
     if(q && !haystack.includes(q)) return false;
     if(make && b.make !== make) return false;
     if(model && b.model !== model) return false;
-    if(year && b.year !== year) return false;
+    if(year && String(b.year) !== String(year)) return false;
 
     if(priceRange){
       const [min,max] = priceRange.split("-").map(Number);
-      if(b.price < min || b.price > max) return false;
+      if(!b.price || b.price < min || b.price > max) return false;
     }
 
     return true;
   });
 
+  shownCount = 0;
+  document.getElementById("grid").innerHTML = "";
+  renderMore();
+}
+
+function bikeImage(b){
+  if(b.image_url){
+    return `<img class="real-image" src="${b.image_url}" alt="${b.make} ${b.model}" onerror="this.outerHTML=placeholderHTML()">`;
+  }
+
+  return placeholderHTML();
+}
+
+function placeholderHTML(){
+  return `
+    <div class="placeholder">
+      <img class="bg-logo" src="${logoFile}" alt="">
+      <div class="placeholder-text">
+        ${text("register")}
+        <small>${text("view")}</small>
+      </div>
+    </div>
+  `;
+}
+
+function cardHTML(b){
+  const watched = isWatched(b.id);
+  const variant = b.variant || "&nbsp;";
+  const yearText = b.year || "Year TBC";
+  const ccText = b.cc ? `${b.cc}cc` : "CC TBC";
+
+  return `
+    <article class="card">
+      ${bikeImage(b)}
+
+      <div class="card-body">
+        <span class="badge">${text("available")}</span>
+
+        <h2>${b.make} ${b.model}</h2>
+
+        <div class="variant">${variant}</div>
+
+        <div class="meta">
+          <div>${yearText} | ${formatMiles(b.mileage)} | ${ccText}</div>
+          ${b.colour ? `<div>${b.colour}</div>` : ""}
+        </div>
+
+        <div class="price">${formatPrice(b.price)}</div>
+        <div class="price-note">Base motorcycle price. Export costs quoted separately.</div>
+
+        <div class="actions">
+          <button class="primary" onclick="enquire('${b.id}','info')">${text("request")}</button>
+          <button class="dark" onclick="enquire('${b.id}','buy')">${text("buy")}</button>
+          <button class="watch ${watched ? "active" : ""}" onclick="toggleWatch('${b.id}', this)">
+            ${watched ? text("watched") : text("watch")}
+          </button>
+        </div>
+      </div>
+    </article>
+  `;
+}
+
+function renderMore(){
+  const next = filteredBikes.slice(shownCount, shownCount + PAGE_SIZE);
+
+  document.getElementById("grid").insertAdjacentHTML(
+    "beforeend",
+    next.map(cardHTML).join("")
+  );
+
+  shownCount += next.length;
+
   document.getElementById("count").textContent =
-    `${list.length} motorcycles currently available`;
+    `${filteredBikes.length.toLocaleString("en-GB")} motorcycles currently available`;
 
-  document.getElementById("grid").innerHTML = list.map(b => {
-    const watched = isWatched(b.id);
+  document.getElementById("loadMoreBtn").style.display =
+    shownCount >= filteredBikes.length ? "none" : "block";
+}
 
-    return `
-      <article class="card">
-        <div class="placeholder">
-          <img src="${logoFile}" alt="">
-          <div class="placeholder-text">
-            ${text("register")}
-            <small>${text("view")}</small>
-          </div>
-        </div>
-
-        <div class="card-body">
-          <span class="badge">${text("available")}</span>
-
-          <h2>${b.make} ${b.model}</h2>
-
-          <div class="variant">
-            ${b.variant || "&nbsp;"}
-          </div>
-
-          <div class="meta">
-            <div>${b.year} | ${formatMiles(b.mileage)} | ${b.cc}cc</div>
-          </div>
-
-          <div class="price">${formatPrice(b.price)}</div>
-          <div class="price-note">Base motorcycle price. Export costs quoted separately.</div>
-
-          <div class="actions">
-            <button class="primary" onclick="enquire('${b.id}','info')">${text("request")}</button>
-            <button class="dark" onclick="enquire('${b.id}','buy')">${text("buy")}</button>
-            <button class="watch ${watched ? "active" : ""}" onclick="toggleWatch('${b.id}', this)">
-              ${watched ? text("watched") : text("watch")}
-            </button>
-          </div>
-        </div>
-      </article>
-    `;
-  }).join("");
+function loadMore(){
+  renderMore();
 }
 
 function findBike(id){
-  return bikes.find(b => b.id === id);
+  return bikes.find(b => String(b.id) === String(id));
 }
 
 function enquire(id,type){
   const b = findBike(id);
+  if(!b) return;
 
   const subject = encodeURIComponent(
     type === "buy"
@@ -692,14 +796,14 @@ function saveWatchlist(list){
 }
 
 function isWatched(id){
-  return getWatchlist().includes(id);
+  return getWatchlist().map(String).includes(String(id));
 }
 
 function toggleWatch(id, button){
-  let list = getWatchlist();
+  let list = getWatchlist().map(String);
 
-  if(!list.includes(id)){
-    list.push(id);
+  if(!list.includes(String(id))){
+    list.push(String(id));
 
     const email = localStorage.getItem("anybike_email") ||
       prompt("Enter your email to save this bike to your future AnyBike dashboard:");
@@ -714,18 +818,25 @@ function toggleWatch(id, button){
   button.classList.add("active");
 }
 
-["search","model","year","priceRange","currency","language"].forEach(id => {
-  document.getElementById(id).addEventListener("input", render);
-  document.getElementById(id).addEventListener("change", render);
+["search","model","year","priceRange"].forEach(id => {
+  document.getElementById(id).addEventListener("input", applyFilters);
+  document.getElementById(id).addEventListener("change", applyFilters);
+});
+
+["currency","language"].forEach(id => {
+  document.getElementById(id).addEventListener("change", () => {
+    document.getElementById("grid").innerHTML = "";
+    shownCount = 0;
+    renderMore();
+  });
 });
 
 document.getElementById("make").addEventListener("change", () => {
   updateModels();
-  render();
+  applyFilters();
 });
 
-populateFilters();
-render();
+loadBikes();
 </script>
 
 </body>
