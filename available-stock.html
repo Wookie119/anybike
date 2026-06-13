@@ -612,6 +612,8 @@ if(currentPage < 1) currentPage = 1;
 let totalRows = 0;
 let bikes = [];
 let filterRows = [];
+let savedSearchMinYear = null;
+let savedSearchMaxPrice = null;
 let currentUser = null;
 let watchedBikeIds = new Set();
 
@@ -832,6 +834,14 @@ function buildQuery(countType="exact"){
   const model = document.getElementById("model").value;
   const year = document.getElementById("year").value;
   const priceRange = document.getElementById("priceRange").value;
+
+  if(savedSearchMinYear){
+    q = q.gte("year", Number(savedSearchMinYear));
+  }
+
+  if(savedSearchMaxPrice){
+    q = q.lte("price_gbp", Number(savedSearchMaxPrice));
+  }
 
   if(search){
     const s = search.replaceAll("%","").replaceAll(","," ");
@@ -1198,15 +1208,17 @@ let searchTimer;
 
 document.getElementById("search").addEventListener("input",()=>{
   clearTimeout(searchTimer);
-  searchTimer = setTimeout(()=>loadPage(1),350);
+  searchTimer = setTimeout(()=>{ savedSearchMinYear = null; savedSearchMaxPrice = null; loadPage(1); },350);
 });
 
 ["model","year","priceRange","sortBy"].forEach(id=>{
-  document.getElementById(id).addEventListener("change",()=>loadPage(1));
+  document.getElementById(id).addEventListener("change",()=>{ savedSearchMinYear = null; savedSearchMaxPrice = null; loadPage(1); });
 });
 
 document.getElementById("make").addEventListener("change",()=>{
   populateModels();
+  savedSearchMinYear = null;
+  savedSearchMaxPrice = null;
   loadPage(1);
 });
 
@@ -1226,11 +1238,27 @@ document.getElementById("make").addEventListener("change",()=>{
   document.getElementById("currency").value = localStorage.getItem("anybike_currency") || "GBP";
   document.getElementById("language").value = localStorage.getItem("anybike_language") || "en";
 
+  const params = new URLSearchParams(window.location.search);
+  const urlMake = params.get("make") || "";
+  const urlSearch = params.get("search") || "";
+  savedSearchMinYear = params.get("minYear") || null;
+  savedSearchMaxPrice = params.get("maxPrice") || null;
+
   applyLanguage();
   await loadUserInfo();
   await loadWatchlist();
   await loadFilterOptions();
-  await loadPage(currentPage);
+
+  if(urlMake){
+    document.getElementById("make").value = urlMake;
+    populateModels();
+  }
+
+  if(urlSearch){
+    document.getElementById("search").value = urlSearch;
+  }
+
+  await loadPage(1);
 })();
 </script>
 
