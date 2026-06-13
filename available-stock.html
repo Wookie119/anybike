@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Available Stock | AnyBike</title>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<style>
+:root{
+  --red:#d71920;
+  --black:#111;
+  --dark:#181818;
+  --light:#f6f6f6;
+  --border:#ddd;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#fff;color:#111}
+header{padding:18px 20px;border-bottom:1px solid #eee;display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap}
+.logo{max-width:260px;height:auto}
+nav a{margin:0 10px;color:#111;text-decoration:none;font-weight:700}
+nav a:hover{color:var(--red)}
+.hero{background:#111;color:#fff;padding:45px 20px;text-align:center}
+.hero h1{font-size:42px;margin:0 0 10px}
+.hero p{font-size:18px;margin:0;color:#ddd}
+.wrap{max-width:1200px;margin:auto;padding:24px 16px}
+.filters{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px}
+input,select,button{padding:12px;border:1px solid var(--border);border-radius:8px;font-size:15px}
+button{cursor:pointer;border:none;background:var(--red);color:#fff;font-weight:700}
+button.secondary{background:#111}
+.count{font-weight:700;margin:12px 0 20px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.card{border:1px solid #ddd;border-radius:14px;overflow:hidden;background:#fff;box-shadow:0 4px 14px rgba(0,0,0,.08)}
+.placeholder{height:190px;background:linear-gradient(135deg,#111,#333);color:#fff;display:flex;align-items:center;justify-content:center;text-align:center;font-weight:800;font-size:22px;letter-spacing:.5px}
+.card-body{padding:16px}
+.card h3{margin:0 0 8px;font-size:21px}
+.meta{color:#555;line-height:1.6;font-size:14px}
+.price{font-size:22px;font-weight:800;color:var(--red);margin:12px 0}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.watch{background:#fff;color:#111;border:1px solid #111}
+.watch.active{background:#111;color:#fff}
+.notice{padding:12px;background:#fff3cd;border:1px solid #ffe08a;border-radius:8px;margin-bottom:15px}
+.hidden{display:none}
+.footer{margin-top:40px;background:#111;color:#ccc;text-align:center;padding:28px 16px}
+@media(max-width:900px){
+  .filters{grid-template-columns:1fr 1fr}
+  .grid{grid-template-columns:1fr 1fr}
+}
+@media(max-width:600px){
+  .filters,.grid{grid-template-columns:1fr}
+  .hero h1{font-size:32px}
+  nav a{display:inline-block;margin:6px}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <a href="index.html">
+    <img class="logo" src="anybike-logo-new.jpg" alt="AnyBike">
+  </a>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="available-stock.html">Available Stock</a>
+    <a href="sell.html">Sell Your Motorcycle</a>
+    <a href="contact.html">Contact</a>
+  </nav>
+</header>
+
+<section class="hero">
+  <h1>Available Stock</h1>
+  <p>Browse motorcycles currently available through AnyBike. Worldwide export enquiries welcome.</p>
+</section>
+
+<main class="wrap">
+
+  <div class="notice">
+    Supplier names, exact locations, postcodes, source links and private valuation data are hidden from public view.
+  </div>
+
+  <section class="filters">
+    <input id="searchBox" type="text" placeholder="Search make, model or variant">
+    <select id="makeFilter"><option value="">All Makes</option></select>
+    <select id="modelFilter"><option value="">All Models</option></select>
+    <select id="yearFilter"><option value="">All Years</option></select>
+    <select id="priceFilter">
+      <option value="">All Prices</option>
+      <option value="0-1000">Up to £1,000</option>
+      <option value="1000-3000">£1,000 - £3,000</option>
+      <option value="3000-6000">£3,000 - £6,000</option>
+      <option value="6000-10000">£6,000 - £10,000</option>
+      <option value="10000-999999">£10,000+</option>
+    </select>
+  </section>
+
+  <div class="count" id="resultCount">Loading stock...</div>
+
+  <section class="grid" id="stockGrid"></section>
+
+  <div style="text-align:center;margin-top:24px;">
+    <button id="loadMoreBtn" class="secondary">Load More</button>
+  </div>
+
+</main>
+
+<footer class="footer">
+  <p>AnyBike.co.uk — UK Motorcycle Export Specialists</p>
+</footer>
+
+<script>
+const CSV_FILE = "bike-listings.csv";
+let allBikes = [];
+let filteredBikes = [];
+let shownCount = 0;
+const PAGE_SIZE = 24;
+
+const PUBLIC_STATUS = ["active", "available", ""];
+
+function clean(v){
+  if(v === undefined || v === null) return "";
+  return String(v).trim();
+}
+
+function moneyToNumber(v){
+  if(!v) return 0;
+  return Number(String(v).replace(/[£,]/g,"").trim()) || 0;
+}
+
+function formatMoney(v){
+  const n = moneyToNumber(v);
+  if(!n) return "Price on request";
+  return "£" + n.toLocaleString("en-GB");
+}
+
+function safeBike(row){
+  const make = clean(row["Standard Make"]) || clean(row["Make"]);
+  const model = clean(row["Standard Model"]) || clean(row["Normalized Model"]) || clean(row["Model"]);
+  const variant = clean(row["Standard Trim"]) || clean(row["Variant"]);
+  const listingStatus = clean(row["Listing Status"]).toLowerCase();
+
+  return {
+    id: clean(row["Listing ID"]) || `${make}-${model}-${variant}-${clean(row["Year"])}`,
+    make,
+    model,
+    variant,
+    year: clean(row["Year"]),
+    mileage: clean(row["Mileage"]),
+    engine: clean(row["Standard Engine CC"]) || clean(row["Engine CC"]),
+    colour: clean(row["Colour"]),
+    condition: clean(row["Condition"]),
+    price: clean(row["Listed Price"]),
+    status: clean(row["Listing Status"]) || "Available",
+    description: clean(row["Description"]),
+    image: clean(row["Image URL"]),
+    rawStatus: listingStatus
+  };
+}
+
+function isPublicBike(bike){
+  if(!bike.make || !bike.model) return false;
+  if(bike.rawStatus && bike.rawStatus !== "active" && bike.rawStatus !== "available") return false;
+  return true;
+}
+
+function populateFilters(){
+  const makes = [...new Set(allBikes.map(b=>b.make).filter(Boolean))].sort();
+  const makeFilter = document.getElementById("makeFilter");
+  makeFilter.innerHTML = `<option value="">All Makes</option>` + makes.map(m=>`<option>${m}</option>`).join("");
+
+  populateModels();
+  populateYears();
+}
+
+function populateModels(){
+  const selectedMake = document.getElementById("makeFilter").value;
+  const models = [...new Set(allBikes
+    .filter(b=>!selectedMake || b.make === selectedMake)
+    .map(b=>b.model)
+    .filter(Boolean))].sort();
+
+  document.getElementById("modelFilter").innerHTML =
+    `<option value="">All Models</option>` + models.map(m=>`<option>${m}</option>`).join("");
+}
+
+function populateYears(){
+  const years = [...new Set(allBikes.map(b=>b.year).filter(Boolean))].sort((a,b)=>b-a);
+  document.getElementById("yearFilter").innerHTML =
+    `<option value="">All Years</option>` + years.map(y=>`<option>${y}</option>`).join("");
+}
+
+function applyFilters(){
+  const q = document.getElementById("searchBox").value.toLowerCase();
+  const make = document.getElementById("makeFilter").value;
+  const model = document.getElementById("modelFilter").value;
+  const year = document.getElementById("yearFilter").value;
+  const priceRange = document.getElementById("priceFilter").value;
+
+  filteredBikes = allBikes.filter(b=>{
+    const text = `${b.make} ${b.model} ${b.variant} ${b.year} ${b.engine} ${b.colour}`.toLowerCase();
+    if(q && !text.includes(q)) return false;
+    if(make && b.make !== make) return false;
+    if(model && b.model !== model) return false;
+    if(year && b.year !== year) return false;
+
+    if(priceRange){
+      const [min,max] = priceRange.split("-").map(Number);
+      const price = moneyToNumber(b.price);
+      if(price < min || price > max) return false;
+    }
+
+    return true;
+  });
+
+  shownCount = 0;
+  document.getElementById("stockGrid").innerHTML = "";
+  renderMore();
+}
+
+function bikeCard(b){
+  const watched = isWatched(b.id);
+  const title = `${b.make} ${b.model}`;
+  const variant = b.variant ? `<div>${b.variant}</div>` : "";
+  const mileage = b.mileage ? `${Number(b.mileage).toLocaleString("en-GB")} miles` : "Mileage TBC";
+  const engine = b.engine ? `${b.engine}cc` : "Engine size TBC";
+  const colour = b.colour ? b.colour : "Colour TBC";
+
+  const img = b.image
+    ? `<img src="${b.image}" alt="${title}" style="width:100%;height:190px;object-fit:cover;">`
+    : `<div class="placeholder">ANYBIKE<br><span style="font-size:14px;font-weight:400;">Image coming soon</span></div>`;
+
+  return `
+    <article class="card">
+      ${img}
+      <div class="card-body">
+        <h3>${title}</h3>
+        <div class="meta">
+          ${variant}
+          <div>${b.year || "Year TBC"} | ${mileage} | ${engine}</div>
+          <div>${colour}</div>
+          <div><strong>Available for export</strong></div>
+        </div>
+        <div class="price">${formatMoney(b.price)}</div>
+        <div class="actions">
+          <button onclick="requestDetails('${b.id}')">Request Details</button>
+          <button onclick="makeOffer('${b.id}')">Make Offer</button>
+          <button class="watch ${watched ? "active" : ""}" onclick="toggleWatch('${b.id}', this)">
+            ${watched ? "✓ Watched" : "♡ Watchlist"}
+          </button>
+          <button class="secondary" onclick="exportEnquiry('${b.id}')">Export Enquiry</button>
+        </div>
+      </div>
+    </article>
+  `;
+}
+
+function renderMore(){
+  const grid = document.getElementById("stockGrid");
+  const next = filteredBikes.slice(shownCount, shownCount + PAGE_SIZE);
+  grid.insertAdjacentHTML("beforeend", next.map(bikeCard).join(""));
+  shownCount += next.length;
+
+  document.getElementById("resultCount").textContent =
+    `${filteredBikes.length.toLocaleString("en-GB")} motorcycles available`;
+
+  document.getElementById("loadMoreBtn").style.display =
+    shownCount >= filteredBikes.length ? "none" : "inline-block";
+}
+
+function getWatchlist(){
+  return JSON.parse(localStorage.getItem("anybike_watchlist") || "[]");
+}
+
+function saveWatchlist(list){
+  localStorage.setItem("anybike_watchlist", JSON.stringify(list));
+}
+
+function isWatched(id){
+  return getWatchlist().includes(id);
+}
+
+function toggleWatch(id, btn){
+  let list = getWatchlist();
+
+  if(list.includes(id)){
+    list = list.filter(x=>x !== id);
+    btn.textContent = "♡ Watchlist";
+    btn.classList.remove("active");
+  } else {
+    list.push(id);
+    btn.textContent = "✓ Watched";
+    btn.classList.add("active");
+
+    const email = localStorage.getItem("anybike_customer_email") || prompt("Enter your email to save this bike to your future AnyBike dashboard:");
+    if(email){
+      localStorage.setItem("anybike_customer_email", email);
+    }
+  }
+
+  saveWatchlist(list);
+
+  /*
+    Later Supabase/API hook:
+    Save watched bike to staff dashboard:
+    customer_email, listing_id, make, model, variant, price, date_added
+  */
+}
+
+function findBike(id){
+  return allBikes.find(b=>b.id === id);
+}
+
+function requestDetails(id){
+  const b = findBike(id);
+  const subject = encodeURIComponent(`Request details: ${b.make} ${b.model}`);
+  const body = encodeURIComponent(`Hello AnyBike,\n\nI would like more details about this motorcycle:\n\n${b.make} ${b.model}\n${b.variant || ""}\n${b.year || ""}\n${formatMoney(b.price)}\n\nPlease send me more information.\n\nThanks`);
+  window.location.href = `mailto:sales@anybike.co.uk?subject=${subject}&body=${body}`;
+}
+
+function makeOffer(id){
+  const b = findBike(id);
+  const subject = encodeURIComponent(`Offer enquiry: ${b.make} ${b.model}`);
+  const body = encodeURIComponent(`Hello AnyBike,\n\nI would like to make an offer on:\n\n${b.make} ${b.model}\n${b.variant || ""}\n${b.year || ""}\nAdvertised price: ${formatMoney(b.price)}\n\nMy offer is: £\nMy export country is:\n\nThanks`);
+  window.location.href = `mailto:sales@anybike.co.uk?subject=${subject}&body=${body}`;
+}
+
+function exportEnquiry(id){
+  const b = findBike(id);
+  const subject = encodeURIComponent(`Export enquiry: ${b.make} ${b.model}`);
+  const body = encodeURIComponent(`Hello AnyBike,\n\nI am interested in exporting this motorcycle:\n\n${b.make} ${b.model}\n${b.variant || ""}\n${b.year || ""}\n${formatMoney(b.price)}\n\nDestination country:\nPreferred UK port/shipping company:\n\nThanks`);
+  window.location.href = `mailto:sales@anybike.co.uk?subject=${subject}&body=${body}`;
+}
+
+document.getElementById("searchBox").addEventListener("input", applyFilters);
+document.getElementById("makeFilter").addEventListener("change", ()=>{
+  populateModels();
+  applyFilters();
+});
+document.getElementById("modelFilter").addEventListener("change", applyFilters);
+document.getElementById("yearFilter").addEventListener("change", applyFilters);
+document.getElementById("priceFilter").addEventListener("change", applyFilters);
+document.getElementById("loadMoreBtn").addEventListener("click", renderMore);
+
+Papa.parse(CSV_FILE, {
+  download: true,
+  header: true,
+  skipEmptyLines: true,
+  complete: function(results){
+    allBikes = results.data.map(safeBike).filter(isPublicBike);
+    allBikes.sort((a,b)=>moneyToNumber(b.price)-moneyToNumber(a.price));
+    filteredBikes = allBikes;
+    populateFilters();
+    applyFilters();
+  },
+  error: function(){
+    document.getElementById("resultCount").textContent =
+      "Stock file could not be loaded. Please check bike-listings.csv is uploaded to GitHub.";
+  }
+});
+</script>
+
+</body>
+</html>
