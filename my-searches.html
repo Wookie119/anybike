@@ -1,1 +1,222 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>My Saved Searches | AnyBike</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:linear-gradient(135deg,#050505,#111);color:#fff}
+header{background:#050505;border-bottom:1px solid rgba(255,255,255,.15);padding:14px 20px}
+.header-inner{max-width:1200px;margin:auto;display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap}
+.logo{width:210px;background:#fff;border-radius:12px;padding:5px}
+nav a{color:#ddd;text-decoration:none;font-weight:800;margin:0 8px}
+nav a:hover,.active{color:#ed1c24}
+.wrap{max-width:1000px;margin:40px auto;padding:0 18px}
+.card{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:22px;padding:24px;margin-bottom:20px}
+h1{font-size:42px;margin:0 0 10px}
+label{display:block;font-weight:900;margin:14px 0 6px}
+input,select{width:100%;padding:13px;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.08);color:#fff;font-size:16px}
+select option{color:#111}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+button,.btn{padding:13px;border:0;border-radius:999px;background:#ed1c24;color:#fff;font-weight:900;cursor:pointer;text-decoration:none;display:inline-block}
+button.light{background:#fff;color:#111}
+.search-row{display:flex;justify-content:space-between;gap:14px;align-items:center;border-bottom:1px solid rgba(255,255,255,.12);padding:14px 0}
+.muted{color:#ccc}
+.bad{color:#ff7676;font-weight:900}.ok{color:#36d37e;font-weight:900}
+@media(max-width:700px){.grid{grid-template-columns:1fr}.search-row{display:block}.search-row button{margin-top:10px}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <a href="index.html"><img class="logo" src="anybike-logo-new.jpg" alt="AnyBike"></a>
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="available-stock.html">Available Stock</a>
+      <a href="my-watchlist.html">My Watchlist</a>
+      <a class="active" href="my-searches.html">Saved Searches</a>
+    </nav>
+    <div id="userArea">Checking login...</div>
+  </div>
+</header>
+
+<main class="wrap">
+  <h1>My Saved Searches</h1>
+  <p class="muted">Save the bikes you are looking for. Later AnyBike can alert you when matching motorcycles are added.</p>
+
+  <section class="card">
+    <h2>Create Saved Search</h2>
+    <div class="grid">
+      <div>
+        <label>Make</label>
+        <input id="make" placeholder="BMW, Honda, Yamaha...">
+      </div>
+      <div>
+        <label>Model</label>
+        <input id="model" placeholder="R1250GS, Africa Twin...">
+      </div>
+      <div>
+        <label>Minimum year</label>
+        <input id="minYear" type="number" placeholder="2020">
+      </div>
+      <div>
+        <label>Maximum price</label>
+        <input id="maxPrice" type="number" placeholder="10000">
+      </div>
+    </div>
+    <button onclick="saveSearch()">Save Search</button>
+    <p id="msg"></p>
+  </section>
+
+  <section class="card">
+    <h2>Saved Searches</h2>
+    <div id="searchList">Loading...</div>
+  </section>
+</main>
+
+<script>
+const SUPABASE_URL = "https://tuehtnezhdnkqbbhttgp.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let currentUser=null;
+
+function msg(text,ok=true){
+  const el=document.getElementById("msg");
+  el.textContent=text;
+  el.className=ok?"ok":"bad";
+}
+
+async function loadUser(){
+  const {data:{user}} = await sb.auth.getUser();
+  currentUser=user || null;
+
+  if(!currentUser){
+    document.getElementById("userArea").innerHTML=`<a href="customer-register.html" style="color:#fff">Login / Register</a>`;
+    document.getElementById("searchList").innerHTML=`Please <a href="customer-register.html" style="color:#ed1c24;font-weight:900">login</a> to save searches.`;
+    return false;
+  }
+
+  const {data:profile}=await sb
+    .from("customer_profiles")
+    .select("full_name")
+    .eq("id",currentUser.id)
+    .maybeSingle();
+
+  const name=profile?.full_name || currentUser.email;
+  document.getElementById("userArea").innerHTML=`👤 <span style="color:#ed1c24;font-weight:900">${name}</span> | <a href="#" onclick="logout()" style="color:#fff;text-decoration:none">Logout</a>`;
+  return true;
+}
+
+async function logout(){
+  await sb.auth.signOut();
+  location.href="available-stock.html";
+}
+
+async function saveSearch(){
+  if(!currentUser){
+    location.href="customer-register.html";
+    return;
+  }
+
+  const make=document.getElementById("make").value.trim();
+  const model=document.getElementById("model").value.trim();
+  const min_year=document.getElementById("minYear").value ? Number(document.getElementById("minYear").value) : null;
+  const max_price=document.getElementById("maxPrice").value ? Number(document.getElementById("maxPrice").value) : null;
+
+  if(!make && !model){
+    msg("Please enter at least a make or model.",false);
+    return;
+  }
+
+  const {error}=await sb.from("saved_searches").insert({
+    customer_id:currentUser.id,
+    make:make || null,
+    model:model || null,
+    min_year,
+    max_price
+  });
+
+  if(error){
+    msg(error.message,false);
+    return;
+  }
+
+  msg("Search saved.");
+  document.getElementById("make").value="";
+  document.getElementById("model").value="";
+  document.getElementById("minYear").value="";
+  document.getElementById("maxPrice").value="";
+  loadSearches();
+}
+
+async function loadSearches(){
+  if(!currentUser)return;
+
+  const {data,error}=await sb
+    .from("saved_searches")
+    .select("*")
+    .eq("customer_id",currentUser.id)
+    .order("created_at",{ascending:false});
+
+  if(error){
+    document.getElementById("searchList").innerHTML=`<span class="bad">${error.message}</span>`;
+    return;
+  }
+
+  if(!data.length){
+    document.getElementById("searchList").innerHTML=`<p class="muted">No saved searches yet.</p>`;
+    return;
+  }
+
+  document.getElementById("searchList").innerHTML=data.map(s=>`
+    <div class="search-row">
+      <div>
+        <strong>${s.make || "Any make"} ${s.model || ""}</strong><br>
+        <span class="muted">
+          ${s.min_year ? "From year " + s.min_year + " · " : ""}
+          ${s.max_price ? "Up to £" + Number(s.max_price).toLocaleString("en-GB") : ""}
+        </span>
+      </div>
+      <div>
+        <button class="light" onclick="viewMatches('${s.make || ""}','${s.model || ""}')">View Matches</button>
+        <button onclick="deleteSearch(${s.id})">Delete</button>
+      </div>
+    </div>
+  `).join("");
+}
+
+async function deleteSearch(id){
+  const {error}=await sb
+    .from("saved_searches")
+    .delete()
+    .eq("id",id)
+    .eq("customer_id",currentUser.id);
+
+  if(error){
+    alert(error.message);
+    return;
+  }
+
+  loadSearches();
+}
+
+function viewMatches(make,model){
+  const params=new URLSearchParams();
+  if(make)params.set("make",make);
+  if(model)params.set("search",model);
+  location.href="available-stock.html?"+params.toString();
+}
+
+(async function init(){
+  const ok=await loadUser();
+  if(ok) await loadSearches();
+})();
+</script>
+
+</body>
+</html>
