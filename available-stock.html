@@ -48,9 +48,16 @@ button.primary{background:var(--red);color:#fff}button.primary:hover{background:
 button.dark{background:#111;color:#fff}button.dark:hover{background:#333}
 button.watch{background:#fff;color:var(--red);border:2px solid var(--red)}
 button.watch:hover,button.watch.active{background:var(--red);color:#fff}
-.pager{display:flex;gap:12px;justify-content:center;align-items:center;margin:30px auto 0;flex-wrap:wrap}
-.pager button{max-width:220px;background:#111;color:#fff}
-.pager button:disabled{opacity:.4;cursor:not-allowed}
+.pagination-wrap{margin:34px auto 0;text-align:center}
+.pagination-info{font-weight:800;margin-bottom:14px}
+.pagination{display:flex;gap:8px;justify-content:center;align-items:center;flex-wrap:wrap}
+.pagination button{width:auto;min-width:44px;background:#fff;color:#111;border:1px solid #ccc;padding:10px 13px;border-radius:9px}
+.pagination button.active{background:var(--red);color:#fff;border-color:var(--red)}
+.pagination button.nav{background:#111;color:#fff;border-color:#111}
+.pagination button:disabled{opacity:.4;cursor:not-allowed}
+.jump{display:flex;justify-content:center;gap:8px;align-items:center;margin-top:16px;flex-wrap:wrap}
+.jump input{width:110px;text-align:center}
+.jump button{width:auto;background:#111;color:#fff;padding:12px 18px}
 .footer{background:#111;color:#fff;text-align:center;padding:34px 16px;margin-top:30px}
 .footer strong{display:block;font-size:20px;letter-spacing:1px;margin-bottom:8px}.footer span{color:#ddd}
 @media(max-width:1050px){.toolbar{grid-template-columns:1fr 1fr 1fr}.grid{grid-template-columns:1fr 1fr}}
@@ -84,7 +91,6 @@ button.watch:hover,button.watch.active{background:var(--red);color:#fff}
   <section class="tools">
     <div class="toolbar">
       <input id="search" placeholder="Search make, model or variant">
-
       <select id="make"><option value="">All Makes</option></select>
       <select id="model"><option value="">All Models</option></select>
       <select id="year"><option value="">All Years</option></select>
@@ -124,9 +130,14 @@ button.watch:hover,button.watch.active{background:var(--red);color:#fff}
 
   <section class="grid" id="grid"></section>
 
-  <div class="pager">
-    <button id="prevBtn" onclick="prevPage()">Previous</button>
-    <button id="nextBtn" onclick="nextPage()">Next</button>
+  <div class="pagination-wrap">
+    <div class="pagination-info" id="paginationInfo"></div>
+    <div class="pagination" id="pagination"></div>
+    <div class="jump">
+      <span>Go to page</span>
+      <input id="jumpPage" type="number" min="1" value="1">
+      <button onclick="jumpToPage()">Go</button>
+    </div>
   </div>
 
 </main>
@@ -144,7 +155,9 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const logoFile = "anybike-logo-new.jpg";
 const PAGE_SIZE = 24;
 
-let currentPage = 0;
+let currentPage = Number(new URLSearchParams(location.search).get("page") || 1);
+if(currentPage < 1) currentPage = 1;
+
 let totalRows = 0;
 let bikes = [];
 let filterRows = [];
@@ -176,7 +189,10 @@ const words = {
     count:"motorcycles currently available",
     noStock:"No motorcycles found.",
     previous:"Previous",
-    next:"Next"
+    next:"Next",
+    page:"Page",
+    of:"of",
+    showing:"Showing"
   },
   de:{
     title:'Verfügbarer <span>Bestand</span>',
@@ -194,7 +210,10 @@ const words = {
     count:"Motorräder derzeit verfügbar",
     noStock:"Keine Motorräder gefunden.",
     previous:"Zurück",
-    next:"Weiter"
+    next:"Weiter",
+    page:"Seite",
+    of:"von",
+    showing:"Anzeige"
   },
   fr:{
     title:'Stock <span>Disponible</span>',
@@ -212,7 +231,10 @@ const words = {
     count:"motos actuellement disponibles",
     noStock:"Aucune moto trouvée.",
     previous:"Précédent",
-    next:"Suivant"
+    next:"Suivant",
+    page:"Page",
+    of:"sur",
+    showing:"Affichage"
   },
   es:{
     title:'Stock <span>Disponible</span>',
@@ -230,7 +252,10 @@ const words = {
     count:"motos disponibles actualmente",
     noStock:"No se encontraron motos.",
     previous:"Anterior",
-    next:"Siguiente"
+    next:"Siguiente",
+    page:"Página",
+    of:"de",
+    showing:"Mostrando"
   },
   ar:{
     title:'المخزون <span>المتاح</span>',
@@ -248,29 +273,33 @@ const words = {
     count:"دراجة نارية متاحة حالياً",
     noStock:"لم يتم العثور على دراجات.",
     previous:"السابق",
-    next:"التالي"
+    next:"التالي",
+    page:"صفحة",
+    of:"من",
+    showing:"عرض"
   }
 };
 
 function lang(){return document.getElementById("language").value}
 function t(k){return words[lang()][k] || words.en[k]}
 function currency(){return document.getElementById("currency").value}
-
 function safe(v){return v===undefined||v===null ? "" : String(v)}
+
 function money(gbp){
   const n = Number(gbp || 0);
   if(!n) return "Price on request";
   const c = rates[currency()];
   return c.symbol + Math.round(n * c.rate).toLocaleString("en-GB");
 }
-function miles(n){return n ? Number(n).toLocaleString("en-GB")+" miles" : "Mileage TBC"}
+
+function miles(n){
+  return n ? Number(n).toLocaleString("en-GB")+" miles" : "Mileage TBC";
+}
 
 function applyLanguage(){
   document.getElementById("pageTitle").innerHTML = t("title");
   document.getElementById("pageSubtitle").textContent = t("subtitle");
   document.getElementById("priceNoteTop").textContent = t("topNote");
-  document.getElementById("prevBtn").textContent = t("previous");
-  document.getElementById("nextBtn").textContent = t("next");
 }
 
 async function loadFilterOptions(){
@@ -279,6 +308,7 @@ async function loadFilterOptions(){
 
   for(let from=0; from<40000; from+=size){
     const to = from + size - 1;
+
     const {data,error} = await sb
       .from("available_stock")
       .select("make,model,year")
@@ -286,8 +316,13 @@ async function loadFilterOptions(){
       .not("model","is",null)
       .range(from,to);
 
-    if(error){console.error(error);break}
+    if(error){
+      console.error(error);
+      break;
+    }
+
     all = all.concat(data || []);
+
     if(!data || data.length < size) break;
   }
 
@@ -299,18 +334,23 @@ async function loadFilterOptions(){
 
 function populateMakes(){
   const makes = [...new Set(filterRows.map(r=>safe(r.make)).filter(Boolean))].sort();
+
   document.getElementById("make").innerHTML =
-    '<option value="">All Makes</option>' + makes.map(m=>`<option>${m}</option>`).join("");
+    '<option value="">All Makes</option>' +
+    makes.map(m=>`<option>${m}</option>`).join("");
 }
 
 function populateYears(){
   const years = [...new Set(filterRows.map(r=>r.year).filter(Boolean))].sort((a,b)=>b-a);
+
   document.getElementById("year").innerHTML =
-    '<option value="">All Years</option>' + years.map(y=>`<option>${y}</option>`).join("");
+    '<option value="">All Years</option>' +
+    years.map(y=>`<option>${y}</option>`).join("");
 }
 
 function populateModels(){
   const selectedMake = document.getElementById("make").value;
+
   const models = [...new Set(
     filterRows
       .filter(r=>!selectedMake || r.make === selectedMake)
@@ -319,13 +359,14 @@ function populateModels(){
   )].sort();
 
   document.getElementById("model").innerHTML =
-    '<option value="">All Models</option>' + models.map(m=>`<option>${m}</option>`).join("");
+    '<option value="">All Models</option>' +
+    models.map(m=>`<option>${m}</option>`).join("");
 }
 
-function buildQuery(){
+function buildQuery(countType="exact"){
   let q = sb
     .from("available_stock")
-    .select("id,make,model,variant,year,mileage,engine_cc,price_gbp,colour,status,image_url,created_at", {count:"exact"})
+    .select("id,make,model,variant,year,mileage,engine_cc,price_gbp,colour,status,image_url,created_at", { count: countType })
     .not("make","is",null)
     .not("model","is",null);
 
@@ -352,16 +393,18 @@ function buildQuery(){
   return q;
 }
 
-async function loadPage(page=0){
+async function loadPage(page=1){
   applyLanguage();
-  currentPage = page;
+
+  currentPage = Math.max(1, page);
+
   document.getElementById("count").textContent = t("loading");
   document.getElementById("grid").innerHTML = "";
 
-  const from = page * PAGE_SIZE;
+  const from = (currentPage - 1) * PAGE_SIZE;
   const to = from + PAGE_SIZE - 1;
 
-  const {data,error,count} = await buildQuery()
+  const {data,error,count} = await buildQuery("exact")
     .order("created_at",{ascending:false})
     .range(from,to);
 
@@ -385,20 +428,101 @@ async function loadPage(page=0){
     image_url:safe(b.image_url)
   }));
 
-  totalRows = count || 0;
+  totalRows = Number(count || 0);
+
+  const maxPage = Math.max(1, Math.ceil(totalRows / PAGE_SIZE));
+  if(currentPage > maxPage){
+    currentPage = maxPage;
+    return loadPage(currentPage);
+  }
+
+  updateUrl();
   render();
+}
+
+function updateUrl(){
+  const url = new URL(location.href);
+  url.searchParams.set("page", currentPage);
+  history.replaceState(null, "", url.toString());
 }
 
 function render(){
   applyLanguage();
+
+  const maxPage = Math.max(1, Math.ceil(totalRows / PAGE_SIZE));
+  const fromItem = totalRows ? ((currentPage - 1) * PAGE_SIZE) + 1 : 0;
+  const toItem = Math.min(currentPage * PAGE_SIZE, totalRows);
 
   document.getElementById("count").textContent =
     totalRows ? `${totalRows.toLocaleString("en-GB")} ${t("count")}` : t("noStock");
 
   document.getElementById("grid").innerHTML = bikes.map(cardHTML).join("");
 
-  document.getElementById("prevBtn").disabled = currentPage === 0;
-  document.getElementById("nextBtn").disabled = ((currentPage + 1) * PAGE_SIZE) >= totalRows;
+  document.getElementById("paginationInfo").textContent =
+    totalRows
+      ? `${t("showing")} ${fromItem.toLocaleString("en-GB")}-${toItem.toLocaleString("en-GB")} — ${t("page")} ${currentPage.toLocaleString("en-GB")} ${t("of")} ${maxPage.toLocaleString("en-GB")}`
+      : "";
+
+  document.getElementById("jumpPage").max = maxPage;
+  document.getElementById("jumpPage").value = currentPage;
+
+  renderPagination(maxPage);
+}
+
+function renderPagination(maxPage){
+  const pagination = document.getElementById("pagination");
+  const buttons = [];
+
+  buttons.push(`<button class="nav" ${currentPage===1 ? "disabled" : ""} onclick="loadPage(${currentPage-1})">${t("previous")}</button>`);
+
+  const pages = getPageList(currentPage, maxPage);
+
+  pages.forEach(p=>{
+    if(p === "..."){
+      buttons.push(`<button disabled>...</button>`);
+    }else{
+      buttons.push(`<button class="${p===currentPage ? "active" : ""}" onclick="loadPage(${p})">${p}</button>`);
+    }
+  });
+
+  buttons.push(`<button class="nav" ${currentPage===maxPage ? "disabled" : ""} onclick="loadPage(${currentPage+1})">${t("next")}</button>`);
+
+  pagination.innerHTML = buttons.join("");
+}
+
+function getPageList(current,total){
+  const delta = 2;
+  const range = [];
+  const rangeWithDots = [];
+  let last;
+
+  for(let i=1;i<=total;i++){
+    if(i===1 || i===total || (i>=current-delta && i<=current+delta) || i<=9){
+      range.push(i);
+    }
+  }
+
+  for(const i of range){
+    if(last){
+      if(i-last===2){
+        rangeWithDots.push(last+1);
+      }else if(i-last!==1){
+        rangeWithDots.push("...");
+      }
+    }
+    rangeWithDots.push(i);
+    last=i;
+  }
+
+  return rangeWithDots;
+}
+
+function jumpToPage(){
+  const maxPage = Math.max(1, Math.ceil(totalRows / PAGE_SIZE));
+  let p = Number(document.getElementById("jumpPage").value || 1);
+  if(p < 1) p = 1;
+  if(p > maxPage) p = maxPage;
+  loadPage(p);
 }
 
 function imageHTML(b){
@@ -447,17 +571,18 @@ function cardHTML(b){
   `;
 }
 
-function nextPage(){if(((currentPage + 1) * PAGE_SIZE) < totalRows) loadPage(currentPage + 1)}
-function prevPage(){if(currentPage > 0) loadPage(currentPage - 1)}
-
-function findBike(id){return bikes.find(b=>String(b.id)===String(id))}
+function findBike(id){
+  return bikes.find(b=>String(b.id)===String(id));
+}
 
 function enquire(id,type){
   const b = findBike(id);
   if(!b) return;
 
   const subject = encodeURIComponent(
-    type === "buy" ? `I would like to buy this bike: ${b.make} ${b.model}` : `Request more information: ${b.make} ${b.model}`
+    type === "buy"
+      ? `I would like to buy this bike: ${b.make} ${b.model}`
+      : `Request more information: ${b.make} ${b.model}`
   );
 
   const body = encodeURIComponent(
@@ -480,9 +605,17 @@ Thanks`
   window.location.href = `mailto:sales@anybike.co.uk?subject=${subject}&body=${body}`;
 }
 
-function getWatchlist(){return JSON.parse(localStorage.getItem("anybike_watchlist") || "[]")}
-function saveWatchlist(list){localStorage.setItem("anybike_watchlist", JSON.stringify(list))}
-function isWatched(id){return getWatchlist().map(String).includes(String(id))}
+function getWatchlist(){
+  return JSON.parse(localStorage.getItem("anybike_watchlist") || "[]");
+}
+
+function saveWatchlist(list){
+  localStorage.setItem("anybike_watchlist", JSON.stringify(list));
+}
+
+function isWatched(id){
+  return getWatchlist().map(String).includes(String(id));
+}
 
 function toggleWatch(id,btn){
   let list = getWatchlist().map(String);
@@ -491,7 +624,10 @@ function toggleWatch(id,btn){
     list.push(String(id));
     const email = localStorage.getItem("anybike_email") ||
       prompt("Enter your email to save this bike to your future AnyBike dashboard:");
-    if(email) localStorage.setItem("anybike_email", email);
+
+    if(email){
+      localStorage.setItem("anybike_email", email);
+    }
   }
 
   saveWatchlist(list);
@@ -500,18 +636,19 @@ function toggleWatch(id,btn){
 }
 
 let searchTimer;
+
 document.getElementById("search").addEventListener("input",()=>{
   clearTimeout(searchTimer);
-  searchTimer = setTimeout(()=>loadPage(0),350);
+  searchTimer = setTimeout(()=>loadPage(1),350);
 });
 
 ["model","year","priceRange"].forEach(id=>{
-  document.getElementById(id).addEventListener("change",()=>loadPage(0));
+  document.getElementById(id).addEventListener("change",()=>loadPage(1));
 });
 
 document.getElementById("make").addEventListener("change",()=>{
   populateModels();
-  loadPage(0);
+  loadPage(1);
 });
 
 ["currency","language"].forEach(id=>{
@@ -521,7 +658,7 @@ document.getElementById("make").addEventListener("change",()=>{
 (async function init(){
   applyLanguage();
   await loadFilterOptions();
-  await loadPage(0);
+  await loadPage(currentPage);
 })();
 </script>
 
