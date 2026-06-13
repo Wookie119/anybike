@@ -1,1 +1,298 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>AnyBike Admin Stock Upload</title>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--red:#d71920;--black:#050505;--white:#fff;--light:#f6f6f6;--mid:#ddd}
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#f6f6f6;color:#111}
+header{background:#fff;border-bottom:4px solid var(--red);padding:18px 22px}
+.header-inner{max-width:1200px;margin:auto;display:flex;align-items:center;justify-content:space-between;gap:20px}
+.logo{width:220px}
+a{color:#111;text-decoration:none;font-weight:800}
+.wrap{max-width:1200px;margin:30px auto;padding:0 18px}
+.card{background:#fff;border:1px solid var(--mid);border-radius:16px;padding:22px;box-shadow:0 8px 24px rgba(0,0,0,.08);margin-bottom:20px}
+h1,h2{margin-top:0}
+input,button{width:100%;padding:13px;border-radius:9px;border:1px solid #ccc;font-size:16px}
+button{background:var(--red);color:#fff;font-weight:900;border:0;cursor:pointer;margin-top:12px}
+button.dark{background:#111}
+button:disabled{opacity:.55;cursor:not-allowed}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.stat{background:#111;color:#fff;border-radius:14px;padding:18px}
+.stat strong{display:block;font-size:28px;color:var(--red)}
+table{width:100%;border-collapse:collapse;margin-top:15px;font-size:14px}
+th,td{border-bottom:1px solid #eee;padding:9px;text-align:left}
+th{background:#111;color:#fff}
+.ok{color:#138a36;font-weight:900}
+.bad{color:#d71920;font-weight:900}
+.hidden{display:none}
+@media(max-width:800px){.grid{grid-template-columns:1fr}.header-inner{flex-direction:column}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <img class="logo" src="anybike-logo-new.jpg" alt="AnyBike">
+    <a href="available-stock.html">View Available Stock</a>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section id="loginCard" class="card">
+    <h1>AnyBike Admin</h1>
+    <p>Enter staff password to upload available stock.</p>
+    <input id="password" type="password" placeholder="Password">
+    <button onclick="login()">Login</button>
+    <p id="loginMsg" class="bad"></p>
+  </section>
+
+  <section id="adminArea" class="hidden">
+
+    <div class="card">
+      <h1>Available Stock Upload</h1>
+      <p>Upload the supplier CSV. This will replace all current public available stock.</p>
+      <input id="csvFile" type="file" accept=".csv">
+      <button onclick="previewCSV()">Preview CSV</button>
+      <button class="dark" id="importBtn" onclick="importCSV()" disabled>Import & Replace Available Stock</button>
+      <p id="uploadMsg"></p>
+    </div>
+
+    <div class="grid">
+      <div class="stat">Rows detected<strong id="rowsCount">0</strong></div>
+      <div class="stat">Ready to import<strong id="readyCount">0</strong></div>
+      <div class="stat">Skipped rows<strong id="skipCount">0</strong></div>
+      <div class="stat">Columns detected<strong id="colCount">0</strong></div>
+    </div>
+
+    <div class="card">
+      <h2>Column Mapping</h2>
+      <table>
+        <tr><th>AnyBike Field</th><th>Spreadsheet Source</th></tr>
+        <tr><td>Make</td><td>Standard Make → Make</td></tr>
+        <tr><td>Model</td><td>Standard Model → Normalized Model → Model</td></tr>
+        <tr><td>Variant</td><td>Standard Trim → Variant</td></tr>
+        <tr><td>Year</td><td>Year</td></tr>
+        <tr><td>Mileage</td><td>Mileage</td></tr>
+        <tr><td>Engine CC</td><td>Standard Engine CC → Engine CC</td></tr>
+        <tr><td>Price</td><td>Listed Price</td></tr>
+        <tr><td>Colour</td><td>Colour</td></tr>
+        <tr><td>Status</td><td>Listing Status → Status</td></tr>
+        <tr><td>Image URL</td><td>Image URL</td></tr>
+        <tr><td>Private fields</td><td>Stored safely in raw_data only</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>Preview</h2>
+      <div id="preview"></div>
+    </div>
+
+  </section>
+
+</main>
+
+<script>
+const ADMIN_PASSWORD = "AnyBike2026!";
+
+const SUPABASE_URL = "https://tuehtnezhdnkqbbhttgp.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let parsedRows = [];
+let importRows = [];
+
+function login(){
+  const pass = document.getElementById("password").value;
+  if(pass === ADMIN_PASSWORD){
+    document.getElementById("loginCard").classList.add("hidden");
+    document.getElementById("adminArea").classList.remove("hidden");
+  }else{
+    document.getElementById("loginMsg").textContent = "Incorrect password.";
+  }
+}
+
+function clean(v){
+  if(v === undefined || v === null) return "";
+  return String(v).trim();
+}
+
+function numberOnly(v){
+  if(!v) return null;
+  const n = Number(String(v).replace(/[£,$,A-Z,a-z, ]/g,"").replace(/,/g,""));
+  return Number.isFinite(n) ? n : null;
+}
+
+function intOnly(v){
+  const n = numberOnly(v);
+  return n === null ? null : Math.round(n);
+}
+
+function pick(row, names){
+  for(const name of names){
+    if(clean(row[name])) return clean(row[name]);
+  }
+  return "";
+}
+
+function mapRow(row){
+  const make = pick(row, ["Standard Make","Make"]);
+  const model = pick(row, ["Standard Model","Normalized Model","Model"]);
+  const variant = pick(row, ["Standard Trim","Variant"]);
+  const year = intOnly(pick(row, ["Year"]));
+  const mileage = intOnly(pick(row, ["Mileage"]));
+  const engine_cc = intOnly(pick(row, ["Standard Engine CC","Engine CC"]));
+  const price_gbp = numberOnly(pick(row, ["Listed Price"]));
+  const colour = pick(row, ["Colour"]);
+  const status = pick(row, ["Listing Status","Status"]) || "Available";
+  const image_url = pick(row, ["Image URL"]);
+
+  if(!make || !model) return null;
+
+  return {
+    make,
+    model,
+    variant,
+    year,
+    mileage,
+    engine_cc,
+    price_gbp,
+    colour,
+    status,
+    image_url,
+    raw_data: row,
+    source_upload: new Date().toISOString()
+  };
+}
+
+function previewCSV(){
+  const file = document.getElementById("csvFile").files[0];
+  if(!file){
+    alert("Choose a CSV file first.");
+    return;
+  }
+
+  document.getElementById("uploadMsg").textContent = "Reading CSV...";
+
+  Papa.parse(file,{
+    header:true,
+    skipEmptyLines:true,
+    complete:function(results){
+      parsedRows = results.data || [];
+      importRows = parsedRows.map(mapRow).filter(Boolean);
+
+      const skipped = parsedRows.length - importRows.length;
+      const columns = results.meta.fields || [];
+
+      document.getElementById("rowsCount").textContent = parsedRows.length.toLocaleString("en-GB");
+      document.getElementById("readyCount").textContent = importRows.length.toLocaleString("en-GB");
+      document.getElementById("skipCount").textContent = skipped.toLocaleString("en-GB");
+      document.getElementById("colCount").textContent = columns.length.toLocaleString("en-GB");
+
+      document.getElementById("importBtn").disabled = importRows.length === 0;
+
+      document.getElementById("uploadMsg").innerHTML =
+        `<span class="ok">CSV preview ready. ${importRows.length.toLocaleString("en-GB")} bikes ready to import.</span>`;
+
+      renderPreview(importRows.slice(0,20));
+    },
+    error:function(err){
+      document.getElementById("uploadMsg").innerHTML =
+        `<span class="bad">CSV could not be read: ${err.message}</span>`;
+    }
+  });
+}
+
+function renderPreview(rows){
+  if(!rows.length){
+    document.getElementById("preview").innerHTML = "<p>No valid rows found.</p>";
+    return;
+  }
+
+  document.getElementById("preview").innerHTML = `
+    <table>
+      <tr>
+        <th>Make</th><th>Model</th><th>Variant</th><th>Year</th>
+        <th>Mileage</th><th>CC</th><th>Price</th><th>Status</th>
+      </tr>
+      ${rows.map(r=>`
+        <tr>
+          <td>${r.make || ""}</td>
+          <td>${r.model || ""}</td>
+          <td>${r.variant || ""}</td>
+          <td>${r.year || ""}</td>
+          <td>${r.mileage || ""}</td>
+          <td>${r.engine_cc || ""}</td>
+          <td>${r.price_gbp || ""}</td>
+          <td>${r.status || ""}</td>
+        </tr>
+      `).join("")}
+    </table>
+    <p>Showing first 20 rows only.</p>
+  `;
+}
+
+async function importCSV(){
+  if(!importRows.length){
+    alert("Preview a valid CSV first.");
+    return;
+  }
+
+  if(!confirm("This will delete existing available stock and replace it with this CSV. Continue?")){
+    return;
+  }
+
+  const btn = document.getElementById("importBtn");
+  btn.disabled = true;
+  btn.textContent = "Importing...";
+
+  document.getElementById("uploadMsg").textContent = "Deleting old available stock...";
+
+  const del = await sb.from("available_stock").delete().neq("id", 0);
+
+  if(del.error){
+    document.getElementById("uploadMsg").innerHTML =
+      `<span class="bad">Delete failed: ${del.error.message}</span>`;
+    btn.disabled = false;
+    btn.textContent = "Import & Replace Available Stock";
+    return;
+  }
+
+  const batchSize = 500;
+  let imported = 0;
+
+  for(let i=0; i<importRows.length; i += batchSize){
+    const batch = importRows.slice(i, i + batchSize);
+
+    document.getElementById("uploadMsg").textContent =
+      `Importing ${Math.min(i + batchSize, importRows.length).toLocaleString("en-GB")} of ${importRows.length.toLocaleString("en-GB")}...`;
+
+    const ins = await sb.from("available_stock").insert(batch);
+
+    if(ins.error){
+      document.getElementById("uploadMsg").innerHTML =
+        `<span class="bad">Import failed after ${imported} rows: ${ins.error.message}</span>`;
+      btn.disabled = false;
+      btn.textContent = "Import & Replace Available Stock";
+      return;
+    }
+
+    imported += batch.length;
+  }
+
+  document.getElementById("uploadMsg").innerHTML =
+    `<span class="ok">Import complete. ${imported.toLocaleString("en-GB")} bikes uploaded to available_stock.</span>`;
+
+  btn.disabled = false;
+  btn.textContent = "Import & Replace Available Stock";
+}
+</script>
+
+</body>
+</html>
