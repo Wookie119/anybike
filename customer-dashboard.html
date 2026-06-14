@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -34,7 +35,7 @@ button{background:#fff;color:#111;border:0;border-radius:999px;padding:13px 18px
 .bad{color:#ff7676;font-weight:900}
 .footer{text-align:center;background:rgba(5,5,5,.95);border-top:1px solid rgba(255,255,255,.1);padding:32px 16px}
 .footer strong{display:block;font-size:20px;letter-spacing:1px;margin-bottom:8px}
-@media(max-width:900px){.header-inner{grid-template-columns:1fr;text-align:center}{justify-content:center}.cards,.grid{grid-template-columns:1fr}}
+@media(max-width:900px){.header-inner{grid-template-columns:1fr;text-align:center}nav{justify-content:center}.cards,.grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -52,7 +53,7 @@ button{background:#fff;color:#111;border:0;border-radius:999px;padding:13px 18px
     <div id="userArea">Checking login...</div>
   </div>
 </header>
-  
+
 <main class="wrap">
   <h1>My <span>Account</span></h1>
   <p id="welcomeText">Loading your AnyBike account...</p>
@@ -73,6 +74,11 @@ button{background:#fff;color:#111;border:0;border-radius:999px;padding:13px 18px
       <div>Available Motorcycles</div>
       <a href="available-stock.html">Browse Stock →</a>
     </div>
+  </section>
+
+  <section class="card">
+    <h2>Recently Viewed Bikes</h2>
+    <div id="recentlyViewedBox">Loading recently viewed bikes...</div>
   </section>
 
   <section class="grid">
@@ -113,6 +119,7 @@ async function loadUser(){
   if(!currentUser){
     document.getElementById("userArea").innerHTML=`<a href="customer-register.html" style="color:#fff;text-decoration:none">Login / Register</a>`;
     document.getElementById("welcomeText").innerHTML=`Please <a href="customer-register.html" style="color:#ed1c24;font-weight:900">login or register</a> to view your dashboard.`;
+    document.getElementById("recentlyViewedBox").innerHTML=`<p class="muted">Login to see recently viewed bikes.</p>`;
     return false;
   }
 
@@ -162,9 +169,66 @@ async function loadCounts(){
   document.getElementById("stockCount").textContent=(stock.count || 0).toLocaleString("en-GB");
 }
 
+async function loadRecentlyViewed(){
+  if(!currentUser) return;
+
+  const {data,error} = await sb
+    .from("recently_viewed_bikes")
+    .select(`
+      id,
+      viewed_at,
+      bike_id,
+      available_stock (
+        id,
+        make,
+        model,
+        variant,
+        year,
+        price_gbp
+      )
+    `)
+    .eq("customer_id",currentUser.id)
+    .order("viewed_at",{ascending:false})
+    .limit(10);
+
+  const box = document.getElementById("recentlyViewedBox");
+
+  if(error){
+    box.innerHTML = `<span class="bad">${error.message}</span>`;
+    return;
+  }
+
+  const rows = (data || []).filter(r => r.available_stock);
+
+  if(!rows.length){
+    box.innerHTML = `<p class="muted">No recently viewed bikes yet.</p>`;
+    return;
+  }
+
+  box.innerHTML = rows.map(r => {
+    const b = r.available_stock;
+    return `
+      <div class="row">
+        <span>${b.make || ""} ${b.model || ""} ${b.variant || ""}</span>
+        <strong>
+          <a href="bike-details.html?id=${b.id}" style="color:#fff;text-decoration:none">View →</a>
+        </strong>
+      </div>
+    `;
+  }).join("");
+}
+
+async function logout(){
+  await sb.auth.signOut();
+  location.href="index.html";
+}
+
 (async function init(){
   const ok = await loadUser();
-  if(ok) await loadCounts();
+  if(ok){
+    await loadCounts();
+    await loadRecentlyViewed();
+  }
 })();
 </script>
 
