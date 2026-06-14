@@ -1,415 +1,141 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Admin Enquiries | AnyBike</title>
-
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
 <style>
-:root{
-  --red:#ed1c24;
-  --line:rgba(255,255,255,.12);
-}
-
+:root{--red:#ed1c24;--line:rgba(255,255,255,.12)}
 *{box-sizing:border-box}
-
-body{
-  margin:0;
-  font-family:Arial,Helvetica,sans-serif;
-  background:#050505;
-  color:#fff;
-}
-
-header{
-  background:#0b0b0b;
-  border-bottom:1px solid var(--line);
-  padding:20px;
-}
-
-h1{
-  margin:0;
-  color:var(--red);
-}
-
-.wrap{
-  max-width:1500px;
-  margin:auto;
-  padding:20px;
-}
-
-.stats{
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
-  gap:16px;
-  margin-bottom:24px;
-}
-
-.stat{
-  background:#111;
-  border:1px solid var(--line);
-  border-radius:16px;
-  padding:18px;
-}
-
-.stat strong{
-  display:block;
-  font-size:28px;
-  color:var(--red);
-}
-
-.enquiry{
-  background:#111;
-  border:1px solid var(--line);
-  border-radius:18px;
-  padding:18px;
-  margin-bottom:18px;
-}
-
-.enquiry-top{
-  display:grid;
-  grid-template-columns:180px 1fr;
-  gap:18px;
-}
-
-.bike-img{
-  width:100%;
-  height:135px;
-  object-fit:cover;
-  border-radius:14px;
-  background:#222;
-}
-
-.row{
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
-  gap:12px;
-  margin-bottom:12px;
-}
-
-.label{
-  color:#999;
-  font-size:13px;
-  margin-bottom:3px;
-}
-
-.value strong{
-  color:#fff;
-}
-
-.private{
-  background:#181818;
-  border:1px solid rgba(255,255,255,.08);
-  border-radius:14px;
-  padding:14px;
-  margin-top:12px;
-}
-
-.private h3{
-  margin:0 0 10px;
-  color:var(--red);
-}
-
-select{
-  width:100%;
-  padding:10px;
-  border-radius:10px;
-}
-
-textarea{
-  width:100%;
-  min-height:100px;
-  border-radius:10px;
-  padding:10px;
-  margin-top:10px;
-}
-
-button,.btn{
-  background:var(--red);
-  color:#fff;
-  border:0;
-  border-radius:999px;
-  padding:12px 18px;
-  font-weight:900;
-  cursor:pointer;
-  margin-top:10px;
-  display:inline-block;
-  text-decoration:none;
-}
-
-.message{
-  background:#181818;
-  border-radius:10px;
-  padding:12px;
-  margin-top:10px;
-}
-
-.reply{
-  background:#0d2333;
-  border-radius:10px;
-  padding:12px;
-  margin-top:10px;
-}
-
-@media(max-width:800px){
-  .enquiry-top{
-    grid-template-columns:1fr;
-  }
-}
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#050505;color:#fff}
+header{background:#0b0b0b;border-bottom:1px solid var(--line);padding:20px}
+h1{margin:0;color:var(--red)}
+.wrap{max-width:1500px;margin:auto;padding:20px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px}
+.stat{background:#111;border:1px solid var(--line);border-radius:16px;padding:18px}
+.stat strong{display:block;font-size:28px;color:var(--red)}
+.enquiry{background:#111;border:1px solid var(--line);border-radius:18px;padding:18px;margin-bottom:18px}
+.enquiry-top{display:grid;grid-template-columns:180px 1fr;gap:18px}
+.bike-img{width:100%;height:135px;object-fit:cover;border-radius:14px;background:#222}
+.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:12px}
+.label{color:#999;font-size:13px;margin-bottom:3px}.value strong{color:#fff}
+.private{background:#181818;border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:14px;margin-top:12px}
+.private h3{margin:0 0 10px;color:var(--red)}
+select{width:100%;padding:10px;border-radius:10px}
+textarea{width:100%;min-height:100px;border-radius:10px;padding:10px;margin-top:10px}
+button,.btn{background:var(--red);color:#fff;border:0;border-radius:999px;padding:12px 18px;font-weight:900;cursor:pointer;margin-top:10px;display:inline-block;text-decoration:none}
+.message{background:#181818;border-radius:10px;padding:12px;margin-top:10px}
+.reply{background:#0d2333;border-radius:10px;padding:12px;margin-top:10px}
+.small{color:#aaa;font-size:13px;margin-top:8px}
+@media(max-width:800px){.enquiry-top{grid-template-columns:1fr}}
 </style>
 </head>
-
 <body>
-
-<header>
-  <h1>AnyBike Enquiries</h1>
-</header>
-
+<header><h1>AnyBike Enquiries</h1></header>
 <div class="wrap">
-
   <div class="stats">
-    <div class="stat">
-      <div>New</div>
-      <strong id="newCount">0</strong>
-    </div>
-
-    <div class="stat">
-      <div>Offer Made</div>
-      <strong id="offerCount">0</strong>
-    </div>
-
-    <div class="stat">
-      <div>Reserved</div>
-      <strong id="reservedCount">0</strong>
-    </div>
-
-    <div class="stat">
-      <div>Sold</div>
-      <strong id="soldCount">0</strong>
-    </div>
+    <div class="stat"><div>New</div><strong id="newCount">0</strong></div>
+    <div class="stat"><div>Offer Made</div><strong id="offerCount">0</strong></div>
+    <div class="stat"><div>Reserved</div><strong id="reservedCount">0</strong></div>
+    <div class="stat"><div>Sold</div><strong id="soldCount">0</strong></div>
   </div>
-
   <div id="enquiries">Loading enquiries...</div>
-
 </div>
-
 <script>
 const SUPABASE_URL="https://tuehtnezhdnkqbbhttgp.supabase.co";
 const SUPABASE_ANON_KEY="sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 
-function safe(v){
-  return v===undefined || v===null || v==="" ? "-" : String(v);
-}
-
-function money(v){
-  return v ? "£" + Number(v).toLocaleString("en-GB") : "POA";
-}
-
+function safe(v){return v===undefined || v===null || v==="" ? "-" : String(v)}
+function money(v){return v ? "£" + Number(v).toLocaleString("en-GB") : "POA"}
 function rawVal(raw,keys){
   for(const k of keys){
-    if(raw && raw[k]!==undefined && raw[k]!==null && String(raw[k]).trim()!==""){
-      return raw[k];
-    }
+    if(raw && raw[k]!==undefined && raw[k]!==null && String(raw[k]).trim()!=="") return raw[k];
   }
   return "-";
 }
 
 async function loadEnquiries(){
-
   const {data,error}=await sb
     .from("bike_enquiries")
-    .select("*")
+    .select(`
+      *,
+      available_stock (
+        id, make, model, variant, year, mileage, colour, status,
+        price_gbp, image_url, raw_data,
+        private_seller_name, private_seller_type, private_seller_phone,
+        private_seller_email, private_seller_location, private_seller_postcode,
+        private_source_name, private_source_url, private_listing_id
+      )
+    `)
     .order("created_at",{ascending:false});
 
-  console.log("ENQUIRY ERROR:", error);
-  console.log("ENQUIRY DATA:", data);
-
   if(error){
-    document.getElementById("enquiries").innerHTML=
+    document.getElementById("enquiries").innerHTML =
       `<div style="color:#ff7676;font-weight:900">${error.message}</div>`;
     return;
   }
-
-  document.getElementById("enquiries").innerHTML =
-  "<pre>" + JSON.stringify(data,null,2) + "</pre>";
+  render(data || []);
 }
+
 function render(rows){
-
-  document.getElementById("newCount").textContent=
-    rows.filter(r=>r.status==="New").length;
-
-  document.getElementById("offerCount").textContent=
-    rows.filter(r=>r.status==="Offer Made").length;
-
-  document.getElementById("reservedCount").textContent=
-    rows.filter(r=>r.status==="Reserved").length;
-
-  document.getElementById("soldCount").textContent=
-    rows.filter(r=>r.status==="Sold").length;
+  document.getElementById("newCount").textContent = rows.filter(r=>r.status==="New").length;
+  document.getElementById("offerCount").textContent = rows.filter(r=>r.status==="Offer Made").length;
+  document.getElementById("reservedCount").textContent = rows.filter(r=>r.status==="Reserved").length;
+  document.getElementById("soldCount").textContent = rows.filter(r=>r.status==="Sold").length;
 
   const box=document.getElementById("enquiries");
-
-  if(!rows.length){
-    box.innerHTML="<p>No enquiries yet.</p>";
-    return;
-  }
+  if(!rows.length){box.innerHTML="<p>No enquiries yet.</p>";return;}
 
   box.innerHTML=rows.map(r=>{
     const b=r.available_stock || {};
     const raw=b.raw_data || {};
 
- const dealerType=rawVal(raw,[
-  "Dealer or Private"
-]);
+    const dealerType=rawVal(raw,["Dealer or Private"]);
+    const dealer=rawVal(raw,["Dealer Name","Dealer","dealer","Seller","Seller Name","Company","Retailer"]);
+    const location=rawVal(raw,["Location","Dealer Postcode","Postcode Area","Town","City","Address"]);
+    const sellerPhone=rawVal(raw,["Phone","Telephone","Dealer Phone","Seller Phone","Mobile"]);
+    const sellerEmail=rawVal(raw,["Email","Dealer Email","Seller Email"]);
+    const stockRef=rawVal(raw,["Listing ID","Stock Number","Stock Ref","Reg Number","Registration"]);
+    const sourceName=rawVal(raw,["Source"]);
+    const listingStatus=rawVal(raw,["Listing Status","Status"]);
+    const source=rawVal(raw,["Source URL","URL","Listing URL","Web Link"]);
 
-const dealer=rawVal(raw,[
-  "Dealer Name",
-  "Dealer",
-  "dealer",
-  "Seller",
-  "Seller Name",
-  "Company",
-  "Retailer"
-]);
+    const finalLocation = location !== "-" ? location : "-";
+    const sellerName = b.private_seller_name || dealer;
+    const sellerType = b.private_seller_type || dealerType;
+    const sellerPhoneFinal = b.private_seller_phone || sellerPhone;
+    const sellerEmailFinal = b.private_seller_email || sellerEmail;
+    const sellerLocationFinal = b.private_seller_location || finalLocation;
+    const sellerPostcode = b.private_seller_postcode || "-";
+    const sourceNameFinal = b.private_source_name || sourceName;
+    const sourceUrlFinal = b.private_source_url || source;
+    const listingIdFinal = b.private_listing_id || stockRef;
 
-const location=rawVal(raw,[
-  "Location",
-  "Dealer Postcode",
-  "Postcode Area",
-  "Town",
-  "City",
-  "Address"
-]);
-
-const sellerPhone=rawVal(raw,[
-  "Phone",
-  "Telephone",
-  "Dealer Phone",
-  "Seller Phone",
-  "Mobile"
-]);
-
-const sellerEmail=rawVal(raw,[
-  "Email",
-  "Dealer Email",
-  "Seller Email"
-]);
-
-const stockRef=rawVal(raw,[
-  "Listing ID",
-  "Stock Number",
-  "Stock Ref",
-  "Reg Number",
-  "Registration"
-]);
-
-const sourceName=rawVal(raw,[
-  "Source"
-]);
-
-const listingStatus=rawVal(raw,[
-  "Listing Status",
-  "Status"
-]);
-
-const source=rawVal(raw,[
-  "Source URL",
-  "URL",
-  "Listing URL",
-  "Web Link"
-]);
-
-const finalLocation = location !== "-" ? location : "-";
-const sellerName = b.private_seller_name || dealer;
-const sellerType = b.private_seller_type || dealerType;
-const sellerPhoneFinal = b.private_seller_phone || sellerPhone;
-const sellerEmailFinal = b.private_seller_email || sellerEmail;
-const sellerLocationFinal = b.private_seller_location || finalLocation;
-const sellerPostcode = b.private_seller_postcode || "-";
-const sourceNameFinal = b.private_source_name || sourceName;
-const sourceUrlFinal = b.private_source_url || source;
-const listingIdFinal = b.private_listing_id || stockRef;
-    
     return `
       <div class="enquiry">
-
         <div class="enquiry-top">
+          <div>${b.image_url ? `<img class="bike-img" src="${b.image_url}" alt="">` : `<div class="bike-img"></div>`}</div>
           <div>
-            ${b.image_url ? `
-              <img class="bike-img" src="${b.image_url}" alt="">
-            ` : `
-              <div class="bike-img"></div>
-            `}
-          </div>
-
-          <div>
-
             <div class="row">
-              <div class="value">
-                <div class="label">Bike</div>
-                <strong>${safe(b.make)} ${safe(b.model)}</strong><br>
-                ${safe(b.variant)}
-              </div>
-
-              <div class="value">
-                <div class="label">Bike ID</div>
-                <strong>${safe(r.bike_id)}</strong><br>
-                <a class="btn" href="bike-details.html?id=${r.bike_id}" target="_blank">View Listing</a>
-              </div>
-
-              <div class="value">
-                <div class="label">Price</div>
-                <strong>${money(b.price_gbp)}</strong>
-              </div>
-
-              <div class="value">
-                <div class="label">Year / Mileage</div>
-                ${safe(b.year)} / ${b.mileage ? Number(b.mileage).toLocaleString("en-GB") + " miles" : "-"}
-              </div>
+              <div class="value"><div class="label">Bike</div><strong>${safe(b.make)} ${safe(b.model)}</strong><br>${safe(b.variant)}</div>
+              <div class="value"><div class="label">Bike ID</div><strong>${safe(r.bike_id)}</strong><br><a class="btn" href="bike-details.html?id=${encodeURIComponent(r.bike_id)}" target="_blank">View Listing</a></div>
+              <div class="value"><div class="label">Price</div><strong>${money(b.price_gbp)}</strong></div>
+              <div class="value"><div class="label">Year / Mileage</div>${safe(b.year)} / ${b.mileage ? Number(b.mileage).toLocaleString("en-GB") + " miles" : "-"}</div>
             </div>
-
             <div class="row">
-              <div>
-                <div class="label">Question</div>
-                <strong>${safe(r.question_type)}</strong>
-              </div>
-
-              <div>
-                <div class="label">Customer</div>
-                <strong>${safe(r.customer_name)}</strong>
-              </div>
-
-              <div>
-                <div class="label">Phone</div>
-                <strong>${safe(r.customer_phone)}</strong>
-              </div>
-
-              <div>
-                <div class="label">Email</div>
-                ${safe(r.customer_email)}
-              </div>
+              <div><div class="label">Question</div><strong>${safe(r.question_type)}</strong></div>
+              <div><div class="label">Customer</div><strong>${safe(r.customer_name)}</strong></div>
+              <div><div class="label">Phone</div><strong>${safe(r.customer_phone)}</strong></div>
+              <div><div class="label">Email</div>${safe(r.customer_email)}</div>
             </div>
-
             <div class="row">
-              <div>
-                <div class="label">Offer</div>
-                ${r.offer_amount ? money(r.offer_amount) : "-"}
-              </div>
-
-              <div>
-                <div class="label">Buyer Shipping Agent</div>
-                ${safe(r.buyer_shipping_agent)}
-              </div>
-
-              <div>
-                <div class="label">Customer Country</div>
-                ${safe(r.destination_country)}
-              </div>
-
-              <div>
-                <div class="label">Status</div>
+              <div><div class="label">Offer</div>${r.offer_amount ? money(r.offer_amount) : "-"}</div>
+              <div><div class="label">Buyer Shipping Agent</div>${safe(r.buyer_shipping_agent)}</div>
+              <div><div class="label">Customer Country</div>${safe(r.destination_country)}</div>
+              <div><div class="label">Status</div>
                 <select onchange="updateStatus(${r.id},this.value)">
                   <option ${r.status==="New"?"selected":""}>New</option>
                   <option ${r.status==="Contacted"?"selected":""}>Contacted</option>
@@ -421,78 +147,49 @@ const listingIdFinal = b.private_listing_id || stockRef;
                 </select>
               </div>
             </div>
-
           </div>
         </div>
 
-<div class="private">
-  <h3>Private Stock Details</h3>
+        <div class="private">
+          <h3>Private Stock Details</h3>
+          <div class="row">
+            <div><div class="label">Seller Type</div>${safe(sellerType)}</div>
+            <div><div class="label">Dealer / Seller</div>${safe(sellerName)}</div>
+            <div><div class="label">Bike Location</div>${safe(sellerLocationFinal)}</div>
+            <div><div class="label">Seller Postcode</div>${safe(sellerPostcode)}</div>
+            <div><div class="label">Seller Phone</div>${safe(sellerPhoneFinal)}</div>
+            <div><div class="label">Seller Email</div>${safe(sellerEmailFinal)}</div>
+            <div><div class="label">Listing ID / Stock Ref</div>${safe(listingIdFinal)}</div>
+            <div><div class="label">Source</div>${safe(sourceNameFinal)}</div>
+            <div><div class="label">Listing Status</div>${safe(listingStatus)}</div>
+          </div>
+          <div>${sourceUrlFinal !== "-" ? `<a class="btn" href="${sourceUrlFinal}" target="_blank">Open Original Source</a>` : ""}</div>
+          <div class="small">Private seller/source information is for AnyBike admin use only.</div>
+        </div>
 
-  <div class="row">
-
-  <div>
-    <div class="label">Seller Type</div>
-    ${safe(sellerType)}
-  </div>
-
-  <div>
-    <div class="label">Dealer / Seller</div>
-    ${safe(sellerName)}
-  </div>
-
-  <div>
-    <div class="label">Bike Location</div>
-    ${safe(sellerLocationFinal)}
-  </div>
-
-  <div>
-    <div class="label">Seller Postcode</div>
-    ${safe(sellerPostcode)}
-  </div>
-
-  <div>
-    <div class="label">Seller Phone</div>
-    ${safe(sellerPhoneFinal)}
-  </div>
-
-  <div>
-    <div class="label">Seller Email</div>
-    ${safe(sellerEmailFinal)}
-  </div>
-
-  <div>
-    <div class="label">Listing ID / Stock Ref</div>
-    ${safe(listingIdFinal)}
-  </div>
-
-  <div>
-    <div class="label">Source</div>
-    ${safe(sourceNameFinal)}
-  </div>
-
-  <div>
-    <div class="label">Listing Status</div>
-    ${safe(listingStatus)}
-  </div>
-
-</div>
-<div class="message">
-  <strong>Buyer Message</strong><br>
-  ${safe(r.message)}
-</div>
-
-${r.admin_reply ? `
-<div class="reply">
-  <strong>Admin Reply</strong><br>
-  ${safe(r.admin_reply)}
-</div>
-` : ""}
-
-<textarea id="reply-${r.id}" placeholder="Reply to customer..."></textarea>
-
-<button onclick="saveReply(${r.id})">Save Reply</button>
-
+        <div class="message"><strong>Buyer Message</strong><br>${safe(r.message)}</div>
+        ${r.admin_reply ? `<div class="reply"><strong>Admin Reply</strong><br>${safe(r.admin_reply)}</div>` : ""}
+        <textarea id="reply-${r.id}" placeholder="Reply to customer..."></textarea>
+        <button onclick="saveReply(${r.id})">Save Reply</button>
       </div>
     `;
   }).join("");
 }
+
+async function updateStatus(id,status){
+  const {error}=await sb.from("bike_enquiries").update({status}).eq("id",id);
+  if(error){alert(error.message);return;}
+  loadEnquiries();
+}
+
+async function saveReply(id){
+  const reply=document.getElementById(`reply-${id}`).value;
+  const {error}=await sb.from("bike_enquiries").update({admin_reply:reply,replied_at:new Date().toISOString()}).eq("id",id);
+  if(error){alert(error.message);return;}
+  loadEnquiries();
+}
+
+loadEnquiries();
+</script>
+</body>
+</html>
