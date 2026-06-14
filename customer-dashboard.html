@@ -84,7 +84,7 @@ button.primary{background:var(--red);color:#fff}
 
   <section class="card">
     <h2>Recently Viewed Bikes</h2>
-    <div id="recentlyViewedBox">Loading recently viewed bikes...</div>
+    <div id="recentlyViewedBox" class="recent-grid"></div>
   </section>
 
   <section class="grid">
@@ -275,31 +275,61 @@ async function loadCounts(){
 async function loadRecentlyViewed(){
   if(!currentUser) return;
 
-  const {data,error} = await sb
+  const box = document.getElementById("recentlyViewedBox");
+  box.innerHTML = `<p class="muted">Loading recently viewed bikes...</p>`;
+
+  const {data:views,error:viewError} = await sb
     .from("recently_viewed_bikes")
-    .select(`
-      id,
-      viewed_at,
-      bike_id,
-      available_stock (
-        id,
-        make,
-        model,
-        variant,
-        year,
-        price_gbp
-      )
-    `)
+    .select("bike_id,viewed_at")
     .eq("customer_id",currentUser.id)
     .order("viewed_at",{ascending:false})
     .limit(10);
 
-  const box = document.getElementById("recentlyViewedBox");
-
-  if(error){
-    box.innerHTML = `<span class="bad">${error.message}</span>`;
+  if(viewError){
+    box.innerHTML = `<span class="bad">${viewError.message}</span>`;
     return;
   }
+
+  if(!views || !views.length){
+    box.innerHTML = `<p class="muted">No recently viewed bikes yet.</p>`;
+    return;
+  }
+
+  const bikeIds = views.map(v => v.bike_id);
+
+  const {data:bikes,error:bikeError} = await sb
+    .from("available_stock")
+    .select("id,make,model,variant,year,price_gbp,image_url")
+    .in("id",bikeIds);
+
+  if(bikeError){
+    box.innerHTML = `<span class="bad">${bikeError.message}</span>`;
+    return;
+  }
+
+  const bikeMap = new Map((bikes || []).map(b => [String(b.id), b]));
+
+  const rows = views
+    .map(v => bikeMap.get(String(v.bike_id)))
+    .filter(Boolean);
+
+  if(!rows.length){
+    box.innerHTML = `<p class="muted">Recently viewed bikes could not be matched to stock.</p>`;
+    return;
+  }
+
+  box.innerHTML = rows.map(b => {
+    return `
+      <div class="row">
+        <span>${b.make || ""} ${b.model || ""} ${b.variant || ""}</span>
+        <strong>
+          <a href="bike-details.html?id=${b.id}" style="color:#fff;text-decoration:none">View →</a>
+        </strong>
+      </div>
+    `;
+  }).join("");
+}
+  
 
   const rows = (data || []).filter(r => r.available_stock);
 
@@ -333,6 +363,32 @@ async function logout(){
     await loadRecentlyViewed();
   }
 })();
+.recent-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:16px;
+  margin-top:15px;
+}
+
+.recent-bike{
+  background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:14px;
+  padding:14px;
+}
+
+.recent-bike h3{
+  margin:0 0 8px;
+  font-size:18px;
+}
+
+.recent-bike a{
+  color:#ed1c24;
+  font-weight:900;
+  text-decoration:none;
+}
+  
+  
 </script>
 
 </body>
