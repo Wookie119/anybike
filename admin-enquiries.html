@@ -248,17 +248,30 @@ AnyBike`
 
   async function updateStatus(id,status){
 
-  const {error}=await sb
+  const enquiryId = Number(id);
+
+  const {data,error}=await sb
     .from("bike_enquiries")
     .update({status:status})
-    .eq("id",Number(id));
+    .eq("id",enquiryId)
+    .select("id,status");
+
+  console.log("ID:", enquiryId);
+  console.log("STATUS:", status);
+  console.log("DATA:", data);
+  console.log("ERROR:", error);
 
   if(error){
-    alert(error.message);
+    alert("Status save failed: " + error.message);
     return;
   }
 
-  alert("Status saved: " + status);
+  if(!data || data.length === 0){
+    alert("Supabase did not update the row. Check UPDATE policy/grant.");
+    return;
+  }
+
+  alert("Saved: " + data[0].status);
 }
 
 async function saveReply(id){
