@@ -324,8 +324,8 @@ AnyBike`
 async function updateStatus(id,status){
 
   const {error}=await sb.rpc("admin_update_enquiry_status", {
-    enquiry_id: Number(id),
-    new_status: status
+    enquiry_id:Number(id),
+    new_status:status
   });
 
   if(error){
@@ -334,8 +334,38 @@ async function updateStatus(id,status){
   }
 
   alert("Saved: " + status);
+  loadEnquiries();
+}
+
 async function loadMessages(enquiryId){
 
+  const box=document.getElementById(`messages-${enquiryId}`);
+  if(!box) return;
+
+  const {data,error}=await sb
+    .from("enquiry_messages")
+    .select("*")
+    .eq("enquiry_id",Number(enquiryId))
+    .order("created_at",{ascending:true});
+
+  if(error){
+    box.innerHTML=`<div class="small">${error.message}</div>`;
+    return;
+  }
+
+  if(!data || data.length===0){
+    box.innerHTML="<div class='small'>No messages yet</div>";
+    return;
+  }
+
+  box.innerHTML=data.map(m=>`
+    <div class="reply">
+      <strong>${safe(m.sender)}</strong><br>
+      ${safe(m.message)}
+      <div class="small">${new Date(m.created_at).toLocaleString("en-GB")}</div>
+    </div>
+  `).join("");
+}
   const box=document.getElementById(`messages-${enquiryId}`);
   if(!box) return;
 
