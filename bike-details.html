@@ -329,3 +329,50 @@ async function submitBikeEnquiry(){
   document.getElementById("enquiryForm").style.display = "none";
   document.getElementById("enquiryMessage").value = "";
 }
+async function toggleWatch(){
+  if(!currentUser){
+    location.href="customer-register.html";
+    return;
+  }
+
+  const btn=document.getElementById("watchBtn");
+
+  if(watched){
+    const {error}=await sb
+      .from("customer_watchlist")
+      .delete()
+      .eq("customer_id",currentUser.id)
+      .eq("bike_id",bike.id);
+
+    if(error){
+      alert(error.message);
+      return;
+    }
+
+    watched=false;
+    btn.textContent="♡ Add To Watchlist";
+    return;
+  }
+
+  const {error}=await sb.from("customer_watchlist").insert({
+    customer_id:currentUser.id,
+    bike_id:bike.id
+  });
+
+  if(error){
+    alert(error.message);
+    return;
+  }
+
+  watched=true;
+  btn.textContent="✓ Added To Watchlist";
+}
+
+(async function init(){
+  await loadUser();
+  await loadBike();
+})();
+</script>
+
+</body>
+</html>
