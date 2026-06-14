@@ -540,16 +540,70 @@ async function loadSearches(){
         </span>
       </div>
 
-      <div class="actions">
-        <button class="light" onclick="viewMatches('${escapeJs(s.make || "")}','${escapeJs(s.model || "")}', '${s.min_year || ""}', '${s.max_price || ""}')">View Matches</button>
-        <button class="danger" onclick="deleteSearch(${s.id})">Delete</button>
-      </div>
+     <div class="actions">
+  <button class="light" onclick="viewMatches('${escapeJs(s.make || "")}','${escapeJs(s.model || "")}', '${s.min_year || ""}', '${s.max_price || ""}')">View Matches</button>
+
+  <label style="margin:0;color:#fff;font-size:13px">
+    <input type="checkbox"
+      style="width:auto;margin-right:6px"
+      ${s.email_alerts_enabled ? "checked" : ""}
+      onchange="toggleSearchAlerts(${s.id}, this.checked)">
+    Email alerts
+  </label>
+
+  <select style="width:auto;padding:10px"
+    onchange="updateAlertFrequency(${s.id}, this.value)">
+    <option value="instant" ${s.alert_frequency === "instant" ? "selected" : ""}>Instant</option>
+    <option value="daily" ${s.alert_frequency === "daily" ? "selected" : ""}>Daily</option>
+    <option value="weekly" ${s.alert_frequency === "weekly" ? "selected" : ""}>Weekly</option>
+    <option value="off" ${s.alert_frequency === "off" ? "selected" : ""}>Off</option>
+  </select>
+
+  <button class="danger" onclick="deleteSearch(${s.id})">Delete</button>
+</div>
+
     </div>
   `).join("");
 }
 
 function escapeJs(str){
   return String(str).replaceAll("\\","\\\\").replaceAll("'","\\'");
+}
+
+  async function toggleSearchAlerts(searchId, enabled){
+  const {error}=await sb
+    .from("saved_searches")
+    .update({
+      email_alerts_enabled: enabled,
+      alert_frequency: enabled ? "instant" : "off"
+    })
+    .eq("id",searchId)
+    .eq("customer_id",currentUser.id);
+
+  if(error){
+    alert("Could not update email alerts: " + error.message);
+    return;
+  }
+
+  loadSearches();
+}
+
+async function updateAlertFrequency(searchId, frequency){
+  const {error}=await sb
+    .from("saved_searches")
+    .update({
+      alert_frequency: frequency,
+      email_alerts_enabled: frequency !== "off"
+    })
+    .eq("id",searchId)
+    .eq("customer_id",currentUser.id);
+
+  if(error){
+    alert("Could not update alert frequency: " + error.message);
+    return;
+  }
+
+  loadSearches();
 }
 
 async function deleteSearch(id){
