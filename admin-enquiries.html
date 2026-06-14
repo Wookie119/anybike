@@ -334,6 +334,67 @@ async function updateStatus(id,status){
   }
 
   alert("Saved: " + status);
+async function loadMessages(enquiryId){
+
+  const box=document.getElementById(`messages-${enquiryId}`);
+  if(!box) return;
+
+  const {data,error}=await sb
+    .from("enquiry_messages")
+    .select("*")
+    .eq("enquiry_id",Number(enquiryId))
+    .order("created_at",{ascending:true});
+
+  if(error){
+    box.innerHTML="<div class='small'>Could not load messages</div>";
+    return;
+  }
+
+  if(!data || !data.length){
+    box.innerHTML="<div class='small'>No messages yet</div>";
+    return;
+  }
+
+  box.innerHTML=data.map(m=>`
+    <div class="reply">
+      <strong>${safe(m.sender)}</strong><br>
+      ${safe(m.message)}
+      <div class="small">
+        ${new Date(m.created_at).toLocaleString("en-GB")}
+      </div>
+    </div>
+  `).join("");
+}
+
+async function sendAdminMessage(enquiryId,customerId){
+
+  const txt=document.getElementById(`msg-${enquiryId}`);
+  const message=txt.value.trim();
+
+  if(!message){
+    alert("Enter a message");
+    return;
+  }
+
+  const {error}=await sb
+    .from("enquiry_messages")
+    .insert({
+      enquiry_id:Number(enquiryId),
+      customer_id:customerId || null,
+      sender:"AnyBike",
+      message:message
+    });
+
+  if(error){
+    alert(error.message);
+    return;
+  }
+
+  txt.value="";
+
+  loadMessages(enquiryId);
+}
+  
   loadEnquiries();
 }
   
