@@ -401,13 +401,18 @@ const source=rawVal(raw,[
 
   <div class="row">
     <div>
+      <div class="label">Seller Type</div>
+      ${safe(dealerType)}
+    </div>
+
+    <div>
       <div class="label">Dealer / Seller</div>
       ${safe(dealer)}
     </div>
 
     <div>
       <div class="label">Bike Location</div>
-      ${safe(location)}
+      ${safe(finalLocation)}
     </div>
 
     <div>
@@ -421,80 +426,39 @@ const source=rawVal(raw,[
     </div>
 
     <div>
-      <div class="label">Stock Ref / Registration</div>
+      <div class="label">Listing ID / Stock Ref</div>
       ${safe(stockRef)}
     </div>
 
     <div>
-      <div class="label">Stock Status</div>
-      ${safe(b.status)}
+      <div class="label">Source</div>
+      ${safe(sourceName)}
     </div>
 
     <div>
-      <div class="label">Source / Listing URL</div>
-      ${source !== "-" ? `<a href="${source}" target="_blank" style="color:#fff">${source}</a>` : "-"}
+      <div class="label">Listing Status</div>
+      ${safe(listingStatus)}
     </div>
   </div>
-
-  <h3 style="margin-top:18px">Raw Stock Data</h3>
-  <pre style="white-space:pre-wrap;background:#050505;border:1px solid #333;border-radius:12px;padding:12px;color:#ddd;font-size:13px;max-height:280px;overflow:auto">${JSON.stringify(raw, null, 2)}</pre>
 </div>
-        <div class="message">
-          <strong>Buyer Message</strong><br>
-          ${safe(r.message)}
-        </div>
 
-        ${r.admin_reply ? `
-          <div class="reply">
-            <strong>Admin Reply</strong><br>
-            ${safe(r.admin_reply)}
-          </div>
-        ` : ""}
+<div class="message">
+  <strong>Buyer Message</strong><br>
+  ${safe(r.message)}
+</div>
 
-        <textarea id="reply-${r.id}" placeholder="Reply to customer..."></textarea>
+${r.admin_reply ? `
+<div class="reply">
+  <strong>Admin Reply</strong><br>
+  ${safe(r.admin_reply)}
+</div>
+` : ""}
 
-        <button onclick="saveReply(${r.id})">Save Reply</button>
+<textarea id="reply-${r.id}" placeholder="Reply to customer..."></textarea>
+
+<button onclick="saveReply(${r.id})">Save Reply</button>
 
       </div>
     `;
   }).join("");
 }
-
-async function updateStatus(id,status){
-  const {error}=await sb
-    .from("bike_enquiries")
-    .update({status})
-    .eq("id",id);
-
-  if(error){
-    alert(error.message);
-    return;
-  }
-
-  loadEnquiries();
-}
-
-async function saveReply(id){
-  const reply=document.getElementById(`reply-${id}`).value;
-
-  const {error}=await sb
-    .from("bike_enquiries")
-    .update({
-      admin_reply:reply,
-      replied_at:new Date().toISOString()
-    })
-    .eq("id",id);
-
-  if(error){
-    alert(error.message);
-    return;
-  }
-
-  loadEnquiries();
-}
-
-loadEnquiries();
-</script>
-
-</body>
-</html>
