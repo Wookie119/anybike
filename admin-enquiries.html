@@ -293,20 +293,29 @@ AnyBike`
 }
 
 async function updateStatus(id,status){
-  const {error}=await sb
+
+  const {data,error}=await sb
     .from("bike_enquiries")
     .update({status:status})
-    .eq("id",Number(id));
+    .eq("id",Number(id))
+    .select("id,status");
+
+  console.log("Updated data:", data);
+  console.log("Update error:", error);
 
   if(error){
     alert("Status save failed: " + error.message);
     return;
   }
 
-  alert("Saved: " + status);
+  if(!data || data.length === 0){
+    alert("Status did not save. Supabase UPDATE permission is still blocked.");
+    return;
+  }
+
+  alert("Saved: " + data[0].status);
   loadEnquiries();
 }
-
 async function saveReply(id){
   const reply=document.getElementById(`reply-${id}`).value;
 
