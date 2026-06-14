@@ -261,7 +261,20 @@ async function loadBike(){
     await saveRecentlyViewed(id);
     await checkWatchlist(id);
   }
+function cleanPublicDescription(text){
+  let s = String(text || "");
 
+  s = s.replace(/\b[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}\b/gi, "[postcode removed]");
+  s = s.replace(/\b0\d{9,10}\b/g, "[phone removed]");
+  s = s.replace(/\b\+44\s?\d{9,10}\b/g, "[phone removed]");
+  s = s.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[email removed]");
+  s = s.replace(/https?:\/\/\S+/gi, "[link removed]");
+  s = s.replace(/\b(collection only from around|collection from|located in|based in|near)\s+[^.]+\.?/gi, "[location removed].");
+  s = s.replace(/\b(Watford|Hertfordshire|London|Manchester|Birmingham|Bristol|Leeds|Liverpool|Glasgow|Edinburgh|Cardiff|Oxford|Cambridge|Nottingham|Sheffield|Derby|Stoke|Coventry|Southampton|Portsmouth|Reading|Milton Keynes)\b/gi, "[location removed]");
+  s = s.replace(/\s{2,}/g, " ").trim();
+
+  return s || "Further details available on request.";
+}
   render();
 }
 
@@ -335,7 +348,7 @@ function render(){
 
     <section class="panel" style="margin-top:24px">
       <h2>Description</h2>
-      <div class="desc">${safe(bike.raw_data?.Description || bike.raw_data?.description || "Further details available on request.")}</div>
+     <div class="desc">${safe(bike.public_description || cleanPublicDescription(bike.raw_data?.Description || bike.raw_data?.description || "Further details available on request."))}</div>
     </section>
   `;
 }
