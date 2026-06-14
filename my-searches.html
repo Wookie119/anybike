@@ -570,22 +570,25 @@ function escapeJs(str){
   return String(str).replaceAll("\\","\\\\").replaceAll("'","\\'");
 }
 
-  async function toggleSearchAlerts(searchId, enabled){
+async function toggleSearchAlerts(searchId, enabled){
+  const frequency = enabled ? "instant" : "off";
+
   const {error}=await sb
     .from("saved_searches")
     .update({
       email_alerts_enabled: enabled,
-      alert_frequency: enabled ? "instant" : "off"
+      alert_frequency: frequency
     })
     .eq("id",searchId)
     .eq("customer_id",currentUser.id);
 
   if(error){
     alert("Could not update email alerts: " + error.message);
+    loadSearches();
     return;
   }
 
-  loadSearches();
+  await loadSearches();
 }
 
 async function updateAlertFrequency(searchId, frequency){
@@ -600,10 +603,11 @@ async function updateAlertFrequency(searchId, frequency){
 
   if(error){
     alert("Could not update alert frequency: " + error.message);
+    loadSearches();
     return;
   }
 
-  loadSearches();
+  await loadSearches();
 }
 
 async function deleteSearch(id){
