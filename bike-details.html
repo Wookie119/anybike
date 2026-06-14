@@ -234,7 +234,7 @@ function render(){
         </div>
 
         <div class="actions">
-      <button class="primary" onclick="openEnquiryForm('info')">Request More Information</button>
+      <button class="primary" onclick="openEnquiryForm()">Ask About This Bike</button>
 <button class="light" onclick="openEnquiryForm('buy')">I Would Like To Buy This Bike</button>
 
 <div id="enquiryForm" style="display:none;margin-top:16px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:16px">
@@ -277,15 +277,27 @@ function openEnquiryForm(type){
     return;
   }
 
-  enquiryType = type;
+ function openEnquiryForm(){
+  if(!currentUser){
+    alert("Please login or register before sending an enquiry.");
+    location.href="customer-register.html";
+    return;
+  }
 
-  document.getElementById("enquiryTitle").textContent =
-    type === "buy" ? "Buy This Bike Enquiry" : "Request More Information";
-
+  document.getElementById("enquiryTitle").textContent = "Ask About This Bike";
   document.getElementById("enquiryPhone").value = currentProfile?.phone || "";
-  document.getElementById("shippingCompany").value = currentProfile?.preferred_shipping_company || "";
-
+  document.getElementById("buyerShippingAgent").value = currentProfile?.preferred_shipping_company || "";
   document.getElementById("enquiryForm").style.display = "block";
+}
+
+function handleQuestionTypeChange(){
+  const type = document.getElementById("questionType").value;
+
+  document.getElementById("offerBox").style.display =
+    type === "I want to make an offer" ? "block" : "none";
+
+  document.getElementById("shippingAgentBox").style.display =
+    type === "I have a UK shipping agent" ? "block" : "none";
 }
 
 async function submitBikeEnquiry(){
@@ -294,10 +306,18 @@ async function submitBikeEnquiry(){
     return;
   }
 
+  const question_type = document.getElementById("questionType").value;
   const phone = document.getElementById("enquiryPhone").value.trim();
-  const shipping_option = document.getElementById("shippingOption").value;
-  const shipping_company = document.getElementById("shippingCompany").value.trim();
+  const offer_amount = document.getElementById("offerAmount").value
+    ? Number(document.getElementById("offerAmount").value)
+    : null;
+  const buyer_shipping_agent = document.getElementById("buyerShippingAgent").value.trim();
   const message = document.getElementById("enquiryMessage").value.trim();
+
+  if(!question_type){
+    alert("Please choose what you would like to ask.");
+    return;
+  }
 
   if(!phone){
     alert("Please enter your phone / WhatsApp number.");
@@ -307,15 +327,15 @@ async function submitBikeEnquiry(){
   const {error}=await sb.from("bike_enquiries").insert({
     customer_id: currentUser.id,
     bike_id: bike.id,
-    enquiry_type: enquiryType === "buy" ? "Buy" : "Info",
+    enquiry_type: "Buyer Question",
+    question_type,
+    offer_amount,
+    buyer_shipping_agent,
     customer_email: currentUser.email,
     customer_name: currentProfile?.full_name || currentUser.email,
     customer_phone: phone,
     destination_country: currentProfile?.country || "",
-    shipping_option: shipping_option,
-    shipping_company: shipping_company,
-    shipping_contact_details: "",
-    message: message,
+    message,
     status: "New"
   });
 
@@ -327,8 +347,12 @@ async function submitBikeEnquiry(){
   alert("Enquiry sent to AnyBike. We will contact you shortly.");
 
   document.getElementById("enquiryForm").style.display = "none";
+  document.getElementById("questionType").value = "";
+  document.getElementById("offerAmount").value = "";
+  document.getElementById("buyerShippingAgent").value = "";
   document.getElementById("enquiryMessage").value = "";
 }
+
 async function toggleWatch(){
   if(!currentUser){
     location.href="customer-register.html";
