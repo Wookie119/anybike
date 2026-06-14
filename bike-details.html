@@ -79,8 +79,10 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const logoFile="anybike-logo-new.jpg";
 let currentUser=null;
+let currentProfile=null;
 let bike=null;
 let watched=false;
+let enquiryType="info";
 
 const rates={
   GBP:{symbol:"£",rate:1},
@@ -129,7 +131,7 @@ async function loadUser(){
     .select("full_name")
     .eq("id",currentUser.id)
     .maybeSingle();
-
+currentProfile = profile || {};
   const name=profile?.full_name || currentUser.email;
   document.getElementById("userArea").innerHTML=`👤 <span class="user-name">${name}</span> | <a href="#" onclick="logout()" style="color:#fff;text-decoration:none">Logout</a>`;
 }
@@ -232,8 +234,30 @@ function render(){
         </div>
 
         <div class="actions">
-        <button class="primary" onclick="enquire('info')">Request More Information</button>
-<button class="light" onclick="enquire('buy')">I Would Like To Buy This Bike</button>
+      <button class="primary" onclick="openEnquiryForm('info')">Request More Information</button>
+<button class="light" onclick="openEnquiryForm('buy')">I Would Like To Buy This Bike</button>
+
+<div id="enquiryForm" style="display:none;margin-top:16px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:16px">
+  <h3 id="enquiryTitle">Send Enquiry</h3>
+
+  <label>Phone / WhatsApp</label>
+  <input id="enquiryPhone" placeholder="Phone / WhatsApp number">
+
+  <label>UK shipping / collection agent</label>
+  <select id="shippingOption">
+    <option value="No agent yet">No agent yet — please contact me</option>
+    <option value="I will arrange collection">I will arrange UK collection</option>
+    <option value="Use my preferred shipping company">Use my preferred shipping company</option>
+  </select>
+
+  <label>Preferred shipping company / agent</label>
+  <input id="shippingCompany" placeholder="Company name, if known">
+
+  <label>Notes</label>
+  <textarea id="enquiryMessage" placeholder="Any notes for AnyBike"></textarea>
+
+  <button class="primary" onclick="submitBikeEnquiry()">Send Enquiry</button>
+</div>
           <button id="watchBtn" class="outline" onclick="toggleWatch()">${watched ? "✓ Added To Watchlist" : "♡ Add To Watchlist"}</button>
         </div>
       </section>
@@ -246,37 +270,52 @@ function render(){
   `;
 }
 
-async function enquire(type){
+function openEnquiryForm(type){
   if(!currentUser){
     alert("Please login or register before sending an enquiry.");
     location.href="customer-register.html";
     return;
   }
 
-  if(!bike){
+  enquiryType = type;
+
+  document.getElementById("enquiryTitle").textContent =
+    type === "buy" ? "Buy This Bike Enquiry" : "Request More Information";
+
+  document.getElementById("enquiryPhone").value = currentProfile?.phone || "";
+  document.getElementById("shippingCompany").value = currentProfile?.preferred_shipping_company || "";
+
+  document.getElementById("enquiryForm").style.display = "block";
+}
+
+async function submitBikeEnquiry(){
+  if(!currentUser || !bike){
     alert("Bike details are not loaded yet.");
     return;
   }
 
-  const destination_country = prompt("Destination country?");
-  if(!destination_country) return;
+  const phone = document.getElementById("enquiryPhone").value.trim();
+  const shipping_option = document.getElementById("shippingOption").value;
+  const shipping_company = document.getElementById("shippingCompany").value.trim();
+  const message = document.getElementById("enquiryMessage").value.trim();
 
-  const customer_phone = prompt("Phone / WhatsApp number?");
-  if(!customer_phone) return;
-
-  const message = prompt("Message for AnyBike?", "");
-
-  const enquiryLabel = type === "buy" ? "Buy" : "Info";
+  if(!phone){
+    alert("Please enter your phone / WhatsApp number.");
+    return;
+  }
 
   const {error}=await sb.from("bike_enquiries").insert({
     customer_id: currentUser.id,
     bike_id: bike.id,
-    enquiry_type: enquiryLabel,
+    enquiry_type: enquiryType === "buy" ? "Buy" : "Info",
     customer_email: currentUser.email,
-    customer_name: currentUser.email,
-    customer_phone: customer_phone,
-    destination_country: destination_country,
-    message: message || "",
+    customer_name: currentProfile?.full_name || currentUser.email,
+    customer_phone: phone,
+    destination_country: currentProfile?.country || "",
+    shipping_option: shipping_option,
+    shipping_company: shipping_company,
+    shipping_contact_details: "",
+    message: message,
     status: "New"
   });
 
@@ -286,52 +325,7 @@ async function enquire(type){
   }
 
   alert("Enquiry sent to AnyBike. We will contact you shortly.");
+
+  document.getElementById("enquiryForm").style.display = "none";
+  document.getElementById("enquiryMessage").value = "";
 }
-
-async function toggleWatch(){
-  if(!currentUser){
-    location.href="customer-register.html";
-    return;
-  }
-
-  const btn=document.getElementById("watchBtn");
-
-  if(watched){
-    const {error}=await sb
-      .from("customer_watchlist")
-      .delete()
-      .eq("customer_id",currentUser.id)
-      .eq("bike_id",bike.id);
-
-    if(error){
-      alert(error.message);
-      return;
-    }
-
-    watched=false;
-    btn.textContent="♡ Add To Watchlist";
-    return;
-  }
-
-  const {error}=await sb.from("customer_watchlist").insert({
-    customer_id:currentUser.id,
-    bike_id:bike.id
-  });
-
-  if(error){
-    alert(error.message);
-    return;
-  }
-
-  watched=true;
-  btn.textContent="✓ Added To Watchlist";
-}
-
-(async function init(){
-  await loadUser();
-  await loadBike();
-})();
-</script>
-
-</body>
-</html>
