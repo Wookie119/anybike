@@ -232,8 +232,8 @@ function render(){
         </div>
 
         <div class="actions">
-          <button class="primary" onclick="enquire()">Request More Information</button>
-          <button class="light" onclick="buyBike()">I Would Like To Buy This Bike</button>
+         <button class="primary" onclick="enquire('info')">Request More Information</button>
+<button class="light" onclick="enquire('buy')">I Would Like To Buy This Bike</button>
           <button id="watchBtn" class="outline" onclick="toggleWatch()">${watched ? "✓ Added To Watchlist" : "♡ Add To Watchlist"}</button>
         </div>
       </section>
@@ -246,48 +246,46 @@ function render(){
   `;
 }
 
-function enquire(){
-  const subject=encodeURIComponent(`Request more information: ${safe(bike.make)} ${safe(bike.model)}`);
-  const body=encodeURIComponent(
-`Hello AnyBike,
+async function enquire(type){
+  if(!currentUser){
+    alert("Please login or register before sending an enquiry.");
+    location.href="customer-register.html";
+    return;
+  }
 
-I am interested in:
+  if(!bike){
+    alert("Bike details are not loaded yet.");
+    return;
+  }
 
-${safe(bike.make)} ${safe(bike.model)}
-${safe(bike.variant)}
-${bike.year || ""}
-${money(bike.price_gbp)}
-Reference: AB-${bike.id}
+  const destination_country = prompt("Destination country?");
+  if(!destination_country) return;
 
-Destination country:
-Name:
-Phone:
+  const customer_phone = prompt("Phone / WhatsApp number?");
+  if(!customer_phone) return;
 
-Thanks`
-  );
-  location.href=`mailto:sales@anybike.co.uk?subject=${subject}&body=${body}`;
-}
+  const message = prompt("Message for AnyBike?", "");
 
-function buyBike(){
-  const subject=encodeURIComponent(`I would like to buy this bike: ${safe(bike.make)} ${safe(bike.model)}`);
-  const body=encodeURIComponent(
-`Hello AnyBike,
+  const enquiryLabel = type === "buy" ? "Buy" : "Info";
 
-I would like to buy this bike:
+  const {error}=await sb.from("bike_enquiries").insert({
+    customer_id: currentUser.id,
+    bike_id: bike.id,
+    enquiry_type: enquiryLabel,
+    customer_email: currentUser.email,
+    customer_name: currentUser.email,
+    customer_phone: customer_phone,
+    destination_country: destination_country,
+    message: message || "",
+    status: "New"
+  });
 
-${safe(bike.make)} ${safe(bike.model)}
-${safe(bike.variant)}
-${bike.year || ""}
-${money(bike.price_gbp)}
-Reference: AB-${bike.id}
+  if(error){
+    alert("Could not send enquiry: " + error.message);
+    return;
+  }
 
-Destination country:
-Name:
-Phone:
-
-Thanks`
-  );
-  location.href=`mailto:sales@anybike.co.uk?subject=${subject}&body=${body}`;
+  alert("Enquiry sent to AnyBike. We will contact you shortly.");
 }
 
 async function toggleWatch(){
