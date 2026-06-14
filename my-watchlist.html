@@ -212,23 +212,30 @@ function cardHTML(row){
     </article>`;
 }
 
-function findBikeFromWatchlist(id){const row = watchlistRows.find(r => String(r.bike_id) === String(id)); return row?.available_stock || null}
-function enquire(id){
-  const b = findBikeFromWatchlist(id); if(!b) return;
-  const subject = encodeURIComponent(`Request more information: ${safe(b.make)} ${safe(b.model)}`);
-  const body = encodeURIComponent(`Hello AnyBike,\n\nI am interested in this bike from my watchlist:\n\n${safe(b.make)} ${safe(b.model)}\n${safe(b.variant)}\n${b.year || ""}\n${money(b.price_gbp)}\n\nDestination country:\nName:\nPhone:\n\nThanks`);
-  window.location.href = `mailto:sales@anybike.co.uk?subject=${subject}&body=${body}`;
+function findBikeFromWatchlist(id){
+  const row = watchlistRows.find(r => String(r.bike_id) === String(id));
+  return row?.available_stock || null;
 }
-function buyBike(id){
-  const b = findBikeFromWatchlist(id); if(!b) return;
-  const subject = encodeURIComponent(`I would like to buy this bike: ${safe(b.make)} ${safe(b.model)}`);
-  const body = encodeURIComponent(`Hello AnyBike,\n\nI would like to buy this bike from my watchlist:\n\n${safe(b.make)} ${safe(b.model)}\n${safe(b.variant)}\n${b.year || ""}\n${money(b.price_gbp)}\n\nDestination country:\nName:\nPhone:\n\nThanks`);
-  window.location.href = `mailto:sales@anybike.co.uk?subject=${subject}&body=${body}`;
+
+function viewFullAdvert(id){
+  location.href = `bike-details.html?id=${encodeURIComponent(id)}`;
 }
+
 async function removeWatch(rowId){
-  const { error } = await sb.from("customer_watchlist").delete().eq("id", rowId).eq("customer_id", currentUser.id);
-  if(error){alert("Could not remove bike: " + error.message); return}
-  watchlistRows = watchlistRows.filter(row => String(row.id) !== String(rowId)); render();
+  const { error } = await sb
+    .from("customer_watchlist")
+    .delete()
+    .eq("id", rowId)
+    .eq("customer_id", currentUser.id);
+
+  if(error){
+    alert("Could not remove bike: " + error.message);
+    return;
+  }
+
+  watchlistRows = watchlistRows.filter(row => String(row.id) !== String(rowId));
+  render();
+}
 }
 
 (async function init(){setupCurrency(); const loggedIn = await loadUser(); if(loggedIn){await loadWatchlist()}})();
