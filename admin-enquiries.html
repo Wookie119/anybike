@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -20,21 +19,23 @@ h1{margin:0;color:var(--red)}
 .enquiry-top{display:grid;grid-template-columns:180px 1fr;gap:18px}
 .bike-img{width:100%;height:135px;object-fit:cover;border-radius:14px;background:#222}
 .row{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:12px}
-.label{color:#999;font-size:13px;margin-bottom:3px}.value strong{color:#fff}
-.private{background:#181818;border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:14px;margin-top:12px}
-.private h3{margin:0 0 10px;color:var(--red)}
+.label{color:#999;font-size:13px;margin-bottom:3px}
+.value strong{color:#fff}
 select{width:100%;padding:10px;border-radius:10px}
 textarea{width:100%;min-height:100px;border-radius:10px;padding:10px;margin-top:10px}
 button,.btn{background:var(--red);color:#fff;border:0;border-radius:999px;padding:12px 18px;font-weight:900;cursor:pointer;margin-top:10px;display:inline-block;text-decoration:none;width:auto}
 .quick-replies{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
-.quick-replies button{flex:0 0 auto}.message{background:#181818;border-radius:10px;padding:12px;margin-top:10px}
+.quick-replies button{flex:0 0 auto}
+.message{background:#181818;border-radius:10px;padding:12px;margin-top:14px}
 .reply{background:#0d2333;border-radius:10px;padding:12px;margin-top:10px}
 .small{color:#aaa;font-size:13px;margin-top:8px}
 @media(max-width:800px){.enquiry-top{grid-template-columns:1fr}}
 </style>
 </head>
+
 <body>
 <header><h1>AnyBike Enquiries</h1></header>
+
 <div class="wrap">
   <div class="stats">
     <div class="stat"><div>New</div><strong id="newCount">0</strong></div>
@@ -42,15 +43,23 @@ button,.btn{background:var(--red);color:#fff;border:0;border-radius:999px;paddin
     <div class="stat"><div>Reserved</div><strong id="reservedCount">0</strong></div>
     <div class="stat"><div>Sold</div><strong id="soldCount">0</strong></div>
   </div>
+
   <div id="enquiries">Loading enquiries...</div>
 </div>
+
 <script>
 const SUPABASE_URL="https://tuehtnezhdnkqbbhttgp.supabase.co";
 const SUPABASE_ANON_KEY="sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 
-function safe(v){return v===undefined || v===null || v==="" ? "-" : String(v)}
-function money(v){return v ? "£" + Number(v).toLocaleString("en-GB") : "POA"}
+function safe(v){
+  return v===undefined || v===null || v==="" ? "-" : String(v);
+}
+
+function money(v){
+  return v ? "£" + Number(v).toLocaleString("en-GB") : "POA";
+}
+
 function rawVal(raw,keys){
   for(const k of keys){
     if(raw && raw[k]!==undefined && raw[k]!==null && String(raw[k]).trim()!=="") return raw[k];
@@ -78,6 +87,7 @@ async function loadEnquiries(){
       `<div style="color:#ff7676;font-weight:900">${error.message}</div>`;
     return;
   }
+
   render(data || []);
 }
 
@@ -88,100 +98,136 @@ function render(rows){
   document.getElementById("soldCount").textContent = rows.filter(r=>r.status==="Sold").length;
 
   const box=document.getElementById("enquiries");
-  if(!rows.length){box.innerHTML="<p>No enquiries yet.</p>";return;}
+
+  if(!rows.length){
+    box.innerHTML="<p>No enquiries yet.</p>";
+    return;
+  }
 
   box.innerHTML=rows.map(r=>{
     const b=r.available_stock || {};
     const raw=b.raw_data || {};
 
-    const dealerType=rawVal(raw,["Dealer or Private"]);
-    const dealer=rawVal(raw,["Dealer Name","Dealer","dealer","Seller","Seller Name","Company","Retailer"]);
-    const location=rawVal(raw,["Location","Dealer Postcode","Postcode Area","Town","City","Address"]);
-    const sellerPhone=rawVal(raw,["Phone","Telephone","Dealer Phone","Seller Phone","Mobile"]);
-    const sellerEmail=rawVal(raw,["Email","Dealer Email","Seller Email"]);
-    const stockRef=rawVal(raw,["Listing ID","Stock Number","Stock Ref","Reg Number","Registration"]);
-    const sourceName=rawVal(raw,["Source"]);
-    const listingStatus=rawVal(raw,["Listing Status","Status"]);
-    const source=rawVal(raw,["Source URL","URL","Listing URL","Web Link"]);
-
-    const finalLocation = location !== "-" ? location : "-";
-    const sellerName = b.private_seller_name || dealer;
-    const sellerType = b.private_seller_type || dealerType;
-    const sellerPhoneFinal = b.private_seller_phone || sellerPhone;
-    const sellerEmailFinal = b.private_seller_email || sellerEmail;
-    const sellerLocationFinal = b.private_seller_location || finalLocation;
-    const sellerPostcode = b.private_seller_postcode || "-";
-    const sourceNameFinal = b.private_source_name || sourceName;
-    const sourceUrlFinal = b.private_source_url || source;
-    const listingIdFinal = b.private_listing_id || stockRef;
-
     return `
       <div class="enquiry">
         <div class="enquiry-top">
-          <div>${b.image_url ? `<img class="bike-img" src="${b.image_url}" alt="">` : `<div class="bike-img"></div>`}</div>
+
           <div>
+            ${b.image_url ? `<img class="bike-img" src="${b.image_url}" alt="">` : `<div class="bike-img"></div>`}
+          </div>
+
+          <div>
+
             <div class="row">
-              <div class="value"><div class="label">Bike</div><strong>${safe(b.make)} ${safe(b.model)}</strong><br>${safe(b.variant)}</div>
-              <div class="value"><div class="label">Bike ID</div><strong>${safe(r.bike_id)}</strong><br><a class="btn" href="bike-details.html?id=${encodeURIComponent(r.bike_id)}" target="_blank">View Listing</a></div>
-              <div class="value"><div class="label">Price</div><strong>${money(b.price_gbp)}</strong></div>
-              <div class="value"><div class="label">Year / Mileage</div>${safe(b.year)} / ${b.mileage ? Number(b.mileage).toLocaleString("en-GB") + " miles" : "-"}</div>
+              <div class="value">
+                <div class="label">Bike</div>
+                <strong>${safe(b.make)} ${safe(b.model)}</strong><br>
+                ${safe(b.variant)}
+              </div>
+
+              <div class="value">
+                <div class="label">Bike ID</div>
+                <strong>${safe(r.bike_id)}</strong><br>
+                <a class="btn" href="bike-details.html?id=${encodeURIComponent(r.bike_id)}" target="_blank">View Listing</a>
+              </div>
+
+              <div class="value">
+                <div class="label">Price</div>
+                <strong>${money(b.price_gbp)}</strong>
+              </div>
+
+              <div class="value">
+                <div class="label">Year / Mileage</div>
+                ${safe(b.year)} / ${b.mileage ? Number(b.mileage).toLocaleString("en-GB") + " miles" : "-"}
+              </div>
             </div>
+
             <div class="row">
-              <div><div class="label">Question</div><strong>${safe(r.question_type)}</strong></div>
-              <div><div class="label">Customer</div><strong>${safe(r.customer_name)}</strong></div>
-              <div><div class="label">Phone</div><strong>${safe(r.customer_phone)}</strong></div>
-              <div><div class="label">Email</div>${safe(r.customer_email)}</div>
+              <div>
+                <div class="label">Question</div>
+                <strong>${safe(r.question_type)}</strong>
+              </div>
+
+              <div>
+                <div class="label">Customer</div>
+                <strong>${safe(r.customer_name)}</strong>
+              </div>
+
+              <div>
+                <div class="label">Phone</div>
+                <strong>${safe(r.customer_phone)}</strong>
+              </div>
+
+              <div>
+                <div class="label">Email</div>
+                ${safe(r.customer_email)}
+              </div>
             </div>
+
             <div class="row">
-              <div><div class="label">Offer</div>${r.offer_amount ? money(r.offer_amount) : "-"}</div>
-              <div><div class="label">Buyer Shipping Agent</div>${safe(r.buyer_shipping_agent)}</div>
-              <div><div class="label">Customer Country</div>${safe(r.destination_country)}</div>
-             <div>
-  <div class="label">Status</div>
+              <div>
+                <div class="label">Offer</div>
+                ${r.offer_amount ? money(r.offer_amount) : "-"}
+              </div>
 
-<select id="status-${r.id}" name="status-${r.id}" title="Enquiry Status" onchange="updateStatus(${r.id}, this.value)">    <option value="New" ${r.status==="New"?"selected":""}>New</option>
-    <option value="Contacted" ${r.status==="Contacted"?"selected":""}>Contacted</option>
-    <option value="Waiting Buyer" ${r.status==="Waiting Buyer"?"selected":""}>Waiting Buyer</option>
-    <option value="Offer Made" ${r.status==="Offer Made"?"selected":""}>Offer Made</option>
-    <option value="Reserved" ${r.status==="Reserved"?"selected":""}>Reserved</option>
-    <option value="Sold" ${r.status==="Sold"?"selected":""}>Sold</option>
-    <option value="Closed" ${r.status==="Closed"?"selected":""}>Closed</option>
-  </select>
-</div>
-  <strong>Buyer Message</strong><br>
-  ${safe(r.message)}
-</div>
+              <div>
+                <div class="label">Buyer Shipping Agent</div>
+                ${safe(r.buyer_shipping_agent)}
+              </div>
 
-${r.admin_reply ? `
-<div class="reply">
-  <strong>Admin Reply</strong><br>
-  ${safe(r.admin_reply)}
-</div>
-` : ""}
+              <div>
+                <div class="label">Customer Country</div>
+                ${safe(r.destination_country)}
+              </div>
 
-<div class="quick-replies">
-  <button onclick="setQuickReply(${r.id},'available')">Still Available</button>
-  <button onclick="setQuickReply(${r.id},'accepted')">Offer Accepted</button>
-  <button onclick="setQuickReply(${r.id},'rejected')">Offer Rejected</button>
-  <button onclick="setQuickReply(${r.id},'photos')">More Photos</button>
-  <button onclick="setQuickReply(${r.id},'payment')">Awaiting Payment</button>
-  <button onclick="setQuickReply(${r.id},'reserved')">Reserved</button>
-</div>
+              <div>
+                <div class="label">Status</div>
+                <select id="status-${r.id}" name="status-${r.id}" title="Enquiry Status" onchange="updateStatus(${r.id}, this.value)">
+                  <option value="New" ${r.status==="New"?"selected":""}>New</option>
+                  <option value="Contacted" ${r.status==="Contacted"?"selected":""}>Contacted</option>
+                  <option value="Waiting Buyer" ${r.status==="Waiting Buyer"?"selected":""}>Waiting Buyer</option>
+                  <option value="Offer Made" ${r.status==="Offer Made"?"selected":""}>Offer Made</option>
+                  <option value="Reserved" ${r.status==="Reserved"?"selected":""}>Reserved</option>
+                  <option value="Sold" ${r.status==="Sold"?"selected":""}>Sold</option>
+                  <option value="Closed" ${r.status==="Closed"?"selected":""}>Closed</option>
+                </select>
+              </div>
+            </div>
 
-<textarea id="reply-${r.id}" placeholder="Reply to customer..."></textarea>
+            <div class="message">
+              <strong>Buyer Message</strong><br>
+              ${safe(r.message)}
+            </div>
 
-<button onclick="saveReply(${r.id})">
-  Save Reply
-</button>
+            ${r.admin_reply ? `
+              <div class="reply">
+                <strong>Admin Reply</strong><br>
+                ${safe(r.admin_reply)}
+              </div>
+            ` : ""}
+
+            <div class="quick-replies">
+              <button onclick="setQuickReply(${r.id},'available')">Still Available</button>
+              <button onclick="setQuickReply(${r.id},'accepted')">Offer Accepted</button>
+              <button onclick="setQuickReply(${r.id},'rejected')">Offer Rejected</button>
+              <button onclick="setQuickReply(${r.id},'photos')">More Photos</button>
+              <button onclick="setQuickReply(${r.id},'payment')">Awaiting Payment</button>
+              <button onclick="setQuickReply(${r.id},'reserved')">Reserved</button>
+            </div>
+
+            <textarea id="reply-${r.id}" placeholder="Reply to customer..."></textarea>
+
+            <button onclick="saveReply(${r.id})">Save Reply</button>
+
+          </div>
+        </div>
       </div>
     `;
   }).join("");
 }
 
 function setQuickReply(id,type){
-
   const replies = {
-
     available: `Hello,
 
 Thank you for your enquiry.
@@ -246,8 +292,7 @@ AnyBike`
   document.getElementById(`reply-${id}`).value = replies[type] || "";
 }
 
- async function updateStatus(id,status){
-
+async function updateStatus(id,status){
   const {error}=await sb
     .from("bike_enquiries")
     .update({status:status})
@@ -259,14 +304,7 @@ AnyBike`
   }
 
   alert("Saved: " + status);
-}
-
-  if(!data || data.length === 0){
-    alert("Supabase did not update the row. Check UPDATE policy/grant.");
-    return;
-  }
-
-  alert("Saved: " + data[0].status);
+  loadEnquiries();
 }
 
 async function saveReply(id){
@@ -278,13 +316,14 @@ async function saveReply(id){
       admin_reply:reply,
       replied_at:new Date().toISOString()
     })
-    .eq("id",id);
+    .eq("id",Number(id));
 
   if(error){
-    alert(error.message);
+    alert("Reply save failed: " + error.message);
     return;
   }
 
+  alert("Reply saved");
   loadEnquiries();
 }
 
