@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Bike Details | AnyBike</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  
+
 <style>
 :root{--red:#ed1c24;--line:rgba(255,255,255,.13)}
 *{box-sizing:border-box}
@@ -16,7 +15,7 @@ header{background:rgba(5,5,5,.92);border-bottom:1px solid var(--line);position:s
 .logo{width:210px;background:#fff;border-radius:12px;padding:5px}
 nav{display:flex;gap:16px;justify-content:center;flex-wrap:wrap}
 nav a{color:#d8d8d8;text-decoration:none;font-weight:800;font-size:14px}
-nav a:hover,nav a.active{color:var(--red)}
+nav a:hover{color:var(--red)}
 #userArea{font-weight:800;white-space:nowrap}
 .user-name{color:var(--red);font-weight:900}
 .wrap{max-width:1200px;margin:42px auto;padding:0 18px 55px}
@@ -33,14 +32,83 @@ h1 span,.price{color:var(--red)}
 .price{font-size:40px;font-weight:950;margin:16px 0}
 .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin:20px 0}
 .spec{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:14px}
-.spec span{display:block;color:#aaa;font-size:13px;margin-bottom:5px}.spec strong{font-size:18px}
+.spec span{display:block;color:#aaa;font-size:13px;margin-bottom:5px}
+.spec strong{font-size:18px}
 .actions{display:grid;gap:10px;margin-top:18px}
 button,.btn{border:0;border-radius:999px;padding:14px 18px;font-weight:900;font-size:16px;cursor:pointer;text-align:center;text-decoration:none;display:block}
-.primary{background:var(--red);color:#fff}.light{background:#fff;color:#111}.outline{background:transparent;color:#fff;border:2px solid rgba(255,255,255,.35)}
+.primary{background:var(--red);color:#fff}
+.outline{background:transparent;color:#fff;border:2px solid rgba(255,255,255,.35)}
 .desc{color:#ddd;line-height:1.7;white-space:pre-wrap}
-.bad{color:#ff7676;font-weight:900}.muted{color:#ccc}
+.bad{color:#ff7676;font-weight:900}
+.muted{color:#ccc}
 .footer{text-align:center;background:rgba(5,5,5,.95);border-top:1px solid rgba(255,255,255,.1);padding:32px 16px}
-@media(max-width:850px){.header-inner,.layout{grid-template-columns:1fr;text-align:center}nav{justify-content:center}.grid{grid-template-columns:1fr}.imageBox{height:280px}}
+
+.modal{
+  display:none;
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.78);
+  z-index:9999;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+}
+
+.modal-box{
+  width:100%;
+  max-width:540px;
+  background:#111;
+  border:1px solid rgba(255,255,255,.16);
+  border-radius:22px;
+  padding:24px;
+  position:relative;
+  box-shadow:0 30px 90px rgba(0,0,0,.65);
+}
+
+.modal-close{
+  position:absolute;
+  right:16px;
+  top:10px;
+  width:auto;
+  background:transparent;
+  color:#fff;
+  font-size:32px;
+  padding:0;
+}
+
+.modal-box h2{
+  margin:0 0 16px;
+}
+
+.modal-box label{
+  display:block;
+  margin:12px 0 6px;
+  font-weight:900;
+}
+
+.modal-box input,
+.modal-box select,
+.modal-box textarea{
+  width:100%;
+  padding:13px;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,.18);
+  background:#fff;
+  color:#111;
+  font-size:16px;
+}
+
+.modal-box textarea{
+  min-height:110px;
+  resize:vertical;
+}
+
+@media(max-width:850px){
+  .header-inner,.layout{grid-template-columns:1fr;text-align:center}
+  nav{justify-content:center}
+  .grid{grid-template-columns:1fr}
+  .imageBox{height:280px}
+}
 </style>
 </head>
 
@@ -67,6 +135,44 @@ button,.btn{border:0;border-radius:999px;padding:14px 18px;font-weight:900;font-
   </div>
 </main>
 
+<div id="enquiryModal" class="modal">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeEnquiryModal()">×</button>
+
+    <h2>Ask About This Bike</h2>
+
+    <label>Phone / WhatsApp</label>
+    <input id="enquiryPhone" placeholder="Phone / WhatsApp number">
+
+    <label>What would you like to ask?</label>
+    <select id="questionType" onchange="handleQuestionTypeChange()">
+      <option value="">Select a question</option>
+      <option>Availability</option>
+      <option>Make an Offer</option>
+      <option>Reserve This Bike</option>
+      <option>More Photos / Video</option>
+      <option>Export Documents</option>
+      <option>I Have A UK Shipping Agent</option>
+      <option>Other Question</option>
+    </select>
+
+    <div id="offerBox" style="display:none">
+      <label>Offer amount £</label>
+      <input id="offerAmount" type="number" placeholder="Your offer in GBP">
+    </div>
+
+    <div id="shippingAgentBox" style="display:none">
+      <label>UK shipping company / agent</label>
+      <input id="buyerShippingAgent" placeholder="Company name, if known">
+    </div>
+
+    <label>Additional Notes</label>
+    <textarea id="enquiryMessage" placeholder="Add any extra details"></textarea>
+
+    <button class="primary" onclick="submitBikeEnquiry()">Send Enquiry</button>
+  </div>
+</div>
+
 <footer class="footer">
   <strong>ANYBIKE.CO.UK</strong><br>
   <span>UK Motorcycle Export Specialists — Worldwide sourcing and export services.</span>
@@ -82,7 +188,6 @@ let currentUser=null;
 let currentProfile=null;
 let bike=null;
 let watched=false;
-let enquiryType="info";
 
 const rates={
   GBP:{symbol:"£",rate:1},
@@ -94,28 +199,16 @@ const rates={
   AED:{symbol:"د.إ",rate:4.92}
 };
 
-function currency(){
-  return localStorage.getItem("anybike_currency") || "GBP";
-}
-
-function safe(v){
-  return v===undefined || v===null ? "" : String(v);
-}
-
+function currency(){return localStorage.getItem("anybike_currency") || "GBP"}
+function safe(v){return v===undefined || v===null ? "" : String(v)}
 function money(gbp){
   const n=Number(gbp||0);
   if(!n)return "Price on request";
   const c=rates[currency()] || rates.GBP;
   return c.symbol + Math.round(n*c.rate).toLocaleString("en-GB");
 }
-
-function miles(n){
-  return n ? Number(n).toLocaleString("en-GB")+" miles" : "Mileage TBC";
-}
-
-function idFromUrl(){
-  return new URLSearchParams(location.search).get("id");
-}
+function miles(n){return n ? Number(n).toLocaleString("en-GB")+" miles" : "Mileage TBC"}
+function idFromUrl(){return new URLSearchParams(location.search).get("id")}
 
 async function loadUser(){
   const {data:{user}}=await sb.auth.getUser();
@@ -126,13 +219,15 @@ async function loadUser(){
     return;
   }
 
-const {data:profile}=await sb
-  .from("customer_profiles")
-  .select("*")
-  .eq("id",currentUser.id)
-  .maybeSingle();
-currentProfile = profile || {};
-  const name=profile?.full_name || currentUser.email;
+  const {data:profile}=await sb
+    .from("customer_profiles")
+    .select("*")
+    .eq("id",currentUser.id)
+    .maybeSingle();
+
+  currentProfile = profile || {};
+  const name=currentProfile.full_name || currentUser.email;
+
   document.getElementById("userArea").innerHTML=`👤 <span class="user-name">${name}</span> | <a href="#" onclick="logout()" style="color:#fff;text-decoration:none">Logout</a>`;
 }
 
@@ -205,11 +300,9 @@ function placeholderHTML(){
 }
 
 function render(){
-  const title=`${safe(bike.make)} ${safe(bike.model)}`;
   const variant=safe(bike.variant);
   const cc=bike.engine_cc ? `${bike.engine_cc}cc` : "CC TBC";
-
-  document.title=`${title} | AnyBike`;
+  document.title=`${safe(bike.make)} ${safe(bike.model)} | AnyBike`;
 
   document.getElementById("content").innerHTML=`
     <div class="layout">
@@ -234,43 +327,8 @@ function render(){
         </div>
 
         <div class="actions">
-      <button class="primary" onclick="openEnquiryForm()">Ask About This Bike</button>
-
-<div id="enquiryForm" style="display:none;margin-top:16px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:16px">
-  <h3 id="enquiryTitle">Send Enquiry</h3>
-
-  <label>Phone / WhatsApp</label>
-  <input id="enquiryPhone" placeholder="Phone / WhatsApp number">
-
-  <label>What would you like to ask?</label>
-<select id="questionType" onchange="handleQuestionTypeChange()">
-  <option value="">Select a question</option>
-  <option>Is this bike still available?</option>
-  <option>I want to make an offer</option>
-  <option>I have a UK shipping agent</option>
-  <option>I want more photos or video</option>
-  <option>I need export documents</option>
-  <option>I want to reserve this bike</option>
-  <option>Other question</option>
-</select>
-
-<div id="offerBox" style="display:none">
-  <label>Offer amount £</label>
-  <input id="offerAmount" type="number" placeholder="Your offer in GBP">
-</div>
-
-<div id="shippingAgentBox" style="display:none">
-  <label>UK shipping company / agent</label>
-  <input id="buyerShippingAgent" placeholder="Company name, if known">
-</div>
-
-<label>Notes</label>
-<textarea id="enquiryMessage" placeholder="Any notes for AnyBike"></textarea>
-
-<button class="primary" onclick="submitBikeEnquiry()">Send Enquiry</button>
-</div>
-
-<button id="watchBtn" class="outline" onclick="toggleWatch()">${watched ? "✓ Added To Watchlist" : "♡ Add To Watchlist"}</button>
+          <button class="primary" onclick="openEnquiryModal()">Ask About This Bike</button>
+          <button id="watchBtn" class="outline" onclick="toggleWatch()">${watched ? "✓ Added To Watchlist" : "♡ Add To Watchlist"}</button>
         </div>
       </section>
     </div>
@@ -282,27 +340,30 @@ function render(){
   `;
 }
 
-function openEnquiryForm(){
+function openEnquiryModal(){
   if(!currentUser){
     alert("Please login or register before sending an enquiry.");
     location.href="customer-register.html";
     return;
   }
 
-  document.getElementById("enquiryTitle").textContent = "Ask About This Bike";
   document.getElementById("enquiryPhone").value = currentProfile?.phone || "";
   document.getElementById("buyerShippingAgent").value = currentProfile?.preferred_shipping_company || "";
-  document.getElementById("enquiryForm").style.display = "block";
+  document.getElementById("enquiryModal").style.display = "flex";
+}
+
+function closeEnquiryModal(){
+  document.getElementById("enquiryModal").style.display = "none";
 }
 
 function handleQuestionTypeChange(){
   const type = document.getElementById("questionType").value;
 
   document.getElementById("offerBox").style.display =
-    type === "I want to make an offer" ? "block" : "none";
+    type === "Make an Offer" ? "block" : "none";
 
   document.getElementById("shippingAgentBox").style.display =
-    type === "I have a UK shipping agent" ? "block" : "none";
+    type === "I Have A UK Shipping Agent" ? "block" : "none";
 }
 
 async function submitBikeEnquiry(){
@@ -351,7 +412,7 @@ async function submitBikeEnquiry(){
 
   alert("Enquiry sent to AnyBike. We will contact you shortly.");
 
-  document.getElementById("enquiryForm").style.display = "none";
+  closeEnquiryModal();
   document.getElementById("questionType").value = "";
   document.getElementById("offerAmount").value = "";
   document.getElementById("buyerShippingAgent").value = "";
