@@ -337,7 +337,6 @@ async function updateStatus(id,status){
 async function loadMessages(enquiryId){
 
   const box=document.getElementById(`messages-${enquiryId}`);
-
   if(!box) return;
 
   const {data,error}=await sb
@@ -346,23 +345,24 @@ async function loadMessages(enquiryId){
     .eq("enquiry_id",Number(enquiryId))
     .order("created_at",{ascending:true});
 
-  console.log("Messages:", data);
-  console.log("Messages Error:", error);
+  console.log("Messages:",data);
+  console.log("Messages Error:",error);
 
   if(error){
-    box.innerHTML = `<div class="small">${error.message}</div>`;
+    box.innerHTML=`<div class="small">${error.message}</div>`;
     return;
   }
 
   if(!data || data.length===0){
-    box.innerHTML = "<div class='small'>No messages yet</div>";
+    box.innerHTML="<div class='small'>No messages yet</div>";
     return;
   }
 
-  box.innerHTML = data.map(m=>`
+  box.innerHTML=data.map(m=>`
     <div class="reply">
-      <strong>${m.sender}</strong><br>
-      ${m.message}
+      <strong>${safe(m.sender)}</strong><br>
+      ${safe(m.message)}
+      <div class="small">${new Date(m.created_at).toLocaleString("en-GB")}</div>
     </div>
   `).join("");
 }
@@ -387,18 +387,14 @@ async function sendAdminMessage(enquiryId,customerId){
     });
 
   if(error){
-    alert(error.message);
+    alert("Message failed: " + error.message);
     return;
   }
 
   txt.value="";
-
   loadMessages(enquiryId);
 }
-  
-  loadEnquiries();
-}
-  
+
 async function saveReply(id){
   const reply=document.getElementById(`reply-${id}`).value;
 
