@@ -15,10 +15,23 @@ h1{margin:0;color:var(--red)}
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px}
 .stat{background:#111;border:1px solid var(--line);border-radius:16px;padding:18px}
 .stat strong{display:block;font-size:28px;color:var(--red)}
-.enquiry{background:#111;border:1px solid var(--line);border-radius:18px;padding:18px;margin-bottom:18px}
+.enquiry{background:#111;border:1px solid var(--line);border-radius:16px;margin-bottom:10px;overflow:hidden}
+.enquiry-row{display:grid;grid-template-columns:40px 1.5fr 1fr 1fr 1fr 140px;gap:12px;align-items:center;padding:14px 16px;cursor:pointer}
+.enquiry-row:hover{background:#181818}
+.row-title strong{color:#fff}
+.small{color:#aaa;font-size:13px}
+.badge{display:inline-block;border-radius:999px;padding:7px 10px;font-weight:900;font-size:12px;text-align:center}
+.badge-new{background:var(--red);color:#fff}
+.badge-replied{background:#1d7a3a;color:#fff}
+.badge-none{background:#333;color:#bbb}
+.status-pill{background:#222;color:#fff;border:1px solid var(--line)}
+.enquiry-detail{display:none;border-top:1px solid var(--line);padding:18px}
+.enquiry.open .enquiry-detail{display:block}
+.enquiry.open .arrow{transform:rotate(90deg)}
+.arrow{font-size:22px;color:var(--red);transition:.2s}
 .enquiry-top{display:grid;grid-template-columns:180px 1fr;gap:18px}
 .bike-img{width:100%;height:135px;object-fit:cover;border-radius:14px;background:#222}
-.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:12px}
+.info-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:12px}
 .label{color:#999;font-size:13px;margin-bottom:3px}
 .value strong{color:#fff}
 select{width:100%;padding:10px;border-radius:10px}
@@ -28,8 +41,12 @@ button,.btn{background:var(--red);color:#fff;border:0;border-radius:999px;paddin
 .quick-replies button{flex:0 0 auto;background:#fff;color:#111}
 .message{background:#181818;border-radius:10px;padding:12px;margin-top:14px}
 .reply{background:#0d2333;border-radius:10px;padding:12px;margin-top:10px}
-.small{color:#aaa;font-size:13px;margin-top:8px}
-@media(max-width:800px){.enquiry-top{grid-template-columns:1fr}}
+.customer-msg{background:#231616}
+@media(max-width:900px){
+  .enquiry-row{grid-template-columns:30px 1fr;gap:8px}
+  .hide-mobile{display:none}
+  .enquiry-top{grid-template-columns:1fr}
+}
 </style>
 </head>
 
@@ -52,6 +69,8 @@ const SUPABASE_URL="https://tuehtnezhdnkqbbhttgp.supabase.co";
 const SUPABASE_ANON_KEY="sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 
+let latestMessageMap = {};
+
 function safe(v){
   return v===undefined || v===null || v==="" ? "-" : String(v);
 }
@@ -60,7 +79,48 @@ function money(v){
   return v ? "£" + Number(v).toLocaleString("en-GB") : "POA";
 }
 
+function toggleEnquiry(id){
+  const el=document.getElementById(`enquiry-${id}`);
+  if(el) el.classList.toggle("open");
+}
+
+function messageBadge(enquiryId){
+  const m = latestMessageMap[String(enquiryId)];
+
+  if(!m){
+    return `<span class="badge badge-none">No messages</span>`;
+  }
+
+  const sender = String(m.sender || "").toLowerCase();
+
+  if(sender.includes("customer")){
+    return `<span class="badge badge-new">💬 NEW</span>`;
+  }
+
+  return `<span class="badge badge-replied">✓ Replied</span>`;
+}
+
+async function loadLatestMessages(){
+  const {data,error}=await sb
+    .from("enquiry_messages")
+    .select("id,enquiry_id,sender,message,created_at")
+    .order("created_at",{ascending:false});
+
+  latestMessageMap = {};
+
+  if(error || !data) return;
+
+  data.forEach(m=>{
+    const key=String(m.enquiry_id);
+    if(!latestMessageMap[key]){
+      latestMessageMap[key]=m;
+    }
+  });
+}
+
 async function loadEnquiries(){
+  await loadLatestMessages();
+
   const {data,error}=await sb
     .from("bike_enquiries")
     .select(`
@@ -99,132 +159,164 @@ function render(rows){
 
   box.innerHTML=rows.map(r=>{
     const b=r.available_stock || {};
+    const latest = latestMessageMap[String(r.id)];
+    const latestText = latest ? safe(latest.message).slice(0,80) : "";
 
     return `
-      <div class="enquiry">
-        <div class="enquiry-top">
-          <div>
-            ${b.image_url ? `<img class="bike-img" src="${b.image_url}" alt="">` : `<div class="bike-img"></div>`}
+      <div class="enquiry" id="enquiry-${r.id}">
+        <div class="enquiry-row" onclick="toggleEnquiry(${r.id})">
+          <div class="arrow">›</div>
+
+          <div class="row-title">
+            <strong>${safe(b.make)} ${safe(b.model)}</strong>
+            <div class="small">${safe(b.variant)} ${safe(b.year)}</div>
           </div>
 
           <div>
-            <div class="row">
-              <div class="value">
-                <div class="label">Bike</div>
-                <strong>${safe(b.make)} ${safe(b.model)}</strong><br>
-                ${safe(b.variant)}
-              </div>
+            <strong>${safe(r.customer_name)}</strong>
+            <div class="small">${safe(r.customer_email)}</div>
+          </div>
 
-              <div class="value">
-                <div class="label">Bike ID</div>
-                <strong>${safe(r.bike_id)}</strong><br>
-                <a class="btn" href="bike-details.html?id=${encodeURIComponent(r.bike_id)}" target="_blank">View Listing</a>
-              </div>
+          <div class="hide-mobile">
+            ${safe(r.destination_country)}
+            <div class="small">${safe(r.customer_phone)}</div>
+          </div>
 
-              <div class="value">
-                <div class="label">Price</div>
-                <strong>${money(b.price_gbp)}</strong>
-              </div>
+          <div class="hide-mobile">
+            <span class="badge status-pill">${safe(r.status || "New")}</span>
+            <div class="small">${latestText}</div>
+          </div>
 
-              <div class="value">
-                <div class="label">Year / Mileage</div>
-                ${safe(b.year)} / ${b.mileage ? Number(b.mileage).toLocaleString("en-GB") + " miles" : "-"}
-              </div>
+          <div>
+            ${messageBadge(r.id)}
+          </div>
+        </div>
+
+        <div class="enquiry-detail" onclick="event.stopPropagation()">
+          <div class="enquiry-top">
+            <div>
+              ${b.image_url ? `<img class="bike-img" src="${b.image_url}" alt="">` : `<div class="bike-img"></div>`}
             </div>
 
-            <div class="row">
-              <div>
-                <div class="label">Question</div>
-                <strong>${safe(r.question_type)}</strong>
+            <div>
+              <div class="info-grid">
+                <div class="value">
+                  <div class="label">Bike</div>
+                  <strong>${safe(b.make)} ${safe(b.model)}</strong><br>
+                  ${safe(b.variant)}
+                </div>
+
+                <div class="value">
+                  <div class="label">Bike ID</div>
+                  <strong>${safe(r.bike_id)}</strong><br>
+                  <a class="btn" href="bike-details.html?id=${encodeURIComponent(r.bike_id)}" target="_blank">View Listing</a>
+                </div>
+
+                <div class="value">
+                  <div class="label">Price</div>
+                  <strong>${money(b.price_gbp)}</strong>
+                </div>
+
+                <div class="value">
+                  <div class="label">Year / Mileage</div>
+                  ${safe(b.year)} / ${b.mileage ? Number(b.mileage).toLocaleString("en-GB") + " miles" : "-"}
+                </div>
               </div>
 
-              <div>
-                <div class="label">Customer</div>
-                <strong>${safe(r.customer_name)}</strong>
+              <div class="info-grid">
+                <div>
+                  <div class="label">Question</div>
+                  <strong>${safe(r.question_type)}</strong>
+                </div>
+
+                <div>
+                  <div class="label">Customer</div>
+                  <strong>${safe(r.customer_name)}</strong>
+                </div>
+
+                <div>
+                  <div class="label">Phone</div>
+                  <strong>${safe(r.customer_phone)}</strong>
+                </div>
+
+                <div>
+                  <div class="label">Email</div>
+                  ${safe(r.customer_email)}
+                </div>
               </div>
 
-              <div>
-                <div class="label">Phone</div>
-                <strong>${safe(r.customer_phone)}</strong>
+              <div class="info-grid">
+                <div>
+                  <div class="label">Offer</div>
+                  ${r.offer_amount ? money(r.offer_amount) : "-"}
+                </div>
+
+                <div>
+                  <div class="label">Buyer Shipping Agent</div>
+                  ${safe(r.buyer_shipping_agent)}
+                </div>
+
+                <div>
+                  <div class="label">Customer Country</div>
+                  ${safe(r.destination_country)}
+                </div>
+
+                <div>
+                  <div class="label">Status</div>
+                  <select id="status-${r.id}" onchange="updateStatus(${r.id}, this.value)">
+                    <option value="New" ${r.status==="New"?"selected":""}>New</option>
+                    <option value="Contacted" ${r.status==="Contacted"?"selected":""}>Contacted</option>
+                    <option value="Waiting Buyer" ${r.status==="Waiting Buyer"?"selected":""}>Waiting Buyer</option>
+                    <option value="Offer Made" ${r.status==="Offer Made"?"selected":""}>Offer Made</option>
+                    <option value="Reserved" ${r.status==="Reserved"?"selected":""}>Reserved</option>
+                    <option value="Sold" ${r.status==="Sold"?"selected":""}>Sold</option>
+                    <option value="Closed" ${r.status==="Closed"?"selected":""}>Closed</option>
+                  </select>
+                </div>
               </div>
 
-              <div>
-                <div class="label">Email</div>
-                ${safe(r.customer_email)}
+              <div class="message">
+                <strong>Buyer Message</strong><br>
+                ${safe(r.message)}
               </div>
+
+              <div class="message">
+                <strong>Conversation</strong>
+
+                <div class="message-thread" id="messages-${r.id}">
+                  Loading messages...
+                </div>
+
+                <textarea id="msg-${r.id}" placeholder="Type message to customer..."></textarea>
+
+                <div class="quick-replies">
+                  <button onclick="setQuickReply(${r.id},'available')">Still Available</button>
+                  <button onclick="setQuickReply(${r.id},'accepted')">Offer Accepted</button>
+                  <button onclick="setQuickReply(${r.id},'rejected')">Offer Rejected</button>
+                  <button onclick="setQuickReply(${r.id},'photos')">More Photos</button>
+                  <button onclick="setQuickReply(${r.id},'payment')">Awaiting Payment</button>
+                  <button onclick="setQuickReply(${r.id},'reserved')">Reserved</button>
+                </div>
+
+                <button onclick="sendAdminMessage(${r.id}, '${r.customer_id || ""}')">
+                  Send Message
+                </button>
+              </div>
+
+              <div style="margin-top:12px">
+                <strong>Internal Notes</strong>
+
+                <textarea
+                  id="notes-${r.id}"
+                  placeholder="Internal notes (not visible to customer)..."
+                >${r.internal_notes || ""}</textarea>
+
+                <button onclick="saveNotes(${r.id})">
+                  Save Notes
+                </button>
+              </div>
+
             </div>
-
-            <div class="row">
-              <div>
-                <div class="label">Offer</div>
-                ${r.offer_amount ? money(r.offer_amount) : "-"}
-              </div>
-
-              <div>
-                <div class="label">Buyer Shipping Agent</div>
-                ${safe(r.buyer_shipping_agent)}
-              </div>
-
-              <div>
-                <div class="label">Customer Country</div>
-                ${safe(r.destination_country)}
-              </div>
-
-              <div>
-                <div class="label">Status</div>
-                <select id="status-${r.id}" onchange="updateStatus(${r.id}, this.value)">
-                  <option value="New" ${r.status==="New"?"selected":""}>New</option>
-                  <option value="Contacted" ${r.status==="Contacted"?"selected":""}>Contacted</option>
-                  <option value="Waiting Buyer" ${r.status==="Waiting Buyer"?"selected":""}>Waiting Buyer</option>
-                  <option value="Offer Made" ${r.status==="Offer Made"?"selected":""}>Offer Made</option>
-                  <option value="Reserved" ${r.status==="Reserved"?"selected":""}>Reserved</option>
-                  <option value="Sold" ${r.status==="Sold"?"selected":""}>Sold</option>
-                  <option value="Closed" ${r.status==="Closed"?"selected":""}>Closed</option>
-                </select>
-              </div>
-            </div>
-
-            <div class="message">
-              <strong>Buyer Message</strong><br>
-              ${safe(r.message)}
-            </div>
-
-            <div class="message">
-              <strong>Conversation</strong>
-
-              <div class="message-thread" id="messages-${r.id}">
-                Loading messages...
-              </div>
-
-              <textarea id="msg-${r.id}" placeholder="Type message to customer..."></textarea>
-
-              <div class="quick-replies">
-                <button onclick="setQuickReply(${r.id},'available')">Still Available</button>
-                <button onclick="setQuickReply(${r.id},'accepted')">Offer Accepted</button>
-                <button onclick="setQuickReply(${r.id},'rejected')">Offer Rejected</button>
-                <button onclick="setQuickReply(${r.id},'photos')">More Photos</button>
-                <button onclick="setQuickReply(${r.id},'payment')">Awaiting Payment</button>
-                <button onclick="setQuickReply(${r.id},'reserved')">Reserved</button>
-              </div>
-
-              <button onclick="sendAdminMessage(${r.id}, '${r.customer_id || ""}')">
-                Send Message
-              </button>
-            </div>
-
-            <div style="margin-top:12px">
-              <strong>Internal Notes</strong>
-
-              <textarea
-                id="notes-${r.id}"
-                placeholder="Internal notes (not visible to customer)..."
-              >${r.internal_notes || ""}</textarea>
-
-              <button onclick="saveNotes(${r.id})">
-                Save Notes
-              </button>
-            </div>
-
           </div>
         </div>
       </div>
@@ -339,13 +431,17 @@ async function loadMessages(enquiryId){
     return;
   }
 
-  box.innerHTML=data.map(m=>`
-    <div class="reply">
-      <strong>${safe(m.sender)}</strong><br>
-      ${safe(m.message)}
-      <div class="small">${new Date(m.created_at).toLocaleString("en-GB")}</div>
-    </div>
-  `).join("");
+  box.innerHTML=data.map(m=>{
+    const sender=String(m.sender || "").toLowerCase();
+    const cls=sender.includes("customer") ? "customer-msg" : "";
+    return `
+      <div class="reply ${cls}">
+        <strong>${safe(m.sender)}</strong><br>
+        ${safe(m.message)}
+        <div class="small">${new Date(m.created_at).toLocaleString("en-GB")}</div>
+      </div>
+    `;
+  }).join("");
 }
 
 async function sendAdminMessage(enquiryId,customerId){
@@ -371,6 +467,7 @@ async function sendAdminMessage(enquiryId,customerId){
   txt.value="";
   alert("Message sent");
   await loadMessages(enquiryId);
+  await loadEnquiries();
 }
 
 async function saveNotes(id){
