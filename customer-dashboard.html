@@ -46,13 +46,18 @@ button.primary{background:var(--red);color:#fff}
 .recent-bike a{color:#ed1c24;font-weight:900;text-decoration:none}
 
 .status-pill{background:var(--red);color:#fff;padding:6px 10px;border-radius:999px;font-size:13px;font-weight:900;display:inline-block}
+.message-pill{display:inline-block;margin-top:8px;padding:6px 10px;border-radius:999px;font-size:12px;font-weight:900;background:#333;color:#fff}
+.message-pill.new{background:#ed1c24;color:#fff}
+.message-pill.replied{background:#1d7a3a;color:#fff}
+
 .customer-enquiry{background:rgba(0,0,0,.22);border:1px solid rgba(255,255,255,.12);border-radius:16px;margin-top:12px;overflow:hidden}
-.customer-enquiry-row{display:grid;grid-template-columns:35px 1fr 140px;gap:12px;align-items:center;padding:14px;cursor:pointer}
+.customer-enquiry-row{display:grid;grid-template-columns:35px 1fr 150px;gap:12px;align-items:center;padding:14px;cursor:pointer}
 .customer-enquiry-row:hover{background:rgba(255,255,255,.06)}
 .customer-enquiry-detail{display:none;border-top:1px solid rgba(255,255,255,.12);padding:16px}
 .customer-enquiry.open .customer-enquiry-detail{display:block}
 .customer-enquiry.open .arrow{transform:rotate(90deg)}
 .arrow{font-size:22px;color:var(--red);font-weight:bold;transition:.2s}
+
 .message-thread{margin-top:14px;background:rgba(255,255,255,.04);border-radius:14px;padding:12px}
 .msg{border-radius:12px;padding:12px;margin:10px 0;background:#181818}
 .msg.admin{background:#0d2333}
@@ -428,6 +433,8 @@ async function loadCustomerEnquiries(){
 
           <div class="status-wrap">
             <span class="status-pill">${safe(r.status || "New")}</span>
+            <br>
+            <span class="message-pill" id="customer-bubble-${r.id}">Checking...</span>
           </div>
         </div>
 
@@ -472,9 +479,29 @@ async function loadCustomerMessages(enquiryId){
     return;
   }
 
+  const bubble = document.getElementById(`customer-bubble-${enquiryId}`);
+
   if(!data || !data.length){
     box.innerHTML = `<p class="muted">No conversation messages yet.</p>`;
+
+    if(bubble){
+      bubble.innerHTML = "No messages";
+      bubble.className = "message-pill";
+    }
+
     return;
+  }
+
+  const latest = data[data.length - 1];
+
+  if(bubble){
+    if(String(latest.sender).toLowerCase().includes("anybike")){
+      bubble.innerHTML = "💬 NEW";
+      bubble.className = "message-pill new";
+    } else {
+      bubble.innerHTML = "✓ Replied";
+      bubble.className = "message-pill replied";
+    }
   }
 
   box.innerHTML = data.map(m=>{
