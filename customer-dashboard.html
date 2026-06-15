@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -41,51 +40,14 @@ button.primary{background:var(--red);color:#fff}
 .ok{color:#36d37e;font-weight:900}
 .footer{text-align:center;background:rgba(5,5,5,.95);border-top:1px solid rgba(255,255,255,.1);padding:32px 16px}
 .footer strong{display:block;font-size:20px;letter-spacing:1px;margin-bottom:8px}
-@media(max-width:900px){.header-inner{grid-template-columns:1fr;text-align:center}nav{justify-content:center}.cards,.grid{grid-template-columns:1fr}}
-  .recent-grid{
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
-  gap:16px;
-  margin-top:15px;
-}
 
-.recent-bike{
-  background:rgba(255,255,255,.06);
-  border:1px solid rgba(255,255,255,.12);
-  border-radius:14px;
-  padding:14px;
-}
-
-.recent-bike h3{
-  margin:0 0 8px;
-  font-size:18px;
-}
-
-.recent-bike a{
-  color:#ed1c24;
-  font-weight:900;
-  text-decoration:none;
-}
-
-  .recent-link{
-  color:#ed1c24;
-  text-decoration:none;
-  font-weight:900;
-  font-size:14px;
-  white-space:nowrap;
-}
-
-.recent-link:hover{
-  text-decoration:underline;
-}
-  .recent-grid{
+.recent-grid{
   display:flex;
   gap:16px;
   overflow-x:auto;
   padding:10px 0 6px;
   scroll-behavior:smooth;
 }
-
 .recent-bike{
   min-width:260px;
   flex:0 0 260px;
@@ -94,25 +56,63 @@ button.primary{background:var(--red);color:#fff}
   border-radius:16px;
   padding:14px;
 }
+.recent-bike h3{margin:0 0 8px;font-size:18px}
+.recent-bike p{margin:4px 0;color:#ccc}
+.recent-bike a{color:#ed1c24;font-weight:900;text-decoration:none}
 
-.recent-bike h3{
-  margin:0 0 8px;
-  font-size:18px;
+.enquiry-box{
+  background:rgba(0,0,0,.22);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:16px;
+  padding:16px;
+  margin-top:14px;
 }
-
-.recent-bike p{
-  margin:4px 0;
-  color:#ccc;
+.enquiry-title{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  flex-wrap:wrap;
+  align-items:flex-start;
 }
-
-.recent-bike a{
-  color:#ed1c24;
+.status-pill{
+  background:var(--red);
+  color:#fff;
+  padding:6px 10px;
+  border-radius:999px;
+  font-size:13px;
   font-weight:900;
-  text-decoration:none;
 }
-  
+.message-thread{
+  margin-top:14px;
+  background:rgba(255,255,255,.04);
+  border-radius:14px;
+  padding:12px;
+}
+.msg{
+  border-radius:12px;
+  padding:12px;
+  margin:10px 0;
+  background:#181818;
+}
+.msg.admin{background:#0d2333}
+.msg.customer{background:#231616}
+.msg strong{
+  display:block;
+  font-size:14px;
+  color:#fff;
+  margin-bottom:4px;
+}
+.msg small{color:#aaa}
+.reply-area{margin-top:10px}
+
+@media(max-width:900px){
+  .header-inner{grid-template-columns:1fr;text-align:center}
+  nav{justify-content:center}
+  .cards,.grid{grid-template-columns:1fr}
+}
 </style>
 </head>
+
 <body>
 
 <header>
@@ -154,6 +154,12 @@ button.primary{background:var(--red);color:#fff}
   <section class="card">
     <h2>Recently Viewed Bikes</h2>
     <div id="recentlyViewedBox" class="recent-grid"></div>
+  </section>
+
+  <section class="card">
+    <h2>My Enquiries & Messages</h2>
+    <p class="muted">Messages from AnyBike about bikes you have enquired on will appear here.</p>
+    <div id="customerEnquiries">Loading enquiries...</div>
   </section>
 
   <section class="grid">
@@ -237,6 +243,14 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let currentUser=null;
 let currentProfile=null;
 
+function safe(v){
+  return v===undefined || v===null || String(v).trim()==="" ? "-" : String(v);
+}
+
+function money(v){
+  return v ? "£" + Number(v).toLocaleString("en-GB") : "POA";
+}
+
 async function loadUser(){
   const {data:{user}} = await sb.auth.getUser();
   currentUser=user || null;
@@ -245,6 +259,7 @@ async function loadUser(){
     document.getElementById("userArea").innerHTML=`<a href="customer-register.html" style="color:#fff;text-decoration:none">Login / Register</a>`;
     document.getElementById("welcomeText").innerHTML=`Please <a href="customer-register.html" style="color:#ed1c24;font-weight:900">login or register</a> to view your dashboard.`;
     document.getElementById("recentlyViewedBox").innerHTML=`<p class="muted">Login to see recently viewed bikes.</p>`;
+    document.getElementById("customerEnquiries").innerHTML=`<p class="muted">Login to see your enquiries and messages.</p>`;
     return false;
   }
 
@@ -255,7 +270,6 @@ async function loadUser(){
     .maybeSingle();
 
   currentProfile = profile || {};
-
   const name=currentProfile?.full_name || currentUser.email;
 
   document.getElementById("userArea").innerHTML=`👤 <span class="user-name">${name}</span>`;
@@ -387,21 +401,152 @@ async function loadRecentlyViewed(){
     .filter(Boolean);
 
   if(!rows.length){
-    box.innerHTML = `
-      <p class="bad">Recently viewed records exist, but the matching bikes were not found in available_stock.</p>
-    `;
+    box.innerHTML = `<p class="bad">Recently viewed records exist, but the matching bikes were not found in available_stock.</p>`;
     return;
   }
 
-box.innerHTML = rows.map(b => `
-  <div class="recent-bike">
-    <h3>${b.make || ""} ${b.model || ""}</h3>
-    <p>${b.variant || ""}</p>
-    <p>${b.year || "Year TBC"}</p>
-    <a href="bike-details.html?id=${b.id}">View Bike →</a>
-  </div>
-`).join("");
+  box.innerHTML = rows.map(b => `
+    <div class="recent-bike">
+      <h3>${safe(b.make)} ${safe(b.model)}</h3>
+      <p>${safe(b.variant)}</p>
+      <p>${safe(b.year)}</p>
+      <a href="bike-details.html?id=${b.id}">View Bike →</a>
+    </div>
+  `).join("");
 }
+
+async function loadCustomerEnquiries(){
+  const box = document.getElementById("customerEnquiries");
+
+  if(!currentUser){
+    box.innerHTML = `<p class="muted">Login to see your enquiries.</p>`;
+    return;
+  }
+
+  box.innerHTML = `<p class="muted">Loading your enquiries...</p>`;
+
+  const {data,error} = await sb
+    .from("bike_enquiries")
+    .select(`
+      *,
+      available_stock (
+        id,
+        make,
+        model,
+        variant,
+        year,
+        price_gbp,
+        image_url
+      )
+    `)
+    .eq("customer_id",currentUser.id)
+    .order("created_at",{ascending:false});
+
+  if(error){
+    box.innerHTML = `<p class="bad">Could not load enquiries: ${error.message}</p>`;
+    return;
+  }
+
+  if(!data || !data.length){
+    box.innerHTML = `<p class="muted">You have not sent any bike enquiries yet.</p>`;
+    return;
+  }
+
+  box.innerHTML = data.map(r=>{
+    const b = r.available_stock || {};
+    return `
+      <div class="enquiry-box">
+        <div class="enquiry-title">
+          <div>
+            <h3>${safe(b.make)} ${safe(b.model)}</h3>
+            <p class="muted">${safe(b.variant)} ${safe(b.year)} — ${money(b.price_gbp)}</p>
+            <p><strong>Your enquiry:</strong> ${safe(r.message)}</p>
+            <a class="btn" href="bike-details.html?id=${encodeURIComponent(r.bike_id)}">View Bike</a>
+          </div>
+          <div class="status-pill">${safe(r.status || "New")}</div>
+        </div>
+
+        <div class="message-thread" id="messages-${r.id}">
+          Loading messages...
+        </div>
+
+        <div class="reply-area">
+          <label>Reply to AnyBike</label>
+          <textarea id="customer-msg-${r.id}" placeholder="Type your reply here..."></textarea>
+          <button class="primary" onclick="sendCustomerMessage(${r.id})">Send Reply</button>
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  data.forEach(r => loadCustomerMessages(r.id));
+}
+
+async function loadCustomerMessages(enquiryId){
+  const box = document.getElementById(`messages-${enquiryId}`);
+  if(!box) return;
+
+  const {data,error} = await sb
+    .from("enquiry_messages")
+    .select("*")
+    .eq("enquiry_id",Number(enquiryId))
+    .order("created_at",{ascending:true});
+
+  if(error){
+    box.innerHTML = `<p class="bad">Message error: ${error.message}</p>`;
+    return;
+  }
+
+  if(!data || !data.length){
+    box.innerHTML = `<p class="muted">No conversation messages yet.</p>`;
+    return;
+  }
+
+  box.innerHTML = data.map(m=>{
+    const sender = safe(m.sender);
+    const cls = sender.toLowerCase().includes("customer") ? "customer" : "admin";
+    return `
+      <div class="msg ${cls}">
+        <strong>${sender}</strong>
+        <div>${safe(m.message)}</div>
+        <small>${m.created_at ? new Date(m.created_at).toLocaleString("en-GB") : ""}</small>
+      </div>
+    `;
+  }).join("");
+}
+
+async function sendCustomerMessage(enquiryId){
+  if(!currentUser){
+    alert("Please login first.");
+    return;
+  }
+
+  const txt = document.getElementById(`customer-msg-${enquiryId}`);
+  const message = txt.value.trim();
+
+  if(!message){
+    alert("Enter a message");
+    return;
+  }
+
+  const {error} = await sb
+    .from("enquiry_messages")
+    .insert({
+      enquiry_id:Number(enquiryId),
+      customer_id:currentUser.id,
+      sender:"Customer",
+      message:message
+    });
+
+  if(error){
+    alert("Message failed: " + error.message);
+    return;
+  }
+
+  txt.value = "";
+  await loadCustomerMessages(enquiryId);
+}
+
 async function logout(){
   await sb.auth.signOut();
   location.href="index.html";
@@ -412,10 +557,9 @@ async function logout(){
   if(ok){
     await loadCounts();
     await loadRecentlyViewed();
+    await loadCustomerEnquiries();
   }
 })();
-  
-  
 </script>
 
 </body>
