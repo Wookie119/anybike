@@ -68,6 +68,42 @@ button,.btn{background:var(--red);color:#fff;border:0;border-radius:999px;paddin
 .message{background:#181818;border-radius:10px;padding:12px;margin-top:14px}
 .reply{background:#0d2333;border-radius:10px;padding:12px;margin-top:10px}
 .customer-msg{background:#231616}
+  .message-thread{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  margin-top:12px;
+  margin-bottom:12px;
+}
+
+.msg{
+  max-width:75%;
+  padding:12px;
+  border-radius:12px;
+  line-height:1.4;
+}
+
+.msg.customer{
+  align-self:flex-start;
+  background:#222;
+  border:1px solid rgba(255,255,255,.08);
+}
+
+.msg.admin{
+  align-self:flex-end;
+  background:#ed1c24;
+  color:#fff;
+}
+
+.reply-area{
+  display:flex;
+  gap:10px;
+  margin-top:10px;
+}
+
+.reply-area textarea{
+  flex:1;
+}
 @media(max-width:900px){
   .enquiry-row{grid-template-columns:30px 1fr;gap:8px}
   .hide-mobile{display:none}
@@ -472,19 +508,24 @@ async function loadMessages(enquiryId){
     return;
   }
 
-  box.innerHTML=data.map(m=>{
-    const sender=String(m.sender || "").toLowerCase();
-    const cls=sender.includes("customer") ? "customer-msg" : "";
-    return `
-      <div class="reply ${cls}">
-        <strong>${safe(m.sender)}</strong><br>
-        ${safe(m.message)}
-        <div class="small">${new Date(m.created_at).toLocaleString("en-GB")}</div>
-      </div>
-    `;
-  }).join("");
-}
+box.innerHTML=data.map(m=>{
+  const sender=String(m.sender || "").toLowerCase();
 
+  const cls =
+    sender.includes("customer")
+      ? "msg customer"
+      : "msg admin";
+
+  return `
+    <div class="${cls}">
+      <div>${safe(m.message)}</div>
+      <div class="small" style="margin-top:6px;">
+        ${safe(m.sender)} •
+        ${new Date(m.created_at).toLocaleString("en-GB")}
+      </div>
+    </div>
+  `;
+}).join("");
 async function sendAdminMessage(enquiryId,customerId){
   const txt=document.getElementById(`msg-${enquiryId}`);
   const message=txt.value.trim();
