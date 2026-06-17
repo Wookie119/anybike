@@ -215,7 +215,22 @@ function toggleEnquiry(id){
   
 
 function messageBadge(enquiryId){
-  function filterEnquiries(type){
+  const m = latestMessageMap[String(enquiryId)];
+
+  if(!m){
+    return `<span class="badge badge-none">No messages</span>`;
+  }
+
+  const sender = String(m.sender || "").toLowerCase();
+
+  if(sender.includes("customer")){
+    return `<span class="badge badge-new">💬 NEW</span>`;
+  }
+
+  return `<span class="badge badge-replied">✓ Replied</span>`;
+}
+
+function filterEnquiries(type){
   currentFilter = type;
 
   let rows = [...allEnquiries];
@@ -237,21 +252,8 @@ function messageBadge(enquiryId){
 
   render(rows);
 }
-  const m = latestMessageMap[String(enquiryId)];
 
-  if(!m){
-    return `<span class="badge badge-none">No messages</span>`;
-  }
-
-  const sender = String(m.sender || "").toLowerCase();
-
-  if(sender.includes("customer")){
-    return `<span class="badge badge-new">💬 NEW</span>`;
-  }
-
-  return `<span class="badge badge-replied">✓ Replied</span>`;
-}
- function updateHeaderBubble(){
+function updateHeaderBubble(){
   let count = 0;
 
   Object.values(latestMessageMap).forEach(m=>{
@@ -272,27 +274,6 @@ function messageBadge(enquiryId){
   }else{
     bubble.style.display = "none";
   }
-}
-  
-async function loadLatestMessages(){
-
- 
-  
-  const {data,error}=await sb
-    .from("enquiry_messages")
-    .select("id,enquiry_id,sender,message,created_at")
-    .order("created_at",{ascending:false});
-
-  latestMessageMap = {};
-
-  if(error || !data) return;
-
-  data.forEach(m=>{
-    const key=String(m.enquiry_id);
-    if(!latestMessageMap[key]){
-      latestMessageMap[key]=m;
-    }
-  });
 }
 
 async function loadEnquiries(){
