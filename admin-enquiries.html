@@ -397,8 +397,7 @@ function render(rows){
     `;
    }).join("");
 
-rows.forEach(r=>loadMessages(r.id, r.message, r.customer_name));
-}
+rows.forEach(r=>loadMessages(r.id, r.message, r.customer_name));}
 
 function setQuickReply(id,type){
   const replies = {
@@ -485,7 +484,7 @@ async function updateStatus(id,status){
   loadEnquiries();
 }
 
-async function loadMessages(enquiryId){
+async function loadMessages(enquiryId, originalMessage="", customerName="Customer"){
   const box=document.getElementById(`messages-${enquiryId}`);
   if(!box) return;
 
@@ -500,29 +499,34 @@ async function loadMessages(enquiryId){
     return;
   }
 
-  if(!data || data.length===0){
-    box.innerHTML="<div class='small'>No messages yet</div>";
-    return;
+  let html = "";
+
+  if(originalMessage && originalMessage !== "-"){
+    html += `
+      <div class="msg customer">
+        <strong>${safe(customerName)}</strong>
+        <div>${safe(originalMessage)}</div>
+      </div>
+    `;
   }
 
-box.innerHTML=data.map(m=>{
-  const sender=String(m.sender || "").toLowerCase();
+  if(data && data.length){
+    html += data.map(m=>{
+      const sender=safe(m.sender);
+      const cls=sender.toLowerCase().includes("customer") ? "customer" : "admin";
 
-const cls = sender.includes("customer") ? "msg customer" : "msg admin";
+      return `
+        <div class="msg ${cls}">
+          <strong>${sender}</strong>
+          <div>${safe(m.message)}</div>
+          <small>${m.created_at ? new Date(m.created_at).toLocaleString("en-GB") : ""}</small>
+        </div>
+      `;
+    }).join("");
+  }
 
-  return `
-    <div class="${cls}">
-      <div>${safe(m.message)}</div>
-      <div class="small" style="margin-top:6px;">
-        ${safe(m.sender)} •
-        ${new Date(m.created_at).toLocaleString("en-GB")}
-      </div>
-    </div>
-  `;
-}).join("");
-
+  box.innerHTML = html || "<div class='small'>No conversation yet</div>";
 }
-
   
 async function sendAdminMessage(enquiryId,customerId){
   const txt=document.getElementById(`msg-${enquiryId}`);
