@@ -148,6 +148,8 @@ const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 
 let latestMessageMap = {};
 
+  let openEnquiryId = null;
+
 function safe(v){
   return v===undefined || v===null || v==="" ? "-" : String(v);
 }
@@ -158,8 +160,17 @@ function money(v){
 
 function toggleEnquiry(id){
   const el=document.getElementById(`enquiry-${id}`);
-  if(el) el.classList.toggle("open");
+  if(!el) return;
+
+  el.classList.toggle("open");
+
+  if(el.classList.contains("open")){
+    openEnquiryId=id;
+  }else{
+    openEnquiryId=null;
+  }
 }
+  
 
 function messageBadge(enquiryId){
   const m = latestMessageMap[String(enquiryId)];
@@ -403,7 +414,15 @@ function render(rows){
    }).join("");
 
 rows.forEach(r=>loadMessages(r.id, r.message, r.customer_name));
+
+if(openEnquiryId){
+  const openRow=document.getElementById(`enquiry-${openEnquiryId}`);
+  if(openRow){
+    openRow.classList.add("open");
+  }
 }
+}
+  
 function setQuickReply(id,type){
   const replies = {
     available: `Hello,
