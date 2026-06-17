@@ -385,10 +385,15 @@ function render(rows){
 <div style="margin-top:12px">
   <strong>Internal Notes</strong>
 
-                <button onclick="saveNotes(${r.id})">
-                  Save Notes
-                </button>
-              </div>
+  <textarea
+    id="notes-${r.id}"
+    placeholder="Internal notes (not visible to customer)..."
+  >${r.internal_notes || ""}</textarea>
+
+  <button onclick="saveNotes(${r.id})">
+    Save Notes
+  </button>
+</div>
 
             </div>
           </div>
@@ -397,8 +402,8 @@ function render(rows){
     `;
    }).join("");
 
-rows.forEach(r=>loadMessages(r.id, r.message, r.customer_name));}
-
+rows.forEach(r=>loadMessages(r.id, r.message, r.customer_name));
+}
 function setQuickReply(id,type){
   const replies = {
     available: `Hello,
@@ -537,14 +542,11 @@ async function sendAdminMessage(enquiryId,customerId){
     return;
   }
 
-  const {error}=await sb
-    .from("enquiry_messages")
-    .insert({
-      enquiry_id:Number(enquiryId),
-      customer_id:customerId || null,
-      sender:"AnyBike",
-      message:message
-    });
+  const {error}=await sb.rpc("admin_send_enquiry_message",{
+    p_enquiry_id:Number(enquiryId),
+    p_customer_id:customerId || null,
+    p_message:message
+  });
 
   if(error){
     alert("Message failed: " + error.message);
@@ -552,8 +554,14 @@ async function sendAdminMessage(enquiryId,customerId){
   }
 
   txt.value="";
-  await loadMessages(enquiryId);
+
+  await loadMessages(
+    enquiryId,
+    document.querySelector(`#enquiry-${enquiryId} .message strong`)?.innerText || "",
+    "Customer"
+  );
 }
+  
 async function saveNotes(id){
   const notes=document.getElementById(`notes-${id}`).value;
 
