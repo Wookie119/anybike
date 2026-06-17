@@ -104,6 +104,28 @@ button,.btn{background:var(--red);color:#fff;border:0;border-radius:999px;paddin
 .reply-area textarea{
   flex:1;
 }
+
+  .menu-link{
+  position:relative;
+}
+
+.msg-bubble{
+  position:absolute;
+  top:-8px;
+  right:-14px;
+  min-width:20px;
+  height:20px;
+  padding:0 6px;
+  border-radius:999px;
+  background:#ed1c24;
+  color:#fff;
+  font-size:11px;
+  font-weight:900;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+  
 @media(max-width:900px){
   .enquiry-row{grid-template-columns:30px 1fr;gap:8px}
   .hide-mobile{display:none}
@@ -192,6 +214,30 @@ function messageBadge(enquiryId){
 }
 
 async function loadLatestMessages(){
+
+  function updateHeaderBubble(){
+  let count = 0;
+
+  Object.values(latestMessageMap).forEach(m=>{
+    const sender = String(m.sender || "").toLowerCase();
+
+    if(sender.includes("customer")){
+      count++;
+    }
+  });
+
+  const bubble = document.getElementById("msgBubble");
+
+  if(!bubble) return;
+
+  if(count > 0){
+    bubble.style.display = "flex";
+    bubble.textContent = count;
+  }else{
+    bubble.style.display = "none";
+  }
+}
+  
   const {data,error}=await sb
     .from("enquiry_messages")
     .select("id,enquiry_id,sender,message,created_at")
@@ -211,6 +257,7 @@ async function loadLatestMessages(){
 
 async function loadEnquiries(){
   await loadLatestMessages();
+  updateHeaderBubble();
 
   const {data,error}=await sb
     .from("bike_enquiries")
