@@ -508,10 +508,7 @@ async function loadMessages(enquiryId){
 box.innerHTML=data.map(m=>{
   const sender=String(m.sender || "").toLowerCase();
 
-  const cls =
-    sender.includes("customer")
-      ? "msg customer"
-      : "msg admin";
+const cls = sender.includes("customer") ? "msg customer" : "msg admin";
 
   return `
     <div class="${cls}">
@@ -528,7 +525,6 @@ box.innerHTML=data.map(m=>{
 
   
 async function sendAdminMessage(enquiryId,customerId){
-  
   const txt=document.getElementById(`msg-${enquiryId}`);
   const message=txt.value.trim();
 
@@ -537,11 +533,14 @@ async function sendAdminMessage(enquiryId,customerId){
     return;
   }
 
-  const {error}=await sb.rpc("admin_send_enquiry_message",{
-    p_enquiry_id:Number(enquiryId),
-    p_customer_id:customerId || null,
-    p_message:message
-  });
+  const {error}=await sb
+    .from("enquiry_messages")
+    .insert({
+      enquiry_id:Number(enquiryId),
+      customer_id:customerId || null,
+      sender:"AnyBike",
+      message:message
+    });
 
   if(error){
     alert("Message failed: " + error.message);
@@ -549,9 +548,8 @@ async function sendAdminMessage(enquiryId,customerId){
   }
 
   txt.value="";
-await loadMessages(enquiryId, "", "Customer");
+  await loadMessages(enquiryId);
 }
-
 async function saveNotes(id){
   const notes=document.getElementById(`notes-${id}`).value;
 
