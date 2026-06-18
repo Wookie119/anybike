@@ -648,9 +648,18 @@ async function fetchBikeEnquiries(){
     }
   });
 
-  const {data,error} = await sb
-    .from("bike_enquiries")
-    .select("*");
+ const {data,error} = await sb
+  .from("bike_enquiries")
+  .select(`
+    *,
+    available_stock (
+      id,
+      make,
+      model,
+      variant,
+      year
+    )
+  `);
 
   if(error){
     console.log(error);
@@ -741,9 +750,11 @@ async function loadRecentReplies(){
     const enquiry = bikeEnquiries.find(x => String(x.id) === String(r.enquiry_id)) || {};
     const country = enquiry.destination_country || "Unknown country";
     const status = enquiry.status || "New";
+const stock = enquiry.available_stock || {};
+
 const bike =
-  enquiry.make && enquiry.model
-    ? `${enquiry.make} ${enquiry.model}`
+  stock.make && stock.model
+    ? `${stock.make} ${stock.model} ${stock.variant || ""}`.trim()
     : (enquiry.bike_id ? `Bike ID: ${enquiry.bike_id}` : "Bike enquiry");
     return `
       <div onclick="window.location.href='admin-enquiries.html#enquiry-${r.enquiry_id}'"
