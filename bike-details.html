@@ -503,26 +503,42 @@ async function submitBikeEnquiry(){
     return;
   }
 
-  const {error}=await sb.from("bike_enquiries").insert({
-    customer_id: currentUser.id,
-    bike_id: bike.id,
-    enquiry_type: "Buyer Question",
-    question_type,
-    offer_amount,
-    buyer_shipping_agent,
-    customer_email: currentUser.email,
-    customer_name: currentProfile?.full_name || currentUser.email,
-    customer_phone: phone,
-    destination_country: currentProfile?.country || "",
-    message,
-    status: "New"
-  });
+ const deviceType =
+  /tablet|ipad/i.test(navigator.userAgent) ? "Tablet" :
+  /mobi|android|iphone/i.test(navigator.userAgent) ? "Mobile" :
+  "Desktop";
 
-  if(error){
-    alert("Could not send enquiry: " + error.message);
-    return;
-  }
+const browser =
+  navigator.userAgent.includes("Edg") ? "Edge" :
+  navigator.userAgent.includes("Chrome") ? "Chrome" :
+  navigator.userAgent.includes("Firefox") ? "Firefox" :
+  navigator.userAgent.includes("Safari") ? "Safari" :
+  "Unknown";
 
+const {error}=await sb.from("bike_enquiries").insert({
+  customer_id: currentUser.id,
+  bike_id: bike.id,
+
+  enquiry_type: "Buyer Question",
+  question_type,
+  offer_amount,
+  buyer_shipping_agent,
+
+  customer_email: currentUser.email,
+  customer_name: currentProfile?.full_name || currentUser.email,
+  customer_phone: phone,
+
+  destination_country: currentProfile?.country || "",
+
+  customer_city: currentProfile?.city || "",
+  customer_region: currentProfile?.region || "",
+
+  device_type: deviceType,
+  browser: browser,
+
+  message,
+  status: "New"
+});
   alert("Enquiry sent to AnyBike. We will contact you shortly.");
 
   closeEnquiryModal();
