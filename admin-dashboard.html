@@ -300,7 +300,13 @@ body{
   </main>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <script>
+const SUPABASE_URL = "https://tuehtnezhdnkqbbhttgp.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
 const statuses = [
   ["💬","Customer Replied"],
   ["🔍","Checking Availability"],
@@ -316,45 +322,154 @@ const statuses = [
   ["⚓","At Port / Shipping Agent"]
 ];
 
-const demoCounts = [1,2,3,4,5,6,7,8,9,10,11,12];
+let enquiries = [];
+let latestMessageMap = {};
 
-document.getElementById("pipeline").innerHTML = statuses.map((s,i)=>`
-  <div class="stage">
-    <div class="icon">${s[0]}</div>
-    <div class="label">${i+1}<br>${s[1]}</div>
-    <div class="num">${demoCounts[i]}</div>
-    <a href="admin-enquiries.html">View enquiries</a>
-  </div>
-`).join("");
+function safe(v){
+  return v===undefined || v===null || String(v).trim()==="" ? "-" : String(v);
+}
 
-document.getElementById("actionQueue").innerHTML = statuses.slice(0,8).map((s,i)=>`
-  <div class="queue-row">
-    <span>${s[0]} ${s[1]}</span>
-    <span class="badge">${demoCounts[i]}</span>
-  </div>
-`).join("");
+async function loadDashboard(){
+  await loadLatestMessages();
 
-document.getElementById("recentEnquiries").innerHTML = `
-  <div class="enquiry">
-    <img src="anybike-logo-new.jpg">
-    <div><strong>Suzuki DR-Z400 400cc</strong><br><span class="small">Germany — Customer replied</span></div>
-    <span class="small">14:42</span>
-  </div>
-  <div class="enquiry">
-    <img src="anybike-logo-new.jpg">
-    <div><strong>Honda Africa Twin 1100</strong><br><span class="small">France — Waiting decision</span></div>
-    <span class="small">13:58</span>
-  </div>
-`;
+  const {data,error} = await sb
+    .from("bike_enquiries")
+    .select(`
+      *,
+      available_stock (
+        id, make, model, variant, year, image_url, price_gbp
+      )
+    `)
+    .order("created_at",{ascending:false});
 
-document.getElementById("countryList").innerHTML = `
-  <div class="value-row"><span>🇬🇧 United Kingdom</span><strong>41</strong></div>
-  <div class="value-row"><span>🇩🇪 Germany</span><strong>18</strong></div>
-  <div class="value-row"><span>🇫🇷 France</span><strong>12</strong></div>
-  <div class="value-row"><span>🇪🇸 Spain</span><strong>9</strong></div>
-`;
+  if(error){
+    alert("Dashboard load failed: " + error.message);
+    return;
+  }
 
-document.getElementById("bellCount").textContent = 1;
+  enquiries = data || [];
+
+  renderPipeline();
+  renderActionQueue();
+  renderRecentEnquiries();
+  renderKPIs();
+  renderCountries();
+}
+
+async function loadLatestMessages(){
+  const {data,error} = await sb
+    .from("enquiry_messages")
+    .select("id,enquiry_id,sender,created_at,message")
+    .order("created_at",{ascending:false});
+
+  latestMessageMap = {};
+
+  if(error){
+    console.log("Message load error", error.message);
+    return;
+  }
+
+  (data || []).forEach(m=>{
+    if(!latestMessageMap[m.enquiry_id]){
+      latestMessageMap[m.enquiry_id] = m;
+    }
+  });
+}
+
+function countStatus(status){
+  if(status === "Customer Replied"){
+    return enquiries.filter(e=>{
+      const m = latestMessageMap[e.id];
+      return m && String(m.sender || "").toLowerCase().includes("customer");
+    }).length;
+  }
+
+  return enquiries.filter(e=>e.status === status).length;
+}
+
+function renderPipeline(){
+  document.getElementById("pipeline").innerHTML = statuses.map((s,i)=>{
+    const count = countStatus(s[1]);
+
+    return `
+      <div class="stage">
+        <div class="icon">${s[0]}</div>
+        <div class="label">${i+1}<br>${s[1]}</div>
+        <div class="num">${count}</div>
+        <a href="admin-enquiries.html">View enquiries</a>
+      </div>
+    `;
+  }).join("");
+}
+
+function renderActionQueue(){
+  const queue = [
+    ["💬","Customer replies waiting", countStatus("Customer Replied")],
+    ["💷","Waiting deposit", countStatus("Waiting Deposit")],
+    ["💰","Waiting full payment", countStatus("Waiting Full Payment")],
+    ["🚢","Ready to ship", countStatus("Ready To Ship")],
+    ["🏍","Booked with Move Motorcycles", countStatus("Booked with Move Motorcycles")]
+  ];
+
+  document.getElementById("actionQueue").innerHTML = queue.map(q=>`
+    <div class="queue-row" onclick="location.href='admin-enquiries.html'" style="cursor:pointer">
+      <span>${q[0]} ${q[1]}</span>
+      <span class="badge">${q[2]}</span>
+    </div>
+  `).join("");
+}
+
+function renderRecentEnquiries(){
+  const rows = enquiries.slice(0,5);
+
+  document.getElementById("recentEnquiries").innerHTML = rows.map(e=>{
+    const b = e.available_stock || {};
+    const bike = [b.make,b.model,b.variant].filter(Boolean).join(" ") || "Bike enquiry";
+    const country = e.destination_country || "Unknown country";
+    const img = b.image_url || "anybike-logo-new.jpg";
+
+    return `
+      <div class="enquiry" onclick="location.href='admin-enquiries.html#enquiry-${e.id}'" style="cursor:pointer">
+        <img src="${img}">
+        <div>
+          <strong>${safe(bike)}</strong><br>
+          <span class="small">${safe(country)} — ${safe(e.status || "New")}</span>
+        </div>
+        <span class="small">${e.created_at ? new Date(e.created_at).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"}) : ""}</span>
+      </div>
+    `;
+  }).join("");
+}
+
+function renderKPIs(){
+  document.getElementById("bellCount").textContent = countStatus("Customer Replied");
+  document.getElementById("kpiToday").textContent = enquiries.length;
+  document.getElementById("kpiReserved").textContent = countStatus("Waiting Customer Decision") + countStatus("Waiting Deposit");
+  document.getElementById("kpiPayment").textContent = countStatus("Waiting Full Payment");
+  document.getElementById("kpiReady").textContent = countStatus("Ready To Ship");
+}
+
+function renderCountries(){
+  const counts = {};
+
+  enquiries.forEach(e=>{
+    const c = e.destination_country || "Unknown";
+    counts[c] = (counts[c] || 0) + 1;
+  });
+
+  const top = Object.entries(counts)
+    .sort((a,b)=>b[1]-a[1])
+    .slice(0,5);
+
+  document.getElementById("countryList").innerHTML = top.map(([country,count])=>`
+    <div class="value-row">
+      <span>${safe(country)}</span>
+      <strong>${count}</strong>
+    </div>
+  `).join("");
+}
+
+loadDashboard();
 </script>
 </body>
 </html>
