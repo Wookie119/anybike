@@ -575,17 +575,20 @@ async function loadUser(){
       localStorage.getItem("anybike_currency") ||
       "GBP";
   }
-
-  if(languageEl){
+    if(languageEl){
     languageEl.value =
       currentProfile.preferred_language ||
       localStorage.getItem("anybike_language") ||
       "en";
   }
-
-  return true;
+return true;
 }
- const payload = {
+
+async function saveProfile(){
+  if(!currentUser) return;
+
+  const payload = {
+    
   id: currentUser.id,
   email: currentUser.email,
   full_name: document.getElementById("fullName").value.trim(),
@@ -599,22 +602,31 @@ region: document.getElementById("region")?.value.trim() || "",
   preferred_language: document.getElementById("preferredLanguage").value
 };
 
-  const {error} = await sb.from("customer_profiles").upsert(payload, { onConflict: "id" });
-  const msg = document.getElementById("profileMsg");
+ const {error} = await sb
+  .from("customer_profiles")
+  .upsert(payload, { onConflict: "id" });
 
-  if(error){
-    msg.textContent = "Could not save account details: " + error.message;
-    msg.className = "bad";
-    return;
-  }
+const msg = document.getElementById("profileMsg");
 
-  localStorage.setItem("anybike_currency", payload.preferred_currency);
-  localStorage.setItem("anybike_language", payload.preferred_language);
+if(error){
+  msg.textContent = "Could not save account details: " + error.message;
+  msg.className = "bad";
+  return;
+}
 
-  msg.textContent = "Account details saved.";
-  msg.className = "ok";
-  document.getElementById("userArea").innerHTML=`👤 <span class="user-name">${payload.full_name || currentUser.email}</span>`;
-  document.getElementById("welcomeText").textContent=`Welcome back, ${payload.full_name || currentUser.email}.`;
+currentProfile = {...currentProfile, ...payload};
+
+localStorage.setItem("anybike_currency", payload.preferred_currency);
+localStorage.setItem("anybike_language", payload.preferred_language);
+
+msg.textContent = "Account details saved.";
+msg.className = "ok";
+
+document.getElementById("userArea").innerHTML =
+  `👤 <span class="user-name">${payload.full_name || currentUser.email}</span>`;
+
+document.getElementById("welcomeText").textContent =
+  `Welcome back, ${payload.full_name || currentUser.email}.`;
 }
 
 async function loadCounts(){
