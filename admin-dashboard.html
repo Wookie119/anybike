@@ -349,6 +349,7 @@ function safe(v){
   return v===undefined || v===null || String(v).trim()==="" ? "-" : String(v);
 }
 function initAdminMap(){
+  
   if(adminMap) return;
 
   adminMap = L.map("adminMap").setView([20,0], 2);
@@ -359,6 +360,45 @@ function initAdminMap(){
   }).addTo(adminMap);
 
   adminMarkers = L.layerGroup().addTo(adminMap);
+}
+  function renderAdminMap(){
+  if(!adminMap || !adminMarkers) return;
+
+  adminMarkers.clearLayers();
+
+  const countryCoords = {
+    "United Kingdom":[54,-2],
+    "Germany":[51,10],
+    "France":[46,2],
+    "Spain":[40,-4],
+    "United Arab Emirates":[24,54],
+    "Australia":[-25,133],
+    "New Zealand":[-41,174],
+    "South Africa":[-30,24],
+    "United States":[39,-98],
+    "Canada":[56,-106],
+    "Singapore":[1.35,103.8],
+    "Kenya":[0.02,37.9],
+    "Cyprus":[35.12,33.43]
+  };
+
+  enquiries.forEach(e=>{
+    const country = e.destination_country || "";
+    const coords = countryCoords[country];
+
+    if(!coords) return;
+
+    const b = e.available_stock || {};
+    const bike = [b.make,b.model,b.variant].filter(Boolean).join(" ") || "Bike enquiry";
+
+    L.marker(coords)
+      .addTo(adminMarkers)
+      .bindPopup(`
+        <strong>${country}</strong><br>
+        ${bike}<br>
+        Status: ${e.status || "New"}
+      `);
+  });
 }
 
 async function loadDashboard(){
@@ -388,8 +428,8 @@ async function loadDashboard(){
   renderActionQueue();
   renderRecentEnquiries();
   renderKPIs();
-  renderCountries();
-}
+renderCountries();
+renderAdminMap();}
 
 async function loadLatestMessages(){
   const {data,error} = await sb
