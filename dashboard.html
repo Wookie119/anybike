@@ -189,7 +189,7 @@
 
   <div id="dash" style="display:none;">
     <div class="card">
-    <div class="stats">
+  <div class="stats">
   <div class="stat">
     <div class="k">Customer Replied</div>
     <div class="v" id="statCustomerReplied">0</div>
@@ -206,16 +206,16 @@
   </div>
 
   <div class="stat">
-    <div class="k">All Enquiries</div>
-    <div class="v" id="statBikeEnquiries">0</div>
+    <div class="k">Countries</div>
+    <div class="v" id="statCountriesEnquiries">0</div>
   </div>
 
   <div class="stat">
-    <div class="k">Countries</div>
-    <div class="v" id="statCountries">0</div>
+    <div class="k">Total Leads</div>
+    <div class="v" id="statTotal">0</div>
   </div>
 </div>
-
+      
     <div class="card" id="buyerCard">
       <h2>Worldwide Buyer Database — Request Bike leads converted to buyers</h2>
       <div class="notice">Convert Request Bike leads into reusable buyer profiles. Later this will allow stock bikes to be matched against buyers by make, model, country and budget.</div>
@@ -456,13 +456,13 @@
   const $ = id => document.getElementById(id);
 
   let leads = [];
-  let stockBikes = [];
-  let buyers = [];
-  let bikeEnquiries = [];
+let stockBikes = [];
+let bikeEnquiries = [];
 let latestMessageMap = {};
-  let selectedStock = null;
-  let selected = null;
-  let map, markers;
+let buyers = [];
+let selectedStock = null;
+let selected = null;
+let map, markers;
 
   function esc(s){ return String(s ?? "").replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m])); }
   function money(v){ if(v===null||v===undefined||v==="") return "—"; const n=Number(String(v).replace(/[^0-9.-]/g,"")); return Number.isFinite(n)?new Intl.NumberFormat("en-GB",{style:"currency",currency:"GBP",maximumFractionDigits:0}).format(n):String(v); }
@@ -591,12 +591,66 @@ let latestMessageMap = {};
 initMap();
 setTimeout(() => map.invalidateSize(), 200);
 
+await fetchBikeEnquiries();
 await fetchLeads();
 await fetchStock();
 await fetchBuyers();
 }
 
- async function fetchLeads(){
+async function fetchBikeEnquiries(){
+  const {data:msgs} = await sb
+    .from("enquiry_messages")
+    .select("enquiry_id,sender,created_at")
+    .order("created_at",{ascending:false});
+
+  latestMessageMap = {};
+
+  (msgs || []).forEach(m=>{
+    if(!latestMessageMap[m.enquiry_id]){
+      latestMessageMap[m.enquiry_id] = m;
+    }
+  });
+
+  const {data,error} = await sb
+    .from("bike_enquiries")
+    .select("*");
+
+  if(error){
+    console.log(error);
+    return;
+  }
+
+  bikeEnquiries = data || [];
+
+  if($("statWaitingBuyer")){
+    $("statWaitingBuyer").textContent =
+      bikeEnquiries.filter(x=>x.status==="Waiting Buyer").length;
+  }
+
+  if($("statReserved")){
+    $("statReserved").textContent =
+      bikeEnquiries.filter(x=>x.status==="Reserved").length;
+  }
+
+  if($("statCustomerReplied")){
+    $("statCustomerReplied").textContent =
+      bikeEnquiries.filter(x=>{
+        const m = latestMessageMap[x.id];
+        return m && String(m.sender).toLowerCase().includes("customer");
+      }).length;
+  }
+
+  if($("statCountriesEnquiries")){
+    $("statCountriesEnquiries").textContent =
+      new Set(
+        bikeEnquiries
+          .map(x=>x.destination_country)
+          .filter(Boolean)
+      ).size;
+  }
+}
+
+async function fetchLeads(){
   msg($("mainMsg"), "", "");
 
   const { data, error } = await sb
