@@ -190,14 +190,32 @@
 
   <div id="dash" style="display:none;">
     <div class="card">
-      <div class="stats">
-        <div class="stat"><div class="k">Total Leads</div><div class="v" id="statTotal">0</div></div>
-        <div class="stat"><div class="k">Sell Bike</div><div class="v" id="statSell">0</div></div>
-        <div class="stat"><div class="k">Request Bike</div><div class="v" id="statRequest">0</div></div>
-        <div class="stat"><div class="k">Countries</div><div class="v" id="statCountries">0</div></div>
-        <div class="stat"><div class="k">Potential Stock</div><div class="v" id="statValue">£0</div></div>
-      </div>
-    </div>
+    <div class="stats">
+  <div class="stat">
+    <div class="k">Customer Replied</div>
+    <div class="v" id="statCustomerReplied">0</div>
+  </div>
+
+  <div class="stat">
+    <div class="k">Waiting Buyer</div>
+    <div class="v" id="statWaitingBuyer">0</div>
+  </div>
+
+  <div class="stat">
+    <div class="k">Reserved</div>
+    <div class="v" id="statReserved">0</div>
+  </div>
+
+  <div class="stat">
+    <div class="k">All Enquiries</div>
+    <div class="v" id="statBikeEnquiries">0</div>
+  </div>
+
+  <div class="stat">
+    <div class="k">Countries</div>
+    <div class="v" id="statCountries">0</div>
+  </div>
+</div>
 
     <div class="card" id="buyerCard">
       <h2>Worldwide Buyer Database — Request Bike leads converted to buyers</h2>
@@ -441,6 +459,8 @@
   let leads = [];
   let stockBikes = [];
   let buyers = [];
+  let bikeEnquiries = [];
+let latestMessageMap = {};
   let selectedStock = null;
   let selected = null;
   let map, markers;
@@ -571,9 +591,63 @@
     $("subTitle").textContent="Signed in as " + user.email;
     initMap();
     setTimeout(() => map.invalidateSize(), 200);
-    await fetchLeads();
-    await fetchStock();
-    await fetchBuyers();
+    async function fetchBikeEnquiries(){
+  const messages = await sb
+    .from("enquiry_messages")
+    .select("id,enquiry_id,sender,created_at")
+    .order("created_at",{ascending:false});
+
+  latestMessageMap = {};
+
+  if(messages.data){
+    messages.data.forEach(m=>{
+      const key = String(m.enquiry_id);
+      if(!latestMessageMap[key]){
+        latestMessageMap[key] = m;
+      }
+    });
+  }
+
+  const {data,error} = await sb
+    .from("bike_enquiries")
+    .select("*")
+    .order("created_at",{ascending:false});
+
+  if(error){
+    console.log("Bike enquiry load error", error.message);
+    return;
+  }
+
+  bikeEnquiries = data || [];
+  renderBikeEnquiryStats();
+}
+
+function renderBikeEnquiryStats(){
+  $("statBikeEnquiries").textContent = bikeEnquiries.length;
+
+  $("statCustomerReplied").textContent =
+    bikeEnquiries.filter(r=>{
+      const m = latestMessageMap[String(r.id)];
+      return m && String(m.sender || "").toLowerCase().includes("customer");
+    }).length;
+
+  $("statWaitingBuyer").textContent =
+    bikeEnquiries.filter(r=>r.status==="Waiting Buyer").length;
+
+  $("statReserved").textContent =
+    bikeEnquiries.filter(r=>r.status==="Reserved").length;
+
+  $("statCountries").textContent =
+    new Set(
+      bikeEnquiries
+        .map(r=>r.destination_country)
+        .filter(Boolean)
+    ).size;
+}
+  await fetchBikeEnquiries();
+await fetchLeads();
+await fetchStock();
+await fetchBuyers();
   }
 
   async function fetchLeads(){
@@ -1137,8 +1211,7 @@
   });
 
   $("signOutBtn").addEventListener("click", () => sb.auth.signOut());
-  $("refreshBtn").addEventListener("click", async () => { await fetchLeads(); await fetchStock(); await fetchBuyers(); });
-  $("exportBtn").addEventListener("click", exportCsv);
+await fetchBikeEnquiries(); await fetchLeads(); await fetchStock(); await fetchBuyers();  $("exportBtn").addEventListener("click", exportCsv);
   ["searchBox","filterType","filterStatus","filterCountry"].forEach(id => {
     $(id).addEventListener("input", applyFilters);
     $(id).addEventListener("change", applyFilters);
