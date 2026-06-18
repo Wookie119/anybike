@@ -317,10 +317,15 @@ body{
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
 <script>
+  
 const SUPABASE_URL = "https://tuehtnezhdnkqbbhttgp.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let adminMap = null;
+let adminMarkers = null;
 
 const statuses = [
   ["💬","Customer Replied"],
@@ -343,7 +348,18 @@ let latestMessageMap = {};
 function safe(v){
   return v===undefined || v===null || String(v).trim()==="" ? "-" : String(v);
 }
+function initAdminMap(){
+  if(adminMap) return;
 
+  adminMap = L.map("adminMap").setView([20,0], 2);
+
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 18,
+    attribution: "&copy; OpenStreetMap"
+  }).addTo(adminMap);
+
+  adminMarkers = L.layerGroup().addTo(adminMap);
+}
 async function loadDashboard(){
   await loadLatestMessages();
 
