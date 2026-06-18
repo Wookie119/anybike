@@ -244,18 +244,6 @@
 </div>
 
 <div class="card">
-  <h2>World Enquiry Map</h2>
-
-  <div id="enquiryMap"
-       style="
-       height:500px;
-       border-radius:16px;
-       overflow:hidden;
-       margin-top:10px;">
-  </div>
-</div>
-
-<div class="card">
   <h2>Recent Customer Replies</h2>
 </div>
 
@@ -745,22 +733,30 @@ async function loadRecentReplies(){
     return;
   }
 
-  box.innerHTML = replies.map(r => `
-    <div style="
-      padding:10px;
-      margin-bottom:8px;
-      border:1px solid rgba(255,255,255,.1);
-      border-radius:10px;
-      background:rgba(255,255,255,.03);
-    ">
-     <a href="admin-enquiries.html#enquiry-${r.enquiry_id}"
-   style="color:#fff;text-decoration:none;display:block">
-  <strong>Enquiry #${r.enquiry_id}</strong><br>
-  Customer replied<br>
-  <small>${new Date(r.created_at).toLocaleString("en-GB")}</small>
-</a>
-    </div>
-  `).join("");
+  box.innerHTML = replies.map(r => {
+    const enquiry = bikeEnquiries.find(x => String(x.id) === String(r.enquiry_id)) || {};
+    const country = enquiry.destination_country || "Unknown country";
+    const status = enquiry.status || "New";
+    const bike = enquiry.bike_id ? `Bike ID: ${enquiry.bike_id}` : "Bike enquiry";
+
+    return `
+      <div onclick="window.location.href='admin-enquiries.html#enquiry-${r.enquiry_id}'"
+           style="
+            padding:12px;
+            margin-bottom:8px;
+            border:1px solid rgba(255,255,255,.1);
+            border-radius:10px;
+            background:rgba(255,255,255,.03);
+            cursor:pointer;
+           ">
+        <strong>${country}</strong><br>
+        ${bike}<br>
+        <span class="pill">${status}</span>
+        <br>
+        <small>Customer replied: ${new Date(r.created_at).toLocaleString("en-GB")}</small>
+      </div>
+    `;
+  }).join("");
 }
 async function fetchLeads(){
   msg($("mainMsg"), "", "");
