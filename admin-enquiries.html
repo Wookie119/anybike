@@ -297,7 +297,7 @@ async function loadEnquiries(){
   await loadLatestMessages();
   updateHeaderBubble();
 
-  const {data,error}=await sb
+  let {data,error}=await sb
     .from("bike_enquiries")
     .select(`
       *,
@@ -316,8 +316,27 @@ async function loadEnquiries(){
       `<div style="color:#ff7676;font-weight:900">${error.message}</div>`;
     return;
   }
-allEnquiries = data || [];
-  
+
+  if(window.adminStatusFilter){
+
+    if(window.adminStatusFilter === "Customer Replied"){
+
+      data = data.filter(r=>{
+        const m = latestMessageMap[String(r.id)];
+        return m &&
+          String(m.sender || "").toLowerCase().includes("customer");
+      });
+
+    }else{
+
+      data = data.filter(r =>
+        String(r.status || "") === window.adminStatusFilter
+      );
+
+    }
+  }
+
+  allEnquiries = data || [];
   render(data || []);
 }
 
@@ -753,7 +772,13 @@ async function saveNotes(id){
 
   alert("Notes saved");
 }
+const urlParams = new URLSearchParams(window.location.search);
+const statusFromDashboard = urlParams.get("status");
 
+if(statusFromDashboard){
+  window.adminStatusFilter = statusFromDashboard;
+}
+  
 loadEnquiries();
 
 setInterval(() => {
