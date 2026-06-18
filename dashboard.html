@@ -588,46 +588,30 @@ let latestMessageMap = {};
     $("refreshBtn").disabled=false;
     $("exportBtn").disabled=false;
     $("subTitle").textContent="Signed in as " + user.email;
-    initMap();
-    setTimeout(() => map.invalidateSize(), 200);
-    async function fetchBikeEnquiries(){
- 
+initMap();
+setTimeout(() => map.invalidateSize(), 200);
 
-function renderBikeEnquiryStats(){
-  $("statBikeEnquiries").textContent = bikeEnquiries.length;
-
-  $("statCustomerReplied").textContent =
-    bikeEnquiries.filter(r=>{
-      const m = latestMessageMap[String(r.id)];
-      return m && String(m.sender || "").toLowerCase().includes("customer");
-    }).length;
-
-  $("statWaitingBuyer").textContent =
-    bikeEnquiries.filter(r=>r.status==="Waiting Buyer").length;
-
-  $("statReserved").textContent =
-    bikeEnquiries.filter(r=>r.status==="Reserved").length;
-
-  $("statCountries").textContent =
-    new Set(
-      bikeEnquiries
-        .map(r=>r.destination_country)
-        .filter(Boolean)
-    ).size;
-}
 await fetchLeads();
 await fetchStock();
 await fetchBuyers();
+}
+
+  msg($("mainMsg"), "", "");
+  const { data, error } = await sb
+    .from("anybike_leads")
+    .select("*")
+    .order("created_at", {ascending:false})
+    .limit(3000);
+
+  if(error){
+    msg($("mainMsg"), "❌ Could not load leads.\n\n"+error.message, "bad");
+    return;
   }
 
-  async function fetchLeads(){
-    msg($("mainMsg"), "", "");
-    const { data, error } = await sb.from("anybike_leads").select("*").order("created_at", {ascending:false}).limit(3000);
-    if(error){ msg($("mainMsg"), "❌ Could not load leads.\n\n"+error.message, "bad"); return; }
-    leads = data || [];
-    buildCountryFilter();
-    applyFilters();
-  }
+  leads = data || [];
+  buildCountryFilter();
+  applyFilters();
+}
 
   function buildCountryFilter(){
     const keep = $("filterCountry").value;
