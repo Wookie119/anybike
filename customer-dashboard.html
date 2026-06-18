@@ -789,7 +789,15 @@ async function loadCustomerEnquiries(){
     `;
   }).join("");
 
-  data.forEach(r => loadCustomerMessages(r.id));
+data.forEach(r => loadCustomerMessages(r.id));
+
+// Keep previously opened enquiry expanded after refresh
+if(openCustomerEnquiryId){
+  const el = document.getElementById(`customer-enquiry-${openCustomerEnquiryId}`);
+  if(el){
+    el.classList.add("open");
+  }
+}
 }
 
 async function loadCustomerMessages(enquiryId){
@@ -849,6 +857,8 @@ async function sendCustomerMessage(enquiryId){
     return;
   }
 
+  openCustomerEnquiryId = enquiryId;
+
   const txt = document.getElementById(`customer-msg-${enquiryId}`);
   const message = txt.value.trim();
 
@@ -872,9 +882,15 @@ async function sendCustomerMessage(enquiryId){
   }
 
   txt.value = "";
-  await loadCustomerMessages(enquiryId);
-}
 
+  await loadCustomerMessages(enquiryId);
+
+  const el = document.getElementById(`customer-enquiry-${enquiryId}`);
+  if(el){
+    el.classList.add("open");
+  }
+}
+  
 async function logout(){
   await sb.auth.signOut();
   location.href="index.html";
