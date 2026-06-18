@@ -89,12 +89,27 @@ th{background:#111;color:#fff}
       </table>
     </div>
 
-    <div class="card">
-      <h2>Preview</h2>
-      <div id="preview"></div>
-    </div>
+   <div class="card">
+  <h2>Preview</h2>
+  <div id="preview"></div>
+</div>
 
-  </section>
+<div class="card">
+  <h2>Admin Stock Management</h2>
+
+  <p>
+    Private seller details, buying costs and profit calculations.
+    Not visible on the public website.
+  </p>
+
+  <button class="dark" onclick="loadAdminStock()">
+    Load Stock Management
+  </button>
+
+  <div id="adminStockList" style="margin-top:20px"></div>
+</div>
+
+</section>
 
 </main>
 
@@ -319,6 +334,121 @@ async function importCSV(){
 
   btn.disabled = false;
   btn.textContent = "Import & Replace Available Stock";
+}
+  function money(v){
+  const n = Number(v || 0);
+  return n ? "£" + n.toLocaleString("en-GB") : "£0";
+}
+
+async function loadAdminStock(){
+  const box = document.getElementById("adminStockList");
+  box.innerHTML = "Loading stock...";
+
+  const {data,error} = await sb
+    .from("available_stock")
+    .select(`
+      id, make, model, variant, year, price_gbp,
+      cost_price_gbp, prep_costs_gbp, admin_fee_gbp, target_sale_price_gbp,
+      private_seller_name, private_seller_type, private_seller_phone,
+      private_seller_email, private_seller_location, private_seller_postcode,
+      private_source_name, private_source_url, private_listing_id
+    `)
+    .order("created_at",{ascending:false})
+    .limit(100);
+
+  if(error){
+    box.innerHTML = `<span class="bad">${error.message}</span>`;
+    return;
+  }
+
+  if(!data || !data.length){
+    box.innerHTML = "No stock found.";
+    return;
+  }
+
+  box.innerHTML = data.map(bikeAdminCard).join("");
+}
+
+function bikeAdminCard(b){
+  const title = [b.make,b.model,b.variant].filter(Boolean).join(" ");
+  const cost = Number(b.cost_price_gbp || 0);
+  const prep = Number(b.prep_costs_gbp || 0);
+  const admin = Number(b.admin_fee_gbp || 0);
+  const target = Number(b.target_sale_price_gbp || b.price_gbp || 0);
+  const profit = target - cost - prep - admin;
+
+  return `
+    <div style="
+      border:1px solid #ddd;
+      border-radius:14px;
+      padding:16px;
+      margin-bottom:14px;
+      background:#fafafa;
+    ">
+      <h3>${title || "Bike"} ${b.year ? `(${b.year})` : ""}</h3>
+
+      <div class="grid">
+        <div>
+          <strong>Seller Details</strong><br>
+          Name: ${b.private_seller_name || "-"}<br>
+          Type: ${b.private_seller_type || "-"}<br>
+          Phone: ${b.private_seller_phone || "-"}<br>
+          Email: ${b.private_seller_email || "-"}<br>
+          Location: ${b.private_seller_location || "-"}<br>
+          Postcode: ${b.private_seller_postcode || "-"}<br>
+          Source: ${b.private_source_name || "-"}<br>
+          Ref/Reg: ${b.private_listing_id || "-"}
+        </div>
+
+        <div>
+          <strong>Buying & Profit</strong><br>
+
+          <label>Cost Price</label>
+          <input id="cost-${b.id}" type="number" value="${b.cost_price_gbp || ""}">
+
+          <label>Prep Costs</label>
+          <input id="prep-${b.id}" type="number" value="${b.prep_costs_gbp || 0}">
+
+          <label>Admin Fee</label>
+          <input id="admin-${b.id}" type="number" value="${b.admin_fee_gbp || 0}">
+
+          <label>Target Sale Price</label>
+          <input id="target-${b.id}" type="number" value="${b.target_sale_price_gbp || b.price_gbp || ""}">
+
+          <p><strong>Expected Profit:</strong> ${money(profit)}</p>
+
+          <button onclick="saveAdminStock(${b.id})">Save Buying Details</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+async function saveAdminStock(id){
+  const cost = Number(document.getElementById(`cost-${id}`).value || 0);
+  const prep = Number(document.getElementById(`prep-${id}`).value || 0);
+  const admin = Number(document.getElementById(`admin-${id}`).value || 0);
+  const target = Number(document.getElementById(`target-${id}`).value || 0);
+  const profit = target - cost - prep - admin;
+
+  const {error} = await sb
+    .from("available_stock")
+    .update({
+      cost_price_gbp: cost,
+      prep_costs_gbp: prep,
+      admin_fee_gbp: admin,
+      target_sale_price_gbp: target,
+      expected_profit_gbp: profit
+    })
+    .eq("id", id);
+
+  if(error){
+    alert("Save failed: " + error.message);
+    return;
+  }
+
+  alert("Buying details saved. Expected profit: " + money(profit));
+  loadAdminStock();
 }
 </script>
 
