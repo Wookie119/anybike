@@ -215,36 +215,31 @@
     <div class="v" id="statTotal">0</div>
   </div>
 </div>
-      <div class="card">
+     <div class="card">
   <h2>Admin Shortcuts</h2>
   <div class="controls">
-    <a class="btn" href="admin-enquiries.html">Open Enquiries CRM</a>
-    <a class="btn outline" href="admin-stock.html">Stock Admin</a>
-    <a class="btn outline" href="available-stock.html">View Website Stock</a>
-  </div>
-</div>
-     <div class="card">
-  <h2>Message Centre</h2>
-
-  <div class="stats">
-    <div class="stat">
-      <div class="k">Customer Replies Waiting</div>
-      <div class="v" id="msgWaiting">0</div>
-    </div>
-
-    <div class="stat">
-      <div class="k">Reserved Bikes</div>
-      <div class="v" id="msgReserved">0</div>
-    </div>
-  </div>
-
-  <p>
     <a class="btn" href="admin-enquiries.html">
-      Open Message Centre
+      View Customer Messages
     </a>
-  </p>
+
+    <a class="btn outline" href="admin-stock.html">
+      Stock Admin
+    </a>
+
+    <a class="btn outline" href="available-stock.html">
+      View Website Stock
+    </a>
+  </div>
 </div>
-      
+
+<div class="card">
+  <h2>Recent Customer Replies</h2>
+  <div id="recentReplies">
+    Loading recent replies...
+  </div>
+</div>
+
+<div class="card" id="buyerCard">
     <div class="card" id="buyerCard">
       <h2>Worldwide Buyer Database — Request Bike leads converted to buyers</h2>
       <div class="notice">Convert Request Bike leads into reusable buyer profiles. Later this will allow stock bikes to be matched against buyers by make, model, country and budget.</div>
@@ -690,8 +685,42 @@ if($("msgReserved")){
   $("msgReserved").textContent =
     bikeEnquiries.filter(x=>x.status==="Reserved").length;
 }
-}
 
+await loadRecentReplies();
+}
+async function loadRecentReplies(){
+
+  const box = $("recentReplies");
+  if(!box) return;
+
+  const replies = Object.values(latestMessageMap)
+    .filter(m =>
+      String(m.sender || "").toLowerCase().includes("customer")
+    )
+    .sort((a,b)=>
+      new Date(b.created_at) - new Date(a.created_at)
+    )
+    .slice(0,5);
+
+  if(!replies.length){
+    box.innerHTML = "No recent customer replies.";
+    return;
+  }
+
+  box.innerHTML = replies.map(r => `
+    <div style="
+      padding:10px;
+      margin-bottom:8px;
+      border:1px solid rgba(255,255,255,.1);
+      border-radius:10px;
+      background:rgba(255,255,255,.03);
+    ">
+      <strong>Enquiry #${r.enquiry_id}</strong><br>
+      Customer replied<br>
+      <small>${new Date(r.created_at).toLocaleString("en-GB")}</small>
+    </div>
+  `).join("");
+}
 async function fetchLeads(){
   msg($("mainMsg"), "", "");
 
