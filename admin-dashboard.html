@@ -349,6 +349,49 @@ function safe(v){
   return v===undefined || v===null || String(v).trim()==="" ? "-" : String(v);
 }
 function initAdminMap(){
+  function renderAdminMap(){
+  if(!adminMap || !adminMarkers) return;
+
+  adminMarkers.clearLayers();
+
+  const countryCoords = {
+    "United Kingdom":[54,-2],
+    "Germany":[51,10],
+    "France":[46,2],
+    "Spain":[40,-4],
+    "United Arab Emirates":[24,54],
+    "Australia":[-25,133],
+    "New Zealand":[-41,174],
+    "South Africa":[-30,24],
+    "United States":[39,-98],
+    "Canada":[56,-106],
+    "Singapore":[1.35,103.8],
+    "Kenya":[0.02,37.9]
+  };
+
+  enquiries.forEach(e=>{
+
+    const country = e.destination_country || "";
+    const coords = countryCoords[country];
+
+    if(!coords) return;
+
+    const b = e.available_stock || {};
+
+    const bike =
+      [b.make,b.model,b.variant]
+      .filter(Boolean)
+      .join(" ") || "Bike enquiry";
+
+    L.marker(coords)
+      .addTo(adminMarkers)
+      .bindPopup(`
+        <strong>${country}</strong><br>
+        ${bike}<br>
+        Status: ${e.status || "New"}
+      `);
+  });
+}
   if(adminMap) return;
 
   adminMap = L.map("adminMap").setView([20,0], 2);
@@ -484,7 +527,6 @@ function renderKPIs(){
   document.getElementById("kpiPayment").textContent = countStatus("Waiting Full Payment");
   document.getElementById("kpiReady").textContent = countStatus("Ready To Ship");
 }
-
 function renderCountries(){
   const counts = {};
 
@@ -503,6 +545,40 @@ function renderCountries(){
       <strong>${count}</strong>
     </div>
   `).join("");
+}
+
+function renderAdminMap(){
+  if(!adminMap || !adminMarkers) return;
+
+  adminMarkers.clearLayers();
+
+  const countryCoords = {
+    "United Kingdom":[54,-2],
+    "Germany":[51,10],
+    "France":[46,2],
+    "Spain":[40,-4],
+    "Singapore":[1.35,103.8],
+    "Kenya":[0.02,37.9],
+    "Cyprus":[35.12,33.43]
+  };
+
+  enquiries.forEach(e=>{
+    const country = e.destination_country || "";
+    const coords = countryCoords[country];
+
+    if(!coords) return;
+
+    const b = e.available_stock || {};
+    const bike = [b.make,b.model,b.variant].filter(Boolean).join(" ") || "Bike enquiry";
+
+    L.marker(coords)
+      .addTo(adminMarkers)
+      .bindPopup(`
+        <strong>${country}</strong><br>
+        ${bike}<br>
+        Status: ${e.status || "New"}
+      `);
+  });
 }
 
 loadDashboard();
