@@ -441,10 +441,12 @@ setTimeout(() => adminMap.invalidateSize(), 200);
 renderPipeline();
 renderActionQueue();
 renderRecentEnquiries();
+renderRecentReplies();
 renderKPIs();
 renderPipelineValue();
 renderCountries();
 renderAdminMap();
+  
 }
 
 async function loadLatestMessages(){
@@ -527,6 +529,62 @@ function renderActionQueue(){
 }
 
 function renderRecentEnquiries(){
+  function renderRecentReplies(){
+
+  const replies = Object.values(latestMessageMap)
+    .filter(m =>
+      String(m.sender || "").toLowerCase().includes("customer")
+    )
+    .sort((a,b)=>
+      new Date(b.created_at) - new Date(a.created_at)
+    )
+    .slice(0,5);
+
+  const box = document.getElementById("recentReplies");
+
+  if(!box) return;
+
+  if(!replies.length){
+    box.innerHTML = "No recent customer replies.";
+    return;
+  }
+
+  box.innerHTML = replies.map(r=>{
+
+    const enquiry =
+      enquiries.find(e => String(e.id) === String(r.enquiry_id)) || {};
+
+    const country =
+      enquiry.destination_country || "Unknown";
+
+    const b = enquiry.available_stock || {};
+
+    const bike =
+      [b.make,b.model,b.variant]
+      .filter(Boolean)
+      .join(" ") || "Bike enquiry";
+
+    return `
+      <div
+        onclick="location.href='admin-enquiries.html#enquiry-${r.enquiry_id}'"
+        style="
+          cursor:pointer;
+          padding:10px;
+          margin-bottom:8px;
+          border:1px solid rgba(255,255,255,.08);
+          border-radius:10px;
+          background:rgba(255,255,255,.03);
+        ">
+        <strong>${country}</strong><br>
+        ${bike}<br>
+        <span class="small">
+          Customer replied:
+          ${new Date(r.created_at).toLocaleString("en-GB")}
+        </span>
+      </div>
+    `;
+  }).join("");
+}
   const rows = enquiries.slice(0,5);
 
   document.getElementById("recentEnquiries").innerHTML = rows.map(e=>{
