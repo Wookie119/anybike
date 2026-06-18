@@ -443,12 +443,9 @@ renderPipeline();
 renderActionQueue();
 renderRecentEnquiries();
 renderKPIs();
-// renderPipelineValue();
 renderCountries();
 renderAdminMap();
-
-document.getElementById("recentReplies").innerHTML =
-  "Recent replies panel ready.";
+renderRecentReplies();
 
 }
 
@@ -530,9 +527,7 @@ function renderActionQueue(){
     `;
   }).join("");
 }
-
-function renderRecentEnquiries(){
-  function renderRecentReplies(){
+function renderRecentReplies(){
 
   const replies = Object.values(latestMessageMap)
     .filter(m =>
@@ -584,6 +579,56 @@ function renderRecentEnquiries(){
           Customer replied:
           ${new Date(r.created_at).toLocaleString("en-GB")}
         </span>
+      </div>
+    `;
+  }).join("");
+}
+
+function renderRecentEnquiries(){
+
+  const rows = enquiries.slice(0,5);
+
+  document.getElementById("recentEnquiries").innerHTML = rows.map(e=>{
+
+    const b = e.available_stock || {};
+
+    const bike =
+      [b.make,b.model,b.variant]
+      .filter(Boolean)
+      .join(" ") || "Bike enquiry";
+
+    const country =
+      e.destination_country ||
+      e.country ||
+      e.detected_country ||
+      "Unknown country";
+
+    const img =
+      b.image_url || "anybike-logo-new.jpg";
+
+    return `
+      <div class="enquiry"
+           onclick="location.href='admin-enquiries.html#enquiry-${e.id}'"
+           style="cursor:pointer">
+
+        <img src="${img}">
+
+        <div>
+          <strong>${safe(bike)}</strong><br>
+          <span class="small">
+            ${safe(country)} — ${safe(e.status || "New")}
+          </span>
+        </div>
+
+        <span class="small">
+          ${e.created_at
+            ? new Date(e.created_at).toLocaleTimeString("en-GB",{
+                hour:"2-digit",
+                minute:"2-digit"
+              })
+            : ""}
+        </span>
+
       </div>
     `;
   }).join("");
