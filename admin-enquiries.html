@@ -651,8 +651,35 @@ if(window.adminCountryFilter){
   );
 
 }
-   allEnquiries = data || [];
-  render(data || []);
+const fullData = data || [];
+allEnquiries = fullData;
+
+let visibleData = [...fullData];
+
+if(window.adminStatusFilter){
+  if(window.adminStatusFilter === "Customer Replied"){
+    visibleData = visibleData.filter(r=>{
+      const m = latestMessageMap[String(r.id)];
+      return m && String(m.sender || "").toLowerCase().includes("customer");
+    });
+  }else{
+    visibleData = visibleData.filter(r =>
+      String(r.status || "").trim() === window.adminStatusFilter
+    );
+  }
+}
+
+if(window.adminCountryFilter){
+  visibleData = visibleData.filter(r =>
+    String(
+      r.destination_country ||
+      r.country ||
+      "Unknown"
+    ) === window.adminCountryFilter
+  );
+}
+
+render(visibleData);
 }
 
 function render(rows){
