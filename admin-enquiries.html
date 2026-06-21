@@ -59,28 +59,7 @@ h1{margin:0;color:var(--red)}
   width:100%;
   margin-bottom:20px;
 }
-  
-  
 
-.pipeline-stats .stat{
-  text-align:center;
-  min-height:130px;
-  padding:12px 6px;
-  border-radius:14px;
-  cursor:pointer;
-}
-
-.pipeline-stats .stat div{
-  font-weight:900;
-  line-height:1.1;
-  font-size:15px;
-  height:72px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  text-align:center;
-}
-  
 .pipeline-stats .stat{
   text-align:center;
   height:130px;
@@ -91,7 +70,38 @@ h1{margin:0;color:var(--red)}
   display:flex;
   flex-direction:column;
   justify-content:space-between;
+
+  transition:.2s ease;
 }
+
+.pipeline-stats .stat div{
+  font-weight:900;
+  line-height:1.1;
+  font-size:15px;
+  height:72px;
+
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+}
+
+.pipeline-stats .stat strong{
+  font-size:42px;
+  display:block;
+  color:#ed1c24;
+}
+
+.pipeline-stats .stat:hover{
+  transform:translateY(-2px);
+}
+
+.pipeline-stats .stat.active-filter{
+  border:2px solid #ed1c24;
+  box-shadow:0 0 18px rgba(237,28,36,.45);
+  background:#171111;
+}
+  
   
   .stat-all{
   border:2px solid #ed1c24;
@@ -377,13 +387,14 @@ button,.btn{
 
 <div class="stats pipeline-stats">
 
-  <div class="stat" onclick="filterEnquiries('customer')">
-    <div>💬<br>1<br>Customer Replied</div>
+<div class="stat" data-filter="customer" onclick="filterEnquiries('customer')">
+  
+  <div>💬<br>1<br>Customer Replied</div>
     <strong id="customerReplyCount">0</strong>
   </div>
 
-  <div class="stat" onclick="filterEnquiries('availability')">
-    <div>🔍<br>2<br>Checking Availability</div>
+<div class="stat" data-filter="availability" onclick="filterEnquiries('availability')">
+  <div>🔍<br>2<br>Checking Availability</div>
     <strong id="availabilityCount">0</strong>
   </div>
 
@@ -497,7 +508,19 @@ function messageBadge(enquiryId){
 }
 
 function filterEnquiries(type){
+
   currentFilter = type;
+
+  document.querySelectorAll(".pipeline-stats .stat").forEach(card=>{
+    card.classList.remove("active-filter");
+  });
+
+  const activeCard =
+    document.querySelector(`.pipeline-stats .stat[data-filter="${type}"]`);
+
+  if(activeCard){
+    activeCard.classList.add("active-filter");
+  }
 
   let rows = [...allEnquiries];
 
@@ -518,11 +541,14 @@ function filterEnquiries(type){
   if(type === "customer"){
     rows = rows.filter(r=>{
       const m = latestMessageMap[String(r.id)];
-      return m && String(m.sender || "").toLowerCase().includes("customer");
+      return m &&
+        String(m.sender || "").toLowerCase().includes("customer");
     });
-  }else if(type === "all"){
+  }
+  else if(type === "all"){
     rows = [...allEnquiries];
-  }else if(statusMap[type]){
+  }
+  else if(statusMap[type]){
     rows = rows.filter(r =>
       String(r.status || "").trim() === statusMap[type]
     );
@@ -530,6 +556,7 @@ function filterEnquiries(type){
 
   render(rows);
 }
+  
 
 function updateHeaderBubble(){
   let count = 0;
