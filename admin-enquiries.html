@@ -1082,29 +1082,35 @@ const sellerPostcode =
     </div>
 
     <div class="deal-panel">
-      <h3>Deal Calculator</h3>
+  <h3>Deal Calculator</h3>
 
-      <div class="deal-grid">
-        <div><span>Purchase Cost</span><strong>${money(b.private_estimated_trade || b.trade_value || b.purchase_price || 0)}</strong></div>
-        <div><span>Prep Cost</span><strong>${money(b.prep_cost || 0)}</strong></div>
-        <div><span>Retail Price</span><strong>${money(b.price_gbp || b.private_estimated_retail || 0)}</strong></div>
-        <div><span>Delivery Revenue</span><strong>${money(b.delivery_revenue || 0)}</strong></div>
-        <div><span>Admin Fee</span><strong>${money(b.admin_fee || 0)}</strong></div>
+  <div class="deal-grid">
+    <label><span>Purchase Cost</span>
+      <input type="number" id="purchase-${r.id}" value="${Number(b.private_estimated_trade || b.trade_value || b.purchase_price || 0)}" oninput="calcDeal(${r.id})">
+    </label>
 
-        <div class="profit-box">
-          <span>Expected Profit</span>
-          <strong>
-            ${money(
-              (Number(b.price_gbp || b.private_estimated_retail || 0)) +
-              (Number(b.delivery_revenue || 0)) +
-              (Number(b.admin_fee || 0)) -
-              (Number(b.private_estimated_trade || b.trade_value || b.purchase_price || 0)) -
-              (Number(b.prep_cost || 0))
-            )}
-          </strong>
-        </div>
-      </div>
+    <label><span>Prep Cost</span>
+      <input type="number" id="prep-${r.id}" value="${Number(b.prep_cost || 0)}" oninput="calcDeal(${r.id})">
+    </label>
+
+    <label><span>Retail Price</span>
+      <input type="number" id="retail-${r.id}" value="${Number(b.price_gbp || b.private_estimated_retail || 0)}" oninput="calcDeal(${r.id})">
+    </label>
+
+    <label><span>Delivery Revenue</span>
+      <input type="number" id="delivery-${r.id}" value="${Number(b.delivery_revenue || 0)}" oninput="calcDeal(${r.id})">
+    </label>
+
+    <label><span>Admin Fee</span>
+      <input type="number" id="adminfee-${r.id}" value="${Number(b.admin_fee || 0)}" oninput="calcDeal(${r.id})">
+    </label>
+
+    <div class="profit-box">
+      <span>Expected Profit</span>
+      <strong id="profit-${r.id}">£0.00</strong>
     </div>
+  </div>
+</div>
 
     <div class="customer-meta">
       <div><div class="label">Offer</div>${r.offer_amount ? money(r.offer_amount) : "-"}</div>
@@ -1370,7 +1376,7 @@ async function sendAdminMessage(enquiryId,customerId){
   );
 }
   
-async function saveNotes(id){
+ async function saveNotes(id){
   const notes=document.getElementById(`notes-${id}`).value;
 
   const {error}=await sb
@@ -1385,9 +1391,38 @@ async function saveNotes(id){
 
   alert("Notes saved");
 }
+
+function dealNum(id){
+  const el=document.getElementById(id);
+  return el ? Number(el.value || 0) : 0;
+}
+
+function calcDeal(id){
+
+  const purchase=dealNum(`purchase-${id}`);
+  const prep=dealNum(`prep-${id}`);
+  const retail=dealNum(`retail-${id}`);
+  const delivery=dealNum(`delivery-${id}`);
+  const adminfee=dealNum(`adminfee-${id}`);
+
+  const profit=
+    retail +
+    delivery +
+    adminfee -
+    purchase -
+    prep;
+
+  const profitEl=document.getElementById(`profit-${id}`);
+
+  if(profitEl){
+    profitEl.textContent=`£${profit.toFixed(2)}`;
+  }
+}
+
 const urlParams = new URLSearchParams(window.location.search);
+
 const statusFromDashboard = urlParams.get("status");
-  const countryFromDashboard = urlParams.get("country");
+const countryFromDashboard = urlParams.get("country");
 
 if(countryFromDashboard){
   window.adminCountryFilter = countryFromDashboard;
@@ -1396,8 +1431,7 @@ if(countryFromDashboard){
 if(statusFromDashboard){
   window.adminStatusFilter = statusFromDashboard;
 }
- 
-  
+
 loadEnquiries();
 
 setInterval(() => {
