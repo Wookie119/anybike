@@ -1512,33 +1512,53 @@ async function saveDeal(enquiryId, bikeId){
   }
 
   const { error: historyError } = await sb
-    .from("deal_calculator_history")
-    .insert({
-      enquiry_id: Number(enquiryId),
-      bike_id: bikeId ? Number(bikeId) : null,
-      purchase_price: purchase,
-      prep_cost: prep,
-      retail_price: retail,
-      delivery_revenue: delivery,
-      admin_fee: adminfee,
-      expected_profit: profit,
-      saved_by: savedBy
-    });
+   const { error: historyError } = await sb
+  .from("deal_calculator_history")
+  .insert({
+    enquiry_id: Number(enquiryId),
+    bike_id: bikeId ? Number(bikeId) : null,
+    purchase_price: purchase,
+    prep_cost: prep,
+    retail_price: retail,
+    delivery_revenue: delivery,
+    admin_fee: adminfee,
+    expected_profit: profit,
+    saved_by: savedBy
+  });
 
-  if(historyError){
-    alert("Deal saved, but history failed: " + historyError.message);
-    return;
-  }
-
-  const msg = document.getElementById(`deal-saved-${enquiryId}`);
-  if(msg){
-    msg.textContent = "Saved by " + savedBy + " just now";
-  }
-
-  alert("Deal figures saved permanently");
+if(historyError){
+  alert("Deal saved, but history failed: " + historyError.message);
+  return;
 }
+
+const msg = document.getElementById(`deal-saved-${enquiryId}`);
+
+if(msg){
+  msg.textContent = "Saved by " + savedBy + " just now";
+}
+
+alert("Deal figures saved permanently");
+}
+
 loadEnquiries();
-90000);
+
+setTimeout(() => {
+
+  document.querySelectorAll('[id^="profit-"]').forEach(el => {
+
+    const id = el.id.replace("profit-","");
+
+    try{
+      calcDeal(id);
+    }catch(e){}
+
+  });
+
+}, 1000);
+
+setInterval(() => {
+  loadEnquiries();
+}, 90000);
 
 </script>
 </body>
