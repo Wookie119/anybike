@@ -1469,43 +1469,42 @@ Replace your whole saveDeal() function with this plain code:
 
 async function saveDeal(enquiryId){
 
-const savedBy=document.getElementById(savedby-${enquiryId}).value;
+  const savedBy = document.getElementById(`savedby-${enquiryId}`).value;
 
-if(!savedBy){
-alert("Please choose who saved the figures");
-return;
+  if(!savedBy){
+    alert("Please choose who saved the figures");
+    return;
+  }
+
+  const updateData = {
+    deal_purchase_price: dealNum(`purchase-${enquiryId}`),
+    deal_prep_cost: dealNum(`prep-${enquiryId}`),
+    deal_retail_price: dealNum(`retail-${enquiryId}`),
+    deal_delivery_revenue: dealNum(`delivery-${enquiryId}`),
+    deal_admin_fee: dealNum(`adminfee-${enquiryId}`),
+    deal_saved_by: savedBy,
+    deal_saved_at: new Date().toISOString()
+  };
+
+  const { error } = await sb
+    .from("bike_enquiries")
+    .update(updateData)
+    .eq("id", Number(enquiryId));
+
+  if(error){
+    alert("Deal save failed: " + error.message);
+    return;
+  }
+
+  const msg = document.getElementById(`deal-saved-${enquiryId}`);
+
+  if(msg){
+    msg.textContent = "Saved by " + savedBy;
+  }
+
+  alert("Deal figures saved permanently");
 }
-
-const updateData={
-deal_purchase_price:dealNum(purchase-${enquiryId}),
-deal_prep_cost:dealNum(prep-${enquiryId}),
-deal_retail_price:dealNum(retail-${enquiryId}),
-deal_delivery_revenue:dealNum(delivery-${enquiryId}),
-deal_admin_fee:dealNum(adminfee-${enquiryId}),
-deal_saved_by:savedBy,
-deal_saved_at:new Date().toISOString()
-};
-
-const {error}=await sb
-.from("bike_enquiries")
-.update(updateData)
-.eq("id",Number(enquiryId));
-
-if(error){
-alert("Deal save failed: " + error.message);
-return;
-}
-
-const msg=document.getElementById(deal-saved-${enquiryId});
-if(msg){
-msg.textContent="Saved by " + savedBy;
-}
-
-alert("Deal figures saved permanently");
-}
-
-Leave this part underneath it:
-
+  
 loadEnquiries();
 
 setTimeout(() => {
