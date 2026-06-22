@@ -1507,6 +1507,47 @@ if(statusFromDashboard){
   window.adminStatusFilter = statusFromDashboard;
 }
 
+async function saveDeal(enquiryId, bikeId){
+  if(!bikeId){
+    alert("Cannot save deal figures: missing bike ID");
+    return;
+  }
+
+  const savedBy=document.getElementById(`savedby-${enquiryId}`).value;
+
+  if(!savedBy){
+    alert("Please choose who saved the figures");
+    return;
+  }
+
+  const updateData={
+    purchase_price:dealNum(`purchase-${enquiryId}`),
+    prep_cost:dealNum(`prep-${enquiryId}`),
+    price_gbp:dealNum(`retail-${enquiryId}`),
+    delivery_revenue:dealNum(`delivery-${enquiryId}`),
+    admin_fee:dealNum(`adminfee-${enquiryId}`),
+    deal_saved_by:savedBy,
+    deal_saved_at:new Date().toISOString()
+  };
+
+  const {error}=await sb
+    .from("available_stock")
+    .update(updateData)
+    .eq("id",Number(bikeId));
+
+  if(error){
+    alert("Deal save failed: " + error.message);
+    return;
+  }
+
+  const msg=document.getElementById(`deal-saved-${enquiryId}`);
+  if(msg){
+    msg.textContent="Saved by " + savedBy;
+  }
+
+  alert("Deal figures saved");
+}
+
 loadEnquiries();
 
 setInterval(() => {
