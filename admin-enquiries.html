@@ -1556,25 +1556,43 @@ async function saveDeal(enquiryId, bikeId){
 
   const purchase = dealNum(`purchase-${enquiryId}`);
   const prep = dealNum(`prep-${enquiryId}`);
-  const retail = dealNum(`retail-${enquiryId}`);
-  const delivery = dealNum(`delivery-${enquiryId}`);
-  const adminfee = dealNum(`adminfee-${enquiryId}`);
+  const deliveryCost = dealNum(`deliverycost-${enquiryId}`);
+  const otherCost = dealNum(`othercost-${enquiryId}`);
 
-  const profit = retail + delivery + adminfee - purchase - prep;
+  const selling = dealNum(`selling-${enquiryId}`);
+  const adminfee = dealNum(`adminfee-${enquiryId}`);
+  const exportDocs = dealNum(`exportdocs-${enquiryId}`);
+  const deliveryCharge = dealNum(`deliverycharge-${enquiryId}`);
+
+  const totalCost = purchase + prep + deliveryCost + otherCost;
+  const totalIncome = selling + adminfee + exportDocs + deliveryCharge;
+  const grossProfit = selling - purchase - prep;
+  const netProfit = totalIncome - totalCost;
+  const marginPercent = selling > 0 ? (netProfit / selling) * 100 : 0;
 
   const { error } = await sb
     .from("bike_enquiries")
-   .update({
-  deal_purchase_price: purchase,
-  deal_prep_cost: prep,
-  deal_retail_price: retail,
-  deal_delivery_revenue: delivery,
-  deal_admin_fee: adminfee,
-  deal_expected_profit: profit,
-  deal_saved_by: savedBy,
-  deal_saved_at: new Date().toISOString()
-})
-    
+    .update({
+      deal_purchase_price: purchase,
+      deal_prep_cost: prep,
+      deal_delivery_cost: deliveryCost,
+      deal_other_cost: otherCost,
+
+      deal_retail_price: selling,
+      deal_admin_fee: adminfee,
+      deal_export_docs_fee: exportDocs,
+      deal_delivery_revenue: deliveryCharge,
+
+      deal_total_cost: totalCost,
+      deal_total_income: totalIncome,
+      deal_gross_profit: grossProfit,
+      deal_net_profit: netProfit,
+      deal_margin_percent: marginPercent,
+
+      deal_expected_profit: netProfit,
+      deal_saved_by: savedBy,
+      deal_saved_at: new Date().toISOString()
+    })
     .eq("id", Number(enquiryId));
 
   if(error){
@@ -1583,40 +1601,51 @@ async function saveDeal(enquiryId, bikeId){
   }
 
   const { error: historyError } = await sb
-  .from("deal_calculator_history")
-  .insert({
-    enquiry_id: Number(enquiryId),
-    bike_id: bikeId ? Number(bikeId) : null,
-    purchase_price: purchase,
-    prep_cost: prep,
-    retail_price: retail,
-    delivery_revenue: delivery,
-    admin_fee: adminfee,
-    expected_profit: profit,
-    saved_by: savedBy
-  });
+    .from("deal_calculator_history")
+    .insert({
+      enquiry_id: Number(enquiryId),
+      bike_id: bikeId ? Number(bikeId) : null,
 
-if(historyError){
-  alert("Deal saved, but history failed: " + historyError.message);
-  return;
+      purchase_price: purchase,
+      prep_cost: prep,
+      delivery_cost: deliveryCost,
+      other_cost: otherCost,
+
+      retail_price: selling,
+      admin_fee: adminfee,
+      export_docs_fee: exportDocs,
+      delivery_revenue: deliveryCharge,
+
+      total_cost: totalCost,
+      total_income: totalIncome,
+      gross_profit: grossProfit,
+      net_profit: netProfit,
+      margin_percent: marginPercent,
+
+      expected_profit: netProfit,
+      saved_by: savedBy
+    });
+
+  if(historyError){
+    alert("Deal saved, but history failed: " + historyError.message);
+    return;
+  }
+
+  const msg = document.getElementById(`deal-saved-${enquiryId}`);
+  if(msg){
+    msg.textContent = "Saved by " + savedBy + " just now";
+  }
+
+  alert("Deal figures saved permanently");
 }
-
-const msg = document.getElementById(`deal-saved-${enquiryId}`);
-
-if(msg){
-  msg.textContent = "Saved by " + savedBy + " just now";
-}
-
-alert("Deal figures saved permanently");
-}
-
+  
 loadEnquiries();
 
 setTimeout(() => {
 
-  document.querySelectorAll('[id^="profit-"]').forEach(el => {
+  document.querySelectorAll('[id^="netprofit-"]').forEach(el => {
 
-    const id = el.id.replace("profit-","");
+    const id = el.id.replace("netprofit-","");
 
     try{
       calcDeal(id);
