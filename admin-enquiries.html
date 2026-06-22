@@ -1527,38 +1527,52 @@ async function sendAdminMessage(enquiryId,customerId){
 }
 
 function dealNum(id){
-  const el=document.getElementById(id);
+  const el = document.getElementById(id);
   return el ? Number(el.value || 0) : 0;
+}
+
+function setMoney(id, value){
+  const el = document.getElementById(id);
+  if(!el) return;
+
+  el.textContent = value.toLocaleString("en-GB",{
+    style:"currency",
+    currency:"GBP",
+    minimumFractionDigits:2,
+    maximumFractionDigits:2
+  });
+
+  el.style.color = value >= 0 ? "#33cc66" : "#ff4d4d";
 }
 
 function calcDeal(id){
 
-  const purchase=dealNum(`purchase-${id}`);
-  const prep=dealNum(`prep-${id}`);
-  const retail=dealNum(`retail-${id}`);
-  const delivery=dealNum(`delivery-${id}`);
-  const adminfee=dealNum(`adminfee-${id}`);
+  const purchase = dealNum(`purchase-${id}`);
+  const prep = dealNum(`prep-${id}`);
+  const deliveryCost = dealNum(`deliverycost-${id}`);
+  const otherCost = dealNum(`othercost-${id}`);
 
-  const profit=
-    retail +
-    delivery +
-    adminfee -
-    purchase -
-    prep;
+  const selling = dealNum(`selling-${id}`);
+  const adminfee = dealNum(`adminfee-${id}`);
+  const exportDocs = dealNum(`exportdocs-${id}`);
+  const deliveryCharge = dealNum(`deliverycharge-${id}`);
 
-  const profitEl=document.getElementById(`profit-${id}`);
+  const totalCost = purchase + prep + deliveryCost + otherCost;
+  const totalIncome = selling + adminfee + exportDocs + deliveryCharge;
+  const grossProfit = selling - purchase - prep;
+  const netProfit = totalIncome - totalCost;
+  const marginPercent = selling > 0 ? (netProfit / selling) * 100 : 0;
 
-if(profitEl){
+  setMoney(`totalcost-${id}`, totalCost);
+  setMoney(`totalincome-${id}`, totalIncome);
+  setMoney(`grossprofit-${id}`, grossProfit);
+  setMoney(`netprofit-${id}`, netProfit);
 
-  profitEl.textContent =
-    "£" + profit.toLocaleString("en-GB",{
-      minimumFractionDigits:2,
-      maximumFractionDigits:2
-    });
-
-  profitEl.style.color =
-    profit >= 0 ? "#33cc66" : "#ff4d4d";
-}
+  const marginEl = document.getElementById(`margin-${id}`);
+  if(marginEl){
+    marginEl.textContent = marginPercent.toFixed(2) + "%";
+    marginEl.style.color = marginPercent >= 0 ? "#33cc66" : "#ff4d4d";
+  }
 }
   
 const urlParams = new URLSearchParams(window.location.search);
@@ -1671,17 +1685,10 @@ async function saveDeal(enquiryId, bikeId){
 loadEnquiries();
 
 setTimeout(() => {
-
   document.querySelectorAll('[id^="netprofit-"]').forEach(el => {
-
     const id = el.id.replace("netprofit-","");
-
-    try{
-      calcDeal(id);
-    }catch(e){}
-
+    calcDeal(id);
   });
-
 }, 1000);
 
 setInterval(() => {
