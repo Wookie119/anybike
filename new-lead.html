@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>New Lead | AnyBike Admin</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--red:#ed1c24;--line:rgba(255,255,255,.12)}
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#050505;color:#fff}
+header{background:#0b0b0b;border-bottom:1px solid var(--line);padding:14px 20px}
+.header-inner{max-width:1300px;margin:auto;display:flex;justify-content:space-between;align-items:center}
+h1{margin:0;color:var(--red)}
+a{color:#fff;text-decoration:none;font-weight:800}
+.wrap{max-width:1100px;margin:30px auto;padding:0 18px}
+.card{background:#111;border:1px solid var(--line);border-radius:18px;padding:22px;margin-bottom:20px}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+label{font-weight:800;color:#ddd}
+input,select,textarea{width:100%;margin-top:7px;padding:12px;border-radius:10px;border:1px solid #333;font-size:16px}
+textarea{min-height:130px}
+button{background:var(--red);color:#fff;border:0;border-radius:999px;padding:14px 22px;font-weight:900;cursor:pointer}
+button.secondary{background:#333}
+.actions{display:flex;gap:12px;justify-content:flex-end}
+.small{color:#aaa;font-size:13px}
+@media(max-width:800px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+
+<body>
+<header>
+  <div class="header-inner">
+    <h1>New Lead</h1>
+    <a href="admin-enquiries.html">← Back to Enquiries</a>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="card">
+    <h2>Customer Details</h2>
+
+    <div class="grid">
+      <label>
+        Customer Name
+        <input id="customerName" placeholder="Customer name">
+      </label>
+
+      <label>
+        Business Name
+        <input id="businessName" placeholder="Optional">
+      </label>
+
+      <label>
+        Email
+        <input id="customerEmail" type="email" placeholder="customer@email.com">
+      </label>
+
+      <label>
+        Phone / WhatsApp
+        <input id="customerPhone" placeholder="+44...">
+      </label>
+
+      <label>
+        Country
+        <input id="destinationCountry" placeholder="Germany, Kenya, UAE...">
+      </label>
+
+      <label>
+        City / Region
+        <input id="customerRegion" placeholder="Optional">
+      </label>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Lead Details</h2>
+
+    <div class="grid">
+      <label>
+        Lead Source
+        <select id="leadSource">
+          <option>Website</option>
+          <option>Email</option>
+          <option>Telephone</option>
+          <option>Trade Show</option>
+          <option>Referral</option>
+          <option>Facebook</option>
+          <option>Instagram</option>
+          <option>Existing Customer</option>
+          <option>Other</option>
+        </select>
+      </label>
+
+      <label>
+        Interested In
+        <input id="bikeInterest" placeholder="Honda CRF300L, Yamaha MT-07, etc">
+      </label>
+
+      <label>
+        Status
+        <select id="leadStatus">
+          <option>Checking Availability</option>
+          <option>Negotiating Price & Lead Time</option>
+          <option>Waiting Customer Decision</option>
+          <option>Save for Later</option>
+        </select>
+      </label>
+
+      <label>
+        Deal Owner
+        <select id="assignedTo">
+          <option value="">Unassigned</option>
+          <option>Andy Gifford</option>
+          <option>Sean Byrne</option>
+          <option>Cat Byrne</option>
+          <option>Sophie Gifford</option>
+        </select>
+      </label>
+    </div>
+
+    <label style="display:block;margin-top:16px">
+      Notes / First Message
+      <textarea id="leadMessage" placeholder="What does the customer want?"></textarea>
+    </label>
+  </div>
+
+  <div class="card">
+    <h2>Create Lead</h2>
+    <p class="small">
+      This will create a manual enquiry in the CRM. Messaging stays unchanged.
+    </p>
+
+    <div class="actions">
+      <button class="secondary" onclick="location.href='admin-enquiries.html'">Cancel</button>
+      <button onclick="saveNewLead()">Create Lead</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const SUPABASE_URL = "https://tuehtnezhdnkqbbhttgp.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+function val(id){
+  const el = document.getElementById(id);
+  return el ? el.value.trim() : "";
+}
+
+async function saveNewLead(){
+
+  const customerName = val("customerName");
+  const customerEmail = val("customerEmail");
+  const customerPhone = val("customerPhone");
+  const destinationCountry = val("destinationCountry");
+  const customerRegion = val("customerRegion");
+  const leadSource = val("leadSource");
+  const bikeInterest = val("bikeInterest");
+  const leadStatus = val("leadStatus");
+  const assignedTo = val("assignedTo");
+  const leadMessage = val("leadMessage");
+
+  if(!customerName && !customerEmail && !customerPhone){
+    alert("Please enter at least a customer name, email, or phone number.");
+    return;
+  }
+
+  const message =
+    leadMessage ||
+    ("Manual lead created. Interested in: " + (bikeInterest || "Not specified"));
+
+  const insertData = {
+    enquiry_type: "Manual Lead",
+    question_type: "Manual Lead",
+    customer_name: customerName || "Manual Lead",
+    customer_email: customerEmail || null,
+    customer_phone: customerPhone || null,
+    destination_country: destinationCountry || null,
+    customer_region: customerRegion || null,
+    message: message,
+    status: leadStatus || "Checking Availability",
+    internal_notes:
+      "Lead Source: " + leadSource +
+      "\\nInterested In: " + (bikeInterest || "-") +
+      "\\nBusiness Name: " + (val("businessName") || "-"),
+    assigned_to: assignedTo || null,
+    assigned_by: assignedTo ? "Andy Gifford" : null,
+    assigned_at: assignedTo ? new Date().toISOString() : null
+  };
+
+  const {data,error} = await sb
+    .from("bike_enquiries")
+    .insert(insertData)
+    .select("id")
+    .single();
+
+  if(error){
+    alert("Lead creation failed: " + error.message);
+    return;
+  }
+
+  alert("New lead created.");
+
+  location.href = "admin-enquiries.html";
+}
+</script>
+</body>
+</html>
