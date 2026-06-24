@@ -325,14 +325,44 @@ body{
         <p class="small">This is the new dashboard layout shell. Next step is connecting Supabase live data.</p>
       </div>
 
-      <div class="card">
-        <h2>Export Pipeline Value</h2>
-      <div class="value-row"><span>Waiting Deposit</span><strong id="valWaitingDeposit">£0</strong></div>
-<div class="value-row"><span>Deposit Paid</span><strong id="valDepositPaid">£0</strong></div>
-<div class="value-row"><span>Ready To Ship</span><strong id="valReadyShip">£0</strong></div>
-<div class="value-row"><span>At Port / Shipping Agent</span><strong id="valPort">£0</strong></div>
-<div class="total" id="pipelineTotal">£0</div>
-      </div>
+     <div class="card">
+  <h2>Export Pipeline Value</h2>
+
+  <div class="value-row">
+    <span>Waiting Deposit</span>
+    <strong id="valWaitingDeposit">£0</strong>
+  </div>
+
+  <div class="value-row">
+    <span>Deposit Paid</span>
+    <strong id="valDepositPaid">£0</strong>
+  </div>
+
+  <div class="value-row">
+    <span>Ready To Ship</span>
+    <strong id="valReadyShip">£0</strong>
+  </div>
+
+  <div class="value-row">
+    <span>At Port / Shipping Agent</span>
+    <strong id="valPort">£0</strong>
+  </div>
+
+  <hr style="border-color:#333;margin:12px 0;">
+
+  <div class="value-row">
+    <span>Completed Deals</span>
+    <strong id="valCompleted">£0</strong>
+  </div>
+
+  <div class="value-row">
+    <span>Closed Deals</span>
+    <strong id="valClosed">£0</strong>
+  </div>
+
+  <div class="total" id="pipelineTotal">£0</div>
+</div>
+      
     </section>
 
   </main>
@@ -364,7 +394,9 @@ const statuses = [
   ["📍","On Site"],
   ["🚢","Ready To Ship"],
   ["🏍","Booked with Move Motorcycles"],
-  ["⚓","At Port / Shipping Agent"]
+  ["⚓","At Port / Shipping Agent"],
+  ["🏁","Completed Deal"],
+  ["❌","Closed"]
 ];
 
 function safe(v){ return v ? String(v) : "-"; }
@@ -389,19 +421,20 @@ async function loadDashboard(){
 
   if(error){ alert(error.message); return; }
 
-  enquiries = data || [];
+ enquiries = data || [];
 
-  initAdminMap();
-  setTimeout(()=>adminMap.invalidateSize(),200);
+initAdminMap();
+setTimeout(()=>adminMap.invalidateSize(),200);
 
-  renderPipeline();
-  renderActionQueue();
-  renderRecentEnquiries();
-  renderKPIs();
-  renderCountries();
-  renderAdminMap();
+renderPipeline();
+renderActionQueue();
+renderRecentEnquiries();
+renderKPIs();
+renderCountries();
+renderPipelineValue();
+renderAdminMap();
 
-  document.getElementById("recentReplies").innerHTML = "Recent replies paused.";
+document.getElementById("recentReplies").innerHTML = "Recent replies paused.";
 }
 
 async function loadLatestMessages(){
@@ -437,14 +470,18 @@ function renderPipeline(){
 }
 
 function renderActionQueue(){
-  const queue = [
-    ["💬","Customer Replied"],
-    ["💷","Waiting Deposit"],
-    ["💰","Waiting Full Payment"],
-    ["🚢","Ready To Ship"],
-    ["🏍","Booked with Move Motorcycles"],
-    ["⚓","At Port / Shipping Agent"]
-  ];
+ const queue = [
+  ["💬","Customer Replied"],
+  ["💷","Waiting Deposit"],
+  ["✅","Deposit Paid"],
+  ["💰","Waiting Full Payment"],
+  ["🚢","Ready To Ship"],
+  ["🏍","Booked with Move Motorcycles"],
+  ["⚓","At Port / Shipping Agent"],
+  ["🏁","Completed Deal"],
+  ["❌","Closed"]
+];
+  
 
   document.getElementById("actionQueue").innerHTML = queue.map(q=>`
     <div class="queue-row" onclick="location.href='admin-enquiries.html?status=${encodeURIComponent(q[1])}'" style="cursor:pointer">
