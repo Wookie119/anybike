@@ -1266,55 +1266,43 @@ const sellerPostcode =
       <div><div class="label">Browser</div>${safe(r.browser)}</div>
       <div><div class="label">IP Address</div>${safe(r.ip_address)}</div>
 
-      <div class="status-box">
-        <div class="label">Status</div>
-        <select id="status-${r.id}" onchange="updateStatus(${r.id}, this.value)">
-          <option value="Customer Replied" ${r.status==="Customer Replied"?"selected":""}>Customer Replied</option>
-          <option value="Checking Availability" ${r.status==="Checking Availability"?"selected":""}>Checking Availability</option>
-          <option value="Negotiating Price & Lead Time" ${r.status==="Negotiating Price & Lead Time"?"selected":""}>Negotiating Price & Lead Time</option>
-          <option value="Waiting Customer Decision" ${r.status==="Waiting Customer Decision"?"selected":""}>Waiting Customer Decision</option>
-          <option value="Waiting Deposit" ${r.status==="Waiting Deposit"?"selected":""}>Waiting Deposit</option>
-          <option value="Deposit Paid" ${r.status==="Deposit Paid"?"selected":""}>Deposit Paid</option>
-          <option value="Waiting Collection" ${r.status==="Waiting Collection"?"selected":""}>Waiting Collection</option>
-          <option value="Waiting Full Payment" ${r.status==="Waiting Full Payment"?"selected":""}>Waiting Full Payment</option>
-          <option value="On Site" ${r.status==="On Site"?"selected":""}>On Site</option>
-          <option value="Ready To Ship" ${r.status==="Ready To Ship"?"selected":""}>Ready To Ship</option>
-          <option value="Booked with Move Motorcycles" ${r.status==="Booked with Move Motorcycles"?"selected":""}>Booked with Move Motorcycles</option>
-          <option value="At Port / Shipping Agent" ${r.status==="At Port / Shipping Agent"?"selected":""}>At Port / Shipping Agent</option>
-        </select>
-      </div>
-    </div>
+   <div class="status-box">
+  <div class="label">Status</div>
+  <select id="status-${r.id}" onchange="updateStatus(${r.id}, this.value)">
+    <option value="Customer Replied" ${r.status==="Customer Replied"?"selected":""}>Customer Replied</option>
+    <option value="Checking Availability" ${r.status==="Checking Availability"?"selected":""}>Checking Availability</option>
+    <option value="Negotiating Price & Lead Time" ${r.status==="Negotiating Price & Lead Time"?"selected":""}>Negotiating Price & Lead Time</option>
+    <option value="Waiting Customer Decision" ${r.status==="Waiting Customer Decision"?"selected":""}>Waiting Customer Decision</option>
+    <option value="Waiting Deposit" ${r.status==="Waiting Deposit"?"selected":""}>Waiting Deposit</option>
+    <option value="Deposit Paid" ${r.status==="Deposit Paid"?"selected":""}>Deposit Paid</option>
+    <option value="Waiting Full Payment" ${r.status==="Waiting Full Payment"?"selected":""}>Waiting Full Payment</option>
+    <option value="Waiting Collection" ${r.status==="Waiting Collection"?"selected":""}>Waiting Collection</option>
+    <option value="On Site" ${r.status==="On Site"?"selected":""}>On Site</option>
+    <option value="Ready To Ship" ${r.status==="Ready To Ship"?"selected":""}>Ready To Ship</option>
+    <option value="Booked with Move Motorcycles" ${r.status==="Booked with Move Motorcycles"?"selected":""}>Booked with Move Motorcycles</option>
+    <option value="At Port / Shipping Agent" ${r.status==="At Port / Shipping Agent"?"selected":""}>At Port / Shipping Agent</option>
+    <option value="Completed" ${r.status==="Completed"?"selected":""}>Completed</option>
+    <option value="Closed" ${r.status==="Closed"?"selected":""}>Closed</option>
+    <option value="Lost" ${r.status==="Lost"?"selected":""}>Lost</option>
+    <option value="Save for Later" ${r.status==="Save for Later"?"selected":""}>Save for Later</option>
+  </select>
+</div>
 
-    <div class="crm-grid">
-      <div class="buyer-panel">
-        <strong>Buyer Message</strong><br>
-        ${safe(r.message)}
-      </div>
+<div class="status-box">
+  <div class="label">Assigned To</div>
+  <select id="assigned-${r.id}" onchange="assignDeal(${r.id}, this.value)">
+    <option value="" ${!r.assigned_to ? "selected" : ""}>Unassigned</option>
+    <option value="Andy Gifford" ${r.assigned_to==="Andy Gifford"?"selected":""}>Andy Gifford</option>
+    <option value="Sean Byrne" ${r.assigned_to==="Sean Byrne"?"selected":""}>Sean Byrne</option>
+    <option value="Cat Byrne" ${r.assigned_to==="Cat Byrne"?"selected":""}>Cat Byrne</option>
+    <option value="Sophie Gifford" ${r.assigned_to==="Sophie Gifford"?"selected":""}>Sophie Gifford</option>
+  </select>
 
-      <div class="conversation-box">
-        <strong>Conversation</strong>
-
-        <div class="message-thread" id="messages-${r.id}">
-          Loading messages...
-        </div>
-
-        <div class="reply-area">
-          <textarea id="msg-${r.id}" placeholder="Type message to customer..."></textarea>
-        </div>
-
-        <div class="quick-replies">
-          <button onclick="setQuickReply(${r.id},'available')">Still Available</button>
-          <button onclick="setQuickReply(${r.id},'accepted')">Offer Accepted</button>
-          <button onclick="setQuickReply(${r.id},'rejected')">Offer Rejected</button>
-          <button onclick="setQuickReply(${r.id},'photos')">More Photos</button>
-          <button onclick="setQuickReply(${r.id},'payment')">Awaiting Payment</button>
-          <button onclick="setQuickReply(${r.id},'reserved')">Reserved</button>
-        </div>
-
-        <button onclick="sendAdminMessage(${r.id}, '${r.customer_id || ""}')">
-          Send Message
-        </button>
-      </div>
+  <div class="small" style="margin-top:6px;">
+    ${r.assigned_to ? `Assigned to ${safe(r.assigned_to)}` : "Not assigned yet"}
+    ${r.assigned_at ? `<br>${new Date(r.assigned_at).toLocaleString("en-GB")}` : ""}
+  </div>
+</div>
 
       <div class="notes-panel">
         <strong>Internal Notes</strong>
@@ -1430,10 +1418,37 @@ async function updateStatus(id,status){
   loadEnquiries();
 }
 
+async function assignDeal(id, staffName){
+
+  const assignedBy = "Andy Gifford";
+
+  const {error} = await sb
+    .from("bike_enquiries")
+    .update({
+      assigned_to: staffName || null,
+      assigned_by: assignedBy,
+      assigned_at: new Date().toISOString()
+    })
+    .eq("id", Number(id));
+
+  if(error){
+    alert("Assignment failed: " + error.message);
+    return;
+  }
+
+  alert(
+    staffName
+      ? "Deal assigned to " + staffName
+      : "Deal unassigned"
+  );
+
+  loadEnquiries();
+}
+
 async function loadMessages(enquiryId, originalMessage="", customerName="Customer"){
   const box=document.getElementById(`messages-${enquiryId}`);
   if(!box) return;
-
+  
   const {data,error}=await sb
     .from("enquiry_messages")
     .select("*")
