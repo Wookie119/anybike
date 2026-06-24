@@ -765,6 +765,7 @@ let latestMessageMap = {};
 let openEnquiryId = null;
 let allEnquiries = [];
 let currentFilter = "all";
+let currentStaffFilter = "all";
 
 function safe(v){
   return v===undefined || v===null || v==="" ? "-" : String(v);
@@ -774,10 +775,35 @@ function money(v){
   return v ? "£" + Number(v).toLocaleString("en-GB") : "POA";
 }
 
+function filterStaff(staffName){
+  currentStaffFilter = staffName;
+  window.adminStaffFilter = staffName;
+  loadEnquiries();
+}
+
+function updateStaffCounts(){
+
+  const byName = name =>
+    allEnquiries.filter(r =>
+      String(r.assigned_to || "").trim() === name
+    ).length;
+
+  const unassigned =
+    allEnquiries.filter(r =>
+      !String(r.assigned_to || "").trim()
+    ).length;
+
+  document.getElementById("andyCount").textContent = byName("Andy Gifford");
+  document.getElementById("seanCount").textContent = byName("Sean Byrne");
+  document.getElementById("catCount").textContent = byName("Cat Byrne");
+  document.getElementById("sophieCount").textContent = byName("Sophie Gifford");
+  document.getElementById("unassignedCount").textContent = unassigned;
+}
+
 function toggleEnquiry(id){
   const el=document.getElementById(`enquiry-${id}`);
   if(!el) return;
-
+  
   el.classList.toggle("open");
 
   if(el.classList.contains("open")){
