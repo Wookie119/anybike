@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Customers | AnyBike Admin</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+:root{--red:#ed1c24;--line:rgba(255,255,255,.12)}
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#050505;color:#fff}
+header{background:#0b0b0b;border-bottom:1px solid var(--line);padding:14px 20px}
+.header-inner{max-width:1800px;margin:auto;display:flex;justify-content:space-between;align-items:center}
+h1{margin:0;color:var(--red)}
+nav{display:flex;gap:16px}
+nav a{color:#ddd;text-decoration:none;font-weight:900}
+nav a:hover{color:var(--red)}
+.wrap{padding:18px;max-width:1800px;margin:auto}
+.toolbar{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+input,select{padding:12px;border-radius:10px;border:1px solid #333;font-size:16px}
+.search{flex:1;min-width:280px}
+.card{background:#111;border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:12px}
+.customer-row{
+  display:grid;
+  grid-template-columns:1.5fr 1fr 1fr 1fr 1fr 140px;
+  gap:14px;
+  align-items:center;
+  cursor:pointer;
+}
+.customer-row:hover{background:#181818}
+.small{color:#aaa;font-size:13px}
+.badge{display:inline-block;padding:7px 10px;border-radius:999px;background:#222;font-weight:900}
+.badge-red{background:var(--red)}
+.customer-detail{display:none;border-top:1px solid var(--line);margin-top:14px;padding-top:14px}
+.customer.open .customer-detail{display:block}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+.panel{background:#181818;border-radius:12px;padding:14px}
+.panel span{display:block;color:#999;font-size:12px;margin-bottom:5px}
+.panel strong{color:#fff}
+.btn{background:var(--red);color:#fff;border:0;border-radius:999px;padding:10px 16px;font-weight:900;cursor:pointer;text-decoration:none;display:inline-block}
+@media(max-width:900px){
+  .customer-row{grid-template-columns:1fr}
+}
+</style>
+</head>
+
+<body>
+<header>
+  <div class="header-inner">
+    <h1>AnyBike Customers</h1>
+    <nav>
+      <a href="dashboard.html">Dashboard</a>
+      <a href="admin-enquiries.html">Enquiries</a>
+      <a href="admin-stock.html">Stock</a>
+      <a href="admin-customers.html">Customers</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="toolbar">
+    <input class="search" id="searchBox" placeholder="Search name, email, phone, country..." oninput="renderCustomers()">
+
+    <select id="countryFilter" onchange="renderCustomers()">
+      <option value="">All Countries</option>
+    </select>
+
+    <select id="statusFilter" onchange="renderCustomers()">
+      <option value="">All Statuses</option>
+      <option value="New">New</option>
+      <option value="Verified">Verified</option>
+      <option value="Waiting ID">Waiting ID</option>
+      <option value="VIP">VIP</option>
+    </select>
+
+    <button class="btn" onclick="location.href='new-lead.html'">+ New Customer / Lead</button>
+  </div>
+
+  <div id="customers">Loading customers...</div>
+
+</div>
+
+<script>
+const SUPABASE_URL = "https://tuehtnezhdnkqbbhttgp.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let allCustomers = [];
+
+function safe(v){
+  return v === undefined || v === null || v === "" ? "-" : String(v);
+}
+
+function money(v){
+  return "£" + Number(v || 0).toLocaleString("en-GB");
+}
+
+function toggleCustomer(id){
+  const el = document.getElementById("customer-" + id);
+  if(el) el.classList.toggle("open");
+}
+
+async function loadCustomers(){
+
+  const {data,error} = await sb
+    .from("bike_enquiries")
+    .select(`
+      id,
+      created_at,
+      customer_id,
+      customer_name,
+      customer_email,
+      customer_phone,
+      destination_country,
+      customer_region,
+      status,
+      assigned_to,
+      deal_total_income,
+      deal_net_profit
+    `)
+    .order("created_at",{ascending:false});
+
+  if(error){
+    document.getElementById("customers").innerHTML =
+      "<div style='color:#ff7676;font-weight:900'>" + error.message + "</div>";
+    return;
+  }
+
+  const grouped = {};
+
+  (data || []).forEach(e=>{
+    const key =
+      e.customer_email ||
+      e.customer_phone ||
+      e.customer_id ||
+      "unknown-" + e.id;
+
+    if(!grouped[key]){
+      grouped[key] = {
+        id: key.replace(/[^a-zA-Z0-9]/g,""),
+        name: e.customer_name || "Unknown Customer",
+        email: e.customer_email || "",
+        phone: e.customer_phone || "",
+        country: e.destination_country || "",
+        region: e.customer_region || "",
+        deals: [],
+        totalValue: 0,
+        totalProfit: 0,
+        latest: e.created_at
+      };
+    }
+
+    grouped[key].deals.push(e);
+    grouped[key].totalValue += Number(e.deal_total_income || 0);
+    grouped[key].totalProfit += Number(e.deal_net_profit || 0);
+
+    if(e.created_at > grouped[key].latest){
+      grouped[key].latest = e.created_at;
+    }
+  });
+
+  allCustomers = Object.values(grouped);
+
+  populateCountries();
+  renderCustomers();
+}
+
+function populateCountries(){
+  const select = document.getElementById("countryFilter");
+  const countries = [...new Set(allCustomers.map(c=>c.country).filter(Boolean))].sort();
+
+  countries.forEach(c=>{
+    const opt = document.createElement("option");
+    opt.value = c;
+    opt.textContent = c;
+    select.appendChild(opt);
+  });
+}
+
+function customerStatus(c){
+  if(c.deals.length >= 3) return "VIP";
+  if(c.deals.some(d=>d.status === "Completed")) return "Verified";
+  return "New";
+}
+
+function renderCustomers(){
+
+  const q = document.getElementById("searchBox").value.toLowerCase();
+  const country = document.getElementById("countryFilter").value;
+  const status = document.getElementById("statusFilter").value;
+
+  let rows = [...allCustomers];
+
+  if(q){
+    rows = rows.filter(c =>
+      (c.name || "").toLowerCase().includes(q) ||
+      (c.email || "").toLowerCase().includes(q) ||
+      (c.phone || "").toLowerCase().includes(q) ||
+      (c.country || "").toLowerCase().includes(q)
+    );
+  }
+
+  if(country){
+    rows = rows.filter(c => c.country === country);
+  }
+
+  if(status){
+    rows = rows.filter(c => customerStatus(c) === status);
+  }
+
+  const box = document.getElementById("customers");
+
+  if(!rows.length){
+    box.innerHTML = "<p>No customers found.</p>";
+    return;
+  }
+
+  box.innerHTML = rows.map(c=>{
+    const statusText = customerStatus(c);
+
+    return `
+      <div class="card customer" id="customer-${c.id}">
+        <div class="customer-row" onclick="toggleCustomer('${c.id}')">
+          <div>
+            <strong>${safe(c.name)}</strong>
+            <div class="small">${safe(c.email)}</div>
+            <div class="small">${safe(c.phone)}</div>
+          </div>
+
+          <div>
+            ${safe(c.country)}
+            <div class="small">${safe(c.region)}</div>
+          </div>
+
+          <div>
+            <strong>${c.deals.length}</strong>
+            <div class="small">Deals</div>
+          </div>
+
+          <div>
+            <strong>${money(c.totalValue)}</strong>
+            <div class="small">Pipeline Value</div>
+          </div>
+
+          <div>
+            <strong>${money(c.totalProfit)}</strong>
+            <div class="small">Profit</div>
+          </div>
+
+          <div>
+            <span class="badge ${statusText === "VIP" ? "badge-red" : ""}">
+              ${statusText}
+            </span>
+          </div>
+        </div>
+
+        <div class="customer-detail">
+          <div class="grid">
+            <div class="panel">
+              <span>Email</span>
+              <strong>${safe(c.email)}</strong>
+            </div>
+
+            <div class="panel">
+              <span>Phone</span>
+              <strong>${safe(c.phone)}</strong>
+            </div>
+
+            <div class="panel">
+              <span>Country</span>
+              <strong>${safe(c.country)}</strong>
+            </div>
+
+            <div class="panel">
+              <span>Latest Activity</span>
+              <strong>${c.latest ? new Date(c.latest).toLocaleString("en-GB") : "-"}</strong>
+            </div>
+          </div>
+
+          <h3>Deals / Enquiries</h3>
+
+          ${c.deals.map(d=>`
+            <div class="panel" style="margin-bottom:8px">
+              <strong>Enquiry #${d.id}</strong>
+              <div class="small">Status: ${safe(d.status)}</div>
+              <div class="small">Assigned To: ${safe(d.assigned_to)}</div>
+              <a class="btn" href="admin-enquiries.html#enquiry-${d.id}">Open Deal</a>
+            </div>
+          `).join("")}
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+loadCustomers();
+</script>
+</body>
+</html>
