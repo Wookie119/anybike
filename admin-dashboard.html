@@ -1,247 +1,203 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>AnyBike Admin Dashboard</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <style>
 :root{
   --red:#ed1c24;
-  --bg:#05080d;
-  --panel:#0d141c;
-  --card:#111923;
+  --bg:#050505;
+  --panel:#111;
+  --panel2:#181818;
   --line:rgba(255,255,255,.12);
   --text:#fff;
-  --muted:#9ca8b5;
-  --green:#16a34a;
-  --amber:#f59e0b;
-  --blue:#2563eb;
+  --muted:#aaa;
 }
+
 *{box-sizing:border-box}
+
 body{
   margin:0;
   font-family:Arial,Helvetica,sans-serif;
-  background:linear-gradient(135deg,#04070b,#0b1018);
+  background:
+    linear-gradient(120deg,rgba(237,28,36,.18),transparent 45%),
+    #050505;
   color:var(--text);
 }
-.layout{
+
+.admin-layout{
   display:grid;
   grid-template-columns:260px 1fr;
   min-height:100vh;
 }
+
 .sidebar{
-  background:#070b10;
+  background:#090909;
   border-right:1px solid var(--line);
-  padding:18px;
+  padding:20px;
 }
+
 .logo{
-  width:190px;
-  max-width:100%;
-  margin-bottom:22px;
+  width:100%;
+  background:#fff;
+  border-radius:16px;
+  padding:10px;
+  margin-bottom:24px;
 }
-.nav a{
-  display:flex;
-  align-items:center;
-  gap:12px;
-  padding:13px 14px;
-  margin-bottom:8px;
+
+.logo img{
+  width:100%;
+  display:block;
+}
+
+.menu-title{
+  font-size:12px;
+  color:var(--muted);
+  text-transform:uppercase;
+  letter-spacing:1px;
+  margin:18px 0 8px;
+}
+
+.admin-menu a{
+  display:block;
   color:#fff;
   text-decoration:none;
+  padding:11px 12px;
   border-radius:10px;
-  font-weight:700;
+  font-weight:800;
+  margin-bottom:5px;
 }
-.nav a.active,.nav a:hover{
+
+.admin-menu a:hover,
+.admin-menu a.active{
   background:var(--red);
 }
+
 .main{
-  padding:18px;
+  padding:28px;
 }
+
 .topbar{
   display:flex;
   justify-content:space-between;
   align-items:center;
-  background:var(--panel);
-  border:1px solid var(--line);
-  border-radius:16px;
-  padding:14px 18px;
-  margin-bottom:16px;
+  margin-bottom:24px;
 }
-.admin-info{
-  display:flex;
-  align-items:center;
-  gap:18px;
-  color:var(--muted);
-}
-.bell{
-  background:var(--red);
-  color:#fff;
-  border-radius:999px;
-  padding:8px 14px;
-  font-weight:900;
-}
-.pipeline{
-  display:grid;
-  grid-template-columns:repeat(12,1fr);
-  gap:10px;
-  margin-bottom:16px;
-}
-.stage{
-  background:var(--card);
-  border:1px solid var(--line);
-  border-radius:14px;
-  padding:12px;
-  min-height:170px;
-  text-align:center;
 
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  }
-.stage .icon{
-  font-size:26px;
-  margin-bottom:8px;
+h1{
+  margin:0;
+  font-size:34px;
 }
-.stage .num{
-  margin-top:auto;
-  font-size:26px;
-  font-weight:900;
+
+.subtitle{
+  color:var(--muted);
+  margin-top:6px;
 }
-.stage .label{
-  font-size:12px;
-  color:#fff;
-  min-height:70px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  text-align:center;
-}
-.stage a{
-  display:block;
-  color:var(--red);
-  font-size:12px;
-  margin-top:8px;
-  font-weight:900;
-}
+
 .grid{
   display:grid;
-  grid-template-columns:1.05fr 1.1fr 1.2fr;
-  gap:14px;
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:16px;
+  margin-bottom:22px;
 }
+
 .card{
-  background:var(--panel);
+  background:rgba(17,17,17,.92);
   border:1px solid var(--line);
-  border-radius:16px;
-  padding:14px;
+  border-radius:18px;
+  padding:18px;
+  box-shadow:0 20px 45px rgba(0,0,0,.25);
 }
-.card h2{
+
+.card h2,
+.card h3{
   margin:0 0 12px;
-  font-size:16px;
 }
-.queue-row{
-  display:grid;
-  grid-template-columns:1fr auto;
-  gap:10px;
-  padding:9px 0;
-  border-bottom:1px solid rgba(255,255,255,.08);
+
+.big-number{
+  font-size:34px;
+  font-weight:900;
 }
-.badge{
+
+.small{
+  color:var(--muted);
+  font-size:13px;
+}
+
+.action-btn{
+  display:inline-block;
+  margin:6px 6px 0 0;
+  padding:10px 14px;
+  border-radius:999px;
   background:var(--red);
   color:#fff;
-  border-radius:999px;
-  padding:4px 9px;
+  text-decoration:none;
   font-weight:900;
 }
-.enquiry{
-  display:grid;
-  grid-template-columns:70px 1fr auto;
-  gap:10px;
-  padding:10px 0;
-  border-bottom:1px solid rgba(255,255,255,.08);
-}
-.enquiry img{
-  width:64px;
-  height:48px;
-  object-fit:cover;
-  border-radius:8px;
-  background:#222;
-}
-.small{color:var(--muted);font-size:12px}
-.mapbox{
-  height:260px;
-  border-radius:12px;
-  background:
-    radial-gradient(circle at 25% 40%,rgba(237,28,36,.7) 0 3px,transparent 4px),
-    radial-gradient(circle at 55% 35%,rgba(237,28,36,.7) 0 3px,transparent 4px),
-    radial-gradient(circle at 72% 52%,rgba(237,28,36,.7) 0 3px,transparent 4px),
-    linear-gradient(135deg,#111923,#07101a);
-  border:1px solid var(--line);
-  display:flex;
-  align-items:center;
-  justify-content:center;
+
+.placeholder{
   color:var(--muted);
-}
-.kpis{
-  display:grid;
-  grid-template-columns:repeat(7,1fr);
-  gap:12px;
-  margin-top:14px;
-}
-.kpi{
-  background:var(--card);
-  border:1px solid var(--line);
+  border:1px dashed var(--line);
   border-radius:14px;
-  padding:14px;
-  text-align:center;
+  padding:18px;
+  margin-top:10px;
 }
-.kpi .big{
-  font-size:28px;
-  font-weight:900;
+
+.warning{
+  border-color:rgba(237,28,36,.45);
 }
-.export-panel{
-  margin-top:14px;
-  display:grid;
-  grid-template-columns:1fr 320px;
-  gap:14px;
-}
-.value-row{
-  display:flex;
-  justify-content:space-between;
-  padding:7px 0;
-  border-bottom:1px solid rgba(255,255,255,.08);
-}
-.total{
-  color:var(--red);
-  font-size:28px;
-  font-weight:900;
-  text-align:right;
-}
-@media(max-width:1200px){
-  .layout{grid-template-columns:1fr}
-  .sidebar{position:relative}
-  .pipeline,.kpis{grid-template-columns:repeat(2,1fr)}
-  .grid,.export-panel{grid-template-columns:1fr}
+
+@media(max-width:850px){
+  .admin-layout{
+    grid-template-columns:1fr;
+  }
+
+  .sidebar{
+    position:relative;
+  }
 }
 </style>
 </head>
 
 <body>
-<div class="layout">
+
+<div class="admin-layout">
 
   <aside class="sidebar">
-    <img class="logo" src="anybike-logo-new.jpg" alt="AnyBike">
+    <div class="logo">
+      <img src="anybike-logo-new.jpg" alt="AnyBike">
+    </div>
 
-    <nav class="nav">
-      <a class="active" href="admin-dashboard.html">▦ Dashboard</a>
-      <a href="admin-enquiries.html">💬 Enquiries</a>
-      <a href="bike-requests.html">🏍 Bike Requests</a>
-      <a href="sell-your-motorcycle.html">🏷 Sell Your Bike</a>
-      <a href="customer-dashboard.html">👥 Customers</a>
-      <a href="admin-stock.html">📦 Stock</a>
-      <a href="dashboard.html">🗺 Leads Dashboard</a>
-      <a href="available-stock.html">🌐 Website Stock</a>
-      <a href="index.html">↩ Website Home</a>
+    <nav class="admin-menu">
+
+      <div class="menu-title">Main</div>
+      <a class="active" href="admin-dashboard.html">Dashboard</a>
+      <a href="admin-enquiries.html">Enquiries CRM</a>
+      <a href="admin-customers.html">Customers CRM</a>
+      <a href="admin-leads.html">New Leads</a>
+      <a href="admin-stock.html">Stock Admin</a>
+      <a href="admin-requests.html">Motorcycle Requests</a>
+
+      <div class="menu-title">Sales</div>
+      <a href="admin-quotes.html">Quotes</a>
+      <a href="admin-invoices.html">Invoices</a>
+      <a href="admin-payments.html">Payments</a>
+
+      <div class="menu-title">Logistics</div>
+      <a href="admin-logistics.html">Global Logistics</a>
+      <a href="admin-shipping.html">Shipping Workflow</a>
+      <a href="admin-containers.html">Containers</a>
+
+      <div class="menu-title">Management</div>
+      <a href="admin-reports.html">Reports</a>
+      <a href="admin-settings.html">Settings</a>
+
+      <div class="menu-title">Temporary</div>
+      <a href="dashboard.html">Legacy Tools</a>
+
     </nav>
   </aside>
 
@@ -249,328 +205,100 @@ body{
 
     <div class="topbar">
       <div>
-        <strong>AnyBike Admin Control Centre</strong><br>
-        <span class="small">International motorcycle export dashboard</span>
-      </div>
-
-      <div class="admin-info">
-        <span>25 May 2026<br>14:38 GMT</span>
-        <span class="bell">🔔 <span id="bellCount">0</span></span>
-        <span>Admin<br><span class="small">Super Admin</span></span>
+        <h1>AnyBike Staff Control Centre</h1>
+        <div class="subtitle">Dashboard under construction — live CRM remains protected.</div>
       </div>
     </div>
 
-    <section class="pipeline" id="pipeline"></section>
-
-  <section class="grid">
-
-  <div>
-    <div class="card">
-      <h2>Admin Action Queue</h2>
-      <div id="actionQueue"></div>
-    </div>
-
-    <div class="card" style="margin-top:14px;">
-      <h2>Recent Customer Replies</h2>
-      <div id="recentReplies">Recent replies paused.</div>
-    </div>
-  </div>
-
-  <div class="card">
-    <h2>Recent Enquiries</h2>
-    <div id="recentEnquiries"></div>
-  </div>
-
- <div class="card">
-
-  <div id="countryList" style="margin-top:12px"></div>
-</div>
-
-</section>
-    
-      </div>
-    </div>
-  </div>
-
-  <div class="card">
-    <div id="recentEnquiries"></div>
-  </div>
-
-  <div class="card">
-    <h2>Customer Map</h2>
-<div id="adminMap" style="
-  height:260px;
-  border-radius:12px;
-  border:1px solid var(--line);
-  overflow:hidden;
-  background:#111923;
-"></div>
-        <div id="countryList" style="margin-top:12px"></div>
-      </div>
-    </section>
-
-    <section class="kpis">
-      <div class="kpi"><div>💬</div><div class="small">Today’s Enquiries</div><div class="big" id="kpiToday">0</div></div>
-      <div class="kpi"><div>🏍</div><div class="small">Bikes Reserved</div><div class="big" id="kpiReserved">0</div></div>
-      <div class="kpi"><div>💷</div><div class="small">Awaiting Payment</div><div class="big" id="kpiPayment">0</div></div>
-      <div class="kpi"><div>🚢</div><div class="small">Ready To Ship</div><div class="big" id="kpiReady">0</div></div>
-      <div class="kpi"><div>📦</div><div class="small">Stock Available</div><div class="big" id="kpiStock">0</div></div>
-      <div class="kpi"><div>🔎</div><div class="small">Bike Requests</div><div class="big" id="kpiRequests">0</div></div>
-      <div class="kpi"><div>👤</div><div class="small">Sell Bike Leads</div><div class="big" id="kpiSell">0</div></div>
-    </section>
-
-    <section class="export-panel">
+    <section class="grid">
       <div class="card">
-        <h2>Notes</h2>
-        <p class="small">This is the new dashboard layout shell. Next step is connecting Supabase live data.</p>
+        <h3>Active Leads</h3>
+        <div class="big-number" id="activeLeadsCount">—</div>
+        <div class="small">To be connected from dashboard.html</div>
       </div>
 
-     <div class="card">
-  <h2>Export Pipeline Value</h2>
+      <div class="card">
+        <h3>Customer Replies</h3>
+        <div class="big-number" id="customerRepliesCount">—</div>
+        <div class="small">Will link to admin-enquiries.html</div>
+      </div>
 
-  <div class="value-row">
-    <span>Waiting Deposit</span>
-    <strong id="valWaitingDeposit">£0</strong>
-  </div>
+      <div class="card">
+        <h3>Stock Items</h3>
+        <div class="big-number" id="stockCount">—</div>
+        <div class="small">Available stock total</div>
+      </div>
 
-  <div class="value-row">
-    <span>Deposit Paid</span>
-    <strong id="valDepositPaid">£0</strong>
-  </div>
+      <div class="card">
+        <h3>Action Queue</h3>
+        <div class="big-number" id="actionQueueCount">—</div>
+        <div class="small">Tasks needing staff attention</div>
+      </div>
+    </section>
 
-  <div class="value-row">
-    <span>Ready To Ship</span>
-    <strong id="valReadyShip">£0</strong>
-  </div>
+    <section class="grid">
+      <div class="card">
+        <h2>Quick Actions</h2>
+        <a class="action-btn" href="admin-enquiries.html">Open Enquiries CRM</a>
+        <a class="action-btn" href="admin-stock.html">Open Stock Admin</a>
+        <a class="action-btn" href="admin-customers.html">Open Customers CRM</a>
+        <a class="action-btn" href="dashboard.html">Open Legacy Tools</a>
+      </div>
 
-  <div class="value-row">
-    <span>At Port / Shipping Agent</span>
-    <strong id="valPort">£0</strong>
-  </div>
+      <div class="card warning">
+        <h2>Protected Page</h2>
+        <p class="small">
+          admin-enquiries.html is the working live CRM. Do not experiment directly on that page.
+        </p>
+      </div>
+    </section>
 
-  <hr style="border-color:#333;margin:12px 0;">
+    <section class="card">
+      <h2>Pipeline Summary</h2>
+      <div class="placeholder">
+        Next step: copy the working pipeline summary style from admin-enquiries.html without changing the live CRM page.
+      </div>
+    </section>
 
-  <div class="value-row">
-    <span>Completed Deals</span>
-    <strong id="valCompleted">£0</strong>
-  </div>
+    <br>
 
-  <div class="value-row">
-    <span>Closed Deals</span>
-    <strong id="valClosed">£0</strong>
-  </div>
-
-  <div class="total" id="pipelineTotal">£0</div>
-</div>
-      
+    <section class="card">
+      <h2>Active Leads / Sourcing Tools</h2>
+      <div class="placeholder">
+        Next step: copy the useful active leads and add-bike-to-stock code from dashboard.html into this page.
+      </div>
     </section>
 
   </main>
+
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  
 <script>
 const SUPABASE_URL = "https://tuehtnezhdnkqbbhttgp.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-let adminMap = null;
-let adminMarkers = null;
-let enquiries = [];
-let latestMessageMap = {};
+async function loadDashboardCounts(){
+  try{
+    const { count: stockCount } = await sb
+      .from("available_stock")
+      .select("*", { count:"exact", head:true });
 
-const statuses = [
-  ["💬","Customer Replied"],
-  ["🔍","Checking Availability"],
-  ["🤝","Negotiating Price & Lead Time"],
-  ["👤","Waiting Customer Decision"],
-  ["💷","Waiting Deposit"],
-  ["✅","Deposit Paid"],
-  ["🚚","Waiting Collection"],
-  ["💰","Waiting Full Payment"],
-  ["📍","On Site"],
-  ["🚢","Ready To Ship"],
-  ["🏍","Booked with Move Motorcycles"],
-  ["⚓","At Port / Shipping Agent"],
-  ["🏁","Completed Deal"],
-  ["❌","Closed"]
-];
+    document.getElementById("stockCount").textContent = stockCount ?? 0;
 
-function safe(v){ return v ? String(v) : "-"; }
+    const { count: enquiryCount } = await sb
+      .from("bike_enquiries")
+      .select("*", { count:"exact", head:true });
 
-function initAdminMap(){
-  if(adminMap) return;
-  adminMap = L.map("adminMap").setView([20,0],2);
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    maxZoom:18,
-    attribution:"&copy; OpenStreetMap"
-  }).addTo(adminMap);
-  adminMarkers = L.layerGroup().addTo(adminMap);
-}
+    document.getElementById("activeLeadsCount").textContent = enquiryCount ?? 0;
 
-async function loadDashboard(){
-  await loadLatestMessages();
-
-  const {data,error} = await sb
-    .from("bike_enquiries")
-    .select(`*, available_stock(id,make,model,variant,year,image_url,price_gbp)`)
-    .order("created_at",{ascending:false});
-
-  if(error){ alert(error.message); return; }
-
- enquiries = data || [];
-
-initAdminMap();
-setTimeout(()=>adminMap.invalidateSize(),200);
-
-renderPipeline();
-renderActionQueue();
-renderRecentEnquiries();
-renderKPIs();
-renderCountries();
-renderPipelineValue();
-renderAdminMap();
-
-document.getElementById("recentReplies").innerHTML = "Recent replies paused.";
-}
-
-async function loadLatestMessages(){
-  const {data} = await sb
-    .from("enquiry_messages")
-    .select("enquiry_id,sender,created_at,message")
-    .order("created_at",{ascending:false});
-
-  latestMessageMap = {};
-  (data || []).forEach(m=>{
-    if(!latestMessageMap[m.enquiry_id]) latestMessageMap[m.enquiry_id]=m;
-  });
-}
-
-function countStatus(status){
-  if(status==="Customer Replied"){
-    return enquiries.filter(e=>{
-      const m = latestMessageMap[e.id];
-      return m && String(m.sender||"").toLowerCase().includes("customer");
-    }).length;
+  }catch(err){
+    console.error(err);
   }
-  return enquiries.filter(e=>e.status===status).length;
 }
 
-function renderPipeline(){
-  document.getElementById("pipeline").innerHTML = statuses.map((s,i)=>`
-    <div class="stage" onclick="location.href='admin-enquiries.html?status=${encodeURIComponent(s[1])}'" style="cursor:pointer">
-      <div class="icon">${s[0]}</div>
-      <div class="label">${i+1}<br>${s[1]}</div>
-      <div class="num">${countStatus(s[1])}</div>
-    </div>
-  `).join("");
-}
-
-function renderActionQueue(){
- const queue = [
-  ["💬","Customer Replied"],
-  ["💷","Waiting Deposit"],
-  ["✅","Deposit Paid"],
-  ["💰","Waiting Full Payment"],
-  ["🚢","Ready To Ship"],
-  ["🏍","Booked with Move Motorcycles"],
-  ["⚓","At Port / Shipping Agent"],
-  ["🏁","Completed Deal"],
-  ["❌","Closed"]
-];
-  
-
-  document.getElementById("actionQueue").innerHTML = queue.map(q=>`
-    <div class="queue-row" onclick="location.href='admin-enquiries.html?status=${encodeURIComponent(q[1])}'" style="cursor:pointer">
-      <span>${q[0]} ${q[1]}</span>
-      <span class="badge">${countStatus(q[1])}</span>
-    </div>
-  `).join("");
-}
-
-function renderRecentEnquiries(){
-  document.getElementById("recentEnquiries").innerHTML = enquiries.slice(0,5).map(e=>{
-    const b = e.available_stock || {};
-    const bike = [b.make,b.model,b.variant].filter(Boolean).join(" ") || "Bike enquiry";
-    const country = e.destination_country || e.country || "Unknown country";
-    const img = b.image_url || "anybike-logo-new.jpg";
-
-    return `
-      <div class="enquiry" onclick="location.href='admin-enquiries.html#enquiry-${e.id}'" style="cursor:pointer">
-        <img src="${img}">
-        <div>
-          <strong>${safe(bike)}</strong><br>
-          <span class="small">${safe(country)} — ${safe(e.status || "New")}</span>
-        </div>
-        <span class="small">${e.created_at ? new Date(e.created_at).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"}) : ""}</span>
-      </div>
-    `;
-  }).join("");
-}
-
-function renderKPIs(){
-  document.getElementById("bellCount").textContent = countStatus("Customer Replied");
-  document.getElementById("kpiToday").textContent = enquiries.length;
-  document.getElementById("kpiReserved").textContent = countStatus("Waiting Deposit");
-  document.getElementById("kpiPayment").textContent = countStatus("Waiting Full Payment");
-  document.getElementById("kpiReady").textContent = countStatus("Ready To Ship");
-}
-
-function renderCountries(){
-  const counts = {};
-  enquiries.forEach(e=>{
-    const c = e.destination_country || e.country || "Unknown";
-    counts[c] = (counts[c] || 0) + 1;
-  });
-
-  document.getElementById("countryList").innerHTML =
-    Object.entries(counts).map(([c,n])=>`
-<div class="value-row"
-     onclick="location.href='admin-enquiries.html?country=${encodeURIComponent(c)}'"
-     style="cursor:pointer">
-  <span>${safe(c)}</span>
-  <strong>${n}</strong>
-</div>
-`).join("");
-}
-
-function renderAdminMap(){
-  if(!adminMap || !adminMarkers) return;
-
-  adminMarkers.clearLayers();
-
-  const coords = {
-    "United Kingdom":[54,-2],
-    "Germany":[51,10],
-    "France":[46,2],
-    "Spain":[40,-4],
-    "Singapore":[1.35,103.8],
-    "Kenya":[0.02,37.9],
-    "Cyprus":[35.12,33.43]
-  };
-
-  enquiries.forEach(e=>{
-    const country = e.destination_country || e.country || "";
-    if(!coords[country]) return;
-
-    const b = e.available_stock || {};
-    const bike = [b.make,b.model,b.variant].filter(Boolean).join(" ") || "Bike enquiry";
-
-    L.marker(coords[country]).addTo(adminMarkers).bindPopup(`
-      <strong>${country}</strong><br>
-      ${bike}<br>
-      Status: ${e.status || "New"}<br>
-      <a href="admin-enquiries.html#enquiry-${e.id}">View Enquiry</a>
-    `);
-  });
-}
-
-loadDashboard();
-  
+loadDashboardCounts();
 </script>
-  
+
 </body>
 </html>
