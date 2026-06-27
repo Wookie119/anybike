@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Shipping Contacts | AnyBike Admin</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+:root{
+  --red:#ed1c24;
+  --bg:#050505;
+  --panel:#111;
+  --panel2:#181818;
+  --line:rgba(255,255,255,.12);
+  --text:#fff;
+  --muted:#aaa;
+}
+
+*{box-sizing:border-box}
+
+body{
+  margin:0;
+  font-family:Arial,Helvetica,sans-serif;
+  background:linear-gradient(135deg,#050505,#111);
+  color:var(--text);
+}
+
+.admin-wrap{
+  display:grid;
+  grid-template-columns:260px 1fr;
+  min-height:100vh;
+}
+
+.sidebar{
+  background:#080808;
+  border-right:1px solid var(--line);
+  padding:20px;
+}
+
+.logo{
+  width:150px;
+  background:#fff;
+  padding:6px;
+  border-radius:12px;
+  margin-bottom:25px;
+}
+
+.sidebar a{
+  display:block;
+  color:#ddd;
+  text-decoration:none;
+  padding:12px 10px;
+  border-radius:10px;
+  margin-bottom:6px;
+}
+
+.sidebar a:hover,
+.sidebar a.active{
+  background:var(--red);
+  color:#fff;
+}
+
+.main{
+  padding:24px;
+}
+
+.top{
+  display:flex;
+  justify-content:space-between;
+  gap:20px;
+  align-items:center;
+  margin-bottom:20px;
+}
+
+h1{
+  margin:0;
+  font-size:28px;
+}
+
+.small{
+  color:var(--muted);
+  font-size:13px;
+}
+
+.btn{
+  background:var(--red);
+  color:#fff;
+  border:0;
+  padding:12px 16px;
+  border-radius:10px;
+  font-weight:800;
+  cursor:pointer;
+}
+
+.grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:14px;
+  margin-bottom:20px;
+}
+
+.card{
+  background:var(--panel);
+  border:1px solid var(--line);
+  border-radius:16px;
+  padding:16px;
+}
+
+.stat{
+  font-size:28px;
+  font-weight:900;
+}
+
+.filters{
+  display:grid;
+  grid-template-columns:2fr 1fr 1fr 1fr;
+  gap:12px;
+  margin-bottom:18px;
+}
+
+input,select,textarea{
+  width:100%;
+  padding:12px;
+  border-radius:10px;
+  border:1px solid var(--line);
+  background:#050505;
+  color:#fff;
+}
+
+.map{
+  height:330px;
+  background:
+    radial-gradient(circle at 30% 40%, rgba(237,28,36,.22), transparent 25%),
+    radial-gradient(circle at 70% 55%, rgba(237,28,36,.18), transparent 22%),
+    #0c0c0c;
+  border:1px solid var(--line);
+  border-radius:16px;
+  margin-bottom:20px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:#aaa;
+  font-weight:800;
+}
+
+.shipper{
+  background:var(--panel);
+  border:1px solid var(--line);
+  border-radius:16px;
+  padding:16px;
+  margin-bottom:12px;
+}
+
+.shipper-head{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+}
+
+.badge{
+  padding:6px 10px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:900;
+}
+
+.pending{background:#6b5200;color:#ffd966}
+.trusted{background:#063d18;color:#72ff9e}
+.bad{background:#4a0909;color:#ff8a8a}
+
+.details{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:12px;
+  margin-top:12px;
+}
+
+.modal-bg{
+  display:none;
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.72);
+  align-items:center;
+  justify-content:center;
+  z-index:20;
+}
+
+.modal{
+  width:min(950px,94vw);
+  max-height:90vh;
+  overflow:auto;
+  background:#111;
+  border:1px solid var(--line);
+  border-radius:18px;
+  padding:20px;
+}
+
+.form-grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:12px;
+}
+
+.form-grid .wide{
+  grid-column:1/-1;
+}
+
+.actions{
+  display:flex;
+  justify-content:flex-end;
+  gap:10px;
+  margin-top:15px;
+}
+
+@media(max-width:900px){
+  .admin-wrap{grid-template-columns:1fr}
+  .sidebar{display:none}
+  .grid,.filters,.details,.form-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+
+<body>
+
+<div class="admin-wrap">
+
+  <aside class="sidebar">
+    <img src="anybike-logo-new.jpg" class="logo" alt="AnyBike">
+    <a href="admin-dashboard.html">Dashboard</a>
+    <a href="admin-enquiries.html">Enquiries CRM</a>
+    <a href="admin-shipping-contacts.html" class="active">Shipping Contacts</a>
+    <a href="available-stock.html">Available Stock</a>
+  </aside>
+
+  <main class="main">
+
+    <div class="top">
+      <div>
+        <h1>Global Shipping Contacts</h1>
+        <div class="small">Private AnyBike address book for freight forwarders, ports, customs agents and destination shippers.</div>
+      </div>
+      <button class="btn" onclick="openModal()">+ Add New Shipper</button>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <div class="small">Companies</div>
+        <div class="stat" id="companyCount">0</div>
+      </div>
+      <div class="card">
+        <div class="small">Countries Covered</div>
+        <div class="stat" id="countryCount">0</div>
+      </div>
+      <div class="card">
+        <div class="small">Ports Covered</div>
+        <div class="stat" id="portCount">0</div>
+      </div>
+      <div class="card">
+        <div class="small">Trusted</div>
+        <div class="stat" id="trustedCount">0</div>
+      </div>
+    </div>
+
+    <div class="filters">
+      <input id="searchBox" placeholder="Search company, country, port or service" oninput="renderCompanies()">
+      <select id="countryFilter" onchange="renderCompanies()">
+        <option value="">All Countries</option>
+      </select>
+      <select id="typeFilter" onchange="renderCompanies()">
+        <option value="">All Types</option>
+        <option>UK Freight Forwarder</option>
+        <option>Destination Agent</option>
+        <option>Port Contact</option>
+        <option>Customs Agent</option>
+        <option>Container Company</option>
+      </select>
+      <select id="statusFilter" onchange="renderCompanies()">
+        <option value="">All Statuses</option>
+        <option>Trusted</option>
+        <option>Pending Review</option>
+        <option>Do Not Use</option>
+      </select>
+    </div>
+
+    <div class="map" id="mapBox">
+      Map view will show shipper pins here
+    </div>
+
+    <div id="companiesList"></div>
+
+  </main>
+</div>
+
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <h2>Add New Shipper</h2>
+    <div class="small">This is private for AnyBike admin use only.</div>
+
+    <div class="form-grid" style="margin-top:16px;">
+      <input id="company_name" placeholder="Company name">
+      <input id="website" placeholder="Website">
+      <select id="company_type">
+        <option value="">Company type</option>
+        <option>UK Freight Forwarder</option>
+        <option>Destination Agent</option>
+        <option>Port Contact</option>
+        <option>Customs Agent</option>
+        <option>Container Company</option>
+      </select>
+
+      <input id="main_country" placeholder="Main country">
+      <input id="city" placeholder="City">
+      <input id="postcode" placeholder="Postcode / ZIP">
+
+      <input id="latitude" placeholder="Latitude">
+      <input id="longitude" placeholder="Longitude">
+
+      <select id="trusted_status">
+        <option>Pending Review</option>
+        <option>Trusted</option>
+        <option>Do Not Use</option>
+      </select>
+
+      <input class="wide" id="address" placeholder="Address">
+
+      <input class="wide" id="services_offered" placeholder="Services offered, comma separated e.g. container loading, customs clearance, motorcycle shipping">
+
+      <input class="wide" id="countries_served" placeholder="Countries served, comma separated">
+
+      <input class="wide" id="ports_served" placeholder="Ports served, comma separated">
+
+      <h3 class="wide">Main Contact</h3>
+
+      <input id="contact_name" placeholder="Contact name">
+      <input id="job_title" placeholder="Job title">
+      <input id="email" placeholder="Email">
+
+      <input id="phone" placeholder="Phone">
+      <input id="whatsapp" placeholder="WhatsApp">
+      <input id="contact_country" placeholder="Contact country">
+
+      <textarea class="wide" id="internal_notes" rows="4" placeholder="Internal notes"></textarea>
+    </div>
+
+    <div class="actions">
+      <button class="btn" style="background:#333" onclick="closeModal()">Cancel</button>
+      <button class="btn" onclick="saveShipper()">Save Shipper</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = "https://tuehtnezhdnkqbbhttgp.supabase.co";
+const SUPABASE_KEY = "PASTE-YOUR-PUBLISHABLE-KEY-HERE";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let companies = [];
+
+function arr(v){
+  return v ? v.split(",").map(x => x.trim()).filter(Boolean) : [];
+}
+
+function safe(v){
+  return v || "";
+}
+
+function openModal(){
+  document.getElementById("modalBg").style.display = "flex";
+}
+
+function closeModal(){
+  document.getElementById("modalBg").style.display = "none";
+}
+
+async function loadCompanies(){
+  const { data, error } = await sb
+    .from("shipping_companies")
+    .select(`
+      *,
+      shipping_company_contacts(*)
+    `)
+    .eq("is_archived", false)
+    .order("created_at", { ascending:false });
+
+  if(error){
+    alert("Could not load shipping contacts: " + error.message);
+    return;
+  }
+
+  companies = data || [];
+  updateStats();
+  updateFilters();
+  renderCompanies();
+}
+
+function updateStats(){
+  const countries = new Set();
+  const ports = new Set();
+
+  companies.forEach(c => {
+    if(c.main_country) countries.add(c.main_country);
+    (c.countries_served || []).forEach(x => countries.add(x));
+    (c.ports_served || []).forEach(x => ports.add(x));
+  });
+
+  document.getElementById("companyCount").textContent = companies.length;
+  document.getElementById("countryCount").textContent = countries.size;
+  document.getElementById("portCount").textContent = ports.size;
+  document.getElementById("trustedCount").textContent =
+    companies.filter(c => c.trusted_status === "Trusted").length;
+}
+
+function updateFilters(){
+  const sel = document.getElementById("countryFilter");
+  const current = sel.value;
+  const countries = new Set();
+
+  companies.forEach(c => {
+    if(c.main_country) countries.add(c.main_country);
+    (c.countries_served || []).forEach(x => countries.add(x));
+  });
+
+  sel.innerHTML = `<option value="">All Countries</option>` +
+    [...countries].sort().map(c => `<option>${c}</option>`).join("");
+
+  sel.value = current;
+}
+
+function badgeClass(status){
+  if(status === "Trusted") return "trusted";
+  if(status === "Do Not Use") return "bad";
+  return "pending";
+}
+
+function renderCompanies(){
+  const q = document.getElementById("searchBox").value.toLowerCase();
+  const country = document.getElementById("countryFilter").value;
+  const type = document.getElementById("typeFilter").value;
+  const status = document.getElementById("statusFilter").value;
+
+  let list = companies.filter(c => {
+    const haystack = [
+      c.company_name,
+      c.main_country,
+      c.city,
+      c.company_type,
+      ...(c.services_offered || []),
+      ...(c.countries_served || []),
+      ...(c.ports_served || [])
+    ].join(" ").toLowerCase();
+
+    const countryMatch = !country || c.main_country === country || (c.countries_served || []).includes(country);
+    const typeMatch = !type || c.company_type === type;
+    const statusMatch = !status || c.trusted_status === status;
+    const searchMatch = !q || haystack.includes(q);
+
+    return countryMatch && typeMatch && statusMatch && searchMatch;
+  });
+
+  document.getElementById("companiesList").innerHTML = list.map(c => {
+    const contacts = c.shipping_company_contacts || [];
+
+    return `
+      <div class="shipper">
+        <div class="shipper-head">
+          <div>
+            <h2 style="margin:0">${safe(c.company_name)}</h2>
+            <div class="small">${safe(c.company_type)} • ${safe(c.city)} ${safe(c.main_country)}</div>
+          </div>
+          <span class="badge ${badgeClass(c.trusted_status)}">${safe(c.trusted_status)}</span>
+        </div>
+
+        <div class="details">
+          <div><div class="small">Ports</div>${(c.ports_served || []).join(", ") || "-"}</div>
+          <div><div class="small">Countries</div>${(c.countries_served || []).join(", ") || "-"}</div>
+          <div><div class="small">Services</div>${(c.services_offered || []).join(", ") || "-"}</div>
+          <div><div class="small">Contacts</div>${contacts.length}</div>
+        </div>
+
+        <div style="margin-top:12px">
+          <div class="small">Main contacts</div>
+          ${contacts.length ? contacts.map(x => `
+            <div style="margin-top:6px">
+              <strong>${safe(x.contact_name) || "Unnamed contact"}</strong>
+              ${x.email ? " • " + safe(x.email) : ""}
+              ${x.phone ? " • " + safe(x.phone) : ""}
+              ${x.whatsapp ? " • WhatsApp: " + safe(x.whatsapp) : ""}
+            </div>
+          `).join("") : `<div class="small">No contacts added yet</div>`}
+        </div>
+      </div>
+    `;
+  }).join("") || `<div class="card">No shipping contacts found.</div>`;
+}
+
+async function saveShipper(){
+  const companyPayload = {
+    company_name: document.getElementById("company_name").value.trim(),
+    website: document.getElementById("website").value.trim(),
+    company_type: document.getElementById("company_type").value,
+    main_country: document.getElementById("main_country").value.trim(),
+    city: document.getElementById("city").value.trim(),
+    postcode: document.getElementById("postcode").value.trim(),
+    address: document.getElementById("address").value.trim(),
+    latitude: document.getElementById("latitude").value || null,
+    longitude: document.getElementById("longitude").value || null,
+    trusted_status: document.getElementById("trusted_status").value,
+    services_offered: arr(document.getElementById("services_offered").value),
+    countries_served: arr(document.getElementById("countries_served").value),
+    ports_served: arr(document.getElementById("ports_served").value),
+    internal_notes: document.getElementById("internal_notes").value.trim()
+  };
+
+  if(!companyPayload.company_name){
+    alert("Enter a company name");
+    return;
+  }
+
+  const { data: company, error } = await sb
+    .from("shipping_companies")
+    .insert(companyPayload)
+    .select()
+    .single();
+
+  if(error){
+    alert("Could not save shipper: " + error.message);
+    return;
+  }
+
+  const contactName = document.getElementById("contact_name").value.trim();
+  const email = document.getElementById("email").value.trim();
+  const phone = document.getElementById("phone").value.trim();
+  const whatsapp = document.getElementById("whatsapp").value.trim();
+
+  if(contactName || email || phone || whatsapp){
+    const { error: contactError } = await sb
+      .from("shipping_company_contacts")
+      .insert({
+        company_id: company.id,
+        contact_name: contactName,
+        job_title: document.getElementById("job_title").value.trim(),
+        email,
+        phone,
+        whatsapp,
+        country: document.getElementById("contact_country").value.trim()
+      });
+
+    if(contactError){
+      alert("Company saved, but contact failed: " + contactError.message);
+    }
+  }
+
+  closeModal();
+  loadCompanies();
+}
+
+loadCompanies();
+</script>
+
+</body>
+</html>
