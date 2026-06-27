@@ -4,12 +4,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Customers CRM | AnyBike Admin</title>
+<title>Customer 360 | AnyBike Admin</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <style>
 :root{
   --red:#ed1c24;
+  --bg:#050505;
+  --panel:#111;
+  --panel2:#181818;
   --line:rgba(255,255,255,.12);
   --muted:#aaa;
   --green:#33cc66;
@@ -18,7 +21,9 @@
 body{
   margin:0;
   font-family:Arial,Helvetica,sans-serif;
-  background:linear-gradient(120deg,rgba(237,28,36,.18),transparent 40%),#050505;
+  background:
+    radial-gradient(circle at top left,rgba(237,28,36,.20),transparent 34%),
+    linear-gradient(120deg,#050505,#101010 60%,#050505);
   color:#fff;
 }
 .admin-layout{display:grid;grid-template-columns:285px 1fr;min-height:100vh}
@@ -33,53 +38,124 @@ body{
 .admin-menu a:hover,.admin-menu a.active{background:var(--red)}
 .menu-icon{width:24px;text-align:center;font-size:18px}
 .menu-text{flex:1}
+
 .main{padding:24px}
 .topbar{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;margin-bottom:18px}
 h1{margin:0;font-size:34px}
 .subtitle,.small{color:var(--muted);font-size:13px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:18px}
-.two-col{display:grid;grid-template-columns:1.2fr .8fr;gap:14px;margin-bottom:18px}
-.card{background:rgba(17,17,17,.94);border:1px solid var(--line);border-radius:18px;padding:14px}
-.card h2,.card h3{margin:0 0 8px}
-.big-number{font-size:30px;font-weight:900;color:var(--red)}
-.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}
-input,select{padding:12px;border-radius:10px;border:1px solid #333;background:#111;color:#fff;font-size:15px}
-.search{flex:1;min-width:280px}
 .btn{background:var(--red);color:#fff;border:0;border-radius:999px;padding:11px 16px;font-weight:900;cursor:pointer;text-decoration:none;display:inline-block}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:18px}
+.card{background:rgba(17,17,17,.94);border:1px solid var(--line);border-radius:18px;padding:14px;box-shadow:0 18px 42px rgba(0,0,0,.22)}
+.card h2,.card h3{margin:0 0 8px}
+.big-number{font-size:30px;font-weight:900;color:var(--red);line-height:1}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+input,select,textarea{padding:12px;border-radius:10px;border:1px solid #333;background:#111;color:#fff;font-size:15px}
+.search{flex:1;min-width:280px}
 
-.map-wrap{position:relative;height:360px;border-radius:16px;border:1px solid var(--line);overflow:hidden;background:#070707}
+.control-grid{
+  display:grid;
+  grid-template-columns:1fr 380px;
+  gap:14px;
+  margin-bottom:18px;
+}
+.map-card{min-height:370px}
+.map-wrap{position:relative;height:285px;border-radius:16px;border:1px solid var(--line);overflow:hidden;background:#070707}
 .map-wrap svg{width:100%;height:100%;display:block}
 .map-point{position:absolute;transform:translate(-50%,-50%);background:var(--red);color:#fff;border:2px solid #fff;border-radius:999px;min-width:30px;height:30px;padding:0 8px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;cursor:pointer;box-shadow:0 0 18px rgba(237,28,36,.7)}
 .map-point:hover{scale:1.15}
-.country-list{display:grid;gap:8px;max-height:360px;overflow:auto}
+.country-list{display:grid;gap:8px;max-height:285px;overflow:auto}
 .country-row{display:flex;justify-content:space-between;align-items:center;padding:11px;border-radius:12px;background:#181818;border:1px solid var(--line);color:#fff;text-decoration:none;font-weight:900}
 .country-row:hover{border-color:var(--red)}
 .country-count{color:var(--red);font-size:20px}
 
-.customer{background:#111;border:1px solid var(--line);border-radius:16px;margin-bottom:10px;overflow:hidden}
-.customer-row{display:grid;grid-template-columns:1.5fr 1fr .7fr 1fr 1fr 130px;gap:14px;align-items:center;padding:14px;cursor:pointer}
-.customer-row:hover{background:#181818}
-.badge{display:inline-block;padding:7px 10px;border-radius:999px;background:#222;font-weight:900}
+.customer-card{
+  background:#111;
+  border:1px solid var(--line);
+  border-radius:20px;
+  margin-bottom:14px;
+  overflow:hidden;
+}
+.customer-summary{
+  display:grid;
+  grid-template-columns:78px 1.4fr 1fr .8fr .8fr .8fr 130px;
+  gap:14px;
+  align-items:center;
+  padding:16px;
+  cursor:pointer;
+}
+.customer-summary:hover{background:#181818}
+.avatar{
+  width:58px;
+  height:58px;
+  border-radius:999px;
+  background:linear-gradient(135deg,var(--red),#5a0000);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:24px;
+  font-weight:900;
+}
+.customer-name{font-size:18px;font-weight:900}
+.stat-mini strong{font-size:20px;color:#fff}
+.badge{display:inline-block;padding:7px 10px;border-radius:999px;background:#222;font-weight:900;text-align:center}
 .badge-red{background:var(--red)}
 .badge-green{background:#1d7a3a}
-.customer-detail{display:none;border-top:1px solid var(--line);padding:16px}
-.customer.open .customer-detail{display:block}
+
+.customer-workspace{
+  display:none;
+  border-top:1px solid var(--line);
+  background:#0c0c0c;
+  padding:16px;
+}
+.customer-card.open .customer-workspace{display:block}
+
+.workspace-layout{
+  display:grid;
+  grid-template-columns:300px 1fr;
+  gap:16px;
+}
+.profile-side{
+  background:#111;
+  border:1px solid var(--line);
+  border-radius:18px;
+  padding:16px;
+}
+.profile-avatar{
+  width:76px;height:76px;border-radius:999px;background:linear-gradient(135deg,var(--red),#5a0000);
+  display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:900;margin-bottom:12px;
+}
+.profile-side h2{margin:0 0 6px}
+.profile-row{border-top:1px solid rgba(255,255,255,.08);padding:11px 0}
+.profile-row span{display:block;color:#999;font-size:12px;margin-bottom:4px}
+.profile-row strong{font-size:15px}
+
+.workspace-main{
+  background:#111;
+  border:1px solid var(--line);
+  border-radius:18px;
+  padding:16px;
+}
 .tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
-.tab-btn{background:#181818;color:#fff;border:1px solid var(--line);border-radius:999px;padding:9px 13px;font-weight:900;cursor:pointer}
+.tab-btn{background:#181818;color:#fff;border:1px solid var(--line);border-radius:999px;padding:10px 14px;font-weight:900;cursor:pointer}
 .tab-btn.active{background:var(--red);border-color:var(--red)}
 .tab-panel{display:none}
 .tab-panel.active{display:block}
-.detail-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:16px}
+.detail-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:14px}
 .panel,.deal-card,.timeline-item,.note-box{background:#181818;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:12px}
 .panel span{display:block;color:#999;font-size:12px;margin-bottom:5px}
 .panel strong{color:#fff}
-.timeline{display:grid;gap:8px;margin-top:10px}
 .deal-card{margin-bottom:8px}
-.section-title{margin:18px 0 10px}
+.timeline{display:grid;gap:8px;margin-top:10px}
+.section-title{margin:16px 0 10px}
+textarea{width:100%;min-height:120px}
+
+@media(max-width:1200px){
+  .control-grid{grid-template-columns:1fr}
+  .workspace-layout{grid-template-columns:1fr}
+}
 @media(max-width:1000px){
   .admin-layout{grid-template-columns:1fr}
-  .customer-row{grid-template-columns:1fr}
-  .two-col{grid-template-columns:1fr}
+  .customer-summary{grid-template-columns:1fr}
 }
 </style>
 </head>
@@ -104,17 +180,30 @@ input,select{padding:12px;border-radius:10px;border:1px solid #333;background:#1
     <a href="admin-leads.html"><span class="menu-icon">➕</span><span class="menu-text">New Leads</span></a>
     <a href="admin-stock.html"><span class="menu-icon">🏍</span><span class="menu-text">Stock Admin</span></a>
     <a href="admin-requests.html"><span class="menu-icon">🌍</span><span class="menu-text">Motorcycle Requests</span></a>
+
     <div class="menu-title">Sales</div>
     <a href="admin-quotes.html"><span class="menu-icon">📄</span><span class="menu-text">Quotes</span></a>
     <a href="admin-invoices.html"><span class="menu-icon">🧾</span><span class="menu-text">Invoices</span></a>
     <a href="admin-payments.html"><span class="menu-icon">💳</span><span class="menu-text">Payments</span></a>
+    <a href="admin-deal-history.html"><span class="menu-icon">💰</span><span class="menu-text">Deal History</span></a>
+
     <div class="menu-title">Logistics</div>
     <a href="admin-logistics.html"><span class="menu-icon">🚢</span><span class="menu-text">Global Logistics</span></a>
     <a href="admin-shipping.html"><span class="menu-icon">🚚</span><span class="menu-text">Shipping Workflow</span></a>
     <a href="admin-containers.html"><span class="menu-icon">📦</span><span class="menu-text">Containers</span></a>
+    <a href="admin-map.html"><span class="menu-icon">🌍</span><span class="menu-text">Operations Map</span></a>
+
+    <div class="menu-title">Documents</div>
+    <a href="admin-export-documents.html"><span class="menu-icon">📋</span><span class="menu-text">Export Documents</span></a>
+    <a href="admin-id-verification.html"><span class="menu-icon">🛂</span><span class="menu-text">ID Verification</span></a>
+    <a href="admin-documents.html"><span class="menu-icon">📎</span><span class="menu-text">Document Library</span></a>
+
     <div class="menu-title">Management</div>
     <a href="admin-reports.html"><span class="menu-icon">📊</span><span class="menu-text">Reports</span></a>
+    <a href="admin-currency.html"><span class="menu-icon">💷</span><span class="menu-text">Currency Rates</span></a>
+    <a href="admin-languages.html"><span class="menu-icon">🌐</span><span class="menu-text">Languages</span></a>
     <a href="admin-settings.html"><span class="menu-icon">⚙️</span><span class="menu-text">Settings</span></a>
+
     <div class="menu-title">Legacy</div>
     <a href="dashboard.html"><span class="menu-icon">🛠</span><span class="menu-text">Legacy Tools</span></a>
   </nav>
@@ -125,7 +214,7 @@ input,select{padding:12px;border-radius:10px;border:1px solid #333;background:#1
 <div class="topbar">
   <div>
     <h1>Customer 360 CRM</h1>
-    <div class="subtitle">Customer records, enquiries, deals, tabs, map, countries and future documents.</div>
+    <div class="subtitle">A complete customer workspace for profile, enquiries, deals, shipping, documents, notes and timeline.</div>
   </div>
   <a class="btn" href="admin-leads.html">+ New Customer / Lead</a>
 </div>
@@ -137,21 +226,21 @@ input,select{padding:12px;border-radius:10px;border:1px solid #333;background:#1
   <div class="card"><h3>Total Profit</h3><div class="big-number" id="totalProfit">—</div><div class="small">Saved deal net profit</div></div>
 </section>
 
-<section class="two-col">
-  <div class="card">
+<section class="control-grid">
+  <div class="card map-card">
     <h2>🌍 Customer & Logistics Map</h2>
     <div class="map-wrap" id="mapWrap">
       <svg viewBox="0 0 1000 500" preserveAspectRatio="none">
         <rect width="1000" height="500" fill="#080808"/>
-        <path d="M130 165 C210 95 300 105 345 180 C300 240 190 255 125 215 Z" fill="#171717" stroke="#333"/>
-        <path d="M410 130 C500 70 650 90 705 170 C670 250 500 260 405 210 Z" fill="#171717" stroke="#333"/>
-        <path d="M455 255 C545 210 665 235 705 320 C630 395 500 390 445 330 Z" fill="#171717" stroke="#333"/>
-        <path d="M720 180 C825 125 930 150 955 235 C890 300 770 290 710 240 Z" fill="#171717" stroke="#333"/>
+        <path d="M110 160 C210 80 330 100 350 185 C300 255 180 250 115 220 Z" fill="#171717" stroke="#333"/>
+        <path d="M405 125 C500 65 650 85 715 170 C665 250 500 265 400 210 Z" fill="#171717" stroke="#333"/>
+        <path d="M450 260 C545 210 665 235 710 322 C630 395 500 390 440 330 Z" fill="#171717" stroke="#333"/>
+        <path d="M720 175 C825 120 930 145 955 235 C895 305 770 292 710 240 Z" fill="#171717" stroke="#333"/>
         <path d="M760 340 C840 310 915 335 940 405 C880 455 785 435 745 390 Z" fill="#171717" stroke="#333"/>
-        <text x="500" y="35" fill="#555" text-anchor="middle" font-size="22" font-weight="900">ANYBIKE GLOBAL CUSTOMER ACTIVITY</text>
+        <text x="500" y="35" fill="#555" text-anchor="middle" font-size="22" font-weight="900">ANYBIKE GLOBAL CUSTOMER & LOGISTICS ACTIVITY</text>
       </svg>
     </div>
-    <div class="small" style="margin-top:8px;">Phase 1: customer countries. Later: customers, logistics partners, ports, containers and shipping layers.</div>
+    <div class="small" style="margin-top:8px;">Phase 1: customer countries. Later: logistics partners, ports, containers and shipping layers.</div>
   </div>
 
   <div class="card">
@@ -197,6 +286,7 @@ const countryCoords = {
 function safe(v){return v===undefined||v===null||v===""?"-":String(v)}
 function money(v){return "£"+Number(v||0).toLocaleString("en-GB")}
 function cleanId(v){return String(v||"customer").replace(/[^a-zA-Z0-9]/g,"")}
+function initials(name){return String(name||"?").split(" ").map(x=>x[0]).join("").slice(0,2).toUpperCase()}
 function toggleCustomer(id){const el=document.getElementById("customer-"+id);if(el)el.classList.toggle("open")}
 function customerStatus(c){if(c.deals.length>=3)return"VIP";if(c.deals.some(d=>d.status==="Completed"))return"Completed";if(c.deals.length>0)return"Active";return"New"}
 function badgeClass(s){if(s==="VIP")return"badge-red";if(s==="Completed")return"badge-green";return""}
@@ -204,9 +294,11 @@ function badgeClass(s){if(s==="VIP")return"badge-red";if(s==="Completed")return"
 function countryFlag(country){
   const c=String(country||"").toLowerCase();
   if(c.includes("germany"))return"🇩🇪"; if(c.includes("france"))return"🇫🇷"; if(c.includes("spain"))return"🇪🇸";
+  if(c.includes("italy"))return"🇮🇹"; if(c.includes("netherlands"))return"🇳🇱"; if(c.includes("poland"))return"🇵🇱";
   if(c.includes("usa")||c.includes("united states"))return"🇺🇸"; if(c.includes("uae")||c.includes("emirates"))return"🇦🇪";
   if(c.includes("japan"))return"🇯🇵"; if(c.includes("australia"))return"🇦🇺"; if(c.includes("canada"))return"🇨🇦";
-  if(c.includes("india"))return"🇮🇳"; if(c.includes("south africa"))return"🇿🇦"; return"🌍";
+  if(c.includes("india"))return"🇮🇳"; if(c.includes("south africa"))return"🇿🇦"; if(c.includes("united kingdom")||c==="uk")return"🇬🇧";
+  return"🌍";
 }
 
 function switchTab(customerId, tabName){
@@ -342,89 +434,109 @@ function renderCustomers(){
     const b=latestDeal.available_stock||{};
 
     return `
-      <div class="customer" id="customer-${c.id}">
-        <div class="customer-row" onclick="toggleCustomer('${c.id}')">
-          <div><strong>${safe(c.name)}</strong><div class="small">${safe(c.email)}</div><div class="small">${safe(c.phone)}</div></div>
-          <div>🌍 ${safe(c.country)}<div class="small">${safe(c.city)} ${safe(c.region)}</div></div>
-          <div><strong>${c.deals.length}</strong><div class="small">Enquiries</div></div>
-          <div><strong>${money(c.totalValue)}</strong><div class="small">Pipeline</div></div>
-          <div><strong>${money(c.totalProfit)}</strong><div class="small">Profit</div></div>
+      <div class="customer-card" id="customer-${c.id}">
+        <div class="customer-summary" onclick="toggleCustomer('${c.id}')">
+          <div class="avatar">${initials(c.name)}</div>
+          <div><div class="customer-name">${safe(c.name)}</div><div class="small">${safe(c.email)}</div><div class="small">${safe(c.phone)}</div></div>
+          <div>${countryFlag(c.country)} ${safe(c.country)}<div class="small">${safe(c.city)} ${safe(c.region)}</div></div>
+          <div class="stat-mini"><strong>${c.deals.length}</strong><div class="small">Enquiries</div></div>
+          <div class="stat-mini"><strong>${money(c.totalValue)}</strong><div class="small">Pipeline</div></div>
+          <div class="stat-mini"><strong>${money(c.totalProfit)}</strong><div class="small">Profit</div></div>
           <div><span class="badge ${badgeClass(type)}">${type}</span></div>
         </div>
 
-        <div class="customer-detail" onclick="event.stopPropagation()">
-          <div class="tabs">
-            <button class="tab-btn active" data-tab="profile" onclick="switchTab('${c.id}','profile')">Profile</button>
-            <button class="tab-btn" data-tab="messages" onclick="switchTab('${c.id}','messages')">Messages</button>
-            <button class="tab-btn" data-tab="enquiries" onclick="switchTab('${c.id}','enquiries')">Enquiries</button>
-            <button class="tab-btn" data-tab="deals" onclick="switchTab('${c.id}','deals')">Deals</button>
-            <button class="tab-btn" data-tab="shipping" onclick="switchTab('${c.id}','shipping')">Shipping</button>
-            <button class="tab-btn" data-tab="documents" onclick="switchTab('${c.id}','documents')">Documents</button>
-            <button class="tab-btn" data-tab="notes" onclick="switchTab('${c.id}','notes')">Notes</button>
-            <button class="tab-btn" data-tab="timeline" onclick="switchTab('${c.id}','timeline')">Timeline</button>
-          </div>
+        <div class="customer-workspace" onclick="event.stopPropagation()">
+          <div class="workspace-layout">
 
-          <div class="tab-panel active" data-panel="profile">
-            <h3>Customer Profile</h3>
-            <div class="detail-grid">
-              <div class="panel"><span>Name</span><strong>${safe(c.name)}</strong></div>
-              <div class="panel"><span>Email</span><strong>${safe(c.email)}</strong></div>
-              <div class="panel"><span>Phone / WhatsApp</span><strong>${safe(c.phone)}</strong></div>
-              <div class="panel"><span>Country</span><strong>${safe(c.country)}</strong></div>
-              <div class="panel"><span>City / Region</span><strong>${safe(c.city)} ${safe(c.region)}</strong></div>
-              <div class="panel"><span>First Seen</span><strong>${c.firstSeen?new Date(c.firstSeen).toLocaleString("en-GB"):"-"}</strong></div>
-              <div class="panel"><span>Latest Activity</span><strong>${c.latest?new Date(c.latest).toLocaleString("en-GB"):"-"}</strong></div>
-              <div class="panel"><span>Customer Type</span><strong>${type}</strong></div>
-            </div>
-          </div>
+            <aside class="profile-side">
+              <div class="profile-avatar">${initials(c.name)}</div>
+              <h2>${safe(c.name)}</h2>
+              <div class="small">${countryFlag(c.country)} ${safe(c.country)}</div>
 
-          <div class="tab-panel" data-panel="messages">
-            <h3>Messages</h3>
-            <div class="note-box">Message history will be linked here from enquiry_messages.</div>
-          </div>
+              <div class="profile-row"><span>Email</span><strong>${safe(c.email)}</strong></div>
+              <div class="profile-row"><span>Phone / WhatsApp</span><strong>${safe(c.phone)}</strong></div>
+              <div class="profile-row"><span>Customer Type</span><strong>${type}</strong></div>
+              <div class="profile-row"><span>Total Pipeline</span><strong>${money(c.totalValue)}</strong></div>
+              <div class="profile-row"><span>Total Profit</span><strong>${money(c.totalProfit)}</strong></div>
+              <div class="profile-row"><span>Latest Activity</span><strong>${c.latest?new Date(c.latest).toLocaleString("en-GB"):"-"}</strong></div>
+            </aside>
 
-          <div class="tab-panel" data-panel="enquiries">
-            <h3>Enquiries</h3>
-            ${c.deals.map(d=>{
-              const bike=d.available_stock||{};
-              return `<div class="deal-card"><strong>Enquiry #${d.id} — ${safe(bike.make)} ${safe(bike.model)}</strong><div class="small">Status: ${safe(d.status)}</div><div class="small">Question: ${safe(d.question_type)}</div><br><a class="btn" href="admin-enquiries.html?status=${encodeURIComponent(d.status||"")}">Open CRM Stage</a></div>`;
-            }).join("")}
-          </div>
+            <section class="workspace-main">
+              <div class="tabs">
+                <button class="tab-btn active" data-tab="profile" onclick="switchTab('${c.id}','profile')">Profile</button>
+                <button class="tab-btn" data-tab="messages" onclick="switchTab('${c.id}','messages')">Messages</button>
+                <button class="tab-btn" data-tab="enquiries" onclick="switchTab('${c.id}','enquiries')">Enquiries</button>
+                <button class="tab-btn" data-tab="deals" onclick="switchTab('${c.id}','deals')">Deals</button>
+                <button class="tab-btn" data-tab="shipping" onclick="switchTab('${c.id}','shipping')">Shipping</button>
+                <button class="tab-btn" data-tab="documents" onclick="switchTab('${c.id}','documents')">Documents</button>
+                <button class="tab-btn" data-tab="notes" onclick="switchTab('${c.id}','notes')">Notes</button>
+                <button class="tab-btn" data-tab="timeline" onclick="switchTab('${c.id}','timeline')">Timeline</button>
+              </div>
 
-          <div class="tab-panel" data-panel="deals">
-            <h3>Deals</h3>
-            <div class="detail-grid">
-              <div class="panel"><span>Total Pipeline</span><strong>${money(c.totalValue)}</strong></div>
-              <div class="panel"><span>Total Profit</span><strong>${money(c.totalProfit)}</strong></div>
-              <div class="panel"><span>Total Enquiries</span><strong>${c.deals.length}</strong></div>
-              <div class="panel"><span>Latest Bike</span><strong>${safe(b.make)} ${safe(b.model)}</strong></div>
-            </div>
-            ${c.deals.map(d=>{
-              const bike=d.available_stock||{};
-              return `<div class="deal-card"><strong>${safe(bike.make)} ${safe(bike.model)}</strong><div class="small">Deal Value: ${money(d.deal_total_income)}</div><div class="small">Net Profit: ${money(d.deal_net_profit)}</div><div class="small">Saved By: ${safe(d.deal_saved_by)}</div></div>`;
-            }).join("")}
-          </div>
+              <div class="tab-panel active" data-panel="profile">
+                <h3>Profile Overview</h3>
+                <div class="detail-grid">
+                  <div class="panel"><span>Name</span><strong>${safe(c.name)}</strong></div>
+                  <div class="panel"><span>Email</span><strong>${safe(c.email)}</strong></div>
+                  <div class="panel"><span>Phone</span><strong>${safe(c.phone)}</strong></div>
+                  <div class="panel"><span>Country</span><strong>${safe(c.country)}</strong></div>
+                  <div class="panel"><span>City / Region</span><strong>${safe(c.city)} ${safe(c.region)}</strong></div>
+                  <div class="panel"><span>First Seen</span><strong>${c.firstSeen?new Date(c.firstSeen).toLocaleString("en-GB"):"-"}</strong></div>
+                  <div class="panel"><span>Latest Bike Interest</span><strong>${safe(b.make)} ${safe(b.model)}</strong></div>
+                  <div class="panel"><span>Customer Type</span><strong>${type}</strong></div>
+                </div>
+              </div>
 
-          <div class="tab-panel" data-panel="shipping">
-            <h3>Shipping</h3>
-            <div class="note-box">Future shipping workflow: freight forwarder, port, container, documents and shipment tracking.</div>
-          </div>
+              <div class="tab-panel" data-panel="messages">
+                <h3>Messages</h3>
+                <div class="note-box">Message history will be linked from enquiry_messages in the next stage.</div>
+              </div>
 
-          <div class="tab-panel" data-panel="documents">
-            <h3>Documents</h3>
-            <div class="note-box">Future documents: invoices, export documents, ID verification, proof of payment and shipping paperwork.</div>
-          </div>
+              <div class="tab-panel" data-panel="enquiries">
+                <h3>Enquiries</h3>
+                ${c.deals.map(d=>{
+                  const bike=d.available_stock||{};
+                  return `<div class="deal-card"><strong>Enquiry #${d.id} — ${safe(bike.make)} ${safe(bike.model)}</strong><div class="small">Status: ${safe(d.status)}</div><div class="small">Question: ${safe(d.question_type)}</div><br><a class="btn" href="admin-enquiries.html?status=${encodeURIComponent(d.status||"")}">Open CRM Stage</a></div>`;
+                }).join("")}
+              </div>
 
-          <div class="tab-panel" data-panel="notes">
-            <h3>Internal Notes</h3>
-            <div class="note-box">Future notes: private staff notes stored against the customer profile.</div>
-          </div>
+              <div class="tab-panel" data-panel="deals">
+                <h3>Deals</h3>
+                <div class="detail-grid">
+                  <div class="panel"><span>Total Pipeline</span><strong>${money(c.totalValue)}</strong></div>
+                  <div class="panel"><span>Total Profit</span><strong>${money(c.totalProfit)}</strong></div>
+                  <div class="panel"><span>Total Enquiries</span><strong>${c.deals.length}</strong></div>
+                  <div class="panel"><span>Latest Bike</span><strong>${safe(b.make)} ${safe(b.model)}</strong></div>
+                </div>
+                ${c.deals.map(d=>{
+                  const bike=d.available_stock||{};
+                  return `<div class="deal-card"><strong>${safe(bike.make)} ${safe(bike.model)}</strong><div class="small">Deal Value: ${money(d.deal_total_income)}</div><div class="small">Net Profit: ${money(d.deal_net_profit)}</div><div class="small">Saved By: ${safe(d.deal_saved_by)}</div></div>`;
+                }).join("")}
+              </div>
 
-          <div class="tab-panel" data-panel="timeline">
-            <h3>Customer Timeline</h3>
-            <div class="timeline">
-              ${c.deals.map(d=>`<div class="timeline-item"><strong>${new Date(d.created_at).toLocaleString("en-GB")}</strong><div class="small">Enquiry #${d.id} created — Status: ${safe(d.status)}</div></div>`).join("")}
-            </div>
+              <div class="tab-panel" data-panel="shipping">
+                <h3>Shipping</h3>
+                <div class="note-box">Future: preferred freight forwarder, destination port, container, export documents and shipment tracking.</div>
+              </div>
+
+              <div class="tab-panel" data-panel="documents">
+                <h3>Documents</h3>
+                <div class="note-box">Future: invoices, export docs, ID verification, proof of payment and shipping paperwork.</div>
+              </div>
+
+              <div class="tab-panel" data-panel="notes">
+                <h3>Internal Notes</h3>
+                <textarea placeholder="Future customer notes will save here..."></textarea>
+              </div>
+
+              <div class="tab-panel" data-panel="timeline">
+                <h3>Customer Timeline</h3>
+                <div class="timeline">
+                  ${c.deals.map(d=>`<div class="timeline-item"><strong>${new Date(d.created_at).toLocaleString("en-GB")}</strong><div class="small">Enquiry #${d.id} created — Status: ${safe(d.status)}</div></div>`).join("")}
+                </div>
+              </div>
+            </section>
+
           </div>
         </div>
       </div>
