@@ -1,334 +1,92 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>AnyBike Control Centre</title>
+<title>AnyBike Staff Admin 360</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <style>
 :root{
   --red:#ed1c24;
-  --bg:#050505;
   --panel:#111;
+  --panel2:#181818;
   --line:rgba(255,255,255,.12);
-  --text:#fff;
   --muted:#aaa;
   --green:#33cc66;
+  --amber:#ffcc33;
 }
-
 *{box-sizing:border-box}
-
 body{
   margin:0;
   font-family:Arial,Helvetica,sans-serif;
   background:
-    radial-gradient(circle at top left,rgba(237,28,36,.20),transparent 35%),
+    radial-gradient(circle at top left,rgba(237,28,36,.22),transparent 34%),
     linear-gradient(120deg,#050505,#101010 60%,#050505);
-  color:var(--text);
+  color:#fff;
 }
-
-.admin-layout{
-  display:grid;
-  grid-template-columns:285px 1fr;
-  min-height:100vh;
-}
-
-.sidebar{
-  background:#090909;
-  border-right:1px solid var(--line);
-  padding:22px;
-}
-
-.logo{
-  background:#fff;
-  border-radius:18px;
-  padding:12px;
-  margin-bottom:18px;
-}
-
-.logo img{
-  width:100%;
-  display:block;
-}
-
-.staff-card{
-  background:#111;
-  border:1px solid var(--line);
-  border-radius:16px;
-  padding:14px;
-  margin-bottom:20px;
-}
-
+.admin-layout{display:grid;grid-template-columns:285px 1fr;min-height:100vh}
+.sidebar{background:#090909;border-right:1px solid var(--line);padding:22px}
+.logo{background:#fff;border-radius:18px;padding:12px;margin-bottom:18px}
+.logo img{width:100%;display:block}
+.staff-card{background:#111;border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:20px}
 .staff-name{font-weight:900}
 .online{color:var(--green);font-size:13px;margin-top:5px}
-
-.menu-title{
-  font-size:12px;
-  color:var(--muted);
-  text-transform:uppercase;
-  letter-spacing:1px;
-  margin:18px 0 8px;
-}
-
-.admin-menu a{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  color:#fff;
-  text-decoration:none;
-  padding:11px 12px;
-  border-radius:10px;
-  font-weight:800;
-  margin-bottom:5px;
-}
-
-.admin-menu a:hover,
-.admin-menu a.active{background:var(--red)}
+.menu-title{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin:18px 0 8px}
+.admin-menu a{display:flex;align-items:center;gap:10px;color:#fff;text-decoration:none;padding:11px 12px;border-radius:10px;font-weight:800;margin-bottom:5px}
+.admin-menu a:hover,.admin-menu a.active{background:var(--red)}
 .menu-icon{width:24px;text-align:center;font-size:18px}
 .menu-text{flex:1}
 
 .main{padding:24px}
-
-.topbar{
-  display:flex;
-  justify-content:space-between;
-  align-items:flex-start;
-  gap:20px;
-  margin-bottom:18px;
-}
-
+.topbar{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;margin-bottom:18px}
 h1{margin:0;font-size:34px}
-.subtitle{color:var(--muted);margin-top:5px}
+.subtitle,.small{color:var(--muted);font-size:13px}
+.date-box{text-align:right;color:#ddd;font-weight:800}
+.btn{background:var(--red);color:#fff;border:0;border-radius:999px;padding:11px 16px;font-weight:900;cursor:pointer;text-decoration:none;display:inline-block}
+.btn.dark{background:#222;border:1px solid var(--line)}
 
-.top-right{
-  display:flex;
-  flex-direction:column;
-  gap:10px;
-  align-items:flex-end;
-}
-
-.date-box{
-  text-align:right;
-  color:#ddd;
-  font-weight:800;
-}
-
-.controls{
-  display:flex;
-  gap:8px;
-  flex-wrap:wrap;
-  justify-content:flex-end;
-}
-
-.controls select{
-  background:#111;
-  color:#fff;
-  border:1px solid var(--line);
-  border-radius:10px;
-  padding:9px 10px;
-  font-weight:800;
-}
-
-.grid{
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
-  gap:12px;
-  margin-bottom:18px;
-}
-
-.card{
-  background:rgba(17,17,17,.94);
-  border:1px solid var(--line);
-  border-radius:18px;
-  padding:14px;
-  box-shadow:0 18px 42px rgba(0,0,0,.25);
-}
-
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:18px}
+.card{background:rgba(17,17,17,.94);border:1px solid var(--line);border-radius:18px;padding:14px;box-shadow:0 18px 42px rgba(0,0,0,.22)}
 .card h2,.card h3{margin:0 0 8px}
-
-.kpi{min-height:95px}
+.big-number{font-size:30px;font-weight:900;color:var(--red);line-height:1}
 .kpi-icon{font-size:20px;margin-bottom:6px}
 
-.big-number{
-  font-size:30px;
-  font-weight:900;
-  color:var(--red);
-  line-height:1;
-}
-
-.small{color:var(--muted);font-size:13px}
 .section-title{margin:6px 0 12px;font-size:24px}
+.pipeline-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:9px;width:100%;margin-bottom:20px}
+.pipeline-stats .stat{background:#111;border:1px solid var(--line);text-align:center;height:105px;padding:9px 6px;border-radius:14px;cursor:pointer;display:flex;flex-direction:column;justify-content:space-between;transition:.2s ease}
+.pipeline-stats .stat:hover{transform:translateY(-2px);border-color:var(--red);box-shadow:0 0 18px rgba(237,28,36,.25)}
+.pipeline-stats .stat div{font-weight:900;line-height:1.1;font-size:13px;height:62px;display:flex;align-items:center;justify-content:center;text-align:center}
+.pipeline-stats .stat strong{font-size:27px;color:var(--red)}
+.stat-all{border:2px solid var(--red)!important}
+.stat-newlead{border:2px solid rgba(237,28,36,.6)!important}
 
-.pipeline-stats{
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(135px,1fr));
-  gap:9px;
-  width:100%;
-  margin-bottom:20px;
-}
-
-.pipeline-stats .stat{
-  background:#111;
-  border:1px solid var(--line);
-  text-align:center;
-  height:105px;
-  padding:9px 6px;
-  border-radius:14px;
-  cursor:pointer;
-  display:flex;
-  flex-direction:column;
-  justify-content:space-between;
-  transition:.2s ease;
-}
-
-.pipeline-stats .stat:hover{
-  transform:translateY(-2px);
-  border-color:#ed1c24;
-  box-shadow:0 0 18px rgba(237,28,36,.25);
-}
-
-.pipeline-stats .stat div{
-  font-weight:900;
-  line-height:1.1;
-  font-size:13px;
-  height:62px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  text-align:center;
-}
-
-.pipeline-stats .stat strong{
-  font-size:27px;
-  color:#ed1c24;
-}
-
-.stat-all{border:2px solid #ed1c24 !important}
-.stat-newlead{border:2px solid rgba(237,28,36,.6) !important}
-
-.two-col{
-  display:grid;
-  grid-template-columns:1.2fr .8fr;
-  gap:14px;
-  margin-bottom:18px;
-}
-
+.two-col{display:grid;grid-template-columns:1.2fr .8fr;gap:14px;margin-bottom:18px}
+.staff-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:12px}
+.staff-tile{background:#151515;border:1px solid var(--line);border-radius:16px;padding:16px;cursor:pointer;min-height:112px}
+.staff-tile:hover{border-color:var(--red)}
+.staff-tile strong{display:block;color:var(--red);font-size:32px;margin-top:8px}
+.staff-tile.unassigned{border:2px solid var(--red)}
 .work-list{display:grid;gap:8px}
+.work-item{display:flex;justify-content:space-between;align-items:center;background:#181818;border:1px solid var(--line);border-radius:12px;padding:11px;font-weight:800}
+.work-item span:last-child{color:var(--red);font-size:21px;font-weight:900}
 
-.work-item{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  background:#181818;
-  border:1px solid var(--line);
-  border-radius:12px;
-  padding:11px;
-  font-weight:800;
-}
-
-.work-item span:last-child{
-  color:var(--red);
-  font-size:21px;
-  font-weight:900;
-}
-
-.quick-grid{
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
-  gap:12px;
-}
-
-.quick-tile{
-  background:#151515;
-  border:1px solid var(--line);
-  color:#fff;
-  text-decoration:none;
-  border-radius:16px;
-  padding:15px;
-  min-height:100px;
-  display:flex;
-  flex-direction:column;
-  justify-content:center;
-  align-items:center;
-  text-align:center;
-  font-weight:900;
-}
-
-.quick-tile:hover{
-  border-color:var(--red);
-  transform:translateY(-2px);
-}
-
-.quick-tile .icon{
-  font-size:30px;
-  margin-bottom:8px;
-}
-
-.country-list{
-  display:grid;
-  gap:8px;
-  max-height:320px;
-  overflow:auto;
-}
-
-.country-row{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  padding:11px;
-  border-radius:12px;
-  background:#181818;
-  border:1px solid var(--line);
-  color:#fff;
-  text-decoration:none;
-  font-weight:900;
-}
-
-.country-row:hover{
-  border-color:var(--red);
-}
-
-.country-count{
-  color:var(--red);
-  font-size:20px;
-}
-
-.map-box{
-  min-height:320px;
-  border-radius:16px;
-  border:1px dashed var(--line);
-  background:
-    radial-gradient(circle at 20% 30%,rgba(237,28,36,.25),transparent 14%),
-    radial-gradient(circle at 55% 42%,rgba(255,255,255,.10),transparent 10%),
-    radial-gradient(circle at 76% 52%,rgba(237,28,36,.18),transparent 12%),
-    #0b0b0b;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  text-align:center;
-  padding:20px;
-  color:#ccc;
-  font-weight:900;
-}
-
-.placeholder{
-  color:var(--muted);
-  border:1px dashed var(--line);
-  border-radius:14px;
-  padding:14px;
-  margin-top:8px;
-}
-
+.quick-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.quick-tile{background:#151515;border:1px solid var(--line);color:#fff;text-decoration:none;border-radius:16px;padding:15px;min-height:100px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;font-weight:900}
+.quick-tile:hover{border-color:var(--red);transform:translateY(-2px)}
+.quick-tile .icon{font-size:30px;margin-bottom:8px}
+.tool-note{color:#ddd;line-height:1.45}
 .warning{border-color:rgba(237,28,36,.45)}
+.badge{display:inline-block;padding:7px 10px;border-radius:999px;background:#222;font-weight:900;font-size:12px}
+.badge-red{background:var(--red)}
+.badge-green{background:#1d7a3a}
 
 @media(max-width:1000px){
   .admin-layout{grid-template-columns:1fr}
   .two-col{grid-template-columns:1fr}
-  .sidebar{position:relative}
-  .date-box{text-align:left}
   .topbar{flex-direction:column}
-  .top-right{align-items:flex-start}
+  .date-box{text-align:left}
 }
 </style>
 </head>
@@ -338,9 +96,7 @@ h1{margin:0;font-size:34px}
 <div class="admin-layout">
 
 <aside class="sidebar">
-  <div class="logo">
-    <img src="anybike-logo-new.jpg" alt="AnyBike">
-  </div>
+  <div class="logo"><img src="anybike-logo-new.jpg" alt="AnyBike"></div>
 
   <div class="staff-card">
     <div class="staff-name">Andy Gifford</div>
@@ -353,7 +109,6 @@ h1{margin:0;font-size:34px}
     <a class="active" href="admin-dashboard.html"><span class="menu-icon">🏠</span><span class="menu-text">Dashboard</span></a>
     <a href="admin-enquiries.html"><span class="menu-icon">💬</span><span class="menu-text">Enquiries CRM</span></a>
     <a href="admin-customers.html"><span class="menu-icon">👥</span><span class="menu-text">Customers CRM</span></a>
-    <a href="admin-leads.html"><span class="menu-icon">➕</span><span class="menu-text">New Leads</span></a>
     <a href="admin-stock.html"><span class="menu-icon">🏍</span><span class="menu-text">Stock Admin</span></a>
     <a href="admin-requests.html"><span class="menu-icon">🌍</span><span class="menu-text">Motorcycle Requests</span></a>
 
@@ -361,14 +116,23 @@ h1{margin:0;font-size:34px}
     <a href="admin-quotes.html"><span class="menu-icon">📄</span><span class="menu-text">Quotes</span></a>
     <a href="admin-invoices.html"><span class="menu-icon">🧾</span><span class="menu-text">Invoices</span></a>
     <a href="admin-payments.html"><span class="menu-icon">💳</span><span class="menu-text">Payments</span></a>
+    <a href="admin-deal-history.html"><span class="menu-icon">💰</span><span class="menu-text">Deal History</span></a>
 
     <div class="menu-title">Logistics</div>
     <a href="admin-logistics.html"><span class="menu-icon">🚢</span><span class="menu-text">Global Logistics</span></a>
     <a href="admin-shipping.html"><span class="menu-icon">🚚</span><span class="menu-text">Shipping Workflow</span></a>
     <a href="admin-containers.html"><span class="menu-icon">📦</span><span class="menu-text">Containers</span></a>
+    <a href="admin-map.html"><span class="menu-icon">🌍</span><span class="menu-text">Operations Map</span></a>
+
+    <div class="menu-title">Documents</div>
+    <a href="admin-export-documents.html"><span class="menu-icon">📋</span><span class="menu-text">Export Documents</span></a>
+    <a href="admin-id-verification.html"><span class="menu-icon">🛂</span><span class="menu-text">ID Verification</span></a>
+    <a href="admin-documents.html"><span class="menu-icon">📎</span><span class="menu-text">Document Library</span></a>
 
     <div class="menu-title">Management</div>
     <a href="admin-reports.html"><span class="menu-icon">📊</span><span class="menu-text">Reports</span></a>
+    <a href="admin-currency.html"><span class="menu-icon">💷</span><span class="menu-text">Currency Rates</span></a>
+    <a href="admin-languages.html"><span class="menu-icon">🌐</span><span class="menu-text">Languages</span></a>
     <a href="admin-settings.html"><span class="menu-icon">⚙️</span><span class="menu-text">Settings</span></a>
 
     <div class="menu-title">Legacy</div>
@@ -380,269 +144,126 @@ h1{margin:0;font-size:34px}
 
   <div class="topbar">
     <div>
-      <h1 id="greeting">AnyBike Control Centre</h1>
-      <div class="subtitle">Live staff dashboard. Enquiries CRM remains protected.</div>
+      <h1 id="greeting">AnyBike Staff Admin 360</h1>
+      <div class="subtitle">Live staff dashboard. Every enquiry comes from a motorcycle, then flows into the protected CRM pipeline.</div>
     </div>
-
-    <div class="top-right">
-      <div class="date-box" id="todayDate">—</div>
-
-      <div class="controls">
-        <select id="languageSelect" onchange="savePrefs()">
-          <option value="en">🇬🇧 English</option>
-          <option value="de">🇩🇪 Deutsch</option>
-          <option value="fr">🇫🇷 Français</option>
-          <option value="es">🇪🇸 Español</option>
-          <option value="it">🇮🇹 Italiano</option>
-          <option value="nl">🇳🇱 Nederlands</option>
-          <option value="pt">🇵🇹 Português</option>
-          <option value="pl">🇵🇱 Polski</option>
-          <option value="ro">🇷🇴 Română</option>
-          <option value="cz">🇨🇿 Čeština</option>
-          <option value="tr">🇹🇷 Türkçe</option>
-          <option value="ar">🇦🇪 العربية</option>
-          <option value="hi">🇮🇳 हिन्दी</option>
-          <option value="ur">🇵🇰 اردو</option>
-          <option value="zh">🇨🇳 中文</option>
-          <option value="ja">🇯🇵 日本語</option>
-          <option value="ko">🇰🇷 한국어</option>
-          <option value="th">🇹🇭 ไทย</option>
-          <option value="vi">🇻🇳 Tiếng Việt</option>
-          <option value="id">🇮🇩 Bahasa Indonesia</option>
-          <option value="ms">🇲🇾 Bahasa Melayu</option>
-        </select>
-
-        <select id="currencySelect" onchange="savePrefs()">
-          <option value="GBP">🇬🇧 GBP £</option>
-          <option value="EUR">🇪🇺 EUR €</option>
-          <option value="USD">🇺🇸 USD $</option>
-          <option value="JPY">🇯🇵 JPY ¥</option>
-          <option value="CNY">🇨🇳 CNY ¥</option>
-          <option value="HKD">🇭🇰 HKD $</option>
-          <option value="SGD">🇸🇬 SGD $</option>
-          <option value="AUD">🇦🇺 AUD $</option>
-          <option value="NZD">🇳🇿 NZD $</option>
-          <option value="CAD">🇨🇦 CAD $</option>
-          <option value="AED">🇦🇪 AED د.إ</option>
-          <option value="SAR">🇸🇦 SAR ﷼</option>
-          <option value="QAR">🇶🇦 QAR</option>
-          <option value="KWD">🇰🇼 KWD</option>
-          <option value="INR">🇮🇳 INR ₹</option>
-          <option value="PKR">🇵🇰 PKR</option>
-          <option value="BDT">🇧🇩 BDT</option>
-          <option value="THB">🇹🇭 THB</option>
-          <option value="MYR">🇲🇾 MYR</option>
-          <option value="KRW">🇰🇷 KRW ₩</option>
-          <option value="CHF">🇨🇭 CHF</option>
-          <option value="NOK">🇳🇴 NOK</option>
-          <option value="SEK">🇸🇪 SEK</option>
-          <option value="DKK">🇩🇰 DKK</option>
-          <option value="PLN">🇵🇱 PLN</option>
-          <option value="RON">🇷🇴 RON</option>
-          <option value="CZK">🇨🇿 CZK</option>
-          <option value="ZAR">🇿🇦 ZAR R</option>
-          <option value="BRL">🇧🇷 BRL R$</option>
-          <option value="MXN">🇲🇽 MXN $</option>
-        </select>
-      </div>
-    </div>
+    <div class="date-box" id="todayDate">—</div>
   </div>
 
   <section class="grid">
-    <div class="card kpi">
-      <div class="kpi-icon">🟢</div>
-      <h3>Active Leads</h3>
+    <div class="card">
+      <div class="kpi-icon">🏍</div>
+      <h3>Bike Enquiries</h3>
       <div class="big-number" id="activeLeadsCount">—</div>
-      <div class="small">Current enquiries</div>
+      <div class="small">Every lead linked to a bike</div>
     </div>
 
-    <div class="card kpi">
+    <div class="card">
       <div class="kpi-icon">💬</div>
       <h3>Customer Replies</h3>
       <div class="big-number" id="customerRepliesCount">—</div>
-      <div class="small">Need response</div>
+      <div class="small">Need staff response</div>
     </div>
 
-    <div class="card kpi">
-      <div class="kpi-icon">🏍</div>
-      <h3>Stock Available</h3>
-      <div class="big-number" id="stockCount">—</div>
-      <div class="small">Motorcycles in database</div>
+    <div class="card">
+      <div class="kpi-icon">💷</div>
+      <h3>Pipeline Value</h3>
+      <div class="big-number" id="pipelineValue">—</div>
+      <div class="small">Saved invoice totals</div>
     </div>
 
-    <div class="card kpi">
-      <div class="kpi-icon">🚨</div>
-      <h3>Today's Tasks</h3>
-      <div class="big-number" id="actionQueueCount">—</div>
-      <div class="small">Priority actions</div>
+    <div class="card">
+      <div class="kpi-icon">📈</div>
+      <h3>Expected Profit</h3>
+      <div class="big-number" id="expectedProfit">—</div>
+      <div class="small">Saved net profit</div>
     </div>
   </section>
 
   <section>
     <h2 class="section-title">Sales Pipeline</h2>
-
     <div class="pipeline-stats">
-      <div class="stat stat-newlead" onclick="location.href='admin-leads.html'">
-        <div>➕<br>1<br>New Enquiry</div>
-        <strong>+</strong>
-      </div>
-
-      <div class="stat" onclick="location.href='admin-enquiries.html?status=Customer%20Replied'">
-        <div>💬<br>2<br>Action Required</div>
-        <strong id="customerReplyCount">0</strong>
-      </div>
-
-      <div class="stat" onclick="location.href='admin-enquiries.html?status=Checking%20Availability'">
-        <div>🔍<br>3<br>Checking Availability</div>
-        <strong id="availabilityCount">0</strong>
-      </div>
-
-      <div class="stat" onclick="location.href='admin-enquiries.html?status=Negotiating%20Price%20%26%20Lead%20Time'">
-        <div>🤝<br>4<br>Negotiating</div>
-        <strong id="negotiatingCount">0</strong>
-      </div>
-
-      <div class="stat" onclick="location.href='admin-enquiries.html?status=Waiting%20Customer%20Decision'">
-        <div>👤<br>5<br>Decision</div>
-        <strong id="decisionCount">0</strong>
-      </div>
-
-      <div class="stat" onclick="location.href='admin-enquiries.html?status=Waiting%20Deposit'">
-        <div>💷<br>6<br>Deposit</div>
-        <strong id="depositCount">0</strong>
-      </div>
-
-      <div class="stat" onclick="location.href='admin-enquiries.html?status=Deposit%20Paid'">
-        <div>✅<br>7<br>Deposit Paid</div>
-        <strong id="depositPaidCount">0</strong>
-      </div>
-
-      <div class="stat" onclick="location.href='admin-enquiries.html?status=Waiting%20Full%20Payment'">
-        <div>💰<br>8<br>Full Payment</div>
-        <strong id="fullPaymentCount">0</strong>
-      </div>
-
-      <div class="stat" onclick="location.href='admin-enquiries.html?status=Waiting%20Collection'">
-        <div>🚚<br>9<br>Collection</div>
-        <strong id="collectionCount">0</strong>
-      </div>
-
-      <div class="stat" onclick="location.href='admin-enquiries.html?status=On%20Site'">
-        <div>📍<br>10<br>On Site</div>
-        <strong id="onSiteCount">0</strong>
-      </div>
-
-      <div class="stat" onclick="location.href='admin-enquiries.html?status=Ready%20To%20Ship'">
-        <div>🚢<br>11<br>Ready To Ship</div>
-        <strong id="readyShipCount">0</strong>
-      </div>
-
-      <div class="stat" onclick="location.href='admin-enquiries.html?status=Booked%20with%20Move%20Motorcycles'">
-        <div>🏍️<br>12<br>Move</div>
-        <strong id="moveBookedCount">0</strong>
-      </div>
-
-      <div class="stat" onclick="location.href='admin-enquiries.html?status=At%20Port%20%2F%20Shipping%20Agent'">
-        <div>⚓<br>13<br>Port</div>
-        <strong id="portCount">0</strong>
-      </div>
-
-      <div class="stat" onclick="location.href='admin-enquiries.html?status=Completed'">
-        <div>🏁<br>14<br>Completed</div>
-        <strong id="completedCount">0</strong>
-      </div>
-
-      <div class="stat" onclick="location.href='admin-enquiries.html?status=Closed'">
-        <div>⚫<br>15<br>Closed</div>
-        <strong id="closedCount">0</strong>
-      </div>
-
-      <div class="stat" onclick="location.href='admin-enquiries.html?status=Lost'">
-        <div>🔴<br>16<br>Lost</div>
-        <strong id="lostCount">0</strong>
-      </div>
-
-      <div class="stat" onclick="location.href='admin-enquiries.html?status=Save%20for%20Later'">
-        <div>🟡<br>17<br>Save Later</div>
-        <strong id="saveLaterCount">0</strong>
-      </div>
-
-      <div class="stat stat-all" onclick="location.href='admin-enquiries.html'">
-        <div>📋<br>All Enquiries</div>
-        <strong id="totalCount">0</strong>
-      </div>
+      <div class="stat stat-newlead" onclick="location.href='admin-enquiries.html'"><div>➕<br>1<br>New Enquiry</div><strong>+</strong></div>
+      <div class="stat" onclick="location.href='admin-enquiries.html?status=Customer%20Replied'"><div>💬<br>2<br>Action Required</div><strong id="customerReplyCount">0</strong></div>
+      <div class="stat" onclick="location.href='admin-enquiries.html?status=Checking%20Availability'"><div>🔍<br>3<br>Checking Availability</div><strong id="availabilityCount">0</strong></div>
+      <div class="stat" onclick="location.href='admin-enquiries.html?status=Negotiating%20Price%20%26%20Lead%20Time'"><div>🤝<br>4<br>Negotiating</div><strong id="negotiatingCount">0</strong></div>
+      <div class="stat" onclick="location.href='admin-enquiries.html?status=Waiting%20Customer%20Decision'"><div>👤<br>5<br>Decision</div><strong id="decisionCount">0</strong></div>
+      <div class="stat" onclick="location.href='admin-enquiries.html?status=Waiting%20Deposit'"><div>💷<br>6<br>Deposit</div><strong id="depositCount">0</strong></div>
+      <div class="stat" onclick="location.href='admin-enquiries.html?status=Deposit%20Paid'"><div>✅<br>7<br>Deposit Paid</div><strong id="depositPaidCount">0</strong></div>
+      <div class="stat" onclick="location.href='admin-enquiries.html?status=Waiting%20Full%20Payment'"><div>💰<br>8<br>Full Payment</div><strong id="fullPaymentCount">0</strong></div>
+      <div class="stat" onclick="location.href='admin-enquiries.html?status=Waiting%20Collection'"><div>🚚<br>9<br>Collection</div><strong id="collectionCount">0</strong></div>
+      <div class="stat" onclick="location.href='admin-enquiries.html?status=On%20Site'"><div>📍<br>10<br>On Site</div><strong id="onSiteCount">0</strong></div>
+      <div class="stat" onclick="location.href='admin-enquiries.html?status=Ready%20To%20Ship'"><div>🚢<br>11<br>Ready To Ship</div><strong id="readyShipCount">0</strong></div>
+      <div class="stat" onclick="location.href='admin-enquiries.html?status=Booked%20with%20Move%20Motorcycles'"><div>🏍️<br>12<br>Move</div><strong id="moveBookedCount">0</strong></div>
+      <div class="stat" onclick="location.href='admin-enquiries.html?status=At%20Port%20%2F%20Shipping%20Agent'"><div>⚓<br>13<br>Port</div><strong id="portCount">0</strong></div>
+      <div class="stat" onclick="location.href='admin-enquiries.html?status=Completed'"><div>🏁<br>14<br>Completed</div><strong id="completedCount">0</strong></div>
+      <div class="stat" onclick="location.href='admin-enquiries.html?status=Closed'"><div>⚫<br>15<br>Closed</div><strong id="closedCount">0</strong></div>
+      <div class="stat" onclick="location.href='admin-enquiries.html?status=Lost'"><div>🔴<br>16<br>Lost</div><strong id="lostCount">0</strong></div>
+      <div class="stat" onclick="location.href='admin-enquiries.html?status=Save%20for%20Later'"><div>🟡<br>17<br>Save Later</div><strong id="saveLaterCount">0</strong></div>
+      <div class="stat stat-all" onclick="location.href='admin-enquiries.html'"><div>📋<br>All Enquiries</div><strong id="totalCount">0</strong></div>
     </div>
   </section>
 
   <section class="two-col">
     <div class="card">
+      <h2>Staff Workload</h2>
+      <div class="staff-grid">
+        <div class="staff-tile" onclick="location.href='admin-enquiries.html'"><div>👤 Andy</div><strong id="andyCount">0</strong></div>
+        <div class="staff-tile" onclick="location.href='admin-enquiries.html'"><div>👤 Sean</div><strong id="seanCount">0</strong></div>
+        <div class="staff-tile" onclick="location.href='admin-enquiries.html'"><div>👤 Cat</div><strong id="catCount">0</strong></div>
+        <div class="staff-tile" onclick="location.href='admin-enquiries.html'"><div>👤 Sophie</div><strong id="sophieCount">0</strong></div>
+        <div class="staff-tile unassigned" onclick="location.href='admin-enquiries.html'"><div>📂 Unassigned</div><strong id="unassignedCount">0</strong></div>
+      </div>
+      <div class="small" style="margin-top:10px;">Next step: add staff filter support to admin-enquiries.html?staff=Andy%20Gifford.</div>
+    </div>
+
+    <div class="card">
       <h2>Today's Work</h2>
       <div class="work-list">
-        <div class="work-item"><span>💬 Customers waiting for reply</span><span id="workReplies">0</span></div>
+        <div class="work-item"><span>💬 Customer replies waiting</span><span id="workReplies">0</span></div>
         <div class="work-item"><span>💷 Waiting deposit</span><span id="workDeposit">0</span></div>
         <div class="work-item"><span>🚚 Waiting collection</span><span id="workCollection">0</span></div>
         <div class="work-item"><span>🚢 Ready to ship</span><span id="workReadyShip">0</span></div>
-        <div class="work-item"><span>⚓ At port / shipping agent</span><span id="workPort">0</span></div>
+        <div class="work-item"><span>📂 Unassigned enquiries</span><span id="workUnassigned">0</span></div>
       </div>
+    </div>
+  </section>
+
+  <section class="grid">
+    <div class="card warning">
+      <h2>Deal Calculator</h2>
+      <p class="tool-note">The working Deal Calculator stays inside <strong>admin-enquiries.html</strong>, because it is attached to each bike enquiry. This dashboard now summarises saved pipeline value and expected profit.</p>
+      <a class="btn" href="admin-enquiries.html">Open CRM Deal Calculator</a>
     </div>
 
     <div class="card warning">
-      <h2>Protected CRM</h2>
-      <p class="small">
-        admin-enquiries.html is the live working CRM. This dashboard only links into it and shows summaries.
-      </p>
+      <h2>Messaging & Red Reply Boxes</h2>
+      <p class="tool-note">Customer messages and red admin reply bubbles stay inside the protected CRM page. Customer replies are counted here and link staff back into the CRM.</p>
+      <a class="btn" href="admin-enquiries.html?status=Customer%20Replied">Open Customer Replies</a>
+    </div>
+
+    <div class="card">
+      <h2>Every Lead Starts From A Bike</h2>
+      <p class="tool-note">Normal enquiries come from Available Stock and are linked to a motorcycle. Multi-bike/container customers will use Motorcycle Requests later.</p>
+      <a class="btn dark" href="available-stock.html">View Available Stock</a>
+    </div>
+
+    <div class="card">
+      <h2>Customer 360</h2>
+      <p class="tool-note">Customers are built automatically from enquiries, then shown in Customer 360 with deals, communication intelligence and future shipping/documents.</p>
+      <a class="btn dark" href="admin-customers.html">Open Customers CRM</a>
     </div>
   </section>
 
   <section class="card">
     <h2>Quick Actions</h2>
     <div class="quick-grid">
-      <a class="quick-tile" href="admin-leads.html"><span class="icon">➕</span>New Lead</a>
-      <a class="quick-tile" href="admin-enquiries.html?status=Customer%20Replied"><span class="icon">💬</span>Reply To Customers</a>
-      <a class="quick-tile" href="admin-stock.html"><span class="icon">🏍</span>Add / Manage Stock</a>
-      <a class="quick-tile" href="admin-requests.html"><span class="icon">🌍</span>Motorcycle Request</a>
+      <a class="quick-tile" href="admin-enquiries.html"><span class="icon">💬</span>Open Enquiries CRM</a>
+      <a class="quick-tile" href="admin-enquiries.html?status=Customer%20Replied"><span class="icon">🔴</span>Reply To Customers</a>
+      <a class="quick-tile" href="admin-stock.html"><span class="icon">🏍</span>Stock Admin</a>
+      <a class="quick-tile" href="admin-customers.html"><span class="icon">👥</span>Customer 360</a>
+      <a class="quick-tile" href="admin-requests.html"><span class="icon">🌍</span>Motorcycle Requests</a>
       <a class="quick-tile" href="admin-shipping.html"><span class="icon">🚢</span>Shipping</a>
-      <a class="quick-tile" href="admin-customers.html"><span class="icon">👥</span>Customers</a>
-    </div>
-  </section>
-
-  <section class="two-col">
-    <div class="card">
-      <h2>🌍 Customer Activity Map</h2>
-      <div class="map-box">
-        World map placeholder<br><br>
-        Phase 1 shows live countries below.<br>
-        Phase 2 can add a full interactive map.
-      </div>
-    </div>
-
-    <div class="card">
-      <h2>Top Countries</h2>
-      <div id="countryList" class="country-list">
-        <div class="small">Loading countries...</div>
-      </div>
-    </div>
-  </section>
-
-  <section class="grid">
-    <div class="card">
-      <h2>Active Leads</h2>
-      <div class="placeholder">Next: bring useful lead tools from dashboard.html into this area.</div>
-    </div>
-
-    <div class="card">
-      <h2>Stock Summary</h2>
-      <div class="placeholder">Next: add stock status, reserved bikes and sourcing tools.</div>
-    </div>
-
-    <div class="card">
-      <h2>Shipping Overview</h2>
-      <div class="placeholder">Next: waiting collection, on site, ready to ship, booked and at port.</div>
-    </div>
-
-    <div class="card">
-      <h2>Reports</h2>
-      <div class="placeholder">Next: pipeline value, country value, profit and conversion rates.</div>
     </div>
   </section>
 
@@ -659,108 +280,48 @@ function setText(id,value){
   if(el) el.textContent=value;
 }
 
+function money(v){
+  return Number(v || 0).toLocaleString("en-GB",{
+    style:"currency",
+    currency:"GBP",
+    maximumFractionDigits:0
+  });
+}
+
 function setHeader(){
   const now=new Date();
   const hour=now.getHours();
   let greet="Good Evening Andy";
   if(hour<12) greet="Good Morning Andy";
   else if(hour<18) greet="Good Afternoon Andy";
-
   setText("greeting",greet);
   setText("todayDate",now.toLocaleDateString("en-GB",{
-    weekday:"long",
-    day:"numeric",
-    month:"long",
-    year:"numeric"
+    weekday:"long",day:"numeric",month:"long",year:"numeric"
   }));
 }
 
-function savePrefs(){
-  localStorage.setItem("anybike_admin_language", document.getElementById("languageSelect").value);
-  localStorage.setItem("anybike_admin_currency", document.getElementById("currencySelect").value);
+function countStatus(rows,status){
+  return rows.filter(r => String(r.status || "").trim() === status).length;
 }
 
-function loadPrefs(){
-  const lang = localStorage.getItem("anybike_admin_language") || "en";
-  const curr = localStorage.getItem("anybike_admin_currency") || "GBP";
+function updateStaffCounts(rows){
+  const byName = name => rows.filter(r => String(r.assigned_to || "").trim() === name).length;
+  const unassigned = rows.filter(r => !String(r.assigned_to || "").trim()).length;
 
-  const langBox = document.getElementById("languageSelect");
-  const currBox = document.getElementById("currencySelect");
-
-  if(langBox) langBox.value = lang;
-  if(currBox) currBox.value = curr;
+  setText("andyCount", byName("Andy Gifford"));
+  setText("seanCount", byName("Sean Byrne"));
+  setText("catCount", byName("Cat Byrne"));
+  setText("sophieCount", byName("Sophie Gifford"));
+  setText("unassignedCount", unassigned);
+  setText("workUnassigned", unassigned);
 }
 
-function countryFlag(country){
-  const c = String(country || "").toLowerCase();
-
-  if(c.includes("germany")) return "🇩🇪";
-  if(c.includes("france")) return "🇫🇷";
-  if(c.includes("spain")) return "🇪🇸";
-  if(c.includes("italy")) return "🇮🇹";
-  if(c.includes("usa") || c.includes("united states")) return "🇺🇸";
-  if(c.includes("uae") || c.includes("emirates")) return "🇦🇪";
-  if(c.includes("japan")) return "🇯🇵";
-  if(c.includes("australia")) return "🇦🇺";
-  if(c.includes("canada")) return "🇨🇦";
-  if(c.includes("netherlands")) return "🇳🇱";
-  if(c.includes("poland")) return "🇵🇱";
-  if(c.includes("romania")) return "🇷🇴";
-  if(c.includes("south africa")) return "🇿🇦";
-  if(c.includes("india")) return "🇮🇳";
-  if(c.includes("pakistan")) return "🇵🇰";
-  if(c.includes("thailand")) return "🇹🇭";
-  if(c.includes("malaysia")) return "🇲🇾";
-  if(c.includes("singapore")) return "🇸🇬";
-  if(c.includes("new zealand")) return "🇳🇿";
-  if(c.includes("ireland")) return "🇮🇪";
-  return "🌍";
-}
-
-function renderCountries(rows){
-  const box = document.getElementById("countryList");
-  if(!box) return;
-
-  const counts = {};
-
-  rows.forEach(r=>{
-    const country = String(
-      r.destination_country ||
-      r.country ||
-      "Unknown"
-    ).trim();
-
-    counts[country] = (counts[country] || 0) + 1;
-  });
-
-  const sorted = Object.entries(counts)
-    .sort((a,b)=>b[1]-a[1])
-    .slice(0,12);
-
-  if(!sorted.length){
-    box.innerHTML = `<div class="small">No country data yet.</div>`;
-    return;
-  }
-
-  box.innerHTML = sorted.map(([country,count]) => `
-    <a class="country-row" href="admin-enquiries.html?country=${encodeURIComponent(country)}">
-      <span>${countryFlag(country)} ${country}</span>
-      <span class="country-count">${count}</span>
-    </a>
-  `).join("");
-}
-
-async function loadDashboardCounts(){
+async function loadDashboard(){
   try{
-    const { count: stockCount } = await sb
-      .from("available_stock")
-      .select("*", { count:"exact", head:true });
-
-    setText("stockCount", stockCount ?? 0);
-
-    const { data: enquiries, error } = await sb
+    const {data: enquiries, error} = await sb
       .from("bike_enquiries")
-      .select("id,status,destination_country,country");
+      .select("id,status,assigned_to,deal_total_income,deal_net_profit")
+      .order("created_at",{ascending:false});
 
     if(error){
       console.error(error);
@@ -769,52 +330,38 @@ async function loadDashboardCounts(){
 
     const rows = enquiries || [];
 
-    const countStatus = status =>
-      rows.filter(r => String(r.status || "").trim() === status).length;
-
-    const availability = countStatus("Checking Availability");
-    const negotiating = countStatus("Negotiating Price & Lead Time");
-    const decision = countStatus("Waiting Customer Decision");
-    const deposit = countStatus("Waiting Deposit");
-    const depositPaid = countStatus("Deposit Paid");
-    const fullPayment = countStatus("Waiting Full Payment");
-    const collection = countStatus("Waiting Collection");
-    const onSite = countStatus("On Site");
-    const readyShip = countStatus("Ready To Ship");
-    const moveBooked = countStatus("Booked with Move Motorcycles");
-    const port = countStatus("At Port / Shipping Agent");
-    const completed = countStatus("Completed");
-    const closed = countStatus("Closed");
-    const lost = countStatus("Lost");
-    const saveLater = countStatus("Save for Later");
-
     setText("activeLeadsCount", rows.length);
     setText("totalCount", rows.length);
 
-    setText("availabilityCount", availability);
-    setText("negotiatingCount", negotiating);
-    setText("decisionCount", decision);
-    setText("depositCount", deposit);
-    setText("depositPaidCount", depositPaid);
-    setText("fullPaymentCount", fullPayment);
-    setText("collectionCount", collection);
-    setText("onSiteCount", onSite);
-    setText("readyShipCount", readyShip);
-    setText("moveBookedCount", moveBooked);
-    setText("portCount", port);
-    setText("completedCount", completed);
-    setText("closedCount", closed);
-    setText("lostCount", lost);
-    setText("saveLaterCount", saveLater);
+    setText("availabilityCount", countStatus(rows,"Checking Availability"));
+    setText("negotiatingCount", countStatus(rows,"Negotiating Price & Lead Time"));
+    setText("decisionCount", countStatus(rows,"Waiting Customer Decision"));
+    setText("depositCount", countStatus(rows,"Waiting Deposit"));
+    setText("depositPaidCount", countStatus(rows,"Deposit Paid"));
+    setText("fullPaymentCount", countStatus(rows,"Waiting Full Payment"));
+    setText("collectionCount", countStatus(rows,"Waiting Collection"));
+    setText("onSiteCount", countStatus(rows,"On Site"));
+    setText("readyShipCount", countStatus(rows,"Ready To Ship"));
+    setText("moveBookedCount", countStatus(rows,"Booked with Move Motorcycles"));
+    setText("portCount", countStatus(rows,"At Port / Shipping Agent"));
+    setText("completedCount", countStatus(rows,"Completed"));
+    setText("closedCount", countStatus(rows,"Closed"));
+    setText("lostCount", countStatus(rows,"Lost"));
+    setText("saveLaterCount", countStatus(rows,"Save for Later"));
 
-    setText("workDeposit", deposit);
-    setText("workCollection", collection);
-    setText("workReadyShip", readyShip);
-    setText("workPort", port);
+    setText("workDeposit", countStatus(rows,"Waiting Deposit"));
+    setText("workCollection", countStatus(rows,"Waiting Collection"));
+    setText("workReadyShip", countStatus(rows,"Ready To Ship"));
 
-    renderCountries(rows);
+    const pipelineValue = rows.reduce((sum,r)=>sum + Number(r.deal_total_income || 0),0);
+    const expectedProfit = rows.reduce((sum,r)=>sum + Number(r.deal_net_profit || 0),0);
 
-    const { data: messages } = await sb
+    setText("pipelineValue", money(pipelineValue));
+    setText("expectedProfit", money(expectedProfit));
+
+    updateStaffCounts(rows);
+
+    const {data: messages} = await sb
       .from("enquiry_messages")
       .select("enquiry_id,sender,created_at")
       .order("created_at",{ascending:false});
@@ -824,14 +371,13 @@ async function loadDashboardCounts(){
       if(!latest[m.enquiry_id]) latest[m.enquiry_id] = m;
     });
 
-    const customerReplies = Object.values(latest).filter(m =>
+    const replies = Object.values(latest).filter(m =>
       String(m.sender || "").toLowerCase().includes("customer")
     ).length;
 
-    setText("customerReplyCount", customerReplies);
-    setText("customerRepliesCount", customerReplies);
-    setText("actionQueueCount", customerReplies);
-    setText("workReplies", customerReplies);
+    setText("customerReplyCount", replies);
+    setText("customerRepliesCount", replies);
+    setText("workReplies", replies);
 
   }catch(err){
     console.error(err);
@@ -839,9 +385,8 @@ async function loadDashboardCounts(){
 }
 
 setHeader();
-loadPrefs();
-loadDashboardCounts();
-setInterval(loadDashboardCounts,90000);
+loadDashboard();
+setInterval(loadDashboard,90000);
 </script>
 
 </body>
