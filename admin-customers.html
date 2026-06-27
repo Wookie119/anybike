@@ -3,62 +3,288 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Customers | AnyBike Admin</title>
+<title>Customers CRM | AnyBike Admin</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <style>
-:root{--red:#ed1c24;--line:rgba(255,255,255,.12)}
+:root{
+  --red:#ed1c24;
+  --line:rgba(255,255,255,.12);
+  --muted:#aaa;
+  --green:#33cc66;
+}
 *{box-sizing:border-box}
-body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#050505;color:#fff}
-header{background:#0b0b0b;border-bottom:1px solid var(--line);padding:14px 20px}
-.header-inner{max-width:1800px;margin:auto;display:flex;justify-content:space-between;align-items:center}
-h1{margin:0;color:var(--red)}
-nav{display:flex;gap:16px}
-nav a{color:#ddd;text-decoration:none;font-weight:900}
-nav a:hover{color:var(--red)}
-.wrap{padding:18px;max-width:1800px;margin:auto}
-.toolbar{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:18px}
-input,select{padding:12px;border-radius:10px;border:1px solid #333;font-size:16px}
+body{
+  margin:0;
+  font-family:Arial,Helvetica,sans-serif;
+  background:linear-gradient(120deg,rgba(237,28,36,.18),transparent 40%),#050505;
+  color:#fff;
+}
+.admin-layout{
+  display:grid;
+  grid-template-columns:285px 1fr;
+  min-height:100vh;
+}
+.sidebar{
+  background:#090909;
+  border-right:1px solid var(--line);
+  padding:22px;
+}
+.logo{
+  background:#fff;
+  border-radius:18px;
+  padding:12px;
+  margin-bottom:18px;
+}
+.logo img{width:100%;display:block}
+.staff-card{
+  background:#111;
+  border:1px solid var(--line);
+  border-radius:16px;
+  padding:14px;
+  margin-bottom:20px;
+}
+.staff-name{font-weight:900}
+.online{color:var(--green);font-size:13px;margin-top:5px}
+.menu-title{
+  font-size:12px;
+  color:var(--muted);
+  text-transform:uppercase;
+  letter-spacing:1px;
+  margin:18px 0 8px;
+}
+.admin-menu a{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  color:#fff;
+  text-decoration:none;
+  padding:11px 12px;
+  border-radius:10px;
+  font-weight:800;
+  margin-bottom:5px;
+}
+.admin-menu a:hover,.admin-menu a.active{background:var(--red)}
+.menu-icon{width:24px;text-align:center;font-size:18px}
+.menu-text{flex:1}
+
+.main{padding:24px}
+.topbar{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:20px;
+  margin-bottom:18px;
+}
+h1{margin:0;font-size:34px}
+.subtitle{color:var(--muted);margin-top:5px}
+
+.grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:12px;
+  margin-bottom:18px;
+}
+.card{
+  background:rgba(17,17,17,.94);
+  border:1px solid var(--line);
+  border-radius:18px;
+  padding:14px;
+}
+.card h2,.card h3{margin:0 0 8px}
+.big-number{
+  font-size:30px;
+  font-weight:900;
+  color:var(--red);
+}
+.small{color:var(--muted);font-size:13px}
+
+.toolbar{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-bottom:18px;
+}
+input,select{
+  padding:12px;
+  border-radius:10px;
+  border:1px solid #333;
+  background:#111;
+  color:#fff;
+  font-size:15px;
+}
 .search{flex:1;min-width:280px}
-.card{background:#111;border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:12px}
+.btn{
+  background:var(--red);
+  color:#fff;
+  border:0;
+  border-radius:999px;
+  padding:11px 16px;
+  font-weight:900;
+  cursor:pointer;
+  text-decoration:none;
+  display:inline-block;
+}
+
+.customer{
+  background:#111;
+  border:1px solid var(--line);
+  border-radius:16px;
+  margin-bottom:10px;
+  overflow:hidden;
+}
 .customer-row{
   display:grid;
-  grid-template-columns:1.5fr 1fr 1fr 1fr 1fr 140px;
+  grid-template-columns:1.5fr 1fr .7fr 1fr 1fr 130px;
   gap:14px;
   align-items:center;
+  padding:14px;
   cursor:pointer;
 }
 .customer-row:hover{background:#181818}
-.small{color:#aaa;font-size:13px}
-.badge{display:inline-block;padding:7px 10px;border-radius:999px;background:#222;font-weight:900}
+.badge{
+  display:inline-block;
+  padding:7px 10px;
+  border-radius:999px;
+  background:#222;
+  font-weight:900;
+}
 .badge-red{background:var(--red)}
-.customer-detail{display:none;border-top:1px solid var(--line);margin-top:14px;padding-top:14px}
+.badge-green{background:#1d7a3a}
+.customer-detail{
+  display:none;
+  border-top:1px solid var(--line);
+  padding:16px;
+}
 .customer.open .customer-detail{display:block}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
-.panel{background:#181818;border-radius:12px;padding:14px}
-.panel span{display:block;color:#999;font-size:12px;margin-bottom:5px}
+.detail-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:12px;
+  margin-bottom:16px;
+}
+.panel{
+  background:#181818;
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:12px;
+  padding:14px;
+}
+.panel span{
+  display:block;
+  color:#999;
+  font-size:12px;
+  margin-bottom:5px;
+}
 .panel strong{color:#fff}
-.btn{background:var(--red);color:#fff;border:0;border-radius:999px;padding:10px 16px;font-weight:900;cursor:pointer;text-decoration:none;display:inline-block}
-@media(max-width:900px){
+.timeline{
+  display:grid;
+  gap:8px;
+  margin-top:10px;
+}
+.timeline-item{
+  background:#181818;
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:12px;
+  padding:12px;
+}
+.deal-card{
+  background:#181818;
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:12px;
+  padding:12px;
+  margin-bottom:8px;
+}
+.section-title{
+  margin:18px 0 10px;
+}
+
+@media(max-width:1000px){
+  .admin-layout{grid-template-columns:1fr}
   .customer-row{grid-template-columns:1fr}
+  .sidebar{position:relative}
 }
 </style>
 </head>
 
 <body>
-<header>
-  <div class="header-inner">
-    <h1>AnyBike Customers</h1>
-    <nav>
-      <a href="dashboard.html">Dashboard</a>
-      <a href="admin-enquiries.html">Enquiries</a>
-      <a href="admin-stock.html">Stock</a>
-      <a href="admin-customers.html">Customers</a>
-    </nav>
-  </div>
-</header>
 
-<div class="wrap">
+<div class="admin-layout">
+
+<aside class="sidebar">
+  <div class="logo">
+    <img src="anybike-logo-new.jpg" alt="AnyBike">
+  </div>
+
+  <div class="staff-card">
+    <div class="staff-name">Andy Gifford</div>
+    <div class="small">Administrator</div>
+    <div class="online">● Online</div>
+  </div>
+
+  <nav class="admin-menu">
+    <div class="menu-title">Main</div>
+    <a href="admin-dashboard.html"><span class="menu-icon">🏠</span><span class="menu-text">Dashboard</span></a>
+    <a href="admin-enquiries.html"><span class="menu-icon">💬</span><span class="menu-text">Enquiries CRM</span></a>
+    <a class="active" href="admin-customers.html"><span class="menu-icon">👥</span><span class="menu-text">Customers CRM</span></a>
+    <a href="admin-leads.html"><span class="menu-icon">➕</span><span class="menu-text">New Leads</span></a>
+    <a href="admin-stock.html"><span class="menu-icon">🏍</span><span class="menu-text">Stock Admin</span></a>
+    <a href="admin-requests.html"><span class="menu-icon">🌍</span><span class="menu-text">Motorcycle Requests</span></a>
+
+    <div class="menu-title">Sales</div>
+    <a href="admin-quotes.html"><span class="menu-icon">📄</span><span class="menu-text">Quotes</span></a>
+    <a href="admin-invoices.html"><span class="menu-icon">🧾</span><span class="menu-text">Invoices</span></a>
+    <a href="admin-payments.html"><span class="menu-icon">💳</span><span class="menu-text">Payments</span></a>
+
+    <div class="menu-title">Logistics</div>
+    <a href="admin-logistics.html"><span class="menu-icon">🚢</span><span class="menu-text">Global Logistics</span></a>
+    <a href="admin-shipping.html"><span class="menu-icon">🚚</span><span class="menu-text">Shipping Workflow</span></a>
+    <a href="admin-containers.html"><span class="menu-icon">📦</span><span class="menu-text">Containers</span></a>
+
+    <div class="menu-title">Management</div>
+    <a href="admin-reports.html"><span class="menu-icon">📊</span><span class="menu-text">Reports</span></a>
+    <a href="admin-settings.html"><span class="menu-icon">⚙️</span><span class="menu-text">Settings</span></a>
+
+    <div class="menu-title">Legacy</div>
+    <a href="dashboard.html"><span class="menu-icon">🛠</span><span class="menu-text">Legacy Tools</span></a>
+  </nav>
+</aside>
+
+<main class="main">
+
+  <div class="topbar">
+    <div>
+      <h1>Customer 360 CRM</h1>
+      <div class="subtitle">One customer record for enquiries, deals, messages, shipping and future documents.</div>
+    </div>
+
+    <a class="btn" href="admin-leads.html">+ New Customer / Lead</a>
+  </div>
+
+  <section class="grid">
+    <div class="card">
+      <h3>Total Customers</h3>
+      <div class="big-number" id="totalCustomers">—</div>
+      <div class="small">Grouped by email / phone / customer ID</div>
+    </div>
+
+    <div class="card">
+      <h3>VIP Customers</h3>
+      <div class="big-number" id="vipCustomers">—</div>
+      <div class="small">3+ enquiries / deals</div>
+    </div>
+
+    <div class="card">
+      <h3>Total Pipeline</h3>
+      <div class="big-number" id="totalPipeline">—</div>
+      <div class="small">Saved deal invoice totals</div>
+    </div>
+
+    <div class="card">
+      <h3>Total Profit</h3>
+      <div class="big-number" id="totalProfit">—</div>
+      <div class="small">Saved deal net profit</div>
+    </div>
+  </section>
 
   <div class="toolbar">
     <input class="search" id="searchBox" placeholder="Search name, email, phone, country..." oninput="renderCustomers()">
@@ -68,18 +294,17 @@ input,select{padding:12px;border-radius:10px;border:1px solid #333;font-size:16p
     </select>
 
     <select id="statusFilter" onchange="renderCustomers()">
-      <option value="">All Statuses</option>
+      <option value="">All Customer Types</option>
       <option value="New">New</option>
-      <option value="Verified">Verified</option>
-      <option value="Waiting ID">Waiting ID</option>
+      <option value="Active">Active</option>
       <option value="VIP">VIP</option>
+      <option value="Completed">Completed Buyer</option>
     </select>
-
-    <button class="btn" onclick="location.href='new-lead.html'">+ New Customer / Lead</button>
   </div>
 
   <div id="customers">Loading customers...</div>
 
+</main>
 </div>
 
 <script>
@@ -97,9 +322,26 @@ function money(v){
   return "£" + Number(v || 0).toLocaleString("en-GB");
 }
 
+function cleanId(v){
+  return String(v || "customer").replace(/[^a-zA-Z0-9]/g,"");
+}
+
 function toggleCustomer(id){
   const el = document.getElementById("customer-" + id);
   if(el) el.classList.toggle("open");
+}
+
+function customerStatus(c){
+  if(c.deals.length >= 3) return "VIP";
+  if(c.deals.some(d=>d.status === "Completed")) return "Completed";
+  if(c.deals.length > 0) return "Active";
+  return "New";
+}
+
+function badgeClass(status){
+  if(status === "VIP") return "badge-red";
+  if(status === "Completed") return "badge-green";
+  return "";
 }
 
 async function loadCustomers(){
@@ -115,10 +357,24 @@ async function loadCustomers(){
       customer_phone,
       destination_country,
       customer_region,
+      customer_city,
       status,
       assigned_to,
+      message,
+      question_type,
+      offer_amount,
       deal_total_income,
-      deal_net_profit
+      deal_net_profit,
+      deal_saved_by,
+      available_stock (
+        id,
+        make,
+        model,
+        variant,
+        year,
+        price_gbp,
+        image_url
+      )
     `)
     .order("created_at",{ascending:false});
 
@@ -139,16 +395,18 @@ async function loadCustomers(){
 
     if(!grouped[key]){
       grouped[key] = {
-        id: key.replace(/[^a-zA-Z0-9]/g,""),
+        id: cleanId(key),
         name: e.customer_name || "Unknown Customer",
         email: e.customer_email || "",
         phone: e.customer_phone || "",
         country: e.destination_country || "",
         region: e.customer_region || "",
+        city: e.customer_city || "",
         deals: [],
         totalValue: 0,
         totalProfit: 0,
-        latest: e.created_at
+        latest: e.created_at,
+        firstSeen: e.created_at
       };
     }
 
@@ -156,19 +414,24 @@ async function loadCustomers(){
     grouped[key].totalValue += Number(e.deal_total_income || 0);
     grouped[key].totalProfit += Number(e.deal_net_profit || 0);
 
-    if(e.created_at > grouped[key].latest){
-      grouped[key].latest = e.created_at;
-    }
+    if(e.created_at > grouped[key].latest) grouped[key].latest = e.created_at;
+    if(e.created_at < grouped[key].firstSeen) grouped[key].firstSeen = e.created_at;
   });
 
-  allCustomers = Object.values(grouped);
+  allCustomers = Object.values(grouped)
+    .sort((a,b)=>new Date(b.latest)-new Date(a.latest));
 
   populateCountries();
+  updateStats();
   renderCustomers();
 }
 
 function populateCountries(){
   const select = document.getElementById("countryFilter");
+  const existing = select.value;
+
+  select.innerHTML = `<option value="">All Countries</option>`;
+
   const countries = [...new Set(allCustomers.map(c=>c.country).filter(Boolean))].sort();
 
   countries.forEach(c=>{
@@ -177,12 +440,19 @@ function populateCountries(){
     opt.textContent = c;
     select.appendChild(opt);
   });
+
+  select.value = existing;
 }
 
-function customerStatus(c){
-  if(c.deals.length >= 3) return "VIP";
-  if(c.deals.some(d=>d.status === "Completed")) return "Verified";
-  return "New";
+function updateStats(){
+  const totalPipeline = allCustomers.reduce((sum,c)=>sum + c.totalValue,0);
+  const totalProfit = allCustomers.reduce((sum,c)=>sum + c.totalProfit,0);
+  const vip = allCustomers.filter(c=>customerStatus(c)==="VIP").length;
+
+  document.getElementById("totalCustomers").textContent = allCustomers.length;
+  document.getElementById("vipCustomers").textContent = vip;
+  document.getElementById("totalPipeline").textContent = money(totalPipeline);
+  document.getElementById("totalProfit").textContent = money(totalProfit);
 }
 
 function renderCustomers(){
@@ -202,13 +472,8 @@ function renderCustomers(){
     );
   }
 
-  if(country){
-    rows = rows.filter(c => c.country === country);
-  }
-
-  if(status){
-    rows = rows.filter(c => customerStatus(c) === status);
-  }
+  if(country) rows = rows.filter(c => c.country === country);
+  if(status) rows = rows.filter(c => customerStatus(c) === status);
 
   const box = document.getElementById("customers");
 
@@ -218,10 +483,12 @@ function renderCustomers(){
   }
 
   box.innerHTML = rows.map(c=>{
-    const statusText = customerStatus(c);
+    const type = customerStatus(c);
+    const latestDeal = c.deals[0] || {};
+    const b = latestDeal.available_stock || {};
 
     return `
-      <div class="card customer" id="customer-${c.id}">
+      <div class="customer" id="customer-${c.id}">
         <div class="customer-row" onclick="toggleCustomer('${c.id}')">
           <div>
             <strong>${safe(c.name)}</strong>
@@ -230,18 +497,18 @@ function renderCustomers(){
           </div>
 
           <div>
-            ${safe(c.country)}
-            <div class="small">${safe(c.region)}</div>
+            🌍 ${safe(c.country)}
+            <div class="small">${safe(c.city)} ${safe(c.region)}</div>
           </div>
 
           <div>
             <strong>${c.deals.length}</strong>
-            <div class="small">Deals</div>
+            <div class="small">Enquiries</div>
           </div>
 
           <div>
             <strong>${money(c.totalValue)}</strong>
-            <div class="small">Pipeline Value</div>
+            <div class="small">Pipeline</div>
           </div>
 
           <div>
@@ -250,45 +517,62 @@ function renderCustomers(){
           </div>
 
           <div>
-            <span class="badge ${statusText === "VIP" ? "badge-red" : ""}">
-              ${statusText}
-            </span>
+            <span class="badge ${badgeClass(type)}">${type}</span>
           </div>
         </div>
 
         <div class="customer-detail">
-          <div class="grid">
-            <div class="panel">
-              <span>Email</span>
-              <strong>${safe(c.email)}</strong>
-            </div>
 
-            <div class="panel">
-              <span>Phone</span>
-              <strong>${safe(c.phone)}</strong>
-            </div>
+          <h3>Customer Profile</h3>
 
-            <div class="panel">
-              <span>Country</span>
-              <strong>${safe(c.country)}</strong>
-            </div>
-
-            <div class="panel">
-              <span>Latest Activity</span>
-              <strong>${c.latest ? new Date(c.latest).toLocaleString("en-GB") : "-"}</strong>
-            </div>
+          <div class="detail-grid">
+            <div class="panel"><span>Name</span><strong>${safe(c.name)}</strong></div>
+            <div class="panel"><span>Email</span><strong>${safe(c.email)}</strong></div>
+            <div class="panel"><span>Phone / WhatsApp</span><strong>${safe(c.phone)}</strong></div>
+            <div class="panel"><span>Country</span><strong>${safe(c.country)}</strong></div>
+            <div class="panel"><span>City / Region</span><strong>${safe(c.city)} ${safe(c.region)}</strong></div>
+            <div class="panel"><span>First Seen</span><strong>${c.firstSeen ? new Date(c.firstSeen).toLocaleString("en-GB") : "-"}</strong></div>
+            <div class="panel"><span>Latest Activity</span><strong>${c.latest ? new Date(c.latest).toLocaleString("en-GB") : "-"}</strong></div>
+            <div class="panel"><span>Customer Type</span><strong>${type}</strong></div>
           </div>
 
-          <h3>Deals / Enquiries</h3>
+          <h3 class="section-title">Latest Motorcycle Interest</h3>
 
-          ${c.deals.map(d=>`
-            <div class="panel" style="margin-bottom:8px">
-              <strong>Enquiry #${d.id}</strong>
-              <div class="small">Status: ${safe(d.status)}</div>
-              <div class="small">Assigned To: ${safe(d.assigned_to)}</div>
-              <a class="btn" href="admin-enquiries.html#enquiry-${d.id}">Open Deal</a>
-            </div>
-          `).join("")}
+          <div class="detail-grid">
+            <div class="panel"><span>Bike</span><strong>${safe(b.make)} ${safe(b.model)}</strong></div>
+            <div class="panel"><span>Variant / Year</span><strong>${safe(b.variant)} ${safe(b.year)}</strong></div>
+            <div class="panel"><span>Question Type</span><strong>${safe(latestDeal.question_type)}</strong></div>
+            <div class="panel"><span>Offer</span><strong>${latestDeal.offer_amount ? money(latestDeal.offer_amount) : "-"}</strong></div>
+          </div>
+
+          <h3 class="section-title">Deals / Enquiries</h3>
+
+          ${c.deals.map(d=>{
+            const bike = d.available_stock || {};
+            return `
+              <div class="deal-card">
+                <strong>Enquiry #${d.id} — ${safe(bike.make)} ${safe(bike.model)}</strong>
+                <div class="small">Status: ${safe(d.status)}</div>
+                <div class="small">Assigned To: ${safe(d.assigned_to)}</div>
+                <div class="small">Deal Value: ${money(d.deal_total_income)}</div>
+                <div class="small">Net Profit: ${money(d.deal_net_profit)}</div>
+                <br>
+                <a class="btn" href="admin-enquiries.html?status=${encodeURIComponent(d.status || "")}">Open CRM Stage</a>
+              </div>
+            `;
+          }).join("")}
+
+          <h3 class="section-title">Customer Timeline</h3>
+
+          <div class="timeline">
+            ${c.deals.map(d=>`
+              <div class="timeline-item">
+                <strong>${new Date(d.created_at).toLocaleString("en-GB")}</strong>
+                <div class="small">Enquiry #${d.id} created — Status: ${safe(d.status)}</div>
+              </div>
+            `).join("")}
+          </div>
+
         </div>
       </div>
     `;
@@ -297,5 +581,6 @@ function renderCustomers(){
 
 loadCustomers();
 </script>
+
 </body>
 </html>
