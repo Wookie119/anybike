@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -63,8 +64,13 @@ input,select{padding:12px;border-radius:10px;border:1px solid #333;background:#1
 .badge-green{background:#1d7a3a}
 .customer-detail{display:none;border-top:1px solid var(--line);padding:16px}
 .customer.open .customer-detail{display:block}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.tab-btn{background:#181818;color:#fff;border:1px solid var(--line);border-radius:999px;padding:9px 13px;font-weight:900;cursor:pointer}
+.tab-btn.active{background:var(--red);border-color:var(--red)}
+.tab-panel{display:none}
+.tab-panel.active{display:block}
 .detail-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:16px}
-.panel,.deal-card,.timeline-item{background:#181818;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:12px}
+.panel,.deal-card,.timeline-item,.note-box{background:#181818;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:12px}
 .panel span{display:block;color:#999;font-size:12px;margin-bottom:5px}
 .panel strong{color:#fff}
 .timeline{display:grid;gap:8px;margin-top:10px}
@@ -119,7 +125,7 @@ input,select{padding:12px;border-radius:10px;border:1px solid #333;background:#1
 <div class="topbar">
   <div>
     <h1>Customer 360 CRM</h1>
-    <div class="subtitle">Customer records, enquiries, deals, map, countries and future documents.</div>
+    <div class="subtitle">Customer records, enquiries, deals, tabs, map, countries and future documents.</div>
   </div>
   <a class="btn" href="admin-leads.html">+ New Customer / Lead</a>
 </div>
@@ -133,7 +139,7 @@ input,select{padding:12px;border-radius:10px;border:1px solid #333;background:#1
 
 <section class="two-col">
   <div class="card">
-    <h2>🌍 Customer Map</h2>
+    <h2>🌍 Customer & Logistics Map</h2>
     <div class="map-wrap" id="mapWrap">
       <svg viewBox="0 0 1000 500" preserveAspectRatio="none">
         <rect width="1000" height="500" fill="#080808"/>
@@ -145,6 +151,7 @@ input,select{padding:12px;border-radius:10px;border:1px solid #333;background:#1
         <text x="500" y="35" fill="#555" text-anchor="middle" font-size="22" font-weight="900">ANYBIKE GLOBAL CUSTOMER ACTIVITY</text>
       </svg>
     </div>
+    <div class="small" style="margin-top:8px;">Phase 1: customer countries. Later: customers, logistics partners, ports, containers and shipping layers.</div>
   </div>
 
   <div class="card">
@@ -200,6 +207,15 @@ function countryFlag(country){
   if(c.includes("usa")||c.includes("united states"))return"🇺🇸"; if(c.includes("uae")||c.includes("emirates"))return"🇦🇪";
   if(c.includes("japan"))return"🇯🇵"; if(c.includes("australia"))return"🇦🇺"; if(c.includes("canada"))return"🇨🇦";
   if(c.includes("india"))return"🇮🇳"; if(c.includes("south africa"))return"🇿🇦"; return"🌍";
+}
+
+function switchTab(customerId, tabName){
+  document.querySelectorAll(`#customer-${customerId} .tab-btn`).forEach(b=>b.classList.remove("active"));
+  document.querySelectorAll(`#customer-${customerId} .tab-panel`).forEach(p=>p.classList.remove("active"));
+  const btn=document.querySelector(`#customer-${customerId} .tab-btn[data-tab="${tabName}"]`);
+  const panel=document.querySelector(`#customer-${customerId} .tab-panel[data-panel="${tabName}"]`);
+  if(btn)btn.classList.add("active");
+  if(panel)panel.classList.add("active");
 }
 
 async function loadCustomers(){
@@ -286,7 +302,7 @@ function renderMap(){
   const sorted=Object.entries(counts).sort((a,b)=>b[1]-a[1]);
 
   list.innerHTML=sorted.length ? sorted.map(([country,count])=>`
-    <a class="country-row" href="admin-customers.html?country=${encodeURIComponent(country)}">
+    <a class="country-row" href="#" onclick="document.getElementById('countryFilter').value='${country.replace(/'/g,"\\'")}';renderCustomers();return false;">
       <span>${countryFlag(country)} ${country}</span>
       <span class="country-count">${count}</span>
     </a>
@@ -336,50 +352,79 @@ function renderCustomers(){
           <div><span class="badge ${badgeClass(type)}">${type}</span></div>
         </div>
 
-        <div class="customer-detail">
-          <h3>Customer Profile</h3>
-          <div class="detail-grid">
-            <div class="panel"><span>Name</span><strong>${safe(c.name)}</strong></div>
-            <div class="panel"><span>Email</span><strong>${safe(c.email)}</strong></div>
-            <div class="panel"><span>Phone / WhatsApp</span><strong>${safe(c.phone)}</strong></div>
-            <div class="panel"><span>Country</span><strong>${safe(c.country)}</strong></div>
-            <div class="panel"><span>City / Region</span><strong>${safe(c.city)} ${safe(c.region)}</strong></div>
-            <div class="panel"><span>First Seen</span><strong>${c.firstSeen?new Date(c.firstSeen).toLocaleString("en-GB"):"-"}</strong></div>
-            <div class="panel"><span>Latest Activity</span><strong>${c.latest?new Date(c.latest).toLocaleString("en-GB"):"-"}</strong></div>
-            <div class="panel"><span>Customer Type</span><strong>${type}</strong></div>
+        <div class="customer-detail" onclick="event.stopPropagation()">
+          <div class="tabs">
+            <button class="tab-btn active" data-tab="profile" onclick="switchTab('${c.id}','profile')">Profile</button>
+            <button class="tab-btn" data-tab="messages" onclick="switchTab('${c.id}','messages')">Messages</button>
+            <button class="tab-btn" data-tab="enquiries" onclick="switchTab('${c.id}','enquiries')">Enquiries</button>
+            <button class="tab-btn" data-tab="deals" onclick="switchTab('${c.id}','deals')">Deals</button>
+            <button class="tab-btn" data-tab="shipping" onclick="switchTab('${c.id}','shipping')">Shipping</button>
+            <button class="tab-btn" data-tab="documents" onclick="switchTab('${c.id}','documents')">Documents</button>
+            <button class="tab-btn" data-tab="notes" onclick="switchTab('${c.id}','notes')">Notes</button>
+            <button class="tab-btn" data-tab="timeline" onclick="switchTab('${c.id}','timeline')">Timeline</button>
           </div>
 
-          <h3 class="section-title">Latest Motorcycle Interest</h3>
-          <div class="detail-grid">
-            <div class="panel"><span>Bike</span><strong>${safe(b.make)} ${safe(b.model)}</strong></div>
-            <div class="panel"><span>Variant / Year</span><strong>${safe(b.variant)} ${safe(b.year)}</strong></div>
-            <div class="panel"><span>Question Type</span><strong>${safe(latestDeal.question_type)}</strong></div>
-            <div class="panel"><span>Offer</span><strong>${latestDeal.offer_amount?money(latestDeal.offer_amount):"-"}</strong></div>
+          <div class="tab-panel active" data-panel="profile">
+            <h3>Customer Profile</h3>
+            <div class="detail-grid">
+              <div class="panel"><span>Name</span><strong>${safe(c.name)}</strong></div>
+              <div class="panel"><span>Email</span><strong>${safe(c.email)}</strong></div>
+              <div class="panel"><span>Phone / WhatsApp</span><strong>${safe(c.phone)}</strong></div>
+              <div class="panel"><span>Country</span><strong>${safe(c.country)}</strong></div>
+              <div class="panel"><span>City / Region</span><strong>${safe(c.city)} ${safe(c.region)}</strong></div>
+              <div class="panel"><span>First Seen</span><strong>${c.firstSeen?new Date(c.firstSeen).toLocaleString("en-GB"):"-"}</strong></div>
+              <div class="panel"><span>Latest Activity</span><strong>${c.latest?new Date(c.latest).toLocaleString("en-GB"):"-"}</strong></div>
+              <div class="panel"><span>Customer Type</span><strong>${type}</strong></div>
+            </div>
           </div>
 
-          <h3 class="section-title">Deals / Enquiries</h3>
-          ${c.deals.map(d=>{
-            const bike=d.available_stock||{};
-            return `
-              <div class="deal-card">
-                <strong>Enquiry #${d.id} — ${safe(bike.make)} ${safe(bike.model)}</strong>
-                <div class="small">Status: ${safe(d.status)}</div>
-                <div class="small">Assigned To: ${safe(d.assigned_to)}</div>
-                <div class="small">Deal Value: ${money(d.deal_total_income)}</div>
-                <div class="small">Net Profit: ${money(d.deal_net_profit)}</div><br>
-                <a class="btn" href="admin-enquiries.html?status=${encodeURIComponent(d.status||"")}">Open CRM Stage</a>
-              </div>
-            `;
-          }).join("")}
+          <div class="tab-panel" data-panel="messages">
+            <h3>Messages</h3>
+            <div class="note-box">Message history will be linked here from enquiry_messages.</div>
+          </div>
 
-          <h3 class="section-title">Customer Timeline</h3>
-          <div class="timeline">
-            ${c.deals.map(d=>`
-              <div class="timeline-item">
-                <strong>${new Date(d.created_at).toLocaleString("en-GB")}</strong>
-                <div class="small">Enquiry #${d.id} created — Status: ${safe(d.status)}</div>
-              </div>
-            `).join("")}
+          <div class="tab-panel" data-panel="enquiries">
+            <h3>Enquiries</h3>
+            ${c.deals.map(d=>{
+              const bike=d.available_stock||{};
+              return `<div class="deal-card"><strong>Enquiry #${d.id} — ${safe(bike.make)} ${safe(bike.model)}</strong><div class="small">Status: ${safe(d.status)}</div><div class="small">Question: ${safe(d.question_type)}</div><br><a class="btn" href="admin-enquiries.html?status=${encodeURIComponent(d.status||"")}">Open CRM Stage</a></div>`;
+            }).join("")}
+          </div>
+
+          <div class="tab-panel" data-panel="deals">
+            <h3>Deals</h3>
+            <div class="detail-grid">
+              <div class="panel"><span>Total Pipeline</span><strong>${money(c.totalValue)}</strong></div>
+              <div class="panel"><span>Total Profit</span><strong>${money(c.totalProfit)}</strong></div>
+              <div class="panel"><span>Total Enquiries</span><strong>${c.deals.length}</strong></div>
+              <div class="panel"><span>Latest Bike</span><strong>${safe(b.make)} ${safe(b.model)}</strong></div>
+            </div>
+            ${c.deals.map(d=>{
+              const bike=d.available_stock||{};
+              return `<div class="deal-card"><strong>${safe(bike.make)} ${safe(bike.model)}</strong><div class="small">Deal Value: ${money(d.deal_total_income)}</div><div class="small">Net Profit: ${money(d.deal_net_profit)}</div><div class="small">Saved By: ${safe(d.deal_saved_by)}</div></div>`;
+            }).join("")}
+          </div>
+
+          <div class="tab-panel" data-panel="shipping">
+            <h3>Shipping</h3>
+            <div class="note-box">Future shipping workflow: freight forwarder, port, container, documents and shipment tracking.</div>
+          </div>
+
+          <div class="tab-panel" data-panel="documents">
+            <h3>Documents</h3>
+            <div class="note-box">Future documents: invoices, export documents, ID verification, proof of payment and shipping paperwork.</div>
+          </div>
+
+          <div class="tab-panel" data-panel="notes">
+            <h3>Internal Notes</h3>
+            <div class="note-box">Future notes: private staff notes stored against the customer profile.</div>
+          </div>
+
+          <div class="tab-panel" data-panel="timeline">
+            <h3>Customer Timeline</h3>
+            <div class="timeline">
+              ${c.deals.map(d=>`<div class="timeline-item"><strong>${new Date(d.created_at).toLocaleString("en-GB")}</strong><div class="small">Enquiry #${d.id} created — Status: ${safe(d.status)}</div></div>`).join("")}
+            </div>
           </div>
         </div>
       </div>
