@@ -1,1926 +1,393 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Admin Enquiries | AnyBike</title>
+<title>AnyBike Staff Admin 360</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <style>
-:root{--red:#ed1c24;--line:rgba(255,255,255,.12)}
+:root{
+  --red:#ed1c24;
+  --panel:#111;
+  --panel2:#181818;
+  --line:rgba(255,255,255,.12);
+  --muted:#aaa;
+  --green:#33cc66;
+  --amber:#ffcc33;
+}
 *{box-sizing:border-box}
-body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#050505;color:#fff}
-header{
-  background:#0b0b0b;
-  border-bottom:1px solid var(--line);
-  padding:10px 20px;
-}
-  .header-inner{
-  max-width:1800px;
-  margin:auto;
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  gap:20px;
-  flex-wrap:wrap;
-}
-
-.admin-nav{
-  display:flex;
-  gap:14px;
-  flex-wrap:wrap;
-}
-
-.admin-nav a{
-  color:#ddd;
-  text-decoration:none;
-  font-weight:700;
-}
-
-.admin-nav a:hover,
-.admin-nav a.active{
-  color:#ed1c24;
-}
-h1{margin:0;color:var(--red)}
-.wrap{
-  width:100%;
-  max-width:none;
+body{
   margin:0;
-  padding:10px 14px;
-}
-  
-  
-  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px}
-.stat{background:#111;border:1px solid var(--line);border-radius:16px;padding:18px}
-.stat strong{display:block;font-size:28px;color:var(--red)}
-.pipeline-stats{
-  display:grid;
-grid-template-columns:repeat(17, 1fr);
-  gap:8px;
-  width:100%;
-  margin-bottom:20px;
-}
-
-.pipeline-stats .stat{
-  text-align:center;
-  height:130px;
-  padding:12px 6px;
-  border-radius:14px;
-  cursor:pointer;
-
-  display:flex;
-  flex-direction:column;
-  justify-content:space-between;
-
-  transition:.2s ease;
-}
-
-.pipeline-stats .stat div{
-  font-weight:900;
-  line-height:1.1;
-  font-size:15px;
-  height:72px;
-
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  text-align:center;
-}
-
-.pipeline-stats .stat strong{
-  font-size:42px;
-  display:block;
-  color:#ed1c24;
-}
-
-.pipeline-stats .stat:hover{
-  transform:translateY(-2px);
-}
-
-.pipeline-stats .stat.active-filter,
-.pipeline-stats .stat-all.active-filter{
-  border:2px solid #ed1c24;
-  box-shadow:0 0 22px rgba(237,28,36,.75);
-  background:#171111;
-}
-  
-  .stat-all{
-  border:2px solid #ed1c24;
-}
-
-@media(max-width:1400px){
-  .pipeline-stats{
-    grid-template-columns:repeat(6,1fr);
-  }
-}
-
-@media(max-width:800px){
-  .pipeline-stats{
-    grid-template-columns:repeat(3,1fr);
-  }
-}
-  
-@media(max-width:1200px){
-  .pipeline-stats{
-    grid-template-columns:repeat(6, 1fr);
-  }
-}
-
-@media(max-width:700px){
-  .pipeline-stats{
-    grid-template-columns:repeat(2, 1fr);
-  }
-}
-  
-.enquiry{background:#111;border:1px solid var(--line);border-radius:16px;margin-bottom:10px;overflow:hidden}
-.enquiry-row{display:grid;grid-template-columns:40px 1.5fr 1fr 1fr 1fr 140px;gap:12px;align-items:center;padding:14px 16px;cursor:pointer}
-.enquiry-row:hover{background:#181818}
-.row-title strong{color:#fff}
-.small{color:#aaa;font-size:13px}
-.badge{display:inline-block;border-radius:999px;padding:7px 10px;font-weight:900;font-size:12px;text-align:center}
-.badge-new{background:var(--red);color:#fff}
-.badge-replied{background:#1d7a3a;color:#fff}
-.badge-none{background:#333;color:#bbb}
-.status-pill{background:#222;color:#fff;border:1px solid var(--line)}
-.enquiry-detail{display:none;border-top:1px solid var(--line);padding:18px}
-.enquiry.open .enquiry-detail{display:block}
-.enquiry.open .arrow{transform:rotate(90deg)}
-.arrow{font-size:22px;color:var(--red);transition:.2s}
-.enquiry-top{
-  width:100%;
-}
-
-.bike-img{
-  width:180px;
-  height:135px;
-  object-fit:cover;
-  border-radius:14px;
-  background:#222;
-}
-
-.info-grid{
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
-  gap:16px;
-  width:100%;
-}
-.customer-expanded-inner{
-  width:100%;
-}
-
-.conversation-box{
-  width:100%;
-  margin-top:20px;
-}
-
-.message-thread{
-  width:100%;
-  min-height:300px;
-  max-height:600px;
-  overflow-y:auto;
-  display:flex;
-  flex-direction:column;
-  gap:10px;
-  padding:20px;
-  background:#0c0c0c;
-  border-radius:14px;
-  border:1px solid rgba(255,255,255,.08);
-  margin-top:15px;
-  margin-bottom:15px;
-}
-  
-
-.reply-area{
-  width:100%;
-}
-
-.reply-area textarea{
-  width:100%;
-  min-height:120px;
-}
-.label{
-  color:#999;
-  font-size:13px;
-  margin-bottom:3px;
-}
-
-.value strong{
+  font-family:Arial,Helvetica,sans-serif;
+  background:
+    radial-gradient(circle at top left,rgba(237,28,36,.22),transparent 34%),
+    linear-gradient(120deg,#050505,#101010 60%,#050505);
   color:#fff;
 }
+.admin-layout{display:grid;grid-template-columns:285px 1fr;min-height:100vh}
+.sidebar{background:#090909;border-right:1px solid var(--line);padding:22px}
+.logo{background:#fff;border-radius:18px;padding:12px;margin-bottom:18px}
+.logo img{width:100%;display:block}
+.staff-card{background:#111;border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:20px}
+.staff-name{font-weight:900}
+.online{color:var(--green);font-size:13px;margin-top:5px}
+.menu-title{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin:18px 0 8px}
+.admin-menu a{display:flex;align-items:center;gap:10px;color:#fff;text-decoration:none;padding:11px 12px;border-radius:10px;font-weight:800;margin-bottom:5px}
+.admin-menu a:hover,.admin-menu a.active{background:var(--red)}
+.menu-icon{width:24px;text-align:center;font-size:18px}
+.menu-text{flex:1}
 
-select{
-  width:100%;
-  padding:10px;
-  border-radius:10px;
-}
+.main{padding:24px}
+.topbar{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;margin-bottom:18px}
+h1{margin:0;font-size:34px}
+.subtitle,.small{color:var(--muted);font-size:13px}
+.date-box{text-align:right;color:#ddd;font-weight:800}
+.btn{background:var(--red);color:#fff;border:0;border-radius:999px;padding:11px 16px;font-weight:900;cursor:pointer;text-decoration:none;display:inline-block}
+.btn.dark{background:#222;border:1px solid var(--line)}
 
-textarea{
-  width:100%;
-  min-height:100px;
-  border-radius:10px;
-  padding:10px;
-  margin-top:10px;
-}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:18px}
+.card{background:rgba(17,17,17,.94);border:1px solid var(--line);border-radius:18px;padding:14px;box-shadow:0 18px 42px rgba(0,0,0,.22)}
+.card h2,.card h3{margin:0 0 8px}
+.big-number{font-size:30px;font-weight:900;color:var(--red);line-height:1}
+.kpi-icon{font-size:20px;margin-bottom:6px}
 
-button,.btn{
-  background:var(--red);
-  color:#fff;
-  border:0;
-  border-radius:999px;
-  padding:12px 18px;
-  font-weight:900;
-  cursor:pointer;
-  margin-top:10px;
-  display:inline-block;
-  text-decoration:none;
-  width:auto;
-}
+.section-title{margin:6px 0 12px;font-size:24px}
+.pipeline-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:9px;width:100%;margin-bottom:20px}
+.pipeline-stats .stat{background:#111;border:1px solid var(--line);text-align:center;height:105px;padding:9px 6px;border-radius:14px;cursor:pointer;display:flex;flex-direction:column;justify-content:space-between;transition:.2s ease}
+.pipeline-stats .stat:hover{transform:translateY(-2px);border-color:var(--red);box-shadow:0 0 18px rgba(237,28,36,.25)}
+.pipeline-stats .stat div{font-weight:900;line-height:1.1;font-size:13px;height:62px;display:flex;align-items:center;justify-content:center;text-align:center}
+.pipeline-stats .stat strong{font-size:27px;color:var(--red)}
+.stat-all{border:2px solid var(--red)!important}
+.stat-newlead{border:2px solid rgba(237,28,36,.6)!important}
 
-.quick-replies{
-  display:flex;
-  flex-wrap:wrap;
-  gap:10px;
-  margin-top:12px;
-}
+.two-col{display:grid;grid-template-columns:1.2fr .8fr;gap:14px;margin-bottom:18px}
+.staff-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:12px}
+.staff-tile{background:#151515;border:1px solid var(--line);border-radius:16px;padding:16px;cursor:pointer;min-height:112px}
+.staff-tile:hover{border-color:var(--red)}
+.staff-tile strong{display:block;color:var(--red);font-size:32px;margin-top:8px}
+.staff-tile.unassigned{border:2px solid var(--red)}
+.work-list{display:grid;gap:8px}
+.work-item{display:flex;justify-content:space-between;align-items:center;background:#181818;border:1px solid var(--line);border-radius:12px;padding:11px;font-weight:800}
+.work-item span:last-child{color:var(--red);font-size:21px;font-weight:900}
 
-.quick-replies button{
-  flex:0 0 auto;
-  background:#fff;
-  color:#111;
-}
+.quick-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.quick-tile{background:#151515;border:1px solid var(--line);color:#fff;text-decoration:none;border-radius:16px;padding:15px;min-height:100px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;font-weight:900}
+.quick-tile:hover{border-color:var(--red);transform:translateY(-2px)}
+.quick-tile .icon{font-size:30px;margin-bottom:8px}
+.tool-note{color:#ddd;line-height:1.45}
+.warning{border-color:rgba(237,28,36,.45)}
+.badge{display:inline-block;padding:7px 10px;border-radius:999px;background:#222;font-weight:900;font-size:12px}
+.badge-red{background:var(--red)}
+.badge-green{background:#1d7a3a}
 
-.message{
-  background:#181818;
-  border-radius:10px;
-  padding:12px;
-  margin-top:14px;
-  width:100%;
+@media(max-width:1000px){
+  .admin-layout{grid-template-columns:1fr}
+  .two-col{grid-template-columns:1fr}
+  .topbar{flex-direction:column}
+  .date-box{text-align:left}
 }
-
-.reply{
-  background:#0d2333;
-  border-radius:10px;
-  padding:12px;
-  margin-top:10px;
-}
-
-.customer-msg{
-  background:#231616;
-}
-
-.conversation-box{
-  width:100%;
-  margin-top:16px;
-}
-
-.message-thread{
-  display:flex;
-  flex-direction:column;
-  gap:10px;
-  margin-top:12px;
-  margin-bottom:12px;
-  width:100%;
-  min-height:260px;
-  max-height:520px;
-  overflow-y:auto;
-  padding:16px;
-  background:#0c0c0c;
-  border-radius:14px;
-  border:1px solid var(--line);
-}
-
-.msg{
-  max-width:75%;
-  padding:12px;
-  border-radius:12px;
-  line-height:1.4;
-}
-
-.msg.customer{
-  align-self:flex-start;
-  background:#222;
-  border:1px solid rgba(255,255,255,.08);
-}
-
-.msg.admin{
-  align-self:flex-end;
-  background:#ed1c24;
-  color:#fff;
-}
-
-.reply-area{
-  display:flex;
-  gap:10px;
-  margin-top:10px;
-}
-
-.reply-area textarea{
-  flex:1;
-}
-
- .menu-link{
-  position:relative;
-  padding-right:24px;
-}
-.msg-bubble{
-  position:absolute;
-  top:-10px;
-  right:-6px;
-  min-width:22px;
-  height:22px;
-  padding:0 6px;
-  border-radius:999px;
-  background:#ed1c24;
-  color:#fff;
-  font-size:11px;
-  font-weight:900;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-}
-#enquiries{
-  width:100%;
-}
-
-.enquiry{
-  width:100%;
-}
-
-.pipeline-stats{
-  width:100%;
-}
-  
-@media(max-width:900px){
-  .enquiry-row{grid-template-columns:30px 1fr;gap:8px}
-  .hide-mobile{display:none}
-  .enquiry-top{grid-template-columns:1fr}
-}
-
-.seller-panel{
-  grid-column:1 / -1;
-  width:100%;
-  margin:22px 0;
-  padding:18px;
-  background:#111;
-  border:1px solid rgba(237,28,36,.45);
-  border-radius:16px;
-}
-
-.seller-panel h3{
-  margin:0 0 15px;
-  color:#fff;
-}
-
-.seller-grid{
-  display:grid;
-  grid-template-columns:repeat(4,minmax(220px,1fr));
-  gap:14px;
-  width:100%;
-}
-
-.seller-grid div{
-  background:#181818;
-  border-radius:10px;
-  padding:14px;
-  min-height:72px;
-}
-
-.seller-grid span{
-  display:block;
-  font-size:12px;
-  color:#999;
-  margin-bottom:5px;
-}
-
-.seller-grid strong{
-  color:#fff;
-}
-
-.enquiry-detail{
-  overflow:visible;
-}
-
-.enquiry-detail > .info-grid{
-  display:grid;
-  grid-template-columns:repeat(6,1fr);
-  gap:14px;
-  width:100%;
-  align-items:start;
-}
-
-.enquiry-detail > .info-grid > div{
-  min-width:0;
-}
-
-.conversation-box{
-  grid-column:span 2;
-  width:100%;
-}
-
-.message-thread{
-  width:100%;
-  min-height:240px;
-  max-height:520px;
-  overflow-y:auto;
-}
-
-.internal-notes{
-  grid-column:span 2;
-  width:100%;
-}
-
-@media(max-width:900px){
-  .seller-grid{
-    grid-template-columns:1fr 1fr;
-  }
-
-  .enquiry-detail > .info-grid{
-    grid-template-columns:1fr 1fr;
-  }
-
-  .conversation-box,
-  .internal-notes{
-    grid-column:1 / -1;
-  }
-}
- .crm-grid{
-  display:grid;
-  grid-template-columns:1fr;
-  gap:20px;
-  margin-top:20px;
-}
-
-.buyer-panel,
-.conversation-box,
-.notes-panel{
-  grid-column:1 / -1;
-  background:#111;
-  border:1px solid rgba(255,255,255,.08);
-  border-radius:14px;
-  padding:16px;
-}
-
-.customer-meta{
-  display:grid;
-  grid-template-columns:repeat(4,1fr);
-  gap:14px;
-  margin:18px 0;
-}
-
-.customer-meta > div{
-  background:#111;
-  border:1px solid rgba(255,255,255,.08);
-  border-radius:12px;
-  padding:12px;
-}
-
-  .status-box{
-    grid-column:auto;
-  }
-
-}
-.status-box{
-  grid-column:span 2;
-}
-.crm-grid{
-  display:grid;
-  grid-template-columns:280px 1fr 320px;
-  gap:20px;
-  margin-top:20px;
-}
-
-.buyer-panel,
-.conversation-box,
-.notes-panel{
-  background:#111;
-  border:1px solid rgba(255,255,255,.08);
-  border-radius:14px;
-  padding:16px;
-}
-
-@media(max-width:1200px){
-  .customer-meta{
-    grid-template-columns:repeat(3,1fr);
-  }
-
-  .crm-grid{
-    grid-template-columns:1fr;
-  }
-}
-
-@media(max-width:800px){
-  .customer-meta{
-    grid-template-columns:1fr;
-  }
-}
-  .deal-panel{
-  margin:22px 0;
-  padding:18px;
-  background:#111;
-  border:1px solid rgba(237,28,36,.45);
-  border-radius:16px;
-}
-
-.deal-grid{
-display:grid;
-grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
-gap:14px;
-}
-
-.deal-grid label,
-.deal-grid .profit-box{
-background:#181818;
-border-radius:10px;
-padding:14px;
-display:flex;
-flex-direction:column;
-justify-content:flex-start;
-min-height:110px;
-}
-
-.deal-grid span{
-display:block;
-font-size:12px;
-color:#999;
-margin-bottom:8px;
-}
-
-.deal-grid input,
-.deal-grid select{
-width:100%;
-height:44px;
-border-radius:8px;
-border:1px solid rgba(255,255,255,.20);
-background:#fff;
-color:#000;
-padding:0 10px;
-font-size:16px;
-font-weight:800;
-pointer-events:auto;
-user-select:text;
-}
-
-.deal-grid input:focus,
-.deal-grid select:focus{
-  outline:2px solid #ed1c24;
-}
-
-.profit-box{
-  text-align:center;
-  justify-content:center;
-  align-items:center;
-}
-
-.profit-box strong{
-  font-size:26px;
-  font-weight:900;
-  margin-top:8px;
-}
-
-.profit-positive{
-  color:#33cc66 !important;
-}
-
-.profit-negative{
-  color:#ff4d4d !important;
-}
-
-.save-deal-btn{
-background:#ed1c24;
-color:#fff;
-border:none;
-border-radius:10px;
-padding:12px 18px;
-font-weight:900;
-cursor:pointer;
-}
-
-.save-deal-btn:hover{
-opacity:.9;
-}
-
-  
 </style>
 </head>
 
 <body>
-<header>
-  <div class="header-inner">
 
-    <div class="admin-logo">
-      <h1>AnyBike Admin</h1>
+<div class="admin-layout">
+
+<aside class="sidebar">
+  <div class="logo"><img src="anybike-logo-new.jpg" alt="AnyBike"></div>
+
+  <div class="staff-card">
+    <div class="staff-name">Andy Gifford</div>
+    <div class="small">Administrator</div>
+    <div class="online">● Online</div>
+  </div>
+
+  <nav class="admin-menu">
+    <div class="menu-title">Main</div>
+    <a class="active" href="admin-dashboard.html"><span class="menu-icon">🏠</span><span class="menu-text">Dashboard</span></a>
+    <a href="admin-enquiries.html"><span class="menu-icon">💬</span><span class="menu-text">Enquiries CRM</span></a>
+    <a href="admin-customers.html"><span class="menu-icon">👥</span><span class="menu-text">Customers CRM</span></a>
+    <a href="admin-stock.html"><span class="menu-icon">🏍</span><span class="menu-text">Stock Admin</span></a>
+    <a href="admin-requests.html"><span class="menu-icon">🌍</span><span class="menu-text">Motorcycle Requests</span></a>
+
+    <div class="menu-title">Sales</div>
+    <a href="admin-quotes.html"><span class="menu-icon">📄</span><span class="menu-text">Quotes</span></a>
+    <a href="admin-invoices.html"><span class="menu-icon">🧾</span><span class="menu-text">Invoices</span></a>
+    <a href="admin-payments.html"><span class="menu-icon">💳</span><span class="menu-text">Payments</span></a>
+    <a href="admin-deal-history.html"><span class="menu-icon">💰</span><span class="menu-text">Deal History</span></a>
+
+    <div class="menu-title">Logistics</div>
+    <a href="admin-logistics.html"><span class="menu-icon">🚢</span><span class="menu-text">Global Logistics</span></a>
+    <a href="admin-shipping.html"><span class="menu-icon">🚚</span><span class="menu-text">Shipping Workflow</span></a>
+    <a href="admin-containers.html"><span class="menu-icon">📦</span><span class="menu-text">Containers</span></a>
+    <a href="admin-map.html"><span class="menu-icon">🌍</span><span class="menu-text">Operations Map</span></a>
+
+    <div class="menu-title">Documents</div>
+    <a href="admin-export-documents.html"><span class="menu-icon">📋</span><span class="menu-text">Export Documents</span></a>
+    <a href="admin-id-verification.html"><span class="menu-icon">🛂</span><span class="menu-text">ID Verification</span></a>
+    <a href="admin-documents.html"><span class="menu-icon">📎</span><span class="menu-text">Document Library</span></a>
+
+    <div class="menu-title">Management</div>
+    <a href="admin-reports.html"><span class="menu-icon">📊</span><span class="menu-text">Reports</span></a>
+    <a href="admin-currency.html"><span class="menu-icon">💷</span><span class="menu-text">Currency Rates</span></a>
+    <a href="admin-languages.html"><span class="menu-icon">🌐</span><span class="menu-text">Languages</span></a>
+    <a href="admin-settings.html"><span class="menu-icon">⚙️</span><span class="menu-text">Settings</span></a>
+
+    <div class="menu-title">Legacy</div>
+    <a href="dashboard.html"><span class="menu-icon">🛠</span><span class="menu-text">Legacy Tools</span></a>
+  </nav>
+</aside>
+
+<main class="main">
+
+  <div class="topbar">
+    <div>
+      <h1 id="greeting">AnyBike Staff Admin 360</h1>
+      <div class="subtitle">Live staff dashboard. Every enquiry comes from a motorcycle, then flows into the protected CRM pipeline.</div>
+    </div>
+    <div class="date-box" id="todayDate">—</div>
+  </div>
+
+  <section class="grid">
+    <div class="card">
+      <div class="kpi-icon">🏍</div>
+      <h3>Bike Enquiries</h3>
+      <div class="big-number" id="activeLeadsCount">—</div>
+      <div class="small">Every lead linked to a bike</div>
     </div>
 
-    <nav class="admin-nav">
-      <a href="dashboard.html">Dashboard</a>
-      <a href="admin-stock.html">Stock</a>
+    <div class="card">
+      <div class="kpi-icon">💬</div>
+      <h3>Customer Replies</h3>
+      <div class="big-number" id="customerRepliesCount">—</div>
+      <div class="small">Need staff response</div>
+    </div>
 
-      <a href="admin-enquiries.html" class="menu-link">
-        Enquiries
-        <span id="msgBubble" class="msg-bubble">0</span>
-      </a>
-    </nav>
+    <div class="card">
+      <div class="kpi-icon">💷</div>
+      <h3>Pipeline Value</h3>
+      <div class="big-number" id="pipelineValue">—</div>
+      <div class="small">Saved invoice totals</div>
+    </div>
 
-  </div>
-</header>
+    <div class="card">
+      <div class="kpi-icon">📈</div>
+      <h3>Expected Profit</h3>
+      <div class="big-number" id="expectedProfit">—</div>
+      <div class="small">Saved net profit</div>
+    </div>
+  </section>
 
-<div class="wrap">
+  <section>
+    <h2 class="section-title">Sales Pipeline</h2>
+    <div class="pipeline-stats">
+      <div class="stat stat-newlead" onclick="location.href='admin-enquiries.html'"><div>➕<br>1<br>New Enquiry</div><strong>+</strong></div>
+      <div class="stat" onclick="location.href='admin-enquiries.html?status=Customer%20Replied'"><div>💬<br>2<br>Action Required</div><strong id="customerReplyCount">0</strong></div>
+      <div class="stat" onclick="location.href='admin-enquiries.html?status=Checking%20Availability'"><div>🔍<br>3<br>Checking Availability</div><strong id="availabilityCount">0</strong></div>
+      <div class="stat" onclick="location.href='admin-enquiries.html?status=Negotiating%20Price%20%26%20Lead%20Time'"><div>🤝<br>4<br>Negotiating</div><strong id="negotiatingCount">0</strong></div>
+      <div class="stat" onclick="location.href='admin-enquiries.html?status=Waiting%20Customer%20Decision'"><div>👤<br>5<br>Decision</div><strong id="decisionCount">0</strong></div>
+      <div class="stat" onclick="location.href='admin-enquiries.html?status=Waiting%20Deposit'"><div>💷<br>6<br>Deposit</div><strong id="depositCount">0</strong></div>
+      <div class="stat" onclick="location.href='admin-enquiries.html?status=Deposit%20Paid'"><div>✅<br>7<br>Deposit Paid</div><strong id="depositPaidCount">0</strong></div>
+      <div class="stat" onclick="location.href='admin-enquiries.html?status=Waiting%20Full%20Payment'"><div>💰<br>8<br>Full Payment</div><strong id="fullPaymentCount">0</strong></div>
+      <div class="stat" onclick="location.href='admin-enquiries.html?status=Waiting%20Collection'"><div>🚚<br>9<br>Collection</div><strong id="collectionCount">0</strong></div>
+      <div class="stat" onclick="location.href='admin-enquiries.html?status=On%20Site'"><div>📍<br>10<br>On Site</div><strong id="onSiteCount">0</strong></div>
+      <div class="stat" onclick="location.href='admin-enquiries.html?status=Ready%20To%20Ship'"><div>🚢<br>11<br>Ready To Ship</div><strong id="readyShipCount">0</strong></div>
+      <div class="stat" onclick="location.href='admin-enquiries.html?status=Booked%20with%20Move%20Motorcycles'"><div>🏍️<br>12<br>Move</div><strong id="moveBookedCount">0</strong></div>
+      <div class="stat" onclick="location.href='admin-enquiries.html?status=At%20Port%20%2F%20Shipping%20Agent'"><div>⚓<br>13<br>Port</div><strong id="portCount">0</strong></div>
+      <div class="stat" onclick="location.href='admin-enquiries.html?status=Completed'"><div>🏁<br>14<br>Completed</div><strong id="completedCount">0</strong></div>
+      <div class="stat" onclick="location.href='admin-enquiries.html?status=Closed'"><div>⚫<br>15<br>Closed</div><strong id="closedCount">0</strong></div>
+      <div class="stat" onclick="location.href='admin-enquiries.html?status=Lost'"><div>🔴<br>16<br>Lost</div><strong id="lostCount">0</strong></div>
+      <div class="stat" onclick="location.href='admin-enquiries.html?status=Save%20for%20Later'"><div>🟡<br>17<br>Save Later</div><strong id="saveLaterCount">0</strong></div>
+      <div class="stat stat-all" onclick="location.href='admin-enquiries.html'"><div>📋<br>All Enquiries</div><strong id="totalCount">0</strong></div>
+    </div>
+  </section>
 
-<div class="pipeline-stats">
+  <section class="two-col">
+    <div class="card">
+      <h2>Staff Workload</h2>
+      <div class="staff-grid">
+        <div class="staff-tile" onclick="location.href='admin-enquiries.html'"><div>👤 Andy</div><strong id="andyCount">0</strong></div>
+        <div class="staff-tile" onclick="location.href='admin-enquiries.html'"><div>👤 Sean</div><strong id="seanCount">0</strong></div>
+        <div class="staff-tile" onclick="location.href='admin-enquiries.html'"><div>👤 Cat</div><strong id="catCount">0</strong></div>
+        <div class="staff-tile" onclick="location.href='admin-enquiries.html'"><div>👤 Sophie</div><strong id="sophieCount">0</strong></div>
+        <div class="staff-tile unassigned" onclick="location.href='admin-enquiries.html'"><div>📂 Unassigned</div><strong id="unassignedCount">0</strong></div>
+      </div>
+      <div class="small" style="margin-top:10px;">Next step: add staff filter support to admin-enquiries.html?staff=Andy%20Gifford.</div>
+    </div>
 
- <div class="stat stat-newlead"
-     onclick="location.href='new-lead.html'">
+    <div class="card">
+      <h2>Today's Work</h2>
+      <div class="work-list">
+        <div class="work-item"><span>💬 Customer replies waiting</span><span id="workReplies">0</span></div>
+        <div class="work-item"><span>💷 Waiting deposit</span><span id="workDeposit">0</span></div>
+        <div class="work-item"><span>🚚 Waiting collection</span><span id="workCollection">0</span></div>
+        <div class="work-item"><span>🚢 Ready to ship</span><span id="workReadyShip">0</span></div>
+        <div class="work-item"><span>📂 Unassigned enquiries</span><span id="workUnassigned">0</span></div>
+      </div>
+    </div>
+  </section>
 
-  <div>
-    ➕<br>
-    1<br>
-    New Enquiry
-  </div>
+  <section class="grid">
+    <div class="card warning">
+      <h2>Deal Calculator</h2>
+      <p class="tool-note">The working Deal Calculator stays inside <strong>admin-enquiries.html</strong>, because it is attached to each bike enquiry. This dashboard now summarises saved pipeline value and expected profit.</p>
+      <a class="btn" href="admin-enquiries.html">Open CRM Deal Calculator</a>
+    </div>
 
-<strong>Create</strong>
-   
-</div>
+    <div class="card warning">
+      <h2>Messaging & Red Reply Boxes</h2>
+      <p class="tool-note">Customer messages and red admin reply bubbles stay inside the protected CRM page. Customer replies are counted here and link staff back into the CRM.</p>
+      <a class="btn" href="admin-enquiries.html?status=Customer%20Replied">Open Customer Replies</a>
+    </div>
 
-  <div class="stat" data-filter="customerReply" onclick="filterEnquiries('customerReply')">
-    <div>💬<br>2<br>Action Required</div>
-    <strong id="customerReplyCount">0</strong>
-  </div>
+    <div class="card">
+      <h2>Every Lead Starts From A Bike</h2>
+      <p class="tool-note">Normal enquiries come from Available Stock and are linked to a motorcycle. Multi-bike/container customers will use Motorcycle Requests later.</p>
+      <a class="btn dark" href="available-stock.html">View Available Stock</a>
+    </div>
 
-  <div class="stat" data-filter="availability" onclick="filterEnquiries('availability')">
-    <div>🔍<br>3<br>Checking Availability</div>
-    <strong id="availabilityCount">0</strong>
-  </div>
+    <div class="card">
+      <h2>Customer 360</h2>
+      <p class="tool-note">Customers are built automatically from enquiries, then shown in Customer 360 with deals, communication intelligence and future shipping/documents.</p>
+      <a class="btn dark" href="admin-customers.html">Open Customers CRM</a>
+    </div>
+  </section>
 
-  <div class="stat" data-filter="negotiating" onclick="filterEnquiries('negotiating')">
-    <div>🤝<br>4<br>Negotiating Price &amp; Lead Time</div>
-    <strong id="negotiatingCount">0</strong>
-  </div>
+  <section class="card">
+    <h2>Quick Actions</h2>
+    <div class="quick-grid">
+      <a class="quick-tile" href="admin-enquiries.html"><span class="icon">💬</span>Open Enquiries CRM</a>
+      <a class="quick-tile" href="admin-enquiries.html?status=Customer%20Replied"><span class="icon">🔴</span>Reply To Customers</a>
+      <a class="quick-tile" href="admin-stock.html"><span class="icon">🏍</span>Stock Admin</a>
+      <a class="quick-tile" href="admin-customers.html"><span class="icon">👥</span>Customer 360</a>
+      <a class="quick-tile" href="admin-requests.html"><span class="icon">🌍</span>Motorcycle Requests</a>
+      <a class="quick-tile" href="admin-shipping.html"><span class="icon">🚢</span>Shipping</a>
+    </div>
+  </section>
 
-  <div class="stat" data-filter="decision" onclick="filterEnquiries('decision')">
-    <div>👤<br>5<br>Waiting Customer Decision</div>
-    <strong id="decisionCount">0</strong>
-  </div>
-
-  <div class="stat" data-filter="deposit" onclick="filterEnquiries('deposit')">
-    <div>💷<br>6<br>Waiting Deposit</div>
-    <strong id="depositCount">0</strong>
-  </div>
-
-  <div class="stat" data-filter="depositPaid" onclick="filterEnquiries('depositPaid')">
-    <div>✅<br>7<br>Deposit Paid</div>
-    <strong id="depositPaidCount">0</strong>
-  </div>
-
-  <div class="stat" data-filter="fullPayment" onclick="filterEnquiries('fullPayment')">
-    <div>💰<br>8<br>Waiting Full Payment</div>
-    <strong id="fullPaymentCount">0</strong>
-  </div>
-
-  <div class="stat" data-filter="collection" onclick="filterEnquiries('collection')">
-    <div>🚚<br>9<br>Waiting Collection</div>
-    <strong id="collectionCount">0</strong>
-  </div>
-
-  <div class="stat" data-filter="onSite" onclick="filterEnquiries('onSite')">
-    <div>📍<br>10<br>On Site</div>
-    <strong id="onSiteCount">0</strong>
-  </div>
-
-  <div class="stat" data-filter="readyShip" onclick="filterEnquiries('readyShip')">
-    <div>🚢<br>11<br>Ready To Ship</div>
-    <strong id="readyShipCount">0</strong>
-  </div>
-
-  <div class="stat" data-filter="moveBooked" onclick="filterEnquiries('moveBooked')">
-    <div>🏍️<br>12<br>Booked with Move Motorcycles</div>
-    <strong id="moveBookedCount">0</strong>
-  </div>
-
-  <div class="stat" data-filter="port" onclick="filterEnquiries('port')">
-    <div>⚓<br>13<br>At Port / Shipping Agent</div>
-    <strong id="portCount">0</strong>
-  </div>
-
-  <div class="stat" data-filter="completed" onclick="filterEnquiries('completed')">
-    <div>🏁<br>14<br>Completed</div>
-    <strong id="completedCount">0</strong>
-  </div>
-
-  <div class="stat" data-filter="closed" onclick="filterEnquiries('closed')">
-    <div>⚫<br>15<br>Closed</div>
-    <strong id="closedCount">0</strong>
-  </div>
-
-  <div class="stat" data-filter="lost" onclick="filterEnquiries('lost')">
-    <div>🔴<br>16<br>Lost</div>
-    <strong id="lostCount">0</strong>
-  </div>
-
-  <div class="stat" data-filter="saveLater" onclick="filterEnquiries('saveLater')">
-    <div>🟡<br>17<br>Save for Later</div>
-    <strong id="saveLaterCount">0</strong>
-  </div>
-
-  <div class="stat stat-all" data-filter="all" onclick="filterEnquiries('all')">
-    <div>📋<br>All Enquiries</div>
-    <strong id="totalCount">0</strong>
-  </div>
-
-</div>
-
-<h3 style="margin:18px 0 10px;color:#fff;">Staff Workload</h3>
-
-<div class="pipeline-stats staff-stats">
-
-  <div class="stat" onclick="filterStaff('Andy Gifford')">
-    <div>👤<br>Andy</div>
-    <strong id="andyCount">0</strong>
-  </div>
-
-  <div class="stat" onclick="filterStaff('Sean Byrne')">
-    <div>👤<br>Sean</div>
-    <strong id="seanCount">0</strong>
-  </div>
-
-  <div class="stat" onclick="filterStaff('Cat Byrne')">
-    <div>👤<br>Cat</div>
-    <strong id="catCount">0</strong>
-  </div>
-
-  <div class="stat" onclick="filterStaff('Sophie Gifford')">
-    <div>👤<br>Sophie</div>
-    <strong id="sophieCount">0</strong>
-  </div>
-
-  <div class="stat stat-all" onclick="filterStaff('Unassigned')">
-    <div>📂<br>Unassigned</div>
-    <strong id="unassignedCount">0</strong>
-  </div>
-
-</div>
-
-<div id="enquiries">Loading enquiries...</div>
-
+</main>
 </div>
 
 <script>
-const SUPABASE_URL="https://tuehtnezhdnkqbbhttgp.supabase.co";
-const SUPABASE_ANON_KEY="sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
-const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+const SUPABASE_URL = "https://tuehtnezhdnkqbbhttgp.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-let latestMessageMap = {};
-let openEnquiryId = null;
-let allEnquiries = [];
-let currentFilter = "all";
-let currentStaffFilter = "all";
-
-function safe(v){
-  return v===undefined || v===null || v==="" ? "-" : String(v);
+function setText(id,value){
+  const el=document.getElementById(id);
+  if(el) el.textContent=value;
 }
 
 function money(v){
-  return v ? "£" + Number(v).toLocaleString("en-GB") : "POA";
-}
-
-function filterStaff(staffName){
-  currentStaffFilter = staffName;
-  window.adminStaffFilter = staffName;
-  loadEnquiries();
-}
-
-function updateStaffCounts(){
-
-  const byName = name =>
-    allEnquiries.filter(r =>
-      String(r.assigned_to || "").trim() === name
-    ).length;
-
-  const unassigned =
-    allEnquiries.filter(r =>
-      !String(r.assigned_to || "").trim()
-    ).length;
-
-  document.getElementById("andyCount").textContent = byName("Andy Gifford");
-  document.getElementById("seanCount").textContent = byName("Sean Byrne");
-  document.getElementById("catCount").textContent = byName("Cat Byrne");
-  document.getElementById("sophieCount").textContent = byName("Sophie Gifford");
-  document.getElementById("unassignedCount").textContent = unassigned;
-}
-
-function toggleEnquiry(id){
-  const el=document.getElementById(`enquiry-${id}`);
-  if(!el) return;
-  
-  el.classList.toggle("open");
-
-  if(el.classList.contains("open")){
-    openEnquiryId=id;
-  }else{
-    openEnquiryId=null;
-  }
-}
-  
-
-function messageBadge(enquiryId){
-  const m = latestMessageMap[String(enquiryId)];
-
-  if(!m){
-    return `<span class="badge badge-none">No messages</span>`;
-  }
-
-  const sender = String(m.sender || "").toLowerCase();
-
-  if(sender.includes("customer")){
-    return `<span class="badge badge-new">💬 NEW</span>`;
-  }
-
-  return `<span class="badge badge-replied">✓ Replied</span>`;
-}
-
-function filterEnquiries(type){
-
-  currentFilter = type;
-  window.adminStaffFilter = null;
-
-  document.querySelectorAll(".pipeline-stats .stat").forEach(card=>{
-    card.classList.remove("active-filter");
-  });
-
-  const activeCard =
-    document.querySelector(`.pipeline-stats .stat[data-filter="${type}"]`);
-
-  if(activeCard){
-    activeCard.classList.add("active-filter");
-  }
-
-  let rows = [...allEnquiries];
-
-  const statusMap = {
-    availability: "Checking Availability",
-    negotiating: "Negotiating Price & Lead Time",
-    decision: "Waiting Customer Decision",
-    deposit: "Waiting Deposit",
-    depositPaid: "Deposit Paid",
-    fullPayment: "Waiting Full Payment",
-    collection: "Waiting Collection",
-    onSite: "On Site",
-    readyShip: "Ready To Ship",
-    moveBooked: "Booked with Move Motorcycles",
-    port: "At Port / Shipping Agent",
-    completed: "Completed",
-    closed: "Closed",
-    lost: "Lost",
-    saveLater: "Save for Later"
-  };
-
-  if(type === "customerReply"){
-    rows = rows.filter(r=>{
-      const m = latestMessageMap[String(r.id)];
-      return m &&
-        String(m.sender || "").toLowerCase().includes("customer");
-    });
-  }
-  else if(type === "all"){
-    rows = [...allEnquiries];
-  }
-  else if(statusMap[type]){
-    rows = rows.filter(r =>
-      String(r.status || "").trim() === statusMap[type]
-    );
-  }
-
-  render(rows);
-}
-  
-  
-
-function openNewLead(){
-  document.getElementById("newLeadModal").style.display = "block";
-}
-
-function closeNewLead(){
-  document.getElementById("newLeadModal").style.display = "none";
-}
-
-async function saveNewLead(){
-
-  alert("New Lead wizard coming next...");
-
-  closeNewLead();
-
-}
-
-function openNewLead(){
-  document.getElementById("newLeadModal").style.display = "block";
-}
-
-function closeNewLead(){
-  document.getElementById("newLeadModal").style.display = "none";
-}
-
-async function saveNewLead(){
-
-  alert("New Lead wizard coming next...");
-
-  closeNewLead();
-
-}
-function openNewLead(){
-  document.getElementById("newLeadModal").style.display = "block";
-}
-
-function closeNewLead(){
-  document.getElementById("newLeadModal").style.display = "none";
-}
-
-async function saveNewLead(){
-
-  
-  alert("New Lead wizard coming next...");
-
-  closeNewLead();
-
-}
-function updateHeaderBubble(){
-
-  let count = 0;
-
-  Object.values(latestMessageMap).forEach(m=>{
-    const sender = String(m.sender || "").toLowerCase();
-
-    if(sender.includes("customer")){
-      count++;
-    }
-  });
-
-  const bubble = document.getElementById("msgBubble");
-
-  if(!bubble) return;
-
-  if(count > 0){
-    bubble.style.display = "flex";
-    bubble.textContent = count;
-  }else{
-    bubble.style.display = "none";
-  }
-}
-
-async function loadLatestMessages(){
-
-  const {data,error}=await sb
-    .from("enquiry_messages")
-    .select("id,enquiry_id,sender,message,created_at")
-    .order("created_at",{ascending:false});
-
-  latestMessageMap = {};
-
-  if(error || !data) return;
-
-  data.forEach(m=>{
-    const key = String(m.enquiry_id);
-
-    if(!latestMessageMap[key]){
-      latestMessageMap[key] = m;
-    }
-  });
-}
-
-async function loadEnquiries(){
-  await loadLatestMessages();
-  updateHeaderBubble();
-
-  let {data,error}=await sb
-    .from("bike_enquiries")
-    .select(`
-      *,
-      available_stock (
-        id,
-        make,
-        model,
-        variant,
-        year,
-        mileage,
-        colour,
-        status,
-        price_gbp,
-        image_url,
-        raw_data,
-
-        private_seller_name,
-        private_seller_type,
-        private_seller_phone,
-        private_seller_email,
-        private_seller_location,
-        private_seller_postcode,
-        private_source_name,
-        private_source_url,
-        private_listing_id,
-
-        private_source,
-        private_last_seen_date,
-        private_dealer_or_private,
-        private_dealer_name,
-        private_service_history,
-        private_owners,
-        private_listed_price,
-        private_price_reduced,
-        private_previous_price,
-        private_days_live,
-        private_location,
-        private_postcode_area,
-        private_estimated_trade,
-        private_estimated_retail,
-        private_confidence_score,
-        private_in_stock_days,
-        private_registration_date,
-        private_dealer_postcode,
-        private_price_change,
-        private_days_on_market,
-        private_derivative_id
-      )
-    `)
-    .order("created_at",{ascending:false});
-
-  if(error){
-    document.getElementById("enquiries").innerHTML =
-      `<div style="color:#ff7676;font-weight:900">${error.message}</div>`;
-    return;
-  }
-
-  const fullData = data || [];
-allEnquiries = fullData;
-
-updateStaffCounts();
-  
-  let visibleData = [...fullData];
-
-if(window.adminStatusFilter){
-  if(window.adminStatusFilter === "Customer Replied"){
-    visibleData = visibleData.filter(r=>{
-      const m = latestMessageMap[String(r.id)];
-      return m && String(m.sender || "").toLowerCase().includes("customer");
-    });
-  }else{
-    visibleData = visibleData.filter(r =>
-      String(r.status || "").trim() === window.adminStatusFilter
-    );
-  }
-}
-
-/* Staff filter */
-if(window.adminStaffFilter){
-  if(window.adminStaffFilter === "Unassigned"){
-    visibleData = visibleData.filter(r => !r.assigned_to);
-  }else{
-    visibleData = visibleData.filter(r =>
-      String(r.assigned_to || "").trim() === window.adminStaffFilter
-    );
-  }
-}
-  
-
-  if(window.adminCountryFilter){
-    visibleData = visibleData.filter(r =>
-      String(
-        r.destination_country ||
-        r.country ||
-        "Unknown"
-      ) === window.adminCountryFilter
-    );
-  }
-
-  render(visibleData);
-}
-
-function render(rows){
-
-if(document.getElementById("customerReplyCount"))
-  document.getElementById("customerReplyCount").textContent =
-    allEnquiries.filter(r=>{
-      const m = latestMessageMap[String(r.id)];
-      return m && String(m.sender || "").toLowerCase().includes("customer");
-    }).length;
-
-if(document.getElementById("availabilityCount"))
-  document.getElementById("availabilityCount").textContent =
-    allEnquiries.filter(r=>r.status==="Checking Availability").length;
-
-if(document.getElementById("negotiatingCount"))
-  document.getElementById("negotiatingCount").textContent =
-    allEnquiries.filter(r=>r.status==="Negotiating Price & Lead Time").length;
-
-if(document.getElementById("decisionCount"))
-  document.getElementById("decisionCount").textContent =
-    allEnquiries.filter(r=>r.status==="Waiting Customer Decision").length;
-
-if(document.getElementById("depositCount"))
-  document.getElementById("depositCount").textContent =
-    allEnquiries.filter(r=>r.status==="Waiting Deposit").length;
-
-if(document.getElementById("depositPaidCount"))
-  document.getElementById("depositPaidCount").textContent =
-    allEnquiries.filter(r=>r.status==="Deposit Paid").length;
-
-if(document.getElementById("collectionCount"))
-  document.getElementById("collectionCount").textContent =
-    allEnquiries.filter(r=>r.status==="Waiting Collection").length;
-
-if(document.getElementById("fullPaymentCount"))
-  document.getElementById("fullPaymentCount").textContent =
-    allEnquiries.filter(r=>r.status==="Waiting Full Payment").length;
-
-if(document.getElementById("onSiteCount"))
-  document.getElementById("onSiteCount").textContent =
-    allEnquiries.filter(r=>r.status==="On Site").length;
-
-if(document.getElementById("readyShipCount"))
-  document.getElementById("readyShipCount").textContent =
-    allEnquiries.filter(r=>r.status==="Ready To Ship").length;
-
-if(document.getElementById("moveBookedCount"))
-  document.getElementById("moveBookedCount").textContent =
-    allEnquiries.filter(r=>r.status==="Booked with Move Motorcycles").length;
-
-if(document.getElementById("portCount"))
-  document.getElementById("portCount").textContent =
-    allEnquiries.filter(r=>r.status==="At Port / Shipping Agent").length;
-
-if(document.getElementById("completedCount"))
-  document.getElementById("completedCount").textContent =
-    allEnquiries.filter(r=>r.status==="Completed").length;
-
-if(document.getElementById("closedCount"))
-  document.getElementById("closedCount").textContent =
-    allEnquiries.filter(r=>r.status==="Closed").length;
-
-if(document.getElementById("lostCount"))
-  document.getElementById("lostCount").textContent =
-    allEnquiries.filter(r=>r.status==="Lost").length;
-
-if(document.getElementById("saveLaterCount"))
-  document.getElementById("saveLaterCount").textContent =
-    allEnquiries.filter(r=>r.status==="Save for Later").length;
-
-if(document.getElementById("totalCount"))
-  document.getElementById("totalCount").textContent =
-    allEnquiries.length;
-
-const box = document.getElementById("enquiries");
-
-if(!rows.length){
-  box.innerHTML = "<p>No enquiries yet.</p>";
-  return;
-}
-box.innerHTML=rows.map(r=>{
-  
-  
-   const b=r.available_stock || {};
-const latest = latestMessageMap[String(r.id)];
-const latestText = latest ? safe(latest.message).slice(0,80) : "";
-  
-
-const sellerName =
-  b.private_dealer_name ||
-  b.private_seller_name ||
-  "-";
-
-const sellerType =
-  b.private_dealer_or_private ||
-  b.private_seller_type ||
-  "-";
-
-const sellerLocation =
-  b.private_location ||
-  b.private_seller_location ||
-  "-";
-
-const sellerPostcode =
-  b.private_dealer_postcode ||
-  b.private_seller_postcode ||
-  b.private_postcode_area ||
-  "-";
-  
-  
-
-    return `
-<div class="enquiry" id="enquiry-${r.id}">
-  <div class="enquiry-row" onclick="toggleEnquiry(${r.id})">
-    <div class="arrow">›</div>
-
-    <div class="row-title">
-      <strong>${safe(b.make)} ${safe(b.model)}</strong>
-      <div class="small">${safe(b.variant)} ${safe(b.year)}</div>
-    </div>
-
-    <div>
-      <strong>${safe(r.customer_name)}</strong>
-      <div class="small">${safe(r.customer_email)}</div>
-    </div>
-
-    <div class="hide-mobile">
-      ${safe(r.destination_country)}
-      <div class="small">${safe(r.customer_phone)}</div>
-    </div>
-
-    <div class="hide-mobile">
-      <span class="badge status-pill">${safe(r.status || "New")}</span>
-      <div class="small">${latestText}</div>
-    </div>
-
-    <div>${messageBadge(r.id)}</div>
-  </div>
-
-  <div class="enquiry-detail" onclick="event.stopPropagation()">
-
-    <div class="info-grid">
-      <div>
-        ${b.image_url ? `<img class="bike-img" src="${b.image_url}" alt="">` : `<div class="bike-img"></div>`}
-      </div>
-
-      <div class="value">
-        <div class="label">Bike</div>
-        <strong>${safe(b.make)} ${safe(b.model)}</strong><br>
-        ${safe(b.variant)}
-      </div>
-
-      <div class="value">
-        <div class="label">Bike ID</div>
-        <strong>${safe(r.bike_id)}</strong><br><br>
-        <a class="btn" href="bike-details.html?id=${encodeURIComponent(r.bike_id)}" target="_blank">View Listing</a>
-      </div>
-
-      <div class="value">
-        <div class="label">Price</div>
-        <strong>${money(b.price_gbp)}</strong>
-      </div>
-
-      <div class="value">
-        <div class="label">Year / Mileage</div>
-        ${safe(b.year)} / ${b.mileage ? Number(b.mileage).toLocaleString("en-GB") + " miles" : "-"}
-      </div>
-    </div>
-
-    <div class="info-grid">
-      <div>
-        <div class="label">Question</div>
-        <strong>${safe(r.question_type)}</strong>
-      </div>
-
-      <div>
-        <div class="label">Customer</div>
-        <strong>${safe(r.customer_name)}</strong>
-      </div>
-
-      <div>
-        <div class="label">Phone</div>
-        <strong>${safe(r.customer_phone)}</strong>
-      </div>
-
-      <div>
-        <div class="label">Email</div>
-        ${safe(r.customer_email)}
-      </div>
-    </div>
-
-    <div class="seller-panel">
-      <h3>Internal Seller Information</h3>
-
-      <div class="seller-grid">
-        <div><span>Seller Name</span><strong>${safe(sellerName)}</strong></div>
-        <div><span>Seller Type</span><strong>${safe(sellerType)}</strong></div>
-        <div><span>Location</span><strong>${safe(sellerLocation)}</strong></div>
-        <div><span>Postcode</span><strong>${safe(sellerPostcode)}</strong></div>
-        <div><span>Trade Value</span><strong>${money(b.private_estimated_trade || b.trade_value || b.purchase_price || 0)}</strong></div>
-        <div><span>Retail Value</span><strong>${money(b.private_estimated_retail || b.retail_value || b.price_gbp || 0)}</strong></div>
-        <div><span>Source</span><strong>${safe(b.private_source || "-")}</strong></div>
-        <div><span>Service History</span><strong>${safe(b.service_history || "-")}</strong></div>
-        <div><span>Days On Market</span><strong>${safe(b.days_on_market || "-")}</strong></div>
-        <div><span>Owners</span><strong>${safe(b.number_of_owners || "-")}</strong></div>
-        <div><span>MOT Expiry</span><strong>${safe(b.mot_expiry || "-")}</strong></div>
-        <div><span>V5 Present</span><strong>${safe(b.v5_present || "-")}</strong></div>
-        <div><span>Keys</span><strong>${safe(b.keys_present || "-")}</strong></div>
-        <div><span>Service Book</span><strong>${safe(b.service_book || "-")}</strong></div>
-        <div><span>Last Price Change</span><strong>${safe(b.last_price_change || "-")}</strong></div>
-        <div><span>Collection Status</span><strong>${safe(b.collection_status || "-")}</strong></div>
-      </div>
-    </div>
-
-<div class="deal-panel">
-  <h3>Deal Calculator</h3>
-
-  <div class="deal-grid">
-
-    <label>
-      <span>Purchase Cost</span>
-      <input type="number" step="0.01" onclick="this.select()" id="purchase-${r.id}"
-        value="${Number(r.deal_purchase_price || b.private_estimated_trade || b.trade_value || b.purchase_price || 0).toFixed(2)}"
-        oninput="calcDeal(${r.id})">
-    </label>
-
-    <label>
-      <span>Prep Cost</span>
-      <input type="number" step="0.01" onclick="this.select()" id="prep-${r.id}"
-        value="${Number(r.deal_prep_cost || 0).toFixed(2)}"
-        oninput="calcDeal(${r.id})">
-    </label>
-
-    <label>
-      <span>Delivery Cost</span>
-      <input type="number" step="0.01" onclick="this.select()" id="deliverycost-${r.id}"
-        value="${Number(r.deal_delivery_cost || 0).toFixed(2)}"
-        oninput="calcDeal(${r.id})">
-    </label>
-
-    <label>
-      <span>Other Cost</span>
-      <input type="number" step="0.01" onclick="this.select()" id="othercost-${r.id}"
-        value="${Number(r.deal_other_cost || 0).toFixed(2)}"
-        oninput="calcDeal(${r.id})">
-    </label>
-
- <div class="profit-box">
-<span>Total Cost to Us</span>
-<strong id="totalcost-${r.id}">£0.00</strong>
-</div>
-
-
-    <label>
-      <span>Selling Price</span>
-      <input type="number" step="0.01" onclick="this.select()" id="selling-${r.id}"
-        value="${Number(r.deal_retail_price || b.price_gbp || b.private_estimated_retail || 0).toFixed(2)}"
-        oninput="calcDeal(${r.id})">
-    </label>
-
-    <label>
-      <span>Admin Fee</span>
-      <input type="number" step="0.01" onclick="this.select()" id="adminfee-${r.id}"
-        value="${Number(r.deal_admin_fee || 0).toFixed(2)}"
-        oninput="calcDeal(${r.id})">
-    </label>
-
-    <label>
-      <span>Export Docs Fee</span>
-      <input type="number" step="0.01" onclick="this.select()" id="exportdocs-${r.id}"
-        value="${Number(r.deal_export_docs_fee || 0).toFixed(2)}"
-        oninput="calcDeal(${r.id})">
-    </label>
-
-    <label>
-      <span>Delivery Charge</span>
-      <input type="number" step="0.01" onclick="this.select()" id="deliverycharge-${r.id}"
-        value="${Number(r.deal_delivery_revenue || 0).toFixed(2)}"
-        oninput="calcDeal(${r.id})">
-    </label>
-
-    <div class="profit-box">
-    <span>Invoice Price</span>
-    <strong id="totalincome-${r.id}">£0.00</strong>    </div>
-
-    <div class="profit-box">
-      <span>Gross Profit</span>
-      <strong id="grossprofit-${r.id}">£0.00</strong>
-    </div>
-
-    <div class="profit-box">
-      <span>Net Profit</span>
-      <strong id="netprofit-${r.id}">£0.00</strong>
-    </div>
-
-    <div class="profit-box">
-      <span>Margin %</span>
-      <strong id="margin-${r.id}">0.0%</strong>
-    </div>
-
-    <label>
-      <span>Saved By</span>
-      <select id="savedby-${r.id}">
-        <option value="">Choose User</option>
-        <option value="Andy Gifford" ${r.deal_saved_by==="Andy Gifford"?"selected":""}>Andy Gifford</option>
-        <option value="Sean Byrne" ${r.deal_saved_by==="Sean Byrne"?"selected":""}>Sean Byrne</option>
-        <option value="Cat Byrne" ${r.deal_saved_by==="Cat Byrne"?"selected":""}>Cat Byrne</option>
-        <option value="Sophie Gifford" ${r.deal_saved_by==="Sophie Gifford"?"selected":""}>Sophie Gifford</option>
-      </select>
-    </label>
-
-  </div>
-
-  <div style="margin-top:15px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-    <button class="save-deal-btn"
-      onclick="saveDeal(${r.id}, ${Number(r.bike_id || b.id || 0)})">
-      Save Deal Figures
-    </button>
-
-    <div id="deal-saved-${r.id}" class="small">
-      ${r.deal_saved_by ? `Last saved by ${safe(r.deal_saved_by)}` : ""}
-    </div>
-  </div>
-</div>
-
-<div class="customer-meta">
-
-      <div><div class="label">Offer</div>${r.offer_amount ? money(r.offer_amount) : "-"}</div>
-      <div><div class="label">Buyer Shipping Agent</div>${safe(r.buyer_shipping_agent)}</div>
-      <div><div class="label">Customer Location</div>🌍 ${safe(r.destination_country)}</div>
-      <div><div class="label">Device</div>${safe(r.device_type)}</div>
-      <div><div class="label">Browser</div>${safe(r.browser)}</div>
-      <div><div class="label">IP Address</div>${safe(r.ip_address)}</div>
-
-   <div class="status-box">
-  <div class="label">Status</div>
-  <select id="status-${r.id}" onchange="updateStatus(${r.id}, this.value)">
-    <option value="Customer Replied" ${r.status==="Customer Replied"?"selected":""}>Customer Replied</option>
-    <option value="Checking Availability" ${r.status==="Checking Availability"?"selected":""}>Checking Availability</option>
-    <option value="Negotiating Price & Lead Time" ${r.status==="Negotiating Price & Lead Time"?"selected":""}>Negotiating Price & Lead Time</option>
-    <option value="Waiting Customer Decision" ${r.status==="Waiting Customer Decision"?"selected":""}>Waiting Customer Decision</option>
-    <option value="Waiting Deposit" ${r.status==="Waiting Deposit"?"selected":""}>Waiting Deposit</option>
-    <option value="Deposit Paid" ${r.status==="Deposit Paid"?"selected":""}>Deposit Paid</option>
-    <option value="Waiting Full Payment" ${r.status==="Waiting Full Payment"?"selected":""}>Waiting Full Payment</option>
-    <option value="Waiting Collection" ${r.status==="Waiting Collection"?"selected":""}>Waiting Collection</option>
-    <option value="On Site" ${r.status==="On Site"?"selected":""}>On Site</option>
-    <option value="Ready To Ship" ${r.status==="Ready To Ship"?"selected":""}>Ready To Ship</option>
-    <option value="Booked with Move Motorcycles" ${r.status==="Booked with Move Motorcycles"?"selected":""}>Booked with Move Motorcycles</option>
-    <option value="At Port / Shipping Agent" ${r.status==="At Port / Shipping Agent"?"selected":""}>At Port / Shipping Agent</option>
-    <option value="Completed" ${r.status==="Completed"?"selected":""}>Completed</option>
-    <option value="Closed" ${r.status==="Closed"?"selected":""}>Closed</option>
-    <option value="Lost" ${r.status==="Lost"?"selected":""}>Lost</option>
-    <option value="Save for Later" ${r.status==="Save for Later"?"selected":""}>Save for Later</option>
-  </select>
-</div>
-
-<div class="status-box">
-  <div class="label">Assigned To</div>
-  <select id="assigned-${r.id}" onchange="assignDeal(${r.id}, this.value)">
-    <option value="" ${!r.assigned_to ? "selected" : ""}>Unassigned</option>
-    <option value="Andy Gifford" ${r.assigned_to==="Andy Gifford"?"selected":""}>Andy Gifford</option>
-    <option value="Sean Byrne" ${r.assigned_to==="Sean Byrne"?"selected":""}>Sean Byrne</option>
-    <option value="Cat Byrne" ${r.assigned_to==="Cat Byrne"?"selected":""}>Cat Byrne</option>
-    <option value="Sophie Gifford" ${r.assigned_to==="Sophie Gifford"?"selected":""}>Sophie Gifford</option>
-  </select>
-
-  <div class="small" style="margin-top:6px;">
-    ${r.assigned_to ? `Assigned to ${safe(r.assigned_to)}` : "Not assigned yet"}
-    ${r.assigned_at ? `<br>${new Date(r.assigned_at).toLocaleString("en-GB")}` : ""}
-  </div>
-</div>
-
-      <div class="notes-panel">
-        <strong>Internal Notes</strong>
-
-        <textarea
-          id="notes-${r.id}"
-          placeholder="Internal notes (not visible to customer)..."
-        >${r.internal_notes || ""}</textarea>
-
-        <button onclick="saveNotes(${r.id})">
-         Save Notes
-        </button>
-      </div>
-    </div>
-
-  </div>
-</div>
-    `;
-   }).join("");
-
-rows.forEach(r=>loadMessages(r.id, r.message, r.customer_name));
-
-if(openEnquiryId){
-  const openRow=document.getElementById(`enquiry-${openEnquiryId}`);
-  if(openRow){
-    openRow.classList.add("open");
-  }
-}
-}
-  
-function setQuickReply(id,type){
-  const replies = {
-    available: `Hello,
-
-Thank you for your enquiry.
-
-This motorcycle is still available.
-
-Please let us know if you would like additional photos, a video, export information, or would like to make an offer.
-
-Kind regards,
-AnyBike`,
-
-    accepted: `Hello,
-
-Thank you for your offer.
-
-We are pleased to confirm your offer has been accepted, subject to payment and final confirmation.
-
-Kind regards,
-AnyBike`,
-
-    rejected: `Hello,
-
-Thank you for your offer.
-
-Unfortunately we are unable to accept that offer at this time.
-
-You are welcome to submit an improved offer for consideration.
-
-Kind regards,
-AnyBike`,
-
-    photos: `Hello,
-
-Thank you for your enquiry.
-
-We can arrange additional photos or video of this motorcycle.
-
-Please let us know what areas you would like us to focus on.
-
-Kind regards,
-AnyBike`,
-
-    payment: `Hello,
-
-Thank you.
-
-We are currently awaiting payment before proceeding further with this transaction.
-
-Kind regards,
-AnyBike`,
-
-    reserved: `Hello,
-
-Thank you.
-
-This motorcycle is currently reserved pending payment and final confirmation.
-
-Kind regards,
-AnyBike`
-  };
-
-  const box=document.getElementById(`msg-${id}`);
-  if(box){
-    box.value=replies[type] || "";
-    box.focus();
-  }
-}
-
-async function updateStatus(id,status){
-  const {error}=await sb.rpc("admin_update_enquiry_status", {
-    enquiry_id:Number(id),
-    new_status:status
-  });
-
-  if(error){
-    alert("Status save failed: " + error.message);
-    return;
-  }
-
-  alert("Saved: " + status);
-  loadEnquiries();
-}
-
-async function assignDeal(id, staffName){
-
-  const assignedBy = "Andy Gifford";
-
-  const {error} = await sb
-    .from("bike_enquiries")
-    .update({
-      assigned_to: staffName || null,
-      assigned_by: assignedBy,
-      assigned_at: new Date().toISOString()
-    })
-    .eq("id", Number(id));
-
-  if(error){
-    alert("Assignment failed: " + error.message);
-    return;
-  }
-
-  alert(
-    staffName
-      ? "Deal assigned to " + staffName
-      : "Deal unassigned"
-  );
-
-  loadEnquiries();
-}
-
-async function loadMessages(enquiryId, originalMessage="", customerName="Customer"){
-  const box=document.getElementById(`messages-${enquiryId}`);
-  if(!box) return;
-  
-  const {data,error}=await sb
-    .from("enquiry_messages")
-    .select("*")
-    .eq("enquiry_id",Number(enquiryId))
-    .order("created_at",{ascending:true});
-
-  if(error){
-    box.innerHTML=`<div class="small">${error.message}</div>`;
-    return;
-  }
-
-  let html = "";
-
-  if(originalMessage && originalMessage !== "-"){
-    html += `
-      <div class="msg customer">
-        <strong>${safe(customerName)}</strong>
-        <div>${safe(originalMessage)}</div>
-      </div>
-    `;
-  }
-
- if(data && data.length){
-  html += data.map(m=>{
-    const sender=safe(m.sender);
-    const cls=sender.toLowerCase().includes("customer") ? "customer" : "admin";
-
-    return `
-      <div class="msg ${cls}">
-        <strong>${sender}</strong>
-
-     <div class="message-text">${safe(m.message)}</div>
-
-<button type="button" class="btn-small" onclick="translateMessage(this)">
-  🌐 Translate
-</button>
-
-        <small>${m.created_at ? new Date(m.created_at).toLocaleString("en-GB") : ""}</small>
-      </div>
-    `;
-  }).join("");
-}
-
-  box.innerHTML = html || "<div class='small'>No conversation yet</div>";
-}
-
-function translateMessage(btn){
-  const msg = btn.parentElement.querySelector(".message-text");
-  const text = msg.innerText.trim();
-
-  const url =
-    "https://translate.google.com/?sl=auto&tl=en&text=" +
-    encodeURIComponent(text) +
-    "&op=translate";
-
-  window.open(url, "_blank");
-}
-  
-  
-async function sendAdminMessage(enquiryId,customerId){
-  const txt=document.getElementById(`msg-${enquiryId}`);
-  const message=txt.value.trim();
-
-  if(!message){
-    alert("Enter a message");
-    return;
-  }
-
-  const {error}=await sb.rpc("admin_send_enquiry_message",{
-    p_enquiry_id:Number(enquiryId),
-    p_customer_id:customerId || null,
-    p_message:message
-  });
-
-  if(error){
-    alert("Message failed: " + error.message);
-    return;
-  }
-
-  txt.value="";
-
-  await loadMessages(
-    enquiryId,
-    document.querySelector(`#enquiry-${enquiryId} .message strong`)?.innerText || "",
-    "Customer"
-  );
-}
-  
- async function saveNotes(id){
-  const notes=document.getElementById(`notes-${id}`).value;
-
-  const {error}=await sb
-    .from("bike_enquiries")
-    .update({internal_notes:notes})
-    .eq("id",Number(id));
-
-  if(error){
-    alert("Notes save failed: " + error.message);
-    return;
-  }
-
-  alert("Notes saved");
-}
-
-function dealNum(id){
-  const el = document.getElementById(id);
-  return el ? Number(el.value || 0) : 0;
-}
-
-function setMoney(id, value){
-  const el = document.getElementById(id);
-  if(!el) return;
-
-  el.textContent = value.toLocaleString("en-GB",{
+  return Number(v || 0).toLocaleString("en-GB",{
     style:"currency",
     currency:"GBP",
-    minimumFractionDigits:2,
-    maximumFractionDigits:2
+    maximumFractionDigits:0
   });
-
-  el.style.color = value >= 0 ? "#33cc66" : "#ff4d4d";
 }
 
-function calcDeal(id){
-
-const purchase = dealNum(`purchase-${id}`);
-const prep = dealNum(`prep-${id}`);
-const deliveryCost = dealNum(`deliverycost-${id}`);
-const otherCost = dealNum(`othercost-${id}`);
-
-const selling = dealNum(`selling-${id}`);
-const adminfee = dealNum(`adminfee-${id}`);
-const exportDocs = dealNum(`exportdocs-${id}`);
-const deliveryCharge = dealNum(`deliverycharge-${id}`);
-
-const totalCost =
-purchase +
-prep +
-deliveryCost +
-otherCost;
-
-const invoicePrice =
-selling +
-adminfee +
-exportDocs +
-deliveryCharge;
-
-const grossProfit =
-invoicePrice -
-purchase;
-
-const netProfit =
-invoicePrice -
-totalCost;
-
-const marginPercent =
-invoicePrice > 0
-? (netProfit / invoicePrice) * 100
-: 0;
-
-setMoney(`totalcost-${id}`, totalCost);
-setMoney(`totalincome-${id}`, invoicePrice);
-setMoney(`grossprofit-${id}`, grossProfit);
-setMoney(`netprofit-${id}`, netProfit);
-
-const marginEl = document.getElementById(`margin-${id}`);
-if(marginEl){
-marginEl.textContent = marginPercent.toFixed(2) + "%";
-marginEl.style.color = marginPercent >= 0 ? "#33cc66" : "#ff4d4d";
-}
+function setHeader(){
+  const now=new Date();
+  const hour=now.getHours();
+  let greet="Good Evening Andy";
+  if(hour<12) greet="Good Morning Andy";
+  else if(hour<18) greet="Good Afternoon Andy";
+  setText("greeting",greet);
+  setText("todayDate",now.toLocaleDateString("en-GB",{
+    weekday:"long",day:"numeric",month:"long",year:"numeric"
+  }));
 }
 
-  
-const urlParams = new URLSearchParams(window.location.search);
-
-const statusFromDashboard = urlParams.get("status");
-const countryFromDashboard = urlParams.get("country");
-
-if(countryFromDashboard){
-  window.adminCountryFilter = countryFromDashboard;
+function countStatus(rows,status){
+  return rows.filter(r => String(r.status || "").trim() === status).length;
 }
 
-if(statusFromDashboard){
-  window.adminStatusFilter = statusFromDashboard;
+function updateStaffCounts(rows){
+  const byName = name => rows.filter(r => String(r.assigned_to || "").trim() === name).length;
+  const unassigned = rows.filter(r => !String(r.assigned_to || "").trim()).length;
+
+  setText("andyCount", byName("Andy Gifford"));
+  setText("seanCount", byName("Sean Byrne"));
+  setText("catCount", byName("Cat Byrne"));
+  setText("sophieCount", byName("Sophie Gifford"));
+  setText("unassignedCount", unassigned);
+  setText("workUnassigned", unassigned);
 }
 
-async function saveDeal(enquiryId, bikeId){
+async function loadDashboard(){
+  try{
+    const {data: enquiries, error} = await sb
+      .from("bike_enquiries")
+      .select("id,status,assigned_to,deal_total_income,deal_net_profit")
+      .order("created_at",{ascending:false});
 
-  const savedBy = document.getElementById(`savedby-${enquiryId}`).value;
+    if(error){
+      console.error(error);
+      return;
+    }
 
-  if(!savedBy){
-    alert("Please choose who saved the figures");
-    return;
-  }
+    const rows = enquiries || [];
 
-  const purchase = dealNum(`purchase-${enquiryId}`);
-  const prep = dealNum(`prep-${enquiryId}`);
-  const deliveryCost = dealNum(`deliverycost-${enquiryId}`);
-  const otherCost = dealNum(`othercost-${enquiryId}`);
+    setText("activeLeadsCount", rows.length);
+    setText("totalCount", rows.length);
 
-  const selling = dealNum(`selling-${enquiryId}`);
-  const adminfee = dealNum(`adminfee-${enquiryId}`);
-  const exportDocs = dealNum(`exportdocs-${enquiryId}`);
-  const deliveryCharge = dealNum(`deliverycharge-${enquiryId}`);
+    setText("availabilityCount", countStatus(rows,"Checking Availability"));
+    setText("negotiatingCount", countStatus(rows,"Negotiating Price & Lead Time"));
+    setText("decisionCount", countStatus(rows,"Waiting Customer Decision"));
+    setText("depositCount", countStatus(rows,"Waiting Deposit"));
+    setText("depositPaidCount", countStatus(rows,"Deposit Paid"));
+    setText("fullPaymentCount", countStatus(rows,"Waiting Full Payment"));
+    setText("collectionCount", countStatus(rows,"Waiting Collection"));
+    setText("onSiteCount", countStatus(rows,"On Site"));
+    setText("readyShipCount", countStatus(rows,"Ready To Ship"));
+    setText("moveBookedCount", countStatus(rows,"Booked with Move Motorcycles"));
+    setText("portCount", countStatus(rows,"At Port / Shipping Agent"));
+    setText("completedCount", countStatus(rows,"Completed"));
+    setText("closedCount", countStatus(rows,"Closed"));
+    setText("lostCount", countStatus(rows,"Lost"));
+    setText("saveLaterCount", countStatus(rows,"Save for Later"));
 
-  const totalCost =
-    purchase +
-    prep +
-    deliveryCost +
-    otherCost;
+    setText("workDeposit", countStatus(rows,"Waiting Deposit"));
+    setText("workCollection", countStatus(rows,"Waiting Collection"));
+    setText("workReadyShip", countStatus(rows,"Ready To Ship"));
 
-  const invoicePrice =
-    selling +
-    adminfee +
-    exportDocs +
-    deliveryCharge;
+    const pipelineValue = rows.reduce((sum,r)=>sum + Number(r.deal_total_income || 0),0);
+    const expectedProfit = rows.reduce((sum,r)=>sum + Number(r.deal_net_profit || 0),0);
 
-  const grossProfit =
-    selling -
-    purchase;
+    setText("pipelineValue", money(pipelineValue));
+    setText("expectedProfit", money(expectedProfit));
 
-  const netProfit =
-    selling -
-    purchase -
-    prep -
-    deliveryCost -
-    otherCost;
+    updateStaffCounts(rows);
 
-  const marginPercent =
-    selling > 0
-      ? (netProfit / selling) * 100
-      : 0;
+    const {data: messages} = await sb
+      .from("enquiry_messages")
+      .select("enquiry_id,sender,created_at")
+      .order("created_at",{ascending:false});
 
-  const { error } = await sb
-    .from("bike_enquiries")
-    .update({
-      deal_purchase_price: purchase,
-      deal_prep_cost: prep,
-      deal_delivery_cost: deliveryCost,
-      deal_other_cost: otherCost,
-
-      deal_retail_price: selling,
-      deal_admin_fee: adminfee,
-      deal_export_docs_fee: exportDocs,
-      deal_delivery_revenue: deliveryCharge,
-
-      deal_total_cost: totalCost,
-      deal_total_income: invoicePrice,
-      deal_gross_profit: grossProfit,
-      deal_net_profit: netProfit,
-      deal_margin_percent: marginPercent,
-
-      deal_expected_profit: netProfit,
-      deal_saved_by: savedBy,
-      deal_saved_at: new Date().toISOString()
-    })
-    .eq("id", Number(enquiryId));
-
-  if(error){
-    alert("Deal save failed: " + error.message);
-    return;
-  }
-
-  const { error: historyError } = await sb
-    .from("deal_calculator_history")
-    .insert({
-      enquiry_id: Number(enquiryId),
-      bike_id: bikeId ? Number(bikeId) : null,
-
-      purchase_price: purchase,
-      prep_cost: prep,
-      delivery_cost: deliveryCost,
-      other_cost: otherCost,
-
-      retail_price: selling,
-      admin_fee: adminfee,
-      export_docs_fee: exportDocs,
-      delivery_revenue: deliveryCharge,
-
-      total_cost: totalCost,
-      total_income: invoicePrice,
-      gross_profit: grossProfit,
-      net_profit: netProfit,
-      margin_percent: marginPercent,
-
-      expected_profit: netProfit,
-      saved_by: savedBy
+    const latest = {};
+    (messages || []).forEach(m=>{
+      if(!latest[m.enquiry_id]) latest[m.enquiry_id] = m;
     });
 
-  if(historyError){
-    alert("Deal saved, but history failed: " + historyError.message);
-    return;
-  }
-  
-  const msg = document.getElementById(`deal-saved-${enquiryId}`);
-  if(msg){
-    msg.textContent = "Saved by " + savedBy + " just now";
-  }
+    const replies = Object.values(latest).filter(m =>
+      String(m.sender || "").toLowerCase().includes("customer")
+    ).length;
 
-  alert("Deal figures saved permanently");
+    setText("customerReplyCount", replies);
+    setText("customerRepliesCount", replies);
+    setText("workReplies", replies);
+
+  }catch(err){
+    console.error(err);
+  }
 }
-  
-loadEnquiries();
 
-setTimeout(() => {
-  document.querySelectorAll('[id^="netprofit-"]').forEach(el => {
-    const id = el.id.replace("netprofit-","");
-    calcDeal(id);
-  });
-}, 1000);
-
-setInterval(() => {
-  loadEnquiries();
-}, 90000);
+setHeader();
+loadDashboard();
+setInterval(loadDashboard,90000);
 </script>
+
 </body>
 </html>
