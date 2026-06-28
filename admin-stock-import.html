@@ -1,0 +1,767 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Stock Import Manager | AnyBike Admin</title>
+<meta name="robots" content="noindex,nofollow">
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+:root{
+  --red:#ed1c24;
+  --line:rgba(255,255,255,.12);
+  --muted:#aaa;
+  --green:#33cc66;
+  --panel:#111;
+  --panel2:#181818;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:Arial,Helvetica,sans-serif;
+  background:
+    radial-gradient(circle at top left,rgba(237,28,36,.20),transparent 34%),
+    linear-gradient(120deg,#050505,#101010 60%,#050505);
+  color:#fff;
+}
+a{text-decoration:none;color:inherit}
+.admin-layout{
+  display:grid;
+  grid-template-columns:265px 1fr;
+  min-height:100vh;
+}
+.sidebar{
+  background:#090909;
+  border-right:1px solid var(--line);
+  padding:18px;
+  position:sticky;
+  top:0;
+  height:100vh;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+}
+.logo{
+  background:#fff;
+  border-radius:18px;
+  padding:10px;
+  margin-bottom:14px;
+}
+.logo img{width:100%;display:block}
+.staff-card{
+  background:linear-gradient(135deg,#111,#181818);
+  border:1px solid var(--line);
+  border-radius:16px;
+  padding:14px;
+  margin-bottom:18px;
+}
+.staff-name{font-weight:900}
+.small{color:var(--muted);font-size:13px}
+.online{color:var(--green);font-size:13px;margin-top:5px}
+.admin-menu{
+  display:grid;
+  gap:6px;
+  overflow:auto;
+  padding-right:4px;
+}
+.admin-menu::-webkit-scrollbar{width:0}
+.admin-menu a{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  color:#fff;
+  text-decoration:none;
+  padding:10px 11px;
+  border-radius:14px;
+  font-weight:900;
+  border:1px solid transparent;
+}
+.admin-menu a:hover,
+.admin-menu a.active{
+  background:rgba(237,28,36,.16);
+  border-color:rgba(237,28,36,.45);
+}
+.admin-menu a.active{
+  background:var(--red);
+  border-color:var(--red);
+}
+.menu-icon{
+  width:28px;
+  text-align:center;
+  font-size:18px;
+  flex:0 0 28px;
+}
+.menu-text{flex:1}
+.public-links{
+  margin-top:12px;
+  border-top:1px solid var(--line);
+  padding-top:10px;
+}
+.public-links a{
+  display:block;
+  color:#ddd;
+  text-decoration:none;
+  font-weight:850;
+  font-size:13px;
+  padding:7px 4px;
+}
+.public-links a:hover{color:#fff}
+
+.main{
+  padding:24px;
+  min-width:0;
+}
+
+.department-hero{
+  display:block;
+  background:
+    radial-gradient(circle at top right,rgba(237,28,36,.22),transparent 36%),
+    #111;
+  border:1px solid var(--line);
+  border-radius:22px;
+  padding:30px;
+  margin:0 0 16px;
+}
+.dept-eyebrow{
+  color:var(--red);
+  text-transform:uppercase;
+  letter-spacing:.14em;
+  font-size:12px;
+  font-weight:950;
+  margin-bottom:8px;
+}
+.department-hero h1{
+  margin:0 0 8px;
+  color:#fff;
+  font-size:38px;
+  letter-spacing:-.035em;
+}
+.department-hero p{
+  margin:0;
+  color:#bbb;
+  max-width:1050px;
+  font-size:17px;
+  line-height:1.55;
+}
+.dept-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  margin-top:22px;
+}
+.dept-actions a{
+  background:#181818;
+  border:1px solid rgba(255,255,255,.12);
+  color:#fff;
+  border-radius:999px;
+  padding:10px 14px;
+  font-weight:900;
+  text-decoration:none;
+  white-space:nowrap;
+}
+.dept-actions a:hover{border-color:var(--red)}
+
+.card{
+  background:rgba(17,17,17,.96);
+  border:1px solid var(--line);
+  border-radius:20px;
+  padding:22px;
+  box-shadow:0 18px 42px rgba(0,0,0,.22);
+  margin-bottom:18px;
+}
+.card h1,.card h2,.card h3{margin-top:0;color:#fff}
+.card p{color:#bbb;line-height:1.45}
+input,button{
+  width:100%;
+  padding:13px;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,.16);
+  font-size:16px;
+}
+input{
+  background:#fff;
+  color:#111;
+}
+button{
+  background:var(--red);
+  color:#fff;
+  font-weight:900;
+  border:0;
+  cursor:pointer;
+  margin-top:12px;
+}
+button.dark{
+  background:#222;
+  border:1px solid rgba(255,255,255,.16);
+}
+button:disabled{opacity:.55;cursor:not-allowed}
+.grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:14px;
+}
+.stat{
+  background:#111;
+  color:#fff;
+  border:1px solid var(--line);
+  border-radius:18px;
+  padding:18px;
+}
+.stat strong{
+  display:block;
+  font-size:34px;
+  color:var(--red);
+}
+table{
+  width:100%;
+  border-collapse:separate;
+  border-spacing:0 8px;
+  margin-top:15px;
+  font-size:14px;
+}
+th{
+  background:#222;
+  color:#fff;
+  padding:11px;
+  text-align:left;
+}
+td{
+  background:#151515;
+  border-top:1px solid var(--line);
+  border-bottom:1px solid var(--line);
+  padding:11px;
+  text-align:left;
+}
+td:first-child{border-left:1px solid var(--line);border-radius:12px 0 0 12px}
+td:last-child{border-right:1px solid var(--line);border-radius:0 12px 12px 0}
+.ok{color:#33cc66;font-weight:900}
+.bad{color:#ff5757;font-weight:900}
+.hidden{display:none}
+.import-tabs{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  margin-bottom:18px;
+}
+.import-tabs span{
+  background:#181818;
+  border:1px solid var(--line);
+  border-radius:999px;
+  padding:9px 13px;
+  font-weight:900;
+  color:#ddd;
+}
+.import-tabs span.active{
+  background:var(--red);
+  border-color:var(--red);
+  color:#fff;
+}
+#adminStockList > div{
+  background:#151515!important;
+  color:#fff!important;
+  border-color:rgba(255,255,255,.12)!important;
+}
+#adminStockList input{
+  margin:5px 0 10px;
+}
+#adminStockList h3{
+  color:#fff;
+}
+#adminStockList .grid{
+  grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+}
+@media(max-width:1000px){
+  .admin-layout{grid-template-columns:1fr}
+  .sidebar{position:relative;height:auto;overflow:visible}
+  .admin-menu{overflow:visible}
+}
+</style>
+</head>
+
+<body>
+<div class="admin-layout">
+
+<aside class="sidebar">
+  <div class="logo"><img src="anybike-logo-new.jpg" alt="AnyBike"></div>
+
+  <div class="staff-card">
+    <div class="staff-name">Andy Gifford</div>
+    <div class="small">Administrator</div>
+    <div class="online">● Online</div>
+  </div>
+
+  <nav class="admin-menu">
+    <a href="admin-dashboard.html"><span class="menu-icon">🏠</span><span class="menu-text">Dashboard</span></a>
+    <a href="admin-enquiries.html"><span class="menu-icon">🏍️</span><span class="menu-text">Bike Sales</span></a>
+    <a href="admin-global-buyer-network.html"><span class="menu-icon">🌍</span><span class="menu-text">Global Buyers</span></a>
+    <a href="admin-customers.html"><span class="menu-icon">👥</span><span class="menu-text">Customers</span></a>
+    <a href="admin-stock.html"><span class="menu-icon">🏍</span><span class="menu-text">Stock</span></a>
+    <a class="active" href="admin-stock-import.html"><span class="menu-icon">📥</span><span class="menu-text">Stock Import</span></a>
+    <a href="admin-logistics.html"><span class="menu-icon">🚢</span><span class="menu-text">Logistics</span></a>
+    <a href="admin-market-intelligence.html"><span class="menu-icon">📈</span><span class="menu-text">Intelligence</span></a>
+    <a href="admin-ai-matching.html"><span class="menu-icon">🤖</span><span class="menu-text">AI Matching</span></a>
+    <a href="admin-export-documents.html"><span class="menu-icon">📋</span><span class="menu-text">Export Docs</span></a>
+    <a href="admin-reports.html"><span class="menu-icon">📊</span><span class="menu-text">Reports</span></a>
+    <a href="admin-settings.html"><span class="menu-icon">⚙️</span><span class="menu-text">Administration</span></a>
+    <a href="admin-platform-audit.html"><span class="menu-icon">🧪</span><span class="menu-text">Mission Control</span></a>
+  </nav>
+
+  <div class="public-links">
+    <div class="small" style="text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Public Site</div>
+    <a href="index.html" target="_blank">🌐 Website</a>
+    <a href="available-stock.html" target="_blank">👁️ Stock</a>
+    <a href="buy-motorcycles.html" target="_blank">🛒 Buy</a>
+    <a href="sell-your-motorcycle.html" target="_blank">💷 Sell</a>
+  </div>
+</aside>
+
+<main class="main">
+
+  <div class="department-hero">
+    <div class="dept-eyebrow">AnyBike Stock Department</div>
+    <h1>📥 Stock Import Manager</h1>
+    <p>Upload supplier CSV files, preview mapping, import motorcycles into available stock and manage private stock buying details. Official profit still comes from the Bike Sales CRM Deal Calculator.</p>
+
+    <div class="dept-actions">
+      <a href="admin-stock.html">🏍 Stock HQ</a>
+      <a href="admin-platform-audit.html">🧪 Mission Control</a>
+      <a href="available-stock.html" target="_blank">👁️ Public Stock</a>
+    </div>
+  </div>
+
+  <div class="import-tabs">
+    <span class="active">🔐 Staff Login</span>
+    <span>📤 Upload CSV</span>
+    <span>📋 Preview</span>
+    <span>🗺 Mapping</span>
+    <span>🏍 Buying Details</span>
+  </div>
+
+  <section id="loginCard" class="card">
+    <h1>Staff Login</h1>
+    <p>Enter staff password to upload available stock.</p>
+    <input id="password" type="password" placeholder="Password">
+    <button onclick="login()">Login</button>
+    <p id="loginMsg" class="bad"></p>
+  </section>
+
+  <section id="adminArea" class="hidden">
+
+    <div class="card">
+      <h1>📤 Upload Supplier CSV</h1>
+      <p>Upload the supplier CSV. This imports new stock rows without deleting linked enquiries.</p>
+      <input id="csvFile" type="file" accept=".csv">
+      <button onclick="previewCSV()">Preview CSV</button>
+      <button class="dark" id="importBtn" onclick="importCSV()" disabled>Import Available Stock</button>
+      <p id="uploadMsg"></p>
+    </div>
+
+    <div class="grid">
+      <div class="stat">Rows detected<strong id="rowsCount">0</strong></div>
+      <div class="stat">Ready to import<strong id="readyCount">0</strong></div>
+      <div class="stat">Skipped rows<strong id="skipCount">0</strong></div>
+      <div class="stat">Columns detected<strong id="colCount">0</strong></div>
+    </div>
+
+    <div class="card">
+      <h2>🗺 Column Mapping</h2>
+      <table>
+        <tr><th>AnyBike Field</th><th>Spreadsheet Source</th></tr>
+        <tr><td>Make</td><td>Standard Make → Make</td></tr>
+        <tr><td>Model</td><td>Standard Model → Normalized Model → Model</td></tr>
+        <tr><td>Variant</td><td>Standard Trim → Variant</td></tr>
+        <tr><td>Year</td><td>Year</td></tr>
+        <tr><td>Mileage</td><td>Mileage</td></tr>
+        <tr><td>Engine CC</td><td>Standard Engine CC → Engine CC</td></tr>
+        <tr><td>Price</td><td>Listed Price</td></tr>
+        <tr><td>Colour</td><td>Colour</td></tr>
+        <tr><td>Status</td><td>Listing Status → Status</td></tr>
+        <tr><td>Image URL</td><td>Image URL</td></tr>
+        <tr><td>Private fields</td><td>Stored safely for staff use only</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>📋 Preview</h2>
+      <div id="preview"></div>
+    </div>
+
+    <div class="card">
+      <h2>🏍 Admin Stock Management</h2>
+      <p>Private seller details and buying costs. These are not visible on the public website. Official deal profit remains inside Bike Sales CRM.</p>
+      <button class="dark" onclick="loadAdminStock()">Load Stock Management</button>
+      <div id="adminStockList" style="margin-top:20px"></div>
+    </div>
+
+  </section>
+
+</main>
+</div>
+
+<script>
+const ADMIN_PASSWORD = "AnyBike2026!";
+
+const SUPABASE_URL = "https://tuehtnezhdnkqbbhttgp.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let parsedRows = [];
+let importRows = [];
+
+function login(){
+  const pass = document.getElementById("password").value;
+  if(pass === ADMIN_PASSWORD){
+    document.getElementById("loginCard").classList.add("hidden");
+    document.getElementById("adminArea").classList.remove("hidden");
+  }else{
+    document.getElementById("loginMsg").textContent = "Incorrect password.";
+  }
+}
+
+function clean(v){
+  if(v === undefined || v === null) return "";
+  return String(v).trim();
+}
+
+function numberOnly(v){
+  if(!v) return null;
+  const n = Number(String(v).replace(/[£,$,A-Z,a-z, ]/g,"").replace(/,/g,""));
+  return Number.isFinite(n) ? n : null;
+}
+
+function intOnly(v){
+  const n = numberOnly(v);
+  return n === null ? null : Math.round(n);
+}
+
+function pick(row, names){
+  for(const name of names){
+    if(clean(row[name])) return clean(row[name]);
+  }
+  return "";
+}
+
+function mapRow(row){
+  const make = pick(row, ["Standard Make","Make"]);
+  const model = pick(row, ["Standard Model","Normalized Model","Model"]);
+  const variant = pick(row, ["Standard Trim","Variant"]);
+  const year = intOnly(pick(row, ["Year"]));
+  const mileage = intOnly(pick(row, ["Mileage"]));
+  const engine_cc = intOnly(pick(row, ["Standard Engine CC","Engine CC"]));
+  const price_gbp = numberOnly(pick(row, ["Listed Price"]));
+  const colour = pick(row, ["Colour"]);
+  const status = pick(row, ["Listing Status","Status"]) || "Available";
+  const image_url = pick(row, ["Image URL"]);
+
+  if(!make || !model) return null;
+
+return {
+  make,
+  model,
+  variant,
+  year,
+  mileage,
+  engine_cc,
+  price_gbp,
+  colour,
+  status,
+  image_url,
+
+  private_seller_name:
+    pick(row, ["Dealer Name","Seller Name","Dealer","Seller"]),
+
+  private_seller_type:
+    pick(row, ["Dealer or Private"]),
+
+  private_seller_phone:
+    pick(row, ["Dealer Phone","Seller Phone","Phone","Telephone","Mobile"]),
+
+  private_seller_email:
+    pick(row, ["Dealer Email","Seller Email","Email"]),
+
+  private_seller_location:
+    pick(row, ["Location","Town","City","Address"]),
+
+  private_seller_postcode:
+    pick(row, ["Dealer Postcode","Postcode","Postcode Area"]),
+
+  private_source_name:
+    pick(row, ["Source"]),
+
+  private_source_url:
+    pick(row, ["Source URL","Listing URL","URL","Web Link"]),
+
+  private_listing_id:
+    pick(row, ["Listing ID","Stock Ref","Stock Number","Registration","Reg Number"]),
+
+private_source: pick(row, ["Source"]),
+private_source_url: pick(row, ["Source URL"]),
+private_last_seen_date: pick(row, ["Last Seen Date"]),
+private_dealer_or_private: pick(row, ["Dealer or Private"]),
+private_dealer_name: pick(row, ["Dealer Name"]),
+private_service_history: pick(row, ["Service History"]),
+private_owners: pick(row, ["Owners"]),
+private_listed_price: numberOnly(pick(row, ["Listed Price"])),
+private_price_reduced: pick(row, ["Price Reduced"]),
+private_previous_price: numberOnly(pick(row, ["Previous Price"])),
+private_days_live: intOnly(pick(row, ["Days Live"])),
+private_location: pick(row, ["Location"]),
+private_postcode_area: pick(row, ["Postcode Area"]),
+private_estimated_trade: numberOnly(pick(row, ["Estimated Trade"])),
+private_estimated_retail: numberOnly(pick(row, ["Estimated Retail"])),
+private_confidence_score: pick(row, ["Confidence Score"]),
+private_in_stock_days: intOnly(pick(row, ["In Stock Days"])),
+private_registration_date: pick(row, ["Registration Date"]),
+private_dealer_postcode: pick(row, ["Dealer Postcode"]),
+private_price_change: numberOnly(pick(row, ["Price Change"])),
+private_days_on_market: intOnly(pick(row, ["Days On Market"])),
+private_derivative_id: pick(row, ["Derivative ID"]),
+
+raw_data: row,
+source_upload: new Date().toISOString()
+};
+}
+
+function previewCSV(){
+  const file = document.getElementById("csvFile").files[0];
+  if(!file){
+    alert("Choose a CSV file first.");
+    return;
+  }
+
+  document.getElementById("uploadMsg").textContent = "Reading CSV...";
+
+  Papa.parse(file,{
+    header:true,
+    skipEmptyLines:true,
+    complete:function(results){
+      parsedRows = results.data || [];
+      importRows = parsedRows.map(mapRow).filter(Boolean);
+
+      const skipped = parsedRows.length - importRows.length;
+      const columns = results.meta.fields || [];
+
+      document.getElementById("rowsCount").textContent = parsedRows.length.toLocaleString("en-GB");
+      document.getElementById("readyCount").textContent = importRows.length.toLocaleString("en-GB");
+      document.getElementById("skipCount").textContent = skipped.toLocaleString("en-GB");
+      document.getElementById("colCount").textContent = columns.length.toLocaleString("en-GB");
+
+      document.getElementById("importBtn").disabled = importRows.length === 0;
+
+      document.getElementById("uploadMsg").innerHTML =
+        `<span class="ok">CSV preview ready. ${importRows.length.toLocaleString("en-GB")} bikes ready to import.</span>`;
+
+      renderPreview(importRows.slice(0,20));
+    },
+    error:function(err){
+      document.getElementById("uploadMsg").innerHTML =
+        `<span class="bad">CSV could not be read: ${err.message}</span>`;
+    }
+  });
+}
+
+function renderPreview(rows){
+  if(!rows.length){
+    document.getElementById("preview").innerHTML = "<p>No valid rows found.</p>";
+    return;
+  }
+
+  document.getElementById("preview").innerHTML = `
+    <table>
+      <tr>
+        <th>Make</th><th>Model</th><th>Variant</th><th>Year</th>
+        <th>Mileage</th><th>CC</th><th>Price</th><th>Status</th>
+      </tr>
+      ${rows.map(r=>`
+        <tr>
+          <td>${r.make || ""}</td>
+          <td>${r.model || ""}</td>
+          <td>${r.variant || ""}</td>
+          <td>${r.year || ""}</td>
+          <td>${r.mileage || ""}</td>
+          <td>${r.engine_cc || ""}</td>
+          <td>${r.price_gbp || ""}</td>
+          <td>${r.status || ""}</td>
+        </tr>
+      `).join("")}
+    </table>
+    <p>Showing first 20 rows only.</p>
+  `;
+}
+
+async function importCSV(){
+  if(!importRows.length){
+    alert("Preview a valid CSV first.");
+    return;
+  }
+
+  if(!confirm("This will delete existing available stock and replace it with this CSV. Continue?")){
+    return;
+  }
+
+  const btn = document.getElementById("importBtn");
+  btn.disabled = true;
+  btn.textContent = "Importing...";
+
+document.getElementById("uploadMsg").textContent = "Importing stock without deleting linked enquiries...";
+  
+const del = { error: null };
+  
+  if(del.error){
+    document.getElementById("uploadMsg").innerHTML =
+      `<span class="bad">Delete failed: ${del.error.message}</span>`;
+    btn.disabled = false;
+    btn.textContent = "Import & Replace Available Stock";
+    return;
+  }
+
+  const batchSize = 500;
+  let imported = 0;
+
+  for(let i=0; i<importRows.length; i += batchSize){
+    const batch = importRows.slice(i, i + batchSize);
+
+    document.getElementById("uploadMsg").textContent =
+      `Importing ${Math.min(i + batchSize, importRows.length).toLocaleString("en-GB")} of ${importRows.length.toLocaleString("en-GB")}...`;
+
+    const ins = await sb.from("available_stock").insert(batch);
+
+    if(ins.error){
+      document.getElementById("uploadMsg").innerHTML =
+        `<span class="bad">Import failed after ${imported} rows: ${ins.error.message}</span>`;
+      btn.disabled = false;
+      btn.textContent = "Import & Replace Available Stock";
+      return;
+    }
+
+    imported += batch.length;
+  }
+
+  document.getElementById("uploadMsg").innerHTML =
+    `<span class="ok">Import complete. ${imported.toLocaleString("en-GB")} bikes uploaded to available_stock.</span>`;
+
+  btn.disabled = false;
+  btn.textContent = "Import & Replace Available Stock";
+}
+  function money(v){
+  const n = Number(v || 0);
+  return n ? "£" + n.toLocaleString("en-GB") : "£0";
+}
+
+async function loadAdminStock(){
+  const box = document.getElementById("adminStockList");
+  box.innerHTML = "Loading stock...";
+
+  const {data,error} = await sb
+    .from("available_stock")
+    .select(`
+      id, make, model, variant, year, price_gbp,
+      cost_price_gbp, prep_costs_gbp, admin_fee_gbp, target_sale_price_gbp,
+      private_seller_name, private_seller_type, private_seller_phone,
+      private_seller_email, private_seller_location, private_seller_postcode,
+      private_source_name, private_source_url, private_listing_id
+    `)
+    .order("created_at",{ascending:false})
+    .limit(100);
+
+  if(error){
+    box.innerHTML = `<span class="bad">${error.message}</span>`;
+    return;
+  }
+
+  if(!data || !data.length){
+    box.innerHTML = "No stock found.";
+    return;
+  }
+
+  box.innerHTML = data.map(bikeAdminCard).join("");
+}
+
+function bikeAdminCard(b){
+  const title = [b.make,b.model,b.variant].filter(Boolean).join(" ");
+  const cost = Number(b.cost_price_gbp || 0);
+  const prep = Number(b.prep_costs_gbp || 0);
+  const admin = Number(b.admin_fee_gbp || 0);
+  const target = Number(b.target_sale_price_gbp || b.price_gbp || 0);
+  const profit = target - cost - prep - admin;
+
+  return `
+    <div style="
+      border:1px solid #ddd;
+      border-radius:14px;
+      padding:16px;
+      margin-bottom:14px;
+      background:#fafafa;
+    ">
+      <h3>${title || "Bike"} ${b.year ? `(${b.year})` : ""}</h3>
+
+      <div class="grid">
+        <div>
+          <strong>Seller Details</strong><br>
+          Name: ${b.private_seller_name || "-"}<br>
+          Type: ${b.private_seller_type || "-"}<br>
+          Phone: ${b.private_seller_phone || "-"}<br>
+          Email: ${b.private_seller_email || "-"}<br>
+          Location: ${b.private_seller_location || "-"}<br>
+          Postcode: ${b.private_seller_postcode || "-"}<br>
+          Source: ${b.private_source_name || "-"}<br>
+          Ref/Reg: ${b.private_listing_id || "-"}
+        </div>
+
+        <div>
+          <strong>Buying & Profit</strong><br>
+
+          <label>Cost Price</label>
+          <input id="cost-${b.id}" type="number" value="${b.cost_price_gbp || ""}">
+
+          <label>Prep Costs</label>
+          <input id="prep-${b.id}" type="number" value="${b.prep_costs_gbp || 0}">
+
+          <label>Admin Fee</label>
+          <input id="admin-${b.id}" type="number" value="${b.admin_fee_gbp || 0}">
+
+          <label>Target Sale Price</label>
+          <input id="target-${b.id}" type="number" value="${b.target_sale_price_gbp || b.price_gbp || ""}">
+
+          <p><strong>Stock estimate only:</strong> ${money(profit)}<br><small>Official deal profit comes from Bike Sales CRM Deal Calculator.</small></p>
+
+          <button onclick="saveAdminStock(${b.id})">Save Buying Details</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+async function saveAdminStock(id){
+  const cost = Number(document.getElementById(`cost-${id}`).value || 0);
+  const prep = Number(document.getElementById(`prep-${id}`).value || 0);
+  const admin = Number(document.getElementById(`admin-${id}`).value || 0);
+  const target = Number(document.getElementById(`target-${id}`).value || 0);
+  const profit = target - cost - prep - admin;
+
+  const {error} = await sb
+    .from("available_stock")
+    .update({
+      cost_price_gbp: cost,
+      prep_costs_gbp: prep,
+      admin_fee_gbp: admin,
+      target_sale_price_gbp: target,
+      expected_profit_gbp: profit
+    })
+    .eq("id", id);
+
+  if(error){
+    alert("Save failed: " + error.message);
+    return;
+  }
+
+  alert("Buying details saved. Stock estimate only: " + money(profit));
+  loadAdminStock();
+}
+</script>
+
+</body>
+</html>
