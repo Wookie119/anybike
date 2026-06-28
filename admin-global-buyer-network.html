@@ -135,26 +135,39 @@
 .status-control{
   display:grid;
   grid-template-columns:1fr auto;
-  gap:8px;
+  gap:10px;
   align-items:end;
-  margin-top:12px;
+  margin-top:14px;
+  padding-top:12px;
+  border-top:1px solid rgba(255,255,255,.10);
+}
+.status-control label{
+  display:block;
+  font-weight:900;
+  margin-bottom:7px;
 }
 .status-control select{
   width:100%;
-  background:#111;
-  border:1px solid rgba(255,255,255,.18);
-  color:#fff;
+  height:48px;
+  background:#fff;
+  border:1px solid rgba(255,255,255,.22);
+  color:#111;
   border-radius:12px;
-  padding:10px;
+  padding:0 12px;
   font:inherit;
+  font-weight:800;
 }
-.status-control option{color:#111}
+.status-control option{
+  color:#111;
+  background:#fff;
+}
 .status-save-btn{
+  height:48px;
   background:var(--red);
   border:0;
   color:#fff;
   border-radius:999px;
-  padding:10px 13px;
+  padding:0 18px;
   font-weight:900;
   cursor:pointer;
   white-space:nowrap;
@@ -315,17 +328,21 @@ const BULK_STATUSES = [
 ];
 
 function bulkStatusOptions(current){
-  return BULK_STATUSES.map(s =>
-    `<option value="${safe(s)}" ${s===current ? "selected" : ""}>${safe(s)}</option>`
-  ).join("");
+  let html = "";
+  BULK_STATUSES.forEach(s=>{
+    const selected = s === current ? " selected" : "";
+    html += '<option value="' + safe(s) + '"' + selected + '>' + safe(s) + '</option>';
+  });
+  return html;
 }
 
 async function updateBuyerStatus(buyerId){
-  const select = document.getElementById(`buyer-status-${buyerId}`);
+  const select = document.getElementById("buyer-status-" + buyerId);
   if(!select) return;
 
   const newStatus = select.value;
-  const btn = select.closest(".status-control").querySelector("button");
+  const btn = document.getElementById("buyer-status-btn-" + buyerId);
+
   if(btn){
     btn.disabled = true;
     btn.textContent = "Saving...";
@@ -333,7 +350,7 @@ async function updateBuyerStatus(buyerId){
 
   const { error } = await sb
     .from("global_buyer_network")
-    .update({ status:newStatus })
+    .update({ status: newStatus })
     .eq("id", Number(buyerId));
 
   if(btn){
@@ -390,12 +407,12 @@ function buyerHtml(b,its){
           ${line('Business',b.business_name)}${line('Contact',b.contact_name)}${line('Email',b.email)}${line('Phone',b.phone)}${line('Country',b.country)}${line('Monthly volume',b.annual_purchase_volume)}${line('Lead source',b.lead_source)}
           <div class="status-control">
             <div>
-              <strong>Move Buyer Through Pipeline</strong>
+              <label for="buyer-status-${b.id}">Move Buyer Through Pipeline</label>
               <select id="buyer-status-${b.id}">
                 ${bulkStatusOptions(normalStatus(b.status))}
               </select>
             </div>
-            <button class="status-save-btn" onclick="updateBuyerStatus(${b.id})">Save Status</button>
+            <button id="buyer-status-btn-${b.id}" class="status-save-btn" onclick="updateBuyerStatus(${b.id})">Save Status</button>
           </div>
         </div>
         <div class="box"><h3>Shipping</h3>
