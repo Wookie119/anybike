@@ -74,6 +74,63 @@
   font-weight:900;
 }
 .match-actions a:hover{border-color:var(--red)}
+
+.bulk-pipeline{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(135px,1fr));
+  gap:9px;
+  margin-bottom:18px;
+}
+.bulk-stage{
+  background:#111;
+  border:1px solid var(--line);
+  border-radius:14px;
+  min-height:108px;
+  padding:10px 7px;
+  cursor:pointer;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+  text-align:center;
+  transition:.2s ease;
+}
+.bulk-stage:hover{
+  transform:translateY(-2px);
+  border-color:var(--red);
+  box-shadow:0 0 18px rgba(237,28,36,.25);
+}
+.bulk-stage.active{
+  border:2px solid var(--red);
+  background:#171111;
+  box-shadow:0 0 22px rgba(237,28,36,.55);
+}
+.bulk-stage div{
+  font-weight:900;
+  line-height:1.12;
+  font-size:13px;
+}
+.bulk-stage strong{
+  font-size:28px;
+  color:var(--red);
+}
+.bulk-stage.all{
+  border:2px solid var(--red);
+}
+.pipeline-heading{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-end;
+  gap:14px;
+  margin:6px 0 10px;
+}
+.pipeline-heading h2{
+  margin:0;
+}
+.pipeline-heading p{
+  margin:4px 0 0;
+  color:var(--muted);
+  font-size:13px;
+}
 @media(max-width:1000px){.admin-shell{grid-template-columns:1fr}.sidebar{position:relative;height:auto}.stats,.toolbar,.buyer-head,.detail-grid{grid-template-columns:1fr}.line{grid-template-columns:1fr}.main{padding:18px}}
 </style>
 </head>
@@ -102,6 +159,31 @@
       <button class="btn" onclick="loadBuyers()">Refresh</button>
     </div>
 
+
+    <section class="pipeline-heading">
+      <div>
+        <h2>Global Bulk Buyer Pipeline</h2>
+        <p>For dealers, wholesalers and container buyers requesting multiple motorcycles.</p>
+      </div>
+    </section>
+
+    <section class="bulk-pipeline">
+      <div class="bulk-stage all active" data-bulk-status="" onclick="setBulkStatusFilter('')"><div>📋<br>All Buyers</div><strong id="bulkAllCount">0</strong></div>
+      <div class="bulk-stage" data-bulk-status="New Buyer Registered" onclick="setBulkStatusFilter('New Buyer Registered')"><div>🆕<br>1<br>New Buyer</div><strong id="bulkNewCount">0</strong></div>
+      <div class="bulk-stage" data-bulk-status="Buyer Qualified" onclick="setBulkStatusFilter('Buyer Qualified')"><div>✅<br>2<br>Qualified</div><strong id="bulkQualifiedCount">0</strong></div>
+      <div class="bulk-stage" data-bulk-status="Motorcycle List Received" onclick="setBulkStatusFilter('Motorcycle List Received')"><div>📝<br>3<br>List Received</div><strong id="bulkListCount">0</strong></div>
+      <div class="bulk-stage" data-bulk-status="Matching Available Stock" onclick="setBulkStatusFilter('Matching Available Stock')"><div>🔍<br>4<br>Matching Stock</div><strong id="bulkMatchingCount">0</strong></div>
+      <div class="bulk-stage" data-bulk-status="Sourcing Additional Motorcycles" onclick="setBulkStatusFilter('Sourcing Additional Motorcycles')"><div>🏍️<br>5<br>Sourcing</div><strong id="bulkSourcingCount">0</strong></div>
+      <div class="bulk-stage" data-bulk-status="Offer Sent" onclick="setBulkStatusFilter('Offer Sent')"><div>📨<br>6<br>Offer Sent</div><strong id="bulkOfferCount">0</strong></div>
+      <div class="bulk-stage" data-bulk-status="Negotiating" onclick="setBulkStatusFilter('Negotiating')"><div>🤝<br>7<br>Negotiating</div><strong id="bulkNegotiatingCount">0</strong></div>
+      <div class="bulk-stage" data-bulk-status="Order Confirmed" onclick="setBulkStatusFilter('Order Confirmed')"><div>💷<br>8<br>Order Confirmed</div><strong id="bulkConfirmedCount">0</strong></div>
+      <div class="bulk-stage" data-bulk-status="Collecting Motorcycles" onclick="setBulkStatusFilter('Collecting Motorcycles')"><div>🚚<br>9<br>Collecting</div><strong id="bulkCollectingCount">0</strong></div>
+      <div class="bulk-stage" data-bulk-status="Building Container" onclick="setBulkStatusFilter('Building Container')"><div>📦<br>10<br>Container</div><strong id="bulkContainerCount">0</strong></div>
+      <div class="bulk-stage" data-bulk-status="Shipping Booked" onclick="setBulkStatusFilter('Shipping Booked')"><div>🚢<br>11<br>Shipping Booked</div><strong id="bulkShippingCount">0</strong></div>
+      <div class="bulk-stage" data-bulk-status="Export Complete" onclick="setBulkStatusFilter('Export Complete')"><div>🏁<br>12<br>Export Complete</div><strong id="bulkCompleteCount">0</strong></div>
+      <div class="bulk-stage" data-bulk-status="Repeat Buyer" onclick="setBulkStatusFilter('Repeat Buyer')"><div>🔁<br>13<br>Repeat Buyer</div><strong id="bulkRepeatCount">0</strong></div>
+    </section>
+
     <section class="stats">
       <div class="stat"><strong id="totalBuyers">0</strong><span>Total buyers</span></div>
       <div class="stat"><strong id="newBuyers">0</strong><span>New potential buyers</span></div>
@@ -126,6 +208,7 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let buyers=[];
 let items=[];
 let stock=[];
+let bulkStatusFilter='';
 function safe(v){return String(v ?? "").replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
 function money(v){return v==null||v===""?"-":"£"+Number(v).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});}
 function dateTxt(v){return v?new Date(v).toLocaleString():"-";}
@@ -138,7 +221,7 @@ async function loadBuyers(){
   ]);
   if(bRes.error){document.getElementById('buyersList').innerHTML='<div class="empty">Could not load buyers: '+safe(bRes.error.message)+'</div>';return;}
   buyers=bRes.data||[];items=iRes.data||[];stock=sRes.data||[];
-  buildFilters();renderBuyers();
+  buildFilters();updatePipelineCounts();renderBuyers();
 }
 function buildFilters(){
   const countries=[...new Set(buyers.map(b=>b.country).filter(Boolean))].sort();
@@ -147,6 +230,41 @@ function buildFilters(){
   document.getElementById('statusFilter').innerHTML='<option value="">All statuses</option>'+statuses.map(s=>`<option>${safe(s)}</option>`).join('');
 }
 function itemsForBuyer(id){return items.filter(i=>String(i.buyer_id)===String(id));}
+
+function normalStatus(status){
+  const s = String(status || "").trim();
+  if(!s || s === "New" || s === "New Potential Buyer") return "New Buyer Registered";
+  return s;
+}
+function setBulkStatusFilter(status){
+  bulkStatusFilter = status || "";
+  document.querySelectorAll(".bulk-stage").forEach(el=>el.classList.remove("active"));
+  const active = document.querySelector(`.bulk-stage[data-bulk-status="${CSS.escape(bulkStatusFilter)}"]`);
+  if(active) active.classList.add("active");
+  renderBuyers();
+}
+function setCount(id,value){
+  const el=document.getElementById(id);
+  if(el) el.textContent=value;
+}
+function updatePipelineCounts(){
+  const c = status => buyers.filter(b=>normalStatus(b.status)===status).length;
+  setCount("bulkAllCount", buyers.length);
+  setCount("bulkNewCount", c("New Buyer Registered"));
+  setCount("bulkQualifiedCount", c("Buyer Qualified"));
+  setCount("bulkListCount", c("Motorcycle List Received"));
+  setCount("bulkMatchingCount", c("Matching Available Stock"));
+  setCount("bulkSourcingCount", c("Sourcing Additional Motorcycles"));
+  setCount("bulkOfferCount", c("Offer Sent"));
+  setCount("bulkNegotiatingCount", c("Negotiating"));
+  setCount("bulkConfirmedCount", c("Order Confirmed"));
+  setCount("bulkCollectingCount", c("Collecting Motorcycles"));
+  setCount("bulkContainerCount", c("Building Container"));
+  setCount("bulkShippingCount", c("Shipping Booked"));
+  setCount("bulkCompleteCount", c("Export Complete"));
+  setCount("bulkRepeatCount", c("Repeat Buyer"));
+}
+
 function renderBuyers(){
   const q=document.getElementById('searchBox').value.toLowerCase().trim();
   const cf=document.getElementById('countryFilter').value;
@@ -154,7 +272,7 @@ function renderBuyers(){
   let rows=buyers.filter(b=>{
     const its=itemsForBuyer(b.id);
     const hay=[b.business_name,b.contact_name,b.email,b.phone,b.country,b.status,b.annual_purchase_volume,b.website,b.social_links,...its.flatMap(i=>[i.make,i.model,i.year_from,i.year_to])].join(' ').toLowerCase();
-    return (!q||hay.includes(q)) && (!cf||b.country===cf) && (!sf||b.status===sf);
+    return (!q||hay.includes(q)) && (!cf||b.country===cf) && (!sf||b.status===sf) && (!bulkStatusFilter||normalStatus(b.status)===bulkStatusFilter);
   });
   updateStats(rows);
   const list=document.getElementById('buyersList');
@@ -174,7 +292,7 @@ function buyerHtml(b,its){
     <div class="buyer-head" onclick="this.parentElement.classList.toggle('open')">
       <div><strong>${safe(b.business_name||'Unnamed buyer')}</strong><div class="small">${safe(b.contact_name||'')} ${b.email?' • '+safe(b.email):''}</div></div>
       <div>${safe(b.country||'-')}<div class="small">${safe(b.phone||'')}</div></div>
-      <div><span class="pill red">${safe(b.status||'New')}</span><div class="small">${dateTxt(b.created_at)}</div></div>
+      <div><span class="pill red">${safe(normalStatus(b.status))}</span><div class="small">${dateTxt(b.created_at)}</div></div>
       <div><strong>${qty||its.length}</strong><div class="small">requested bikes / qty</div></div>
       <div class="small">Click to open</div>
     </div>
