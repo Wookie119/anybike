@@ -552,19 +552,20 @@ footer{border-top:1px solid var(--line);padding:28px 22px;color:var(--muted);fon
           <div id="requestMotorcycleBlocks" class="field full"></div>
 
           <div class="request-add-row">
-            <p><strong>Buying more than one type?</strong><br>Add another motorcycle requirement for bulk/container requests.</p>
+            <p><strong>Add additional bikes you're looking to buy.</strong><br>Add another make and model to your buying request. Build a list of all the motorcycles you're looking to purchase from the UK.</p>
             <button type="button" class="btn request-small-btn" onclick="addRequestMotorcycleBlock()">+ Add Another Motorcycle</button>
           </div>
 
-          <div class="field"><label>Total Budget</label><input type="number" name="total_budget" min="0" placeholder="£"></div>
-          <div class="field"><label>How many bikes do you usually buy?</label>
+          <div class="field"><label>Total Amount Available to Spend (GBP £)</label><input type="number" name="total_budget" step="0.01" min="0" placeholder="Example: 25000.00"></div>
+          <div class="field"><label>How many motorcycles do you normally buy each month?</label>
             <select name="annual_purchase_volume">
-              <option value="">Select volume</option>
-              <option>1–2 per year</option>
-              <option>3–5 per year</option>
-              <option>6–10 per year</option>
-              <option>10–25 per year</option>
-              <option>25+ per year</option>
+              <option value="">Select monthly volume</option>
+              <option>1–2 motorcycles per month</option>
+              <option>3–5 motorcycles per month</option>
+              <option>6–10 motorcycles per month</option>
+              <option>11–20 motorcycles per month</option>
+              <option>21–50 motorcycles per month</option>
+              <option>50+ motorcycles per month</option>
             </select>
           </div>
 
@@ -583,8 +584,16 @@ footer{border-top:1px solid var(--line);padding:28px 22px;color:var(--muted);fon
           <div class="field"><label>Preferred UK shipper / freight forwarder</label><input name="shipping_company" placeholder="Company name"></div>
           <div class="field"><label>Shipper contact details</label><input name="shipping_contact_details" placeholder="Email, phone, address"></div>
 
-          <div class="field"><label>Your website</label><input name="buyer_website" placeholder="https://..."></div>
-          <div class="field"><label>Where do you sell bikes?</label><input name="buyer_marketplace_link" placeholder="Website, Facebook, OLX, AutoScout24..."></div>
+          <div class="field"><label>Your business website</label><input name="buyer_website" placeholder="https://..."></div>
+
+          <div class="field full">
+            <label>Where do you advertise or sell motorcycles?</label>
+            <div class="small" style="margin-bottom:10px;">Add up to four website, marketplace, Facebook, Instagram, TikTok, dealer or social selling URLs.</div>
+          </div>
+          <div class="field"><label>Selling URL 1</label><input name="selling_url_1" placeholder="https://..."></div>
+          <div class="field"><label>Selling URL 2</label><input name="selling_url_2" placeholder="https://..."></div>
+          <div class="field"><label>Selling URL 3</label><input name="selling_url_3" placeholder="https://..."></div>
+          <div class="field"><label>Selling URL 4</label><input name="selling_url_4" placeholder="https://..."></div>
 
           <div class="field full"><label>Notes</label><textarea name="notes" placeholder="Preferred condition, mileage, colours, regular supply requirements, shipping instructions..."></textarea></div>
 
@@ -739,8 +748,8 @@ function addRequestMotorcycleBlock(){
         </div>
 
         <div class="field">
-          <label>Budget Per Bike</label>
-          <input type="number" id="request-budget-${id}" min="0" placeholder="£">
+          <label>Maximum Budget Per Bike (GBP £)</label>
+          <input type="number" id="request-budget-${id}" step="0.01" min="0" placeholder="Example: 4500.00">
         </div>
 
         <div class="field">
@@ -797,7 +806,7 @@ function collectRequestMotorcycles(){
   }).filter(b=>b.make && b.model);
 
   const summary=bikes.map((b,i)=>
-    `Motorcycle ${i+1}: ${b.quantity} x ${b.make} ${b.model} | Years: ${b.years.length ? b.years.join(", ") : "Any"} | Max mileage: ${b.mileage_max ? Number(b.mileage_max).toLocaleString() + " miles" : "Not specified"} | Budget per bike: ${b.budget_per_bike ? "£"+b.budget_per_bike : "Not specified"}`
+    `Motorcycle ${i+1}: ${b.quantity} x ${b.make} ${b.model} | Years: ${b.years.length ? b.years.join(", ") : "Any"} | Max mileage: ${b.mileage_max ? Number(b.mileage_max).toLocaleString() + " miles" : "Not specified"} | Maximum budget per bike GBP: ${b.budget_per_bike ? "£"+Number(b.budget_per_bike).toFixed(2) : "Not specified"}`
   ).join("\n");
 
   const hidden=document.getElementById("requestedBikeSummary");
@@ -825,8 +834,11 @@ function buildInternalNotes(o,bikes){
     "",
     `Destination port: ${o.destination_port || "Not specified"}`,
     `Shipper contact details: ${o.shipping_contact_details || "Not specified"}`,
-    `Total budget: ${o.total_budget ? "£" + o.total_budget : "Not specified"}`,
-    `Where they sell: ${o.buyer_marketplace_link || "Not specified"}`,
+    `Total amount available to spend GBP: ${o.total_budget ? "£" + Number(o.total_budget).toFixed(2) : "Not specified"}`,
+    `Where they sell URL 1: ${o.selling_url_1 || "Not specified"}`,
+    `Where they sell URL 2: ${o.selling_url_2 || "Not specified"}`,
+    `Where they sell URL 3: ${o.selling_url_3 || "Not specified"}`,
+    `Where they sell URL 4: ${o.selling_url_4 || "Not specified"}`,
     "",
     `Notes: ${o.notes || "None"}`
   ];
@@ -886,7 +898,7 @@ async function submitBulkRequest(form){
     country:o.country || detected.country_name || detected.country || null,
     city:null,
     website:o.buyer_website || null,
-    social_links:o.buyer_marketplace_link || null,
+    social_links:[o.selling_url_1,o.selling_url_2,o.selling_url_3,o.selling_url_4].filter(Boolean).join("\n") || null,
 
     annual_purchase_volume:o.annual_purchase_volume || null,
     buyer_type:"Potential Bulk Buyer",
