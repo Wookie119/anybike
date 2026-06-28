@@ -1,0 +1,132 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Global Buyer Network | AnyBike Admin</title>
+<link rel="icon" href="anybike-logo-new.jpg" type="image/jpeg">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--red:#ed1c24;--bg:#050505;--panel:#111;--panel2:#181818;--line:rgba(255,255,255,.13);--muted:#aaa;--text:#fff;--green:#33cc66}
+*{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:linear-gradient(120deg,#050505,#101010 60%,#050505);color:#fff}a{color:inherit;text-decoration:none}
+.admin-shell{display:grid;grid-template-columns:250px 1fr;min-height:100vh}.sidebar{background:#080808;border-right:1px solid var(--line);padding:22px;position:sticky;top:0;height:100vh}.logo{width:190px;background:#fff;border-radius:12px;padding:5px;margin-bottom:26px}.nav{display:grid;gap:8px}.nav a{padding:12px 14px;border-radius:12px;color:#ddd;font-weight:800}.nav a:hover,.nav a.active{background:rgba(237,28,36,.16);color:#fff}.main{padding:26px}.top{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:22px}.top h1{margin:0;font-size:36px;letter-spacing:-.04em}.top p{margin:7px 0 0;color:var(--muted)}.btn{background:var(--red);border:1px solid var(--red);color:#fff;border-radius:999px;padding:11px 16px;font-weight:900;cursor:pointer}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}.stat{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:18px}.stat strong{font-size:30px}.stat span{display:block;color:var(--muted);font-size:13px;font-weight:800;margin-top:4px}.toolbar{display:grid;grid-template-columns:1fr 220px 190px;gap:12px;margin-bottom:16px}.toolbar input,.toolbar select{background:#111;border:1px solid var(--line);color:#fff;border-radius:12px;padding:12px;font:inherit}.buyer{background:rgba(17,17,17,.96);border:1px solid var(--line);border-radius:18px;margin-bottom:12px;overflow:hidden}.buyer-head{display:grid;grid-template-columns:1.1fr .8fr .8fr .8fr auto;gap:14px;align-items:center;padding:16px;cursor:pointer}.buyer-head:hover{background:#151515}.small{font-size:13px;color:var(--muted)}.pill{display:inline-flex;border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:6px 10px;font-size:12px;font-weight:900;color:#fff;background:#171717}.pill.red{border-color:rgba(237,28,36,.5);background:rgba(237,28,36,.14)}.details{display:none;border-top:1px solid var(--line);padding:18px;background:#0b0b0b}.buyer.open .details{display:block}.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.box{background:#111;border:1px solid var(--line);border-radius:14px;padding:14px}.box h3{margin:0 0 10px}.line{display:grid;grid-template-columns:180px 1fr;gap:10px;border-bottom:1px solid rgba(255,255,255,.07);padding:7px 0}.line:last-child{border-bottom:0}.items{display:grid;gap:8px}.item{border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:10px;background:#151515}.muted{color:var(--muted)}.empty{padding:26px;border:1px dashed var(--line);border-radius:18px;color:var(--muted);text-align:center}.links{white-space:pre-wrap;word-break:break-word;color:#ddd}.notes{white-space:pre-wrap;color:#ddd;max-height:260px;overflow:auto}@media(max-width:1000px){.admin-shell{grid-template-columns:1fr}.sidebar{position:relative;height:auto}.stats,.toolbar,.buyer-head,.detail-grid{grid-template-columns:1fr}.line{grid-template-columns:1fr}.main{padding:18px}}
+</style>
+</head>
+<body>
+<div class="admin-shell">
+  <aside class="sidebar">
+    <a href="admin-dashboard.html"><img class="logo" src="anybike-logo-new.jpg" alt="AnyBike"></a>
+    <nav class="nav">
+      <a href="admin-dashboard.html">Dashboard</a>
+      <a href="admin-enquiries.html">Enquiries CRM</a>
+      <a class="active" href="admin-global-buyer-network.html">Global Buyer Network</a>
+      <a href="available-stock.html">Available Stock</a>
+      <a href="index.html">Website Home</a>
+    </nav>
+  </aside>
+
+  <main class="main">
+    <div class="top">
+      <div>
+        <h1>Global Buyer Network</h1>
+        <p>Potential bulk buyers, requested bikes, monthly volume, selling links and shipping preferences.</p>
+      </div>
+      <button class="btn" onclick="loadBuyers()">Refresh</button>
+    </div>
+
+    <section class="stats">
+      <div class="stat"><strong id="totalBuyers">0</strong><span>Total buyers</span></div>
+      <div class="stat"><strong id="newBuyers">0</strong><span>New potential buyers</span></div>
+      <div class="stat"><strong id="totalItems">0</strong><span>Requested bike rows</span></div>
+      <div class="stat"><strong id="topCountry">-</strong><span>Top country</span></div>
+    </section>
+
+    <section class="toolbar">
+      <input id="searchBox" placeholder="Search buyer, email, country, bike..." oninput="renderBuyers()">
+      <select id="countryFilter" onchange="renderBuyers()"><option value="">All countries</option></select>
+      <select id="statusFilter" onchange="renderBuyers()"><option value="">All statuses</option></select>
+    </section>
+
+    <section id="buyersList"></section>
+  </main>
+</div>
+
+<script>
+const SUPABASE_URL = "https://tuehtnezhdnkqbbhttgp.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let buyers=[];
+let items=[];
+function safe(v){return String(v ?? "").replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
+function money(v){return v==null||v===""?"-":"£"+Number(v).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});}
+function dateTxt(v){return v?new Date(v).toLocaleString():"-";}
+async function loadBuyers(){
+  document.getElementById('buyersList').innerHTML='<div class="empty">Loading Global Buyer Network...</div>';
+  const [bRes,iRes]=await Promise.all([
+    sb.from('global_buyer_network').select('*').order('created_at',{ascending:false}).limit(500),
+    sb.from('global_buyer_request_items').select('*').order('created_at',{ascending:false}).limit(3000)
+  ]);
+  if(bRes.error){document.getElementById('buyersList').innerHTML='<div class="empty">Could not load buyers: '+safe(bRes.error.message)+'</div>';return;}
+  buyers=bRes.data||[];items=iRes.data||[];
+  buildFilters();renderBuyers();
+}
+function buildFilters(){
+  const countries=[...new Set(buyers.map(b=>b.country).filter(Boolean))].sort();
+  const statuses=[...new Set(buyers.map(b=>b.status).filter(Boolean))].sort();
+  document.getElementById('countryFilter').innerHTML='<option value="">All countries</option>'+countries.map(c=>`<option>${safe(c)}</option>`).join('');
+  document.getElementById('statusFilter').innerHTML='<option value="">All statuses</option>'+statuses.map(s=>`<option>${safe(s)}</option>`).join('');
+}
+function itemsForBuyer(id){return items.filter(i=>String(i.buyer_id)===String(id));}
+function renderBuyers(){
+  const q=document.getElementById('searchBox').value.toLowerCase().trim();
+  const cf=document.getElementById('countryFilter').value;
+  const sf=document.getElementById('statusFilter').value;
+  let rows=buyers.filter(b=>{
+    const its=itemsForBuyer(b.id);
+    const hay=[b.business_name,b.contact_name,b.email,b.phone,b.country,b.status,b.annual_purchase_volume,b.website,b.social_links,...its.flatMap(i=>[i.make,i.model,i.year_from,i.year_to])].join(' ').toLowerCase();
+    return (!q||hay.includes(q)) && (!cf||b.country===cf) && (!sf||b.status===sf);
+  });
+  updateStats(rows);
+  const list=document.getElementById('buyersList');
+  if(!rows.length){list.innerHTML='<div class="empty">No Global Buyer Network enquiries found.</div>';return;}
+  list.innerHTML=rows.map(b=>buyerHtml(b,itemsForBuyer(b.id))).join('');
+}
+function updateStats(rows){
+  document.getElementById('totalBuyers').textContent=rows.length;
+  document.getElementById('newBuyers').textContent=rows.filter(b=>(b.status||'').toLowerCase().includes('new')).length;
+  document.getElementById('totalItems').textContent=rows.reduce((s,b)=>s+itemsForBuyer(b.id).length,0);
+  const counts={};rows.forEach(b=>{if(b.country)counts[b.country]=(counts[b.country]||0)+1;});
+  const top=Object.entries(counts).sort((a,b)=>b[1]-a[1])[0];document.getElementById('topCountry').textContent=top?top[0]:'-';
+}
+function buyerHtml(b,its){
+  const qty=its.reduce((s,i)=>s+Number(i.quantity||0),0);
+  return `<article class="buyer" id="buyer-${b.id}">
+    <div class="buyer-head" onclick="this.parentElement.classList.toggle('open')">
+      <div><strong>${safe(b.business_name||'Unnamed buyer')}</strong><div class="small">${safe(b.contact_name||'')} ${b.email?' • '+safe(b.email):''}</div></div>
+      <div>${safe(b.country||'-')}<div class="small">${safe(b.phone||'')}</div></div>
+      <div><span class="pill red">${safe(b.status||'New')}</span><div class="small">${dateTxt(b.created_at)}</div></div>
+      <div><strong>${qty||its.length}</strong><div class="small">requested bikes / qty</div></div>
+      <div class="small">Click to open</div>
+    </div>
+    <div class="details">
+      <div class="detail-grid">
+        <div class="box"><h3>Buyer Details</h3>
+          ${line('Business',b.business_name)}${line('Contact',b.contact_name)}${line('Email',b.email)}${line('Phone',b.phone)}${line('Country',b.country)}${line('Monthly volume',b.annual_purchase_volume)}${line('Lead source',b.lead_source)}
+        </div>
+        <div class="box"><h3>Shipping</h3>
+          ${line('Preference',b.shipping_preference)}${line('UK shipper',b.preferred_shipping_company)}${line('Destination port',b.preferred_destination_port)}
+        </div>
+        <div class="box"><h3>Requested Motorcycles</h3><div class="items">${its.length?its.map(itemHtml).join(''):'<div class="muted">No item rows saved.</div>'}</div></div>
+        <div class="box"><h3>Where They Sell</h3><div class="links">${safe([b.website,b.social_links].filter(Boolean).join('\n')||'No URLs added')}</div></div>
+        <div class="box" style="grid-column:1/-1"><h3>Internal Notes</h3><div class="notes">${safe(b.internal_notes||'No notes')}</div></div>
+      </div>
+    </div>
+  </article>`;
+}
+function line(k,v){return `<div class="line"><strong>${safe(k)}</strong><span>${safe(v||'-')}</span></div>`;}
+function itemHtml(i){return `<div class="item"><strong>${safe(i.make)} ${safe(i.model)}</strong><div class="small">Year: ${safe(i.year_from||'Any')} ${i.year_to&&i.year_to!==i.year_from?' - '+safe(i.year_to):''} • Max mileage: ${safe(i.mileage_max||'-')} • Qty: ${safe(i.quantity||1)} • Max per bike: ${money(i.max_price_gbp)}</div></div>`;}
+loadBuyers();
+</script>
+</body>
+</html>
