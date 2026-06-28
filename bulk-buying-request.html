@@ -1,6 +1,22 @@
 
+<!--
+AnyBike
+File: bulk-buying-request.html
+Version: 2.1
+Date: 28 June 2026
 
-
+Changes
+--------
+✓ Keeps the approved dropdown layout
+✓ No free typing for motorcycle Make or Model
+✓ Make dropdown loads from available_stock
+✓ Model dropdown changes based on selected Make
+✓ Multiple motorcycle blocks supported
+✓ Year checkboxes preserved
+✓ Saves buyer details to global_buyer_network
+✓ Saves requested motorcycles to global_buyer_request_items
+✓ Header dropdown preserved
+-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -810,16 +826,15 @@ document.getElementById("year").textContent = new Date().getFullYear();
 let detected = { country:null, country_name:null, ip:null, latitude:null, longitude:null };
 
 const fallbackMakes = {
-  "Honda":["Africa Twin","CB500X","NC750X","Gold Wing","CBR600RR","Other"],
-  "Yamaha":["MT-07","MT-09","Tenere 700","R1","R6","Other"],
-  "BMW":["R1250GS","R1200GS","R1250RT","S1000RR","F850GS","Other"],
-  "Suzuki":["V-Strom 650","V-Strom 1000","GSX-R1000","Hayabusa","DR-Z400","Other"],
-  "Kawasaki":["Z900","Ninja 1000","Versys 650","ZX-10R","Other"],
-  "Harley-Davidson":["Sportster","Street Glide","Road King","Fat Boy","Other"],
-  "Triumph":["Tiger 900","Tiger 1200","Bonneville","Street Triple","Other"],
-  "KTM":["1290 Super Adventure","890 Adventure","Duke 790","Other"],
-  "Ducati":["Multistrada","Panigale","Monster","Other"],
-  "Other":["Other"]
+  "Honda":["Africa Twin","CB500X","NC750X","Gold Wing","CBR600RR"],
+  "Yamaha":["MT-07","MT-09","Tenere 700","R1","R6"],
+  "BMW":["R1250GS","R1200GS","R1250RT","S1000RR","F850GS"],
+  "Suzuki":["V-Strom 650","V-Strom 1000","GSX-R1000","Hayabusa","DR-Z400"],
+  "Kawasaki":["Z900","Ninja 1000","Versys 650","ZX-10R"],
+  "Harley-Davidson":["Sportster","Street Glide","Road King","Fat Boy"],
+  "Triumph":["Tiger 900","Tiger 1200","Bonneville","Street Triple"],
+  "KTM":["1290 Super Adventure","890 Adventure","Duke 790"],
+  "Ducati":["Multistrada","Panigale","Monster"]
 };
 
 let makeModels = {...fallbackMakes};
@@ -857,32 +872,50 @@ async function detectCountry(){
 
 async function loadMakesFromStock(){
   try{
-    const { data, error } = await sb
-      .from("available_stock")
-      .select("make,model")
-      .not("make","is",null)
-      .not("model","is",null)
-      .limit(8000);
-
-    if(error || !data || !data.length) return;
-
     const grouped={};
-    data.forEach(r=>{
-      const make=String(r.make || "").trim();
-      const model=String(r.model || "").trim();
-      if(!make || !model) return;
-      if(!grouped[make]) grouped[make]=new Set();
-      grouped[make].add(model);
-    });
+    const batchSize=1000;
+    let from=0;
+    let keepGoing=true;
+
+    while(keepGoing){
+      const { data, error } = await sb
+        .from("available_stock")
+        .select("make,model")
+        .not("make","is",null)
+        .not("model","is",null)
+        .range(from, from + batchSize - 1);
+
+      if(error){
+        console.warn("Could not load makes/models from stock", error);
+        break;
+      }
+
+      if(!data || !data.length){
+        keepGoing=false;
+        break;
+      }
+
+      data.forEach(r=>{
+        const make=String(r.make || "").trim();
+        const model=String(r.model || "").trim();
+        if(!make || !model) return;
+        if(!grouped[make]) grouped[make]=new Set();
+        grouped[make].add(model);
+      });
+
+      if(data.length < batchSize){
+        keepGoing=false;
+      }else{
+        from += batchSize;
+      }
+    }
 
     const final={};
     Object.keys(grouped).sort().forEach(make=>{
       final[make]=[...grouped[make]].sort();
-      if(!final[make].includes("Other")) final[make].push("Other");
     });
 
     if(Object.keys(final).length){
-      final["Other"]=["Other"];
       makeModels=final;
 
       document.querySelectorAll('[id^="request-make-"]').forEach(sel=>{
@@ -914,14 +947,15 @@ function addRequestMotorcycleBlock(){
       <div class="form-grid">
         <div class="field">
           <label>Make *</label>
-          <select id="request-make-${id}" onchange="updateRequestModels(${id})">
+          <select id="request-make-${id}" onchange="updateRequestModels(${id})" required>
+            <option value="">Select make</option>
             ${Object.keys(makeModels).map(m=>`<option value="${m}">${m}</option>`).join("")}
           </select>
         </div>
 
         <div class="field">
           <label>Model *</label>
-          <select id="request-model-${id}"></select>
+          <select id="request-model-${id}" required><option value="">Select model</option></select>
         </div>
 
         <div class="field">
@@ -961,8 +995,8 @@ function updateRequestModels(id){
   const make=document.getElementById(`request-make-${id}`)?.value;
   const model=document.getElementById(`request-model-${id}`);
   if(!make || !model) return;
-  const models=makeModels[make] || ["Other"];
-  model.innerHTML=models.map(m=>`<option value="${m}">${m}</option>`).join("");
+  const models=makeModels[make] || [];
+  model.innerHTML=`<option value="">Select model</option>` + models.map(m=>`<option value="${m}">${m}</option>`).join("");
 }
 
 function collectRequestMotorcycles(){
@@ -985,7 +1019,7 @@ function collectRequestMotorcycles(){
       mileage_max:mileage,
       years
     };
-  }).filter(b=>b.make && b.model);
+  }).filter(b=>b.make && b.model && b.years.length);
 
   const summary=bikes.map((b,i)=>
     `Motorcycle ${i+1}: ${b.quantity} x ${b.make} ${b.model} | Years: ${b.years.length ? b.years.join(", ") : "Any"} | Max mileage: ${b.mileage_max ? Number(b.mileage_max).toLocaleString() + " miles" : "Not specified"} | Maximum budget per bike GBP: ${b.budget_per_bike ? "£"+Number(b.budget_per_bike).toFixed(2) : "Not specified"}`
@@ -1067,7 +1101,7 @@ async function submitBulkRequest(form){
   const bikes=collectRequestMotorcycles();
 
   if(!bikes.length){
-    setMsg("bulkRequestMsg","Please add at least one motorcycle requirement.",false);
+    setMsg("bulkRequestMsg","Please add at least one motorcycle requirement and tick at least one year.",false);
     return;
   }
 
