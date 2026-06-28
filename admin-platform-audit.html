@@ -473,13 +473,13 @@ td:last-child{
     <div class="health-card"><div class="label">Admin Pages</div><div class="number" id="adminCount">0</div><div class="note">Staff and internal pages</div></div>
     <div class="health-card"><div class="label">Live Pages</div><div class="number" id="liveCount">0</div><div class="note">Pages that loaded successfully</div></div>
     <div class="health-card"><div class="label">Broken Links</div><div class="number" id="brokenCount">0</div><div class="note">Pages expected to exist but not loading</div></div>
-    <div class="health-card"><div class="label">Planned Pages</div><div class="number" id="plannedCount">0</div><div class="note">Roadmap pages not built yet</div></div>
+    <div class="health-card"><div class="label">Planned Pages</div><div class="number" id="plannedCount">0</div><div class="note">Planned roadmap items</div></div>
   </section>
 
   <section class="section">
     <div class="section-head">
       <h2>Public Website</h2>
-      <button class="btn dark" onclick="checkPages()">Recheck Pages</button>
+      <button type="button" class="btn dark" onclick="checkPages()">Recheck Pages</button>
     </div>
     <div class="table-wrap">
       <table>
@@ -532,15 +532,18 @@ const pages = [
   {type:"public", name:"Saved Searches", url:"my-searches.html", expected:true, seo:false, menu:false},
 
   {type:"admin", name:"Admin HQ Dashboard", url:"admin-dashboard.html", expected:true, noindex:true, menu:true},
-  {type:"admin", name:"Bike Sales CRM", url:"admin-enquiries.html", expected:true, noindex:true, menu:false},
-  {type:"admin", name:"Global Buyer CRM", url:"admin-global-buyer-network.html", expected:true, noindex:true, menu:false},
-  {type:"admin", name:"Customers 360", url:"admin-customers.html", expected:true, noindex:true, menu:false},
-  {type:"admin", name:"Stock Admin", url:"admin-stock.html", expected:false, noindex:true, menu:false},
-  {type:"admin", name:"Mission Control", url:"admin-platform-audit.html", expected:true, noindex:true, menu:true},
-  {type:"admin", name:"Logistics", url:"admin-logistics.html", expected:false, noindex:true, menu:false},
-  {type:"admin", name:"Market Intelligence", url:"admin-market-intelligence.html", expected:false, noindex:true, menu:false},
-  {type:"admin", name:"AI Matching", url:"admin-ai-matching.html", expected:false, noindex:true, menu:false},
-  {type:"admin", name:"Settings", url:"admin-settings.html", expected:false, noindex:true, menu:false}
+  {type:"admin", name:"Bike Sales CRM", url:"admin-enquiries.html", expected:true, noindex:true, menu:true},
+  {type:"admin", name:"Global Buyer CRM", url:"admin-global-buyer-network.html", expected:true, noindex:true, menu:true},
+  {type:"admin", name:"Customers 360", url:"admin-customers.html", expected:true, noindex:true, menu:true},
+  {type:"admin", name:"Stock HQ", url:"admin-stock.html", expected:true, noindex:true, menu:true},
+  {type:"admin", name:"Stock Import Manager", url:"admin-stock-import.html", expected:true, noindex:true, menu:true},
+  {type:"admin", name:"Logistics HQ", url:"admin-logistics.html", expected:true, noindex:true, menu:true},
+  {type:"admin", name:"Market Intelligence", url:"admin-market-intelligence.html", expected:true, noindex:true, menu:true},
+  {type:"admin", name:"AI Matching", url:"admin-ai-matching.html", expected:true, noindex:true, menu:true},
+  {type:"admin", name:"Export Documents", url:"admin-export-documents.html", expected:true, noindex:true, menu:true},
+  {type:"admin", name:"Reports", url:"admin-reports.html", expected:true, noindex:true, menu:true},
+  {type:"admin", name:"Administration HQ", url:"admin-settings.html", expected:true, noindex:true, menu:true},
+  {type:"admin", name:"Mission Control", url:"admin-platform-audit.html", expected:true, noindex:true, menu:true}
 ];
 
 function badge(status, text){
@@ -554,40 +557,24 @@ function setText(id, text){
 
 async function pageExists(url){
   try{
-    const res = await fetch(url, {method:"GET", cache:"no-store"});
+    const testUrl = url + (url.includes("?") ? "&" : "?") + "audit=" + Date.now();
+    const res = await fetch(testUrl, {
+      method:"GET",
+      cache:"no-store"
+    });
     return res.ok;
   }catch(e){
     return false;
   }
 }
 
-function pageRow(p, status){
-  const statusBadge = status === "live" ? badge("live","🟢 Live") :
-                      status === "planned" ? badge("planned","🔵 Planned") :
-                      status === "review" ? badge("review","🟡 Review") :
-                      badge("broken","🔴 Broken");
-
-  const seoPrivacy = p.type === "public"
-    ? (p.seo ? badge("live","SEO") : badge("review","Review"))
-    : (p.noindex ? badge("live","Noindex") : badge("broken","Needs noindex"));
-
-  const menu = p.menu ? badge("live","Menu OK") : badge("review","Menu Review");
-
-  const action = status === "planned"
-    ? `<span class="noindex">Roadmap item</span>`
-    : `<a class="link-btn" href="${p.url}" target="_blank">Open</a>`;
-
-  return `<tr>
-    <td>${p.name}${p.note ? `<div class="small">${p.note}</div>` : ""}</td>
-    <td><code>${p.url}</code></td>
-    <td>${statusBadge}</td>
-    <td>${seoPrivacy}</td>
-    <td>${menu}</td>
-    <td><div class="actions">${action}</div></td>
-  </tr>`;
-}
-
 async function checkPages(){
+  const btn = document.querySelector('button[onclick="checkPages()"]');
+  if(btn){
+    btn.disabled = true;
+    btn.textContent = "Checking...";
+  }
+
   const publicRows = [];
   const adminRows = [];
 
@@ -638,9 +625,14 @@ async function checkPages(){
   setText("overallHealth", health + "% Platform Health");
   document.getElementById("healthBar").style.width = health + "%";
   document.getElementById("healthBar").style.background = broken ? "var(--amber)" : "var(--green)";
+
+  if(btn){
+    btn.disabled = false;
+    btn.textContent = "Recheck Pages";
+  }
 }
 
-function setDate(){
+function setDatefunction setDate(){
   const now = new Date();
   document.getElementById("todayDate").textContent = now.toLocaleDateString("en-GB",{
     weekday:"long", day:"numeric", month:"long", year:"numeric"
