@@ -1,0 +1,922 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<link rel="canonical" href="https://www.anybike.co.uk/admin-motorcycle-requests.html">
+<title>Admin Motorcycle Requests | AnyBike</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="anybike-logo-new.jpg" type="image/jpeg">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<!--
+AnyBike
+File: admin-motorcycle-requests.html
+Version: 1.0
+Date: 28 June 2026
+
+Purpose
+-------
+Admin 360 workspace for Global Buyer Network / bulk motorcycle requests.
+
+Reads from:
+- global_buyer_network
+- global_buyer_request_items
+
+Website URL:
+https://www.anybike.co.uk/admin-motorcycle-requests.html
+-->
+
+<style>
+:root{
+  --red:#ed1c24;
+  --black:#050505;
+  --panel:#111;
+  --panel2:#181818;
+  --panel3:#202020;
+  --line:rgba(255,255,255,.13);
+  --muted:#aaa;
+  --text:#fff;
+  --green:#33cc66;
+  --orange:#ffb347;
+  --blue:#5db7ff;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:Arial,Helvetica,sans-serif;
+  background:
+    radial-gradient(circle at top left,rgba(237,28,36,.18),transparent 34%),
+    linear-gradient(120deg,#050505,#101010 60%,#050505);
+  color:#fff;
+  line-height:1.45;
+}
+a{color:inherit;text-decoration:none}
+button,input,select,textarea{font:inherit}
+
+/* ADMIN HEADER */
+.admin-header{
+  position:sticky;
+  top:0;
+  z-index:100;
+  background:rgba(5,5,5,.94);
+  border-bottom:1px solid var(--line);
+  backdrop-filter:blur(10px);
+}
+.admin-header-inner{
+  width:94vw;
+  max-width:1800px;
+  margin:auto;
+  padding:10px 18px;
+  display:grid;
+  grid-template-columns:220px 1fr auto;
+  align-items:center;
+  gap:18px;
+}
+.logo{
+  width:205px;
+  display:block;
+  background:#fff;
+  border-radius:12px;
+  padding:5px;
+}
+.admin-nav{
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  gap:16px;
+  flex-wrap:wrap;
+}
+.admin-nav a{
+  font-size:14px;
+  font-weight:900;
+  color:#fff;
+}
+.admin-nav a:hover,.admin-nav a.active{color:var(--red)}
+.admin-user{
+  text-align:right;
+  font-size:13px;
+  color:#ddd;
+  font-weight:900;
+}
+
+.wrap{
+  width:94vw;
+  max-width:1800px;
+  margin:auto;
+  padding:24px 0 60px;
+}
+.page-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-end;
+  gap:20px;
+  margin-bottom:20px;
+}
+.eyebrow{
+  color:var(--red);
+  text-transform:uppercase;
+  letter-spacing:.16em;
+  font-size:12px;
+  font-weight:900;
+  margin-bottom:8px;
+}
+h1{
+  margin:0;
+  font-size:clamp(32px,4vw,58px);
+  letter-spacing:-.04em;
+  line-height:.98;
+}
+.page-head p{
+  margin:10px 0 0;
+  color:var(--muted);
+  max-width:850px;
+}
+.actions{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  flex-wrap:wrap;
+}
+.btn{
+  border:none;
+  border-radius:999px;
+  background:var(--red);
+  color:#fff;
+  padding:11px 16px;
+  font-weight:900;
+  cursor:pointer;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+}
+.btn.secondary{
+  background:#fff;
+  color:#111;
+}
+.btn.dark{
+  background:#1c1c1c;
+  border:1px solid var(--line);
+  color:#fff;
+}
+.btn.small{
+  padding:8px 12px;
+  font-size:13px;
+}
+
+.pipeline{
+  display:grid;
+  grid-template-columns:repeat(7,1fr);
+  gap:10px;
+  margin-bottom:20px;
+}
+.stat{
+  background:rgba(17,17,17,.96);
+  border:1px solid var(--line);
+  border-radius:18px;
+  padding:14px 12px;
+  min-height:104px;
+  cursor:pointer;
+  transition:.15s ease;
+}
+.stat:hover,.stat.active{
+  border-color:var(--red);
+  transform:translateY(-2px);
+}
+.stat strong{
+  display:block;
+  font-size:30px;
+  line-height:1;
+  margin-bottom:7px;
+}
+.stat span{
+  color:#ddd;
+  font-size:12px;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.06em;
+}
+
+.toolbar{
+  display:grid;
+  grid-template-columns:1fr 230px 230px auto;
+  gap:10px;
+  background:rgba(255,255,255,.045);
+  border:1px solid var(--line);
+  border-radius:20px;
+  padding:12px;
+  margin-bottom:18px;
+}
+input,select,textarea{
+  width:100%;
+  border:1px solid rgba(255,255,255,.16);
+  background:rgba(255,255,255,.08);
+  color:#fff;
+  border-radius:14px;
+  padding:11px 12px;
+  outline:none;
+}
+select option{color:#111}
+textarea{min-height:120px;resize:vertical}
+input:focus,select:focus,textarea:focus{
+  border-color:var(--red);
+  box-shadow:0 0 0 4px rgba(237,28,36,.14);
+}
+
+.list{
+  display:grid;
+  gap:12px;
+}
+.request-card{
+  background:rgba(17,17,17,.96);
+  border:1px solid var(--line);
+  border-radius:22px;
+  overflow:hidden;
+}
+.request-row{
+  display:grid;
+  grid-template-columns:34px 1.4fr .95fr .8fr .9fr .9fr;
+  gap:12px;
+  align-items:center;
+  padding:16px;
+  cursor:pointer;
+}
+.arrow{
+  width:28px;
+  height:28px;
+  border-radius:999px;
+  background:#222;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:var(--red);
+  font-size:22px;
+  transition:.15s ease;
+}
+.request-card.open .arrow{transform:rotate(90deg)}
+.big{
+  font-weight:900;
+  font-size:17px;
+}
+.small{
+  color:var(--muted);
+  font-size:13px;
+}
+.badge{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:999px;
+  padding:7px 10px;
+  font-size:12px;
+  font-weight:900;
+  text-transform:uppercase;
+  background:rgba(237,28,36,.14);
+  color:#fff;
+  border:1px solid rgba(237,28,36,.4);
+}
+.badge.green{background:rgba(51,204,102,.14);border-color:rgba(51,204,102,.45)}
+.badge.orange{background:rgba(255,179,71,.14);border-color:rgba(255,179,71,.45)}
+.badge.blue{background:rgba(93,183,255,.14);border-color:rgba(93,183,255,.45)}
+
+.expanded{
+  display:none;
+  border-top:1px solid var(--line);
+  padding:18px;
+  background:rgba(0,0,0,.18);
+}
+.request-card.open .expanded{display:block}
+.workspace{
+  display:grid;
+  grid-template-columns:.88fr 1.2fr .92fr;
+  gap:14px;
+}
+.panel{
+  background:rgba(255,255,255,.045);
+  border:1px solid var(--line);
+  border-radius:20px;
+  padding:16px;
+}
+.panel h3{
+  margin:0 0 12px;
+  font-size:18px;
+}
+.info-grid{
+  display:grid;
+  gap:10px;
+}
+.info{
+  background:rgba(0,0,0,.24);
+  border:1px solid rgba(255,255,255,.10);
+  border-radius:14px;
+  padding:10px;
+}
+.info label{
+  display:block;
+  color:var(--muted);
+  font-size:12px;
+  font-weight:900;
+  text-transform:uppercase;
+  margin-bottom:4px;
+}
+.info div{
+  font-weight:800;
+  overflow-wrap:anywhere;
+}
+.bike-list{
+  display:grid;
+  gap:10px;
+}
+.bike-item{
+  background:rgba(0,0,0,.24);
+  border:1px solid rgba(255,255,255,.10);
+  border-radius:16px;
+  padding:12px;
+}
+.bike-title{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  align-items:center;
+  margin-bottom:8px;
+}
+.bike-title strong{
+  font-size:17px;
+}
+.bike-meta{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:8px;
+}
+.mini{
+  background:rgba(255,255,255,.055);
+  border-radius:12px;
+  padding:9px;
+}
+.mini span{
+  display:block;
+  color:var(--muted);
+  font-size:11px;
+  text-transform:uppercase;
+  font-weight:900;
+}
+.mini b{font-size:14px}
+.status-grid{
+  display:grid;
+  gap:10px;
+}
+.notes-area{
+  margin-top:12px;
+}
+.ai-box{
+  border:1px dashed rgba(255,255,255,.22);
+  border-radius:16px;
+  padding:14px;
+  color:#ddd;
+  background:rgba(255,255,255,.035);
+}
+.ai-row{
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  padding:9px 0;
+  border-bottom:1px solid rgba(255,255,255,.08);
+}
+.ai-row:last-child{border-bottom:none}
+.empty{
+  border:1px dashed rgba(255,255,255,.25);
+  border-radius:22px;
+  padding:28px;
+  text-align:center;
+  color:#bbb;
+  background:rgba(255,255,255,.035);
+}
+.msg{
+  margin-top:12px;
+  display:none;
+  border-radius:14px;
+  padding:10px 12px;
+  font-weight:800;
+}
+.msg.ok{display:block;color:#32d27b;border:1px solid rgba(50,210,123,.4)}
+.msg.bad{display:block;color:#ff7777;border:1px solid rgba(255,119,119,.4)}
+
+@media(max-width:1200px){
+  .admin-header-inner{grid-template-columns:1fr;text-align:center}
+  .logo{margin:auto}
+  .admin-user{text-align:center}
+  .pipeline{grid-template-columns:repeat(3,1fr)}
+  .toolbar{grid-template-columns:1fr}
+  .request-row{grid-template-columns:30px 1fr}
+  .hide-mobile{display:none}
+  .workspace{grid-template-columns:1fr}
+  .bike-meta{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:650px){
+  .pipeline{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+</head>
+
+<body>
+
+<header class="admin-header">
+  <div class="admin-header-inner">
+    <a href="admin-dashboard.html">
+      <img class="logo" src="anybike-logo-new.jpg" alt="AnyBike Admin">
+    </a>
+
+    <nav class="admin-nav">
+      <a href="admin-dashboard.html">Dashboard</a>
+      <a href="admin-enquiries.html">Enquiries</a>
+      <a class="active" href="admin-motorcycle-requests.html">Motorcycle Requests</a>
+      <a href="admin-customers.html">Customers</a>
+      <a href="admin-stock.html">Stock</a>
+      <a href="admin-logistics.html">Logistics</a>
+      <a href="admin-mission-control.html">Mission Control</a>
+    </nav>
+
+    <div class="admin-user">AnyBike Admin 360</div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <div class="page-head">
+    <div>
+      <div class="eyebrow">Global Buyer Network</div>
+      <h1>Motorcycle Requests</h1>
+      <p>Manage bulk buyer requests, requested motorcycles, shipping requirements and buyer market intelligence from one Admin 360 workspace.</p>
+    </div>
+    <div class="actions">
+      <a class="btn dark" href="bulk-buying-request.html" target="_blank">Open Public Page</a>
+      <button class="btn secondary" onclick="loadRequests()">Refresh</button>
+    </div>
+  </div>
+
+  <section class="pipeline">
+    <div class="stat active" data-filter="All" onclick="setFilter('All',this)">
+      <strong id="countAll">0</strong>
+      <span>All Requests</span>
+    </div>
+    <div class="stat" data-filter="New Potential Buyer" onclick="setFilter('New Potential Buyer',this)">
+      <strong id="countNew">0</strong>
+      <span>New Requests</span>
+    </div>
+    <div class="stat" data-filter="Matching Stock" onclick="setFilter('Matching Stock',this)">
+      <strong id="countMatching">0</strong>
+      <span>Matching Stock</span>
+    </div>
+    <div class="stat" data-filter="Waiting Buyer" onclick="setFilter('Waiting Buyer',this)">
+      <strong id="countWaiting">0</strong>
+      <span>Waiting Buyer</span>
+    </div>
+    <div class="stat" data-filter="Buying" onclick="setFilter('Buying',this)">
+      <strong id="countBuying">0</strong>
+      <span>Buying</span>
+    </div>
+    <div class="stat" data-filter="Ready To Ship" onclick="setFilter('Ready To Ship',this)">
+      <strong id="countReady">0</strong>
+      <span>Ready To Ship</span>
+    </div>
+    <div class="stat" data-filter="Completed" onclick="setFilter('Completed',this)">
+      <strong id="countDone">0</strong>
+      <span>Completed</span>
+    </div>
+  </section>
+
+  <section class="toolbar">
+    <input id="searchBox" placeholder="Search buyer, country, email, website, motorcycle..." oninput="renderRequests()">
+
+    <select id="countryFilter" onchange="renderRequests()">
+      <option value="">All countries</option>
+    </select>
+
+    <select id="sortSelect" onchange="renderRequests()">
+      <option value="newest">Newest first</option>
+      <option value="oldest">Oldest first</option>
+      <option value="country">Country A-Z</option>
+      <option value="company">Company A-Z</option>
+    </select>
+
+    <button class="btn" onclick="renderRequests()">Apply</button>
+  </section>
+
+  <section id="requestList" class="list">
+    <div class="empty">Loading motorcycle requests...</div>
+  </section>
+
+</main>
+
+<script>
+const SUPABASE_URL = "https://tuehtnezhdnkqbbhttgp.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const STATUSES = [
+  "New Potential Buyer",
+  "Matching Stock",
+  "Waiting Buyer",
+  "Buying",
+  "Ready To Ship",
+  "Completed",
+  "Lost / Not Suitable"
+];
+
+let buyers = [];
+let requestItems = [];
+let currentFilter = "All";
+
+function safe(v){
+  return String(v ?? "").replace(/[&<>"']/g, m => ({
+    "&":"&amp;",
+    "<":"&lt;",
+    ">":"&gt;",
+    '"':"&quot;",
+    "'":"&#039;"
+  }[m]));
+}
+
+function money(v){
+  const n = Number(v || 0);
+  if(!n) return "Not set";
+  return "£" + n.toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:0});
+}
+
+function dateText(v){
+  if(!v) return "Unknown";
+  return new Date(v).toLocaleString("en-GB",{
+    day:"2-digit",
+    month:"short",
+    year:"numeric",
+    hour:"2-digit",
+    minute:"2-digit"
+  });
+}
+
+function statusBadgeClass(status){
+  if(status === "Completed") return "green";
+  if(status === "Buying" || status === "Ready To Ship") return "blue";
+  if(status === "Waiting Buyer" || status === "Matching Stock") return "orange";
+  return "";
+}
+
+function statusOptions(current){
+  return STATUSES.map(s => `<option value="${safe(s)}" ${s === current ? "selected" : ""}>${safe(s)}</option>`).join("");
+}
+
+async function loadRequests(){
+  const list = document.getElementById("requestList");
+  list.innerHTML = `<div class="empty">Loading motorcycle requests...</div>`;
+
+  const { data: buyerData, error: buyerError } = await sb
+    .from("global_buyer_network")
+    .select("*")
+    .order("created_at",{ascending:false});
+
+  if(buyerError){
+    console.error(buyerError);
+    list.innerHTML = `<div class="empty">Could not load buyer requests.<br>${safe(buyerError.message)}</div>`;
+    return;
+  }
+
+  buyers = buyerData || [];
+
+  const ids = buyers.map(b => b.id);
+  requestItems = [];
+
+  if(ids.length){
+    const { data: itemData, error: itemError } = await sb
+      .from("global_buyer_request_items")
+      .select("*")
+      .in("buyer_id", ids);
+
+    if(itemError){
+      console.warn("Could not load request items", itemError);
+    }else{
+      requestItems = itemData || [];
+    }
+  }
+
+  populateCountryFilter();
+  updateCounts();
+  renderRequests();
+}
+
+function itemsForBuyer(id){
+  return requestItems.filter(i => Number(i.buyer_id) === Number(id));
+}
+
+function buyerSearchText(b){
+  const items = itemsForBuyer(b.id).map(i => `${i.make} ${i.model} ${i.year_from || ""} ${i.year_to || ""}`).join(" ");
+  return [
+    b.business_name,
+    b.contact_name,
+    b.email,
+    b.phone,
+    b.country,
+    b.website,
+    b.shipping_preference,
+    b.preferred_shipping_company,
+    b.preferred_destination_port,
+    b.status,
+    b.internal_notes,
+    items
+  ].join(" ").toLowerCase();
+}
+
+function populateCountryFilter(){
+  const sel = document.getElementById("countryFilter");
+  const current = sel.value;
+  const countries = [...new Set(buyers.map(b => b.country).filter(Boolean))].sort();
+
+  sel.innerHTML = `<option value="">All countries</option>` + countries.map(c => `<option value="${safe(c)}">${safe(c)}</option>`).join("");
+  if(countries.includes(current)) sel.value = current;
+}
+
+function updateCounts(){
+  const byStatus = s => buyers.filter(b => (b.status || "New Potential Buyer") === s).length;
+  document.getElementById("countAll").textContent = buyers.length;
+  document.getElementById("countNew").textContent = byStatus("New Potential Buyer");
+  document.getElementById("countMatching").textContent = byStatus("Matching Stock");
+  document.getElementById("countWaiting").textContent = byStatus("Waiting Buyer");
+  document.getElementById("countBuying").textContent = byStatus("Buying");
+  document.getElementById("countReady").textContent = byStatus("Ready To Ship");
+  document.getElementById("countDone").textContent = byStatus("Completed");
+}
+
+function setFilter(filter,el){
+  currentFilter = filter;
+  document.querySelectorAll(".stat").forEach(s => s.classList.remove("active"));
+  if(el) el.classList.add("active");
+  renderRequests();
+}
+
+function renderRequests(){
+  const list = document.getElementById("requestList");
+  const q = document.getElementById("searchBox").value.trim().toLowerCase();
+  const country = document.getElementById("countryFilter").value;
+  const sort = document.getElementById("sortSelect").value;
+
+  let rows = [...buyers];
+
+  if(currentFilter !== "All"){
+    rows = rows.filter(b => (b.status || "New Potential Buyer") === currentFilter);
+  }
+
+  if(country){
+    rows = rows.filter(b => (b.country || "") === country);
+  }
+
+  if(q){
+    rows = rows.filter(b => buyerSearchText(b).includes(q));
+  }
+
+  rows.sort((a,b) => {
+    if(sort === "oldest") return new Date(a.created_at || 0) - new Date(b.created_at || 0);
+    if(sort === "country") return String(a.country || "").localeCompare(String(b.country || ""));
+    if(sort === "company") return String(a.business_name || "").localeCompare(String(b.business_name || ""));
+    return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+  });
+
+  if(!rows.length){
+    list.innerHTML = `<div class="empty">No motorcycle requests match this view.</div>`;
+    return;
+  }
+
+  list.innerHTML = rows.map(renderCard).join("");
+}
+
+function renderCard(b){
+  const items = itemsForBuyer(b.id);
+  const status = b.status || "New Potential Buyer";
+  const bikesPreview = items.slice(0,3).map(i => `${safe(i.make)} ${safe(i.model)}`).join("<br>") || "No bike items saved";
+  const totalQty = items.reduce((sum,i) => sum + Number(i.quantity || 0),0);
+
+  return `
+    <article class="request-card" id="request-card-${b.id}">
+      <div class="request-row" onclick="toggleCard(${b.id})">
+        <div class="arrow">›</div>
+
+        <div>
+          <div class="big">${safe(b.business_name || "Unnamed Buyer")}</div>
+          <div class="small">${safe(b.contact_name || "")} ${b.email ? " · " + safe(b.email) : ""}</div>
+        </div>
+
+        <div class="hide-mobile">
+          <div class="big">${safe(b.country || "Unknown")}</div>
+          <div class="small">${safe(b.preferred_destination_port || "No port set")}</div>
+        </div>
+
+        <div class="hide-mobile">
+          <div class="big">${items.length} Bike Types</div>
+          <div class="small">${totalQty || 0} total qty</div>
+        </div>
+
+        <div class="hide-mobile">
+          <div class="small">${bikesPreview}</div>
+        </div>
+
+        <div>
+          <span class="badge ${statusBadgeClass(status)}">${safe(status)}</span>
+          <div class="small">${dateText(b.created_at)}</div>
+        </div>
+      </div>
+
+      <div class="expanded">
+        <div class="workspace">
+
+          <section class="panel">
+            <h3>Buyer Details</h3>
+            <div class="info-grid">
+              ${info("Company", b.business_name)}
+              ${info("Contact", b.contact_name)}
+              ${info("Email", b.email)}
+              ${info("Phone", b.phone)}
+              ${info("Country", b.country)}
+              ${info("Website", b.website ? `<a href="${safe(b.website)}" target="_blank">${safe(b.website)}</a>` : "")}
+              ${info("Monthly Volume", b.annual_purchase_volume)}
+              ${info("Buyer Type", b.buyer_type)}
+              ${info("Lead Source", b.lead_source)}
+              ${info("Created", dateText(b.created_at))}
+            </div>
+
+            <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
+              <a class="btn small dark" href="admin-customers.html?email=${encodeURIComponent(b.email || "")}">Customer 360</a>
+              <a class="btn small dark" href="mailto:${safe(b.email || "")}">Email Buyer</a>
+            </div>
+          </section>
+
+          <section class="panel">
+            <h3>Requested Motorcycles</h3>
+            <div class="bike-list">
+              ${items.length ? items.map(renderBikeItem).join("") : `<div class="empty">No motorcycle request items found for this buyer.</div>`}
+            </div>
+          </section>
+
+          <section class="panel">
+            <h3>Workflow</h3>
+            <div class="status-grid">
+              <label class="small">Request Status</label>
+              <select id="status-${b.id}">
+                ${statusOptions(status)}
+              </select>
+
+              <button class="btn" onclick="event.stopPropagation();saveStatus(${b.id})">Save Status</button>
+
+              <div class="ai-box">
+                <strong>AI Matching Preview</strong>
+                <div class="ai-row"><span>In-stock matching</span><b>Coming next</b></div>
+                <div class="ai-row"><span>Sourcing opportunities</span><b>Coming next</b></div>
+                <div class="ai-row"><span>Country demand score</span><b>Coming next</b></div>
+              </div>
+
+              <h3 style="margin-top:8px">Shipping</h3>
+              ${info("Preference", b.shipping_preference)}
+              ${info("Preferred Shipper", b.preferred_shipping_company)}
+              ${info("Destination Port", b.preferred_destination_port)}
+            </div>
+          </section>
+
+        </div>
+
+        <section class="panel notes-area">
+          <h3>Internal Notes / Buyer Market Intelligence</h3>
+          <textarea id="notes-${b.id}">${safe(b.internal_notes || "")}</textarea>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
+            <button class="btn" onclick="event.stopPropagation();saveNotes(${b.id})">Save Notes</button>
+            <button class="btn dark" onclick="event.stopPropagation();copyBuyerSummary(${b.id})">Copy Buyer Summary</button>
+          </div>
+          <div class="msg" id="msg-${b.id}"></div>
+        </section>
+      </div>
+    </article>
+  `;
+}
+
+function info(label,value){
+  const display = value ? value : "Not set";
+  return `
+    <div class="info">
+      <label>${safe(label)}</label>
+      <div>${display}</div>
+    </div>
+  `;
+}
+
+function renderBikeItem(i){
+  const yearText = i.year_from && i.year_to
+    ? (i.year_from === i.year_to ? i.year_from : `${i.year_from} - ${i.year_to}`)
+    : "Any / Older";
+
+  return `
+    <div class="bike-item">
+      <div class="bike-title">
+        <strong>${safe(i.make)} ${safe(i.model)}</strong>
+        <span class="badge">${Number(i.quantity || 1)} required</span>
+      </div>
+      <div class="bike-meta">
+        <div class="mini"><span>Years</span><b>${safe(yearText)}</b></div>
+        <div class="mini"><span>Max Mileage</span><b>${i.mileage_max ? Number(i.mileage_max).toLocaleString() : "Not set"}</b></div>
+        <div class="mini"><span>Max Price</span><b>${money(i.max_price_gbp)}</b></div>
+        <div class="mini"><span>Notes</span><b>${safe(i.notes || "None")}</b></div>
+      </div>
+    </div>
+  `;
+}
+
+function toggleCard(id){
+  const card = document.getElementById(`request-card-${id}`);
+  if(card) card.classList.toggle("open");
+}
+
+function setMsg(id,text,ok=true){
+  const el = document.getElementById(`msg-${id}`);
+  if(!el) return;
+  el.className = "msg " + (ok ? "ok" : "bad");
+  el.textContent = text;
+  setTimeout(() => { el.className = "msg"; }, 3500);
+}
+
+async function saveStatus(id){
+  const status = document.getElementById(`status-${id}`).value;
+
+  const { error } = await sb
+    .from("global_buyer_network")
+    .update({ status })
+    .eq("id", id);
+
+  if(error){
+    console.error(error);
+    setMsg(id,"Status save failed: " + error.message,false);
+    return;
+  }
+
+  const buyer = buyers.find(b => Number(b.id) === Number(id));
+  if(buyer) buyer.status = status;
+
+  updateCounts();
+  renderRequests();
+
+  setTimeout(() => {
+    const card = document.getElementById(`request-card-${id}`);
+    if(card) card.classList.add("open");
+    setMsg(id,"Status saved");
+  }, 50);
+}
+
+async function saveNotes(id){
+  const notes = document.getElementById(`notes-${id}`).value;
+
+  const { error } = await sb
+    .from("global_buyer_network")
+    .update({ internal_notes: notes })
+    .eq("id", id);
+
+  if(error){
+    console.error(error);
+    setMsg(id,"Notes save failed: " + error.message,false);
+    return;
+  }
+
+  const buyer = buyers.find(b => Number(b.id) === Number(id));
+  if(buyer) buyer.internal_notes = notes;
+
+  setMsg(id,"Notes saved");
+}
+
+function copyBuyerSummary(id){
+  const b = buyers.find(x => Number(x.id) === Number(id));
+  if(!b) return;
+
+  const items = itemsForBuyer(id);
+
+  const text = [
+    `Buyer: ${b.business_name || "Unknown"}`,
+    `Contact: ${b.contact_name || "Unknown"}`,
+    `Email: ${b.email || "Unknown"}`,
+    `Phone: ${b.phone || "Unknown"}`,
+    `Country: ${b.country || "Unknown"}`,
+    `Destination Port: ${b.preferred_destination_port || "Not set"}`,
+    `Shipping: ${b.shipping_preference || "Not set"}`,
+    "",
+    "Motorcycles:",
+    ...items.map(i => {
+      const year = i.year_from ? i.year_from : "Any / Older";
+      return `- ${i.quantity || 1} x ${i.make} ${i.model}, Year: ${year}, Max mileage: ${i.mileage_max || "Not set"}, Max price: ${money(i.max_price_gbp)}`;
+    }),
+    "",
+    "Notes:",
+    b.internal_notes || ""
+  ].join("\n");
+
+  navigator.clipboard.writeText(text).then(() => setMsg(id,"Buyer summary copied"));
+}
+
+loadRequests();
+</script>
+
+</body>
+</html>
