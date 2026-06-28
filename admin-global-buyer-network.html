@@ -131,6 +131,38 @@
   color:var(--muted);
   font-size:13px;
 }
+
+.status-control{
+  display:grid;
+  grid-template-columns:1fr auto;
+  gap:8px;
+  align-items:end;
+  margin-top:12px;
+}
+.status-control select{
+  width:100%;
+  background:#111;
+  border:1px solid rgba(255,255,255,.18);
+  color:#fff;
+  border-radius:12px;
+  padding:10px;
+  font:inherit;
+}
+.status-control option{color:#111}
+.status-save-btn{
+  background:var(--red);
+  border:0;
+  color:#fff;
+  border-radius:999px;
+  padding:10px 13px;
+  font-weight:900;
+  cursor:pointer;
+  white-space:nowrap;
+}
+.status-save-btn:disabled{
+  opacity:.55;
+  cursor:not-allowed;
+}
 @media(max-width:1000px){.admin-shell{grid-template-columns:1fr}.sidebar{position:relative;height:auto}.stats,.toolbar,.buyer-head,.detail-grid{grid-template-columns:1fr}.line{grid-template-columns:1fr}.main{padding:18px}}
 </style>
 </head>
@@ -265,6 +297,62 @@ function updatePipelineCounts(){
   setCount("bulkRepeatCount", c("Repeat Buyer"));
 }
 
+
+const BULK_STATUSES = [
+  "New Buyer Registered",
+  "Buyer Qualified",
+  "Motorcycle List Received",
+  "Matching Available Stock",
+  "Sourcing Additional Motorcycles",
+  "Offer Sent",
+  "Negotiating",
+  "Order Confirmed",
+  "Collecting Motorcycles",
+  "Building Container",
+  "Shipping Booked",
+  "Export Complete",
+  "Repeat Buyer"
+];
+
+function bulkStatusOptions(current){
+  return BULK_STATUSES.map(s =>
+    `<option value="${safe(s)}" ${s===current ? "selected" : ""}>${safe(s)}</option>`
+  ).join("");
+}
+
+async function updateBuyerStatus(buyerId){
+  const select = document.getElementById(`buyer-status-${buyerId}`);
+  if(!select) return;
+
+  const newStatus = select.value;
+  const btn = select.closest(".status-control").querySelector("button");
+  if(btn){
+    btn.disabled = true;
+    btn.textContent = "Saving...";
+  }
+
+  const { error } = await sb
+    .from("global_buyer_network")
+    .update({ status:newStatus })
+    .eq("id", Number(buyerId));
+
+  if(btn){
+    btn.disabled = false;
+    btn.textContent = "Save Status";
+  }
+
+  if(error){
+    alert("Status update failed: " + error.message);
+    return;
+  }
+
+  const buyer = buyers.find(b => Number(b.id) === Number(buyerId));
+  if(buyer) buyer.status = newStatus;
+
+  updatePipelineCounts();
+  renderBuyers();
+}
+
 function renderBuyers(){
   const q=document.getElementById('searchBox').value.toLowerCase().trim();
   const cf=document.getElementById('countryFilter').value;
@@ -300,6 +388,15 @@ function buyerHtml(b,its){
       <div class="detail-grid">
         <div class="box"><h3>Buyer Details</h3>
           ${line('Business',b.business_name)}${line('Contact',b.contact_name)}${line('Email',b.email)}${line('Phone',b.phone)}${line('Country',b.country)}${line('Monthly volume',b.annual_purchase_volume)}${line('Lead source',b.lead_source)}
+          <div class="status-control">
+            <div>
+              <strong>Move Buyer Through Pipeline</strong>
+              <select id="buyer-status-${b.id}">
+                ${bulkStatusOptions(normalStatus(b.status))}
+              </select>
+            </div>
+            <button class="status-save-btn" onclick="updateBuyerStatus(${b.id})">Save Status</button>
+          </div>
         </div>
         <div class="box"><h3>Shipping</h3>
           ${line('Preference',b.shipping_preference)}${line('UK shipper',b.preferred_shipping_company)}${line('Destination port',b.preferred_destination_port)}
