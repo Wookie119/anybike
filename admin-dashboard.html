@@ -1,5 +1,6 @@
 
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -108,7 +109,7 @@ h1{margin:0;font-size:34px}
   <nav class="admin-menu">
     <div class="menu-title">Main</div>
     <a class="active" href="admin-dashboard.html"><span class="menu-icon">🏠</span><span class="menu-text">Dashboard</span></a>
-    <a href="admin-enquiries.html"><span class="menu-icon">💬</span><span class="menu-text">Enquiries CRM</span></a>
+    <a href="admin-enquiries.html"><span class="menu-icon">💬</span><span class="menu-text">Bike Sales CRM</span></a>
     <a href="admin-customers.html"><span class="menu-icon">👥</span><span class="menu-text">Customers CRM</span></a>
     <a href="admin-stock.html"><span class="menu-icon">🏍</span><span class="menu-text">Stock Admin</span></a>
     <a href="admin-global-buyer-network.html"><span class="menu-icon">🌍</span><span class="menu-text">Global Buyer Network</span></a>
@@ -146,7 +147,7 @@ h1{margin:0;font-size:34px}
   <div class="topbar">
     <div>
       <h1 id="greeting">AnyBike Staff Admin 360</h1>
-      <div class="subtitle">Live staff dashboard. Every enquiry comes from a motorcycle, then flows into the protected CRM pipeline.</div>
+      <div class="subtitle">Live staff dashboard for AnyBike. Single-bike enquiries are managed in Bike Sales CRM. Bulk buyers are managed in Global Buyer Network.</div>
     </div>
     <div class="date-box" id="todayDate">—</div>
   </div>
@@ -154,9 +155,16 @@ h1{margin:0;font-size:34px}
   <section class="grid">
     <div class="card">
       <div class="kpi-icon">🏍</div>
-      <h3>Bike Enquiries</h3>
+      <h3>Single-Bike Enquiries</h3>
       <div class="big-number" id="activeLeadsCount">—</div>
-      <div class="small">Every lead linked to a bike</div>
+      <div class="small">Individual motorcycle enquiries</div>
+    </div>
+
+    <div class="card">
+      <div class="kpi-icon">🌍</div>
+      <h3>Global Buyers</h3>
+      <div class="big-number" id="globalBuyersCount">—</div>
+      <div class="small">Bulk buyers and dealers</div>
     </div>
 
     <div class="card">
@@ -182,7 +190,7 @@ h1{margin:0;font-size:34px}
   </section>
 
   <section>
-    <h2 class="section-title">Sales Pipeline</h2>
+    <h2 class="section-title">Single-Bike Sales Pipeline</h2><div class="small" style="margin:-6px 0 14px;">For customers enquiring about one specific motorcycle from Available Stock.</div>
     <div class="pipeline-stats">
       <div class="stat stat-newlead" onclick="location.href='admin-enquiries.html'"><div>➕<br>1<br>New Enquiry</div><strong>+</strong></div>
       <div class="stat" onclick="location.href='admin-enquiries.html?status=Customer%20Replied'"><div>💬<br>2<br>Action Required</div><strong id="customerReplyCount">0</strong></div>
@@ -226,6 +234,7 @@ h1{margin:0;font-size:34px}
         <div class="work-item"><span>🚚 Waiting collection</span><span id="workCollection">0</span></div>
         <div class="work-item"><span>🚢 Ready to ship</span><span id="workReadyShip">0</span></div>
         <div class="work-item"><span>📂 Unassigned enquiries</span><span id="workUnassigned">0</span></div>
+        <div class="work-item"><span>🌍 New global buyers</span><span id="workGlobalBuyers">0</span></div>
       </div>
     </div>
   </section>
@@ -233,7 +242,7 @@ h1{margin:0;font-size:34px}
   <section class="grid">
     <div class="card warning">
       <h2>Deal Calculator</h2>
-      <p class="tool-note">The working Deal Calculator stays inside <strong>admin-enquiries.html</strong>, because it is attached to each bike enquiry. This dashboard now summarises saved pipeline value and expected profit.</p>
+      <p class="tool-note">The working Deal Calculator stays inside <strong>admin-enquiries.html</strong>, because it is attached to each single-bike enquiry. This dashboard now summarises saved pipeline value and expected profit.</p>
       <a class="btn" href="admin-enquiries.html">Open CRM Deal Calculator</a>
     </div>
 
@@ -259,7 +268,7 @@ h1{margin:0;font-size:34px}
   <section class="card">
     <h2>Quick Actions</h2>
     <div class="quick-grid">
-      <a class="quick-tile" href="admin-enquiries.html"><span class="icon">💬</span>Open Enquiries CRM</a>
+      <a class="quick-tile" href="admin-enquiries.html"><span class="icon">💬</span>Open Bike Sales CRM</a>
       <a class="quick-tile" href="admin-enquiries.html?status=Customer%20Replied"><span class="icon">🔴</span>Reply To Customers</a>
       <a class="quick-tile" href="admin-stock.html"><span class="icon">🏍</span>Stock Admin</a>
       <a class="quick-tile" href="admin-customers.html"><span class="icon">👥</span>Customer 360</a>
@@ -330,6 +339,22 @@ async function loadDashboard(){
     }
 
     const rows = enquiries || [];
+
+    const {data: globalBuyers, error: gbError} = await sb
+      .from("global_buyer_network")
+      .select("id,status,created_at")
+      .order("created_at",{ascending:false});
+
+    if(!gbError){
+      const gbRows = globalBuyers || [];
+      setText("globalBuyersCount", gbRows.length);
+      const newGlobalBuyers = gbRows.filter(b => {
+        const s = String(b.status || "").trim();
+        return !s || s === "New" || s === "New Potential Buyer" || s === "New Buyer Registered";
+      }).length;
+      setText("workGlobalBuyers", newGlobalBuyers);
+    }
+
 
     setText("activeLeadsCount", rows.length);
     setText("totalCount", rows.length);
