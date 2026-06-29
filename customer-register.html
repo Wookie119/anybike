@@ -185,43 +185,36 @@ const SUPABASE_ANON_KEY = "sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 function showMsg(text, ok=true){
-  const el=document.getElementById("msg");
-  el.textContent=text;
-  el.className="msg " + (ok ? "ok" : "bad");
+  const el = document.getElementById("msg");
+  el.textContent = text;
+  el.className = "msg " + (ok ? "ok" : "bad");
 }
 
 async function checkSession(){
-  const {data:{user}} = await sb.auth.getUser();
+  const { data: { user } } = await sb.auth.getUser();
 
   const customerMenu = document.getElementById("customerMenu");
   const registerBox = document.getElementById("registerBox");
   const loggedInBox = document.getElementById("loggedInBox");
 
   if(user){
-    if(customerMenu){
-      customerMenu.style.display = "flex";
-    }
-
+    customerMenu.style.display = "flex";
     registerBox.classList.add("hidden");
     loggedInBox.classList.remove("hidden");
   } else {
-    if(customerMenu){
-      customerMenu.style.display = "none";
-    }
-
+    customerMenu.style.display = "none";
     registerBox.classList.remove("hidden");
     loggedInBox.classList.add("hidden");
   }
 }
-  
 
 async function register(){
-  const email=document.getElementById("email").value.trim();
-  const password=document.getElementById("password").value;
-  const full_name=document.getElementById("fullName").value.trim();
-  const country=document.getElementById("country").value;
-  const preferred_currency=document.getElementById("currency").value;
-  const preferred_language=document.getElementById("language").value;
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value;
+  const full_name = document.getElementById("fullName").value.trim();
+  const country = document.getElementById("country").value;
+  const preferred_currency = document.getElementById("currency").value;
+  const preferred_language = document.getElementById("language").value;
 
   if(!email || !password || !full_name){
     showMsg("Please enter name, email and password.", false);
@@ -230,7 +223,7 @@ async function register(){
 
   showMsg("Creating account...");
 
-  const {data,error} = await sb.auth.signUp({email,password});
+  const { data, error } = await sb.auth.signUp({ email, password });
 
   if(error){
     showMsg(error.message, false);
@@ -244,8 +237,8 @@ async function register(){
     return;
   }
 
-  const {error:profileError} = await sb.from("customer_profiles").insert({
-    id:user.id,
+  const { error: profileError } = await sb.from("customer_profiles").insert({
+    id: user.id,
     email,
     full_name,
     country,
@@ -263,15 +256,15 @@ async function register(){
 }
 
 async function login(){
-  const email=document.getElementById("email").value.trim();
-  const password=document.getElementById("password").value;
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value;
 
   if(!email || !password){
     showMsg("Enter email and password to login.", false);
     return;
   }
 
-  const {error} = await sb.auth.signInWithPassword({email,password});
+  const { error } = await sb.auth.signInWithPassword({ email, password });
 
   if(error){
     showMsg(error.message, false);
@@ -284,11 +277,16 @@ async function login(){
 
 async function logout(){
   await sb.auth.signOut();
-  location.reload();
+  window.location.href = "customer-register.html";
 }
+
+sb.auth.onAuthStateChange(() => {
+  checkSession();
+});
 
 checkSession();
 </script>
+  
 
 </body>
 </html>
