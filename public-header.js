@@ -65,7 +65,7 @@ async function setupPublicHeader(){
       loggedInMenu.classList.add("hidden");
     }
 
-    setMessageCount(0);
+    setHeaderCounts(0,0);
   }
 
   if(logoutLink){
@@ -102,7 +102,7 @@ async function setupPublicHeader(){
 
 async function loadCustomerMessageCounts(userId){
   if(typeof sb === "undefined"){
-    setMessageCount(0);
+    setHeaderCounts(0,0);
     return;
   }
 
@@ -112,7 +112,7 @@ async function loadCustomerMessageCounts(userId){
     .eq("customer_id", userId);
 
   if(!enquiries || enquiries.length === 0){
-    setMessageCount(0);
+    setHeaderCounts(0,0);
     return;
   }
 
@@ -124,22 +124,21 @@ async function loadCustomerMessageCounts(userId){
     .in("enquiry_id", enquiryIds)
     .eq("sender", "AnyBike");
 
-  setMessageCount(count || 0);
+  setHeaderCounts(count || 0,count || 0);
 }
 
-function setMessageCount(total){
+function setHeaderCounts(messages,notifications){
   const messagesEl = document.getElementById("phMessages");
+  const notificationsEl = document.getElementById("phNotifications");
 
-  if(!messagesEl){
-    return;
+  if(messagesEl){
+    messagesEl.textContent = "Messages " + messages;
+    messagesEl.classList.toggle("has-messages", messages > 0);
   }
 
-  messagesEl.textContent = "Messages " + total;
-
-  if(total > 0){
-    messagesEl.classList.add("has-messages");
-  } else {
-    messagesEl.classList.remove("has-messages");
+  if(notificationsEl){
+    notificationsEl.textContent = "Notifications " + notifications;
+    notificationsEl.classList.toggle("has-messages", notifications > 0);
   }
 }
 
