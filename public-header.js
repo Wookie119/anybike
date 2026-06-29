@@ -278,7 +278,12 @@ async function loadCustomerMessageCounts(userId){
 }
 
 async function loadCustomerNotifications(userId){
+
+  console.log("===== NOTIFICATION TEST =====");
+  console.log("Logged in user:", userId);
+
   if(typeof sb === "undefined"){
+    console.log("Supabase client missing");
     setNotificationCount(0);
     renderNotificationList([]);
     return;
@@ -286,18 +291,22 @@ async function loadCustomerNotifications(userId){
 
   const { data, error } = await sb
     .from("customer_notifications")
-    .select("id,title,message,icon,link,is_read,created_at")
+    .select("*")
     .eq("customer_id", userId)
-    .order("created_at", { ascending:false })
-    .limit(6);
+    .order("created_at",{ascending:false});
 
-  if(error || !data){
+  console.log("Supabase error:", error);
+  console.log("Notifications returned:", data);
+
+  if(error){
     setNotificationCount(0);
     renderNotificationList([]);
     return;
   }
 
   const unread = data.filter(n => !n.is_read).length;
+
+  console.log("Unread:", unread);
 
   setNotificationCount(unread);
   renderNotificationList(data);
