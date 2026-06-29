@@ -1,3 +1,7 @@
+document.addEventListener("DOMContentLoaded", function(){
+  loadPublicHeader();
+});
+
 async function loadPublicHeader(){
   const holder = document.getElementById("publicHeader");
 
@@ -6,6 +10,12 @@ async function loadPublicHeader(){
   }
 
   const headerRes = await fetch("/public-header.html");
+
+  if(!headerRes.ok){
+    holder.innerHTML = "";
+    return;
+  }
+
   holder.innerHTML = await headerRes.text();
 
   setupPublicHeader();
@@ -29,7 +39,12 @@ async function setupPublicHeader(){
     currencySelect.value = savedCurrency;
   }
 
-  const { data: { user } } = await sb.auth.getUser();
+  let user = null;
+
+  if(typeof sb !== "undefined"){
+    const result = await sb.auth.getUser();
+    user = result.data.user;
+  }
 
   if(user){
     if(loggedOutMenu){
@@ -40,28 +55,7 @@ async function setupPublicHeader(){
       loggedInMenu.classList.remove("hidden");
     }
 
-    const { data: profile } = await sb
-      .from("customer_profiles")
-      .select("preferred_language,preferred_currency")
-      .eq("id", user.id)
-      .maybeSingle();
-
-    if(profile){
-      if(profile.preferred_language && languageSelect){
-        savedLanguage = profile.preferred_language;
-        languageSelect.value = savedLanguage;
-        localStorage.setItem("anybikeLanguage", savedLanguage);
-      }
-
-      if(profile.preferred_currency && currencySelect){
-        savedCurrency = profile.preferred_currency;
-        currencySelect.value = savedCurrency;
-        localStorage.setItem("anybikeCurrency", savedCurrency);
-      }
-    }
-
     loadCustomerMessageCounts(user.id);
-
   } else {
     if(loggedOutMenu){
       loggedOutMenu.classList.remove("hidden");
@@ -77,7 +71,11 @@ async function setupPublicHeader(){
   if(logoutLink){
     logoutLink.onclick = async function(e){
       e.preventDefault();
-      await sb.auth.signOut();
+
+      if(typeof sb !== "undefined"){
+        await sb.auth.signOut();
+      }
+
       window.location.href = "/customer-register.html";
     };
   }
@@ -85,7 +83,6 @@ async function setupPublicHeader(){
   if(languageSelect){
     languageSelect.onchange = function(){
       localStorage.setItem("anybikeLanguage", languageSelect.value);
-      saveHeaderPreference("preferred_language", languageSelect.value);
       applyHeaderLanguage(languageSelect.value);
     };
   }
@@ -93,7 +90,6 @@ async function setupPublicHeader(){
   if(currencySelect){
     currencySelect.onchange = function(){
       localStorage.setItem("anybikeCurrency", currencySelect.value);
-      saveHeaderPreference("preferred_currency", currencySelect.value);
       applyHeaderCurrency(currencySelect.value);
     };
   }
@@ -104,23 +100,12 @@ async function setupPublicHeader(){
   setInterval(updateHeaderTimes, 30000);
 }
 
-async function saveHeaderPreference(field, value){
-  const { data: { user } } = await sb.auth.getUser();
-
-  if(!user){
+async function loadCustomerMessageCounts(userId){
+  if(typeof sb === "undefined"){
+    setMessageCount(0);
     return;
   }
 
-  const updateData = {};
-  updateData[field] = value;
-
-  await sb
-    .from("customer_profiles")
-    .update(updateData)
-    .eq("id", user.id);
-}
-
-async function loadCustomerMessageCounts(userId){
   const { data: enquiries } = await sb
     .from("bike_enquiries")
     .select("id")
@@ -191,25 +176,19 @@ function updateHeaderTimes(){
 function applyHeaderCurrency(currency){
   window.anybikeCurrency = currency;
 
-  const event = new CustomEvent("anybikeCurrencyChanged", {
+  window.dispatchEvent(new CustomEvent("anybikeCurrencyChanged", {
     detail:{
       currency:currency
     }
-  });
-
-  window.dispatchEvent(event);
+  }));
 }
 
 function applyHeaderLanguage(language){
   window.anybikeLanguage = language;
 
-  const event = new CustomEvent("anybikeLanguageChanged", {
+  window.dispatchEvent(new CustomEvent("anybikeLanguageChanged", {
     detail:{
       language:language
     }
-  });
-
-  window.dispatchEvent(event);
+  }));
 }
-
-loadPublicHeader();
