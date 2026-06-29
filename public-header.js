@@ -12,7 +12,6 @@ async function loadPublicHeader(){
   const headerRes = await fetch("/public-header.html");
 
   if(!headerRes.ok){
-    holder.innerHTML = "";
     return;
   }
 
@@ -22,21 +21,67 @@ async function loadPublicHeader(){
 }
 
 async function setupPublicHeader(){
+  const mobileMenuButton = document.getElementById("mobileMenuButton");
+  const mobileMenuClose = document.getElementById("mobileMenuClose");
+  const mobileDrawerBackdrop = document.getElementById("mobileDrawerBackdrop");
+  const publicAccount = document.querySelector(".public-account");
+  const accountButton = document.getElementById("phAccountButton");
   const loggedOutMenu = document.getElementById("loggedOutMenu");
   const loggedInMenu = document.getElementById("loggedInMenu");
+  const mobileLoggedOutMenu = document.getElementById("mobileLoggedOutMenu");
+  const mobileLoggedInMenu = document.getElementById("mobileLoggedInMenu");
   const logoutLink = document.getElementById("phLogout");
+  const mobileLogoutLink = document.getElementById("phMobileLogout");
   const languageSelect = document.getElementById("phLanguage");
   const currencySelect = document.getElementById("phCurrency");
+
+  if(mobileMenuButton){
+    mobileMenuButton.onclick = function(){
+      document.body.classList.add("mobile-menu-open");
+    };
+  }
+
+  if(mobileMenuClose){
+    mobileMenuClose.onclick = closeMobileMenu;
+  }
+
+  if(mobileDrawerBackdrop){
+    mobileDrawerBackdrop.onclick = closeMobileMenu;
+  }
+
+  if(accountButton && publicAccount){
+    accountButton.onclick = function(e){
+      e.preventDefault();
+      e.stopPropagation();
+      publicAccount.classList.toggle("menu-open");
+    };
+
+    document.addEventListener("click", function(e){
+      if(!publicAccount.contains(e.target)){
+        publicAccount.classList.remove("menu-open");
+      }
+    });
+  }
 
   let savedLanguage = localStorage.getItem("anybikeLanguage") || "en";
   let savedCurrency = localStorage.getItem("anybikeCurrency") || "GBP";
 
   if(languageSelect){
     languageSelect.value = savedLanguage;
+    languageSelect.onchange = function(){
+      localStorage.setItem("anybikeLanguage", languageSelect.value);
+      saveHeaderPreference("preferred_language", languageSelect.value);
+      applyHeaderLanguage(languageSelect.value);
+    };
   }
 
   if(currencySelect){
     currencySelect.value = savedCurrency;
+    currencySelect.onchange = function(){
+      localStorage.setItem("anybikeCurrency", currencySelect.value);
+      saveHeaderPreference("preferred_currency", currencySelect.value);
+      applyHeaderCurrency(currencySelect.value);
+    };
   }
 
   let user = null;
@@ -55,6 +100,14 @@ async function setupPublicHeader(){
       loggedInMenu.classList.remove("hidden");
     }
 
+    if(mobileLoggedOutMenu){
+      mobileLoggedOutMenu.classList.add("hidden");
+    }
+
+    if(mobileLoggedInMenu){
+      mobileLoggedInMenu.classList.remove("hidden");
+    }
+
     loadCustomerMessageCounts(user.id);
   } else {
     if(loggedOutMenu){
@@ -65,44 +118,117 @@ async function setupPublicHeader(){
       loggedInMenu.classList.add("hidden");
     }
 
-    setHeaderCounts(0,0);
+    if(mobileLoggedOutMenu){
+      mobileLoggedOutMenu.classList.remove("hidden");
+    }
+
+    if(mobileLoggedInMenu){
+      mobileLoggedInMenu.classList.add("hidden");
+    }
+
+    setMessageCount(0);
+    setNotificationCount(0);
   }
 
   if(logoutLink){
-    logoutLink.onclick = async function(e){
-      e.preventDefault();
-
-      if(typeof sb !== "undefined"){
-        await sb.auth.signOut();
-      }
-
-      window.location.href = "/customer-register.html";
-    };
+    logoutLink.onclick = logoutCustomer;
   }
 
-  if(languageSelect){
-    languageSelect.onchange = function(){
-      localStorage.setItem("anybikeLanguage", languageSelect.value);
-      applyHeaderLanguage(languageSelect.value);
-    };
+  if(mobileLogoutLink){
+    mobileLogoutLink.onclick = logoutCustomer;
   }
 
-  if(currencySelect){
-    currencySelect.onchange = function(){
-      localStorage.setItem("anybikeCurrency", currencySelect.value);
-      applyHeaderCurrency(currencySelect.value);
-    };
-  }
-
+  setActivePublicNav();
   applyHeaderLanguage(savedLanguage);
   applyHeaderCurrency(savedCurrency);
   updateHeaderTimes();
   setInterval(updateHeaderTimes, 30000);
 }
 
+function closeMobileMenu(){
+  document.body.classList.remove("mobile-menu-open");
+}
+
+async function logoutCustomer(e){
+  e.preventDefault();
+
+  if(typeof sb !== "undefined"){
+    await sb.auth.signOut();
+  }
+
+  window.location.href = "/customer-register.html";
+}
+
+function setActivePublicNav(){
+  const path = window.location.pathname;
+  const hash = window.location.hash;
+  const links = document.querySelectorAll(".public-nav a[data-page]");
+
+  links.forEach(link => link.classList.remove("active"));
+
+  if(path === "/" || path.endsWith("/index.html")){
+    if(hash === "#export-services"){
+      markActive("export");
+      return;
+    }
+
+    if(hash === "#contact"){
+      markActive("contact");
+      return;
+    }
+
+    markActive("home");
+    return;
+  }
+
+  if(path.includes("available-stock") || path.includes("bike-details")){
+    markActive("stock");
+    return;
+  }
+
+  if(path.includes("buy-motorcycles") || path.includes("bulk-buying-request")){
+    markActive("buy");
+    return;
+  }
+
+  if(path.includes("sell-your-motorcycle")){
+    markActive("sell");
+    return;
+  }
+
+  function markActive(page){
+    const active = document.querySelector('.public-nav a[data-page="' + page + '"]');
+
+    if(active){
+      active.classList.add("active");
+    }
+  }
+}
+
+async function saveHeaderPreference(field, value){
+  if(typeof sb === "undefined"){
+    return;
+  }
+
+  const { data: { user } } = await sb.auth.getUser();
+
+  if(!user){
+    return;
+  }
+
+  const updateData = {};
+  updateData[field] = value;
+
+  await sb
+    .from("customer_profiles")
+    .update(updateData)
+    .eq("id", user.id);
+}
+
 async function loadCustomerMessageCounts(userId){
   if(typeof sb === "undefined"){
-    setHeaderCounts(0,0);
+    setMessageCount(0);
+    setNotificationCount(0);
     return;
   }
 
@@ -112,7 +238,8 @@ async function loadCustomerMessageCounts(userId){
     .eq("customer_id", userId);
 
   if(!enquiries || enquiries.length === 0){
-    setHeaderCounts(0,0);
+    setMessageCount(0);
+    setNotificationCount(0);
     return;
   }
 
@@ -124,21 +251,41 @@ async function loadCustomerMessageCounts(userId){
     .in("enquiry_id", enquiryIds)
     .eq("sender", "AnyBike");
 
-  setHeaderCounts(count || 0,count || 0);
+  const total = count || 0;
+
+  setMessageCount(total);
+  setNotificationCount(total);
 }
 
-function setHeaderCounts(messages,notifications){
+function setMessageCount(total){
   const messagesEl = document.getElementById("phMessages");
-  const notificationsEl = document.getElementById("phNotifications");
 
-  if(messagesEl){
-    messagesEl.textContent = "Messages " + messages;
-    messagesEl.classList.toggle("has-messages", messages > 0);
+  if(!messagesEl){
+    return;
   }
 
-  if(notificationsEl){
-    notificationsEl.textContent = "Notifications " + notifications;
-    notificationsEl.classList.toggle("has-messages", notifications > 0);
+  messagesEl.textContent = "Messages " + total;
+
+  if(total > 0){
+    messagesEl.classList.add("has-messages");
+  } else {
+    messagesEl.classList.remove("has-messages");
+  }
+}
+
+function setNotificationCount(total){
+  const notificationsEl = document.getElementById("phNotifications");
+
+  if(!notificationsEl){
+    return;
+  }
+
+  notificationsEl.textContent = "Notifications " + total;
+
+  if(total > 0){
+    notificationsEl.classList.add("has-notifications");
+  } else {
+    notificationsEl.classList.remove("has-notifications");
   }
 }
 
