@@ -56,6 +56,7 @@ async function setupPublicHeader(){
       e.preventDefault();
       e.stopPropagation();
       publicAccount.classList.toggle("menu-open");
+
       if(notificationPopover){
         notificationPopover.classList.remove("open");
       }
@@ -67,6 +68,7 @@ async function setupPublicHeader(){
       e.preventDefault();
       e.stopPropagation();
       notificationPopover.classList.toggle("open");
+
       if(publicAccount){
         publicAccount.classList.remove("menu-open");
       }
@@ -129,6 +131,8 @@ async function setupPublicHeader(){
     }
 
     loadCustomerMessageCounts(user.id);
+    loadCustomerNotifications(user.id);
+
   } else {
     if(loggedOutMenu){
       loggedOutMenu.classList.remove("hidden");
@@ -148,6 +152,7 @@ async function setupPublicHeader(){
 
     setMessageCount(0);
     setNotificationCount(0);
+    renderNotificationList([]);
   }
 
   if(logoutLink){
@@ -248,7 +253,6 @@ async function saveHeaderPreference(field, value){
 async function loadCustomerMessageCounts(userId){
   if(typeof sb === "undefined"){
     setMessageCount(0);
-    setNotificationCount(0);
     return;
   }
 
@@ -259,7 +263,6 @@ async function loadCustomerMessageCounts(userId){
 
   if(!enquiries || enquiries.length === 0){
     setMessageCount(0);
-    setNotificationCount(0);
     return;
   }
 
@@ -271,10 +274,64 @@ async function loadCustomerMessageCounts(userId){
     .in("enquiry_id", enquiryIds)
     .eq("sender", "AnyBike");
 
-  const total = count || 0;
+  setMessageCount(count || 0);
+}
 
-  setMessageCount(total);
-  setNotificationCount(total);
+async function loadCustomerNotifications(userId){
+  if(typeof sb === "undefined"){
+    setNotificationCount(0);
+    renderNotificationList([]);
+    return;
+  }
+
+  const { data, error } = await sb
+    .from("customer_notifications")
+    .select("id,title,message,icon,link,is_read,created_at")
+    .eq("customer_id", userId)
+    .order("created_at", { ascending:false })
+    .limit(6);
+
+  if(error || !data){
+    setNotificationCount(0);
+    renderNotificationList([]);
+    return;
+  }
+
+  const unread = data.filter(n => !n.is_read).length;
+
+  setNotificationCount(unread);
+  renderNotificationList(data);
+}
+
+function renderNotificationList(items){
+  const list = document.getElementById("notificationList");
+
+  if(!list){
+    return;
+  }
+
+  if(!items || items.length === 0){
+    list.innerHTML = "<p>No notifications yet.</p>";
+    return;
+  }
+
+  list.innerHTML = items.map(n => {
+    const icon = n.icon || "🔔";
+    const title = escapeHtml(n.title || "Notification");
+    const message = escapeHtml(n.message || "");
+    const link = n.link || "#";
+    const readClass = n.is_read ? "read" : "unread";
+
+    return `
+      <a href="${link}" class="notification-item ${readClass}">
+        <span class="notification-icon">${icon}</span>
+        <span class="notification-copy">
+          <strong>${title}</strong>
+          <small>${message}</small>
+        </span>
+      </a>
+    `;
+  }).join("");
 }
 
 function setMessageCount(total){
@@ -357,4 +414,16 @@ function applyHeaderLanguage(language){
       language:language
     }
   }));
+}
+
+function escapeHtml(value){
+  return String(value ?? "").replace(/[&<>"']/g, function(char){
+    return {
+      "&":"&amp;",
+      "<":"&lt;",
+      ">":"&gt;",
+      '"':"&quot;",
+      "'":"&#39;"
+    }[char];
+  });
 }
