@@ -36,21 +36,16 @@ function loadAdminShell(){
 }
 
 function setupAdminFolders(){
+  document.addEventListener("click", function(e){
+    const button = e.target.closest(".menu-folder");
 
-  document.querySelectorAll(".menu-folder").forEach(function(button){
+    if(!button){
+      return;
+    }
 
-    button.addEventListener("click", function(){
-
-      alert("Clicked: " + button.getAttribute("data-target"));
-
-      toggleAdminFolder(button.getAttribute("data-target"));
-
-    });
-
+    toggleAdminFolder(button.getAttribute("data-target"));
   });
-
 }
-
 
 function toggleAdminFolder(id){
   var menu = document.getElementById(id);
