@@ -1,5 +1,5 @@
 function loadAdminShell(){
-  fetch("admin-sidebar.html?v=1001")
+  fetch("admin-sidebar.html?v=2000")
     .then(function(res){
       return res.text();
     })
@@ -20,7 +20,7 @@ function loadAdminShell(){
       });
     });
 
-  fetch("admin-topbar.html?v=1001")
+  fetch("admin-topbar.html?v=2000")
     .then(function(res){
       return res.text();
     })
@@ -37,9 +37,10 @@ function loadAdminShell(){
 
 function setupAdminFolders(){
   document.querySelectorAll(".menu-folder").forEach(function(button){
-    button.addEventListener("click", function(){
-      toggleAdminFolder(button.getAttribute("data-target"));
-    });
+    button.onclick = function(){
+      var target = button.getAttribute("data-target");
+      toggleAdminFolder(target);
+    };
   });
 }
 
