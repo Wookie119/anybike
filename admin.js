@@ -1,28 +1,31 @@
-fetch("admin-sidebar.html?v=999")
-  .then(function(res){
+function loadAdminShell(){
+  fetch("admin-sidebar.html?v=999")
+    .then(function(res){
       return res.text();
     })
     .then(function(html){
       var sidebar = document.getElementById("adminSidebar");
+
       if(sidebar){
         sidebar.innerHTML = html;
       }
 
-      var currentPage = window.location.pathname.split("/").pop() || "admin-dashboard.html";
+      var currentPage = window.location.pathname.split("/").pop() || "admin-dashboard-v2.html";
 
-      document.querySelectorAll(".admin-menu a").forEach(function(link){
+      document.querySelectorAll(".admin-menu a, .submenu a").forEach(function(link){
         if(link.getAttribute("href") === currentPage){
           link.classList.add("active");
         }
       });
     });
 
-fetch("admin-topbar.html?v=999")
-  .then(function(res){
+  fetch("admin-topbar.html?v=999")
+    .then(function(res){
       return res.text();
     })
     .then(function(html){
       var topbar = document.getElementById("adminTopbar");
+
       if(topbar){
         topbar.innerHTML = html;
       }
@@ -79,35 +82,26 @@ function setupAdminSearch(){
 }
 
 function toggleAdminNotifications(){
+  var panel = document.getElementById("adminNotificationPanel");
 
-  const panel = document.getElementById("adminNotificationPanel");
-
-  if(!panel){
-    return;
+  if(panel){
+    panel.classList.toggle("open");
   }
-
-  panel.classList.toggle("open");
-
 }
 
-document.addEventListener("click",function(e){
-
-  const panel = document.getElementById("adminNotificationPanel");
-  const bell = document.querySelector(".admin-bell");
+document.addEventListener("click", function(e){
+  var panel = document.getElementById("adminNotificationPanel");
+  var bell = document.querySelector(".admin-bell");
 
   if(!panel || !bell){
     return;
   }
 
-  if(
-      !panel.contains(e.target) &&
-      !bell.contains(e.target)
-  ){
-      panel.classList.remove("open");
+  if(!panel.contains(e.target) && !bell.contains(e.target)){
+    panel.classList.remove("open");
   }
-
 });
-function loadAdminShell(){
+
 function toggleAdminFolder(id){
   var menu = document.getElementById(id);
 
@@ -123,3 +117,5 @@ function toggleAdminFolder(id){
 
   menu.classList.toggle("open");
 }
+
+loadAdminShell();
