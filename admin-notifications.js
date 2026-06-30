@@ -13,7 +13,7 @@ async function loadAdminNotifications(){
 
   const { data, error } = await sb
     .from("admin_notifications")
-    .select("*")
+    .select("id,title,message,icon,type,link,is_read,created_at")
     .order("created_at", { ascending:false })
     .limit(20);
 
@@ -26,15 +26,10 @@ async function loadAdminNotifications(){
   }
 
   const rows = data || [];
-  const unread = rows.filter(n => !n.read_at);
+  const unread = rows.filter(n => !n.is_read);
 
   countEl.textContent = unread.length;
-
-  if(unread.length === 0){
-    countEl.style.display = "none";
-  }else{
-    countEl.style.display = "flex";
-  }
+  countEl.style.display = unread.length ? "flex" : "none";
 
   if(rows.length === 0){
     listEl.innerHTML =
@@ -46,16 +41,17 @@ async function loadAdminNotifications(){
   }
 
   listEl.innerHTML = rows.map(n => {
+    const icon = n.icon || "🔔";
     const title = n.title || "Admin notification";
-    const body = n.body || "";
-    const link = n.link_url || "admin-dashboard.html";
+    const message = n.message || "";
+    const link = n.link || "admin-dashboard.html";
     const created = n.created_at ? new Date(n.created_at).toLocaleString("en-GB") : "";
-    const unreadClass = n.read_at ? "" : " unread";
+    const unreadClass = n.is_read ? "" : " unread";
 
     return '' +
-      '<a class="admin-notification-item' + unreadClass + '" href="' + link + '">' +
-        '<strong>' + escapeAdminHtml(title) + '</strong>' +
-        '<small>' + escapeAdminHtml(body) + '</small><br>' +
+      '<a class="admin-notification-item' + unreadClass + '" href="' + escapeAdminHtml(link) + '">' +
+        '<strong>' + escapeAdminHtml(icon + " " + title) + '</strong>' +
+        '<small>' + escapeAdminHtml(message) + '</small><br>' +
         '<small>' + escapeAdminHtml(created) + '</small>' +
       '</a>';
   }).join("");
