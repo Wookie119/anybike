@@ -1,4 +1,4 @@
-fetch("admin-sidebar.html?v=2")
+fetch("admin-sidebar.html?v=999")
   .then(function(res){
       return res.text();
     })
@@ -17,7 +17,7 @@ fetch("admin-sidebar.html?v=2")
       });
     });
 
-fetch("admin-topbar.html?v=2")
+fetch("admin-topbar.html?v=999")
   .then(function(res){
       return res.text();
     })
