@@ -1,5 +1,5 @@
-  fetch("admin-sidebar.html")
-    .then(function(res){
+fetch("admin-sidebar.html?v=2")
+  .then(function(res){
       return res.text();
     })
     .then(function(html){
@@ -17,8 +17,8 @@
       });
     });
 
-  fetch("admin-topbar.html")
-    .then(function(res){
+fetch("admin-topbar.html?v=2")
+  .then(function(res){
       return res.text();
     })
     .then(function(html){
