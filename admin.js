@@ -108,3 +108,18 @@ document.addEventListener("click",function(e){
 
 });
 function loadAdminShell(){
+function toggleAdminFolder(id){
+  var menu = document.getElementById(id);
+
+  if(!menu){
+    return;
+  }
+
+  document.querySelectorAll(".submenu").forEach(function(item){
+    if(item.id !== id){
+      item.classList.remove("open");
+    }
+  });
+
+  menu.classList.toggle("open");
+}
