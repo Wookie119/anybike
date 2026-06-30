@@ -132,5 +132,4 @@ function toggleAdminFolder(id){
 
   menu.classList.toggle("open");
 }
-
 loadAdminShell();
