@@ -6,9 +6,11 @@ function loadAdminShell(){
     .then(function(html){
       var sidebar = document.getElementById("adminSidebar");
 
-      if(sidebar){
-        sidebar.innerHTML = html;
-      }
+   if(sidebar){
+  sidebar.innerHTML = html;
+  setupAdminFolders();
+}
+      
 
       var currentPage = window.location.pathname.split("/").pop() || "admin-dashboard-v2.html";
 
@@ -101,6 +103,19 @@ document.addEventListener("click", function(e){
     panel.classList.remove("open");
   }
 });
+function setupAdminFolders(){
+  document.querySelectorAll(".menu-folder").forEach(function(button){
+    button.addEventListener("click", function(){
+      var target = button.getAttribute("data-target");
+
+      if(!target){
+        return;
+      }
+
+      toggleAdminFolder(target);
+    });
+  });
+}
 
 function toggleAdminFolder(id){
   var menu = document.getElementById(id);
