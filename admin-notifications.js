@@ -28,8 +28,16 @@ async function loadAdminNotifications(){
   const rows = data || [];
   const unread = rows.filter(n => !n.is_read);
 
+ if(unread.length === 0){
+
+  countEl.style.display = "none";
+
+}else{
+
+  countEl.style.display = "flex";
   countEl.textContent = unread.length;
-  countEl.style.display = unread.length ? "flex" : "none";
+
+}
 
   if(rows.length === 0){
     listEl.innerHTML =
