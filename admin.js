@@ -80,13 +80,31 @@ function setupAdminSearch(){
 }
 
 function toggleAdminNotifications(){
-  var panel = document.getElementById("adminNotificationPanel");
 
-  if(panel){
-    panel.classList.toggle("open");
+  const panel = document.getElementById("adminNotificationPanel");
+
+  if(!panel){
+    return;
   }
+
+  panel.classList.toggle("open");
+
 }
 
-document.addEventListener("DOMContentLoaded", function(){
-  loadAdminShell();
+document.addEventListener("click",function(e){
+
+  const panel = document.getElementById("adminNotificationPanel");
+  const bell = document.querySelector(".admin-bell");
+
+  if(!panel || !bell){
+    return;
+  }
+
+  if(
+      !panel.contains(e.target) &&
+      !bell.contains(e.target)
+  ){
+      panel.classList.remove("open");
+  }
+
 });
