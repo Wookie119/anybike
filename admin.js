@@ -1,4 +1,3 @@
-function loadAdminShell(){
   fetch("admin-sidebar.html")
     .then(function(res){
       return res.text();
@@ -108,3 +107,4 @@ document.addEventListener("click",function(e){
   }
 
 });
+function loadAdminShell(){
