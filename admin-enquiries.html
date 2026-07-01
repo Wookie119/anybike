@@ -2967,15 +2967,13 @@ async function sendAdminMessage(enquiryId,customerId){
 async function deleteEnquiry(id){
 
   const ok = confirm("Delete this enquiry permanently?");
+  if(!ok){ return; }
 
-  if(!ok){
-    return;
-  }
-
-  const { error: messageError } = await sb
+  const { data: deletedMessages, error: messageError } = await sb
     .from("enquiry_messages")
     .delete()
-    .eq("enquiry_id", Number(id));
+    .eq("enquiry_id", Number(id))
+    .select();
 
   if(messageError){
     alert("Message delete failed: " + messageError.message);
@@ -2983,10 +2981,11 @@ async function deleteEnquiry(id){
     return;
   }
 
-  const { error: enquiryError } = await sb
+  const { data: deletedEnquiries, error: enquiryError } = await sb
     .from("bike_enquiries")
     .delete()
-    .eq("id", Number(id));
+    .eq("id", Number(id))
+    .select();
 
   if(enquiryError){
     alert("Enquiry delete failed: " + enquiryError.message);
@@ -2994,10 +2993,12 @@ async function deleteEnquiry(id){
     return;
   }
 
-  alert("Enquiry deleted");
+  alert(
+    "Deleted messages: " + (deletedMessages || []).length +
+    "\nDeleted enquiries: " + (deletedEnquiries || []).length
+  );
 
   await loadEnquiries();
-
 }
 
 function dealNum(id){
