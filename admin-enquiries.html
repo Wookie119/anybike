@@ -1355,6 +1355,26 @@ body{
   .admin-topbar{grid-template-columns:1fr !important}
 }
 
+
+
+/* FIX: reply button should not be a giant round button */
+.reply-area{
+  align-items:stretch !important;
+}
+.reply-area button{
+  width:auto !important;
+  min-width:130px !important;
+  height:auto !important;
+  border-radius:12px !important;
+  padding:12px 18px !important;
+  align-self:stretch !important;
+  margin-top:0 !important;
+}
+@media(max-width:800px){
+  .reply-area{flex-direction:column !important;}
+  .reply-area button{align-self:flex-start !important;}
+}
+
 </style>
 </head>
 
@@ -1738,6 +1758,65 @@ async function markAdminNotificationRead(notificationId){
   }
 }
 
+function getNotificationEnquiryId(notification){
+  if(!notification){ return null; }
+
+  const directId =
+    notification.enquiry_id ||
+    notification.bike_enquiry_id ||
+    notification.related_enquiry_id ||
+    notification.enquiryId;
+
+  if(directId){ return String(directId); }
+
+  const link = String(notification.link || "");
+  if(!link){ return null; }
+
+  try{
+    const url = new URL(link, window.location.href);
+    return url.searchParams.get("open") ||
+      url.searchParams.get("enquiry") ||
+      url.searchParams.get("enquiry_id") ||
+      url.searchParams.get("id");
+  }catch(err){
+    const match = link.match(/[?&](?:open|enquiry|enquiry_id|id)=([^&]+)/);
+    return match ? decodeURIComponent(match[1]) : null;
+  }
+}
+
+function adminNotificationNeedsAction(notification){
+  if(notification.is_read){ return false; }
+
+  const enquiryId = getNotificationEnquiryId(notification);
+  if(!enquiryId){ return true; }
+
+  const latest = latestMessageMap[String(enquiryId)];
+  if(!latest){ return true; }
+
+  return String(latest.sender || "").toLowerCase().includes("customer");
+}
+
+async function markEnquiryNotificationsRead(enquiryId){
+  const id = String(enquiryId || "").trim();
+  if(!id){ return; }
+
+  try{
+    await sb.from("admin_notifications").update({ is_read:true }).eq("enquiry_id", Number(id));
+  }catch(err){}
+
+  try{
+    await sb.from("admin_notifications").update({ is_read:true }).eq("bike_enquiry_id", Number(id));
+  }catch(err){}
+
+  try{
+    await sb.from("admin_notifications").update({ is_read:true }).ilike("link", "%open=" + id + "%");
+  }catch(err){}
+
+  try{
+    await sb.from("admin_notifications").update({ is_read:true }).ilike("link", "%enquiry_id=" + id + "%");
+  }catch(err){}
+}
+
 async function loadAdminNotifications(){
   const countEl = document.getElementById("adminNotificationCount");
   const listEl = document.getElementById("adminNotificationList");
@@ -1757,7 +1836,7 @@ async function loadAdminNotifications(){
   }
 
   const rows = data || [];
-  const unread = rows.filter(n => !n.is_read);
+  const unread = rows.filter(n => adminNotificationNeedsAction(n));
 
   if(unread.length === 0){
     countEl.style.display = "none";
@@ -2810,6 +2889,11 @@ async function sendAdminMessage(enquiryId,customerId){
   }
 
   txt.value="";
+
+  await markEnquiryNotificationsRead(enquiryId);
+  await loadLatestMessages();
+  updateHeaderBubble();
+  await loadAdminNotifications();
 
   await loadMessages(
     enquiryId,
