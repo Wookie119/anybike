@@ -3,6 +3,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -972,19 +973,21 @@ async function loadAdminNotifications(){
   ensureAdminNotificationWidget();
 
   try{
-    const {data, error} = await sb
-      .from("admin_notifications")
-      .select("*")
-      .order("created_at",{ascending:false})
-      .limit(25);
+    const latest = latestDashboardMessageMap || {};
 
-    if(error){
-      console.warn("Admin notifications unavailable:", error);
-      renderAdminNotifications([]);
-      return;
-    }
+    const notifications = Object.values(latest)
+      .filter(m => String(m.sender || "").toLowerCase().includes("customer"))
+      .map(m => ({
+        id: "customer-message-" + m.enquiry_id,
+        enquiry_id: m.enquiry_id,
+        title: "Customer reply waiting",
+        message: m.message || "Customer replied to an enquiry.",
+        created_at: m.created_at,
+        is_read: false
+      }))
+      .sort((a,b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
 
-    renderAdminNotifications(data || []);
+    renderAdminNotifications(notifications);
   }catch(err){
     console.warn("Admin notifications unavailable:", err);
     renderAdminNotifications([]);
@@ -1083,7 +1086,7 @@ async function loadDashboard(){
 
     const {data: messages} = await sb
       .from("enquiry_messages")
-      .select("enquiry_id,sender,created_at")
+      .select("id,enquiry_id,sender,message,created_at")
       .order("created_at",{ascending:false});
 
     const latest = {};
