@@ -11,7 +11,7 @@ function loadAdminShell(){
         setupAdminFolders();
       }
 
-      var currentPage = window.location.pathname.split("/").pop() || "admin-dashboard-v2.html";
+      var currentPage = window.location.pathname.split("/").pop() || "admin-dashboard.html";
 
       document.querySelectorAll(".admin-menu a, .submenu a").forEach(function(link){
         if(link.getAttribute("href") === currentPage){
