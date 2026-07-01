@@ -973,27 +973,75 @@ async function loadAdminNotifications(){
   ensureAdminNotificationWidget();
 
   try{
-    const latest = latestDashboardMessageMap || {};
+    const {data, error} = await sb
+      .from("admin_notifications")
+      .select("*")
+      .order("created_at",{ascending:false})
+      .limit(25);
 
-    const notifications = Object.values(latest)
-      .filter(m => String(m.sender || "").toLowerCase().includes("customer"))
-      .map(m => ({
-        id: "customer-message-" + m.enquiry_id,
-        enquiry_id: m.enquiry_id,
-        title: "Customer reply waiting",
-        message: m.message || "Customer replied to an enquiry.",
-        created_at: m.created_at,
-        is_read: false
-      }))
-      .sort((a,b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+    if(error){
+      console.warn("Admin notifications unavailable:", error);
+      renderAdminNotifications([]);
+      return;
+    }
 
-    renderAdminNotifications(notifications);
+    renderAdminNotifications(data || []);
   }catch(err){
     console.warn("Admin notifications unavailable:", err);
     renderAdminNotifications([]);
   }
 }
 
+
+
+function renderDashboardMessageNotifications(enquiryRows, latestMap){
+  ensureAdminNotificationWidget();
+
+  const countEl = document.getElementById("adminNotificationCount");
+  const listEl = document.getElementById("adminNotificationList");
+  if(!countEl || !listEl){ return; }
+
+  const waiting = (enquiryRows || []).filter(r => {
+    const latest = latestMap[String(r.id)];
+    return latest && String(latest.sender || "").toLowerCase().includes("customer");
+  });
+
+  countEl.textContent = waiting.length;
+  countEl.style.display = waiting.length > 0 ? "inline-block" : "none";
+
+  if(!waiting.length){
+    listEl.innerHTML = `<div class="admin-notification-empty">No customer replies waiting.</div>`;
+    return;
+  }
+
+  listEl.innerHTML = "";
+
+  waiting.slice(0,12).forEach(r => {
+    const latest = latestMap[String(r.id)] || {};
+    const item = document.createElement("button");
+    item.type = "button";
+    item.className = "admin-notification-item unread";
+
+    const created = latest.created_at
+      ? new Date(latest.created_at).toLocaleString("en-GB")
+      : "";
+
+    item.innerHTML = `
+      <div class="admin-notification-title">💬 Customer reply</div>
+      <div class="admin-notification-message">Enquiry #${escapeHtml(r.id)} needs a reply</div>
+      ${latest.message ? `<div class="admin-notification-message">${escapeHtml(String(latest.message).slice(0,120))}</div>` : ""}
+      ${created ? `<div class="admin-notification-meta">${escapeHtml(created)}</div>` : ""}
+    `;
+
+    item.addEventListener("click", event => {
+      event.preventDefault();
+      event.stopPropagation();
+      window.location.href = "admin-enquiries.html?open=" + encodeURIComponent(r.id) + "&focus=messages";
+    });
+
+    listEl.appendChild(item);
+  });
+}
 
 function setHeader(){
   const now=new Date();
@@ -1086,7 +1134,7 @@ async function loadDashboard(){
 
     const {data: messages} = await sb
       .from("enquiry_messages")
-      .select("id,enquiry_id,sender,message,created_at")
+      .select("enquiry_id,sender,message,created_at")
       .order("created_at",{ascending:false});
 
     const latest = {};
@@ -1104,7 +1152,7 @@ setText("customerReplyCount", replies);
 setText("customerRepliesCount", replies);
 setText("workReplies", replies);
 
-await loadAdminNotifications();
+renderDashboardMessageNotifications(rows, latest);
 
 }catch(err){
   console.error(err);
