@@ -2,6 +2,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -413,6 +414,125 @@ h1{margin:0;font-size:34px}
   }
 }
 
+/* ADMIN NOTIFICATIONS CLICK-THROUGH */
+.admin-notification-center{
+  position:relative;
+  display:flex;
+  justify-content:flex-end;
+  align-items:center;
+  gap:10px;
+  margin-bottom:14px;
+}
+
+.admin-notification-button{
+  position:relative;
+  background:#111;
+  color:#fff;
+  border:1px solid var(--line);
+  border-radius:999px;
+  padding:10px 14px;
+  font-weight:900;
+  cursor:pointer;
+}
+
+.admin-notification-button:hover{
+  border-color:var(--red);
+}
+
+.admin-notification-count{
+  position:absolute;
+  top:-7px;
+  right:-7px;
+  min-width:22px;
+  height:22px;
+  padding:0 6px;
+  border-radius:999px;
+  background:var(--red);
+  color:#fff;
+  font-size:12px;
+  line-height:22px;
+  text-align:center;
+  font-weight:900;
+  display:none;
+}
+
+.admin-notification-dropdown{
+  position:absolute;
+  right:0;
+  top:48px;
+  width:min(420px,calc(100vw - 28px));
+  background:#101010;
+  border:1px solid var(--line);
+  border-radius:18px;
+  box-shadow:0 24px 70px rgba(0,0,0,.55);
+  padding:10px;
+  z-index:9999;
+  display:none;
+}
+
+.admin-notification-dropdown.open{
+  display:block;
+}
+
+.admin-notification-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  padding:6px 7px 10px;
+  border-bottom:1px solid var(--line);
+  margin-bottom:8px;
+}
+
+.admin-notification-head strong{
+  font-size:15px;
+}
+
+.admin-notification-item{
+  width:100%;
+  text-align:left;
+  background:#171717;
+  color:#fff;
+  border:1px solid var(--line);
+  border-radius:14px;
+  padding:11px;
+  margin-bottom:8px;
+  cursor:pointer;
+}
+
+.admin-notification-item:hover{
+  border-color:var(--red);
+  background:#1d1d1d;
+}
+
+.admin-notification-item.unread{
+  border-color:rgba(237,28,36,.55);
+}
+
+.admin-notification-title{
+  font-weight:900;
+  margin-bottom:4px;
+}
+
+.admin-notification-message{
+  color:#ddd;
+  font-size:13px;
+  line-height:1.35;
+}
+
+.admin-notification-meta{
+  color:#888;
+  font-size:12px;
+  margin-top:7px;
+}
+
+.admin-notification-empty{
+  padding:18px 10px;
+  color:#aaa;
+  text-align:center;
+  font-weight:800;
+}
+
 </style>
 </head>
 
@@ -650,6 +770,192 @@ function money(v){
   });
 }
 
+
+let adminNotificationOpen = false;
+
+function adminNotificationTargetUrl(notification){
+  const enquiryId =
+    notification.enquiry_id ||
+    notification.enquiryId ||
+    notification.bike_enquiry_id ||
+    notification.bikeEnquiryId ||
+    notification.related_enquiry_id ||
+    notification.related_id;
+
+  if(enquiryId){
+    return `admin-enquiries.html?open=${encodeURIComponent(enquiryId)}&focus=messages`;
+  }
+
+  return "admin-enquiries.html";
+}
+
+function getAdminNotificationText(notification){
+  return (
+    notification.message ||
+    notification.body ||
+    notification.notification ||
+    notification.description ||
+    notification.title ||
+    "New admin notification"
+  );
+}
+
+function isAdminNotificationUnread(notification){
+  if(notification.is_read === false) return true;
+  if(notification.read === false) return true;
+  if(notification.read_at === null) return true;
+  if(notification.seen_at === null) return true;
+  return false;
+}
+
+function ensureAdminNotificationWidget(){
+  const topbar = document.getElementById("adminTopbar") || document.querySelector(".admin-topbar") || document.querySelector(".admin-main");
+
+  let wrap = document.getElementById("adminNotificationCenter");
+  if(wrap) return wrap;
+
+  wrap = document.createElement("div");
+  wrap.id = "adminNotificationCenter";
+  wrap.className = "admin-notification-center";
+  wrap.innerHTML = `
+    <button type="button" class="admin-notification-button" id="adminNotificationButton">
+      🔔 Admin Notifications
+      <span class="admin-notification-count" id="adminNotificationCount">0</span>
+    </button>
+    <div class="admin-notification-dropdown" id="adminNotificationDropdown">
+      <div class="admin-notification-head">
+        <strong>Notifications</strong>
+        <span class="small">Click to open message</span>
+      </div>
+      <div id="adminNotificationList">
+        <div class="admin-notification-empty">No notifications yet.</div>
+      </div>
+    </div>
+  `;
+
+  if(topbar){
+    topbar.appendChild(wrap);
+  }else{
+    document.body.prepend(wrap);
+  }
+
+  const button = document.getElementById("adminNotificationButton");
+  const dropdown = document.getElementById("adminNotificationDropdown");
+
+  button.addEventListener("click", event => {
+    event.stopPropagation();
+    adminNotificationOpen = !adminNotificationOpen;
+    dropdown.classList.toggle("open", adminNotificationOpen);
+  });
+
+  document.addEventListener("click", event => {
+    if(!wrap.contains(event.target)){
+      adminNotificationOpen = false;
+      dropdown.classList.remove("open");
+    }
+  });
+
+  return wrap;
+}
+
+async function markAdminNotificationRead(notification){
+  if(!notification || !notification.id) return;
+
+  try{
+    await sb
+      .from("admin_notifications")
+      .update({
+        is_read:true,
+        read_at:new Date().toISOString()
+      })
+      .eq("id", notification.id);
+  }catch(err){
+    console.warn("Notification read update skipped:", err);
+  }
+}
+
+function renderAdminNotifications(notifications){
+  ensureAdminNotificationWidget();
+
+  const countEl = document.getElementById("adminNotificationCount");
+  const listEl = document.getElementById("adminNotificationList");
+  if(!countEl || !listEl) return;
+
+  const rows = notifications || [];
+  const unread = rows.filter(isAdminNotificationUnread).length;
+
+  countEl.textContent = unread;
+  countEl.style.display = unread > 0 ? "inline-block" : "none";
+
+  if(!rows.length){
+    listEl.innerHTML = `<div class="admin-notification-empty">No notifications yet.</div>`;
+    return;
+  }
+
+  listEl.innerHTML = "";
+
+  rows.slice(0,12).forEach(notification => {
+    const item = document.createElement("button");
+    item.type = "button";
+    item.className = "admin-notification-item" + (isAdminNotificationUnread(notification) ? " unread" : "");
+
+    const title = notification.title || notification.type || "Admin notification";
+    const message = getAdminNotificationText(notification);
+    const created = notification.created_at
+      ? new Date(notification.created_at).toLocaleString("en-GB")
+      : "";
+
+    item.innerHTML = `
+      <div class="admin-notification-title">${escapeHtml(title)}</div>
+      <div class="admin-notification-message">${escapeHtml(message)}</div>
+      ${created ? `<div class="admin-notification-meta">${created}</div>` : ""}
+    `;
+
+    item.addEventListener("click", async event => {
+      event.preventDefault();
+      event.stopPropagation();
+
+      await markAdminNotificationRead(notification);
+      window.location.href = adminNotificationTargetUrl(notification);
+    });
+
+    listEl.appendChild(item);
+  });
+}
+
+function escapeHtml(value){
+  return String(value ?? "")
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+}
+
+async function loadAdminNotifications(){
+  ensureAdminNotificationWidget();
+
+  try{
+    const {data, error} = await sb
+      .from("admin_notifications")
+      .select("*")
+      .order("created_at",{ascending:false})
+      .limit(25);
+
+    if(error){
+      console.warn("Admin notifications unavailable:", error);
+      renderAdminNotifications([]);
+      return;
+    }
+
+    renderAdminNotifications(data || []);
+  }catch(err){
+    console.warn("Admin notifications unavailable:", err);
+    renderAdminNotifications([]);
+  }
+}
+
+
 function setHeader(){
   const now=new Date();
   const hour=now.getHours();
@@ -765,6 +1071,7 @@ await loadAdminNotifications();
 
 }
 
+ensureAdminNotificationWidget();
 setHeader();
 loadDashboard();
 setInterval(loadDashboard,90000);
