@@ -1377,25 +1377,36 @@ body{
 }
 
 
-/* DELETE TEST ENQUIRIES BUTTON */
-.danger-admin-btn{
-  background:#7a1111 !important;
-  border:1px solid rgba(255,255,255,.18) !important;
-  color:#fff !important;
+/* ADMIN TOOLS + DEAL FIGURE FIXES */
+.admin-tools-panel{
+  background:#111;
+  border:1px solid rgba(237,28,36,.45);
+  border-radius:18px;
+  padding:16px;
+  margin:0 0 18px;
+}
+.admin-tools-panel h3{
+  margin:0 0 8px;
+  color:#fff;
+}
+.admin-tools-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  margin-top:12px;
+}
+.admin-tools-actions button{
   border-radius:12px !important;
-  padding:10px 14px !important;
-  font-weight:900 !important;
-  cursor:pointer !important;
   margin-top:0 !important;
 }
-.danger-admin-btn:hover{
+.admin-tools-actions .danger-btn{
   background:#ed1c24 !important;
+  color:#fff !important;
 }
-.delete-status-note{
-  color:#aaa;
-  font-size:13px;
-  margin-top:8px;
-  font-weight:800;
+.admin-tools-actions .dark-btn{
+  background:#222 !important;
+  color:#fff !important;
+  border:1px solid rgba(255,255,255,.15) !important;
 }
 
 </style>
@@ -1515,7 +1526,6 @@ body{
     <a href="admin-platform-audit.html">🧪 Mission Control</a>
     <a href="admin-global-buyer-network.html">🌍 Global Buyers</a>
     <a href="available-stock.html" target="_blank">👁️ Public Stock</a>
-    <button type="button" class="danger-admin-btn" onclick="deleteOldTestEnquiries()">🗑 Delete Test Enquiries</button>
   </div>
 </div>
 
@@ -1524,6 +1534,17 @@ body{
   <div class="dept-card"><span>💷</span><strong id="deptDeposit">0</strong><small>Waiting Deposit</small></div>
   <div class="dept-card"><span>🚢</span><strong id="deptReadyShip">0</strong><small>Ready To Ship</small></div>
   <div class="dept-card"><span>📋</span><strong id="deptTotal">0</strong><small>Total Enquiries</small></div>
+</div>
+
+
+<div class="admin-tools-panel">
+  <h3>Admin Tools</h3>
+  <div class="small">Use these only for clearing old test data. Real customer enquiries should be closed or lost, not deleted.</div>
+  <div class="admin-tools-actions">
+    <button type="button" class="danger-btn" onclick="deleteTestEnquiries()">Delete All Test Enquiries</button>
+    <button type="button" class="dark-btn" onclick="markAllAdminNotificationsRead()">Mark Notification Records Read</button>
+  </div>
+  <div class="small" id="adminToolsStatus" style="margin-top:10px;"></div>
 </div>
 
 <h2 class="pipeline-label">Single-Bike Enquiry Pipeline</h2>
@@ -1848,45 +1869,43 @@ async function loadAdminNotifications(){
 
   if(!countEl || !listEl){ return; }
 
-  const rows = Object.values(latestMessageMap || {})
-    .filter(m => String(m.sender || "").toLowerCase().includes("customer"))
-    .map(m => ({
-      id: "customer-message-" + m.enquiry_id,
-      enquiry_id: m.enquiry_id,
-      title: "Customer reply waiting",
-      message: m.message || "Customer replied to an enquiry.",
-      created_at: m.created_at,
-      is_read: false
-    }))
-    .sort((a,b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+  const unanswered = (allEnquiries || []).filter(r => {
+    const latest = latestMessageMap[String(r.id)];
+    return latest && String(latest.sender || "").toLowerCase().includes("customer");
+  });
 
-  if(rows.length === 0){
+  if(unanswered.length === 0){
     countEl.style.display = "none";
+    countEl.textContent = "0";
   }else{
     countEl.style.display = "flex";
-    countEl.textContent = rows.length;
+    countEl.textContent = unanswered.length;
   }
 
-  if(rows.length === 0){
+  if(unanswered.length === 0){
     listEl.innerHTML =
       '<div class="admin-notification-item">' +
         '<strong>No customer replies waiting</strong>' +
-        '<small>When the latest message on an enquiry is from a customer, it will appear here.</small>' +
+        '<small>When the latest message is from a customer, it will appear here.</small>' +
       '</div>';
     if(statusEl){ statusEl.textContent = "Live"; }
     return;
   }
 
-  listEl.innerHTML = rows.map(n => {
-    const title = n.title || "Customer reply waiting";
-    const message = n.message || "";
-    const link = adminNotificationTargetUrl(n);
-    const created = n.created_at ? new Date(n.created_at).toLocaleString("en-GB") : "";
+  listEl.innerHTML = unanswered.map(r => {
+    const latest = latestMessageMap[String(r.id)] || {};
+    const b = r.available_stock || {};
+    const bike = [b.make,b.model,b.year].filter(Boolean).join(" ") || "Bike enquiry";
+    const customer = r.customer_name || r.customer_email || "Customer";
+    const message = latest.message || "Customer replied";
+    const created = latest.created_at ? new Date(latest.created_at).toLocaleString("en-GB") : "";
+    const link = "admin-enquiries.html?open=" + encodeURIComponent(r.id) + "&focus=messages";
 
     return '' +
       '<a class="admin-notification-item" href="' + escapeAdminHtml(link) + '">' +
-        '<strong>' + escapeAdminHtml("💬 " + title) + '</strong>' +
-        '<small>' + escapeAdminHtml(message) + '</small><br>' +
+        '<strong>' + escapeAdminHtml("💬 " + customer) + '</strong>' +
+        '<small>' + escapeAdminHtml(bike) + '</small><br>' +
+        '<small>' + escapeAdminHtml(message.slice(0,120)) + '</small><br>' +
         '<small>' + escapeAdminHtml(created) + '</small>' +
       '</a>';
   }).join("");
@@ -2161,7 +2180,6 @@ async function loadLatestMessages(){
 async function loadEnquiries(){
   await loadLatestMessages();
   updateHeaderBubble();
-  loadAdminNotifications();
 
   let {data,error}=await sb
     .from("bike_enquiries")
@@ -2223,6 +2241,7 @@ async function loadEnquiries(){
 
   const fullData = data || [];
 allEnquiries = fullData;
+await loadAdminNotifications();
 
 updateStaffCounts();
   
@@ -3048,19 +3067,16 @@ async function saveDeal(enquiryId, bikeId){
     deliveryCharge;
 
   const grossProfit =
-    selling -
+    invoicePrice -
     purchase;
 
   const netProfit =
-    selling -
-    purchase -
-    prep -
-    deliveryCost -
-    otherCost;
+    invoicePrice -
+    totalCost;
 
   const marginPercent =
-    selling > 0
-      ? (netProfit / selling) * 100
+    invoicePrice > 0
+      ? (netProfit / invoicePrice) * 100
       : 0;
 
   const { error } = await sb
@@ -3132,119 +3148,90 @@ async function saveDeal(enquiryId, bikeId){
   alert("Deal figures saved permanently");
 }
   
-async function deleteOldTestEnquiries(){
-  const firstConfirm = confirm(
-    "This will delete old TEST enquiries only. It looks for test words in customer name, email, or message. Real enquiries should not be touched. Continue?"
+
+async function markAllAdminNotificationsRead(){
+  const status = document.getElementById("adminToolsStatus");
+  if(status){ status.textContent = "Marking notification records as read..."; }
+
+  try{
+    const { error } = await sb
+      .from("admin_notifications")
+      .update({ is_read:true })
+      .not("id", "is", null);
+
+    if(error){ throw error; }
+    if(status){ status.textContent = "Notification records marked as read."; }
+    await loadAdminNotifications();
+  }catch(err){
+    if(status){ status.textContent = "Could not update notifications: " + err.message; }
+    alert("Could not update notifications: " + err.message);
+  }
+}
+
+async function deleteTestEnquiries(){
+  const status = document.getElementById("adminToolsStatus");
+
+  const confirmText = "DELETE TEST ENQUIRIES";
+  const typed = prompt(
+    "This will permanently delete enquiries where the customer name, email, phone, country or message contains TEST.\n\nType " + confirmText + " to continue."
   );
 
-  if(!firstConfirm){ return; }
-
-  const typed = prompt("Type DELETE TEST ENQUIRIES to confirm.");
-
-  if(typed !== "DELETE TEST ENQUIRIES"){
-    alert("Delete cancelled.");
+  if(typed !== confirmText){
+    if(status){ status.textContent = "Delete cancelled."; }
     return;
   }
 
-  const button = document.querySelector(".danger-admin-btn");
-  if(button){
-    button.disabled = true;
-    button.textContent = "Checking test enquiries...";
+  if(status){ status.textContent = "Finding test enquiries..."; }
+
+  const { data, error } = await sb
+    .from("bike_enquiries")
+    .select("id,customer_name,customer_email,customer_phone,destination_country,message")
+    .or("customer_name.ilike.%test%,customer_email.ilike.%test%,customer_phone.ilike.%test%,destination_country.ilike.%test%,message.ilike.%test%");
+
+  if(error){
+    alert("Could not find test enquiries: " + error.message);
+    if(status){ status.textContent = "Could not find test enquiries."; }
+    return;
   }
 
+  const rows = data || [];
+  const ids = rows.map(r => Number(r.id)).filter(Boolean);
+
+  if(!ids.length){
+    alert("No test enquiries found.");
+    if(status){ status.textContent = "No test enquiries found."; }
+    return;
+  }
+
+  if(!confirm("Found " + ids.length + " test enquiries. Delete them now?")){
+    if(status){ status.textContent = "Delete cancelled."; }
+    return;
+  }
+
+  if(status){ status.textContent = "Deleting " + ids.length + " test enquiries..."; }
+
   try{
-    const {data, error} = await sb
-      .from("bike_enquiries")
-      .select("id,customer_name,customer_email,message,status,created_at")
-      .order("created_at",{ascending:false});
+    await sb.from("enquiry_messages").delete().in("enquiry_id", ids);
+    await sb.from("deal_calculator_history").delete().in("enquiry_id", ids);
+    await sb.from("admin_notifications").delete().in("enquiry_id", ids);
+    await sb.from("admin_notifications").delete().in("bike_enquiry_id", ids);
 
-    if(error){
-      alert("Could not load enquiries: " + error.message);
-      return;
-    }
-
-    const rows = data || [];
-
-    const testRows = rows.filter(r => {
-      const text = [
-        r.customer_name,
-        r.customer_email,
-        r.message,
-        r.status
-      ].map(v => String(v || "").toLowerCase()).join(" ");
-
-      return (
-        text.includes("test") ||
-        text.includes("testing") ||
-        text.includes("dummy") ||
-        text.includes("sample") ||
-        text.includes("example.com") ||
-        text.includes("test@") ||
-        text.includes("@test") ||
-        text.includes("asdf") ||
-        text.includes("qwerty")
-      );
-    });
-
-    if(testRows.length === 0){
-      alert("No test enquiries found. Nothing was deleted.");
-      return;
-    }
-
-    const finalConfirm = confirm(
-      "Found " + testRows.length + " test enquiries. Delete these enquiries and their messages now?"
-    );
-
-    if(!finalConfirm){ return; }
-
-    const ids = testRows.map(r => Number(r.id)).filter(Boolean);
-
-    if(ids.length === 0){
-      alert("No valid enquiry IDs found.");
-      return;
-    }
-
-    try{
-      await sb.from("enquiry_messages").delete().in("enquiry_id", ids);
-    }catch(err){
-      console.warn("Could not delete enquiry_messages:", err);
-    }
-
-    try{
-      await sb.from("admin_notifications").delete().in("enquiry_id", ids);
-    }catch(err){
-      console.warn("Could not delete admin_notifications by enquiry_id:", err);
-    }
-
-    try{
-      await sb.from("admin_notifications").delete().in("bike_enquiry_id", ids);
-    }catch(err){
-      console.warn("Could not delete admin_notifications by bike_enquiry_id:", err);
-    }
-
-    const {error: deleteError} = await sb
+    const { error: deleteError } = await sb
       .from("bike_enquiries")
       .delete()
       .in("id", ids);
 
-    if(deleteError){
-      alert("Delete failed: " + deleteError.message);
-      return;
-    }
+    if(deleteError){ throw deleteError; }
 
-    alert("Deleted " + ids.length + " old test enquiries.");
+    alert("Deleted " + ids.length + " test enquiries.");
+    if(status){ status.textContent = "Deleted " + ids.length + " test enquiries."; }
+    openEnquiryId = null;
     await loadEnquiries();
-
   }catch(err){
-    alert("Delete failed: " + (err.message || err));
-  }finally{
-    if(button){
-      button.disabled = false;
-      button.textContent = "🗑 Delete Test Enquiries";
-    }
+    alert("Delete failed: " + err.message);
+    if(status){ status.textContent = "Delete failed: " + err.message; }
   }
 }
-
 
 loadEnquiries();
 
