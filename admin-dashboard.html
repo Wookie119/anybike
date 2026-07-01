@@ -772,6 +772,7 @@ function money(v){
 
 
 let adminNotificationOpen = false;
+let latestDashboardMessageMap = {};
 
 function adminNotificationTargetUrl(notification){
   const enquiryId =
@@ -800,12 +801,47 @@ function getAdminNotificationText(notification){
   );
 }
 
+function getAdminNotificationEnquiryId(notification){
+  const directId =
+    notification.enquiry_id ||
+    notification.enquiryId ||
+    notification.bike_enquiry_id ||
+    notification.bikeEnquiryId ||
+    notification.related_enquiry_id ||
+    notification.related_id;
+
+  if(directId){ return String(directId); }
+
+  const link = String(notification.link || "");
+  if(!link){ return null; }
+
+  try{
+    const url = new URL(link, window.location.href);
+    return url.searchParams.get("open") ||
+      url.searchParams.get("enquiry") ||
+      url.searchParams.get("enquiry_id") ||
+      url.searchParams.get("id");
+  }catch(err){
+    const match = link.match(/[?&](?:open|enquiry|enquiry_id|id)=([^&]+)/);
+    return match ? decodeURIComponent(match[1]) : null;
+  }
+}
+
 function isAdminNotificationUnread(notification){
-  if(notification.is_read === false) return true;
-  if(notification.read === false) return true;
-  if(notification.read_at === null) return true;
-  if(notification.seen_at === null) return true;
-  return false;
+  let unread = false;
+  if(notification.is_read === false) unread = true;
+  if(notification.read === false) unread = true;
+  if(notification.read_at === null) unread = true;
+  if(notification.seen_at === null) unread = true;
+  if(!unread){ return false; }
+
+  const enquiryId = getAdminNotificationEnquiryId(notification);
+  if(!enquiryId){ return true; }
+
+  const latest = latestDashboardMessageMap[String(enquiryId)];
+  if(!latest){ return true; }
+
+  return String(latest.sender || "").toLowerCase().includes("customer");
 }
 
 function ensureAdminNotificationWidget(){
@@ -1054,6 +1090,8 @@ async function loadDashboard(){
     (messages || []).forEach(m=>{
       if(!latest[m.enquiry_id]) latest[m.enquiry_id] = m;
     });
+
+    latestDashboardMessageMap = latest;
 
   const replies = Object.values(latest).filter(m =>
   String(m.sender || "").toLowerCase().includes("customer")
