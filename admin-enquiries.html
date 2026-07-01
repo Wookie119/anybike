@@ -3,6 +3,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -312,6 +313,17 @@ button,.btn{
   background:#ed1c24;
   color:#fff;
 }
+.btn-small{
+  background:#fff;
+  color:#111;
+  border:0;
+  border-radius:999px;
+  padding:7px 10px;
+  font-weight:900;
+  cursor:pointer;
+  margin-top:8px;
+}
+
 
 .reply-area{
   display:flex;
@@ -1695,6 +1707,37 @@ const SUPABASE_URL="https://tuehtnezhdnkqbbhttgp.supabase.co";
 const SUPABASE_ANON_KEY="sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 
+function adminNotificationTargetUrl(notification){
+  const enquiryId =
+    notification.enquiry_id ||
+    notification.bike_enquiry_id ||
+    notification.related_enquiry_id ||
+    notification.enquiryId;
+
+  if(enquiryId){
+    return "admin-enquiries.html?open=" + encodeURIComponent(enquiryId) + "&focus=messages";
+  }
+
+  if(notification.link){
+    return notification.link;
+  }
+
+  return "admin-enquiries.html";
+}
+
+async function markAdminNotificationRead(notificationId){
+  if(!notificationId){ return; }
+
+  try{
+    await sb
+      .from("admin_notifications")
+      .update({ is_read:true })
+      .eq("id", notificationId);
+  }catch(err){
+    console.warn("Notification read update failed", err);
+  }
+}
+
 async function loadAdminNotifications(){
   const countEl = document.getElementById("adminNotificationCount");
   const listEl = document.getElementById("adminNotificationList");
@@ -1704,7 +1747,7 @@ async function loadAdminNotifications(){
 
   const { data, error } = await sb
     .from("admin_notifications")
-    .select("id,title,message,icon,type,link,is_read,created_at")
+    .select("*")
     .order("created_at", { ascending:false })
     .limit(20);
 
@@ -1736,16 +1779,22 @@ async function loadAdminNotifications(){
     const icon = n.icon || "🔔";
     const title = n.title || "Admin notification";
     const message = n.message || "";
-    const link = n.link || "admin-dashboard.html";
+    const link = adminNotificationTargetUrl(n);
     const created = n.created_at ? new Date(n.created_at).toLocaleString("en-GB") : "";
 
     return '' +
-      '<a class="admin-notification-item" href="' + escapeAdminHtml(link) + '">' +
+      '<a class="admin-notification-item" href="' + escapeAdminHtml(link) + '" data-notification-id="' + escapeAdminHtml(n.id) + '">' +
         '<strong>' + escapeAdminHtml(icon + " " + title) + '</strong>' +
         '<small>' + escapeAdminHtml(message) + '</small><br>' +
         '<small>' + escapeAdminHtml(created) + '</small>' +
       '</a>';
   }).join("");
+
+  listEl.querySelectorAll(".admin-notification-item[data-notification-id]").forEach(item => {
+    item.addEventListener("click", function(){
+      markAdminNotificationRead(this.getAttribute("data-notification-id"));
+    });
+  });
 
   if(statusEl){ statusEl.textContent = "Live"; }
 }
@@ -1765,6 +1814,43 @@ let openEnquiryId = null;
 let allEnquiries = [];
 let currentFilter = "all";
 let currentStaffFilter = "all";
+let pendingOpenHandled = false;
+
+function getOpenEnquiryIdFromUrl(){
+  const params = new URLSearchParams(window.location.search);
+  return params.get("open") || params.get("enquiry") || params.get("enquiry_id") || params.get("id");
+}
+
+function openEnquiryFromUrl(){
+  const targetId = getOpenEnquiryIdFromUrl();
+  if(!targetId){ return; }
+
+  const row = document.getElementById("enquiry-" + targetId);
+  if(!row){ return; }
+
+  document.querySelectorAll(".enquiry.open").forEach(item => {
+    if(item !== row){ item.classList.remove("open"); }
+  });
+
+  row.classList.add("open");
+  openEnquiryId = targetId;
+
+  setTimeout(() => {
+    const focus = new URLSearchParams(window.location.search).get("focus");
+    const conversation = document.getElementById("conversation-" + targetId);
+    const messages = document.getElementById("messages-" + targetId);
+    const replyBox = document.getElementById("msg-" + targetId);
+
+    if(focus === "messages" && conversation){
+      conversation.scrollIntoView({ behavior:"smooth", block:"center" });
+    }else{
+      row.scrollIntoView({ behavior:"smooth", block:"center" });
+    }
+
+    if(messages){ messages.scrollTop = messages.scrollHeight; }
+    if(replyBox){ setTimeout(() => replyBox.focus(), 350); }
+  }, 450);
+}
 
 function safe(v){
   return v===undefined || v===null || v==="" ? "-" : String(v);
@@ -2046,8 +2132,9 @@ allEnquiries = fullData;
 updateStaffCounts();
   
   let visibleData = [...fullData];
+  const requestedOpenEnquiryId = getOpenEnquiryIdFromUrl();
 
-if(window.adminStatusFilter){
+if(!requestedOpenEnquiryId && window.adminStatusFilter){
   if(window.adminStatusFilter === "Customer Replied"){
     visibleData = visibleData.filter(r=>{
       const m = latestMessageMap[String(r.id)];
@@ -2061,7 +2148,7 @@ if(window.adminStatusFilter){
 }
 
 /* Staff filter */
-if(window.adminStaffFilter){
+if(!requestedOpenEnquiryId && window.adminStaffFilter){
   if(window.adminStaffFilter === "Unassigned"){
     visibleData = visibleData.filter(r => !r.assigned_to);
   }else{
@@ -2072,7 +2159,7 @@ if(window.adminStaffFilter){
 }
   
 
-  if(window.adminCountryFilter){
+  if(!requestedOpenEnquiryId && window.adminCountryFilter){
     visibleData = visibleData.filter(r =>
       String(
         r.destination_country ||
@@ -2474,6 +2561,28 @@ const sellerPostcode =
   </div>
 </div>
 
+      <div class="conversation-box" id="conversation-${r.id}">
+        <strong>Customer Messages</strong>
+
+        <div class="quick-replies">
+          <button type="button" onclick="setQuickReply(${r.id}, 'available')">Still Available</button>
+          <button type="button" onclick="setQuickReply(${r.id}, 'accepted')">Offer Accepted</button>
+          <button type="button" onclick="setQuickReply(${r.id}, 'rejected')">Offer Rejected</button>
+          <button type="button" onclick="setQuickReply(${r.id}, 'photos')">More Photos</button>
+          <button type="button" onclick="setQuickReply(${r.id}, 'payment')">Awaiting Payment</button>
+          <button type="button" onclick="setQuickReply(${r.id}, 'reserved')">Reserved</button>
+        </div>
+
+        <div class="message-thread" id="messages-${r.id}">
+          Loading messages...
+        </div>
+
+        <div class="reply-area">
+          <textarea id="msg-${r.id}" placeholder="Type your reply to the customer here..."></textarea>
+          <button type="button" onclick="sendAdminMessage(${r.id}, '${r.customer_id || ""}')">Send Reply</button>
+        </div>
+      </div>
+
       <div class="notes-panel">
         <strong>Internal Notes</strong>
 
@@ -2501,6 +2610,8 @@ if(openEnquiryId){
     openRow.classList.add("open");
   }
 }
+
+openEnquiryFromUrl();
 }
   
 function setQuickReply(id,type){
