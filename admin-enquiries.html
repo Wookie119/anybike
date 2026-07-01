@@ -1692,7 +1692,26 @@ body{
 
 </div>
 
-<div id="enquiries">Loading enquiries...</div>
+<div class="bulk-toolbar">
+
+  <button type="button" onclick="selectAllEnquiries()">
+    ☑ Select All
+  </button>
+
+  <button type="button" onclick="clearAllEnquiries()">
+    ☐ Clear
+  </button>
+
+  <button
+    type="button"
+    style="background:#b00020;color:#fff;"
+    onclick="deleteSelectedEnquiries()">
+    🗑 Delete Selected
+  </button>
+
+</div>
+
+<div id="enquiries"></div>
 
 </div>
 
@@ -2417,8 +2436,8 @@ const sellerPostcode =
     return `
    <div class="enquiry" id="enquiry-${r.id}" data-enquiry-id="${r.id}">
     <div class="enquiry-row" onclick="toggleEnquiry(${r.id})">
-   <div onclick="event.stopPropagation()">
-   <input type="checkbox" class="enquiry-check" value="${r.id}">
+<div onclick="event.stopPropagation()" style="display:flex;align-items:center;justify-content:center;padding:0 10px;">
+     <input type="checkbox" class="enquiry-check" value="${r.id}">
    </div>
 
     <div class="arrow">›</div>
@@ -2968,6 +2987,41 @@ async function sendAdminMessage(enquiryId,customerId){
 
 
 async function deleteEnquiry(id){
+  function selectAllEnquiries(){
+
+  document.querySelectorAll(".enquiry-check").forEach(cb=>{
+    cb.checked = true;
+  });
+
+}
+
+function clearAllEnquiries(){
+
+  document.querySelectorAll(".enquiry-check").forEach(cb=>{
+    cb.checked = false;
+  });
+
+}
+
+async function deleteSelectedEnquiries(){
+
+  const ids = [...document.querySelectorAll(".enquiry-check:checked")]
+    .map(cb => Number(cb.value));
+
+  if(ids.length === 0){
+    alert("Please select one or more enquiries.");
+    return;
+  }
+
+  if(!confirm("Delete " + ids.length + " selected enquiries?")){
+    return;
+  }
+
+  for(const id of ids){
+    await deleteEnquiry(id);
+  }
+
+}
 
   const ok = confirm("Delete this enquiry permanently?");
   if(!ok){ return; }
