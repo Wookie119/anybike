@@ -130,5 +130,62 @@ document.addEventListener("click", function(e){
     panel.classList.remove("open");
   }
 });
+async function loadMessageCentreNotifications(){
+  if(typeof supabase === "undefined"){
+    return;
+  }
+
+  const SUPABASE_URL = "https://tuehtnezhdnkqbbhttgp.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const {data, error} = await sb
+    .from("message_centre_threads")
+    .select("id, customer_name, country, source_type, bike_make, bike_model, last_message, last_message_at, last_sender, status")
+    .eq("last_sender", "Customer")
+    .order("last_message_at", {ascending:false});
+
+  if(error){
+    console.log("Notification load failed", error.message);
+    return;
+  }
+
+  const count = data ? data.length : 0;
+
+  const badge =
+    document.getElementById("adminNotificationCount") ||
+    document.getElementById("notificationCount") ||
+    document.querySelector(".notification-count") ||
+    document.querySelector(".admin-notification-count");
+
+  if(badge){
+    badge.textContent = count;
+    badge.style.display = count > 0 ? "inline-block" : "none";
+  }
+
+  const panel =
+    document.getElementById("adminNotificationPanel") ||
+    document.getElementById("notificationPanel");
+
+  if(panel){
+    panel.innerHTML = count
+      ? data.slice(0,8).map(function(n){
+          return `
+            <a href="admin-message-centre.html" style="display:block;padding:10px;border-bottom:1px solid rgba(255,255,255,.12);color:#fff;text-decoration:none;">
+              <strong>💬 ${n.customer_name || "Customer reply"}</strong><br>
+              <small>${n.country || ""} ${n.bike_make || ""} ${n.bike_model || ""}</small><br>
+              <span>${n.last_message || ""}</span>
+            </a>
+          `;
+        }).join("")
+      : `<div style="padding:12px;color:#aaa;">No new customer replies.</div>`;
+  }
+}
 
 loadAdminShell();
+
+setTimeout(function(){
+  loadMessageCentreNotifications();
+}, 800);
+
+setInterval(loadMessageCentreNotifications, 60000);
