@@ -176,37 +176,42 @@ async function loadMessageCentreNotifications(){
     badge.style.justifyContent = "center";
   });
 
-document.querySelectorAll("#adminNotificationList, .admin-notification-list").forEach(function(list){
-  list.innerHTML = count
-    ? threads.slice(0,8).map(function(t){
+var notificationHtml = "";
 
-        const customer = t.customer_name || t.customer_email || "Customer";
-        const bike = [t.bike_year, t.bike_make, t.bike_model].filter(Boolean).join(" ") || t.subject || t.source_type || "Message";
-        const preview = t.last_message || "";
-        const time = t.last_message_at ? new Date(t.last_message_at).toLocaleString("en-GB") : "";
-        const label = t.status === "New" ? "🆕 New enquiry" : "💬 Needs reply";
+if(count){
+  notificationHtml = threads.slice(0,8).map(function(t){
+    const customer = t.customer_name || t.customer_email || "Customer";
+    const bike = [t.bike_year, t.bike_make, t.bike_model].filter(Boolean).join(" ") || t.subject || t.source_type || "Message";
+    const preview = t.last_message || "";
+    const time = t.last_message_at ? new Date(t.last_message_at).toLocaleString("en-GB") : "";
+    const label = t.status === "New" ? "🆕 New enquiry" : "💬 Needs reply";
 
-        const link = t.related_enquiry_id
-          ? "admin-enquiries.html?open=" + encodeURIComponent(t.related_enquiry_id) + "&focus=messages"
-          : "admin-message-centre.html?thread=" + encodeURIComponent(t.id);
+    const link = t.related_enquiry_id
+      ? "admin-enquiries.html?open=" + encodeURIComponent(t.related_enquiry_id) + "&focus=messages"
+      : "admin-message-centre.html?thread=" + encodeURIComponent(t.id);
 
-        return `
-          <a class="admin-notification-item" href="${link}">
-            <strong>${label}: ${customer}</strong>
-            <small>${bike}</small>
-            <small>${preview}</small>
-            <small>${time}</small>
-          </a>
-        `;
-
-      }).join("")
-    : `
-      <div class="admin-notification-item">
-        <strong>No admin actions waiting</strong>
-        <small>New messages and enquiries will appear here.</small>
-      </div>
+    return `
+      <a class="admin-notification-item" href="${link}">
+        <strong>${label}: ${customer}</strong>
+        <small>${bike}</small>
+        <small>${preview}</small>
+        <small>${time}</small>
+      </a>
     `;
+  }).join("");
+}else{
+  notificationHtml = `
+    <div class="admin-notification-item">
+      <strong>No admin actions waiting</strong>
+      <small>New messages and enquiries will appear here.</small>
+    </div>
+  `;
+}
+
+document.querySelectorAll("#adminNotificationList, .admin-notification-list").forEach(function(list){
+  list.innerHTML = notificationHtml;
 });
+
 }
 
 loadAdminShell();
