@@ -1704,8 +1704,8 @@ body{
 
   <button
     type="button"
-    style="background:#b00020;color:#fff;"
-    onclick="deleteSelectedEnquiries()">
+  style="background:#ed1c24;color:#fff;"
+  onclick="deleteSelectedEnquiries()">
     🗑 Delete Selected
   </button>
 
@@ -1784,18 +1784,48 @@ document.addEventListener("keydown", function(e){
   }
   location.href = "admin-enquiries.html";
 });
-function selectAllEnquiries() {
-  document.querySelectorAll(".enquiry-check").forEach(function(cb) {
-    cb.checked = true;
+
+function selectAllEnquiries(){
+  document.querySelectorAll(".enquiry-select").forEach(function(box){
+    box.checked = true;
   });
 }
 
-function clearAllEnquiries() {
-  document.querySelectorAll(".enquiry-check").forEach(function(cb) {
-    cb.checked = false;
+function clearAllEnquiries(){
+  document.querySelectorAll(".enquiry-select").forEach(function(box){
+    box.checked = false;
   });
 }
 
+async function deleteSelectedEnquiries(){
+  const ids = Array.from(document.querySelectorAll(".enquiry-select:checked"))
+    .map(function(box){
+      return Number(box.value);
+    })
+    .filter(Boolean);
+
+  if(!ids.length){
+    alert("Select at least one enquiry first.");
+    return;
+  }
+
+  if(!confirm("Delete " + ids.length + " selected enquiries?")){
+    return;
+  }
+
+  const {error} = await sb
+    .from("bike_enquiries")
+    .delete()
+    .in("id", ids);
+
+  if(error){
+    alert("Delete failed: " + error.message);
+    return;
+  }
+
+  alert("Deleted " + ids.length + " enquiries.");
+  await loadEnquiries();
+}
 </script>
 
 <script>
