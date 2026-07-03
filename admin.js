@@ -170,27 +170,30 @@ async function loadMessageCentreNotifications(){
     });
 
   document.querySelectorAll("#adminNotificationPanel, #notificationPanel, #adminNotificationList")
-    .forEach(function(panel){
-      panel.innerHTML = count
-        ? data.slice(0,8).map(function(n){
-            const bike = [n.bike_make, n.bike_model].filter(Boolean).join(" ");
-            const customer = n.customer_name || "Customer reply";
-            const preview = n.last_message || "";
-            const country = n.country || "";
-const link = "admin-message-centre.html?thread=" + encodeURIComponent(n.id);
-              ? "admin-enquiries.html?open=" + encodeURIComponent(n.enquiry_id)
-              : "admin-message-centre.html?thread=" + encodeURIComponent(n.id);
+  .forEach(function(panel){
 
-            return `
-              <a href="${link}" style="display:block;padding:10px;border-bottom:1px solid rgba(255,255,255,.12);color:#fff;text-decoration:none;">
-                <strong>💬 ${customer}</strong><br>
-                <small>${country} ${bike}</small><br>
-                <span>${preview}</span>
-              </a>
-            `;
-          }).join("")
-        : `<div style="padding:12px;color:#aaa;">No new customer replies.</div>`;
-    });
+    panel.innerHTML = count
+      ? data.slice(0,8).map(function(n){
+
+          const bike = [n.bike_make, n.bike_model].filter(Boolean).join(" ");
+          const customer = n.customer_name || "Customer reply";
+          const preview = n.last_message || "";
+          const country = n.country || "";
+          const link = "admin-message-centre.html?thread=" + encodeURIComponent(n.id);
+
+          return `
+            <a href="${link}" style="display:block;padding:10px;border-bottom:1px solid rgba(255,255,255,.12);color:#fff;text-decoration:none;">
+              <strong>💬 ${customer}</strong><br>
+              <small>${country} ${bike}</small><br>
+              <span>${preview}</span>
+            </a>
+          `;
+
+        }).join("")
+      : `<div style="padding:12px;color:#aaa;">No new customer replies.</div>`;
+
+  });
+
 }
 
 
