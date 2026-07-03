@@ -2041,7 +2041,9 @@ function clearAllEnquiries(){
 }
 
 async function deleteSelectedEnquiries(){
-  const ids = Array.from(document.querySelectorAll(".enquiry-check:checked, .enquiry-select:checked"))
+  const selectedBoxes = Array.from(document.querySelectorAll(".enquiry-check:checked, .enquiry-select:checked"));
+
+  const ids = selectedBoxes
     .map(function(box){
       return Number(box.value);
     })
@@ -2052,37 +2054,18 @@ async function deleteSelectedEnquiries(){
     return;
   }
 
-  if(!confirm("Delete " + ids.length + " selected enquiries and their Message Centre threads?")){
+  if(!confirm("Delete " + ids.length + " selected enquiries and remove them from Message Centre?")){
     return;
   }
 
-  const threadRes = await sb
+  const threadDelete = await sb
     .from("message_centre_threads")
-    .select("id")
+    .delete()
     .in("related_enquiry_id", ids);
 
-  const threadIds = (threadRes.data || []).map(t => t.id);
-
-  if(threadIds.length){
-    const msgDelete = await sb
-      .from("message_centre_messages")
-      .delete()
-      .in("thread_id", threadIds);
-
-    if(msgDelete.error){
-      alert("Message delete failed: " + msgDelete.error.message);
-      return;
-    }
-
-    const threadDelete = await sb
-      .from("message_centre_threads")
-      .delete()
-      .in("id", threadIds);
-
-    if(threadDelete.error){
-      alert("Thread delete failed: " + threadDelete.error.message);
-      return;
-    }
+  if(threadDelete.error){
+    alert("Message Centre delete failed: " + threadDelete.error.message);
+    return;
   }
 
   const enquiryDelete = await sb
