@@ -141,7 +141,7 @@ async function loadMessageCentreNotifications(){
 
   const {data, error} = await sb
     .from("message_centre_threads")
-    .select("id, customer_name, country, source_type, bike_make, bike_model, last_message, last_message_at, last_sender, status")
+    .select("id, customer_name, country, source_type, bike_make, bike_model, last_message, last_message_at, last_sender, status, enquiry_id")
     .eq("last_sender", "Customer")
     .order("last_message_at", {ascending:false});
 
@@ -170,11 +170,19 @@ async function loadMessageCentreNotifications(){
   if(panel){
     panel.innerHTML = count
       ? data.slice(0,8).map(function(n){
+          const bike = [n.bike_make, n.bike_model].filter(Boolean).join(" ");
+          const customer = n.customer_name || "Customer reply";
+          const preview = n.last_message || "";
+          const country = n.country || "";
+          const link = n.enquiry_id
+            ? "admin-enquiries.html?open=" + encodeURIComponent(n.enquiry_id)
+            : "admin-message-centre.html?thread=" + encodeURIComponent(n.id);
+
           return `
-            <a href="admin-message-centre.html" style="display:block;padding:10px;border-bottom:1px solid rgba(255,255,255,.12);color:#fff;text-decoration:none;">
-              <strong>💬 ${n.customer_name || "Customer reply"}</strong><br>
-              <small>${n.country || ""} ${n.bike_make || ""} ${n.bike_model || ""}</small><br>
-              <span>${n.last_message || ""}</span>
+            <a href="${link}" style="display:block;padding:10px;border-bottom:1px solid rgba(255,255,255,.12);color:#fff;text-decoration:none;">
+              <strong>💬 ${customer}</strong><br>
+              <small>${country} ${bike}</small><br>
+              <span>${preview}</span>
             </a>
           `;
         }).join("")
