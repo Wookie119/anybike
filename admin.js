@@ -1,9 +1,11 @@
 function loadAdminShell(){
+
   fetch("admin-sidebar.html?v=2000")
     .then(function(res){
       return res.text();
     })
     .then(function(html){
+
       var sidebar = document.getElementById("adminSidebar");
 
       if(sidebar){
@@ -18,6 +20,7 @@ function loadAdminShell(){
           link.classList.add("active");
         }
       });
+
     });
 
   fetch("admin-topbar.html?v=2000")
@@ -25,14 +28,22 @@ function loadAdminShell(){
       return res.text();
     })
     .then(function(html){
+
       var topbar = document.getElementById("adminTopbar");
 
       if(topbar){
         topbar.innerHTML = html;
+
+        // Wait until the topbar exists, then load the notification bell
+        setTimeout(function(){
+          loadMessageCentreNotifications();
+        },100);
       }
 
       setupAdminSearch();
+
     });
+
 }
 
 function setupAdminFolders(){
@@ -185,8 +196,5 @@ async function loadMessageCentreNotifications(){
 
 loadAdminShell();
 
-setTimeout(function(){
-  loadMessageCentreNotifications();
-}, 800);
 
 setInterval(loadMessageCentreNotifications, 60000);
