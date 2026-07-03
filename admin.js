@@ -1,6 +1,6 @@
 function loadAdminShell(){
 
-fetch("admin-sidebar.html?v=4000")
+  fetch("admin-sidebar.html?v=4000")
     .then(function(res){
       return res.text();
     })
@@ -23,7 +23,7 @@ fetch("admin-sidebar.html?v=4000")
 
     });
 
-fetch("admin-topbar.html?v=4000")
+  fetch("admin-topbar.html?v=4000")
     .then(function(res){
       return res.text();
     })
@@ -33,32 +33,25 @@ fetch("admin-topbar.html?v=4000")
 
       if(topbar){
         topbar.innerHTML = html;
+        setupAdminSearch();
 
-        // Wait until the topbar exists, then load the notification bell
         setTimeout(function(){
           loadMessageCentreNotifications();
-        },100);
+        },300);
       }
-
-      setupAdminSearch();
 
     });
 
 }
 
 function setupAdminFolders(){
-
   document.querySelectorAll(".menu-folder").forEach(function(button){
-
     button.onclick = function(e){
       e.preventDefault();
       e.stopPropagation();
-
       toggleAdminFolder(button.getAttribute("data-target"));
     };
-
   });
-
 }
 
 function toggleAdminFolder(id){
@@ -95,6 +88,11 @@ function setupAdminSearch(){
       return;
     }
 
+    if(q.includes("message") || q.includes("inbox") || q.includes("reply")){
+      location.href = "admin-message-centre.html";
+      return;
+    }
+
     if(q.includes("buyer") || q.includes("bulk") || q.includes("global")){
       location.href = "admin-global-buyer-network.html";
       return;
@@ -125,10 +123,7 @@ function setupAdminSearch(){
 }
 
 function toggleAdminNotifications(){
-  var panel =
-    document.getElementById("adminNotificationPanel") ||
-    document.getElementById("notificationPanel") ||
-    document.getElementById("adminNotificationList");
+  var panel = document.getElementById("adminNotificationPanel");
 
   if(panel){
     panel.classList.toggle("open");
@@ -136,25 +131,12 @@ function toggleAdminNotifications(){
 }
 
 document.addEventListener("click", function(e){
-
-  var panel = document.getElementById("adminNotificationPanel");
   var bell = e.target.closest(".admin-bell");
-
-  if(!panel){
-    return;
-  }
+  var panel = document.getElementById("adminNotificationPanel");
 
   if(bell){
     return;
   }
-
-  if(!panel.contains(e.target)){
-    panel.classList.remove("open");
-  }
-
-});
-
-  var panel = document.getElementById("adminNotificationPanel");
 
   if(panel && !panel.contains(e.target)){
     panel.classList.remove("open");
@@ -187,50 +169,46 @@ async function loadMessageCentreNotifications(){
 
   const count = threads.length;
 
-  document
-    .querySelectorAll("#adminNotificationCount, #notificationCount, .notification-count, .admin-notification-count, .admin-bell-count")
-    .forEach(function(badge){
-      badge.textContent = count;
-      badge.style.display = count > 0 ? "flex" : "none";
-      badge.style.alignItems = "center";
-      badge.style.justifyContent = "center";
-    });
+  document.querySelectorAll("#adminNotificationCount, .admin-bell-count").forEach(function(badge){
+    badge.textContent = count;
+    badge.style.display = count > 0 ? "flex" : "none";
+    badge.style.alignItems = "center";
+    badge.style.justifyContent = "center";
+  });
 
-  document
-    .querySelectorAll("#adminNotificationPanel, #notificationPanel, #adminNotificationList")
-    .forEach(function(panel){
+  document.querySelectorAll("#adminNotificationList, .admin-notification-list").forEach(function(list){
+    list.innerHTML = count
+      ? threads.slice(0,8).map(function(t){
 
-      panel.innerHTML = count
-        ? threads.slice(0,8).map(function(t){
+          const customer = t.customer_name || t.customer_email || "Customer";
+          const bike = [t.bike_year, t.bike_make, t.bike_model].filter(Boolean).join(" ") || t.subject || t.source_type || "Message";
+          const preview = t.last_message || "";
+          const time = t.last_message_at ? new Date(t.last_message_at).toLocaleString("en-GB") : "";
+          const label = t.status === "New" ? "🆕 New enquiry" : "💬 Needs reply";
 
-            const customer = t.customer_name || t.customer_email || "Customer";
-            const bike = [t.bike_year, t.bike_make, t.bike_model].filter(Boolean).join(" ") || t.subject || t.source_type || "Message";
-            const preview = t.last_message || "";
-            const time = t.last_message_at ? new Date(t.last_message_at).toLocaleString("en-GB") : "";
-            const label = t.status === "New" ? "🆕 New enquiry" : "💬 Needs reply";
+          const link = t.related_enquiry_id
+            ? "admin-enquiries.html?open=" + encodeURIComponent(t.related_enquiry_id) + "&focus=messages"
+            : "admin-message-centre.html?thread=" + encodeURIComponent(t.id);
 
-            const link = t.related_enquiry_id
-              ? "admin-enquiries.html?open=" + encodeURIComponent(t.related_enquiry_id) + "&focus=messages"
-              : "admin-message-centre.html?thread=" + encodeURIComponent(t.id);
+          return `
+            <a class="admin-notification-item" href="${link}">
+              <strong>${label}: ${customer}</strong>
+              <small>${bike}</small>
+              <small>${preview}</small>
+              <small>${time}</small>
+            </a>
+          `;
 
-            return `
-              <a href="${link}" style="display:block;padding:10px;border-bottom:1px solid rgba(255,255,255,.12);color:#fff;text-decoration:none;">
-                <strong>${label}: ${customer}</strong><br>
-                <small>${bike}</small><br>
-                <span>${preview}</span><br>
-                <em style="font-size:11px;color:#888;">${time}</em>
-              </a>
-            `;
-
-          }).join("")
-        : `<div style="padding:12px;color:#aaa;">No admin actions waiting.</div>`;
-
-    });
+        }).join("")
+      : `
+        <div class="admin-notification-item">
+          <strong>No admin actions waiting</strong>
+          <small>New messages and enquiries will appear here.</small>
+        </div>
+      `;
+  });
 }
 
-
-
 loadAdminShell();
-
 
 setInterval(loadMessageCentreNotifications, 60000);
