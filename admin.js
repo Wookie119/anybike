@@ -153,99 +153,58 @@ async function loadMessageCentreNotifications(){
   const SUPABASE_ANON_KEY = "sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
   const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-  const {data: messages, error: msgError} = await sb
-    .from("enquiry_messages")
-    .select("id,enquiry_id,sender,message,created_at")
-    .order("created_at", {ascending:false});
+  const {data, error} = await sb
+    .from("message_centre_threads")
+    .select("id, customer_name, customer_email, country, source_type, subject, status, bike_make, bike_model, bike_year, last_message, last_message_at, last_sender, related_enquiry_id")
+    .in("status", ["New", "Needs Reply"])
+    .eq("last_sender", "Customer")
+    .order("last_message_at", {ascending:false});
 
-  if(msgError){
-    console.log("Notification message load failed", msgError.message);
+  if(error){
+    console.log("Notification thread load failed", error.message);
     return;
   }
 
-  const latestByEnquiry = {};
-
-  (messages || []).forEach(function(m){
-    if(!latestByEnquiry[m.enquiry_id]){
-      latestByEnquiry[m.enquiry_id] = m;
-    }
-  });
-
-  const customerReplies = Object.values(latestByEnquiry).filter(function(m){
-    return String(m.sender || "").toLowerCase().includes("customer");
-  });
-
-  const enquiryIds = customerReplies.map(function(m){
-    return m.enquiry_id;
-  });
-
-  let enquiryMap = {};
-
-  if(enquiryIds.length){
-    const {data: enquiries, error: enquiryError} = await sb
-      .from("bike_enquiries")
-      .select(`
-        id,
-        customer_name,
-        customer_email,
-        destination_country,
-        customer_city,
-        customer_region,
-        bike_id,
-        available_stock (
-          make,
-          model,
-          year
-        )
-      `)
-      .in("id", enquiryIds);
-
-    if(!enquiryError){
-      (enquiries || []).forEach(function(e){
-        enquiryMap[String(e.id)] = e;
-      });
-    }
-  }
-
-  const count = customerReplies.length;
+  const threads = data || [];
+  const count = threads.length;
 
   document
     .querySelectorAll("#adminNotificationCount, #notificationCount, .notification-count, .admin-notification-count, .admin-bell-count")
     .forEach(function(badge){
       badge.textContent = count;
-badge.style.display = count > 0 ? "flex" : "none";
-badge.style.alignItems = "center";
-badge.style.justifyContent = "center";
+      badge.style.display = count > 0 ? "flex" : "none";
+      badge.style.alignItems = "center";
+      badge.style.justifyContent = "center";
     });
 
   document
-    .querySelectorAll("#adminNotificationPanel, #notificationPanel, #adminNotificationList, #adminNotificationDropdown")
+    .querySelectorAll("#adminNotificationPanel, #notificationPanel, #adminNotificationList")
     .forEach(function(panel){
 
       panel.innerHTML = count
-        ? customerReplies.slice(0,8).map(function(n){
+        ? threads.slice(0,8).map(function(t){
 
-            const enquiry = enquiryMap[String(n.enquiry_id)] || {};
-            const stock = enquiry.available_stock || {};
+            const customer = t.customer_name || t.customer_email || "Customer";
+            const bike = [t.bike_year, t.bike_make, t.bike_model].filter(Boolean).join(" ") || t.subject || t.source_type || "Message";
+            const preview = t.last_message || "";
+            const time = t.last_message_at ? new Date(t.last_message_at).toLocaleString("en-GB") : "";
+            const label = t.status === "New" ? "🆕 New enquiry" : "💬 Needs reply";
 
-            const customer = enquiry.customer_name || enquiry.customer_email || "Customer reply";
-            const country = enquiry.destination_country || enquiry.customer_country || "";
-            const bike = [stock.year, stock.make, stock.model].filter(Boolean).join(" ") || "Bike enquiry";
-            const preview = n.message || "";
-            const time = n.created_at ? new Date(n.created_at).toLocaleString("en-GB") : "";
-            const link = "admin-enquiries.html?open=" + encodeURIComponent(n.enquiry_id) + "&focus=messages";
+            const link = t.related_enquiry_id
+              ? "admin-enquiries.html?open=" + encodeURIComponent(t.related_enquiry_id) + "&focus=messages"
+              : "admin-message-centre.html?thread=" + encodeURIComponent(t.id);
 
             return `
               <a href="${link}" style="display:block;padding:10px;border-bottom:1px solid rgba(255,255,255,.12);color:#fff;text-decoration:none;">
-                <strong>💬 ${customer}</strong><br>
-                <small>${country} ${bike}</small><br>
+                <strong>${label}: ${customer}</strong><br>
+                <small>${bike}</small><br>
                 <span>${preview}</span><br>
                 <em style="font-size:11px;color:#888;">${time}</em>
               </a>
             `;
 
           }).join("")
-        : `<div style="padding:12px;color:#aaa;">No customer replies waiting.</div>`;
+        : `<div style="padding:12px;color:#aaa;">No admin actions waiting.</div>`;
 
     });
 }
