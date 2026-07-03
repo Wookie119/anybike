@@ -210,7 +210,9 @@ async function loadMessageCentreNotifications(){
     .querySelectorAll("#adminNotificationCount, #notificationCount, .notification-count, .admin-notification-count, .admin-bell-count")
     .forEach(function(badge){
       badge.textContent = count;
-      badge.style.display = count > 0 ? "inline-block" : "none";
+badge.style.display = count > 0 ? "flex" : "none";
+badge.style.alignItems = "center";
+badge.style.justifyContent = "center";
     });
 
   document
