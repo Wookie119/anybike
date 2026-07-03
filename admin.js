@@ -133,17 +133,22 @@ function toggleAdminNotifications(){
 }
 
 document.addEventListener("click", function(e){
-  var panel = document.getElementById("adminNotificationPanel");
-  var bell = document.querySelector(".admin-bell");
+  var bell = e.target.closest(".admin-bell");
 
-  if(!panel || !bell){
+  if(bell){
+    e.preventDefault();
+    e.stopPropagation();
+    toggleAdminNotifications();
     return;
   }
 
-  if(!panel.contains(e.target) && !bell.contains(e.target)){
+  var panel = document.getElementById("adminNotificationPanel");
+
+  if(panel && !panel.contains(e.target)){
     panel.classList.remove("open");
   }
 });
+
 async function loadMessageCentreNotifications(){
   if(typeof supabase === "undefined"){
     return;
