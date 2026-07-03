@@ -125,7 +125,10 @@ function setupAdminSearch(){
 }
 
 function toggleAdminNotifications(){
-  var panel = document.getElementById("adminNotificationPanel");
+  var panel =
+    document.getElementById("adminNotificationPanel") ||
+    document.getElementById("notificationPanel") ||
+    document.getElementById("adminNotificationList");
 
   if(panel){
     panel.classList.toggle("open");
@@ -133,14 +136,23 @@ function toggleAdminNotifications(){
 }
 
 document.addEventListener("click", function(e){
+
+  var panel = document.getElementById("adminNotificationPanel");
   var bell = e.target.closest(".admin-bell");
 
-  if(bell){
-    e.preventDefault();
-    e.stopPropagation();
-    toggleAdminNotifications();
+  if(!panel){
     return;
   }
+
+  if(bell){
+    return;
+  }
+
+  if(!panel.contains(e.target)){
+    panel.classList.remove("open");
+  }
+
+});
 
   var panel = document.getElementById("adminNotificationPanel");
 
