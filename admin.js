@@ -176,6 +176,39 @@ async function loadMessageCentreNotifications(){
     badge.style.justifyContent = "center";
   });
 
+
+  if(typeof supabase === "undefined"){
+    return;
+  }
+
+  const SUPABASE_URL = "https://tuehtnezhdnkqbbhttgp.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const {data, error} = await sb
+    .from("message_centre_threads")
+    .select("id, customer_name, customer_email, country, source_type, subject, status, bike_make, bike_model, bike_year, last_message, last_message_at, last_sender, related_enquiry_id")
+    .in("status", ["New", "Needs Reply"])
+    .order("last_message_at", {ascending:false});
+
+  if(error){
+    console.log("Notification thread load failed", error.message);
+    return;
+  }
+
+  const threads = (data || []).filter(function(t){
+    return String(t.last_sender || "").toLowerCase().includes("customer");
+  });
+
+  const count = threads.length;
+
+  document.querySelectorAll("#adminNotificationCount, .admin-bell-count").forEach(function(badge){
+    badge.textContent = count;
+    badge.style.display = count > 0 ? "flex" : "none";
+    badge.style.alignItems = "center";
+    badge.style.justifyContent = "center";
+  });
+
 var notificationHtml = "";
 
 if(count){
@@ -200,6 +233,14 @@ if(count){
     `;
   }).join("");
 }else{
+  notificationHtml = `
+    <div class="admin-notification-item">
+      <strong>No admin actions waiting</strong>
+      <small>New messages and enquiries will appear here.</small>
+    </div>
+  `;
+}
+
   notificationHtml = `
     <div class="admin-notification-item">
       <strong>No admin actions waiting</strong>
