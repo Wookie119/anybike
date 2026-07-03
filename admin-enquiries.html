@@ -2052,17 +2052,46 @@ async function deleteSelectedEnquiries(){
     return;
   }
 
-  if(!confirm("Delete " + ids.length + " selected enquiries?")){
+  if(!confirm("Delete " + ids.length + " selected enquiries and their Message Centre threads?")){
     return;
   }
 
-  const {error} = await sb
+  const threadRes = await sb
+    .from("message_centre_threads")
+    .select("id")
+    .in("related_enquiry_id", ids);
+
+  const threadIds = (threadRes.data || []).map(t => t.id);
+
+  if(threadIds.length){
+    const msgDelete = await sb
+      .from("message_centre_messages")
+      .delete()
+      .in("thread_id", threadIds);
+
+    if(msgDelete.error){
+      alert("Message delete failed: " + msgDelete.error.message);
+      return;
+    }
+
+    const threadDelete = await sb
+      .from("message_centre_threads")
+      .delete()
+      .in("id", threadIds);
+
+    if(threadDelete.error){
+      alert("Thread delete failed: " + threadDelete.error.message);
+      return;
+    }
+  }
+
+  const enquiryDelete = await sb
     .from("bike_enquiries")
     .delete()
     .in("id", ids);
 
-  if(error){
-    alert("Delete failed: " + error.message);
+  if(enquiryDelete.error){
+    alert("Enquiry delete failed: " + enquiryDelete.error.message);
     return;
   }
 
