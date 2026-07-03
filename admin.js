@@ -123,10 +123,7 @@ function setupAdminSearch(){
 }
 
 function toggleAdminNotifications(){
-  var panel =
-    document.getElementById("adminNotificationPanel") ||
-    document.getElementById("adminNotificationDropdown") ||
-    document.getElementById("notificationPanel");
+  var panel = document.getElementById("adminNotificationPanel");
 
   if(panel){
     panel.classList.toggle("open");
@@ -134,14 +131,14 @@ function toggleAdminNotifications(){
 }
 
 document.addEventListener("click", function(e){
-  var bell = e.target.closest(".admin-bell");
   var panel = document.getElementById("adminNotificationPanel");
+  var bell = document.querySelector(".admin-bell");
 
-  if(bell){
+  if(!panel || !bell){
     return;
   }
 
-  if(panel && !panel.contains(e.target)){
+  if(!panel.contains(e.target) && !bell.contains(e.target)){
     panel.classList.remove("open");
   }
 });
