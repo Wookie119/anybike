@@ -911,129 +911,13 @@ async function markAdminNotificationRead(notification){
   }
 }
 
-function renderAdminNotifications(notifications){
-  ensureAdminNotificationWidget();
-
-  const listEl = document.getElementById("adminNotificationList");
-  if(!countEl || !listEl) return;
-
-  const rows = notifications || [];
-  const unread = rows.filter(isAdminNotificationUnread).length;
-
-  countEl.textContent = unread;
-  countEl.style.display = unread > 0 ? "inline-block" : "none";
-
-  if(!rows.length){
-    listEl.innerHTML = `<div class="admin-notification-empty">No notifications yet.</div>`;
-    return;
-  }
-
-  listEl.innerHTML = "";
-
-  rows.slice(0,12).forEach(notification => {
-    const item = document.createElement("button");
-    item.type = "button";
-    item.className = "admin-notification-item" + (isAdminNotificationUnread(notification) ? " unread" : "");
-
-    const title = notification.title || notification.type || "Admin notification";
-    const message = getAdminNotificationText(notification);
-    const created = notification.created_at
-      ? new Date(notification.created_at).toLocaleString("en-GB")
-      : "";
-
-    item.innerHTML = `
-      <div class="admin-notification-title">${escapeHtml(title)}</div>
-      <div class="admin-notification-message">${escapeHtml(message)}</div>
-      ${created ? `<div class="admin-notification-meta">${created}</div>` : ""}
-    `;
-
-    item.addEventListener("click", async event => {
-      event.preventDefault();
-      event.stopPropagation();
-
-      await markAdminNotificationRead(notification);
-      window.location.href = adminNotificationTargetUrl(notification);
-    });
-
-    listEl.appendChild(item);
-  });
-}
-
-function escapeHtml(value){
-  return String(value ?? "")
-    .replaceAll("&","&amp;")
-    .replaceAll("<","&lt;")
-    .replaceAll(">","&gt;")
-    .replaceAll('"',"&quot;")
-    .replaceAll("'","&#039;");
-}
-
-async function loadAdminNotifications(){
-  ensureAdminNotificationWidget();
-
-  try{
-    const {data, error} = await sb
-      .from("admin_notifications")
-      .select("*")
-      .order("created_at",{ascending:false})
-      .limit(25);
-
-    if(error){
-      console.warn("Admin notifications unavailable:", error);
-      renderAdminNotifications([]);
-      return;
-    }
-
-    renderAdminNotifications(data || []);
-  }catch(err){
-    console.warn("Admin notifications unavailable:", err);
-    renderAdminNotifications([]);
-  }
-}
-
-  countEl.textContent = waiting.length;
-  countEl.style.display = waiting.length > 0 ? "inline-block" : "none";
-
-  if(!waiting.length){
-    listEl.innerHTML = `<div class="admin-notification-empty">No customer replies waiting.</div>`;
-    return;
-  }
-
-  listEl.innerHTML = "";
-
-  waiting.slice(0,12).forEach(r => {
-    const latest = latestMap[String(r.id)] || {};
-    const item = document.createElement("button");
-    item.type = "button";
-    item.className = "admin-notification-item unread";
-
-    const created = latest.created_at
-      ? new Date(latest.created_at).toLocaleString("en-GB")
-      : "";
-
-    item.innerHTML = `
-      <div class="admin-notification-title">💬 Customer reply</div>
-      <div class="admin-notification-message">Enquiry #${escapeHtml(r.id)} needs a reply</div>
-      ${latest.message ? `<div class="admin-notification-message">${escapeHtml(String(latest.message).slice(0,120))}</div>` : ""}
-      ${created ? `<div class="admin-notification-meta">${escapeHtml(created)}</div>` : ""}
-    `;
-
-    item.addEventListener("click", event => {
-      event.preventDefault();
-      event.stopPropagation();
-      window.location.href = "admin-enquiries.html?open=" + encodeURIComponent(r.id) + "&focus=messages";
-    });
-
-    listEl.appendChild(item);
-  });
-}
-
 function setHeader(){
   const now=new Date();
   const hour=now.getHours();
   let greet="Good Evening Andy";
   if(hour<12) greet="Good Morning Andy";
   else if(hour<18) greet="Good Afternoon Andy";
+
   setText("greeting",greet);
   setText("todayDate",now.toLocaleDateString("en-GB",{
     weekday:"long",day:"numeric",month:"long",year:"numeric"
@@ -1069,22 +953,6 @@ async function loadDashboard(){
     }
 
     const rows = enquiries || [];
-
-    const {data: globalBuyers, error: gbError} = await sb
-      .from("global_buyer_network")
-      .select("id,status,created_at")
-      .order("created_at",{ascending:false});
-
-    if(!gbError){
-      const gbRows = globalBuyers || [];
-      setText("globalBuyersCount", gbRows.length);
-      const newGlobalBuyers = gbRows.filter(b => {
-        const s = String(b.status || "").trim();
-        return !s || s === "New" || s === "New Potential Buyer" || s === "New Buyer Registered";
-      }).length;
-      setText("workGlobalBuyers", newGlobalBuyers);
-    }
-
 
     setText("activeLeadsCount", rows.length);
     setText("totalCount", rows.length);
@@ -1129,24 +997,22 @@ async function loadDashboard(){
 
     latestDashboardMessageMap = latest;
 
-  const replies = Object.values(latest).filter(m =>
-  String(m.sender || "").toLowerCase().includes("customer")
-).length;
+    const replies = Object.values(latest).filter(m =>
+      String(m.sender || "").toLowerCase().includes("customer")
+    ).length;
 
-setText("customerReplyCount", replies);
-setText("customerRepliesCount", replies);
-setText("workReplies", replies);
+    setText("customerReplyCount", replies);
+    setText("customerRepliesCount", replies);
+    setText("workReplies", replies);
 
-}catch(err){
-  console.error(err);
-}
-
+  }catch(err){
+    console.error(err);
+  }
 }
 
 setHeader();
 loadDashboard();
 setInterval(loadDashboard,90000);
-
 </script>
 
 </body>
