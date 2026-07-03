@@ -47,15 +47,18 @@ fetch("admin-topbar.html?v=4000")
 }
 
 function setupAdminFolders(){
-  document.addEventListener("click", function(e){
-    const button = e.target.closest(".menu-folder");
 
-    if(!button){
-      return;
-    }
+  document.querySelectorAll(".menu-folder").forEach(function(button){
 
-    toggleAdminFolder(button.getAttribute("data-target"));
+    button.onclick = function(e){
+      e.preventDefault();
+      e.stopPropagation();
+
+      toggleAdminFolder(button.getAttribute("data-target"));
+    };
+
   });
+
 }
 
 function toggleAdminFolder(id){
