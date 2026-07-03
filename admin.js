@@ -154,19 +154,12 @@ async function loadMessageCentreNotifications(){
   const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   const {data, error} = await sb
-    .from("message_centre_threads")
-    .select("id, customer_name, customer_email, country, source_type, subject, status, bike_make, bike_model, bike_year, last_message, last_message_at, last_sender, related_enquiry_id")
-    .in("status", ["New", "Needs Reply"])
-    .eq("last_sender", "Customer")
-    .order("last_message_at", {ascending:false});
-
-  if(error){
-    console.log("Notification thread load failed", error.message);
-    return;
-  }
-
-  const threads = data || [];
-  const count = threads.length;
+  .from("message_centre_threads")
+  .select("id, customer_name, customer_email, country, source_type, subject, status, bike_make, bike_model, bike_year, last_message, last_message_at, last_sender, related_enquiry_id")
+  .in("status", ["New", "Needs Reply"])
+  .order("last_message_at", {ascending:false});
+   console.log("Threads:", threads);
+   console.log("Count:", threads.length);
 
   document
     .querySelectorAll("#adminNotificationCount, #notificationCount, .notification-count, .admin-notification-count, .admin-bell-count")
