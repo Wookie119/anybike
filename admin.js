@@ -152,43 +152,36 @@ async function loadMessageCentreNotifications(){
 
   const count = data ? data.length : 0;
 
-  const badge =
-    document.getElementById("adminNotificationCount") ||
-    document.getElementById("notificationCount") ||
-    document.querySelector(".notification-count") ||
-    document.querySelector(".admin-notification-count");
+  document.querySelectorAll("#adminNotificationCount, #notificationCount, .notification-count, .admin-notification-count, .admin-bell-count")
+    .forEach(function(badge){
+      badge.textContent = count;
+      badge.style.display = count > 0 ? "inline-block" : "none";
+    });
 
-  if(badge){
-    badge.textContent = count;
-    badge.style.display = count > 0 ? "inline-block" : "none";
-  }
+  document.querySelectorAll("#adminNotificationPanel, #notificationPanel, #adminNotificationList")
+    .forEach(function(panel){
+      panel.innerHTML = count
+        ? data.slice(0,8).map(function(n){
+            const bike = [n.bike_make, n.bike_model].filter(Boolean).join(" ");
+            const customer = n.customer_name || "Customer reply";
+            const preview = n.last_message || "";
+            const country = n.country || "";
+            const link = n.enquiry_id
+              ? "admin-enquiries.html?open=" + encodeURIComponent(n.enquiry_id)
+              : "admin-message-centre.html?thread=" + encodeURIComponent(n.id);
 
-  const panel =
-    document.getElementById("adminNotificationPanel") ||
-    document.getElementById("notificationPanel");
-
-  if(panel){
-    panel.innerHTML = count
-      ? data.slice(0,8).map(function(n){
-          const bike = [n.bike_make, n.bike_model].filter(Boolean).join(" ");
-          const customer = n.customer_name || "Customer reply";
-          const preview = n.last_message || "";
-          const country = n.country || "";
-          const link = n.enquiry_id
-            ? "admin-enquiries.html?open=" + encodeURIComponent(n.enquiry_id)
-            : "admin-message-centre.html?thread=" + encodeURIComponent(n.id);
-
-          return `
-            <a href="${link}" style="display:block;padding:10px;border-bottom:1px solid rgba(255,255,255,.12);color:#fff;text-decoration:none;">
-              <strong>💬 ${customer}</strong><br>
-              <small>${country} ${bike}</small><br>
-              <span>${preview}</span>
-            </a>
-          `;
-        }).join("")
-      : `<div style="padding:12px;color:#aaa;">No new customer replies.</div>`;
-  }
+            return `
+              <a href="${link}" style="display:block;padding:10px;border-bottom:1px solid rgba(255,255,255,.12);color:#fff;text-decoration:none;">
+                <strong>💬 ${customer}</strong><br>
+                <small>${country} ${bike}</small><br>
+                <span>${preview}</span>
+              </a>
+            `;
+          }).join("")
+        : `<div style="padding:12px;color:#aaa;">No new customer replies.</div>`;
+    });
 }
+
 
 loadAdminShell();
 
