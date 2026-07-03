@@ -150,51 +150,101 @@ async function loadMessageCentreNotifications(){
   const SUPABASE_ANON_KEY = "sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
   const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-  const {data, error} = await sb
-    .from("message_centre_threads")
-.select("id, customer_name, country, source_type, bike_make, bike_model, last_message, last_message_at, last_sender, status")
-    .eq("last_sender", "Customer")
-    .order("last_message_at", {ascending:false});
+  const {data: messages, error: msgError} = await sb
+    .from("enquiry_messages")
+    .select("id,enquiry_id,sender,message,created_at")
+    .order("created_at", {ascending:false});
 
-  if(error){
-    console.log("Notification load failed", error.message);
+  if(msgError){
+    console.log("Notification message load failed", msgError.message);
     return;
   }
 
-  const count = data ? data.length : 0;
+  const latestByEnquiry = {};
 
-  document.querySelectorAll("#adminNotificationCount, #notificationCount, .notification-count, .admin-notification-count, .admin-bell-count")
+  (messages || []).forEach(function(m){
+    if(!latestByEnquiry[m.enquiry_id]){
+      latestByEnquiry[m.enquiry_id] = m;
+    }
+  });
+
+  const customerReplies = Object.values(latestByEnquiry).filter(function(m){
+    return String(m.sender || "").toLowerCase().includes("customer");
+  });
+
+  const enquiryIds = customerReplies.map(function(m){
+    return m.enquiry_id;
+  });
+
+  let enquiryMap = {};
+
+  if(enquiryIds.length){
+    const {data: enquiries, error: enquiryError} = await sb
+      .from("bike_enquiries")
+      .select(`
+        id,
+        customer_name,
+        customer_email,
+        destination_country,
+        customer_city,
+        customer_region,
+        bike_id,
+        available_stock (
+          make,
+          model,
+          year
+        )
+      `)
+      .in("id", enquiryIds);
+
+    if(!enquiryError){
+      (enquiries || []).forEach(function(e){
+        enquiryMap[String(e.id)] = e;
+      });
+    }
+  }
+
+  const count = customerReplies.length;
+
+  document
+    .querySelectorAll("#adminNotificationCount, #notificationCount, .notification-count, .admin-notification-count, .admin-bell-count")
     .forEach(function(badge){
       badge.textContent = count;
       badge.style.display = count > 0 ? "inline-block" : "none";
     });
 
-  document.querySelectorAll("#adminNotificationPanel, #notificationPanel, #adminNotificationList")
-  .forEach(function(panel){
+  document
+    .querySelectorAll("#adminNotificationPanel, #notificationPanel, #adminNotificationList, #adminNotificationDropdown")
+    .forEach(function(panel){
 
-    panel.innerHTML = count
-      ? data.slice(0,8).map(function(n){
+      panel.innerHTML = count
+        ? customerReplies.slice(0,8).map(function(n){
 
-          const bike = [n.bike_make, n.bike_model].filter(Boolean).join(" ");
-          const customer = n.customer_name || "Customer reply";
-          const preview = n.last_message || "";
-          const country = n.country || "";
-          const link = "admin-message-centre.html?thread=" + encodeURIComponent(n.id);
+            const enquiry = enquiryMap[String(n.enquiry_id)] || {};
+            const stock = enquiry.available_stock || {};
 
-          return `
-            <a href="${link}" style="display:block;padding:10px;border-bottom:1px solid rgba(255,255,255,.12);color:#fff;text-decoration:none;">
-              <strong>💬 ${customer}</strong><br>
-              <small>${country} ${bike}</small><br>
-              <span>${preview}</span>
-            </a>
-          `;
+            const customer = enquiry.customer_name || enquiry.customer_email || "Customer reply";
+            const country = enquiry.destination_country || enquiry.customer_country || "";
+            const bike = [stock.year, stock.make, stock.model].filter(Boolean).join(" ") || "Bike enquiry";
+            const preview = n.message || "";
+            const time = n.created_at ? new Date(n.created_at).toLocaleString("en-GB") : "";
+            const link = "admin-enquiries.html?open=" + encodeURIComponent(n.enquiry_id) + "&focus=messages";
 
-        }).join("")
-      : `<div style="padding:12px;color:#aaa;">No new customer replies.</div>`;
+            return `
+              <a href="${link}" style="display:block;padding:10px;border-bottom:1px solid rgba(255,255,255,.12);color:#fff;text-decoration:none;">
+                <strong>💬 ${customer}</strong><br>
+                <small>${country} ${bike}</small><br>
+                <span>${preview}</span><br>
+                <em style="font-size:11px;color:#888;">${time}</em>
+              </a>
+            `;
 
-  });
+          }).join("")
+        : `<div style="padding:12px;color:#aaa;">No customer replies waiting.</div>`;
 
+    });
 }
+
 
 
 loadAdminShell();
