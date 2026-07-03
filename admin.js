@@ -123,7 +123,10 @@ function setupAdminSearch(){
 }
 
 function toggleAdminNotifications(){
-  var panel = document.getElementById("adminNotificationPanel");
+  var panel =
+    document.getElementById("adminNotificationPanel") ||
+    document.getElementById("adminNotificationDropdown") ||
+    document.getElementById("notificationPanel");
 
   if(panel){
     panel.classList.toggle("open");
@@ -176,7 +179,7 @@ async function loadMessageCentreNotifications(){
     badge.style.justifyContent = "center";
   });
 
-  document.querySelectorAll("#adminNotificationList, .admin-notification-list").forEach(function(list){
+document.querySelectorAll("#adminNotificationList, .admin-notification-list, #adminNotificationDropdown")
     list.innerHTML = count
       ? threads.slice(0,8).map(function(t){
 
