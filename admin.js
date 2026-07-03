@@ -1,6 +1,6 @@
 function loadAdminShell(){
 
-  fetch("admin-sidebar.html?v=2000")
+fetch("admin-sidebar.html?v=4000")
     .then(function(res){
       return res.text();
     })
@@ -23,7 +23,7 @@ function loadAdminShell(){
 
     });
 
-  fetch("admin-topbar.html?v=2000")
+fetch("admin-topbar.html?v=4000")
     .then(function(res){
       return res.text();
     })
