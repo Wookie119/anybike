@@ -152,7 +152,7 @@ async function loadMessageCentreNotifications(){
 
   const {data, error} = await sb
     .from("message_centre_threads")
-    .select("id, customer_name, country, source_type, bike_make, bike_model, last_message, last_message_at, last_sender, status, enquiry_id")
+.select("id, customer_name, country, source_type, bike_make, bike_model, last_message, last_message_at, last_sender, status")
     .eq("last_sender", "Customer")
     .order("last_message_at", {ascending:false});
 
@@ -177,7 +177,7 @@ async function loadMessageCentreNotifications(){
             const customer = n.customer_name || "Customer reply";
             const preview = n.last_message || "";
             const country = n.country || "";
-            const link = n.enquiry_id
+const link = "admin-message-centre.html?thread=" + encodeURIComponent(n.id);
               ? "admin-enquiries.html?open=" + encodeURIComponent(n.enquiry_id)
               : "admin-message-centre.html?thread=" + encodeURIComponent(n.id);
 
