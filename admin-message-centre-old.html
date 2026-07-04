@@ -1,0 +1,942 @@
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Message Centre | AnyBike Admin</title>
+<meta name="robots" content="noindex,nofollow">
+
+<link rel="stylesheet" href="admin-shell.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+.message-page{
+  padding:24px;
+  min-height:100vh;
+  color:#fff;
+}
+
+.page-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:16px;
+  margin-bottom:20px;
+}
+
+.page-head h1{
+  margin:0;
+  font-size:28px;
+  color:#fff;
+}
+
+.page-head p{
+  margin:6px 0 0;
+  color:#aaa;
+}
+
+.refresh-btn{
+  background:#ed1c24;
+  color:#fff;
+  border:0;
+  border-radius:10px;
+  padding:10px 14px;
+  font-weight:800;
+  cursor:pointer;
+}
+
+.stats-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
+  gap:12px;
+  margin-bottom:18px;
+}
+
+.stat-card{
+  background:#151515;
+  border:1px solid rgba(255,255,255,.1);
+  border-radius:16px;
+  padding:16px;
+}
+
+.stat-card strong{
+  display:block;
+  font-size:26px;
+  color:#fff;
+}
+
+.stat-card span{
+  color:#aaa;
+  font-size:13px;
+}
+
+.message-layout{
+  display:grid;
+  grid-template-columns:1.1fr .9fr;
+  gap:18px;
+}
+
+.panel{
+  background:#111;
+  border:1px solid rgba(255,255,255,.1);
+  border-radius:18px;
+  overflow:hidden;
+}
+
+.panel-head{
+  padding:16px;
+  border-bottom:1px solid rgba(255,255,255,.1);
+  display:flex;
+  gap:10px;
+  align-items:center;
+  justify-content:space-between;
+  flex-wrap:wrap;
+}
+
+.panel-head h2{
+  margin:0;
+  font-size:18px;
+  color:#fff;
+}
+
+.filters{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+}
+
+.filters button{
+  background:#1d1d1d;
+  color:#ccc;
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:999px;
+  padding:7px 11px;
+  cursor:pointer;
+}
+
+.filters button.active{
+  background:#ed1c24;
+  color:#fff;
+  border-color:#ed1c24;
+}
+
+.search-box{
+  width:100%;
+  margin-top:10px;
+}
+
+.search-box input{
+  width:100%;
+  background:#070707;
+  border:1px solid rgba(255,255,255,.14);
+  color:#fff;
+  padding:12px;
+  border-radius:12px;
+}
+
+.thread-list{
+  max-height:720px;
+  overflow:auto;
+}
+
+.thread-card{
+  padding:15px 16px;
+  border-bottom:1px solid rgba(255,255,255,.08);
+  cursor:pointer;
+}
+
+.thread-card:hover,
+.thread-card.active{
+  background:#1a1a1a;
+}
+
+.thread-top{
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:8px;
+}
+
+.thread-title{
+  color:#fff;
+  font-weight:900;
+}
+
+.thread-time{
+  color:#888;
+  font-size:12px;
+  white-space:nowrap;
+}
+
+.thread-meta{
+  display:flex;
+  flex-wrap:wrap;
+  gap:7px;
+  margin-bottom:8px;
+}
+
+.badge{
+  display:inline-flex;
+  align-items:center;
+  border-radius:999px;
+  padding:5px 8px;
+  font-size:12px;
+  font-weight:800;
+  background:#242424;
+  color:#ddd;
+}
+
+.badge-red{
+  background:rgba(237,28,36,.18);
+  color:#ff6b70;
+}
+
+.badge-green{
+  background:rgba(24,160,88,.18);
+  color:#5ee59b;
+}
+
+.thread-preview{
+  color:#aaa;
+  font-size:14px;
+  line-height:1.4;
+}
+
+.empty{
+  padding:30px;
+  color:#aaa;
+  text-align:center;
+}
+
+.detail-body{
+  padding:18px;
+}
+
+.detail-empty{
+  color:#aaa;
+  padding:30px;
+  text-align:center;
+}
+
+.info-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+  gap:10px;
+  margin-bottom:18px;
+}
+
+.info-box{
+  background:#171717;
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:14px;
+  padding:12px;
+}
+
+.info-box span{
+  display:block;
+  color:#888;
+  font-size:12px;
+  margin-bottom:4px;
+}
+
+.info-box strong{
+  color:#fff;
+}
+
+.message-thread{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  margin:16px 0;
+}
+
+.msg{
+  background:#1b1b1b;
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:14px;
+  padding:12px;
+}
+
+.msg.admin{
+  background:rgba(237,28,36,.15);
+  border-color:rgba(237,28,36,.35);
+}
+
+.msg-head{
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  color:#aaa;
+  font-size:12px;
+  margin-bottom:7px;
+}
+
+.msg-text{
+  color:#fff;
+  line-height:1.45;
+  white-space:pre-wrap;
+}
+
+.quick-area{
+  border-top:1px solid rgba(255,255,255,.1);
+  padding-top:16px;
+  margin-top:16px;
+}
+
+.quick-area label{
+  display:block;
+  color:#aaa;
+  font-size:13px;
+  margin-bottom:6px;
+}
+
+.quick-area select,
+.quick-area textarea{
+  width:100%;
+  background:#070707;
+  border:1px solid rgba(255,255,255,.14);
+  color:#fff;
+  padding:12px;
+  border-radius:12px;
+  margin-bottom:10px;
+}
+
+.quick-area textarea{
+  min-height:110px;
+  resize:vertical;
+}
+
+.actions{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+}
+
+.actions button{
+  border:0;
+  border-radius:10px;
+  padding:10px 13px;
+  font-weight:900;
+  cursor:pointer;
+}
+
+.primary{
+  background:#ed1c24;
+  color:#fff;
+}
+
+.secondary{
+  background:#242424;
+  color:#fff;
+}
+
+.link-btn{
+  display:inline-block;
+  text-decoration:none;
+  border-radius:10px;
+  padding:10px 13px;
+  font-weight:900;
+  background:#242424;
+  color:#fff;
+}
+
+@media(max-width:900px){
+  .message-layout{
+    grid-template-columns:1fr;
+  }
+
+  .page-head{
+    flex-direction:column;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<div class="admin-shell">
+
+  <div id="adminSidebar"></div>
+
+  <div class="admin-main">
+
+    <div id="adminTopbar"></div>
+
+    <main class="admin-page-content message-page">
+
+    <div class="page-head">
+      <div>
+        <h1>Message Centre</h1>
+        <p>Customer communications from bike enquiries, contact forms, multi-bike requests and future workflows.</p>
+      </div>
+      <button class="refresh-btn" onclick="loadThreads()">Refresh</button>
+    </div>
+
+    <section class="stats-grid">
+      <div class="stat-card">
+        <strong id="totalCount">0</strong>
+        <span>Total Messages</span>
+      </div>
+      <div class="stat-card">
+        <strong id="newCount">0</strong>
+        <span>New</span>
+      </div>
+      <div class="stat-card">
+        <strong id="waitingCount">0</strong>
+         <span>Needs Reply</span>      </div>
+      <div class="stat-card">
+        <strong id="bikeCount">0</strong>
+        <span>Bike Enquiries</span>
+      </div>
+    </section>
+
+    <section class="message-layout">
+
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Inbox</h2>
+          <div class="filters">
+            <button class="active" onclick="setFilter('all', this)">All</button>
+            <button onclick="setFilter('New', this)">New</button>
+            <button onclick="setFilter('bike_enquiry', this)">Bike Enquiries</button>
+            <button onclick="setFilter('contact_us', this)">Contact Us</button>
+            <button onclick="setFilter('multi_bike_request', this)">Multi-Bike</button>
+          </div>
+          <div class="search-box">
+            <input id="searchInput" placeholder="Search customer, email, country, bike, message..." oninput="renderThreads()">
+          </div>
+        </div>
+<div class="message-toolbar">
+
+  <button type="button" onclick="selectAllThreads()">
+    ☑ Select All
+  </button>
+
+  <button type="button" onclick="clearThreadSelection()">
+    ☐ Clear
+  </button>
+
+  <button type="button" onclick="archiveSelectedThreads()">
+    📦 Archive
+  </button>
+
+  <button
+    type="button"
+    style="background:#b00020;color:#fff;"
+    onclick="deleteSelectedThreads()">
+    🗑 Delete
+  </button>
+
+</div>
+
+        <div id="threadList" class="thread-list">
+          <div class="empty">Loading messages...</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Conversation</h2>
+        </div>
+
+        <div id="detailPanel" class="detail-empty">
+          Select a message to view the conversation.
+        </div>
+      </div>
+
+    </section>
+
+    </main>
+
+  </div>
+
+</div>
+
+<script src="admin.js?v=4000"></script>
+
+<script>
+const SUPABASE_URL = "https://tuehtnezhdnkqbbhttgp.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let allThreads = [];
+let activeFilter = "all";
+let selectedThread = null;
+
+function setFilter(filter, btn){
+  activeFilter = filter;
+  document.querySelectorAll(".filters button").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  renderThreads();
+}
+
+function niceType(type){
+  const map = {
+    bike_enquiry:"Bike Enquiry",
+    multi_bike_request:"Multi-Bike Request",
+    contact_us:"Contact Us",
+    shipping_question:"Shipping Question",
+    buyer_registration:"Buyer Registration",
+    sell_your_bike:"Sell Your Bike",
+    general:"General"
+  };
+
+  return map[type] || type || "General";
+}
+
+function safe(value){
+  return value === null || value === undefined || value === "" ? "—" : value;
+}
+
+function shortDate(value){
+  if(!value) return "—";
+  const d = new Date(value);
+  return d.toLocaleString("en-GB", {
+    day:"2-digit",
+    month:"short",
+    hour:"2-digit",
+    minute:"2-digit"
+  });
+}
+
+function updateStats(){
+  document.getElementById("totalCount").textContent = allThreads.length;
+  document.getElementById("newCount").textContent = allThreads.filter(t => t.status === "New").length;
+document.getElementById("waitingCount").textContent =
+    allThreads.filter(t => t.status === "Needs Reply").length;
+      document.getElementById("bikeCount").textContent = allThreads.filter(t => t.source_type === "bike_enquiry").length;
+}
+
+async function loadThreads(){
+  const list = document.getElementById("threadList");
+  list.innerHTML = `<div class="empty">Loading messages...</div>`;
+
+  const {data, error} = await sb
+    .from("message_centre_threads")
+    .select("*")
+    .order("last_message_at", {ascending:false, nullsFirst:false})
+    .order("created_at", {ascending:false});
+
+  if(error){
+    list.innerHTML = `<div class="empty">Could not load Message Centre.<br>${error.message}</div>`;
+    return;
+  }
+
+    allThreads = data || [];
+  updateStats();
+  renderThreads();
+
+  const params = new URLSearchParams(window.location.search);
+  const threadId = Number(params.get("thread"));
+
+  if(threadId){
+    openThread(threadId);
+  }
+}
+
+function renderThreads(){
+  const list = document.getElementById("threadList");
+  const search = (document.getElementById("searchInput").value || "").toLowerCase();
+
+  let rows = allThreads.slice();
+
+  if(activeFilter !== "all"){
+    rows = rows.filter(t => t.status === activeFilter || t.source_type === activeFilter);
+  }
+
+  if(search){
+    rows = rows.filter(t => [
+      t.customer_name,
+      t.customer_email,
+      t.country,
+      t.subject,
+      t.last_message,
+      t.bike_make,
+      t.bike_model,
+      t.bike_year
+    ].join(" ").toLowerCase().includes(search));
+  }
+
+  if(!rows.length){
+    list.innerHTML = `<div class="empty">No messages found.</div>`;
+    return;
+  }
+
+  list.innerHTML = rows.map(t => {
+    const active = selectedThread && selectedThread.id === t.id ? "active" : "";
+    const bike = [t.bike_make, t.bike_model, t.bike_year].filter(Boolean).join(" ");
+    const title = t.customer_name || t.customer_email || "Unknown Customer";
+
+    return `
+<div class="thread-card ${active}" onclick="openThread(${t.id})">
+
+  <input
+    type="checkbox"
+    class="thread-check"
+    value="${t.id}"
+    onclick="event.stopPropagation()">
+            <div class="thread-top">
+          <div class="thread-title">${title}</div>
+          <div class="thread-time">${shortDate(t.last_message_at || t.created_at)}</div>
+        </div>
+
+        <div class="thread-meta">
+          <span class="badge badge-red">${niceType(t.source_type)}</span>
+          <span class="badge">${safe(t.status)}</span>
+          <span class="badge">${safe(t.country)}</span>
+          ${bike ? `<span class="badge badge-green">${bike}</span>` : ""}
+        </div>
+
+        <div class="thread-preview">${safe(t.last_message || t.subject || "No message preview")}</div>
+      </div>
+    `;
+  }).join("");
+}
+
+async function openThread(id){
+  selectedThread = allThreads.find(t => t.id === id);
+  renderThreads();
+
+  const panel = document.getElementById("detailPanel");
+  panel.className = "detail-body";
+  panel.innerHTML = `<div class="empty">Loading conversation...</div>`;
+
+  const {data:messages, error} = await sb
+    .from("message_centre_messages")
+    .select("*")
+    .eq("thread_id", id)
+    .order("created_at", {ascending:true});
+
+  if(error){
+    panel.innerHTML = `<div class="empty">${error.message}</div>`;
+    return;
+  }
+
+  const t = selectedThread;
+  const bike = [t.bike_make, t.bike_model, t.bike_year].filter(Boolean).join(" ");
+
+  panel.innerHTML = `
+    <div class="info-grid">
+      <div class="info-box">
+        <span>Customer</span>
+        <strong>${safe(t.customer_name)}</strong>
+      </div>
+      <div class="info-box">
+        <span>Email</span>
+        <strong>${safe(t.customer_email)}</strong>
+      </div>
+      <div class="info-box">
+        <span>Country</span>
+        <strong>${safe(t.country)}</strong>
+      </div>
+      <div class="info-box">
+        <span>Type</span>
+        <strong>${niceType(t.source_type)}</strong>
+      </div>
+      <div class="info-box">
+        <span>Department</span>
+        <strong>${safe(t.department)}</strong>
+      </div>
+      <div class="info-box">
+        <span>Related Bike</span>
+        <strong>${safe(bike)}</strong>
+      </div>
+    </div>
+
+    <div class="actions">
+      ${t.related_enquiry_id ? `<a class="link-btn" href="admin-enquiries.html?enquiry=${t.related_enquiry_id}">Open Bike Sales CRM</a>` : ""}
+      ${t.related_request_id ? `<a class="link-btn" href="admin-motorcycle-requests.html?request=${t.related_request_id}">Open Motorcycle Request</a>` : ""}
+    </div>
+
+    <div class="message-thread">
+      ${(messages || []).length ? messages.map(m => `
+        <div class="msg ${m.sender_type === "Admin" || m.sender_type === "AnyBike" ? "admin" : ""}">
+          <div class="msg-head">
+            <strong>${safe(m.sender_name || m.sender_type)}</strong>
+            <span>${shortDate(m.created_at)}</span>
+          </div>
+          <div class="msg-text">${safe(m.message)}</div>
+        </div>
+      `).join("") : `<div class="empty">No messages in this thread yet.</div>`}
+    </div>
+
+    <div class="quick-area">
+      <label>Route this enquiry</label>
+      <select id="departmentSelect">
+        <option ${t.department === "Message Centre" ? "selected" : ""}>Message Centre</option>
+        <option ${t.department === "Bike Sales CRM" ? "selected" : ""}>Bike Sales CRM</option>
+        <option ${t.department === "Motorcycle Requests 360" ? "selected" : ""}>Motorcycle Requests 360</option>
+        <option ${t.department === "Customer 360" ? "selected" : ""}>Customer 360</option>
+        <option ${t.department === "Logistics HQ" ? "selected" : ""}>Logistics HQ</option>
+        <option ${t.department === "Finance HQ" ? "selected" : ""}>Finance HQ</option>
+        <option ${t.department === "Global Buyer Network" ? "selected" : ""}>Global Buyer Network</option>
+      </select>
+
+     <label>Status</label>
+<select id="statusSelect">
+  <option ${t.status === "New" ? "selected" : ""}>New</option>
+  <option ${t.status === "Needs Reply" ? "selected" : ""}>Needs Reply</option>
+  <option ${t.status === "Replied" ? "selected" : ""}>Replied</option>
+  <option ${t.status === "Waiting Customer" ? "selected" : ""}>Waiting Customer</option>
+  <option ${t.status === "In Progress" ? "selected" : ""}>In Progress</option>
+  <option ${t.status === "Converted To Deal" ? "selected" : ""}>Converted To Deal</option>
+  <option ${t.status === "Archived" ? "selected" : ""}>Archived</option>
+  <option ${t.status === "Closed" ? "selected" : ""}>Closed</option>
+</select>
+
+      <label>Quick response</label>
+      <select id="quickReply" onchange="setQuickReply()">
+        <option value="">Choose a response...</option>
+        <option value="Thank you for your enquiry. We have received your message and will come back to you shortly.">Thanks for your enquiry</option>
+        <option value="Thank you for your enquiry. We are checking availability and will confirm as soon as possible.">Checking availability</option>
+        <option value="Thank you. Please confirm your destination country and preferred shipping option so we can guide you correctly.">Confirm destination</option>
+        <option value="Thank you. Please send the makes, models, years and quantities you are interested in, and we will help build a motorcycle request for you.">Multi-bike request details</option>
+        <option value="Thank you. We can help with export, UK delivery to your freight forwarder, and shipping support depending on your requirements.">Export support</option>
+      </select>
+
+      <textarea id="replyBox" placeholder="Write a response..."></textarea>
+
+      <div class="actions">
+        <button class="primary" onclick="sendReply()">Send Reply</button>
+        <button class="secondary" onclick="saveRoute()">Save Route / Status</button>
+      </div>
+    </div>
+  `;
+}
+function getSelectedThreadIds(){
+  return Array.from(document.querySelectorAll(".thread-check:checked"))
+    .map(cb => Number(cb.value))
+    .filter(Boolean);
+}
+
+function selectAllThreads(){
+  document.querySelectorAll(".thread-check").forEach(cb => {
+    cb.checked = true;
+  });
+}
+
+function clearThreadSelection(){
+  document.querySelectorAll(".thread-check").forEach(cb => {
+    cb.checked = false;
+  });
+}
+
+async function deleteSelectedThreads(){
+
+  const ids = getSelectedThreadIds();
+
+  console.log("Deleting thread IDs:", ids);
+
+  if(ids.length === 0){
+    alert("Select at least one message.");
+    return;
+  }
+
+  if(!confirm("Move selected messages to Deleted?")){
+    return;
+  }
+
+  const { error } = await sb
+    .from("message_centre_threads")
+    .update({
+      status: "Deleted",
+      updated_at: new Date().toISOString()
+    })
+    .in("id", ids);
+
+  if(error){
+    alert(error.message);
+    console.error(error);
+    return;
+  }
+
+  selectedThread = null;
+  await loadThreads();
+}
+
+
+async function archiveSelectedThreads(){
+
+  const ids = getSelectedThreadIds();
+
+  console.log("Archiving thread IDs:", ids);
+
+  if(ids.length === 0){
+    alert("Select at least one message.");
+    return;
+  }
+
+  if(!confirm("Archive selected messages?")){
+    return;
+  }
+
+  const { error } = await sb
+    .from("message_centre_threads")
+    .update({
+      status: "Archived",
+      updated_at: new Date().toISOString()
+    })
+    .in("id", ids);
+
+  if(error){
+    alert(error.message);
+    console.error(error);
+    return;
+  }
+
+  selectedThread = null;
+  await loadThreads();
+}
+  const { error } = await sb
+    .from("message_centre_threads")
+    .update({
+      status: "Archived",
+      updated_at: new Date().toISOString()
+    })
+    .in("id", ids);
+
+  if(error){
+    alert(error.message);
+    return;
+  }
+
+  selectedThread = null;
+  await loadThreads();
+}
+  
+function setQuickReply(){
+  const val = document.getElementById("quickReply").value;
+  if(val){
+    document.getElementById("replyBox").value = val;
+  }
+}
+
+async function saveRoute(){
+  if(!selectedThread) return;
+
+  const department = document.getElementById("departmentSelect").value;
+  const status = document.getElementById("statusSelect").value;
+
+  const {error} = await sb
+    .from("message_centre_threads")
+    .update({
+      department,
+      status,
+      updated_at:new Date().toISOString()
+    })
+    .eq("id", selectedThread.id);
+
+  if(error){
+    alert(error.message);
+    return;
+  }
+
+  selectedThread.department = department;
+  selectedThread.status = status;
+
+  updateStats();
+  renderThreads();
+  openThreadFromUrl();
+
+  alert("Saved");
+}
+
+function openThreadFromUrl(){
+
+  const params = new URLSearchParams(window.location.search);
+  const threadId = Number(params.get("thread"));
+
+  if(!threadId){
+    return;
+  }
+
+  const thread = allThreads.find(function(t){
+    return Number(t.id) === threadId;
+  });
+
+  if(thread){
+    openThread(threadId);
+  }
+}
+
+async function sendReply(){
+
+  alert("selectedThread: " + JSON.stringify(selectedThread));
+
+  if(!selectedThread) return;
+
+  const box = document.getElementById("replyBox");
+  const message = box.value.trim();
+
+  if(!message){
+    alert("Write a response first.");
+    return;
+  }
+
+  const now = new Date().toISOString();
+
+  const {error:msgError} = await sb
+    .from("message_centre_messages")
+    .insert({
+      thread_id:selectedThread.id,
+      sender_type:"AnyBike",
+      sender_name:"AnyBike",
+      sender_email:"admin@anybike.co.uk",
+      message:message,
+      created_at:now
+    });
+
+  if(msgError){
+    alert(msgError.message);
+    return;
+  }
+
+  if(selectedThread.related_enquiry_id){
+    const {error:crmError} = await sb
+      .from("enquiry_messages")
+      .insert({
+        enquiry_id:selectedThread.related_enquiry_id,
+        customer_id:selectedThread.customer_id,
+        sender:"AnyBike",
+        message:message,
+        created_at:now
+      });
+
+    if(crmError){
+      alert("Message Centre saved, but customer CRM message failed: " + crmError.message);
+      return;
+    }
+  }
+
+  const {error:threadError} = await sb
+    .from("message_centre_threads")
+    .update({
+      last_message:message,
+      last_message_at:now,
+      last_sender:"AnyBike",
+      status:"Replied",
+      updated_at:now
+    })
+    .eq("id", selectedThread.id);
+
+  if(threadError){
+    alert(threadError.message);
+    return;
+  }
+
+  box.value = "";
+  await loadThreads();
+  openThread(selectedThread.id);
+}
+
+document.addEventListener("DOMContentLoaded", function(){
+  loadThreads();
+});
+
+</script>
+
+</body>
+</html>
