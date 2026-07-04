@@ -564,6 +564,69 @@ h1{margin:0;font-size:34px}
     font-size:18px;
 }
 
+.action-card{
+  cursor:pointer;
+  align-items:flex-start;
+  border-left:6px solid #444;
+}
+
+.action-card:hover{
+  background:#202020;
+  border-color:#ed1c24;
+  transform:translateY(-1px);
+}
+
+.action-type{
+  font-size:14px;
+  font-weight:950;
+  margin-bottom:6px;
+  text-transform:uppercase;
+}
+
+.action-customer{
+  font-size:15px;
+  font-weight:900;
+  margin-bottom:5px;
+}
+
+.action-details{
+  color:#ccc;
+  font-size:13px;
+  line-height:1.45;
+}
+
+.action-details span{
+  color:#aaa;
+}
+
+.action-open{
+  white-space:nowrap;
+  font-size:12px;
+  font-weight:950;
+  color:#ed1c24;
+  padding-left:10px;
+}
+
+.queue-urgent{
+  border-left-color:#ed1c24;
+}
+
+.queue-high{
+  border-left-color:#ff9900;
+}
+
+.queue-medium{
+  border-left-color:#ffcc33;
+}
+
+.queue-ship{
+  border-left-color:#4da3ff;
+}
+
+.queue-port{
+  border-left-color:#9b5cff;
+}
+
 </style>
 </head>
 
@@ -1152,29 +1215,61 @@ if(queue){
     badge.textContent = actions.length;
   }
 
-  if(actions.length){
-    queue.innerHTML = actions.slice(0,10).map(function(a){
-      return `
-        <div class="work-item" style="cursor:pointer;align-items:flex-start;" onclick="location.href='${a.url}'">
-          <span>
-            <strong>${a.type}</strong><br>
-            ${a.customer}<br>
+if(actions.length){
+
+  queue.innerHTML = actions.slice(0,10).map(function(a){
+
+    let priorityClass = "queue-medium";
+
+    if(a.type.includes("Customer Reply")){
+      priorityClass = "queue-urgent";
+    }
+
+    if(a.type.includes("Waiting Deposit")){
+      priorityClass = "queue-high";
+    }
+
+    if(a.type.includes("Ready To Ship")){
+      priorityClass = "queue-ship";
+    }
+
+    if(a.type.includes("At Port")){
+      priorityClass = "queue-port";
+    }
+
+    return `
+      <div class="work-item action-card ${priorityClass}" onclick="location.href='${a.url}'">
+
+        <div>
+          <div class="action-type">${a.type}</div>
+
+          <div class="action-customer">
+            ${a.customer}
+          </div>
+
+          <div class="action-details">
             🏍 ${a.bike}<br>
             ${a.country ? "🌍 " + a.country + "<br>" : ""}
-            <small>${a.preview}</small>
-          </span>
-          <span>➡️</span>
+            <span>${a.preview}</span>
+          </div>
         </div>
-      `;
-    }).join("");
-  }else{
-    queue.innerHTML = `
-      <div class="work-item">
-        <span>✅ No actions waiting</span>
-        <span>✔</span>
+
+        <div class="action-open">Open →</div>
+
       </div>
     `;
-  }
+
+  }).join("");
+
+}else{
+
+  queue.innerHTML = `
+    <div class="work-item">
+      <span>✅ No actions waiting</span>
+      <span>✔</span>
+    </div>
+  `;
+
 }
 
   }catch(err){
