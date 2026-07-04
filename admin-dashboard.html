@@ -1091,37 +1091,57 @@ if(waiting.length){
 
   queue.innerHTML = waiting.slice(0,6).map(function(t){
 
-    const customer = t.customer_name || t.customer_email || "Customer";
+  const customer = t.customer_name || t.customer_email || "Customer";
 
-    const bike = [t.bike_year, t.bike_make, t.bike_model]
-      .filter(Boolean)
-      .join(" ");
+  const bike = [t.bike_year, t.bike_make, t.bike_model]
+    .filter(Boolean)
+    .join(" ");
 
-    const url = t.related_enquiry_id
-      ? "admin-enquiries.html?open=" + t.related_enquiry_id + "&focus=messages"
-      : "admin-message-centre.html?thread=" + t.id;
+  const country = t.country || "Unknown country";
 
-    return `
-      <div class="work-item" style="cursor:pointer" onclick="location.href='${url}'">
-        <span>
-          💬 <strong>${customer}</strong><br>
-          <small>${bike}</small>
-        </span>
-        <span>➡️</span>
-      </div>
-    `;
+  const preview = t.last_message || "Customer reply waiting";
 
-  }).join("");
-  
-  }else{
-    queue.innerHTML = `
-      <div class="work-item">
-        <span>✅ No actions waiting</span>
-        <span>✔</span>
-      </div>
-    `;
-  }
+  const url = t.related_enquiry_id
+    ? "admin-enquiries.html?open=" + t.related_enquiry_id + "&focus=messages"
+    : "admin-message-centre.html?thread=" + t.id;
+
+  return `
+    <div class="work-item" style="cursor:pointer;align-items:flex-start;" onclick="location.href='${url}'">
+      <span>
+        💬 <strong>Customer Reply</strong><br>
+        <small>
+          <strong>${customer}</strong><br>
+          🌍 ${country}<br>
+          🏍️ ${bike || "Motorcycle enquiry"}<br>
+          “${preview.substring(0,70)}”
+        </small>
+      </span>
+      <span>➡️</span>
+    </div>
+  `;
+
+}).join("");
+
+const badge = document.getElementById("actionQueueTotal");
+if(badge){
+  badge.textContent = waiting.length;
 }
+  
+}else{
+
+  const badge = document.getElementById("actionQueueTotal");
+  if(badge){
+    badge.textContent = "0";
+  }
+
+  queue.innerHTML = `
+    <div class="work-item">
+      <span>✅ No actions waiting</span>
+      <span>✔</span>
+    </div>
+  `;
+}
+
 } catch(err) {
   console.error(err);
 }
