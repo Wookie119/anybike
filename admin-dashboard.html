@@ -632,17 +632,27 @@ h1{margin:0;font-size:34px}
       <div class="small" style="margin-top:10px;">Next step: add staff filter support to admin-enquiries.html?staff=Andy%20Gifford.</div>
     </div>
 
-    <div class="card">
-      <h2>Today's Work</h2>
-      <div class="work-list">
-        <div class="work-item"><span>💬 Customer replies waiting</span><span id="workReplies">0</span></div>
-        <div class="work-item"><span>💷 Waiting deposit</span><span id="workDeposit">0</span></div>
-        <div class="work-item"><span>🚚 Waiting collection</span><span id="workCollection">0</span></div>
-        <div class="work-item"><span>🚢 Ready to ship</span><span id="workReadyShip">0</span></div>
-        <div class="work-item"><span>📂 Unassigned enquiries</span><span id="workUnassigned">0</span></div>
-        <div class="work-item"><span>🌍 New global buyers</span><span id="workGlobalBuyers">0</span></div>
-      </div>
+  <div class="card">
+
+  <h2>🚨 Admin Action Queue</h2>
+
+  <div id="dashboardActionQueue">
+
+    <div class="work-item">
+      <span>Loading actions...</span>
+      <span>⏳</span>
     </div>
+
+  </div>
+
+  <div style="margin-top:14px">
+    <a class="btn dark" href="admin-message-centre.html">
+      Open Message Centre
+    </a>
+  </div>
+
+</div>
+
   </section>
 
   <section class="grid">
@@ -1004,14 +1014,60 @@ async function loadDashboard(){
     setText("customerRepliesCount", replies);
     setText("workReplies", replies);
 
-  }catch(err){
-    console.error(err);
+const { data: actionThreads } = await sb
+  .from("message_centre_threads")
+  .select("id, customer_name, customer_email, country, bike_make, bike_model, bike_year, last_message, last_message_at, last_sender, related_enquiry_id, status")
+  .in("status", ["New", "Needs Reply"])
+  .order("last_message_at", { ascending: false });
+
+const queue = document.getElementById("dashboardActionQueue");
+
+if(queue){
+  const waiting = (actionThreads || []).filter(t =>
+    String(t.last_sender || "").toLowerCase().includes("customer")
+  );
+
+  if(waiting.length){
+    queue.innerHTML = waiting.slice(0,6).map(function(t){
+      const customer = t.customer_name || t.customer_email || "Customer";
+
+      const bike = [t.bike_year, t.bike_make, t.bike_model]
+        .filter(Boolean)
+        .join(" ");
+
+      const url = t.related_enquiry_id
+        ? "admin-enquiries.html?open=" + t.related_enquiry_id + "&focus=messages"
+        : "admin-message-centre.html?thread=" + t.id;
+
+      return `
+        <div class="work-item" style="cursor:pointer" onclick="location.href='${url}'">
+          <span>
+            💬 <strong>${customer}</strong><br>
+            <small>${bike}</small>
+          </span>
+          <span>➡️</span>
+        </div>
+      `;
+    }).join("");
+  }else{
+    queue.innerHTML = `
+      <div class="work-item">
+        <span>✅ No actions waiting</span>
+        <span>✔</span>
+      </div>
+    `;
   }
+}
+} catch(err) {
+  console.error(err);
+}
+
 }
 
 setHeader();
 loadDashboard();
 setInterval(loadDashboard,90000);
+
 </script>
 
 </body>
