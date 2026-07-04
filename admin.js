@@ -176,83 +176,80 @@ async function loadMessageCentreNotifications(){
     badge.style.justifyContent = "center";
   });
 
+  var notificationHtml = "";
 
-  if(typeof supabase === "undefined"){
-    return;
-  }
+  if(count){
 
-  const SUPABASE_URL = "https://tuehtnezhdnkqbbhttgp.supabase.co";
-  const SUPABASE_ANON_KEY = "sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
-  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    notificationHtml = threads.slice(0,8).map(function(t){
 
-  const {data, error} = await sb
-    .from("message_centre_threads")
-    .select("id, customer_name, customer_email, country, source_type, subject, status, bike_make, bike_model, bike_year, last_message, last_message_at, last_sender, related_enquiry_id")
-    .in("status", ["New", "Needs Reply"])
-    .order("last_message_at", {ascending:false});
+      const customer = t.customer_name || t.customer_email || "Customer";
 
-  if(error){
-    console.log("Notification thread load failed", error.message);
-    return;
-  }
+      const bike = [t.bike_year, t.bike_make, t.bike_model]
+        .filter(Boolean)
+        .join(" ") || t.subject || t.source_type || "Message";
 
-  const threads = (data || []).filter(function(t){
-    return String(t.last_sender || "").toLowerCase().includes("customer");
-  });
+      const preview = (t.last_message || "").substring(0,70);
+      const country = t.country || "";
+      const when = t.last_message_at ? timeAgo(t.last_message_at) : "";
+      const initial = customer.charAt(0).toUpperCase();
+      const dot = t.status === "New" ? "🔴" : "🟢";
 
-  const count = threads.length;
+      const link = t.related_enquiry_id
+        ? "admin-enquiries.html?open=" + encodeURIComponent(t.related_enquiry_id) + "&focus=messages"
+        : "admin-message-centre.html?thread=" + encodeURIComponent(t.id);
 
-  document.querySelectorAll("#adminNotificationCount, .admin-bell-count").forEach(function(badge){
-    badge.textContent = count;
-    badge.style.display = count > 0 ? "flex" : "none";
-    badge.style.alignItems = "center";
-    badge.style.justifyContent = "center";
-  });
+      return `
+        <a class="admin-notification-item" href="${link}">
+          <div class="notify-avatar">${initial}</div>
 
-var notificationHtml = "";
+          <div class="notify-content">
+            <div class="notify-top">
+              <strong>${customer}</strong>
+              <span>${dot}</span>
+            </div>
 
-if(count){
-  notificationHtml = threads.slice(0,8).map(function(t){
-    const customer = t.customer_name || t.customer_email || "Customer";
-    const bike = [t.bike_year, t.bike_make, t.bike_model].filter(Boolean).join(" ") || t.subject || t.source_type || "Message";
-    const preview = t.last_message || "";
-    const time = t.last_message_at ? new Date(t.last_message_at).toLocaleString("en-GB") : "";
-    const label = t.status === "New" ? "🆕 New enquiry" : "💬 Needs reply";
+            <div class="notify-bike">🏍 ${bike}</div>
+            <div class="notify-preview">${preview}</div>
 
-    const link = t.related_enquiry_id
-      ? "admin-enquiries.html?open=" + encodeURIComponent(t.related_enquiry_id) + "&focus=messages"
-      : "admin-message-centre.html?thread=" + encodeURIComponent(t.id);
+            <div class="notify-footer">
+              <span>${country}</span>
+              <span>${when}</span>
+            </div>
+          </div>
+        </a>
+      `;
 
-    return `
-      <a class="admin-notification-item" href="${link}">
-        <strong>${label}: ${customer}</strong>
-        <small>${bike}</small>
-        <small>${preview}</small>
-        <small>${time}</small>
-      </a>
+    }).join("");
+
+  }else{
+
+    notificationHtml = `
+      <div class="admin-notification-item">
+        <strong>No admin actions waiting</strong>
+        <small>New messages and enquiries will appear here.</small>
+      </div>
     `;
-  }).join("");
-}else{
-  notificationHtml = `
-    <div class="admin-notification-item">
-      <strong>No admin actions waiting</strong>
-      <small>New messages and enquiries will appear here.</small>
-    </div>
-  `;
+
+  }
+
+  document.querySelectorAll("#adminNotificationList, .admin-notification-list").forEach(function(list){
+    list.innerHTML = notificationHtml;
+  });
 }
 
-  notificationHtml = `
-    <div class="admin-notification-item">
-      <strong>No admin actions waiting</strong>
-      <small>New messages and enquiries will appear here.</small>
-    </div>
-  `;
-}
+function timeAgo(date){
+  const seconds = Math.floor((Date.now() - new Date(date)) / 1000);
 
-document.querySelectorAll("#adminNotificationList, .admin-notification-list").forEach(function(list){
-  list.innerHTML = notificationHtml;
-});
+  if(seconds < 60) return "Just now";
 
+  const minutes = Math.floor(seconds / 60);
+  if(minutes < 60) return minutes + " min ago";
+
+  const hours = Math.floor(minutes / 60);
+  if(hours < 24) return hours + " hrs ago";
+
+  const days = Math.floor(hours / 24);
+  return days + " days ago";
 }
 
 loadAdminShell();
