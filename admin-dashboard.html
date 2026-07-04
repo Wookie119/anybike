@@ -988,19 +988,7 @@ async function loadDashboard(){
 
     const {data: enquiries, error} = await sb
       .from("bike_enquiries")
-      .select(`
-        id,
-        created_at,
-        status,
-        assigned_to,
-        customer_name,
-        customer_email,
-        destination_country,
-        message,
-        bike_id,
-        deal_total_income,
-        deal_net_profit
-      `)
+      .select("id,status,assigned_to,deal_total_income,deal_net_profit")
       .order("created_at",{ascending:false});
 
     if(error){
@@ -1029,10 +1017,6 @@ async function loadDashboard(){
     setText("lostCount", countStatus(rows,"Lost"));
     setText("saveLaterCount", countStatus(rows,"Save for Later"));
 
-    setText("workDeposit", countStatus(rows,"Waiting Deposit"));
-    setText("workCollection", countStatus(rows,"Waiting Collection"));
-    setText("workReadyShip", countStatus(rows,"Ready To Ship"));
-
     const pipelineValue = rows.reduce((sum,r)=>sum + Number(r.deal_total_income || 0),0);
     const expectedProfit = rows.reduce((sum,r)=>sum + Number(r.deal_net_profit || 0),0);
 
@@ -1059,63 +1043,89 @@ async function loadDashboard(){
 
     setText("customerReplyCount", replies);
     setText("customerRepliesCount", replies);
-    setText("workReplies", replies);
 
-const { data: actionThreads } = await sb
-  .from("message_centre_threads")
-  .select("id, customer_name, customer_email, country, bike_make, bike_model, bike_year, last_message, last_message_at, last_sender, related_enquiry_id, status")
-  .in("status", ["New", "Needs Reply"])
-  .order("last_message_at", { ascending: false });
+    const { data: actionThreads } = await sb
+      .from("message_centre_threads")
+      .select("id,customer_name,customer_email,country,bike_make,bike_model,bike_year,last_message,last_message_at,last_sender,related_enquiry_id,status")
+      .in("status", ["New", "Needs Reply"])
+      .order("last_message_at", { ascending:false });
 
-const queue = document.getElementById("dashboardActionQueue");
+    const queue = document.getElementById("dashboardActionQueue");
+    const badge = document.getElementById("actionQueueTotal");
 
-if(queue){
+    if(queue){
+      const waiting = [];
+      const seen = new Set();
 
-  const waiting = [];
-  const seen = new Set();
+      (actionThreads || []).forEach(function(t){
 
-  (actionThreads || []).forEach(function(t){
+        if(!String(t.last_sender || "").toLowerCase().includes("customer")){
+          return;
+        }
 
-  if(waiting.length){
+        const bike = [t.bike_year, t.bike_make, t.bike_model]
+          .filter(Boolean)
+          .join(" ");
 
-    queue.innerHTML = waiting.slice(0,8).map(function(t){
+        const key = [
+          t.related_enquiry_id || "",
+          t.customer_email || t.customer_name || "",
+          bike,
+          t.last_message || ""
+        ].join("|").toLowerCase();
 
-      return `
-        <div class="work-item"
-             style="cursor:pointer;align-items:flex-start"
-             onclick="location.href='${t.url}'">
+        if(seen.has(key)){
+          return;
+        }
 
-          <span>
-            <strong>${t.type}</strong><br>
-            ${t.customer}<br>
-            🏍 ${t.bike}<br>
-            🌍 ${t.country}<br>
-            <small>${t.preview}</small>
-          </span>
+        seen.add(key);
 
-          <span>➡️</span>
+        waiting.push({
+          type:"💬 Customer Reply",
+          customer:t.customer_name || t.customer_email || "Customer",
+          bike:bike || "Motorcycle enquiry",
+          country:t.country || "Unknown country",
+          preview:t.last_message || "Customer reply waiting",
+          url:t.related_enquiry_id
+            ? "admin-enquiries.html?open=" + t.related_enquiry_id + "&focus=messages"
+            : "admin-message-centre.html?thread=" + t.id
+        });
 
-        </div>
-      `;
+      });
 
-    }).join("");
+      if(badge){
+        badge.textContent = waiting.length;
+      }
 
-  }else{
-
-    if(badge){
-      badge.textContent = "0";
+      if(waiting.length){
+        queue.innerHTML = waiting.slice(0,8).map(function(t){
+          return `
+            <div class="work-item" style="cursor:pointer;align-items:flex-start;" onclick="location.href='${t.url}'">
+              <span>
+                <strong>${t.type}</strong><br>
+                ${t.customer}<br>
+                🏍 ${t.bike}<br>
+                🌍 ${t.country}<br>
+                <small>${t.preview}</small>
+              </span>
+              <span>➡️</span>
+            </div>
+          `;
+        }).join("");
+      }else{
+        queue.innerHTML = `
+          <div class="work-item">
+            <span>✅ No actions waiting</span>
+            <span>✔</span>
+          </div>
+        `;
+      }
     }
 
-    queue.innerHTML = `
-      <div class="work-item">
-        <span>✅ No actions waiting</span>
-        <span>✔</span>
-      </div>
-    `;
+  }catch(err){
+    console.error(err);
   }
-
 }
-
 
 setHeader();
 loadDashboard();
