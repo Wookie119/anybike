@@ -1025,32 +1025,52 @@ const { data: actionThreads } = await sb
 const queue = document.getElementById("dashboardActionQueue");
 
 if(queue){
-  const waiting = (actionThreads || []).filter(t =>
-    String(t.last_sender || "").toLowerCase().includes("customer")
-  );
+  const waiting = [];
+const seen = new Set();
 
-  if(waiting.length){
-    queue.innerHTML = waiting.slice(0,6).map(function(t){
-      const customer = t.customer_name || t.customer_email || "Customer";
+(actionThreads || []).forEach(function(t){
 
-      const bike = [t.bike_year, t.bike_make, t.bike_model]
-        .filter(Boolean)
-        .join(" ");
+  if(!String(t.last_sender || "").toLowerCase().includes("customer")){
+    return;
+  }
 
-      const url = t.related_enquiry_id
-        ? "admin-enquiries.html?open=" + t.related_enquiry_id + "&focus=messages"
-        : "admin-message-centre.html?thread=" + t.id;
+  const key = t.related_enquiry_id || t.id;
 
-      return `
-        <div class="work-item" style="cursor:pointer" onclick="location.href='${url}'">
-          <span>
-            💬 <strong>${customer}</strong><br>
-            <small>${bike}</small>
-          </span>
-          <span>➡️</span>
-        </div>
-      `;
-    }).join("");
+  if(seen.has(key)){
+    return;
+  }
+
+  seen.add(key);
+  waiting.push(t);
+
+});
+
+if(waiting.length){
+
+  queue.innerHTML = waiting.slice(0,6).map(function(t){
+
+    const customer = t.customer_name || t.customer_email || "Customer";
+
+    const bike = [t.bike_year, t.bike_make, t.bike_model]
+      .filter(Boolean)
+      .join(" ");
+
+    const url = t.related_enquiry_id
+      ? "admin-enquiries.html?open=" + t.related_enquiry_id + "&focus=messages"
+      : "admin-message-centre.html?thread=" + t.id;
+
+    return `
+      <div class="work-item" style="cursor:pointer" onclick="location.href='${url}'">
+        <span>
+          💬 <strong>${customer}</strong><br>
+          <small>${bike}</small>
+        </span>
+        <span>➡️</span>
+      </div>
+    `;
+
+  }).join("");
+  
   }else{
     queue.innerHTML = `
       <div class="work-item">
