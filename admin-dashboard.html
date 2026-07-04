@@ -1045,82 +1045,137 @@ async function loadDashboard(){
     setText("customerRepliesCount", replies);
 
     const { data: actionThreads } = await sb
-      .from("message_centre_threads")
-      .select("id,customer_name,customer_email,country,bike_make,bike_model,bike_year,last_message,last_message_at,last_sender,related_enquiry_id,status")
-      .in("status", ["New", "Needs Reply"])
-      .order("last_message_at", { ascending:false });
+  .from("message_centre_threads")
+  .select("id,customer_name,customer_email,country,bike_make,bike_model,bike_year,last_message,last_message_at,last_sender,related_enquiry_id,status")
+  .in("status", ["New", "Needs Reply"])
+  .order("last_message_at", { ascending:false });
 
-    const queue = document.getElementById("dashboardActionQueue");
-    const badge = document.getElementById("actionQueueTotal");
+const queue = document.getElementById("dashboardActionQueue");
+const badge = document.getElementById("actionQueueTotal");
 
-    if(queue){
-      const waiting = [];
-      const seen = new Set();
+if(queue){
 
-      (actionThreads || []).forEach(function(t){
+  const actions = [];
+  const seen = new Set();
 
-        if(!String(t.last_sender || "").toLowerCase().includes("customer")){
-          return;
-        }
+  (actionThreads || []).forEach(function(t){
 
-        const bike = [t.bike_year, t.bike_make, t.bike_model]
-          .filter(Boolean)
-          .join(" ");
-
-        const key = [
-          t.related_enquiry_id || "",
-          t.customer_email || t.customer_name || "",
-          bike,
-          t.last_message || ""
-        ].join("|").toLowerCase();
-
-        if(seen.has(key)){
-          return;
-        }
-
-        seen.add(key);
-
-        waiting.push({
-          type:"💬 Customer Reply",
-          customer:t.customer_name || t.customer_email || "Customer",
-          bike:bike || "Motorcycle enquiry",
-          country:t.country || "Unknown country",
-          preview:t.last_message || "Customer reply waiting",
-          url:t.related_enquiry_id
-            ? "admin-enquiries.html?open=" + t.related_enquiry_id + "&focus=messages"
-            : "admin-message-centre.html?thread=" + t.id
-        });
-
-      });
-
-      if(badge){
-        badge.textContent = waiting.length;
-      }
-
-      if(waiting.length){
-        queue.innerHTML = waiting.slice(0,8).map(function(t){
-          return `
-            <div class="work-item" style="cursor:pointer;align-items:flex-start;" onclick="location.href='${t.url}'">
-              <span>
-                <strong>${t.type}</strong><br>
-                ${t.customer}<br>
-                🏍 ${t.bike}<br>
-                🌍 ${t.country}<br>
-                <small>${t.preview}</small>
-              </span>
-              <span>➡️</span>
-            </div>
-          `;
-        }).join("");
-      }else{
-        queue.innerHTML = `
-          <div class="work-item">
-            <span>✅ No actions waiting</span>
-            <span>✔</span>
-          </div>
-        `;
-      }
+    if(!String(t.last_sender || "").toLowerCase().includes("customer")){
+      return;
     }
+
+    const bike = [t.bike_year, t.bike_make, t.bike_model].filter(Boolean).join(" ");
+
+    const key = [
+      t.related_enquiry_id || "",
+      t.customer_email || t.customer_name || "",
+      bike,
+      t.last_message || ""
+    ].join("|").toLowerCase();
+
+    if(seen.has(key)) return;
+    seen.add(key);
+
+    actions.push({
+      type:"🔴 Customer Reply",
+      customer:t.customer_name || t.customer_email || "Customer",
+      bike:bike || "Motorcycle enquiry",
+      country:t.country || "Unknown country",
+      preview:t.last_message || "Customer reply waiting",
+      url:t.related_enquiry_id
+        ? "admin-enquiries.html?open=" + t.related_enquiry_id + "&focus=messages"
+        : "admin-message-centre.html?thread=" + t.id
+    });
+
+  });
+
+  rows.forEach(function(e){
+    const status = String(e.status || "").trim();
+
+    if(status === "New"){
+      actions.push({
+        type:"➕ New Enquiry",
+        customer:"New customer enquiry",
+        bike:"Motorcycle enquiry",
+        country:"",
+        preview:"Needs first staff response",
+        url:"admin-enquiries.html?open=" + e.id
+      });
+    }
+
+    if(status === "Waiting Deposit"){
+      actions.push({
+        type:"💷 Waiting Deposit",
+        customer:"Deposit required",
+        bike:"Deal in progress",
+        country:"",
+        preview:"Follow up for deposit payment",
+        url:"admin-enquiries.html?open=" + e.id
+      });
+    }
+
+    if(status === "Waiting Collection"){
+      actions.push({
+        type:"🚚 Waiting Collection",
+        customer:"Collection needed",
+        bike:"Motorcycle awaiting collection",
+        country:"",
+        preview:"Arrange collection / transport",
+        url:"admin-enquiries.html?open=" + e.id
+      });
+    }
+
+    if(status === "Ready To Ship"){
+      actions.push({
+        type:"🚢 Ready To Ship",
+        customer:"Shipping required",
+        bike:"Motorcycle ready for export",
+        country:"",
+        preview:"Move to logistics / shipping agent",
+        url:"admin-enquiries.html?open=" + e.id
+      });
+    }
+
+    if(status === "At Port / Shipping Agent"){
+      actions.push({
+        type:"⚓ At Port",
+        customer:"Export stage",
+        bike:"With port or shipping agent",
+        country:"",
+        preview:"Monitor shipping progress",
+        url:"admin-enquiries.html?open=" + e.id
+      });
+    }
+  });
+
+  if(badge){
+    badge.textContent = actions.length;
+  }
+
+  if(actions.length){
+    queue.innerHTML = actions.slice(0,10).map(function(a){
+      return `
+        <div class="work-item" style="cursor:pointer;align-items:flex-start;" onclick="location.href='${a.url}'">
+          <span>
+            <strong>${a.type}</strong><br>
+            ${a.customer}<br>
+            🏍 ${a.bike}<br>
+            ${a.country ? "🌍 " + a.country + "<br>" : ""}
+            <small>${a.preview}</small>
+          </span>
+          <span>➡️</span>
+        </div>
+      `;
+    }).join("");
+  }else{
+    queue.innerHTML = `
+      <div class="work-item">
+        <span>✅ No actions waiting</span>
+        <span>✔</span>
+      </div>
+    `;
+  }
+}
 
   }catch(err){
     console.error(err);
