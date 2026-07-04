@@ -1213,8 +1213,13 @@ document.getElementById("sellBikeForm").addEventListener("submit", async e=>{
     photo_names:o.photo_names || null,
     is_legal_owner:o.is_legal_owner === "yes"
   };
+ 
 
-  const {error} = await sb.from("anybike_leads").insert(payload);
+const {data: leadData, error} = await sb
+  .from("anybike_leads")
+  .insert(payload)
+  .select("id")
+  .single();
 
   btn.disabled = false;
   btn.textContent = original;
@@ -1224,7 +1229,29 @@ document.getElementById("sellBikeForm").addEventListener("submit", async e=>{
     setMsg("Sorry, your motorcycle valuation request could not be sent. Please email sales@anybike.co.uk.\\n\\n" + error.message, false);
     return;
   }
+await sb
+  .from("message_centre_threads")
+  .insert({
 
+    source_type: "Sell Your Bike",
+
+    customer_name: o.name,
+    customer_email: o.email,
+
+    country: payload.country,
+
+    subject: "Sell Your Bike - " +
+             [o.bike_year, o.make, o.model]
+               .filter(Boolean)
+               .join(" "),
+
+    last_message: o.notes || "Customer wants to sell a motorcycle.",
+
+    last_sender: "Customer",
+
+    status: "New"
+
+  });
   form.reset();
   setMsg("Thank you. Your motorcycle details have been sent to AnyBike. We will review the bike and contact you.");
 });
