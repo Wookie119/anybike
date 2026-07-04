@@ -727,7 +727,9 @@ async function deleteSelectedThreads(){
 
   const ids = getSelectedThreadIds();
 
-  if(!ids.length){
+  console.log("Deleting thread IDs:", ids);
+
+  if(ids.length === 0){
     alert("Select at least one message.");
     return;
   }
@@ -746,6 +748,41 @@ async function deleteSelectedThreads(){
 
   if(error){
     alert(error.message);
+    console.error(error);
+    return;
+  }
+
+  selectedThread = null;
+  await loadThreads();
+}
+
+
+async function archiveSelectedThreads(){
+
+  const ids = getSelectedThreadIds();
+
+  console.log("Archiving thread IDs:", ids);
+
+  if(ids.length === 0){
+    alert("Select at least one message.");
+    return;
+  }
+
+  if(!confirm("Archive selected messages?")){
+    return;
+  }
+
+  const { error } = await sb
+    .from("message_centre_threads")
+    .update({
+      status: "Archived",
+      updated_at: new Date().toISOString()
+    })
+    .in("id", ids);
+
+  if(error){
+    alert(error.message);
+    console.error(error);
     return;
   }
 
