@@ -1057,10 +1057,104 @@ const { data: actionThreads } = await sb
 const queue = document.getElementById("dashboardActionQueue");
 
 if(queue){
-const waiting = [];
-const seen = new Set();
 
-(actionThreads || []).forEach(function(t){
+  const waiting = [];
+  const seen = new Set();
+
+  (actionThreads || []).forEach(function(t){
+
+    // Only show customer messages waiting for staff
+    if(!String(t.last_sender || "").toLowerCase().includes("customer")){
+      return;
+    }
+
+    const bike = [
+      t.bike_year,
+      t.bike_make,
+      t.bike_model
+    ].filter(Boolean).join(" ");
+
+    const key = [
+      t.related_enquiry_id || "",
+      t.customer_email || t.customer_name || "",
+      bike,
+      t.last_message || ""
+    ].join("|").toLowerCase();
+
+    if(seen.has(key)){
+      return;
+    }
+
+    seen.add(key);
+
+    waiting.push({
+      type:"💬 Customer Reply",
+      customer:t.customer_name || t.customer_email || "Customer",
+      bike:bike || "Motorcycle enquiry",
+      country:t.country || "Unknown country",
+      preview:t.last_message || "",
+      time:t.last_message_at || "",
+      url: t.related_enquiry_id
+        ? "admin-enquiries.html?open=" + t.related_enquiry_id + "&focus=messages"
+        : "admin-message-centre.html?thread=" + t.id
+    });
+
+  });
+
+  // Future dashboard actions
+  // waiting.push({
+  //   type:"💷 Waiting Deposit",
+  //   customer:"John Smith",
+  //   bike:"Honda Africa Twin",
+  //   country:"Germany",
+  //   preview:"Deposit outstanding",
+  //   url:"admin-enquiries.html?open=123"
+  // });
+
+  const badge = document.getElementById("actionQueueTotal");
+  if(badge){
+    badge.textContent = waiting.length;
+  }
+
+  if(waiting.length){
+
+    queue.innerHTML = waiting.slice(0,8).map(function(t){
+
+      return `
+        <div class="work-item"
+             style="cursor:pointer;align-items:flex-start"
+             onclick="location.href='${t.url}'">
+
+          <span>
+            <strong>${t.type}</strong><br>
+            ${t.customer}<br>
+            🏍 ${t.bike}<br>
+            🌍 ${t.country}<br>
+            <small>${t.preview}</small>
+          </span>
+
+          <span>➡️</span>
+
+        </div>
+      `;
+
+    }).join("");
+
+  }else{
+
+    if(badge){
+      badge.textContent = "0";
+    }
+
+    queue.innerHTML = `
+      <div class="work-item">
+        <span>✅ No actions waiting</span>
+        <span>✔</span>
+      </div>
+    `;
+  }
+
+}
 
   if(!String(t.last_sender || "").toLowerCase().includes("customer")){
     return;
