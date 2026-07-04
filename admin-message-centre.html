@@ -408,6 +408,28 @@
             <input id="searchInput" placeholder="Search customer, email, country, bike, message..." oninput="renderThreads()">
           </div>
         </div>
+<div class="message-toolbar">
+
+  <button type="button" onclick="selectAllThreads()">
+    ☑ Select All
+  </button>
+
+  <button type="button" onclick="clearThreadSelection()">
+    ☐ Clear
+  </button>
+
+  <button type="button" onclick="archiveSelectedThreads()">
+    📦 Archive
+  </button>
+
+  <button
+    type="button"
+    style="background:#b00020;color:#fff;"
+    onclick="deleteSelectedThreads()">
+    🗑 Delete
+  </button>
+
+</div>
 
         <div id="threadList" class="thread-list">
           <div class="empty">Loading messages...</div>
@@ -540,8 +562,14 @@ function renderThreads(){
     const title = t.customer_name || t.customer_email || "Unknown Customer";
 
     return `
-      <div class="thread-card ${active}" onclick="openThread(${t.id})">
-        <div class="thread-top">
+<div class="thread-card ${active}" onclick="openThread(${t.id})">
+
+  <input
+    type="checkbox"
+    class="thread-check"
+    value="${t.id}"
+    onclick="event.stopPropagation()">
+            <div class="thread-top">
           <div class="thread-title">${title}</div>
           <div class="thread-time">${shortDate(t.last_message_at || t.created_at)}</div>
         </div>
@@ -638,16 +666,17 @@ async function openThread(id){
         <option ${t.department === "Global Buyer Network" ? "selected" : ""}>Global Buyer Network</option>
       </select>
 
-      <label>Status</label>
-      <select id="statusSelect">
-        <option ${t.status === "New" ? "selected" : ""}>New</option>
-        <option ${t.status === "Needs Reply" ? "selected" : ""}>Needs Reply</option>
-        <option ${t.status === "Replied" ? "selected" : ""}>Replied</option>
-        <option ${t.status === "Waiting Customer" ? "selected" : ""}>Waiting Customer</option>
-        <option ${t.status === "In Progress" ? "selected" : ""}>In Progress</option>
-        <option ${t.status === "Converted To Deal" ? "selected" : ""}>Converted To Deal</option>
-        <option ${t.status === "Closed" ? "selected" : ""}>Closed</option>
-      </select>
+     <label>Status</label>
+<select id="statusSelect">
+  <option ${t.status === "New" ? "selected" : ""}>New</option>
+  <option ${t.status === "Needs Reply" ? "selected" : ""}>Needs Reply</option>
+  <option ${t.status === "Replied" ? "selected" : ""}>Replied</option>
+  <option ${t.status === "Waiting Customer" ? "selected" : ""}>Waiting Customer</option>
+  <option ${t.status === "In Progress" ? "selected" : ""}>In Progress</option>
+  <option ${t.status === "Converted To Deal" ? "selected" : ""}>Converted To Deal</option>
+  <option ${t.status === "Archived" ? "selected" : ""}>Archived</option>
+  <option ${t.status === "Closed" ? "selected" : ""}>Closed</option>
+</select>
 
       <label>Quick response</label>
       <select id="quickReply" onchange="setQuickReply()">
@@ -668,7 +697,53 @@ async function openThread(id){
     </div>
   `;
 }
+function getSelectedThreadIds(){
+  return Array.from(document.querySelectorAll(".thread-check:checked"))
+    .map(cb => Number(cb.value))
+    .filter(Boolean);
+}
 
+function selectAllThreads(){
+  document.querySelectorAll(".thread-check").forEach(cb => {
+    cb.checked = true;
+  });
+}
+
+function clearThreadSelection(){
+  document.querySelectorAll(".thread-check").forEach(cb => {
+    cb.checked = false;
+  });
+}
+
+async function archiveSelectedThreads(){
+
+async function archiveSelectedThreads(){
+  const ids = getSelectedThreadIds();
+
+  if(!ids.length){
+    alert("Select at least one message.");
+    return;
+  }
+
+  const ok = confirm("Archive selected messages?");
+  if(!ok) return;
+
+  const { error } = await sb
+    .from("message_centre_threads")
+    .update({
+      status: "Archived",
+      updated_at: new Date().toISOString()
+    })
+    .in("id", ids);
+
+  if(error){
+    alert(error.message);
+    return;
+  }
+
+  selectedThread = null;
+  await loadThreads();
+}
 function setQuickReply(){
   const val = document.getElementById("quickReply").value;
   if(val){
