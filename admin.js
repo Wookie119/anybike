@@ -199,11 +199,11 @@ async function loadMessageCentreNotifications(){
         : "admin-message-centre.html?thread=" + encodeURIComponent(t.id);
 
    return `
-<a class="admin-notification-item" href="${link}">
+<a class="admin-notification-item" href="${link}" style="display:flex;gap:12px;align-items:flex-start;">
 
-  <div class="notify-avatar">
-    ${initial}
-  </div>
+  <div class="notify-avatar" style="width:38px;height:38px;min-width:38px;border-radius:50%;background:#ed1c24;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;line-height:1;">
+  ${initial}
+</div>
 
   <div class="notify-content">
 
