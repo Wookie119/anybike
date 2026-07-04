@@ -212,9 +212,13 @@ async function loadMessageCentreNotifications(){
             <div class="notify-preview">${preview}</div>
 
             <div class="notify-footer">
-              <span>${country}</span>
-              <span>${when}</span>
-            </div>
+  <span>${country}</span>
+  <span>${when}</span>
+</div>
+
+<button class="notify-clear" onclick="markThreadHandled(event,'${t.id}')">
+  Clear
+</button>
           </div>
         </a>
       `;
@@ -235,6 +239,34 @@ async function loadMessageCentreNotifications(){
   document.querySelectorAll("#adminNotificationList, .admin-notification-list").forEach(function(list){
     list.innerHTML = notificationHtml;
   });
+}
+async function markThreadHandled(e, threadId){
+
+  e.preventDefault();
+  e.stopPropagation();
+
+  if(typeof supabase === "undefined"){
+    return;
+  }
+
+  const SUPABASE_URL = "https://tuehtnezhdnkqbbhttgp.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const { error } = await sb
+    .from("message_centre_threads")
+    .update({
+      status: "Closed"
+    })
+    .eq("id", threadId);
+
+  if(error){
+    console.log(error);
+    return;
+  }
+
+  loadMessageCentreNotifications();
+
 }
 
 function timeAgo(date){
