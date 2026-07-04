@@ -198,30 +198,44 @@ async function loadMessageCentreNotifications(){
         ? "admin-enquiries.html?open=" + encodeURIComponent(t.related_enquiry_id) + "&focus=messages"
         : "admin-message-centre.html?thread=" + encodeURIComponent(t.id);
 
-      return `
-        <a class="admin-notification-item" href="${link}">
-          <div class="notify-avatar">${initial}</div>
+   return `
+<a class="admin-notification-item" href="${link}">
 
-          <div class="notify-content">
-            <div class="notify-top">
-              <strong>${customer}</strong>
-              <span>${dot}</span>
-            </div>
+  <div class="notify-avatar">
+    ${initial}
+  </div>
 
-            <div class="notify-bike">🏍 ${bike}</div>
-            <div class="notify-preview">${preview}</div>
+  <div class="notify-content">
 
-            <div class="notify-footer">
-  <span>${country}</span>
-  <span>${when}</span>
-</div>
+    <div class="notify-top">
+      <strong>${customer}</strong>
+      <span>${dot}</span>
+    </div>
 
-<button class="notify-clear" onclick="markThreadHandled(event,'${t.id}')">
-  Clear
-</button>
-          </div>
-        </a>
-      `;
+    <div class="notify-bike">
+      🏍 ${bike}
+    </div>
+
+    <div class="notify-preview">
+      ${preview}
+    </div>
+
+    <div class="notify-footer">
+      <span>${country}</span>
+      <span>${when}</span>
+    </div>
+
+    <button
+      type="button"
+      class="notify-clear"
+      onclick="event.preventDefault();event.stopPropagation();markThreadHandled(event,'${t.id}')">
+      Clear
+    </button>
+
+  </div>
+
+</a>
+`;
 
     }).join("");
 
