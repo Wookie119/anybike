@@ -935,7 +935,7 @@ color:#ed1c24;
     <h2 class="section-title">Single-Bike Sales Pipeline</h2><div class="small" style="margin:-6px 0 14px;">For customers enquiring about one specific motorcycle from Available Stock.</div>
     <div class="pipeline-stats">
       <div class="stat stat-newlead" onclick="location.href='admin-enquiries.html'"><div>➕<br>1<br>New Enquiry</div><strong>+</strong></div>
-      <div class="stat" onclick="location.href='admin-enquiries.html?status=Customer%20Replied'"><div>💬<br>2<br>Action Required</div><strong id="customerReplyCount">0</strong></div>
+      <div class="stat" onclick="location.href='admin-enquiries.html?status=Customer%20Replied'"><div>💬<br>2<br>Contact Made</div><strong id="customerReplyCount">0</strong></div>
       <div class="stat" onclick="location.href='admin-enquiries.html?status=Checking%20Availability'"><div>🔍<br>3<br>Checking Availability</div><strong id="availabilityCount">0</strong></div>
       <div class="stat" onclick="location.href='admin-enquiries.html?status=Negotiating%20Price%20%26%20Lead%20Time'"><div>🤝<br>4<br>Negotiating</div><strong id="negotiatingCount">0</strong></div>
       <div class="stat" onclick="location.href='admin-enquiries.html?status=Waiting%20Customer%20Decision'"><div>👤<br>5<br>Decision</div><strong id="decisionCount">0</strong></div>
@@ -1595,14 +1595,17 @@ async function loadDashboard(){
 
     latestDashboardMessageMap = latest;
 
-    const replies = Object.values(latest).filter(m =>
-      String(m.sender || "").toLowerCase().includes("customer")
-    ).length;
+const replies = Object.values(latest).filter(m =>
+  String(m.sender || "").toLowerCase().includes("customer")
+).length;
 
-    setText("customerReplyCount", replies);
-    setText("customerRepliesCount", replies);
+/* Pipeline stage 2 is now Contact Made */
+setText("customerReplyCount", countStatus(rows,"Contact Made"));
 
-    const { data: actionThreads } = await sb
+/* Top KPI still shows customer replies needing staff response */
+setText("customerRepliesCount", replies);
+
+const { data: actionThreads } = await sb
   .from("message_centre_threads")
   .select("id,customer_name,customer_email,country,bike_make,bike_model,bike_year,last_message,last_message_at,last_sender,related_enquiry_id,status")
   .in("status", ["New", "Needs Reply"])
