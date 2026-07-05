@@ -1306,7 +1306,19 @@ function money(v){
     maximumFractionDigits:0
   });
 }
+function timeAgo(date){
 
+  const secs = Math.floor((Date.now()-new Date(date))/1000);
+
+  if(secs<60) return "Just now";
+
+  if(secs<3600) return Math.floor(secs/60)+" mins ago";
+
+  if(secs<86400) return Math.floor(secs/3600)+" hrs ago";
+
+  return Math.floor(secs/86400)+" days ago";
+
+}
 
 let adminNotificationOpen = false;
 let latestDashboardMessageMap = {};
@@ -1708,6 +1720,113 @@ if(queue){
 
 } // END loadDashboard
 
+async function loadWorldActivity(){
+
+  const feed = document.getElementById("worldActivityFeed");
+
+  if(!feed) return;
+
+  const items = [];
+
+  /* Latest bike enquiries */
+
+  const {data: enquiries} = await sb
+    .from("bike_enquiries")
+    .select("customer_name,destination_country,make,model,created_at")
+    .order("created_at",{ascending:false})
+    .limit(5);
+
+  (enquiries || []).forEach(function(e){
+
+    items.push({
+
+      when:new Date(e.created_at),
+
+      html:`
+        <div class="work-item">
+
+          <div>
+
+            <strong>🏍 ${e.destination_country || "Unknown Country"}</strong><br>
+
+            New enquiry for
+            ${e.make || ""} ${e.model || ""}
+
+          </div>
+
+          <span>${timeAgo(e.created_at)}</span>
+
+        </div>
+      `
+
+    });
+
+  });
+
+  /* Latest global buyers */
+
+  const {data: buyers} = await sb
+    .from("global_buyer_network")
+    .select("country,business_name,created_at")
+    .order("created_at",{ascending:false})
+    .limit(5);
+
+  (buyers || []).forEach(function(b){
+
+    items.push({
+
+      when:new Date(b.created_at),
+
+      html:`
+        <div class="work-item">
+
+          <div>
+
+            <strong>🌍 ${b.country || "Unknown Country"}</strong><br>
+
+            New global buyer
+            ${b.business_name || ""}
+
+          </div>
+
+          <span>${timeAgo(b.created_at)}</span>
+
+        </div>
+      `
+
+    });
+
+  });
+
+  items.sort(function(a,b){
+
+    return b.when-a.when;
+
+  });
+
+  if(!items.length){
+
+    feed.innerHTML=`
+      <div class="work-item">
+
+        <span>No activity yet.</span>
+
+        <span>🌍</span>
+
+      </div>
+    `;
+
+    return;
+
+  }
+
+  feed.innerHTML = items
+    .slice(0,8)
+    .map(x=>x.html)
+    .join("");
+
+}
+
 async function loadGlobalOperations(){
   
   /* Bike enquiries */
@@ -1806,9 +1925,23 @@ setHeader();
 (async()=>{
 
   await loadDashboard();
+
   await loadGlobalOperations();
 
+  await loadWorldActivity();
+
 })();
+
+setInterval(async()=>{
+
+  await loadDashboard();
+
+  await loadGlobalOperations();
+
+  await loadWorldActivity();
+
+},90000);
+
 
 setInterval(async()=>{
   await loadDashboard();
