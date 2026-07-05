@@ -564,11 +564,29 @@ function taskHtml(t){
         </div>
       </div>
 
-      <div class="task-actions">
-        ${t.link_url ? `<a class="btn dark" href="${safe(t.link_url)}">Open Link</a>` : ""}
-        <button class="btn dark" onclick="setTaskStatus(${Number(t.id)}, 'In Progress')">Start</button>
-        <button class="btn" onclick="setTaskStatus(${Number(t.id)}, 'Completed')">Complete</button>
-      </div>
+      ${
+t.status==="Open"
+?
+`<button class="btn dark"
+onclick="setTaskStatus(${Number(t.id)},'Closed')">
+Close
+</button>`
+:
+`<button class="btn dark"
+onclick="setTaskStatus(${Number(t.id)},'Open')">
+Re-open
+</button>`
+}
+
+<button class="btn"
+onclick="setTaskStatus(${Number(t.id)},'Completed')">
+Complete
+</button>
+
+<button class="btn dark"
+onclick="deleteTask(${Number(t.id)})">
+Delete
+</button>
 
     </article>
   `;
@@ -596,7 +614,23 @@ async function setTaskStatus(id,status){
 
   loadTasks();
 }
+async function deleteTask(id){
 
+  if(!confirm("Delete this task?")) return;
+
+  const { error } = await sb
+    .from("admin_tasks")
+    .delete()
+    .eq("id", id);
+
+  if(error){
+    alert("Could not delete task: " + error.message);
+    return;
+  }
+
+  loadTasks();
+
+}
 loadTasks();
 </script>
 
