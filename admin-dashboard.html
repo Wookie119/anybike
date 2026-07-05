@@ -1689,116 +1689,14 @@ if(queue){
 
 } // END loadDashboard
 
-async function loadGlobalOperations(){
+async function loadGlobalOperations(){async function loadGlobalOperations(){
 
   /* Bike enquiries */
-
   const { data: leads } = await sb
     .from("bike_enquiries")
     .select("destination_country");
 
-  /* Global buyers */
-
-  const { data: buyers } = await sb
-  .from("global_buyer_network")    .select("country");
-
-  const leadCount = leads ? leads.length : 0;
-  const buyerCount = buyers ? buyers.length : 0;
-
-  const countries = new Set();
-
-  (leads || []).forEach(r=>{
-    if(r.destination_country){
-      countries.add(r.destination_country);
-    }
-  });
-
-  (buyers || []).forEach(r=>{
-    if(r.country){
-      countries.add(r.country);
-    }
-  });
-
-  document.getElementById("mapCustomers").textContent = leadCount;
-  document.getElementById("mapBuyers").textContent = buyerCount;
-  document.getElementById("mapCountries").textContent = countries.size;
-
-
-(leads || []).forEach(r=>{
-
-  if(!r.destination_country) return;
-
-  totals[r.destination_country] =
-    (totals[r.destination_country] || 0) + 1;
-
-});
-
-(buyers || []).forEach(r=>{
-
-  if(!r.country) return;
-
-  totals[r.country] =
-    (totals[r.country] || 0) + 1;
-
-});
-
-let topCountry = null;
-let highest = 0;
-
-Object.keys(totals).forEach(country=>{
-
-  if(totals[country] > highest){
-
-    highest = totals[country];
-    topCountry = country;
-
-  }
-
-});
-
-if(topCountry){
-
-document.getElementById("countrySummary").innerHTML = `
-
-<div class="country-placeholder">
-
-<h3>🌍 ${topCountry}</h3>
-
-<div class="country-row">
-<span>Local Time</span>
-<strong>Coming Next</strong>
-</div>
-
-<div class="country-row">
-<span>Business Hours</span>
-<strong>Coming Next</strong>
-</div>
-
-<div class="country-row">
-<span>Active Leads</span>
-<strong>${leadCount}</strong>
-</div>
-
-<div class="country-row">
-<span>Global Buyers</span>
-<strong>${buyerCount}</strong>
-</div>
-
-<div class="country-row">
-<span>Latest Message</span>
-<strong>Coming Next</strong>
-</div>
-
-</div>
-
-`;
-
-}
-
-  const { data: leads } = await sb
-    .from("bike_enquiries")
-    .select("destination_country");
-
+  /* Global Buyer Network */
   const { data: buyers } = await sb
     .from("global_buyer_network")
     .select("country");
@@ -1807,18 +1705,80 @@ document.getElementById("countrySummary").innerHTML = `
   const buyerCount = buyers ? buyers.length : 0;
 
   const countries = new Set();
+  const totals = {};
 
   (leads || []).forEach(r=>{
-    if(r.destination_country) countries.add(r.destination_country);
+
+    if(r.destination_country){
+
+      countries.add(r.destination_country);
+
+      totals[r.destination_country] =
+        (totals[r.destination_country] || 0) + 1;
+
+    }
+
   });
 
   (buyers || []).forEach(r=>{
-    if(r.country) countries.add(r.country);
+
+    if(r.country){
+
+      countries.add(r.country);
+
+      totals[r.country] =
+        (totals[r.country] || 0) + 1;
+
+    }
+
   });
 
   document.getElementById("mapCustomers").textContent = leadCount;
   document.getElementById("mapBuyers").textContent = buyerCount;
   document.getElementById("mapCountries").textContent = countries.size;
+
+  let topCountry = "";
+  let highest = 0;
+
+  Object.keys(totals).forEach(country=>{
+
+    if(totals[country] > highest){
+
+      highest = totals[country];
+      topCountry = country;
+
+    }
+
+  });
+
+  if(topCountry){
+
+    document.getElementById("countrySummary").innerHTML = `
+
+      <div class="country-placeholder">
+
+        <h3>🌍 ${topCountry}</h3>
+
+        <div class="country-row">
+          <span>Active Leads</span>
+          <strong>${leadCount}</strong>
+        </div>
+
+        <div class="country-row">
+          <span>Global Buyers</span>
+          <strong>${buyerCount}</strong>
+        </div>
+
+        <div class="country-row">
+          <span>Countries</span>
+          <strong>${countries.size}</strong>
+        </div>
+
+      </div>
+
+    `;
+
+  }
 
 }
 
@@ -1835,10 +1795,6 @@ setInterval(async()=>{
 
   await loadDashboard();
   await loadGlobalOperations();
-
-},90000);
-
-</script>
 
 },90000);
 
