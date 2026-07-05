@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Task Centre | AnyBike Admin</title>
+<link rel="stylesheet" href="admin-shell.css?v=9000">
+<meta name="robots" content="noindex,nofollow">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+:root{
+  --red:#ed1c24;
+  --line:rgba(255,255,255,.12);
+  --muted:#aaa;
+  --panel:#111;
+  --panel2:#181818;
+}
+
+*{box-sizing:border-box}
+
+body{
+  margin:0;
+  font-family:Arial,Helvetica,sans-serif;
+  background:
+    radial-gradient(circle at top left,rgba(237,28,36,.22),transparent 34%),
+    linear-gradient(120deg,#050505,#101010 60%,#050505);
+  color:#fff;
+}
+
+.admin-page-content{
+  padding:24px;
+}
+
+.topbar{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:20px;
+  margin-bottom:18px;
+}
+
+h1{
+  margin:0;
+  font-size:34px;
+}
+
+.subtitle,
+.small{
+  color:var(--muted);
+  font-size:13px;
+}
+
+.card{
+  background:rgba(17,17,17,.94);
+  border:1px solid var(--line);
+  border-radius:18px;
+  padding:16px;
+  box-shadow:0 18px 42px rgba(0,0,0,.22);
+}
+
+.grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:12px;
+  margin-bottom:18px;
+}
+
+.big-number{
+  font-size:30px;
+  font-weight:900;
+  color:var(--red);
+}
+
+.btn{
+  background:var(--red);
+  color:#fff;
+  border:0;
+  border-radius:999px;
+  padding:11px 16px;
+  font-weight:900;
+  cursor:pointer;
+  text-decoration:none;
+  display:inline-block;
+}
+
+.btn.dark{
+  background:#222;
+  border:1px solid var(--line);
+}
+
+.form-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:12px;
+}
+
+label{
+  font-weight:900;
+  font-size:13px;
+  display:block;
+  margin-bottom:6px;
+}
+
+input,
+select,
+textarea{
+  width:100%;
+  background:#111;
+  color:#fff;
+  border:1px solid var(--line);
+  border-radius:12px;
+  padding:12px;
+  font:inherit;
+}
+
+textarea{
+  min-height:90px;
+  resize:vertical;
+}
+
+.task-list{
+  display:grid;
+  gap:10px;
+  margin-top:16px;
+}
+
+.task-card{
+  background:#151515;
+  border:1px solid var(--line);
+  border-left:6px solid #555;
+  border-radius:16px;
+  padding:14px;
+  display:grid;
+  grid-template-columns:1fr auto;
+  gap:14px;
+}
+
+.task-card.high{
+  border-left-color:#ed1c24;
+}
+
+.task-card.medium{
+  border-left-color:#ffcc33;
+}
+
+.task-card.low{
+  border-left-color:#4da3ff;
+}
+
+.task-title{
+  font-size:17px;
+  font-weight:950;
+  margin-bottom:6px;
+}
+
+.task-meta{
+  color:#ccc;
+  font-size:13px;
+  line-height:1.45;
+}
+
+.task-actions{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  align-items:flex-end;
+}
+
+.pill{
+  display:inline-block;
+  padding:6px 9px;
+  border-radius:999px;
+  background:#222;
+  border:1px solid var(--line);
+  font-size:12px;
+  font-weight:900;
+  margin-right:5px;
+}
+
+.filters{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+  gap:10px;
+  margin-top:12px;
+}
+
+.empty{
+  padding:24px;
+  text-align:center;
+  color:#aaa;
+  border:1px dashed var(--line);
+  border-radius:16px;
+}
+
+@media(max-width:800px){
+  .task-card{
+    grid-template-columns:1fr;
+  }
+
+  .task-actions{
+    align-items:flex-start;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<div class="admin-shell">
+
+  <div id="adminSidebar"></div>
+
+  <div class="admin-main">
+
+    <div id="adminTopbar"></div>
+
+    <main class="admin-page-content">
+
+      <div class="topbar">
+        <div>
+          <h1>Task Centre</h1>
+          <div class="subtitle">Flexible admin tasks for sales, buying, logistics, finance, stock prep and customer follow-ups.</div>
+        </div>
+        <button class="btn" onclick="loadTasks()">Refresh</button>
+      </div>
+
+      <section class="grid">
+        <div class="card">
+          <h3>Open Tasks</h3>
+          <div class="big-number" id="openCount">0</div>
+          <div class="small">Still active</div>
+        </div>
+
+        <div class="card">
+          <h3>Due Today</h3>
+          <div class="big-number" id="todayCount">0</div>
+          <div class="small">Need doing today</div>
+        </div>
+
+        <div class="card">
+          <h3>Overdue</h3>
+          <div class="big-number" id="overdueCount">0</div>
+          <div class="small">Past deadline</div>
+        </div>
+
+        <div class="card">
+          <h3>Unassigned</h3>
+          <div class="big-number" id="unassignedCount">0</div>
+          <div class="small">Needs assigning</div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Create Task</h2>
+
+        <div class="form-grid">
+          <div>
+            <label>Task title</label>
+            <input id="taskTitle" placeholder="Example: Reply to Dubai buyer">
+          </div>
+
+          <div>
+            <label>Department</label>
+            <select id="taskDepartment">
+              <option value="">Select department</option>
+              <option>Bike Sales</option>
+              <option>Buying Team</option>
+              <option>Transport</option>
+              <option>Stock Preparation</option>
+              <option>Finance</option>
+              <option>Logistics</option>
+              <option>Global Buyers</option>
+              <option>Admin</option>
+            </select>
+          </div>
+
+          <div>
+            <label>Assigned to</label>
+            <select id="taskAssigned">
+              <option value="">Unassigned</option>
+              <option>Andy Gifford</option>
+              <option>Sean Byrne</option>
+              <option>Cat Byrne</option>
+              <option>Sophie Gifford</option>
+            </select>
+          </div>
+
+          <div>
+            <label>Priority</label>
+            <select id="taskPriority">
+              <option>Medium</option>
+              <option>High</option>
+              <option>Low</option>
+            </select>
+          </div>
+
+          <div>
+            <label>Due date / time</label>
+            <input id="taskDue" type="datetime-local">
+          </div>
+
+          <div>
+            <label>Country</label>
+            <input id="taskCountry" placeholder="Example: Germany">
+          </div>
+
+          <div>
+            <label>Customer name</label>
+            <input id="taskCustomer" placeholder="Optional">
+          </div>
+
+          <div>
+            <label>Link URL</label>
+            <input id="taskLink" placeholder="Example: admin-message-centre.html?thread=123">
+          </div>
+        </div>
+
+        <div style="margin-top:12px">
+          <label>Description</label>
+          <textarea id="taskDescription" placeholder="Add notes, deadline details, shipping info, customer instructions or internal context."></textarea>
+        </div>
+
+        <div style="margin-top:14px">
+          <button class="btn" onclick="createTask()">Create Task</button>
+        </div>
+      </section>
+
+      <section class="card" style="margin-top:18px">
+        <h2>Task List</h2>
+
+        <div class="filters">
+          <select id="filterStatus" onchange="renderTasks()">
+            <option value="">All statuses</option>
+            <option>Open</option>
+            <option>In Progress</option>
+            <option>Waiting</option>
+            <option>Completed</option>
+            <option>Cancelled</option>
+          </select>
+
+          <select id="filterAssigned" onchange="renderTasks()">
+            <option value="">All staff</option>
+            <option>Andy Gifford</option>
+            <option>Sean Byrne</option>
+            <option>Cat Byrne</option>
+            <option>Sophie Gifford</option>
+          </select>
+
+          <select id="filterDepartment" onchange="renderTasks()">
+            <option value="">All departments</option>
+            <option>Bike Sales</option>
+            <option>Buying Team</option>
+            <option>Transport</option>
+            <option>Stock Preparation</option>
+            <option>Finance</option>
+            <option>Logistics</option>
+            <option>Global Buyers</option>
+            <option>Admin</option>
+          </select>
+
+          <input id="searchTasks" oninput="renderTasks()" placeholder="Search tasks...">
+        </div>
+
+        <div id="taskList" class="task-list">
+          <div class="empty">Loading tasks...</div>
+        </div>
+      </section>
+
+    </main>
+
+  </div>
+
+</div>
+
+<script src="admin.js?v=9000"></script>
+
+<script>
+const SUPABASE_URL = "https://tuehtnezhdnkqbbhttgp.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let allTasks = [];
+
+function safe(value){
+  return String(value || "")
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+}
+
+function setText(id,value){
+  const el = document.getElementById(id);
+  if(el) el.textContent = value;
+}
+
+function dateText(value){
+  if(!value) return "No due date";
+  return new Date(value).toLocaleString("en-GB",{
+    weekday:"short",
+    day:"2-digit",
+    month:"short",
+    hour:"2-digit",
+    minute:"2-digit"
+  });
+}
+
+function isToday(value){
+  if(!value) return false;
+  const d = new Date(value);
+  const now = new Date();
+  return d.getFullYear() === now.getFullYear()
+    && d.getMonth() === now.getMonth()
+    && d.getDate() === now.getDate();
+}
+
+function isOverdue(task){
+  if(!task.due_at) return false;
+  if(String(task.status || "") === "Completed") return false;
+  if(String(task.status || "") === "Cancelled") return false;
+  return new Date(task.due_at) < new Date();
+}
+
+async function loadTasks(){
+  const list = document.getElementById("taskList");
+  list.innerHTML = '<div class="empty">Loading tasks...</div>';
+
+  const { data, error } = await sb
+    .from("admin_tasks")
+    .select("*")
+    .order("due_at", { ascending:true, nullsFirst:false })
+    .order("created_at", { ascending:false })
+    .limit(500);
+
+  if(error){
+    list.innerHTML = '<div class="empty">Could not load tasks: ' + safe(error.message) + '</div>';
+    return;
+  }
+
+  allTasks = data || [];
+  updateCounts();
+  renderTasks();
+}
+
+function updateCounts(){
+  const open = allTasks.filter(t => !["Completed","Cancelled"].includes(String(t.status || ""))).length;
+  const today = allTasks.filter(t => isToday(t.due_at) && !["Completed","Cancelled"].includes(String(t.status || ""))).length;
+  const overdue = allTasks.filter(t => isOverdue(t)).length;
+  const unassigned = allTasks.filter(t => !String(t.assigned_to || "").trim() && !["Completed","Cancelled"].includes(String(t.status || ""))).length;
+
+  setText("openCount", open);
+  setText("todayCount", today);
+  setText("overdueCount", overdue);
+  setText("unassignedCount", unassigned);
+}
+
+async function createTask(){
+  const title = document.getElementById("taskTitle").value.trim();
+
+  if(!title){
+    alert("Please enter a task title.");
+    return;
+  }
+
+  const dueValue = document.getElementById("taskDue").value;
+
+  const task = {
+    title:title,
+    description:document.getElementById("taskDescription").value.trim(),
+    department:document.getElementById("taskDepartment").value,
+    assigned_to:document.getElementById("taskAssigned").value,
+    priority:document.getElementById("taskPriority").value,
+    status:"Open",
+    due_at:dueValue ? new Date(dueValue).toISOString() : null,
+    customer_name:document.getElementById("taskCustomer").value.trim(),
+    country:document.getElementById("taskCountry").value.trim(),
+    link_url:document.getElementById("taskLink").value.trim(),
+    created_by:"Admin"
+  };
+
+  const { error } = await sb
+    .from("admin_tasks")
+    .insert(task);
+
+  if(error){
+    alert("Task could not be created: " + error.message);
+    return;
+  }
+
+  document.getElementById("taskTitle").value = "";
+  document.getElementById("taskDescription").value = "";
+  document.getElementById("taskDepartment").value = "";
+  document.getElementById("taskAssigned").value = "";
+  document.getElementById("taskPriority").value = "Medium";
+  document.getElementById("taskDue").value = "";
+  document.getElementById("taskCustomer").value = "";
+  document.getElementById("taskCountry").value = "";
+  document.getElementById("taskLink").value = "";
+
+  loadTasks();
+}
+
+function renderTasks(){
+  const list = document.getElementById("taskList");
+
+  const status = document.getElementById("filterStatus").value;
+  const assigned = document.getElementById("filterAssigned").value;
+  const department = document.getElementById("filterDepartment").value;
+  const q = document.getElementById("searchTasks").value.toLowerCase().trim();
+
+  let rows = allTasks.filter(t => {
+    const hay = [
+      t.title,
+      t.description,
+      t.department,
+      t.assigned_to,
+      t.priority,
+      t.status,
+      t.customer_name,
+      t.customer_email,
+      t.country
+    ].join(" ").toLowerCase();
+
+    return (!status || String(t.status || "") === status)
+      && (!assigned || String(t.assigned_to || "") === assigned)
+      && (!department || String(t.department || "") === department)
+      && (!q || hay.includes(q));
+  });
+
+  if(!rows.length){
+    list.innerHTML = '<div class="empty">No tasks found.</div>';
+    return;
+  }
+
+  list.innerHTML = rows.map(taskHtml).join("");
+}
+
+function taskHtml(t){
+  const priorityClass = String(t.priority || "Medium").toLowerCase();
+  const overdue = isOverdue(t);
+
+  return `
+    <article class="task-card ${safe(priorityClass)}">
+
+      <div>
+        <div class="task-title">${safe(t.title)}</div>
+
+        <div style="margin-bottom:8px">
+          <span class="pill">${safe(t.status || "Open")}</span>
+          <span class="pill">${safe(t.priority || "Medium")}</span>
+          ${overdue ? '<span class="pill" style="border-color:#ed1c24;color:#fff;background:rgba(237,28,36,.18)">Overdue</span>' : ''}
+        </div>
+
+        <div class="task-meta">
+          ${t.description ? safe(t.description) + "<br>" : ""}
+          Department: ${safe(t.department || "Not set")}<br>
+          Assigned to: ${safe(t.assigned_to || "Unassigned")}<br>
+          Due: ${safe(dateText(t.due_at))}<br>
+          ${t.customer_name ? "Customer: " + safe(t.customer_name) + "<br>" : ""}
+          ${t.country ? "Country: " + safe(t.country) + "<br>" : ""}
+        </div>
+      </div>
+
+      <div class="task-actions">
+        ${t.link_url ? `<a class="btn dark" href="${safe(t.link_url)}">Open Link</a>` : ""}
+        <button class="btn dark" onclick="setTaskStatus(${Number(t.id)}, 'In Progress')">Start</button>
+        <button class="btn" onclick="setTaskStatus(${Number(t.id)}, 'Completed')">Complete</button>
+      </div>
+
+    </article>
+  `;
+}
+
+async function setTaskStatus(id,status){
+  const patch = {
+    status:status,
+    updated_at:new Date().toISOString()
+  };
+
+  if(status === "Completed"){
+    patch.completed_at = new Date().toISOString();
+  }
+
+  const { error } = await sb
+    .from("admin_tasks")
+    .update(patch)
+    .eq("id", id);
+
+  if(error){
+    alert("Could not update task: " + error.message);
+    return;
+  }
+
+  loadTasks();
+}
+
+loadTasks();
+</script>
+
+</body>
+</html>
