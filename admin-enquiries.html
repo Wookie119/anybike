@@ -3188,23 +3188,55 @@ async function sendAdminMessage(enquiryId,customerId){
     p_message:message
   });
 
-  if(error){
-    alert("Message failed: " + error.message);
-    return;
-  }
+if(error){
+  alert("Message failed: " + error.message);
+  return;
+}
 
-  txt.value="";
+/* Automatically move New Enquiry to Contact Made */
 
-  await markEnquiryNotificationsRead(enquiryId);
-  await loadLatestMessages();
-  updateHeaderBubble();
-  await loadAdminNotifications();
+const { data: currentEnquiry } = await sb
+  .from("bike_enquiries")
+  .select("status")
+  .eq("id", enquiryId)
+  .single();
 
-  await loadMessages(
-    enquiryId,
-    document.querySelector(`#enquiry-${enquiryId} .message strong`)?.innerText || "",
-    "Customer"
-  );
+if(
+  currentEnquiry &&
+  (
+    currentEnquiry.status === "New" ||
+    currentEnquiry.status === "New Enquiry"
+  )
+){
+
+await sb
+  .from("bike_enquiries")
+  .update({
+    status:"Contact Made"
+  })
+  .eq("id", enquiryId);
+
+}
+
+/* Refresh the reply box */
+txt.value = "";
+
+/* Refresh notifications */
+await markEnquiryNotificationsRead(enquiryId);
+await loadLatestMessages();
+updateHeaderBubble();
+await loadAdminNotifications();
+
+/* Reload conversation */
+await loadMessages(
+  enquiryId,
+  document.querySelector(`#enquiry-${enquiryId} .message strong`)?.innerText || "",
+  "Customer"
+);
+
+/* Refresh the enquiry list so the new status appears immediately */
+await loadEnquiries();
+
 }
   
  async function saveNotes(id){
