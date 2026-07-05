@@ -1689,9 +1689,91 @@ if(queue){
 
 } // END loadDashboard
 
+async function loadGlobalOperations(){
+
+  /* Bike enquiries */
+
+  const { data: leads } = await sb
+    .from("bike_enquiries")
+    .select("destination_country");
+
+  /* Global buyers */
+
+  const { data: buyers } = await sb
+    .from("global_buyers")
+    .select("country");
+
+  const leadCount = leads ? leads.length : 0;
+  const buyerCount = buyers ? buyers.length : 0;
+
+  const countries = new Set();
+
+  (leads || []).forEach(r=>{
+    if(r.destination_country){
+      countries.add(r.destination_country);
+    }
+  });
+
+  (buyers || []).forEach(r=>{
+    if(r.country){
+      countries.add(r.country);
+    }
+  });
+
+  document.getElementById("mapCustomers").textContent = leadCount;
+  document.getElementById("mapBuyers").textContent = buyerCount;
+  document.getElementById("mapCountries").textContent = countries.size;
+
+}
+
+async function loadGlobalOperations(){
+
+  const { data: leads } = await sb
+    .from("bike_enquiries")
+    .select("destination_country");
+
+  const { data: buyers } = await sb
+    .from("global_buyer_network")
+    .select("country");
+
+  const leadCount = leads ? leads.length : 0;
+  const buyerCount = buyers ? buyers.length : 0;
+
+  const countries = new Set();
+
+  (leads || []).forEach(r=>{
+    if(r.destination_country) countries.add(r.destination_country);
+  });
+
+  (buyers || []).forEach(r=>{
+    if(r.country) countries.add(r.country);
+  });
+
+  document.getElementById("mapCustomers").textContent = leadCount;
+  document.getElementById("mapBuyers").textContent = buyerCount;
+  document.getElementById("mapCountries").textContent = countries.size;
+
+}
+
 setHeader();
-loadDashboard();
-setInterval(loadDashboard,90000);
+
+(async()=>{
+
+  await loadDashboard();
+  await loadGlobalOperations();
+
+})();
+
+setInterval(async()=>{
+
+  await loadDashboard();
+  await loadGlobalOperations();
+
+},90000);
+
+</script>
+
+},90000);
 
 </script>
 
