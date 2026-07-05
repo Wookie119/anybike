@@ -1734,6 +1734,85 @@ async function loadWorldActivity(){
     .limit(5);
 
   (enquiries || []).forEach(function(e){
+
+    const url = "admin-enquiries.html?open=" + encodeURIComponent(e.id) + "&focus=messages";
+
+    items.push({
+      when:new Date(e.created_at),
+      html:`
+        <div class="work-item"
+             onclick="location.href='${url}'"
+             style="cursor:pointer;">
+          <div>
+            <strong>🟢 ${e.destination_country || "Unknown Country"}</strong><br>
+            New enquiry for ${e.make || ""} ${e.model || ""}
+          </div>
+          <span>${timeAgo(e.created_at)}</span>
+        </div>
+      `
+    });
+
+  });
+
+  const {data: buyers} = await sb
+    .from("global_buyer_network")
+    .select("id,country,business_name,created_at")
+    .order("created_at",{ascending:false})
+    .limit(5);
+
+  (buyers || []).forEach(function(b){
+
+    const url = "admin-global-buyer-network.html?buyer=" + encodeURIComponent(b.id);
+
+    items.push({
+      when:new Date(b.created_at),
+      html:`
+        <div class="work-item"
+             onclick="location.href='${url}'"
+             style="cursor:pointer;">
+          <div>
+            <strong>🔵 ${b.country || "Unknown Country"}</strong><br>
+            New global buyer ${b.business_name || ""}
+          </div>
+          <span>${timeAgo(b.created_at)}</span>
+        </div>
+      `
+    });
+
+  });
+
+  items.sort(function(a,b){
+    return b.when - a.when;
+  });
+
+  if(!items.length){
+    feed.innerHTML = `
+      <div class="work-item">
+        <span>No activity yet.</span>
+        <span>🌍</span>
+      </div>
+    `;
+    return;
+  }
+
+  feed.innerHTML = items.slice(0,8).map(function(x){
+    return x.html;
+  }).join("");
+
+}
+  
+  const feed = document.getElementById("worldActivityFeed");
+  if(!feed) return;
+
+  const items = [];
+
+  const {data: enquiries} = await sb
+    .from("bike_enquiries")
+    .select("id,destination_country,make,model,created_at")
+    .order("created_at",{ascending:false})
+    .limit(5);
+
+  (enquiries || []).forEach(function(e){
     items.push({
       when:new Date(e.created_at),
       html:`
