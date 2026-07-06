@@ -33,8 +33,37 @@ function typeMatches(t,filter){return niceType(t.source_type).toLowerCase()===St
 function setFilter(filter,btn){activeFilter=filter;selectedIds.clear();document.querySelectorAll(".filters button").forEach(b=>b.classList.remove("active"));if(btn)btn.classList.add("active");renderThreads()}
 function getVisibleThreads(){const search=(document.getElementById("searchInput").value||"").toLowerCase();let rows=allThreads.slice();if(activeFilter==="all"){rows=rows.filter(t=>t.status!=="Archived"&&t.status!=="Deleted")}else if(activeFilter==="Archived"||activeFilter==="Deleted"){rows=rows.filter(t=>t.status===activeFilter)}else{rows=rows.filter(t=>t.status===activeFilter||typeMatches(t,activeFilter));rows=rows.filter(t=>t.status!=="Deleted")}if(search){rows=rows.filter(t=>[t.customer_name,t.customer_email,t.customer_phone,t.country,t.department,t.subject,t.last_message,t.bike_make,t.bike_model,t.bike_year].join(" ").toLowerCase().includes(search))}return rows}
 function updateStats(){const active=allThreads.filter(t=>t.status!=="Deleted"&&t.status!=="Archived");document.getElementById("totalCount").textContent=active.length;document.getElementById("newCount").textContent=active.filter(t=>t.status==="New").length;document.getElementById("replyCount").textContent=active.filter(t=>t.status==="Needs Reply").length;document.getElementById("buyingCount").textContent=active.filter(t=>String(t.department||"").toLowerCase().includes("buying")||niceType(t.source_type)==="Sell Your Bike").length}
-async function loadThreads(){const list=document.getElementById("threadList");list.innerHTML='<div class="empty">Loading messages...</div>';const{data,error}=await sb.from("message_centre_threads").select("*").order("last_message_at",{ascending:false,nullsFirst:false}).order("created_at",{ascending:false});if(error){list.innerHTML=`<div class="empty">Could not load Message Centre.<br>${safe(error.message)}</div>`;return}allThreads=data||[];selectedIds.clear();updateStats();renderThreads();const params=new URLSearchParams(window.location.search);const threadId=Number(params.get("thread"));if(threadId){openThread(threadId)}}
-function renderThreads(){const list=document.getElementById("threadList");const rows=getVisibleThreads();if(!rows.length){list.innerHTML='<div class="empty">No messages found.</div>';return}list.innerHTML=rows.map(t=>{const id=Number(t.id);const active=selectedThread&&Number(selectedThread.id)===id?"active":"";const checked=selectedIds.has(id)?"checked":"";const bike=[t.bike_year,t.bike_make,t.bike_model].filter(Boolean).join(" ");const title=t.customer_name||t.customer_email||"Unknown Customer";const type=niceType(t.source_type);return`<div class="thread-card ${active}" onclick="openThread(${id})"><input type="checkbox" class="thread-check" ${checked} onclick="toggleThreadSelection(event, ${id})"><div class="thread-top"><div class="thread-title">${safe(title)}</div><div class="thread-time">${shortDate(t.last_message_at||t.created_at)}</div></div><div class="thread-meta"><span class="badge badge-red">${safe(type)}</span><span class="badge badge-orange">${safe(t.status)}</span><span class="badge">${safe(t.department)}</span><span class="badge">${safe(t.country)}</span>${bike?`<span class="badge badge-green">${safe(bike)}</span>`:""}</div><div class="thread-preview">${safe(t.last_message||t.subject||"No message preview")}</div></div>`}).join("")}
+async function loadThreads(){
+  const list = document.getElementById("threadList");
+
+  list.innerHTML = '<div class="empty">Loading messages...</div>';
+
+  const {data,error} = await sb
+    .from("message_centre_threads")
+    .select("*")
+    .order("last_message_at",{ascending:false,nullsFirst:false})
+    .order("created_at",{ascending:false});
+
+  if(error){
+    list.innerHTML = `<div class="empty">Could not load Message Centre.<br>${safe(error.message)}</div>`;
+    return;
+  }
+
+  allThreads = data || [];
+  selectedIds.clear();
+  updateStats();
+
+  renderThreads();
+
+  const params = new URLSearchParams(window.location.search);
+  const threadId = Number(params.get("thread"));
+
+  if(threadId){
+    setTimeout(function(){
+      openThread(threadId);
+    }, 300);
+  }
+}function renderThreads(){const list=document.getElementById("threadList");const rows=getVisibleThreads();if(!rows.length){list.innerHTML='<div class="empty">No messages found.</div>';return}list.innerHTML=rows.map(t=>{const id=Number(t.id);const active=selectedThread&&Number(selectedThread.id)===id?"active":"";const checked=selectedIds.has(id)?"checked":"";const bike=[t.bike_year,t.bike_make,t.bike_model].filter(Boolean).join(" ");const title=t.customer_name||t.customer_email||"Unknown Customer";const type=niceType(t.source_type);return`<div class="thread-card ${active}" onclick="openThread(${id})"><input type="checkbox" class="thread-check" ${checked} onclick="toggleThreadSelection(event, ${id})"><div class="thread-top"><div class="thread-title">${safe(title)}</div><div class="thread-time">${shortDate(t.last_message_at||t.created_at)}</div></div><div class="thread-meta"><span class="badge badge-red">${safe(type)}</span><span class="badge badge-orange">${safe(t.status)}</span><span class="badge">${safe(t.department)}</span><span class="badge">${safe(t.country)}</span>${bike?`<span class="badge badge-green">${safe(bike)}</span>`:""}</div><div class="thread-preview">${safe(t.last_message||t.subject||"No message preview")}</div></div>`}).join("")}
 function toggleThreadSelection(event,id){event.stopPropagation();if(event.target.checked){selectedIds.add(Number(id))}else{selectedIds.delete(Number(id))}}
 function selectAllThreads(){getVisibleThreads().forEach(t=>selectedIds.add(Number(t.id)));renderThreads()}
 function clearSelection(){selectedIds.clear();renderThreads()}
