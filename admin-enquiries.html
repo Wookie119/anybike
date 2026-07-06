@@ -2094,35 +2094,68 @@ async function markEnquiryNotificationsRead(enquiryId){
   }catch(err){}
 }
 
-async function loadAdminNotifications(){
+async function loadAdminNotifications(){async function loadAdminNotifications(){
   const countEl = document.getElementById("adminNotificationCount");
   const listEl = document.getElementById("adminNotificationList");
   const statusEl = document.getElementById("adminNotificationStatus");
 
   if(!countEl || !listEl){ return; }
 
-  const unanswered = (allEnquiries || []).filter(r => {
+  const unique = new Map();
+
+  (allEnquiries || []).forEach(function(r){
     const latest = latestMessageMap[String(r.id)];
-    return latest && String(latest.sender || "").toLowerCase().includes("customer");
+
+    if(
+      latest &&
+      String(latest.sender || "").toLowerCase().includes("customer")
+    ){
+      unique.set(String(r.id), r);
+    }
   });
+
+  const unanswered = Array.from(unique.values());
 
   if(unanswered.length === 0){
     countEl.style.display = "none";
     countEl.textContent = "0";
-  }else{
-    countEl.style.display = "flex";
-    countEl.textContent = unanswered.length;
-  }
 
-  if(unanswered.length === 0){
     listEl.innerHTML =
       '<div class="admin-notification-item">' +
         '<strong>No customer replies waiting</strong>' +
         '<small>When the latest message is from a customer, it will appear here.</small>' +
       '</div>';
+
     if(statusEl){ statusEl.textContent = "Live"; }
     return;
   }
+
+  countEl.style.display = "flex";
+  countEl.textContent = unanswered.length;
+
+  listEl.innerHTML = unanswered.map(function(r){
+    const latest = latestMessageMap[String(r.id)] || {};
+    const b = r.available_stock || {};
+    const bike = [b.make, b.model, b.year].filter(Boolean).join(" ") || "Bike enquiry";
+    const customer = r.customer_name || r.customer_email || "Customer";
+    const message = latest.message || "Customer replied";
+    const created = latest.created_at ? new Date(latest.created_at).toLocaleString("en-GB") : "";
+    const link = "admin-enquiries.html?open=" + encodeURIComponent(r.id) + "&focus=messages";
+
+    return '' +
+      '<div class="admin-notification-item" onclick="window.location.href=\'' + link + '\'" style="cursor:pointer;">' +
+        '<div>' +
+          '<strong>' + escapeAdminHtml("💬 " + customer) + '</strong><br>' +
+          '<small>' + escapeAdminHtml(bike) + '</small><br>' +
+          '<small>' + escapeAdminHtml(message.slice(0,120)) + '</small><br>' +
+          '<small>' + escapeAdminHtml(created) + '</small>' +
+        '</div>' +
+      '</div>';
+  }).join("");
+
+  if(statusEl){ statusEl.textContent = "Live"; }
+}
+
 
   listEl.innerHTML = unanswered.map(r => {
     const latest = latestMessageMap[String(r.id)] || {};
