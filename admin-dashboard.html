@@ -1452,6 +1452,69 @@ function updateStaffCounts(rows){
   setText("workUnassigned", unassigned);
 }
 
+function leadStatusFromThread(t){
+  const status = String(t.status || "").trim();
+
+  if(status === "New") return "New Lead";
+  if(status === "Needs Reply") return "Needs Reply";
+  if(status === "Contact Made") return "Contact Made";
+  if(status === "Waiting Customer") return "Waiting Customer";
+  if(status === "Archived") return "Archived";
+  if(status === "Closed") return "Closed";
+  if(status === "Deleted") return "Deleted";
+
+  return status || "New Lead";
+}
+
+function renderLeadStatusPipeline(threads){
+  const box = document.getElementById("dashboardLeadStatusPipeline");
+  if(!box) return;
+
+  const statuses = [
+    ["🆕","New Lead"],
+    ["🔴","Needs Reply"],
+    ["📞","Contact Made"],
+    ["ℹ️","Information Needed"],
+    ["🔍","Research / Availability"],
+    ["📤","Proposal Sent"],
+    ["🤝","Negotiating"],
+    ["⏳","Waiting Customer"],
+    ["✅","Confirmed"],
+    ["💷","Payment / Deposit"],
+    ["⚙️","Operations"],
+    ["🚢","Shipping"],
+    ["🏁","Completed"],
+    ["📦","Archived"],
+    ["⚫","Closed"]
+  ];
+
+  const counts = {};
+  statuses.forEach(function(s){
+    counts[s[1]] = 0;
+  });
+
+  (threads || []).forEach(function(t){
+    const mapped = leadStatusFromThread(t);
+    if(counts[mapped] === undefined){
+      counts[mapped] = 0;
+    }
+    counts[mapped]++;
+  });
+
+  box.innerHTML = statuses.map(function(s){
+    const icon = s[0];
+    const label = s[1];
+    const count = counts[label] || 0;
+
+    return `
+      <div class="stat" onclick="location.href='admin-message-centre.html?status=${encodeURIComponent(label)}'">
+        <div>${icon}<br>${label}</div>
+        <strong>${count}</strong>
+      </div>
+    `;
+  }).join("");
+}
+
 async function loadDashboard(){
   try{
 
