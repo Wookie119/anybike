@@ -48,8 +48,17 @@ async function archiveSelectedThreads(){if(!confirm("Archive selected messages?"
 async function deleteSelectedThreads(){if(!confirm("Move selected messages to Deleted?"))return;await updateSelectedStatus("Deleted")}
 function setQuickReply(){const val=document.getElementById("quickReply").value;if(val)document.getElementById("replyBox").value=val}
 async function saveRoute(){if(!selectedThread)return;const department=document.getElementById("departmentSelect").value;const status=document.getElementById("statusSelect").value;const{error}=await sb.from("message_centre_threads").update({department,status,updated_at:new Date().toISOString()}).eq("id",selectedThread.id);if(error){alert(error.message);return}selectedThread.department=department;selectedThread.status=status;updateStats();renderThreads();alert("Saved")}
-async function sendReply(){if(!selectedThread)return;const box=document.getElementById("replyBox");const message=box.value.trim();if(!message){alert("Write a response first.");return}const now=new Date().toISOString();const{error:msgError}=await sb.from("message_centre_messages").insert({thread_id:selectedThread.id,sender_type:"AnyBike",sender_name:"AnyBike",sender_email:"admin@anybike.co.uk",message,created_at:now});if(msgError){alert(msgError.message);return}if(selectedThread.related_enquiry_id){const{error:crmError}=await sb.from("enquiry_messages").insert({enquiry_id:selectedThread.related_enquiry_id,customer_id:selectedThread.customer_id,sender:"AnyBike",message,created_at:now});if(crmError){alert("Message Centre saved, but customer CRM message failed: "+crmError.message);return}}const{error:threadError}=await sb.from("message_centre_threads").update({last_message:message,last_message_at:now,last_sender:"AnyBike",status:"Replied",updated_at:now}).eq("id",selectedThread.id);if(threadError){alert(threadError.message);return}box.value="";await loadThreads();openThread(selectedThread.id)}
-document.addEventListener("DOMContentLoaded",loadThreads);
+const{error:threadError}=await sb
+  .from("message_centre_threads")
+  .update({
+    last_message:message,
+    last_message_at:now,
+    last_sender:"AnyBike",
+    status:"Replied",
+    lead_status:"Contact Made",
+    updated_at:now
+  })
+  .eq("id",selectedThread.id);document.addEventListener("DOMContentLoaded",loadThreads);
 </script>
 </body>
 </html>
