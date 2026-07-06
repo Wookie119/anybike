@@ -2075,64 +2075,7 @@ async function markEnquiryNotificationsRead(enquiryId){
   }catch(err){}
 }
 
-async function loadAdminNotifications(){
-  const countEl = document.getElementById("adminNotificationCount");
-  const listEl = document.getElementById("adminNotificationList");
-  const statusEl = document.getElementById("adminNotificationStatus");
 
-  if(!countEl || !listEl){ return; }
-
-  const unique = new Map();
-
-  (allEnquiries || []).forEach(function(r){
-    const latest = latestMessageMap[String(r.id)];
-
-    if(latest && String(latest.sender || "").toLowerCase().includes("customer")){
-      unique.set(String(r.id), r);
-    }
-  });
-
-  const unanswered = Array.from(unique.values());
-
-  if(!unanswered.length){
-    countEl.style.display = "none";
-    countEl.textContent = "0";
-
-    listEl.innerHTML =
-      '<div class="admin-notification-item">' +
-        '<strong>No customer replies waiting</strong>' +
-        '<small>When the latest message is from a customer, it will appear here.</small>' +
-      '</div>';
-
-    if(statusEl){ statusEl.textContent = "Live"; }
-    return;
-  }
-
-  countEl.style.display = "flex";
-  countEl.textContent = unanswered.length;
-
-  listEl.innerHTML = unanswered.map(function(r){
-    const latest = latestMessageMap[String(r.id)] || {};
-    const b = r.available_stock || {};
-    const bike = [b.make, b.model, b.year].filter(Boolean).join(" ") || "Bike enquiry";
-    const customer = r.customer_name || r.customer_email || "Customer";
-    const message = latest.message || "Customer replied";
-    const created = latest.created_at ? new Date(latest.created_at).toLocaleString("en-GB") : "";
-    const link = "admin-enquiries.html?open=" + encodeURIComponent(r.id) + "&focus=messages";
-
-    return '' +
-      '<a class="admin-notification-item" href="' + escapeAdminHtml(link) + '">' +
-        '<div>' +
-          '<strong>' + escapeAdminHtml("💬 " + customer) + '</strong><br>' +
-          '<small>' + escapeAdminHtml(bike) + '</small><br>' +
-          '<small>' + escapeAdminHtml(message.slice(0,120)) + '</small><br>' +
-          '<small>' + escapeAdminHtml(created) + '</small>' +
-        '</div>' +
-      '</a>';
-  }).join("");
-
-  if(statusEl){ statusEl.textContent = "Live"; }
-}
 
 function escapeAdminHtml(value){
   return String(value || "")
@@ -2460,12 +2403,15 @@ async function loadEnquiries(){
     return;
   }
 
-  const fullData = data || [];
+const fullData = data || [];
 allEnquiries = fullData;
 await loadLatestMessages();
-await loadAdminNotifications();
 
 updateStaffCounts();
+
+if(typeof loadSharedAdminNotifications === "function"){
+  loadSharedAdminNotifications();
+}
   
   let visibleData = [...fullData];
   const requestedOpenEnquiryId = getOpenEnquiryIdFromUrl();
