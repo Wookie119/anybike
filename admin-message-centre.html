@@ -41,13 +41,271 @@ function selectAllThreads(){getVisibleThreads().forEach(t=>selectedIds.add(Numbe
 function clearSelection(){selectedIds.clear();renderThreads()}
 function getSelectedIds(){return Array.from(selectedIds).filter(Boolean)}
 function option(current,value){return`<option ${current===value?"selected":""}>${value}</option>`}
-function getStatusOptions(t){const type=niceType(t.source_type);if(type==="Sell Your Bike")return["New","Needs Reply","Buying Team Reviewing","Negotiating Purchase","Offer Made","Offer Accepted","Collection Booked","In Stock Preparation","Published For Sale","Archived","Deleted","Closed"];if(type==="Bike Enquiry")return["New","Needs Reply","Checking Availability","Negotiating Price","Invoice Sent","Waiting Deposit","Deposit Paid","Converted To Deal","Ready For Collection","Completed","Archived","Deleted","Closed"];if(type==="Multi-Bike Request")return["New","Needs Reply","Sourcing Motorcycles","Quoting","Waiting Customer","Deal Agreed","Converted To Deal","Completed","Archived","Deleted","Closed"];return["New","Needs Reply","Replied","Waiting Customer","In Progress","Converted To Deal","Archived","Deleted","Closed"]}
-async function openThread(id){selectedThread=allThreads.find(t=>Number(t.id)===Number(id));if(!selectedThread)return;renderThreads();const workspace=document.getElementById("workspace");workspace.className="workspace";workspace.innerHTML='<div class="empty">Loading conversation...</div>';const{data:messages,error}=await sb.from("message_centre_messages").select("*").eq("thread_id",id).order("created_at",{ascending:true});if(error){workspace.innerHTML=`<div class="empty">${safe(error.message)}</div>`;return}const t=selectedThread;let lead=null;if(t.related_lead_id){const{data:leadData,error:leadError}=await sb.from("anybike_leads").select("*").eq("id",t.related_lead_id).single();if(!leadError)lead=leadData}const bike=[lead?.bike_year||t.bike_year,lead?.make||t.bike_make,lead?.model||t.bike_model].filter(Boolean).join(" ");const statusOptions=getStatusOptions(t).map(s=>option(t.status,s)).join("");const photos=Array.isArray(lead?.image_urls)&&lead.image_urls.length?lead.image_urls.map(url=>`<a href="${url}" target="_blank"><img src="${url}"></a>`).join(""):"";workspace.innerHTML=`<div class="workspace-title"><div><h2>${safe(t.customer_name||lead?.name||t.customer_email||"Conversation")}</h2><p>${niceType(t.source_type)} • ${safe(t.department)} • ${safe(t.status)}</p></div></div><div class="section"><h3>Customer</h3><div class="grid"><div class="field"><span>Name</span><strong>${safe(t.customer_name||lead?.name)}</strong></div><div class="field"><span>Email</span><strong>${safe(t.customer_email||lead?.email)}</strong></div><div class="field"><span>Phone</span><strong>${safe(t.customer_phone||lead?.mobile)}</strong></div><div class="field"><span>Country</span><strong>${safe(t.country||lead?.country)}</strong></div><div class="field"><span>Postcode</span><strong>${safe(t.postcode_zip||lead?.postcode)}</strong></div><div class="field"><span>Lead Type</span><strong>${safe(lead?.lead_type||niceType(t.source_type))}</strong></div></div></div><div class="section"><h3>Motorcycle</h3>${photos?`<div class="photos">${photos}</div>`:""}<div class="grid"><div class="field"><span>Bike</span><strong>${safe(bike)}</strong></div><div class="field"><span>Registration</span><strong>${safe(lead?.registration)}</strong></div><div class="field"><span>Make</span><strong>${safe(lead?.make||t.bike_make)}</strong></div><div class="field"><span>Model</span><strong>${safe(lead?.model||t.bike_model)}</strong></div><div class="field"><span>Variant</span><strong>${safe(lead?.variant)}</strong></div><div class="field"><span>Year</span><strong>${safe(lead?.bike_year||t.bike_year)}</strong></div><div class="field"><span>Mileage</span><strong>${safe(lead?.mileage)}</strong></div><div class="field"><span>Engine CC</span><strong>${safe(lead?.engine_cc)}</strong></div><div class="field"><span>Colour</span><strong>${safe(lead?.colour)}</strong></div><div class="field"><span>Condition</span><strong>${safe(lead?.condition)}</strong></div><div class="field"><span>Service History</span><strong>${safe(lead?.service_history)}</strong></div><div class="field"><span>Owners</span><strong>${safe(lead?.owners)}</strong></div><div class="field"><span>Asking Price</span><strong>${money(lead?.asking_price)}</strong></div><div class="field"><span>Related Lead ID</span><strong>${safe(t.related_lead_id)}</strong></div></div>${lead?.notes?`<div class="field" style="margin-top:10px;"><span>Seller Notes</span><strong>${safe(lead.notes)}</strong></div>`:""}<div class="actions">${t.related_enquiry_id?`<a href="admin-enquiries.html?open=${encodeURIComponent(t.related_enquiry_id)}&focus=messages">Open Bike Sales CRM</a>`:""}${t.related_request_id?`<a href="admin-motorcycle-requests.html?request=${encodeURIComponent(t.related_request_id)}">Open Motorcycle Request</a>`:""}${t.related_lead_id?`<a href="admin-customers.html?lead=${encodeURIComponent(t.related_lead_id)}">Open Lead / Buying Team</a>`:""}${lead?`<button class="primary" onclick="alert('Add To Stock will be connected next.')">Add To Stock</button>`:""}</div></div><div class="section"><h3>Conversation</h3><div class="messages">${(messages||[]).length?messages.map(m=>`<div class="msg ${m.sender_type==="AnyBike"||m.sender_type==="Admin"?"admin":""}"><div class="msg-head"><strong>${safe(m.sender_name||m.sender_type)}</strong><span>${shortDate(m.created_at)}</span></div><div class="msg-text">${safe(m.message)}</div></div>`).join(""):'<div class="empty">No messages in this thread yet.</div>'}</div></div><div class="section reply-area"><h3>Reply / Route</h3><label>Department</label><select id="departmentSelect">${["Message Centre","Bike Sales","Buying Team","Global Trade","Transport","Stock Preparation","Finance","Logistics","Customer 360","Technical Support"].map(d=>option(t.department,d)).join("")}</select><label>Status</label><select id="statusSelect">${statusOptions}</select><label>Quick response</label><select id="quickReply" onchange="setQuickReply()"><option value="">Choose a response...</option><option value="Thank you for your enquiry. We have received your message and will come back to you shortly.">Thanks for your enquiry</option><option value="Thank you for your enquiry. We are checking availability and will confirm as soon as possible.">Checking availability</option><option value="Thank you. Please confirm your destination country and preferred shipping option so we can guide you correctly.">Confirm destination</option><option value="Thank you. Please send the makes, models, years and quantities you are interested in, and we will help build a motorcycle request for you.">Multi-bike request details</option><option value="Thank you. We can help with export, UK delivery to your freight forwarder, and shipping support depending on your requirements.">Export support</option></select><label>Reply</label><textarea id="replyBox" placeholder="Write a response..."></textarea><div class="actions"><button class="primary" onclick="sendReply()">Send Reply</button><button onclick="saveRoute()">Save Route / Status</button></div></div>`}
-async function updateSelectedStatus(status){const ids=getSelectedIds();if(!ids.length){alert("Select at least one message.");return}const{error}=await sb.from("message_centre_threads").update({status,updated_at:new Date().toISOString()}).in("id",ids);if(error){alert(error.message);return}selectedIds.clear();selectedThread=null;await loadThreads()}
-async function archiveSelectedThreads(){if(!confirm("Archive selected messages?"))return;await updateSelectedStatus("Archived")}
-async function deleteSelectedThreads(){if(!confirm("Move selected messages to Deleted?"))return;await updateSelectedStatus("Deleted")}
+function getStatusOptions(){
+  return [
+    "New",
+    "Needs Reply",
+    "Replied",
+    "Waiting Customer",
+    "Archived",
+    "Closed",
+    "Deleted"
+  ];
+}
+
+function getLeadStatusOptions(){
+  return [
+    "New Lead",
+    "Assigned",
+    "Contact Made",
+    "Information Needed",
+    "Research / Availability",
+    "Proposal Sent",
+    "Negotiating",
+    "Waiting Customer",
+    "Confirmed",
+    "Payment / Deposit",
+    "Deposit Paid",
+    "Operations",
+    "Shipping",
+    "Completed",
+    "Lost",
+    "Save For Later",
+    "Closed"
+  ];
+}
+
+function getThreadLeadStatus(t){
+  return String(t.lead_status || "").trim() || "New Lead";
+}
+
+function renderSelectOptions(options,current){
+  return options.map(function(value){
+    return `<option value="${safe(value)}" ${String(current) === String(value) ? "selected" : ""}>${safe(value)}</option>`;
+  }).join("");
+}
+
+async function openThread(id){
+  selectedThread = allThreads.find(function(t){
+    return Number(t.id) === Number(id);
+  });
+
+  if(!selectedThread) return;
+
+  renderThreads();
+
+  const workspace = document.getElementById("workspace");
+  workspace.className = "workspace";
+  workspace.innerHTML = '<div class="empty">Loading conversation...</div>';
+
+  const {data:messages,error} = await sb
+    .from("message_centre_messages")
+    .select("*")
+    .eq("thread_id", id)
+    .order("created_at", {ascending:true});
+
+  if(error){
+    workspace.innerHTML = `<div class="empty">${safe(error.message)}</div>`;
+    return;
+  }
+
+  const t = selectedThread;
+
+  let lead = null;
+
+  if(t.related_lead_id){
+    const {data:leadData,error:leadError} = await sb
+      .from("anybike_leads")
+      .select("*")
+      .eq("id", t.related_lead_id)
+      .single();
+
+    if(!leadError){
+      lead = leadData;
+    }
+  }
+
+  const bike = [
+    lead?.bike_year || t.bike_year,
+    lead?.make || t.bike_make,
+    lead?.model || t.bike_model
+  ].filter(Boolean).join(" ");
+
+  const conversationStatusOptions = renderSelectOptions(
+    getStatusOptions(),
+    t.status || "New"
+  );
+
+  const leadStatusOptions = renderSelectOptions(
+    getLeadStatusOptions(),
+    getThreadLeadStatus(t)
+  );
+
+  const photos =
+    Array.isArray(lead?.image_urls) && lead.image_urls.length
+      ? lead.image_urls.map(function(url){
+          return `<a href="${url}" target="_blank"><img src="${url}"></a>`;
+        }).join("")
+      : "";
+
+  workspace.innerHTML = `
+    <div class="workspace-title">
+      <div>
+        <h2>${safe(t.customer_name || lead?.name || t.customer_email || "Conversation")}</h2>
+        <p>
+          ${niceType(t.source_type)}
+          • ${safe(t.department)}
+          • Conversation: ${safe(t.status)}
+          • Lead: ${safe(getThreadLeadStatus(t))}
+        </p>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>Customer</h3>
+      <div class="grid">
+        <div class="field"><span>Name</span><strong>${safe(t.customer_name || lead?.name)}</strong></div>
+        <div class="field"><span>Email</span><strong>${safe(t.customer_email || lead?.email)}</strong></div>
+        <div class="field"><span>Phone</span><strong>${safe(t.customer_phone || lead?.mobile)}</strong></div>
+        <div class="field"><span>Country</span><strong>${safe(t.country || lead?.country)}</strong></div>
+        <div class="field"><span>Postcode</span><strong>${safe(t.postcode_zip || lead?.postcode)}</strong></div>
+        <div class="field"><span>Lead Type</span><strong>${safe(lead?.lead_type || niceType(t.source_type))}</strong></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>Motorcycle</h3>
+
+      ${photos ? `<div class="photos">${photos}</div>` : ""}
+
+      <div class="grid">
+        <div class="field"><span>Bike</span><strong>${safe(bike)}</strong></div>
+        <div class="field"><span>Registration</span><strong>${safe(lead?.registration)}</strong></div>
+        <div class="field"><span>Make</span><strong>${safe(lead?.make || t.bike_make)}</strong></div>
+        <div class="field"><span>Model</span><strong>${safe(lead?.model || t.bike_model)}</strong></div>
+        <div class="field"><span>Variant</span><strong>${safe(lead?.variant)}</strong></div>
+        <div class="field"><span>Year</span><strong>${safe(lead?.bike_year || t.bike_year)}</strong></div>
+        <div class="field"><span>Mileage</span><strong>${safe(lead?.mileage)}</strong></div>
+        <div class="field"><span>Engine CC</span><strong>${safe(lead?.engine_cc)}</strong></div>
+        <div class="field"><span>Colour</span><strong>${safe(lead?.colour)}</strong></div>
+        <div class="field"><span>Condition</span><strong>${safe(lead?.condition)}</strong></div>
+        <div class="field"><span>Service History</span><strong>${safe(lead?.service_history)}</strong></div>
+        <div class="field"><span>Owners</span><strong>${safe(lead?.owners)}</strong></div>
+        <div class="field"><span>Asking Price</span><strong>${money(lead?.asking_price)}</strong></div>
+        <div class="field"><span>Related Lead ID</span><strong>${safe(t.related_lead_id)}</strong></div>
+      </div>
+
+      ${lead?.notes ? `<div class="field" style="margin-top:10px;"><span>Seller Notes</span><strong>${safe(lead.notes)}</strong></div>` : ""}
+
+      <div class="actions">
+        ${t.related_enquiry_id ? `<a href="admin-enquiries.html?open=${encodeURIComponent(t.related_enquiry_id)}&focus=messages">Open Bike Sales CRM</a>` : ""}
+        ${t.related_request_id ? `<a href="admin-motorcycle-requests.html?request=${encodeURIComponent(t.related_request_id)}">Open Motorcycle Request</a>` : ""}
+        ${t.related_lead_id ? `<a href="admin-customers.html?lead=${encodeURIComponent(t.related_lead_id)}">Open Lead / Buying Team</a>` : ""}
+        ${lead ? `<button class="primary" onclick="alert('Add To Stock will be connected next.')">Add To Stock</button>` : ""}
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>Conversation</h3>
+      <div class="messages">
+        ${
+          (messages || []).length
+            ? messages.map(function(m){
+                return `
+                  <div class="msg ${m.sender_type === "AnyBike" || m.sender_type === "Admin" ? "admin" : ""}">
+                    <div class="msg-head">
+                      <strong>${safe(m.sender_name || m.sender_type)}</strong>
+                      <span>${shortDate(m.created_at)}</span>
+                    </div>
+                    <div class="msg-text">${safe(m.message)}</div>
+                  </div>
+                `;
+              }).join("")
+            : '<div class="empty">No messages in this thread yet.</div>'
+        }
+      </div>
+    </div>
+
+    <div class="section reply-area">
+      <h3>Reply / Route</h3>
+
+      <label>Department</label>
+      <select id="departmentSelect">
+        ${["Message Centre","Bike Sales","Buying Team","Global Trade","Transport","Stock Preparation","Finance","Logistics","Customer 360","Technical Support"].map(function(d){
+          return option(t.department, d);
+        }).join("")}
+      </select>
+
+      <label>💬 Conversation Status</label>
+      <select id="statusSelect">
+        ${conversationStatusOptions}
+      </select>
+
+      <label>🎯 Lead Status</label>
+      <select id="leadStatusSelect">
+        ${leadStatusOptions}
+      </select>
+
+      <label>Quick response</label>
+      <select id="quickReply" onchange="setQuickReply()">
+        <option value="">Choose a response...</option>
+        <option value="Thank you for your enquiry. We have received your message and will come back to you shortly.">Thanks for your enquiry</option>
+        <option value="Thank you for your enquiry. We are checking availability and will confirm as soon as possible.">Checking availability</option>
+        <option value="Thank you. Please confirm your destination country and preferred shipping option so we can guide you correctly.">Confirm destination</option>
+        <option value="Thank you. Please send the makes, models, years and quantities you are interested in, and we will help build a motorcycle request for you.">Multi-bike request details</option>
+        <option value="Thank you. We can help with export, UK delivery to your freight forwarder, and shipping support depending on your requirements.">Export support</option>
+      </select>
+
+      <label>Reply</label>
+      <textarea id="replyBox" placeholder="Write a response..."></textarea>
+
+      <div class="actions">
+        <button class="primary" onclick="sendReply()">Send Reply</button>
+        <button onclick="saveRoute()">Save Route / Status</button>
+      </div>
+    </div>
+  `;
+}
+
+async function updateSelectedStatus(status){
+  const ids = getSelectedIds();
+
+  if(!ids.length){
+    alert("Select at least one message.");
+    return;
+  }
+
+  const {error} = await sb
+    .from("message_centre_threads")
+    .update({
+      status:status,
+      updated_at:new Date().toISOString()
+    })
+    .in("id", ids);
+
+  if(error){
+    alert(error.message);
+    return;
+  }
+
+  selectedIds.clear();
+  selectedThread = null;
+  await loadThreads();
+}
+
+async function archiveSelectedThreads(){
+  if(!confirm("Archive selected messages?")) return;
+  await updateSelectedStatus("Archived");
+}
+
+async function deleteSelectedThreads(){
+  if(!confirm("Move selected messages to Deleted?")) return;
+  await updateSelectedStatus("Deleted");
+}
+
 function setQuickReply(){
   const val = document.getElementById("quickReply").value;
+
   if(val){
     document.getElementById("replyBox").value = val;
   }
@@ -58,15 +316,16 @@ async function saveRoute(){
 
   const department = document.getElementById("departmentSelect").value;
   const status = document.getElementById("statusSelect").value;
+  const leadStatus = document.getElementById("leadStatusSelect").value;
 
   const {error} = await sb
     .from("message_centre_threads")
     .update({
-  department:department,
-  status:status,
-  lead_status:status,
-  updated_at:new Date().toISOString()
-  })
+      department:department,
+      status:status,
+      lead_status:leadStatus,
+      updated_at:new Date().toISOString()
+    })
     .eq("id", selectedThread.id);
 
   if(error){
@@ -74,11 +333,10 @@ async function saveRoute(){
     return;
   }
 
-  selectedThread.department = department;
-  selectedThread.status = status;
+  const threadId = selectedThread.id;
 
   await loadThreads();
-  openThread(selectedThread.id);
+  openThread(threadId);
 }
 
 async function sendReply(){
