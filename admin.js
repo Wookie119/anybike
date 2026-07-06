@@ -163,10 +163,25 @@ async function loadMessageCentreNotifications(){
     return;
   }
 
-  const threads = (data || []).filter(function(t){
-    return String(t.last_sender || "").toLowerCase().includes("customer");
+  const uniqueMap = new Map();
+
+  (data || []).forEach(function(t){
+    const sender = String(t.last_sender || "").toLowerCase();
+
+    if(!sender.includes("customer")){
+      return;
+    }
+
+    const key = t.related_enquiry_id
+      ? "enquiry-" + String(t.related_enquiry_id)
+      : "thread-" + String(t.id);
+
+    if(!uniqueMap.has(key)){
+      uniqueMap.set(key, t);
+    }
   });
 
+  const threads = Array.from(uniqueMap.values());
   const count = threads.length;
 
   document.querySelectorAll("#adminNotificationCount, .admin-bell-count").forEach(function(badge){
@@ -176,12 +191,10 @@ async function loadMessageCentreNotifications(){
     badge.style.justifyContent = "center";
   });
 
-  var notificationHtml = "";
+  let notificationHtml = "";
 
   if(count){
-
     notificationHtml = threads.slice(0,8).map(function(t){
-
       const customer = t.customer_name || t.customer_email || "Customer";
 
       const bike = [t.bike_year, t.bike_make, t.bike_model]
@@ -198,27 +211,21 @@ async function loadMessageCentreNotifications(){
         ? "admin-enquiries.html?open=" + encodeURIComponent(t.related_enquiry_id) + "&focus=messages"
         : "admin-message-centre.html?thread=" + encodeURIComponent(t.id);
 
-   return `
+      return `
 <a class="admin-notification-item" href="${link}" style="display:flex;gap:12px;align-items:flex-start;">
 
   <div class="notify-avatar" style="width:38px;height:38px;min-width:38px;border-radius:50%;background:#ed1c24;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;line-height:1;">
-  ${initial}
-</div>
+    ${initial}
+  </div>
 
   <div class="notify-content">
-
     <div class="notify-top">
       <strong>${customer}</strong>
       <span>${dot}</span>
     </div>
 
-    <div class="notify-bike">
-      🏍 ${bike}
-    </div>
-
-    <div class="notify-preview">
-      ${preview}
-    </div>
+    <div class="notify-bike">🏍 ${bike}</div>
+    <div class="notify-preview">${preview}</div>
 
     <div class="notify-footer">
       <span>${country}</span>
@@ -231,29 +238,25 @@ async function loadMessageCentreNotifications(){
       onclick="event.preventDefault();event.stopPropagation();markThreadHandled(event,'${t.id}')">
       Clear
     </button>
-
   </div>
 
 </a>
 `;
-
     }).join("");
-
   }else{
-
     notificationHtml = `
       <div class="admin-notification-item">
         <strong>No admin actions waiting</strong>
         <small>New messages and enquiries will appear here.</small>
       </div>
     `;
-
   }
 
   document.querySelectorAll("#adminNotificationList, .admin-notification-list").forEach(function(list){
     list.innerHTML = notificationHtml;
   });
 }
+
 async function markThreadHandled(e, threadId){
 
   e.preventDefault();
