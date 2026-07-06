@@ -33,19 +33,23 @@ function loadAdminShell(){
       });
   }
 
-  if(topbar){
-    fetch("admin-topbar.html")
-      .then(function(res){
-        return res.text();
-      })
-      .then(function(html){
-        topbar.innerHTML = html;
-        setupAdminSearch();
-      })
-      .catch(function(){
-        topbar.innerHTML = "";
-      });
-  }
+ if(topbar){
+  fetch("admin-topbar.html")
+    .then(function(res){
+      return res.text();
+    })
+    .then(function(html){
+      topbar.innerHTML = html;
+      setupAdminSearch();
+
+      setTimeout(function(){
+        loadSharedAdminNotifications();
+      }, 300);
+    })
+    .catch(function(){
+      topbar.innerHTML = "";
+    });
+}
 }
 
 function setupAdminSearch(){
@@ -95,6 +99,133 @@ function setupAdminSearch(){
 
     location.href = "admin-enquiries.html";
   });
+}
+async function loadSharedAdminNotifications(){
+
+  if(!window.sb){
+    return;
+  }
+
+  var countEl = document.getElementById("adminNotificationCount");
+  var listEl = document.getElementById("adminNotificationList");
+  var statusEl = document.getElementById("adminNotificationStatus");
+
+  if(!countEl || !listEl){
+    return;
+  }
+
+  var result = await window.sb
+    .from("admin_notifications")
+    .select("*")
+    .eq("is_read", false)
+    .order("created_at", { ascending:false })
+    .limit(20);
+
+  if(result.error){
+    console.warn("Admin notifications failed:", result.error.message);
+    if(statusEl){ statusEl.textContent = "Error"; }
+    return;
+  }
+
+  var notifications = result.data || [];
+  var unique = new Map();
+
+  notifications.forEach(function(n){
+    var key =
+      String(n.enquiry_id || "") + "|" +
+      String(n.bike_enquiry_id || "") + "|" +
+      String(n.related_enquiry_id || "") + "|" +
+      String(n.link || "") + "|" +
+      String(n.title || "") + "|" +
+      String(n.message || "");
+
+    if(!unique.has(key)){
+      unique.set(key, n);
+    }
+  });
+
+  notifications = Array.from(unique.values());
+
+  if(!notifications.length){
+    countEl.style.display = "none";
+    countEl.textContent = "0";
+
+    listEl.innerHTML =
+      '<div class="admin-notification-item">' +
+        '<div>' +
+          '<strong>No notifications</strong><br>' +
+          '<small>Admin alerts will appear here.</small>' +
+        '</div>' +
+      '</div>';
+
+    if(statusEl){ statusEl.textContent = "Live"; }
+    return;
+  }
+
+  countEl.style.display = "flex";
+  countEl.textContent = notifications.length;
+
+  listEl.innerHTML = notifications.map(function(n){
+    var title = n.title || n.type || "Admin notification";
+    var message = n.message || n.body || "";
+    var created = n.created_at ? new Date(n.created_at).toLocaleString("en-GB") : "";
+    var link = adminNotificationUrl(n);
+
+    return '' +
+      '<a class="admin-notification-item" href="' + escapeSharedAdminHtml(link) + '" onclick="markSharedAdminNotificationRead(\'' + escapeSharedAdminHtml(n.id) + '\')">' +
+        '<div>' +
+          '<strong>' + escapeSharedAdminHtml(title) + '</strong><br>' +
+          '<small>' + escapeSharedAdminHtml(message.slice(0,120)) + '</small><br>' +
+          '<small>' + escapeSharedAdminHtml(created) + '</small>' +
+        '</div>' +
+      '</a>';
+  }).join("");
+
+  if(statusEl){ statusEl.textContent = "Live"; }
+}
+
+function adminNotificationUrl(n){
+
+  var enquiryId =
+    n.enquiry_id ||
+    n.bike_enquiry_id ||
+    n.related_enquiry_id ||
+    n.enquiryId;
+
+  if(enquiryId){
+    return "admin-enquiries.html?open=" + encodeURIComponent(enquiryId) + "&focus=messages";
+  }
+
+  if(n.link){
+    return n.link;
+  }
+
+  return "admin-dashboard.html";
+}
+
+async function markSharedAdminNotificationRead(id){
+
+  if(!window.sb || !id){
+    return;
+  }
+
+  try{
+    await window.sb
+      .from("admin_notifications")
+      .update({ is_read:true })
+      .eq("id", id);
+  }catch(err){
+    console.warn("Notification read failed", err);
+  }
+}
+
+function escapeSharedAdminHtml(value){
+  return String(value || "")
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
 }
 
 function toggleAdminNotifications(){
