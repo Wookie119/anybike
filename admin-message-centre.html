@@ -570,6 +570,23 @@ async function sendReply(){
     return;
   }
 
+  if(selectedThread.related_enquiry_id){
+    const {error:crmError} = await sb
+      .from("enquiry_messages")
+      .insert({
+        enquiry_id: selectedThread.related_enquiry_id,
+        customer_id: selectedThread.customer_id,
+        sender: "AnyBike",
+        message: message,
+        created_at: now
+      });
+
+    if(crmError){
+      alert("Message Centre reply saved, but customer inbox failed: " + crmError.message);
+      return;
+    }
+  }
+
   const {error:threadError} = await sb
     .from("message_centre_threads")
     .update(updateData)
@@ -585,6 +602,7 @@ async function sendReply(){
   await loadThreads();
   openThread(threadId);
 }
+
 async function saveRoute(){
   if(!selectedThread) return;
 
