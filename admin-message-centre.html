@@ -40,19 +40,7 @@ function toggleThreadSelection(event,id){event.stopPropagation();if(event.target
 function selectAllThreads(){getVisibleThreads().forEach(t=>selectedIds.add(Number(t.id)));renderThreads()}
 function clearSelection(){selectedIds.clear();renderThreads()}
 function getSelectedIds(){return Array.from(selectedIds).filter(Boolean)}
-function option(current,value){return`<option ${current===value?"selected":""}>${value}</option>`}
-function getStatusOptions(){
-  return [
-    "New",
-    "Needs Reply",
-    "Replied",
-    "Waiting Customer",
-    "Archived",
-    "Closed",
-    "Deleted"
-  ];
-}
-
+function option(current,value){return`<option ${current===value?"selected":""}>${value}</option>`}    
 function getLeadStatusOptions(){
   return [
     "New Lead",
@@ -72,10 +60,6 @@ function getLeadStatusOptions(){
     "Lost",
     "Closed"
   ];
-}
-
-function getThreadLeadStatus(t){
-  return String(t.lead_status || "").trim() || "New Lead";
 }
 
 function renderSelectOptions(options,current){
@@ -309,99 +293,28 @@ async function saveRoute(){
   if(!selectedThread) return;
 
   const department = document.getElementById("departmentSelect").value;
- const leadStatus = document.getElementById("leadStatusSelect").value;
+  const leadStatus = document.getElementById("leadStatusSelect").value;
+
+  const threadId = selectedThread.id;
 
   const {error} = await sb
     .from("message_centre_threads")
-   .update({
-  department:department,
-  lead_status:leadStatus,
-  updated_at:new Date().toISOString()
-})
-    .eq("id", selectedThread.id);
+    .update({
+      department: department,
+      lead_status: leadStatus,
+      updated_at: new Date().toISOString()
+    })
+    .eq("id", threadId);
 
   if(error){
+    console.error("Save route error:", error);
     alert(error.message);
     return;
   }
 
-  const threadId = selectedThread.id;
-
   await loadThreads();
   openThread(threadId);
 }
-
-async function sendReply(){
-  if(!selectedThread) return;
-
-  const box = document.getElementById("replyBox");
-  const message = box.value.trim();
-
-  if(!message){
-    alert("Write a response first.");
-    return;
-  }
-
-  const now = new Date().toISOString();
-  const threadId = selectedThread.id;
-
-  const {error:msgError} = await sb
-    .from("message_centre_messages")
-    .insert({
-      thread_id:threadId,
-      sender_type:"AnyBike",
-      sender_name:"AnyBike",
-      sender_email:"admin@anybike.co.uk",
-      message:message,
-      created_at:now
-    });
-
-  if(msgError){
-    alert(msgError.message);
-    return;
-  }
-
-  if(selectedThread.related_enquiry_id){
-    const {error:crmError} = await sb
-      .from("enquiry_messages")
-      .insert({
-        enquiry_id:selectedThread.related_enquiry_id,
-        customer_id:selectedThread.customer_id,
-        sender:"AnyBike",
-        message:message,
-        created_at:now
-      });
-
-    if(crmError){
-      alert("Message Centre saved, but customer CRM message failed: " + crmError.message);
-      return;
-    }
-  }
-
-  const {error:threadError} = await sb
-    .from("message_centre_threads")
-    .update({
-      last_message:message,
-      last_message_at:now,
-      last_sender:"AnyBike",
-      status:"Replied",
-      lead_status:"Contact Made",
-      updated_at:now
-    })
-    .eq("id", threadId);
-
-  if(threadError){
-    alert(threadError.message);
-    return;
-  }
-
-  box.value = "";
-
-  await loadThreads();
-  openThread(threadId);
-}
-
-document.addEventListener("DOMContentLoaded", loadThreads);
 </script>
 </body>
 </html>
