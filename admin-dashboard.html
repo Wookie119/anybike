@@ -1523,6 +1523,7 @@ function renderLeadStatusPipeline(threads){
 }
 
 async function loadDashboard(){
+
   try{
 
     const {data: enquiries, error} = await sb
@@ -1538,6 +1539,7 @@ async function loadDashboard(){
     const rows = enquiries || [];
 
     setText("activeLeadsCount", rows.length);
+    setText("singleBikeCount", rows.length);
     setText("totalCount", rows.length);
 
     setText("availabilityCount", countStatus(rows,"Checking Availability"));
@@ -1556,8 +1558,13 @@ async function loadDashboard(){
     setText("lostCount", countStatus(rows,"Lost"));
     setText("saveLaterCount", countStatus(rows,"Save for Later"));
 
-    const pipelineValue = rows.reduce((sum,r)=>sum + Number(r.deal_total_income || 0),0);
-    const expectedProfit = rows.reduce((sum,r)=>sum + Number(r.deal_net_profit || 0),0);
+    const pipelineValue = rows
+      .filter(r => !["Completed","Closed","Lost"].includes(String(r.status || "")))
+      .reduce((sum,r)=>sum + Number(r.deal_total_income || 0),0);
+
+    const expectedProfit = rows
+      .filter(r => !["Completed","Closed","Lost"].includes(String(r.status || "")))
+      .reduce((sum,r)=>sum + Number(r.deal_net_profit || 0),0);
 
     setText("pipelineValue", money(pipelineValue));
     setText("expectedProfit", money(expectedProfit));
@@ -1570,201 +1577,219 @@ async function loadDashboard(){
       .order("created_at",{ascending:false});
 
     const latest = {};
+
     (messages || []).forEach(m=>{
-      if(!latest[m.enquiry_id]) latest[m.enquiry_id] = m;
+      if(!latest[m.enquiry_id]){
+        latest[m.enquiry_id] = m;
+      }
     });
 
     latestDashboardMessageMap = latest;
 
-const replies = Object.values(latest).filter(m =>
-  String(m.sender || "").toLowerCase().includes("customer")
-).length;
+    const replies = Object.values(latest).filter(m =>
+      String(m.sender || "").toLowerCase().includes("customer")
+    ).length;
 
-/* Pipeline stage 2 is now Contact Made */
-setText("customerReplyCount", countStatus(rows,"Contact Made"));
+    setText("customerRepliesCount", replies);
 
-/* Top KPI still shows customer replies needing staff response */
-setText("customerRepliesCount", replies);
+    const { data: leadThreads } = await sb
+      .from("message_centre_threads")
+      .select("id,status,lead_status,source_type,department,last_sender,related_enquiry_id,created_at")
+      .neq("status", "Deleted")
+      .order("created_at", { ascending:false });
 
-const { data: leadThreads } = await sb
-  .from("message_centre_threads")
-.select("id,status,lead_status,source_type,department,last_sender,related_enquiry_id,created_at")
-  .neq("status", "Deleted")
-  .order("created_at", { ascending:false });
+    const threads = leadThreads || [];
 
-renderLeadStatusPipeline(leadThreads || []);
+    const globalBuyers = threads.filter(t =>
+      [
+        "Private Buyer",
+        "Motorcycle Dealer",
+        "Motorcycle Trader",
+        "Motorcycle Importer",
+        "Motorcycle Exporter",
+        "Trade Partner"
+      ].includes(String(t.source_type || "").trim())
+    ).length;
 
-const { data: actionThreads } = await sb
-  .from("message_centre_threads")
-  .select("id,customer_name,customer_email,country,bike_make,bike_model,bike_year,last_message,last_message_at,last_sender,related_enquiry_id,status")
-  .in("status", ["New", "Needs Reply"])
-  .order("last_message_at", { ascending:false });
+    setText("globalBuyerCount", globalBuyers);
 
+    renderLeadStatusPipeline(threads);
 
-const queue = document.getElementById("dashboardActionQueue");
-const badge = document.getElementById("actionQueueTotal");
+    const { data: actionThreads } = await sb
+      .from("message_centre_threads")
+      .select("id,customer_name,customer_email,country,bike_make,bike_model,bike_year,last_message,last_message_at,last_sender,related_enquiry_id,status")
+      .in("status", ["New", "Needs Reply"])
+      .order("last_message_at", { ascending:false });
 
-if(queue){
+    const queue = document.getElementById("dashboardActionQueue");
+    const badge = document.getElementById("actionQueueTotal");
 
-  const actions = [];
-  const seen = new Set();
+    if(queue){
 
-  (actionThreads || []).forEach(function(t){
+      const actions = [];
+      const seen = new Set();
 
-    if(!String(t.last_sender || "").toLowerCase().includes("customer")){
-      return;
-    }
+      (actionThreads || []).forEach(function(t){
 
-    const bike = [t.bike_year, t.bike_make, t.bike_model].filter(Boolean).join(" ");
+        if(!String(t.last_sender || "").toLowerCase().includes("customer")){
+          return;
+        }
 
-    const key = [
-      t.related_enquiry_id || "",
-      t.customer_email || t.customer_name || "",
-      bike,
-      t.last_message || ""
-    ].join("|").toLowerCase();
+        const bike = [t.bike_year, t.bike_make, t.bike_model].filter(Boolean).join(" ");
 
-    if(seen.has(key)) return;
-    seen.add(key);
+        const key = [
+          t.related_enquiry_id || "",
+          t.customer_email || t.customer_name || "",
+          bike,
+          t.last_message || ""
+        ].join("|").toLowerCase();
 
-    actions.push({
-      type:"🔴 Customer Reply",
-      customer:t.customer_name || t.customer_email || "Customer",
-      bike:bike || "Motorcycle enquiry",
-      country:t.country || "Unknown country",
-      preview:t.last_message || "Customer reply waiting",
-      url:t.related_enquiry_id
-        ? "admin-enquiries.html?open=" + t.related_enquiry_id + "&focus=messages"
-        : "admin-message-centre.html?thread=" + t.id
-    });
+        if(seen.has(key)){
+          return;
+        }
 
-  });
+        seen.add(key);
 
-  rows.forEach(function(e){
-    const status = String(e.status || "").trim();
+        actions.push({
+          type:"Customer Reply",
+          customer:t.customer_name || t.customer_email || "Customer",
+          bike:bike || "Motorcycle enquiry",
+          country:t.country || "Unknown country",
+          preview:t.last_message || "Customer reply waiting",
+          url:t.related_enquiry_id
+            ? "admin-enquiries.html?open=" + t.related_enquiry_id + "&focus=messages"
+            : "admin-message-centre.html?thread=" + t.id
+        });
 
-    if(status === "New"){
-      actions.push({
-        type:"➕ New Enquiry",
-        customer:"New customer enquiry",
-        bike:"Motorcycle enquiry",
-        country:"",
-        preview:"Needs first staff response",
-        url:"admin-enquiries.html?open=" + e.id
       });
-    }
 
-    if(status === "Waiting Deposit"){
-      actions.push({
-        type:"💷 Waiting Deposit",
-        customer:"Deposit required",
-        bike:"Deal in progress",
-        country:"",
-        preview:"Follow up for deposit payment",
-        url:"admin-enquiries.html?open=" + e.id
+      rows.forEach(function(e){
+
+        const status = String(e.status || "").trim();
+
+        if(status === "New"){
+          actions.push({
+            type:"New Enquiry",
+            customer:"New customer enquiry",
+            bike:"Motorcycle enquiry",
+            country:"",
+            preview:"Needs first staff response",
+            url:"admin-enquiries.html?open=" + e.id
+          });
+        }
+
+        if(status === "Waiting Deposit"){
+          actions.push({
+            type:"Waiting Deposit",
+            customer:"Deposit required",
+            bike:"Deal in progress",
+            country:"",
+            preview:"Follow up for deposit payment",
+            url:"admin-enquiries.html?open=" + e.id
+          });
+        }
+
+        if(status === "Waiting Collection"){
+          actions.push({
+            type:"Waiting Collection",
+            customer:"Collection needed",
+            bike:"Motorcycle awaiting collection",
+            country:"",
+            preview:"Arrange collection / transport",
+            url:"admin-enquiries.html?open=" + e.id
+          });
+        }
+
+        if(status === "Ready To Ship"){
+          actions.push({
+            type:"Ready To Ship",
+            customer:"Shipping required",
+            bike:"Motorcycle ready for export",
+            country:"",
+            preview:"Move to logistics / shipping agent",
+            url:"admin-enquiries.html?open=" + e.id
+          });
+        }
+
+        if(status === "At Port / Shipping Agent"){
+          actions.push({
+            type:"At Port",
+            customer:"Export stage",
+            bike:"With port or shipping agent",
+            country:"",
+            preview:"Monitor shipping progress",
+            url:"admin-enquiries.html?open=" + e.id
+          });
+        }
+
       });
-    }
 
-    if(status === "Waiting Collection"){
-      actions.push({
-        type:"🚚 Waiting Collection",
-        customer:"Collection needed",
-        bike:"Motorcycle awaiting collection",
-        country:"",
-        preview:"Arrange collection / transport",
-        url:"admin-enquiries.html?open=" + e.id
-      });
-    }
-
-    if(status === "Ready To Ship"){
-      actions.push({
-        type:"🚢 Ready To Ship",
-        customer:"Shipping required",
-        bike:"Motorcycle ready for export",
-        country:"",
-        preview:"Move to logistics / shipping agent",
-        url:"admin-enquiries.html?open=" + e.id
-      });
-    }
-
-    if(status === "At Port / Shipping Agent"){
-      actions.push({
-        type:"⚓ At Port",
-        customer:"Export stage",
-        bike:"With port or shipping agent",
-        country:"",
-        preview:"Monitor shipping progress",
-        url:"admin-enquiries.html?open=" + e.id
-      });
-    }
-  });
-
-  if(badge){
-    badge.textContent = actions.length;
-  }
-
-  if(actions.length){
-
-    queue.innerHTML = actions.slice(0,10).map(function(a){
-
-      let priorityClass = "queue-medium";
-
-      if(a.type.includes("Customer Reply")){
-        priorityClass = "queue-urgent";
+      if(badge){
+        badge.textContent = actions.length;
       }
 
-      if(a.type.includes("Waiting Deposit")){
-        priorityClass = "queue-high";
-      }
+      if(actions.length){
 
-      if(a.type.includes("Ready To Ship")){
-        priorityClass = "queue-ship";
-      }
+        queue.innerHTML = actions.slice(0,10).map(function(a){
 
-      if(a.type.includes("At Port")){
-        priorityClass = "queue-port";
-      }
+          let priorityClass = "queue-medium";
 
-      return `
-        <div class="work-item action-card ${priorityClass}" onclick="location.href='${a.url}'">
+          if(a.type.includes("Customer Reply")){
+            priorityClass = "queue-urgent";
+          }
 
-          <div>
-            <div class="action-type">${a.type}</div>
+          if(a.type.includes("Waiting Deposit")){
+            priorityClass = "queue-high";
+          }
 
-            <div class="action-customer">${a.customer}</div>
+          if(a.type.includes("Ready To Ship")){
+            priorityClass = "queue-ship";
+          }
 
-            <div class="action-details">
-              🏍 ${a.bike}<br>
-              ${a.country ? "🌍 " + a.country + "<br>" : ""}
-              <span>${a.preview}</span>
+          if(a.type.includes("At Port")){
+            priorityClass = "queue-port";
+          }
+
+          return `
+            <div class="work-item action-card ${priorityClass}" onclick="location.href='${a.url}'">
+
+              <div>
+                <div class="action-type">${a.type}</div>
+
+                <div class="action-customer">${a.customer}</div>
+
+                <div class="action-details">
+                  ${a.bike}<br>
+                  ${a.country ? a.country + "<br>" : ""}
+                  <span>${a.preview}</span>
+                </div>
+              </div>
+
+              <div class="action-open">Open →</div>
+
             </div>
+          `;
+
+        }).join("");
+
+      } else {
+
+        queue.innerHTML = `
+          <div class="work-item">
+            <span>No actions waiting</span>
+            <span>OK</span>
           </div>
+        `;
 
-          <div class="action-open">Open →</div>
+      }
 
-        </div>
-      `;
+    }
 
-    }).join("");
-
-  } else {
-
-    queue.innerHTML = `
-      <div class="work-item">
-        <span>✅ No actions waiting</span>
-        <span>✔</span>
-      </div>
-    `;
-
+  } catch(err){
+    console.error(err);
   }
 
-} // closes if(queue)
-
-} catch(err){
-  console.error(err);
 }
-
-} // END loadDashboard
 
 async function loadWorldActivity(){
 
