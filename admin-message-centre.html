@@ -283,7 +283,65 @@ function setQuickReply(){
     document.getElementById("replyBox").value = val;
   }
 }
+async function sendReply(){
+  if(!selectedThread) return;
 
+  const box = document.getElementById("replyBox");
+  const message = box.value.trim();
+
+  if(!message){
+    alert("Write a response first.");
+    return;
+  }
+
+  const now = new Date().toISOString();
+  const threadId = selectedThread.id;
+
+  const currentLeadStatus = selectedThread.lead_status || "New Lead";
+
+  let updateData = {
+    last_message: message,
+    last_message_at: now,
+    last_sender: "AnyBike",
+    status: "Replied",
+    updated_at: now
+  };
+
+  if(currentLeadStatus === "New Lead"){
+    updateData.lead_status = "Contact Made";
+  }
+
+  const {error:msgError} = await sb
+    .from("message_centre_messages")
+    .insert({
+      thread_id: threadId,
+      sender_type: "AnyBike",
+      sender_name: "AnyBike",
+      sender_email: "admin@anybike.co.uk",
+      message: message,
+      created_at: now
+    });
+
+  if(msgError){
+    alert(msgError.message);
+    return;
+  }
+
+  const {error:threadError} = await sb
+    .from("message_centre_threads")
+    .update(updateData)
+    .eq("id", threadId);
+
+  if(threadError){
+    alert(threadError.message);
+    return;
+  }
+
+  box.value = "";
+
+  await loadThreads();
+  openThread(threadId);
+}
 async function saveRoute(){
   if(!selectedThread) return;
 
