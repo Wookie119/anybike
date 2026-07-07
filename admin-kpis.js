@@ -119,7 +119,7 @@ async function calculateAdminKPIs(period){
   };
 
   const { data: enquiries, error } = await sb
-    .from("bike_enquiries")
+      .from("bike_enquiries")
     .select(`
       id,
       created_at,
@@ -131,10 +131,13 @@ async function calculateAdminKPIs(period){
       deal_net_profit,
       deposit_amount,
       deposit_received,
+      deposit_received_at,
       balance_due,
       invoice_total,
       invoice_date,
-      completed_at
+      completed_at,
+      actual_gross_profit,
+      payment_status
     `)
     .order("created_at", { ascending:false });
 
