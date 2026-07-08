@@ -2831,28 +2831,28 @@ const sellerPostcode =
       <div><div class="label">IP Address</div>${safe(r.ip_address)}</div>
 
    <div class="status-box">
-  <div class="label">Status</div>
-  <select id="status-${r.id}" onchange="updateStatus(${r.id}, this.value)">
-    <option value="Customer Replied" ${r.status==="Customer Replied"?"selected":""}>Customer Replied</option>
-    <option value="Checking Availability" ${r.status==="Checking Availability"?"selected":""}>Checking Availability</option>
-    <option value="Negotiating Price & Lead Time" ${r.status==="Negotiating Price & Lead Time"?"selected":""}>Negotiating Price & Lead Time</option>
-    <option value="Waiting Customer Decision" ${r.status==="Waiting Customer Decision"?"selected":""}>Waiting Customer Decision</option>
-    <option value="Waiting Deposit" ${r.status==="Waiting Deposit"?"selected":""}>Waiting Deposit</option>
-    <option value="Deposit Paid" ${r.status==="Deposit Paid"?"selected":""}>Deposit Paid</option>
-    <option value="Waiting Full Payment" ${r.status==="Waiting Full Payment"?"selected":""}>Waiting Full Payment</option>
-    <option value="Waiting Collection" ${r.status==="Waiting Collection"?"selected":""}>Waiting Collection</option>
-    <option value="On Site" ${r.status==="On Site"?"selected":""}>On Site</option>
-    <option value="Ready To Ship" ${r.status==="Ready To Ship"?"selected":""}>Ready To Ship</option>
-    <option value="Booked with Move Motorcycles" ${r.status==="Booked with Move Motorcycles"?"selected":""}>Booked with Move Motorcycles</option>
-    <option value="At Port / Shipping Agent" ${r.status==="At Port / Shipping Agent"?"selected":""}>At Port / Shipping Agent</option>
-    <option value="Completed" ${r.status==="Completed"?"selected":""}>Completed</option>
-    <option value="Closed" ${r.status==="Closed"?"selected":""}>Closed</option>
-    <option value="Lost" ${r.status==="Lost"?"selected":""}>Lost</option>
-    <option value="Save for Later" ${r.status==="Save for Later"?"selected":""}>Save for Later</option>
+<div>
+  <div class="label">Lead Status</div>
+  <select id="lead-status-${r.id}" onchange="updateLeadStatus(${r.id}, this.value)">
+    <option value="New Lead" ${(r.lead_status || r.status)==="New Lead" || r.status==="New" ? "selected" : ""}>New Lead</option>
+    <option value="Assigned" ${(r.lead_status || r.status)==="Assigned" ? "selected" : ""}>Assigned</option>
+    <option value="Contact Made" ${(r.lead_status || r.status)==="Contact Made" || r.status==="Replied" ? "selected" : ""}>Contact Made</option>
+    <option value="Information Needed" ${(r.lead_status || r.status)==="Information Needed" ? "selected" : ""}>Information Needed</option>
+    <option value="Research / Availability" ${(r.lead_status || r.status)==="Research / Availability" || r.status==="Checking Availability" ? "selected" : ""}>Research / Availability</option>
+    <option value="Proposal Sent" ${(r.lead_status || r.status)==="Proposal Sent" ? "selected" : ""}>Proposal Sent</option>
+    <option value="Negotiating" ${(r.lead_status || r.status)==="Negotiating" || r.status==="Negotiating Price & Lead Time" ? "selected" : ""}>Negotiating</option>
+    <option value="Waiting Customer" ${(r.lead_status || r.status)==="Waiting Customer" || r.status==="Waiting Customer Decision" ? "selected" : ""}>Waiting Customer</option>
+    <option value="Confirmed" ${(r.lead_status || r.status)==="Confirmed" ? "selected" : ""}>Confirmed</option>
+    <option value="Payment / Deposit" ${(r.lead_status || r.status)==="Payment / Deposit" || r.status==="Waiting Deposit" || r.status==="Deposit Paid" || r.status==="Waiting Full Payment" ? "selected" : ""}>Payment / Deposit</option>
+    <option value="Operations" ${(r.lead_status || r.status)==="Operations" || r.status==="Waiting Collection" || r.status==="On Site" ? "selected" : ""}>Operations</option>
+    <option value="Shipping" ${(r.lead_status || r.status)==="Shipping" || r.status==="Ready To Ship" || r.status==="Booked with Move Motorcycles" || r.status==="At Port / Shipping Agent" ? "selected" : ""}>Shipping</option>
+    <option value="Completed" ${(r.lead_status || r.status)==="Completed" ? "selected" : ""}>Completed</option>
+    <option value="Closed" ${(r.lead_status || r.status)==="Closed" ? "selected" : ""}>Closed</option>
+    <option value="Lost" ${(r.lead_status || r.status)==="Lost" ? "selected" : ""}>Lost</option>
+    <option value="Save For Later" ${(r.lead_status || r.status)==="Save For Later" || r.status==="Save for Later" ? "selected" : ""}>Save For Later</option>
   </select>
 </div>
 
-<div class="status-box">
   <div class="label">Assigned To</div>
   <select id="assigned-${r.id}" onchange="assignDeal(${r.id}, this.value)">
     <option value="" ${!r.assigned_to ? "selected" : ""}>Unassigned</option>
@@ -3001,7 +3001,9 @@ AnyBike`
   }
 }
 
+
 async function updateStatus(id,status){
+
   const {error}=await sb.rpc("admin_update_enquiry_status", {
     enquiry_id:Number(id),
     new_status:status
@@ -3013,8 +3015,32 @@ async function updateStatus(id,status){
   }
 
   alert("Saved: " + status);
+
   loadEnquiries();
+
 }
+
+
+async function updateLeadStatus(id, leadStatus){
+
+  const {error} = await sb
+    .from("message_centre_threads")
+    .update({
+      lead_status: leadStatus
+    })
+    .eq("related_enquiry_id", Number(id));
+
+  if(error){
+    alert("Lead Status save failed: " + error.message);
+    return;
+  }
+
+  alert("Lead Status updated: " + leadStatus);
+
+  loadEnquiries();
+
+}
+
 
 async function assignDeal(id, staffName){
 
@@ -3041,6 +3067,7 @@ async function assignDeal(id, staffName){
   );
 
   loadEnquiries();
+
 }
 
 async function loadMessages(enquiryId, originalMessage="", customerName="Customer"){
