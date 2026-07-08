@@ -2920,20 +2920,36 @@ async function updateStatus(id,status){
 
 async function updateLeadStatus(id, leadStatus){
 
-  const {error}=await sb.rpc("admin_update_enquiry_status", {
-    enquiry_id:Number(id),
-    new_status:leadStatus
-  });
+  const enquiryId = Number(id);
 
-  if(error){
-    alert("Lead Status save failed: " + error.message);
+  const enquiryUpdate = await sb
+    .from("bike_enquiries")
+    .update({
+      status: leadStatus,
+      lead_status: leadStatus
+    })
+    .eq("id", enquiryId);
+
+  if(enquiryUpdate.error){
+    alert("Bike Sales status save failed: " + enquiryUpdate.error.message);
+    return;
+  }
+
+  const threadUpdate = await sb
+    .from("message_centre_threads")
+    .update({
+      lead_status: leadStatus
+    })
+    .eq("related_enquiry_id", enquiryId);
+
+  if(threadUpdate.error){
+    alert("Message Centre status save failed: " + threadUpdate.error.message);
     return;
   }
 
   alert("Lead Status updated: " + leadStatus);
 
   loadEnquiries();
-
 }
 
 async function assignDeal(id, staffName){
