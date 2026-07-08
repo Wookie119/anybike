@@ -207,8 +207,9 @@ async function loadMessageCentreNotifications(){
       const initial = customer.charAt(0).toUpperCase();
       const dot = t.status === "New" ? "🔴" : "🟢";
 
-    const link = "admin-message-centre.html?thread=" + encodeURIComponent(t.id);
-
+const link = t.related_enquiry_id
+  ? "admin-enquiries.html?open=" + encodeURIComponent(t.related_enquiry_id) + "&focus=messages"
+  : "admin-message-centre.html?thread=" + encodeURIComponent(t.id);
       return `
 <a class="admin-notification-item" href="${link}" style="display:flex;gap:12px;align-items:flex-start;">
 
