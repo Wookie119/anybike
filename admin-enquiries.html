@@ -2312,19 +2312,35 @@ if(typeof loadSharedAdminNotifications === "function"){
 }
   
 let visibleData = fullData.slice();
-  const requestedOpenEnquiryId = getOpenEnquiryIdFromUrl();
 
-if(!requestedOpenEnquiryId && window.adminStatusFilter){
+const requestedOpenEnquiryId = getOpenEnquiryIdFromUrl();
+
+/* If we arrived from a notification, ignore filters and load only that enquiry */
+if(requestedOpenEnquiryId){
+
+  visibleData = fullData.filter(function(r){
+    return String(r.id) === String(requestedOpenEnquiryId);
+  });
+
+}
+/* Otherwise use the normal filters */
+else if(window.adminStatusFilter){
+
   if(window.adminStatusFilter === "Customer Replied"){
-    visibleData = visibleData.filter(r=>{
+
+    visibleData = visibleData.filter(function(r){
       const m = latestMessageMap[String(r.id)];
       return m && String(m.sender || "").toLowerCase().includes("customer");
     });
+
   }else{
-    visibleData = visibleData.filter(r =>
-      String(r.status || "").trim() === window.adminStatusFilter
-    );
+
+    visibleData = visibleData.filter(function(r){
+      return String(r.lead_status || r.status || "").trim() === window.adminStatusFilter;
+    });
+
   }
+
 }
 
 /* Staff filter */
