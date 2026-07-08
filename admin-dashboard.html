@@ -1574,20 +1574,21 @@ async function loadDashboard(){
 
     setText("customerRepliesCount", replies);
 
-   const { data: leadThreads } = await sb
+const { data: leadThreads, error: threadError } = await sb
   .from("message_centre_threads")
-  .select("id,status,lead_status,source_type,department,last_sender,related_enquiry_id,created_at")
-  .neq("status", "Deleted")
-  .order("created_at", { ascending:false });
+  .select("*")
+  .limit(5);
 
-console.log("Lead Threads:", leadThreads);
-    const threads = leadThreads || [];
-    const countSourceType = function(names){
+console.log("THREAD ERROR:", threadError);
+console.log("THREADS:", leadThreads);
+
+const threads = leadThreads || [];
+
+const countSourceType = function(names){
   return threads.filter(function(t){
     return names.includes(String(t.source_type || "").trim());
   }).length;
 };
-
 setText("kpiPrivateBuyers", countSourceType(["Private Buyer"]));
 
 setText("kpiDealersTraders", countSourceType([
