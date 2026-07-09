@@ -57,10 +57,7 @@ function getWorkflowProgress(enquiry, workflow){
 
 function renderWorkflow(enquiry){
   const workflow = getWorkflow(enquiry.lead_status || enquiry.status);
-
-  if(!workflow){
-    return "";
-  }
+  if(!workflow) return "";
 
   const data = getWorkflowData(enquiry, workflow);
   const progress = getWorkflowProgress(enquiry, workflow);
@@ -111,14 +108,29 @@ function renderOperationsWorkflow(enquiry){
   return renderWorkflow(enquiry);
 }
 
+async function addWorkflowDealHistory(enquiryId, taskName, checked){
+  const actionText = checked ? "completed" : "unticked";
+
+  try{
+    await sb
+      .from("deal_history")
+      .insert({
+        enquiry_id: Number(enquiryId),
+        event_type: "Workflow",
+        event_text: taskName + " was " + actionText + ".",
+        created_by: "Andy Gifford"
+      });
+  }catch(err){
+    console.warn("Deal History insert failed:", err);
+  }
+}
+
 async function toggleWorkflowTask(enquiryId, column, taskName, checked){
   const enquiry = allEnquiries.find(function(item){
     return Number(item.id) === Number(enquiryId);
   });
 
-  if(!enquiry){
-    return;
-  }
+  if(!enquiry) return;
 
   let current = enquiry[column] || {};
   current[taskName] = checked;
@@ -138,42 +150,9 @@ async function toggleWorkflowTask(enquiryId, column, taskName, checked){
 
   enquiry[column] = current;
 
-  const workflow = getWorkflow(enquiry.lead_status || enquiry.status);
-  if(!workflow){
-    return;
-  }
+  await addWorkflowDealHistory(enquiryId, taskName, checked);
 
-  const progress = getWorkflowProgress(enquiry, workflow);
-
-  const row = document.getElementById("enquiry-" + enquiryId);
-  if(row){
-    const workflowPanel = Array.from(row.querySelectorAll(".deal360-panel")).find(function(panel){
-      const summaryText = panel.querySelector("summary")?.innerText || "";
-      return summaryText.includes("Workflow");
-    });
-
-    if(workflowPanel){
-      const badge = workflowPanel.querySelector(".panel-badge");
-      if(badge){
-        badge.textContent = progress.done + "/" + progress.total;
-      }
-
-      const body = workflowPanel.querySelector(".deal360-panel-body");
-      if(body){
-        body.innerHTML = renderWorkflow(enquiry);
-      }
-
-      workflowPanel.open = true;
-    }
-
-    const heroWorkflowSmall = row.querySelector(".deal360-hero-card:nth-child(2) small");
-    if(heroWorkflowSmall){
-      heroWorkflowSmall.textContent = progress.done + "/" + progress.total + " complete";
-    }
-
-    const heroBar = row.querySelector(".deal360-mini-progress div");
-    if(heroBar){
-      heroBar.style.width = progress.percent + "%";
-    }
+  if(typeof loadEnquiries === "function"){
+    await loadEnquiries();
   }
 }
