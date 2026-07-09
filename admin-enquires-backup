@@ -5,6 +5,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1671,8 +1672,68 @@ body{
   box-shadow:0 0 10px rgba(237,28,36,.35);
 }
 
+
+/* DEAL 360 PANELS */
+.deal360-panels{
+  display:grid;
+  gap:14px;
+  margin-top:14px;
+}
+
+.deal360-panel{
+  background:#0d0d0d;
+  border:1px solid rgba(255,255,255,.10);
+  border-radius:16px;
+  overflow:hidden;
+}
+
+.deal360-panel > summary{
+  list-style:none;
+  cursor:pointer;
+  padding:15px 18px;
+  background:#151515;
+  color:#fff;
+  font-weight:950;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  border-bottom:1px solid rgba(255,255,255,.08);
+}
+
+.deal360-panel > summary::-webkit-details-marker{
+  display:none;
+}
+
+.deal360-panel > summary:after{
+  content:"▼";
+  color:#aaa;
+  font-size:12px;
+}
+
+.deal360-panel:not([open]) > summary:after{
+  content:"▶";
+}
+
+.deal360-panel-body{
+  padding:16px;
+}
+
+.deal360-title-line{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  flex-wrap:wrap;
+  margin:0 0 14px;
+}
+
+.deal360-title-line strong{
+  font-size:18px;
+}
+
 .workflow-box{
-  margin:22px 0;
+  margin:0;
   padding:18px;
   background:#111;
   border:1px solid rgba(237,28,36,.45);
@@ -1748,20 +1809,87 @@ body{
   font-size:18px;
 }
 
+.workflow-empty{
+  background:#111;
+  border:1px dashed rgba(255,255,255,.22);
+  color:#ccc;
+  border-radius:14px;
+  padding:16px;
+}
+
+.workflow-empty strong{
+  display:block;
+  color:#fff;
+  margin-bottom:6px;
+}
+
+.deal360-panel .seller-panel,
+.deal360-panel .deal-panel,
+.deal360-panel .conversation-box,
+.deal360-panel .notes-panel,
+.deal360-panel .buyer-panel{
+  margin:0;
+}
+
 </style>
 </head>
 
 <body>
 
-<body>
-
 <div class="admin-shell">
 
-  <aside id="adminSidebar"></aside>
+<aside id="adminSidebar" class="admin-sidebar">
+  <div class="admin-logo">
+    <img src="anybike-logo-new.jpg" alt="AnyBike">
+  </div>
+
+  <nav class="admin-menu">
+    <a href="admin-dashboard.html"><span class="menu-icon">🏠</span><span class="menu-text">Admin HQ</span></a>
+    <a href="admin-enquiries.html" class="active"><span class="menu-icon">🏍</span><span class="menu-text">Bike Sales HQ</span></a>
+    <a href="admin-message-centre.html"><span class="menu-icon">💬</span><span class="menu-text">Message Centre</span></a>
+    <a href="admin-global-buyer-network.html"><span class="menu-icon">🌍</span><span class="menu-text">Global Buyers</span></a>
+    <a href="admin-customers.html"><span class="menu-icon">👥</span><span class="menu-text">Customers</span></a>
+    <a href="admin-stock.html"><span class="menu-icon">📦</span><span class="menu-text">Stock HQ</span></a>
+    <a href="admin-stock-import.html"><span class="menu-icon">⬆️</span><span class="menu-text">Stock Import</span></a>
+    <a href="admin-logistics.html"><span class="menu-icon">🚚</span><span class="menu-text">Logistics HQ</span></a>
+    <a href="admin-market-intelligence.html"><span class="menu-icon">📊</span><span class="menu-text">Market Intelligence</span></a>
+    <a href="admin-reports.html"><span class="menu-icon">📈</span><span class="menu-text">Reports</span></a>
+    <a href="admin-platform-audit.html"><span class="menu-icon">🧪</span><span class="menu-text">Mission Control</span></a>
+    <a href="admin-administration.html"><span class="menu-icon">⚙️</span><span class="menu-text">Administration</span></a>
+  </nav>
+
+  <div class="public-links">
+    <a href="index.html" target="_blank">Public Home</a>
+    <a href="available-stock.html" target="_blank">Public Stock</a>
+  </div>
+</aside>
 
   <main class="admin-main">
 
-    <div id="adminTopbar"></div>
+<div id="adminTopbar" class="admin-topbar">
+  <div class="admin-search">
+    <span>🔎</span>
+    <input id="adminGlobalSearch" type="search" placeholder="Search AnyBike admin...">
+  </div>
+
+  <div class="admin-actions">
+    <button type="button" class="admin-bell" onclick="toggleAdminNotifications();return false;">
+      🔔
+      <span id="msgBubble" class="admin-bell-count"></span>
+    </button>
+    <div class="admin-profile">Andy</div>
+  </div>
+
+  <div id="adminNotificationPanel" class="admin-notification-panel">
+    <div class="admin-notification-head">
+      <strong>Notifications</strong>
+      <button type="button" onclick="markAllAdminNotificationsRead();return false;">Mark all read</button>
+    </div>
+    <div id="adminNotificationList" class="admin-notification-list">
+      <div class="admin-notification-item">No notifications loaded yet.</div>
+    </div>
+  </div>
+</div>
 
     <div class="admin-page-content">
 
@@ -1901,7 +2029,9 @@ document.addEventListener("keydown", function(e){
 });
 
 </script>
+
 <script src="admin-workflow.js"></script>
+<script src="admin-deal-history.js"></script>
 <script>
 const SUPABASE_URL="https://tuehtnezhdnkqbbhttgp.supabase.co";
 const SUPABASE_ANON_KEY="sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
@@ -2672,11 +2802,18 @@ const sellerPostcode =
   <button type="button" class="close-enquiry-btn" onclick="toggleEnquiry(${r.id}); return false;">
     ▲ Close
   </button>
-    
-      <div>
-        ${b.image_url ? `<img class="bike-img" src="${b.image_url}" alt="">` : `<div class="bike-img"></div>`}
-      </div>
-      <div class="detail-summary-grid">
+
+  <div class="deal360-title-line">
+    <strong>Deal 360</strong>
+    <span class="badge status-pill">${safe(r.lead_status || r.status || "New")}</span>
+  </div>
+
+  <div class="deal360-panels">
+
+    <details class="deal360-panel" open>
+      <summary>🏍 Customer & Motorcycle</summary>
+      <div class="deal360-panel-body">
+        <div class="detail-summary-grid">
 
   <div class="detail-image">
     ${b.image_url ? `<img class="bike-img" src="${b.image_url}" alt="">` : `<div class="bike-img"></div>`}
@@ -2707,9 +2844,14 @@ const sellerPostcode =
     <div>Assigned: ${safe(r.assigned_to || "Unassigned")}</div>
   </div>
 
-</div>
+        </div>
+      </div>
+    </details>
 
-    <div class="seller-panel">
+    <details class="deal360-panel">
+      <summary>👤 Seller</summary>
+      <div class="deal360-panel-body">
+        <div class="seller-panel">
       <h3>Internal Seller Information</h3>
 
       <div class="seller-grid">
@@ -2730,11 +2872,21 @@ const sellerPostcode =
         <div><span>Last Price Change</span><strong>${safe(b.last_price_change || "-")}</strong></div>
         <div><span>Collection Status</span><strong>${safe(b.collection_status || "-")}</strong></div>
       </div>
-    </div>
-    
-${typeof renderOperationsWorkflow === "function" ? renderOperationsWorkflow(r) : ""}
+        </div>
+      </div>
+    </details>
 
-<div class="deal-panel">
+    <details class="deal360-panel" open>
+      <summary>📦 Workflow</summary>
+      <div class="deal360-panel-body">
+      ${typeof renderWorkflow === "function" ? renderWorkflow(r) : ""}
+      </div>
+    </details>
+
+    <details class="deal360-panel" open>
+      <summary>💷 Deal Calculator</summary>
+      <div class="deal360-panel-body">
+        <div class="deal-panel">
   <h3>Deal Calculator</h3>
 
   <div class="deal-grid">
@@ -2843,9 +2995,14 @@ ${typeof renderOperationsWorkflow === "function" ? renderOperationsWorkflow(r) :
       ${r.deal_saved_by ? `Last saved by ${safe(r.deal_saved_by)}` : ""}
     </div>
   </div>
-</div>
+        </div>
+      </div>
+    </details>
 
-<div class="customer-meta">
+    <details class="deal360-panel" open>
+      <summary>💬 Lead, Conversation & Notes</summary>
+      <div class="deal360-panel-body">
+        <div class="customer-meta">
 
       <div><div class="label">Offer</div>${r.offer_amount ? money(r.offer_amount) : "-"}</div>
       <div><div class="label">Buyer Shipping Agent</div>${safe(r.buyer_shipping_agent)}</div>
@@ -2935,7 +3092,59 @@ ${typeof renderOperationsWorkflow === "function" ? renderOperationsWorkflow(r) :
 
 </div>
       </div>
+      </div>
+    </details>
+
+    <details class="deal360-panel">
+      <summary>📎 Documents</summary>
+      <div class="deal360-panel-body">
+        <div class="workflow-empty"><strong>Documents module placeholder.</strong><div>Purchase invoice, V5, photos and shipping documents will live here.</div></div>
+      </div>
+    </details>
+
+<details class="deal360-panel">
+  <summary>📜 Deal History</summary>
+
+  <div class="deal360-panel-body">
+
+    <div id="deal-history-container" class="workflow-empty">
+
+      <strong>No Deal History yet.</strong>
+
+      <div>
+        Every significant action on this deal will automatically appear here.
+      </div>
+
+      <br>
+
+      <div style="color:#888;font-size:13px;line-height:1.7;">
+
+        ✓ Customer enquiries<br>
+        ✓ Customer & staff messages<br>
+        ✓ Lead Status changes<br>
+        ✓ Workflow progress<br>
+        ✓ Deal Calculator updates<br>
+        ✓ Documents uploaded<br>
+        ✓ Finance activity<br>
+        ✓ Shipping & transport updates<br>
+        ✓ Staff assignments
+
+      </div>
+
     </div>
+
+  </div>
+
+</details>
+
+    <details class="deal360-panel">
+      <summary>🚚 Shipping / Transport</summary>
+      <div class="deal360-panel-body">
+        <div class="workflow-empty"><strong>Shipping module placeholder.</strong><div>Transport bookings, port handover and export progress will live here.</div></div>
+      </div>
+    </details>
+
+  </div>
 
   </div>
 </div>
