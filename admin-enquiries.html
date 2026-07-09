@@ -4166,6 +4166,19 @@ async function deleteTestEnquiries(){
   }
 }
 
+
+/* AnyBike Deal 360 stability wrapper
+   This catches any direct loadEnquiries() call, including calls from external modules
+   such as admin-workflow.js, and restores the open enquiry/panels afterwards. */
+const anybikeOriginalLoadEnquiries = loadEnquiries;
+loadEnquiries = async function(){
+  const state = captureDeal360State(openEnquiryId);
+  await anybikeOriginalLoadEnquiries();
+  if(state && state.enquiryId){
+    restoreDeal360State(state);
+  }
+};
+
 loadEnquiries();
 
 setTimeout(() => {
