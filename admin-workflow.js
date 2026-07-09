@@ -1,5 +1,4 @@
 const ANYBIKE_WORKFLOWS = {
-
   Operations: {
     icon: "📦",
     column: "operations_checklist",
@@ -28,155 +27,103 @@ const ANYBIKE_WORKFLOWS = {
       { name:"Vessel Departed", icon:"🌊" }
     ]
   }
-
 };
 
 function getWorkflow(status){
-
   status = String(status || "").trim();
-
   return ANYBIKE_WORKFLOWS[status] || null;
-
 }
 
 function getWorkflowData(enquiry, workflow){
-
   return enquiry[workflow.column] || {};
-
 }
 
 function getWorkflowProgress(enquiry, workflow){
-
   const data = getWorkflowData(enquiry, workflow);
-
   let done = 0;
 
   workflow.tasks.forEach(function(task){
-
     if(data[task.name] === true){
-
       done++;
-
     }
-
   });
 
   return {
-
     done: done,
     total: workflow.tasks.length,
     percent: Math.round((done / workflow.tasks.length) * 100)
-
   };
-
 }
 
 function renderWorkflow(enquiry){
-
   const workflow = getWorkflow(enquiry.lead_status || enquiry.status);
 
   if(!workflow){
-
     return "";
-
   }
 
   const data = getWorkflowData(enquiry, workflow);
-
   const progress = getWorkflowProgress(enquiry, workflow);
 
   let html = `
-
 <div class="workflow-box">
+  <div class="workflow-head">
+    <div>
+      <strong>${workflow.icon} ${enquiry.lead_status || enquiry.status} (${progress.done}/${progress.total})</strong>
+      <div class="workflow-percent">${progress.percent}% complete</div>
+    </div>
+    <div>Internal workflow</div>
+  </div>
 
-<div class="workflow-head">
+  <div class="workflow-progress">
+    <div style="width:${progress.percent}%"></div>
+  </div>
 
-<div>
-
-<strong>${workflow.icon} ${enquiry.lead_status || enquiry.status} (${progress.done}/${progress.total})</strong>
-
-<div class="workflow-percent">${progress.percent}% complete</div>
-
-</div>
-
-<div>Internal workflow</div>
-
-</div>
-
-<div class="workflow-progress">
-
-<div style="width:${progress.percent}%"></div>
-
-</div>
-
-<div class="workflow-list">
-
+  <div class="workflow-list">
 `;
 
   workflow.tasks.forEach(function(task){
-
     const checked = data[task.name] === true ? "checked" : "";
-
     const doneClass = data[task.name] === true ? " task-done" : "";
 
     html += `
-
 <label class="workflow-item${doneClass}">
-
-<input
-type="checkbox"
-${checked}
-onchange="toggleWorkflowTask(${enquiry.id}, '${workflow.column}', '${task.name.replace(/'/g,"\\'")}', this.checked)"
->
-
-<span class="task-icon">${task.icon}</span>
-
-<span>${task.name}</span>
-
+  <input
+    type="checkbox"
+    ${checked}
+    onchange="toggleWorkflowTask(${enquiry.id}, '${workflow.column}', '${task.name.replace(/'/g,"\\'")}', this.checked)"
+  >
+  <span class="task-icon">${task.icon}</span>
+  <span>${task.name}</span>
 </label>
-
 `;
-
   });
 
   html += `
-
+  </div>
 </div>
-
-</div>
-
 `;
 
   return html;
-
 }
 
 function renderOperationsWorkflow(enquiry){
-
   return renderWorkflow(enquiry);
-
 }
 
 async function toggleWorkflowTask(enquiryId, column, taskName, checked){
-
   const enquiry = allEnquiries.find(function(item){
-
     return Number(item.id) === Number(enquiryId);
-
   });
 
   if(!enquiry){
-
     return;
-
   }
 
   let current = enquiry[column] || {};
-
   current[taskName] = checked;
 
   const update = {};
-
   update[column] = current;
 
   const { error } = await sb
@@ -185,19 +132,48 @@ async function toggleWorkflowTask(enquiryId, column, taskName, checked){
     .eq("id", enquiryId);
 
   if(error){
-
     alert(error.message);
-
     return;
-
   }
 
   enquiry[column] = current;
 
-  if(typeof filterEnquiries === "function"){
-
-    filterEnquiries(currentFilter || "all");
-
+  const workflow = getWorkflow(enquiry.lead_status || enquiry.status);
+  if(!workflow){
+    return;
   }
 
+  const progress = getWorkflowProgress(enquiry, workflow);
+
+  const row = document.getElementById("enquiry-" + enquiryId);
+  if(row){
+    const workflowPanel = Array.from(row.querySelectorAll(".deal360-panel")).find(function(panel){
+      const summaryText = panel.querySelector("summary")?.innerText || "";
+      return summaryText.includes("Workflow");
+    });
+
+    if(workflowPanel){
+      const badge = workflowPanel.querySelector(".panel-badge");
+      if(badge){
+        badge.textContent = progress.done + "/" + progress.total;
+      }
+
+      const body = workflowPanel.querySelector(".deal360-panel-body");
+      if(body){
+        body.innerHTML = renderWorkflow(enquiry);
+      }
+
+      workflowPanel.open = true;
+    }
+
+    const heroWorkflowSmall = row.querySelector(".deal360-hero-card:nth-child(2) small");
+    if(heroWorkflowSmall){
+      heroWorkflowSmall.textContent = progress.done + "/" + progress.total + " complete";
+    }
+
+    const heroBar = row.querySelector(".deal360-mini-progress div");
+    if(heroBar){
+      heroBar.style.width = progress.percent + "%";
+    }
+  }
 }
