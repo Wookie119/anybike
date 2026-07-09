@@ -1,4 +1,5 @@
 const ANYBIKE_WORKFLOWS = {
+
   Operations: {
     icon: "📦",
     column: "operations_checklist",
@@ -12,7 +13,22 @@ const ANYBIKE_WORKFLOWS = {
       { name:"Documents uploaded", icon:"📄" },
       { name:"Ready for Shipping", icon:"🚢" }
     ]
+  },   ← notice the comma here
+
+  Shipping: {
+    icon: "🚢",
+    column: "shipping_checklist",
+    tasks: [
+      { name:"Shipping company booked", icon:"📅" },
+      { name:"Collection confirmed", icon:"🚚" },
+      { name:"Export documents prepared", icon:"📄" },
+      { name:"Customs paperwork checked", icon:"🛃" },
+      { name:"Delivered to port / agent", icon:"🏗️" },
+      { name:"Loaded / handed over", icon:"📦" },
+      { name:"Vessel departed / shipment confirmed", icon:"🌊" }
+    ]
   }
+
 };
 
 function getWorkflowConfig(status){
