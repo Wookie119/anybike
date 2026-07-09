@@ -1,12 +1,12 @@
 const OPERATIONS_TASKS = [
-  "Purchase agreed",
-  "Seller details verified",
-  "Deposit received",
-  "Collection booked",
-  "Bike received",
-  "Inspection completed",
-  "Documents uploaded",
-  "Ready for Shipping"
+  { name:"Purchase agreed", icon:"🤝" },
+  { name:"Seller details verified", icon:"🧾" },
+  { name:"Deposit received", icon:"💰" },
+  { name:"Collection booked", icon:"🚚" },
+  { name:"Bike received", icon:"🏍️" },
+  { name:"Inspection completed", icon:"🔎" },
+  { name:"Documents uploaded", icon:"📄" },
+  { name:"Ready for Shipping", icon:"🚢" }
 ];
 
 function getOperationsChecklist(enquiry){
@@ -18,48 +18,50 @@ function getOperationsProgress(enquiry){
   let done = 0;
 
   OPERATIONS_TASKS.forEach(function(task){
-    if(data[task] === true){
-      done++;
-    }
+    if(data[task.name] === true){ done++; }
   });
 
-  return {
-    done: done,
-    total: OPERATIONS_TASKS.length
-  };
+  return { done:done, total:OPERATIONS_TASKS.length };
 }
 
 function renderOperationsWorkflow(enquiry){
   const currentStatus = String(enquiry.lead_status || enquiry.status || "").trim();
-
-  if(currentStatus !== "Operations"){
-    return "";
-  }
+  if(currentStatus !== "Operations"){ return ""; }
 
   const data = getOperationsChecklist(enquiry);
   const progress = getOperationsProgress(enquiry);
+  const percent = Math.round((progress.done / progress.total) * 100);
 
   let html = `
     <div class="workflow-box">
       <div class="workflow-head">
-        <strong>Operations (${progress.done}/${progress.total})</strong>
+        <div>
+          <strong>📦 Operations (${progress.done}/${progress.total})</strong>
+          <div class="workflow-percent">${percent}% complete</div>
+        </div>
         <span>Internal workflow</span>
+      </div>
+
+      <div class="workflow-progress">
+        <div style="width:${percent}%"></div>
       </div>
 
       <div class="workflow-list">
   `;
 
   OPERATIONS_TASKS.forEach(function(task){
-    const checked = data[task] === true ? "checked" : "";
+    const checked = data[task.name] === true ? "checked" : "";
+    const doneClass = data[task.name] === true ? " task-done" : "";
 
     html += `
-      <label class="workflow-item">
+      <label class="workflow-item${doneClass}">
         <input
           type="checkbox"
           ${checked}
-          onchange="toggleOperationsTask(${enquiry.id}, '${task.replace(/'/g, "\\'")}', this.checked)"
+          onchange="toggleOperationsTask(${enquiry.id}, '${task.name.replace(/'/g, "\\'")}', this.checked)"
         >
-        <span>${task}</span>
+        <span class="task-icon">${task.icon}</span>
+        <span>${task.name}</span>
       </label>
     `;
   });
@@ -87,9 +89,7 @@ async function toggleOperationsTask(enquiryId, taskName, isDone){
 
   const { error } = await sb
     .from("bike_enquiries")
-    .update({
-      operations_checklist: current
-    })
+    .update({ operations_checklist: current })
     .eq("id", enquiryId);
 
   if(error){
