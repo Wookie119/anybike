@@ -10,6 +10,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -2507,6 +2508,62 @@ function money(v){
   return v ? "£" + Number(v).toLocaleString("en-GB") : "POA";
 }
 
+function captureDeal360State(enquiryId){
+  const id = enquiryId || openEnquiryId;
+  if(!id){ return null; }
+
+  const row = document.getElementById("enquiry-" + id);
+  if(!row){ return { enquiryId:String(id), openPanels:[0] }; }
+
+  const panels = Array.from(row.querySelectorAll(".deal360-panel"));
+
+  return {
+    enquiryId:String(id),
+    openPanels: panels
+      .map(function(panel, index){ return panel.open ? index : null; })
+      .filter(function(index){ return index !== null; })
+  };
+}
+
+function restoreDeal360State(state){
+  if(!state || !state.enquiryId){ return; }
+
+  setTimeout(function(){
+    const row = document.getElementById("enquiry-" + state.enquiryId);
+    if(!row){ return; }
+
+    document.querySelectorAll(".enquiry.open").forEach(function(item){
+      if(item !== row){ item.classList.remove("open"); }
+    });
+
+    row.classList.add("open");
+    openEnquiryId = state.enquiryId;
+
+    const panels = Array.from(row.querySelectorAll(".deal360-panel"));
+
+    panels.forEach(function(panel, index){
+      panel.open = state.openPanels.includes(index);
+    });
+
+    panels.forEach(function(panel){
+      panel.addEventListener("toggle", function(){
+        // Native details toggle preserved.
+      }, { once:true });
+    });
+
+    document.querySelectorAll('[id^="netprofit-"]').forEach(function(el){
+      const calcId = el.id.replace("netprofit-", "");
+      if(typeof calcDeal === "function"){ calcDeal(calcId); }
+    });
+  }, 350);
+}
+
+async function reloadKeepingDealOpen(enquiryId){
+  const state = captureDeal360State(enquiryId || openEnquiryId);
+  await loadEnquiries();
+  restoreDeal360State(state);
+}
+
 function filterStaff(staffName){
   currentStaffFilter = staffName;
   window.adminStaffFilter = staffName;
@@ -2586,6 +2643,8 @@ function filterEnquiries(type){
     activeBtn.classList.add("active");
   }
 
+  const deal360State = captureDeal360State(openEnquiryId);
+
   let rows = [...allEnquiries];
 
   const statusMap = {
@@ -2623,6 +2682,7 @@ function filterEnquiries(type){
   }
 
   render(rows);
+  restoreDeal360State(deal360State);
 }
   
 
@@ -3575,7 +3635,7 @@ async function updateStatus(id,status){
 
   alert("Saved: " + status);
 
-  loadEnquiries();
+  await reloadKeepingDealOpen(id);
 
 }
 
@@ -3611,7 +3671,7 @@ async function updateLeadStatus(id, leadStatus){
 
   alert("Lead Status updated: " + leadStatus);
 
-  await loadEnquiries();
+  await reloadKeepingDealOpen(enquiryId);
 }
 
 async function assignDeal(id, staffName){
@@ -3638,7 +3698,7 @@ async function assignDeal(id, staffName){
       : "Deal unassigned"
   );
 
-  loadEnquiries();
+  await reloadKeepingDealOpen(id);
 
 }
 
@@ -3767,7 +3827,7 @@ await loadMessages(
 );
 
 /* Refresh the enquiry list so the new status appears immediately */
-await loadEnquiries();
+await reloadKeepingDealOpen(enquiryId);
 
 }
   
