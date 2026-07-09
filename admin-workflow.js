@@ -1,55 +1,74 @@
-const OPERATIONS_TASKS = [
-  { name:"Purchase agreed", icon:"🤝" },
-  { name:"Seller details verified", icon:"🧾" },
-  { name:"Deposit received", icon:"💰" },
-  { name:"Collection booked", icon:"🚚" },
-  { name:"Bike received", icon:"🏍️" },
-  { name:"Inspection completed", icon:"🔎" },
-  { name:"Documents uploaded", icon:"📄" },
-  { name:"Ready for Shipping", icon:"🚢" }
-];
+const ANYBIKE_WORKFLOWS = {
+  Operations: {
+    icon: "📦",
+    column: "operations_checklist",
+    tasks: [
+      { name:"Purchase agreed", icon:"🤝" },
+      { name:"Seller details verified", icon:"🧾" },
+      { name:"Deposit received", icon:"💰" },
+      { name:"Collection booked", icon:"🚚" },
+      { name:"Bike received", icon:"🏍️" },
+      { name:"Inspection completed", icon:"🔎" },
+      { name:"Documents uploaded", icon:"📄" },
+      { name:"Ready for Shipping", icon:"🚢" }
+    ]
+  }
+};
 
-function getOperationsChecklist(enquiry){
-  return enquiry.operations_checklist || {};
+function getWorkflowConfig(status){
+  return ANYBIKE_WORKFLOWS[String(status || "").trim()] || null;
 }
 
-function getOperationsProgress(enquiry){
-  const data = getOperationsChecklist(enquiry);
+function getWorkflowData(enquiry, workflow){
+  return enquiry[workflow.column] || {};
+}
+
+function getWorkflowProgress(enquiry, workflow){
+  const data = getWorkflowData(enquiry, workflow);
   let done = 0;
 
-  OPERATIONS_TASKS.forEach(function(task){
-    if(data[task.name] === true){ done++; }
+  workflow.tasks.forEach(function(task){
+    if(data[task.name] === true){
+      done++;
+    }
   });
 
-  return { done:done, total:OPERATIONS_TASKS.length };
+  return {
+    done: done,
+    total: workflow.tasks.length,
+    percent: Math.round((done / workflow.tasks.length) * 100)
+  };
 }
 
-function renderOperationsWorkflow(enquiry){
-  const currentStatus = String(enquiry.lead_status || enquiry.status || "").trim();
-  if(currentStatus !== "Operations"){ return ""; }
+function renderWorkflow(enquiry){
+  const status = String(enquiry.lead_status || enquiry.status || "").trim();
+  const workflow = getWorkflowConfig(status);
 
-  const data = getOperationsChecklist(enquiry);
-  const progress = getOperationsProgress(enquiry);
-  const percent = Math.round((progress.done / progress.total) * 100);
+  if(!workflow){
+    return "";
+  }
+
+  const data = getWorkflowData(enquiry, workflow);
+  const progress = getWorkflowProgress(enquiry, workflow);
 
   let html = `
     <div class="workflow-box">
       <div class="workflow-head">
         <div>
-          <strong>📦 Operations (${progress.done}/${progress.total})</strong>
-          <div class="workflow-percent">${percent}% complete</div>
+          <strong>${workflow.icon} ${status} (${progress.done}/${progress.total})</strong>
+          <div class="workflow-percent">${progress.percent}% complete</div>
         </div>
         <span>Internal workflow</span>
       </div>
 
       <div class="workflow-progress">
-        <div style="width:${percent}%"></div>
+        <div style="width:${progress.percent}%"></div>
       </div>
 
       <div class="workflow-list">
   `;
 
-  OPERATIONS_TASKS.forEach(function(task){
+  workflow.tasks.forEach(function(task){
     const checked = data[task.name] === true ? "checked" : "";
     const doneClass = data[task.name] === true ? " task-done" : "";
 
@@ -58,7 +77,7 @@ function renderOperationsWorkflow(enquiry){
         <input
           type="checkbox"
           ${checked}
-          onchange="toggleOperationsTask(${enquiry.id}, '${task.name.replace(/'/g, "\\'")}', this.checked)"
+          onchange="toggleWorkflowTask(${enquiry.id}, '${status.replace(/'/g, "\\'")}', '${task.name.replace(/'/g, "\\'")}', this.checked)"
         >
         <span class="task-icon">${task.icon}</span>
         <span>${task.name}</span>
@@ -74,7 +93,11 @@ function renderOperationsWorkflow(enquiry){
   return html;
 }
 
-async function toggleOperationsTask(enquiryId, taskName, isDone){
+function renderOperationsWorkflow(enquiry){
+  return renderWorkflow(enquiry);
+}
+
+async function toggleWorkflowTask(enquiryId, status, taskName, isDone){
   const enquiry = allEnquiries.find(function(item){
     return Number(item.id) === Number(enquiryId);
   });
@@ -84,21 +107,31 @@ async function toggleOperationsTask(enquiryId, taskName, isDone){
     return;
   }
 
-  const current = enquiry.operations_checklist || {};
+  const workflow = getWorkflowConfig(status);
+
+  if(!workflow){
+    alert("Workflow not found.");
+    return;
+  }
+
+  const current = enquiry[workflow.column] || {};
   current[taskName] = isDone;
+
+  const updateData = {};
+  updateData[workflow.column] = current;
 
   const { error } = await sb
     .from("bike_enquiries")
-    .update({ operations_checklist: current })
+    .update(updateData)
     .eq("id", enquiryId);
 
   if(error){
-    alert("Could not save Operations task.");
+    alert("Could not save workflow task.");
     console.error(error);
     return;
   }
 
-  enquiry.operations_checklist = current;
+  enquiry[workflow.column] = current;
 
   if(typeof filterEnquiries === "function"){
     filterEnquiries(currentFilter || "all");
