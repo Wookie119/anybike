@@ -14,8 +14,6 @@
 <link rel="stylesheet" href="admin-shell.css?v=9000">
 <meta name="robots" content="noindex,nofollow">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-
 <style>
 :root{
   --red:#ed1c24;
@@ -1498,6 +1496,74 @@ color:#ed1c24;
   height:auto !important;
 }
 
+
+/* GLOBAL OPERATIONS SVG MAP — STABLE CUSTOMER 360 APPROACH */
+.operations-svg-map{
+  position:relative;
+  width:100%;
+  height:430px;
+  overflow:hidden;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,.09);
+  background:#070707;
+}
+.operations-svg-map svg{display:block;width:100%;height:100%}
+.operations-map-point{
+  position:absolute;
+  transform:translate(-50%,-50%);
+  min-width:32px;
+  height:32px;
+  padding:0 9px;
+  border:2px solid #fff;
+  border-radius:999px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:#fff;
+  font-size:12px;
+  font-weight:950;
+  cursor:pointer;
+  box-shadow:0 0 18px rgba(0,0,0,.55);
+  transition:transform .14s ease,box-shadow .14s ease;
+  z-index:3;
+}
+.operations-map-point:hover{
+  transform:translate(-50%,-50%) scale(1.14);
+  box-shadow:0 0 22px rgba(237,28,36,.50);
+}
+.operations-map-point.type-lead{background:#33cc66}
+.operations-map-point.type-buyer{background:#4da3ff}
+.operations-map-point.type-operations{background:#9b6cff}
+.operations-map-point.type-shipping{background:#ffb24a}
+.operations-map-point.type-mismatch{background:#ed1c24}
+.operations-map-point .point-tooltip{
+  position:absolute;
+  left:50%;
+  bottom:42px;
+  width:220px;
+  transform:translateX(-50%);
+  display:none;
+  padding:10px;
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:10px;
+  background:#111;
+  color:#fff;
+  text-align:left;
+  box-shadow:0 16px 40px rgba(0,0,0,.45);
+  pointer-events:none;
+  z-index:10;
+}
+.operations-map-point:hover .point-tooltip{display:block}
+.point-tooltip strong{display:block;margin-bottom:4px}
+.point-tooltip small{color:#aaa;line-height:1.4}
+.country-card-row.active{
+  border-color:#ed1c24;
+  background:rgba(237,28,36,.10);
+}
+@media(max-width:900px){
+  .operations-svg-map{height:340px}
+}
+
 </style>
 </head>
 
@@ -1688,7 +1754,7 @@ color:#ed1c24;
   <div class="operations-map-top">
     <div>
       <h3>Live Operations Map</h3>
-      <div class="small">Observed IP locations where available. Declared locations remain visible for comparison.</div>
+      <div class="small">Observed IP country where available; otherwise the declared customer country is used.</div>
     </div>
 
     <div class="map-stats compact-map-stats">
@@ -1699,7 +1765,7 @@ color:#ed1c24;
 
       <div class="mini-stat">
         <strong id="mapBuyers">0</strong>
-        <span>Global Buyers</span>
+        <span>Buyer Leads</span>
       </div>
 
       <div class="mini-stat">
@@ -1714,11 +1780,23 @@ color:#ed1c24;
     </div>
   </div>
 
-  <div id="worldMap" class="operations-map-canvas"></div>
+  <div class="operations-svg-map" id="operationsMapWrap">
+    <svg viewBox="0 0 1000 500" preserveAspectRatio="none" aria-label="AnyBike global operations activity map">
+      <rect width="1000" height="500" fill="#080808"/>
+      <path d="M110 160 C210 80 330 100 350 185 C300 255 180 250 115 220 Z" fill="#171717" stroke="#333"/>
+      <path d="M405 125 C500 65 650 85 715 170 C665 250 500 265 400 210 Z" fill="#171717" stroke="#333"/>
+      <path d="M450 260 C545 210 665 235 710 322 C630 395 500 390 440 330 Z" fill="#171717" stroke="#333"/>
+      <path d="M720 175 C825 120 930 145 955 235 C895 305 770 292 710 240 Z" fill="#171717" stroke="#333"/>
+      <path d="M760 340 C840 310 915 335 940 405 C880 455 785 435 745 390 Z" fill="#171717" stroke="#333"/>
+      <text x="500" y="35" fill="#555" text-anchor="middle" font-size="22" font-weight="900">
+        ANYBIKE GLOBAL OPERATIONS
+      </text>
+    </svg>
+  </div>
 
   <div class="map-legend">
     <span><i class="legend-dot lead-dot"></i> Active deal</span>
-    <span><i class="legend-dot buyer-dot"></i> Global buyer</span>
+    <span><i class="legend-dot buyer-dot"></i> Buyer lead</span>
     <span><i class="legend-dot operations-dot"></i> Operations</span>
     <span><i class="legend-dot shipping-dot"></i> Shipping</span>
     <span><i class="legend-dot mismatch-dot"></i> Location mismatch</span>
@@ -1971,8 +2049,6 @@ color:#ed1c24;
 </div>
 
 </div>
-
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="admin.js?v=4001"></script>
 <script src="admin-kpis.js?v=1"></script>
   
@@ -2632,6 +2708,15 @@ renderLeadStatusPipeline(threads);
 
 }
 
+function escapeDashboardText(value){
+  return String(value || "")
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;")
+    .replace(/'/g,"&#039;");
+}
+
 async function loadWorldActivity(){
 
   const feed = document.getElementById("worldActivityFeed");
@@ -2639,43 +2724,97 @@ async function loadWorldActivity(){
 
   const items = [];
 
-   const {data: enquiries} = await sb
-  .from("bike_enquiries")
-  .select("id,destination_country,bike_id,created_at")
-  .order("created_at",{ascending:false})
-  .limit(5);
+  const enquiryResult = await sb
+    .from("bike_enquiries")
+    .select(`
+      id,
+      created_at,
+      updated_at,
+      replied_at,
+      lead_status,
+      status,
+      customer_name,
+      customer_email,
+      destination_country,
+      bike_id,
+      available_stock (
+        make,
+        model,
+        year
+      )
+    `)
+    .order("created_at",{ascending:false})
+    .limit(12);
 
-  (enquiries || []).forEach(function(e){
+  (enquiryResult.data || []).forEach(function(enquiry){
+    const bike = enquiry.available_stock || {};
+    const bikeName = [
+      bike.year,
+      bike.make,
+      bike.model
+    ].filter(Boolean).join(" ") || "Motorcycle enquiry";
+
+    const leadStatus = dashboardLeadStatus(enquiry);
+    const country = enquiry.destination_country || "Unknown Country";
+
     items.push({
-      when:new Date(e.created_at),
+      when:new Date(enquiry.created_at),
       html:`
-        <div class="work-item" onclick="location.href='admin-enquiries.html?open=${e.id}'" style="cursor:pointer;">
+        <div class="work-item"
+          onclick="location.href='admin-enquiries.html?open=${enquiry.id}'"
+          style="cursor:pointer;">
           <div>
-            <strong>🟢 ${e.destination_country || "Unknown Country"}</strong><br>
-              New motorcycle enquiry
-            </div>
-          <span>${timeAgo(e.created_at)}</span>
+            <strong>🟢 ${country}</strong><br>
+            New deal · ${bikeName}<br>
+            <span class="small">${leadStatus}</span>
+          </div>
+          <span>${timeAgo(enquiry.created_at)}</span>
         </div>
       `
     });
   });
 
-  const {data: buyers} = await sb
-    .from("global_buyer_network")
-    .select("id,country,business_name,created_at")
+  const messageResult = await sb
+    .from("enquiry_messages")
+    .select("enquiry_id,sender,message,created_at")
     .order("created_at",{ascending:false})
-    .limit(5);
+    .limit(20);
 
-  (buyers || []).forEach(function(b){
+  (messageResult.data || []).forEach(function(message){
+    if(!String(message.sender || "").toLowerCase().includes("customer")){
+      return;
+    }
+
+    const enquiry = (enquiryResult.data || []).find(function(item){
+      return Number(item.id) === Number(message.enquiry_id);
+    });
+
+    const bike = enquiry && enquiry.available_stock
+      ? enquiry.available_stock
+      : {};
+
+    const bikeName = [
+      bike.year,
+      bike.make,
+      bike.model
+    ].filter(Boolean).join(" ") || "Motorcycle enquiry";
+
+    const country = enquiry && enquiry.destination_country
+      ? enquiry.destination_country
+      : "Unknown Country";
+
     items.push({
-      when:new Date(b.created_at),
+      when:new Date(message.created_at),
       html:`
-        <div class="work-item" onclick="location.href='admin-global-buyer-network.html'" style="cursor:pointer;">
+        <div class="work-item"
+          onclick="location.href='admin-enquiries.html?open=${message.enquiry_id}&focus=messages'"
+          style="cursor:pointer;">
           <div>
-            <strong>🔵 ${b.country || "Unknown Country"}</strong><br>
-            New global buyer ${b.business_name || ""}
+            <strong>🔴 ${country}</strong><br>
+            Customer replied · ${bikeName}<br>
+            <span class="small">${escapeDashboardText(message.message || "Customer reply")}</span>
           </div>
-          <span>${timeAgo(b.created_at)}</span>
+          <span>${timeAgo(message.created_at)}</span>
         </div>
       `
     });
@@ -2688,116 +2827,33 @@ async function loadWorldActivity(){
   if(!items.length){
     feed.innerHTML = `
       <div class="work-item">
-        <span>No activity yet.</span>
+        <span>No recent Bike Sales activity.</span>
         <span>🌍</span>
       </div>
     `;
     return;
   }
 
-  feed.innerHTML = items.slice(0,8).map(function(x){
-    return x.html;
+  feed.innerHTML = items.slice(0,8).map(function(item){
+    return item.html;
   }).join("");
-
-}
-
-async function loadGlobalOperations(){
-  
-  /* Bike enquiries */
-  const { data: leads } = await sb
-    .from("bike_enquiries")
-    .select("destination_country");
-
-  /* Global Buyer Network */
-  const { data: buyers } = await sb
-    .from("global_buyer_network")
-    .select("country");
-
-  const leadCount = leads ? leads.length : 0;
-  const buyerCount = buyers ? buyers.length : 0;
-
-  const countries = new Set();
-  const totals = {};
-
-  (leads || []).forEach(r=>{
-
-    if(r.destination_country){
-
-      countries.add(r.destination_country);
-
-      totals[r.destination_country] =
-        (totals[r.destination_country] || 0) + 1;
-
-    }
-
-  });
-
-  (buyers || []).forEach(r=>{
-
-    if(r.country){
-
-      countries.add(r.country);
-
-      totals[r.country] =
-        (totals[r.country] || 0) + 1;
-
-    }
-
-  });
-
-  document.getElementById("mapCustomers").textContent = leadCount;
-  document.getElementById("mapBuyers").textContent = buyerCount;
-  document.getElementById("mapCountries").textContent = countries.size;
-
-  let topCountry = "";
-  let highest = 0;
-
-  Object.keys(totals).forEach(country=>{
-
-    if(totals[country] > highest){
-
-      highest = totals[country];
-      topCountry = country;
-
-    }
-
-  });
-
-  if(topCountry){
-
-    document.getElementById("countrySummary").innerHTML = `
-
-      <div class="country-placeholder">
-
-        <h3>🌍 ${topCountry}</h3>
-
-        <div class="country-row">
-          <span>Active Leads</span>
-          <strong>${leadCount}</strong>
-        </div>
-
-        <div class="country-row">
-          <span>Global Buyers</span>
-          <strong>${buyerCount}</strong>
-        </div>
-
-        <div class="country-row">
-          <span>Countries</span>
-          <strong>${countries.size}</strong>
-        </div>
-
-      </div>
-
-    `;
-
-  }
-
 }
 
 
-let anyBikeWorldMap = null;
-let anyBikeWorldMapLayer = null;
+const operationsCountryCoords = {
+  "United Kingdom":[48,38],"UK":[48,38],"Ireland":[45,37],
+  "Germany":[52,36],"France":[49,39],"Spain":[47,45],"Italy":[53,44],
+  "Netherlands":[50,36],"Poland":[56,36],"Romania":[58,41],
+  "UAE":[63,50],"United Arab Emirates":[63,50],"Saudi Arabia":[60,53],"Qatar":[63,52],
+  "USA":[22,40],"United States":[22,40],"Canada":[21,28],"Mexico":[20,52],
+  "Brazil":[35,70],"South Africa":[56,78],"Kenya":[58,66],"Nigeria":[51,62],
+  "India":[69,55],"Pakistan":[66,52],"China":[76,43],"Japan":[88,43],
+  "Thailand":[75,59],"Malaysia":[76,64],"Singapore":[77,66],
+  "Australia":[84,76],"New Zealand":[93,82]
+};
+
 let anyBikeCountryData = {};
+let selectedOperationsCountry = "";
 
 function normaliseCountryName(value){
   return String(value || "").trim().toLowerCase();
@@ -2809,132 +2865,40 @@ function activeDashboardLead(enquiry){
 }
 
 function locationMismatch(enquiry){
-  const declared = normaliseCountryName(
-    enquiry.destination_country ||
-    enquiry.country
-  );
-
-  const observed = normaliseCountryName(
-    enquiry.ip_country
-  );
-
+  const declared = normaliseCountryName(enquiry.destination_country || enquiry.country);
+  const observed = normaliseCountryName(enquiry.ip_country);
   return Boolean(declared && observed && declared !== observed);
 }
 
-function enquiryMapCoordinates(enquiry){
-  const lat = Number(enquiry.ip_latitude);
-  const lng = Number(enquiry.ip_longitude);
+function countryCoordinates(country){
+  if(operationsCountryCoords[country]) return operationsCountryCoords[country];
 
-  if(Number.isFinite(lat) && Number.isFinite(lng)){
-    return [lat,lng];
-  }
-
-  return null;
-}
-
-function markerColourForEnquiry(enquiry){
-  if(locationMismatch(enquiry)){ return "#ed1c24"; }
-
-  const status = dashboardLeadStatus(enquiry);
-
-  if(status === "Operations"){ return "#9b6cff"; }
-  if(status === "Shipping"){ return "#ffb24a"; }
-
-  return "#33cc66";
-}
-
-function makeMapMarker(latlng,colour){
-  return L.circleMarker(latlng,{
-    radius:8,
-    weight:2,
-    color:"#fff",
-    opacity:.9,
-    fillColor:colour,
-    fillOpacity:.92
-  });
-}
-
-function mapPopupForEnquiry(enquiry){
-  const declared = enquiry.destination_country || enquiry.country || "Not supplied";
-  const observedParts = [
-    enquiry.ip_city,
-    enquiry.ip_region,
-    enquiry.ip_country
-  ].filter(Boolean);
-
-  const observed = observedParts.length
-    ? observedParts.join(", ")
-    : "Not available";
-
-  const mismatch = locationMismatch(enquiry);
-
-  return `
-    <div class="map-popup-title">${dashboardBikeName(enquiry)}</div>
-    <div class="map-popup-row"><strong>${dashboardCustomerName(enquiry)}</strong></div>
-    <div class="map-popup-row">Status: ${dashboardLeadStatus(enquiry)}</div>
-    <div class="map-popup-row">Declared: ${declared}</div>
-    <div class="map-popup-row">Observed IP: ${observed}</div>
-    ${enquiry.ip_accuracy_radius ? `<div class="map-popup-row">Approx. accuracy: ${enquiry.ip_accuracy_radius} km</div>` : ""}
-    ${mismatch ? `<div class="map-popup-warning">⚠ Declared and observed countries do not match</div>` : ""}
-    <a class="map-popup-link" href="admin-enquiries.html?open=${encodeURIComponent(enquiry.id)}">Open Deal →</a>
-  `;
-}
-
-function initialiseOperationsMap(){
-  const mapElement = document.getElementById("worldMap");
-
-  if(!mapElement || typeof L === "undefined"){
-    return null;
-  }
-
-  if(anyBikeWorldMap){
-    return anyBikeWorldMap;
-  }
-
-  anyBikeWorldMap = L.map("worldMap",{
-    worldCopyJump:true,
-    zoomControl:true
-  }).setView([25,10],2);
-
-  L.tileLayer(
-    "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
-    {
-      subdomains:"abcd",
-      maxZoom:20,
-      noWrap:false,
-      attribution:"&copy; OpenStreetMap contributors &copy; CARTO"
-    }
-  ).addTo(anyBikeWorldMap);
-
-  anyBikeWorldMapLayer = L.layerGroup().addTo(anyBikeWorldMap);
-
-  function refreshMapLayout(){
-    if(!anyBikeWorldMap){ return; }
-    anyBikeWorldMap.invalidateSize(true);
-  }
-
-  window.addEventListener("load",function(){
-    [100,400,1000].forEach(function(delay){
-      setTimeout(refreshMapLayout,delay);
-    });
+  const key = Object.keys(operationsCountryCoords).find(function(name){
+    return String(country || "").toLowerCase().includes(name.toLowerCase());
   });
 
-  if(typeof ResizeObserver !== "undefined"){
-    const mapShell = mapElement.closest(".operations-map-shell") || mapElement;
-    const observer = new ResizeObserver(function(){
-      setTimeout(refreshMapLayout,50);
-    });
-    observer.observe(mapShell);
-  }
-
-  return anyBikeWorldMap;
+  return key ? operationsCountryCoords[key] : null;
 }
 
-function renderCountrySummary(countryName){
+function operationsPointType(countryData){
+  if(countryData.mismatches > 0) return "mismatch";
+  if(countryData.shipping > 0) return "shipping";
+  if(countryData.operations > 0) return "operations";
+  if(countryData.leads > 0) return "lead";
+  return "buyer";
+}
+
+function renderOperationsCountrySummary(countryName){
   const box = document.getElementById("countrySummary");
   const deadlines = document.getElementById("countryDeadlines");
 
-  if(!box){ return; }
+  selectedOperationsCountry = countryName || "";
+
+  document.querySelectorAll(".country-card-row").forEach(function(row){
+    row.classList.toggle("active",row.getAttribute("data-country")===selectedOperationsCountry);
+  });
+
+  if(!box) return;
 
   const data = anyBikeCountryData[countryName];
 
@@ -2943,78 +2907,70 @@ function renderCountrySummary(countryName){
       <div class="country-placeholder">
         <h3>🌍 No Country Selected</h3>
         <div class="country-row"><span>Active Leads</span><strong>0</strong></div>
-        <div class="country-row"><span>Global Buyers</span><strong>0</strong></div>
+        <div class="country-row"><span>Buyer Leads</span><strong>0</strong></div>
         <div class="country-row"><span>Location Mismatches</span><strong>0</strong></div>
       </div>
     `;
-
-    if(deadlines){
-      deadlines.textContent = "No country selected.";
-    }
-
+    if(deadlines) deadlines.textContent="No country selected.";
     return;
   }
 
   box.innerHTML = `
     <div class="country-placeholder">
-      <h3>🌍 ${countryName}</h3>
+      <h3>🌍 ${escapeDashboardText(countryName)}</h3>
       <div class="country-row"><span>Active Leads</span><strong>${data.leads}</strong></div>
-      <div class="country-row"><span>Global Buyers</span><strong>${data.buyers}</strong></div>
+      <div class="country-row"><span>Buyer Leads</span><strong>${data.buyers}</strong></div>
       <div class="country-row"><span>Operations</span><strong>${data.operations}</strong></div>
       <div class="country-row"><span>Shipping</span><strong>${data.shipping}</strong></div>
+      <div class="country-row"><span>Customer Replies</span><strong>${data.replies}</strong></div>
       <div class="country-row"><span>Location Mismatches</span><strong>${data.mismatches}</strong></div>
     </div>
   `;
 
   if(deadlines){
-    const actions = [];
-
-    if(data.operations){
-      actions.push(`${data.operations} Operations deal${data.operations === 1 ? "" : "s"} require monitoring.`);
-    }
-
-    if(data.shipping){
-      actions.push(`${data.shipping} Shipping deal${data.shipping === 1 ? "" : "s"} require monitoring.`);
-    }
-
-    if(data.mismatches){
-      actions.push(`${data.mismatches} location mismatch${data.mismatches === 1 ? "" : "es"} require review.`);
-    }
+    const actions=[];
+    if(data.replies) actions.push(`${data.replies} customer repl${data.replies===1?"y":"ies"} need attention.`);
+    if(data.operations) actions.push(`${data.operations} Operations deal${data.operations===1?"":"s"} require monitoring.`);
+    if(data.shipping) actions.push(`${data.shipping} Shipping deal${data.shipping===1?"":"s"} require monitoring.`);
+    if(data.mismatches) actions.push(`${data.mismatches} location mismatch${data.mismatches===1?"":"es"} require review.`);
 
     deadlines.innerHTML = actions.length
       ? actions.map(function(action){
-          return `<div class="work-item"><span>${action}</span><span>→</span></div>`;
+          return `<div class="work-item"><span>${escapeDashboardText(action)}</span><span>→</span></div>`;
         }).join("")
       : `<div class="work-item"><span>No urgent country actions.</span><span>OK</span></div>`;
   }
 }
 
-function renderTopCountryList(){
-  const box = document.getElementById("countrySummary");
-  if(!box){ return; }
+function renderOperationsCountryList(){
+  const box=document.getElementById("countrySummary");
+  if(!box) return;
 
-  const countries = Object.keys(anyBikeCountryData)
+  const countries=Object.keys(anyBikeCountryData)
+    .filter(function(country){return country!=="Unknown";})
     .sort(function(a,b){
-      const aTotal = anyBikeCountryData[a].leads + anyBikeCountryData[a].buyers;
-      const bTotal = anyBikeCountryData[b].leads + anyBikeCountryData[b].buyers;
-      return bTotal - aTotal;
+      const aData=anyBikeCountryData[a];
+      const bData=anyBikeCountryData[b];
+      return (bData.leads+bData.buyers+bData.replies)-(aData.leads+aData.buyers+aData.replies);
     })
-    .slice(0,6);
+    .slice(0,8);
 
   if(!countries.length){
-    renderCountrySummary("");
+    renderOperationsCountrySummary("");
     return;
   }
 
-  box.innerHTML = `
+  box.innerHTML=`
     <div class="country-placeholder">
       <h3>🌍 Country Overview</h3>
       <div class="country-card-list">
         ${countries.map(function(country){
-          const item = anyBikeCountryData[country];
+          const item=anyBikeCountryData[country];
           return `
-            <div class="country-card-row" onclick="renderCountrySummary('${country.replace(/'/g,"\\'")}')">
-              <span>${country}</span>
+            <div class="country-card-row"
+              data-country="${escapeDashboardText(country)}"
+              onclick="renderOperationsCountrySummary('${country.replace(/'/g,"\\'")}')">
+              <span>${escapeDashboardText(country)}</span>
               <strong>${item.leads} leads · ${item.buyers} buyers</strong>
             </div>
           `;
@@ -3024,134 +2980,118 @@ function renderTopCountryList(){
   `;
 }
 
-async function loadGlobalOperations(){
-  const map = initialiseOperationsMap();
+function renderOperationsSvgMap(){
+  const map=document.getElementById("operationsMapWrap");
+  if(!map) return;
 
-  const leadsResult = await sb
+  map.querySelectorAll(".operations-map-point").forEach(function(point){point.remove();});
+
+  Object.keys(anyBikeCountryData).forEach(function(country){
+    if(country==="Unknown") return;
+
+    const coords=countryCoordinates(country);
+    if(!coords) return;
+
+    const data=anyBikeCountryData[country];
+    const total=data.leads+data.buyers;
+    if(!total) return;
+
+    const type=operationsPointType(data);
+    const point=document.createElement("button");
+
+    point.type="button";
+    point.className="operations-map-point type-"+type;
+    point.style.left=coords[0]+"%";
+    point.style.top=coords[1]+"%";
+    point.setAttribute("aria-label",country+" operations summary");
+    point.innerHTML=`
+      ${total}
+      <span class="point-tooltip">
+        <strong>${escapeDashboardText(country)}</strong>
+        <small>
+          ${data.leads} active leads · ${data.buyers} buyer leads<br>
+          ${data.operations} Operations · ${data.shipping} Shipping<br>
+          ${data.replies} customer replies · ${data.mismatches} mismatches
+        </small>
+      </span>
+    `;
+
+    point.onclick=function(){renderOperationsCountrySummary(country);};
+    map.appendChild(point);
+  });
+}
+
+async function loadGlobalOperations(){
+  const leadsResult=await sb
     .from("bike_enquiries")
     .select("*")
     .order("created_at",{ascending:false});
 
-  const buyersResult = await sb
-    .from("global_buyer_network")
-    .select("*")
+  const buyerLeadResult=await sb
+    .from("message_centre_threads")
+    .select("id,source_type,country,lead_status,status,related_enquiry_id,created_at")
+    .in("source_type",[
+      "Private Buyer",
+      "Motorcycle Dealer",
+      "Motorcycle Trader",
+      "Motorcycle Importer",
+      "Motorcycle Exporter",
+      "Trade Partner"
+    ])
+    .neq("status","Deleted")
     .order("created_at",{ascending:false});
 
-  const leads = (leadsResult.data || []).filter(activeDashboardLead);
-  const buyers = buyersResult.data || [];
+  const messageResult=await sb
+    .from("enquiry_messages")
+    .select("enquiry_id,sender,created_at")
+    .order("created_at",{ascending:false});
 
-  anyBikeCountryData = {};
+  const leads=(leadsResult.data||[]).filter(activeDashboardLead);
+  const buyerLeads=buyerLeadResult.data||[];
+  const latestMessageByEnquiry={};
+
+  (messageResult.data||[]).forEach(function(message){
+    const key=String(message.enquiry_id);
+    if(!latestMessageByEnquiry[key]) latestMessageByEnquiry[key]=message;
+  });
+
+  anyBikeCountryData={};
 
   function ensureCountry(country){
-    if(!country){ return null; }
-
-    if(!anyBikeCountryData[country]){
-      anyBikeCountryData[country] = {
-        leads:0,
-        buyers:0,
-        operations:0,
-        shipping:0,
-        mismatches:0
+    const cleanCountry=country||"Unknown";
+    if(!anyBikeCountryData[cleanCountry]){
+      anyBikeCountryData[cleanCountry]={
+        leads:0,buyers:0,operations:0,shipping:0,replies:0,mismatches:0
       };
     }
-
-    return anyBikeCountryData[country];
+    return anyBikeCountryData[cleanCountry];
   }
 
   leads.forEach(function(enquiry){
-    const country =
-      enquiry.ip_country ||
-      enquiry.destination_country ||
-      enquiry.country ||
-      "Unknown";
-
-    const item = ensureCountry(country);
+    const country=enquiry.ip_country||enquiry.destination_country||enquiry.country||"Unknown";
+    const item=ensureCountry(country);
     item.leads++;
 
-    const status = dashboardLeadStatus(enquiry);
+    const status=dashboardLeadStatus(enquiry);
+    if(status==="Operations") item.operations++;
+    if(status==="Shipping") item.shipping++;
+    if(locationMismatch(enquiry)) item.mismatches++;
 
-    if(status === "Operations"){ item.operations++; }
-    if(status === "Shipping"){ item.shipping++; }
-    if(locationMismatch(enquiry)){ item.mismatches++; }
+    const latest=latestMessageByEnquiry[String(enquiry.id)];
+    if(latest&&String(latest.sender||"").toLowerCase().includes("customer")) item.replies++;
   });
 
-  buyers.forEach(function(buyer){
-    const country = buyer.country || "Unknown";
-    const item = ensureCountry(country);
-    item.buyers++;
+  buyerLeads.forEach(function(thread){
+    ensureCountry(thread.country||"Unknown").buyers++;
   });
 
   setText("mapCustomers",leads.length);
-  setText("mapBuyers",buyers.length);
-  setText("mapCountries",Object.keys(anyBikeCountryData).filter(function(country){
-    return country !== "Unknown";
-  }).length);
+  setText("mapBuyers",buyerLeads.length);
+  setText("mapCountries",Object.keys(anyBikeCountryData).filter(function(country){return country!=="Unknown";}).length);
   setText("mapMismatches",leads.filter(locationMismatch).length);
 
-  if(map && anyBikeWorldMapLayer){
-    anyBikeWorldMapLayer.clearLayers();
-
-    const bounds = [];
-
-    leads.forEach(function(enquiry){
-      const coordinates = enquiryMapCoordinates(enquiry);
-
-      if(!coordinates){ return; }
-
-      const marker = makeMapMarker(
-        coordinates,
-        markerColourForEnquiry(enquiry)
-      );
-
-      marker.bindPopup(mapPopupForEnquiry(enquiry));
-      marker.addTo(anyBikeWorldMapLayer);
-      bounds.push(coordinates);
-    });
-
-    buyers.forEach(function(buyer){
-      const lat = Number(buyer.latitude || buyer.ip_latitude);
-      const lng = Number(buyer.longitude || buyer.ip_longitude);
-
-      if(!Number.isFinite(lat) || !Number.isFinite(lng)){ return; }
-
-      const marker = makeMapMarker([lat,lng],"#4da3ff");
-
-      marker.bindPopup(`
-        <div class="map-popup-title">${buyer.business_name || "Global Buyer"}</div>
-        <div class="map-popup-row">${buyer.country || "Unknown country"}</div>
-        <a class="map-popup-link" href="admin-global-buyer-network.html">Open Buyer Network →</a>
-      `);
-
-      marker.addTo(anyBikeWorldMapLayer);
-      bounds.push([lat,lng]);
-    });
-
-    if(bounds.length){
-      map.fitBounds(bounds,{
-        padding:[35,35],
-        maxZoom:5
-      });
-    }else{
-      map.setView([25,10],2);
-    }
-
-    [100,350,900].forEach(function(delay){
-      setTimeout(function(){
-        map.invalidateSize(true);
-
-        if(bounds.length){
-          map.fitBounds(bounds,{
-            padding:[35,35],
-            maxZoom:5
-          });
-        }else{
-          map.setView([20,0],2);
-        }
-      },delay);
-    });
-  }
-
-  renderTopCountryList();
+  renderOperationsSvgMap();
+  renderOperationsCountryList();
 }
 
 setHeader();
