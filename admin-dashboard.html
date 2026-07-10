@@ -2346,7 +2346,66 @@ function leadStatusFromThread(t){
   if(status === "Deleted") return "Closed";
   if(status === "Closed") return "Closed";
 
+  /* Legacy Bike Sales values */
+  if(status === "Checking Availability") return "Research / Availability";
+  if(status === "Negotiating Price & Lead Time") return "Negotiating";
+  if(status === "Waiting Customer Decision") return "Waiting Customer";
+  if(status === "Waiting Deposit") return "Payment / Deposit";
+  if(status === "Deposit Paid") return "Operations";
+  if(status === "Waiting Collection") return "Operations";
+  if(status === "Waiting Full Payment") return "Payment / Deposit";
+  if(status === "On Site") return "Operations";
+  if(status === "Ready To Ship") return "Shipping";
+  if(status === "Booked with Move Motorcycles") return "Shipping";
+  if(status === "At Port / Shipping Agent") return "Shipping";
+  if(status === "Completed") return "Completed";
+  if(status === "Lost") return "Lost";
+  if(status === "Save for Later") return "Save For Later";
+  if(status === "Save For Later") return "Save For Later";
+
   return "New Lead";
+}
+
+
+function buildDashboardPipelineRecords(enquiries,threads){
+  const records = [];
+  const linkedEnquiryIds = new Set();
+
+  /*
+    Bike Sales HQ is the authoritative owner of Lead Status
+    for single-bike enquiries.
+  */
+  (enquiries || []).forEach(function(enquiry){
+    records.push({
+      lead_status:enquiry.lead_status || "",
+      status:enquiry.status || "",
+      source_type:"Single Bike Enquiry",
+      related_enquiry_id:enquiry.id
+    });
+
+    linkedEnquiryIds.add(String(enquiry.id));
+  });
+
+  /*
+    Keep Message Centre-only leads in the dashboard pipeline,
+    but do not count a thread again when it belongs to a
+    Bike Sales enquiry already included above.
+  */
+  (threads || []).forEach(function(thread){
+    const relatedId =
+      thread.related_enquiry_id === null ||
+      thread.related_enquiry_id === undefined
+        ? ""
+        : String(thread.related_enquiry_id);
+
+    if(relatedId && linkedEnquiryIds.has(relatedId)){
+      return;
+    }
+
+    records.push(thread);
+  });
+
+  return records;
 }
 
 function renderLeadStatusPipeline(threads){
@@ -2718,6 +2777,7 @@ const { data: leadThreads } = await sb
   .order("created_at", { ascending:false });
 
 const threads = leadThreads || [];
+const pipelineRecords = buildDashboardPipelineRecords(rows,threads);
 
 const countSourceType = function(names){
   return threads.filter(function(t){
@@ -2740,7 +2800,7 @@ setText("kpiPrivateSellers", countSourceType([
   "Private Seller"
 ]));
 
-renderLeadStatusPipeline(threads);
+renderLeadStatusPipeline(pipelineRecords);
 
     const { data: actionThreads } = await sb
       .from("message_centre_threads")
