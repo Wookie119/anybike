@@ -2,6 +2,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -11,7 +12,7 @@
 <meta name="robots" content="noindex,nofollow">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-/* PHASE 1D: JavaScript sections labelled; execution order, function bodies and behaviour preserved. */
+/* COMMERCIAL KPI UPDATE: live pipeline value, expected profit, margin, average profit and weighted forecast. */
 /* PHASE 1 STABILISATION: syntax repaired; HTML and JavaScript preserved. */
 :root{--red:#ed1c24;--line:rgba(255,255,255,.12)}
 *{box-sizing:border-box}
@@ -3302,12 +3303,12 @@ body{
     </div>
   </div>
 
-  <div class="bike-sales-overview" aria-label="Bike Sales overview">
-    <div class="bike-sales-kpi"><span>Active Deals</span><strong id="salesActiveDeals">0</strong></div>
+  <div class="bike-sales-overview" aria-label="Bike Sales commercial overview">
     <div class="bike-sales-kpi"><span>Pipeline Value</span><strong id="salesPipelineValue">£0</strong></div>
-    <div class="bike-sales-kpi"><span>Waiting Customer</span><strong id="salesWaitingCustomer">0</strong></div>
-    <div class="bike-sales-kpi"><span>Operations</span><strong id="salesOperations">0</strong></div>
-    <div class="bike-sales-kpi"><span>Shipping</span><strong id="salesShipping">0</strong></div>
+    <div class="bike-sales-kpi"><span>Expected Profit</span><strong id="salesExpectedProfit">£0</strong></div>
+    <div class="bike-sales-kpi"><span>Average Margin</span><strong id="salesAverageMargin">0.0%</strong></div>
+    <div class="bike-sales-kpi"><span>Average Deal Profit</span><strong id="salesAverageDealProfit">£0</strong></div>
+    <div class="bike-sales-kpi"><span>Forecast Revenue</span><strong id="salesForecastRevenue">£0</strong></div>
   </div>
 </section>
 
@@ -4494,12 +4495,63 @@ function updateBikeSalesOverview(){
     return allEnquiries.filter(function(item){ return normaliseLeadStatus(item) === status; }).length;
   };
 
-  const closedStatuses = new Set(["Completed", "Closed", "Lost"]);
-  const active = allEnquiries.filter(function(item){ return !closedStatuses.has(normaliseLeadStatus(item)); }).length;
-  const pipelineValue = allEnquiries.reduce(function(total, item){
+  const excludedStatuses = new Set(["Completed", "Closed", "Lost", "Save For Later"]);
+  const activeDeals = allEnquiries.filter(function(item){
+    return !excludedStatuses.has(normaliseLeadStatus(item));
+  });
+
+  const dealRevenue = function(item){
     const bike = item.available_stock || {};
-    const value = Number(item.deal_retail_price || bike.price_gbp || bike.private_estimated_retail || 0);
-    return total + (Number.isFinite(value) ? value : 0);
+    const selling = Number(
+      item.deal_retail_price ||
+      bike.price_gbp ||
+      bike.private_estimated_retail ||
+      0
+    );
+    const adminFee = Number(item.deal_admin_fee || 0);
+    const exportDocs = Number(item.deal_export_docs_fee || 0);
+    const deliveryRevenue = Number(item.deal_delivery_revenue || 0);
+    const revenue = selling + adminFee + exportDocs + deliveryRevenue;
+    return Number.isFinite(revenue) ? revenue : 0;
+  };
+
+  const pipelineValue = activeDeals.reduce(function(total, item){
+    return total + dealRevenue(item);
+  }, 0);
+
+  const expectedProfit = activeDeals.reduce(function(total, item){
+    const profit = Number(dealEstimatedProfit(item));
+    return total + (Number.isFinite(profit) ? profit : 0);
+  }, 0);
+
+  const averageMargin = pipelineValue > 0
+    ? (expectedProfit / pipelineValue) * 100
+    : 0;
+
+  const averageDealProfit = activeDeals.length > 0
+    ? expectedProfit / activeDeals.length
+    : 0;
+
+  const forecastWeights = {
+    "New Lead": 0.10,
+    "Contact Made": 0.20,
+    "Information Needed": 0.20,
+    "Research / Availability": 0.25,
+    "Proposal Sent": 0.40,
+    "Negotiating": 0.60,
+    "Waiting Customer": 0.55,
+    "Confirmed": 0.85,
+    "Payment / Deposit": 0.95,
+    "Operations": 1.00,
+    "Shipping": 1.00
+  };
+
+  const forecastRevenue = activeDeals.reduce(function(total, item){
+    const status = normaliseLeadStatus(item);
+    const weight = Object.prototype.hasOwnProperty.call(forecastWeights, status)
+      ? forecastWeights[status]
+      : 0;
+    return total + (dealRevenue(item) * weight);
   }, 0);
 
   const setText = function(id, value){
@@ -4507,11 +4559,17 @@ function updateBikeSalesOverview(){
     if(element){ element.textContent = value; }
   };
 
-  setText("salesActiveDeals", active);
-  setText("salesPipelineValue", "£" + Math.round(pipelineValue).toLocaleString("en-GB"));
-  setText("salesWaitingCustomer", statusCount("Waiting Customer"));
-  setText("salesOperations", statusCount("Operations"));
-  setText("salesShipping", statusCount("Shipping"));
+  const formatMoney = function(value){
+    const rounded = Math.round(Number(value) || 0);
+    const sign = rounded < 0 ? "-£" : "£";
+    return sign + Math.abs(rounded).toLocaleString("en-GB");
+  };
+
+  setText("salesPipelineValue", formatMoney(pipelineValue));
+  setText("salesExpectedProfit", formatMoney(expectedProfit));
+  setText("salesAverageMargin", averageMargin.toFixed(1) + "%");
+  setText("salesAverageDealProfit", formatMoney(averageDealProfit));
+  setText("salesForecastRevenue", formatMoney(forecastRevenue));
 
   const countMap = {
     queueCountAll: allEnquiries.length,
