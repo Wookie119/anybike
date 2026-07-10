@@ -2670,7 +2670,7 @@ function captureDeal360State(enquiryId){
   if(!id){ return null; }
 
   const row = document.getElementById("enquiry-" + id);
-  if(!row){ return { enquiryId:String(id), openPanels:[0] }; }
+  if(!row){ return { enquiryId:String(id), openPanels:[], scrollY:window.scrollY }; }
 
   const panels = Array.from(row.querySelectorAll(".deal360-panel"));
 
@@ -2678,7 +2678,8 @@ function captureDeal360State(enquiryId){
     enquiryId:String(id),
     openPanels: panels
       .map(function(panel, index){ return panel.open ? index : null; })
-      .filter(function(index){ return index !== null; })
+      .filter(function(index){ return index !== null; }),
+    scrollY:window.scrollY
   };
 }
 
@@ -2712,6 +2713,10 @@ function restoreDeal360State(state){
       const calcId = el.id.replace("netprofit-", "");
       if(typeof calcDeal === "function"){ calcDeal(calcId); }
     });
+
+    if(Number.isFinite(state.scrollY)){
+      window.scrollTo({ top:state.scrollY, behavior:"auto" });
+    }
   }, 350);
 }
 
@@ -2754,15 +2759,23 @@ function updateStaffCounts(){
 }
 
 function toggleEnquiry(id){
-  const el=document.getElementById(`enquiry-${id}`);
-  if(!el) return;
-  
-  el.classList.toggle("open");
+  const el = document.getElementById(`enquiry-${id}`);
+  if(!el){ return; }
 
-  if(el.classList.contains("open")){
-    openEnquiryId=id;
+  const willOpen = !el.classList.contains("open");
+
+  document.querySelectorAll(".enquiry.open").forEach(function(item){
+    if(item !== el){
+      item.classList.remove("open");
+    }
+  });
+
+  if(willOpen){
+    el.classList.add("open");
+    openEnquiryId = id;
   }else{
-    openEnquiryId=null;
+    el.classList.remove("open");
+    openEnquiryId = null;
   }
 }
   
@@ -3427,7 +3440,7 @@ const shippingBadge = dealStatus === "Shipping" ? "In Progress" : "Not Started";
 
   <div class="deal360-panels">
 
-      <details class="deal360-panel" open>
+      <details class="deal360-panel">
         <summary><span>🏍 Customer & Motorcycle</span><span class="panel-badge">Live</span></summary>
       <div class="deal360-panel-body">
         <div class="detail-summary-grid">
