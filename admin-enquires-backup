@@ -3904,51 +3904,50 @@ function setMoney(id, value){
 
 function calcDeal(id){
 
-const purchase = dealNum(`purchase-${id}`);
-const prep = dealNum(`prep-${id}`);
-const deliveryCost = dealNum(`deliverycost-${id}`);
-const otherCost = dealNum(`othercost-${id}`);
+  const purchase = dealNum(`purchase-${id}`);
+  const prep = dealNum(`prep-${id}`);
+  const deliveryCost = dealNum(`deliverycost-${id}`);
+  const otherCost = dealNum(`othercost-${id}`);
 
-const selling = dealNum(`selling-${id}`);
-const adminfee = dealNum(`adminfee-${id}`);
-const exportDocs = dealNum(`exportdocs-${id}`);
-const deliveryCharge = dealNum(`deliverycharge-${id}`);
+  const selling = dealNum(`selling-${id}`);
+  const adminfee = dealNum(`adminfee-${id}`);
+  const exportDocs = dealNum(`exportdocs-${id}`);
+  const deliveryCharge = dealNum(`deliverycharge-${id}`);
 
-const totalCost =
-purchase +
-prep +
-deliveryCost +
-otherCost;
+  const totalCost = purchase + prep + deliveryCost + otherCost;
+  const invoicePrice = selling + adminfee + exportDocs + deliveryCharge;
+  const grossProfit = invoicePrice - purchase;
+  const netProfit = invoicePrice - totalCost;
+  const marginPercent = invoicePrice > 0
+    ? (netProfit / invoicePrice) * 100
+    : 0;
 
-const invoicePrice =
-selling +
-adminfee +
-exportDocs +
-deliveryCharge;
+  setMoney(`totalcost-${id}`, totalCost);
+  setMoney(`totalincome-${id}`, invoicePrice);
+  setMoney(`grossprofit-${id}`, grossProfit);
+  setMoney(`netprofit-${id}`, netProfit);
 
-const grossProfit =
-invoicePrice -
-purchase;
+  const marginEl = document.getElementById(`margin-${id}`);
+  if(marginEl){
+    marginEl.textContent = marginPercent.toFixed(2) + "%";
+    marginEl.style.color = marginPercent >= 0 ? "#33cc66" : "#ff4d4d";
+  }
 
-const netProfit =
-invoicePrice -
-totalCost;
-
-const marginPercent =
-invoicePrice > 0
-? (netProfit / invoicePrice) * 100
-: 0;
-
-setMoney(`totalcost-${id}`, totalCost);
-setMoney(`totalincome-${id}`, invoicePrice);
-setMoney(`grossprofit-${id}`, grossProfit);
-setMoney(`netprofit-${id}`, netProfit);
-
-const marginEl = document.getElementById(`margin-${id}`);
-if(marginEl){
-marginEl.textContent = marginPercent.toFixed(2) + "%";
-marginEl.style.color = marginPercent >= 0 ? "#33cc66" : "#ff4d4d";
-}
+  return {
+    purchase,
+    prep,
+    deliveryCost,
+    otherCost,
+    selling,
+    adminfee,
+    exportDocs,
+    deliveryCharge,
+    totalCost,
+    invoicePrice,
+    grossProfit,
+    netProfit,
+    marginPercent
+  };
 }
 
   
@@ -3967,75 +3966,55 @@ if(statusFromDashboard){
 
 async function saveDeal(enquiryId, bikeId){
 
-  const savedBy = document.getElementById(`savedby-${enquiryId}`).value;
+  const savedByEl = document.getElementById(`savedby-${enquiryId}`);
+  const savedBy = savedByEl ? savedByEl.value : "";
 
   if(!savedBy){
     alert("Please choose who saved the figures");
     return;
   }
 
-  const purchase = dealNum(`purchase-${enquiryId}`);
-  const prep = dealNum(`prep-${enquiryId}`);
-  const deliveryCost = dealNum(`deliverycost-${enquiryId}`);
-  const otherCost = dealNum(`othercost-${enquiryId}`);
+  /* Recalculate immediately before saving so every stored total is based on
+     the values currently visible in the calculator. */
+  const figures = calcDeal(enquiryId);
 
-  const selling = dealNum(`selling-${enquiryId}`);
-  const adminfee = dealNum(`adminfee-${enquiryId}`);
-  const exportDocs = dealNum(`exportdocs-${enquiryId}`);
-  const deliveryCharge = dealNum(`deliverycharge-${enquiryId}`);
+  const savedAt = new Date().toISOString();
 
-  const totalCost =
-    purchase +
-    prep +
-    deliveryCost +
-    otherCost;
+  const enquiryUpdate = {
+    deal_purchase_price: figures.purchase,
+    deal_prep_cost: figures.prep,
+    deal_delivery_cost: figures.deliveryCost,
+    deal_other_cost: figures.otherCost,
 
-  const invoicePrice =
-    selling +
-    adminfee +
-    exportDocs +
-    deliveryCharge;
+    deal_retail_price: figures.selling,
+    deal_admin_fee: figures.adminfee,
+    deal_export_docs_fee: figures.exportDocs,
+    deal_delivery_revenue: figures.deliveryCharge,
 
-  const grossProfit =
-    invoicePrice -
-    purchase;
+    deal_total_cost: figures.totalCost,
+    deal_total_income: figures.invoicePrice,
+    deal_gross_profit: figures.grossProfit,
+    deal_net_profit: figures.netProfit,
+    deal_margin_percent: figures.marginPercent,
 
-  const netProfit =
-    invoicePrice -
-    totalCost;
+    deal_expected_profit: figures.netProfit,
+    deal_saved_by: savedBy,
+    deal_saved_at: savedAt
+  };
 
-  const marginPercent =
-    invoicePrice > 0
-      ? (netProfit / invoicePrice) * 100
-      : 0;
-
-  const { error } = await sb
+  const { data: savedRows, error } = await sb
     .from("bike_enquiries")
-    .update({
-      deal_purchase_price: purchase,
-      deal_prep_cost: prep,
-      deal_delivery_cost: deliveryCost,
-      deal_other_cost: otherCost,
-
-      deal_retail_price: selling,
-      deal_admin_fee: adminfee,
-      deal_export_docs_fee: exportDocs,
-      deal_delivery_revenue: deliveryCharge,
-
-      deal_total_cost: totalCost,
-      deal_total_income: invoicePrice,
-      deal_gross_profit: grossProfit,
-      deal_net_profit: netProfit,
-      deal_margin_percent: marginPercent,
-
-      deal_expected_profit: netProfit,
-      deal_saved_by: savedBy,
-      deal_saved_at: new Date().toISOString()
-    })
-    .eq("id", Number(enquiryId));
+    .update(enquiryUpdate)
+    .eq("id", Number(enquiryId))
+    .select();
 
   if(error){
     alert("Deal save failed: " + error.message);
+    return;
+  }
+
+  if(!savedRows || !savedRows.length){
+    alert("Deal save failed: no enquiry record was updated.");
     return;
   }
 
@@ -4045,23 +4024,23 @@ async function saveDeal(enquiryId, bikeId){
       enquiry_id: Number(enquiryId),
       bike_id: bikeId ? Number(bikeId) : null,
 
-      purchase_price: purchase,
-      prep_cost: prep,
-      delivery_cost: deliveryCost,
-      other_cost: otherCost,
+      purchase_price: figures.purchase,
+      prep_cost: figures.prep,
+      delivery_cost: figures.deliveryCost,
+      other_cost: figures.otherCost,
 
-      retail_price: selling,
-      admin_fee: adminfee,
-      export_docs_fee: exportDocs,
-      delivery_revenue: deliveryCharge,
+      retail_price: figures.selling,
+      admin_fee: figures.adminfee,
+      export_docs_fee: figures.exportDocs,
+      delivery_revenue: figures.deliveryCharge,
 
-      total_cost: totalCost,
-      total_income: invoicePrice,
-      gross_profit: grossProfit,
-      net_profit: netProfit,
-      margin_percent: marginPercent,
+      total_cost: figures.totalCost,
+      total_income: figures.invoicePrice,
+      gross_profit: figures.grossProfit,
+      net_profit: figures.netProfit,
+      margin_percent: figures.marginPercent,
 
-      expected_profit: netProfit,
+      expected_profit: figures.netProfit,
       saved_by: savedBy
     });
 
@@ -4069,14 +4048,33 @@ async function saveDeal(enquiryId, bikeId){
     alert("Deal saved, but history failed: " + historyError.message);
     return;
   }
-  
+
+  /* Keep the local record in step immediately, then reload the full saved
+     enquiry so the Deal 360 header and calculator both show persisted data. */
+  const localRecord = allEnquiries.find(function(row){
+    return String(row.id) === String(enquiryId);
+  });
+
+  if(localRecord){
+    Object.assign(localRecord, enquiryUpdate);
+  }
+
   const msg = document.getElementById(`deal-saved-${enquiryId}`);
   if(msg){
     msg.textContent = "Saved by " + savedBy + " just now";
   }
 
-  alert("Deal figures saved permanently");
+  await reloadKeepingDealOpen(enquiryId);
+
+  alert(
+    "Deal figures saved permanently\n\n" +
+    "Total Cost: " + figures.totalCost.toLocaleString("en-GB", { style:"currency", currency:"GBP" }) + "\n" +
+    "Invoice Price: " + figures.invoicePrice.toLocaleString("en-GB", { style:"currency", currency:"GBP" }) + "\n" +
+    "Net Profit: " + figures.netProfit.toLocaleString("en-GB", { style:"currency", currency:"GBP" }) + "\n" +
+    "Margin: " + figures.marginPercent.toFixed(2) + "%"
+  );
 }
+
   
 
 async function markAllAdminNotificationsRead(){
