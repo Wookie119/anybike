@@ -35,7 +35,8 @@ function getWorkflow(status){
 }
 
 function getWorkflowData(enquiry, workflow){
-  return enquiry[workflow.column] || {};
+  const value = enquiry && workflow ? enquiry[workflow.column] : null;
+  return value && typeof value === "object" ? value : {};
 }
 
 function getWorkflowProgress(enquiry, workflow){
@@ -43,21 +44,21 @@ function getWorkflowProgress(enquiry, workflow){
   let done = 0;
 
   workflow.tasks.forEach(function(task){
-    if(data[task.name] === true){
-      done++;
-    }
+    if(data[task.name] === true){ done++; }
   });
 
   return {
-    done: done,
-    total: workflow.tasks.length,
-    percent: Math.round((done / workflow.tasks.length) * 100)
+    done:done,
+    total:workflow.tasks.length,
+    percent:workflow.tasks.length ? Math.round((done / workflow.tasks.length) * 100) : 0
   };
 }
 
 function renderWorkflow(enquiry){
   const workflow = getWorkflow(enquiry.lead_status || enquiry.status);
-  if(!workflow) return "";
+  if(!workflow){
+    return '<div class="workflow-empty"><strong>No active internal workflow.</strong><div>Move the Lead Status to Operations or Shipping to start the appropriate checklist.</div></div>';
+  }
 
   const data = getWorkflowData(enquiry, workflow);
   const progress = getWorkflowProgress(enquiry, workflow);
@@ -71,13 +72,8 @@ function renderWorkflow(enquiry){
     </div>
     <div>Internal workflow</div>
   </div>
-
-  <div class="workflow-progress">
-    <div style="width:${progress.percent}%"></div>
-  </div>
-
-  <div class="workflow-list">
-`;
+  <div class="workflow-progress"><div style="width:${progress.percent}%"></div></div>
+  <div class="workflow-list">`;
 
   workflow.tasks.forEach(function(task){
     const checked = data[task.name] === true ? "checked" : "";
@@ -85,22 +81,14 @@ function renderWorkflow(enquiry){
 
     html += `
 <label class="workflow-item${doneClass}">
-  <input
-    type="checkbox"
-    ${checked}
-    onchange="toggleWorkflowTask(${enquiry.id}, '${workflow.column}', '${task.name.replace(/'/g,"\\'")}', this.checked)"
-  >
+  <input type="checkbox" ${checked}
+    onchange="toggleWorkflowTask(${enquiry.id}, '${workflow.column}', '${task.name.replace(/'/g,"\\'")}', this.checked)">
   <span class="task-icon">${task.icon}</span>
   <span>${task.name}</span>
-</label>
-`;
+</label>`;
   });
 
-  html += `
-  </div>
-</div>
-`;
-
+  html += "</div></div>";
   return html;
 }
 
@@ -109,20 +97,21 @@ function renderOperationsWorkflow(enquiry){
 }
 
 async function addWorkflowDealHistory(enquiryId, taskName, checked){
-  const actionText = checked ? "completed" : "unticked";
+  const actionText = checked ? "completed" : "reopened";
+  const details = taskName + " was " + actionText + ".";
 
-  try{
-    await sb
-      .from("deal_history")
-      .insert({
-        enquiry_id: Number(enquiryId),
-        event_type: "Workflow",
-        event_text: taskName + " was " + actionText + ".",
-        created_by: "Andy Gifford"
-      });
-  }catch(err){
-    console.warn("Deal History insert failed:", err);
+  if(typeof addDealTimelineEvent === "function"){
+    await addDealTimelineEvent(
+      enquiryId,
+      "Workflow",
+      checked ? "Workflow task completed" : "Workflow task reopened",
+      details,
+      "Andy Gifford"
+    );
+    return;
   }
+
+  console.warn("addDealTimelineEvent is unavailable; workflow event was not added to Deal Activity.");
 }
 
 async function toggleWorkflowTask(enquiryId, column, taskName, checked){
@@ -130,29 +119,32 @@ async function toggleWorkflowTask(enquiryId, column, taskName, checked){
     return Number(item.id) === Number(enquiryId);
   });
 
-  if(!enquiry) return;
+  if(!enquiry){ return; }
 
-  let current = enquiry[column] || {};
+  const current = Object.assign({}, enquiry[column] || {});
   current[taskName] = checked;
 
   const update = {};
   update[column] = current;
 
-  const { error } = await sb
+  const result = await sb
     .from("bike_enquiries")
     .update(update)
-    .eq("id", enquiryId);
+    .eq("id", enquiryId)
+    .select("id," + column)
+    .single();
 
-  if(error){
-    alert(error.message);
+  if(result.error){
+    alert(result.error.message);
     return;
   }
 
   enquiry[column] = current;
-
   await addWorkflowDealHistory(enquiryId, taskName, checked);
 
-  if(typeof loadEnquiries === "function"){
+  if(typeof reloadKeepingDealOpen === "function"){
+    await reloadKeepingDealOpen(enquiryId);
+  }else if(typeof loadEnquiries === "function"){
     await loadEnquiries();
   }
 }
