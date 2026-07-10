@@ -2227,6 +2227,45 @@ body{
 @media(max-width:1500px){.bike-sales-header{grid-template-columns:1fr}.bike-sales-overview{grid-template-columns:repeat(5,1fr)}.lead-status-bar{grid-template-columns:repeat(8,minmax(100px,1fr));}}
 @media(max-width:900px){.bike-sales-overview{grid-template-columns:repeat(2,1fr)}.deal-queue-heading{align-items:stretch;flex-direction:column}.deal-queue-search{width:100%}.lead-status-bar{grid-template-columns:repeat(4,minmax(100px,1fr))}.deal360-hero-grid{grid-template-columns:1fr}}
 
+/* DEAL QUEUE PAGINATION */
+.deal-pagination{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  flex-wrap:wrap;
+  padding:14px 4px 6px;
+}
+.deal-pagination-info{color:#999;font-size:13px;font-weight:800;}
+.deal-pagination-controls{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.deal-page-btn{
+  min-width:36px;
+  height:36px;
+  margin:0 !important;
+  padding:0 10px !important;
+  border-radius:9px !important;
+  background:#141414 !important;
+  border:1px solid rgba(255,255,255,.13) !important;
+  color:#ddd !important;
+}
+.deal-page-btn:hover{border-color:#ed1c24 !important;color:#fff !important;}
+.deal-page-btn.active{background:#ed1c24 !important;border-color:#ed1c24 !important;color:#fff !important;}
+.deal-page-btn:disabled{opacity:.35;cursor:not-allowed;}
+.deal-page-size{
+  height:36px;
+  width:auto;
+  margin:0;
+  padding:0 34px 0 10px;
+  border-radius:9px;
+  background:#141414;
+  color:#fff;
+  border:1px solid rgba(255,255,255,.13);
+  font-weight:800;
+}
+@media(max-width:700px){
+  .deal-pagination{align-items:flex-start;flex-direction:column;}
+}
+
 
 
 /* BIKE SALES HQ V5 — COMPACT DEAL QUEUE */
@@ -2534,6 +2573,7 @@ body{
 </div>
 
 <div id="enquiries"></div>
+<div id="dealPagination"></div>
 
       </div>
     </div>
@@ -2775,6 +2815,9 @@ let currentFilter = "all";
 let currentStaffFilter = "all";
 let pendingOpenHandled = false;
 let dealQueueSearchTerm = "";
+let currentDealPage = 1;
+let dealPageSize = 20;
+let currentDealRows = [];
 
 function getOpenEnquiryIdFromUrl(){
   const params = new URLSearchParams(window.location.search);
@@ -3007,7 +3050,80 @@ function matchesDealQueueSearch(enquiry){
 
 function searchDealQueue(value){
   dealQueueSearchTerm = String(value || "");
-  filterEnquiries(currentFilter || "all");
+  currentDealPage = 1;
+  filterEnquiries(currentFilter || "all", true);
+}
+
+function goToDealPage(page){
+  const totalPages = Math.max(1, Math.ceil(currentDealRows.length / dealPageSize));
+  currentDealPage = Math.min(Math.max(1, Number(page) || 1), totalPages);
+  filterEnquiries(currentFilter || "all", true);
+
+  const queue = document.querySelector(".deal-queue-heading");
+  if(queue){ queue.scrollIntoView({ behavior:"smooth", block:"start" }); }
+}
+
+function changeDealPageSize(value){
+  const nextSize = Number(value);
+  if(![10,20,50].includes(nextSize)){ return; }
+  dealPageSize = nextSize;
+  currentDealPage = 1;
+  filterEnquiries(currentFilter || "all", true);
+}
+
+function dealPaginationPages(current, total){
+  const pages = [];
+  const add = function(value){
+    if(!pages.includes(value)){ pages.push(value); }
+  };
+
+  add(1);
+  for(let page = current - 2; page <= current + 2; page++){
+    if(page > 1 && page < total){ add(page); }
+  }
+  if(total > 1){ add(total); }
+  return pages.sort(function(a,b){ return a-b; });
+}
+
+function renderDealPagination(totalRows){
+  const host = document.getElementById("dealPagination");
+  if(!host){ return; }
+
+  const totalPages = Math.max(1, Math.ceil(totalRows / dealPageSize));
+  currentDealPage = Math.min(Math.max(1, currentDealPage), totalPages);
+
+  if(totalRows === 0){
+    host.innerHTML = "";
+    return;
+  }
+
+  const start = (currentDealPage - 1) * dealPageSize + 1;
+  const end = Math.min(currentDealPage * dealPageSize, totalRows);
+  const pages = dealPaginationPages(currentDealPage, totalPages);
+  let previousPage = null;
+
+  const pageButtons = pages.map(function(page){
+    const gap = previousPage !== null && page - previousPage > 1
+      ? '<span style="color:#777;padding:0 3px;">…</span>'
+      : "";
+    previousPage = page;
+    return gap + '<button type="button" class="deal-page-btn' + (page === currentDealPage ? ' active' : '') + '" onclick="goToDealPage(' + page + ')">' + page + '</button>';
+  }).join("");
+
+  host.innerHTML = `
+    <div class="deal-pagination">
+      <div class="deal-pagination-info">Showing ${start}–${end} of ${totalRows} deals</div>
+      <div class="deal-pagination-controls">
+        <button type="button" class="deal-page-btn" onclick="goToDealPage(${currentDealPage - 1})" ${currentDealPage === 1 ? "disabled" : ""}>‹</button>
+        ${pageButtons}
+        <button type="button" class="deal-page-btn" onclick="goToDealPage(${currentDealPage + 1})" ${currentDealPage === totalPages ? "disabled" : ""}>›</button>
+        <select class="deal-page-size" onchange="changeDealPageSize(this.value)" aria-label="Deals per page">
+          <option value="10" ${dealPageSize === 10 ? "selected" : ""}>10 per page</option>
+          <option value="20" ${dealPageSize === 20 ? "selected" : ""}>20 per page</option>
+          <option value="50" ${dealPageSize === 50 ? "selected" : ""}>50 per page</option>
+        </select>
+      </div>
+    </div>`;
 }
 
 function updateBikeSalesOverview(){
@@ -3056,10 +3172,11 @@ function updateBikeSalesOverview(){
   Object.keys(countMap).forEach(function(id){ setText(id, countMap[id]); });
 }
 
-function filterEnquiries(type){
+function filterEnquiries(type, preservePage){
 
   currentFilter = type;
   window.adminStaffFilter = null;
+  if(!preservePage){ currentDealPage = 1; }
 
   document.querySelectorAll(".lead-status-bar button").forEach(function(btn){
     btn.classList.remove("active");
@@ -3112,6 +3229,7 @@ function filterEnquiries(type){
   }
 
   rows = rows.filter(matchesDealQueueSearch);
+  currentDealRows = rows.slice();
   render(rows);
   restoreDeal360State(deal360State);
 }
@@ -3456,16 +3574,25 @@ if(document.getElementById("deptReadyShip"))
 const box = document.getElementById("enquiries");
 
 if(!rows.length){
-  box.innerHTML = "<p>No enquiries yet.</p>";
+  box.innerHTML = "<p>No enquiries match the current queue filters.</p>";
+  renderDealPagination(0);
   return;
 }
+
+const totalRows = rows.length;
+const totalPages = Math.max(1, Math.ceil(totalRows / dealPageSize));
+currentDealPage = Math.min(Math.max(1, currentDealPage), totalPages);
+const pageStart = (currentDealPage - 1) * dealPageSize;
+const pageRows = rows.slice(pageStart, pageStart + dealPageSize);
+renderDealPagination(totalRows);
+
 const queueHeader = `
   <div class="deal-queue-columns" aria-hidden="true">
     <span>✓</span><span></span><span>Motorcycle</span><span>Customer</span><span>Country</span>
     <span>Lead Status</span><span>Messages</span><span>Assigned To</span><span>Est. Profit</span><span>Workflow / Updated</span>
   </div>`;
 
-box.innerHTML = queueHeader + rows.map(r=>{
+box.innerHTML = queueHeader + pageRows.map(r=>{
   
   
    const b=r.available_stock || {};
