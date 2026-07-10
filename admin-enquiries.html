@@ -1,6 +1,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -10,7 +11,7 @@
 <meta name="robots" content="noindex,nofollow">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-/* PHASE 1C: source sections labelled; rendered structure, cascade and JavaScript preserved. */
+/* PHASE 1D: JavaScript sections labelled; execution order, function bodies and behaviour preserved. */
 /* PHASE 1 STABILISATION: syntax repaired; HTML and JavaScript preserved. */
 :root{--red:#ed1c24;--line:rgba(255,255,255,.12)}
 *{box-sizing:border-box}
@@ -3474,12 +3475,18 @@ body{
 <!-- ADMIN SHELL, SIDEBAR AND NOTIFICATION BEHAVIOUR -->
 <!-- ===================================================== -->
 <script>
+/* ======================================================
+   ADMIN SHELL — NOTIFICATION PANEL
+====================================================== */
 function toggleAdminNotifications(){
   
   var panel = document.getElementById("adminNotificationPanel");
   if(panel){ panel.classList.toggle("open"); }
 }
 
+/* ======================================================
+   ADMIN SHELL — MENU AND OUTSIDE-CLICK CONTROLS
+====================================================== */
 document.addEventListener("click", function(e){
   var folderButton = e.target.closest(".menu-folder");
   if(folderButton){
@@ -3507,6 +3514,9 @@ document.addEventListener("click", function(e){
   }
 });
 
+/* ======================================================
+   ADMIN SHELL — GLOBAL SEARCH ROUTING
+====================================================== */
 document.addEventListener("keydown", function(e){
   if(e.key !== "Enter"){ return; }
   var search = e.target.closest("#adminGlobalSearch");
@@ -3550,9 +3560,15 @@ document.addEventListener("keydown", function(e){
 <!-- workflows, activity, search, filters and pagination. -->
 <!-- ===================================================== -->
 <script>
+/* ======================================================
+   SUPABASE CLIENT
+====================================================== */
 const SUPABASE_URL="https://tuehtnezhdnkqbbhttgp.supabase.co";
 const SUPABASE_ANON_KEY="sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+/* ======================================================
+   BULK ENQUIRY CONTROLS
+====================================================== */
 function selectAllEnquiries(){
   document.querySelectorAll(".enquiry-check, .enquiry-select").forEach(function(box){
     box.checked = true;
@@ -3607,6 +3623,9 @@ async function deleteSelectedEnquiries(){
   await loadEnquiries();
 }
 
+/* ======================================================
+   BIKE SALES NOTIFICATIONS
+====================================================== */
 function adminNotificationTargetUrl(notification){
   const enquiryId =
     notification.enquiry_id ||
@@ -3699,6 +3718,9 @@ async function markEnquiryNotificationsRead(enquiryId){
 
 
 
+/* ======================================================
+   SHARED UTILITIES AND APPLICATION STATE
+====================================================== */
 function escapeAdminHtml(value){
   return String(value || "")
     .replaceAll("&","&amp;")
@@ -3728,6 +3750,9 @@ let dealQueueFilters = {
   updated:""
 };
 
+/* ======================================================
+   URL DEEP-LINKING
+====================================================== */
 function getOpenEnquiryIdFromUrl(){
   const params = new URLSearchParams(window.location.search);
 
@@ -3799,6 +3824,9 @@ function openEnquiryFromUrl(){
   }, 300);
 }
 
+/* ======================================================
+   DISPLAY FORMATTERS
+====================================================== */
 function safe(v){
   return v===undefined || v===null || v==="" ? "-" : String(v);
 }
@@ -3807,6 +3835,9 @@ function money(v){
   return v ? "£" + Number(v).toLocaleString("en-GB") : "POA";
 }
 
+/* ======================================================
+   DEAL 360 OPEN-PANEL STATE
+====================================================== */
 function captureDeal360State(enquiryId){
   const id = enquiryId || openEnquiryId;
   if(!id){ return null; }
@@ -3868,6 +3899,9 @@ async function reloadKeepingDealOpen(enquiryId){
   restoreDeal360State(state);
 }
 
+/* ======================================================
+   STAFF FILTERING AND COUNTS
+====================================================== */
 function filterStaff(staffName){
   currentStaffFilter = staffName;
   window.adminStaffFilter = staffName;
@@ -3900,6 +3934,9 @@ function updateStaffCounts(){
   setCount("unassignedCount", unassigned);
 }
 
+/* ======================================================
+   DEAL QUEUE ROW EXPANSION
+====================================================== */
 function toggleEnquiry(id){
   const el = document.getElementById(`enquiry-${id}`);
   if(!el){ return; }
@@ -3922,6 +3959,9 @@ function toggleEnquiry(id){
 }
   
 
+/* ======================================================
+   DEAL QUEUE BADGES AND STATUS NORMALISATION
+====================================================== */
 function messageBadge(enquiryId){
   const m = latestMessageMap[String(enquiryId)];
 
@@ -3942,6 +3982,9 @@ function normaliseLeadStatus(enquiry){
   return String((enquiry && (enquiry.lead_status || enquiry.status)) || "").trim();
 }
 
+/* ======================================================
+   DEAL QUEUE SEARCH
+====================================================== */
 function matchesDealQueueSearch(enquiry){
   const term = String(dealQueueSearchTerm || "").trim().toLowerCase();
   if(!term){ return true; }
@@ -3958,6 +4001,9 @@ function matchesDealQueueSearch(enquiry){
 }
 
 
+/* ======================================================
+   ADVANCED DEAL FILTER DRAWER
+====================================================== */
 function openDealFilters(){
   populateDealFilterOptions();
   syncDealFilterControls();
@@ -4168,6 +4214,9 @@ function updateDealFilterUi(){
   }
 }
 
+/* ======================================================
+   DEAL FILTER CALCULATIONS
+====================================================== */
 function dealEstimatedProfit(enquiry){
   const bike = enquiry.available_stock || {};
 
@@ -4356,6 +4405,9 @@ document.addEventListener("keydown",function(event){
   }
 });
 
+/* ======================================================
+   QUEUE SEARCH AND PAGINATION CONTROLS
+====================================================== */
 function searchDealQueue(value){
   dealQueueSearchTerm = String(value || "");
   currentDealPage = 1;
@@ -4434,6 +4486,9 @@ function renderDealPagination(totalRows){
     </div>`;
 }
 
+/* ======================================================
+   BIKE SALES KPI OVERVIEW
+====================================================== */
 function updateBikeSalesOverview(){
   const statusCount = function(status){
     return allEnquiries.filter(function(item){ return normaliseLeadStatus(item) === status; }).length;
@@ -4480,6 +4535,9 @@ function updateBikeSalesOverview(){
   Object.keys(countMap).forEach(function(id){ setText(id, countMap[id]); });
 }
 
+/* ======================================================
+   LEAD STATUS PIPELINE FILTERING
+====================================================== */
 function filterEnquiries(type, preservePage){
 
   currentFilter = type;
@@ -4545,6 +4603,10 @@ function filterEnquiries(type, preservePage){
 }
   
 
+/* ======================================================
+   NEW LEAD MODAL
+   Existing repeated declarations preserved intentionally.
+====================================================== */
 function openNewLead(){
   document.getElementById("newLeadModal").style.display = "block";
 }
@@ -4592,6 +4654,9 @@ async function saveNewLead(){
   closeNewLead();
 
 }
+/* ======================================================
+   HEADER MESSAGE INDICATOR
+====================================================== */
 function updateHeaderBubble(){
 
   let count = 0;
@@ -4616,6 +4681,9 @@ function updateHeaderBubble(){
   }
 }
 
+/* ======================================================
+   DATA LOADING — MESSAGES AND ENQUIRIES
+====================================================== */
 async function loadLatestMessages(){
 
   const {data,error}=await sb
@@ -4772,6 +4840,9 @@ setTimeout(function(){
 
 }
 
+/* ======================================================
+   DEAL QUEUE RENDER HELPERS
+====================================================== */
 function dealQueueTimeAgo(value){
   const date = new Date(value);
   if(isNaN(date.getTime())) return "-";
@@ -4790,6 +4861,9 @@ function dealQueueImage(stock){
   return stock.image_url || stock.main_image_url || stock.image || "anybike-logo-new.jpg";
 }
 
+/* ======================================================
+   DEAL QUEUE AND DEAL 360 RENDERING
+====================================================== */
 function render(rows){
 
 updateBikeSalesOverview();
@@ -5529,6 +5603,9 @@ if(openEnquiryId){
 openEnquiryFromUrl();
 }
   
+/* ======================================================
+   CONVERSATION QUICK REPLIES
+====================================================== */
 function setQuickReply(id,type){
   const replies = {
     available: `Hello,
@@ -5600,6 +5677,9 @@ AnyBike`
 }
 
 
+/* ======================================================
+   ENQUIRY AND LEAD STATUS UPDATES
+====================================================== */
 async function updateStatus(id,status){
 
   const {error}=await sb.rpc("admin_update_enquiry_status", {
@@ -5653,6 +5733,9 @@ async function updateLeadStatus(id, leadStatus){
   await reloadKeepingDealOpen(enquiryId);
 }
 
+/* ======================================================
+   DEAL OWNERSHIP ASSIGNMENT
+====================================================== */
 async function assignDeal(id, staffName){
 
   const assignedBy = "Andy Gifford";
@@ -5681,6 +5764,9 @@ async function assignDeal(id, staffName){
 
 }
 
+/* ======================================================
+   CONVERSATION LOADING, TRANSLATION AND SENDING
+====================================================== */
 async function loadMessages(enquiryId, originalMessage="", customerName="Customer"){
   const box=document.getElementById(`messages-${enquiryId}`);
   if(!box) return;
@@ -5827,6 +5913,9 @@ await reloadKeepingDealOpen(enquiryId);
 }
 
 
+/* ======================================================
+   SINGLE ENQUIRY DELETION
+====================================================== */
 async function deleteEnquiry(id){
 
 
@@ -5865,6 +5954,9 @@ async function deleteEnquiry(id){
   await loadEnquiries();
 }
 
+/* ======================================================
+   DEAL CALCULATOR
+====================================================== */
 function dealNum(id){
   const el = document.getElementById(id);
   return el ? Number(el.value || 0) : 0;
@@ -6059,6 +6151,9 @@ async function saveDeal(enquiryId, bikeId){
 
   
 
+/* ======================================================
+   NOTIFICATION MAINTENANCE AND ADMIN TOOLS
+====================================================== */
 async function markAllAdminNotificationsRead(){
   const status = document.getElementById("adminToolsStatus");
   if(status){ status.textContent = "Marking notification records as read..."; }
@@ -6156,6 +6251,9 @@ loadEnquiries = async function(){
   }
 };
 
+/* ======================================================
+   APPLICATION STARTUP
+====================================================== */
 loadEnquiries();
 
 setTimeout(() => {
