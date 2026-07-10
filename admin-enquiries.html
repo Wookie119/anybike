@@ -13,6 +13,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -2079,6 +2080,105 @@ body{
   text-align:center !important;
 }
 
+
+
+/* DEAL ACTIVITY */
+.deal-activity-toolbar{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin-bottom:16px;
+}
+.deal-activity-toolbar button{
+  margin:0;
+  padding:8px 12px;
+  background:#181818;
+  border:1px solid rgba(255,255,255,.14);
+  border-radius:999px;
+  color:#ddd;
+}
+.deal-activity-toolbar button:hover,
+.deal-activity-toolbar button.active{
+  background:#ed1c24;
+  border-color:#ed1c24;
+  color:#fff;
+}
+.deal-activity-day{margin-bottom:20px;}
+.deal-activity-day h4{
+  margin:0 0 9px;
+  color:#aaa;
+  font-size:12px;
+  text-transform:uppercase;
+  letter-spacing:.1em;
+}
+.deal-activity-item{
+  display:grid;
+  grid-template-columns:58px 42px minmax(0,1fr) 24px;
+  gap:10px;
+  align-items:start;
+  padding:13px 12px;
+  margin-bottom:8px;
+  background:#141414;
+  border:1px solid rgba(255,255,255,.09);
+  border-radius:14px;
+  cursor:pointer;
+  transition:.18s ease;
+}
+.deal-activity-item:hover{
+  background:#191919;
+  border-color:rgba(237,28,36,.55);
+  transform:translateY(-1px);
+}
+.deal-activity-time{color:#aaa;font-size:13px;font-weight:900;padding-top:6px;}
+.deal-activity-icon{
+  width:36px;
+  height:36px;
+  border-radius:12px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:#222;
+  font-size:18px;
+}
+.activity-message .deal-activity-icon{background:rgba(0,153,255,.18);}
+.activity-status .deal-activity-icon{background:rgba(237,28,36,.18);}
+.activity-workflow .deal-activity-icon{background:rgba(153,102,255,.18);}
+.activity-deal .deal-activity-icon{background:rgba(255,170,0,.18);}
+.activity-document .deal-activity-icon{background:rgba(51,204,102,.18);}
+.deal-activity-content{min-width:0;}
+.deal-activity-heading{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  flex-wrap:wrap;
+  margin-bottom:4px;
+}
+.deal-activity-heading strong{color:#fff;}
+.deal-activity-heading span{color:#999;font-size:12px;font-weight:900;}
+.deal-activity-preview{color:#ccc;line-height:1.5;white-space:pre-line;}
+.deal-activity-full{
+  display:none;
+  margin-top:10px;
+  padding:10px;
+  color:#eee;
+  background:#0d0d0d;
+  border-radius:10px;
+  white-space:pre-line;
+  line-height:1.55;
+}
+.deal-activity-item.expanded .deal-activity-preview{display:none;}
+.deal-activity-item.expanded .deal-activity-full{display:block;}
+.deal-activity-content small{display:block;color:#777;margin-top:7px;}
+.deal-activity-arrow{color:#888;font-size:18px;padding-top:5px;transition:.18s ease;}
+.deal-activity-item.expanded .deal-activity-arrow{transform:rotate(180deg);}
+@media(max-width:700px){
+  .deal-activity-item{grid-template-columns:42px minmax(0,1fr) 20px;}
+  .deal-activity-time{grid-column:2;color:#888;padding-top:0;}
+  .deal-activity-icon{grid-column:1;grid-row:1 / span 2;}
+  .deal-activity-content{grid-column:2;}
+  .deal-activity-arrow{grid-column:3;grid-row:1 / span 2;}
+}
+
 </style>
 </head>
 
@@ -2273,8 +2373,8 @@ document.addEventListener("keydown", function(e){
 
 </script>
 
-<script src="admin-workflow.js"></script>
 <script src="admin-deal-history.js"></script>
+<script src="admin-workflow.js"></script>
 <script>
 const SUPABASE_URL="https://tuehtnezhdnkqbbhttgp.supabase.co";
 const SUPABASE_ANON_KEY="sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
@@ -3356,14 +3456,14 @@ const shippingBadge = dealStatus === "Shipping" ? "In Progress" : "Not Started";
       </div>
     </details>
 
-    <details class="deal360-panel">
+    <details class="deal360-panel" id="workflow-panel-${r.id}">
       <summary><span>📦 Workflow</span><span class="panel-badge">${workflowBadge}</span></summary>
       <div class="deal360-panel-body">
       ${typeof renderWorkflow === "function" ? renderWorkflow(r) : ""}
       </div>
     </details>
 
-    <details class="deal360-panel">
+    <details class="deal360-panel" id="deal-panel-${r.id}">
         <summary><span>💷 Deal Calculator</span><span class="panel-badge">${dealBadge}</span></summary>
       <div class="deal360-panel-body">
         <div class="deal-panel">
@@ -3479,46 +3579,31 @@ const shippingBadge = dealStatus === "Shipping" ? "In Progress" : "Not Started";
       </div>
     </details>
 
-    <details class="deal360-panel">
+    <details class="deal360-panel" id="documents-panel-${r.id}">
       <summary><span>📎 Documents</span><span class="panel-badge">0 Files</span></summary>
       <div class="deal360-panel-body">
         <div class="workflow-empty"><strong>Documents module placeholder.</strong><div>Purchase invoice, V5, photos and shipping documents will live here.</div></div>
       </div>
     </details>
 
-<details class="deal360-panel">
-  <summary><span>📜 Deal History</span><span class="panel-badge">0 Events</span></summary>
-
+<details class="deal360-panel" id="activity-panel-${r.id}">
+  <summary>
+    <span>📜 Deal Activity</span>
+    <span class="panel-badge" id="timeline-count-${r.id}">Loading</span>
+  </summary>
   <div class="deal360-panel-body">
-
-    <div id="deal-history-container" class="workflow-empty">
-
-      <strong>No Deal History yet.</strong>
-
-      <div>
-        Every significant action on this deal will automatically appear here.
-      </div>
-
-      <br>
-
-      <div style="color:#888;font-size:13px;line-height:1.7;">
-
-        ✓ Customer enquiries<br>
-        ✓ Customer & staff messages<br>
-        ✓ Lead Status changes<br>
-        ✓ Workflow progress<br>
-        ✓ Deal Calculator updates<br>
-        ✓ Documents uploaded<br>
-        ✓ Finance activity<br>
-        ✓ Shipping & transport updates<br>
-        ✓ Staff assignments
-
-      </div>
-
+    <div class="deal-activity-toolbar" id="timeline-filters-${r.id}">
+      <button type="button" class="active" onclick="filterDealActivity(${r.id}, 'all', this);return false;">All</button>
+      <button type="button" onclick="filterDealActivity(${r.id}, 'message', this);return false;">Messages</button>
+      <button type="button" onclick="filterDealActivity(${r.id}, 'status', this);return false;">Status</button>
+      <button type="button" onclick="filterDealActivity(${r.id}, 'deal', this);return false;">Deal</button>
+      <button type="button" onclick="filterDealActivity(${r.id}, 'workflow', this);return false;">Workflow</button>
+      <button type="button" onclick="filterDealActivity(${r.id}, 'document', this);return false;">Documents</button>
     </div>
-
+    <div id="timeline-${r.id}">
+      <p style="color:#aaa;">Loading Deal Activity...</p>
+    </div>
   </div>
-
 </details>
 
     <details class="deal360-panel">
@@ -3535,7 +3620,10 @@ const shippingBadge = dealStatus === "Shipping" ? "In Progress" : "Not Started";
     `;
    }).join("");
 
-rows.forEach(r=>loadMessages(r.id, r.message, r.customer_name));
+rows.forEach(function(r){
+  loadMessages(r.id, r.message, r.customer_name);
+  if(typeof loadDealTimeline === "function"){ loadDealTimeline(r.id); }
+});
 
 if(openEnquiryId){
   const openRow=document.getElementById(`enquiry-${openEnquiryId}`);
