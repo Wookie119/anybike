@@ -3630,13 +3630,98 @@ let workflowSummary = "Not started";
 let workflowPercent = 0;
 let workflowLabel = "No active workflow";
 
-if(typeof getWorkflow === "function" && typeof getWorkflowProgress === "function"){
-  const activeWorkflow = getWorkflow(r.lead_status || r.status);
-  if(activeWorkflow){
-    const workflowProgress = getWorkflowProgress(r, activeWorkflow);
-    workflowSummary = workflowProgress.done + "/" + workflowProgress.total + " complete";
-    workflowPercent = workflowProgress.percent || 0;
-    workflowLabel = activeWorkflow.icon + " " + dealStatus;
+if(typeof getWorkflowProgress === "function"){
+  const operationsWorkflow =
+    typeof ANYBIKE_WORKFLOWS !== "undefined"
+      ? ANYBIKE_WORKFLOWS.Operations
+      : null;
+
+  const shippingWorkflow =
+    typeof ANYBIKE_WORKFLOWS !== "undefined"
+      ? ANYBIKE_WORKFLOWS.Shipping
+      : null;
+
+  const operationsProgress = operationsWorkflow
+    ? getWorkflowProgress(r, operationsWorkflow)
+    : { done:0, total:0, percent:0 };
+
+  const shippingProgress = shippingWorkflow
+    ? getWorkflowProgress(r, shippingWorkflow)
+    : { done:0, total:0, percent:0 };
+
+  const operationsData =
+    r && r.operations_checklist && typeof r.operations_checklist === "object"
+      ? r.operations_checklist
+      : {};
+
+  const shippingData =
+    r && r.shipping_checklist && typeof r.shipping_checklist === "object"
+      ? r.shipping_checklist
+      : {};
+
+  const hasOperationsHistory =
+    Object.keys(operationsData).length > 0;
+
+  const hasShippingHistory =
+    Object.keys(shippingData).length > 0;
+
+  if(dealStatus === "Operations" && operationsWorkflow){
+    workflowSummary =
+      operationsProgress.done +
+      "/" +
+      operationsProgress.total +
+      " complete";
+
+    workflowPercent = operationsProgress.percent || 0;
+    workflowLabel = "📦 Operations";
+  }
+  else if(dealStatus === "Shipping" && shippingWorkflow){
+    workflowSummary =
+      shippingProgress.done +
+      "/" +
+      shippingProgress.total +
+      " complete";
+
+    workflowPercent = shippingProgress.percent || 0;
+    workflowLabel = "🚢 Shipping";
+  }
+  else if(hasOperationsHistory || hasShippingHistory){
+    const historyParts = [];
+    const percentParts = [];
+
+    if(hasOperationsHistory){
+      historyParts.push(
+        "Ops " +
+        operationsProgress.done +
+        "/" +
+        operationsProgress.total
+      );
+
+      percentParts.push(operationsProgress.percent || 0);
+    }
+
+    if(hasShippingHistory){
+      historyParts.push(
+        "Ship " +
+        shippingProgress.done +
+        "/" +
+        shippingProgress.total
+      );
+
+      percentParts.push(shippingProgress.percent || 0);
+    }
+
+    workflowSummary = historyParts.join(" · ");
+
+    workflowPercent = percentParts.length
+      ? Math.round(
+          percentParts.reduce(function(total, value){
+            return total + value;
+          }, 0) / percentParts.length
+        )
+      : 0;
+
+    workflowLabel = "Saved workflow history";
   }
 }
 
