@@ -1229,6 +1229,62 @@ color:#ed1c24;
   }
 }
 
+
+/* GLOBAL OPERATIONS MAP V2 — LEAFLET TILE + LAYOUT FIX */
+#worldMap,
+#worldMap.leaflet-container{
+  position:relative !important;
+  width:100% !important;
+  min-width:0 !important;
+  height:430px !important;
+  overflow:hidden !important;
+  background:#101010 !important;
+}
+
+#worldMap .leaflet-map-pane,
+#worldMap .leaflet-tile-pane,
+#worldMap .leaflet-overlay-pane,
+#worldMap .leaflet-marker-pane,
+#worldMap .leaflet-popup-pane{
+  position:absolute !important;
+  left:0 !important;
+  top:0 !important;
+}
+
+#worldMap img.leaflet-tile{
+  width:256px !important;
+  height:256px !important;
+  max-width:none !important;
+  max-height:none !important;
+  object-fit:fill !important;
+  margin:0 !important;
+  padding:0 !important;
+  border:0 !important;
+}
+
+#worldMap .leaflet-tile-container{
+  pointer-events:none !important;
+}
+
+#worldMap .leaflet-control-container img{
+  max-width:none !important;
+}
+
+.operations-grid{
+  align-items:start;
+}
+
+.operations-map-shell{
+  min-width:0;
+}
+
+@media(max-width:900px){
+  #worldMap,
+  #worldMap.leaflet-container{
+    height:360px !important;
+  }
+}
+
 </style>
 </head>
 
@@ -2628,10 +2684,12 @@ function initialiseOperationsMap(){
   }).setView([25,10],2);
 
   L.tileLayer(
-    "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
     {
-      maxZoom:18,
-      attribution:"&copy; OpenStreetMap contributors"
+      subdomains:"abcd",
+      maxZoom:20,
+      noWrap:false,
+      attribution:"&copy; OpenStreetMap contributors &copy; CARTO"
     }
   ).addTo(anyBikeWorldMap);
 
@@ -2845,9 +2903,20 @@ async function loadGlobalOperations(){
       map.setView([25,10],2);
     }
 
-    setTimeout(function(){
-      map.invalidateSize();
-    },100);
+    [100,350,900].forEach(function(delay){
+      setTimeout(function(){
+        map.invalidateSize(true);
+
+        if(bounds.length){
+          map.fitBounds(bounds,{
+            padding:[35,35],
+            maxZoom:5
+          });
+        }else{
+          map.setView([20,0],2);
+        }
+      },delay);
+    });
   }
 
   renderTopCountryList();
