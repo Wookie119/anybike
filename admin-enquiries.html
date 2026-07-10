@@ -6,6 +6,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -15,7 +16,6 @@
 <meta name="robots" content="noindex,nofollow">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-/* DEAL OWNERSHIP UPDATE: live ownership panel with Supabase-backed manager, support, priority, follow-up, completion and health. */
 /* COMMERCIAL KPI UPDATE: live pipeline value, pipeline profit, margin, average profit and low-margin deal count. */
 /* PHASE 1 STABILISATION: syntax repaired; HTML and JavaScript preserved. */
 :root{--red:#ed1c24;--line:rgba(255,255,255,.12)}
@@ -3283,55 +3283,6 @@ body{
   }
 }
 
-/* DEAL OWNERSHIP — LIVE PANEL */
-.ownership-grid{
-  display:grid;
-  grid-template-columns:repeat(3,minmax(180px,1fr));
-  gap:12px;
-}
-.ownership-field{
-  background:#131313;
-  border:1px solid rgba(255,255,255,.09);
-  border-radius:11px;
-  padding:12px;
-}
-.ownership-field span{
-  display:block;
-  color:#888;
-  font-size:10px;
-  font-weight:950;
-  text-transform:uppercase;
-  letter-spacing:.06em;
-  margin-bottom:7px;
-}
-.ownership-field select,
-.ownership-field input{
-  width:100%;
-  min-height:42px;
-  border:1px solid rgba(255,255,255,.15);
-  border-radius:9px;
-  background:#fff;
-  color:#111;
-  padding:9px 10px;
-  font:inherit;
-  font-weight:800;
-}
-.ownership-actions{
-  display:flex;
-  align-items:center;
-  gap:12px;
-  flex-wrap:wrap;
-  margin-top:14px;
-}
-.ownership-actions button{margin:0;border-radius:10px;}
-.ownership-save-status{color:#999;font-size:13px;font-weight:800;}
-@media(max-width:1000px){
-  .ownership-grid{grid-template-columns:repeat(2,minmax(180px,1fr));}
-}
-@media(max-width:650px){
-  .ownership-grid{grid-template-columns:1fr;}
-}
-
 </style>
 </head>
 
@@ -3843,39 +3794,6 @@ function escapeAdminHtml(value){
 }
 
 let latestMessageMap = {};
-let dealOwnershipMap = {};
-
-function ownershipDateTimeValue(value){
-  if(!value) return "";
-  const d = new Date(value);
-  if(Number.isNaN(d.getTime())) return "";
-  const pad = n => String(n).padStart(2,"0");
-  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
-function ownershipDateValue(value){
-  if(!value) return "";
-  const d = new Date(value);
-  if(Number.isNaN(d.getTime())) return "";
-  const pad = n => String(n).padStart(2,"0");
-  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
-}
-
-async function loadDealOwnership(){
-  dealOwnershipMap = {};
-  const {data,error} = await sb
-    .from("deal360")
-    .select("*");
-
-  if(error){
-    console.warn("Deal Ownership not loaded:", error.message);
-    return;
-  }
-
-  (data || []).forEach(function(row){
-    dealOwnershipMap[String(row.enquiry_id)] = row;
-  });
-}
 
 let openEnquiryId = null;
 let allEnquiries = [];
@@ -4899,7 +4817,6 @@ async function loadLatestMessages(){
 
 async function loadEnquiries(){
   await loadLatestMessages();
-  await loadDealOwnership();
   updateHeaderBubble();
 
   let {data,error}=await sb
@@ -5176,7 +5093,6 @@ box.innerHTML = queueHeader + pageRows.map(r=>{
   
   
    const b=r.available_stock || {};
-const ownership = dealOwnershipMap[String(r.id)] || {};
 const latest = latestMessageMap[String(r.id)];
 const latestText = latest ? safe(latest.message).slice(0,80) : "";
   
@@ -5735,77 +5651,6 @@ const shippingBadge = dealStatus === "Shipping" ? "In Progress" : "Not Started";
       </div>
     </details>
 
-    <details class="deal360-panel" id="ownership-panel-${r.id}">
-      <summary>
-        <span>👥 Deal Ownership</span>
-        <span class="panel-badge" id="ownership-badge-${r.id}">${safe(ownership.lead_manager || r.assigned_to || "Unassigned")}</span>
-      </summary>
-      <div class="deal360-panel-body">
-        <div class="ownership-grid">
-
-          <label class="ownership-field">
-            <span>Lead Manager</span>
-            <select id="ownership-manager-${r.id}">
-              <option value="">Unassigned</option>
-              <option value="Andy Gifford" ${(ownership.lead_manager || r.assigned_to)==="Andy Gifford"?"selected":""}>Andy Gifford</option>
-              <option value="Sean Byrne" ${(ownership.lead_manager || r.assigned_to)==="Sean Byrne"?"selected":""}>Sean Byrne</option>
-              <option value="Cat Byrne" ${(ownership.lead_manager || r.assigned_to)==="Cat Byrne"?"selected":""}>Cat Byrne</option>
-              <option value="Sophie Gifford" ${(ownership.lead_manager || r.assigned_to)==="Sophie Gifford"?"selected":""}>Sophie Gifford</option>
-            </select>
-          </label>
-
-          <label class="ownership-field">
-            <span>Supporting Staff</span>
-            <select id="ownership-support-${r.id}">
-              <option value="">None</option>
-              <option value="Andy Gifford" ${ownership.supporting_staff==="Andy Gifford"?"selected":""}>Andy Gifford</option>
-              <option value="Sean Byrne" ${ownership.supporting_staff==="Sean Byrne"?"selected":""}>Sean Byrne</option>
-              <option value="Cat Byrne" ${ownership.supporting_staff==="Cat Byrne"?"selected":""}>Cat Byrne</option>
-              <option value="Sophie Gifford" ${ownership.supporting_staff==="Sophie Gifford"?"selected":""}>Sophie Gifford</option>
-            </select>
-          </label>
-
-          <label class="ownership-field">
-            <span>Priority</span>
-            <select id="ownership-priority-${r.id}">
-              <option value="Normal" ${(ownership.priority || "Normal")==="Normal"?"selected":""}>Normal</option>
-              <option value="Low" ${ownership.priority==="Low"?"selected":""}>Low</option>
-              <option value="High" ${ownership.priority==="High"?"selected":""}>High</option>
-              <option value="Urgent" ${ownership.priority==="Urgent"?"selected":""}>Urgent</option>
-            </select>
-          </label>
-
-          <label class="ownership-field">
-            <span>Next Follow-up</span>
-            <input type="datetime-local" id="ownership-followup-${r.id}" value="${ownershipDateTimeValue(ownership.next_follow_up)}">
-          </label>
-
-          <label class="ownership-field">
-            <span>Expected Completion</span>
-            <input type="date" id="ownership-completion-${r.id}" value="${ownershipDateValue(ownership.expected_completion)}">
-          </label>
-
-          <label class="ownership-field">
-            <span>Deal Health</span>
-            <select id="ownership-health-${r.id}">
-              <option value="On Track" ${(ownership.deal_health || "On Track")==="On Track"?"selected":""}>On Track</option>
-              <option value="At Risk" ${ownership.deal_health==="At Risk"?"selected":""}>At Risk</option>
-              <option value="Urgent" ${ownership.deal_health==="Urgent"?"selected":""}>Urgent</option>
-              <option value="Stalled" ${ownership.deal_health==="Stalled"?"selected":""}>Stalled</option>
-            </select>
-          </label>
-
-        </div>
-
-        <div class="ownership-actions">
-          <button type="button" onclick="saveDealOwnership(${r.id})">Save Ownership</button>
-          <span class="ownership-save-status" id="ownership-status-${r.id}">
-            ${ownership.updated_at ? `Last updated ${new Date(ownership.updated_at).toLocaleString("en-GB")}` : "Not saved yet"}
-          </span>
-        </div>
-      </div>
-    </details>
-
     <details class="deal360-panel" id="tasks-panel-${r.id}">
       <summary><span>📋 Internal Tasks</span><span class="panel-badge">Planned</span></summary>
       <div class="deal360-panel-body">
@@ -6009,7 +5854,7 @@ async function updateLeadStatus(id, leadStatus){
 }
 
 /* ======================================================
-   DEAL OWNERSHIP ASSIGNMENT
+   DEAL ASSIGNMENT
 ====================================================== */
 async function assignDeal(id, staffName){
 
@@ -6039,65 +5884,6 @@ async function assignDeal(id, staffName){
 
 }
 
-
-async function saveDealOwnership(id){
-  const enquiryId = Number(id);
-
-  const manager = document.getElementById(`ownership-manager-${id}`)?.value || "";
-  const supportingStaff = document.getElementById(`ownership-support-${id}`)?.value || "";
-  const priority = document.getElementById(`ownership-priority-${id}`)?.value || "Normal";
-  const nextFollowUpRaw = document.getElementById(`ownership-followup-${id}`)?.value || "";
-  const expectedCompletionRaw = document.getElementById(`ownership-completion-${id}`)?.value || "";
-  const dealHealth = document.getElementById(`ownership-health-${id}`)?.value || "On Track";
-  const statusEl = document.getElementById(`ownership-status-${id}`);
-
-  if(statusEl) statusEl.textContent = "Saving...";
-
-  const ownershipPayload = {
-    enquiry_id: enquiryId,
-    lead_manager: manager || null,
-    supporting_staff: supportingStaff || null,
-    priority,
-    next_follow_up: nextFollowUpRaw ? new Date(nextFollowUpRaw).toISOString() : null,
-    expected_completion: expectedCompletionRaw || null,
-    deal_health: dealHealth,
-    updated_by: "Andy Gifford",
-    updated_at: new Date().toISOString()
-  };
-
-  const ownershipSave = await sb
-    .from("deal360")
-    .upsert(ownershipPayload, {onConflict:"enquiry_id"});
-
-  if(ownershipSave.error){
-    if(statusEl) statusEl.textContent = "Save failed";
-    alert("Deal Ownership save failed: " + ownershipSave.error.message);
-    return;
-  }
-
-  const assignmentSave = await sb
-    .from("bike_enquiries")
-    .update({
-      assigned_to: manager || null,
-      assigned_by: "Andy Gifford",
-      assigned_at: new Date().toISOString()
-    })
-    .eq("id", enquiryId);
-
-  if(assignmentSave.error){
-    if(statusEl) statusEl.textContent = "Ownership saved; manager sync failed";
-    alert("Ownership saved, but Lead Manager sync failed: " + assignmentSave.error.message);
-    return;
-  }
-
-  dealOwnershipMap[String(enquiryId)] = ownershipPayload;
-
-  const badge = document.getElementById(`ownership-badge-${id}`);
-  if(badge) badge.textContent = manager || "Unassigned";
-  if(statusEl) statusEl.textContent = "Saved just now";
-
-  await reloadKeepingDealOpen(enquiryId);
-}
 
 /* ======================================================
    CONVERSATION LOADING, TRANSLATION AND SENDING
