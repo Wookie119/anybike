@@ -1646,6 +1646,128 @@ color:#ed1c24;
   background:#ed1c24;
 }
 
+
+/* GLOBAL OPERATIONS V8 — COUNTRY DRILL-DOWN */
+.country-deal-list{
+  display:grid;
+  gap:8px;
+  margin-top:12px;
+}
+
+.country-deal-card{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:10px;
+  align-items:center;
+  padding:10px 11px;
+  border-radius:10px;
+  background:#151515;
+  border:1px solid rgba(255,255,255,.09);
+  cursor:pointer;
+}
+
+.country-deal-card:hover{
+  border-color:rgba(237,28,36,.55);
+  background:#191919;
+}
+
+.country-deal-card strong{
+  display:block;
+  color:#fff;
+  font-size:13px;
+  line-height:1.35;
+}
+
+.country-deal-card small{
+  display:block;
+  margin-top:3px;
+  color:#999;
+  font-size:11px;
+  line-height:1.35;
+}
+
+.country-deal-open{
+  color:#ed1c24;
+  font-size:11px;
+  font-weight:950;
+  white-space:nowrap;
+}
+
+.country-section-label{
+  margin-top:14px;
+  color:#888;
+  font-size:10px;
+  font-weight:950;
+  letter-spacing:.07em;
+  text-transform:uppercase;
+}
+
+.country-action-list{
+  display:grid;
+  gap:8px;
+}
+
+.country-action-card{
+  display:grid;
+  grid-template-columns:32px minmax(0,1fr) auto;
+  gap:9px;
+  align-items:center;
+  padding:10px;
+  border-radius:10px;
+  background:#151515;
+  border:1px solid rgba(255,255,255,.09);
+  cursor:pointer;
+}
+
+.country-action-card:hover{
+  border-color:rgba(237,28,36,.55);
+}
+
+.country-action-icon{
+  width:30px;
+  height:30px;
+  border-radius:8px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:#222;
+}
+
+.country-action-card strong{
+  display:block;
+  font-size:12px;
+  line-height:1.3;
+}
+
+.country-action-card small{
+  display:block;
+  margin-top:3px;
+  color:#999;
+  font-size:11px;
+}
+
+.country-action-open{
+  color:#ed1c24;
+  font-size:11px;
+  font-weight:950;
+  white-space:nowrap;
+}
+
+.country-summary-scroll{
+  max-height:490px;
+  overflow:auto;
+  padding-right:3px;
+}
+
+.country-summary-scroll::-webkit-scrollbar{
+  width:6px;
+}
+
+.country-summary-scroll::-webkit-scrollbar-thumb{
+  background:#333;
+  border-radius:999px;
+}
+
 </style>
 </head>
 
@@ -1925,11 +2047,11 @@ color:#ed1c24;
 
         <div class="card operation-card">
 
-          <h3>Upcoming Deadlines</h3>
+          <h3>Country Actions</h3>
 
           <div id="countryDeadlines">
 
-            No country selected.
+            Select a country on the map.
 
           </div>
 
@@ -2873,7 +2995,7 @@ async function loadWorldActivity(){
       customer_name,
       customer_email,
       destination_country,
-      bike_id,
+      ip_country,
       available_stock (
         make,
         model,
@@ -2881,7 +3003,7 @@ async function loadWorldActivity(){
       )
     `)
     .order("created_at",{ascending:false})
-    .limit(20);
+    .limit(30);
 
   if(enquiryResult.error){
     console.warn("Live World Activity enquiry load failed:", enquiryResult.error);
@@ -2914,9 +3036,7 @@ async function loadWorldActivity(){
       .in("enquiry_id",enquiryIds)
       .order("created_at",{ascending:true});
 
-    if(messageResult.error){
-      console.warn("Live World Activity message load failed:", messageResult.error);
-    }else{
+    if(!messageResult.error){
       messages = messageResult.data || [];
     }
   }
@@ -2929,9 +3049,15 @@ async function loadWorldActivity(){
     messagesByEnquiry[key].push(message);
   });
 
+  const cutoff = Date.now() - (30 * 24 * 60 * 60 * 1000);
   const items = [];
 
   enquiries.forEach(function(enquiry){
+    const createdAt = new Date(enquiry.created_at);
+    if(isNaN(createdAt.getTime()) || createdAt.getTime() < cutoff){
+      return;
+    }
+
     const bike = enquiry.available_stock || {};
     const bikeName = [
       bike.year,
@@ -2950,8 +3076,8 @@ async function loadWorldActivity(){
       "Customer";
 
     items.push({
-      key:"enquiry-" + enquiry.id,
-      when:new Date(enquiry.created_at),
+      key:"new-" + enquiry.id,
+      when:createdAt,
       html:`
         <div class="work-item"
           onclick="location.href='admin-enquiries.html?open=${enquiry.id}'"
@@ -2967,37 +3093,37 @@ async function loadWorldActivity(){
     });
 
     const enquiryMessages = messagesByEnquiry[String(enquiry.id)] || [];
-    let adminMessageSeen = false;
+    let anyBikeHasReplied = false;
+    let customerMessageCount = 0;
 
     enquiryMessages.forEach(function(message){
       const sender = String(message.sender || "").toLowerCase();
       const isCustomer = sender.includes("customer");
-      const isAdmin = !isCustomer;
 
-      if(isAdmin){
-        adminMessageSeen = true;
+      if(!isCustomer){
+        anyBikeHasReplied = true;
         return;
       }
 
-      /*
-        The first customer message is normally the enquiry itself.
-        Only show "Customer replied" after AnyBike has sent a message,
-        or when the customer sends a later additional message.
-      */
-      const customerMessagesBefore = enquiryMessages.filter(function(previous){
-        return (
-          new Date(previous.created_at) < new Date(message.created_at) &&
-          String(previous.sender || "").toLowerCase().includes("customer")
-        );
-      }).length;
+      customerMessageCount++;
 
-      if(!adminMessageSeen && customerMessagesBefore === 0){
+      /*
+        The first customer message is the original enquiry.
+        A reply is shown only after AnyBike has responded, or for
+        a later customer message in the same conversation.
+      */
+      if(!anyBikeHasReplied && customerMessageCount === 1){
+        return;
+      }
+
+      const messageDate = new Date(message.created_at);
+      if(isNaN(messageDate.getTime()) || messageDate.getTime() < cutoff){
         return;
       }
 
       items.push({
-        key:"message-" + message.id,
-        when:new Date(message.created_at),
+        key:"reply-" + message.id,
+        when:messageDate,
         html:`
           <div class="work-item"
             onclick="location.href='admin-enquiries.html?open=${message.enquiry_id}&focus=messages'"
@@ -3090,12 +3216,15 @@ function operationsPointType(countryData){
 
 function renderOperationsCountrySummary(countryName){
   const box = document.getElementById("countrySummary");
-  const deadlines = document.getElementById("countryDeadlines");
+  const actionsBox = document.getElementById("countryDeadlines");
 
   selectedOperationsCountry = countryName || "";
 
   document.querySelectorAll(".country-card-row").forEach(function(row){
-    row.classList.toggle("active",row.getAttribute("data-country")===selectedOperationsCountry);
+    row.classList.toggle(
+      "active",
+      row.getAttribute("data-country") === selectedOperationsCountry
+    );
   });
 
   if(!box) return;
@@ -3111,37 +3240,73 @@ function renderOperationsCountrySummary(countryName){
         <div class="country-row"><span>Location Mismatches</span><strong>0</strong></div>
       </div>
     `;
-    if(deadlines) deadlines.textContent="No country selected.";
+
+    if(actionsBox){
+      actionsBox.textContent = "Select a country on the map.";
+    }
     return;
   }
 
+  const deals = (data.deals || []).slice(0,6);
+
   box.innerHTML = `
-    <div class="country-placeholder">
+    <div class="country-placeholder country-summary-scroll">
       <h3>🌍 ${escapeDashboardText(countryName)}</h3>
+
       <div class="country-row"><span>Active Leads</span><strong>${data.leads}</strong></div>
       <div class="country-row"><span>Buyer Leads</span><strong>${data.buyers}</strong></div>
       <div class="country-row"><span>Operations</span><strong>${data.operations}</strong></div>
       <div class="country-row"><span>Shipping</span><strong>${data.shipping}</strong></div>
       <div class="country-row"><span>Customer Replies</span><strong>${data.replies}</strong></div>
       <div class="country-row"><span>Location Mismatches</span><strong>${data.mismatches}</strong></div>
+
+      <div class="country-section-label">Active deals</div>
+
+      <div class="country-deal-list">
+        ${deals.length ? deals.map(function(deal){
+          return `
+            <div class="country-deal-card"
+              onclick="location.href='admin-enquiries.html?open=${deal.id}'">
+              <div>
+                <strong>${escapeDashboardText(deal.bike)}</strong>
+                <small>
+                  ${escapeDashboardText(deal.customer)} ·
+                  ${escapeDashboardText(deal.status)} ·
+                  ${escapeDashboardText(deal.assigned)}
+                </small>
+              </div>
+              <div class="country-deal-open">Open →</div>
+            </div>
+          `;
+        }).join("") : `
+          <div class="action-queue-empty">No active Bike Sales deals in this country.</div>
+        `}
+      </div>
     </div>
   `;
 
-  if(deadlines){
-    const actions=[];
-    if(data.replies) actions.push(`${data.replies} customer repl${data.replies===1?"y":"ies"} need attention.`);
-    if(data.operations) actions.push(`${data.operations} Operations deal${data.operations===1?"":"s"} require monitoring.`);
-    if(data.shipping) actions.push(`${data.shipping} Shipping deal${data.shipping===1?"":"s"} require monitoring.`);
-    if(data.mismatches) actions.push(`${data.mismatches} location mismatch${data.mismatches===1?"":"es"} require review.`);
+  if(actionsBox){
+    const actions = data.actions || [];
 
-    deadlines.innerHTML = actions.length
-      ? actions.map(function(action){
-          return `<div class="work-item"><span>${escapeDashboardText(action)}</span><span>→</span></div>`;
-        }).join("")
+    actionsBox.innerHTML = actions.length
+      ? `<div class="country-action-list">
+          ${actions.slice(0,8).map(function(action){
+            return `
+              <div class="country-action-card"
+                onclick="location.href='${action.url}'">
+                <div class="country-action-icon">${action.icon}</div>
+                <div>
+                  <strong>${escapeDashboardText(action.title)}</strong>
+                  <small>${escapeDashboardText(action.detail)}</small>
+                </div>
+                <div class="country-action-open">Open →</div>
+              </div>
+            `;
+          }).join("")}
+        </div>`
       : `<div class="work-item"><span>No urgent country actions.</span><span>OK</span></div>`;
   }
 }
-
 function renderOperationsCountryList(){
   const box=document.getElementById("countrySummary");
   if(!box) return;
@@ -3222,12 +3387,20 @@ function renderOperationsSvgMap(){
 }
 
 async function loadGlobalOperations(){
-  const leadsResult=await sb
+  const leadsResult = await sb
     .from("bike_enquiries")
-    .select("*")
+    .select(`
+      *,
+      available_stock (
+        id,
+        make,
+        model,
+        year
+      )
+    `)
     .order("created_at",{ascending:false});
 
-  const buyerLeadResult=await sb
+  const buyerLeadResult = await sb
     .from("message_centre_threads")
     .select("id,source_type,country,lead_status,status,related_enquiry_id,created_at")
     .in("source_type",[
@@ -3241,53 +3414,155 @@ async function loadGlobalOperations(){
     .neq("status","Deleted")
     .order("created_at",{ascending:false});
 
-  const messageResult=await sb
+  const messageResult = await sb
     .from("enquiry_messages")
     .select("enquiry_id,sender,created_at")
     .order("created_at",{ascending:false});
 
-  const leads=(leadsResult.data||[]).filter(activeDashboardLead);
-  const buyerLeads=buyerLeadResult.data||[];
-  const latestMessageByEnquiry={};
+  const leads = (leadsResult.data || []).filter(activeDashboardLead);
+  const buyerLeads = buyerLeadResult.data || [];
+  const latestMessageByEnquiry = {};
 
-  (messageResult.data||[]).forEach(function(message){
-    const key=String(message.enquiry_id);
-    if(!latestMessageByEnquiry[key]) latestMessageByEnquiry[key]=message;
+  (messageResult.data || []).forEach(function(message){
+    const key = String(message.enquiry_id);
+    if(!latestMessageByEnquiry[key]){
+      latestMessageByEnquiry[key] = message;
+    }
   });
 
-  anyBikeCountryData={};
+  anyBikeCountryData = {};
 
   function ensureCountry(country){
-    const cleanCountry=country||"Unknown";
+    const cleanCountry = country || "Unknown";
+
     if(!anyBikeCountryData[cleanCountry]){
-      anyBikeCountryData[cleanCountry]={
-        leads:0,buyers:0,operations:0,shipping:0,replies:0,mismatches:0
+      anyBikeCountryData[cleanCountry] = {
+        leads:0,
+        buyers:0,
+        operations:0,
+        shipping:0,
+        replies:0,
+        mismatches:0,
+        deals:[],
+        actions:[]
       };
     }
+
     return anyBikeCountryData[cleanCountry];
   }
 
   leads.forEach(function(enquiry){
-    const country=enquiry.ip_country||enquiry.destination_country||enquiry.country||"Unknown";
-    const item=ensureCountry(country);
+    const country =
+      enquiry.ip_country ||
+      enquiry.destination_country ||
+      enquiry.country ||
+      "Unknown";
+
+    const item = ensureCountry(country);
+    const status = dashboardLeadStatus(enquiry);
+    const latest = latestMessageByEnquiry[String(enquiry.id)];
+    const customerReply =
+      latest &&
+      String(latest.sender || "").toLowerCase().includes("customer");
+
     item.leads++;
 
-    const status=dashboardLeadStatus(enquiry);
-    if(status==="Operations") item.operations++;
-    if(status==="Shipping") item.shipping++;
+    if(status === "Operations") item.operations++;
+    if(status === "Shipping") item.shipping++;
     if(locationMismatch(enquiry)) item.mismatches++;
+    if(customerReply) item.replies++;
 
-    const latest=latestMessageByEnquiry[String(enquiry.id)];
-    if(latest&&String(latest.sender||"").toLowerCase().includes("customer")) item.replies++;
+    item.deals.push({
+      id:enquiry.id,
+      customer:dashboardCustomerName(enquiry),
+      bike:dashboardBikeName(enquiry),
+      status:status,
+      assigned:enquiry.assigned_to || "Unassigned",
+      createdAt:dashboardActionAge(enquiry)
+    });
+
+    if(customerReply){
+      item.actions.push({
+        icon:"💬",
+        title:"Customer reply waiting",
+        detail:dashboardBikeName(enquiry) + " · " + dashboardCustomerName(enquiry),
+        url:dashboardDealUrl(enquiry.id,"messages"),
+        priority:1
+      });
+    }
+
+    if(locationMismatch(enquiry)){
+      item.actions.push({
+        icon:"⚠️",
+        title:"Location mismatch review",
+        detail:dashboardBikeName(enquiry) + " · declared and observed countries differ",
+        url:dashboardDealUrl(enquiry.id,"customer"),
+        priority:2
+      });
+    }
+
+    if(status === "Operations"){
+      const next = dashboardNextWorkflowTask(
+        enquiry,
+        "operations_checklist",
+        DASHBOARD_OPERATIONS_TASKS
+      );
+
+      if(next.name){
+        item.actions.push({
+          icon:"📦",
+          title:next.name,
+          detail:"Operations workflow " + next.done + "/" + next.total + " complete",
+          url:dashboardDealUrl(enquiry.id,"workflow"),
+          priority:3
+        });
+      }
+    }
+
+    if(status === "Shipping"){
+      const next = dashboardNextWorkflowTask(
+        enquiry,
+        "shipping_checklist",
+        DASHBOARD_SHIPPING_TASKS
+      );
+
+      if(next.name){
+        item.actions.push({
+          icon:"🚢",
+          title:next.name,
+          detail:"Shipping workflow " + next.done + "/" + next.total + " complete",
+          url:dashboardDealUrl(enquiry.id,"workflow"),
+          priority:4
+        });
+      }
+    }
   });
 
   buyerLeads.forEach(function(thread){
-    ensureCountry(thread.country||"Unknown").buyers++;
+    const country = thread.country || "Unknown";
+    ensureCountry(country).buyers++;
+  });
+
+  Object.keys(anyBikeCountryData).forEach(function(country){
+    const item = anyBikeCountryData[country];
+
+    item.deals.sort(function(a,b){
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    });
+
+    item.actions.sort(function(a,b){
+      return a.priority - b.priority;
+    });
   });
 
   setText("mapCustomers",leads.length);
   setText("mapBuyers",buyerLeads.length);
-  setText("mapCountries",Object.keys(anyBikeCountryData).filter(function(country){return country!=="Unknown";}).length);
+  setText(
+    "mapCountries",
+    Object.keys(anyBikeCountryData).filter(function(country){
+      return country !== "Unknown";
+    }).length
+  );
   setText("mapMismatches",leads.filter(locationMismatch).length);
 
   renderOperationsSvgMap();
@@ -3298,8 +3573,12 @@ async function loadGlobalOperations(){
     .sort(function(a,b){
       const aData = anyBikeCountryData[a];
       const bData = anyBikeCountryData[b];
-      return (bData.leads + bData.buyers + bData.replies) -
-        (aData.leads + aData.buyers + aData.replies);
+
+      return (
+        bData.leads + bData.buyers + bData.replies + bData.actions.length
+      ) - (
+        aData.leads + aData.buyers + aData.replies + aData.actions.length
+      );
     })[0];
 
   if(topCountry){
@@ -3308,7 +3587,6 @@ async function loadGlobalOperations(){
     renderOperationsCountrySummary("");
   }
 }
-
 setHeader();
 
 (async()=>{
