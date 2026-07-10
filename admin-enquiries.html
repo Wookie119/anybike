@@ -2613,7 +2613,9 @@ function getOpenEnquiryIdFromUrl(){
 }
 
 function openEnquiryFromUrl(){
+  if(pendingOpenHandled){ return; }
 
+  const params = new URLSearchParams(window.location.search);
   const targetId = getOpenEnquiryIdFromUrl();
   if(!targetId){ return; }
 
@@ -2624,6 +2626,8 @@ function openEnquiryFromUrl(){
     return;
   }
 
+  pendingOpenHandled = true;
+
   document.querySelectorAll(".enquiry.open").forEach(function(item){
     if(item !== row){
       item.classList.remove("open");
@@ -2633,8 +2637,19 @@ function openEnquiryFromUrl(){
   row.classList.add("open");
   openEnquiryId = targetId;
 
+  const focus = params.get("focus");
+
+  /* Open notification links once, then remove the open/focus parameters.
+     A normal page refresh will therefore return to the compact collapsed queue. */
+  ["open","enquiry","enquiry_id","id","focus"].forEach(function(key){
+    params.delete(key);
+  });
+
+  const cleanQuery = params.toString();
+  const cleanUrl = window.location.pathname + (cleanQuery ? "?" + cleanQuery : "") + window.location.hash;
+  window.history.replaceState({}, document.title, cleanUrl);
+
   setTimeout(function(){
-    const focus = new URLSearchParams(window.location.search).get("focus");
     const conversation = document.getElementById("conversation-" + targetId);
     const messages = document.getElementById("messages-" + targetId);
     const replyBox = document.getElementById("msg-" + targetId);
@@ -2649,12 +2664,12 @@ function openEnquiryFromUrl(){
       messages.scrollTop = messages.scrollHeight;
     }
 
-    if(replyBox){
+    if(replyBox && focus === "messages"){
       setTimeout(function(){
         replyBox.focus();
       }, 350);
     }
-  }, 800);
+  }, 300);
 }
 
 function safe(v){
