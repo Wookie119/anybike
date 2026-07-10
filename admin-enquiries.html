@@ -3,6 +3,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -12,7 +13,7 @@
 <meta name="robots" content="noindex,nofollow">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-/* COMMERCIAL KPI UPDATE: live pipeline value, expected profit, margin, average profit and weighted forecast. */
+/* COMMERCIAL KPI UPDATE: live pipeline value, pipeline profit, margin, average profit and low-margin deal count. */
 /* PHASE 1 STABILISATION: syntax repaired; HTML and JavaScript preserved. */
 :root{--red:#ed1c24;--line:rgba(255,255,255,.12)}
 *{box-sizing:border-box}
@@ -3305,10 +3306,10 @@ body{
 
   <div class="bike-sales-overview" aria-label="Bike Sales commercial overview">
     <div class="bike-sales-kpi"><span>Pipeline Value</span><strong id="salesPipelineValue">£0</strong></div>
-    <div class="bike-sales-kpi"><span>Expected Profit</span><strong id="salesExpectedProfit">£0</strong></div>
+    <div class="bike-sales-kpi"><span>Pipeline Profit</span><strong id="salesPipelineProfit">£0</strong></div>
     <div class="bike-sales-kpi"><span>Average Margin</span><strong id="salesAverageMargin">0.0%</strong></div>
     <div class="bike-sales-kpi"><span>Average Deal Profit</span><strong id="salesAverageDealProfit">£0</strong></div>
-    <div class="bike-sales-kpi"><span>Forecast Revenue</span><strong id="salesForecastRevenue">£0</strong></div>
+    <div class="bike-sales-kpi"><span>Low Margin Deals</span><strong id="salesLowMarginDeals">0</strong></div>
   </div>
 </section>
 
@@ -4532,27 +4533,17 @@ function updateBikeSalesOverview(){
     ? expectedProfit / activeDeals.length
     : 0;
 
-  const forecastWeights = {
-    "New Lead": 0.10,
-    "Contact Made": 0.20,
-    "Information Needed": 0.20,
-    "Research / Availability": 0.25,
-    "Proposal Sent": 0.40,
-    "Negotiating": 0.60,
-    "Waiting Customer": 0.55,
-    "Confirmed": 0.85,
-    "Payment / Deposit": 0.95,
-    "Operations": 1.00,
-    "Shipping": 1.00
-  };
+  const lowMarginThreshold = 10;
+  const lowMarginDeals = activeDeals.filter(function(item){
+    const revenue = dealRevenue(item);
+    if(revenue <= 0){ return false; }
 
-  const forecastRevenue = activeDeals.reduce(function(total, item){
-    const status = normaliseLeadStatus(item);
-    const weight = Object.prototype.hasOwnProperty.call(forecastWeights, status)
-      ? forecastWeights[status]
-      : 0;
-    return total + (dealRevenue(item) * weight);
-  }, 0);
+    const profit = Number(dealEstimatedProfit(item));
+    const safeProfit = Number.isFinite(profit) ? profit : 0;
+    const margin = (safeProfit / revenue) * 100;
+
+    return margin < lowMarginThreshold;
+  }).length;
 
   const setText = function(id, value){
     const element = document.getElementById(id);
@@ -4566,10 +4557,10 @@ function updateBikeSalesOverview(){
   };
 
   setText("salesPipelineValue", formatMoney(pipelineValue));
-  setText("salesExpectedProfit", formatMoney(expectedProfit));
+  setText("salesPipelineProfit", formatMoney(expectedProfit));
   setText("salesAverageMargin", averageMargin.toFixed(1) + "%");
   setText("salesAverageDealProfit", formatMoney(averageDealProfit));
-  setText("salesForecastRevenue", formatMoney(forecastRevenue));
+  setText("salesLowMarginDeals", String(lowMarginDeals));
 
   const countMap = {
     queueCountAll: allEnquiries.length,
