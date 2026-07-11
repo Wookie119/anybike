@@ -7,6 +7,8 @@
 
 
 
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -15,6 +17,8 @@
 <title>Bike Sales HQ | AnyBike Admin</title>
 <meta name="robots" content="noindex,nofollow">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="admin-files.css?v=8100">
+<link rel="stylesheet" href="admin-tasks.css?v=8200">
 <style>
 /* COMMERCIAL KPI UPDATE: live pipeline value, pipeline profit, margin, average profit and low-margin deal count. */
 /* PHASE 1 STABILISATION: syntax repaired; HTML and JavaScript preserved. */
@@ -3613,9 +3617,10 @@ document.addEventListener("keydown", function(e){
 
 </script>
 
-<!-- SHARED DEAL ACTIVITY AND WORKFLOW MODULES -->
+<!-- SHARED DEAL ACTIVITY, WORKFLOW AND TASK MODULES -->
 <script src="admin-deal-history.js"></script>
 <script src="admin-workflow.js"></script>
+<script src="admin-tasks.js?v=8200"></script>
 
 <!-- ===================================================== -->
 <!-- BIKE SALES HQ APPLICATION LOGIC -->
@@ -5651,20 +5656,71 @@ const shippingBadge = dealStatus === "Shipping" ? "In Progress" : "Not Started";
       </div>
     </details>
 
-    <details class="deal360-panel" id="tasks-panel-${r.id}">
-      <summary><span>📋 Internal Tasks</span><span class="panel-badge">Planned</span></summary>
+    <details class="deal360-panel" id="tasks-panel-${r.id}" ontoggle="if(this.open&&typeof loadDealTasks==='function'){loadDealTasks(${Number(r.id)});}">
+      <summary><span>📋 Internal Tasks</span><span class="panel-badge badge-grey" id="deal-task-count-${r.id}">0 Tasks</span></summary>
       <div class="deal360-panel-body">
-        <div class="workflow-empty">
-          <strong>Internal task workspace.</strong>
-          <div>Create, assign and complete deal-specific tasks separately from Lead Status and operational workflows.</div>
+        <div class="tasks-wrap">
+          <div class="tasks-header">
+            <div>
+              <h4>Deal Tasks</h4>
+              <p>Lightweight actions linked only to this deal.</p>
+            </div>
+            <button type="button" onclick="showAddTaskForm(${Number(r.id)});return false;">＋ Add Task</button>
+          </div>
+
+          <div class="deal-task-status" id="deal-task-status-${r.id}"></div>
+
+          <div class="task-form-panel" id="deal-task-form-${r.id}">
+            <div class="task-form">
+              <label>
+                Task
+                <input type="text" id="deal-task-name-${r.id}" placeholder="For example: Call seller">
+              </label>
+              <label>
+                Assigned To
+                <select id="deal-task-assigned-${r.id}">
+                  <option value="">Unassigned</option>
+                  <option value="Andy Gifford">Andy Gifford</option>
+                  <option value="Sean Byrne">Sean Byrne</option>
+                  <option value="Cat Byrne">Cat Byrne</option>
+                  <option value="Sophie Gifford">Sophie Gifford</option>
+                </select>
+              </label>
+              <label>
+                Due Date
+                <input type="date" id="deal-task-due-${r.id}">
+              </label>
+              <label class="full">
+                Notes
+                <textarea id="deal-task-notes-${r.id}" placeholder="Optional task notes"></textarea>
+              </label>
+            </div>
+            <div class="task-form-actions">
+              <button type="button" onclick="saveDealTask(${Number(r.id)});return false;">Save Task</button>
+              <button type="button" class="task-cancel-button" onclick="hideAddTaskForm(${Number(r.id)});return false;">Cancel</button>
+            </div>
+          </div>
+
+          <div class="task-list" id="deal-task-list-${r.id}">
+            <div class="task-empty">Open this panel to load internal tasks.</div>
+          </div>
         </div>
       </div>
     </details>
 
-    <details class="deal360-panel" id="documents-panel-${r.id}">
-      <summary><span>📎 Documents</span><span class="panel-badge">0 Files</span></summary>
+    <details class="deal360-panel" id="documents-panel-${r.id}" ontoggle="if(this.open&&typeof loadDealFiles==='function'){loadDealFiles(${Number(r.id)});}">
+      <summary><span>📎 Documents</span><span class="panel-badge badge-grey" id="deal-file-count-${r.id}">0 Files</span></summary>
       <div class="deal360-panel-body">
-        <div class="workflow-empty"><strong>Documents module placeholder.</strong><div>Purchase invoice, V5, photos and shipping documents will live here.</div></div>
+        <div class="deal-files-wrap">
+          <div class="deal-file-dropzone" id="deal-file-dropzone-${r.id}" tabindex="0" role="button" aria-label="Upload files to this deal" onclick="openDealFilePicker(${Number(r.id)})" onkeydown="handleDealFilePickerKey(event,${Number(r.id)})" ondragenter="handleDealFileDragEnter(event,${Number(r.id)})" ondragover="handleDealFileDragOver(event,${Number(r.id)})" ondragleave="handleDealFileDragLeave(event,${Number(r.id)})" ondrop="handleDealFileDrop(event,${Number(r.id)},${Number(r.bike_id || b.id || 0)})">
+            <div class="deal-file-dropzone-icon">☁️</div>
+            <strong>Drop files here or click to upload</strong>
+            <small>Upload multiple images, PDFs, invoices, V5 documents, shipping paperwork and other files linked to this deal.</small>
+          </div>
+          <input class="deal-file-input" id="deal-file-input-${r.id}" type="file" multiple onchange="uploadDealFiles(${Number(r.id)},${Number(r.bike_id || b.id || 0)},this.files)">
+          <div class="deal-file-upload-status" id="deal-file-status-${r.id}"></div>
+          <div class="deal-files-list" id="deal-files-list-${r.id}"><div class="deal-file-empty">Open this panel to load deal files.</div></div>
+        </div>
       </div>
     </details>
 
@@ -5711,6 +5767,7 @@ const shippingBadge = dealStatus === "Shipping" ? "In Progress" : "Not Started";
 rows.forEach(function(r){
   loadMessages(r.id, r.message, r.customer_name);
   if(typeof loadDealTimeline === "function"){ loadDealTimeline(r.id); }
+  if(typeof loadDealTasks === "function"){ loadDealTasks(r.id); }
 });
 
 if(openEnquiryId){
@@ -6385,6 +6442,7 @@ setTimeout(() => {
 }, 1000);
 
 </script>
+<script src="admin-files.js?v=8100"></script>
 
 <!-- SHARED ADMIN INITIALISATION -->
 <script src="admin.js?v=4001"></script>
