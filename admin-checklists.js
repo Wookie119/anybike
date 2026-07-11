@@ -223,771 +223,521 @@
       </button>
     `;
   }
-    function renderRows(enquiryId, category, rows){
 
+  function renderRows(enquiryId, category, rows){
     const id = numberValue(enquiryId);
-
-    const host =
-      element(
-        "deal-checklist-" +
-        category +
-        "-" +
-        id
-      );
+    const host = element("deal-checklist-" + category + "-" + id);
 
     if(!host){
       return;
     }
 
-    host.innerHTML =
-      sortRows(rows, category)
-      .map(function(row){
+    host.innerHTML = sortRows(rows, category).map(function(row){
+      const status = String(row.status || "waiting");
+      const notes = String(row.notes || "");
 
-        const status =
-          String(
-            row.status || "waiting"
-          );
+      let meta = "Waiting";
 
-        const notes =
-          String(
-            row.notes || ""
-          );
+      if(status === "complete"){
+        meta = row.completed_by
+          ? "Completed by " + row.completed_by
+          : "Complete";
+      }else if(status === "not_required"){
+        meta = "Not required for this deal";
+      }
 
-        let meta = "Waiting";
+      const uploadButton =
+        category === "documents"
+          ? `
+            <button
+              type="button"
+              class="checklist-upload-button"
+              onclick="openDealChecklistUpload(
+                ${numberValue(row.id)},
+                ${id}
+              );return false;">
+              📎 Upload
+            </button>
+          `
+          : "";
 
-        if(status === "complete"){
+      return `
+        <div class="checklist-row status-${escapeHtml(status)}">
 
-          meta =
-            row.completed_by
-              ? "Completed by " +
-                row.completed_by
-              : "Complete";
+          <div class="checklist-item-copy">
+            <strong>${escapeHtml(row.item_name)}</strong>
+            <small>${escapeHtml(meta)}</small>
 
-        }
-        else if(
-          status === "not_required"
-        ){
+            <label class="checklist-note-label">
+              <span>Notes / Reference</span>
 
-          meta =
-            "Not required for this deal";
+              <input
+                type="text"
+                class="checklist-note-input"
+                id="deal-checklist-note-${numberValue(row.id)}"
+                value="${escapeHtml(notes)}"
+                placeholder="Type a number, reference or note..."
+                oninput="queueDealChecklistNoteSave(
+                  ${numberValue(row.id)},
+                  ${id},
+                  this.value
+                );"
+                onblur="saveDealChecklistNote(
+                  ${numberValue(row.id)},
+                  ${id},
+                  this.value
+                );">
+            </label>
 
-        }
+            <small
+              class="checklist-note-save-state"
+              id="deal-checklist-note-state-${numberValue(row.id)}">
+            </small>
+          </div>
 
-        const uploadButton =
-          category === "documents"
-            ? `
-              <button
-                type="button"
-                class="checklist-upload-button"
-                onclick="
-                  openDealChecklistUpload(
-                    ${numberValue(row.id)},
-                    ${id}
-                  );
-                  return false;
-                ">
-                📎 Upload
-              </button>
-            `
-            : "";
+          <div class="checklist-row-actions">
+            <div class="checklist-state-buttons">
+              ${stateButton(row,"waiting","⏳ Waiting")}
+              ${stateButton(row,"complete","✅ Complete")}
+              ${stateButton(row,"not_required","🚫 Not Required")}
+            </div>
 
-        return `
+            ${uploadButton}
+          </div>
 
-<div class="checklist-row status-${escapeHtml(status)}">
-
-  <div class="checklist-item-copy">
-
-    <strong>
-      ${escapeHtml(row.item_name)}
-    </strong>
-
-    <small>
-      ${escapeHtml(meta)}
-    </small>
-
-    <label
-      class="checklist-note-label">
-
-      <span>
-        Notes / Reference
-      </span>
-
-      <input
-        type="text"
-        class="checklist-note-input"
-        id="deal-checklist-note-${numberValue(row.id)}"
-        value="${escapeHtml(notes)}"
-        placeholder="Type a number, reference or note..."
-        oninput="
-          queueDealChecklistNoteSave(
-            ${numberValue(row.id)},
-            ${id},
-            this.value
-          );
-        "
-        onblur="
-          saveDealChecklistNote(
-            ${numberValue(row.id)},
-            ${id},
-            this.value
-          );
-        ">
-
-    </label>
-
-    <small
-      class="checklist-note-save-state"
-      id="deal-checklist-note-state-${numberValue(row.id)}">
-    </small>
-
-  </div>
-
-  <div class="checklist-row-actions">
-
-    <div
-      class="checklist-state-buttons">
-
-      ${stateButton(
-        row,
-        "waiting",
-        "⏳ Waiting"
-      )}
-
-      ${stateButton(
-        row,
-        "complete",
-        "✅ Complete"
-      )}
-
-      ${stateButton(
-        row,
-        "not_required",
-        "🚫 Not Required"
-      )}
-
-    </div>
-
-    ${uploadButton}
-
-  </div>
-
-</div>
-
-`;
-
-      })
-      .join("");
-
+        </div>
+      `;
+    }).join("");
   }
 
-  function setChecklistNoteState(
-    rowId,
-    message,
-    state
-  ){
-
+  function setChecklistNoteState(rowId, message, state){
     const target =
-      element(
-        "deal-checklist-note-state-" +
-        numberValue(rowId)
-      );
+      element("deal-checklist-note-state-" + numberValue(rowId));
 
     if(!target){
       return;
     }
 
-    target.textContent =
-      String(message || "");
-
-    target.className =
-      "checklist-note-save-state";
+    target.textContent = String(message || "");
+    target.className = "checklist-note-save-state";
 
     if(state){
       target.classList.add(state);
     }
-
   }
 
-  function queueDealChecklistNoteSave(
-    rowId,
-    enquiryId,
-    value
-  ){
+  function queueDealChecklistNoteSave(rowId, enquiryId, value){
+    const key = String(numberValue(rowId));
 
-    const key =
-      String(numberValue(rowId));
-
-    if(
-      checklistNoteTimers.has(key)
-    ){
-
-      clearTimeout(
-        checklistNoteTimers.get(key)
-      );
-
+    if(checklistNoteTimers.has(key)){
+      clearTimeout(checklistNoteTimers.get(key));
     }
 
-    setChecklistNoteState(
-      rowId,
-      "Typing...",
-      "saving"
-    );
+    setChecklistNoteState(rowId, "Typing...", "saving");
 
-    const timer =
-      setTimeout(function(){
-
-        saveDealChecklistNote(
-          rowId,
-          enquiryId,
-          value
-        );
-
-        checklistNoteTimers.delete(
-          key
-        );
-
-      },700);
-
-    checklistNoteTimers.set(
-      key,
-      timer
-    );
-
-  }
-    async function saveDealChecklistNote(
-    rowId,
-    enquiryId,
-    value
-  ){
-
-    const key =
-      String(numberValue(rowId));
-
-    if(
-      checklistNoteTimers.has(key)
-    ){
-
-      clearTimeout(
-        checklistNoteTimers.get(key)
-      );
-
+    const timer = setTimeout(function(){
+      saveDealChecklistNote(rowId, enquiryId, value);
       checklistNoteTimers.delete(key);
+    }, 700);
 
+    checklistNoteTimers.set(key, timer);
+  }
+
+  async function saveDealChecklistNote(rowId, enquiryId, value){
+    const key = String(numberValue(rowId));
+
+    if(checklistNoteTimers.has(key)){
+      clearTimeout(checklistNoteTimers.get(key));
+      checklistNoteTimers.delete(key);
     }
 
-    setChecklistNoteState(
-      rowId,
-      "Saving...",
-      "saving"
-    );
+    setChecklistNoteState(rowId, "Saving...", "saving");
 
     try{
+      const client = getClient();
 
-      const client =
-        getClient();
-
-      const result =
-        await client
+      const result = await client
         .from("deal_checklists")
         .update({
-
-          notes:
-            String(value || "")
-            .trim()
-
+          notes:String(value || "").trim()
         })
-        .eq(
-          "id",
-          numberValue(rowId)
-        )
-        .eq(
-          "enquiry_id",
-          numberValue(enquiryId)
-        );
+        .eq("id", numberValue(rowId))
+        .eq("enquiry_id", numberValue(enquiryId));
 
       if(result.error){
         throw result.error;
       }
 
-      setChecklistNoteState(
-        rowId,
-        "Saved",
-        "saved"
-      );
+      setChecklistNoteState(rowId, "Saved", "saved");
 
-    }
-    catch(error){
-
-      console.error(
-        "Checklist note could not be saved:",
-        error
-      );
+    }catch(error){
+      console.error("Checklist note could not be saved:", error);
 
       setChecklistNoteState(
         rowId,
-        "Save failed: " +
-        (
-          error.message ||
-          "Unknown error"
-        ),
+        "Save failed: " + (error.message || "Unknown error"),
         "error"
       );
-
     }
-
   }
 
-  function openDealChecklistUpload(
-    rowId,
-    enquiryId
-  ){
-
+  function openDealChecklistUpload(rowId, enquiryId){
     window.pendingChecklistUpload = {
-
-      checklistItemId:
-        numberValue(rowId),
-
-      enquiryId:
-        numberValue(enquiryId)
-
+      checklistItemId:numberValue(rowId),
+      enquiryId:numberValue(enquiryId)
     };
 
-    if(
-      typeof window.openDealFilePicker
-      === "function"
-    ){
-
-      window.openDealFilePicker(
-        numberValue(enquiryId)
-      );
-
+    if(typeof window.openDealFilePicker === "function"){
+      window.openDealFilePicker(numberValue(enquiryId));
       return;
-
     }
 
-    if(
-      typeof openDealFilePicker
-      === "function"
-    ){
-
-      openDealFilePicker(
-        numberValue(enquiryId)
-      );
-
+    if(typeof openDealFilePicker === "function"){
+      openDealFilePicker(numberValue(enquiryId));
       return;
-
     }
 
-    alert(
-      "Open Deal Files to upload this document."
-    );
-
+    alert("Open Deal Files to upload this document.");
   }
 
-  function updateProgress(
+  function updateProgress(enquiryId, documentRows, preparationRows){
+    const id = numberValue(enquiryId);
+    const documents = sectionProgress(documentRows);
+    const preparation = sectionProgress(preparationRows);
+
+    const setText = function(targetId, value){
+      const target = element(targetId);
+      if(target){
+        target.textContent = value;
+      }
+    };
+
+    const setWidth = function(targetId, value){
+      const target = element(targetId);
+      if(target){
+        target.style.width = value + "%";
+      }
+    };
+
+    const documentProgressText =
+      documents.complete + " / " + documents.applicable;
+
+    const preparationProgressText =
+      preparation.complete + " / " + preparation.applicable;
+
+    setText(
+      "deal-checklist-documents-count-" + id,
+      documents.waiting === 0 ? "Complete" : documentProgressText
+    );
+
+    setText(
+      "deal-checklist-documents-summary-" + id,
+      documentProgressText
+    );
+
+    setText(
+      "deal-checklist-preparation-count-" + id,
+      preparation.waiting === 0 ? "Complete" : preparationProgressText
+    );
+
+    setText(
+      "deal-checklist-preparation-summary-" + id,
+      preparationProgressText
+    );
+
+    setText(
+      "deal-checklist-documents-meta-" + id,
+      documents.waiting + " waiting · " +
+      documents.notRequired + " not required"
+    );
+
+    setText(
+      "deal-checklist-preparation-meta-" + id,
+      preparation.waiting + " waiting · " +
+      preparation.notRequired + " not required"
+    );
+
+    setWidth(
+      "deal-checklist-documents-progress-" + id,
+      documents.percent
+    );
+
+    setWidth(
+      "deal-checklist-preparation-progress-" + id,
+      preparation.percent
+    );
+
+    const documentBadge =
+      element("deal-checklist-documents-count-" + id);
+
+    const preparationBadge =
+      element("deal-checklist-preparation-count-" + id);
+
+    if(documentBadge){
+      documentBadge.classList.remove(
+        "badge-green",
+        "badge-orange",
+        "badge-grey"
+      );
+
+      documentBadge.classList.add(
+        documents.waiting === 0
+          ? "badge-green"
+          : "badge-orange"
+      );
+    }
+
+    if(preparationBadge){
+      preparationBadge.classList.remove(
+        "badge-green",
+        "badge-orange",
+        "badge-grey"
+      );
+
+      preparationBadge.classList.add(
+        preparation.waiting === 0
+          ? "badge-green"
+          : "badge-orange"
+      );
+    }
+  }
+
+
+  function parseProgressText(value){
+    const text = String(value || "").trim();
+    const match = text.match(/(\d+)\s*\/\s*(\d+)/);
+
+    if(match){
+      return {
+        complete:Number(match[1]) || 0,
+        total:Number(match[2]) || 0
+      };
+    }
+
+    if(/complete/i.test(text)){
+      return {
+        complete:1,
+        total:1
+      };
+    }
+
+    return {
+      complete:0,
+      total:0
+    };
+  }
+
+  function updateOperationalWorkflowSummary(
     enquiryId,
     documentRows,
     preparationRows
   ){
+    const id = numberValue(enquiryId);
+    const documents = sectionProgress(documentRows || []);
+    const preparation = sectionProgress(preparationRows || []);
 
-    const id =
-      numberValue(enquiryId);
+    const operationsPanel =
+      element("operations-workflow-panel-" + id);
 
-    const documents =
-      sectionProgress(
-        documentRows
+    const shippingPanel =
+      element("shipping-workflow-panel-" + id);
+
+    const operationBadge =
+      operationsPanel
+        ? operationsPanel.querySelector(".panel-badge")
+        : null;
+
+    const shippingBadge =
+      shippingPanel
+        ? shippingPanel.querySelector(".panel-badge")
+        : null;
+
+    const operations =
+      parseProgressText(
+        operationBadge ? operationBadge.textContent : ""
       );
 
-    const preparation =
-      sectionProgress(
-        preparationRows
+    const shipping =
+      parseProgressText(
+        shippingBadge ? shippingBadge.textContent : ""
       );
 
-    function setText(
-      targetId,
-      value
-    ){
-
-      const target =
-        element(targetId);
-
-      if(target){
-
-        target.textContent =
-          value;
-
-      }
-
-    }
-
-    function setWidth(
-      targetId,
-      value
-    ){
-
-      const target =
-        element(targetId);
-
-      if(target){
-
-        target.style.width =
-          value + "%";
-
-      }
-
-    }
-
-    const documentText =
-
-      documents.complete +
-      " / " +
-      documents.applicable;
-
-    const preparationText =
-
+    const totalComplete =
+      operations.complete +
       preparation.complete +
-      " / " +
-      preparation.applicable;
+      documents.complete +
+      shipping.complete;
 
-    setText(
+    const totalItems =
+      operations.total +
+      preparation.applicable +
+      documents.applicable +
+      shipping.total;
 
-      "deal-checklist-documents-count-" +
-      id,
+    const overallPercent =
+      totalItems
+        ? Math.round((totalComplete / totalItems) * 100)
+        : 0;
 
-      documents.waiting === 0
-        ? "Complete"
-        : documentText
+    function setText(targetId, value){
+      const target = element(targetId);
 
-    );
-
-    setText(
-
-      "deal-checklist-documents-summary-" +
-      id,
-
-      documentText
-
-    );
-
-    setText(
-
-      "deal-checklist-preparation-count-" +
-      id,
-
-      preparation.waiting === 0
-        ? "Complete"
-        : preparationText
-
-    );
-
-    setText(
-
-      "deal-checklist-preparation-summary-" +
-      id,
-
-      preparationText
-
-    );
-
-    setText(
-
-      "deal-checklist-documents-meta-" +
-      id,
-
-      documents.waiting +
-      " waiting • " +
-      documents.notRequired +
-      " not required"
-
-    );
-
-    setText(
-
-      "deal-checklist-preparation-meta-" +
-      id,
-
-      preparation.waiting +
-      " waiting • " +
-      preparation.notRequired +
-      " not required"
-
-    );
-
-    setWidth(
-
-      "deal-checklist-documents-progress-" +
-      id,
-
-      documents.percent
-
-    );
-
-    setWidth(
-
-      "deal-checklist-preparation-progress-" +
-      id,
-
-      preparation.percent
-
-    );
-
-    const documentBadge =
-
-      element(
-        "deal-checklist-documents-count-" +
-        id
-      );
-
-    const preparationBadge =
-
-      element(
-        "deal-checklist-preparation-count-" +
-        id
-      );
-
-    if(documentBadge){
-
-      documentBadge.classList.remove(
-
-        "badge-green",
-        "badge-orange",
-        "badge-grey",
-        "badge-red"
-
-      );
-
-      documentBadge.classList.add(
-
-        documents.waiting === 0
-          ? "badge-green"
-          : "badge-orange"
-
-      );
-
+      if(target){
+        target.textContent = value;
+      }
     }
 
-    if(preparationBadge){
+    setText(
+      "operational-workflow-operations-" + id,
+      operations.total
+        ? operations.complete + " / " + operations.total
+        : (operationBadge ? operationBadge.textContent.trim() : "Not Started")
+    );
 
-      preparationBadge.classList.remove(
+    setText(
+      "operational-workflow-preparation-" + id,
+      preparation.complete + " / " + preparation.applicable
+    );
 
-        "badge-green",
-        "badge-orange",
-        "badge-grey",
-        "badge-red"
+    setText(
+      "operational-workflow-documents-" + id,
+      documents.complete + " / " + documents.applicable
+    );
 
-      );
+    setText(
+      "operational-workflow-shipping-" + id,
+      shipping.total
+        ? shipping.complete + " / " + shipping.total
+        : (shippingBadge ? shippingBadge.textContent.trim() : "Not Started")
+    );
 
-      preparationBadge.classList.add(
+    setText(
+      "operational-workflow-percent-" + id,
+      overallPercent + "%"
+    );
 
-        preparation.waiting === 0
-          ? "badge-green"
-          : "badge-orange"
+    setText(
+      "operational-workflow-progress-copy-" + id,
+      totalItems
+        ? totalComplete + " of " + totalItems + " workflow tasks complete"
+        : "No workflow tasks available yet"
+    );
 
-      );
+    const progressBar =
+      element("operational-workflow-progress-bar-" + id);
 
+    if(progressBar){
+      progressBar.style.width = overallPercent + "%";
     }
 
+    const ready =
+      element("operational-workflow-ready-" + id);
+
+    if(ready){
+      ready.classList.remove("ready");
+
+      if(totalItems > 0 && totalComplete === totalItems){
+        ready.textContent = "🟢 EXPORT READY";
+        ready.classList.add("ready");
+      }else{
+        ready.textContent = "In Progress";
+      }
+    }
   }
-    async function loadDealChecklists(
-    enquiryId
-  ){
 
-    const id =
-      numberValue(enquiryId);
+  async function loadDealChecklists(enquiryId){
+    const id = numberValue(enquiryId);
 
     if(!id){
       return;
     }
 
     try{
-
       await ensureChecklistRows(id);
 
-      const client =
-        getClient();
+      const client = getClient();
 
-      const result =
-        await client
+      const result = await client
         .from("deal_checklists")
         .select(
           "id,enquiry_id,category,item_key,item_name,status,notes,completed_by,completed_at,created_at,updated_at"
         )
-        .eq(
-          "enquiry_id",
-          id
-        );
+        .eq("enquiry_id", id);
 
       if(result.error){
         throw result.error;
       }
 
-      const rows =
-        result.data || [];
+      const rows = result.data || [];
 
-      const documentRows =
-        rows.filter(
-          function(row){
+      const documentRows = rows.filter(function(row){
+        return row.category === "documents";
+      });
 
-            return (
-              row.category ===
-              "documents"
-            );
+      const preparationRows = rows.filter(function(row){
+        return row.category === "preparation";
+      });
 
-          }
-        );
-
-      const preparationRows =
-        rows.filter(
-          function(row){
-
-            return (
-              row.category ===
-              "preparation"
-            );
-
-          }
-        );
-
-      renderRows(
-        id,
-        "documents",
-        documentRows
-      );
-
-      renderRows(
-        id,
-        "preparation",
-        preparationRows
-      );
-
-      updateProgress(
+      renderRows(id, "documents", documentRows);
+      renderRows(id, "preparation", preparationRows);
+      updateProgress(id, documentRows, preparationRows);
+      updateOperationalWorkflowSummary(
         id,
         documentRows,
         preparationRows
       );
 
-    }
-    catch(error){
-
-      console.error(
-        "Deal checklists could not be loaded:",
-        error
-      );
+    }catch(error){
+      console.error("Deal checklists could not be loaded:", error);
 
       setStatus(
         id,
         "Documentation and preparation could not be loaded: " +
-        (
-          error.message ||
-          "Unknown error"
-        ),
+          (error.message || "Unknown error"),
         "error"
       );
 
-      const documentBadge =
-        element(
-          "deal-checklist-documents-count-" +
-          id
-        );
-
-      const preparationBadge =
-        element(
-          "deal-checklist-preparation-count-" +
-          id
-        );
-
-      [
-        documentBadge,
-        preparationBadge
-      ].forEach(
-        function(badge){
-
-          if(badge){
-
-            badge.textContent =
-              "Error";
-
-            badge.classList.remove(
-              "badge-green",
-              "badge-orange",
-              "badge-grey"
-            );
-
-            badge.classList.add(
-              "badge-red"
-            );
-
-          }
-
-        }
-      );
-
+      const badge = element("deal-checklist-count-" + id);
+      if(badge){
+        badge.textContent = "Error";
+        badge.classList.add("badge-red");
+      }
     }
-
   }
 
-  async function setDealChecklistStatus(
-    rowId,
-    enquiryId,
-    status
-  ){
-
+  async function setDealChecklistStatus(rowId, enquiryId, status){
     const validStatuses = [
-
       "waiting",
       "complete",
       "not_required"
-
     ];
 
-    if(
-      !validStatuses.includes(status)
-    ){
+    if(!validStatuses.includes(status)){
       return;
     }
 
-    const id =
-      numberValue(enquiryId);
+    const id = numberValue(enquiryId);
 
-    setStatus(
-      id,
-      "Saving checklist...",
-      ""
-    );
+    setStatus(id, "Saving checklist…", "");
 
     try{
+      const client = getClient();
 
-      const client =
-        getClient();
-
-      const result =
-        await client
+      const result = await client
         .from("deal_checklists")
         .update({
-
           status:status,
-
           completed_by:
-
             status === "complete"
               ? CHECKLIST_USER
               : null,
-
           completed_at:
-
             status === "complete"
               ? new Date().toISOString()
               : null
-
         })
-        .eq(
-          "id",
-          numberValue(rowId)
-        )
-        .eq(
-          "enquiry_id",
-          id
-        );
+        .eq("id", numberValue(rowId))
+        .eq("enquiry_id", id);
 
       if(result.error){
         throw result.error;
@@ -996,71 +746,36 @@
       await loadDealChecklists(id);
 
       setStatus(
-
         id,
-
         status === "complete"
-
           ? "Item marked complete."
-
           : status === "not_required"
-
             ? "Item marked not required."
-
             : "Item returned to waiting.",
-
         "success"
-
       );
 
-      if(
-        typeof window.loadDealTimeline
-        === "function"
-      ){
-
+      if(typeof window.loadDealTimeline === "function"){
         window.loadDealTimeline(id);
-
       }
 
-    }
-    catch(error){
-
-      console.error(
-        "Checklist item could not be saved:",
-        error
-      );
+    }catch(error){
+      console.error("Checklist item could not be saved:", error);
 
       setStatus(
-
         id,
-
         "Checklist item could not be saved: " +
-        (
-          error.message ||
-          "Unknown error"
-        ),
-
+          (error.message || "Unknown error"),
         "error"
-
       );
-
     }
-
   }
 
-  window.loadDealChecklists =
-    loadDealChecklists;
-
-  window.setDealChecklistStatus =
-    setDealChecklistStatus;
-
-  window.queueDealChecklistNoteSave =
-    queueDealChecklistNoteSave;
-
-  window.saveDealChecklistNote =
-    saveDealChecklistNote;
-
-  window.openDealChecklistUpload =
-    openDealChecklistUpload;
+  window.loadDealChecklists = loadDealChecklists;
+  window.setDealChecklistStatus = setDealChecklistStatus;
+  window.queueDealChecklistNoteSave = queueDealChecklistNoteSave;
+  window.saveDealChecklistNote = saveDealChecklistNote;
+  window.openDealChecklistUpload = openDealChecklistUpload;
+  window.updateOperationalWorkflowSummary = updateOperationalWorkflowSummary;
 
 })();
