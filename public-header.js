@@ -1,22 +1,13 @@
-document.addEventListener("DOMContentLoaded", function(){
-  loadPublicHeader();
-});
+document.addEventListener("DOMContentLoaded", loadPublicHeader);
 
 async function loadPublicHeader(){
   const holder = document.getElementById("publicHeader");
+  if(!holder) return;
 
-  if(!holder){
-    return;
-  }
-
-  const headerRes = await fetch("/public-header.html");
-
-  if(!headerRes.ok){
-    return;
-  }
+  const headerRes = await fetch("/public-header.html", { cache:"no-store" });
+  if(!headerRes.ok) return;
 
   holder.innerHTML = await headerRes.text();
-
   setupPublicHeader();
 }
 
@@ -37,131 +28,105 @@ async function setupPublicHeader(){
   const languageSelect = document.getElementById("phLanguage");
   const currencySelect = document.getElementById("phCurrency");
 
-  if(mobileMenuButton){
-    mobileMenuButton.onclick = function(){
-      document.body.classList.add("mobile-menu-open");
-    };
-  }
+  mobileMenuButton?.addEventListener("click", () => document.body.classList.add("mobile-menu-open"));
+  mobileMenuClose?.addEventListener("click", closeMobileMenu);
+  mobileDrawerBackdrop?.addEventListener("click", closeMobileMenu);
 
-  if(mobileMenuClose){
-    mobileMenuClose.onclick = closeMobileMenu;
-  }
+  accountButton?.addEventListener("click", e => {
+    e.preventDefault();
+    e.stopPropagation();
+    publicAccount?.classList.toggle("menu-open");
+    notificationPopover?.classList.remove("open");
+  });
 
-  if(mobileDrawerBackdrop){
-    mobileDrawerBackdrop.onclick = closeMobileMenu;
-  }
+  notificationButton?.addEventListener("click", e => {
+    e.preventDefault();
+    e.stopPropagation();
+    notificationPopover?.classList.toggle("open");
+    publicAccount?.classList.remove("menu-open");
+  });
 
-  if(accountButton && publicAccount){
-    accountButton.onclick = function(e){
-      e.preventDefault();
-      e.stopPropagation();
-      publicAccount.classList.toggle("menu-open");
-
-      if(notificationPopover){
-        notificationPopover.classList.remove("open");
-      }
-    };
-  }
-
-  if(notificationButton && notificationPopover){
-    notificationButton.onclick = function(e){
-      e.preventDefault();
-      e.stopPropagation();
-      notificationPopover.classList.toggle("open");
-
-      if(publicAccount){
-        publicAccount.classList.remove("menu-open");
-      }
-    };
-  }
-
-  document.addEventListener("click", function(e){
+  document.addEventListener("click", e => {
     if(publicAccount && !publicAccount.contains(e.target)){
       publicAccount.classList.remove("menu-open");
     }
 
-    if(notificationPopover && notificationButton && !notificationPopover.contains(e.target) && !notificationButton.contains(e.target)){
+    if(
+      notificationPopover &&
+      notificationButton &&
+      !notificationPopover.contains(e.target) &&
+      !notificationButton.contains(e.target)
+    ){
       notificationPopover.classList.remove("open");
     }
   });
 
   let savedLanguage = localStorage.getItem("anybikeLanguage") || "en";
   let savedCurrency = localStorage.getItem("anybikeCurrency") || "GBP";
-
-  if(languageSelect){
-    languageSelect.value = savedLanguage;
-    languageSelect.onchange = function(){
-      localStorage.setItem("anybikeLanguage", languageSelect.value);
-      saveHeaderPreference("preferred_language", languageSelect.value);
-      applyHeaderLanguage(languageSelect.value);
-    };
-  }
-
-  if(currencySelect){
-    currencySelect.value = savedCurrency;
-    currencySelect.onchange = function(){
-      localStorage.setItem("anybikeCurrency", currencySelect.value);
-      saveHeaderPreference("preferred_currency", currencySelect.value);
-      applyHeaderCurrency(currencySelect.value);
-    };
-  }
-
   let user = null;
 
   if(typeof sb !== "undefined"){
     const result = await sb.auth.getUser();
     user = result.data.user;
+
+    if(user){
+      const { data:profile } = await sb
+        .from("customer_profiles")
+        .select("preferred_language,preferred_currency")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if(profile?.preferred_language){
+        savedLanguage = profile.preferred_language;
+        localStorage.setItem("anybikeLanguage", savedLanguage);
+      }
+
+      if(profile?.preferred_currency){
+        savedCurrency = profile.preferred_currency;
+        localStorage.setItem("anybikeCurrency", savedCurrency);
+      }
+    }
+  }
+
+  if(languageSelect){
+    languageSelect.value = savedLanguage;
+    languageSelect.addEventListener("change", () => {
+      localStorage.setItem("anybikeLanguage", languageSelect.value);
+      saveHeaderPreference("preferred_language", languageSelect.value);
+      applyHeaderLanguage(languageSelect.value);
+    });
+  }
+
+  if(currencySelect){
+    currencySelect.value = savedCurrency;
+    currencySelect.addEventListener("change", () => {
+      localStorage.setItem("anybikeCurrency", currencySelect.value);
+      saveHeaderPreference("preferred_currency", currencySelect.value);
+      applyHeaderCurrency(currencySelect.value);
+    });
   }
 
   if(user){
-    if(loggedOutMenu){
-      loggedOutMenu.classList.add("hidden");
-    }
-
-    if(loggedInMenu){
-      loggedInMenu.classList.remove("hidden");
-    }
-
-    if(mobileLoggedOutMenu){
-      mobileLoggedOutMenu.classList.add("hidden");
-    }
-
-    if(mobileLoggedInMenu){
-      mobileLoggedInMenu.classList.remove("hidden");
-    }
+    loggedOutMenu?.classList.add("hidden");
+    loggedInMenu?.classList.remove("hidden");
+    mobileLoggedOutMenu?.classList.add("hidden");
+    mobileLoggedInMenu?.classList.remove("hidden");
 
     loadCustomerMessageCounts(user.id);
     loadCustomerNotifications(user.id);
-
-  } else {
-    if(loggedOutMenu){
-      loggedOutMenu.classList.remove("hidden");
-    }
-
-    if(loggedInMenu){
-      loggedInMenu.classList.add("hidden");
-    }
-
-    if(mobileLoggedOutMenu){
-      mobileLoggedOutMenu.classList.remove("hidden");
-    }
-
-    if(mobileLoggedInMenu){
-      mobileLoggedInMenu.classList.add("hidden");
-    }
+  }else{
+    loggedOutMenu?.classList.remove("hidden");
+    loggedInMenu?.classList.add("hidden");
+    mobileLoggedOutMenu?.classList.remove("hidden");
+    mobileLoggedInMenu?.classList.add("hidden");
 
     setMessageCount(0);
     setNotificationCount(0);
     renderNotificationList([]);
   }
 
-  if(logoutLink){
-    logoutLink.onclick = logoutCustomer;
-  }
-
-  if(mobileLogoutLink){
-    mobileLogoutLink.onclick = logoutCustomer;
-  }
+  logoutLink?.addEventListener("click", logoutCustomer);
+  mobileLogoutLink?.addEventListener("click", logoutCustomer);
 
   setActivePublicNav();
   applyHeaderLanguage(savedLanguage);
@@ -176,33 +141,17 @@ function closeMobileMenu(){
 
 async function logoutCustomer(e){
   e.preventDefault();
-
-  if(typeof sb !== "undefined"){
-    await sb.auth.signOut();
-  }
-
+  if(typeof sb !== "undefined") await sb.auth.signOut();
   window.location.href = "/customer-register.html";
 }
 
 function setActivePublicNav(){
   const path = window.location.pathname;
   const hash = window.location.hash;
-  const links = document.querySelectorAll(".public-nav a[data-page]");
-
-  links.forEach(link => link.classList.remove("active"));
+  document.querySelectorAll(".public-nav a[data-page]").forEach(link => link.classList.remove("active"));
 
   if(path === "/" || path.endsWith("/index.html")){
-    if(hash === "#export-services"){
-      markActive("export");
-      return;
-    }
-
-    if(hash === "#contact"){
-      markActive("contact");
-      return;
-    }
-
-    markActive("home");
+    markActive(hash === "#export-services" ? "export" : "home");
     return;
   }
 
@@ -223,36 +172,23 @@ function setActivePublicNav(){
 
   if(path.includes("contact-us")){
     markActive("connect");
-    return;
   }
 
   function markActive(page){
-    const active = document.querySelector('.public-nav a[data-page="' + page + '"]');
-
-    if(active){
-      active.classList.add("active");
-    }
+    document.querySelector('.public-nav a[data-page="' + page + '"]')?.classList.add("active");
   }
 }
 
 async function saveHeaderPreference(field, value){
-  if(typeof sb === "undefined"){
-    return;
-  }
+  if(typeof sb === "undefined") return;
 
-  const { data: { user } } = await sb.auth.getUser();
-
-  if(!user){
-    return;
-  }
+  const { data:{ user } } = await sb.auth.getUser();
+  if(!user) return;
 
   const updateData = {};
   updateData[field] = value;
 
-  await sb
-    .from("customer_profiles")
-    .update(updateData)
-    .eq("id", user.id);
+  await sb.from("customer_profiles").update(updateData).eq("id", user.id);
 }
 
 async function loadCustomerMessageCounts(userId){
@@ -261,34 +197,27 @@ async function loadCustomerMessageCounts(userId){
     return;
   }
 
-  const { data: enquiries } = await sb
+  const { data:enquiries } = await sb
     .from("bike_enquiries")
     .select("id")
     .eq("customer_id", userId);
 
-  if(!enquiries || enquiries.length === 0){
+  if(!enquiries?.length){
     setMessageCount(0);
     return;
   }
 
-  const enquiryIds = enquiries.map(e => e.id);
-
   const { count } = await sb
     .from("enquiry_messages")
     .select("id", { count:"exact", head:true })
-    .in("enquiry_id", enquiryIds)
+    .in("enquiry_id", enquiries.map(e => e.id))
     .eq("sender", "AnyBike");
 
   setMessageCount(count || 0);
 }
 
 async function loadCustomerNotifications(userId){
-
-  console.log("===== NOTIFICATION TEST =====");
-  console.log("Logged in user:", userId);
-
   if(typeof sb === "undefined"){
-    console.log("Supabase client missing");
     setNotificationCount(0);
     renderNotificationList([]);
     return;
@@ -298,10 +227,7 @@ async function loadCustomerNotifications(userId){
     .from("customer_notifications")
     .select("*")
     .eq("customer_id", userId)
-    .order("created_at",{ascending:false});
-
-  console.log("Supabase error:", error);
-  console.log("Notifications returned:", data);
+    .order("created_at", { ascending:false });
 
   if(error){
     setNotificationCount(0);
@@ -309,135 +235,82 @@ async function loadCustomerNotifications(userId){
     return;
   }
 
-  const unread = data.filter(n => !n.is_read).length;
-
-  console.log("Unread:", unread);
-
-  setNotificationCount(unread);
-  renderNotificationList(data);
+  const items = data || [];
+  setNotificationCount(items.filter(n => !n.is_read).length);
+  renderNotificationList(items);
 }
 
 function renderNotificationList(items){
   const list = document.getElementById("notificationList");
+  if(!list) return;
 
-  if(!list){
-    return;
-  }
-
-  if(!items || items.length === 0){
+  if(!items?.length){
     list.innerHTML = "<p>No notifications yet.</p>";
     return;
   }
 
-  list.innerHTML = items.map(n => {
-    const icon = n.icon || "🔔";
-    const title = escapeHtml(n.title || "Notification");
-    const message = escapeHtml(n.message || "");
-    const link = n.link || "#";
-    const readClass = n.is_read ? "read" : "unread";
-
-    return `
-      <a href="${link}" class="notification-item ${readClass}">
-        <span class="notification-icon">${icon}</span>
-        <span class="notification-copy">
-          <strong>${title}</strong>
-          <small>${message}</small>
-        </span>
-      </a>
-    `;
-  }).join("");
+  list.innerHTML = items.map(n => `
+    <a href="${escapeHtml(n.link || "#")}" class="notification-item ${n.is_read ? "read" : "unread"}">
+      <span class="notification-icon">${n.icon || "🔔"}</span>
+      <span class="notification-copy">
+        <strong>${escapeHtml(n.title || "Notification")}</strong>
+        <small>${escapeHtml(n.message || "")}</small>
+      </span>
+    </a>
+  `).join("");
 }
 
 function setMessageCount(total){
-  const messagesEl = document.getElementById("phMessages");
-
-  if(!messagesEl){
-    return;
-  }
-
-  messagesEl.textContent = "Messages " + total;
-
-  if(total > 0){
-    messagesEl.classList.add("has-messages");
-  } else {
-    messagesEl.classList.remove("has-messages");
+  const link = document.getElementById("phMessages");
+  const count = document.getElementById("phMessagesCount");
+  if(count) count.textContent = total;
+  if(link){
+    link.classList.toggle("has-messages", total > 0);
+    link.setAttribute("aria-label", "Messages " + total);
   }
 }
 
 function setNotificationCount(total){
-  const notificationsEl = document.getElementById("phNotifications");
-
-  if(!notificationsEl){
-    return;
-  }
-
-  notificationsEl.textContent = "Notifications " + total;
-
-  if(total > 0){
-    notificationsEl.classList.add("has-notifications");
-  } else {
-    notificationsEl.classList.remove("has-notifications");
+  const button = document.getElementById("phNotifications");
+  const count = document.getElementById("phNotificationsCount");
+  if(count) count.textContent = total;
+  if(button){
+    button.classList.toggle("has-notifications", total > 0);
+    button.setAttribute("aria-label", "Notifications " + total);
   }
 }
 
 function updateHeaderTimes(){
+  const now = new Date();
+
+  const localTime = now.toLocaleString([], {
+    weekday:"short", day:"2-digit", month:"short", hour:"2-digit", minute:"2-digit"
+  });
+
+  const ukTime = now.toLocaleString("en-GB", {
+    timeZone:"Europe/London",
+    weekday:"short", day:"2-digit", month:"short", hour:"2-digit", minute:"2-digit"
+  });
+
   const localEl = document.getElementById("phLocalTime");
   const ukEl = document.getElementById("phUkTime");
 
-  const localTime = new Date().toLocaleString([], {
-    weekday:"short",
-    day:"2-digit",
-    month:"short",
-    hour:"2-digit",
-    minute:"2-digit"
-  });
-
-  const ukTime = new Date().toLocaleString("en-GB", {
-    timeZone:"Europe/London",
-    weekday:"short",
-    day:"2-digit",
-    month:"short",
-    hour:"2-digit",
-    minute:"2-digit"
-  });
-
-  if(localEl){
-    localEl.textContent = "Local " + localTime;
-  }
-
-  if(ukEl){
-    ukEl.textContent = "UK " + ukTime;
-  }
+  if(localEl) localEl.textContent = "Local " + localTime;
+  if(ukEl) ukEl.textContent = "UK " + ukTime;
 }
 
 function applyHeaderCurrency(currency){
   window.anybikeCurrency = currency;
-
-  window.dispatchEvent(new CustomEvent("anybikeCurrencyChanged", {
-    detail:{
-      currency:currency
-    }
-  }));
+  window.dispatchEvent(new CustomEvent("anybikeCurrencyChanged", { detail:{ currency } }));
 }
 
 function applyHeaderLanguage(language){
   window.anybikeLanguage = language;
-
-  window.dispatchEvent(new CustomEvent("anybikeLanguageChanged", {
-    detail:{
-      language:language
-    }
-  }));
+  window.dispatchEvent(new CustomEvent("anybikeLanguageChanged", { detail:{ language } }));
 }
 
 function escapeHtml(value){
-  return String(value ?? "").replace(/[&<>"']/g, function(char){
-    return {
-      "&":"&amp;",
-      "<":"&lt;",
-      ">":"&gt;",
-      '"':"&quot;",
-      "'":"&#39;"
-    }[char];
-  });
+  return String(value ?? "").replace(/[&<>"']/g, char => ({
+    "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;"
+  })[char]);
 }
