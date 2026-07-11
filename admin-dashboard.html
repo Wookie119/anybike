@@ -2560,8 +2560,141 @@ function createDashboardAction(options){
   };
 }
 
-function buildDashboardDealActions(rows){
+
+function dashboardTimelineCategory(event){
+  const type = String(event && event.event_type || "").toLowerCase();
+  const title = String(event && event.title || "").toLowerCase();
+  const details = String(event && event.details || "").toLowerCase();
+  const text = type + " " + title + " " + details;
+
+  if(
+    text.includes("shipping company booked") ||
+    text.includes("collection confirmed") ||
+    text.includes("export documents prepared") ||
+    text.includes("customs paperwork checked") ||
+    text.includes("delivered to port") ||
+    text.includes("loaded / handed over") ||
+    text.includes("vessel departed") ||
+    text.includes("shipping")
+  ){
+    return "shipping";
+  }
+
+  if(
+    text.includes("purchase agreed") ||
+    text.includes("seller details verified") ||
+    text.includes("deposit received") ||
+    text.includes("collection booked") ||
+    text.includes("bike received") ||
+    text.includes("inspection completed") ||
+    text.includes("documents uploaded") ||
+    text.includes("ready for shipping") ||
+    text.includes("operations") ||
+    text.includes("workflow")
+  ){
+    return "operations";
+  }
+
+  return "";
+}
+
+function buildDashboardTimelineMap(rows){
+  const map = {};
+
+  (rows || []).forEach(function(event){
+    const enquiryId = Number(event.enquiry_id);
+    if(!enquiryId){ return; }
+
+    const category = dashboardTimelineCategory(event);
+    if(!category){ return; }
+
+    if(!map[enquiryId]){
+      map[enquiryId] = {};
+    }
+
+    const current = map[enquiryId][category];
+    const eventDate = new Date(event.created_at || 0);
+    const currentDate = current ? new Date(current.created_at || 0) : new Date(0);
+
+    if(!current || eventDate > currentDate){
+      map[enquiryId][category] = event;
+    }
+  });
+
+  return map;
+}
+
+function buildDashboardChecklistMap(rows){
+  const map = {};
+
+  (rows || []).forEach(function(row){
+    const enquiryId = Number(row.enquiry_id);
+    const category = String(row.category || "");
+
+    if(!enquiryId || !category){ return; }
+
+    if(!map[enquiryId]){
+      map[enquiryId] = {};
+    }
+
+    if(!map[enquiryId][category]){
+      map[enquiryId][category] = [];
+    }
+
+    map[enquiryId][category].push(row);
+  });
+
+  return map;
+}
+
+function dashboardChecklistProgress(rows){
+  const allRows = rows || [];
+
+  const applicable = allRows.filter(function(row){
+    return String(row.status || "waiting") !== "not_required";
+  });
+
+  const complete = applicable.filter(function(row){
+    return String(row.status || "") === "complete";
+  });
+
+  const waitingRows = applicable.filter(function(row){
+    return String(row.status || "waiting") !== "complete";
+  });
+
+  const latestDate = allRows.reduce(function(latest,row){
+    const candidate =
+      row.updated_at ||
+      row.completed_at ||
+      row.created_at ||
+      "";
+
+    if(!candidate){ return latest; }
+
+    if(!latest || new Date(candidate) > new Date(latest)){
+      return candidate;
+    }
+
+    return latest;
+  },"");
+
+  return {
+    complete:complete.length,
+    total:applicable.length,
+    waiting:waitingRows.length,
+    next:waitingRows[0] || null,
+    latestDate:latestDate
+  };
+}
+
+function buildDashboardDealActions(
+  rows,
+  checklistRows,
+  timelineRows
+){
   const actions = [];
+  const checklistMap = buildDashboardChecklistMap(checklistRows);
+  const timelineMap = buildDashboardTimelineMap(timelineRows);
 
   (rows || []).forEach(function(enquiry){
     const leadStatus = dashboardLeadStatus(enquiry);
@@ -2570,14 +2703,16 @@ function buildDashboardDealActions(rows){
     const bike = dashboardBikeName(enquiry);
     const country = enquiry.destination_country || enquiry.country || "";
     const assigned = enquiry.assigned_to || "Unassigned";
-    const ageDate = dashboardActionAge(enquiry);
+    const defaultAgeDate = dashboardActionAge(enquiry);
+    const enquiryId = Number(enquiry.id);
 
     if(leadStatus === "New Lead"){
       actions.push(createDashboardAction({
         group:"urgent",priority:"urgent",icon:"🆕",type:"New lead",
         title:"First response required",customer:customer,bike:bike,country:country,
         assigned:assigned,preview:"Open the conversation and make first contact.",
-        age:timeAgo(ageDate),createdAt:ageDate,url:dashboardDealUrl(enquiry.id,"messages")
+        age:timeAgo(defaultAgeDate),createdAt:defaultAgeDate,
+        url:dashboardDealUrl(enquiry.id,"messages")
       }));
     }
 
@@ -2586,7 +2721,8 @@ function buildDashboardDealActions(rows){
         group:"waiting",priority:"medium",icon:"🤝",type:"Stalled negotiation",
         title:"No deal update for "+days+" days",customer:customer,bike:bike,country:country,
         assigned:assigned,preview:"Review price, lead time and the Deal Calculator.",
-        age:timeAgo(ageDate),createdAt:ageDate,url:dashboardDealUrl(enquiry.id,"deal")
+        age:timeAgo(defaultAgeDate),createdAt:defaultAgeDate,
+        url:dashboardDealUrl(enquiry.id,"deal")
       }));
     }
 
@@ -2595,7 +2731,8 @@ function buildDashboardDealActions(rows){
         group:"waiting",priority:"medium",icon:"⏳",type:"Customer follow-up",
         title:"Waiting for customer for "+days+" days",customer:customer,bike:bike,country:country,
         assigned:assigned,preview:"Open the conversation and send a follow-up.",
-        age:timeAgo(ageDate),createdAt:ageDate,url:dashboardDealUrl(enquiry.id,"messages")
+        age:timeAgo(defaultAgeDate),createdAt:defaultAgeDate,
+        url:dashboardDealUrl(enquiry.id,"messages")
       }));
     }
 
@@ -2604,32 +2741,153 @@ function buildDashboardDealActions(rows){
         group:"today",priority:"high",icon:"💷",type:"Payment follow-up",
         title:"Payment or deposit needs attention",customer:customer,bike:bike,country:country,
         assigned:assigned,preview:"Check payment status and move the deal forward.",
-        age:timeAgo(ageDate),createdAt:ageDate,url:dashboardDealUrl(enquiry.id,"deal")
+        age:timeAgo(defaultAgeDate),createdAt:defaultAgeDate,
+        url:dashboardDealUrl(enquiry.id,"deal")
       }));
     }
 
     if(leadStatus === "Operations"){
-      const next = dashboardNextWorkflowTask(enquiry,"operations_checklist",DASHBOARD_OPERATIONS_TASKS);
+      const next = dashboardNextWorkflowTask(
+        enquiry,
+        "operations_checklist",
+        DASHBOARD_OPERATIONS_TASKS
+      );
+
       if(next.name){
+        const workflowEvent =
+          timelineMap[enquiryId] &&
+          timelineMap[enquiryId].operations;
+
+        const workflowDate =
+          workflowEvent && workflowEvent.created_at
+            ? workflowEvent.created_at
+            : defaultAgeDate;
+
         actions.push(createDashboardAction({
-          group:"operations",priority:"operations",icon:"📦",type:"Operations",
-          title:next.name,customer:customer,bike:bike,country:country,assigned:assigned,
+          group:"operations",
+          priority:"operations",
+          icon:"📦",
+          type:"Operations",
+          title:next.name,
+          customer:customer,
+          bike:bike,
+          country:country,
+          assigned:assigned,
           preview:"Operations workflow "+next.done+"/"+next.total+" complete.",
-          age:timeAgo(ageDate),createdAt:ageDate,url:dashboardDealUrl(enquiry.id,"workflow")
+          age:timeAgo(workflowDate),
+          createdAt:workflowDate,
+          url:dashboardDealUrl(enquiry.id,"workflow")
         }));
       }
     }
 
     if(leadStatus === "Shipping"){
-      const next = dashboardNextWorkflowTask(enquiry,"shipping_checklist",DASHBOARD_SHIPPING_TASKS);
+      const next = dashboardNextWorkflowTask(
+        enquiry,
+        "shipping_checklist",
+        DASHBOARD_SHIPPING_TASKS
+      );
+
       if(next.name){
+        const workflowEvent =
+          timelineMap[enquiryId] &&
+          timelineMap[enquiryId].shipping;
+
+        const workflowDate =
+          workflowEvent && workflowEvent.created_at
+            ? workflowEvent.created_at
+            : defaultAgeDate;
+
         actions.push(createDashboardAction({
-          group:"shipping",priority:"shipping",icon:"🚢",type:"Shipping",
-          title:next.name,customer:customer,bike:bike,country:country,assigned:assigned,
+          group:"shipping",
+          priority:"shipping",
+          icon:"🚢",
+          type:"Shipping",
+          title:next.name,
+          customer:customer,
+          bike:bike,
+          country:country,
+          assigned:assigned,
           preview:"Shipping workflow "+next.done+"/"+next.total+" complete.",
-          age:timeAgo(ageDate),createdAt:ageDate,url:dashboardDealUrl(enquiry.id,"workflow")
+          age:timeAgo(workflowDate),
+          createdAt:workflowDate,
+          url:dashboardDealUrl(enquiry.id,"workflow")
         }));
       }
+    }
+
+    const dealChecklists = checklistMap[enquiryId] || {};
+
+    const preparation = dashboardChecklistProgress(
+      dealChecklists.preparation || []
+    );
+
+    const documents = dashboardChecklistProgress(
+      dealChecklists.documents || []
+    );
+
+    if(
+      !["Completed","Closed","Lost","Save For Later"].includes(leadStatus) &&
+      preparation.total > 0 &&
+      preparation.waiting > 0
+    ){
+      const preparationDate =
+        preparation.latestDate || defaultAgeDate;
+
+      actions.push(createDashboardAction({
+        group:"operations",
+        priority:"operations",
+        icon:"🏍",
+        type:"Motorcycle preparation",
+        title:preparation.next
+          ? preparation.next.item_name
+          : "Preparation work outstanding",
+        customer:customer,
+        bike:bike,
+        country:country,
+        assigned:assigned,
+        preview:
+          "Motorcycle Preparation " +
+          preparation.complete +
+          "/" +
+          preparation.total +
+          " complete.",
+        age:timeAgo(preparationDate),
+        createdAt:preparationDate,
+        url:dashboardDealUrl(enquiry.id,"workflow")
+      }));
+    }
+
+    if(
+      !["Completed","Closed","Lost","Save For Later"].includes(leadStatus) &&
+      documents.total > 0 &&
+      documents.waiting > 0
+    ){
+      const documentsDate =
+        documents.latestDate || defaultAgeDate;
+
+      actions.push(createDashboardAction({
+        group:"operations",
+        priority:"operations",
+        icon:"📄",
+        type:"Documents required",
+        title:documents.next
+          ? documents.next.item_name
+          : "Documents outstanding",
+        customer:customer,
+        bike:bike,
+        country:country,
+        assigned:assigned,
+        preview:
+          "Documents Required " +
+          documents.complete +
+          "/" +
+          documents.total +
+          " complete.",
+        age:timeAgo(documentsDate),
+        createdAt:documentsDate,
+        url:dashboardDealUrl(enquiry.id,"workflow")
+      }));
     }
   });
 
@@ -2834,7 +3092,42 @@ renderLeadStatusPipeline(pipelineRecords);
       }));
     });
 
-    buildDashboardDealActions(rows).forEach(function(action){ actions.push(action); });
+    const checklistResult = await sb
+      .from("deal_checklists")
+      .select(
+        "id,enquiry_id,category,item_key,item_name,status,completed_at,created_at,updated_at"
+      );
+
+    if(checklistResult.error){
+      console.warn(
+        "Dashboard checklist load failed:",
+        checklistResult.error
+      );
+    }
+
+    const timelineResult = await sb
+      .from("deal_timeline")
+      .select(
+        "id,enquiry_id,event_type,title,details,created_at"
+      )
+      .order("created_at",{ascending:false})
+      .limit(500);
+
+    if(timelineResult.error){
+      console.warn(
+        "Dashboard timeline load failed:",
+        timelineResult.error
+      );
+    }
+
+    buildDashboardDealActions(
+      rows,
+      checklistResult.data || [],
+      timelineResult.data || []
+    ).forEach(function(action){
+      actions.push(action);
+    });
+
     renderDashboardActionQueue(actions);
 
   } catch(err){
@@ -2854,7 +3147,7 @@ function escapeDashboardText(value){
 
 async function loadWorldActivity(){
   const feed = document.getElementById("worldActivityFeed");
-  if(!feed) return;
+  if(!feed){ return; }
 
   feed.innerHTML = `
     <div class="work-item">
@@ -2863,16 +3156,35 @@ async function loadWorldActivity(){
     </div>
   `;
 
-  const enquiryResult = await sb
+  const timelineResult = await sb
+    .from("deal_timeline")
+    .select(
+      "id,enquiry_id,event_type,title,details,created_by,created_at"
+    )
+    .order("created_at",{ascending:false})
+    .limit(30);
+
+  if(timelineResult.error){
+    console.warn(
+      "Live World Activity timeline load failed:",
+      timelineResult.error
+    );
+  }
+
+  const timelineEvents = timelineResult.data || [];
+
+  const recentEnquiryResult = await sb
     .from("bike_enquiries")
     .select(`
       id,
       created_at,
+      updated_at,
       status,
       lead_status,
       customer_name,
       customer_email,
       destination_country,
+      ip_country,
       bike_id,
       available_stock (
         make,
@@ -2883,71 +3195,119 @@ async function loadWorldActivity(){
     .order("created_at",{ascending:false})
     .limit(20);
 
-  if(enquiryResult.error){
-    console.warn("Live World Activity enquiry load failed:", enquiryResult.error);
-    feed.innerHTML = `
-      <div class="work-item">
-        <span>Could not load recent enquiries.</span>
-        <span>⚠️</span>
-      </div>
-    `;
-    return;
+  if(recentEnquiryResult.error){
+    console.warn(
+      "Live World Activity enquiry load failed:",
+      recentEnquiryResult.error
+    );
   }
 
-  const enquiries = enquiryResult.data || [];
+  const recentEnquiries = recentEnquiryResult.data || [];
+
+  const timelineEnquiryIds = timelineEvents
+    .map(function(event){
+      return Number(event.enquiry_id);
+    })
+    .filter(Boolean);
+
+  let timelineEnquiries = [];
+
+  if(timelineEnquiryIds.length){
+    const timelineEnquiryResult = await sb
+      .from("bike_enquiries")
+      .select(`
+        id,
+        created_at,
+        updated_at,
+        status,
+        lead_status,
+        customer_name,
+        customer_email,
+        destination_country,
+        ip_country,
+        bike_id,
+        available_stock (
+          make,
+          model,
+          year
+        )
+      `)
+      .in("id",Array.from(new Set(timelineEnquiryIds)));
+
+    if(timelineEnquiryResult.error){
+      console.warn(
+        "Live World Activity changed-deal load failed:",
+        timelineEnquiryResult.error
+      );
+    }else{
+      timelineEnquiries = timelineEnquiryResult.data || [];
+    }
+  }
+
   const enquiryById = {};
 
-  enquiries.forEach(function(enquiry){
-    enquiryById[String(enquiry.id)] = enquiry;
-  });
+  recentEnquiries
+    .concat(timelineEnquiries)
+    .forEach(function(enquiry){
+      enquiryById[String(enquiry.id)] = enquiry;
+    });
 
-  const enquiryIds = enquiries.map(function(enquiry){
-    return Number(enquiry.id);
-  });
+  const allEnquiryIds = Object.keys(enquiryById)
+    .map(Number)
+    .filter(Boolean);
 
   let messages = [];
 
-  if(enquiryIds.length){
+  if(allEnquiryIds.length){
     const messageResult = await sb
       .from("enquiry_messages")
       .select("id,enquiry_id,sender,message,created_at")
-      .in("enquiry_id",enquiryIds)
-      .order("created_at",{ascending:true});
+      .in("enquiry_id",allEnquiryIds)
+      .order("created_at",{ascending:false})
+      .limit(80);
 
     if(messageResult.error){
-      console.warn("Live World Activity message load failed:", messageResult.error);
+      console.warn(
+        "Live World Activity message load failed:",
+        messageResult.error
+      );
     }else{
       messages = messageResult.data || [];
     }
   }
 
-  const messagesByEnquiry = {};
+  function activityDealDetails(enquiry){
+    const bike = enquiry && enquiry.available_stock
+      ? enquiry.available_stock
+      : {};
 
-  messages.forEach(function(message){
-    const key = String(message.enquiry_id);
-    if(!messagesByEnquiry[key]) messagesByEnquiry[key] = [];
-    messagesByEnquiry[key].push(message);
-  });
+    return {
+      bikeName:[
+        bike.year,
+        bike.make,
+        bike.model
+      ].filter(Boolean).join(" ") || "Motorcycle deal",
+
+      country:
+        (enquiry && (
+          enquiry.ip_country ||
+          enquiry.destination_country
+        )) ||
+        "Unknown Country",
+
+      customer:
+        (enquiry && (
+          enquiry.customer_name ||
+          enquiry.customer_email
+        )) ||
+        "Customer"
+    };
+  }
 
   const items = [];
 
-  enquiries.forEach(function(enquiry){
-    const bike = enquiry.available_stock || {};
-    const bikeName = [
-      bike.year,
-      bike.make,
-      bike.model
-    ].filter(Boolean).join(" ") || "Motorcycle enquiry";
-
-    const country =
-      enquiry.ip_country ||
-      enquiry.destination_country ||
-      "Unknown Country";
-
-    const customer =
-      enquiry.customer_name ||
-      enquiry.customer_email ||
-      "Customer";
+  recentEnquiries.forEach(function(enquiry){
+    const details = activityDealDetails(enquiry);
 
     items.push({
       key:"enquiry-" + enquiry.id,
@@ -2957,60 +3317,87 @@ async function loadWorldActivity(){
           onclick="location.href='admin-enquiries.html?open=${enquiry.id}'"
           style="cursor:pointer;">
           <div>
-            <strong>🟢 ${escapeDashboardText(country)}</strong><br>
-            New enquiry · ${escapeDashboardText(bikeName)}<br>
-            <span class="small">${escapeDashboardText(customer)} · ${escapeDashboardText(dashboardLeadStatus(enquiry))}</span>
+            <strong>🟢 ${escapeDashboardText(details.country)}</strong><br>
+            New enquiry · ${escapeDashboardText(details.bikeName)}<br>
+            <span class="small">
+              ${escapeDashboardText(details.customer)} ·
+              ${escapeDashboardText(dashboardLeadStatus(enquiry))}
+            </span>
           </div>
           <span>${timeAgo(enquiry.created_at)}</span>
         </div>
       `
     });
+  });
 
-    const enquiryMessages = messagesByEnquiry[String(enquiry.id)] || [];
-    let adminMessageSeen = false;
+  messages.forEach(function(message){
+    const sender = String(message.sender || "").toLowerCase();
 
-    enquiryMessages.forEach(function(message){
-      const sender = String(message.sender || "").toLowerCase();
-      const isCustomer = sender.includes("customer");
-      const isAdmin = !isCustomer;
+    if(!sender.includes("customer")){
+      return;
+    }
 
-      if(isAdmin){
-        adminMessageSeen = true;
-        return;
-      }
+    const enquiry = enquiryById[String(message.enquiry_id)];
+    if(!enquiry){ return; }
 
-      /*
-        The first customer message is normally the enquiry itself.
-        Only show "Customer replied" after AnyBike has sent a message,
-        or when the customer sends a later additional message.
-      */
-      const customerMessagesBefore = enquiryMessages.filter(function(previous){
-        return (
-          new Date(previous.created_at) < new Date(message.created_at) &&
-          String(previous.sender || "").toLowerCase().includes("customer")
-        );
-      }).length;
+    const details = activityDealDetails(enquiry);
 
-      if(!adminMessageSeen && customerMessagesBefore === 0){
-        return;
-      }
-
-      items.push({
-        key:"message-" + message.id,
-        when:new Date(message.created_at),
-        html:`
-          <div class="work-item"
-            onclick="location.href='admin-enquiries.html?open=${message.enquiry_id}&focus=messages'"
-            style="cursor:pointer;">
-            <div>
-              <strong>🔴 ${escapeDashboardText(country)}</strong><br>
-              Customer replied · ${escapeDashboardText(bikeName)}<br>
-              <span class="small">${escapeDashboardText(message.message || "Customer reply")}</span>
-            </div>
-            <span>${timeAgo(message.created_at)}</span>
+    items.push({
+      key:"message-" + message.id,
+      when:new Date(message.created_at),
+      html:`
+        <div class="work-item"
+          onclick="location.href='admin-enquiries.html?open=${message.enquiry_id}&focus=messages'"
+          style="cursor:pointer;">
+          <div>
+            <strong>🔴 ${escapeDashboardText(details.country)}</strong><br>
+            Customer replied · ${escapeDashboardText(details.bikeName)}<br>
+            <span class="small">
+              ${escapeDashboardText(message.message || "Customer reply")}
+            </span>
           </div>
-        `
-      });
+          <span>${timeAgo(message.created_at)}</span>
+        </div>
+      `
+    });
+  });
+
+  timelineEvents.forEach(function(event){
+    const enquiry = enquiryById[String(event.enquiry_id)];
+    if(!enquiry){ return; }
+
+    const details = activityDealDetails(enquiry);
+    const type = String(event.event_type || "").toLowerCase();
+
+    let icon = "🔄";
+
+    if(type.includes("workflow")){ icon = "📦"; }
+    if(type.includes("document")){ icon = "📄"; }
+    if(type.includes("status")){ icon = "🔄"; }
+    if(type.includes("deal")){ icon = "💷"; }
+    if(type.includes("note")){ icon = "📝"; }
+
+    items.push({
+      key:"timeline-" + event.id,
+      when:new Date(event.created_at),
+      html:`
+        <div class="work-item"
+          onclick="location.href='admin-enquiries.html?open=${event.enquiry_id}&focus=workflow'"
+          style="cursor:pointer;">
+          <div>
+            <strong>${icon} ${escapeDashboardText(details.country)}</strong><br>
+            ${escapeDashboardText(event.title || event.event_type || "Deal updated")} ·
+            ${escapeDashboardText(details.bikeName)}<br>
+            <span class="small">
+              ${escapeDashboardText(event.details || "")}
+              ${event.created_by
+                ? " · " + escapeDashboardText(event.created_by)
+                : ""}
+            </span>
+          </div>
+          <span>${timeAgo(event.created_at)}</span>
+        </div>
+      `
     });
   });
 
@@ -3019,8 +3406,9 @@ async function loadWorldActivity(){
   });
 
   const seen = new Set();
+
   const uniqueItems = items.filter(function(item){
-    if(seen.has(item.key)) return false;
+    if(seen.has(item.key)){ return false; }
     seen.add(item.key);
     return true;
   });
@@ -3035,7 +3423,7 @@ async function loadWorldActivity(){
     return;
   }
 
-  feed.innerHTML = uniqueItems.slice(0,8).map(function(item){
+  feed.innerHTML = uniqueItems.slice(0,10).map(function(item){
     return item.html;
   }).join("");
 }
@@ -3333,7 +3721,7 @@ setInterval(async()=>{
 
   await loadWorldActivity();
 
-},90000);
+},60000);
 
 </script>
 
