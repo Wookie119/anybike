@@ -3416,6 +3416,114 @@ body{
   }
 }
 
+
+/* ======================================================
+   BIKE SALES HQ v8.2 — MY TASKS SUMMARY
+====================================================== */
+
+.my-tasks-summary{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(170px,1fr));
+  gap:9px;
+  margin:0 0 12px;
+}
+
+.my-task-summary-card{
+  display:grid;
+  grid-template-columns:38px minmax(0,1fr) auto;
+  gap:10px;
+  align-items:center;
+  min-height:66px;
+  margin:0 !important;
+  padding:11px 13px !important;
+  text-align:left;
+  background:#111 !important;
+  border:1px solid rgba(255,255,255,.10) !important;
+  border-radius:11px !important;
+  color:#fff !important;
+}
+
+.my-task-summary-card:hover{
+  background:#171717 !important;
+  border-color:rgba(237,28,36,.45) !important;
+}
+
+.my-task-summary-card.active{
+  background:rgba(237,28,36,.13) !important;
+  border-color:#ed1c24 !important;
+  box-shadow:0 0 0 1px rgba(237,28,36,.14);
+}
+
+.my-task-summary-card.overdue{
+  border-color:rgba(237,28,36,.30) !important;
+}
+
+.my-task-summary-icon{
+  width:36px;
+  height:36px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:9px;
+  background:#202020;
+  font-size:17px;
+}
+
+.my-task-summary-copy{
+  min-width:0;
+}
+
+.my-task-summary-copy strong{
+  display:block;
+  color:#fff;
+  font-size:13px;
+  line-height:1.2;
+}
+
+.my-task-summary-copy small{
+  display:block;
+  margin-top:3px;
+  color:#888;
+  font-size:11px;
+  line-height:1.25;
+}
+
+.my-task-summary-count{
+  min-width:34px;
+  color:#fff;
+  font-size:22px;
+  font-weight:950;
+  text-align:right;
+}
+
+.my-task-filter-clear{
+  display:none;
+  margin:0 0 10px;
+  color:#999;
+  font-size:12px;
+  font-weight:800;
+}
+
+.my-task-filter-clear.show{
+  display:block;
+}
+
+.my-task-filter-clear button{
+  margin:0 0 0 8px !important;
+  padding:5px 9px !important;
+  border-radius:7px !important;
+  background:#202020 !important;
+  border:1px solid rgba(255,255,255,.12) !important;
+  color:#fff !important;
+  font-size:11px !important;
+}
+
+@media(max-width:850px){
+  .my-tasks-summary{
+    grid-template-columns:1fr;
+  }
+}
+
 </style>
 </head>
 
@@ -3642,6 +3750,41 @@ body{
     <h2>Active Deals</h2>
     <p>Manage motorcycle sales from first enquiry through to completion.</p>
   </div>
+</div>
+
+<!-- MY TASKS SUMMARY -->
+<div class="my-tasks-summary" id="myTasksSummary">
+  <button type="button" class="my-task-summary-card" id="myTasksOpenCard" onclick="filterMyTasks('open');return false;">
+    <span class="my-task-summary-icon">📋</span>
+    <span class="my-task-summary-copy">
+      <strong>My Open Tasks</strong>
+      <small>Assigned to Andy Gifford</small>
+    </span>
+    <span class="my-task-summary-count" id="myTasksOpenCount">0</span>
+  </button>
+
+  <button type="button" class="my-task-summary-card" id="myTasksTodayCard" onclick="filterMyTasks('today');return false;">
+    <span class="my-task-summary-icon">📅</span>
+    <span class="my-task-summary-copy">
+      <strong>Due Today</strong>
+      <small>Open tasks due today</small>
+    </span>
+    <span class="my-task-summary-count" id="myTasksTodayCount">0</span>
+  </button>
+
+  <button type="button" class="my-task-summary-card overdue" id="myTasksOverdueCard" onclick="filterMyTasks('overdue');return false;">
+    <span class="my-task-summary-icon">🔴</span>
+    <span class="my-task-summary-copy">
+      <strong>Overdue</strong>
+      <small>Needs attention now</small>
+    </span>
+    <span class="my-task-summary-count" id="myTasksOverdueCount">0</span>
+  </button>
+</div>
+
+<div class="my-task-filter-clear" id="myTaskFilterClear">
+  Showing deals linked to <strong id="myTaskFilterLabel">tasks</strong>.
+  <button type="button" onclick="clearMyTaskFilter();return false;">Clear task filter</button>
 </div>
 
 <!-- DYNAMIC DEAL QUEUE OUTPUT -->
@@ -3954,6 +4097,10 @@ let currentDealPage = 1;
 let dealPageSize = 20;
 let currentDealRows = [];
 
+const CURRENT_TASK_USER = "Andy Gifford";
+let myDealTasks = [];
+let currentMyTaskFilter = "";
+
 let dealQueueFilters = {
   assigned:"",
   country:"",
@@ -3962,6 +4109,155 @@ let dealQueueFilters = {
   profit:"",
   updated:""
 };
+
+/* ======================================================
+   MY TASKS SUMMARY AND DEAL FILTERING
+====================================================== */
+function taskDateOnly(value){
+  if(!value){ return null; }
+
+  const date = new Date(String(value) + "T00:00:00");
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function todayDateOnly(){
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+}
+
+function myTaskMatchesFilter(task, filter){
+  if(!task || task.completed){ return false; }
+
+  const assigned = String(task.assigned_to || "").trim();
+  if(assigned !== CURRENT_TASK_USER){ return false; }
+
+  if(filter === "open"){
+    return true;
+  }
+
+  const due = taskDateOnly(task.due_date);
+  if(!due){ return false; }
+
+  const today = todayDateOnly();
+
+  if(filter === "today"){
+    return due.getTime() === today.getTime();
+  }
+
+  if(filter === "overdue"){
+    return due.getTime() < today.getTime();
+  }
+
+  return true;
+}
+
+async function loadMyTasksSummary(){
+  try{
+    const result = await sb
+      .from("deal_tasks")
+      .select("id,enquiry_id,assigned_to,due_date,completed,task,created_at")
+      .eq("assigned_to", CURRENT_TASK_USER)
+      .order("created_at", { ascending:false });
+
+    if(result.error){
+      throw result.error;
+    }
+
+    myDealTasks = result.data || [];
+    updateMyTasksSummary();
+
+  }catch(error){
+    console.error("My Tasks summary could not be loaded:", error);
+    myDealTasks = [];
+    updateMyTasksSummary();
+  }
+}
+
+function updateMyTasksSummary(){
+  const openCount = myDealTasks.filter(function(task){
+    return myTaskMatchesFilter(task, "open");
+  }).length;
+
+  const todayCount = myDealTasks.filter(function(task){
+    return myTaskMatchesFilter(task, "today");
+  }).length;
+
+  const overdueCount = myDealTasks.filter(function(task){
+    return myTaskMatchesFilter(task, "overdue");
+  }).length;
+
+  const setText = function(id, value){
+    const element = document.getElementById(id);
+    if(element){ element.textContent = value; }
+  };
+
+  setText("myTasksOpenCount", openCount);
+  setText("myTasksTodayCount", todayCount);
+  setText("myTasksOverdueCount", overdueCount);
+
+  const cardMap = {
+    open:"myTasksOpenCard",
+    today:"myTasksTodayCard",
+    overdue:"myTasksOverdueCard"
+  };
+
+  Object.keys(cardMap).forEach(function(key){
+    const card = document.getElementById(cardMap[key]);
+    if(card){
+      card.classList.toggle("active", currentMyTaskFilter === key);
+    }
+  });
+
+  const clearLine = document.getElementById("myTaskFilterClear");
+  const label = document.getElementById("myTaskFilterLabel");
+
+  if(clearLine){
+    clearLine.classList.toggle("show", Boolean(currentMyTaskFilter));
+  }
+
+  if(label){
+    const labels = {
+      open:"my open tasks",
+      today:"tasks due today",
+      overdue:"overdue tasks"
+    };
+
+    label.textContent = labels[currentMyTaskFilter] || "tasks";
+  }
+}
+
+function filterMyTasks(filter){
+  currentMyTaskFilter =
+    currentMyTaskFilter === filter
+      ? ""
+      : String(filter || "");
+
+  currentDealPage = 1;
+  updateMyTasksSummary();
+  filterEnquiries(currentFilter || "all", true);
+}
+
+function clearMyTaskFilter(){
+  currentMyTaskFilter = "";
+  currentDealPage = 1;
+  updateMyTasksSummary();
+  filterEnquiries(currentFilter || "all", true);
+}
+
+function matchesMyTaskFilter(enquiry){
+  if(!currentMyTaskFilter){
+    return true;
+  }
+
+  const enquiryId = String(enquiry && enquiry.id || "");
+
+  return myDealTasks.some(function(task){
+    return (
+      String(task.enquiry_id || "") === enquiryId &&
+      myTaskMatchesFilter(task, currentMyTaskFilter)
+    );
+  });
+}
 
 /* ======================================================
    URL DEEP-LINKING
@@ -4866,6 +5162,7 @@ function filterEnquiries(type, preservePage){
 
   rows = rows.filter(matchesDealQueueSearch);
   rows = rows.filter(matchesDealQueueFilters);
+  rows = rows.filter(matchesMyTaskFilter);
   currentDealRows = rows.slice();
   updateDealFilterUi();
   render(rows);
@@ -4976,6 +5273,7 @@ async function loadLatestMessages(){
 
 async function loadEnquiries(){
   await loadLatestMessages();
+  await loadMyTasksSummary();
   updateHeaderBubble();
 
   let {data,error}=await sb
