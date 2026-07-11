@@ -139,10 +139,7 @@
   }
 
   function isTaskOverdue(task) {
-    if (
-      task.completed ||
-      !task.due_date
-    ) {
+    if (task.completed || !task.due_date) {
       return false;
     }
 
@@ -155,22 +152,14 @@
     return dueDate < getTodayDateOnly();
   }
 
-  function getDaysOverdue(task) {
-    if (!isTaskOverdue(task)) {
-      return 0;
+  function getTaskDueText(task) {
+    if (!task.due_date) {
+      return "";
     }
 
     const dueDate = new Date(task.due_date + "T00:00:00");
-    const today = getTodayDateOnly();
 
-    return Math.floor(
-      (today.getTime() - dueDate.getTime()) /
-      (1000 * 60 * 60 * 24)
-    );
-  }
-
-  function getTaskDueText(task) {
-    if (!task.due_date) {
+    if (Number.isNaN(dueDate.getTime())) {
       return "";
     }
 
@@ -178,7 +167,6 @@
       return "Due " + formatTaskDate(task.due_date);
     }
 
-    const dueDate = new Date(task.due_date + "T00:00:00");
     const today = getTodayDateOnly();
 
     const difference = Math.round(
@@ -265,28 +253,6 @@
 
     badge.textContent = "0 Tasks";
     badge.classList.add("badge-grey");
-  }
-
-  function buildStaffOptions(selectedValue) {
-    const selected = String(selectedValue || "");
-
-    const emptyOption = `
-      <option value="">
-        Unassigned
-      </option>
-    `;
-
-    const staffOptions = TASK_STAFF.map(function (staffName) {
-      return `
-        <option
-          value="${escapeHtml(staffName)}"
-          ${selected === staffName ? "selected" : ""}>
-          ${escapeHtml(staffName)}
-        </option>
-      `;
-    }).join("");
-
-    return emptyOption + staffOptions;
   }
 
   function showAddTaskForm(enquiryId) {
@@ -420,6 +386,11 @@
 
       if (badge) {
         badge.textContent = "Error";
+        badge.classList.remove(
+          "badge-green",
+          "badge-orange",
+          "badge-grey"
+        );
         badge.classList.add("badge-red");
       }
     }
@@ -656,6 +627,7 @@
 
   async function toggleDealTask(taskId, enquiryId, completed) {
     const id = normaliseNumber(enquiryId);
+
     const card = document.getElementById(
       "deal-task-card-" + normaliseNumber(taskId)
     );
@@ -713,8 +685,7 @@
       await loadDealTasks(id);
     }
   }
-
-  async function getDealTaskRecord(taskId, enquiryId) {
+    async function getDealTaskRecord(taskId, enquiryId) {
     const client = getSupabaseClient();
 
     const result = await client
@@ -772,9 +743,9 @@
 
     const newAssignedTo = prompt(
       "Assigned to\n\n" +
-      "Available staff:\n" +
-      TASK_STAFF.join("\n") +
-      "\n\nLeave blank for unassigned.",
+        "Available staff:\n" +
+        TASK_STAFF.join("\n") +
+        "\n\nLeave blank for unassigned.",
       task.assigned_to || ""
     );
 
@@ -784,11 +755,21 @@
 
     const newDueDate = prompt(
       "Due date in YYYY-MM-DD format.\n\n" +
-      "Leave blank for no due date.",
+        "Leave blank for no due date.",
       task.due_date || ""
     );
 
     if (newDueDate === null) {
+      return;
+    }
+
+    const cleanedDueDate = newDueDate.trim();
+
+    if (
+      cleanedDueDate &&
+      !/^\d{4}-\d{2}-\d{2}$/.test(cleanedDueDate)
+    ) {
+      alert("Use the date format YYYY-MM-DD.");
       return;
     }
 
@@ -809,7 +790,7 @@
         .update({
           task: cleanedTaskName,
           assigned_to: newAssignedTo.trim() || null,
-          due_date: newDueDate.trim() || null,
+          due_date: cleanedDueDate || null,
           notes: newNotes.trim() || null
         })
         .eq("id", normaliseNumber(taskId))
@@ -918,6 +899,30 @@
     }
   }
 
+  function buildDealTaskStaffOptions(selectedValue) {
+    const selected = String(selectedValue || "");
+
+    const emptyOption = `
+      <option value="">
+        Unassigned
+      </option>
+    `;
+
+    const staffOptions = TASK_STAFF
+      .map(function (staffName) {
+        return `
+          <option
+            value="${escapeHtml(staffName)}"
+            ${selected === staffName ? "selected" : ""}>
+            ${escapeHtml(staffName)}
+          </option>
+        `;
+      })
+      .join("");
+
+    return emptyOption + staffOptions;
+  }
+
   window.loadDealTasks = loadDealTasks;
   window.showAddTaskForm = showAddTaskForm;
   window.hideAddTaskForm = hideAddTaskForm;
@@ -925,6 +930,6 @@
   window.toggleDealTask = toggleDealTask;
   window.editDealTask = editDealTask;
   window.deleteDealTask = deleteDealTask;
-  window.buildDealTaskStaffOptions = buildStaffOptions;
+  window.buildDealTaskStaffOptions = buildDealTaskStaffOptions;
 
 })();
