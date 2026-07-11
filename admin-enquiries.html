@@ -8,6 +8,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -17,6 +18,7 @@
 <meta name="robots" content="noindex,nofollow">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link rel="stylesheet" href="admin-files.css?v=8100">
+<link rel="stylesheet" href="admin-tasks.css?v=8200">
 <style>
 /* COMMERCIAL KPI UPDATE: live pipeline value, pipeline profit, margin, average profit and low-margin deal count. */
 /* PHASE 1 STABILISATION: syntax repaired; HTML and JavaScript preserved. */
@@ -3615,9 +3617,10 @@ document.addEventListener("keydown", function(e){
 
 </script>
 
-<!-- SHARED DEAL ACTIVITY AND WORKFLOW MODULES -->
+<!-- SHARED DEAL ACTIVITY, WORKFLOW AND TASK MODULES -->
 <script src="admin-deal-history.js"></script>
 <script src="admin-workflow.js"></script>
+<script src="admin-tasks.js?v=8200"></script>
 
 <!-- ===================================================== -->
 <!-- BIKE SALES HQ APPLICATION LOGIC -->
@@ -5653,12 +5656,54 @@ const shippingBadge = dealStatus === "Shipping" ? "In Progress" : "Not Started";
       </div>
     </details>
 
-    <details class="deal360-panel" id="tasks-panel-${r.id}">
-      <summary><span>📋 Internal Tasks</span><span class="panel-badge">Planned</span></summary>
+    <details class="deal360-panel" id="tasks-panel-${r.id}" ontoggle="if(this.open&&typeof loadDealTasks==='function'){loadDealTasks(${Number(r.id)});}">
+      <summary><span>📋 Internal Tasks</span><span class="panel-badge badge-grey" id="deal-task-count-${r.id}">0 Tasks</span></summary>
       <div class="deal360-panel-body">
-        <div class="workflow-empty">
-          <strong>Internal task workspace.</strong>
-          <div>Create, assign and complete deal-specific tasks separately from Lead Status and operational workflows.</div>
+        <div class="tasks-wrap">
+          <div class="tasks-header">
+            <div>
+              <h4>Deal Tasks</h4>
+              <p>Lightweight actions linked only to this deal.</p>
+            </div>
+            <button type="button" onclick="showAddTaskForm(${Number(r.id)});return false;">＋ Add Task</button>
+          </div>
+
+          <div class="deal-task-status" id="deal-task-status-${r.id}"></div>
+
+          <div class="task-form-panel" id="deal-task-form-${r.id}">
+            <div class="task-form">
+              <label>
+                Task
+                <input type="text" id="deal-task-name-${r.id}" placeholder="For example: Call seller">
+              </label>
+              <label>
+                Assigned To
+                <select id="deal-task-assigned-${r.id}">
+                  <option value="">Unassigned</option>
+                  <option value="Andy Gifford">Andy Gifford</option>
+                  <option value="Sean Byrne">Sean Byrne</option>
+                  <option value="Cat Byrne">Cat Byrne</option>
+                  <option value="Sophie Gifford">Sophie Gifford</option>
+                </select>
+              </label>
+              <label>
+                Due Date
+                <input type="date" id="deal-task-due-${r.id}">
+              </label>
+              <label class="full">
+                Notes
+                <textarea id="deal-task-notes-${r.id}" placeholder="Optional task notes"></textarea>
+              </label>
+            </div>
+            <div class="task-form-actions">
+              <button type="button" onclick="saveDealTask(${Number(r.id)});return false;">Save Task</button>
+              <button type="button" class="task-cancel-button" onclick="hideAddTaskForm(${Number(r.id)});return false;">Cancel</button>
+            </div>
+          </div>
+
+          <div class="task-list" id="deal-task-list-${r.id}">
+            <div class="task-empty">Open this panel to load internal tasks.</div>
+          </div>
         </div>
       </div>
     </details>
@@ -5722,6 +5767,7 @@ const shippingBadge = dealStatus === "Shipping" ? "In Progress" : "Not Started";
 rows.forEach(function(r){
   loadMessages(r.id, r.message, r.customer_name);
   if(typeof loadDealTimeline === "function"){ loadDealTimeline(r.id); }
+  if(typeof loadDealTasks === "function"){ loadDealTasks(r.id); }
 });
 
 if(openEnquiryId){
