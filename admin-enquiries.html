@@ -9,6 +9,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -3287,6 +3288,134 @@ body{
   }
 }
 
+
+/* ======================================================
+   BIKE SALES HQ v8.2 — ACTIVE DEALS + COMBINED FOOTER
+====================================================== */
+
+.active-deals-heading{
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:16px;
+  margin:16px 0 10px;
+  padding:0 2px;
+}
+
+.active-deals-heading h2{
+  margin:0 0 4px;
+  color:#fff;
+  font-size:22px;
+  letter-spacing:-.02em;
+}
+
+.active-deals-heading p{
+  margin:0;
+  color:#888;
+  font-size:13px;
+  line-height:1.45;
+}
+
+.deal-pagination{
+  display:grid;
+  grid-template-columns:minmax(180px,1fr) auto minmax(260px,1fr);
+  align-items:center;
+  gap:14px;
+  padding:12px 14px;
+  margin-top:10px;
+  background:#0d0d0d;
+  border:1px solid rgba(255,255,255,.10);
+  border-radius:12px;
+}
+
+.deal-footer-actions{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  flex-wrap:wrap;
+}
+
+.deal-footer-actions button{
+  min-height:34px;
+  margin:0 !important;
+  padding:7px 11px !important;
+  border-radius:8px !important;
+  background:transparent !important;
+  border:1px solid transparent !important;
+  color:#ddd !important;
+  font-size:12px !important;
+  box-shadow:none !important;
+}
+
+.deal-footer-actions button:hover{
+  background:#181818 !important;
+  border-color:rgba(255,255,255,.12) !important;
+  color:#fff !important;
+}
+
+.deal-footer-actions .selected-count{
+  min-width:84px;
+  padding:8px 10px;
+  text-align:center;
+  color:#aaa;
+  font-size:12px;
+  font-weight:900;
+  white-space:nowrap;
+}
+
+.deal-footer-actions .delete-selected{
+  color:#ff7378 !important;
+  border-left:1px solid rgba(255,255,255,.12) !important;
+}
+
+.deal-footer-actions .delete-selected:not(:disabled):hover{
+  background:rgba(237,28,36,.13) !important;
+  border-color:rgba(237,28,36,.35) !important;
+  color:#fff !important;
+}
+
+.deal-footer-actions button:disabled{
+  opacity:.35;
+  cursor:not-allowed;
+}
+
+.deal-pagination-controls{
+  justify-content:flex-end;
+}
+
+@media(max-width:1100px){
+  .deal-pagination{
+    grid-template-columns:1fr auto;
+  }
+
+  .deal-footer-actions{
+    grid-column:1 / -1;
+    grid-row:2;
+    justify-content:flex-start;
+    border-top:1px solid rgba(255,255,255,.08);
+    padding-top:10px;
+  }
+}
+
+@media(max-width:700px){
+  .active-deals-heading{
+    align-items:flex-start;
+    flex-direction:column;
+  }
+
+  .deal-pagination{
+    display:flex;
+    align-items:stretch;
+    flex-direction:column;
+  }
+
+  .deal-footer-actions,
+  .deal-pagination-controls{
+    justify-content:flex-start;
+  }
+}
+
 </style>
 </head>
 
@@ -3507,30 +3636,18 @@ body{
   <button type="button" onclick="filterEnquiries('closed')"><span>Closed</span><strong id="queueCountClosed">0</strong></button>
 </div>
 
-<!-- BULK DEAL QUEUE ACTIONS -->
-<div class="bulk-toolbar">
-
-<button type="button" onclick="selectAllEnquiries(); return false;">
-  ☑ Select All
-</button>
-
-  <button type="button" onclick="clearAllEnquiries()">
-    ☐ Clear
-  </button>
-
-  <button
-    type="button"
-  style="background:#ed1c24;color:#fff;"
-  onclick="deleteSelectedEnquiries()">
-    🗑 Delete Selected
-  </button>
-
+<!-- ACTIVE DEALS -->
+<div class="active-deals-heading">
+  <div>
+    <h2>Active Deals</h2>
+    <p>Manage motorcycle sales from first enquiry through to completion.</p>
+  </div>
 </div>
 
 <!-- DYNAMIC DEAL QUEUE OUTPUT -->
 <div id="enquiries"></div>
 
-<!-- DEAL QUEUE PAGINATION -->
+<!-- COMBINED DEAL QUEUE FOOTER -->
 <div id="dealPagination"></div>
 
       </div>
@@ -3637,16 +3754,43 @@ const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 /* ======================================================
    BULK ENQUIRY CONTROLS
 ====================================================== */
+function getSelectedEnquiryCount(){
+  return document.querySelectorAll(".enquiry-check:checked, .enquiry-select:checked").length;
+}
+
+function updateDealSelectionFooter(){
+  const count = getSelectedEnquiryCount();
+  const countLabel = document.getElementById("dealSelectedCount");
+  const clearButton = document.getElementById("dealClearSelected");
+  const deleteButton = document.getElementById("dealDeleteSelected");
+
+  if(countLabel){
+    countLabel.textContent = count === 1 ? "1 Selected" : count + " Selected";
+  }
+
+  if(clearButton){
+    clearButton.disabled = count === 0;
+  }
+
+  if(deleteButton){
+    deleteButton.disabled = count === 0;
+  }
+}
+
 function selectAllEnquiries(){
   document.querySelectorAll(".enquiry-check, .enquiry-select").forEach(function(box){
     box.checked = true;
   });
+
+  updateDealSelectionFooter();
 }
 
 function clearAllEnquiries(){
   document.querySelectorAll(".enquiry-check, .enquiry-select").forEach(function(box){
     box.checked = false;
   });
+
+  updateDealSelectionFooter();
 }
 
 async function deleteSelectedEnquiries(){
@@ -4542,6 +4686,14 @@ function renderDealPagination(totalRows){
   host.innerHTML = `
     <div class="deal-pagination">
       <div class="deal-pagination-info">Showing ${start}–${end} of ${totalRows} deals</div>
+
+      <div class="deal-footer-actions">
+        <button type="button" onclick="selectAllEnquiries();return false;">☑ Select All</button>
+        <button type="button" id="dealClearSelected" onclick="clearAllEnquiries();return false;">☐ Clear</button>
+        <span class="selected-count" id="dealSelectedCount">0 Selected</span>
+        <button type="button" id="dealDeleteSelected" class="delete-selected" onclick="deleteSelectedEnquiries();return false;">🗑 Delete Selected</button>
+      </div>
+
       <div class="deal-pagination-controls">
         <button type="button" class="deal-page-btn" onclick="goToDealPage(${currentDealPage - 1})" ${currentDealPage === 1 ? "disabled" : ""}>‹</button>
         ${pageButtons}
@@ -4553,6 +4705,8 @@ function renderDealPagination(totalRows){
         </select>
       </div>
     </div>`;
+
+  updateDealSelectionFooter();
 }
 
 /* ======================================================
@@ -5279,7 +5433,7 @@ const shippingBadge = dealStatus === "Shipping" ? "In Progress" : "Not Started";
    <div class="enquiry" id="enquiry-${r.id}" data-enquiry-id="${r.id}">
     <div class="enquiry-row" onclick="toggleEnquiry(${r.id})">
       <div onclick="event.stopPropagation()" class="row-check">
-        <input type="checkbox" class="enquiry-check" value="${r.id}">
+        <input type="checkbox" class="enquiry-check" value="${r.id}" onchange="updateDealSelectionFooter();">
       </div>
 
       <div class="row-open">
