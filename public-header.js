@@ -16,7 +16,6 @@ async function loadPublicHeader(){
   }
 
   holder.innerHTML = await headerRes.text();
-
   setupPublicHeader();
 }
 
@@ -80,13 +79,42 @@ async function setupPublicHeader(){
       publicAccount.classList.remove("menu-open");
     }
 
-    if(notificationPopover && notificationButton && !notificationPopover.contains(e.target) && !notificationButton.contains(e.target)){
+    if(
+      notificationPopover &&
+      notificationButton &&
+      !notificationPopover.contains(e.target) &&
+      !notificationButton.contains(e.target)
+    ){
       notificationPopover.classList.remove("open");
     }
   });
 
   let savedLanguage = localStorage.getItem("anybikeLanguage") || "en";
   let savedCurrency = localStorage.getItem("anybikeCurrency") || "GBP";
+  let user = null;
+
+  if(typeof sb !== "undefined"){
+    const result = await sb.auth.getUser();
+    user = result.data.user;
+
+    if(user){
+      const { data:profile } = await sb
+        .from("customer_profiles")
+        .select("preferred_language,preferred_currency")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if(profile?.preferred_language){
+        savedLanguage = profile.preferred_language;
+        localStorage.setItem("anybikeLanguage", savedLanguage);
+      }
+
+      if(profile?.preferred_currency){
+        savedCurrency = profile.preferred_currency;
+        localStorage.setItem("anybikeCurrency", savedCurrency);
+      }
+    }
+  }
 
   if(languageSelect){
     languageSelect.value = savedLanguage;
@@ -106,49 +134,19 @@ async function setupPublicHeader(){
     };
   }
 
-  let user = null;
-
-  if(typeof sb !== "undefined"){
-    const result = await sb.auth.getUser();
-    user = result.data.user;
-  }
-
   if(user){
-    if(loggedOutMenu){
-      loggedOutMenu.classList.add("hidden");
-    }
-
-    if(loggedInMenu){
-      loggedInMenu.classList.remove("hidden");
-    }
-
-    if(mobileLoggedOutMenu){
-      mobileLoggedOutMenu.classList.add("hidden");
-    }
-
-    if(mobileLoggedInMenu){
-      mobileLoggedInMenu.classList.remove("hidden");
-    }
+    loggedOutMenu?.classList.add("hidden");
+    loggedInMenu?.classList.remove("hidden");
+    mobileLoggedOutMenu?.classList.add("hidden");
+    mobileLoggedInMenu?.classList.remove("hidden");
 
     loadCustomerMessageCounts(user.id);
     loadCustomerNotifications(user.id);
-
-  } else {
-    if(loggedOutMenu){
-      loggedOutMenu.classList.remove("hidden");
-    }
-
-    if(loggedInMenu){
-      loggedInMenu.classList.add("hidden");
-    }
-
-    if(mobileLoggedOutMenu){
-      mobileLoggedOutMenu.classList.remove("hidden");
-    }
-
-    if(mobileLoggedInMenu){
-      mobileLoggedInMenu.classList.add("hidden");
-    }
+  }else{
+    loggedOutMenu?.classList.remove("hidden");
+    loggedInMenu?.classList.add("hidden");
+    mobileLoggedOutMenu?.classList.remove("hidden");
+    mobileLoggedInMenu?.classList.add("hidden");
 
     setMessageCount(0);
     setNotificationCount(0);
@@ -192,17 +190,7 @@ function setActivePublicNav(){
   links.forEach(link => link.classList.remove("active"));
 
   if(path === "/" || path.endsWith("/index.html")){
-    if(hash === "#export-services"){
-      markActive("export");
-      return;
-    }
-
-    if(hash === "#contact"){
-      markActive("contact");
-      return;
-    }
-
-    markActive("home");
+    markActive(hash === "#export-services" ? "export" : "home");
     return;
   }
 
@@ -221,6 +209,10 @@ function setActivePublicNav(){
     return;
   }
 
+  if(path.includes("contact-us")){
+    markActive("connect");
+  }
+
   function markActive(page){
     const active = document.querySelector('.public-nav a[data-page="' + page + '"]');
 
@@ -235,7 +227,7 @@ async function saveHeaderPreference(field, value){
     return;
   }
 
-  const { data: { user } } = await sb.auth.getUser();
+  const { data:{ user } } = await sb.auth.getUser();
 
   if(!user){
     return;
@@ -256,7 +248,7 @@ async function loadCustomerMessageCounts(userId){
     return;
   }
 
-  const { data: enquiries } = await sb
+  const { data:enquiries } = await sb
     .from("bike_enquiries")
     .select("id")
     .eq("customer_id", userId);
@@ -278,12 +270,7 @@ async function loadCustomerMessageCounts(userId){
 }
 
 async function loadCustomerNotifications(userId){
-
-  console.log("===== NOTIFICATION TEST =====");
-  console.log("Logged in user:", userId);
-
   if(typeof sb === "undefined"){
-    console.log("Supabase client missing");
     setNotificationCount(0);
     renderNotificationList([]);
     return;
@@ -293,10 +280,7 @@ async function loadCustomerNotifications(userId){
     .from("customer_notifications")
     .select("*")
     .eq("customer_id", userId)
-    .order("created_at",{ascending:false});
-
-  console.log("Supabase error:", error);
-  console.log("Notifications returned:", data);
+    .order("created_at", { ascending:false });
 
   if(error){
     setNotificationCount(0);
@@ -304,12 +288,11 @@ async function loadCustomerNotifications(userId){
     return;
   }
 
-  const unread = data.filter(n => !n.is_read).length;
-
-  console.log("Unread:", unread);
+  const items = data || [];
+  const unread = items.filter(n => !n.is_read).length;
 
   setNotificationCount(unread);
-  renderNotificationList(data);
+  renderNotificationList(items);
 }
 
 function renderNotificationList(items){
@@ -328,7 +311,7 @@ function renderNotificationList(items){
     const icon = n.icon || "🔔";
     const title = escapeHtml(n.title || "Notification");
     const message = escapeHtml(n.message || "");
-    const link = n.link || "#";
+    const link = escapeHtml(n.link || "#");
     const readClass = n.is_read ? "read" : "unread";
 
     return `
@@ -351,12 +334,7 @@ function setMessageCount(total){
   }
 
   messagesEl.textContent = "Messages " + total;
-
-  if(total > 0){
-    messagesEl.classList.add("has-messages");
-  } else {
-    messagesEl.classList.remove("has-messages");
-  }
+  messagesEl.classList.toggle("has-messages", total > 0);
 }
 
 function setNotificationCount(total){
@@ -367,12 +345,7 @@ function setNotificationCount(total){
   }
 
   notificationsEl.textContent = "Notifications " + total;
-
-  if(total > 0){
-    notificationsEl.classList.add("has-notifications");
-  } else {
-    notificationsEl.classList.remove("has-notifications");
-  }
+  notificationsEl.classList.toggle("has-notifications", total > 0);
 }
 
 function updateHeaderTimes(){
@@ -409,9 +382,7 @@ function applyHeaderCurrency(currency){
   window.anybikeCurrency = currency;
 
   window.dispatchEvent(new CustomEvent("anybikeCurrencyChanged", {
-    detail:{
-      currency:currency
-    }
+    detail:{ currency }
   }));
 }
 
@@ -419,9 +390,7 @@ function applyHeaderLanguage(language){
   window.anybikeLanguage = language;
 
   window.dispatchEvent(new CustomEvent("anybikeLanguageChanged", {
-    detail:{
-      language:language
-    }
+    detail:{ language }
   }));
 }
 
