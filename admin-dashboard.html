@@ -5,6 +5,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1646,6 +1647,35 @@ color:#ed1c24;
   background:#ed1c24;
 }
 
+
+/* ADMIN HQ — PIPELINE FIT FIX */
+#dashboardLeadStatusPipeline.pipeline-stats{
+  grid-template-columns:repeat(15,minmax(0,1fr)) !important;
+  overflow-x:hidden !important;
+}
+
+#dashboardLeadStatusPipeline .stat{
+  min-width:0 !important;
+}
+
+@media(max-width:1500px){
+  #dashboardLeadStatusPipeline.pipeline-stats{
+    grid-template-columns:repeat(15,minmax(0,1fr)) !important;
+  }
+}
+
+@media(max-width:1100px){
+  #dashboardLeadStatusPipeline.pipeline-stats{
+    grid-template-columns:repeat(5,minmax(0,1fr)) !important;
+  }
+}
+
+@media(max-width:700px){
+  #dashboardLeadStatusPipeline.pipeline-stats{
+    grid-template-columns:repeat(3,minmax(0,1fr)) !important;
+  }
+}
+
 </style>
 </head>
 
@@ -3156,35 +3186,16 @@ async function loadWorldActivity(){
     </div>
   `;
 
-  const timelineResult = await sb
-    .from("deal_timeline")
-    .select(
-      "id,enquiry_id,event_type,title,details,created_by,created_at"
-    )
-    .order("created_at",{ascending:false})
-    .limit(30);
-
-  if(timelineResult.error){
-    console.warn(
-      "Live World Activity timeline load failed:",
-      timelineResult.error
-    );
-  }
-
-  const timelineEvents = timelineResult.data || [];
-
-  const recentEnquiryResult = await sb
+  const enquiryResult = await sb
     .from("bike_enquiries")
     .select(`
       id,
       created_at,
-      updated_at,
       status,
       lead_status,
       customer_name,
       customer_email,
       destination_country,
-      ip_country,
       bike_id,
       available_stock (
         make,
@@ -3193,76 +3204,44 @@ async function loadWorldActivity(){
       )
     `)
     .order("created_at",{ascending:false})
-    .limit(20);
+    .limit(30);
 
-  if(recentEnquiryResult.error){
+  if(enquiryResult.error){
     console.warn(
       "Live World Activity enquiry load failed:",
-      recentEnquiryResult.error
+      enquiryResult.error
     );
+
+    feed.innerHTML = `
+      <div class="work-item">
+        <span>Could not load recent Bike Sales activity.</span>
+        <span>⚠️</span>
+      </div>
+    `;
+    return;
   }
 
-  const recentEnquiries = recentEnquiryResult.data || [];
+  const enquiries = enquiryResult.data || [];
+  const enquiryById = {};
 
-  const timelineEnquiryIds = timelineEvents
-    .map(function(event){
-      return Number(event.enquiry_id);
+  enquiries.forEach(function(enquiry){
+    enquiryById[String(enquiry.id)] = enquiry;
+  });
+
+  const enquiryIds = enquiries
+    .map(function(enquiry){
+      return Number(enquiry.id);
     })
     .filter(Boolean);
 
-  let timelineEnquiries = [];
-
-  if(timelineEnquiryIds.length){
-    const timelineEnquiryResult = await sb
-      .from("bike_enquiries")
-      .select(`
-        id,
-        created_at,
-        updated_at,
-        status,
-        lead_status,
-        customer_name,
-        customer_email,
-        destination_country,
-        ip_country,
-        bike_id,
-        available_stock (
-          make,
-          model,
-          year
-        )
-      `)
-      .in("id",Array.from(new Set(timelineEnquiryIds)));
-
-    if(timelineEnquiryResult.error){
-      console.warn(
-        "Live World Activity changed-deal load failed:",
-        timelineEnquiryResult.error
-      );
-    }else{
-      timelineEnquiries = timelineEnquiryResult.data || [];
-    }
-  }
-
-  const enquiryById = {};
-
-  recentEnquiries
-    .concat(timelineEnquiries)
-    .forEach(function(enquiry){
-      enquiryById[String(enquiry.id)] = enquiry;
-    });
-
-  const allEnquiryIds = Object.keys(enquiryById)
-    .map(Number)
-    .filter(Boolean);
-
   let messages = [];
+  let timelineEvents = [];
 
-  if(allEnquiryIds.length){
+  if(enquiryIds.length){
     const messageResult = await sb
       .from("enquiry_messages")
       .select("id,enquiry_id,sender,message,created_at")
-      .in("enquiry_id",allEnquiryIds)
+      .in("enquiry_id",enquiryIds)
       .order("created_at",{ascending:false})
       .limit(80);
 
@@ -3274,12 +3253,31 @@ async function loadWorldActivity(){
     }else{
       messages = messageResult.data || [];
     }
+
+    const timelineResult = await sb
+      .from("deal_timeline")
+      .select(
+        "id,enquiry_id,event_type,title,details,created_by,created_at"
+      )
+      .in("enquiry_id",enquiryIds)
+      .order("created_at",{ascending:false})
+      .limit(80);
+
+    if(timelineResult.error){
+      console.warn(
+        "Live World Activity timeline load failed:",
+        timelineResult.error
+      );
+    }else{
+      timelineEvents = timelineResult.data || [];
+    }
   }
 
-  function activityDealDetails(enquiry){
-    const bike = enquiry && enquiry.available_stock
-      ? enquiry.available_stock
-      : {};
+  function dealDetails(enquiry){
+    const bike =
+      enquiry && enquiry.available_stock
+        ? enquiry.available_stock
+        : {};
 
     return {
       bikeName:[
@@ -3289,25 +3287,20 @@ async function loadWorldActivity(){
       ].filter(Boolean).join(" ") || "Motorcycle deal",
 
       country:
-        (enquiry && (
-          enquiry.ip_country ||
-          enquiry.destination_country
-        )) ||
+        enquiry.destination_country ||
         "Unknown Country",
 
       customer:
-        (enquiry && (
-          enquiry.customer_name ||
-          enquiry.customer_email
-        )) ||
+        enquiry.customer_name ||
+        enquiry.customer_email ||
         "Customer"
     };
   }
 
   const items = [];
 
-  recentEnquiries.forEach(function(enquiry){
-    const details = activityDealDetails(enquiry);
+  enquiries.forEach(function(enquiry){
+    const details = dealDetails(enquiry);
 
     items.push({
       key:"enquiry-" + enquiry.id,
@@ -3340,7 +3333,7 @@ async function loadWorldActivity(){
     const enquiry = enquiryById[String(message.enquiry_id)];
     if(!enquiry){ return; }
 
-    const details = activityDealDetails(enquiry);
+    const details = dealDetails(enquiry);
 
     items.push({
       key:"message-" + message.id,
@@ -3366,16 +3359,33 @@ async function loadWorldActivity(){
     const enquiry = enquiryById[String(event.enquiry_id)];
     if(!enquiry){ return; }
 
-    const details = activityDealDetails(enquiry);
+    const details = dealDetails(enquiry);
     const type = String(event.event_type || "").toLowerCase();
 
     let icon = "🔄";
 
-    if(type.includes("workflow")){ icon = "📦"; }
-    if(type.includes("document")){ icon = "📄"; }
-    if(type.includes("status")){ icon = "🔄"; }
-    if(type.includes("deal")){ icon = "💷"; }
-    if(type.includes("note")){ icon = "📝"; }
+    if(
+      type.includes("workflow") ||
+      type.includes("operation") ||
+      type.includes("shipping")
+    ){
+      icon = "📦";
+    }
+
+    if(
+      type.includes("document") ||
+      type.includes("file")
+    ){
+      icon = "📄";
+    }
+
+    if(type.includes("deal")){
+      icon = "💷";
+    }
+
+    if(type.includes("note")){
+      icon = "📝";
+    }
 
     items.push({
       key:"timeline-" + event.id,
@@ -3386,7 +3396,11 @@ async function loadWorldActivity(){
           style="cursor:pointer;">
           <div>
             <strong>${icon} ${escapeDashboardText(details.country)}</strong><br>
-            ${escapeDashboardText(event.title || event.event_type || "Deal updated")} ·
+            ${escapeDashboardText(
+              event.title ||
+              event.event_type ||
+              "Deal updated"
+            )} ·
             ${escapeDashboardText(details.bikeName)}<br>
             <span class="small">
               ${escapeDashboardText(event.details || "")}
@@ -3405,27 +3419,22 @@ async function loadWorldActivity(){
     return b.when - a.when;
   });
 
-  const seen = new Set();
-
-  const uniqueItems = items.filter(function(item){
-    if(seen.has(item.key)){ return false; }
-    seen.add(item.key);
-    return true;
-  });
-
-  if(!uniqueItems.length){
+  if(!items.length){
     feed.innerHTML = `
       <div class="work-item">
-        <span>No recent Bike Sales activity.</span>
+        <span>No Bike Sales records were returned.</span>
         <span>🌍</span>
       </div>
     `;
     return;
   }
 
-  feed.innerHTML = uniqueItems.slice(0,10).map(function(item){
-    return item.html;
-  }).join("");
+  feed.innerHTML = items
+    .slice(0,10)
+    .map(function(item){
+      return item.html;
+    })
+    .join("");
 }
 
 const operationsCountryCoords = {
