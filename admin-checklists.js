@@ -74,13 +74,21 @@ function escapeHtml(text){
 
 }
 
+function element(id){
+    return document.getElementById(id);
+}
+
 function getProgress(rows){
 
     const required =
-        rows.filter(r=>r.status!=="not_required");
+        rows.filter(function(r){
+            return r.status !== "not_required";
+        });
 
     const complete =
-        required.filter(r=>r.status==="complete");
+        required.filter(function(r){
+            return r.status === "complete";
+        });
 
     return{
 
@@ -90,6 +98,9 @@ function getProgress(rows){
 
         waiting:
             required.length-complete.length,
+
+        notRequired:
+            rows.length-required.length,
 
         percent:
             required.length
@@ -102,49 +113,49 @@ function getProgress(rows){
     };
 
 }
-/* ==========================================================
-   CREATE DEFAULT ROWS
-========================================================== */
 
 async function ensureChecklistRows(enquiryId){
 
-    const client = getClient();
+    const client=getClient();
 
-    const { data:existing, error } =
+    const existing=
         await client
         .from("deal_checklists")
         .select("category,item_key")
-        .eq("enquiry_id", enquiryId);
+        .eq("enquiry_id",enquiryId);
 
-    if(error){
-        throw error;
+    if(existing.error){
+        throw existing.error;
     }
 
-    const current = new Set();
+    const found=new Set();
 
-    (existing || []).forEach(function(row){
+    (existing.data||[]).forEach(function(row){
 
-        current.add(
-            row.category + "::" + row.item_key
+        found.add(
+            row.category+"::"+row.item_key
         );
 
     });
 
-    const rows = [];
+    const inserts=[];
 
     DOCUMENT_ITEMS.forEach(function(item){
 
-        const key =
-            "documents::" + item.key;
+        if(
+            !found.has(
+                "documents::"+item.key
+            )
+        ){
 
-        if(!current.has(key)){
-
-            rows.push({
+            inserts.push({
 
                 enquiry_id:enquiryId,
+
                 category:"documents",
 
                 item_key:item.key,
+
                 item_name:item.name,
 
                 status:"waiting"
@@ -157,17 +168,20 @@ async function ensureChecklistRows(enquiryId){
 
     PREPARATION_ITEMS.forEach(function(item){
 
-        const key =
-            "preparation::" + item.key;
+        if(
+            !found.has(
+                "preparation::"+item.key
+            )
+        ){
 
-        if(!current.has(key)){
-
-            rows.push({
+            inserts.push({
 
                 enquiry_id:enquiryId,
+
                 category:"preparation",
 
                 item_key:item.key,
+
                 item_name:item.name,
 
                 status:"waiting"
@@ -178,21 +192,20 @@ async function ensureChecklistRows(enquiryId){
 
     });
 
-    if(rows.length){
+    if(inserts.length){
 
-        const result =
+        const insertResult=
             await client
             .from("deal_checklists")
-            .insert(rows);
+            .insert(inserts);
 
-        if(result.error){
-            throw result.error;
+        if(insertResult.error){
+            throw insertResult.error;
         }
 
     }
 
 }
-
 /* ==========================================================
    LOAD DOCUMENTS
 ========================================================== */
@@ -219,17 +232,14 @@ async function loadDocumentChecklist(enquiryId){
     }
 
     renderDocumentChecklist(
-
         enquiryId,
-
         result.data || []
-
     );
 
 }
 
 /* ==========================================================
-   LOAD PREPARATION
+   LOAD MOTORCYCLE PREPARATION
 ========================================================== */
 
 async function loadPreparationChecklist(enquiryId){
@@ -254,23 +264,21 @@ async function loadPreparationChecklist(enquiryId){
     }
 
     renderPreparationChecklist(
-
         enquiryId,
-
         result.data || []
-
     );
 
 }
+
 /* ==========================================================
-   SHARED ITEM BUTTON
+   BUTTON
 ========================================================== */
 
-function checklistButton(row, status, label){
+function checklistButton(row,status,label){
 
     const active =
-        row.status === status
-            ? " active-" + status.replace("_","-")
+        row.status===status
+            ? " active-"+status.replace("_","-")
             : "";
 
     return `
@@ -292,76 +300,76 @@ function checklistButton(row, status, label){
 }
 
 /* ==========================================================
-   SHARED ROW RENDERER
+   ROWS
 ========================================================== */
 
 function renderChecklistRows(rows){
 
     return rows.map(function(row){
 
-        let meta = "Waiting";
+        let meta="Waiting";
 
-        if(row.status === "complete"){
+        if(row.status==="complete"){
 
-            meta = row.completed_by
-                ? "Completed by " + row.completed_by
+            meta=row.completed_by
+                ? "Completed by "+row.completed_by
                 : "Complete";
 
         }
 
-        if(row.status === "not_required"){
+        if(row.status==="not_required"){
 
-            meta = "Not required for this deal";
+            meta="Not required for this deal";
 
         }
 
         return `
-            <div
-                class="checklist-row status-${escapeHtml(row.status || "waiting")}">
 
-                <div class="checklist-item-copy">
+        <div class="checklist-row status-${escapeHtml(row.status)}">
 
-                    <strong>
-                        ${escapeHtml(row.item_name)}
-                    </strong>
+            <div class="checklist-item-copy">
 
-                    <small>
-                        ${escapeHtml(meta)}
-                    </small>
+                <strong>
+                    ${escapeHtml(row.item_name)}
+                </strong>
 
-                </div>
-
-                <div class="checklist-state-buttons">
-
-                    ${checklistButton(
-                        row,
-                        "waiting",
-                        "⏳ Waiting"
-                    )}
-
-                    ${checklistButton(
-                        row,
-                        "complete",
-                        "✅ Complete"
-                    )}
-
-                    ${checklistButton(
-                        row,
-                        "not_required",
-                        "🚫 Not Required"
-                    )}
-
-                </div>
+                <small>
+                    ${escapeHtml(meta)}
+                </small>
 
             </div>
+
+            <div class="checklist-state-buttons">
+
+                ${checklistButton(
+                    row,
+                    "waiting",
+                    "⏳ Waiting"
+                )}
+
+                ${checklistButton(
+                    row,
+                    "complete",
+                    "✅ Complete"
+                )}
+
+                ${checklistButton(
+                    row,
+                    "not_required",
+                    "🚫 Not Required"
+                )}
+
+            </div>
+
+        </div>
+
         `;
 
     }).join("");
 
 }
-
 /* ==========================================================
-   DOCUMENTS PANEL RENDER
+   DOCUMENTS REQUIRED PANEL
 ========================================================== */
 
 function renderDocumentChecklist(
@@ -370,7 +378,7 @@ function renderDocumentChecklist(
 ){
 
     const host =
-        document.getElementById(
+        element(
             "deal-checklist-documents-" +
             enquiryId
         );
@@ -386,25 +394,25 @@ function renderDocumentChecklist(
         getProgress(rows);
 
     const badge =
-        document.getElementById(
+        element(
             "deal-checklist-documents-count-" +
             enquiryId
         );
 
     const summary =
-        document.getElementById(
+        element(
             "deal-checklist-documents-summary-" +
             enquiryId
         );
 
     const meta =
-        document.getElementById(
+        element(
             "deal-checklist-documents-meta-" +
             enquiryId
         );
 
     const bar =
-        document.getElementById(
+        element(
             "deal-checklist-documents-progress-" +
             enquiryId
         );
@@ -414,15 +422,17 @@ function renderDocumentChecklist(
         badge.classList.remove(
             "badge-green",
             "badge-orange",
-            "badge-grey"
+            "badge-grey",
+            "badge-red"
         );
 
-        if(progress.waiting === 0){
+        if(progress.waiting===0){
 
-            badge.textContent = "Complete";
+            badge.textContent="Complete";
             badge.classList.add("badge-green");
 
-        }else{
+        }
+        else{
 
             badge.textContent =
                 progress.complete +
@@ -446,15 +456,10 @@ function renderDocumentChecklist(
 
     if(meta){
 
-        const notRequired =
-            rows.filter(function(row){
-                return row.status === "not_required";
-            }).length;
-
         meta.textContent =
             progress.waiting +
             " waiting • " +
-            notRequired +
+            progress.notRequired +
             " not required";
 
     }
@@ -462,14 +467,14 @@ function renderDocumentChecklist(
     if(bar){
 
         bar.style.width =
-            progress.percent + "%";
+            progress.percent+"%";
 
     }
 
 }
 
 /* ==========================================================
-   MOTORCYCLE PREPARATION PANEL RENDER
+   MOTORCYCLE PREPARATION PANEL
 ========================================================== */
 
 function renderPreparationChecklist(
@@ -478,7 +483,7 @@ function renderPreparationChecklist(
 ){
 
     const host =
-        document.getElementById(
+        element(
             "deal-checklist-preparation-" +
             enquiryId
         );
@@ -494,25 +499,25 @@ function renderPreparationChecklist(
         getProgress(rows);
 
     const badge =
-        document.getElementById(
+        element(
             "deal-checklist-preparation-count-" +
             enquiryId
         );
 
     const summary =
-        document.getElementById(
+        element(
             "deal-checklist-preparation-summary-" +
             enquiryId
         );
 
     const meta =
-        document.getElementById(
+        element(
             "deal-checklist-preparation-meta-" +
             enquiryId
         );
 
     const bar =
-        document.getElementById(
+        element(
             "deal-checklist-preparation-progress-" +
             enquiryId
         );
@@ -522,15 +527,17 @@ function renderPreparationChecklist(
         badge.classList.remove(
             "badge-green",
             "badge-orange",
-            "badge-grey"
+            "badge-grey",
+            "badge-red"
         );
 
-        if(progress.waiting === 0){
+        if(progress.waiting===0){
 
-            badge.textContent = "Complete";
+            badge.textContent="Complete";
             badge.classList.add("badge-green");
 
-        }else{
+        }
+        else{
 
             badge.textContent =
                 progress.complete +
@@ -554,15 +561,10 @@ function renderPreparationChecklist(
 
     if(meta){
 
-        const notRequired =
-            rows.filter(function(row){
-                return row.status === "not_required";
-            }).length;
-
         meta.textContent =
             progress.waiting +
             " waiting • " +
-            notRequired +
+            progress.notRequired +
             " not required";
 
     }
@@ -570,321 +572,155 @@ function renderPreparationChecklist(
     if(bar){
 
         bar.style.width =
-            progress.percent + "%";
+            progress.percent+"%";
 
     }
 
 }
 /* ==========================================================
-   SHARED ITEM BUTTON
+   SAVE CHECKLIST ITEM
 ========================================================== */
 
-function checklistButton(row, status, label){
-
-    const active =
-        row.status === status
-            ? " active-" + status.replace("_","-")
-            : "";
-
-    return `
-        <button
-            type="button"
-            class="checklist-state-button${active}"
-            onclick="
-                setDealChecklistStatus(
-                    ${Number(row.id)},
-                    ${Number(row.enquiry_id)},
-                    '${status}'
-                );
-                return false;
-            ">
-            ${label}
-        </button>
-    `;
-
-}
-
-/* ==========================================================
-   SHARED ROW RENDERER
-========================================================== */
-
-function renderChecklistRows(rows){
-
-    return rows.map(function(row){
-
-        let meta = "Waiting";
-
-        if(row.status === "complete"){
-
-            meta = row.completed_by
-                ? "Completed by " + row.completed_by
-                : "Complete";
-
-        }
-
-        if(row.status === "not_required"){
-
-            meta = "Not required for this deal";
-
-        }
-
-        return `
-            <div
-                class="checklist-row status-${escapeHtml(row.status || "waiting")}">
-
-                <div class="checklist-item-copy">
-
-                    <strong>
-                        ${escapeHtml(row.item_name)}
-                    </strong>
-
-                    <small>
-                        ${escapeHtml(meta)}
-                    </small>
-
-                </div>
-
-                <div class="checklist-state-buttons">
-
-                    ${checklistButton(
-                        row,
-                        "waiting",
-                        "⏳ Waiting"
-                    )}
-
-                    ${checklistButton(
-                        row,
-                        "complete",
-                        "✅ Complete"
-                    )}
-
-                    ${checklistButton(
-                        row,
-                        "not_required",
-                        "🚫 Not Required"
-                    )}
-
-                </div>
-
-            </div>
-        `;
-
-    }).join("");
-
-}
-
-/* ==========================================================
-   DOCUMENTS PANEL RENDER
-========================================================== */
-
-function renderDocumentChecklist(
+async function setDealChecklistStatus(
+    rowId,
     enquiryId,
-    rows
+    status
 ){
 
-    const host =
-        document.getElementById(
-            "deal-checklist-documents-" +
-            enquiryId
-        );
+    const validStatuses=[
+        "waiting",
+        "complete",
+        "not_required"
+    ];
 
-    if(!host){
+    if(!validStatuses.includes(status)){
         return;
     }
 
-    host.innerHTML =
-        renderChecklistRows(rows);
+    try{
 
-    const progress =
-        getProgress(rows);
+        const client=getClient();
 
-    const badge =
-        document.getElementById(
-            "deal-checklist-documents-count-" +
-            enquiryId
-        );
+        const result=
+            await client
+            .from("deal_checklists")
+            .update({
 
-    const summary =
-        document.getElementById(
-            "deal-checklist-documents-summary-" +
-            enquiryId
-        );
+                status:status,
 
-    const meta =
-        document.getElementById(
-            "deal-checklist-documents-meta-" +
-            enquiryId
-        );
+                completed_by:
+                    status==="complete"
+                        ?CHECKLIST_USER
+                        :null,
 
-    const bar =
-        document.getElementById(
-            "deal-checklist-documents-progress-" +
-            enquiryId
-        );
+                completed_at:
+                    status==="complete"
+                        ?new Date().toISOString()
+                        :null
 
-    if(badge){
+            })
+            .eq("id",Number(rowId))
+            .eq("enquiry_id",Number(enquiryId));
 
-        badge.classList.remove(
-            "badge-green",
-            "badge-orange",
-            "badge-grey"
-        );
+        if(result.error){
+            throw result.error;
+        }
 
-        if(progress.waiting === 0){
+        await Promise.all([
 
-            badge.textContent = "Complete";
-            badge.classList.add("badge-green");
+            loadDocumentChecklist(
+                enquiryId
+            ),
 
-        }else{
+            loadPreparationChecklist(
+                enquiryId
+            )
 
-            badge.textContent =
-                progress.complete +
-                " / " +
-                progress.required;
+        ]);
 
-            badge.classList.add("badge-orange");
+        if(
+            typeof window.loadDealTimeline
+            ==="function"
+        ){
+
+            window.loadDealTimeline(
+                enquiryId
+            );
 
         }
 
     }
+    catch(error){
 
-    if(summary){
+        console.error(
+            "Checklist item could not be saved:",
+            error
+        );
 
-        summary.textContent =
-            progress.complete +
-            " / " +
-            progress.required;
-
-    }
-
-    if(meta){
-
-        const notRequired =
-            rows.filter(function(row){
-                return row.status === "not_required";
-            }).length;
-
-        meta.textContent =
-            progress.waiting +
-            " waiting • " +
-            notRequired +
-            " not required";
-
-    }
-
-    if(bar){
-
-        bar.style.width =
-            progress.percent + "%";
+        alert(
+            "Checklist item could not be saved: "+
+            (
+                error.message||
+                "Unknown error"
+            )
+        );
 
     }
 
 }
 
 /* ==========================================================
-   MOTORCYCLE PREPARATION PANEL RENDER
+   LOAD BOTH PANELS
 ========================================================== */
 
-function renderPreparationChecklist(
-    enquiryId,
-    rows
+async function loadDealChecklists(
+    enquiryId
 ){
 
-    const host =
-        document.getElementById(
-            "deal-checklist-preparation-" +
+    try{
+
+        await ensureChecklistRows(
             enquiryId
         );
 
-    if(!host){
-        return;
-    }
+        await Promise.all([
 
-    host.innerHTML =
-        renderChecklistRows(rows);
+            loadDocumentChecklist(
+                enquiryId
+            ),
 
-    const progress =
-        getProgress(rows);
+            loadPreparationChecklist(
+                enquiryId
+            )
 
-    const badge =
-        document.getElementById(
-            "deal-checklist-preparation-count-" +
-            enquiryId
-        );
-
-    const summary =
-        document.getElementById(
-            "deal-checklist-preparation-summary-" +
-            enquiryId
-        );
-
-    const meta =
-        document.getElementById(
-            "deal-checklist-preparation-meta-" +
-            enquiryId
-        );
-
-    const bar =
-        document.getElementById(
-            "deal-checklist-preparation-progress-" +
-            enquiryId
-        );
-
-    if(badge){
-
-        badge.classList.remove(
-            "badge-green",
-            "badge-orange",
-            "badge-grey"
-        );
-
-        if(progress.waiting === 0){
-
-            badge.textContent = "Complete";
-            badge.classList.add("badge-green");
-
-        }else{
-
-            badge.textContent =
-                progress.complete +
-                " / " +
-                progress.required;
-
-            badge.classList.add("badge-orange");
-
-        }
+        ]);
 
     }
+    catch(error){
 
-    if(summary){
-
-        summary.textContent =
-            progress.complete +
-            " / " +
-            progress.required;
-
-    }
-
-    if(meta){
-
-        const notRequired =
-            rows.filter(function(row){
-                return row.status === "not_required";
-            }).length;
-
-        meta.textContent =
-            progress.waiting +
-            " waiting • " +
-            notRequired +
-            " not required";
-
-    }
-
-    if(bar){
-
-        bar.style.width =
-            progress.percent + "%";
+        console.error(
+            "Deal checklists could not be loaded:",
+            error
+        );
 
     }
 
 }
+
+/* ==========================================================
+   EXPORT FUNCTIONS
+========================================================== */
+
+window.loadDealChecklists=
+    loadDealChecklists;
+
+window.loadDocumentChecklist=
+    loadDocumentChecklist;
+
+window.loadPreparationChecklist=
+    loadPreparationChecklist;
+
+window.setDealChecklistStatus=
+    setDealChecklistStatus;
+
+})();
