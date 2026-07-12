@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -341,9 +342,6 @@ button.primary{background:var(--red);color:#fff}
 .dropdown:hover .dropdown-content{
   display:block;
 }
-  .dropdown:hover .dropdown-content{
-  display:block;
-}
 
 #recently-viewed,
 #profile,
@@ -372,7 +370,7 @@ button.primary{background:var(--red);color:#fff}
 
       <a href="export-services.html">Export Services</a>
 
-      <a href="mailto:Sales@anybike.co.uk">Contact Us</a>
+      <a href="customer-dashboard.html#messages">Messages</a>
 
       <div class="dropdown">
         <button class="dropbtn">My AnyBike ▼</button>
@@ -516,8 +514,14 @@ function safe(v){
   return v===undefined || v===null || String(v).trim()==="" ? "-" : String(v);
 }
 
-function safe(v){
-  return v===undefined || v===null || String(v).trim()==="" ? "-" : String(v);
+function getCustomerDisplayName(){
+  const fullName = String(currentProfile?.full_name || "").trim();
+
+  if(fullName){
+    return fullName.split(/\s+/)[0];
+  }
+
+  return "My AnyBike";
 }
 
 function money(v){
@@ -556,10 +560,15 @@ async function loadUser(){
     .maybeSingle();
 
   currentProfile = profile || {};
-  const name = currentProfile?.full_name || currentUser.email;
+  const displayName = getCustomerDisplayName();
 
-  document.getElementById("userArea").innerHTML=`👤 <span class="user-name">${name}</span>`;
-  document.getElementById("welcomeText").textContent=`Welcome back, ${name}.`;
+  document.getElementById("userArea").innerHTML =
+    `👤 <span class="user-name">${displayName}</span>`;
+
+  document.getElementById("welcomeText").textContent =
+    displayName === "My AnyBike"
+      ? "Welcome back."
+      : `Welcome back, ${displayName}.`;
 
   const fullNameEl = document.getElementById("fullName");
   const businessNameEl = document.getElementById("businessName");
@@ -632,11 +641,15 @@ localStorage.setItem("anybike_language", payload.preferred_language);
 msg.textContent = "Account details saved.";
 msg.className = "ok";
 
+const displayName = getCustomerDisplayName();
+
 document.getElementById("userArea").innerHTML =
-  `👤 <span class="user-name">${payload.full_name || currentUser.email}</span>`;
+  `👤 <span class="user-name">${displayName}</span>`;
 
 document.getElementById("welcomeText").textContent =
-  `Welcome back, ${payload.full_name || currentUser.email}.`;
+  displayName === "My AnyBike"
+    ? "Welcome back."
+    : `Welcome back, ${displayName}.`;
 }
 
 async function loadCounts(){
