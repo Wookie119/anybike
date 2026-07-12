@@ -130,6 +130,78 @@ const ANYBIKE_HEADER_TRANSLATIONS = {
     notifications:"الإشعارات",
     noNotifications:"لا توجد إشعارات بعد.",
     close:"إغلاق"
+  },
+  id:{
+    messages:"Pesan",
+    language:"Bahasa",
+    currency:"Mata uang",
+    home:"Beranda",
+    stock:"Stok Tersedia",
+    buy:"Beli Sepeda Motor",
+    sell:"Jual Sepeda Motor Anda",
+    export:"Layanan Ekspor",
+    connect:"Hubungi AnyBike",
+    account:"AnyBike Saya",
+    signIn:"Masuk",
+    createAccount:"Buat Akun Gratis",
+    dashboard:"Dasbor",
+    profile:"Profil Saya",
+    savedSearches:"Pencarian Tersimpan",
+    watchlist:"Daftar Pantauan",
+    recentlyViewed:"Baru Dilihat",
+    requests:"Permintaan Sepeda Motor",
+    logout:"Keluar",
+    notifications:"Notifikasi",
+    noNotifications:"Belum ada notifikasi.",
+    close:"Tutup"
+  },
+  ms:{
+    messages:"Mesej",
+    language:"Bahasa",
+    currency:"Mata wang",
+    home:"Laman Utama",
+    stock:"Stok Tersedia",
+    buy:"Beli Motosikal",
+    sell:"Jual Motosikal Anda",
+    export:"Perkhidmatan Eksport",
+    connect:"Hubungi AnyBike",
+    account:"AnyBike Saya",
+    signIn:"Log Masuk",
+    createAccount:"Cipta Akaun Percuma",
+    dashboard:"Papan Pemuka",
+    profile:"Profil Saya",
+    savedSearches:"Carian Tersimpan",
+    watchlist:"Senarai Pantauan",
+    recentlyViewed:"Dilihat Baru-baru Ini",
+    requests:"Permintaan Motosikal",
+    logout:"Log Keluar",
+    notifications:"Pemberitahuan",
+    noNotifications:"Belum ada pemberitahuan.",
+    close:"Tutup"
+  },
+  zh:{
+    messages:"消息",
+    language:"语言",
+    currency:"货币",
+    home:"首页",
+    stock:"现有库存",
+    buy:"购买摩托车",
+    sell:"出售您的摩托车",
+    export:"出口服务",
+    connect:"联系 AnyBike",
+    account:"我的 AnyBike",
+    signIn:"登录",
+    createAccount:"创建免费账户",
+    dashboard:"控制面板",
+    profile:"我的资料",
+    savedSearches:"已保存搜索",
+    watchlist:"关注列表",
+    recentlyViewed:"最近浏览",
+    requests:"摩托车需求",
+    logout:"退出登录",
+    notifications:"通知",
+    noNotifications:"暂无通知。",
+    close:"关闭"
   }
 };
 
@@ -505,8 +577,11 @@ function applyHeaderLanguage(language){
 
   window.anybikeLanguage = language;
   localStorage.setItem("anybikeLanguage", language);
+
+  const languageSelect = document.getElementById("phLanguage");
+  if(languageSelect) languageSelect.value = language;
   document.documentElement.lang = language;
-  document.documentElement.dir = language === "ar" ? "rtl" : "ltr";
+  document.documentElement.dir = "ltr";
 
   setText("[data-i18n='messages']", t.messages);
   setText("[data-i18n='language']", t.language);
