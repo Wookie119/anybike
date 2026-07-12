@@ -1,0 +1,957 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Freight Forwarders | AnyBike Admin</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" href="/anybike-logo-new.jpg">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+:root{
+  --red:#ed1c24;
+  --bg:#070707;
+  --panel:#111;
+  --panel2:#171717;
+  --line:rgba(255,255,255,.12);
+  --text:#fff;
+  --muted:#a8a8a8;
+  --green:#35c86f;
+  --amber:#f4b942;
+  --blue:#4da3ff;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  min-height:100vh;
+  font-family:Arial,Helvetica,sans-serif;
+  background:
+    radial-gradient(circle at 75% 8%,rgba(237,28,36,.12),transparent 28%),
+    linear-gradient(135deg,#050505,#0d0d0d 60%,#050505);
+  color:var(--text);
+}
+button,input,select,textarea{font:inherit}
+button{cursor:pointer}
+a{color:inherit;text-decoration:none}
+
+.admin-layout{
+  min-height:100vh;
+  display:grid;
+  grid-template-columns:280px minmax(0,1fr);
+}
+#adminSidebar{
+  min-height:100vh;
+  background:#050505;
+  border-right:1px solid var(--line);
+}
+.admin-main{min-width:0}
+.topbar{
+  min-height:72px;
+  padding:14px 24px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:18px;
+  border-bottom:1px solid var(--line);
+  background:rgba(5,5,5,.86);
+  backdrop-filter:blur(12px);
+  position:sticky;
+  top:0;
+  z-index:40;
+}
+.topbar h1{margin:0;font-size:25px;letter-spacing:-.02em}
+.topbar p{margin:4px 0 0;color:var(--muted);font-size:13px}
+.top-actions{display:flex;gap:10px;flex-wrap:wrap}
+.btn{
+  border:0;
+  border-radius:12px;
+  padding:11px 15px;
+  font-weight:900;
+}
+.btn-primary{background:var(--red);color:#fff}
+.btn-dark{background:#222;color:#fff;border:1px solid var(--line)}
+.btn-light{background:#fff;color:#111}
+.btn-danger{background:#3a1113;color:#ffb4b7;border:1px solid rgba(237,28,36,.35)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+
+.content{padding:24px}
+.notice{
+  display:none;
+  margin-bottom:18px;
+  padding:14px 16px;
+  border-radius:14px;
+  background:rgba(244,185,66,.10);
+  border:1px solid rgba(244,185,66,.35);
+  color:#ffe4a7;
+}
+.notice.show{display:block}
+
+.kpis{
+  display:grid;
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:14px;
+  margin-bottom:18px;
+}
+.kpi{
+  padding:18px;
+  background:rgba(17,17,17,.92);
+  border:1px solid var(--line);
+  border-radius:18px;
+}
+.kpi span{display:block;color:var(--muted);font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:.08em}
+.kpi strong{display:block;margin-top:8px;font-size:30px}
+.kpi small{color:#777}
+
+.toolbar{
+  display:grid;
+  grid-template-columns:minmax(260px,2fr) repeat(4,minmax(145px,1fr));
+  gap:10px;
+  padding:14px;
+  margin-bottom:16px;
+  border:1px solid var(--line);
+  border-radius:18px;
+  background:rgba(17,17,17,.92);
+}
+.toolbar input,.toolbar select{
+  width:100%;
+  padding:12px 13px;
+  border-radius:11px;
+  border:1px solid rgba(255,255,255,.15);
+  background:#090909;
+  color:#fff;
+}
+.toolbar option{color:#111}
+
+.list-shell{
+  border:1px solid var(--line);
+  border-radius:20px;
+  overflow:hidden;
+  background:rgba(17,17,17,.94);
+}
+.list-head,.row-summary{
+  display:grid;
+  grid-template-columns:42px minmax(230px,1.4fr) minmax(150px,.8fr) minmax(170px,.9fr) minmax(150px,.75fr) minmax(130px,.65fr) 110px;
+  gap:12px;
+  align-items:center;
+}
+.list-head{
+  padding:12px 16px;
+  background:#0b0b0b;
+  color:#888;
+  font-size:11px;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+}
+.record{
+  border-top:1px solid rgba(255,255,255,.08);
+}
+.record:first-child{border-top:0}
+.row-summary{
+  width:100%;
+  padding:15px 16px;
+  background:transparent;
+  color:#fff;
+  border:0;
+  text-align:left;
+}
+.row-summary:hover{background:#151515}
+.chev{
+  width:30px;height:30px;
+  display:flex;align-items:center;justify-content:center;
+  border-radius:9px;
+  background:#222;
+  transition:.18s;
+}
+.record.open .chev{transform:rotate(90deg)}
+.company strong{display:block;font-size:16px}
+.company small,.cell small{display:block;color:#888;margin-top:3px}
+.badges{display:flex;flex-wrap:wrap;gap:6px}
+.badge{
+  display:inline-flex;
+  align-items:center;
+  padding:5px 8px;
+  border-radius:999px;
+  border:1px solid var(--line);
+  background:#1b1b1b;
+  color:#ddd;
+  font-size:11px;
+  font-weight:900;
+}
+.badge.verified{background:rgba(53,200,111,.12);border-color:rgba(53,200,111,.35);color:#78e6a4}
+.badge.unverified{background:rgba(244,185,66,.12);border-color:rgba(244,185,66,.35);color:#ffd87a}
+.badge.preferred{background:rgba(77,163,255,.12);border-color:rgba(77,163,255,.35);color:#8bc3ff}
+.badge.inactive{color:#999}
+.row-actions{display:flex;justify-content:flex-end;gap:7px}
+.icon-btn{
+  width:34px;height:34px;
+  display:flex;align-items:center;justify-content:center;
+  border-radius:10px;
+  border:1px solid var(--line);
+  background:#1b1b1b;
+  color:#fff;
+}
+.icon-btn:hover{border-color:var(--red)}
+
+.details{
+  display:none;
+  padding:0 16px 18px 70px;
+}
+.record.open .details{display:block}
+.details-grid{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:12px;
+}
+.detail-card{
+  padding:15px;
+  border:1px solid rgba(255,255,255,.1);
+  background:#0d0d0d;
+  border-radius:14px;
+}
+.detail-card.full{grid-column:1/-1}
+.detail-card h4{margin:0 0 10px;font-size:13px;color:#eee}
+.detail-card dl{margin:0;display:grid;gap:8px}
+.detail-card dt{color:#777;font-size:11px;text-transform:uppercase;letter-spacing:.06em;font-weight:900}
+.detail-card dd{margin:2px 0 0;color:#ddd;word-break:break-word}
+.empty{
+  padding:46px 20px;
+  text-align:center;
+  color:#888;
+}
+.empty strong{display:block;color:#fff;font-size:20px;margin-bottom:7px}
+
+.modal{
+  display:none;
+  position:fixed;
+  inset:0;
+  z-index:1000;
+  background:rgba(0,0,0,.76);
+  padding:24px;
+  align-items:center;
+  justify-content:center;
+}
+.modal.show{display:flex}
+.modal-box{
+  width:min(980px,100%);
+  max-height:92vh;
+  overflow:auto;
+  background:#111;
+  border:1px solid rgba(255,255,255,.16);
+  border-radius:22px;
+  box-shadow:0 30px 90px rgba(0,0,0,.65);
+}
+.modal-head{
+  position:sticky;
+  top:0;
+  z-index:2;
+  padding:18px 20px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:14px;
+  background:#111;
+  border-bottom:1px solid var(--line);
+}
+.modal-head h2{margin:0}
+.modal-close{
+  width:38px;height:38px;border-radius:11px;
+  border:1px solid var(--line);
+  background:#222;color:#fff;font-size:23px;
+}
+.modal-body{padding:20px}
+.form-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:14px;
+}
+.field{display:flex;flex-direction:column;gap:7px}
+.field.full{grid-column:1/-1}
+.field label{font-size:12px;font-weight:900;color:#ccc}
+.field input,.field select,.field textarea{
+  width:100%;
+  border:1px solid rgba(255,255,255,.15);
+  background:#080808;
+  color:#fff;
+  border-radius:11px;
+  padding:12px 13px;
+}
+.field textarea{min-height:100px;resize:vertical}
+.checks{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:9px;
+}
+.check{
+  display:flex;
+  gap:8px;
+  align-items:center;
+  padding:10px;
+  border:1px solid var(--line);
+  border-radius:11px;
+  background:#0b0b0b;
+}
+.check input{width:17px;height:17px;accent-color:var(--red)}
+.modal-actions{
+  display:flex;
+  justify-content:flex-end;
+  gap:10px;
+  padding:16px 20px;
+  border-top:1px solid var(--line);
+  position:sticky;
+  bottom:0;
+  background:#111;
+}
+.status-text{margin-right:auto;color:#aaa;align-self:center}
+
+@media(max-width:1200px){
+  .admin-layout{grid-template-columns:230px minmax(0,1fr)}
+  .kpis{grid-template-columns:repeat(3,1fr)}
+  .toolbar{grid-template-columns:repeat(2,1fr)}
+  .list-head{display:none}
+  .row-summary{grid-template-columns:42px 1fr auto}
+  .row-summary .cell.optional{display:none}
+  .details{padding-left:16px}
+}
+@media(max-width:760px){
+  .admin-layout{display:block}
+  #adminSidebar{min-height:auto}
+  .topbar{position:relative;display:block}
+  .top-actions{margin-top:12px}
+  .content{padding:14px}
+  .kpis,.toolbar,.details-grid,.form-grid,.checks{grid-template-columns:1fr}
+  .row-summary{grid-template-columns:36px 1fr}
+  .row-actions{grid-column:1/-1;justify-content:flex-start;padding-left:48px}
+}
+</style>
+</head>
+
+<body>
+<div class="admin-layout">
+  <aside id="adminSidebar"></aside>
+
+  <div class="admin-main">
+    <header class="topbar">
+      <div>
+        <h1>Freight Forwarders</h1>
+        <p>Build and verify AnyBike’s reusable freight, customs, port and crating partner directory.</p>
+      </div>
+      <div class="top-actions">
+        <button class="btn btn-dark" type="button" onclick="loadForwarders()">Refresh</button>
+        <button class="btn btn-primary" type="button" onclick="openEditor()">+ Add Freight Forwarder</button>
+      </div>
+    </header>
+
+    <main class="content">
+      <div id="setupNotice" class="notice">
+        The Supabase table is not available yet. This page is using temporary browser storage until the database setup is added.
+      </div>
+
+      <section class="kpis">
+        <div class="kpi"><span>Total Directory</span><strong id="kpiTotal">0</strong><small>All active records</small></div>
+        <div class="kpi"><span>Verified</span><strong id="kpiVerified">0</strong><small>Checked by AnyBike</small></div>
+        <div class="kpi"><span>Unverified</span><strong id="kpiUnverified">0</strong><small>Awaiting review</small></div>
+        <div class="kpi"><span>Preferred</span><strong id="kpiPreferred">0</strong><small>Trusted partners</small></div>
+        <div class="kpi"><span>Countries Covered</span><strong id="kpiCountries">0</strong><small>Unique destinations</small></div>
+      </section>
+
+      <section class="toolbar">
+        <input id="searchInput" placeholder="Search company, country, port, contact or service">
+        <select id="verificationFilter">
+          <option value="">All verification states</option>
+          <option value="Verified">Verified</option>
+          <option value="Unverified">Unverified</option>
+        </select>
+        <select id="scopeFilter">
+          <option value="">All locations</option>
+          <option value="UK">UK freight forwarder</option>
+          <option value="Destination">Destination-country forwarder</option>
+          <option value="Both">Works at both ends</option>
+        </select>
+        <select id="serviceFilter">
+          <option value="">All services</option>
+          <option value="Sea Freight">Sea Freight</option>
+          <option value="Air Freight">Air Freight</option>
+          <option value="RoRo">RoRo</option>
+          <option value="Container">Container</option>
+          <option value="Crating">Crating</option>
+          <option value="Customs Clearance">Customs Clearance</option>
+          <option value="Door to Door">Door to Door</option>
+        </select>
+        <select id="countryFilter">
+          <option value="">All countries</option>
+        </select>
+      </section>
+
+      <section class="list-shell">
+        <div class="list-head">
+          <div></div>
+          <div>Company</div>
+          <div>Location</div>
+          <div>Services</div>
+          <div>Ports</div>
+          <div>Status</div>
+          <div>Actions</div>
+        </div>
+        <div id="directoryList"></div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<div class="modal" id="editorModal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h2 id="editorTitle">Add Freight Forwarder</h2>
+      <button class="modal-close" type="button" onclick="closeEditor()">×</button>
+    </div>
+
+    <form id="forwarderForm">
+      <div class="modal-body">
+        <input type="hidden" id="recordId">
+
+        <div class="form-grid">
+          <div class="field">
+            <label>Company Name *</label>
+            <input id="companyName" required>
+          </div>
+
+          <div class="field">
+            <label>Record Scope *</label>
+            <select id="scope" required>
+              <option value="UK">UK freight forwarder</option>
+              <option value="Destination">Destination-country forwarder</option>
+              <option value="Both">Works at both ends</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Primary Country *</label>
+            <input id="country" required>
+          </div>
+
+          <div class="field">
+            <label>City / Area</label>
+            <input id="city">
+          </div>
+
+          <div class="field full">
+            <label>UK Receiving Address</label>
+            <textarea id="ukAddress" placeholder="Warehouse, depot or freight terminal address"></textarea>
+          </div>
+
+          <div class="field">
+            <label>Contact Name</label>
+            <input id="contactName">
+          </div>
+
+          <div class="field">
+            <label>Job Title / Department</label>
+            <input id="contactRole">
+          </div>
+
+          <div class="field">
+            <label>Email</label>
+            <input id="email" type="email">
+          </div>
+
+          <div class="field">
+            <label>Phone / WhatsApp</label>
+            <input id="phone">
+          </div>
+
+          <div class="field">
+            <label>Website</label>
+            <input id="website" placeholder="https://">
+          </div>
+
+          <div class="field">
+            <label>Destination Port / Main Port</label>
+            <input id="destinationPort">
+          </div>
+
+          <div class="field full">
+            <label>Countries Covered</label>
+            <input id="countriesCovered" placeholder="Singapore, Malaysia, Indonesia">
+          </div>
+
+          <div class="field full">
+            <label>Ports Served</label>
+            <input id="portsServed" placeholder="Southampton, Felixstowe, London Gateway">
+          </div>
+
+          <div class="field full">
+            <label>Services</label>
+            <div class="checks">
+              <label class="check"><input type="checkbox" value="Sea Freight" name="service"> Sea Freight</label>
+              <label class="check"><input type="checkbox" value="Air Freight" name="service"> Air Freight</label>
+              <label class="check"><input type="checkbox" value="RoRo" name="service"> RoRo</label>
+              <label class="check"><input type="checkbox" value="Container" name="service"> Container</label>
+              <label class="check"><input type="checkbox" value="Crating" name="service"> Crating</label>
+              <label class="check"><input type="checkbox" value="Customs Clearance" name="service"> Customs Clearance</label>
+              <label class="check"><input type="checkbox" value="Door to Door" name="service"> Door to Door</label>
+              <label class="check"><input type="checkbox" value="Motorcycle Collection" name="service"> Motorcycle Collection</label>
+              <label class="check"><input type="checkbox" value="Storage" name="service"> Storage</label>
+            </div>
+          </div>
+
+          <div class="field full">
+            <label>Documents Required / Requested</label>
+            <textarea id="documentsRequired" placeholder="Commercial invoice, V5C, bill of sale, packing list, certificate of origin..."></textarea>
+          </div>
+
+          <div class="field full">
+            <label>Customer / Client Source</label>
+            <input id="sourceCustomer" placeholder="Customer name, enquiry reference or staff source">
+          </div>
+
+          <div class="field">
+            <label>Verification Status</label>
+            <select id="verificationStatus">
+              <option value="Unverified">Unverified</option>
+              <option value="Verified">Verified</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Partner Status</label>
+            <select id="partnerStatus">
+              <option value="Standard">Standard</option>
+              <option value="Preferred">Preferred</option>
+              <option value="Do Not Use">Do Not Use</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Active</label>
+            <select id="isActive">
+              <option value="true">Active</option>
+              <option value="false">Inactive</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Last Used</label>
+            <input id="lastUsedAt" type="date">
+          </div>
+
+          <div class="field full">
+            <label>Internal Notes</label>
+            <textarea id="internalNotes" placeholder="Reliability, rates, response times, shipment history, cautions..."></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <span id="editorStatus" class="status-text"></span>
+        <button type="button" class="btn btn-dark" onclick="closeEditor()">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="saveBtn">Save Record</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = "https://tuehtnezhdnkqbbhttgp.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const TABLE_NAME = "freight_forwarders";
+const LOCAL_KEY = "anybikeFreightForwardersDraft";
+let records = [];
+let usingLocalFallback = false;
+
+function escapeHtml(value){
+  return String(value ?? "").replace(/[&<>"']/g, c => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+  })[c]);
+}
+
+function arrayValue(value){
+  if(Array.isArray(value)) return value.filter(Boolean);
+  if(!value) return [];
+  return String(value).split(",").map(v => v.trim()).filter(Boolean);
+}
+
+function dateDisplay(value){
+  if(!value) return "Never";
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? value : d.toLocaleDateString("en-GB");
+}
+
+async function loadAdminShell(){
+  try{
+    const response = await fetch("/admin-sidebar.html?v=2000", {cache:"no-store"});
+    if(!response.ok) throw new Error("Sidebar request failed");
+    document.getElementById("adminSidebar").innerHTML = await response.text();
+
+    if(typeof setupAdminFolders === "function") setupAdminFolders();
+
+    const current = window.location.pathname.split("/").pop();
+    document.querySelectorAll("#adminSidebar a").forEach(link => {
+      const href = (link.getAttribute("href") || "").split("/").pop();
+      if(href === current) link.classList.add("active");
+    });
+  }catch(error){
+    console.warn("Admin sidebar unavailable", error);
+    document.getElementById("adminSidebar").innerHTML =
+      '<div style="padding:24px;color:#fff"><img src="/anybike-logo-new.jpg" style="width:180px;background:#fff;border-radius:12px;padding:6px"><p style="color:#aaa">Admin menu could not be loaded.</p></div>';
+  }
+}
+
+async function loadForwarders(){
+  const list = document.getElementById("directoryList");
+  list.innerHTML = '<div class="empty">Loading freight forwarders...</div>';
+
+  try{
+    const {data,error} = await sb
+      .from(TABLE_NAME)
+      .select("*")
+      .order("company_name",{ascending:true});
+
+    if(error) throw error;
+
+    records = data || [];
+    usingLocalFallback = false;
+    document.getElementById("setupNotice").classList.remove("show");
+  }catch(error){
+    console.warn("Freight forwarder table unavailable; using browser storage.", error);
+    usingLocalFallback = true;
+    document.getElementById("setupNotice").classList.add("show");
+    records = JSON.parse(localStorage.getItem(LOCAL_KEY) || "[]");
+  }
+
+  refreshCountryFilter();
+  renderDirectory();
+}
+
+function refreshCountryFilter(){
+  const select = document.getElementById("countryFilter");
+  const current = select.value;
+  const countries = [...new Set(records.flatMap(r => [
+    r.country,
+    ...arrayValue(r.countries_covered)
+  ]).filter(Boolean))].sort();
+
+  select.innerHTML = '<option value="">All countries</option>' +
+    countries.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("");
+
+  select.value = current;
+}
+
+function filteredRecords(){
+  const q = document.getElementById("searchInput").value.trim().toLowerCase();
+  const verification = document.getElementById("verificationFilter").value;
+  const scope = document.getElementById("scopeFilter").value;
+  const service = document.getElementById("serviceFilter").value;
+  const country = document.getElementById("countryFilter").value;
+
+  return records.filter(r => {
+    const haystack = [
+      r.company_name,r.country,r.city,r.contact_name,r.email,r.phone,
+      r.destination_port,r.ports_served,r.services,r.countries_covered,
+      r.documents_required,r.internal_notes
+    ].flatMap(arrayValue).join(" ").toLowerCase();
+
+    if(q && !haystack.includes(q)) return false;
+    if(verification && r.verification_status !== verification) return false;
+    if(scope && r.scope !== scope) return false;
+    if(service && !arrayValue(r.services).includes(service)) return false;
+    if(country){
+      const countries = [r.country,...arrayValue(r.countries_covered)];
+      if(!countries.includes(country)) return false;
+    }
+    return true;
+  });
+}
+
+function renderDirectory(){
+  const list = document.getElementById("directoryList");
+  const filtered = filteredRecords();
+
+  updateKpis();
+
+  if(!filtered.length){
+    list.innerHTML = `
+      <div class="empty">
+        <strong>No freight forwarders found</strong>
+        Add a company or change the current filters.
+      </div>`;
+    return;
+  }
+
+  list.innerHTML = filtered.map(recordHtml).join("");
+}
+
+function recordHtml(r){
+  const services = arrayValue(r.services);
+  const ports = arrayValue(r.ports_served);
+  const countries = arrayValue(r.countries_covered);
+
+  return `
+    <article class="record" id="record-${escapeHtml(r.id)}">
+      <button class="row-summary" type="button" onclick="toggleRecord('${escapeHtml(r.id)}')">
+        <div class="chev">›</div>
+
+        <div class="company">
+          <strong>${escapeHtml(r.company_name || "Unnamed company")}</strong>
+          <small>${escapeHtml(r.contact_name || r.email || "No primary contact")}</small>
+        </div>
+
+        <div class="cell optional">
+          ${escapeHtml(r.country || "Not set")}
+          <small>${escapeHtml(r.scope || "")}</small>
+        </div>
+
+        <div class="cell optional">
+          <div class="badges">
+            ${services.slice(0,2).map(s => `<span class="badge">${escapeHtml(s)}</span>`).join("")}
+            ${services.length > 2 ? `<span class="badge">+${services.length-2}</span>` : ""}
+          </div>
+        </div>
+
+        <div class="cell optional">
+          ${escapeHtml(ports.slice(0,2).join(", ") || r.destination_port || "Not set")}
+        </div>
+
+        <div class="cell optional">
+          <div class="badges">
+            <span class="badge ${r.verification_status === "Verified" ? "verified" : "unverified"}">${escapeHtml(r.verification_status || "Unverified")}</span>
+            ${r.partner_status === "Preferred" ? '<span class="badge preferred">Preferred</span>' : ""}
+            ${r.is_active === false ? '<span class="badge inactive">Inactive</span>' : ""}
+          </div>
+        </div>
+
+        <div class="row-actions" onclick="event.stopPropagation()">
+          <button class="icon-btn" type="button" title="Edit" onclick="editRecord('${escapeHtml(r.id)}')">✎</button>
+          <button class="icon-btn" type="button" title="Delete" onclick="deleteRecord('${escapeHtml(r.id)}')">🗑</button>
+        </div>
+      </button>
+
+      <div class="details">
+        <div class="details-grid">
+          <div class="detail-card">
+            <h4>Contact</h4>
+            <dl>
+              <div><dt>Name</dt><dd>${escapeHtml(r.contact_name || "-")}</dd></div>
+              <div><dt>Role</dt><dd>${escapeHtml(r.contact_role || "-")}</dd></div>
+              <div><dt>Email</dt><dd>${escapeHtml(r.email || "-")}</dd></div>
+              <div><dt>Phone / WhatsApp</dt><dd>${escapeHtml(r.phone || "-")}</dd></div>
+              <div><dt>Website</dt><dd>${escapeHtml(r.website || "-")}</dd></div>
+            </dl>
+          </div>
+
+          <div class="detail-card">
+            <h4>Coverage</h4>
+            <dl>
+              <div><dt>Primary country</dt><dd>${escapeHtml(r.country || "-")}</dd></div>
+              <div><dt>City / area</dt><dd>${escapeHtml(r.city || "-")}</dd></div>
+              <div><dt>Countries covered</dt><dd>${escapeHtml(countries.join(", ") || "-")}</dd></div>
+              <div><dt>Ports served</dt><dd>${escapeHtml(ports.join(", ") || "-")}</dd></div>
+              <div><dt>Destination port</dt><dd>${escapeHtml(r.destination_port || "-")}</dd></div>
+            </dl>
+          </div>
+
+          <div class="detail-card">
+            <h4>Record status</h4>
+            <dl>
+              <div><dt>Verification</dt><dd>${escapeHtml(r.verification_status || "Unverified")}</dd></div>
+              <div><dt>Partner status</dt><dd>${escapeHtml(r.partner_status || "Standard")}</dd></div>
+              <div><dt>Last used</dt><dd>${escapeHtml(dateDisplay(r.last_used_at))}</dd></div>
+              <div><dt>Source</dt><dd>${escapeHtml(r.source_customer || "-")}</dd></div>
+            </dl>
+          </div>
+
+          <div class="detail-card full">
+            <h4>UK receiving address</h4>
+            <div>${escapeHtml(r.uk_address || "No UK receiving address recorded.")}</div>
+          </div>
+
+          <div class="detail-card full">
+            <h4>Services</h4>
+            <div class="badges">${services.length ? services.map(s => `<span class="badge">${escapeHtml(s)}</span>`).join("") : '<span class="badge">No services recorded</span>'}</div>
+          </div>
+
+          <div class="detail-card full">
+            <h4>Documents required</h4>
+            <div>${escapeHtml(r.documents_required || "No document requirements recorded.")}</div>
+          </div>
+
+          <div class="detail-card full">
+            <h4>Internal notes</h4>
+            <div>${escapeHtml(r.internal_notes || "No internal notes.")}</div>
+          </div>
+        </div>
+      </div>
+    </article>`;
+}
+
+function updateKpis(){
+  document.getElementById("kpiTotal").textContent = records.filter(r => r.is_active !== false).length;
+  document.getElementById("kpiVerified").textContent = records.filter(r => r.verification_status === "Verified").length;
+  document.getElementById("kpiUnverified").textContent = records.filter(r => r.verification_status !== "Verified").length;
+  document.getElementById("kpiPreferred").textContent = records.filter(r => r.partner_status === "Preferred").length;
+  document.getElementById("kpiCountries").textContent =
+    new Set(records.flatMap(r => [r.country,...arrayValue(r.countries_covered)]).filter(Boolean)).size;
+}
+
+function toggleRecord(id){
+  document.getElementById("record-" + id)?.classList.toggle("open");
+}
+
+function openEditor(record=null){
+  document.getElementById("forwarderForm").reset();
+  document.querySelectorAll('input[name="service"]').forEach(cb => cb.checked = false);
+  document.getElementById("recordId").value = record?.id || "";
+  document.getElementById("editorTitle").textContent = record ? "Edit Freight Forwarder" : "Add Freight Forwarder";
+  document.getElementById("editorStatus").textContent = "";
+
+  if(record){
+    document.getElementById("companyName").value = record.company_name || "";
+    document.getElementById("scope").value = record.scope || "UK";
+    document.getElementById("country").value = record.country || "";
+    document.getElementById("city").value = record.city || "";
+    document.getElementById("ukAddress").value = record.uk_address || "";
+    document.getElementById("contactName").value = record.contact_name || "";
+    document.getElementById("contactRole").value = record.contact_role || "";
+    document.getElementById("email").value = record.email || "";
+    document.getElementById("phone").value = record.phone || "";
+    document.getElementById("website").value = record.website || "";
+    document.getElementById("destinationPort").value = record.destination_port || "";
+    document.getElementById("countriesCovered").value = arrayValue(record.countries_covered).join(", ");
+    document.getElementById("portsServed").value = arrayValue(record.ports_served).join(", ");
+    document.getElementById("documentsRequired").value = record.documents_required || "";
+    document.getElementById("sourceCustomer").value = record.source_customer || "";
+    document.getElementById("verificationStatus").value = record.verification_status || "Unverified";
+    document.getElementById("partnerStatus").value = record.partner_status || "Standard";
+    document.getElementById("isActive").value = record.is_active === false ? "false" : "true";
+    document.getElementById("lastUsedAt").value = record.last_used_at ? String(record.last_used_at).slice(0,10) : "";
+    document.getElementById("internalNotes").value = record.internal_notes || "";
+
+    const selected = new Set(arrayValue(record.services));
+    document.querySelectorAll('input[name="service"]').forEach(cb => cb.checked = selected.has(cb.value));
+  }
+
+  document.getElementById("editorModal").classList.add("show");
+}
+
+function closeEditor(){
+  document.getElementById("editorModal").classList.remove("show");
+}
+
+function editRecord(id){
+  const record = records.find(r => String(r.id) === String(id));
+  if(record) openEditor(record);
+}
+
+function payloadFromForm(){
+  return {
+    company_name:document.getElementById("companyName").value.trim(),
+    scope:document.getElementById("scope").value,
+    country:document.getElementById("country").value.trim(),
+    city:document.getElementById("city").value.trim() || null,
+    uk_address:document.getElementById("ukAddress").value.trim() || null,
+    contact_name:document.getElementById("contactName").value.trim() || null,
+    contact_role:document.getElementById("contactRole").value.trim() || null,
+    email:document.getElementById("email").value.trim() || null,
+    phone:document.getElementById("phone").value.trim() || null,
+    website:document.getElementById("website").value.trim() || null,
+    destination_port:document.getElementById("destinationPort").value.trim() || null,
+    countries_covered:arrayValue(document.getElementById("countriesCovered").value),
+    ports_served:arrayValue(document.getElementById("portsServed").value),
+    services:Array.from(document.querySelectorAll('input[name="service"]:checked')).map(cb => cb.value),
+    documents_required:document.getElementById("documentsRequired").value.trim() || null,
+    source_customer:document.getElementById("sourceCustomer").value.trim() || null,
+    verification_status:document.getElementById("verificationStatus").value,
+    partner_status:document.getElementById("partnerStatus").value,
+    is_active:document.getElementById("isActive").value === "true",
+    last_used_at:document.getElementById("lastUsedAt").value || null,
+    internal_notes:document.getElementById("internalNotes").value.trim() || null,
+    updated_at:new Date().toISOString()
+  };
+}
+
+document.getElementById("forwarderForm").addEventListener("submit", async e => {
+  e.preventDefault();
+
+  const id = document.getElementById("recordId").value;
+  const payload = payloadFromForm();
+  const status = document.getElementById("editorStatus");
+  const saveBtn = document.getElementById("saveBtn");
+
+  status.textContent = "Saving...";
+  saveBtn.disabled = true;
+
+  try{
+    if(usingLocalFallback){
+      if(id){
+        records = records.map(r => String(r.id) === String(id) ? {...r,...payload} : r);
+      }else{
+        records.push({
+          id:"local-" + Date.now(),
+          created_at:new Date().toISOString(),
+          ...payload
+        });
+      }
+      localStorage.setItem(LOCAL_KEY, JSON.stringify(records));
+    }else if(id){
+      const {error} = await sb.from(TABLE_NAME).update(payload).eq("id",id);
+      if(error) throw error;
+    }else{
+      const {error} = await sb.from(TABLE_NAME).insert({
+        ...payload,
+        created_at:new Date().toISOString()
+      });
+      if(error) throw error;
+    }
+
+    closeEditor();
+    await loadForwarders();
+  }catch(error){
+    console.error(error);
+    status.textContent = "Save failed: " + error.message;
+  }finally{
+    saveBtn.disabled = false;
+  }
+});
+
+async function deleteRecord(id){
+  const record = records.find(r => String(r.id) === String(id));
+  if(!record) return;
+  if(!confirm("Delete " + (record.company_name || "this freight forwarder") + "?")) return;
+
+  try{
+    if(usingLocalFallback){
+      records = records.filter(r => String(r.id) !== String(id));
+      localStorage.setItem(LOCAL_KEY, JSON.stringify(records));
+      renderDirectory();
+      refreshCountryFilter();
+      return;
+    }
+
+    const {error} = await sb.from(TABLE_NAME).delete().eq("id",id);
+    if(error) throw error;
+    await loadForwarders();
+  }catch(error){
+    alert("Delete failed: " + error.message);
+  }
+}
+
+["searchInput","verificationFilter","scopeFilter","serviceFilter","countryFilter"].forEach(id => {
+  document.getElementById(id).addEventListener(id === "searchInput" ? "input" : "change", renderDirectory);
+});
+
+document.getElementById("editorModal").addEventListener("click", e => {
+  if(e.target.id === "editorModal") closeEditor();
+});
+
+(async function init(){
+  await loadAdminShell();
+  await loadForwarders();
+})();
+</script>
+</body>
+</html>
