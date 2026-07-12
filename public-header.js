@@ -503,16 +503,10 @@ function applyHeaderLanguage(language){
   language = normaliseLanguage(language);
   const t = ANYBIKE_HEADER_TRANSLATIONS[language];
 
-window.anybikeLanguage = language;
-localStorage.setItem("anybikeLanguage", language);
-
-document.documentElement.lang = language;
-document.documentElement.removeAttribute("dir");
-
-const publicHeader = document.querySelector(".public-header");
-if(publicHeader){
-    publicHeader.setAttribute("dir", language === "ar" ? "rtl" : "ltr");
-}
+  window.anybikeLanguage = language;
+  localStorage.setItem("anybikeLanguage", language);
+  document.documentElement.lang = language;
+  document.documentElement.dir = language === "ar" ? "rtl" : "ltr";
 
   setText("[data-i18n='messages']", t.messages);
   setText("[data-i18n='language']", t.language);
