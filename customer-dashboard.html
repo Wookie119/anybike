@@ -2,7 +2,7 @@
 <!--
 AnyBike
 File: customer-dashboard.html
-Version: 3.3
+Version: 3.4
 Date: 13 July 2026
 
 Purpose
@@ -45,6 +45,12 @@ Changes
 ✓ Triggers the admin notification workflow
 ✓ Removes the visible Recently Viewed scrollbar
 ✓ Adds left/right carousel controls for Recently Viewed
+✓ Fixes missing red New message pills on staff replies
+✓ Treats every non-customer sender as an AnyBike/staff reply
+✓ Tracks customer-read Message Centre replies in localStorage
+✓ Updates the My AnyBike unread message count
+✓ Marks a conversation read when the customer opens it
+✓ Requires no database schema changes
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -361,6 +367,27 @@ button,input,select,textarea{font:inherit}
 }
 .carousel-btn.prev{left:4px}
 .carousel-btn.next{right:4px}
+
+
+.message-pill.new{
+  animation:newMessagePulse 1.8s ease-in-out infinite;
+}
+@keyframes newMessagePulse{
+  0%,100%{box-shadow:0 0 0 0 rgba(237,28,36,.35)}
+  50%{box-shadow:0 0 0 7px rgba(237,28,36,0)}
+}
+.customer-enquiry.has-unread{
+  border-color:rgba(237,28,36,.62);
+  box-shadow:0 0 0 1px rgba(237,28,36,.14);
+}
+.customer-unread-dot{
+  width:9px;
+  height:9px;
+  border-radius:50%;
+  background:var(--red);
+  display:inline-block;
+  margin-left:6px;
+}
 
 .message-modal{
   position:fixed;
@@ -820,6 +847,11 @@ function toggleCustomerEnquiry(key){
 
   if(el.classList.contains("open")){
     openConversationKey=key;
+
+    if(String(key).startsWith("global-")){
+      const threadId=String(key).replace("global-","");
+      markCustomerThreadRead(threadId);
+    }
   }else{
     openConversationKey=null;
   }
@@ -1161,7 +1193,11 @@ async function loadCustomerEnquiries(){
   }).join("");
 
   bikeRows.forEach(row=>loadCustomerMessages(row.data.id));
-  globalRows.forEach(row=>loadGlobalBuyerMessages(row.data.id));
+  await Promise.allSettled(
+    globalRows.map(row=>loadGlobalBuyerMessages(row.data.id))
+  );
+
+  updateCustomerUnreadMessageCount();
 
   updateConversationCount();
 
@@ -1254,8 +1290,16 @@ function globalBuyerConversationHtml(thread){
         </div>
 
         <div class="status-wrap">
-          <span class="message-pill" id="global-bubble-${thread.id}">
-            Checking...
+          <span class="message-pill ${
+            String(thread.last_sender||"").toLowerCase().includes("customer")
+              ? "replied"
+              : "new"
+          }" id="global-bubble-${thread.id}">
+            ${
+              String(thread.last_sender||"").toLowerCase().includes("customer")
+                ? "✓ You replied"
+                : "💬 New message"
+            }
           </span>
         </div>
       </div>
@@ -1403,9 +1447,128 @@ async function sendCustomerMessage(enquiryId){
 }
   
 
+
+function getCustomerReadMessageMap(){
+  try{
+    const raw=localStorage.getItem("anybike_customer_read_message_ids");
+    const parsed=raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed==="object" ? parsed : {};
+  }catch(error){
+    return {};
+  }
+}
+
+function saveCustomerReadMessageMap(map){
+  try{
+    localStorage.setItem(
+      "anybike_customer_read_message_ids",
+      JSON.stringify(map||{})
+    );
+  }catch(error){
+    console.warn("Could not save customer message read state",error);
+  }
+}
+
+function isCustomerMessageSender(message){
+  const values=[
+    message?.sender_type,
+    message?.sender_name,
+    message?.sender,
+    message?.sender_email
+  ]
+    .filter(Boolean)
+    .map(value=>String(value).trim().toLowerCase());
+
+  return values.some(value=>
+    value==="customer" ||
+    value==="buyer" ||
+    value==="user" ||
+    value.includes("customer") ||
+    (currentUser?.email && value===String(currentUser.email).toLowerCase())
+  );
+}
+
+function isCustomerThreadUnread(threadId,message){
+  if(!message || isCustomerMessageSender(message)){
+    return false;
+  }
+
+  const readMap=getCustomerReadMessageMap();
+  return String(readMap[String(threadId)]||"")!==String(message.id||message.created_at||"");
+}
+
+function markCustomerThreadRead(threadId){
+  const messages=window.anybikeCustomerThreadMessages?.[String(threadId)] || [];
+  const latest=messages[messages.length-1];
+
+  if(!latest || isCustomerMessageSender(latest)){
+    return;
+  }
+
+  const readMap=getCustomerReadMessageMap();
+  readMap[String(threadId)]=String(latest.id||latest.created_at||"");
+  saveCustomerReadMessageMap(readMap);
+
+  const bubble=document.getElementById(`global-bubble-${threadId}`);
+  const card=document.getElementById(`customer-enquiry-global-${threadId}`);
+
+  if(bubble){
+    bubble.textContent="AnyBike replied";
+    bubble.className="message-pill replied";
+  }
+
+  if(card){
+    card.classList.remove("has-unread");
+  }
+
+  updateCustomerUnreadMessageCount();
+}
+
+function updateCustomerUnreadMessageCount(){
+  const unreadCards=document.querySelectorAll("#customerEnquiries .customer-enquiry.has-unread");
+  const count=unreadCards.length;
+
+  const conversationCount=document.getElementById("conversationCount");
+  if(conversationCount){
+    conversationCount.textContent=document.querySelectorAll("#customerEnquiries .customer-enquiry").length.toLocaleString("en-GB");
+  }
+
+  /*
+    The shared header has changed during development, so update the
+    commonly used customer message badge selectors when present.
+  */
+  [
+    "#customerMessageCount",
+    "#publicMessageCount",
+    "#messageCount",
+    ".customer-message-count",
+    ".public-message-count",
+    ".message-count"
+  ].forEach(selector=>{
+    document.querySelectorAll(selector).forEach(badge=>{
+      badge.textContent=count;
+      badge.style.display=count>0 ? "" : "none";
+    });
+  });
+
+  document.querySelectorAll('a[href*="customer-dashboard.html#messages"],a[href="#messages"]').forEach(link=>{
+    link.dataset.unreadMessages=String(count);
+  });
+
+  if(count>0){
+    document.title=`(${count}) My AnyBike | Customer Workspace`;
+  }else{
+    document.title="My AnyBike | Customer Workspace";
+  }
+}
+
+window.anybikeCustomerThreadMessages={};
+
+
 async function loadGlobalBuyerMessages(threadId){
   const box=document.getElementById(`global-messages-${threadId}`);
   const bubble=document.getElementById(`global-bubble-${threadId}`);
+  const card=document.getElementById(`customer-enquiry-global-${threadId}`);
 
   if(!box) return;
 
@@ -1416,36 +1579,55 @@ async function loadGlobalBuyerMessages(threadId){
     .order("created_at",{ascending:true});
 
   if(error){
-    box.innerHTML=`<p class="bad">Message error: ${error.message}</p>`;
+    box.innerHTML=`<p class="bad">Message error: ${safe(error.message)}</p>`;
     return;
   }
 
-  if(!data || !data.length){
+  const messages=data||[];
+  window.anybikeCustomerThreadMessages[String(threadId)]=messages;
+
+  if(!messages.length){
     box.innerHTML=`<p class="muted">No conversation messages yet.</p>`;
+
     if(bubble){
       bubble.textContent="No messages";
       bubble.className="message-pill";
     }
+
+    if(card){
+      card.classList.remove("has-unread");
+    }
+
+    updateCustomerUnreadMessageCount();
     return;
   }
 
-  const latest=data[data.length-1];
-  const latestSender=String(latest.sender_type||latest.sender_name||"").toLowerCase();
+  const latest=messages[messages.length-1];
+  const latestIsCustomer=isCustomerMessageSender(latest);
+  const isUnread=isCustomerThreadUnread(threadId,latest);
 
   if(bubble){
-    if(latestSender.includes("anybike") || latestSender.includes("admin")){
+    if(!latestIsCustomer && isUnread){
       bubble.textContent="💬 New message";
       bubble.className="message-pill new";
+    }else if(!latestIsCustomer){
+      bubble.textContent="AnyBike replied";
+      bubble.className="message-pill replied";
     }else{
       bubble.textContent="✓ You replied";
       bubble.className="message-pill replied";
     }
   }
 
-  box.innerHTML=data.map(message=>{
-    const sender=String(message.sender_type||message.sender_name||"");
-    const isCustomer=sender.toLowerCase().includes("customer");
-    const label=isCustomer ? "You" : (message.sender_name||"AnyBike");
+  if(card){
+    card.classList.toggle("has-unread",isUnread);
+  }
+
+  box.innerHTML=messages.map(message=>{
+    const isCustomer=isCustomerMessageSender(message);
+    const label=isCustomer
+      ? "You"
+      : (message.sender_name || message.sender_type || message.sender || "AnyBike");
 
     return `
       <div class="msg ${isCustomer?'customer':'admin'}">
@@ -1457,6 +1639,12 @@ async function loadGlobalBuyerMessages(threadId){
   }).join("");
 
   box.scrollTop=box.scrollHeight;
+
+  if(card?.classList.contains("open")){
+    markCustomerThreadRead(threadId);
+  }else{
+    updateCustomerUnreadMessageCount();
+  }
 }
 
 async function sendGlobalBuyerMessage(threadId){
