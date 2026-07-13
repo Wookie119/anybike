@@ -472,6 +472,7 @@ function isCustomerMessageRow(message,userEmail){
 }
 
 async function loadCustomerHeaderActivity(user){
+
   if(typeof sb === "undefined" || !user){
     setMessageCount(0);
     setNotificationCount(0);
@@ -479,31 +480,44 @@ async function loadCustomerHeaderActivity(user){
     return;
   }
 
-  const unreadItems = [];
+  const { data, error } = await sb
+    .from("customer_notifications")
+    .select("id,title,message,link,is_read,created_at")
+    .eq("customer_id", user.id)
+    .eq("is_read", false)
+    .order("created_at", { ascending:false });
 
-  await Promise.allSettled([
-    loadUnreadSingleBikeConversations(user,unreadItems),
-    loadUnreadMessageCentreConversations(user,unreadItems)
-  ]);
+  if(error){
+    console.error("Notification load failed", error);
+    setMessageCount(0);
+    setNotificationCount(0);
+    renderNotificationList([]);
+    return;
+  }
 
-  unreadItems.sort(function(a,b){
-    return new Date(b.date || 0) - new Date(a.date || 0);
+  const notifications = (data || []).map(function(n){
+    return {
+      id:n.id,
+      title:n.title || "Notification",
+      message:n.message || "",
+      link:n.link || "/customer-dashboard.html#messages",
+      icon:"🔔",
+      date:n.created_at
+    };
   });
 
-  const total = unreadItems.length;
-
-  setMessageCount(total);
-  setNotificationCount(total);
-  renderNotificationList(unreadItems);
+  setMessageCount(notifications.length);
+  setNotificationCount(notifications.length);
+  renderNotificationList(notifications);
 
   window.dispatchEvent(new CustomEvent("anybikeCustomerUnreadChanged",{
     detail:{
-      count:total,
-      items:unreadItems
+      count:notifications.length,
+      items:notifications
     }
   }));
-}
 
+}
 async function loadUnreadSingleBikeConversations(user,unreadItems){
   const enquiryResult = await sb
     .from("bike_enquiries")
