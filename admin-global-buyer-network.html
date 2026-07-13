@@ -2,7 +2,7 @@
 <!--
 AnyBike
 File: admin-global-buyer-network.html
-Version: 1.1
+Version: 1.2
 Date: 13 July 2026
 
 Changes
@@ -13,6 +13,13 @@ Changes
 ✓ Highlights the selected buyer briefly
 ✓ Preserves existing Global Buyer CRM functionality
 ✓ Preserves pipeline, filters, stock matching and status updates
+✓ Adds a Buyer Conversation panel to every buyer record
+✓ Creates a Message Centre thread on the first admin message
+✓ Reuses the same thread for all later messages
+✓ Shows complete conversation history inside Global Buyer CRM
+✓ Adds welcome-message and quick-response templates
+✓ Adds direct Open in Message Centre link
+✓ No database schema changes required
 -->
 
 <!DOCTYPE html>
@@ -614,6 +621,125 @@ a{text-decoration:none;color:inherit}
 }
 
 
+
+.buyer-conversation{
+  display:grid;
+  gap:12px;
+}
+.conversation-head{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  align-items:flex-start;
+  flex-wrap:wrap;
+}
+.conversation-head p{
+  margin:4px 0 0;
+  color:var(--muted);
+  font-size:13px;
+}
+.conversation-link{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  background:#222;
+  border:1px solid rgba(255,255,255,.14);
+  border-radius:999px;
+  padding:9px 13px;
+  font-size:12px;
+  font-weight:900;
+}
+.conversation-link:hover{
+  border-color:var(--red);
+}
+.conversation-messages{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  max-height:360px;
+  overflow:auto;
+  padding:4px;
+}
+.conversation-message{
+  max-width:82%;
+  background:#1b1b1b;
+  border:1px solid rgba(255,255,255,.10);
+  border-radius:16px 16px 16px 4px;
+  padding:12px;
+}
+.conversation-message.admin{
+  margin-left:auto;
+  background:rgba(237,28,36,.15);
+  border-color:rgba(237,28,36,.38);
+  border-radius:16px 16px 4px 16px;
+}
+.conversation-message-head{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  color:#aaa;
+  font-size:11px;
+  margin-bottom:7px;
+}
+.conversation-message-text{
+  white-space:pre-wrap;
+  line-height:1.45;
+}
+.conversation-empty{
+  border:1px dashed rgba(255,255,255,.16);
+  border-radius:14px;
+  padding:18px;
+  color:var(--muted);
+  text-align:center;
+}
+.conversation-compose{
+  display:grid;
+  gap:10px;
+  border-top:1px solid rgba(255,255,255,.10);
+  padding-top:12px;
+}
+.conversation-compose select,
+.conversation-compose textarea{
+  width:100%;
+  background:#080808;
+  border:1px solid rgba(255,255,255,.16);
+  color:#fff;
+  border-radius:12px;
+  padding:12px;
+  font:inherit;
+}
+.conversation-compose select option{
+  color:#111;
+  background:#fff;
+}
+.conversation-compose textarea{
+  min-height:120px;
+  resize:vertical;
+}
+.conversation-actions{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  align-items:center;
+}
+.conversation-send{
+  background:var(--red);
+  border:0;
+  color:#fff;
+  border-radius:999px;
+  padding:11px 18px;
+  font-weight:900;
+  cursor:pointer;
+}
+.conversation-send:disabled{
+  opacity:.55;
+  cursor:not-allowed;
+}
+.conversation-status{
+  color:var(--muted);
+  font-size:13px;
+}
+
 .buyer.notification-target{
   border-color:var(--red);
   box-shadow:0 0 0 2px rgba(237,28,36,.24),0 0 28px rgba(237,28,36,.35);
@@ -831,19 +957,28 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let buyers=[];
 let items=[];
 let stock=[];
+let buyerThreads=[];
+let buyerConversationCache={};
 let bulkStatusFilter='';
 function safe(v){return String(v ?? "").replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
 function money(v){return v==null||v===""?"-":"£"+Number(v).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});}
 function dateTxt(v){return v?new Date(v).toLocaleString():"-";}
 async function loadBuyers(){
   document.getElementById('buyersList').innerHTML='<div class="empty">Loading Global Buyer CRM...</div>';
-  const [bRes,iRes,sRes]=await Promise.all([
+  const [bRes,iRes,sRes,tRes]=await Promise.all([
     sb.from('global_buyer_network').select('*').order('created_at',{ascending:false}).limit(500),
     sb.from('global_buyer_request_items').select('*').order('created_at',{ascending:false}).limit(3000),
-    sb.from('available_stock').select('id,make,model,variant,year,mileage,price_gbp,colour,status,image_url').limit(12000)
+    sb.from('available_stock').select('id,make,model,variant,year,mileage,price_gbp,colour,status,image_url').limit(12000),
+    sb.from('message_centre_threads').select('*').order('last_message_at',{ascending:false,nullsFirst:false}).limit(1000)
   ]);
   if(bRes.error){document.getElementById('buyersList').innerHTML='<div class="empty">Could not load buyers: '+safe(bRes.error.message)+'</div>';return;}
-  buyers=bRes.data||[];items=iRes.data||[];stock=sRes.data||[];
+  buyers=bRes.data||[];
+  items=iRes.data||[];
+  stock=sRes.data||[];
+  buyerThreads=tRes && !tRes.error ? (tRes.data||[]) : [];
+  if(tRes && tRes.error){
+    console.warn("Could not load Global Buyer conversations",tRes.error.message);
+  }
   buildFilters();updatePipelineCounts();renderBuyers();
 }
 function buildFilters(){
@@ -988,7 +1123,7 @@ function updateStats(rows){
 function buyerHtml(b,its){
   const qty=its.reduce((s,i)=>s+Number(i.quantity||0),0);
   return `<article class="buyer" id="buyer-${b.id}">
-    <div class="buyer-head" onclick="this.parentElement.classList.toggle('open')">
+    <div class="buyer-head" onclick="toggleBuyerDetails(${b.id})">
       <div><strong>${safe(b.business_name||'Unnamed buyer')}</strong><div class="small">${safe(b.contact_name||'')} ${b.email?' • '+safe(b.email):''}</div></div>
       <div>${safe(b.country||'-')}<div class="small">${safe(b.phone||'')}</div></div>
       <div><span class="pill red">${safe(normalStatus(b.status))}</span><div class="small">${dateTxt(b.created_at)}</div></div>
@@ -1015,6 +1150,43 @@ function buyerHtml(b,its){
         <div class="box"><h3>Requested Motorcycles</h3><div class="items">${its.length?its.map(itemHtml).join(''):'<div class="muted">No item rows saved.</div>'}</div></div>
         <div class="box"><h3>Potential Stock Matches</h3><div class="match-list">${potentialMatchesHtml(its)}</div></div>
         <div class="box"><h3>Where They Sell</h3><div class="links">${safe([b.website,b.social_links].filter(Boolean).join('\n')||'No URLs added')}</div></div>
+
+        <div class="box" style="grid-column:1/-1">
+          <div class="buyer-conversation">
+            <div class="conversation-head">
+              <div>
+                <h3 style="margin:0;">Buyer Conversation</h3>
+                <p>Welcome this buyer, request more information and continue the conversation without leaving the Global Buyer CRM.</p>
+              </div>
+              <div id="buyer-message-link-${b.id}"></div>
+            </div>
+
+            <div id="buyer-conversation-${b.id}" class="conversation-messages">
+              <div class="conversation-empty">Open this buyer to load the conversation.</div>
+            </div>
+
+            <div class="conversation-compose">
+              <label for="buyer-quick-reply-${b.id}">Quick response</label>
+              <select id="buyer-quick-reply-${b.id}" onchange="setBuyerQuickReply(${b.id})">
+                <option value="">Choose a response...</option>
+                <option value="Hello ${safe(b.contact_name||b.business_name||'')}, thank you for joining the AnyBike Global Buyer Network. We have received your motorcycle requirements and will review the UK market for suitable stock.">Welcome to AnyBike</option>
+                <option value="Thank you for your request. Please confirm your preferred motorcycle condition, maximum mileage and target purchase price for each model.">Request more buying details</option>
+                <option value="Thank you. We are now checking available stock and UK sourcing opportunities against your motorcycle list. We will update you with suitable options.">Checking stock</option>
+                <option value="We have identified potential motorcycles that may match your requirements. Please confirm whether you would like us to prepare a detailed offer.">Potential matches found</option>
+                <option value="Please confirm your preferred UK freight forwarder, destination port and any shipping instructions so we can plan the next stage.">Confirm shipping details</option>
+              </select>
+
+              <label for="buyer-message-${b.id}">Message</label>
+              <textarea id="buyer-message-${b.id}" placeholder="Write a welcome message or reply..."></textarea>
+
+              <div class="conversation-actions">
+                <button type="button" id="buyer-send-${b.id}" class="conversation-send" onclick="sendBuyerMessage(${b.id})">Send Message</button>
+                <span id="buyer-message-status-${b.id}" class="conversation-status"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="box" style="grid-column:1/-1"><h3>Internal Notes</h3><div class="notes">${safe(b.internal_notes||'No notes')}</div></div>
       </div>
     </div>
@@ -1108,6 +1280,267 @@ function potentialMatchesHtml(its){
   `).join('');
 }
 
+
+function toggleBuyerDetails(buyerId){
+  const card=document.getElementById("buyer-"+buyerId);
+  if(!card) return;
+
+  card.classList.toggle("open");
+
+  if(card.classList.contains("open")){
+    loadBuyerConversation(buyerId);
+  }
+}
+
+function buyerThreadSubject(buyerId){
+  return "Global Buyer #" + String(buyerId);
+}
+
+function findBuyerThread(buyer){
+  const expectedSubject=buyerThreadSubject(buyer.id).toLowerCase();
+  const email=String(buyer.email||"").trim().toLowerCase();
+
+  return buyerThreads.find(function(thread){
+    const subject=String(thread.subject||"").trim().toLowerCase();
+    const threadEmail=String(thread.customer_email||"").trim().toLowerCase();
+    const source=String(thread.source_type||"").trim().toLowerCase();
+    const department=String(thread.department||"").trim().toLowerCase();
+
+    if(subject===expectedSubject){
+      return true;
+    }
+
+    return email &&
+      threadEmail===email &&
+      (
+        source.includes("global buyer") ||
+        source.includes("multi-bike") ||
+        source.includes("bulk") ||
+        department.includes("global buyer")
+      );
+  }) || null;
+}
+
+function setBuyerQuickReply(buyerId){
+  const select=document.getElementById("buyer-quick-reply-"+buyerId);
+  const box=document.getElementById("buyer-message-"+buyerId);
+
+  if(select && box && select.value){
+    box.value=select.value;
+    box.focus();
+  }
+}
+
+async function loadBuyerConversation(buyerId,force){
+  const buyer=buyers.find(b=>Number(b.id)===Number(buyerId));
+  const area=document.getElementById("buyer-conversation-"+buyerId);
+  const linkBox=document.getElementById("buyer-message-link-"+buyerId);
+
+  if(!buyer || !area) return;
+
+  const thread=findBuyerThread(buyer);
+
+  if(!thread){
+    area.innerHTML=`
+      <div class="conversation-empty">
+        No conversation has started yet.<br>
+        Choose the welcome template below or write your own first message.
+      </div>
+    `;
+
+    if(linkBox){
+      linkBox.innerHTML='<span class="small">New conversation</span>';
+    }
+    return;
+  }
+
+  if(linkBox){
+    linkBox.innerHTML=`
+      <a class="conversation-link" href="admin-message-centre.html?thread=${encodeURIComponent(thread.id)}">
+        Open in Message Centre
+      </a>
+    `;
+  }
+
+  if(!force && buyerConversationCache[thread.id]){
+    renderBuyerConversationMessages(buyerId,buyerConversationCache[thread.id]);
+    return;
+  }
+
+  area.innerHTML='<div class="conversation-empty">Loading conversation...</div>';
+
+  const {data,error}=await sb
+    .from("message_centre_messages")
+    .select("*")
+    .eq("thread_id",thread.id)
+    .order("created_at",{ascending:true});
+
+  if(error){
+    area.innerHTML='<div class="conversation-empty">Could not load conversation: '+safe(error.message)+'</div>';
+    return;
+  }
+
+  buyerConversationCache[thread.id]=data||[];
+  renderBuyerConversationMessages(buyerId,data||[]);
+}
+
+function renderBuyerConversationMessages(buyerId,messages){
+  const area=document.getElementById("buyer-conversation-"+buyerId);
+  if(!area) return;
+
+  if(!messages.length){
+    area.innerHTML='<div class="conversation-empty">No messages have been added to this thread yet.</div>';
+    return;
+  }
+
+  area.innerHTML=messages.map(function(message){
+    const sender=String(message.sender_type||"").toLowerCase();
+    const isAdmin=sender==="anybike" || sender==="admin";
+
+    return `
+      <div class="conversation-message ${isAdmin?'admin':''}">
+        <div class="conversation-message-head">
+          <strong>${safe(message.sender_name||message.sender_type||'Message')}</strong>
+          <span>${dateTxt(message.created_at)}</span>
+        </div>
+        <div class="conversation-message-text">${safe(message.message||'')}</div>
+      </div>
+    `;
+  }).join("");
+
+  area.scrollTop=area.scrollHeight;
+}
+
+async function createBuyerThread(buyer,message,now){
+  const subject=buyerThreadSubject(buyer.id);
+
+  const payload={
+    customer_name:buyer.contact_name||buyer.business_name||null,
+    customer_email:buyer.email||null,
+    customer_phone:buyer.phone||null,
+    country:buyer.country||null,
+    source_type:"Global Buyer",
+    subject:subject,
+    department:"Global Buyer Network",
+    status:"Replied",
+    lead_status:"Contact Made",
+    last_message:message,
+    last_message_at:now,
+    last_sender:"AnyBike",
+    created_at:now,
+    updated_at:now
+  };
+
+  const {data,error}=await sb
+    .from("message_centre_threads")
+    .insert(payload)
+    .select("*")
+    .single();
+
+  if(error){
+    throw new Error(error.message);
+  }
+
+  buyerThreads.unshift(data);
+  return data;
+}
+
+async function sendBuyerMessage(buyerId){
+  const buyer=buyers.find(b=>Number(b.id)===Number(buyerId));
+  const box=document.getElementById("buyer-message-"+buyerId);
+  const button=document.getElementById("buyer-send-"+buyerId);
+  const status=document.getElementById("buyer-message-status-"+buyerId);
+
+  if(!buyer || !box) return;
+
+  const message=String(box.value||"").trim();
+
+  if(!message){
+    if(status) status.textContent="Write a message first.";
+    box.focus();
+    return;
+  }
+
+  if(!buyer.email){
+    if(status) status.textContent="This buyer has no email address saved.";
+    return;
+  }
+
+  button.disabled=true;
+  button.textContent="Sending...";
+  if(status) status.textContent="";
+
+  const now=new Date().toISOString();
+
+  try{
+    let thread=findBuyerThread(buyer);
+
+    if(!thread){
+      thread=await createBuyerThread(buyer,message,now);
+    }
+
+    const {error:messageError}=await sb
+      .from("message_centre_messages")
+      .insert({
+        thread_id:thread.id,
+        sender_type:"AnyBike",
+        sender_name:"AnyBike",
+        sender_email:"admin@anybike.co.uk",
+        message:message,
+        created_at:now
+      });
+
+    if(messageError){
+      throw new Error(messageError.message);
+    }
+
+    const {error:threadError}=await sb
+      .from("message_centre_threads")
+      .update({
+        last_message:message,
+        last_message_at:now,
+        last_sender:"AnyBike",
+        status:"Replied",
+        lead_status:"Contact Made",
+        department:"Global Buyer Network",
+        updated_at:now
+      })
+      .eq("id",thread.id);
+
+    if(threadError){
+      throw new Error(threadError.message);
+    }
+
+    thread.last_message=message;
+    thread.last_message_at=now;
+    thread.last_sender="AnyBike";
+    thread.status="Replied";
+    thread.lead_status="Contact Made";
+    thread.department="Global Buyer Network";
+
+    delete buyerConversationCache[thread.id];
+
+    box.value="";
+    const quick=document.getElementById("buyer-quick-reply-"+buyerId);
+    if(quick) quick.value="";
+
+    if(status){
+      status.textContent="Message added to the buyer conversation.";
+    }
+
+    await loadBuyerConversation(buyerId,true);
+  }catch(error){
+    console.error(error);
+    if(status){
+      status.textContent="Message failed: "+error.message;
+    }
+  }finally{
+    button.disabled=false;
+    button.textContent="Send Message";
+  }
+}
+
+
 function itemHtml(i){return `<div class="item"><strong>${safe(i.make)} ${safe(i.model)}</strong><div class="small">Year: ${safe(i.year_from||'Any')} ${i.year_to&&i.year_to!==i.year_from?' - '+safe(i.year_to):''} • Max mileage: ${safe(i.mileage_max||'-')} • Qty: ${safe(i.quantity||1)} • Max per bike: ${money(i.max_price_gbp)}</div></div>`;}
 
 
@@ -1127,6 +1560,7 @@ function openBuyerFromUrl(){
 
   buyer.classList.add("open");
   buyer.classList.add("notification-target");
+  loadBuyerConversation(buyerId);
 
   setTimeout(function(){
     buyer.scrollIntoView({
