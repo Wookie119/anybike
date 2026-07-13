@@ -518,6 +518,19 @@ async function loadCustomerHeaderActivity(user){
   }));
 
 }
+
+  setMessageCount(notifications.length);
+  setNotificationCount(notifications.length);
+  renderNotificationList(notifications);
+
+  window.dispatchEvent(new CustomEvent("anybikeCustomerUnreadChanged",{
+    detail:{
+      count:notifications.length,
+      items:notifications
+    }
+  }));
+
+}
 async function loadUnreadSingleBikeConversations(user,unreadItems){
   const enquiryResult = await sb
     .from("bike_enquiries")
