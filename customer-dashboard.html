@@ -2,7 +2,7 @@
 <!--
 AnyBike
 File: customer-dashboard.html
-Version: 3.0
+Version: 3.1
 Date: 13 July 2026
 
 Purpose
@@ -27,6 +27,11 @@ Changes
 ✓ Preserves watchlist and saved-search counts
 ✓ Uses the shared AnyBike public header
 ✓ Ready for future live stock API, announcements, orders and shipping
+✓ Fixes prolonged “Loading enquiries...” state
+✓ Loads messages, counts, recommendations and stock in parallel
+✓ Removes the tall sidebar layout that created large empty areas
+✓ Uses balanced full-width dashboard rows
+✓ Makes My Profile a wide compact section
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -141,9 +146,16 @@ button,input,select,textarea{font:inherit}
 .stat-card span{color:var(--muted);font-size:13px;font-weight:800}
 .dashboard-grid{
   display:grid;
-  grid-template-columns:minmax(0,1.45fr) minmax(310px,.55fr);
+  gap:18px;
+}
+.dashboard-row{
+  display:grid;
+  grid-template-columns:minmax(0,2fr) minmax(340px,1fr);
   gap:18px;
   align-items:start;
+}
+.dashboard-row.equal{
+  grid-template-columns:1fr 1fr;
 }
 .main-column,.side-column{display:grid;gap:18px}
 .panel{padding:20px;min-width:0}
@@ -272,8 +284,9 @@ button,input,select,textarea{font:inherit}
 }
 .profile-summary strong{font-size:20px}
 .profile-summary span{color:var(--muted);font-size:13px}
-.profile-form{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.profile-field.full{grid-column:1/-1}
+.profile-form{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.profile-field.full{grid-column:span 2}
+.profile-field.address{grid-column:span 2}
 .profile-field label{display:block;font-size:11px;font-weight:900;margin-bottom:5px;color:#bbb}
 .profile-field input,.profile-field select,.profile-field textarea{
   width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);
@@ -302,8 +315,8 @@ footer{
   .overview{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media(max-width:980px){
-  .hero,.dashboard-grid{grid-template-columns:1fr}
-  .side-column{grid-template-columns:1fr 1fr}
+  .hero,.dashboard-row,.dashboard-row.equal{grid-template-columns:1fr}
+  .side-column{grid-template-columns:1fr}
 }
 @media(max-width:700px){
   .page-shell{width:94vw;padding-top:18px}
@@ -369,8 +382,8 @@ footer{
   </section>
 
   <div class="dashboard-grid">
-    <div class="main-column">
 
+    <div class="dashboard-row">
       <section class="panel">
         <div class="panel-head">
           <div>
@@ -385,39 +398,6 @@ footer{
       <section class="panel">
         <div class="panel-head">
           <div>
-            <h2>🆕 Fresh Stock</h2>
-            <p>Recently added to AnyBike. This will become live-feed stock when the API is connected.</p>
-          </div>
-        </div>
-        <div id="freshStockGrid" class="bike-grid"></div>
-      </section>
-
-      <section class="panel" id="recently-viewed">
-        <div class="panel-head">
-          <div>
-            <h2>👀 Recently Viewed</h2>
-            <p>Continue where you left off.</p>
-          </div>
-        </div>
-        <div id="recentlyViewedBox" class="recent-grid"></div>
-      </section>
-
-      <section class="panel" id="messages">
-        <div class="panel-head">
-          <div>
-            <h2>💬 My Enquiries & Messages</h2>
-            <p>Single-bike enquiries and Global Buyer Network conversations in one place.</p>
-          </div>
-        </div>
-        <div id="customerEnquiries">Loading enquiries...</div>
-      </section>
-
-    </div>
-
-    <aside class="side-column">
-      <section class="panel">
-        <div class="panel-head">
-          <div>
             <h2>📢 Latest From AnyBike</h2>
             <p>Updates, opportunities and useful information.</p>
           </div>
@@ -426,19 +406,31 @@ footer{
           <article class="latest-item">
             <div class="latest-tag">STOCK</div>
             <strong>New motorcycles are being added regularly</strong>
-            <p>Check Fresh Stock and Recommended For You for the latest relevant opportunities.</p>
+            <p>Check Fresh Stock and Recommended For You for relevant buying opportunities.</p>
           </article>
           <article class="latest-item">
             <div class="latest-tag">GLOBAL BUYERS</div>
-            <strong>Your buying requirements can now be managed in My AnyBike</strong>
+            <strong>Manage your buying requirements in My AnyBike</strong>
             <p>Continue conversations with AnyBike without leaving your customer workspace.</p>
           </article>
           <article class="latest-item">
             <div class="latest-tag">COMING NEXT</div>
             <strong>Live stock feeds and smarter matching</strong>
-            <p>Fresh Stock will become more accurate once the live API feed is connected.</p>
+            <p>Fresh Stock will become fully live when the API feed is connected.</p>
           </article>
         </div>
+      </section>
+    </div>
+
+    <div class="dashboard-row">
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <h2>🆕 Fresh Stock</h2>
+            <p>Recently added to AnyBike. This will become live-feed stock when the API is connected.</p>
+          </div>
+        </div>
+        <div id="freshStockGrid" class="bike-grid"></div>
       </section>
 
       <section class="panel">
@@ -450,105 +442,132 @@ footer{
         </div>
         <div class="quick-grid">
           <a class="quick-action" href="available-stock.html"><span>🏍️</span><strong>Browse Stock</strong></a>
+          <a class="quick-action" href="#recommendationsGrid"><span>⭐</span><strong>Recommended Bikes</strong></a>
+          <a class="quick-action" href="#freshStockGrid"><span>🆕</span><strong>Fresh Stock</strong></a>
           <a class="quick-action" href="my-watchlist.html"><span>❤️</span><strong>Watchlist</strong></a>
           <a class="quick-action" href="my-searches.html"><span>🔎</span><strong>Saved Searches</strong></a>
+          <a class="quick-action" href="buy-motorcycles.html"><span>🔍</span><strong>Find a Motorcycle</strong></a>
+          <a class="quick-action" href="bulk-buying-request.html"><span>🌍</span><strong>Global Buyer Request</strong></a>
           <a class="quick-action" href="sell-your-motorcycle.html"><span>💷</span><strong>Sell Your Bike</strong></a>
-          <a class="quick-action" href="export-services.html"><span>🌍</span><strong>Export Services</strong></a>
+          <a class="quick-action" href="export-services.html"><span>🚢</span><strong>Export Services</strong></a>
+          <a class="quick-action" href="anybike-connect.html"><span>📞</span><strong>Contact AnyBike</strong></a>
           <a class="quick-action" href="#messages"><span>💬</span><strong>Messages</strong></a>
+          <a class="quick-action" href="#profile"><span>👤</span><strong>Account Settings</strong></a>
         </div>
       </section>
+    </div>
 
-      <section class="panel" id="profilePanel">
-        <div class="panel-head">
-          <div>
-            <h2 id="profile">👤 My Profile</h2>
-            <p>Keep your contact and buying preferences up to date.</p>
-          </div>
-          <button id="editProfileBtn" class="mini-btn" type="button" onclick="setProfileEditMode(true)">Edit</button>
+    <section class="panel" id="recently-viewed">
+      <div class="panel-head">
+        <div>
+          <h2>👀 Recently Viewed</h2>
+          <p>Continue where you left off.</p>
         </div>
+      </div>
+      <div id="recentlyViewedBox" class="recent-grid"></div>
+    </section>
 
-        <div class="profile-summary">
-          <strong class="profileSummaryName">My AnyBike member</strong>
-          <span class="profileSummaryBusiness"></span>
-          <span class="profileSummaryLocation"></span>
+    <section class="panel" id="messages">
+      <div class="panel-head">
+        <div>
+          <h2>💬 My Enquiries & Messages</h2>
+          <p>Single-bike enquiries and Global Buyer Network conversations in one place.</p>
         </div>
+      </div>
+      <div id="customerEnquiries">Loading enquiries...</div>
+    </section>
 
-        <div class="profile-form">
-          <div class="profile-field">
-            <label>Full name</label>
-            <input id="fullName" data-profile-input disabled>
-          </div>
-          <div class="profile-field">
-            <label>Business name</label>
-            <input id="businessName" data-profile-input disabled>
-          </div>
-          <div class="profile-field full">
-            <label>Business address</label>
-            <textarea id="businessAddress" data-profile-input disabled></textarea>
-          </div>
-          <div class="profile-field">
-            <label>City</label>
-            <input id="city" data-profile-input disabled>
-          </div>
-          <div class="profile-field">
-            <label>Region / State / County</label>
-            <input id="region" data-profile-input disabled>
-          </div>
-          <div class="profile-field">
-            <label>Country</label>
-            <select id="country" data-profile-input disabled>
-              <option value="">Select country</option>
-              <option>United Kingdom</option><option>Germany</option><option>France</option>
-              <option>Spain</option><option>United Arab Emirates</option><option>Australia</option>
-              <option>New Zealand</option><option>South Africa</option><option>United States</option>
-              <option>Canada</option><option>Other</option>
-            </select>
-          </div>
-          <div class="profile-field">
-            <label>Phone / WhatsApp</label>
-            <input id="phone" data-profile-input disabled>
-          </div>
-          <div class="profile-field">
-            <label>Preferred currency</label>
-            <select id="preferredCurrency" data-profile-input disabled>
-              <option value="GBP">GBP £</option><option value="EUR">EUR €</option>
-              <option value="USD">USD $</option><option value="AUD">AUD A$</option>
-              <option value="NZD">NZD NZ$</option><option value="CAD">CAD C$</option>
-              <option value="AED">AED د.إ</option>
-            </select>
-          </div>
-          <div class="profile-field">
-            <label>Preferred language</label>
-            <select id="preferredLanguage" data-profile-input disabled>
-              <option value="en">English</option><option value="de">Deutsch</option>
-              <option value="fr">Français</option><option value="es">Español</option>
-              <option value="ar">العربية</option>
-            </select>
-          </div>
+    <section class="panel" id="profilePanel">
+      <div class="panel-head">
+        <div>
+          <h2 id="profile">👤 My Profile</h2>
+          <p>Keep your contact and buying preferences up to date.</p>
         </div>
+        <button id="editProfileBtn" class="mini-btn" type="button" onclick="setProfileEditMode(true)">Edit</button>
+      </div>
 
-        <div class="profile-actions">
-          <button id="saveProfileBtn" class="mini-btn primary" type="button" onclick="saveProfile()" style="display:none">Save Profile</button>
-          <button id="cancelProfileBtn" class="mini-btn" type="button" onclick="cancelProfileEdit()" style="display:none">Cancel</button>
-        </div>
-        <p id="profileMsg"></p>
-      </section>
+      <div class="profile-summary">
+        <strong class="profileSummaryName">My AnyBike member</strong>
+        <span class="profileSummaryBusiness"></span>
+        <span class="profileSummaryLocation"></span>
+      </div>
 
-      <section class="panel">
-        <div class="panel-head">
-          <div>
-            <h2>Coming to My AnyBike</h2>
-            <p>Future services will appear here as they become available.</p>
-          </div>
+      <div class="profile-form">
+        <div class="profile-field">
+          <label>Full name</label>
+          <input id="fullName" data-profile-input disabled>
         </div>
-        <div class="future-strip">
-          <div class="future-item">📦 Orders</div>
-          <div class="future-item">🚚 Shipping</div>
-          <div class="future-item">📄 Quotes</div>
-          <div class="future-item">🗂 Documents</div>
+        <div class="profile-field">
+          <label>Business name</label>
+          <input id="businessName" data-profile-input disabled>
         </div>
-      </section>
-    </aside>
+        <div class="profile-field address">
+          <label>Business address</label>
+          <textarea id="businessAddress" data-profile-input disabled></textarea>
+        </div>
+        <div class="profile-field">
+          <label>City</label>
+          <input id="city" data-profile-input disabled>
+        </div>
+        <div class="profile-field">
+          <label>Region / State / County</label>
+          <input id="region" data-profile-input disabled>
+        </div>
+        <div class="profile-field">
+          <label>Country</label>
+          <select id="country" data-profile-input disabled>
+            <option value="">Select country</option>
+            <option>United Kingdom</option><option>Germany</option><option>France</option>
+            <option>Spain</option><option>United Arab Emirates</option><option>Australia</option>
+            <option>New Zealand</option><option>South Africa</option><option>United States</option>
+            <option>Canada</option><option>Other</option>
+          </select>
+        </div>
+        <div class="profile-field">
+          <label>Phone / WhatsApp</label>
+          <input id="phone" data-profile-input disabled>
+        </div>
+        <div class="profile-field">
+          <label>Preferred currency</label>
+          <select id="preferredCurrency" data-profile-input disabled>
+            <option value="GBP">GBP £</option><option value="EUR">EUR €</option>
+            <option value="USD">USD $</option><option value="AUD">AUD A$</option>
+            <option value="NZD">NZD NZ$</option><option value="CAD">CAD C$</option>
+            <option value="AED">AED د.إ</option>
+          </select>
+        </div>
+        <div class="profile-field">
+          <label>Preferred language</label>
+          <select id="preferredLanguage" data-profile-input disabled>
+            <option value="en">English</option><option value="de">Deutsch</option>
+            <option value="fr">Français</option><option value="es">Español</option>
+            <option value="ar">العربية</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="profile-actions">
+        <button id="saveProfileBtn" class="mini-btn primary" type="button" onclick="saveProfile()" style="display:none">Save Profile</button>
+        <button id="cancelProfileBtn" class="mini-btn" type="button" onclick="cancelProfileEdit()" style="display:none">Cancel</button>
+      </div>
+      <p id="profileMsg"></p>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h2>Coming to My AnyBike</h2>
+          <p>Future services will appear here as they become available.</p>
+        </div>
+      </div>
+      <div class="future-strip">
+        <div class="future-item">📦 Orders</div>
+        <div class="future-item">🚚 Shipping</div>
+        <div class="future-item">📄 Quotes</div>
+        <div class="future-item">🗂 Documents</div>
+      </div>
+    </section>
+
   </div>
 </main>
 
@@ -599,8 +618,21 @@ function toggleCustomerEnquiry(key){
 }
 
 async function loadUser(){
-  const {data:{user}} = await sb.auth.getUser();
-  currentUser = user || null;
+  let user=null;
+
+  try{
+    const {data:sessionData}=await sb.auth.getSession();
+    user=sessionData?.session?.user || null;
+
+    if(!user){
+      const {data:userData}=await sb.auth.getUser();
+      user=userData?.user || null;
+    }
+  }catch(error){
+    console.error("Login check failed",error);
+  }
+
+  currentUser=user || null;
 
   if(!currentUser){
     document.getElementById("userArea").innerHTML=`<a href="customer-register.html" style="color:#fff;text-decoration:none">Login / Register</a>`;
@@ -1473,13 +1505,33 @@ async function logout(){
 }
 
 (async function init(){
-  const ok = await loadUser();
-  if(ok){
-    await loadCounts();
-    await loadRecentlyViewed();
-    await loadRecommendations();
-    await loadFreshStock();
-    await loadCustomerEnquiries();
+  try{
+    const ok=await loadUser();
+
+    if(!ok){
+      return;
+    }
+
+    await Promise.allSettled([
+      loadCounts(),
+      loadRecentlyViewed(),
+      loadCustomerEnquiries(),
+      loadRecommendations(),
+      loadFreshStock()
+    ]);
+  }catch(error){
+    console.error("My AnyBike failed to initialise",error);
+
+    const welcome=document.getElementById("welcomeText");
+    const enquiries=document.getElementById("customerEnquiries");
+
+    if(welcome){
+      welcome.textContent="We could not finish loading your workspace. Please refresh the page.";
+    }
+
+    if(enquiries){
+      enquiries.innerHTML='<p class="bad">Messages could not be loaded. Please refresh the page.</p>';
+    }
   }
 })();
 
