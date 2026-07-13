@@ -1,7 +1,7 @@
 /*
 AnyBike
 File: admin.js
-Version: 10.1
+Version: 10.2
 Date: 13 July 2026
 
 Changes
@@ -15,6 +15,94 @@ Changes
 ✓ Keeps existing thread Clear behaviour
 ✓ Refreshes notifications every 60 seconds
 */
+
+
+let anybikeAdminSupabase = null;
+let anybikeAdminUser = null;
+
+function getAdminSupabaseClient(){
+  if(anybikeAdminSupabase){
+    return anybikeAdminSupabase;
+  }
+
+  if(typeof supabase === "undefined"){
+    return null;
+  }
+
+  const SUPABASE_URL = "https://tuehtnezhdnkqbbhttgp.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
+
+  anybikeAdminSupabase = supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_ANON_KEY
+  );
+
+  return anybikeAdminSupabase;
+}
+
+async function setupAdminIdentity(){
+  const client = getAdminSupabaseClient();
+
+  if(!client){
+    return;
+  }
+
+  const {data,error} = await client.auth.getUser();
+
+  if(error){
+    console.warn("Admin identity check failed",error.message);
+  }
+
+  anybikeAdminUser = data?.user || null;
+
+  const nameEl = document.getElementById("adminProfileName");
+  const emailEl = document.getElementById("adminProfileEmail");
+
+  if(anybikeAdminUser){
+    const displayName =
+      anybikeAdminUser.user_metadata?.full_name ||
+      anybikeAdminUser.user_metadata?.name ||
+      "Andy Gifford";
+
+    if(nameEl){
+      nameEl.textContent = displayName;
+    }
+
+    if(emailEl){
+      emailEl.textContent = anybikeAdminUser.email || "Signed-in account";
+      emailEl.title = anybikeAdminUser.email || "";
+    }
+  }else{
+    if(nameEl){
+      nameEl.textContent = "Not signed in";
+    }
+
+    if(emailEl){
+      emailEl.textContent = "No active Supabase session";
+      emailEl.title = "";
+    }
+  }
+}
+
+async function adminLogout(){
+  const client = getAdminSupabaseClient();
+
+  try{
+    if(client){
+      await client.auth.signOut({
+        scope:"local"
+      });
+    }
+  }catch(error){
+    console.warn("Admin logout failed",error);
+  }
+
+  try{
+    localStorage.removeItem("sb-tuehtnezhdnkqbbhttgp-auth-token");
+  }catch(error){}
+
+  window.location.replace("/");
+}
 
 function loadAdminShell(){
 
@@ -57,6 +145,7 @@ function loadAdminShell(){
       if(topbar){
         topbar.innerHTML = html;
         setupAdminSearch();
+        setupAdminIdentity();
 
         setTimeout(function(){
           loadAdminNotifications();
@@ -170,14 +259,7 @@ document.addEventListener("click", function(e){
 });
 
 function createAdminSupabaseClient(){
-  if(typeof supabase === "undefined"){
-    return null;
-  }
-
-  const SUPABASE_URL = "https://tuehtnezhdnkqbbhttgp.supabase.co";
-  const SUPABASE_ANON_KEY = "sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
-
-  return supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  return getAdminSupabaseClient();
 }
 
 function escapeNotificationHtml(value){
