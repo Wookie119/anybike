@@ -3,7 +3,7 @@
 <!--
 AnyBike
 File: bulk-buying-request.html
-Version: 2.2
+Version: 2.3
 Date: 13 July 2026
 
 Changes
@@ -16,7 +16,12 @@ Changes
 ✓ Preserved multiple motorcycle request blocks and year checkboxes
 ✓ Preserved Supabase saving to global_buyer_network
 ✓ Preserved Supabase saving to global_buyer_request_items
-✓ No database changes in this version
+✓ Saves one request-item row per motorcycle block
+✓ Prevents quantity duplication when several years are selected
+✓ Stores the exact accepted-year list in the request-item notes
+✓ Uses year_from and year_to as the broad matching range
+✓ Treats “Older” as 2017 or earlier for broad stock matching
+✓ No database schema changes required
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -798,32 +803,51 @@ function buildInternalNotes(o,bikes){
 }
 
 function itemRowsFromBikes(buyerId,bikes){
-  const rows=[];
+  return bikes.map(b=>{
+    const selectedYears = Array.isArray(b.years) ? b.years : [];
+    const numericYears = selectedYears
+      .map(y=>Number(y))
+      .filter(y=>Number.isInteger(y) && y > 1900)
+      .sort((a,b)=>a-b);
 
-  bikes.forEach(b=>{
-    const selectedYears = b.years && b.years.length ? b.years : ["Any"];
+    const includesOlder = selectedYears.includes("Older");
 
-    selectedYears.forEach(y=>{
-      const numericYear = Number(y);
-      const isYear = Number.isInteger(numericYear) && numericYear > 1900;
+    let yearFrom = null;
+    let yearTo = null;
 
-      rows.push({
-        buyer_id: buyerId,
-        make: b.make,
-        model: b.model,
-        year_from: isYear ? numericYear : null,
-        year_to: isYear ? numericYear : null,
-        mileage_max: b.mileage_max ? Number(b.mileage_max) : null,
-        quantity: b.quantity ? Number(b.quantity) : 1,
-        max_price_gbp: b.budget_per_bike ? Number(b.budget_per_bike) : null,
-        preferred_colour: null,
-        condition_preference: null,
-        notes: !isYear && y !== "Any" ? `Year preference: ${y}` : null
-      });
-    });
+    if(numericYears.length){
+      yearFrom = numericYears[0];
+      yearTo = numericYears[numericYears.length - 1];
+    }
+
+    /*
+      “Older” means 2017 or earlier because 2018 is the oldest
+      individually selectable year on the current form.
+    */
+    if(includesOlder){
+      yearFrom = null;
+      yearTo = numericYears.length ? numericYears[numericYears.length - 1] : 2017;
+    }
+
+    const notes = [
+      "Accepted years: " + (selectedYears.length ? selectedYears.join(", ") : "Any"),
+      includesOlder ? "Older means 2017 or earlier." : ""
+    ].filter(Boolean).join(" ");
+
+    return {
+      buyer_id: buyerId,
+      make: b.make,
+      model: b.model,
+      year_from: yearFrom,
+      year_to: yearTo,
+      mileage_max: b.mileage_max ? Number(b.mileage_max) : null,
+      quantity: b.quantity ? Number(b.quantity) : 1,
+      max_price_gbp: b.budget_per_bike ? Number(b.budget_per_bike) : null,
+      preferred_colour: null,
+      condition_preference: null,
+      notes: notes
+    };
   });
-
-  return rows;
 }
 
 async function submitBulkRequest(form){
