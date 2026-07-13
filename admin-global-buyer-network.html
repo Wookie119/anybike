@@ -1,4 +1,20 @@
 
+<!--
+AnyBike
+File: admin-global-buyer-network.html
+Version: 1.1
+Date: 13 July 2026
+
+Changes
+--------
+✓ Opens the correct buyer panel from admin bell links
+✓ Supports ?buyer=BUYER_ID deep links
+✓ Scrolls the selected buyer into view
+✓ Highlights the selected buyer briefly
+✓ Preserves existing Global Buyer CRM functionality
+✓ Preserves pipeline, filters, stock matching and status updates
+-->
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -597,6 +613,12 @@ a{text-decoration:none;color:inherit}
   cursor:not-allowed;
 }
 
+
+.buyer.notification-target{
+  border-color:var(--red);
+  box-shadow:0 0 0 2px rgba(237,28,36,.24),0 0 28px rgba(237,28,36,.35);
+}
+
 @media(max-width:1000px){
   .admin-shell{
     grid-template-columns:1fr;
@@ -1088,7 +1110,39 @@ function potentialMatchesHtml(its){
 
 function itemHtml(i){return `<div class="item"><strong>${safe(i.make)} ${safe(i.model)}</strong><div class="small">Year: ${safe(i.year_from||'Any')} ${i.year_to&&i.year_to!==i.year_from?' - '+safe(i.year_to):''} • Max mileage: ${safe(i.mileage_max||'-')} • Qty: ${safe(i.quantity||1)} • Max per bike: ${money(i.max_price_gbp)}</div></div>`;}
 
-loadBuyers();
+
+function openBuyerFromUrl(){
+  const params = new URLSearchParams(window.location.search);
+  const buyerId = params.get("buyer");
+
+  if(!buyerId){
+    return;
+  }
+
+  const buyer = document.getElementById("buyer-" + buyerId);
+
+  if(!buyer){
+    return;
+  }
+
+  buyer.classList.add("open");
+  buyer.classList.add("notification-target");
+
+  setTimeout(function(){
+    buyer.scrollIntoView({
+      behavior:"smooth",
+      block:"start"
+    });
+  },150);
+
+  setTimeout(function(){
+    buyer.classList.remove("notification-target");
+  },5000);
+}
+
+loadBuyers().then(function(){
+  openBuyerFromUrl();
+});
 </script>
 
 <script src="admin.js?v=10000"></script>
