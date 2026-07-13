@@ -1,7 +1,7 @@
 /*
 AnyBike
 File: admin.js
-Version: 10.2
+Version: 11.0
 Date: 13 July 2026
 
 Changes
@@ -16,6 +16,10 @@ Changes
 ✓ Refreshes notifications every 60 seconds
 */
 
+
+const ANYBIKE_ADMIN_EMAILS = [
+  "sales@anybike.co.uk"
+];
 
 let anybikeAdminSupabase = null;
 let anybikeAdminUser = null;
@@ -40,47 +44,73 @@ function getAdminSupabaseClient(){
   return anybikeAdminSupabase;
 }
 
-async function setupAdminIdentity(){
+function isAllowedAdminEmail(email){
+  const value = String(email || "").trim().toLowerCase();
+
+  return ANYBIKE_ADMIN_EMAILS.some(function(adminEmail){
+    return adminEmail.toLowerCase() === value;
+  });
+}
+
+async function requireAdminSession(){
   const client = getAdminSupabaseClient();
 
   if(!client){
-    return;
+    console.error("Supabase client is unavailable on this admin page.");
+    window.location.replace("/admin-login.html?error=supabase");
+    return false;
   }
 
-  const {data,error} = await client.auth.getUser();
+  const sessionResult = await client.auth.getSession();
+  const user = sessionResult?.data?.session?.user || null;
 
-  if(error){
-    console.warn("Admin identity check failed",error.message);
+  if(!user){
+    const returnUrl =
+      window.location.pathname +
+      window.location.search +
+      window.location.hash;
+
+    window.location.replace(
+      "/admin-login.html?return=" + encodeURIComponent(returnUrl)
+    );
+
+    return false;
   }
 
-  anybikeAdminUser = data?.user || null;
+  if(!isAllowedAdminEmail(user.email)){
+    await client.auth.signOut();
 
+    window.location.replace(
+      "/admin-login.html?error=not-authorized"
+    );
+
+    return false;
+  }
+
+  anybikeAdminUser = user;
+  return true;
+}
+
+async function setupAdminIdentity(){
   const nameEl = document.getElementById("adminProfileName");
   const emailEl = document.getElementById("adminProfileEmail");
 
-  if(anybikeAdminUser){
-    const displayName =
-      anybikeAdminUser.user_metadata?.full_name ||
-      anybikeAdminUser.user_metadata?.name ||
-      "Andy Gifford";
+  if(!anybikeAdminUser){
+    return;
+  }
 
-    if(nameEl){
-      nameEl.textContent = displayName;
-    }
+  const displayName =
+    anybikeAdminUser.user_metadata?.full_name ||
+    anybikeAdminUser.user_metadata?.name ||
+    "Andy Gifford";
 
-    if(emailEl){
-      emailEl.textContent = anybikeAdminUser.email || "Signed-in account";
-      emailEl.title = anybikeAdminUser.email || "";
-    }
-  }else{
-    if(nameEl){
-      nameEl.textContent = "Not signed in";
-    }
+  if(nameEl){
+    nameEl.textContent = displayName;
+  }
 
-    if(emailEl){
-      emailEl.textContent = "No active Supabase session";
-      emailEl.title = "";
-    }
+  if(emailEl){
+    emailEl.textContent = anybikeAdminUser.email || "";
+    emailEl.title = anybikeAdminUser.email || "";
   }
 }
 
@@ -89,20 +119,15 @@ async function adminLogout(){
 
   try{
     if(client){
-      await client.auth.signOut({
-        scope:"local"
-      });
+      await client.auth.signOut();
     }
   }catch(error){
     console.warn("Admin logout failed",error);
   }
 
-  try{
-    localStorage.removeItem("sb-tuehtnezhdnkqbbhttgp-auth-token");
-  }catch(error){}
-
-  window.location.replace("/");
+  window.location.replace("/admin-login.html");
 }
+
 
 function loadAdminShell(){
 
@@ -592,6 +617,16 @@ function loadMessageCentreNotifications(){
   return loadAdminNotifications();
 }
 
-loadAdminShell();
+async function initialiseAdmin(){
+  const allowed = await requireAdminSession();
 
-setInterval(loadAdminNotifications, 60000);
+  if(!allowed){
+    return;
+  }
+
+  loadAdminShell();
+  loadAdminNotifications();
+  setInterval(loadAdminNotifications,60000);
+}
+
+initialiseAdmin();
