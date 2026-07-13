@@ -1,8 +1,10 @@
 
+
+
 <!--
 AnyBike
 File: customer-dashboard.html
-Version: 3.6
+Version: 3.7
 Date: 13 July 2026
 
 Purpose
@@ -811,7 +813,7 @@ footer{
   UK Motorcycle Export Specialists — Worldwide sourcing and export services.
 </footer>
 
-<script src="/public-header.js?v=9100"></script>
+<script src="/public-header.js?v=9200"></script>
 <script>
 
 const SUPABASE_URL = "https://tuehtnezhdnkqbbhttgp.supabase.co";
@@ -2235,6 +2237,187 @@ async function logout(){
   location.href="index.html";
 }
 
+
+/* =========================================================
+   Customer notifications
+   Uses customer_notifications as the single source of truth.
+   This code runs inside customer-dashboard.html after `sb`
+   has been created and after the shared header has loaded.
+   ========================================================= */
+
+let customerNotificationRefreshTimer = null;
+let customerNotificationControlsBound = false;
+
+function getCustomerNotificationHeaderElements(){
+  return {
+    messageLink:document.getElementById("phMessages"),
+    messageCount:document.getElementById("phMessagesCount"),
+    bellButton:document.getElementById("phNotifications"),
+    bellCount:document.getElementById("phNotificationsCount"),
+    popover:document.getElementById("notificationPopover"),
+    list:document.getElementById("notificationList")
+  };
+}
+
+function setCustomerNotificationBadges(total){
+  const elements=getCustomerNotificationHeaderElements();
+  const count=Number(total)||0;
+
+  [elements.messageCount,elements.bellCount].forEach(function(badge){
+    if(!badge) return;
+
+    badge.textContent=String(count);
+    badge.style.display=count>0 ? "inline-flex" : "none";
+  });
+
+  if(elements.messageLink){
+    elements.messageLink.setAttribute("aria-label","Messages "+count);
+    elements.messageLink.classList.toggle("has-messages",count>0);
+  }
+
+  if(elements.bellButton){
+    elements.bellButton.setAttribute("aria-label","Notifications "+count);
+    elements.bellButton.classList.toggle("has-notifications",count>0);
+  }
+}
+
+function renderCustomerNotifications(rows){
+  const list=document.getElementById("notificationList");
+
+  if(!list) return;
+
+  if(!rows.length){
+    list.innerHTML="<p>No new notifications.</p>";
+    return;
+  }
+
+  list.innerHTML=rows.map(function(row){
+    const link=row.link || "/customer-dashboard.html#messages";
+    const icon=row.icon || "💬";
+
+    return `
+      <a href="${safe(link)}"
+         class="notification-item unread"
+         data-customer-notification-id="${safe(row.id)}"
+         data-customer-notification-link="${safe(link)}">
+        <span class="notification-icon">${safe(icon)}</span>
+        <span class="notification-copy">
+          <strong>${safe(row.title || "New message from AnyBike")}</strong>
+          <small>${safe(row.message || "")}</small>
+        </span>
+      </a>
+    `;
+  }).join("");
+}
+
+async function loadCustomerNotifications(){
+  if(!currentUser){
+    setCustomerNotificationBadges(0);
+    renderCustomerNotifications([]);
+    return;
+  }
+
+  const {data,error}=await sb
+    .from("customer_notifications")
+    .select("id,title,message,icon,type,link,is_read,created_at")
+    .eq("customer_id",currentUser.id)
+    .eq("is_read",false)
+    .order("created_at",{ascending:false});
+
+  if(error){
+    console.error("Customer notifications could not be loaded",error);
+    return;
+  }
+
+  const rows=data || [];
+
+  setCustomerNotificationBadges(rows.length);
+  renderCustomerNotifications(rows);
+}
+
+async function markCustomerNotificationRead(notificationId){
+  if(!notificationId || !currentUser) return;
+
+  const {error}=await sb
+    .from("customer_notifications")
+    .update({is_read:true})
+    .eq("id",notificationId)
+    .eq("customer_id",currentUser.id);
+
+  if(error){
+    console.error("Customer notification could not be marked read",error);
+    return;
+  }
+
+  await loadCustomerNotifications();
+}
+
+function bindCustomerNotificationControls(){
+  if(customerNotificationControlsBound) return;
+
+  const elements=getCustomerNotificationHeaderElements();
+
+  if(!elements.bellButton || !elements.popover || !elements.list){
+    setTimeout(bindCustomerNotificationControls,100);
+    return;
+  }
+
+  customerNotificationControlsBound=true;
+
+  /*
+    Capture phase prevents older header click handlers from cancelling
+    this notification controller.
+  */
+  elements.bellButton.addEventListener("click",function(event){
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    elements.popover.classList.toggle("open");
+  },true);
+
+  document.addEventListener("click",function(event){
+    const item=event.target.closest("[data-customer-notification-id]");
+
+    if(item){
+      event.preventDefault();
+      event.stopImmediatePropagation();
+
+      const id=item.getAttribute("data-customer-notification-id");
+      const link=item.getAttribute("data-customer-notification-link") ||
+        "/customer-dashboard.html#messages";
+
+      markCustomerNotificationRead(id).finally(function(){
+        window.location.href=link;
+      });
+
+      return;
+    }
+
+    const current=getCustomerNotificationHeaderElements();
+
+    if(
+      current.popover &&
+      current.bellButton &&
+      !current.popover.contains(event.target) &&
+      !current.bellButton.contains(event.target)
+    ){
+      current.popover.classList.remove("open");
+    }
+  },true);
+}
+
+async function initialiseCustomerNotifications(){
+  bindCustomerNotificationControls();
+  await loadCustomerNotifications();
+
+  if(customerNotificationRefreshTimer){
+    clearInterval(customerNotificationRefreshTimer);
+  }
+
+  customerNotificationRefreshTimer=setInterval(function(){
+    loadCustomerNotifications();
+  },30000);
+}
+
 (async function init(){
   try{
     await waitForPublicHeader();
@@ -2250,6 +2433,8 @@ async function logout(){
       loadCustomerEnquiries(),
       loadRecommendations()
     ]);
+
+    await initialiseCustomerNotifications();
   }catch(error){
     console.error("My AnyBike failed to initialise",error);
 
@@ -2274,6 +2459,5 @@ setInterval(() => {
   
 
 </script>
-<script src="/customer-notifications.js?v=1000"></script>
 </body>
 </html>
