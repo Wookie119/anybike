@@ -1,7 +1,7 @@
 /*
 AnyBike
 File: public-header.js
-Version: 2026.07.13-5
+Version: 2026.07.13-6
 Date: 13 July 2026
 
 Changes
@@ -472,7 +472,6 @@ function isCustomerMessageRow(message,userEmail){
 }
 
 async function loadCustomerHeaderActivity(user){
-
   if(typeof sb === "undefined" || !user){
     setMessageCount(0);
     setNotificationCount(0);
@@ -480,29 +479,34 @@ async function loadCustomerHeaderActivity(user){
     return;
   }
 
-  const { data, error } = await sb
+  const {data,error} = await sb
     .from("customer_notifications")
-    .select("id,title,message,link,is_read,created_at")
-    .eq("customer_id", user.id)
-    .eq("is_read", false)
-    .order("created_at", { ascending:false });
+    .select("id,title,message,icon,type,link,is_read,created_at")
+    .eq("customer_id",user.id)
+    .eq("is_read",false)
+    .order("created_at",{ascending:false});
 
   if(error){
-    console.error("Notification load failed", error);
+    console.error("Notification load failed",error);
     setMessageCount(0);
     setNotificationCount(0);
     renderNotificationList([]);
     return;
   }
 
-  const notifications = (data || []).map(function(n){
+  const notifications = (data || []).map(function(row){
     return {
-      id:n.id,
-      title:n.title || "Notification",
-      message:n.message || "",
-      link:n.link || "/customer-dashboard.html#messages",
-      icon:"🔔",
-      date:n.created_at
+      id:String(row.id),
+      title:row.title || "New message from AnyBike",
+      message:row.message || "",
+      icon:row.icon || (
+        String(row.type || "").toLowerCase().includes("message")
+          ? "💬"
+          : "🔔"
+      ),
+      type:row.type || "",
+      link:row.link || "/customer-dashboard.html#messages",
+      date:row.created_at || ""
     };
   });
 
@@ -516,8 +520,8 @@ async function loadCustomerHeaderActivity(user){
       items:notifications
     }
   }));
-
 }
+
 async function loadUnreadSingleBikeConversations(user,unreadItems){
   const enquiryResult = await sb
     .from("bike_enquiries")
@@ -639,10 +643,13 @@ function renderNotificationList(items){
   }
 
   list.innerHTML = items.slice(0,12).map(function(item){
+    const link = item.link || "/customer-dashboard.html#messages";
+
     return `
-      <a href="${escapeHtml(item.link || "#")}"
-         class="notification-item unread">
-        <span class="notification-icon">${item.icon || "🔔"}</span>
+      <a href="${escapeHtml(link)}"
+         class="notification-item unread"
+         onclick="openCustomerNotification(event,'${escapeHtml(item.id)}','${escapeHtml(link)}')">
+        <span class="notification-icon">${escapeHtml(item.icon || "🔔")}</span>
 
         <span class="notification-copy">
           <strong>${escapeHtml(item.title || translations.notifications)}</strong>
@@ -651,6 +658,28 @@ function renderNotificationList(items){
       </a>
     `;
   }).join("");
+}
+
+async function openCustomerNotification(event,notificationId,link){
+  event.preventDefault();
+
+  if(
+    notificationId &&
+    typeof sb !== "undefined" &&
+    anybikeHeaderUser
+  ){
+    const {error} = await sb
+      .from("customer_notifications")
+      .update({is_read:true})
+      .eq("id",notificationId)
+      .eq("customer_id",anybikeHeaderUser.id);
+
+    if(error){
+      console.warn("Notification could not be marked read",error.message);
+    }
+  }
+
+  window.location.href = link || "/customer-dashboard.html#messages";
 }
 
 function setMessageCount(total){
