@@ -1,3 +1,22 @@
+/*
+AnyBike
+File: public-header.js
+Version: 2026.07.13-5
+Date: 13 July 2026
+
+Changes
+--------
+✓ Preserves the shared public header, account menu, language and currency
+✓ Fixes Messages counting every historical AnyBike reply
+✓ Counts unread conversations from the latest sender only
+✓ Includes single-bike enquiry conversations
+✓ Includes My AnyBike and Global Buyer Message Centre threads
+✓ Customer replies clear the relevant unread count after refresh
+✓ Uses the same unread total for Messages and the notification bell
+✓ Replaces stale customer_notifications counts in the header
+✓ Refreshes customer message counts every 60 seconds
+*/
+
 document.addEventListener("DOMContentLoaded", loadPublicHeader);
 
 const ANYBIKE_HEADER_CURRENCY_RATES = {
@@ -32,7 +51,7 @@ const ANYBIKE_HEADER_TRANSLATIONS = {
     requests:"Motorcycle Requests",
     logout:"Logout",
     notifications:"Notifications",
-    noNotifications:"No notifications yet.",
+    noNotifications:"No new notifications.",
     close:"Close"
   },
   de:{
@@ -56,7 +75,7 @@ const ANYBIKE_HEADER_TRANSLATIONS = {
     requests:"Motorradanfragen",
     logout:"Abmelden",
     notifications:"Benachrichtigungen",
-    noNotifications:"Noch keine Benachrichtigungen.",
+    noNotifications:"Keine neuen Benachrichtigungen.",
     close:"Schließen"
   },
   fr:{
@@ -80,7 +99,7 @@ const ANYBIKE_HEADER_TRANSLATIONS = {
     requests:"Demandes de motos",
     logout:"Déconnexion",
     notifications:"Notifications",
-    noNotifications:"Aucune notification.",
+    noNotifications:"Aucune nouvelle notification.",
     close:"Fermer"
   },
   es:{
@@ -104,7 +123,7 @@ const ANYBIKE_HEADER_TRANSLATIONS = {
     requests:"Solicitudes de motos",
     logout:"Cerrar sesión",
     notifications:"Notificaciones",
-    noNotifications:"Aún no hay notificaciones.",
+    noNotifications:"No hay notificaciones nuevas.",
     close:"Cerrar"
   },
   ar:{
@@ -128,18 +147,29 @@ const ANYBIKE_HEADER_TRANSLATIONS = {
     requests:"طلبات الدراجات",
     logout:"تسجيل الخروج",
     notifications:"الإشعارات",
-    noNotifications:"لا توجد إشعارات بعد.",
+    noNotifications:"لا توجد إشعارات جديدة.",
     close:"إغلاق"
   }
 };
 
+let anybikeHeaderUser = null;
+let anybikeHeaderRefreshTimer = null;
+
 async function loadPublicHeader(){
   const holder = document.getElementById("publicHeader");
-  if(!holder) return;
+
+  if(!holder){
+    return;
+  }
 
   try{
-    const headerRes = await fetch("/public-header.html", { cache:"no-store" });
-    if(!headerRes.ok) throw new Error("Header request failed: " + headerRes.status);
+    const headerRes = await fetch("/public-header.html", {
+      cache:"no-store"
+    });
+
+    if(!headerRes.ok){
+      throw new Error("Header request failed: " + headerRes.status);
+    }
 
     holder.innerHTML = await headerRes.text();
     await setupPublicHeader();
@@ -165,86 +195,110 @@ async function setupPublicHeader(){
   const languageSelect = document.getElementById("phLanguage");
   const currencySelect = document.getElementById("phCurrency");
 
-  mobileMenuButton?.addEventListener("click", () => document.body.classList.add("mobile-menu-open"));
+  mobileMenuButton?.addEventListener("click", function(){
+    document.body.classList.add("mobile-menu-open");
+  });
+
   mobileMenuClose?.addEventListener("click", closeMobileMenu);
   mobileDrawerBackdrop?.addEventListener("click", closeMobileMenu);
 
-  accountButton?.addEventListener("click", e => {
-    e.preventDefault();
-    e.stopPropagation();
+  accountButton?.addEventListener("click", function(event){
+    event.preventDefault();
+    event.stopPropagation();
+
     publicAccount?.classList.toggle("menu-open");
     notificationPopover?.classList.remove("open");
   });
 
-  notificationButton?.addEventListener("click", e => {
-    e.preventDefault();
-    e.stopPropagation();
+  notificationButton?.addEventListener("click", function(event){
+    event.preventDefault();
+    event.stopPropagation();
+
     notificationPopover?.classList.toggle("open");
     publicAccount?.classList.remove("menu-open");
   });
 
-  document.addEventListener("click", e => {
-    if(publicAccount && !publicAccount.contains(e.target)){
+  document.addEventListener("click", function(event){
+    if(publicAccount && !publicAccount.contains(event.target)){
       publicAccount.classList.remove("menu-open");
     }
 
     if(
       notificationPopover &&
       notificationButton &&
-      !notificationPopover.contains(e.target) &&
-      !notificationButton.contains(e.target)
+      !notificationPopover.contains(event.target) &&
+      !notificationButton.contains(event.target)
     ){
       notificationPopover.classList.remove("open");
     }
   });
 
-  let savedLanguage = normaliseLanguage(localStorage.getItem("anybikeLanguage") || "en");
-  let savedCurrency = normaliseCurrency(localStorage.getItem("anybikeCurrency") || "GBP");
+  let savedLanguage = normaliseLanguage(
+    localStorage.getItem("anybikeLanguage") || "en"
+  );
+
+  let savedCurrency = normaliseCurrency(
+    localStorage.getItem("anybikeCurrency") || "GBP"
+  );
+
   let user = null;
 
   try{
     if(typeof sb !== "undefined" && sb?.auth){
-      const result = await sb.auth.getUser();
-      user = result?.data?.user || null;
+      const sessionResult = await sb.auth.getSession();
+      user = sessionResult?.data?.session?.user || null;
+
+      if(!user){
+        const userResult = await sb.auth.getUser();
+        user = userResult?.data?.user || null;
+      }
 
       if(user){
-        const { data:profile } = await sb
+        const profileResult = await sb
           .from("customer_profiles")
           .select("preferred_language,preferred_currency")
-          .eq("id", user.id)
+          .eq("id",user.id)
           .maybeSingle();
+
+        const profile = profileResult?.data || null;
 
         if(profile?.preferred_language){
           savedLanguage = normaliseLanguage(profile.preferred_language);
-          localStorage.setItem("anybikeLanguage", savedLanguage);
+          localStorage.setItem("anybikeLanguage",savedLanguage);
         }
 
         if(profile?.preferred_currency){
           savedCurrency = normaliseCurrency(profile.preferred_currency);
-          localStorage.setItem("anybikeCurrency", savedCurrency);
+          localStorage.setItem("anybikeCurrency",savedCurrency);
         }
       }
     }
   }catch(error){
-    console.warn("Header account preferences unavailable", error);
+    console.warn("Header account preferences unavailable",error);
   }
+
+  anybikeHeaderUser = user;
 
   if(languageSelect){
     languageSelect.value = savedLanguage;
-    languageSelect.addEventListener("change", () => {
+
+    languageSelect.addEventListener("change",function(){
       const language = normaliseLanguage(languageSelect.value);
-      localStorage.setItem("anybikeLanguage", language);
-      saveHeaderPreference("preferred_language", language);
+
+      localStorage.setItem("anybikeLanguage",language);
+      saveHeaderPreference("preferred_language",language);
       applyHeaderLanguage(language);
     });
   }
 
   if(currencySelect){
     currencySelect.value = savedCurrency;
-    currencySelect.addEventListener("change", () => {
+
+    currencySelect.addEventListener("change",function(){
       const currency = normaliseCurrency(currencySelect.value);
-      localStorage.setItem("anybikeCurrency", currency);
-      saveHeaderPreference("preferred_currency", currency);
+
+      localStorage.setItem("anybikeCurrency",currency);
+      saveHeaderPreference("preferred_currency",currency);
       applyHeaderCurrency(currency);
     });
   }
@@ -255,8 +309,15 @@ async function setupPublicHeader(){
     mobileLoggedOutMenu?.classList.add("hidden");
     mobileLoggedInMenu?.classList.remove("hidden");
 
-    loadCustomerMessageCounts(user.id);
-    loadCustomerNotifications(user.id);
+    await loadCustomerHeaderActivity(user);
+
+    if(anybikeHeaderRefreshTimer){
+      clearInterval(anybikeHeaderRefreshTimer);
+    }
+
+    anybikeHeaderRefreshTimer = setInterval(function(){
+      loadCustomerHeaderActivity(user);
+    },60000);
   }else{
     loggedOutMenu?.classList.remove("hidden");
     loggedInMenu?.classList.add("hidden");
@@ -268,42 +329,64 @@ async function setupPublicHeader(){
     renderNotificationList([]);
   }
 
-  logoutLink?.addEventListener("click", logoutCustomer);
-  mobileLogoutLink?.addEventListener("click", logoutCustomer);
+  logoutLink?.addEventListener("click",logoutCustomer);
+  mobileLogoutLink?.addEventListener("click",logoutCustomer);
 
   setActivePublicNav();
   applyHeaderLanguage(savedLanguage);
   applyHeaderCurrency(savedCurrency);
   updateHeaderTimes();
-  setInterval(updateHeaderTimes, 30000);
+
+  setInterval(updateHeaderTimes,30000);
+
+  window.dispatchEvent(new CustomEvent("anybikePublicHeaderReady",{
+    detail:{
+      user:user || null
+    }
+  }));
 }
 
 function normaliseLanguage(value){
-  return Object.prototype.hasOwnProperty.call(ANYBIKE_HEADER_TRANSLATIONS, value) ? value : "en";
+  return Object.prototype.hasOwnProperty.call(
+    ANYBIKE_HEADER_TRANSLATIONS,
+    value
+  ) ? value : "en";
 }
 
 function normaliseCurrency(value){
-  return Object.prototype.hasOwnProperty.call(ANYBIKE_HEADER_CURRENCY_RATES, value) ? value : "GBP";
+  return Object.prototype.hasOwnProperty.call(
+    ANYBIKE_HEADER_CURRENCY_RATES,
+    value
+  ) ? value : "GBP";
 }
 
 function closeMobileMenu(){
   document.body.classList.remove("mobile-menu-open");
 }
 
-async function logoutCustomer(e){
-  e.preventDefault();
+async function logoutCustomer(event){
+  event?.preventDefault();
+
   try{
-    if(typeof sb !== "undefined" && sb?.auth) await sb.auth.signOut();
+    if(typeof sb !== "undefined" && sb?.auth){
+      await sb.auth.signOut();
+    }
   }catch(error){
-    console.warn("Customer logout failed", error);
+    console.warn("Customer logout failed",error);
   }
+
   window.location.href = "/customer-register.html";
 }
 
 function setActivePublicNav(){
   const path = window.location.pathname;
   const hash = window.location.hash;
-  document.querySelectorAll(".public-nav a[data-page]").forEach(link => link.classList.remove("active"));
+
+  document
+    .querySelectorAll(".public-nav a[data-page]")
+    .forEach(function(link){
+      link.classList.remove("active");
+    });
 
   if(path === "/" || path.endsWith("/index.html")){
     markActive(hash === "#export-services" ? "export" : "home");
@@ -325,229 +408,402 @@ function setActivePublicNav(){
     return;
   }
 
-  if(path.includes("contact-us")){
+  if(path.includes("contact-us") || path.includes("anybike-connect")){
     markActive("connect");
+    return;
   }
 
   function markActive(page){
-    document.querySelector('.public-nav a[data-page="' + page + '"]')?.classList.add("active");
+    document
+      .querySelector('.public-nav a[data-page="' + page + '"]')
+      ?.classList.add("active");
   }
 }
 
-async function saveHeaderPreference(field, value){
+async function saveHeaderPreference(field,value){
   try{
-    if(typeof sb === "undefined" || !sb?.auth) return;
+    if(typeof sb === "undefined" || !sb?.auth){
+      return;
+    }
 
-    const { data:{ user } } = await sb.auth.getUser();
-    if(!user) return;
+    const userResult = await sb.auth.getUser();
+    const user = userResult?.data?.user || null;
+
+    if(!user){
+      return;
+    }
 
     const updateData = {};
     updateData[field] = value;
 
-    await sb.from("customer_profiles").update(updateData).eq("id", user.id);
+    await sb
+      .from("customer_profiles")
+      .update(updateData)
+      .eq("id",user.id);
   }catch(error){
-    console.warn("Header preference could not be saved to profile", error);
+    console.warn("Header preference could not be saved",error);
   }
 }
 
-async function loadCustomerMessageCounts(userId){
-  try{
-    if(typeof sb === "undefined"){
-      setMessageCount(0);
-      return;
-    }
+function isCustomerSenderValue(value,userEmail){
+  const sender = String(value || "").trim().toLowerCase();
+  const email = String(userEmail || "").trim().toLowerCase();
 
-    const { data:enquiries } = await sb
-      .from("bike_enquiries")
-      .select("id")
-      .eq("customer_id", userId);
+  if(!sender){
+    return false;
+  }
 
-    if(!enquiries?.length){
-      setMessageCount(0);
-      return;
-    }
+  return sender === "customer" ||
+    sender === "buyer" ||
+    sender === "user" ||
+    sender.includes("customer") ||
+    (email && sender === email);
+}
 
-    const { count } = await sb
-      .from("enquiry_messages")
-      .select("id", { count:"exact", head:true })
-      .in("enquiry_id", enquiries.map(e => e.id))
-      .eq("sender", "AnyBike");
+function isCustomerMessageRow(message,userEmail){
+  return [
+    message?.sender,
+    message?.sender_type,
+    message?.sender_name,
+    message?.sender_email
+  ].some(function(value){
+    return isCustomerSenderValue(value,userEmail);
+  });
+}
 
-    setMessageCount(count || 0);
-  }catch(error){
-    console.warn("Message count unavailable", error);
+async function loadCustomerHeaderActivity(user){
+  if(typeof sb === "undefined" || !user){
     setMessageCount(0);
-  }
-}
-
-async function loadCustomerNotifications(userId){
-  try{
-    if(typeof sb === "undefined"){
-      setNotificationCount(0);
-      renderNotificationList([]);
-      return;
-    }
-
-    const { data, error } = await sb
-      .from("customer_notifications")
-      .select("*")
-      .eq("customer_id", userId)
-      .order("created_at", { ascending:false });
-
-    if(error) throw error;
-
-    const items = data || [];
-    setNotificationCount(items.filter(n => !n.is_read).length);
-    renderNotificationList(items);
-  }catch(error){
-    console.warn("Customer notifications unavailable", error);
     setNotificationCount(0);
     renderNotificationList([]);
+    return;
   }
+
+  const unreadItems = [];
+
+  await Promise.allSettled([
+    loadUnreadSingleBikeConversations(user,unreadItems),
+    loadUnreadMessageCentreConversations(user,unreadItems)
+  ]);
+
+  unreadItems.sort(function(a,b){
+    return new Date(b.date || 0) - new Date(a.date || 0);
+  });
+
+  const total = unreadItems.length;
+
+  setMessageCount(total);
+  setNotificationCount(total);
+  renderNotificationList(unreadItems);
+
+  window.dispatchEvent(new CustomEvent("anybikeCustomerUnreadChanged",{
+    detail:{
+      count:total,
+      items:unreadItems
+    }
+  }));
+}
+
+async function loadUnreadSingleBikeConversations(user,unreadItems){
+  const enquiryResult = await sb
+    .from("bike_enquiries")
+    .select("id,bike_id,created_at,available_stock(id,make,model,year)")
+    .eq("customer_id",user.id);
+
+  if(enquiryResult.error){
+    console.warn("Single-bike enquiries unavailable",enquiryResult.error.message);
+    return;
+  }
+
+  const enquiries = enquiryResult.data || [];
+
+  if(!enquiries.length){
+    return;
+  }
+
+  const enquiryIds = enquiries.map(function(enquiry){
+    return enquiry.id;
+  });
+
+  const messagesResult = await sb
+    .from("enquiry_messages")
+    .select("id,enquiry_id,sender,message,created_at")
+    .in("enquiry_id",enquiryIds)
+    .order("created_at",{ascending:true});
+
+  if(messagesResult.error){
+    console.warn("Single-bike messages unavailable",messagesResult.error.message);
+    return;
+  }
+
+  const latestByEnquiry = new Map();
+
+  (messagesResult.data || []).forEach(function(message){
+    latestByEnquiry.set(String(message.enquiry_id),message);
+  });
+
+  enquiries.forEach(function(enquiry){
+    const latest = latestByEnquiry.get(String(enquiry.id));
+
+    if(!latest){
+      return;
+    }
+
+    if(isCustomerMessageRow(latest,user.email)){
+      return;
+    }
+
+    const bike = enquiry.available_stock || {};
+    const title = [bike.year,bike.make,bike.model]
+      .filter(Boolean)
+      .join(" ") || "Motorcycle enquiry";
+
+    unreadItems.push({
+      type:"single-bike",
+      id:"bike-" + String(enquiry.id),
+      title:title,
+      message:String(latest.message || "").substring(0,120),
+      date:latest.created_at || enquiry.created_at,
+      icon:"🏍️",
+      link:"/customer-dashboard.html#messages"
+    });
+  });
+}
+
+async function loadUnreadMessageCentreConversations(user,unreadItems){
+  if(!user.email){
+    return;
+  }
+
+  const threadsResult = await sb
+    .from("message_centre_threads")
+    .select("id,subject,source_type,department,last_message,last_message_at,last_sender,status")
+    .eq("customer_email",user.email)
+    .order("last_message_at",{ascending:false});
+
+  if(threadsResult.error){
+    console.warn("Message Centre threads unavailable",threadsResult.error.message);
+    return;
+  }
+
+  (threadsResult.data || []).forEach(function(thread){
+    if(isCustomerSenderValue(thread.last_sender,user.email)){
+      return;
+    }
+
+    unreadItems.push({
+      type:"message-centre",
+      id:"thread-" + String(thread.id),
+      title:thread.subject || thread.department || "AnyBike message",
+      message:String(thread.last_message || "").substring(0,120),
+      date:thread.last_message_at || "",
+      icon:String(thread.source_type || "").toLowerCase().includes("global buyer")
+        ? "🌍"
+        : "💬",
+      link:"/customer-dashboard.html#messages"
+    });
+  });
 }
 
 function renderNotificationList(items){
   const list = document.getElementById("notificationList");
-  if(!list) return;
 
-  const language = normaliseLanguage(localStorage.getItem("anybikeLanguage") || "en");
-  const t = ANYBIKE_HEADER_TRANSLATIONS[language];
-
-  if(!items?.length){
-    list.innerHTML = "<p>" + escapeHtml(t.noNotifications) + "</p>";
+  if(!list){
     return;
   }
 
-  list.innerHTML = items.map(n => `
-    <a href="${escapeHtml(n.link || "#")}" class="notification-item ${n.is_read ? "read" : "unread"}">
-      <span class="notification-icon">${n.icon || "🔔"}</span>
-      <span class="notification-copy">
-        <strong>${escapeHtml(n.title || t.notifications)}</strong>
-        <small>${escapeHtml(n.message || "")}</small>
-      </span>
-    </a>
-  `).join("");
+  const language = normaliseLanguage(
+    localStorage.getItem("anybikeLanguage") || "en"
+  );
+
+  const translations = ANYBIKE_HEADER_TRANSLATIONS[language];
+
+  if(!items?.length){
+    list.innerHTML =
+      "<p>" + escapeHtml(translations.noNotifications) + "</p>";
+    return;
+  }
+
+  list.innerHTML = items.slice(0,12).map(function(item){
+    return `
+      <a href="${escapeHtml(item.link || "#")}"
+         class="notification-item unread">
+        <span class="notification-icon">${item.icon || "🔔"}</span>
+
+        <span class="notification-copy">
+          <strong>${escapeHtml(item.title || translations.notifications)}</strong>
+          <small>${escapeHtml(item.message || "")}</small>
+        </span>
+      </a>
+    `;
+  }).join("");
 }
 
 function setMessageCount(total){
+  total = Number(total) || 0;
+
   const link = document.getElementById("phMessages");
   const count = document.getElementById("phMessagesCount");
-  if(count) count.textContent = total;
+
+  if(count){
+    count.textContent = total;
+    count.style.display = total > 0 ? "inline-flex" : "none";
+  }
+
   if(link){
-    link.classList.toggle("has-messages", total > 0);
-    link.setAttribute("aria-label", "Messages " + total);
+    link.classList.toggle("has-messages",total > 0);
+    link.setAttribute("aria-label","Messages " + total);
   }
 }
 
 function setNotificationCount(total){
+  total = Number(total) || 0;
+
   const button = document.getElementById("phNotifications");
   const count = document.getElementById("phNotificationsCount");
-  if(count) count.textContent = total;
+
+  if(count){
+    count.textContent = total;
+    count.style.display = total > 0 ? "inline-flex" : "none";
+  }
+
   if(button){
-    button.classList.toggle("has-notifications", total > 0);
-    button.setAttribute("aria-label", "Notifications " + total);
+    button.classList.toggle("has-notifications",total > 0);
+    button.setAttribute("aria-label","Notifications " + total);
   }
 }
 
 function updateHeaderTimes(){
   const now = new Date();
 
-  const localTime = now.toLocaleString([], {
-    weekday:"short", day:"2-digit", month:"short", hour:"2-digit", minute:"2-digit"
+  const localTime = now.toLocaleString([],{
+    weekday:"short",
+    day:"2-digit",
+    month:"short",
+    hour:"2-digit",
+    minute:"2-digit"
   });
 
-  const ukTime = now.toLocaleString("en-GB", {
+  const ukTime = now.toLocaleString("en-GB",{
     timeZone:"Europe/London",
-    weekday:"short", day:"2-digit", month:"short", hour:"2-digit", minute:"2-digit"
+    weekday:"short",
+    day:"2-digit",
+    month:"short",
+    hour:"2-digit",
+    minute:"2-digit"
   });
 
   const localEl = document.getElementById("phLocalTime");
   const ukEl = document.getElementById("phUkTime");
 
-  if(localEl) localEl.textContent = "Local " + localTime;
-  if(ukEl) ukEl.textContent = "UK " + ukTime;
+  if(localEl){
+    localEl.textContent = "Local " + localTime;
+  }
+
+  if(ukEl){
+    ukEl.textContent = "UK " + ukTime;
+  }
 }
 
 function applyHeaderCurrency(currency){
   currency = normaliseCurrency(currency);
+
   window.anybikeCurrency = currency;
-  localStorage.setItem("anybikeCurrency", currency);
+  localStorage.setItem("anybikeCurrency",currency);
 
   updateSharedPagePrices(currency);
 
   if(typeof window.updateDisplayedPrices === "function"){
-    try{ window.updateDisplayedPrices(); }catch(error){ console.warn(error); }
+    try{
+      window.updateDisplayedPrices();
+    }catch(error){
+      console.warn(error);
+    }
   }
 
-  window.dispatchEvent(new CustomEvent("anybikeCurrencyChanged", {
-    detail:{ currency }
+  window.dispatchEvent(new CustomEvent("anybikeCurrencyChanged",{
+    detail:{
+      currency:currency
+    }
   }));
 }
 
 function updateSharedPagePrices(currency){
   const rate = ANYBIKE_HEADER_CURRENCY_RATES[currency] || 1;
 
-  document.querySelectorAll("[data-price-gbp]").forEach(element => {
-    const raw = Number(element.dataset.priceGbp);
-    if(!Number.isFinite(raw)) return;
+  document
+    .querySelectorAll("[data-price-gbp]")
+    .forEach(function(element){
+      const raw = Number(element.dataset.priceGbp);
 
-    element.textContent = (raw * rate).toLocaleString("en-GB", {
-      style:"currency",
-      currency,
-      maximumFractionDigits:0
+      if(!Number.isFinite(raw)){
+        return;
+      }
+
+      element.textContent = (raw * rate).toLocaleString("en-GB",{
+        style:"currency",
+        currency:currency,
+        maximumFractionDigits:0
+      });
     });
-  });
 }
 
 function applyHeaderLanguage(language){
   language = normaliseLanguage(language);
-  const t = ANYBIKE_HEADER_TRANSLATIONS[language];
+
+  const translations = ANYBIKE_HEADER_TRANSLATIONS[language];
 
   window.anybikeLanguage = language;
-  localStorage.setItem("anybikeLanguage", language);
+  localStorage.setItem("anybikeLanguage",language);
+
   document.documentElement.lang = language;
   document.documentElement.dir = language === "ar" ? "rtl" : "ltr";
 
-  setText("[data-i18n='messages']", t.messages);
-  setText("[data-i18n='language']", t.language);
-  setText("[data-i18n='currency']", t.currency);
-  setText("[data-i18n='home']", t.home);
-  setText("[data-i18n='stock']", t.stock);
-  setText("[data-i18n='buy']", t.buy);
-  setText("[data-i18n='sell']", t.sell);
-  setText("[data-i18n='export']", t.export);
-  setText("[data-i18n='connect']", t.connect);
-  setText("[data-i18n='account']", t.account);
-  setText("[data-i18n='signIn']", t.signIn);
-  setText("[data-i18n='createAccount']", t.createAccount);
-  setText("[data-i18n='dashboard']", t.dashboard);
-  setText("[data-i18n='profile']", t.profile);
-  setText("[data-i18n='savedSearches']", t.savedSearches);
-  setText("[data-i18n='watchlist']", t.watchlist);
-  setText("[data-i18n='recentlyViewed']", t.recentlyViewed);
-  setText("[data-i18n='requests']", t.requests);
-  setText("[data-i18n='logout']", t.logout);
-  setText("[data-i18n='notifications']", t.notifications);
-  setText("[data-i18n='close']", t.close);
+  setText("[data-i18n='messages']",translations.messages);
+  setText("[data-i18n='language']",translations.language);
+  setText("[data-i18n='currency']",translations.currency);
+  setText("[data-i18n='home']",translations.home);
+  setText("[data-i18n='stock']",translations.stock);
+  setText("[data-i18n='buy']",translations.buy);
+  setText("[data-i18n='sell']",translations.sell);
+  setText("[data-i18n='export']",translations.export);
+  setText("[data-i18n='connect']",translations.connect);
+  setText("[data-i18n='account']",translations.account);
+  setText("[data-i18n='signIn']",translations.signIn);
+  setText("[data-i18n='createAccount']",translations.createAccount);
+  setText("[data-i18n='dashboard']",translations.dashboard);
+  setText("[data-i18n='profile']",translations.profile);
+  setText("[data-i18n='savedSearches']",translations.savedSearches);
+  setText("[data-i18n='watchlist']",translations.watchlist);
+  setText("[data-i18n='recentlyViewed']",translations.recentlyViewed);
+  setText("[data-i18n='requests']",translations.requests);
+  setText("[data-i18n='logout']",translations.logout);
+  setText("[data-i18n='notifications']",translations.notifications);
+  setText("[data-i18n='close']",translations.close);
 
-  const notificationList = document.getElementById("notificationList");
-  if(notificationList && notificationList.querySelector("p")){
-    notificationList.innerHTML = "<p>" + escapeHtml(t.noNotifications) + "</p>";
-  }
-
-  window.dispatchEvent(new CustomEvent("anybikeLanguageChanged", {
-    detail:{ language }
+  window.dispatchEvent(new CustomEvent("anybikeLanguageChanged",{
+    detail:{
+      language:language
+    }
   }));
 }
 
-function setText(selector, value){
-  document.querySelectorAll(selector).forEach(element => {
-    element.textContent = value;
-  });
+function setText(selector,value){
+  document
+    .querySelectorAll(selector)
+    .forEach(function(element){
+      element.textContent = value;
+    });
 }
 
 function escapeHtml(value){
-  return String(value ?? "").replace(/[&<>"']/g, char => ({
-    "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;"
-  })[char]);
+  return String(value ?? "").replace(/[&<>"']/g,function(char){
+    return {
+      "&":"&amp;",
+      "<":"&lt;",
+      ">":"&gt;",
+      '"':"&quot;",
+      "'":"&#39;"
+    }[char];
+  });
 }
