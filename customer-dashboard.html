@@ -63,6 +63,17 @@ Changes
 <title>My AnyBike | Customer Workspace</title>
 <meta name="robots" content="noindex,nofollow">
 <link rel="icon" href="anybike-logo-new.jpg" type="image/jpeg">
+
+<script>
+document.documentElement.classList.add("customer-auth-pending");
+</script>
+
+<style>
+html.customer-auth-pending body{
+  visibility:hidden;
+}
+</style>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link rel="stylesheet" href="/public-header.css?v=9000">
 
@@ -824,8 +835,32 @@ let currentUser=null;
 let currentProfile=null;
 let openConversationKey=null;
 
+function getCustomerLoginUrl(){
+  const returnUrl =
+    window.location.pathname +
+    window.location.search +
+    window.location.hash;
+
+  return "customer-register.html?return=" +
+    encodeURIComponent(returnUrl);
+}
+
+function redirectToCustomerLogin(){
+  window.location.replace(getCustomerLoginUrl());
+}
+
 function safe(v){
-  return v===undefined || v===null || String(v).trim()==="" ? "-" : String(v);
+  const value =
+    v===undefined || v===null || String(v).trim()===""
+      ? "-"
+      : String(v);
+
+  return value
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
 }
 
 function getCustomerDisplayName(){
@@ -909,10 +944,7 @@ async function loadUser(){
   currentUser=user || null;
 
   if(!currentUser){
-    setUserAreaHtml(`<a href="customer-register.html" style="color:#fff;text-decoration:none">Login / Register</a>`);
-    document.getElementById("welcomeText").innerHTML=`Please <a href="customer-register.html" style="color:#ed1c24;font-weight:900">login or register</a> to view your dashboard.`;
-    document.getElementById("recentlyViewedBox").innerHTML=`<p class="muted">Login to see recently viewed bikes.</p>`;
-    document.getElementById("customerEnquiries").innerHTML=`<p class="muted">Login to see your enquiries and messages.</p>`;
+    redirectToCustomerLogin();
     return false;
   }
 
@@ -928,20 +960,6 @@ async function loadUser(){
     profile=profileById.data || null;
   }else{
     console.warn("Profile lookup by user ID failed",profileById.error.message);
-  }
-
-  if(!profile && currentUser.email){
-    const profileByEmail=await sb
-      .from("customer_profiles")
-      .select("*")
-      .eq("email",currentUser.email)
-      .maybeSingle();
-
-    if(!profileByEmail.error){
-      profile=profileByEmail.data || null;
-    }else{
-      console.warn("Profile lookup by email failed",profileByEmail.error.message);
-    }
   }
 
   currentProfile=profile || {
@@ -1132,7 +1150,7 @@ async function loadCustomerEnquiries(){
     sb
       .from("message_centre_threads")
       .select("*")
-      .eq("customer_email",currentUser.email)
+      .eq("customer_id",currentUser.id)
       .order("last_message_at",{ascending:false,nullsFirst:false})
   ]);
 
@@ -1391,7 +1409,19 @@ async function loadCustomerMessages(enquiryId){
 
 async function sendCustomerMessage(enquiryId){
   if(!currentUser){
-    alert("Please login first.");
+    redirectToCustomerLogin();
+    return;
+  }
+
+  const {data:ownedEnquiry,error:ownershipError}=await sb
+    .from("bike_enquiries")
+    .select("id")
+    .eq("id",Number(enquiryId))
+    .eq("customer_id",currentUser.id)
+    .maybeSingle();
+
+  if(ownershipError || !ownedEnquiry){
+    alert("You do not have access to this enquiry.");
     return;
   }
 
@@ -1569,6 +1599,23 @@ window.anybikeCustomerThreadMessages={};
 
 
 async function loadGlobalBuyerMessages(threadId){
+  if(!currentUser){
+    redirectToCustomerLogin();
+    return;
+  }
+
+  const {data:ownedThread,error:ownershipError}=await sb
+    .from("message_centre_threads")
+    .select("id")
+    .eq("id",Number(threadId))
+    .eq("customer_id",currentUser.id)
+    .maybeSingle();
+
+  if(ownershipError || !ownedThread){
+    console.warn("Conversation access denied",ownershipError?.message || "");
+    return;
+  }
+
   const box=document.getElementById(`global-messages-${threadId}`);
   const bubble=document.getElementById(`global-bubble-${threadId}`);
   const card=document.getElementById(`customer-enquiry-global-${threadId}`);
@@ -1652,7 +1699,19 @@ async function loadGlobalBuyerMessages(threadId){
 
 async function sendGlobalBuyerMessage(threadId){
   if(!currentUser){
-    alert("Please login first.");
+    redirectToCustomerLogin();
+    return;
+  }
+
+  const {data:ownedThread,error:ownershipError}=await sb
+    .from("message_centre_threads")
+    .select("id")
+    .eq("id",Number(threadId))
+    .eq("customer_id",currentUser.id)
+    .maybeSingle();
+
+  if(ownershipError || !ownedThread){
+    alert("You do not have access to this conversation.");
     return;
   }
 
@@ -1698,7 +1757,8 @@ async function sendGlobalBuyerMessage(threadId){
       status:"Needs Reply",
       updated_at:now
     })
-    .eq("id",Number(threadId));
+    .eq("id",Number(threadId))
+    .eq("customer_id",currentUser.id);
 
   if(threadError){
     if(status){
@@ -2118,6 +2178,7 @@ async function sendNewCustomerThread(){
 
   try{
     const threadPayload={
+      customer_id:currentUser.id,
       customer_name:currentProfile?.full_name || currentUser.email || "Customer",
       customer_email:currentUser.email || null,
       customer_phone:currentProfile?.phone || null,
@@ -2427,6 +2488,8 @@ async function initialiseCustomerNotifications(){
       return;
     }
 
+    document.documentElement.classList.remove("customer-auth-pending");
+
     await Promise.allSettled([
       loadCounts(),
       loadRecentlyViewed(),
@@ -2437,6 +2500,10 @@ async function initialiseCustomerNotifications(){
     await initialiseCustomerNotifications();
   }catch(error){
     console.error("My AnyBike failed to initialise",error);
+
+    if(currentUser){
+      document.documentElement.classList.remove("customer-auth-pending");
+    }
 
     const welcome=document.getElementById("welcomeText");
     const enquiries=document.getElementById("customerEnquiries");
