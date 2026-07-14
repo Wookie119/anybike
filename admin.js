@@ -594,3 +594,61 @@ setInterval(loadAdminNotifications,60000);
 }
 
 initialiseAdmin();
+
+/* =========================================================
+   SESSION RECHECK — PREVENT PROTECTED ADMIN PAGES RETURNING
+   FROM THE BROWSER BACK/FORWARD CACHE AFTER LOGOUT
+   ========================================================= */
+
+let anybikeAdminSessionRecheckRunning = false;
+
+async function recheckAdminSession(){
+  if(anybikeAdminSessionRecheckRunning){
+    return;
+  }
+
+  anybikeAdminSessionRecheckRunning = true;
+
+  try{
+    const allowed = await requireAdminSession();
+
+    if(!allowed){
+      document.documentElement.classList.add("admin-auth-pending");
+      return;
+    }
+
+    document.documentElement.classList.remove("admin-auth-pending");
+  }catch(error){
+    console.warn("Admin session recheck failed",error);
+
+    const returnUrl =
+      window.location.pathname +
+      window.location.search +
+      window.location.hash;
+
+    window.location.replace(
+      "/admin-login.html?return=" +
+      encodeURIComponent(returnUrl)
+    );
+  }finally{
+    anybikeAdminSessionRecheckRunning = false;
+  }
+}
+
+window.addEventListener("pageshow",function(event){
+  if(event.persisted){
+    document.documentElement.classList.add("admin-auth-pending");
+    recheckAdminSession();
+  }
+});
+
+window.addEventListener("focus",function(){
+  recheckAdminSession();
+});
+
+document.addEventListener("visibilitychange",function(){
+  if(document.visibilityState === "visible"){
+    recheckAdminSession();
+  }
+});
+
