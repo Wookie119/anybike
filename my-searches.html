@@ -4,6 +4,18 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>My Saved Searches | AnyBike</title>
+<meta name="robots" content="noindex,nofollow">
+
+<script>
+document.documentElement.classList.add("customer-auth-pending");
+</script>
+
+<style>
+html.customer-auth-pending body{
+  visibility:hidden;
+}
+</style>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <style>
@@ -296,14 +308,6 @@ button.danger{
 
   </div>
 </header>
-<script>
-fetch("header.html")
-  .then(response => response.text())
-  .then(data => {
-    document.getElementById("header-placeholder").innerHTML = data;
-  });
-</script>
-  
 <main class="wrap">
 
   <section class="hero">
@@ -364,8 +368,34 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let currentUser=null;
 let stockOptions=[];
 
+function getCustomerLoginUrl(){
+  const returnUrl =
+    window.location.pathname +
+    window.location.search +
+    window.location.hash;
+
+  return "customer-register.html?return=" +
+    encodeURIComponent(returnUrl);
+}
+
+function redirectToCustomerLogin(){
+  window.location.replace(getCustomerLoginUrl());
+}
+
+function normaliseSearchId(value){
+  const id = Number(value);
+  return Number.isInteger(id) && id > 0 ? id : null;
+}
+
 function safe(v){
-  return v===undefined || v===null ? "" : String(v);
+  const value = v===undefined || v===null ? "" : String(v);
+
+  return value
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
 }
 
 function msg(text,ok=true){
@@ -379,12 +409,7 @@ async function loadUser(){
   currentUser=user || null;
 
   if(!currentUser){
-    document.getElementById("userArea").innerHTML =
-      `<a href="customer-register.html">Login / Register</a>`;
-
-    document.getElementById("searchList").innerHTML =
-      `Please <a href="customer-register.html" style="color:#ed1c24;font-weight:900">login</a> to save searches.`;
-
+    redirectToCustomerLogin();
     return false;
   }
 
@@ -397,7 +422,7 @@ async function loadUser(){
   const name=profile?.full_name || currentUser.email;
 
   document.getElementById("userArea").innerHTML =
-    `👤 <span class="user-name">${name}</span> | <a href="#" onclick="logout()">Logout</a>`;
+    `👤 <span class="user-name">${safe(name)}</span> | <a href="#" onclick="logout();return false;">Logout</a>`;
 
   return true;
 }
@@ -479,12 +504,21 @@ async function saveSearch(){
 
   const make=document.getElementById("make").value.trim();
   const model=document.getElementById("model").value.trim();
-  const min_year=document.getElementById("minYear").value
-    ? Number(document.getElementById("minYear").value)
-    : null;
-  const max_price=document.getElementById("maxPrice").value
-    ? Number(document.getElementById("maxPrice").value)
-    : null;
+  const minYearValue=document.getElementById("minYear").value;
+  const maxPriceValue=document.getElementById("maxPrice").value;
+
+  const min_year=minYearValue ? Number(minYearValue) : null;
+  const max_price=maxPriceValue ? Number(maxPriceValue) : null;
+
+  if(min_year !== null && (!Number.isInteger(min_year) || min_year < 1900 || min_year > 2100)){
+    msg("Please enter a valid minimum year.",false);
+    return;
+  }
+
+  if(max_price !== null && (!Number.isFinite(max_price) || max_price < 0 || max_price > 10000000)){
+    msg("Please enter a valid maximum price.",false);
+    return;
+  }
 
   if(!make && !model){
     msg("Please choose at least a make or model.",false);
@@ -545,7 +579,7 @@ async function loadSearches(){
       </div>
 
      <div class="actions">
-  <button class="light" onclick="viewMatches('${escapeJs(s.make || "")}','${escapeJs(s.model || "")}', '${s.min_year || ""}', '${s.max_price || ""}')">View Matches</button>
+  <button class="light" onclick="viewMatches(decodeURIComponent('${encodeURIComponent(String(s.make || ""))}'),decodeURIComponent('${encodeURIComponent(String(s.model || ""))}'),'${s.min_year || ""}','${s.max_price || ""}')">View Matches</button>
 
   <label style="margin:0;color:#fff;font-size:13px">
     <input type="checkbox"
@@ -570,11 +604,19 @@ async function loadSearches(){
   `).join("");
 }
 
-function escapeJs(str){
-  return String(str).replaceAll("\\","\\\\").replaceAll("'","\\'");
-}
 
 async function toggleSearchAlerts(searchId, enabled){
+  if(!currentUser){
+    redirectToCustomerLogin();
+    return;
+  }
+
+  const id = normaliseSearchId(searchId);
+
+  if(!id){
+    return;
+  }
+
   const frequency = enabled ? "instant" : "off";
 
   const {error}=await sb
@@ -583,7 +625,7 @@ async function toggleSearchAlerts(searchId, enabled){
       email_alerts_enabled: enabled,
       alert_frequency: frequency
     })
-    .eq("id",searchId)
+    .eq("id",id)
     .eq("customer_id",currentUser.id);
 
   if(error){
@@ -596,13 +638,25 @@ async function toggleSearchAlerts(searchId, enabled){
 }
 
 async function updateAlertFrequency(searchId, frequency){
+  if(!currentUser){
+    redirectToCustomerLogin();
+    return;
+  }
+
+  const id = normaliseSearchId(searchId);
+  const allowedFrequencies = ["instant","daily","weekly","off"];
+
+  if(!id || !allowedFrequencies.includes(frequency)){
+    return;
+  }
+
   const {error}=await sb
     .from("saved_searches")
     .update({
       alert_frequency: frequency,
       email_alerts_enabled: frequency !== "off"
     })
-    .eq("id",searchId)
+    .eq("id",id)
     .eq("customer_id",currentUser.id);
 
   if(error){
@@ -614,7 +668,18 @@ async function updateAlertFrequency(searchId, frequency){
   await loadSearches();
 }
 
-async function deleteSearch(id){
+async function deleteSearch(searchId){
+  if(!currentUser){
+    redirectToCustomerLogin();
+    return;
+  }
+
+  const id = normaliseSearchId(searchId);
+
+  if(!id){
+    return;
+  }
+
   const {error}=await sb
     .from("saved_searches")
     .delete()
@@ -644,8 +709,17 @@ document.getElementById("make").addEventListener("change",populateModels);
 
 (async function init(){
   const ok=await loadUser();
-  await loadStockOptions();
-  if(ok) await loadSearches();
+
+  if(!ok){
+    return;
+  }
+
+  await Promise.all([
+    loadStockOptions(),
+    loadSearches()
+  ]);
+
+  document.documentElement.classList.remove("customer-auth-pending");
 })();
 </script>
 
