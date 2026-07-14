@@ -1,19 +1,30 @@
 /*
 AnyBike
 File: admin.js
-Version: 11.0
-Date: 13 July 2026
+Version: 12.1
+Date: 14 July 2026
 
-Changes
-✓ Preserves existing admin sidebar and topbar loading
-✓ Preserves single-bike and Message Centre notifications
-✓ Adds Global Buyer Network notifications to the admin bell
-✓ Combines message and bulk-buyer alerts into one live notification list
-✓ Adds clickable bulk-buyer links to the correct CRM record
-✓ Adds per-browser Clear handling for bulk-buyer alerts
-✓ Keeps existing thread Clear behaviour
-✓ Refreshes notifications every 60 seconds
+Security
+✓ Hides admin content until the Supabase admin session is verified
+✓ Keeps browser back/forward cached admin pages hidden after logout
+✓ Rechecks the session on pageshow, focus and visibility changes
+✓ Preserves sidebar, topbar, search and notifications
 */
+
+(function protectAdminPageImmediately(){
+  document.documentElement.classList.add("admin-auth-pending");
+
+  const style=document.createElement("style");
+  style.id="anybike-admin-auth-guard";
+  style.textContent=`
+    html.admin-auth-pending body{
+      visibility:hidden !important;
+      pointer-events:none !important;
+    }
+  `;
+
+  (document.head || document.documentElement).appendChild(style);
+})();
 
 const ANYBIKE_ADMIN_EMAILS = [
 "sales@anybike.co.uk"
@@ -51,42 +62,76 @@ return adminEmail.toLowerCase() === value;
 }
 
 async function requireAdminSession(){
-const client = getAdminSupabaseClient();
+  const client=getAdminSupabaseClient();
 
-if(!client){
-console.error("Supabase client is unavailable on this admin page.");
-window.location.replace("/admin-login.html?error=supabase");
-return false;
-}
+  document.documentElement.classList.add("admin-auth-pending");
 
-const sessionResult = await client.auth.getSession();
-const user = sessionResult?.data?.session?.user || null;
+  if(!client){
+    console.error("Supabase client is unavailable on this admin page.");
 
-if(!user){
-const returnUrl =
-window.location.pathname +
-window.location.search +
-window.location.hash;
+    window.location.replace(
+      "/admin-login.html?error=supabase"
+    );
 
-window.location.replace(
-  "/admin-login.html?return=" + encodeURIComponent(returnUrl)
-);
+    return false;
+  }
 
-return false;
-}
+  try{
+    const {
+      data,
+      error
+    }=await client.auth.getSession();
 
-if(!isAllowedAdminEmail(user.email)){
-await client.auth.signOut();
+    if(error){
+      console.warn("Admin session check failed",error.message);
+    }
 
-window.location.replace(
-  "/admin-login.html?error=not-authorized"
-);
+    const user=data?.session?.user || null;
 
-return false;
-}
+    if(!user){
+      const returnUrl=
+        window.location.pathname +
+        window.location.search +
+        window.location.hash;
 
-anybikeAdminUser = user;
-return true;
+      window.location.replace(
+        "/admin-login.html?return=" +
+        encodeURIComponent(returnUrl)
+      );
+
+      return false;
+    }
+
+    if(!isAllowedAdminEmail(user.email)){
+      await client.auth.signOut();
+
+      window.location.replace(
+        "/admin-login.html?error=not-authorized"
+      );
+
+      return false;
+    }
+
+    anybikeAdminUser=user;
+    document.documentElement.classList.remove("admin-auth-pending");
+
+    return true;
+
+  }catch(error){
+    console.warn("Admin session check failed",error);
+
+    const returnUrl=
+      window.location.pathname +
+      window.location.search +
+      window.location.hash;
+
+    window.location.replace(
+      "/admin-login.html?return=" +
+      encodeURIComponent(returnUrl)
+    );
+
+    return false;
+  }
 }
 
 async function setupAdminIdentity(){
@@ -113,17 +158,34 @@ emailEl.title = anybikeAdminUser.email || "";
 }
 
 async function adminLogout(){
-const client = getAdminSupabaseClient();
+  const client=getAdminSupabaseClient();
 
-try{
-if(client){
-await client.auth.signOut();
-}
-}catch(error){
-console.warn("Admin logout failed",error);
-}
+  /*
+    Hide the current document before it enters the browser's
+    back/forward cache. If restored later, the cached snapshot
+    remains hidden until requireAdminSession() succeeds.
+  */
+  document.documentElement.classList.add("admin-auth-pending");
 
-window.location.replace("/admin-login.html");
+  try{
+    if(client){
+      await client.auth.signOut({
+        scope:"local"
+      });
+    }
+  }catch(error){
+    console.warn("Admin logout failed",error);
+  }
+
+  anybikeAdminUser=null;
+
+  try{
+    sessionStorage.removeItem("anybike_admin_authenticated");
+  }catch(error){
+    // Storage may be unavailable in private browsing.
+  }
+
+  window.location.replace("/admin-login.html");
 }
 
 function loadAdminShell(){
@@ -581,74 +643,76 @@ function loadMessageCentreNotifications(){
 return loadAdminNotifications();
 }
 
-async function initialiseAdmin(){
-const allowed = await requireAdminSession();
-
-if(!allowed){
-return;
-}
-
-loadAdminShell();
-loadAdminNotifications();
-setInterval(loadAdminNotifications,60000);
-}
-
-initialiseAdmin();
-
-/* =========================================================
-   SESSION RECHECK — PREVENT PROTECTED ADMIN PAGES RETURNING
-   FROM THE BROWSER BACK/FORWARD CACHE AFTER LOGOUT
-   ========================================================= */
-
-let anybikeAdminSessionRecheckRunning = false;
+let anybikeAdminInitialised=false;
+let anybikeAdminRecheckRunning=false;
+let anybikeAdminNotificationTimer=null;
 
 async function recheckAdminSession(){
-  if(anybikeAdminSessionRecheckRunning){
+  if(anybikeAdminRecheckRunning){
+    return false;
+  }
+
+  anybikeAdminRecheckRunning=true;
+
+  try{
+    return await requireAdminSession();
+  }finally{
+    anybikeAdminRecheckRunning=false;
+  }
+}
+
+async function initialiseAdmin(){
+  const allowed=await recheckAdminSession();
+
+  if(!allowed){
     return;
   }
 
-  anybikeAdminSessionRecheckRunning = true;
+  if(!anybikeAdminInitialised){
+    anybikeAdminInitialised=true;
 
-  try{
-    const allowed = await requireAdminSession();
+    loadAdminShell();
+    loadAdminNotifications();
 
-    if(!allowed){
-      document.documentElement.classList.add("admin-auth-pending");
-      return;
-    }
-
-    document.documentElement.classList.remove("admin-auth-pending");
-  }catch(error){
-    console.warn("Admin session recheck failed",error);
-
-    const returnUrl =
-      window.location.pathname +
-      window.location.search +
-      window.location.hash;
-
-    window.location.replace(
-      "/admin-login.html?return=" +
-      encodeURIComponent(returnUrl)
+    anybikeAdminNotificationTimer=setInterval(
+      loadAdminNotifications,
+      60000
     );
-  }finally{
-    anybikeAdminSessionRecheckRunning = false;
   }
 }
 
-window.addEventListener("pageshow",function(event){
-  if(event.persisted){
-    document.documentElement.classList.add("admin-auth-pending");
-    recheckAdminSession();
+/*
+  Mark the document hidden before the browser stores it in
+  back/forward cache. A valid session will reveal it again.
+*/
+window.addEventListener("pagehide",function(){
+  document.documentElement.classList.add("admin-auth-pending");
+});
+
+window.addEventListener("pageshow",async function(){
+  document.documentElement.classList.add("admin-auth-pending");
+
+  const allowed=await recheckAdminSession();
+
+  if(allowed && !anybikeAdminInitialised){
+    initialiseAdmin();
   }
 });
 
-window.addEventListener("focus",function(){
-  recheckAdminSession();
-});
-
-document.addEventListener("visibilitychange",function(){
-  if(document.visibilityState === "visible"){
-    recheckAdminSession();
+window.addEventListener("focus",async function(){
+  if(document.visibilityState !== "visible"){
+    return;
   }
+
+  await recheckAdminSession();
 });
 
+document.addEventListener("visibilitychange",async function(){
+  if(document.visibilityState !== "visible"){
+    return;
+  }
+
+  await recheckAdminSession();
+});
+
+initialiseAdmin();
