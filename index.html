@@ -67,6 +67,11 @@ img{max-width:100%}
   border-color:rgba(255,255,255,.18);
   box-shadow:none;
 }
+.btn:disabled{
+  opacity:.62;
+  cursor:not-allowed;
+  transform:none;
+}
 .eyebrow{
   color:var(--red);
   text-transform:uppercase;
@@ -763,7 +768,7 @@ footer{border-top:1px solid var(--line);padding:28px 22px;color:var(--muted);fon
 }
 
 </style>
-<link rel="stylesheet" href="/public-header.css?v=20260712-3">
+<link rel="stylesheet" href="/public-header.css?v=12001">
 </head>
 
 <body>
@@ -980,7 +985,7 @@ footer{border-top:1px solid var(--line);padding:28px 22px;color:var(--muted);fon
           <div class="field"><label>Service history</label><select name="service_history"><option value="">Select service history</option><option>Full service history</option><option>Partial service history</option><option>No service history</option><option>Unknown</option></select></div>
           <div class="field"><label>Upload photos</label><input type="file" name="photos" accept="image/*" multiple></div>
           <div class="field full"><label>Notes</label><textarea name="notes" placeholder="Finance outstanding, damage, MOT, extras, spare keys..."></textarea></div>
-          <div class="field full"><button class="btn" type="submit">Send My Bike Details</button><div class="form-msg" id="sellMsg"></div></div>
+          <div class="field full"><button class="btn" id="sellBikeSubmitBtn" type="submit">Send My Bike Details</button><div class="form-msg" id="sellMsg"></div></div>
         </div>
       </form>
     </div>
@@ -1050,10 +1055,83 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const $ = id => document.getElementById(id);
 $("year").textContent = new Date().getFullYear();
 
-let detected = { country:null, country_name:null, ip:null, latitude:null, longitude:null };
+let detected = {
+  country:null,
+  country_name:null,
+  ip:null,
+  latitude:null,
+  longitude:null
+};
 
-function safe(v){
-  return String(v ?? "").replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+let sellBikeSubmitting = false;
+let lastSellBikeFingerprint = "";
+let lastSellBikeSubmittedAt = 0;
+
+function safe(value){
+  return String(value ?? "").replace(/[&<>'"]/g,function(char){
+    return {
+      "&":"&amp;",
+      "<":"&lt;",
+      ">":"&gt;",
+      "'":"&#39;",
+      '"':"&quot;"
+    }[char];
+  });
+}
+
+function safePublicUrl(value){
+  const raw=String(value || "").trim();
+
+  if(!raw){
+    return "";
+  }
+
+  try{
+    const parsed=new URL(raw,window.location.origin);
+
+    if(parsed.protocol !== "http:" && parsed.protocol !== "https:"){
+      return "";
+    }
+
+    return parsed.href;
+  }catch(error){
+    return "";
+  }
+}
+
+function normaliseEmail(value){
+  return String(value || "").trim().toLowerCase();
+}
+
+function validEmail(value){
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+    normaliseEmail(value)
+  );
+}
+
+function validPhone(value){
+  const compact=String(value || "")
+    .trim()
+    .replace(/[\s()+.\-]/g,"");
+
+  return /^\d{7,20}$/.test(compact);
+}
+
+function validRegistration(value){
+  const registration=String(value || "")
+    .toUpperCase()
+    .replace(/\s+/g,"")
+    .trim();
+
+  return /^[A-Z0-9]{2,10}$/.test(registration);
+}
+
+function normaliseBikeId(value){
+  const id=Number(value);
+
+  return Number.isInteger(id) && id>0
+    ? id
+    : null;
 }
 
 const currencyRates = {
@@ -1066,15 +1144,30 @@ const currencyRates = {
   AED:4.66
 };
 
-let selectedCurrency = localStorage.getItem("anybikeCurrency") || "GBP";
-let selectedLanguage = localStorage.getItem("anybikeLanguage") || "en";
+let selectedCurrency =
+  localStorage.getItem("anybikeCurrency") ||
+  localStorage.getItem("anybike_currency") ||
+  "GBP";
+let selectedLanguage =
+  localStorage.getItem("anybikeLanguage") ||
+  localStorage.getItem("anybike_language") ||
+  "en";
 
 
-function money(v){
-  if(v===null || v===undefined || v==="") return "POA";
-  const gbp = Number(v);
-  const rate = currencyRates[selectedCurrency] || 1;
-  return (gbp * rate).toLocaleString("en-GB",{style:"currency",currency:selectedCurrency,maximumFractionDigits:0});
+function money(value){
+  const gbp=Number(value);
+
+  if(!Number.isFinite(gbp) || gbp<=0){
+    return "POA";
+  }
+
+  const rate=currencyRates[selectedCurrency] || 1;
+
+  return (gbp*rate).toLocaleString("en-GB",{
+    style:"currency",
+    currency:selectedCurrency,
+    maximumFractionDigits:0
+  });
 }
 
 function setMsg(id,text,ok=true){
@@ -1109,38 +1202,106 @@ async function detectCountry(){
 
 async function loadLiveStock(){
   const grid=$("liveStockGrid");
-  if(!grid) return;
 
-  const {data,error}=await sb
-    .from("available_stock")
-    .select("id,make,model,variant,year,mileage,price_gbp,image_url,status")
-    .not("make","is",null)
-    .not("model","is",null)
-    .order("created_at",{ascending:false})
-    .limit(8);
-
-  if(error || !data || !data.length){
-    grid.innerHTML = `<div class="loading-stock">Live stock could not be loaded. <a href="/available-stock.html" style="color:#ed1c24;font-weight:900;">Browse all stock</a>.</div>`;
+  if(!grid){
     return;
   }
 
-  grid.innerHTML=data.map(b=>{
-    const title=[b.make,b.model].filter(Boolean).join(" ");
-    return `
-      <article class="stock-card">
-        <div class="stock-img">
-          ${b.image_url ? `<img src="${safe(b.image_url)}" alt="${safe(title)}">` : `<div>${safe(title)}<br>${safe(b.year || "")}</div>`}
-        </div>
-        <div class="stock-body">
-          <div class="stock-title">${safe(title)}</div>
-          <div class="stock-meta">${safe(b.variant || "")}</div>
-          <div class="stock-meta">${safe(b.year || "-")} ${b.mileage ? " • " + Number(b.mileage).toLocaleString("en-GB") + " miles" : ""}</div>
-          <div class="stock-price" data-price-gbp="${safe(b.price_gbp || 0)}">${money(b.price_gbp)}</div>
-          <a class="btn" href="/bike-details.html?id=${encodeURIComponent(b.id)}">View Bike</a>
-        </div>
-      </article>
-    `;
-  }).join("");
+  grid.innerHTML=
+    '<div class="loading-stock">Loading live motorcycles...</div>';
+
+  try{
+    const {data,error}=await sb
+      .from("available_stock")
+      .select(`
+        id,make,model,variant,year,mileage,
+        price_gbp,image_url,status,created_at
+      `)
+      .not("make","is",null)
+      .not("model","is",null)
+      .order("created_at",{ascending:false})
+      .limit(8);
+
+    if(error){
+      throw error;
+    }
+
+    const rows=(data || []).filter(function(bike){
+      return normaliseBikeId(bike.id);
+    });
+
+    if(!rows.length){
+      grid.innerHTML=
+        '<div class="loading-stock">No live motorcycles are available here right now. <a href="/available-stock.html" style="color:#ed1c24;font-weight:900;">Browse all stock</a>.</div>';
+      return;
+    }
+
+    grid.innerHTML=rows.map(function(bike){
+      const id=normaliseBikeId(bike.id);
+      const title=[bike.make,bike.model]
+        .filter(Boolean)
+        .join(" ");
+      const imageUrl=safePublicUrl(bike.image_url);
+      const mileage=Number(bike.mileage);
+      const mileageText=
+        Number.isFinite(mileage) && mileage>0
+          ? " • " + mileage.toLocaleString("en-GB") + " miles"
+          : "";
+      const rawPrice=Number(bike.price_gbp);
+      const dataPrice=
+        Number.isFinite(rawPrice) && rawPrice>0
+          ? rawPrice
+          : 0;
+
+      return `
+        <article class="stock-card">
+          <div class="stock-img">
+            ${
+              imageUrl
+                ? `
+                  <img
+                    src="${safe(imageUrl)}"
+                    alt="${safe(title)}"
+                    loading="lazy"
+                    referrerpolicy="no-referrer"
+                    onerror="this.parentElement.innerHTML='<div>${safe(title)}<br>${safe(bike.year || "")}</div>'"
+                  >
+                `
+                : `<div>${safe(title)}<br>${safe(bike.year || "")}</div>`
+            }
+          </div>
+
+          <div class="stock-body">
+            <div class="stock-title">${safe(title)}</div>
+            <div class="stock-meta">${safe(bike.variant || "")}</div>
+            <div class="stock-meta">
+              ${safe(bike.year || "-")}${mileageText}
+            </div>
+
+            <div
+              class="stock-price"
+              data-price-gbp="${safe(dataPrice)}"
+            >
+              ${safe(money(bike.price_gbp))}
+            </div>
+
+            <a
+              class="btn"
+              href="/bike-details.html?id=${encodeURIComponent(id)}"
+            >
+              View Bike
+            </a>
+          </div>
+        </article>
+      `;
+    }).join("");
+
+  }catch(error){
+    console.error("Live stock could not be loaded",error);
+
+    grid.innerHTML=
+      '<div class="loading-stock">Live stock could not be loaded. <a href="/available-stock.html" style="color:#ed1c24;font-weight:900;">Browse all stock</a>.</div>';
+  }
 }
 
 async function postcodeToLocation(postcode){
@@ -1192,10 +1353,9 @@ function commonPayload(form,leadType){
 }
 
 async function submitLead(form,msgId,leadType){
-  const btn=form.querySelector("button[type='submit']");
-  const original=btn.textContent;
-  btn.disabled=true;
-  btn.textContent="Sending...";
+  if(sellBikeSubmitting){
+    return;
+  }
 
   const payload={...commonPayload(form,leadType)};
 
@@ -1205,40 +1365,203 @@ async function submitLead(form,msgId,leadType){
   }
 
   if(!payload.seller_type){
-    payload.seller_type = leadType === "Contact" ? "General Contact" : "Private Seller";
+    payload.seller_type=
+      leadType==="Contact"
+        ? "General Contact"
+        : "Private Seller";
   }
 
-  ["bike_year","mileage","asking_price"].forEach(k=>{
-    if(payload[k]==="") payload[k]=null;
-    else if(payload[k]!==undefined) payload[k]=Number(payload[k]);
-  });
+  payload.email=normaliseEmail(payload.email);
+  payload.registration=String(payload.registration || "")
+    .toUpperCase()
+    .trim();
 
-  if(leadType==="Sell Bike" && payload.postcode){
-    const geo=await postcodeToLocation(payload.postcode);
-    if(geo){
-      payload.latitude=geo.latitude;
-      payload.longitude=geo.longitude;
-      payload.postcode=geo.postcode;
-      if(!payload.country || payload.country.toLowerCase()==="united kingdom"){
-        payload.country=geo.country || "United Kingdom";
-      }
-    }
-  }
-
-  const {error}=await sb.from("anybike_leads").insert(payload);
-
-  btn.disabled=false;
-  btn.textContent=original;
-
-  if(error){
-    console.error(error);
-    setMsg(msgId,"Sorry, your enquiry could not be sent. Please email sales@anybike.co.uk.\\n\\n" + error.message,false);
+  if(!payload.name || payload.name.length>200){
+    setMsg(msgId,"Please enter a valid name.",false);
     return;
   }
 
-  form.reset();
-  setMsg(msgId,"Thank you. Your enquiry has been sent to AnyBike.");
-  detectCountry();
+  if(!validEmail(payload.email)){
+    setMsg(msgId,"Please enter a valid email address.",false);
+    return;
+  }
+
+  if(!validPhone(payload.mobile)){
+    setMsg(msgId,"Please enter a valid mobile number.",false);
+    return;
+  }
+
+  if(!payload.country){
+    setMsg(msgId,"Please select your country.",false);
+    return;
+  }
+
+  if(!payload.postcode || payload.postcode.length>30){
+    setMsg(msgId,"Please enter a valid postcode.",false);
+    return;
+  }
+
+  if(!validRegistration(payload.registration)){
+    setMsg(msgId,"Please enter a valid motorcycle registration.",false);
+    return;
+  }
+
+  if(!payload.make || payload.make.length>100){
+    setMsg(msgId,"Please enter a valid motorcycle make.",false);
+    return;
+  }
+
+  if(!payload.model || payload.model.length>150){
+    setMsg(msgId,"Please enter a valid motorcycle model.",false);
+    return;
+  }
+
+  if(!payload.condition){
+    setMsg(msgId,"Please select the motorcycle condition.",false);
+    return;
+  }
+
+  const numericRules={
+    bike_year:{integer:true,min:1900,max:new Date().getFullYear()+1},
+    mileage:{integer:true,min:0,max:2000000},
+    asking_price:{integer:false,min:0,max:10000000}
+  };
+
+  for(const key of Object.keys(numericRules)){
+    if(payload[key]===""){
+      payload[key]=null;
+      continue;
+    }
+
+    if(payload[key]===undefined){
+      continue;
+    }
+
+    const number=Number(payload[key]);
+    const rule=numericRules[key];
+
+    if(
+      !Number.isFinite(number) ||
+      (rule.integer && !Number.isInteger(number)) ||
+      number<rule.min ||
+      number>rule.max
+    ){
+      setMsg(
+        msgId,
+        "Please check the year, mileage and asking price.",
+        false
+      );
+      return;
+    }
+
+    payload[key]=number;
+  }
+
+  if(String(payload.notes || "").length>5000){
+    setMsg(
+      msgId,
+      "Please shorten your notes to 5,000 characters or fewer.",
+      false
+    );
+    return;
+  }
+
+  if(Array.isArray(payload.photo_names)){
+    payload.photo_names=payload.photo_names
+      .slice(0,12)
+      .map(function(name){
+        return String(name).slice(0,255);
+      });
+  }
+
+  const fingerprint=JSON.stringify({
+    email:payload.email,
+    registration:payload.registration,
+    make:String(payload.make).toLowerCase(),
+    model:String(payload.model).toLowerCase(),
+    mileage:payload.mileage || null
+  });
+
+  const now=Date.now();
+
+  if(
+    fingerprint===lastSellBikeFingerprint &&
+    now-lastSellBikeSubmittedAt<60000
+  ){
+    setMsg(
+      msgId,
+      "This motorcycle enquiry has already been submitted.",
+      false
+    );
+    return;
+  }
+
+  const btn=form.querySelector("button[type='submit']");
+  const original=btn.textContent;
+
+  sellBikeSubmitting=true;
+  btn.disabled=true;
+  btn.textContent="Sending...";
+
+  try{
+    if(leadType==="Sell Bike" && payload.postcode){
+      const geo=await postcodeToLocation(payload.postcode);
+
+      if(geo){
+        payload.latitude=geo.latitude;
+        payload.longitude=geo.longitude;
+        payload.postcode=geo.postcode;
+
+        if(
+          !payload.country ||
+          payload.country.toLowerCase()==="united kingdom"
+        ){
+          payload.country=geo.country || "United Kingdom";
+        }
+      }
+    }
+
+    const {error}=await sb
+      .from("anybike_leads")
+      .insert(payload);
+
+    if(error){
+      throw error;
+    }
+
+    lastSellBikeFingerprint=fingerprint;
+    lastSellBikeSubmittedAt=Date.now();
+
+    form.reset();
+
+    const dealerField=$("dealerNameField");
+
+    if(dealerField){
+      dealerField.classList.add("hidden");
+    }
+
+    setMsg(
+      msgId,
+      "Thank you. Your enquiry has been sent to AnyBike."
+    );
+
+    detectCountry();
+
+  }catch(error){
+    console.error(error);
+
+    setMsg(
+      msgId,
+      "Sorry, your enquiry could not be sent. Please email sales@anybike.co.uk.\n\n" +
+      (error?.message || "Unknown error"),
+      false
+    );
+
+  }finally{
+    sellBikeSubmitting=false;
+    btn.disabled=false;
+    btn.textContent=original;
+  }
 }
 
 document.querySelectorAll('input[name="seller_type_choice"]').forEach(r=>{
@@ -1260,21 +1583,26 @@ function updateDisplayedPrices(){
   });
 }
 
-window.addEventListener("anybikeCurrencyChanged", e => {
-  selectedCurrency = e.detail.currency || "GBP";
-  localStorage.setItem("anybikeCurrency", selectedCurrency);
+window.addEventListener("anybikeCurrencyChanged",event=>{
+  selectedCurrency=event.detail?.currency || "GBP";
+
+  localStorage.setItem("anybikeCurrency",selectedCurrency);
+  localStorage.setItem("anybike_currency",selectedCurrency);
+
   updateDisplayedPrices();
 });
 
-window.addEventListener("anybikeLanguageChanged", e => {
-  selectedLanguage = e.detail.language || "en";
-  localStorage.setItem("anybikeLanguage", selectedLanguage);
+window.addEventListener("anybikeLanguageChanged",event=>{
+  selectedLanguage=event.detail?.language || "en";
+
+  localStorage.setItem("anybikeLanguage",selectedLanguage);
+  localStorage.setItem("anybike_language",selectedLanguage);
 });
 
 detectCountry();
 loadLiveStock();
 </script>
-<script src="/public-header.js?v=20260712-3"></script>
+<script src="/public-header.js?v=12001"></script>
 
 </body>
 </html>
