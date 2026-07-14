@@ -851,3 +851,97 @@ function escapeHtml(value){
     }[char];
   });
 }
+
+/* =========================================================
+   SESSION RECHECK — PREVENT PROTECTED CUSTOMER PAGES RETURNING
+   FROM THE BROWSER BACK/FORWARD CACHE AFTER LOGOUT
+   ========================================================= */
+
+const ANYBIKE_PROTECTED_CUSTOMER_PAGES = [
+  "/customer-dashboard.html",
+  "/my-watchlist.html",
+  "/my-searches.html"
+];
+
+let anybikeCustomerSessionRecheckRunning = false;
+
+function isProtectedCustomerPage(){
+  const path = String(window.location.pathname || "")
+    .replace(/\/{2,}/g,"/")
+    .toLowerCase();
+
+  return ANYBIKE_PROTECTED_CUSTOMER_PAGES.includes(path);
+}
+
+function getCustomerReturnLoginUrl(){
+  const returnUrl =
+    window.location.pathname +
+    window.location.search +
+    window.location.hash;
+
+  return "/customer-register.html?return=" +
+    encodeURIComponent(returnUrl);
+}
+
+async function verifyCustomerSession(){
+  if(!isProtectedCustomerPage()){
+    return true;
+  }
+
+  if(anybikeCustomerSessionRecheckRunning){
+    return false;
+  }
+
+  anybikeCustomerSessionRecheckRunning = true;
+
+  try{
+    if(typeof sb === "undefined" || !sb?.auth){
+      window.location.replace(getCustomerReturnLoginUrl());
+      return false;
+    }
+
+    const {data,error} = await sb.auth.getSession();
+
+    if(error){
+      console.warn("Customer session recheck failed",error.message);
+    }
+
+    const user = data?.session?.user || null;
+
+    if(!user){
+      document.documentElement.classList.add("customer-auth-pending");
+      window.location.replace(getCustomerReturnLoginUrl());
+      return false;
+    }
+
+    document.documentElement.classList.remove("customer-auth-pending");
+    return true;
+
+  }catch(error){
+    console.warn("Customer session recheck failed",error);
+    document.documentElement.classList.add("customer-auth-pending");
+    window.location.replace(getCustomerReturnLoginUrl());
+    return false;
+
+  }finally{
+    anybikeCustomerSessionRecheckRunning = false;
+  }
+}
+
+window.addEventListener("pageshow",function(event){
+  if(event.persisted && isProtectedCustomerPage()){
+    document.documentElement.classList.add("customer-auth-pending");
+    verifyCustomerSession();
+  }
+});
+
+window.addEventListener("focus",function(){
+  verifyCustomerSession();
+});
+
+document.addEventListener("visibilitychange",function(){
+  if(document.visibilityState === "visible"){
+    verifyCustomerSession();
+  }
+});
+
