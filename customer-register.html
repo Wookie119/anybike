@@ -150,6 +150,61 @@ select option{
   gap:12px;
 }
 
+.mode-tabs{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+  margin-bottom:20px;
+  padding:5px;
+  border:1px solid var(--line);
+  border-radius:999px;
+  background:rgba(255,255,255,.04);
+}
+
+.mode-tab{
+  min-height:44px;
+  margin:0;
+  padding:10px 14px;
+  border-radius:999px;
+  background:transparent;
+  color:#bbb;
+}
+
+.mode-tab.active{
+  background:var(--red);
+  color:#fff;
+}
+
+.login-only{
+  display:none;
+}
+
+body.login-mode .register-only{
+  display:none;
+}
+
+body.login-mode .login-only{
+  display:block;
+}
+
+body.login-mode .form-grid{
+  grid-template-columns:1fr;
+  max-width:520px;
+  margin:0 auto;
+}
+
+body.login-mode .card-heading h1::after{
+  content:"";
+}
+
+body.login-mode #registerButton{
+  display:none;
+}
+
+body:not(.login-mode) #loginSubmitButton{
+  display:none;
+}
+
 button{
   width:100%;
   min-height:52px;
@@ -266,10 +321,30 @@ button:disabled{
 
     <section class="card">
 
-      <div class="card-heading">
-        <h1>Register Free</h1>
+      <div class="mode-tabs" role="tablist" aria-label="Account access">
+        <button
+          id="registerModeTab"
+          class="mode-tab active"
+          type="button"
+          onclick="setAuthMode('register')"
+        >
+          Register Free
+        </button>
 
-        <p class="intro">
+        <button
+          id="loginModeTab"
+          class="mode-tab"
+          type="button"
+          onclick="setAuthMode('login')"
+        >
+          Login
+        </button>
+      </div>
+
+      <div class="card-heading">
+        <h1 id="authTitle">Register Free</h1>
+
+        <p class="intro" id="authIntro">
           Create your AnyBike account to save motorcycles, build a
           watchlist, manage enquiries and receive matching stock alerts.
         </p>
@@ -277,7 +352,7 @@ button:disabled{
 
       <div class="form-grid">
 
-        <div class="form-field full-width">
+        <div class="form-field full-width register-only">
           <label for="fullName">Full name</label>
           <input
             id="fullName"
@@ -307,7 +382,7 @@ button:disabled{
           >
         </div>
 
-        <div class="form-field full-width">
+        <div class="form-field register-only full-width">
           <label for="country">Country</label>
           <select id="country">
             <option value="">Select country</option>
@@ -325,7 +400,7 @@ button:disabled{
           </select>
         </div>
 
-        <div class="form-field">
+        <div class="form-field register-only">
           <label for="currency">Preferred currency</label>
           <select id="currency">
             <option value="GBP">GBP £</option>
@@ -338,7 +413,7 @@ button:disabled{
           </select>
         </div>
 
-        <div class="form-field">
+        <div class="form-field register-only">
           <label for="language">Preferred language</label>
           <select id="language">
             <option value="en">English</option>
@@ -363,10 +438,19 @@ button:disabled{
         </button>
 
         <button
-          id="loginButton"
-          class="secondary-btn"
+          id="loginSubmitButton"
+          class="primary-btn login-only"
           type="button"
           onclick="loginCustomer()"
+        >
+          Login
+        </button>
+
+        <button
+          id="switchModeButton"
+          class="secondary-btn"
+          type="button"
+          onclick="toggleAuthMode()"
         >
           Already registered? Login
         </button>
@@ -414,6 +498,66 @@ function clearMsg(){
   el.className = "msg";
 }
 
+let authMode = "register";
+
+function setAuthMode(mode){
+  authMode = mode === "login" ? "login" : "register";
+
+  document.body.classList.toggle(
+    "login-mode",
+    authMode === "login"
+  );
+
+  document
+    .getElementById("registerModeTab")
+    .classList.toggle("active", authMode === "register");
+
+  document
+    .getElementById("loginModeTab")
+    .classList.toggle("active", authMode === "login");
+
+  document.getElementById("authTitle").textContent =
+    authMode === "login"
+      ? "Welcome Back"
+      : "Register Free";
+
+  document.getElementById("authIntro").textContent =
+    authMode === "login"
+      ? "Enter your email address and password to access My AnyBike."
+      : "Create your AnyBike account to save motorcycles, build a watchlist, manage enquiries and receive matching stock alerts.";
+
+  document.getElementById("switchModeButton").textContent =
+    authMode === "login"
+      ? "Need an account? Register Free"
+      : "Already registered? Login";
+
+  const passwordInput =
+    document.getElementById("password");
+
+  passwordInput.setAttribute(
+    "autocomplete",
+    authMode === "login"
+      ? "current-password"
+      : "new-password"
+  );
+
+  clearMsg();
+
+  if(authMode === "login"){
+    document.getElementById("email").focus();
+  }else{
+    document.getElementById("fullName").focus();
+  }
+}
+
+function toggleAuthMode(){
+  setAuthMode(
+    authMode === "login"
+      ? "register"
+      : "login"
+  );
+}
+
 function setBusy(isBusy, action = ""){
   formBusy = isBusy;
 
@@ -421,10 +565,14 @@ function setBusy(isBusy, action = ""){
     document.getElementById("registerButton");
 
   const loginButton =
-    document.getElementById("loginButton");
+    document.getElementById("loginSubmitButton");
+
+  const switchModeButton =
+    document.getElementById("switchModeButton");
 
   registerButton.disabled = isBusy;
   loginButton.disabled = isBusy;
+  switchModeButton.disabled = isBusy;
 
   registerButton.textContent =
     isBusy && action === "register"
@@ -434,7 +582,7 @@ function setBusy(isBusy, action = ""){
   loginButton.textContent =
     isBusy && action === "login"
       ? "Logging In..."
-      : "Already registered? Login";
+      : "Login";
 }
 
 function getFormValues(){
@@ -459,8 +607,27 @@ function getFormValues(){
   };
 }
 
+function getSafeReturnUrl(){
+  const params =
+    new URLSearchParams(window.location.search);
+
+  const requested =
+    params.get("return");
+
+  if(
+    requested &&
+    requested.startsWith("/") &&
+    !requested.startsWith("//") &&
+    !requested.toLowerCase().includes("admin-")
+  ){
+    return requested;
+  }
+
+  return "index.html";
+}
+
 function redirectHome(){
-  window.location.replace("index.html");
+  window.location.replace(getSafeReturnUrl());
 }
 
 async function checkSession(){
@@ -734,9 +901,14 @@ document.addEventListener("keydown", event => {
     return;
   }
 
-  loginCustomer();
+  if(authMode === "login"){
+    loginCustomer();
+  }else{
+    registerCustomer();
+  }
 });
 
+setAuthMode("register");
 checkSession();
 </script>
 
