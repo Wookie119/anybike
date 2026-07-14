@@ -303,7 +303,7 @@ button:disabled{
             id="password"
             type="password"
             placeholder="Create a password"
-            autocomplete="current-password"
+            autocomplete="new-password"
           >
         </div>
 
@@ -443,7 +443,7 @@ function getFormValues(){
       document.getElementById("fullName").value.trim(),
 
     email:
-      document.getElementById("email").value.trim(),
+      document.getElementById("email").value.trim().toLowerCase(),
 
     password:
       document.getElementById("password").value,
@@ -479,21 +479,48 @@ async function checkSession(){
   }
 }
 
-async function saveCustomerProfile(user, values){
+async function createCustomerProfileIfMissing(user, values){
+  const {
+    data: existingProfile,
+    error: readError
+  } = await sb
+    .from("customer_profiles")
+    .select("id")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if(readError){
+    return readError;
+  }
+
+  if(existingProfile){
+    return null;
+  }
+
   const profile = {
     id: user.id,
-    email: values.email,
-    full_name: values.full_name,
-    country: values.country || null,
-    preferred_currency: values.preferred_currency,
-    preferred_language: values.preferred_language
+    email: user.email || values.email,
+    full_name:
+      values.full_name ||
+      user.user_metadata?.full_name ||
+      "",
+    country:
+      values.country ||
+      user.user_metadata?.country ||
+      null,
+    preferred_currency:
+      values.preferred_currency ||
+      user.user_metadata?.preferred_currency ||
+      "GBP",
+    preferred_language:
+      values.preferred_language ||
+      user.user_metadata?.preferred_language ||
+      "en"
   };
 
   const { error } = await sb
     .from("customer_profiles")
-    .upsert(profile, {
-      onConflict: "id"
-    });
+    .insert(profile);
 
   return error;
 }
@@ -575,7 +602,7 @@ async function registerCustomer(){
     */
     if(data.session){
       const profileError =
-        await saveCustomerProfile(data.user, values);
+        await createCustomerProfileIfMissing(data.user, values);
 
       if(profileError){
         console.error(
@@ -667,46 +694,20 @@ async function loginCustomer(){
     }
 
     /*
-      Only fill in a missing customer profile. This avoids
-      overwriting an existing customer's account information.
+      Create a missing profile only. Existing customer details
+      are never overwritten by the login form.
     */
-    const {
-      data: existingProfile,
-      error: profileReadError
-    } = await sb
-      .from("customer_profiles")
-      .select("id")
-      .eq("id", data.user.id)
-      .maybeSingle();
-
-    if(profileReadError){
-      console.error(
-        "Profile check failed:",
-        profileReadError
+    const profileError =
+      await createCustomerProfileIfMissing(
+        data.user,
+        values
       );
-    }
 
-    if(!existingProfile && values.full_name){
-      const profileValues = {
-        ...values,
-        full_name:
-          values.full_name ||
-          data.user.user_metadata?.full_name ||
-          ""
-      };
-
-      const profileError =
-        await saveCustomerProfile(
-          data.user,
-          profileValues
-        );
-
-      if(profileError){
-        console.error(
-          "Missing profile could not be created:",
-          profileError
-        );
-      }
+    if(profileError){
+      console.error(
+        "Missing profile could not be created:",
+        profileError
+      );
     }
 
     showMsg(
@@ -740,4 +741,4 @@ checkSession();
 </script>
 
 </body>
-</html>S
+</html>
