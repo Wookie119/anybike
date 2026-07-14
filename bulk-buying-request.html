@@ -34,7 +34,7 @@ Changes
 <meta name="robots" content="index, follow">
 <link rel="icon" href="anybike-logo-new.jpg" type="image/jpeg">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="/public-header.css?v=5000">
+<link rel="stylesheet" href="/public-header.css?v=12001">
 
 <style>
 :root{
@@ -124,6 +124,11 @@ h1{
   background:transparent;
   border-color:rgba(255,255,255,.25);
   box-shadow:none;
+}
+.btn:disabled{
+  opacity:.62;
+  cursor:not-allowed;
+  transform:none;
 }
 .hero-actions{display:flex;flex-wrap:wrap;gap:14px;margin-top:28px}
 .hero-card{
@@ -530,7 +535,7 @@ footer{border-top:1px solid var(--line);padding:28px 22px;color:var(--muted);fon
           <div class="field full"><label>Notes</label><textarea name="notes" placeholder="Preferred condition, mileage, colours, regular supply requirements, shipping instructions..."></textarea></div>
 
           <div class="field full">
-            <button class="btn" type="submit">Submit Buyer Request</button>
+            <button class="btn" id="submitBulkRequestBtn" type="submit">Submit Buyer Request</button>
             <div class="form-msg" id="bulkRequestMsg"></div>
           </div>
 
@@ -573,6 +578,99 @@ const fallbackMakes = {
 
 let makeModels = {...fallbackMakes};
 let bikeBlockCount = 0;
+let bulkRequestSubmitting = false;
+let currentUser = null;
+let lastBulkRequestFingerprint = "";
+let lastBulkRequestSubmittedAt = 0;
+
+function escapeHtml(value){
+  return String(value ?? "").replace(/[&<>"']/g,function(char){
+    return {
+      "&":"&amp;",
+      "<":"&lt;",
+      ">":"&gt;",
+      '"':"&quot;",
+      "'":"&#39;"
+    }[char];
+  });
+}
+
+function normaliseEmail(value){
+  return String(value || "").trim().toLowerCase();
+}
+
+function isValidEmail(value){
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+    normaliseEmail(value)
+  );
+}
+
+function normalisePhone(value){
+  return String(value || "").trim();
+}
+
+function isValidPhone(value){
+  const compact = normalisePhone(value)
+    .replace(/[\s()+.\-]/g,"");
+
+  return !compact ||
+    (/^\d{7,20}$/.test(compact));
+}
+
+function normalisePublicUrl(value){
+  const raw = String(value || "").trim();
+
+  if(!raw){
+    return null;
+  }
+
+  try{
+    const parsed = new URL(raw);
+
+    if(parsed.protocol !== "http:" && parsed.protocol !== "https:"){
+      return null;
+    }
+
+    return parsed.href;
+  }catch(error){
+    return null;
+  }
+}
+
+function validNumber(value,options={}){
+  if(value === "" || value === null || value === undefined){
+    return null;
+  }
+
+  const number = Number(value);
+
+  if(!Number.isFinite(number)){
+    return NaN;
+  }
+
+  if(options.integer && !Number.isInteger(number)){
+    return NaN;
+  }
+
+  if(options.min !== undefined && number < options.min){
+    return NaN;
+  }
+
+  if(options.max !== undefined && number > options.max){
+    return NaN;
+  }
+
+  return number;
+}
+
+async function loadCurrentUser(){
+  try{
+    const {data} = await sb.auth.getUser();
+    currentUser = data?.user || null;
+  }catch(error){
+    currentUser = null;
+  }
+}
 
 function setMsg(id,text,ok=true){
   const el=document.getElementById(id);
@@ -655,7 +753,7 @@ async function loadMakesFromStock(){
       document.querySelectorAll('[id^="request-make-"]').forEach(sel=>{
         const id=sel.id.replace("request-make-","");
         const current=sel.value;
-        sel.innerHTML=Object.keys(makeModels).map(m=>`<option value="${m}">${m}</option>`).join("");
+        sel.innerHTML=`<option value="">Select make</option>` + Object.keys(makeModels).map(m=>`<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join("");
         if(makeModels[current]) sel.value=current;
         updateRequestModels(id);
       });
@@ -683,7 +781,7 @@ function addRequestMotorcycleBlock(){
           <label>Make *</label>
           <select id="request-make-${id}" onchange="updateRequestModels(${id})" required>
             <option value="">Select make</option>
-            ${Object.keys(makeModels).map(m=>`<option value="${m}">${m}</option>`).join("")}
+            ${Object.keys(makeModels).map(m=>`<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join("")}
           </select>
         </div>
 
@@ -730,46 +828,116 @@ function updateRequestModels(id){
   const model=document.getElementById(`request-model-${id}`);
   if(!make || !model) return;
   const models=makeModels[make] || [];
-  model.innerHTML=`<option value="">Select model</option>` + models.map(m=>`<option value="${m}">${m}</option>`).join("");
+  model.innerHTML=`<option value="">Select model</option>` + models.map(m=>`<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join("");
 }
 
 function collectRequestMotorcycles(){
   const blocks=[...document.querySelectorAll(".request-bike-block")];
+  const bikes=[];
+  const errors=[];
 
-  const bikes=blocks.map(block=>{
+  blocks.forEach(function(block,index){
     const id=block.id.replace("request-bike-block-","");
-    const make=document.getElementById(`request-make-${id}`)?.value || "";
-    const model=document.getElementById(`request-model-${id}`)?.value || "";
-    const qty=document.getElementById(`request-qty-${id}`)?.value || "1";
-    const budget=document.getElementById(`request-budget-${id}`)?.value || "";
-    const mileage=document.getElementById(`request-mileage-${id}`)?.value || "";
-    const years=[...document.querySelectorAll(`.request-year-${id}:checked`)].map(x=>x.value);
+    const make=String(
+      document.getElementById(`request-make-${id}`)?.value || ""
+    ).trim();
+    const model=String(
+      document.getElementById(`request-model-${id}`)?.value || ""
+    ).trim();
+    const quantity=validNumber(
+      document.getElementById(`request-qty-${id}`)?.value,
+      {integer:true,min:1,max:500}
+    );
+    const budget=validNumber(
+      document.getElementById(`request-budget-${id}`)?.value,
+      {min:0,max:10000000}
+    );
+    const mileage=validNumber(
+      document.getElementById(`request-mileage-${id}`)?.value,
+      {integer:true,min:0,max:2000000}
+    );
+    const years=[
+      ...document.querySelectorAll(`.request-year-${id}:checked`)
+    ].map(function(input){
+      return input.value;
+    });
 
-    return {
-      make,
-      model,
-      quantity:qty,
+    if(!make || !model || !years.length){
+      errors.push(
+        `Motorcycle ${index+1}: choose make, model and at least one year.`
+      );
+      return;
+    }
+
+    if(Number.isNaN(quantity)){
+      errors.push(
+        `Motorcycle ${index+1}: quantity must be between 1 and 500.`
+      );
+      return;
+    }
+
+    if(Number.isNaN(budget)){
+      errors.push(
+        `Motorcycle ${index+1}: enter a valid maximum budget.`
+      );
+      return;
+    }
+
+    if(Number.isNaN(mileage)){
+      errors.push(
+        `Motorcycle ${index+1}: enter a valid maximum mileage.`
+      );
+      return;
+    }
+
+    bikes.push({
+      make:make,
+      model:model,
+      quantity:quantity,
       budget_per_bike:budget,
       mileage_max:mileage,
-      years
-    };
-  }).filter(b=>b.make && b.model && b.years.length);
+      years:years
+    });
+  });
 
-  const summary=bikes.map((b,i)=>
-    `Motorcycle ${i+1}: ${b.quantity} x ${b.make} ${b.model} | Years: ${b.years.length ? b.years.join(", ") : "Any"} | Max mileage: ${b.mileage_max ? Number(b.mileage_max).toLocaleString() + " miles" : "Not specified"} | Maximum budget per bike GBP: ${b.budget_per_bike ? "£"+Number(b.budget_per_bike).toFixed(2) : "Not specified"}`
-  ).join("\n");
+  const summary=bikes.map(function(bike,index){
+    return [
+      `Motorcycle ${index+1}: ${bike.quantity} x ${bike.make} ${bike.model}`,
+      `Years: ${bike.years.join(", ")}`,
+      `Max mileage: ${
+        bike.mileage_max !== null
+          ? Number(bike.mileage_max).toLocaleString("en-GB")+" miles"
+          : "Not specified"
+      }`,
+      `Maximum budget per bike GBP: ${
+        bike.budget_per_bike !== null
+          ? "£"+Number(bike.budget_per_bike).toFixed(2)
+          : "Not specified"
+      }`
+    ].join(" | ");
+  }).join("\n");
 
   const hidden=document.getElementById("requestedBikeSummary");
-  if(hidden) hidden.value=summary;
 
-  return bikes;
+  if(hidden){
+    hidden.value=summary;
+  }
+
+  return {
+    bikes:bikes,
+    errors:errors
+  };
 }
 
 function formDataObj(form){
   const fd=new FormData(form);
-  const o={};
-  fd.forEach((v,k)=>{ o[k]=String(v).trim(); });
-  return o;
+  const values={};
+
+  fd.forEach(function(value,key){
+    values[key]=String(value).trim();
+  });
+
+  return values;
 }
 
 function buildInternalNotes(o,bikes){
@@ -851,77 +1019,297 @@ function itemRowsFromBikes(buyerId,bikes){
 }
 
 async function submitBulkRequest(form){
-  const bikes=collectRequestMotorcycles();
+  if(bulkRequestSubmitting){
+    return;
+  }
+
+  const requestResult=collectRequestMotorcycles();
+  const bikes=requestResult.bikes;
+
+  if(requestResult.errors.length){
+    setMsg(
+      "bulkRequestMsg",
+      requestResult.errors.join("\n"),
+      false
+    );
+    return;
+  }
 
   if(!bikes.length){
-    setMsg("bulkRequestMsg","Please add at least one motorcycle requirement and tick at least one year.",false);
+    setMsg(
+      "bulkRequestMsg",
+      "Please add at least one motorcycle requirement.",
+      false
+    );
     return;
   }
 
-  const btn=form.querySelector("button[type='submit']");
-  btn.disabled=true;
-  btn.textContent="Sending...";
+  const values=formDataObj(form);
+  const email=normaliseEmail(values.email);
+  const phone=normalisePhone(values.phone);
 
-  const o=formDataObj(form);
-
-  const buyerPayload={
-    business_name:o.company_name || null,
-    contact_name:o.contact_name || null,
-    email:o.email || null,
-    phone:o.phone || null,
-
-    country:o.country || detected.country_name || detected.country || null,
-    city:null,
-    website:o.buyer_website || null,
-    social_links:[o.selling_url_1,o.selling_url_2,o.selling_url_3,o.selling_url_4,o.selling_url_5,o.selling_url_6,o.selling_url_7,o.selling_url_8,o.selling_url_9,o.selling_url_10].filter(Boolean).join("\n") || null,
-
-    annual_purchase_volume:o.annual_purchase_volume || null,
-    buyer_type:"Potential Bulk Buyer",
-
-    shipping_preference:o.shipping_preference || null,
-    preferred_shipping_company:o.shipping_company || null,
-    preferred_destination_port:o.destination_port || null,
-
-    status:"New Potential Buyer",
-    lead_source:"Request Bikes Page",
-
-    internal_notes:buildInternalNotes(o,bikes)
-  };
-
-  const { data:buyer, error:buyerError } = await sb
-    .from("global_buyer_network")
-    .insert(buyerPayload)
-    .select("id")
-    .single();
-
-  if(buyerError){
-    console.error(buyerError);
-    btn.disabled=false;
-    btn.textContent="Submit Buyer Request";
-    setMsg("bulkRequestMsg","Sorry, your request could not be sent. Please email sales@anybike.co.uk.\n\n" + buyerError.message,false);
+  if(!values.company_name || values.company_name.length>200){
+    setMsg(
+      "bulkRequestMsg",
+      "Please enter a valid company or buyer name.",
+      false
+    );
     return;
   }
 
-  const itemRows=itemRowsFromBikes(buyer.id,bikes);
-
-  const { error:itemError } = await sb
-    .from("global_buyer_request_items")
-    .insert(itemRows);
-
-  btn.disabled=false;
-  btn.textContent="Submit Buyer Request";
-
-  if(itemError){
-    console.error(itemError);
-    setMsg("bulkRequestMsg","Your buyer record was created, but the motorcycle request items could not be saved. Please contact AnyBike.\n\n" + itemError.message,false);
+  if(!values.contact_name || values.contact_name.length>200){
+    setMsg(
+      "bulkRequestMsg",
+      "Please enter a valid contact name.",
+      false
+    );
     return;
   }
 
-  form.reset();
-  document.getElementById("requestMotorcycleBlocks").innerHTML="";
-  bikeBlockCount=0;
-  addRequestMotorcycleBlock();
-  setMsg("bulkRequestMsg","Thank you. Your Global Buyer Network request has been sent to AnyBike.");
+  if(!isValidEmail(email)){
+    setMsg(
+      "bulkRequestMsg",
+      "Please enter a valid email address.",
+      false
+    );
+    return;
+  }
+
+  if(!isValidPhone(phone)){
+    setMsg(
+      "bulkRequestMsg",
+      "Please enter a valid WhatsApp or phone number.",
+      false
+    );
+    return;
+  }
+
+  if(!values.country){
+    setMsg(
+      "bulkRequestMsg",
+      "Please select your country.",
+      false
+    );
+    return;
+  }
+
+  const totalBudget=validNumber(
+    values.total_budget,
+    {min:0,max:1000000000}
+  );
+
+  if(Number.isNaN(totalBudget)){
+    setMsg(
+      "bulkRequestMsg",
+      "Please enter a valid total buying budget.",
+      false
+    );
+    return;
+  }
+
+  if(String(values.notes || "").length>5000){
+    setMsg(
+      "bulkRequestMsg",
+      "Please shorten your notes to 5,000 characters or fewer.",
+      false
+    );
+    return;
+  }
+
+  const urlFields=[
+    "buyer_website",
+    "selling_url_1",
+    "selling_url_2",
+    "selling_url_3",
+    "selling_url_4",
+    "selling_url_5",
+    "selling_url_6",
+    "selling_url_7",
+    "selling_url_8",
+    "selling_url_9",
+    "selling_url_10"
+  ];
+
+  const cleanUrls={};
+
+  for(const field of urlFields){
+    const raw=values[field];
+
+    if(!raw){
+      cleanUrls[field]=null;
+      continue;
+    }
+
+    const safeUrl=normalisePublicUrl(raw);
+
+    if(!safeUrl){
+      setMsg(
+        "bulkRequestMsg",
+        `Please enter a valid http or https URL for ${field.replaceAll("_"," ")}.`,
+        false
+      );
+      return;
+    }
+
+    cleanUrls[field]=safeUrl;
+  }
+
+  const fingerprint=JSON.stringify({
+    email:email,
+    company:values.company_name.toLowerCase(),
+    country:values.country,
+    bikes:bikes
+  });
+
+  const now=Date.now();
+
+  if(
+    fingerprint===lastBulkRequestFingerprint &&
+    now-lastBulkRequestSubmittedAt<60000
+  ){
+    setMsg(
+      "bulkRequestMsg",
+      "This buyer request has already been submitted.",
+      false
+    );
+    return;
+  }
+
+  const submitButton=document.getElementById("submitBulkRequestBtn");
+  bulkRequestSubmitting=true;
+
+  if(submitButton){
+    submitButton.disabled=true;
+    submitButton.textContent="Sending...";
+  }
+
+  try{
+    const buyerPayload={
+      customer_id:currentUser?.id || null,
+      business_name:values.company_name,
+      contact_name:values.contact_name,
+      email:email,
+      phone:phone || null,
+      country:values.country ||
+        detected.country_name ||
+        detected.country ||
+        null,
+      city:null,
+      website:cleanUrls.buyer_website,
+      social_links:[
+        cleanUrls.selling_url_1,
+        cleanUrls.selling_url_2,
+        cleanUrls.selling_url_3,
+        cleanUrls.selling_url_4,
+        cleanUrls.selling_url_5,
+        cleanUrls.selling_url_6,
+        cleanUrls.selling_url_7,
+        cleanUrls.selling_url_8,
+        cleanUrls.selling_url_9,
+        cleanUrls.selling_url_10
+      ].filter(Boolean).join("\n") || null,
+      annual_purchase_volume:
+        values.annual_purchase_volume || null,
+      buyer_type:"Potential Bulk Buyer",
+      shipping_preference:
+        values.shipping_preference || null,
+      preferred_shipping_company:
+        values.shipping_company || null,
+      preferred_destination_port:
+        values.destination_port || null,
+      status:"New Potential Buyer",
+      lead_source:"Request Bikes Page",
+      internal_notes:buildInternalNotes(
+        {
+          ...values,
+          email:email,
+          phone:phone,
+          total_budget:
+            totalBudget === null
+              ? ""
+              : String(totalBudget),
+          ...cleanUrls
+        },
+        bikes
+      )
+    };
+
+    /*
+      customer_id may not exist in older deployments.
+      Retry without it if Supabase reports that the column is missing.
+    */
+    let buyerResult=await sb
+      .from("global_buyer_network")
+      .insert(buyerPayload)
+      .select("id")
+      .single();
+
+    if(
+      buyerResult.error &&
+      String(buyerResult.error.message || "")
+        .toLowerCase()
+        .includes("customer_id")
+    ){
+      const retryPayload={...buyerPayload};
+      delete retryPayload.customer_id;
+
+      buyerResult=await sb
+        .from("global_buyer_network")
+        .insert(retryPayload)
+        .select("id")
+        .single();
+    }
+
+    if(buyerResult.error || !buyerResult.data?.id){
+      throw buyerResult.error ||
+        new Error("Buyer record was not created.");
+    }
+
+    const buyer=buyerResult.data;
+    const itemRows=itemRowsFromBikes(buyer.id,bikes);
+
+    const {error:itemError}=await sb
+      .from("global_buyer_request_items")
+      .insert(itemRows);
+
+    if(itemError){
+      throw new Error(
+        "Buyer record created, but motorcycle request items failed: " +
+        itemError.message
+      );
+    }
+
+    lastBulkRequestFingerprint=fingerprint;
+    lastBulkRequestSubmittedAt=Date.now();
+
+    form.reset();
+    document.getElementById("requestMotorcycleBlocks").innerHTML="";
+    bikeBlockCount=0;
+    addRequestMotorcycleBlock();
+
+    setMsg(
+      "bulkRequestMsg",
+      "Thank you. Your Global Buyer Network request has been sent to AnyBike."
+    );
+
+  }catch(error){
+    console.error(error);
+
+    setMsg(
+      "bulkRequestMsg",
+      "Sorry, your request could not be completed. Please email sales@anybike.co.uk.\n\n" +
+      (error?.message || "Unknown error"),
+      false
+    );
+
+  }finally{
+    bulkRequestSubmitting=false;
+
+    if(submitButton){
+      submitButton.disabled=false;
+      submitButton.textContent="Submit Buyer Request";
+    }
+  }
 }
 
 
@@ -931,11 +1319,15 @@ document.getElementById("bulkRequestForm").addEventListener("submit",e=>{
 });
 
 addRequestMotorcycleBlock();
-loadMakesFromStock();
-detectCountry();
+
+Promise.allSettled([
+  loadCurrentUser(),
+  loadMakesFromStock(),
+  detectCountry()
+]);
 </script>
 
-<script src="/public-header.js?v=5000"></script>
+<script src="/public-header.js?v=12001"></script>
 
 </body>
 </html>
