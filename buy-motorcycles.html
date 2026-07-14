@@ -11,7 +11,7 @@
 <link rel="canonical" href="https://www.anybike.co.uk/buy-motorcycles.html">
 <link rel="icon" href="/anybike-logo-new.jpg" type="image/jpeg">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="/public-header.css?v=20260712-4">
+<link rel="stylesheet" href="/public-header.css?v=12001">
 
 <style>
 :root{--red:#ed1c24;--dark:#050505;--panel:#111;--panel2:#181818;--line:rgba(255,255,255,.13);--muted:#aaa;--soft:#f6f6f6}
@@ -33,6 +33,7 @@ a{text-decoration:none;color:inherit}
 .btn{display:inline-flex;align-items:center;justify-content:center;padding:13px 18px;border-radius:999px;background:var(--red);color:#fff;font-weight:900;border:1px solid var(--red);box-shadow:0 12px 34px rgba(237,28,36,.25);cursor:pointer;font:inherit}
 .btn.secondary{background:transparent;border-color:rgba(255,255,255,.25);box-shadow:none}
 .btn.dark{background:#222;border-color:rgba(255,255,255,.18);box-shadow:none}
+.btn:disabled{opacity:.62;cursor:not-allowed}
 .eyebrow{color:var(--red);text-transform:uppercase;letter-spacing:.16em;font-size:13px;font-weight:900;margin-bottom:14px}
 .hero{min-height:76vh;display:flex;align-items:center;position:relative;overflow:hidden;border-bottom:1px solid var(--line);background:radial-gradient(circle at 82% 15%,rgba(237,28,36,.28),transparent 32%),linear-gradient(135deg,#050505 0%,#151515 60%,#050505 100%)}
 .hero:before{content:"";position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);background-size:48px 48px;mask-image:linear-gradient(to bottom,rgba(0,0,0,.8),transparent 90%)}
@@ -196,49 +197,212 @@ const SUPABASE_ANON_KEY = "sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 document.getElementById("year").textContent = new Date().getFullYear();
 
-function safe(v){return String(v ?? "").replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
-const currencyRates={GBP:1,EUR:1.17,USD:1.27,AUD:1.93,NZD:2.10,CAD:1.73,AED:4.66};
-function selectedCurrency(){return localStorage.getItem("anybikeCurrency") || "GBP";}
-function money(v){
-  if(v===null||v===undefined||v==="") return "POA";
+function safe(v){
+  return String(v ?? "").replace(/[&<>'"]/g,function(char){
+    return {
+      "&":"&amp;",
+      "<":"&lt;",
+      ">":"&gt;",
+      "'":"&#39;",
+      '"':"&quot;"
+    }[char];
+  });
+}
+
+function safePublicUrl(value){
+  const raw=String(value || "").trim();
+
+  if(!raw){
+    return "";
+  }
+
+  try{
+    const parsed=new URL(raw,window.location.origin);
+
+    if(parsed.protocol !== "http:" && parsed.protocol !== "https:"){
+      return "";
+    }
+
+    return parsed.href;
+  }catch(error){
+    return "";
+  }
+}
+
+function normaliseBikeId(value){
+  const id=Number(value);
+
+  return Number.isInteger(id) && id>0
+    ? id
+    : null;
+}
+
+const currencyRates={
+  GBP:1,
+  EUR:1.17,
+  USD:1.27,
+  AUD:1.93,
+  NZD:2.10,
+  CAD:1.73,
+  AED:4.66
+};
+
+function selectedCurrency(){
+  return localStorage.getItem("anybikeCurrency") ||
+    localStorage.getItem("anybike_currency") ||
+    "GBP";
+}
+
+function money(value){
+  if(value===null || value===undefined || value===""){
+    return "POA";
+  }
+
+  const amount=Number(value);
+
+  if(!Number.isFinite(amount) || amount<=0){
+    return "POA";
+  }
+
   const currency=selectedCurrency();
   const rate=currencyRates[currency] || 1;
-  return (Number(v)*rate).toLocaleString("en-GB",{style:"currency",currency,maximumFractionDigits:0});
+
+  return (amount*rate).toLocaleString("en-GB",{
+    style:"currency",
+    currency:currency,
+    maximumFractionDigits:0
+  });
+}
+
+function stockImageHtml(bike,title){
+  const imageUrl=safePublicUrl(bike.image_url);
+
+  if(!imageUrl){
+    return `<div>${safe(title)}<br>${safe(bike.year || "")}</div>`;
+  }
+
+  return `
+    <img
+      src="${safe(imageUrl)}"
+      alt="${safe(title)}"
+      loading="lazy"
+      referrerpolicy="no-referrer"
+      onerror="this.parentElement.innerHTML='<div>${safe(title)}<br>${safe(bike.year || "")}</div>'"
+    >
+  `;
 }
 
 async function loadLiveStock(){
   const grid=document.getElementById("liveStockGrid");
-  const {data,error}=await sb.from("available_stock").select("id,make,model,variant,year,mileage,price_gbp,image_url,status").not("make","is",null).not("model","is",null).order("created_at",{ascending:false}).limit(8);
-  if(error || !data || !data.length){
-    grid.innerHTML='<div class="loading-stock">Live stock could not be loaded. <a href="/available-stock.html" style="color:#ed1c24;font-weight:900;">Browse all stock</a>.</div>';
+
+  if(!grid){
     return;
   }
-  grid.innerHTML=data.map(b=>{
-    const title=[b.make,b.model].filter(Boolean).join(" ");
-    return `<article class="stock-card">
-      <div class="stock-img">${b.image_url?`<img src="${safe(b.image_url)}" alt="${safe(title)}">`:`<div>${safe(title)}<br>${safe(b.year||"")}</div>`}</div>
-      <div class="stock-body">
-        <div class="stock-title">${safe(title)}</div>
-        <div class="stock-meta">${safe(b.variant||"")}</div>
-        <div class="stock-meta">${safe(b.year||"-")} ${b.mileage?" • "+Number(b.mileage).toLocaleString("en-GB")+" miles":""}</div>
-        <div class="stock-price" data-price-gbp="${safe(b.price_gbp || 0)}">${money(b.price_gbp)}</div>
-        <a class="btn" href="/bike-details.html?id=${encodeURIComponent(b.id)}">View Bike</a>
-      </div>
-    </article>`;
-  }).join("");
+
+  grid.innerHTML=
+    '<div class="loading-stock">Loading live motorcycles...</div>';
+
+  try{
+    const {data,error}=await sb
+      .from("available_stock")
+      .select(`
+        id,make,model,variant,year,mileage,
+        price_gbp,image_url,status,created_at
+      `)
+      .not("make","is",null)
+      .not("model","is",null)
+      .order("created_at",{ascending:false})
+      .limit(8);
+
+    if(error){
+      throw error;
+    }
+
+    const rows=(data || []).filter(function(bike){
+      return normaliseBikeId(bike.id);
+    });
+
+    if(!rows.length){
+      grid.innerHTML=
+        '<div class="loading-stock">No live motorcycles are available here right now. <a href="/available-stock.html" style="color:#ed1c24;font-weight:900;">Browse all stock</a>.</div>';
+      return;
+    }
+
+    grid.innerHTML=rows.map(function(bike){
+      const id=normaliseBikeId(bike.id);
+      const title=[bike.make,bike.model]
+        .filter(Boolean)
+        .join(" ");
+
+      const mileage=Number(bike.mileage);
+      const mileageText=
+        Number.isFinite(mileage) && mileage>0
+          ? " • " + mileage.toLocaleString("en-GB") + " miles"
+          : "";
+
+      const rawPrice=Number(bike.price_gbp);
+      const dataPrice=
+        Number.isFinite(rawPrice) && rawPrice>0
+          ? rawPrice
+          : 0;
+
+      return `
+        <article class="stock-card">
+          <div class="stock-img">
+            ${stockImageHtml(bike,title)}
+          </div>
+
+          <div class="stock-body">
+            <div class="stock-title">${safe(title)}</div>
+            <div class="stock-meta">${safe(bike.variant || "")}</div>
+            <div class="stock-meta">
+              ${safe(bike.year || "-")}${mileageText}
+            </div>
+
+            <div
+              class="stock-price"
+              data-price-gbp="${safe(dataPrice)}"
+            >
+              ${money(bike.price_gbp)}
+            </div>
+
+            <a
+              class="btn"
+              href="/bike-details.html?id=${encodeURIComponent(id)}"
+            >
+              View Bike
+            </a>
+          </div>
+        </article>
+      `;
+    }).join("");
+
+  }catch(error){
+    console.error("Live stock could not be loaded",error);
+
+    grid.innerHTML=
+      '<div class="loading-stock">Live stock could not be loaded. <a href="/available-stock.html" style="color:#ed1c24;font-weight:900;">Browse all stock</a>.</div>';
+  }
 }
 
 window.addEventListener("anybikeCurrencyChanged",function(e){
-  localStorage.setItem("anybikeCurrency",e.detail.currency || "GBP");
+  const currency=e.detail.currency || "GBP";
+
+  localStorage.setItem("anybikeCurrency",currency);
+  localStorage.setItem("anybike_currency",currency);
+
   loadLiveStock();
 });
 
 window.addEventListener("anybikeLanguageChanged",function(e){
-  localStorage.setItem("anybikeLanguage",e.detail.language || "en");
+  const language=e.detail.language || "en";
+
+  localStorage.setItem("anybikeLanguage",language);
+  localStorage.setItem("anybike_language",language);
 });
 
 loadLiveStock();
 </script>
-<script src="/public-header.js?v=20260712-4"></script>
+<script src="/public-header.js?v=12001"></script>
 </body>
 </html>
