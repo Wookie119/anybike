@@ -6,9 +6,19 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Stock Import Manager | AnyBike Admin</title>
 <meta name="robots" content="noindex,nofollow">
-<link rel="stylesheet" href="admin-shell.css">
+<script>
+document.documentElement.classList.add("admin-auth-pending");
+</script>
+
+<style>
+html.admin-auth-pending body{
+  visibility:hidden;
+}
+</style>
+
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="admin.js?v=12000"></script>
 
 <style>
 :root{
@@ -280,6 +290,7 @@ td:last-child{border-right:1px solid var(--line);border-radius:0 12px 12px 0}
   .admin-menu{overflow:visible}
 }
 </style>
+<link rel="stylesheet" href="admin-shell.css?v=12000">
 </head>
 
 <body>
@@ -308,22 +319,13 @@ td:last-child{border-right:1px solid var(--line);border-radius:0 12px 12px 0}
   </div>
 
   <div class="import-tabs">
-    <span class="active">🔐 Staff Login</span>
-    <span>📤 Upload CSV</span>
+    <span class="active">📤 Upload CSV</span>
     <span>📋 Preview</span>
     <span>🗺 Mapping</span>
     <span>🏍 Buying Details</span>
   </div>
 
-  <section id="loginCard" class="card">
-    <h1>Staff Login</h1>
-    <p>Enter staff password to upload available stock.</p>
-    <input id="password" type="password" placeholder="Password">
-    <button onclick="login()">Login</button>
-    <p id="loginMsg" class="bad"></p>
-  </section>
-
-  <section id="adminArea" class="hidden">
+  <section id="adminArea">
 
     <div class="card">
       <h1>📤 Upload Supplier CSV</h1>
@@ -379,27 +381,13 @@ td:last-child{border-right:1px solid var(--line);border-radius:0 12px 12px 0}
 
 </div>
 
-<script src="admin.js?v=4000"></script>
-
 <script>
-const ADMIN_PASSWORD = "AnyBike2026!";
-
 const SUPABASE_URL = "https://tuehtnezhdnkqbbhttgp.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 let parsedRows = [];
 let importRows = [];
-
-function login(){
-  const pass = document.getElementById("password").value;
-  if(pass === ADMIN_PASSWORD){
-    document.getElementById("loginCard").classList.add("hidden");
-    document.getElementById("adminArea").classList.remove("hidden");
-  }else{
-    document.getElementById("loginMsg").textContent = "Incorrect password.";
-  }
-}
 
 function clean(v){
   if(v === undefined || v === null) return "";
@@ -741,9 +729,18 @@ async function saveAdminStock(id){
   alert("Buying details saved. Stock estimate only: " + money(profit));
   loadAdminStock();
 }
+
+(async function startStockImportManager(){
+  const allowed = await requireAdminSession();
+
+  if(!allowed){
+    return;
+  }
+
+  document.documentElement.classList.remove("admin-auth-pending");
+})();
 </script>
 
-<script src="admin.js?v=10000"></script>
 
 </body>
 </html>
