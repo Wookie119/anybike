@@ -5,6 +5,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>My Watchlist | AnyBike</title>
+
+<script>
+document.documentElement.classList.add("customer-auth-pending");
+</script>
+
+<style>
+html.customer-auth-pending body{
+  visibility:hidden;
+}
+</style>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <style>
@@ -188,6 +199,20 @@ const logoFile = "anybike-logo-new.jpg";
 let currentUser = null;
 let watchlistRows = [];
 
+function getCustomerLoginUrl(){
+  const returnUrl =
+    window.location.pathname +
+    window.location.search +
+    window.location.hash;
+
+  return "customer-register.html?return=" +
+    encodeURIComponent(returnUrl);
+}
+
+function redirectToCustomerLogin(){
+  window.location.replace(getCustomerLoginUrl());
+}
+
 const rates = {
   GBP:{symbol:"£",rate:1},
   EUR:{symbol:"€",rate:1.18},
@@ -198,7 +223,37 @@ const rates = {
   AED:{symbol:"د.إ",rate:4.92}
 };
 
-function safe(v){return v===undefined || v===null ? "" : String(v)}
+function safe(v){
+  const value = v===undefined || v===null ? "" : String(v);
+
+  return value
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+}
+
+function safeUrl(value){
+  const url = String(value || "").trim();
+
+  if(!url){
+    return "";
+  }
+
+  try{
+    const parsed = new URL(url, window.location.origin);
+
+    if(parsed.protocol !== "http:" && parsed.protocol !== "https:"){
+      return "";
+    }
+
+    return parsed.href;
+  }catch(error){
+    return "";
+  }
+}
+
 function currentCurrency(){return localStorage.getItem("anybike_currency") || "GBP"}
 function money(gbp){
   const n = Number(gbp || 0);
@@ -223,10 +278,7 @@ async function loadUser(){
   const userArea = document.getElementById("userArea");
 
   if(!currentUser){
-    userArea.innerHTML = `<a href="customer-register.html">Login / Register</a>`;
-    document.getElementById("statusBox").innerHTML =
-      `Please <a href="customer-register.html" style="color:#ed1c24;font-weight:900">login or register</a> to view your watchlist.`;
-    document.getElementById("grid").innerHTML = "";
+    redirectToCustomerLogin();
     return false;
   }
 
@@ -237,7 +289,7 @@ async function loadUser(){
     .maybeSingle();
 
   const name = profile?.full_name || currentUser.email;
-  userArea.innerHTML = `👤 <span class="user-name">${name}</span> | <a href="#" onclick="logout()">Logout</a>`;
+  userArea.innerHTML = `👤 <span class="user-name">${safe(name)}</span> | <a href="#" onclick="logout();return false;">Logout</a>`;
   return true;
 }
 
@@ -280,7 +332,12 @@ function render(){
 }
 
 function imageHTML(b){
-  if(b.image_url){return `<img class="real-image" src="${b.image_url}" alt="${safe(b.make)} ${safe(b.model)}" onerror="this.outerHTML=placeholderHTML()">`}
+  const imageUrl = safeUrl(b.image_url);
+
+  if(imageUrl){
+    return `<img class="real-image" src="${safe(imageUrl)}" alt="${safe(b.make)} ${safe(b.model)}" loading="lazy" onerror="this.outerHTML=placeholderHTML()">`;
+  }
+
   return placeholderHTML();
 }
 function placeholderHTML(){return `<div class="placeholder"><img src="${logoFile}" alt=""><strong>Register Free<br>To View Images</strong></div>`}
@@ -307,11 +364,11 @@ function cardHTML(row){
         <div class="note">Base motorcycle price. Export costs quoted separately.</div>
 
         <div class="actions">
-          <button class="primary" onclick="viewFullAdvert('${b.id}')">
+          <button class="primary" onclick="viewFullAdvert('${encodeURIComponent(String(b.id))}')">
             View Full Advert
           </button>
 
-          <button class="outline" onclick="removeWatch('${row.id}')">
+          <button class="outline" onclick="removeWatch('${encodeURIComponent(String(row.id))}')">
             Remove From Watchlist
           </button>
         </div>
@@ -326,14 +383,27 @@ function findBikeFromWatchlist(id){
 }
 
 function viewFullAdvert(id){
-  location.href = `bike-details.html?id=${encodeURIComponent(id)}`;
+  const bikeId = decodeURIComponent(String(id || ""));
+
+  if(!bikeId){
+    return;
+  }
+
+  location.href = `bike-details.html?id=${encodeURIComponent(bikeId)}`;
 }
 
 async function removeWatch(rowId){
+  if(!currentUser){
+    redirectToCustomerLogin();
+    return;
+  }
+
+  const decodedRowId = decodeURIComponent(String(rowId || ""));
+
   const { error } = await sb
     .from("customer_watchlist")
     .delete()
-    .eq("id", rowId)
+    .eq("id", decodedRowId)
     .eq("customer_id", currentUser.id);
 
   if(error){
@@ -341,11 +411,22 @@ async function removeWatch(rowId){
     return;
   }
 
-  watchlistRows = watchlistRows.filter(row => String(row.id) !== String(rowId));
+  watchlistRows = watchlistRows.filter(row => String(row.id) !== String(decodedRowId));
   render();
 }
 
-(async function init(){setupCurrency(); const loggedIn = await loadUser(); if(loggedIn){await loadWatchlist()}})();
+(async function init(){
+  setupCurrency();
+
+  const loggedIn = await loadUser();
+
+  if(!loggedIn){
+    return;
+  }
+
+  await loadWatchlist();
+  document.documentElement.classList.remove("customer-auth-pending");
+})();
 </script>
 </body>
 </html>
