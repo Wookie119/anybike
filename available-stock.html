@@ -12,7 +12,7 @@
 <link rel="icon" href="/anybike-logo-new.jpg">
 <link rel="shortcut icon" href="/anybike-logo-new.jpg">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="/public-header.css?v=20260712-4">
+<link rel="stylesheet" href="/public-header.css?v=12001">
 
 <style>
 :root{
@@ -320,6 +320,12 @@ button.watch.active{
   border-color:#fff;
 }
 
+button:disabled{
+  opacity:.62;
+  cursor:not-allowed;
+  transform:none;
+}
+
 .pagination-wrap{
   margin:36px auto 0;
   text-align:center;
@@ -546,6 +552,57 @@ let savedSearchMinYear = null;
 let savedSearchMaxPrice = null;
 let currentUser = null;
 let watchedBikeIds = new Set();
+let watchUpdatesInProgress = new Set();
+
+function getCustomerLoginUrl(){
+  const returnUrl =
+    window.location.pathname +
+    window.location.search +
+    window.location.hash;
+
+  return "/customer-register.html?return=" +
+    encodeURIComponent(returnUrl);
+}
+
+function normaliseBikeId(value){
+  const id = Number(value);
+
+  return Number.isInteger(id) && id > 0
+    ? id
+    : null;
+}
+
+function escapeHtml(value){
+  return String(value ?? "").replace(/[&<>"']/g,function(char){
+    return {
+      "&":"&amp;",
+      "<":"&lt;",
+      ">":"&gt;",
+      '"':"&quot;",
+      "'":"&#39;"
+    }[char];
+  });
+}
+
+function safePublicUrl(value){
+  const raw = String(value || "").trim();
+
+  if(!raw){
+    return "";
+  }
+
+  try{
+    const parsed = new URL(raw,window.location.origin);
+
+    if(parsed.protocol !== "http:" && parsed.protocol !== "https:"){
+      return "";
+    }
+
+    return parsed.href;
+  }catch(error){
+    return "";
+  }
+}
 
 const rates = {
   GBP:{symbol:"£",rate:1},
@@ -729,23 +786,48 @@ const words = {
 };
 
 function lang(){
-  return localStorage.getItem("anybikeLanguage") || "en";
+  return localStorage.getItem("anybikeLanguage") ||
+    localStorage.getItem("anybike_language") ||
+    "en";
 }
-function t(k){const pack = words[lang()] || words.en; return pack[k] || words.en[k]}
+
+function t(key){
+  const pack = words[lang()] || words.en;
+  return pack[key] || words.en[key];
+}
+
 function currency(){
-  return localStorage.getItem("anybikeCurrency") || "GBP";
+  return localStorage.getItem("anybikeCurrency") ||
+    localStorage.getItem("anybike_currency") ||
+    "GBP";
 }
-function safe(v){return v===undefined||v===null ? "" : String(v)}
+
+function safe(value){
+  return value===undefined || value===null
+    ? ""
+    : String(value);
+}
 
 function money(gbp){
-  const n = Number(gbp || 0);
-  if(!n) return "Price on request";
-  const c = rates[currency()];
-  return c.symbol + Math.round(n * c.rate).toLocaleString("en-GB");
+  const amount = Number(gbp);
+
+  if(!Number.isFinite(amount) || amount <= 0){
+    return "Price on request";
+  }
+
+  const selected = rates[currency()] || rates.GBP;
+
+  return selected.symbol +
+    Math.round(amount * selected.rate)
+      .toLocaleString("en-GB");
 }
 
-function miles(n){
-  return n ? Number(n).toLocaleString("en-GB")+" miles" : "Mileage TBC";
+function miles(value){
+  const mileage = Number(value);
+
+  return Number.isFinite(mileage) && mileage > 0
+    ? mileage.toLocaleString("en-GB") + " miles"
+    : "Mileage TBC";
 }
 
 function applyLanguage(){
@@ -789,7 +871,7 @@ function populateMakes(){
 
   document.getElementById("make").innerHTML =
     '<option value="">All Makes</option>' +
-    makes.map(m=>`<option>${m}</option>`).join("");
+    makes.map(m=>`<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join("");
 }
 
 function populateYears(){
@@ -797,7 +879,7 @@ function populateYears(){
 
   document.getElementById("year").innerHTML =
     '<option value="">All Years</option>' +
-    years.map(y=>`<option>${y}</option>`).join("");
+    years.map(y=>`<option value="${escapeHtml(y)}">${escapeHtml(y)}</option>`).join("");
 }
 
 function populateModels(){
@@ -812,7 +894,7 @@ function populateModels(){
 
   document.getElementById("model").innerHTML =
     '<option value="">All Models</option>' +
-    models.map(m=>`<option>${m}</option>`).join("");
+    models.map(m=>`<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join("");
 }
 
 function buildQuery(countType="exact"){
@@ -837,8 +919,20 @@ function buildQuery(countType="exact"){
   }
 
   if(search){
-    const s = search.replaceAll("%","").replaceAll(","," ");
-    q = q.or(`make.ilike.%${s}%,model.ilike.%${s}%,variant.ilike.%${s}%,colour.ilike.%${s}%`);
+    const cleanedSearch = search
+      .replace(/[%,()]/g," ")
+      .replace(/\s+/g," ")
+      .trim()
+      .slice(0,100);
+
+    if(cleanedSearch){
+      q = q.or(
+        `make.ilike.%${cleanedSearch}%,` +
+        `model.ilike.%${cleanedSearch}%,` +
+        `variant.ilike.%${cleanedSearch}%,` +
+        `colour.ilike.%${cleanedSearch}%`
+      );
+    }
   }
 
   if(make) q = q.eq("make", make);
@@ -910,19 +1004,25 @@ async function loadPage(page=1){
     return;
   }
 
-  bikes = (data || []).map(b=>({
-    id:b.id,
-    make:safe(b.make),
-    model:safe(b.model),
-    variant:safe(b.variant),
-    year:b.year || "",
-    mileage:b.mileage || 0,
-    cc:b.engine_cc || "",
-    price:Number(b.price_gbp || 0),
-    colour:safe(b.colour),
-    status:safe(b.status) || "Available",
-    image_url:safe(b.image_url)
-  }));
+  bikes = (data || [])
+    .filter(function(row){
+      return normaliseBikeId(row.id);
+    })
+    .map(function(row){
+      return {
+        id:normaliseBikeId(row.id),
+        make:safe(row.make),
+        model:safe(row.model),
+        variant:safe(row.variant),
+        year:row.year || "",
+        mileage:Number(row.mileage) || 0,
+        cc:row.engine_cc || "",
+        price:Number(row.price_gbp) || 0,
+        colour:safe(row.colour),
+        status:safe(row.status) || "Available",
+        image_url:safePublicUrl(row.image_url)
+      };
+    });
 
   totalRows = Number(count || 0);
 
@@ -1021,10 +1121,20 @@ function jumpToPage(){
   loadPage(p);
 }
 
-function imageHTML(b){
-  if(b.image_url){
-    return `<img class="real-image" src="${b.image_url}" alt="${b.make} ${b.model}" onerror="this.outerHTML=placeholderHTML()">`;
+function imageHTML(bike){
+  if(bike.image_url){
+    return `
+      <img
+        class="real-image"
+        src="${escapeHtml(bike.image_url)}"
+        alt="${escapeHtml(bike.make)} ${escapeHtml(bike.model)}"
+        loading="lazy"
+        referrerpolicy="no-referrer"
+        onerror="this.outerHTML=placeholderHTML()"
+      >
+    `;
   }
+
   return placeholderHTML();
 }
 
@@ -1037,33 +1147,69 @@ function placeholderHTML(){
   `;
 }
 
-function cardHTML(b){
-  const watched = isWatched(b.id);
-  const yearText = b.year || "Year TBC";
-  const ccText = b.cc ? `${b.cc}cc` : "CC TBC";
-  const detailsUrl = `/bike-details.html?id=${encodeURIComponent(b.id)}`;
+function cardHTML(bike){
+  const id = normaliseBikeId(bike.id);
+
+  if(!id){
+    return "";
+  }
+
+  const watched = isWatched(id);
+  const yearText = bike.year || "Year TBC";
+  const ccText = bike.cc ? `${escapeHtml(bike.cc)}cc` : "CC TBC";
+  const detailsUrl =
+    `/bike-details.html?id=${encodeURIComponent(id)}`;
 
   return `
-    <article class="card clickable-card" onclick="openBikeDetails('${b.id}')">
-      ${imageHTML(b)}
+    <article
+      class="card clickable-card"
+      onclick="openBikeDetails('${id}')"
+    >
+      ${imageHTML(bike)}
+
       <div class="card-body">
-        <span class="badge">${t("available")}</span>
-        <h2>${b.make} ${b.model}</h2>
-        <div class="variant">${b.variant || "&nbsp;"}</div>
-        <div class="meta">
-          <div>${yearText} | ${miles(b.mileage)} | ${ccText}</div>
-          ${b.colour ? `<div>${b.colour}</div>` : ""}
+        <span class="badge">${escapeHtml(t("available"))}</span>
+
+        <h2>
+          ${escapeHtml(bike.make)} ${escapeHtml(bike.model)}
+        </h2>
+
+        <div class="variant">
+          ${bike.variant ? escapeHtml(bike.variant) : "&nbsp;"}
         </div>
-        <div class="price">${money(b.price)}</div>
-        <div class="price-note">${t("priceNote")}</div>
+
+        <div class="meta">
+          <div>
+            ${escapeHtml(yearText)} |
+            ${escapeHtml(miles(bike.mileage))} |
+            ${ccText}
+          </div>
+
+          ${
+            bike.colour
+              ? `<div>${escapeHtml(bike.colour)}</div>`
+              : ""
+          }
+        </div>
+
+        <div class="price">${escapeHtml(money(bike.price))}</div>
+        <div class="price-note">${escapeHtml(t("priceNote"))}</div>
 
         <div class="actions">
-          <a class="view-advert" href="${detailsUrl}" onclick="event.stopPropagation();">
+          <a
+            class="view-advert"
+            href="${detailsUrl}"
+            onclick="event.stopPropagation();"
+          >
             View Full Advert
           </a>
 
-          <button class="watch ${watched ? "active" : ""}" onclick="event.stopPropagation(); toggleWatch('${b.id}', this)">
-            ${watched ? t("watched") : t("watch")}
+          <button
+            class="watch ${watched ? "active" : ""}"
+            data-bike-id="${id}"
+            onclick="event.stopPropagation();toggleWatch('${id}',this)"
+          >
+            ${escapeHtml(watched ? t("watched") : t("watch"))}
           </button>
         </div>
       </div>
@@ -1071,8 +1217,15 @@ function cardHTML(b){
   `;
 }
 
-  function openBikeDetails(id){
-  window.location.href = `/bike-details.html?id=${encodeURIComponent(id)}`;
+function openBikeDetails(value){
+  const id = normaliseBikeId(value);
+
+  if(!id){
+    return;
+  }
+
+  window.location.href =
+    `/bike-details.html?id=${encodeURIComponent(id)}`;
 }
 
   
@@ -1082,8 +1235,18 @@ function findBike(id){
 
 
 async function loadUserInfo(){
-  const { data:{ user } } = await sb.auth.getUser();
-  currentUser = user || null;
+  try{
+    const {data,error} = await sb.auth.getUser();
+
+    if(error){
+      console.warn("Customer session unavailable",error.message);
+    }
+
+    currentUser = data?.user || null;
+  }catch(error){
+    console.warn("Customer session unavailable",error);
+    currentUser = null;
+  }
 }
 
 async function loadWatchlist(){
@@ -1108,47 +1271,88 @@ function isWatched(id){
   return watchedBikeIds.has(String(id));
 }
 
-async function toggleWatch(id,btn){
-  if(!currentUser){
-    location.href = "/customer-register.html";
+async function toggleWatch(value,button){
+  const bikeId = normaliseBikeId(value);
+
+  if(!bikeId){
     return;
   }
 
-  const bikeId = Number(id);
+  if(!currentUser){
+    window.location.href = getCustomerLoginUrl();
+    return;
+  }
 
-  if(isWatched(bikeId)){
-    const { error } = await sb
-      .from("customer_watchlist")
-      .delete()
-      .eq("customer_id", currentUser.id)
-      .eq("bike_id", bikeId);
+  if(watchUpdatesInProgress.has(String(bikeId))){
+    return;
+  }
 
-    if(error){
-      alert("Could not remove from watchlist: " + error.message);
+  watchUpdatesInProgress.add(String(bikeId));
+
+  if(button){
+    button.disabled = true;
+  }
+
+  try{
+    if(isWatched(bikeId)){
+      const {error} = await sb
+        .from("customer_watchlist")
+        .delete()
+        .eq("customer_id",currentUser.id)
+        .eq("bike_id",bikeId);
+
+      if(error){
+        alert("Could not remove from watchlist: " + error.message);
+        return;
+      }
+
+      watchedBikeIds.delete(String(bikeId));
+
+      if(button){
+        button.textContent = t("watch");
+        button.classList.remove("active");
+      }
+
       return;
     }
 
-    watchedBikeIds.delete(String(bikeId));
-    btn.textContent = t("watch");
-    btn.classList.remove("active");
-    return;
+    const {error} = await sb
+      .from("customer_watchlist")
+      .insert({
+        customer_id:currentUser.id,
+        bike_id:bikeId
+      });
+
+    if(error){
+      if(String(error.code) === "23505"){
+        watchedBikeIds.add(String(bikeId));
+
+        if(button){
+          button.textContent = t("watched");
+          button.classList.add("active");
+        }
+
+        return;
+      }
+
+      alert("Could not add to watchlist: " + error.message);
+      return;
+    }
+
+    watchedBikeIds.add(String(bikeId));
+
+    if(button){
+      button.textContent = t("watched");
+      button.classList.add("active");
+    }
+
+  }finally{
+    watchUpdatesInProgress.delete(String(bikeId));
+
+    if(button){
+      button.disabled = false;
+    }
   }
-
-  const { error } = await sb
-    .from("customer_watchlist")
-    .insert({
-      customer_id: currentUser.id,
-      bike_id: bikeId
-    });
-
-  if(error){
-    alert("Could not add to watchlist: " + error.message);
-    return;
-  }
-
-  watchedBikeIds.add(String(bikeId));
-  btn.textContent = t("watched");
-  btn.classList.add("active");
 }
 
 let searchTimer;
@@ -1171,12 +1375,20 @@ document.getElementById("make").addEventListener("change",()=>{
 
 
 window.addEventListener("anybikeCurrencyChanged", function(e){
-  localStorage.setItem("anybikeCurrency", e.detail.currency || "GBP");
+  const selected = e.detail.currency || "GBP";
+
+  localStorage.setItem("anybikeCurrency",selected);
+  localStorage.setItem("anybike_currency",selected);
+
   render();
 });
 
 window.addEventListener("anybikeLanguageChanged", function(e){
-  localStorage.setItem("anybikeLanguage", e.detail.language || "en");
+  const selected = e.detail.language || "en";
+
+  localStorage.setItem("anybikeLanguage",selected);
+  localStorage.setItem("anybike_language",selected);
+
   render();
 });
 
@@ -1201,10 +1413,10 @@ window.addEventListener("anybikeLanguageChanged", function(e){
     document.getElementById("search").value = urlSearch;
   }
 
-  await loadPage(1);
+  await loadPage(currentPage);
 })();
 </script>
-<script src="/public-header.js?v=20260712-4"></script>
+<script src="/public-header.js?v=12001"></script>
 
 </body>
 </html>
