@@ -6,6 +6,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Bike Details | AnyBike</title>
+<meta name="robots" content="index,follow">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link rel="stylesheet" href="/public-header.css?v=20260712-4">
 
@@ -171,6 +172,12 @@ button,
   color:#111;
 }
 
+button:disabled{
+  opacity:.62;
+  cursor:not-allowed;
+  transform:none;
+}
+
 .desc{
   color:#ddd;
   line-height:1.7;
@@ -306,7 +313,7 @@ button,
     <label>Additional Notes</label>
     <textarea id="enquiryMessage" placeholder="Add any extra details"></textarea>
 
-    <button class="primary" onclick="submitBikeEnquiry()">Send Enquiry</button>
+    <button id="sendEnquiryBtn" class="primary" onclick="submitBikeEnquiry()">Send Enquiry</button>
   </div>
 </div>
 
@@ -325,6 +332,49 @@ let currentUser=null;
 let currentProfile=null;
 let bike=null;
 let watched=false;
+let enquirySubmitting=false;
+let watchUpdating=false;
+let lastEnquiryFingerprint="";
+let lastEnquirySubmittedAt=0;
+
+function getCustomerLoginUrl(){
+  const returnUrl =
+    window.location.pathname +
+    window.location.search +
+    window.location.hash;
+
+  return "/customer-register.html?return=" +
+    encodeURIComponent(returnUrl);
+}
+
+function redirectToCustomerLogin(){
+  window.location.href=getCustomerLoginUrl();
+}
+
+function normaliseBikeId(value){
+  const id=Number(value);
+  return Number.isInteger(id) && id>0 ? id : null;
+}
+
+function safeUrl(value){
+  const url=String(value||"").trim();
+
+  if(!url){
+    return "";
+  }
+
+  try{
+    const parsed=new URL(url,window.location.origin);
+
+    if(!["http:","https:"].includes(parsed.protocol)){
+      return "";
+    }
+
+    return parsed.href;
+  }catch(error){
+    return "";
+  }
+}
 
 const rates={
   GBP:{symbol:"£",rate:1},
@@ -336,8 +386,23 @@ const rates={
   AED:{symbol:"د.إ",rate:4.92}
 };
 
-function currency(){return localStorage.getItem("anybikeCurrency") || "GBP"}
-function safe(v){return v===undefined || v===null ? "" : String(v)}
+function currency(){
+  return localStorage.getItem("anybikeCurrency") ||
+    localStorage.getItem("anybike_currency") ||
+    "GBP";
+}
+
+function safe(v){
+  const value=v===undefined || v===null ? "" : String(v);
+
+  return value
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+}
+
 function money(gbp){
   const n=Number(gbp||0);
   if(!n)return "Price on request";
@@ -345,24 +410,42 @@ function money(gbp){
   return c.symbol + Math.round(n*c.rate).toLocaleString("en-GB");
 }
 function miles(n){return n ? Number(n).toLocaleString("en-GB")+" miles" : "Mileage TBC"}
-function idFromUrl(){return new URLSearchParams(location.search).get("id")}
+function idFromUrl(){
+  return normaliseBikeId(
+    new URLSearchParams(location.search).get("id")
+  );
+}
 
 async function loadUser(){
-  const {data:{user}} = await sb.auth.getUser();
-  currentUser = user || null;
+  try{
+    const {data,error}=await sb.auth.getUser();
+
+    if(error){
+      console.warn("Customer session check failed",error.message);
+    }
+
+    currentUser=data?.user || null;
+  }catch(error){
+    console.warn("Customer session check failed",error);
+    currentUser=null;
+  }
 
   if(!currentUser){
-    currentProfile = null;
+    currentProfile=null;
     return;
   }
 
-  const {data:profile} = await sb
+  const {data:profile,error:profileError}=await sb
     .from("customer_profiles")
     .select("*")
     .eq("id",currentUser.id)
     .maybeSingle();
 
-  currentProfile = profile || {};
+  if(profileError){
+    console.warn("Customer profile could not be loaded",profileError.message);
+  }
+
+  currentProfile=profile || {};
 }
 function cleanPublicDescription(text){
   let s = String(text || "");
@@ -388,7 +471,10 @@ async function loadBike(){
 
   const {data,error}=await sb
     .from("available_stock")
-    .select("*")
+    .select(`
+      id,make,model,variant,year,mileage,engine_cc,
+      price_gbp,colour,status,image_url,public_description,raw_data
+    `)
     .eq("id",id)
     .single();
 
@@ -430,9 +516,12 @@ async function checkWatchlist(id){
 }
 
 function imageHTML(){
-  if(bike.image_url){
-    return `<img class="real" src="${bike.image_url}" alt="${safe(bike.make)} ${safe(bike.model)}" onerror="this.parentElement.innerHTML=placeholderHTML()">`;
+  const imageUrl=safeUrl(bike?.image_url);
+
+  if(imageUrl){
+    return `<img class="real" src="${safe(imageUrl)}" alt="${safe(bike.make)} ${safe(bike.model)}" loading="lazy" onerror="this.parentElement.innerHTML=placeholderHTML()">`;
   }
+
   return placeholderHTML();
 }
 
@@ -443,7 +532,9 @@ function placeholderHTML(){
 function render(){
   const variant=safe(bike.variant);
   const cc=bike.engine_cc ? `${bike.engine_cc}cc` : "CC TBC";
-  document.title=`${safe(bike.make)} ${safe(bike.model)} | AnyBike`;
+  document.title=
+    `${String(bike.make||"")} ${String(bike.model||"")}`.trim() +
+    " | AnyBike";
 
   document.getElementById("content").innerHTML=`
     <div class="layout">
@@ -468,7 +559,7 @@ function render(){
         </div>
 
         <div class="actions">
-          <button class="primary" onclick="openEnquiryModal()">Ask About This Bike</button>
+          <button id="askBikeBtn" class="primary" onclick="openEnquiryModal()">Ask About This Bike</button>
           <button id="watchBtn" class="outline" onclick="toggleWatch()">${watched ? "✓ Added To Watchlist" : "♡ Add To Watchlist"}</button>
         </div>
       </section>
@@ -483,8 +574,7 @@ function render(){
 
 function openEnquiryModal(){
   if(!currentUser){
-    alert("Please login or register before sending an enquiry.");
-    location.href="/customer-register.html";
+    redirectToCustomerLogin();
     return;
   }
 
@@ -508,130 +598,271 @@ function handleQuestionTypeChange(){
 }
 
 async function submitBikeEnquiry(){
-  if(!currentUser || !bike){
+  if(enquirySubmitting){
+    return;
+  }
+
+  if(!currentUser){
+    redirectToCustomerLogin();
+    return;
+  }
+
+  if(!bike || !normaliseBikeId(bike.id)){
     alert("Bike details are not loaded yet.");
     return;
   }
 
-  const question_type = document.getElementById("questionType").value;
-  const phone = document.getElementById("enquiryPhone").value.trim();
-  const offer_amount = document.getElementById("offerAmount").value
-    ? Number(document.getElementById("offerAmount").value)
-    : null;
-  const buyer_shipping_agent = document.getElementById("buyerShippingAgent").value.trim();
-  const message = document.getElementById("enquiryMessage").value.trim();
+  const question_type=document.getElementById("questionType").value;
+  const phone=document.getElementById("enquiryPhone").value.trim();
+  const offerValue=document.getElementById("offerAmount").value;
+  const offer_amount=offerValue ? Number(offerValue) : null;
+  const buyer_shipping_agent=document.getElementById("buyerShippingAgent").value.trim();
+  const message=document.getElementById("enquiryMessage").value.trim();
 
-  if(!question_type){
+  const allowedQuestionTypes=[
+    "Availability",
+    "Make an Offer",
+    "Reserve This Bike",
+    "More Photos / Video",
+    "Export Documents",
+    "I Have A UK Shipping Agent",
+    "Other Question"
+  ];
+
+  if(!allowedQuestionTypes.includes(question_type)){
     alert("Please choose what you would like to ask.");
     return;
   }
 
-  if(!phone){
-    alert("Please enter your phone / WhatsApp number.");
+  const compactPhone=phone.replace(/[\s()+.-]/g,"");
+
+  if(
+    compactPhone.length<7 ||
+    compactPhone.length>20 ||
+    !/^\d+$/.test(compactPhone)
+  ){
+    alert("Please enter a valid phone / WhatsApp number.");
     return;
   }
 
- const deviceType =
-  /tablet|ipad/i.test(navigator.userAgent) ? "Tablet" :
-  /mobi|android|iphone/i.test(navigator.userAgent) ? "Mobile" :
-  "Desktop";
+  if(
+    offer_amount!==null &&
+    (
+      !Number.isFinite(offer_amount) ||
+      offer_amount<=0 ||
+      offer_amount>10000000
+    )
+  ){
+    alert("Please enter a valid offer amount.");
+    return;
+  }
 
-const browser =
-  navigator.userAgent.includes("Edg") ? "Edge" :
-  navigator.userAgent.includes("Chrome") ? "Chrome" :
-  navigator.userAgent.includes("Firefox") ? "Firefox" :
-  navigator.userAgent.includes("Safari") ? "Safari" :
-  "Unknown";
+  if(question_type==="Make an Offer" && offer_amount===null){
+    alert("Please enter your offer amount.");
+    return;
+  }
 
-const {data: enquiryData, error}=await sb
-  .from("bike_enquiries")
-  .insert({
-    customer_id: currentUser.id,
-  bike_id: bike.id,
+  if(buyer_shipping_agent.length>200){
+    alert("Shipping company name is too long.");
+    return;
+  }
 
-  enquiry_type: "Buyer Question",
-  question_type,
-  offer_amount,
-  buyer_shipping_agent,
+  if(message.length>5000){
+    alert("Please shorten your message to 5,000 characters or fewer.");
+    return;
+  }
 
-  customer_email: currentUser.email,
-  customer_name: currentProfile?.full_name || currentUser.email,
-  customer_phone: phone,
+  const fingerprint=[
+    currentUser.id,
+    bike.id,
+    question_type,
+    phone.toLowerCase(),
+    offer_amount ?? "",
+    buyer_shipping_agent.toLowerCase(),
+    message.toLowerCase()
+  ].join("|");
 
-  destination_country: currentProfile?.country || "",
+  const now=Date.now();
 
-  customer_city: currentProfile?.city || "",
-  customer_region: currentProfile?.region || "",
+  if(
+    fingerprint===lastEnquiryFingerprint &&
+    now-lastEnquirySubmittedAt<30000
+  ){
+    alert("This enquiry has already been sent.");
+    return;
+  }
 
-  device_type: deviceType,
-  browser: browser,
+  enquirySubmitting=true;
 
-  message,
-  status: "New"
-})
-.select("id")
-.single();
+  const sendButton=document.getElementById("sendEnquiryBtn");
 
-if(error){
-  alert(error.message);
-  return;
-}
+  if(sendButton){
+    sendButton.disabled=true;
+    sendButton.textContent="Sending Enquiry...";
+  }
 
-  alert("Enquiry sent to AnyBike. We will contact you shortly.");
+  try{
+    const deviceType=
+      /tablet|ipad/i.test(navigator.userAgent) ? "Tablet" :
+      /mobi|android|iphone/i.test(navigator.userAgent) ? "Mobile" :
+      "Desktop";
 
-  closeEnquiryModal();
-  document.getElementById("questionType").value = "";
-  document.getElementById("offerAmount").value = "";
-  document.getElementById("buyerShippingAgent").value = "";
-  document.getElementById("enquiryMessage").value = "";
+    const browser=
+      navigator.userAgent.includes("Edg") ? "Edge" :
+      navigator.userAgent.includes("Chrome") ? "Chrome" :
+      navigator.userAgent.includes("Firefox") ? "Firefox" :
+      navigator.userAgent.includes("Safari") ? "Safari" :
+      "Unknown";
+
+    const {error}=await sb
+      .from("bike_enquiries")
+      .insert({
+        customer_id:currentUser.id,
+        bike_id:Number(bike.id),
+        enquiry_type:"Buyer Question",
+        question_type,
+        offer_amount,
+        buyer_shipping_agent,
+        customer_email:currentUser.email,
+        customer_name:currentProfile?.full_name || currentUser.email,
+        customer_phone:phone,
+        destination_country:currentProfile?.country || "",
+        customer_city:currentProfile?.city || "",
+        customer_region:currentProfile?.region || "",
+        device_type:deviceType,
+        browser,
+        message,
+        status:"New"
+      });
+
+    if(error){
+      alert("Enquiry could not be sent: "+error.message);
+      return;
+    }
+
+    lastEnquiryFingerprint=fingerprint;
+    lastEnquirySubmittedAt=Date.now();
+
+    alert("Enquiry sent to AnyBike. We will contact you shortly.");
+
+    closeEnquiryModal();
+    document.getElementById("questionType").value="";
+    document.getElementById("offerAmount").value="";
+    document.getElementById("buyerShippingAgent").value="";
+    document.getElementById("enquiryMessage").value="";
+    handleQuestionTypeChange();
+
+  }finally{
+    enquirySubmitting=false;
+
+    if(sendButton){
+      sendButton.disabled=false;
+      sendButton.textContent="Send Enquiry";
+    }
+  }
 }
 
 async function toggleWatch(){
+  if(watchUpdating){
+    return;
+  }
+
   if(!currentUser){
-    location.href="/customer-register.html";
+    redirectToCustomerLogin();
+    return;
+  }
+
+  if(!bike || !normaliseBikeId(bike.id)){
     return;
   }
 
   const btn=document.getElementById("watchBtn");
+  watchUpdating=true;
 
-  if(watched){
+  if(btn){
+    btn.disabled=true;
+  }
+
+  try{
+    if(watched){
+      const {error}=await sb
+        .from("customer_watchlist")
+        .delete()
+        .eq("customer_id",currentUser.id)
+        .eq("bike_id",Number(bike.id));
+
+      if(error){
+        alert(error.message);
+        return;
+      }
+
+      watched=false;
+
+      if(btn){
+        btn.textContent="♡ Add To Watchlist";
+      }
+
+      return;
+    }
+
     const {error}=await sb
       .from("customer_watchlist")
-      .delete()
-      .eq("customer_id",currentUser.id)
-      .eq("bike_id",bike.id);
+      .insert({
+        customer_id:currentUser.id,
+        bike_id:Number(bike.id)
+      });
 
     if(error){
+      if(String(error.code)==="23505"){
+        watched=true;
+
+        if(btn){
+          btn.textContent="✓ Added To Watchlist";
+        }
+
+        return;
+      }
+
       alert(error.message);
       return;
     }
 
-    watched=false;
-    btn.textContent="♡ Add To Watchlist";
-    return;
+    watched=true;
+
+    if(btn){
+      btn.textContent="✓ Added To Watchlist";
+    }
+
+  }finally{
+    watchUpdating=false;
+
+    if(btn){
+      btn.disabled=false;
+    }
   }
-
-  const {error}=await sb.from("customer_watchlist").insert({
-    customer_id:currentUser.id,
-    bike_id:bike.id
-  });
-
-  if(error){
-    alert(error.message);
-    return;
-  }
-
-  watched=true;
-  btn.textContent="✓ Added To Watchlist";
 }
 
 window.addEventListener("anybikeCurrencyChanged", function(e){
-  localStorage.setItem("anybikeCurrency", e.detail.currency || "GBP");
+  localStorage.setItem("anybikeCurrency",e.detail.currency || "GBP");
+  localStorage.setItem("anybike_currency",e.detail.currency || "GBP");
   if(bike) render();
 });
 
 window.addEventListener("anybikeLanguageChanged", function(e){
-  localStorage.setItem("anybikeLanguage", e.detail.language || "en");
+  localStorage.setItem("anybikeLanguage",e.detail.language || "en");
+  localStorage.setItem("anybike_language",e.detail.language || "en");
+});
+
+document.getElementById("enquiryModal").addEventListener("click",function(event){
+  if(event.target===this && !enquirySubmitting){
+    closeEnquiryModal();
+  }
+});
+
+document.addEventListener("keydown",function(event){
+  if(event.key==="Escape" && !enquirySubmitting){
+    closeEnquiryModal();
+  }
 });
 
 (async function init(){
