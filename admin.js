@@ -1,14 +1,16 @@
 /*
 AnyBike
 File: admin.js
-Version: 12.1
-Date: 14 July 2026
+Version: 12.2
+Date: 15 July 2026
 
 Security
 ✓ Hides admin content until the Supabase admin session is verified
 ✓ Keeps browser back/forward cached admin pages hidden after logout
 ✓ Rechecks the session on pageshow, focus and visibility changes
 ✓ Preserves sidebar, topbar, search and notifications
+✓ Removes authorised email addresses from browser code
+✓ Checks the protected Supabase admin_users table by authenticated user ID
 */
 
 (function protectAdminPageImmediately(){
@@ -26,12 +28,10 @@ Security
   (document.head || document.documentElement).appendChild(style);
 })();
 
-const ANYBIKE_ADMIN_EMAILS = [
-"sales@anybike.co.uk"
-];
 
 let anybikeAdminSupabase = null;
 let anybikeAdminUser = null;
+let anybikeAdminRecord = null;
 
 function getAdminSupabaseClient(){
 if(anybikeAdminSupabase){
@@ -53,13 +53,6 @@ SUPABASE_ANON_KEY
 return anybikeAdminSupabase;
 }
 
-function isAllowedAdminEmail(email){
-const value = String(email || "").trim().toLowerCase();
-
-return ANYBIKE_ADMIN_EMAILS.some(function(adminEmail){
-return adminEmail.toLowerCase() === value;
-});
-}
 
 async function requireAdminSession(){
   const client=getAdminSupabaseClient();
@@ -102,8 +95,34 @@ async function requireAdminSession(){
       return false;
     }
 
-    if(!isAllowedAdminEmail(user.email)){
-      await client.auth.signOut();
+    const {
+      data:adminRecord,
+      error:adminError
+    }=await client
+      .from("admin_users")
+      .select("user_id,full_name,role,department,active")
+      .eq("user_id",user.id)
+      .eq("active",true)
+      .maybeSingle();
+
+    if(adminError){
+      console.warn("Admin authorisation check failed",adminError.message);
+
+      await client.auth.signOut({
+        scope:"local"
+      });
+
+      window.location.replace(
+        "/admin-login.html?error=admin-check"
+      );
+
+      return false;
+    }
+
+    if(!adminRecord){
+      await client.auth.signOut({
+        scope:"local"
+      });
 
       window.location.replace(
         "/admin-login.html?error=not-authorized"
@@ -113,6 +132,8 @@ async function requireAdminSession(){
     }
 
     anybikeAdminUser=user;
+    anybikeAdminRecord=adminRecord;
+
     document.documentElement.classList.remove("admin-auth-pending");
 
     return true;
@@ -143,9 +164,10 @@ return;
 }
 
 const displayName =
+anybikeAdminRecord?.full_name ||
 anybikeAdminUser.user_metadata?.full_name ||
 anybikeAdminUser.user_metadata?.name ||
-"Andy Gifford";
+"AnyBike Admin";
 
 if(nameEl){
 nameEl.textContent = displayName;
@@ -178,6 +200,7 @@ async function adminLogout(){
   }
 
   anybikeAdminUser=null;
+  anybikeAdminRecord=null;
 
   try{
     sessionStorage.removeItem("anybike_admin_authenticated");
