@@ -61,6 +61,11 @@ input{
   border-radius:12px;
   background:#191919;
   color:#fff;
+  outline:none;
+}
+input:focus{
+  border-color:var(--red);
+  box-shadow:0 0 0 3px rgba(237,28,36,.13);
 }
 button{
   width:100%;
@@ -78,6 +83,7 @@ button:disabled{opacity:.6;cursor:not-allowed}
   min-height:22px;
   margin-top:13px;
   font-size:13px;
+  line-height:1.45;
 }
 .bad{color:#ff7b80}
 .ok{color:#49d98a}
@@ -87,6 +93,7 @@ button:disabled{opacity:.6;cursor:not-allowed}
   border-top:1px solid var(--line);
   color:#888;
   font-size:12px;
+  line-height:1.45;
 }
 </style>
 </head>
@@ -105,7 +112,6 @@ button:disabled{opacity:.6;cursor:not-allowed}
     <input
       id="adminEmail"
       type="email"
-      value="sales@anybike.co.uk"
       autocomplete="username"
       required
     >
@@ -123,7 +129,7 @@ button:disabled{opacity:.6;cursor:not-allowed}
   </form>
 
   <div class="help">
-    Authorised admin account: <strong>sales@anybike.co.uk</strong>
+    Access is restricted to active AnyBike administrator accounts.
   </div>
 </main>
 
@@ -132,18 +138,12 @@ const SUPABASE_URL = "https://tuehtnezhdnkqbbhttgp.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
 const sb = supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 
-const ALLOWED_ADMIN_EMAILS = [
-  "sales@anybike.co.uk"
-];
-
 const ADMIN_RETURN_STORAGE_KEY = "anybike_admin_return_url";
 
-function isAllowedAdminEmail(email){
-  const value = String(email || "").trim().toLowerCase();
-
-  return ALLOWED_ADMIN_EMAILS.some(function(adminEmail){
-    return adminEmail.toLowerCase() === value;
-  });
+function setLoginStatus(message,type=""){
+  const status = document.getElementById("adminLoginStatus");
+  status.textContent = message;
+  status.className = "status" + (type ? " " + type : "");
 }
 
 function isSafeAdminReturnUrl(value){
@@ -170,9 +170,9 @@ function captureRequestedReturnUrl(){
 
   if(isSafeAdminReturnUrl(requested)){
     try{
-      sessionStorage.setItem(ADMIN_RETURN_STORAGE_KEY, requested);
+      sessionStorage.setItem(ADMIN_RETURN_STORAGE_KEY,requested);
     }catch(error){
-      console.warn("Could not store admin return URL", error);
+      console.warn("Could not store admin return URL",error);
     }
 
     return requested;
@@ -195,7 +195,7 @@ function getReturnUrl(){
       return storedReturn;
     }
   }catch(error){
-    console.warn("Could not read admin return URL", error);
+    console.warn("Could not read admin return URL",error);
   }
 
   return "/admin-dashboard.html";
@@ -205,7 +205,7 @@ function clearReturnUrl(){
   try{
     sessionStorage.removeItem(ADMIN_RETURN_STORAGE_KEY);
   }catch(error){
-    console.warn("Could not clear admin return URL", error);
+    console.warn("Could not clear admin return URL",error);
   }
 }
 
@@ -215,23 +215,69 @@ function openReturnUrl(){
   window.location.replace(destination);
 }
 
+async function getActiveAdminRecord(user){
+  if(!user?.id){
+    return null;
+  }
+
+  const {
+    data,
+    error
+  } = await sb
+    .from("admin_users")
+    .select("user_id,full_name,role,department,active")
+    .eq("user_id",user.id)
+    .eq("active",true)
+    .maybeSingle();
+
+  if(error){
+    throw error;
+  }
+
+  return data || null;
+}
+
+async function rejectUnauthorisedAccount(message){
+  try{
+    await sb.auth.signOut({scope:"local"});
+  }catch(error){
+    console.warn("Could not sign out unauthorised account",error);
+  }
+
+  setLoginStatus(
+    message || "This account is not authorised for AnyBike Admin.",
+    "bad"
+  );
+}
+
 async function checkExistingSession(){
   const {data,error} = await sb.auth.getSession();
 
   if(error){
-    console.warn("Existing admin session check failed", error);
+    console.warn("Existing admin session check failed",error);
     return;
   }
 
   const user = data?.session?.user || null;
 
-  if(user && isAllowedAdminEmail(user.email)){
-    openReturnUrl();
+  if(!user){
     return;
   }
 
-  if(user){
-    await sb.auth.signOut();
+  try{
+    const adminRecord = await getActiveAdminRecord(user);
+
+    if(adminRecord){
+      openReturnUrl();
+      return;
+    }
+
+    await rejectUnauthorisedAccount();
+  }catch(error){
+    console.warn("Existing admin authorisation check failed",error);
+    await rejectUnauthorisedAccount(
+      "Admin access could not be verified. Please try again."
+    );
   }
 }
 
@@ -251,54 +297,66 @@ document
       .value;
 
     const button = document.getElementById("adminLoginButton");
-    const status = document.getElementById("adminLoginStatus");
-
-    if(!isAllowedAdminEmail(email)){
-      status.textContent = "This email is not authorised for AnyBike Admin.";
-      status.className = "status bad";
-      return;
-    }
 
     button.disabled = true;
-    status.textContent = "Signing in...";
-    status.className = "status";
+    setLoginStatus("Signing in...");
 
-    const {data,error} = await sb.auth.signInWithPassword({
-      email:email,
-      password:password
-    });
+    try{
+      const {data,error} = await sb.auth.signInWithPassword({
+        email:email,
+        password:password
+      });
 
-    if(error){
-      status.textContent = "Sign in failed: " + error.message;
-      status.className = "status bad";
+      if(error){
+        setLoginStatus("Sign in failed: " + error.message,"bad");
+        return;
+      }
+
+      const user = data?.user || data?.session?.user || null;
+      const adminRecord = await getActiveAdminRecord(user);
+
+      if(!adminRecord){
+        await rejectUnauthorisedAccount();
+        return;
+      }
+
+      setLoginStatus(
+        "Signed in. Opening Admin...",
+        "ok"
+      );
+
+      openReturnUrl();
+
+    }catch(error){
+      console.error("Admin login failed",error);
+
+      await rejectUnauthorisedAccount(
+        "Admin access could not be verified: " +
+        (error?.message || "Unknown error")
+      );
+    }finally{
       button.disabled = false;
-      return;
     }
-
-    if(!isAllowedAdminEmail(data?.user?.email)){
-      await sb.auth.signOut();
-      status.textContent = "This account is not authorised for AnyBike Admin.";
-      status.className = "status bad";
-      button.disabled = false;
-      return;
-    }
-
-    status.textContent = "Signed in. Opening Admin...";
-    status.className = "status ok";
-
-    openReturnUrl();
   });
 
 const params = new URLSearchParams(window.location.search);
-const error = params.get("error");
-const status = document.getElementById("adminLoginStatus");
+const errorCode = params.get("error");
 
-if(error === "not-authorized"){
-  status.textContent = "That account is not authorised for AnyBike Admin.";
-  status.className = "status bad";
-}else if(error === "supabase"){
-  status.textContent = "The login service could not be loaded.";
-  status.className = "status bad";
+if(errorCode === "not-authorized"){
+  setLoginStatus(
+    "That account is not authorised for AnyBike Admin.",
+    "bad"
+  );
+}else if(errorCode === "supabase"){
+  setLoginStatus(
+    "The login service could not be loaded.",
+    "bad"
+  );
+}else if(errorCode === "admin-check"){
+  setLoginStatus(
+    "Admin access could not be verified. Please sign in again.",
+    "bad"
+  );
 }
 
 captureRequestedReturnUrl();
