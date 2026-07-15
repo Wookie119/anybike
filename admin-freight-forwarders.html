@@ -1,5 +1,6 @@
 
 
+
 <!doctype html>
 <html lang="en">
 <head>
@@ -10,6 +11,15 @@
 <link rel="icon" href="/anybike-logo-new.jpg">
 <link rel="stylesheet" href="/admin-shell.css?v=20260712-1">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+document.documentElement.classList.add("admin-auth-pending");
+</script>
+<style>
+html.admin-auth-pending body{
+  visibility:hidden !important;
+  pointer-events:none !important;
+}
+</style>
 
 <style>
 :root{
@@ -348,6 +358,8 @@ a{color:inherit;text-decoration:none}
   <aside id="adminSidebar"></aside>
 
   <div class="admin-main">
+    <div id="adminTopbar"></div>
+
     <header class="topbar">
       <div>
         <h1>Freight Forwarders</h1>
@@ -594,26 +606,6 @@ function dateDisplay(value){
   if(!value) return "Never";
   const d = new Date(value);
   return Number.isNaN(d.getTime()) ? value : d.toLocaleDateString("en-GB");
-}
-
-async function loadAdminShell(){
-  try{
-    const response = await fetch("/admin-sidebar.html?v=2000", {cache:"no-store"});
-    if(!response.ok) throw new Error("Sidebar request failed");
-    document.getElementById("adminSidebar").innerHTML = await response.text();
-
-    if(typeof setupAdminFolders === "function") setupAdminFolders();
-
-    const current = window.location.pathname.split("/").pop();
-    document.querySelectorAll("#adminSidebar a").forEach(link => {
-      const href = (link.getAttribute("href") || "").split("/").pop();
-      if(href === current) link.classList.add("active");
-    });
-  }catch(error){
-    console.warn("Admin sidebar unavailable", error);
-    document.getElementById("adminSidebar").innerHTML =
-      '<div style="padding:24px;color:#fff"><img src="/anybike-logo-new.jpg" style="width:180px;background:#fff;border-radius:12px;padding:6px"><p style="color:#aaa">Admin menu could not be loaded.</p></div>';
-  }
 }
 
 async function loadForwarders(){
@@ -962,11 +954,24 @@ document.getElementById("editorModal").addEventListener("click", e => {
   if(e.target.id === "editorModal") closeEditor();
 });
 
-(async function init(){
-  await loadAdminShell();
-  await loadForwarders();
-})();
 </script>
-<script src="/admin.js?v=20260712-1"></script>
+<script src="/admin.js?v=12100"></script>
+<script>
+window.addEventListener("load", function(){
+  const startPage = function(){
+    if(document.documentElement.classList.contains("admin-auth-pending")){
+      window.setTimeout(startPage, 100);
+      return;
+    }
+
+    if(!window.anybikeFreightForwardersLoaded){
+      window.anybikeFreightForwardersLoaded = true;
+      loadForwarders();
+    }
+  };
+
+  startPage();
+});
+</script>
 </body>
 </html>
