@@ -15,7 +15,11 @@ Changes
 ✓ Keeps mobile drawer and desktop account menu behaviour
 */
 
-document.addEventListener("DOMContentLoaded", loadPublicHeader);
+if(document.readyState === "loading"){
+  document.addEventListener("DOMContentLoaded",loadPublicHeader,{once:true});
+}else{
+  loadPublicHeader();
+}
 
 const ANYBIKE_HEADER_CURRENCY_RATES = {
   GBP:1,
@@ -274,14 +278,31 @@ async function setupPublicHeader(){
   const languageSelect = document.getElementById("phLanguage");
   const currencySelect = document.getElementById("phCurrency");
 
-  mobileMenuButton?.addEventListener("click",function(event){
-    event.preventDefault();
+  function openMobileMenu(event){
+    event?.preventDefault();
+    event?.stopPropagation();
 
     document.body.classList.add("mobile-menu-open");
-    mobileDrawer?.classList.add("open");
-    mobileDrawerBackdrop?.classList.add("open");
-    mobileMenuButton.setAttribute("aria-expanded","true");
-  });
+    document.body.style.overflow = "hidden";
+
+    if(mobileDrawer){
+      mobileDrawer.classList.add("open");
+      mobileDrawer.style.transform = "translateX(0)";
+      mobileDrawer.style.visibility = "visible";
+      mobileDrawer.style.pointerEvents = "auto";
+    }
+
+    if(mobileDrawerBackdrop){
+      mobileDrawerBackdrop.classList.add("open");
+      mobileDrawerBackdrop.style.opacity = "1";
+      mobileDrawerBackdrop.style.visibility = "visible";
+      mobileDrawerBackdrop.style.pointerEvents = "auto";
+    }
+
+    mobileMenuButton?.setAttribute("aria-expanded","true");
+  }
+
+  mobileMenuButton?.addEventListener("click",openMobileMenu);
 
   mobileMenuClose?.addEventListener("click",closeMobileMenu);
   mobileDrawerBackdrop?.addEventListener("click",closeMobileMenu);
