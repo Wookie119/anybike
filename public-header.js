@@ -254,6 +254,7 @@ async function setupPublicHeader(){
   const mobileMenuButton = document.getElementById("mobileMenuButton");
   const mobileMenuClose = document.getElementById("mobileMenuClose");
   const mobileDrawerBackdrop = document.getElementById("mobileDrawerBackdrop");
+  const mobileDrawer = document.getElementById("mobileDrawer");
 
   const publicAccount = document.querySelector(".public-account");
   const accountButton = document.getElementById("phAccountButton");
@@ -273,8 +274,13 @@ async function setupPublicHeader(){
   const languageSelect = document.getElementById("phLanguage");
   const currencySelect = document.getElementById("phCurrency");
 
-  mobileMenuButton?.addEventListener("click",function(){
+  mobileMenuButton?.addEventListener("click",function(event){
+    event.preventDefault();
+
     document.body.classList.add("mobile-menu-open");
+    mobileDrawer?.classList.add("open");
+    mobileDrawerBackdrop?.classList.add("open");
+    mobileMenuButton.setAttribute("aria-expanded","true");
   });
 
   mobileMenuClose?.addEventListener("click",closeMobileMenu);
@@ -473,7 +479,14 @@ function normaliseCurrency(value){
 }
 
 function closeMobileMenu(){
+  const mobileDrawer = document.getElementById("mobileDrawer");
+  const mobileDrawerBackdrop = document.getElementById("mobileDrawerBackdrop");
+  const mobileMenuButton = document.getElementById("mobileMenuButton");
+
   document.body.classList.remove("mobile-menu-open");
+  mobileDrawer?.classList.remove("open");
+  mobileDrawerBackdrop?.classList.remove("open");
+  mobileMenuButton?.setAttribute("aria-expanded","false");
 }
 
 async function logoutCustomer(event){
