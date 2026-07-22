@@ -196,18 +196,21 @@ async function processNextBatch(){
 
     console.error(error);
 
-    const message=
-      error?.context?.body ||
-      error?.message ||
-      error?.error_description ||
-      error?.details ||
-      String(error);
+  let message = error?.message || String(error);
 
-    statusText.innerHTML=`
-      <span class="bad">
-        Stopped: ${escapeHtml(message)}
-      </span>
-    `;
+if(error?.context){
+  try{
+    const result = await error.context.clone().json();
+    message =
+      result?.error ||
+      result?.message ||
+      JSON.stringify(result);
+  }catch(jsonError){
+    try{
+      message = await error.context.clone().text();
+    }catch(textError){
+      message = error?.message || String(error);
+    }
   }
 }
 
