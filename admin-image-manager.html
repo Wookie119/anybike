@@ -147,9 +147,21 @@ async function processNextBatch(){
   if(!running) return;
 
   try{
-    const {data,error}=await sb.functions.invoke("process-bike-images",{
-      body:{limit:3}
-    });
+   const {
+  data: { session },
+  error: sessionError
+} = await sb.auth.getSession();
+
+if(sessionError || !session?.access_token){
+  throw new Error("Admin session could not be found. Please log in again.");
+}
+
+const {data,error}=await sb.functions.invoke("process-bike-images",{
+  body:{limit:1},
+  headers:{
+    Authorization:`Bearer ${session.access_token}`
+  }
+});
 
     if(error) throw error;
 
