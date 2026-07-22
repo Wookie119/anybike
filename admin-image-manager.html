@@ -28,6 +28,9 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .progress{height:18px;border-radius:999px;background:#252525;overflow:hidden;margin:16px 0}
 .progress span{display:block;height:100%;width:0;background:var(--red);transition:width .25s}
 .status{color:#bbb;min-height:24px}
+.batch-note{margin-top:12px;color:#888;font-size:14px;line-height:1.5}
+.run-stats{display:flex;flex-wrap:wrap;gap:20px;margin-top:14px;color:#bbb}
+.run-stats strong{color:#fff}
 table{width:100%;border-collapse:collapse;font-size:14px}
 th,td{padding:11px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
 .bad{color:#ff6969}.ok{color:var(--green)}
@@ -54,14 +57,29 @@ th,td{padding:11px;border-bottom:1px solid var(--line);text-align:left;vertical-
 
       <section class="card">
         <h2>Image processing</h2>
+
         <div class="actions">
-          <button id="startBtn" type="button" onclick="startProcessing()">Start</button>
-          <button class="dark" type="button" onclick="pauseProcessing()">Stop</button>
-          <button class="dark" type="button" onclick="retryFailed()">Retry Failed</button>
-          <button class="dark" type="button" onclick="refreshAll()">Refresh</button>
+          <button class="process-button" type="button" onclick="startProcessing(1)">Process 1</button>
+          <button class="process-button" type="button" onclick="startProcessing(10)">Process 10</button>
+          <button class="process-button" type="button" onclick="startProcessing(50)">Process 50</button>
+          <button class="process-button" type="button" onclick="startProcessing(100)">Process 100</button>
+          <button id="continuousBtn" class="process-button" type="button" onclick="startContinuous()">Continuous</button>
+          <button id="stopBtn" class="dark" type="button" onclick="pauseProcessing()" disabled>Stop</button>
+          <button id="retryBtn" class="dark process-button" type="button" onclick="retryFailed()">Retry Failed</button>
+          <button id="refreshBtn" class="dark process-button" type="button" onclick="refreshAll()">Refresh</button>
         </div>
+
         <div class="progress"><span id="progressBar"></span></div>
         <div class="status" id="statusText">Ready.</div>
+
+        <div class="run-stats">
+          <span>Processed this run: <strong id="runProcessed">0</strong></span>
+          <span>Current target: <strong id="runTarget">—</strong></span>
+        </div>
+
+        <div class="batch-note">
+          Images are processed safely one at a time. Stop prevents the next image from starting but does not interrupt an image already being converted. Do not use Continuous for the full queue until the weekly CSV importer has been updated to reuse existing AnyBike images.
+        </div>
       </section>
 
       <section class="card">
@@ -74,7 +92,12 @@ th,td{padding:11px;border-bottom:1px solid var(--line);text-align:left;vertical-
 
 <script>
 const sb = getAdminSupabaseClient();
+
 let running = false;
+let continuousMode = false;
+let batchTarget = 0;
+let batchProcessed = 0;
+let stopRequested = false;
 
 async function getCount(status){
   const {count,error}=await sb
@@ -108,7 +131,7 @@ async function refreshStats(){
     statusText.textContent=percent+"% complete";
   }
 
-  return {waiting,processing,complete,failed,total};
+  return {waiting,processing,complete,failed,total,percent};
 }
 
 async function loadFailures(){
@@ -174,80 +197,167 @@ async function readFunctionError(error){
   }
 }
 
-async function processNextBatch(){
-  if(!running) return;
+function setControlsForRunning(isRunning){
+  document.querySelectorAll(".process-button").forEach(function(button){
+    button.disabled=isRunning;
+  });
+
+  stopBtn.disabled=!isRunning;
+}
+
+function updateRunDisplay(){
+  runProcessed.textContent=batchProcessed.toLocaleString("en-GB");
+  runTarget.textContent=continuousMode
+    ? "Continuous"
+    : batchTarget.toLocaleString("en-GB");
+}
+
+async function invokeOneImage(){
+  const {
+    data:{session},
+    error:sessionError
+  }=await sb.auth.getSession();
+
+  if(sessionError || !session?.access_token){
+    throw new Error("Admin session could not be found. Please log in again.");
+  }
+
+  const {data,error}=await sb.functions.invoke(
+    "process-bike-images",
+    {
+      body:{limit:1},
+      headers:{
+        Authorization:`Bearer ${session.access_token}`
+      }
+    }
+  );
+
+  if(error) throw error;
+  return data;
+}
+
+async function processNextImage(){
+  if(!running || stopRequested){
+    finishProcessing(
+      `Stopped after ${batchProcessed.toLocaleString("en-GB")} image${batchProcessed===1 ? "" : "s"} this run.`
+    );
+    return;
+  }
 
   try{
-    const {
-      data:{session},
-      error:sessionError
-    }=await sb.auth.getSession();
+    statusText.textContent=continuousMode
+      ? `Processing next image. ${batchProcessed.toLocaleString("en-GB")} completed this run.`
+      : `Processing image ${batchProcessed+1} of ${batchTarget}.`;
 
-    if(sessionError || !session?.access_token){
-      throw new Error("Admin session could not be found. Please log in again.");
+    const data=await invokeOneImage();
+
+    if((data?.processed || 0)===0){
+      finishProcessing(data?.message || "No waiting image was processed.");
+      await refreshStats();
+      await loadFailures();
+      return;
     }
 
-    statusText.textContent="Processing one test image. Existing website images remain live.";
-
-    const {data,error}=await sb.functions.invoke(
-      "process-bike-images",
-      {
-        body:{limit:1},
-        headers:{
-          Authorization:`Bearer ${session.access_token}`
-        }
-      }
-    );
-
-    if(error) throw error;
+    batchProcessed+=Number(data.processed || 1);
+    updateRunDisplay();
 
     const stats=await refreshStats();
     await loadFailures();
 
-    running=false;
-    startBtn.disabled=false;
-
-    if((data?.processed || 0)===0){
-      statusText.textContent=data?.message || "No waiting image was processed.";
+    if(stopRequested){
+      finishProcessing(
+        `Stopped after ${batchProcessed.toLocaleString("en-GB")} image${batchProcessed===1 ? "" : "s"} this run.`
+      );
       return;
     }
 
-    statusText.textContent=stats.complete>0
-      ? "One-image test finished successfully."
-      : "The test finished, but no completed image was recorded.";
+    if(stats.waiting===0){
+      finishProcessing("Queue complete.");
+      return;
+    }
+
+    if(!continuousMode && batchProcessed>=batchTarget){
+      finishProcessing(
+        `${batchProcessed.toLocaleString("en-GB")} image${batchProcessed===1 ? "" : "s"} processed successfully.`
+      );
+      return;
+    }
+
+    window.setTimeout(processNextImage,500);
 
   }catch(error){
-    running=false;
-    startBtn.disabled=false;
-
     console.error(error);
 
     const message=await readFunctionError(error);
 
-    statusText.innerHTML=`
-      <span class="bad">
-        Stopped: ${escapeHtml(message)}
-      </span>
-    `;
+    finishProcessing(
+      `<span class="bad">Stopped: ${escapeHtml(message)}</span>`,
+      true
+    );
 
     await refreshStats().catch(function(){});
     await loadFailures().catch(function(){});
   }
 }
 
-function startProcessing(){
+function startProcessing(amount){
   if(running) return;
 
   running=true;
-  startBtn.disabled=true;
-  statusText.textContent="Starting image processor...";
-  processNextBatch();
+  continuousMode=false;
+  stopRequested=false;
+  batchTarget=Math.max(1,Number(amount) || 1);
+  batchProcessed=0;
+
+  updateRunDisplay();
+  setControlsForRunning(true);
+
+  statusText.textContent=
+    `Starting batch of ${batchTarget.toLocaleString("en-GB")} image${batchTarget===1 ? "" : "s"}...`;
+
+  processNextImage();
+}
+
+function startContinuous(){
+  if(running) return;
+
+  running=true;
+  continuousMode=true;
+  stopRequested=false;
+  batchTarget=0;
+  batchProcessed=0;
+
+  updateRunDisplay();
+  setControlsForRunning(true);
+
+  statusText.textContent="Starting continuous image processing...";
+  processNextImage();
 }
 
 function pauseProcessing(){
+  if(!running){
+    statusText.textContent="Nothing is currently processing.";
+    return;
+  }
+
+  stopRequested=true;
+  statusText.textContent=
+    "Stop requested. The current image will finish, then processing will stop.";
+  stopBtn.disabled=true;
+}
+
+function finishProcessing(message,html=false){
   running=false;
-  startBtn.disabled=false;
-  statusText.textContent="Stopped. Existing website images remain unchanged.";
+  continuousMode=false;
+  stopRequested=false;
+
+  setControlsForRunning(false);
+
+  if(html){
+    statusText.innerHTML=message;
+  }else{
+    statusText.textContent=message;
+  }
 }
 
 async function retryFailed(){
@@ -285,6 +395,8 @@ async function refreshAll(){
   if(!allowed) return;
 
   document.documentElement.classList.remove("admin-auth-pending");
+  setControlsForRunning(false);
+  updateRunDisplay();
   await refreshAll();
 })();
 </script>
