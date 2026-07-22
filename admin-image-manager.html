@@ -11,7 +11,7 @@
 <script src="/admin.js?v=12001"></script>
 <link rel="stylesheet" href="/admin-shell.css?v=12001">
 <style>
-:root{--red:#ed1c24;--line:rgba(255,255,255,.12);--muted:#aaa;--green:#33cc66}
+:root{--red:#ed1c24;--line:rgba(255,255,255,.12);--green:#33cc66}
 *{box-sizing:border-box}
 body{margin:0;font-family:Arial,Helvetica,sans-serif;background:linear-gradient(120deg,#050505,#101010 60%,#050505);color:#fff}
 .admin-page-content{padding:24px}
@@ -29,7 +29,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .progress span{display:block;height:100%;width:0;background:var(--red);transition:width .25s}
 .status{color:#bbb;min-height:24px}
 table{width:100%;border-collapse:collapse;font-size:14px}
-th,td{padding:11px;border-bottom:1px solid var(--line);text-align:left}
+th,td{padding:11px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
 .bad{color:#ff6969}.ok{color:var(--green)}
 @media(max-width:900px){.stats{grid-template-columns:repeat(2,1fr)}}
 </style>
@@ -55,10 +55,10 @@ th,td{padding:11px;border-bottom:1px solid var(--line);text-align:left}
       <section class="card">
         <h2>Image processing</h2>
         <div class="actions">
-          <button id="startBtn" onclick="startProcessing()">Start </button>
-          <button class="dark" onclick="pauseProcessing()">Stop</button>
-          <button class="dark" onclick="retryFailed()">Retry Failed</button>
-          <button class="dark" onclick="refreshAll()">Refresh</button>
+          <button id="startBtn" type="button" onclick="startProcessing()">Start</button>
+          <button class="dark" type="button" onclick="pauseProcessing()">Stop</button>
+          <button class="dark" type="button" onclick="retryFailed()">Retry Failed</button>
+          <button class="dark" type="button" onclick="refreshAll()">Refresh</button>
         </div>
         <div class="progress"><span id="progressBar"></span></div>
         <div class="status" id="statusText">Ready.</div>
@@ -73,21 +73,25 @@ th,td{padding:11px;border-bottom:1px solid var(--line);text-align:left}
 </div>
 
 <script>
-const sb=getAdminSupabaseClient();
-let running=false;
+const sb = getAdminSupabaseClient();
+let running = false;
 
 async function getCount(status){
   const {count,error}=await sb
     .from("image_import_queue")
     .select("*",{count:"exact",head:true})
     .eq("status",status);
+
   if(error) throw error;
-  return count||0;
+  return count || 0;
 }
 
 async function refreshStats(){
   const [waiting,processing,complete,failed]=await Promise.all([
-    getCount("waiting"),getCount("processing"),getCount("complete"),getCount("failed")
+    getCount("waiting"),
+    getCount("processing"),
+    getCount("complete"),
+    getCount("failed")
   ]);
 
   waitingCount.textContent=waiting.toLocaleString("en-GB");
@@ -97,10 +101,12 @@ async function refreshStats(){
 
   const total=waiting+processing+complete+failed;
   const percent=total ? Math.round((complete/total)*100) : 0;
+
   progressBar.style.width=percent+"%";
-  statusText.textContent=running
-    ? `Processing images — ${percent}% complete`
-    : `${percent}% complete`;
+
+  if(!running){
+    statusText.textContent=percent+"% complete";
+  }
 
   return {waiting,processing,complete,failed,total};
 }
@@ -114,11 +120,11 @@ async function loadFailures(){
     .limit(25);
 
   if(error){
-    failureList.innerHTML=`<span class="bad">${escapeHtml(error.message)}</span>`;
+    failureList.innerHTML='<span class="bad">'+escapeHtml(error.message)+'</span>';
     return;
   }
 
-  if(!data?.length){
+  if(!data || !data.length){
     failureList.innerHTML='<span class="ok">No failed images.</span>';
     return;
   }
@@ -126,39 +132,62 @@ async function loadFailures(){
   failureList.innerHTML=`
     <table>
       <tr><th>Bike</th><th>Tries</th><th>Error</th><th>Supplier URL</th></tr>
-      ${data.map(row=>`
-        <tr>
-          <td>${row.bike_id}</td>
-          <td>${row.tries}</td>
-          <td class="bad">${escapeHtml(row.last_error||"Unknown error")}</td>
-          <td>${escapeHtml(row.supplier_url||"")}</td>
-        </tr>`).join("")}
-    </table>`;
+      ${data.map(function(row){
+        return `
+          <tr>
+            <td>${escapeHtml(row.bike_id)}</td>
+            <td>${escapeHtml(row.tries)}</td>
+            <td class="bad">${escapeHtml(row.last_error || "Unknown error")}</td>
+            <td>${escapeHtml(row.supplier_url || "")}</td>
+          </tr>
+        `;
+      }).join("")}
+    </table>
+  `;
 }
 
 function escapeHtml(value){
-  return String(value||"")
-    .replaceAll("&","&amp;").replaceAll("<","&lt;")
-    .replaceAll(">","&gt;").replaceAll('"',"&quot;")
+  return String(value ?? "")
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
     .replaceAll("'","&#039;");
 }
 
-async function processNextBatch(){
+async function readFunctionError(error){
+  let message=error?.message || String(error);
+  const response=error?.context;
 
+  if(!response) return message;
+
+  try{
+    const result=await response.clone().json();
+    return result?.error || result?.message || JSON.stringify(result);
+  }catch(jsonError){
+    try{
+      const text=await response.clone().text();
+      return text || message;
+    }catch(textError){
+      return message;
+    }
+  }
+}
+
+async function processNextBatch(){
   if(!running) return;
 
   try{
-
     const {
-      data: { session },
-      error: sessionError
-    } = await sb.auth.getSession();
+      data:{session},
+      error:sessionError
+    }=await sb.auth.getSession();
 
     if(sessionError || !session?.access_token){
-      throw new Error(
-        "Admin session could not be found. Please log in again."
-      );
+      throw new Error("Admin session could not be found. Please log in again.");
     }
+
+    statusText.textContent="Processing one test image. Existing website images remain live.";
 
     const {data,error}=await sb.functions.invoke(
       "process-bike-images",
@@ -170,9 +199,7 @@ async function processNextBatch(){
       }
     );
 
-    if(error){
-      throw error;
-    }
+    if(error) throw error;
 
     const stats=await refreshStats();
     await loadFailures();
@@ -180,42 +207,37 @@ async function processNextBatch(){
     running=false;
     startBtn.disabled=false;
 
-    if((data?.processed||0)===0){
-      statusText.textContent=
-        data?.message || "No waiting image was processed.";
+    if((data?.processed || 0)===0){
+      statusText.textContent=data?.message || "No waiting image was processed.";
       return;
     }
 
-    statusText.textContent=
-      "One-image test finished successfully.";
+    statusText.textContent=stats.complete>0
+      ? "One-image test finished successfully."
+      : "The test finished, but no completed image was recorded.";
 
   }catch(error){
-
     running=false;
     startBtn.disabled=false;
 
     console.error(error);
 
-  let message = error?.message || String(error);
+    const message=await readFunctionError(error);
 
-if(error?.context){
-  try{
-    const result = await error.context.clone().json();
-    message =
-      result?.error ||
-      result?.message ||
-      JSON.stringify(result);
-  }catch(jsonError){
-    try{
-      message = await error.context.clone().text();
-    }catch(textError){
-      message = error?.message || String(error);
-    }
+    statusText.innerHTML=`
+      <span class="bad">
+        Stopped: ${escapeHtml(message)}
+      </span>
+    `;
+
+    await refreshStats().catch(function(){});
+    await loadFailures().catch(function(){});
   }
 }
 
 function startProcessing(){
   if(running) return;
+
   running=true;
   startBtn.disabled=true;
   statusText.textContent="Starting image processor...";
@@ -225,7 +247,7 @@ function startProcessing(){
 function pauseProcessing(){
   running=false;
   startBtn.disabled=false;
-  statusText.textContent="Paused. Existing website images remain unchanged.";
+  statusText.textContent="Stopped. Existing website images remain unchanged.";
 }
 
 async function retryFailed(){
@@ -239,19 +261,31 @@ async function retryFailed(){
     alert("Retry failed: "+error.message);
     return;
   }
+
   await refreshAll();
 }
 
 async function refreshAll(){
-  await refreshStats();
-  await loadFailures();
+  try{
+    await refreshStats();
+    await loadFailures();
+  }catch(error){
+    console.error(error);
+    statusText.innerHTML=`
+      <span class="bad">
+        Could not load image queue: ${escapeHtml(error.message || error)}
+      </span>
+    `;
+  }
 }
 
-(async function start(){
+(async function startPage(){
   const allowed=await requireAdminSession();
+
   if(!allowed) return;
+
   document.documentElement.classList.remove("admin-auth-pending");
-  refreshAll();
+  await refreshAll();
 })();
 </script>
 </body>
