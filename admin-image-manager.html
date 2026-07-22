@@ -29,8 +29,11 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .progress span{display:block;height:100%;width:0;background:var(--red);transition:width .25s}
 .status{color:#bbb;min-height:24px}
 .batch-note{margin-top:12px;color:#888;font-size:14px;line-height:1.5}
-.run-stats{display:flex;flex-wrap:wrap;gap:20px;margin-top:14px;color:#bbb}
-.run-stats strong{color:#fff}
+.run-stats{display:grid;grid-template-columns:repeat(4,minmax(160px,1fr));gap:12px;margin-top:14px}
+.run-stat{background:#181818;border:1px solid var(--line);border-radius:12px;padding:12px;color:#aaa}
+.run-stat strong{display:block;color:#fff;font-size:18px;margin-top:5px}
+@media(max-width:900px){.stats{grid-template-columns:repeat(2,1fr)}.run-stats{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:560px){.run-stats{grid-template-columns:1fr}}
 table{width:100%;border-collapse:collapse;font-size:14px}
 th,td{padding:11px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
 .bad{color:#ff6969}.ok{color:var(--green)}
@@ -73,8 +76,10 @@ th,td{padding:11px;border-bottom:1px solid var(--line);text-align:left;vertical-
         <div class="status" id="statusText">Ready.</div>
 
         <div class="run-stats">
-          <span>Processed this run: <strong id="runProcessed">0</strong></span>
-          <span>Current target: <strong id="runTarget">—</strong></span>
+          <div class="run-stat">Processed this run<strong id="runProcessed">0</strong></div>
+          <div class="run-stat">Current target<strong id="runTarget">—</strong></div>
+          <div class="run-stat">Elapsed time<strong id="elapsedTime">00:00</strong></div>
+          <div class="run-stat">Average / remaining<strong id="speedEstimate">—</strong></div>
         </div>
 
         <div class="batch-note">
@@ -93,11 +98,27 @@ th,td{padding:11px;border-bottom:1px solid var(--line);text-align:left;vertical-
 <script>
 const sb = getAdminSupabaseClient();
 
+const waitingCountEl=document.getElementById("waitingCount");
+const processingCountEl=document.getElementById("processingCount");
+const completeCountEl=document.getElementById("completeCount");
+const failedCountEl=document.getElementById("failedCount");
+const progressBarEl=document.getElementById("progressBar");
+const statusTextEl=document.getElementById("statusText");
+const failureListEl=document.getElementById("failureList");
+const stopBtnEl=document.getElementById("stopBtn");
+const runProcessedEl=document.getElementById("runProcessed");
+const runTargetEl=document.getElementById("runTarget");
+const elapsedTimeEl=document.getElementById("elapsedTime");
+const speedEstimateEl=document.getElementById("speedEstimate");
+
 let running = false;
 let continuousMode = false;
 let batchTarget = 0;
 let batchProcessed = 0;
 let stopRequested = false;
+let runStartedAt = null;
+let timerInterval = null;
+let overallPercent = 0;
 
 async function getCount(status){
   const {count,error}=await sb
@@ -117,18 +138,18 @@ async function refreshStats(){
     getCount("failed")
   ]);
 
-  waitingCount.textContent=waiting.toLocaleString("en-GB");
-  processingCount.textContent=processing.toLocaleString("en-GB");
-  completeCount.textContent=complete.toLocaleString("en-GB");
-  failedCount.textContent=failed.toLocaleString("en-GB");
+  waitingCountEl.textContent=waiting.toLocaleString("en-GB");
+  processingCountEl.textContent=processing.toLocaleString("en-GB");
+  completeCountEl.textContent=complete.toLocaleString("en-GB");
+  failedCountEl.textContent=failed.toLocaleString("en-GB");
 
   const total=waiting+processing+complete+failed;
   const percent=total ? Math.round((complete/total)*100) : 0;
-
-  progressBar.style.width=percent+"%";
+  overallPercent=percent;
 
   if(!running){
-    statusText.textContent=percent+"% complete";
+    progressBarEl.style.width=percent+"%";
+    statusTextEl.textContent=percent+"% complete";
   }
 
   return {waiting,processing,complete,failed,total,percent};
@@ -143,16 +164,16 @@ async function loadFailures(){
     .limit(25);
 
   if(error){
-    failureList.innerHTML='<span class="bad">'+escapeHtml(error.message)+'</span>';
+    failureListEl.innerHTML='<span class="bad">'+escapeHtml(error.message)+'</span>';
     return;
   }
 
   if(!data || !data.length){
-    failureList.innerHTML='<span class="ok">No failed images.</span>';
+    failureListEl.innerHTML='<span class="ok">No failed images.</span>';
     return;
   }
 
-  failureList.innerHTML=`
+  failureListEl.innerHTML=`
     <table>
       <tr><th>Bike</th><th>Tries</th><th>Error</th><th>Supplier URL</th></tr>
       ${data.map(function(row){
@@ -202,14 +223,83 @@ function setControlsForRunning(isRunning){
     button.disabled=isRunning;
   });
 
-  stopBtn.disabled=!isRunning;
+  stopBtnEl.disabled=!isRunning;
+}
+
+function formatDuration(totalSeconds){
+  const seconds=Math.max(0,Math.floor(totalSeconds || 0));
+  const hours=Math.floor(seconds/3600);
+  const minutes=Math.floor((seconds%3600)/60);
+  const remainingSeconds=seconds%60;
+
+  if(hours>0){
+    return String(hours).padStart(2,"0")+":"+
+      String(minutes).padStart(2,"0")+":"+
+      String(remainingSeconds).padStart(2,"0");
+  }
+
+  return String(minutes).padStart(2,"0")+":"+
+    String(remainingSeconds).padStart(2,"0");
 }
 
 function updateRunDisplay(){
-  runProcessed.textContent=batchProcessed.toLocaleString("en-GB");
-  runTarget.textContent=continuousMode
+  runProcessedEl.textContent=batchProcessed.toLocaleString("en-GB");
+  runTargetEl.textContent=continuousMode
     ? "Continuous"
     : batchTarget.toLocaleString("en-GB");
+
+  if(!runStartedAt){
+    elapsedTimeEl.textContent="00:00";
+    speedEstimateEl.textContent="—";
+    return;
+  }
+
+  const elapsedSeconds=(Date.now()-runStartedAt)/1000;
+  elapsedTimeEl.textContent=formatDuration(elapsedSeconds);
+
+  if(batchProcessed>0){
+    const averageSeconds=elapsedSeconds/batchProcessed;
+
+    if(continuousMode){
+      speedEstimateEl.textContent=averageSeconds.toFixed(1)+" sec/image";
+    }else{
+      const remainingImages=Math.max(0,batchTarget-batchProcessed);
+      const remainingSeconds=remainingImages*averageSeconds;
+
+      speedEstimateEl.textContent=
+        averageSeconds.toFixed(1)+" sec/image · "+
+        formatDuration(remainingSeconds)+" left";
+    }
+  }else{
+    speedEstimateEl.textContent="Calculating...";
+  }
+
+  if(running){
+    if(continuousMode){
+      progressBarEl.style.width=overallPercent+"%";
+    }else{
+      const batchPercent=batchTarget
+        ? Math.min(100,Math.round((batchProcessed/batchTarget)*100))
+        : 0;
+
+      progressBarEl.style.width=batchPercent+"%";
+    }
+  }
+}
+
+function startRunTimer(){
+  if(timerInterval){
+    window.clearInterval(timerInterval);
+  }
+
+  timerInterval=window.setInterval(updateRunDisplay,1000);
+}
+
+function stopRunTimer(){
+  if(timerInterval){
+    window.clearInterval(timerInterval);
+    timerInterval=null;
+  }
 }
 
 async function invokeOneImage(){
@@ -245,7 +335,7 @@ async function processNextImage(){
   }
 
   try{
-    statusText.textContent=continuousMode
+    statusTextEl.textContent=continuousMode
       ? `Processing next image. ${batchProcessed.toLocaleString("en-GB")} completed this run.`
       : `Processing image ${batchProcessed+1} of ${batchTarget}.`;
 
@@ -309,10 +399,14 @@ function startProcessing(amount){
   batchTarget=Math.max(1,Number(amount) || 1);
   batchProcessed=0;
 
+  runStartedAt=Date.now();
   updateRunDisplay();
+  startRunTimer();
   setControlsForRunning(true);
 
-  statusText.textContent=
+  progressBarEl.style.width="0%";
+
+  statusTextEl.textContent=
     `Starting batch of ${batchTarget.toLocaleString("en-GB")} image${batchTarget===1 ? "" : "s"}...`;
 
   processNextImage();
@@ -327,23 +421,27 @@ function startContinuous(){
   batchTarget=0;
   batchProcessed=0;
 
+  runStartedAt=Date.now();
   updateRunDisplay();
+  startRunTimer();
   setControlsForRunning(true);
 
-  statusText.textContent="Starting continuous image processing...";
+  progressBarEl.style.width=overallPercent+"%";
+
+  statusTextEl.textContent="Starting continuous image processing...";
   processNextImage();
 }
 
 function pauseProcessing(){
   if(!running){
-    statusText.textContent="Nothing is currently processing.";
+    statusTextEl.textContent="Nothing is currently processing.";
     return;
   }
 
   stopRequested=true;
-  statusText.textContent=
+  statusTextEl.textContent=
     "Stop requested. The current image will finish, then processing will stop.";
-  stopBtn.disabled=true;
+  stopBtnEl.disabled=true;
 }
 
 function finishProcessing(message,html=false){
@@ -351,12 +449,15 @@ function finishProcessing(message,html=false){
   continuousMode=false;
   stopRequested=false;
 
+  stopRunTimer();
+  updateRunDisplay();
   setControlsForRunning(false);
+  progressBarEl.style.width=overallPercent+"%";
 
   if(html){
-    statusText.innerHTML=message;
+    statusTextEl.innerHTML=message;
   }else{
-    statusText.textContent=message;
+    statusTextEl.textContent=message;
   }
 }
 
@@ -381,7 +482,7 @@ async function refreshAll(){
     await loadFailures();
   }catch(error){
     console.error(error);
-    statusText.innerHTML=`
+    statusTextEl.innerHTML=`
       <span class="bad">
         Could not load image queue: ${escapeHtml(error.message || error)}
       </span>
