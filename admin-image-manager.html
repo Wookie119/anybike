@@ -144,70 +144,71 @@ function escapeHtml(value){
 }
 
 async function processNextBatch(){
+
   if(!running) return;
 
   try{
-   const {
-  data: { session },
-  error: sessionError
-} = await sb.auth.getSession();
 
-if(sessionError || !session?.access_token){
-  throw new Error("Admin session could not be found. Please log in again.");
-}
+    const {
+      data: { session },
+      error: sessionError
+    } = await sb.auth.getSession();
 
-const {data,error}=await sb.functions.invoke("process-bike-images",{
-  body:{limit:1},
-  headers:{
-    Authorization:`Bearer ${session.access_token}`
-  }
-});
+    if(sessionError || !session?.access_token){
+      throw new Error(
+        "Admin session could not be found. Please log in again."
+      );
+    }
 
-    if(error) throw error;
+    const {data,error}=await sb.functions.invoke(
+      "process-bike-images",
+      {
+        body:{limit:1},
+        headers:{
+          Authorization:`Bearer ${session.access_token}`
+        }
+      }
+    );
+
+    if(error){
+      throw error;
+    }
 
     const stats=await refreshStats();
     await loadFailures();
 
-    if(!running) return;
+    running=false;
+    startBtn.disabled=false;
 
-    if((data?.processed||0)===0 || (stats.waiting===0 && stats.failed===0)){
-      running=false;
-      startBtn.disabled=false;
-      statusText.textContent="Queue complete.";
+    if((data?.processed||0)===0){
+      statusText.textContent=
+        data?.message || "No waiting image was processed.";
       return;
     }
 
-    running=false;
-    startBtn.disabled=false;
-    statusText.textContent="One-image test finished. Press Refresh to see the result.";
+    statusText.textContent=
+      "One-image test finished successfully.";
+
   }catch(error){
 
-  running=false;
-  startBtn.disabled=false;
+    running=false;
+    startBtn.disabled=false;
 
-  console.error(error);
+    console.error(error);
 
-  let message =
-    error?.message ||
-    error?.error_description ||
-    error?.details ||
-    JSON.stringify(error,null,2) ||
-    String(error);
+    const message=
+      error?.context?.body ||
+      error?.message ||
+      error?.error_description ||
+      error?.details ||
+      String(error);
 
-  statusText.innerHTML = `
-    <div class="bad">
-      <strong>❌ Image processor stopped</strong><br><br>
-
-      <strong>Reason:</strong><br>
-      ${escapeHtml(message)}
-      <br><br>
-
-      Check:
-      <br>• Edge Function deployed
-      <br>• Admin still logged in
-      <br>• Storage bucket "motorcycles" exists
-      <br>• Queue contains waiting images
-    </div>`;
+    statusText.innerHTML=`
+      <span class="bad">
+        Stopped: ${escapeHtml(message)}
+      </span>
+    `;
+  }
 }
 
 function startProcessing(){
