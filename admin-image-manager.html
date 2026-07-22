@@ -29,8 +29,11 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .progress span{display:block;height:100%;width:0;background:var(--red);transition:width .25s}
 .status{color:#bbb;min-height:24px}
 .batch-note{margin-top:12px;color:#888;font-size:14px;line-height:1.5}
-.run-stats{display:flex;flex-wrap:wrap;gap:20px;margin-top:14px;color:#bbb}
-.run-stats strong{color:#fff}
+.run-stats{display:grid;grid-template-columns:repeat(4,minmax(160px,1fr));gap:12px;margin-top:14px}
+.run-stat{background:#181818;border:1px solid var(--line);border-radius:12px;padding:12px;color:#aaa}
+.run-stat strong{display:block;color:#fff;font-size:18px;margin-top:5px}
+@media(max-width:900px){.stats{grid-template-columns:repeat(2,1fr)}.run-stats{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:560px){.run-stats{grid-template-columns:1fr}}
 table{width:100%;border-collapse:collapse;font-size:14px}
 th,td{padding:11px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
 .bad{color:#ff6969}.ok{color:var(--green)}
@@ -73,8 +76,10 @@ th,td{padding:11px;border-bottom:1px solid var(--line);text-align:left;vertical-
         <div class="status" id="statusText">Ready.</div>
 
         <div class="run-stats">
-          <span>Processed this run: <strong id="runProcessed">0</strong></span>
-          <span>Current target: <strong id="runTarget">—</strong></span>
+          <div class="run-stat">Processed this run<strong id="runProcessed">0</strong></div>
+          <div class="run-stat">Current target<strong id="runTarget">—</strong></div>
+          <div class="run-stat">Elapsed time<strong id="elapsedTime">00:00</strong></div>
+          <div class="run-stat">Average / remaining<strong id="speedEstimate">—</strong></div>
         </div>
 
         <div class="batch-note">
@@ -98,6 +103,9 @@ let continuousMode = false;
 let batchTarget = 0;
 let batchProcessed = 0;
 let stopRequested = false;
+let runStartedAt = null;
+let timerInterval = null;
+let overallPercent = 0;
 
 async function getCount(status){
   const {count,error}=await sb
@@ -124,10 +132,10 @@ async function refreshStats(){
 
   const total=waiting+processing+complete+failed;
   const percent=total ? Math.round((complete/total)*100) : 0;
-
-  progressBar.style.width=percent+"%";
+  overallPercent=percent;
 
   if(!running){
+    progressBar.style.width=percent+"%";
     statusText.textContent=percent+"% complete";
   }
 
@@ -205,11 +213,80 @@ function setControlsForRunning(isRunning){
   stopBtn.disabled=!isRunning;
 }
 
+function formatDuration(totalSeconds){
+  const seconds=Math.max(0,Math.floor(totalSeconds || 0));
+  const hours=Math.floor(seconds/3600);
+  const minutes=Math.floor((seconds%3600)/60);
+  const remainingSeconds=seconds%60;
+
+  if(hours>0){
+    return String(hours).padStart(2,"0")+":"+
+      String(minutes).padStart(2,"0")+":"+
+      String(remainingSeconds).padStart(2,"0");
+  }
+
+  return String(minutes).padStart(2,"0")+":"+
+    String(remainingSeconds).padStart(2,"0");
+}
+
 function updateRunDisplay(){
   runProcessed.textContent=batchProcessed.toLocaleString("en-GB");
   runTarget.textContent=continuousMode
     ? "Continuous"
     : batchTarget.toLocaleString("en-GB");
+
+  if(!runStartedAt){
+    elapsedTime.textContent="00:00";
+    speedEstimate.textContent="—";
+    return;
+  }
+
+  const elapsedSeconds=(Date.now()-runStartedAt)/1000;
+  elapsedTime.textContent=formatDuration(elapsedSeconds);
+
+  if(batchProcessed>0){
+    const averageSeconds=elapsedSeconds/batchProcessed;
+
+    if(continuousMode){
+      speedEstimate.textContent=averageSeconds.toFixed(1)+" sec/image";
+    }else{
+      const remainingImages=Math.max(0,batchTarget-batchProcessed);
+      const remainingSeconds=remainingImages*averageSeconds;
+
+      speedEstimate.textContent=
+        averageSeconds.toFixed(1)+" sec/image · "+
+        formatDuration(remainingSeconds)+" left";
+    }
+  }else{
+    speedEstimate.textContent="Calculating...";
+  }
+
+  if(running){
+    if(continuousMode){
+      progressBar.style.width=overallPercent+"%";
+    }else{
+      const batchPercent=batchTarget
+        ? Math.min(100,Math.round((batchProcessed/batchTarget)*100))
+        : 0;
+
+      progressBar.style.width=batchPercent+"%";
+    }
+  }
+}
+
+function startRunTimer(){
+  if(timerInterval){
+    window.clearInterval(timerInterval);
+  }
+
+  timerInterval=window.setInterval(updateRunDisplay,1000);
+}
+
+function stopRunTimer(){
+  if(timerInterval){
+    window.clearInterval(timerInterval);
+    timerInterval=null;
+  }
 }
 
 async function invokeOneImage(){
@@ -309,8 +386,12 @@ function startProcessing(amount){
   batchTarget=Math.max(1,Number(amount) || 1);
   batchProcessed=0;
 
+  runStartedAt=Date.now();
   updateRunDisplay();
+  startRunTimer();
   setControlsForRunning(true);
+
+  progressBar.style.width="0%";
 
   statusText.textContent=
     `Starting batch of ${batchTarget.toLocaleString("en-GB")} image${batchTarget===1 ? "" : "s"}...`;
@@ -327,8 +408,12 @@ function startContinuous(){
   batchTarget=0;
   batchProcessed=0;
 
+  runStartedAt=Date.now();
   updateRunDisplay();
+  startRunTimer();
   setControlsForRunning(true);
+
+  progressBar.style.width=overallPercent+"%";
 
   statusText.textContent="Starting continuous image processing...";
   processNextImage();
@@ -351,7 +436,10 @@ function finishProcessing(message,html=false){
   continuousMode=false;
   stopRequested=false;
 
+  stopRunTimer();
+  updateRunDisplay();
   setControlsForRunning(false);
+  progressBar.style.width=overallPercent+"%";
 
   if(html){
     statusText.innerHTML=message;
