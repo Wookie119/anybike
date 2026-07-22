@@ -1,0 +1,217 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Image Manager | AnyBike Admin</title>
+<meta name="robots" content="noindex,nofollow">
+<script>document.documentElement.classList.add("admin-auth-pending");</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/admin.js?v=12001"></script>
+<link rel="stylesheet" href="/admin-shell.css?v=12001">
+<style>
+:root{--red:#ed1c24;--line:rgba(255,255,255,.12);--muted:#aaa;--green:#33cc66}
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:linear-gradient(120deg,#050505,#101010 60%,#050505);color:#fff}
+.admin-page-content{padding:24px}
+.hero,.card{background:#111;border:1px solid var(--line);border-radius:22px;padding:24px;margin-bottom:18px}
+.hero h1,.card h2{margin-top:0}
+.hero p,.card p{color:#bbb;line-height:1.5}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:14px;margin-bottom:18px}
+.stat{background:#111;border:1px solid var(--line);border-radius:18px;padding:18px}
+.stat strong{display:block;color:var(--red);font-size:32px;margin-top:8px}
+.actions{display:flex;flex-wrap:wrap;gap:10px}
+button{border:0;border-radius:12px;padding:12px 18px;background:var(--red);color:#fff;font-weight:900;cursor:pointer}
+button.dark{background:#222;border:1px solid var(--line)}
+button:disabled{opacity:.45;cursor:not-allowed}
+.progress{height:18px;border-radius:999px;background:#252525;overflow:hidden;margin:16px 0}
+.progress span{display:block;height:100%;width:0;background:var(--red);transition:width .25s}
+.status{color:#bbb;min-height:24px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{padding:11px;border-bottom:1px solid var(--line);text-align:left}
+.bad{color:#ff6969}.ok{color:var(--green)}
+@media(max-width:900px){.stats{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<div class="admin-shell">
+  <div id="adminSidebar"></div>
+  <div class="admin-main">
+    <div id="adminTopbar"></div>
+    <main class="admin-page-content">
+      <section class="hero">
+        <h1>🖼 Motorcycle Image Manager</h1>
+        <p>Downloads supplier images, converts them to AnyBike WebP files and stores them in the motorcycles bucket. Existing supplier images remain live until each new image finishes successfully.</p>
+      </section>
+
+      <section class="stats">
+        <div class="stat">Waiting<strong id="waitingCount">0</strong></div>
+        <div class="stat">Processing<strong id="processingCount">0</strong></div>
+        <div class="stat">Complete<strong id="completeCount">0</strong></div>
+        <div class="stat">Failed<strong id="failedCount">0</strong></div>
+      </section>
+
+      <section class="card">
+        <h2>Image processing</h2>
+        <div class="actions">
+          <button id="startBtn" onclick="startProcessing()">Start / Resume</button>
+          <button class="dark" onclick="pauseProcessing()">Pause</button>
+          <button class="dark" onclick="retryFailed()">Retry Failed</button>
+          <button class="dark" onclick="refreshAll()">Refresh</button>
+        </div>
+        <div class="progress"><span id="progressBar"></span></div>
+        <div class="status" id="statusText">Ready.</div>
+      </section>
+
+      <section class="card">
+        <h2>Latest failures</h2>
+        <div id="failureList">Loading...</div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<script>
+const sb=getAdminSupabaseClient();
+let running=false;
+
+async function getCount(status){
+  const {count,error}=await sb
+    .from("image_import_queue")
+    .select("*",{count:"exact",head:true})
+    .eq("status",status);
+  if(error) throw error;
+  return count||0;
+}
+
+async function refreshStats(){
+  const [waiting,processing,complete,failed]=await Promise.all([
+    getCount("waiting"),getCount("processing"),getCount("complete"),getCount("failed")
+  ]);
+
+  waitingCount.textContent=waiting.toLocaleString("en-GB");
+  processingCount.textContent=processing.toLocaleString("en-GB");
+  completeCount.textContent=complete.toLocaleString("en-GB");
+  failedCount.textContent=failed.toLocaleString("en-GB");
+
+  const total=waiting+processing+complete+failed;
+  const percent=total ? Math.round((complete/total)*100) : 0;
+  progressBar.style.width=percent+"%";
+  statusText.textContent=running
+    ? `Processing images — ${percent}% complete`
+    : `${percent}% complete`;
+
+  return {waiting,processing,complete,failed,total};
+}
+
+async function loadFailures(){
+  const {data,error}=await sb
+    .from("image_import_queue")
+    .select("id,bike_id,supplier_url,tries,last_error,updated_at")
+    .eq("status","failed")
+    .order("updated_at",{ascending:false})
+    .limit(25);
+
+  if(error){
+    failureList.innerHTML=`<span class="bad">${escapeHtml(error.message)}</span>`;
+    return;
+  }
+
+  if(!data?.length){
+    failureList.innerHTML='<span class="ok">No failed images.</span>';
+    return;
+  }
+
+  failureList.innerHTML=`
+    <table>
+      <tr><th>Bike</th><th>Tries</th><th>Error</th><th>Supplier URL</th></tr>
+      ${data.map(row=>`
+        <tr>
+          <td>${row.bike_id}</td>
+          <td>${row.tries}</td>
+          <td class="bad">${escapeHtml(row.last_error||"Unknown error")}</td>
+          <td>${escapeHtml(row.supplier_url||"")}</td>
+        </tr>`).join("")}
+    </table>`;
+}
+
+function escapeHtml(value){
+  return String(value||"")
+    .replaceAll("&","&amp;").replaceAll("<","&lt;")
+    .replaceAll(">","&gt;").replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+}
+
+async function processNextBatch(){
+  if(!running) return;
+
+  try{
+    const {data,error}=await sb.functions.invoke("process-bike-images",{
+      body:{limit:3}
+    });
+
+    if(error) throw error;
+
+    const stats=await refreshStats();
+    await loadFailures();
+
+    if(!running) return;
+
+    if((data?.processed||0)===0 || (stats.waiting===0 && stats.failed===0)){
+      running=false;
+      startBtn.disabled=false;
+      statusText.textContent="Queue complete.";
+      return;
+    }
+
+    setTimeout(processNextBatch,750);
+  }catch(error){
+    running=false;
+    startBtn.disabled=false;
+    statusText.innerHTML=`<span class="bad">Stopped: ${escapeHtml(error.message||error)}</span>`;
+  }
+}
+
+function startProcessing(){
+  if(running) return;
+  running=true;
+  startBtn.disabled=true;
+  statusText.textContent="Starting image processor...";
+  processNextBatch();
+}
+
+function pauseProcessing(){
+  running=false;
+  startBtn.disabled=false;
+  statusText.textContent="Paused. Existing website images remain unchanged.";
+}
+
+async function retryFailed(){
+  const {error}=await sb
+    .from("image_import_queue")
+    .update({status:"waiting",last_error:null})
+    .eq("status","failed")
+    .lt("tries",4);
+
+  if(error){
+    alert("Retry failed: "+error.message);
+    return;
+  }
+  await refreshAll();
+}
+
+async function refreshAll(){
+  await refreshStats();
+  await loadFailures();
+}
+
+(async function start(){
+  const allowed=await requireAdminSession();
+  if(!allowed) return;
+  document.documentElement.classList.remove("admin-auth-pending");
+  refreshAll();
+})();
+</script>
+</body>
+</html>
