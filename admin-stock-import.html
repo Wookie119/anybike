@@ -12,7 +12,7 @@ document.documentElement.classList.add("admin-auth-pending");
 
 <style>
 html.admin-auth-pending body{
-  visibility:hidden;
+  visibility:visible;
 }
 </style>
 
@@ -731,14 +731,37 @@ async function saveAdminStock(id){
 }
 
 (async function startStockImportManager(){
-  const allowed = await requireAdminSession();
+  try{
+    if(typeof requireAdminSession !== "function"){
+      throw new Error("admin.js did not load correctly.");
+    }
 
-  if(!allowed){
-    return;
+    const allowed = await requireAdminSession();
+
+    if(!allowed){
+      return;
+    }
+
+    document.documentElement.classList.remove("admin-auth-pending");
+
+  }catch(error){
+    console.error("Stock Import startup error:", error);
+
+    document.documentElement.classList.remove("admin-auth-pending");
+
+    const adminArea = document.getElementById("adminArea");
+
+    if(adminArea){
+      adminArea.innerHTML = `
+        <div class="card">
+          <h2>Stock Import could not start</h2>
+          <p>${error.message || "Unknown startup error"}</p>
+        </div>
+      `;
+    }
   }
-
-  document.documentElement.classList.remove("admin-auth-pending");
 })();
+
 </script>
 
 
