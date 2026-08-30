@@ -796,6 +796,25 @@ async function sendReply(){
     return;
   }
 
+  // The customer-facing reply is safely stored before we attempt email.
+  // Email is notification-only; a notification failure must never undo the reply.
+  const {error:notificationError} = await sb.functions.invoke(
+    "send-message-notification",
+    {
+      body: {
+        thread_id: String(threadId)
+      }
+    }
+  );
+
+  if(notificationError){
+    console.error("Message notification email failed:", notificationError);
+    alert(
+      "Reply sent successfully, but the email notification could not be sent. " +
+      "The customer's message is still safely stored in AnyBike Message Centre."
+    );
+  }
+
   box.value = "";
 
   await loadThreads();
