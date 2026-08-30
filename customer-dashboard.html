@@ -1464,6 +1464,23 @@ async function sendCustomerMessage(enquiryId){
       link:"/admin-enquiries.html"
     });
 
+  const {error:adminNotificationError} = await sb.functions.invoke(
+    "send-admin-message-notification",
+    {
+      body: {
+        source_type: "bike_enquiry",
+        enquiry_id: String(enquiryId)
+      }
+    }
+  );
+
+  if(adminNotificationError){
+    console.error(
+      "Admin email notification failed:",
+      adminNotificationError
+    );
+  }
+
   txt.value = "";
 
   if(status){
@@ -1768,6 +1785,23 @@ async function sendGlobalBuyerMessage(threadId){
   }else if(status){
     status.textContent="Reply sent.";
     status.className="reply-status ok";
+  }
+
+  const {error:adminNotificationError} = await sb.functions.invoke(
+    "send-admin-message-notification",
+    {
+      body: {
+        source_type: "message_centre",
+        thread_id: String(threadId)
+      }
+    }
+  );
+
+  if(adminNotificationError){
+    console.error(
+      "Admin email notification failed:",
+      adminNotificationError
+    );
   }
 
   txt.value="";
@@ -2242,6 +2276,23 @@ async function sendNewCustomerThread(){
 
     if(messageError){
       throw new Error(messageError.message);
+    }
+
+    const {error:adminNotificationError} = await sb.functions.invoke(
+      "send-admin-message-notification",
+      {
+        body: {
+          source_type: "message_centre",
+          thread_id: String(threadResult.data.id)
+        }
+      }
+    );
+
+    if(adminNotificationError){
+      console.error(
+        "Admin email notification failed:",
+        adminNotificationError
+      );
     }
 
     if(status){
