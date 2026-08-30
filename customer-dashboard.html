@@ -1464,7 +1464,12 @@ async function sendCustomerMessage(enquiryId){
       link:"/admin-enquiries.html"
     });
 
-  const {error:adminNotificationError} = await sb.functions.invoke(
+ console.log("ABOUT TO CALL ADMIN EMAIL FUNCTION");
+
+let adminEmailResult;
+
+try {
+  adminEmailResult = await sb.functions.invoke(
     "send-admin-message-notification",
     {
       body: {
@@ -1474,12 +1479,28 @@ async function sendCustomerMessage(enquiryId){
     }
   );
 
-  if(adminNotificationError){
-    console.error(
-      "Admin email notification failed:",
-      adminNotificationError
+  console.log("ADMIN EMAIL FUNCTION RESULT:", adminEmailResult);
+
+  if(adminEmailResult.error){
+    alert(
+      "ADMIN EMAIL FAILED:\n\n" +
+      (adminEmailResult.error.message || JSON.stringify(adminEmailResult.error))
+    );
+  }else{
+    alert(
+      "ADMIN EMAIL FUNCTION CALLED SUCCESSFULLY\n\n" +
+      JSON.stringify(adminEmailResult.data)
     );
   }
+
+}catch(error){
+  console.error("ADMIN EMAIL FUNCTION CRASHED:", error);
+
+  alert(
+    "ADMIN EMAIL FUNCTION CRASHED:\n\n" +
+    (error?.message || String(error))
+  );
+}
 
   txt.value = "";
 
