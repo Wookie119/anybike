@@ -1,940 +1,144 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
 
-<title>Register Free | AnyBike</title>
-
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-<style>
-:root{
-  --red:#ed1c24;
-  --black:#050505;
-  --panel:#111;
-  --line:rgba(255,255,255,.14);
-  --muted:#c9c9c9;
-}
-
-*{
-  box-sizing:border-box;
-}
-
-html{
-  min-height:100%;
-}
-
-body{
-  min-height:100vh;
-  margin:0;
-  font-family:Arial,Helvetica,sans-serif;
-  background:
-    radial-gradient(circle at top right,rgba(237,28,36,.13),transparent 34%),
-    linear-gradient(135deg,#050505,#111);
-  color:#fff;
-}
-
-.register-page{
-  min-height:100vh;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  padding:40px 18px;
-}
-
-.wrap{
-  width:100%;
-  max-width:760px;
-}
-
-.logo-area{
-  display:flex;
-  justify-content:center;
-  margin-bottom:24px;
-}
-
-.site-logo{
-  width:auto;
-  height:76px;
-  display:block;
-  background:#fff;
-  border-radius:12px;
-  padding:5px;
-  box-shadow:0 15px 40px rgba(0,0,0,.35);
-}
-
-.card{
-  background:rgba(255,255,255,.06);
-  border:1px solid var(--line);
-  border-radius:24px;
-  padding:32px;
-  box-shadow:0 24px 70px rgba(0,0,0,.45);
-  backdrop-filter:blur(14px);
-}
-
-.card-heading{
-  text-align:center;
-  margin-bottom:28px;
-}
-
-h1{
-  margin:0 0 10px;
-  font-size:42px;
-  line-height:1.05;
-}
-
-.intro{
-  max-width:590px;
-  margin:0 auto;
-  color:var(--muted);
-  font-size:16px;
-  line-height:1.6;
-}
-
-.form-grid{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:0 18px;
-}
-
-.form-field{
-  min-width:0;
-}
-
-.form-field.full-width{
-  grid-column:1 / -1;
-}
-
-label{
-  display:block;
-  margin:15px 0 7px;
-  font-size:14px;
-  font-weight:900;
-}
-
-input,
-select{
-  width:100%;
-  min-height:50px;
-  padding:13px 14px;
-  border:1px solid rgba(255,255,255,.18);
-  border-radius:12px;
-  outline:none;
-  background:rgba(255,255,255,.08);
-  color:#fff;
-  font-family:inherit;
-  font-size:16px;
-  transition:border-color .2s,background .2s,box-shadow .2s;
-}
-
-input::placeholder{
-  color:#9f9f9f;
-}
-
-input:focus,
-select:focus{
-  border-color:var(--red);
-  background:rgba(255,255,255,.11);
-  box-shadow:0 0 0 3px rgba(237,28,36,.13);
-}
-
-select option{
-  background:#fff;
-  color:#111;
-}
-
-.button-area{
-  margin-top:24px;
-  display:grid;
-  gap:12px;
-}
-
-.mode-tabs{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:8px;
-  margin-bottom:20px;
-  padding:5px;
-  border:1px solid var(--line);
-  border-radius:999px;
-  background:rgba(255,255,255,.04);
-}
-
-.mode-tab{
-  min-height:44px;
-  margin:0;
-  padding:10px 14px;
-  border-radius:999px;
-  background:transparent;
-  color:#bbb;
-}
-
-.mode-tab.active{
-  background:var(--red);
-  color:#fff;
-}
-
-.login-only{
-  display:none;
-}
-
-body.login-mode .register-only{
-  display:none;
-}
-
-body.login-mode .login-only{
-  display:block;
-}
-
-body.login-mode .form-grid{
-  grid-template-columns:1fr;
-  max-width:520px;
-  margin:0 auto;
-}
-
-body.login-mode .card-heading h1::after{
-  content:"";
-}
-
-body.login-mode #registerButton{
-  display:none;
-}
-
-body:not(.login-mode) #loginSubmitButton{
-  display:none;
-}
-
-button{
-  width:100%;
-  min-height:52px;
-  padding:14px 20px;
-  border:0;
-  border-radius:999px;
-  font-family:inherit;
-  font-size:16px;
-  font-weight:900;
-  cursor:pointer;
-  transition:transform .15s,opacity .15s,background .15s;
-}
-
-button:hover:not(:disabled){
-  transform:translateY(-1px);
-}
-
-button:disabled{
-  cursor:not-allowed;
-  opacity:.65;
-}
-
-.primary-btn{
-  background:var(--red);
-  color:#fff;
-}
-
-.secondary-btn{
-  border:1px solid rgba(255,255,255,.18);
-  background:#fff;
-  color:#111;
-}
-
-.msg{
-  display:none;
-  margin-top:18px;
-  padding:13px 15px;
-  border-radius:12px;
-  font-size:14px;
-  font-weight:800;
-  line-height:1.5;
-  text-align:center;
-  white-space:pre-wrap;
-}
-
-.msg.ok{
-  display:block;
-  border:1px solid rgba(54,211,126,.35);
-  background:rgba(54,211,126,.10);
-  color:#72e5a5;
-}
-
-.msg.bad{
-  display:block;
-  border:1px solid rgba(255,118,118,.35);
-  background:rgba(255,118,118,.10);
-  color:#ff8f8f;
-}
-
-.small-print{
-  margin:20px 0 0;
-  color:#969696;
-  font-size:12px;
-  line-height:1.5;
-  text-align:center;
-}
-
-@media(max-width:650px){
-
-  .register-page{
-    align-items:flex-start;
-    padding-top:24px;
-  }
-
-  .site-logo{
-    height:64px;
-  }
-
-  .card{
-    padding:24px 19px;
-    border-radius:18px;
-  }
-
-  h1{
-    font-size:34px;
-  }
-
-  .form-grid{
-    grid-template-columns:1fr;
-    gap:0;
-  }
-
-  .form-field.full-width{
-    grid-column:auto;
-  }
-
-}
-</style>
-</head>
-
-<body>
-
-<main class="register-page">
-
-  <div class="wrap">
-
-    <div class="logo-area">
-      <img
-        src="anybike-logo-new.jpg"
-        alt="AnyBike"
-        class="site-logo"
-      >
-    </div>
-
-    <section class="card">
-
-      <div class="mode-tabs" role="tablist" aria-label="Account access">
-        <button
-          id="registerModeTab"
-          class="mode-tab active"
-          type="button"
-          onclick="setAuthMode('register')"
-        >
-          Register Free
-        </button>
-
-        <button
-          id="loginModeTab"
-          class="mode-tab"
-          type="button"
-          onclick="setAuthMode('login')"
-        >
-          Login
-        </button>
-      </div>
-
-      <div class="card-heading">
-        <h1 id="authTitle">Register Free</h1>
-
-        <p class="intro" id="authIntro">
-          Create your AnyBike account to save motorcycles, build a
-          watchlist, manage enquiries and receive matching stock alerts.
-        </p>
-      </div>
-
-      <div class="form-grid">
-
-        <div class="form-field full-width register-only">
-          <label for="fullName">Full name</label>
-          <input
-            id="fullName"
-            type="text"
-            placeholder="Your full name"
-            autocomplete="name"
-          >
-        </div>
-
-        <div class="form-field">
-          <label for="email">Email address</label>
-          <input
-            id="email"
-            type="email"
-            placeholder="you@example.com"
-            autocomplete="email"
-          >
-        </div>
-
-        <div class="form-field">
-          <label for="password">Password</label>
-          <input
-            id="password"
-            type="password"
-            placeholder="Create a password"
-            autocomplete="new-password"
-          >
-        </div>
-
-        <div class="form-field register-only full-width">
-          <label for="country">Country</label>
-          <select id="country">
-            <option value="">Select country</option>
-            <option value="United Kingdom">United Kingdom</option>
-            <option value="Germany">Germany</option>
-            <option value="France">France</option>
-            <option value="Spain">Spain</option>
-            <option value="United Arab Emirates">United Arab Emirates</option>
-            <option value="Australia">Australia</option>
-            <option value="New Zealand">New Zealand</option>
-            <option value="South Africa">South Africa</option>
-            <option value="United States">United States</option>
-            <option value="Canada">Canada</option>
-            <option value="Other">Other</option>
-          </select>
-        </div>
-
-        <div class="form-field register-only">
-          <label for="currency">Preferred currency</label>
-          <select id="currency">
-            <option value="GBP">GBP £</option>
-            <option value="EUR">EUR €</option>
-            <option value="USD">USD $</option>
-            <option value="AUD">AUD A$</option>
-            <option value="NZD">NZD NZ$</option>
-            <option value="CAD">CAD C$</option>
-            <option value="AED">AED د.إ</option>
-          </select>
-        </div>
-
-        <div class="form-field register-only">
-          <label for="language">Preferred language</label>
-          <select id="language">
-            <option value="en">English</option>
-            <option value="de">Deutsch</option>
-            <option value="fr">Français</option>
-            <option value="es">Español</option>
-            <option value="ar">العربية</option>
-          </select>
-        </div>
-
-      </div>
-
-      <div class="button-area">
-
-        <button
-          id="registerButton"
-          class="primary-btn"
-          type="button"
-          onclick="registerCustomer()"
-        >
-          Create Free Account
-        </button>
-
-        <button
-          id="loginSubmitButton"
-          class="primary-btn login-only"
-          type="button"
-          onclick="loginCustomer()"
-        >
-          Login
-        </button>
-
-        <button
-          id="switchModeButton"
-          class="secondary-btn"
-          type="button"
-          onclick="toggleAuthMode()"
-        >
-          Already registered? Login
-        </button>
-
-      </div>
-
-      <div id="msg" class="msg"></div>
-
-      <p class="small-print">
-        By creating an account, you agree that AnyBike may use your
-        information to provide account, enquiry and motorcycle services.
-      </p>
-
-    </section>
-
-  </div>
-
-</main>
-
-<script>
-const SUPABASE_URL =
-  "https://tuehtnezhdnkqbbhttgp.supabase.co";
-
-const SUPABASE_ANON_KEY =
-  "sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
-
-const sb = supabase.createClient(
-  SUPABASE_URL,
-  SUPABASE_ANON_KEY
-);
-
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Register Free | AnyBike</title><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><style>
+:root{--red:#ed1c24;--line:rgba(255,255,255,.14);--muted:#c9c9c9}
+*{box-sizing:border-box}
+html{min-height:100%}
+body{min-height:100vh;margin:0;font-family:Arial,Helvetica,sans-serif;background:radial-gradient(circle at top right,rgba(237,28,36,.13),transparent 34%),linear-gradient(135deg,#050505,#111);color:#fff}
+.auth-page{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:40px 18px}
+.wrap{width:100%;max-width:760px}
+.logo-area{display:flex;justify-content:center;margin-bottom:24px}
+.site-logo{width:auto;height:76px;display:block;background:#fff;border-radius:12px;padding:5px;box-shadow:0 15px 40px rgba(0,0,0,.35)}
+.card{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:24px;padding:32px;box-shadow:0 24px 70px rgba(0,0,0,.45);backdrop-filter:blur(14px)}
+.card-heading{text-align:center;margin-bottom:28px}
+h1{margin:0 0 10px;font-size:42px;line-height:1.05}
+.intro{max-width:590px;margin:0 auto;color:var(--muted);font-size:16px;line-height:1.6}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 18px}
+.login-grid{grid-template-columns:1fr;max-width:520px;margin:0 auto}
+.form-field{min-width:0}.form-field.full-width{grid-column:1/-1}
+label{display:block;margin:15px 0 7px;font-size:14px;font-weight:900}
+input,select{width:100%;min-height:50px;padding:13px 14px;border:1px solid rgba(255,255,255,.18);border-radius:12px;outline:none;background:rgba(255,255,255,.08);color:#fff;font-family:inherit;font-size:16px}
+input::placeholder{color:#9f9f9f} input:focus,select:focus{border-color:var(--red);background:rgba(255,255,255,.11);box-shadow:0 0 0 3px rgba(237,28,36,.13)}
+select option{background:#fff;color:#111}
+.button-area{margin-top:24px;display:grid;gap:12px}
+button,.link-button{width:100%;min-height:52px;padding:14px 20px;border:0;border-radius:999px;font-family:inherit;font-size:16px;font-weight:900;cursor:pointer;text-align:center;text-decoration:none;display:flex;align-items:center;justify-content:center}
+.primary-btn{background:var(--red);color:#fff}.secondary-btn{border:1px solid rgba(255,255,255,.18);background:#fff;color:#111}
+.msg{display:none;margin-top:18px;padding:13px 15px;border-radius:12px;font-size:14px;font-weight:800;line-height:1.5;text-align:center;white-space:pre-wrap}
+.msg.ok{display:block;border:1px solid rgba(54,211,126,.35);background:rgba(54,211,126,.10);color:#72e5a5}
+.msg.bad{display:block;border:1px solid rgba(255,118,118,.35);background:rgba(255,118,118,.10);color:#ff8f8f}
+.small-print{margin:20px 0 0;color:#969696;font-size:12px;line-height:1.5;text-align:center}
+@media(max-width:650px){.auth-page{align-items:flex-start;padding-top:24px}.site-logo{height:64px}.card{padding:24px 19px;border-radius:18px}h1{font-size:34px}.form-grid{grid-template-columns:1fr;gap:0}.form-field.full-width{grid-column:auto}}
+</style></head><body>
+<main class="auth-page"><div class="wrap"><div class="logo-area"><img src="anybike-logo-new.jpg" alt="AnyBike" class="site-logo"></div><section class="card">
+<div class="card-heading"><h1>Register Free</h1><p class="intro">Create your AnyBike account to save motorcycles, build a watchlist, manage enquiries and receive matching stock alerts.</p></div>
+<div class="form-grid">
+<div class="form-field full-width"><label for="fullName">Full name</label><input id="fullName" type="text" placeholder="Your full name" autocomplete="name"></div>
+<div class="form-field"><label for="email">Email address</label><input id="email" type="email" placeholder="you@example.com" autocomplete="email"></div>
+<div class="form-field"><label for="password">Password</label><input id="password" type="password" placeholder="Create a password" autocomplete="new-password"></div>
+<div class="form-field full-width"><label for="country">Country</label><select id="country"><option value="">Select country</option><option>United Kingdom</option><option>Germany</option><option>France</option><option>Spain</option><option>United Arab Emirates</option><option>Australia</option><option>New Zealand</option><option>South Africa</option><option>United States</option><option>Canada</option><option>Other</option></select></div>
+<div class="form-field"><label for="currency">Preferred currency</label><select id="currency"><option value="GBP">GBP £</option><option value="EUR">EUR €</option><option value="USD">USD $</option><option value="AUD">AUD A$</option><option value="NZD">NZD NZ$</option><option value="CAD">CAD C$</option><option value="AED">AED د.إ</option></select></div>
+<div class="form-field"><label for="language">Preferred language</label><select id="language"><option value="en">English</option><option value="de">Deutsch</option><option value="fr">Français</option><option value="es">Español</option><option value="ar">العربية</option></select></div>
+</div>
+<div class="button-area"><button id="registerButton" class="primary-btn" type="button" onclick="registerCustomer()">Create Free Account</button><a id="loginLink" class="link-button secondary-btn" href="/customer-login.html">Already registered? Login</a></div>
+<div id="msg" class="msg"></div><p class="small-print">By creating an account, you agree that AnyBike may use your information to provide account, enquiry and motorcycle services.</p>
+</section></div></main><script>
+const SUPABASE_URL = "https://tuehtnezhdnkqbbhttgp.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let formBusy = false;
 
-function showMsg(text, ok = true){
-  const el = document.getElementById("msg");
-
-  el.textContent = text;
-  el.className = "msg " + (ok ? "ok" : "bad");
+function showMsg(text, ok=true){
+  const el=document.getElementById("msg");
+  el.textContent=text;
+  el.className="msg "+(ok?"ok":"bad");
 }
-
 function clearMsg(){
-  const el = document.getElementById("msg");
-
-  el.textContent = "";
-  el.className = "msg";
+  const el=document.getElementById("msg");
+  el.textContent="";
+  el.className="msg";
+}
+function getSafeReturnUrl(){
+  const params=new URLSearchParams(window.location.search);
+  const requested=params.get("return");
+  if(requested && requested.startsWith("/") && !requested.startsWith("//") && !requested.toLowerCase().includes("admin-")) return requested;
+  return "/customer-dashboard.html";
+}
+function buildPageUrl(page){
+  return page+"?return="+encodeURIComponent(getSafeReturnUrl());
 }
 
-let authMode = "register";
-
-function setAuthMode(mode){
-  authMode = mode === "login" ? "login" : "register";
-
-  document.body.classList.toggle(
-    "login-mode",
-    authMode === "login"
-  );
-
-  document
-    .getElementById("registerModeTab")
-    .classList.toggle("active", authMode === "register");
-
-  document
-    .getElementById("loginModeTab")
-    .classList.toggle("active", authMode === "login");
-
-  document.getElementById("authTitle").textContent =
-    authMode === "login"
-      ? "Welcome Back"
-      : "Register Free";
-
-  document.getElementById("authIntro").textContent =
-    authMode === "login"
-      ? "Enter your email address and password to access My AnyBike."
-      : "Create your AnyBike account to save motorcycles, build a watchlist, manage enquiries and receive matching stock alerts.";
-
-  document.getElementById("switchModeButton").textContent =
-    authMode === "login"
-      ? "Need an account? Register Free"
-      : "Already registered? Login";
-
-  const passwordInput =
-    document.getElementById("password");
-
-  passwordInput.setAttribute(
-    "autocomplete",
-    authMode === "login"
-      ? "current-password"
-      : "new-password"
-  );
-
-  clearMsg();
-
-  if(authMode === "login"){
-    document.getElementById("email").focus();
-  }else{
-    document.getElementById("fullName").focus();
-  }
+function setBusy(v){
+  formBusy=v;
+  const b=document.getElementById("registerButton");
+  b.disabled=v;
+  b.textContent=v?"Creating Account...":"Create Free Account";
 }
-
-function toggleAuthMode(){
-  setAuthMode(
-    authMode === "login"
-      ? "register"
-      : "login"
-  );
-}
-
-function setBusy(isBusy, action = ""){
-  formBusy = isBusy;
-
-  const registerButton =
-    document.getElementById("registerButton");
-
-  const loginButton =
-    document.getElementById("loginSubmitButton");
-
-  const switchModeButton =
-    document.getElementById("switchModeButton");
-
-  registerButton.disabled = isBusy;
-  loginButton.disabled = isBusy;
-  switchModeButton.disabled = isBusy;
-
-  registerButton.textContent =
-    isBusy && action === "register"
-      ? "Creating Account..."
-      : "Create Free Account";
-
-  loginButton.textContent =
-    isBusy && action === "login"
-      ? "Logging In..."
-      : "Login";
-}
-
 function getFormValues(){
   return {
-    full_name:
-      document.getElementById("fullName").value.trim(),
-
-    email:
-      document.getElementById("email").value.trim().toLowerCase(),
-
-    password:
-      document.getElementById("password").value,
-
-    country:
-      document.getElementById("country").value,
-
-    preferred_currency:
-      document.getElementById("currency").value,
-
-    preferred_language:
-      document.getElementById("language").value
+    full_name:document.getElementById("fullName").value.trim(),
+    email:document.getElementById("email").value.trim().toLowerCase(),
+    password:document.getElementById("password").value,
+    country:document.getElementById("country").value,
+    preferred_currency:document.getElementById("currency").value,
+    preferred_language:document.getElementById("language").value
   };
 }
-
-function getSafeReturnUrl(){
-  const params =
-    new URLSearchParams(window.location.search);
-
-  const requested =
-    params.get("return");
-
-  if(
-    requested &&
-    requested.startsWith("/") &&
-    !requested.startsWith("//") &&
-    !requested.toLowerCase().includes("admin-")
-  ){
-    return requested;
-  }
-
-  return "index.html";
-}
-
-function redirectHome(){
-  const destination = getSafeReturnUrl();
-
-  window.location.replace(
-    destination.replace(/^\/+/, "")
-  );
-}
-
-async function checkSession(){
-  const {
-    data: { session },
-    error
-  } = await sb.auth.getSession();
-
-  if(error){
-    console.error("Session check failed:", error);
-    return;
-  }
-
-  if(session?.user){
-    redirectHome();
-  }
-}
-
 async function createCustomerProfileIfMissing(user, values){
-  const {
-    data: existingProfile,
-    error: readError
-  } = await sb
-    .from("customer_profiles")
-    .select("id")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if(readError){
-    return readError;
-  }
-
-  if(existingProfile){
-    return null;
-  }
-
-  const profile = {
-    id: user.id,
-    email: user.email || values.email,
-    full_name:
-      values.full_name ||
-      user.user_metadata?.full_name ||
-      "",
-    country:
-      values.country ||
-      user.user_metadata?.country ||
-      null,
-    preferred_currency:
-      values.preferred_currency ||
-      user.user_metadata?.preferred_currency ||
-      "GBP",
-    preferred_language:
-      values.preferred_language ||
-      user.user_metadata?.preferred_language ||
-      "en"
+  const {data:existingProfile,error:readError}=await sb.from("customer_profiles").select("id").eq("id",user.id).maybeSingle();
+  if(readError) return readError;
+  if(existingProfile) return null;
+  const profile={
+    id:user.id,
+    email:user.email||values.email,
+    full_name:values.full_name||user.user_metadata?.full_name||"",
+    country:values.country||user.user_metadata?.country||null,
+    preferred_currency:values.preferred_currency||user.user_metadata?.preferred_currency||"GBP",
+    preferred_language:values.preferred_language||user.user_metadata?.preferred_language||"en"
   };
-
-  const { error } = await sb
-    .from("customer_profiles")
-    .insert(profile);
-
+  const {error}=await sb.from("customer_profiles").insert(profile);
   return error;
 }
-
 async function registerCustomer(){
-  if(formBusy){
-    return;
-  }
-
+  if(formBusy) return;
   clearMsg();
-
-  const values = getFormValues();
-
-  if(!values.full_name){
-    showMsg("Please enter your full name.", false);
-    return;
-  }
-
-  if(!values.email){
-    showMsg("Please enter your email address.", false);
-    return;
-  }
-
-  if(!values.password){
-    showMsg("Please create a password.", false);
-    return;
-  }
-
-  if(values.password.length < 6){
-    showMsg(
-      "Your password must contain at least 6 characters.",
-      false
-    );
-    return;
-  }
-
-  if(!values.country){
-    showMsg("Please select your country.", false);
-    return;
-  }
-
-  setBusy(true, "register");
-  showMsg("Creating your AnyBike account...");
-
+  const values=getFormValues();
+  if(!values.full_name){showMsg("Please enter your full name.",false);return;}
+  if(!values.email){showMsg("Please enter your email address.",false);return;}
+  if(!values.password){showMsg("Please create a password.",false);return;}
+  if(values.password.length<6){showMsg("Your password must contain at least 6 characters.",false);return;}
+  if(!values.country){showMsg("Please select your country.",false);return;}
+  setBusy(true); showMsg("Creating your AnyBike account...");
   try{
-    const returnDestination = getSafeReturnUrl();
-
-const emailRedirectTo = new URL(
-  returnDestination,
-  window.location.origin
-).href;
-
-const {
-  data,
-  error
-} = await sb.auth.signUp({
-  email: values.email,
-  password: values.password,
-  options: {
-    emailRedirectTo: emailRedirectTo,
-    data: {
-      full_name: values.full_name,
-      country: values.country,
-      preferred_currency: values.preferred_currency,
-      preferred_language: values.preferred_language
-    }
-  }
-});
-
-
-    if(error){
-      showMsg(error.message, false);
-      return;
-    }
-
-    if(!data.user){
-      showMsg(
-        "We could not complete your registration. Please try again.",
-        false
-      );
-      return;
-    }
-
-    /*
-      When Supabase email confirmation is disabled, the new
-      customer receives an active session immediately and the
-      customer profile can be saved now.
-    */
-  if(data.session){
-
-  const profileError =
-    await createCustomerProfileIfMissing(data.user, values);
-
-  if(profileError){
-
-    console.error(
-      "Customer profile could not be saved:",
-      profileError
-    );
-
-    showMsg(
-      "Your account was created, but your profile could not be saved: " +
-      profileError.message,
-      false
-    );
-
-    return;
-  }
-
-  showMsg(
-    "Your account has been created successfully. Opening your AnyBike account..."
-  );
-
-const destination = getSafeReturnUrl();
-
-window.location.replace(
-  destination.replace(/^\/+/, "")
-);
-
-  return;
-}
-
-/*
-  When email confirmation is enabled, Supabase does not
-  create a logged-in session until the customer confirms
-  their email.
-*/
-
-showMsg(
-  "Your account has been created. Please check your email and confirm your registration before logging in."
-);
-
-}catch(error){
-
-  console.error("Registration failed:", error);
-
-  showMsg(
-    "Something went wrong while creating your account. Please try again.",
-    false
-  );
-
-}finally{
-
-  setBusy(false);
-
-}
-}
-
-async function loginCustomer(){
-  if(formBusy){
-    return;
-  }
-
-  clearMsg();
-
-  const values = getFormValues();
-
-  if(!values.email || !values.password){
-    showMsg(
-      "Enter your email address and password to log in.",
-      false
-    );
-
-    return;
-  }
-
-  setBusy(true, "login");
-  showMsg("Logging you in...");
-
-  try{
-    const {
-      data,
-      error
-    } = await sb.auth.signInWithPassword({
-      email: values.email,
-      password: values.password
+    const emailRedirectTo=new URL(buildPageUrl("/customer-login.html"),window.location.origin).href;
+    const {data,error}=await sb.auth.signUp({
+      email:values.email,
+      password:values.password,
+      options:{
+        emailRedirectTo,
+        data:{
+          full_name:values.full_name,
+          country:values.country,
+          preferred_currency:values.preferred_currency,
+          preferred_language:values.preferred_language
+        }
+      }
     });
+    if(error){showMsg(error.message,false);return;}
+    if(!data.user){showMsg("We could not complete your registration. Please try again.",false);return;}
 
-    if(error){
-      showMsg(error.message, false);
+    if(data.session){
+      const profileError=await createCustomerProfileIfMissing(data.user,values);
+      if(profileError) console.error("Customer profile could not be saved:",profileError);
+      await sb.auth.signOut();
+      window.location.replace(buildPageUrl("/customer-login.html"));
       return;
     }
 
-    if(!data.user){
-      showMsg(
-        "Login could not be completed. Please try again.",
-        false
-      );
-
-      return;
-    }
-
-    /*
-      Create a missing profile only. Existing customer details
-      are never overwritten by the login form.
-    */
-    const profileError =
-      await createCustomerProfileIfMissing(
-        data.user,
-        values
-      );
-
-    if(profileError){
-      console.error(
-        "Missing profile could not be created:",
-        profileError
-      );
-    }
-
-    showMsg(
-      "Logged in successfully. Opening AnyBike..."
-    );
-
-    redirectHome();
-
+    showMsg("Your account has been created. Please check your email and confirm your registration. After confirmation you will be taken to the AnyBike login page.");
   }catch(error){
-    console.error("Login failed:", error);
-
-    showMsg(
-      "Something went wrong while logging in. Please try again.",
-      false
-    );
-
-  }finally{
-    setBusy(false);
-  }
+    console.error("Registration failed:",error);
+    showMsg("Something went wrong while creating your account. Please try again.",false);
+  }finally{setBusy(false);}
 }
-
-document.addEventListener("keydown", event => {
-  if(event.key !== "Enter" || formBusy){
-    return;
-  }
-
-  if(authMode === "login"){
-    loginCustomer();
-  }else{
-    registerCustomer();
-  }
-});
-
-setAuthMode("register");
-checkSession();
-</script>
-
-</body>
-</html>
+document.getElementById("loginLink").href=buildPageUrl("/customer-login.html");
+document.addEventListener("keydown",e=>{if(e.key==="Enter"&&!formBusy) registerCustomer();});
+</script></body></html>
