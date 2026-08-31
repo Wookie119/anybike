@@ -738,7 +738,6 @@ async function sendReply(){
 
   const now = new Date().toISOString();
   const threadId = selectedThread.id;
-
   const currentLeadStatus = selectedThread.lead_status || "New Lead";
 
   let updateData = {
@@ -769,6 +768,21 @@ async function sendReply(){
     return;
   }
 
+  const {error:threadError} = await sb
+    .from("message_centre_threads")
+    .update(updateData)
+    .eq("id", threadId);
+
+  if(threadError){
+    alert(threadError.message);
+    return;
+  }
+
+  /*
+    Keep the legacy Bike Sales enquiry conversation in sync when this
+    Message Centre thread is linked to a bike enquiry. A sync failure must
+    not prevent the customer email notification from being attempted.
+  */
   if(selectedThread.related_enquiry_id){
     const {error:crmError} = await sb
       .from("enquiry_messages")
@@ -781,24 +795,17 @@ async function sendReply(){
       });
 
     if(crmError){
-      alert("Message Centre reply saved, but customer inbox failed: " + crmError.message);
-      return;
+      console.error("Bike Sales customer inbox sync failed:", crmError);
     }
   }
 
-  const {error:threadError} = await sb
-    .from("message_centre_threads")
-    .update(updateData)
-    .eq("id", threadId);
+  /*
+    The reply is now safely stored. Email is notification-only, so always
+    attempt the notification independently of the legacy CRM mirror above.
+  */
+  console.info("Invoking send-message-notification for thread", threadId);
 
-  if(threadError){
-    alert(threadError.message);
-    return;
-  }
-
-  // The customer-facing reply is safely stored before we attempt email.
-  // Email is notification-only; a notification failure must never undo the reply.
-  const {error:notificationError} = await sb.functions.invoke(
+  const {data:notificationData,error:notificationError} = await sb.functions.invoke(
     "send-message-notification",
     {
       body: {
@@ -812,6 +819,11 @@ async function sendReply(){
     alert(
       "Reply sent successfully, but the email notification could not be sent. " +
       "The customer's message is still safely stored in AnyBike Message Centre."
+    );
+  }else{
+    console.info(
+      "Customer email notification sent:",
+      notificationData
     );
   }
 
