@@ -403,6 +403,21 @@ async function setupPublicHeader(){
 
   anybikeHeaderUser = user;
 
+  /*
+    Customer Messages now has its own dedicated page.
+    This updates the top Messages link plus desktop/mobile My AnyBike
+    menu links after the shared header has been injected.
+  */
+  document
+    .querySelectorAll(
+      "#phMessagesV3, " +
+      "#loggedInMenu a[data-i18n='messages'], " +
+      "#mobileLoggedInMenu a[data-i18n='messages']"
+    )
+    .forEach(function(link){
+      link.setAttribute("href","/customer-messages.html");
+    });
+
   if(languageSelect){
     languageSelect.value = savedLanguage;
 
@@ -627,7 +642,7 @@ async function loadCustomerHeaderActivity(user){
         id:notification.id,
         title:notification.title || "Notification",
         message:notification.message || "",
-        link:notification.link || "/customer-dashboard.html#messages",
+        link:notification.link || "/customer-messages.html",
         icon:type.includes("message") ? "💬" : "🔔",
         date:notification.created_at
       };
@@ -673,7 +688,7 @@ function renderNotificationList(items){
   }
 
   list.innerHTML = items.slice(0,12).map(function(item){
-    const link = item.link || "/customer-dashboard.html#messages";
+    const link = item.link || "/customer-messages.html";
 
     return `
       <a
@@ -699,7 +714,7 @@ function renderNotificationList(items){
       const notificationId = item.getAttribute("data-notification-id");
       const link =
         item.getAttribute("data-notification-link") ||
-        "/customer-dashboard.html#messages";
+        "/customer-messages.html";
 
       if(notificationId && anybikeHeaderUser){
         try{
@@ -897,6 +912,7 @@ function escapeHtml(value){
 
 const ANYBIKE_PROTECTED_CUSTOMER_PAGES = [
   "/customer-dashboard.html",
+  "/customer-messages.html",
   "/my-watchlist.html",
   "/my-searches.html"
 ];
