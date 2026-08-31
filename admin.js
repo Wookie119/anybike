@@ -570,9 +570,8 @@ const initial = escapeNotificationHtml(String(row.title || "?").charAt(0).toUppe
 
 </a> `; }
 
-  const bikeLink = row.relatedEnquiryId
-    ? "admin-enquiries.html?open=" + encodeURIComponent(row.relatedEnquiryId) + "&focus=messages"
-    : "admin-message-centre.html?thread=" + encodeURIComponent(row.id);
+const bikeLink =
+  "admin-message-centre.html?thread=" + encodeURIComponent(row.id);
 
   const dot = row.status === "New" ? "🔴" : "🟢";
 
