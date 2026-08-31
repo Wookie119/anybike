@@ -1254,6 +1254,89 @@ async function submitBulkRequest(form){
         itemError.message
       );
     }
+    const threadNow = new Date().toISOString();
+
+const threadSubject =
+  "Global Buyer #" + String(buyer.id);
+
+const firstMessage =
+  "New Global Buyer Network request from " +
+  values.contact_name +
+  " at " +
+  values.company_name +
+  ".";
+
+const {data:messageThread,error:threadCreateError}=await sb
+  .from("message_centre_threads")
+  .insert({
+    customer_id:currentUser?.id || null,
+    customer_name:values.contact_name || values.company_name || null,
+    customer_email:email,
+    customer_phone:phone || null,
+    country:values.country || null,
+    source_type:"Global Buyer",
+    subject:threadSubject,
+    department:"Global Buyer Network",
+    status:"Needs Reply",
+    lead_status:"New Lead",
+    last_message:firstMessage,
+    last_message_at:threadNow,
+    last_sender:"Customer",
+    created_at:threadNow,
+    updated_at:threadNow
+  })
+  .select("*")
+  .single();
+
+if(threadCreateError){
+  console.error(
+    "Could not create Global Buyer Message Centre thread:",
+    threadCreateError
+  );
+}else{
+
+  await sb
+    .from("message_centre_messages")
+    .insert({
+      thread_id:messageThread.id,
+      sender_type:"Customer",
+      sender_name:values.contact_name || values.company_name || "Customer",
+      sender_email:email,
+      message:firstMessage,
+      created_at:threadNow
+    });
+
+  await sb
+    .from("admin_notifications")
+    .insert({
+      title:"New Global Buyer",
+      message:
+        values.company_name +
+        " has submitted a Global Buyer Network request.",
+      icon:"🌍",
+      type:"global_buyer",
+      link:
+        "/admin-message-centre.html?thread=" +
+        encodeURIComponent(messageThread.id)
+    });
+
+  const {error:adminEmailError}=await sb.functions.invoke(
+    "send-admin-message-notification",
+    {
+      body:{
+        source_type:"message_centre",
+        thread_id:String(messageThread.id)
+      }
+    }
+  );
+
+  if(adminEmailError){
+    console.error(
+      "Global Buyer admin email notification failed:",
+      adminEmailError
+    );
+  }
+}
 
     lastBulkRequestFingerprint=fingerprint;
     lastBulkRequestSubmittedAt=Date.now();
