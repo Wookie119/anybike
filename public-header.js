@@ -1,20 +1,3 @@
-/*
-AnyBike
-File: public-header.js
-Version: 2026.07.16-2
-Date: 16 July 2026
-
-Changes
---------
-✓ Matches the current V3 public-header.html IDs
-✓ Preserves shared public header loading
-✓ Preserves customer login/logout state
-✓ Preserves language and currency preferences
-✓ Preserves customer notification loading
-✓ Preserves protected customer-page session rechecks
-✓ Keeps mobile drawer and desktop account menu behaviour
-*/
-
 if(document.readyState === "loading"){
   document.addEventListener("DOMContentLoaded",loadPublicHeader,{once:true});
 }else{
@@ -403,21 +386,6 @@ async function setupPublicHeader(){
 
   anybikeHeaderUser = user;
 
-  /*
-    Customer Messages now has its own dedicated page.
-    This updates the top Messages link plus desktop/mobile My AnyBike
-    menu links after the shared header has been injected.
-  */
-  document
-    .querySelectorAll(
-      "#phMessagesV3, " +
-      "#loggedInMenu a[data-i18n='messages'], " +
-      "#mobileLoggedInMenu a[data-i18n='messages']"
-    )
-    .forEach(function(link){
-      link.setAttribute("href","/customer-messages.html");
-    });
-
   if(languageSelect){
     languageSelect.value = savedLanguage;
 
@@ -615,6 +583,36 @@ async function saveHeaderPreference(field,value){
   }
 }
 
+function normaliseCustomerNotificationLink(link){
+  const raw=String(link || "").trim();
+
+  if(!raw){
+    return "/customer-messages.html";
+  }
+
+  try{
+    const url=new URL(raw,window.location.origin);
+    const path=String(url.pathname || "").toLowerCase();
+
+    if(path.endsWith("/customer-dashboard.html")){
+      const threadId=String(url.searchParams.get("thread") || "").trim();
+      const isOldMessagesLink=
+        url.hash.toLowerCase()==="#messages" ||
+        Boolean(threadId);
+
+      if(isOldMessagesLink){
+        return threadId
+          ? `/customer-messages.html?thread=${encodeURIComponent(threadId)}`
+          : "/customer-messages.html";
+      }
+    }
+  }catch(error){
+    console.warn("Could not normalise customer notification link",error);
+  }
+
+  return raw;
+}
+
 async function loadCustomerHeaderActivity(user){
   if(typeof sb === "undefined" || !user){
     setMessageCount(0);
@@ -642,7 +640,7 @@ async function loadCustomerHeaderActivity(user){
         id:notification.id,
         title:notification.title || "Notification",
         message:notification.message || "",
-        link:notification.link || "/customer-messages.html",
+        link:normaliseCustomerNotificationLink(notification.link),
         icon:type.includes("message") ? "💬" : "🔔",
         date:notification.created_at
       };
@@ -688,7 +686,7 @@ function renderNotificationList(items){
   }
 
   list.innerHTML = items.slice(0,12).map(function(item){
-    const link = item.link || "/customer-messages.html";
+    const link = normaliseCustomerNotificationLink(item.link);
 
     return `
       <a
@@ -712,9 +710,9 @@ function renderNotificationList(items){
       event.preventDefault();
 
       const notificationId = item.getAttribute("data-notification-id");
-      const link =
-        item.getAttribute("data-notification-link") ||
-        "/customer-messages.html";
+      const link = normaliseCustomerNotificationLink(
+        item.getAttribute("data-notification-link")
+      );
 
       if(notificationId && anybikeHeaderUser){
         try{
@@ -912,7 +910,6 @@ function escapeHtml(value){
 
 const ANYBIKE_PROTECTED_CUSTOMER_PAGES = [
   "/customer-dashboard.html",
-  "/customer-messages.html",
   "/my-watchlist.html",
   "/my-searches.html"
 ];
