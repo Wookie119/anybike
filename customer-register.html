@@ -780,53 +780,64 @@ const {
       customer receives an active session immediately and the
       customer profile can be saved now.
     */
-    if(data.session){
-      const profileError =
-        await createCustomerProfileIfMissing(data.user, values);
+  if(data.session){
 
-      if(profileError){
-        console.error(
-          "Customer profile could not be saved:",
-          profileError
-        );
+  const profileError =
+    await createCustomerProfileIfMissing(data.user, values);
 
-        showMsg(
-          "Your account was created, but your profile could not be saved: " +
-          profileError.message,
-          false
-        );
+  if(profileError){
 
-        return;
-      }
-
-      showMsg(
-        "Your account has been created successfully. Opening AnyBike..."
-      );
-
-      redirectHome();
-      return;
-    }
-
-    /*
-      When email confirmation is enabled, Supabase does not
-      create a logged-in session until the customer confirms
-      their email.
-    */
-    showMsg(
-      "Your account has been created. Please check your email and confirm your registration before logging in."
+    console.error(
+      "Customer profile could not be saved:",
+      profileError
     );
 
-  }catch(error){
-    console.error("Registration failed:", error);
-
     showMsg(
-      "Something went wrong while creating your account. Please try again.",
+      "Your account was created, but your profile could not be saved: " +
+      profileError.message,
       false
     );
 
-  }finally{
-    setBusy(false);
+    return;
   }
+
+  showMsg(
+    "Your account has been created successfully. Opening your AnyBike account..."
+  );
+
+const destination = getSafeReturnUrl();
+
+window.location.replace(
+  destination.replace(/^\/+/, "")
+);
+
+  return;
+}
+
+/*
+  When email confirmation is enabled, Supabase does not
+  create a logged-in session until the customer confirms
+  their email.
+*/
+
+showMsg(
+  "Your account has been created. Please check your email and confirm your registration before logging in."
+);
+
+}catch(error){
+
+  console.error("Registration failed:", error);
+
+  showMsg(
+    "Something went wrong while creating your account. Please try again.",
+    false
+  );
+
+}finally{
+
+  setBusy(false);
+
+}
 }
 
 async function loginCustomer(){
