@@ -2294,129 +2294,16 @@ async function logout(){
 }
 
 
-/* =========================================================
-   Customer notifications
-   Uses customer_notifications as the single source of truth.
-   This code runs inside customer-dashboard.html after `sb`
-   has been created and after the shared header has loaded.
-   ========================================================= */
+/* Customer notification read-state helpers.
+   The shared public header owns badge counts and notification rendering. */
 
-let customerNotificationRefreshTimer = null;
-let customerNotificationControlsBound = false;
+async function refreshSharedCustomerHeader(){
+  if(!currentUser) return;
 
-function getCustomerNotificationHeaderElements(){
-  return {
-    messageLink:
-      document.getElementById("phMessagesV3") ||
-      document.getElementById("phMessages"),
-    messageCount:
-      document.getElementById("phMessagesCountV3") ||
-      document.getElementById("phMessagesCount"),
-    bellButton:
-      document.getElementById("phNotificationsV3") ||
-      document.getElementById("phNotifications"),
-    bellCount:
-      document.getElementById("phNotificationsCountV3") ||
-      document.getElementById("phNotificationsCount"),
-    popover:document.getElementById("notificationPopover"),
-    list:document.getElementById("notificationList")
-  };
-}
-
-function setCustomerNotificationBadges(total){
-  const elements=getCustomerNotificationHeaderElements();
-  const count=Number(total)||0;
-
-  [elements.messageCount,elements.bellCount].forEach(function(badge){
-    if(!badge) return;
-
-    badge.textContent=String(count);
-    badge.style.display=count>0 ? "inline-flex" : "none";
-  });
-
-  if(elements.messageLink){
-    elements.messageLink.setAttribute("aria-label","Messages "+count);
-    elements.messageLink.classList.toggle("has-messages",count>0);
-  }
-
-  if(elements.bellButton){
-    elements.bellButton.setAttribute("aria-label","Notifications "+count);
-    elements.bellButton.classList.toggle("has-notifications",count>0);
+  if(typeof loadCustomerHeaderActivity === "function"){
+    await loadCustomerHeaderActivity(currentUser);
   }
 }
-
-function renderCustomerNotifications(rows){
-  const list=document.getElementById("notificationList");
-
-  if(!list) return;
-
-  if(!rows.length){
-    list.innerHTML="<p>No new notifications.</p>";
-    return;
-  }
-
-  list.innerHTML=rows.map(function(row){
-    const link=row.link || "/customer-messages.html";
-    const icon=row.icon || "💬";
-
-    return `
-      <a href="${safe(link)}"
-         class="notification-item unread"
-         data-customer-notification-id="${safe(row.id)}"
-         data-customer-notification-link="${safe(link)}">
-        <span class="notification-icon">${safe(icon)}</span>
-        <span class="notification-copy">
-          <strong>${safe(row.title || "New message from AnyBike")}</strong>
-          <small>${safe(row.message || "")}</small>
-        </span>
-      </a>
-    `;
-  }).join("");
-}
-
-async function loadCustomerNotifications(){
-  if(!currentUser){
-    setCustomerNotificationBadges(0);
-    renderCustomerNotifications([]);
-    return;
-  }
-
-  const {data,error}=await sb
-    .from("customer_notifications")
-    .select("id,title,message,icon,type,link,is_read,created_at")
-    .eq("customer_id",currentUser.id)
-    .eq("is_read",false)
-    .order("created_at",{ascending:false});
-
-  if(error){
-    console.error("Customer notifications could not be loaded",error);
-    return;
-  }
-
-  const rows=data || [];
-
-  setCustomerNotificationBadges(rows.length);
-  renderCustomerNotifications(rows);
-}
-
-async function markCustomerNotificationRead(notificationId){
-  if(!notificationId || !currentUser) return;
-
-  const {error}=await sb
-    .from("customer_notifications")
-    .update({is_read:true})
-    .eq("id",notificationId)
-    .eq("customer_id",currentUser.id);
-
-  if(error){
-    console.error("Customer notification could not be marked read",error);
-    return;
-  }
-
-  await loadCustomerNotifications();
-}
-
-
 
 async function markConversationNotificationsRead(threadId){
   if(!currentUser || !threadId) return;
@@ -2445,25 +2332,21 @@ async function markConversationNotificationsRead(threadId){
     .map(row=>row.id)
     .filter(Boolean);
 
-  if(!ids.length){
-    await loadCustomerNotifications();
-    return;
+  if(ids.length){
+    const {error:updateError}=await sb
+      .from("customer_notifications")
+      .update({is_read:true})
+      .eq("customer_id",currentUser.id)
+      .in("id",ids);
+
+    if(updateError){
+      console.warn("Could not clear conversation notifications",updateError.message);
+      return;
+    }
   }
 
-  const {error:updateError}=await sb
-    .from("customer_notifications")
-    .update({is_read:true})
-    .eq("customer_id",currentUser.id)
-    .in("id",ids);
-
-  if(updateError){
-    console.warn("Could not clear conversation notifications",updateError.message);
-    return;
-  }
-
-  await loadCustomerNotifications();
+  await refreshSharedCustomerHeader();
 }
-
 
 async function markBikeEnquiryNotificationsRead(enquiryId){
   if(!currentUser || !enquiryId) return;
@@ -2488,7 +2371,6 @@ async function markBikeEnquiryNotificationsRead(enquiryId){
   }
 }
 
-
 async function markRequestedThreadNotificationsRead(){
   if(!currentUser) return;
 
@@ -2500,71 +2382,6 @@ async function markRequestedThreadNotificationsRead(){
   await markConversationNotificationsRead(threadId);
 }
 
-function bindCustomerNotificationControls(){
-  if(customerNotificationControlsBound) return;
-
-  const elements=getCustomerNotificationHeaderElements();
-
-  if(!elements.bellButton || !elements.popover || !elements.list){
-    setTimeout(bindCustomerNotificationControls,100);
-    return;
-  }
-
-  customerNotificationControlsBound=true;
-
-  /*
-    Capture phase prevents older header click handlers from cancelling
-    this notification controller.
-  */
-  elements.bellButton.addEventListener("click",function(event){
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    elements.popover.classList.toggle("open");
-  },true);
-
-  document.addEventListener("click",function(event){
-    const item=event.target.closest("[data-customer-notification-id]");
-
-    if(item){
-      event.preventDefault();
-      event.stopImmediatePropagation();
-
-      const id=item.getAttribute("data-customer-notification-id");
-      const link=item.getAttribute("data-customer-notification-link") ||
-        "/customer-messages.html";
-
-      markCustomerNotificationRead(id).finally(function(){
-        window.location.href=link;
-      });
-
-      return;
-    }
-
-    const current=getCustomerNotificationHeaderElements();
-
-    if(
-      current.popover &&
-      current.bellButton &&
-      !current.popover.contains(event.target) &&
-      !current.bellButton.contains(event.target)
-    ){
-      current.popover.classList.remove("open");
-    }
-  },true);
-}
-
-async function initialiseCustomerNotifications(){
-  bindCustomerNotificationControls();
-  await loadCustomerNotifications();
-
-  if(customerNotificationRefreshTimer){
-    clearInterval(customerNotificationRefreshTimer);
-  }
-
-  customerNotificationRefreshTimer=setInterval(function(){
-    loadCustomerNotifications();
-  },30000);
-}
 (async function init(){
   try{
     await waitForPublicHeader();
@@ -2584,7 +2401,7 @@ async function initialiseCustomerNotifications(){
     document.documentElement.classList.remove("customer-auth-pending");
 
     await loadCustomerEnquiries();
-    await initialiseCustomerNotifications();
+    await refreshSharedCustomerHeader();
     await markRequestedThreadNotificationsRead();
 
   }catch(error){
@@ -2610,7 +2427,6 @@ async function initialiseCustomerNotifications(){
 setInterval(() => {
   if(currentUser){
     loadCustomerEnquiries();
-    loadCustomerNotifications();
   }
 }, 90000);
   
