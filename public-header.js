@@ -386,6 +386,17 @@ async function setupPublicHeader(){
 
   anybikeHeaderUser = user;
 
+  document
+    .querySelectorAll(
+      "#phMessagesV3, " +
+      "#phMessages, " +
+      "#loggedInMenu a[data-i18n='messages'], " +
+      "#mobileLoggedInMenu a[data-i18n='messages']"
+    )
+    .forEach(function(link){
+      link.setAttribute("href","/customer-messages.html");
+    });
+
   if(languageSelect){
     languageSelect.value = savedLanguage;
 
