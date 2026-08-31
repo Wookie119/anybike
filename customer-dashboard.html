@@ -1,60 +1,3 @@
-
-
-
-<!--
-AnyBike
-File: customer-dashboard.html
-Version: 3.7
-Date: 13 July 2026
-
-Purpose
--------
-My AnyBike is the customer workspace for browsing, recommendations,
-messages, account management and future buying services.
-
-Changes
---------
-✓ Replaces “My Dashboard” with “My AnyBike”
-✓ Compact responsive layout with much less wasted space
-✓ Adds four overview cards including active conversations
-✓ Adds Recommended For You
-✓ Adds Fresh Stock / Recently Added to AnyBike
-✓ Adds Latest From AnyBike
-✓ Preserves recently viewed motorcycles
-✓ Preserves single-bike enquiry messaging
-✓ Preserves Global Buyer Network conversations
-✓ Preserves customer replies and admin bell workflow
-✓ Preserves account profile, currency and language settings
-✓ Adds clean profile display/edit mode
-✓ Preserves watchlist and saved-search counts
-✓ Uses the shared AnyBike public header
-✓ Ready for future live stock API, announcements, orders and shipping
-✓ Fixes prolonged “Loading enquiries...” state
-✓ Loads messages, counts, recommendations and stock in parallel
-✓ Removes the tall sidebar layout that created large empty areas
-✓ Uses balanced full-width dashboard rows
-✓ Makes My Profile a wide compact section
-✓ Waits for the shared public header before updating login details
-✓ Fixes the empty profile, zero counts and failed message loading
-✓ Removes Fresh Stock until the live stock API is connected
-✓ Keeps Recommended For You and Recently Viewed
-✓ Adds safer customer-profile loading and clear error handling
-✓ Adds Create New Message inside My AnyBike
-✓ Creates a new Message Centre thread from the customer dashboard
-✓ Captures the related AnyBike page automatically when available
-✓ Adds subject/category routing for customer messages
-✓ Makes the new thread appear immediately in My Enquiries & Messages
-✓ Triggers the admin notification workflow
-✓ Removes the visible Recently Viewed scrollbar
-✓ Adds left/right carousel controls for Recently Viewed
-✓ Fixes missing red New message pills on staff replies
-✓ Treats every non-customer sender as an AnyBike/staff reply
-✓ Tracks customer-read Message Centre replies in localStorage
-✓ Updates the My AnyBike unread message count
-✓ Marks a conversation read when the customer opens it
-✓ Requires no database schema changes
-✓ Cache-busts public-header.js so the corrected unread logic actually loads
--->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -340,7 +283,7 @@ button,input,select,textarea{font:inherit}
   border:1px dashed rgba(255,255,255,.14);border-radius:12px;
   padding:12px;text-align:center;color:#777;font-size:12px;
 }
-#recently-viewed,#messages,#profile{scroll-margin-top:130px}
+#recently-viewed,#profile{scroll-margin-top:130px}
 
 .recent-wrap{
   position:relative;
@@ -572,7 +515,7 @@ footer{
       <div class="stat-icon">🏍️</div>
       <div><strong id="stockCount">0</strong><span>Available Motorcycles</span></div>
     </a>
-    <a class="stat-card" href="#messages">
+    <a class="stat-card" href="customer-messages.html">
       <div class="stat-icon">💬</div>
       <div><strong id="conversationCount">0</strong><span>Active Conversations</span></div>
     </a>
@@ -611,7 +554,7 @@ footer{
           <a class="quick-action" href="sell-your-motorcycle.html"><span>💷</span><strong>Sell Your Bike</strong></a>
           <a class="quick-action" href="export-services.html"><span>🚢</span><strong>Export Services</strong></a>
           <button class="quick-action" type="button" onclick="openNewMessageModal()"><span>💬</span><strong>New Message</strong></button>
-          <a class="quick-action" href="#messages"><span>💬</span><strong>Messages</strong></a>
+          <a class="quick-action" href="customer-messages.html"><span>💬</span><strong>Messages</strong></a>
           <a class="quick-action" href="#profile"><span>👤</span><strong>Account Settings</strong></a>
           <a class="quick-action" href="customer-dashboard.html"><span>🔄</span><strong>Refresh My AnyBike</strong></a>
         </div>
@@ -627,8 +570,8 @@ footer{
         <div class="latest-list">
           <article class="latest-item">
             <div class="latest-tag">CUSTOMER WORKSPACE</div>
-            <strong>Your enquiries now live together in My AnyBike</strong>
-            <p>Single-bike and Global Buyer Network conversations can be managed from one place.</p>
+            <strong>Your messages now have their own inbox</strong>
+            <p>Open Messages from My AnyBike or the top menu to manage all your AnyBike conversations.</p>
           </article>
           <article class="latest-item">
             <div class="latest-tag">BUYING</div>
@@ -658,17 +601,7 @@ footer{
       </div>
     </section>
 
-    <section class="panel" id="messages">
-      <div class="panel-head">
-        <div>
-          <h2>💬 My Enquiries & Messages</h2>
-          <p>Single-bike enquiries and Global Buyer Network conversations in one place.</p>
-        </div>
-      </div>
-      <div id="customerEnquiries">Loading enquiries...</div>
-    </section>
-
-    <section class="panel" id="profilePanel">
+<section class="panel" id="profilePanel">
       <div class="panel-head">
         <div>
           <h2 id="profile">👤 My Profile</h2>
@@ -1171,6 +1104,35 @@ async function loadRecentlyViewed(){
     </div>
   `).join("");
 }
+
+
+async function loadDashboardConversationCount(){
+  if(!currentUser) return;
+
+  try{
+    const [bikeResult,threadResult]=await Promise.all([
+      sb
+        .from("bike_enquiries")
+        .select("id",{count:"exact",head:true})
+        .eq("customer_id",currentUser.id),
+
+      sb
+        .from("message_centre_threads")
+        .select("id",{count:"exact",head:true})
+        .eq("customer_id",currentUser.id)
+    ]);
+
+    const total=(bikeResult.count || 0) + (threadResult.count || 0);
+    const countEl=document.getElementById("conversationCount");
+
+    if(countEl){
+      countEl.textContent=total.toLocaleString("en-GB");
+    }
+  }catch(error){
+    console.warn("Conversation count could not be loaded",error);
+  }
+}
+
 
 async function loadCustomerEnquiries(){
   const box = document.getElementById("customerEnquiries");
@@ -2613,7 +2575,7 @@ async function initialiseCustomerNotifications(){
     await Promise.allSettled([
       loadCounts(),
       loadRecentlyViewed(),
-      loadCustomerEnquiries(),
+      loadDashboardConversationCount(),
       loadRecommendations()
     ]);
 
@@ -2640,7 +2602,7 @@ async function initialiseCustomerNotifications(){
 
 setInterval(() => {
   if(currentUser){
-    loadCustomerEnquiries();
+    loadDashboardConversationCount();
   }
 }, 90000);
   
