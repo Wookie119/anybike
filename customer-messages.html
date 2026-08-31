@@ -1360,6 +1360,26 @@ async function sendCustomerMessage(enquiryId){
     return;
   }
 
+const {data:messageThread,error:messageThreadError} = await sb
+  .from("message_centre_threads")
+  .select("id")
+  .eq("related_enquiry_id",Number(enquiryId))
+  .eq("customer_id",currentUser.id)
+  .order("created_at",{ascending:false})
+  .limit(1)
+  .maybeSingle();
+
+if(messageThreadError){
+  console.warn(
+    "Could not resolve Message Centre thread for admin notification:",
+    messageThreadError.message
+  );
+}
+
+const adminNotificationLink = messageThread?.id
+  ? `/admin-message-centre.html?thread=${encodeURIComponent(messageThread.id)}`
+  : "/admin-message-centre.html";
+
 await sb
   .from("admin_notifications")
   .insert({
@@ -1367,7 +1387,7 @@ await sb
     message:"A customer has replied to enquiry #" + enquiryId,
     icon:"💬",
     type:"customer_reply",
-    link:"/admin-enquiries.html"
+    link:adminNotificationLink
   });
 
 const {error:adminNotificationError} = await sb.functions.invoke(
