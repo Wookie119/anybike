@@ -1,61 +1,4 @@
 
-
-
-
-<!--
-AnyBike
-File: customer-dashboard.html
-Version: 3.7
-Date: 13 July 2026
-
-Purpose
--------
-My AnyBike is the customer workspace for browsing, recommendations,
-messages, account management and future buying services.
-
-Changes
---------
-✓ Replaces “My Dashboard” with “My AnyBike”
-✓ Compact responsive layout with much less wasted space
-✓ Adds four overview cards including active conversations
-✓ Adds Recommended For You
-✓ Adds Fresh Stock / Recently Added to AnyBike
-✓ Adds Latest From AnyBike
-✓ Preserves recently viewed motorcycles
-✓ Preserves single-bike enquiry messaging
-✓ Preserves Global Buyer Network conversations
-✓ Preserves customer replies and admin bell workflow
-✓ Preserves account profile, currency and language settings
-✓ Adds clean profile display/edit mode
-✓ Preserves watchlist and saved-search counts
-✓ Uses the shared AnyBike public header
-✓ Ready for future live stock API, announcements, orders and shipping
-✓ Fixes prolonged “Loading enquiries...” state
-✓ Loads messages, counts, recommendations and stock in parallel
-✓ Removes the tall sidebar layout that created large empty areas
-✓ Uses balanced full-width dashboard rows
-✓ Makes My Profile a wide compact section
-✓ Waits for the shared public header before updating login details
-✓ Fixes the empty profile, zero counts and failed message loading
-✓ Removes Fresh Stock until the live stock API is connected
-✓ Keeps Recommended For You and Recently Viewed
-✓ Adds safer customer-profile loading and clear error handling
-✓ Adds Create New Message inside My AnyBike
-✓ Creates a new Message Centre thread from the customer dashboard
-✓ Captures the related AnyBike page automatically when available
-✓ Adds subject/category routing for customer messages
-✓ Makes the new thread appear immediately in My Enquiries & Messages
-✓ Triggers the admin notification workflow
-✓ Removes the visible Recently Viewed scrollbar
-✓ Adds left/right carousel controls for Recently Viewed
-✓ Fixes missing red New message pills on staff replies
-✓ Treats every non-customer sender as an AnyBike/staff reply
-✓ Tracks customer-read Message Centre replies in localStorage
-✓ Updates the My AnyBike unread message count
-✓ Marks a conversation read when the customer opens it
-✓ Requires no database schema changes
-✓ Cache-busts public-header.js so the corrected unread logic actually loads
--->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1495,6 +1438,7 @@ function markCustomerBikeEnquiryRead(enquiryId){
   }
 
   updateCustomerUnreadMessageCount();
+  markBikeEnquiryNotificationsRead(enquiryId);
 }
 
 function getCustomerReadMessageMap(){
@@ -1571,6 +1515,7 @@ function markCustomerThreadRead(threadId){
   }
 
   updateCustomerUnreadMessageCount();
+  markConversationNotificationsRead(threadId);
 }
 
 function updateCustomerUnreadMessageCount(){
@@ -2361,10 +2306,18 @@ let customerNotificationControlsBound = false;
 
 function getCustomerNotificationHeaderElements(){
   return {
-    messageLink:document.getElementById("phMessages"),
-    messageCount:document.getElementById("phMessagesCount"),
-    bellButton:document.getElementById("phNotifications"),
-    bellCount:document.getElementById("phNotificationsCount"),
+    messageLink:
+      document.getElementById("phMessagesV3") ||
+      document.getElementById("phMessages"),
+    messageCount:
+      document.getElementById("phMessagesCountV3") ||
+      document.getElementById("phMessagesCount"),
+    bellButton:
+      document.getElementById("phNotificationsV3") ||
+      document.getElementById("phNotifications"),
+    bellCount:
+      document.getElementById("phNotificationsCountV3") ||
+      document.getElementById("phNotificationsCount"),
     popover:document.getElementById("notificationPopover"),
     list:document.getElementById("notificationList")
   };
@@ -2464,13 +2417,11 @@ async function markCustomerNotificationRead(notificationId){
 }
 
 
-async function markRequestedThreadNotificationsRead(){
-  if(!currentUser) return;
 
-  const params=new URLSearchParams(window.location.search);
-  const threadId=String(params.get("thread") || "").trim();
+async function markConversationNotificationsRead(threadId){
+  if(!currentUser || !threadId) return;
 
-  if(!threadId) return;
+  const wantedThread=String(threadId).trim();
 
   const {data,error}=await sb
     .from("customer_notifications")
@@ -2484,11 +2435,20 @@ async function markRequestedThreadNotificationsRead(){
   }
 
   const ids=(data || [])
-    .filter(row=>String(row.link||"").includes(`thread=${threadId}`))
+    .filter(row=>{
+      const link=String(row.link || "");
+      return (
+        link.includes(`thread=${wantedThread}`) ||
+        link.includes(`thread%3D${wantedThread}`)
+      );
+    })
     .map(row=>row.id)
     .filter(Boolean);
 
-  if(!ids.length) return;
+  if(!ids.length){
+    await loadCustomerNotifications();
+    return;
+  }
 
   const {error:updateError}=await sb
     .from("customer_notifications")
@@ -2502,6 +2462,42 @@ async function markRequestedThreadNotificationsRead(){
   }
 
   await loadCustomerNotifications();
+}
+
+
+async function markBikeEnquiryNotificationsRead(enquiryId){
+  if(!currentUser || !enquiryId) return;
+
+  const {data:threads,error}=await sb
+    .from("message_centre_threads")
+    .select("id")
+    .eq("customer_id",currentUser.id)
+    .eq("related_enquiry_id",Number(enquiryId));
+
+  if(error){
+    console.warn("Could not resolve bike enquiry notification thread",error.message);
+    return;
+  }
+
+  const threadIds=(threads || [])
+    .map(thread=>thread.id)
+    .filter(Boolean);
+
+  for(const threadId of threadIds){
+    await markConversationNotificationsRead(threadId);
+  }
+}
+
+
+async function markRequestedThreadNotificationsRead(){
+  if(!currentUser) return;
+
+  const params=new URLSearchParams(window.location.search);
+  const threadId=String(params.get("thread") || "").trim();
+
+  if(!threadId) return;
+
+  await markConversationNotificationsRead(threadId);
 }
 
 function bindCustomerNotificationControls(){
