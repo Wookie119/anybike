@@ -835,6 +835,50 @@ let currentUser=null;
 let currentProfile=null;
 let openConversationKey=null;
 
+async function claimRequestedMessageThread(){
+  const params = new URLSearchParams(window.location.search);
+  const threadId = Number(params.get("thread"));
+
+  if(!threadId || !currentUser){
+    return;
+  }
+
+  try{
+    const {data,error} = await sb.functions.invoke(
+      "claim-message-thread",
+      {
+        body:{
+          thread_id:String(threadId)
+        }
+      }
+    );
+
+    if(error){
+      console.error(
+        "Conversation claim failed:",
+        error
+      );
+      return;
+    }
+
+    if(!data?.ok){
+      console.error(
+        "Conversation could not be claimed:",
+        data
+      );
+      return;
+    }
+
+    openConversationKey = `global-${threadId}`;
+
+  }catch(error){
+    console.error(
+      "Conversation claim crashed:",
+      error
+    );
+  }
+}
+
 function getCustomerLoginUrl(){
   const returnUrl =
     window.location.pathname +
