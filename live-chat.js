@@ -1378,9 +1378,12 @@ Standalone anonymous Live Chat.
 
         }
 
-      }else{
+            }else{
 
         removeInvitation();
+
+       
+        dismissedThreadId = null;
 
         if(panelOpen){
 
