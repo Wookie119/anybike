@@ -1049,6 +1049,7 @@ async function loadCustomerEnquiries(){
         const subject=String(thread.subject||"").toLowerCase();
 
        return source.includes("global buyer") ||
+  source.includes("live chat") ||
   source.includes("bulk") ||
   source.includes("my anybike") ||
   source.includes("private buyer") ||
@@ -1720,7 +1721,7 @@ async function refreshOpenCustomerLiveChat(){
   try{
     const {data:thread,error:threadError}=await sb
       .from("message_centre_threads")
-      .select("id,source_type")
+      .select("id,source_type,live_chat_active")
       .eq("id",threadId)
       .eq("customer_id",currentUser.id)
       .maybeSingle();
@@ -1730,6 +1731,12 @@ async function refreshOpenCustomerLiveChat(){
     }
 
     if(String(thread.source_type||"").trim().toLowerCase()!=="live chat"){
+      return;
+    }
+
+    // Once Admin ends the Live Chat, keep the conversation history visible
+    // but stop the fast live polling. Admin can start it again later.
+    if(thread.live_chat_active !== true){
       return;
     }
 
