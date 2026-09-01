@@ -1,1521 +1,2586 @@
-if(document.readyState === "loading"){
-  document.addEventListener("DOMContentLoaded",loadPublicHeader,{once:true});
-}else{
-  loadPublicHeader();
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>My Messages | AnyBike</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" href="anybike-logo-new.jpg" type="image/jpeg">
+
+<script>
+document.documentElement.classList.add("customer-auth-pending");
+</script>
+
+<style>
+html.customer-auth-pending body{
+  visibility:hidden;
+}
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="/public-header.css?v=9000">
+
+<style>
+:root{
+  --red:#ed1c24;
+  --bg:#050505;
+  --panel:#101010;
+  --panel2:#171717;
+  --line:rgba(255,255,255,.12);
+  --muted:#aaa;
+  --text:#fff;
+  --green:#36d37e;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  font-family:Arial,Helvetica,sans-serif;
+  color:var(--text);
+  background:
+    radial-gradient(circle at 12% 0%,rgba(237,28,36,.18),transparent 28%),
+    linear-gradient(135deg,#050505,#0b0b0b 58%,#111);
+}
+a{color:inherit;text-decoration:none}
+button,input,select,textarea{font:inherit}
+.page-shell{
+  width:min(94vw,1720px);
+  margin:0 auto;
+  padding:30px 0 60px;
+}
+.hero{
+  display:grid;
+  grid-template-columns:minmax(0,1.35fr) minmax(280px,.65fr);
+  gap:18px;
+  align-items:stretch;
+  margin-bottom:18px;
+}
+.hero-main,.hero-side,.panel,.stat-card{
+  background:rgba(16,16,16,.95);
+  border:1px solid var(--line);
+  border-radius:22px;
+  box-shadow:0 18px 50px rgba(0,0,0,.28);
+}
+.hero-main{
+  padding:28px;
+  background:
+    radial-gradient(circle at 92% 15%,rgba(237,28,36,.22),transparent 30%),
+    rgba(16,16,16,.96);
+}
+.eyebrow{
+  color:var(--red);
+  text-transform:uppercase;
+  letter-spacing:.15em;
+  font-size:12px;
+  font-weight:900;
+  margin-bottom:10px;
+}
+.hero h1{
+  margin:0 0 8px;
+  font-size:clamp(36px,4vw,62px);
+  letter-spacing:-.045em;
+}
+.hero h1 span{color:var(--red)}
+.hero p{margin:0;color:#ccc;font-size:17px}
+.hero-side{
+  padding:22px;
+  display:grid;
+  gap:12px;
+}
+.member-line{
+  display:flex;
+  gap:12px;
+  align-items:center;
+}
+.member-avatar{
+  width:52px;height:52px;border-radius:50%;
+  background:var(--red);display:flex;align-items:center;justify-content:center;
+  font-weight:900;font-size:22px;
+}
+.member-meta strong{display:block}
+.member-meta span{color:var(--muted);font-size:13px}
+.hero-actions{display:flex;gap:10px;flex-wrap:wrap}
+.btn,.mini-btn{
+  display:inline-flex;align-items:center;justify-content:center;
+  border-radius:999px;font-weight:900;cursor:pointer;
+}
+.btn{padding:11px 16px;background:var(--red);border:1px solid var(--red);color:#fff}
+.btn.secondary{background:#222;border-color:var(--line)}
+.overview{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:14px;
+  margin-bottom:18px;
+}
+.stat-card{padding:18px;display:flex;align-items:center;gap:14px}
+.stat-icon{
+  width:48px;height:48px;border-radius:16px;
+  background:rgba(237,28,36,.14);display:flex;align-items:center;justify-content:center;
+  font-size:23px;flex:0 0 auto;
+}
+.stat-card strong{display:block;font-size:30px;color:var(--red)}
+.stat-card span{color:var(--muted);font-size:13px;font-weight:800}
+.dashboard-grid{
+  display:grid;
+  gap:18px;
+}
+.dashboard-row{
+  display:grid;
+  grid-template-columns:minmax(0,2fr) minmax(340px,1fr);
+  gap:18px;
+  align-items:start;
+}
+.dashboard-row.equal{
+  grid-template-columns:1fr 1fr;
+}
+.main-column,.side-column{display:grid;gap:18px}
+.panel{padding:20px;min-width:0}
+.panel-head{
+  display:flex;justify-content:space-between;align-items:flex-end;
+  gap:12px;margin-bottom:14px;flex-wrap:wrap;
+}
+.panel-head h2{margin:0;font-size:24px}
+.panel-head p{margin:4px 0 0;color:var(--muted);font-size:13px}
+.panel-link{color:var(--red);font-size:13px;font-weight:900}
+.bike-grid{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:12px;
+}
+.bike-card{
+  min-width:0;
+  background:#151515;
+  border:1px solid var(--line);
+  border-radius:16px;
+  overflow:hidden;
+}
+.bike-image{
+  position:relative;height:155px;background:#0a0a0a;overflow:hidden;
+  display:flex;align-items:center;justify-content:center;
+}
+.bike-image img{width:100%;height:100%;object-fit:cover}
+.bike-fallback{display:none;font-weight:900;letter-spacing:.1em;color:#555}
+.bike-image.fallback .bike-fallback{display:block}
+.heart-action{
+  position:absolute;top:9px;right:9px;width:34px;height:34px;border-radius:50%;
+  border:1px solid rgba(255,255,255,.22);background:rgba(0,0,0,.7);color:#fff;
+  margin:0;padding:0;font-size:19px;cursor:pointer;
+}
+.heart-action.active{background:var(--red);border-color:var(--red)}
+.bike-card-body{padding:13px}
+.recommend-reason{
+  display:inline-flex;padding:5px 8px;border-radius:999px;
+  background:rgba(237,28,36,.13);color:#ffb3b6;
+  font-size:10px;font-weight:900;margin-bottom:8px;
+}
+.bike-card h3{margin:0 0 4px;font-size:17px}
+.bike-card p{margin:0;color:var(--muted);font-size:12px;min-height:16px}
+.bike-meta{display:flex;justify-content:space-between;gap:8px;margin:10px 0;color:#ccc;font-size:11px}
+.bike-card-foot{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.bike-card-foot strong{color:#fff}
+.bike-card-foot a{color:var(--red);font-size:12px;font-weight:900}
+.section-empty{color:var(--muted);margin:0}
+.latest-list{display:grid;gap:10px}
+.latest-item{
+  border:1px solid var(--line);
+  border-radius:14px;
+  padding:13px;
+  background:#151515;
+}
+.latest-item strong{display:block;margin-bottom:4px}
+.latest-item p{margin:0;color:var(--muted);font-size:13px;line-height:1.4}
+.latest-tag{color:var(--red);font-size:11px;font-weight:900;margin-bottom:5px}
+.quick-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.quick-action{
+  min-height:92px;border:1px solid var(--line);border-radius:14px;
+  background:#151515;padding:14px;display:flex;flex-direction:column;justify-content:space-between;
+  color:#fff;text-align:left;cursor:pointer;
+}
+.quick-action span{font-size:23px}
+.quick-action strong{font-size:13px}
+.recent-grid{
+  display:flex;gap:12px;overflow-x:auto;padding:2px 0 5px;scroll-behavior:smooth;
+}
+.recent-bike{
+  flex:0 0 220px;background:#151515;border:1px solid var(--line);
+  border-radius:14px;padding:13px;
+}
+.recent-bike h3{margin:0 0 5px;font-size:16px}
+.recent-bike p{margin:3px 0;color:var(--muted);font-size:12px}
+.recent-bike a{color:var(--red);font-weight:900;font-size:12px}
+.message-pill{
+  display:inline-flex;padding:6px 9px;border-radius:999px;
+  font-size:11px;font-weight:900;background:#333;color:#fff;
+}
+.message-pill.new{background:var(--red)}
+.message-pill.replied{background:#1d7a3a}
+.customer-enquiry{
+  background:#141414;border:1px solid var(--line);border-radius:14px;
+  margin-top:9px;overflow:hidden;
+}
+.customer-enquiry-row{
+  display:grid;grid-template-columns:28px 1fr auto;gap:10px;
+  align-items:center;padding:12px;cursor:pointer;
+}
+.customer-enquiry-row:hover{background:rgba(255,255,255,.04)}
+.customer-enquiry-row strong{font-size:18px;color:#fff;margin:0}
+.customer-enquiry-detail{display:none;border-top:1px solid var(--line);padding:15px}
+.customer-enquiry.open .customer-enquiry-detail{display:block}
+.customer-enquiry.open .arrow{transform:rotate(90deg)}
+.arrow{color:var(--red);font-weight:900;transition:.2s}
+.enquiry-type{
+  display:inline-flex;padding:4px 7px;border-radius:999px;
+  background:rgba(255,255,255,.07);font-size:10px;font-weight:900;margin-bottom:5px;
+}
+.enquiry-type.global{background:rgba(237,28,36,.12);color:#ffb3b6}
+.muted{color:var(--muted)}
+.message-thread{
+  display:flex;flex-direction:column;gap:8px;margin-top:14px;
+  background:#0d0d0d;border-radius:12px;padding:12px;
+  max-height:420px;
+  overflow-y:auto;
+  overflow-x:hidden;
+  scrollbar-width:none;
+  -ms-overflow-style:none;
+}
+.message-thread::-webkit-scrollbar{display:none}
+.msg{max-width:78%;padding:11px;border-radius:13px;line-height:1.45;word-break:break-word}
+.msg.customer{align-self:flex-start;background:#222}
+.msg.admin{align-self:flex-end;background:var(--red)}
+.msg strong{display:block;font-size:12px;margin-bottom:4px}
+.msg small{display:block;margin-top:6px;font-size:10px;color:#eee}
+.msg-text{white-space:pre-wrap}
+.reply-area{margin-top:12px}
+.reply-area textarea{
+  width:100%;min-height:95px;background:#171717;color:#fff;border:1px solid var(--line);
+  border-radius:12px;padding:11px;resize:vertical;
+}
+.reply-area button{
+  background:var(--red);color:#fff;border:0;border-radius:999px;padding:10px 15px;
+  font-weight:900;cursor:pointer;margin-top:9px;
+}
+.reply-status{min-height:18px;margin-top:7px;font-size:12px}
+.ok{color:var(--green);font-weight:900}
+.bad{color:#ff7676;font-weight:900}
+.profile-summary{
+  display:grid;gap:8px;margin-bottom:14px;
+}
+.profile-summary strong{font-size:20px}
+.profile-summary span{color:var(--muted);font-size:13px}
+.profile-form{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.profile-field.full{grid-column:span 2}
+.profile-field.address{grid-column:span 2}
+.profile-field label{display:block;font-size:11px;font-weight:900;margin-bottom:5px;color:#bbb}
+.profile-field input,.profile-field select,.profile-field textarea{
+  width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);
+  background:#171717;color:#fff;
+}
+.profile-field textarea{min-height:74px;resize:vertical}
+.profile-field input:disabled,.profile-field select:disabled,.profile-field textarea:disabled{
+  opacity:.75;background:#111;color:#ddd;
+}
+.profile-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.mini-btn{padding:9px 13px;border:1px solid var(--line);background:#222;color:#fff}
+.mini-btn.primary{background:var(--red);border-color:var(--red)}
+.future-strip{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:8px;
+}
+.future-item{
+  border:1px dashed rgba(255,255,255,.14);border-radius:12px;
+  padding:12px;text-align:center;color:#777;font-size:12px;
+}
+#recently-viewed,#messages,#profile{scroll-margin-top:130px}
+
+.recent-wrap{
+  position:relative;
+}
+.recent-grid{
+  scrollbar-width:none;
+  -ms-overflow-style:none;
+  scroll-snap-type:x mandatory;
+  padding:2px 44px 5px;
+}
+.recent-grid::-webkit-scrollbar{
+  display:none;
+}
+.recent-bike{
+  scroll-snap-align:start;
+}
+.carousel-btn{
+  position:absolute;
+  top:50%;
+  transform:translateY(-50%);
+  width:36px;
+  height:36px;
+  border-radius:50%;
+  border:1px solid rgba(255,255,255,.18);
+  background:rgba(5,5,5,.92);
+  color:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+  z-index:4;
+  font-size:18px;
+  font-weight:900;
+}
+.carousel-btn:hover{
+  background:var(--red);
+  border-color:var(--red);
+}
+.carousel-btn.prev{left:4px}
+.carousel-btn.next{right:4px}
+
+
+.message-pill.new{
+  animation:newMessagePulse 1.8s ease-in-out infinite;
+}
+@keyframes newMessagePulse{
+  0%,100%{box-shadow:0 0 0 0 rgba(237,28,36,.35)}
+  50%{box-shadow:0 0 0 7px rgba(237,28,36,0)}
+}
+.customer-enquiry.has-unread{
+  border-color:rgba(237,28,36,.62);
+  box-shadow:0 0 0 1px rgba(237,28,36,.14);
+}
+.customer-unread-dot{
+  width:9px;
+  height:9px;
+  border-radius:50%;
+  background:var(--red);
+  display:inline-block;
+  margin-left:6px;
 }
 
-const ANYBIKE_HEADER_CURRENCY_RATES = {
-  GBP:1,
-  EUR:1.17,
-  USD:1.27,
-  AUD:1.93,
-  NZD:2.10,
-  CAD:1.73,
-  AED:4.66
-};
+.message-modal{
+  position:fixed;
+  inset:0;
+  z-index:999999;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+  background:rgba(0,0,0,.78);
+  backdrop-filter:blur(6px);
+}
+.message-modal.open{
+  display:flex;
+}
+.message-modal-card{
+  width:min(680px,100%);
+  max-height:calc(100vh - 40px);
+  overflow:auto;
+  background:#111;
+  border:1px solid var(--line);
+  border-radius:22px;
+  box-shadow:0 28px 90px rgba(0,0,0,.7);
+}
+.message-modal-head{
+  display:flex;
+  justify-content:space-between;
+  gap:14px;
+  align-items:flex-start;
+  padding:20px;
+  border-bottom:1px solid var(--line);
+}
+.message-modal-head h2{
+  margin:0 0 5px;
+}
+.message-modal-head p{
+  margin:0;
+  color:var(--muted);
+  font-size:13px;
+}
+.modal-close{
+  width:38px;
+  height:38px;
+  border-radius:50%;
+  border:1px solid var(--line);
+  background:#222;
+  color:#fff;
+  cursor:pointer;
+  font-size:18px;
+}
+.message-modal-body{
+  padding:20px;
+  display:grid;
+  gap:14px;
+}
+.message-modal-body label{
+  display:block;
+  font-size:12px;
+  font-weight:900;
+  margin-bottom:6px;
+}
+.message-modal-body input,
+.message-modal-body select,
+.message-modal-body textarea{
+  width:100%;
+  background:#181818;
+  color:#fff;
+  border:1px solid var(--line);
+  border-radius:12px;
+  padding:12px;
+}
+.message-modal-body textarea{
+  min-height:150px;
+  resize:vertical;
+}
+.context-box{
+  background:#0b0b0b;
+  border:1px solid rgba(237,28,36,.28);
+  border-radius:13px;
+  padding:12px;
+}
+.context-box strong{
+  display:block;
+  margin-bottom:4px;
+}
+.context-box span{
+  color:var(--muted);
+  font-size:12px;
+  word-break:break-word;
+}
+.message-modal-actions{
+  display:flex;
+  justify-content:flex-end;
+  gap:10px;
+  flex-wrap:wrap;
+}
+.message-modal-status{
+  min-height:20px;
+  color:var(--muted);
+  font-size:13px;
+}
 
-const ANYBIKE_HEADER_TRANSLATIONS = {
-  en:{
-    messages:"Messages",
-    language:"Language",
-    currency:"Currency",
-    home:"Home",
-    stock:"Available Stock",
-    buy:"Buy a Motorcycle",
-    sell:"Sell Your Motorcycle",
-    export:"Export Services",
-    connect:"AnyBike Connect",
-    account:"My AnyBike",
-    signIn:"Sign In",
-    createAccount:"Create Free Account",
-    dashboard:"Dashboard",
-    profile:"My Profile",
-    savedSearches:"Saved Searches",
-    watchlist:"Watchlist",
-    recentlyViewed:"Recently Viewed",
-    requests:"Motorcycle Requests",
-    logout:"Logout",
-    notifications:"Notifications",
-    noNotifications:"No new notifications.",
-    close:"Close"
-  },
-  de:{
-    messages:"Nachrichten",
-    language:"Sprache",
-    currency:"Währung",
-    home:"Startseite",
-    stock:"Verfügbare Motorräder",
-    buy:"Motorrad kaufen",
-    sell:"Motorrad verkaufen",
-    export:"Exportservice",
-    connect:"AnyBike Kontakt",
-    account:"Mein AnyBike",
-    signIn:"Anmelden",
-    createAccount:"Kostenloses Konto",
-    dashboard:"Übersicht",
-    profile:"Mein Profil",
-    savedSearches:"Gespeicherte Suchen",
-    watchlist:"Merkliste",
-    recentlyViewed:"Zuletzt angesehen",
-    requests:"Motorradanfragen",
-    logout:"Abmelden",
-    notifications:"Benachrichtigungen",
-    noNotifications:"Keine neuen Benachrichtigungen.",
-    close:"Schließen"
-  },
-  fr:{
-    messages:"Messages",
-    language:"Langue",
-    currency:"Devise",
-    home:"Accueil",
-    stock:"Motos disponibles",
-    buy:"Acheter une moto",
-    sell:"Vendre votre moto",
-    export:"Services d’exportation",
-    connect:"Contacter AnyBike",
-    account:"Mon AnyBike",
-    signIn:"Se connecter",
-    createAccount:"Créer un compte gratuit",
-    dashboard:"Tableau de bord",
-    profile:"Mon profil",
-    savedSearches:"Recherches enregistrées",
-    watchlist:"Favoris",
-    recentlyViewed:"Vues récemment",
-    requests:"Demandes de motos",
-    logout:"Déconnexion",
-    notifications:"Notifications",
-    noNotifications:"Aucune nouvelle notification.",
-    close:"Fermer"
-  },
-  es:{
-    messages:"Mensajes",
-    language:"Idioma",
-    currency:"Moneda",
-    home:"Inicio",
-    stock:"Motos disponibles",
-    buy:"Comprar una moto",
-    sell:"Vender tu moto",
-    export:"Servicios de exportación",
-    connect:"Contactar con AnyBike",
-    account:"Mi AnyBike",
-    signIn:"Iniciar sesión",
-    createAccount:"Crear cuenta gratuita",
-    dashboard:"Panel",
-    profile:"Mi perfil",
-    savedSearches:"Búsquedas guardadas",
-    watchlist:"Favoritos",
-    recentlyViewed:"Vistos recientemente",
-    requests:"Solicitudes de motos",
-    logout:"Cerrar sesión",
-    notifications:"Notificaciones",
-    noNotifications:"No hay notificaciones nuevas.",
-    close:"Cerrar"
-  },
-  ar:{
-    messages:"الرسائل",
-    language:"اللغة",
-    currency:"العملة",
-    home:"الرئيسية",
-    stock:"الدراجات المتاحة",
-    buy:"شراء دراجة نارية",
-    sell:"بيع دراجتك",
-    export:"خدمات التصدير",
-    connect:"تواصل مع AnyBike",
-    account:"حسابي",
-    signIn:"تسجيل الدخول",
-    createAccount:"إنشاء حساب مجاني",
-    dashboard:"لوحة التحكم",
-    profile:"ملفي الشخصي",
-    savedSearches:"عمليات البحث المحفوظة",
-    watchlist:"قائمة المتابعة",
-    recentlyViewed:"شوهدت مؤخراً",
-    requests:"طلبات الدراجات",
-    logout:"تسجيل الخروج",
-    notifications:"الإشعارات",
-    noNotifications:"لا توجد إشعارات جديدة.",
-    close:"إغلاق"
-  },
-  id:{
-    messages:"Pesan",
-    language:"Bahasa",
-    currency:"Mata Uang",
-    home:"Beranda",
-    stock:"Stok Tersedia",
-    buy:"Beli Sepeda Motor",
-    sell:"Jual Sepeda Motor Anda",
-    export:"Layanan Ekspor",
-    connect:"Hubungi AnyBike",
-    account:"AnyBike Saya",
-    signIn:"Masuk",
-    createAccount:"Buat Akun Gratis",
-    dashboard:"Dasbor",
-    profile:"Profil Saya",
-    savedSearches:"Pencarian Tersimpan",
-    watchlist:"Daftar Pantauan",
-    recentlyViewed:"Terakhir Dilihat",
-    requests:"Permintaan Sepeda Motor",
-    logout:"Keluar",
-    notifications:"Notifikasi",
-    noNotifications:"Tidak ada notifikasi baru.",
-    close:"Tutup"
-  },
-  ms:{
-    messages:"Mesej",
-    language:"Bahasa",
-    currency:"Mata Wang",
-    home:"Laman Utama",
-    stock:"Stok Tersedia",
-    buy:"Beli Motosikal",
-    sell:"Jual Motosikal Anda",
-    export:"Perkhidmatan Eksport",
-    connect:"Hubungi AnyBike",
-    account:"AnyBike Saya",
-    signIn:"Log Masuk",
-    createAccount:"Buat Akaun Percuma",
-    dashboard:"Papan Pemuka",
-    profile:"Profil Saya",
-    savedSearches:"Carian Tersimpan",
-    watchlist:"Senarai Pantauan",
-    recentlyViewed:"Baru Dilihat",
-    requests:"Permintaan Motosikal",
-    logout:"Log Keluar",
-    notifications:"Pemberitahuan",
-    noNotifications:"Tiada pemberitahuan baharu.",
-    close:"Tutup"
-  },
-  zh:{
-    messages:"消息",
-    language:"语言",
-    currency:"货币",
-    home:"首页",
-    stock:"现有库存",
-    buy:"购买摩托车",
-    sell:"出售您的摩托车",
-    export:"出口服务",
-    connect:"联系 AnyBike",
-    account:"我的 AnyBike",
-    signIn:"登录",
-    createAccount:"免费注册",
-    dashboard:"控制面板",
-    profile:"我的资料",
-    savedSearches:"已保存搜索",
-    watchlist:"关注列表",
-    recentlyViewed:"最近浏览",
-    requests:"摩托车需求",
-    logout:"退出登录",
-    notifications:"通知",
-    noNotifications:"暂无新通知。",
-    close:"关闭"
+footer{
+  border-top:1px solid var(--line);padding:28px 20px;color:var(--muted);text-align:center;
+}
+@media(max-width:1250px){
+  .bike-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .overview{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:980px){
+  .hero,.dashboard-row,.dashboard-row.equal{grid-template-columns:1fr}
+  .side-column{grid-template-columns:1fr}
+}
+@media(max-width:700px){
+  .page-shell{width:94vw;padding-top:18px}
+  .hero-main,.hero-side,.panel{padding:16px}
+  .overview,.side-column,.bike-grid,.profile-form{grid-template-columns:1fr}
+  .future-strip{grid-template-columns:1fr 1fr}
+  .customer-enquiry-row{grid-template-columns:24px 1fr}
+  .status-wrap{grid-column:2}
+  .quick-grid{grid-template-columns:1fr}
+  .msg{max-width:92%}
+}
+
+.messages-page-head{
+  display:flex;
+  justify-content:space-between;
+  gap:18px;
+  align-items:flex-end;
+  margin-bottom:18px;
+  padding:24px 26px;
+  background:
+    radial-gradient(circle at 92% 15%,rgba(237,28,36,.18),transparent 30%),
+    rgba(16,16,16,.96);
+  border:1px solid var(--line);
+  border-radius:22px;
+}
+.messages-page-head h1{
+  margin:4px 0 6px;
+  font-size:clamp(34px,4vw,54px);
+  letter-spacing:-.04em;
+}
+.messages-page-head h1 span{color:var(--red)}
+.messages-page-head p{
+  margin:0;
+  color:#bbb;
+}
+.messages-page-actions{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+}
+.messages-summary{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  margin-top:12px;
+  color:#bbb;
+  font-size:13px;
+  font-weight:800;
+}
+.messages-summary strong{
+  color:#fff;
+  font-size:16px;
+}
+.messages-only-panel{
+  min-height:420px;
+}
+.messages-only-panel .panel-head{
+  align-items:center;
+}
+@media(max-width:700px){
+  .messages-page-head{
+    align-items:flex-start;
+    flex-direction:column;
+    padding:18px;
   }
-};
+  .messages-page-actions{
+    width:100%;
+    justify-content:flex-start;
+  }
+}
 
-let anybikeHeaderUser = null;
-let anybikeHeaderRefreshTimer = null;
-let anybikeHeaderClockTimer = null;
+</style>
+</head>
 
-async function loadPublicHeader(){
-  const holder = document.getElementById("publicHeader");
+<body>
+<div id="publicHeader"></div>
 
-  if(!holder){
+<main class="page-shell">
+  <section class="messages-page-head">
+    <div>
+      <div class="eyebrow">My AnyBike</div>
+      <h1>My <span>Messages</span></h1>
+      <p id="welcomeText">Loading your AnyBike conversations...</p>
+      <div class="messages-summary">
+        <span>💬</span>
+        <span><strong id="conversationCount">0</strong> conversations</span>
+      </div>
+    </div>
+
+    <div class="messages-page-actions">
+      <a class="btn secondary" href="customer-dashboard.html">← My AnyBike</a>
+      <button class="btn" type="button" onclick="openNewMessageModal()">💬 New Message</button>
+    </div>
+  </section>
+
+  <section class="panel messages-only-panel" id="messages">
+    <div class="panel-head">
+      <div>
+        <h2>💬 Enquiries & Messages</h2>
+<p>
+  Open a conversation to read and reply to AnyBike.<br>
+  📧 When we reply, we'll also send you an email notification. 
+  Please check your Junk or Spam folder if you don't see it.
+</p>
+      </div>
+    </div>
+    <div id="customerEnquiries">Loading conversations...</div>
+  </section>
+</main>
+
+
+<div class="message-modal" id="newMessageModal" aria-hidden="true">
+  <div class="message-modal-card" role="dialog" aria-modal="true" aria-labelledby="newMessageTitle">
+    <div class="message-modal-head">
+      <div>
+        <h2 id="newMessageTitle">Create New Message</h2>
+        <p>Send a new question directly to the AnyBike team.</p>
+      </div>
+      <button class="modal-close" type="button" onclick="closeNewMessageModal()" aria-label="Close">×</button>
+    </div>
+
+    <div class="message-modal-body">
+      <div>
+        <label for="newMessageSubject">What can we help you with?</label>
+        <select id="newMessageSubject">
+          <option value="">Choose a subject</option>
+          <option value="Motorcycle Search">🏍 I am looking for a motorcycle</option>
+          <option value="Global Buyer Network">🌍 Global Buyer Network enquiry</option>
+          <option value="Existing Order">📦 Existing order</option>
+          <option value="Shipping or Export">🚢 Shipping or export question</option>
+          <option value="Sell My Motorcycle">💷 Sell my motorcycle</option>
+          <option value="Saved Bike">❤️ Question about a saved bike</option>
+          <option value="Watchlist">⭐ Question about my watchlist</option>
+          <option value="Saved Search">🔎 Saved search enquiry</option>
+          <option value="Website Page Question">🌐 Question about a page on the website</option>
+          <option value="Payment or Invoice">💳 Payment or invoice</option>
+          <option value="My Account">👤 My account</option>
+          <option value="General Question">❓ General question</option>
+          <option value="Other">📞 Other</option>
+        </select>
+      </div>
+
+      <div>
+        <label for="newMessageCustomSubject">Message title</label>
+        <input id="newMessageCustomSubject" placeholder="Example: Question about Export Services">
+      </div>
+
+      <div class="context-box">
+        <strong>Related page</strong>
+        <span id="newMessageContextText">My AnyBike customer workspace</span>
+      </div>
+
+      <div>
+        <label for="newMessageBody">Message</label>
+        <textarea id="newMessageBody" placeholder="Tell us how we can help..."></textarea>
+      </div>
+
+      <div id="newMessageStatus" class="message-modal-status"></div>
+
+      <div class="message-modal-actions">
+        <button class="mini-btn" type="button" onclick="closeNewMessageModal()">Cancel</button>
+        <button class="mini-btn primary" id="sendNewMessageBtn" type="button" onclick="sendNewCustomerThread()">Send Message</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <strong>ANYBIKE.CO.UK</strong><br>
+  UK Motorcycle Export Specialists — Worldwide sourcing and export services.
+</footer>
+
+<script src="/public-header.js?v=9200"></script>
+<script>
+
+const SUPABASE_URL = "https://tuehtnezhdnkqbbhttgp.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let currentUser=null;
+let currentProfile=null;
+let openConversationKey=null;
+let customerLiveChatRefreshRunning=false;
+
+async function claimRequestedMessageThread(){
+  const params = new URLSearchParams(window.location.search);
+  const threadId = Number(params.get("thread"));
+
+  if(!threadId || !currentUser){
     return;
   }
 
   try{
-    const headerRes = await fetch("/public-header.html",{
-      cache:"no-store"
-    });
-
-    if(!headerRes.ok){
-      throw new Error("Header request failed: " + headerRes.status);
-    }
-
-    holder.innerHTML = await headerRes.text();
-    await setupPublicHeader();
-
-  }catch(error){
-    console.error("Public header could not be loaded",error);
-  }
-}
-
-async function setupPublicHeader(){
-  const mobileMenuButton = document.getElementById("mobileMenuButton");
-  const mobileMenuClose = document.getElementById("mobileMenuClose");
-  const mobileDrawerBackdrop = document.getElementById("mobileDrawerBackdrop");
-  const mobileDrawer = document.getElementById("mobileDrawer");
-
-  const publicAccount = document.querySelector(".public-account");
-  const accountButton = document.getElementById("phAccountButton");
-
-  const notificationButton = document.getElementById("phNotificationsV3");
-  const notificationPopover = document.getElementById("notificationPopoverV3");
-  const notificationCloseButton = document.getElementById("notificationCloseButtonV3");
-
-  const loggedOutMenu = document.getElementById("loggedOutMenu");
-  const loggedInMenu = document.getElementById("loggedInMenu");
-  const mobileLoggedOutMenu = document.getElementById("mobileLoggedOutMenu");
-  const mobileLoggedInMenu = document.getElementById("mobileLoggedInMenu");
-
-  const logoutLink = document.getElementById("phLogout");
-  const mobileLogoutLink = document.getElementById("phMobileLogout");
-
-  const languageSelect = document.getElementById("phLanguage");
-  const currencySelect = document.getElementById("phCurrency");
-
-  function openMobileMenu(event){
-    event?.preventDefault();
-    event?.stopPropagation();
-
-    document.body.classList.add("mobile-menu-open");
-    document.body.style.overflow = "hidden";
-
-    if(mobileDrawer){
-      mobileDrawer.classList.add("open");
-      mobileDrawer.style.transform = "translateX(0)";
-      mobileDrawer.style.visibility = "visible";
-      mobileDrawer.style.pointerEvents = "auto";
-    }
-
-    if(mobileDrawerBackdrop){
-      mobileDrawerBackdrop.classList.add("open");
-      mobileDrawerBackdrop.style.opacity = "1";
-      mobileDrawerBackdrop.style.visibility = "visible";
-      mobileDrawerBackdrop.style.pointerEvents = "auto";
-    }
-
-    mobileMenuButton?.setAttribute("aria-expanded","true");
-  }
-
-  mobileMenuButton?.addEventListener("click",openMobileMenu);
-
-  mobileMenuClose?.addEventListener("click",closeMobileMenu);
-  mobileDrawerBackdrop?.addEventListener("click",closeMobileMenu);
-
-  accountButton?.addEventListener("click",function(event){
-    event.preventDefault();
-    event.stopPropagation();
-
-    publicAccount?.classList.toggle("menu-open");
-    notificationPopover?.classList.remove("open");
-  });
-
-  notificationButton?.addEventListener("click",function(event){
-    event.preventDefault();
-    event.stopPropagation();
-
-    notificationPopover?.classList.toggle("open");
-    publicAccount?.classList.remove("menu-open");
-  });
-
-  notificationCloseButton?.addEventListener("click",function(event){
-    event.preventDefault();
-    notificationPopover?.classList.remove("open");
-  });
-
-  document.addEventListener("click",function(event){
-    if(publicAccount && !publicAccount.contains(event.target)){
-      publicAccount.classList.remove("menu-open");
-    }
-
-    if(
-      notificationPopover &&
-      notificationButton &&
-      !notificationPopover.contains(event.target) &&
-      !notificationButton.contains(event.target)
-    ){
-      notificationPopover.classList.remove("open");
-    }
-  });
-
-  document.addEventListener("keydown",function(event){
-    if(event.key !== "Escape"){
-      return;
-    }
-
-    publicAccount?.classList.remove("menu-open");
-    notificationPopover?.classList.remove("open");
-    closeMobileMenu();
-  });
-
-  let savedLanguage = normaliseLanguage(
-    localStorage.getItem("anybikeLanguage") ||
-    localStorage.getItem("anybike_language") ||
-    "en"
-  );
-
-  let savedCurrency = normaliseCurrency(
-    localStorage.getItem("anybikeCurrency") ||
-    localStorage.getItem("anybike_currency") ||
-    "GBP"
-  );
-
-  let user = null;
-
-  try{
-    if(typeof sb !== "undefined" && sb?.auth){
-      const sessionResult = await sb.auth.getSession();
-      user = sessionResult?.data?.session?.user || null;
-
-      if(!user){
-        const userResult = await sb.auth.getUser();
-        user = userResult?.data?.user || null;
-      }
-
-      if(user){
-        const profileResult = await sb
-          .from("customer_profiles")
-          .select("preferred_language,preferred_currency")
-          .eq("id",user.id)
-          .maybeSingle();
-
-        const profile = profileResult?.data || null;
-
-        if(profile?.preferred_language){
-          savedLanguage = normaliseLanguage(profile.preferred_language);
-          saveLocalLanguage(savedLanguage);
+    const {data,error} = await sb.functions.invoke(
+      "claim-message-thread",
+      {
+        body:{
+          thread_id:String(threadId)
         }
-
-        if(profile?.preferred_currency){
-          savedCurrency = normaliseCurrency(profile.preferred_currency);
-          saveLocalCurrency(savedCurrency);
-        }
       }
-    }
-  }catch(error){
-    console.warn("Header account preferences unavailable",error);
-  }
-
-  anybikeHeaderUser = user;
-
-  document
-    .querySelectorAll(
-      "#phMessagesV3, " +
-      "#phMessages, " +
-      "#loggedInMenu a[data-i18n='messages'], " +
-      "#mobileLoggedInMenu a[data-i18n='messages']"
-    )
-    .forEach(function(link){
-      link.setAttribute("href","/customer-messages.html");
-    });
-
-  if(languageSelect){
-    languageSelect.value = savedLanguage;
-
-    languageSelect.addEventListener("change",function(){
-      const language = normaliseLanguage(languageSelect.value);
-
-      saveLocalLanguage(language);
-      saveHeaderPreference("preferred_language",language);
-      applyHeaderLanguage(language);
-    });
-  }
-
-  if(currencySelect){
-    currencySelect.value = savedCurrency;
-
-    currencySelect.addEventListener("change",function(){
-      const currency = normaliseCurrency(currencySelect.value);
-
-      saveLocalCurrency(currency);
-      saveHeaderPreference("preferred_currency",currency);
-      applyHeaderCurrency(currency);
-    });
-  }
-
-  if(user){
-    loggedOutMenu?.classList.add("hidden");
-    loggedInMenu?.classList.remove("hidden");
-    mobileLoggedOutMenu?.classList.add("hidden");
-    mobileLoggedInMenu?.classList.remove("hidden");
-
-    await loadCustomerHeaderActivity(user);
-
-    if(anybikeHeaderRefreshTimer){
-      clearInterval(anybikeHeaderRefreshTimer);
-    }
-
-    anybikeHeaderRefreshTimer = setInterval(function(){
-      loadCustomerHeaderActivity(user);
-    },60000);
-
-  }else{
-    loggedOutMenu?.classList.remove("hidden");
-    loggedInMenu?.classList.add("hidden");
-    mobileLoggedOutMenu?.classList.remove("hidden");
-    mobileLoggedInMenu?.classList.add("hidden");
-
-    setMessageCount(0);
-    setNotificationCount(0);
-    renderNotificationList([]);
-  }
-
-  logoutLink?.addEventListener("click",logoutCustomer);
-  mobileLogoutLink?.addEventListener("click",logoutCustomer);
-
-  setActivePublicNav();
-  applyHeaderLanguage(savedLanguage);
-  applyHeaderCurrency(savedCurrency);
-  updateHeaderTimes();
-
-  if(anybikeHeaderClockTimer){
-    clearInterval(anybikeHeaderClockTimer);
-  }
-
-  anybikeHeaderClockTimer = setInterval(updateHeaderTimes,30000);
-
-  window.dispatchEvent(new CustomEvent("anybikePublicHeaderReady",{
-    detail:{
-      user:user || null
-    }
-  }));
-}
-
-function saveLocalLanguage(language){
-  localStorage.setItem("anybikeLanguage",language);
-  localStorage.setItem("anybike_language",language);
-}
-
-function saveLocalCurrency(currency){
-  localStorage.setItem("anybikeCurrency",currency);
-  localStorage.setItem("anybike_currency",currency);
-}
-
-function normaliseLanguage(value){
-  return Object.prototype.hasOwnProperty.call(
-    ANYBIKE_HEADER_TRANSLATIONS,
-    value
-  ) ? value : "en";
-}
-
-function normaliseCurrency(value){
-  return Object.prototype.hasOwnProperty.call(
-    ANYBIKE_HEADER_CURRENCY_RATES,
-    value
-  ) ? value : "GBP";
-}
-
-function closeMobileMenu(){
-  const mobileDrawer = document.getElementById("mobileDrawer");
-  const mobileDrawerBackdrop = document.getElementById("mobileDrawerBackdrop");
-  const mobileMenuButton = document.getElementById("mobileMenuButton");
-
-  document.body.classList.remove("mobile-menu-open");
-  mobileDrawer?.classList.remove("open");
-  mobileDrawerBackdrop?.classList.remove("open");
-  mobileMenuButton?.setAttribute("aria-expanded","false");
-}
-
-async function logoutCustomer(event){
-  event?.preventDefault();
-
-  try{
-    if(typeof sb !== "undefined" && sb?.auth){
-      await sb.auth.signOut();
-    }
-  }catch(error){
-    console.warn("Customer logout failed",error);
-  }
-
-  window.location.href = "/customer-register.html";
-}
-
-function setActivePublicNav(){
-  const path = String(window.location.pathname || "").toLowerCase();
-  const hash = String(window.location.hash || "").toLowerCase();
-
-  document
-    .querySelectorAll(".public-nav a[data-page]")
-    .forEach(function(link){
-      link.classList.remove("active");
-    });
-
-  if(path === "/" || path.endsWith("/index.html")){
-    markActive(hash === "#export-services" ? "export" : "home");
-    return;
-  }
-
-  if(path.includes("available-stock") || path.includes("bike-details")){
-    markActive("stock");
-    return;
-  }
-
-  if(path.includes("buy-motorcycles") || path.includes("bulk-buying-request")){
-    markActive("buy");
-    return;
-  }
-
-  if(path.includes("sell-your-motorcycle")){
-    markActive("sell");
-    return;
-  }
-
-  if(path.includes("export-services")){
-    markActive("export");
-    return;
-  }
-
-  if(path.includes("contact-us") || path.includes("anybike-connect")){
-    markActive("connect");
-  }
-
-  function markActive(page){
-    document
-      .querySelector('.public-nav a[data-page="' + page + '"]')
-      ?.classList.add("active");
-  }
-}
-
-async function saveHeaderPreference(field,value){
-  try{
-    if(typeof sb === "undefined" || !sb?.auth){
-      return;
-    }
-
-    const userResult = await sb.auth.getUser();
-    const user = userResult?.data?.user || null;
-
-    if(!user){
-      return;
-    }
-
-    const updateData = {};
-    updateData[field] = value;
-
-    const {error} = await sb
-      .from("customer_profiles")
-      .update(updateData)
-      .eq("id",user.id);
+    );
 
     if(error){
-      throw error;
+      console.error("Conversation claim failed:",error);
+      return;
+    }
+
+    if(!data?.ok){
+      console.error("Conversation could not be claimed:",data);
+      return;
+    }
+
+    const {data:thread,error:threadError}=await sb
+      .from("message_centre_threads")
+      .select("id,related_enquiry_id")
+      .eq("id",threadId)
+      .eq("customer_id",currentUser.id)
+      .maybeSingle();
+
+    if(threadError){
+      console.warn("Could not resolve requested conversation",threadError.message);
+    }
+
+    if(thread?.related_enquiry_id){
+      openConversationKey = `bike-${thread.related_enquiry_id}`;
+    }else{
+      openConversationKey = `global-${threadId}`;
     }
 
   }catch(error){
-    console.warn("Header preference could not be saved",error);
+    console.error("Conversation claim crashed:",error);
   }
 }
 
-function normaliseCustomerNotificationLink(link){
-  const raw=String(link || "").trim();
-
-  if(!raw){
-    return "/customer-messages.html";
-  }
-
-  try{
-    const url=new URL(raw,window.location.origin);
-    const path=String(url.pathname || "").toLowerCase();
-
-    if(path.endsWith("/customer-dashboard.html")){
-      const threadId=String(url.searchParams.get("thread") || "").trim();
-      const isOldMessagesLink=
-        url.hash.toLowerCase()==="#messages" ||
-        Boolean(threadId);
-
-      if(isOldMessagesLink){
-        return threadId
-          ? `/customer-messages.html?thread=${encodeURIComponent(threadId)}`
-          : "/customer-messages.html";
-      }
-    }
-  }catch(error){
-    console.warn("Could not normalise customer notification link",error);
-  }
-
-  return raw;
-}
-
-async function loadCustomerHeaderActivity(user){
-  if(typeof sb === "undefined" || !user){
-    setMessageCount(0);
-    setNotificationCount(0);
-    renderNotificationList([]);
-    return;
-  }
-
-  try{
-    const {data,error} = await sb
-      .from("customer_notifications")
-      .select("id,title,message,type,link,is_read,created_at")
-      .eq("customer_id",user.id)
-      .eq("is_read",false)
-      .order("created_at",{ascending:false});
-
-    if(error){
-      throw error;
-    }
-
-    const notifications = (data || []).map(function(notification){
-      const type = String(notification.type || "").toLowerCase();
-
-      return {
-        id:notification.id,
-        title:notification.title || "Notification",
-        message:notification.message || "",
-        link:normaliseCustomerNotificationLink(notification.link),
-        icon:type.includes("message") ? "💬" : "🔔",
-        date:notification.created_at
-      };
-    });
-
-    setMessageCount(notifications.length);
-    setNotificationCount(notifications.length);
-    renderNotificationList(notifications);
-
-    window.dispatchEvent(new CustomEvent("anybikeCustomerUnreadChanged",{
-      detail:{
-        count:notifications.length,
-        items:notifications
-      }
-    }));
-
-  }catch(error){
-    console.error("Notification load failed",error);
-
-    setMessageCount(0);
-    setNotificationCount(0);
-    renderNotificationList([]);
-  }
-}
-
-function renderNotificationList(items){
-  const list = document.getElementById("notificationListV3");
-
-  if(!list){
-    return;
-  }
-
-  const language = normaliseLanguage(
-    localStorage.getItem("anybikeLanguage") || "en"
-  );
-
-  const translations = ANYBIKE_HEADER_TRANSLATIONS[language];
-
-  if(!items?.length){
-    list.innerHTML =
-      "<p>" + escapeHtml(translations.noNotifications) + "</p>";
-    return;
-  }
-
-  list.innerHTML = items.slice(0,12).map(function(item){
-    const link = normaliseCustomerNotificationLink(item.link);
-
-    return `
-      <a
-        href="${escapeHtml(link)}"
-        class="notification-item unread"
-        data-notification-id="${escapeHtml(item.id)}"
-        data-notification-link="${escapeHtml(link)}"
-      >
-        <span class="notification-icon">${escapeHtml(item.icon || "🔔")}</span>
-
-        <span class="notification-copy">
-          <strong>${escapeHtml(item.title || translations.notifications)}</strong>
-          <small>${escapeHtml(item.message || "")}</small>
-        </span>
-      </a>
-    `;
-  }).join("");
-
-  list.querySelectorAll("[data-notification-id]").forEach(function(item){
-    item.addEventListener("click",async function(event){
-      event.preventDefault();
-
-      const notificationId = item.getAttribute("data-notification-id");
-      const link = normaliseCustomerNotificationLink(
-        item.getAttribute("data-notification-link")
-      );
-
-      if(notificationId && anybikeHeaderUser){
-        try{
-          const {error} = await sb
-            .from("customer_notifications")
-            .update({is_read:true})
-            .eq("id",notificationId)
-            .eq("customer_id",anybikeHeaderUser.id);
-
-          if(error){
-            throw error;
-          }
-        }catch(error){
-          console.warn("Notification could not be marked read",error);
-        }
-      }
-
-      window.location.href = link;
-    });
-  });
-}
-
-function setMessageCount(total){
-  total = Number(total) || 0;
-
-  const link = document.getElementById("phMessagesV3");
-  const count = document.getElementById("phMessagesV3Count");
-
-  if(count){
-    count.textContent = total;
-    count.style.display = total > 0 ? "inline-flex" : "none";
-  }
-
-  if(link){
-    link.classList.toggle("has-messages",total > 0);
-    link.setAttribute("aria-label","Messages " + total);
-  }
-}
-
-function setNotificationCount(total){
-  total = Number(total) || 0;
-
-  const button = document.getElementById("phNotificationsV3");
-  const count = document.getElementById("phNotificationsV3Count");
-
-  if(count){
-    count.textContent = total;
-    count.style.display = total > 0 ? "inline-flex" : "none";
-  }
-
-  if(button){
-    button.classList.toggle("has-notifications",total > 0);
-    button.setAttribute("aria-label","Notifications " + total);
-  }
-}
-
-function updateHeaderTimes(){
-  const now = new Date();
-
-  const localTime = now.toLocaleString([],{
-    weekday:"short",
-    day:"2-digit",
-    month:"short",
-    hour:"2-digit",
-    minute:"2-digit"
-  });
-
-  const ukTime = now.toLocaleString("en-GB",{
-    timeZone:"Europe/London",
-    weekday:"short",
-    day:"2-digit",
-    month:"short",
-    hour:"2-digit",
-    minute:"2-digit"
-  });
-
-  const localEl = document.getElementById("phLocalTime");
-  const ukEl = document.getElementById("phUkTime");
-
-  if(localEl){
-    localEl.textContent = "Local " + localTime;
-  }
-
-  if(ukEl){
-    ukEl.textContent = "UK " + ukTime;
-  }
-}
-
-function applyHeaderCurrency(currency){
-  currency = normaliseCurrency(currency);
-
-  window.anybikeCurrency = currency;
-  saveLocalCurrency(currency);
-
-  const currencySelect = document.getElementById("phCurrency");
-
-  if(currencySelect && currencySelect.value !== currency){
-    currencySelect.value = currency;
-  }
-
-  updateSharedPagePrices(currency);
-
-  if(typeof window.updateDisplayedPrices === "function"){
-    try{
-      window.updateDisplayedPrices();
-    }catch(error){
-      console.warn("Page price refresh failed",error);
-    }
-  }
-
-  window.dispatchEvent(new CustomEvent("anybikeCurrencyChanged",{
-    detail:{
-      currency:currency
-    }
-  }));
-}
-
-function updateSharedPagePrices(currency){
-  const rate = ANYBIKE_HEADER_CURRENCY_RATES[currency] || 1;
-
-  document
-    .querySelectorAll("[data-price-gbp]")
-    .forEach(function(element){
-      const raw = Number(element.dataset.priceGbp);
-
-      if(!Number.isFinite(raw)){
-        return;
-      }
-
-      element.textContent = (raw * rate).toLocaleString("en-GB",{
-        style:"currency",
-        currency:currency,
-        maximumFractionDigits:0
-      });
-    });
-}
-
-function applyHeaderLanguage(language){
-  language = normaliseLanguage(language);
-
-  const translations = ANYBIKE_HEADER_TRANSLATIONS[language];
-
-  window.anybikeLanguage = language;
-  saveLocalLanguage(language);
-
-  const languageSelect = document.getElementById("phLanguage");
-
-  if(languageSelect && languageSelect.value !== language){
-    languageSelect.value = language;
-  }
-
-  document.documentElement.lang = language;
-
-  /*
-  Keep the page layout left-to-right for all languages.
-  This matches the current AnyBike public-site decision.
-  */
-  document.documentElement.dir = "ltr";
-
-  Object.keys(translations).forEach(function(key){
-    setText("[data-i18n='" + key + "']",translations[key]);
-  });
-
-  window.dispatchEvent(new CustomEvent("anybikeLanguageChanged",{
-    detail:{
-      language:language
-    }
-  }));
-}
-
-function setText(selector,value){
-  document
-    .querySelectorAll(selector)
-    .forEach(function(element){
-      element.textContent = value;
-    });
-}
-
-function escapeHtml(value){
-  return String(value ?? "").replace(/[&<>"']/g,function(char){
-    return {
-      "&":"&amp;",
-      "<":"&lt;",
-      ">":"&gt;",
-      '"':"&quot;",
-      "'":"&#39;"
-    }[char];
-  });
-}
-
-/* =========================================================
-   SESSION RECHECK — PREVENT PROTECTED CUSTOMER PAGES RETURNING
-   FROM THE BROWSER BACK/FORWARD CACHE AFTER LOGOUT
-   ========================================================= */
-
-const ANYBIKE_PROTECTED_CUSTOMER_PAGES = [
-  "/customer-dashboard.html",
-  "/my-watchlist.html",
-  "/my-searches.html"
-];
-
-let anybikeCustomerSessionRecheckRunning = false;
-
-function isProtectedCustomerPage(){
-  const path = String(window.location.pathname || "")
-    .replace(/\/{2,}/g,"/")
-    .toLowerCase();
-
-  return ANYBIKE_PROTECTED_CUSTOMER_PAGES.includes(path);
-}
-
-function getCustomerReturnLoginUrl(){
+function getCustomerLoginUrl(){
   const returnUrl =
     window.location.pathname +
     window.location.search +
     window.location.hash;
 
-  return "/customer-register.html?return=" +
+return "customer-login.html?return=" +
     encodeURIComponent(returnUrl);
 }
 
-async function verifyCustomerSession(){
-  if(!isProtectedCustomerPage()){
-    return true;
+function redirectToCustomerLogin(){
+  window.location.replace(getCustomerLoginUrl());
+}
+
+function safe(v){
+  const value =
+    v===undefined || v===null || String(v).trim()===""
+      ? "-"
+      : String(v);
+
+  return value
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+}
+
+function getCustomerDisplayName(){
+  const fullName = String(currentProfile?.full_name || "").trim();
+
+  if(fullName){
+    return fullName.split(/\s+/)[0];
   }
 
-  if(anybikeCustomerSessionRecheckRunning){
-    return false;
-  }
+  return "My AnyBike";
+}
 
-  anybikeCustomerSessionRecheckRunning = true;
+function money(v){
+  return v ? "£" + Number(v).toLocaleString("en-GB") : "POA";
+}
 
-  try{
-    if(typeof sb === "undefined" || !sb?.auth){
-      window.location.replace(getCustomerReturnLoginUrl());
-      return false;
+function toggleCustomerEnquiry(key){
+  const el=document.getElementById(`customer-enquiry-${key}`);
+  if(!el) return;
+
+  el.classList.toggle("open");
+
+  if(el.classList.contains("open")){
+    openConversationKey=key;
+
+    if(String(key).startsWith("global-")){
+      const threadId=String(key).replace("global-","");
+      markCustomerThreadRead(threadId);
+    }else if(String(key).startsWith("bike-")){
+      const enquiryId=String(key).replace("bike-","");
+      markCustomerBikeEnquiryRead(enquiryId);
     }
-
-    const {data,error} = await sb.auth.getSession();
-
-    if(error){
-      console.warn("Customer session recheck failed",error.message);
-    }
-
-    const user = data?.session?.user || null;
-
-    if(!user){
-      document.documentElement.classList.add("customer-auth-pending");
-      window.location.replace(getCustomerReturnLoginUrl());
-      return false;
-    }
-
-    document.documentElement.classList.remove("customer-auth-pending");
-    return true;
-
-  }catch(error){
-    console.warn("Customer session recheck failed",error);
-
-    document.documentElement.classList.add("customer-auth-pending");
-    window.location.replace(getCustomerReturnLoginUrl());
-    return false;
-
-  }finally{
-    anybikeCustomerSessionRecheckRunning = false;
+  }else{
+    openConversationKey=null;
   }
 }
 
-window.addEventListener("pageshow",function(event){
-  if(event.persisted && isProtectedCustomerPage()){
-    document.documentElement.classList.add("customer-auth-pending");
-    verifyCustomerSession();
-  }
-});
 
-window.addEventListener("focus",function(){
-  verifyCustomerSession();
-});
+function waitForPublicHeader(timeoutMs=6000){
+  return new Promise(resolve=>{
+    const started=Date.now();
 
-document.addEventListener("visibilitychange",function(){
-  if(document.visibilityState === "visible"){
-    verifyCustomerSession();
-  }
-});
-
-/* =========================================================
-   ANYBIKE LIVE VISITOR TRACKING
-   Added 01 September 2026
-   Sends anonymous live visitor/session activity to the
-   Supabase track-visitor Edge Function.
-   ========================================================= */
-
-(function initialiseAnyBikeVisitorTracking(){
-  const TRACK_VISITOR_URL =
-    "https://tuehtnezhdnkqbbhttgp.supabase.co/functions/v1/track-visitor";
-
-  const HEARTBEAT_MS = 30000;
-
-  let heartbeatTimer = null;
-  let lastSendStartedAt = 0;
-
-  function createUuid(){
-    if(window.crypto?.randomUUID){
-      return window.crypto.randomUUID();
-    }
-
-    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(
-      /[xy]/g,
-      function(char){
-        const random = Math.random() * 16 | 0;
-        const value = char === "x" ? random : (random & 0x3 | 0x8);
-        return value.toString(16);
-      }
-    );
-  }
-
-  function getOrCreateVisitorId(){
-    const key = "anybike_visitor_id";
-
-    try{
-      let value = localStorage.getItem(key);
-
-      if(!value){
-        value = createUuid();
-        localStorage.setItem(key,value);
-      }
-
-      return value;
-    }catch(error){
-      console.warn("AnyBike visitor ID storage unavailable",error);
-      return createUuid();
-    }
-  }
-
-  function getOrCreateSessionId(){
-    const key = "anybike_session_id";
-
-    try{
-      let value = sessionStorage.getItem(key);
-
-      if(!value){
-        value = createUuid();
-        sessionStorage.setItem(key,value);
-      }
-
-      return value;
-    }catch(error){
-      console.warn("AnyBike session ID storage unavailable",error);
-      return createUuid();
-    }
-  }
-
-  function detectDeviceType(){
-    const userAgent = String(navigator.userAgent || "");
-
-    if(/tablet|ipad|playbook|silk/i.test(userAgent)){
-      return "Tablet";
-    }
-
-    if(
-      /mobile|iphone|ipod|android.*mobile|blackberry|opera mini|iemobile/i
-        .test(userAgent)
-    ){
-      return "Mobile";
-    }
-
-    return "Desktop";
-  }
-
-  function detectBrowser(){
-    const userAgent = String(navigator.userAgent || "");
-
-    if(/Edg\//i.test(userAgent)) return "Edge";
-    if(/OPR\//i.test(userAgent)) return "Opera";
-    if(/Chrome\//i.test(userAgent)) return "Chrome";
-    if(/Firefox\//i.test(userAgent)) return "Firefox";
-    if(/Safari\//i.test(userAgent) && !/Chrome\//i.test(userAgent)){
-      return "Safari";
-    }
-
-    return "Other";
-  }
-
-  function getLoggedInUserId(){
-    try{
-      if(anybikeHeaderUser?.id){
-        return anybikeHeaderUser.id;
-      }
-    }catch(error){
-      // Header may not have finished loading yet.
-    }
-
-    return null;
-  }
-
-  async function sendVisitorHeartbeat(){
-    const now = Date.now();
-
-    // Prevent accidental duplicate sends firing at almost the same moment.
-    if(now - lastSendStartedAt < 1500){
-      return;
-    }
-
-    lastSendStartedAt = now;
-
-    const payload = {
-      visitor_id:getOrCreateVisitorId(),
-      session_id:getOrCreateSessionId(),
-      user_id:getLoggedInUserId(),
-      current_path:
-        window.location.pathname +
-        window.location.search,
-      page_title:document.title || "",
-      referrer:document.referrer || "",
-      language:navigator.language || "",
-      timezone:
-        Intl.DateTimeFormat().resolvedOptions().timeZone || "",
-      device_type:detectDeviceType(),
-      browser:detectBrowser()
-    };
-
-    try{
-      const response = await fetch(TRACK_VISITOR_URL,{
-        method:"POST",
-        headers:{
-          "Content-Type":"application/json"
-        },
-        body:JSON.stringify(payload),
-        keepalive:true
-      });
-
-      if(!response.ok){
-        const errorText = await response.text().catch(() => "");
-        console.warn(
-          "AnyBike visitor tracking request failed",
-          response.status,
-          errorText
-        );
-      }
-    }catch(error){
-      console.warn("AnyBike visitor tracking unavailable",error);
-    }
-  }
-
-  function startVisitorHeartbeat(){
-    sendVisitorHeartbeat();
-
-    if(heartbeatTimer){
-      clearInterval(heartbeatTimer);
-    }
-
-    heartbeatTimer = setInterval(function(){
-      if(document.visibilityState === "visible"){
-        sendVisitorHeartbeat();
-      }
-    },HEARTBEAT_MS);
-  }
-
-  if(document.readyState === "loading"){
-    document.addEventListener(
-      "DOMContentLoaded",
-      startVisitorHeartbeat,
-      {once:true}
-    );
-  }else{
-    startVisitorHeartbeat();
-  }
-
-  document.addEventListener("visibilitychange",function(){
-    if(document.visibilityState === "visible"){
-      sendVisitorHeartbeat();
-    }
-  });
-
-  window.addEventListener("focus",function(){
-    sendVisitorHeartbeat();
-  });
-
-  // When the shared AnyBike header finishes resolving the customer
-  // session, send again so a logged-in visitor can be linked to user_id.
-  window.addEventListener("anybikePublicHeaderReady",function(){
-    sendVisitorHeartbeat();
-  });
-})();
-
-/* =========================================================
-   ANYBIKE LIVE CHAT INVITATION — LOGGED-IN CUSTOMER
-   Added 01 September 2026
-
-   First customer-side live-chat step:
-   - watches for a Live Chat thread linked to this browser visitor
-   - shows a small AnyBike invitation bubble
-   - opens the exact conversation in customer-messages.html
-
-   This version deliberately does not send inline chat messages yet.
-   ========================================================= */
-
-(function initialiseAnyBikeLiveChatInvitation(){
-  const POLL_MS = 5000;
-
-  let pollTimer = null;
-  let currentThreadId = null;
-  let checkRunning = false;
-
-  function getVisitorId(){
-    try{
-      return String(localStorage.getItem("anybike_visitor_id") || "").trim();
-    }catch(error){
-      return "";
-    }
-  }
-
-  function removeLiveChatInvitation(){
-    document.getElementById("anybikeLiveChatInvite")?.remove();
-    currentThreadId = null;
-  }
-
-  function ensureLiveChatStyles(){
-    if(document.getElementById("anybikeLiveChatStyles")){
-      return;
-    }
-
-    const style = document.createElement("style");
-    style.id = "anybikeLiveChatStyles";
-    style.textContent = `
-      #anybikeLiveChatInvite{
-        position:fixed;
-        right:22px;
-        bottom:22px;
-        width:min(360px,calc(100vw - 28px));
-        z-index:2147482000;
-        background:#111;
-        color:#fff;
-        border:1px solid rgba(255,255,255,.16);
-        border-left:4px solid #ed1c24;
-        border-radius:16px;
-        box-shadow:0 18px 48px rgba(0,0,0,.42);
-        font-family:Arial,Helvetica,sans-serif;
-        overflow:hidden;
-        animation:anybikeChatInviteIn .2s ease-out;
-      }
-
-      #anybikeLiveChatInvite *{
-        box-sizing:border-box;
-      }
-
-      .anybike-live-chat-head{
-        display:flex;
-        align-items:center;
-        justify-content:space-between;
-        gap:12px;
-        padding:14px 14px 8px;
-      }
-
-      .anybike-live-chat-title{
-        display:flex;
-        align-items:center;
-        gap:9px;
-        font-size:16px;
-        line-height:1.25;
-        font-weight:900;
-      }
-
-      .anybike-live-chat-dot{
-        width:9px;
-        height:9px;
-        flex:0 0 auto;
-        border-radius:50%;
-        background:#33cc66;
-        box-shadow:0 0 11px rgba(51,204,102,.9);
-      }
-
-      .anybike-live-chat-close{
-        appearance:none;
-        border:0;
-        background:transparent;
-        color:#aaa;
-        cursor:pointer;
-        font-size:22px;
-        line-height:1;
-        padding:2px 4px;
-      }
-
-      .anybike-live-chat-close:hover{
-        color:#fff;
-      }
-
-      .anybike-live-chat-copy{
-        padding:0 14px 13px;
-        color:#d4d4d4;
-        font-size:13px;
-        line-height:1.45;
-      }
-
-      .anybike-live-chat-actions{
-        padding:0 14px 14px;
-      }
-
-      .anybike-live-chat-open{
-        display:flex;
-        width:100%;
-        min-height:44px;
-        align-items:center;
-        justify-content:center;
-        text-align:center;
-        text-decoration:none;
-        background:#ed1c24;
-        color:#fff !important;
-        border-radius:11px;
-        font-size:14px;
-        font-weight:900;
-        padding:11px 16px;
-      }
-
-      .anybike-live-chat-open:hover{
-        filter:brightness(1.06);
-      }
-
-      @keyframes anybikeChatInviteIn{
-        from{
-          opacity:0;
-          transform:translateY(12px);
-        }
-        to{
-          opacity:1;
-          transform:translateY(0);
-        }
-      }
-
-      @media(max-width:600px){
-        #anybikeLiveChatInvite{
-          right:14px;
-          bottom:14px;
-          width:calc(100vw - 28px);
-        }
-      }
-    `;
-
-    document.head.appendChild(style);
-  }
-
-  function renderLiveChatInvitation(thread){
-    const path = String(window.location.pathname || "").toLowerCase();
-
-    // The customer is already inside their conversation on My Messages,
-    // so do not show a redundant Live Chat invitation on that page.
-    if(path.endsWith("/customer-messages.html")){
-      removeLiveChatInvitation();
-      return;
-    }
-
-    const threadId = Number(thread?.id);
-
-    if(!threadId){
-      removeLiveChatInvitation();
-      return;
-    }
-
-    if(
-      currentThreadId === threadId &&
-      document.getElementById("anybikeLiveChatInvite")
-    ){
-      return;
-    }
-
-    currentThreadId = threadId;
-    ensureLiveChatStyles();
-
-    let invite = document.getElementById("anybikeLiveChatInvite");
-
-    if(!invite){
-      invite = document.createElement("div");
-      invite.id = "anybikeLiveChatInvite";
-      invite.setAttribute("role","dialog");
-      invite.setAttribute("aria-label","AnyBike live chat");
-      document.body.appendChild(invite);
-    }
-
-    invite.innerHTML = `
-      <div class="anybike-live-chat-head">
-        <div class="anybike-live-chat-title">
-          <span class="anybike-live-chat-dot"></span>
-          <span>AnyBike Live Chat</span>
-        </div>
-
-        <button
-          type="button"
-          class="anybike-live-chat-close"
-          aria-label="Close live chat invitation"
-        >×</button>
-      </div>
-
-      <div class="anybike-live-chat-copy">
-        AnyBike is available to chat with you. Would you like to open the conversation?
-      </div>
-
-      <div class="anybike-live-chat-actions">
-        <a
-          class="anybike-live-chat-open"
-          href="/customer-messages.html?thread=${encodeURIComponent(threadId)}"
-        >Open Live Chat</a>
-      </div>
-    `;
-
-    invite
-      .querySelector(".anybike-live-chat-close")
-      ?.addEventListener("click",function(){
-        invite.remove();
-      });
-  }
-
-  async function checkForLiveChat(){
-    if(checkRunning){
-      return;
-    }
-
-    if(
-      typeof sb === "undefined" ||
-      !sb?.from ||
-      !anybikeHeaderUser?.id
-    ){
-      removeLiveChatInvitation();
-      return;
-    }
-
-    const visitorId = getVisitorId();
-
-    if(!visitorId){
-      return;
-    }
-
-    checkRunning = true;
-
-    try{
-      const {data,error} = await sb
-        .from("message_centre_threads")
-        .select("id,status,source_type,visitor_id,updated_at")
-        .eq("customer_id",anybikeHeaderUser.id)
-        .eq("visitor_id",visitorId)
-        .eq("source_type","Live Chat")
-        .neq("status","Archived")
-        .neq("status","Deleted")
-        .order("updated_at",{ascending:false})
-        .limit(1)
-        .maybeSingle();
-
-      if(error){
-        console.warn("AnyBike live chat invitation check failed",error.message);
+    function check(){
+      if(document.getElementById("userArea")){
+        resolve(true);
         return;
       }
 
-      if(data?.id){
-        renderLiveChatInvitation(data);
-      }else{
-        removeLiveChatInvitation();
+      if(Date.now()-started>=timeoutMs){
+        resolve(false);
+        return;
       }
 
-    }catch(error){
-      console.warn("AnyBike live chat invitation unavailable",error);
-    }finally{
-      checkRunning = false;
+      setTimeout(check,50);
+    }
+
+    check();
+  });
+}
+
+function setUserAreaHtml(html){
+  const userArea=document.getElementById("userArea");
+
+  if(userArea){
+    userArea.innerHTML=html;
+  }
+}
+
+async function loadUser(){
+  let user=null;
+
+  try{
+    const {data:sessionData}=await sb.auth.getSession();
+    user=sessionData?.session?.user || null;
+
+    if(!user){
+      const {data:userData}=await sb.auth.getUser();
+      user=userData?.user || null;
+    }
+  }catch(error){
+    console.error("Login check failed",error);
+  }
+
+  currentUser=user || null;
+
+  if(!currentUser){
+    redirectToCustomerLogin();
+    return false;
+  }
+
+  let profile=null;
+
+  const profileById=await sb
+    .from("customer_profiles")
+    .select("*")
+    .eq("id",currentUser.id)
+    .maybeSingle();
+
+  if(!profileById.error){
+    profile=profileById.data || null;
+  }else{
+    console.warn("Profile lookup by user ID failed",profileById.error.message);
+  }
+
+  currentProfile=profile || {
+    email:currentUser.email || ""
+  };
+  const displayName = getCustomerDisplayName();
+
+  setUserAreaHtml(
+    `👤 <span class="user-name">${displayName}</span>`
+  );
+
+  document.getElementById("welcomeText").textContent =
+    displayName === "My AnyBike"
+      ? "Welcome back."
+      : `Welcome back, ${displayName}.`;
+
+  const fullNameEl = document.getElementById("fullName");
+  const businessNameEl = document.getElementById("businessName");
+  const businessAddressEl = document.getElementById("businessAddress");
+  const cityEl = document.getElementById("city");
+  const regionEl = document.getElementById("region");
+  const countryEl = document.getElementById("country");
+  const phoneEl = document.getElementById("phone");
+  const currencyEl = document.getElementById("preferredCurrency");
+  const languageEl = document.getElementById("preferredLanguage");
+
+  if(fullNameEl) fullNameEl.value = currentProfile.full_name || "";
+  if(businessNameEl) businessNameEl.value = currentProfile.business_name || "";
+  if(businessAddressEl) businessAddressEl.value = currentProfile.business_address || "";
+  if(cityEl) cityEl.value = currentProfile.city || "";
+  if(regionEl) regionEl.value = currentProfile.region || "";
+  if(countryEl) countryEl.value = currentProfile.country || "";
+  if(phoneEl) phoneEl.value = currentProfile.phone || "";
+
+  if(currencyEl){
+    currencyEl.value =
+      currentProfile.preferred_currency ||
+      localStorage.getItem("anybike_currency") ||
+      "GBP";
+  }
+    if(languageEl){
+    languageEl.value =
+      currentProfile.preferred_language ||
+      localStorage.getItem("anybike_language") ||
+      "en";
+  }
+updateProfileSummary();
+  setProfileEditMode(false);
+  return true;
+}
+
+async function saveProfile(){
+  if(!currentUser) return;
+
+  const payload = {
+    
+  id: currentUser.id,
+  email: currentUser.email,
+  full_name: document.getElementById("fullName").value.trim(),
+ business_name: document.getElementById("businessName")?.value.trim() || "",
+  business_address: document.getElementById("businessAddress").value.trim(),
+  country: document.getElementById("country").value,
+ city: document.getElementById("city")?.value.trim() || "",
+region: document.getElementById("region")?.value.trim() || "",
+  phone: document.getElementById("phone").value.trim(),
+  preferred_currency: document.getElementById("preferredCurrency").value,
+  preferred_language: document.getElementById("preferredLanguage").value
+};
+
+ const {error} = await sb
+  .from("customer_profiles")
+  .upsert(payload, { onConflict: "id" });
+
+const msg = document.getElementById("profileMsg");
+
+if(error){
+  msg.textContent = "Could not save account details: " + error.message;
+  msg.className = "bad";
+  return;
+}
+
+currentProfile = {...currentProfile, ...payload};
+
+localStorage.setItem("anybike_currency", payload.preferred_currency);
+localStorage.setItem("anybike_language", payload.preferred_language);
+
+msg.textContent = "Account details saved.";
+msg.className = "ok";
+
+const displayName = getCustomerDisplayName();
+
+setUserAreaHtml(
+  `👤 <span class="user-name">${displayName}</span>`
+);
+
+document.getElementById("welcomeText").textContent =
+  displayName === "My AnyBike"
+    ? "Welcome back."
+    : `Welcome back, ${displayName}.`;
+
+updateProfileSummary();
+setProfileEditMode(false);
+}
+
+async function loadCounts(){
+  if(!currentUser)return;
+
+  const watch = await sb.from("customer_watchlist").select("id",{count:"exact",head:true}).eq("customer_id",currentUser.id);
+  const searches = await sb.from("saved_searches").select("id",{count:"exact",head:true}).eq("customer_id",currentUser.id);
+  const stock = await sb.from("available_stock").select("id",{count:"exact",head:true}).not("make","is",null).not("model","is",null);
+
+  document.getElementById("watchCount").textContent=(watch.count || 0).toLocaleString("en-GB");
+  document.getElementById("searchCount").textContent=(searches.count || 0).toLocaleString("en-GB");
+  document.getElementById("stockCount").textContent=(stock.count || 0).toLocaleString("en-GB");
+}
+
+async function loadRecentlyViewed(){
+  const box = document.getElementById("recentlyViewedBox");
+
+  if(!currentUser){
+    box.innerHTML = `<p class="muted">Login to see recently viewed bikes.</p>`;
+    return;
+  }
+
+  box.innerHTML = `<p class="muted">Loading recently viewed bikes...</p>`;
+
+  const {data:views,error:viewError} = await sb
+    .from("recently_viewed_bikes")
+    .select("bike_id,viewed_at")
+    .eq("customer_id",currentUser.id)
+    .order("viewed_at",{ascending:false})
+    .limit(10);
+
+  if(viewError){
+    box.innerHTML = `<span class="bad">Recently viewed error: ${viewError.message}</span>`;
+    return;
+  }
+
+  if(!views || !views.length){
+    box.innerHTML = `<p class="muted">No recently viewed bikes yet for this login.</p>`;
+    return;
+  }
+
+  const bikeIds = views.map(v => Number(v.bike_id)).filter(Boolean);
+
+  const {data:stock,error:stockError} = await sb
+    .from("available_stock")
+    .select("id,make,model,variant,year,price_gbp,image_url")
+    .in("id",bikeIds);
+
+  if(stockError){
+    box.innerHTML = `<span class="bad">Stock lookup error: ${stockError.message}</span>`;
+    return;
+  }
+
+  const bikeMap = new Map((stock || []).map(b => [String(b.id), b]));
+  const rows = views.map(v => bikeMap.get(String(v.bike_id))).filter(Boolean);
+
+  box.innerHTML = rows.map(b => `
+    <div class="recent-bike">
+      <h3>${safe(b.make)} ${safe(b.model)}</h3>
+      <p>${safe(b.variant)}</p>
+      <p>${safe(b.year)}</p>
+      <a href="bike-details.html?id=${b.id}">View Bike →</a>
+    </div>
+  `).join("");
+}
+
+async function loadCustomerEnquiries(){
+  const box = document.getElementById("customerEnquiries");
+
+  if(!box) return;
+
+  if(!currentUser){
+    box.innerHTML = `<p class="muted">Login to see your enquiries.</p>`;
+    return;
+  }
+
+  box.innerHTML = `<p class="muted">Loading your enquiries and messages...</p>`;
+
+  const results=await Promise.allSettled([
+    sb
+      .from("bike_enquiries")
+      .select(`*,available_stock(id,make,model,variant,year,price_gbp,image_url)`)
+      .eq("customer_id",currentUser.id)
+      .order("created_at",{ascending:false}),
+
+    sb
+      .from("message_centre_threads")
+      .select("*")
+      .eq("customer_id",currentUser.id)
+      .order("last_message_at",{ascending:false,nullsFirst:false})
+  ]);
+
+  const bikeResult=results[0].status==="fulfilled"
+    ? results[0].value
+    : {data:[],error:{message:String(results[0].reason||"Bike enquiry query failed")}};
+
+  const globalThreadResult=results[1].status==="fulfilled"
+    ? results[1].value
+    : {data:[],error:{message:String(results[1].reason||"Global Buyer query failed")}};
+
+  if(bikeResult.error){
+    console.warn("Could not load bike enquiries",bikeResult.error.message);
+  }
+
+  const bikeRows = (bikeResult.data || []).map(r=>({
+    kind:"bike",
+    sortDate:r.created_at,
+    data:r
+  }));
+
+  let globalRows = [];
+
+  if(!globalThreadResult.error){
+    globalRows = (globalThreadResult.data || [])
+      .filter(thread=>{
+        const source=String(thread.source_type||"").toLowerCase();
+        const department=String(thread.department||"").toLowerCase();
+        const subject=String(thread.subject||"").toLowerCase();
+
+       return source.includes("global buyer") ||
+  source.includes("bulk") ||
+  source.includes("my anybike") ||
+  source.includes("private buyer") ||
+  source.includes("private seller") ||
+  source.includes("dealer") ||
+  source.includes("trader") ||
+  source.includes("importer") ||
+  source.includes("exporter") ||
+  source.includes("finance") ||
+  source.includes("shipping") ||
+  source.includes("marketplace") ||
+  source.includes("trade partner") ||
+  source.includes("supplier") ||
+  source.includes("manufacturer") ||
+  source.includes("press") ||
+  source.includes("website support") ||
+  source.includes("general enquiry") ||
+  department.includes("global buyer") ||
+  subject.includes("global buyer");
+  
+      })
+      .map(thread=>({
+        kind:"global",
+        sortDate:thread.last_message_at || thread.created_at,
+        data:thread
+      }));
+  }else{
+    console.warn("Could not load Global Buyer conversations",globalThreadResult.error.message);
+  }
+
+  const rows=[...bikeRows,...globalRows].sort((a,b)=>{
+    return new Date(b.sortDate||0)-new Date(a.sortDate||0);
+  });
+
+  if(!rows.length){
+    box.innerHTML = `<p class="muted">You have not sent any enquiries yet.</p>`;
+    return;
+  }
+
+  box.innerHTML = rows.map(row=>{
+    if(row.kind==="bike"){
+      return bikeEnquiryHtml(row.data);
+    }
+
+    return globalBuyerConversationHtml(row.data);
+  }).join("");
+
+  bikeRows.forEach(row=>loadCustomerMessages(row.data.id));
+  await Promise.allSettled(
+    globalRows.map(row=>loadGlobalBuyerMessages(row.data.id))
+  );
+
+  updateCustomerUnreadMessageCount();
+
+  updateConversationCount();
+
+if(openConversationKey){
+  setTimeout(()=>{
+    const card = document.getElementById(
+      `customer-enquiry-${openConversationKey}`
+    );
+
+    if(card){
+      card.classList.add("open");
+
+      if(String(openConversationKey).startsWith("global-")){
+        markCustomerThreadRead(String(openConversationKey).replace("global-",""));
+      }else if(String(openConversationKey).startsWith("bike-")){
+        markCustomerBikeEnquiryRead(String(openConversationKey).replace("bike-",""));
+      }
+
+      card.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+      });
+    }
+  },300);
+}
+}
+
+function bikeEnquiryHtml(r){
+  const b=r.available_stock||{};
+  const enquiryText=safe(r.message);
+  const key=`bike-${r.id}`;
+
+  return `
+    <div class="customer-enquiry" id="customer-enquiry-${key}">
+      <div class="customer-enquiry-row" onclick="toggleCustomerEnquiry('${key}')">
+        <div class="arrow">▶</div>
+
+        <div>
+          <div class="enquiry-type">🏍 Single-bike enquiry</div>
+          <strong>${safe(b.make)} ${safe(b.model)}</strong>
+          <div class="muted">${safe(b.variant)} ${safe(b.year)} — ${money(b.price_gbp)}</div>
+          <div class="muted">Your enquiry: ${enquiryText.substring(0,90)}</div>
+        </div>
+
+        <div class="status-wrap">
+          <span class="message-pill" id="customer-bubble-${r.id}">
+            Checking...
+          </span>
+        </div>
+      </div>
+
+      <div class="customer-enquiry-detail" onclick="event.stopPropagation()">
+        <div class="customer-expanded-inner">
+
+          <div style="display:flex;justify-content:flex-end;margin-bottom:15px">
+            <button onclick="toggleCustomerEnquiry('${key}')">▲ Collapse</button>
+          </div>
+
+          <div style="margin-bottom:15px">
+            <strong>Your enquiry:</strong><br>
+            ${enquiryText}
+          </div>
+
+          <a class="btn" href="bike-details.html?id=${encodeURIComponent(r.bike_id)}">
+            View Bike
+          </a>
+
+          <div class="message-thread" id="messages-${r.id}">
+            Loading messages...
+          </div>
+
+          <div class="reply-area">
+            <label>Reply to AnyBike</label>
+            <textarea id="customer-msg-${r.id}" placeholder="Type your reply here..."></textarea>
+            <button type="button" class="primary" onclick="sendCustomerMessage(${r.id});return false;">
+              Send Reply
+            </button>
+            <div class="reply-status" id="customer-reply-status-${r.id}"></div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function globalBuyerConversationHtml(thread){
+  const key=`global-${thread.id}`;
+  const title=thread.subject || "AnyBike Message";
+  const preview=String(thread.last_message||"").substring(0,100);
+  const source=String(thread.source_type||"").toLowerCase();
+  const isGlobal=source.includes("global buyer") || String(thread.department||"").toLowerCase().includes("global buyer");
+  const typeLabel=isGlobal ? "🌍 Global Buyer Network" : "💬 AnyBike Message";
+
+  return `
+    <div class="customer-enquiry" id="customer-enquiry-${key}">
+      <div class="customer-enquiry-row" onclick="toggleCustomerEnquiry('${key}')">
+        <div class="arrow">▶</div>
+
+        <div>
+          <div class="enquiry-type ${isGlobal?'global':''}">${typeLabel}</div>
+          <strong>${safe(title)}</strong>
+          <div class="muted">${preview || "Your Global Buyer conversation with AnyBike."}</div>
+        </div>
+
+        <div class="status-wrap">
+          <span class="message-pill ${
+            String(thread.last_sender||"").toLowerCase().includes("customer")
+              ? "replied"
+              : "new"
+          }" id="global-bubble-${thread.id}">
+            ${
+              String(thread.last_sender||"").toLowerCase().includes("customer")
+                ? "✓ You replied"
+                : "💬 New message"
+            }
+          </span>
+        </div>
+      </div>
+
+      <div class="customer-enquiry-detail" onclick="event.stopPropagation()">
+        <div class="customer-expanded-inner">
+
+          <div style="display:flex;justify-content:flex-end;margin-bottom:15px">
+            <button onclick="toggleCustomerEnquiry('${key}')">▲ Collapse</button>
+          </div>
+
+          <div style="margin-bottom:15px">
+            <strong>${isGlobal ? "Global Buyer Network conversation" : "Conversation with AnyBike"}</strong><br>
+            <span class="muted">${isGlobal ? "Continue discussing motorcycle requirements, stock matches and shipping with AnyBike." : "Continue your conversation with the AnyBike team."}</span>
+          </div>
+
+          <div class="message-thread" id="global-messages-${thread.id}">
+            Loading messages...
+          </div>
+
+          <div class="reply-area">
+            <label>Reply to AnyBike</label>
+            <textarea id="global-customer-msg-${thread.id}" placeholder="Type your reply here..."></textarea>
+            <button type="button" class="primary" onclick="sendGlobalBuyerMessage(${thread.id});return false;">
+              Send Reply
+            </button>
+            <div class="reply-status" id="global-reply-status-${thread.id}"></div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+async function loadCustomerMessages(enquiryId){
+  const box = document.getElementById(`messages-${enquiryId}`);
+  if(!box) return;
+
+  const {data,error} = await sb
+    .from("enquiry_messages")
+    .select("*")
+    .eq("enquiry_id",Number(enquiryId))
+    .order("created_at",{ascending:true});
+
+  if(error){
+    box.innerHTML = `<p class="bad">Message error: ${safe(error.message)}</p>`;
+    return;
+  }
+
+  const messages=data || [];
+  window.anybikeCustomerEnquiryMessages[String(enquiryId)]=messages;
+
+  const bubble = document.getElementById(`customer-bubble-${enquiryId}`);
+  const card = document.getElementById(`customer-enquiry-bike-${enquiryId}`);
+
+  if(!messages.length){
+    box.innerHTML = `<p class="muted">No conversation messages yet.</p>`;
+    if(bubble){
+      bubble.innerHTML = "No messages";
+      bubble.className = "message-pill";
+    }
+    if(card){
+      card.classList.remove("has-unread");
+    }
+    return;
+  }
+
+  const latest = messages[messages.length - 1];
+  const latestIsAnyBike=String(latest.sender||"").toLowerCase().includes("anybike");
+  const isUnread=isCustomerBikeEnquiryUnread(enquiryId,latest);
+
+  if(bubble){
+    if(latestIsAnyBike && isUnread){
+      bubble.innerHTML = "💬 New message";
+      bubble.className = "message-pill new";
+    }else if(latestIsAnyBike){
+      bubble.innerHTML = "AnyBike replied";
+      bubble.className = "message-pill replied";
+    }else{
+      bubble.innerHTML = "✓ You replied";
+      bubble.className = "message-pill replied";
     }
   }
 
-  function startLiveChatWatcher(){
-    checkForLiveChat();
-
-    if(pollTimer){
-      clearInterval(pollTimer);
-    }
-
-    pollTimer = setInterval(function(){
-      if(document.visibilityState === "visible"){
-        checkForLiveChat();
-      }
-    },POLL_MS);
+  if(card){
+    card.classList.toggle("has-unread",isUnread);
   }
 
-  window.addEventListener("anybikePublicHeaderReady",function(){
-    startLiveChatWatcher();
-  });
+  box.innerHTML = messages.map(m=>{
+    const sender = safe(m.sender);
+    const cls = sender.toLowerCase().includes("customer") ? "customer" : "admin";
+    return `
+      <div class="msg ${cls}">
+        <strong>${sender}</strong>
+        <div>${safe(m.message)}</div>
+        <small>${m.created_at ? new Date(m.created_at).toLocaleString("en-GB") : ""}</small>
+      </div>
+    `;
+  }).join("");
+}
 
-  window.addEventListener("focus",function(){
-    checkForLiveChat();
-  });
+async function sendCustomerMessage(enquiryId){
+  if(!currentUser){
+    redirectToCustomerLogin();
+    return;
+  }
 
-  document.addEventListener("visibilitychange",function(){
-    if(document.visibilityState === "visible"){
-      checkForLiveChat();
+  const {data:ownedEnquiry,error:ownershipError}=await sb
+    .from("bike_enquiries")
+    .select("id")
+    .eq("id",Number(enquiryId))
+    .eq("customer_id",currentUser.id)
+    .maybeSingle();
+
+  if(ownershipError || !ownedEnquiry){
+    alert("You do not have access to this enquiry.");
+    return;
+  }
+
+  openConversationKey = `bike-${enquiryId}`;
+
+  const txt = document.getElementById(`customer-msg-${enquiryId}`);
+  const message = txt.value.trim();
+
+  const status=document.getElementById(`customer-reply-status-${enquiryId}`);
+
+  if(!message){
+    if(status) status.textContent="Enter a message.";
+    return;
+  }
+
+  const { error } = await sb
+    .from("enquiry_messages")
+    .insert({
+      enquiry_id:Number(enquiryId),
+      customer_id:currentUser.id,
+      sender:"Customer",
+      message:message
+    });
+
+  if(error){
+    if(status){
+      status.textContent="Message failed: " + error.message;
+      status.className="reply-status bad";
     }
+    return;
+  }
+
+const {data:messageThread,error:messageThreadError} = await sb
+  .from("message_centre_threads")
+  .select("id")
+  .eq("related_enquiry_id",Number(enquiryId))
+  .eq("customer_id",currentUser.id)
+  .order("created_at",{ascending:false})
+  .limit(1)
+  .maybeSingle();
+
+if(messageThreadError){
+  console.warn(
+    "Could not resolve Message Centre thread for admin notification:",
+    messageThreadError.message
+  );
+}
+
+const adminNotificationLink = messageThread?.id
+  ? `/admin-message-centre.html?thread=${encodeURIComponent(messageThread.id)}`
+  : "/admin-message-centre.html";
+
+await sb
+  .from("admin_notifications")
+  .insert({
+    title:"Customer replied",
+    message:"A customer has replied to enquiry #" + enquiryId,
+    icon:"💬",
+    type:"customer_reply",
+    link:adminNotificationLink
   });
 
-  if(document.readyState !== "loading"){
-    setTimeout(startLiveChatWatcher,500);
+const {error:adminNotificationError} = await sb.functions.invoke(
+  "send-admin-message-notification",
+  {
+    body: {
+      source_type: "bike_enquiry",
+      enquiry_id: String(enquiryId)
+    }
+  }
+);
+
+if(adminNotificationError){
+  console.error(
+    "Admin email notification failed:",
+    adminNotificationError
+  );
+}
+
+txt.value = "";
+
+if(status){
+  status.textContent="Reply sent.";
+  status.className="reply-status ok";
+}
+
+  await loadCustomerMessages(enquiryId);
+
+  const el = document.getElementById(`customer-enquiry-bike-${enquiryId}`);
+  if(el){
+    el.classList.add("open");
+  }
+}
+  
+
+
+
+window.anybikeCustomerEnquiryMessages={};
+
+function isCustomerBikeEnquiryUnread(enquiryId,message){
+  if(!message || !String(message.sender||"").toLowerCase().includes("anybike")){
+    return false;
+  }
+
+  const readMap=getCustomerReadMessageMap();
+  const key=`bike-${enquiryId}`;
+  return String(readMap[key]||"")!==String(message.id||message.created_at||"");
+}
+
+function markCustomerBikeEnquiryRead(enquiryId){
+  const messages=window.anybikeCustomerEnquiryMessages?.[String(enquiryId)] || [];
+  const latest=messages[messages.length-1];
+
+  if(!latest || !String(latest.sender||"").toLowerCase().includes("anybike")){
+    return;
+  }
+
+  const readMap=getCustomerReadMessageMap();
+  readMap[`bike-${enquiryId}`]=String(latest.id||latest.created_at||"");
+  saveCustomerReadMessageMap(readMap);
+
+  const bubble=document.getElementById(`customer-bubble-${enquiryId}`);
+  const card=document.getElementById(`customer-enquiry-bike-${enquiryId}`);
+
+  if(bubble){
+    bubble.textContent="AnyBike replied";
+    bubble.className="message-pill replied";
+  }
+
+  if(card){
+    card.classList.remove("has-unread");
+  }
+
+  updateCustomerUnreadMessageCount();
+  markBikeEnquiryNotificationsRead(enquiryId);
+}
+
+function getCustomerReadMessageMap(){
+  try{
+    const raw=localStorage.getItem("anybike_customer_read_message_ids");
+    const parsed=raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed==="object" ? parsed : {};
+  }catch(error){
+    return {};
+  }
+}
+
+function saveCustomerReadMessageMap(map){
+  try{
+    localStorage.setItem(
+      "anybike_customer_read_message_ids",
+      JSON.stringify(map||{})
+    );
+  }catch(error){
+    console.warn("Could not save customer message read state",error);
+  }
+}
+
+function isCustomerMessageSender(message){
+  const values=[
+    message?.sender_type,
+    message?.sender_name,
+    message?.sender,
+    message?.sender_email
+  ]
+    .filter(Boolean)
+    .map(value=>String(value).trim().toLowerCase());
+
+  return values.some(value=>
+    value==="customer" ||
+    value==="buyer" ||
+    value==="user" ||
+    value.includes("customer") ||
+    (currentUser?.email && value===String(currentUser.email).toLowerCase())
+  );
+}
+
+function isCustomerThreadUnread(threadId,message){
+  if(!message || isCustomerMessageSender(message)){
+    return false;
+  }
+
+  const readMap=getCustomerReadMessageMap();
+  return String(readMap[String(threadId)]||"")!==String(message.id||message.created_at||"");
+}
+
+function markCustomerThreadRead(threadId){
+  const messages=window.anybikeCustomerThreadMessages?.[String(threadId)] || [];
+  const latest=messages[messages.length-1];
+
+  if(!latest || isCustomerMessageSender(latest)){
+    return;
+  }
+
+  const readMap=getCustomerReadMessageMap();
+  readMap[String(threadId)]=String(latest.id||latest.created_at||"");
+  saveCustomerReadMessageMap(readMap);
+
+  const bubble=document.getElementById(`global-bubble-${threadId}`);
+  const card=document.getElementById(`customer-enquiry-global-${threadId}`);
+
+  if(bubble){
+    bubble.textContent="AnyBike replied";
+    bubble.className="message-pill replied";
+  }
+
+  if(card){
+    card.classList.remove("has-unread");
+  }
+
+  updateCustomerUnreadMessageCount();
+  markConversationNotificationsRead(threadId);
+}
+
+function updateCustomerUnreadMessageCount(){
+  const unreadCards=document.querySelectorAll("#customerEnquiries .customer-enquiry.has-unread");
+  const count=unreadCards.length;
+
+  const conversationCount=document.getElementById("conversationCount");
+  if(conversationCount){
+    conversationCount.textContent=document.querySelectorAll("#customerEnquiries .customer-enquiry").length.toLocaleString("en-GB");
+  }
+
+  /*
+    The shared header has changed during development, so update the
+    commonly used customer message badge selectors when present.
+  */
+  [
+    "#customerMessageCount",
+    "#publicMessageCount",
+    "#messageCount",
+    ".customer-message-count",
+    ".public-message-count",
+    ".message-count"
+  ].forEach(selector=>{
+    document.querySelectorAll(selector).forEach(badge=>{
+      badge.textContent=count;
+      badge.style.display=count>0 ? "" : "none";
+    });
+  });
+
+  document.querySelectorAll('a[href*="customer-dashboard.html#messages"],a[href="#messages"]').forEach(link=>{
+    link.dataset.unreadMessages=String(count);
+  });
+
+  if(count>0){
+    document.title=`(${count}) My Messages | AnyBike`;
+  }else{
+    document.title="My Messages | AnyBike";
+  }
+}
+
+window.anybikeCustomerThreadMessages={};
+
+
+async function loadGlobalBuyerMessages(threadId){
+  if(!currentUser){
+    redirectToCustomerLogin();
+    return;
+  }
+
+  const {data:ownedThread,error:ownershipError}=await sb
+    .from("message_centre_threads")
+    .select("id")
+    .eq("id",Number(threadId))
+    .eq("customer_id",currentUser.id)
+    .maybeSingle();
+
+  if(ownershipError || !ownedThread){
+    console.warn("Conversation access denied",ownershipError?.message || "");
+    return;
+  }
+
+  const box=document.getElementById(`global-messages-${threadId}`);
+  const bubble=document.getElementById(`global-bubble-${threadId}`);
+  const card=document.getElementById(`customer-enquiry-global-${threadId}`);
+
+  if(!box) return;
+
+  const {data,error}=await sb
+    .from("message_centre_messages")
+    .select("*")
+    .eq("thread_id",Number(threadId))
+    .order("created_at",{ascending:true});
+
+  if(error){
+    box.innerHTML=`<p class="bad">Message error: ${safe(error.message)}</p>`;
+    return;
+  }
+
+  const messages=data||[];
+  window.anybikeCustomerThreadMessages[String(threadId)]=messages;
+
+  if(!messages.length){
+    box.innerHTML=`<p class="muted">No conversation messages yet.</p>`;
+
+    if(bubble){
+      bubble.textContent="No messages";
+      bubble.className="message-pill";
+    }
+
+    if(card){
+      card.classList.remove("has-unread");
+    }
+
+    updateCustomerUnreadMessageCount();
+    return;
+  }
+
+  const latest=messages[messages.length-1];
+  const latestIsCustomer=isCustomerMessageSender(latest);
+  const isUnread=isCustomerThreadUnread(threadId,latest);
+
+  if(bubble){
+    if(!latestIsCustomer && isUnread){
+      bubble.textContent="💬 New message";
+      bubble.className="message-pill new";
+    }else if(!latestIsCustomer){
+      bubble.textContent="AnyBike replied";
+      bubble.className="message-pill replied";
+    }else{
+      bubble.textContent="✓ You replied";
+      bubble.className="message-pill replied";
+    }
+  }
+
+  if(card){
+    card.classList.toggle("has-unread",isUnread);
+  }
+
+  box.innerHTML=messages.map(message=>{
+    const isCustomer=isCustomerMessageSender(message);
+    const label=isCustomer
+      ? "You"
+      : (message.sender_name || message.sender_type || message.sender || "AnyBike");
+
+    return `
+      <div class="msg ${isCustomer?'customer':'admin'}">
+        <strong>${safe(label)}</strong>
+        <div class="msg-text">${safe(message.message)}</div>
+        <small>${message.created_at ? new Date(message.created_at).toLocaleString("en-GB") : ""}</small>
+      </div>
+    `;
+  }).join("");
+
+  box.scrollTop=box.scrollHeight;
+
+  if(card?.classList.contains("open")){
+    markCustomerThreadRead(threadId);
+  }else{
+    updateCustomerUnreadMessageCount();
+  }
+}
+
+
+async function refreshOpenCustomerLiveChat(){
+  if(customerLiveChatRefreshRunning || document.visibilityState !== "visible"){
+    return;
+  }
+
+  if(
+    !openConversationKey ||
+    !String(openConversationKey).startsWith("global-") ||
+    !currentUser
+  ){
+    return;
+  }
+
+  const threadId=Number(String(openConversationKey).replace("global-",""));
+
+  if(!threadId){
+    return;
+  }
+
+  const threadCard=document.getElementById(`customer-enquiry-global-${threadId}`);
+
+  if(!threadCard || !threadCard.classList.contains("open")){
+    return;
+  }
+
+  customerLiveChatRefreshRunning=true;
+
+  try{
+    const {data:thread,error:threadError}=await sb
+      .from("message_centre_threads")
+      .select("id,source_type,live_chat_active")
+      .eq("id",threadId)
+      .eq("customer_id",currentUser.id)
+      .maybeSingle();
+
+    if(threadError || !thread){
+      return;
+    }
+
+    if(String(thread.source_type||"").trim().toLowerCase()!=="live chat"){
+      return;
+    }
+
+    // Once Admin ends the Live Chat, keep the conversation history visible
+    // but stop the fast live polling. Admin can start it again later.
+    if(thread.live_chat_active !== true){
+      return;
+    }
+
+    const box=document.getElementById(`global-messages-${threadId}`);
+
+    if(!box){
+      return;
+    }
+
+    const beforeCount=(window.anybikeCustomerThreadMessages?.[String(threadId)]||[]).length;
+
+    const {data:messages,error}=await sb
+      .from("message_centre_messages")
+      .select("*")
+      .eq("thread_id",threadId)
+      .order("created_at",{ascending:true});
+
+    if(error){
+      console.warn("Customer Live Chat refresh failed",error.message);
+      return;
+    }
+
+    const rows=messages||[];
+
+    if(rows.length===beforeCount){
+      return;
+    }
+
+    window.anybikeCustomerThreadMessages[String(threadId)]=rows;
+
+    box.innerHTML=rows.length
+      ? rows.map(message=>{
+          const isCustomer=isCustomerMessageSender(message);
+          const label=isCustomer
+            ? "You"
+            : (message.sender_name || message.sender_type || message.sender || "AnyBike");
+
+          return `
+            <div class="msg ${isCustomer?'customer':'admin'}">
+              <strong>${safe(label)}</strong>
+              <div class="msg-text">${safe(message.message)}</div>
+              <small>${message.created_at ? new Date(message.created_at).toLocaleString("en-GB") : ""}</small>
+            </div>
+          `;
+        }).join("")
+      : `<p class="muted">No conversation messages yet.</p>`;
+
+    box.scrollTop=box.scrollHeight;
+
+    const latest=rows[rows.length-1];
+    const bubble=document.getElementById(`global-bubble-${threadId}`);
+
+    if(latest && bubble){
+      const latestIsCustomer=isCustomerMessageSender(latest);
+      bubble.textContent=latestIsCustomer ? "✓ You replied" : "AnyBike replied";
+      bubble.className="message-pill replied";
+    }
+
+    markCustomerThreadRead(threadId);
+
+  }catch(error){
+    console.warn("Customer Live Chat refresh failed",error);
+  }finally{
+    customerLiveChatRefreshRunning=false;
+  }
+}
+
+async function sendGlobalBuyerMessage(threadId){
+  if(!currentUser){
+    redirectToCustomerLogin();
+    return;
+  }
+
+  const {data:ownedThread,error:ownershipError}=await sb
+    .from("message_centre_threads")
+    .select("id")
+    .eq("id",Number(threadId))
+    .eq("customer_id",currentUser.id)
+    .maybeSingle();
+
+  if(ownershipError || !ownedThread){
+    alert("You do not have access to this conversation.");
+    return;
+  }
+
+  const key=`global-${threadId}`;
+  openConversationKey=key;
+
+  const txt=document.getElementById(`global-customer-msg-${threadId}`);
+  const status=document.getElementById(`global-reply-status-${threadId}`);
+  const message=String(txt?.value||"").trim();
+
+  if(!message){
+    if(status) status.textContent="Enter a message.";
+    return;
+  }
+
+  const now=new Date().toISOString();
+
+  const {error:messageError}=await sb
+    .from("message_centre_messages")
+    .insert({
+      thread_id:Number(threadId),
+      sender_type:"Customer",
+      sender_name:currentProfile?.full_name || currentUser.email || "Customer",
+      sender_email:currentUser.email,
+      message:message,
+      created_at:now
+    });
+
+  if(messageError){
+    if(status){
+      status.textContent="Message failed: "+messageError.message;
+      status.className="reply-status bad";
+    }
+    return;
+  }
+
+  const {error:threadError}=await sb
+    .from("message_centre_threads")
+    .update({
+      last_message:message,
+      last_message_at:now,
+      last_sender:"Customer",
+      status:"Needs Reply",
+      updated_at:now
+    })
+    .eq("id",Number(threadId))
+    .eq("customer_id",currentUser.id);
+
+  if(threadError){
+    if(status){
+      status.textContent="Reply saved, but the notification status could not be updated: "+threadError.message;
+      status.className="reply-status bad";
+    }
+  }else if(status){
+    status.textContent="Reply sent.";
+    status.className="reply-status ok";
+  }
+
+  const {error:adminNotificationError} = await sb.functions.invoke(
+    "send-admin-message-notification",
+    {
+      body: {
+        source_type: "message_centre",
+        thread_id: String(threadId)
+      }
+    }
+  );
+
+  if(adminNotificationError){
+    console.error(
+      "Admin email notification failed:",
+      adminNotificationError
+    );
+  }
+
+  txt.value="";
+  await loadGlobalBuyerMessages(threadId);
+
+  const card=document.getElementById(`customer-enquiry-${key}`);
+  if(card){
+    card.classList.add("open");
+  }
+}
+
+
+
+let profileEditMode=false;
+let recommendedBikeIds=new Set();
+
+function setProfileEditMode(enabled){
+  profileEditMode=Boolean(enabled);
+
+  document.querySelectorAll("[data-profile-input]").forEach(function(el){
+    el.disabled=!profileEditMode;
+  });
+
+  const editBtn=document.getElementById("editProfileBtn");
+  const saveBtn=document.getElementById("saveProfileBtn");
+  const cancelBtn=document.getElementById("cancelProfileBtn");
+
+  if(editBtn) editBtn.style.display=profileEditMode ? "none" : "inline-flex";
+  if(saveBtn) saveBtn.style.display=profileEditMode ? "inline-flex" : "none";
+  if(cancelBtn) cancelBtn.style.display=profileEditMode ? "inline-flex" : "none";
+
+  document.getElementById("profilePanel")?.classList.toggle("editing",profileEditMode);
+}
+
+function cancelProfileEdit(){
+  if(currentProfile){
+    document.getElementById("fullName").value=currentProfile.full_name||"";
+    document.getElementById("businessName").value=currentProfile.business_name||"";
+    document.getElementById("businessAddress").value=currentProfile.business_address||"";
+    document.getElementById("city").value=currentProfile.city||"";
+    document.getElementById("region").value=currentProfile.region||"";
+    document.getElementById("country").value=currentProfile.country||"";
+    document.getElementById("phone").value=currentProfile.phone||"";
+    document.getElementById("preferredCurrency").value=currentProfile.preferred_currency||"GBP";
+    document.getElementById("preferredLanguage").value=currentProfile.preferred_language||"en";
+  }
+
+  setProfileEditMode(false);
+  const msg=document.getElementById("profileMsg");
+  if(msg) msg.textContent="";
+}
+
+function customerBikeCard(bike,reason){
+  const id=Number(bike.id);
+  const title=[bike.make,bike.model].filter(Boolean).join(" ");
+  const variant=bike.variant||"";
+  const year=bike.year||"-";
+  const mileage=bike.mileage ? Number(bike.mileage).toLocaleString("en-GB")+" miles" : "Mileage not listed";
+  const price=money(bike.price_gbp);
+  const image=bike.image_url
+    ? `<img src="${bike.image_url}" alt="${safe(title)}" loading="lazy" onerror="this.closest('.bike-image').classList.add('fallback');this.remove();">`
+    : "";
+
+  return `
+    <article class="bike-card">
+      <div class="bike-image ${image ? "" : "fallback"}">
+        ${image}
+        <div class="bike-fallback">ANYBIKE</div>
+        <button class="heart-action" type="button" onclick="toggleRecommendedWatchlist(${id},this)" aria-label="Add to watchlist">♡</button>
+      </div>
+      <div class="bike-card-body">
+        <div class="recommend-reason">${safe(reason)}</div>
+        <h3>${safe(title)}</h3>
+        <p>${safe(variant)}</p>
+        <div class="bike-meta">
+          <span>${safe(year)}</span>
+          <span>${safe(mileage)}</span>
+        </div>
+        <div class="bike-card-foot">
+          <strong>${safe(price)}</strong>
+          <a href="bike-details.html?id=${encodeURIComponent(id)}">View Bike →</a>
+        </div>
+      </div>
+    </article>
+  `;
+}
+
+async function toggleRecommendedWatchlist(bikeId,button){
+  if(!currentUser){
+    location.href="customer-register.html";
+    return;
+  }
+
+  const {data:existing,error:findError}=await sb
+    .from("customer_watchlist")
+    .select("id")
+    .eq("customer_id",currentUser.id)
+    .eq("bike_id",Number(bikeId))
+    .maybeSingle();
+
+  if(findError){
+    console.warn(findError.message);
+    return;
+  }
+
+  if(existing){
+    await sb.from("customer_watchlist").delete().eq("id",existing.id);
+    if(button){
+      button.textContent="♡";
+      button.classList.remove("active");
+    }
+  }else{
+    const {error}=await sb.from("customer_watchlist").insert({
+      customer_id:currentUser.id,
+      bike_id:Number(bikeId)
+    });
+
+    if(error){
+      console.warn(error.message);
+      return;
+    }
+
+    if(button){
+      button.textContent="♥";
+      button.classList.add("active");
+    }
+  }
+
+  await loadCounts();
+}
+
+async function loadRecommendations(){
+  const box=document.getElementById("recommendationsGrid");
+
+  if(!box || !currentUser){
+    if(box) box.innerHTML='<p class="section-empty">Log in to see personalised recommendations.</p>';
+    return;
+  }
+
+  box.innerHTML='<p class="section-empty">Finding motorcycles for you...</p>';
+
+  const [viewsRes,watchRes,searchRes]=await Promise.all([
+    sb.from("recently_viewed_bikes").select("bike_id").eq("customer_id",currentUser.id).order("viewed_at",{ascending:false}).limit(12),
+    sb.from("customer_watchlist").select("bike_id").eq("customer_id",currentUser.id).limit(30),
+    sb.from("saved_searches").select("make,model,min_year,max_price").eq("customer_id",currentUser.id).limit(20)
+  ]);
+
+  const seedIds=[
+    ...(viewsRes.data||[]).map(r=>Number(r.bike_id)),
+    ...(watchRes.data||[]).map(r=>Number(r.bike_id))
+  ].filter(Boolean);
+
+  let seedBikes=[];
+
+  if(seedIds.length){
+    const {data}=await sb
+      .from("available_stock")
+      .select("id,make,model,variant,year,mileage,price_gbp,image_url")
+      .in("id",[...new Set(seedIds)]);
+
+    seedBikes=data||[];
+  }
+
+  const makes=[...new Set([
+    ...seedBikes.map(b=>b.make),
+    ...(searchRes.data||[]).map(s=>s.make)
+  ].filter(Boolean))].slice(0,8);
+
+  let query=sb
+    .from("available_stock")
+    .select("id,make,model,variant,year,mileage,price_gbp,image_url,created_at")
+    .not("make","is",null)
+    .not("model","is",null)
+    .order("created_at",{ascending:false})
+    .limit(24);
+
+  if(makes.length){
+    query=query.in("make",makes);
+  }
+
+  let {data,error}=await query;
+
+  if(error || !data || !data.length){
+    const fallback=await sb
+      .from("available_stock")
+      .select("id,make,model,variant,year,mileage,price_gbp,image_url,created_at")
+      .not("make","is",null)
+      .not("model","is",null)
+      .limit(12);
+
+    data=fallback.data||[];
+  }
+
+  const seedSet=new Set(seedIds.map(String));
+  const rows=(data||[]).filter(b=>!seedSet.has(String(b.id))).slice(0,6);
+
+  if(!rows.length){
+    box.innerHTML='<p class="section-empty">Recommendations will appear as you browse, save searches and add bikes to your watchlist.</p>';
+    return;
+  }
+
+  box.innerHTML=rows.map(b=>{
+    let reason="Recommended for you";
+
+    if((searchRes.data||[]).some(s=>s.make && String(s.make).toLowerCase()===String(b.make).toLowerCase())){
+      reason="Matches a saved search";
+    }else if(seedBikes.some(s=>s.make && String(s.make).toLowerCase()===String(b.make).toLowerCase())){
+      reason="Similar to bikes you viewed";
+    }
+
+    return customerBikeCard(b,reason);
+  }).join("");
+}
+
+
+function updateConversationCount(){
+  const cards=document.querySelectorAll("#customerEnquiries .customer-enquiry");
+  const total=cards.length;
+  const count=document.getElementById("conversationCount");
+  if(count) count.textContent=total.toLocaleString("en-GB");
+}
+
+function updateProfileSummary(){
+  document.querySelectorAll(".profileSummaryName").forEach(function(name){
+    name.textContent=currentProfile?.full_name || currentUser?.email || "My AnyBike member";
+  });
+
+  document.querySelectorAll(".profileSummaryBusiness").forEach(function(business){
+    business.textContent=currentProfile?.business_name || "No business name added";
+  });
+
+  document.querySelectorAll(".profileSummaryLocation").forEach(function(location){
+    location.textContent=[currentProfile?.city,currentProfile?.country].filter(Boolean).join(", ") || "Location not added";
+  });
+}
+
+
+
+function scrollRecentlyViewed(direction){
+  const box=document.getElementById("recentlyViewedBox");
+
+  if(!box){
+    return;
+  }
+
+  const distance=Math.max(280,Math.round(box.clientWidth*.72));
+
+  box.scrollBy({
+    left:direction*distance,
+    behavior:"smooth"
+  });
+}
+
+function getNewMessageContext(){
+  const params=new URLSearchParams(window.location.search);
+  const explicitUrl=params.get("from") || params.get("page");
+  const explicitTitle=params.get("pageTitle") || params.get("title");
+
+  let pageUrl=explicitUrl || "";
+  let pageTitle=explicitTitle || "";
+
+  if(!pageUrl && document.referrer){
+    try{
+      const ref=new URL(document.referrer);
+
+      if(ref.origin===window.location.origin){
+        pageUrl=ref.href;
+      }
+    }catch(error){}
+  }
+
+  if(!pageUrl){
+    pageUrl=window.location.href;
+  }
+
+  if(!pageTitle){
+    if(pageUrl.includes("bike-details.html")){
+      pageTitle="Motorcycle advert";
+    }else if(pageUrl.includes("available-stock.html")){
+      pageTitle="Available Stock";
+    }else if(pageUrl.includes("export-services.html")){
+      pageTitle="Export Services";
+    }else if(pageUrl.includes("bulk-buying-request.html")){
+      pageTitle="Global Buyer Network";
+    }else if(pageUrl.includes("sell-your-motorcycle.html")){
+      pageTitle="Sell Your Motorcycle";
+    }else if(pageUrl.includes("my-watchlist.html")){
+      pageTitle="My Watchlist";
+    }else if(pageUrl.includes("my-searches.html")){
+      pageTitle="My Saved Searches";
+    }else{
+      pageTitle="My AnyBike customer workspace";
+    }
+  }
+
+  return {
+    title:pageTitle,
+    url:pageUrl
+  };
+}
+
+function openNewMessageModal(){
+  if(!currentUser){
+    location.href="customer-register.html";
+    return;
+  }
+
+  const modal=document.getElementById("newMessageModal");
+  const context=getNewMessageContext();
+  const contextText=document.getElementById("newMessageContextText");
+  const status=document.getElementById("newMessageStatus");
+
+  if(contextText){
+    contextText.textContent=context.title+" — "+context.url;
+  }
+
+  if(status){
+    status.textContent="";
+    status.className="message-modal-status";
+  }
+
+  if(modal){
+    modal.classList.add("open");
+    modal.setAttribute("aria-hidden","false");
+  }
+
+  setTimeout(()=>{
+    document.getElementById("newMessageSubject")?.focus();
+  },50);
+}
+
+function closeNewMessageModal(){
+  const modal=document.getElementById("newMessageModal");
+
+  if(modal){
+    modal.classList.remove("open");
+    modal.setAttribute("aria-hidden","true");
+  }
+}
+
+function departmentForCustomerSubject(subject){
+  const value=String(subject||"").toLowerCase();
+
+  if(value.includes("motorcycle search") || value.includes("saved bike") || value.includes("watchlist") || value.includes("saved search")){
+    return "Bike Sales";
+  }
+
+  if(value.includes("global buyer")){
+    return "Global Buyer Network";
+  }
+
+  if(value.includes("shipping") || value.includes("export") || value.includes("order")){
+    return "Operations";
+  }
+
+  if(value.includes("sell my motorcycle")){
+    return "Seller Enquiries";
+  }
+
+  if(value.includes("website") || value.includes("account")){
+    return "Website Support";
+  }
+
+  if(value.includes("payment") || value.includes("invoice")){
+    return "Accounts";
+  }
+
+  return "General Enquiries";
+}
+
+async function sendNewCustomerThread(){
+  if(!currentUser){
+    location.href="customer-register.html";
+    return;
+  }
+
+  const subjectType=document.getElementById("newMessageSubject")?.value || "";
+  const customSubject=String(document.getElementById("newMessageCustomSubject")?.value||"").trim();
+  const message=String(document.getElementById("newMessageBody")?.value||"").trim();
+  const status=document.getElementById("newMessageStatus");
+  const button=document.getElementById("sendNewMessageBtn");
+  const context=getNewMessageContext();
+
+  if(!subjectType){
+    if(status){
+      status.textContent="Please choose a subject.";
+      status.className="message-modal-status bad";
+    }
+    return;
+  }
+
+  if(!message){
+    if(status){
+      status.textContent="Please write your message.";
+      status.className="message-modal-status bad";
+    }
+    return;
+  }
+
+  const subject=customSubject || subjectType;
+  const department=departmentForCustomerSubject(subjectType);
+  const now=new Date().toISOString();
+
+  if(button){
+    button.disabled=true;
+    button.textContent="Sending...";
+  }
+
+  try{
+    const threadPayload={
+      customer_id:currentUser.id,
+      customer_name:currentProfile?.full_name || currentUser.email || "Customer",
+      customer_email:currentUser.email || null,
+      customer_phone:currentProfile?.phone || null,
+      country:currentProfile?.country || null,
+      source_type:"My AnyBike",
+      subject:subject,
+      department:department,
+      status:"Needs Reply",
+      lead_status:"New Lead",
+      last_message:message,
+      last_message_at:now,
+      last_sender:"Customer",
+      related_page_title:context.title,
+      related_page_url:context.url,
+      created_at:now,
+      updated_at:now
+    };
+
+    let threadResult=await sb
+      .from("message_centre_threads")
+      .insert(threadPayload)
+      .select("*")
+      .single();
+
+    /*
+      Older schemas may not yet include the two related_page columns.
+      Retry without them while preserving the context inside the message.
+    */
+    if(threadResult.error && String(threadResult.error.message||"").toLowerCase().includes("related_page")){
+      delete threadPayload.related_page_title;
+      delete threadPayload.related_page_url;
+
+      threadResult=await sb
+        .from("message_centre_threads")
+        .insert(threadPayload)
+        .select("*")
+        .single();
+    }
+
+    if(threadResult.error){
+      throw new Error(threadResult.error.message);
+    }
+
+    const firstMessage=[
+      message,
+      "",
+      "Related page: "+context.title,
+      context.url
+    ].join("\n");
+
+    const {error:messageError}=await sb
+      .from("message_centre_messages")
+      .insert({
+        thread_id:threadResult.data.id,
+        sender_type:"Customer",
+        sender_name:currentProfile?.full_name || currentUser.email || "Customer",
+        sender_email:currentUser.email || null,
+        message:firstMessage,
+        created_at:now
+      });
+
+    if(messageError){
+      throw new Error(messageError.message);
+    }
+
+    const {error:adminNotificationError} = await sb.functions.invoke(
+      "send-admin-message-notification",
+      {
+        body: {
+          source_type: "message_centre",
+          thread_id: String(threadResult.data.id)
+        }
+      }
+    );
+
+    if(adminNotificationError){
+      console.error(
+        "Admin email notification failed:",
+        adminNotificationError
+      );
+    }
+
+    if(status){
+      status.textContent="Message sent to AnyBike.";
+      status.className="message-modal-status ok";
+    }
+
+    document.getElementById("newMessageSubject").value="";
+    document.getElementById("newMessageCustomSubject").value="";
+    document.getElementById("newMessageBody").value="";
+
+    await loadCustomerEnquiries();
+    updateConversationCount();
+
+    setTimeout(()=>{
+      closeNewMessageModal();
+      document.getElementById("messages")?.scrollIntoView({
+        behavior:"smooth",
+        block:"start"
+      });
+    },700);
+  }catch(error){
+    console.error(error);
+
+    if(status){
+      status.textContent="Message could not be sent: "+error.message;
+      status.className="message-modal-status bad";
+    }
+  }finally{
+    if(button){
+      button.disabled=false;
+      button.textContent="Send Message";
+    }
+  }
+}
+
+document.addEventListener("keydown",function(event){
+  if(event.key==="Escape"){
+    closeNewMessageModal();
+  }
+});
+
+document.addEventListener("click",function(event){
+  const modal=document.getElementById("newMessageModal");
+
+  if(modal && event.target===modal){
+    closeNewMessageModal();
+  }
+});
+
+
+async function logout(){
+  await sb.auth.signOut();
+  location.href="index.html";
+}
+
+
+/* Customer notification read-state helpers.
+   The shared public header owns badge counts and notification rendering. */
+
+async function refreshSharedCustomerHeader(){
+  if(!currentUser) return;
+
+  if(typeof loadCustomerHeaderActivity === "function"){
+    await loadCustomerHeaderActivity(currentUser);
+  }
+}
+
+async function markConversationNotificationsRead(threadId){
+  if(!currentUser || !threadId) return;
+
+  const wantedThread=String(threadId).trim();
+
+  const {data,error}=await sb
+    .from("customer_notifications")
+    .select("id,link")
+    .eq("customer_id",currentUser.id)
+    .eq("is_read",false);
+
+  if(error){
+    console.warn("Could not check conversation notifications",error.message);
+    return;
+  }
+
+  const ids=(data || [])
+    .filter(row=>{
+      const link=String(row.link || "");
+      return (
+        link.includes(`thread=${wantedThread}`) ||
+        link.includes(`thread%3D${wantedThread}`)
+      );
+    })
+    .map(row=>row.id)
+    .filter(Boolean);
+
+  if(ids.length){
+    const {error:updateError}=await sb
+      .from("customer_notifications")
+      .update({is_read:true})
+      .eq("customer_id",currentUser.id)
+      .in("id",ids);
+
+    if(updateError){
+      console.warn("Could not clear conversation notifications",updateError.message);
+      return;
+    }
+  }
+
+  await refreshSharedCustomerHeader();
+}
+
+async function markBikeEnquiryNotificationsRead(enquiryId){
+  if(!currentUser || !enquiryId) return;
+
+  const {data:threads,error}=await sb
+    .from("message_centre_threads")
+    .select("id")
+    .eq("customer_id",currentUser.id)
+    .eq("related_enquiry_id",Number(enquiryId));
+
+  if(error){
+    console.warn("Could not resolve bike enquiry notification thread",error.message);
+    return;
+  }
+
+  const threadIds=(threads || [])
+    .map(thread=>thread.id)
+    .filter(Boolean);
+
+  for(const threadId of threadIds){
+    await markConversationNotificationsRead(threadId);
+  }
+}
+
+async function markRequestedThreadNotificationsRead(){
+  if(!currentUser) return;
+
+  const params=new URLSearchParams(window.location.search);
+  const threadId=String(params.get("thread") || "").trim();
+
+  if(!threadId) return;
+
+  await markConversationNotificationsRead(threadId);
+}
+
+(async function init(){
+  try{
+    await waitForPublicHeader();
+    const ok=await loadUser();
+
+    if(!ok){
+      return;
+    }
+
+    const headerMessages=document.getElementById("phMessages");
+    if(headerMessages){
+      headerMessages.href="/customer-messages.html";
+    }
+
+    await claimRequestedMessageThread();
+
+    document.documentElement.classList.remove("customer-auth-pending");
+
+    await loadCustomerEnquiries();
+    await refreshSharedCustomerHeader();
+    await markRequestedThreadNotificationsRead();
+
+  }catch(error){
+    console.error("My Messages failed to initialise",error);
+
+    if(currentUser){
+      document.documentElement.classList.remove("customer-auth-pending");
+    }
+
+    const welcome=document.getElementById("welcomeText");
+    const enquiries=document.getElementById("customerEnquiries");
+
+    if(welcome){
+      welcome.textContent="We could not finish loading your messages. Please refresh the page.";
+    }
+
+    if(enquiries){
+      enquiries.innerHTML='<p class="bad">Your messages could not be loaded. Please refresh the page.</p>';
+    }
   }
 })();
+
+setInterval(function(){
+  refreshOpenCustomerLiveChat();
+},3000);
+
+setInterval(function(){
+  if(currentUser && !openConversationKey){
+    loadCustomerEnquiries();
+  }
+},90000);
+  
+
+</script>
+</body>
+</html>
