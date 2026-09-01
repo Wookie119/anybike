@@ -246,6 +246,44 @@ body{
   font-weight:900;
 }
 
+.chat-link-status{
+  margin-top:10px;
+  padding-top:9px;
+  border-top:1px solid rgba(255,255,255,.08);
+  color:#aaa;
+  font-size:11px;
+  line-height:1.35;
+}
+
+.chat-link-status strong{
+  color:#fff;
+}
+
+.chat-action-row{
+  margin-top:10px;
+}
+
+.start-chat-btn{
+  width:100%;
+  border:1px solid #ed1c24;
+  background:#ed1c24;
+  color:#fff;
+  border-radius:9px;
+  padding:10px 12px;
+  font-size:12px;
+  font-weight:950;
+  cursor:pointer;
+}
+
+.start-chat-btn:hover{
+  filter:brightness(1.08);
+}
+
+.start-chat-btn:disabled{
+  opacity:.65;
+  cursor:wait;
+}
+
 .empty-state,
 .error-state{
   padding:30px 16px;
@@ -604,6 +642,78 @@ function renderMap(visitors){
   }
 }
 
+function chatLinkText(visitor){
+  if(visitor.message_thread_id){
+    return "Message Centre thread #" + visitor.message_thread_id;
+  }
+
+  if(visitor.chat_status && visitor.chat_status !== "none"){
+    return "Chat status: " + visitor.chat_status;
+  }
+
+  return "No Message Centre chat yet";
+}
+
+
+function chatActionHtml(visitor){
+  if(visitor.message_thread_id){
+    return "";
+  }
+
+  return `
+    <div class="chat-action-row">
+      <button
+        type="button"
+        class="start-chat-btn"
+        data-start-chat="${escapeHtml(visitor.visitor_id)}"
+      >Start Chat</button>
+    </div>
+  `;
+}
+
+async function startVisitorChat(visitorId,button){
+  if(!visitorId || !button){
+    return;
+  }
+
+  const originalText = button.textContent;
+  button.disabled = true;
+  button.textContent = "Starting…";
+
+  try{
+    const {data,error} = await sb.rpc("start_live_visitor_chat",{
+      p_visitor_id:visitorId
+    });
+
+    if(error){
+      throw error;
+    }
+
+    const threadId = Number(data);
+
+    if(!Number.isFinite(threadId) || threadId <= 0){
+      throw new Error("Live chat thread was not created.");
+    }
+
+    const visitor = latestVisitors.find(function(item){
+      return String(item.visitor_id) === String(visitorId);
+    });
+
+    if(visitor){
+      visitor.message_thread_id = threadId;
+      visitor.chat_status = "active";
+      visitor.chat_started_at = new Date().toISOString();
+    }
+
+    renderVisitors(latestVisitors);
+  }catch(error){
+    console.error("Live chat could not be started",error);
+    button.disabled = false;
+    button.textContent = originalText;
+    alert("Could not start live chat: " + (error?.message || String(error)));
+  }
+}
+
 function renderVisitors(visitors){
   const list = document.getElementById("visitorList");
   const subtitle = document.getElementById("visitorListSubtitle");
@@ -640,9 +750,20 @@ function renderVisitors(visitors){
           <div>⏱ <strong>${escapeHtml(formatDuration(visitor.session_started_at || visitor.first_seen_at))}</strong></div>
           <div>🟢 <strong>${escapeHtml(formatLastSeen(visitor.last_seen_at))}</strong></div>
         </div>
+
+        <div class="chat-link-status">💬 <strong>${escapeHtml(chatLinkText(visitor))}</strong></div>
+        ${chatActionHtml(visitor)}
       </div>
     `;
   }).join("");
+
+  list.querySelectorAll("[data-start-chat]").forEach(function(button){
+    button.addEventListener("click",function(event){
+      event.preventDefault();
+      event.stopPropagation();
+      startVisitorChat(button.getAttribute("data-start-chat"),button);
+    });
+  });
 
   list.querySelectorAll(".visitor-card").forEach(function(card){
     card.addEventListener("click",function(){
@@ -703,10 +824,12 @@ async function loadLiveVisitors(){
 
     const [
       visitorsResult,
-      summaryResult
+      summaryResult,
+      chatLinksResult
     ] = await Promise.all([
       sb.rpc("get_live_visitors"),
-      sb.rpc("get_visitor_summary")
+      sb.rpc("get_visitor_summary"),
+      sb.rpc("get_live_visitor_chat_links")
     ]);
 
     if(visitorsResult.error){
@@ -717,7 +840,26 @@ async function loadLiveVisitors(){
       throw summaryResult.error;
     }
 
-    latestVisitors = visitorsResult.data || [];
+    if(chatLinksResult.error){
+      throw chatLinksResult.error;
+    }
+
+    const chatLinks = new Map(
+      (chatLinksResult.data || []).map(function(row){
+        return [String(row.visitor_id),row];
+      })
+    );
+
+    latestVisitors = (visitorsResult.data || []).map(function(visitor){
+      const chat = chatLinks.get(String(visitor.visitor_id)) || {};
+
+      return Object.assign({},visitor,{
+        message_thread_id:chat.message_thread_id ?? null,
+        chat_status:chat.chat_status || "none",
+        chat_requested_at:chat.chat_requested_at || null,
+        chat_started_at:chat.chat_started_at || null
+      });
+    });
 
     const summary = normaliseSummary(summaryResult.data);
 
