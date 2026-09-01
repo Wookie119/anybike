@@ -613,6 +613,64 @@ Standalone anonymous Live Chat.
       }
 
 
+      /* REPLY AREA */
+
+      .ab-chat-reply{
+        flex:0 0 auto;
+        display:flex;
+        align-items:flex-end;
+        gap:10px;
+        padding:12px;
+        background:#090909;
+        border-top:1px solid rgba(255,255,255,.10);
+      }
+
+      #ab-chat-text{
+        flex:1;
+        min-height:48px;
+        max-height:110px;
+        box-sizing:border-box;
+        resize:none;
+        padding:12px 13px;
+        border:1px solid rgba(255,255,255,.16);
+        border-radius:10px;
+        outline:none;
+        background:#1b1b1b;
+        color:#fff;
+        font-family:Arial,Helvetica,sans-serif;
+        font-size:15px;
+        line-height:1.4;
+      }
+
+      #ab-chat-text::placeholder{
+        color:#929292;
+      }
+
+      #ab-chat-text:focus{
+        border-color:rgba(237,28,36,.8);
+      }
+
+      .ab-chat-send{
+        flex:0 0 auto;
+        min-width:72px;
+        min-height:48px;
+        padding:10px 15px;
+        border:0;
+        border-radius:10px;
+        background:#ed1c24;
+        color:#fff;
+        font-family:Arial,Helvetica,sans-serif;
+        font-size:14px;
+        font-weight:700;
+        cursor:pointer;
+      }
+
+      .ab-chat-send:disabled{
+        opacity:.65;
+        cursor:default;
+      }
+
+
       .ab-chat-ended{
   flex:0 0 auto;
   padding:18px 16px;
