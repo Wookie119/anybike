@@ -1365,6 +1365,15 @@ document.addEventListener("visibilitychange",function(){
   }
 
   function renderLiveChatInvitation(thread){
+    const path = String(window.location.pathname || "").toLowerCase();
+
+    // The customer is already inside their conversation on My Messages,
+    // so do not show a redundant Live Chat invitation on that page.
+    if(path.endsWith("/customer-messages.html")){
+      removeLiveChatInvitation();
+      return;
+    }
+
     const threadId = Number(thread?.id);
 
     if(!threadId){
