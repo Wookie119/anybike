@@ -320,6 +320,123 @@ body{
 
 .message-thread-link:hover{color:#ff5a60}
 
+
+.history-card{
+  margin-top:18px;
+}
+
+.history-toolbar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:12px;
+}
+
+.history-count{
+  color:#aaa;
+  font-size:12px;
+  font-weight:800;
+}
+
+.history-list{
+  display:grid;
+  gap:9px;
+}
+
+.history-row{
+  display:grid;
+  grid-template-columns:90px minmax(180px,1.3fr) 110px 150px 90px 110px minmax(180px,1.2fr) 150px;
+  gap:12px;
+  align-items:center;
+  padding:12px 13px;
+  border:1px solid rgba(255,255,255,.09);
+  border-radius:12px;
+  background:#151515;
+}
+
+.history-row.history-head{
+  background:#0d0d0d;
+  color:#888;
+  font-size:10px;
+  font-weight:950;
+  letter-spacing:.04em;
+  text-transform:uppercase;
+}
+
+.history-cell{
+  min-width:0;
+  color:#ccc;
+  font-size:11px;
+  line-height:1.35;
+  word-break:break-word;
+}
+
+.history-cell strong{
+  color:#fff;
+}
+
+.history-offline{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  color:#aaa;
+}
+
+.history-offline-dot{
+  width:7px;
+  height:7px;
+  border-radius:50%;
+  background:#666;
+}
+
+.history-live{
+  color:#66e58c;
+  font-weight:900;
+}
+
+@media(max-width:1250px){
+  .history-row{
+    grid-template-columns:80px 1.4fr 100px 130px 80px 100px 1.2fr;
+  }
+  .history-chat-col{
+    display:none;
+  }
+}
+
+@media(max-width:850px){
+  .history-row,
+  .history-row.history-head{
+    grid-template-columns:1fr 1fr;
+  }
+
+  .history-row.history-head{
+    display:none;
+  }
+
+  .history-cell::before{
+    display:block;
+    margin-bottom:3px;
+    color:#777;
+    font-size:9px;
+    font-weight:900;
+    text-transform:uppercase;
+  }
+
+  .history-time::before{content:"Last seen"}
+  .history-location::before{content:"Location"}
+  .history-user::before{content:"Visitor"}
+  .history-device::before{content:"Device"}
+  .history-pages::before{content:"Pages"}
+  .history-duration::before{content:"Time on site"}
+  .history-page::before{content:"Last page"}
+  .history-chat-col::before{content:"Chat"}
+
+  .history-chat-col{
+    display:block;
+  }
+}
+
 @media(max-width:1050px){
   .live-layout{grid-template-columns:1fr}
   #liveMap{height:420px}
@@ -453,6 +570,25 @@ body{
       </div>
     </section>
 
+
+
+
+    <section class="card history-card">
+      <div class="history-toolbar">
+        <div>
+          <h2 style="margin:0 0 5px;font-size:21px;">Visitors Today</h2>
+          <div class="subtitle">
+            Visitors seen today, including people who are no longer online.
+          </div>
+        </div>
+        <div class="history-count" id="historyCount">Loading…</div>
+      </div>
+
+      <div class="history-list" id="visitorHistory">
+        <div class="empty-state">Loading today’s visitor history…</div>
+      </div>
+    </section>
+
     <section class="live-layout">
 
       <div class="card">
@@ -553,6 +689,63 @@ function formatLastSeen(value){
   if(seconds < 60) return seconds + " sec ago";
 
   return Math.floor(seconds / 60) + " min ago";
+}
+
+
+function formatClockTime(value){
+  const date = new Date(value);
+
+  if(!Number.isFinite(date.getTime())){
+    return "—";
+  }
+
+  return date.toLocaleTimeString("en-GB",{
+    hour:"2-digit",
+    minute:"2-digit"
+  });
+}
+
+function formatVisitDuration(visitor){
+  const start = new Date(
+    visitor.session_started_at ||
+    visitor.first_seen_at
+  ).getTime();
+
+  const end = new Date(
+    visitor.last_seen_at ||
+    visitor.first_seen_at
+  ).getTime();
+
+  if(!Number.isFinite(start) || !Number.isFinite(end)){
+    return "—";
+  }
+
+  const seconds = Math.max(0,Math.floor((end - start) / 1000));
+
+  if(seconds < 60){
+    return seconds + " sec";
+  }
+
+  const minutes = Math.floor(seconds / 60);
+
+  if(minutes < 60){
+    return minutes + " min";
+  }
+
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+
+  return hours + "h " + remainingMinutes + "m";
+}
+
+function visitorWasRecentlyOnline(visitor){
+  const lastSeen = new Date(visitor.last_seen_at).getTime();
+
+  if(!Number.isFinite(lastSeen)){
+    return false;
+  }
+
+  return (Date.now() - lastSeen) <= 90000;
 }
 
 function locationText(visitor){
@@ -801,6 +994,117 @@ function renderVisitors(visitors){
   });
 }
 
+
+function renderVisitorHistory(visitors){
+  const box = document.getElementById("visitorHistory");
+  const count = document.getElementById("historyCount");
+
+  const rows = Array.isArray(visitors) ? visitors : [];
+
+  count.textContent =
+    rows.length === 1
+      ? "1 visitor today"
+      : rows.length + " visitors today";
+
+  if(!rows.length){
+    box.innerHTML =
+      '<div class="empty-state">No visitor history recorded today.</div>';
+    return;
+  }
+
+  const header = `
+    <div class="history-row history-head">
+      <div>Last seen</div>
+      <div>Location</div>
+      <div>Visitor</div>
+      <div>Device</div>
+      <div>Pages</div>
+      <div>Time on site</div>
+      <div>Last page</div>
+      <div class="history-chat-col">Chat</div>
+    </div>
+  `;
+
+  const body = rows.map(function(visitor){
+    const linkedUser = visitor.user_id ? "Logged in" : "Guest";
+    const isLive = visitorWasRecentlyOnline(visitor);
+
+    const liveLabel = isLive
+      ? '<span class="history-live">● LIVE</span>'
+      : '<span class="history-offline"><span class="history-offline-dot"></span>Left</span>';
+
+    const chat = visitor.message_thread_id
+      ? `<a class="message-thread-link" href="admin-message-centre.html?thread=${Number(visitor.message_thread_id)}">Thread #${Number(visitor.message_thread_id)}</a>`
+      : "—";
+
+    return `
+      <div class="history-row">
+        <div class="history-cell history-time">
+          <strong>${escapeHtml(formatClockTime(visitor.last_seen_at))}</strong><br>
+          ${liveLabel}
+        </div>
+
+        <div class="history-cell history-location">
+          <strong>${escapeHtml(locationText(visitor))}</strong>
+        </div>
+
+        <div class="history-cell history-user">
+          <strong>${escapeHtml(linkedUser)}</strong>
+        </div>
+
+        <div class="history-cell history-device">
+          <strong>${escapeHtml(visitor.device_type || "—")}</strong><br>
+          ${escapeHtml(visitor.browser || "—")}
+        </div>
+
+        <div class="history-cell history-pages">
+          <strong>${Number(visitor.pageviews) || 0}</strong>
+        </div>
+
+        <div class="history-cell history-duration">
+          <strong>${escapeHtml(formatVisitDuration(visitor))}</strong>
+        </div>
+
+        <div class="history-cell history-page">
+          <strong>${escapeHtml(displayTitle(visitor))}</strong><br>
+          ${escapeHtml(displayPath(visitor))}
+        </div>
+
+        <div class="history-cell history-chat-col">
+          ${chat}
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  box.innerHTML = header + body;
+}
+
+async function loadVisitorHistory(){
+  const box = document.getElementById("visitorHistory");
+  const count = document.getElementById("historyCount");
+
+  try{
+    const {data,error} = await sb.rpc("get_visitors_today");
+
+    if(error){
+      throw error;
+    }
+
+    renderVisitorHistory(data || []);
+
+  }catch(error){
+    console.error("Visitor history could not be loaded",error);
+
+    count.textContent = "Unavailable";
+    box.innerHTML =
+      '<div class="error-state">' +
+      'Today’s visitor history could not be loaded.<br><br>' +
+      escapeHtml(error?.message || String(error)) +
+      '</div>';
+  }
+}
+
 function normaliseSummary(data){
   if(Array.isArray(data)){
     return data[0] || {};
@@ -891,6 +1195,7 @@ async function loadLiveVisitors(){
 
     renderVisitors(latestVisitors);
     renderMap(latestVisitors);
+    loadVisitorHistory();
 
     status.textContent =
       "Updated " +
