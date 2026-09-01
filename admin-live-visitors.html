@@ -577,7 +577,7 @@ body{
           <div>
             <h2>🌍 Live Visitor Map</h2>
             <div class="subtitle">
-              Red markers show approximate visitor locations based on their public IP address.
+              Green markers are visitors currently live. Red markers are visitors seen today who have left.
             </div>
           </div>
         </div>
@@ -785,28 +785,40 @@ function initMap(){
   },150);
 }
 
-function markerIcon(){
+function markerIcon(isLive){
+  const colour = isLive ? "#33cc66" : "#ed1c24";
+  const glow = isLive
+    ? "rgba(51,204,102,.22)"
+    : "rgba(237,28,36,.18)";
+
   return L.divIcon({
     className:"",
     html:
       '<div style="' +
       'width:18px;height:18px;border-radius:50%;' +
-      'background:#ed1c24;border:3px solid #fff;' +
-      'box-shadow:0 0 0 5px rgba(237,28,36,.18),0 3px 14px rgba(0,0,0,.55);' +
+      'background:' + colour + ';border:3px solid #fff;' +
+      'box-shadow:0 0 0 5px ' + glow + ',0 3px 14px rgba(0,0,0,.55);' +
       '"></div>',
     iconSize:[18,18],
     iconAnchor:[9,9]
   });
 }
 
-function markerPopup(visitor){
+function markerPopup(visitor,isLive){
+  const statusHtml = isLive
+    ? '<div class="map-popup-row" style="color:#66e58c;font-weight:900;"><strong>● LIVE NOW</strong></div>'
+    : '<div class="map-popup-row" style="color:#ff6b70;font-weight:900;"><strong>● LEFT — last seen ' +
+      escapeHtml(formatClockTime(visitor.last_seen_at)) +
+      '</strong></div>';
+
   return `
     <div class="map-popup-title">${escapeHtml(displayTitle(visitor))}</div>
+    ${statusHtml}
     <div class="map-popup-row"><strong>Page:</strong> ${escapeHtml(displayPath(visitor))}</div>
     <div class="map-popup-row"><strong>Location:</strong> ${escapeHtml(locationText(visitor))}</div>
     <div class="map-popup-row"><strong>Device:</strong> ${escapeHtml(visitor.device_type || "—")} · ${escapeHtml(visitor.browser || "—")}</div>
     <div class="map-popup-row"><strong>Pages:</strong> ${Number(visitor.pageviews) || 0}</div>
-    <div class="map-popup-row"><strong>On site:</strong> ${escapeHtml(formatDuration(visitor.session_started_at || visitor.first_seen_at))}</div>
+    <div class="map-popup-row"><strong>Time on site:</strong> ${escapeHtml(isLive ? formatDuration(visitor.session_started_at || visitor.first_seen_at) : formatVisitDuration(visitor))}</div>
   `;
 }
 
@@ -818,6 +830,11 @@ function renderMap(visitors){
   visitorMarkers.clear();
 
   const bounds = [];
+  const liveIds = new Set(
+    latestVisitors.map(function(visitor){
+      return String(visitor.visitor_id);
+    })
+  );
 
   visitors.forEach(function(visitor){
     const lat = Number(visitor.latitude);
@@ -827,12 +844,14 @@ function renderMap(visitors){
       return;
     }
 
+    const isLive = liveIds.has(String(visitor.visitor_id));
+
     const marker = L.marker(
       [lat,lng],
-      {icon:markerIcon()}
+      {icon:markerIcon(isLive)}
     )
       .addTo(liveMap)
-      .bindPopup(markerPopup(visitor));
+      .bindPopup(markerPopup(visitor,isLive));
 
     visitorMarkers.set(String(visitor.visitor_id),marker);
     bounds.push([lat,lng]);
@@ -1093,7 +1112,9 @@ async function loadVisitorHistory(){
       throw error;
     }
 
-    renderVisitorHistory(data || []);
+    const todayVisitors = data || [];
+    renderVisitorHistory(todayVisitors);
+    renderMap(todayVisitors);
 
   }catch(error){
     console.error("Visitor history could not be loaded",error);
@@ -1196,7 +1217,6 @@ async function loadLiveVisitors(){
       Number(summary.countries_today ?? 0) || 0;
 
     renderVisitors(latestVisitors);
-    renderMap(latestVisitors);
     loadVisitorHistory();
 
     status.textContent =
