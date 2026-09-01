@@ -614,133 +614,77 @@ Standalone anonymous Live Chat.
 
 
       .ab-chat-ended{
+  flex:0 0 auto;
+  padding:18px 16px;
 
-        flex:0 0 auto;
+  background:#181818;
 
-        padding:12px 15px;
+  border-top:
+    1px solid
+    rgba(255,255,255,.10);
 
-        background:#181818;
+  color:#ddd;
 
-        border-top:
-          1px solid
-          rgba(255,255,255,.10);
+  font-size:15px;
+  line-height:1.5;
+}
 
-        color:#ccc;
+.ab-chat-ended-title{
+  margin-bottom:8px;
 
-        font-size:12px;
-        line-height:1.45;
-      }
+  color:#fff;
 
+  font-size:18px;
+  line-height:1.3;
+  font-weight:700;
+}
 
-      .ab-chat-ended strong{
-        color:#fff;
-      }
+.ab-chat-ended-copy{
+  margin-bottom:16px;
 
+  color:#ddd;
 
-      .ab-chat-reply{
+  font-size:15px;
+  line-height:1.5;
+}
 
-        flex:0 0 auto;
+.ab-chat-ended-primary{
+  display:flex;
+  align-items:center;
+  justify-content:center;
 
-        display:flex;
-        gap:8px;
+  width:100%;
+  box-sizing:border-box;
 
-        padding:12px;
+  min-height:46px;
+  padding:11px 16px;
 
-        background:#0b0b0b;
+  border-radius:9px;
 
-        border-top:
-          1px solid
-          rgba(255,255,255,.10);
-      }
+  background:#ed1c24;
+  color:#fff;
 
+  font-size:15px;
+  font-weight:700;
+  text-decoration:none;
+}
 
-      .ab-chat-reply textarea{
+.ab-chat-ended-secondary{
+  display:block;
 
-        flex:1;
+  margin-top:13px;
 
-        min-width:0;
-        height:42px;
-        max-height:100px;
+  color:#ddd;
 
-        resize:none;
+  font-size:14px;
+  line-height:1.4;
+  text-align:center;
+  text-decoration:none;
+}
 
-        box-sizing:border-box;
-
-        padding:10px 11px;
-
-        border:
-          1px solid
-          rgba(255,255,255,.14);
-
-        border-radius:9px;
-
-        outline:none;
-
-        background:#181818;
-        color:#fff;
-
-        font-family:inherit;
-        font-size:13px;
-      }
-
-
-      .ab-chat-reply textarea:focus{
-        border-color:#ed1c24;
-      }
-
-
-      .ab-chat-send{
-
-        width:68px;
-
-        border:0;
-        border-radius:9px;
-
-        background:#ed1c24;
-        color:#fff;
-
-        font-weight:700;
-
-        cursor:pointer;
-      }
-
-
-      .ab-chat-send:disabled{
-        opacity:.55;
-        cursor:default;
-      }
-
-
-      @media(max-width:600px){
-
-        #anybike-live-chat-invite{
-
-          left:16px;
-          right:16px;
-          bottom:16px;
-
-          width:auto;
-        }
-
-
-        #anybike-live-chat-panel{
-
-          left:10px;
-          right:10px;
-          bottom:10px;
-
-          width:auto;
-
-          height:
-            calc(100vh - 20px);
-
-          max-height:
-            calc(100vh - 20px);
-        }
-
-      }
-
-    `;
+.ab-chat-ended-secondary:hover{
+  color:#fff;
+}
 
     document.head.appendChild(style);
   }
