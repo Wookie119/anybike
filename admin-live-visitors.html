@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Live Visitors | AnyBike Admin</title>
+<meta name="robots" content="noindex,nofollow">
+
+<link rel="stylesheet" href="admin-shell.css?v=12001">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<style>
+:root{
+  --red:#ed1c24;
+  --panel:#111;
+  --panel2:#181818;
+  --line:rgba(255,255,255,.12);
+  --muted:#aaa;
+  --green:#33cc66;
+}
+
+*{box-sizing:border-box}
+
+body{
+  margin:0;
+  font-family:Arial,Helvetica,sans-serif;
+  background:
+    radial-gradient(circle at top left,rgba(237,28,36,.18),transparent 34%),
+    linear-gradient(120deg,#050505,#101010 60%,#050505);
+  color:#fff;
+}
+
+.admin-main{min-width:0}
+.admin-page-content{padding:24px}
+
+.page-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:18px;
+  margin-bottom:18px;
+}
+
+.page-head h1{
+  margin:0 0 6px;
+  font-size:34px;
+}
+
+.subtitle{
+  color:var(--muted);
+  font-size:13px;
+  line-height:1.45;
+}
+
+.refresh-status{
+  text-align:right;
+  color:#aaa;
+  font-size:12px;
+  font-weight:800;
+}
+
+.kpi-grid{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(180px,1fr));
+  gap:12px;
+  margin-bottom:18px;
+}
+
+.card{
+  background:rgba(17,17,17,.96);
+  border:1px solid var(--line);
+  border-radius:16px;
+  padding:16px;
+  box-shadow:0 18px 42px rgba(0,0,0,.22);
+}
+
+.kpi-card{
+  min-height:112px;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+}
+
+.kpi-label{
+  color:#aaa;
+  font-size:12px;
+  font-weight:900;
+  letter-spacing:.04em;
+  text-transform:uppercase;
+  margin-bottom:8px;
+}
+
+.kpi-value{
+  font-size:32px;
+  font-weight:950;
+  color:var(--red);
+  line-height:1;
+}
+
+.live-layout{
+  display:grid;
+  grid-template-columns:minmax(0,1.55fr) minmax(360px,.75fr);
+  gap:18px;
+  align-items:start;
+}
+
+.section-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:12px;
+  margin-bottom:12px;
+}
+
+.section-head h2{
+  margin:0 0 5px;
+  font-size:21px;
+}
+
+#liveMap{
+  width:100%;
+  height:520px;
+  border-radius:13px;
+  overflow:hidden;
+  background:#0a0a0a;
+  border:1px solid rgba(255,255,255,.10);
+}
+
+.leaflet-container{
+  background:#0a0a0a;
+  font-family:Arial,Helvetica,sans-serif;
+}
+
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip{
+  background:#111;
+  color:#fff;
+}
+
+.leaflet-popup-content{
+  margin:12px 14px;
+  min-width:220px;
+}
+
+.map-popup-title{
+  font-weight:950;
+  margin-bottom:6px;
+}
+
+.map-popup-row{
+  color:#ccc;
+  font-size:12px;
+  line-height:1.5;
+  word-break:break-word;
+}
+
+.visitor-list{
+  display:grid;
+  gap:10px;
+  max-height:720px;
+  overflow:auto;
+  padding-right:3px;
+}
+
+.visitor-list::-webkit-scrollbar{width:6px}
+.visitor-list::-webkit-scrollbar-thumb{background:#333;border-radius:999px}
+
+.visitor-card{
+  background:#151515;
+  border:1px solid rgba(255,255,255,.10);
+  border-left:4px solid var(--red);
+  border-radius:13px;
+  padding:13px;
+  cursor:pointer;
+  transition:.15s ease;
+}
+
+.visitor-card:hover{
+  background:#1b1b1b;
+  border-color:rgba(237,28,36,.55);
+  transform:translateY(-1px);
+}
+
+.visitor-card.active{
+  border-color:var(--red);
+  box-shadow:0 0 0 1px rgba(237,28,36,.22);
+}
+
+.visitor-top{
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  align-items:flex-start;
+  margin-bottom:7px;
+}
+
+.visitor-title{
+  font-weight:950;
+  line-height:1.3;
+}
+
+.live-pill{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  white-space:nowrap;
+  background:rgba(51,204,102,.12);
+  color:#66e58c;
+  border:1px solid rgba(51,204,102,.35);
+  border-radius:999px;
+  padding:5px 8px;
+  font-size:10px;
+  font-weight:950;
+}
+
+.live-dot{
+  width:7px;
+  height:7px;
+  border-radius:50%;
+  background:#33cc66;
+  box-shadow:0 0 10px rgba(51,204,102,.8);
+}
+
+.visitor-path{
+  color:#fff;
+  font-size:12px;
+  font-weight:850;
+  margin-bottom:8px;
+  word-break:break-word;
+}
+
+.visitor-meta{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:5px 10px;
+  color:#aaa;
+  font-size:11px;
+  line-height:1.35;
+}
+
+.visitor-meta strong{
+  color:#ddd;
+  font-weight:900;
+}
+
+.empty-state,
+.error-state{
+  padding:30px 16px;
+  text-align:center;
+  color:#999;
+  border:1px dashed rgba(255,255,255,.14);
+  border-radius:12px;
+}
+
+.error-state{
+  color:#ff8c90;
+  border-color:rgba(237,28,36,.30);
+}
+
+.map-note{
+  margin-top:9px;
+  color:#777;
+  font-size:11px;
+  line-height:1.45;
+}
+
+.admin-menu a.live-visitors-link{
+  background:#ed1c24;
+  border-color:#ed1c24;
+}
+
+@media(max-width:1050px){
+  .live-layout{grid-template-columns:1fr}
+  #liveMap{height:420px}
+}
+
+@media(max-width:700px){
+  .admin-page-content{padding:16px}
+  .page-head{flex-direction:column}
+  .refresh-status{text-align:left}
+  .kpi-grid{grid-template-columns:1fr}
+  #liveMap{height:360px}
+  .visitor-meta{grid-template-columns:1fr}
+}
+</style>
+</head>
+
+<body>
+
+<div class="admin-shell">
+
+<aside id="adminSidebar" class="admin-sidebar">
+  <div class="admin-logo">
+    <img src="anybike-logo-new.jpg" alt="AnyBike">
+  </div>
+
+  <nav class="admin-menu">
+    <a href="admin-dashboard.html">
+      <span class="menu-icon">🏠</span>
+      <span class="menu-text">Admin HQ</span>
+    </a>
+
+    <a href="admin-enquiries.html">
+      <span class="menu-icon">🏍</span>
+      <span class="menu-text">Bike Sales HQ</span>
+    </a>
+
+    <a href="admin-message-centre.html">
+      <span class="menu-icon">💬</span>
+      <span class="menu-text">Message Centre</span>
+    </a>
+
+    <a href="admin-live-visitors.html" class="live-visitors-link">
+      <span class="menu-icon">📍</span>
+      <span class="menu-text">Live Visitors</span>
+    </a>
+
+    <a href="admin-global-buyer-network.html">
+      <span class="menu-icon">🌍</span>
+      <span class="menu-text">Global Buyer Network</span>
+    </a>
+
+    <a href="admin-customers.html">
+      <span class="menu-icon">👥</span>
+      <span class="menu-text">Customers</span>
+    </a>
+
+    <a href="admin-stock.html">
+      <span class="menu-icon">📦</span>
+      <span class="menu-text">Stock HQ</span>
+    </a>
+
+    <a href="admin-stock-import.html">
+      <span class="menu-icon">⬆️</span>
+      <span class="menu-text">Stock Import</span>
+    </a>
+
+    <a href="admin-logistics.html">
+      <span class="menu-icon">🚚</span>
+      <span class="menu-text">Logistics HQ</span>
+    </a>
+
+    <a href="admin-market-intelligence.html">
+      <span class="menu-icon">📊</span>
+      <span class="menu-text">Market Intelligence</span>
+    </a>
+
+    <a href="admin-reports.html">
+      <span class="menu-icon">📈</span>
+      <span class="menu-text">Reports</span>
+    </a>
+
+    <a href="admin-platform-audit.html">
+      <span class="menu-icon">🧪</span>
+      <span class="menu-text">Mission Control</span>
+    </a>
+
+    <a href="admin-administration.html">
+      <span class="menu-icon">⚙️</span>
+      <span class="menu-text">Administration</span>
+    </a>
+  </nav>
+
+  <div class="public-links">
+    <a href="index.html" target="_blank">Public Home</a>
+    <a href="available-stock.html" target="_blank">Public Stock</a>
+  </div>
+</aside>
+
+<div class="admin-main">
+  <div id="adminTopbar"></div>
+
+  <main class="admin-page-content">
+
+    <div class="page-head">
+      <div>
+        <h1>Live Visitors</h1>
+        <div class="subtitle">
+          See visitors currently browsing AnyBike, their approximate location and the page they are viewing.
+        </div>
+      </div>
+
+      <div class="refresh-status" id="refreshStatus">
+        Loading…
+      </div>
+    </div>
+
+    <section class="kpi-grid">
+      <div class="card kpi-card">
+        <div class="kpi-label">Live Now</div>
+        <div class="kpi-value" id="liveNow">0</div>
+      </div>
+
+      <div class="card kpi-card">
+        <div class="kpi-label">Visitors Today</div>
+        <div class="kpi-value" id="visitorsToday">0</div>
+      </div>
+
+      <div class="card kpi-card">
+        <div class="kpi-label">Countries Today</div>
+        <div class="kpi-value" id="countriesToday">0</div>
+      </div>
+    </section>
+
+    <section class="live-layout">
+
+      <div class="card">
+        <div class="section-head">
+          <div>
+            <h2>🌍 Live Visitor Map</h2>
+            <div class="subtitle">
+              Red markers show approximate visitor locations based on their public IP address.
+            </div>
+          </div>
+        </div>
+
+        <div id="liveMap"></div>
+
+        <div class="map-note">
+          Location is approximate and may represent the visitor's town, ISP gateway or VPN location. It is not GPS tracking.
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-head">
+          <div>
+            <h2>Visitors Online</h2>
+            <div class="subtitle" id="visitorListSubtitle">Loading current visitors…</div>
+          </div>
+        </div>
+
+        <div class="visitor-list" id="visitorList">
+          <div class="empty-state">Loading…</div>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+</div>
+
+</div>
+
+<script src="admin.js?v=12000"></script>
+
+<script>
+const SUPABASE_URL = "https://tuehtnezhdnkqbbhttgp.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let liveMap = null;
+let visitorMarkers = new Map();
+let latestVisitors = [];
+
+function escapeHtml(value){
+  return String(value ?? "").replace(/[&<>"']/g,function(char){
+    return {
+      "&":"&amp;",
+      "<":"&lt;",
+      ">":"&gt;",
+      '"':"&quot;",
+      "'":"&#39;"
+    }[char];
+  });
+}
+
+function formatDuration(startedAt){
+  const started = new Date(startedAt).getTime();
+
+  if(!Number.isFinite(started)){
+    return "—";
+  }
+
+  const seconds = Math.max(0,Math.floor((Date.now() - started) / 1000));
+
+  if(seconds < 60){
+    return seconds + " sec";
+  }
+
+  const minutes = Math.floor(seconds / 60);
+
+  if(minutes < 60){
+    return minutes + " min";
+  }
+
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+
+  return hours + "h " + remainingMinutes + "m";
+}
+
+function formatLastSeen(value){
+  const time = new Date(value).getTime();
+
+  if(!Number.isFinite(time)){
+    return "—";
+  }
+
+  const seconds = Math.max(0,Math.floor((Date.now() - time) / 1000));
+
+  if(seconds < 10) return "Now";
+  if(seconds < 60) return seconds + " sec ago";
+
+  return Math.floor(seconds / 60) + " min ago";
+}
+
+function locationText(visitor){
+  return [
+    visitor.city,
+    visitor.region,
+    visitor.country
+  ].filter(Boolean).join(", ") || "Location unavailable";
+}
+
+function displayPath(visitor){
+  return visitor.current_path || "/";
+}
+
+function displayTitle(visitor){
+  return visitor.page_title || displayPath(visitor);
+}
+
+function initMap(){
+  liveMap = L.map("liveMap",{
+    worldCopyJump:true,
+    minZoom:2
+  }).setView([22,0],2);
+
+  L.tileLayer(
+    "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    {
+      maxZoom:18,
+      attribution:"&copy; OpenStreetMap contributors"
+    }
+  ).addTo(liveMap);
+
+  setTimeout(function(){
+    liveMap.invalidateSize();
+  },150);
+}
+
+function markerIcon(){
+  return L.divIcon({
+    className:"",
+    html:
+      '<div style="' +
+      'width:18px;height:18px;border-radius:50%;' +
+      'background:#ed1c24;border:3px solid #fff;' +
+      'box-shadow:0 0 0 5px rgba(237,28,36,.18),0 3px 14px rgba(0,0,0,.55);' +
+      '"></div>',
+    iconSize:[18,18],
+    iconAnchor:[9,9]
+  });
+}
+
+function markerPopup(visitor){
+  return `
+    <div class="map-popup-title">${escapeHtml(displayTitle(visitor))}</div>
+    <div class="map-popup-row"><strong>Page:</strong> ${escapeHtml(displayPath(visitor))}</div>
+    <div class="map-popup-row"><strong>Location:</strong> ${escapeHtml(locationText(visitor))}</div>
+    <div class="map-popup-row"><strong>Device:</strong> ${escapeHtml(visitor.device_type || "—")} · ${escapeHtml(visitor.browser || "—")}</div>
+    <div class="map-popup-row"><strong>Pages:</strong> ${Number(visitor.pageviews) || 0}</div>
+    <div class="map-popup-row"><strong>On site:</strong> ${escapeHtml(formatDuration(visitor.session_started_at || visitor.first_seen_at))}</div>
+  `;
+}
+
+function renderMap(visitors){
+  visitorMarkers.forEach(function(marker){
+    marker.remove();
+  });
+
+  visitorMarkers.clear();
+
+  const bounds = [];
+
+  visitors.forEach(function(visitor){
+    const lat = Number(visitor.latitude);
+    const lng = Number(visitor.longitude);
+
+    if(!Number.isFinite(lat) || !Number.isFinite(lng)){
+      return;
+    }
+
+    const marker = L.marker(
+      [lat,lng],
+      {icon:markerIcon()}
+    )
+      .addTo(liveMap)
+      .bindPopup(markerPopup(visitor));
+
+    visitorMarkers.set(String(visitor.visitor_id),marker);
+    bounds.push([lat,lng]);
+  });
+
+  if(bounds.length === 1){
+    liveMap.setView(bounds[0],6);
+  }else if(bounds.length > 1){
+    liveMap.fitBounds(bounds,{padding:[35,35],maxZoom:6});
+  }else{
+    liveMap.setView([22,0],2);
+  }
+}
+
+function renderVisitors(visitors){
+  const list = document.getElementById("visitorList");
+  const subtitle = document.getElementById("visitorListSubtitle");
+
+  subtitle.textContent =
+    visitors.length === 1
+      ? "1 visitor active in the last 90 seconds."
+      : visitors.length + " visitors active in the last 90 seconds.";
+
+  if(!visitors.length){
+    list.innerHTML =
+      '<div class="empty-state">No visitors are online right now.</div>';
+    return;
+  }
+
+  list.innerHTML = visitors.map(function(visitor){
+    const visitorId = escapeHtml(visitor.visitor_id);
+    const linkedUser = visitor.user_id ? "Logged in" : "Guest";
+
+    return `
+      <div class="visitor-card" data-visitor-id="${visitorId}">
+        <div class="visitor-top">
+          <div class="visitor-title">${escapeHtml(displayTitle(visitor))}</div>
+          <div class="live-pill"><span class="live-dot"></span>LIVE</div>
+        </div>
+
+        <div class="visitor-path">${escapeHtml(displayPath(visitor))}</div>
+
+        <div class="visitor-meta">
+          <div>📍 <strong>${escapeHtml(locationText(visitor))}</strong></div>
+          <div>👤 <strong>${escapeHtml(linkedUser)}</strong></div>
+          <div>💻 <strong>${escapeHtml(visitor.device_type || "—")} · ${escapeHtml(visitor.browser || "—")}</strong></div>
+          <div>👁 <strong>${Number(visitor.pageviews) || 0} pages</strong></div>
+          <div>⏱ <strong>${escapeHtml(formatDuration(visitor.session_started_at || visitor.first_seen_at))}</strong></div>
+          <div>🟢 <strong>${escapeHtml(formatLastSeen(visitor.last_seen_at))}</strong></div>
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  list.querySelectorAll(".visitor-card").forEach(function(card){
+    card.addEventListener("click",function(){
+      list.querySelectorAll(".visitor-card").forEach(function(other){
+        other.classList.remove("active");
+      });
+
+      card.classList.add("active");
+
+      const visitorId = card.getAttribute("data-visitor-id");
+      const marker = visitorMarkers.get(String(visitorId));
+
+      if(marker){
+        liveMap.setView(marker.getLatLng(),8);
+        marker.openPopup();
+      }
+    });
+  });
+}
+
+function normaliseSummary(data){
+  if(Array.isArray(data)){
+    return data[0] || {};
+  }
+
+  return data || {};
+}
+
+async function verifyAdminSession(){
+  const {data,error} = await sb.auth.getSession();
+
+  if(error){
+    console.warn("Admin session check failed",error.message);
+  }
+
+  if(!data?.session){
+    const returnUrl =
+      window.location.pathname +
+      window.location.search +
+      window.location.hash;
+
+    window.location.replace(
+      "admin-login.html?return=" +
+      encodeURIComponent(returnUrl)
+    );
+
+    return false;
+  }
+
+  return true;
+}
+
+async function loadLiveVisitors(){
+  const status = document.getElementById("refreshStatus");
+
+  try{
+    status.textContent = "Refreshing…";
+
+    const [
+      visitorsResult,
+      summaryResult
+    ] = await Promise.all([
+      sb.rpc("get_live_visitors"),
+      sb.rpc("get_visitor_summary")
+    ]);
+
+    if(visitorsResult.error){
+      throw visitorsResult.error;
+    }
+
+    if(summaryResult.error){
+      throw summaryResult.error;
+    }
+
+    latestVisitors = visitorsResult.data || [];
+
+    const summary = normaliseSummary(summaryResult.data);
+
+    document.getElementById("liveNow").textContent =
+      Number(summary.live_now ?? latestVisitors.length) || 0;
+
+    document.getElementById("visitorsToday").textContent =
+      Number(summary.today_visitors ?? 0) || 0;
+
+    document.getElementById("countriesToday").textContent =
+      Number(summary.countries_today ?? 0) || 0;
+
+    renderVisitors(latestVisitors);
+    renderMap(latestVisitors);
+
+    status.textContent =
+      "Updated " +
+      new Date().toLocaleTimeString("en-GB",{
+        hour:"2-digit",
+        minute:"2-digit",
+        second:"2-digit"
+      });
+
+  }catch(error){
+    console.error("Live visitors could not be loaded",error);
+
+    status.textContent = "Could not refresh";
+
+    document.getElementById("visitorList").innerHTML =
+      '<div class="error-state">' +
+      'Live visitor data could not be loaded.<br><br>' +
+      escapeHtml(error?.message || String(error)) +
+      '</div>';
+  }
+}
+
+async function startLiveVisitors(){
+  const ok = await verifyAdminSession();
+
+  if(!ok){
+    return;
+  }
+
+  initMap();
+  await loadLiveVisitors();
+
+  setInterval(loadLiveVisitors,10000);
+
+  document.addEventListener("visibilitychange",function(){
+    if(document.visibilityState === "visible"){
+      loadLiveVisitors();
+    }
+  });
+}
+
+if(document.readyState === "loading"){
+  document.addEventListener(
+    "DOMContentLoaded",
+    startLiveVisitors,
+    {once:true}
+  );
+}else{
+  startLiveVisitors();
+}
+</script>
+
+</body>
+</html>
