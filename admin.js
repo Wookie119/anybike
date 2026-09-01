@@ -211,6 +211,45 @@ async function adminLogout(){
   window.location.replace("/admin-login.html");
 }
 
+
+function ensureLiveVisitorsAdminLink(){
+  const menu = document.querySelector(".admin-menu");
+
+  if(!menu){
+    return;
+  }
+
+  const existing = menu.querySelector(
+    'a[href="admin-live-visitors.html"], a[href="/admin-live-visitors.html"]'
+  );
+
+  if(existing){
+    return;
+  }
+
+  const link = document.createElement("a");
+  link.href = "admin-live-visitors.html";
+  link.innerHTML =
+    '<span class="menu-icon">📍</span>' +
+    '<span class="menu-text">Live Visitors</span>';
+
+  const messageCentreLink = Array.from(
+    menu.querySelectorAll("a")
+  ).find(function(item){
+    const href = String(item.getAttribute("href") || "")
+      .split("?")[0]
+      .replace(/^\/+/,"");
+
+    return href === "admin-message-centre.html";
+  });
+
+  if(messageCentreLink){
+    messageCentreLink.insertAdjacentElement("afterend",link);
+  }else{
+    menu.appendChild(link);
+  }
+}
+
 function loadAdminShell(){
 
 fetch("admin-sidebar.html?v=4000")
@@ -224,6 +263,7 @@ return res.text();
   if(sidebar){
     sidebar.innerHTML = html;
     setupAdminFolders();
+    ensureLiveVisitorsAdminLink();
   }
 
   var currentPage = window.location.pathname.split("/").pop() || "admin-dashboard.html";
@@ -305,6 +345,16 @@ return;
 var q = String(search.value || "").trim().toLowerCase();
 
 if(!q){
+  return;
+}
+
+if(
+  q.includes("visitor") ||
+  q.includes("visitors") ||
+  q.includes("live visitor") ||
+  q.includes("website traffic")
+){
+  location.href = "admin-live-visitors.html";
   return;
 }
 
