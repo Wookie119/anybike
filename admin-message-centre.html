@@ -336,6 +336,30 @@ async function openThread(id){
           • Lead: ${safe(getThreadLeadStatus(t))}
         </p>
       </div>
+
+      ${
+        String(t.source_type || "").trim().toLowerCase() === "live chat"
+          ? `
+            <button
+              type="button"
+              id="liveChatToggleButton"
+              class="refresh-btn"
+              onclick="toggleLiveChatActive()"
+              style="${
+                t.live_chat_active
+                  ? "background:#16883f;"
+                  : "background:#b00020;"
+              }"
+            >
+              ${
+                t.live_chat_active
+                  ? "🟢 LIVE CHAT ON — END CHAT"
+                  : "🔴 LIVE CHAT OFF — START CHAT"
+              }
+            </button>
+          `
+          : ""
+      }
     </div>
 
     <div class="section">
@@ -915,6 +939,65 @@ async function refreshSelectedLiveChat(){
     console.warn("Live Chat refresh failed:",error);
   }finally{
     liveChatRefreshRunning = false;
+  }
+}
+
+
+async function toggleLiveChatActive(){
+  if(!selectedThread){
+    return;
+  }
+
+  const isLiveChat =
+    String(selectedThread.source_type || "").trim().toLowerCase() === "live chat";
+
+  if(!isLiveChat){
+    return;
+  }
+
+  const threadId = Number(selectedThread.id);
+  const nextActive = !Boolean(selectedThread.live_chat_active);
+  const button = document.getElementById("liveChatToggleButton");
+
+  if(button){
+    button.disabled = true;
+    button.textContent = nextActive
+      ? "Starting Live Chat..."
+      : "Ending Live Chat...";
+  }
+
+  try{
+    const {data,error} = await sb.rpc(
+      "set_live_chat_active",
+      {
+        p_thread_id:threadId,
+        p_active:nextActive
+      }
+    );
+
+    if(error){
+      throw error;
+    }
+
+    selectedThread.live_chat_active = Boolean(data);
+
+    const row = allThreads.find(function(t){
+      return Number(t.id) === threadId;
+    });
+
+    if(row){
+      row.live_chat_active = Boolean(data);
+    }
+
+    await openThread(threadId);
+
+  }catch(error){
+    console.error("Could not change Live Chat status:",error);
+    alert("Could not change Live Chat status: " + (error?.message || String(error)));
+
+    if(button){
+      button.disabled = false;
+    }
   }
 }
 
