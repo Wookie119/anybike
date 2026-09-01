@@ -710,11 +710,7 @@ Standalone anonymous Live Chat.
       return;
     }
 
-    if(
-      dismissedThreadId === threadId
-    ){
-      return;
-    }
+    removeInvitation();
 
     if(
       document.getElementById(
