@@ -1,17 +1,18 @@
 /*
 AnyBike
 File: live-chat.js
-Version: 2026.09.01-1
+Version: 2026.09.01-2
 
-Purpose
--------
-Standalone public Live Chat invitation.
+Standalone anonymous Live Chat.
 
-- Uses the visitor ID created by public-header.js
-- Creates/restores a secure guest chat token
-- Checks whether AnyBike has started a Live Chat
-- Shows an invitation only when live_chat_active = true
-- Does not alter public-header.js
+- Secure guest token
+- Detects Admin-started chat
+- Shows invitation
+- Opens conversation panel
+- Loads messages
+- Sends guest replies
+- Polls for new messages
+- Detects when Admin ends chat
 */
 
 (function initialiseAnyBikeLiveChat(){
@@ -22,11 +23,21 @@ Standalone public Live Chat invitation.
   const VISITOR_KEY = "anybike_visitor_id";
   const TOKEN_KEY = "anybike_guest_chat_token";
 
-  const POLL_MS = 5000;
+  const STATUS_POLL_MS = 5000;
+  const MESSAGE_POLL_MS = 3000;
 
-  let pollTimer = null;
+  let statusTimer = null;
+  let messageTimer = null;
+
   let requestRunning = false;
+  let messageRequestRunning = false;
+
   let currentThreadId = null;
+  let currentLiveStatus = false;
+  let panelOpen = false;
+  let dismissedThreadId = null;
+
+  let lastMessageSignature = "";
 
 
   /* =========================================================
@@ -66,18 +77,62 @@ Standalone public Live Chat invitation.
 
 
   /* =========================================================
+     HELPERS
+     ========================================================= */
+
+  function escapeHtml(value){
+
+    return String(value ?? "")
+      .replace(/&/g,"&amp;")
+      .replace(/</g,"&lt;")
+      .replace(/>/g,"&gt;")
+      .replace(/"/g,"&quot;")
+      .replace(/'/g,"&#039;");
+  }
+
+
+  function formatTime(value){
+
+    if(!value){
+      return "";
+    }
+
+    try{
+
+      return new Date(value).toLocaleString(
+        "en-GB",
+        {
+          day:"2-digit",
+          month:"short",
+          hour:"2-digit",
+          minute:"2-digit"
+        }
+      );
+
+    }catch(error){
+
+      return "";
+
+    }
+  }
+
+
+  /* =========================================================
      API
      ========================================================= */
 
   async function callGuestChat(payload){
 
-    const response = await fetch(GUEST_CHAT_URL,{
-      method:"POST",
-      headers:{
-        "Content-Type":"application/json"
-      },
-      body:JSON.stringify(payload)
-    });
+    const response = await fetch(
+      GUEST_CHAT_URL,
+      {
+        method:"POST",
+        headers:{
+          "Content-Type":"application/json"
+        },
+        body:JSON.stringify(payload)
+      }
+    );
 
     let data = {};
 
@@ -88,10 +143,12 @@ Standalone public Live Chat invitation.
     }
 
     if(!response.ok){
+
       throw new Error(
         data?.error ||
         "Live Chat request failed"
       );
+
     }
 
     return data;
@@ -117,7 +174,8 @@ Standalone public Live Chat invitation.
       payload.guest_token = existingToken;
     }
 
-    const data = await callGuestChat(payload);
+    const data =
+      await callGuestChat(payload);
 
     if(data?.guest_token){
       saveGuestToken(data.guest_token);
@@ -147,119 +205,66 @@ Standalone public Live Chat invitation.
   }
 
 
-  /* =========================================================
-     INVITATION
-     ========================================================= */
+  async function getMessages(){
 
-  function removeInvitation(){
-
-    const existing =
-      document.getElementById(
-        "anybike-live-chat-invite"
-      );
-
-    if(existing){
-      existing.remove();
-    }
-  }
-
-
-  function createInvitation(threadId){
+    const visitorId = getVisitorId();
+    const guestToken = getGuestToken();
 
     if(
-      document.getElementById(
-        "anybike-live-chat-invite"
-      )
+      !visitorId ||
+      !guestToken ||
+      !currentThreadId
     ){
-      return;
+      return [];
     }
 
-    currentThreadId = threadId || null;
+    const data =
+      await callGuestChat({
+        action:"messages",
+        visitor_id:visitorId,
+        guest_token:guestToken,
+        thread_id:currentThreadId
+      });
 
-    const box = document.createElement("div");
+    if(Array.isArray(data?.messages)){
+      return data.messages;
+    }
 
-    box.id = "anybike-live-chat-invite";
+    if(Array.isArray(data?.data)){
+      return data.data;
+    }
 
-    box.innerHTML = `
-      <button
-        type="button"
-        id="anybike-live-chat-close"
-        aria-label="Close Live Chat invitation"
-      >
-        ×
-      </button>
+    return [];
+  }
 
-      <div class="anybike-live-chat-icon">
-        💬
-      </div>
 
-      <div class="anybike-live-chat-copy">
-        <strong>AnyBike Live Chat</strong>
+  async function sendMessage(message){
 
-        <p>
-          AnyBike is available to chat with you.
-          Would you like to open the conversation?
-        </p>
+    const visitorId = getVisitorId();
+    const guestToken = getGuestToken();
 
-        <button
-          type="button"
-          id="anybike-live-chat-open"
-        >
-          Open Live Chat
-        </button>
-      </div>
-    `;
-
-    document.body.appendChild(box);
-
-    injectStyles();
-
-    document
-      .getElementById("anybike-live-chat-close")
-      ?.addEventListener(
-        "click",
-        function(){
-          box.remove();
-        }
+    if(
+      !visitorId ||
+      !guestToken ||
+      !currentThreadId
+    ){
+      throw new Error(
+        "Live Chat is not connected."
       );
+    }
 
-    document
-      .getElementById("anybike-live-chat-open")
-      ?.addEventListener(
-        "click",
-        function(){
-
-          /*
-          The next stage will replace this with the
-          actual anonymous Live Chat conversation panel.
-
-          For now this confirms the secure invitation
-          reaches the correct guest browser.
-          */
-
-          const button =
-            document.getElementById(
-              "anybike-live-chat-open"
-            );
-
-          if(button){
-            button.textContent =
-              "Live Chat Connected";
-
-            button.disabled = true;
-          }
-
-          console.log(
-            "AnyBike Live Chat opened",
-            currentThreadId
-          );
-        }
-      );
+    return await callGuestChat({
+      action:"send",
+      visitor_id:visitorId,
+      guest_token:guestToken,
+      thread_id:currentThreadId,
+      message:message
+    });
   }
 
 
   /* =========================================================
-     STYLE
+     STYLES
      ========================================================= */
 
   function injectStyles(){
@@ -275,15 +280,33 @@ Standalone public Live Chat invitation.
     const style =
       document.createElement("style");
 
-    style.id = "anybike-live-chat-styles";
+    style.id =
+      "anybike-live-chat-styles";
 
     style.textContent = `
+
+      #anybike-live-chat-invite,
+      #anybike-live-chat-panel{
+        font-family:
+          Arial,
+          Helvetica,
+          sans-serif;
+        box-sizing:border-box;
+      }
+
+
+      /* INVITATION */
+
       #anybike-live-chat-invite{
         position:fixed;
         right:22px;
         bottom:22px;
-        width:min(360px,calc(100vw - 32px));
-        box-sizing:border-box;
+
+        width:min(
+          360px,
+          calc(100vw - 32px)
+        );
+
         z-index:2147483000;
 
         display:flex;
@@ -292,21 +315,22 @@ Standalone public Live Chat invitation.
         padding:18px 18px 17px;
 
         background:#101010;
-        color:#ffffff;
+        color:#fff;
 
-        border:1px solid rgba(255,255,255,.13);
+        border:
+          1px solid
+          rgba(255,255,255,.13);
+
         border-radius:16px;
 
         box-shadow:
-          0 18px 55px rgba(0,0,0,.48);
-
-        font-family:
-          Arial,
-          Helvetica,
-          sans-serif;
+          0 18px 55px
+          rgba(0,0,0,.48);
       }
 
-      #anybike-live-chat-close{
+      #anybike-live-chat-invite
+      .ab-chat-close{
+
         position:absolute;
         top:7px;
         right:10px;
@@ -316,21 +340,16 @@ Standalone public Live Chat invitation.
 
         padding:0;
         border:0;
-        background:transparent;
 
-        color:#a8a8a8;
+        background:transparent;
+        color:#aaa;
 
         font-size:23px;
-        line-height:28px;
-
         cursor:pointer;
       }
 
-      #anybike-live-chat-close:hover{
-        color:#ffffff;
-      }
+      .ab-chat-invite-icon{
 
-      .anybike-live-chat-icon{
         flex:0 0 42px;
 
         width:42px;
@@ -346,24 +365,23 @@ Standalone public Live Chat invitation.
         font-size:21px;
       }
 
-      .anybike-live-chat-copy{
+      .ab-chat-invite-copy{
         flex:1;
         min-width:0;
         padding-right:10px;
       }
 
-      .anybike-live-chat-copy strong{
+      .ab-chat-invite-copy strong{
         display:block;
 
         margin:1px 0 6px;
 
-        color:#ffffff;
-
+        color:#fff;
         font-size:16px;
-        line-height:1.2;
       }
 
-      .anybike-live-chat-copy p{
+      .ab-chat-invite-copy p{
+
         margin:0 0 13px;
 
         color:#d5d5d5;
@@ -372,7 +390,8 @@ Standalone public Live Chat invitation.
         line-height:1.45;
       }
 
-      #anybike-live-chat-open{
+      .ab-chat-red-button{
+
         display:inline-flex;
         align-items:center;
         justify-content:center;
@@ -385,7 +404,7 @@ Standalone public Live Chat invitation.
         border-radius:9px;
 
         background:#ed1c24;
-        color:#ffffff;
+        color:#fff;
 
         font-weight:700;
         font-size:13px;
@@ -393,18 +412,309 @@ Standalone public Live Chat invitation.
         cursor:pointer;
       }
 
-      #anybike-live-chat-open:hover{
-        filter:brightness(1.08);
+
+      /* CHAT PANEL */
+
+      #anybike-live-chat-panel{
+
+        position:fixed;
+        right:22px;
+        bottom:22px;
+
+        width:380px;
+        max-width:
+          calc(100vw - 32px);
+
+        height:560px;
+        max-height:
+          calc(100vh - 40px);
+
+        z-index:2147483001;
+
+        display:flex;
+        flex-direction:column;
+
+        overflow:hidden;
+
+        background:#111;
+        color:#fff;
+
+        border:
+          1px solid
+          rgba(255,255,255,.14);
+
+        border-radius:18px;
+
+        box-shadow:
+          0 20px 65px
+          rgba(0,0,0,.55);
       }
 
-      #anybike-live-chat-open:disabled{
-        cursor:default;
-        opacity:.75;
+
+      .ab-chat-header{
+
+        flex:0 0 auto;
+
+        display:flex;
+        align-items:center;
+        gap:11px;
+
+        padding:14px 15px;
+
+        background:#090909;
+
+        border-bottom:
+          1px solid
+          rgba(255,255,255,.10);
       }
+
+
+      .ab-chat-header-icon{
+
+        width:39px;
+        height:39px;
+
+        display:flex;
+        align-items:center;
+        justify-content:center;
+
+        border-radius:50%;
+
+        background:#ed1c24;
+
+        font-size:19px;
+      }
+
+
+      .ab-chat-header-copy{
+        flex:1;
+        min-width:0;
+      }
+
+
+      .ab-chat-header-copy strong{
+        display:block;
+        font-size:15px;
+      }
+
+
+      .ab-chat-header-copy span{
+
+        display:block;
+
+        margin-top:3px;
+
+        color:#9f9f9f;
+        font-size:12px;
+      }
+
+
+      .ab-chat-header-close{
+
+        width:34px;
+        height:34px;
+
+        border:0;
+        border-radius:8px;
+
+        background:#191919;
+        color:#bbb;
+
+        font-size:22px;
+
+        cursor:pointer;
+      }
+
+
+      .ab-chat-messages{
+
+        flex:1;
+
+        display:flex;
+        flex-direction:column;
+        gap:10px;
+
+        overflow-y:auto;
+
+        padding:15px;
+
+        scrollbar-width:none;
+        -ms-overflow-style:none;
+      }
+
+      .ab-chat-messages::-webkit-scrollbar{
+        display:none;
+      }
+
+
+      .ab-chat-loading,
+      .ab-chat-empty{
+
+        margin:auto;
+
+        color:#999;
+
+        font-size:13px;
+        text-align:center;
+      }
+
+
+      .ab-chat-message{
+
+        max-width:82%;
+
+        padding:10px 12px;
+
+        border-radius:13px;
+
+        font-size:13px;
+        line-height:1.45;
+      }
+
+
+      .ab-chat-message.anybike{
+
+        align-self:flex-start;
+
+        background:#222;
+
+        border-bottom-left-radius:4px;
+      }
+
+
+      .ab-chat-message.customer{
+
+        align-self:flex-end;
+
+        background:#ed1c24;
+
+        border-bottom-right-radius:4px;
+      }
+
+
+      .ab-chat-message-name{
+
+        margin-bottom:4px;
+
+        font-size:11px;
+        font-weight:700;
+
+        opacity:.78;
+      }
+
+
+      .ab-chat-message-time{
+
+        margin-top:5px;
+
+        font-size:10px;
+
+        opacity:.63;
+      }
+
+
+      .ab-chat-ended{
+
+        flex:0 0 auto;
+
+        padding:12px 15px;
+
+        background:#181818;
+
+        border-top:
+          1px solid
+          rgba(255,255,255,.10);
+
+        color:#ccc;
+
+        font-size:12px;
+        line-height:1.45;
+      }
+
+
+      .ab-chat-ended strong{
+        color:#fff;
+      }
+
+
+      .ab-chat-reply{
+
+        flex:0 0 auto;
+
+        display:flex;
+        gap:8px;
+
+        padding:12px;
+
+        background:#0b0b0b;
+
+        border-top:
+          1px solid
+          rgba(255,255,255,.10);
+      }
+
+
+      .ab-chat-reply textarea{
+
+        flex:1;
+
+        min-width:0;
+        height:42px;
+        max-height:100px;
+
+        resize:none;
+
+        box-sizing:border-box;
+
+        padding:10px 11px;
+
+        border:
+          1px solid
+          rgba(255,255,255,.14);
+
+        border-radius:9px;
+
+        outline:none;
+
+        background:#181818;
+        color:#fff;
+
+        font-family:inherit;
+        font-size:13px;
+      }
+
+
+      .ab-chat-reply textarea:focus{
+        border-color:#ed1c24;
+      }
+
+
+      .ab-chat-send{
+
+        width:68px;
+
+        border:0;
+        border-radius:9px;
+
+        background:#ed1c24;
+        color:#fff;
+
+        font-weight:700;
+
+        cursor:pointer;
+      }
+
+
+      .ab-chat-send:disabled{
+        opacity:.55;
+        cursor:default;
+      }
+
 
       @media(max-width:600px){
 
         #anybike-live-chat-invite{
+
           left:16px;
           right:16px;
           bottom:16px;
@@ -412,7 +722,24 @@ Standalone public Live Chat invitation.
           width:auto;
         }
 
+
+        #anybike-live-chat-panel{
+
+          left:10px;
+          right:10px;
+          bottom:10px;
+
+          width:auto;
+
+          height:
+            calc(100vh - 20px);
+
+          max-height:
+            calc(100vh - 20px);
+        }
+
       }
+
     `;
 
     document.head.appendChild(style);
@@ -420,7 +747,627 @@ Standalone public Live Chat invitation.
 
 
   /* =========================================================
-     POLLING
+     INVITATION
+     ========================================================= */
+
+  function removeInvitation(){
+
+    document
+      .getElementById(
+        "anybike-live-chat-invite"
+      )
+      ?.remove();
+  }
+
+
+  function showInvitation(threadId){
+
+    if(panelOpen){
+      return;
+    }
+
+    if(
+      dismissedThreadId === threadId
+    ){
+      return;
+    }
+
+    if(
+      document.getElementById(
+        "anybike-live-chat-invite"
+      )
+    ){
+      return;
+    }
+
+    injectStyles();
+
+    const box =
+      document.createElement("div");
+
+    box.id =
+      "anybike-live-chat-invite";
+
+    box.innerHTML = `
+
+      <button
+        type="button"
+        class="ab-chat-close"
+        aria-label="Close Live Chat invitation"
+      >
+        ×
+      </button>
+
+      <div class="ab-chat-invite-icon">
+        💬
+      </div>
+
+      <div class="ab-chat-invite-copy">
+
+        <strong>
+          AnyBike Live Chat
+        </strong>
+
+        <p>
+          AnyBike is available to chat
+          with you. Would you like to
+          open the conversation?
+        </p>
+
+        <button
+          type="button"
+          class="ab-chat-red-button"
+        >
+          Open Live Chat
+        </button>
+
+      </div>
+    `;
+
+    document.body.appendChild(box);
+
+
+    box
+      .querySelector(
+        ".ab-chat-close"
+      )
+      ?.addEventListener(
+        "click",
+        function(){
+
+          dismissedThreadId =
+            threadId;
+
+          removeInvitation();
+        }
+      );
+
+
+    box
+      .querySelector(
+        ".ab-chat-red-button"
+      )
+      ?.addEventListener(
+        "click",
+        function(){
+
+          openChatPanel();
+
+        }
+      );
+  }
+
+
+  /* =========================================================
+     CHAT PANEL
+     ========================================================= */
+
+  function openChatPanel(){
+
+    removeInvitation();
+
+    if(
+      document.getElementById(
+        "anybike-live-chat-panel"
+      )
+    ){
+      return;
+    }
+
+    panelOpen = true;
+
+    injectStyles();
+
+    const panel =
+      document.createElement("div");
+
+    panel.id =
+      "anybike-live-chat-panel";
+
+    panel.innerHTML = `
+
+      <div class="ab-chat-header">
+
+        <div class="ab-chat-header-icon">
+          💬
+        </div>
+
+        <div class="ab-chat-header-copy">
+
+          <strong>
+            AnyBike Live Chat
+          </strong>
+
+          <span id="ab-chat-status">
+            Live conversation
+          </span>
+
+        </div>
+
+        <button
+          type="button"
+          class="ab-chat-header-close"
+          aria-label="Close Live Chat"
+        >
+          ×
+        </button>
+
+      </div>
+
+
+      <div
+        class="ab-chat-messages"
+        id="ab-chat-messages"
+      >
+        <div class="ab-chat-loading">
+          Loading conversation...
+        </div>
+      </div>
+
+
+      <div
+        id="ab-chat-ended"
+        style="display:none"
+        class="ab-chat-ended"
+      >
+      </div>
+
+
+      <div
+        class="ab-chat-reply"
+        id="ab-chat-reply"
+      >
+
+        <textarea
+          id="ab-chat-text"
+          maxlength="2000"
+          placeholder="Type your message..."
+        ></textarea>
+
+        <button
+          type="button"
+          class="ab-chat-send"
+          id="ab-chat-send"
+        >
+          Send
+        </button>
+
+      </div>
+
+    `;
+
+    document.body.appendChild(panel);
+
+
+    panel
+      .querySelector(
+        ".ab-chat-header-close"
+      )
+      ?.addEventListener(
+        "click",
+        closeChatPanel
+      );
+
+
+    document
+      .getElementById(
+        "ab-chat-send"
+      )
+      ?.addEventListener(
+        "click",
+        submitGuestMessage
+      );
+
+
+    document
+      .getElementById(
+        "ab-chat-text"
+      )
+      ?.addEventListener(
+        "keydown",
+        function(event){
+
+          if(
+            event.key === "Enter" &&
+            !event.shiftKey
+          ){
+
+            event.preventDefault();
+
+            submitGuestMessage();
+
+          }
+
+        }
+      );
+
+
+    refreshMessages(true);
+
+    startMessagePolling();
+  }
+
+
+  function closeChatPanel(){
+
+    panelOpen = false;
+
+    document
+      .getElementById(
+        "anybike-live-chat-panel"
+      )
+      ?.remove();
+
+    stopMessagePolling();
+
+
+    if(
+      currentThreadId &&
+      currentLiveStatus
+    ){
+
+      dismissedThreadId = null;
+
+      showInvitation(
+        currentThreadId
+      );
+
+    }
+  }
+
+
+  /* =========================================================
+     MESSAGES
+     ========================================================= */
+
+  function renderMessages(
+    messages,
+    forceScroll
+  ){
+
+    const box =
+      document.getElementById(
+        "ab-chat-messages"
+      );
+
+    if(!box){
+      return;
+    }
+
+    const rows =
+      Array.isArray(messages)
+        ? messages
+        : [];
+
+
+    if(!rows.length){
+
+      box.innerHTML = `
+        <div class="ab-chat-empty">
+          Live Chat is connected.<br>
+          Send a message to AnyBike.
+        </div>
+      `;
+
+      return;
+    }
+
+
+    const signature =
+      rows.map(function(row){
+
+        return [
+          row.id,
+          row.created_at,
+          row.message
+        ].join("|");
+
+      }).join("::");
+
+
+    if(
+      signature ===
+      lastMessageSignature
+    ){
+      return;
+    }
+
+    lastMessageSignature =
+      signature;
+
+
+    const wasNearBottom =
+      (
+        box.scrollHeight -
+        box.scrollTop -
+        box.clientHeight
+      ) < 90;
+
+
+    box.innerHTML =
+      rows.map(function(row){
+
+        const senderType =
+          String(
+            row.sender_type ||
+            row.sender ||
+            ""
+          ).toLowerCase();
+
+        const customerMessage =
+          senderType.includes(
+            "customer"
+          ) ||
+          senderType.includes(
+            "guest"
+          );
+
+        const cssClass =
+          customerMessage
+            ? "customer"
+            : "anybike";
+
+        const senderName =
+          customerMessage
+            ? "You"
+            : (
+                row.sender_name ||
+                "AnyBike"
+              );
+
+        return `
+
+          <div
+            class="ab-chat-message ${cssClass}"
+          >
+
+            <div
+              class="ab-chat-message-name"
+            >
+              ${escapeHtml(senderName)}
+            </div>
+
+            <div>
+              ${escapeHtml(
+                row.message || ""
+              ).replace(/\n/g,"<br>")}
+            </div>
+
+            <div
+              class="ab-chat-message-time"
+            >
+              ${escapeHtml(
+                formatTime(
+                  row.created_at
+                )
+              )}
+            </div>
+
+          </div>
+
+        `;
+
+      }).join("");
+
+
+    if(
+      forceScroll ||
+      wasNearBottom
+    ){
+
+      box.scrollTop =
+        box.scrollHeight;
+
+    }
+  }
+
+
+  async function refreshMessages(
+    forceScroll
+  ){
+
+    if(
+      !panelOpen ||
+      messageRequestRunning
+    ){
+      return;
+    }
+
+    messageRequestRunning = true;
+
+    try{
+
+      const messages =
+        await getMessages();
+
+      renderMessages(
+        messages,
+        Boolean(forceScroll)
+      );
+
+    }catch(error){
+
+      console.warn(
+        "AnyBike Live Chat messages unavailable",
+        error.message || error
+      );
+
+    }finally{
+
+      messageRequestRunning = false;
+
+    }
+  }
+
+
+  async function submitGuestMessage(){
+
+    if(!currentLiveStatus){
+      return;
+    }
+
+    const textarea =
+      document.getElementById(
+        "ab-chat-text"
+      );
+
+    const button =
+      document.getElementById(
+        "ab-chat-send"
+      );
+
+    if(!textarea){
+      return;
+    }
+
+    const message =
+      String(
+        textarea.value || ""
+      ).trim();
+
+    if(!message){
+      return;
+    }
+
+
+    if(button){
+      button.disabled = true;
+      button.textContent = "...";
+    }
+
+    textarea.disabled = true;
+
+
+    try{
+
+      await sendMessage(message);
+
+      textarea.value = "";
+
+      lastMessageSignature = "";
+
+      await refreshMessages(true);
+
+    }catch(error){
+
+      alert(
+        error.message ||
+        "Your message could not be sent."
+      );
+
+    }finally{
+
+      textarea.disabled = false;
+
+      if(button){
+        button.disabled = false;
+        button.textContent = "Send";
+      }
+
+      textarea.focus();
+
+    }
+  }
+
+
+  /* =========================================================
+     CHAT ENDED
+     ========================================================= */
+
+  function updatePanelStatus(
+    isActive
+  ){
+
+    const status =
+      document.getElementById(
+        "ab-chat-status"
+      );
+
+    const reply =
+      document.getElementById(
+        "ab-chat-reply"
+      );
+
+    const ended =
+      document.getElementById(
+        "ab-chat-ended"
+      );
+
+
+    if(status){
+
+      status.textContent =
+        isActive
+          ? "Live conversation"
+          : "Live chat ended";
+
+    }
+
+
+    if(reply){
+
+      reply.style.display =
+        isActive
+          ? "flex"
+          : "none";
+
+    }
+
+
+    if(ended){
+
+      if(isActive){
+
+        ended.style.display =
+          "none";
+
+        ended.innerHTML = "";
+
+      }else{
+
+        ended.style.display =
+          "block";
+
+        ended.innerHTML = `
+          <strong>
+            Live chat ended
+          </strong>
+          <br>
+          Thanks for chatting with
+          AnyBike today. Your
+          conversation will remain
+          available during this
+          browser session.
+        `;
+
+      }
+
+    }
+  }
+
+
+  /* =========================================================
+     STATUS
      ========================================================= */
 
   async function checkLiveChat(){
@@ -447,28 +1394,46 @@ Standalone public Live Chat invitation.
         return;
       }
 
-      const threadId =
+
+      currentThreadId =
         status.thread_id || null;
 
-      const isActive =
+      currentLiveStatus =
         status.live_chat_active === true;
 
-      if(threadId && isActive){
 
-        createInvitation(threadId);
+      if(
+        currentThreadId &&
+        currentLiveStatus
+      ){
+
+        if(panelOpen){
+
+          updatePanelStatus(true);
+
+        }else{
+
+          showInvitation(
+            currentThreadId
+          );
+
+        }
 
       }else{
 
         removeInvitation();
 
+        if(panelOpen){
+
+          updatePanelStatus(false);
+
+          await refreshMessages(false);
+
+        }
+
       }
 
     }catch(error){
-
-      /*
-      Keep Live Chat failure isolated from the website.
-      It must never interfere with the public header/page.
-      */
 
       console.warn(
         "AnyBike Live Chat unavailable",
@@ -483,23 +1448,57 @@ Standalone public Live Chat invitation.
   }
 
 
-  function start(){
+  /* =========================================================
+     TIMERS
+     ========================================================= */
 
-    checkLiveChat();
+  function startMessagePolling(){
 
-    if(pollTimer){
-      clearInterval(pollTimer);
-    }
+    stopMessagePolling();
 
-    pollTimer =
+    messageTimer =
       setInterval(
-        checkLiveChat,
-        POLL_MS
+        function(){
+          refreshMessages(false);
+        },
+        MESSAGE_POLL_MS
       );
   }
 
 
-  if(document.readyState === "loading"){
+  function stopMessagePolling(){
+
+    if(messageTimer){
+
+      clearInterval(messageTimer);
+
+      messageTimer = null;
+    }
+  }
+
+
+  function start(){
+
+    injectStyles();
+
+    checkLiveChat();
+
+    if(statusTimer){
+      clearInterval(statusTimer);
+    }
+
+    statusTimer =
+      setInterval(
+        checkLiveChat,
+        STATUS_POLL_MS
+      );
+  }
+
+
+  if(
+    document.readyState ===
+    "loading"
+  ){
 
     document.addEventListener(
       "DOMContentLoaded",
