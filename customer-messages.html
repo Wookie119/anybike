@@ -237,8 +237,14 @@ button,input,select,textarea{font:inherit}
 .muted{color:var(--muted)}
 .message-thread{
   display:flex;flex-direction:column;gap:8px;margin-top:14px;
-  background:#0d0d0d;border-radius:12px;padding:12px;max-height:360px;overflow:auto;
+  background:#0d0d0d;border-radius:12px;padding:12px;
+  max-height:420px;
+  overflow-y:auto;
+  overflow-x:hidden;
+  scrollbar-width:none;
+  -ms-overflow-style:none;
 }
+.message-thread::-webkit-scrollbar{display:none}
 .msg{max-width:78%;padding:11px;border-radius:13px;line-height:1.45;word-break:break-word}
 .msg.customer{align-self:flex-start;background:#222}
 .msg.admin{align-self:flex-end;background:var(--red)}
@@ -641,6 +647,7 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let currentUser=null;
 let currentProfile=null;
 let openConversationKey=null;
+let customerLiveChatRefreshRunning=false;
 
 async function claimRequestedMessageThread(){
   const params = new URLSearchParams(window.location.search);
@@ -1059,7 +1066,6 @@ async function loadCustomerEnquiries(){
   source.includes("press") ||
   source.includes("website support") ||
   source.includes("general enquiry") ||
-  source.includes("live chat") ||
   department.includes("global buyer") ||
   subject.includes("global buyer");
   
@@ -1680,6 +1686,114 @@ async function loadGlobalBuyerMessages(threadId){
     markCustomerThreadRead(threadId);
   }else{
     updateCustomerUnreadMessageCount();
+  }
+}
+
+
+async function refreshOpenCustomerLiveChat(){
+  if(customerLiveChatRefreshRunning || document.visibilityState !== "visible"){
+    return;
+  }
+
+  if(
+    !openConversationKey ||
+    !String(openConversationKey).startsWith("global-") ||
+    !currentUser
+  ){
+    return;
+  }
+
+  const threadId=Number(String(openConversationKey).replace("global-",""));
+
+  if(!threadId){
+    return;
+  }
+
+  const threadCard=document.getElementById(`customer-enquiry-global-${threadId}`);
+
+  if(!threadCard || !threadCard.classList.contains("open")){
+    return;
+  }
+
+  customerLiveChatRefreshRunning=true;
+
+  try{
+    const {data:thread,error:threadError}=await sb
+      .from("message_centre_threads")
+      .select("id,source_type")
+      .eq("id",threadId)
+      .eq("customer_id",currentUser.id)
+      .maybeSingle();
+
+    if(threadError || !thread){
+      return;
+    }
+
+    if(String(thread.source_type||"").trim().toLowerCase()!=="live chat"){
+      return;
+    }
+
+    const box=document.getElementById(`global-messages-${threadId}`);
+
+    if(!box){
+      return;
+    }
+
+    const beforeCount=(window.anybikeCustomerThreadMessages?.[String(threadId)]||[]).length;
+
+    const {data:messages,error}=await sb
+      .from("message_centre_messages")
+      .select("*")
+      .eq("thread_id",threadId)
+      .order("created_at",{ascending:true});
+
+    if(error){
+      console.warn("Customer Live Chat refresh failed",error.message);
+      return;
+    }
+
+    const rows=messages||[];
+
+    if(rows.length===beforeCount){
+      return;
+    }
+
+    window.anybikeCustomerThreadMessages[String(threadId)]=rows;
+
+    box.innerHTML=rows.length
+      ? rows.map(message=>{
+          const isCustomer=isCustomerMessageSender(message);
+          const label=isCustomer
+            ? "You"
+            : (message.sender_name || message.sender_type || message.sender || "AnyBike");
+
+          return `
+            <div class="msg ${isCustomer?'customer':'admin'}">
+              <strong>${safe(label)}</strong>
+              <div class="msg-text">${safe(message.message)}</div>
+              <small>${message.created_at ? new Date(message.created_at).toLocaleString("en-GB") : ""}</small>
+            </div>
+          `;
+        }).join("")
+      : `<p class="muted">No conversation messages yet.</p>`;
+
+    box.scrollTop=box.scrollHeight;
+
+    const latest=rows[rows.length-1];
+    const bubble=document.getElementById(`global-bubble-${threadId}`);
+
+    if(latest && bubble){
+      const latestIsCustomer=isCustomerMessageSender(latest);
+      bubble.textContent=latestIsCustomer ? "✓ You replied" : "AnyBike replied";
+      bubble.className="message-pill replied";
+    }
+
+    markCustomerThreadRead(threadId);
+
+  }catch(error){
+    console.warn("Customer Live Chat refresh failed",error);
+  }finally{
+    customerLiveChatRefreshRunning=false;
   }
 }
 
@@ -2449,11 +2563,15 @@ async function markRequestedThreadNotificationsRead(){
   }
 })();
 
-setInterval(() => {
-  if(currentUser){
+setInterval(function(){
+  refreshOpenCustomerLiveChat();
+},3000);
+
+setInterval(function(){
+  if(currentUser && !openConversationKey){
     loadCustomerEnquiries();
   }
-}, 90000);
+},90000);
   
 
 </script>
