@@ -686,6 +686,8 @@ Standalone anonymous Live Chat.
   color:#fff;
 }
 
+`;
+
     document.head.appendChild(style);
   }
 
