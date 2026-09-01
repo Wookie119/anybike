@@ -1349,16 +1349,31 @@ Standalone anonymous Live Chat.
           "block";
 
         ended.innerHTML = `
-          <strong>
-            Live chat ended
-          </strong>
-          <br>
-          Thanks for chatting with
-          AnyBike today. Your
-          conversation will remain
-          available during this
-          browser session.
-        `;
+  <div class="ab-chat-ended-title">
+    Thanks for chatting with AnyBike.
+  </div>
+
+  <div class="ab-chat-ended-copy">
+    This live chat has ended.
+    Create your free AnyBike account
+    to save this conversation and make
+    it easier to contact us again.
+  </div>
+
+  <a
+    class="ab-chat-ended-primary"
+    href="/customer-register.html"
+  >
+    Create Free Account
+  </a>
+
+  <a
+    class="ab-chat-ended-secondary"
+    href="/customer-register.html"
+  >
+    Already registered? Sign in
+  </a>
+`;
 
       }
 
