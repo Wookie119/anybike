@@ -224,7 +224,7 @@
 const SUPABASE_URL="https://tuehtnezhdnkqbbhttgp.supabase.co";
 const SUPABASE_ANON_KEY="sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
-let allThreads=[];let selectedThread=null;let selectedIds=new Set();let activeFilter="all";
+let allThreads=[];let selectedThread=null;let selectedIds=new Set();let activeFilter="all";let liveChatRefreshRunning=false;
 function safe(v){return v===null||v===undefined||v===""?"—":String(v)}
 function money(v){return v?"£"+Number(v).toLocaleString("en-GB"):"—"}
 function shortDate(v){if(!v)return"—";return new Date(v).toLocaleString("en-GB",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"})}
@@ -384,7 +384,7 @@ async function openThread(id){
 
     <div class="section">
       <h3>Conversation</h3>
-      <div class="messages">
+      <div class="messages" id="conversationMessages">
         ${
           (messages || []).length
             ? messages.map(function(m){
@@ -809,37 +809,113 @@ async function sendReply(){
   }
 
   /*
-    The reply is now safely stored. Email is notification-only, so always
-    attempt the notification independently of the legacy CRM mirror above.
+    Live Chat is an on-site conversation, so do not send an email notification
+    for Live Chat replies. Other Message Centre conversations keep the existing
+    customer email notification behaviour.
   */
-  console.info("Invoking send-message-notification for thread", threadId);
+  const isLiveChat =
+    String(selectedThread.source_type || "").trim().toLowerCase() === "live chat";
 
-  const {data:notificationData,error:notificationError} = await sb.functions.invoke(
-    "send-message-notification",
-    {
-      body: {
-        thread_id: String(threadId)
+  if(!isLiveChat){
+    console.info("Invoking send-message-notification for thread", threadId);
+
+    const {data:notificationData,error:notificationError} = await sb.functions.invoke(
+      "send-message-notification",
+      {
+        body: {
+          thread_id: String(threadId)
+        }
       }
-    }
-  );
+    );
 
-  if(notificationError){
-    console.error("Message notification email failed:", notificationError);
-    alert(
-      "Reply sent successfully, but the email notification could not be sent. " +
-      "The customer's message is still safely stored in AnyBike Message Centre."
-    );
-  }else{
-    console.info(
-      "Customer email notification sent:",
-      notificationData
-    );
+    if(notificationError){
+      console.error("Message notification email failed:", notificationError);
+      alert(
+        "Reply sent successfully, but the email notification could not be sent. " +
+        "The customer's message is still safely stored in AnyBike Message Centre."
+      );
+    }else{
+      console.info(
+        "Customer email notification sent:",
+        notificationData
+      );
+    }
   }
 
   box.value = "";
 
   await loadThreads();
   openThread(threadId);
+}
+
+
+function liveChatMessageHtml(messages){
+  return (messages || []).length
+    ? messages.map(function(m){
+        return `
+          <div class="msg ${m.sender_type === "AnyBike" || m.sender_type === "Admin" ? "admin" : ""}">
+            <div class="msg-head">
+              <strong>${safe(m.sender_name || m.sender_type)}</strong>
+              <span>${shortDate(m.created_at)}</span>
+            </div>
+            <div class="msg-text">${safe(m.message)}</div>
+          </div>
+        `;
+      }).join("")
+    : '<div class="empty">No messages in this thread yet.</div>';
+}
+
+async function refreshSelectedLiveChat(){
+  if(liveChatRefreshRunning || document.visibilityState !== "visible"){
+    return;
+  }
+
+  if(
+    !selectedThread ||
+    String(selectedThread.source_type || "").trim().toLowerCase() !== "live chat"
+  ){
+    return;
+  }
+
+  const threadId = Number(selectedThread.id);
+  const messageBox = document.getElementById("conversationMessages");
+
+  if(!threadId || !messageBox){
+    return;
+  }
+
+  liveChatRefreshRunning = true;
+
+  try{
+    const {data:messages,error} = await sb
+      .from("message_centre_messages")
+      .select("*")
+      .eq("thread_id",threadId)
+      .order("created_at",{ascending:true});
+
+    if(error){
+      console.warn("Live Chat refresh failed:",error.message);
+      return;
+    }
+
+    const nextHtml = liveChatMessageHtml(messages);
+
+    if(messageBox.innerHTML !== nextHtml){
+      const wasNearBottom =
+        messageBox.scrollHeight - messageBox.scrollTop - messageBox.clientHeight < 80;
+
+      messageBox.innerHTML = nextHtml;
+
+      if(wasNearBottom){
+        messageBox.scrollTop = messageBox.scrollHeight;
+      }
+    }
+
+  }catch(error){
+    console.warn("Live Chat refresh failed:",error);
+  }finally{
+    liveChatRefreshRunning = false;
+  }
 }
 
 async function saveRoute(){
@@ -885,7 +961,11 @@ document.addEventListener("DOMContentLoaded", async function(){
   }
 
   document.documentElement.classList.remove("admin-auth-pending");
-  loadThreads();
+  await loadThreads();
+
+  setInterval(function(){
+    refreshSelectedLiveChat();
+  },3000);
 });
 </script>
 </body>
