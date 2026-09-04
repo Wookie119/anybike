@@ -2532,7 +2532,57 @@ async function markRequestedThreadNotificationsRead(){
 
   await markConversationNotificationsRead(threadId);
 }
+let customerMessageRealtimeChannel = null;
 
+function startCustomerMessageRealtime(){
+
+  if(customerMessageRealtimeChannel || !currentUser){
+    return;
+  }
+
+  customerMessageRealtimeChannel = sb
+    .channel("anybike-customer-message-centre")
+    .on(
+      "postgres_changes",
+      {
+        event: "INSERT",
+        schema: "public",
+        table: "message_centre_messages"
+      },
+      async function(payload){
+
+        console.log("Customer realtime message:", payload);
+
+        const threadId = Number(payload.new.thread_id);
+
+        if(!threadId){
+          return;
+        }
+
+        const {data:thread,error} = await sb
+          .from("message_centre_threads")
+          .select("id,related_enquiry_id,customer_id")
+          .eq("id",threadId)
+          .eq("customer_id",currentUser.id)
+          .maybeSingle();
+
+        if(error || !thread){
+          return;
+        }
+
+        if(thread.related_enquiry_id){
+          await loadCustomerMessages(thread.related_enquiry_id);
+        }else{
+          await loadGlobalBuyerMessages(threadId);
+        }
+
+        await refreshSharedCustomerHeader();
+      }
+    )
+    .subscribe(function(status){
+      console.log("Customer Message Centre realtime status:", status);
+    });
+}
 (async function init(){
   try{
     await waitForPublicHeader();
@@ -2552,6 +2602,7 @@ async function markRequestedThreadNotificationsRead(){
     document.documentElement.classList.remove("customer-auth-pending");
 
     await loadCustomerEnquiries();
+    startCustomerMessageRealtime();
     await refreshSharedCustomerHeader();
     await markRequestedThreadNotificationsRead();
 
