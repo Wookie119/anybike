@@ -860,8 +860,37 @@ if(recentViewsError){
       enquiriesByCustomer[key] = [];
     }
 
-    enquiriesByCustomer[key].push(e);
+        enquiriesByCustomer[key].push(e);
   });
+
+  const watchlistByCustomer = {};
+
+  (watchlist || []).forEach(item=>{
+    if(!item.customer_id) return;
+
+    const key = String(item.customer_id);
+
+    if(!watchlistByCustomer[key]){
+      watchlistByCustomer[key] = [];
+    }
+
+    watchlistByCustomer[key].push(item);
+  });
+
+  const recentViewsByCustomer = {};
+
+  (recentViews || []).forEach(item=>{
+    if(!item.customer_id) return;
+
+    const key = String(item.customer_id);
+
+    if(!recentViewsByCustomer[key]){
+      recentViewsByCustomer[key] = [];
+    }
+
+    recentViewsByCustomer[key].push(item);
+  });
+
   const latestVisitorByCustomer = {};
 
   (visitors || []).forEach(v=>{
@@ -873,8 +902,14 @@ if(recentViewsError){
       latestVisitorByCustomer[key] = v;
     }
   });
-  allCustomers = (profiles || []).map(profile=>{
-    const deals = enquiriesByCustomer[String(profile.id)] || [];
+ allCustomers = (profiles || []).map(profile=>{
+  const deals = enquiriesByCustomer[String(profile.id)] || [];
+
+  const watchlistItems =
+    watchlistByCustomer[String(profile.id)] || [];
+
+  const recentViewItems =
+    recentViewsByCustomer[String(profile.id)] || [];
 
     const latestDeal = deals[0] || null;
     const latestVisitor =
@@ -985,13 +1020,16 @@ if(recentViewsError){
         latestVisitor?.device_type ||
         "",
 
-      lastSeenBrowser:
+            lastSeenBrowser:
         latestVisitor?.browser ||
         "",
 
       lastSeenPageviews:
         Number(latestVisitor?.pageviews || 0),
+
       deals,
+      watchlistItems,
+      recentViewItems,
 
       totalValue,
       totalProfit,
