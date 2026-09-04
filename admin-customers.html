@@ -999,6 +999,32 @@ function escapeHtml(value){
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
 }
+function openCustomerFromMap(customerId){
+  const customer = allCustomers.find(
+    c => String(c.customerId) === String(customerId)
+  );
+
+  if(!customer) return;
+
+  const search = document.getElementById("search");
+
+  if(search){
+    search.value = customer.email || customer.name || "";
+  }
+
+  renderCustomers();
+
+  setTimeout(()=>{
+    const card = document.getElementById(`customer-${customer.id}`);
+
+    if(card){
+      card.scrollIntoView({
+        behavior:"smooth",
+        block:"center"
+      });
+    }
+  },100);
+}
 function renderMap(){
   const list = document.getElementById("countryList");
   const mapEl = document.getElementById("customerMap");
@@ -1105,19 +1131,50 @@ const marker = L.circleMarker([lat, lng], {
       customer.lastSeenCountry
     ].filter(Boolean).join(", ");
 
-    marker.bindPopup(`
-      <div style="min-width:220px;">
-        <strong>${escapeHtml(customer.name || "Customer")}</strong><br>
-        ${customer.email ? escapeHtml(customer.email) + "<br>" : ""}
-        <br>
-        <strong>Last seen location:</strong><br>
-        ${escapeHtml(locationText || "Location unavailable")}
-        <br><br>
-        <strong>Last seen:</strong>
-        ${customer.lastSeenAt ? new Date(customer.lastSeenAt).toLocaleString() : "Unknown"}
-        ${customer.lastSeenPage ? `<br><strong>Page:</strong> ${escapeHtml(customer.lastSeenPage)}` : ""}
-      </div>
-    `);
+marker.bindPopup(`
+  <div style="min-width:220px;">
+    <strong>${escapeHtml(customer.name || "Customer")}</strong><br>
+
+    ${customer.email ? escapeHtml(customer.email) + "<br>" : ""}
+
+    <br>
+
+    <strong>Last seen location:</strong><br>
+    ${escapeHtml(locationText || "Location unavailable")}
+
+    <br><br>
+
+    <strong>Last seen:</strong>
+    ${customer.lastSeenAt
+      ? new Date(customer.lastSeenAt).toLocaleString()
+      : "Unknown"
+    }
+
+    ${customer.lastSeenPage
+      ? `<br><strong>Page:</strong> ${escapeHtml(customer.lastSeenPage)}`
+      : ""
+    }
+
+    <br><br>
+
+    <button
+      type="button"
+      onclick="openCustomerFromMap('${customer.customerId}')"
+      style="
+        width:100%;
+        background:#ed1c24;
+        color:#fff;
+        border:none;
+        border-radius:8px;
+        padding:9px 12px;
+        font-weight:900;
+        cursor:pointer;
+      "
+    >
+      View Customer
+    </button>
+  </div>
+`);
 
     marker.addTo(customerMapLayer);
     markerBounds.push([lat, lng]);
