@@ -760,6 +760,57 @@ async function loadCustomers(){
   if(visitorError){
     console.error("Could not load website visitor data:", visitorError);
   }
+  const { data:watchlist, error:watchlistError } = await sb
+  .from("customer_watchlist")
+  .select(`
+    id,
+    customer_id,
+    bike_id,
+    created_at,
+    available_stock(
+      id,
+      make,
+      model,
+      variant,
+      year,
+      mileage,
+      price_gbp,
+      image_url,
+      vat_status,
+      lifecycle_status
+    )
+  `)
+  .order("created_at",{ascending:false});
+
+if(watchlistError){
+  console.error("Could not load customer watchlist:", watchlistError);
+}
+
+const { data:recentViews, error:recentViewsError } = await sb
+  .from("recently_viewed_bikes")
+  .select(`
+    id,
+    customer_id,
+    bike_id,
+    viewed_at,
+    available_stock(
+      id,
+      make,
+      model,
+      variant,
+      year,
+      mileage,
+      price_gbp,
+      image_url,
+      vat_status,
+      lifecycle_status
+    )
+  `)
+  .order("viewed_at",{ascending:false});
+
+if(recentViewsError){
+  console.error("Could not load recently viewed bikes:", recentViewsError);
+}
   const { data:enquiries, error:enquiryError } = await sb
     .from("bike_enquiries")
     .select(`
@@ -1319,6 +1370,7 @@ function renderCustomers(){
                 <button class="tab-btn" data-tab="communication" onclick="switchTab('${c.id}','communication')">Communication</button>
                 <button class="tab-btn" data-tab="messages" onclick="switchTab('${c.id}','messages')">Messages</button>
                 <button class="tab-btn" data-tab="enquiries" onclick="switchTab('${c.id}','enquiries')">Enquiries</button>
+                <button class="tab-btn" data-tab="interests" onclick="switchTab('${c.id}','interests')">Motorcycle Interests</button>
                 <button class="tab-btn" data-tab="deals" onclick="switchTab('${c.id}','deals')">Deals</button>
                 <button class="tab-btn" data-tab="shipping" onclick="switchTab('${c.id}','shipping')">Shipping</button>
                 <button class="tab-btn" data-tab="documents" onclick="switchTab('${c.id}','documents')">Documents</button>
