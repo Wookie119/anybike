@@ -1021,22 +1021,41 @@ function renderMap(){
     return !country || country === "other";
   }).length;
 
-  list.innerHTML = `
-    ${sorted.map(([country,count])=>`
-      <a class="country-row" href="#"
-        onclick="document.getElementById('countryFilter').value='${country.replace(/'/g,"\\'")}';renderCustomers();return false;">
-        <span>${countryFlag(country)} ${country}</span>
-        <span class="country-count">${count}</span>
-      </a>
-    `).join("")}
+ list.innerHTML = `
+  ${sorted.map(([country,count])=>`
+    <a
+      class="country-row"
+      href="#"
+      data-country="${encodeURIComponent(country)}"
+    >
+      <span>${countryFlag(country)} ${escapeHtml(country)}</span>
+      <span class="country-count">${count}</span>
+    </a>
+  `).join("")}
 
-    ${unknownCount ? `
-      <div class="country-row" style="cursor:default;opacity:.7;">
-        <span>❓ Unknown / Other</span>
-        <span class="country-count">${unknownCount}</span>
-      </div>
-    ` : ""}
-  `;
+  ${unknownCount ? `
+    <div class="country-row" style="cursor:default;opacity:.7;">
+      <span>❓ Unknown / Other</span>
+      <span class="country-count">${unknownCount}</span>
+    </div>
+  ` : ""}
+`;
+
+list.querySelectorAll("a.country-row[data-country]").forEach(row=>{
+  row.addEventListener("click", function(e){
+    e.preventDefault();
+
+    const country = decodeURIComponent(this.dataset.country);
+
+    const filter = document.getElementById("countryFilter");
+
+    if(filter){
+      filter.value = country;
+    }
+
+    renderCustomers();
+  });
+});
 
   if(!customerLeafletMap){
     customerLeafletMap = L.map("customerMap", {
