@@ -521,7 +521,7 @@ async function loadCustomerHeaderActivity(user){
         id:notification.id,
         title:notification.title || "Notification",
         message:notification.message || "",
-        link:notification.link || "/customer-dashboard.html#messages",
+        link:notification.link || "/customer-messages.html",
         icon:type.includes("message") ? "💬" : "🔔",
         date:notification.created_at
       };
@@ -567,7 +567,7 @@ function renderNotificationList(items){
   }
 
   list.innerHTML = items.slice(0,12).map(function(item){
-    const link = item.link || "/customer-dashboard.html#messages";
+    const link = item.link || "/customer-messages.html";
 
     return `
       <a
@@ -593,7 +593,7 @@ function renderNotificationList(items){
       const notificationId = item.getAttribute("data-notification-id");
       const link =
         item.getAttribute("data-notification-link") ||
-        "/customer-dashboard.html#messages";
+        "/customer-messages.html";
 
       if(notificationId && anybikeHeaderUser){
         try{
