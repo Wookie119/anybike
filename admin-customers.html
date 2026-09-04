@@ -1448,15 +1448,134 @@ function renderCustomers(){
                 <div class="note-box">Message history will be shown here from enquiry_messages in the next stage.</div>
               </div>
 
-              <div class="tab-panel" data-panel="enquiries">
-                <h3>Enquiries</h3>
-                ${c.deals.map(d=>{
-                  const bike=d.available_stock||{};
-                  return `<div class="deal-card"><strong>Enquiry #${d.id} — ${safe(bike.make)} ${safe(bike.model)}</strong><div class="small">Status: ${safe(d.status)}</div><div class="small">Question: ${safe(d.question_type)}</div><br><a class="btn" href="admin-enquiries.html?status=${encodeURIComponent(d.status||"")}">Open CRM Stage</a></div>`;
-                }).join("")}
+<div class="tab-panel" data-panel="enquiries">
+  <h3>Enquiries</h3>
+
+  ${
+    c.deals && c.deals.length
+      ? c.deals.map(d=>{
+          const bike = d.available_stock || {};
+
+          return `
+            <div class="deal-card">
+              <strong>
+                Enquiry #${d.id} — ${safe(bike.make)} ${safe(bike.model)}
+              </strong>
+
+              <div class="small">
+                Status: ${safe(d.status)}
               </div>
 
-              <div class="tab-panel" data-panel="deals">
+              <div class="small">
+                Question: ${safe(d.question_type)}
+              </div>
+
+              <br>
+
+              <a
+                class="btn"
+                href="admin-enquiries.html?status=${encodeURIComponent(d.status || "")}"
+              >
+                Open CRM Stage
+              </a>
+            </div>
+          `;
+        }).join("")
+      : `<div class="note-box">No enquiries recorded for this customer.</div>`
+  }
+</div>
+
+<div class="tab-panel" data-panel="interests">
+  <h3>Motorcycle Interests</h3>
+
+  <h3 class="section-title">❤️ Watchlist</h3>
+
+  ${
+    c.watchlistItems && c.watchlistItems.length
+      ? c.watchlistItems.map(item=>{
+          const bike = item.available_stock || {};
+
+          return `
+            <div class="deal-card">
+              <strong>
+                ${safe(bike.make)} ${safe(bike.model)} ${safe(bike.variant)}
+              </strong>
+
+              <div class="small">
+                ${bike.year ? "Year: " + safe(bike.year) : ""}
+                ${bike.mileage
+                  ? " • Mileage: " + Number(bike.mileage).toLocaleString("en-GB")
+                  : ""
+                }
+              </div>
+
+              <div class="small">
+                Price: ${money(bike.price_gbp)}
+              </div>
+
+              <div class="small">
+                VAT: ${safe(bike.vat_status)}
+              </div>
+
+              <div class="small">
+                Added to Watchlist:
+                ${
+                  item.created_at
+                    ? new Date(item.created_at).toLocaleString("en-GB")
+                    : "-"
+                }
+              </div>
+            </div>
+          `;
+        }).join("")
+      : `<div class="note-box">No motorcycles currently saved to this customer's Watchlist.</div>`
+  }
+
+  <h3 class="section-title">👀 Recently Viewed</h3>
+
+  ${
+    c.recentViewItems && c.recentViewItems.length
+      ? c.recentViewItems.slice(0,20).map(item=>{
+          const bike = item.available_stock || {};
+
+          return `
+            <div class="deal-card">
+              <strong>
+                ${safe(bike.make)} ${safe(bike.model)} ${safe(bike.variant)}
+              </strong>
+
+              <div class="small">
+                ${bike.year ? "Year: " + safe(bike.year) : ""}
+                ${bike.mileage
+                  ? " • Mileage: " + Number(bike.mileage).toLocaleString("en-GB")
+                  : ""
+                }
+              </div>
+
+              <div class="small">
+                Price: ${money(bike.price_gbp)}
+              </div>
+
+              <div class="small">
+                VAT: ${safe(bike.vat_status)}
+              </div>
+
+              <div class="small">
+                Viewed:
+                ${
+                  item.viewed_at
+                    ? new Date(item.viewed_at).toLocaleString("en-GB")
+                    : "-"
+                }
+              </div>
+            </div>
+          `;
+        }).join("")
+      : `<div class="note-box">No recently viewed motorcycles recorded for this customer.</div>`
+  }
+</div>
+
+<div class="tab-panel" data-panel="deals">
                 <h3>Deals</h3>
                 <div class="detail-grid">
                   <div class="panel"><span>Total Pipeline</span><strong>${money(c.totalValue)}</strong></div>
