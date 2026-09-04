@@ -1092,6 +1092,38 @@ list.querySelectorAll("a.country-row[data-country]").forEach(row=>{
     }
 
     renderCustomers();
+
+    const countryLocations = allCustomers
+      .filter(c =>
+        (c.country || "").trim() === country &&
+        c.lastSeenLatitude != null &&
+        c.lastSeenLongitude != null &&
+        Number.isFinite(c.lastSeenLatitude) &&
+        Number.isFinite(c.lastSeenLongitude)
+      )
+      .map(c => [
+        c.lastSeenLatitude,
+        c.lastSeenLongitude
+      ]);
+
+    if(countryLocations.length === 1){
+      customerLeafletMap.flyTo(
+        countryLocations[0],
+        7,
+        { duration:1.2 }
+      );
+    }
+
+    if(countryLocations.length > 1){
+      customerLeafletMap.flyToBounds(
+        countryLocations,
+        {
+          padding:[60,60],
+          maxZoom:8,
+          duration:1.2
+        }
+      );
+    }
   });
 });
 
@@ -1235,7 +1267,26 @@ function renderCustomers(){
         </div>
 
         <div class="customer-workspace" onclick="event.stopPropagation()">
-          <div class="workspace-layout">
+
+  <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
+    <button
+      type="button"
+      onclick="toggleCustomer('${c.id}')"
+      style="
+        background:#181818;
+        color:#fff;
+        border:1px solid #444;
+        border-radius:10px;
+        padding:9px 14px;
+        font-weight:900;
+        cursor:pointer;
+      "
+    >
+      ▲ Collapse Customer
+    </button>
+  </div>
+
+  <div class="workspace-layout">
 
             <aside class="profile-side">
               <div class="profile-avatar">${initials(c.name)}</div>
