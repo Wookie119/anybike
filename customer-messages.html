@@ -2542,6 +2542,7 @@ function startCustomerMessageRealtime(){
 
   customerMessageRealtimeChannel = sb
     .channel("anybike-customer-message-centre")
+
     .on(
       "postgres_changes",
       {
@@ -2579,10 +2580,45 @@ function startCustomerMessageRealtime(){
         await refreshSharedCustomerHeader();
       }
     )
+
+    .on(
+      "postgres_changes",
+      {
+        event: "INSERT",
+        schema: "public",
+        table: "enquiry_messages"
+      },
+      async function(payload){
+
+        console.log("Customer realtime enquiry message:", payload);
+
+        const enquiryId = Number(payload.new.enquiry_id);
+
+        if(!enquiryId){
+          return;
+        }
+
+        const {data:ownedEnquiry,error} = await sb
+          .from("bike_enquiries")
+          .select("id")
+          .eq("id",enquiryId)
+          .eq("customer_id",currentUser.id)
+          .maybeSingle();
+
+        if(error || !ownedEnquiry){
+          return;
+        }
+
+        await loadCustomerMessages(enquiryId);
+        await refreshSharedCustomerHeader();
+      }
+    )
+
     .subscribe(function(status){
       console.log("Customer Message Centre realtime status:", status);
     });
 }
+
 (async function init(){
   try{
     await waitForPublicHeader();
