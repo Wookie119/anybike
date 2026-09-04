@@ -731,7 +731,30 @@ async function loadCustomers(){
       "<div style='color:#ff7676;font-weight:900'>"+profileError.message+"</div>";
     return;
   }
+  const { data:visitors, error:visitorError } = await sb
+    .from("website_visitors")
+    .select(`
+      user_id,
+      last_seen_at,
+      current_path,
+      page_title,
+      country,
+      region,
+      city,
+      latitude,
+      longitude,
+      device_type,
+      browser,
+      pageviews,
+      message_thread_id,
+      chat_status
+    `)
+    .not("user_id","is",null)
+    .order("last_seen_at",{ascending:false});
 
+  if(visitorError){
+    console.error("Could not load website visitor data:", visitorError);
+  }
   const { data:enquiries, error:enquiryError } = await sb
     .from("bike_enquiries")
     .select(`
@@ -783,11 +806,23 @@ async function loadCustomers(){
 
     enquiriesByCustomer[key].push(e);
   });
+  const latestVisitorByCustomer = {};
 
+  (visitors || []).forEach(v=>{
+    if(!v.user_id) return;
+
+    const key = String(v.user_id);
+
+    if(!latestVisitorByCustomer[key]){
+      latestVisitorByCustomer[key] = v;
+    }
+  });
   allCustomers = (profiles || []).map(profile=>{
     const deals = enquiriesByCustomer[String(profile.id)] || [];
 
     const latestDeal = deals[0] || null;
+    const latestVisitor =
+  latestVisitorByCustomer[String(profile.id)] || null;
 
     const totalValue = deals.reduce(
       (sum,d)=>sum + Number(d.deal_total_income || 0),
@@ -854,7 +889,52 @@ async function loadCustomers(){
       preferredLanguage:
         profile.preferred_language ||
         "",
+      latestVisitor,
 
+      lastSeenAt:
+        latestVisitor?.last_seen_at ||
+        "",
+
+      lastSeenCountry:
+        latestVisitor?.country ||
+        "",
+
+      lastSeenRegion:
+        latestVisitor?.region ||
+        "",
+
+      lastSeenCity:
+        latestVisitor?.city ||
+        "",
+
+      lastSeenLatitude:
+        latestVisitor?.latitude != null
+          ? Number(latestVisitor.latitude)
+          : null,
+
+      lastSeenLongitude:
+        latestVisitor?.longitude != null
+          ? Number(latestVisitor.longitude)
+          : null,
+
+      lastSeenPage:
+        latestVisitor?.current_path ||
+        "",
+
+      lastSeenPageTitle:
+        latestVisitor?.page_title ||
+        "",
+
+      lastSeenDevice:
+        latestVisitor?.device_type ||
+        "",
+
+      lastSeenBrowser:
+        latestVisitor?.browser ||
+        "",
+
+      lastSeenPageviews:
+        Number(latestVisitor?.pageviews || 0),
       deals,
 
       totalValue,
@@ -906,7 +986,14 @@ function updateStats(){
 
 let customerLeafletMap = null;
 let customerMapLayer = null;
-
+function escapeHtml(value){
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
 function renderMap(){
   const list = document.getElementById("countryList");
   const mapEl = document.getElementById("customerMap");
@@ -967,7 +1054,53 @@ function renderMap(){
   } else {
     customerMapLayer = L.layerGroup().addTo(customerLeafletMap);
   }
+  const markerBounds = [];
 
+  allCustomers.forEach(customer => {
+    const lat = customer.lastSeenLatitude;
+    const lng = customer.lastSeenLongitude;
+
+    if(
+      lat == null ||
+      lng == null ||
+      !Number.isFinite(lat) ||
+      !Number.isFinite(lng)
+    ){
+      return;
+    }
+
+    const marker = L.marker([lat, lng]);
+
+    const locationText = [
+      customer.lastSeenCity,
+      customer.lastSeenRegion,
+      customer.lastSeenCountry
+    ].filter(Boolean).join(", ");
+
+    marker.bindPopup(`
+      <div style="min-width:220px;">
+        <strong>${escapeHtml(customer.name || "Customer")}</strong><br>
+        ${customer.email ? escapeHtml(customer.email) + "<br>" : ""}
+        <br>
+        <strong>Last seen location:</strong><br>
+        ${escapeHtml(locationText || "Location unavailable")}
+        <br><br>
+        <strong>Last seen:</strong>
+        ${customer.lastSeenAt ? new Date(customer.lastSeenAt).toLocaleString() : "Unknown"}
+        ${customer.lastSeenPage ? `<br><strong>Page:</strong> ${escapeHtml(customer.lastSeenPage)}` : ""}
+      </div>
+    `);
+
+    marker.addTo(customerMapLayer);
+    markerBounds.push([lat, lng]);
+  });
+
+  if(markerBounds.length){
+    customerLeafletMap.fitBounds(markerBounds, {
+      padding:[40,40],
+      maxZoom:6
+    });
+  }
   setTimeout(()=>{
     customerLeafletMap.invalidateSize();
   },100);
