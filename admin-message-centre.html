@@ -503,7 +503,7 @@ async function updateSelectedStatus(status){
   selectedIds.clear();
   selectedThread = null;
   await loadThreads();
-}
+  
 
 async function archiveSelectedThreads(){
   if(!confirm("Archive selected messages?")) return;
@@ -1035,6 +1035,45 @@ async function saveRoute(){
 function getThreadLeadStatus(t){
   return t.lead_status || "New Lead";
 }
+let messageCentreRealtimeChannel = null;
+
+function startMessageCentreRealtime(){
+
+  if(messageCentreRealtimeChannel){
+    return;
+  }
+
+  messageCentreRealtimeChannel = sb
+    .channel("anybike-admin-message-centre")
+    .on(
+      "postgres_changes",
+      {
+        event: "INSERT",
+        schema: "public",
+        table: "message_centre_messages"
+      },
+      async function(payload){
+
+        console.log("Realtime Message Centre message:", payload);
+
+        const currentThreadId = selectedThread
+          ? Number(selectedThread.id)
+          : null;
+
+        await loadThreads();
+
+        if(
+          currentThreadId &&
+          Number(payload.new.thread_id) === currentThreadId
+        ){
+          await openThread(currentThreadId);
+        }
+      }
+    )
+    .subscribe(function(status){
+      console.log("Message Centre realtime status:", status);
+    });
+}
 
 document.addEventListener("DOMContentLoaded", async function(){
   const allowed = await requireAdminSession();
@@ -1045,6 +1084,7 @@ document.addEventListener("DOMContentLoaded", async function(){
 
   document.documentElement.classList.remove("admin-auth-pending");
   await loadThreads();
+startMessageCentreRealtime();
 
   setInterval(function(){
     refreshSelectedLiveChat();
