@@ -701,51 +701,168 @@ async function loadMessagesForIntel(){
 async function loadCustomers(){
   await loadMessagesForIntel();
 
-  const {data,error}=await sb
-    .from("bike_enquiries")
+  const { data:profiles, error:profileError } = await sb
+    .from("customer_profiles")
     .select(`
-      id,created_at,customer_id,customer_name,customer_email,customer_phone,
-      destination_country,customer_region,customer_city,status,assigned_to,message,
-      question_type,offer_amount,deal_total_income,deal_net_profit,deal_saved_by,
-      available_stock(id,make,model,variant,year,price_gbp,image_url)
+      id,
+      email,
+      full_name,
+      phone,
+      country,
+      city,
+      region,
+      business_name,
+      preferred_currency,
+      preferred_language,
+      created_at
     `)
     .order("created_at",{ascending:false});
 
-  if(error){
-    document.getElementById("customers").innerHTML="<div style='color:#ff7676;font-weight:900'>"+error.message+"</div>";
+  if(profileError){
+    document.getElementById("customers").innerHTML =
+      "<div style='color:#ff7676;font-weight:900'>"+profileError.message+"</div>";
     return;
   }
 
-  const grouped={};
+  const { data:enquiries, error:enquiryError } = await sb
+    .from("bike_enquiries")
+    .select(`
+      id,
+      created_at,
+      customer_id,
+      customer_name,
+      customer_email,
+      customer_phone,
+      destination_country,
+      customer_region,
+      customer_city,
+      status,
+      assigned_to,
+      message,
+      question_type,
+      offer_amount,
+      deal_total_income,
+      deal_net_profit,
+      deal_saved_by,
+      available_stock(
+        id,
+        make,
+        model,
+        variant,
+        year,
+        price_gbp,
+        image_url
+      )
+    `)
+    .order("created_at",{ascending:false});
 
-  (data||[]).forEach(e=>{
-    const key=e.customer_email||e.customer_phone||e.customer_id||"unknown-"+e.id;
+  if(enquiryError){
+    document.getElementById("customers").innerHTML =
+      "<div style='color:#ff7676;font-weight:900'>"+enquiryError.message+"</div>";
+    return;
+  }
 
-    if(!grouped[key]){
-      grouped[key]={
-        id:cleanId(key),
-        name:e.customer_name||"Unknown Customer",
-        email:e.customer_email||"",
-        phone:e.customer_phone||"",
-        country:e.destination_country||"",
-        region:e.customer_region||"",
-        city:e.customer_city||"",
-        deals:[],
-        totalValue:0,
-        totalProfit:0,
-        latest:e.created_at,
-        firstSeen:e.created_at
-      };
+  const enquiriesByCustomer = {};
+
+  (enquiries || []).forEach(e=>{
+    if(!e.customer_id) return;
+
+    const key = String(e.customer_id);
+
+    if(!enquiriesByCustomer[key]){
+      enquiriesByCustomer[key] = [];
     }
 
-    grouped[key].deals.push(e);
-    grouped[key].totalValue+=Number(e.deal_total_income||0);
-    grouped[key].totalProfit+=Number(e.deal_net_profit||0);
-    if(e.created_at>grouped[key].latest)grouped[key].latest=e.created_at;
-    if(e.created_at<grouped[key].firstSeen)grouped[key].firstSeen=e.created_at;
+    enquiriesByCustomer[key].push(e);
   });
 
-  allCustomers=Object.values(grouped).sort((a,b)=>new Date(b.latest)-new Date(a.latest));
+  allCustomers = (profiles || []).map(profile=>{
+    const deals = enquiriesByCustomer[String(profile.id)] || [];
+
+    const latestDeal = deals[0] || null;
+
+    const totalValue = deals.reduce(
+      (sum,d)=>sum + Number(d.deal_total_income || 0),
+      0
+    );
+
+    const totalProfit = deals.reduce(
+      (sum,d)=>sum + Number(d.deal_net_profit || 0),
+      0
+    );
+
+    const latest =
+      latestDeal?.created_at ||
+      profile.created_at;
+
+    const firstSeen =
+      deals.length
+        ? deals
+            .map(d=>d.created_at)
+            .sort()[0]
+        : profile.created_at;
+
+    return {
+      id: cleanId(profile.id),
+
+      customerId: profile.id,
+
+      name:
+        profile.full_name ||
+        latestDeal?.customer_name ||
+        profile.email ||
+        "Unknown Customer",
+
+      email:
+        profile.email ||
+        latestDeal?.customer_email ||
+        "",
+
+      phone:
+        profile.phone ||
+        latestDeal?.customer_phone ||
+        "",
+
+      country:
+        profile.country ||
+        "",
+
+      region:
+        profile.region ||
+        "",
+
+      city:
+        profile.city ||
+        "",
+
+      businessName:
+        profile.business_name ||
+        "",
+
+      preferredCurrency:
+        profile.preferred_currency ||
+        "",
+
+      preferredLanguage:
+        profile.preferred_language ||
+        "",
+
+      deals,
+
+      totalValue,
+      totalProfit,
+      latest,
+      firstSeen,
+
+      destinationCountry:
+        latestDeal?.destination_country ||
+        ""
+    };
+  });
+
+  allCustomers.sort(
+    (a,b)=>new Date(b.latest)-new Date(a.latest)
+  );
 
   populateCountries();
   updateStats();
