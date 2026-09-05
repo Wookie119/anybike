@@ -243,6 +243,52 @@
   </div>
 </div>
 
+<div class="seller-modal-backdrop" id="dealViabilityModal" onclick="dealViabilityBackdropClick(event)">
+  <div class="seller-modal" role="dialog" aria-modal="true" aria-labelledby="dealViabilityTitle">
+    <div class="seller-modal-head">
+      <div>
+        <h2 id="dealViabilityTitle">Deal Viability</h2>
+        <p>Internal pre-Deal estimate using the same commercial structure as the Deal Calculator.</p>
+      </div>
+      <button type="button" class="seller-modal-close" onclick="closeDealViability()" aria-label="Close">×</button>
+    </div>
+    <div class="seller-modal-body">
+      <div class="seller-form-section">
+        <h3>Commercial Position</h3>
+        <div class="seller-grid">
+          <div class="seller-field"><label>Motorcycle</label><div id="dvBikeName" class="seller-review-value">-</div></div>
+          <div class="seller-field"><label>Buyer Offer</label><div id="dvBuyerOffer" class="seller-review-value">-</div></div>
+          <div class="seller-field"><label>Seller Price</label><div id="dvSellerPrice" class="seller-review-value">Unknown</div></div>
+          <div class="seller-field"><label>Seller Price Confidence</label><div id="dvSellerConfidence" class="seller-review-value">Unknown</div></div>
+        </div>
+      </div>
+      <div class="seller-form-section">
+        <h3>Expected Costs</h3>
+        <div class="seller-grid">
+          <div class="seller-field"><label>Prep / PDI / MOT Cost (£)</label><input id="dvPrepCost" type="number" min="0" step="0.01" value="0" oninput="calculateDealViability()"></div>
+          <div class="seller-field"><label>Collection / Delivery Cost (£)</label><input id="dvDeliveryCost" type="number" min="0" step="0.01" value="0" oninput="calculateDealViability()"></div>
+          <div class="seller-field"><label>Export / Docs Cost (£)</label><input id="dvDocsCost" type="number" min="0" step="0.01" value="0" oninput="calculateDealViability()"></div>
+          <div class="seller-field"><label>Other Cost (£)</label><input id="dvOtherCost" type="number" min="0" step="0.01" value="0" oninput="calculateDealViability()"></div>
+        </div>
+        <div id="dvPreparationNote" class="seller-review-note" style="margin-top:10px"></div>
+      </div>
+      <div class="seller-form-section">
+        <h3>Expected Result</h3>
+        <div class="seller-grid">
+          <div class="seller-field"><label>Total Cost to AnyBike</label><div id="dvTotalCost" class="seller-review-value">Cannot calculate</div></div>
+          <div class="seller-field"><label>Expected Profit</label><div id="dvProfit" class="seller-review-value">Cannot calculate</div></div>
+          <div class="seller-field"><label>Expected Margin</label><div id="dvMargin" class="seller-review-value">Cannot calculate</div></div>
+          <div class="seller-field"><label>Commercial Status</label><div id="dvStatus" class="seller-review-value">Seller price required</div></div>
+        </div>
+        <div class="seller-review-note" style="margin-top:10px">This is an internal pre-Deal estimate only. Confirm seller price and all costs before securing or purchasing the motorcycle.</div>
+      </div>
+    </div>
+    <div class="seller-modal-actions">
+      <button type="button" onclick="closeDealViability()">Close</button>
+    </div>
+  </div>
+</div>
+
 <script>
 document.documentElement.classList.add("admin-auth-pending");
 </script>
@@ -2035,6 +2081,7 @@ let sellerPriceRequests=[];
 let sellerPriceRequestByMatch={};
 let activeSellerPriceRequestId=null;
 let activeSellerPriceMatchId=null;
+let activeDealViabilityMatchId=null;
 let activeSellerMatchId=null;
 let buyerThreads=[];
 let buyerConversationCache={};
@@ -2647,6 +2694,76 @@ function sellerIsoOrNull(value){
 
 function sellerConfirmationForMatch(matchId){
   return sellerConfirmations[String(matchId)] || null;
+}
+
+function dealViabilityBackdropClick(event){
+  if(event.target && event.target.id==="dealViabilityModal") closeDealViability();
+}
+function closeDealViability(){
+  const modal=document.getElementById("dealViabilityModal");
+  if(modal) modal.classList.remove("open");
+  activeDealViabilityMatchId=null;
+}
+function viabilityNumber(id){
+  const el=document.getElementById(id);
+  const n=Number(el ? el.value : 0);
+  return Number.isFinite(n) && n>=0 ? n : 0;
+}
+function openDealViability(matchId){
+  const match=(buyerMatches || []).find(m=>String(m.id)===String(matchId));
+  if(!match){ alert("Could not load this buyer offer."); return; }
+  activeDealViabilityMatchId=Number(matchId);
+  const bike=offerStockForMatch(match) || {};
+  const request=sellerPriceRequestForMatch(matchId);
+  const confirmation=sellerConfirmationForMatch(matchId);
+  const requestPrice=request && request.seller_price_gbp!==null && request.seller_price_gbp!==undefined && request.seller_price_gbp!=="" ? Number(request.seller_price_gbp) : null;
+  const confirmedPrice=confirmation && confirmation.confirmed_min_price_gbp!==null && confirmation.confirmed_min_price_gbp!==undefined && confirmation.confirmed_min_price_gbp!=="" ? Number(confirmation.confirmed_min_price_gbp) : null;
+  const sellerPrice=confirmedPrice!==null ? confirmedPrice : requestPrice;
+  const confidence=confirmedPrice!==null ? "Confirmed — Seller Check" : (requestPrice!==null ? "Confirmed — Seller Price Record" : "Unknown");
+  const bikeName=[match.year_snapshot || bike.year, match.make_snapshot || bike.make, match.model_snapshot || bike.model, match.variant_snapshot || bike.variant].filter(Boolean).join(" ");
+  document.getElementById("dvBikeName").textContent=bikeName || ("Stock #"+(match.stock_id || "-"));
+  document.getElementById("dvBuyerOffer").textContent=money(match.buyer_offer_gbp);
+  document.getElementById("dvSellerPrice").textContent=sellerPrice!==null ? money(sellerPrice) : "Unknown";
+  document.getElementById("dvSellerPrice").dataset.value=sellerPrice!==null ? String(sellerPrice) : "";
+  document.getElementById("dvSellerConfidence").textContent=confidence;
+  ["dvPrepCost","dvDeliveryCost","dvDocsCost","dvOtherCost"].forEach(id=>{ document.getElementById(id).value="0"; });
+  let prep=[];
+  if(request){
+    if(request.preparation_status) prep.push("Preparation: "+request.preparation_status);
+    if(request.road_ready_status) prep.push("Road ready: "+request.road_ready_status);
+    if(request.mot_requirement) prep.push("MOT: "+request.mot_requirement);
+    if(request.service_requirement) prep.push("Service required: "+request.service_requirement);
+    if(request.preparation_included_in_price===true) prep.push("Preparation included in seller price");
+    if(request.mot_included_in_price===true) prep.push("MOT included in seller price");
+  }
+  document.getElementById("dvPreparationNote").textContent=prep.length ? prep.join(" • ") : "No preparation / MOT information recorded yet.";
+  calculateDealViability();
+  document.getElementById("dealViabilityModal").classList.add("open");
+}
+function calculateDealViability(){
+  const match=(buyerMatches || []).find(m=>String(m.id)===String(activeDealViabilityMatchId));
+  if(!match) return;
+  const sellerEl=document.getElementById("dvSellerPrice");
+  const sellerRaw=sellerEl ? sellerEl.dataset.value : "";
+  const hasSeller=sellerRaw!=="" && Number.isFinite(Number(sellerRaw));
+  const buyer=Number(match.buyer_offer_gbp);
+  const hasBuyer=Number.isFinite(buyer);
+  if(!hasSeller || !hasBuyer){
+    document.getElementById("dvTotalCost").textContent="Cannot calculate";
+    document.getElementById("dvProfit").textContent="Cannot calculate";
+    document.getElementById("dvMargin").textContent="Cannot calculate";
+    document.getElementById("dvStatus").textContent=!hasSeller ? "Seller price required" : "Buyer price required";
+    return;
+  }
+  const seller=Number(sellerRaw);
+  const extra=viabilityNumber("dvPrepCost")+viabilityNumber("dvDeliveryCost")+viabilityNumber("dvDocsCost")+viabilityNumber("dvOtherCost");
+  const total=seller+extra;
+  const profit=buyer-total;
+  const margin=buyer>0 ? (profit/buyer)*100 : 0;
+  document.getElementById("dvTotalCost").textContent=money(total);
+  document.getElementById("dvProfit").textContent=money(profit);
+  document.getElementById("dvMargin").textContent=margin.toFixed(2)+"%";
+  document.getElementById("dvStatus").textContent=profit<0 ? "Loss" : (profit===0 ? "Break-even" : "Positive — verify all costs");
 }
 
 function sellerPriceRequestForMatch(matchId){
@@ -3423,6 +3540,7 @@ function renderBuyerOffers(){
               </td>
               <td>
                 <div class="offer-actions">
+                  ${hasOffer ? `<button type="button" class="seller-check-btn" onclick="openDealViability(${Number(match.id)})">Deal Viability</button>` : ""}
                   ${hasOffer && !hasSellerPrice && sellerPriceRequestState
                     ? (sellerPriceRequestState.actionable
                         ? `<button type="button" class="seller-check-btn needs-action" title="${safe(sellerPriceRequestState.title)}" onclick="openSellerPriceReview(${Number(match.id)})">${safe(sellerPriceRequestState.text)}</button>`
