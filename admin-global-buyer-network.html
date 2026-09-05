@@ -288,6 +288,11 @@
         <div class="seller-field"><textarea id="dvNotes" placeholder="Optional internal note for this viability snapshot"></textarea></div>
         <div class="seller-review-note" style="margin-top:10px">Saving creates a permanent pre-Deal viability snapshot. It does not secure the bike or accept the buyer offer.</div>
       </div>
+      <div class="seller-form-section">
+        <h3>Deal Viability History</h3>
+        <div id="dvHistoryStatus" class="seller-review-note">Loading saved viability snapshots…</div>
+        <div id="dvHistoryList" style="display:grid;gap:10px;margin-top:10px"></div>
+      </div>
     </div>
     <div class="seller-modal-actions">
       <div class="seller-modal-status" id="dvSaveStatus"></div>
@@ -2923,7 +2928,73 @@ async function openDealViability(matchId){
   }
   calculateDealViability();
   document.getElementById("dealViabilityModal").classList.add("open");
+  await loadDealViabilityHistory(match.id);
 }
+
+function viabilityEscape(value){
+  return String(value ?? "")
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;")
+    .replace(/'/g,"&#039;");
+}
+
+function viabilityDateTime(value){
+  if(!value) return "—";
+  const d=new Date(value);
+  if(Number.isNaN(d.getTime())) return String(value);
+  return d.toLocaleString("en-GB",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"});
+}
+
+async function loadDealViabilityHistory(matchId){
+  const status=document.getElementById("dvHistoryStatus");
+  const list=document.getElementById("dvHistoryList");
+  if(!status || !list) return;
+  status.textContent="Loading saved viability snapshots…";
+  list.innerHTML="";
+  try{
+    const {data,error}=await sb
+      .from("deal_viability_history")
+      .select("id,buyer_offer_gbp,seller_price_gbp,seller_price_source,seller_price_confidence,prep_cost_gbp,delivery_cost_gbp,export_docs_cost_gbp,other_cost_gbp,total_cost_gbp,expected_profit_gbp,expected_margin_percent,viability_stage,notes,saved_by,created_at")
+      .eq("buyer_match_id",Number(matchId))
+      .order("created_at",{ascending:false})
+      .limit(10);
+    if(error) throw error;
+    const rows=Array.isArray(data) ? data : [];
+    if(!rows.length){
+      status.textContent="No saved viability snapshots yet.";
+      return;
+    }
+    status.textContent=rows.length===1 ? "1 saved viability snapshot" : rows.length+" saved viability snapshots (latest first)";
+    list.innerHTML=rows.map((row,index)=>{
+      const margin=row.expected_margin_percent===null || row.expected_margin_percent===undefined ? "—" : Number(row.expected_margin_percent).toFixed(2)+"%";
+      const source=[row.seller_price_source,row.seller_price_confidence].filter(Boolean).join(" • ") || "Confirmed seller price";
+      const savedBy=row.saved_by ? "AnyBike Admin" : "Admin record";
+      const notes=row.notes ? `<div style="margin-top:8px"><strong>Notes:</strong> ${viabilityEscape(row.notes)}</div>` : "";
+      return `<div style="border:1px solid #d9dee8;border-radius:10px;padding:12px;background:#fff">
+        <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:8px">
+          <strong>${index===0 ? "Latest snapshot" : "Snapshot #"+viabilityEscape(row.id)}</strong>
+          <span>${viabilityEscape(viabilityDateTime(row.created_at))} • ${viabilityEscape(savedBy)}</span>
+        </div>
+        <div class="seller-grid">
+          <div class="seller-field"><label>Buyer Offer</label><div class="seller-review-value">${viabilityEscape(money(row.buyer_offer_gbp))}</div></div>
+          <div class="seller-field"><label>Seller Price</label><div class="seller-review-value">${viabilityEscape(money(row.seller_price_gbp))}</div></div>
+          <div class="seller-field"><label>Total Costs</label><div class="seller-review-value">${viabilityEscape(money(row.total_cost_gbp))}</div></div>
+          <div class="seller-field"><label>Expected Profit</label><div class="seller-review-value">${viabilityEscape(money(row.expected_profit_gbp))}</div></div>
+          <div class="seller-field"><label>Expected Margin</label><div class="seller-review-value">${viabilityEscape(margin)}</div></div>
+          <div class="seller-field"><label>Seller Price Source</label><div class="seller-review-value">${viabilityEscape(source)}</div></div>
+        </div>
+        <div class="seller-review-note" style="margin-top:8px">Prep/PDI/MOT ${viabilityEscape(money(row.prep_cost_gbp))} • Collection/Delivery ${viabilityEscape(money(row.delivery_cost_gbp))} • Export/Docs ${viabilityEscape(money(row.export_docs_cost_gbp))} • Other ${viabilityEscape(money(row.other_cost_gbp))}</div>
+        ${notes}
+      </div>`;
+    }).join("");
+  }catch(err){
+    console.error("Deal Viability history load failed",err);
+    status.textContent="Could not load Deal Viability history: "+(err?.message || err);
+  }
+}
+
 function calculateDealViability(){
   const match=(buyerMatches || []).find(m=>String(m.id)===String(activeDealViabilityMatchId));
   if(!match) return;
@@ -2983,6 +3054,7 @@ async function saveDealViability(){
       const profit=row && row.expected_profit_gbp!==undefined ? money(row.expected_profit_gbp) : document.getElementById("dvProfit").textContent;
       status.textContent="Deal Viability saved • Expected profit "+profit;
     }
+    await loadDealViabilityHistory(match.id);
   }catch(err){
     console.error("Deal Viability save failed",err);
     if(status) status.textContent="Could not save Deal Viability: "+(err?.message || err);
