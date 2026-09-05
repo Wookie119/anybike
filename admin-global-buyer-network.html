@@ -1,6 +1,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -679,6 +680,73 @@ a{text-decoration:none;color:inherit}
 .match-actions a:hover{
   border-color:var(--red);
 }
+
+.match-approval{
+  margin-top:12px;
+  padding:12px;
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:12px;
+  background:#0c0c0c;
+  display:grid;
+  gap:10px;
+}
+.match-approval-row{
+  display:grid;
+  grid-template-columns:minmax(180px,240px) minmax(160px,220px) 1fr;
+  gap:10px;
+  align-items:end;
+}
+.match-approval-check{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  min-height:44px;
+  font-weight:900;
+  cursor:pointer;
+}
+.match-approval-check input{
+  width:18px;
+  height:18px;
+  accent-color:var(--red);
+}
+.match-approval-field label{
+  display:block;
+  color:#aaa;
+  font-size:11px;
+  font-weight:900;
+  margin-bottom:5px;
+}
+.match-approval-field input{
+  width:100%;
+  min-height:44px;
+  background:#fff;
+  border:1px solid rgba(255,255,255,.18);
+  color:#111;
+  border-radius:10px;
+  padding:9px 11px;
+  font:inherit;
+  font-weight:900;
+}
+.match-approval-status{
+  min-height:44px;
+  display:flex;
+  align-items:center;
+  color:#aaa;
+  font-size:12px;
+  line-height:1.35;
+}
+.match-approval-status.ok{color:#7ee29b;}
+.match-approval-status.warn{color:#ffd166;}
+.match-approval-note{
+  color:#999;
+  font-size:11px;
+  line-height:1.4;
+}
+@media(max-width:760px){
+  .match-approval-row{
+    grid-template-columns:1fr;
+  }
+}
 .bulk-pipeline{
   display:grid;
   grid-template-columns:repeat(auto-fit,minmax(135px,1fr));
@@ -1117,6 +1185,7 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let buyers=[];
 let items=[];
 let stock=[];
+let buyerMatches=[];
 let buyerThreads=[];
 let buyerConversationCache={};
 let bulkStatusFilter='';
@@ -1146,7 +1215,7 @@ async function loadRelevantBuyerStock(requestItems){
     while(keepGoing){
       const {data,error}=await sb
         .from("available_stock")
-        .select("id,make,model,variant,year,mileage,price_gbp,colour,status,image_url")
+        .select("id,make,model,variant,year,mileage,price_gbp,colour,status,image_url,vat_status,private_estimated_trade,private_estimated_retail,expected_profit_gbp,target_sale_price_gbp")
         .eq("make",make)
         .range(from,from + batchSize - 1);
 
@@ -1177,7 +1246,7 @@ async function loadBuyers(){
   document.getElementById("buyersList").innerHTML=
     '<div class="empty">Loading Global Buyer CRM...</div>';
 
-  const [bRes,iRes,tRes]=await Promise.all([
+  const [bRes,iRes,tRes,mRes]=await Promise.all([
     sb
       .from("global_buyer_network")
       .select("*")
@@ -1197,7 +1266,13 @@ async function loadBuyers(){
         ascending:false,
         nullsFirst:false
       })
-      .limit(1000)
+      .limit(1000),
+
+    sb
+      .from("buyer_motorcycle_matches")
+      .select("*")
+      .order("created_at",{ascending:false})
+      .limit(5000)
   ]);
 
   if(bRes.error){
@@ -1219,6 +1294,18 @@ async function loadBuyers(){
   }
 
   stock=await loadRelevantBuyerStock(items);
+
+  buyerMatches=
+    mRes && !mRes.error
+      ? (mRes.data || [])
+      : [];
+
+  if(mRes && mRes.error){
+    console.warn(
+      "Could not load curated buyer matches",
+      mRes.error.message
+    );
+  }
 
   buyerThreads=
     tRes && !tRes.error
@@ -1388,7 +1475,7 @@ function buyerHtml(b,its){
     <div class="details">
       <div class="detail-grid">
         <div class="box"><h3>Buyer Details</h3>
-          ${line('Business',b.business_name)}${line('Contact',b.contact_name)}${line('Email',b.email)}${line('Phone',b.phone)}${line('Country',b.country)}${line('Monthly Purchase Volume',b.annual_purchase_volume)}${line('Lead source',b.lead_source)}
+          ${line('Business',b.business_name)}${line('Contact',b.contact_name)}${line('Email',b.email)}${line('Phone',b.phone)}${line('Country',b.country)}${line('Dashboard account',b.customer_id?'Linked':'Not linked yet')}${line('Monthly Purchase Volume',b.annual_purchase_volume)}${line('Lead source',b.lead_source)}
           <div class="status-control">
             <div>
               <label for="buyer-status-${b.id}">Move Buyer Through Pipeline</label>
@@ -1403,7 +1490,7 @@ function buyerHtml(b,its){
           ${line('Preference',b.shipping_preference)}${line('UK shipper',b.preferred_shipping_company)}${line('Destination port',b.preferred_destination_port)}
         </div>
         <div class="box"><h3>Requested Motorcycles</h3><div class="items">${its.length?its.map(itemHtml).join(''):'<div class="muted">No item rows saved.</div>'}</div></div>
-        <div class="box"><h3>Potential Stock Matches</h3><div class="match-list">${potentialMatchesHtml(its)}</div></div>
+        <div class="box"><h3>Potential Stock Matches</h3><div class="match-list">${potentialMatchesHtml(b,its)}</div></div>
         <div class="box"><h3>Where They Sell</h3><div class="links">${safe([b.website,b.social_links].filter(Boolean).join('\n')||'No URLs added')}</div></div>
 
         <div class="box" style="grid-column:1/-1">
@@ -1545,7 +1632,26 @@ function matchesForItem(i){
     )
     .slice(0,5);
 }
-function potentialMatchesHtml(its){
+function buyerMatchForStock(buyerId,stockId){
+  return buyerMatches.find(m=>
+    String(m.buyer_id)===String(buyerId) &&
+    String(m.stock_id)===String(stockId)
+  ) || null;
+}
+
+function normaliseGbpInput(input){
+  if(!input) return;
+  const raw=String(input.value||"").trim();
+  if(!raw) return;
+  const value=Number(raw);
+  if(!Number.isFinite(value)){
+    input.value="";
+    return;
+  }
+  input.value=Math.max(0,value).toFixed(2);
+}
+
+function potentialMatchesHtml(buyer,its){
   if(!its.length) return '<div class="muted">No requested bikes to match yet.</div>';
 
   const all = its.flatMap(i=>matchesForItem(i));
@@ -1553,30 +1659,272 @@ function potentialMatchesHtml(its){
     return '<div class="muted">No available stock matches found yet. This buyer should be added to sourcing opportunities.</div>';
   }
 
-  return all.slice(0,12).map(m=>`
-    <div class="match-card">
-      <div class="match-head">
-        <div>
-          <div class="match-bike">${safe(m.make)} ${safe(m.model)} ${safe(m.variant||'')}</div>
-          <div class="small">Matched request: ${safe(m._requested.make)} ${safe(m._requested.model)}</div>
+  return all.slice(0,12).map(m=>{
+    const existing=buyerMatchForStock(buyer.id,m.id);
+    const isVisible=!!(existing && existing.buyer_visible);
+    const profitValue=existing && existing.projected_profit_gbp!=null
+      ? Number(existing.projected_profit_gbp).toFixed(2)
+      : (m.expected_profit_gbp!=null && Number(m.expected_profit_gbp)>0
+          ? Number(m.expected_profit_gbp).toFixed(2)
+          : "");
+    const linked=!!buyer.customer_id;
+    const statusText=!linked
+      ? 'Buyer account not linked — dashboard sharing is unavailable.'
+      : (isVisible
+          ? 'Currently visible in this buyer\'s Potential Matches.'
+          : 'Internal match only — not visible to the buyer.');
+    const statusClass=isVisible?'ok':(!linked?'warn':'');
+    const tradeText=m.private_estimated_trade!=null && m.private_estimated_trade!==''
+      ? money(m.private_estimated_trade)
+      : '-';
+
+    return `
+      <div class="match-card">
+        <div class="match-head">
+          <div>
+            <div class="match-bike">${safe(m.make)} ${safe(m.model)} ${safe(m.variant||'')}</div>
+            <div class="small">Matched request: ${safe(m._requested.make)} ${safe(m._requested.model)}</div>
+          </div>
+          <div class="match-score">${safe(m._score)}% match</div>
         </div>
-        <div class="match-score">${safe(m._score)}% match</div>
-      </div>
 
-      <div class="match-meta">
-        <div><span>Year</span>${safe(m.year)}</div>
-        <div><span>Mileage</span>${m.mileage ? Number(m.mileage).toLocaleString('en-GB') + ' miles' : '-'}</div>
-        <div><span>Price</span>${money(m.price_gbp)}</div>
-        <div><span>Status</span>${safe(m.status||'Available')}</div>
-      </div>
+        <div class="match-meta">
+          <div><span>Year</span>${safe(m.year)}</div>
+          <div><span>Mileage</span>${m.mileage ? Number(m.mileage).toLocaleString('en-GB') + ' miles' : '-'}</div>
+          <div><span>Advertised price</span>${money(m.price_gbp)}</div>
+          <div><span>Estimated trade</span>${tradeText}</div>
+          <div><span>Status</span>${safe(m.status||'Available')}</div>
+        </div>
 
-      <div class="match-actions">
-        <a href="admin-motorcycle-360.html?id=${encodeURIComponent(m.id)}" target="_blank">View Bike</a>
-        <a href="available-stock.html" target="_blank">Open Stock Page</a>
+        <div class="match-actions">
+          <a href="admin-motorcycle-360.html?id=${encodeURIComponent(m.id)}" target="_blank">View Bike</a>
+          <a href="available-stock.html" target="_blank">Open Stock Page</a>
+        </div>
+
+        <div class="match-approval">
+          <div class="match-approval-row">
+            <label class="match-approval-check">
+              <input
+                type="checkbox"
+                id="buyer-match-check-${buyer.id}-${m.id}"
+                ${isVisible?'checked':''}
+                ${linked?'':'disabled'}
+                onchange="toggleBuyerDashboardMatch('${buyer.id}','${m.id}','${m._requested.id}',this)"
+              >
+              Add to Buyer Matches
+            </label>
+
+            <div class="match-approval-field">
+              <label for="buyer-match-profit-${buyer.id}-${m.id}">Projected AnyBike profit (£)</label>
+              <input
+                type="number"
+                id="buyer-match-profit-${buyer.id}-${m.id}"
+                min="0.01"
+                max="1000000"
+                step="0.01"
+                inputmode="decimal"
+                value="${safe(profitValue)}"
+                placeholder="0.00"
+                onblur="normaliseGbpInput(this)"
+              >
+            </div>
+
+            <div id="buyer-match-status-${buyer.id}-${m.id}" class="match-approval-status ${statusClass}">
+              ${safe(statusText)}
+            </div>
+          </div>
+
+          <div class="match-approval-note">
+            Checking this box means AnyBike believes there is a realistic route to a positive profit. It is still a provisional match: seller availability, seller minimum price and any final buyer price can be confirmed later if the buyer engages.
+          </div>
+        </div>
       </div>
-    </div>
-  `).join('');
+    `;
+  }).join('');
 }
+
+async function toggleBuyerDashboardMatch(buyerId,stockId,requestItemId,checkbox){
+  const buyer=buyers.find(b=>String(b.id)===String(buyerId));
+  const bike=stock.find(s=>String(s.id)===String(stockId));
+  const requestItem=items.find(i=>String(i.id)===String(requestItemId));
+  const profitInput=document.getElementById(`buyer-match-profit-${buyerId}-${stockId}`);
+  const status=document.getElementById(`buyer-match-status-${buyerId}-${stockId}`);
+  const existing=buyerMatchForStock(buyerId,stockId);
+
+  if(!buyer || !bike || !requestItem){
+    checkbox.checked=!!(existing && existing.buyer_visible);
+    if(status){
+      status.className='match-approval-status warn';
+      status.textContent='Could not identify the buyer, motorcycle or request item.';
+    }
+    return;
+  }
+
+  if(!buyer.customer_id){
+    checkbox.checked=false;
+    if(status){
+      status.className='match-approval-status warn';
+      status.textContent='Buyer account not linked — dashboard sharing is unavailable.';
+    }
+    return;
+  }
+
+  checkbox.disabled=true;
+  if(profitInput) profitInput.disabled=true;
+
+  try{
+    const {data:userData}=await sb.auth.getUser();
+    const adminUserId=userData && userData.user ? userData.user.id : null;
+    const now=new Date().toISOString();
+
+    if(checkbox.checked){
+      const projectedProfit=Number(profitInput ? profitInput.value : 0);
+
+      if(!Number.isFinite(projectedProfit) || projectedProfit<=0){
+        checkbox.checked=false;
+        if(status){
+          status.className='match-approval-status warn';
+          status.textContent='Enter a positive projected AnyBike profit in GBP before sharing this match.';
+        }
+        return;
+      }
+
+      if(profitInput){
+        profitInput.value=projectedProfit.toFixed(2);
+      }
+
+      const payload={
+        buyer_id:String(buyer.id),
+        customer_id:buyer.customer_id,
+        request_item_id:String(requestItem.id),
+        stock_id:String(bike.id),
+        match_status:'Approved for Buyer',
+        buyer_visible:true,
+        approved_at:now,
+        approved_by:adminUserId,
+        stock_make:bike.make||null,
+        stock_model:bike.model||null,
+        stock_variant:bike.variant||null,
+        stock_year:bike.year||null,
+        stock_mileage:bike.mileage||null,
+        stock_colour:bike.colour||null,
+        stock_image_url:bike.image_url||null,
+        stock_vat_status:bike.vat_status||null,
+        listed_price_snapshot_gbp:bike.price_gbp||null,
+        trade_value_snapshot_gbp:bike.private_estimated_trade||null,
+        provisional_customer_price_gbp:null,
+        projected_profit_gbp:projectedProfit,
+        profit_confidence:'Unknown',
+        profit_viable:true,
+        closed_at:null
+      };
+
+      let savedMatch;
+
+      if(existing){
+        const {data,error}=await sb
+          .from('buyer_motorcycle_matches')
+          .update(payload)
+          .eq('id',existing.id)
+          .select('*')
+          .single();
+
+        if(error) throw error;
+        savedMatch=data;
+      }else{
+        const {data,error}=await sb
+          .from('buyer_motorcycle_matches')
+          .insert(payload)
+          .select('*')
+          .single();
+
+        if(error) throw error;
+        savedMatch=data;
+      }
+
+      const index=buyerMatches.findIndex(m=>String(m.id)===String(savedMatch.id));
+      if(index>=0){
+        buyerMatches[index]=savedMatch;
+      }else{
+        buyerMatches.unshift(savedMatch);
+      }
+
+      const {error:activityError}=await sb
+        .from('buyer_match_activity')
+        .insert({
+          match_id:savedMatch.id,
+          actor_type:'Admin',
+          actor_user_id:adminUserId,
+          action_type:'Approved for Buyer',
+          amount_gbp:projectedProfit,
+          message:'Motorcycle added to the buyer Potential Matches dashboard.'
+        });
+
+      if(activityError){
+        console.warn('Could not save buyer match activity',activityError.message);
+      }
+
+      if(status){
+        status.className='match-approval-status ok';
+        status.textContent='Added to this buyer\'s Potential Matches. No email has been sent yet.';
+      }
+    }else{
+      if(!existing){
+        if(status){
+          status.className='match-approval-status';
+          status.textContent='Internal match only — not visible to the buyer.';
+        }
+        return;
+      }
+
+      const {data,error}=await sb
+        .from('buyer_motorcycle_matches')
+        .update({
+          buyer_visible:false,
+          match_status:'Closed',
+          closed_at:now
+        })
+        .eq('id',existing.id)
+        .select('*')
+        .single();
+
+      if(error) throw error;
+
+      const index=buyerMatches.findIndex(m=>String(m.id)===String(data.id));
+      if(index>=0) buyerMatches[index]=data;
+
+      const {error:activityError}=await sb
+        .from('buyer_match_activity')
+        .insert({
+          match_id:data.id,
+          actor_type:'Admin',
+          actor_user_id:adminUserId,
+          action_type:'Removed from Buyer Matches',
+          message:'Motorcycle removed from the buyer Potential Matches dashboard.'
+        });
+
+      if(activityError){
+        console.warn('Could not save buyer match activity',activityError.message);
+      }
+
+      if(status){
+        status.className='match-approval-status';
+        status.textContent='Removed from the buyer dashboard. The history has been retained.';
+      }
+    }
+  }catch(error){
+    console.error(error);
+    checkbox.checked=!!(existing && existing.buyer_visible);
+    if(status){
+      status.className='match-approval-status warn';
+      status.textContent='Could not update Buyer Matches: '+error.message;
+    }
+  }finally{
+    checkbox.disabled=false;
+    if(profitInput) profitInput.disabled=false;
+  }
+}
+
 
 
 function toggleBuyerDetails(buyerId){
