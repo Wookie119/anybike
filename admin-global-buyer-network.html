@@ -1996,7 +1996,7 @@ async function loadRelevantBuyerStock(requestItems){
     while(keepGoing){
       const {data,error}=await sb
         .from("available_stock")
-        .select("id,make,model,variant,year,mileage,price_gbp,colour,status,image_url,vat_status,private_estimated_trade,private_estimated_retail,expected_profit_gbp,target_sale_price_gbp")
+        .select("id,make,model,variant,year,mileage,price_gbp,colour,status,image_url,vat_status,private_estimated_trade,private_estimated_retail,expected_profit_gbp,target_sale_price_gbp,seller_type,seller_name,seller_phone,seller_email,seller_location,private_seller_name,private_seller_type,private_seller_phone,private_seller_email,source_type,source_partner_name,source_dealer_id")
         .eq("make",make)
         .range(from,from + batchSize - 1);
 
@@ -2300,6 +2300,103 @@ function offerStatusText(match){
   if(offer!==null && offer!==undefined && offer!=="") return "Buyer Offer";
   if(response && response!=="No Response" && response!=="None") return response;
   return "No Response";
+}
+
+async function createDraftSellerPriceRequest(matchId){
+  const match=(buyerMatches || []).find(m=>String(m.id)===String(matchId));
+  if(!match){
+    alert("Could not find this buyer offer.");
+    return;
+  }
+
+  const bike=offerStockForMatch(match);
+  if(!bike){
+    alert("Could not load the motorcycle stock record.");
+    return;
+  }
+
+  // Legacy bulk-import dealer names were historically stored in private_seller_name.
+  // Classify those as Dealer for the new Seller Price workflow rather than
+  // incorrectly treating the dealership as a private individual.
+  let sellerType=String(bike.seller_type || bike.private_seller_type || "").trim();
+  let sellerName=String(bike.seller_name || "").trim();
+  let sellerEmail=String(bike.seller_email || "").trim();
+  let sellerPhone=String(bike.seller_phone || "").trim();
+
+  if(!sellerName && String(bike.source_type || "")==="bulk_import" && bike.private_seller_name){
+    sellerType="Dealer";
+    sellerName=String(bike.private_seller_name || "").trim();
+    sellerEmail=sellerEmail || String(bike.private_seller_email || "").trim();
+    sellerPhone=sellerPhone || String(bike.private_seller_phone || "").trim();
+  }
+
+  if(!sellerType){
+    sellerType=bike.private_seller_name ? "Private Seller" : "Other";
+  }
+
+  if(/dealer/i.test(sellerType)) sellerType="Dealer";
+  else if(/private/i.test(sellerType)) sellerType="Private Seller";
+  else sellerType="Other";
+
+  const priceType=sellerType==="Dealer"
+    ? "dealer_trade_price"
+    : sellerType==="Private Seller"
+      ? "private_seller_price"
+      : "other";
+
+  const bikeName=[bike.make,bike.model,bike.variant].filter(Boolean).join(" ") || ("Stock #"+match.stock_id);
+  const sellerLabel=sellerName || "seller not yet identified";
+
+  if(!confirm(
+    "Create a DRAFT Seller Price Request?\n\n"+
+    bikeName+"\n"+
+    "Seller: "+sellerLabel+"\n"+
+    "Buyer offer: "+money(match.buyer_offer_gbp)+"\n\n"+
+    "Nothing will be sent to the seller."
+  )) return;
+
+  const btn=document.getElementById("seller-price-request-"+matchId);
+  if(btn){
+    btn.disabled=true;
+    btn.textContent="Creating Draft...";
+  }
+
+  const validUntil=new Date(Date.now() + 7*24*60*60*1000).toISOString();
+  const {data,error}=await sb.rpc("admin_create_seller_price_request",{
+    p_stock_id:Number(match.stock_id),
+    p_buyer_match_id:Number(matchId),
+    p_seller_type:sellerType,
+    p_seller_name:sellerName || null,
+    p_seller_contact_name:null,
+    p_seller_email:sellerEmail || null,
+    p_seller_phone:sellerPhone || null,
+    p_price_type:priceType,
+    p_request_channel:"Admin",
+    p_requested_valid_until:validUntil,
+    p_send_now:false
+  });
+
+  if(error){
+    if(btn){
+      btn.disabled=false;
+      btn.textContent="Request Seller Price";
+    }
+    alert("Could not create Seller Price Request: "+error.message);
+    return;
+  }
+
+  if(btn){
+    btn.disabled=true;
+    btn.textContent="Draft Price Request Created";
+    btn.title="Draft only — nothing has been sent to the seller.";
+  }
+
+  console.info("Seller Price Request draft created",data);
+  alert(
+    "Draft Seller Price Request created successfully.\n\n"+
+    "Nothing has been sent to the seller.\n"+
+    "We will add the review/send step next."
+  );
 }
 
 function openBuyerFromOffer(buyerId){
@@ -3104,6 +3201,10 @@ function renderBuyerOffers(){
               </td>
               <td>
                 <div class="offer-actions">
+                  ${hasOffer && String(match.match_status || "")!=="Accepted"
+                    ? `<button type="button" id="seller-price-request-${safe(match.id)}" class="seller-check-btn needs-action" onclick="createDraftSellerPriceRequest(${Number(match.id)})">Request Seller Price</button>`
+                    : ""
+                  }
                   ${hasOffer
                     ? `<button type="button" class="seller-check-btn needs-action" onclick="openSellerCheck(${Number(match.id)})">Check Seller</button>`
                     : ""
