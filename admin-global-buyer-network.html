@@ -283,9 +283,16 @@
         </div>
         <div class="seller-review-note" style="margin-top:10px">This is an internal pre-Deal estimate only. Confirm seller price and all costs before securing or purchasing the motorcycle.</div>
       </div>
+      <div class="seller-form-section">
+        <h3>Snapshot Notes</h3>
+        <div class="seller-field"><textarea id="dvNotes" placeholder="Optional internal note for this viability snapshot"></textarea></div>
+        <div class="seller-review-note" style="margin-top:10px">Saving creates a permanent pre-Deal viability snapshot. It does not secure the bike or accept the buyer offer.</div>
+      </div>
     </div>
     <div class="seller-modal-actions">
+      <div class="seller-modal-status" id="dvSaveStatus"></div>
       <button type="button" onclick="closeDealViability()">Close</button>
+      <button type="button" class="save" id="dvSaveButton" onclick="saveDealViability()">Save Deal Viability</button>
     </div>
   </div>
 </div>
@@ -2098,6 +2105,7 @@ let sellerPriceRequestByMatch={};
 let activeSellerPriceRequestId=null;
 let activeSellerPriceMatchId=null;
 let activeDealViabilityMatchId=null;
+let activeDealViabilitySellerPriceHistoryId=null;
 let activeSellerMatchId=null;
 let buyerThreads=[];
 let buyerConversationCache={};
@@ -2839,6 +2847,7 @@ function closeDealViability(){
   const modal=document.getElementById("dealViabilityModal");
   if(modal) modal.classList.remove("open");
   activeDealViabilityMatchId=null;
+  activeDealViabilitySellerPriceHistoryId=null;
 }
 function viabilityNumber(id){
   const el=document.getElementById(id);
@@ -2867,6 +2876,8 @@ async function openDealViability(matchId){
 
   let historyPrice=null;
   let historyConfidence=null;
+  let historyPriceId=null;
+  let historyPriceSource=null;
   if(match.stock_id!==null && match.stock_id!==undefined){
     const {data:latestPrice,error:latestPriceError}=await sb.rpc("admin_get_latest_seller_price",{p_stock_id:Number(match.stock_id)});
     if(!latestPriceError && latestPrice){
@@ -2874,6 +2885,8 @@ async function openDealViability(matchId){
       if(row && row.price_gbp!==null && row.price_gbp!==undefined && row.price_gbp!==""){
         historyPrice=Number(row.price_gbp);
         historyConfidence=row.confidence_status || "Confirmed";
+        historyPriceId=row.id!==null && row.id!==undefined ? Number(row.id) : null;
+        historyPriceSource=row.price_source || null;
       }
     }else if(latestPriceError){
       console.warn("Could not load confirmed seller price history",latestPriceError.message);
@@ -2883,6 +2896,7 @@ async function openDealViability(matchId){
   const sellerCheckPrice=confirmation && confirmation.confirmed_min_price_gbp!==null && confirmation.confirmed_min_price_gbp!==undefined && confirmation.confirmed_min_price_gbp!=="" ? Number(confirmation.confirmed_min_price_gbp) : null;
   const sellerPrice=sellerCheckPrice!==null ? sellerCheckPrice : historyPrice;
   const confidence=sellerCheckPrice!==null ? "Confirmed — Seller Check" : (historyPrice!==null ? (historyConfidence+" — Seller Price History") : "Unknown");
+  activeDealViabilitySellerPriceHistoryId=historyPriceId;
   const bikeName=[match.year_snapshot || bike.year, match.make_snapshot || bike.make, match.model_snapshot || bike.model, match.variant_snapshot || bike.variant].filter(Boolean).join(" ");
   document.getElementById("dvBikeName").textContent=bikeName || ("Stock #"+(match.stock_id || "-"));
   document.getElementById("dvBuyerOffer").textContent=money(match.buyer_offer_gbp);
@@ -2900,6 +2914,13 @@ async function openDealViability(matchId){
     if(request.mot_included_in_price===true) prep.push("MOT included in seller price");
   }
   document.getElementById("dvPreparationNote").textContent=prep.length ? prep.join(" • ") : "No preparation / MOT information recorded yet.";
+  const notes=document.getElementById("dvNotes"); if(notes) notes.value="";
+  const status=document.getElementById("dvSaveStatus"); if(status) status.textContent="";
+  const saveButton=document.getElementById("dvSaveButton");
+  if(saveButton){
+    saveButton.disabled=!historyPriceId;
+    saveButton.title=historyPriceId ? "Save this viability snapshot" : "A confirmed Seller Price History record is required before saving";
+  }
   calculateDealViability();
   document.getElementById("dealViabilityModal").classList.add("open");
 }
@@ -2927,6 +2948,47 @@ function calculateDealViability(){
   document.getElementById("dvProfit").textContent=money(profit);
   document.getElementById("dvMargin").textContent=margin.toFixed(2)+"%";
   document.getElementById("dvStatus").textContent=profit<0 ? "Loss" : (profit===0 ? "Break-even" : "Positive — verify all costs");
+}
+
+async function saveDealViability(){
+  const match=(buyerMatches || []).find(m=>String(m.id)===String(activeDealViabilityMatchId));
+  const status=document.getElementById("dvSaveStatus");
+  const button=document.getElementById("dvSaveButton");
+  if(!match){ if(status) status.textContent="Buyer offer could not be loaded."; return; }
+  if(!activeDealViabilitySellerPriceHistoryId){
+    if(status) status.textContent="Record a confirmed seller response before saving Deal Viability.";
+    return;
+  }
+  const sellerEl=document.getElementById("dvSellerPrice");
+  const sellerRaw=sellerEl ? sellerEl.dataset.value : "";
+  if(sellerRaw==="" || !Number.isFinite(Number(sellerRaw))){
+    if(status) status.textContent="Confirmed seller price is required.";
+    return;
+  }
+  if(button){ button.disabled=true; button.textContent="Saving…"; }
+  if(status) status.textContent="Saving viability snapshot…";
+  try{
+    const {data,error}=await sb.rpc("admin_save_deal_viability",{
+      p_buyer_match_id:Number(match.id),
+      p_seller_price_history_id:Number(activeDealViabilitySellerPriceHistoryId),
+      p_prep_cost_gbp:viabilityNumber("dvPrepCost"),
+      p_delivery_cost_gbp:viabilityNumber("dvDeliveryCost"),
+      p_export_docs_cost_gbp:viabilityNumber("dvDocsCost"),
+      p_other_cost_gbp:viabilityNumber("dvOtherCost"),
+      p_notes:(document.getElementById("dvNotes")?.value || "").trim() || null
+    });
+    if(error) throw error;
+    const row=Array.isArray(data) ? data[0] : data;
+    if(status){
+      const profit=row && row.expected_profit_gbp!==undefined ? money(row.expected_profit_gbp) : document.getElementById("dvProfit").textContent;
+      status.textContent="Deal Viability saved • Expected profit "+profit;
+    }
+  }catch(err){
+    console.error("Deal Viability save failed",err);
+    if(status) status.textContent="Could not save Deal Viability: "+(err?.message || err);
+  }finally{
+    if(button){ button.disabled=false; button.textContent="Save Deal Viability"; }
+  }
 }
 
 function sellerPriceRequestForMatch(matchId){
