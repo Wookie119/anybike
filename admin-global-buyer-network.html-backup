@@ -1,0 +1,3942 @@
+
+
+
+
+
+
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Global Buyer Network | AnyBike Admin</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" href="anybike-logo-new.jpg" type="image/jpeg">
+
+
+<div class="seller-modal-backdrop" id="sellerCheckModal" onclick="sellerModalBackdropClick(event)">
+  <div class="seller-modal" role="dialog" aria-modal="true" aria-labelledby="sellerCheckTitle">
+    <div class="seller-modal-head">
+      <div>
+        <h2 id="sellerCheckTitle">Seller Check / Secure Bike</h2>
+        <p id="sellerCheckSubtitle">Confirm the motorcycle is genuinely secured before accepting the buyer's offer.</p>
+      </div>
+      <button type="button" class="seller-modal-close" onclick="closeSellerCheck()" aria-label="Close">×</button>
+    </div>
+
+    <div class="seller-modal-body">
+      <div class="seller-summary">
+        <div class="seller-summary-card">
+          <span>Buyer Offer</span>
+          <strong id="sellerSummaryBuyerOffer">-</strong>
+        </div>
+        <div class="seller-summary-card">
+          <span>Seller Price</span>
+          <strong id="sellerSummarySellerPrice">-</strong>
+        </div>
+        <div class="seller-summary-card">
+          <span>Bike Status</span>
+          <strong id="sellerSummarySecured">Not Secured</strong>
+        </div>
+      </div>
+
+      <div class="seller-deadline-alert" id="sellerDeadlineAlert"></div>
+
+      <div class="seller-form-section">
+        <h3>1. Seller Availability & Price</h3>
+        <div class="seller-form-grid">
+          <div class="seller-field">
+            <label for="sellerAvailability">Availability</label>
+            <select id="sellerAvailability">
+              <option value="Unknown">Unknown</option>
+              <option value="Available">Available</option>
+              <option value="Reserved">Reserved</option>
+              <option value="Unavailable">Unavailable</option>
+              <option value="Sold">Sold</option>
+              <option value="Withdrawn">Withdrawn</option>
+            </select>
+          </div>
+
+          <div class="seller-field">
+            <label for="sellerMinPrice">Confirmed Seller Price (£)</label>
+            <input id="sellerMinPrice" type="text" inputmode="decimal" placeholder="£0.00 GBP"
+              onfocus="sellerMoneyFocus(this)" onblur="sellerMoneyBlur(this)">
+          </div>
+
+          <div class="seller-field">
+            <label for="sellerValidUntil">Seller Confirmation Valid Until</label>
+            <input id="sellerValidUntil" type="datetime-local">
+          </div>
+
+          <div class="seller-field">
+            <label for="sellerContactMethod">Contact Method</label>
+            <select id="sellerContactMethod">
+              <option value="">Not recorded</option>
+              <option value="Phone">Phone</option>
+              <option value="Email">Email</option>
+              <option value="WhatsApp">WhatsApp</option>
+              <option value="SMS">SMS</option>
+              <option value="Dealer Portal">Dealer Portal</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+
+          <div class="seller-field">
+            <label for="sellerContactName">Seller Contact Name</label>
+            <input id="sellerContactName" type="text" placeholder="Name">
+          </div>
+
+          <div class="seller-field">
+            <label for="sellerContactDetails">Seller Contact Details</label>
+            <input id="sellerContactDetails" type="text" placeholder="Phone, email or reference">
+          </div>
+        </div>
+      </div>
+
+      <div class="seller-form-section">
+        <h3>2. Hold / Reservation</h3>
+        <div class="seller-form-grid">
+          <div class="seller-field full">
+            <div class="seller-check-row">
+              <input id="sellerHoldConfirmed" type="checkbox" onchange="updateSellerFormState()">
+              <label for="sellerHoldConfirmed">Seller has agreed to hold / reserve this motorcycle</label>
+            </div>
+          </div>
+
+          <div class="seller-field">
+            <label for="sellerHoldReference">Hold / Reservation Reference</label>
+            <input id="sellerHoldReference" type="text" placeholder="Reference or agreement">
+          </div>
+
+          <div class="seller-field">
+            <label for="sellerHoldExpires">Hold Expires</label>
+            <input id="sellerHoldExpires" type="datetime-local">
+          </div>
+        </div>
+      </div>
+
+      <div class="seller-form-section">
+        <h3>3. Seller Deposit</h3>
+        <div class="seller-form-grid">
+          <div class="seller-field full">
+            <div class="seller-check-row">
+              <input id="sellerDepositRequired" type="checkbox" onchange="updateSellerFormState()">
+              <label for="sellerDepositRequired">Seller requires a deposit to secure the motorcycle</label>
+            </div>
+          </div>
+
+          <div class="seller-field">
+            <label for="sellerDepositAmount">Deposit Amount (£)</label>
+            <input id="sellerDepositAmount" type="text" inputmode="decimal" placeholder="£0.00 GBP"
+              onfocus="sellerMoneyFocus(this)" onblur="sellerMoneyBlur(this)">
+          </div>
+
+          <div class="seller-field">
+            <label for="sellerDepositDue">Deposit Must Be Paid By</label>
+            <input id="sellerDepositDue" type="datetime-local" onchange="updateSellerDeadlineWarning()">
+          </div>
+
+          <div class="seller-field full">
+            <div class="seller-check-row">
+              <input id="sellerDepositPaid" type="checkbox" onchange="updateSellerFormState()">
+              <label for="sellerDepositPaid">Seller deposit has been paid</label>
+            </div>
+          </div>
+
+          <div class="seller-field full">
+            <label for="sellerDepositReference">Deposit Payment Reference</label>
+            <input id="sellerDepositReference" type="text" placeholder="Bank/payment reference">
+          </div>
+        </div>
+      </div>
+
+      <div class="seller-form-section seller-secured-box">
+        <h3>4. Final Security Check</h3>
+        <div class="seller-check-row">
+          <input id="sellerBikeSecured" type="checkbox" onchange="updateSellerFormState()">
+          <label for="sellerBikeSecured">Motorcycle is secured with the seller and AnyBike can proceed</label>
+        </div>
+      </div>
+
+      <div class="seller-form-section">
+        <h3>Seller Notes</h3>
+        <div class="seller-field">
+          <textarea id="sellerNotes" placeholder="Anything important about availability, agreement, deposit, collection or seller conditions"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="seller-modal-actions">
+      <div class="seller-modal-status" id="sellerModalStatus"></div>
+      <button type="button" onclick="closeSellerCheck()">Cancel</button>
+      <button type="button" class="save" id="sellerSaveButton" onclick="saveSellerCheck()">Save Seller Check</button>
+    </div>
+  </div>
+</div>
+
+<script>
+document.documentElement.classList.add("admin-auth-pending");
+</script>
+
+<style>
+html.admin-auth-pending body{
+  visibility:hidden;
+}
+
+
+/* =========================================================
+   SHARED ADMIN TOPBAR — PAGE OVERRIDE PROTECTION
+   ========================================================= */
+
+#adminTopbar .admin-topbar{
+  position:sticky !important;
+  top:0 !important;
+  z-index:1000 !important;
+  background:rgba(5,5,5,.92) !important;
+  backdrop-filter:blur(14px) !important;
+  border-bottom:1px solid rgba(255,255,255,.12) !important;
+  padding:14px 22px !important;
+  display:grid !important;
+  grid-template-columns:minmax(0,1fr) auto !important;
+  gap:16px !important;
+  align-items:center !important;
+}
+
+#adminTopbar .admin-actions{
+  display:flex !important;
+  align-items:center !important;
+  gap:10px !important;
+}
+
+#adminTopbar .admin-bell{
+  position:relative !important;
+  width:44px !important;
+  min-width:44px !important;
+  height:44px !important;
+  margin:0 !important;
+  padding:0 !important;
+  border:1px solid rgba(255,255,255,.12) !important;
+  border-radius:50% !important;
+  background:#111 !important;
+  color:#fff !important;
+  font-size:19px !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+}
+
+#adminTopbar .admin-profile-menu{
+  position:relative !important;
+  margin:0 !important;
+}
+
+#adminTopbar .admin-profile-menu > summary{
+  list-style:none !important;
+}
+
+#adminTopbar .admin-profile-menu > summary::-webkit-details-marker{
+  display:none !important;
+}
+
+#adminTopbar .admin-profile{
+  min-width:210px !important;
+  width:auto !important;
+  min-height:44px !important;
+  margin:0 !important;
+  padding:10px 14px !important;
+  border:1px solid rgba(255,255,255,.12) !important;
+  border-radius:999px !important;
+  background:#111 !important;
+  color:#fff !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:space-between !important;
+  gap:12px !important;
+  font-size:16px !important;
+  font-weight:900 !important;
+  cursor:pointer !important;
+}
+
+#adminTopbar .admin-profile-dropdown{
+  position:absolute !important;
+  top:calc(100% + 10px) !important;
+  right:0 !important;
+  left:auto !important;
+  width:280px !important;
+  margin:0 !important;
+  padding:10px !important;
+  background:#111 !important;
+  border:1px solid rgba(255,255,255,.12) !important;
+  border-radius:16px !important;
+  box-shadow:0 24px 70px rgba(0,0,0,.60) !important;
+  z-index:2000 !important;
+}
+
+#adminTopbar .admin-profile-dropdown-head{
+  display:grid !important;
+  gap:4px !important;
+  padding:10px 10px 12px !important;
+}
+
+#adminTopbar .admin-profile-dropdown a{
+  display:flex !important;
+  align-items:center !important;
+  gap:9px !important;
+  width:100% !important;
+  margin:0 !important;
+  padding:10px 11px !important;
+  border-radius:10px !important;
+  background:transparent !important;
+  color:#fff !important;
+  text-decoration:none !important;
+  font-size:14px !important;
+  font-weight:850 !important;
+}
+
+#adminTopbar .admin-profile-dropdown a:hover{
+  background:rgba(237,28,36,.14) !important;
+}
+
+#adminTopbar .admin-profile-dropdown hr{
+  border:0 !important;
+  border-top:1px solid rgba(255,255,255,.12) !important;
+  margin:9px 0 !important;
+}
+
+#adminTopbar .admin-logout-button{
+  width:100% !important;
+  min-width:0 !important;
+  height:auto !important;
+  margin:0 !important;
+  padding:11px 12px !important;
+  border:0 !important;
+  border-radius:10px !important;
+  background:#ed1c24 !important;
+  color:#fff !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  gap:8px !important;
+  font-family:inherit !important;
+  font-size:14px !important;
+  font-weight:900 !important;
+  line-height:1.2 !important;
+  cursor:pointer !important;
+}
+
+@media(max-width:700px){
+  #adminTopbar .admin-topbar{
+    grid-template-columns:1fr !important;
+  }
+
+  #adminTopbar .admin-actions{
+    justify-content:space-between !important;
+  }
+
+  #adminTopbar .admin-profile-menu{
+    flex:1 !important;
+  }
+
+  #adminTopbar .admin-profile{
+    width:100% !important;
+    min-width:0 !important;
+  }
+
+  #adminTopbar .admin-profile-dropdown{
+    left:0 !important;
+    right:auto !important;
+    width:min(280px,calc(100vw - 32px)) !important;
+  }
+}
+
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="admin.js?v=12000"></script>
+<link rel="stylesheet" href="admin-shell.css?v=12001">
+
+<style>
+
+:root{
+  --red:#ed1c24;
+  --line:rgba(255,255,255,.12);
+  --muted:#aaa;
+  --green:#33cc66;
+  --panel:#111;
+  --panel2:#181818;
+}
+*{box-sizing:border-box}
+html,body{min-height:100%}
+body{
+  margin:0;
+  font-family:Arial,Helvetica,sans-serif;
+  background:
+    radial-gradient(circle at top left,rgba(237,28,36,.22),transparent 34%),
+    linear-gradient(120deg,#050505,#101010 60%,#050505);
+  color:#fff;
+}
+a{text-decoration:none;color:inherit}
+
+/* ADMIN SHELL */
+.admin-shell{
+  display:grid;
+  grid-template-columns:240px minmax(0,1fr);
+  min-height:100vh;
+}
+.admin-sidebar{
+  background:#090909;
+  border-right:1px solid var(--line);
+  padding:12px;
+  position:sticky;
+  top:0;
+  height:100vh;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+}
+.admin-logo{
+  max-width:140px;
+  margin:0 auto 14px;
+  background:#fff;
+  border-radius:16px;
+  padding:8px;
+}
+.admin-logo img{
+  width:100%;
+  height:auto;
+  display:block;
+}
+.admin-menu{
+  display:grid;
+  gap:5px;
+}
+.admin-menu a,
+.menu-folder{
+  width:100%;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  color:#fff;
+  background:transparent;
+  border:1px solid transparent;
+  text-decoration:none;
+  text-align:left;
+  padding:8px 9px;
+  border-radius:14px;
+  font-weight:900;
+  font-family:Arial,Helvetica,sans-serif;
+  font-size:14px;
+  cursor:pointer;
+  margin:0;
+}
+.admin-menu a:hover,
+.admin-menu a.active,
+.menu-folder:hover,
+.menu-folder.active-folder{
+  background:rgba(237,28,36,.16);
+  border-color:rgba(237,28,36,.45);
+}
+.admin-menu > a.active{
+  background:var(--red);
+  border-color:var(--red);
+}
+.menu-icon{
+  font-size:15px;
+  width:22px;
+  text-align:center;
+  flex:0 0 22px;
+}
+.menu-text{flex:1}
+.menu-arrow{
+  margin-left:auto;
+  color:#aaa;
+}
+.submenu{
+  display:none;
+  padding:2px 0 5px 34px;
+}
+.submenu.open{
+  display:grid;
+  gap:3px;
+}
+.submenu a{
+  display:block;
+  color:#ddd;
+  text-decoration:none;
+  font-size:13px;
+  font-weight:850;
+  padding:6px 8px;
+  border-radius:10px;
+}
+.submenu a:hover,
+.submenu a.active{
+  background:rgba(237,28,36,.16);
+  color:#fff;
+}
+.admin-main{
+  min-width:0;
+}
+.admin-topbar{
+  position:sticky;
+  top:0;
+  z-index:20;
+  background:rgba(5,5,5,.9);
+  backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--line);
+  padding:14px 22px;
+  display:grid;
+  grid-template-columns:1fr auto;
+  gap:16px;
+  align-items:center;
+}
+.admin-search{
+  max-width:760px;
+  display:grid;
+  grid-template-columns:42px 1fr;
+  align-items:center;
+  background:#111;
+  border:1px solid var(--line);
+  border-radius:999px;
+  overflow:hidden;
+}
+.admin-search span{text-align:center}
+.admin-search input{
+  width:100%;
+  background:transparent;
+  color:#fff;
+  border:0;
+  outline:0;
+  padding:13px 16px 13px 0;
+  font:inherit;
+  font-weight:800;
+}
+.admin-actions{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+.admin-bell{
+  position:relative;
+  background:#111;
+  color:#fff;
+  border:1px solid var(--line);
+  width:44px;
+  height:44px;
+  border-radius:50%;
+  cursor:pointer;
+  font-size:19px;
+  padding:0;
+  margin:0;
+}
+.admin-bell-count{
+  position:absolute;
+  top:-6px;
+  right:-6px;
+  background:var(--red);
+  color:#fff;
+  min-width:22px;
+  height:22px;
+  border-radius:999px;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  font-size:12px;
+  font-weight:900;
+  padding:0 6px;
+}
+.admin-profile{
+  background:#111;
+  border:1px solid var(--line);
+  border-radius:999px;
+  padding:10px 14px;
+  font-weight:900;
+}
+.admin-notification-panel{
+  position:absolute;
+  top:64px;
+  right:22px;
+  width:min(420px,calc(100vw - 30px));
+  background:#111;
+  border:1px solid var(--line);
+  border-radius:18px;
+  box-shadow:0 24px 70px rgba(0,0,0,.55);
+  display:none;
+  overflow:hidden;
+  z-index:100;
+}
+.admin-notification-panel.open{
+  display:block;
+}
+.admin-notification-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:14px;
+  border-bottom:1px solid var(--line);
+}
+.admin-notification-list{
+  max-height:420px;
+  overflow:auto;
+}
+.admin-notification-item{
+  display:block;
+  color:#fff;
+  text-decoration:none;
+  padding:13px 14px;
+  border-bottom:1px solid var(--line);
+}
+.admin-notification-item:hover{
+  background:rgba(237,28,36,.12);
+}
+.admin-notification-item strong{
+  display:block;
+  margin-bottom:4px;
+}
+.admin-notification-item small{
+  color:#aaa;
+  line-height:1.35;
+}
+.admin-page-content{
+  padding:24px;
+}
+
+/* GLOBAL BUYER CONTENT */
+.top{
+  display:flex;
+  justify-content:space-between;
+  gap:16px;
+  align-items:flex-start;
+  margin-bottom:22px;
+  background:
+    radial-gradient(circle at top right,rgba(237,28,36,.22),transparent 36%),
+    #111;
+  border:1px solid var(--line);
+  border-radius:22px;
+  padding:26px;
+}
+.top h1{
+  margin:0;
+  font-size:36px;
+  letter-spacing:-.04em;
+}
+.top p{
+  margin:7px 0 0;
+  color:var(--muted);
+  max-width:900px;
+  line-height:1.5;
+}
+.btn{
+  background:var(--red);
+  border:1px solid var(--red);
+  color:#fff;
+  border-radius:999px;
+  padding:11px 16px;
+  font-weight:900;
+  cursor:pointer;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  text-decoration:none;
+  white-space:nowrap;
+}
+.stats{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:14px;
+  margin-bottom:18px;
+}
+.stat{
+  background:var(--panel);
+  border:1px solid var(--line);
+  border-radius:18px;
+  padding:18px;
+}
+.stat strong{
+  font-size:30px;
+}
+.stat span{
+  display:block;
+  color:var(--muted);
+  font-size:13px;
+  font-weight:800;
+  margin-top:4px;
+}
+.toolbar{
+  display:grid;
+  grid-template-columns:1fr 220px 190px;
+  gap:12px;
+  margin-bottom:16px;
+}
+.toolbar input,
+.toolbar select{
+  background:#111;
+  border:1px solid var(--line);
+  color:#fff;
+  border-radius:12px;
+  padding:12px;
+  font:inherit;
+}
+.buyer{
+  background:rgba(17,17,17,.96);
+  border:1px solid var(--line);
+  border-radius:18px;
+  margin-bottom:12px;
+  overflow:hidden;
+}
+.buyer-head{
+  display:grid;
+  grid-template-columns:1.1fr .8fr .8fr .8fr auto;
+  gap:14px;
+  align-items:center;
+  padding:16px;
+  cursor:pointer;
+}
+.buyer-head:hover{
+  background:#151515;
+}
+.small{
+  font-size:13px;
+  color:var(--muted);
+}
+.pill{
+  display:inline-flex;
+  border:1px solid rgba(255,255,255,.18);
+  border-radius:999px;
+  padding:6px 10px;
+  font-size:12px;
+  font-weight:900;
+  color:#fff;
+  background:#171717;
+}
+.pill.red{
+  border-color:rgba(237,28,36,.5);
+  background:rgba(237,28,36,.14);
+}
+.details{
+  display:none;
+  border-top:1px solid var(--line);
+  padding:18px;
+  background:#0b0b0b;
+}
+.buyer.open .details{
+  display:block;
+}
+.detail-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:16px;
+}
+.box{
+  background:#111;
+  border:1px solid var(--line);
+  border-radius:14px;
+  padding:14px;
+}
+.box h3{
+  margin:0 0 10px;
+}
+.line{
+  display:grid;
+  grid-template-columns:180px 1fr;
+  gap:10px;
+  border-bottom:1px solid rgba(255,255,255,.07);
+  padding:7px 0;
+}
+.line:last-child{
+  border-bottom:0;
+}
+.items{
+  display:grid;
+  gap:8px;
+}
+.item{
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:12px;
+  padding:10px;
+  background:#151515;
+}
+.muted{
+  color:var(--muted);
+}
+.empty{
+  padding:26px;
+  border:1px dashed var(--line);
+  border-radius:18px;
+  color:var(--muted);
+  text-align:center;
+}
+.links{
+  white-space:pre-wrap;
+  word-break:break-word;
+  color:#ddd;
+}
+.notes{
+  white-space:pre-wrap;
+  color:#ddd;
+  max-height:260px;
+  overflow:auto;
+}
+.match-list{
+  display:grid;
+  gap:10px;
+}
+.match-card{
+  border:1px solid rgba(237,28,36,.35);
+  border-radius:14px;
+  background:#151515;
+  padding:12px;
+}
+.match-head{
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  align-items:flex-start;
+  margin-bottom:8px;
+}
+.match-bike{
+  font-weight:900;
+  color:#fff;
+}
+.match-score{
+  background:rgba(237,28,36,.18);
+  border:1px solid rgba(237,28,36,.55);
+  border-radius:999px;
+  padding:6px 9px;
+  font-size:12px;
+  font-weight:900;
+  color:#fff;
+  white-space:nowrap;
+}
+.match-meta{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(130px,1fr));
+  gap:8px;
+  margin-top:8px;
+}
+.match-meta div{
+  background:#0f0f0f;
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:10px;
+  padding:8px;
+  font-size:13px;
+}
+.match-meta span{
+  display:block;
+  color:#999;
+  font-size:11px;
+  margin-bottom:3px;
+}
+.match-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin-top:10px;
+}
+.match-actions a{
+  background:#222;
+  border:1px solid rgba(255,255,255,.14);
+  border-radius:999px;
+  padding:8px 11px;
+  font-size:12px;
+  font-weight:900;
+}
+.match-actions a:hover{
+  border-color:var(--red);
+}
+
+.match-approval{
+  margin-top:12px;
+  padding:12px;
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:12px;
+  background:#0c0c0c;
+  display:grid;
+  gap:10px;
+}
+.match-approval-row{
+  display:grid;
+  grid-template-columns:minmax(180px,240px) minmax(160px,220px) 1fr;
+  gap:10px;
+  align-items:end;
+}
+.match-approval-check{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  min-height:44px;
+  font-weight:900;
+  cursor:pointer;
+}
+.match-approval-check input{
+  width:18px;
+  height:18px;
+  accent-color:var(--red);
+}
+.match-approval-field label{
+  display:block;
+  color:#aaa;
+  font-size:11px;
+  font-weight:900;
+  margin-bottom:5px;
+}
+.match-approval-field input{
+  width:100%;
+  min-height:44px;
+  background:#fff;
+  border:1px solid rgba(255,255,255,.18);
+  color:#111;
+  border-radius:10px;
+  padding:9px 11px;
+  font:inherit;
+  font-weight:900;
+}
+.match-approval-status{
+  min-height:44px;
+  display:flex;
+  align-items:center;
+  color:#aaa;
+  font-size:12px;
+  line-height:1.35;
+}
+.match-approval-status.ok{color:#7ee29b;}
+.match-approval-status.warn{color:#ffd166;}
+.match-approval-note{
+  color:#999;
+  font-size:11px;
+  line-height:1.4;
+}
+
+.buyer-response-panel{
+  margin-top:12px;
+  padding:13px 14px;
+  border:1px solid rgba(255,255,255,.13);
+  border-radius:12px;
+  background:#0b0b0b;
+  display:grid;
+  gap:8px;
+}
+.buyer-response-panel.has-response{
+  border-color:rgba(54,211,126,.45);
+  background:rgba(54,211,126,.07);
+}
+.buyer-response-panel.has-offer{
+  border-color:rgba(237,28,36,.65);
+  background:rgba(237,28,36,.10);
+  box-shadow:0 0 0 1px rgba(237,28,36,.12);
+}
+.buyer-response-title{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  flex-wrap:wrap;
+}
+.buyer-response-title strong{
+  font-size:13px;
+}
+.buyer-response-badge{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-height:28px;
+  padding:5px 9px;
+  border-radius:999px;
+  background:#222;
+  border:1px solid rgba(255,255,255,.12);
+  color:#fff;
+  font-size:11px;
+  font-weight:900;
+}
+.buyer-response-panel.has-offer .buyer-response-badge{
+  background:var(--red);
+  border-color:var(--red);
+}
+.buyer-response-amount{
+  font-size:24px;
+  font-weight:900;
+  color:#fff;
+}
+.buyer-response-message{
+  color:#ddd;
+  font-size:13px;
+  line-height:1.45;
+  white-space:pre-wrap;
+}
+.buyer-response-time{
+  color:#999;
+  font-size:11px;
+}
+
+/* CENTRAL BUYER OFFERS QUEUE */
+.offers-management{
+  margin:0 0 20px;
+  background:rgba(17,17,17,.97);
+  border:1px solid var(--line);
+  border-radius:20px;
+  overflow:hidden;
+}
+.offers-management-head{
+  padding:18px 20px 14px;
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:16px;
+  border-bottom:1px solid var(--line);
+}
+.offers-management-head h2{
+  margin:0;
+  font-size:24px;
+}
+.offers-management-head p{
+  margin:5px 0 0;
+  color:var(--muted);
+  font-size:13px;
+}
+.offers-count-badge{
+  min-width:42px;
+  height:42px;
+  padding:0 12px;
+  border-radius:999px;
+  background:var(--red);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-weight:900;
+}
+.offers-toolbar{
+  padding:12px 16px;
+  display:grid;
+  grid-template-columns:minmax(220px,1fr) 210px 190px;
+  gap:10px;
+  border-bottom:1px solid var(--line);
+}
+.offers-toolbar input,
+.offers-toolbar select{
+  width:100%;
+  min-height:42px;
+  background:#0b0b0b;
+  color:#fff;
+  border:1px solid rgba(255,255,255,.14);
+  border-radius:11px;
+  padding:9px 11px;
+  font:inherit;
+}
+.offers-table-wrap{
+  overflow:auto;
+}
+.offers-table{
+  width:100%;
+  border-collapse:collapse;
+  min-width:1240px;
+}
+.offers-table th,
+.offers-table td{
+  padding:12px 14px;
+  border-bottom:1px solid rgba(255,255,255,.08);
+  text-align:left;
+  vertical-align:middle;
+}
+.offers-table th{
+  color:#aaa;
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+  background:#0c0c0c;
+  position:sticky;
+  top:0;
+}
+.offers-table td{
+  font-size:13px;
+}
+.offers-table tr:hover td{
+  background:rgba(255,255,255,.025);
+}
+.offer-amount{
+  color:#fff;
+  font-size:18px;
+  font-weight:900;
+}
+
+.offer-gross-margin{
+  color:#9bf0b8;
+  font-size:18px;
+  font-weight:900;
+}
+.offer-gross-margin.negative{
+  color:#ff9da1;
+}
+.offer-gross-margin.pending{
+  color:#777;
+}
+.offer-buyer strong,
+.offer-bike strong{
+  display:block;
+  color:#fff;
+}
+.offer-sub{
+  color:#999;
+  font-size:11px;
+  margin-top:3px;
+}
+.offer-status{
+  display:inline-flex;
+  align-items:center;
+  min-height:28px;
+  padding:5px 9px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.14);
+  background:#1b1b1b;
+  font-size:11px;
+  font-weight:900;
+}
+.offer-status.new{
+  border-color:rgba(237,28,36,.55);
+  background:rgba(237,28,36,.15);
+}
+.offer-status.accepted{
+  border-color:rgba(54,211,126,.55);
+  background:rgba(54,211,126,.14);
+  color:#9bf0b8;
+}
+.offer-accept-btn{
+  background:var(--red) !important;
+  border-color:var(--red) !important;
+}
+.offer-accept-btn:disabled{
+  opacity:.55;
+  cursor:not-allowed;
+}
+.seller-state{
+  display:inline-flex;
+  align-items:center;
+  min-height:28px;
+  padding:5px 9px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.14);
+  background:#181818;
+  color:#bbb;
+  font-size:11px;
+  font-weight:900;
+  white-space:nowrap;
+}
+.seller-state.secured{
+  border-color:rgba(54,211,126,.55);
+  background:rgba(54,211,126,.14);
+  color:#9bf0b8;
+}
+.seller-state.warning{
+  border-color:rgba(255,184,0,.55);
+  background:rgba(255,184,0,.12);
+  color:#ffd86a;
+}
+.seller-state.danger{
+  border-color:rgba(237,28,36,.65);
+  background:rgba(237,28,36,.15);
+  color:#ff9da1;
+}
+.seller-check-btn{
+  background:#2b2b2b !important;
+}
+.seller-check-btn.needs-action{
+  border-color:#ffb800 !important;
+}
+.seller-modal-backdrop{
+  position:fixed;
+  inset:0;
+  z-index:9999;
+  display:none;
+  align-items:flex-start;
+  justify-content:center;
+  padding:28px 18px;
+  overflow:auto;
+  background:rgba(0,0,0,.78);
+  backdrop-filter:blur(3px);
+}
+.seller-modal-backdrop.open{
+  display:flex;
+}
+.seller-modal{
+  width:min(920px,100%);
+  background:#111;
+  border:1px solid rgba(255,255,255,.14);
+  border-radius:20px;
+  box-shadow:0 24px 80px rgba(0,0,0,.65);
+  overflow:hidden;
+}
+.seller-modal-head{
+  display:flex;
+  justify-content:space-between;
+  gap:18px;
+  align-items:flex-start;
+  padding:20px 22px;
+  border-bottom:1px solid rgba(255,255,255,.1);
+}
+.seller-modal-head h2{
+  margin:0 0 4px;
+  font-size:24px;
+}
+.seller-modal-head p{
+  margin:0;
+  color:#999;
+  font-size:13px;
+}
+.seller-modal-close{
+  width:38px;
+  height:38px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.14);
+  background:#222;
+  color:#fff;
+  font-size:20px;
+  cursor:pointer;
+}
+.seller-modal-body{
+  padding:20px 22px;
+}
+.seller-summary{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:10px;
+  margin-bottom:16px;
+}
+.seller-summary-card{
+  background:#0b0b0b;
+  border:1px solid rgba(255,255,255,.1);
+  border-radius:13px;
+  padding:12px;
+}
+.seller-summary-card span{
+  display:block;
+  color:#888;
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+  margin-bottom:4px;
+}
+.seller-summary-card strong{
+  display:block;
+  font-size:15px;
+}
+.seller-deadline-alert{
+  display:none;
+  margin:0 0 16px;
+  padding:12px 14px;
+  border:1px solid rgba(255,184,0,.55);
+  background:rgba(255,184,0,.1);
+  border-radius:12px;
+  color:#ffe08a;
+  font-size:13px;
+  font-weight:800;
+}
+.seller-deadline-alert.danger{
+  border-color:rgba(237,28,36,.65);
+  background:rgba(237,28,36,.14);
+  color:#ffb0b3;
+}
+.seller-form-section{
+  margin:0 0 16px;
+  padding:15px;
+  border:1px solid rgba(255,255,255,.1);
+  border-radius:14px;
+  background:#0c0c0c;
+}
+.seller-form-section h3{
+  margin:0 0 12px;
+  font-size:15px;
+}
+.seller-form-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:12px;
+}
+.seller-field{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+.seller-field.full{
+  grid-column:1 / -1;
+}
+.seller-field label{
+  color:#bbb;
+  font-size:12px;
+  font-weight:800;
+}
+.seller-field input,
+.seller-field select,
+.seller-field textarea{
+  width:100%;
+  min-height:42px;
+  border:1px solid rgba(255,255,255,.14);
+  border-radius:10px;
+  background:#151515;
+  color:#fff;
+  padding:9px 10px;
+  font:inherit;
+}
+.seller-field textarea{
+  min-height:88px;
+  resize:vertical;
+}
+.seller-check-row{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  min-height:42px;
+}
+.seller-check-row input{
+  width:18px;
+  height:18px;
+}
+.seller-check-row label{
+  color:#fff;
+  font-weight:800;
+}
+.seller-secured-box{
+  border-color:rgba(54,211,126,.35);
+  background:rgba(54,211,126,.06);
+}
+.seller-secured-box .seller-check-row label{
+  color:#a8f2c0;
+  font-size:14px;
+}
+.seller-modal-actions{
+  display:flex;
+  justify-content:flex-end;
+  gap:9px;
+  padding:16px 22px;
+  border-top:1px solid rgba(255,255,255,.1);
+  background:#0b0b0b;
+}
+.seller-modal-actions button{
+  min-height:42px;
+  padding:9px 15px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.14);
+  color:#fff;
+  background:#252525;
+  font-weight:900;
+  cursor:pointer;
+}
+.seller-modal-actions .save{
+  background:var(--red);
+  border-color:var(--red);
+}
+.seller-modal-status{
+  margin-right:auto;
+  align-self:center;
+  color:#aaa;
+  font-size:12px;
+}
+.seller-modal-status.error{
+  color:#ff9da1;
+}
+.seller-modal-status.success{
+  color:#9bf0b8;
+}
+@media(max-width:760px){
+  .seller-summary,
+  .seller-form-grid{
+    grid-template-columns:1fr;
+  }
+  .seller-field.full{
+    grid-column:auto;
+  }
+}
+
+
+.offer-actions{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(112px,1fr));
+  gap:7px;
+  align-items:stretch;
+  min-width:238px;
+}
+.offer-actions button,
+.offer-actions a{
+  width:100%;
+  min-height:34px;
+  border:1px solid rgba(255,255,255,.14);
+  background:#222;
+  color:#fff;
+  border-radius:999px;
+  padding:7px 10px;
+  font-size:11px;
+  font-weight:900;
+  cursor:pointer;
+  white-space:nowrap;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+}
+.offer-actions .offer-status.accepted{
+  grid-column:1 / -1;
+  justify-content:center;
+}
+
+.offer-deal-ref{
+  color:#9bf0b8;
+  font-size:11px;
+  font-weight:900;
+  margin-top:4px;
+}
+
+.deal-view-btn{
+  background:#173d2b !important;
+  border-color:rgba(54,211,126,.45) !important;
+}
+
+.deal-timeline-inline{
+  grid-column:1 / -1;
+  display:none;
+  width:100%;
+  margin-top:4px;
+  padding:10px;
+  border:1px solid rgba(54,211,126,.25);
+  border-radius:12px;
+  background:#0b0b0b;
+  text-align:left;
+}
+
+.deal-timeline-inline.open{display:block;}
+.deal-timeline-title{font-size:11px;font-weight:900;color:#9bf0b8;margin-bottom:8px;}
+.deal-event{padding:8px 0;border-top:1px solid rgba(255,255,255,.08);}
+.deal-event:first-of-type{border-top:0;}
+.deal-event-head{display:flex;justify-content:space-between;gap:8px;font-size:11px;font-weight:900;}
+.deal-event-meta{color:#999;font-size:10px;margin-top:3px;}
+.deal-event-message{color:#ddd;font-size:11px;margin-top:4px;white-space:pre-wrap;}
+.offer-actions button:hover,
+.offer-actions a:hover{
+  border-color:var(--red);
+}
+.offers-empty{
+  padding:24px;
+  text-align:center;
+  color:var(--muted);
+}
+
+@media(max-width:900px){
+  .offers-toolbar{
+    grid-template-columns:1fr;
+  }
+}
+
+
+@media(max-width:760px){
+  .match-approval-row{
+    grid-template-columns:1fr;
+  }
+}
+.bulk-pipeline{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(135px,1fr));
+  gap:9px;
+  margin-bottom:18px;
+}
+.bulk-stage{
+  background:#111;
+  border:1px solid var(--line);
+  border-radius:14px;
+  min-height:108px;
+  padding:10px 7px;
+  cursor:pointer;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+  text-align:center;
+  transition:.2s ease;
+}
+.bulk-stage:hover{
+  transform:translateY(-2px);
+  border-color:var(--red);
+  box-shadow:0 0 18px rgba(237,28,36,.25);
+}
+.bulk-stage.active{
+  border:2px solid var(--red);
+  background:#171111;
+  box-shadow:0 0 22px rgba(237,28,36,.55);
+}
+.bulk-stage div{
+  font-weight:900;
+  line-height:1.12;
+  font-size:13px;
+}
+.bulk-stage strong{
+  font-size:28px;
+  color:var(--red);
+}
+.bulk-stage.all{
+  border:2px solid var(--red);
+}
+.pipeline-heading{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-end;
+  gap:14px;
+  margin:6px 0 10px;
+}
+.pipeline-heading h2{
+  margin:0;
+}
+.pipeline-heading p{
+  margin:4px 0 0;
+  color:var(--muted);
+  font-size:13px;
+}
+.status-control{
+  display:grid;
+  grid-template-columns:1fr auto;
+  gap:10px;
+  align-items:end;
+  margin-top:14px;
+  padding-top:12px;
+  border-top:1px solid rgba(255,255,255,.10);
+}
+.status-control label{
+  display:block;
+  font-weight:900;
+  margin-bottom:7px;
+}
+.status-control select{
+  width:100%;
+  height:48px;
+  background:#fff;
+  border:1px solid rgba(255,255,255,.22);
+  color:#111;
+  border-radius:12px;
+  padding:0 12px;
+  font:inherit;
+  font-weight:800;
+}
+.status-control option{
+  color:#111;
+  background:#fff;
+}
+.status-save-btn{
+  height:48px;
+  background:var(--red);
+  border:0;
+  color:#fff;
+  border-radius:999px;
+  padding:0 18px;
+  font-weight:900;
+  cursor:pointer;
+  white-space:nowrap;
+}
+.status-save-btn:disabled{
+  opacity:.55;
+  cursor:not-allowed;
+}
+
+
+
+.buyer-conversation{
+  display:grid;
+  gap:12px;
+}
+.conversation-head{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  align-items:flex-start;
+  flex-wrap:wrap;
+}
+.conversation-head p{
+  margin:4px 0 0;
+  color:var(--muted);
+  font-size:13px;
+}
+.conversation-link{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  background:#222;
+  border:1px solid rgba(255,255,255,.14);
+  border-radius:999px;
+  padding:9px 13px;
+  font-size:12px;
+  font-weight:900;
+}
+.conversation-link:hover{
+  border-color:var(--red);
+}
+.conversation-messages{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  max-height:360px;
+  overflow:auto;
+  padding:4px;
+}
+.conversation-message{
+  max-width:82%;
+  background:#1b1b1b;
+  border:1px solid rgba(255,255,255,.10);
+  border-radius:16px 16px 16px 4px;
+  padding:12px;
+}
+.conversation-message.admin{
+  margin-left:auto;
+  background:rgba(237,28,36,.15);
+  border-color:rgba(237,28,36,.38);
+  border-radius:16px 16px 4px 16px;
+}
+.conversation-message-head{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  color:#aaa;
+  font-size:11px;
+  margin-bottom:7px;
+}
+.conversation-message-text{
+  white-space:pre-wrap;
+  line-height:1.45;
+}
+.conversation-empty{
+  border:1px dashed rgba(255,255,255,.16);
+  border-radius:14px;
+  padding:18px;
+  color:var(--muted);
+  text-align:center;
+}
+.conversation-compose{
+  display:grid;
+  gap:10px;
+  border-top:1px solid rgba(255,255,255,.10);
+  padding-top:12px;
+}
+.conversation-compose select,
+.conversation-compose textarea{
+  width:100%;
+  background:#080808;
+  border:1px solid rgba(255,255,255,.16);
+  color:#fff;
+  border-radius:12px;
+  padding:12px;
+  font:inherit;
+}
+.conversation-compose select option{
+  color:#111;
+  background:#fff;
+}
+.conversation-compose textarea{
+  min-height:120px;
+  resize:vertical;
+}
+.conversation-actions{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  align-items:center;
+}
+.conversation-send{
+  background:var(--red);
+  border:0;
+  color:#fff;
+  border-radius:999px;
+  padding:11px 18px;
+  font-weight:900;
+  cursor:pointer;
+}
+.conversation-send:disabled{
+  opacity:.55;
+  cursor:not-allowed;
+}
+.conversation-status{
+  color:var(--muted);
+  font-size:13px;
+}
+
+.buyer.notification-target{
+  border-color:var(--red);
+  box-shadow:0 0 0 2px rgba(237,28,36,.24),0 0 28px rgba(237,28,36,.35);
+}
+
+@media(max-width:1000px){
+  .admin-shell{
+    grid-template-columns:1fr;
+  }
+  .admin-sidebar{
+    position:relative;
+    height:auto;
+    overflow:visible;
+  }
+  .admin-topbar{
+    grid-template-columns:1fr;
+  }
+  .stats,
+  .toolbar,
+  .buyer-head,
+  .detail-grid{
+    grid-template-columns:1fr;
+  }
+  .line{
+    grid-template-columns:1fr;
+  }
+  .admin-page-content{
+    padding:18px;
+  }
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="admin-shell">
+
+<div id="adminSidebar"></div>
+
+<div class="admin-main">
+
+<div id="adminTopbar"></div>
+
+<main class="admin-page-content">
+
+<div class="top">
+      <div>
+        <h1>Global Buyer CRM</h1>
+        <p>Manage dealers, wholesalers and bulk motorcycle buyers. Track requested bikes, monthly purchase volume, stock matches, selling links and shipping preferences.</p>
+      
+      <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;">
+        <a class="btn" style="background:#222;border-color:rgba(255,255,255,.16);" href="admin-enquiries.html">Open Single-Bike Sales CRM</a>
+        <a class="btn" style="background:#222;border-color:rgba(255,255,255,.16);" href="bulk-buying-request.html" target="_blank">View Public Buyer Form</a>
+      </div>
+
+      </div>
+      <button class="btn" onclick="loadBuyers()">Refresh</button>
+    </div>
+
+
+    <section class="pipeline-heading">
+      <div>
+        <h2>Global Bulk Buyer Pipeline</h2>
+        <p>Separate from single-bike enquiries. This pipeline is for dealers, wholesalers and container buyers requesting multiple motorcycles.</p>
+      </div>
+    </section>
+
+    <section class="bulk-pipeline">
+      <div class="bulk-stage all active" data-bulk-status="" onclick="setBulkStatusFilter('')"><div>📋<br>All Buyers</div><strong id="bulkAllCount">0</strong></div>
+      <div class="bulk-stage" data-bulk-status="New Buyer Registered" onclick="setBulkStatusFilter('New Buyer Registered')"><div>🆕<br>1<br>New Buyer</div><strong id="bulkNewCount">0</strong></div>
+      <div class="bulk-stage" data-bulk-status="Buyer Qualified" onclick="setBulkStatusFilter('Buyer Qualified')"><div>✅<br>2<br>Qualified</div><strong id="bulkQualifiedCount">0</strong></div>
+      <div class="bulk-stage" data-bulk-status="Motorcycle List Received" onclick="setBulkStatusFilter('Motorcycle List Received')"><div>📝<br>3<br>List Received</div><strong id="bulkListCount">0</strong></div>
+      <div class="bulk-stage" data-bulk-status="Matching Available Stock" onclick="setBulkStatusFilter('Matching Available Stock')"><div>🔍<br>4<br>Matching Stock</div><strong id="bulkMatchingCount">0</strong></div>
+      <div class="bulk-stage" data-bulk-status="Sourcing Additional Motorcycles" onclick="setBulkStatusFilter('Sourcing Additional Motorcycles')"><div>🏍️<br>5<br>Sourcing</div><strong id="bulkSourcingCount">0</strong></div>
+      <div class="bulk-stage" data-bulk-status="Offer Sent" onclick="setBulkStatusFilter('Offer Sent')"><div>📨<br>6<br>Offer Sent</div><strong id="bulkOfferCount">0</strong></div>
+      <div class="bulk-stage" data-bulk-status="Negotiating" onclick="setBulkStatusFilter('Negotiating')"><div>🤝<br>7<br>Negotiating</div><strong id="bulkNegotiatingCount">0</strong></div>
+      <div class="bulk-stage" data-bulk-status="Order Confirmed" onclick="setBulkStatusFilter('Order Confirmed')"><div>💷<br>8<br>Order Confirmed</div><strong id="bulkConfirmedCount">0</strong></div>
+      <div class="bulk-stage" data-bulk-status="Collecting Motorcycles" onclick="setBulkStatusFilter('Collecting Motorcycles')"><div>🚚<br>9<br>Collecting</div><strong id="bulkCollectingCount">0</strong></div>
+      <div class="bulk-stage" data-bulk-status="Building Container" onclick="setBulkStatusFilter('Building Container')"><div>📦<br>10<br>Container</div><strong id="bulkContainerCount">0</strong></div>
+      <div class="bulk-stage" data-bulk-status="Shipping Booked" onclick="setBulkStatusFilter('Shipping Booked')"><div>🚢<br>11<br>Shipping Booked</div><strong id="bulkShippingCount">0</strong></div>
+      <div class="bulk-stage" data-bulk-status="Export Complete" onclick="setBulkStatusFilter('Export Complete')"><div>🏁<br>12<br>Export Complete</div><strong id="bulkCompleteCount">0</strong></div>
+      <div class="bulk-stage" data-bulk-status="Repeat Buyer" onclick="setBulkStatusFilter('Repeat Buyer')"><div>🔁<br>13<br>Repeat Buyer</div><strong id="bulkRepeatCount">0</strong></div>
+    </section>
+
+    <section class="stats">
+      <div class="stat"><strong id="totalBuyers">0</strong><span>Total buyers</span></div>
+      <div class="stat"><strong id="newBuyers">0</strong><span>New global buyers</span></div>
+      <div class="stat"><strong id="totalItems">0</strong><span>Requested motorcycles</span></div>
+      <div class="stat"><strong id="topCountry">-</strong><span>Top country</span></div>
+    </section>
+
+    <section class="offers-management" id="buyerOffersManagement">
+      <div class="offers-management-head">
+        <div>
+          <h2>Buyer Offers</h2>
+          <p>All customer motorcycle offers in one queue. Open the buyer or motorcycle without searching through individual accounts.</p>
+        </div>
+        <div class="offers-count-badge" id="buyerOffersCount">0</div>
+      </div>
+
+      <div class="offers-toolbar">
+        <input id="offerSearchBox" placeholder="Search buyer, email, make, model, stock ID..." oninput="renderBuyerOffers()">
+        <select id="offerStatusFilter" onchange="renderBuyerOffers()">
+          <option value="">All offer statuses</option>
+          <option value="new">New / Needs Action</option>
+          <option value="offer">Buyer Offer</option>
+          <option value="interested">Interested</option>
+          <option value="question">Question Asked</option>
+          <option value="not interested">Not Interested</option>
+        </select>
+        <select id="offerSort" onchange="renderBuyerOffers()">
+          <option value="newest">Newest first</option>
+          <option value="oldest">Oldest first</option>
+          <option value="highest">Highest offer</option>
+          <option value="lowest">Lowest offer</option>
+          <option value="buyer">Buyer A–Z</option>
+        </select>
+      </div>
+
+      <div id="buyerOffersList" class="offers-table-wrap">
+        <div class="offers-empty">Loading buyer offers...</div>
+      </div>
+    </section>
+
+    <section class="toolbar">
+      <input id="searchBox" placeholder="Search buyer, email, country, bike..." oninput="renderBuyers()">
+      <select id="countryFilter" onchange="renderBuyers()"><option value="">All countries</option></select>
+      <select id="statusFilter" onchange="renderBuyers()"><option value="">All statuses</option></select>
+    </section>
+
+    <section id="buyersList"></section>
+
+</main>
+
+</div>
+
+</div>
+
+<script>
+
+function toggleAdminNotifications(){
+  var panel = document.getElementById("adminNotificationPanel");
+  if(panel){
+    panel.classList.toggle("open");
+  }
+}
+
+document.addEventListener("click", function(e){
+  var folderButton = e.target.closest(".menu-folder");
+
+  if(folderButton){
+    var id = folderButton.getAttribute("data-target");
+    var menu = document.getElementById(id);
+
+    if(!menu){
+      return;
+    }
+
+    document.querySelectorAll(".submenu").forEach(function(item){
+      if(item.id !== id){
+        item.classList.remove("open");
+      }
+    });
+
+    document.querySelectorAll(".menu-folder").forEach(function(btn){
+      if(btn !== folderButton){
+        btn.classList.remove("active-folder");
+      }
+    });
+
+    menu.classList.toggle("open");
+    folderButton.classList.toggle("active-folder", menu.classList.contains("open"));
+    return;
+  }
+
+  var panel = document.getElementById("adminNotificationPanel");
+  var bell = document.querySelector(".admin-bell");
+
+  if(panel && bell && !panel.contains(e.target) && !bell.contains(e.target)){
+    panel.classList.remove("open");
+  }
+});
+
+var search = document.getElementById("adminGlobalSearch");
+
+if(search){
+  search.addEventListener("keydown", function(e){
+    if(e.key !== "Enter"){
+      return;
+    }
+
+    var q = String(search.value || "").trim().toLowerCase();
+
+    if(!q){
+      return;
+    }
+
+    if(q.includes("buyer") || q.includes("bulk") || q.includes("global")){
+      location.href = "admin-global-buyer-network.html";
+      return;
+    }
+
+    if(q.includes("stock") || q.includes("bike") || q.includes("motorcycle")){
+      location.href = "admin-stock.html";
+      return;
+    }
+
+    if(q.includes("customer") || q.includes("member") || q.includes("profile")){
+      location.href = "admin-customers.html";
+      return;
+    }
+
+    if(q.includes("ship") || q.includes("logistic") || q.includes("container")){
+      location.href = "admin-logistics.html";
+      return;
+    }
+
+    if(q.includes("market") || q.includes("intelligence") || q.includes("country")){
+      location.href = "admin-market-intelligence.html";
+      return;
+    }
+
+    location.href = "admin-enquiries.html";
+  });
+}
+
+
+function escapeAdminHtml(value){
+  return String(value || "")
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+}
+
+</script>
+
+<script>
+const SUPABASE_URL = "https://tuehtnezhdnkqbbhttgp.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+
+
+
+let buyers=[];
+let items=[];
+let stock=[];
+let buyerMatches=[];
+let dealMotorcycles=[];
+let dealMotorcycleByMatch={};
+let adminDealNegotiationCache={};
+let sellerConfirmations={};
+let activeSellerMatchId=null;
+let buyerThreads=[];
+let buyerConversationCache={};
+let bulkStatusFilter='';
+function safe(v){return String(v ?? "").replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
+function money(v){return v==null||v===""?"-":"£"+Number(v).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});}
+function dateTxt(v){return v?new Date(v).toLocaleString():"-";}
+async function loadRelevantBuyerStock(requestItems){
+  const makes=[
+    ...new Set(
+      (requestItems || [])
+        .map(i=>String(i.make || "").trim())
+        .filter(Boolean)
+    )
+  ];
+
+  if(!makes.length){
+    return [];
+  }
+
+  const rows=[];
+  const batchSize=1000;
+
+  for(const make of makes){
+    let from=0;
+    let keepGoing=true;
+
+    while(keepGoing){
+      const {data,error}=await sb
+        .from("available_stock")
+        .select("id,make,model,variant,year,mileage,price_gbp,colour,status,image_url,vat_status,private_estimated_trade,private_estimated_retail,expected_profit_gbp,target_sale_price_gbp")
+        .eq("make",make)
+        .range(from,from + batchSize - 1);
+
+      if(error){
+        console.warn(
+          "Could not load matching stock for " + make,
+          error
+        );
+        break;
+      }
+
+      const batch=data || [];
+      rows.push(...batch);
+
+      if(batch.length < batchSize){
+        keepGoing=false;
+      }else{
+        from += batchSize;
+      }
+    }
+  }
+
+  return rows;
+}
+
+
+async function loadBuyers(){
+  document.getElementById("buyersList").innerHTML=
+    '<div class="empty">Loading Global Buyer CRM...</div>';
+
+  const [bRes,iRes,tRes,mRes,dRes]=await Promise.all([
+    sb
+      .from("global_buyer_network")
+      .select("*")
+      .order("created_at",{ascending:false})
+      .limit(500),
+
+    sb
+      .from("global_buyer_request_items")
+      .select("*")
+      .order("created_at",{ascending:false})
+      .limit(3000),
+
+    sb
+      .from("message_centre_threads")
+      .select("*")
+      .order("last_message_at",{
+        ascending:false,
+        nullsFirst:false
+      })
+      .limit(1000),
+
+    sb
+      .from("buyer_motorcycle_matches")
+      .select("*")
+      .order("created_at",{ascending:false})
+      .limit(5000),
+
+    sb.rpc("admin_get_deal_motorcycles")
+  ]);
+
+  if(bRes.error){
+    document.getElementById("buyersList").innerHTML=
+      '<div class="empty">Could not load buyers: ' +
+      safe(bRes.error.message) +
+      '</div>';
+    return;
+  }
+
+  buyers=bRes.data || [];
+  items=iRes.error ? [] : (iRes.data || []);
+
+  if(iRes.error){
+    console.warn(
+      "Could not load Global Buyer request items",
+      iRes.error.message
+    );
+  }
+
+  stock=await loadRelevantBuyerStock(items);
+
+  buyerMatches=
+    mRes && !mRes.error
+      ? (mRes.data || [])
+      : [];
+
+  if(mRes && mRes.error){
+    console.warn(
+      "Could not load curated buyer matches",
+      mRes.error.message
+    );
+  }
+
+  dealMotorcycles=
+    dRes && !dRes.error
+      ? (dRes.data || [])
+      : [];
+
+  dealMotorcycleByMatch={};
+  dealMotorcycles.forEach(row=>{
+    if(row?.buyer_match_id!==null && row?.buyer_match_id!==undefined){
+      dealMotorcycleByMatch[String(row.buyer_match_id)]=row;
+    }
+  });
+
+  if(dRes && dRes.error){
+    console.warn("Could not load AnyBike Deals",dRes.error.message);
+  }
+
+  buyerThreads=
+    tRes && !tRes.error
+      ? (tRes.data || [])
+      : [];
+
+  if(tRes && tRes.error){
+    console.warn(
+      "Could not load Global Buyer conversations",
+      tRes.error.message
+    );
+  }
+
+  buildFilters();
+  updatePipelineCounts();
+  renderBuyerOffers();
+  renderBuyers();
+}
+function buildFilters(){
+  const countries=[...new Set(buyers.map(b=>b.country).filter(Boolean))].sort();
+  const statuses=[...new Set(buyers.map(b=>b.status).filter(Boolean))].sort();
+  document.getElementById('countryFilter').innerHTML='<option value="">All countries</option>'+countries.map(c=>`<option>${safe(c)}</option>`).join('');
+  document.getElementById('statusFilter').innerHTML='<option value="">All statuses</option>'+statuses.map(s=>`<option>${safe(s)}</option>`).join('');
+}
+function itemsForBuyer(id){return items.filter(i=>String(i.buyer_id)===String(id));}
+
+function normalStatus(status){
+  const s = String(status || "").trim();
+  if(!s || s === "New" || s === "New Potential Buyer") return "New Buyer Registered";
+  return s;
+}
+function setBulkStatusFilter(status){
+  bulkStatusFilter = status || "";
+  document.querySelectorAll(".bulk-stage").forEach(el=>el.classList.remove("active"));
+  const active = document.querySelector(`.bulk-stage[data-bulk-status="${CSS.escape(bulkStatusFilter)}"]`);
+  if(active) active.classList.add("active");
+  renderBuyers();
+}
+function setCount(id,value){
+  const el=document.getElementById(id);
+  if(el) el.textContent=value;
+}
+function updatePipelineCounts(){
+  const c = status => buyers.filter(b=>normalStatus(b.status)===status).length;
+  setCount("bulkAllCount", buyers.length);
+  setCount("bulkNewCount", c("New Buyer Registered"));
+  setCount("bulkQualifiedCount", c("Buyer Qualified"));
+  setCount("bulkListCount", c("Motorcycle List Received"));
+  setCount("bulkMatchingCount", c("Matching Available Stock"));
+  setCount("bulkSourcingCount", c("Sourcing Additional Motorcycles"));
+  setCount("bulkOfferCount", c("Offer Sent"));
+  setCount("bulkNegotiatingCount", c("Negotiating"));
+  setCount("bulkConfirmedCount", c("Order Confirmed"));
+  setCount("bulkCollectingCount", c("Collecting Motorcycles"));
+  setCount("bulkContainerCount", c("Building Container"));
+  setCount("bulkShippingCount", c("Shipping Booked"));
+  setCount("bulkCompleteCount", c("Export Complete"));
+  setCount("bulkRepeatCount", c("Repeat Buyer"));
+}
+
+
+const BULK_STATUSES = [
+  "New Buyer Registered",
+  "Buyer Qualified",
+  "Motorcycle List Received",
+  "Matching Available Stock",
+  "Sourcing Additional Motorcycles",
+  "Offer Sent",
+  "Negotiating",
+  "Order Confirmed",
+  "Collecting Motorcycles",
+  "Building Container",
+  "Shipping Booked",
+  "Export Complete",
+  "Repeat Buyer"
+];
+
+function bulkStatusOptions(current){
+  let html = "";
+  BULK_STATUSES.forEach(s=>{
+    const selected = s === current ? " selected" : "";
+    html += '<option value="' + safe(s) + '"' + selected + '>' + safe(s) + '</option>';
+  });
+  return html;
+}
+
+async function updateBuyerStatus(buyerId){
+  const select = document.getElementById("buyer-status-" + buyerId);
+  if(!select) return;
+
+  const newStatus = select.value;
+  const btn = document.getElementById("buyer-status-btn-" + buyerId);
+
+  if(btn){
+    btn.disabled = true;
+    btn.textContent = "Saving...";
+  }
+
+  const { error } = await sb
+    .from("global_buyer_network")
+    .update({ status: newStatus })
+    .eq("id", Number(buyerId));
+
+  if(btn){
+    btn.disabled = false;
+    btn.textContent = "Save Status";
+  }
+
+  if(error){
+    alert("Status update failed: " + error.message);
+    return;
+  }
+
+  const buyer = buyers.find(b => Number(b.id) === Number(buyerId));
+  if(buyer) buyer.status = newStatus;
+
+  updatePipelineCounts();
+  renderBuyers();
+}
+
+
+function buyerForMatch(match){
+  if(!match) return null;
+
+  let buyer=null;
+
+  if(match.buyer_id!==null && match.buyer_id!==undefined){
+    buyer=buyers.find(b=>String(b.id)===String(match.buyer_id)) || null;
+  }
+
+  if(!buyer && match.customer_id){
+    buyer=buyers.find(b=>String(b.customer_id||"")===String(match.customer_id)) || null;
+  }
+
+  return buyer;
+}
+
+function offerStockForMatch(match){
+  if(!match) return null;
+  return stock.find(s=>String(s.id)===String(match.stock_id)) || null;
+}
+
+function offerStatusText(match){
+  const response=String(match?.buyer_response || "").trim();
+  const offer=match?.buyer_offer_gbp;
+
+  if(offer!==null && offer!==undefined && offer!=="") return "Buyer Offer";
+  if(response && response!=="No Response" && response!=="None") return response;
+  return "No Response";
+}
+
+function openBuyerFromOffer(buyerId){
+  const buyer=buyers.find(b=>String(b.id)===String(buyerId));
+  if(!buyer) return;
+
+  document.getElementById("searchBox").value="";
+  document.getElementById("countryFilter").value="";
+  document.getElementById("statusFilter").value="";
+  bulkStatusFilter="";
+  document.querySelectorAll(".bulk-stage").forEach(el=>el.classList.remove("active"));
+  const allStage=document.querySelector('.bulk-stage[data-bulk-status=""]');
+  if(allStage) allStage.classList.add("active");
+
+  renderBuyers();
+
+  requestAnimationFrame(()=>{
+    const card=document.getElementById("buyer-"+buyerId);
+    if(!card) return;
+    card.classList.add("open");
+    card.scrollIntoView({behavior:"smooth",block:"start"});
+    loadBuyerConversation(buyerId);
+  });
+}
+
+
+
+function sellerLocalDateTime(value){
+  if(!value) return "";
+  const d=new Date(value);
+  if(Number.isNaN(d.getTime())) return "";
+
+  const pad=n=>String(n).padStart(2,"0");
+  return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())+
+    "T"+pad(d.getHours())+":"+pad(d.getMinutes());
+}
+
+function sellerIsoOrNull(value){
+  if(!value) return null;
+  const d=new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+}
+
+function sellerConfirmationForMatch(matchId){
+  return sellerConfirmations[String(matchId)] || null;
+}
+
+function sellerMoneyNumber(value){
+  if(value===null || value===undefined || String(value).trim()==="") return null;
+  const cleaned=String(value).replace(/[^0-9.\-]/g,"");
+  if(!cleaned) return null;
+  const n=Number(cleaned);
+  return Number.isFinite(n) ? n : null;
+}
+
+function sellerMoneyDisplay(value){
+  const n=sellerMoneyNumber(value);
+  if(n===null) return "";
+  return "£"+n.toLocaleString("en-GB",{minimumFractionDigits:2,maximumFractionDigits:2})+" GBP";
+}
+
+function sellerMoneyFocus(input){
+  const n=sellerMoneyNumber(input.value);
+  input.value=n===null ? "" : n.toFixed(2);
+}
+
+function sellerMoneyBlur(input){
+  input.value=sellerMoneyDisplay(input.value);
+}
+
+function sellerDeadlineInfo(confirmation){
+  if(!confirmation ||
+     !confirmation.seller_deposit_required ||
+     confirmation.seller_deposit_paid ||
+     !confirmation.seller_deposit_due_at){
+    return null;
+  }
+
+  const due=new Date(confirmation.seller_deposit_due_at);
+  if(Number.isNaN(due.getTime())) return null;
+
+  const diff=due.getTime()-Date.now();
+  const hours=diff/3600000;
+
+  if(diff<=0){
+    return {
+      level:"danger",
+      text:"SELLER DEPOSIT OVERDUE — " + money(confirmation.seller_deposit_amount_gbp) +
+        " was due " + due.toLocaleString()
+    };
+  }
+
+  if(hours<=24){
+    return {
+      level:"danger",
+      text:"URGENT: Seller deposit " + money(confirmation.seller_deposit_amount_gbp) +
+        " due by " + due.toLocaleString()
+    };
+  }
+
+  if(hours<=72){
+    return {
+      level:"warning",
+      text:"Seller deposit " + money(confirmation.seller_deposit_amount_gbp) +
+        " due by " + due.toLocaleString()
+    };
+  }
+
+  return {
+    level:"warning",
+    text:"Seller deposit " + money(confirmation.seller_deposit_amount_gbp) +
+      " due " + due.toLocaleString()
+  };
+}
+
+function sellerStateForConfirmation(confirmation){
+  if(!confirmation){
+    return {
+      className:"danger",
+      label:"Seller Check Required"
+    };
+  }
+
+  const deadline=sellerDeadlineInfo(confirmation);
+
+  if(deadline && deadline.level==="danger"){
+    return {
+      className:"danger",
+      label:deadline.text
+    };
+  }
+
+  if(confirmation.bike_secured){
+    return {
+      className:"secured",
+      label:"✓ Bike Secured"
+    };
+  }
+
+  if(confirmation.seller_deposit_required &&
+     !confirmation.seller_deposit_paid){
+    return {
+      className:"warning",
+      label:"Deposit Required"
+    };
+  }
+
+  if(confirmation.hold_confirmed){
+    return {
+      className:"warning",
+      label:"Reserved / Hold"
+    };
+  }
+
+  if(confirmation.availability_status==="Available"){
+    return {
+      className:"warning",
+      label:"Available — Not Secured"
+    };
+  }
+
+  if(["Unavailable","Sold","Withdrawn"].includes(
+      String(confirmation.availability_status || "")
+    )){
+    return {
+      className:"danger",
+      label:String(confirmation.availability_status)
+    };
+  }
+
+  return {
+    className:"warning",
+    label:"Seller Check In Progress"
+  };
+}
+
+async function refreshSellerState(matchId){
+  const stateEl=document.getElementById("seller-state-"+matchId);
+  const acceptBtn=document.getElementById("accept-offer-"+matchId);
+
+  const {data,error}=await sb.rpc(
+    "admin_get_seller_confirmation",
+    {p_match_id:Number(matchId)}
+  );
+
+  if(error){
+    console.warn("Could not load seller confirmation for match "+matchId,error);
+    if(stateEl){
+      stateEl.className="seller-state danger";
+      stateEl.textContent="Seller Check Error";
+    }
+    if(acceptBtn){
+      acceptBtn.disabled=true;
+      acceptBtn.textContent="Secure Bike First";
+    }
+    return;
+  }
+
+  sellerConfirmations[String(matchId)]=data || null;
+
+  // Keep the Buyer Offers queue commercial figures in sync with Seller Check.
+  const sellerPriceEl=document.getElementById("seller-price-"+matchId);
+  const grossMarginEl=document.getElementById("gross-margin-"+matchId);
+  const match=(buyerMatches || []).find(m=>String(m.id)===String(matchId));
+  const sellerPrice=data?.confirmed_min_price_gbp;
+  const buyerOffer=match?.buyer_offer_gbp;
+  const hasSellerPrice=sellerPrice!==null && sellerPrice!==undefined && sellerPrice!=="";
+  const hasBuyerOffer=buyerOffer!==null && buyerOffer!==undefined && buyerOffer!=="";
+
+  if(sellerPriceEl){
+    sellerPriceEl.textContent=hasSellerPrice ? money(sellerPrice) : "-";
+  }
+
+  if(grossMarginEl){
+    if(hasSellerPrice && hasBuyerOffer){
+      const grossMargin=Number(buyerOffer)-Number(sellerPrice);
+      grossMarginEl.textContent=money(grossMargin);
+      grossMarginEl.className="offer-gross-margin"+(grossMargin<0 ? " negative" : "");
+      grossMarginEl.title="Buyer offer less confirmed seller price. This is gross buying spread, not final deal profit.";
+    }else{
+      grossMarginEl.textContent="-";
+      grossMarginEl.className="offer-gross-margin pending";
+      grossMarginEl.title="Gross margin will appear after a confirmed seller price is saved.";
+    }
+  }
+
+  const state=sellerStateForConfirmation(data || null);
+
+  if(stateEl){
+    stateEl.className="seller-state "+state.className;
+    stateEl.textContent=state.label;
+  }
+
+  if(acceptBtn){
+    const secured=!!(data && data.bike_secured);
+    acceptBtn.disabled=!secured;
+    acceptBtn.textContent=secured ? "Accept Offer" : "Secure Bike First";
+    acceptBtn.title=secured
+      ? "The motorcycle is secured with the seller."
+      : "Complete Seller Check and secure the motorcycle before accepting this offer.";
+  }
+}
+
+async function openSellerCheck(matchId){
+  const match=(buyerMatches || []).find(m=>String(m.id)===String(matchId));
+
+  if(!match){
+    alert("Could not find this buyer offer.");
+    return;
+  }
+
+  activeSellerMatchId=Number(matchId);
+
+  const modal=document.getElementById("sellerCheckModal");
+  const status=document.getElementById("sellerModalStatus");
+
+  status.className="seller-modal-status";
+  status.textContent="Loading seller check...";
+
+  modal.classList.add("open");
+  document.body.style.overflow="hidden";
+
+  const bike=offerStockForMatch(match);
+  const bikeName=[
+    match.stock_make || bike?.make,
+    match.stock_model || bike?.model,
+    match.stock_variant || bike?.variant
+  ].filter(Boolean).join(" ") || ("Stock #" + String(match.stock_id || ""));
+
+  document.getElementById("sellerCheckSubtitle").textContent=
+    bikeName+" • Buyer offer "+money(match.buyer_offer_gbp);
+
+  document.getElementById("sellerSummaryBuyerOffer").textContent=
+    money(match.buyer_offer_gbp);
+
+  const {data,error}=await sb.rpc(
+    "admin_get_seller_confirmation",
+    {p_match_id:Number(matchId)}
+  );
+
+  if(error){
+    status.className="seller-modal-status error";
+    status.textContent="Could not load seller check: "+error.message;
+    return;
+  }
+
+  sellerConfirmations[String(matchId)]=data || null;
+  populateSellerCheckForm(data || null);
+  status.textContent=data ? "Existing seller check loaded." : "No seller check recorded yet.";
+}
+
+function populateSellerCheckForm(c){
+  document.getElementById("sellerAvailability").value=
+    c?.availability_status || "Unknown";
+
+  document.getElementById("sellerMinPrice").value=
+    sellerMoneyDisplay(c?.confirmed_min_price_gbp);
+
+  document.getElementById("sellerValidUntil").value=
+    sellerLocalDateTime(c?.valid_until);
+
+  document.getElementById("sellerContactMethod").value=
+    c?.contact_method || "";
+
+  document.getElementById("sellerContactName").value=
+    c?.seller_contact_name || "";
+
+  document.getElementById("sellerContactDetails").value=
+    c?.seller_contact_details || "";
+
+  document.getElementById("sellerHoldConfirmed").checked=
+    !!c?.hold_confirmed;
+
+  document.getElementById("sellerHoldReference").value=
+    c?.hold_reference || "";
+
+  document.getElementById("sellerHoldExpires").value=
+    sellerLocalDateTime(c?.hold_expires_at);
+
+  document.getElementById("sellerDepositRequired").checked=
+    !!c?.seller_deposit_required;
+
+  document.getElementById("sellerDepositAmount").value=
+    sellerMoneyDisplay(c?.seller_deposit_amount_gbp);
+
+  document.getElementById("sellerDepositDue").value=
+    sellerLocalDateTime(c?.seller_deposit_due_at);
+
+  document.getElementById("sellerDepositPaid").checked=
+    !!c?.seller_deposit_paid;
+
+  document.getElementById("sellerDepositReference").value=
+    c?.seller_deposit_payment_reference || "";
+
+  document.getElementById("sellerBikeSecured").checked=
+    !!c?.bike_secured;
+
+  document.getElementById("sellerNotes").value=
+    c?.notes || "";
+
+  document.getElementById("sellerSummarySellerPrice").textContent=
+    money(c?.confirmed_min_price_gbp);
+
+  document.getElementById("sellerSummarySecured").textContent=
+    c?.bike_secured ? "✓ Secured" : "Not Secured";
+
+  updateSellerFormState();
+  updateSellerDeadlineWarning();
+}
+
+function updateSellerFormState(){
+  const hold=document.getElementById("sellerHoldConfirmed").checked;
+  const depositRequired=document.getElementById("sellerDepositRequired").checked;
+  const depositPaid=document.getElementById("sellerDepositPaid").checked;
+
+  document.getElementById("sellerHoldReference").disabled=!hold;
+  document.getElementById("sellerHoldExpires").disabled=!hold;
+
+  document.getElementById("sellerDepositAmount").disabled=!depositRequired;
+  document.getElementById("sellerDepositDue").disabled=!depositRequired;
+  document.getElementById("sellerDepositPaid").disabled=!depositRequired;
+  document.getElementById("sellerDepositReference").disabled=
+    !depositRequired || !depositPaid;
+
+  if(!depositRequired){
+    document.getElementById("sellerDepositPaid").checked=false;
+  }
+
+  updateSellerDeadlineWarning();
+}
+
+function updateSellerDeadlineWarning(){
+  const alertBox=document.getElementById("sellerDeadlineAlert");
+  if(!alertBox) return;
+
+  const required=document.getElementById("sellerDepositRequired").checked;
+  const paid=document.getElementById("sellerDepositPaid").checked;
+  const dueValue=document.getElementById("sellerDepositDue").value;
+  const amount=document.getElementById("sellerDepositAmount").value;
+
+  alertBox.className="seller-deadline-alert";
+  alertBox.style.display="none";
+  alertBox.textContent="";
+
+  if(!required || paid || !dueValue) return;
+
+  const due=new Date(dueValue);
+  if(Number.isNaN(due.getTime())) return;
+
+  const diff=due.getTime()-Date.now();
+  const hours=diff/3600000;
+  let text="Seller deposit "+money(sellerMoneyNumber(amount))+" must be paid by "+due.toLocaleString()+".";
+
+  if(diff<=0){
+    alertBox.classList.add("danger");
+    text="SELLER DEPOSIT OVERDUE — "+money(sellerMoneyNumber(amount))+" was due "+due.toLocaleString()+".";
+  }else if(hours<=24){
+    alertBox.classList.add("danger");
+    text="URGENT — Seller deposit "+money(sellerMoneyNumber(amount))+" must be paid by "+due.toLocaleString()+".";
+  }
+
+  alertBox.textContent=text;
+  alertBox.style.display="block";
+}
+
+function closeSellerCheck(){
+  document.getElementById("sellerCheckModal").classList.remove("open");
+  document.body.style.overflow="";
+  activeSellerMatchId=null;
+}
+
+function sellerModalBackdropClick(event){
+  if(event.target===document.getElementById("sellerCheckModal")){
+    closeSellerCheck();
+  }
+}
+
+async function saveSellerCheck(){
+  if(!activeSellerMatchId) return;
+
+  const status=document.getElementById("sellerModalStatus");
+  const saveButton=document.getElementById("sellerSaveButton");
+
+  const depositRequired=document.getElementById("sellerDepositRequired").checked;
+  const depositPaid=document.getElementById("sellerDepositPaid").checked;
+  const bikeSecured=document.getElementById("sellerBikeSecured").checked;
+
+  const sellerPrice=sellerMoneyNumber(document.getElementById("sellerMinPrice").value);
+  const depositAmount=sellerMoneyNumber(document.getElementById("sellerDepositAmount").value);
+
+  if(depositRequired && (depositAmount===null || depositAmount<=0)){
+    status.className="seller-modal-status error";
+    status.textContent="Enter the seller deposit amount.";
+    return;
+  }
+
+  const args={
+    p_match_id:Number(activeSellerMatchId),
+    p_availability_status:document.getElementById("sellerAvailability").value,
+    p_confirmed_min_price_gbp:sellerPrice,
+    p_valid_until:sellerIsoOrNull(document.getElementById("sellerValidUntil").value),
+    p_contact_method:document.getElementById("sellerContactMethod").value || null,
+    p_seller_contact_name:document.getElementById("sellerContactName").value || null,
+    p_seller_contact_details:document.getElementById("sellerContactDetails").value || null,
+    p_notes:document.getElementById("sellerNotes").value || null,
+    p_hold_confirmed:document.getElementById("sellerHoldConfirmed").checked,
+    p_hold_reference:document.getElementById("sellerHoldReference").value || null,
+    p_hold_expires_at:sellerIsoOrNull(document.getElementById("sellerHoldExpires").value),
+    p_seller_deposit_required:depositRequired,
+    p_seller_deposit_amount_gbp:depositRequired ? depositAmount : null,
+    p_seller_deposit_due_at:depositRequired
+      ? sellerIsoOrNull(document.getElementById("sellerDepositDue").value)
+      : null,
+    p_seller_deposit_paid:depositRequired ? depositPaid : false,
+    p_seller_deposit_payment_reference:
+      depositRequired && depositPaid
+        ? (document.getElementById("sellerDepositReference").value || null)
+        : null,
+    p_bike_secured:bikeSecured
+  };
+
+  saveButton.disabled=true;
+  saveButton.textContent="Saving...";
+  status.className="seller-modal-status";
+  status.textContent="Saving seller check...";
+
+  const {data,error}=await sb.rpc(
+    "admin_save_seller_confirmation",
+    args
+  );
+
+  saveButton.disabled=false;
+  saveButton.textContent="Save Seller Check";
+
+  if(error){
+    status.className="seller-modal-status error";
+    status.textContent=error.message;
+    return;
+  }
+
+  const confirmation=
+    data && data.seller_confirmation
+      ? data.seller_confirmation
+      : null;
+
+  sellerConfirmations[String(activeSellerMatchId)]=confirmation;
+
+  populateSellerCheckForm(confirmation);
+
+  status.className="seller-modal-status success";
+  status.textContent=confirmation?.bike_secured
+    ? "Saved. Motorcycle is secured and the buyer offer can now be accepted."
+    : "Seller check saved.";
+
+  await refreshSellerState(activeSellerMatchId);
+}
+
+function dealForMatch(matchId){
+  return dealMotorcycleByMatch[String(matchId)] || null;
+}
+
+function negotiationEventLabel(event){
+  const type=String(event?.event_type || "Activity");
+  const actor=String(event?.actor_type || "AnyBike");
+  return actor + " — " + type;
+}
+
+async function toggleAdminDealTimeline(matchId,dealMotorcycleId){
+  const box=document.getElementById(`admin-deal-timeline-${matchId}`);
+  if(!box) return;
+
+  if(box.classList.contains("open")){
+    box.classList.remove("open");
+    return;
+  }
+
+  box.classList.add("open");
+  box.innerHTML='<div class="deal-timeline-title">Loading Deal history...</div>';
+
+  let events=adminDealNegotiationCache[String(dealMotorcycleId)];
+
+  if(!events){
+    const {data,error}=await sb.rpc("admin_get_deal_negotiation",{
+      p_deal_motorcycle_id:Number(dealMotorcycleId)
+    });
+
+    if(error){
+      box.innerHTML='<div class="deal-timeline-title" style="color:#ff9da1">Could not load Deal history: '+safe(error.message)+'</div>';
+      return;
+    }
+
+    events=data || [];
+    adminDealNegotiationCache[String(dealMotorcycleId)]=events;
+  }
+
+  const deal=dealForMatch(matchId);
+  box.innerHTML=`
+    <div class="deal-timeline-title">${safe(deal?.deal_number || "AnyBike Deal")} · Full Admin History</div>
+    ${events.length ? events.map(event=>`
+      <div class="deal-event">
+        <div class="deal-event-head">
+          <span>${safe(negotiationEventLabel(event))}</span>
+          <span>${event.amount_gbp!==null && event.amount_gbp!==undefined ? money(event.amount_gbp) : ""}</span>
+        </div>
+        ${event.message ? `<div class="deal-event-message">${safe(event.message)}</div>` : ""}
+        <div class="deal-event-meta">${safe(dateTxt(event.created_at))}${event.buyer_visible ? " · Buyer visible" : " · Internal only"}</div>
+      </div>
+    `).join("") : '<div class="deal-event-meta">No Deal events recorded.</div>'}
+  `;
+}
+
+async function acceptBuyerOffer(matchId){
+  const match=(buyerMatches || []).find(m=>String(m.id)===String(matchId));
+
+  if(!match){
+    alert("Could not find this buyer offer.");
+    return;
+  }
+
+  const sellerConfirmation=sellerConfirmationForMatch(matchId);
+
+  if(!sellerConfirmation || !sellerConfirmation.bike_secured){
+    await openSellerCheck(matchId);
+    return;
+  }
+
+  if(match.buyer_offer_gbp===null ||
+     match.buyer_offer_gbp===undefined ||
+     match.buyer_offer_gbp===""){
+    alert("This buyer response does not contain a monetary offer.");
+    return;
+  }
+
+  if(String(match.match_status || "")==="Accepted"){
+    alert("This buyer offer has already been accepted.");
+    return;
+  }
+
+  const buyer=buyerForMatch(match);
+  const bike=offerStockForMatch(match);
+
+  const buyerName=
+    buyer?.business_name ||
+    buyer?.contact_name ||
+    "this buyer";
+
+  const bikeName=[
+    match.stock_make || bike?.make,
+    match.stock_model || bike?.model,
+    match.stock_variant || bike?.variant
+  ].filter(Boolean).join(" ") || ("Stock #" + String(match.stock_id || ""));
+
+  const offerAmount=money(match.buyer_offer_gbp);
+
+  const confirmed=confirm(
+    "Accept " + offerAmount + " offer from " + buyerName +
+    " for " + bikeName + "?\n\n" +
+    "This will record the offer as Accepted and set the confirmed customer price to " +
+    offerAmount + "."
+  );
+
+  if(!confirmed) return;
+
+  const btn=document.getElementById("accept-offer-"+matchId);
+
+  if(btn){
+    btn.disabled=true;
+    btn.textContent="Accepting...";
+  }
+
+  const {data,error}=await sb.rpc(
+    "admin_accept_buyer_offer",
+    {p_match_id:Number(matchId)}
+  );
+
+  if(error){
+    if(btn){
+      btn.disabled=false;
+      btn.textContent="Accept Offer";
+    }
+    alert("Could not accept offer: " + error.message);
+    return;
+  }
+
+  const {error:dealError}=await sb.rpc("admin_promote_accepted_match_to_deal",{
+    p_match_id:Number(matchId),
+    p_deal_id:null
+  });
+
+  if(dealError){
+    console.error("Offer accepted but Deal promotion failed",dealError);
+    alert("The offer was accepted, but the AnyBike Deal could not be created automatically: " + dealError.message);
+  }
+
+  adminDealNegotiationCache={};
+  await loadBuyers();
+
+  alert(
+    data && data.already_accepted
+      ? "This offer was already accepted."
+      : "Buyer offer accepted successfully."
+  );
+}
+
+function renderBuyerOffers(){
+  const box=document.getElementById("buyerOffersList");
+  const countEl=document.getElementById("buyerOffersCount");
+  if(!box) return;
+
+  const search=String(document.getElementById("offerSearchBox")?.value || "").trim().toLowerCase();
+  const statusFilter=String(document.getElementById("offerStatusFilter")?.value || "").trim().toLowerCase();
+  const sort=String(document.getElementById("offerSort")?.value || "newest");
+
+  let rows=(buyerMatches || []).filter(match=>{
+    const response=String(match.buyer_response || "").trim();
+    const hasOffer=match.buyer_offer_gbp!==null &&
+      match.buyer_offer_gbp!==undefined &&
+      match.buyer_offer_gbp!=="";
+    const hasResponse=response &&
+      response!=="No Response" &&
+      response!=="None";
+
+    return hasOffer || hasResponse;
+  });
+
+  rows=rows.filter(match=>{
+    const buyer=buyerForMatch(match);
+    const bike=offerStockForMatch(match);
+    const status=offerStatusText(match).toLowerCase();
+
+    const hay=[
+      buyer?.business_name,
+      buyer?.contact_name,
+      buyer?.email,
+      match.stock_id,
+      match.stock_make,
+      match.stock_model,
+      match.stock_variant,
+      bike?.make,
+      bike?.model,
+      bike?.variant,
+      status
+    ].join(" ").toLowerCase();
+
+    if(search && !hay.includes(search)) return false;
+
+    if(statusFilter){
+      if(statusFilter==="new"){
+        if(!(match.buyer_offer_gbp!==null && match.buyer_offer_gbp!==undefined && match.buyer_offer_gbp!=="")) return false;
+      }else if(!status.includes(statusFilter)){
+        return false;
+      }
+    }
+
+    return true;
+  });
+
+  rows.sort((a,b)=>{
+    if(sort==="oldest"){
+      return new Date(a.buyer_responded_at || a.created_at || 0) -
+             new Date(b.buyer_responded_at || b.created_at || 0);
+    }
+    if(sort==="highest"){
+      return Number(b.buyer_offer_gbp || 0)-Number(a.buyer_offer_gbp || 0);
+    }
+    if(sort==="lowest"){
+      return Number(a.buyer_offer_gbp || 0)-Number(b.buyer_offer_gbp || 0);
+    }
+    if(sort==="buyer"){
+      const ab=buyerForMatch(a);
+      const bb=buyerForMatch(b);
+      return String(ab?.business_name || ab?.contact_name || "").localeCompare(
+        String(bb?.business_name || bb?.contact_name || "")
+      );
+    }
+    return new Date(b.buyer_responded_at || b.created_at || 0) -
+           new Date(a.buyer_responded_at || a.created_at || 0);
+  });
+
+  if(countEl) countEl.textContent=rows.length.toLocaleString("en-GB");
+
+  if(!rows.length){
+    box.innerHTML='<div class="offers-empty">No buyer responses match the current filters.</div>';
+    return;
+  }
+
+  box.innerHTML=`
+    <table class="offers-table">
+      <thead>
+        <tr>
+          <th>Received</th>
+          <th>Buyer</th>
+          <th>Motorcycle</th>
+          <th>Buyer Offer</th>
+          <th>Seller Price</th>
+          <th>Gross Margin</th>
+          <th>Response</th>
+          <th>Seller / Security</th>
+          <th>Match Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows.map(match=>{
+          const buyer=buyerForMatch(match);
+          const bike=offerStockForMatch(match);
+          const make=match.stock_make || bike?.make || "";
+          const model=match.stock_model || bike?.model || "";
+          const variant=match.stock_variant || bike?.variant || "";
+          const offer=match.buyer_offer_gbp;
+          const status=offerStatusText(match);
+          const hasOffer=offer!==null && offer!==undefined && offer!=="";
+          const buyerName=buyer?.business_name || buyer?.contact_name || "Buyer";
+          const buyerSub=[buyer?.contact_name,buyer?.email].filter(Boolean).join(" • ");
+          const bikeName=[make,model,variant].filter(Boolean).join(" ") || ("Stock #"+String(match.stock_id||"-"));
+          const sellerConfirmation=sellerConfirmationForMatch(match.id);
+          const sellerPrice=sellerConfirmation?.confirmed_min_price_gbp;
+          const hasSellerPrice=sellerPrice!==null && sellerPrice!==undefined && sellerPrice!=="";
+          const grossMargin=hasOffer && hasSellerPrice ? Number(offer)-Number(sellerPrice) : null;
+          const deal=dealForMatch(match.id);
+
+          return `
+            <tr>
+              <td>
+                <strong>${safe(dateTxt(match.buyer_responded_at || match.created_at))}</strong>
+              </td>
+              <td class="offer-buyer">
+                <strong>${safe(buyerName)}</strong>
+                <div class="offer-sub">${safe(buyerSub)}</div>
+              </td>
+              <td class="offer-bike">
+                <strong>${safe(bikeName)}</strong>
+                <div class="offer-sub">Stock ID ${safe(match.stock_id || "-")}</div>
+              </td>
+              <td>
+                <div class="offer-amount">${hasOffer ? money(offer) : "-"}</div>
+              </td>
+              <td>
+                <div class="offer-amount" id="seller-price-${safe(match.id)}">${hasSellerPrice ? money(sellerPrice) : "-"}</div>
+              </td>
+              <td>
+                <div class="offer-gross-margin${grossMargin===null ? " pending" : (grossMargin<0 ? " negative" : "")}"
+                  id="gross-margin-${safe(match.id)}"
+                  title="Buyer offer less confirmed seller price. This is gross buying spread, not final deal profit.">${grossMargin===null ? "-" : money(grossMargin)}</div>
+              </td>
+              <td>
+                <span class="offer-status ${hasOffer ? "new" : ""}">${safe(status)}</span>
+                ${match.buyer_question
+                  ? `<div class="offer-sub">${safe(match.buyer_question)}</div>`
+                  : ""
+                }
+              </td>
+              <td>
+                <span class="seller-state" id="seller-state-${safe(match.id)}">Checking seller...</span>
+              </td>
+              <td>
+                <span class="offer-status">${safe(match.match_status || "-")}</span>
+                ${deal ? `<div class="offer-deal-ref">${safe(deal.deal_number || "Deal")}</div>` : ""}
+              </td>
+              <td>
+                <div class="offer-actions">
+                  ${hasOffer
+                    ? `<button type="button" class="seller-check-btn needs-action" onclick="openSellerCheck(${Number(match.id)})">Check Seller</button>`
+                    : ""
+                  }
+                  ${hasOffer && String(match.match_status || "")!=="Accepted"
+                    ? `<button type="button" id="accept-offer-${safe(match.id)}" class="offer-accept-btn" onclick="acceptBuyerOffer(${Number(match.id)})" disabled>Secure Bike First</button>`
+                    : ""
+                  }
+                  ${String(match.match_status || "")==="Accepted"
+                    ? `<span class="offer-status accepted">✓ Offer Accepted</span>`
+                    : ""
+                  }
+                  ${buyer
+                    ? `<button type="button" onclick="openBuyerFromOffer(${Number(buyer.id)})">View Buyer</button>`
+                    : ""
+                  }
+                  ${match.stock_id
+                    ? `<a href="admin-motorcycle-360.html?id=${encodeURIComponent(match.stock_id)}" target="_blank">View Bike</a>`
+                    : ""
+                  }
+                  ${deal
+                    ? `<button type="button" class="deal-view-btn" onclick="toggleAdminDealTimeline(${Number(match.id)},${Number(deal.deal_motorcycle_id)})">View Deal</button>`
+                    : ""
+                  }
+                  ${deal
+                    ? `<div class="deal-timeline-inline" id="admin-deal-timeline-${safe(match.id)}"></div>`
+                    : ""
+                  }
+                </div>
+              </td>
+            </tr>
+          `;
+        }).join("")}
+      </tbody>
+    </table>
+  `;
+
+  rows
+    .filter(match=>{
+      const offer=match.buyer_offer_gbp;
+      return offer!==null && offer!==undefined && offer!=="";
+    })
+    .forEach(match=>refreshSellerState(match.id));
+}
+
+function renderBuyers(){
+  const q=document.getElementById('searchBox').value.toLowerCase().trim();
+  const cf=document.getElementById('countryFilter').value;
+  const sf=document.getElementById('statusFilter').value;
+  let rows=buyers.filter(b=>{
+    const its=itemsForBuyer(b.id);
+    const hay=[b.business_name,b.contact_name,b.email,b.phone,b.country,b.status,b.annual_purchase_volume,b.website,b.social_links,...its.flatMap(i=>[i.make,i.model,i.year_from,i.year_to])].join(' ').toLowerCase();
+    return (!q||hay.includes(q)) && (!cf||b.country===cf) && (!sf||b.status===sf) && (!bulkStatusFilter||normalStatus(b.status)===bulkStatusFilter);
+  });
+  updateStats(rows);
+  const list=document.getElementById('buyersList');
+  if(!rows.length){list.innerHTML='<div class="empty">No Global Buyer CRM enquiries found.</div>';return;}
+  list.innerHTML=rows.map(b=>buyerHtml(b,itemsForBuyer(b.id))).join('');
+}
+function updateStats(rows){
+  const totalItems = rows.reduce((s,b)=>s+itemsForBuyer(b.id).length,0);
+  const newBuyerCount = rows.filter(b=>(b.status||'').toLowerCase().includes('new')).length;
+
+  document.getElementById('totalBuyers').textContent=rows.length;
+  document.getElementById('newBuyers').textContent=newBuyerCount;
+  document.getElementById('totalItems').textContent=totalItems;
+
+  if(document.getElementById('deptTotalBuyers')) document.getElementById('deptTotalBuyers').textContent=rows.length;
+  if(document.getElementById('deptNewBuyers')) document.getElementById('deptNewBuyers').textContent=newBuyerCount;
+  if(document.getElementById('deptTotalItems')) document.getElementById('deptTotalItems').textContent=totalItems;
+
+  let matchCount = 0;
+  rows.forEach(b=>{
+    itemsForBuyer(b.id).forEach(i=>{
+      matchCount += matchesForItem(i).length;
+    });
+  });
+  if(document.getElementById('deptMatches')) document.getElementById('deptMatches').textContent=matchCount;
+
+  const counts={};rows.forEach(b=>{if(b.country)counts[b.country]=(counts[b.country]||0)+1;});
+  const top=Object.entries(counts).sort((a,b)=>b[1]-a[1])[0];document.getElementById('topCountry').textContent=top?top[0]:'-';
+}
+function buyerHtml(b,its){
+  const qty=its.reduce((s,i)=>s+Number(i.quantity||0),0);
+  return `<article class="buyer" id="buyer-${b.id}">
+    <div class="buyer-head" onclick="toggleBuyerDetails(${b.id})">
+      <div><strong>${safe(b.business_name||'Unnamed buyer')}</strong><div class="small">${safe(b.contact_name||'')} ${b.email?' • '+safe(b.email):''}</div></div>
+      <div>${safe(b.country||'-')}<div class="small">${safe(b.phone||'')}</div></div>
+      <div><span class="pill red">${safe(normalStatus(b.status))}</span><div class="small">${dateTxt(b.created_at)}</div></div>
+      <div><strong>${qty||its.length}</strong><div class="small">requested bikes / qty</div></div>
+      <div class="small">Click to open</div>
+    </div>
+    <div class="details">
+      <div class="detail-grid">
+        <div class="box"><h3>Buyer Details</h3>
+          ${line('Business',b.business_name)}${line('Contact',b.contact_name)}${line('Email',b.email)}${line('Phone',b.phone)}${line('Country',b.country)}${line('Dashboard account',b.customer_id?'Linked':'Not linked yet')}${line('Monthly Purchase Volume',b.annual_purchase_volume)}${line('Lead source',b.lead_source)}
+          <div class="status-control">
+            <div>
+              <label for="buyer-status-${b.id}">Move Buyer Through Pipeline</label>
+              <select id="buyer-status-${b.id}">
+                ${bulkStatusOptions(normalStatus(b.status))}
+              </select>
+            </div>
+            <button id="buyer-status-btn-${b.id}" class="status-save-btn" onclick="updateBuyerStatus(${b.id})">Save Status</button>
+          </div>
+        </div>
+        <div class="box"><h3>Shipping</h3>
+          ${line('Preference',b.shipping_preference)}${line('UK shipper',b.preferred_shipping_company)}${line('Destination port',b.preferred_destination_port)}
+        </div>
+        <div class="box"><h3>Requested Motorcycles</h3><div class="items">${its.length?its.map(itemHtml).join(''):'<div class="muted">No item rows saved.</div>'}</div></div>
+        <div class="box"><h3>Potential Stock Matches</h3><div class="match-list">${potentialMatchesHtml(b,its)}</div></div>
+        <div class="box"><h3>Where They Sell</h3><div class="links">${safe([b.website,b.social_links].filter(Boolean).join('\n')||'No URLs added')}</div></div>
+
+        <div class="box" style="grid-column:1/-1">
+          <div class="buyer-conversation">
+            <div class="conversation-head">
+              <div>
+                <h3 style="margin:0;">Buyer Conversation</h3>
+                <p>Welcome this buyer, request more information and continue the conversation without leaving the Global Buyer CRM.</p>
+              </div>
+              <div id="buyer-message-link-${b.id}"></div>
+            </div>
+
+            <div id="buyer-conversation-${b.id}" class="conversation-messages">
+              <div class="conversation-empty">Open this buyer to load the conversation.</div>
+            </div>
+
+            <div class="conversation-compose">
+              <label for="buyer-quick-reply-${b.id}">Quick response</label>
+              <select id="buyer-quick-reply-${b.id}" onchange="setBuyerQuickReply(${b.id})">
+                <option value="">Choose a response...</option>
+                <option value="Hello ${safe(b.contact_name||b.business_name||'')}, thank you for joining the AnyBike Global Buyer Network. We have received your motorcycle requirements and will review the UK market for suitable stock.">Welcome to AnyBike</option>
+                <option value="Thank you for your request. Please confirm your preferred motorcycle condition, maximum mileage and target purchase price for each model.">Request more buying details</option>
+                <option value="Thank you. We are now checking available stock and UK sourcing opportunities against your motorcycle list. We will update you with suitable options.">Checking stock</option>
+                <option value="We have identified potential motorcycles that may match your requirements. Please confirm whether you would like us to prepare a detailed offer.">Potential matches found</option>
+                <option value="Please confirm your preferred UK freight forwarder, destination port and any shipping instructions so we can plan the next stage.">Confirm shipping details</option>
+              </select>
+
+              <label for="buyer-message-${b.id}">Message</label>
+              <textarea id="buyer-message-${b.id}" placeholder="Write a welcome message or reply..."></textarea>
+
+              <div class="conversation-actions">
+                <button type="button" id="buyer-send-${b.id}" class="conversation-send" onclick="sendBuyerMessage(${b.id})">Send Message</button>
+                <span id="buyer-message-status-${b.id}" class="conversation-status"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="box" style="grid-column:1/-1"><h3>Internal Notes</h3><div class="notes">${safe(b.internal_notes||'No notes')}</div></div>
+      </div>
+    </div>
+  </article>`;
+}
+function line(k,v){return `<div class="line"><strong>${safe(k)}</strong><span>${safe(v||'-')}</span></div>`;}
+
+function num(v){return v===null||v===undefined||v==="" ? null : Number(v);}
+function norm(v){return String(v||"").trim().toLowerCase();}
+function yearMatches(stockYear, fromYear, toYear){
+  const y=num(stockYear);
+  const f=num(fromYear);
+  const t=num(toYear);
+  if(!y) return true;
+  if(f && y < f) return false;
+  if(t && y > t) return false;
+  return true;
+}
+function mileageMatches(stockMileage, mileageMax){
+  const m=num(stockMileage);
+  const max=num(mileageMax);
+  if(!max) return true;
+  if(!m) return true;
+  return m <= max;
+}
+function priceMatches(price, maxPrice){
+  const p=num(price);
+  const max=num(maxPrice);
+  if(!max) return true;
+  if(!p) return true;
+  return p <= max;
+}
+function modelMatches(stockModel,requestedModel){
+  const stockText=norm(stockModel);
+  const requestText=norm(requestedModel);
+
+  if(!stockText || !requestText) return false;
+
+  if(stockText===requestText) return true;
+
+  const stockTokens=stockText
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+
+  const requestTokens=requestText
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+
+  return requestTokens.every(token=>stockTokens.includes(token));
+}
+
+function matchScore(s,i){
+  let score=0;
+
+  if(norm(s.make)===norm(i.make)){
+    score+=40;
+  }
+
+  if(norm(s.model)===norm(i.model)){
+    score+=35;
+  }else if(modelMatches(s.model,i.model)){
+    score+=22;
+  }
+
+  if(yearMatches(s.year,i.year_from,i.year_to)) score+=10;
+  if(mileageMatches(s.mileage,i.mileage_max)) score+=8;
+  if(priceMatches(s.price_gbp,i.max_price_gbp)) score+=7;
+
+  return Math.min(score,100);
+}
+
+function matchesForItem(i){
+  const make=norm(i.make);
+  const model=norm(i.model);
+
+  if(!make || !model) return [];
+
+  return stock
+    .filter(s=>{
+      const makeOk=norm(s.make)===make;
+      const modelOk=modelMatches(s.model,model);
+
+      const status=norm(s.status);
+      const availableStatus=
+        !status ||
+        status==="active" ||
+        status==="available" ||
+        status==="live";
+
+      return makeOk
+        && modelOk
+        && availableStatus
+        && yearMatches(s.year,i.year_from,i.year_to)
+        && mileageMatches(s.mileage,i.mileage_max)
+        && priceMatches(s.price_gbp,i.max_price_gbp);
+    })
+    .map(s=>({...s,_score:matchScore(s,i),_requested:i}))
+    .sort((a,b)=>
+      b._score-a._score ||
+      Number(a.price_gbp||999999)-Number(b.price_gbp||999999)
+    )
+    .slice(0,5);
+}
+function buyerMatchForStock(buyerId,stockId){
+  return buyerMatches.find(m=>
+    String(m.buyer_id)===String(buyerId) &&
+    String(m.stock_id)===String(stockId)
+  ) || null;
+}
+
+function normaliseGbpInput(input){
+  if(!input) return;
+  const raw=String(input.value||"").trim();
+  if(!raw) return;
+  const value=Number(raw);
+  if(!Number.isFinite(value)){
+    input.value="";
+    return;
+  }
+  input.value=Math.max(0,value).toFixed(2);
+}
+
+
+function buyerResponseHtml(match){
+  if(!match){
+    return `
+      <div class="buyer-response-panel">
+        <div class="buyer-response-title">
+          <strong>Buyer Response</strong>
+          <span class="buyer-response-badge">No response yet</span>
+        </div>
+      </div>
+    `;
+  }
+
+  const response=String(match.buyer_response || "No Response").trim();
+  const offer=match.buyer_offer_gbp;
+  const question=String(match.buyer_question || "").trim();
+  const respondedAt=match.buyer_responded_at;
+  const hasOffer=offer!==null && offer!==undefined && offer!=="";
+  const hasResponse=
+    response &&
+    response!=="No Response" &&
+    response!=="None";
+
+  let badge=response || "No response yet";
+  let message="";
+
+  if(hasOffer){
+    badge="Buyer Offer";
+    message="Customer has submitted an offer for this motorcycle.";
+  }else if(response==="Interested"){
+    badge="Interested";
+    message="Customer has confirmed they are interested in this motorcycle.";
+  }else if(response==="Question Asked"){
+    badge="Question Asked";
+    message=question || "Customer has asked a question about this motorcycle.";
+  }else if(response==="Not Interested"){
+    badge="Not Interested";
+    message="Customer has marked this motorcycle as not interested.";
+  }else if(question){
+    badge="Question Asked";
+    message=question;
+  }
+
+  const classes=[
+    "buyer-response-panel",
+    hasResponse ? "has-response" : "",
+    hasOffer ? "has-offer" : ""
+  ].filter(Boolean).join(" ");
+
+  return `
+    <div class="${classes}">
+      <div class="buyer-response-title">
+        <strong>Buyer Response</strong>
+        <span class="buyer-response-badge">${safe(badge)}</span>
+      </div>
+
+      ${hasOffer
+        ? `<div class="buyer-response-amount">${money(offer)}</div>`
+        : ""
+      }
+
+      ${message
+        ? `<div class="buyer-response-message">${safe(message)}</div>`
+        : ""
+      }
+
+      ${question && hasOffer
+        ? `<div class="buyer-response-message"><strong>Buyer question:</strong> ${safe(question)}</div>`
+        : ""
+      }
+
+      ${respondedAt
+        ? `<div class="buyer-response-time">Received ${safe(dateTxt(respondedAt))}</div>`
+        : ""
+      }
+    </div>
+  `;
+}
+
+function potentialMatchesHtml(buyer,its){
+  if(!its.length) return '<div class="muted">No requested bikes to match yet.</div>';
+
+  const all = its.flatMap(i=>matchesForItem(i));
+  if(!all.length){
+    return '<div class="muted">No available stock matches found yet. This buyer should be added to sourcing opportunities.</div>';
+  }
+
+  return all.slice(0,12).map(m=>{
+    const existing=buyerMatchForStock(buyer.id,m.id);
+    const isVisible=!!(existing && existing.buyer_visible);
+    const profitValue=existing && existing.projected_profit_gbp!=null
+      ? Number(existing.projected_profit_gbp).toFixed(2)
+      : (m.expected_profit_gbp!=null && Number(m.expected_profit_gbp)>0
+          ? Number(m.expected_profit_gbp).toFixed(2)
+          : "");
+    const linked=!!buyer.customer_id;
+    const statusText=!linked
+      ? 'Buyer account not linked — dashboard sharing is unavailable.'
+      : (isVisible
+          ? 'Currently visible in this buyer\'s Potential Matches.'
+          : 'Internal match only — not visible to the buyer.');
+    const statusClass=isVisible?'ok':(!linked?'warn':'');
+    const tradeText=m.private_estimated_trade!=null && m.private_estimated_trade!==''
+      ? money(m.private_estimated_trade)
+      : '-';
+
+    return `
+      <div class="match-card">
+        <div class="match-head">
+          <div>
+            <div class="match-bike">${safe(m.make)} ${safe(m.model)} ${safe(m.variant||'')}</div>
+            <div class="small">Matched request: ${safe(m._requested.make)} ${safe(m._requested.model)}</div>
+          </div>
+          <div class="match-score">${safe(m._score)}% match</div>
+        </div>
+
+        <div class="match-meta">
+          <div><span>Year</span>${safe(m.year)}</div>
+          <div><span>Mileage</span>${m.mileage ? Number(m.mileage).toLocaleString('en-GB') + ' miles' : '-'}</div>
+          <div><span>Advertised price</span>${money(m.price_gbp)}</div>
+          <div><span>Estimated trade</span>${tradeText}</div>
+          <div><span>Status</span>${safe(m.status||'Available')}</div>
+        </div>
+
+        <div class="match-actions">
+          <a href="admin-motorcycle-360.html?id=${encodeURIComponent(m.id)}" target="_blank">View Bike</a>
+          <a href="available-stock.html" target="_blank">Open Stock Page</a>
+        </div>
+
+        ${buyerResponseHtml(existing)}
+
+        <div class="match-approval">
+          <div class="match-approval-row">
+            <label class="match-approval-check">
+              <input
+                type="checkbox"
+                id="buyer-match-check-${buyer.id}-${m.id}"
+                ${isVisible?'checked':''}
+                ${linked?'':'disabled'}
+                onchange="toggleBuyerDashboardMatch('${buyer.id}','${m.id}','${m._requested.id}',this)"
+              >
+              Add to Buyer Matches
+            </label>
+
+            <div class="match-approval-field">
+              <label for="buyer-match-profit-${buyer.id}-${m.id}">Projected AnyBike profit (£)</label>
+              <input
+                type="number"
+                id="buyer-match-profit-${buyer.id}-${m.id}"
+                min="0.01"
+                max="1000000"
+                step="0.01"
+                inputmode="decimal"
+                value="${safe(profitValue)}"
+                placeholder="0.00"
+                onblur="normaliseGbpInput(this)"
+              >
+            </div>
+
+            <div id="buyer-match-status-${buyer.id}-${m.id}" class="match-approval-status ${statusClass}">
+              ${safe(statusText)}
+            </div>
+          </div>
+
+          <div class="match-approval-note">
+            Checking this box means AnyBike believes there is a realistic route to a positive profit. It is still a provisional match: seller availability, seller minimum price and any final buyer price can be confirmed later if the buyer engages.
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function toggleBuyerDashboardMatch(buyerId,stockId,requestItemId,checkbox){
+  const buyer=buyers.find(b=>String(b.id)===String(buyerId));
+  const bike=stock.find(s=>String(s.id)===String(stockId));
+  const requestItem=items.find(i=>String(i.id)===String(requestItemId));
+  const profitInput=document.getElementById(`buyer-match-profit-${buyerId}-${stockId}`);
+  const status=document.getElementById(`buyer-match-status-${buyerId}-${stockId}`);
+  const existing=buyerMatchForStock(buyerId,stockId);
+
+  if(!buyer || !bike || !requestItem){
+    checkbox.checked=!!(existing && existing.buyer_visible);
+    if(status){
+      status.className='match-approval-status warn';
+      status.textContent='Could not identify the buyer, motorcycle or request item.';
+    }
+    return;
+  }
+
+  if(!buyer.customer_id){
+    checkbox.checked=false;
+    if(status){
+      status.className='match-approval-status warn';
+      status.textContent='Buyer account not linked — dashboard sharing is unavailable.';
+    }
+    return;
+  }
+
+  checkbox.disabled=true;
+  if(profitInput) profitInput.disabled=true;
+
+  try{
+    const {data:userData}=await sb.auth.getUser();
+    const adminUserId=userData && userData.user ? userData.user.id : null;
+    const now=new Date().toISOString();
+
+    if(checkbox.checked){
+      const projectedProfit=Number(profitInput ? profitInput.value : 0);
+
+      if(!Number.isFinite(projectedProfit) || projectedProfit<=0){
+        checkbox.checked=false;
+        if(status){
+          status.className='match-approval-status warn';
+          status.textContent='Enter a positive projected AnyBike profit in GBP before sharing this match.';
+        }
+        return;
+      }
+
+      if(profitInput){
+        profitInput.value=projectedProfit.toFixed(2);
+      }
+
+      const payload={
+        buyer_id:String(buyer.id),
+        customer_id:buyer.customer_id,
+        request_item_id:String(requestItem.id),
+        stock_id:String(bike.id),
+        match_status:'Approved for Buyer',
+        buyer_visible:true,
+        approved_at:now,
+        approved_by:adminUserId,
+        stock_make:bike.make||null,
+        stock_model:bike.model||null,
+        stock_variant:bike.variant||null,
+        stock_year:bike.year||null,
+        stock_mileage:bike.mileage||null,
+        stock_colour:bike.colour||null,
+        stock_image_url:bike.image_url||null,
+        stock_vat_status:bike.vat_status||null,
+        listed_price_snapshot_gbp:bike.price_gbp||null,
+        trade_value_snapshot_gbp:bike.private_estimated_trade||null,
+        provisional_customer_price_gbp:null,
+        projected_profit_gbp:projectedProfit,
+        profit_confidence:'Unknown',
+        profit_viable:true,
+        closed_at:null
+      };
+
+      let savedMatch;
+
+      if(existing){
+        const {data,error}=await sb
+          .from('buyer_motorcycle_matches')
+          .update(payload)
+          .eq('id',existing.id)
+          .select('*')
+          .single();
+
+        if(error) throw error;
+        savedMatch=data;
+      }else{
+        const {data,error}=await sb
+          .from('buyer_motorcycle_matches')
+          .insert(payload)
+          .select('*')
+          .single();
+
+        if(error) throw error;
+        savedMatch=data;
+      }
+
+      const index=buyerMatches.findIndex(m=>String(m.id)===String(savedMatch.id));
+      if(index>=0){
+        buyerMatches[index]=savedMatch;
+      }else{
+        buyerMatches.unshift(savedMatch);
+      }
+
+      const {error:activityError}=await sb
+        .from('buyer_match_activity')
+        .insert({
+          match_id:savedMatch.id,
+          actor_type:'Admin',
+          actor_user_id:adminUserId,
+          action_type:'Approved for Buyer',
+          amount_gbp:projectedProfit,
+          message:'Motorcycle added to the buyer Potential Matches dashboard.'
+        });
+
+      if(activityError){
+        console.warn('Could not save buyer match activity',activityError.message);
+      }
+
+      if(status){
+        status.className='match-approval-status ok';
+        status.textContent='Added to this buyer\'s Potential Matches. No email has been sent yet.';
+      }
+    }else{
+      if(!existing){
+        if(status){
+          status.className='match-approval-status';
+          status.textContent='Internal match only — not visible to the buyer.';
+        }
+        return;
+      }
+
+      const {data,error}=await sb
+        .from('buyer_motorcycle_matches')
+        .update({
+          buyer_visible:false,
+          match_status:'Closed',
+          closed_at:now
+        })
+        .eq('id',existing.id)
+        .select('*')
+        .single();
+
+      if(error) throw error;
+
+      const index=buyerMatches.findIndex(m=>String(m.id)===String(data.id));
+      if(index>=0) buyerMatches[index]=data;
+
+      const {error:activityError}=await sb
+        .from('buyer_match_activity')
+        .insert({
+          match_id:data.id,
+          actor_type:'Admin',
+          actor_user_id:adminUserId,
+          action_type:'Removed from Buyer Matches',
+          message:'Motorcycle removed from the buyer Potential Matches dashboard.'
+        });
+
+      if(activityError){
+        console.warn('Could not save buyer match activity',activityError.message);
+      }
+
+      if(status){
+        status.className='match-approval-status';
+        status.textContent='Removed from the buyer dashboard. The history has been retained.';
+      }
+    }
+  }catch(error){
+    console.error(error);
+    checkbox.checked=!!(existing && existing.buyer_visible);
+    if(status){
+      status.className='match-approval-status warn';
+      status.textContent='Could not update Buyer Matches: '+error.message;
+    }
+  }finally{
+    checkbox.disabled=false;
+    if(profitInput) profitInput.disabled=false;
+  }
+}
+
+
+
+function toggleBuyerDetails(buyerId){
+  const card=document.getElementById("buyer-"+buyerId);
+  if(!card) return;
+
+  card.classList.toggle("open");
+
+  if(card.classList.contains("open")){
+    loadBuyerConversation(buyerId);
+  }
+}
+
+function buyerThreadSubject(buyerId){
+  return "Global Buyer #" + String(buyerId);
+}
+
+function findBuyerThread(buyer){
+  const expectedSubject=buyerThreadSubject(buyer.id).toLowerCase();
+  const email=String(buyer.email||"").trim().toLowerCase();
+
+  return buyerThreads.find(function(thread){
+    const subject=String(thread.subject||"").trim().toLowerCase();
+    const threadEmail=String(thread.customer_email||"").trim().toLowerCase();
+    const source=String(thread.source_type||"").trim().toLowerCase();
+    const department=String(thread.department||"").trim().toLowerCase();
+
+    if(subject===expectedSubject){
+      return true;
+    }
+
+    return email &&
+      threadEmail===email &&
+      (
+        source.includes("global buyer") ||
+        source.includes("multi-bike") ||
+        source.includes("bulk") ||
+        department.includes("global buyer")
+      );
+  }) || null;
+}
+
+function setBuyerQuickReply(buyerId){
+  const select=document.getElementById("buyer-quick-reply-"+buyerId);
+  const box=document.getElementById("buyer-message-"+buyerId);
+
+  if(select && box && select.value){
+    box.value=select.value;
+    box.focus();
+  }
+}
+
+async function loadBuyerConversation(buyerId,force){
+  const buyer=buyers.find(b=>Number(b.id)===Number(buyerId));
+  const area=document.getElementById("buyer-conversation-"+buyerId);
+  const linkBox=document.getElementById("buyer-message-link-"+buyerId);
+
+  if(!buyer || !area) return;
+
+  const thread=findBuyerThread(buyer);
+
+  if(!thread){
+    area.innerHTML=`
+      <div class="conversation-empty">
+        No conversation has started yet.<br>
+        Choose the welcome template below or write your own first message.
+      </div>
+    `;
+
+    if(linkBox){
+      linkBox.innerHTML='<span class="small">New conversation</span>';
+    }
+    return;
+  }
+
+  if(linkBox){
+    linkBox.innerHTML=`
+      <a class="conversation-link" href="admin-message-centre.html?thread=${encodeURIComponent(thread.id)}">
+        Open in Message Centre
+      </a>
+    `;
+  }
+
+  if(!force && buyerConversationCache[thread.id]){
+    renderBuyerConversationMessages(buyerId,buyerConversationCache[thread.id]);
+    return;
+  }
+
+  area.innerHTML='<div class="conversation-empty">Loading conversation...</div>';
+
+  const {data,error}=await sb
+    .from("message_centre_messages")
+    .select("*")
+    .eq("thread_id",thread.id)
+    .order("created_at",{ascending:true});
+
+  if(error){
+    area.innerHTML='<div class="conversation-empty">Could not load conversation: '+safe(error.message)+'</div>';
+    return;
+  }
+
+  buyerConversationCache[thread.id]=data||[];
+  renderBuyerConversationMessages(buyerId,data||[]);
+}
+
+function renderBuyerConversationMessages(buyerId,messages){
+  const area=document.getElementById("buyer-conversation-"+buyerId);
+  if(!area) return;
+
+  if(!messages.length){
+    area.innerHTML='<div class="conversation-empty">No messages have been added to this thread yet.</div>';
+    return;
+  }
+
+  area.innerHTML=messages.map(function(message){
+    const sender=String(message.sender_type||"").toLowerCase();
+    const isAdmin=sender==="anybike" || sender==="admin";
+
+    return `
+      <div class="conversation-message ${isAdmin?'admin':''}">
+        <div class="conversation-message-head">
+          <strong>${safe(message.sender_name||message.sender_type||'Message')}</strong>
+          <span>${dateTxt(message.created_at)}</span>
+        </div>
+        <div class="conversation-message-text">${safe(message.message||'')}</div>
+      </div>
+    `;
+  }).join("");
+
+  area.scrollTop=area.scrollHeight;
+}
+
+async function createBuyerThread(buyer,message,now){
+  const subject=buyerThreadSubject(buyer.id);
+
+  const payload={
+    customer_name:buyer.contact_name||buyer.business_name||null,
+    customer_email:buyer.email||null,
+    customer_phone:buyer.phone||null,
+    country:buyer.country||null,
+    source_type:"Global Buyer",
+    subject:subject,
+    department:"Global Buyer Network",
+    status:"Replied",
+    lead_status:"Contact Made",
+    last_message:message,
+    last_message_at:now,
+    last_sender:"AnyBike",
+    created_at:now,
+    updated_at:now
+  };
+
+  const {data,error}=await sb
+    .from("message_centre_threads")
+    .insert(payload)
+    .select("*")
+    .single();
+
+  if(error){
+    throw new Error(error.message);
+  }
+
+  buyerThreads.unshift(data);
+  return data;
+}
+
+async function sendBuyerMessage(buyerId){
+  const buyer=buyers.find(b=>Number(b.id)===Number(buyerId));
+  const box=document.getElementById("buyer-message-"+buyerId);
+  const button=document.getElementById("buyer-send-"+buyerId);
+  const status=document.getElementById("buyer-message-status-"+buyerId);
+
+  if(!buyer || !box) return;
+
+  const message=String(box.value||"").trim();
+
+  if(!message){
+    if(status) status.textContent="Write a message first.";
+    box.focus();
+    return;
+  }
+
+  if(!buyer.email){
+    if(status) status.textContent="This buyer has no email address saved.";
+    return;
+  }
+
+  button.disabled=true;
+  button.textContent="Sending...";
+  if(status) status.textContent="";
+
+  const now=new Date().toISOString();
+
+  try{
+    let thread=findBuyerThread(buyer);
+
+    if(!thread){
+      thread=await createBuyerThread(buyer,message,now);
+    }
+
+    const {error:messageError}=await sb
+      .from("message_centre_messages")
+      .insert({
+        thread_id:thread.id,
+        sender_type:"AnyBike",
+        sender_name:"AnyBike",
+        sender_email:"admin@anybike.co.uk",
+        message:message,
+        created_at:now
+      });
+
+    if(messageError){
+      throw new Error(messageError.message);
+    }
+
+    const {error:threadError}=await sb
+      .from("message_centre_threads")
+      .update({
+        last_message:message,
+        last_message_at:now,
+        last_sender:"AnyBike",
+        status:"Replied",
+        lead_status:"Contact Made",
+        department:"Global Buyer Network",
+        updated_at:now
+      })
+      .eq("id",thread.id);
+
+    if(threadError){
+      throw new Error(threadError.message);
+    }
+    await sb.functions.invoke(
+  "send-message-notification",
+  {
+    body:{
+      thread_id:String(thread.id)
+    }
+  }
+);
+
+    thread.last_message=message;
+    thread.last_message_at=now;
+    thread.last_sender="AnyBike";
+    thread.status="Replied";
+    thread.lead_status="Contact Made";
+    thread.department="Global Buyer Network";
+
+    delete buyerConversationCache[thread.id];
+
+    box.value="";
+    const quick=document.getElementById("buyer-quick-reply-"+buyerId);
+    if(quick) quick.value="";
+
+    if(status){
+      status.textContent="Message added to the buyer conversation.";
+    }
+
+    await loadBuyerConversation(buyerId,true);
+  }catch(error){
+    console.error(error);
+    if(status){
+      status.textContent="Message failed: "+error.message;
+    }
+  }finally{
+    button.disabled=false;
+    button.textContent="Send Message";
+  }
+}
+
+
+function itemHtml(i){return `<div class="item"><strong>${safe(i.make)} ${safe(i.model)}</strong><div class="small">Year: ${safe(i.year_from||'Any')} ${i.year_to&&i.year_to!==i.year_from?' - '+safe(i.year_to):''} • Max mileage: ${safe(i.mileage_max||'-')} • Qty: ${safe(i.quantity||1)} • Max per bike: ${money(i.max_price_gbp)}</div></div>`;}
+
+
+function openBuyerFromUrl(){
+  const params = new URLSearchParams(window.location.search);
+  const buyerId = params.get("buyer");
+
+  if(!buyerId){
+    return;
+  }
+
+  const buyer = document.getElementById("buyer-" + buyerId);
+
+  if(!buyer){
+    return;
+  }
+
+  buyer.classList.add("open");
+  buyer.classList.add("notification-target");
+  loadBuyerConversation(buyerId);
+
+  setTimeout(function(){
+    buyer.scrollIntoView({
+      behavior:"smooth",
+      block:"start"
+    });
+  },150);
+
+  setTimeout(function(){
+    buyer.classList.remove("notification-target");
+  },5000);
+}
+
+(async function startGlobalBuyerCRM(){
+  const allowed = await requireAdminSession();
+
+  if(!allowed){
+    return;
+  }
+
+  document.documentElement.classList.remove("admin-auth-pending");
+
+  await loadBuyers();
+  openBuyerFromUrl();
+})();
+</script>
+</body>
+</html>
