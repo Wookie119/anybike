@@ -3,6 +3,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -805,6 +806,154 @@ a{text-decoration:none;color:inherit}
   font-size:11px;
 }
 
+/* CENTRAL BUYER OFFERS QUEUE */
+.offers-management{
+  margin:0 0 20px;
+  background:rgba(17,17,17,.97);
+  border:1px solid var(--line);
+  border-radius:20px;
+  overflow:hidden;
+}
+.offers-management-head{
+  padding:18px 20px 14px;
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:16px;
+  border-bottom:1px solid var(--line);
+}
+.offers-management-head h2{
+  margin:0;
+  font-size:24px;
+}
+.offers-management-head p{
+  margin:5px 0 0;
+  color:var(--muted);
+  font-size:13px;
+}
+.offers-count-badge{
+  min-width:42px;
+  height:42px;
+  padding:0 12px;
+  border-radius:999px;
+  background:var(--red);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-weight:900;
+}
+.offers-toolbar{
+  padding:12px 16px;
+  display:grid;
+  grid-template-columns:minmax(220px,1fr) 210px 190px;
+  gap:10px;
+  border-bottom:1px solid var(--line);
+}
+.offers-toolbar input,
+.offers-toolbar select{
+  width:100%;
+  min-height:42px;
+  background:#0b0b0b;
+  color:#fff;
+  border:1px solid rgba(255,255,255,.14);
+  border-radius:11px;
+  padding:9px 11px;
+  font:inherit;
+}
+.offers-table-wrap{
+  overflow:auto;
+}
+.offers-table{
+  width:100%;
+  border-collapse:collapse;
+  min-width:1050px;
+}
+.offers-table th,
+.offers-table td{
+  padding:12px 14px;
+  border-bottom:1px solid rgba(255,255,255,.08);
+  text-align:left;
+  vertical-align:middle;
+}
+.offers-table th{
+  color:#aaa;
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+  background:#0c0c0c;
+  position:sticky;
+  top:0;
+}
+.offers-table td{
+  font-size:13px;
+}
+.offers-table tr:hover td{
+  background:rgba(255,255,255,.025);
+}
+.offer-amount{
+  color:#fff;
+  font-size:18px;
+  font-weight:900;
+}
+.offer-buyer strong,
+.offer-bike strong{
+  display:block;
+  color:#fff;
+}
+.offer-sub{
+  color:#999;
+  font-size:11px;
+  margin-top:3px;
+}
+.offer-status{
+  display:inline-flex;
+  align-items:center;
+  min-height:28px;
+  padding:5px 9px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.14);
+  background:#1b1b1b;
+  font-size:11px;
+  font-weight:900;
+}
+.offer-status.new{
+  border-color:rgba(237,28,36,.55);
+  background:rgba(237,28,36,.15);
+}
+.offer-actions{
+  display:flex;
+  gap:7px;
+  flex-wrap:wrap;
+}
+.offer-actions button,
+.offer-actions a{
+  border:1px solid rgba(255,255,255,.14);
+  background:#222;
+  color:#fff;
+  border-radius:999px;
+  padding:7px 10px;
+  font-size:11px;
+  font-weight:900;
+  cursor:pointer;
+  white-space:nowrap;
+}
+.offer-actions button:hover,
+.offer-actions a:hover{
+  border-color:var(--red);
+}
+.offers-empty{
+  padding:24px;
+  text-align:center;
+  color:var(--muted);
+}
+
+@media(max-width:900px){
+  .offers-toolbar{
+    grid-template-columns:1fr;
+  }
+}
+
+
 @media(max-width:760px){
   .match-approval-row{
     grid-template-columns:1fr;
@@ -1123,6 +1272,39 @@ a{text-decoration:none;color:inherit}
       <div class="stat"><strong id="topCountry">-</strong><span>Top country</span></div>
     </section>
 
+    <section class="offers-management" id="buyerOffersManagement">
+      <div class="offers-management-head">
+        <div>
+          <h2>Buyer Offers</h2>
+          <p>All customer motorcycle offers in one queue. Open the buyer or motorcycle without searching through individual accounts.</p>
+        </div>
+        <div class="offers-count-badge" id="buyerOffersCount">0</div>
+      </div>
+
+      <div class="offers-toolbar">
+        <input id="offerSearchBox" placeholder="Search buyer, email, make, model, stock ID..." oninput="renderBuyerOffers()">
+        <select id="offerStatusFilter" onchange="renderBuyerOffers()">
+          <option value="">All offer statuses</option>
+          <option value="new">New / Needs Action</option>
+          <option value="offer">Buyer Offer</option>
+          <option value="interested">Interested</option>
+          <option value="question">Question Asked</option>
+          <option value="not interested">Not Interested</option>
+        </select>
+        <select id="offerSort" onchange="renderBuyerOffers()">
+          <option value="newest">Newest first</option>
+          <option value="oldest">Oldest first</option>
+          <option value="highest">Highest offer</option>
+          <option value="lowest">Lowest offer</option>
+          <option value="buyer">Buyer A–Z</option>
+        </select>
+      </div>
+
+      <div id="buyerOffersList" class="offers-table-wrap">
+        <div class="offers-empty">Loading buyer offers...</div>
+      </div>
+    </section>
+
     <section class="toolbar">
       <input id="searchBox" placeholder="Search buyer, email, country, bike..." oninput="renderBuyers()">
       <select id="countryFilter" onchange="renderBuyers()"><option value="">All countries</option></select>
@@ -1384,6 +1566,7 @@ async function loadBuyers(){
 
   buildFilters();
   updatePipelineCounts();
+  renderBuyerOffers();
   renderBuyers();
 }
 function buildFilters(){
@@ -1486,6 +1669,215 @@ async function updateBuyerStatus(buyerId){
 
   updatePipelineCounts();
   renderBuyers();
+}
+
+
+function buyerForMatch(match){
+  if(!match) return null;
+
+  let buyer=null;
+
+  if(match.buyer_id!==null && match.buyer_id!==undefined){
+    buyer=buyers.find(b=>String(b.id)===String(match.buyer_id)) || null;
+  }
+
+  if(!buyer && match.customer_id){
+    buyer=buyers.find(b=>String(b.customer_id||"")===String(match.customer_id)) || null;
+  }
+
+  return buyer;
+}
+
+function offerStockForMatch(match){
+  if(!match) return null;
+  return stock.find(s=>String(s.id)===String(match.stock_id)) || null;
+}
+
+function offerStatusText(match){
+  const response=String(match?.buyer_response || "").trim();
+  const offer=match?.buyer_offer_gbp;
+
+  if(offer!==null && offer!==undefined && offer!=="") return "Buyer Offer";
+  if(response && response!=="No Response" && response!=="None") return response;
+  return "No Response";
+}
+
+function openBuyerFromOffer(buyerId){
+  const buyer=buyers.find(b=>String(b.id)===String(buyerId));
+  if(!buyer) return;
+
+  document.getElementById("searchBox").value="";
+  document.getElementById("countryFilter").value="";
+  document.getElementById("statusFilter").value="";
+  bulkStatusFilter="";
+  document.querySelectorAll(".bulk-stage").forEach(el=>el.classList.remove("active"));
+  const allStage=document.querySelector('.bulk-stage[data-bulk-status=""]');
+  if(allStage) allStage.classList.add("active");
+
+  renderBuyers();
+
+  requestAnimationFrame(()=>{
+    const card=document.getElementById("buyer-"+buyerId);
+    if(!card) return;
+    card.classList.add("open");
+    card.scrollIntoView({behavior:"smooth",block:"start"});
+    loadBuyerConversation(buyerId);
+  });
+}
+
+function renderBuyerOffers(){
+  const box=document.getElementById("buyerOffersList");
+  const countEl=document.getElementById("buyerOffersCount");
+  if(!box) return;
+
+  const search=String(document.getElementById("offerSearchBox")?.value || "").trim().toLowerCase();
+  const statusFilter=String(document.getElementById("offerStatusFilter")?.value || "").trim().toLowerCase();
+  const sort=String(document.getElementById("offerSort")?.value || "newest");
+
+  let rows=(buyerMatches || []).filter(match=>{
+    const response=String(match.buyer_response || "").trim();
+    const hasOffer=match.buyer_offer_gbp!==null &&
+      match.buyer_offer_gbp!==undefined &&
+      match.buyer_offer_gbp!=="";
+    const hasResponse=response &&
+      response!=="No Response" &&
+      response!=="None";
+
+    return hasOffer || hasResponse;
+  });
+
+  rows=rows.filter(match=>{
+    const buyer=buyerForMatch(match);
+    const bike=offerStockForMatch(match);
+    const status=offerStatusText(match).toLowerCase();
+
+    const hay=[
+      buyer?.business_name,
+      buyer?.contact_name,
+      buyer?.email,
+      match.stock_id,
+      match.stock_make,
+      match.stock_model,
+      match.stock_variant,
+      bike?.make,
+      bike?.model,
+      bike?.variant,
+      status
+    ].join(" ").toLowerCase();
+
+    if(search && !hay.includes(search)) return false;
+
+    if(statusFilter){
+      if(statusFilter==="new"){
+        if(!(match.buyer_offer_gbp!==null && match.buyer_offer_gbp!==undefined && match.buyer_offer_gbp!=="")) return false;
+      }else if(!status.includes(statusFilter)){
+        return false;
+      }
+    }
+
+    return true;
+  });
+
+  rows.sort((a,b)=>{
+    if(sort==="oldest"){
+      return new Date(a.buyer_responded_at || a.created_at || 0) -
+             new Date(b.buyer_responded_at || b.created_at || 0);
+    }
+    if(sort==="highest"){
+      return Number(b.buyer_offer_gbp || 0)-Number(a.buyer_offer_gbp || 0);
+    }
+    if(sort==="lowest"){
+      return Number(a.buyer_offer_gbp || 0)-Number(b.buyer_offer_gbp || 0);
+    }
+    if(sort==="buyer"){
+      const ab=buyerForMatch(a);
+      const bb=buyerForMatch(b);
+      return String(ab?.business_name || ab?.contact_name || "").localeCompare(
+        String(bb?.business_name || bb?.contact_name || "")
+      );
+    }
+    return new Date(b.buyer_responded_at || b.created_at || 0) -
+           new Date(a.buyer_responded_at || a.created_at || 0);
+  });
+
+  if(countEl) countEl.textContent=rows.length.toLocaleString("en-GB");
+
+  if(!rows.length){
+    box.innerHTML='<div class="offers-empty">No buyer responses match the current filters.</div>';
+    return;
+  }
+
+  box.innerHTML=`
+    <table class="offers-table">
+      <thead>
+        <tr>
+          <th>Received</th>
+          <th>Buyer</th>
+          <th>Motorcycle</th>
+          <th>Offer</th>
+          <th>Response</th>
+          <th>Match Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows.map(match=>{
+          const buyer=buyerForMatch(match);
+          const bike=offerStockForMatch(match);
+          const make=match.stock_make || bike?.make || "";
+          const model=match.stock_model || bike?.model || "";
+          const variant=match.stock_variant || bike?.variant || "";
+          const offer=match.buyer_offer_gbp;
+          const status=offerStatusText(match);
+          const hasOffer=offer!==null && offer!==undefined && offer!=="";
+          const buyerName=buyer?.business_name || buyer?.contact_name || "Buyer";
+          const buyerSub=[buyer?.contact_name,buyer?.email].filter(Boolean).join(" • ");
+          const bikeName=[make,model,variant].filter(Boolean).join(" ") || ("Stock #"+String(match.stock_id||"-"));
+
+          return `
+            <tr>
+              <td>
+                <strong>${safe(dateTxt(match.buyer_responded_at || match.created_at))}</strong>
+              </td>
+              <td class="offer-buyer">
+                <strong>${safe(buyerName)}</strong>
+                <div class="offer-sub">${safe(buyerSub)}</div>
+              </td>
+              <td class="offer-bike">
+                <strong>${safe(bikeName)}</strong>
+                <div class="offer-sub">Stock ID ${safe(match.stock_id || "-")}</div>
+              </td>
+              <td>
+                <div class="offer-amount">${hasOffer ? money(offer) : "-"}</div>
+              </td>
+              <td>
+                <span class="offer-status ${hasOffer ? "new" : ""}">${safe(status)}</span>
+                ${match.buyer_question
+                  ? `<div class="offer-sub">${safe(match.buyer_question)}</div>`
+                  : ""
+                }
+              </td>
+              <td>
+                <span class="offer-status">${safe(match.match_status || "-")}</span>
+              </td>
+              <td>
+                <div class="offer-actions">
+                  ${buyer
+                    ? `<button type="button" onclick="openBuyerFromOffer(${Number(buyer.id)})">Open Buyer</button>`
+                    : ""
+                  }
+                  ${match.stock_id
+                    ? `<a href="admin-motorcycle-360.html?id=${encodeURIComponent(match.stock_id)}" target="_blank">Motorcycle 360</a>`
+                    : ""
+                  }
+                </div>
+              </td>
+            </tr>
+          `;
+        }).join("")}
+      </tbody>
+    </table>
+  `;
 }
 
 function renderBuyers(){
