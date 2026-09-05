@@ -5,6 +5,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1375,6 +1376,38 @@ a{text-decoration:none;color:inherit}
   grid-column:1 / -1;
   justify-content:center;
 }
+
+.offer-deal-ref{
+  color:#9bf0b8;
+  font-size:11px;
+  font-weight:900;
+  margin-top:4px;
+}
+
+.deal-view-btn{
+  background:#173d2b !important;
+  border-color:rgba(54,211,126,.45) !important;
+}
+
+.deal-timeline-inline{
+  grid-column:1 / -1;
+  display:none;
+  width:100%;
+  margin-top:4px;
+  padding:10px;
+  border:1px solid rgba(54,211,126,.25);
+  border-radius:12px;
+  background:#0b0b0b;
+  text-align:left;
+}
+
+.deal-timeline-inline.open{display:block;}
+.deal-timeline-title{font-size:11px;font-weight:900;color:#9bf0b8;margin-bottom:8px;}
+.deal-event{padding:8px 0;border-top:1px solid rgba(255,255,255,.08);}
+.deal-event:first-of-type{border-top:0;}
+.deal-event-head{display:flex;justify-content:space-between;gap:8px;font-size:11px;font-weight:900;}
+.deal-event-meta{color:#999;font-size:10px;margin-top:3px;}
+.deal-event-message{color:#ddd;font-size:11px;margin-top:4px;white-space:pre-wrap;}
 .offer-actions button:hover,
 .offer-actions a:hover{
   border-color:var(--red);
@@ -1869,6 +1902,9 @@ let buyers=[];
 let items=[];
 let stock=[];
 let buyerMatches=[];
+let dealMotorcycles=[];
+let dealMotorcycleByMatch={};
+let adminDealNegotiationCache={};
 let sellerConfirmations={};
 let activeSellerMatchId=null;
 let buyerThreads=[];
@@ -1931,7 +1967,7 @@ async function loadBuyers(){
   document.getElementById("buyersList").innerHTML=
     '<div class="empty">Loading Global Buyer CRM...</div>';
 
-  const [bRes,iRes,tRes,mRes]=await Promise.all([
+  const [bRes,iRes,tRes,mRes,dRes]=await Promise.all([
     sb
       .from("global_buyer_network")
       .select("*")
@@ -1957,7 +1993,9 @@ async function loadBuyers(){
       .from("buyer_motorcycle_matches")
       .select("*")
       .order("created_at",{ascending:false})
-      .limit(5000)
+      .limit(5000),
+
+    sb.rpc("admin_get_deal_motorcycles")
   ]);
 
   if(bRes.error){
@@ -1990,6 +2028,22 @@ async function loadBuyers(){
       "Could not load curated buyer matches",
       mRes.error.message
     );
+  }
+
+  dealMotorcycles=
+    dRes && !dRes.error
+      ? (dRes.data || [])
+      : [];
+
+  dealMotorcycleByMatch={};
+  dealMotorcycles.forEach(row=>{
+    if(row?.buyer_match_id!==null && row?.buyer_match_id!==undefined){
+      dealMotorcycleByMatch[String(row.buyer_match_id)]=row;
+    }
+  });
+
+  if(dRes && dRes.error){
+    console.warn("Could not load AnyBike Deals",dRes.error.message);
   }
 
   buyerThreads=
@@ -2637,6 +2691,60 @@ async function saveSellerCheck(){
   await refreshSellerState(activeSellerMatchId);
 }
 
+function dealForMatch(matchId){
+  return dealMotorcycleByMatch[String(matchId)] || null;
+}
+
+function negotiationEventLabel(event){
+  const type=String(event?.event_type || "Activity");
+  const actor=String(event?.actor_type || "AnyBike");
+  return actor + " — " + type;
+}
+
+async function toggleAdminDealTimeline(matchId,dealMotorcycleId){
+  const box=document.getElementById(`admin-deal-timeline-${matchId}`);
+  if(!box) return;
+
+  if(box.classList.contains("open")){
+    box.classList.remove("open");
+    return;
+  }
+
+  box.classList.add("open");
+  box.innerHTML='<div class="deal-timeline-title">Loading Deal history...</div>';
+
+  let events=adminDealNegotiationCache[String(dealMotorcycleId)];
+
+  if(!events){
+    const {data,error}=await sb.rpc("admin_get_deal_negotiation",{
+      p_deal_motorcycle_id:Number(dealMotorcycleId)
+    });
+
+    if(error){
+      box.innerHTML='<div class="deal-timeline-title" style="color:#ff9da1">Could not load Deal history: '+safe(error.message)+'</div>';
+      return;
+    }
+
+    events=data || [];
+    adminDealNegotiationCache[String(dealMotorcycleId)]=events;
+  }
+
+  const deal=dealForMatch(matchId);
+  box.innerHTML=`
+    <div class="deal-timeline-title">${safe(deal?.deal_number || "AnyBike Deal")} · Full Admin History</div>
+    ${events.length ? events.map(event=>`
+      <div class="deal-event">
+        <div class="deal-event-head">
+          <span>${safe(negotiationEventLabel(event))}</span>
+          <span>${event.amount_gbp!==null && event.amount_gbp!==undefined ? money(event.amount_gbp) : ""}</span>
+        </div>
+        ${event.message ? `<div class="deal-event-message">${safe(event.message)}</div>` : ""}
+        <div class="deal-event-meta">${safe(dateTxt(event.created_at))}${event.buyer_visible ? " · Buyer visible" : " · Internal only"}</div>
+      </div>
+    `).join("") : '<div class="deal-event-meta">No Deal events recorded.</div>'}
+  `;
+}
+
 async function acceptBuyerOffer(matchId){
   const match=(buyerMatches || []).find(m=>String(m.id)===String(matchId));
 
@@ -2710,6 +2818,17 @@ async function acceptBuyerOffer(matchId){
     return;
   }
 
+  const {error:dealError}=await sb.rpc("admin_promote_accepted_match_to_deal",{
+    p_match_id:Number(matchId),
+    p_deal_id:null
+  });
+
+  if(dealError){
+    console.error("Offer accepted but Deal promotion failed",dealError);
+    alert("The offer was accepted, but the AnyBike Deal could not be created automatically: " + dealError.message);
+  }
+
+  adminDealNegotiationCache={};
   await loadBuyers();
 
   alert(
@@ -2834,6 +2953,7 @@ function renderBuyerOffers(){
           const sellerPrice=sellerConfirmation?.confirmed_min_price_gbp;
           const hasSellerPrice=sellerPrice!==null && sellerPrice!==undefined && sellerPrice!=="";
           const grossMargin=hasOffer && hasSellerPrice ? Number(offer)-Number(sellerPrice) : null;
+          const deal=dealForMatch(match.id);
 
           return `
             <tr>
@@ -2871,6 +2991,7 @@ function renderBuyerOffers(){
               </td>
               <td>
                 <span class="offer-status">${safe(match.match_status || "-")}</span>
+                ${deal ? `<div class="offer-deal-ref">${safe(deal.deal_number || "Deal")}</div>` : ""}
               </td>
               <td>
                 <div class="offer-actions">
@@ -2887,11 +3008,19 @@ function renderBuyerOffers(){
                     : ""
                   }
                   ${buyer
-                    ? `<button type="button" onclick="openBuyerFromOffer(${Number(buyer.id)})">Open Buyer</button>`
+                    ? `<button type="button" onclick="openBuyerFromOffer(${Number(buyer.id)})">View Buyer</button>`
                     : ""
                   }
                   ${match.stock_id
                     ? `<a href="admin-motorcycle-360.html?id=${encodeURIComponent(match.stock_id)}" target="_blank">View Bike</a>`
+                    : ""
+                  }
+                  ${deal
+                    ? `<button type="button" class="deal-view-btn" onclick="toggleAdminDealTimeline(${Number(match.id)},${Number(deal.deal_motorcycle_id)})">View Deal</button>`
+                    : ""
+                  }
+                  ${deal
+                    ? `<div class="deal-timeline-inline" id="admin-deal-timeline-${safe(match.id)}"></div>`
                     : ""
                   }
                 </div>
