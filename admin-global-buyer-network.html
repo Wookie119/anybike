@@ -59,7 +59,8 @@
 
           <div class="seller-field">
             <label for="sellerMinPrice">Confirmed Seller Price (£)</label>
-            <input id="sellerMinPrice" type="number" min="0" max="1000000" step="0.01" placeholder="0.00">
+            <input id="sellerMinPrice" type="text" inputmode="decimal" placeholder="£0.00 GBP"
+              onfocus="sellerMoneyFocus(this)" onblur="sellerMoneyBlur(this)">
           </div>
 
           <div class="seller-field">
@@ -126,7 +127,8 @@
 
           <div class="seller-field">
             <label for="sellerDepositAmount">Deposit Amount (£)</label>
-            <input id="sellerDepositAmount" type="number" min="0" max="1000000" step="0.01" placeholder="0.00">
+            <input id="sellerDepositAmount" type="text" inputmode="decimal" placeholder="£0.00 GBP"
+              onfocus="sellerMoneyFocus(this)" onblur="sellerMoneyBlur(this)">
           </div>
 
           <div class="seller-field">
@@ -2160,6 +2162,29 @@ function sellerConfirmationForMatch(matchId){
   return sellerConfirmations[String(matchId)] || null;
 }
 
+function sellerMoneyNumber(value){
+  if(value===null || value===undefined || String(value).trim()==="") return null;
+  const cleaned=String(value).replace(/[^0-9.\-]/g,"");
+  if(!cleaned) return null;
+  const n=Number(cleaned);
+  return Number.isFinite(n) ? n : null;
+}
+
+function sellerMoneyDisplay(value){
+  const n=sellerMoneyNumber(value);
+  if(n===null) return "";
+  return "£"+n.toLocaleString("en-GB",{minimumFractionDigits:2,maximumFractionDigits:2})+" GBP";
+}
+
+function sellerMoneyFocus(input){
+  const n=sellerMoneyNumber(input.value);
+  input.value=n===null ? "" : n.toFixed(2);
+}
+
+function sellerMoneyBlur(input){
+  input.value=sellerMoneyDisplay(input.value);
+}
+
 function sellerDeadlineInfo(confirmation){
   if(!confirmation ||
      !confirmation.seller_deposit_required ||
@@ -2360,7 +2385,7 @@ function populateSellerCheckForm(c){
     c?.availability_status || "Unknown";
 
   document.getElementById("sellerMinPrice").value=
-    c?.confirmed_min_price_gbp ?? "";
+    sellerMoneyDisplay(c?.confirmed_min_price_gbp);
 
   document.getElementById("sellerValidUntil").value=
     sellerLocalDateTime(c?.valid_until);
@@ -2387,7 +2412,7 @@ function populateSellerCheckForm(c){
     !!c?.seller_deposit_required;
 
   document.getElementById("sellerDepositAmount").value=
-    c?.seller_deposit_amount_gbp ?? "";
+    sellerMoneyDisplay(c?.seller_deposit_amount_gbp);
 
   document.getElementById("sellerDepositDue").value=
     sellerLocalDateTime(c?.seller_deposit_due_at);
@@ -2455,14 +2480,14 @@ function updateSellerDeadlineWarning(){
 
   const diff=due.getTime()-Date.now();
   const hours=diff/3600000;
-  let text="Seller deposit "+money(amount)+" must be paid by "+due.toLocaleString()+".";
+  let text="Seller deposit "+money(sellerMoneyNumber(amount))+" must be paid by "+due.toLocaleString()+".";
 
   if(diff<=0){
     alertBox.classList.add("danger");
-    text="SELLER DEPOSIT OVERDUE — "+money(amount)+" was due "+due.toLocaleString()+".";
+    text="SELLER DEPOSIT OVERDUE — "+money(sellerMoneyNumber(amount))+" was due "+due.toLocaleString()+".";
   }else if(hours<=24){
     alertBox.classList.add("danger");
-    text="URGENT — Seller deposit "+money(amount)+" must be paid by "+due.toLocaleString()+".";
+    text="URGENT — Seller deposit "+money(sellerMoneyNumber(amount))+" must be paid by "+due.toLocaleString()+".";
   }
 
   alertBox.textContent=text;
@@ -2491,10 +2516,10 @@ async function saveSellerCheck(){
   const depositPaid=document.getElementById("sellerDepositPaid").checked;
   const bikeSecured=document.getElementById("sellerBikeSecured").checked;
 
-  const sellerPrice=document.getElementById("sellerMinPrice").value;
-  const depositAmount=document.getElementById("sellerDepositAmount").value;
+  const sellerPrice=sellerMoneyNumber(document.getElementById("sellerMinPrice").value);
+  const depositAmount=sellerMoneyNumber(document.getElementById("sellerDepositAmount").value);
 
-  if(depositRequired && (!depositAmount || Number(depositAmount)<=0)){
+  if(depositRequired && (depositAmount===null || depositAmount<=0)){
     status.className="seller-modal-status error";
     status.textContent="Enter the seller deposit amount.";
     return;
@@ -2503,7 +2528,7 @@ async function saveSellerCheck(){
   const args={
     p_match_id:Number(activeSellerMatchId),
     p_availability_status:document.getElementById("sellerAvailability").value,
-    p_confirmed_min_price_gbp:sellerPrice==="" ? null : Number(sellerPrice),
+    p_confirmed_min_price_gbp:sellerPrice,
     p_valid_until:sellerIsoOrNull(document.getElementById("sellerValidUntil").value),
     p_contact_method:document.getElementById("sellerContactMethod").value || null,
     p_seller_contact_name:document.getElementById("sellerContactName").value || null,
@@ -2513,7 +2538,7 @@ async function saveSellerCheck(){
     p_hold_reference:document.getElementById("sellerHoldReference").value || null,
     p_hold_expires_at:sellerIsoOrNull(document.getElementById("sellerHoldExpires").value),
     p_seller_deposit_required:depositRequired,
-    p_seller_deposit_amount_gbp:depositRequired ? Number(depositAmount) : null,
+    p_seller_deposit_amount_gbp:depositRequired ? depositAmount : null,
     p_seller_deposit_due_at:depositRequired
       ? sellerIsoOrNull(document.getElementById("sellerDepositDue").value)
       : null,
