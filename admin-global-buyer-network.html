@@ -6,6 +6,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -665,7 +666,7 @@ a{text-decoration:none;color:inherit}
 }
 .toolbar{
   display:grid;
-  grid-template-columns:1fr 220px 190px;
+  grid-template-columns:minmax(260px,1fr) 220px 190px 190px;
   gap:12px;
   margin-bottom:16px;
 }
@@ -1656,6 +1657,59 @@ a{text-decoration:none;color:inherit}
   box-shadow:0 0 0 2px rgba(237,28,36,.24),0 0 28px rgba(237,28,36,.35);
 }
 
+.buyer.archived-buyer{
+  opacity:.72;
+  border-color:rgba(255,255,255,.08);
+}
+.buyer.archived-buyer .buyer-head{
+  background:rgba(255,255,255,.025);
+}
+.archive-pill{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  border:1px solid rgba(255,184,0,.48);
+  background:rgba(255,184,0,.10);
+  color:#ffd86a;
+  border-radius:999px;
+  padding:6px 10px;
+  font-size:12px;
+  font-weight:900;
+}
+.buyer-housekeeping{
+  margin-top:14px;
+  padding-top:12px;
+  border-top:1px solid rgba(255,255,255,.10);
+  display:flex;
+  gap:9px;
+  flex-wrap:wrap;
+  align-items:center;
+}
+.buyer-housekeeping button{
+  min-height:40px;
+  border-radius:999px;
+  padding:8px 14px;
+  font:inherit;
+  font-size:12px;
+  font-weight:900;
+  cursor:pointer;
+}
+.archive-buyer-btn{
+  border:1px solid rgba(255,184,0,.50);
+  background:rgba(255,184,0,.12);
+  color:#ffe08a;
+}
+.restore-buyer-btn{
+  border:1px solid rgba(54,211,126,.50);
+  background:rgba(54,211,126,.12);
+  color:#9bf0b8;
+}
+.buyer-housekeeping-note{
+  color:#888;
+  font-size:11px;
+  line-height:1.4;
+}
+
 @media(max-width:1000px){
   .admin-shell{
     grid-template-columns:1fr;
@@ -1703,7 +1757,7 @@ a{text-decoration:none;color:inherit}
         <p>Manage dealers, wholesalers and bulk motorcycle buyers. Track requested bikes, monthly purchase volume, stock matches, selling links and shipping preferences.</p>
       
       <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;">
-        <a class="btn" style="background:#222;border-color:rgba(255,255,255,.16);" href="admin-enquiries.html">Open Single-Bike Sales CRM</a>
+        <a class="btn" style="background:#222;border-color:rgba(255,255,255,.16);" href="admin-enquiries.html">Open Bike Sales HQ</a>
         <a class="btn" style="background:#222;border-color:rgba(255,255,255,.16);" href="bulk-buying-request.html" target="_blank">View Public Buyer Form</a>
       </div>
 
@@ -1715,7 +1769,7 @@ a{text-decoration:none;color:inherit}
     <section class="pipeline-heading">
       <div>
         <h2>Global Bulk Buyer Pipeline</h2>
-        <p>Separate from single-bike enquiries. This pipeline is for dealers, wholesalers and container buyers requesting multiple motorcycles.</p>
+        <p>Buyer sourcing pipeline for dealers, wholesalers and container buyers requesting multiple motorcycles. Accepted transactions move into Bike Sales HQ / Deal 360.</p>
       </div>
     </section>
 
@@ -1780,6 +1834,11 @@ a{text-decoration:none;color:inherit}
       <input id="searchBox" placeholder="Search buyer, email, country, bike..." oninput="renderBuyers()">
       <select id="countryFilter" onchange="renderBuyers()"><option value="">All countries</option></select>
       <select id="statusFilter" onchange="renderBuyers()"><option value="">All statuses</option></select>
+      <select id="archiveFilter" onchange="renderBuyers()">
+        <option value="active">Active buyers</option>
+        <option value="archived">Archived buyers</option>
+        <option value="all">Active + archived</option>
+      </select>
     </section>
 
     <section id="buyersList"></section>
@@ -1910,6 +1969,7 @@ let activeSellerMatchId=null;
 let buyerThreads=[];
 let buyerConversationCache={};
 let bulkStatusFilter='';
+function isBuyerArchived(b){return !!(b && b.archived_at);}
 function safe(v){return String(v ?? "").replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
 function money(v){return v==null||v===""?"-":"£"+Number(v).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});}
 function dateTxt(v){return v?new Date(v).toLocaleString():"-";}
@@ -2088,8 +2148,9 @@ function setCount(id,value){
   if(el) el.textContent=value;
 }
 function updatePipelineCounts(){
-  const c = status => buyers.filter(b=>normalStatus(b.status)===status).length;
-  setCount("bulkAllCount", buyers.length);
+  const activeBuyers=buyers.filter(b=>!isBuyerArchived(b));
+  const c = status => activeBuyers.filter(b=>normalStatus(b.status)===status).length;
+  setCount("bulkAllCount", activeBuyers.length);
   setCount("bulkNewCount", c("New Buyer Registered"));
   setCount("bulkQualifiedCount", c("Buyer Qualified"));
   setCount("bulkListCount", c("Motorcycle List Received"));
@@ -2165,6 +2226,51 @@ async function updateBuyerStatus(buyerId){
   renderBuyers();
 }
 
+async function archiveGlobalBuyer(buyerId){
+  const buyer=buyers.find(b=>Number(b.id)===Number(buyerId));
+  if(!buyer) return;
+
+  const label=buyer.business_name || buyer.contact_name || ("Buyer #"+buyerId);
+  const ok=confirm(
+    "Archive " + label + "?\n\n" +
+    "This removes the buyer from the active CRM only. Message Centre threads, instant messages, email notifications, requests, matches, offers and AnyBike Deals are NOT deleted."
+  );
+  if(!ok) return;
+
+  const reason=prompt("Optional archive reason (for example: Test data):", "Test / development data");
+
+  const {error}=await sb.rpc("admin_archive_global_buyer",{
+    p_buyer_id:Number(buyerId),
+    p_reason:reason===null ? null : String(reason).trim() || null
+  });
+
+  if(error){
+    alert("Could not archive buyer: " + error.message);
+    return;
+  }
+
+  await loadBuyers();
+}
+
+async function restoreGlobalBuyer(buyerId){
+  const buyer=buyers.find(b=>Number(b.id)===Number(buyerId));
+  if(!buyer) return;
+
+  const label=buyer.business_name || buyer.contact_name || ("Buyer #"+buyerId);
+  if(!confirm("Restore " + label + " to the active Global Buyer CRM?")) return;
+
+  const {error}=await sb.rpc("admin_restore_global_buyer",{
+    p_buyer_id:Number(buyerId)
+  });
+
+  if(error){
+    alert("Could not restore buyer: " + error.message);
+    return;
+  }
+
+  await loadBuyers();
+}
+
 
 function buyerForMatch(match){
   if(!match) return null;
@@ -2203,6 +2309,7 @@ function openBuyerFromOffer(buyerId){
   document.getElementById("searchBox").value="";
   document.getElementById("countryFilter").value="";
   document.getElementById("statusFilter").value="";
+  if(document.getElementById("archiveFilter")) document.getElementById("archiveFilter").value="active";
   bulkStatusFilter="";
   document.querySelectorAll(".bulk-stage").forEach(el=>el.classList.remove("active"));
   const allStage=document.querySelector('.bulk-stage[data-bulk-status=""]');
@@ -2848,6 +2955,9 @@ function renderBuyerOffers(){
   const sort=String(document.getElementById("offerSort")?.value || "newest");
 
   let rows=(buyerMatches || []).filter(match=>{
+    const linkedBuyer=buyerForMatch(match);
+    if(linkedBuyer && isBuyerArchived(linkedBuyer)) return false;
+
     const response=String(match.buyer_response || "").trim();
     const hasOffer=match.buyer_offer_gbp!==null &&
       match.buyer_offer_gbp!==undefined &&
@@ -3044,7 +3154,12 @@ function renderBuyers(){
   const q=document.getElementById('searchBox').value.toLowerCase().trim();
   const cf=document.getElementById('countryFilter').value;
   const sf=document.getElementById('statusFilter').value;
+  const af=document.getElementById('archiveFilter')?.value || 'active';
   let rows=buyers.filter(b=>{
+    const archived=isBuyerArchived(b);
+    if(af==='active' && archived) return false;
+    if(af==='archived' && !archived) return false;
+
     const its=itemsForBuyer(b.id);
     const hay=[b.business_name,b.contact_name,b.email,b.phone,b.country,b.status,b.annual_purchase_volume,b.website,b.social_links,...its.flatMap(i=>[i.make,i.model,i.year_from,i.year_to])].join(' ').toLowerCase();
     return (!q||hay.includes(q)) && (!cf||b.country===cf) && (!sf||b.status===sf) && (!bulkStatusFilter||normalStatus(b.status)===bulkStatusFilter);
@@ -3079,11 +3194,15 @@ function updateStats(rows){
 }
 function buyerHtml(b,its){
   const qty=its.reduce((s,i)=>s+Number(i.quantity||0),0);
-  return `<article class="buyer" id="buyer-${b.id}">
+  const archived=isBuyerArchived(b);
+  return `<article class="buyer ${archived?'archived-buyer':''}" id="buyer-${b.id}">
     <div class="buyer-head" onclick="toggleBuyerDetails(${b.id})">
       <div><strong>${safe(b.business_name||'Unnamed buyer')}</strong><div class="small">${safe(b.contact_name||'')} ${b.email?' • '+safe(b.email):''}</div></div>
       <div>${safe(b.country||'-')}<div class="small">${safe(b.phone||'')}</div></div>
-      <div><span class="pill red">${safe(normalStatus(b.status))}</span><div class="small">${dateTxt(b.created_at)}</div></div>
+      <div>${archived
+        ? `<span class="archive-pill">📦 Archived</span><div class="small">${b.archived_at ? 'Archived '+safe(dateTxt(b.archived_at)) : ''}</div>`
+        : `<span class="pill red">${safe(normalStatus(b.status))}</span><div class="small">${dateTxt(b.created_at)}</div>`
+      }</div>
       <div><strong>${qty||its.length}</strong><div class="small">requested bikes / qty</div></div>
       <div class="small">Click to open</div>
     </div>
@@ -3099,6 +3218,13 @@ function buyerHtml(b,its){
               </select>
             </div>
             <button id="buyer-status-btn-${b.id}" class="status-save-btn" onclick="updateBuyerStatus(${b.id})">Save Status</button>
+          </div>
+          <div class="buyer-housekeeping">
+            ${archived
+              ? `<button type="button" class="restore-buyer-btn" onclick="event.stopPropagation();restoreGlobalBuyer(${Number(b.id)})">↩ Restore Buyer</button>`
+              : `<button type="button" class="archive-buyer-btn" onclick="event.stopPropagation();archiveGlobalBuyer(${Number(b.id)})">📦 Archive Buyer</button>`
+            }
+            <span class="buyer-housekeeping-note">Archive only changes CRM visibility. Message Centre threads, instant messages, email notifications, requests, matches, offers and Deals are preserved.</span>
           </div>
         </div>
         <div class="box"><h3>Shipping</h3>
