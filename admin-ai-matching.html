@@ -58,6 +58,9 @@ a{text-decoration:none;color:inherit}
 .dept-actions a:hover,.btn:hover{border-color:var(--red)}
 .btn{cursor:pointer;font:inherit}
 .btn.primary{background:var(--red);border-color:var(--red)}
+.btn.secondary{background:#202020;border-color:rgba(255,255,255,.16)}
+.btn.success{background:rgba(67,209,122,.12);border-color:rgba(67,209,122,.45);color:#b7f7ce}
+.btn.small{padding:8px 11px;font-size:12px}
 .btn:disabled{opacity:.5;cursor:not-allowed}
 .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin:16px 0}
 .card{background:#111;border:1px solid var(--line);border-radius:18px;padding:18px}
@@ -84,6 +87,8 @@ a{text-decoration:none;color:inherit}
 .result-top{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:start}
 .result-bike{font-size:17px;font-weight:950}
 .result-meta{color:#aaa;font-size:13px;margin-top:4px;line-height:1.5}
+.result-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px}
+.match-saved-note{font-size:12px;color:#b7f7ce;font-weight:800}
 .score{font-size:22px;font-weight:950;text-align:right}
 .score small{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#999;margin-top:2px}
 .reason-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
@@ -93,13 +98,23 @@ a{text-decoration:none;color:inherit}
 .reason-box.warning strong{color:var(--amber)}
 .empty{padding:30px;text-align:center;color:#888;border:1px dashed rgba(255,255,255,.12);border-radius:14px}
 .small-note{font-size:12px;color:#888;line-height:1.5}
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.76);display:none;align-items:center;justify-content:center;padding:20px;z-index:10000}
+.modal-backdrop.open{display:flex}
+.modal-card{width:min(760px,100%);max-height:90vh;overflow:auto;background:#111;border:1px solid rgba(255,255,255,.14);border-radius:20px;padding:20px;box-shadow:0 24px 80px rgba(0,0,0,.55)}
+.modal-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:14px}
+.modal-head h2{margin:0}
+.modal-close{background:#202020;border:1px solid var(--line);color:#fff;width:38px;height:38px;border-radius:50%;cursor:pointer;font-size:20px}
+.detail-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.detail-item{background:#0b0b0b;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:11px}
+.detail-item small{display:block;color:#888;text-transform:uppercase;letter-spacing:.06em;font-size:10px;margin-bottom:4px}
+.detail-item strong{font-size:13px}
 @media(max-width:1000px){
   .department-hero{grid-template-columns:1fr}
   .dept-actions{justify-content:flex-start}
   .matcher-grid{grid-template-columns:1fr}
 }
 @media(max-width:650px){
-  .request-summary,.reason-grid{grid-template-columns:1fr}
+  .request-summary,.reason-grid,.detail-grid{grid-template-columns:1fr}
 }
 </style>
 </head>
@@ -126,7 +141,7 @@ a{text-decoration:none;color:inherit}
         <section class="card">
           <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap">
             <h2>Buyer Match Engine</h2>
-            <span class="badge green">Read-only</span>
+            <span class="badge green">Staff controlled</span>
           </div>
           <p>Select a saved buyer request and rank currently active stock against it.</p>
 
@@ -152,7 +167,7 @@ a{text-decoration:none;color:inherit}
               <h2 style="margin-bottom:5px">Recommended Stock</h2>
               <div id="resultSubtitle" class="small-note">Choose a buyer request to begin.</div>
             </div>
-            <span id="resultCount" class="badge blue">0 results</span>
+            <div style="display:flex;gap:8px;flex-wrap:wrap"><span id="savedCount" class="badge green">0 potential matches</span><span id="resultCount" class="badge blue">0 results</span></div>
           </div>
 
           <div id="matchStatus" class="status-box">Waiting for a buyer request.</div>
@@ -162,14 +177,14 @@ a{text-decoration:none;color:inherit}
 
       <div class="cards">
         <div class="card">
-          <h3>Stock Recommendations</h3>
+          <h3>Reverse Stock Matching</h3>
           <p class="badge blue">Next phase</p>
-          <p>Reverse matching will answer: “Who wants this motorcycle, and in which countries?” It remains separate from this buyer-to-stock test.</p>
+          <p>Start with a motorcycle and find active buyer demand for it, including countries, quantities and matching buyer requests.</p>
         </div>
         <div class="card">
           <h3>Human Control</h3>
           <p class="badge green">Protected</p>
-          <p>This screen does not create a buyer match, request a seller price, send a buyer offer, secure a bike or create a Deal.</p>
+          <p>This screen can save an internal Potential Match. It does not make the match buyer-visible, request a seller price, send an offer, secure a bike or create a Deal.</p>
         </div>
       </div>
 
@@ -177,9 +192,27 @@ a{text-decoration:none;color:inherit}
   </div>
 </div>
 
+<div id="motorcycleModal" class="modal-backdrop" aria-hidden="true">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="motorcycleModalTitle">
+    <div class="modal-head">
+      <div>
+        <div class="dept-eyebrow">Potential Match Review</div>
+        <h2 id="motorcycleModalTitle">Motorcycle</h2>
+      </div>
+      <button id="motorcycleModalClose" class="modal-close" type="button" aria-label="Close">×</button>
+    </div>
+    <div id="motorcycleModalDetails" class="detail-grid"></div>
+    <div id="motorcycleModalNotes" class="status-box" style="margin-top:12px"></div>
+    <div id="motorcycleModalActions" class="result-actions"></div>
+  </div>
+</div>
+
 <script>
 let aiRequestItems=[];
 let activeRequestItem=null;
+let currentMatchRows=[];
+let existingMatchByStock=new Map();
+let modalStockRow=null;
 
 function esc(value){
   return String(value ?? "")
@@ -245,7 +278,20 @@ function strengthClass(strength){
   return "blue";
 }
 
+function updateSavedCount(){
+  const el=document.getElementById("savedCount");
+  const count=existingMatchByStock.size;
+  el.textContent=count===1 ? "1 potential match" : count+" potential matches";
+}
+
+function matchStatusLabel(match){
+  if(!match) return "";
+  if(match.buyer_visible) return "Buyer visible · "+(match.match_status || "Match");
+  return match.match_status || "Internal Match";
+}
+
 function renderMatches(rows){
+  currentMatchRows=rows || [];
   const results=document.getElementById("matchResults");
   const count=document.getElementById("resultCount");
   const subtitle=document.getElementById("resultSubtitle");
@@ -255,6 +301,8 @@ function renderMatches(rows){
     ? `Request #${activeRequestItem.id} · ${activeRequestItem.make} ${activeRequestItem.model}`
     : "";
 
+  updateSavedCount();
+
   if(!rows.length){
     results.innerHTML='<div class="empty">No eligible Active/Live stock matched this request.</div>';
     return;
@@ -263,6 +311,7 @@ function renderMatches(rows){
   results.innerHTML=rows.map(row=>{
     const reasons=Array.isArray(row.match_reasons) ? row.match_reasons : [];
     const warnings=Array.isArray(row.match_warnings) ? row.match_warnings : [];
+    const existing=existingMatchByStock.get(Number(row.stock_id));
     const details=[
       row.variant ? row.variant : null,
       row.year ? row.year : "Year unknown",
@@ -274,13 +323,19 @@ function renderMatches(rows){
     ].filter(Boolean);
 
     return `
-      <article class="result-card">
+      <article class="result-card" data-stock-id="${esc(row.stock_id)}">
         <div class="result-top">
           <div>
             <div class="result-bike">${esc(row.make)} ${esc(row.model)}${row.variant ? " · "+esc(row.variant) : ""}</div>
             <div class="result-meta">Stock #${esc(row.stock_id)} · ${details.map(esc).join(" · ")}</div>
           </div>
           <div class="score">${esc(row.match_score)}%<small><span class="badge ${strengthClass(row.match_strength)}">${esc(row.match_strength || "Review")}</span></small></div>
+        </div>
+        <div class="result-actions">
+          <button class="btn secondary small js-view-bike" type="button" data-stock-id="${esc(row.stock_id)}">🏍 View Motorcycle</button>
+          ${existing
+            ? `<button class="btn success small" type="button" disabled>✓ Potential Match Saved</button><span class="match-saved-note">${esc(matchStatusLabel(existing))}</span>`
+            : `<button class="btn primary small js-save-match" type="button" data-stock-id="${esc(row.stock_id)}">＋ Save Potential Match</button>`}
         </div>
         <div class="reason-grid">
           <div class="reason-box">
@@ -295,6 +350,112 @@ function renderMatches(rows){
       </article>
     `;
   }).join("");
+}
+
+async function loadExistingPotentialMatches(rows){
+  existingMatchByStock=new Map();
+  updateSavedCount();
+
+  if(!activeRequestItem || !rows.length) return;
+
+  const stockIds=[...new Set(rows.map(r=>Number(r.stock_id)).filter(Number.isFinite))];
+  if(!stockIds.length) return;
+
+  const client=getAdminSupabaseClient();
+  const {data,error}=await client
+    .from("buyer_motorcycle_matches")
+    .select("id,buyer_id,request_item_id,stock_id,match_status,buyer_visible,created_at")
+    .eq("buyer_id",Number(activeRequestItem.buyer_id))
+    .in("stock_id",stockIds);
+
+  if(error){
+    console.warn("Could not pre-load existing potential matches",error.message);
+    return;
+  }
+
+  (data || []).forEach(match=>existingMatchByStock.set(Number(match.stock_id),match));
+  updateSavedCount();
+}
+
+function openMotorcycleModal(stockId){
+  const row=currentMatchRows.find(r=>Number(r.stock_id)===Number(stockId));
+  if(!row) return;
+  modalStockRow=row;
+
+  const existing=existingMatchByStock.get(Number(row.stock_id));
+  document.getElementById("motorcycleModalTitle").textContent=`${row.make || ""} ${row.model || ""}${row.variant ? " · "+row.variant : ""}`.trim();
+  document.getElementById("motorcycleModalDetails").innerHTML=`
+    <div class="detail-item"><small>Stock ID</small><strong>#${esc(row.stock_id)}</strong></div>
+    <div class="detail-item"><small>Year</small><strong>${esc(row.year || "Unknown")}</strong></div>
+    <div class="detail-item"><small>Mileage</small><strong>${esc(row.mileage!==null && row.mileage!==undefined ? Number(row.mileage).toLocaleString()+" miles" : "Unknown")}</strong></div>
+    <div class="detail-item"><small>Advertised price</small><strong>${esc(row.price_gbp!==null && row.price_gbp!==undefined ? money(row.price_gbp) : "Unknown")}</strong></div>
+    <div class="detail-item"><small>Colour</small><strong>${esc(row.colour || "Unknown")}</strong></div>
+    <div class="detail-item"><small>VAT</small><strong>${esc(row.vat_status || "Unknown / Check Required")}</strong></div>
+    <div class="detail-item"><small>Source</small><strong>${esc(row.source_partner_name || row.source_type || "Unknown")}</strong></div>
+    <div class="detail-item"><small>Request fit</small><strong>${esc(row.match_score)}% · ${esc(row.match_strength || "Review")}</strong></div>
+    <div class="detail-item"><small>Buyer request</small><strong>#${esc(activeRequestItem?.id || "-")} · Buyer #${esc(activeRequestItem?.buyer_id || "-")}</strong></div>
+  `;
+  document.getElementById("motorcycleModalNotes").className="status-box"+(existing ? " success" : "");
+  document.getElementById("motorcycleModalNotes").textContent=existing
+    ? `Already saved as a Potential Match. ${matchStatusLabel(existing)}. Nothing is sent automatically.`
+    : "This is still only an AI recommendation. Saving it creates an internal Potential Match only; the buyer will not see it.";
+  document.getElementById("motorcycleModalActions").innerHTML=existing
+    ? `<button class="btn success" type="button" disabled>✓ Potential Match Saved</button><a class="btn secondary" href="admin-global-buyer-network.html">Open Global Buyers</a>`
+    : `<button class="btn primary js-save-match" type="button" data-stock-id="${esc(row.stock_id)}">＋ Save Potential Match</button>`;
+
+  const modal=document.getElementById("motorcycleModal");
+  modal.classList.add("open");
+  modal.setAttribute("aria-hidden","false");
+}
+
+function closeMotorcycleModal(){
+  const modal=document.getElementById("motorcycleModal");
+  modal.classList.remove("open");
+  modal.setAttribute("aria-hidden","true");
+  modalStockRow=null;
+}
+
+async function savePotentialMatch(stockId,button){
+  if(!activeRequestItem) return;
+
+  const numericStockId=Number(stockId);
+  if(existingMatchByStock.has(numericStockId)){
+    renderMatches(currentMatchRows);
+    if(document.getElementById("motorcycleModal").classList.contains("open")) openMotorcycleModal(numericStockId);
+    return;
+  }
+
+  const client=getAdminSupabaseClient();
+  const originalText=button ? button.textContent : "";
+  if(button){
+    button.disabled=true;
+    button.textContent="Saving...";
+  }
+
+  const {data,error}=await client.rpc("admin_save_potential_match",{
+    p_request_item_id:Number(activeRequestItem.id),
+    p_stock_id:numericStockId
+  });
+
+  if(error){
+    if(button){
+      button.disabled=false;
+      button.textContent=originalText || "＋ Save Potential Match";
+    }
+    alert("Could not save Potential Match: "+error.message);
+    return;
+  }
+
+  const match=Array.isArray(data) ? data[0] : data;
+  if(match) existingMatchByStock.set(numericStockId,match);
+
+  renderMatches(currentMatchRows);
+  document.getElementById("matchStatus").className="status-box success";
+  document.getElementById("matchStatus").textContent=`Potential Match saved internally for Buyer #${activeRequestItem.buyer_id}. It is not visible to the buyer.`;
+
+  if(document.getElementById("motorcycleModal").classList.contains("open")){
+    openMotorcycleModal(numericStockId);
+  }
 }
 
 async function loadBuyerRequests(){
@@ -369,8 +530,9 @@ async function findMatches(){
   }
 
   const rows=data || [];
+  await loadExistingPotentialMatches(rows);
   status.className="status-box success";
-  status.textContent=`Matching completed safely. ${rows.length} recommendation${rows.length===1?"":"s"} returned. Nothing has been saved or sent.`;
+  status.textContent=`Matching completed safely. ${rows.length} recommendation${rows.length===1?"":"s"} returned. Existing Potential Matches are marked; nothing has been sent.`;
   renderMatches(rows);
 }
 
@@ -378,6 +540,9 @@ document.getElementById("requestSelect").addEventListener("change",function(){
   const id=Number(this.value);
   activeRequestItem=aiRequestItems.find(item=>Number(item.id)===id) || null;
   renderRequestSummary();
+  currentMatchRows=[];
+  existingMatchByStock=new Map();
+  updateSavedCount();
   document.getElementById("matchResults").innerHTML="";
   document.getElementById("resultCount").textContent="0 results";
   document.getElementById("matchStatus").className="status-box";
@@ -387,6 +552,34 @@ document.getElementById("requestSelect").addEventListener("change",function(){
 });
 
 document.getElementById("findMatchesBtn").addEventListener("click",findMatches);
+
+document.getElementById("matchResults").addEventListener("click",function(event){
+  const viewBtn=event.target.closest(".js-view-bike");
+  if(viewBtn){
+    openMotorcycleModal(Number(viewBtn.dataset.stockId));
+    return;
+  }
+
+  const saveBtn=event.target.closest(".js-save-match");
+  if(saveBtn){
+    savePotentialMatch(Number(saveBtn.dataset.stockId),saveBtn);
+  }
+});
+
+document.getElementById("motorcycleModalActions").addEventListener("click",function(event){
+  const saveBtn=event.target.closest(".js-save-match");
+  if(saveBtn){
+    savePotentialMatch(Number(saveBtn.dataset.stockId),saveBtn);
+  }
+});
+
+document.getElementById("motorcycleModalClose").addEventListener("click",closeMotorcycleModal);
+document.getElementById("motorcycleModal").addEventListener("click",function(event){
+  if(event.target===this) closeMotorcycleModal();
+});
+document.addEventListener("keydown",function(event){
+  if(event.key==="Escape") closeMotorcycleModal();
+});
 
 (async function startAIStockMatching(){
   const allowed=await requireAdminSession();
