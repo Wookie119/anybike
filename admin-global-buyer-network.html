@@ -181,8 +181,8 @@
   <div class="seller-modal" role="dialog" aria-modal="true" aria-labelledby="sellerPriceReviewTitle">
     <div class="seller-modal-head">
       <div>
-        <h2 id="sellerPriceReviewTitle">Review Seller Price Request</h2>
-        <p>Review the seller and motorcycle before anything is sent.</p>
+        <h2 id="sellerPriceReviewTitle">Seller Price & Preparation</h2>
+        <p>Internal AnyBike record — contact the seller manually and record the response here.</p>
       </div>
       <button type="button" class="seller-modal-close" onclick="closeSellerPriceReview()" aria-label="Close">×</button>
     </div>
@@ -208,22 +208,37 @@
         </div>
       </div>
       <div class="seller-form-section">
-        <h3>Delivery</h3>
+        <h3>Seller Price & Availability</h3>
         <div class="seller-grid">
-          <div class="seller-field"><label>Method</label><select id="sprDeliveryMethod"><option value="Email">Email</option><option value="Dealer Dashboard" disabled>Dealer Dashboard — later</option><option value="Message Centre" disabled>Message Centre — later</option><option value="WhatsApp" disabled>WhatsApp — later</option></select></div>
-          <div class="seller-field full"><div id="sprContactWarning" class="seller-price-warning"></div></div>
+          <div class="seller-field"><label>Availability</label><select id="sprAvailability"><option value="">Not recorded</option><option>Unknown</option><option>Available</option><option>Reserved</option><option>Unavailable</option><option>Sold</option><option>Withdrawn</option></select></div>
+          <div class="seller-field"><label>Confirmed Seller Price (£)</label><input id="sprSellerPrice" type="number" min="0" step="0.01" placeholder="e.g. 5200"></div>
+          <div class="seller-field"><label>Seller Price Valid Until</label><input id="sprPriceValidUntil" type="datetime-local"></div>
+          <div class="seller-field"><label>How Confirmed</label><select id="sprResponseChannel"><option value="Admin">Admin / Internal</option><option value="Phone">Phone</option><option value="Email">Email received manually</option><option value="In Person">In Person</option><option value="Other">Other</option></select></div>
         </div>
       </div>
       <div class="seller-form-section">
-        <h3>Confidentiality</h3>
-        <div class="seller-review-note">The seller request will ask only for availability and the confidential price they will sell the motorcycle to AnyBike for. The buyer's identity, buyer offer and AnyBike margin will not be sent.</div>
+        <h3>Preparation / PDI / MOT</h3>
+        <div class="seller-grid">
+          <div class="seller-field"><label>Preparation Status</label><select id="sprPreparationStatus"><option value="">Not recorded</option><option>Retail Prepped</option><option>PDI Completed</option><option>Trade Sale - Unprepared</option><option>Preparation Required</option><option>Unknown</option></select></div>
+          <div class="seller-field"><label>Road Ready</label><select id="sprRoadReady"><option value="">Not recorded</option><option>Yes</option><option>No</option><option>Check Required</option></select></div>
+          <div class="seller-field"><label>MOT Expiry</label><input id="sprMotExpiry" type="date"></div>
+          <div class="seller-field"><label>MOT Requirement</label><select id="sprMotRequirement"><option value="">Not recorded</option><option>Existing MOT Acceptable</option><option>New 12 Month MOT Required</option><option>No MOT Required</option><option>Check Required</option></select></div>
+          <div class="seller-field"><label>Service Required</label><select id="sprServiceRequirement"><option value="">Not recorded</option><option>Yes</option><option>No</option><option>Check Required</option></select></div>
+          <div class="seller-field"><label>Preparation Included in Price?</label><select id="sprPrepIncluded"><option value="">Not recorded</option><option value="true">Yes</option><option value="false">No</option></select></div>
+          <div class="seller-field"><label>MOT Included in Price?</label><select id="sprMotIncluded"><option value="">Not recorded</option><option value="true">Yes</option><option value="false">No</option></select></div>
+          <div class="seller-field full"><label>Known Faults / Advisories</label><textarea id="sprFaults" placeholder="Record known faults, MOT advisories, preparation needed or other seller information"></textarea></div>
+        </div>
+      </div>
+      <div class="seller-form-section">
+        <h3>Internal Notes</h3>
+        <div class="seller-field"><textarea id="sprResponseNotes" placeholder="Internal notes from your call or conversation with the seller"></textarea></div>
+        <div class="seller-review-note" style="margin-top:10px">Internal AnyBike workflow only. No email, Message Centre or WhatsApp message is sent from this screen.</div>
       </div>
     </div>
     <div class="seller-modal-actions">
       <div class="seller-modal-status" id="sprReviewStatus"></div>
       <button type="button" onclick="closeSellerPriceReview()">Close</button>
-      <button type="button" class="save" id="sprSaveDraftButton" onclick="saveSellerPriceDraft()">Save Draft</button>
-      <button type="button" id="sprSendButton" disabled title="Email sending will be connected after the review workflow is verified.">Send Request</button>
+      <button type="button" class="save" id="sprSaveDraftButton" onclick="saveSellerPriceDraft()">Save Internal Record</button>
     </div>
   </div>
 </div>
@@ -2490,18 +2505,7 @@ function closeSellerPriceReview(){
 }
 
 function updateSellerPriceReviewState(){
-  const email=String(document.getElementById("sprSellerEmail")?.value || "").trim();
-  const warning=document.getElementById("sprContactWarning");
-  const send=document.getElementById("sprSendButton");
-  if(!warning || !send) return;
-  if(email){
-    warning.className="seller-price-warning ok";
-    warning.textContent="Email contact is present. Sending is deliberately disabled until the email delivery step is connected and tested.";
-  }else{
-    warning.className="seller-price-warning";
-    warning.textContent="Contact details required — no seller email is currently stored for this request.";
-  }
-  send.disabled=true;
+  // Internal-only workflow. Dealer communications are deliberately not connected here.
 }
 
 function openSellerPriceReview(matchId){
@@ -2524,11 +2528,23 @@ function openSellerPriceReview(matchId){
   document.getElementById("sprSellerEmail").value=request.seller_email || "";
   document.getElementById("sprSellerPhone").value=request.seller_phone || "";
   document.getElementById("sprValidUntil").value=sellerLocalDateTime(request.requested_valid_until);
-  document.getElementById("sprDeliveryMethod").value="Email";
+  document.getElementById("sprAvailability").value=request.availability_status || "";
+  document.getElementById("sprSellerPrice").value=request.seller_price_gbp ?? "";
+  document.getElementById("sprPriceValidUntil").value=sellerLocalDateTime(request.price_valid_until);
+  document.getElementById("sprResponseChannel").value=request.response_channel || "Admin";
+  document.getElementById("sprPreparationStatus").value=request.preparation_status || "";
+  document.getElementById("sprRoadReady").value=request.road_ready_status || "";
+  document.getElementById("sprMotExpiry").value=request.mot_expiry_date || "";
+  document.getElementById("sprMotRequirement").value=request.mot_requirement || "";
+  document.getElementById("sprServiceRequirement").value=request.service_requirement || "";
+  document.getElementById("sprPrepIncluded").value=request.preparation_included_in_price===true ? "true" : request.preparation_included_in_price===false ? "false" : "";
+  document.getElementById("sprMotIncluded").value=request.mot_included_in_price===true ? "true" : request.mot_included_in_price===false ? "false" : "";
+  document.getElementById("sprFaults").value=request.known_faults_advisories || "";
+  document.getElementById("sprResponseNotes").value=request.response_notes || "";
   const status=document.getElementById("sprReviewStatus");
   status.className="seller-modal-status";
-  status.textContent="Draft only — nothing has been sent to the seller.";
-  ["sprSellerName","sprContactName","sprSellerEmail","sprSellerPhone","sprValidUntil"].forEach(id=>{
+  status.textContent="Internal only — no dealer communication is sent from this screen.";
+  ["sprSellerName","sprContactName","sprSellerEmail","sprSellerPhone","sprValidUntil","sprAvailability","sprSellerPrice","sprPriceValidUntil","sprResponseChannel","sprPreparationStatus","sprRoadReady","sprMotExpiry","sprMotRequirement","sprServiceRequirement","sprPrepIncluded","sprMotIncluded","sprFaults","sprResponseNotes"].forEach(id=>{
     const el=document.getElementById(id);
     if(el) el.oninput=updateSellerPriceReviewState;
   });
@@ -2554,7 +2570,20 @@ async function saveSellerPriceDraft(){
     seller_contact_name:String(document.getElementById("sprContactName").value || "").trim() || null,
     seller_email:String(document.getElementById("sprSellerEmail").value || "").trim() || null,
     seller_phone:String(document.getElementById("sprSellerPhone").value || "").trim() || null,
-    requested_valid_until:requestedValidUntil
+    requested_valid_until:requestedValidUntil,
+    availability_status:document.getElementById("sprAvailability").value || null,
+    seller_price_gbp:document.getElementById("sprSellerPrice").value==="" ? null : Number(document.getElementById("sprSellerPrice").value),
+    price_valid_until:sellerIsoOrNull(document.getElementById("sprPriceValidUntil").value),
+    response_channel:document.getElementById("sprResponseChannel").value || "Admin",
+    preparation_status:document.getElementById("sprPreparationStatus").value || null,
+    road_ready_status:document.getElementById("sprRoadReady").value || null,
+    mot_expiry_date:document.getElementById("sprMotExpiry").value || null,
+    mot_requirement:document.getElementById("sprMotRequirement").value || null,
+    service_requirement:document.getElementById("sprServiceRequirement").value || null,
+    preparation_included_in_price:document.getElementById("sprPrepIncluded").value==="" ? null : document.getElementById("sprPrepIncluded").value==="true",
+    mot_included_in_price:document.getElementById("sprMotIncluded").value==="" ? null : document.getElementById("sprMotIncluded").value==="true",
+    known_faults_advisories:String(document.getElementById("sprFaults").value || "").trim() || null,
+    response_notes:String(document.getElementById("sprResponseNotes").value || "").trim() || null
   };
   const {data,error}=await sb.from("seller_price_requests").update(patch).eq("id",activeSellerPriceRequestId).eq("request_status","Draft").select().single();
   btn.disabled=false;
@@ -2570,7 +2599,7 @@ async function saveSellerPriceDraft(){
     if(idx>=0) sellerPriceRequests[idx]=data;
   }
   status.className="seller-modal-status success";
-  status.textContent="Draft saved. Nothing has been sent to the seller.";
+  status.textContent="Internal seller price/preparation record saved. Nothing has been sent to the seller.";
   updateSellerPriceReviewState();
 }
 
