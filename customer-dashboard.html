@@ -51,7 +51,7 @@ button,input,select,textarea{font:inherit}
 }
 .hero{
   display:grid;
-  grid-template-columns:minmax(0,1.35fr) minmax(280px,.65fr);
+  grid-template-columns:1fr;
   gap:18px;
   align-items:stretch;
   margin-bottom:18px;
@@ -63,7 +63,7 @@ button,input,select,textarea{font:inherit}
   box-shadow:0 18px 50px rgba(0,0,0,.28);
 }
 .hero-main{
-  padding:28px;
+  padding:20px 24px;
   background:
     radial-gradient(circle at 92% 15%,rgba(237,28,36,.22),transparent 30%),
     rgba(16,16,16,.96);
@@ -574,22 +574,7 @@ footer{
         <button class="btn secondary" type="button" onclick="openNewMessageModal()">💬 New Message</button>
       </div>
     </div>
-
-    <aside class="hero-side">
-      <div class="member-line">
-        <div class="member-avatar">A</div>
-        <div class="member-meta">
-          <strong class="profileSummaryName">Checking login...</strong>
-          <span class="profileSummaryBusiness">My AnyBike member</span>
-          <span class="profileSummaryLocation"></span>
-        </div>
-      </div>
-      <div class="hero-actions">
-        <a class="mini-btn" href="/customer-profile.html">My Profile</a>
-        <button class="mini-btn" type="button" onclick="logout()">Logout</button>
-      </div>
-    </aside>
-  </section>
+</section>
 
   <section class="overview">
     <a class="stat-card" href="my-watchlist.html">
@@ -645,6 +630,14 @@ footer{
           <a class="panel-link" href="available-stock.html">Browse all stock →</a>
         </div>
         <div id="recommendationsGrid" class="bike-grid"></div>
+        <div style="display:flex;justify-content:center;margin-top:16px">
+          <button id="showMoreRecommendationsBtn" class="mini-btn" type="button"
+                  onclick="showMoreRecommendations()" style="display:none">
+            Show More Recommendations
+          </button>
+        </div>
+        <p id="recommendationStatus" class="section-empty"
+           style="margin-top:10px;text-align:center"></p>
       </section>
     </div>
 <section class="panel" id="recently-viewed">
@@ -2289,15 +2282,67 @@ async function toggleRecommendedWatchlist(bikeId,button){
   await loadCounts();
 }
 
+let recommendationPool=[];
+let recommendationVisibleCount=0;
+const RECOMMENDATION_PAGE_SIZE=6;
+
+function renderRecommendationPage(){
+  const box=document.getElementById("recommendationsGrid");
+  const btn=document.getElementById("showMoreRecommendationsBtn");
+  const status=document.getElementById("recommendationStatus");
+
+  if(!box) return;
+
+  const visible=recommendationPool.slice(0,recommendationVisibleCount);
+
+  box.innerHTML=visible
+    .map(b=>customerBikeCard(b,b._recommendReason))
+    .join("");
+
+  if(btn){
+    btn.style.display=
+      recommendationVisibleCount<recommendationPool.length
+        ? "inline-flex"
+        : "none";
+  }
+
+  if(status){
+    if(!recommendationPool.length){
+      status.textContent="";
+    }else if(recommendationVisibleCount>=recommendationPool.length){
+      status.textContent=
+        "You’re up to date — more recommendations will appear when matching motorcycles arrive.";
+    }else{
+      status.textContent=
+        `Showing ${recommendationVisibleCount} of ${recommendationPool.length} matching motorcycles.`;
+    }
+  }
+}
+
+function showMoreRecommendations(){
+  recommendationVisibleCount=Math.min(
+    recommendationVisibleCount+RECOMMENDATION_PAGE_SIZE,
+    recommendationPool.length
+  );
+  renderRecommendationPage();
+}
+
 async function loadRecommendations(){
   const box=document.getElementById("recommendationsGrid");
+  const btn=document.getElementById("showMoreRecommendationsBtn");
+  const status=document.getElementById("recommendationStatus");
 
   if(!box || !currentUser){
-    if(box) box.innerHTML='<p class="section-empty">Log in to see personalised recommendations.</p>';
+    if(box) box.innerHTML=
+      '<p class="section-empty">Log in to see personalised recommendations.</p>';
     return;
   }
 
-  box.innerHTML='<p class="section-empty">Finding motorcycles from your saved searches...</p>';
+  box.innerHTML=
+    '<p class="section-empty">Finding motorcycles from your saved searches...</p>';
+
+  if(btn) btn.style.display="none";
+  if(status) status.textContent="";
 
   const {data:savedSearches,error:searchError}=await sb
     .from("saved_searches")
@@ -2307,20 +2352,24 @@ async function loadRecommendations(){
     .limit(20);
 
   if(searchError){
-    console.warn("Could not load saved searches for recommendations",searchError.message);
-    box.innerHTML='<p class="section-empty">Recommendations are temporarily unavailable.</p>';
+    console.warn(
+      "Could not load saved searches for recommendations",
+      searchError.message
+    );
+    box.innerHTML=
+      '<p class="section-empty">Recommendations are temporarily unavailable.</p>';
     return;
   }
 
   const searches=savedSearches || [];
 
   if(!searches.length){
-    box.innerHTML='<p class="section-empty">Save a motorcycle search and matching recommendations will appear here.</p>';
+    box.innerHTML=
+      '<p class="section-empty">Save a motorcycle search and matching recommendations will appear here.</p>';
     return;
   }
 
-  const allMatches=[];
-  const seenIds=new Set();
+  const buckets=[];
 
   for(const search of searches){
     let query=sb
@@ -2329,18 +2378,13 @@ async function loadRecommendations(){
       .not("make","is",null)
       .not("model","is",null)
       .order("created_at",{ascending:false})
-      .limit(20);
+      .limit(30);
 
     const make=String(search.make || "").trim();
     const model=String(search.model || "").trim();
 
-    if(make){
-      query=query.ilike("make",make);
-    }
-
-    if(model){
-      query=query.ilike("model","%"+model+"%");
-    }
+    if(make) query=query.ilike("make",make);
+    if(model) query=query.ilike("model","%"+model+"%");
 
     const minYear=Number(search.min_year ?? search.year_from);
     if(Number.isFinite(minYear) && minYear>1900){
@@ -2365,41 +2409,65 @@ async function loadRecommendations(){
     const {data,error}=await query;
 
     if(error){
-      console.warn("Saved-search recommendation query failed",error.message);
+      console.warn(
+        "Saved-search recommendation query failed",
+        error.message
+      );
       continue;
     }
 
-    for(const bike of (data || [])){
-      const idKey=String(bike.id);
-      if(seenIds.has(idKey)) continue;
+    const reason=
+      make && model
+        ? `Matches your saved search: ${make} ${model}`
+        : make
+          ? `Matches your saved search: ${make}`
+          : "Matches one of your saved searches";
 
-      seenIds.add(idKey);
-
-      let reason="Matches one of your saved searches";
-
-      if(make && model){
-        reason=`Matches your saved search: ${make} ${model}`;
-      }else if(make){
-        reason=`Matches your saved search: ${make}`;
-      }
-
-      allMatches.push({...bike,_recommendReason:reason});
-
-      if(allMatches.length>=6) break;
-    }
-
-    if(allMatches.length>=6) break;
+    buckets.push(
+      (data || []).map(bike=>({
+        ...bike,
+        _recommendReason:reason
+      }))
+    );
   }
 
-  if(!allMatches.length){
-    box.innerHTML='<p class="section-empty">No current stock matches your saved searches yet. Your searches are still saved for future stock.</p>';
+  const merged=[];
+  const seenIds=new Set();
+  let round=0;
+  let found=true;
+
+  while(found){
+    found=false;
+
+    for(const bucket of buckets){
+      const bike=bucket[round];
+      if(!bike) continue;
+
+      found=true;
+
+      const key=String(bike.id);
+      if(seenIds.has(key)) continue;
+
+      seenIds.add(key);
+      merged.push(bike);
+    }
+
+    round++;
+  }
+
+  recommendationPool=merged;
+  recommendationVisibleCount=Math.min(
+    RECOMMENDATION_PAGE_SIZE,
+    recommendationPool.length
+  );
+
+  if(!recommendationPool.length){
+    box.innerHTML=
+      '<p class="section-empty">No current stock matches your saved searches yet. Your searches are still saved for future stock.</p>';
     return;
   }
 
-  box.innerHTML=allMatches
-    .slice(0,6)
-    .map(b=>customerBikeCard(b,b._recommendReason))
-    .join("");
+  renderRecommendationPage();
 }
 
 
