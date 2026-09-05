@@ -1,3373 +1,415 @@
 
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>My AnyBike | Customer Workspace</title>
-<meta name="robots" content="noindex,nofollow">
-<link rel="icon" href="anybike-logo-new.jpg" type="image/jpeg">
-
-<script>
-document.documentElement.classList.add("customer-auth-pending");
-</script>
-
-<style>
-html.customer-auth-pending body{
-  visibility:hidden;
-}
-</style>
-
+<title>Register Free | AnyBike</title>
+<meta name="description" content="Create a free AnyBike account to save motorcycles, manage your watchlist, receive messages and access your customer dashboard.">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="/public-header.css?v=9000">
+<link rel="stylesheet" href="/public-header.css?v=20260712-4">
 
 <style>
 :root{
   --red:#ed1c24;
-  --bg:#050505;
-  --panel:#101010;
-  --panel2:#171717;
-  --line:rgba(255,255,255,.12);
-  --muted:#aaa;
-  --text:#fff;
-  --green:#36d37e;
+  --black:#050505;
+  --line:rgba(255,255,255,.14);
+  --muted:#b8b8b8;
 }
+
 *{box-sizing:border-box}
-html{scroll-behavior:smooth}
+
 body{
   margin:0;
+  min-height:100vh;
   font-family:Arial,Helvetica,sans-serif;
-  color:var(--text);
   background:
-    radial-gradient(circle at 12% 0%,rgba(237,28,36,.18),transparent 28%),
-    linear-gradient(135deg,#050505,#0b0b0b 58%,#111);
-}
-a{color:inherit;text-decoration:none}
-button,input,select,textarea{font:inherit}
-.page-shell{
-  width:min(94vw,1720px);
-  margin:0 auto;
-  padding:30px 0 60px;
-}
-.hero{
-  display:grid;
-  grid-template-columns:1fr;
-  gap:18px;
-  align-items:stretch;
-  margin-bottom:18px;
-}
-.hero-main,.hero-side,.panel,.stat-card{
-  background:rgba(16,16,16,.95);
-  border:1px solid var(--line);
-  border-radius:22px;
-  box-shadow:0 18px 50px rgba(0,0,0,.28);
-}
-.hero-main{
-  padding:20px 24px;
-  background:
-    radial-gradient(circle at 92% 15%,rgba(237,28,36,.22),transparent 30%),
-    rgba(16,16,16,.96);
-}
-.eyebrow{
-  color:var(--red);
-  text-transform:uppercase;
-  letter-spacing:.15em;
-  font-size:12px;
-  font-weight:900;
-  margin-bottom:10px;
-}
-.hero h1{
-  margin:0 0 8px;
-  font-size:clamp(36px,4vw,62px);
-  letter-spacing:-.045em;
-}
-.hero h1 span{color:var(--red)}
-.hero p{margin:0;color:#ccc;font-size:17px}
-.hero-side{
-  padding:22px;
-  display:grid;
-  gap:12px;
-}
-.member-line{
-  display:flex;
-  gap:12px;
-  align-items:center;
-}
-.member-avatar{
-  width:52px;height:52px;border-radius:50%;
-  background:var(--red);display:flex;align-items:center;justify-content:center;
-  font-weight:900;font-size:22px;
-}
-.member-meta strong{display:block}
-.member-meta span{color:var(--muted);font-size:13px}
-.hero-actions{display:flex;gap:10px;flex-wrap:wrap}
-.btn,.mini-btn{
-  display:inline-flex;align-items:center;justify-content:center;
-  border-radius:999px;font-weight:900;cursor:pointer;
-}
-.btn{padding:11px 16px;background:var(--red);border:1px solid var(--red);color:#fff}
-.btn.secondary{background:#222;border-color:var(--line)}
-.overview{
-  display:grid;
-  grid-template-columns:repeat(4,minmax(0,1fr));
-  gap:14px;
-  margin-bottom:18px;
-}
-.stat-card{padding:18px;display:flex;align-items:center;gap:14px}
-.stat-icon{
-  width:48px;height:48px;border-radius:16px;
-  background:rgba(237,28,36,.14);display:flex;align-items:center;justify-content:center;
-  font-size:23px;flex:0 0 auto;
-}
-.stat-card strong{display:block;font-size:30px;color:var(--red)}
-.stat-card span{color:var(--muted);font-size:13px;font-weight:800}
-
-/* COMPACT MY ANYBIKE DASHBOARD HEADER */
-.hero{
-  margin-bottom:14px;
-}
-.hero-main.hero-dashboard-bar{
-  padding:18px 22px;
-  display:grid;
-  grid-template-columns:minmax(250px,.85fr) minmax(720px,2.4fr) auto;
-  align-items:center;
-  gap:22px;
-}
-.hero-intro{
-  min-width:0;
-}
-.hero-intro .eyebrow{
-  margin-bottom:6px;
-}
-.hero-intro h1{
-  margin:0 0 5px;
-  font-size:clamp(32px,3vw,48px);
-  line-height:1;
-}
-.hero-intro p{
-  font-size:14px;
-  white-space:nowrap;
-}
-.hero-stats{
-  min-width:0;
-  display:grid;
-  grid-template-columns:repeat(5,minmax(120px,1fr));
-  align-items:stretch;
-  border-left:1px solid rgba(255,255,255,.12);
-  border-right:1px solid rgba(255,255,255,.12);
-}
-.hero-stat{
-  min-width:0;
-  min-height:66px;
-  padding:8px 14px;
-  display:flex;
-  align-items:center;
-  gap:10px;
-  border-right:1px solid rgba(255,255,255,.10);
-  transition:background .16s ease,border-color .16s ease;
-}
-.hero-stat:last-child{
-  border-right:0;
-}
-.hero-stat:hover{
-  background:rgba(255,255,255,.035);
-}
-.hero-stat-icon{
-  width:42px;
-  height:42px;
-  border-radius:13px;
-  flex:0 0 42px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  background:rgba(237,28,36,.13);
-  font-size:19px;
-}
-.hero-stat strong{
-  display:block;
-  color:var(--red);
-  font-size:24px;
-  line-height:1;
-  margin-bottom:4px;
-}
-.hero-stat span{
-  display:block;
-  color:#ccc;
-  font-size:11px;
-  font-weight:900;
-  line-height:1.15;
-  white-space:nowrap;
-}
-.hero-compact-actions{
-  display:flex;
-  align-items:center;
-  justify-content:flex-end;
-  gap:9px;
-  flex-wrap:nowrap;
-}
-.hero-action{
-  appearance:none;
-  border-radius:999px;
-  padding:11px 15px;
-  min-height:44px;
-  border:1px solid var(--line);
+    radial-gradient(circle at top left,rgba(237,28,36,.16),transparent 30%),
+    linear-gradient(135deg,#050505,#111);
   color:#fff;
-  font-weight:900;
-  font-size:12px;
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  gap:7px;
-  cursor:pointer;
-  white-space:nowrap;
-  transition:transform .15s ease,background .15s ease,border-color .15s ease;
-}
-.hero-action:hover{
-  transform:translateY(-1px);
-}
-.hero-action.primary{
-  background:var(--red);
-  border-color:var(--red);
-}
-.hero-action.secondary{
-  background:#222;
-}
-.hero-action.secondary:hover{
-  border-color:rgba(255,255,255,.28);
-}
-.hero-action-icon{
-  font-size:14px;
 }
 
-@media(max-width:1450px){
-  .hero-main.hero-dashboard-bar{
-    grid-template-columns:minmax(220px,.75fr) minmax(620px,2fr);
-  }
-  .hero-compact-actions{
-    grid-column:1/-1;
-    justify-content:flex-end;
-    margin-top:-4px;
-  }
+.wrap{
+  max-width:760px;
+  margin:55px auto;
+  padding:0 18px 70px;
 }
 
-@media(max-width:1100px){
-  .hero-main.hero-dashboard-bar{
-    grid-template-columns:1fr;
-    gap:14px;
-  }
-  .hero-stats{
-    border-left:0;
-    border-right:0;
-    border-top:1px solid rgba(255,255,255,.12);
-    border-bottom:1px solid rgba(255,255,255,.12);
-  }
-  .hero-compact-actions{
-    grid-column:auto;
-    justify-content:flex-start;
-    margin-top:0;
-  }
-}
-
-@media(max-width:760px){
-  .hero-main.hero-dashboard-bar{
-    padding:16px;
-  }
-  .hero-intro p{
-    white-space:normal;
-  }
-  .hero-stats{
-    grid-template-columns:repeat(2,minmax(0,1fr));
-  }
-  .hero-stat{
-    border-right:0;
-    border-bottom:1px solid rgba(255,255,255,.08);
-  }
-  .hero-stat:nth-child(odd){
-    border-right:1px solid rgba(255,255,255,.08);
-  }
-  .hero-stat:last-child{
-    grid-column:1/-1;
-    border-bottom:0;
-    border-right:0;
-  }
-  .hero-compact-actions{
-    display:grid;
-    grid-template-columns:1fr 1fr;
-  }
-  .hero-action{
-    width:100%;
-  }
-}
-
-.dashboard-grid{
-  display:grid;
-  gap:18px;
-}
-.dashboard-row{
-  display:grid;
-  grid-template-columns:minmax(0,2fr) minmax(340px,1fr);
-  gap:18px;
-  align-items:start;
-}
-.dashboard-row.equal{
-  grid-template-columns:1fr 1fr;
-}
-.main-column,.side-column{display:grid;gap:18px}
-.panel{padding:20px;min-width:0}
-.panel-head{
-  display:flex;justify-content:space-between;align-items:flex-end;
-  gap:12px;margin-bottom:14px;flex-wrap:wrap;
-}
-.panel-head h2{margin:0;font-size:24px}
-.panel-head p{margin:4px 0 0;color:var(--muted);font-size:13px}
-.panel-link{color:var(--red);font-size:13px;font-weight:900}
-.bike-grid{
-  display:grid;
-  grid-template-columns:repeat(3,minmax(0,1fr));
-  gap:12px;
-}
-.bike-card{
-  min-width:0;
-  background:#151515;
+.card{
+  background:rgba(255,255,255,.06);
   border:1px solid var(--line);
-  border-radius:16px;
-  overflow:hidden;
-}
-.bike-image{
-  position:relative;height:155px;background:#0a0a0a;overflow:hidden;
-  display:flex;align-items:center;justify-content:center;
-}
-.bike-image img{width:100%;height:100%;object-fit:cover}
-.bike-fallback{display:none;font-weight:900;letter-spacing:.1em;color:#555}
-.bike-image.fallback .bike-fallback{display:block}
-.heart-action{
-  position:absolute;top:9px;right:9px;width:34px;height:34px;border-radius:50%;
-  border:1px solid rgba(255,255,255,.22);background:rgba(0,0,0,.7);color:#fff;
-  margin:0;padding:0;font-size:19px;cursor:pointer;
-}
-.heart-action.active{background:var(--red);border-color:var(--red)}
-.bike-card-body{padding:13px}
-.recommend-reason{
-  display:inline-flex;padding:5px 8px;border-radius:999px;
-  background:rgba(237,28,36,.13);color:#ffb3b6;
-  font-size:10px;font-weight:900;margin-bottom:8px;
-}
-.bike-card h3{margin:0 0 4px;font-size:17px}
-.bike-card p{margin:0;color:var(--muted);font-size:12px;min-height:16px}
-.bike-meta{display:flex;justify-content:space-between;gap:8px;margin:10px 0;color:#ccc;font-size:11px}
-.bike-card-foot{display:flex;justify-content:space-between;align-items:center;gap:10px}
-.bike-card-foot strong{color:#fff}
-.bike-card-foot a{color:var(--red);font-size:12px;font-weight:900}
-.section-empty{color:var(--muted);margin:0}
-.latest-list{display:grid;gap:10px}
-.latest-item{
-  border:1px solid var(--line);
-  border-radius:14px;
-  padding:13px;
-  background:#151515;
-}
-.latest-item strong{display:block;margin-bottom:4px}
-.latest-item p{margin:0;color:var(--muted);font-size:13px;line-height:1.4}
-.latest-tag{color:var(--red);font-size:11px;font-weight:900;margin-bottom:5px}
-.quick-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.quick-action{
-  min-height:92px;border:1px solid var(--line);border-radius:14px;
-  background:#151515;padding:14px;display:flex;flex-direction:column;justify-content:space-between;
-  color:#fff;text-align:left;cursor:pointer;
-}
-.quick-action span{font-size:23px}
-.quick-action strong{font-size:13px}
-.recent-grid{
-  display:flex;gap:12px;overflow-x:auto;padding:2px 0 5px;scroll-behavior:smooth;
-}
-.recent-bike{
-  flex:0 0 220px;background:#151515;border:1px solid var(--line);
-  border-radius:14px;padding:13px;
-}
-.recent-bike h3{margin:0 0 5px;font-size:16px}
-.recent-bike p{margin:3px 0;color:var(--muted);font-size:12px}
-.recent-bike a{color:var(--red);font-weight:900;font-size:12px}
-.message-pill{
-  display:inline-flex;padding:6px 9px;border-radius:999px;
-  font-size:11px;font-weight:900;background:#333;color:#fff;
-}
-.message-pill.new{background:var(--red)}
-.message-pill.replied{background:#1d7a3a}
-.customer-enquiry{
-  background:#141414;border:1px solid var(--line);border-radius:14px;
-  margin-top:9px;overflow:hidden;
-}
-.customer-enquiry-row{
-  display:grid;grid-template-columns:28px 1fr auto;gap:10px;
-  align-items:center;padding:12px;cursor:pointer;
-}
-.customer-enquiry-row:hover{background:rgba(255,255,255,.04)}
-.customer-enquiry-row strong{font-size:18px;color:#fff;margin:0}
-.customer-enquiry-detail{display:none;border-top:1px solid var(--line);padding:15px}
-.customer-enquiry.open .customer-enquiry-detail{display:block}
-.customer-enquiry.open .arrow{transform:rotate(90deg)}
-.arrow{color:var(--red);font-weight:900;transition:.2s}
-.enquiry-type{
-  display:inline-flex;padding:4px 7px;border-radius:999px;
-  background:rgba(255,255,255,.07);font-size:10px;font-weight:900;margin-bottom:5px;
-}
-.enquiry-type.global{background:rgba(237,28,36,.12);color:#ffb3b6}
-.muted{color:var(--muted)}
-.message-thread{
-  display:flex;flex-direction:column;gap:8px;margin-top:14px;
-  background:#0d0d0d;border-radius:12px;padding:12px;max-height:360px;overflow:auto;
-}
-.msg{max-width:78%;padding:11px;border-radius:13px;line-height:1.45;word-break:break-word}
-.msg.customer{align-self:flex-start;background:#222}
-.msg.admin{align-self:flex-end;background:var(--red)}
-.msg strong{display:block;font-size:12px;margin-bottom:4px}
-.msg small{display:block;margin-top:6px;font-size:10px;color:#eee}
-.msg-text{white-space:pre-wrap}
-.reply-area{margin-top:12px}
-.reply-area textarea{
-  width:100%;min-height:95px;background:#171717;color:#fff;border:1px solid var(--line);
-  border-radius:12px;padding:11px;resize:vertical;
-}
-.reply-area button{
-  background:var(--red);color:#fff;border:0;border-radius:999px;padding:10px 15px;
-  font-weight:900;cursor:pointer;margin-top:9px;
-}
-.reply-status{min-height:18px;margin-top:7px;font-size:12px}
-.ok{color:var(--green);font-weight:900}
-.bad{color:#ff7676;font-weight:900}
-.profile-summary{
-  display:grid;gap:8px;margin-bottom:14px;
-}
-.profile-summary strong{font-size:20px}
-.profile-summary span{color:var(--muted);font-size:13px}
-.profile-form{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
-.profile-field.full{grid-column:span 2}
-.profile-field.address{grid-column:span 2}
-.profile-field label{display:block;font-size:11px;font-weight:900;margin-bottom:5px;color:#bbb}
-.profile-field input,.profile-field select,.profile-field textarea{
-  width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);
-  background:#171717;color:#fff;
-}
-.profile-field textarea{min-height:74px;resize:vertical}
-.profile-field input:disabled,.profile-field select:disabled,.profile-field textarea:disabled{
-  opacity:.75;background:#111;color:#ddd;
-}
-.profile-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
-.mini-btn{padding:9px 13px;border:1px solid var(--line);background:#222;color:#fff}
-.mini-btn.primary{background:var(--red);border-color:var(--red)}
-.future-strip{
-  display:grid;grid-template-columns:repeat(4,1fr);gap:8px;
-}
-.future-item{
-  border:1px dashed rgba(255,255,255,.14);border-radius:12px;
-  padding:12px;text-align:center;color:#777;font-size:12px;
-}
-#recently-viewed,#profile{scroll-margin-top:130px}
-
-.recent-wrap{
-  position:relative;
-}
-.recent-grid{
-  scrollbar-width:none;
-  -ms-overflow-style:none;
-  scroll-snap-type:x mandatory;
-  padding:2px 44px 5px;
-}
-.recent-grid::-webkit-scrollbar{
-  display:none;
-}
-.recent-bike{
-  scroll-snap-align:start;
-}
-.carousel-btn{
-  position:absolute;
-  top:50%;
-  transform:translateY(-50%);
-  width:36px;
-  height:36px;
-  border-radius:50%;
-  border:1px solid rgba(255,255,255,.18);
-  background:rgba(5,5,5,.92);
-  color:#fff;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  cursor:pointer;
-  z-index:4;
-  font-size:18px;
-  font-weight:900;
-}
-.carousel-btn:hover{
-  background:var(--red);
-  border-color:var(--red);
-}
-.carousel-btn.prev{left:4px}
-.carousel-btn.next{right:4px}
-
-
-.message-pill.new{
-  animation:newMessagePulse 1.8s ease-in-out infinite;
-}
-@keyframes newMessagePulse{
-  0%,100%{box-shadow:0 0 0 0 rgba(237,28,36,.35)}
-  50%{box-shadow:0 0 0 7px rgba(237,28,36,0)}
-}
-.customer-enquiry.has-unread{
-  border-color:rgba(237,28,36,.62);
-  box-shadow:0 0 0 1px rgba(237,28,36,.14);
-}
-.customer-unread-dot{
-  width:9px;
-  height:9px;
-  border-radius:50%;
-  background:var(--red);
-  display:inline-block;
-  margin-left:6px;
+  border-radius:24px;
+  padding:28px;
+  box-shadow:0 24px 70px rgba(0,0,0,.45);
 }
 
-.message-modal{
-  position:fixed;
-  inset:0;
-  z-index:999999;
-  display:none;
-  align-items:center;
-  justify-content:center;
-  padding:20px;
-  background:rgba(0,0,0,.78);
-  backdrop-filter:blur(6px);
+h1{
+  margin:0 0 10px;
+  font-size:42px;
+  letter-spacing:-.04em;
 }
-.message-modal.open{
-  display:flex;
+
+h2{
+  margin:0 0 10px;
 }
-.message-modal-card{
-  width:min(680px,100%);
-  max-height:calc(100vh - 40px);
-  overflow:auto;
-  background:#111;
-  border:1px solid var(--line);
-  border-radius:22px;
-  box-shadow:0 28px 90px rgba(0,0,0,.7);
+
+p{
+  color:#d0d0d0;
+  line-height:1.6;
 }
-.message-modal-head{
-  display:flex;
-  justify-content:space-between;
-  gap:14px;
-  align-items:flex-start;
-  padding:20px;
-  border-bottom:1px solid var(--line);
-}
-.message-modal-head h2{
-  margin:0 0 5px;
-}
-.message-modal-head p{
-  margin:0;
-  color:var(--muted);
-  font-size:13px;
-}
-.modal-close{
-  width:38px;
-  height:38px;
-  border-radius:50%;
-  border:1px solid var(--line);
-  background:#222;
-  color:#fff;
-  cursor:pointer;
-  font-size:18px;
-}
-.message-modal-body{
-  padding:20px;
-  display:grid;
-  gap:14px;
-}
-.message-modal-body label{
+
+label{
   display:block;
-  font-size:12px;
   font-weight:900;
-  margin-bottom:6px;
+  margin:14px 0 6px;
 }
-.message-modal-body input,
-.message-modal-body select,
-.message-modal-body textarea{
+
+input,
+select{
   width:100%;
-  background:#181818;
-  color:#fff;
-  border:1px solid var(--line);
+  padding:14px;
   border-radius:12px;
-  padding:12px;
+  border:1px solid rgba(255,255,255,.18);
+  background:rgba(255,255,255,.08);
+  color:#fff;
+  font-size:16px;
+  outline:none;
 }
-.message-modal-body textarea{
-  min-height:150px;
-  resize:vertical;
+
+input:focus,
+select:focus{
+  border-color:rgba(237,28,36,.8);
+  box-shadow:0 0 0 3px rgba(237,28,36,.12);
 }
-.context-box{
-  background:#0b0b0b;
-  border:1px solid rgba(237,28,36,.28);
-  border-radius:13px;
-  padding:12px;
+
+select option{
+  color:#111;
 }
-.context-box strong{
-  display:block;
-  margin-bottom:4px;
+
+.card button{
+  width:100%;
+  margin-top:18px;
+  padding:14px;
+  border:0;
+  border-radius:999px;
+  background:var(--red);
+  color:#fff;
+  font-weight:900;
+  font-size:16px;
+  cursor:pointer;
 }
-.context-box span{
-  color:var(--muted);
-  font-size:12px;
-  word-break:break-word;
+
+.card button:hover{
+  background:#c9161d;
 }
-.message-modal-actions{
-  display:flex;
-  justify-content:flex-end;
+
+.card button.secondary{
+  background:#fff;
+  color:#111;
+}
+
+.card button.secondary:hover{
+  background:#e8e8e8;
+}
+
+.msg{
+  margin-top:14px;
+  font-weight:800;
+  white-space:pre-wrap;
+}
+
+.ok{color:#36d37e}
+.bad{color:#ff7676}
+.hidden{display:none}
+
+.account-ready{
+  padding:8px 0 2px;
+}
+
+.account-ready-actions{
+  display:grid;
   gap:10px;
-  flex-wrap:wrap;
-}
-.message-modal-status{
-  min-height:20px;
-  color:var(--muted);
-  font-size:13px;
+  margin-top:18px;
 }
 
-footer{
-  border-top:1px solid var(--line);padding:28px 20px;color:var(--muted);text-align:center;
-}
-
-/* BUYER POTENTIAL MATCHES */
-#buyer-potential-matches{scroll-margin-top:130px}
-.buyer-match-panel{
-  border-color:rgba(237,28,36,.36);
-  background:
-    radial-gradient(circle at 95% 0%,rgba(237,28,36,.16),transparent 28%),
-    rgba(16,16,16,.97);
-}
-.buyer-match-toolbar{
-  display:flex;align-items:flex-end;justify-content:space-between;gap:14px;flex-wrap:wrap;
-}
-.buyer-match-preference{
-  display:flex;align-items:center;gap:9px;flex-wrap:wrap;
-}
-.buyer-match-preference label{font-size:12px;font-weight:900;color:#ccc}
-.buyer-match-preference select{
-  background:#181818;color:#fff;border:1px solid var(--line);border-radius:10px;padding:9px 11px;
-}
-.buyer-match-preference-status{font-size:11px;color:var(--muted);min-height:15px}
-.buyer-match-group{margin-top:18px}
-.buyer-match-group:first-child{margin-top:0}
-.buyer-match-group-head{
-  display:flex;align-items:center;justify-content:space-between;gap:12px;
-  padding-bottom:10px;margin-bottom:12px;border-bottom:1px solid var(--line);
-}
-.buyer-match-group-head h3{margin:0;font-size:20px}
-.buyer-match-count{
-  display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:28px;padding:0 10px;
-  border-radius:999px;background:rgba(237,28,36,.16);border:1px solid rgba(237,28,36,.38);
-  color:#fff;font-size:12px;font-weight:900;
-}
-.buyer-match-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
-.buyer-match-card{
-  overflow:hidden;background:#141414;border:1px solid var(--line);border-radius:18px;
-}
-.buyer-match-card.response-interested,.buyer-match-card.response-offer,.buyer-match-card.response-question{
-  border-color:rgba(54,211,126,.42);
-}
-.buyer-match-image{height:220px;background:#080808;display:flex;align-items:center;justify-content:center;overflow:hidden}
-.buyer-match-image img{width:100%;height:100%;object-fit:cover}
-.buyer-match-image-fallback{font-size:48px;color:#444}
-.buyer-match-body{padding:16px}
-.buyer-match-top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
-.buyer-match-top h3{margin:0;font-size:21px}
-.buyer-match-variant{margin-top:4px;color:var(--muted);font-size:13px}
-.buyer-match-status{
-  flex:0 0 auto;display:inline-flex;padding:6px 9px;border-radius:999px;
-  background:rgba(237,28,36,.13);border:1px solid rgba(237,28,36,.34);font-size:11px;font-weight:900;
-}
-.buyer-match-meta{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:14px 0}
-.buyer-match-meta div{padding:9px;background:#0d0d0d;border:1px solid rgba(255,255,255,.08);border-radius:11px;font-size:13px}
-.buyer-match-meta span{display:block;color:#888;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px}
-.buyer-match-price{
-  padding:12px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid var(--line);margin-bottom:12px;
-}
-.buyer-match-price strong{display:block;font-size:18px}
-.buyer-match-price span{display:block;margin-top:3px;color:var(--muted);font-size:12px}
-.buyer-match-response-summary{
-  display:none;margin:0 0 12px;padding:10px 12px;border-radius:11px;
-  background:rgba(54,211,126,.09);border:1px solid rgba(54,211,126,.26);font-size:12px;color:#d8ffe8;
-}
-.buyer-match-response-summary.show{display:block}
-.buyer-match-actions{display:flex;flex-wrap:wrap;gap:8px}
-.buyer-match-action{
-  border:1px solid var(--line);background:#222;color:#fff;border-radius:999px;padding:9px 12px;
-  font-weight:900;font-size:12px;cursor:pointer;
-}
-.buyer-match-action.primary{background:var(--red);border-color:var(--red)}
-.buyer-match-action.positive{background:#176b38;border-color:#258f4d}
-.buyer-match-action.danger{background:transparent;color:#ff9c9c;border-color:rgba(255,118,118,.35)}
-.buyer-match-action:disabled{opacity:.55;cursor:not-allowed}
-.buyer-match-response-box{display:none;margin-top:12px;padding:12px;border-radius:13px;background:#0c0c0c;border:1px solid var(--line)}
-.buyer-match-response-box.open{display:block}
-.buyer-match-response-box label{display:block;font-size:12px;font-weight:900;margin-bottom:6px}
-.buyer-match-response-box input,.buyer-match-response-box textarea{
-  width:100%;background:#181818;color:#fff;border:1px solid var(--line);border-radius:10px;padding:11px;
-}
-.buyer-match-response-box textarea{min-height:100px;resize:vertical}
-.buyer-match-response-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:9px}
-.buyer-match-response-status{font-size:12px;min-height:17px;color:var(--muted)}
-.buyer-match-empty{
-  padding:18px;border:1px dashed rgba(255,255,255,.15);border-radius:14px;color:var(--muted);text-align:center;
-}
-.buyer-match-note{margin:10px 0 0;color:var(--muted);font-size:11px;line-height:1.45}
-.buyer-deal-banner{
-  margin:0 0 12px;padding:11px 12px;border-radius:12px;
-  background:rgba(54,211,126,.09);border:1px solid rgba(54,211,126,.30);
-  display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;
-}
-.buyer-deal-banner strong{color:#d8ffe8;font-size:13px}
-.buyer-deal-banner span{color:#9bf0b8;font-size:11px;font-weight:900}
-.buyer-deal-timeline{display:none;margin-top:12px;padding:12px;border-radius:13px;background:#0b0b0b;border:1px solid rgba(54,211,126,.25)}
-.buyer-deal-timeline.open{display:block}
-.buyer-deal-timeline-title{font-size:12px;font-weight:900;color:#9bf0b8;margin-bottom:8px}
-.buyer-deal-event{padding:9px 0;border-top:1px solid rgba(255,255,255,.08)}
-.buyer-deal-event:first-of-type{border-top:0}
-.buyer-deal-event-head{display:flex;justify-content:space-between;gap:8px;font-size:12px;font-weight:900}
-.buyer-deal-event-time{color:#888;font-size:10px;margin-top:3px}
-.buyer-deal-event-message{color:#ddd;font-size:11px;margin-top:4px;white-space:pre-wrap}
-@media(max-width:900px){.buyer-match-grid{grid-template-columns:1fr}}
-@media(max-width:620px){.buyer-match-meta{grid-template-columns:1fr 1fr}.buyer-match-image{height:190px}}
-
-@media(max-width:1250px){
-  .bike-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .overview{grid-template-columns:repeat(2,minmax(0,1fr))}
-}
-@media(max-width:980px){
-  .hero,.dashboard-row,.dashboard-row.equal{grid-template-columns:1fr}
-  .side-column{grid-template-columns:1fr}
-}
-@media(max-width:700px){
-  .page-shell{width:94vw;padding-top:18px}
-  .hero-main,.hero-side,.panel{padding:16px}
-  .overview,.side-column,.bike-grid,.profile-form{grid-template-columns:1fr}
-  .future-strip{grid-template-columns:1fr 1fr}
-  .customer-enquiry-row{grid-template-columns:24px 1fr}
-  .status-wrap{grid-column:2}
-  .quick-grid{grid-template-columns:1fr}
-  .msg{max-width:92%}
+@media(max-width:600px){
+  .wrap{margin:34px auto}
+  .card{padding:22px}
+  h1{font-size:34px}
 }
 </style>
 </head>
 
 <body>
+
 <div id="publicHeader"></div>
 
-<main class="page-shell">
-  <section class="hero">
-    <div class="hero-main hero-dashboard-bar">
-      <div class="hero-intro">
-        <div class="eyebrow">Customer Workspace</div>
-        <h1>My <span>AnyBike</span></h1>
-        <p id="welcomeText">Loading your personalised AnyBike workspace...</p>
-      </div>
+<main class="wrap">
+  <section class="card">
+    <h1>Register Free</h1>
+    <p>Create your AnyBike account to save motorcycles, build a watchlist, receive messages and manage your buying requests from one place.</p>
 
-      <div class="hero-stats" aria-label="My AnyBike summary">
-        <a class="hero-stat" href="my-watchlist.html">
-          <div class="hero-stat-icon">❤️</div>
-          <div>
-            <strong id="watchCount">0</strong>
-            <span>Watchlist Bikes</span>
-          </div>
-        </a>
+    <div id="registerBox">
+      <label for="fullName">Full name</label>
+      <input id="fullName" placeholder="Your name" autocomplete="name">
 
-        <a class="hero-stat" href="my-searches.html">
-          <div class="hero-stat-icon">🔎</div>
-          <div>
-            <strong id="searchCount">0</strong>
-            <span>Saved Searches</span>
-          </div>
-        </a>
+      <label for="email">Email</label>
+      <input id="email" type="email" placeholder="you@example.com" autocomplete="email">
 
-        <a class="hero-stat" href="available-stock.html">
-          <div class="hero-stat-icon">🏍️</div>
-          <div>
-            <strong id="stockCount">0</strong>
-            <span>Available Motorcycles</span>
-          </div>
-        </a>
+      <label for="password">Password</label>
+      <input id="password" type="password" placeholder="Create a password" autocomplete="current-password">
 
-        <a class="hero-stat" href="#buyer-potential-matches">
-          <div class="hero-stat-icon">🏍️</div>
-          <div>
-            <strong id="potentialMatchCount">0</strong>
-            <span>Potential Matches</span>
-          </div>
-        </a>
+      <label for="country">Country</label>
+      <select id="country">
+        <option value="">Select country</option>
+        <option>United Kingdom</option>
+        <option>Singapore</option>
+        <option>Malaysia</option>
+        <option>Indonesia</option>
+        <option>Thailand</option>
+        <option>Vietnam</option>
+        <option>Philippines</option>
+        <option>Japan</option>
+        <option>South Korea</option>
+        <option>Hong Kong</option>
+        <option>Taiwan</option>
+        <option>United Arab Emirates</option>
+        <option>Saudi Arabia</option>
+        <option>Qatar</option>
+        <option>Kuwait</option>
+        <option>Bahrain</option>
+        <option>Oman</option>
+        <option>Jordan</option>
+        <option>Australia</option>
+        <option>New Zealand</option>
+        <option>South Africa</option>
+        <option>Kenya</option>
+        <option>Tanzania</option>
+        <option>Uganda</option>
+        <option>Nigeria</option>
+        <option>Ghana</option>
+        <option>Botswana</option>
+        <option>Namibia</option>
+        <option>Zimbabwe</option>
+        <option>Germany</option>
+        <option>France</option>
+        <option>Spain</option>
+        <option>Portugal</option>
+        <option>Netherlands</option>
+        <option>Ireland</option>
+        <option>United States</option>
+        <option>Canada</option>
+        <option>Chile</option>
+        <option>Peru</option>
+        <option>Other</option>
+      </select>
 
-        <a class="hero-stat" href="/customer-messages.html">
-          <div class="hero-stat-icon">💬</div>
-          <div>
-            <strong id="newMessagesCount">0</strong>
-            <span>New Messages</span>
-          </div>
-        </a>
-      </div>
+      <label for="currency">Preferred currency</label>
+      <select id="currency">
+        <option value="GBP">GBP £</option>
+        <option value="EUR">EUR €</option>
+        <option value="USD">USD $</option>
+        <option value="AUD">AUD A$</option>
+        <option value="NZD">NZD NZ$</option>
+        <option value="CAD">CAD C$</option>
+        <option value="AED">AED د.إ</option>
+      </select>
 
-      <div class="hero-compact-actions">
-        <a class="hero-action primary" href="available-stock.html">
-          <span class="hero-action-icon">🏍️</span>
-          <span>Browse Motorcycles</span>
-        </a>
-        <button class="hero-action secondary" type="button" onclick="openNewMessageModal()">
-          <span class="hero-action-icon">💬</span>
-          <span>New Message</span>
-        </button>
+      <label for="language">Preferred language</label>
+      <select id="language">
+        <option value="en">🇬🇧 English</option>
+        <option value="de">🇩🇪 Deutsch</option>
+        <option value="fr">🇫🇷 Français</option>
+        <option value="es">🇪🇸 Español</option>
+        <option value="ar">🇸🇦 العربية</option>
+        <option value="id">🇮🇩 Bahasa Indonesia</option>
+        <option value="ms">🇲🇾 Bahasa Melayu</option>
+        <option value="zh">🇨🇳 中文</option>
+      </select>
+
+      <button type="button" onclick="register()">Create Free Account</button>
+      <button type="button" class="secondary" onclick="login()">Already registered? Login</button>
+    </div>
+
+    <div id="loggedInBox" class="hidden account-ready">
+      <h2>Account ready</h2>
+      <p>You are logged in and can now access your dashboard, watchlist, messages and available motorcycles.</p>
+
+      <div class="account-ready-actions">
+        <button type="button" onclick="location.href='/customer-dashboard.html'">Open My Dashboard</button>
+        <button type="button" class="secondary" onclick="location.href='/available-stock.html'">View Available Stock</button>
+        <button type="button" class="secondary" onclick="logout()">Logout</button>
       </div>
     </div>
+
+    <div id="msg" class="msg"></div>
   </section>
-
-
-    <section class="panel buyer-match-panel" id="buyer-potential-matches">
-      <div class="panel-head buyer-match-toolbar">
-        <div>
-          <h2>🏍️ Your AnyBike Potential Matches</h2>
-          <p>Motorcycles selected by AnyBike against your buying requirements. These are provisional opportunities until availability and final pricing are confirmed.</p>
-        </div>
-        <div class="buyer-match-preference">
-          <label for="buyerMatchNotificationFrequency">Match alerts</label>
-          <select id="buyerMatchNotificationFrequency" onchange="saveBuyerMatchNotificationPreference()">
-            <option value="Real-time">Real-time</option>
-            <option value="Daily">Daily digest</option>
-            <option value="Weekly">Weekly digest</option>
-            <option value="Dashboard only">Dashboard only</option>
-          </select>
-          <span id="buyerMatchPreferenceStatus" class="buyer-match-preference-status"></span>
-        </div>
-      </div>
-      <div id="buyerPotentialMatchesBox">
-        <div class="buyer-match-empty">Loading your AnyBike Potential Matches...</div>
-      </div>
-    </section>
-
-  <div class="dashboard-grid">
-
-    <div class="dashboard-row equal">
-      <section class="panel" style="grid-column:1/-1">
-        <div class="panel-head">
-          <div>
-            <h2>⭐ Recommended For You</h2>
-            <p>Based on the motorcycle searches you have saved in My AnyBike.</p>
-          </div>
-          <a class="panel-link" href="available-stock.html">Browse all stock →</a>
-        </div>
-        <div id="recommendationsGrid" class="bike-grid"></div>
-        <div style="display:flex;justify-content:center;margin-top:16px">
-          <button id="showMoreRecommendationsBtn" class="mini-btn" type="button"
-                  onclick="showMoreRecommendations()" style="display:none">
-            Show More Recommendations
-          </button>
-        </div>
-        <p id="recommendationStatus" class="section-empty"
-           style="margin-top:10px;text-align:center"></p>
-      </section>
-    </div>
-<section class="panel" id="recently-viewed">
-      <div class="panel-head">
-        <div>
-          <h2>👀 Recently Viewed</h2>
-          <p>Continue where you left off.</p>
-        </div>
-      </div>
-      <div class="recent-wrap">
-        <button class="carousel-btn prev" type="button" onclick="scrollRecentlyViewed(-1)" aria-label="Previous recently viewed bikes">‹</button>
-        <div id="recentlyViewedBox" class="recent-grid"></div>
-        <button class="carousel-btn next" type="button" onclick="scrollRecentlyViewed(1)" aria-label="Next recently viewed bikes">›</button>
-      </div>
-    </section>
-<section class="panel">
-      <div class="panel-head">
-        <div>
-          <h2>Coming to My AnyBike</h2>
-          <p>Future services will appear here as they become available.</p>
-        </div>
-      </div>
-      <div class="future-strip">
-        <div class="future-item">📦 Orders</div>
-        <div class="future-item">🚚 Shipping</div>
-        <div class="future-item">📄 Quotes</div>
-        <div class="future-item">🗂 Documents</div>
-      </div>
-    </section>
-
-  </div>
 </main>
 
-
-<div class="message-modal" id="newMessageModal" aria-hidden="true">
-  <div class="message-modal-card" role="dialog" aria-modal="true" aria-labelledby="newMessageTitle">
-    <div class="message-modal-head">
-      <div>
-        <h2 id="newMessageTitle">Create New Message</h2>
-        <p>Send a new question directly to the AnyBike team.</p>
-      </div>
-      <button class="modal-close" type="button" onclick="closeNewMessageModal()" aria-label="Close">×</button>
-    </div>
-
-    <div class="message-modal-body">
-      <div>
-        <label for="newMessageSubject">What can we help you with?</label>
-        <select id="newMessageSubject">
-          <option value="">Choose a subject</option>
-          <option value="Motorcycle Search">🏍 I am looking for a motorcycle</option>
-          <option value="Global Buyer Network">🌍 Global Buyer Network enquiry</option>
-          <option value="Existing Order">📦 Existing order</option>
-          <option value="Shipping or Export">🚢 Shipping or export question</option>
-          <option value="Sell My Motorcycle">💷 Sell my motorcycle</option>
-          <option value="Saved Bike">❤️ Question about a saved bike</option>
-          <option value="Watchlist">⭐ Question about my watchlist</option>
-          <option value="Saved Search">🔎 Saved search enquiry</option>
-          <option value="Website Page Question">🌐 Question about a page on the website</option>
-          <option value="Payment or Invoice">💳 Payment or invoice</option>
-          <option value="My Account">👤 My account</option>
-          <option value="General Question">❓ General question</option>
-          <option value="Other">📞 Other</option>
-        </select>
-      </div>
-
-      <div>
-        <label for="newMessageCustomSubject">Message title</label>
-        <input id="newMessageCustomSubject" placeholder="Example: Question about Export Services">
-      </div>
-
-      <div class="context-box">
-        <strong>Related page</strong>
-        <span id="newMessageContextText">My AnyBike customer workspace</span>
-      </div>
-
-      <div>
-        <label for="newMessageBody">Message</label>
-        <textarea id="newMessageBody" placeholder="Tell us how we can help..."></textarea>
-      </div>
-
-      <div id="newMessageStatus" class="message-modal-status"></div>
-
-      <div class="message-modal-actions">
-        <button class="mini-btn" type="button" onclick="closeNewMessageModal()">Cancel</button>
-        <button class="mini-btn primary" id="sendNewMessageBtn" type="button" onclick="sendNewCustomerThread()">Send Message</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<footer>
-  <strong>ANYBIKE.CO.UK</strong><br>
-  UK Motorcycle Export Specialists — Worldwide sourcing and export services.
-</footer>
-
-<script src="/public-header.js?v=9200"></script>
 <script>
-
 const SUPABASE_URL = "https://tuehtnezhdnkqbbhttgp.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-let currentUser=null;
-let currentProfile=null;
-let openConversationKey=null;
-let myDealMotorcycles=[];
-let myDealMotorcycleByMatch={};
-let myDealNegotiationCache={};
-
-async function claimRequestedMessageThread(){
-  const params = new URLSearchParams(window.location.search);
-  const threadId = Number(params.get("thread"));
-
-  if(!threadId || !currentUser){
-    return;
-  }
-
-  try{
-    const {data,error} = await sb.functions.invoke(
-      "claim-message-thread",
-      {
-        body:{
-          thread_id:String(threadId)
-        }
-      }
-    );
-
-    if(error){
-      console.error(
-        "Conversation claim failed:",
-        error
-      );
-      return;
-    }
-
-    if(!data?.ok){
-      console.error(
-        "Conversation could not be claimed:",
-        data
-      );
-      return;
-    }
-
-    openConversationKey = `global-${threadId}`;
-
-  }catch(error){
-    console.error(
-      "Conversation claim crashed:",
-      error
-    );
-  }
+function showMsg(text, ok=true){
+  const el = document.getElementById("msg");
+  el.textContent = text;
+  el.className = "msg " + (ok ? "ok" : "bad");
 }
 
-function getCustomerLoginUrl(){
-  const returnUrl =
-    window.location.pathname +
-    window.location.search +
-    window.location.hash;
-
-  return "customer-register.html?return=" +
-    encodeURIComponent(returnUrl);
-}
-
-function redirectToCustomerLogin(){
-  window.location.replace(getCustomerLoginUrl());
-}
-
-function safe(v){
-  const value =
-    v===undefined || v===null || String(v).trim()===""
-      ? "-"
-      : String(v);
-
-  return value
-    .replaceAll("&","&amp;")
-    .replaceAll("<","&lt;")
-    .replaceAll(">","&gt;")
-    .replaceAll('"',"&quot;")
-    .replaceAll("'","&#039;");
-}
-
-function getCustomerDisplayName(){
-  const fullName = String(currentProfile?.full_name || "").trim();
-
-  if(fullName){
-    return fullName.split(/\s+/)[0];
-  }
-
-  return "My AnyBike";
-}
-
-function money(v){
-  return v ? "£" + Number(v).toLocaleString("en-GB") : "POA";
-}
-
-
-
-function buyerMatchMoney(v){
-  if(v===null || v===undefined || v==="") return null;
-  const n=Number(v);
-  if(!Number.isFinite(n)) return null;
-  return "£" + n.toLocaleString("en-GB",{minimumFractionDigits:2,maximumFractionDigits:2});
-}
-
-function buyerMatchStatusLabel(match){
-  const status=String(match?.match_status || "Potential Match");
-  if(status==="Approved for Buyer" || status==="Internal Match" || status==="Commercial Review") return "Potential Match";
-  if(status==="Seller Check Required") return "Availability Check";
-  if(status==="Buyer Question") return "Question Sent";
-  if(status==="Seller Confirmed") return "Seller Confirmed";
-  if(status==="Pricing Review") return "Pricing Review";
-  if(status==="Confirmed Offer Sent") return "Confirmed Offer";
-  return status;
-}
-
-function buyerMatchResponseSummary(match){
-  const response=String(match?.buyer_response || "No Response");
-  if(String(match?.match_status || "")==="Accepted"){
-    return `✓ AnyBike accepted your offer of ${buyerMatchMoney(match.confirmed_customer_price_gbp || match.buyer_offer_gbp) || ""}.`;
-  }
-  if(response==="Interested") return "✓ You told AnyBike you are interested. We will now check availability and the seller's best price.";
-  if(response==="Offer Made") return `✓ Your GBP offer ${buyerMatchMoney(match.buyer_offer_gbp) || ""} has been sent to AnyBike for review.`;
-  if(response==="Question Asked") return "✓ Your question has been sent to AnyBike.";
-  return "";
-}
-
-function buyerMatchPriceHtml(match){
-  const confirmed=buyerMatchMoney(match?.confirmed_customer_price_gbp);
-  const provisional=buyerMatchMoney(match?.provisional_customer_price_gbp);
-
-  if(confirmed){
-    return `<div class="buyer-match-price"><strong>${safe(confirmed)}</strong><span>Confirmed AnyBike offer price</span></div>`;
-  }
-
-  if(provisional){
-    return `<div class="buyer-match-price"><strong>${safe(provisional)}</strong><span>Provisional AnyBike price — subject to final availability and confirmation</span></div>`;
-  }
-
-  return `<div class="buyer-match-price"><strong>Price being prepared</strong><span>You can still register interest, make a GBP offer or ask us a question.</span></div>`;
-}
-
-function myDealForMatch(matchId){
-  return myDealMotorcycleByMatch[String(matchId)] || null;
-}
-
-function customerDealEventLabel(event){
-  const type=String(event?.event_type || "Update");
-  if(type==="Buyer Offer") return "You made an offer";
-  if(type==="Buyer Counter Offer") return "You made a counter offer";
-  if(type==="AnyBike Counter Offer") return "AnyBike made a counter offer";
-  if(type==="Offer Accepted") return "Offer accepted";
-  if(type==="Offer Rejected") return "Offer declined";
-  if(type==="Offer Withdrawn") return "Offer withdrawn";
-  if(type==="Offer Expired") return "Offer expired";
-  return type;
-}
-
-async function toggleCustomerDealTimeline(matchId,dealMotorcycleId){
-  const box=document.getElementById(`buyer-deal-timeline-${matchId}`);
-  if(!box) return;
-
-  if(box.classList.contains("open")){
-    box.classList.remove("open");
-    return;
-  }
-
-  box.classList.add("open");
-  box.innerHTML='<div class="buyer-deal-timeline-title">Loading your Deal history...</div>';
-
-  let events=myDealNegotiationCache[String(dealMotorcycleId)];
-
-  if(!events){
-    const {data,error}=await sb.rpc("get_my_deal_negotiation",{
-      p_deal_motorcycle_id:Number(dealMotorcycleId)
-    });
-
-    if(error){
-      box.innerHTML='<div class="buyer-deal-timeline-title bad">Your Deal history could not be loaded: '+safe(error.message)+'</div>';
-      return;
-    }
-
-    events=data || [];
-    myDealNegotiationCache[String(dealMotorcycleId)]=events;
-  }
-
-  const deal=myDealForMatch(matchId);
-  box.innerHTML=`
-    <div class="buyer-deal-timeline-title">${safe(deal?.deal_number || "Your AnyBike Deal")}</div>
-    ${events.length ? events.map(event=>`
-      <div class="buyer-deal-event">
-        <div class="buyer-deal-event-head">
-          <span>${safe(customerDealEventLabel(event))}</span>
-          <span>${event.amount_gbp!==null && event.amount_gbp!==undefined ? (buyerMatchMoney(event.amount_gbp) || "") : ""}</span>
-        </div>
-        ${event.message ? `<div class="buyer-deal-event-message">${safe(event.message)}</div>` : ""}
-        <div class="buyer-deal-event-time">${safe(new Date(event.created_at).toLocaleString("en-GB"))}</div>
-      </div>
-    `).join("") : '<div class="buyer-deal-event-time">No Deal activity recorded yet.</div>'}
-  `;
-}
-
-function buyerMatchCardHtml(match){
-  const response=String(match?.buyer_response || "No Response");
-  let responseClass="";
-  if(response==="Interested") responseClass="response-interested";
-  if(response==="Offer Made") responseClass="response-offer";
-  if(response==="Question Asked") responseClass="response-question";
-
-  const title=[match.stock_make,match.stock_model].filter(Boolean).join(" ") || "Motorcycle";
-  const variant=String(match.stock_variant || "").trim();
-  const mileage=match.stock_mileage!==null && match.stock_mileage!==undefined
-    ? Number(match.stock_mileage).toLocaleString("en-GB") + " miles"
-    : "-";
-  const summary=buyerMatchResponseSummary(match);
-  const image=String(match.stock_image_url || "").trim();
-  const vat=String(match.stock_vat_status || "Unknown / Check Required");
-  const deal=myDealForMatch(match.id);
-  const accepted=String(match?.match_status || "")==="Accepted";
-
-  return `
-    <article class="buyer-match-card ${responseClass}" id="buyer-match-${match.id}">
-      <div class="buyer-match-image">
-        ${image
-          ? `<img src="${safe(image)}" alt="${safe(title)}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='block';"><div class="buyer-match-image-fallback" style="display:none">🏍️</div>`
-          : `<div class="buyer-match-image-fallback">🏍️</div>`
-        }
-      </div>
-      <div class="buyer-match-body">
-        <div class="buyer-match-top">
-          <div>
-            <h3>${safe(title)}</h3>
-            ${variant ? `<div class="buyer-match-variant">${safe(variant)}</div>` : ""}
-          </div>
-          <span class="buyer-match-status">${safe(buyerMatchStatusLabel(match))}</span>
-        </div>
-
-        <div class="buyer-match-meta">
-          <div><span>Year</span>${safe(match.stock_year || "-")}</div>
-          <div><span>Mileage</span>${safe(mileage)}</div>
-          <div><span>VAT</span>${safe(vat)}</div>
-        </div>
-
-        ${buyerMatchPriceHtml(match)}
-
-        ${deal ? `
-          <div class="buyer-deal-banner">
-            <strong>${safe(deal.deal_number || "AnyBike Deal")}</strong>
-            <span>${safe(deal.negotiation_status || deal.item_status || "Active")}</span>
-          </div>
-        ` : ""}
-
-        <div class="buyer-match-response-summary ${summary ? "show" : ""}" id="buyer-match-summary-${match.id}">${safe(summary)}</div>
-
-        <div class="buyer-match-actions">
-          ${accepted
-            ? `${deal ? `<button class="buyer-match-action primary" type="button" onclick="toggleCustomerDealTimeline(${Number(match.id)},${Number(deal.deal_motorcycle_id)})">View Deal</button>` : ""}`
-            : `
-              <button class="buyer-match-action positive" type="button" onclick="respondToBuyerMatch(${match.id},'interested')">Interested</button>
-              <button class="buyer-match-action primary" type="button" onclick="openBuyerMatchResponse(${match.id},'offer')">Make Offer (£)</button>
-              <button class="buyer-match-action" type="button" onclick="openBuyerMatchResponse(${match.id},'question')">Ask a Question</button>
-              <button class="buyer-match-action danger" type="button" onclick="respondToBuyerMatch(${match.id},'not_interested')">Not Interested</button>
-            `
-          }
-        </div>
-
-        ${deal ? `<div class="buyer-deal-timeline" id="buyer-deal-timeline-${safe(match.id)}"></div>` : ""}
-
-        <div class="buyer-match-response-box" id="buyer-match-offer-${match.id}">
-          <label for="buyer-match-offer-input-${match.id}">Your offer in GBP (£)</label>
-          <input id="buyer-match-offer-input-${match.id}" type="number" inputmode="decimal" min="1" max="1000000" step="0.01" placeholder="Example: 4500.00" value="${match.buyer_offer_gbp ?? ""}">
-          <div class="buyer-match-response-actions">
-            <button class="buyer-match-action primary" type="button" onclick="submitBuyerMatchOffer(${match.id})">Submit GBP Offer</button>
-            <button class="buyer-match-action" type="button" onclick="closeBuyerMatchResponse(${match.id})">Cancel</button>
-          </div>
-          <div class="buyer-match-response-status" id="buyer-match-offer-status-${match.id}"></div>
-        </div>
-
-        <div class="buyer-match-response-box" id="buyer-match-question-${match.id}">
-          <label for="buyer-match-question-input-${match.id}">Your question for AnyBike</label>
-          <textarea id="buyer-match-question-input-${match.id}" maxlength="3000" placeholder="Ask about condition, specification, availability, shipping or anything else you need to know...">${safe(match.buyer_question || "")}</textarea>
-          <div class="buyer-match-response-actions">
-            <button class="buyer-match-action primary" type="button" onclick="submitBuyerMatchQuestion(${match.id})">Send Question</button>
-            <button class="buyer-match-action" type="button" onclick="closeBuyerMatchResponse(${match.id})">Cancel</button>
-          </div>
-          <div class="buyer-match-response-status" id="buyer-match-question-status-${match.id}"></div>
-        </div>
-
-        <p class="buyer-match-note">A Potential Match is not a guarantee that the motorcycle is still available or that a final price has been agreed. AnyBike will confirm availability and commercial terms before making a confirmed offer.</p>
-      </div>
-    </article>
-  `;
-}
-
-function renderBuyerPotentialMatches(rows){
-  const box=document.getElementById("buyerPotentialMatchesBox");
-  if(!box) return;
-
-  const deduped=[];
-  const seenStockIds=new Set();
-
-  (rows || []).forEach(match=>{
-    const key=match.stock_id!==null && match.stock_id!==undefined
-      ? "stock:"+String(match.stock_id)
-      : "match:"+String(match.id);
-
-    if(seenStockIds.has(key)) return;
-    seenStockIds.add(key);
-    deduped.push(match);
-  });
-
-  rows=deduped;
-
-  const potentialMatchCount=document.getElementById("potentialMatchCount");
-  if(potentialMatchCount){
-    potentialMatchCount.textContent=rows.length.toLocaleString("en-GB");
-  }
-
-  if(!rows.length){
-    box.innerHTML=`<div class="buyer-match-empty">You do not have any AnyBike Potential Matches yet. When our team approves suitable motorcycles against your requirements, they will appear here.</div>`;
-    return;
-  }
-
-  const groups=new Map();
-  rows.forEach(match=>{
-    const make=String(match.stock_make || "Other").trim() || "Other";
-    const model=String(match.stock_model || "Motorcycle").trim() || "Motorcycle";
-    const key=make.toLowerCase()+"|"+model.toLowerCase();
-    if(!groups.has(key)) groups.set(key,{make,model,rows:[]});
-    groups.get(key).rows.push(match);
-  });
-
-  box.innerHTML=[...groups.values()].map(group=>`
-    <section class="buyer-match-group">
-      <div class="buyer-match-group-head">
-        <h3>${safe(group.make)} ${safe(group.model)}</h3>
-        <span class="buyer-match-count">${group.rows.length} ${group.rows.length===1 ? "match" : "matches"}</span>
-      </div>
-      <div class="buyer-match-grid">
-        ${group.rows.map(buyerMatchCardHtml).join("")}
-      </div>
-    </section>
-  `).join("");
-}
-
-async function loadBuyerPotentialMatches(){
-  const box=document.getElementById("buyerPotentialMatchesBox");
-  if(!box || !currentUser) return;
-
-  box.innerHTML=`<div class="buyer-match-empty">Loading your AnyBike Potential Matches...</div>`;
-
-  const [matchRes,dealRes]=await Promise.all([
-    sb.rpc("get_my_buyer_matches"),
-    sb.rpc("get_my_deal_motorcycles")
-  ]);
-
-  if(matchRes.error){
-    console.error("Potential Matches could not be loaded",matchRes.error);
-    const potentialMatchCount=document.getElementById("potentialMatchCount");
-    if(potentialMatchCount) potentialMatchCount.textContent="0";
-    box.innerHTML=`<div class="buyer-match-empty"><span class="bad">Potential Matches could not be loaded: ${safe(matchRes.error.message)}</span></div>`;
-    return;
-  }
-
-  myDealMotorcycles=dealRes.error ? [] : (dealRes.data || []);
-  myDealMotorcycleByMatch={};
-  myDealMotorcycles.forEach(row=>{
-    if(row?.buyer_match_id!==null && row?.buyer_match_id!==undefined){
-      myDealMotorcycleByMatch[String(row.buyer_match_id)]=row;
-    }
-  });
-
-  if(dealRes.error){
-    console.warn("Your AnyBike Deals could not be loaded",dealRes.error.message);
-  }
-
-  renderBuyerPotentialMatches(matchRes.data || []);
-}
-
-function closeBuyerMatchResponse(matchId){
-  const offer=document.getElementById(`buyer-match-offer-${matchId}`);
-  const question=document.getElementById(`buyer-match-question-${matchId}`);
-  if(offer) offer.classList.remove("open");
-  if(question) question.classList.remove("open");
-}
-
-function openBuyerMatchResponse(matchId,type){
-  closeBuyerMatchResponse(matchId);
-  const box=document.getElementById(`buyer-match-${type}-${matchId}`);
-  if(box) box.classList.add("open");
-}
-
-async function respondToBuyerMatch(matchId,action,offerGbp=null,question=null){
-  if(!currentUser){
-    redirectToCustomerLogin();
-    return false;
-  }
-
-  if(action==="not_interested"){
-    const confirmed=window.confirm("Remove this motorcycle from your active Potential Matches?");
-    if(!confirmed) return false;
-  }
-
-  const card=document.getElementById(`buyer-match-${matchId}`);
-  const buttons=card ? card.querySelectorAll("button") : [];
-  buttons.forEach(btn=>btn.disabled=true);
-
-  try{
-    const {data,error}=await sb.rpc("customer_respond_to_buyer_match",{
-      p_match_id:Number(matchId),
-      p_action:action,
-      p_offer_gbp:offerGbp,
-      p_question:question
-    });
-
-    if(error) throw error;
-
-    await loadBuyerPotentialMatches();
-    return data || true;
-  }catch(error){
-    console.error("Buyer match response failed",error);
-    alert("Your response could not be saved: " + (error?.message || "Unknown error"));
-    buttons.forEach(btn=>btn.disabled=false);
-    return false;
-  }
-}
-
-async function submitBuyerMatchOffer(matchId){
-  const input=document.getElementById(`buyer-match-offer-input-${matchId}`);
-  const status=document.getElementById(`buyer-match-offer-status-${matchId}`);
-  const raw=String(input?.value || "").trim();
-  const amount=Number(raw);
-
-  if(!raw || !Number.isFinite(amount) || amount<1 || amount>1000000){
-    if(status){
-      status.textContent="Enter a valid GBP offer between £1.00 and £1,000,000.00.";
-      status.className="buyer-match-response-status bad";
-    }
-    return;
-  }
-
-  const rounded=Math.round(amount*100)/100;
-  const formatted=buyerMatchMoney(rounded);
-
-  if(!window.confirm(`Submit your offer of ${formatted} GBP to AnyBike?`)) return;
-
-  if(status){
-    status.textContent=`Submitting ${formatted}...`;
-    status.className="buyer-match-response-status";
-  }
-
-  await respondToBuyerMatch(matchId,"offer",rounded,null);
-}
-
-async function submitBuyerMatchQuestion(matchId){
-  const input=document.getElementById(`buyer-match-question-input-${matchId}`);
-  const status=document.getElementById(`buyer-match-question-status-${matchId}`);
-  const question=String(input?.value || "").trim();
-
-  if(question.length<2 || question.length>3000){
-    if(status){
-      status.textContent="Enter a question between 2 and 3,000 characters.";
-      status.className="buyer-match-response-status bad";
-    }
-    return;
-  }
-
-  if(status){
-    status.textContent="Sending your question...";
-    status.className="buyer-match-response-status";
-  }
-
-  await respondToBuyerMatch(matchId,"question",null,question);
-}
-
-async function loadBuyerMatchNotificationPreference(){
-  if(!currentUser) return;
-  const select=document.getElementById("buyerMatchNotificationFrequency");
-  const status=document.getElementById("buyerMatchPreferenceStatus");
-  if(!select) return;
-
-  const {data,error}=await sb
-    .from("buyer_match_notification_preferences")
-    .select("notification_frequency")
-    .eq("customer_id",currentUser.id)
-    .maybeSingle();
-
-  if(error){
-    console.warn("Match notification preference could not be loaded",error.message);
-    if(status) status.textContent="Preference unavailable";
-    return;
-  }
-
-  select.value=data?.notification_frequency || "Daily";
-}
-
-async function saveBuyerMatchNotificationPreference(){
-  if(!currentUser) return;
-  const select=document.getElementById("buyerMatchNotificationFrequency");
-  const status=document.getElementById("buyerMatchPreferenceStatus");
-  if(!select) return;
-
-  const frequency=select.value;
-  const allowed=["Real-time","Daily","Weekly","Dashboard only"];
-  if(!allowed.includes(frequency)) return;
-
-  if(status) status.textContent="Saving...";
-
-  const {error}=await sb
-    .from("buyer_match_notification_preferences")
-    .upsert({
-      customer_id:currentUser.id,
-      notification_frequency:frequency,
-      email_enabled:frequency!=="Dashboard only",
-      dashboard_enabled:true
-    },{onConflict:"customer_id"});
-
-  if(error){
-    console.error("Match notification preference save failed",error);
-    if(status){
-      status.textContent="Could not save";
-      status.className="buyer-match-preference-status bad";
-    }
-    return;
-  }
-
-  if(status){
-    status.textContent="Saved";
-    status.className="buyer-match-preference-status ok";
-    setTimeout(()=>{
-      if(status.textContent==="Saved") status.textContent="";
-    },1800);
-  }
-}
-
-
-function toggleCustomerEnquiry(key){
-  const el=document.getElementById(`customer-enquiry-${key}`);
-  if(!el) return;
-
-  el.classList.toggle("open");
-
-  if(el.classList.contains("open")){
-    openConversationKey=key;
-
-    if(String(key).startsWith("global-")){
-      const threadId=String(key).replace("global-","");
-      markCustomerThreadRead(threadId);
-    }
-  }else{
-    openConversationKey=null;
-  }
-}
-
-
-function waitForPublicHeader(timeoutMs=6000){
-  return new Promise(resolve=>{
-    const started=Date.now();
-
-    function check(){
-      if(document.getElementById("userArea")){
-        resolve(true);
-        return;
-      }
-
-      if(Date.now()-started>=timeoutMs){
-        resolve(false);
-        return;
-      }
-
-      setTimeout(check,50);
-    }
-
-    check();
-  });
-}
-
-function setUserAreaHtml(html){
-  const userArea=document.getElementById("userArea");
-
-  if(userArea){
-    userArea.innerHTML=html;
-  }
-}
-
-async function loadUser(){
-  let user=null;
-
-  try{
-    const {data:sessionData}=await sb.auth.getSession();
-    user=sessionData?.session?.user || null;
-
-    if(!user){
-      const {data:userData}=await sb.auth.getUser();
-      user=userData?.user || null;
-    }
-  }catch(error){
-    console.error("Login check failed",error);
-  }
-
-  currentUser=user || null;
-
-  if(!currentUser){
-    redirectToCustomerLogin();
-    return false;
-  }
-
-  let profile=null;
-
-  const profileById=await sb
-    .from("customer_profiles")
-    .select("*")
-    .eq("id",currentUser.id)
-    .maybeSingle();
-
-  if(!profileById.error){
-    profile=profileById.data || null;
-  }else{
-    console.warn("Profile lookup by user ID failed",profileById.error.message);
-  }
-
-  currentProfile=profile || {
-    email:currentUser.email || ""
-  };
-  const displayName = getCustomerDisplayName();
-
-  setUserAreaHtml(
-    `👤 <span class="user-name">${displayName}</span>`
-  );
-
-  document.getElementById("welcomeText").textContent =
-    displayName === "My AnyBike"
-      ? "Welcome back."
-      : `Welcome back, ${displayName}.`;
-
-  const fullNameEl = document.getElementById("fullName");
-  const businessNameEl = document.getElementById("businessName");
-  const businessAddressEl = document.getElementById("businessAddress");
-  const cityEl = document.getElementById("city");
-  const regionEl = document.getElementById("region");
-  const countryEl = document.getElementById("country");
-  const phoneEl = document.getElementById("phone");
-  const currencyEl = document.getElementById("preferredCurrency");
-  const languageEl = document.getElementById("preferredLanguage");
-
-  if(fullNameEl) fullNameEl.value = currentProfile.full_name || "";
-  if(businessNameEl) businessNameEl.value = currentProfile.business_name || "";
-  if(businessAddressEl) businessAddressEl.value = currentProfile.business_address || "";
-  if(cityEl) cityEl.value = currentProfile.city || "";
-  if(regionEl) regionEl.value = currentProfile.region || "";
-  if(countryEl) countryEl.value = currentProfile.country || "";
-  if(phoneEl) phoneEl.value = currentProfile.phone || "";
-
-  if(currencyEl){
-    currencyEl.value =
-      currentProfile.preferred_currency ||
-      localStorage.getItem("anybike_currency") ||
-      "GBP";
-  }
-    if(languageEl){
-    languageEl.value =
-      currentProfile.preferred_language ||
-      localStorage.getItem("anybike_language") ||
-      "en";
-  }
-updateProfileSummary();
-  setProfileEditMode(false);
-  return true;
-}
-
-async function saveProfile(){
-  if(!currentUser) return;
-
-  const payload = {
-    
-  id: currentUser.id,
-  email: currentUser.email,
-  full_name: document.getElementById("fullName").value.trim(),
- business_name: document.getElementById("businessName")?.value.trim() || "",
-  business_address: document.getElementById("businessAddress").value.trim(),
-  country: document.getElementById("country").value,
- city: document.getElementById("city")?.value.trim() || "",
-region: document.getElementById("region")?.value.trim() || "",
-  phone: document.getElementById("phone").value.trim(),
-  preferred_currency: document.getElementById("preferredCurrency").value,
-  preferred_language: document.getElementById("preferredLanguage").value
-};
-
- const {error} = await sb
-  .from("customer_profiles")
-  .upsert(payload, { onConflict: "id" });
-
-const msg = document.getElementById("profileMsg");
-
-if(error){
-  msg.textContent = "Could not save account details: " + error.message;
-  msg.className = "bad";
-  return;
-}
-
-currentProfile = {...currentProfile, ...payload};
-
-localStorage.setItem("anybike_currency", payload.preferred_currency);
-localStorage.setItem("anybike_language", payload.preferred_language);
-
-msg.textContent = "Account details saved.";
-msg.className = "ok";
-
-const displayName = getCustomerDisplayName();
-
-setUserAreaHtml(
-  `👤 <span class="user-name">${displayName}</span>`
-);
-
-document.getElementById("welcomeText").textContent =
-  displayName === "My AnyBike"
-    ? "Welcome back."
-    : `Welcome back, ${displayName}.`;
-
-updateProfileSummary();
-setProfileEditMode(false);
-}
-
-async function loadCounts(){
-  if(!currentUser)return;
-
-  const watch = await sb.from("customer_watchlist").select("id",{count:"exact",head:true}).eq("customer_id",currentUser.id);
-  const searches = await sb.from("saved_searches").select("id",{count:"exact",head:true}).eq("customer_id",currentUser.id);
-const stock = await sb
-  .from("public_available_stock")
-  .select("id",{count:"exact"})
-  .not("make","is",null)
-  .not("model","is",null)
-  .range(0,0);
-  document.getElementById("watchCount").textContent=(watch.count || 0).toLocaleString("en-GB");
-  document.getElementById("searchCount").textContent=(searches.count || 0).toLocaleString("en-GB");
-  document.getElementById("stockCount").textContent=(stock.count || 0).toLocaleString("en-GB");
-}
-
-async function loadRecentlyViewed(){
-  const box = document.getElementById("recentlyViewedBox");
-
-  if(!currentUser){
-    box.innerHTML = `<p class="muted">Login to see recently viewed bikes.</p>`;
-    return;
-  }
-
-  box.innerHTML = `<p class="muted">Loading recently viewed bikes...</p>`;
-
-  const {data:views,error:viewError} = await sb
-    .from("recently_viewed_bikes")
-    .select("bike_id,viewed_at")
-    .eq("customer_id",currentUser.id)
-    .order("viewed_at",{ascending:false})
-    .limit(10);
-
-  if(viewError){
-    box.innerHTML = `<span class="bad">Recently viewed error: ${viewError.message}</span>`;
-    return;
-  }
-
-  if(!views || !views.length){
-    box.innerHTML = `<p class="muted">No recently viewed bikes yet for this login.</p>`;
-    return;
-  }
-
-  const bikeIds = views.map(v => Number(v.bike_id)).filter(Boolean);
-
-  const {data:stock,error:stockError} = await sb
-    .from("public_available_stock")
-    .select("id,make,model,variant,year,price_gbp,image_url")
-    .in("id",bikeIds);
-
-  if(stockError){
-    box.innerHTML = `<span class="bad">Stock lookup error: ${stockError.message}</span>`;
-    return;
-  }
-
-  const bikeMap = new Map((stock || []).map(b => [String(b.id), b]));
-  const rows = views.map(v => bikeMap.get(String(v.bike_id))).filter(Boolean);
-
-  box.innerHTML = rows.map(b => `
-    <div class="recent-bike">
-      <h3>${safe(b.make)} ${safe(b.model)}</h3>
-      <p>${safe(b.variant)}</p>
-      <p>${safe(b.year)}</p>
-      <a href="bike-details.html?id=${b.id}">View Bike →</a>
-    </div>
-  `).join("");
-}
-
-
-async function loadDashboardConversationCount(){
-  if(!currentUser) return;
-
-  try{
-    const [bikeResult,threadResult]=await Promise.all([
-      sb
-        .from("bike_enquiries")
-        .select("id",{count:"exact",head:true})
-        .eq("customer_id",currentUser.id),
-
-      sb
-        .from("message_centre_threads")
-        .select("id",{count:"exact",head:true})
-        .eq("customer_id",currentUser.id)
-    ]);
-
-    const total=(bikeResult.count || 0) + (threadResult.count || 0);
-    const countEl=document.getElementById("conversationCount");
-
-    if(countEl){
-      countEl.textContent=total.toLocaleString("en-GB");
-    }
-  }catch(error){
-    console.warn("Conversation count could not be loaded",error);
-  }
-}
-
-
-async function loadCustomerEnquiries(){
-  const box = document.getElementById("customerEnquiries");
-
-  if(!box) return;
-
-  if(!currentUser){
-    box.innerHTML = `<p class="muted">Login to see your enquiries.</p>`;
-    return;
-  }
-
-  box.innerHTML = `<p class="muted">Loading your enquiries and messages...</p>`;
-
-  const results=await Promise.allSettled([
-    sb
-      .from("bike_enquiries")
-      .select(`*,available_stock(id,make,model,variant,year,price_gbp,image_url)`)
-      .eq("customer_id",currentUser.id)
-      .order("created_at",{ascending:false}),
-
-    sb
-      .from("message_centre_threads")
-      .select("*")
-      .eq("customer_id",currentUser.id)
-      .order("last_message_at",{ascending:false,nullsFirst:false})
-  ]);
-
-  const bikeResult=results[0].status==="fulfilled"
-    ? results[0].value
-    : {data:[],error:{message:String(results[0].reason||"Bike enquiry query failed")}};
-
-  const globalThreadResult=results[1].status==="fulfilled"
-    ? results[1].value
-    : {data:[],error:{message:String(results[1].reason||"Global Buyer query failed")}};
-
-  if(bikeResult.error){
-    console.warn("Could not load bike enquiries",bikeResult.error.message);
-  }
-
-  const bikeRows = (bikeResult.data || []).map(r=>({
-    kind:"bike",
-    sortDate:r.created_at,
-    data:r
+function syncPreferencesToHeader(){
+  const currency = document.getElementById("currency").value || "GBP";
+  const language = document.getElementById("language").value || "en";
+
+  localStorage.setItem("anybikeCurrency", currency);
+  localStorage.setItem("anybikeLanguage", language);
+
+  window.dispatchEvent(new CustomEvent("anybikeCurrencyChanged", {
+    detail:{ currency }
   }));
 
-  let globalRows = [];
+  window.dispatchEvent(new CustomEvent("anybikeLanguageChanged", {
+    detail:{ language }
+  }));
+}
 
-  if(!globalThreadResult.error){
-    globalRows = (globalThreadResult.data || [])
-      .filter(thread=>{
-        const source=String(thread.source_type||"").toLowerCase();
-        const department=String(thread.department||"").toLowerCase();
-        const subject=String(thread.subject||"").toLowerCase();
+async function checkSession(){
+  const { data: { user } } = await sb.auth.getUser();
 
-       return source.includes("global buyer") ||
-  source.includes("bulk") ||
-  source.includes("my anybike") ||
-  source.includes("private buyer") ||
-  source.includes("private seller") ||
-  source.includes("dealer") ||
-  source.includes("trader") ||
-  source.includes("importer") ||
-  source.includes("exporter") ||
-  source.includes("finance") ||
-  source.includes("shipping") ||
-  source.includes("marketplace") ||
-  source.includes("trade partner") ||
-  source.includes("supplier") ||
-  source.includes("manufacturer") ||
-  source.includes("press") ||
-  source.includes("website support") ||
-  source.includes("general enquiry") ||
-  department.includes("global buyer") ||
-  subject.includes("global buyer");
-  
-      })
-      .map(thread=>({
-        kind:"global",
-        sortDate:thread.last_message_at || thread.created_at,
-        data:thread
-      }));
+  const registerBox = document.getElementById("registerBox");
+  const loggedInBox = document.getElementById("loggedInBox");
+
+  if(user){
+    registerBox.classList.add("hidden");
+    loggedInBox.classList.remove("hidden");
   }else{
-    console.warn("Could not load Global Buyer conversations",globalThreadResult.error.message);
+    registerBox.classList.remove("hidden");
+    loggedInBox.classList.add("hidden");
   }
+}
 
-  const rows=[...bikeRows,...globalRows].sort((a,b)=>{
-    return new Date(b.sortDate||0)-new Date(a.sortDate||0);
-  });
+async function register(){
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value;
+  const full_name = document.getElementById("fullName").value.trim();
+  const country = document.getElementById("country").value;
+  const preferred_currency = document.getElementById("currency").value;
+  const preferred_language = document.getElementById("language").value;
 
-  if(!rows.length){
-    box.innerHTML = `<p class="muted">You have not sent any enquiries yet.</p>`;
+  if(!email || !password || !full_name){
+    showMsg("Please enter name, email and password.", false);
     return;
   }
 
-  box.innerHTML = rows.map(row=>{
-    if(row.kind==="bike"){
-      return bikeEnquiryHtml(row.data);
-    }
+  showMsg("Creating account...");
 
-    return globalBuyerConversationHtml(row.data);
-  }).join("");
-
-  bikeRows.forEach(row=>loadCustomerMessages(row.data.id));
-  await Promise.allSettled(
-    globalRows.map(row=>loadGlobalBuyerMessages(row.data.id))
-  );
-
-  updateCustomerUnreadMessageCount();
-
-  updateConversationCount();
-
-if(openConversationKey){
-  setTimeout(()=>{
-    const card = document.getElementById(
-      `customer-enquiry-${openConversationKey}`
-    );
-
-    if(card){
-      card.classList.add("open");
-
-      card.scrollIntoView({
-        behavior: "smooth",
-        block: "start"
-      });
-    }
-  },300);
-}
-}
-
-function bikeEnquiryHtml(r){
-  const b=r.available_stock||{};
-  const enquiryText=safe(r.message);
-  const key=`bike-${r.id}`;
-
-  return `
-    <div class="customer-enquiry" id="customer-enquiry-${key}">
-      <div class="customer-enquiry-row" onclick="toggleCustomerEnquiry('${key}')">
-        <div class="arrow">▶</div>
-
-        <div>
-          <div class="enquiry-type">🏍 Single-bike enquiry</div>
-          <strong>${safe(b.make)} ${safe(b.model)}</strong>
-          <div class="muted">${safe(b.variant)} ${safe(b.year)} — ${money(b.price_gbp)}</div>
-          <div class="muted">Your enquiry: ${enquiryText.substring(0,90)}</div>
-        </div>
-
-        <div class="status-wrap">
-          <span class="message-pill" id="customer-bubble-${r.id}">
-            Checking...
-          </span>
-        </div>
-      </div>
-
-      <div class="customer-enquiry-detail" onclick="event.stopPropagation()">
-        <div class="customer-expanded-inner">
-
-          <div style="display:flex;justify-content:flex-end;margin-bottom:15px">
-            <button onclick="toggleCustomerEnquiry('${key}')">▲ Collapse</button>
-          </div>
-
-          <div style="margin-bottom:15px">
-            <strong>Your enquiry:</strong><br>
-            ${enquiryText}
-          </div>
-
-          <a class="btn" href="bike-details.html?id=${encodeURIComponent(r.bike_id)}">
-            View Bike
-          </a>
-
-          <div class="message-thread" id="messages-${r.id}">
-            Loading messages...
-          </div>
-
-          <div class="reply-area">
-            <label>Reply to AnyBike</label>
-            <textarea id="customer-msg-${r.id}" placeholder="Type your reply here..."></textarea>
-            <button type="button" class="primary" onclick="sendCustomerMessage(${r.id});return false;">
-              Send Reply
-            </button>
-            <div class="reply-status" id="customer-reply-status-${r.id}"></div>
-          </div>
-
-        </div>
-      </div>
-    </div>
-  `;
-}
-
-function globalBuyerConversationHtml(thread){
-  const key=`global-${thread.id}`;
-  const title=thread.subject || "AnyBike Message";
-  const preview=String(thread.last_message||"").substring(0,100);
-  const source=String(thread.source_type||"").toLowerCase();
-  const isGlobal=source.includes("global buyer") || String(thread.department||"").toLowerCase().includes("global buyer");
-  const typeLabel=isGlobal ? "🌍 Global Buyer Network" : "💬 AnyBike Message";
-
-  return `
-    <div class="customer-enquiry" id="customer-enquiry-${key}">
-      <div class="customer-enquiry-row" onclick="toggleCustomerEnquiry('${key}')">
-        <div class="arrow">▶</div>
-
-        <div>
-          <div class="enquiry-type ${isGlobal?'global':''}">${typeLabel}</div>
-          <strong>${safe(title)}</strong>
-          <div class="muted">${preview || "Your Global Buyer conversation with AnyBike."}</div>
-        </div>
-
-        <div class="status-wrap">
-          <span class="message-pill ${
-            String(thread.last_sender||"").toLowerCase().includes("customer")
-              ? "replied"
-              : "new"
-          }" id="global-bubble-${thread.id}">
-            ${
-              String(thread.last_sender||"").toLowerCase().includes("customer")
-                ? "✓ You replied"
-                : "💬 New message"
-            }
-          </span>
-        </div>
-      </div>
-
-      <div class="customer-enquiry-detail" onclick="event.stopPropagation()">
-        <div class="customer-expanded-inner">
-
-          <div style="display:flex;justify-content:flex-end;margin-bottom:15px">
-            <button onclick="toggleCustomerEnquiry('${key}')">▲ Collapse</button>
-          </div>
-
-          <div style="margin-bottom:15px">
-            <strong>${isGlobal ? "Global Buyer Network conversation" : "Conversation with AnyBike"}</strong><br>
-            <span class="muted">${isGlobal ? "Continue discussing motorcycle requirements, stock matches and shipping with AnyBike." : "Continue your conversation with the AnyBike team."}</span>
-          </div>
-
-          <div class="message-thread" id="global-messages-${thread.id}">
-            Loading messages...
-          </div>
-
-          <div class="reply-area">
-            <label>Reply to AnyBike</label>
-            <textarea id="global-customer-msg-${thread.id}" placeholder="Type your reply here..."></textarea>
-            <button type="button" class="primary" onclick="sendGlobalBuyerMessage(${thread.id});return false;">
-              Send Reply
-            </button>
-            <div class="reply-status" id="global-reply-status-${thread.id}"></div>
-          </div>
-
-        </div>
-      </div>
-    </div>
-  `;
-}
-
-async function loadCustomerMessages(enquiryId){
-  const box = document.getElementById(`messages-${enquiryId}`);
-  if(!box) return;
-
-  const {data,error} = await sb
-    .from("enquiry_messages")
-    .select("*")
-    .eq("enquiry_id",Number(enquiryId))
-    .order("created_at",{ascending:true});
+  const { data, error } = await sb.auth.signUp({
+    email,
+    password
+  });
 
   if(error){
-    box.innerHTML = `<p class="bad">Message error: ${error.message}</p>`;
+    showMsg(error.message, false);
     return;
   }
 
-  const bubble = document.getElementById(`customer-bubble-${enquiryId}`);
+  const user = data.user;
 
-  if(!data || !data.length){
-    box.innerHTML = `<p class="muted">No conversation messages yet.</p>`;
-    if(bubble){
-      bubble.innerHTML = "No messages";
-      bubble.className = "message-pill";
-    }
+  if(!user){
+    showMsg("Account created. Please check your email to confirm registration.");
     return;
   }
 
-  const latest = data[data.length - 1];
+  const { error: profileError } = await sb
+    .from("customer_profiles")
+    .upsert({
+      id:user.id,
+      email,
+      full_name,
+      country,
+      preferred_currency,
+      preferred_language
+    }, {
+      onConflict:"id"
+    });
 
-  if(bubble){
-    if(String(latest.sender).toLowerCase().includes("anybike")){
-      bubble.innerHTML = "💬 New message";
-      bubble.className = "message-pill new";
-    } else {
-      bubble.innerHTML = "✓ You replied";
-      bubble.className = "message-pill replied";
-    }
+  if(profileError){
+    showMsg("Account created, but profile could not be saved: " + profileError.message, false);
+    return;
   }
 
-  box.innerHTML = data.map(m=>{
-    const sender = safe(m.sender);
-    const cls = sender.toLowerCase().includes("customer") ? "customer" : "admin";
-    return `
-      <div class="msg ${cls}">
-        <strong>${sender}</strong>
-        <div>${safe(m.message)}</div>
-        <small>${m.created_at ? new Date(m.created_at).toLocaleString("en-GB") : ""}</small>
-      </div>
-    `;
-  }).join("");
+  syncPreferencesToHeader();
+  showMsg("Account created successfully.");
+  await checkSession();
 }
 
-async function sendCustomerMessage(enquiryId){
-  if(!currentUser){
-    redirectToCustomerLogin();
+async function login(){
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value;
+
+  if(!email || !password){
+    showMsg("Enter email and password to login.", false);
     return;
   }
 
-  const {data:ownedEnquiry,error:ownershipError}=await sb
-    .from("bike_enquiries")
-    .select("id")
-    .eq("id",Number(enquiryId))
-    .eq("customer_id",currentUser.id)
-    .maybeSingle();
-
-  if(ownershipError || !ownedEnquiry){
-    alert("You do not have access to this enquiry.");
-    return;
-  }
-
-  openConversationKey = `bike-${enquiryId}`;
-
-  const txt = document.getElementById(`customer-msg-${enquiryId}`);
-  const message = txt.value.trim();
-
-  const status=document.getElementById(`customer-reply-status-${enquiryId}`);
-
-  if(!message){
-    if(status) status.textContent="Enter a message.";
-    return;
-  }
-
-  const { error } = await sb
-    .from("enquiry_messages")
-    .insert({
-      enquiry_id:Number(enquiryId),
-      customer_id:currentUser.id,
-      sender:"Customer",
-      message:message
-    });
+  const { error } = await sb.auth.signInWithPassword({
+    email,
+    password
+  });
 
   if(error){
-    if(status){
-      status.textContent="Message failed: " + error.message;
-      status.className="reply-status bad";
-    }
+    showMsg(error.message, false);
     return;
   }
 
-await sb
-  .from("admin_notifications")
-  .insert({
-    title:"Customer replied",
-    message:"A customer has replied to enquiry #" + enquiryId,
-    icon:"💬",
-    type:"customer_reply",
-    link:"/admin-enquiries.html"
-  });
-
-const {error:adminNotificationError} = await sb.functions.invoke(
-  "send-admin-message-notification",
-  {
-    body: {
-      source_type: "bike_enquiry",
-      enquiry_id: String(enquiryId)
-    }
-  }
-);
-
-if(adminNotificationError){
-  console.error(
-    "Admin email notification failed:",
-    adminNotificationError
-  );
+  showMsg("Logged in successfully.");
+  await checkSession();
 }
-
-txt.value = "";
-
-if(status){
-  status.textContent="Reply sent.";
-  status.className="reply-status ok";
-}
-
-  await loadCustomerMessages(enquiryId);
-
-  const el = document.getElementById(`customer-enquiry-bike-${enquiryId}`);
-  if(el){
-    el.classList.add("open");
-  }
-}
-  
-
-
-function getCustomerReadMessageMap(){
-  try{
-    const raw=localStorage.getItem("anybike_customer_read_message_ids");
-    const parsed=raw ? JSON.parse(raw) : {};
-    return parsed && typeof parsed==="object" ? parsed : {};
-  }catch(error){
-    return {};
-  }
-}
-
-function saveCustomerReadMessageMap(map){
-  try{
-    localStorage.setItem(
-      "anybike_customer_read_message_ids",
-      JSON.stringify(map||{})
-    );
-  }catch(error){
-    console.warn("Could not save customer message read state",error);
-  }
-}
-
-function isCustomerMessageSender(message){
-  const values=[
-    message?.sender_type,
-    message?.sender_name,
-    message?.sender,
-    message?.sender_email
-  ]
-    .filter(Boolean)
-    .map(value=>String(value).trim().toLowerCase());
-
-  return values.some(value=>
-    value==="customer" ||
-    value==="buyer" ||
-    value==="user" ||
-    value.includes("customer") ||
-    (currentUser?.email && value===String(currentUser.email).toLowerCase())
-  );
-}
-
-function isCustomerThreadUnread(threadId,message){
-  if(!message || isCustomerMessageSender(message)){
-    return false;
-  }
-
-  const readMap=getCustomerReadMessageMap();
-  return String(readMap[String(threadId)]||"")!==String(message.id||message.created_at||"");
-}
-
-function markCustomerThreadRead(threadId){
-  const messages=window.anybikeCustomerThreadMessages?.[String(threadId)] || [];
-  const latest=messages[messages.length-1];
-
-  if(!latest || isCustomerMessageSender(latest)){
-    return;
-  }
-
-  const readMap=getCustomerReadMessageMap();
-  readMap[String(threadId)]=String(latest.id||latest.created_at||"");
-  saveCustomerReadMessageMap(readMap);
-
-  const bubble=document.getElementById(`global-bubble-${threadId}`);
-  const card=document.getElementById(`customer-enquiry-global-${threadId}`);
-
-  if(bubble){
-    bubble.textContent="AnyBike replied";
-    bubble.className="message-pill replied";
-  }
-
-  if(card){
-    card.classList.remove("has-unread");
-  }
-
-  updateCustomerUnreadMessageCount();
-}
-
-function updateCustomerUnreadMessageCount(){
-  const unreadCards=document.querySelectorAll("#customerEnquiries .customer-enquiry.has-unread");
-  const count=unreadCards.length;
-
-  const conversationCount=document.getElementById("conversationCount");
-  if(conversationCount){
-    conversationCount.textContent=document.querySelectorAll("#customerEnquiries .customer-enquiry").length.toLocaleString("en-GB");
-  }
-
-  /*
-    The shared header has changed during development, so update the
-    commonly used customer message badge selectors when present.
-  */
-  [
-    "#customerMessageCount",
-    "#publicMessageCount",
-    "#messageCount",
-    ".customer-message-count",
-    ".public-message-count",
-    ".message-count"
-  ].forEach(selector=>{
-    document.querySelectorAll(selector).forEach(badge=>{
-      badge.textContent=count;
-      badge.style.display=count>0 ? "" : "none";
-    });
-  });
-
-  document.querySelectorAll('a[href*="customer-dashboard.html#messages"],a[href="#messages"]').forEach(link=>{
-    link.dataset.unreadMessages=String(count);
-  });
-
-  if(count>0){
-    document.title=`(${count}) My AnyBike | Customer Workspace`;
-  }else{
-    document.title="My AnyBike | Customer Workspace";
-  }
-}
-
-window.anybikeCustomerThreadMessages={};
-
-
-async function loadGlobalBuyerMessages(threadId){
-  if(!currentUser){
-    redirectToCustomerLogin();
-    return;
-  }
-
-  const {data:ownedThread,error:ownershipError}=await sb
-    .from("message_centre_threads")
-    .select("id")
-    .eq("id",Number(threadId))
-    .eq("customer_id",currentUser.id)
-    .maybeSingle();
-
-  if(ownershipError || !ownedThread){
-    console.warn("Conversation access denied",ownershipError?.message || "");
-    return;
-  }
-
-  const box=document.getElementById(`global-messages-${threadId}`);
-  const bubble=document.getElementById(`global-bubble-${threadId}`);
-  const card=document.getElementById(`customer-enquiry-global-${threadId}`);
-
-  if(!box) return;
-
-  const {data,error}=await sb
-    .from("message_centre_messages")
-    .select("*")
-    .eq("thread_id",Number(threadId))
-    .order("created_at",{ascending:true});
-
-  if(error){
-    box.innerHTML=`<p class="bad">Message error: ${safe(error.message)}</p>`;
-    return;
-  }
-
-  const messages=data||[];
-  window.anybikeCustomerThreadMessages[String(threadId)]=messages;
-
-  if(!messages.length){
-    box.innerHTML=`<p class="muted">No conversation messages yet.</p>`;
-
-    if(bubble){
-      bubble.textContent="No messages";
-      bubble.className="message-pill";
-    }
-
-    if(card){
-      card.classList.remove("has-unread");
-    }
-
-    updateCustomerUnreadMessageCount();
-    return;
-  }
-
-  const latest=messages[messages.length-1];
-  const latestIsCustomer=isCustomerMessageSender(latest);
-  const isUnread=isCustomerThreadUnread(threadId,latest);
-
-  if(bubble){
-    if(!latestIsCustomer && isUnread){
-      bubble.textContent="💬 New message";
-      bubble.className="message-pill new";
-    }else if(!latestIsCustomer){
-      bubble.textContent="AnyBike replied";
-      bubble.className="message-pill replied";
-    }else{
-      bubble.textContent="✓ You replied";
-      bubble.className="message-pill replied";
-    }
-  }
-
-  if(card){
-    card.classList.toggle("has-unread",isUnread);
-  }
-
-  box.innerHTML=messages.map(message=>{
-    const isCustomer=isCustomerMessageSender(message);
-    const label=isCustomer
-      ? "You"
-      : (message.sender_name || message.sender_type || message.sender || "AnyBike");
-
-    return `
-      <div class="msg ${isCustomer?'customer':'admin'}">
-        <strong>${safe(label)}</strong>
-        <div class="msg-text">${safe(message.message)}</div>
-        <small>${message.created_at ? new Date(message.created_at).toLocaleString("en-GB") : ""}</small>
-      </div>
-    `;
-  }).join("");
-
-  box.scrollTop=box.scrollHeight;
-
-  if(card?.classList.contains("open")){
-    markCustomerThreadRead(threadId);
-  }else{
-    updateCustomerUnreadMessageCount();
-  }
-}
-
-async function sendGlobalBuyerMessage(threadId){
-  if(!currentUser){
-    redirectToCustomerLogin();
-    return;
-  }
-
-  const {data:ownedThread,error:ownershipError}=await sb
-    .from("message_centre_threads")
-    .select("id")
-    .eq("id",Number(threadId))
-    .eq("customer_id",currentUser.id)
-    .maybeSingle();
-
-  if(ownershipError || !ownedThread){
-    alert("You do not have access to this conversation.");
-    return;
-  }
-
-  const key=`global-${threadId}`;
-  openConversationKey=key;
-
-  const txt=document.getElementById(`global-customer-msg-${threadId}`);
-  const status=document.getElementById(`global-reply-status-${threadId}`);
-  const message=String(txt?.value||"").trim();
-
-  if(!message){
-    if(status) status.textContent="Enter a message.";
-    return;
-  }
-
-  const now=new Date().toISOString();
-
-  const {error:messageError}=await sb
-    .from("message_centre_messages")
-    .insert({
-      thread_id:Number(threadId),
-      sender_type:"Customer",
-      sender_name:currentProfile?.full_name || currentUser.email || "Customer",
-      sender_email:currentUser.email,
-      message:message,
-      created_at:now
-    });
-
-  if(messageError){
-    if(status){
-      status.textContent="Message failed: "+messageError.message;
-      status.className="reply-status bad";
-    }
-    return;
-  }
-
-  const {error:threadError}=await sb
-    .from("message_centre_threads")
-    .update({
-      last_message:message,
-      last_message_at:now,
-      last_sender:"Customer",
-      status:"Needs Reply",
-      updated_at:now
-    })
-    .eq("id",Number(threadId))
-    .eq("customer_id",currentUser.id);
-
-  if(threadError){
-    if(status){
-      status.textContent="Reply saved, but the notification status could not be updated: "+threadError.message;
-      status.className="reply-status bad";
-    }
-  }else if(status){
-    status.textContent="Reply sent.";
-    status.className="reply-status ok";
-  }
-
-  const {error:adminNotificationError} = await sb.functions.invoke(
-    "send-admin-message-notification",
-    {
-      body: {
-        source_type: "message_centre",
-        thread_id: String(threadId)
-      }
-    }
-  );
-
-  if(adminNotificationError){
-    console.error(
-      "Admin email notification failed:",
-      adminNotificationError
-    );
-  }
-
-  txt.value="";
-  await loadGlobalBuyerMessages(threadId);
-
-  const card=document.getElementById(`customer-enquiry-${key}`);
-  if(card){
-    card.classList.add("open");
-  }
-}
-
-
-
-let profileEditMode=false;
-let recommendedBikeIds=new Set();
-
-function setProfileEditMode(enabled){
-  profileEditMode=Boolean(enabled);
-
-  document.querySelectorAll("[data-profile-input]").forEach(function(el){
-    el.disabled=!profileEditMode;
-  });
-
-  const editBtn=document.getElementById("editProfileBtn");
-  const saveBtn=document.getElementById("saveProfileBtn");
-  const cancelBtn=document.getElementById("cancelProfileBtn");
-
-  if(editBtn) editBtn.style.display=profileEditMode ? "none" : "inline-flex";
-  if(saveBtn) saveBtn.style.display=profileEditMode ? "inline-flex" : "none";
-  if(cancelBtn) cancelBtn.style.display=profileEditMode ? "inline-flex" : "none";
-
-  document.getElementById("profilePanel")?.classList.toggle("editing",profileEditMode);
-}
-
-function cancelProfileEdit(){
-  if(currentProfile){
-    document.getElementById("fullName").value=currentProfile.full_name||"";
-    document.getElementById("businessName").value=currentProfile.business_name||"";
-    document.getElementById("businessAddress").value=currentProfile.business_address||"";
-    document.getElementById("city").value=currentProfile.city||"";
-    document.getElementById("region").value=currentProfile.region||"";
-    document.getElementById("country").value=currentProfile.country||"";
-    document.getElementById("phone").value=currentProfile.phone||"";
-    document.getElementById("preferredCurrency").value=currentProfile.preferred_currency||"GBP";
-    document.getElementById("preferredLanguage").value=currentProfile.preferred_language||"en";
-  }
-
-  setProfileEditMode(false);
-  const msg=document.getElementById("profileMsg");
-  if(msg) msg.textContent="";
-}
-
-function customerBikeCard(bike,reason){
-  const id=Number(bike.id);
-  const title=[bike.make,bike.model].filter(Boolean).join(" ");
-  const variant=bike.variant||"";
-  const year=bike.year||"-";
-  const mileage=bike.mileage ? Number(bike.mileage).toLocaleString("en-GB")+" miles" : "Mileage not listed";
-  const price=money(bike.price_gbp);
-  const image=bike.image_url
-    ? `<img src="${bike.image_url}" alt="${safe(title)}" loading="lazy" onerror="this.closest('.bike-image').classList.add('fallback');this.remove();">`
-    : "";
-
-  return `
-    <article class="bike-card">
-      <div class="bike-image ${image ? "" : "fallback"}">
-        ${image}
-        <div class="bike-fallback">ANYBIKE</div>
-        <button class="heart-action" type="button" onclick="toggleRecommendedWatchlist(${id},this)" aria-label="Add to watchlist">♡</button>
-      </div>
-      <div class="bike-card-body">
-        <div class="recommend-reason">${safe(reason)}</div>
-        <h3>${safe(title)}</h3>
-        <p>${safe(variant)}</p>
-        <div class="bike-meta">
-          <span>${safe(year)}</span>
-          <span>${safe(mileage)}</span>
-        </div>
-        <div class="bike-card-foot">
-          <strong>${safe(price)}</strong>
-          <a href="bike-details.html?id=${encodeURIComponent(id)}">View Bike →</a>
-        </div>
-      </div>
-    </article>
-  `;
-}
-
-async function toggleRecommendedWatchlist(bikeId,button){
-  if(!currentUser){
-    location.href="customer-register.html";
-    return;
-  }
-
-  const {data:existing,error:findError}=await sb
-    .from("customer_watchlist")
-    .select("id")
-    .eq("customer_id",currentUser.id)
-    .eq("bike_id",Number(bikeId))
-    .maybeSingle();
-
-  if(findError){
-    console.warn(findError.message);
-    return;
-  }
-
-  if(existing){
-    await sb.from("customer_watchlist").delete().eq("id",existing.id);
-    if(button){
-      button.textContent="♡";
-      button.classList.remove("active");
-    }
-  }else{
-    const {error}=await sb.from("customer_watchlist").insert({
-      customer_id:currentUser.id,
-      bike_id:Number(bikeId)
-    });
-
-    if(error){
-      console.warn(error.message);
-      return;
-    }
-
-    if(button){
-      button.textContent="♥";
-      button.classList.add("active");
-    }
-  }
-
-  await loadCounts();
-}
-
-let recommendationPool=[];
-let recommendationVisibleCount=0;
-const RECOMMENDATION_PAGE_SIZE=6;
-
-function renderRecommendationPage(){
-  const box=document.getElementById("recommendationsGrid");
-  const btn=document.getElementById("showMoreRecommendationsBtn");
-  const status=document.getElementById("recommendationStatus");
-
-  if(!box) return;
-
-  const visible=recommendationPool.slice(0,recommendationVisibleCount);
-
-  box.innerHTML=visible
-    .map(b=>customerBikeCard(b,b._recommendReason))
-    .join("");
-
-  if(btn){
-    btn.style.display=
-      recommendationVisibleCount<recommendationPool.length
-        ? "inline-flex"
-        : "none";
-  }
-
-  if(status){
-    if(!recommendationPool.length){
-      status.textContent="";
-    }else if(recommendationVisibleCount>=recommendationPool.length){
-      status.textContent=
-        "You’re up to date — more recommendations will appear when matching motorcycles arrive.";
-    }else{
-      status.textContent=
-        `Showing ${recommendationVisibleCount} of ${recommendationPool.length} matching motorcycles.`;
-    }
-  }
-}
-
-function showMoreRecommendations(){
-  recommendationVisibleCount=Math.min(
-    recommendationVisibleCount+RECOMMENDATION_PAGE_SIZE,
-    recommendationPool.length
-  );
-  renderRecommendationPage();
-}
-
-async function loadRecommendations(){
-  const box=document.getElementById("recommendationsGrid");
-  const btn=document.getElementById("showMoreRecommendationsBtn");
-  const status=document.getElementById("recommendationStatus");
-
-  if(!box || !currentUser){
-    if(box) box.innerHTML=
-      '<p class="section-empty">Log in to see personalised recommendations.</p>';
-    return;
-  }
-
-  box.innerHTML=
-    '<p class="section-empty">Finding motorcycles from your saved searches...</p>';
-
-  if(btn) btn.style.display="none";
-  if(status) status.textContent="";
-
-  const {data:savedSearches,error:searchError}=await sb
-    .from("saved_searches")
-    .select("*")
-    .eq("customer_id",currentUser.id)
-    .order("created_at",{ascending:false})
-    .limit(20);
-
-  if(searchError){
-    console.warn(
-      "Could not load saved searches for recommendations",
-      searchError.message
-    );
-    box.innerHTML=
-      '<p class="section-empty">Recommendations are temporarily unavailable.</p>';
-    return;
-  }
-
-  const searches=savedSearches || [];
-
-  if(!searches.length){
-    box.innerHTML=
-      '<p class="section-empty">Save a motorcycle search and matching recommendations will appear here.</p>';
-    return;
-  }
-
-  const buckets=[];
-
-  for(const search of searches){
-    let query=sb
-      .from("public_available_stock")
-      .select("id,make,model,variant,year,mileage,price_gbp,image_url,created_at")
-      .not("make","is",null)
-      .not("model","is",null)
-      .order("created_at",{ascending:false})
-      .limit(30);
-
-    const make=String(search.make || "").trim();
-    const model=String(search.model || "").trim();
-
-    if(make) query=query.ilike("make",make);
-    if(model) query=query.ilike("model","%"+model+"%");
-
-    const minYear=Number(search.min_year ?? search.year_from);
-    if(Number.isFinite(minYear) && minYear>1900){
-      query=query.gte("year",minYear);
-    }
-
-    const maxYear=Number(search.max_year ?? search.year_to);
-    if(Number.isFinite(maxYear) && maxYear>1900){
-      query=query.lte("year",maxYear);
-    }
-
-    const maxPrice=Number(search.max_price ?? search.price_max);
-    if(Number.isFinite(maxPrice) && maxPrice>0){
-      query=query.lte("price_gbp",maxPrice);
-    }
-
-    const maxMileage=Number(search.max_mileage ?? search.mileage_max);
-    if(Number.isFinite(maxMileage) && maxMileage>0){
-      query=query.lte("mileage",maxMileage);
-    }
-
-    const {data,error}=await query;
-
-    if(error){
-      console.warn(
-        "Saved-search recommendation query failed",
-        error.message
-      );
-      continue;
-    }
-
-    const reason=
-      make && model
-        ? `Matches your saved search: ${make} ${model}`
-        : make
-          ? `Matches your saved search: ${make}`
-          : "Matches one of your saved searches";
-
-    buckets.push(
-      (data || []).map(bike=>({
-        ...bike,
-        _recommendReason:reason
-      }))
-    );
-  }
-
-  const merged=[];
-  const seenIds=new Set();
-  let round=0;
-  let found=true;
-
-  while(found){
-    found=false;
-
-    for(const bucket of buckets){
-      const bike=bucket[round];
-      if(!bike) continue;
-
-      found=true;
-
-      const key=String(bike.id);
-      if(seenIds.has(key)) continue;
-
-      seenIds.add(key);
-      merged.push(bike);
-    }
-
-    round++;
-  }
-
-  recommendationPool=merged;
-  recommendationVisibleCount=Math.min(
-    RECOMMENDATION_PAGE_SIZE,
-    recommendationPool.length
-  );
-
-  if(!recommendationPool.length){
-    box.innerHTML=
-      '<p class="section-empty">No current stock matches your saved searches yet. Your searches are still saved for future stock.</p>';
-    return;
-  }
-
-  renderRecommendationPage();
-}
-
-
-function updateConversationCount(){
-  const cards=document.querySelectorAll("#customerEnquiries .customer-enquiry");
-  const total=cards.length;
-  const count=document.getElementById("conversationCount");
-  if(count) count.textContent=total.toLocaleString("en-GB");
-}
-
-function updateProfileSummary(){
-  document.querySelectorAll(".profileSummaryName").forEach(function(name){
-    name.textContent=currentProfile?.full_name || currentUser?.email || "My AnyBike member";
-  });
-
-  document.querySelectorAll(".profileSummaryBusiness").forEach(function(business){
-    business.textContent=currentProfile?.business_name || "No business name added";
-  });
-
-  document.querySelectorAll(".profileSummaryLocation").forEach(function(location){
-    location.textContent=[currentProfile?.city,currentProfile?.country].filter(Boolean).join(", ") || "Location not added";
-  });
-}
-
-
-
-function scrollRecentlyViewed(direction){
-  const box=document.getElementById("recentlyViewedBox");
-
-  if(!box){
-    return;
-  }
-
-  const distance=Math.max(280,Math.round(box.clientWidth*.72));
-
-  box.scrollBy({
-    left:direction*distance,
-    behavior:"smooth"
-  });
-}
-
-function getNewMessageContext(){
-  const params=new URLSearchParams(window.location.search);
-  const explicitUrl=params.get("from") || params.get("page");
-  const explicitTitle=params.get("pageTitle") || params.get("title");
-
-  let pageUrl=explicitUrl || "";
-  let pageTitle=explicitTitle || "";
-
-  if(!pageUrl && document.referrer){
-    try{
-      const ref=new URL(document.referrer);
-
-      if(ref.origin===window.location.origin){
-        pageUrl=ref.href;
-      }
-    }catch(error){}
-  }
-
-  if(!pageUrl){
-    pageUrl=window.location.href;
-  }
-
-  if(!pageTitle){
-    if(pageUrl.includes("bike-details.html")){
-      pageTitle="Motorcycle advert";
-    }else if(pageUrl.includes("available-stock.html")){
-      pageTitle="Available Stock";
-    }else if(pageUrl.includes("export-services.html")){
-      pageTitle="Export Services";
-    }else if(pageUrl.includes("bulk-buying-request.html")){
-      pageTitle="Global Buyer Network";
-    }else if(pageUrl.includes("sell-your-motorcycle.html")){
-      pageTitle="Sell Your Motorcycle";
-    }else if(pageUrl.includes("my-watchlist.html")){
-      pageTitle="My Watchlist";
-    }else if(pageUrl.includes("my-searches.html")){
-      pageTitle="My Saved Searches";
-    }else{
-      pageTitle="My AnyBike customer workspace";
-    }
-  }
-
-  return {
-    title:pageTitle,
-    url:pageUrl
-  };
-}
-
-function openNewMessageModal(){
-  if(!currentUser){
-    location.href="customer-register.html";
-    return;
-  }
-
-  const modal=document.getElementById("newMessageModal");
-  const context=getNewMessageContext();
-  const contextText=document.getElementById("newMessageContextText");
-  const status=document.getElementById("newMessageStatus");
-
-  if(contextText){
-    contextText.textContent=context.title+" — "+context.url;
-  }
-
-  if(status){
-    status.textContent="";
-    status.className="message-modal-status";
-  }
-
-  if(modal){
-    modal.classList.add("open");
-    modal.setAttribute("aria-hidden","false");
-  }
-
-  setTimeout(()=>{
-    document.getElementById("newMessageSubject")?.focus();
-  },50);
-}
-
-function closeNewMessageModal(){
-  const modal=document.getElementById("newMessageModal");
-
-  if(modal){
-    modal.classList.remove("open");
-    modal.setAttribute("aria-hidden","true");
-  }
-}
-
-function departmentForCustomerSubject(subject){
-  const value=String(subject||"").toLowerCase();
-
-  if(value.includes("motorcycle search") || value.includes("saved bike") || value.includes("watchlist") || value.includes("saved search")){
-    return "Bike Sales";
-  }
-
-  if(value.includes("global buyer")){
-    return "Global Buyer Network";
-  }
-
-  if(value.includes("shipping") || value.includes("export") || value.includes("order")){
-    return "Operations";
-  }
-
-  if(value.includes("sell my motorcycle")){
-    return "Seller Enquiries";
-  }
-
-  if(value.includes("website") || value.includes("account")){
-    return "Website Support";
-  }
-
-  if(value.includes("payment") || value.includes("invoice")){
-    return "Accounts";
-  }
-
-  return "General Enquiries";
-}
-
-async function sendNewCustomerThread(){
-  if(!currentUser){
-    location.href="customer-register.html";
-    return;
-  }
-
-  const subjectType=document.getElementById("newMessageSubject")?.value || "";
-  const customSubject=String(document.getElementById("newMessageCustomSubject")?.value||"").trim();
-  const message=String(document.getElementById("newMessageBody")?.value||"").trim();
-  const status=document.getElementById("newMessageStatus");
-  const button=document.getElementById("sendNewMessageBtn");
-  const context=getNewMessageContext();
-
-  if(!subjectType){
-    if(status){
-      status.textContent="Please choose a subject.";
-      status.className="message-modal-status bad";
-    }
-    return;
-  }
-
-  if(!message){
-    if(status){
-      status.textContent="Please write your message.";
-      status.className="message-modal-status bad";
-    }
-    return;
-  }
-
-  const subject=customSubject || subjectType;
-  const department=departmentForCustomerSubject(subjectType);
-  const now=new Date().toISOString();
-
-  if(button){
-    button.disabled=true;
-    button.textContent="Sending...";
-  }
-
-  try{
-    const threadPayload={
-      customer_id:currentUser.id,
-      customer_name:currentProfile?.full_name || currentUser.email || "Customer",
-      customer_email:currentUser.email || null,
-      customer_phone:currentProfile?.phone || null,
-      country:currentProfile?.country || null,
-      source_type:"My AnyBike",
-      subject:subject,
-      department:department,
-      status:"Needs Reply",
-      lead_status:"New Lead",
-      last_message:message,
-      last_message_at:now,
-      last_sender:"Customer",
-      related_page_title:context.title,
-      related_page_url:context.url,
-      created_at:now,
-      updated_at:now
-    };
-
-    let threadResult=await sb
-      .from("message_centre_threads")
-      .insert(threadPayload)
-      .select("*")
-      .single();
-
-    /*
-      Older schemas may not yet include the two related_page columns.
-      Retry without them while preserving the context inside the message.
-    */
-    if(threadResult.error && String(threadResult.error.message||"").toLowerCase().includes("related_page")){
-      delete threadPayload.related_page_title;
-      delete threadPayload.related_page_url;
-
-      threadResult=await sb
-        .from("message_centre_threads")
-        .insert(threadPayload)
-        .select("*")
-        .single();
-    }
-
-    if(threadResult.error){
-      throw new Error(threadResult.error.message);
-    }
-
-    const firstMessage=[
-      message,
-      "",
-      "Related page: "+context.title,
-      context.url
-    ].join("\n");
-
-    const {error:messageError}=await sb
-      .from("message_centre_messages")
-      .insert({
-        thread_id:threadResult.data.id,
-        sender_type:"Customer",
-        sender_name:currentProfile?.full_name || currentUser.email || "Customer",
-        sender_email:currentUser.email || null,
-        message:firstMessage,
-        created_at:now
-      });
-
-    if(messageError){
-      throw new Error(messageError.message);
-    }
-
-    const {error:adminNotificationError} = await sb.functions.invoke(
-      "send-admin-message-notification",
-      {
-        body: {
-          source_type: "message_centre",
-          thread_id: String(threadResult.data.id)
-        }
-      }
-    );
-
-    if(adminNotificationError){
-      console.error(
-        "Admin email notification failed:",
-        adminNotificationError
-      );
-    }
-
-    if(status){
-      status.textContent="Message sent to AnyBike.";
-      status.className="message-modal-status ok";
-    }
-
-    document.getElementById("newMessageSubject").value="";
-    document.getElementById("newMessageCustomSubject").value="";
-    document.getElementById("newMessageBody").value="";
-
-    await loadCustomerEnquiries();
-    updateConversationCount();
-
-    setTimeout(()=>{
-      closeNewMessageModal();
-      document.getElementById("messages")?.scrollIntoView({
-        behavior:"smooth",
-        block:"start"
-      });
-    },700);
-  }catch(error){
-    console.error(error);
-
-    if(status){
-      status.textContent="Message could not be sent: "+error.message;
-      status.className="message-modal-status bad";
-    }
-  }finally{
-    if(button){
-      button.disabled=false;
-      button.textContent="Send Message";
-    }
-  }
-}
-
-document.addEventListener("keydown",function(event){
-  if(event.key==="Escape"){
-    closeNewMessageModal();
-  }
-});
-
-document.addEventListener("click",function(event){
-  const modal=document.getElementById("newMessageModal");
-
-  if(modal && event.target===modal){
-    closeNewMessageModal();
-  }
-});
-
 
 async function logout(){
   await sb.auth.signOut();
-  location.href="index.html";
+  window.location.href = "/customer-register.html";
 }
 
+window.addEventListener("anybikeCurrencyChanged", function(e){
+  const currency = e.detail.currency || "GBP";
+  localStorage.setItem("anybikeCurrency", currency);
 
-/* =========================================================
-   Customer notifications
-   Uses customer_notifications as the single source of truth.
-   This code runs inside customer-dashboard.html after `sb`
-   has been created and after the shared header has loaded.
-   ========================================================= */
+  const select = document.getElementById("currency");
+  if(select) select.value = currency;
+});
 
-let customerNotificationRefreshTimer = null;
-let customerNotificationControlsBound = false;
+window.addEventListener("anybikeLanguageChanged", function(e){
+  const language = e.detail.language || "en";
+  localStorage.setItem("anybikeLanguage", language);
 
-function getCustomerNotificationHeaderElements(){
-  return {
-    messageLink:document.getElementById("phMessages"),
-    messageCount:document.getElementById("phMessagesCount"),
-    bellButton:document.getElementById("phNotifications"),
-    bellCount:document.getElementById("phNotificationsCount"),
-    popover:document.getElementById("notificationPopover"),
-    list:document.getElementById("notificationList")
-  };
-}
+  const select = document.getElementById("language");
+  if(select) select.value = language;
+});
 
-function setCustomerNotificationBadges(total){
-  const elements=getCustomerNotificationHeaderElements();
-  const count=Number(total)||0;
+document.getElementById("currency").addEventListener("change", syncPreferencesToHeader);
+document.getElementById("language").addEventListener("change", syncPreferencesToHeader);
 
-  const dashboardNewMessages=document.getElementById("newMessagesCount");
-  if(dashboardNewMessages){
-    dashboardNewMessages.textContent=count.toLocaleString("en-GB");
+sb.auth.onAuthStateChange(() => {
+  checkSession();
+});
+
+(function init(){
+  const savedCurrency = localStorage.getItem("anybikeCurrency");
+  const savedLanguage = localStorage.getItem("anybikeLanguage");
+
+  if(savedCurrency){
+    document.getElementById("currency").value = savedCurrency;
   }
 
-  [elements.messageCount,elements.bellCount].forEach(function(badge){
-    if(!badge) return;
-
-    badge.textContent=String(count);
-    badge.style.display=count>0 ? "inline-flex" : "none";
-  });
-
-  if(elements.messageLink){
-    elements.messageLink.setAttribute("aria-label","Messages "+count);
-    elements.messageLink.classList.toggle("has-messages",count>0);
+  if(savedLanguage){
+    document.getElementById("language").value = savedLanguage;
   }
 
-  if(elements.bellButton){
-    elements.bellButton.setAttribute("aria-label","Notifications "+count);
-    elements.bellButton.classList.toggle("has-notifications",count>0);
-  }
-}
-
-function renderCustomerNotifications(rows){
-  const list=document.getElementById("notificationList");
-
-  if(!list) return;
-
-  if(!rows.length){
-    list.innerHTML="<p>No new notifications.</p>";
-    return;
-  }
-
-  list.innerHTML=rows.map(function(row){
-    const link=row.link || "/customer-messages.html";
-    const icon=row.icon || "💬";
-
-    return `
-      <a href="${safe(link)}"
-         class="notification-item unread"
-         data-customer-notification-id="${safe(row.id)}"
-         data-customer-notification-link="${safe(link)}">
-        <span class="notification-icon">${safe(icon)}</span>
-        <span class="notification-copy">
-          <strong>${safe(row.title || "New message from AnyBike")}</strong>
-          <small>${safe(row.message || "")}</small>
-        </span>
-      </a>
-    `;
-  }).join("");
-}
-
-async function loadCustomerNotifications(){
-  if(!currentUser){
-    setCustomerNotificationBadges(0);
-    renderCustomerNotifications([]);
-    return;
-  }
-
-  const {data,error}=await sb
-    .from("customer_notifications")
-    .select("id,title,message,icon,type,link,is_read,created_at")
-    .eq("customer_id",currentUser.id)
-    .eq("is_read",false)
-    .order("created_at",{ascending:false});
-
-  if(error){
-    console.error("Customer notifications could not be loaded",error);
-    return;
-  }
-
-  const rows=data || [];
-
-  setCustomerNotificationBadges(rows.length);
-  renderCustomerNotifications(rows);
-}
-
-async function markCustomerNotificationRead(notificationId){
-  if(!notificationId || !currentUser) return;
-
-  const {error}=await sb
-    .from("customer_notifications")
-    .update({is_read:true})
-    .eq("id",notificationId)
-    .eq("customer_id",currentUser.id);
-
-  if(error){
-    console.error("Customer notification could not be marked read",error);
-    return;
-  }
-
-  await loadCustomerNotifications();
-}
-
-function bindCustomerNotificationControls(){
-  if(customerNotificationControlsBound) return;
-
-  const elements=getCustomerNotificationHeaderElements();
-
-  if(!elements.bellButton || !elements.popover || !elements.list){
-    setTimeout(bindCustomerNotificationControls,100);
-    return;
-  }
-
-  customerNotificationControlsBound=true;
-
-  /*
-    Capture phase prevents older header click handlers from cancelling
-    this notification controller.
-  */
-  elements.bellButton.addEventListener("click",function(event){
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    elements.popover.classList.toggle("open");
-  },true);
-
-  document.addEventListener("click",function(event){
-    const item=event.target.closest("[data-customer-notification-id]");
-
-    if(item){
-      event.preventDefault();
-      event.stopImmediatePropagation();
-
-      const id=item.getAttribute("data-customer-notification-id");
-      const link=item.getAttribute("data-customer-notification-link") ||
-        "/customer-messages.html";
-
-      markCustomerNotificationRead(id).finally(function(){
-        window.location.href=link;
-      });
-
-      return;
-    }
-
-    const current=getCustomerNotificationHeaderElements();
-
-    if(
-      current.popover &&
-      current.bellButton &&
-      !current.popover.contains(event.target) &&
-      !current.bellButton.contains(event.target)
-    ){
-      current.popover.classList.remove("open");
-    }
-  },true);
-}
-
-async function initialiseCustomerNotifications(){
-  bindCustomerNotificationControls();
-  await loadCustomerNotifications();
-
-  if(customerNotificationRefreshTimer){
-    clearInterval(customerNotificationRefreshTimer);
-  }
-
-  customerNotificationRefreshTimer=setInterval(function(){
-    loadCustomerNotifications();
-  },30000);
-}
-(async function init(){
-  try{
-    await waitForPublicHeader();
-    const ok=await loadUser();
-
-    if(!ok){
-      return;
-    }
-
-    await claimRequestedMessageThread();
-
-    document.documentElement.classList.remove("customer-auth-pending");
-
-    await Promise.allSettled([
-      loadCounts(),
-      loadRecentlyViewed(),
-      loadDashboardConversationCount(),
-      loadRecommendations(),
-      loadBuyerPotentialMatches(),
-      loadBuyerMatchNotificationPreference()
-    ]);
-
-    await initialiseCustomerNotifications();
-  }catch(error){
-    console.error("My AnyBike failed to initialise",error);
-
-    if(currentUser){
-      document.documentElement.classList.remove("customer-auth-pending");
-    }
-
-    const welcome=document.getElementById("welcomeText");
-    const enquiries=document.getElementById("customerEnquiries");
-
-    if(welcome){
-      welcome.textContent="We could not finish loading your workspace. Please refresh the page.";
-    }
-
-    if(enquiries){
-      enquiries.innerHTML='<p class="bad">Your workspace could not be loaded. Please refresh the page.</p>';
-    }
-  }
+  checkSession();
 })();
-
-setInterval(() => {
-  if(currentUser){
-    loadDashboardConversationCount();
-  }
-}, 90000);
-  
-
 </script>
+
+<script src="/public-header.js?v=20260712-4"></script>
 </body>
 </html>
