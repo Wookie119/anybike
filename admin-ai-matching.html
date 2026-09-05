@@ -171,6 +171,16 @@ a{text-decoration:none;color:inherit}
           </div>
 
           <div id="matchStatus" class="status-box">Waiting for a buyer request.</div>
+          <div id="matchPoolControls" style="display:none;margin-top:12px;padding:14px;border:1px solid rgba(255,255,255,.12);border-radius:14px;background:#0c0c0c">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap">
+              <div>
+                <strong style="display:block;font-size:16px">Buyer Match Pool</strong>
+                <div id="matchPoolSummary" class="small-note" style="margin-top:4px">Prepare the current suitable results for this buyer.</div>
+              </div>
+              <button id="prepareMatchPoolBtn" class="btn primary" type="button">Prepare Buyer Match Pool</button>
+            </div>
+            <div class="small-note" style="margin-top:9px">This makes the pool available on the customer's dashboard so they can choose how many motorcycles to review. It does not send an email/message, contact sellers, reveal seller/source details, secure a bike or create a Deal.</div>
+          </div>
           <div id="matchResults" class="results" style="margin-top:12px"></div>
         </section>
       </div>
@@ -286,7 +296,9 @@ function updateSavedCount(){
 
 function matchStatusLabel(match){
   if(!match) return "";
-  if(match.buyer_visible) return "Buyer visible · "+(match.match_status || "Match");
+  if(match.buyer_visible) return "Commercially approved · "+(match.match_status || "Match");
+  if(match.preview_visible) return "Buyer reviewing · "+(match.match_status || "Potential Match");
+  if(match.preview_pool_eligible) return "Match Pool · "+(match.match_status || "Internal Match");
   return match.match_status || "Internal Match";
 }
 
@@ -302,6 +314,20 @@ function renderMatches(rows){
     : "";
 
   updateSavedCount();
+
+  const poolControls=document.getElementById("matchPoolControls");
+  const poolSummary=document.getElementById("matchPoolSummary");
+  const poolButton=document.getElementById("prepareMatchPoolBtn");
+  if(poolControls){
+    poolControls.style.display=rows.length ? "block" : "none";
+  }
+  if(poolSummary && activeRequestItem){
+    poolSummary.textContent=`${rows.length} suitable recommendation${rows.length===1?"":"s"} currently in this result set for Buyer #${activeRequestItem.buyer_id}.`;
+  }
+  if(poolButton){
+    poolButton.disabled=!rows.length;
+    poolButton.textContent=rows.length ? `Prepare Buyer Match Pool (${rows.length})` : "Prepare Buyer Match Pool";
+  }
 
   if(!rows.length){
     results.innerHTML='<div class="empty">No eligible Active/Live stock matched this request.</div>';
@@ -364,7 +390,7 @@ async function loadExistingPotentialMatches(rows){
   const client=getAdminSupabaseClient();
   const {data,error}=await client
     .from("buyer_motorcycle_matches")
-    .select("id,buyer_id,request_item_id,stock_id,match_status,buyer_visible,created_at")
+    .select("id,buyer_id,request_item_id,stock_id,match_status,buyer_visible,preview_pool_eligible,preview_rank,preview_visible,created_at")
     .eq("buyer_id",Number(activeRequestItem.buyer_id))
     .in("stock_id",stockIds);
 
@@ -458,6 +484,58 @@ async function savePotentialMatch(stockId,button){
   }
 }
 
+async function prepareBuyerMatchPool(){
+  if(!activeRequestItem || !currentMatchRows.length) return;
+
+  const stockIds=currentMatchRows
+    .map(row=>Number(row.stock_id))
+    .filter(Number.isFinite);
+
+  if(!stockIds.length) return;
+
+  const confirmed=window.confirm(
+    `Prepare ${stockIds.length} Potential Matches for Buyer #${activeRequestItem.buyer_id}?\n\n`+
+    `The buyer will be told AnyBike has found ${stockIds.length} potential matches and can choose how many to review.\n\n`+
+    `No email or message will be sent and no seller will be contacted.`
+  );
+  if(!confirmed) return;
+
+  const button=document.getElementById("prepareMatchPoolBtn");
+  const status=document.getElementById("matchStatus");
+  const original=button.textContent;
+  button.disabled=true;
+  button.textContent="Preparing Match Pool...";
+  status.className="status-box";
+  status.textContent=`Preparing ${stockIds.length} buyer-safe Potential Matches...`;
+
+  const client=getAdminSupabaseClient();
+  const {data,error}=await client.rpc("admin_prepare_buyer_match_pool",{
+    p_request_item_id:Number(activeRequestItem.id),
+    p_stock_ids:stockIds
+  });
+
+  button.disabled=false;
+  button.textContent=original;
+
+  if(error){
+    status.className="status-box error";
+    status.textContent="Could not prepare Buyer Match Pool: "+error.message;
+    return;
+  }
+
+  await loadExistingPotentialMatches(currentMatchRows);
+  renderMatches(currentMatchRows);
+
+  const prepared=Number(data?.prepared_count ?? stockIds.length);
+  const skipped=Number(data?.skipped_count ?? 0);
+  const linked=data?.customer_linked !== false;
+
+  status.className=linked ? "status-box success" : "status-box";
+  status.textContent=linked
+    ? `Buyer Match Pool ready: ${prepared} motorcycle${prepared===1?"":"s"}${skipped?` (${skipped} skipped)`:""}. The customer can now choose how many to review from their dashboard. Nothing has been sent automatically.`
+    : `Match Pool prepared (${prepared}), but Buyer #${activeRequestItem.buyer_id} is not linked to a customer account yet. Nothing has been sent.`;
+}
+
 async function loadBuyerRequests(){
   const client=getAdminSupabaseClient();
   const select=document.getElementById("requestSelect");
@@ -545,6 +623,7 @@ document.getElementById("requestSelect").addEventListener("change",function(){
   updateSavedCount();
   document.getElementById("matchResults").innerHTML="";
   document.getElementById("resultCount").textContent="0 results";
+  document.getElementById("matchPoolControls").style.display="none";
   document.getElementById("matchStatus").className="status-box";
   document.getElementById("matchStatus").textContent=activeRequestItem
     ? "Ready. Click Find Matching Stock."
@@ -552,6 +631,7 @@ document.getElementById("requestSelect").addEventListener("change",function(){
 });
 
 document.getElementById("findMatchesBtn").addEventListener("click",findMatches);
+document.getElementById("prepareMatchPoolBtn").addEventListener("click",prepareBuyerMatchPool);
 
 document.getElementById("matchResults").addEventListener("click",function(event){
   const viewBtn=event.target.closest(".js-view-bike");
