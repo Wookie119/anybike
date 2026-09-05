@@ -178,6 +178,8 @@ a{text-decoration:none;color:inherit}
 
           <div id="requestSummary" class="request-summary"></div>
 
+          <div id="activePoolGuard" class="status-box success" style="display:none;margin-top:14px"></div>
+
           <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">
             <button id="findMatchesBtn" class="btn primary" type="button" disabled>Find Matching Stock</button>
           </div>
@@ -267,6 +269,7 @@ let aiRequestItems=[];
 let activeRequestItem=null;
 let currentMatchRows=[];
 let existingMatchByStock=new Map();
+let activeRequestPoolState=null;
 let modalStockRow=null;
 
 function esc(value){
@@ -345,6 +348,59 @@ function matchStatusLabel(match){
   if(match.preview_visible) return "Buyer reviewing · "+(match.match_status || "Potential Match");
   if(match.preview_pool_eligible) return "Match Pool · "+(match.match_status || "Internal Match");
   return match.match_status || "Internal Match";
+}
+
+async function loadRequestPoolState(){
+  const guard=document.getElementById("activePoolGuard");
+  const findBtn=document.getElementById("findMatchesBtn");
+  activeRequestPoolState=null;
+
+  if(!activeRequestItem){
+    if(guard) guard.style.display="none";
+    if(findBtn) findBtn.disabled=true;
+    return null;
+  }
+
+  const client=getAdminSupabaseClient();
+  const {data,error}=await client
+    .from("buyer_motorcycle_matches")
+    .select("id,request_item_id,stock_id,preview_pool_eligible,preview_visible,buyer_response,buyer_offer_gbp,buyer_question")
+    .eq("request_item_id",Number(activeRequestItem.id))
+    .eq("preview_pool_eligible",true);
+
+  if(error){
+    console.warn("Could not check active Match Pool state",error.message);
+    if(guard) guard.style.display="none";
+    if(findBtn) findBtn.disabled=false;
+    return null;
+  }
+
+  const rows=data || [];
+  if(!rows.length){
+    if(guard) guard.style.display="none";
+    if(findBtn){
+      findBtn.disabled=false;
+      findBtn.textContent="Find Matching Stock";
+    }
+    return null;
+  }
+
+  const interested=rows.filter(r=>r.buyer_response==="Interested").length;
+  const offers=rows.filter(r=>r.buyer_response==="Offer Made").length;
+  const questions=rows.filter(r=>r.buyer_response==="Question Asked").length;
+  const reviewing=rows.filter(r=>r.preview_visible).length;
+  const engaged=interested+offers+questions;
+  activeRequestPoolState={poolCount:rows.length,reviewing,interested,offers,questions,engaged};
+
+  if(guard){
+    guard.style.display="block";
+    guard.innerHTML=`<strong>MATCH POOL ACTIVE</strong><br>${rows.length} potential match${rows.length===1?"":"es"} already prepared for this request. ${reviewing?`${reviewing} currently released for customer review. `:""}${engaged?`Customer selected ${engaged}: ${interested} interested · ${offers} offer${offers===1?"":"s"} · ${questions} question${questions===1?"":"s"}. `:""}<strong>Current stage: ${engaged?"Seller / Commercial Review":"Customer Review"}.</strong><br><span class="small-note">Matching is locked for this request to prevent an accidental duplicate pool. Existing customer selections are preserved.</span>`;
+  }
+  if(findBtn){
+    findBtn.disabled=true;
+    findBtn.textContent="Match Pool Active — Matching Locked";
+  }
+  return activeRequestPoolState;
 }
 
 function renderMatches(rows){
@@ -531,6 +587,10 @@ async function savePotentialMatch(stockId,button){
 
 async function prepareBuyerMatchPool(){
   if(!activeRequestItem || !currentMatchRows.length) return;
+  if(activeRequestPoolState?.poolCount){
+    alert(`This request already has an active Match Pool of ${activeRequestPoolState.poolCount} motorcycles. The existing pool has been protected from being prepared again.`);
+    return;
+  }
 
   const stockIds=currentMatchRows
     .map(row=>Number(row.stock_id))
@@ -579,6 +639,12 @@ async function prepareBuyerMatchPool(){
   status.textContent=linked
     ? `Buyer Match Pool ready: ${prepared} motorcycle${prepared===1?"":"s"}${skipped?` (${skipped} skipped)`:""}. The customer can now choose how many to review from their dashboard. Nothing has been sent automatically.`
     : `Match Pool prepared (${prepared}), but Buyer #${activeRequestItem.buyer_id} is not linked to a customer account yet. Nothing has been sent.`;
+  await loadRequestPoolState();
+  const poolButton=document.getElementById("prepareMatchPoolBtn");
+  if(poolButton){
+    poolButton.disabled=true;
+    poolButton.textContent="Match Pool Already Prepared";
+  }
 }
 
 async function loadBuyerRequests(){
@@ -619,12 +685,19 @@ async function loadBuyerRequests(){
   select.value=String(preferred.id);
   activeRequestItem=preferred;
   renderRequestSummary();
-  status.className="status-box";
-  status.textContent="Ready. Click Find Matching Stock to run the secure admin matching function.";
+  const poolState=await loadRequestPoolState();
+  status.className=poolState ? "status-box success" : "status-box";
+  status.textContent=poolState
+    ? `Request #${preferred.id} already has an active Match Pool. Matching is locked to protect the customer from duplicate batches.`
+    : "Ready. Click Find Matching Stock to run the secure admin matching function.";
 }
 
 async function findMatches(){
   if(!activeRequestItem) return;
+  if(activeRequestPoolState?.poolCount){
+    alert(`Request #${activeRequestItem.id} already has an active Match Pool of ${activeRequestPoolState.poolCount} motorcycles. Matching is locked to prevent an accidental duplicate customer batch.`);
+    return;
+  }
 
   const client=getAdminSupabaseClient();
   const btn=document.getElementById("findMatchesBtn");
@@ -659,7 +732,7 @@ async function findMatches(){
   renderMatches(rows);
 }
 
-document.getElementById("requestSelect").addEventListener("change",function(){
+document.getElementById("requestSelect").addEventListener("change",async function(){
   const id=Number(this.value);
   activeRequestItem=aiRequestItems.find(item=>Number(item.id)===id) || null;
   renderRequestSummary();
@@ -670,9 +743,16 @@ document.getElementById("requestSelect").addEventListener("change",function(){
   document.getElementById("resultCount").textContent="0 results";
   document.getElementById("matchPoolControls").style.display="none";
   document.getElementById("matchStatus").className="status-box";
-  document.getElementById("matchStatus").textContent=activeRequestItem
-    ? "Ready. Click Find Matching Stock."
-    : "Waiting for a buyer request.";
+  if(activeRequestItem){
+    const poolState=await loadRequestPoolState();
+    document.getElementById("matchStatus").className=poolState ? "status-box success" : "status-box";
+    document.getElementById("matchStatus").textContent=poolState
+      ? `Request #${activeRequestItem.id} already has an active Match Pool. Matching is locked to protect the customer from duplicate batches.`
+      : "Ready. Click Find Matching Stock.";
+  }else{
+    await loadRequestPoolState();
+    document.getElementById("matchStatus").textContent="Waiting for a buyer request.";
+  }
 });
 
 document.getElementById("findMatchesBtn").addEventListener("click",findMatches);
