@@ -1,4 +1,5 @@
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -343,6 +344,101 @@ a{text-decoration:none;color:inherit}
   font-weight:950;
   line-height:1;
 }
+
+.stock-browser{
+  margin-top:16px;
+}
+.stock-toolbar{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:10px;
+  margin-bottom:12px;
+}
+.stock-toolbar input{
+  width:100%;
+  background:#0b0b0b;
+  border:1px solid var(--line);
+  color:#fff;
+  border-radius:12px;
+  padding:12px 14px;
+  font:inherit;
+}
+.stock-toolbar button{
+  background:#ed1c24;
+  border:1px solid #ed1c24;
+  color:#fff;
+  border-radius:999px;
+  padding:10px 16px;
+  font-weight:900;
+  cursor:pointer;
+}
+.stock-list{
+  display:grid;
+  gap:10px;
+}
+.stock-row{
+  display:grid;
+  grid-template-columns:minmax(0,1.5fr) 110px 140px 120px auto;
+  gap:12px;
+  align-items:center;
+  background:#0d0d0d;
+  border:1px solid rgba(255,255,255,.10);
+  border-radius:14px;
+  padding:12px;
+}
+.stock-row:hover{
+  border-color:rgba(237,28,36,.45);
+}
+.stock-bike-title{
+  font-weight:900;
+  color:#fff;
+}
+.stock-bike-sub{
+  margin-top:4px;
+  color:#999;
+  font-size:12px;
+}
+.stock-cell-label{
+  display:block;
+  color:#888;
+  font-size:10px;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+  margin-bottom:3px;
+}
+.stock-view-btn{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  background:#222;
+  border:1px solid rgba(255,255,255,.14);
+  color:#fff;
+  border-radius:999px;
+  padding:9px 12px;
+  font-size:12px;
+  font-weight:900;
+  white-space:nowrap;
+}
+.stock-view-btn:hover{
+  border-color:#ed1c24;
+}
+.stock-status{
+  display:inline-flex;
+  border:1px solid rgba(255,255,255,.14);
+  border-radius:999px;
+  padding:5px 8px;
+  font-size:11px;
+  font-weight:900;
+}
+.stock-empty{
+  padding:20px;
+  color:#aaa;
+  text-align:center;
+  border:1px dashed var(--line);
+  border-radius:14px;
+}
+
 @media(max-width:1000px){
   .admin-shell{
     grid-template-columns:1fr;
@@ -353,6 +449,14 @@ a{text-decoration:none;color:inherit}
     overflow:visible;
   }
   .admin-topbar{
+    grid-template-columns:1fr;
+  }
+
+  .stock-toolbar{
+    grid-template-columns:1fr;
+  }
+
+  .stock-row{
     grid-template-columns:1fr;
   }
 }
@@ -408,6 +512,22 @@ a{text-decoration:none;color:inherit}
       <a class="card" href="available-stock.html" target="_blank"><h3>👁️ View Public Stock</h3><p>Open the customer-facing stock page.</p></a>
       <a class="card" href="admin-enquiries.html"><h3>🏍 Bike Sales CRM</h3><p>Open enquiries and deal calculators.</p></a>
       <a class="card" href="admin-global-buyer-network.html"><h3>🌍 Buyer Matches</h3><p>See buyer requests and stock matching.</p></a>
+    </div>
+  </section>
+
+  <section class="card stock-browser">
+    <h2>Browse Motorcycles</h2>
+    <p>Search current AnyBike stock and open the complete internal Motorcycle 360 record.</p>
+
+    <div class="stock-toolbar">
+      <input id="stockSearch" type="search"
+             placeholder="Search make, model, variant, stock ID or status..."
+             oninput="renderStockBrowser()">
+      <button type="button" onclick="loadStockBrowser()">Refresh Stock</button>
+    </div>
+
+    <div id="stockBrowserList" class="stock-list">
+      <div class="stock-empty">Loading motorcycles...</div>
     </div>
   </section>
 
@@ -542,6 +662,115 @@ async function loadStockHQ(){
   setText("closedProfit", money(closed));
   setText("avgProfit", money(avg));
 }
+
+let stockBrowserRows=[];
+
+function safeHtml(v){
+  return String(v ?? "").replace(/[&<>'"]/g,c=>({
+    "&":"&amp;",
+    "<":"&lt;",
+    ">":"&gt;",
+    "'":"&#39;",
+    '"':"&quot;"
+  }[c]));
+}
+
+async function loadStockBrowser(){
+  const list=document.getElementById("stockBrowserList");
+  if(list){
+    list.innerHTML='<div class="stock-empty">Loading motorcycles...</div>';
+  }
+
+  const {data,error}=await sb
+    .from("available_stock")
+    .select("id,make,model,variant,year,mileage,price_gbp,status,created_at")
+    .order("created_at",{ascending:false})
+    .limit(500);
+
+  if(error){
+    if(list){
+      list.innerHTML='<div class="stock-empty">Could not load motorcycles: '+safeHtml(error.message)+'</div>';
+    }
+    return;
+  }
+
+  stockBrowserRows=data || [];
+  renderStockBrowser();
+}
+
+function renderStockBrowser(){
+  const list=document.getElementById("stockBrowserList");
+  if(!list) return;
+
+  const q=String(document.getElementById("stockSearch")?.value || "")
+    .trim()
+    .toLowerCase();
+
+  const rows=stockBrowserRows.filter(function(b){
+    if(!q) return true;
+
+    const hay=[
+      b.id,
+      b.make,
+      b.model,
+      b.variant,
+      b.year,
+      b.status
+    ].join(" ").toLowerCase();
+
+    return hay.includes(q);
+  });
+
+  if(!rows.length){
+    list.innerHTML='<div class="stock-empty">No motorcycles found.</div>';
+    return;
+  }
+
+  list.innerHTML=rows.map(function(b){
+    const title=[b.make,b.model,b.variant].filter(Boolean).join(" ") || "Motorcycle";
+    const price=(b.price_gbp===null || b.price_gbp===undefined || b.price_gbp==="")
+      ? "-"
+      : "£"+Number(b.price_gbp).toLocaleString("en-GB",{maximumFractionDigits:0});
+
+    const mileage=(b.mileage===null || b.mileage===undefined || b.mileage==="")
+      ? "-"
+      : Number(b.mileage).toLocaleString("en-GB")+" miles";
+
+    return `
+      <div class="stock-row">
+        <div>
+          <div class="stock-bike-title">${safeHtml(title)}</div>
+          <div class="stock-bike-sub">
+            AnyBike ID ${safeHtml(b.id)}${b.year ? " • "+safeHtml(b.year) : ""}
+          </div>
+        </div>
+
+        <div>
+          <span class="stock-cell-label">Mileage</span>
+          ${safeHtml(mileage)}
+        </div>
+
+        <div>
+          <span class="stock-cell-label">Price</span>
+          ${safeHtml(price)}
+        </div>
+
+        <div>
+          <span class="stock-cell-label">Status</span>
+          <span class="stock-status">${safeHtml(b.status || "Unknown")}</span>
+        </div>
+
+        <div>
+          <a class="stock-view-btn"
+             href="admin-motorcycle-360.html?id=${encodeURIComponent(b.id)}">
+             View Motorcycle 360
+          </a>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
 (async function startStockHQ(){
   const allowed = await requireAdminSession();
 
@@ -552,6 +781,7 @@ async function loadStockHQ(){
   document.documentElement.classList.remove("admin-auth-pending");
 
   await loadStockHQ();
+  await loadStockBrowser();
 })();
 </script>
 
