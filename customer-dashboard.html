@@ -651,6 +651,19 @@ footer{
   background:#181818;color:#fff;border:1px solid var(--line);border-radius:10px;padding:9px 11px;
 }
 .buyer-match-preference-status{font-size:11px;color:var(--muted);min-height:15px}
+
+/* MATCH POOL V2 - additive only; customer authentication code unchanged */
+.buyer-match-pool-invites{display:grid;gap:12px;margin-bottom:16px}
+.buyer-match-pool-card{padding:16px;border:1px solid rgba(255,255,255,.12);border-radius:16px;background:#0d0d0d}
+.buyer-match-pool-card h3{margin:0 0 6px;font-size:19px}
+.buyer-match-pool-card p{margin:0;color:var(--muted);line-height:1.45}
+.buyer-match-pool-count{font-size:28px;font-weight:1000;margin:10px 0 2px}
+.buyer-match-pool-options{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.buyer-match-pool-choice{border:1px solid rgba(255,255,255,.18);background:#151515;color:#fff;border-radius:999px;padding:9px 14px;font-weight:900;cursor:pointer}
+.buyer-match-pool-choice.primary{background:var(--red);border-color:var(--red)}
+.buyer-match-pool-choice:disabled{opacity:.55;cursor:not-allowed}
+.buyer-match-pool-state{margin-top:10px;font-size:12px;color:var(--muted)}
+.buyer-match-pool-state.ok{color:#9ef0b5}
 .buyer-match-group{margin-top:18px}
 .buyer-match-group:first-child{margin-top:0}
 .buyer-match-group-head{
@@ -840,6 +853,7 @@ footer{
           <span id="buyerMatchPreferenceStatus" class="buyer-match-preference-status"></span>
         </div>
       </div>
+      <div id="buyerMatchPoolInvites" class="buyer-match-pool-invites"></div>
       <div id="buyerPotentialMatchesBox">
         <div class="buyer-match-empty">Loading your AnyBike Potential Matches...</div>
       </div>
@@ -973,6 +987,7 @@ let openConversationKey=null;
 let myDealMotorcycles=[];
 let myDealMotorcycleByMatch={};
 let myDealNegotiationCache={};
+let myBuyerMatchPools=[];
 
 async function claimRequestedMessageThread(){
   const params = new URLSearchParams(window.location.search);
@@ -1258,6 +1273,72 @@ function buyerMatchCardHtml(match){
   `;
 }
 
+function buyerMatchRequestYearText(pool){
+  if(pool.year_from && pool.year_to){
+    return Number(pool.year_from)===Number(pool.year_to)
+      ? String(pool.year_from)
+      : `${pool.year_from}–${pool.year_to}`;
+  }
+  if(pool.year_from) return `${pool.year_from} onwards`;
+  if(pool.year_to) return `Up to ${pool.year_to}`;
+  return "Any year";
+}
+
+function renderBuyerMatchPools(pools){
+  const box=document.getElementById("buyerMatchPoolInvites");
+  if(!box) return;
+  myBuyerMatchPools=Array.isArray(pools) ? pools : [];
+  if(!myBuyerMatchPools.length){ box.innerHTML=""; return; }
+
+  box.innerHTML=myBuyerMatchPools.map(pool=>{
+    const available=Number(pool.pool_count || 0);
+    const requested=Number(pool.requested_count || 0);
+    const released=Number(pool.released_count || 0);
+    const responded=Number(pool.responded_count || 0);
+    const requestTitle=[pool.make,pool.model].filter(Boolean).join(" ") || "your motorcycle request";
+    let optionHtml="";
+    if(!requested){
+      const choices=[5,10,20].filter(n=>n<available);
+      optionHtml=choices.map(n=>`<button class="buyer-match-pool-choice" type="button" onclick="chooseBuyerMatchCount(${Number(pool.request_item_id)},${n},this)">${n}</button>`).join("");
+      optionHtml+=`<button class="buyer-match-pool-choice primary" type="button" onclick="chooseBuyerMatchCount(${Number(pool.request_item_id)},${available},this)">All ${available}</button>`;
+    }else if(requested<available){
+      const targets=[Math.min(available,requested+5),Math.min(available,requested+10)].filter((n,i,a)=>n>requested && a.indexOf(n)===i && n<available);
+      optionHtml=targets.map(target=>`<button class="buyer-match-pool-choice" type="button" onclick="chooseBuyerMatchCount(${Number(pool.request_item_id)},${target},this)">Show ${target-requested} more</button>`).join("");
+      optionHtml+=`<button class="buyer-match-pool-choice primary" type="button" onclick="chooseBuyerMatchCount(${Number(pool.request_item_id)},${available},this)">Show all ${available}</button>`;
+    }
+    const state=requested
+      ? `You asked to review ${requested} of ${available}. ${responded ? `You have responded to ${responded}.` : "Choose the motorcycles that interest you and AnyBike will check those sellers."}`
+      : "How many would you like us to show you?";
+    return `<article class="buyer-match-pool-card" id="buyer-match-pool-${safe(pool.request_item_id)}">
+      <h3>We found Potential Matches for ${safe(requestTitle)}</h3>
+      <p>${safe(buyerMatchRequestYearText(pool))}${pool.mileage_max ? ` · Up to ${Number(pool.mileage_max).toLocaleString("en-GB")} miles` : ""}</p>
+      <div class="buyer-match-pool-count">${available.toLocaleString("en-GB")} found</div>
+      <p>AnyBike has identified these motorcycles against your request. Seller availability and final commercial terms have not yet been checked.</p>
+      <div class="buyer-match-pool-state ${requested ? "ok" : ""}" id="buyer-match-pool-state-${safe(pool.request_item_id)}">${safe(state)}</div>
+      ${optionHtml ? `<div class="buyer-match-pool-options">${optionHtml}</div>` : ""}
+      ${requested && released ? `<div class="buyer-match-pool-state">Currently showing ${released} motorcycle${released===1?"":"s"} below.</div>` : ""}
+    </article>`;
+  }).join("");
+}
+
+async function chooseBuyerMatchCount(requestItemId,count,button){
+  if(!currentUser){ redirectToCustomerLogin(); return; }
+  const state=document.getElementById(`buyer-match-pool-state-${requestItemId}`);
+  const card=document.getElementById(`buyer-match-pool-${requestItemId}`);
+  const buttons=card ? card.querySelectorAll("button") : [];
+  buttons.forEach(btn=>btn.disabled=true);
+  if(state){ state.textContent=`Preparing ${count} Potential Matches for you...`; state.className="buyer-match-pool-state"; }
+  try{
+    const {error}=await sb.rpc("customer_choose_buyer_match_count",{p_request_item_id:Number(requestItemId),p_count:Number(count)});
+    if(error) throw error;
+    await loadBuyerPotentialMatches();
+  }catch(error){
+    console.error("Could not choose Potential Match quantity",error);
+    if(state){ state.textContent="We could not update your Potential Matches: "+(error?.message || "Unknown error"); state.className="buyer-match-pool-state bad"; }
+    buttons.forEach(btn=>btn.disabled=false);
+  }
+}
+
 function renderBuyerPotentialMatches(rows){
   const box=document.getElementById("buyerPotentialMatchesBox");
   if(!box) return;
@@ -1283,7 +1364,9 @@ function renderBuyerPotentialMatches(rows){
   }
 
   if(!rows.length){
-    box.innerHTML=`<div class="buyer-match-empty">You do not have any AnyBike Potential Matches yet. When our team approves suitable motorcycles against your requirements, they will appear here.</div>`;
+    box.innerHTML=myBuyerMatchPools.length
+      ? `<div class="buyer-match-empty">Choose how many Potential Matches you would like to review above. Motorcycles you select will appear here.</div>`
+      : `<div class="buyer-match-empty">You do not have any AnyBike Potential Matches yet. When AnyBike finds suitable motorcycles against your requirements, they will appear here.</div>`;
     return;
   }
 
@@ -1315,10 +1398,19 @@ async function loadBuyerPotentialMatches(){
 
   box.innerHTML=`<div class="buyer-match-empty">Loading your AnyBike Potential Matches...</div>`;
 
-  const [matchRes,dealRes]=await Promise.all([
-    sb.rpc("get_my_buyer_matches"),
+  const [poolRes,matchRes,dealRes]=await Promise.all([
+    sb.rpc("get_my_buyer_match_pools"),
+    sb.rpc("get_my_buyer_match_dashboard"),
     sb.rpc("get_my_deal_motorcycles")
   ]);
+
+  if(poolRes.error){
+    console.warn("Potential Match pools could not be loaded",poolRes.error.message);
+    const inviteBox=document.getElementById("buyerMatchPoolInvites");
+    if(inviteBox){ inviteBox.innerHTML=`<div class="buyer-match-empty"><span class="bad">Match choices could not be loaded: ${safe(poolRes.error.message)}</span></div>`; }
+  }else{
+    renderBuyerMatchPools(poolRes.data || []);
+  }
 
   if(matchRes.error){
     console.error("Potential Matches could not be loaded",matchRes.error);
