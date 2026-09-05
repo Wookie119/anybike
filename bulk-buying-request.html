@@ -1214,46 +1214,24 @@ async function submitBulkRequest(form){
       customer_id may not exist in older deployments.
       Retry without it if Supabase reports that the column is missing.
     */
-    let buyerResult=await sb
-      .from("global_buyer_network")
-      .insert(buyerPayload)
-      .select("id")
-      .single();
+    const itemRows=itemRowsFromBikes(null,bikes);
 
-    if(
-      buyerResult.error &&
-      String(buyerResult.error.message || "")
-        .toLowerCase()
-        .includes("customer_id")
-    ){
-      const retryPayload={...buyerPayload};
-      delete retryPayload.customer_id;
+const {data:buyerId,error:buyerError}=await sb.rpc(
+  "create_global_buyer_request",
+  {
+    p_buyer:buyerPayload,
+    p_items:itemRows
+  }
+);
 
-      buyerResult=await sb
-        .from("global_buyer_network")
-        .insert(retryPayload)
-        .select("id")
-        .single();
-    }
+if(buyerError){
+  throw buyerError;
+}
 
-    if(buyerResult.error || !buyerResult.data?.id){
-      throw buyerResult.error ||
-        new Error("Buyer record was not created.");
-    }
+if(!buyerId){
+  throw new Error("Buyer request was not created.");
+}
 
-    const buyer=buyerResult.data;
-    const itemRows=itemRowsFromBikes(buyer.id,bikes);
-
-    const {error:itemError}=await sb
-      .from("global_buyer_request_items")
-      .insert(itemRows);
-
-    if(itemError){
-      throw new Error(
-        "Buyer record created, but motorcycle request items failed: " +
-        itemError.message
-      );
-    }
     const threadNow = new Date().toISOString();
 
 const threadSubject =
