@@ -2,6 +2,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -742,6 +743,68 @@ a{text-decoration:none;color:inherit}
   font-size:11px;
   line-height:1.4;
 }
+
+.buyer-response-panel{
+  margin-top:12px;
+  padding:13px 14px;
+  border:1px solid rgba(255,255,255,.13);
+  border-radius:12px;
+  background:#0b0b0b;
+  display:grid;
+  gap:8px;
+}
+.buyer-response-panel.has-response{
+  border-color:rgba(54,211,126,.45);
+  background:rgba(54,211,126,.07);
+}
+.buyer-response-panel.has-offer{
+  border-color:rgba(237,28,36,.65);
+  background:rgba(237,28,36,.10);
+  box-shadow:0 0 0 1px rgba(237,28,36,.12);
+}
+.buyer-response-title{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  flex-wrap:wrap;
+}
+.buyer-response-title strong{
+  font-size:13px;
+}
+.buyer-response-badge{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-height:28px;
+  padding:5px 9px;
+  border-radius:999px;
+  background:#222;
+  border:1px solid rgba(255,255,255,.12);
+  color:#fff;
+  font-size:11px;
+  font-weight:900;
+}
+.buyer-response-panel.has-offer .buyer-response-badge{
+  background:var(--red);
+  border-color:var(--red);
+}
+.buyer-response-amount{
+  font-size:24px;
+  font-weight:900;
+  color:#fff;
+}
+.buyer-response-message{
+  color:#ddd;
+  font-size:13px;
+  line-height:1.45;
+  white-space:pre-wrap;
+}
+.buyer-response-time{
+  color:#999;
+  font-size:11px;
+}
+
 @media(max-width:760px){
   .match-approval-row{
     grid-template-columns:1fr;
@@ -1651,6 +1714,85 @@ function normaliseGbpInput(input){
   input.value=Math.max(0,value).toFixed(2);
 }
 
+
+function buyerResponseHtml(match){
+  if(!match){
+    return `
+      <div class="buyer-response-panel">
+        <div class="buyer-response-title">
+          <strong>Buyer Response</strong>
+          <span class="buyer-response-badge">No response yet</span>
+        </div>
+      </div>
+    `;
+  }
+
+  const response=String(match.buyer_response || "No Response").trim();
+  const offer=match.buyer_offer_gbp;
+  const question=String(match.buyer_question || "").trim();
+  const respondedAt=match.buyer_responded_at;
+  const hasOffer=offer!==null && offer!==undefined && offer!=="";
+  const hasResponse=
+    response &&
+    response!=="No Response" &&
+    response!=="None";
+
+  let badge=response || "No response yet";
+  let message="";
+
+  if(hasOffer){
+    badge="Buyer Offer";
+    message="Customer has submitted an offer for this motorcycle.";
+  }else if(response==="Interested"){
+    badge="Interested";
+    message="Customer has confirmed they are interested in this motorcycle.";
+  }else if(response==="Question Asked"){
+    badge="Question Asked";
+    message=question || "Customer has asked a question about this motorcycle.";
+  }else if(response==="Not Interested"){
+    badge="Not Interested";
+    message="Customer has marked this motorcycle as not interested.";
+  }else if(question){
+    badge="Question Asked";
+    message=question;
+  }
+
+  const classes=[
+    "buyer-response-panel",
+    hasResponse ? "has-response" : "",
+    hasOffer ? "has-offer" : ""
+  ].filter(Boolean).join(" ");
+
+  return `
+    <div class="${classes}">
+      <div class="buyer-response-title">
+        <strong>Buyer Response</strong>
+        <span class="buyer-response-badge">${safe(badge)}</span>
+      </div>
+
+      ${hasOffer
+        ? `<div class="buyer-response-amount">${money(offer)}</div>`
+        : ""
+      }
+
+      ${message
+        ? `<div class="buyer-response-message">${safe(message)}</div>`
+        : ""
+      }
+
+      ${question && hasOffer
+        ? `<div class="buyer-response-message"><strong>Buyer question:</strong> ${safe(question)}</div>`
+        : ""
+      }
+
+      ${respondedAt
+        ? `<div class="buyer-response-time">Received ${safe(dateTxt(respondedAt))}</div>`
+        : ""
+      }
+    </div>
+  `;
+}
+
 function potentialMatchesHtml(buyer,its){
   if(!its.length) return '<div class="muted">No requested bikes to match yet.</div>';
 
@@ -1700,6 +1842,8 @@ function potentialMatchesHtml(buyer,its){
           <a href="admin-motorcycle-360.html?id=${encodeURIComponent(m.id)}" target="_blank">View Bike</a>
           <a href="available-stock.html" target="_blank">Open Stock Page</a>
         </div>
+
+        ${buyerResponseHtml(existing)}
 
         <div class="match-approval">
           <div class="match-approval-row">
