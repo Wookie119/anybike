@@ -177,6 +177,57 @@
   </div>
 </div>
 
+<div class="seller-modal-backdrop" id="sellerPriceReviewModal" onclick="sellerPriceReviewBackdropClick(event)">
+  <div class="seller-modal" role="dialog" aria-modal="true" aria-labelledby="sellerPriceReviewTitle">
+    <div class="seller-modal-head">
+      <div>
+        <h2 id="sellerPriceReviewTitle">Review Seller Price Request</h2>
+        <p>Review the seller and motorcycle before anything is sent.</p>
+      </div>
+      <button type="button" class="seller-modal-close" onclick="closeSellerPriceReview()" aria-label="Close">×</button>
+    </div>
+    <div class="seller-modal-body">
+      <div class="seller-form-section">
+        <h3>Motorcycle</h3>
+        <div class="seller-grid">
+          <div class="seller-field"><label>Motorcycle</label><div id="sprBikeName" class="seller-review-value">-</div></div>
+          <div class="seller-field"><label>Stock ID</label><div id="sprStockId" class="seller-review-value">-</div></div>
+          <div class="seller-field"><label>Advertised Price</label><div id="sprAdvertisedPrice" class="seller-review-value">-</div></div>
+          <div class="seller-field"><label>Buyer Offer (Internal only)</label><div id="sprBuyerOffer" class="seller-review-value">-</div></div>
+        </div>
+      </div>
+      <div class="seller-form-section">
+        <h3>Seller</h3>
+        <div class="seller-grid">
+          <div class="seller-field"><label>Seller Type</label><div id="sprSellerType" class="seller-review-value">-</div></div>
+          <div class="seller-field"><label>Seller / Dealership</label><input id="sprSellerName" type="text"></div>
+          <div class="seller-field"><label>Contact Name</label><input id="sprContactName" type="text" placeholder="Optional contact name"></div>
+          <div class="seller-field"><label>Email</label><input id="sprSellerEmail" type="email" placeholder="Seller email address"></div>
+          <div class="seller-field"><label>Telephone</label><input id="sprSellerPhone" type="text" placeholder="Seller telephone number"></div>
+          <div class="seller-field"><label>Request Valid Until</label><input id="sprValidUntil" type="datetime-local"></div>
+        </div>
+      </div>
+      <div class="seller-form-section">
+        <h3>Delivery</h3>
+        <div class="seller-grid">
+          <div class="seller-field"><label>Method</label><select id="sprDeliveryMethod"><option value="Email">Email</option><option value="Dealer Dashboard" disabled>Dealer Dashboard — later</option><option value="Message Centre" disabled>Message Centre — later</option><option value="WhatsApp" disabled>WhatsApp — later</option></select></div>
+          <div class="seller-field full"><div id="sprContactWarning" class="seller-price-warning"></div></div>
+        </div>
+      </div>
+      <div class="seller-form-section">
+        <h3>Confidentiality</h3>
+        <div class="seller-review-note">The seller request will ask only for availability and the confidential price they will sell the motorcycle to AnyBike for. The buyer's identity, buyer offer and AnyBike margin will not be sent.</div>
+      </div>
+    </div>
+    <div class="seller-modal-actions">
+      <div class="seller-modal-status" id="sprReviewStatus"></div>
+      <button type="button" onclick="closeSellerPriceReview()">Close</button>
+      <button type="button" class="save" id="sprSaveDraftButton" onclick="saveSellerPriceDraft()">Save Draft</button>
+      <button type="button" id="sprSendButton" disabled title="Email sending will be connected after the review workflow is verified.">Send Request</button>
+    </div>
+  </div>
+</div>
+
 <script>
 document.documentElement.classList.add("admin-auth-pending");
 </script>
@@ -1967,6 +2018,8 @@ let adminDealNegotiationCache={};
 let sellerConfirmations={};
 let sellerPriceRequests=[];
 let sellerPriceRequestByMatch={};
+let activeSellerPriceRequestId=null;
+let activeSellerPriceMatchId=null;
 let activeSellerMatchId=null;
 let buyerThreads=[];
 let buyerConversationCache={};
@@ -2425,6 +2478,102 @@ async function createDraftSellerPriceRequest(matchId){
   );
 }
 
+function sellerPriceReviewBackdropClick(event){
+  if(event.target && event.target.id==="sellerPriceReviewModal") closeSellerPriceReview();
+}
+
+function closeSellerPriceReview(){
+  const modal=document.getElementById("sellerPriceReviewModal");
+  if(modal) modal.classList.remove("open");
+  activeSellerPriceRequestId=null;
+  activeSellerPriceMatchId=null;
+}
+
+function updateSellerPriceReviewState(){
+  const email=String(document.getElementById("sprSellerEmail")?.value || "").trim();
+  const warning=document.getElementById("sprContactWarning");
+  const send=document.getElementById("sprSendButton");
+  if(!warning || !send) return;
+  if(email){
+    warning.className="seller-price-warning ok";
+    warning.textContent="Email contact is present. Sending is deliberately disabled until the email delivery step is connected and tested.";
+  }else{
+    warning.className="seller-price-warning";
+    warning.textContent="Contact details required — no seller email is currently stored for this request.";
+  }
+  send.disabled=true;
+}
+
+function openSellerPriceReview(matchId){
+  const request=sellerPriceRequestForMatch(matchId);
+  const match=(buyerMatches || []).find(m=>String(m.id)===String(matchId));
+  if(!request || !match){
+    alert("Could not load this Seller Price Request.");
+    return;
+  }
+  const bike=offerStockForMatch(match) || {};
+  activeSellerPriceRequestId=Number(request.id);
+  activeSellerPriceMatchId=Number(matchId);
+  document.getElementById("sprBikeName").textContent=[bike.make || match.stock_make,bike.model || match.stock_model,bike.variant || match.stock_variant].filter(Boolean).join(" ") || "Motorcycle";
+  document.getElementById("sprStockId").textContent=String(request.stock_id || match.stock_id || "-");
+  document.getElementById("sprAdvertisedPrice").textContent=money(request.advertised_price_gbp);
+  document.getElementById("sprBuyerOffer").textContent=money(match.buyer_offer_gbp);
+  document.getElementById("sprSellerType").textContent=request.seller_type || "-";
+  document.getElementById("sprSellerName").value=request.seller_name || "";
+  document.getElementById("sprContactName").value=request.seller_contact_name || "";
+  document.getElementById("sprSellerEmail").value=request.seller_email || "";
+  document.getElementById("sprSellerPhone").value=request.seller_phone || "";
+  document.getElementById("sprValidUntil").value=sellerLocalDateTime(request.requested_valid_until);
+  document.getElementById("sprDeliveryMethod").value="Email";
+  const status=document.getElementById("sprReviewStatus");
+  status.className="seller-modal-status";
+  status.textContent="Draft only — nothing has been sent to the seller.";
+  ["sprSellerName","sprContactName","sprSellerEmail","sprSellerPhone","sprValidUntil"].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.oninput=updateSellerPriceReviewState;
+  });
+  updateSellerPriceReviewState();
+  document.getElementById("sellerPriceReviewModal").classList.add("open");
+}
+
+async function saveSellerPriceDraft(){
+  if(!activeSellerPriceRequestId) return;
+  const status=document.getElementById("sprReviewStatus");
+  const btn=document.getElementById("sprSaveDraftButton");
+  const requestedValidUntil=sellerIsoOrNull(document.getElementById("sprValidUntil").value);
+  if(document.getElementById("sprValidUntil").value && !requestedValidUntil){
+    status.className="seller-modal-status error";
+    status.textContent="Please enter a valid request date/time.";
+    return;
+  }
+  btn.disabled=true;
+  status.className="seller-modal-status";
+  status.textContent="Saving draft...";
+  const patch={
+    seller_name:String(document.getElementById("sprSellerName").value || "").trim() || null,
+    seller_contact_name:String(document.getElementById("sprContactName").value || "").trim() || null,
+    seller_email:String(document.getElementById("sprSellerEmail").value || "").trim() || null,
+    seller_phone:String(document.getElementById("sprSellerPhone").value || "").trim() || null,
+    requested_valid_until:requestedValidUntil
+  };
+  const {data,error}=await sb.from("seller_price_requests").update(patch).eq("id",activeSellerPriceRequestId).eq("request_status","Draft").select().single();
+  btn.disabled=false;
+  if(error){
+    status.className="seller-modal-status error";
+    status.textContent="Could not save draft: "+error.message;
+    return;
+  }
+  if(data){
+    const key=String(activeSellerPriceMatchId);
+    sellerPriceRequestByMatch[key]=data;
+    const idx=sellerPriceRequests.findIndex(r=>String(r.id)===String(data.id));
+    if(idx>=0) sellerPriceRequests[idx]=data;
+  }
+  status.className="seller-modal-status success";
+  status.textContent="Draft saved. Nothing has been sent to the seller.";
+  updateSellerPriceReviewState();
+}
+
 function openBuyerFromOffer(buyerId){
   const buyer=buyers.find(b=>String(b.id)===String(buyerId));
   if(!buyer) return;
@@ -2478,7 +2627,7 @@ function sellerPriceRequestForMatch(matchId){
 function sellerPriceRequestButton(request){
   if(!request) return null;
   const status=String(request.request_status || "Draft").trim();
-  if(status==="Draft") return {text:"Seller Price Draft", title:"Draft Seller Price Request exists — nothing has been sent to the seller."};
+  if(status==="Draft") return {text:"Seller Price Draft", title:"Open and review this Draft Seller Price Request.", actionable:true};
   if(status==="Sent") return {text:"Seller Price Requested", title:"Seller Price Request has been sent and is awaiting a response."};
   if(status==="Viewed") return {text:"Seller Request Viewed", title:"Seller has viewed the Seller Price Request."};
   if(status==="Responded") return {text:"Seller Price Responded", title:"Seller has responded to the Seller Price Request."};
@@ -3246,7 +3395,9 @@ function renderBuyerOffers(){
               <td>
                 <div class="offer-actions">
                   ${hasOffer && !hasSellerPrice && sellerPriceRequestState
-                    ? `<button type="button" class="seller-check-btn" disabled title="${safe(sellerPriceRequestState.title)}">${safe(sellerPriceRequestState.text)}</button>`
+                    ? (sellerPriceRequestState.actionable
+                        ? `<button type="button" class="seller-check-btn needs-action" title="${safe(sellerPriceRequestState.title)}" onclick="openSellerPriceReview(${Number(match.id)})">${safe(sellerPriceRequestState.text)}</button>`
+                        : `<button type="button" class="seller-check-btn" disabled title="${safe(sellerPriceRequestState.title)}">${safe(sellerPriceRequestState.text)}</button>`)
                     : (hasOffer && !hasSellerPrice && String(match.match_status || "")!=="Accepted"
                         ? `<button type="button" id="seller-price-request-${safe(match.id)}" class="seller-check-btn needs-action" onclick="createDraftSellerPriceRequest(${Number(match.id)})">Request Seller Price</button>`
                         : "")
