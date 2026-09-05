@@ -1,4 +1,5 @@
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1472,32 +1473,67 @@ function priceMatches(price, maxPrice){
   if(!p) return true;
   return p <= max;
 }
+function modelMatches(stockModel,requestedModel){
+  const stockText=norm(stockModel);
+  const requestText=norm(requestedModel);
+
+  if(!stockText || !requestText) return false;
+
+  if(stockText===requestText) return true;
+
+  const stockTokens=stockText
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+
+  const requestTokens=requestText
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+
+  return requestTokens.every(token=>stockTokens.includes(token));
+}
+
 function matchScore(s,i){
   let score=0;
-  if(norm(s.make) === norm(i.make)) score += 40;
-  if(norm(s.model) === norm(i.model)) score += 35;
-  else if(norm(s.model).includes(norm(i.model)) || norm(i.model).includes(norm(s.model))) score += 22;
-  if(yearMatches(s.year,i.year_from,i.year_to)) score += 10;
-  if(mileageMatches(s.mileage,i.mileage_max)) score += 8;
-  if(priceMatches(s.price_gbp,i.max_price_gbp)) score += 7;
+
+  if(norm(s.make)===norm(i.make)){
+    score+=40;
+  }
+
+  if(norm(s.model)===norm(i.model)){
+    score+=35;
+  }else if(modelMatches(s.model,i.model)){
+    score+=22;
+  }
+
+  if(yearMatches(s.year,i.year_from,i.year_to)) score+=10;
+  if(mileageMatches(s.mileage,i.mileage_max)) score+=8;
+  if(priceMatches(s.price_gbp,i.max_price_gbp)) score+=7;
+
   return Math.min(score,100);
 }
+
 function matchesForItem(i){
   const make=norm(i.make);
   const model=norm(i.model);
+
   if(!make || !model) return [];
 
   return stock
     .filter(s=>{
-      const makeOk = norm(s.make) === make;
-      const modelOk = norm(s.model) === model || norm(s.model).includes(model) || model.includes(norm(s.model));
-      return makeOk && modelOk
+      const makeOk=norm(s.make)===make;
+      const modelOk=modelMatches(s.model,model);
+
+      return makeOk
+        && modelOk
         && yearMatches(s.year,i.year_from,i.year_to)
         && mileageMatches(s.mileage,i.mileage_max)
         && priceMatches(s.price_gbp,i.max_price_gbp);
     })
     .map(s=>({...s,_score:matchScore(s,i),_requested:i}))
-    .sort((a,b)=>b._score-a._score || Number(a.price_gbp||999999)-Number(b.price_gbp||999999))
+    .sort((a,b)=>
+      b._score-a._score ||
+      Number(a.price_gbp||999999)-Number(b.price_gbp||999999)
+    )
     .slice(0,5);
 }
 function potentialMatchesHtml(its){
