@@ -264,6 +264,31 @@ a{text-decoration:none;color:inherit}
   </div>
 </div>
 
+<div id="queueMatchReviewModal" class="modal-backdrop" aria-hidden="true">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="queueMatchReviewTitle">
+    <div class="modal-head">
+      <div><div class="dept-eyebrow">Customer Selected · Commercial Review</div><h2 id="queueMatchReviewTitle">Match Review</h2></div>
+      <button id="queueMatchReviewClose" class="modal-close" type="button" aria-label="Close">×</button>
+    </div>
+    <div id="queueMatchReviewStatus" class="status-box success"></div>
+    <div id="queueMatchReviewDetails" class="detail-grid" style="margin-top:12px"></div>
+    <div id="queueMatchReviewQuestion"></div>
+    <div class="result-actions" id="queueMatchReviewActions"></div>
+  </div>
+</div>
+
+<div id="queueMotorcycleModal" class="modal-backdrop" aria-hidden="true">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="queueMotorcycleTitle">
+    <div class="modal-head">
+      <div><div class="dept-eyebrow">Internal Motorcycle View</div><h2 id="queueMotorcycleTitle">Motorcycle</h2></div>
+      <button id="queueMotorcycleClose" class="modal-close" type="button" aria-label="Close">×</button>
+    </div>
+    <div id="queueMotorcycleImage" style="margin-bottom:14px"></div>
+    <div id="queueMotorcycleDetails" class="detail-grid"></div>
+    <div id="queueMotorcycleSeller" class="status-box" style="margin-top:12px"></div>
+  </div>
+</div>
+
 <script>
 let aiRequestItems=[];
 let activeRequestItem=null;
@@ -271,6 +296,7 @@ let currentMatchRows=[];
 let existingMatchByStock=new Map();
 let activeRequestPoolState=null;
 let modalStockRow=null;
+let queueContextByMatch=new Map();
 
 function esc(value){
   return String(value ?? "")
@@ -856,7 +882,7 @@ async function loadInterestedMatchesQueue(){
       ? client.from("global_buyer_network").select("id,business_name,contact_name,email,phone,country,customer_id").in("id",buyerIds)
       : Promise.resolve({data:[],error:null}),
     stockIds.length
-      ? client.from("available_stock").select("id,seller_type,seller_name,seller_phone,seller_email,seller_location,private_seller_name,private_seller_type,private_seller_phone,private_seller_email,source_type,source_partner_name,source_dealer_id,status,lifecycle_status").in("id",stockIds)
+      ? client.from("available_stock").select("id,make,model,variant,year,mileage,engine_cc,price_gbp,colour,vat_status,image_url,seller_type,seller_name,seller_phone,seller_email,seller_location,private_seller_name,private_seller_type,private_seller_phone,private_seller_email,source_type,source_partner_name,source_dealer_id,status,lifecycle_status").in("id",stockIds)
       : Promise.resolve({data:[],error:null}),
     stockIds.length
       ? client.from("seller_price_requests").select("id,stock_id,buyer_match_id,request_status,availability_status,seller_price_gbp,price_valid_until,responded_at,created_at").in("stock_id",stockIds).order("created_at",{ascending:false})
@@ -894,6 +920,7 @@ async function loadInterestedMatchesQueue(){
   status.className="status-box success";
   status.textContent=`${rows.length} customer-selected motorcycle${rows.length===1?"":"s"} require AnyBike review.`;
 
+  queueContextByMatch=new Map();
   box.innerHTML=rows.map(match=>{
     const buyer=buyerById.get(Number(match.buyer_id)) || {};
     const stock=stockById.get(Number(match.stock_id)) || {};
@@ -904,6 +931,7 @@ async function loadInterestedMatchesQueue(){
     const sellerType=stock.seller_type || stock.private_seller_type || "-";
     const sellerPrice=sellerRequest?.seller_price_gbp!==null && sellerRequest?.seller_price_gbp!==undefined ? queueMoney(sellerRequest.seller_price_gbp) : "Not recorded";
     const responseAmount=match.buyer_response==="Offer Made" ? queueMoney(match.buyer_offer_gbp) : "";
+    queueContextByMatch.set(Number(match.id),{match,buyer,stock,sellerRequest,buyerName,bike,sellerName,sellerType,sellerPrice,responseAmount});
     return `
       <article class="queue-card ${queueResponseClass(match.buyer_response)}">
         <div class="queue-top">
@@ -926,8 +954,8 @@ async function loadInterestedMatchesQueue(){
         ${match.buyer_question ? `<div class="queue-question"><strong>Buyer question:</strong> ${esc(match.buyer_question)}</div>` : ""}
         <div class="queue-next"><strong>Next:</strong> ${esc(queueNextAction(match,sellerRequest))}</div>
         <div class="result-actions">
-          <a class="btn secondary small" href="admin-global-buyer-network.html">Open Buyer CRM</a>
-          <button class="btn primary small js-queue-copy-stock" type="button" data-stock-id="${esc(match.stock_id)}">Copy Stock #${esc(match.stock_id)}</button>
+          <button class="btn primary small js-open-match-review" type="button" data-match-id="${esc(match.id)}">Open Match Review</button>
+          <button class="btn secondary small js-queue-view-bike" type="button" data-match-id="${esc(match.id)}">🏍 View Motorcycle</button>
         </div>
       </article>`;
   }).join("");
@@ -936,19 +964,69 @@ async function loadInterestedMatchesQueue(){
 }
 
 document.getElementById("refreshInterestedQueueBtn").addEventListener("click",loadInterestedMatchesQueue);
-document.getElementById("interestedQueue").addEventListener("click",async function(event){
-  const btn=event.target.closest(".js-queue-copy-stock");
-  if(!btn) return;
-  const stockId=String(btn.dataset.stockId || "");
-  try{
-    await navigator.clipboard.writeText(stockId);
-    const original=btn.textContent;
-    btn.textContent="✓ Stock ID Copied";
-    setTimeout(()=>{btn.textContent=original;},1400);
-  }catch(error){
-    alert("Stock #"+stockId);
-  }
+
+function closeQueueModal(id){
+  const modal=document.getElementById(id);
+  if(modal){ modal.classList.remove("open"); modal.setAttribute("aria-hidden","true"); }
+}
+function openQueueModal(id){
+  const modal=document.getElementById(id);
+  if(modal){ modal.classList.add("open"); modal.setAttribute("aria-hidden","false"); }
+}
+
+function openQueueMatchReview(matchId){
+  const ctx=queueContextByMatch.get(Number(matchId));
+  if(!ctx) return;
+  const {match,buyer,stock,sellerRequest,buyerName,bike,sellerName,sellerType,sellerPrice}=ctx;
+  document.getElementById("queueMatchReviewTitle").textContent=bike;
+  document.getElementById("queueMatchReviewStatus").innerHTML=`<strong>${esc(match.buyer_response)}</strong>${match.buyer_offer_gbp?` · Buyer offer ${esc(queueMoney(match.buyer_offer_gbp))}`:""} · Buyer #${esc(match.buyer_id)} · Request #${esc(match.request_item_id||"-")} · Stock #${esc(match.stock_id)}`;
+  document.getElementById("queueMatchReviewDetails").innerHTML=`
+    <div class="detail-item"><small>Buyer</small><strong>${esc(buyerName)}</strong><span>${esc(buyer.country||"Country not recorded")}</span></div>
+    <div class="detail-item"><small>Buyer response</small><strong>${esc(match.buyer_response)}</strong><span>${esc(queueDate(match.buyer_responded_at))}</span></div>
+    <div class="detail-item"><small>Motorcycle</small><strong>${esc(bike)}</strong><span>${esc(match.stock_year||"-")} · ${match.stock_mileage!=null?esc(Number(match.stock_mileage).toLocaleString("en-GB")+" miles"):"-"}</span></div>
+    <div class="detail-item"><small>Buyer-facing price</small><strong>${esc(queueMoney(match.confirmed_customer_price_gbp ?? match.provisional_customer_price_gbp ?? match.listed_price_snapshot_gbp))}</strong><span>Seller price remains confidential</span></div>
+    <div class="detail-item"><small>Seller</small><strong>${esc(sellerName)}</strong><span>${esc(sellerType||"-")}</span></div>
+    <div class="detail-item"><small>Seller contact</small><strong>${esc(stock.seller_phone||stock.private_seller_phone||"No phone recorded")}</strong><span>${esc(stock.seller_email||stock.private_seller_email||"No email recorded")}</span></div>
+    <div class="detail-item"><small>Seller Price</small><strong>${esc(sellerPrice)}</strong><span>${esc(sellerRequest?.request_status||"Not started")}${sellerRequest?.availability_status?" · "+esc(sellerRequest.availability_status):""}</span></div>
+    <div class="detail-item"><small>Commercial stage</small><strong>${esc(queueNextAction(match,sellerRequest))}</strong><span>Customer context retained on this exact match.</span></div>`;
+  document.getElementById("queueMatchReviewQuestion").innerHTML=match.buyer_question?`<div class="queue-question" style="margin-top:12px"><strong>Buyer question:</strong> ${esc(match.buyer_question)}</div>`:"";
+  document.getElementById("queueMatchReviewActions").innerHTML=`
+    <button class="btn secondary small js-modal-view-bike" type="button" data-match-id="${esc(match.id)}">🏍 View Motorcycle</button>
+    <button class="btn primary small" type="button" disabled title="Next build: seller review controls will use the existing Seller Price system">Seller Review — next step</button>`;
+  openQueueModal("queueMatchReviewModal");
+}
+
+function openQueueMotorcycle(matchId){
+  const ctx=queueContextByMatch.get(Number(matchId));
+  if(!ctx) return;
+  const {match,stock,bike,sellerName}=ctx;
+  document.getElementById("queueMotorcycleTitle").textContent=bike;
+  const img=stock.image_url || "";
+  document.getElementById("queueMotorcycleImage").innerHTML=img?`<img src="${esc(img)}" alt="${esc(bike)}" style="width:100%;max-height:420px;object-fit:contain;border-radius:14px;background:#080808" onerror="this.parentElement.innerHTML=''">`:"";
+  document.getElementById("queueMotorcycleDetails").innerHTML=`
+    <div class="detail-item"><small>Stock ID</small><strong>#${esc(match.stock_id)}</strong><span>${esc(stock.status||"-")} · ${esc(stock.lifecycle_status||"-")}</span></div>
+    <div class="detail-item"><small>Make / Model / Variant</small><strong>${esc(stock.make||match.stock_make||"-")} ${esc(stock.model||match.stock_model||"")}</strong><span>${esc(stock.variant||match.stock_variant||"No variant recorded")}</span></div>
+    <div class="detail-item"><small>Year / Mileage</small><strong>${esc(stock.year||match.stock_year||"-")}</strong><span>${stock.mileage!=null?esc(Number(stock.mileage).toLocaleString("en-GB")+" miles"):(match.stock_mileage!=null?esc(Number(match.stock_mileage).toLocaleString("en-GB")+" miles"):"-")}</span></div>
+    <div class="detail-item"><small>Advertised price</small><strong>${esc(queueMoney(stock.price_gbp ?? match.listed_price_snapshot_gbp))}</strong><span>Internal source listing price</span></div>
+    <div class="detail-item"><small>Colour / CC</small><strong>${esc(stock.colour||match.stock_colour||"-")}</strong><span>${stock.engine_cc?esc(stock.engine_cc+" cc"):"CC not recorded"}</span></div>
+    <div class="detail-item"><small>VAT</small><strong>${esc(stock.vat_status||match.stock_vat_status||"Unknown / Check Required")}</strong><span>Do not infer VAT status.</span></div>`;
+  document.getElementById("queueMotorcycleSeller").innerHTML=`<strong>Internal seller:</strong> ${esc(sellerName)} · ${esc(stock.source_partner_name||stock.source_type||"Source not recorded")}<br><small>This seller/source information remains internal and is not shown to the buyer.</small>`;
+  openQueueModal("queueMotorcycleModal");
+}
+
+document.getElementById("interestedQueue").addEventListener("click",function(event){
+  const review=event.target.closest(".js-open-match-review");
+  if(review){ openQueueMatchReview(review.dataset.matchId); return; }
+  const bike=event.target.closest(".js-queue-view-bike");
+  if(bike){ openQueueMotorcycle(bike.dataset.matchId); }
 });
+document.getElementById("queueMatchReviewActions").addEventListener("click",function(event){
+  const bike=event.target.closest(".js-modal-view-bike");
+  if(bike) openQueueMotorcycle(bike.dataset.matchId);
+});
+document.getElementById("queueMatchReviewClose").addEventListener("click",()=>closeQueueModal("queueMatchReviewModal"));
+document.getElementById("queueMotorcycleClose").addEventListener("click",()=>closeQueueModal("queueMotorcycleModal"));
+["queueMatchReviewModal","queueMotorcycleModal"].forEach(id=>document.getElementById(id).addEventListener("click",e=>{if(e.target.id===id) closeQueueModal(id);}));
 
 (async function startAIStockMatching(){
   const allowed=await requireAdminSession();
