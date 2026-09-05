@@ -4,6 +4,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1027,7 +1028,7 @@ a{text-decoration:none;color:inherit}
 .offers-table{
   width:100%;
   border-collapse:collapse;
-  min-width:1050px;
+  min-width:1240px;
 }
 .offers-table th,
 .offers-table td{
@@ -1055,6 +1056,18 @@ a{text-decoration:none;color:inherit}
   color:#fff;
   font-size:18px;
   font-weight:900;
+}
+
+.offer-gross-margin{
+  color:#9bf0b8;
+  font-size:18px;
+  font-weight:900;
+}
+.offer-gross-margin.negative{
+  color:#ff9da1;
+}
+.offer-gross-margin.pending{
+  color:#777;
 }
 .offer-buyer strong,
 .offer-bike strong{
@@ -2315,6 +2328,32 @@ async function refreshSellerState(matchId){
 
   sellerConfirmations[String(matchId)]=data || null;
 
+  // Keep the Buyer Offers queue commercial figures in sync with Seller Check.
+  const sellerPriceEl=document.getElementById("seller-price-"+matchId);
+  const grossMarginEl=document.getElementById("gross-margin-"+matchId);
+  const match=(buyerMatches || []).find(m=>String(m.id)===String(matchId));
+  const sellerPrice=data?.confirmed_min_price_gbp;
+  const buyerOffer=match?.buyer_offer_gbp;
+  const hasSellerPrice=sellerPrice!==null && sellerPrice!==undefined && sellerPrice!=="";
+  const hasBuyerOffer=buyerOffer!==null && buyerOffer!==undefined && buyerOffer!=="";
+
+  if(sellerPriceEl){
+    sellerPriceEl.textContent=hasSellerPrice ? money(sellerPrice) : "-";
+  }
+
+  if(grossMarginEl){
+    if(hasSellerPrice && hasBuyerOffer){
+      const grossMargin=Number(buyerOffer)-Number(sellerPrice);
+      grossMarginEl.textContent=money(grossMargin);
+      grossMarginEl.className="offer-gross-margin"+(grossMargin<0 ? " negative" : "");
+      grossMarginEl.title="Buyer offer less confirmed seller price. This is gross buying spread, not final deal profit.";
+    }else{
+      grossMarginEl.textContent="-";
+      grossMarginEl.className="offer-gross-margin pending";
+      grossMarginEl.title="Gross margin will appear after a confirmed seller price is saved.";
+    }
+  }
+
   const state=sellerStateForConfirmation(data || null);
 
   if(stateEl){
@@ -2757,7 +2796,9 @@ function renderBuyerOffers(){
           <th>Received</th>
           <th>Buyer</th>
           <th>Motorcycle</th>
-          <th>Offer</th>
+          <th>Buyer Offer</th>
+          <th>Seller Price</th>
+          <th>Gross Margin</th>
           <th>Response</th>
           <th>Seller / Security</th>
           <th>Match Status</th>
@@ -2777,6 +2818,10 @@ function renderBuyerOffers(){
           const buyerName=buyer?.business_name || buyer?.contact_name || "Buyer";
           const buyerSub=[buyer?.contact_name,buyer?.email].filter(Boolean).join(" • ");
           const bikeName=[make,model,variant].filter(Boolean).join(" ") || ("Stock #"+String(match.stock_id||"-"));
+          const sellerConfirmation=sellerConfirmationForMatch(match.id);
+          const sellerPrice=sellerConfirmation?.confirmed_min_price_gbp;
+          const hasSellerPrice=sellerPrice!==null && sellerPrice!==undefined && sellerPrice!=="";
+          const grossMargin=hasOffer && hasSellerPrice ? Number(offer)-Number(sellerPrice) : null;
 
           return `
             <tr>
@@ -2793,6 +2838,14 @@ function renderBuyerOffers(){
               </td>
               <td>
                 <div class="offer-amount">${hasOffer ? money(offer) : "-"}</div>
+              </td>
+              <td>
+                <div class="offer-amount" id="seller-price-${safe(match.id)}">${hasSellerPrice ? money(sellerPrice) : "-"}</div>
+              </td>
+              <td>
+                <div class="offer-gross-margin${grossMargin===null ? " pending" : (grossMargin<0 ? " negative" : "")}"
+                  id="gross-margin-${safe(match.id)}"
+                  title="Buyer offer less confirmed seller price. This is gross buying spread, not final deal profit.">${grossMargin===null ? "-" : money(grossMargin)}</div>
               </td>
               <td>
                 <span class="offer-status ${hasOffer ? "new" : ""}">${safe(status)}</span>
