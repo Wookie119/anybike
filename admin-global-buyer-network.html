@@ -265,10 +265,10 @@
       <div class="seller-form-section">
         <h3>Expected Costs</h3>
         <div class="seller-grid">
-          <div class="seller-field"><label>Prep / PDI / MOT Cost (£)</label><input id="dvPrepCost" type="number" min="0" step="0.01" value="0" oninput="calculateDealViability()"></div>
-          <div class="seller-field"><label>Collection / Delivery Cost (£)</label><input id="dvDeliveryCost" type="number" min="0" step="0.01" value="0" oninput="calculateDealViability()"></div>
-          <div class="seller-field"><label>Export / Docs Cost (£)</label><input id="dvDocsCost" type="number" min="0" step="0.01" value="0" oninput="calculateDealViability()"></div>
-          <div class="seller-field"><label>Other Cost (£)</label><input id="dvOtherCost" type="number" min="0" step="0.01" value="0" oninput="calculateDealViability()"></div>
+          <div class="seller-field"><label>Prep / PDI / MOT Cost (£)</label><input id="dvPrepCost" type="text" inputmode="decimal" value="£0.00" onfocus="focusViabilityMoney(this)" oninput="calculateDealViability()" onblur="formatViabilityMoney(this)"></div>
+          <div class="seller-field"><label>Collection / Delivery Cost (£)</label><input id="dvDeliveryCost" type="text" inputmode="decimal" value="£0.00" onfocus="focusViabilityMoney(this)" oninput="calculateDealViability()" onblur="formatViabilityMoney(this)"></div>
+          <div class="seller-field"><label>Export / Docs Cost (£)</label><input id="dvDocsCost" type="text" inputmode="decimal" value="£0.00" onfocus="focusViabilityMoney(this)" oninput="calculateDealViability()" onblur="formatViabilityMoney(this)"></div>
+          <div class="seller-field"><label>Other Cost (£)</label><input id="dvOtherCost" type="text" inputmode="decimal" value="£0.00" onfocus="focusViabilityMoney(this)" oninput="calculateDealViability()" onblur="formatViabilityMoney(this)"></div>
         </div>
         <div id="dvPreparationNote" class="seller-review-note" style="margin-top:10px"></div>
       </div>
@@ -2706,8 +2706,20 @@ function closeDealViability(){
 }
 function viabilityNumber(id){
   const el=document.getElementById(id);
-  const n=Number(el ? el.value : 0);
+  const raw=el ? String(el.value || "").replace(/[^0-9.]/g, "") : "0";
+  const n=Number(raw);
   return Number.isFinite(n) && n>=0 ? n : 0;
+}
+function focusViabilityMoney(el){
+  if(!el) return;
+  const n=viabilityNumber(el.id);
+  el.value=n ? n.toFixed(2) : "";
+  setTimeout(()=>el.select(),0);
+}
+function formatViabilityMoney(el){
+  if(!el) return;
+  el.value="£"+viabilityNumber(el.id).toFixed(2);
+  calculateDealViability();
 }
 function openDealViability(matchId){
   const match=(buyerMatches || []).find(m=>String(m.id)===String(matchId));
@@ -2726,7 +2738,7 @@ function openDealViability(matchId){
   document.getElementById("dvSellerPrice").textContent=sellerPrice!==null ? money(sellerPrice) : "Unknown";
   document.getElementById("dvSellerPrice").dataset.value=sellerPrice!==null ? String(sellerPrice) : "";
   document.getElementById("dvSellerConfidence").textContent=confidence;
-  ["dvPrepCost","dvDeliveryCost","dvDocsCost","dvOtherCost"].forEach(id=>{ document.getElementById(id).value="0"; });
+  ["dvPrepCost","dvDeliveryCost","dvDocsCost","dvOtherCost"].forEach(id=>{ document.getElementById(id).value="£0.00"; });
   let prep=[];
   if(request){
     if(request.preparation_status) prep.push("Preparation: "+request.preparation_status);
