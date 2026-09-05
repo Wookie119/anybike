@@ -1121,23 +1121,118 @@ let bulkStatusFilter='';
 function safe(v){return String(v ?? "").replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
 function money(v){return v==null||v===""?"-":"£"+Number(v).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});}
 function dateTxt(v){return v?new Date(v).toLocaleString():"-";}
-async function loadBuyers(){
-  document.getElementById('buyersList').innerHTML='<div class="empty">Loading Global Buyer CRM...</div>';
-  const [bRes,iRes,sRes,tRes]=await Promise.all([
-    sb.from('global_buyer_network').select('*').order('created_at',{ascending:false}).limit(500),
-    sb.from('global_buyer_request_items').select('*').order('created_at',{ascending:false}).limit(3000),
-    sb.from('available_stock').select('id,make,model,variant,year,mileage,price_gbp,colour,status,image_url').limit(12000),
-    sb.from('message_centre_threads').select('*').order('last_message_at',{ascending:false,nullsFirst:false}).limit(1000)
-  ]);
-  if(bRes.error){document.getElementById('buyersList').innerHTML='<div class="empty">Could not load buyers: '+safe(bRes.error.message)+'</div>';return;}
-  buyers=bRes.data||[];
-  items=iRes.data||[];
-  stock=sRes.data||[];
-  buyerThreads=tRes && !tRes.error ? (tRes.data||[]) : [];
-  if(tRes && tRes.error){
-    console.warn("Could not load Global Buyer conversations",tRes.error.message);
+async function loadRelevantBuyerStock(requestItems){
+  const makes=[
+    ...new Set(
+      (requestItems || [])
+        .map(i=>String(i.make || "").trim())
+        .filter(Boolean)
+    )
+  ];
+
+  if(!makes.length){
+    return [];
   }
-  buildFilters();updatePipelineCounts();renderBuyers();
+
+  const rows=[];
+  const batchSize=1000;
+
+  for(const make of makes){
+    let from=0;
+    let keepGoing=true;
+
+    while(keepGoing){
+      const {data,error}=await sb
+        .from("available_stock")
+        .select("id,make,model,variant,year,mileage,price_gbp,colour,status,image_url")
+        .eq("make",make)
+        .range(from,from + batchSize - 1);
+
+      if(error){
+        console.warn(
+          "Could not load matching stock for " + make,
+          error
+        );
+        break;
+      }
+
+      const batch=data || [];
+      rows.push(...batch);
+
+      if(batch.length < batchSize){
+        keepGoing=false;
+      }else{
+        from += batchSize;
+      }
+    }
+  }
+
+  return rows;
+}
+
+
+async function loadBuyers(){
+  document.getElementById("buyersList").innerHTML=
+    '<div class="empty">Loading Global Buyer CRM...</div>';
+
+  const [bRes,iRes,tRes]=await Promise.all([
+    sb
+      .from("global_buyer_network")
+      .select("*")
+      .order("created_at",{ascending:false})
+      .limit(500),
+
+    sb
+      .from("global_buyer_request_items")
+      .select("*")
+      .order("created_at",{ascending:false})
+      .limit(3000),
+
+    sb
+      .from("message_centre_threads")
+      .select("*")
+      .order("last_message_at",{
+        ascending:false,
+        nullsFirst:false
+      })
+      .limit(1000)
+  ]);
+
+  if(bRes.error){
+    document.getElementById("buyersList").innerHTML=
+      '<div class="empty">Could not load buyers: ' +
+      safe(bRes.error.message) +
+      '</div>';
+    return;
+  }
+
+  buyers=bRes.data || [];
+  items=iRes.error ? [] : (iRes.data || []);
+
+  if(iRes.error){
+    console.warn(
+      "Could not load Global Buyer request items",
+      iRes.error.message
+    );
+  }
+
+  stock=await loadRelevantBuyerStock(items);
+
+  buyerThreads=
+    tRes && !tRes.error
+      ? (tRes.data || [])
+      : [];
+
+  if(tRes && tRes.error){
+    console.warn(
+      "Could not load Global Buyer conversations",
+      tRes.error.message
+    );
+  }
+
+  buildFilters();
+  updatePipelineCounts();
+  renderBuyers();
 }
 function buildFilters(){
   const countries=[...new Set(buyers.map(b=>b.country).filter(Boolean))].sort();
