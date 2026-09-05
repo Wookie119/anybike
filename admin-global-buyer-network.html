@@ -2954,19 +2954,18 @@ function renderBuyerOffers(){
   const statusFilter=String(document.getElementById("offerStatusFilter")?.value || "").trim().toLowerCase();
   const sort=String(document.getElementById("offerSort")?.value || "newest");
 
+  // Buyer Offers is a commercial offer queue, not a general response queue.
+  // Keep Interested / Not Interested / Question responses in match history,
+  // but only show rows where the buyer actually submitted a monetary offer.
   let rows=(buyerMatches || []).filter(match=>{
     const linkedBuyer=buyerForMatch(match);
     if(linkedBuyer && isBuyerArchived(linkedBuyer)) return false;
 
-    const response=String(match.buyer_response || "").trim();
     const hasOffer=match.buyer_offer_gbp!==null &&
       match.buyer_offer_gbp!==undefined &&
       match.buyer_offer_gbp!=="";
-    const hasResponse=response &&
-      response!=="No Response" &&
-      response!=="None";
 
-    return hasOffer || hasResponse;
+    return hasOffer;
   });
 
   rows=rows.filter(match=>{
@@ -3026,7 +3025,7 @@ function renderBuyerOffers(){
   if(countEl) countEl.textContent=rows.length.toLocaleString("en-GB");
 
   if(!rows.length){
-    box.innerHTML='<div class="offers-empty">No buyer responses match the current filters.</div>';
+    box.innerHTML='<div class="offers-empty">No buyer offers match the current filters.</div>';
     return;
   }
 
