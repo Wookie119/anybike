@@ -211,7 +211,7 @@
         <h3>Seller Price & Availability</h3>
         <div class="seller-grid">
           <div class="seller-field"><label>Availability</label><select id="sprAvailability"><option value="">Not recorded</option><option>Unknown</option><option>Available</option><option>Reserved</option><option>Unavailable</option><option>Sold</option><option>Withdrawn</option></select></div>
-          <div class="seller-field"><label>Confirmed Seller Price (£)</label><input id="sprSellerPrice" type="number" min="0" step="0.01" placeholder="e.g. 5200"></div>
+          <div class="seller-field"><label>Confirmed Seller Price (£)</label><input id="sprSellerPrice" type="text" inputmode="decimal" placeholder="e.g. £5,200.00" onfocus="focusSellerMoney(this)" onblur="formatSellerMoney(this)"></div>
           <div class="seller-field"><label>Seller Price Valid Until</label><input id="sprPriceValidUntil" type="datetime-local"></div>
           <div class="seller-field"><label>How Confirmed</label><select id="sprResponseChannel"><option value="Admin">Admin / Internal</option><option value="Phone">Phone</option><option value="Email">Email received manually</option><option value="In Person">In Person</option><option value="Other">Other</option></select></div>
         </div>
@@ -239,6 +239,7 @@
       <div class="seller-modal-status" id="sprReviewStatus"></div>
       <button type="button" onclick="closeSellerPriceReview()">Close</button>
       <button type="button" class="save" id="sprSaveDraftButton" onclick="saveSellerPriceDraft()">Save Internal Record</button>
+      <button type="button" class="save" id="sprRecordResponseButton" onclick="recordSellerPriceResponse()">Record Seller Response</button>
     </div>
   </div>
 </div>
@@ -462,6 +463,21 @@ html.admin-auth-pending body{
     right:auto !important;
     width:min(280px,calc(100vw - 32px)) !important;
   }
+}
+
+
+/* AnyBike admin money inputs: never show browser number spinners */
+#dealViabilityModal input[type="number"],
+#sellerPriceReviewModal input[type="number"]{
+  -moz-appearance:textfield;
+  appearance:textfield;
+}
+#dealViabilityModal input[type="number"]::-webkit-outer-spin-button,
+#dealViabilityModal input[type="number"]::-webkit-inner-spin-button,
+#sellerPriceReviewModal input[type="number"]::-webkit-outer-spin-button,
+#sellerPriceReviewModal input[type="number"]::-webkit-inner-spin-button{
+  -webkit-appearance:none;
+  margin:0;
 }
 
 </style>
@@ -2555,6 +2571,23 @@ function updateSellerPriceReviewState(){
   // Internal-only workflow. Dealer communications are deliberately not connected here.
 }
 
+function sellerPriceMoneyNumber(value){
+  const raw=String(value ?? "").replace(/[^0-9.]/g, "");
+  const n=Number(raw);
+  return Number.isFinite(n) && n>=0 ? n : null;
+}
+function focusSellerMoney(el){
+  if(!el) return;
+  const n=sellerPriceMoneyNumber(el.value);
+  el.value=n===null ? "" : n.toFixed(2);
+  setTimeout(()=>el.select(),0);
+}
+function formatSellerMoney(el){
+  if(!el) return;
+  const n=sellerPriceMoneyNumber(el.value);
+  el.value=n===null ? "" : "£"+n.toLocaleString("en-GB",{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+
 function openSellerPriceReview(matchId){
   const request=sellerPriceRequestForMatch(matchId);
   const match=(buyerMatches || []).find(m=>String(m.id)===String(matchId));
@@ -2576,7 +2609,12 @@ function openSellerPriceReview(matchId){
   document.getElementById("sprSellerPhone").value=request.seller_phone || "";
   document.getElementById("sprValidUntil").value=sellerLocalDateTime(request.requested_valid_until);
   document.getElementById("sprAvailability").value=request.availability_status || "";
-  document.getElementById("sprSellerPrice").value=request.seller_price_gbp ?? "";
+  const sprSellerPriceInput=document.getElementById("sprSellerPrice");
+  sprSellerPriceInput.type="text";
+  sprSellerPriceInput.setAttribute("inputmode","decimal");
+  sprSellerPriceInput.removeAttribute("step");
+  sprSellerPriceInput.removeAttribute("min");
+  sprSellerPriceInput.value=request.seller_price_gbp===null || request.seller_price_gbp===undefined || request.seller_price_gbp==="" ? "" : "£"+Number(request.seller_price_gbp).toLocaleString("en-GB",{minimumFractionDigits:2,maximumFractionDigits:2});
   document.getElementById("sprPriceValidUntil").value=sellerLocalDateTime(request.price_valid_until);
   document.getElementById("sprResponseChannel").value=request.response_channel || "Admin";
   document.getElementById("sprPreparationStatus").value=request.preparation_status || "";
@@ -2589,8 +2627,18 @@ function openSellerPriceReview(matchId){
   document.getElementById("sprFaults").value=request.known_faults_advisories || "";
   document.getElementById("sprResponseNotes").value=request.response_notes || "";
   const status=document.getElementById("sprReviewStatus");
+  const saveDraftButton=document.getElementById("sprSaveDraftButton");
+  const recordResponseButton=document.getElementById("sprRecordResponseButton");
+  const alreadyResponded=String(request.request_status || "")==="Responded";
+  if(saveDraftButton) saveDraftButton.disabled=alreadyResponded;
+  if(recordResponseButton){
+    recordResponseButton.disabled=alreadyResponded;
+    recordResponseButton.textContent=alreadyResponded ? "Seller Response Recorded" : "Record Seller Response";
+  }
   status.className="seller-modal-status";
-  status.textContent="Internal only — no dealer communication is sent from this screen.";
+  status.textContent=alreadyResponded
+    ? "Confirmed seller response recorded. Use Seller Check to reconfirm before securing the motorcycle."
+    : "Internal only — no dealer communication is sent from this screen.";
   ["sprSellerName","sprContactName","sprSellerEmail","sprSellerPhone","sprValidUntil","sprAvailability","sprSellerPrice","sprPriceValidUntil","sprResponseChannel","sprPreparationStatus","sprRoadReady","sprMotExpiry","sprMotRequirement","sprServiceRequirement","sprPrepIncluded","sprMotIncluded","sprFaults","sprResponseNotes"].forEach(id=>{
     const el=document.getElementById(id);
     if(el) el.oninput=updateSellerPriceReviewState;
@@ -2619,7 +2667,7 @@ async function saveSellerPriceDraft(){
     seller_phone:String(document.getElementById("sprSellerPhone").value || "").trim() || null,
     requested_valid_until:requestedValidUntil,
     availability_status:document.getElementById("sprAvailability").value || null,
-    seller_price_gbp:document.getElementById("sprSellerPrice").value==="" ? null : Number(document.getElementById("sprSellerPrice").value),
+    seller_price_gbp:sellerPriceMoneyNumber(document.getElementById("sprSellerPrice").value),
     price_valid_until:sellerIsoOrNull(document.getElementById("sprPriceValidUntil").value),
     response_channel:document.getElementById("sprResponseChannel").value || "Admin",
     preparation_status:document.getElementById("sprPreparationStatus").value || null,
@@ -2648,6 +2696,94 @@ async function saveSellerPriceDraft(){
   status.className="seller-modal-status success";
   status.textContent="Internal seller price/preparation record saved. Nothing has been sent to the seller.";
   updateSellerPriceReviewState();
+}
+
+
+async function recordSellerPriceResponse(){
+  if(!activeSellerPriceRequestId) return;
+  const status=document.getElementById("sprReviewStatus");
+  const btn=document.getElementById("sprRecordResponseButton");
+  const saveBtn=document.getElementById("sprSaveDraftButton");
+
+  const availability=document.getElementById("sprAvailability").value || null;
+  const sellerPrice=sellerPriceMoneyNumber(document.getElementById("sprSellerPrice").value);
+  const priceValidUntil=sellerIsoOrNull(document.getElementById("sprPriceValidUntil").value);
+  const channel=document.getElementById("sprResponseChannel").value || "Admin";
+
+  if(!availability || availability==="Unknown"){
+    status.className="seller-modal-status error";
+    status.textContent="Record the seller's actual availability before confirming the response.";
+    return;
+  }
+  if((availability==="Available" || availability==="Reserved") && sellerPrice===null){
+    status.className="seller-modal-status error";
+    status.textContent="Enter the genuine seller price before recording an Available or Reserved response.";
+    return;
+  }
+  if(document.getElementById("sprPriceValidUntil").value && !priceValidUntil){
+    status.className="seller-modal-status error";
+    status.textContent="Please enter a valid seller price expiry date/time.";
+    return;
+  }
+
+  const confirmed=window.confirm(
+    "Record this as the seller's genuine response?\n\n"+
+    "This will mark the request Responded and, if a price is entered, create a CONFIRMED seller-price history record.\n\n"+
+    "It will NOT secure the motorcycle or accept the buyer offer."
+  );
+  if(!confirmed) return;
+
+  btn.disabled=true;
+  if(saveBtn) saveBtn.disabled=true;
+  status.className="seller-modal-status";
+  status.textContent="Recording confirmed seller response...";
+
+  const boolOrNull=id=>{
+    const v=document.getElementById(id).value;
+    return v==="" ? null : v==="true";
+  };
+
+  const args={
+    p_request_id:Number(activeSellerPriceRequestId),
+    p_availability_status:availability,
+    p_seller_price_gbp:sellerPrice,
+    p_price_valid_until:priceValidUntil,
+    p_response_channel:channel,
+    p_response_notes:String(document.getElementById("sprResponseNotes").value || "").trim() || null,
+    p_price_source:"Seller Confirmed",
+    p_preparation_status:document.getElementById("sprPreparationStatus").value || null,
+    p_road_ready_status:document.getElementById("sprRoadReady").value || null,
+    p_mot_expiry_date:document.getElementById("sprMotExpiry").value || null,
+    p_mot_requirement:document.getElementById("sprMotRequirement").value || null,
+    p_service_requirement:document.getElementById("sprServiceRequirement").value || null,
+    p_preparation_included_in_price:boolOrNull("sprPrepIncluded"),
+    p_mot_included_in_price:boolOrNull("sprMotIncluded"),
+    p_known_faults_advisories:String(document.getElementById("sprFaults").value || "").trim() || null
+  };
+
+  const {data,error}=await sb.rpc("admin_record_seller_price_response_v2",args);
+  btn.disabled=false;
+  if(saveBtn) saveBtn.disabled=false;
+
+  if(error){
+    status.className="seller-modal-status error";
+    status.textContent="Could not record seller response: "+error.message;
+    return;
+  }
+
+  if(data){
+    const key=String(activeSellerPriceMatchId);
+    sellerPriceRequestByMatch[key]=data;
+    const idx=sellerPriceRequests.findIndex(r=>String(r.id)===String(data.id));
+    if(idx>=0) sellerPriceRequests[idx]=data;
+  }
+
+  status.className="seller-modal-status success";
+  status.textContent="Seller response recorded as confirmed. Motorcycle is NOT secured and buyer offer is NOT accepted.";
+  if(saveBtn) saveBtn.disabled=true;
+  btn.disabled=true;
+  btn.textContent="Seller Response Recorded";
+  renderBuyerOffers();
 }
 
 function openBuyerFromOffer(buyerId){
@@ -2721,24 +2857,39 @@ function formatViabilityMoney(el){
   el.value="£"+viabilityNumber(el.id).toFixed(2);
   calculateDealViability();
 }
-function openDealViability(matchId){
+async function openDealViability(matchId){
   const match=(buyerMatches || []).find(m=>String(m.id)===String(matchId));
   if(!match){ alert("Could not load this buyer offer."); return; }
   activeDealViabilityMatchId=Number(matchId);
   const bike=offerStockForMatch(match) || {};
   const request=sellerPriceRequestForMatch(matchId);
   const confirmation=sellerConfirmationForMatch(matchId);
-  const requestPrice=request && request.seller_price_gbp!==null && request.seller_price_gbp!==undefined && request.seller_price_gbp!=="" ? Number(request.seller_price_gbp) : null;
-  const confirmedPrice=confirmation && confirmation.confirmed_min_price_gbp!==null && confirmation.confirmed_min_price_gbp!==undefined && confirmation.confirmed_min_price_gbp!=="" ? Number(confirmation.confirmed_min_price_gbp) : null;
-  const sellerPrice=confirmedPrice!==null ? confirmedPrice : requestPrice;
-  const confidence=confirmedPrice!==null ? "Confirmed — Seller Check" : (requestPrice!==null ? "Confirmed — Seller Price Record" : "Unknown");
+
+  let historyPrice=null;
+  let historyConfidence=null;
+  if(match.stock_id!==null && match.stock_id!==undefined){
+    const {data:latestPrice,error:latestPriceError}=await sb.rpc("admin_get_latest_seller_price",{p_stock_id:Number(match.stock_id)});
+    if(!latestPriceError && latestPrice){
+      const row=Array.isArray(latestPrice) ? latestPrice[0] : latestPrice;
+      if(row && row.price_gbp!==null && row.price_gbp!==undefined && row.price_gbp!==""){
+        historyPrice=Number(row.price_gbp);
+        historyConfidence=row.confidence_status || "Confirmed";
+      }
+    }else if(latestPriceError){
+      console.warn("Could not load confirmed seller price history",latestPriceError.message);
+    }
+  }
+
+  const sellerCheckPrice=confirmation && confirmation.confirmed_min_price_gbp!==null && confirmation.confirmed_min_price_gbp!==undefined && confirmation.confirmed_min_price_gbp!=="" ? Number(confirmation.confirmed_min_price_gbp) : null;
+  const sellerPrice=sellerCheckPrice!==null ? sellerCheckPrice : historyPrice;
+  const confidence=sellerCheckPrice!==null ? "Confirmed — Seller Check" : (historyPrice!==null ? (historyConfidence+" — Seller Price History") : "Unknown");
   const bikeName=[match.year_snapshot || bike.year, match.make_snapshot || bike.make, match.model_snapshot || bike.model, match.variant_snapshot || bike.variant].filter(Boolean).join(" ");
   document.getElementById("dvBikeName").textContent=bikeName || ("Stock #"+(match.stock_id || "-"));
   document.getElementById("dvBuyerOffer").textContent=money(match.buyer_offer_gbp);
   document.getElementById("dvSellerPrice").textContent=sellerPrice!==null ? money(sellerPrice) : "Unknown";
   document.getElementById("dvSellerPrice").dataset.value=sellerPrice!==null ? String(sellerPrice) : "";
   document.getElementById("dvSellerConfidence").textContent=confidence;
-  ["dvPrepCost","dvDeliveryCost","dvDocsCost","dvOtherCost"].forEach(id=>{ document.getElementById(id).value="£0.00"; });
+  ["dvPrepCost","dvDeliveryCost","dvDocsCost","dvOtherCost"].forEach(id=>{ const el=document.getElementById(id); if(el){ el.type="text"; el.setAttribute("inputmode","decimal"); el.removeAttribute("step"); el.removeAttribute("min"); el.value="£0.00"; } });
   let prep=[];
   if(request){
     if(request.preparation_status) prep.push("Preparation: "+request.preparation_status);
