@@ -1,4 +1,5 @@
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -616,6 +617,7 @@ let makeModels = {...fallbackMakes};
 let bikeBlockCount = 0;
 let bulkRequestSubmitting = false;
 let currentUser = null;
+let currentProfile = null;
 let lastBulkRequestFingerprint = "";
 let lastBulkRequestSubmittedAt = 0;
 
@@ -699,12 +701,136 @@ function validNumber(value,options={}){
   return number;
 }
 
+function setFormValueIfBlank(name,value){
+  const field=document.querySelector(`[name="${name}"]`);
+
+  if(!field){
+    return;
+  }
+
+  const cleanValue=String(value ?? "").trim();
+
+  if(!cleanValue || String(field.value || "").trim()){
+    return;
+  }
+
+  if(field.tagName === "SELECT"){
+    const optionExists=Array.from(field.options).some(function(option){
+      return option.value === cleanValue || option.textContent.trim() === cleanValue;
+    });
+
+    if(optionExists){
+      field.value=cleanValue;
+    }
+
+    return;
+  }
+
+  field.value=cleanValue;
+}
+
+function prefillBuyerForm(){
+  if(!currentUser){
+    return;
+  }
+
+  const profile=currentProfile || {};
+  const metadata=currentUser.user_metadata || {};
+
+  const fullName=
+    profile.full_name ||
+    metadata.full_name ||
+    metadata.name ||
+    "";
+
+  const businessName=
+    profile.business_name ||
+    metadata.business_name ||
+    "";
+
+  setFormValueIfBlank(
+    "company_name",
+    businessName || fullName
+  );
+
+  setFormValueIfBlank(
+    "contact_name",
+    fullName
+  );
+
+  setFormValueIfBlank(
+    "email",
+    profile.email || currentUser.email || ""
+  );
+
+  setFormValueIfBlank(
+    "phone",
+    profile.phone || metadata.phone || ""
+  );
+
+  setFormValueIfBlank(
+    "country",
+    profile.country || ""
+  );
+
+  setFormValueIfBlank(
+    "shipping_company",
+    profile.preferred_shipping_company || ""
+  );
+
+  const shippingContactDetails=[
+    profile.shipping_contact_name,
+    profile.shipping_contact_email,
+    profile.shipping_contact_phone
+  ].filter(Boolean).join(" | ");
+
+  setFormValueIfBlank(
+    "shipping_contact_details",
+    shippingContactDetails
+  );
+}
+
 async function loadCurrentUser(){
   try{
-    const {data} = await sb.auth.getUser();
-    currentUser = data?.user || null;
+    const {data,error}=await sb.auth.getUser();
+
+    if(error){
+      throw error;
+    }
+
+    currentUser=data?.user || null;
+    currentProfile=null;
+
+    if(!currentUser){
+      return;
+    }
+
+    const {data:profile,error:profileError}=await sb
+      .from("customer_profiles")
+      .select(
+        "id,email,full_name,business_name,phone,country,preferred_shipping_company,shipping_contact_name,shipping_contact_email,shipping_contact_phone"
+      )
+      .eq("id",currentUser.id)
+      .maybeSingle();
+
+    if(profileError){
+      console.warn(
+        "Could not load customer profile for buyer form prefill",
+        profileError
+      );
+    }else{
+      currentProfile=profile || null;
+    }
+
+    prefillBuyerForm();
   }catch(error){
-    currentUser = null;
+    console.warn(
+      "Could not load logged-in customer for buyer form prefill",
+      error
+    );
+
+    currentUser=null;
+    currentProfile=null;
   }
 }
 
@@ -747,7 +873,7 @@ async function loadMakesFromStock(){
 
     while(keepGoing){
       const { data, error } = await sb
-        .from("available_stock")
+        .from("public_available_stock")
         .select("make,model")
         .not("make","is",null)
         .not("model","is",null)
