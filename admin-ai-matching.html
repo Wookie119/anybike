@@ -277,7 +277,7 @@ a{text-decoration:none;color:inherit}
       <div class="field"><label>Phone</label><input id="srSellerPhone"></div>
       <div class="field"><label>Email</label><input id="srSellerEmail"></div>
       <div class="field"><label>Availability</label><select id="srAvailability"><option value="">Choose...</option><option>Unknown</option><option>Available</option><option>Reserved</option><option>Unavailable</option><option>Sold</option><option>Withdrawn</option></select></div>
-      <div class="field"><label>Confidential seller price</label><input id="srSellerPrice" inputmode="decimal" placeholder="£0.00"></div>
+      <div class="field"><label>AnyBike Trade / Purchase Price</label><input id="srSellerPrice" inputmode="decimal" placeholder="£0.00"></div>
       <div class="field"><label>Price valid until</label><input id="srPriceValidUntil" type="datetime-local"></div>
       <div class="field"><label>Response channel</label><select id="srResponseChannel"><option>Phone</option><option>Email</option><option>Admin</option><option>Other</option></select></div>
       <div class="field"><label>Preparation</label><select id="srPreparation"><option value="">Unknown</option><option>Retail Prepped</option><option>PDI Completed</option><option>Trade Sale - Unprepared</option><option>Preparation Required</option><option>Unknown</option></select></div>
@@ -1038,7 +1038,17 @@ async function openSellerReview(matchId){
     const {match,stock,bike,sellerName,sellerType}=ctx;
     document.getElementById("sellerReviewTitle").textContent=bike;
     document.getElementById("sellerReviewContext").innerHTML=`<strong>${esc(match.buyer_response)}</strong>${match.buyer_offer_gbp?` · Buyer offer ${esc(queueMoney(match.buyer_offer_gbp))}`:""} · Buyer #${esc(match.buyer_id)} · Request #${esc(match.request_item_id||"-")} · Stock #${esc(match.stock_id)}`;
-    document.getElementById("sellerOfferHighlight").innerHTML=match.buyer_offer_gbp?`<div class="offer-highlight"><strong>Buyer has offered ${esc(queueMoney(match.buyer_offer_gbp))}</strong><br><span class="small-note">Use this when negotiating the confidential AnyBike purchase price. Do not reveal the buyer or their offer to the seller.</span></div>`:"";
+    const advertisedPrice=stock.price_gbp ?? match.listed_price_snapshot_gbp;
+    const buyerPosition=match.buyer_response==="Offer Made" ? "Offer Made" : (match.buyer_response || "Interested");
+    document.getElementById("sellerOfferHighlight").innerHTML=`
+      <div class="offer-highlight">
+        <div class="detail-grid">
+          <div class="detail-item"><small>Current Advertised Price</small><strong>${esc(queueMoney(advertisedPrice))}</strong></div>
+          <div class="detail-item"><small>Buyer Position</small><strong>${esc(buyerPosition)}</strong></div>
+          ${match.buyer_offer_gbp?`<div class="detail-item"><small>Buyer Offer</small><strong>${esc(queueMoney(match.buyer_offer_gbp))}</strong></div>`:""}
+        </div>
+        <div class="small-note" style="margin-top:10px">Use the current advertised price and buyer position when negotiating AnyBike's confidential trade / purchase price. Do not reveal the buyer or their offer to the seller.</div>
+      </div>`;
     document.getElementById("srSellerName").value=req.seller_name||sellerName||"";
     document.getElementById("srSellerType").value=req.seller_type||(/dealer/i.test(sellerType||"")?"Dealer":/private/i.test(sellerType||"")?"Private Seller":"Other");
     document.getElementById("srSellerPhone").value=req.seller_phone||stock.seller_phone||stock.private_seller_phone||"";
