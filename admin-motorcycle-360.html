@@ -1,0 +1,679 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Motorcycle 360 | AnyBike Admin</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" href="anybike-logo-new.jpg" type="image/jpeg">
+
+<script>
+document.documentElement.classList.add("admin-auth-pending");
+</script>
+
+<style>
+html.admin-auth-pending body{visibility:hidden}
+:root{
+  --red:#ed1c24;
+  --line:rgba(255,255,255,.12);
+  --muted:#aaa;
+  --green:#33cc66;
+  --amber:#f2b84b;
+  --panel:#111;
+  --panel2:#181818;
+}
+*{box-sizing:border-box}
+html,body{min-height:100%}
+body{
+  margin:0;
+  font-family:Arial,Helvetica,sans-serif;
+  background:
+    radial-gradient(circle at top left,rgba(237,28,36,.20),transparent 34%),
+    linear-gradient(120deg,#050505,#101010 60%,#050505);
+  color:#fff;
+}
+a{text-decoration:none;color:inherit}
+
+.admin-shell{
+  display:grid;
+  grid-template-columns:240px minmax(0,1fr);
+  min-height:100vh;
+}
+.admin-main{min-width:0}
+.admin-page-content{padding:24px}
+
+#adminTopbar .admin-topbar{
+  position:sticky !important;
+  top:0 !important;
+  z-index:1000 !important;
+  background:rgba(5,5,5,.92) !important;
+  backdrop-filter:blur(14px) !important;
+  border-bottom:1px solid rgba(255,255,255,.12) !important;
+  padding:14px 22px !important;
+}
+
+.hero{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:18px;
+  align-items:start;
+  background:
+    radial-gradient(circle at top right,rgba(237,28,36,.22),transparent 36%),
+    #111;
+  border:1px solid var(--line);
+  border-radius:22px;
+  padding:24px;
+  margin-bottom:18px;
+}
+.hero h1{
+  margin:0;
+  font-size:34px;
+  letter-spacing:-.04em;
+}
+.hero p{
+  margin:7px 0 0;
+  color:var(--muted);
+  line-height:1.5;
+}
+.hero-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:9px;
+  justify-content:flex-end;
+}
+.btn{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-height:42px;
+  padding:10px 15px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.15);
+  background:#222;
+  color:#fff;
+  font-weight:900;
+  cursor:pointer;
+}
+.btn.primary{
+  background:var(--red);
+  border-color:var(--red);
+}
+.btn:hover{border-color:var(--red)}
+
+.loading,
+.error,
+.empty{
+  border:1px dashed var(--line);
+  border-radius:18px;
+  padding:28px;
+  color:var(--muted);
+  text-align:center;
+}
+
+.status-strip{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  flex-wrap:wrap;
+  margin-bottom:16px;
+}
+.pill{
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  border:1px solid rgba(255,255,255,.16);
+  background:#171717;
+  border-radius:999px;
+  padding:7px 11px;
+  font-size:12px;
+  font-weight:900;
+}
+.pill.live{border-color:rgba(51,204,102,.45);background:rgba(51,204,102,.10)}
+.pill.warn{border-color:rgba(242,184,75,.48);background:rgba(242,184,75,.10)}
+.pill.red{border-color:rgba(237,28,36,.5);background:rgba(237,28,36,.12)}
+
+.layout{
+  display:grid;
+  grid-template-columns:minmax(280px,.8fr) minmax(0,1.7fr);
+  gap:16px;
+  align-items:start;
+}
+.left,
+.right{
+  display:grid;
+  gap:16px;
+}
+.card{
+  background:rgba(17,17,17,.97);
+  border:1px solid var(--line);
+  border-radius:18px;
+  padding:17px;
+  min-width:0;
+}
+.card h2{
+  margin:0 0 13px;
+  font-size:18px;
+}
+.card h3{
+  margin:16px 0 9px;
+  font-size:14px;
+}
+.image-wrap{
+  background:#080808;
+  border:1px solid var(--line);
+  border-radius:16px;
+  overflow:hidden;
+  min-height:250px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.image-wrap img{
+  width:100%;
+  height:auto;
+  display:block;
+}
+.image-placeholder{
+  color:#777;
+  padding:30px;
+  text-align:center;
+}
+.title-bike{
+  font-size:24px;
+  font-weight:900;
+  margin-top:14px;
+}
+.sub-bike{
+  color:var(--muted);
+  margin-top:6px;
+  line-height:1.45;
+}
+
+.info-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:0 16px;
+}
+.row{
+  display:grid;
+  grid-template-columns:minmax(135px,.8fr) minmax(0,1.2fr);
+  gap:12px;
+  align-items:start;
+  padding:9px 0;
+  border-bottom:1px solid rgba(255,255,255,.07);
+}
+.row:last-child{border-bottom:0}
+.row .k{
+  color:#999;
+  font-size:12px;
+  font-weight:850;
+}
+.row .v{
+  color:#fff;
+  word-break:break-word;
+}
+.private-card{
+  border-color:rgba(237,28,36,.40);
+  box-shadow:inset 0 0 0 1px rgba(237,28,36,.05);
+}
+.private-banner{
+  background:rgba(237,28,36,.12);
+  border:1px solid rgba(237,28,36,.30);
+  border-radius:12px;
+  padding:10px 12px;
+  color:#eee;
+  font-size:12px;
+  line-height:1.45;
+  margin-bottom:12px;
+}
+.money-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:10px;
+}
+.money-box{
+  border:1px solid rgba(255,255,255,.10);
+  background:#0b0b0b;
+  border-radius:13px;
+  padding:12px;
+}
+.money-box span{
+  display:block;
+  color:#999;
+  font-size:11px;
+  margin-bottom:5px;
+}
+.money-box strong{
+  font-size:18px;
+}
+.raw{
+  white-space:pre-wrap;
+  word-break:break-word;
+  max-height:420px;
+  overflow:auto;
+  background:#080808;
+  border:1px solid rgba(255,255,255,.10);
+  border-radius:12px;
+  padding:12px;
+  font-family:Consolas,Monaco,monospace;
+  font-size:12px;
+  color:#ddd;
+}
+details summary{
+  cursor:pointer;
+  font-weight:900;
+}
+
+@media(max-width:1000px){
+  .admin-shell{grid-template-columns:1fr}
+  .admin-page-content{padding:18px}
+  .hero{grid-template-columns:1fr}
+  .hero-actions{justify-content:flex-start}
+  .layout{grid-template-columns:1fr}
+}
+@media(max-width:700px){
+  .info-grid{grid-template-columns:1fr}
+  .money-grid{grid-template-columns:1fr}
+  .row{grid-template-columns:1fr}
+}
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="admin.js?v=12000"></script>
+<link rel="stylesheet" href="admin-shell.css?v=12001">
+</head>
+
+<body>
+<div class="admin-shell">
+  <div id="adminSidebar"></div>
+
+  <div class="admin-main">
+    <div id="adminTopbar"></div>
+
+    <main class="admin-page-content">
+      <section class="hero">
+        <div>
+          <h1>Motorcycle 360</h1>
+          <p>Complete internal AnyBike motorcycle record. Seller, dealer, source and commercial information on this page is for authorised AnyBike admin use only.</p>
+        </div>
+        <div class="hero-actions">
+          <a class="btn" href="admin-global-buyer-network.html">Global Buyer CRM</a>
+          <a class="btn" href="admin-stock.html">Stock</a>
+          <a class="btn primary" id="publicBikeLink" href="#" target="_blank" style="display:none">Open Public Advert</a>
+        </div>
+      </section>
+
+      <div id="pageState" class="loading">Loading motorcycle...</div>
+      <div id="motorcycleView" style="display:none"></div>
+    </main>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL="https://tuehtnezhdnkqbbhttgp.supabase.co";
+const SUPABASE_ANON_KEY="sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+
+function safe(v){
+  return String(v ?? "").replace(/[&<>'"]/g,c=>({
+    "&":"&amp;",
+    "<":"&lt;",
+    ">":"&gt;",
+    "'":"&#39;",
+    '"':"&quot;"
+  }[c]));
+}
+
+function first(){
+  for(const value of arguments){
+    if(value !== null && value !== undefined && String(value).trim() !== ""){
+      return value;
+    }
+  }
+  return null;
+}
+
+function money(v){
+  if(v===null || v===undefined || v==="") return "-";
+  const n=Number(v);
+  if(!Number.isFinite(n)) return safe(v);
+  return "£"+n.toLocaleString("en-GB",{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+
+function numberText(v,suffix){
+  if(v===null || v===undefined || v==="") return "-";
+  const n=Number(v);
+  if(!Number.isFinite(n)) return safe(v);
+  return n.toLocaleString("en-GB")+(suffix||"");
+}
+
+function dateText(v){
+  if(!v) return "-";
+  const d=new Date(v);
+  return Number.isNaN(d.getTime()) ? safe(v) : d.toLocaleString("en-GB");
+}
+
+function valueText(v){
+  if(v===null || v===undefined || v==="") return "-";
+  if(typeof v==="boolean") return v ? "Yes" : "No";
+  return safe(v);
+}
+
+function row(label,value,formatter){
+  const shown=formatter ? formatter(value) : valueText(value);
+  return '<div class="row"><div class="k">'+safe(label)+'</div><div class="v">'+shown+'</div></div>';
+}
+
+function statusClass(status){
+  const s=String(status||"").trim().toLowerCase();
+  if(["active","available","live"].includes(s)) return "live";
+  if(["removed","sold","expired","inactive"].includes(s)) return "red";
+  return "warn";
+}
+
+function linkValue(url,label){
+  if(!url) return "-";
+  const text=safe(label || url);
+  const href=safe(url);
+  return '<a href="'+href+'" target="_blank" rel="noopener" style="color:#fff;text-decoration:underline">'+text+'</a>';
+}
+
+function prettyRaw(raw){
+  if(raw===null || raw===undefined || raw==="") return "No raw source data stored.";
+  try{
+    if(typeof raw==="string"){
+      const parsed=JSON.parse(raw);
+      return JSON.stringify(parsed,null,2);
+    }
+    return JSON.stringify(raw,null,2);
+  }catch(e){
+    return String(raw);
+  }
+}
+
+function renderBike(b){
+  const title=[
+    first(b.make),
+    first(b.model),
+    first(b.variant)
+  ].filter(Boolean).join(" ") || "Motorcycle";
+
+  const sellerName=first(
+    b.private_dealer_name,
+    b.private_seller_name
+  );
+
+  const sellerType=first(
+    b.private_dealer_or_private,
+    b.private_seller_type
+  );
+
+  const sellerLocation=first(
+    b.private_location,
+    b.private_seller_location
+  );
+
+  const sellerPostcode=first(
+    b.private_dealer_postcode,
+    b.private_seller_postcode,
+    b.private_postcode_area
+  );
+
+  const sourceName=first(
+    b.private_source_name,
+    b.private_source,
+    b.source_type,
+    b.source
+  );
+
+  const sourceUrl=first(
+    b.private_source_url,
+    b.source_url
+  );
+
+  const listingRef=first(
+    b.private_listing_id,
+    b.external_id,
+    b.source_stock_id,
+    b.stock_ref
+  );
+
+  const serviceHistory=first(
+    b.private_service_history,
+    b.service_history
+  );
+
+  const owners=first(
+    b.private_owners,
+    b.owners
+  );
+
+  const listedPrice=first(
+    b.private_listed_price,
+    b.price_gbp
+  );
+
+  const imageUrl=first(
+    b.image_url,
+    b.public_image_url,
+    b.primary_image_url
+  );
+
+  const status=first(
+    b.status,
+    b.lifecycle_status,
+    "Unknown"
+  );
+
+  const imageHtml=imageUrl
+    ? '<img src="'+safe(imageUrl)+'" alt="'+safe(title)+'" onerror="this.parentElement.innerHTML=\'<div class=&quot;image-placeholder&quot;>Image could not be loaded.</div>\'">'
+    : '<div class="image-placeholder">No motorcycle image stored.</div>';
+
+  const vatStatus=first(
+    b.vat_status,
+    b.vat_qualifying_status,
+    b.vat_qualifying,
+    "Unknown / Check Required"
+  );
+
+  const hpiStatus=first(
+    b.hpi_status,
+    b.hpi_result,
+    "Unknown / Check Required"
+  );
+
+  const publicLink=document.getElementById("publicBikeLink");
+  publicLink.href="bike-details.html?id="+encodeURIComponent(b.id);
+  publicLink.style.display="inline-flex";
+
+  const html=`
+    <div class="status-strip">
+      <span class="pill ${statusClass(status)}">Stock: ${safe(status)}</span>
+      <span class="pill">AnyBike ID: ${safe(b.id)}</span>
+      <span class="pill">VAT: ${safe(vatStatus)}</span>
+      <span class="pill">HPI: ${safe(hpiStatus)}</span>
+    </div>
+
+    <div class="layout">
+      <div class="left">
+        <section class="card">
+          <div class="image-wrap">${imageHtml}</div>
+          <div class="title-bike">${safe(title)}</div>
+          <div class="sub-bike">
+            ${b.year ? safe(b.year)+" • " : ""}
+            ${b.mileage ? Number(b.mileage).toLocaleString("en-GB")+" miles • " : ""}
+            ${b.colour ? safe(b.colour) : ""}
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>Core Motorcycle</h2>
+          ${row("Make",b.make)}
+          ${row("Model",b.model)}
+          ${row("Variant",b.variant)}
+          ${row("Year",b.year)}
+          ${row("Registration date",first(b.private_registration_date,b.registration_date))}
+          ${row("Mileage",b.mileage,v=>numberText(v," miles"))}
+          ${row("Engine",first(b.engine_cc,b.cc),v=>numberText(v," cc"))}
+          ${row("Colour",b.colour)}
+          ${row("Fuel",b.fuel)}
+          ${row("Transmission",b.transmission)}
+          ${row("Service history",serviceHistory)}
+          ${row("Owners",owners)}
+        </section>
+      </div>
+
+      <div class="right">
+        <section class="card private-card">
+          <h2>Private Seller / Dealer & Source</h2>
+          <div class="private-banner">
+            Internal Junction Box view. Do not expose these seller/dealer/source fields on public customer pages.
+          </div>
+          <div class="info-grid">
+            <div>
+              ${row("Dealer / Seller",sellerName)}
+              ${row("Seller type",sellerType)}
+              ${row("Phone",b.private_seller_phone)}
+              ${row("Email",b.private_seller_email)}
+              ${row("Location",sellerLocation)}
+              ${row("Postcode",sellerPostcode)}
+            </div>
+            <div>
+              ${row("Source",sourceName)}
+              ${row("Listing / Stock Ref",listingRef)}
+              ${row("Source URL",sourceUrl, v=>linkValue(v,sourceName||"Open original source"))}
+              ${row("Last seen",b.private_last_seen_date,dateText)}
+              ${row("Days live",b.private_days_live)}
+              ${row("Days on market",b.private_days_on_market)}
+            </div>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>Availability & Listing</h2>
+          <div class="info-grid">
+            <div>
+              ${row("Stock status",status)}
+              ${row("Lifecycle status",b.lifecycle_status)}
+              ${row("First seen",first(b.first_seen_at,b.created_at),dateText)}
+              ${row("Last updated",first(b.updated_at,b.source_upload),dateText)}
+            </div>
+            <div>
+              ${row("Listed price",listedPrice,money)}
+              ${row("Previous price",b.private_previous_price,money)}
+              ${row("Price change",b.private_price_change,money)}
+              ${row("Price reduced",b.private_price_reduced)}
+            </div>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>Commercial & Internal Valuation</h2>
+          <div class="money-grid">
+            <div class="money-box"><span>Public / Listed Price</span><strong>${money(b.price_gbp)}</strong></div>
+            <div class="money-box"><span>Cost / Purchase Price</span><strong>${money(first(b.cost_price_gbp,b.purchase_price_gbp))}</strong></div>
+            <div class="money-box"><span>Estimated Trade</span><strong>${money(b.private_estimated_trade)}</strong></div>
+            <div class="money-box"><span>Estimated Retail</span><strong>${money(b.private_estimated_retail)}</strong></div>
+            <div class="money-box"><span>Target Sale Price</span><strong>${money(b.target_sale_price_gbp)}</strong></div>
+            <div class="money-box"><span>Confidential Minimum</span><strong>${money(first(b.confidential_minimum_gbp,b.minimum_price_gbp,b.trade_minimum_gbp))}</strong></div>
+          </div>
+
+          <div class="info-grid" style="margin-top:12px">
+            <div>
+              ${row("Prep costs",b.prep_costs_gbp,money)}
+              ${row("Admin fee",b.admin_fee_gbp,money)}
+              ${row("Confidence score",b.private_confidence_score)}
+            </div>
+            <div>
+              ${row("In-stock days",b.private_in_stock_days)}
+              ${row("Derivative ID",b.private_derivative_id)}
+              ${row("VAT status",vatStatus)}
+            </div>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>Checks & Provenance</h2>
+          <div class="info-grid">
+            <div>
+              ${row("HPI status",hpiStatus)}
+              ${row("HPI provider",b.hpi_provider)}
+              ${row("HPI reference",b.hpi_reference)}
+              ${row("HPI checked",b.hpi_checked_at,dateText)}
+            </div>
+            <div>
+              ${row("VAT status",vatStatus)}
+              ${row("VAT evidence",first(b.vat_evidence,b.vat_evidence_reference))}
+              ${row("Feed / source type",b.source_type)}
+              ${row("External ID",b.external_id)}
+            </div>
+          </div>
+        </section>
+
+        <section class="card">
+          <details>
+            <summary>Raw Source Data</summary>
+            <p style="color:#aaa;font-size:12px;line-height:1.45">
+              Internal diagnostic/provenance data. This must never be exposed through the public Junction Box.
+            </p>
+            <div class="raw">${safe(prettyRaw(b.raw_data))}</div>
+          </details>
+        </section>
+      </div>
+    </div>
+  `;
+
+  document.getElementById("motorcycleView").innerHTML=html;
+  document.getElementById("motorcycleView").style.display="block";
+}
+
+async function loadMotorcycle(){
+  const params=new URLSearchParams(window.location.search);
+  const id=params.get("id");
+  const state=document.getElementById("pageState");
+
+  if(!id){
+    state.className="error";
+    state.innerHTML='No motorcycle ID was supplied. Open this page using <strong>?id=...</strong>.';
+    return;
+  }
+
+  state.className="loading";
+  state.textContent="Loading motorcycle "+id+"...";
+
+  const {data,error}=await sb
+    .from("available_stock")
+    .select("*")
+    .eq("id",id)
+    .maybeSingle();
+
+  if(error){
+    state.className="error";
+    state.textContent="Could not load motorcycle: "+error.message;
+    return;
+  }
+
+  if(!data){
+    state.className="empty";
+    state.textContent="Motorcycle not found.";
+    return;
+  }
+
+  state.style.display="none";
+  renderBike(data);
+}
+
+(async function startMotorcycle360(){
+  const allowed=await requireAdminSession();
+
+  if(!allowed){
+    return;
+  }
+
+  document.documentElement.classList.remove("admin-auth-pending");
+  await loadMotorcycle();
+})();
+</script>
+</body>
+</html>
