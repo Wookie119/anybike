@@ -1965,6 +1965,8 @@ let dealMotorcycles=[];
 let dealMotorcycleByMatch={};
 let adminDealNegotiationCache={};
 let sellerConfirmations={};
+let sellerPriceRequests=[];
+let sellerPriceRequestByMatch={};
 let activeSellerMatchId=null;
 let buyerThreads=[];
 let buyerConversationCache={};
@@ -2027,7 +2029,7 @@ async function loadBuyers(){
   document.getElementById("buyersList").innerHTML=
     '<div class="empty">Loading Global Buyer CRM...</div>';
 
-  const [bRes,iRes,tRes,mRes,dRes]=await Promise.all([
+  const [bRes,iRes,tRes,mRes,dRes,sprRes]=await Promise.all([
     sb
       .from("global_buyer_network")
       .select("*")
@@ -2055,7 +2057,13 @@ async function loadBuyers(){
       .order("created_at",{ascending:false})
       .limit(5000),
 
-    sb.rpc("admin_get_deal_motorcycles")
+    sb.rpc("admin_get_deal_motorcycles"),
+
+    sb
+      .from("seller_price_requests")
+      .select("*")
+      .order("created_at",{ascending:false})
+      .limit(2000)
   ]);
 
   if(bRes.error){
@@ -2104,6 +2112,23 @@ async function loadBuyers(){
 
   if(dRes && dRes.error){
     console.warn("Could not load AnyBike Deals",dRes.error.message);
+  }
+
+  sellerPriceRequests=
+    sprRes && !sprRes.error
+      ? (sprRes.data || [])
+      : [];
+
+  sellerPriceRequestByMatch={};
+  sellerPriceRequests.forEach(row=>{
+    if(row?.buyer_match_id===null || row?.buyer_match_id===undefined) return;
+    const key=String(row.buyer_match_id);
+    // Results are newest first, so keep the first/latest request for each match.
+    if(!sellerPriceRequestByMatch[key]) sellerPriceRequestByMatch[key]=row;
+  });
+
+  if(sprRes && sprRes.error){
+    console.warn("Could not load Seller Price Requests",sprRes.error.message);
   }
 
   buyerThreads=
@@ -2392,6 +2417,7 @@ async function createDraftSellerPriceRequest(matchId){
   }
 
   console.info("Seller Price Request draft created",data);
+  await loadBuyers();
   alert(
     "Draft Seller Price Request created successfully.\n\n"+
     "Nothing has been sent to the seller.\n"+
@@ -2443,6 +2469,22 @@ function sellerIsoOrNull(value){
 
 function sellerConfirmationForMatch(matchId){
   return sellerConfirmations[String(matchId)] || null;
+}
+
+function sellerPriceRequestForMatch(matchId){
+  return sellerPriceRequestByMatch[String(matchId)] || null;
+}
+
+function sellerPriceRequestButton(request){
+  if(!request) return null;
+  const status=String(request.request_status || "Draft").trim();
+  if(status==="Draft") return {text:"Seller Price Draft", title:"Draft Seller Price Request exists — nothing has been sent to the seller."};
+  if(status==="Sent") return {text:"Seller Price Requested", title:"Seller Price Request has been sent and is awaiting a response."};
+  if(status==="Viewed") return {text:"Seller Request Viewed", title:"Seller has viewed the Seller Price Request."};
+  if(status==="Responded") return {text:"Seller Price Responded", title:"Seller has responded to the Seller Price Request."};
+  if(status==="Expired") return {text:"Seller Price Expired", title:"The Seller Price Request has expired."};
+  if(status==="Cancelled") return {text:"Seller Price Cancelled", title:"The Seller Price Request was cancelled."};
+  return {text:"Seller Price "+status, title:"Seller Price Request status: "+status};
 }
 
 function sellerMoneyNumber(value){
@@ -3158,6 +3200,8 @@ function renderBuyerOffers(){
           const sellerConfirmation=sellerConfirmationForMatch(match.id);
           const sellerPrice=sellerConfirmation?.confirmed_min_price_gbp;
           const hasSellerPrice=sellerPrice!==null && sellerPrice!==undefined && sellerPrice!=="";
+          const sellerPriceRequest=sellerPriceRequestForMatch(match.id);
+          const sellerPriceRequestState=sellerPriceRequestButton(sellerPriceRequest);
           const grossMargin=hasOffer && hasSellerPrice ? Number(offer)-Number(sellerPrice) : null;
           const deal=dealForMatch(match.id);
 
@@ -3201,9 +3245,11 @@ function renderBuyerOffers(){
               </td>
               <td>
                 <div class="offer-actions">
-                  ${hasOffer && String(match.match_status || "")!=="Accepted"
-                    ? `<button type="button" id="seller-price-request-${safe(match.id)}" class="seller-check-btn needs-action" onclick="createDraftSellerPriceRequest(${Number(match.id)})">Request Seller Price</button>`
-                    : ""
+                  ${hasOffer && !hasSellerPrice && sellerPriceRequestState
+                    ? `<button type="button" class="seller-check-btn" disabled title="${safe(sellerPriceRequestState.title)}">${safe(sellerPriceRequestState.text)}</button>`
+                    : (hasOffer && !hasSellerPrice && String(match.match_status || "")!=="Accepted"
+                        ? `<button type="button" id="seller-price-request-${safe(match.id)}" class="seller-check-btn needs-action" onclick="createDraftSellerPriceRequest(${Number(match.id)})">Request Seller Price</button>`
+                        : "")
                   }
                   ${hasOffer
                     ? `<button type="button" class="seller-check-btn needs-action" onclick="openSellerCheck(${Number(match.id)})">Check Seller</button>`
