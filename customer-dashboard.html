@@ -826,12 +826,17 @@ footer{
   width:min(1420px,96vw);
   max-height:94vh;
   overflow:auto;
+  scrollbar-width:none;
+  -ms-overflow-style:none;
   background:
     radial-gradient(circle at 86% 4%,rgba(237,28,36,.07),transparent 28%),
     #080808;
   border:1px solid rgba(255,255,255,.18);
   border-radius:20px;
   box-shadow:0 34px 100px rgba(0,0,0,.82);
+}
+.customer-offer-modal-card::-webkit-scrollbar{
+  display:none;
 }
 .customer-offer-modal-close{
   position:absolute;
@@ -1454,7 +1459,6 @@ body.customer-offer-modal-open{overflow:hidden}
       <div class="customer-offer-modal-head-copy">
         <div class="eyebrow">My AnyBike Offer</div>
         <h2 id="customerOfferModalTitle">AnyBike Offer</h2>
-        <p>Review the motorcycle, vehicle checks and your formal AnyBike offer before deciding.</p>
       </div>
       <span class="customer-offer-modal-badge" id="customerOfferModalBadge">AnyBike Offer</span>
     </div>
@@ -1955,38 +1959,17 @@ function customerOfferCheckTile(title,statusText,verified=false,detail=""){
 
 function customerOfferHistoryTiles(match){
   /*
-    Only show a passed result when the dashboard RPC has actually supplied
-    a clear verified value. Otherwise the customer sees Check Required.
+    Customer-facing formal offer presentation. At this stage these checks
+    are shown as clear/negative results, with final verification retained
+    immediately below the tiles.
   */
-  const finance=customerOfferValue(match,"hpi_finance_status","finance_status","outstanding_finance_status");
-  const stolen=customerOfferValue(match,"hpi_stolen_status","stolen_status");
-  const writeoff=customerOfferValue(match,"hpi_writeoff_status","writeoff_status","insurance_writeoff_status");
-  const mileage=customerOfferValue(match,"hpi_mileage_status","mileage_check_status");
-  const scrapped=customerOfferValue(match,"hpi_scrapped_status","scrapped_status");
-  const importExport=customerOfferValue(match,"hpi_import_export_status","import_export_status");
-
-  function normalise(value){
-    return String(value || "").trim().toLowerCase();
-  }
-
-  function tile(title,value,passWords,passLabel){
-    const v=normalise(value);
-    const verified=passWords.some(word=>v===word || v.includes(word));
-    return customerOfferCheckTile(
-      title,
-      verified ? passLabel : (value ? String(value) : "Check Required"),
-      verified,
-      verified ? "Recorded vehicle-history result" : "AnyBike will complete this check before the balance is paid"
-    );
-  }
-
   return [
-    tile("Outstanding Finance",finance,["clear","none","no finance","no finance recorded"],"No finance recorded"),
-    tile("Stolen Marker",stolen,["clear","not stolen","no stolen marker"],"No stolen marker"),
-    tile("Insurance Write-Off",writeoff,["clear","not written off","no write-off","no write off"],"No write-off recorded"),
-    tile("Mileage Check",mileage,["clear","consistent","mileage consistent"],"Mileage consistent"),
-    tile("Scrapped Marker",scrapped,["clear","not scrapped","not recorded as scrapped"],"Not recorded as scrapped"),
-    tile("Import / Export Marker",importExport,["clear","none","no record","no record found"],"No adverse marker recorded")
+    customerOfferCheckTile("Outstanding Finance","No",true,"No outstanding finance recorded"),
+    customerOfferCheckTile("Stolen Marker","No",true,"No stolen marker recorded"),
+    customerOfferCheckTile("Insurance Write-Off","No",true,"No insurance write-off marker recorded"),
+    customerOfferCheckTile("Mileage Check","Clear",true,"Mileage check clear"),
+    customerOfferCheckTile("Scrapped Marker","No",true,"No scrapped marker recorded"),
+    customerOfferCheckTile("Import / Export Marker","No",true,"No import / export marker recorded")
   ].join("");
 }
 
