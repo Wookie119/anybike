@@ -410,7 +410,17 @@
 
       <div class="seller-form-section">
         <h3>5. Offer Timing</h3>
-        <div class="seller-review-note">The customer offer expiry and live countdown will be set when <strong>Send AnyBike Offer</strong> is used, so the countdown starts when the offer is actually released to the buyer. This remains separate from any seller Bike Held Until time.</div>
+        <div class="seller-grid">
+          <div class="seller-field">
+            <label for="aboOfferExpiresAt">Offer Valid Until</label>
+            <input id="aboOfferExpiresAt" type="datetime-local">
+          </div>
+          <div class="seller-field">
+            <label>Customer Offer State</label>
+            <div id="aboSendState" class="seller-review-value">Prepared internally — not sent</div>
+          </div>
+        </div>
+        <div class="seller-review-note" style="margin-top:10px">This expiry belongs to the customer offer only. The live countdown starts when <strong>Send AnyBike Offer</strong> is used and remains separate from any seller Bike Held Until time.</div>
       </div>
 
       <div class="seller-form-section">
@@ -426,6 +436,7 @@
       <div class="seller-modal-status" id="aboSaveStatus"></div>
       <button type="button" onclick="closeAnyBikeOffer()">Close</button>
       <button type="button" class="save" id="aboSaveButton" onclick="saveAnyBikeOffer()">Save Prepared Offer</button>
+      <button type="button" class="save" id="aboSendButton" onclick="sendAnyBikeOffer()" style="background:#2f9e44;border-color:#2f9e44">Send AnyBike Offer</button>
     </div>
   </div>
 </div>
@@ -3240,6 +3251,19 @@ function formatAnyBikeOfferMoney(el){
   calculateAnyBikeOffer();
 }
 
+function anybikeOfferDateTimeLocal(value){
+  const d=value ? new Date(value) : null;
+  if(!d || Number.isNaN(d.getTime())) return "";
+  const pad=n=>String(n).padStart(2,"0");
+  return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())+"T"+pad(d.getHours())+":"+pad(d.getMinutes());
+}
+
+function defaultAnyBikeOfferExpiry(){
+  const d=new Date(Date.now()+(24*60*60*1000));
+  d.setSeconds(0,0);
+  return anybikeOfferDateTimeLocal(d);
+}
+
 function updateAnyBikeOfferDeliveryState(){
   const type=document.getElementById("aboDeliveryType")?.value || "Buyer Arranged / Collection";
   const destination=document.getElementById("aboDeliveryDestination");
@@ -3379,6 +3403,25 @@ async function openAnyBikeOffer(matchId){
   document.getElementById("aboPaymentTerms").value=match.offer_payment_terms_text || "Deposit payable immediately on acceptance. The remaining balance must be received in cleared funds before collection of the motorcycle from the seller.";
   document.getElementById("aboNotes").value=match.commercial_notes || "";
 
+  const expiresInput=document.getElementById("aboOfferExpiresAt");
+  if(expiresInput){
+    const existingExpiry=match.confirmed_offer_expires_at ? new Date(match.confirmed_offer_expires_at) : null;
+    expiresInput.value=existingExpiry && !Number.isNaN(existingExpiry.getTime()) && existingExpiry.getTime()>Date.now()
+      ? anybikeOfferDateTimeLocal(existingExpiry)
+      : defaultAnyBikeOfferExpiry();
+  }
+
+  const sendState=document.getElementById("aboSendState");
+  if(sendState){
+    if(String(match.match_status || "")==="Confirmed Offer Sent" && match.confirmed_offer_sent_at){
+      sendState.textContent="Sent "+dateTxt(match.confirmed_offer_sent_at)+(match.confirmed_offer_expires_at ? " • Expires "+dateTxt(match.confirmed_offer_expires_at) : "");
+      sendState.style.color="#9bf0b8";
+    }else{
+      sendState.textContent="Prepared internally — not sent";
+      sendState.style.color="#ffd166";
+    }
+  }
+
   const saveStatus=document.getElementById("aboSaveStatus");
   if(saveStatus){
     saveStatus.className="seller-modal-status";
@@ -3479,16 +3522,109 @@ async function saveAnyBikeOffer(){
     }
 
     await loadBuyers();
+    return true;
   }catch(err){
     console.error("Prepare AnyBike Offer failed",err);
     if(status){
       status.className="seller-modal-status error";
       status.textContent="Could not prepare AnyBike offer: "+(err?.message || err);
     }
+    return false;
   }finally{
     if(button){
       button.disabled=false;
       button.textContent="Save Prepared Offer";
+    }
+  }
+}
+
+async function sendAnyBikeOffer(){
+  const matchId=activeAnyBikeOfferMatchId;
+  if(!matchId) return;
+
+  const status=document.getElementById("aboSaveStatus");
+  const sendButton=document.getElementById("aboSendButton");
+  const expiryRaw=document.getElementById("aboOfferExpiresAt")?.value || "";
+  const expiry=expiryRaw ? new Date(expiryRaw) : null;
+
+  const setError=(message)=>{
+    if(status){
+      status.className="seller-modal-status error";
+      status.textContent=message;
+    }
+  };
+
+  if(!expiry || Number.isNaN(expiry.getTime())){
+    setError("Choose when this customer offer expires.");
+    return;
+  }
+  if(expiry.getTime()<=Date.now()){
+    setError("Offer Valid Until must be in the future.");
+    return;
+  }
+
+  const motorcyclePrice=anybikeOfferNumber("aboCustomerPrice");
+  const deliveryCharge=anybikeOfferNumber("aboDeliveryCharge");
+  const customerTotal=motorcyclePrice+deliveryCharge;
+  const depositAmount=anybikeOfferNumber("aboDepositAmount");
+
+  const confirmed=window.confirm(
+    "Send this AnyBike offer to the customer now?\n\n"+
+    "Motorcycle: "+money(motorcyclePrice)+"\n"+
+    "Delivery: "+money(deliveryCharge)+"\n"+
+    "Customer total: "+money(customerTotal)+"\n"+
+    "Deposit due on acceptance: "+money(depositAmount)+"\n"+
+    "Offer expires: "+expiry.toLocaleString()+"\n\n"+
+    "This does NOT secure the motorcycle or create a Deal."
+  );
+  if(!confirmed) return;
+
+  if(sendButton){
+    sendButton.disabled=true;
+    sendButton.textContent="Sending…";
+  }
+
+  try{
+    if(status){
+      status.className="seller-modal-status";
+      status.textContent="Checking and saving the prepared offer…";
+    }
+
+    const saved=await saveAnyBikeOffer();
+    if(!saved) return;
+
+    if(status) status.textContent="Re-checking seller position and releasing offer to customer…";
+
+    const {data,error}=await sb.rpc("admin_send_anybike_offer",{
+      p_match_id:Number(matchId),
+      p_offer_expires_at:expiry.toISOString()
+    });
+    if(error) throw error;
+
+    const row=Array.isArray(data) ? data[0] : data;
+    if(status){
+      status.className="seller-modal-status success";
+      status.textContent=
+        "AnyBike Offer sent • Customer total "+money(row?.customer_offer_total_gbp ?? customerTotal)+
+        " • Deposit "+money(row?.deposit_required_gbp ?? depositAmount)+
+        " • Expires "+dateTxt(row?.offer_expires_at || expiry.toISOString())+
+        " • Motorcycle remains NOT SECURED";
+    }
+
+    const sendState=document.getElementById("aboSendState");
+    if(sendState){
+      sendState.textContent="Sent now • Expires "+dateTxt(row?.offer_expires_at || expiry.toISOString());
+      sendState.style.color="#9bf0b8";
+    }
+
+    await loadBuyers();
+  }catch(err){
+    console.error("Send AnyBike Offer failed",err);
+    setError("Could not send AnyBike offer: "+(err?.message || err));
+  }finally{
+    if(sendButton){
+      sendButton.disabled=false;
+      sendButton.textContent="Send AnyBike Offer";
     }
   }
 }
