@@ -1,0 +1,929 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<title>My Purchases | AnyBike</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="/public-header.css?v=9000">
+
+<style>
+:root{
+  --red:#ed1c24;
+  --bg:#050505;
+  --panel:#101010;
+  --panel2:#171717;
+  --text:#fff;
+  --muted:#aaa;
+  --green:#36d37e;
+}
+
+*{
+  box-sizing:border-box;
+}
+
+body{
+  margin:0;
+  background:
+    radial-gradient(
+      circle at 90% 0%,
+      rgba(237,28,36,.13),
+      transparent 32%
+    ),
+    #050505;
+  color:#fff;
+  font-family:Arial,Helvetica,sans-serif;
+}
+
+main{
+  width:min(1420px,94vw);
+  margin:28px auto 70px;
+}
+
+.hero{
+  border:1px solid rgba(255,255,255,.14);
+  border-radius:22px;
+  padding:25px;
+  background:#101010;
+  margin-bottom:20px;
+}
+
+.eyebrow{
+  color:var(--red);
+  font-size:12px;
+  font-weight:900;
+  letter-spacing:.18em;
+}
+
+.hero h1{
+  font-size:38px;
+  margin:7px 0;
+}
+
+.hero p{
+  color:#bbb;
+  margin:0;
+  line-height:1.5;
+}
+
+.top-actions{
+  display:flex;
+  gap:10px;
+  margin-top:18px;
+}
+
+.btn{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-height:42px;
+  padding:0 16px;
+  border-radius:10px;
+  text-decoration:none;
+  font-weight:900;
+  border:1px solid rgba(255,255,255,.16);
+  color:#fff;
+  background:#171717;
+}
+
+.panel{
+  border:1px solid rgba(54,211,126,.48);
+  border-radius:20px;
+  background:
+    radial-gradient(
+      circle at 95% 0%,
+      rgba(54,211,126,.11),
+      transparent 30%
+    ),
+    #101010;
+  padding:20px;
+}
+
+.grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:16px;
+}
+
+.card{
+  border:1px solid rgba(54,211,126,.36);
+  border-radius:18px;
+  overflow:hidden;
+  background:#141414;
+}
+
+.image{
+  height:250px;
+  background:#090909;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.image img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+}
+
+.body{
+  padding:18px;
+}
+
+.top{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+}
+
+.top h2{
+  margin:0;
+  font-size:24px;
+}
+
+.variant{
+  color:#aaa;
+  margin-top:4px;
+}
+
+.badge{
+  height:max-content;
+  padding:6px 10px;
+  border-radius:999px;
+  border:1px solid rgba(54,211,126,.45);
+  background:rgba(54,211,126,.13);
+  color:#d9ffe8;
+  font-size:11px;
+  font-weight:900;
+}
+
+.status{
+  margin:16px 0;
+  padding:15px;
+  border:1px solid rgba(54,211,126,.3);
+  background:rgba(54,211,126,.08);
+  border-radius:13px;
+}
+
+.status strong{
+  display:block;
+  color:#d9ffe8;
+  font-size:19px;
+}
+
+.status span{
+  display:block;
+  color:#b8dfc6;
+  margin-top:5px;
+  font-size:13px;
+  line-height:1.45;
+}
+
+.price{
+  padding:15px;
+  border:1px solid rgba(54,211,126,.3);
+  border-radius:13px;
+  margin-bottom:12px;
+}
+
+.price strong{
+  display:block;
+  font-size:24px;
+}
+
+.price span{
+  font-size:12px;
+  color:#b8dfc6;
+}
+
+.details{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:8px;
+}
+
+.detail{
+  border:1px solid rgba(255,255,255,.1);
+  border-radius:11px;
+  padding:11px;
+  background:#0d0d0d;
+}
+
+.detail span{
+  display:block;
+  color:#888;
+  font-size:9px;
+  font-weight:900;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  margin-bottom:5px;
+}
+
+.journey{
+  margin-top:14px;
+  border:1px solid rgba(255,255,255,.1);
+  border-radius:13px;
+  padding:14px;
+  background:#0d0d0d;
+}
+
+.journey-title{
+  font-size:11px;
+  color:#999;
+  text-transform:uppercase;
+  font-weight:900;
+  letter-spacing:.08em;
+  margin-bottom:11px;
+}
+
+.steps{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  flex-wrap:wrap;
+}
+
+.step{
+  padding:7px 9px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.12);
+  color:#888;
+  font-size:10px;
+  font-weight:900;
+}
+
+.step.done{
+  border-color:rgba(54,211,126,.55);
+  background:rgba(54,211,126,.12);
+  color:#d9ffe8;
+}
+
+.step.current{
+  border-color:var(--green);
+  color:#07140b;
+  background:var(--green);
+}
+
+.notice{
+  margin-top:14px;
+  color:#aaa;
+  font-size:12px;
+  line-height:1.5;
+}
+
+.empty{
+  padding:34px;
+  text-align:center;
+  border:1px dashed rgba(255,255,255,.18);
+  border-radius:14px;
+  color:#bbb;
+}
+
+@media(max-width:900px){
+  .grid{
+    grid-template-columns:1fr;
+  }
+}
+
+@media(max-width:620px){
+  main{
+    width:min(96vw,1420px);
+  }
+
+  .hero h1{
+    font-size:30px;
+  }
+
+  .details{
+    grid-template-columns:1fr;
+  }
+
+  .image{
+    height:210px;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<main>
+
+<section class="hero">
+
+  <div class="eyebrow">
+    MY ANYBIKE
+  </div>
+
+  <h1>
+    🛒 My Purchases
+  </h1>
+
+  <p>
+    Your accepted AnyBike purchases, payment progress and motorcycle
+    security status in one place.
+  </p>
+
+  <div class="top-actions">
+    <a class="btn" href="customer-dashboard.html">
+      ← Back to My AnyBike
+    </a>
+  </div>
+
+</section>
+
+<section class="panel">
+
+  <div id="purchases">
+    <div class="empty">
+      Loading your purchases...
+    </div>
+  </div>
+
+</section>
+
+</main>
+
+<script>
+
+/*
+  IMPORTANT
+  ---------
+  Use the SAME Supabase URL and anon/publishable key that are already
+  present in your live customer dashboard.
+
+  Copy those two existing values into the two constants below.
+*/
+
+const SUPABASE_URL = "PASTE_YOUR_EXISTING_SUPABASE_URL_HERE";
+
+const SUPABASE_ANON_KEY =
+  "PASTE_YOUR_EXISTING_SUPABASE_ANON_KEY_HERE";
+
+
+const sb = supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_ANON_KEY
+);
+
+
+const safe = v =>
+  String(v ?? "").replace(
+    /[&<>"']/g,
+    c => ({
+      "&":"&amp;",
+      "<":"&lt;",
+      ">":"&gt;",
+      '"':"&quot;",
+      "'":"&#039;"
+    }[c])
+  );
+
+
+const money = v =>
+  Number.isFinite(Number(v))
+    ? new Intl.NumberFormat(
+        "en-GB",
+        {
+          style:"currency",
+          currency:"GBP"
+        }
+      ).format(Number(v))
+    : "-";
+
+
+function deliveryLabel(match){
+
+  const value =
+    String(match.offer_delivery_type || "").trim();
+
+  if(value === "Buyer Arranged / Collection"){
+    return "Buyer arranged / collection";
+  }
+
+  if(value === "Delivery to UK Address"){
+    return "Delivery to UK address";
+  }
+
+  if(value === "Delivery to UK Port"){
+    return "Delivery to UK port";
+  }
+
+  if(value === "Other Agreed Delivery"){
+    return "Other agreed delivery";
+  }
+
+  return value || "To be agreed";
+}
+
+
+function purchaseCard(match){
+
+  const title =
+    [
+      match.stock_make,
+      match.stock_model
+    ]
+    .filter(Boolean)
+    .join(" ") || "Motorcycle";
+
+
+  const variant =
+    String(match.stock_variant || "").trim();
+
+
+  const image =
+    String(match.stock_image_url || "").trim();
+
+
+  const motorcyclePrice =
+    Number(
+      match.confirmed_customer_price_gbp || 0
+    );
+
+
+  const deliveryCharge =
+    Number(
+      match.offer_delivery_charge_gbp || 0
+    );
+
+
+  const total =
+    motorcyclePrice + deliveryCharge;
+
+
+  const deposit =
+    Number(
+      match.offer_deposit_amount_gbp || 0
+    );
+
+
+  const acceptedAt =
+    match.customer_offer_decided_at ||
+    match.buyer_responded_at ||
+    null;
+
+
+  const destination =
+    String(
+      match.offer_delivery_destination || ""
+    ).trim();
+
+
+  const saleBasis =
+    String(
+      match.offer_sale_basis || ""
+    ).trim() || "AnyBike offer";
+
+
+  return `
+
+    <article class="card">
+
+      <div class="image">
+
+        ${
+          image
+
+          ? `
+            <img
+              src="${safe(image)}"
+              alt="${safe(title)}"
+              loading="lazy"
+            >
+          `
+
+          : `
+            <div style="font-size:60px">
+              🏍️
+            </div>
+          `
+        }
+
+      </div>
+
+
+      <div class="body">
+
+
+        <div class="top">
+
+          <div>
+
+            <h2>
+              ${safe(title)}
+            </h2>
+
+            ${
+              variant
+
+              ? `
+                <div class="variant">
+                  ${safe(variant)}
+                </div>
+              `
+
+              : ""
+            }
+
+          </div>
+
+
+          <span class="badge">
+            Offer Accepted
+          </span>
+
+        </div>
+
+
+        <div class="status">
+
+          <strong>
+            Purchase in Progress
+          </strong>
+
+          <span>
+            Your formal AnyBike offer has been accepted.
+            The motorcycle is not yet secured with the seller.
+          </span>
+
+        </div>
+
+
+        <div class="price">
+
+          <strong>
+            ${money(total)}
+          </strong>
+
+          <span>
+            Accepted AnyBike purchase price
+          </span>
+
+        </div>
+
+
+        <div class="details">
+
+
+          <div class="detail">
+
+            <span>
+              Deposit
+            </span>
+
+            ${
+              deposit > 0
+
+              ? `${money(deposit)} due`
+
+              : "No deposit specified"
+            }
+
+          </div>
+
+
+          <div class="detail">
+
+            <span>
+              Payment status
+            </span>
+
+            ${
+              deposit > 0
+
+              ? "Deposit Due"
+
+              : "Payment stage"
+            }
+
+          </div>
+
+
+          <div class="detail">
+
+            <span>
+              Motorcycle status
+            </span>
+
+            Not Yet Secured
+
+          </div>
+
+
+          <div class="detail">
+
+            <span>
+              Sale basis
+            </span>
+
+            ${safe(saleBasis)}
+
+          </div>
+
+
+          <div class="detail">
+
+            <span>
+              Delivery / collection
+            </span>
+
+            ${safe(deliveryLabel(match))}
+
+          </div>
+
+
+          <div class="detail">
+
+            <span>
+              Offer accepted
+            </span>
+
+            ${
+              acceptedAt
+
+              ? safe(
+                  new Date(
+                    acceptedAt
+                  ).toLocaleString("en-GB")
+                )
+
+              : "-"
+            }
+
+          </div>
+
+
+          ${
+            destination
+
+            ? `
+
+              <div
+                class="detail"
+                style="grid-column:1/-1"
+              >
+
+                <span>
+                  Destination
+                </span>
+
+                ${safe(destination)}
+
+              </div>
+
+            `
+
+            : ""
+          }
+
+
+        </div>
+
+
+        <div class="journey">
+
+          <div class="journey-title">
+            Purchase journey
+          </div>
+
+
+          <div class="steps">
+
+            <span class="step done">
+              Offer Accepted
+            </span>
+
+            <span class="step current">
+              Deposit Due
+            </span>
+
+            <span class="step">
+              Final Seller Check
+            </span>
+
+            <span class="step">
+              Motorcycle Secured
+            </span>
+
+            <span class="step">
+              Balance / Documents
+            </span>
+
+            <span class="step">
+              Operations / Shipping
+            </span>
+
+            <span class="step">
+              Completed
+            </span>
+
+          </div>
+
+        </div>
+
+
+        <div class="notice">
+
+          Acceptance records your commitment to the AnyBike offer.
+          The motorcycle remains not yet secured until AnyBike
+          completes the final seller security stage.
+
+        </div>
+
+
+      </div>
+
+    </article>
+
+  `;
+}
+
+
+async function loadPurchases(){
+
+  const purchasesBox =
+    document.getElementById("purchases");
+
+
+  /*
+    Check that the customer is authenticated.
+  */
+
+  const {
+    data:{
+      session
+    }
+  } = await sb.auth.getSession();
+
+
+  if(!session){
+
+    location.href = "login.html";
+
+    return;
+
+  }
+
+
+  /*
+    Load the customer's existing buyer-match dashboard data.
+
+    This is the same secure customer RPC already used by
+    the My AnyBike dashboard.
+  */
+
+  const {
+    data,
+    error
+  } = await sb.rpc(
+    "get_my_buyer_match_dashboard_v3"
+  );
+
+
+  if(error){
+
+    purchasesBox.innerHTML = `
+
+      <div class="empty">
+
+        We could not load your purchases:
+
+        ${safe(error.message)}
+
+      </div>
+
+    `;
+
+    return;
+
+  }
+
+
+  const rows =
+    Array.isArray(data)
+
+      ? data
+
+      : (
+          data
+            ? [data]
+            : []
+        );
+
+
+  /*
+    A purchase appears here once the customer has accepted
+    the formal AnyBike offer.
+
+    We recognise either the dedicated decision field or
+    the new accepted match status.
+  */
+
+  const purchases =
+    rows.filter(match => {
+
+      const decision =
+        String(
+          match.customer_offer_decision || ""
+        );
+
+      const status =
+        String(
+          match.match_status || ""
+        );
+
+
+      return (
+        decision === "Accepted" ||
+        status === "Customer Accepted Offer"
+      );
+
+    });
+
+
+  if(!purchases.length){
+
+    purchasesBox.innerHTML = `
+
+      <div class="empty">
+
+        You do not have any AnyBike purchases
+        in progress at the moment.
+
+      </div>
+
+    `;
+
+    return;
+
+  }
+
+
+  /*
+    If the customer came from a specific dashboard
+    View Purchase button, put that purchase first.
+  */
+
+  const requestedPurchase =
+    new URLSearchParams(
+      location.search
+    ).get("purchase");
+
+
+  let orderedPurchases =
+    [...purchases];
+
+
+  if(requestedPurchase){
+
+    orderedPurchases.sort(
+      (a,b) => {
+
+        if(
+          String(a.id) ===
+          String(requestedPurchase)
+        ){
+          return -1;
+        }
+
+        if(
+          String(b.id) ===
+          String(requestedPurchase)
+        ){
+          return 1;
+        }
+
+        return 0;
+
+      }
+    );
+
+  }
+
+
+  purchasesBox.innerHTML = `
+
+    <div class="grid">
+
+      ${
+        orderedPurchases
+          .map(purchaseCard)
+          .join("")
+      }
+
+    </div>
+
+  `;
+
+}
+
+
+loadPurchases();
+
+</script>
+
+</body>
+</html>
