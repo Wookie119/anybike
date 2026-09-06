@@ -1,0 +1,253 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My AnyBike Offer | AnyBike</title>
+<meta name="description" content="Review your AnyBike motorcycle offer, vehicle checks and offer terms.">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="/public-header.css?v=9000">
+<style>
+:root{
+  --ink:#13233a;
+  --muted:#667085;
+  --line:#dce3ec;
+  --soft:#f6f8fb;
+  --blue:#0057d9;
+  --green:#168a50;
+  --green-soft:#eaf8f0;
+  --amber:#b76a00;
+  --amber-soft:#fff5df;
+  --red:#b42318;
+  --red-soft:#fff0ee;
+  --shadow:0 12px 34px rgba(18,37,63,.08);
+}
+*{box-sizing:border-box}
+body{margin:0;background:#f4f6f9;color:var(--ink);font-family:Arial,Helvetica,sans-serif}
+a{color:inherit}
+main{max-width:1180px;margin:0 auto;padding:28px 18px 56px}
+.back-link{display:inline-flex;align-items:center;gap:7px;color:#475467;text-decoration:none;font-weight:700;margin:3px 0 18px}
+.offer-shell{background:#fff;border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);overflow:hidden}
+.offer-head{display:flex;justify-content:space-between;gap:24px;padding:28px 30px;border-bottom:1px solid var(--line);align-items:flex-start}
+.eyebrow{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--blue);font-weight:800;margin-bottom:8px}
+h1{font-size:30px;line-height:1.15;margin:0 0 8px}
+.subtitle{color:var(--muted);font-size:15px}
+.badge{display:inline-flex;border-radius:999px;padding:8px 12px;font-size:13px;font-weight:800;white-space:nowrap}
+.badge.offer{background:var(--green-soft);color:var(--green)}
+.badge.expired{background:var(--red-soft);color:var(--red)}
+.offer-grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(330px,.65fr);gap:0}
+.left{padding:28px 30px;border-right:1px solid var(--line)}
+.right{padding:28px 30px;background:#fbfcfe}
+.bike-hero{display:grid;grid-template-columns:290px minmax(0,1fr);gap:24px;align-items:start}
+.bike-image{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:14px;background:#eef2f6;border:1px solid var(--line)}
+.bike-title{font-size:25px;margin:0 0 6px}
+.bike-variant{font-size:15px;color:var(--muted);margin-bottom:18px}
+.specs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 18px}
+.spec{background:var(--soft);border-radius:10px;padding:10px 12px}
+.spec small{display:block;color:var(--muted);font-size:11px;text-transform:uppercase;font-weight:800;letter-spacing:.04em;margin-bottom:3px}
+.spec strong{font-size:14px}
+.section{margin-top:28px;padding-top:25px;border-top:1px solid var(--line)}
+.section h2{font-size:20px;margin:0 0 8px}
+.section-intro{font-size:14px;color:var(--muted);margin-bottom:16px;line-height:1.5}
+.check-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.check-row{display:flex;justify-content:space-between;gap:12px;padding:12px 13px;border:1px solid var(--line);border-radius:10px;background:white}
+.check-row span:first-child{font-weight:700}
+.check-value{font-weight:800;text-align:right}
+.check-clear{color:var(--green)}
+.check-warn{color:var(--amber)}
+.check-alert{color:var(--red)}
+.check-note{margin-top:12px;padding:12px 14px;border-radius:10px;background:var(--amber-soft);color:#744500;font-size:13px;line-height:1.45}
+.price-box{background:#e9f7ef;border:1px solid #b9e4ca;border-radius:14px;padding:20px;margin-bottom:18px}
+.price-label{font-size:13px;font-weight:800;color:#3f6351;margin-bottom:6px}
+.price-total{font-size:31px;font-weight:900;color:#0f7b45}
+.price-sub{font-size:12px;color:#4a6a58;margin-top:5px}
+.breakdown{border:1px solid var(--line);border-radius:12px;background:#fff;overflow:hidden}
+.row{display:flex;justify-content:space-between;gap:16px;padding:12px 14px;border-bottom:1px solid #edf0f4;font-size:14px}
+.row:last-child{border-bottom:0}
+.row span:first-child{color:#667085}
+.row strong{text-align:right}
+.row.total{background:#f8fafc;font-size:15px}
+.row.total span:first-child,.row.total strong{color:var(--ink);font-weight:900}
+.countdown{margin:16px 0 0;padding:13px 14px;border-radius:10px;background:#eef5ff;color:#154ea3;font-weight:800;text-align:center}
+.countdown.expired{background:var(--red-soft);color:var(--red)}
+.terms{font-size:13px;line-height:1.55;color:#475467;white-space:pre-line}
+.action-box{margin-top:22px;padding-top:22px;border-top:1px solid var(--line)}
+.action-title{font-weight:900;margin-bottom:7px}
+.action-copy{font-size:13px;color:var(--muted);line-height:1.45;margin-bottom:14px}
+.action-buttons{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.btn{border:0;border-radius:10px;padding:13px 14px;font-weight:900;font-size:14px;cursor:pointer}
+.btn.accept{background:var(--green);color:white}
+.btn.decline{background:white;color:var(--red);border:1px solid #efb9b5}
+.btn[disabled]{opacity:.55;cursor:not-allowed}
+.pending-note{font-size:12px;color:#667085;margin-top:10px;text-align:center}
+.loading,.error{padding:55px 30px;text-align:center;color:var(--muted)}
+.error{color:var(--red)}
+footer{text-align:center;color:#7a8493;font-size:12px;padding:24px 16px 36px}
+@media(max-width:900px){
+  .offer-grid{grid-template-columns:1fr}.left{border-right:0;border-bottom:1px solid var(--line)}
+  .bike-hero{grid-template-columns:1fr}.bike-image{max-width:520px}
+}
+@media(max-width:560px){
+  main{padding:16px 10px 40px}.offer-head,.left,.right{padding:20px 18px}.offer-head{flex-direction:column}
+  h1{font-size:25px}.specs,.check-grid,.action-buttons{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div id="publicHeader"></div>
+<main>
+  <a class="back-link" href="customer-dashboard.html#my-offers">← Back to My Offers</a>
+  <div class="offer-shell" id="offerShell">
+    <div class="loading">Loading your AnyBike offer...</div>
+  </div>
+</main>
+<footer><strong>ANYBIKE.CO.UK</strong><br>UK Motorcycle Export Specialists — Worldwide sourcing and export services.</footer>
+<script src="/public-header.js?v=9200"></script>
+<script>
+const SUPABASE_URL="https://tuehtnezhdnkqbbhttgp.supabase.co";
+const SUPABASE_ANON_KEY="sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+let activeOffer=null;
+let countdownTimer=null;
+
+function esc(v){return String(v??"").replace(/[&<>'"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[c]));}
+function money(v){const n=Number(v);return Number.isFinite(n)?new Intl.NumberFormat('en-GB',{style:'currency',currency:'GBP',minimumFractionDigits:0,maximumFractionDigits:2}).format(n):'—';}
+function fmtDate(v){if(!v)return '—';const d=new Date(v);return Number.isNaN(d.getTime())?'—':d.toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});}
+function loginUrl(){return 'customer-register.html?return='+encodeURIComponent(location.pathname+location.search+location.hash);}
+function statusClass(value){
+  const v=String(value||'').toLowerCase();
+  if(v==='clear'||v==='verified')return 'check-clear';
+  if(v.includes('alert')||v.includes('recorded')||v.includes('discrepancy')||v.includes('scrapped'))return 'check-alert';
+  return 'check-warn';
+}
+function displayStatus(value){return value&&String(value).trim()?esc(value):'Check Required';}
+function checkRow(label,value){return `<div class="check-row"><span>${esc(label)}</span><span class="check-value ${statusClass(value)}">${displayStatus(value)}</span></div>`;}
+
+function renderOffer(data){
+  activeOffer=data;
+  const b=data.motorcycle||{};
+  const o=data.offer||{};
+  const h=data.vehicle_history||null;
+  const total=Number(o.total_offer_gbp||0);
+  const bikePrice=Number(o.motorcycle_price_gbp||0);
+  const delivery=Number(o.delivery_charge_gbp||0);
+  const advertised=Number(b.advertised_price_gbp||0);
+  const expired=o.expires_at && new Date(o.expires_at).getTime()<=Date.now();
+  const title=[b.make,b.model].filter(Boolean).join(' ')||'Motorcycle';
+  const image=b.image_url||'/images/placeholder-bike.jpg';
+
+  let historyHtml='';
+  if(!h){
+    historyHtml=`
+      <div class="check-grid">
+        ${checkRow('Outstanding Finance','Check Required')}
+        ${checkRow('Stolen Marker','Check Required')}
+        ${checkRow('Insurance Write-Off','Check Required')}
+        ${checkRow('Mileage Check','Check Required')}
+        ${checkRow('Scrapped Marker','Check Required')}
+        ${checkRow('Import / Export Marker','Check Required')}
+      </div>
+      <div class="check-note"><strong>Vehicle history check required.</strong> AnyBike has not yet recorded a verified vehicle-history result for this motorcycle. No item above should be treated as clear until it has been checked.</div>`;
+  }else{
+    historyHtml=`
+      <div class="check-grid">
+        ${checkRow('Outstanding Finance',h.finance_status)}
+        ${checkRow('Stolen Marker',h.stolen_status)}
+        ${checkRow('Insurance Write-Off',h.writeoff_status+(h.writeoff_category?` — ${h.writeoff_category}`:''))}
+        ${checkRow('Mileage Check',h.mileage_status)}
+        ${checkRow('Scrapped Marker',h.scrapped_status)}
+        ${checkRow('Import / Export Marker',h.import_export_status)}
+      </div>
+      <div class="check-note" style="background:${String(h.check_status).toLowerCase()==='clear'?'#eaf8f0':'#fff5df'};color:${String(h.check_status).toLowerCase()==='clear'?'#17623d':'#744500'}">
+        <strong>Overall check: ${esc(h.check_status||'Check Required')}</strong>${h.checked_at?` · Checked ${fmtDate(h.checked_at)}`:''}${h.customer_summary?`<br>${esc(h.customer_summary)}`:''}
+      </div>`;
+  }
+
+  document.getElementById('offerShell').innerHTML=`
+    <div class="offer-head">
+      <div><div class="eyebrow">My AnyBike Offer</div><h1>${esc(title)}</h1><div class="subtitle">Review the motorcycle, vehicle checks and complete AnyBike offer before deciding.</div></div>
+      <span class="badge ${expired?'expired':'offer'}">${expired?'Offer Expired':'AnyBike Offer'}</span>
+    </div>
+    <div class="offer-grid">
+      <section class="left">
+        <div class="bike-hero">
+          <img class="bike-image" src="${esc(image)}" alt="${esc(title)}" onerror="this.src='/images/placeholder-bike.jpg'">
+          <div>
+            <h2 class="bike-title">${esc(title)}</h2>
+            <div class="bike-variant">${esc(b.variant||'')}</div>
+            <div class="specs">
+              <div class="spec"><small>Year</small><strong>${esc(b.year||'—')}</strong></div>
+              <div class="spec"><small>Mileage</small><strong>${b.mileage!=null?Number(b.mileage).toLocaleString('en-GB')+' miles':'—'}</strong></div>
+              <div class="spec"><small>Colour</small><strong>${esc(b.colour||'—')}</strong></div>
+              <div class="spec"><small>VAT Status</small><strong>${esc(b.vat_status||'Unknown / Check Required')}</strong></div>
+              <div class="spec"><small>Advertised Motorcycle Price</small><strong>${advertised>0?money(advertised):'—'}</strong></div>
+              <div class="spec"><small>Stock Reference</small><strong>${esc(data.stock_id||'—')}</strong></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h2>Vehicle History & Security Check</h2>
+          <div class="section-intro">These results are specific vehicle-history indicators. “Clear” is only shown where AnyBike has a recorded verified result; it does not mean the motorcycle is guaranteed to have never had unrecorded damage or repairs.</div>
+          ${historyHtml}
+        </div>
+
+        <div class="section">
+          <h2>Offer Terms</h2>
+          <div class="terms"><strong>Sale basis:</strong> ${esc(o.sale_basis||'—')}<br><strong>Delivery / collection:</strong> ${esc(o.delivery_type||'—')}${o.delivery_destination?`<br><strong>Destination:</strong> ${esc(o.delivery_destination)}`:''}<br><strong>Payment terms:</strong> ${esc(o.payment_terms_text||'—')}${o.terms_text?`<br><br><strong>Specific offer terms:</strong><br>${esc(o.terms_text)}`:''}</div>
+        </div>
+      </section>
+
+      <aside class="right">
+        <div class="price-box"><div class="price-label">TOTAL ANYBIKE OFFER</div><div class="price-total">${money(total)}</div><div class="price-sub">Your complete AnyBike offer for this transaction</div></div>
+        <div class="breakdown">
+          <div class="row"><span>AnyBike motorcycle price</span><strong>${money(bikePrice)}</strong></div>
+          ${delivery>0?`<div class="row"><span>Delivery / agreed services</span><strong>${money(delivery)}</strong></div>`:''}
+          <div class="row total"><span>Total AnyBike offer</span><strong>${money(total)}</strong></div>
+          <div class="row"><span>Deposit due on acceptance</span><strong>${money(o.deposit_amount_gbp||0)}</strong></div>
+          <div class="row"><span>Offer valid until</span><strong>${fmtDate(o.expires_at)}</strong></div>
+        </div>
+        <div class="countdown ${expired?'expired':''}" id="offerCountdown">${expired?'Offer Expired':'Calculating time remaining...'}</div>
+
+        <div class="action-box">
+          <div class="action-title">Your decision</div>
+          <div class="action-copy">Review the motorcycle and offer above. Acceptance will later continue directly to the deposit/payment-method stage. The motorcycle is not treated as secured merely because this offer has been sent.</div>
+          <div class="action-buttons">
+            <button class="btn accept" type="button" disabled>Accept AnyBike Offer</button>
+            <button class="btn decline" type="button" disabled>Decline Offer</button>
+          </div>
+          <div class="pending-note">Decision buttons are shown in position but are not active until the customer acceptance/decline database functions are installed.</div>
+        </div>
+      </aside>
+    </div>`;
+  updateCountdown();
+}
+
+function updateCountdown(){
+  const el=document.getElementById('offerCountdown');
+  const expires=activeOffer?.offer?.expires_at;
+  if(!el||!expires)return;
+  const ms=new Date(expires).getTime()-Date.now();
+  if(ms<=0){el.textContent='Offer Expired';el.classList.add('expired');return;}
+  const d=Math.floor(ms/86400000),h=Math.floor((ms%86400000)/3600000),m=Math.floor((ms%3600000)/60000),s=Math.floor((ms%60000)/1000);
+  el.textContent=d>0?`${d}d ${h}h ${m}m remaining`:`${h}h ${m}m ${s}s remaining`;
+}
+
+async function init(){
+  const params=new URLSearchParams(location.search);
+  const matchId=Number(params.get('match')||params.get('id'));
+  if(!matchId){document.getElementById('offerShell').innerHTML='<div class="error">No AnyBike offer was specified.</div>';return;}
+  let user=null;
+  try{const {data}=await sb.auth.getSession();user=data?.session?.user||null;if(!user){const u=await sb.auth.getUser();user=u.data?.user||null;}}catch(e){console.error(e);}
+  if(!user){location.replace(loginUrl());return;}
+  const {data,error}=await sb.rpc('get_my_anybike_offer_detail',{p_match_id:matchId});
+  if(error){console.error(error);document.getElementById('offerShell').innerHTML=`<div class="error">This offer could not be loaded. ${esc(error.message||'')}</div>`;return;}
+  renderOffer(data);
+  countdownTimer=setInterval(updateCountdown,1000);
+}
+
+document.addEventListener('DOMContentLoaded',init);
+</script>
+</body>
+</html>
