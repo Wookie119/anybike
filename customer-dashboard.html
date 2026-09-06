@@ -3,6 +3,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -133,7 +134,7 @@ button,input,select,textarea{font:inherit}
 .hero-main.hero-dashboard-bar{
   padding:18px 22px;
   display:grid;
-  grid-template-columns:minmax(250px,.85fr) minmax(720px,2.4fr) auto;
+  grid-template-columns:minmax(250px,.85fr) minmax(720px,2.4fr);
   align-items:center;
   gap:22px;
 }
@@ -155,7 +156,7 @@ button,input,select,textarea{font:inherit}
 .hero-stats{
   min-width:0;
   display:grid;
-  grid-template-columns:repeat(5,minmax(120px,1fr));
+  grid-template-columns:repeat(6,minmax(115px,1fr));
   align-items:stretch;
   border-left:1px solid rgba(255,255,255,.12);
   border-right:1px solid rgba(255,255,255,.12);
@@ -747,6 +748,36 @@ footer{
 .buyer-deal-event-head{display:flex;justify-content:space-between;gap:8px;font-size:12px;font-weight:900}
 .buyer-deal-event-time{color:#888;font-size:10px;margin-top:3px}
 .buyer-deal-event-message{color:#ddd;font-size:11px;margin-top:4px;white-space:pre-wrap}
+
+/* MY OFFERS */
+#my-offers{scroll-margin-top:130px}
+.my-offers-panel{
+  border-color:rgba(54,211,126,.38);
+  background:
+    radial-gradient(circle at 95% 0%,rgba(54,211,126,.12),transparent 28%),
+    rgba(16,16,16,.97);
+  margin-bottom:24px;
+}
+.my-offers-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.my-offer-card{overflow:hidden;background:#141414;border:1px solid rgba(54,211,126,.30);border-radius:18px}
+.my-offer-image{height:220px;background:#080808;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.my-offer-image img{width:100%;height:100%;object-fit:cover}
+.my-offer-body{padding:16px}
+.my-offer-top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.my-offer-top h3{margin:0;font-size:21px}
+.my-offer-badge{display:inline-flex;padding:6px 9px;border-radius:999px;background:rgba(54,211,126,.13);border:1px solid rgba(54,211,126,.34);font-size:11px;font-weight:900;color:#d8ffe8}
+.my-offer-price{margin:14px 0 10px;padding:14px;border-radius:13px;background:rgba(54,211,126,.08);border:1px solid rgba(54,211,126,.24)}
+.my-offer-price strong{display:block;font-size:24px}
+.my-offer-price span{display:block;margin-top:4px;color:#b9e8c8;font-size:12px}
+.my-offer-details{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:10px 0}
+.my-offer-detail{padding:10px;background:#0d0d0d;border:1px solid rgba(255,255,255,.08);border-radius:11px;font-size:13px}
+.my-offer-detail span{display:block;color:#888;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
+.my-offer-countdown{margin-top:10px;padding:11px 12px;border-radius:11px;background:rgba(237,28,36,.08);border:1px solid rgba(237,28,36,.25);font-weight:900}
+.my-offer-countdown.expired{color:#ff9c9c}
+.my-offer-note{margin:10px 0 0;color:var(--muted);font-size:11px;line-height:1.45}
+@media(max-width:900px){.my-offers-grid{grid-template-columns:1fr}}
+@media(max-width:620px){.my-offer-details{grid-template-columns:1fr}.my-offer-image{height:190px}}
+
 @media(max-width:900px){.buyer-match-grid{grid-template-columns:1fr}}
 @media(max-width:620px){.buyer-match-meta{grid-template-columns:1fr 1fr}.buyer-match-image{height:190px}}
 
@@ -816,6 +847,14 @@ footer{
           </div>
         </a>
 
+        <a class="hero-stat" href="#my-offers">
+          <div class="hero-stat-icon">🤝</div>
+          <div>
+            <strong id="pendingOfferCount">0</strong>
+            <span>Pending Offers</span>
+          </div>
+        </a>
+
         <a class="hero-stat" href="/customer-messages.html">
           <div class="hero-stat-icon">💬</div>
           <div>
@@ -825,19 +864,21 @@ footer{
         </a>
       </div>
 
-      <div class="hero-compact-actions">
-        <a class="hero-action primary" href="available-stock.html">
-          <span class="hero-action-icon">🏍️</span>
-          <span>Browse Motorcycles</span>
-        </a>
-        <button class="hero-action secondary" type="button" onclick="openNewMessageModal()">
-          <span class="hero-action-icon">💬</span>
-          <span>New Message</span>
-        </button>
-      </div>
     </div>
   </section>
 
+
+    <section class="panel my-offers-panel" id="my-offers">
+      <div class="panel-head">
+        <div>
+          <h2>🤝 My Offers</h2>
+          <p>Formal AnyBike offers waiting for your decision. Offer expiry is separate from seller availability or any motorcycle hold.</p>
+        </div>
+      </div>
+      <div id="myOffersBox">
+        <div class="buyer-match-empty">Loading your AnyBike offers...</div>
+      </div>
+    </section>
 
     <section class="panel buyer-match-panel" id="buyer-potential-matches">
       <div class="panel-head buyer-match-toolbar">
@@ -1342,6 +1383,116 @@ async function chooseBuyerMatchCount(requestItemId,count,button){
   }
 }
 
+function customerOfferDeliveryLabel(match){
+  const type=String(match?.offer_delivery_type || "").trim();
+  if(type==="Buyer Arranged / Collection") return "Buyer arranged / collection";
+  if(type==="Delivery to UK Address") return "Delivery to UK address";
+  if(type==="Delivery to UK Port") return "Delivery to UK port";
+  if(type==="Other Agreed Delivery") return "Other agreed delivery";
+  return type || "As agreed with AnyBike";
+}
+
+function customerOfferCountdownText(expiresAt){
+  if(!expiresAt) return "Expiry time not available";
+  const expiry=new Date(expiresAt).getTime();
+  if(!Number.isFinite(expiry)) return "Expiry time not available";
+  const diff=expiry-Date.now();
+  if(diff<=0) return "Offer expired";
+  const totalSeconds=Math.floor(diff/1000);
+  const days=Math.floor(totalSeconds/86400);
+  const hours=Math.floor((totalSeconds%86400)/3600);
+  const minutes=Math.floor((totalSeconds%3600)/60);
+  const seconds=totalSeconds%60;
+  if(days>0) return `${days}d ${hours}h ${minutes}m ${seconds}s remaining`;
+  return `${hours}h ${minutes}m ${seconds}s remaining`;
+}
+
+function customerOfferCardHtml(match){
+  const title=[match.stock_make,match.stock_model].filter(Boolean).join(" ") || "Motorcycle";
+  const variant=String(match.stock_variant || "").trim();
+  const image=String(match.stock_image_url || "").trim();
+  const motorcyclePrice=Number(match.confirmed_customer_price_gbp || 0);
+  const deliveryCharge=Number(match.offer_delivery_charge_gbp || 0);
+  const total=motorcyclePrice+deliveryCharge;
+  const deposit=Number(match.offer_deposit_amount_gbp || 0);
+  const expiresAt=match.confirmed_offer_expires_at || null;
+  const expired=expiresAt ? new Date(expiresAt).getTime()<=Date.now() : false;
+  const destination=String(match.offer_delivery_destination || "").trim();
+  const saleBasis=String(match.offer_sale_basis || "").trim() || "AnyBike offer";
+
+  return `
+    <article class="my-offer-card" id="my-offer-${safe(match.id)}">
+      <div class="my-offer-image">
+        ${image
+          ? `<img src="${safe(image)}" alt="${safe(title)}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='block';"><div class="buyer-match-image-fallback" style="display:none">🏍️</div>`
+          : `<div class="buyer-match-image-fallback">🏍️</div>`
+        }
+      </div>
+      <div class="my-offer-body">
+        <div class="my-offer-top">
+          <div>
+            <h3>${safe(title)}</h3>
+            ${variant ? `<div class="buyer-match-variant">${safe(variant)}</div>` : ""}
+          </div>
+          <span class="my-offer-badge">${expired ? "Expired Offer" : "AnyBike Offer"}</span>
+        </div>
+
+        <div class="my-offer-price">
+          <strong>${buyerMatchMoney(total) || "-"}</strong>
+          <span>Total AnyBike offer${deliveryCharge>0 ? ` · Motorcycle ${buyerMatchMoney(motorcyclePrice)} + delivery ${buyerMatchMoney(deliveryCharge)}` : ""}</span>
+        </div>
+
+        <div class="my-offer-details">
+          <div class="my-offer-detail"><span>Deposit on acceptance</span>${deposit>0 ? safe(buyerMatchMoney(deposit)) : "No deposit specified"}</div>
+          <div class="my-offer-detail"><span>Sale basis</span>${safe(saleBasis)}</div>
+          <div class="my-offer-detail"><span>Delivery / collection</span>${safe(customerOfferDeliveryLabel(match))}</div>
+          <div class="my-offer-detail"><span>Offer valid until</span>${expiresAt ? safe(new Date(expiresAt).toLocaleString("en-GB")) : "-"}</div>
+          ${destination ? `<div class="my-offer-detail" style="grid-column:1/-1"><span>Destination</span>${safe(destination)}</div>` : ""}
+        </div>
+
+        ${match.offer_terms_text ? `<div class="my-offer-detail"><span>Offer terms</span>${safe(match.offer_terms_text)}</div>` : ""}
+        ${match.offer_payment_terms_text ? `<div class="my-offer-detail" style="margin-top:8px"><span>Payment terms</span>${safe(match.offer_payment_terms_text)}</div>` : ""}
+
+        <div class="my-offer-countdown ${expired ? "expired" : ""}" data-offer-expiry="${safe(expiresAt || "")}">${safe(customerOfferCountdownText(expiresAt))}</div>
+        <p class="my-offer-note">This is an AnyBike offer to you. Seller availability and any motorcycle hold remain separate until the later security stage.</p>
+      </div>
+    </article>
+  `;
+}
+
+function renderMyOffers(rows){
+  const box=document.getElementById("myOffersBox");
+  if(!box) return;
+
+  const offers=(rows || []).filter(match=>String(match?.match_status || "")==="Confirmed Offer Sent");
+  const active=offers.filter(match=>{
+    if(!match.confirmed_offer_expires_at) return true;
+    const expiry=new Date(match.confirmed_offer_expires_at).getTime();
+    return !Number.isFinite(expiry) || expiry>Date.now();
+  });
+
+  const count=document.getElementById("pendingOfferCount");
+  if(count) count.textContent=active.length.toLocaleString("en-GB");
+
+  if(!offers.length){
+    box.innerHTML='<div class="buyer-match-empty">You do not have any AnyBike offers waiting for you at the moment.</div>';
+    return;
+  }
+
+  box.innerHTML=`<div class="my-offers-grid">${offers.map(customerOfferCardHtml).join("")}</div>`;
+}
+
+function refreshMyOfferCountdowns(){
+  document.querySelectorAll("[data-offer-expiry]").forEach(el=>{
+    const expiresAt=el.getAttribute("data-offer-expiry");
+    const text=customerOfferCountdownText(expiresAt);
+    el.textContent=text;
+    el.classList.toggle("expired",text==="Offer expired");
+  });
+}
+
+setInterval(refreshMyOfferCountdowns,1000);
+
 function renderBuyerPotentialMatches(rows){
   const box=document.getElementById("buyerPotentialMatchesBox");
   if(!box) return;
@@ -1435,7 +1586,10 @@ async function loadBuyerPotentialMatches(){
     console.warn("Your AnyBike Deals could not be loaded",dealRes.error.message);
   }
 
-  renderBuyerPotentialMatches(matchRes.data || []);
+  const buyerMatchRows=matchRes.data || [];
+  renderMyOffers(buyerMatchRows);
+  renderBuyerPotentialMatches(buyerMatchRows.filter(match=>String(match?.match_status || "")!=="Confirmed Offer Sent"));
+  refreshMyOfferCountdowns();
 }
 
 function closeBuyerMatchResponse(matchId){
