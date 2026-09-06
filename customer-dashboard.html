@@ -763,6 +763,11 @@ footer{
 .my-offer-card{overflow:hidden;background:#141414;border:1px solid rgba(54,211,126,.30);border-radius:18px}
 .my-offer-image{height:220px;background:#080808;display:flex;align-items:center;justify-content:center;overflow:hidden}
 .my-offer-image img{width:100%;height:100%;object-fit:cover}
+.my-offer-image-link{display:block;width:100%;height:100%;color:inherit;text-decoration:none}
+.my-offer-title-link{color:inherit;text-decoration:none}
+.my-offer-title-link:hover{text-decoration:underline}
+.my-offer-view-link{display:inline-block;margin-top:8px;color:#ff3940;font-size:12px;font-weight:900;text-decoration:none}
+.my-offer-view-link:hover{text-decoration:underline}
 .my-offer-body{padding:16px}
 .my-offer-top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
 .my-offer-top h3{margin:0;font-size:21px}
@@ -1241,8 +1246,9 @@ function buyerMatchCardHtml(match){
       <div class="buyer-match-body">
         <div class="buyer-match-top">
           <div>
-            <h3>${safe(title)}</h3>
+            <h3><a class="my-offer-title-link" href="bike-details.html?id=${encodeURIComponent(match.stock_id)}">${safe(title)}</a></h3>
             ${variant ? `<div class="buyer-match-variant">${safe(variant)}</div>` : ""}
+            <a class="my-offer-view-link" href="bike-details.html?id=${encodeURIComponent(match.stock_id)}">View Motorcycle Details →</a>
           </div>
           <span class="buyer-match-status">${safe(buyerMatchStatusLabel(match))}</span>
         </div>
@@ -1399,6 +1405,7 @@ function customerOfferCardHtml(match){
   const variant=String(match.stock_variant || "").trim();
   const image=String(match.stock_image_url || "").trim();
   const motorcyclePrice=Number(match.confirmed_customer_price_gbp || 0);
+  const advertisedPrice=Number(match.listed_price_snapshot_gbp || 0);
   const deliveryCharge=Number(match.offer_delivery_charge_gbp || 0);
   const total=motorcyclePrice+deliveryCharge;
   const deposit=Number(match.offer_deposit_amount_gbp || 0);
@@ -1410,16 +1417,19 @@ function customerOfferCardHtml(match){
   return `
     <article class="my-offer-card" id="my-offer-${safe(match.id)}">
       <div class="my-offer-image">
-        ${image
-          ? `<img src="${safe(image)}" alt="${safe(title)}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='block';"><div class="buyer-match-image-fallback" style="display:none">🏍️</div>`
-          : `<div class="buyer-match-image-fallback">🏍️</div>`
-        }
+        <a class="my-offer-image-link" href="bike-details.html?id=${encodeURIComponent(match.stock_id)}" aria-label="View ${safe(title)} motorcycle details">
+          ${image
+            ? `<img src="${safe(image)}" alt="${safe(title)}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"><div class="buyer-match-image-fallback" style="display:none">🏍️</div>`
+            : `<div class="buyer-match-image-fallback">🏍️</div>`
+          }
+        </a>
       </div>
       <div class="my-offer-body">
         <div class="my-offer-top">
           <div>
-            <h3>${safe(title)}</h3>
+            <h3><a class="my-offer-title-link" href="bike-details.html?id=${encodeURIComponent(match.stock_id)}">${safe(title)}</a></h3>
             ${variant ? `<div class="buyer-match-variant">${safe(variant)}</div>` : ""}
+            <a class="my-offer-view-link" href="bike-details.html?id=${encodeURIComponent(match.stock_id)}">View Motorcycle Details →</a>
           </div>
           <span class="my-offer-badge">${expired ? "Expired Offer" : "AnyBike Offer"}</span>
         </div>
@@ -1430,6 +1440,8 @@ function customerOfferCardHtml(match){
         </div>
 
         <div class="my-offer-details">
+          ${advertisedPrice>0 ? `<div class="my-offer-detail"><span>Advertised motorcycle price</span>${safe(buyerMatchMoney(advertisedPrice))}</div>` : ""}
+          ${deliveryCharge>0 ? `<div class="my-offer-detail"><span>AnyBike motorcycle price</span>${safe(buyerMatchMoney(motorcyclePrice))}</div>` : ""}
           <div class="my-offer-detail"><span>Deposit on acceptance</span>${deposit>0 ? safe(buyerMatchMoney(deposit)) : "No deposit specified"}</div>
           <div class="my-offer-detail"><span>Sale basis</span>${safe(saleBasis)}</div>
           <div class="my-offer-detail"><span>Delivery / collection</span>${safe(customerOfferDeliveryLabel(match))}</div>
