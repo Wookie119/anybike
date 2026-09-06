@@ -7,6 +7,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -298,6 +299,66 @@
       <div class="seller-modal-status" id="dvSaveStatus"></div>
       <button type="button" onclick="closeDealViability()">Close</button>
       <button type="button" class="save" id="dvSaveButton" onclick="saveDealViability()">Save Deal Viability</button>
+    </div>
+  </div>
+</div>
+
+<div class="seller-modal-backdrop" id="anybikeOfferModal" onclick="anybikeOfferBackdropClick(event)">
+  <div class="seller-modal" role="dialog" aria-modal="true" aria-labelledby="anybikeOfferTitle">
+    <div class="seller-modal-head">
+      <div>
+        <h2 id="anybikeOfferTitle">Prepare AnyBike Offer</h2>
+        <p>Internal commercial preparation only. Nothing is sent to the customer from this screen.</p>
+      </div>
+      <button type="button" class="seller-modal-close" onclick="closeAnyBikeOffer()" aria-label="Close">×</button>
+    </div>
+
+    <div class="seller-modal-body">
+      <div class="seller-form-section">
+        <h3>Commercial Position</h3>
+        <div class="seller-grid">
+          <div class="seller-field"><label>Motorcycle</label><div id="aboBikeName" class="seller-review-value">-</div></div>
+          <div class="seller-field"><label>Buyer Offer</label><div id="aboBuyerOffer" class="seller-review-value">-</div></div>
+          <div class="seller-field"><label>Confirmed Seller Price — Internal</label><div id="aboSellerPrice" class="seller-review-value">-</div></div>
+          <div class="seller-field"><label>Total Cost to AnyBike</label><div id="aboTotalCost" class="seller-review-value">-</div></div>
+        </div>
+      </div>
+
+      <div class="seller-form-section">
+        <h3>Latest Deal Viability</h3>
+        <div class="seller-grid">
+          <div class="seller-field"><label>Expected Profit at Buyer Offer</label><div id="aboViabilityProfit" class="seller-review-value">-</div></div>
+          <div class="seller-field"><label>Expected Margin</label><div id="aboViabilityMargin" class="seller-review-value">-</div></div>
+        </div>
+        <div id="aboViabilityStatus" class="seller-review-note" style="margin-top:10px"></div>
+      </div>
+
+      <div class="seller-form-section">
+        <h3>AnyBike Customer Offer</h3>
+        <div class="seller-grid">
+          <div class="seller-field">
+            <label for="aboCustomerPrice">Proposed Customer Price (£)</label>
+            <input id="aboCustomerPrice" type="text" inputmode="decimal" placeholder="£0.00" onfocus="focusAnyBikeOfferMoney(this)" oninput="calculateAnyBikeOffer()" onblur="formatAnyBikeOfferMoney(this)">
+          </div>
+          <div class="seller-field"><label>Projected AnyBike Profit</label><div id="aboProjectedProfit" class="seller-review-value">-</div></div>
+          <div class="seller-field"><label>Projected Margin</label><div id="aboProjectedMargin" class="seller-review-value">-</div></div>
+          <div class="seller-field"><label>Offer Status</label><div id="aboCommercialStatus" class="seller-review-value">-</div></div>
+        </div>
+      </div>
+
+      <div class="seller-form-section">
+        <h3>Internal Notes</h3>
+        <div class="seller-field">
+          <textarea id="aboNotes" placeholder="Optional internal note about this proposed AnyBike offer"></textarea>
+        </div>
+        <div class="seller-review-note" style="margin-top:10px">Saving this prepares an internal AnyBike offer only. It does not secure the motorcycle, accept the buyer offer, publish anything to the customer or create a Deal.</div>
+      </div>
+    </div>
+
+    <div class="seller-modal-actions">
+      <div class="seller-modal-status" id="aboSaveStatus"></div>
+      <button type="button" onclick="closeAnyBikeOffer()">Close</button>
+      <button type="button" class="save" id="aboSaveButton" onclick="saveAnyBikeOffer()">Save Prepared Offer</button>
     </div>
   </div>
 </div>
@@ -2111,6 +2172,8 @@ let activeSellerPriceRequestId=null;
 let activeSellerPriceMatchId=null;
 let activeDealViabilityMatchId=null;
 let activeDealViabilitySellerPriceHistoryId=null;
+let activeAnyBikeOfferMatchId=null;
+let activeAnyBikeOfferTotalCost=null;
 let activeSellerMatchId=null;
 let buyerThreads=[];
 let buyerConversationCache={};
@@ -3077,6 +3140,218 @@ async function saveDealViability(){
   }
 }
 
+
+function anybikeOfferBackdropClick(event){
+  if(event.target && event.target.id==="anybikeOfferModal") closeAnyBikeOffer();
+}
+
+function closeAnyBikeOffer(){
+  const modal=document.getElementById("anybikeOfferModal");
+  if(modal) modal.classList.remove("open");
+  document.body.style.overflow="";
+  activeAnyBikeOfferMatchId=null;
+  activeAnyBikeOfferTotalCost=null;
+}
+
+function anybikeOfferNumber(id){
+  const el=document.getElementById(id);
+  const raw=el ? String(el.value || "").replace(/[^0-9.]/g,"") : "0";
+  const n=Number(raw);
+  return Number.isFinite(n) && n>=0 ? n : 0;
+}
+
+function focusAnyBikeOfferMoney(el){
+  if(!el) return;
+  const n=anybikeOfferNumber(el.id);
+  el.value=n ? n.toFixed(2) : "";
+  setTimeout(()=>el.select(),0);
+}
+
+function formatAnyBikeOfferMoney(el){
+  if(!el) return;
+  el.value="£"+anybikeOfferNumber(el.id).toFixed(2);
+  calculateAnyBikeOffer();
+}
+
+function calculateAnyBikeOffer(){
+  const price=anybikeOfferNumber("aboCustomerPrice");
+  const total=Number(activeAnyBikeOfferTotalCost);
+  const profitEl=document.getElementById("aboProjectedProfit");
+  const marginEl=document.getElementById("aboProjectedMargin");
+  const statusEl=document.getElementById("aboCommercialStatus");
+  const saveButton=document.getElementById("aboSaveButton");
+
+  if(!Number.isFinite(total) || price<=0){
+    if(profitEl) profitEl.textContent="-";
+    if(marginEl) marginEl.textContent="-";
+    if(statusEl){
+      statusEl.textContent="Enter an AnyBike customer price";
+      statusEl.style.color="#aaa";
+      statusEl.style.fontWeight="900";
+    }
+    if(saveButton) saveButton.disabled=true;
+    return;
+  }
+
+  const profit=price-total;
+  const margin=price>0 ? (profit/price)*100 : 0;
+  if(profitEl) profitEl.textContent=money(profit);
+  if(marginEl) marginEl.textContent=margin.toFixed(2)+"%";
+
+  if(profit<=0){
+    if(statusEl){
+      statusEl.textContent=profit<0
+        ? "🔴 NOT COMMERCIALLY VIABLE — Expected Loss "+money(Math.abs(profit))
+        : "🟠 BREAK-EVEN — No commercial margin";
+      statusEl.style.color=profit<0 ? "#ff6b6b" : "#ffd166";
+      statusEl.style.fontWeight="900";
+    }
+    if(saveButton) saveButton.disabled=true;
+  }else{
+    if(statusEl){
+      statusEl.textContent="🟢 PREPARED OFFER IS COMMERCIALLY VIABLE";
+      statusEl.style.color="#9bf0b8";
+      statusEl.style.fontWeight="900";
+    }
+    if(saveButton) saveButton.disabled=false;
+  }
+}
+
+async function openAnyBikeOffer(matchId){
+  const match=(buyerMatches || []).find(m=>String(m.id)===String(matchId));
+  if(!match){
+    alert("Could not load this buyer offer.");
+    return;
+  }
+
+  const {data,error}=await sb
+    .from("deal_viability_history")
+    .select("id,buyer_offer_gbp,seller_price_gbp,total_cost_gbp,expected_profit_gbp,expected_margin_percent,created_at")
+    .eq("buyer_match_id",Number(matchId))
+    .order("created_at",{ascending:false})
+    .order("id",{ascending:false})
+    .limit(1);
+
+  if(error){
+    alert("Could not load Deal Viability: "+error.message);
+    return;
+  }
+
+  const viability=Array.isArray(data) ? data[0] : null;
+  if(!viability){
+    alert("Save Deal Viability before preparing an AnyBike offer.");
+    return;
+  }
+
+  const viabilityProfit=Number(viability.expected_profit_gbp);
+  if(!Number.isFinite(viabilityProfit) || viabilityProfit<=0){
+    alert("The latest Deal Viability is not commercially viable. A positive saved viability snapshot is required before an AnyBike offer can be prepared.");
+    return;
+  }
+
+  activeAnyBikeOfferMatchId=Number(matchId);
+  activeAnyBikeOfferTotalCost=Number(viability.total_cost_gbp);
+
+  const bike=offerStockForMatch(match) || {};
+  const bikeName=[
+    match.stock_year || bike.year,
+    match.stock_make || bike.make,
+    match.stock_model || bike.model,
+    match.stock_variant || bike.variant
+  ].filter(Boolean).join(" ");
+
+  document.getElementById("aboBikeName").textContent=bikeName || ("Stock #"+String(match.stock_id || "-"));
+  document.getElementById("aboBuyerOffer").textContent=money(match.buyer_offer_gbp);
+  document.getElementById("aboSellerPrice").textContent=money(viability.seller_price_gbp);
+  document.getElementById("aboTotalCost").textContent=money(viability.total_cost_gbp);
+  document.getElementById("aboViabilityProfit").textContent=money(viability.expected_profit_gbp);
+  document.getElementById("aboViabilityMargin").textContent=Number(viability.expected_margin_percent || 0).toFixed(2)+"%";
+
+  const viabilityStatus=document.getElementById("aboViabilityStatus");
+  viabilityStatus.textContent="🟢 Latest saved Deal Viability is commercially viable.";
+  viabilityStatus.style.color="#9bf0b8";
+  viabilityStatus.style.fontWeight="900";
+
+  const customerPrice=document.getElementById("aboCustomerPrice");
+  const startingPrice=
+    match.provisional_customer_price_gbp!==null &&
+    match.provisional_customer_price_gbp!==undefined &&
+    match.provisional_customer_price_gbp!==""
+      ? Number(match.provisional_customer_price_gbp)
+      : Number(match.buyer_offer_gbp || 0);
+
+  customerPrice.value="£"+Number(startingPrice || 0).toFixed(2);
+  document.getElementById("aboNotes").value="";
+  const saveStatus=document.getElementById("aboSaveStatus");
+  if(saveStatus){
+    saveStatus.className="seller-modal-status";
+    saveStatus.textContent="";
+  }
+
+  calculateAnyBikeOffer();
+  document.getElementById("anybikeOfferModal").classList.add("open");
+  document.body.style.overflow="hidden";
+}
+
+async function saveAnyBikeOffer(){
+  const matchId=activeAnyBikeOfferMatchId;
+  if(!matchId) return;
+
+  const customerPrice=anybikeOfferNumber("aboCustomerPrice");
+  const status=document.getElementById("aboSaveStatus");
+  const button=document.getElementById("aboSaveButton");
+
+  if(customerPrice<=0){
+    if(status){
+      status.className="seller-modal-status error";
+      status.textContent="Enter a valid customer price.";
+    }
+    return;
+  }
+
+  if(button){
+    button.disabled=true;
+    button.textContent="Saving…";
+  }
+  if(status){
+    status.className="seller-modal-status";
+    status.textContent="Saving internal AnyBike offer…";
+  }
+
+  try{
+    const {data,error}=await sb.rpc("admin_prepare_anybike_offer",{
+      p_match_id:Number(matchId),
+      p_customer_price_gbp:customerPrice,
+      p_notes:(document.getElementById("aboNotes")?.value || "").trim() || null
+    });
+
+    if(error) throw error;
+    const row=Array.isArray(data) ? data[0] : data;
+
+    if(status){
+      status.className="seller-modal-status success";
+      status.textContent=
+        "Prepared internally • Customer price "+
+        money(row?.provisional_customer_price_gbp ?? customerPrice)+
+        " • Projected profit "+
+        money(row?.projected_profit_gbp);
+    }
+
+    await loadBuyers();
+  }catch(err){
+    console.error("Prepare AnyBike Offer failed",err);
+    if(status){
+      status.className="seller-modal-status error";
+      status.textContent="Could not prepare AnyBike offer: "+(err?.message || err);
+    }
+  }finally{
+    if(button){
+      button.disabled=false;
+      button.textContent="Save Prepared Offer";
+    }
+  }
+}
+
 function sellerPriceRequestForMatch(matchId){
   return sellerPriceRequestByMatch[String(matchId)] || null;
 }
@@ -3852,6 +4127,10 @@ function renderBuyerOffers(){
               <td>
                 <div class="offer-actions">
                   ${hasOffer ? `<button type="button" class="seller-check-btn" onclick="openDealViability(${Number(match.id)})">Deal Viability</button>` : ""}
+                  ${hasOffer && String(match.match_status || "")!=="Accepted"
+                    ? `<button type="button" class="seller-check-btn" onclick="openAnyBikeOffer(${Number(match.id)})">Prepare AnyBike Offer</button>`
+                    : ""
+                  }
                   ${hasOffer && !hasSellerPrice && sellerPriceRequestState
                     ? (sellerPriceRequestState.actionable
                         ? `<button type="button" class="seller-check-btn needs-action" title="${safe(sellerPriceRequestState.title)}" onclick="openSellerPriceReview(${Number(match.id)})">${safe(sellerPriceRequestState.text)}</button>`
