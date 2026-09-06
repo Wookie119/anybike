@@ -5,6 +5,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -2101,14 +2102,14 @@ function customerOfferModalHtml(match){
           <p>Review the motorcycle and offer above. Acceptance will later continue directly to the deposit/payment stage. The motorcycle is not treated as secured merely because this offer has been sent.</p>
 
           <div class="customer-offer-actions">
-            <button class="customer-offer-accept" type="button" ${expired ? "disabled" : ""} onclick="customerOfferAcceptPlaceholder(${Number(match.id)})">✓ &nbsp; Accept AnyBike Offer</button>
-            <button class="customer-offer-decline" type="button" ${expired ? "disabled" : ""} onclick="customerOfferDeclinePlaceholder(${Number(match.id)})">× &nbsp; Decline Offer</button>
+            <button id="customerOfferAcceptBtn" class="customer-offer-accept" type="button" ${expired ? "disabled" : ""} onclick="customerOfferAccept(${Number(match.id)})">✓ &nbsp; Accept AnyBike Offer</button>
+            <button id="customerOfferDeclineBtn" class="customer-offer-decline" type="button" ${expired ? "disabled" : ""} onclick="customerOfferDecline(${Number(match.id)})">× &nbsp; Decline Offer</button>
           </div>
 
-          <div class="customer-offer-decision-note">
+          <div class="customer-offer-decision-note" id="customerOfferDecisionStatus">
             ${expired
               ? "This offer has expired. Please contact AnyBike if you would like us to review the motorcycle again."
-              : "Decision buttons are shown in position but are not yet active until the customer acceptance/decline database functions are installed."
+              : "Acceptance records your decision and moves this offer to the deposit/payment stage. The motorcycle is not yet secured with the seller."
             }
           </div>
         </section>
@@ -2170,12 +2171,117 @@ function refreshCustomerOfferModalCountdown(){
   el.classList.toggle("expired",text==="Offer expired");
 }
 
-function customerOfferAcceptPlaceholder(matchId){
-  console.log("Customer Accept AnyBike Offer clicked",matchId);
+function setCustomerOfferDecisionBusy(isBusy,message=""){
+  const acceptBtn=document.getElementById("customerOfferAcceptBtn");
+  const declineBtn=document.getElementById("customerOfferDeclineBtn");
+  const status=document.getElementById("customerOfferDecisionStatus");
+
+  if(acceptBtn) acceptBtn.disabled=!!isBusy;
+  if(declineBtn) declineBtn.disabled=!!isBusy;
+
+  if(status && message){
+    status.textContent=message;
+  }
 }
 
-function customerOfferDeclinePlaceholder(matchId){
-  console.log("Customer Decline AnyBike Offer clicked",matchId);
+async function customerOfferAccept(matchId){
+  if(!currentUser){
+    redirectToCustomerLogin();
+    return;
+  }
+
+  const match=(currentBuyerMatchRows || []).find(row=>Number(row?.id)===Number(matchId));
+  if(!match){
+    alert("This AnyBike offer could not be found. Please refresh your dashboard.");
+    return;
+  }
+
+  const motorcyclePrice=Number(match.confirmed_customer_price_gbp || 0);
+  const deliveryCharge=Number(match.offer_delivery_charge_gbp || 0);
+  const total=motorcyclePrice+deliveryCharge;
+  const deposit=Number(match.offer_deposit_amount_gbp || 0);
+
+  const confirmed=window.confirm(
+    "Accept this formal AnyBike offer?\n\n"+
+    "Total AnyBike offer: "+(buyerMatchMoney(total) || "-")+"\n"+
+    "Deposit due: "+(buyerMatchMoney(deposit) || "£0.00")+"\n\n"+
+    "Acceptance will move this offer to the deposit/payment stage. The motorcycle is not yet secured with the seller."
+  );
+
+  if(!confirmed) return;
+
+  setCustomerOfferDecisionBusy(true,"Recording your acceptance securely…");
+
+  try{
+    const {data,error}=await sb.rpc("customer_respond_to_anybike_offer",{
+      p_match_id:Number(matchId),
+      p_action:"accept",
+      p_decline_reason:null
+    });
+
+    if(error) throw error;
+
+    const result=Array.isArray(data) ? data[0] : data;
+    if(!result?.success){
+      throw new Error("AnyBike could not confirm your acceptance.");
+    }
+
+    const depositDue=buyerMatchMoney(result.deposit_due_gbp ?? deposit) || "£0.00";
+    setCustomerOfferDecisionBusy(true,"Offer accepted. Deposit/payment is now the next stage.");
+
+    alert(
+      "Your AnyBike offer has been accepted.\n\n"+
+      "Deposit due: "+depositDue+"\n\n"+
+      "The motorcycle is not yet secured with the seller. AnyBike will continue through the agreed deposit/payment and final seller security stages."
+    );
+
+    closeCustomerOfferModal();
+    await loadBuyerPotentialMatches();
+  }catch(error){
+    console.error("Formal AnyBike offer acceptance failed",error);
+    setCustomerOfferDecisionBusy(false,"Your acceptance could not be saved: "+(error?.message || "Unknown error"));
+  }
+}
+
+async function customerOfferDecline(matchId){
+  if(!currentUser){
+    redirectToCustomerLogin();
+    return;
+  }
+
+  const reason=window.prompt(
+    "Decline this AnyBike offer?\n\nYou can optionally tell us why. Leave this blank if you do not want to give a reason.\n\nPress Cancel to keep the offer open.",
+    ""
+  );
+
+  if(reason===null) return;
+
+  const confirmed=window.confirm("Are you sure you want to decline this AnyBike offer?");
+  if(!confirmed) return;
+
+  setCustomerOfferDecisionBusy(true,"Recording your decision securely…");
+
+  try{
+    const {data,error}=await sb.rpc("customer_respond_to_anybike_offer",{
+      p_match_id:Number(matchId),
+      p_action:"decline",
+      p_decline_reason:String(reason || "").trim() || null
+    });
+
+    if(error) throw error;
+
+    const result=Array.isArray(data) ? data[0] : data;
+    if(!result?.success){
+      throw new Error("AnyBike could not confirm your decision.");
+    }
+
+    alert("This AnyBike offer has been declined. Your decision has been recorded.");
+    closeCustomerOfferModal();
+    await loadBuyerPotentialMatches();
+  }catch(error){
+    console.error("Formal AnyBike offer decline failed",error);
+    setCustomerOfferDecisionBusy(false,"Your decision could not be saved: "+(error?.message || "Unknown error"));
+  }
 }
 
 setInterval(refreshCustomerOfferModalCountdown,1000);
@@ -2322,7 +2428,10 @@ async function loadBuyerPotentialMatches(){
   const buyerMatchRows=matchRes.data || [];
   currentBuyerMatchRows=buyerMatchRows;
   renderMyOffers(buyerMatchRows);
-  renderBuyerPotentialMatches(buyerMatchRows.filter(match=>String(match?.match_status || "")!=="Confirmed Offer Sent"));
+  renderBuyerPotentialMatches(buyerMatchRows.filter(match=>{
+    const status=String(match?.match_status || "");
+    return !["Confirmed Offer Sent","Customer Accepted Offer","Customer Declined Offer"].includes(status);
+  }));
   refreshMyOfferCountdowns();
 }
 
