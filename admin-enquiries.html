@@ -4015,7 +4015,7 @@ body{
 .anybike-seller-state{padding:7px 10px;border-radius:999px;font-size:11px;font-weight:900;white-space:nowrap}
 .anybike-seller-state.danger{background:#5d1518;color:#ffd2d4;border:1px solid #d71920}.anybike-seller-state.warning{background:#4b3811;color:#ffe39a;border:1px solid #b88a23}.anybike-seller-state.secured{background:#143b25;color:#c6ffd9;border:1px solid #2a9f59}
 .anybike-seller-summary{display:grid;grid-template-columns:repeat(5,minmax(120px,1fr));gap:10px;padding:14px 16px}.anybike-seller-summary>div{padding:10px 11px;border:1px solid rgba(255,255,255,.1);border-radius:9px;background:#111}.anybike-seller-summary strong{display:block;margin-top:5px;color:#fff;font-size:14px}.anybike-seller-danger{color:#ff4e55!important}.anybike-seller-good{color:#6ce59a!important}.anybike-seller-warning{color:#ffd05d!important}
-.anybike-seller-form{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:10px;padding:0 16px 14px}.anybike-seller-field label{display:block;margin-bottom:5px;color:#9aa3ae;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.05em}.anybike-seller-field input,.anybike-seller-field select,.anybike-seller-field textarea{width:100%;box-sizing:border-box;border:1px solid #353535;border-radius:8px;background:#111;color:#fff;padding:10px 11px;font:inherit}.anybike-seller-field textarea{min-height:74px;resize:vertical}.anybike-seller-span2{grid-column:span 2}.anybike-seller-checks{display:grid;grid-template-columns:repeat(3,minmax(180px,1fr));gap:10px;padding:0 16px 14px}.anybike-seller-check{display:flex;align-items:center;gap:9px;padding:10px 11px;border:1px solid rgba(255,255,255,.1);border-radius:9px;background:#111;color:#fff;font-size:12px;font-weight:800}.anybike-seller-check input{width:auto;accent-color:#d71920}.anybike-seller-readonly{opacity:.82}.anybike-seller-footer{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:12px 16px;border-top:1px solid rgba(255,255,255,.08);background:#101010;color:#c4c4c4;font-size:12px}.anybike-seller-footer strong{color:#ff5158}.anybike-seller-footer button{border:0;border-radius:8px;background:#555;color:#ddd;padding:11px 14px;font-weight:900;cursor:not-allowed}.anybike-seller-none{margin-top:12px;padding:12px 14px;border:1px dashed rgba(255,255,255,.15);border-radius:10px;color:#9aa3ae;font-size:12px}
+.anybike-seller-form{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:10px;padding:0 16px 14px}.anybike-seller-field label{display:block;margin-bottom:5px;color:#9aa3ae;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.05em}.anybike-seller-field input,.anybike-seller-field select,.anybike-seller-field textarea{width:100%;box-sizing:border-box;border:1px solid #353535;border-radius:8px;background:#111;color:#fff;padding:10px 11px;font:inherit}.anybike-seller-field textarea{min-height:74px;resize:vertical}.anybike-seller-span2{grid-column:span 2}.anybike-seller-checks{display:grid;grid-template-columns:repeat(3,minmax(180px,1fr));gap:10px;padding:0 16px 14px}.anybike-seller-check{display:flex;align-items:center;gap:9px;padding:10px 11px;border:1px solid rgba(255,255,255,.1);border-radius:9px;background:#111;color:#fff;font-size:12px;font-weight:800}.anybike-seller-check input{width:auto;accent-color:#d71920}.anybike-seller-readonly{opacity:.82}.anybike-seller-footer{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:12px 16px;border-top:1px solid rgba(255,255,255,.08);background:#101010;color:#c4c4c4;font-size:12px}.anybike-seller-footer strong{color:#ff5158}.anybike-seller-footer button{border:0;border-radius:8px;background:#d71920;color:#fff;padding:11px 14px;font-weight:900;cursor:pointer}.anybike-seller-footer button:disabled{background:#555;color:#ddd;cursor:not-allowed;opacity:.7}.anybike-seller-statusline{padding:0 16px 12px;font-size:12px;font-weight:800;color:#bfc5cc}.anybike-seller-statusline.error{color:#ff6b71}.anybike-seller-statusline.success{color:#79d79b}.anybike-seller-none{margin-top:12px;padding:12px 14px;border:1px dashed rgba(255,255,255,.15);border-radius:10px;color:#9aa3ae;font-size:12px}
 @media(max-width:1150px){.anybike-seller-summary{grid-template-columns:repeat(3,1fr)}.anybike-seller-form{grid-template-columns:1fr 1fr}.anybike-seller-checks{grid-template-columns:1fr 1fr}}
 @media(max-width:700px){.anybike-seller-summary,.anybike-seller-form,.anybike-seller-checks{grid-template-columns:1fr}.anybike-seller-span2{grid-column:auto}.anybike-seller-footer{align-items:flex-start;flex-direction:column}}
 
@@ -4613,6 +4613,7 @@ let adminDealMotorcycles = [];
 let adminDealPaymentStatus = [];
 let adminDealSellerConfirmations = new Map();
 let dealPaymentBusy = new Set();
+let dealSellerCheckBusy = new Set();
 let openAnyBikeDealId = null;
 
 // Customer-accepted formal AnyBike offers that have not yet entered Deal 360.
@@ -6091,6 +6092,45 @@ function anyBikeSellerState(c){
   return {className:"danger",label:"Final Seller Check Required"};
 }
 
+function anyBikeSellerIsoOrNull(value){
+  const raw = String(value || "").trim();
+  if(!raw){ return null; }
+  const d = new Date(raw);
+  if(Number.isNaN(d.getTime())){ return null; }
+  return d.toISOString();
+}
+
+function anyBikeSellerMoneyNumber(value){
+  const raw = String(value ?? "").replace(/[^0-9.-]/g, "").trim();
+  if(!raw){ return null; }
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
+}
+
+function updateDealSellerCheckFormState(matchId){
+  const id = Number(matchId);
+  const hold = document.getElementById("deal-seller-hold-" + id);
+  const holdRef = document.getElementById("deal-seller-hold-reference-" + id);
+  const holdExpires = document.getElementById("deal-seller-hold-expires-" + id);
+  const depReq = document.getElementById("deal-seller-deposit-required-" + id);
+  const depAmount = document.getElementById("deal-seller-deposit-amount-" + id);
+  const depDue = document.getElementById("deal-seller-deposit-due-" + id);
+  const depPaid = document.getElementById("deal-seller-deposit-paid-" + id);
+  const depRef = document.getElementById("deal-seller-deposit-reference-" + id);
+
+  if(holdRef){ holdRef.disabled = !(hold && hold.checked); }
+  if(holdExpires){ holdExpires.disabled = !(hold && hold.checked); }
+
+  const required = !!(depReq && depReq.checked);
+  if(depAmount){ depAmount.disabled = !required; }
+  if(depDue){ depDue.disabled = !required; }
+  if(depPaid){
+    depPaid.disabled = !required;
+    if(!required){ depPaid.checked = false; }
+  }
+  if(depRef){ depRef.disabled = !required || !(depPaid && depPaid.checked); }
+}
+
 function renderAnyBikeDealSellerCheckPanel(deal){
   const dealId = String(deal.deal_id || "");
   const rows = adminDealPaymentStatus.filter(function(row){
@@ -6111,6 +6151,8 @@ function renderAnyBikeDealSellerCheckPanel(deal){
     const holdStatus = c?.hold_confirmed ? "Yes" : "No";
     const sellerDeposit = c?.seller_deposit_required ? anyBikeDealMoney(c.seller_deposit_amount_gbp) : "Not Required";
     const secured = !!c?.bike_secured;
+    const busy = dealSellerCheckBusy.has(String(matchId));
+    const depositOutstanding = Number(row.deposit_outstanding_gbp || 0);
 
     return `
       <div class="anybike-seller-panel">
@@ -6130,72 +6172,204 @@ function renderAnyBikeDealSellerCheckPanel(deal){
           <div><span class="anybike-seller-label">Motorcycle</span><strong class="${secured ? "anybike-seller-good" : "anybike-seller-danger"}">${secured ? "SECURED" : "NOT YET SECURED"}</strong></div>
         </div>
 
-        <div class="anybike-seller-form anybike-seller-readonly">
+        <div class="anybike-seller-form">
           <div class="anybike-seller-field">
-            <label>Availability</label>
-            <select disabled>
-              ${["Unknown","Available","Reserved","Unavailable","Sold","Withdrawn"].map(function(v){ return `<option ${availability===v?"selected":""}>${v}</option>`; }).join("")}
+            <label for="deal-seller-availability-${matchId}">Availability</label>
+            <select id="deal-seller-availability-${matchId}">
+              ${["Unknown","Available","Reserved","Unavailable","Sold","Withdrawn"].map(function(v){ return `<option value="${v}" ${availability===v?"selected":""}>${v}</option>`; }).join("")}
             </select>
           </div>
           <div class="anybike-seller-field">
-            <label>Confirmed Seller Price</label>
-            <input disabled value="${sellerPrice ? Number(sellerPrice).toFixed(2) : ""}" placeholder="e.g. 5700.00">
+            <label for="deal-seller-price-${matchId}">Confirmed Seller Price</label>
+            <input id="deal-seller-price-${matchId}" type="number" min="0" step="0.01" value="${sellerPrice ? Number(sellerPrice).toFixed(2) : ""}" placeholder="e.g. 5700.00">
           </div>
           <div class="anybike-seller-field">
-            <label>Confirmation Valid Until</label>
-            <input disabled type="datetime-local" value="${escapeAdminHtml(anyBikeSellerLocalDateTime(c?.valid_until))}">
+            <label for="deal-seller-valid-until-${matchId}">Confirmation Valid Until</label>
+            <input id="deal-seller-valid-until-${matchId}" type="datetime-local" value="${escapeAdminHtml(anyBikeSellerLocalDateTime(c?.valid_until))}">
           </div>
           <div class="anybike-seller-field">
-            <label>Contact Method</label>
-            <input disabled value="${escapeAdminHtml(c?.contact_method || "")}" placeholder="Phone / Email / WhatsApp">
+            <label for="deal-seller-contact-method-${matchId}">Contact Method</label>
+            <input id="deal-seller-contact-method-${matchId}" value="${escapeAdminHtml(c?.contact_method || "")}" placeholder="Phone / Email / WhatsApp">
           </div>
           <div class="anybike-seller-field">
-            <label>Seller Contact Name</label>
-            <input disabled value="${escapeAdminHtml(c?.seller_contact_name || "")}">
+            <label for="deal-seller-contact-name-${matchId}">Seller Contact Name</label>
+            <input id="deal-seller-contact-name-${matchId}" value="${escapeAdminHtml(c?.seller_contact_name || "")}">
           </div>
           <div class="anybike-seller-field anybike-seller-span2">
-            <label>Seller Contact Details</label>
-            <input disabled value="${escapeAdminHtml(c?.seller_contact_details || "")}">
+            <label for="deal-seller-contact-details-${matchId}">Seller Contact Details</label>
+            <input id="deal-seller-contact-details-${matchId}" value="${escapeAdminHtml(c?.seller_contact_details || "")}">
           </div>
           <div class="anybike-seller-field">
-            <label>Hold Reference</label>
-            <input disabled value="${escapeAdminHtml(c?.hold_reference || "")}">
+            <label for="deal-seller-hold-reference-${matchId}">Hold Reference</label>
+            <input id="deal-seller-hold-reference-${matchId}" value="${escapeAdminHtml(c?.hold_reference || "")}" ${c?.hold_confirmed ? "" : "disabled"}>
           </div>
           <div class="anybike-seller-field">
-            <label>Hold Expires</label>
-            <input disabled type="datetime-local" value="${escapeAdminHtml(anyBikeSellerLocalDateTime(c?.hold_expires_at))}">
+            <label for="deal-seller-hold-expires-${matchId}">Hold Expires</label>
+            <input id="deal-seller-hold-expires-${matchId}" type="datetime-local" value="${escapeAdminHtml(anyBikeSellerLocalDateTime(c?.hold_expires_at))}" ${c?.hold_confirmed ? "" : "disabled"}>
           </div>
           <div class="anybike-seller-field">
-            <label>Seller Deposit Amount</label>
-            <input disabled value="${c?.seller_deposit_amount_gbp ? Number(c.seller_deposit_amount_gbp).toFixed(2) : ""}">
+            <label for="deal-seller-deposit-amount-${matchId}">Seller Deposit Amount</label>
+            <input id="deal-seller-deposit-amount-${matchId}" type="number" min="0.01" step="0.01" value="${c?.seller_deposit_amount_gbp ? Number(c.seller_deposit_amount_gbp).toFixed(2) : ""}" ${c?.seller_deposit_required ? "" : "disabled"}>
           </div>
           <div class="anybike-seller-field">
-            <label>Seller Deposit Due</label>
-            <input disabled type="datetime-local" value="${escapeAdminHtml(anyBikeSellerLocalDateTime(c?.seller_deposit_due_at))}">
+            <label for="deal-seller-deposit-due-${matchId}">Seller Deposit Due</label>
+            <input id="deal-seller-deposit-due-${matchId}" type="datetime-local" value="${escapeAdminHtml(anyBikeSellerLocalDateTime(c?.seller_deposit_due_at))}" ${c?.seller_deposit_required ? "" : "disabled"}>
           </div>
           <div class="anybike-seller-field">
-            <label>Seller Deposit Reference</label>
-            <input disabled value="${escapeAdminHtml(c?.seller_deposit_payment_reference || "")}">
+            <label for="deal-seller-deposit-reference-${matchId}">Seller Deposit Reference</label>
+            <input id="deal-seller-deposit-reference-${matchId}" value="${escapeAdminHtml(c?.seller_deposit_payment_reference || "")}" ${c?.seller_deposit_required && c?.seller_deposit_paid ? "" : "disabled"}>
           </div>
           <div class="anybike-seller-field anybike-seller-span2">
-            <label>Seller Check Notes</label>
-            <textarea disabled>${escapeAdminHtml(c?.notes || "")}</textarea>
+            <label for="deal-seller-notes-${matchId}">Seller Check Notes</label>
+            <textarea id="deal-seller-notes-${matchId}">${escapeAdminHtml(c?.notes || "")}</textarea>
           </div>
         </div>
 
-        <div class="anybike-seller-checks anybike-seller-readonly">
-          <label class="anybike-seller-check"><input type="checkbox" disabled ${c?.hold_confirmed ? "checked" : ""}> Hold / Reservation Confirmed</label>
-          <label class="anybike-seller-check"><input type="checkbox" disabled ${c?.seller_deposit_required ? "checked" : ""}> Seller Deposit Required</label>
-          <label class="anybike-seller-check"><input type="checkbox" disabled ${c?.seller_deposit_paid ? "checked" : ""}> Seller Deposit Paid</label>
-          <label class="anybike-seller-check"><input type="checkbox" disabled ${c?.bike_secured ? "checked" : ""}> Motorcycle Secured</label>
+        <div class="anybike-seller-checks">
+          <label class="anybike-seller-check"><input id="deal-seller-hold-${matchId}" type="checkbox" ${c?.hold_confirmed ? "checked" : ""} onchange="updateDealSellerCheckFormState(${matchId})"> Hold / Reservation Confirmed</label>
+          <label class="anybike-seller-check"><input id="deal-seller-deposit-required-${matchId}" type="checkbox" ${c?.seller_deposit_required ? "checked" : ""} onchange="updateDealSellerCheckFormState(${matchId})"> Seller Deposit Required</label>
+          <label class="anybike-seller-check"><input id="deal-seller-deposit-paid-${matchId}" type="checkbox" ${c?.seller_deposit_paid ? "checked" : ""} ${c?.seller_deposit_required ? "" : "disabled"} onchange="updateDealSellerCheckFormState(${matchId})"> Seller Deposit Paid</label>
+          <label class="anybike-seller-check"><input id="deal-seller-secured-${matchId}" type="checkbox" ${c?.bike_secured ? "checked" : ""}> Motorcycle Secured</label>
         </div>
+
+        <div id="deal-seller-status-${matchId}" class="anybike-seller-statusline">${depositOutstanding > 0 ? "Customer deposit is still outstanding. The motorcycle cannot be marked Secured yet." : "Customer deposit is paid. Complete the seller-side check before marking the motorcycle Secured."}</div>
 
         <div class="anybike-seller-footer">
-          <div><strong>Final Seller Check is the next controlled stage.</strong> Customer deposit being paid does not secure the motorcycle.</div>
-          <button type="button" disabled>Save Final Seller Check — Enable After Security Sync</button>
+          <div><strong>Final Seller Check is a separate seller-side control.</strong> Customer money alone never secures the motorcycle.</div>
+          <button type="button" ${busy ? "disabled" : ""} onclick="saveDealFinalSellerCheck(${matchId});return false;">${busy ? "Saving Final Seller Check..." : "Save Final Seller Check"}</button>
         </div>
       </div>`;
   }).join("");
+}
+
+async function saveDealFinalSellerCheck(matchId){
+  const id = Number(matchId);
+  if(!Number.isFinite(id) || dealSellerCheckBusy.has(String(id))){ return; }
+
+  const paymentRow = adminDealPaymentStatus.find(function(row){
+    return Number(row.buyer_match_id) === id;
+  });
+
+  if(!paymentRow){
+    alert("Deal payment/security record could not be found for this motorcycle.");
+    return;
+  }
+
+  const availabilityEl = document.getElementById("deal-seller-availability-" + id);
+  const priceEl = document.getElementById("deal-seller-price-" + id);
+  const validUntilEl = document.getElementById("deal-seller-valid-until-" + id);
+  const contactMethodEl = document.getElementById("deal-seller-contact-method-" + id);
+  const contactNameEl = document.getElementById("deal-seller-contact-name-" + id);
+  const contactDetailsEl = document.getElementById("deal-seller-contact-details-" + id);
+  const notesEl = document.getElementById("deal-seller-notes-" + id);
+  const holdEl = document.getElementById("deal-seller-hold-" + id);
+  const holdRefEl = document.getElementById("deal-seller-hold-reference-" + id);
+  const holdExpiresEl = document.getElementById("deal-seller-hold-expires-" + id);
+  const depReqEl = document.getElementById("deal-seller-deposit-required-" + id);
+  const depAmountEl = document.getElementById("deal-seller-deposit-amount-" + id);
+  const depDueEl = document.getElementById("deal-seller-deposit-due-" + id);
+  const depPaidEl = document.getElementById("deal-seller-deposit-paid-" + id);
+  const depRefEl = document.getElementById("deal-seller-deposit-reference-" + id);
+  const securedEl = document.getElementById("deal-seller-secured-" + id);
+  const statusEl = document.getElementById("deal-seller-status-" + id);
+
+  const availability = availabilityEl ? String(availabilityEl.value || "Unknown") : "Unknown";
+  const sellerPrice = anyBikeSellerMoneyNumber(priceEl ? priceEl.value : "");
+  const holdConfirmed = !!(holdEl && holdEl.checked);
+  const sellerDepositRequired = !!(depReqEl && depReqEl.checked);
+  const sellerDepositPaid = sellerDepositRequired && !!(depPaidEl && depPaidEl.checked);
+  const sellerDepositAmount = anyBikeSellerMoneyNumber(depAmountEl ? depAmountEl.value : "");
+  const bikeSecured = !!(securedEl && securedEl.checked);
+  const customerDepositOutstanding = Number(paymentRow.deposit_outstanding_gbp || 0);
+
+  if(sellerDepositRequired && (!Number.isFinite(sellerDepositAmount) || sellerDepositAmount <= 0)){
+    if(statusEl){ statusEl.className = "anybike-seller-statusline error"; statusEl.textContent = "Enter the seller deposit amount."; }
+    return;
+  }
+
+  if(bikeSecured && customerDepositOutstanding > 0){
+    if(statusEl){ statusEl.className = "anybike-seller-statusline error"; statusEl.textContent = "The motorcycle cannot be marked Secured while the customer deposit is outstanding."; }
+    return;
+  }
+
+  let message =
+    "Save Final Seller Check for Match #" + id + "?\n\n" +
+    "Availability: " + availability + "\n" +
+    "Confirmed seller price: " + (sellerPrice !== null ? anyBikeDealMoney(sellerPrice) : "Not entered") + "\n" +
+    "Hold / reservation: " + (holdConfirmed ? "YES" : "NO") + "\n" +
+    "Seller deposit required: " + (sellerDepositRequired ? "YES" : "NO") + "\n" +
+    "Motorcycle secured: " + (bikeSecured ? "YES" : "NO");
+
+  if(bikeSecured){
+    message += "\n\nIMPORTANT: This will mark the motorcycle SECURED in both the seller record and Deal 360. The next required action will become Balance Due.";
+  }else{
+    message += "\n\nThe motorcycle will remain NOT YET SECURED.";
+  }
+
+  if(!window.confirm(message)){ return; }
+
+  dealSellerCheckBusy.add(String(id));
+  if(statusEl){ statusEl.className = "anybike-seller-statusline"; statusEl.textContent = "Saving Final Seller Check..."; }
+  renderAdminDealQueue();
+
+  try{
+    const result = await sb.rpc("admin_save_final_seller_check", {
+      p_match_id:id,
+      p_availability_status:availability,
+      p_confirmed_min_price_gbp:sellerPrice,
+      p_valid_until:anyBikeSellerIsoOrNull(validUntilEl ? validUntilEl.value : ""),
+      p_contact_method:contactMethodEl ? (String(contactMethodEl.value || "").trim() || null) : null,
+      p_seller_contact_name:contactNameEl ? (String(contactNameEl.value || "").trim() || null) : null,
+      p_seller_contact_details:contactDetailsEl ? (String(contactDetailsEl.value || "").trim() || null) : null,
+      p_notes:notesEl ? (String(notesEl.value || "").trim() || null) : null,
+      p_hold_confirmed:holdConfirmed,
+      p_hold_reference:holdConfirmed && holdRefEl ? (String(holdRefEl.value || "").trim() || null) : null,
+      p_hold_expires_at:holdConfirmed ? anyBikeSellerIsoOrNull(holdExpiresEl ? holdExpiresEl.value : "") : null,
+      p_seller_deposit_required:sellerDepositRequired,
+      p_seller_deposit_amount_gbp:sellerDepositRequired ? sellerDepositAmount : null,
+      p_seller_deposit_due_at:sellerDepositRequired ? anyBikeSellerIsoOrNull(depDueEl ? depDueEl.value : "") : null,
+      p_seller_deposit_paid:sellerDepositPaid,
+      p_seller_deposit_payment_reference:sellerDepositPaid && depRefEl ? (String(depRefEl.value || "").trim() || null) : null,
+      p_bike_secured:bikeSecured
+    });
+
+    if(result.error){ throw result.error; }
+
+    const payload = result.data || {};
+    alert(
+      "Final Seller Check saved successfully.\n\n" +
+      "Availability: " + (payload.availability_status || availability) + "\n" +
+      "Seller price: " + anyBikeDealMoney(payload.seller_purchase_price_gbp) + "\n" +
+      "Motorcycle secured: " + (payload.motorcycle_secured ? "YES" : "NO") + "\n" +
+      "Deal 360 secured: " + (payload.deal_motorcycle_secured ? "YES" : "NO") + "\n" +
+      "Deal item status: " + (payload.item_status || "Seller Check") + "\n" +
+      "Next action: " + (payload.next_required_action || (payload.motorcycle_secured ? "Balance Due" : "Final Seller Check"))
+    );
+
+    const currentDealId = paymentRow.deal_id;
+    await loadAdminDealQueue();
+    if(currentDealId){
+      const dealRow = document.getElementById("anybike-deal-" + currentDealId);
+      if(dealRow){
+        dealRow.classList.add("open");
+        openAnyBikeDealId = String(currentDealId);
+      }
+    }
+  }catch(error){
+    console.error("Final Seller Check could not be saved:", error);
+    alert("Final Seller Check could not be saved.\n\n" + (error && error.message ? error.message : "Unknown error"));
+  }finally{
+    dealSellerCheckBusy.delete(String(id));
+    const currentDealId = paymentRow.deal_id;
+    renderAdminDealQueue();
+    if(currentDealId){
+      const dealRow = document.getElementById("anybike-deal-" + currentDealId);
+      if(dealRow){
+        dealRow.classList.add("open");
+        openAnyBikeDealId = String(currentDealId);
+      }
+    }
+  }
 }
 
 async function recordDealCustomerDeposit(matchId){
