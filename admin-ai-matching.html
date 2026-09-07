@@ -1,5 +1,6 @@
 
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -741,9 +742,49 @@ async function loadBuyerRequests(){
   const select=document.getElementById("requestSelect");
   const status=document.getElementById("matchStatus");
 
+  select.innerHTML='<option value="">Loading active buyer requests...</option>';
+
+  const {data:buyers,error:buyersError}=await client
+    .from("global_buyer_network")
+    .select("id,status,archived_at")
+    .is("archived_at",null);
+
+  if(buyersError){
+    select.innerHTML='<option value="">Could not load buyers</option>';
+    status.className="status-box error";
+    status.textContent="Could not load active buyers: "+buyersError.message;
+    return;
+  }
+
+  const terminalStatuses=new Set([
+    "archived",
+    "inactive",
+    "lost",
+    "closed"
+  ]);
+
+  const activeBuyerIds=(buyers || [])
+    .filter(buyer=>{
+      const buyerStatus=String(buyer.status || "").trim().toLowerCase();
+      return !terminalStatuses.has(buyerStatus);
+    })
+    .map(buyer=>Number(buyer.id))
+    .filter(Number.isFinite);
+
+  if(!activeBuyerIds.length){
+    aiRequestItems=[];
+    activeRequestItem=null;
+    select.innerHTML='<option value="">No active buyer requests</option>';
+    renderRequestSummary();
+    status.className="status-box";
+    status.textContent="There are currently no active buyer requests available for AI Stock Matching.";
+    return;
+  }
+
   const {data,error}=await client
     .from("global_buyer_request_items")
     .select("id,created_at,buyer_id,make,model,year_from,year_to,mileage_max,quantity,max_price_gbp,preferred_colour,condition_preference,notes")
+    .in("buyer_id",activeBuyerIds)
     .not("make","is",null)
     .not("model","is",null)
     .order("created_at",{ascending:false})
@@ -759,8 +800,11 @@ async function loadBuyerRequests(){
   aiRequestItems=data || [];
 
   if(!aiRequestItems.length){
-    select.innerHTML='<option value="">No buyer requests found</option>';
-    status.textContent="No structured buyer requests are currently available.";
+    activeRequestItem=null;
+    select.innerHTML='<option value="">No active buyer requests found</option>';
+    renderRequestSummary();
+    status.className="status-box";
+    status.textContent="No structured requests belonging to active buyers are currently available.";
     return;
   }
 
@@ -769,7 +813,6 @@ async function loadBuyerRequests(){
     return `<option value="${esc(item.id)}">${esc(label)}</option>`;
   }).join("");
 
-  // Use request #44 as the first authenticated test if it still exists.
   const preferred=aiRequestItems.find(item=>Number(item.id)===44) || aiRequestItems[0];
   select.value=String(preferred.id);
   activeRequestItem=preferred;
