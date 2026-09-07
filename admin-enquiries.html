@@ -5773,55 +5773,12 @@ async function loadAcceptedFormalOffersAwaitingDeal(){
   formalOfferBuyerMap = new Map();
 
   try{
-    const matchResult = await sb
-      .from("buyer_motorcycle_matches")
-      .select("id,stock_id,buyer_id,customer_id,match_status,customer_offer_decision,customer_offer_decided_at,confirmed_customer_price_gbp,offer_deposit_amount_gbp,deposit_required_at_acceptance,deposit_paid_gbp,deposit_paid_at,stock_make,stock_model,stock_variant,stock_year")
-      .eq("customer_offer_decision", "Accepted")
-      .eq("match_status", "Customer Accepted Offer")
-      .order("customer_offer_decided_at", { ascending:false });
+    const result = await sb.rpc("admin_get_accepted_formal_offer_sales");
+    if(result.error){ throw result.error; }
 
-    if(matchResult.error){ throw matchResult.error; }
-
-    const accepted = matchResult.data || [];
-    if(!accepted.length){
-      renderAcceptedFormalOffersAwaitingDeal();
-      return;
-    }
-
-    const matchIds = accepted.map(function(row){ return row.id; });
-    const existingResult = await sb
-      .from("anybike_deal_motorcycles")
-      .select("buyer_match_id,deal_id")
-      .in("buyer_match_id", matchIds);
-
-    if(existingResult.error){ throw existingResult.error; }
-
-    const alreadyPromoted = new Set((existingResult.data || []).map(function(row){
-      return String(row.buyer_match_id);
-    }));
-
-    acceptedFormalOffersAwaitingDeal = accepted.filter(function(row){
-      return !alreadyPromoted.has(String(row.id));
+    acceptedFormalOffersAwaitingDeal = (result.data || []).filter(function(row){
+      return row && !row.existing_deal_id;
     });
-
-    const buyerIds = Array.from(new Set(acceptedFormalOffersAwaitingDeal
-      .map(function(row){ return row.buyer_id; })
-      .filter(function(value){ return value !== null && value !== undefined; })));
-
-    if(buyerIds.length){
-      const buyerResult = await sb
-        .from("global_buyer_network")
-        .select("id,business_name,contact_name,email,country")
-        .in("id", buyerIds);
-
-      if(!buyerResult.error){
-        (buyerResult.data || []).forEach(function(row){
-          formalOfferBuyerMap.set(String(row.id), row);
-        });
-      }else{
-        console.warn("Formal-offer buyer details could not be loaded:", buyerResult.error);
-      }
-    }
 
   }catch(error){
     console.error("Accepted formal offers could not be loaded:", error);
@@ -5841,22 +5798,21 @@ function renderAcceptedFormalOffersAwaitingDeal(){
   }
 
   const cards = acceptedFormalOffersAwaitingDeal.map(function(match){
-    const buyer = formalOfferBuyerMap.get(String(match.buyer_id)) || {};
-    const buyerName = buyer.business_name || buyer.contact_name || buyer.email || (match.buyer_id ? "Buyer #" + match.buyer_id : "Customer");
-    const title = [match.stock_make, match.stock_model, match.stock_variant].filter(Boolean).join(" ") || "Motorcycle";
-    const salePrice = Number(match.confirmed_customer_price_gbp || 0);
-    const depositDue = match.deposit_required_at_acceptance ? Number(match.offer_deposit_amount_gbp || 0) : 0;
+    const buyerName = match.buyer_id ? "Buyer #" + match.buyer_id : "Customer";
+    const title = [match.make, match.model, match.variant].filter(Boolean).join(" ") || "Motorcycle";
+    const salePrice = Number(match.motorcycle_price_gbp || 0);
+    const depositDue = Number(match.deposit_due_gbp || 0);
     const depositPaid = Number(match.deposit_paid_gbp || 0);
-    const depositOutstanding = Math.max(depositDue - depositPaid, 0);
+    const depositOutstanding = Number(match.deposit_outstanding_gbp || 0);
     const acceptedAt = match.customer_offer_decided_at ? new Date(match.customer_offer_decided_at).toLocaleString("en-GB") : "-";
-    const busy = formalOfferPromotionBusy.has(String(match.id));
+    const busy = formalOfferPromotionBusy.has(String(match.buyer_match_id));
 
     return `
       <div class="anybike-formal-card">
         <div class="anybike-formal-bike">
           <span>Sale in Progress</span>
           <strong>${escapeAdminHtml(title)}</strong>
-          <small>${match.stock_year ? escapeAdminHtml(match.stock_year) + " · " : ""}Stock #${escapeAdminHtml(match.stock_id || "-")} · Match #${escapeAdminHtml(match.id)}</small>
+          <small>${match.year ? escapeAdminHtml(match.year) + " · " : ""}Stock #${escapeAdminHtml(match.stock_id || "-")} · Match #${escapeAdminHtml(match.buyer_match_id)}</small>
         </div>
         <div>
           <span>Customer</span>
@@ -5868,15 +5824,15 @@ function renderAcceptedFormalOffersAwaitingDeal(){
         </div>
         <div>
           <span>Deposit</span>
-          <strong class="${depositOutstanding > 0 ? "anybike-formal-due" : ""}">${depositOutstanding > 0 ? anyBikeDealMoney(depositOutstanding) + " Due" : "Paid"}</strong>
+          <strong class="${depositOutstanding > 0 ? "anybike-formal-due" : ""}">${depositOutstanding > 0 ? anyBikeDealMoney(depositOutstanding) + " Due" : (depositDue > 0 ? "Paid " + anyBikeDealMoney(depositPaid) : "No Deposit")}</strong>
         </div>
         <div>
           <span>Motorcycle Status</span>
-          <strong class="anybike-formal-danger">NOT YET SECURED</strong>
+          <strong class="${match.motorcycle_secured ? "" : "anybike-formal-danger"}">${match.motorcycle_secured ? "SECURED" : "NOT YET SECURED"}</strong>
         </div>
         <div class="anybike-formal-action">
-          <button type="button" ${busy ? "disabled" : ""} onclick="promoteFormalOfferToDeal(${Number(match.id)});return false;">${busy ? "Creating Deal 360..." : "Create Deal 360"}</button>
-          <small>Accepted ${escapeAdminHtml(acceptedAt)}. Creates Payment / Deposit stage only. It does not secure the motorcycle.</small>
+          <button type="button" ${busy ? "disabled" : ""} onclick="promoteFormalOfferToDeal(${Number(match.buyer_match_id)});return false;">${busy ? "Creating Deal 360..." : "Create Deal 360"}</button>
+          <small>Accepted ${escapeAdminHtml(acceptedAt)}. Next action: ${escapeAdminHtml(match.next_required_action || "Create Deal 360")}. Creating the Deal does not secure the motorcycle.</small>
         </div>
       </div>`;
   }).join("");
@@ -5899,17 +5855,15 @@ async function promoteFormalOfferToDeal(matchId){
   const id = Number(matchId);
   if(!Number.isFinite(id) || formalOfferPromotionBusy.has(String(id))){ return; }
 
-  const match = acceptedFormalOffersAwaitingDeal.find(function(row){ return Number(row.id) === id; });
+  const match = acceptedFormalOffersAwaitingDeal.find(function(row){ return Number(row.buyer_match_id) === id; });
   if(!match){ return; }
 
-  const title = [match.stock_make, match.stock_model, match.stock_variant].filter(Boolean).join(" ") || "this motorcycle";
-  const depositDue = match.deposit_required_at_acceptance ? Number(match.offer_deposit_amount_gbp || 0) : 0;
-  const depositPaid = Number(match.deposit_paid_gbp || 0);
-  const depositOutstanding = Math.max(depositDue - depositPaid, 0);
+  const title = [match.make, match.model, match.variant].filter(Boolean).join(" ") || "this motorcycle";
+  const depositOutstanding = Number(match.deposit_outstanding_gbp || 0);
 
   const message =
     "Create Deal 360 for " + title + "?\n\n" +
-    "Customer offer: " + anyBikeDealMoney(match.confirmed_customer_price_gbp) + "\n" +
+    "Customer offer: " + anyBikeDealMoney(match.motorcycle_price_gbp) + "\n" +
     "Deposit outstanding: " + anyBikeDealMoney(depositOutstanding) + "\n" +
     "Motorcycle status: NOT YET SECURED\n\n" +
     "This will create the Deal at Payment / Deposit stage. It will NOT secure the motorcycle.";
@@ -5938,6 +5892,7 @@ async function promoteFormalOfferToDeal(matchId){
     );
 
     await loadAdminDealQueue();
+    await loadAcceptedFormalOffersAwaitingDeal();
 
     if(payload.deal_id){
       const dealId = String(payload.deal_id);
