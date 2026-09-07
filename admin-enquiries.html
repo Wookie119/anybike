@@ -4037,11 +4037,14 @@ body{
 @media(max-width:760px){.anybike-formal-awaiting-head{align-items:flex-start;flex-direction:column}.anybike-formal-card{grid-template-columns:1fr 1fr}.anybike-formal-action{grid-column:1/-1}}
 </style>
 
-<style id="anybike-financial-vat-v7-safe-css">
-/* V7 SAFE — financial/VAT additions only. Existing V6 layout/loading is untouched. */
+<style id="anybike-financial-vat-v8-refined-css">
+/* V8 REFINED — financial/VAT display refinements. Existing V6 deal loading remains untouched. */
 input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}input[type="number"]{-moz-appearance:textfield;appearance:textfield}
 .anybike-financial-panel{margin:14px 0;border:1px solid #3a3a3a;border-top:3px solid #e31b23;border-radius:12px;background:#0d0d0d;overflow:hidden}.anybike-financial-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;background:linear-gradient(90deg,#171717,#0d0d0d)}.anybike-financial-head span{display:block;color:#e31b23;font-size:10px;font-weight:900;letter-spacing:1.2px;text-transform:uppercase}.anybike-financial-head h4{margin:3px 0 0;color:#fff;font-size:16px}.anybike-financial-badge{padding:7px 10px;border:1px solid #444;border-radius:999px;color:#ddd;font-size:11px;font-weight:800;white-space:nowrap}.anybike-financial-badge.verified{border-color:#2c8b57;color:#73e3a3}.anybike-financial-badge.estimated{border-color:#a76b12;color:#ffc76b}.anybike-financial-badge.check{border-color:#a32b31;color:#ff8a90}.anybike-financial-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:1px;background:#2a2a2a;border-top:1px solid #2a2a2a;border-bottom:1px solid #2a2a2a}.anybike-financial-metric{background:#111;padding:12px}.anybike-financial-metric span{display:block;color:#8f8f8f;font-size:10px;font-weight:800;text-transform:uppercase;margin-bottom:5px}.anybike-financial-metric strong{color:#fff;font-size:17px}.anybike-financial-metric.vat strong{color:#ffc76b}.anybike-financial-metric.net strong{color:#73e3a3}.anybike-financial-controls{display:grid;grid-template-columns:1.2fr 1fr .7fr 1.2fr 2fr auto;gap:10px;padding:14px 16px;align-items:end}.anybike-financial-field label{display:block;color:#aaa;font-size:10px;font-weight:800;margin:0 0 5px}.anybike-financial-field select,.anybike-financial-field input{width:100%;box-sizing:border-box;background:#090909;border:1px solid #3a3a3a;border-radius:8px;color:#fff;padding:9px 10px;min-height:38px}.anybike-financial-check{display:flex;align-items:center;gap:7px;color:#ddd;font-size:11px;min-height:38px}.anybike-financial-check input{width:auto}.anybike-financial-save{border:1px solid #e31b23;background:#e31b23;color:#fff;border-radius:8px;padding:10px 14px;font-weight:900;cursor:pointer;min-height:38px}.anybike-financial-save:disabled{opacity:.55;cursor:not-allowed}.anybike-financial-note{padding:0 16px 14px;color:#8e8e8e;font-size:10px}.anybike-financial-warning{padding:10px 16px;color:#ffb0b4;background:#1b0b0c;border-top:1px solid #3b1719;font-size:11px;font-weight:700}.anybike-financial-none{margin:14px 0;padding:13px 16px;border:1px dashed #444;border-radius:10px;color:#aaa;background:#0c0c0c;font-size:11px}
-@media(max-width:1250px){.anybike-financial-grid{grid-template-columns:repeat(3,1fr)}.anybike-financial-controls{grid-template-columns:repeat(3,1fr)}}@media(max-width:760px){.anybike-financial-grid,.anybike-financial-controls{grid-template-columns:1fr 1fr}}
+/* V8 refinement — cleaner customer money and adaptive VAT presentation. */
+.anybike-payment-grid.no-deposit{grid-template-columns:repeat(5,minmax(0,1fr))}.anybike-payment-grid.with-deposit{grid-template-columns:repeat(7,minmax(0,1fr))}.anybike-payment-status.neutral{background:#252525;color:#ddd;border:1px solid #444}
+.anybike-financial-grid.standard-vat{grid-template-columns:repeat(5,minmax(0,1fr))}.anybike-financial-grid.full-vat{grid-template-columns:repeat(7,minmax(0,1fr))}.anybike-financial-check.is-disabled{opacity:.42}.anybike-financial-field select:disabled,.anybike-financial-check input:disabled{cursor:not-allowed}
+@media(max-width:1250px){.anybike-financial-grid,.anybike-financial-grid.standard-vat,.anybike-financial-grid.full-vat{grid-template-columns:repeat(3,1fr)}.anybike-financial-controls{grid-template-columns:repeat(3,1fr)}.anybike-payment-grid.no-deposit,.anybike-payment-grid.with-deposit{grid-template-columns:repeat(3,1fr)}}@media(max-width:760px){.anybike-financial-grid,.anybike-financial-grid.standard-vat,.anybike-financial-grid.full-vat,.anybike-financial-controls,.anybike-payment-grid.no-deposit,.anybike-payment-grid.with-deposit{grid-template-columns:1fr 1fr}}
 </style>
 
 </head>
@@ -6059,24 +6062,40 @@ function renderAnyBikeDealPaymentPanel(deal){
     const busy = dealPaymentBusy.has(String(matchId));
     const canRecord = depositOutstanding > 0;
     const latestPayment = row.latest_payment_at ? new Date(row.latest_payment_at).toLocaleString("en-GB") : "No payment recorded";
+    const financialRow = adminDealFinancialStatus.find(function(fin){
+      return String(fin.buyer_match_id) === String(matchId);
+    }) || null;
+    const customerSalePrice = financialRow ? Number(financialRow.customer_sale_price_gbp || 0) : 0;
+    const customerBalance = financialRow ? Number(financialRow.customer_balance_due_gbp || 0) : Math.max(customerSalePrice - totalPaid, 0);
+    const noDepositRequired = depositDue <= 0;
+    const badgeLabel = noDepositRequired ? "No Deposit Required" : paymentStatus;
+
+    const metrics = noDepositRequired ? `
+      <div class="anybike-payment-metric"><span class="anybike-payment-label">Customer Sale Price</span><strong>${anyBikeDealMoney(customerSalePrice)}</strong></div>
+      <div class="anybike-payment-metric"><span class="anybike-payment-label">Total Paid</span><strong class="${totalPaid > 0 ? "anybike-payment-good" : ""}">${anyBikeDealMoney(totalPaid)}</strong></div>
+      <div class="anybike-payment-metric"><span class="anybike-payment-label">Balance Due</span><strong class="${customerBalance > 0 ? "anybike-payment-due" : "anybike-payment-good"}">${anyBikeDealMoney(customerBalance)}</strong></div>
+      <div class="anybike-payment-metric"><span class="anybike-payment-label">Next Action</span><strong>${escapeAdminHtml(nextAction)}</strong></div>
+      <div class="anybike-payment-metric"><span class="anybike-payment-label">Motorcycle</span><strong class="${secured ? "anybike-payment-good" : "anybike-payment-danger"}">${secured ? "SECURED" : "NOT YET SECURED"}</strong></div>` : `
+      <div class="anybike-payment-metric"><span class="anybike-payment-label">Deposit Required</span><strong>${anyBikeDealMoney(depositDue)}</strong></div>
+      <div class="anybike-payment-metric"><span class="anybike-payment-label">Deposit Received</span><strong class="${depositPaid > 0 ? "anybike-payment-good" : ""}">${anyBikeDealMoney(depositPaid)}</strong></div>
+      <div class="anybike-payment-metric"><span class="anybike-payment-label">Deposit Outstanding</span><strong class="${depositOutstanding > 0 ? "anybike-payment-due" : "anybike-payment-good"}">${anyBikeDealMoney(depositOutstanding)}</strong></div>
+      <div class="anybike-payment-metric"><span class="anybike-payment-label">Total Paid</span><strong>${anyBikeDealMoney(totalPaid)}</strong></div>
+      <div class="anybike-payment-metric"><span class="anybike-payment-label">Customer Balance</span><strong class="${customerBalance > 0 ? "anybike-payment-due" : "anybike-payment-good"}">${anyBikeDealMoney(customerBalance)}</strong></div>
+      <div class="anybike-payment-metric"><span class="anybike-payment-label">Next Action</span><strong>${escapeAdminHtml(nextAction)}</strong></div>
+      <div class="anybike-payment-metric"><span class="anybike-payment-label">Motorcycle</span><strong class="${secured ? "anybike-payment-good" : "anybike-payment-danger"}">${secured ? "SECURED" : "NOT YET SECURED"}</strong></div>`;
 
     return `
       <div class="anybike-payment-panel">
         <div class="anybike-payment-head">
           <div>
             <span>Customer Money</span>
-            <h4>Deposit / Payment · ${escapeAdminHtml(title)}</h4>
+            <h4>${noDepositRequired ? "Payment / Balance" : "Deposit / Payment"} · ${escapeAdminHtml(title)}</h4>
           </div>
-          <div class="anybike-payment-status ${anyBikePaymentStatusClass(paymentStatus)}">${escapeAdminHtml(paymentStatus)}</div>
+          <div class="anybike-payment-status ${noDepositRequired ? "neutral" : anyBikePaymentStatusClass(paymentStatus)}">${escapeAdminHtml(badgeLabel)}</div>
         </div>
 
-        <div class="anybike-payment-grid">
-          <div class="anybike-payment-metric"><span class="anybike-payment-label">Deposit Required</span><strong>${anyBikeDealMoney(depositDue)}</strong></div>
-          <div class="anybike-payment-metric"><span class="anybike-payment-label">Deposit Received</span><strong class="${depositPaid > 0 ? "anybike-payment-good" : ""}">${anyBikeDealMoney(depositPaid)}</strong></div>
-          <div class="anybike-payment-metric"><span class="anybike-payment-label">Outstanding</span><strong class="${depositOutstanding > 0 ? "anybike-payment-due" : "anybike-payment-good"}">${anyBikeDealMoney(depositOutstanding)}</strong></div>
-          <div class="anybike-payment-metric"><span class="anybike-payment-label">Total Customer Payments</span><strong>${anyBikeDealMoney(totalPaid)}</strong></div>
-          <div class="anybike-payment-metric"><span class="anybike-payment-label">Next Action</span><strong>${escapeAdminHtml(nextAction)}</strong></div>
-          <div class="anybike-payment-metric"><span class="anybike-payment-label">Motorcycle</span><strong class="${secured ? "anybike-payment-good" : "anybike-payment-danger"}">${secured ? "SECURED" : "NOT YET SECURED"}</strong></div>
+        <div class="anybike-payment-grid ${noDepositRequired ? "no-deposit" : "with-deposit"}">
+          ${metrics}
         </div>
 
         ${canRecord ? `
@@ -6107,7 +6126,6 @@ function renderAnyBikeDealPaymentPanel(deal){
       </div>`;
   }).join("");
 }
-
 
 function anyBikeSellerLocalDateTime(value){
   if(!value){ return ""; }
@@ -6786,36 +6804,79 @@ function renderAnyBikeDealFinancialPanel(deal){
     const recoverable=row.purchase_input_vat_recoverable;
     const busy=dealVatSaveBusy.has(String(dmId));
     const warning=row.vat_warning||"";
+    const isFullVat=treatment==="Full VAT";
+    const isMargin=treatment==="Margin Scheme";
+    const vatAvailable=!!row.vat_calculation_available;
+
+    let vatMetrics="";
+    if(isFullVat){
+      vatMetrics=`
+        <div class="anybike-financial-metric vat"><span>Est. Output VAT</span><strong>${anyBikeNullableMoney(row.estimated_output_vat_gbp)}</strong></div>
+        <div class="anybike-financial-metric vat"><span>Est. Recoverable Input VAT</span><strong>${anyBikeNullableMoney(row.estimated_input_vat_gbp)}</strong></div>
+        <div class="anybike-financial-metric vat"><span>Est. Net VAT Liability</span><strong>${anyBikeNullableMoney(row.estimated_vat_liability_gbp)}</strong></div>`;
+    }else{
+      vatMetrics=`<div class="anybike-financial-metric vat"><span>${isMargin ? "Est. VAT Liability" : "Est. VAT Liability"}</span><strong>${anyBikeNullableMoney(row.estimated_vat_liability_gbp)}</strong></div>`;
+    }
+
+    const gridClass=isFullVat ? "full-vat" : "standard-vat";
+    const recoverableDisabled=!isFullVat;
+    const statusDisabled=treatment==="Check Required";
+    const vatSummary=treatment==="Check Required" ? "VAT Check Required" : `${treatment} · ${status}`;
+
     return `<div class="anybike-financial-panel">
-      <div class="anybike-financial-head"><div><span>Deal 360 Financials</span><h4>${escapeAdminHtml(title)}</h4></div><div class="anybike-financial-badge ${anyBikeFinancialStatusClass(status)}">${escapeAdminHtml(treatment)} · ${escapeAdminHtml(status)}</div></div>
-      <div class="anybike-financial-grid">
+      <div class="anybike-financial-head"><div><span>Deal 360 Financials</span><h4>${escapeAdminHtml(title)}</h4></div><div class="anybike-financial-badge ${anyBikeFinancialStatusClass(status)}">${escapeAdminHtml(vatSummary)}</div></div>
+      <div class="anybike-financial-grid ${gridClass}">
         <div class="anybike-financial-metric"><span>Customer Balance</span><strong>${anyBikeNullableMoney(row.customer_balance_due_gbp)}</strong></div>
         <div class="anybike-financial-metric"><span>Supplier Balance</span><strong>${anyBikeNullableMoney(row.supplier_balance_due_gbp)}</strong></div>
         <div class="anybike-financial-metric"><span>Gross Margin</span><strong>${anyBikeNullableMoney(row.gross_margin_gbp)}</strong></div>
-        <div class="anybike-financial-metric vat"><span>Est. Output VAT</span><strong>${anyBikeNullableMoney(row.estimated_output_vat_gbp)}</strong></div>
-        <div class="anybike-financial-metric vat"><span>Est. VAT Liability</span><strong>${anyBikeNullableMoney(row.estimated_vat_liability_gbp)}</strong></div>
-        <div class="anybike-financial-metric net"><span>Net Margin After VAT</span><strong>${anyBikeNullableMoney(row.net_margin_after_vat_gbp)}</strong></div>
+        ${vatMetrics}
+        <div class="anybike-financial-metric net"><span>Net Margin After VAT</span><strong>${vatAvailable ? anyBikeNullableMoney(row.net_margin_after_vat_gbp) : "—"}</strong></div>
       </div>
       <div class="anybike-financial-controls">
         <div class="anybike-financial-field"><label>VAT Treatment</label><select id="deal-vat-treatment-${dmId}" onchange="updateDealVatFormState(${dmId})"><option${treatment==="Check Required"?" selected":""}>Check Required</option><option${treatment==="Margin Scheme"?" selected":""}>Margin Scheme</option><option${treatment==="Full VAT"?" selected":""}>Full VAT</option><option${treatment==="Zero Rated"?" selected":""}>Zero Rated</option><option${treatment==="Outside Scope"?" selected":""}>Outside Scope</option><option${treatment==="Exempt"?" selected":""}>Exempt</option></select></div>
-        <div class="anybike-financial-field"><label>Status</label><select id="deal-vat-status-${dmId}"><option${status==="Check Required"?" selected":""}>Check Required</option><option${status==="Estimated"?" selected":""}>Estimated</option><option${status==="Verified"?" selected":""}>Verified</option></select></div>
+        <div class="anybike-financial-field"><label>Status</label><select id="deal-vat-status-${dmId}" ${statusDisabled?"disabled":""}><option${status==="Check Required"?" selected":""}>Check Required</option><option${status==="Estimated"?" selected":""}>Estimated</option><option${status==="Verified"?" selected":""}>Verified</option></select></div>
         <div class="anybike-financial-field"><label>VAT Rate %</label><input id="deal-vat-rate-${dmId}" type="number" min="0" max="100" step="0.001" value="${escapeAdminHtml(rate.toFixed(3))}"></div>
-        <label class="anybike-financial-check"><input id="deal-vat-input-recoverable-${dmId}" type="checkbox" ${recoverable===true?"checked":""}> Purchase input VAT recoverable</label>
-        <div class="anybike-financial-field"><label>Internal VAT Note</label><input id="deal-vat-notes-${dmId}" type="text" placeholder="Reason / evidence / check required"></div>
+        <label id="deal-vat-input-wrap-${dmId}" class="anybike-financial-check ${recoverableDisabled?"is-disabled":""}"><input id="deal-vat-input-recoverable-${dmId}" type="checkbox" ${recoverable===true?"checked":""} ${recoverableDisabled?"disabled":""}> Purchase input VAT recoverable</label>
+        <div class="anybike-financial-field"><label>Internal VAT Note</label><input id="deal-vat-notes-${dmId}" type="text" placeholder="Reason, evidence or check required"></div>
         <button class="anybike-financial-save" type="button" ${busy?"disabled":""} onclick="saveDealVatTreatment(${dmId});return false;">${busy?"Saving...":"Save VAT"}</button>
       </div>
-      <div class="anybike-financial-note">VAT figures are internal estimates until Verified. Margin Scheme eligibility and Full VAT/input VAT recovery must be supported by the transaction records.</div>
+      <div class="anybike-financial-note">VAT figures are internal estimates until Verified. Only mark VAT as Verified when the transaction records support the treatment and, for Full VAT, the input VAT recovery position.</div>
       ${warning?`<div class="anybike-financial-warning">${escapeAdminHtml(warning)}</div>`:""}
     </div>`;
   }).join("");
 }
 function updateDealVatFormState(dealMotorcycleId){
-  const id=Number(dealMotorcycleId); const treatment=document.getElementById("deal-vat-treatment-"+id); const status=document.getElementById("deal-vat-status-"+id); const recover=document.getElementById("deal-vat-input-recoverable-"+id);
+  const id=Number(dealMotorcycleId);
+  const treatment=document.getElementById("deal-vat-treatment-"+id);
+  const status=document.getElementById("deal-vat-status-"+id);
+  const recover=document.getElementById("deal-vat-input-recoverable-"+id);
+  const recoverWrap=document.getElementById("deal-vat-input-wrap-"+id);
   if(!treatment||!status||!recover) return;
-  if(treatment.value==="Check Required"){status.value="Check Required";status.disabled=true;recover.checked=false;recover.disabled=true;}
-  else if(treatment.value==="Margin Scheme"){status.disabled=false;if(status.value==="Check Required")status.value="Estimated";recover.checked=false;recover.disabled=true;}
-  else if(treatment.value==="Full VAT"){status.disabled=false;if(status.value==="Check Required")status.value="Estimated";recover.disabled=false;}
-  else{status.disabled=false;if(status.value==="Check Required")status.value="Estimated";recover.checked=false;recover.disabled=true;}
+
+  if(treatment.value==="Check Required"){
+    status.value="Check Required";
+    status.disabled=true;
+    recover.checked=false;
+    recover.disabled=true;
+  }else if(treatment.value==="Margin Scheme"){
+    status.disabled=false;
+    if(status.value==="Check Required") status.value="Estimated";
+    recover.checked=false;
+    recover.disabled=true;
+  }else if(treatment.value==="Full VAT"){
+    status.disabled=false;
+    if(status.value==="Check Required") status.value="Estimated";
+    recover.disabled=false;
+  }else{
+    status.disabled=false;
+    if(status.value==="Check Required") status.value="Estimated";
+    recover.checked=false;
+    recover.disabled=true;
+  }
+
+  if(recoverWrap){
+    recoverWrap.classList.toggle("is-disabled", recover.disabled);
+  }
 }
 async function saveDealVatTreatment(dealMotorcycleId){
   const id=Number(dealMotorcycleId); if(!Number.isFinite(id)) return;
