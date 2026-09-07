@@ -674,6 +674,14 @@ function safeStorageFileName(name){
   return base+ext;
 }
 
+function motorcycleDocumentId(d){
+  const raw=(d && d.document_id!==undefined && d.document_id!==null)
+    ? d.document_id
+    : (d ? d.id : null);
+  const n=Number(raw);
+  return Number.isFinite(n) ? n : null;
+}
+
 function renderDocuments(){
   const target=document.getElementById("motorcycleDocumentsList");
   if(!target) return;
@@ -686,6 +694,7 @@ function renderDocuments(){
   }
 
   target.innerHTML=active.map(function(d){
+    const documentId=motorcycleDocumentId(d);
     const title=first(d.document_title,d.original_file_name,"Document");
     const evidenceFlags=[
       d.is_vat_evidence ? '<span class="doc-flag">VAT Evidence</span>' : "",
@@ -714,11 +723,13 @@ function renderDocuments(){
         <div class="doc-flags">${evidenceFlags}</div>
 
         <div class="doc-actions">
-          <button class="btn small" type="button" onclick="viewMotorcycleDocument(${Number(d.id)})">View</button>
-          <button class="btn small" type="button" onclick="toggleMotorcycleDocumentBuyerVisibility(${Number(d.id)},${d.buyer_visible ? "false" : "true"})">
+          ${documentId===null ? '<span class="muted-inline">Document ID unavailable</span>' : `
+          <button class="btn small" type="button" onclick="viewMotorcycleDocument(${documentId})">View</button>
+          <button class="btn small" type="button" onclick="toggleMotorcycleDocumentBuyerVisibility(${documentId},${d.buyer_visible ? "false" : "true"})">
             ${d.buyer_visible ? "Make Internal Only" : "Mark Buyer Visible"}
           </button>
-          <button class="btn small danger" type="button" onclick="deleteMotorcycleDocument(${Number(d.id)})">Delete</button>
+          <button class="btn small danger" type="button" onclick="deleteMotorcycleDocument(${documentId})">Delete</button>
+          `}
         </div>
       </div>
     `;
@@ -901,7 +912,7 @@ async function uploadMotorcycleDocument(){
     document.getElementById("documentPurchaseEvidence").checked=false;
     document.getElementById("documentAccountingEvidence").checked=false;
 
-    setFeedback("documentFeedback","Document uploaded privately.",true);
+    setFeedback("documentFeedback","Document uploaded and saved privately. No separate Save button is required.",true);
     await loadMotorcycleDocuments(currentBike.id);
   }finally{
     if(button){
@@ -912,7 +923,9 @@ async function uploadMotorcycleDocument(){
 }
 
 function findDocumentById(id){
-  return (motorcycleDocuments||[]).find(d=>Number(d.id)===Number(id)) || null;
+  const wanted=Number(id);
+  if(!Number.isFinite(wanted)) return null;
+  return (motorcycleDocuments||[]).find(d=>motorcycleDocumentId(d)===wanted) || null;
 }
 
 async function viewMotorcycleDocument(id){
@@ -1317,7 +1330,7 @@ function renderBike(b){
         <section class="card private-card">
           <h2>Private Motorcycle Documents</h2>
           <div class="private-banner">
-            Files are stored in AnyBike's private document bucket. Uploading files is optional. Every document is <strong>Internal Only</strong> by default and can be deliberately marked Buyer Visible.
+            Files are stored in AnyBike's private document bucket. Uploading files is optional. Uploading saves the document immediately, so there is no separate Save button. Every document is <strong>Internal Only</strong> by default and can be deliberately marked Buyer Visible.
           </div>
 
           <div class="document-upload">
