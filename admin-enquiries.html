@@ -4054,6 +4054,11 @@ input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-in
 .anybike-payment-grid.no-deposit{grid-template-columns:repeat(5,minmax(0,1fr))}.anybike-payment-grid.with-deposit{grid-template-columns:repeat(7,minmax(0,1fr))}.anybike-payment-status.neutral{background:#252525;color:#ddd;border:1px solid #444}
 .anybike-financial-grid.standard-vat{grid-template-columns:repeat(5,minmax(0,1fr))}.anybike-financial-grid.full-vat{grid-template-columns:repeat(7,minmax(0,1fr))}.anybike-financial-check.is-disabled{opacity:.42}.anybike-financial-check.is-hidden{display:none}.anybike-financial-field select:disabled,.anybike-financial-check input:disabled{cursor:not-allowed}
 @media(max-width:1250px){.anybike-financial-grid,.anybike-financial-grid.standard-vat,.anybike-financial-grid.full-vat{grid-template-columns:repeat(3,1fr)}.anybike-financial-controls{grid-template-columns:repeat(3,1fr)}.anybike-payment-grid.no-deposit,.anybike-payment-grid.with-deposit{grid-template-columns:repeat(3,1fr)}}@media(max-width:760px){.anybike-financial-grid,.anybike-financial-grid.standard-vat,.anybike-financial-grid.full-vat,.anybike-financial-controls,.anybike-payment-grid.no-deposit,.anybike-payment-grid.with-deposit{grid-template-columns:1fr 1fr}}
+
+/* Bike Sales HQ Deal 360 / legacy separation */
+.legacy-enquiries-heading{margin:18px 0 8px;padding:12px 14px;background:#0d0d0d;border:1px solid rgba(255,255,255,.10);border-left:3px solid #ed1c24;border-radius:10px;}
+.legacy-enquiries-heading h2{margin:0;color:#fff;font-size:18px;}
+.legacy-enquiries-heading p{margin:4px 0 0;color:#999;font-size:12px;}
 </style>
 
 </head>
@@ -4133,7 +4138,7 @@ input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-in
     <div>
       <div class="dept-eyebrow">AnyBike Department</div>
       <h1>🏍 Bike Sales HQ</h1>
-      <p>Single-bike sales workspace. Manage customers, motorcycles, sellers, conversations, Lead Status, workflows, deals, documents and Deal Activity.</p>
+      <p>Manage buyer deals from enquiry and negotiation through payment, motorcycle security, operations, shipping and completion.</p>
     </div>
   </div>
 
@@ -4278,8 +4283,8 @@ input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-in
 <!-- ACTIVE DEALS -->
 <div class="active-deals-heading">
   <div>
-    <h2>Active Deals</h2>
-    <p>Manage motorcycle sales from first enquiry through to completion.</p>
+    <h2>Sales Actions</h2>
+    <p>Tasks and deadlines requiring attention across Bike Sales.</p>
   </div>
 </div>
 
@@ -4325,6 +4330,12 @@ input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-in
 <div id="anybikeDeals"></div>
 
 <!-- LEGACY SINGLE-BIKE ENQUIRIES — retained during migration -->
+<section class="legacy-enquiries-heading" aria-label="Unconverted enquiries">
+  <div>
+    <h2>Unconverted Enquiries</h2>
+    <p>Existing single-bike enquiries retained safely while they are progressively moved into Deal 360.</p>
+  </div>
+</section>
 <div id="enquiries"></div>
 
 <!-- COMBINED DEAL QUEUE FOOTER -->
@@ -5479,6 +5490,7 @@ function searchDealQueue(value){
   dealQueueSearchTerm = String(value || "");
   currentDealPage = 1;
   filterEnquiries(currentFilter || "all", true);
+  renderAdminDealQueue();
 }
 
 function goToDealPage(page){
@@ -5637,23 +5649,29 @@ function updateBikeSalesOverview(){
   setText("salesAverageDealProfit", formatMoney(averageDealProfit));
   setText("salesLowMarginDeals", String(lowMarginDeals));
 
+  const dealStageCount = function(stage){
+    return adminDealQueue.filter(function(item){
+      return String(item.deal_stage || "Confirmed").trim() === stage;
+    }).length;
+  };
+
   const countMap = {
-    queueCountAll: allEnquiries.length,
-    queueCountNewLead: statusCount("New Lead"),
-    queueCountContactMade: statusCount("Contact Made"),
-    queueCountInformationNeeded: statusCount("Information Needed"),
-    queueCountResearch: statusCount("Research / Availability"),
-    queueCountProposal: statusCount("Proposal Sent"),
-    queueCountNegotiating: statusCount("Negotiating"),
-    queueCountWaitingCustomer: statusCount("Waiting Customer"),
-    queueCountConfirmed: statusCount("Confirmed"),
-    queueCountPayment: statusCount("Payment / Deposit"),
-    queueCountOperations: statusCount("Operations"),
-    queueCountShipping: statusCount("Shipping"),
-    queueCountCompleted: statusCount("Completed"),
-    queueCountSaveLater: statusCount("Save For Later"),
-    queueCountLost: statusCount("Lost"),
-    queueCountClosed: statusCount("Closed")
+    queueCountAll: adminDealQueue.length,
+    queueCountNewLead: dealStageCount("New Lead"),
+    queueCountContactMade: dealStageCount("Contact Made"),
+    queueCountInformationNeeded: dealStageCount("Information Needed"),
+    queueCountResearch: dealStageCount("Research / Availability"),
+    queueCountProposal: dealStageCount("Proposal Sent"),
+    queueCountNegotiating: dealStageCount("Negotiating"),
+    queueCountWaitingCustomer: dealStageCount("Waiting Customer"),
+    queueCountConfirmed: dealStageCount("Confirmed"),
+    queueCountPayment: dealStageCount("Payment / Deposit"),
+    queueCountOperations: dealStageCount("Operations"),
+    queueCountShipping: dealStageCount("Shipping"),
+    queueCountCompleted: dealStageCount("Completed"),
+    queueCountSaveLater: dealStageCount("Save For Later"),
+    queueCountLost: dealStageCount("Lost"),
+    queueCountClosed: dealStageCount("Closed")
   };
 
   Object.keys(countMap).forEach(function(id){ setText(id, countMap[id]); });
@@ -5724,6 +5742,7 @@ function filterEnquiries(type, preservePage){
   currentDealRows = rows.slice();
   updateDealFilterUi();
   render(rows);
+  renderAdminDealQueue();
   restoreDeal360State(deal360State);
 }
   
@@ -7035,7 +7054,48 @@ function renderAdminDealQueue(){
     return;
   }
 
-  const rows = adminDealQueue.map(function(deal){
+  const dealStageMap = {
+    newLead:"New Lead",
+    contactMade:"Contact Made",
+    informationNeeded:"Information Needed",
+    research:"Research / Availability",
+    proposal:"Proposal Sent",
+    negotiating:"Negotiating",
+    waitingCustomer:"Waiting Customer",
+    confirmed:"Confirmed",
+    payment:"Payment / Deposit",
+    operations:"Operations",
+    shipping:"Shipping",
+    completed:"Completed",
+    saveLater:"Save For Later",
+    lost:"Lost",
+    closed:"Closed"
+  };
+
+  let visibleAdminDeals = adminDealQueue.slice();
+  if(currentFilter && currentFilter !== "all" && dealStageMap[currentFilter]){
+    visibleAdminDeals = visibleAdminDeals.filter(function(deal){
+      return String(deal.deal_stage || "Confirmed").trim() === dealStageMap[currentFilter];
+    });
+  }
+
+  const adminDealSearch = String(dealQueueSearchTerm || "").trim().toLowerCase();
+  if(adminDealSearch){
+    visibleAdminDeals = visibleAdminDeals.filter(function(deal){
+      const haystack = [
+        deal.deal_number, deal.buyer_name, deal.buyer_contact_name, deal.buyer_email,
+        deal.buyer_country, deal.deal_stage, deal.deal_status
+      ].filter(Boolean).join(" ").toLowerCase();
+      const dealId = String(deal.deal_id || "");
+      const bikes = adminDealMotorcycles.filter(function(bike){ return String(bike.deal_id) === dealId; });
+      const bikeText = bikes.map(function(bike){
+        return [bike.make,bike.model,bike.variant,bike.year,bike.stock_id].filter(Boolean).join(" ");
+      }).join(" ").toLowerCase();
+      return haystack.includes(adminDealSearch) || bikeText.includes(adminDealSearch);
+    });
+  }
+
+  const rows = visibleAdminDeals.map(function(deal){
     const dealId = String(deal.deal_id || "");
     const dealNumber = escapeAdminHtml(deal.deal_number || ("Deal #" + dealId));
     const buyerName = escapeAdminHtml(anyBikeDealBuyerName(deal));
@@ -7119,7 +7179,7 @@ function renderAdminDealQueue(){
           ${renderAnyBikeDealFinancialPanel(deal)}
           ${renderAnyBikeDealSellerCheckPanel(deal)}
           <div class="anybike-deal-next-note">
-            This is the new multi-bike Deal record. Messages, tasks, documents, payments and Operations will be moved onto this Deal 360 progressively without removing the existing enquiry workflow.
+            Deal 360 record. Messages, tasks, documents, payments and Operations remain connected to this Deal as the transaction progresses.
           </div>
         </div>
       </div>`;
@@ -7129,16 +7189,15 @@ function renderAdminDealQueue(){
     <section class="anybike-real-deals">
       <div class="anybike-real-deals-head">
         <div>
-          <span class="anybike-real-label">NEW DEAL ARCHITECTURE</span>
-          <h3>Buyer Deals</h3>
+          <h3>Deals</h3>
           <p>One Deal can contain multiple motorcycles. Commercial figures below are internal.</p>
         </div>
-        <div class="anybike-real-count">${adminDealQueue.length} Deal${adminDealQueue.length === 1 ? "" : "s"}</div>
+        <div class="anybike-real-count">${visibleAdminDeals.length} Deal${visibleAdminDeals.length === 1 ? "" : "s"}</div>
       </div>
       <div class="anybike-deal-columns" aria-hidden="true">
         <span></span><span>Deal</span><span>Buyer</span><span>Bikes</span><span>Value</span><span>Cost</span><span>Profit</span><span>Stage</span><span>Secured</span><span>Country / Updated</span>
       </div>
-      ${rows}
+      ${rows || '<div class="anybike-deal-empty">No Deal 360 records match the current stage or search.</div>'}
     </section>`;
 }
 
