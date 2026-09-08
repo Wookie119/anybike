@@ -1,4 +1,5 @@
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -533,6 +534,166 @@ footer{
   .messages-page-actions{
     width:100%;
     justify-content:flex-start;
+  }
+}
+
+
+/* ============================================================
+   CUSTOMER DOCUMENT ATTACHMENTS
+   ============================================================ */
+
+.document-upload-box{
+  margin-top:12px;
+  padding:13px;
+  border:1px solid var(--line);
+  border-radius:13px;
+  background:#101010;
+}
+
+.document-upload-title{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin-bottom:10px;
+  font-size:13px;
+  font-weight:900;
+}
+
+.document-upload-grid{
+  display:grid;
+  grid-template-columns:minmax(180px,.7fr) minmax(220px,1.3fr);
+  gap:10px;
+}
+
+.document-upload-grid select,
+.document-upload-grid input[type="file"]{
+  width:100%;
+  min-width:0;
+  background:#171717;
+  color:#fff;
+  border:1px solid var(--line);
+  border-radius:10px;
+  padding:10px;
+}
+
+.document-upload-grid input[type="file"]::file-selector-button{
+  border:0;
+  border-radius:999px;
+  padding:7px 10px;
+  margin-right:10px;
+  background:#2a2a2a;
+  color:#fff;
+  font-weight:900;
+  cursor:pointer;
+}
+
+.document-upload-help{
+  margin-top:8px;
+  color:var(--muted);
+  font-size:11px;
+  line-height:1.45;
+}
+
+.document-upload-actions{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-top:8px;
+}
+
+.document-upload-actions button{
+  margin-top:0;
+}
+
+.document-list{
+  display:grid;
+  gap:8px;
+  margin-top:12px;
+}
+
+.document-card{
+  border:1px solid rgba(255,255,255,.12);
+  background:#121212;
+  border-radius:12px;
+  padding:11px;
+}
+
+.document-card-head{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  align-items:flex-start;
+}
+
+.document-card-title{
+  min-width:0;
+}
+
+.document-card-title strong{
+  display:block;
+  font-size:13px;
+}
+
+.document-card-title span{
+  display:block;
+  color:var(--muted);
+  font-size:11px;
+  margin-top:3px;
+  word-break:break-word;
+}
+
+.document-status-pill{
+  flex:0 0 auto;
+  display:inline-flex;
+  align-items:center;
+  padding:5px 8px;
+  border-radius:999px;
+  background:#292929;
+  color:#fff;
+  font-size:10px;
+  font-weight:900;
+}
+
+.document-status-pill.verified{
+  background:#1d7a3a;
+}
+
+.document-status-pill.rejected{
+  background:#7d2025;
+}
+
+.document-status-pill.review{
+  background:#755b12;
+}
+
+.document-card-actions{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-top:9px;
+}
+
+.document-card-actions button{
+  margin-top:0;
+  padding:7px 10px;
+  font-size:11px;
+  background:#242424;
+  border:1px solid var(--line);
+}
+
+.document-card-actions button:hover{
+  background:var(--red);
+  border-color:var(--red);
+}
+
+@media(max-width:700px){
+  .document-upload-grid{
+    grid-template-columns:1fr;
+  }
+
+  .document-card-head{
+    flex-direction:column;
   }
 }
 
@@ -1102,9 +1263,15 @@ async function loadCustomerEnquiries(){
     return globalBuyerConversationHtml(row.data);
   }).join("");
 
-  bikeRows.forEach(row=>loadCustomerMessages(row.data.id));
+  bikeRows.forEach(row=>{
+    loadCustomerMessages(row.data.id);
+    loadBikeConversationDocuments(row.data.id);
+  });
   await Promise.allSettled(
-    globalRows.map(row=>loadGlobalBuyerMessages(row.data.id))
+    globalRows.map(async row=>{
+      await loadGlobalBuyerMessages(row.data.id);
+      await loadGlobalConversationDocuments(row.data.id);
+    })
   );
 
   updateCustomerUnreadMessageCount();
@@ -1182,6 +1349,50 @@ function bikeEnquiryHtml(r){
           <div class="reply-area">
             <label>Reply to AnyBike</label>
             <textarea id="customer-msg-${r.id}" placeholder="Type your reply here..."></textarea>
+
+            <div class="document-upload-box">
+              <div class="document-upload-title">📎 Attach a private document</div>
+
+              <div class="document-upload-grid">
+                <select id="bike-document-type-${r.id}">
+                  <option value="">Choose document type</option>
+<option value="Passport">Passport</option>
+<option value="Driving Licence">Driving Licence</option>
+<option value="National ID">National ID</option>
+<option value="Proof of Address">Proof of Address</option>
+<option value="Company Registration">Company Registration</option>
+<option value="VAT Certificate">VAT Certificate</option>
+<option value="Business Verification">Business Verification</option>
+<option value="Proof of Ownership">Proof of Ownership</option>
+<option value="Bank Document">Bank Document</option>
+<option value="Payment Evidence">Payment Evidence</option>
+<option value="Other">Other</option>
+                </select>
+
+                <input
+                  id="bike-document-file-${r.id}"
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+                >
+              </div>
+
+              <div class="document-upload-help">
+                PDF, JPG or PNG up to 10 MB. Identity, address and business documents stay private to your AnyBike account.
+              </div>
+
+              <div class="document-upload-actions">
+                <button
+                  type="button"
+                  onclick="uploadBikeConversationDocument(${r.id});return false;"
+                >
+                  Upload Document
+                </button>
+                <span class="reply-status" id="bike-document-status-${r.id}"></span>
+              </div>
+
+              <div class="document-list" id="bike-documents-${r.id}"></div>
+            </div>
+
             <button type="button" class="primary" onclick="sendCustomerMessage(${r.id});return false;">
               Send Reply
             </button>
@@ -1247,6 +1458,50 @@ function globalBuyerConversationHtml(thread){
           <div class="reply-area">
             <label>Reply to AnyBike</label>
             <textarea id="global-customer-msg-${thread.id}" placeholder="Type your reply here..."></textarea>
+
+            <div class="document-upload-box">
+              <div class="document-upload-title">📎 Attach a private document</div>
+
+              <div class="document-upload-grid">
+                <select id="global-document-type-${thread.id}">
+                  <option value="">Choose document type</option>
+<option value="Passport">Passport</option>
+<option value="Driving Licence">Driving Licence</option>
+<option value="National ID">National ID</option>
+<option value="Proof of Address">Proof of Address</option>
+<option value="Company Registration">Company Registration</option>
+<option value="VAT Certificate">VAT Certificate</option>
+<option value="Business Verification">Business Verification</option>
+<option value="Proof of Ownership">Proof of Ownership</option>
+<option value="Bank Document">Bank Document</option>
+<option value="Payment Evidence">Payment Evidence</option>
+<option value="Other">Other</option>
+                </select>
+
+                <input
+                  id="global-document-file-${thread.id}"
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+                >
+              </div>
+
+              <div class="document-upload-help">
+                PDF, JPG or PNG up to 10 MB. Identity, address and business documents stay private to your AnyBike account.
+              </div>
+
+              <div class="document-upload-actions">
+                <button
+                  type="button"
+                  onclick="uploadGlobalConversationDocument(${thread.id});return false;"
+                >
+                  Upload Document
+                </button>
+                <span class="reply-status" id="global-document-status-${thread.id}"></span>
+              </div>
+
+              <div class="document-list" id="global-documents-${thread.id}"></div>
+            </div>
+
             <button type="button" class="primary" onclick="sendGlobalBuyerMessage(${thread.id});return false;">
               Send Reply
             </button>
@@ -1908,6 +2163,425 @@ async function sendGlobalBuyerMessage(threadId){
   }
 }
 
+
+
+/* ============================================================
+   CUSTOMER PRIVATE DOCUMENTS
+   ============================================================ */
+
+const CUSTOMER_DOCUMENT_MAX_BYTES = 10 * 1024 * 1024;
+const CUSTOMER_DOCUMENT_ALLOWED_MIME = new Set([
+  "application/pdf",
+  "image/jpeg",
+  "image/png"
+]);
+
+function customerDocumentStatusClass(status){
+  const value=String(status||"").trim().toLowerCase();
+
+  if(value==="verified") return "verified";
+  if(value==="rejected") return "rejected";
+  if(value==="under review") return "review";
+
+  return "";
+}
+
+function customerDocumentStatusLabel(status){
+  const value=String(status||"Uploaded").trim();
+
+  if(value==="Uploaded") return "Uploaded";
+  if(value==="Under Review") return "Under Review";
+  if(value==="Verified") return "Verified";
+  if(value==="Rejected") return "Rejected";
+  if(value==="Expired") return "Expired";
+
+  return value || "Uploaded";
+}
+
+function customerDocumentCardHtml(documentRow){
+  const id=Number(documentRow.document_id);
+  const title=documentRow.document_title || documentRow.document_type || "Document";
+  const filename=documentRow.original_file_name || "Uploaded file";
+  const status=customerDocumentStatusLabel(documentRow.verification_status);
+  const statusClass=customerDocumentStatusClass(status);
+  const date=documentRow.created_at
+    ? new Date(documentRow.created_at).toLocaleString("en-GB")
+    : "";
+
+  return `
+    <div class="document-card">
+      <div class="document-card-head">
+        <div class="document-card-title">
+          <strong>📎 ${safe(title)}</strong>
+          <span>${safe(filename)}</span>
+          <span>${safe(date)}</span>
+        </div>
+
+        <span class="document-status-pill ${statusClass}">
+          ${safe(status)}
+        </span>
+      </div>
+
+      <div class="document-card-actions">
+        <button
+          type="button"
+          onclick="viewOwnCustomerDocument(${id});return false;"
+        >
+          View Document
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function validateCustomerDocumentFile(file){
+  if(!file){
+    return "Choose a document to upload.";
+  }
+
+  if(file.size > CUSTOMER_DOCUMENT_MAX_BYTES){
+    return "The document is too large. Maximum file size is 10 MB.";
+  }
+
+  const mime=String(file.type||"").toLowerCase();
+
+  if(!CUSTOMER_DOCUMENT_ALLOWED_MIME.has(mime)){
+    return "Please upload a PDF, JPG or PNG file.";
+  }
+
+  return "";
+}
+
+function safeCustomerStorageFileName(fileName){
+  const original=String(fileName||"document").trim() || "document";
+  const cleaned=original
+    .replace(/[^a-zA-Z0-9._-]+/g,"-")
+    .replace(/-+/g,"-")
+    .replace(/^-+|-+$/g,"");
+
+  return cleaned || "document";
+}
+
+function newCustomerDocumentStoragePath(file){
+  const stamp=Date.now();
+  const random=(crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replaceAll("-","");
+  const fileName=safeCustomerStorageFileName(file.name);
+
+  return `customers/${currentUser.id}/${stamp}-${random}-${fileName}`;
+}
+
+async function uploadCustomerDocument({
+  documentType,
+  file,
+  messageThreadId=null,
+  relatedEnquiryId=null,
+  statusElement=null
+}){
+  if(!currentUser){
+    redirectToCustomerLogin();
+    return null;
+  }
+
+  if(!documentType){
+    if(statusElement){
+      statusElement.textContent="Choose a document type.";
+      statusElement.className="reply-status bad";
+    }
+    return null;
+  }
+
+  const fileError=validateCustomerDocumentFile(file);
+
+  if(fileError){
+    if(statusElement){
+      statusElement.textContent=fileError;
+      statusElement.className="reply-status bad";
+    }
+    return null;
+  }
+
+  const storagePath=newCustomerDocumentStoragePath(file);
+
+  if(statusElement){
+    statusElement.textContent="Uploading...";
+    statusElement.className="reply-status";
+  }
+
+  const {error:uploadError}=await sb
+    .storage
+    .from("deal-files")
+    .upload(storagePath,file,{
+      cacheControl:"3600",
+      upsert:false,
+      contentType:file.type
+    });
+
+  if(uploadError){
+    if(statusElement){
+      statusElement.textContent="Upload failed: "+uploadError.message;
+      statusElement.className="reply-status bad";
+    }
+    return null;
+  }
+
+  const {data:registerResult,error:registerError}=await sb.rpc(
+    "customer_register_customer_document",
+    {
+      p_storage_path:storagePath,
+      p_original_file_name:file.name,
+      p_document_type:documentType,
+      p_document_title:documentType,
+      p_description:null,
+      p_mime_type:file.type || null,
+      p_file_size:file.size || 0,
+      p_message_thread_id:messageThreadId,
+      p_related_enquiry_id:relatedEnquiryId,
+      p_expiry_date:null
+    }
+  );
+
+  if(registerError){
+    console.error(
+      "Customer document was uploaded but could not be registered:",
+      registerError
+    );
+
+    if(statusElement){
+      statusElement.textContent=
+        "The file uploaded, but AnyBike could not register it. Please contact us.";
+      statusElement.className="reply-status bad";
+    }
+
+    return null;
+  }
+
+  if(statusElement){
+    statusElement.textContent="Document uploaded securely.";
+    statusElement.className="reply-status ok";
+  }
+
+  return registerResult || {success:true};
+}
+
+async function uploadBikeConversationDocument(enquiryId){
+  const typeEl=document.getElementById(`bike-document-type-${enquiryId}`);
+  const fileEl=document.getElementById(`bike-document-file-${enquiryId}`);
+  const status=document.getElementById(`bike-document-status-${enquiryId}`);
+
+  const {data:ownedEnquiry,error:ownershipError}=await sb
+    .from("bike_enquiries")
+    .select("id")
+    .eq("id",Number(enquiryId))
+    .eq("customer_id",currentUser.id)
+    .maybeSingle();
+
+  if(ownershipError || !ownedEnquiry){
+    if(status){
+      status.textContent="You do not have access to this enquiry.";
+      status.className="reply-status bad";
+    }
+    return;
+  }
+
+  const result=await uploadCustomerDocument({
+    documentType:String(typeEl?.value||""),
+    file:fileEl?.files?.[0] || null,
+    relatedEnquiryId:Number(enquiryId),
+    statusElement:status
+  });
+
+  if(!result){
+    return;
+  }
+
+  if(fileEl) fileEl.value="";
+  if(typeEl) typeEl.value="";
+
+  await loadBikeConversationDocuments(enquiryId);
+
+  await notifyAdminOfCustomerDocument({
+    sourceType:"bike_enquiry",
+    enquiryId:Number(enquiryId)
+  });
+}
+
+async function uploadGlobalConversationDocument(threadId){
+  const typeEl=document.getElementById(`global-document-type-${threadId}`);
+  const fileEl=document.getElementById(`global-document-file-${threadId}`);
+  const status=document.getElementById(`global-document-status-${threadId}`);
+
+  const {data:ownedThread,error:ownershipError}=await sb
+    .from("message_centre_threads")
+    .select("id")
+    .eq("id",Number(threadId))
+    .eq("customer_id",currentUser.id)
+    .maybeSingle();
+
+  if(ownershipError || !ownedThread){
+    if(status){
+      status.textContent="You do not have access to this conversation.";
+      status.className="reply-status bad";
+    }
+    return;
+  }
+
+  const result=await uploadCustomerDocument({
+    documentType:String(typeEl?.value||""),
+    file:fileEl?.files?.[0] || null,
+    messageThreadId:Number(threadId),
+    statusElement:status
+  });
+
+  if(!result){
+    return;
+  }
+
+  if(fileEl) fileEl.value="";
+  if(typeEl) typeEl.value="";
+
+  await loadGlobalConversationDocuments(threadId);
+
+  await notifyAdminOfCustomerDocument({
+    sourceType:"message_centre",
+    threadId:Number(threadId)
+  });
+}
+
+async function notifyAdminOfCustomerDocument({
+  sourceType,
+  threadId=null,
+  enquiryId=null
+}){
+  try{
+    const body={
+      source_type:sourceType
+    };
+
+    if(threadId){
+      body.thread_id=String(threadId);
+    }
+
+    if(enquiryId){
+      body.enquiry_id=String(enquiryId);
+    }
+
+    const {error}=await sb.functions.invoke(
+      "send-admin-message-notification",
+      {body}
+    );
+
+    if(error){
+      console.warn(
+        "Customer document uploaded but admin email notification failed:",
+        error
+      );
+    }
+  }catch(error){
+    console.warn(
+      "Customer document uploaded but admin notification failed:",
+      error
+    );
+  }
+}
+
+async function loadBikeConversationDocuments(enquiryId){
+  const box=document.getElementById(`bike-documents-${enquiryId}`);
+
+  if(!box || !currentUser){
+    return;
+  }
+
+  const {data,error}=await sb.rpc(
+    "customer_get_conversation_documents",
+    {
+      p_message_thread_id:null,
+      p_related_enquiry_id:Number(enquiryId)
+    }
+  );
+
+  if(error){
+    console.warn(
+      "Could not load bike conversation documents:",
+      error.message
+    );
+    box.innerHTML="";
+    return;
+  }
+
+  const rows=data || [];
+
+  box.innerHTML=rows.length
+    ? rows.map(customerDocumentCardHtml).join("")
+    : "";
+}
+
+async function loadGlobalConversationDocuments(threadId){
+  const box=document.getElementById(`global-documents-${threadId}`);
+
+  if(!box || !currentUser){
+    return;
+  }
+
+  const {data,error}=await sb.rpc(
+    "customer_get_conversation_documents",
+    {
+      p_message_thread_id:Number(threadId),
+      p_related_enquiry_id:null
+    }
+  );
+
+  if(error){
+    console.warn(
+      "Could not load conversation documents:",
+      error.message
+    );
+    box.innerHTML="";
+    return;
+  }
+
+  const rows=data || [];
+
+  box.innerHTML=rows.length
+    ? rows.map(customerDocumentCardHtml).join("")
+    : "";
+}
+
+async function viewOwnCustomerDocument(documentId){
+  if(!currentUser){
+    redirectToCustomerLogin();
+    return;
+  }
+
+  const {data:access,error:accessError}=await sb.rpc(
+    "customer_get_customer_document_access",
+    {
+      p_document_id:Number(documentId)
+    }
+  );
+
+  if(accessError || !access?.storage_path){
+    alert(
+      "This document could not be opened. "+
+      (accessError?.message || "Please try again.")
+    );
+    return;
+  }
+
+  const {data:signed,error:signedError}=await sb
+    .storage
+    .from(access.storage_bucket || "deal-files")
+    .createSignedUrl(access.storage_path,300);
+
+  if(signedError || !signed?.signedUrl){
+    alert(
+      "This document could not be opened securely. "+
+      (signedError?.message || "Please try again.")
+    );
+    return;
+  }
+
+  window.open(signed.signedUrl,"_blank","noopener,noreferrer");
+}
 
 
 let profileEditMode=false;
@@ -2573,8 +3247,10 @@ function startCustomerMessageRealtime(){
 
         if(thread.related_enquiry_id){
           await loadCustomerMessages(thread.related_enquiry_id);
+          await loadBikeConversationDocuments(thread.related_enquiry_id);
         }else{
           await loadGlobalBuyerMessages(threadId);
+          await loadGlobalConversationDocuments(threadId);
         }
 
         await refreshSharedCustomerHeader();
@@ -2610,6 +3286,7 @@ function startCustomerMessageRealtime(){
         }
 
         await loadCustomerMessages(enquiryId);
+        await loadBikeConversationDocuments(enquiryId);
         await refreshSharedCustomerHeader();
       }
     )
