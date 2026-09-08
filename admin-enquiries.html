@@ -6508,57 +6508,63 @@ function renderAnyBikeSellerPaymentLedger(matchId, c){
     return Number(item.buyer_match_id) === Number(matchId);
   }) || null;
 
-  if(!c || !c.seller_deposit_required){ return ""; }
-
   if(!row || !row.seller_confirmation_id){
     return `
       <div class="anybike-seller-payment">
         <div class="anybike-seller-payment-head">
-          <div><span>AnyBike → Seller</span><h5>Seller Deposit Payment</h5></div>
+          <div><span>AnyBike → Seller</span><h5>Seller / Supplier Payments</h5></div>
           <div class="anybike-seller-payment-badge neutral">Save Seller Check First</div>
         </div>
-        <div class="anybike-seller-payment-note">Save the Final Seller Check first. Once the seller deposit requirement is stored, the actual outgoing payment can be recorded in the Deal 360 supplier ledger.</div>
+        <div class="anybike-seller-payment-note">Save the Final Seller Check first. Supplier payments are recorded separately from motorcycle security.</div>
       </div>`;
   }
 
-  const due = Number(row.seller_deposit_due_gbp || 0);
-  const paid = Number(row.seller_deposit_paid_gbp || 0);
-  const outstanding = Number(row.seller_deposit_outstanding_gbp || 0);
-  const totalSupplierPaid = Number(row.total_supplier_payments_gbp || 0);
-  const badge = anyBikeSellerPaymentBadge(row);
+  const sellerPrice = Number(row.seller_price_gbp ?? row.confirmed_seller_price_gbp ?? c?.confirmed_min_price_gbp ?? 0);
+  const totalPaid = Number(row.total_supplier_payments_gbp || 0);
+  const supplierBalance = Math.max(sellerPrice-totalPaid,0);
+  const depositRequired = !!row.seller_deposit_required;
+  const depositOutstanding = Number(row.seller_deposit_outstanding_gbp || 0);
+  const depositPaid = Number(row.seller_deposit_paid_gbp || 0);
   const busy = dealSellerPaymentBusy.has(String(matchId));
   const latest = row.latest_payment_at ? new Date(row.latest_payment_at).toLocaleString("en-GB") : "No seller payment recorded";
-  const canRecord = outstanding > 0;
   const defaultPaidAt = anyBikeSellerLocalDateTime(new Date().toISOString());
+  const purpose = depositRequired && depositOutstanding > 0 ? "Seller Deposit" : (totalPaid <= 0 ? "Full Purchase" : "Purchase Balance");
+  const amountDue = purpose === "Seller Deposit" ? depositOutstanding : supplierBalance;
+  const badgeClass = supplierBalance <= 0 && sellerPrice > 0 ? "paid" : "due";
+  const badgeLabel = supplierBalance <= 0 && sellerPrice > 0 ? "SUPPLIER PAID" : "SUPPLIER BALANCE " + anyBikeDealMoney(supplierBalance);
 
   return `
     <div class="anybike-seller-payment">
       <div class="anybike-seller-payment-head">
-        <div><span>AnyBike → Seller</span><h5>Seller Deposit Payment</h5></div>
-        <div class="anybike-seller-payment-badge ${badge.className}">${escapeAdminHtml(badge.label)}</div>
+        <div><span>AnyBike → Seller</span><h5>Seller / Supplier Payments</h5></div>
+        <div class="anybike-seller-payment-badge ${badgeClass}">${escapeAdminHtml(badgeLabel)}</div>
       </div>
 
       <div class="anybike-seller-payment-metrics">
-        <div><span>Deposit Required</span><strong>${anyBikeDealMoney(due)}</strong></div>
-        <div><span>Paid to Seller</span><strong class="${paid > 0 ? "anybike-seller-good" : ""}">${anyBikeDealMoney(paid)}</strong></div>
-        <div><span>Outstanding</span><strong class="${outstanding > 0 ? "anybike-seller-danger" : "anybike-seller-good"}">${anyBikeDealMoney(outstanding)}</strong></div>
-        <div><span>Total Supplier Payments</span><strong>${anyBikeDealMoney(totalSupplierPaid)}</strong></div>
+        <div><span>Purchase Price</span><strong>${anyBikeDealMoney(sellerPrice)}</strong></div>
+        <div><span>Paid to Seller</span><strong class="${totalPaid > 0 ? "anybike-seller-good" : ""}">${anyBikeDealMoney(totalPaid)}</strong></div>
+        <div><span>Supplier Balance</span><strong class="${supplierBalance > 0 ? "anybike-seller-danger" : "anybike-seller-good"}">${anyBikeDealMoney(supplierBalance)}</strong></div>
+        <div><span>Seller Deposit</span><strong>${depositRequired ? anyBikeDealMoney(depositPaid) + " paid" : "Not Required"}</strong></div>
       </div>
 
-      ${canRecord ? `
+      ${supplierBalance > 0 ? `
       <div class="anybike-seller-payment-action">
         <div class="anybike-seller-payment-field">
+          <label for="deal-seller-payment-purpose-${matchId}">Payment Purpose</label>
+          <select id="deal-seller-payment-purpose-${matchId}">
+            ${depositRequired && depositOutstanding > 0 ? `<option value="Seller Deposit">Seller Deposit</option>` : ""}
+            <option value="Full Purchase" ${purpose === "Full Purchase" ? "selected" : ""}>Full Purchase</option>
+            <option value="Purchase Balance" ${purpose === "Purchase Balance" ? "selected" : ""}>Purchase Balance</option>
+            <option value="Additional Payment">Additional Payment</option>
+          </select>
+        </div>
+        <div class="anybike-seller-payment-field">
           <label for="deal-seller-payment-amount-${matchId}">Amount Paid</label>
-          <input id="deal-seller-payment-amount-${matchId}" type="number" min="0.01" step="0.01" value="${outstanding.toFixed(2)}">
+          <input id="deal-seller-payment-amount-${matchId}" type="number" min="0.01" step="0.01" value="${amountDue.toFixed(2)}">
         </div>
         <div class="anybike-seller-payment-field">
           <label for="deal-seller-payment-method-${matchId}">Payment Method</label>
-          <select id="deal-seller-payment-method-${matchId}">
-            <option value="Bank Transfer">Bank Transfer</option>
-            <option value="Card">Card</option>
-            <option value="Cash">Cash</option>
-            <option value="Other">Other</option>
-          </select>
+          <select id="deal-seller-payment-method-${matchId}"><option value="Bank Transfer">Bank Transfer</option><option value="Card">Card</option><option value="Cash">Cash</option><option value="Other">Other</option></select>
         </div>
         <div class="anybike-seller-payment-field">
           <label for="deal-seller-payment-reference-${matchId}">Payment Reference</label>
@@ -6568,16 +6574,14 @@ function renderAnyBikeSellerPaymentLedger(matchId, c){
           <label for="deal-seller-payment-date-${matchId}">Date / Time Paid</label>
           <input id="deal-seller-payment-date-${matchId}" type="datetime-local" value="${escapeAdminHtml(defaultPaidAt)}">
         </div>
-        <div class="anybike-seller-payment-field" style="grid-column:span 3">
+        <div class="anybike-seller-payment-field" style="grid-column:span 2">
           <label for="deal-seller-payment-notes-${matchId}">Payment Notes</label>
           <textarea id="deal-seller-payment-notes-${matchId}" placeholder="Optional internal payment note"></textarea>
         </div>
-        <button type="button" ${busy ? "disabled" : ""} onclick="recordDealSellerDeposit(${matchId});return false;">${busy ? "Recording Seller Payment..." : "Record Seller Deposit Payment"}</button>
+        <button type="button" ${busy ? "disabled" : ""} onclick="recordDealSellerPayment(${matchId});return false;">${busy ? "Recording Seller Payment..." : "Record Seller Payment"}</button>
       </div>` : ""}
 
-      <div class="anybike-seller-payment-note">
-        Latest seller payment: ${escapeAdminHtml(latest)}${row.latest_payment_method ? " · " + escapeAdminHtml(row.latest_payment_method) : ""}${row.latest_payment_reference ? " · Ref " + escapeAdminHtml(row.latest_payment_reference) : ""}. <strong>Recording the seller payment does not itself mark the motorcycle Secured.</strong>
-      </div>
+      <div class="anybike-seller-payment-note">Latest seller payment: ${escapeAdminHtml(latest)}${row.latest_payment_method ? " · " + escapeAdminHtml(row.latest_payment_method) : ""}${row.latest_payment_reference ? " · Ref " + escapeAdminHtml(row.latest_payment_reference) : ""}. <strong>Seller payment and motorcycle security are separate records.</strong></div>
     </div>`;
 }
 
@@ -6709,6 +6713,44 @@ function renderAnyBikeDealSellerCheckPanel(deal){
         </div>
       </div>`;
   }).join("");
+}
+
+async function recordDealSellerPayment(matchId){
+  const id=Number(matchId);
+  if(!Number.isFinite(id) || dealSellerPaymentBusy.has(String(id))){ return; }
+  const row=adminDealSellerPaymentStatus.find(function(item){ return Number(item.buyer_match_id)===id; });
+  if(!row || !row.seller_confirmation_id){ alert("Save the Final Seller Check before recording a seller payment."); return; }
+
+  const purpose=document.getElementById("deal-seller-payment-purpose-"+id)?.value || "Full Purchase";
+  const amount=anyBikeSellerMoneyNumber(document.getElementById("deal-seller-payment-amount-"+id)?.value || "");
+  const method=String(document.getElementById("deal-seller-payment-method-"+id)?.value || "").trim();
+  const reference=String(document.getElementById("deal-seller-payment-reference-"+id)?.value || "").trim();
+  const paidAt=anyBikeSellerIsoOrNull(document.getElementById("deal-seller-payment-date-"+id)?.value || "");
+  const notes=String(document.getElementById("deal-seller-payment-notes-"+id)?.value || "").trim();
+  const sellerPrice=Number(row.seller_price_gbp ?? row.confirmed_seller_price_gbp ?? 0);
+  const totalPaid=Number(row.total_supplier_payments_gbp || 0);
+  const supplierBalance=Math.max(sellerPrice-totalPaid,0);
+
+  if(!Number.isFinite(amount) || amount<=0){ alert("Enter the amount actually paid to the seller."); return; }
+  if(supplierBalance>0 && amount>supplierBalance+0.009){ alert("The seller payment cannot exceed the supplier balance of "+anyBikeDealMoney(supplierBalance)+"."); return; }
+  if(!method){ alert("Choose how the seller was paid."); return; }
+  if(!window.confirm("Record seller payment?\n\nPurpose: "+purpose+"\nAmount: "+anyBikeDealMoney(amount)+"\nMethod: "+method+"\nReference: "+(reference||"No reference entered")+"\n\nThis records money paid OUT by AnyBike. It does NOT change motorcycle security.")){ return; }
+
+  dealSellerPaymentBusy.add(String(id)); renderAdminDealQueue();
+  try{
+    const result=await sb.rpc("admin_record_seller_payment",{
+      p_match_id:id,p_payment_purpose:purpose,p_amount_gbp:amount,p_payment_method:method||null,
+      p_payment_provider:null,p_payment_reference:reference||null,p_provider_transaction_id:null,
+      p_paid_at:paidAt,p_notes:notes||null
+    });
+    if(result.error){ throw result.error; }
+    alert("Seller payment recorded successfully.");
+    const currentDealId=row.deal_id;
+    await loadAdminDealQueue();
+    if(currentDealId){ const dealRow=document.getElementById("anybike-deal-"+currentDealId); if(dealRow){ dealRow.classList.add("open"); openAnyBikeDealId=String(currentDealId); } }
+  }catch(error){
+    console.error(error); alert("Seller payment could not be recorded.\n\n"+(error?.message||"Unknown error"));
+  }finally{ dealSellerPaymentBusy.delete(String(id)); renderAdminDealQueue(); }
 }
 
 async function recordDealSellerDeposit(matchId){
