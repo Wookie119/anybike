@@ -847,62 +847,23 @@ async function updateAdminCustomerDocumentVerification(documentId){
     return;
   }
 
-  const rpcAttempts = [
+  const {error:updateError} = await sb.rpc(
+    "admin_update_customer_document_verification",
     {
       p_document_id:Number(documentId),
       p_verification_status:nextStatus,
       p_verification_notes:note || null,
-      p_rejection_reason:nextStatus === "Rejected" ? note : null,
-      p_expiry_date:null
-    },
-    {
-      p_document_id:Number(documentId),
-      p_status:nextStatus,
-      p_notes:note || null,
-      p_rejection_reason:nextStatus === "Rejected" ? note : null,
-      p_expiry_date:null
-    },
-    {
-      p_document_id:Number(documentId),
-      p_verification_status:nextStatus,
-      p_notes:note || null
+      p_rejection_reason:nextStatus === "Rejected" ? note : null
     }
-  ];
+  );
 
-  let lastError = null;
-  let success = false;
-
-  for(const args of rpcAttempts){
-    const {error} = await sb.rpc(
-      "admin_update_customer_document_verification",
-      args
-    );
-
-    if(!error){
-      success = true;
-      break;
-    }
-
-    lastError = error;
-
-    const message = String(error.message || "").toLowerCase();
-
-    if(
-      !message.includes("could not find the function") &&
-      !message.includes("function") &&
-      !message.includes("schema cache")
-    ){
-      break;
-    }
-  }
-
-  if(!success){
-    console.error("Customer document verification update failed:",lastError);
+  if(updateError){
+    console.error("Customer document verification update failed:",updateError);
 
     if(errorEl){
       errorEl.textContent =
         "Could not update document status: " +
-        (lastError?.message || "Unknown error");
+        (updateError?.message || "Unknown error");
     }
     return;
   }
