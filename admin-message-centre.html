@@ -5,6 +5,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -354,7 +355,13 @@
   font-weight:800;
 }
 
+/* =========================================================
+   BUYER-VISIBLE MOTORCYCLE DOCUMENT SHARING
+   ========================================================= */
+.buyer-share-documents{display:grid;gap:10px}.buyer-share-card{background:#0c0c0c;border:1px solid rgba(255,255,255,.10);border-radius:14px;padding:13px}.buyer-share-card.shared{border-color:rgba(24,160,88,.42);background:rgba(24,160,88,.07)}.buyer-share-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.buyer-share-main{min-width:0}.buyer-share-main strong{display:block;font-size:14px;margin-bottom:4px}.buyer-share-main span{display:block;color:#999;font-size:12px;line-height:1.45;word-break:break-word}.buyer-share-status{flex:0 0 auto;display:inline-flex;align-items:center;border-radius:999px;padding:6px 9px;background:rgba(237,28,36,.18);color:#ff7b80;font-size:11px;font-weight:900}.buyer-share-status.shared{background:rgba(24,160,88,.22);color:#65e9a0}.buyer-share-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.buyer-share-actions button{border:0;border-radius:10px;padding:10px 12px;font-weight:900;cursor:pointer;background:#242424;color:#fff}.buyer-share-actions button.primary{background:var(--red)}.buyer-share-actions button.danger{background:#7f1620}.buyer-share-actions button:disabled{opacity:.55;cursor:not-allowed}.buyer-share-note{margin-top:8px;color:#888;font-size:11px;line-height:1.45}.buyer-share-error{margin-top:8px;color:#ff8d99;font-size:12px;font-weight:800}
+
 @media(max-width:760px){
+  .buyer-share-top{flex-direction:column}
   .customer-doc-card-top{
     flex-direction:column;
   }
@@ -495,6 +502,23 @@ async function openThread(id){
       console.error("Customer document load failed:", documentError);
     }else{
       customerDocuments = documentRows || [];
+    }
+  }
+
+  let shareableMotorcycleDocuments = [];
+  let shareableMotorcycleDocumentLoadError = "";
+
+  if(t.customer_id){
+    const {data:shareableRows,error:shareableError} = await sb.rpc(
+      "admin_get_shareable_motorcycle_documents",
+      {p_message_thread_id:Number(t.id)}
+    );
+
+    if(shareableError){
+      shareableMotorcycleDocumentLoadError = shareableError.message || "Could not load buyer-visible motorcycle documents.";
+      console.error("Shareable motorcycle document load failed:",shareableError);
+    }else{
+      shareableMotorcycleDocuments = shareableRows || [];
     }
   }
 
@@ -654,6 +678,23 @@ async function openThread(id){
       }
     </div>
 
+    <div class="section">
+      <h3>📤 Share Motorcycle Documents with Buyer</h3>
+      <div class="buyer-share-note" style="margin:0 0 12px;">
+        Only Motorcycle 360 documents already marked <strong>Buyer Visible</strong> can appear here. A document is not available to the customer until you deliberately press <strong>Share with Buyer</strong>.
+      </div>
+
+      ${
+        !t.customer_id
+          ? `<div class="customer-doc-empty">This conversation is not linked to a customer account, so documents cannot be shared.</div>`
+          : shareableMotorcycleDocumentLoadError
+            ? `<div class="buyer-share-error">Could not load buyer-visible motorcycle documents: ${safe(shareableMotorcycleDocumentLoadError)}</div>`
+            : shareableMotorcycleDocuments.length
+              ? `<div class="buyer-share-documents">${shareableMotorcycleDocuments.map(function(doc){return buyerShareDocumentCardHtml(doc);}).join("")}</div>`
+              : `<div class="customer-doc-empty">No Buyer Visible Motorcycle 360 documents are available for the motorcycle(s) authorised for this conversation.</div>`
+      }
+    </div>
+
     <div class="section reply-area">
       <h3>Reply / Route</h3>
      <label>Assigned Staff</label>
@@ -706,6 +747,89 @@ async function openThread(id){
   }
 }
 
+
+function buyerShareDocumentCardHtml(doc){
+  const documentId = Number(doc.document_id);
+  const shareId = doc.active_share_id === null || doc.active_share_id === undefined ? null : Number(doc.active_share_id);
+  const isShared = Boolean(shareId);
+  const bike = [doc.stock_year,doc.stock_make,doc.stock_model,doc.stock_variant].filter(Boolean).join(" ");
+  const title = doc.document_title || doc.document_type || "Motorcycle Document";
+  const uploaded = doc.created_at ? new Date(doc.created_at).toLocaleString("en-GB") : "—";
+  const sharedAt = doc.shared_at ? new Date(doc.shared_at).toLocaleString("en-GB") : "";
+
+  return `
+    <div class="buyer-share-card ${isShared ? "shared" : ""}" id="buyer-share-document-${documentId}">
+      <div class="buyer-share-top">
+        <div class="buyer-share-main">
+          <strong>📄 ${safe(title)}</strong>
+          <span>${safe(doc.original_file_name)}</span>
+          <span>Motorcycle: ${safe(bike || ("Stock #" + doc.stock_id))}</span>
+          <span>Type: ${safe(doc.document_type)} • Added: ${safe(uploaded)}</span>
+          ${sharedAt ? `<span>Shared with buyer: ${safe(sharedAt)}</span>` : ""}
+        </div>
+        <span class="buyer-share-status ${isShared ? "shared" : ""}">${isShared ? "Shared" : "Buyer Visible"}</span>
+      </div>
+
+      <div class="buyer-share-actions">
+        ${isShared
+          ? `<button type="button" class="danger" onclick="revokeMotorcycleDocumentShare(${shareId});return false;">Revoke Sharing</button>`
+          : `<button type="button" class="primary" onclick="shareMotorcycleDocumentWithBuyer(${documentId});return false;">Share with Buyer</button>`
+        }
+      </div>
+      <div class="buyer-share-error" id="buyer-share-error-${documentId}"></div>
+    </div>
+  `;
+}
+
+async function shareMotorcycleDocumentWithBuyer(documentId){
+  if(!selectedThread) return;
+
+  const errorEl = document.getElementById(`buyer-share-error-${documentId}`);
+  if(errorEl) errorEl.textContent = "";
+
+  if(!confirm("Share this Motorcycle 360 document with this buyer?")) return;
+
+  const {data,error} = await sb.rpc(
+    "admin_share_motorcycle_document",
+    {
+      p_document_id:Number(documentId),
+      p_message_thread_id:Number(selectedThread.id)
+    }
+  );
+
+  if(error){
+    console.error("Motorcycle document share failed:",error);
+    if(errorEl) errorEl.textContent = "Could not share document: " + (error.message || "Unknown error");
+    return;
+  }
+
+  console.info("Motorcycle document shared:",data);
+  await openThread(Number(selectedThread.id));
+}
+
+async function revokeMotorcycleDocumentShare(shareId){
+  if(!selectedThread) return;
+  if(!confirm("Revoke this document from the buyer? They will no longer be able to create a new secure link to it.")) return;
+
+  const reason = prompt("Optional reason for revoking this document:","");
+  if(reason === null) return;
+
+  const {error} = await sb.rpc(
+    "admin_revoke_motorcycle_document_share",
+    {
+      p_share_id:Number(shareId),
+      p_reason:String(reason || "").trim() || null
+    }
+  );
+
+  if(error){
+    console.error("Motorcycle document revoke failed:",error);
+    alert("Could not revoke document sharing: " + (error.message || "Unknown error"));
+    return;
+  }
+
+  await openThread(Number(selectedThread.id));
+}
 
 function adminDocumentStatusClass(status){
   const value = String(status || "").trim().toLowerCase();
