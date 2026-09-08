@@ -1,5 +1,6 @@
 
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -697,6 +698,117 @@ footer{
   }
 }
 
+/* ============================================================
+   DOCUMENTS SHARED BY ANYBIKE
+   ============================================================ */
+
+.shared-motorcycle-documents-box{
+  display:none;
+  margin-top:14px;
+  padding:13px;
+  border:1px solid rgba(54,211,126,.30);
+  border-radius:13px;
+  background:rgba(54,211,126,.055);
+}
+
+.shared-motorcycle-documents-box.visible{
+  display:block;
+}
+
+.shared-motorcycle-documents-title{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin-bottom:5px;
+  font-size:13px;
+  font-weight:900;
+}
+
+.shared-motorcycle-documents-help{
+  margin:0 0 10px;
+  color:var(--muted);
+  font-size:11px;
+  line-height:1.45;
+}
+
+.shared-motorcycle-documents-list{
+  display:grid;
+  gap:8px;
+}
+
+.shared-motorcycle-document-card{
+  border:1px solid rgba(255,255,255,.12);
+  background:#111;
+  border-radius:12px;
+  padding:11px;
+}
+
+.shared-motorcycle-document-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:12px;
+}
+
+.shared-motorcycle-document-main{
+  min-width:0;
+}
+
+.shared-motorcycle-document-main strong{
+  display:block;
+  font-size:13px;
+  margin-bottom:4px;
+}
+
+.shared-motorcycle-document-main span{
+  display:block;
+  color:var(--muted);
+  font-size:11px;
+  line-height:1.45;
+  word-break:break-word;
+}
+
+.shared-motorcycle-document-pill{
+  flex:0 0 auto;
+  display:inline-flex;
+  align-items:center;
+  padding:5px 8px;
+  border-radius:999px;
+  background:#1d7a3a;
+  color:#fff;
+  font-size:10px;
+  font-weight:900;
+}
+
+.shared-motorcycle-document-actions{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-top:9px;
+}
+
+.shared-motorcycle-document-actions button{
+  margin-top:0;
+  padding:8px 11px;
+  border:1px solid var(--red);
+  border-radius:999px;
+  background:var(--red);
+  color:#fff;
+  font-size:11px;
+  font-weight:900;
+  cursor:pointer;
+}
+
+.shared-motorcycle-document-actions button:hover{
+  filter:brightness(1.08);
+}
+
+@media(max-width:700px){
+  .shared-motorcycle-document-head{
+    flex-direction:column;
+  }
+}
+
 </style>
 </head>
 
@@ -1266,11 +1378,13 @@ async function loadCustomerEnquiries(){
   bikeRows.forEach(row=>{
     loadCustomerMessages(row.data.id);
     loadBikeConversationDocuments(row.data.id);
+    loadBikeSharedMotorcycleDocuments(row.data.id);
   });
   await Promise.allSettled(
     globalRows.map(async row=>{
       await loadGlobalBuyerMessages(row.data.id);
       await loadGlobalConversationDocuments(row.data.id);
+      await loadGlobalSharedMotorcycleDocuments(row.data.id);
     })
   );
 
@@ -1344,6 +1458,12 @@ function bikeEnquiryHtml(r){
 
           <div class="message-thread" id="messages-${r.id}">
             Loading messages...
+          </div>
+
+          <div class="shared-motorcycle-documents-box" id="bike-shared-documents-box-${r.id}">
+            <div class="shared-motorcycle-documents-title">📄 Documents shared by AnyBike</div>
+            <p class="shared-motorcycle-documents-help">These documents have been deliberately shared with you by AnyBike for this motorcycle conversation.</p>
+            <div class="shared-motorcycle-documents-list" id="bike-shared-documents-${r.id}"></div>
           </div>
 
           <div class="reply-area">
@@ -1453,6 +1573,12 @@ function globalBuyerConversationHtml(thread){
 
           <div class="message-thread" id="global-messages-${thread.id}">
             Loading messages...
+          </div>
+
+          <div class="shared-motorcycle-documents-box" id="global-shared-documents-box-${thread.id}">
+            <div class="shared-motorcycle-documents-title">📄 Documents shared by AnyBike</div>
+            <p class="shared-motorcycle-documents-help">These documents have been deliberately shared with you by AnyBike for this conversation.</p>
+            <div class="shared-motorcycle-documents-list" id="global-shared-documents-${thread.id}"></div>
           </div>
 
           <div class="reply-area">
@@ -2544,6 +2670,144 @@ async function loadGlobalConversationDocuments(threadId){
   box.innerHTML=rows.length
     ? rows.map(customerDocumentCardHtml).join("")
     : "";
+}
+
+function sharedMotorcycleDocumentCardHtml(doc){
+  const shareId=Number(doc.share_id);
+  const title=doc.document_title || doc.document_type || "Motorcycle Document";
+  const bike=[doc.stock_year,doc.stock_make,doc.stock_model,doc.stock_variant].filter(Boolean).join(" ");
+  const sharedAt=doc.shared_at ? new Date(doc.shared_at).toLocaleString("en-GB") : "";
+
+  return `
+    <div class="shared-motorcycle-document-card">
+      <div class="shared-motorcycle-document-head">
+        <div class="shared-motorcycle-document-main">
+          <strong>📄 ${safe(title)}</strong>
+          <span>${safe(doc.original_file_name)}</span>
+          <span>Motorcycle: ${safe(bike || ("Stock #" + doc.stock_id))}</span>
+          <span>Type: ${safe(doc.document_type)}${sharedAt ? ` • Shared: ${safe(sharedAt)}` : ""}</span>
+          ${doc.description ? `<span>${safe(doc.description)}</span>` : ""}
+        </div>
+        <span class="shared-motorcycle-document-pill">Shared by AnyBike</span>
+      </div>
+      <div class="shared-motorcycle-document-actions">
+        <button type="button" onclick="viewSharedMotorcycleDocument(${shareId});return false;">View Document</button>
+      </div>
+    </div>
+  `;
+}
+
+async function loadBikeSharedMotorcycleDocuments(enquiryId){
+  const outer=document.getElementById(`bike-shared-documents-box-${enquiryId}`);
+  const box=document.getElementById(`bike-shared-documents-${enquiryId}`);
+
+  if(!outer || !box || !currentUser){
+    return;
+  }
+
+  outer.classList.remove("visible");
+  box.innerHTML="";
+
+  const {data:thread,error:threadError}=await sb
+    .from("message_centre_threads")
+    .select("id")
+    .eq("related_enquiry_id",Number(enquiryId))
+    .eq("customer_id",currentUser.id)
+    .order("created_at",{ascending:false})
+    .limit(1)
+    .maybeSingle();
+
+  if(threadError || !thread?.id){
+    if(threadError){
+      console.warn("Could not resolve Message Centre thread for shared documents:",threadError.message);
+    }
+    return;
+  }
+
+  const {data,error}=await sb.rpc(
+    "customer_get_shared_motorcycle_documents",
+    {p_message_thread_id:Number(thread.id)}
+  );
+
+  if(error){
+    console.warn("Could not load shared motorcycle documents:",error.message);
+    return;
+  }
+
+  const rows=data || [];
+
+  if(!rows.length){
+    return;
+  }
+
+  box.innerHTML=rows.map(sharedMotorcycleDocumentCardHtml).join("");
+  outer.classList.add("visible");
+}
+
+async function loadGlobalSharedMotorcycleDocuments(threadId){
+  const outer=document.getElementById(`global-shared-documents-box-${threadId}`);
+  const box=document.getElementById(`global-shared-documents-${threadId}`);
+
+  if(!outer || !box || !currentUser){
+    return;
+  }
+
+  outer.classList.remove("visible");
+  box.innerHTML="";
+
+  const {data,error}=await sb.rpc(
+    "customer_get_shared_motorcycle_documents",
+    {p_message_thread_id:Number(threadId)}
+  );
+
+  if(error){
+    console.warn("Could not load shared motorcycle documents:",error.message);
+    return;
+  }
+
+  const rows=data || [];
+
+  if(!rows.length){
+    return;
+  }
+
+  box.innerHTML=rows.map(sharedMotorcycleDocumentCardHtml).join("");
+  outer.classList.add("visible");
+}
+
+async function viewSharedMotorcycleDocument(shareId){
+  if(!currentUser){
+    redirectToCustomerLogin();
+    return;
+  }
+
+  const {data:access,error:accessError}=await sb.rpc(
+    "customer_get_shared_motorcycle_document_access",
+    {p_share_id:Number(shareId)}
+  );
+
+  if(accessError || !access?.storage_path){
+    alert(
+      "This shared document could not be opened. "+
+      (accessError?.message || "Please refresh the conversation and try again.")
+    );
+    return;
+  }
+
+  const {data:signed,error:signedError}=await sb
+    .storage
+    .from(access.storage_bucket || "deal-files")
+    .createSignedUrl(access.storage_path,300);
+
+  if(signedError || !signed?.signedUrl){
+    alert(
+      "This shared document could not be opened securely. "+
+      (signedError?.message || "Please try again.")
+    );
+    return;
+  }
+
+  window.open(signed.signedUrl,"_blank","noopener,noreferrer");
 }
 
 async function viewOwnCustomerDocument(documentId){
