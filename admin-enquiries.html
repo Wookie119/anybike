@@ -6205,7 +6205,27 @@ function renderAnyBikeDealCustomerLedger(deal){
   const dealId = String(deal.deal_id || "");
   const account = adminDealCustomerAccounts.get(dealId) || {};
   const payments = adminDealCustomerPayments.get(dealId) || [];
-  const bikes = adminDealMotorcycleCustomerAccounts.get(dealId) || [];
+  let bikes = adminDealMotorcycleCustomerAccounts.get(dealId) || [];
+  if(!bikes.length){
+    bikes = adminDealMotorcycles
+      .filter(function(b){ return String(b.deal_id) === dealId; })
+      .map(function(b){
+        const price=Number(b.buyer_price_gbp || 0);
+        const legacy=adminDealPaymentStatus.find(function(p){
+          return Number(p.deal_motorcycle_id || 0) === Number(b.deal_motorcycle_id || b.id || 0);
+        }) || {};
+        const allocated=Number(
+          legacy.total_customer_payments_gbp ??
+          legacy.total_paid_gbp ??
+          0
+        );
+        return Object.assign({},b,{
+          deal_motorcycle_id:b.deal_motorcycle_id || b.id,
+          allocated_gbp:allocated,
+          balance_gbp:Math.max(price-allocated,0)
+        });
+      });
+  }
 
   const dealValue = anyBikeAccountNumber(account,["deal_value_gbp"],deal.buyer_value_gbp);
   const received = anyBikeAccountNumber(account,["customer_money_received_gbp"],0);
@@ -6221,7 +6241,22 @@ function renderAnyBikeDealCustomerLedger(deal){
     const allocationBusy = dealCustomerAllocationBusy.has(String(paymentId));
 
     const targets = bikes.filter(function(b){
-      return anyBikeAccountNumber(b,["balance_gbp","balance_due_gbp","customer_balance_due_gbp"],0) > 0.009;
+      const price = anyBikeAccountNumber(
+        b,
+        ["buyer_price_gbp","motorcycle_price_gbp","sale_price_gbp","deal_value_gbp"],
+        0
+      );
+      const allocatedBike = anyBikeAccountNumber(
+        b,
+        ["allocated_gbp","allocated_amount_gbp","customer_money_allocated_gbp","total_allocated_gbp"],
+        0
+      );
+      const due = anyBikeAccountNumber(
+        b,
+        ["balance_gbp","balance_due_gbp","customer_balance_due_gbp","customer_balance_gbp"],
+        Math.max(price-allocatedBike,0)
+      );
+      return due > 0.009;
     });
 
     const allocation = unallocated > 0.009 && targets.length ? `
@@ -6229,7 +6264,21 @@ function renderAnyBikeDealCustomerLedger(deal){
         <select id="ab-alloc-bike-${paymentId}">
           ${targets.map(function(b){
             const title=[b.make,b.model,b.variant].filter(Boolean).join(" ") || "Motorcycle";
-            const due=anyBikeAccountNumber(b,["balance_gbp","balance_due_gbp","customer_balance_due_gbp"],0);
+            const price=anyBikeAccountNumber(
+              b,
+              ["buyer_price_gbp","motorcycle_price_gbp","sale_price_gbp","deal_value_gbp"],
+              0
+            );
+            const allocatedBike=anyBikeAccountNumber(
+              b,
+              ["allocated_gbp","allocated_amount_gbp","customer_money_allocated_gbp","total_allocated_gbp"],
+              0
+            );
+            const due=anyBikeAccountNumber(
+              b,
+              ["balance_gbp","balance_due_gbp","customer_balance_due_gbp","customer_balance_gbp"],
+              Math.max(price-allocatedBike,0)
+            );
             return `<option value="${escapeAdminHtml(b.deal_motorcycle_id)}">${escapeAdminHtml(title)} · ${anyBikeDealMoney(due)} due</option>`;
           }).join("")}
         </select>
