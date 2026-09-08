@@ -18,6 +18,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -4037,6 +4038,17 @@ body{
 .anybike-customer-account-items{padding:14px 16px;display:grid;gap:8px}.anybike-customer-account-items h5{margin:0 0 2px;color:#fff;font-size:13px}.anybike-customer-account-item{display:grid;grid-template-columns:minmax(220px,1.7fr) repeat(3,minmax(100px,1fr));gap:10px;align-items:center;padding:10px 11px;border:1px solid rgba(255,255,255,.1);border-radius:9px;background:#111}.anybike-customer-account-item span{display:block;color:#8f8f8f;font-size:9px;font-weight:800;text-transform:uppercase}.anybike-customer-account-item strong{display:block;margin-top:4px;color:#fff;font-size:12px}.anybike-customer-account-status.paid{color:#73e3a3!important}.anybike-customer-account-status.part{color:#ffc76b!important}.anybike-customer-account-status.unpaid{color:#ff8a90!important}.anybike-customer-account-note{padding:10px 16px;border-top:1px solid #2a2a2a;color:#9b9b9b;font-size:11px;line-height:1.45}.anybike-customer-account-none{margin-top:12px;padding:12px 14px;border:1px dashed rgba(255,255,255,.15);border-radius:10px;color:#9aa3ae;font-size:12px}
 @media(max-width:1100px){.anybike-customer-account-grid{grid-template-columns:repeat(3,1fr)}.anybike-customer-account-item{grid-template-columns:1.5fr 1fr 1fr}}@media(max-width:700px){.anybike-customer-account-grid{grid-template-columns:1fr 1fr}.anybike-customer-account-item{grid-template-columns:1fr 1fr}}
 
+
+/* DEAL 360 — DEAL-LEVEL CUSTOMER PAYMENT LEDGER */
+.ab-customer-ledger{margin-top:12px;border:2px solid #ed1c24;border-radius:12px;overflow:hidden;background:#090909}
+.ab-customer-ledger-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;padding:14px 16px;background:linear-gradient(135deg,#151515,#080808);border-bottom:1px solid rgba(237,28,36,.5)}
+.ab-customer-ledger-head span{display:block;color:#ed1c24;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.08em}.ab-customer-ledger-head h4{margin:4px 0 0;color:#fff;font-size:17px}.ab-customer-ledger-head>strong{color:#ffc76b;font-size:12px}
+.ab-receipt-form{display:grid;grid-template-columns:130px 140px 150px minmax(170px,1fr) 190px minmax(180px,1fr) 190px;gap:9px;align-items:end;padding:14px 16px}.ab-receipt-form label{display:block;margin-bottom:5px;color:#9aa3ae;font-size:9px;font-weight:900;text-transform:uppercase}.ab-receipt-form input,.ab-receipt-form select,.ab-ledger-allocate input,.ab-ledger-allocate select{width:100%;box-sizing:border-box;border:1px solid #353535;border-radius:8px;background:#111;color:#fff;padding:9px 10px;font:inherit}.ab-receipt-form button,.ab-ledger-allocate button{margin:0;border:0;border-radius:8px;background:#ed1c24;color:#fff;padding:10px 12px;font-weight:900;cursor:pointer}.ab-receipt-form button:disabled,.ab-ledger-allocate button:disabled{opacity:.55;cursor:wait}
+.ab-ledger-warning{padding:10px 16px;border-top:1px solid #292929;border-bottom:1px solid #292929;color:#aaa;font-size:11px}.ab-ledger-warning strong{color:#ff6b71}
+.ab-ledger-row{display:grid;grid-template-columns:minmax(170px,.8fr) minmax(240px,1.3fr) minmax(150px,.7fr);gap:10px;padding:11px 16px;border-top:1px solid #292929;background:#0d0d0d}.ab-ledger-row:first-child{border-top:0}.ab-ledger-row span{display:block;color:#8f8f8f;font-size:9px;font-weight:900;text-transform:uppercase}.ab-ledger-row strong{display:block;margin-top:4px;color:#fff;font-size:12px}.ab-ledger-row small{display:block;margin-top:4px;color:#9d9d9d;font-size:10px}.ab-ledger-allocate{grid-column:1/-1;display:grid;grid-template-columns:minmax(240px,1fr) 140px 170px 110px;gap:8px;align-items:center}.ab-ledger-empty{padding:12px 16px;color:#999;font-size:11px}
+@media(max-width:1250px){.ab-receipt-form{grid-template-columns:1fr 1fr 1fr}.ab-receipt-form button{grid-column:1/-1}.ab-ledger-row{grid-template-columns:1fr 1fr}.ab-ledger-allocate{grid-template-columns:1fr 1fr}}
+@media(max-width:700px){.ab-receipt-form,.ab-ledger-row,.ab-ledger-allocate{grid-template-columns:1fr}.ab-ledger-allocate{grid-column:auto}}
+
 /* FORMAL OFFER → DEAL 360 BRIDGE */
 .anybike-formal-awaiting{margin:0 0 22px;border:2px solid #e31b23;border-radius:16px;overflow:hidden;background:#090909;box-shadow:0 10px 30px rgba(0,0,0,.24)}
 .anybike-formal-awaiting-head{display:flex;justify-content:space-between;gap:18px;align-items:center;padding:17px 20px;background:linear-gradient(135deg,#111,#050505);border-bottom:1px solid rgba(227,27,35,.45)}
@@ -4654,6 +4666,10 @@ const dealVatSaveBusy = new Set();
 let adminDealMotorcycles = [];
 let adminDealPaymentStatus = [];
 let adminDealCustomerAccounts = new Map();
+let adminDealMotorcycleCustomerAccounts = new Map();
+let adminDealCustomerPayments = new Map();
+let dealCustomerReceiptBusy = new Set();
+let dealCustomerAllocationBusy = new Set();
 let adminDealSellerPaymentStatus = [];
 let adminDealSellerConfirmations = new Map();
 let dealPaymentBusy = new Set();
@@ -6036,6 +6052,32 @@ async function loadAdminDealQueue(){
     }
   }));
 
+  adminDealMotorcycleCustomerAccounts = new Map();
+  adminDealCustomerPayments = new Map();
+
+  await Promise.all(adminDealQueue.map(async function(deal){
+    const dealId = Number(deal.deal_id);
+    if(!Number.isFinite(dealId)){ return; }
+
+    try{
+      const result = await sb.rpc("admin_get_deal_motorcycle_customer_accounts", { p_deal_id:dealId });
+      if(result.error){ throw result.error; }
+      adminDealMotorcycleCustomerAccounts.set(String(dealId), Array.isArray(result.data) ? result.data : []);
+    }catch(error){
+      console.warn("Motorcycle customer accounts could not be loaded for Deal " + dealId + ":", error);
+      adminDealMotorcycleCustomerAccounts.set(String(dealId), []);
+    }
+
+    try{
+      const result = await sb.rpc("admin_get_deal_customer_payments", { p_deal_id:dealId });
+      if(result.error){ throw result.error; }
+      adminDealCustomerPayments.set(String(dealId), Array.isArray(result.data) ? result.data : []);
+    }catch(error){
+      console.warn("Customer payment ledger could not be loaded for Deal " + dealId + ":", error);
+      adminDealCustomerPayments.set(String(dealId), []);
+    }
+  }));
+
   try{
     const result = await sb.rpc("admin_get_seller_payment_status", { p_match_id:null });
     if(result.error){ throw result.error; }
@@ -6155,6 +6197,79 @@ function renderAnyBikeDealCustomerAccount(deal){
     </div>
     ${itemHtml ? `<div class="anybike-customer-account-items"><h5>Motorcycle Allocation Position</h5>${itemHtml}</div>` : ""}
     <div class="anybike-customer-account-note">Customer money is recorded at Deal level and allocated to the relevant motorcycle(s). Recording customer money does not by itself secure a motorcycle.</div>
+  </div>`;
+}
+
+
+function renderAnyBikeDealCustomerLedger(deal){
+  const dealId = String(deal.deal_id || "");
+  const account = adminDealCustomerAccounts.get(dealId) || {};
+  const payments = adminDealCustomerPayments.get(dealId) || [];
+  const bikes = adminDealMotorcycleCustomerAccounts.get(dealId) || [];
+
+  const dealValue = anyBikeAccountNumber(account,["deal_value_gbp"],deal.buyer_value_gbp);
+  const received = anyBikeAccountNumber(account,["customer_money_received_gbp"],0);
+  const cashDue = Math.max(dealValue-received,0);
+  const busy = dealCustomerReceiptBusy.has(dealId);
+
+  const rows = payments.length ? payments.map(function(p){
+    const paymentId = Number(p.payment_id);
+    const amount = Number(p.payment_amount_gbp || 0);
+    const allocated = Number(p.allocated_amount_gbp || 0);
+    const unallocated = Number(p.unallocated_amount_gbp || 0);
+    const when = p.received_at ? new Date(p.received_at).toLocaleString("en-GB") : "Date not recorded";
+    const allocationBusy = dealCustomerAllocationBusy.has(String(paymentId));
+
+    const targets = bikes.filter(function(b){
+      return anyBikeAccountNumber(b,["balance_gbp","balance_due_gbp","customer_balance_due_gbp"],0) > 0.009;
+    });
+
+    const allocation = unallocated > 0.009 && targets.length ? `
+      <div class="ab-ledger-allocate">
+        <select id="ab-alloc-bike-${paymentId}">
+          ${targets.map(function(b){
+            const title=[b.make,b.model,b.variant].filter(Boolean).join(" ") || "Motorcycle";
+            const due=anyBikeAccountNumber(b,["balance_gbp","balance_due_gbp","customer_balance_due_gbp"],0);
+            return `<option value="${escapeAdminHtml(b.deal_motorcycle_id)}">${escapeAdminHtml(title)} · ${anyBikeDealMoney(due)} due</option>`;
+          }).join("")}
+        </select>
+        <input id="ab-alloc-amount-${paymentId}" type="number" min="0.01" step="0.01" max="${unallocated.toFixed(2)}" value="${unallocated.toFixed(2)}">
+        <select id="ab-alloc-purpose-${paymentId}">
+          <option value="Balance">Balance</option>
+          <option value="Deposit">Deposit</option>
+          <option value="Full Payment">Full Payment</option>
+          <option value="Additional Payment">Additional Payment</option>
+          <option value="General Payment">General Payment</option>
+        </select>
+        <button type="button" ${allocationBusy ? "disabled" : ""} onclick="allocateDealCustomerPayment(${paymentId},${Number(deal.deal_id)});return false;">${allocationBusy ? "Allocating..." : "Allocate"}</button>
+      </div>` : "";
+
+    return `<div class="ab-ledger-row">
+      <div><span>Receipt #${paymentId}</span><strong>${anyBikeDealMoney(amount)}</strong><small>${escapeAdminHtml(p.payment_purpose || "Payment")} · ${escapeAdminHtml(p.payment_status || "")}</small></div>
+      <div><span>Received</span><strong>${escapeAdminHtml(when)}</strong><small>${escapeAdminHtml(p.payment_method || "Method not recorded")}${p.payment_reference ? " · Ref " + escapeAdminHtml(p.payment_reference) : ""}</small></div>
+      <div><span>Allocation</span><strong>${anyBikeDealMoney(allocated)}</strong><small>${anyBikeDealMoney(unallocated)} unallocated</small></div>
+      ${allocation}
+    </div>`;
+  }).join("") : `<div class="ab-ledger-empty">No Deal-level customer receipts recorded yet.</div>`;
+
+  return `<div class="ab-customer-ledger">
+    <div class="ab-customer-ledger-head">
+      <div><span>Deal 360 Customer Payment Ledger</span><h4>Record & Allocate Customer Money</h4></div>
+      <strong>${anyBikeDealMoney(cashDue)} cash still due</strong>
+    </div>
+
+    <div class="ab-receipt-form">
+      <div><label>Purpose</label><select id="ab-receipt-purpose-${dealId}"><option value="Balance">Balance</option><option value="Full Payment">Full Payment</option><option value="Additional Payment">Additional Payment</option><option value="Deposit">Deposit</option></select></div>
+      <div><label>Amount Received</label><input id="ab-receipt-amount-${dealId}" type="number" min="0.01" step="0.01" value="${cashDue > 0 ? cashDue.toFixed(2) : ""}"></div>
+      <div><label>Method</label><select id="ab-receipt-method-${dealId}"><option value="Bank Transfer">Bank Transfer</option><option value="Card">Card</option><option value="Cash">Cash</option><option value="Other">Other</option></select></div>
+      <div><label>Reference</label><input id="ab-receipt-reference-${dealId}" type="text" maxlength="200" placeholder="Bank / card / internal reference"></div>
+      <div><label>Received At</label><input id="ab-receipt-date-${dealId}" type="datetime-local"></div>
+      <div><label>Notes</label><input id="ab-receipt-notes-${dealId}" type="text" maxlength="500" placeholder="Optional internal note"></div>
+      <button type="button" ${busy ? "disabled" : ""} onclick="recordDealCustomerReceipt(${Number(deal.deal_id)});return false;">${busy ? "Recording..." : "Record Customer Payment"}</button>
+    </div>
+
+    <div class="ab-ledger-warning"><strong>Customer payment does not secure a motorcycle.</strong> New Deal-level receipts are recorded first, then allocated to the relevant motorcycle(s).</div>
+    <div class="ab-ledger-list">${rows}</div>
   </div>`;
 }
 
@@ -6797,6 +6912,77 @@ async function saveDealFinalSellerCheck(matchId){
   }
 }
 
+
+async function recordDealCustomerReceipt(dealId){
+  const id=Number(dealId);
+  const purpose=document.getElementById("ab-receipt-purpose-"+id)?.value || "Balance";
+  const amount=Number(document.getElementById("ab-receipt-amount-"+id)?.value || 0);
+  const method=document.getElementById("ab-receipt-method-"+id)?.value || "";
+  const reference=String(document.getElementById("ab-receipt-reference-"+id)?.value || "").trim();
+  const localDate=document.getElementById("ab-receipt-date-"+id)?.value || "";
+  const notes=String(document.getElementById("ab-receipt-notes-"+id)?.value || "").trim();
+
+  if(!Number.isFinite(amount) || amount<=0){ alert("Enter a valid payment amount."); return; }
+
+  if(!confirm("Record "+anyBikeDealMoney(amount)+" customer payment against this Deal?\n\nThis records money received only. It does NOT secure any motorcycle.")){ return; }
+
+  dealCustomerReceiptBusy.add(String(id)); renderAdminDealQueue();
+  try{
+    const result=await sb.rpc("admin_record_deal_customer_payment",{
+      p_deal_id:id,
+      p_payment_purpose:purpose,
+      p_amount_gbp:amount,
+      p_payment_method:method || null,
+      p_payment_provider:null,
+      p_payment_reference:reference || null,
+      p_provider_transaction_id:null,
+      p_received_at:localDate ? new Date(localDate).toISOString() : null,
+      p_notes:notes || null
+    });
+    if(result.error){ throw result.error; }
+    alert("Customer payment recorded. It is now available to allocate below.");
+    await loadAdminDealQueue();
+    const row=document.getElementById("anybike-deal-"+id);
+    if(row){ row.classList.add("open"); openAnyBikeDealId=String(id); }
+  }catch(error){
+    console.error(error);
+    alert("Customer payment could not be recorded.\n\n"+(error?.message || "Unknown error"));
+  }finally{
+    dealCustomerReceiptBusy.delete(String(id)); renderAdminDealQueue();
+  }
+}
+
+async function allocateDealCustomerPayment(paymentId,dealId){
+  const payment=Number(paymentId), deal=Number(dealId);
+  const motorcycleId=Number(document.getElementById("ab-alloc-bike-"+payment)?.value || 0);
+  const amount=Number(document.getElementById("ab-alloc-amount-"+payment)?.value || 0);
+  const purpose=document.getElementById("ab-alloc-purpose-"+payment)?.value || "General Payment";
+
+  if(!Number.isFinite(motorcycleId) || motorcycleId<=0){ alert("Choose a motorcycle."); return; }
+  if(!Number.isFinite(amount) || amount<=0){ alert("Enter a valid allocation amount."); return; }
+  if(!confirm("Allocate "+anyBikeDealMoney(amount)+" from receipt #"+payment+" to the selected motorcycle?\n\nThis does NOT secure the motorcycle.")){ return; }
+
+  dealCustomerAllocationBusy.add(String(payment)); renderAdminDealQueue();
+  try{
+    const result=await sb.rpc("admin_allocate_customer_payment",{
+      p_payment_id:payment,
+      p_deal_motorcycle_id:motorcycleId,
+      p_amount_gbp:amount,
+      p_allocation_purpose:purpose,
+      p_notes:"Allocated by AnyBike staff from Deal 360."
+    });
+    if(result.error){ throw result.error; }
+    await loadAdminDealQueue();
+    const row=document.getElementById("anybike-deal-"+deal);
+    if(row){ row.classList.add("open"); openAnyBikeDealId=String(deal); }
+  }catch(error){
+    console.error(error);
+    alert("Payment allocation could not be saved.\n\n"+(error?.message || "Unknown error"));
+  }finally{
+    dealCustomerAllocationBusy.delete(String(payment)); renderAdminDealQueue();
+  }
+}
+
 async function recordDealCustomerDeposit(matchId){
   const id = Number(matchId);
   if(!Number.isFinite(id) || dealPaymentBusy.has(String(id))){ return; }
@@ -7175,6 +7361,7 @@ function renderAdminDealQueue(){
           </div>
           <div class="anybike-deal-bike-list">${bikeRows}</div>
           ${renderAnyBikeDealCustomerAccount(deal)}
+          ${renderAnyBikeDealCustomerLedger(deal)}
           ${renderAnyBikeDealPaymentPanel(deal)}
           ${renderAnyBikeDealFinancialPanel(deal)}
           ${renderAnyBikeDealSellerCheckPanel(deal)}
