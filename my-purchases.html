@@ -18,6 +18,7 @@
   --text:#fff;
   --muted:#aaa;
   --green:#36d37e;
+  --amber:#ffbf47;
 }
 
 *{
@@ -114,6 +115,10 @@ main{
   background:#141414;
 }
 
+.card.secured{
+  border-color:rgba(54,211,126,.7);
+}
+
 .image{
   height:250px;
   background:#090909;
@@ -148,6 +153,14 @@ main{
   margin-top:4px;
 }
 
+.badges{
+  display:flex;
+  gap:7px;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+  align-items:flex-start;
+}
+
 .badge{
   height:max-content;
   padding:6px 10px;
@@ -157,6 +170,19 @@ main{
   color:#d9ffe8;
   font-size:11px;
   font-weight:900;
+  white-space:nowrap;
+}
+
+.badge.secured{
+  border-color:var(--green);
+  background:rgba(54,211,126,.18);
+  color:#8cffb7;
+}
+
+.badge.payment-due{
+  border-color:rgba(255,191,71,.55);
+  background:rgba(255,191,71,.11);
+  color:#ffd98b;
 }
 
 .status{
@@ -181,6 +207,19 @@ main{
   line-height:1.45;
 }
 
+.status.payment-due{
+  border-color:rgba(255,191,71,.35);
+  background:rgba(255,191,71,.06);
+}
+
+.status.payment-due strong{
+  color:#ffd98b;
+}
+
+.status.payment-due span{
+  color:#dcc89d;
+}
+
 .price{
   padding:15px;
   border:1px solid rgba(54,211,126,.3);
@@ -196,6 +235,42 @@ main{
 .price span{
   font-size:12px;
   color:#b8dfc6;
+}
+
+.payment-summary{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:8px;
+  margin-bottom:12px;
+}
+
+.payment-box{
+  border:1px solid rgba(255,255,255,.1);
+  border-radius:11px;
+  padding:11px;
+  background:#0d0d0d;
+}
+
+.payment-box span{
+  display:block;
+  color:#888;
+  font-size:9px;
+  font-weight:900;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  margin-bottom:5px;
+}
+
+.payment-box strong{
+  font-size:15px;
+}
+
+.payment-box.good strong{
+  color:var(--green);
+}
+
+.payment-box.due strong{
+  color:#ffd27a;
 }
 
 .details{
@@ -219,6 +294,16 @@ main{
   letter-spacing:.08em;
   text-transform:uppercase;
   margin-bottom:5px;
+}
+
+.good-text{
+  color:var(--green);
+  font-weight:900;
+}
+
+.due-text{
+  color:#ffd27a;
+  font-weight:900;
 }
 
 .journey{
@@ -266,11 +351,21 @@ main{
   background:var(--green);
 }
 
+.step.current-payment{
+  border-color:#ffbf47;
+  color:#181000;
+  background:#ffbf47;
+}
+
 .notice{
   margin-top:14px;
   color:#aaa;
   font-size:12px;
   line-height:1.5;
+}
+
+.notice strong{
+  color:#fff;
 }
 
 .empty{
@@ -283,6 +378,12 @@ main{
 
 @media(max-width:900px){
   .grid{
+    grid-template-columns:1fr;
+  }
+}
+
+@media(max-width:700px){
+  .payment-summary{
     grid-template-columns:1fr;
   }
 }
@@ -302,6 +403,14 @@ main{
 
   .image{
     height:210px;
+  }
+
+  .top{
+    flex-direction:column;
+  }
+
+  .badges{
+    justify-content:flex-start;
   }
 }
 </style>
@@ -352,139 +461,459 @@ main{
 
 <script>
 
-/*
-  IMPORTANT
-  ---------
-  Use the SAME Supabase URL and anon/publishable key that are already
-  present in your live customer dashboard.
-
-  Copy those two existing values into the two constants below.
-*/
-
-const SUPABASE_URL = "https://tuehtnezhdnkqbbhttgp.supabase.co";
+const SUPABASE_URL =
+  "https://tuehtnezhdnkqbbhttgp.supabase.co";
 
 const SUPABASE_ANON_KEY =
   "sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
-
 
 const sb = supabase.createClient(
   SUPABASE_URL,
   SUPABASE_ANON_KEY
 );
 
-
-const safe = v =>
-  String(v ?? "").replace(
+const safe = value =>
+  String(value ?? "").replace(
     /[&<>"']/g,
-    c => ({
+    character => ({
       "&":"&amp;",
       "<":"&lt;",
       ">":"&gt;",
       '"':"&quot;",
       "'":"&#039;"
-    }[c])
+    }[character])
   );
 
-
-const money = v =>
-  Number.isFinite(Number(v))
+const money = value =>
+  Number.isFinite(Number(value))
     ? new Intl.NumberFormat(
         "en-GB",
         {
           style:"currency",
           currency:"GBP"
         }
-      ).format(Number(v))
+      ).format(Number(value))
     : "-";
 
+function deliveryLabel(value){
 
-function deliveryLabel(match){
+  const delivery =
+    String(value || "").trim();
 
-  const value =
-    String(match.offer_delivery_type || "").trim();
-
-  if(value === "Buyer Arranged / Collection"){
+  if(delivery === "Buyer Arranged / Collection"){
     return "Buyer arranged / collection";
   }
 
-  if(value === "Delivery to UK Address"){
+  if(delivery === "Delivery to UK Address"){
     return "Delivery to UK address";
   }
 
-  if(value === "Delivery to UK Port"){
+  if(delivery === "Delivery to UK Port"){
     return "Delivery to UK port";
   }
 
-  if(value === "Other Agreed Delivery"){
+  if(delivery === "Other Agreed Delivery"){
     return "Other agreed delivery";
   }
 
-  return value || "To be agreed";
+  return delivery || "To be agreed";
 }
 
+function purchaseState(purchase){
 
-function purchaseCard(match){
+  const depositRequired =
+    !!purchase.deposit_required;
+
+  const depositDue =
+    Number(
+      purchase.deposit_due_gbp || 0
+    );
+
+  const depositAllocated =
+    Number(
+      purchase.deposit_allocated_gbp || 0
+    );
+
+  const depositOutstanding =
+    Number(
+      purchase.deposit_outstanding_gbp || 0
+    );
+
+  const moneyReceived =
+    Number(
+      purchase.customer_money_received_deal_gbp || 0
+    );
+
+  const allocated =
+    Number(
+      purchase.customer_allocated_motorcycle_gbp || 0
+    );
+
+  const balance =
+    Number(
+      purchase.customer_balance_motorcycle_gbp || 0
+    );
+
+  const secured =
+    !!purchase.motorcycle_secured;
+
+  const depositSatisfied =
+    !depositRequired ||
+    depositDue <= 0 ||
+    depositOutstanding <= 0;
+
+  const fullyPaid =
+    balance <= 0;
+
+  let heading =
+    "Purchase in Progress";
+
+  let message =
+    "Your AnyBike purchase is progressing.";
+
+  if(secured && fullyPaid){
+
+    heading =
+      "Motorcycle Secured & Paid";
+
+    message =
+      "Your motorcycle has been secured with the seller and your motorcycle payment has been received in full.";
+
+  }else if(secured && !depositSatisfied){
+
+    heading =
+      "Motorcycle Secured";
+
+    message =
+      "AnyBike has secured this motorcycle with the seller. Your customer deposit is still outstanding.";
+
+  }else if(secured){
+
+    heading =
+      "Motorcycle Secured";
+
+    message =
+      "AnyBike has secured this motorcycle with the seller. The remaining balance and documentation stages can now continue.";
+
+  }else if(!depositSatisfied){
+
+    heading =
+      "Deposit / Payment Required";
+
+    message =
+      "Your formal AnyBike offer has been accepted. Your deposit is currently due and the motorcycle has not yet been secured with the seller.";
+
+  }else{
+
+    heading =
+      "Final Seller Check";
+
+    message =
+      "Your payment stage has progressed. AnyBike is completing the final seller security stage before the motorcycle is marked as secured.";
+
+  }
+
+  let paymentStatus =
+    String(
+      purchase.customer_payment_status || ""
+    ).trim();
+
+  if(fullyPaid){
+
+    paymentStatus =
+      "Paid in Full";
+
+  }else if(!depositSatisfied){
+
+    paymentStatus =
+      "Deposit Due";
+
+  }else if(allocated > 0){
+
+    paymentStatus =
+      "Part Paid";
+
+  }else if(!depositRequired){
+
+    paymentStatus =
+      "Balance Due";
+
+  }
+
+  return {
+    depositRequired,
+    depositDue,
+    depositAllocated,
+    depositOutstanding,
+    depositSatisfied,
+    moneyReceived,
+    allocated,
+    balance,
+    secured,
+    fullyPaid,
+    heading,
+    message,
+    paymentStatus
+  };
+}
+
+function journeyHtml(purchase,state){
+
+  const nextStage =
+    String(
+      purchase.next_customer_stage || ""
+    ).trim();
+
+  const offerDone =
+    true;
+
+  const depositDone =
+    state.depositSatisfied;
+
+  const sellerCheckDone =
+    state.secured;
+
+  const securedDone =
+    state.secured;
+
+  const balanceDone =
+    state.fullyPaid;
+
+  const operationsReached =
+    nextStage === "Operations / Shipping" ||
+    String(purchase.deal_stage || "")
+      .toLowerCase()
+      .includes("operation") ||
+    String(purchase.deal_status || "")
+      .toLowerCase()
+      .includes("complete");
+
+  const completed =
+    String(purchase.deal_status || "")
+      .toLowerCase() === "completed" ||
+    String(purchase.deal_stage || "")
+      .toLowerCase() === "completed";
+
+  const depositCurrent =
+    !state.depositSatisfied;
+
+  const sellerCurrent =
+    state.depositSatisfied &&
+    !state.secured;
+
+  const balanceCurrent =
+    state.secured &&
+    !state.fullyPaid &&
+    !depositCurrent;
+
+  const operationsCurrent =
+    state.secured &&
+    state.fullyPaid &&
+    !completed;
+
+  return `
+    <div class="journey">
+
+      <div class="journey-title">
+        Purchase journey
+      </div>
+
+      <div class="steps">
+
+        <span class="step ${offerDone ? "done" : ""}">
+          Offer Accepted
+        </span>
+
+        <span class="step ${
+          depositCurrent
+            ? "current-payment"
+            : (
+                depositDone
+                  ? "done"
+                  : ""
+              )
+        }">
+          ${
+            state.depositRequired
+              ? (
+                  depositDone
+                    ? "Deposit Paid"
+                    : "Deposit Due"
+                )
+              : "No Deposit Required"
+          }
+        </span>
+
+        <span class="step ${
+          sellerCurrent
+            ? "current"
+            : (
+                sellerCheckDone
+                  ? "done"
+                  : ""
+              )
+        }">
+          Final Seller Check
+        </span>
+
+        <span class="step ${
+          securedDone
+            ? "done"
+            : ""
+        }">
+          Motorcycle Secured
+        </span>
+
+        <span class="step ${
+          balanceCurrent
+            ? "current"
+            : (
+                balanceDone
+                  ? "done"
+                  : ""
+              )
+        }">
+          Balance / Documents
+        </span>
+
+        <span class="step ${
+          operationsCurrent
+            ? "current"
+            : (
+                operationsReached
+                  ? "done"
+                  : ""
+              )
+        }">
+          Operations / Shipping
+        </span>
+
+        <span class="step ${
+          completed
+            ? "done"
+            : ""
+        }">
+          Completed
+        </span>
+
+      </div>
+
+    </div>
+  `;
+}
+
+function purchaseCard(purchase){
+
+  const state =
+    purchaseState(purchase);
 
   const title =
     [
-      match.stock_make,
-      match.stock_model
+      purchase.make,
+      purchase.model
     ]
     .filter(Boolean)
     .join(" ") || "Motorcycle";
 
-
   const variant =
-    String(match.stock_variant || "").trim();
-
+    String(
+      purchase.variant || ""
+    ).trim();
 
   const image =
-    String(match.stock_image_url || "").trim();
-
+    String(
+      purchase.image_url || ""
+    ).trim();
 
   const motorcyclePrice =
     Number(
-      match.confirmed_customer_price_gbp || 0
+      purchase.motorcycle_price_gbp || 0
     );
-
 
   const deliveryCharge =
     Number(
-      match.offer_delivery_charge_gbp || 0
+      purchase.delivery_charge_gbp || 0
     );
 
-
-  const total =
+  const displayedTotal =
     motorcyclePrice + deliveryCharge;
-
-
-  const deposit =
-    Number(
-      match.offer_deposit_amount_gbp || 0
-    );
-
-
-  const acceptedAt =
-    match.customer_offer_decided_at ||
-    match.buyer_responded_at ||
-    null;
-
 
   const destination =
     String(
-      match.offer_delivery_destination || ""
+      purchase.delivery_destination || ""
     ).trim();
-
 
   const saleBasis =
     String(
-      match.offer_sale_basis || ""
-    ).trim() || "AnyBike offer";
+      purchase.sale_basis || ""
+    ).trim() || "AnyBike purchase";
 
+  const acceptedAt =
+    purchase.offer_accepted_at || null;
+
+  const paymentDue =
+    state.balance > 0;
+
+  let depositDisplay =
+    "No deposit required";
+
+  if(state.depositRequired){
+
+    if(state.depositOutstanding > 0){
+
+      depositDisplay =
+        money(state.depositOutstanding) +
+        " due";
+
+    }else{
+
+      depositDisplay =
+        money(state.depositDue) +
+        " paid";
+
+    }
+
+  }
+
+  let notice = "";
+
+  if(state.secured && !state.depositSatisfied){
+
+    notice = `
+      <strong>Your motorcycle is secured.</strong>
+      Customer payment and motorcycle security are separate stages.
+      Your deposit remains due even though AnyBike has already secured
+      the motorcycle with the seller.
+    `;
+
+  }else if(state.secured){
+
+    notice = `
+      <strong>Your motorcycle has been secured with the seller.</strong>
+      Any remaining customer balance, documents and operational stages
+      will continue through your AnyBike purchase.
+    `;
+
+  }else if(!state.depositSatisfied){
+
+    notice = `
+      Acceptance records your commitment to the AnyBike offer.
+      Your deposit is currently outstanding. The motorcycle will only
+      show as secured when AnyBike completes the seller security stage.
+    `;
+
+  }else{
+
+    notice = `
+      Your payment stage has progressed. Motorcycle security is confirmed
+      separately by AnyBike after the final seller check.
+    `;
+
+  }
 
   return `
 
-    <article class="card">
+    <article class="card ${state.secured ? "secured" : ""}">
 
       <div class="image">
 
@@ -508,9 +937,7 @@ function purchaseCard(match){
 
       </div>
 
-
       <div class="body">
-
 
         <div class="top">
 
@@ -534,32 +961,64 @@ function purchaseCard(match){
 
           </div>
 
+          <div class="badges">
 
-          <span class="badge">
-            Offer Accepted
-          </span>
+            <span class="badge">
+              Offer Accepted
+            </span>
+
+            ${
+              state.secured
+
+              ? `
+                <span class="badge secured">
+                  ✓ Motorcycle Secured
+                </span>
+              `
+
+              : ""
+            }
+
+            ${
+              paymentDue
+
+              ? `
+                <span class="badge payment-due">
+                  ${safe(state.paymentStatus)}
+                </span>
+              `
+
+              : `
+                <span class="badge secured">
+                  Paid
+                </span>
+              `
+            }
+
+          </div>
 
         </div>
 
-
-        <div class="status">
+        <div class="status ${
+          !state.depositSatisfied
+            ? "payment-due"
+            : ""
+        }">
 
           <strong>
-            Purchase in Progress
+            ${safe(state.heading)}
           </strong>
 
           <span>
-            Your formal AnyBike offer has been accepted.
-            The motorcycle is not yet secured with the seller.
+            ${safe(state.message)}
           </span>
 
         </div>
-
 
         <div class="price">
 
           <strong>
-            ${money(total)}
+            ${money(displayedTotal)}
           </strong>
 
           <span>
@@ -568,81 +1027,124 @@ function purchaseCard(match){
 
         </div>
 
+        <div class="payment-summary">
 
-        <div class="details">
+          <div class="payment-box ${
+            state.moneyReceived > 0
+              ? "good"
+              : ""
+          }">
 
+            <span>
+              Payments Received
+            </span>
 
-          <div class="detail">
+            <strong>
+              ${money(state.moneyReceived)}
+            </strong>
+
+          </div>
+
+          <div class="payment-box ${
+            state.depositSatisfied
+              ? "good"
+              : "due"
+          }">
 
             <span>
               Deposit
             </span>
 
-            ${
-              deposit > 0
-
-              ? `${money(deposit)} due`
-
-              : "No deposit specified"
-            }
+            <strong>
+              ${safe(depositDisplay)}
+            </strong>
 
           </div>
 
-
-          <div class="detail">
+          <div class="payment-box ${
+            state.balance > 0
+              ? "due"
+              : "good"
+          }">
 
             <span>
-              Payment status
+              Balance Remaining
             </span>
 
-            ${
-              deposit > 0
-
-              ? "Deposit Due"
-
-              : "Payment stage"
-            }
+            <strong>
+              ${money(state.balance)}
+            </strong>
 
           </div>
 
+        </div>
+
+        <div class="details">
 
           <div class="detail">
 
             <span>
-              Motorcycle status
+              Payment Status
             </span>
 
-            Not Yet Secured
+            <div class="${
+              state.fullyPaid
+                ? "good-text"
+                : "due-text"
+            }">
+              ${safe(state.paymentStatus)}
+            </div>
 
           </div>
-
 
           <div class="detail">
 
             <span>
-              Sale basis
+              Motorcycle Status
+            </span>
+
+            <div class="${
+              state.secured
+                ? "good-text"
+                : "due-text"
+            }">
+              ${
+                state.secured
+                  ? "SECURED"
+                  : "Not Yet Secured"
+              }
+            </div>
+
+          </div>
+
+          <div class="detail">
+
+            <span>
+              Sale Basis
             </span>
 
             ${safe(saleBasis)}
 
           </div>
 
-
           <div class="detail">
 
             <span>
-              Delivery / collection
+              Delivery / Collection
             </span>
 
-            ${safe(deliveryLabel(match))}
+            ${safe(
+              deliveryLabel(
+                purchase.delivery_type
+              )
+            )}
 
           </div>
 
-
           <div class="detail">
 
             <span>
-              Offer accepted
+              Offer Accepted
             </span>
 
             ${
@@ -651,7 +1153,9 @@ function purchaseCard(match){
               ? safe(
                   new Date(
                     acceptedAt
-                  ).toLocaleString("en-GB")
+                  ).toLocaleString(
+                    "en-GB"
+                  )
                 )
 
               : "-"
@@ -659,6 +1163,18 @@ function purchaseCard(match){
 
           </div>
 
+          <div class="detail">
+
+            <span>
+              Deal Reference
+            </span>
+
+            ${safe(
+              purchase.deal_number ||
+              "AnyBike Purchase"
+            )}
+
+          </div>
 
           ${
             destination
@@ -683,60 +1199,13 @@ function purchaseCard(match){
             : ""
           }
 
-
         </div>
 
-
-        <div class="journey">
-
-          <div class="journey-title">
-            Purchase journey
-          </div>
-
-
-          <div class="steps">
-
-            <span class="step done">
-              Offer Accepted
-            </span>
-
-            <span class="step current">
-              Deposit Due
-            </span>
-
-            <span class="step">
-              Final Seller Check
-            </span>
-
-            <span class="step">
-              Motorcycle Secured
-            </span>
-
-            <span class="step">
-              Balance / Documents
-            </span>
-
-            <span class="step">
-              Operations / Shipping
-            </span>
-
-            <span class="step">
-              Completed
-            </span>
-
-          </div>
-
-        </div>
-
+        ${journeyHtml(purchase,state)}
 
         <div class="notice">
-
-          Acceptance records your commitment to the AnyBike offer.
-          The motorcycle remains not yet secured until AnyBike
-          completes the final seller security stage.
-
+          ${notice}
         </div>
-
 
       </div>
 
@@ -745,49 +1214,51 @@ function purchaseCard(match){
   `;
 }
 
-
 async function loadPurchases(){
 
   const purchasesBox =
-    document.getElementById("purchases");
-
-
-  /*
-    Check that the customer is authenticated.
-  */
+    document.getElementById(
+      "purchases"
+    );
 
   const {
     data:{
       session
-    }
+    },
+    error:sessionError
   } = await sb.auth.getSession();
 
+  if(sessionError){
+
+    console.error(
+      "Customer session check failed:",
+      sessionError
+    );
+
+  }
 
   if(!session){
 
-    location.href = "login.html";
+    location.href =
+      "login.html";
 
     return;
 
   }
 
-
-  /*
-    Load the customer's existing buyer-match dashboard data.
-
-    This is the same secure customer RPC already used by
-    the My AnyBike dashboard.
-  */
-
   const {
     data,
     error
   } = await sb.rpc(
-    "get_my_buyer_match_dashboard_v3"
+    "get_my_purchases_v1"
   );
 
-
   if(error){
+
+    console.error(
+      "My Purchases could not be loaded:",
+      error
+    );
 
     purchasesBox.innerHTML = `
 
@@ -805,8 +1276,7 @@ async function loadPurchases(){
 
   }
 
-
-  const rows =
+  const purchases =
     Array.isArray(data)
 
       ? data
@@ -816,37 +1286,6 @@ async function loadPurchases(){
             ? [data]
             : []
         );
-
-
-  /*
-    A purchase appears here once the customer has accepted
-    the formal AnyBike offer.
-
-    We recognise either the dedicated decision field or
-    the new accepted match status.
-  */
-
-  const purchases =
-    rows.filter(match => {
-
-      const decision =
-        String(
-          match.customer_offer_decision || ""
-        );
-
-      const status =
-        String(
-          match.match_status || ""
-        );
-
-
-      return (
-        decision === "Accepted" ||
-        status === "Customer Accepted Offer"
-      );
-
-    });
-
 
   if(!purchases.length){
 
@@ -865,38 +1304,42 @@ async function loadPurchases(){
 
   }
 
-
-  /*
-    If the customer came from a specific dashboard
-    View Purchase button, put that purchase first.
-  */
-
   const requestedPurchase =
     new URLSearchParams(
       location.search
-    ).get("purchase");
+    ).get(
+      "purchase"
+    );
 
-
-  let orderedPurchases =
+  const orderedPurchases =
     [...purchases];
-
 
   if(requestedPurchase){
 
     orderedPurchases.sort(
       (a,b) => {
 
-        if(
-          String(a.id) ===
-          String(requestedPurchase)
-        ){
+        const aMatches =
+          String(
+            a.buyer_match_id
+          ) ===
+          String(
+            requestedPurchase
+          );
+
+        const bMatches =
+          String(
+            b.buyer_match_id
+          ) ===
+          String(
+            requestedPurchase
+          );
+
+        if(aMatches && !bMatches){
           return -1;
         }
 
-        if(
-          String(b.id) ===
-          String(requestedPurchase)
-        ){
+        if(bMatches && !aMatches){
           return 1;
         }
 
@@ -906,7 +1349,6 @@ async function loadPurchases(){
     );
 
   }
-
 
   purchasesBox.innerHTML = `
 
@@ -923,7 +1365,6 @@ async function loadPurchases(){
   `;
 
 }
-
 
 loadPurchases();
 
