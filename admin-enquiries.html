@@ -17,6 +17,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -4028,6 +4029,14 @@ body{
 @media(max-width:1150px){.anybike-seller-payment-metrics{grid-template-columns:1fr 1fr}.anybike-seller-payment-action{grid-template-columns:1fr 1fr}}
 @media(max-width:700px){.anybike-seller-payment-metrics,.anybike-seller-payment-action{grid-template-columns:1fr}}
 
+/* DEAL 360 — CUSTOMER ACCOUNT / PAYMENT ALLOCATIONS */
+.anybike-customer-account{margin-top:12px;border:1px solid #3a3a3a;border-top:3px solid #ed1c24;border-radius:12px;overflow:hidden;background:#0d0d0d}
+.anybike-customer-account-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;padding:14px 16px;background:linear-gradient(90deg,#171717,#0d0d0d);border-bottom:1px solid #2a2a2a}
+.anybike-customer-account-head span{display:block;color:#ed1c24;font-size:10px;font-weight:900;letter-spacing:1.2px;text-transform:uppercase}.anybike-customer-account-head h4{margin:3px 0 0;color:#fff;font-size:16px}.anybike-customer-account-badge{padding:7px 10px;border:1px solid #444;border-radius:999px;color:#ddd;font-size:11px;font-weight:900;white-space:nowrap}.anybike-customer-account-badge.paid{border-color:#2c8b57;color:#73e3a3}.anybike-customer-account-badge.due{border-color:#a76b12;color:#ffc76b}
+.anybike-customer-account-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:1px;background:#2a2a2a}.anybike-customer-account-metric{background:#111;padding:12px}.anybike-customer-account-metric span{display:block;color:#8f8f8f;font-size:10px;font-weight:800;text-transform:uppercase;margin-bottom:5px}.anybike-customer-account-metric strong{color:#fff;font-size:17px}.anybike-customer-account-metric.good strong{color:#73e3a3}.anybike-customer-account-metric.due strong{color:#ffc76b}
+.anybike-customer-account-items{padding:14px 16px;display:grid;gap:8px}.anybike-customer-account-items h5{margin:0 0 2px;color:#fff;font-size:13px}.anybike-customer-account-item{display:grid;grid-template-columns:minmax(220px,1.7fr) repeat(3,minmax(100px,1fr));gap:10px;align-items:center;padding:10px 11px;border:1px solid rgba(255,255,255,.1);border-radius:9px;background:#111}.anybike-customer-account-item span{display:block;color:#8f8f8f;font-size:9px;font-weight:800;text-transform:uppercase}.anybike-customer-account-item strong{display:block;margin-top:4px;color:#fff;font-size:12px}.anybike-customer-account-status.paid{color:#73e3a3!important}.anybike-customer-account-status.part{color:#ffc76b!important}.anybike-customer-account-status.unpaid{color:#ff8a90!important}.anybike-customer-account-note{padding:10px 16px;border-top:1px solid #2a2a2a;color:#9b9b9b;font-size:11px;line-height:1.45}.anybike-customer-account-none{margin-top:12px;padding:12px 14px;border:1px dashed rgba(255,255,255,.15);border-radius:10px;color:#9aa3ae;font-size:12px}
+@media(max-width:1100px){.anybike-customer-account-grid{grid-template-columns:repeat(3,1fr)}.anybike-customer-account-item{grid-template-columns:1.5fr 1fr 1fr}}@media(max-width:700px){.anybike-customer-account-grid{grid-template-columns:1fr 1fr}.anybike-customer-account-item{grid-template-columns:1fr 1fr}}
+
 /* FORMAL OFFER → DEAL 360 BRIDGE */
 .anybike-formal-awaiting{margin:0 0 22px;border:2px solid #e31b23;border-radius:16px;overflow:hidden;background:#090909;box-shadow:0 10px 30px rgba(0,0,0,.24)}
 .anybike-formal-awaiting-head{display:flex;justify-content:space-between;gap:18px;align-items:center;padding:17px 20px;background:linear-gradient(135deg,#111,#050505);border-bottom:1px solid rgba(227,27,35,.45)}
@@ -4633,6 +4642,7 @@ let adminDealFinancialStatus = [];
 const dealVatSaveBusy = new Set();
 let adminDealMotorcycles = [];
 let adminDealPaymentStatus = [];
+let adminDealCustomerAccounts = new Map();
 let adminDealSellerPaymentStatus = [];
 let adminDealSellerConfirmations = new Map();
 let dealPaymentBusy = new Set();
@@ -5992,6 +6002,21 @@ async function loadAdminDealQueue(){
     adminDealPaymentStatus = [];
   }
 
+  adminDealCustomerAccounts = new Map();
+  await Promise.all(adminDealQueue.map(async function(deal){
+    const dealId = Number(deal.deal_id);
+    if(!Number.isFinite(dealId)){ return; }
+    try{
+      const result = await sb.rpc("admin_get_deal_customer_account", { p_deal_id:dealId });
+      if(result.error){ throw result.error; }
+      const payload = Array.isArray(result.data) && result.data.length === 1 ? result.data[0] : result.data;
+      adminDealCustomerAccounts.set(String(dealId), payload || null);
+    }catch(error){
+      console.warn("AnyBike Deal customer account could not be loaded for Deal " + dealId + ":", error);
+      adminDealCustomerAccounts.set(String(dealId), null);
+    }
+  }));
+
   try{
     const result = await sb.rpc("admin_get_seller_payment_status", { p_match_id:null });
     if(result.error){ throw result.error; }
@@ -6037,6 +6062,81 @@ function anyBikePaymentStatusClass(status){
   if(value.includes("paid") && !value.includes("part")){ return "paid"; }
   if(value.includes("due") || value.includes("part")){ return "due"; }
   return "neutral";
+}
+
+function anyBikeAccountNumber(obj, keys, fallback){
+  for(const key of keys){
+    if(obj && obj[key] !== null && obj[key] !== undefined && obj[key] !== ""){
+      const n = Number(obj[key]);
+      if(Number.isFinite(n)){ return n; }
+    }
+  }
+  return Number.isFinite(Number(fallback)) ? Number(fallback) : 0;
+}
+
+function anyBikeAccountArray(obj){
+  if(!obj){ return []; }
+  const keys = ["motorcycles","items","deal_motorcycles","allocations","motorcycle_allocations","payment_allocations"];
+  for(const key of keys){ if(Array.isArray(obj[key])){ return obj[key]; } }
+  return [];
+}
+
+function renderAnyBikeDealCustomerAccount(deal){
+  const dealId = String(deal.deal_id || "");
+  const account = adminDealCustomerAccounts.get(dealId);
+  if(!account){
+    return `<div class="anybike-customer-account-none">Customer Account is not available for this Deal yet.</div>`;
+  }
+
+  const dealValue = anyBikeAccountNumber(account,["deal_value_gbp","customer_sale_total_gbp","buyer_value_gbp","deal_total_gbp"],deal.buyer_value_gbp);
+  const received = anyBikeAccountNumber(account,["customer_money_received_gbp","received_gbp","total_received_gbp","total_customer_payments_gbp"],0);
+  const allocated = anyBikeAccountNumber(account,["customer_money_allocated_gbp","allocated_gbp","total_allocated_gbp"],0);
+  const unallocated = anyBikeAccountNumber(account,["customer_money_unallocated_gbp","unallocated_gbp","total_unallocated_gbp"],Math.max(received-allocated,0));
+  const balance = anyBikeAccountNumber(account,["customer_balance_due_gbp","balance_due_gbp","customer_balance_gbp"],Math.max(dealValue-allocated,0));
+  const paid = balance <= 0 && dealValue > 0;
+
+  let items = anyBikeAccountArray(account);
+  if(!items.length){
+    items = adminDealMotorcycles.filter(function(bike){ return String(bike.deal_id) === dealId; }).map(function(bike){
+      const paymentRow = adminDealPaymentStatus.find(function(row){ return String(row.buyer_match_id) === String(bike.buyer_match_id); }) || {};
+      const itemReceived = Number(paymentRow.total_customer_payments_gbp || 0);
+      const price = Number(bike.buyer_price_gbp || 0);
+      return Object.assign({},bike,{allocated_gbp:itemReceived,balance_gbp:Math.max(price-itemReceived,0)});
+    });
+  }
+
+  const itemHtml = items.map(function(item){
+    const title = [item.make,item.model,item.variant].filter(Boolean).join(" ") || item.motorcycle_title || "Motorcycle";
+    const price = anyBikeAccountNumber(item,["buyer_price_gbp","motorcycle_price_gbp","sale_price_gbp","deal_value_gbp"],0);
+    const itemAllocated = anyBikeAccountNumber(item,["allocated_gbp","allocated_amount_gbp","customer_money_allocated_gbp","total_allocated_gbp"],0);
+    const itemBalance = anyBikeAccountNumber(item,["balance_gbp","balance_due_gbp","customer_balance_due_gbp"],Math.max(price-itemAllocated,0));
+    let status = String(item.customer_payment_status || item.payment_status || "").trim();
+    if(!status){ status = itemBalance <= 0 && price > 0 ? "Paid" : (itemAllocated > 0 ? "Part Paid" : "Unpaid"); }
+    const cls = status.toLowerCase().includes("part") ? "part" : (status.toLowerCase().includes("paid") && !status.toLowerCase().includes("unpaid") ? "paid" : "unpaid");
+    const stock = item.stock_id ? ` · Stock #${escapeAdminHtml(item.stock_id)}` : "";
+    return `<div class="anybike-customer-account-item">
+      <div><span>Motorcycle</span><strong>${escapeAdminHtml(title)}${stock}</strong></div>
+      <div><span>Sale Price</span><strong>${anyBikeDealMoney(price)}</strong></div>
+      <div><span>Allocated</span><strong>${anyBikeDealMoney(itemAllocated)}</strong></div>
+      <div><span>Balance / Status</span><strong>${anyBikeDealMoney(itemBalance)} · <em class="anybike-customer-account-status ${cls}" style="font-style:normal">${escapeAdminHtml(status)}</em></strong></div>
+    </div>`;
+  }).join("");
+
+  return `<div class="anybike-customer-account">
+    <div class="anybike-customer-account-head">
+      <div><span>Deal 360 Customer Account</span><h4>Customer Receipts & Motorcycle Allocations</h4></div>
+      <div class="anybike-customer-account-badge ${paid ? "paid" : "due"}">${paid ? "PAID IN FULL" : "BALANCE DUE " + anyBikeDealMoney(balance)}</div>
+    </div>
+    <div class="anybike-customer-account-grid">
+      <div class="anybike-customer-account-metric"><span>Deal Value</span><strong>${anyBikeDealMoney(dealValue)}</strong></div>
+      <div class="anybike-customer-account-metric good"><span>Money Received</span><strong>${anyBikeDealMoney(received)}</strong></div>
+      <div class="anybike-customer-account-metric"><span>Allocated</span><strong>${anyBikeDealMoney(allocated)}</strong></div>
+      <div class="anybike-customer-account-metric ${unallocated > 0 ? "due" : "good"}"><span>Unallocated</span><strong>${anyBikeDealMoney(unallocated)}</strong></div>
+      <div class="anybike-customer-account-metric ${balance > 0 ? "due" : "good"}"><span>Balance Due</span><strong>${anyBikeDealMoney(balance)}</strong></div>
+    </div>
+    ${itemHtml ? `<div class="anybike-customer-account-items"><h5>Motorcycle Allocation Position</h5>${itemHtml}</div>` : ""}
+    <div class="anybike-customer-account-note">Customer money is recorded at Deal level and allocated to the relevant motorcycle(s). Recording customer money does not by itself secure a motorcycle.</div>
+  </div>`;
 }
 
 function renderAnyBikeDealPaymentPanel(deal){
@@ -7014,6 +7114,7 @@ function renderAdminDealQueue(){
             <div><span>Deal Stage</span><strong>${stage}</strong></div>
           </div>
           <div class="anybike-deal-bike-list">${bikeRows}</div>
+          ${renderAnyBikeDealCustomerAccount(deal)}
           ${renderAnyBikeDealPaymentPanel(deal)}
           ${renderAnyBikeDealFinancialPanel(deal)}
           ${renderAnyBikeDealSellerCheckPanel(deal)}
