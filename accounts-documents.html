@@ -105,7 +105,7 @@ main{width:min(1420px,94vw);margin:28px auto 70px}
     <div class="top-actions">
       <a class="btn" href="customer-dashboard.html">← Back to My AnyBike</a>
       <a class="btn" href="my-purchases.html">My Purchases</a>
-      <a class="btn" href="#motorcycle-documents">Motorcycle Documents</a>
+      <a class="btn" href="#motorcycle-documents" onclick="scrollToAccountsSection('motorcycle-documents');return false;">Motorcycle Documents</a>
     </div>
   </section>
 
@@ -244,6 +244,7 @@ async function loadAccounts(){
     renderHistory();
   }
   renderSummary();
+  restoreRequestedAccountsSection();
 }
 
 async function loadInvoiceLines(){
@@ -388,6 +389,42 @@ async function cancelAdvice(id){
 }
 
 
+
+function scrollToAccountsSection(sectionId){
+  const id=String(sectionId||"").replace(/^#/,"").trim();
+  if(!id)return;
+
+  const target=document.getElementById(id);
+  if(!target)return;
+
+  const top=target.getBoundingClientRect().top+window.pageYOffset-24;
+  window.scrollTo({
+    top:Math.max(0,top),
+    behavior:"smooth"
+  });
+
+  if(window.location.hash!=="#"+id){
+    history.replaceState(null,"","#"+id);
+  }
+}
+
+function restoreRequestedAccountsSection(){
+  const id=String(window.location.hash||"").replace(/^#/,"").trim();
+  if(!id)return;
+
+  requestAnimationFrame(function(){
+    setTimeout(function(){
+      scrollToAccountsSection(id);
+    },80);
+
+    setTimeout(function(){
+      scrollToAccountsSection(id);
+    },350);
+  });
+}
+
+window.addEventListener("hashchange",restoreRequestedAccountsSection);
+
 function bytesLabel(value){
   const bytes=Number(value||0);
   if(!Number.isFinite(bytes)||bytes<=0)return "—";
@@ -501,6 +538,7 @@ document.getElementById("closeReport").addEventListener("click",()=>{
   updatePaymentSelection();
 });
 loadAccounts();
+window.addEventListener("load",restoreRequestedAccountsSection);
 </script>
 </body>
 </html>
