@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Accountant Report | AnyBike Admin</title>
+<meta name="robots" content="noindex,nofollow">
+
+<script>
+document.documentElement.classList.add("admin-auth-pending");
+</script>
+<style>
+html.admin-auth-pending body{visibility:hidden}
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="admin.js?v=12000"></script>
+<link rel="stylesheet" href="admin-shell.css?v=12001">
+
+<style>
+:root{
+  --red:#ed1c24;
+  --bg:#080808;
+  --panel:#101010;
+  --line:#373737;
+  --muted:#9ea3aa;
+  --green:#36d37e;
+  --amber:#ffbf47;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#080808;color:#fff;font-family:Arial,Helvetica,sans-serif}
+.admin-page-content{padding:22px}
+.wrap{width:min(100%,1780px);margin:0 auto}
+.hero{
+  border:1px solid var(--line);
+  border-top:3px solid var(--red);
+  border-radius:12px;
+  padding:20px;
+  background:radial-gradient(circle at 94% 0%,rgba(237,28,36,.12),transparent 30%),linear-gradient(180deg,#111,#0c0c0c);
+  margin-bottom:16px
+}
+.hero .eyebrow{color:var(--red);font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.12em}
+.hero h1{margin:6px 0;font-size:34px}
+.hero p{margin:0;color:#aaa;line-height:1.5}
+.kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin:16px 0}
+.kpi{border:1px solid var(--line);border-radius:11px;background:#101010;padding:14px}
+.kpi span{display:block;color:#888;font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px}
+.kpi strong{display:block;font-size:21px}
+.kpi.good strong{color:var(--green)}
+.kpi.warn strong{color:var(--amber)}
+.kpi.red strong{color:#ff696f}
+.panel{margin-bottom:16px;border:1px solid var(--line);border-top:3px solid var(--red);border-radius:12px;background:linear-gradient(180deg,#101010,#0b0b0b);overflow:hidden}
+.panel-head{display:flex;justify-content:space-between;gap:14px;align-items:end;padding:16px;border-bottom:1px solid #292929}
+.panel-head h2{margin:0 0 4px;font-size:20px}
+.panel-head p{margin:0;color:#999;font-size:12px;line-height:1.45}
+.controls{display:flex;gap:8px;flex-wrap:wrap;align-items:end}
+.field label{display:block;color:#999;font-size:9px;font-weight:900;text-transform:uppercase;margin-bottom:5px}
+.field input,.field select{height:38px;border:1px solid #3a3a3a;border-radius:8px;background:#fff;color:#111;padding:0 10px;font-weight:700}
+button{min-height:38px;border:1px solid #444;border-radius:8px;background:#1c1c1c;color:#fff;padding:0 13px;font-weight:900;cursor:pointer}
+button.primary{background:var(--red);border-color:var(--red)}
+.note{padding:12px 16px;border-bottom:1px solid #292929;background:#0c0c0c;color:#aaa;font-size:11px;line-height:1.5}
+.note strong{color:#fff}
+.table-wrap{overflow:auto}
+table{width:100%;border-collapse:collapse;min-width:1850px}
+th,td{padding:10px 11px;border-bottom:1px solid #272727;text-align:left;vertical-align:top}
+th{color:#999;font-size:9px;text-transform:uppercase;letter-spacing:.06em;background:#0d0d0d;position:sticky;top:0;z-index:1}
+td{font-size:11px}
+td strong{font-size:11px}
+.small{display:block;color:#777;font-size:9px;margin-top:3px}
+.status{display:inline-flex;align-items:center;border-radius:999px;padding:4px 8px;font-size:9px;font-weight:900}
+.status.ready{border:1px solid rgba(54,211,126,.45);background:rgba(54,211,126,.10);color:#9fffc3}
+.status.bad{border:1px solid rgba(237,28,36,.5);background:rgba(237,28,36,.10);color:#ffb2b5}
+.status.warn{border:1px solid rgba(255,191,71,.45);background:rgba(255,191,71,.08);color:#ffd988}
+.empty{text-align:center;color:#888;padding:32px}
+.report-footer{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:12px 16px;color:#888;font-size:10px}
+@media(max-width:1300px){.kpis{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:760px){.admin-page-content{padding:12px}.kpis{grid-template-columns:1fr 1fr}.panel-head{flex-direction:column;align-items:stretch}.controls{width:100%}}
+</style>
+</head>
+<body>
+
+<div class="admin-shell">
+  <aside id="adminSidebar" class="admin-sidebar">
+    <div class="admin-logo"><img src="anybike-logo-new.jpg" alt="AnyBike"></div>
+    <nav class="admin-menu">
+      <a href="admin-dashboard.html"><span class="menu-icon">🏠</span><span class="menu-text">Admin HQ</span></a>
+      <a href="admin-enquiries.html"><span class="menu-icon">🏍</span><span class="menu-text">Bike Sales HQ</span></a>
+      <a href="admin-accounts.html"><span class="menu-icon">💷</span><span class="menu-text">Accounts HQ</span></a>
+      <a href="admin-accountant-report.html" class="active"><span class="menu-icon">📒</span><span class="menu-text">Accountant Report</span></a>
+      <a href="admin-message-centre.html"><span class="menu-icon">💬</span><span class="menu-text">Message Centre</span></a>
+      <a href="admin-global-buyer-network.html"><span class="menu-icon">🌍</span><span class="menu-text">Global Buyer Network</span></a>
+      <a href="admin-customers.html"><span class="menu-icon">👥</span><span class="menu-text">Customers</span></a>
+      <a href="admin-stock.html"><span class="menu-icon">📦</span><span class="menu-text">Stock HQ</span></a>
+      <a href="admin-stock-import.html"><span class="menu-icon">⬆️</span><span class="menu-text">Stock Import</span></a>
+      <a href="admin-logistics.html"><span class="menu-icon">🚚</span><span class="menu-text">Logistics HQ</span></a>
+      <a href="admin-market-intelligence.html"><span class="menu-icon">📊</span><span class="menu-text">Market Intelligence</span></a>
+      <a href="admin-reports.html"><span class="menu-icon">📈</span><span class="menu-text">Reports</span></a>
+      <a href="admin-platform-audit.html"><span class="menu-icon">🧪</span><span class="menu-text">Mission Control</span></a>
+      <a href="admin-administration.html"><span class="menu-icon">⚙️</span><span class="menu-text">Administration</span></a>
+    </nav>
+  </aside>
+
+  <main class="admin-main">
+    <div class="admin-topbar">
+      <div class="admin-search"><span>🔎</span><input type="search" id="reportSearch" placeholder="Search Deal, motorcycle, customer, supplier, invoice, PO..."></div>
+      <div class="admin-actions"><div class="admin-profile">Andy</div></div>
+    </div>
+
+    <div class="admin-page-content">
+      <div class="wrap">
+
+        <section class="hero">
+          <div class="eyebrow">AnyBike Finance & Reporting</div>
+          <h1>📒 Accountant Report</h1>
+          <p>Sales and purchases matched by Deal and motorcycle. Combined customer invoices are broken back down to the underlying Deals so the purchase side stays correctly matched.</p>
+        </section>
+
+        <div class="kpis" id="reportKpis">
+          <div class="kpi"><span>Rows</span><strong>—</strong></div>
+          <div class="kpi"><span>Sales Gross</span><strong>—</strong></div>
+          <div class="kpi"><span>Purchase Gross</span><strong>—</strong></div>
+          <div class="kpi good"><span>Gross Margin</span><strong>—</strong></div>
+          <div class="kpi good"><span>Recoverable Input VAT</span><strong>—</strong></div>
+          <div class="kpi red"><span>Exceptions</span><strong>—</strong></div>
+        </div>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>Sales &amp; Purchases</h2>
+              <p>Run this for the accounting period you want to send to your accountant.</p>
+            </div>
+
+            <div class="controls">
+              <div class="field">
+                <label>From</label>
+                <input id="fromDate" type="date">
+              </div>
+              <div class="field">
+                <label>To</label>
+                <input id="toDate" type="date">
+              </div>
+              <div class="field">
+                <label>Status</label>
+                <select id="readyFilter" onchange="renderRows()">
+                  <option value="">All</option>
+                  <option value="ready">Accounting Ready</option>
+                  <option value="exceptions">Exceptions</option>
+                </select>
+              </div>
+              <button class="primary" type="button" onclick="loadReport()">Run Report</button>
+              <button type="button" onclick="exportCsv()">Export CSV</button>
+            </div>
+          </div>
+
+          <div class="note">
+            <strong>Matching rule:</strong>
+            a row is <strong>Accounting Ready</strong> when the Final Sales Invoice is issued, the Purchase Order exists and the supplier purchase evidence is Verified. Proformas do not count as sales accounting documents.
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Deal</th>
+                  <th>Motorcycle</th>
+                  <th>Customer</th>
+                  <th>Sales Invoice</th>
+                  <th>Sales Gross</th>
+                  <th>Purchase Order</th>
+                  <th>Supplier</th>
+                  <th>Supplier Document</th>
+                  <th>Purchase Gross</th>
+                  <th>Input VAT</th>
+                  <th>VAT</th>
+                  <th>Customer</th>
+                  <th>Supplier</th>
+                  <th>Secured</th>
+                  <th>Gross Margin</th>
+                  <th>Accounting</th>
+                </tr>
+              </thead>
+              <tbody id="reportBody">
+                <tr><td colspan="16" class="empty">Choose a period and run the report.</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="report-footer">
+            <span id="rowCount">0 rows</span>
+            <span>CSV export uses the currently filtered rows.</span>
+          </div>
+        </section>
+
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+const SUPABASE_URL="https://tuehtnezhdnkqbbhttgp.supabase.co";
+const SUPABASE_ANON_KEY="sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+
+let reportRows=[];
+let visibleRows=[];
+
+const esc=value=>String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
+const money=value=>new Intl.NumberFormat("en-GB",{style:"currency",currency:"GBP"}).format(Number(value||0));
+const niceDate=value=>value?new Date(String(value).length===10?value+"T00:00:00":value).toLocaleDateString("en-GB"):"—";
+
+function quarterDates(){
+  const now=new Date();
+  const q=Math.floor(now.getMonth()/3);
+  const start=new Date(now.getFullYear(),q*3,1);
+  const end=new Date(now.getFullYear(),q*3+3,0);
+  const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+  return {from:iso(start),to:iso(end)};
+}
+
+function yesNo(value){
+  return value
+    ? '<span class="status ready">Yes</span>'
+    : '<span class="status bad">No</span>';
+}
+
+function accountingBadge(row){
+  return row.accounting_ready
+    ? '<span class="status ready">Ready</span>'
+    : `<span class="status warn">Review</span><span class="small">${esc(row.accounting_exception||"Check required")}</span>`;
+}
+
+function renderRows(){
+  const search=String(document.getElementById("reportSearch").value||"").trim().toLowerCase();
+  const filter=document.getElementById("readyFilter").value||"";
+
+  visibleRows=reportRows.filter(row=>{
+    if(filter==="ready" && !row.accounting_ready)return false;
+    if(filter==="exceptions" && row.accounting_ready)return false;
+
+    if(search){
+      const hay=[
+        row.deal_number,row.motorcycle,row.customer_name,
+        row.sales_invoice_number,row.purchase_order_number,
+        row.supplier_name,row.supplier_document_number,
+        row.vat_treatment,row.vat_status
+      ].join(" ").toLowerCase();
+      if(!hay.includes(search))return false;
+    }
+    return true;
+  });
+
+  const body=document.getElementById("reportBody");
+
+  if(!visibleRows.length){
+    body.innerHTML='<tr><td colspan="16" class="empty">No rows match this report/filter.</td></tr>';
+  }else{
+    body.innerHTML=visibleRows.map(row=>`<tr>
+      <td><strong>${esc(row.deal_number||"—")}</strong></td>
+      <td><strong>${esc(row.motorcycle||"Motorcycle")}</strong></td>
+      <td>${esc(row.customer_name||"Customer")}</td>
+      <td>${row.sales_invoice_number?`<strong>${esc(row.sales_invoice_number)}</strong><span class="small">${esc(niceDate(row.sales_invoice_date))}</span>`:'<span class="status warn">Not issued</span>'}</td>
+      <td>${money(row.sales_gross_gbp)}</td>
+      <td>${row.purchase_order_number?`<strong>${esc(row.purchase_order_number)}</strong><span class="small">${esc(row.purchase_order_status||"")}</span>`:'<span class="status bad">Missing</span>'}</td>
+      <td>${esc(row.supplier_name||"—")}</td>
+      <td>${row.supplier_document_number?`<strong>${esc(row.supplier_document_number)}</strong><span class="small">${esc(niceDate(row.supplier_document_date))} · ${esc(row.purchase_verification_status||"")}</span>`:'<span class="status warn">Missing</span>'}</td>
+      <td>${money(row.purchase_gross_gbp)}</td>
+      <td>${money(row.recoverable_input_vat_gbp)}</td>
+      <td>${esc(row.vat_treatment||"—")}<span class="small">${esc(row.vat_status||"—")}</span></td>
+      <td>${yesNo(row.customer_paid_in_full)}</td>
+      <td>${yesNo(row.supplier_paid_in_full)}</td>
+      <td>${yesNo(row.motorcycle_secured)}</td>
+      <td><strong>${money(row.gross_margin_gbp)}</strong></td>
+      <td>${accountingBadge(row)}</td>
+    </tr>`).join("");
+  }
+
+  document.getElementById("rowCount").textContent=`${visibleRows.length} row${visibleRows.length===1?"":"s"}`;
+}
+
+async function loadReport(){
+  const from=document.getElementById("fromDate").value||null;
+  const to=document.getElementById("toDate").value||null;
+
+  if(from && to && to<from){
+    alert("The To date cannot be before the From date.");
+    return;
+  }
+
+  const [rowsResult,summaryResult]=await Promise.all([
+    sb.rpc("admin_get_accountant_sales_purchases_v1",{p_from_date:from,p_to_date:to}),
+    sb.rpc("admin_get_accountant_sales_purchases_summary_v1",{p_from_date:from,p_to_date:to})
+  ]);
+
+  if(rowsResult.error||summaryResult.error){
+    alert("Accountant report could not be loaded.\n\n"+(rowsResult.error?.message||summaryResult.error?.message||"Unknown error"));
+    return;
+  }
+
+  reportRows=Array.isArray(rowsResult.data)?rowsResult.data:[];
+  const s=summaryResult.data||{};
+
+  document.getElementById("reportKpis").innerHTML=`
+    <div class="kpi"><span>Rows</span><strong>${Number(s.rows||0)}</strong></div>
+    <div class="kpi"><span>Sales Gross</span><strong>${money(s.sales_gross_gbp)}</strong></div>
+    <div class="kpi"><span>Purchase Gross</span><strong>${money(s.purchase_gross_gbp)}</strong></div>
+    <div class="kpi good"><span>Gross Margin</span><strong>${money(s.gross_margin_gbp)}</strong></div>
+    <div class="kpi good"><span>Recoverable Input VAT</span><strong>${money(s.recoverable_input_vat_gbp)}</strong></div>
+    <div class="kpi red"><span>Exceptions</span><strong>${Number(s.exception_rows||0)}</strong></div>`;
+
+  renderRows();
+}
+
+function csvCell(value){
+  const s=String(value??"");
+  return `"${s.replace(/"/g,'""')}"`;
+}
+
+function exportCsv(){
+  if(!visibleRows.length){
+    alert("Run the report first. There are no rows to export.");
+    return;
+  }
+
+  const headers=[
+    "Deal","Motorcycle","Customer",
+    "Sales Invoice","Sales Invoice Date","Sales Gross GBP",
+    "Purchase Order","Purchase Order Status",
+    "Supplier","Supplier Document","Supplier Document Date",
+    "Purchase Verification","Purchase Gross GBP","Recoverable Input VAT GBP",
+    "VAT Treatment","VAT Status",
+    "Customer Paid","Supplier Paid","Motorcycle Secured",
+    "Gross Margin GBP","Accounting Ready","Accounting Exception"
+  ];
+
+  const data=visibleRows.map(r=>[
+    r.deal_number,r.motorcycle,r.customer_name,
+    r.sales_invoice_number,r.sales_invoice_date,r.sales_gross_gbp,
+    r.purchase_order_number,r.purchase_order_status,
+    r.supplier_name,r.supplier_document_number,r.supplier_document_date,
+    r.purchase_verification_status,r.purchase_gross_gbp,r.recoverable_input_vat_gbp,
+    r.vat_treatment,r.vat_status,
+    r.customer_paid_in_full?"Yes":"No",
+    r.supplier_paid_in_full?"Yes":"No",
+    r.motorcycle_secured?"Yes":"No",
+    r.gross_margin_gbp,
+    r.accounting_ready?"Yes":"No",
+    r.accounting_exception||""
+  ]);
+
+  const csv=[
+    headers.map(csvCell).join(","),
+    ...data.map(row=>row.map(csvCell).join(","))
+  ].join("\r\n");
+
+  const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url;
+  a.download=`anybike-accountant-report-${document.getElementById("fromDate").value||"all"}-to-${document.getElementById("toDate").value||"all"}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+document.getElementById("reportSearch").addEventListener("input",renderRows);
+
+(async function start(){
+  const allowed=await requireAdminSession();
+  if(!allowed)return;
+
+  document.documentElement.classList.remove("admin-auth-pending");
+
+  const q=quarterDates();
+  document.getElementById("fromDate").value=q.from;
+  document.getElementById("toDate").value=q.to;
+
+  await loadReport();
+})();
+</script>
+</body>
+</html>
