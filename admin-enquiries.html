@@ -20,6 +20,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -4169,6 +4170,28 @@ input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-in
 }
 </style>
 
+
+<style id="anybike-invoice-documents-css">
+.anybike-invoice-panel{margin-top:12px;border:1px solid #373737;border-top:3px solid #ed1c24;border-radius:12px;background:linear-gradient(180deg,#111,#0c0c0c);box-shadow:0 8px 22px rgba(0,0,0,.18);overflow:hidden}
+.anybike-invoice-head{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;padding:16px 18px;border-bottom:1px solid rgba(255,255,255,.09);background:linear-gradient(180deg,#171717,#121212)}
+.anybike-invoice-head>div:first-child>span{display:block;color:#ed1c24;font-size:12px;font-weight:950;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px}
+.anybike-invoice-head h4{margin:0;color:#fff;font-size:19px}
+.anybike-invoice-head p{margin:6px 0 0;color:#aaa;font-size:13px;line-height:1.45;max-width:850px}
+.anybike-invoice-badge{flex:0 0 auto;background:#222;border:1px solid rgba(255,255,255,.13);border-radius:999px;color:#ddd;padding:7px 11px;font-size:12px;font-weight:900}
+.anybike-invoice-rule{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:start;margin:14px 16px 0;padding:12px 14px;border:1px solid rgba(237,28,36,.28);border-radius:10px;background:rgba(237,28,36,.08)}
+.anybike-invoice-rule strong{color:#ff8b8f;font-size:12px;letter-spacing:.05em}.anybike-invoice-rule span{color:#ddd;font-size:13px;line-height:1.45}
+.anybike-invoice-card{margin:14px 16px;padding:14px;border:1px solid rgba(255,255,255,.11);border-radius:11px;background:linear-gradient(180deg,#151515,#101010)}
+.anybike-invoice-card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}.anybike-invoice-card-head>div>span{display:block;color:#999;font-size:12px}.anybike-invoice-card-head>div>strong{display:block;color:#fff;font-size:17px;margin-top:3px}
+.anybike-invoice-status{border-radius:999px;padding:6px 10px;font-size:11px;font-weight:950}.anybike-invoice-status.draft{background:rgba(255,170,0,.13);border:1px solid rgba(255,170,0,.38);color:#ffc65b}.anybike-invoice-status.issued{background:rgba(51,204,102,.13);border:1px solid rgba(51,204,102,.4);color:#8cffb1}.anybike-invoice-status.cancelled{background:rgba(237,28,36,.13);border:1px solid rgba(237,28,36,.4);color:#ff9b9b}
+.anybike-invoice-summary-grid{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:8px}.anybike-invoice-summary-grid>div{padding:11px 12px;border:1px solid rgba(255,255,255,.08);border-radius:9px;background:#111}.anybike-invoice-summary-grid span{display:block;color:#999;font-size:11px;margin-bottom:4px}.anybike-invoice-summary-grid strong{color:#fff;font-size:15px}
+.anybike-invoice-warning{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:10px;padding:10px 12px;border-radius:9px;background:#090909;border:1px solid rgba(255,255,255,.09)}.anybike-invoice-warning strong{color:#fff;font-size:12px}.anybike-invoice-warning span{color:#ff9b9b;font-size:12px;font-weight:850}
+.anybike-invoice-lines{display:grid;gap:7px;margin-top:10px}.anybike-invoice-line{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border-top:1px solid rgba(255,255,255,.07)}.anybike-invoice-line:first-child{border-top:0}.anybike-invoice-line strong{display:block;color:#eee;font-size:13px}.anybike-invoice-line small{display:block;color:#888;font-size:11px;margin-top:2px}.anybike-invoice-line>span{color:#fff;font-size:14px;font-weight:900;white-space:nowrap}
+.anybike-invoice-empty-state,.anybike-invoice-empty{margin:14px 16px;padding:14px;border:1px dashed rgba(255,255,255,.18);border-radius:10px;background:#0c0c0c}.anybike-invoice-empty-state strong{display:block;color:#fff;margin-bottom:4px}.anybike-invoice-empty-state span,.anybike-invoice-empty{color:#aaa;font-size:13px}
+.anybike-invoice-actions{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 16px;border-top:1px solid rgba(255,255,255,.09);color:#aaa;font-size:13px}.anybike-invoice-actions button{margin:0!important;border-radius:10px!important;white-space:nowrap}.anybike-invoice-actions button:disabled{opacity:.45;cursor:not-allowed}
+@media(max-width:900px){.anybike-invoice-summary-grid{grid-template-columns:1fr 1fr}.anybike-invoice-head,.anybike-invoice-actions,.anybike-invoice-warning{align-items:flex-start;flex-direction:column}.anybike-invoice-rule{grid-template-columns:1fr}}
+@media(max-width:560px){.anybike-invoice-summary-grid{grid-template-columns:1fr}}
+</style>
+
 </head>
 
 <body>
@@ -4765,6 +4788,8 @@ let adminDealPaymentStatus = [];
 let adminDealCustomerAccounts = new Map();
 let adminDealMotorcycleCustomerAccounts = new Map();
 let adminDealCustomerPayments = new Map();
+let adminDealInvoices = new Map();
+let dealProformaBusy = new Set();
 let dealCustomerReceiptBusy = new Set();
 let dealCustomerAllocationBusy = new Set();
 let adminDealSellerPaymentStatus = [];
@@ -6177,6 +6202,37 @@ async function loadAdminDealQueue(){
     }
   }));
 
+  adminDealInvoices = new Map();
+  await Promise.all(adminDealQueue.map(async function(deal){
+    const dealId = Number(deal.deal_id);
+    if(!Number.isFinite(dealId)){ return; }
+
+    try{
+      const result = await sb.rpc("admin_get_deal_invoices", { p_deal_id:dealId });
+      if(result.error){ throw result.error; }
+      const invoices = Array.isArray(result.data) ? result.data : [];
+
+      await Promise.all(invoices.map(async function(invoice){
+        const invoiceId = Number(invoice.invoice_id);
+        invoice.lines = [];
+        if(!Number.isFinite(invoiceId)){ return; }
+        try{
+          const lineResult = await sb.rpc("admin_get_invoice_lines", { p_invoice_id:invoiceId });
+          if(lineResult.error){ throw lineResult.error; }
+          invoice.lines = Array.isArray(lineResult.data) ? lineResult.data : [];
+        }catch(error){
+          console.warn("Invoice lines could not be loaded for Invoice " + invoiceId + ":", error);
+          invoice.lines = [];
+        }
+      }));
+
+      adminDealInvoices.set(String(dealId), invoices);
+    }catch(error){
+      console.warn("Deal invoices could not be loaded for Deal " + dealId + ":", error);
+      adminDealInvoices.set(String(dealId), []);
+    }
+  }));
+
   try{
     const result = await sb.rpc("admin_get_seller_payment_status", { p_match_id:null });
     if(result.error){ throw result.error; }
@@ -7322,6 +7378,119 @@ function renderAnyBikeDealTransactionCompletion(deal){
   }).join("");
 }
 
+function anyBikeInvoiceDate(value){
+  if(!value){ return "—"; }
+  const d=new Date(value);
+  if(Number.isNaN(d.getTime())){ return "—"; }
+  return d.toLocaleString("en-GB", { day:"2-digit", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit" });
+}
+
+function anyBikeInvoiceStatusClass(status){
+  const value=String(status||"").toLowerCase();
+  if(value==="issued") return "issued";
+  if(value==="cancelled" || value==="credited") return "cancelled";
+  return "draft";
+}
+
+function renderAnyBikeDealInvoiceDocuments(deal){
+  const dealId=String(deal.deal_id||"");
+  const invoices=adminDealInvoices.get(dealId)||[];
+  const busy=dealProformaBusy.has(dealId);
+  const effectiveStage=anyBikeEffectiveDealStage(deal);
+  const allowedStages=new Set(["Invoice / Documents","Operations","Shipping","Completed"]);
+  const canCreate=allowedStages.has(effectiveStage);
+  const proformas=invoices.filter(function(invoice){ return String(invoice.invoice_type||"")==="Proforma"; });
+  const latestProforma=proformas.length ? proformas[0] : null;
+  const badgeText=invoices.length ? (invoices.length + " Document" + (invoices.length===1?"":"s")) : "Not Started";
+
+  const invoiceCards=invoices.length ? invoices.map(function(invoice){
+    const lines=Array.isArray(invoice.lines) ? invoice.lines : [];
+    const status=String(invoice.invoice_status||"Draft");
+    const statusClass=anyBikeInvoiceStatusClass(status);
+    const label=invoice.invoice_number || (String(invoice.invoice_type||"Document") + " v" + Number(invoice.version_number||1));
+    const lineHtml=lines.length ? lines.map(function(line){
+      return `<div class="anybike-invoice-line"><div><strong>${escapeAdminHtml(line.description||line.line_type||"Line")}</strong><small>${escapeAdminHtml(line.line_type||"")}</small></div><span>${anyBikeDealMoney(line.line_total_gbp)}</span></div>`;
+    }).join("") : '<div class="anybike-invoice-empty">No invoice lines available.</div>';
+
+    return `<div class="anybike-invoice-card">
+      <div class="anybike-invoice-card-head">
+        <div><span>${escapeAdminHtml(invoice.invoice_type||"Document")}</span><strong>${escapeAdminHtml(label)}</strong></div>
+        <span class="anybike-invoice-status ${statusClass}">${escapeAdminHtml(status)}</span>
+      </div>
+      <div class="anybike-invoice-summary-grid">
+        <div><span>Subtotal</span><strong>${anyBikeDealMoney(invoice.subtotal_gbp)}</strong></div>
+        <div><span>Delivery</span><strong>${anyBikeDealMoney(invoice.delivery_total_gbp)}</strong></div>
+        <div><span>Total</span><strong>${anyBikeDealMoney(invoice.total_gbp)}</strong></div>
+        <div><span>${status==="Issued" ? "Issued" : "Updated"}</span><strong>${escapeAdminHtml(anyBikeInvoiceDate(status==="Issued" ? invoice.issued_at : invoice.updated_at))}</strong></div>
+      </div>
+      ${String(invoice.invoice_type||"")==="Proforma" ? '<div class="anybike-invoice-warning"><strong>PROFORMA INVOICE</strong><span>NOT A VAT INVOICE · No VAT breakdown is shown.</span></div>' : ''}
+      <div class="anybike-invoice-lines">${lineHtml}</div>
+    </div>`;
+  }).join("") : `<div class="anybike-invoice-empty-state"><strong>No invoice documents created yet.</strong><span>When the transaction is financially complete, create the Deal 360 Draft Proforma here.</span></div>`;
+
+  const buttonText=busy ? "Creating Draft Proforma..." : (latestProforma && String(latestProforma.invoice_status||"")==="Draft" ? "Refresh Draft Proforma" : "Create Draft Proforma");
+
+  return `<div class="anybike-invoice-panel">
+    <div class="anybike-invoice-head">
+      <div><span>Invoice / Documents</span><h4>${escapeAdminHtml(deal.deal_number||("Deal #"+dealId))}</h4><p>Accounting documents are tied to Deal 360. Draft Proformas can be refreshed; issued documents will not be silently overwritten.</p></div>
+      <div class="anybike-invoice-badge">${escapeAdminHtml(badgeText)}</div>
+    </div>
+    <div class="anybike-invoice-rule"><strong>PROFORMA RULE</strong><span>A Proforma is not a VAT invoice and does not show a VAT breakdown. VAT verification remains separate until the Final Invoice stage.</span></div>
+    ${invoiceCards}
+    <div class="anybike-invoice-actions">
+      <div>${canCreate ? "The transaction is ready for invoice/document processing." : "Complete customer payment, supplier payment and motorcycle security before creating the Proforma."}</div>
+      <button type="button" ${busy||!canCreate ? "disabled" : ""} onclick="createOrRefreshDealProforma(${Number(deal.deal_id)});return false;">${escapeAdminHtml(buttonText)}</button>
+    </div>
+  </div>`;
+}
+
+async function createOrRefreshDealProforma(dealId){
+  const id=Number(dealId);
+  if(!Number.isFinite(id) || dealProformaBusy.has(String(id))){ return; }
+
+  const deal=adminDealQueue.find(function(row){ return Number(row.deal_id)===id; });
+  if(!deal){ return; }
+
+  if(anyBikeEffectiveDealStage(deal)!=="Invoice / Documents" && !["Operations","Shipping","Completed"].includes(anyBikeEffectiveDealStage(deal))){
+    alert("This Deal is not ready for Invoice / Documents yet.");
+    return;
+  }
+
+  const existing=(adminDealInvoices.get(String(id))||[]).find(function(invoice){
+    return String(invoice.invoice_type||"")==="Proforma" && String(invoice.invoice_status||"")==="Draft";
+  });
+
+  const message=existing
+    ? "Refresh the current Draft Proforma for " + (deal.deal_number||("Deal #"+id)) + "?\n\nThis refreshes the draft snapshot from the current Deal 360 transaction. It remains NOT A VAT INVOICE."
+    : "Create a Draft Proforma for " + (deal.deal_number||("Deal #"+id)) + "?\n\nThe Proforma will be created from the current Deal 360 transaction and will NOT contain a VAT breakdown.";
+
+  if(!window.confirm(message)){ return; }
+
+  dealProformaBusy.add(String(id));
+  renderAdminDealQueue();
+
+  try{
+    const result=await sb.rpc("admin_create_or_refresh_deal_proforma", { p_deal_id:id });
+    if(result.error){ throw result.error; }
+    const payload=result.data||{};
+    alert(
+      (payload.document_heading||"PROFORMA INVOICE") + " created successfully.\n\n" +
+      "Deal: " + (payload.deal_number||deal.deal_number||id) + "\n" +
+      "Status: " + (payload.invoice_status||"Draft") + "\n" +
+      "Version: " + (payload.version_number||1) + "\n" +
+      "Total: " + anyBikeDealMoney(payload.total_gbp) + "\n\n" +
+      (payload.document_warning||"NOT A VAT INVOICE")
+    );
+    await loadAdminDealQueue();
+  }catch(error){
+    console.error("Draft Proforma could not be created:", error);
+    alert("Draft Proforma could not be created.\n\n" + (error && error.message ? error.message : "Unknown error"));
+  }finally{
+    dealProformaBusy.delete(String(id));
+    renderAdminDealQueue();
+  }
+}
+
 function anyBikeFinancialStatusClass(status){
   const v=String(status||"Check Required").toLowerCase();
   if(v==="verified") return "verified";
@@ -7645,6 +7814,7 @@ function renderAdminDealQueue(){
           ${renderAnyBikeDealCustomerLedger(deal)}
           ${renderAnyBikeDealPaymentPanel(deal)}
           ${renderAnyBikeDealTransactionCompletion(deal)}
+          ${renderAnyBikeDealInvoiceDocuments(deal)}
           ${renderAnyBikeDealFinancialPanel(deal)}
           ${renderAnyBikeDealSellerCheckPanel(deal)}
           <div class="anybike-deal-next-note">
