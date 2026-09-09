@@ -6312,11 +6312,11 @@ function renderAnyBikeDealPreSalePanel(deal){
         <strong>${escapeAdminHtml(seller)}</strong>
       </div>
       <div class="anybike-presale-item">
-        <span>Customer Price</span>
+        <span>AnyBike Sale Price</span>
         <strong>${salePrice>0.009 ? anyBikeDealMoney(salePrice) : "Not agreed"}</strong>
       </div>
       <div class="anybike-presale-item">
-        <span>Seller Price</span>
+        <span>Seller Purchase Price</span>
         <strong>${sellerPrice>0.009 ? anyBikeDealMoney(sellerPrice) : "Not confirmed"}</strong>
       </div>
       <div class="anybike-presale-item">
@@ -8634,8 +8634,8 @@ function renderAdminDealQueue(){
                 <strong>${escapeAdminHtml(title || "Motorcycle")}</strong>
                 <small>${bike.year ? escapeAdminHtml(bike.year) + " · " : ""}Stock #${escapeAdminHtml(bike.stock_id || "-")}</small>
               </div>
-              <div><span>Customer Price</span><strong>${preSale ? anyBikeDealPendingMoney(bike.buyer_price_gbp,"Not agreed") : anyBikeDealMoney(bike.buyer_price_gbp)}</strong></div>
-              <div><span>Seller Price</span><strong>${preSale ? anyBikeDealPendingMoney(bike.seller_price_gbp,"Not confirmed") : anyBikeDealMoney(bike.seller_price_gbp)}</strong></div>
+              <div><span>AnyBike Sale Price</span><strong>${preSale ? anyBikeDealPendingMoney(bike.buyer_price_gbp,"Not agreed") : anyBikeDealMoney(bike.buyer_price_gbp)}</strong></div>
+              <div><span>Seller Purchase Price</span><strong>${preSale ? anyBikeDealPendingMoney(bike.seller_price_gbp,"Not confirmed") : anyBikeDealMoney(bike.seller_price_gbp)}</strong></div>
               <div><span>Gross Profit</span><strong>${preSale && Number(bike.buyer_price_gbp||0)<=0 ? "—" : anyBikeDealMoney(bike.gross_margin_gbp)}</strong></div>
               <div><span>Secured</span><strong>${bike.bike_secured ? "✓ Yes" : "No"}</strong></div>
               <div><span>VAT</span><strong>${escapeAdminHtml(vat)}</strong></div>
@@ -8684,8 +8684,8 @@ function renderAdminDealQueue(){
             <button type="button" class="close-enquiry-btn" onclick="toggleAnyBikeDeal('${dealId}');return false;">▲ Close</button>
           </div>
           <div class="anybike-deal-rollup">
-            <div><span>Customer Price</span><strong>${preSale ? anyBikeDealPendingMoney(deal.buyer_value_gbp,"Not agreed") : anyBikeDealMoney(deal.buyer_value_gbp)}</strong></div>
-            <div><span>Seller Price</span><strong>${preSale ? anyBikeDealPendingMoney(deal.seller_cost_gbp,"Not confirmed") : anyBikeDealMoney(deal.seller_cost_gbp)}</strong></div>
+            <div><span>AnyBike Sale Price</span><strong>${preSale ? anyBikeDealPendingMoney(deal.buyer_value_gbp,"Not agreed") : anyBikeDealMoney(deal.buyer_value_gbp)}</strong></div>
+            <div><span>Seller Purchase Price</span><strong>${preSale ? anyBikeDealPendingMoney(deal.seller_cost_gbp,"Not confirmed") : anyBikeDealMoney(deal.seller_cost_gbp)}</strong></div>
             <div><span>Gross Profit</span><strong>${preSale && Number(deal.buyer_value_gbp||0)<=0 ? "—" : anyBikeDealMoney(deal.gross_profit_gbp)}</strong></div>
             <div><span>Deal Stage</span><strong>${stage}</strong></div>
           </div>
@@ -9104,6 +9104,13 @@ async function loadEnquiries(){
 
 const fullData = data || [];
 allEnquiryRecords = fullData.slice();
+
+/*
+  The Deal Queue is loaded before bike_enquiries so the page can initialise
+  quickly. Re-render it now that the retained source enquiry rows are present;
+  this lets enquiry-created Deals resolve their customer name/email correctly.
+*/
+renderAdminDealQueue();
 
 /*
   Only enquiries that have NOT been moved into Deal 360 remain in the
