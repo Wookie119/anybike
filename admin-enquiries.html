@@ -6436,6 +6436,80 @@ function anyBikeDealCommercialRow(deal){
   }) || null;
 }
 
+function anyBikeDealProjectedCommercialTotals(deal){
+  const dealId=String((deal && deal.deal_id) || "");
+  const rows=adminDealCommercialSetup.filter(function(row){
+    return String(row.deal_id || "")===dealId;
+  });
+
+  if(!rows.length){
+    return {
+      hasCommercial:false,
+      salePrice:null,
+      deliveryCharge:0,
+      customerTotal:null,
+      sellerPurchasePrice:null,
+      totalInternalCost:null,
+      projectedProfit:null,
+      projectedMargin:null
+    };
+  }
+
+  let salePrice=0;
+  let deliveryCharge=0;
+  let customerTotal=0;
+  let sellerPurchasePrice=0;
+  let totalInternalCost=0;
+  let hasSale=false;
+  let hasSeller=false;
+  let allComplete=true;
+
+  rows.forEach(function(row){
+    const sale=Number(row.anybike_sale_price_gbp || 0);
+    const delivery=Number(row.delivery_charge_gbp || 0);
+    const seller=Number(row.seller_purchase_price_gbp || 0);
+    const internal=Number(row.total_internal_cost_gbp || 0);
+
+    if(sale>0){
+      hasSale=true;
+      salePrice+=sale;
+      deliveryCharge+=delivery;
+      customerTotal+=Number(row.customer_total_gbp || (sale+delivery));
+    }else{
+      allComplete=false;
+    }
+
+    if(seller>0){
+      hasSeller=true;
+      sellerPurchasePrice+=seller;
+      totalInternalCost+=internal>0 ? internal : seller;
+    }else{
+      allComplete=false;
+    }
+  });
+
+  const projectedProfit=
+    hasSale && hasSeller && allComplete
+      ? customerTotal-totalInternalCost
+      : null;
+
+  const projectedMargin=
+    projectedProfit!==null && customerTotal>0
+      ? (projectedProfit/customerTotal)*100
+      : null;
+
+  return {
+    hasCommercial:true,
+    salePrice:hasSale ? salePrice : null,
+    deliveryCharge:deliveryCharge,
+    customerTotal:hasSale ? customerTotal : null,
+    sellerPurchasePrice:hasSeller ? sellerPurchasePrice : null,
+    totalInternalCost:hasSeller ? totalInternalCost : null,
+    projectedProfit:projectedProfit,
+    projectedMargin:projectedMargin
+  };
+}
+
 function anyBikeCommercialInputNumber(id){
   const el=document.getElementById(id);
   const raw=String((el && el.value) || "").trim();
@@ -6691,6 +6765,10 @@ function renderAnyBikeDealCommercialSetup(deal){
       </div>
     </div>
 
+    <div style="padding:10px 16px;border-top:1px solid #2a2a2a;background:#0d0d0d;color:#888;font-size:10px">
+      Projected profit includes the separate customer delivery charge and all internal costs below. It is not the simple difference between motorcycle sale price and seller purchase price.
+    </div>
+
     <div class="anybike-commercial-metrics">
       <div class="anybike-commercial-metric">
         <span>Customer Total</span>
@@ -6719,6 +6797,7 @@ function renderAnyBikeDealCommercialSetup(deal){
 
 function renderAnyBikeDealPreSalePanel(deal){
   const dealId=String(deal.deal_id || "");
+  const projectedCommercial=anyBikeDealProjectedCommercialTotals(deal);
   const buyerName=anyBikeDealBuyerName(deal);
   const buyerContact=anyBikeDealBuyerContactLine(deal);
   const stage=String(deal.deal_stage || "New Lead");
@@ -6758,6 +6837,7 @@ function renderAnyBikeDealPreSalePanel(deal){
       <div class="anybike-presale-item">
         <span>AnyBike Sale Price</span>
         <strong>${salePrice>0.009 ? anyBikeDealMoney(salePrice) : "Not agreed"}</strong>
+        ${projectedCommercial && projectedCommercial.deliveryCharge>0 ? `<small style="display:block;margin-top:4px;color:#888">+ ${anyBikeDealMoney(projectedCommercial.deliveryCharge)} delivery · ${anyBikeDealMoney(projectedCommercial.customerTotal)} customer total</small>` : ""}
       </div>
       <div class="anybike-presale-item">
         <span>Seller Purchase Price</span>
@@ -9047,6 +9127,28 @@ function renderAdminDealQueue(){
       ? sellerNames[0] + (sellerNames.length > 1 ? " +" + (sellerNames.length-1) + " more" : "")
       : (preSale ? "Seller not confirmed" : "Seller not named");
 
+    const projectedCommercial = anyBikeDealProjectedCommercialTotals(deal);
+
+    const queueSaleValue =
+      preSale && projectedCommercial.salePrice!==null
+        ? projectedCommercial.salePrice
+        : Number(deal.buyer_value_gbp || 0);
+
+    const queueCostValue =
+      preSale && projectedCommercial.totalInternalCost!==null
+        ? projectedCommercial.totalInternalCost
+        : Number(deal.seller_cost_gbp || 0);
+
+    const queueProfitValue =
+      preSale && projectedCommercial.projectedProfit!==null
+        ? projectedCommercial.projectedProfit
+        : Number(deal.gross_profit_gbp || 0);
+
+    const queueMarginValue =
+      preSale && projectedCommercial.projectedMargin!==null
+        ? projectedCommercial.projectedMargin
+        : Number(deal.gross_margin_percent || 0);
+
     const customerAccount = adminDealCustomerAccounts.get(dealId) || {};
     const dealValue = anyBikeAccountNumber(customerAccount,["deal_value_gbp"],deal.buyer_value_gbp);
     const customerReceived = anyBikeAccountNumber(customerAccount,["customer_money_received_gbp"],0);
@@ -9089,7 +9191,20 @@ function renderAdminDealQueue(){
               </div>
               <div><span>AnyBike Sale Price</span><strong>${preSale ? anyBikeDealPendingMoney(bike.buyer_price_gbp,"Not agreed") : anyBikeDealMoney(bike.buyer_price_gbp)}</strong></div>
               <div><span>Seller Purchase Price</span><strong>${preSale ? anyBikeDealPendingMoney(bike.seller_price_gbp,"Not confirmed") : anyBikeDealMoney(bike.seller_price_gbp)}</strong></div>
-              <div><span>Gross Profit</span><strong>${preSale && Number(bike.buyer_price_gbp||0)<=0 ? "—" : anyBikeDealMoney(bike.gross_margin_gbp)}</strong></div>
+              <div><span>${preSale ? "Projected Profit" : "Gross Profit"}</span><strong>${
+                preSale
+                  ? (
+                      (function(){
+                        const commercial=adminDealCommercialSetup.find(function(row){
+                          return Number(row.deal_motorcycle_id)===Number(bike.deal_motorcycle_id || bike.id);
+                        });
+                        return commercial && commercial.projected_profit_gbp!==null && commercial.projected_profit_gbp!==undefined
+                          ? anyBikeDealMoney(commercial.projected_profit_gbp)
+                          : "—";
+                      })()
+                    )
+                  : anyBikeDealMoney(bike.gross_margin_gbp)
+              }</strong></div>
               <div><span>Secured</span><strong>${bike.bike_secured ? "✓ Yes" : "No"}</strong></div>
               <div><span>VAT</span><strong>${escapeAdminHtml(vat)}</strong></div>
               <div><span>Negotiation</span><strong>${escapeAdminHtml(bike.negotiation_status || bike.item_status || "-")}</strong></div>
@@ -9119,9 +9234,9 @@ function renderAdminDealQueue(){
           <div><strong>${buyerName}</strong><small>${contactName && contactName !== buyerName ? contactName : email}</small></div>
           <div><strong>${escapeAdminHtml(sellerSummary)}</strong><small>${sellerNames.length ? "Seller / supplier" : (preSale ? "Seller check not started" : "Final Seller Check")}</small></div>
           <div><strong>${escapeAdminHtml(motorcycleSummary)}</strong><small>${escapeAdminHtml(firstBikeYear || (motorcycleCount + " motorcycle" + (motorcycleCount===1?"":"s")))}</small></div>
-          <div><strong>${preSale ? anyBikeDealPendingMoney(deal.buyer_value_gbp,"Not agreed") : anyBikeDealMoney(deal.buyer_value_gbp)}</strong><small>Sale</small></div>
-          <div><strong>${preSale ? anyBikeDealPendingMoney(deal.seller_cost_gbp,"Not confirmed") : anyBikeDealMoney(deal.seller_cost_gbp)}</strong><small>Cost</small></div>
-          <div><strong>${preSale && Number(deal.buyer_value_gbp||0)<=0 ? "—" : anyBikeDealMoney(deal.gross_profit_gbp)}</strong><small>${preSale && Number(deal.buyer_value_gbp||0)<=0 ? "Not calculated" : Number(deal.gross_margin_percent || 0).toFixed(1)+"%"}</small></div>
+          <div><strong>${preSale ? (queueSaleValue>0 ? anyBikeDealMoney(queueSaleValue) : "Not agreed") : anyBikeDealMoney(deal.buyer_value_gbp)}</strong><small>${preSale ? "Motorcycle sale" : "Sale"}</small></div>
+          <div><strong>${preSale ? (queueCostValue>0 ? anyBikeDealMoney(queueCostValue) : "Not confirmed") : anyBikeDealMoney(deal.seller_cost_gbp)}</strong><small>${preSale ? "Total internal cost" : "Cost"}</small></div>
+          <div><strong>${preSale ? (projectedCommercial.projectedProfit!==null ? anyBikeDealMoney(queueProfitValue) : "—") : anyBikeDealMoney(deal.gross_profit_gbp)}</strong><small>${preSale ? (projectedCommercial.projectedMargin!==null ? queueMarginValue.toFixed(1)+"% projected" : "Not calculated") : Number(deal.gross_margin_percent || 0).toFixed(1)+"%"}</small></div>
           <div><span class="anybike-queue-finance-badge ${customerClass}">${customerLabel}</span><small>${preSale ? "No payment stage yet" : (customerBalance > 0.009 ? anyBikeDealMoney(customerBalance)+" due" : anyBikeDealMoney(customerReceived)+" received")}</small></div>
           <div><span class="anybike-queue-finance-badge ${supplierClass}">${supplierLabel}</span><small>${preSale ? "Seller purchase not started" : (supplierBalance > 0.009 ? anyBikeDealMoney(supplierBalance)+" due" : anyBikeDealMoney(supplierPaid)+" paid")}</small></div>
           <div><span class="anybike-queue-finance-badge ${securedClass}">${escapeAdminHtml(securedLabel)}</span><small>Motorcycle</small></div>
@@ -9137,9 +9252,9 @@ function renderAdminDealQueue(){
             <button type="button" class="close-enquiry-btn" onclick="toggleAnyBikeDeal('${dealId}');return false;">▲ Close</button>
           </div>
           <div class="anybike-deal-rollup">
-            <div><span>AnyBike Sale Price</span><strong>${preSale ? anyBikeDealPendingMoney(deal.buyer_value_gbp,"Not agreed") : anyBikeDealMoney(deal.buyer_value_gbp)}</strong></div>
-            <div><span>Seller Purchase Price</span><strong>${preSale ? anyBikeDealPendingMoney(deal.seller_cost_gbp,"Not confirmed") : anyBikeDealMoney(deal.seller_cost_gbp)}</strong></div>
-            <div><span>Gross Profit</span><strong>${preSale && Number(deal.buyer_value_gbp||0)<=0 ? "—" : anyBikeDealMoney(deal.gross_profit_gbp)}</strong></div>
+            <div><span>AnyBike Sale Price</span><strong>${preSale ? (projectedCommercial.salePrice!==null ? anyBikeDealMoney(projectedCommercial.salePrice) : "Not agreed") : anyBikeDealMoney(deal.buyer_value_gbp)}</strong></div>
+            <div><span>${preSale ? "Total Internal Cost" : "Seller Purchase Price"}</span><strong>${preSale ? (projectedCommercial.totalInternalCost!==null ? anyBikeDealMoney(projectedCommercial.totalInternalCost) : "Not confirmed") : anyBikeDealMoney(deal.seller_cost_gbp)}</strong></div>
+            <div><span>${preSale ? "Projected Profit" : "Gross Profit"}</span><strong>${preSale ? (projectedCommercial.projectedProfit!==null ? anyBikeDealMoney(projectedCommercial.projectedProfit) : "—") : anyBikeDealMoney(deal.gross_profit_gbp)}</strong>${preSale && projectedCommercial.projectedMargin!==null ? `<small style="display:block;margin-top:4px;color:#8f8f8f">${projectedCommercial.projectedMargin.toFixed(1)}% projected margin</small>` : ""}</div>
             <div><span>Deal Stage</span><strong>${stage}</strong></div>
           </div>
           <div class="anybike-deal-bike-list">${bikeRows}</div>
