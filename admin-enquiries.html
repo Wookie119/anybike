@@ -4231,6 +4231,53 @@ input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-in
 .anybike-invoice-combined-note strong{color:#ff6066;font-size:11px;letter-spacing:.04em}
 .anybike-invoice-combined-note span{color:#cbd3dc;font-size:11px;text-align:right}
 </style>
+
+<style>
+/* =========================================================
+   START DEAL BRIDGE — ENQUIRY INTAKE
+   Added 09 September 2026
+   ========================================================= */
+.start-deal-queue-btn,
+.start-deal-hero-btn{
+  display:inline-flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  gap:7px !important;
+  width:auto !important;
+  min-width:0 !important;
+  margin:7px 0 0 !important;
+  padding:8px 12px !important;
+  border:1px solid #ed1c24 !important;
+  border-radius:10px !important;
+  background:#ed1c24 !important;
+  color:#fff !important;
+  font-size:12px !important;
+  font-weight:950 !important;
+  line-height:1.15 !important;
+  cursor:pointer !important;
+  white-space:nowrap !important;
+}
+.start-deal-hero-btn{
+  margin:0 !important;
+  padding:10px 15px !important;
+  font-size:13px !important;
+}
+.start-deal-queue-btn:hover,
+.start-deal-hero-btn:hover{
+  filter:brightness(1.08);
+}
+.start-deal-queue-btn[disabled],
+.start-deal-hero-btn[disabled]{
+  opacity:.55 !important;
+  cursor:wait !important;
+}
+.converted-deal-note{
+  margin:8px 0 0;
+  color:#999;
+  font-size:12px;
+  line-height:1.4;
+}
+</style>
 </head>
 
 <body>
@@ -4506,7 +4553,7 @@ input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-in
 <section class="legacy-enquiries-heading" aria-label="Unconverted enquiries">
   <div>
     <h2>Unconverted Enquiries</h2>
-    <p>Existing single-bike enquiries retained safely while they are progressively moved into Deal 360.</p>
+    <p>Single-bike enquiries stay here until staff choose <strong>Start Deal</strong>. Once started, the enquiry is retained for history and the transaction moves into the Deal Queue / Deal 360.</p>
   </div>
 </section>
 <div id="enquiries"></div>
@@ -8534,6 +8581,167 @@ function renderAdminDealQueue(){
 }
 
 /* ======================================================
+   START DEAL BRIDGE — ENQUIRY -> DEAL 360
+   This does not create, move, update or delete Message Centre messages.
+====================================================== */
+const startDealFromEnquiryBusy = new Set();
+
+function getDealQueueRecordById(dealId){
+  const id = String(dealId || "");
+  if(!id){ return null; }
+
+  return (adminDealQueue || []).find(function(deal){
+    return String(deal.deal_id || "") === id;
+  }) || null;
+}
+
+function getConvertedDealLabel(enquiry){
+  if(!enquiry || !enquiry.converted_deal_id){ return ""; }
+
+  const deal = getDealQueueRecordById(enquiry.converted_deal_id);
+
+  return deal && deal.deal_number
+    ? String(deal.deal_number)
+    : "Deal #" + String(enquiry.converted_deal_id);
+}
+
+function openConvertedEnquiryDeal(dealId){
+  const id = String(dealId || "");
+  if(!id){ return; }
+
+  const row = document.getElementById("anybike-deal-" + id);
+
+  if(!row){
+    alert("The Deal exists but is not currently visible in the Deal Queue. Clear the Deal Queue filters and try again.");
+    return;
+  }
+
+  document.querySelectorAll(".anybike-deal-record.open").forEach(function(item){
+    if(item !== row){ item.classList.remove("open"); }
+  });
+
+  row.classList.add("open");
+  openAnyBikeDealId = id;
+
+  row.scrollIntoView({
+    behavior:"smooth",
+    block:"center"
+  });
+}
+
+async function startDealFromEnquiry(enquiryId){
+  const id = Number(enquiryId);
+
+  if(!Number.isFinite(id) || startDealFromEnquiryBusy.has(String(id))){
+    return;
+  }
+
+  const enquiry = (allEnquiries || []).find(function(row){
+    return Number(row.id) === id;
+  });
+
+  if(!enquiry){
+    alert("This enquiry could not be found in the current Bike Sales queue.");
+    return;
+  }
+
+  if(enquiry.converted_deal_id){
+    openConvertedEnquiryDeal(enquiry.converted_deal_id);
+    return;
+  }
+
+  const bike = enquiry.available_stock || {};
+  const motorcycle = [
+    bike.year,
+    bike.make,
+    bike.model,
+    bike.variant
+  ].filter(Boolean).join(" ") || "this motorcycle";
+
+  const customer = enquiry.customer_name || enquiry.customer_email || "this customer";
+  const leadStage = String(enquiry.lead_status || enquiry.status || "New Lead");
+
+  const confirmed = window.confirm(
+    "Start Deal 360?\n\n" +
+    "Customer: " + customer + "\n" +
+    "Motorcycle: " + motorcycle + "\n" +
+    "Current lead stage: " + leadStage + "\n\n" +
+    "This will create a Deal 360 record and link the existing enquiry and Message Centre thread to it.\n\n" +
+    "It will NOT secure the motorcycle, accept an offer, take payment, or send a message."
+  );
+
+  if(!confirmed){
+    return;
+  }
+
+  startDealFromEnquiryBusy.add(String(id));
+
+  document.querySelectorAll(
+    '[data-start-deal-enquiry="' + String(id) + '"]'
+  ).forEach(function(button){
+    button.disabled = true;
+    button.textContent = "Starting Deal...";
+  });
+
+  try{
+    const result = await sb.rpc(
+      "admin_start_deal_from_enquiry_v1",
+      { p_enquiry_id:id }
+    );
+
+    if(result.error){
+      throw result.error;
+    }
+
+    const payload = result.data || {};
+    const dealId = Number(payload.deal_id);
+
+    if(!Number.isFinite(dealId)){
+      throw new Error("Start Deal completed without returning a Deal ID.");
+    }
+
+    await loadEnquiries();
+
+    const deal = getDealQueueRecordById(dealId);
+    const dealNumber =
+      payload.deal_number ||
+      (deal && deal.deal_number) ||
+      ("Deal #" + String(dealId));
+
+    alert(
+      dealNumber + " is now in Deal 360.\n\n" +
+      "Stage: " + (payload.deal_stage || leadStage) + "\n" +
+      "Motorcycle secured: NO\n" +
+      "Original enquiry: RETAINED\n" +
+      "Message Centre conversation: PRESERVED"
+    );
+
+    setTimeout(function(){
+      openConvertedEnquiryDeal(dealId);
+    },250);
+
+  }catch(error){
+    console.error("Start Deal from enquiry failed:", error);
+
+    alert(
+      "Deal 360 could not be started.\n\n" +
+      (error && error.message ? error.message : "Unknown error")
+    );
+
+  }finally{
+    startDealFromEnquiryBusy.delete(String(id));
+
+    document.querySelectorAll(
+      '[data-start-deal-enquiry="' + String(id) + '"]'
+    ).forEach(function(button){
+      button.disabled = false;
+      button.textContent = "Start Deal";
+    });
+  }
+}
+
+
+/* ======================================================
    DATA LOADING — MESSAGES AND ENQUIRIES
 ====================================================== */
 async function loadLatestMessages(){
@@ -8621,7 +8829,16 @@ async function loadEnquiries(){
   }
 
 const fullData = data || [];
-allEnquiries = fullData;
+
+/*
+  Only enquiries that have NOT been moved into Deal 360 remain in the
+  legacy/unconverted enquiry queue. Converted enquiries stay in the database
+  for audit/history and are shown through the Deal Queue instead.
+*/
+allEnquiries = fullData.filter(function(row){
+  return !row.converted_deal_id;
+});
+
 await loadLatestMessages();
 
 populateDealFilterOptions();
@@ -8632,7 +8849,7 @@ if(typeof loadSharedAdminNotifications === "function"){
   loadSharedAdminNotifications();
 }
   
-let visibleData = fullData.slice();
+let visibleData = allEnquiries.slice();
 
 const requestedOpenEnquiryId = getOpenEnquiryIdFromUrl();
 
@@ -9055,6 +9272,13 @@ const shippingBadge = dealStatus === "Shipping" ? "In Progress" : "Not Started";
         ${workflowLabel === "No active workflow" ? "No workflow" : escapeAdminHtml(workflowLabel)}
         <strong>${queueWorkflow}</strong>
         <div class="queue-sub">${queueUpdated}</div>
+        <button
+          type="button"
+          class="start-deal-queue-btn"
+          data-start-deal-enquiry="${r.id}"
+          onclick="event.stopPropagation();startDealFromEnquiry(${r.id});return false;">
+          Start Deal
+        </button>
       </div>
     </div>
 
@@ -9082,6 +9306,13 @@ const shippingBadge = dealStatus === "Shipping" ? "In Progress" : "Not Started";
 
       <div class="deal360-hero-actions">
         <span class="badge status-pill">${dealStatus}</span>
+        <button
+          type="button"
+          class="start-deal-hero-btn"
+          data-start-deal-enquiry="${r.id}"
+          onclick="startDealFromEnquiry(${r.id});return false;">
+          Start Deal
+        </button>
         <button type="button" class="close-enquiry-btn" onclick="toggleEnquiry(${r.id});return false;">
           ▲ Close
         </button>
