@@ -91,6 +91,30 @@ main{width:min(1420px,94vw);margin:28px auto 70px}
 .document-desc{color:#aaa;font-size:12px;line-height:1.45;margin-top:8px}
 .section-anchor{scroll-margin-top:120px}
 
+
+.auto-allocation-label{
+  min-height:42px;
+  min-width:180px;
+  padding:7px 10px;
+  border:1px solid rgba(54,211,126,.28);
+  border-radius:9px;
+  background:rgba(54,211,126,.07);
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+}
+.auto-allocation-label strong{
+  color:#9fffc3;
+  font-size:11px;
+  line-height:1.15;
+}
+.auto-allocation-label small{
+  color:#aaa;
+  font-size:9px;
+  line-height:1.25;
+  margin-top:3px;
+}
+
 @media(max-width:1000px){.document-grid{grid-template-columns:1fr}.summary-grid{grid-template-columns:repeat(2,1fr)}.invoice-grid{grid-template-columns:1fr}.payment-select{grid-template-columns:auto 1fr 120px}}
 @media(max-width:700px){main{width:min(96vw,1420px)}.hero h1{font-size:30px}.summary-grid{grid-template-columns:1fr}.panel-head{flex-direction:column}.invoice-summary,.invoice-meta,.report-grid{grid-template-columns:1fr}.payment-select{grid-template-columns:auto 1fr}.payment-select input[type="number"],.payment-select select{grid-column:2}.report-total{align-items:flex-start;flex-direction:column}}
 </style>
@@ -263,7 +287,7 @@ function renderInvoices(){
     return;
   }
   box.innerHTML=`<div class="invoice-grid">${accountInvoices.map(invoiceCard).join("")}</div>`;
-  document.querySelectorAll(".pay-select,.pay-amount,.pay-purpose").forEach(el=>el.addEventListener("change",updatePaymentSelection));
+  document.querySelectorAll(".pay-select,.pay-amount").forEach(el=>el.addEventListener("change",updatePaymentSelection));
 }
 
 function invoiceCard(invoice){
@@ -275,7 +299,7 @@ function invoiceCard(invoice){
     <input class="pay-select" id="pay-select-${Number(invoice.invoice_id)}" data-invoice-id="${Number(invoice.invoice_id)}" type="checkbox">
     <label for="pay-select-${Number(invoice.invoice_id)}">Allocate this bank transfer here<small>Current balance ${money(invoice.balance_due_gbp)}</small></label>
     <input class="pay-amount" id="pay-amount-${Number(invoice.invoice_id)}" data-invoice-id="${Number(invoice.invoice_id)}" type="number" min="0.01" step="0.01" max="${Number(invoice.balance_due_gbp||0).toFixed(2)}" value="${Number(invoice.balance_due_gbp||0).toFixed(2)}">
-    <select class="pay-purpose" id="pay-purpose-${Number(invoice.invoice_id)}" data-invoice-id="${Number(invoice.invoice_id)}"><option value="Deposit">Deposit</option><option value="Balance">Balance</option><option value="Full Payment">Full Payment</option><option value="General Payment">General Payment</option></select>
+    <div class="auto-allocation-label"><strong>Automatic allocation</strong><small>AnyBike will apply this to the correct Deal and payment stage.</small></div>
   </div>`:`<div class="notice-box" style="margin:12px 0 0">${Number(invoice.balance_due_gbp||0)<=0?"This document has no customer balance remaining.":"This document is not currently open for payment advice."}</div>`;
   return `<article class="invoice-card">
     <div class="invoice-head"><div><span>${safe(invoice.invoice_type||"Document")}</span><strong>${safe(label)}</strong></div><div class="status-pill ${statusClass(invoice.invoice_status)}">${safe(invoice.invoice_status||"")}</div></div>
@@ -305,8 +329,7 @@ function selectedAllocations(){
     const checked=document.getElementById("pay-select-"+id)?.checked;
     if(!checked)return;
     const amount=Number(document.getElementById("pay-amount-"+id)?.value||0);
-    const purpose=document.getElementById("pay-purpose-"+id)?.value||"General Payment";
-    allocations.push({invoice_id:id,amount_gbp:amount,purpose});
+    allocations.push({invoice_id:id,amount_gbp:amount});
   });
   return allocations;
 }
@@ -334,7 +357,7 @@ async function submitPaymentAdvice(){
   const bankReference=document.getElementById("bankReference").value.trim();
   const notes=document.getElementById("customerNotes").value.trim();
   if(!paymentDate){alert("Enter the date you made the bank transfer.");return;}
-  if(!confirm("Report "+money(total)+" bank transfer to AnyBike?\n\nAnyBike will still verify that the money arrived before your account balance changes."))return;
+  if(!confirm("Report "+money(total)+" bank transfer to AnyBike?\n\nAnyBike will automatically apply it to the correct underlying Deal and payment stage.\n\nThe money will still be verified by AnyBike before your account balance changes."))return;
   submitBusy=true;updatePaymentSelection();
   try{
     const result=await sb.rpc("customer_submit_payment_advice",{
