@@ -4380,6 +4380,7 @@ input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-in
   <button type="button" onclick="filterEnquiries('waitingCustomer')"><span>Waiting</span><strong id="queueCountWaitingCustomer">0</strong></button>
   <button type="button" onclick="filterEnquiries('confirmed')"><span>Confirmed</span><strong id="queueCountConfirmed">0</strong></button>
   <button type="button" onclick="filterEnquiries('payment')"><span>Payment</span><strong id="queueCountPayment">0</strong></button>
+  <button type="button" onclick="filterEnquiries('invoiceDocuments')"><span>Invoice / Docs</span><strong id="queueCountInvoiceDocuments">0</strong></button>
   <button type="button" onclick="filterEnquiries('operations')"><span>Operations</span><strong id="queueCountOperations">0</strong></button>
   <button type="button" onclick="filterEnquiries('shipping')"><span>Shipping</span><strong id="queueCountShipping">0</strong></button>
   <button type="button" onclick="filterEnquiries('completed')"><span>Completed</span><strong id="queueCountCompleted">0</strong></button>
@@ -5763,7 +5764,7 @@ function updateBikeSalesOverview(){
 
   const dealStageCount = function(stage){
     return adminDealQueue.filter(function(item){
-      return String(item.deal_stage || "Confirmed").trim() === stage;
+      return anyBikeEffectiveDealStage(item) === stage;
     }).length;
   };
 
@@ -5778,6 +5779,7 @@ function updateBikeSalesOverview(){
     queueCountWaitingCustomer: dealStageCount("Waiting Customer"),
     queueCountConfirmed: dealStageCount("Confirmed"),
     queueCountPayment: dealStageCount("Payment / Deposit"),
+    queueCountInvoiceDocuments: dealStageCount("Invoice / Documents"),
     queueCountOperations: dealStageCount("Operations"),
     queueCountShipping: dealStageCount("Shipping"),
     queueCountCompleted: dealStageCount("Completed"),
@@ -5824,6 +5826,7 @@ function filterEnquiries(type, preservePage){
     waitingCustomer: "Waiting Customer",
     confirmed: "Confirmed",
     payment: "Payment / Deposit",
+    invoiceDocuments: "Invoice / Documents",
     operations: "Operations",
     shipping: "Shipping",
     completed: "Completed",
@@ -7464,6 +7467,49 @@ function anyBikeDealVatSummaryForBike(bike){
   return bike.vat_status || "Unknown / Check Required";
 }
 
+function anyBikeEffectiveDealStage(deal){
+  const storedStage = String((deal && deal.deal_stage) || "Confirmed").trim() || "Confirmed";
+  const laterStages = new Set([
+    "Invoice / Documents",
+    "Operations",
+    "Shipping",
+    "Completed",
+    "Save For Later",
+    "Lost",
+    "Closed"
+  ]);
+
+  if(laterStages.has(storedStage)){
+    return storedStage;
+  }
+
+  const dealId = String((deal && deal.deal_id) || "");
+  if(!dealId){
+    return storedStage;
+  }
+
+  const financialRows = adminDealFinancialStatus.filter(function(row){
+    return String(row.deal_id) === dealId;
+  });
+
+  if(!financialRows.length){
+    return storedStage;
+  }
+
+  const financiallyComplete = financialRows.every(function(row){
+    const customerPaid = row.customer_paid_in_full === true || Number(row.customer_balance_due_gbp || 0) <= 0.009;
+    const supplierPaid = row.supplier_paid_in_full === true || Number(row.supplier_balance_due_gbp || 0) <= 0.009;
+    const secured = row.motorcycle_secured === true;
+    return customerPaid && supplierPaid && secured;
+  });
+
+  if(financiallyComplete){
+    return "Invoice / Documents";
+  }
+
+  return storedStage;
+}
+
 function renderAdminDealQueue(){
   const box = document.getElementById("anybikeDeals");
   if(!box){ return; }
@@ -7494,7 +7540,7 @@ function renderAdminDealQueue(){
   let visibleAdminDeals = adminDealQueue.slice();
   if(currentFilter && currentFilter !== "all" && dealStageMap[currentFilter]){
     visibleAdminDeals = visibleAdminDeals.filter(function(deal){
-      return String(deal.deal_stage || "Confirmed").trim() === dealStageMap[currentFilter];
+      return anyBikeEffectiveDealStage(deal) === dealStageMap[currentFilter];
     });
   }
 
@@ -7521,7 +7567,7 @@ function renderAdminDealQueue(){
     const contactName = escapeAdminHtml(deal.buyer_contact_name || "");
     const email = escapeAdminHtml(deal.buyer_email || "");
     const country = escapeAdminHtml(deal.buyer_country || "-");
-    const stage = escapeAdminHtml(deal.deal_stage || "Confirmed");
+    const stage = escapeAdminHtml(anyBikeEffectiveDealStage(deal));
     const status = escapeAdminHtml(deal.deal_status || "Active");
     const motorcycleCount = Number(deal.motorcycle_count || 0);
     const securedCount = Number(deal.secured_count || 0);
