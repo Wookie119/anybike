@@ -9618,7 +9618,7 @@ function showOnlySelectedBuyerDeals(){
     return;
   }
 
-  const buyerKey=anyBikeCombinedSelectionCustomerKey(selected[0]);
+  const buyerKey=anyBikeDealBuyerFilterKey(selected[0]);
   if(!buyerKey){
     alert("The selected Deal does not have a customer account.");
     return;
@@ -9636,6 +9636,26 @@ function anyBikeCombinedSelectionDeals(){
 
 function anyBikeCombinedSelectionCustomerKey(deal){
   return String(deal.customer_id || deal.buyer_id || "");
+}
+
+function anyBikeDealBuyerFilterKey(deal){
+  if(!deal){ return ""; }
+
+  if(deal.buyer_id !== null && deal.buyer_id !== undefined && String(deal.buyer_id) !== ""){
+    return "buyer:" + String(deal.buyer_id);
+  }
+
+  if(deal.customer_id !== null && deal.customer_id !== undefined && String(deal.customer_id) !== ""){
+    return "customer:" + String(deal.customer_id);
+  }
+
+  const fallback = [
+    deal.buyer_business_name,
+    deal.buyer_contact_name,
+    deal.buyer_email
+  ].filter(Boolean).join("|").trim().toLowerCase();
+
+  return fallback ? "display:" + fallback : "";
 }
 
 function toggleCombinedProformaDeal(dealId, checkbox){
@@ -9801,7 +9821,7 @@ function renderAdminDealQueue(){
   ){
     visibleAdminDeals=visibleAdminDeals.filter(function(deal){
       const dealId=String(deal.deal_id || "");
-      const buyerKey=anyBikeCombinedSelectionCustomerKey(deal);
+      const buyerKey=anyBikeDealBuyerFilterKey(deal);
       const sellers=anyBikeDealSellerNames(dealId).map(function(name){ return name.toLowerCase(); });
       const bikes=adminDealMotorcycles.filter(function(bike){ return String(bike.deal_id || "")===dealId; });
       const motorcycleText=bikes.map(function(bike){
@@ -10033,7 +10053,7 @@ function renderAdminDealQueue(){
   const buyerOptions=[];
   const buyerSeen=new Set();
   adminDealQueue.forEach(function(deal){
-    const key=anyBikeCombinedSelectionCustomerKey(deal);
+    const key=anyBikeDealBuyerFilterKey(deal);
     if(!key || buyerSeen.has(key)){ return; }
     buyerSeen.add(key);
     buyerOptions.push({
