@@ -7423,6 +7423,8 @@ function renderAnyBikeDealInvoiceDocuments(deal){
       return `<div class="anybike-invoice-line"><div><strong>${escapeAdminHtml(line.description||line.line_type||"Line")}</strong><small>${escapeAdminHtml(line.line_type||"")}</small></div><span>${anyBikeDealMoney(line.line_total_gbp)}</span></div>`;
     }).join("") : '<div class="anybike-invoice-empty">No invoice lines available.</div>';
 
+    const invoiceId=Number(invoice.invoice_id ?? invoice.id);
+
     return `<div class="anybike-invoice-card">
       <div class="anybike-invoice-card-head">
         <div><span>${escapeAdminHtml(invoice.invoice_type||"Document")}</span><strong>${escapeAdminHtml(label)}</strong></div>
@@ -7436,8 +7438,8 @@ function renderAnyBikeDealInvoiceDocuments(deal){
       </div>
       ${String(invoice.invoice_type||"")==="Proforma" ? '<div class="anybike-invoice-warning"><strong>PROFORMA INVOICE</strong><span>NOT A VAT INVOICE · No VAT breakdown is shown.</span></div>' : ''}
       <div class="anybike-invoice-lines">${lineHtml}</div>
-      ${String(invoice.invoice_type||"")==="Proforma" && status==="Draft" ? `<div class="anybike-invoice-card-actions"><button type="button" ${dealProformaIssueBusy.has(String(invoice.id)) ? "disabled" : ""} onclick="issueDealProforma(${Number(invoice.id)},${Number(deal.deal_id)});return false;">${dealProformaIssueBusy.has(String(invoice.id)) ? "Issuing Proforma..." : "Issue Proforma"}</button></div>` : ''}
-      ${String(invoice.invoice_type||"")==="Proforma" && status==="Issued" ? `<div class="anybike-invoice-card-actions"><a class="anybike-invoice-view-btn" href="proforma.html?invoice=${encodeURIComponent(invoice.id)}" target="_blank" rel="noopener">View Proforma</a></div>` : ''}
+      ${String(invoice.invoice_type||"")==="Proforma" && status==="Draft" && Number.isFinite(invoiceId) ? `<div class="anybike-invoice-card-actions"><button type="button" ${dealProformaIssueBusy.has(String(invoiceId)) ? "disabled" : ""} onclick="issueDealProforma(${invoiceId},${Number(deal.deal_id)});return false;">${dealProformaIssueBusy.has(String(invoiceId)) ? "Issuing Proforma..." : "Issue Proforma"}</button></div>` : ''}
+      ${String(invoice.invoice_type||"")==="Proforma" && status==="Issued" && Number.isFinite(invoiceId) ? `<div class="anybike-invoice-card-actions"><a class="anybike-invoice-view-btn" href="proforma.html?invoice=${encodeURIComponent(invoiceId)}" target="_blank" rel="noopener">View Proforma</a></div>` : ''}
     </div>`;
   }).join("") : `<div class="anybike-invoice-empty-state"><strong>No invoice documents created yet.</strong><span>A Draft Proforma can be created as soon as the customer has accepted the formal AnyBike offer. Payment and motorcycle security remain separate stages.</span></div>`;
 
@@ -7521,7 +7523,7 @@ async function issueDealProforma(invoiceId,dealId){
   const deal=Number(dealId);
   if(!Number.isFinite(invoice) || dealProformaIssueBusy.has(String(invoice))){ return; }
 
-  const record=(adminDealInvoices.get(String(deal))||[]).find(function(item){ return Number(item.id)===invoice; });
+  const record=(adminDealInvoices.get(String(deal))||[]).find(function(item){ return Number(item.invoice_id ?? item.id)===invoice; });
   if(!record){ alert("Draft Proforma could not be found."); return; }
   if(String(record.invoice_type||"")!=="Proforma" || String(record.invoice_status||"")!=="Draft"){
     alert("Only a Draft Proforma can be issued.");
