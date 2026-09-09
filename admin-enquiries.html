@@ -4227,6 +4227,11 @@ input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-in
 .anybike-invoice-preview-btn{background:#151515!important;border:1px solid #ed1c24!important;color:#fff!important}
 .anybike-invoice-preview-btn:hover{background:#251014!important}
 </style>
+<style id="anybike-combined-invoice-link-css">
+.anybike-invoice-combined-note{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:10px 0;padding:9px 11px;border:1px solid rgba(237,28,36,.35);border-radius:8px;background:rgba(237,28,36,.07)}
+.anybike-invoice-combined-note strong{color:#ff6066;font-size:11px;letter-spacing:.04em}
+.anybike-invoice-combined-note span{color:#cbd3dc;font-size:11px;text-align:right}
+</style>
 </head>
 
 <body>
@@ -6259,7 +6264,7 @@ async function loadAdminDealQueue(){
     if(!Number.isFinite(dealId)){ return; }
 
     try{
-      const result = await sb.rpc("admin_get_deal_invoices", { p_deal_id:dealId });
+      const result = await sb.rpc("admin_get_deal_invoices_v2", { p_deal_id:dealId });
       if(result.error){ throw result.error; }
       const invoices = Array.isArray(result.data) ? result.data : [];
 
@@ -7471,53 +7476,163 @@ function renderAnyBikeDealInvoiceDocuments(deal){
     });
   const dealClosed=["Cancelled","Closed"].includes(String(deal.deal_status||deal.status||"").trim());
   const canCreate=hasAcceptedMotorcycle && !dealClosed;
-  const proformas=invoices.filter(function(invoice){ return String(invoice.invoice_type||"")==="Proforma"; });
-  const latestProforma=proformas.length ? proformas[0] : null;
+
+  const singleDealProformas=invoices.filter(function(invoice){
+    return String(invoice.invoice_type||"")==="Proforma" && !invoice.is_combined;
+  });
+  const latestSingleProforma=singleDealProformas.length ? singleDealProformas[0] : null;
+
   const badgeText=invoices.length ? (invoices.length + " Document" + (invoices.length===1?"":"s")) : "Not Started";
 
   const invoiceCards=invoices.length ? invoices.map(function(invoice){
     const lines=Array.isArray(invoice.lines) ? invoice.lines : [];
     const status=String(invoice.invoice_status||"Draft");
     const statusClass=anyBikeInvoiceStatusClass(status);
-    const label=invoice.invoice_number || (String(invoice.invoice_type||"Document") + " v" + Number(invoice.version_number||1));
+    const invoiceId=Number(invoice.invoice_id ?? invoice.id);
+    const combined=!!invoice.is_combined || Number(invoice.linked_deal_count||0)>1;
+    const linkedDealCount=Number(invoice.linked_deal_count||1);
+    const linkedDealIds=Array.isArray(invoice.linked_deal_ids) ? invoice.linked_deal_ids.map(Number).filter(Number.isFinite) : [];
+    const linkedDealNumbers=Array.isArray(invoice.linked_deal_numbers) ? invoice.linked_deal_numbers : [];
+
+    const label=invoice.invoice_number ||
+      (combined
+        ? ("Combined Proforma v" + Number(invoice.version_number||1))
+        : (String(invoice.invoice_type||"Document") + " v" + Number(invoice.version_number||1)));
+
     const lineHtml=lines.length ? lines.map(function(line){
-      return `<div class="anybike-invoice-line"><div><strong>${escapeAdminHtml(line.description||line.line_type||"Line")}</strong><small>${escapeAdminHtml(line.line_type||"")}</small></div><span>${anyBikeDealMoney(line.line_total_gbp)}</span></div>`;
+      const lineDealId=String(line.deal_id||"");
+      const lineDeal=adminDealQueue.find(function(row){ return String(row.deal_id||"")===lineDealId; });
+      const lineDealNumber=lineDeal ? (lineDeal.deal_number||("Deal #"+lineDealId)) : "";
+      return `<div class="anybike-invoice-line">
+        <div>
+          <strong>${escapeAdminHtml(line.description||line.line_type||"Line")}</strong>
+          <small>${combined && lineDealNumber ? escapeAdminHtml(lineDealNumber+" · "+(line.line_type||"Line")) : escapeAdminHtml(line.line_type||"")}</small>
+        </div>
+        <span>${anyBikeDealMoney(line.line_total_gbp)}</span>
+      </div>`;
     }).join("") : '<div class="anybike-invoice-empty">No invoice lines available.</div>';
 
-    const invoiceId=Number(invoice.invoice_id ?? invoice.id);
+    const thisDealAmount=Number(invoice.linked_deal_amount_gbp||0);
+    const otherDealsAmount=Number(invoice.other_deals_amount_gbp||0);
+
+    const summaryGrid=combined
+      ? `<div class="anybike-invoice-summary-grid">
+          <div><span>This Deal</span><strong>${anyBikeDealMoney(thisDealAmount)}</strong></div>
+          <div><span>Other Deals</span><strong>${anyBikeDealMoney(otherDealsAmount)}</strong></div>
+          <div><span>Proforma Total</span><strong>${anyBikeDealMoney(invoice.total_gbp)}</strong></div>
+          <div><span>${status==="Issued" ? "Issued" : "Updated"}</span><strong>${escapeAdminHtml(anyBikeInvoiceDate(status==="Issued" ? invoice.issued_at : invoice.updated_at))}</strong></div>
+        </div>`
+      : `<div class="anybike-invoice-summary-grid">
+          <div><span>Subtotal</span><strong>${anyBikeDealMoney(invoice.subtotal_gbp)}</strong></div>
+          <div><span>Delivery</span><strong>${anyBikeDealMoney(invoice.delivery_total_gbp)}</strong></div>
+          <div><span>Total</span><strong>${anyBikeDealMoney(invoice.total_gbp)}</strong></div>
+          <div><span>${status==="Issued" ? "Issued" : "Updated"}</span><strong>${escapeAdminHtml(anyBikeInvoiceDate(status==="Issued" ? invoice.issued_at : invoice.updated_at))}</strong></div>
+        </div>`;
+
+    const combinedNote=combined
+      ? `<div class="anybike-invoice-combined-note"><strong>COMBINED · ${linkedDealCount} DEALS</strong><span>${escapeAdminHtml(linkedDealNumbers.join(" · "))}</span></div>`
+      : "";
+
+    const draftActions =
+      String(invoice.invoice_type||"")==="Proforma" && status==="Draft" && Number.isFinite(invoiceId)
+      ? `<div class="anybike-invoice-card-actions">
+          ${combined
+            ? `<button type="button" class="anybike-invoice-secondary-btn" ${combinedProformaBusy ? "disabled" : ""} onclick="refreshCombinedProformaInvoice(${invoiceId});return false;">${combinedProformaBusy ? "Refreshing..." : "Refresh Combined Draft"}</button>`
+            : `<button type="button" class="anybike-invoice-secondary-btn" ${dealProformaBusy.has(String(deal.deal_id)) ? "disabled" : ""} onclick="createOrRefreshDealProforma(${Number(deal.deal_id)});return false;">${dealProformaBusy.has(String(deal.deal_id)) ? "Refreshing Draft..." : "Refresh Draft"}</button>`}
+          <a class="anybike-invoice-view-btn anybike-invoice-preview-btn" href="proforma.html?invoice=${encodeURIComponent(invoiceId)}&preview=1&cb=${Date.now()}" target="anybike-proforma-preview-${invoiceId}" rel="noopener">Preview Proforma</a>
+          <button type="button" ${dealProformaIssueBusy.has(String(invoiceId)) ? "disabled" : ""} onclick="issueDealProforma(${invoiceId},${Number(deal.deal_id)});return false;">${dealProformaIssueBusy.has(String(invoiceId)) ? "Issuing Proforma..." : "Issue Proforma"}</button>
+        </div>`
+      : "";
+
+    const issuedActions =
+      String(invoice.invoice_type||"")==="Proforma" && status==="Issued" && Number.isFinite(invoiceId)
+      ? `<div class="anybike-invoice-card-actions"><a class="anybike-invoice-view-btn" href="proforma.html?invoice=${encodeURIComponent(invoiceId)}&doc=${encodeURIComponent(label)}&cb=${Date.now()}" target="anybike-proforma-${invoiceId}" rel="noopener">View Proforma</a></div>`
+      : "";
 
     return `<div class="anybike-invoice-card">
       <div class="anybike-invoice-card-head">
-        <div><span>${escapeAdminHtml(invoice.invoice_type||"Document")}</span><strong>${escapeAdminHtml(label)}</strong></div>
+        <div><span>${escapeAdminHtml(combined ? "Combined Proforma" : (invoice.invoice_type||"Document"))}</span><strong>${escapeAdminHtml(label)}</strong></div>
         <span class="anybike-invoice-status ${statusClass}">${escapeAdminHtml(status)}</span>
       </div>
-      <div class="anybike-invoice-summary-grid">
-        <div><span>Subtotal</span><strong>${anyBikeDealMoney(invoice.subtotal_gbp)}</strong></div>
-        <div><span>Delivery</span><strong>${anyBikeDealMoney(invoice.delivery_total_gbp)}</strong></div>
-        <div><span>Total</span><strong>${anyBikeDealMoney(invoice.total_gbp)}</strong></div>
-        <div><span>${status==="Issued" ? "Issued" : "Updated"}</span><strong>${escapeAdminHtml(anyBikeInvoiceDate(status==="Issued" ? invoice.issued_at : invoice.updated_at))}</strong></div>
-      </div>
+      ${combinedNote}
+      ${summaryGrid}
       ${String(invoice.invoice_type||"")==="Proforma" ? '<div class="anybike-invoice-warning"><strong>PROFORMA INVOICE</strong><span>NOT A VAT INVOICE · No VAT breakdown is shown.</span></div>' : ''}
       <div class="anybike-invoice-lines">${lineHtml}</div>
-      ${String(invoice.invoice_type||"")==="Proforma" && status==="Draft" && Number.isFinite(invoiceId) ? `<div class="anybike-invoice-card-actions"><button type="button" class="anybike-invoice-secondary-btn" ${dealProformaBusy.has(String(deal.deal_id)) ? "disabled" : ""} onclick="createOrRefreshDealProforma(${Number(deal.deal_id)});return false;">${dealProformaBusy.has(String(deal.deal_id)) ? "Refreshing Draft..." : "Refresh Draft"}</button><a class="anybike-invoice-view-btn anybike-invoice-preview-btn" href="proforma.html?invoice=${encodeURIComponent(invoiceId)}&preview=1&cb=${Date.now()}" target="anybike-proforma-preview-${invoiceId}" rel="noopener">Preview Proforma</a><button type="button" ${dealProformaIssueBusy.has(String(invoiceId)) ? "disabled" : ""} onclick="issueDealProforma(${invoiceId},${Number(deal.deal_id)});return false;">${dealProformaIssueBusy.has(String(invoiceId)) ? "Issuing Proforma..." : "Issue Proforma"}</button></div>` : ''}
-      ${String(invoice.invoice_type||"")==="Proforma" && status==="Issued" && Number.isFinite(invoiceId) ? `<div class="anybike-invoice-card-actions"><a class="anybike-invoice-view-btn" href="proforma.html?invoice=${encodeURIComponent(invoiceId)}&doc=${encodeURIComponent(label)}&cb=${Date.now()}" target="anybike-proforma-${invoiceId}" rel="noopener">View Proforma</a></div>` : ''}
+      ${draftActions}
+      ${issuedActions}
     </div>`;
   }).join("") : `<div class="anybike-invoice-empty-state"><strong>No invoice documents created yet.</strong><span>A Draft Proforma can be created as soon as the customer has accepted the formal AnyBike offer. Payment and motorcycle security remain separate stages.</span></div>`;
 
-  const buttonText=busy ? "Creating Draft Proforma..." : (latestProforma && String(latestProforma.invoice_status||"")==="Draft" ? "Refresh Draft Proforma" : "Create Draft Proforma");
+  const buttonText=busy ? "Creating Draft Proforma..." : (latestSingleProforma && String(latestSingleProforma.invoice_status||"")==="Draft" ? "Refresh Draft Proforma" : "Create Draft Proforma");
 
   return `<div class="anybike-invoice-panel">
     <div class="anybike-invoice-head">
-      <div><span>Invoice / Documents</span><h4>${escapeAdminHtml(deal.deal_number||("Deal #"+dealId))}</h4><p>Accounting documents are tied to Deal 360. Draft Proformas can be refreshed; issued documents will not be silently overwritten.</p></div>
+      <div><span>Invoice / Documents</span><h4>${escapeAdminHtml(deal.deal_number||("Deal #"+dealId))}</h4><p>Single and Combined Proformas linked to this Deal are shown here. Combined document totals are separated from this Deal's own share.</p></div>
       <div class="anybike-invoice-badge">${escapeAdminHtml(badgeText)}</div>
     </div>
     <div class="anybike-invoice-rule"><strong>PROFORMA RULE</strong><span>A Proforma is not a VAT invoice and does not show a VAT breakdown. VAT verification remains separate until the Final Invoice stage.</span></div>
     ${invoiceCards}
     <div class="anybike-invoice-actions">
-      <div>${canCreate ? "Customer offer accepted. A Proforma can be created before deposit or balance payment; issuing a Proforma does not secure the motorcycle." : "A Proforma becomes available once the customer has accepted the formal AnyBike offer."}</div>
-      ${!latestProforma ? `<button type="button" ${busy||!canCreate ? "disabled" : ""} onclick="createOrRefreshDealProforma(${Number(deal.deal_id)});return false;">${escapeAdminHtml(buttonText)}</button>` : (latestProforma && String(latestProforma.invoice_status||"")==="Issued" ? `<button type="button" class="anybike-invoice-secondary-btn" ${busy||!canCreate ? "disabled" : ""} onclick="createOrRefreshDealProforma(${Number(deal.deal_id)});return false;">${busy ? "Creating New Draft..." : "Create New Draft Version"}</button>` : '')}
+      <div>${canCreate ? "Customer offer accepted. A single-Deal Proforma can still be created independently; Combined Proformas remain linked across all included Deals." : "A Proforma becomes available once the customer has accepted the formal AnyBike offer."}</div>
+      ${!latestSingleProforma ? `<button type="button" ${busy||!canCreate ? "disabled" : ""} onclick="createOrRefreshDealProforma(${Number(deal.deal_id)});return false;">${escapeAdminHtml(buttonText)}</button>` : (latestSingleProforma && String(latestSingleProforma.invoice_status||"")==="Issued" ? `<button type="button" class="anybike-invoice-secondary-btn" ${busy||!canCreate ? "disabled" : ""} onclick="createOrRefreshDealProforma(${Number(deal.deal_id)});return false;">${busy ? "Creating New Draft..." : "Create New Draft Version"}</button>` : '')}
     </div>
   </div>`;
+}
+
+async function refreshCombinedProformaInvoice(invoiceId){
+  const invoice=Number(invoiceId);
+  if(!Number.isFinite(invoice) || combinedProformaBusy){ return; }
+
+  let record=null;
+  for(const rows of adminDealInvoices.values()){
+    const found=(rows||[]).find(function(item){ return Number(item.invoice_id)===invoice; });
+    if(found){ record=found; break; }
+  }
+
+  if(!record){
+    alert("Combined Draft could not be found.");
+    return;
+  }
+
+  const dealIds=Array.isArray(record.linked_deal_ids)
+    ? record.linked_deal_ids.map(Number).filter(Number.isFinite)
+    : [];
+
+  if(dealIds.length<2){
+    alert("This Combined Draft does not contain enough linked Deals.");
+    return;
+  }
+
+  if(!window.confirm(
+    "Refresh this Combined Draft Proforma?\n\n"+
+    "Deals: "+(Array.isArray(record.linked_deal_numbers)?record.linked_deal_numbers.join(", "):dealIds.join(", "))+
+    "\n\nThe existing Draft is refreshed in place. It does NOT create another version."
+  )){ return; }
+
+  combinedProformaBusy=true;
+  renderAdminDealQueue();
+
+  try{
+    const result=await sb.rpc("admin_create_combined_proforma",{p_deal_ids:dealIds});
+    if(result.error){ throw result.error; }
+
+    const payload=result.data||{};
+    alert(
+      "Combined Draft Proforma refreshed successfully.\n\n"+
+      "Deals: "+(payload.deal_count||dealIds.length)+"\n"+
+      "Total: "+anyBikeDealMoney(payload.total_gbp)+
+      "\nStatus: "+(payload.invoice_status||"Draft")+
+      "\n\nNOT A VAT INVOICE"
+    );
+
+    await loadAdminDealQueue();
+  }catch(error){
+    console.error("Combined Draft could not be refreshed:",error);
+    alert("Combined Draft could not be refreshed.\n\n"+(error && error.message ? error.message : "Unknown error"));
+  }finally{
+    combinedProformaBusy=false;
+    renderAdminDealQueue();
+  }
 }
 
 async function createOrRefreshDealProforma(dealId){
