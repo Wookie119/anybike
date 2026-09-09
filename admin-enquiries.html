@@ -4278,6 +4278,124 @@ input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-in
   line-height:1.4;
 }
 </style>
+
+<style>
+/* =========================================================
+   DEAL 360 PRE-SALE MODE — LEAD / SALES STAGES
+   Added 09 September 2026
+   ========================================================= */
+.anybike-presale-panel{
+  margin:14px 0;
+  border:1px solid #3a3a3a;
+  border-top:3px solid #ed1c24;
+  border-radius:12px;
+  background:#0d0d0d;
+  overflow:hidden;
+}
+.anybike-presale-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:14px;
+  padding:15px 16px;
+  background:linear-gradient(90deg,#171717,#0d0d0d);
+}
+.anybike-presale-head span{
+  display:block;
+  color:#ed1c24;
+  font-size:11px;
+  font-weight:900;
+  letter-spacing:1.2px;
+  text-transform:uppercase;
+}
+.anybike-presale-head h4{
+  margin:4px 0 0;
+  color:#fff;
+  font-size:18px;
+}
+.anybike-presale-stage{
+  padding:7px 11px;
+  border:1px solid #555;
+  border-radius:999px;
+  background:#1b1b1b;
+  color:#fff;
+  font-size:11px;
+  font-weight:900;
+  white-space:nowrap;
+}
+.anybike-presale-grid{
+  display:grid;
+  grid-template-columns:repeat(6,minmax(0,1fr));
+  gap:1px;
+  background:#2a2a2a;
+  border-top:1px solid #2a2a2a;
+}
+.anybike-presale-item{
+  min-height:82px;
+  padding:12px;
+  background:#111;
+}
+.anybike-presale-item span{
+  display:block;
+  color:#8f8f8f;
+  font-size:10px;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+  margin-bottom:7px;
+}
+.anybike-presale-item strong{
+  display:block;
+  color:#fff;
+  font-size:14px;
+  line-height:1.35;
+}
+.anybike-presale-item.next strong{
+  color:#ffcc4d;
+}
+.anybike-presale-footer{
+  padding:12px 16px;
+  border-top:1px solid #2a2a2a;
+  background:#101010;
+  color:#aaa;
+  font-size:11px;
+  line-height:1.45;
+}
+.anybike-presale-locked{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:8px;
+  padding:0 16px 16px;
+  background:#0d0d0d;
+}
+.anybike-presale-lock{
+  padding:11px 12px;
+  border:1px dashed #3c3c3c;
+  border-radius:9px;
+  background:#101010;
+}
+.anybike-presale-lock span{
+  display:block;
+  color:#888;
+  font-size:10px;
+  font-weight:900;
+  text-transform:uppercase;
+  margin-bottom:5px;
+}
+.anybike-presale-lock strong{
+  color:#ccc;
+  font-size:12px;
+}
+@media(max-width:1100px){
+  .anybike-presale-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .anybike-presale-locked{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:650px){
+  .anybike-presale-grid,
+  .anybike-presale-locked{grid-template-columns:1fr}
+  .anybike-presale-head{flex-direction:column}
+}
+</style>
 </head>
 
 <body>
@@ -4865,6 +4983,7 @@ let dealQueueSearchTerm = "";
 let currentDealPage = 1;
 let dealPageSize = 20;
 let currentDealRows = [];
+let allEnquiryRecords = [];
 
 // Genuine AnyBike Deal records (multi-bike capable).
 // These are loaded only through secure admin RPCs.
@@ -6083,13 +6202,144 @@ function anyBikeDealMoney(value){
   });
 }
 
+function anyBikeDealSourceEnquiry(deal){
+  const dealId=String((deal && deal.deal_id) || "");
+  if(!dealId){ return null; }
+
+  return (allEnquiryRecords || []).find(function(enquiry){
+    return String(enquiry.converted_deal_id || "")===dealId;
+  }) || null;
+}
+
 function anyBikeDealBuyerName(deal){
+  const enquiry=anyBikeDealSourceEnquiry(deal);
+
   return (
     deal.buyer_business_name ||
     deal.buyer_contact_name ||
     deal.buyer_email ||
-    (deal.buyer_id ? "Buyer #" + deal.buyer_id : "Buyer")
+    (enquiry && enquiry.customer_name) ||
+    (enquiry && enquiry.customer_email) ||
+    (deal.buyer_id ? "Buyer #" + deal.buyer_id : "Customer")
   );
+}
+
+function anyBikeDealBuyerContactLine(deal){
+  const enquiry=anyBikeDealSourceEnquiry(deal);
+
+  return (
+    deal.buyer_contact_name ||
+    deal.buyer_email ||
+    (enquiry && enquiry.customer_email) ||
+    ""
+  );
+}
+
+function anyBikeDealIsPreSale(deal){
+  const stage=String((deal && deal.deal_stage) || "").trim();
+  const acceptedCount=Number((deal && deal.accepted_count) || 0);
+
+  if(acceptedCount>0){ return false; }
+
+  return [
+    "New Lead",
+    "Contact Made",
+    "Information Needed",
+    "Research / Availability",
+    "Proposal Sent",
+    "Negotiating",
+    "Waiting Customer"
+  ].includes(stage);
+}
+
+function anyBikeDealPreSaleNextAction(deal){
+  const stage=String((deal && deal.deal_stage) || "New Lead").trim();
+
+  const actions={
+    "New Lead":"Contact customer",
+    "Contact Made":"Confirm requirements",
+    "Information Needed":"Obtain missing information",
+    "Research / Availability":"Check motorcycle / seller availability",
+    "Proposal Sent":"Follow up proposal",
+    "Negotiating":"Continue negotiation",
+    "Waiting Customer":"Follow up customer"
+  };
+
+  return actions[stage] || "Progress sale";
+}
+
+function anyBikeDealPendingMoney(value,label){
+  const amount=Number(value || 0);
+  return amount>0.009 ? anyBikeDealMoney(amount) : label;
+}
+
+function renderAnyBikeDealPreSalePanel(deal){
+  const dealId=String(deal.deal_id || "");
+  const buyerName=anyBikeDealBuyerName(deal);
+  const buyerContact=anyBikeDealBuyerContactLine(deal);
+  const stage=String(deal.deal_stage || "New Lead");
+  const bikes=adminDealMotorcycles.filter(function(bike){
+    return String(bike.deal_id || "")===dealId;
+  });
+
+  const firstBike=bikes[0] || {};
+  const title=[firstBike.make,firstBike.model,firstBike.variant].filter(Boolean).join(" ") || deal.deal_title || "Motorcycle";
+
+  const sellerNames=anyBikeDealSellerNames(dealId);
+  const seller=sellerNames.length ? sellerNames.join(", ") : "Not confirmed";
+
+  const salePrice=Number(deal.buyer_value_gbp || firstBike.buyer_price_gbp || 0);
+  const sellerPrice=Number(deal.seller_cost_gbp || firstBike.seller_price_gbp || 0);
+  const secured=Number(deal.secured_count || 0)>0 || !!firstBike.bike_secured;
+  const nextAction=anyBikeDealPreSaleNextAction(deal);
+
+  return `<div class="anybike-presale-panel">
+    <div class="anybike-presale-head">
+      <div>
+        <span>Deal 360 · Lead / Sales Stage</span>
+        <h4>${escapeAdminHtml(title)}</h4>
+      </div>
+      <div class="anybike-presale-stage">${escapeAdminHtml(stage)}</div>
+    </div>
+
+    <div class="anybike-presale-grid">
+      <div class="anybike-presale-item">
+        <span>Customer</span>
+        <strong>${escapeAdminHtml(buyerName)}${buyerContact && buyerContact!==buyerName ? "<br><small>"+escapeAdminHtml(buyerContact)+"</small>" : ""}</strong>
+      </div>
+      <div class="anybike-presale-item">
+        <span>Seller</span>
+        <strong>${escapeAdminHtml(seller)}</strong>
+      </div>
+      <div class="anybike-presale-item">
+        <span>Customer Price</span>
+        <strong>${salePrice>0.009 ? anyBikeDealMoney(salePrice) : "Not agreed"}</strong>
+      </div>
+      <div class="anybike-presale-item">
+        <span>Seller Price</span>
+        <strong>${sellerPrice>0.009 ? anyBikeDealMoney(sellerPrice) : "Not confirmed"}</strong>
+      </div>
+      <div class="anybike-presale-item">
+        <span>Motorcycle</span>
+        <strong>${secured ? "SECURED" : "Not secured"}</strong>
+      </div>
+      <div class="anybike-presale-item next">
+        <span>Next Action</span>
+        <strong>${escapeAdminHtml(nextAction)}</strong>
+      </div>
+    </div>
+
+    <div class="anybike-presale-footer">
+      This Deal is still in the Lead / Sales Pipeline. Transaction controls remain inactive until the commercial sale reaches Confirmed / Payment stage.
+    </div>
+
+    <div class="anybike-presale-locked">
+      <div class="anybike-presale-lock"><span>Customer Payments</span><strong>Not Started</strong></div>
+      <div class="anybike-presale-lock"><span>Seller / Purchase</span><strong>Not Started</strong></div>
+      <div class="anybike-presale-lock"><span>Invoice / Documents</span><strong>Not Started</strong></div>
+      <div class="anybike-presale-lock"><span>Operations / Shipping</span><strong>Not Started</strong></div>
+    </div>
+  </div>`;
 }
 
 async function loadAcceptedFormalOffersAwaitingDeal(){
@@ -7464,8 +7714,10 @@ function renderAnyBikeDealTransactionCompletion(deal){
 
   return rows.map(function(row){
     const title=[row.make,row.model,row.variant].filter(Boolean).join(" ")||"Motorcycle";
-    const customerPaid=!!row.customer_paid_in_full || Number(row.customer_balance_due_gbp||0)<=0.009;
-    const supplierPaid=!!row.supplier_paid_in_full || Number(row.supplier_balance_due_gbp||0)<=0.009;
+    const customerPrice=Number(row.customer_sale_price_gbp||0);
+    const supplierPrice=Number(row.seller_purchase_price_gbp||0);
+    const customerPaid=customerPrice>0.009 && (!!row.customer_paid_in_full || Number(row.customer_balance_due_gbp||0)<=0.009);
+    const supplierPaid=supplierPrice>0.009 && (!!row.supplier_paid_in_full || Number(row.supplier_balance_due_gbp||0)<=0.009);
     const secured=!!row.motorcycle_secured;
     const financiallyComplete=customerPaid && supplierPaid && secured;
 
@@ -7959,8 +8211,10 @@ function anyBikeEffectiveDealStage(deal){
   }
 
   const financiallyComplete = financialRows.every(function(row){
-    const customerPaid = row.customer_paid_in_full === true || Number(row.customer_balance_due_gbp || 0) <= 0.009;
-    const supplierPaid = row.supplier_paid_in_full === true || Number(row.supplier_balance_due_gbp || 0) <= 0.009;
+    const customerPrice=Number(row.customer_sale_price_gbp || 0);
+    const supplierPrice=Number(row.seller_purchase_price_gbp || 0);
+    const customerPaid = customerPrice>0.009 && (row.customer_paid_in_full === true || Number(row.customer_balance_due_gbp || 0) <= 0.009);
+    const supplierPaid = supplierPrice>0.009 && (row.supplier_paid_in_full === true || Number(row.supplier_balance_due_gbp || 0) <= 0.009);
     const securedValue = row.motorcycle_secured;
     const secured = securedValue === true || String(securedValue || "").toLowerCase() === "true" || String(securedValue || "") === "1";
     return customerPaid && supplierPaid && secured;
@@ -8022,6 +8276,19 @@ function anyBikeDealSellerNames(dealId){
 function anyBikeDealQueueFinanceState(deal){
   const dealId=String(deal.deal_id || "");
   const bikes=adminDealMotorcycles.filter(function(bike){ return String(bike.deal_id || "")===dealId; });
+
+  if(anyBikeDealIsPreSale(deal)){
+    const motorcycleCount=Number(deal.motorcycle_count || bikes.length || 0);
+    const securedCount=Number(deal.secured_count || bikes.filter(function(b){ return !!b.bike_secured; }).length || 0);
+
+    return {
+      customerPayment:"Not Started",
+      supplierPayment:"Not Started",
+      customerBalance:0,
+      supplierBalance:0,
+      secured:motorcycleCount>0 && securedCount>=motorcycleCount ? "Secured" : "Not Secured"
+    };
+  }
 
   const customerAccount=adminDealCustomerAccounts.get(dealId) || {};
   const dealValue=anyBikeAccountNumber(customerAccount,["deal_value_gbp"],deal.buyer_value_gbp);
@@ -8231,8 +8498,10 @@ function renderAdminDealQueue(){
         const c = adminDealSellerConfirmations.get(String(bike.buyer_match_id || "")) || {};
         return display.seller_name || c.seller_business_name || c.seller_name || c.dealer_name || c.source_name || c.seller_contact_name || "";
       });
+      const sourceEnquiry=anyBikeDealSourceEnquiry(deal) || {};
       const haystack = [
         deal.deal_number, deal.buyer_name, deal.buyer_business_name, deal.buyer_contact_name, deal.buyer_email,
+        sourceEnquiry.customer_name, sourceEnquiry.customer_email, sourceEnquiry.customer_phone,
         deal.buyer_country, deal.deal_stage, deal.deal_status
       ].concat(sellerNames).filter(Boolean).join(" ").toLowerCase();
       const bikeText = bikes.map(function(bike){
@@ -8290,9 +8559,12 @@ function renderAdminDealQueue(){
     const dealId = String(deal.deal_id || "");
     const dealNumber = escapeAdminHtml(deal.deal_number || ("Deal #" + dealId));
     const buyerName = escapeAdminHtml(anyBikeDealBuyerName(deal));
-    const contactName = escapeAdminHtml(deal.buyer_contact_name || "");
-    const email = escapeAdminHtml(deal.buyer_email || "");
-    const stage = escapeAdminHtml(anyBikeEffectiveDealStage(deal));
+    const sourceEnquiry = anyBikeDealSourceEnquiry(deal);
+    const contactName = escapeAdminHtml(deal.buyer_contact_name || (sourceEnquiry && sourceEnquiry.customer_name) || "");
+    const email = escapeAdminHtml(deal.buyer_email || (sourceEnquiry && sourceEnquiry.customer_email) || "");
+    const rawStage = anyBikeEffectiveDealStage(deal);
+    const stage = escapeAdminHtml(rawStage);
+    const preSale = anyBikeDealIsPreSale(deal);
     const status = escapeAdminHtml(deal.deal_status || "Active");
     const motorcycleCount = Number(deal.motorcycle_count || 0);
     const securedCount = Number(deal.secured_count || 0);
@@ -8320,17 +8592,17 @@ function renderAdminDealQueue(){
     });
     const sellerSummary = sellerNames.length
       ? sellerNames[0] + (sellerNames.length > 1 ? " +" + (sellerNames.length-1) + " more" : "")
-      : "Seller not named";
+      : (preSale ? "Seller not confirmed" : "Seller not named");
 
     const customerAccount = adminDealCustomerAccounts.get(dealId) || {};
     const dealValue = anyBikeAccountNumber(customerAccount,["deal_value_gbp"],deal.buyer_value_gbp);
     const customerReceived = anyBikeAccountNumber(customerAccount,["customer_money_received_gbp"],0);
     const customerAllocated = anyBikeAccountNumber(customerAccount,["customer_money_allocated_gbp"],0);
     const customerBalance = anyBikeAccountNumber(customerAccount,["customer_balance_due_gbp"],Math.max(dealValue-customerAllocated,0));
-    let customerClass = "due";
-    let customerLabel = "DUE";
-    if(dealValue > 0 && customerBalance <= 0.009){ customerClass="paid"; customerLabel="PAID"; }
-    else if(customerReceived > 0.009 || customerAllocated > 0.009){ customerClass="part"; customerLabel="PART PAID"; }
+    let customerClass = preSale ? "neutral" : "due";
+    let customerLabel = preSale ? "NOT STARTED" : "DUE";
+    if(!preSale && dealValue > 0 && customerBalance <= 0.009){ customerClass="paid"; customerLabel="PAID"; }
+    else if(!preSale && (customerReceived > 0.009 || customerAllocated > 0.009)){ customerClass="part"; customerLabel="PART PAID"; }
 
     let supplierPrice = 0;
     let supplierPaid = 0;
@@ -8341,11 +8613,11 @@ function renderAdminDealQueue(){
     });
     if(supplierPrice <= 0){ supplierPrice = Number(deal.seller_cost_gbp || 0); }
     const supplierBalance = Math.max(supplierPrice-supplierPaid,0);
-    let supplierClass = "due";
-    let supplierLabel = "DUE";
-    if(supplierPrice > 0 && supplierBalance <= 0.009){ supplierClass="paid"; supplierLabel="PAID"; }
-    else if(supplierPaid > 0.009){ supplierClass="part"; supplierLabel="PART PAID"; }
-    else if(supplierPrice <= 0){ supplierClass="neutral"; supplierLabel="CHECK"; }
+    let supplierClass = preSale ? "neutral" : "due";
+    let supplierLabel = preSale ? "NOT STARTED" : "DUE";
+    if(!preSale && supplierPrice > 0 && supplierBalance <= 0.009){ supplierClass="paid"; supplierLabel="PAID"; }
+    else if(!preSale && supplierPaid > 0.009){ supplierClass="part"; supplierLabel="PART PAID"; }
+    else if(!preSale && supplierPrice <= 0){ supplierClass="neutral"; supplierLabel="CHECK"; }
 
     let securedClass = "due";
     let securedLabel = motorcycleCount > 0 ? securedCount + "/" + motorcycleCount : "CHECK";
@@ -8362,9 +8634,9 @@ function renderAdminDealQueue(){
                 <strong>${escapeAdminHtml(title || "Motorcycle")}</strong>
                 <small>${bike.year ? escapeAdminHtml(bike.year) + " · " : ""}Stock #${escapeAdminHtml(bike.stock_id || "-")}</small>
               </div>
-              <div><span>Buyer</span><strong>${anyBikeDealMoney(bike.buyer_price_gbp)}</strong></div>
-              <div><span>Seller</span><strong>${anyBikeDealMoney(bike.seller_price_gbp)}</strong></div>
-              <div><span>Gross Profit</span><strong>${anyBikeDealMoney(bike.gross_margin_gbp)}</strong></div>
+              <div><span>Customer Price</span><strong>${preSale ? anyBikeDealPendingMoney(bike.buyer_price_gbp,"Not agreed") : anyBikeDealMoney(bike.buyer_price_gbp)}</strong></div>
+              <div><span>Seller Price</span><strong>${preSale ? anyBikeDealPendingMoney(bike.seller_price_gbp,"Not confirmed") : anyBikeDealMoney(bike.seller_price_gbp)}</strong></div>
+              <div><span>Gross Profit</span><strong>${preSale && Number(bike.buyer_price_gbp||0)<=0 ? "—" : anyBikeDealMoney(bike.gross_margin_gbp)}</strong></div>
               <div><span>Secured</span><strong>${bike.bike_secured ? "✓ Yes" : "No"}</strong></div>
               <div><span>VAT</span><strong>${escapeAdminHtml(vat)}</strong></div>
               <div><span>Negotiation</span><strong>${escapeAdminHtml(bike.negotiation_status || bike.item_status || "-")}</strong></div>
@@ -8392,13 +8664,13 @@ function renderAdminDealQueue(){
           <div class="anybike-deal-open">▶</div>
           <div class="anybike-deal-number"><strong>${dealNumber}</strong><small>${motorcycleCount} bike${motorcycleCount===1?"":"s"}</small></div>
           <div><strong>${buyerName}</strong><small>${contactName && contactName !== buyerName ? contactName : email}</small></div>
-          <div><strong>${escapeAdminHtml(sellerSummary)}</strong><small>${sellerNames.length ? "Seller / supplier" : "Final Seller Check"}</small></div>
+          <div><strong>${escapeAdminHtml(sellerSummary)}</strong><small>${sellerNames.length ? "Seller / supplier" : (preSale ? "Seller check not started" : "Final Seller Check")}</small></div>
           <div><strong>${escapeAdminHtml(motorcycleSummary)}</strong><small>${escapeAdminHtml(firstBikeYear || (motorcycleCount + " motorcycle" + (motorcycleCount===1?"":"s")))}</small></div>
-          <div><strong>${anyBikeDealMoney(deal.buyer_value_gbp)}</strong><small>Sale</small></div>
-          <div><strong>${anyBikeDealMoney(deal.seller_cost_gbp)}</strong><small>Cost</small></div>
-          <div><strong>${anyBikeDealMoney(deal.gross_profit_gbp)}</strong><small>${Number(deal.gross_margin_percent || 0).toFixed(1)}%</small></div>
-          <div><span class="anybike-queue-finance-badge ${customerClass}">${customerLabel}</span><small>${customerBalance > 0.009 ? anyBikeDealMoney(customerBalance)+" due" : anyBikeDealMoney(customerReceived)+" received"}</small></div>
-          <div><span class="anybike-queue-finance-badge ${supplierClass}">${supplierLabel}</span><small>${supplierBalance > 0.009 ? anyBikeDealMoney(supplierBalance)+" due" : anyBikeDealMoney(supplierPaid)+" paid"}</small></div>
+          <div><strong>${preSale ? anyBikeDealPendingMoney(deal.buyer_value_gbp,"Not agreed") : anyBikeDealMoney(deal.buyer_value_gbp)}</strong><small>Sale</small></div>
+          <div><strong>${preSale ? anyBikeDealPendingMoney(deal.seller_cost_gbp,"Not confirmed") : anyBikeDealMoney(deal.seller_cost_gbp)}</strong><small>Cost</small></div>
+          <div><strong>${preSale && Number(deal.buyer_value_gbp||0)<=0 ? "—" : anyBikeDealMoney(deal.gross_profit_gbp)}</strong><small>${preSale && Number(deal.buyer_value_gbp||0)<=0 ? "Not calculated" : Number(deal.gross_margin_percent || 0).toFixed(1)+"%"}</small></div>
+          <div><span class="anybike-queue-finance-badge ${customerClass}">${customerLabel}</span><small>${preSale ? "No payment stage yet" : (customerBalance > 0.009 ? anyBikeDealMoney(customerBalance)+" due" : anyBikeDealMoney(customerReceived)+" received")}</small></div>
+          <div><span class="anybike-queue-finance-badge ${supplierClass}">${supplierLabel}</span><small>${preSale ? "Seller purchase not started" : (supplierBalance > 0.009 ? anyBikeDealMoney(supplierBalance)+" due" : anyBikeDealMoney(supplierPaid)+" paid")}</small></div>
           <div><span class="anybike-queue-finance-badge ${securedClass}">${escapeAdminHtml(securedLabel)}</span><small>Motorcycle</small></div>
           <div><span class="queue-status">${stage}</span><small>${status}</small></div>
           <div><strong>${escapeAdminHtml(latest)}</strong><small>Updated</small></div>
@@ -8412,20 +8684,22 @@ function renderAdminDealQueue(){
             <button type="button" class="close-enquiry-btn" onclick="toggleAnyBikeDeal('${dealId}');return false;">▲ Close</button>
           </div>
           <div class="anybike-deal-rollup">
-            <div><span>Buyer Value</span><strong>${anyBikeDealMoney(deal.buyer_value_gbp)}</strong></div>
-            <div><span>Seller Cost</span><strong>${anyBikeDealMoney(deal.seller_cost_gbp)}</strong></div>
-            <div><span>Gross Profit</span><strong>${anyBikeDealMoney(deal.gross_profit_gbp)}</strong></div>
+            <div><span>Customer Price</span><strong>${preSale ? anyBikeDealPendingMoney(deal.buyer_value_gbp,"Not agreed") : anyBikeDealMoney(deal.buyer_value_gbp)}</strong></div>
+            <div><span>Seller Price</span><strong>${preSale ? anyBikeDealPendingMoney(deal.seller_cost_gbp,"Not confirmed") : anyBikeDealMoney(deal.seller_cost_gbp)}</strong></div>
+            <div><span>Gross Profit</span><strong>${preSale && Number(deal.buyer_value_gbp||0)<=0 ? "—" : anyBikeDealMoney(deal.gross_profit_gbp)}</strong></div>
             <div><span>Deal Stage</span><strong>${stage}</strong></div>
           </div>
           <div class="anybike-deal-bike-list">${bikeRows}</div>
-          ${renderAnyBikeDealCustomerAccount(deal)}
-          ${renderAnyBikeDealCustomerLedger(deal)}
-          ${renderAnyBikeDealPaymentPanel(deal)}
-          ${renderAnyBikeDealTransactionCompletion(deal)}
-          ${renderAnyBikeDealInvoiceDocuments(deal)}
-          ${renderAnyBikeDealFinancialPanel(deal)}
-          ${renderAnyBikeDealSellerCheckPanel(deal)}
-          <div class="anybike-deal-next-note">Deal 360 record. Messages, tasks, documents, payments and Operations remain connected to this Deal as the transaction progresses.</div>
+          ${preSale ? renderAnyBikeDealPreSalePanel(deal) : `
+            ${renderAnyBikeDealCustomerAccount(deal)}
+            ${renderAnyBikeDealCustomerLedger(deal)}
+            ${renderAnyBikeDealPaymentPanel(deal)}
+            ${renderAnyBikeDealTransactionCompletion(deal)}
+            ${renderAnyBikeDealInvoiceDocuments(deal)}
+            ${renderAnyBikeDealFinancialPanel(deal)}
+            ${renderAnyBikeDealSellerCheckPanel(deal)}
+          `}
+          <div class="anybike-deal-next-note">${preSale ? "Lead / Sales Deal. Payments, seller purchase, invoicing and Operations remain inactive until the commercial sale progresses." : "Deal 360 record. Messages, tasks, documents, payments and Operations remain connected to this Deal as the transaction progresses."}</div>
         </div>
       </div>`;
   }).join("");
@@ -8829,6 +9103,7 @@ async function loadEnquiries(){
   }
 
 const fullData = data || [];
+allEnquiryRecords = fullData.slice();
 
 /*
   Only enquiries that have NOT been moved into Deal 360 remain in the
