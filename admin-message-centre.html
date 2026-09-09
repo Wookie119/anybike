@@ -7,7 +7,6 @@
 
 
 
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -379,6 +378,70 @@
 }
 
 </style>
+
+<style>
+/* =========================================================
+   MESSAGE CENTRE -> DEAL 360 BRIDGE
+   Added 09 September 2026
+   Does not alter realtime messaging.
+   ========================================================= */
+.message-deal-bridge{
+  margin:0 0 14px;
+  padding:12px 14px;
+  border:1px solid #343434;
+  border-left:4px solid #ed1c24;
+  border-radius:10px;
+  background:linear-gradient(90deg,#171717,#0e0e0e);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+}
+.message-deal-bridge-copy span{
+  display:block;
+  color:#ed1c24;
+  font-size:10px;
+  font-weight:900;
+  letter-spacing:1px;
+  text-transform:uppercase;
+  margin-bottom:4px;
+}
+.message-deal-bridge-copy strong{
+  display:block;
+  color:#fff;
+  font-size:16px;
+}
+.message-deal-bridge-copy small{
+  display:block;
+  margin-top:4px;
+  color:#999;
+  font-size:11px;
+}
+.message-deal-bridge a{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  padding:10px 14px;
+  border:1px solid #ed1c24;
+  border-radius:8px;
+  background:#ed1c24;
+  color:#fff !important;
+  text-decoration:none;
+  font-size:12px;
+  font-weight:900;
+  white-space:nowrap;
+}
+.message-deal-bridge a:hover{
+  filter:brightness(1.08);
+}
+@media(max-width:700px){
+  .message-deal-bridge{
+    align-items:flex-start;
+    flex-direction:column;
+  }
+}
+</style>
 </head>
 <body>
 <div class="admin-shell"><div id="adminSidebar"></div><div class="admin-main"><div id="adminTopbar"></div><main class="admin-page-content message-page"><div class="page-head"><div><h1>Message Centre</h1><p>One communications hub for Bike Sales, Buying Team, Transport, Stock Preparation, Finance and Logistics.</p></div><button class="refresh-btn" onclick="loadThreads()">Refresh</button></div><section class="stats-grid"><div class="stat-card"><strong id="totalCount">0</strong><span>Active Messages</span></div><div class="stat-card"><strong id="newCount">0</strong><span>New</span></div><div class="stat-card"><strong id="replyCount">0</strong><span>Needs Reply</span></div><div class="stat-card"><strong id="buyingCount">0</strong><span>Buying Team</span></div></section><section class="mc-layout"><div class="panel"><div class="panel-head"><h2>Inbox</h2><div class="filters"><button class="active" onclick="setFilter('all', this)">All</button><button onclick="setFilter('New', this)">New</button><button onclick="setFilter('Needs Reply', this)">Needs Reply</button><button onclick="setFilter('Bike Enquiry', this)">Bike Sales</button><button onclick="setFilter('Sell Your Bike', this)">Buying Team</button><button onclick="setFilter('Archived', this)">Archived</button><button onclick="setFilter('Deleted', this)">Deleted</button></div><div class="search-box"><input id="searchInput" placeholder="Search name, email, bike, country, message..." oninput="renderThreads()"></div></div><div class="toolbar"><button onclick="selectAllThreads()">Select All</button><button onclick="clearSelection()">Clear</button><button onclick="archiveSelectedThreads()">Archive</button><button class="danger" onclick="deleteSelectedThreads()">Delete</button></div><div id="threadList" class="thread-list"><div class="empty">Loading messages...</div></div></div><div class="panel"><div id="workspace" class="empty">Select a message to view the conversation.</div></div></section></main></div></div>
@@ -455,6 +518,46 @@ async function openThread(id){
   }
 
   const t = selectedThread;
+
+  /*
+    Deal 360 bridge.
+    Prefer the direct related_deal_id written by Start Deal.
+    Fall back to source_enquiry_id for older/backfilled threads.
+    This is read-only and does not touch message_centre_messages.
+  */
+  let relatedDeal = null;
+
+  try{
+    if(t.related_deal_id){
+      const {data:dealRow,error:dealError} = await sb
+        .from("anybike_deals")
+        .select("id,deal_number,deal_stage,status,title,source_enquiry_id")
+        .eq("id",Number(t.related_deal_id))
+        .maybeSingle();
+
+      if(dealError){
+        console.warn("Message Centre Deal link could not be loaded:",dealError);
+      }else{
+        relatedDeal = dealRow || null;
+      }
+    }
+
+    if(!relatedDeal && t.related_enquiry_id){
+      const {data:dealRow,error:dealError} = await sb
+        .from("anybike_deals")
+        .select("id,deal_number,deal_stage,status,title,source_enquiry_id")
+        .eq("source_enquiry_id",Number(t.related_enquiry_id))
+        .maybeSingle();
+
+      if(dealError){
+        console.warn("Message Centre enquiry -> Deal fallback could not be loaded:",dealError);
+      }else{
+        relatedDeal = dealRow || null;
+      }
+    }
+  }catch(dealBridgeError){
+    console.warn("Message Centre Deal 360 bridge failed safely:",dealBridgeError);
+  }
 
   let customerDocuments = [];
   let customerDocumentLoadError = "";
@@ -626,6 +729,23 @@ async function openThread(id){
       }
     </div>
 
+    ${
+      relatedDeal
+        ? `
+          <div class="message-deal-bridge">
+            <div class="message-deal-bridge-copy">
+              <span>Deal 360 Linked</span>
+              <strong>${safe(relatedDeal.deal_number || ("Deal #" + relatedDeal.id))}</strong>
+              <small>${safe(relatedDeal.deal_stage || relatedDeal.status || "Active")} · This conversation remains the original Message Centre thread.</small>
+            </div>
+            <a href="admin-enquiries.html?deal=${encodeURIComponent(relatedDeal.id)}">
+              Open ${safe(relatedDeal.deal_number || "Deal")} in Deal 360
+            </a>
+          </div>
+        `
+        : ""
+    }
+
     <div class="section">
       <h3>Customer</h3>
       <div class="grid">
@@ -666,8 +786,9 @@ async function openThread(id){
       ${lead?.notes ? `<div class="field" style="margin-top:10px;"><span>Seller Notes</span><strong>${safe(lead.notes)}</strong></div>` : ""}
 
       <div class="actions">
-        ${t.related_bike_id ? `<a class="primary" href="admin-motorcycle-360.html?id=${encodeURIComponent(t.related_bike_id)}">Open Motorcycle 360</a>` : ""}
-        ${t.related_enquiry_id ? `<a href="admin-enquiries.html?open=${encodeURIComponent(t.related_enquiry_id)}&focus=messages">Open Bike Sales CRM</a>` : ""}
+        ${relatedDeal ? `<a class="primary" href="admin-enquiries.html?deal=${encodeURIComponent(relatedDeal.id)}">Open ${safe(relatedDeal.deal_number || "Deal")} · Deal 360</a>` : ""}
+        ${t.related_bike_id ? `<a${relatedDeal ? "" : ' class="primary"'} href="admin-motorcycle-360.html?id=${encodeURIComponent(t.related_bike_id)}">Open Motorcycle 360</a>` : ""}
+        ${t.related_enquiry_id ? `<a href="admin-enquiries.html?open=${encodeURIComponent(t.related_enquiry_id)}&focus=messages">${relatedDeal ? "Open Original Enquiry" : "Open Bike Sales CRM"}</a>` : ""}
         ${t.related_request_id ? `<a href="admin-motorcycle-requests.html?request=${encodeURIComponent(t.related_request_id)}">Open Motorcycle Request</a>` : ""}
         ${t.related_lead_id ? `<a href="admin-customers.html?lead=${encodeURIComponent(t.related_lead_id)}">Open Lead / Buying Team</a>` : ""}
         ${lead ? `<button onclick="alert('Add To Stock will be connected next.')">Add To Stock</button>` : ""}
