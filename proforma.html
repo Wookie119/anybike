@@ -5,6 +5,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <meta name="robots" content="noindex,nofollow">
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>Proforma Invoice | AnyBike</title>
 <style>
 *{box-sizing:border-box}
@@ -85,7 +88,8 @@ body{margin:0;background:#ececec;color:#111;font-family:Arial,Helvetica,sans-ser
           "Accept":"application/json"
         },
         body:JSON.stringify({p_invoice_id:invoiceId}),
-        signal:controller.signal
+        signal:controller.signal,
+        cache:"no-store"
       });
       const text=await response.text();
       let payload=null;
@@ -129,6 +133,7 @@ body{margin:0;background:#ececec;color:#111;font-family:Arial,Helvetica,sans-ser
   async function load(){
     try{
       if(!Number.isFinite(invoiceId)||invoiceId<=0){ showError("No valid invoice was selected."); return; }
+      box.innerHTML='<p>Loading Proforma invoice #'+esc(invoiceId)+'…</p>';
       const token=getStoredAccessToken();
       if(!token){
         showError("Your AnyBike session could not be found. Please sign in again, then reopen the Proforma.");
@@ -136,6 +141,7 @@ body{margin:0;background:#ececec;color:#111;font-family:Arial,Helvetica,sans-ser
       }
       const data=await rpcGetInvoice(token);
       if(!data||typeof data!=="object"){ throw new Error("The Proforma returned no document data."); }
+      if(Number(data.invoice_id)!==invoiceId){ throw new Error("The wrong Proforma was returned. Requested invoice #"+invoiceId+", received #"+String(data.invoice_id||"unknown")+"."); }
       render(data);
     }catch(error){
       console.error("Proforma could not be loaded:",error);
