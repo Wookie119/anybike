@@ -4396,6 +4396,146 @@ input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-in
   .anybike-presale-head{flex-direction:column}
 }
 </style>
+
+<style>
+/* =========================================================
+   DEAL 360 PRE-SALE COMMERCIAL SETUP
+   Added 09 September 2026
+   ========================================================= */
+.anybike-commercial-panel{
+  margin:14px 0;
+  border:1px solid #3a3a3a;
+  border-top:3px solid #ed1c24;
+  border-radius:12px;
+  background:#0d0d0d;
+  overflow:hidden;
+}
+.anybike-commercial-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:14px;
+  padding:15px 16px;
+  background:linear-gradient(90deg,#171717,#0d0d0d);
+}
+.anybike-commercial-head span{
+  display:block;
+  color:#ed1c24;
+  font-size:11px;
+  font-weight:900;
+  letter-spacing:1.1px;
+  text-transform:uppercase;
+}
+.anybike-commercial-head h4{
+  margin:4px 0 0;
+  color:#fff;
+  font-size:17px;
+}
+.anybike-commercial-status{
+  padding:7px 11px;
+  border:1px solid #4a4a4a;
+  border-radius:999px;
+  background:#1a1a1a;
+  color:#fff;
+  font-size:11px;
+  font-weight:900;
+  white-space:nowrap;
+}
+.anybike-commercial-grid{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:12px;
+  padding:16px;
+}
+.anybike-commercial-field label{
+  display:block;
+  margin:0 0 6px;
+  color:#9aa3ae;
+  font-size:10px;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+}
+.anybike-commercial-field input,
+.anybike-commercial-field select,
+.anybike-commercial-field textarea{
+  width:100%;
+  box-sizing:border-box;
+  border:1px solid #353535;
+  border-radius:8px;
+  background:#0a0a0a;
+  color:#fff;
+  padding:10px 11px;
+  font:inherit;
+}
+.anybike-commercial-field textarea{
+  min-height:74px;
+  resize:vertical;
+}
+.anybike-commercial-metrics{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:1px;
+  background:#2a2a2a;
+  border-top:1px solid #2a2a2a;
+}
+.anybike-commercial-metric{
+  background:#111;
+  padding:12px 14px;
+}
+.anybike-commercial-metric span{
+  display:block;
+  color:#8f8f8f;
+  font-size:10px;
+  font-weight:900;
+  text-transform:uppercase;
+  margin-bottom:5px;
+}
+.anybike-commercial-metric strong{
+  color:#fff;
+  font-size:16px;
+}
+.anybike-commercial-metric.profit strong{color:#62e89a}
+.anybike-commercial-metric.loss strong{color:#ff747a}
+.anybike-commercial-actions{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:14px 16px;
+  border-top:1px solid #2a2a2a;
+  background:#101010;
+}
+.anybike-commercial-actions p{
+  margin:0;
+  color:#aaa;
+  font-size:11px;
+  line-height:1.45;
+}
+.anybike-commercial-save{
+  flex:0 0 auto;
+  border:1px solid #ed1c24;
+  border-radius:8px;
+  background:#ed1c24;
+  color:#fff;
+  padding:10px 15px;
+  font-weight:900;
+  cursor:pointer;
+}
+.anybike-commercial-save:disabled{
+  opacity:.55;
+  cursor:wait;
+}
+@media(max-width:1100px){
+  .anybike-commercial-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .anybike-commercial-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:650px){
+  .anybike-commercial-grid,
+  .anybike-commercial-metrics{grid-template-columns:1fr}
+  .anybike-commercial-actions{align-items:flex-start;flex-direction:column}
+}
+</style>
 </head>
 
 <body>
@@ -4988,6 +5128,8 @@ let allEnquiryRecords = [];
 // Genuine AnyBike Deal records (multi-bike capable).
 // These are loaded only through secure admin RPCs.
 let adminDealQueue = [];
+let adminDealCommercialSetup = [];
+const dealCommercialSaveBusy = new Set();
 let adminDealFinancialStatus = [];
 const dealVatSaveBusy = new Set();
 let adminDealMotorcycles = [];
@@ -6273,6 +6415,288 @@ function anyBikeDealPendingMoney(value,label){
   return amount>0.009 ? anyBikeDealMoney(amount) : label;
 }
 
+function anyBikeCommercialNumber(value){
+  const number=Number(value);
+  return Number.isFinite(number) ? number : 0;
+}
+
+function anyBikeCommercialNullableMoney(value,label){
+  if(value===null || value===undefined || value===""){ return label; }
+  const number=Number(value);
+  if(!Number.isFinite(number) || number<=0){ return label; }
+  return anyBikeDealMoney(number);
+}
+
+function anyBikeDealCommercialRow(deal){
+  const dealId=String((deal && deal.deal_id) || "");
+  if(!dealId){ return null; }
+
+  return adminDealCommercialSetup.find(function(row){
+    return String(row.deal_id || "")===dealId;
+  }) || null;
+}
+
+function anyBikeCommercialInputNumber(id){
+  const el=document.getElementById(id);
+  const raw=String((el && el.value) || "").trim();
+  if(raw===""){ return 0; }
+
+  const value=Number(raw);
+  if(!Number.isFinite(value) || value<0){
+    throw new Error("Commercial values must be valid positive numbers or zero.");
+  }
+  return value;
+}
+
+function updateDealCommercialPreview(dealMotorcycleId){
+  const id=Number(dealMotorcycleId);
+  if(!Number.isFinite(id)){ return; }
+
+  try{
+    const sale=anyBikeCommercialInputNumber("deal-commercial-sale-"+id);
+    const deliveryCharge=anyBikeCommercialInputNumber("deal-commercial-delivery-charge-"+id);
+    const seller=anyBikeCommercialInputNumber("deal-commercial-seller-"+id);
+    const prep=anyBikeCommercialInputNumber("deal-commercial-prep-"+id);
+    const deliveryCost=anyBikeCommercialInputNumber("deal-commercial-delivery-cost-"+id);
+    const docs=anyBikeCommercialInputNumber("deal-commercial-docs-"+id);
+    const admin=anyBikeCommercialInputNumber("deal-commercial-admin-"+id);
+    const other=anyBikeCommercialInputNumber("deal-commercial-other-"+id);
+
+    const customerTotal=sale>0 ? sale+deliveryCharge : null;
+    const totalInternal=seller>0 ? seller+prep+deliveryCost+docs+admin+other : null;
+    const profit=customerTotal!==null && totalInternal!==null ? customerTotal-totalInternal : null;
+    const margin=profit!==null && customerTotal>0 ? (profit/customerTotal)*100 : null;
+
+    const customerEl=document.getElementById("deal-commercial-customer-total-"+id);
+    const costEl=document.getElementById("deal-commercial-total-cost-"+id);
+    const profitEl=document.getElementById("deal-commercial-profit-"+id);
+    const marginEl=document.getElementById("deal-commercial-margin-"+id);
+
+    if(customerEl){ customerEl.textContent=customerTotal===null ? "—" : anyBikeDealMoney(customerTotal); }
+    if(costEl){ costEl.textContent=totalInternal===null ? "—" : anyBikeDealMoney(totalInternal); }
+    if(profitEl){
+      profitEl.textContent=profit===null ? "—" : anyBikeDealMoney(profit);
+      profitEl.closest(".anybike-commercial-metric")?.classList.toggle("loss",profit!==null && profit<0);
+      profitEl.closest(".anybike-commercial-metric")?.classList.toggle("profit",profit!==null && profit>=0);
+    }
+    if(marginEl){ marginEl.textContent=margin===null ? "—" : margin.toFixed(1)+"%"; }
+
+  }catch(error){
+    console.warn("Commercial preview could not be calculated:",error);
+  }
+}
+
+async function saveDealCommercialSetup(dealMotorcycleId){
+  const id=Number(dealMotorcycleId);
+  if(!Number.isFinite(id) || dealCommercialSaveBusy.has(String(id))){ return; }
+
+  const statusEl=document.getElementById("deal-commercial-status-"+id);
+  const notesEl=document.getElementById("deal-commercial-notes-"+id);
+
+  let sale,deliveryCharge,seller,prep,deliveryCost,docs,admin,other;
+  try{
+    sale=anyBikeCommercialInputNumber("deal-commercial-sale-"+id);
+    deliveryCharge=anyBikeCommercialInputNumber("deal-commercial-delivery-charge-"+id);
+    seller=anyBikeCommercialInputNumber("deal-commercial-seller-"+id);
+    prep=anyBikeCommercialInputNumber("deal-commercial-prep-"+id);
+    deliveryCost=anyBikeCommercialInputNumber("deal-commercial-delivery-cost-"+id);
+    docs=anyBikeCommercialInputNumber("deal-commercial-docs-"+id);
+    admin=anyBikeCommercialInputNumber("deal-commercial-admin-"+id);
+    other=anyBikeCommercialInputNumber("deal-commercial-other-"+id);
+  }catch(error){
+    alert(error.message || "Check the Commercial Setup values.");
+    return;
+  }
+
+  const commercialStatus=String((statusEl && statusEl.value) || "Estimate");
+  const notes=String((notesEl && notesEl.value) || "").trim();
+
+  if(commercialStatus==="Ready for Offer" && (sale<=0 || seller<=0)){
+    alert("Ready for Offer requires both an AnyBike Sale Price and a Seller Purchase Price.");
+    return;
+  }
+
+  const confirmed=window.confirm(
+    "Save Commercial Setup?\n\n" +
+    "AnyBike Sale Price: " + (sale>0 ? anyBikeDealMoney(sale) : "Not agreed") + "\n" +
+    "Delivery Charge: " + anyBikeDealMoney(deliveryCharge) + "\n" +
+    "Seller Purchase Price: " + (seller>0 ? anyBikeDealMoney(seller) : "Not confirmed") + "\n" +
+    "Commercial Status: " + commercialStatus + "\n\n" +
+    "This is internal planning only. It will NOT send an offer, take payment or secure the motorcycle."
+  );
+
+  if(!confirmed){ return; }
+
+  dealCommercialSaveBusy.add(String(id));
+  renderAdminDealQueue();
+
+  try{
+    const result=await sb.rpc("admin_save_deal_commercial_setup_v1",{
+      p_deal_motorcycle_id:id,
+      p_anybike_sale_price_gbp:sale,
+      p_delivery_charge_gbp:deliveryCharge,
+      p_seller_purchase_price_gbp:seller,
+      p_prep_cost_gbp:prep,
+      p_delivery_cost_gbp:deliveryCost,
+      p_export_docs_cost_gbp:docs,
+      p_admin_cost_gbp:admin,
+      p_other_cost_gbp:other,
+      p_commercial_price_status:commercialStatus,
+      p_notes:notes || null
+    });
+
+    if(result.error){ throw result.error; }
+
+    const payload=result.data || {};
+    alert(
+      "Commercial Setup saved.\n\n" +
+      "Customer total: " + (payload.customer_total_gbp===null ? "Not agreed" : anyBikeDealMoney(payload.customer_total_gbp)) + "\n" +
+      "Total internal cost: " + (payload.total_internal_cost_gbp===null ? "Not confirmed" : anyBikeDealMoney(payload.total_internal_cost_gbp)) + "\n" +
+      "Projected profit: " + (payload.projected_profit_gbp===null ? "Not calculated" : anyBikeDealMoney(payload.projected_profit_gbp)) + "\n" +
+      "Margin: " + (payload.projected_margin_percent===null ? "—" : Number(payload.projected_margin_percent).toFixed(1)+"%") + "\n\n" +
+      "Customer visible: NO\n" +
+      "Offer sent: NO\n" +
+      "Motorcycle secured: " + (payload.motorcycle_secured ? "YES" : "NO")
+    );
+
+    await loadAdminDealQueue();
+
+    const row=document.getElementById("anybike-deal-"+String(payload.deal_id || ""));
+    if(row){
+      row.classList.add("open");
+      openAnyBikeDealId=String(payload.deal_id || "");
+      row.scrollIntoView({behavior:"smooth",block:"center"});
+    }
+
+  }catch(error){
+    console.error("Commercial Setup could not be saved:",error);
+    alert("Commercial Setup could not be saved.\n\n"+(error && error.message ? error.message : "Unknown error"));
+  }finally{
+    dealCommercialSaveBusy.delete(String(id));
+    renderAdminDealQueue();
+  }
+}
+
+function renderAnyBikeDealCommercialSetup(deal){
+  const row=anyBikeDealCommercialRow(deal);
+  if(!row){
+    return `<div class="anybike-transaction-none">Commercial Setup is not available for this Deal yet.</div>`;
+  }
+
+  const id=Number(row.deal_motorcycle_id);
+  const busy=dealCommercialSaveBusy.has(String(id));
+  const title=[row.make,row.model,row.variant].filter(Boolean).join(" ") || "Motorcycle";
+
+  const sale=row.anybike_sale_price_gbp;
+  const deliveryCharge=anyBikeCommercialNumber(row.delivery_charge_gbp);
+  const seller=row.seller_purchase_price_gbp;
+  const prep=anyBikeCommercialNumber(row.prep_cost_gbp);
+  const deliveryCost=anyBikeCommercialNumber(row.delivery_cost_gbp);
+  const docs=anyBikeCommercialNumber(row.export_docs_cost_gbp);
+  const admin=anyBikeCommercialNumber(row.admin_cost_gbp);
+  const other=anyBikeCommercialNumber(row.other_cost_gbp);
+
+  const customerTotal=row.customer_total_gbp;
+  const totalInternal=row.total_internal_cost_gbp;
+  const profit=row.projected_profit_gbp;
+  const margin=row.projected_margin_percent;
+  const status=row.commercial_price_status || "Estimate";
+  const notes=row.commercial_notes || "";
+
+  const profitClass=profit===null || profit===undefined ? "" : (Number(profit)<0 ? "loss" : "profit");
+
+  return `<div class="anybike-commercial-panel">
+    <div class="anybike-commercial-head">
+      <div>
+        <span>Deal 360 Commercial Setup</span>
+        <h4>${escapeAdminHtml(title)}</h4>
+      </div>
+      <div class="anybike-commercial-status">${escapeAdminHtml(status)}</div>
+    </div>
+
+    <div class="anybike-commercial-grid">
+      <div class="anybike-commercial-field">
+        <label>AnyBike Sale Price</label>
+        <input id="deal-commercial-sale-${id}" type="number" min="0" step="0.01" value="${sale===null || sale===undefined ? "" : Number(sale).toFixed(2)}" placeholder="Not agreed" oninput="updateDealCommercialPreview(${id})">
+      </div>
+
+      <div class="anybike-commercial-field">
+        <label>Delivery Charge to Customer</label>
+        <input id="deal-commercial-delivery-charge-${id}" type="number" min="0" step="0.01" value="${deliveryCharge.toFixed(2)}" oninput="updateDealCommercialPreview(${id})">
+      </div>
+
+      <div class="anybike-commercial-field">
+        <label>Seller Purchase Price</label>
+        <input id="deal-commercial-seller-${id}" type="number" min="0" step="0.01" value="${seller===null || seller===undefined ? "" : Number(seller).toFixed(2)}" placeholder="Not confirmed" oninput="updateDealCommercialPreview(${id})">
+      </div>
+
+      <div class="anybike-commercial-field">
+        <label>Commercial Status</label>
+        <select id="deal-commercial-status-${id}">
+          <option${status==="Estimate" ? " selected" : ""}>Estimate</option>
+          <option${status==="Seller Price Requested" ? " selected" : ""}>Seller Price Requested</option>
+          <option${status==="Seller Price Confirmed" ? " selected" : ""}>Seller Price Confirmed</option>
+          <option${status==="Ready for Offer" ? " selected" : ""}>Ready for Offer</option>
+        </select>
+      </div>
+
+      <div class="anybike-commercial-field">
+        <label>Prep Cost</label>
+        <input id="deal-commercial-prep-${id}" type="number" min="0" step="0.01" value="${prep.toFixed(2)}" oninput="updateDealCommercialPreview(${id})">
+      </div>
+
+      <div class="anybike-commercial-field">
+        <label>Delivery Cost</label>
+        <input id="deal-commercial-delivery-cost-${id}" type="number" min="0" step="0.01" value="${deliveryCost.toFixed(2)}" oninput="updateDealCommercialPreview(${id})">
+      </div>
+
+      <div class="anybike-commercial-field">
+        <label>Export Docs Cost</label>
+        <input id="deal-commercial-docs-${id}" type="number" min="0" step="0.01" value="${docs.toFixed(2)}" oninput="updateDealCommercialPreview(${id})">
+      </div>
+
+      <div class="anybike-commercial-field">
+        <label>Admin Cost</label>
+        <input id="deal-commercial-admin-${id}" type="number" min="0" step="0.01" value="${admin.toFixed(2)}" oninput="updateDealCommercialPreview(${id})">
+      </div>
+
+      <div class="anybike-commercial-field">
+        <label>Other Cost</label>
+        <input id="deal-commercial-other-${id}" type="number" min="0" step="0.01" value="${other.toFixed(2)}" oninput="updateDealCommercialPreview(${id})">
+      </div>
+
+      <div class="anybike-commercial-field" style="grid-column:span 3">
+        <label>Internal Commercial Notes</label>
+        <textarea id="deal-commercial-notes-${id}" placeholder="Seller price source, assumptions, prep notes or other internal commercial detail">${escapeAdminHtml(notes)}</textarea>
+      </div>
+    </div>
+
+    <div class="anybike-commercial-metrics">
+      <div class="anybike-commercial-metric">
+        <span>Customer Total</span>
+        <strong id="deal-commercial-customer-total-${id}">${customerTotal===null || customerTotal===undefined ? "—" : anyBikeDealMoney(customerTotal)}</strong>
+      </div>
+      <div class="anybike-commercial-metric">
+        <span>Total Internal Cost</span>
+        <strong id="deal-commercial-total-cost-${id}">${totalInternal===null || totalInternal===undefined ? "—" : anyBikeDealMoney(totalInternal)}</strong>
+      </div>
+      <div class="anybike-commercial-metric ${profitClass}">
+        <span>Projected Profit</span>
+        <strong id="deal-commercial-profit-${id}">${profit===null || profit===undefined ? "—" : anyBikeDealMoney(profit)}</strong>
+      </div>
+      <div class="anybike-commercial-metric">
+        <span>Projected Margin</span>
+        <strong id="deal-commercial-margin-${id}">${margin===null || margin===undefined ? "—" : Number(margin).toFixed(1)+"%"}</strong>
+      </div>
+    </div>
+
+    <div class="anybike-commercial-actions">
+      <p>Internal planning only. Saving this does not send an offer, record acceptance, take payment or secure the motorcycle.</p>
+      <button class="anybike-commercial-save" type="button" ${busy ? "disabled" : ""} onclick="saveDealCommercialSetup(${id});return false;">${busy ? "Saving..." : "Save Commercial Setup"}</button>
+    </div>
+  </div>`;
+}
+
 function renderAnyBikeDealPreSalePanel(deal){
   const dealId=String(deal.deal_id || "");
   const buyerName=anyBikeDealBuyerName(deal);
@@ -6495,6 +6919,15 @@ async function loadAdminDealQueue(){
   }catch(error){
     console.error("AnyBike Deal Queue could not be loaded:", error);
     adminDealQueue = [];
+  }
+
+  try{
+    const commercialResult = await sb.rpc("admin_get_deal_commercial_setup_v1", { p_deal_id:null });
+    if(commercialResult.error){ throw commercialResult.error; }
+    adminDealCommercialSetup = commercialResult.data || [];
+  }catch(error){
+    console.warn("Deal Commercial Setup could not be loaded:", error);
+    adminDealCommercialSetup = [];
   }
 
   try{
@@ -8690,7 +9123,10 @@ function renderAdminDealQueue(){
             <div><span>Deal Stage</span><strong>${stage}</strong></div>
           </div>
           <div class="anybike-deal-bike-list">${bikeRows}</div>
-          ${preSale ? renderAnyBikeDealPreSalePanel(deal) : `
+          ${preSale ? `
+            ${renderAnyBikeDealPreSalePanel(deal)}
+            ${renderAnyBikeDealCommercialSetup(deal)}
+          ` : `
             ${renderAnyBikeDealCustomerAccount(deal)}
             ${renderAnyBikeDealCustomerLedger(deal)}
             ${renderAnyBikeDealPaymentPanel(deal)}
