@@ -1,9 +1,837 @@
-function journeyHtml(purchase,state){
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 
-  const nextStage =
+<title>My Purchases | AnyBike</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="/public-header.css?v=9000">
+
+<style>
+:root{
+  --red:#ed1c24;
+  --red-soft:#ff5a61;
+  --bg:#050505;
+  --panel:#101010;
+  --panel2:#171717;
+  --text:#ffffff;
+  --muted:#a8a8a8;
+  --line:rgba(255,255,255,.12);
+  --line-strong:rgba(255,255,255,.18);
+  --green:#36d37e;
+  --amber:#ffbf47;
+}
+
+*{
+  box-sizing:border-box;
+}
+
+body{
+  margin:0;
+  background:
+    radial-gradient(
+      circle at 90% 0%,
+      rgba(237,28,36,.14),
+      transparent 34%
+    ),
+    #050505;
+  color:#fff;
+  font-family:Arial,Helvetica,sans-serif;
+}
+
+main{
+  width:min(1420px,94vw);
+  margin:28px auto 70px;
+}
+
+.hero{
+  border:1px solid rgba(237,28,36,.28);
+  border-radius:22px;
+  padding:25px;
+  background:
+    radial-gradient(
+      circle at 100% 0%,
+      rgba(237,28,36,.10),
+      transparent 35%
+    ),
+    #101010;
+  margin-bottom:20px;
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,.03) inset,
+    0 14px 40px rgba(0,0,0,.22);
+}
+
+.eyebrow{
+  color:var(--red);
+  font-size:12px;
+  font-weight:900;
+  letter-spacing:.18em;
+}
+
+.hero h1{
+  font-size:38px;
+  margin:7px 0;
+}
+
+.hero p{
+  color:#bbb;
+  margin:0;
+  line-height:1.5;
+}
+
+.top-actions{
+  display:flex;
+  gap:10px;
+  margin-top:18px;
+}
+
+.btn{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-height:42px;
+  padding:0 16px;
+  border-radius:10px;
+  text-decoration:none;
+  font-weight:900;
+  border:1px solid rgba(237,28,36,.32);
+  color:#fff;
+  background:#171717;
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.05) inset,
+    0 6px 18px rgba(0,0,0,.16);
+}
+
+.panel{
+  border:1px solid rgba(237,28,36,.24);
+  border-radius:20px;
+  background:
+    radial-gradient(
+      circle at 95% 0%,
+      rgba(237,28,36,.08),
+      transparent 30%
+    ),
+    #101010;
+  padding:20px;
+}
+
+.grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:16px;
+}
+
+.card{
+  border:1px solid rgba(237,28,36,.26);
+  border-radius:18px;
+  overflow:hidden;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255,255,255,.01),
+      rgba(255,255,255,0)
+    ),
+    #141414;
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,.02) inset,
+    0 16px 34px rgba(0,0,0,.20);
+}
+
+.card.secured{
+  border-color:rgba(237,28,36,.34);
+}
+
+.image{
+  height:250px;
+  background:#090909;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border-bottom:1px solid rgba(237,28,36,.18);
+}
+
+.image img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+}
+
+.body{
+  padding:18px;
+}
+
+.top{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+}
+
+.top h2{
+  margin:0;
+  font-size:24px;
+}
+
+.variant{
+  color:#aaa;
+  margin-top:4px;
+}
+
+.badges{
+  display:flex;
+  gap:7px;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+  align-items:flex-start;
+}
+
+.badge{
+  height:max-content;
+  padding:7px 11px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.12);
+  background:#171717;
+  color:#ddd;
+  font-size:11px;
+  font-weight:900;
+  white-space:nowrap;
+  box-shadow:0 1px 0 rgba(255,255,255,.05) inset;
+}
+
+.badge.offer{
+  border-color:rgba(237,28,36,.45);
+  background:rgba(237,28,36,.11);
+  color:#ffb2b5;
+}
+
+.badge.secured{
+  border-color:rgba(54,211,126,.55);
+  background:rgba(54,211,126,.12);
+  color:#98ffc0;
+}
+
+.badge.payment-due{
+  border-color:rgba(255,191,71,.55);
+  background:rgba(255,191,71,.10);
+  color:#ffd98b;
+}
+
+.status{
+  margin:16px 0;
+  padding:15px;
+  border-radius:13px;
+}
+
+.status.pending{
+  border:1px solid rgba(237,28,36,.26);
+  background:rgba(237,28,36,.05);
+}
+
+.status.secured{
+  border:1px solid rgba(237,28,36,.26);
+  background:
+    linear-gradient(
+      90deg,
+      rgba(237,28,36,.07),
+      rgba(237,28,36,.02)
+    );
+}
+
+.status.complete{
+  border:1px solid rgba(54,211,126,.30);
+  background:rgba(54,211,126,.07);
+}
+
+.status.payment-due{
+  border:1px solid rgba(255,191,71,.35);
+  background:rgba(255,191,71,.06);
+}
+
+.status strong{
+  display:block;
+  font-size:19px;
+}
+
+.status.pending strong,
+.status.secured strong{
+  color:#fff;
+}
+
+.status.complete strong{
+  color:#cffff0;
+}
+
+.status.payment-due strong{
+  color:#ffd98b;
+}
+
+.status span{
+  display:block;
+  margin-top:5px;
+  font-size:13px;
+  line-height:1.45;
+}
+
+.status.pending span,
+.status.secured span{
+  color:#c9c9c9;
+}
+
+.status.complete span{
+  color:#c8e7d7;
+}
+
+.status.payment-due span{
+  color:#dcc89d;
+}
+
+.price{
+  padding:15px;
+  border:1px solid rgba(237,28,36,.22);
+  border-radius:13px;
+  margin-bottom:12px;
+  background:#0d0d0d;
+}
+
+.price strong{
+  display:block;
+  font-size:24px;
+}
+
+.price span{
+  font-size:12px;
+  color:#bbb;
+}
+
+.payment-summary{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:8px;
+  margin-bottom:12px;
+}
+
+.payment-box{
+  border:1px solid rgba(255,255,255,.1);
+  border-radius:11px;
+  padding:11px;
+  background:#0d0d0d;
+}
+
+.payment-box span{
+  display:block;
+  color:#888;
+  font-size:9px;
+  font-weight:900;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  margin-bottom:5px;
+}
+
+.payment-box strong{
+  font-size:15px;
+  color:#fff;
+}
+
+.payment-box.good{
+  border-color:rgba(54,211,126,.22);
+}
+
+.payment-box.good strong{
+  color:var(--green);
+}
+
+.payment-box.due{
+  border-color:rgba(255,191,71,.22);
+}
+
+.payment-box.due strong{
+  color:#ffd27a;
+}
+
+.details{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:8px;
+}
+
+.detail{
+  border:1px solid rgba(255,255,255,.1);
+  border-radius:11px;
+  padding:11px;
+  background:#0d0d0d;
+}
+
+.detail span{
+  display:block;
+  color:#888;
+  font-size:9px;
+  font-weight:900;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  margin-bottom:5px;
+}
+
+.good-text{
+  color:var(--green);
+  font-weight:900;
+}
+
+.due-text{
+  color:#ffd27a;
+  font-weight:900;
+}
+
+.journey{
+  margin-top:16px;
+  border:1px solid rgba(237,28,36,.22);
+  border-radius:15px;
+  padding:16px;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255,255,255,.025),
+      rgba(255,255,255,0)
+    ),
+    #0b0b0b;
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.04) inset,
+    0 8px 24px rgba(0,0,0,.16);
+}
+
+.journey-title{
+  font-size:11px;
+  color:#b5b5b5;
+  text-transform:uppercase;
+  font-weight:900;
+  letter-spacing:.12em;
+  margin-bottom:13px;
+}
+
+.steps{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+}
+
+.step{
+  position:relative;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-height:34px;
+  padding:9px 14px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.13);
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255,255,255,.035),
+      rgba(255,255,255,.005)
+    ),
+    #111;
+  color:#aaa;
+  font-size:10px;
+  font-weight:900;
+  letter-spacing:.015em;
+  line-height:1;
+  white-space:nowrap;
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.07) inset,
+    0 4px 12px rgba(0,0,0,.20);
+}
+
+.step::before{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex:0 0 auto;
+  width:17px;
+  height:17px;
+  margin-right:7px;
+  border-radius:50%;
+  font-size:10px;
+  font-weight:900;
+}
+
+.step.done{
+  border-color:rgba(54,211,126,.58);
+  background:
+    linear-gradient(
+      180deg,
+      rgba(54,211,126,.17),
+      rgba(54,211,126,.08)
+    ),
+    #101712;
+  color:#b9ffd2;
+}
+
+.step.done::before{
+  content:"✓";
+  color:#07160d;
+  background:var(--green);
+}
+
+.step.current{
+  border-color:rgba(255,191,71,.72);
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255,191,71,.18),
+      rgba(255,191,71,.08)
+    ),
+    #18140b;
+  color:#ffe2a7;
+}
+
+.step.current::before{
+  content:"";
+  background:var(--amber);
+  box-shadow:
+    0 0 0 4px rgba(255,191,71,.10),
+    0 0 10px rgba(255,191,71,.18);
+}
+
+.step.todo{
+  border-color:rgba(237,28,36,.48);
+  background:
+    linear-gradient(
+      180deg,
+      rgba(237,28,36,.12),
+      rgba(237,28,36,.05)
+    ),
+    #160d0e;
+  color:#ff9ca0;
+}
+
+.step.todo::before{
+  content:"";
+  background:#241012;
+  border:2px solid var(--red);
+}
+
+.notice{
+  margin-top:14px;
+  color:#bbb;
+  font-size:12px;
+  line-height:1.5;
+}
+
+.notice strong{
+  color:#fff;
+}
+
+.empty{
+  padding:34px;
+  text-align:center;
+  border:1px dashed rgba(237,28,36,.25);
+  border-radius:14px;
+  color:#bbb;
+}
+
+@media(max-width:900px){
+  .grid{
+    grid-template-columns:1fr;
+  }
+}
+
+@media(max-width:700px){
+  .payment-summary{
+    grid-template-columns:1fr;
+  }
+}
+
+@media(max-width:620px){
+  main{
+    width:min(96vw,1420px);
+  }
+
+  .hero h1{
+    font-size:30px;
+  }
+
+  .details{
+    grid-template-columns:1fr;
+  }
+
+  .image{
+    height:210px;
+  }
+
+  .top{
+    flex-direction:column;
+  }
+
+  .badges{
+    justify-content:flex-start;
+  }
+
+  .journey{
+    padding:14px;
+  }
+
+  .steps{
+    gap:7px;
+  }
+
+  .step{
+    min-height:32px;
+    padding:8px 11px;
+    font-size:9px;
+  }
+
+  .step::before{
+    width:15px;
+    height:15px;
+    margin-right:6px;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<div id="publicHeader"></div>
+
+<main>
+
+<section class="hero">
+
+  <div class="eyebrow">
+    MY ANYBIKE
+  </div>
+
+  <h1>
+    🛒 My Purchases
+  </h1>
+
+  <p>
+    Your accepted AnyBike purchases, payment progress and motorcycle
+    security status in one place.
+  </p>
+
+  <div class="top-actions">
+    <a class="btn" href="customer-dashboard.html">
+      ← Back to My AnyBike
+    </a>
+  </div>
+
+</section>
+
+<section class="panel">
+
+  <div id="purchases">
+    <div class="empty">
+      Loading your purchases...
+    </div>
+  </div>
+
+</section>
+
+</main>
+
+<script src="/public-header.js?v=9200"></script>
+
+<script>
+
+const SUPABASE_URL =
+  "https://tuehtnezhdnkqbbhttgp.supabase.co";
+
+const SUPABASE_ANON_KEY =
+  "sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
+
+const sb = supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_ANON_KEY
+);
+
+const safe = value =>
+  String(value ?? "").replace(
+    /[&<>"']/g,
+    character => ({
+      "&":"&amp;",
+      "<":"&lt;",
+      ">":"&gt;",
+      '"':"&quot;",
+      "'":"&#039;"
+    }[character])
+  );
+
+const money = value =>
+  Number.isFinite(Number(value))
+    ? new Intl.NumberFormat(
+        "en-GB",
+        {
+          style:"currency",
+          currency:"GBP"
+        }
+      ).format(Number(value))
+    : "-";
+
+function deliveryLabel(value){
+
+  const delivery =
+    String(value || "").trim();
+
+  if(delivery === "Buyer Arranged / Collection"){
+    return "Buyer arranged / collection";
+  }
+
+  if(delivery === "Delivery to UK Address"){
+    return "Delivery to UK address";
+  }
+
+  if(delivery === "Delivery to UK Port"){
+    return "Delivery to UK port";
+  }
+
+  if(delivery === "Other Agreed Delivery"){
+    return "Other agreed delivery";
+  }
+
+  return delivery || "To be agreed";
+}
+
+function purchaseState(purchase){
+
+  const depositRequired =
+    !!purchase.deposit_required;
+
+  const depositDue =
+    Number(
+      purchase.deposit_due_gbp || 0
+    );
+
+  const depositAllocated =
+    Number(
+      purchase.deposit_allocated_gbp || 0
+    );
+
+  const depositOutstanding =
+    Number(
+      purchase.deposit_outstanding_gbp || 0
+    );
+
+  const moneyReceived =
+    Number(
+      purchase.customer_money_received_deal_gbp || 0
+    );
+
+  const allocated =
+    Number(
+      purchase.customer_allocated_motorcycle_gbp || 0
+    );
+
+  const balance =
+    Number(
+      purchase.customer_balance_motorcycle_gbp || 0
+    );
+
+  const secured =
+    !!purchase.motorcycle_secured;
+
+  const depositSatisfied =
+    !depositRequired ||
+    depositDue <= 0 ||
+    depositOutstanding <= 0;
+
+  const fullyPaid =
+    balance <= 0;
+
+  let heading =
+    "Purchase in Progress";
+
+  let message =
+    "Your AnyBike purchase is progressing.";
+
+  if(secured && fullyPaid){
+
+    heading =
+      "Motorcycle Secured & Paid";
+
+    message =
+      "Your motorcycle has been secured with the seller and your motorcycle payment has been received in full.";
+
+  }else if(secured && !depositSatisfied){
+
+    heading =
+      "Motorcycle Secured";
+
+    message =
+      "AnyBike has secured this motorcycle with the seller. Your customer deposit is still outstanding.";
+
+  }else if(secured){
+
+    heading =
+      "Motorcycle Secured";
+
+    message =
+      "AnyBike has secured this motorcycle with the seller. The remaining balance and documentation stages can now continue.";
+
+  }else if(!depositSatisfied){
+
+    heading =
+      "Deposit / Payment Required";
+
+    message =
+      "Your formal AnyBike offer has been accepted. Your deposit is currently due and the motorcycle has not yet been secured with the seller.";
+
+  }else{
+
+    heading =
+      "Final Seller Check";
+
+    message =
+      "Your payment stage has progressed. AnyBike is completing the final seller security stage before the motorcycle is marked as secured.";
+
+  }
+
+  let paymentStatus =
     String(
-      purchase.next_customer_stage || ""
+      purchase.customer_payment_status || ""
     ).trim();
+
+  if(fullyPaid){
+
+    paymentStatus =
+      "Paid in Full";
+
+  }else if(!depositSatisfied){
+
+    paymentStatus =
+      "Deposit Due";
+
+  }else if(allocated > 0){
+
+    paymentStatus =
+      "Part Paid";
+
+  }else if(!depositRequired){
+
+    paymentStatus =
+      "Balance Due";
+
+  }
+
+  return {
+    depositRequired,
+    depositDue,
+    depositAllocated,
+    depositOutstanding,
+    depositSatisfied,
+    moneyReceived,
+    allocated,
+    balance,
+    secured,
+    fullyPaid,
+    heading,
+    message,
+    paymentStatus
+  };
+}
+
+function journeyHtml(purchase,state){
 
   const dealStage =
     String(
@@ -117,3 +945,581 @@ function journeyHtml(purchase,state){
     </div>
   `;
 }
+
+function purchaseCard(purchase){
+
+  const state =
+    purchaseState(purchase);
+
+  const title =
+    [
+      purchase.make,
+      purchase.model
+    ]
+    .filter(Boolean)
+    .join(" ") || "Motorcycle";
+
+  const variant =
+    String(
+      purchase.variant || ""
+    ).trim();
+
+  const image =
+    String(
+      purchase.image_url || ""
+    ).trim();
+
+  const motorcyclePrice =
+    Number(
+      purchase.motorcycle_price_gbp || 0
+    );
+
+  const deliveryCharge =
+    Number(
+      purchase.delivery_charge_gbp || 0
+    );
+
+  const displayedTotal =
+    motorcyclePrice + deliveryCharge;
+
+  const destination =
+    String(
+      purchase.delivery_destination || ""
+    ).trim();
+
+  const saleBasis =
+    String(
+      purchase.sale_basis || ""
+    ).trim() || "AnyBike purchase";
+
+  const acceptedAt =
+    purchase.offer_accepted_at || null;
+
+  const paymentDue =
+    state.balance > 0;
+
+  let depositDisplay =
+    "No deposit required";
+
+  if(state.depositRequired){
+
+    if(state.depositOutstanding > 0){
+
+      depositDisplay =
+        money(state.depositOutstanding) +
+        " due";
+
+    }else{
+
+      depositDisplay =
+        money(state.depositDue) +
+        " paid";
+
+    }
+
+  }
+
+  let notice = "";
+
+  if(state.secured && !state.depositSatisfied){
+
+    notice = `
+      <strong>Your motorcycle is secured.</strong>
+      Customer payment and motorcycle security are separate stages.
+      Your deposit remains due even though AnyBike has already secured
+      the motorcycle with the seller.
+    `;
+
+  }else if(state.secured){
+
+    notice = `
+      <strong>Your motorcycle has been secured with the seller.</strong>
+      Any remaining customer balance, documents and operational stages
+      will continue through your AnyBike purchase.
+    `;
+
+  }else if(!state.depositSatisfied){
+
+    notice = `
+      Acceptance records your commitment to the AnyBike offer.
+      Your deposit is currently outstanding. The motorcycle will only
+      show as secured when AnyBike completes the seller security stage.
+    `;
+
+  }else{
+
+    notice = `
+      Your payment stage has progressed. Motorcycle security is confirmed
+      separately by AnyBike after the final seller check.
+    `;
+
+  }
+
+  let statusClass =
+    "pending";
+
+  if(state.fullyPaid){
+    statusClass = "complete";
+  }else if(!state.depositSatisfied){
+    statusClass = "payment-due";
+  }else if(state.secured){
+    statusClass = "secured";
+  }
+
+  return `
+
+    <article class="card ${state.secured ? "secured" : ""}">
+
+      <div class="image">
+
+        ${
+          image
+
+          ? `
+            <img
+              src="${safe(image)}"
+              alt="${safe(title)}"
+              loading="lazy"
+            >
+          `
+
+          : `
+            <div style="font-size:60px">
+              🏍️
+            </div>
+          `
+        }
+
+      </div>
+
+      <div class="body">
+
+        <div class="top">
+
+          <div>
+
+            <h2>
+              ${safe(title)}
+            </h2>
+
+            ${
+              variant
+
+              ? `
+                <div class="variant">
+                  ${safe(variant)}
+                </div>
+              `
+
+              : ""
+            }
+
+          </div>
+
+          <div class="badges">
+
+            <span class="badge offer">
+              Offer Accepted
+            </span>
+
+            ${
+              state.secured
+
+              ? `
+                <span class="badge secured">
+                  ✓ Motorcycle Secured
+                </span>
+              `
+
+              : ""
+            }
+
+            ${
+              paymentDue
+
+              ? `
+                <span class="badge payment-due">
+                  ${safe(state.paymentStatus)}
+                </span>
+              `
+
+              : `
+                <span class="badge secured">
+                  Paid
+                </span>
+              `
+            }
+
+          </div>
+
+        </div>
+
+        <div class="status ${statusClass}">
+
+          <strong>
+            ${safe(state.heading)}
+          </strong>
+
+          <span>
+            ${safe(state.message)}
+          </span>
+
+        </div>
+
+        <div class="price">
+
+          <strong>
+            ${money(displayedTotal)}
+          </strong>
+
+          <span>
+            Accepted AnyBike purchase price
+          </span>
+
+        </div>
+
+        <div class="payment-summary">
+
+          <div class="payment-box ${
+            state.moneyReceived > 0
+              ? "good"
+              : ""
+          }">
+
+            <span>
+              Payments Received
+            </span>
+
+            <strong>
+              ${money(state.moneyReceived)}
+            </strong>
+
+          </div>
+
+          <div class="payment-box ${
+            state.depositSatisfied
+              ? "good"
+              : "due"
+          }">
+
+            <span>
+              Deposit
+            </span>
+
+            <strong>
+              ${safe(depositDisplay)}
+            </strong>
+
+          </div>
+
+          <div class="payment-box ${
+            state.balance > 0
+              ? "due"
+              : "good"
+          }">
+
+            <span>
+              Balance Remaining
+            </span>
+
+            <strong>
+              ${money(state.balance)}
+            </strong>
+
+          </div>
+
+        </div>
+
+        <div class="details">
+
+          <div class="detail">
+
+            <span>
+              Payment Status
+            </span>
+
+            <div class="${
+              state.fullyPaid
+                ? "good-text"
+                : "due-text"
+            }">
+              ${safe(state.paymentStatus)}
+            </div>
+
+          </div>
+
+          <div class="detail">
+
+            <span>
+              Motorcycle Status
+            </span>
+
+            <div class="${
+              state.secured
+                ? "good-text"
+                : "due-text"
+            }">
+              ${
+                state.secured
+                  ? "SECURED"
+                  : "Not Yet Secured"
+              }
+            </div>
+
+          </div>
+
+          <div class="detail">
+
+            <span>
+              Sale Basis
+            </span>
+
+            ${safe(saleBasis)}
+
+          </div>
+
+          <div class="detail">
+
+            <span>
+              Delivery / Collection
+            </span>
+
+            ${safe(
+              deliveryLabel(
+                purchase.delivery_type
+              )
+            )}
+
+          </div>
+
+          <div class="detail">
+
+            <span>
+              Offer Accepted
+            </span>
+
+            ${
+              acceptedAt
+
+              ? safe(
+                  new Date(
+                    acceptedAt
+                  ).toLocaleString(
+                    "en-GB"
+                  )
+                )
+
+              : "-"
+            }
+
+          </div>
+
+          <div class="detail">
+
+            <span>
+              Deal Reference
+            </span>
+
+            ${safe(
+              purchase.deal_number ||
+              "AnyBike Purchase"
+            )}
+
+          </div>
+
+          ${
+            destination
+
+            ? `
+
+              <div
+                class="detail"
+                style="grid-column:1/-1"
+              >
+
+                <span>
+                  Destination
+                </span>
+
+                ${safe(destination)}
+
+              </div>
+
+            `
+
+            : ""
+          }
+
+        </div>
+
+        ${journeyHtml(purchase,state)}
+
+        <div class="notice">
+          ${notice}
+        </div>
+
+      </div>
+
+    </article>
+
+  `;
+}
+
+async function loadPurchases(){
+
+  const purchasesBox =
+    document.getElementById(
+      "purchases"
+    );
+
+  const {
+    data:{
+      session
+    },
+    error:sessionError
+  } = await sb.auth.getSession();
+
+  if(sessionError){
+
+    console.error(
+      "Customer session check failed:",
+      sessionError
+    );
+
+  }
+
+  if(!session){
+
+    location.href =
+      "login.html";
+
+    return;
+
+  }
+
+  const {
+    data,
+    error
+  } = await sb.rpc(
+    "get_my_purchases_v1"
+  );
+
+  if(error){
+
+    console.error(
+      "My Purchases could not be loaded:",
+      error
+    );
+
+    purchasesBox.innerHTML = `
+
+      <div class="empty">
+
+        We could not load your purchases:
+
+        ${safe(error.message)}
+
+      </div>
+
+    `;
+
+    return;
+
+  }
+
+  const purchases =
+    Array.isArray(data)
+
+      ? data
+
+      : (
+          data
+            ? [data]
+            : []
+        );
+
+  if(!purchases.length){
+
+    purchasesBox.innerHTML = `
+
+      <div class="empty">
+
+        You do not have any AnyBike purchases
+        in progress at the moment.
+
+      </div>
+
+    `;
+
+    return;
+
+  }
+
+  const requestedPurchase =
+    new URLSearchParams(
+      location.search
+    ).get(
+      "purchase"
+    );
+
+  const orderedPurchases =
+    [...purchases];
+
+  if(requestedPurchase){
+
+    orderedPurchases.sort(
+      (a,b) => {
+
+        const aMatches =
+          String(
+            a.buyer_match_id
+          ) ===
+          String(
+            requestedPurchase
+          );
+
+        const bMatches =
+          String(
+            b.buyer_match_id
+          ) ===
+          String(
+            requestedPurchase
+          );
+
+        if(aMatches && !bMatches){
+          return -1;
+        }
+
+        if(bMatches && !aMatches){
+          return 1;
+        }
+
+        return 0;
+
+      }
+    );
+
+  }
+
+  purchasesBox.innerHTML = `
+
+    <div class="grid">
+
+      ${
+        orderedPurchases
+          .map(purchaseCard)
+          .join("")
+      }
+
+    </div>
+
+  `;
+
+}
+
+loadPurchases();
+
+</script>
+
+</body>
+</html>
