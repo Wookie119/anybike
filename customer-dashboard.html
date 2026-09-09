@@ -1911,6 +1911,61 @@ async function chooseBuyerMatchCount(requestItemId,count,button){
   }
 }
 
+
+function normaliseDeal360OfferForDashboard(offer){
+  const offerId=Number(offer?.offer_id || 0);
+  const syntheticId=900000000000 + offerId;
+  const status=String(offer?.offer_status || "");
+
+  return {
+    id:syntheticId,
+
+    _offer_source:"deal360",
+    _deal_offer_id:offerId,
+    _deal_id:Number(offer?.deal_id || 0),
+    _deal_number:offer?.deal_number || "",
+    _deal_motorcycle_id:Number(offer?.deal_motorcycle_id || 0),
+
+    stock_id:offer?.stock_id ?? null,
+    stock_make:offer?.make || "",
+    stock_model:offer?.model || "",
+    stock_variant:offer?.variant || "",
+    stock_year:offer?.year ?? null,
+    stock_image_url:offer?.image_url || "",
+
+    confirmed_customer_price_gbp:Number(offer?.motorcycle_price_gbp || 0),
+    offer_delivery_charge_gbp:Number(offer?.delivery_charge_gbp || 0),
+    offer_deposit_amount_gbp:Number(offer?.deposit_amount_gbp || 0),
+
+    offer_sale_basis:offer?.sale_basis || "",
+    offer_terms_text:offer?.offer_terms_text || "",
+    offer_delivery_type:offer?.delivery_type || "",
+    offer_delivery_destination:offer?.delivery_destination || "",
+    offer_payment_terms_text:offer?.payment_terms_text || "",
+
+    confirmed_offer_sent_at:offer?.sent_at || null,
+    confirmed_offer_expires_at:offer?.offer_expires_at || null,
+
+    customer_offer_decision:offer?.customer_decision || null,
+    customer_offer_decided_at:offer?.customer_decided_at || null,
+
+    match_status:
+      status==="Sent" ? "Confirmed Offer Sent" :
+      status==="Accepted" ? "Customer Accepted Offer" :
+      status==="Declined" ? "Customer Declined Offer" :
+      status==="Expired" ? "Expired" :
+      status,
+
+    buyer_response:
+      status==="Accepted" ? "Formal Offer Accepted" :
+      status==="Declined" ? "Formal Offer Declined" :
+      null,
+
+    buyer_responded_at:offer?.customer_decided_at || null,
+    bike_secured:!!offer?.motorcycle_secured
+  };
+}
+
 function customerOfferDeliveryLabel(match){
   const type=String(match?.offer_delivery_type || "").trim();
   if(type==="Buyer Arranged / Collection") return "Buyer arranged / collection";
@@ -1966,7 +2021,7 @@ function customerOfferCardHtml(match){
             ${variant ? `<div class="buyer-match-variant">${safe(variant)}</div>` : ""}
             <a class="my-offer-view-link" href="#" onclick="event.preventDefault();openCustomerOfferModal(${Number(match.id)})">View Bike &amp; Offer →</a>
           </div>
-          <span class="my-offer-badge">${expired ? "Expired Offer" : "AnyBike Offer"}</span>
+          <span class="my-offer-badge">${expired ? "Expired Offer" : (match?._offer_source==="deal360" ? "Deal 360 Offer" : "AnyBike Offer")}</span>
         </div>
 
         <div class="my-offer-price">
@@ -2210,7 +2265,7 @@ function openCustomerOfferModal(matchId){
 
   const expiresAt=match.confirmed_offer_expires_at || null;
   const expired=expiresAt ? new Date(expiresAt).getTime()<=Date.now() : false;
-  if(badge) badge.textContent=expired ? "Expired Offer" : "AnyBike Offer";
+  if(badge) badge.textContent=expired ? "Expired Offer" : (match?._offer_source==="deal360" ? "Deal 360 Offer" : "AnyBike Offer");
 
   body.innerHTML=customerOfferModalHtml(match);
   modal.classList.add("open");
@@ -2282,11 +2337,23 @@ async function customerOfferAccept(matchId){
   setCustomerOfferDecisionBusy(true,"Recording your acceptance securely…");
 
   try{
-    const {data,error}=await sb.rpc("customer_respond_to_anybike_offer",{
-      p_match_id:Number(matchId),
-      p_action:"accept",
-      p_decline_reason:null
-    });
+    const responseRpc=match?._offer_source==="deal360"
+      ? "customer_respond_to_deal_offer_v1"
+      : "customer_respond_to_anybike_offer";
+
+    const responseArgs=match?._offer_source==="deal360"
+      ? {
+          p_offer_id:Number(match._deal_offer_id),
+          p_action:"accept",
+          p_decline_reason:null
+        }
+      : {
+          p_match_id:Number(matchId),
+          p_action:"accept",
+          p_decline_reason:null
+        };
+
+    const {data,error}=await sb.rpc(responseRpc,responseArgs);
 
     if(error) throw error;
 
@@ -2318,6 +2385,12 @@ async function customerOfferDecline(matchId){
     return;
   }
 
+  const match=(currentBuyerMatchRows || []).find(row=>Number(row?.id)===Number(matchId));
+  if(!match){
+    alert("This AnyBike offer could not be found. Please refresh your dashboard.");
+    return;
+  }
+
   const reason=window.prompt(
     "Decline this AnyBike offer?\n\nYou can optionally tell us why. Leave this blank if you do not want to give a reason.\n\nPress Cancel to keep the offer open.",
     ""
@@ -2331,11 +2404,23 @@ async function customerOfferDecline(matchId){
   setCustomerOfferDecisionBusy(true,"Recording your decision securely…");
 
   try{
-    const {data,error}=await sb.rpc("customer_respond_to_anybike_offer",{
-      p_match_id:Number(matchId),
-      p_action:"decline",
-      p_decline_reason:String(reason || "").trim() || null
-    });
+    const responseRpc=match?._offer_source==="deal360"
+      ? "customer_respond_to_deal_offer_v1"
+      : "customer_respond_to_anybike_offer";
+
+    const responseArgs=match?._offer_source==="deal360"
+      ? {
+          p_offer_id:Number(match._deal_offer_id),
+          p_action:"decline",
+          p_decline_reason:String(reason || "").trim() || null
+        }
+      : {
+          p_match_id:Number(matchId),
+          p_action:"decline",
+          p_decline_reason:String(reason || "").trim() || null
+        };
+
+    const {data,error}=await sb.rpc(responseRpc,responseArgs);
 
     if(error) throw error;
 
@@ -2434,7 +2519,10 @@ function customerPurchaseCardHtml(match){
         </div>
 
         <div class="my-purchase-actions">
-          <a class="my-purchase-view" href="my-purchases.html?purchase=${encodeURIComponent(match.id)}">View Purchase</a>
+          <a class="my-purchase-view" href="${match?._offer_source==="deal360"
+            ? `my-purchases.html?deal=${encodeURIComponent(match._deal_id || "")}`
+            : `my-purchases.html?purchase=${encodeURIComponent(match.id)}`
+          }">View Purchase</a>
         </div>
 
         <p class="my-offer-note">Acceptance records your commitment to the AnyBike offer. The motorcycle remains not yet secured until AnyBike completes the final seller security stage.</p>
@@ -2553,10 +2641,11 @@ async function loadBuyerPotentialMatches(){
 
   box.innerHTML=`<div class="buyer-match-empty">Loading your AnyBike Potential Matches...</div>`;
 
-  const [poolRes,matchRes,dealRes]=await Promise.all([
+  const [poolRes,matchRes,dealRes,dealOfferRes]=await Promise.all([
     sb.rpc("get_my_buyer_match_pools"),
     sb.rpc("get_my_buyer_match_dashboard_v3"),
-    sb.rpc("get_my_deal_motorcycles")
+    sb.rpc("get_my_deal_motorcycles"),
+    sb.rpc("get_my_deal_offers_v1")
   ]);
 
   if(poolRes.error){
@@ -2588,13 +2677,25 @@ async function loadBuyerPotentialMatches(){
   }
 
   const buyerMatchRows=matchRes.data || [];
-  currentBuyerMatchRows=buyerMatchRows;
-  renderMyOffers(buyerMatchRows);
-  renderMyPurchases(buyerMatchRows);
+
+  let deal360OfferRows=[];
+  if(dealOfferRes.error){
+    console.warn("Deal 360 formal offers could not be loaded",dealOfferRes.error.message);
+  }else{
+    deal360OfferRows=(dealOfferRes.data || []).map(normaliseDeal360OfferForDashboard);
+  }
+
+  const allCustomerOfferRows=[...buyerMatchRows,...deal360OfferRows];
+  currentBuyerMatchRows=allCustomerOfferRows;
+
+  renderMyOffers(allCustomerOfferRows);
+  renderMyPurchases(allCustomerOfferRows);
+
   renderBuyerPotentialMatches(buyerMatchRows.filter(match=>{
     const status=String(match?.match_status || "");
     return !["Confirmed Offer Sent","Customer Accepted Offer","Customer Declined Offer"].includes(status);
   }));
+
   refreshMyOfferCountdowns();
 }
 
