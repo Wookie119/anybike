@@ -302,6 +302,41 @@ td strong{font-size:12px}
   .post-preview{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 
+
+.supplier-queue{padding:14px;display:grid;gap:12px}
+.supplier-card{border:1px solid #373737;border-top:3px solid #ed1c24;border-radius:12px;background:linear-gradient(180deg,#111,#0d0d0d);overflow:hidden}
+.supplier-card.verified{border-top-color:#36d37e}
+.supplier-card.check{border-top-color:#ffbf47}
+.supplier-head{display:flex;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid #292929}
+.supplier-head .eyebrow{color:#ed1c24;font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.08em}
+.supplier-head h3{margin:4px 0 3px;font-size:18px}
+.supplier-head p{margin:0;color:#999;font-size:11px}
+.supplier-body{padding:14px 16px}
+.supplier-summary{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin-bottom:12px}
+.supplier-summary .mini{border:1px solid #2f2f2f;border-radius:9px;background:#0c0c0c;padding:9px 10px}
+.supplier-summary span{display:block;color:#777;font-size:8px;font-weight:900;text-transform:uppercase;margin-bottom:4px}
+.supplier-summary strong{display:block;font-size:12px;word-break:break-word}
+.supplier-form{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}
+.supplier-form .field input,.supplier-form .field select{width:100%}
+.supplier-form .span2{grid-column:span 2}
+.supplier-form .span4{grid-column:1/-1}
+.supplier-form textarea{width:100%;min-height:72px;resize:vertical;border:1px solid #3a3a3a;border-radius:8px;background:#fff;color:#111;padding:10px;font-family:inherit}
+.supplier-check{min-height:38px;display:flex;align-items:center;gap:8px;padding:9px 10px;border:1px solid #333;border-radius:8px;background:#0c0c0c;font-size:11px;font-weight:800}
+.supplier-check input{width:18px;height:18px}
+.supplier-actions{margin-top:11px;display:flex;gap:8px;flex-wrap:wrap}
+.supplier-verified-note{margin-top:10px;padding:10px 11px;border:1px solid rgba(54,211,126,.32);border-radius:8px;background:rgba(54,211,126,.07);color:#9fffc3;font-size:11px;line-height:1.45}
+#supplierQueueBadge{display:none;min-width:18px;height:18px;line-height:18px;padding:0 5px;border-radius:999px;background:#ed1c24;color:#fff;font-size:9px;margin-left:4px}
+#supplierQueueBadge.show{display:inline-block}
+@media(max-width:1100px){
+  .supplier-summary{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .supplier-form{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .supplier-form .span4{grid-column:1/-1}
+}
+@media(max-width:700px){
+  .supplier-summary,.supplier-form{grid-template-columns:1fr}
+  .supplier-form .span2,.supplier-form .span4{grid-column:auto}
+}
+
 @media(max-width:1200px){.kpi-grid{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:750px){.admin-page-content{padding:12px}.kpi-grid{grid-template-columns:1fr 1fr}.panel-head{flex-direction:column}.controls{width:100%}}
 </style>
@@ -340,6 +375,7 @@ td strong{font-size:12px}
 
         <div class="tabs">
           <button id="tabPayments" class="active" type="button" onclick="showTab('payments')">Payment Verification <span id="paymentQueueBadge"></span></button>
+          <button id="tabSupplier" type="button" onclick="showTab('supplier')">Supplier Purchases <span id="supplierQueueBadge"></span></button>
           <button id="tabRegister" type="button" onclick="showTab('register')">Document Register</button>
           <button id="tabVat" type="button" onclick="showTab('vat')">VAT Sales Report</button>
         </div>
@@ -386,6 +422,48 @@ td strong{font-size:12px}
           </section>
         </section>
 
+
+        <section id="supplierPanel" class="tab-panel">
+          <div class="kpi-grid" id="supplierKpis">
+            <div class="kpi warn"><span>Needs Evidence</span><strong>—</strong></div>
+            <div class="kpi"><span>Draft / Check</span><strong>—</strong></div>
+            <div class="kpi good"><span>VAT Verified</span><strong>—</strong></div>
+            <div class="kpi"><span>Purchase Value</span><strong>—</strong></div>
+            <div class="kpi"><span>Recoverable Input VAT</span><strong>—</strong></div>
+          </div>
+
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>Supplier Purchase Documents &amp; Input VAT</h2>
+                <p>Seller payment proves money was paid. This section records the supplier purchase evidence that supports the accounting and VAT treatment.</p>
+              </div>
+              <div class="controls">
+                <div class="field">
+                  <label>Filter</label>
+                  <select id="supplierStatusFilter" onchange="renderSupplierQueue()">
+                    <option value="">All</option>
+                    <option value="Needs Evidence">Needs Evidence</option>
+                    <option value="Draft">Draft</option>
+                    <option value="Check Required">Check Required</option>
+                    <option value="Verified">Verified</option>
+                  </select>
+                </div>
+                <button type="button" onclick="loadSupplierQueue()">Refresh</button>
+              </div>
+            </div>
+
+            <div class="payment-rule">
+              <strong>VAT rule:</strong>
+              Margin Scheme purchases do not create recoverable input VAT. Full VAT input VAT is included in reporting only after the supplier purchase evidence has been verified.
+            </div>
+
+            <div id="supplierQueue" class="supplier-queue">
+              <div class="empty">Loading supplier purchase records...</div>
+            </div>
+          </section>
+        </section>
+
 <section id="registerPanel" class="tab-panel">
           <div class="kpi-grid" id="registerKpis">
             <div class="kpi"><span>Documents</span><strong>—</strong></div>
@@ -416,7 +494,7 @@ td strong{font-size:12px}
         </section>
 
         <section id="vatPanel" class="tab-panel">
-          <div class="note"><strong>VAT reporting rule:</strong> this sales report uses only frozen <strong>Issued Final Invoice / Credit Note</strong> VAT snapshots. Drafts and Proformas are excluded. Input VAT is deliberately not included yet; verified supplier purchase documents are the next accounting layer.</div>
+          <div class="note"><strong>VAT reporting rule:</strong> sales/output VAT uses only frozen <strong>Issued Final Invoice / Credit Note</strong> snapshots. Input VAT uses only <strong>Verified supplier purchase documents</strong>. Drafts and Proformas are excluded.</div>
 
           <div class="kpi-grid" id="vatKpis">
             <div class="kpi"><span>Accounting Documents</span><strong>—</strong></div>
@@ -441,6 +519,27 @@ td strong{font-size:12px}
               <tbody id="vatBody"><tr><td colspan="9" class="empty">Choose a VAT period.</td></tr></tbody>
             </table></div>
           </section>
+
+          <div class="kpi-grid" id="inputVatKpis">
+            <div class="kpi"><span>Verified Supplier Docs</span><strong>—</strong></div>
+            <div class="kpi"><span>Purchase Net</span><strong>—</strong></div>
+            <div class="kpi"><span>Supplier VAT Shown</span><strong>—</strong></div>
+            <div class="kpi good"><span>Recoverable Input VAT</span><strong>—</strong></div>
+            <div class="kpi"><span>Purchase Gross</span><strong>—</strong></div>
+          </div>
+
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>VAT Purchases / Input VAT</h2>
+                <p>Only supplier purchase evidence that has been explicitly Verified appears here.</p>
+              </div>
+            </div>
+            <div class="table-wrap"><table>
+              <thead><tr><th>Date</th><th>Supplier Document</th><th>Supplier</th><th>Deal</th><th>Motorcycle</th><th>VAT Treatment</th><th>Net</th><th>VAT Shown</th><th>Recoverable Input VAT</th><th>Gross</th></tr></thead>
+              <tbody id="inputVatBody"><tr><td colspan="10" class="empty">Choose a VAT period.</td></tr></tbody>
+            </table></div>
+          </section>
         </section>
       </div>
     </div>
@@ -461,9 +560,11 @@ const niceDate=value=>value?new Date(String(value).length===10?value+"T00:00:00"
 
 function showTab(name){
   document.getElementById("paymentsPanel").classList.toggle("active",name==="payments");
+  document.getElementById("supplierPanel").classList.toggle("active",name==="supplier");
   document.getElementById("registerPanel").classList.toggle("active",name==="register");
   document.getElementById("vatPanel").classList.toggle("active",name==="vat");
   document.getElementById("tabPayments").classList.toggle("active",name==="payments");
+  document.getElementById("tabSupplier").classList.toggle("active",name==="supplier");
   document.getElementById("tabRegister").classList.toggle("active",name==="register");
   document.getElementById("tabVat").classList.toggle("active",name==="vat");
 }
@@ -861,6 +962,257 @@ async function postPaymentAdvice(id){
 }
 
 
+
+let supplierRows=[];
+
+async function loadSupplierQueue(){
+  const result=await sb.rpc("admin_get_supplier_purchase_queue_v1",{p_deal_id:null});
+  if(result.error){
+    document.getElementById("supplierQueue").innerHTML=`<div class="empty">${esc(result.error.message)}</div>`;
+    return;
+  }
+  supplierRows=Array.isArray(result.data)?result.data:[];
+  renderSupplierQueue();
+}
+
+function supplierRowStatus(row){
+  if(row.verification_status==="Verified")return "Verified";
+  if(row.verification_status==="Check Required")return "Check Required";
+  if(row.purchase_document_id)return "Draft";
+  return "Needs Evidence";
+}
+function supplierCardClass(row){
+  const status=supplierRowStatus(row);
+  if(status==="Verified")return "verified";
+  if(status==="Check Required"||status==="Needs Evidence")return "check";
+  return "";
+}
+function supplierTreatment(row){
+  return row.document_vat_treatment || row.current_vat_treatment || "Check Required";
+}
+function supplierRate(row){
+  const n=Number(row.document_vat_rate_percent ?? row.current_vat_rate_percent ?? 20);
+  return Number.isFinite(n)?n:20;
+}
+function supplierGross(row){
+  const n=Number(row.purchase_gross_gbp ?? row.seller_purchase_price_gbp ?? 0);
+  return Number.isFinite(n)?n:0;
+}
+function supplierNet(row){
+  const treatment=supplierTreatment(row);
+  const gross=supplierGross(row);
+  if(row.purchase_net_gbp!==null && row.purchase_net_gbp!==undefined)return Number(row.purchase_net_gbp||0);
+  if(treatment==="Full VAT"){
+    const rate=supplierRate(row);
+    return rate>0?gross/(1+(rate/100)):gross;
+  }
+  return gross;
+}
+function supplierVat(row){
+  const treatment=supplierTreatment(row);
+  const gross=supplierGross(row);
+  if(row.supplier_vat_gbp!==null && row.supplier_vat_gbp!==undefined)return Number(row.supplier_vat_gbp||0);
+  if(treatment==="Full VAT")return gross-supplierNet(row);
+  return 0;
+}
+function supplierStatusBadge(row){
+  const status=supplierRowStatus(row);
+  if(status==="Verified")return '<span class="status ready">VAT Verified</span>';
+  if(status==="Draft")return '<span class="status draft">Draft Evidence</span>';
+  if(status==="Check Required")return '<span class="status bad">VAT Check Required</span>';
+  return '<span class="status review">Needs Purchase Evidence</span>';
+}
+
+function supplierCard(row){
+  const id=Number(row.deal_motorcycle_id);
+  const locked=row.verification_status==="Verified";
+  const treatment=supplierTreatment(row);
+  const recoverable=row.input_vat_recoverable===true;
+  const gross=supplierGross(row);
+  const net=supplierNet(row);
+  const vat=supplierVat(row);
+
+  return `<article class="supplier-card ${supplierCardClass(row)}">
+    <div class="supplier-head">
+      <div>
+        <div class="eyebrow">Supplier Purchase Evidence</div>
+        <h3>${esc(row.deal_number||("Deal #"+row.deal_id))} · ${esc(row.motorcycle||"Motorcycle")}</h3>
+        <p>Seller purchase ${money(row.seller_purchase_price_gbp)} · Supplier paid ${money(row.supplier_payments_made_gbp)}</p>
+      </div>
+      <div>${supplierStatusBadge(row)}</div>
+    </div>
+
+    <div class="supplier-body">
+      <div class="supplier-summary">
+        <div class="mini"><span>Purchase Price</span><strong>${money(row.seller_purchase_price_gbp)}</strong></div>
+        <div class="mini"><span>Paid to Supplier</span><strong>${money(row.supplier_payments_made_gbp)}</strong></div>
+        <div class="mini"><span>Supplier Balance</span><strong>${money(row.supplier_balance_due_gbp)}</strong></div>
+        <div class="mini"><span>Current VAT</span><strong>${esc(row.current_vat_treatment||"Check Required")} · ${esc(row.current_vat_status||"Check Required")}</strong></div>
+        <div class="mini"><span>Input VAT</span><strong>${row.verification_status==="Verified"?money(row.recoverable_input_vat_gbp||0):"Not verified"}</strong></div>
+      </div>
+
+      ${
+        locked
+        ? `<div class="supplier-summary">
+            <div class="mini"><span>Supplier</span><strong>${esc(row.supplier_name||"—")}</strong></div>
+            <div class="mini"><span>Document</span><strong>${esc(row.document_type||"—")} ${row.supplier_document_number?"· "+esc(row.supplier_document_number):""}</strong></div>
+            <div class="mini"><span>Document Date</span><strong>${esc(niceDate(row.supplier_document_date))}</strong></div>
+            <div class="mini"><span>Purchase Gross</span><strong>${money(row.purchase_gross_gbp)}</strong></div>
+            <div class="mini"><span>VAT Treatment</span><strong>${esc(row.document_vat_treatment||"—")}</strong></div>
+          </div>
+          <div class="supplier-verified-note"><strong>Verified supplier purchase evidence.</strong> This VAT position is now frozen into Deal 360. Recoverable input VAT: ${money(row.recoverable_input_vat_gbp||0)}.</div>`
+        : `<div class="supplier-form">
+            <div class="field span2"><label>Supplier / Seller Name</label><input id="supplierName-${id}" type="text" value="${esc(row.supplier_name||"")}" placeholder="Supplier shown on purchase evidence"></div>
+            <div class="field"><label>Document Type</label><select id="supplierType-${id}">${["Supplier Invoice","Purchase Receipt","Self Billing","Purchase Agreement","Other Evidence"].map(v=>`<option ${String(row.document_type||"Supplier Invoice")===v?"selected":""}>${v}</option>`).join("")}</select></div>
+            <div class="field"><label>Invoice / Reference No.</label><input id="supplierNumber-${id}" type="text" value="${esc(row.supplier_document_number||"")}" placeholder="Supplier document number"></div>
+            <div class="field"><label>Document Date</label><input id="supplierDate-${id}" type="date" value="${esc(row.supplier_document_date||"")}"></div>
+            <div class="field"><label>Purchase Gross</label><input id="supplierGross-${id}" type="number" min="0" step="0.01" value="${gross.toFixed(2)}" onchange="recalcSupplierVat(${id})"></div>
+            <div class="field"><label>Purchase Net</label><input id="supplierNet-${id}" type="number" min="0" step="0.01" value="${net.toFixed(2)}"></div>
+            <div class="field"><label>Supplier VAT</label><input id="supplierVat-${id}" type="number" min="0" step="0.01" value="${vat.toFixed(2)}"></div>
+            <div class="field"><label>VAT Treatment</label><select id="supplierVatTreatment-${id}" onchange="supplierVatTreatmentChanged(${id})">${["Check Required","Margin Scheme","Full VAT","Zero Rated","Outside Scope","Exempt"].map(v=>`<option ${treatment===v?"selected":""}>${v}</option>`).join("")}</select></div>
+            <div class="field"><label>VAT Rate %</label><input id="supplierVatRate-${id}" type="number" min="0" max="100" step="0.001" value="${supplierRate(row).toFixed(3)}" onchange="recalcSupplierVat(${id})"></div>
+            <label class="supplier-check"><input id="supplierRecoverable-${id}" type="checkbox" ${recoverable?"checked":""} ${treatment==="Full VAT"?"":"disabled"}> Input VAT recoverable</label>
+            <div class="field span4"><label>Verification Notes</label><textarea id="supplierNotes-${id}" placeholder="What evidence supports this VAT treatment?">${esc(row.verification_notes||"")}</textarea></div>
+          </div>
+
+          <div class="supplier-actions">
+            <button type="button" onclick="saveSupplierPurchase(${id})">Save Purchase Record</button>
+            <button class="primary" type="button" onclick="verifySupplierPurchase(${id})">${row.purchase_document_id?"Verify Purchase Evidence":"Save & Verify"}</button>
+          </div>`
+      }
+    </div>
+  </article>`;
+}
+
+function renderSupplierQueue(){
+  const box=document.getElementById("supplierQueue");
+  const filter=document.getElementById("supplierStatusFilter").value||"";
+  const rows=supplierRows.filter(row=>!filter||supplierRowStatus(row)===filter);
+
+  const needs=supplierRows.filter(r=>supplierRowStatus(r)==="Needs Evidence").length;
+  const drafts=supplierRows.filter(r=>["Draft","Check Required"].includes(supplierRowStatus(r))).length;
+  const verified=supplierRows.filter(r=>supplierRowStatus(r)==="Verified").length;
+  const purchaseValue=supplierRows.reduce((s,r)=>s+Number(r.seller_purchase_price_gbp||0),0);
+  const inputVat=supplierRows.filter(r=>supplierRowStatus(r)==="Verified").reduce((s,r)=>s+Number(r.recoverable_input_vat_gbp||0),0);
+
+  document.getElementById("supplierKpis").innerHTML=`
+    <div class="kpi warn"><span>Needs Evidence</span><strong>${needs}</strong></div>
+    <div class="kpi"><span>Draft / Check</span><strong>${drafts}</strong></div>
+    <div class="kpi good"><span>VAT Verified</span><strong>${verified}</strong></div>
+    <div class="kpi"><span>Purchase Value</span><strong>${money(purchaseValue)}</strong></div>
+    <div class="kpi"><span>Recoverable Input VAT</span><strong>${money(inputVat)}</strong></div>`;
+
+  const badge=document.getElementById("supplierQueueBadge");
+  const queueCount=needs+drafts;
+  badge.textContent=queueCount;
+  badge.classList.toggle("show",queueCount>0);
+
+  box.innerHTML=rows.length?rows.map(supplierCard).join(""):'<div class="empty">No supplier purchase records match this filter.</div>';
+}
+
+function supplierVatTreatmentChanged(id){
+  const treatment=document.getElementById("supplierVatTreatment-"+id).value;
+  const recover=document.getElementById("supplierRecoverable-"+id);
+  if(treatment==="Margin Scheme"){
+    recover.checked=false; recover.disabled=true;
+    document.getElementById("supplierVat-"+id).value="0.00";
+    document.getElementById("supplierNet-"+id).value=Number(document.getElementById("supplierGross-"+id).value||0).toFixed(2);
+  }else if(treatment==="Full VAT"){
+    recover.disabled=false;
+    recalcSupplierVat(id);
+  }else{
+    recover.checked=false; recover.disabled=true;
+  }
+}
+
+function recalcSupplierVat(id){
+  const treatment=document.getElementById("supplierVatTreatment-"+id)?.value;
+  if(treatment!=="Full VAT")return;
+  const gross=Number(document.getElementById("supplierGross-"+id)?.value||0);
+  const rate=Number(document.getElementById("supplierVatRate-"+id)?.value||20);
+  if(!Number.isFinite(gross)||!Number.isFinite(rate)||rate<0)return;
+  const net=rate>0?gross/(1+(rate/100)):gross;
+  const vat=gross-net;
+  document.getElementById("supplierNet-"+id).value=net.toFixed(2);
+  document.getElementById("supplierVat-"+id).value=vat.toFixed(2);
+}
+
+function supplierFormPayload(id){
+  return {
+    p_deal_motorcycle_id:Number(id),
+    p_supplier_name:document.getElementById("supplierName-"+id).value.trim()||null,
+    p_document_type:document.getElementById("supplierType-"+id).value,
+    p_supplier_document_number:document.getElementById("supplierNumber-"+id).value.trim()||null,
+    p_supplier_document_date:document.getElementById("supplierDate-"+id).value||null,
+    p_purchase_gross_gbp:Number(document.getElementById("supplierGross-"+id).value||0),
+    p_purchase_net_gbp:Number(document.getElementById("supplierNet-"+id).value||0),
+    p_supplier_vat_gbp:Number(document.getElementById("supplierVat-"+id).value||0),
+    p_vat_treatment:document.getElementById("supplierVatTreatment-"+id).value,
+    p_vat_rate_percent:Number(document.getElementById("supplierVatRate-"+id).value||20),
+    p_input_vat_recoverable:document.getElementById("supplierVatTreatment-"+id).value==="Full VAT"
+      ?!!document.getElementById("supplierRecoverable-"+id).checked:false,
+    p_verification_notes:document.getElementById("supplierNotes-"+id).value.trim()||null
+  };
+}
+
+async function saveSupplierPurchase(id,quiet=false){
+  const result=await sb.rpc("admin_save_supplier_purchase_document_v1",supplierFormPayload(id));
+  if(result.error){
+    if(!quiet)alert("Supplier purchase record could not be saved.\\n\\n"+result.error.message);
+    throw result.error;
+  }
+  if(!quiet){
+    alert("Supplier purchase record saved. VAT is still not Verified.");
+    await loadSupplierQueue();
+  }
+  return result.data||{};
+}
+
+async function verifySupplierPurchase(id){
+  try{
+    await saveSupplierPurchase(id,true);
+    await loadSupplierQueue();
+  }catch(error){
+    alert("Purchase evidence could not be saved before verification.\\n\\n"+(error.message||"Unknown error"));
+    return;
+  }
+
+  const saved=supplierRows.find(r=>Number(r.deal_motorcycle_id)===Number(id));
+  const purchaseDocumentId=Number(saved?.purchase_document_id);
+  if(!Number.isFinite(purchaseDocumentId)){
+    alert("The saved supplier purchase document could not be resolved.");
+    return;
+  }
+
+  if(!confirm(
+    "VERIFY SUPPLIER PURCHASE EVIDENCE?\\n\\n"+
+    (saved.deal_number||"Deal")+" · "+(saved.motorcycle||"Motorcycle")+"\\n"+
+    "Purchase amount: "+money(saved.purchase_gross_gbp||saved.seller_purchase_price_gbp)+"\\n"+
+    "VAT treatment: "+(saved.document_vat_treatment||saved.current_vat_treatment||"Check Required")+"\\n\\n"+
+    "Once verified, this VAT position is frozen into Deal 360 and can feed the input VAT report."
+  ))return;
+
+  const result=await sb.rpc("admin_verify_supplier_purchase_document_v1",{
+    p_purchase_document_id:purchaseDocumentId,
+    p_verification_notes:saved.verification_notes||null
+  });
+
+  if(result.error){
+    alert("Supplier purchase evidence could not be verified.\\n\\n"+result.error.message);
+    return;
+  }
+
+  const p=result.data||{};
+  alert(
+    "Supplier purchase evidence verified.\\n\\n"+
+    "VAT treatment: "+(p.vat_treatment||"—")+"\\n"+
+    "Recoverable input VAT: "+money(p.recoverable_input_vat_gbp||0)+"\\n\\n"+
+    "Deal 360 VAT status is now Verified."
+  );
+  await loadSupplierQueue();
+}
+
+
 async function loadRegister(){
   const from=document.getElementById("registerFrom").value||null;
   const to=document.getElementById("registerTo").value||null;
@@ -936,20 +1288,25 @@ async function loadVatReport(){
   const to=document.getElementById("vatTo").value;
   if(!from||!to){alert("Choose both VAT period dates.");return;}
 
-  const [rowsResult,summaryResult]=await Promise.all([
+  const [rowsResult,summaryResult,inputRowsResult,inputSummaryResult]=await Promise.all([
     sb.rpc("admin_get_vat_return_sales_v1",{p_from_date:from,p_to_date:to}),
-    sb.rpc("admin_get_vat_return_sales_summary_v1",{p_from_date:from,p_to_date:to})
+    sb.rpc("admin_get_vat_return_sales_summary_v1",{p_from_date:from,p_to_date:to}),
+    sb.rpc("admin_get_vat_return_input_v1",{p_from_date:from,p_to_date:to}),
+    sb.rpc("admin_get_vat_return_input_summary_v1",{p_from_date:from,p_to_date:to})
   ]);
 
-  if(rowsResult.error||summaryResult.error){
-    const msg=rowsResult.error?.message||summaryResult.error?.message||"VAT report failed";
+  if(rowsResult.error||summaryResult.error||inputRowsResult.error||inputSummaryResult.error){
+    const msg=rowsResult.error?.message||summaryResult.error?.message||inputRowsResult.error?.message||inputSummaryResult.error?.message||"VAT report failed";
     document.getElementById("vatBody").innerHTML=`<tr><td colspan="9" class="empty">${esc(msg)}</td></tr>`;
     return;
   }
 
   vatRows=Array.isArray(rowsResult.data)?rowsResult.data:[];
   const s=summaryResult.data||{};
+  const inputRows=Array.isArray(inputRowsResult.data)?inputRowsResult.data:[];
+  const inputSummary=inputSummaryResult.data||{};
   renderVatRows();
+  renderInputVatRows(inputRows,inputSummary);
 
   document.getElementById("vatKpis").innerHTML=`
     <div class="kpi"><span>Accounting Documents</span><strong>${Number(s.issued_final_invoices_and_credit_notes||0)}</strong></div>
@@ -962,6 +1319,34 @@ async function loadVatReport(){
     Number(s.documents_requiring_vat_review||0)>0
     ? `<div class="vat-warning"><strong>${Number(s.documents_requiring_vat_review)} document(s) require VAT review.</strong> Do not use this report for submission until the exceptions are resolved.</div>`
     : `<div class="note"><strong>Sales/output VAT report generated.</strong> Input VAT is not included yet and will be added from verified supplier purchase evidence.</div>`;
+}
+
+
+function renderInputVatRows(rows,summary){
+  const body=document.getElementById("inputVatBody");
+  if(!rows.length){
+    body.innerHTML='<tr><td colspan="10" class="empty">No Verified supplier purchase documents in this VAT period.</td></tr>';
+  }else{
+    body.innerHTML=rows.map(row=>`<tr>
+      <td>${esc(niceDate(row.supplier_document_date))}</td>
+      <td><strong>${esc(row.supplier_document_number||"—")}</strong></td>
+      <td>${esc(row.supplier_name||"—")}</td>
+      <td>${esc(row.deal_number||"—")}</td>
+      <td>${esc(row.motorcycle||"Motorcycle")}</td>
+      <td>${esc(row.vat_treatment||"—")}</td>
+      <td>${money(row.purchase_net_gbp)}</td>
+      <td>${money(row.supplier_vat_gbp)}</td>
+      <td><strong>${money(row.recoverable_input_vat_gbp)}</strong></td>
+      <td>${money(row.purchase_gross_gbp)}</td>
+    </tr>`).join("");
+  }
+
+  document.getElementById("inputVatKpis").innerHTML=`
+    <div class="kpi"><span>Verified Supplier Docs</span><strong>${Number(summary.verified_supplier_documents||0)}</strong></div>
+    <div class="kpi"><span>Purchase Net</span><strong>${money(summary.purchase_net_gbp)}</strong></div>
+    <div class="kpi"><span>Supplier VAT Shown</span><strong>${money(summary.supplier_vat_shown_gbp)}</strong></div>
+    <div class="kpi good"><span>Recoverable Input VAT</span><strong>${money(summary.recoverable_input_vat_gbp)}</strong></div>
+    <div class="kpi"><span>Purchase Gross</span><strong>${money(summary.purchase_gross_gbp)}</strong></div>`;
 }
 
 function renderVatRows(){
@@ -998,6 +1383,7 @@ document.getElementById("accountSearch").addEventListener("input",renderRegister
 
   await Promise.all([
     loadPaymentQueue(),
+    loadSupplierQueue(),
     loadRegister()
   ]);
 })();
