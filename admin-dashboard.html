@@ -1818,7 +1818,7 @@ color:#ed1c24;
 <section>
   <h2 class="section-title">Lead Status Pipeline</h2>
   <div class="small" style="margin:-6px 0 14px;">
-    One clean status pipeline for every AnyBike Connect lead, message and request.
+    One clean status pipeline: unconverted enquiries use Bike Sales status, converted enquiries use Deal 360, and Message Centre-only leads remain included without double-counting.
   </div>
 
   <div class="pipeline-stats" id="dashboardLeadStatusPipeline">
@@ -2190,6 +2190,9 @@ function timeAgo(date){
 
 let adminNotificationOpen = false;
 let latestDashboardMessageMap = {};
+let dashboardEnquiryDealMap = new Map();
+let dashboardDealByIdMap = new Map();
+
 
 function adminNotificationTargetUrl(notification){
   const enquiryId =
@@ -2426,25 +2429,31 @@ function buildDashboardPipelineRecords(enquiries,threads){
   const linkedEnquiryIds = new Set();
 
   /*
-    Bike Sales HQ is the authoritative owner of Lead Status
-    for single-bike enquiries.
+    Authoritative pipeline rules:
+    - Unconverted enquiry -> bike_enquiries lead status.
+    - Converted enquiry -> Deal 360 deal_stage.
+    - Message Centre-only lead -> thread lead status.
+    - A thread linked to an enquiry is never counted a second time.
   */
   (enquiries || []).forEach(function(enquiry){
+    const dealLink = dashboardEnquiryDealMap.get(String(enquiry.id));
+
     records.push({
-      lead_status:enquiry.lead_status || "",
-      status:enquiry.status || "",
-      source_type:"Single Bike Enquiry",
-      related_enquiry_id:enquiry.id
+      lead_status:dealLink && dealLink.deal_stage
+        ? dealLink.deal_stage
+        : (enquiry.lead_status || ""),
+      status:dealLink && dealLink.deal_status
+        ? dealLink.deal_status
+        : (enquiry.status || ""),
+      source_type:dealLink ? "Deal 360" : "Single Bike Enquiry",
+      related_enquiry_id:enquiry.id,
+      related_deal_id:dealLink ? dealLink.converted_deal_id : null,
+      deal_number:dealLink ? dealLink.deal_number : null
     });
 
     linkedEnquiryIds.add(String(enquiry.id));
   });
 
-  /*
-    Keep Message Centre-only leads in the dashboard pipeline,
-    but do not count a thread again when it belongs to a
-    Bike Sales enquiry already included above.
-  */
   (threads || []).forEach(function(thread){
     const relatedId =
       thread.related_enquiry_id === null ||
@@ -2503,7 +2512,7 @@ function renderLeadStatusPipeline(threads){
     const count = counts[label] || 0;
 
     return `
-      <div class="stat" onclick="location.href='admin-message-centre.html?status=${encodeURIComponent(label)}'">
+      <div class="stat" onclick="location.href='admin-enquiries.html?lead_status=${encodeURIComponent(label)}'">
         <div>${icon}<br>${label}</div>
         <strong>${count}</strong>
       </div>
@@ -2593,6 +2602,12 @@ function dashboardNextWorkflowTask(enquiry,column,tasks){
 }
 
 function dashboardDealUrl(enquiryId,focus){
+  const dealLink = dashboardEnquiryDealMap.get(String(enquiryId));
+
+  if(dealLink && dealLink.converted_deal_id){
+    return "admin-enquiries.html?deal="+encodeURIComponent(dealLink.converted_deal_id);
+  }
+
   return "admin-enquiries.html?open="+encodeURIComponent(enquiryId)+(focus?"&focus="+encodeURIComponent(focus):"");
 }
 
@@ -2751,7 +2766,11 @@ function buildDashboardDealActions(
   const timelineMap = buildDashboardTimelineMap(timelineRows);
 
   (rows || []).forEach(function(enquiry){
-    const leadStatus = dashboardLeadStatus(enquiry);
+    const dealLink = dashboardEnquiryDealMap.get(String(enquiry.id));
+    const isConvertedDeal = Boolean(dealLink && dealLink.converted_deal_id);
+    const leadStatus = isConvertedDeal && dealLink.deal_stage
+      ? String(dealLink.deal_stage)
+      : dashboardLeadStatus(enquiry);
     const days = dashboardDaysWaiting(enquiry);
     const customer = dashboardCustomerName(enquiry);
     const bike = dashboardBikeName(enquiry);
@@ -2800,7 +2819,7 @@ function buildDashboardDealActions(
       }));
     }
 
-    if(leadStatus === "Operations"){
+    if(isConvertedDeal && leadStatus === "Operations"){
       const next = dashboardNextWorkflowTask(
         enquiry,
         "operations_checklist",
@@ -2835,7 +2854,7 @@ function buildDashboardDealActions(
       }
     }
 
-    if(leadStatus === "Shipping"){
+    if(isConvertedDeal && leadStatus === "Shipping"){
       const next = dashboardNextWorkflowTask(
         enquiry,
         "shipping_checklist",
@@ -2881,7 +2900,8 @@ function buildDashboardDealActions(
     );
 
     if(
-      !["Completed","Closed","Lost","Save For Later"].includes(leadStatus) &&
+      isConvertedDeal &&
+      ["Operations","Shipping"].includes(leadStatus) &&
       preparation.total > 0 &&
       preparation.waiting > 0
     ){
@@ -2913,7 +2933,8 @@ function buildDashboardDealActions(
     }
 
     if(
-      !["Completed","Closed","Lost","Save For Later"].includes(leadStatus) &&
+      isConvertedDeal &&
+      ["Operations","Shipping"].includes(leadStatus) &&
       documents.total > 0 &&
       documents.waiting > 0
     ){
@@ -3028,6 +3049,35 @@ async function loadDashboard(){
 
     const rows = enquiries || [];
 
+    /*
+      Secure Deal 360 linkage for Dashboard.
+      This makes converted enquiries use Deal 360 as the authoritative stage
+      and lets Dashboard actions open the real Deal instead of the old enquiry.
+    */
+    dashboardEnquiryDealMap = new Map();
+    dashboardDealByIdMap = new Map();
+
+    try{
+      const dealLinksResult = await sb.rpc("admin_get_enquiry_deal_links_v1");
+
+      if(dealLinksResult.error){
+        throw dealLinksResult.error;
+      }
+
+      (dealLinksResult.data || []).forEach(function(link){
+        if(link.enquiry_id && link.converted_deal_id){
+          dashboardEnquiryDealMap.set(String(link.enquiry_id),link);
+        }
+
+        if(link.converted_deal_id){
+          dashboardDealByIdMap.set(String(link.converted_deal_id),link);
+        }
+      });
+
+    }catch(dealLinkError){
+      console.warn("Dashboard Deal 360 links could not be loaded:",dealLinkError);
+    }
+
     setText("activeLeadsCount", rows.length);
     setText("singleBikeCount", rows.length);
     setText("totalCount", rows.length);
@@ -3084,7 +3134,7 @@ async function loadDashboard(){
 
 const { data: leadThreads } = await sb
   .from("message_centre_threads")
-  .select("id,status,lead_status,source_type,department,last_sender,related_enquiry_id,created_at")
+  .select("id,status,lead_status,source_type,department,last_sender,related_enquiry_id,related_deal_id,created_at")
   .neq("status", "Deleted")
   .order("created_at", { ascending:false });
 
@@ -3116,7 +3166,7 @@ renderLeadStatusPipeline(pipelineRecords);
 
     const { data: actionThreads } = await sb
       .from("message_centre_threads")
-      .select("id,customer_name,customer_email,country,bike_make,bike_model,bike_year,last_message,last_message_at,last_sender,related_enquiry_id,status")
+      .select("id,customer_name,customer_email,country,bike_make,bike_model,bike_year,last_message,last_message_at,last_sender,related_enquiry_id,related_deal_id,status")
       .in("status", ["New", "Needs Reply"])
       .order("last_message_at", { ascending:false });
 
@@ -3331,7 +3381,7 @@ async function loadWorldActivity(){
       when:new Date(enquiry.created_at),
       html:`
         <div class="work-item"
-          onclick="location.href='admin-enquiries.html?open=${enquiry.id}'"
+          onclick="location.href='${dashboardDealUrl(enquiry.id,"deal")}'"
           style="cursor:pointer;">
           <div>
             <strong>🟢 ${escapeDashboardText(details.country)}</strong><br>
@@ -3364,7 +3414,7 @@ async function loadWorldActivity(){
       when:new Date(message.created_at),
       html:`
         <div class="work-item"
-          onclick="location.href='admin-enquiries.html?open=${message.enquiry_id}&focus=messages'"
+          onclick="location.href='${dashboardDealUrl(message.enquiry_id,"messages")}'"
           style="cursor:pointer;">
           <div>
             <strong>🔴 ${escapeDashboardText(details.country)}</strong><br>
@@ -3416,7 +3466,7 @@ async function loadWorldActivity(){
       when:new Date(event.created_at),
       html:`
         <div class="work-item"
-          onclick="location.href='admin-enquiries.html?open=${event.enquiry_id}&focus=workflow'"
+          onclick="location.href='${dashboardDealUrl(event.enquiry_id,"workflow")}'"
           style="cursor:pointer;">
           <div>
             <strong>${icon} ${escapeDashboardText(details.country)}</strong><br>
