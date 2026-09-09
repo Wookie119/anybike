@@ -3991,7 +3991,19 @@ body{
 .anybike-real-deals-head{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:18px 20px;border-bottom:1px solid rgba(255,255,255,.1)}
 .anybike-real-deals-head h3{margin:3px 0 2px;font-size:20px}.anybike-real-deals-head p{margin:0;color:#aeb9c7;font-size:13px}
 .anybike-real-label{font-size:11px;font-weight:900;letter-spacing:.12em;color:#f1c75b}.anybike-real-count{font-weight:900;background:rgba(241,199,91,.12);border:1px solid rgba(241,199,91,.3);padding:8px 12px;border-radius:999px}
-.anybike-deal-columns,.anybike-deal-row{display:grid;grid-template-columns:34px minmax(105px,.75fr) minmax(155px,1.15fr) minmax(155px,1.05fr) minmax(190px,1.3fr) minmax(82px,.65fr) minmax(82px,.65fr) minmax(82px,.65fr) minmax(105px,.8fr) minmax(105px,.8fr) minmax(95px,.72fr) minmax(125px,.95fr) minmax(86px,.65fr);gap:12px;align-items:center}
+.anybike-deal-columns,.anybike-deal-row{display:grid;grid-template-columns:28px 34px minmax(105px,.75fr) minmax(155px,1.15fr) minmax(155px,1.05fr) minmax(190px,1.3fr) minmax(82px,.65fr) minmax(82px,.65fr) minmax(82px,.65fr) minmax(105px,.8fr) minmax(105px,.8fr) minmax(95px,.72fr) minmax(125px,.95fr) minmax(86px,.65fr);gap:12px;align-items:center}
+.anybike-deal-select-cell{display:flex;align-items:center;justify-content:center}
+.anybike-deal-select{width:17px;height:17px;accent-color:#ed1c24;cursor:pointer}
+.anybike-combined-toolbar{display:none;align-items:center;justify-content:space-between;gap:14px;padding:12px 16px;border-top:1px solid rgba(255,255,255,.08);border-bottom:1px solid rgba(255,255,255,.08);background:linear-gradient(90deg,rgba(237,28,36,.08),rgba(255,255,255,.025))}
+.anybike-combined-toolbar.active{display:flex}
+.anybike-combined-toolbar-copy{display:flex;align-items:center;gap:12px;min-width:0}
+.anybike-combined-toolbar-count{display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:30px;padding:0 10px;border-radius:999px;background:#ed1c24;color:#fff;font-weight:900;font-size:12px}
+.anybike-combined-toolbar-copy strong{display:block;font-size:13px}
+.anybike-combined-toolbar-copy small{display:block;margin-top:2px;color:#aeb9c7;font-size:11px}
+.anybike-combined-toolbar-actions{display:flex;align-items:center;gap:8px}
+.anybike-combined-toolbar button{border:1px solid #ed1c24;background:#ed1c24;color:#fff;border-radius:8px;padding:9px 13px;font-weight:900;cursor:pointer}
+.anybike-combined-toolbar button.secondary{background:transparent;border-color:#4a4a4a;color:#fff}
+.anybike-combined-toolbar button:disabled{opacity:.55;cursor:not-allowed}
 .anybike-deal-columns{padding:11px 14px;background:rgba(255,255,255,.035);color:#96a2b2;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.035em}
 .anybike-deal-record{border-top:1px solid rgba(255,255,255,.07)}.anybike-deal-record:first-of-type{border-top:0}.anybike-deal-row{padding:16px 12px;cursor:pointer;transition:background .15s ease}.anybike-deal-row:hover{background:rgba(255,255,255,.045)}
 .anybike-deal-row>div{min-width:0}.anybike-deal-row strong{display:block;font-size:14px;line-height:1.25}.anybike-deal-row small,.anybike-deal-number small{display:block;margin-top:4px;color:#9aa6b5;font-size:11px;line-height:1.25}.anybike-deal-open{font-size:13px;transition:transform .15s ease}.anybike-deal-record.open .anybike-deal-open{transform:rotate(90deg)}
@@ -4801,6 +4813,9 @@ let dealCustomerReceiptBusy = new Set();
 let dealCustomerAllocationBusy = new Set();
 let adminDealSellerPaymentStatus = [];
 let adminDealSellerConfirmations = new Map();
+let adminDealSellerDisplay = new Map();
+let selectedCombinedProformaDeals = new Set();
+let combinedProformaBusy = false;
 let dealPaymentBusy = new Set();
 let dealSellerPaymentBusy = new Set();
 let dealSellerCheckBusy = new Set();
@@ -6256,6 +6271,22 @@ async function loadAdminDealQueue(){
   }catch(error){
     console.warn("AnyBike Deal financial status could not be loaded:", error);
     adminDealFinancialStatus = [];
+  }
+
+  adminDealSellerDisplay = new Map();
+  try{
+    const result = await sb.rpc("admin_get_deal_seller_display_v1");
+    if(result.error){ throw result.error; }
+    const rows = Array.isArray(result.data) ? result.data : [];
+    rows.forEach(function(row){
+      const key = String(row.deal_motorcycle_id || "");
+      if(key){
+        adminDealSellerDisplay.set(key, row);
+      }
+    });
+  }catch(error){
+    console.warn("Deal seller display data could not be loaded:", error);
+    adminDealSellerDisplay = new Map();
   }
 
   adminDealSellerConfirmations = new Map();
@@ -7750,6 +7781,100 @@ function anyBikeEffectiveDealStage(deal){
   return storedStage;
 }
 
+
+function anyBikeCombinedSelectionDeals(){
+  return adminDealQueue.filter(function(deal){
+    return selectedCombinedProformaDeals.has(String(deal.deal_id || ""));
+  });
+}
+
+function anyBikeCombinedSelectionCustomerKey(deal){
+  return String(deal.customer_id || deal.buyer_id || "");
+}
+
+function toggleCombinedProformaDeal(dealId, checkbox){
+  const id=String(dealId || "");
+  const deal=adminDealQueue.find(function(row){ return String(row.deal_id || "")===id; });
+  if(!deal){ return; }
+
+  if(checkbox && checkbox.checked){
+    const current=anyBikeCombinedSelectionDeals();
+    if(current.length){
+      const expected=anyBikeCombinedSelectionCustomerKey(current[0]);
+      const candidate=anyBikeCombinedSelectionCustomerKey(deal);
+      if(!expected || !candidate || expected!==candidate){
+        checkbox.checked=false;
+        alert("Combined Proformas can only contain Deals belonging to the same customer.");
+        return;
+      }
+    }
+    selectedCombinedProformaDeals.add(id);
+  }else{
+    selectedCombinedProformaDeals.delete(id);
+  }
+
+  renderAdminDealQueue();
+}
+
+function clearCombinedProformaSelection(){
+  selectedCombinedProformaDeals.clear();
+  renderAdminDealQueue();
+}
+
+async function createCombinedProformaFromSelection(){
+  if(combinedProformaBusy){ return; }
+
+  const selected=anyBikeCombinedSelectionDeals();
+  if(selected.length<2){
+    alert("Select at least two Deals for a Combined Proforma.");
+    return;
+  }
+
+  const firstCustomer=anyBikeCombinedSelectionCustomerKey(selected[0]);
+  if(!firstCustomer || selected.some(function(deal){ return anyBikeCombinedSelectionCustomerKey(deal)!==firstCustomer; })){
+    alert("Combined Proformas can only contain Deals belonging to the same customer.");
+    return;
+  }
+
+  const dealIds=selected.map(function(deal){ return Number(deal.deal_id); }).filter(Number.isFinite);
+  const dealNumbers=selected.map(function(deal){ return deal.deal_number || ("Deal #"+deal.deal_id); });
+  const total=selected.reduce(function(sum,deal){ return sum + Number(deal.buyer_value_gbp || 0); },0);
+
+  if(!window.confirm(
+    "Create one Draft Proforma for "+selected.length+" Deals?\n\n"+
+    dealNumbers.join("\n")+
+    "\n\nCurrent Deal value total: "+anyBikeDealMoney(total)+
+    "\n\nThe Deals remain separate. This does NOT record payment and does NOT secure any motorcycle."
+  )){ return; }
+
+  combinedProformaBusy=true;
+  renderAdminDealQueue();
+
+  try{
+    const result=await sb.rpc("admin_create_combined_proforma",{p_deal_ids:dealIds});
+    if(result.error){ throw result.error; }
+
+    const payload=result.data || {};
+    selectedCombinedProformaDeals.clear();
+
+    alert(
+      "Combined Draft Proforma created successfully.\n\n"+
+      "Deals: "+(payload.deal_count || dealIds.length)+"\n"+
+      "Total: "+anyBikeDealMoney(payload.total_gbp)+
+      "\nStatus: "+(payload.invoice_status || "Draft")+
+      "\n\nNOT A VAT INVOICE"
+    );
+
+    await loadAdminDealQueue();
+  }catch(error){
+    console.error("Combined Draft Proforma could not be created:", error);
+    alert("Combined Draft Proforma could not be created.\n\n"+(error && error.message ? error.message : "Unknown error"));
+  }finally{
+    combinedProformaBusy=false;
+    renderAdminDealQueue();
+  }
+}
+
 function renderAdminDealQueue(){
   const box = document.getElementById("anybikeDeals");
   if(!box){ return; }
@@ -7791,8 +7916,9 @@ function renderAdminDealQueue(){
       const dealId = String(deal.deal_id || "");
       const bikes = adminDealMotorcycles.filter(function(bike){ return String(bike.deal_id) === dealId; });
       const sellerNames = bikes.map(function(bike){
+        const display = adminDealSellerDisplay.get(String(bike.deal_motorcycle_id || bike.id || "")) || {};
         const c = adminDealSellerConfirmations.get(String(bike.buyer_match_id || "")) || {};
-        return c.seller_business_name || c.seller_name || c.dealer_name || c.source_name || c.seller_contact_name || "";
+        return display.seller_name || c.seller_business_name || c.seller_name || c.dealer_name || c.source_name || c.seller_contact_name || "";
       });
       const haystack = [
         deal.deal_number, deal.buyer_name, deal.buyer_business_name, deal.buyer_contact_name, deal.buyer_email,
@@ -7832,8 +7958,9 @@ function renderAdminDealQueue(){
 
     const sellerNames = [];
     bikes.forEach(function(bike){
+      const display = adminDealSellerDisplay.get(String(bike.deal_motorcycle_id || bike.id || "")) || {};
       const c = adminDealSellerConfirmations.get(String(bike.buyer_match_id || "")) || {};
-      const name = c.seller_business_name || c.seller_name || c.dealer_name || c.source_name || c.seller_contact_name || "";
+      const name = display.seller_name || c.seller_business_name || c.seller_name || c.dealer_name || c.source_name || c.seller_contact_name || "";
       if(name && !sellerNames.includes(name)){ sellerNames.push(name); }
     });
     const sellerSummary = sellerNames.length
@@ -7899,6 +8026,14 @@ function renderAdminDealQueue(){
     return `
       <div class="anybike-deal-record" id="anybike-deal-${dealId}" data-deal-id="${dealId}">
         <div class="anybike-deal-row" onclick="toggleAnyBikeDeal('${dealId}')">
+          <div class="anybike-deal-select-cell" onclick="event.stopPropagation();">
+            <input
+              class="anybike-deal-select"
+              type="checkbox"
+              aria-label="Select ${dealNumber} for combined Proforma"
+              ${selectedCombinedProformaDeals.has(dealId) ? "checked" : ""}
+              onchange="toggleCombinedProformaDeal('${dealId}',this);return false;">
+          </div>
           <div class="anybike-deal-open">▶</div>
           <div class="anybike-deal-number"><strong>${dealNumber}</strong><small>${motorcycleCount} bike${motorcycleCount===1?"":"s"}</small></div>
           <div><strong>${buyerName}</strong><small>${contactName && contactName !== buyerName ? contactName : email}</small></div>
@@ -7949,8 +8084,21 @@ function renderAdminDealQueue(){
         </div>
         <div class="anybike-real-count">${visibleAdminDeals.length} Deal${visibleAdminDeals.length === 1 ? "" : "s"}</div>
       </div>
+      <div class="anybike-combined-toolbar ${selectedCombinedProformaDeals.size ? "active" : ""}">
+        <div class="anybike-combined-toolbar-copy">
+          <span class="anybike-combined-toolbar-count">${selectedCombinedProformaDeals.size}</span>
+          <div>
+            <strong>Deals selected for one Proforma</strong>
+            <small>${selectedCombinedProformaDeals.size >= 2 ? "The selected Deals remain separate in Deal 360." : "Select another Deal belonging to the same customer."}</small>
+          </div>
+        </div>
+        <div class="anybike-combined-toolbar-actions">
+          <button type="button" class="secondary" onclick="clearCombinedProformaSelection();return false;">Clear</button>
+          <button type="button" ${selectedCombinedProformaDeals.size < 2 || combinedProformaBusy ? "disabled" : ""} onclick="createCombinedProformaFromSelection();return false;">${combinedProformaBusy ? "Creating..." : "Create Combined Proforma"}</button>
+        </div>
+      </div>
       <div class="anybike-deal-columns" aria-hidden="true">
-        <span></span><span>Deal</span><span>Buyer</span><span>Seller</span><span>Motorcycle</span><span>Sale</span><span>Cost</span><span>Profit</span><span>Customer</span><span>Supplier</span><span>Secured</span><span>Stage</span><span>Updated</span>
+        <span></span><span></span><span>Deal</span><span>Buyer</span><span>Seller</span><span>Motorcycle</span><span>Sale</span><span>Cost</span><span>Profit</span><span>Customer</span><span>Supplier</span><span>Secured</span><span>Stage</span><span>Updated</span>
       </div>
       ${rows || '<div class="anybike-deal-empty">No Deal 360 records match the current stage or search.</div>'}
     </section>`;
