@@ -1,0 +1,506 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Accounts & Documents | AnyBike</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="/public-header.css?v=9000">
+<style>
+:root{
+  --red:#ed1c24;
+  --bg:#050505;
+  --panel:#101010;
+  --panel2:#171717;
+  --text:#fff;
+  --muted:#aaa;
+  --green:#36d37e;
+  --amber:#ffbf47;
+  --orange:#ff9f1c;
+  --line:rgba(255,255,255,.12);
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:radial-gradient(circle at 90% 0%,rgba(237,28,36,.13),transparent 32%),#050505;
+  color:#fff;
+  font-family:Arial,Helvetica,sans-serif;
+}
+button,input,select,textarea{font:inherit}
+main{width:min(1420px,94vw);margin:28px auto 70px}
+.hero,.panel{
+  border:1px solid var(--line);
+  border-radius:20px;
+  background:radial-gradient(circle at 95% 0%,rgba(237,28,36,.07),transparent 30%),#101010;
+}
+.hero{padding:25px;margin-bottom:18px}
+.eyebrow{color:var(--red);font-size:12px;font-weight:900;letter-spacing:.18em}
+.hero h1{font-size:38px;margin:7px 0}
+.hero p{color:#bbb;margin:0;line-height:1.5;max-width:900px}
+.top-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
+.btn,.action-btn{
+  display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:0 16px;border-radius:10px;
+  text-decoration:none;font-weight:900;border:1px solid rgba(255,255,255,.16);color:#fff;background:#171717;cursor:pointer;
+}
+.btn.primary,.action-btn.primary{background:var(--red);border-color:var(--red)}
+.btn:disabled,.action-btn:disabled{opacity:.45;cursor:not-allowed}
+.summary-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:18px}
+.summary-card{border:1px solid var(--line);border-radius:16px;background:#111;padding:16px}
+.summary-card span{display:block;color:#888;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
+.summary-card strong{font-size:25px;color:#fff}
+.summary-card.due strong{color:#ffd27a}.summary-card.good strong{color:var(--green)}
+.panel{padding:20px;margin-bottom:18px}
+.panel-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;margin-bottom:16px}
+.panel-head h2{margin:0 0 5px;font-size:24px}.panel-head p{margin:0;color:#aaa;line-height:1.5;font-size:13px}
+.count-badge{padding:6px 10px;border-radius:999px;background:#1a1a1a;border:1px solid var(--line);color:#ddd;font-size:12px;font-weight:900;white-space:nowrap}
+.invoice-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.invoice-card{border:1px solid var(--line);border-top:3px solid var(--red);border-radius:14px;background:#0d0d0d;overflow:hidden}
+.invoice-head{display:flex;justify-content:space-between;gap:12px;padding:15px;background:linear-gradient(90deg,#171717,#0d0d0d)}
+.invoice-head span{display:block;color:var(--red);font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.09em}
+.invoice-head strong{display:block;font-size:17px;margin-top:4px}
+.status-pill{height:max-content;padding:5px 9px;border-radius:999px;font-size:10px;font-weight:900;border:1px solid var(--line);background:#222;color:#ddd}
+.status-pill.issued{border-color:rgba(54,211,126,.45);background:rgba(54,211,126,.12);color:#9fffc3}
+.status-pill.awaiting{border-color:rgba(255,191,71,.45);background:rgba(255,191,71,.10);color:#ffd98b}
+.status-pill.verified,.status-pill.posted{border-color:rgba(54,211,126,.45);background:rgba(54,211,126,.12);color:#9fffc3}
+.status-pill.cancelled,.status-pill.rejected{border-color:rgba(237,28,36,.48);background:rgba(237,28,36,.10);color:#ff9b9b}
+.invoice-body{padding:15px}
+.invoice-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:12px}
+.metric{border:1px solid rgba(255,255,255,.09);background:#111;border-radius:10px;padding:10px}
+.metric span{display:block;color:#888;font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}.metric strong{font-size:14px}
+.metric.due strong{color:#ffd27a}.metric.good strong{color:var(--green)}
+.invoice-meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:12px}
+.meta{border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:10px;background:#0b0b0b}.meta span{display:block;color:#777;font-size:9px;text-transform:uppercase;font-weight:900;margin-bottom:4px}.meta strong{font-size:12px;color:#ddd}
+.invoice-lines{border-top:1px solid rgba(255,255,255,.08);margin-top:10px;padding-top:9px}.invoice-line{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06);font-size:12px}.invoice-line:last-child{border-bottom:0}.invoice-line small{display:block;color:#777;margin-top:2px}
+.proforma-warning{margin-top:11px;padding:10px;border-radius:10px;border:1px solid rgba(237,28,36,.28);background:rgba(237,28,36,.07)}.proforma-warning strong{display:block;color:#fff;font-size:11px}.proforma-warning span{display:block;color:#aaa;font-size:11px;margin-top:3px}
+.payment-select{margin-top:12px;padding:12px;border:1px solid rgba(255,191,71,.25);background:rgba(255,191,71,.05);border-radius:11px;display:grid;grid-template-columns:auto 1fr 135px 150px;gap:10px;align-items:center}.payment-select input[type="checkbox"]{width:20px;height:20px}.payment-select input[type="number"],.payment-select select{width:100%;height:40px;background:#fff;color:#111;border:0;border-radius:8px;padding:0 10px;font-weight:800}.payment-select label{font-size:12px;font-weight:900}.payment-select small{display:block;color:#999;margin-top:3px;font-weight:400}
+.report-panel{display:none;border:1px solid rgba(237,28,36,.4);border-top:3px solid var(--red);border-radius:14px;background:#0c0c0c;padding:16px;margin-top:16px}.report-panel.open{display:block}.report-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.field label{display:block;color:#aaa;font-size:11px;font-weight:900;margin-bottom:5px}.field input,.field textarea{width:100%;border:1px solid rgba(255,255,255,.14);border-radius:9px;background:#fff;color:#111;padding:10px}.field textarea{min-height:80px;resize:vertical}.field.full{grid-column:1/-1}.report-total{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-top:12px;padding:12px;border-radius:10px;background:#161616;border:1px solid var(--line)}.report-total strong{font-size:20px}.report-note{margin-top:10px;color:#aaa;font-size:12px;line-height:1.5}.report-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+.history-list{display:grid;gap:10px}.history-card{border:1px solid var(--line);border-radius:13px;background:#0d0d0d;overflow:hidden}.history-head{display:flex;justify-content:space-between;gap:12px;padding:13px 14px;background:#151515}.history-head strong{display:block}.history-head small{display:block;color:#888;margin-top:3px}.history-body{padding:13px 14px}.history-alloc{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.06);font-size:12px}.history-alloc:last-child{border-bottom:0}.history-message{margin-top:10px;color:#aaa;font-size:11px;line-height:1.45}
+.empty{padding:28px;text-align:center;border:1px dashed rgba(255,255,255,.18);border-radius:14px;color:#bbb}.loading{opacity:.8}
+.notice-box{padding:13px 14px;border-radius:12px;background:#111;border:1px solid var(--line);color:#aaa;font-size:12px;line-height:1.5;margin-bottom:14px}.notice-box strong{color:#fff}
+
+.document-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.document-card{border:1px solid var(--line);border-top:3px solid var(--red);border-radius:14px;background:#0d0d0d;padding:15px}
+.document-card-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:11px}
+.document-card-head span{display:block;color:var(--red);font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.08em}
+.document-card-head strong{display:block;margin-top:4px;font-size:17px}
+.document-meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:10px 0}
+.document-meta div{border:1px solid rgba(255,255,255,.08);border-radius:9px;background:#111;padding:9px}
+.document-meta span{display:block;color:#777;font-size:9px;font-weight:900;text-transform:uppercase;margin-bottom:4px}
+.document-meta strong{font-size:12px;color:#ddd;word-break:break-word}
+.document-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.document-desc{color:#aaa;font-size:12px;line-height:1.45;margin-top:8px}
+.section-anchor{scroll-margin-top:120px}
+
+@media(max-width:1000px){.document-grid{grid-template-columns:1fr}.summary-grid{grid-template-columns:repeat(2,1fr)}.invoice-grid{grid-template-columns:1fr}.payment-select{grid-template-columns:auto 1fr 120px}}
+@media(max-width:700px){main{width:min(96vw,1420px)}.hero h1{font-size:30px}.summary-grid{grid-template-columns:1fr}.panel-head{flex-direction:column}.invoice-summary,.invoice-meta,.report-grid{grid-template-columns:1fr}.payment-select{grid-template-columns:auto 1fr}.payment-select input[type="number"],.payment-select select{grid-column:2}.report-total{align-items:flex-start;flex-direction:column}}
+</style>
+</head>
+<body>
+<div id="publicHeader"></div>
+<main>
+  <section class="hero">
+    <div class="eyebrow">MY ANYBIKE</div>
+    <h1>Accounts &amp; Documents</h1>
+    <p>Your central AnyBike area for Proformas, invoices, payments and documents held against your motorcycles and customer account.</p>
+    <div class="top-actions">
+      <a class="btn" href="customer-dashboard.html">← Back to My AnyBike</a>
+      <a class="btn" href="my-purchases.html">My Purchases</a>
+      <a class="btn" href="#motorcycle-documents">Motorcycle Documents</a>
+    </div>
+  </section>
+
+  <div id="summary" class="summary-grid">
+    <div class="summary-card"><span>Issued Documents</span><strong>—</strong></div>
+    <div class="summary-card due"><span>Outstanding</span><strong>—</strong></div>
+    <div class="summary-card"><span>Payment Advice Pending</span><strong>—</strong></div>
+    <div class="summary-card good"><span>Verified / Posted</span><strong>—</strong></div>
+  </div>
+
+  <section class="panel" id="financial-documents">
+    <div class="panel-head">
+      <div>
+        <h2>Proformas &amp; Invoices</h2>
+        <p>Select one or more outstanding issued documents below if you have made a bank transfer.</p>
+      </div>
+      <div id="invoiceCount" class="count-badge">Loading</div>
+    </div>
+    <div class="notice-box"><strong>Important:</strong> reporting a payment tells AnyBike what you have sent and how you want it allocated. It does not mark the money as received until AnyBike verifies the transfer in its bank account.</div>
+    <div id="invoices"><div class="empty loading">Loading your invoices...</div></div>
+
+    <div id="reportPanel" class="report-panel">
+      <div class="panel-head" style="margin-bottom:12px">
+        <div><h2 style="font-size:20px">I’ve Made a Bank Transfer</h2><p>Confirm the transfer details and the split you selected above.</p></div>
+      </div>
+      <div class="report-grid">
+        <div class="field">
+          <label for="paymentDate">Payment date</label>
+          <input id="paymentDate" type="date">
+        </div>
+        <div class="field">
+          <label for="bankReference">Bank transfer reference</label>
+          <input id="bankReference" type="text" maxlength="200" placeholder="Reference used with your bank">
+        </div>
+        <div class="field">
+          <label>Payment method</label>
+          <input type="text" value="Bank Transfer" disabled>
+        </div>
+        <div class="field full">
+          <label for="customerNotes">Notes (optional)</label>
+          <textarea id="customerNotes" placeholder="Anything AnyBike should know about this transfer"></textarea>
+        </div>
+      </div>
+      <div class="report-total"><span>Total you are reporting</span><strong id="reportedTotal">£0.00</strong></div>
+      <div class="report-note">The selected allocations must add up exactly to the bank transfer you made. AnyBike will verify the actual bank receipt before your Deal 360 balances are updated.</div>
+      <div class="report-actions">
+        <button id="submitAdvice" class="action-btn primary" type="button">Submit Payment Advice</button>
+        <button id="closeReport" class="action-btn" type="button">Cancel</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <div><h2>Payment Advice History</h2><p>Payments you have reported to AnyBike and their verification/posting status.</p></div>
+      <div id="historyCount" class="count-badge">Loading</div>
+    </div>
+    <div id="history"><div class="empty loading">Loading payment history...</div></div>
+  </section>
+
+  <section class="panel section-anchor" id="motorcycle-documents">
+    <div class="panel-head">
+      <div>
+        <h2>Motorcycle Documents</h2>
+        <p>Documents AnyBike has specifically shared with you for your motorcycles and Deals, such as inspection, HPI/history, shipping and export paperwork.</p>
+      </div>
+      <div id="motorcycleDocumentCount" class="count-badge">Loading</div>
+    </div>
+    <div id="motorcycleDocuments"><div class="empty loading">Loading motorcycle documents...</div></div>
+  </section>
+
+  <section class="panel section-anchor" id="customer-documents">
+    <div class="panel-head">
+      <div>
+        <h2>My Other Documents</h2>
+        <p>Customer-level files held in your AnyBike account.</p>
+      </div>
+      <div id="customerDocumentCount" class="count-badge">Loading</div>
+    </div>
+    <div id="customerDocuments"><div class="empty loading">Loading documents...</div></div>
+  </section>
+
+</main>
+
+<script src="/public-header.js?v=9200"></script>
+<script>
+const SUPABASE_URL="https://tuehtnezhdnkqbbhttgp.supabase.co";
+const SUPABASE_ANON_KEY="sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+let accountInvoices=[];
+let paymentAdviceRows=[];
+let centralDocumentData={account_documents:[],customer_documents:[],motorcycle_documents:[],counts:{}};
+let submitBusy=false;
+
+const safe=value=>String(value??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[ch]));
+const money=value=>new Intl.NumberFormat("en-GB",{style:"currency",currency:"GBP"}).format(Number(value||0));
+function niceDate(value){if(!value)return "—";const d=new Date(value);return Number.isNaN(d.getTime())?"—":d.toLocaleString("en-GB",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"});}
+function statusClass(value){const v=String(value||"").toLowerCase();if(v.includes("await"))return "awaiting";if(v.includes("verified"))return "verified";if(v.includes("posted"))return "posted";if(v.includes("cancel"))return "cancelled";if(v.includes("reject"))return "rejected";if(v==="issued")return "issued";return "";}
+function todayLocal(){const d=new Date();const local=new Date(d.getTime()-d.getTimezoneOffset()*60000);return local.toISOString().slice(0,10);}
+
+async function requireSession(){
+  const {data:{session},error}=await sb.auth.getSession();
+  if(error)console.error(error);
+  if(!session){location.href="login.html";return false;}
+  return true;
+}
+
+async function loadAccounts(){
+  const ok=await requireSession();if(!ok)return;
+  const centralResult=await sb.rpc("customer_get_accounts_documents_v1");
+  if(centralResult.error){
+    console.error("Central Accounts & Documents could not be loaded:",centralResult.error);
+    centralDocumentData={account_documents:[],customer_documents:[],motorcycle_documents:[],counts:{}};
+  }else{
+    centralDocumentData=centralResult.data||{account_documents:[],customer_documents:[],motorcycle_documents:[],counts:{}};
+  }
+  renderCentralDocuments();
+
+  const invoiceResult=await sb.rpc("customer_get_accounts_invoices");
+  if(invoiceResult.error){
+    console.error(invoiceResult.error);
+    document.getElementById("invoices").innerHTML=`<div class="empty">We could not load your invoices: ${safe(invoiceResult.error.message)}</div>`;
+    document.getElementById("invoiceCount").textContent="Unavailable";
+  }else{
+    accountInvoices=Array.isArray(invoiceResult.data)?invoiceResult.data:[];
+    await loadInvoiceLines();
+    renderInvoices();
+  }
+  const adviceResult=await sb.rpc("customer_get_payment_advices");
+  if(adviceResult.error){
+    console.error(adviceResult.error);
+    document.getElementById("history").innerHTML=`<div class="empty">We could not load your payment history: ${safe(adviceResult.error.message)}</div>`;
+    document.getElementById("historyCount").textContent="Unavailable";
+  }else{
+    paymentAdviceRows=Array.isArray(adviceResult.data)?adviceResult.data:[];
+    renderHistory();
+  }
+  renderSummary();
+}
+
+async function loadInvoiceLines(){
+  await Promise.all(accountInvoices.map(async invoice=>{
+    const result=await sb.rpc("customer_get_invoice_lines",{p_invoice_id:Number(invoice.invoice_id)});
+    invoice.lines=result.error?[]:(Array.isArray(result.data)?result.data:[]);
+    if(result.error)console.error("Invoice lines could not be loaded",invoice.invoice_id,result.error);
+  }));
+}
+
+function renderInvoices(){
+  const box=document.getElementById("invoices");
+  document.getElementById("invoiceCount").textContent=accountInvoices.length+" Document"+(accountInvoices.length===1?"":"s");
+  if(!accountInvoices.length){
+    box.innerHTML='<div class="empty">You do not have any issued AnyBike Proformas or invoices yet.</div>';
+    return;
+  }
+  box.innerHTML=`<div class="invoice-grid">${accountInvoices.map(invoiceCard).join("")}</div>`;
+  document.querySelectorAll(".pay-select,.pay-amount,.pay-purpose").forEach(el=>el.addEventListener("change",updatePaymentSelection));
+}
+
+function invoiceCard(invoice){
+  const canPay=!!invoice.can_report_payment;
+  const label=invoice.invoice_number || (invoice.invoice_type+" v"+Number(invoice.version_number||1));
+  const lines=Array.isArray(invoice.lines)?invoice.lines:[];
+  const lineHtml=lines.length?lines.map(line=>`<div class="invoice-line"><div><strong>${safe(line.description||line.line_type||"Line")}</strong><small>${safe(line.line_type||"")}</small></div><strong>${money(line.line_total_gbp)}</strong></div>`).join(""):'<div class="invoice-line"><span>Invoice lines unavailable</span></div>';
+  const paymentBlock=canPay?`<div class="payment-select">
+    <input class="pay-select" id="pay-select-${Number(invoice.invoice_id)}" data-invoice-id="${Number(invoice.invoice_id)}" type="checkbox">
+    <label for="pay-select-${Number(invoice.invoice_id)}">Allocate this bank transfer here<small>Current balance ${money(invoice.balance_due_gbp)}</small></label>
+    <input class="pay-amount" id="pay-amount-${Number(invoice.invoice_id)}" data-invoice-id="${Number(invoice.invoice_id)}" type="number" min="0.01" step="0.01" max="${Number(invoice.balance_due_gbp||0).toFixed(2)}" value="${Number(invoice.balance_due_gbp||0).toFixed(2)}">
+    <select class="pay-purpose" id="pay-purpose-${Number(invoice.invoice_id)}" data-invoice-id="${Number(invoice.invoice_id)}"><option value="Deposit">Deposit</option><option value="Balance">Balance</option><option value="Full Payment">Full Payment</option><option value="General Payment">General Payment</option></select>
+  </div>`:`<div class="notice-box" style="margin:12px 0 0">${Number(invoice.balance_due_gbp||0)<=0?"This document has no customer balance remaining.":"This document is not currently open for payment advice."}</div>`;
+  return `<article class="invoice-card">
+    <div class="invoice-head"><div><span>${safe(invoice.invoice_type||"Document")}</span><strong>${safe(label)}</strong></div><div class="status-pill ${statusClass(invoice.invoice_status)}">${safe(invoice.invoice_status||"")}</div></div>
+    <div class="invoice-body">
+      <div class="invoice-summary">
+        <div class="metric"><span>Total</span><strong>${money(invoice.total_gbp)}</strong></div>
+        <div class="metric good"><span>Allocated</span><strong>${money(invoice.allocated_to_deal_gbp)}</strong></div>
+        <div class="metric ${Number(invoice.balance_due_gbp||0)>0?"due":"good"}"><span>Balance Due</span><strong>${money(invoice.balance_due_gbp)}</strong></div>
+      </div>
+      <div class="invoice-meta">
+        <div class="meta"><span>Deal</span><strong>${safe(invoice.deal_number||("Deal #"+invoice.deal_id))}</strong></div>
+        <div class="meta"><span>Issued</span><strong>${safe(niceDate(invoice.issued_at))}</strong></div>
+        <div class="meta" style="grid-column:1/-1"><span>Motorcycle</span><strong>${safe(invoice.motorcycle_summary||"Motorcycle purchase")}</strong></div>
+      </div>
+      ${String(invoice.invoice_type||"")==="Proforma"?'<div class="proforma-warning"><strong>PROFORMA INVOICE — NOT A VAT INVOICE</strong><span>No VAT breakdown is shown on a Proforma.</span></div>':""}
+      <div class="invoice-lines">${lineHtml}</div>
+      ${paymentBlock}
+    </div>
+  </article>`;
+}
+
+function selectedAllocations(){
+  const allocations=[];
+  accountInvoices.forEach(invoice=>{
+    if(!invoice.can_report_payment)return;
+    const id=Number(invoice.invoice_id);
+    const checked=document.getElementById("pay-select-"+id)?.checked;
+    if(!checked)return;
+    const amount=Number(document.getElementById("pay-amount-"+id)?.value||0);
+    const purpose=document.getElementById("pay-purpose-"+id)?.value||"General Payment";
+    allocations.push({invoice_id:id,amount_gbp:amount,purpose});
+  });
+  return allocations;
+}
+
+function updatePaymentSelection(){
+  const allocations=selectedAllocations();
+  const total=allocations.reduce((sum,row)=>sum+(Number.isFinite(row.amount_gbp)?row.amount_gbp:0),0);
+  document.getElementById("reportedTotal").textContent=money(total);
+  const panel=document.getElementById("reportPanel");
+  panel.classList.toggle("open",allocations.length>0);
+  document.getElementById("submitAdvice").disabled=allocations.length===0 || total<=0 || submitBusy;
+}
+
+async function submitPaymentAdvice(){
+  if(submitBusy)return;
+  const allocations=selectedAllocations();
+  if(!allocations.length){alert("Select at least one issued Proforma or invoice.");return;}
+  for(const allocation of allocations){
+    const invoice=accountInvoices.find(row=>Number(row.invoice_id)===Number(allocation.invoice_id));
+    if(!Number.isFinite(allocation.amount_gbp)||allocation.amount_gbp<=0){alert("Enter a valid allocation amount for each selected document.");return;}
+    if(invoice && allocation.amount_gbp>Number(invoice.balance_due_gbp||0)+0.009){alert("An allocation is greater than the current balance due.");return;}
+  }
+  const total=Number(allocations.reduce((sum,row)=>sum+row.amount_gbp,0).toFixed(2));
+  const paymentDate=document.getElementById("paymentDate").value;
+  const bankReference=document.getElementById("bankReference").value.trim();
+  const notes=document.getElementById("customerNotes").value.trim();
+  if(!paymentDate){alert("Enter the date you made the bank transfer.");return;}
+  if(!confirm("Report "+money(total)+" bank transfer to AnyBike?\n\nAnyBike will still verify that the money arrived before your account balance changes."))return;
+  submitBusy=true;updatePaymentSelection();
+  try{
+    const result=await sb.rpc("customer_submit_payment_advice",{
+      p_reported_amount_gbp:total,
+      p_reported_payment_date:paymentDate,
+      p_customer_bank_reference:bankReference||null,
+      p_customer_notes:notes||null,
+      p_allocations:allocations
+    });
+    if(result.error)throw result.error;
+    const payload=result.data||{};
+    alert("Payment reported successfully.\n\nReference: "+(payload.advice_number||"Payment Advice")+"\nAmount: "+money(payload.reported_amount_gbp||total)+"\nStatus: "+(payload.advice_status||"Awaiting Verification")+"\n\nYour Deal 360 balance will not change until AnyBike verifies the bank receipt.");
+    document.getElementById("bankReference").value="";
+    document.getElementById("customerNotes").value="";
+    await loadAccounts();
+  }catch(error){
+    console.error(error);
+    alert("Payment advice could not be submitted.\n\n"+(error?.message||"Unknown error"));
+  }finally{
+    submitBusy=false;updatePaymentSelection();
+  }
+}
+
+function groupAdviceRows(rows){
+  const map=new Map();
+  rows.forEach(row=>{
+    const key=String(row.payment_advice_id);
+    if(!map.has(key))map.set(key,{...row,allocations:[]});
+    map.get(key).allocations.push(row);
+  });
+  return Array.from(map.values());
+}
+
+function renderHistory(){
+  const groups=groupAdviceRows(paymentAdviceRows);
+  document.getElementById("historyCount").textContent=groups.length+" Advice"+(groups.length===1?"":"s");
+  const box=document.getElementById("history");
+  if(!groups.length){box.innerHTML='<div class="empty">You have not reported any bank transfers yet.</div>';return;}
+  box.innerHTML=`<div class="history-list">${groups.map(group=>{
+    const canCancel=String(group.advice_status||"")==="Awaiting Verification";
+    const allocations=group.allocations.map(row=>`<div class="history-alloc"><span>${safe(row.deal_number||("Deal #"+row.deal_id))} · ${safe(row.invoice_number||row.invoice_type||"Invoice")} · ${safe(row.allocation_purpose||"Payment")}</span><strong>${money(row.proposed_amount_gbp)}</strong></div>`).join("");
+    return `<article class="history-card"><div class="history-head"><div><strong>${safe(group.advice_number||("Payment Advice #"+group.payment_advice_id))} · ${money(group.reported_amount_gbp)}</strong><small>Reported ${safe(group.reported_payment_date||"")} · ${safe(group.customer_bank_reference||"No bank reference supplied")}</small></div><div class="status-pill ${statusClass(group.ledger_status==="Posted"?"Posted":group.advice_status)}">${safe(group.ledger_status==="Posted"?"Posted":group.advice_status)}</div></div><div class="history-body">${allocations}<div class="history-message">${group.ledger_status==="Posted"?"AnyBike has verified and posted this payment to the authoritative Deal 360 ledger.":group.advice_status==="Verified"?"AnyBike has verified the bank receipt. Posting to the Deal 360 ledger is pending.":group.advice_status==="Awaiting Verification"?"AnyBike is checking that this transfer has arrived. Your Deal 360 balance has not changed yet.":"This payment advice is no longer active."}</div>${canCancel?`<button class="action-btn" type="button" onclick="cancelAdvice(${Number(group.payment_advice_id)})">Cancel Payment Advice</button>`:""}</div></article>`;
+  }).join("")}</div>`;
+}
+
+async function cancelAdvice(id){
+  const reason=prompt("Why are you cancelling this payment advice?","Payment details entered incorrectly.");
+  if(reason===null)return;
+  const result=await sb.rpc("customer_cancel_payment_advice",{p_payment_advice_id:Number(id),p_reason:reason||null});
+  if(result.error){alert("Payment advice could not be cancelled.\n\n"+result.error.message);return;}
+  await loadAccounts();
+}
+
+
+function bytesLabel(value){
+  const bytes=Number(value||0);
+  if(!Number.isFinite(bytes)||bytes<=0)return "—";
+  if(bytes<1024)return bytes+" B";
+  if(bytes<1024*1024)return (bytes/1024).toFixed(1)+" KB";
+  return (bytes/(1024*1024)).toFixed(1)+" MB";
+}
+
+async function openStoredDocument(bucket,path,name){
+  if(!bucket||!path){
+    alert("This document does not have a downloadable storage file.");
+    return;
+  }
+
+  const result=await sb.storage.from(String(bucket)).createSignedUrl(String(path),300,{download:String(name||"AnyBike-document")});
+  if(result.error){
+    console.error(result.error);
+    alert("Document could not be opened.\n\n"+result.error.message);
+    return;
+  }
+
+  window.open(result.data.signedUrl,"_blank","noopener");
+}
+
+function customerDocumentCard(doc){
+  return `<article class="document-card">
+    <div class="document-card-head">
+      <div>
+        <span>${safe(doc.document_type||"Document")}</span>
+        <strong>${safe(doc.title||doc.original_file_name||"AnyBike Document")}</strong>
+      </div>
+      <div class="status-pill">${safe(doc.verification_status||"Available")}</div>
+    </div>
+    ${doc.description?`<div class="document-desc">${safe(doc.description)}</div>`:""}
+    <div class="document-meta">
+      <div><span>File</span><strong>${safe(doc.original_file_name||"—")}</strong></div>
+      <div><span>Size</span><strong>${safe(bytesLabel(doc.file_size))}</strong></div>
+      <div><span>Added</span><strong>${safe(niceDate(doc.created_at))}</strong></div>
+      <div><span>Expiry</span><strong>${safe(doc.expiry_date||"—")}</strong></div>
+    </div>
+    <div class="document-actions">
+      <button class="action-btn primary" type="button" onclick='openStoredDocument(${JSON.stringify(String(doc.storage_bucket||""))},${JSON.stringify(String(doc.storage_path||""))},${JSON.stringify(String(doc.original_file_name||doc.title||"AnyBike-document"))})'>Open / Download</button>
+    </div>
+  </article>`;
+}
+
+function motorcycleDocumentCard(doc){
+  return `<article class="document-card">
+    <div class="document-card-head">
+      <div>
+        <span>${safe(doc.document_type||"Motorcycle Document")}</span>
+        <strong>${safe(doc.title||doc.original_file_name||"Motorcycle Document")}</strong>
+      </div>
+      <div class="status-pill issued">Shared</div>
+    </div>
+    ${doc.description?`<div class="document-desc">${safe(doc.description)}</div>`:""}
+    <div class="document-meta">
+      <div><span>Motorcycle</span><strong>${safe(doc.motorcycle||"Motorcycle")}</strong></div>
+      <div><span>Deal</span><strong>${safe(doc.deal_number||"—")}</strong></div>
+      <div><span>File</span><strong>${safe(doc.original_file_name||"—")}</strong></div>
+      <div><span>Added</span><strong>${safe(niceDate(doc.buyer_visible_at||doc.created_at))}</strong></div>
+    </div>
+    <div class="document-actions">
+      <button class="action-btn primary" type="button" onclick='openStoredDocument(${JSON.stringify(String(doc.storage_bucket||""))},${JSON.stringify(String(doc.storage_path||""))},${JSON.stringify(String(doc.original_file_name||doc.title||"AnyBike-document"))})'>Open / Download</button>
+    </div>
+  </article>`;
+}
+
+function renderCentralDocuments(){
+  const motorcycle=Array.isArray(centralDocumentData.motorcycle_documents)?centralDocumentData.motorcycle_documents:[];
+  const customer=Array.isArray(centralDocumentData.customer_documents)?centralDocumentData.customer_documents:[];
+
+  const motorcycleCount=document.getElementById("motorcycleDocumentCount");
+  const customerCount=document.getElementById("customerDocumentCount");
+  if(motorcycleCount)motorcycleCount.textContent=motorcycle.length+" Document"+(motorcycle.length===1?"":"s");
+  if(customerCount)customerCount.textContent=customer.length+" Document"+(customer.length===1?"":"s");
+
+  const motorcycleBox=document.getElementById("motorcycleDocuments");
+  const customerBox=document.getElementById("customerDocuments");
+
+  if(motorcycleBox){
+    motorcycleBox.innerHTML=motorcycle.length
+      ? `<div class="document-grid">${motorcycle.map(motorcycleDocumentCard).join("")}</div>`
+      : '<div class="empty">Any motorcycle documents AnyBike shares with you will appear here.</div>';
+  }
+
+  if(customerBox){
+    customerBox.innerHTML=customer.length
+      ? `<div class="document-grid">${customer.map(customerDocumentCard).join("")}</div>`
+      : '<div class="empty">You do not currently have any additional customer documents.</div>';
+  }
+}
+
+function renderSummary(){
+  const groups=groupAdviceRows(paymentAdviceRows);
+  const issued=accountInvoices.filter(row=>row.invoice_status==="Issued").length;
+  const outstanding=accountInvoices.filter(row=>row.invoice_status==="Issued").reduce((sum,row)=>sum+Number(row.balance_due_gbp||0),0);
+  const pending=groups.filter(row=>row.advice_status==="Awaiting Verification").length;
+  const confirmed=groups.filter(row=>row.advice_status==="Verified"||row.ledger_status==="Posted").length;
+  document.getElementById("summary").innerHTML=`
+    <div class="summary-card"><span>Issued Documents</span><strong>${issued}</strong></div>
+    <div class="summary-card due"><span>Outstanding</span><strong>${money(outstanding)}</strong></div>
+    <div class="summary-card"><span>Payment Advice Pending</span><strong>${pending}</strong></div>
+    <div class="summary-card good"><span>Verified / Posted</span><strong>${confirmed}</strong></div>`;
+}
+
+document.getElementById("paymentDate").value=todayLocal();
+document.getElementById("submitAdvice").addEventListener("click",submitPaymentAdvice);
+document.getElementById("closeReport").addEventListener("click",()=>{
+  document.querySelectorAll(".pay-select").forEach(el=>el.checked=false);
+  updatePaymentSelection();
+});
+loadAccounts();
+</script>
+</body>
+</html>
