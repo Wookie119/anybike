@@ -1,0 +1,1006 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Accounts HQ | AnyBike Admin</title>
+<meta name="robots" content="noindex,nofollow">
+
+<script>
+document.documentElement.classList.add("admin-auth-pending");
+</script>
+<style>
+html.admin-auth-pending body{visibility:hidden}
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="admin.js?v=12000"></script>
+<link rel="stylesheet" href="admin-shell.css?v=12001">
+
+<style>
+:root{
+  --red:#ed1c24;
+  --bg:#070707;
+  --panel:#101010;
+  --panel2:#171717;
+  --line:#373737;
+  --text:#fff;
+  --muted:#9ea3aa;
+  --green:#36d37e;
+  --amber:#ffbf47;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#080808;color:#fff;font-family:Arial,Helvetica,sans-serif}
+.admin-page-content{padding:22px}
+.accounts-wrap{width:min(100%,1650px);margin:0 auto}
+.accounts-hero{
+  border:1px solid var(--line);
+  border-top:3px solid var(--red);
+  border-radius:12px;
+  padding:20px;
+  background:radial-gradient(circle at 94% 0%,rgba(237,28,36,.12),transparent 30%),linear-gradient(180deg,#111,#0c0c0c);
+  margin-bottom:16px;
+}
+.accounts-hero .eyebrow{color:var(--red);font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.12em}
+.accounts-hero h1{margin:6px 0;font-size:34px}
+.accounts-hero p{margin:0;color:#aaa;line-height:1.5}
+.kpi-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin:16px 0}
+.kpi{
+  border:1px solid var(--line);border-radius:11px;background:#101010;padding:14px;
+}
+.kpi span{display:block;color:#888;font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px}
+.kpi strong{display:block;font-size:22px}
+.kpi.good strong{color:var(--green)}.kpi.warn strong{color:var(--amber)}.kpi.red strong{color:#ff696f}
+.panel{
+  margin-bottom:16px;border:1px solid var(--line);border-top:3px solid var(--red);
+  border-radius:12px;background:linear-gradient(180deg,#101010,#0b0b0b);overflow:hidden
+}
+.panel-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:16px;border-bottom:1px solid #292929}
+.panel-head h2{margin:0 0 4px;font-size:20px}.panel-head p{margin:0;color:#999;font-size:12px;line-height:1.45}
+.controls{display:flex;gap:8px;flex-wrap:wrap;align-items:end}
+.field label{display:block;color:#999;font-size:9px;font-weight:900;text-transform:uppercase;margin-bottom:5px}
+.field input,.field select{
+  height:38px;border:1px solid #3a3a3a;border-radius:8px;background:#fff;color:#111;padding:0 10px;font-weight:700
+}
+button,.button{
+  min-height:38px;border:1px solid #444;border-radius:8px;background:#1c1c1c;color:#fff;padding:0 13px;font-weight:900;cursor:pointer
+}
+button.primary,.button.primary{background:var(--red);border-color:var(--red)}
+button:disabled{opacity:.5;cursor:not-allowed}
+.table-wrap{overflow:auto}
+table{width:100%;border-collapse:collapse;min-width:1100px}
+th,td{padding:11px 12px;border-bottom:1px solid #262626;text-align:left;font-size:11px;vertical-align:top}
+th{color:#aaa;background:#0c0c0c;font-size:9px;text-transform:uppercase;letter-spacing:.07em;position:sticky;top:0}
+td strong{font-size:12px}
+.status{display:inline-flex;padding:5px 8px;border:1px solid #444;border-radius:999px;font-size:9px;font-weight:900}
+.status.issued,.status.ready{border-color:rgba(54,211,126,.4);color:#9fffc3;background:rgba(54,211,126,.08)}
+.status.draft,.status.review{border-color:rgba(255,191,71,.4);color:#ffd98b;background:rgba(255,191,71,.08)}
+.status.bad{border-color:rgba(237,28,36,.45);color:#ff9da1;background:rgba(237,28,36,.09)}
+.vat-warning{padding:12px 16px;background:#1a0c0d;border-top:1px solid #3b1719;color:#ffb4b8;font-size:11px;line-height:1.45}
+.empty{padding:26px;text-align:center;color:#aaa}
+.tabs{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.tabs button.active{background:var(--red);border-color:var(--red)}
+.tab-panel{display:none}.tab-panel.active{display:block}
+.note{padding:12px 14px;border:1px solid #333;border-radius:9px;background:#0d0d0d;color:#aaa;font-size:11px;line-height:1.5;margin-bottom:12px}
+.note strong{color:#fff}
+
+.payment-rule{
+  padding:12px 16px;
+  border-bottom:1px solid #292929;
+  background:#0c0c0c;
+  color:#aaa;
+  font-size:11px;
+  line-height:1.5;
+}
+.payment-rule strong{color:#fff}
+
+.payment-queue{
+  padding:14px;
+  display:grid;
+  gap:12px;
+}
+
+.payment-advice-card{
+  border:1px solid #373737;
+  border-top:3px solid #ed1c24;
+  border-radius:12px;
+  background:linear-gradient(180deg,#111,#0d0d0d);
+  overflow:hidden;
+}
+
+.payment-advice-card.awaiting{border-top-color:#ffbf47}
+.payment-advice-card.posted{border-top-color:#36d37e}
+.payment-advice-card.rejected{border-top-color:#777}
+
+.payment-advice-head{
+  display:flex;
+  justify-content:space-between;
+  gap:14px;
+  padding:14px 16px;
+  border-bottom:1px solid #292929;
+}
+
+.payment-advice-head .eyebrow{
+  color:#ed1c24;
+  font-size:9px;
+  font-weight:900;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+
+.payment-advice-head h3{
+  margin:4px 0 3px;
+  font-size:18px;
+}
+
+.payment-advice-head p{
+  margin:0;
+  color:#999;
+  font-size:11px;
+}
+
+.payment-badges{
+  display:flex;
+  gap:7px;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+  align-items:flex-start;
+}
+
+.payment-advice-body{padding:14px 16px}
+
+.payment-summary-grid{
+  display:grid;
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:8px;
+  margin-bottom:12px;
+}
+
+.payment-summary-grid .mini{
+  border:1px solid #2f2f2f;
+  border-radius:9px;
+  background:#0c0c0c;
+  padding:9px 10px;
+}
+
+.payment-summary-grid .mini span{
+  display:block;
+  color:#777;
+  font-size:8px;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.06em;
+  margin-bottom:4px;
+}
+
+.payment-summary-grid .mini strong{
+  display:block;
+  color:#fff;
+  font-size:12px;
+  word-break:break-word;
+}
+
+.allocation-list{
+  margin:10px 0 12px;
+  border:1px solid #2d2d2d;
+  border-radius:10px;
+  overflow:hidden;
+}
+
+.allocation-row{
+  display:grid;
+  grid-template-columns:1.1fr 1.2fr 1fr .8fr;
+  gap:10px;
+  padding:10px 11px;
+  border-bottom:1px solid #262626;
+  align-items:center;
+}
+
+.allocation-row:last-child{border-bottom:0}
+.allocation-row span{color:#888;font-size:9px;font-weight:900;text-transform:uppercase}
+.allocation-row strong{display:block;color:#fff;font-size:11px;margin-top:3px}
+.allocation-row .amount{font-size:14px}
+
+.verify-box,
+.post-box{
+  margin-top:12px;
+  border:1px solid #343434;
+  border-radius:10px;
+  background:#0b0b0b;
+  padding:12px;
+}
+
+.verify-grid{
+  display:grid;
+  grid-template-columns:160px minmax(200px,1fr) minmax(220px,1.4fr);
+  gap:9px;
+  align-items:end;
+}
+
+.verify-grid .field input{
+  width:100%;
+}
+
+.verify-actions{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-top:10px;
+}
+
+.verify-actions .danger{
+  background:#281113;
+  border-color:#6d2529;
+  color:#ffb5b8;
+}
+
+.post-preview{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:8px;
+  margin-bottom:9px;
+}
+
+.post-preview div{
+  padding:9px 10px;
+  background:#111;
+  border:1px solid #2e2e2e;
+  border-radius:8px;
+}
+
+.post-preview span{
+  display:block;
+  color:#777;
+  font-size:8px;
+  font-weight:900;
+  text-transform:uppercase;
+  margin-bottom:4px;
+}
+
+.post-preview strong{font-size:12px}
+
+.preview-issues{
+  margin-top:8px;
+  padding:9px 10px;
+  border:1px solid rgba(237,28,36,.35);
+  background:rgba(237,28,36,.08);
+  color:#ffb1b4;
+  border-radius:8px;
+  font-size:11px;
+  line-height:1.45;
+}
+
+.preview-ready{
+  margin-top:8px;
+  padding:9px 10px;
+  border:1px solid rgba(54,211,126,.35);
+  background:rgba(54,211,126,.07);
+  color:#9fffc3;
+  border-radius:8px;
+  font-size:11px;
+  line-height:1.45;
+}
+
+#paymentQueueBadge{
+  display:none;
+  min-width:18px;
+  height:18px;
+  line-height:18px;
+  padding:0 5px;
+  border-radius:999px;
+  background:#ed1c24;
+  color:#fff;
+  font-size:9px;
+  margin-left:4px;
+}
+#paymentQueueBadge.show{display:inline-block}
+
+@media(max-width:1100px){
+  .payment-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .allocation-row{grid-template-columns:1fr 1fr}
+  .verify-grid{grid-template-columns:1fr}
+  .post-preview{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+
+@media(max-width:1200px){.kpi-grid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:750px){.admin-page-content{padding:12px}.kpi-grid{grid-template-columns:1fr 1fr}.panel-head{flex-direction:column}.controls{width:100%}}
+</style>
+</head>
+<body>
+
+<div class="admin-shell">
+  <aside id="adminSidebar" class="admin-sidebar">
+    <div class="admin-logo"><img src="anybike-logo-new.jpg" alt="AnyBike"></div>
+    <nav class="admin-menu">
+      <a href="admin-dashboard.html"><span class="menu-icon">🏠</span><span class="menu-text">Admin HQ</span></a>
+      <a href="admin-enquiries.html"><span class="menu-icon">🏍</span><span class="menu-text">Bike Sales HQ</span></a>
+      <a href="admin-accounts.html" class="active"><span class="menu-icon">💷</span><span class="menu-text">Accounts HQ</span></a>
+      <a href="admin-message-centre.html"><span class="menu-icon">💬</span><span class="menu-text">Message Centre</span></a>
+      <a href="admin-customers.html"><span class="menu-icon">👥</span><span class="menu-text">Customers</span></a>
+      <a href="admin-stock.html"><span class="menu-icon">📦</span><span class="menu-text">Stock HQ</span></a>
+      <a href="admin-logistics.html"><span class="menu-icon">🚚</span><span class="menu-text">Logistics HQ</span></a>
+      <a href="admin-reports.html"><span class="menu-icon">📈</span><span class="menu-text">Reports</span></a>
+      <a href="admin-administration.html"><span class="menu-icon">⚙️</span><span class="menu-text">Administration</span></a>
+    </nav>
+  </aside>
+
+  <main class="admin-main">
+    <div id="adminTopbar" class="admin-topbar">
+      <div class="admin-search"><span>🔎</span><input type="search" placeholder="Search Accounts HQ..." id="accountSearch"></div>
+      <div class="admin-actions"><div class="admin-profile">Andy</div></div>
+    </div>
+
+    <div class="admin-page-content">
+      <div class="accounts-wrap">
+        <section class="accounts-hero">
+          <div class="eyebrow">AnyBike Finance &amp; Reporting</div>
+          <h1>💷 Accounts HQ</h1>
+          <p>Central accounting control for sales documents, VAT reporting and document exceptions. Proformas never enter VAT return figures.</p>
+        </section>
+
+        <div class="tabs">
+          <button id="tabPayments" class="active" type="button" onclick="showTab('payments')">Payment Verification <span id="paymentQueueBadge"></span></button>
+          <button id="tabRegister" type="button" onclick="showTab('register')">Document Register</button>
+          <button id="tabVat" type="button" onclick="showTab('vat')">VAT Sales Report</button>
+        </div>
+
+        
+        <section id="paymentsPanel" class="tab-panel active">
+          <div class="kpi-grid" id="paymentKpis">
+            <div class="kpi warn"><span>Awaiting Verification</span><strong>—</strong></div>
+            <div class="kpi"><span>Ready to Post</span><strong>—</strong></div>
+            <div class="kpi good"><span>Posted</span><strong>—</strong></div>
+            <div class="kpi"><span>Awaiting Amount</span><strong>—</strong></div>
+            <div class="kpi red"><span>Attention</span><strong>—</strong></div>
+          </div>
+
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>Bank Transfer Verification Queue</h2>
+                <p>Customers report transfers here first. Verify the real bank receipt, then post it to the authoritative Deal 360 ledger.</p>
+              </div>
+              <div class="controls">
+                <div class="field">
+                  <label>Status</label>
+                  <select id="paymentStatusFilter" onchange="renderPaymentQueue()">
+                    <option value="">All</option>
+                    <option value="Awaiting Verification">Awaiting Verification</option>
+                    <option value="Verified">Verified / Ready to Post</option>
+                    <option value="Posted">Posted</option>
+                    <option value="Rejected">Rejected</option>
+                  </select>
+                </div>
+                <button type="button" onclick="loadPaymentQueue()">Refresh</button>
+              </div>
+            </div>
+
+            <div class="payment-rule">
+              <strong>Important:</strong>
+              Verifying confirms the money exists in the bank. Posting is a separate action that writes the authoritative customer payment into Deal 360. Neither action secures a motorcycle.
+            </div>
+
+            <div id="paymentQueue" class="payment-queue">
+              <div class="empty">Loading Payment Advice...</div>
+            </div>
+          </section>
+        </section>
+
+<section id="registerPanel" class="tab-panel">
+          <div class="kpi-grid" id="registerKpis">
+            <div class="kpi"><span>Documents</span><strong>—</strong></div>
+            <div class="kpi"><span>Issued</span><strong>—</strong></div>
+            <div class="kpi warn"><span>Drafts</span><strong>—</strong></div>
+            <div class="kpi"><span>Gross Issued</span><strong>—</strong></div>
+            <div class="kpi red"><span>VAT Review</span><strong>—</strong></div>
+          </div>
+
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>Accounting Document Register</h2>
+                <p>Proformas, Final Invoices and Credit Notes with linked Deal references and frozen VAT status.</p>
+              </div>
+              <div class="controls">
+                <div class="field"><label>From</label><input id="registerFrom" type="date"></div>
+                <div class="field"><label>To</label><input id="registerTo" type="date"></div>
+                <button class="primary" type="button" onclick="loadRegister()">Apply</button>
+                <button type="button" onclick="clearRegisterDates()">All Dates</button>
+              </div>
+            </div>
+            <div class="table-wrap"><table>
+              <thead><tr><th>Date</th><th>Document</th><th>Customer</th><th>Deals</th><th>Status</th><th>Net</th><th>VAT</th><th>Gross</th><th>VAT Treatment</th><th>VAT Return</th></tr></thead>
+              <tbody id="registerBody"><tr><td colspan="10" class="empty">Loading document register...</td></tr></tbody>
+            </table></div>
+          </section>
+        </section>
+
+        <section id="vatPanel" class="tab-panel">
+          <div class="note"><strong>VAT reporting rule:</strong> this sales report uses only frozen <strong>Issued Final Invoice / Credit Note</strong> VAT snapshots. Drafts and Proformas are excluded. Input VAT is deliberately not included yet; verified supplier purchase documents are the next accounting layer.</div>
+
+          <div class="kpi-grid" id="vatKpis">
+            <div class="kpi"><span>Accounting Documents</span><strong>—</strong></div>
+            <div class="kpi"><span>Net Sales</span><strong>—</strong></div>
+            <div class="kpi"><span>Output VAT</span><strong>—</strong></div>
+            <div class="kpi"><span>Gross Sales</span><strong>—</strong></div>
+            <div class="kpi red"><span>VAT Review</span><strong>—</strong></div>
+          </div>
+
+          <section class="panel">
+            <div class="panel-head">
+              <div><h2>VAT Sales / Output VAT</h2><p>Choose a VAT period to produce the current issued-sales report.</p></div>
+              <div class="controls">
+                <div class="field"><label>From</label><input id="vatFrom" type="date"></div>
+                <div class="field"><label>To</label><input id="vatTo" type="date"></div>
+                <button class="primary" type="button" onclick="loadVatReport()">Run VAT Report</button>
+              </div>
+            </div>
+            <div id="vatStatus"></div>
+            <div class="table-wrap"><table>
+              <thead><tr><th>Date</th><th>Document</th><th>Customer</th><th>Deals</th><th>VAT Treatment</th><th>Net Sales</th><th>Output VAT</th><th>Gross Sales</th><th>Check</th></tr></thead>
+              <tbody id="vatBody"><tr><td colspan="9" class="empty">Choose a VAT period.</td></tr></tbody>
+            </table></div>
+          </section>
+        </section>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+const SUPABASE_URL="https://tuehtnezhdnkqbbhttgp.supabase.co";
+const SUPABASE_ANON_KEY="sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+
+let registerRows=[];
+let vatRows=[];
+
+const esc=value=>String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
+const money=value=>new Intl.NumberFormat("en-GB",{style:"currency",currency:"GBP"}).format(Number(value||0));
+const niceDate=value=>value?new Date(String(value).length===10?value+"T00:00:00":value).toLocaleDateString("en-GB"):"—";
+
+function showTab(name){
+  document.getElementById("paymentsPanel").classList.toggle("active",name==="payments");
+  document.getElementById("registerPanel").classList.toggle("active",name==="register");
+  document.getElementById("vatPanel").classList.toggle("active",name==="vat");
+  document.getElementById("tabPayments").classList.toggle("active",name==="payments");
+  document.getElementById("tabRegister").classList.toggle("active",name==="register");
+  document.getElementById("tabVat").classList.toggle("active",name==="vat");
+}
+
+function statusClass(status){
+  const s=String(status||"").toLowerCase();
+  if(s==="issued")return "issued";
+  if(s==="draft")return "draft";
+  return "bad";
+}
+
+function dealText(row){
+  return Array.isArray(row.linked_deal_numbers)
+    ? row.linked_deal_numbers.filter(Boolean).join(" · ")
+    : "—";
+}
+
+
+let paymentAdviceRows=[];
+let paymentAdviceGroups=new Map();
+let paymentPostingPreviews=new Map();
+
+function groupPaymentAdviceRows(rows){
+  const map=new Map();
+
+  (rows||[]).forEach(row=>{
+    const id=Number(row.payment_advice_id);
+    if(!map.has(id)){
+      map.set(id,{
+        payment_advice_id:id,
+        advice_number:row.advice_number,
+        customer_id:row.customer_id,
+        customer_name:row.customer_name,
+        customer_email:row.customer_email,
+        reported_amount_gbp:Number(row.reported_amount_gbp||0),
+        reported_payment_date:row.reported_payment_date,
+        customer_bank_reference:row.customer_bank_reference,
+        customer_notes:row.customer_notes,
+        advice_status:row.advice_status,
+        ledger_status:row.ledger_status,
+        submitted_at:row.submitted_at,
+        bank_verified_at:row.bank_verified_at,
+        verified_amount_gbp:row.verified_amount_gbp,
+        bank_transaction_reference:row.bank_transaction_reference,
+        verification_notes:row.verification_notes,
+        allocations:[]
+      });
+    }
+
+    map.get(id).allocations.push({
+      invoice_id:row.invoice_id,
+      invoice_type:row.invoice_type,
+      invoice_number:row.invoice_number,
+      invoice_status:row.invoice_status,
+      deal_id:row.deal_id,
+      deal_number:row.deal_number,
+      deal_motorcycle_id:row.deal_motorcycle_id,
+      allocation_purpose:row.allocation_purpose,
+      proposed_amount_gbp:Number(row.proposed_amount_gbp||0),
+      allocation_status:row.allocation_status
+    });
+  });
+
+  return map;
+}
+
+async function loadPaymentQueue(){
+  const result=await sb.rpc("admin_get_payment_advices",{p_status:null});
+
+  if(result.error){
+    document.getElementById("paymentQueue").innerHTML=
+      `<div class="empty">${esc(result.error.message)}</div>`;
+    return;
+  }
+
+  paymentAdviceRows=Array.isArray(result.data)?result.data:[];
+  paymentAdviceGroups=groupPaymentAdviceRows(paymentAdviceRows);
+
+  // Preload posting previews only for verified / ready-to-post items.
+  paymentPostingPreviews=new Map();
+
+  await Promise.all(
+    Array.from(paymentAdviceGroups.values())
+      .filter(item=>item.advice_status==="Verified" && item.ledger_status==="Ready to Post")
+      .map(async item=>{
+        const preview=await sb.rpc("admin_get_payment_advice_posting_preview",{
+          p_payment_advice_id:Number(item.payment_advice_id)
+        });
+        if(!preview.error){
+          paymentPostingPreviews.set(Number(item.payment_advice_id),preview.data||{});
+        }else{
+          paymentPostingPreviews.set(Number(item.payment_advice_id),{
+            ready_to_post:false,
+            issues:[preview.error.message]
+          });
+        }
+      })
+  );
+
+  renderPaymentQueue();
+}
+
+function paymentStatusClass(item){
+  if(item.ledger_status==="Posted")return "posted";
+  if(item.advice_status==="Rejected")return "rejected";
+  return "awaiting";
+}
+
+function paymentStatusBadge(item){
+  if(item.ledger_status==="Posted"){
+    return '<span class="status ready">Posted</span>';
+  }
+  if(item.advice_status==="Verified" && item.ledger_status==="Ready to Post"){
+    return '<span class="status ready">Bank Verified</span><span class="status review">Ready to Post</span>';
+  }
+  if(item.advice_status==="Rejected"){
+    return '<span class="status bad">Rejected</span>';
+  }
+  return '<span class="status review">Awaiting Verification</span>';
+}
+
+function paymentAllocationRows(item){
+  return `<div class="allocation-list">${
+    (item.allocations||[]).map(a=>`
+      <div class="allocation-row">
+        <div><span>Document</span><strong>${esc(a.invoice_number||a.invoice_type||"—")}</strong></div>
+        <div><span>Underlying Deal</span><strong>${esc(a.deal_number||("Deal #"+a.deal_id))}</strong></div>
+        <div><span>Automatic Stage</span><strong>${esc(a.allocation_purpose||"—")}</strong></div>
+        <div><span>Amount</span><strong class="amount">${money(a.proposed_amount_gbp)}</strong></div>
+      </div>
+    `).join("")
+  }</div>`;
+}
+
+function verificationBox(item){
+  const id=Number(item.payment_advice_id);
+
+  if(item.advice_status!=="Awaiting Verification"){
+    return "";
+  }
+
+  return `<div class="verify-box">
+    <strong>Verify actual bank receipt</strong>
+    <div class="verify-grid" style="margin-top:9px">
+      <div class="field">
+        <label>Amount received</label>
+        <input id="verifyAmount-${id}" type="number" min="0.01" step="0.01" value="${Number(item.reported_amount_gbp||0).toFixed(2)}">
+      </div>
+      <div class="field">
+        <label>Bank transaction reference</label>
+        <input id="verifyReference-${id}" type="text" placeholder="Lloyds / bank transaction reference">
+      </div>
+      <div class="field">
+        <label>Verification notes</label>
+        <input id="verifyNotes-${id}" type="text" placeholder="Optional internal note">
+      </div>
+    </div>
+    <div class="verify-actions">
+      <button class="primary" type="button" onclick="verifyPaymentAdvice(${id})">Verify Bank Receipt</button>
+      <button class="danger" type="button" onclick="rejectPaymentAdvice(${id})">Reject Advice</button>
+    </div>
+  </div>`;
+}
+
+function postingBox(item){
+  const id=Number(item.payment_advice_id);
+
+  if(!(item.advice_status==="Verified" && item.ledger_status==="Ready to Post")){
+    return "";
+  }
+
+  const preview=paymentPostingPreviews.get(id)||{};
+  const issues=Array.isArray(preview.issues)?preview.issues:[];
+
+  return `<div class="post-box">
+    <strong>Deal 360 Posting Preview</strong>
+    <div class="post-preview" style="margin-top:9px">
+      <div><span>Verified Bank Amount</span><strong>${money(preview.verified_amount_gbp||item.verified_amount_gbp)}</strong></div>
+      <div><span>Allocation Total</span><strong>${money(preview.allocation_total_gbp||0)}</strong></div>
+      <div><span>Deals</span><strong>${Number(preview.deal_count||0)}</strong></div>
+      <div><span>Motorcycle Security</span><strong>Not changed</strong></div>
+    </div>
+
+    ${
+      preview.ready_to_post
+      ? '<div class="preview-ready"><strong>Ready to Post.</strong> This will write the verified bank receipt to the authoritative Deal 360 customer payment ledger.</div>'
+      : `<div class="preview-issues"><strong>Cannot post yet:</strong><br>${issues.length?issues.map(esc).join("<br>"):"Posting preview is not ready."}</div>`
+    }
+
+    <div class="verify-actions">
+      <button class="primary" type="button" ${preview.ready_to_post?"":"disabled"} onclick="postPaymentAdvice(${id})">Post to Deal 360</button>
+      <button type="button" onclick="refreshPaymentPreview(${id})">Refresh Preview</button>
+    </div>
+  </div>`;
+}
+
+function renderPaymentQueue(){
+  const queue=document.getElementById("paymentQueue");
+  const filter=document.getElementById("paymentStatusFilter").value||"";
+
+  const all=Array.from(paymentAdviceGroups.values());
+
+  const visible=all.filter(item=>{
+    if(!filter)return true;
+    if(filter==="Posted")return item.ledger_status==="Posted";
+    return item.advice_status===filter;
+  });
+
+  const awaiting=all.filter(x=>x.advice_status==="Awaiting Verification").length;
+  const ready=all.filter(x=>x.advice_status==="Verified" && x.ledger_status==="Ready to Post").length;
+  const posted=all.filter(x=>x.ledger_status==="Posted").length;
+  const awaitingAmount=all
+    .filter(x=>x.advice_status==="Awaiting Verification")
+    .reduce((sum,x)=>sum+Number(x.reported_amount_gbp||0),0);
+  const attention=all.filter(x=>x.advice_status==="Rejected").length;
+
+  document.getElementById("paymentKpis").innerHTML=`
+    <div class="kpi warn"><span>Awaiting Verification</span><strong>${awaiting}</strong></div>
+    <div class="kpi"><span>Ready to Post</span><strong>${ready}</strong></div>
+    <div class="kpi good"><span>Posted</span><strong>${posted}</strong></div>
+    <div class="kpi"><span>Awaiting Amount</span><strong>${money(awaitingAmount)}</strong></div>
+    <div class="kpi red"><span>Attention</span><strong>${attention}</strong></div>`;
+
+  const badge=document.getElementById("paymentQueueBadge");
+  const queueCount=awaiting+ready;
+  badge.textContent=queueCount;
+  badge.classList.toggle("show",queueCount>0);
+
+  if(!visible.length){
+    queue.innerHTML='<div class="empty">No Payment Advice matches this filter.</div>';
+    return;
+  }
+
+  queue.innerHTML=visible.map(item=>`
+    <article class="payment-advice-card ${paymentStatusClass(item)}">
+      <div class="payment-advice-head">
+        <div>
+          <div class="eyebrow">Customer Bank Transfer</div>
+          <h3>${esc(item.advice_number||("#"+item.payment_advice_id))} · ${money(item.reported_amount_gbp)}</h3>
+          <p>${esc(item.customer_name||item.customer_email||"Customer")} · Reported ${esc(niceDate(item.submitted_at))}</p>
+        </div>
+        <div class="payment-badges">${paymentStatusBadge(item)}</div>
+      </div>
+
+      <div class="payment-advice-body">
+        <div class="payment-summary-grid">
+          <div class="mini"><span>Customer</span><strong>${esc(item.customer_name||"—")}</strong></div>
+          <div class="mini"><span>Email</span><strong>${esc(item.customer_email||"—")}</strong></div>
+          <div class="mini"><span>Payment Date</span><strong>${esc(niceDate(item.reported_payment_date))}</strong></div>
+          <div class="mini"><span>Customer Bank Ref</span><strong>${esc(item.customer_bank_reference||"—")}</strong></div>
+          <div class="mini"><span>Ledger</span><strong>${esc(item.ledger_status||"—")}</strong></div>
+        </div>
+
+        ${paymentAllocationRows(item)}
+
+        ${item.customer_notes?`<div class="note"><strong>Customer note:</strong> ${esc(item.customer_notes)}</div>`:""}
+
+        ${verificationBox(item)}
+        ${postingBox(item)}
+
+        ${
+          item.ledger_status==="Posted"
+          ? `<div class="preview-ready"><strong>Posted to Deal 360.</strong> Verified amount ${money(item.verified_amount_gbp||item.reported_amount_gbp)} is now represented in the authoritative customer payment ledger. Motorcycle security was not changed.</div>`
+          : ""
+        }
+      </div>
+    </article>
+  `).join("");
+}
+
+async function verifyPaymentAdvice(id){
+  const item=paymentAdviceGroups.get(Number(id));
+  if(!item)return;
+
+  const amount=Number(document.getElementById("verifyAmount-"+id)?.value||0);
+  const bankRef=String(document.getElementById("verifyReference-"+id)?.value||"").trim();
+  const notes=String(document.getElementById("verifyNotes-"+id)?.value||"").trim();
+
+  if(!Number.isFinite(amount)||amount<=0){
+    alert("Enter the amount actually received in the bank.");
+    return;
+  }
+
+  if(!confirm(
+    "Verify "+money(amount)+" received for "+(item.advice_number||("#"+id))+"?\\n\\n"+
+    "This confirms the bank receipt only. It does NOT yet change Deal 360 balances and does NOT secure a motorcycle."
+  ))return;
+
+  const result=await sb.rpc("admin_verify_payment_advice",{
+    p_payment_advice_id:Number(id),
+    p_verified_amount_gbp:amount,
+    p_bank_transaction_reference:bankRef||null,
+    p_verification_notes:notes||null
+  });
+
+  if(result.error){
+    alert("Bank receipt could not be verified.\\n\\n"+result.error.message);
+    return;
+  }
+
+  alert(
+    "Bank receipt verified.\\n\\n"+
+    "Status: Verified\\n"+
+    "Ledger: Ready to Post\\n\\n"+
+    "Deal 360 has NOT changed yet."
+  );
+
+  await loadPaymentQueue();
+}
+
+async function rejectPaymentAdvice(id){
+  const item=paymentAdviceGroups.get(Number(id));
+  if(!item)return;
+
+  const reason=prompt(
+    "Why are you rejecting "+(item.advice_number||("#"+id))+"?\\n\\n"+
+    "Example: No matching receipt found in bank."
+  );
+
+  if(reason===null)return;
+  if(!String(reason).trim()){
+    alert("A rejection reason is required.");
+    return;
+  }
+
+  const result=await sb.rpc("admin_reject_payment_advice",{
+    p_payment_advice_id:Number(id),
+    p_rejection_reason:String(reason).trim()
+  });
+
+  if(result.error){
+    alert("Payment Advice could not be rejected.\\n\\n"+result.error.message);
+    return;
+  }
+
+  await loadPaymentQueue();
+}
+
+async function refreshPaymentPreview(id){
+  const result=await sb.rpc("admin_get_payment_advice_posting_preview",{
+    p_payment_advice_id:Number(id)
+  });
+
+  if(result.error){
+    alert("Posting preview could not be loaded.\\n\\n"+result.error.message);
+    return;
+  }
+
+  paymentPostingPreviews.set(Number(id),result.data||{});
+  renderPaymentQueue();
+}
+
+async function postPaymentAdvice(id){
+  const item=paymentAdviceGroups.get(Number(id));
+  const preview=paymentPostingPreviews.get(Number(id))||{};
+
+  if(!item||!preview.ready_to_post){
+    alert("This Payment Advice is not ready to post.");
+    return;
+  }
+
+  const allocationText=(item.allocations||[])
+    .map(a=>(a.deal_number||("Deal #"+a.deal_id))+" · "+(a.allocation_purpose||"Payment")+" · "+money(a.proposed_amount_gbp))
+    .join("\\n");
+
+  if(!confirm(
+    "POST VERIFIED PAYMENT TO DEAL 360?\\n\\n"+
+    (item.advice_number||("#"+id))+"\\n"+
+    "Verified bank amount: "+money(preview.verified_amount_gbp||item.verified_amount_gbp)+"\\n\\n"+
+    allocationText+"\\n\\n"+
+    "This writes the authoritative customer payment and allocation records.\\n"+
+    "Motorcycle security will NOT be changed."
+  ))return;
+
+  const result=await sb.rpc("admin_post_verified_payment_advice",{
+    p_payment_advice_id:Number(id)
+  });
+
+  if(result.error){
+    alert("Payment could not be posted to Deal 360.\\n\\n"+result.error.message);
+    return;
+  }
+
+  const p=result.data||{};
+
+  alert(
+    "Payment posted to Deal 360 successfully.\\n\\n"+
+    "Amount: "+money(p.posted_total_gbp||0)+"\\n"+
+    "Deal payment rows: "+Number(p.deal_payment_rows||0)+"\\n"+
+    "Motorcycle allocations: "+Number(p.motorcycle_allocation_rows||0)+"\\n\\n"+
+    "Motorcycle security was NOT changed."
+  );
+
+  await loadPaymentQueue();
+}
+
+
+async function loadRegister(){
+  const from=document.getElementById("registerFrom").value||null;
+  const to=document.getElementById("registerTo").value||null;
+  const result=await sb.rpc("admin_get_accounts_document_register_v1",{p_from_date:from,p_to_date:to});
+  if(result.error){
+    document.getElementById("registerBody").innerHTML=`<tr><td colspan="10" class="empty">${esc(result.error.message)}</td></tr>`;
+    return;
+  }
+  registerRows=Array.isArray(result.data)?result.data:[];
+  renderRegister();
+}
+
+function renderRegister(){
+  const search=String(document.getElementById("accountSearch").value||"").trim().toLowerCase();
+  const rows=registerRows.filter(row=>{
+    if(!search)return true;
+    return [
+      row.invoice_number,row.invoice_type,row.invoice_status,row.customer_name,row.business_name,
+      dealText(row),row.vat_treatment,row.vat_treatment_status
+    ].join(" ").toLowerCase().includes(search);
+  });
+
+  const body=document.getElementById("registerBody");
+  if(!rows.length){
+    body.innerHTML='<tr><td colspan="10" class="empty">No accounting documents found for this filter.</td></tr>';
+  }else{
+    body.innerHTML=rows.map(row=>`<tr>
+      <td>${esc(niceDate(row.invoice_date))}</td>
+      <td><strong>${esc(row.invoice_number||row.invoice_type||"Document")}</strong><br>${esc(row.invoice_type||"")}</td>
+      <td><strong>${esc(row.business_name||row.customer_name||"Customer")}</strong><br>${esc(row.customer_name||"")}</td>
+      <td>${esc(dealText(row))}</td>
+      <td><span class="status ${statusClass(row.invoice_status)}">${esc(row.invoice_status||"")}</span></td>
+      <td>${money(row.net_amount_gbp)}</td>
+      <td>${money(row.vat_amount_gbp)}</td>
+      <td><strong>${money(row.gross_amount_gbp)}</strong></td>
+      <td>${esc(row.vat_treatment||"—")}<br><small>${esc(row.vat_treatment_status||"—")}</small></td>
+      <td>${row.included_in_vat_report
+        ? (row.vat_snapshot_complete?'<span class="status ready">Included</span>':'<span class="status bad">Review</span>')
+        : '<span class="status">Excluded</span>'}</td>
+    </tr>`).join("");
+  }
+
+  const issued=registerRows.filter(r=>r.invoice_status==="Issued").length;
+  const drafts=registerRows.filter(r=>r.invoice_status==="Draft").length;
+  const gross=registerRows.filter(r=>r.invoice_status==="Issued").reduce((s,r)=>s+Number(r.gross_amount_gbp||0),0);
+  const review=registerRows.filter(r=>r.included_in_vat_report&&!r.vat_snapshot_complete).length;
+
+  document.getElementById("registerKpis").innerHTML=`
+    <div class="kpi"><span>Documents</span><strong>${registerRows.length}</strong></div>
+    <div class="kpi good"><span>Issued</span><strong>${issued}</strong></div>
+    <div class="kpi warn"><span>Drafts</span><strong>${drafts}</strong></div>
+    <div class="kpi"><span>Gross Issued</span><strong>${money(gross)}</strong></div>
+    <div class="kpi red"><span>VAT Review</span><strong>${review}</strong></div>`;
+}
+
+function clearRegisterDates(){
+  document.getElementById("registerFrom").value="";
+  document.getElementById("registerTo").value="";
+  loadRegister();
+}
+
+function currentQuarterDates(){
+  const now=new Date();
+  const quarter=Math.floor(now.getMonth()/3);
+  const start=new Date(now.getFullYear(),quarter*3,1);
+  const end=new Date(now.getFullYear(),quarter*3+3,0);
+  const f=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+  return {from:f(start),to:f(end)};
+}
+
+async function loadVatReport(){
+  const from=document.getElementById("vatFrom").value;
+  const to=document.getElementById("vatTo").value;
+  if(!from||!to){alert("Choose both VAT period dates.");return;}
+
+  const [rowsResult,summaryResult]=await Promise.all([
+    sb.rpc("admin_get_vat_return_sales_v1",{p_from_date:from,p_to_date:to}),
+    sb.rpc("admin_get_vat_return_sales_summary_v1",{p_from_date:from,p_to_date:to})
+  ]);
+
+  if(rowsResult.error||summaryResult.error){
+    const msg=rowsResult.error?.message||summaryResult.error?.message||"VAT report failed";
+    document.getElementById("vatBody").innerHTML=`<tr><td colspan="9" class="empty">${esc(msg)}</td></tr>`;
+    return;
+  }
+
+  vatRows=Array.isArray(rowsResult.data)?rowsResult.data:[];
+  const s=summaryResult.data||{};
+  renderVatRows();
+
+  document.getElementById("vatKpis").innerHTML=`
+    <div class="kpi"><span>Accounting Documents</span><strong>${Number(s.issued_final_invoices_and_credit_notes||0)}</strong></div>
+    <div class="kpi"><span>Net Sales</span><strong>${money(s.net_sales_gbp)}</strong></div>
+    <div class="kpi"><span>Output VAT</span><strong>${money(s.output_vat_gbp)}</strong></div>
+    <div class="kpi"><span>Gross Sales</span><strong>${money(s.gross_sales_gbp)}</strong></div>
+    <div class="kpi red"><span>VAT Review</span><strong>${Number(s.documents_requiring_vat_review||0)}</strong></div>`;
+
+  document.getElementById("vatStatus").innerHTML=
+    Number(s.documents_requiring_vat_review||0)>0
+    ? `<div class="vat-warning"><strong>${Number(s.documents_requiring_vat_review)} document(s) require VAT review.</strong> Do not use this report for submission until the exceptions are resolved.</div>`
+    : `<div class="note"><strong>Sales/output VAT report generated.</strong> Input VAT is not included yet and will be added from verified supplier purchase evidence.</div>`;
+}
+
+function renderVatRows(){
+  const body=document.getElementById("vatBody");
+  if(!vatRows.length){
+    body.innerHTML='<tr><td colspan="9" class="empty">No Issued Final Invoices or Credit Notes in this VAT period.</td></tr>';
+    return;
+  }
+
+  body.innerHTML=vatRows.map(row=>`<tr>
+    <td>${esc(niceDate(row.invoice_date))}</td>
+    <td><strong>${esc(row.invoice_number||row.invoice_type)}</strong><br>${esc(row.invoice_type||"")}</td>
+    <td>${esc(row.business_name||row.customer_name||"Customer")}</td>
+    <td>${esc(dealText(row))}</td>
+    <td>${esc(row.vat_treatment||"—")}<br><small>${esc(row.vat_treatment_status||"—")} ${row.vat_rate_percent!=null?"· "+esc(row.vat_rate_percent)+"%":""}</small></td>
+    <td>${money(row.signed_net_sales_gbp)}</td>
+    <td><strong>${money(row.signed_output_vat_gbp)}</strong></td>
+    <td>${money(row.signed_gross_sales_gbp)}</td>
+    <td>${row.vat_snapshot_complete?'<span class="status ready">Ready</span>':'<span class="status bad">Review</span>'}</td>
+  </tr>`).join("");
+}
+
+document.getElementById("accountSearch").addEventListener("input",renderRegister);
+
+(async function startAccountsHQ(){
+  const allowed=await requireAdminSession();
+  if(!allowed)return;
+
+  document.documentElement.classList.remove("admin-auth-pending");
+
+  const q=currentQuarterDates();
+  document.getElementById("vatFrom").value=q.from;
+  document.getElementById("vatTo").value=q.to;
+
+  await Promise.all([
+    loadPaymentQueue(),
+    loadRegister()
+  ]);
+})();
+</script>
+</body>
+</html>
