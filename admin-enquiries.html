@@ -21,6 +21,7 @@
 
 
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -4192,6 +4193,10 @@ input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-in
 @media(max-width:560px){.anybike-invoice-summary-grid{grid-template-columns:1fr}}
 </style>
 
+
+<style id="anybike-issue-proforma-css">
+.anybike-invoice-card-actions{display:flex;justify-content:flex-end;gap:10px;padding:12px 16px;border-top:1px solid rgba(255,255,255,.08);background:#101010}.anybike-invoice-card-actions button,.anybike-invoice-view-btn{margin:0!important;border:0;border-radius:10px;padding:10px 15px;background:#ed1c24;color:#fff;font:inherit;font-weight:900;text-decoration:none;cursor:pointer}.anybike-invoice-card-actions button:disabled{opacity:.5;cursor:wait}.anybike-invoice-view-btn{display:inline-flex;align-items:center;justify-content:center}
+</style>
 </head>
 
 <body>
@@ -4790,6 +4795,7 @@ let adminDealMotorcycleCustomerAccounts = new Map();
 let adminDealCustomerPayments = new Map();
 let adminDealInvoices = new Map();
 let dealProformaBusy = new Set();
+let dealProformaIssueBusy = new Set();
 let dealCustomerReceiptBusy = new Set();
 let dealCustomerAllocationBusy = new Set();
 let adminDealSellerPaymentStatus = [];
@@ -7396,9 +7402,14 @@ function renderAnyBikeDealInvoiceDocuments(deal){
   const dealId=String(deal.deal_id||"");
   const invoices=adminDealInvoices.get(dealId)||[];
   const busy=dealProformaBusy.has(dealId);
-  const effectiveStage=anyBikeEffectiveDealStage(deal);
-  const allowedStages=new Set(["Invoice / Documents","Operations","Shipping","Completed"]);
-  const canCreate=allowedStages.has(effectiveStage);
+  const dealMotorcycles=adminDealMotorcycles.filter(function(bike){ return String(bike.deal_id||"")===dealId; });
+  const hasAcceptedMotorcycle=
+    Number(deal.accepted_count||0)>0 ||
+    dealMotorcycles.some(function(bike){
+      return String(bike.negotiation_status||"").trim().toLowerCase()==="accepted" || !!bike.accepted_at;
+    });
+  const dealClosed=["Cancelled","Closed"].includes(String(deal.deal_status||deal.status||"").trim());
+  const canCreate=hasAcceptedMotorcycle && !dealClosed;
   const proformas=invoices.filter(function(invoice){ return String(invoice.invoice_type||"")==="Proforma"; });
   const latestProforma=proformas.length ? proformas[0] : null;
   const badgeText=invoices.length ? (invoices.length + " Document" + (invoices.length===1?"":"s")) : "Not Started";
@@ -7425,8 +7436,10 @@ function renderAnyBikeDealInvoiceDocuments(deal){
       </div>
       ${String(invoice.invoice_type||"")==="Proforma" ? '<div class="anybike-invoice-warning"><strong>PROFORMA INVOICE</strong><span>NOT A VAT INVOICE · No VAT breakdown is shown.</span></div>' : ''}
       <div class="anybike-invoice-lines">${lineHtml}</div>
+      ${String(invoice.invoice_type||"")==="Proforma" && status==="Draft" ? `<div class="anybike-invoice-card-actions"><button type="button" ${dealProformaIssueBusy.has(String(invoice.id)) ? "disabled" : ""} onclick="issueDealProforma(${Number(invoice.id)},${Number(deal.deal_id)});return false;">${dealProformaIssueBusy.has(String(invoice.id)) ? "Issuing Proforma..." : "Issue Proforma"}</button></div>` : ''}
+      ${String(invoice.invoice_type||"")==="Proforma" && status==="Issued" ? `<div class="anybike-invoice-card-actions"><a class="anybike-invoice-view-btn" href="proforma.html?invoice=${encodeURIComponent(invoice.id)}" target="_blank" rel="noopener">View Proforma</a></div>` : ''}
     </div>`;
-  }).join("") : `<div class="anybike-invoice-empty-state"><strong>No invoice documents created yet.</strong><span>When the transaction is financially complete, create the Deal 360 Draft Proforma here.</span></div>`;
+  }).join("") : `<div class="anybike-invoice-empty-state"><strong>No invoice documents created yet.</strong><span>A Draft Proforma can be created as soon as the customer has accepted the formal AnyBike offer. Payment and motorcycle security remain separate stages.</span></div>`;
 
   const buttonText=busy ? "Creating Draft Proforma..." : (latestProforma && String(latestProforma.invoice_status||"")==="Draft" ? "Refresh Draft Proforma" : "Create Draft Proforma");
 
@@ -7438,7 +7451,7 @@ function renderAnyBikeDealInvoiceDocuments(deal){
     <div class="anybike-invoice-rule"><strong>PROFORMA RULE</strong><span>A Proforma is not a VAT invoice and does not show a VAT breakdown. VAT verification remains separate until the Final Invoice stage.</span></div>
     ${invoiceCards}
     <div class="anybike-invoice-actions">
-      <div>${canCreate ? "The transaction is ready for invoice/document processing." : "Complete customer payment, supplier payment and motorcycle security before creating the Proforma."}</div>
+      <div>${canCreate ? "Customer offer accepted. A Proforma can be created before deposit or balance payment; issuing a Proforma does not secure the motorcycle." : "A Proforma becomes available once the customer has accepted the formal AnyBike offer."}</div>
       <button type="button" ${busy||!canCreate ? "disabled" : ""} onclick="createOrRefreshDealProforma(${Number(deal.deal_id)});return false;">${escapeAdminHtml(buttonText)}</button>
     </div>
   </div>`;
@@ -7451,8 +7464,20 @@ async function createOrRefreshDealProforma(dealId){
   const deal=adminDealQueue.find(function(row){ return Number(row.deal_id)===id; });
   if(!deal){ return; }
 
-  if(anyBikeEffectiveDealStage(deal)!=="Invoice / Documents" && !["Operations","Shipping","Completed"].includes(anyBikeEffectiveDealStage(deal))){
-    alert("This Deal is not ready for Invoice / Documents yet.");
+  const dealMotorcycles=adminDealMotorcycles.filter(function(bike){ return Number(bike.deal_id)===id; });
+  const hasAcceptedMotorcycle=
+    Number(deal.accepted_count||0)>0 ||
+    dealMotorcycles.some(function(bike){
+      return String(bike.negotiation_status||"").trim().toLowerCase()==="accepted" || !!bike.accepted_at;
+    });
+
+  if(!hasAcceptedMotorcycle){
+    alert("A Draft Proforma can only be created after the customer has accepted the formal AnyBike offer.");
+    return;
+  }
+
+  if(["Cancelled","Closed"].includes(String(deal.deal_status||deal.status||"").trim())){
+    alert("A Draft Proforma cannot be created for a closed or cancelled Deal.");
     return;
   }
 
@@ -7462,7 +7487,7 @@ async function createOrRefreshDealProforma(dealId){
 
   const message=existing
     ? "Refresh the current Draft Proforma for " + (deal.deal_number||("Deal #"+id)) + "?\n\nThis refreshes the draft snapshot from the current Deal 360 transaction. It remains NOT A VAT INVOICE."
-    : "Create a Draft Proforma for " + (deal.deal_number||("Deal #"+id)) + "?\n\nThe Proforma will be created from the current Deal 360 transaction and will NOT contain a VAT breakdown.";
+    : "Create a Draft Proforma for " + (deal.deal_number||("Deal #"+id)) + "?\n\nThe Proforma will be created from the accepted Deal 360 transaction and will NOT contain a VAT breakdown.\n\nA Proforma does not record payment and does not secure the motorcycle.";
 
   if(!window.confirm(message)){ return; }
 
@@ -7487,6 +7512,48 @@ async function createOrRefreshDealProforma(dealId){
     alert("Draft Proforma could not be created.\n\n" + (error && error.message ? error.message : "Unknown error"));
   }finally{
     dealProformaBusy.delete(String(id));
+    renderAdminDealQueue();
+  }
+}
+
+async function issueDealProforma(invoiceId,dealId){
+  const invoice=Number(invoiceId);
+  const deal=Number(dealId);
+  if(!Number.isFinite(invoice) || dealProformaIssueBusy.has(String(invoice))){ return; }
+
+  const record=(adminDealInvoices.get(String(deal))||[]).find(function(item){ return Number(item.id)===invoice; });
+  if(!record){ alert("Draft Proforma could not be found."); return; }
+  if(String(record.invoice_type||"")!=="Proforma" || String(record.invoice_status||"")!=="Draft"){
+    alert("Only a Draft Proforma can be issued.");
+    return;
+  }
+
+  const dealRecord=adminDealQueue.find(function(item){ return Number(item.deal_id)===deal; });
+  const dealNumber=dealRecord?.deal_number || ("Deal #"+deal);
+  if(!confirm("Issue the Draft Proforma for "+dealNumber+"?\n\nOnce issued, this version is frozen and becomes visible to the customer.\n\nIt remains NOT A VAT INVOICE. Issuing it does not record payment and does not secure the motorcycle.")){ return; }
+
+  dealProformaIssueBusy.add(String(invoice));
+  renderAdminDealQueue();
+  try{
+    const result=await sb.rpc("admin_issue_proforma",{p_invoice_id:invoice});
+    if(result.error){ throw result.error; }
+    const payload=result.data||{};
+    alert(
+      "PROFORMA INVOICE issued successfully.\n\n" +
+      "Number: " + (payload.invoice_number||"—") + "\n" +
+      "Deal: " + (payload.deal_number||dealNumber) + "\n" +
+      "Total: " + anyBikeDealMoney(payload.total_gbp) + "\n" +
+      "Payment reference: " + (payload.payment_reference||payload.deal_number||dealNumber) + "\n\n" +
+      "NOT A VAT INVOICE"
+    );
+    await loadAdminDealQueue();
+    const row=document.getElementById("anybike-deal-"+deal);
+    if(row){ row.classList.add("open"); openAnyBikeDealId=String(deal); }
+  }catch(error){
+    console.error("Proforma could not be issued:",error);
+    alert("Proforma could not be issued.\n\n"+(error?.message||"Unknown error"));
+  }finally{
+    dealProformaIssueBusy.delete(String(invoice));
     renderAdminDealQueue();
   }
 }
