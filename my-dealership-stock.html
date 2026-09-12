@@ -217,6 +217,103 @@ input[type="date"]::-webkit-calendar-picker-indicator{
   }
 }
 
+
+.dealer-activity{
+  margin-top:18px;
+  background:rgba(17,17,17,.94);
+  border:1px solid var(--line);
+  border-radius:18px;
+  padding:18px;
+}
+.dealer-activity-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  margin-bottom:12px;
+}
+.dealer-activity-head h2{
+  margin:0;
+  font-size:18px;
+}
+.activity-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+}
+.activity-card{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  padding:15px 16px;
+  background:#0d0d0d;
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:14px;
+  color:#fff;
+  text-decoration:none;
+}
+.activity-card:hover{
+  border-color:rgba(255,255,255,.2);
+}
+.activity-card .activity-label{
+  color:#929292;
+  font-size:11px;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.07em;
+}
+.activity-card .activity-value{
+  margin-top:4px;
+  font-size:24px;
+  line-height:1;
+  font-weight:900;
+}
+.activity-card .activity-copy{
+  margin-top:5px;
+  color:#aaa;
+  font-size:12px;
+}
+.buying-kpis{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:10px;
+  margin-top:14px;
+}
+.buying-kpi{
+  background:#0d0d0d;
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:13px;
+  padding:13px;
+}
+.buying-kpi .label{
+  color:#8f8f8f;
+  font-size:10px;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.07em;
+}
+.buying-kpi .value{
+  margin-top:6px;
+  font-size:26px;
+  font-weight:900;
+  line-height:1;
+}
+.buying-kpi a{
+  color:#fff;
+  text-decoration:none;
+}
+@media(max-width:1100px){
+  .buying-kpis{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
+@media(max-width:720px){
+  .activity-grid{
+    grid-template-columns:1fr;
+  }
+}
+
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -752,21 +849,68 @@ textarea:focus{
         You can add as many as you want for different makes, models and buying requirements.
       </p>
 
-      <div class="buying-summary">
-        <div>
-          <div class="label">Saved Buying Searches</div>
+      <div class="buying-kpis">
+
+        <div class="buying-kpi">
+          <div class="label">Saved Searches</div>
           <div class="value" id="savedSearchTotal">–</div>
         </div>
 
-        <a class="btn outline" href="my-searches.html">
-          Manage Searches
-        </a>
+        <div class="buying-kpi">
+          <div class="label">Potential Matches</div>
+          <div class="value" id="dealerPotentialMatches">–</div>
+        </div>
+
+        <div class="buying-kpi">
+          <div class="label">Open Offers</div>
+          <div class="value" id="dealerOpenOffers">–</div>
+        </div>
+
+        <div class="buying-kpi">
+          <div class="label">Purchases</div>
+          <div class="value" id="dealerPurchases">–</div>
+        </div>
+
+      </div>
+
+      <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">
+        <a class="btn outline" href="my-searches.html">Manage Searches</a>
+        <a class="btn outline" href="customer-dashboard.html#my-offers">My Offers</a>
+        <a class="btn outline" href="my-purchases.html">My Purchases</a>
       </div>
     </section>
 
   </div>
 
-  <div class="full-width-stock">
+  
+  <section class="dealer-activity">
+    <div class="dealer-activity-head">
+      <h2>Dealer Activity</h2>
+    </div>
+
+    <div class="activity-grid">
+
+      <a class="activity-card" href="customer-messages.html">
+        <div>
+          <div class="activity-label">Messages</div>
+          <div class="activity-value" id="dealerUnreadMessages">–</div>
+          <div class="activity-copy">Unread notifications and messages</div>
+        </div>
+        <strong>Open →</strong>
+      </a>
+
+      <a class="activity-card" href="accounts-documents-v2.html">
+        <div>
+          <div class="activity-label">Accounts &amp; Documents</div>
+          <div class="activity-copy">Invoices, payments and motorcycle documents</div>
+        </div>
+        <strong>Open →</strong>
+      </a>
+
+    </div>
+  </section>
+
+<div class="full-width-stock">
 <section class="card">
 
     <div class="card-head">
@@ -1238,6 +1382,177 @@ async function loadStock(){
   renderStock();
 }
 
+
+
+async function loadDealerBuyingActivity(){
+
+  if(!currentUser){
+    return;
+  }
+
+  const {
+    data,
+    error
+  } =
+    await sb.rpc(
+      "get_my_buyer_match_dashboard_v3"
+    );
+
+  if(error){
+    console.warn(
+      "Dealer buying activity unavailable",
+      error.message
+    );
+    return;
+  }
+
+  const rows =
+    data || [];
+
+  const potential =
+    rows.filter(
+      function(row){
+
+        const status =
+          String(
+            row?.match_status || ""
+          );
+
+        return ![
+          "Confirmed Offer Sent",
+          "Customer Accepted Offer",
+          "Customer Declined Offer"
+        ].includes(status);
+      }
+    );
+
+  const offers =
+    rows.filter(
+      function(row){
+
+        if(
+          String(row?.match_status || "") !==
+          "Confirmed Offer Sent"
+        ){
+          return false;
+        }
+
+        if(!row.confirmed_offer_expires_at){
+          return true;
+        }
+
+        const expiry =
+          new Date(
+            row.confirmed_offer_expires_at
+          ).getTime();
+
+        return (
+          !Number.isFinite(expiry) ||
+          expiry > Date.now()
+        );
+      }
+    );
+
+  const purchases =
+    rows.filter(
+      function(row){
+
+        const status =
+          String(
+            row?.match_status || ""
+          );
+
+        const decision =
+          String(
+            row?.customer_offer_decision || ""
+          );
+
+        return (
+          status ===
+            "Customer Accepted Offer" ||
+          decision === "Accepted"
+        );
+      }
+    );
+
+  const potentialEl =
+    document.getElementById(
+      "dealerPotentialMatches"
+    );
+
+  const offersEl =
+    document.getElementById(
+      "dealerOpenOffers"
+    );
+
+  const purchasesEl =
+    document.getElementById(
+      "dealerPurchases"
+    );
+
+  if(potentialEl){
+    potentialEl.textContent =
+      potential.length;
+  }
+
+  if(offersEl){
+    offersEl.textContent =
+      offers.length;
+  }
+
+  if(purchasesEl){
+    purchasesEl.textContent =
+      purchases.length;
+  }
+}
+
+
+async function loadDealerUnreadMessages(){
+
+  if(!currentUser){
+    return;
+  }
+
+  const {
+    count,
+    error
+  } =
+    await sb
+      .from("customer_notifications")
+      .select(
+        "id",
+        {
+          count:"exact",
+          head:true
+        }
+      )
+      .eq(
+        "customer_id",
+        currentUser.id
+      )
+      .eq(
+        "is_read",
+        false
+      );
+
+  if(error){
+    console.warn(
+      "Dealer unread message count unavailable",
+      error.message
+    );
+    return;
+  }
+
+  const el =
+    document.getElementById(
+      "dealerUnreadMessages"
+    );
+
+  if(el){
+    el.textContent =
+      count ?? 0;
+  }
+}
 
 
 async function loadSavedSearchTotal(){
@@ -1966,7 +2281,9 @@ async function waitForPublicHeader(){
     await Promise.all([
       loadStock(),
       loadSummary(),
-      loadSavedSearchTotal()
+      loadSavedSearchTotal(),
+      loadDealerBuyingActivity(),
+      loadDealerUnreadMessages()
     ]);
 
 
