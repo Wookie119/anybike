@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Junction Box v2.5 | AnyBike Admin</title>
+<title>Junction Box v2.6 | AnyBike Admin</title>
 <link rel="icon" href="/anybike-logo-new.jpg">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -61,7 +61,7 @@ input,select,textarea{background:#0d0d0d;color:#fff;border:1px solid #333;border
 </style>
 </head>
 <body>
-<div class="topbar"><div class="topbar-inner"><div class="brand"><img src="/anybike-logo-new.jpg" alt="AnyBike"><div>ANYBIKE <span>JUNCTION BOX</span></div></div><div class="userbox"><span class="badge blue">JB v2.5</span><span id="adminEmail">Checking access…</span><button class="btn ghost small" onclick="location.reload()">Refresh</button></div></div></div>
+<div class="topbar"><div class="topbar-inner"><div class="brand"><img src="/anybike-logo-new.jpg" alt="AnyBike"><div>ANYBIKE <span>JUNCTION BOX</span></div></div><div class="userbox"><span class="badge blue">JB v2.6</span><span id="adminEmail">Checking access…</span><button class="btn ghost small" onclick="location.reload()">Refresh</button></div></div></div>
 <div class="wrap">
 <div id="notice"></div>
 <div class="hero"><div><h1>Junction <span>Box</span></h1><p>Provider-neutral stock control: dealers, feed health, source authority, dealer stock, visibility rules and confidential trade preferences.</p></div><div class="status-pill" id="systemState">Loading…</div></div>
@@ -361,12 +361,12 @@ function renderStock(){
         <td>${esc(vat)}${o.vat_confirmation_required?`<div style="color:#ff7f84;font-size:11px;margin-top:4px">Confirm VAT</div>`:""}</td>
         <td>${o.stocking_plan_call_off_date?`<b>${esc(calloff)}</b><div class="muted">${esc(o.stocking_plan_call_off_date)}</div>`:"—"}</td>
         <td>${badge("Enabled")}</td>
-        <td><button class="btn small" onclick="editStock(${x.dealer_stock_id})">Opportunity</button></td>
+        <td><button class="btn small" onclick="viewStockOpportunity(${x.dealer_stock_id})">View Opportunity</button></td>
       </tr>`;
     }).join("")
     :`<tr><td colspan="11" class="empty">No matching stock</td></tr>`;
 }
-function editStock(id){
+function viewStockOpportunity(id){
   const x=S.stock.find(s=>Number(s.dealer_stock_id)===Number(id));
   const o=S.opportunities.find(s=>Number(s.dealer_stock_id)===Number(id))||{};
   if(!x)return;
@@ -380,6 +380,25 @@ function editStock(id){
   const status=o.opportunity_status
     ?o.opportunity_status.replaceAll("_"," ")
     :"no bottom line";
+
+  const vatLabel={
+    margin_scheme:"Margin Scheme",
+    full_vat:"Full VAT / VAT Qualifying"
+  }[o.bottom_line_vat_treatment] || "—";
+
+  let vatPriceBasis="—";
+  if(o.bottom_line_vat_treatment==="full_vat"){
+    vatPriceBasis=o.bottom_line_price_includes_vat===true
+      ?"Including VAT"
+      :o.bottom_line_price_includes_vat===false
+        ?"Excluding VAT (+ VAT)"
+        :"Not confirmed";
+  }
+
+  const reasonLabel={
+    ageing_stock:"We own it and would trade it",
+    stocking_plan:"It’s coming due on stocking plan"
+  }[o.opportunity_reason] || "—";
 
   openModal(`${x.make} ${x.model} — ${x.registration||""}`,`
     <div class="source-compare">
@@ -401,126 +420,21 @@ function editStock(id){
         :""}
     </div>
 
+    <div style="padding:12px 14px;margin-bottom:16px;border:1px solid rgba(74,163,255,.35);background:rgba(74,163,255,.07);border-radius:12px;color:#cfe6ff;font-size:13px;line-height:1.5">
+      <b>Dealer-controlled information.</b> AnyBike Admin can view and use this information for buyer matching and Deal Viability, but cannot edit it.
+    </div>
+
     <div class="form-grid">
-
-      <label>
-        Confidential Bottom-Line
-        <div class="currency-input">
-          <span class="currency-prefix">£</span>
-          <input
-            id="sBottom"
-            type="text"
-            inputmode="decimal"
-            autocomplete="off"
-            value="${o.confidential_bottom_line_gbp!==null&&o.confidential_bottom_line_gbp!==undefined
-              ?Number(o.confidential_bottom_line_gbp).toLocaleString("en-GB",{minimumFractionDigits:2,maximumFractionDigits:2})
-              :""}"
-            placeholder="5,000.00"
-            onblur="formatMoneyInput('sBottom')">
-        </div>
-      </label>
-
-      <label>
-        Bottom-Line VAT Treatment
-        <select id="sVat">
-          <option value="">Select VAT basis</option>
-          <option value="margin_scheme" ${o.bottom_line_vat_treatment==="margin_scheme"?"selected":""}>Margin Scheme</option>
-          <option value="full_vat" ${o.bottom_line_vat_treatment==="full_vat"?"selected":""}>Full VAT / VAT Qualifying</option>
-          <option value="no_vat" ${o.bottom_line_vat_treatment==="no_vat"?"selected":""}>No VAT</option>
-          <option value="unknown" ${o.bottom_line_vat_treatment==="unknown"?"selected":""}>Unknown / Confirm Required</option>
-        </select>
-      </label>
-
-      <label>
-        Price Includes VAT?
-        <select id="sVatInclusive">
-          <option value="">Not applicable / unknown</option>
-          <option value="true" ${o.bottom_line_price_includes_vat===true?"selected":""}>Yes — price includes VAT</option>
-          <option value="false" ${o.bottom_line_price_includes_vat===false?"selected":""}>No — VAT added on top</option>
-        </select>
-      </label>
-
-      <label>
-        Bottom Line Effective From
-        <input id="sEffective" type="date" value="${o.bottom_line_effective_from??""}">
-      </label>
-
-      <label>
-        Stocking Plan Call-Off Date
-        <input id="sCallOff" type="date" value="${o.stocking_plan_call_off_date??""}">
-      </label>
-
-      <label>
-        Reason
-        <select id="sReason">
-          <option value="">Select reason</option>
-          <option value="stocking_plan" ${o.opportunity_reason==="stocking_plan"?"selected":""}>Stocking Plan</option>
-          <option value="ageing_stock" ${o.opportunity_reason==="ageing_stock"?"selected":""}>Ageing Stock / Dealer Owned</option>
-          <option value="cashflow" ${o.opportunity_reason==="cashflow"?"selected":""}>Cashflow</option>
-          <option value="month_end" ${o.opportunity_reason==="month_end"?"selected":""}>Month End</option>
-          <option value="other" ${o.opportunity_reason==="other"?"selected":""}>Other</option>
-        </select>
-      </label>
-
-      <label>
-        <span>AnyBike may make offers</span>
-        <input class="toggle" id="sOffers" type="checkbox" ${o.anybike_may_make_offers!==false?"checked":""}>
-      </label>
-
-      <div>
-        <span class="muted" style="display:block;font-size:12px;font-weight:800;margin-bottom:6px">EXPORT</span>
-        <span class="badge green">AnyBike Export Enabled</span>
-        <div class="muted" style="margin-top:6px;font-size:12px">
-          Export activity is controlled by AnyBike.
-        </div>
-      </div>
-
-      <label class="full">
-        Opportunity Note
-        <textarea id="sOpportunityNotes" rows="3" placeholder="e.g. Dealer wants this moved before stocking-plan call-off">${esc(o.opportunity_notes||"")}</textarea>
-      </label>
-
-      <label class="full">
-        Dealer Notes
-        <textarea id="sNotes" rows="3">${esc(o.dealer_notes||"")}</textarea>
-      </label>
-
-      <div class="full">
-        <button class="btn red" onclick="saveStock(${id})">Save Opportunity</button>
-      </div>
-
+      <div><span class="muted">Confidential Bottom-Line</span><div style="font-size:20px;font-weight:900;margin-top:5px">${money(o.confidential_bottom_line_gbp)}</div></div>
+      <div><span class="muted">VAT Treatment</span><div style="font-weight:900;margin-top:5px">${esc(vatLabel)}</div></div>
+      ${o.bottom_line_vat_treatment==="full_vat"?`<div><span class="muted">Bottom-Line Price Entered As</span><div style="font-weight:900;margin-top:5px">${esc(vatPriceBasis)}</div></div>`:""}
+      <div><span class="muted">Effective From</span><div style="font-weight:900;margin-top:5px">${esc(o.bottom_line_effective_from||"Immediate")}</div></div>
+      <div><span class="muted">Stocking-Plan Call-Off Date</span><div style="font-weight:900;margin-top:5px">${esc(o.stocking_plan_call_off_date||"—")}</div></div>
+      <div><span class="muted">Reason</span><div style="font-weight:900;margin-top:5px">${esc(reasonLabel)}</div></div>
+      <div class="full"><span class="muted">Dealer Note</span><div style="margin-top:5px;white-space:pre-wrap">${esc(o.opportunity_notes||"—")}</div></div>
+      <div class="full"><span class="badge green">AnyBike Export Enabled</span></div>
     </div>
   `);
-}
-
-async function saveStock(id){
-  const vatIncRaw=document.getElementById("sVatInclusive").value;
-  const bottom=parseMoneyInput(document.getElementById("sBottom")?.value);
-  const x=S.stock.find(s=>Number(s.dealer_stock_id)===Number(id))||{};
-
-  const {error}=await sb.rpc("admin_update_dealer_stock_preferences",{
-    p_dealer_stock_master_id:id,
-    p_suitable_for_trade:bottom!==null,
-    p_confidential_bottom_line_gbp:bottom,
-    p_export_enquiries_enabled:true,
-    p_trade_enquiries_enabled:x.trade_enquiries_enabled!==false,
-    p_enquiries_enabled:x.enquiries_enabled!==false,
-    p_anybike_may_make_offers:document.getElementById("sOffers").checked,
-    p_paused_by_dealer:x.paused_by_dealer===true,
-    p_dealer_notes:document.getElementById("sNotes").value||null,
-    p_bottom_line_vat_treatment:document.getElementById("sVat").value||null,
-    p_bottom_line_price_includes_vat:vatIncRaw===""?null:vatIncRaw==="true",
-    p_bottom_line_effective_from:document.getElementById("sEffective").value||null,
-    p_stocking_plan_call_off_date:document.getElementById("sCallOff").value||null,
-    p_opportunity_reason:document.getElementById("sReason").value||null,
-    p_opportunity_notes:document.getElementById("sOpportunityNotes").value||null
-  });
-
-  if(error)return notify(error.message,"error");
-
-  closeModal();
-  notify("Dealer stock opportunity saved.");
-  await loadAll();
 }
 
 function renderFields(){const term=(document.getElementById("fieldSearch")?.value||"").toLowerCase();const rows=S.fields.filter(x=>`${x.field_key} ${x.display_label} ${x.field_group}`.toLowerCase().includes(term)).sort((a,b)=>(a.sort_order??999)-(b.sort_order??999));const fieldsEl=document.getElementById("fieldsBody"); if(fieldsEl) fieldsEl.innerHTML=rows.length?rows.map(f=>`<tr data-field="${esc(f.field_key)}"><td><b>${esc(f.display_label)}</b><div class="muted">${esc(f.field_key)}</div></td><td>${esc(f.field_group)}</td>${["admin","test","public","export","dealer"].map(k=>`<td><input class="toggle fv-${k}" type="checkbox" ${f[`${k}_visible`]?"checked":""}></td>`).join("")}<td>${f.sensitive?badge("Sensitive"):badge("Normal")}</td><td><button class="btn small" onclick='saveField(${JSON.stringify(f.field_key)})'>Save</button></td></tr>`).join(""):`<tr><td colspan="10" class="empty">No fields</td></tr>`}
