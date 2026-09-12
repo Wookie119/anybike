@@ -1,1 +1,1802 @@
-test
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>My Dealership Stock | AnyBike</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" href="/anybike-logo-new.jpg">
+
+<script>
+document.documentElement.classList.add("customer-auth-pending");
+</script>
+
+<style>
+html.customer-auth-pending body{
+  visibility:hidden;
+}
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="/public-header.css?v=12001">
+
+<style>
+:root{
+  --red:#ed1c24;
+  --red2:#d71920;
+  --bg:#050505;
+  --panel:#101010;
+  --panel2:#171717;
+  --line:rgba(255,255,255,.12);
+  --muted:#aaa;
+  --text:#fff;
+  --green:#36d37e;
+  --amber:#f0ad35;
+  --blue:#4aa3ff;
+}
+
+*{box-sizing:border-box}
+
+body{
+  margin:0;
+  font-family:Arial,Helvetica,sans-serif;
+  color:var(--text);
+  background:
+    linear-gradient(135deg,#050505,#0b0b0b 55%,#111);
+  min-height:100vh;
+}
+
+body:before{
+  content:"";
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  background-image:
+    linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);
+  background-size:42px 42px;
+  z-index:-1;
+}
+
+.wrap{
+  max-width:1450px;
+  margin:auto;
+  padding:34px 20px 60px;
+}
+
+.hero{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-end;
+  gap:24px;
+  margin-bottom:24px;
+}
+
+.hero h1{
+  margin:0;
+  font-size:clamp(34px,5vw,54px);
+  letter-spacing:-.04em;
+}
+
+.hero h1 span{color:var(--red)}
+
+.hero p{
+  margin:8px 0 0;
+  max-width:900px;
+  color:#bbb;
+  font-size:17px;
+  line-height:1.55;
+}
+
+.dealer-pill{
+  border:1px solid rgba(74,163,255,.5);
+  background:rgba(74,163,255,.08);
+  color:#b8d9ff;
+  border-radius:999px;
+  padding:10px 14px;
+  font-weight:900;
+  white-space:nowrap;
+}
+
+.info-banner{
+  border:1px solid rgba(237,28,36,.42);
+  background:rgba(237,28,36,.08);
+  border-radius:16px;
+  padding:16px 18px;
+  line-height:1.55;
+  margin-bottom:20px;
+}
+
+.info-banner strong{color:#fff}
+
+.kpis{
+  display:grid;
+  grid-template-columns:repeat(6,1fr);
+  gap:12px;
+  margin-bottom:20px;
+}
+
+.kpi{
+  background:rgba(17,17,17,.94);
+  border:1px solid var(--line);
+  border-radius:16px;
+  padding:16px;
+}
+
+.kpi .label{
+  color:#8f8f8f;
+  font-size:11px;
+  text-transform:uppercase;
+  font-weight:900;
+  letter-spacing:.08em;
+}
+
+.kpi .value{
+  margin-top:8px;
+  font-size:30px;
+  font-weight:900;
+}
+
+.card{
+  background:rgba(17,17,17,.94);
+  border:1px solid var(--line);
+  border-radius:18px;
+  overflow:hidden;
+  margin-bottom:18px;
+  box-shadow:0 18px 50px rgba(0,0,0,.22);
+}
+
+.card-head{
+  display:flex;
+  justify-content:space-between;
+  gap:16px;
+  align-items:center;
+  padding:17px 20px;
+  border-bottom:1px solid var(--line);
+}
+
+.card-head h2{
+  margin:0;
+  font-size:22px;
+}
+
+.hint{
+  color:#888;
+  font-size:12px;
+}
+
+.card-body{
+  padding:18px 20px;
+}
+
+.toolbar{
+  display:grid;
+  grid-template-columns:2fr 1fr;
+  gap:10px;
+  margin-bottom:16px;
+}
+
+input,
+select,
+textarea{
+  width:100%;
+  border:1px solid #333;
+  border-radius:10px;
+  background:#0d0d0d;
+  color:#fff;
+  padding:11px 12px;
+  font:inherit;
+}
+
+input:focus,
+select:focus,
+textarea:focus{
+  outline:none;
+  border-color:var(--red);
+  box-shadow:0 0 0 3px rgba(237,28,36,.12);
+}
+
+.stock-grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:14px;
+}
+
+.stock-card{
+  background:#121212;
+  border:1px solid rgba(255,255,255,.09);
+  border-radius:16px;
+  padding:16px;
+  display:flex;
+  flex-direction:column;
+  gap:13px;
+}
+
+.stock-title{
+  font-size:19px;
+  font-weight:900;
+  line-height:1.2;
+}
+
+.stock-sub{
+  color:#888;
+  font-size:13px;
+  margin-top:4px;
+}
+
+.price-row{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+}
+
+.data-box{
+  background:#0c0c0c;
+  border:1px solid rgba(255,255,255,.07);
+  border-radius:11px;
+  padding:10px;
+}
+
+.data-box .k{
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:.07em;
+  color:#777;
+  font-weight:900;
+}
+
+.data-box .v{
+  font-size:16px;
+  font-weight:900;
+  margin-top:4px;
+}
+
+.badge{
+  display:inline-flex;
+  align-items:center;
+  border:1px solid #3a3a3a;
+  border-radius:999px;
+  padding:5px 9px;
+  font-size:11px;
+  font-weight:900;
+  width:max-content;
+}
+
+.badge.green{
+  color:#9ff2c6;
+  border-color:rgba(54,211,126,.45);
+  background:rgba(54,211,126,.1);
+}
+
+.badge.amber{
+  color:#ffd28a;
+  border-color:rgba(240,173,53,.48);
+  background:rgba(240,173,53,.1);
+}
+
+.badge.blue{
+  color:#acd3ff;
+  border-color:rgba(74,163,255,.5);
+  background:rgba(74,163,255,.1);
+}
+
+.badge.red{
+  color:#ff9da1;
+  border-color:rgba(237,28,36,.5);
+  background:rgba(237,28,36,.1);
+}
+
+.btn{
+  border:0;
+  border-radius:10px;
+  padding:10px 13px;
+  background:#292929;
+  color:#fff;
+  font-weight:900;
+  cursor:pointer;
+}
+
+.btn.red{
+  background:var(--red);
+}
+
+.btn:hover{
+  filter:brightness(1.12);
+}
+
+.empty{
+  color:#888;
+  text-align:center;
+  padding:35px;
+}
+
+.modal{
+  position:fixed;
+  inset:0;
+  z-index:1000;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+  background:rgba(0,0,0,.78);
+}
+
+.modal.open{display:flex}
+
+.modal-box{
+  width:min(820px,100%);
+  max-height:92vh;
+  overflow:auto;
+  background:#121212;
+  border:1px solid #333;
+  border-radius:18px;
+  box-shadow:0 30px 100px #000;
+}
+
+.modal-head{
+  padding:17px 20px;
+  border-bottom:1px solid #2c2c2c;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+
+.modal-head h3{
+  margin:0;
+}
+
+.modal-body{
+  padding:20px;
+}
+
+.form-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:13px;
+}
+
+.form-grid label{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  color:#aaa;
+  font-size:12px;
+  font-weight:900;
+}
+
+.full{
+  grid-column:1/-1;
+}
+
+.currency-input{
+  display:flex;
+  align-items:center;
+  width:100%;
+  background:#0d0d0d;
+  border:1px solid #333;
+  border-radius:10px;
+  overflow:hidden;
+}
+
+.currency-input:focus-within{
+  border-color:var(--red);
+  box-shadow:0 0 0 3px rgba(237,28,36,.12);
+}
+
+.currency-prefix{
+  padding:11px 0 11px 12px;
+  font-weight:900;
+}
+
+.currency-input input{
+  border:0!important;
+  border-radius:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+  padding-left:4px!important;
+}
+
+.confidential{
+  background:rgba(237,28,36,.07);
+  border:1px solid rgba(237,28,36,.3);
+  border-radius:12px;
+  padding:12px 14px;
+  color:#ddd;
+  font-size:13px;
+  line-height:1.5;
+}
+
+.notice{
+  margin-bottom:16px;
+  border-radius:11px;
+  padding:12px 14px;
+}
+
+.notice.good{
+  background:rgba(54,211,126,.1);
+  border:1px solid rgba(54,211,126,.35);
+}
+
+.notice.bad{
+  background:rgba(237,28,36,.1);
+  border:1px solid rgba(237,28,36,.4);
+}
+
+@media(max-width:1100px){
+  .kpis{grid-template-columns:repeat(3,1fr)}
+  .stock-grid{grid-template-columns:1fr 1fr}
+}
+
+@media(max-width:720px){
+  .wrap{padding:22px 12px 50px}
+  .hero{flex-direction:column;align-items:flex-start}
+  .kpis{grid-template-columns:1fr 1fr}
+  .stock-grid{grid-template-columns:1fr}
+  .toolbar,
+  .form-grid{grid-template-columns:1fr}
+  .full{grid-column:auto}
+}
+</style>
+</head>
+
+<body>
+
+<div id="publicHeader"></div>
+
+<main class="wrap">
+
+  <div id="notice"></div>
+
+  <section class="hero">
+    <div>
+      <h1>My <span>Dealership</span></h1>
+      <p>
+        Manage the commercial opportunities on your synced motorcycle stock.
+        Your feed keeps motorcycle details up to date; you only add the
+        confidential information that helps AnyBike find the right buyer.
+      </p>
+    </div>
+
+    <div class="dealer-pill" id="dealerName">
+      Loading dealership…
+    </div>
+  </section>
+
+  <div class="info-banner">
+    <strong>Your confidential bottom-line price is never shown to buyers.</strong>
+    Add the minimum price AnyBike can work from, together with a stocking-plan
+    call-off date or ageing-stock reason. This helps us prioritise suitable
+    export and trade buyers before your stock becomes time-sensitive.
+  </div>
+
+  <section class="kpis">
+    <div class="kpi">
+      <div class="label">Dealer Stock</div>
+      <div class="value" id="kTotal">–</div>
+    </div>
+
+    <div class="kpi">
+      <div class="label">Bottom Lines</div>
+      <div class="value" id="kBottom">–</div>
+    </div>
+
+    <div class="kpi">
+      <div class="label">Active</div>
+      <div class="value" id="kActive">–</div>
+    </div>
+
+    <div class="kpi">
+      <div class="label">Scheduled</div>
+      <div class="value" id="kScheduled">–</div>
+    </div>
+
+    <div class="kpi">
+      <div class="label">Call-Off ≤ 7 Days</div>
+      <div class="value" id="k7">–</div>
+    </div>
+
+    <div class="kpi">
+      <div class="label">VAT Checks</div>
+      <div class="value" id="kVat">–</div>
+    </div>
+  </section>
+
+  <section class="card">
+
+    <div class="card-head">
+      <div>
+        <h2>Your Stock</h2>
+        <div class="hint">
+          Synced automatically from your connected stock system.
+        </div>
+      </div>
+      <div class="badge green">AnyBike Export Enabled</div>
+    </div>
+
+    <div class="card-body">
+
+      <div class="toolbar">
+        <input
+          id="searchBox"
+          placeholder="Search registration, make or model…"
+          oninput="renderStock()">
+
+        <select
+          id="filterBox"
+          onchange="renderStock()">
+          <option value="">All stock</option>
+          <option value="no_bottom_line">Needs bottom line</option>
+          <option value="active">Bottom line active</option>
+          <option value="scheduled">Bottom line scheduled</option>
+          <option value="calloff14">Call-off within 14 days</option>
+          <option value="vatcheck">VAT confirmation required</option>
+        </select>
+      </div>
+
+      <div
+        class="stock-grid"
+        id="stockGrid">
+        <div class="empty">Loading your stock…</div>
+      </div>
+
+    </div>
+
+  </section>
+
+</main>
+
+
+<div class="modal" id="modal">
+  <div class="modal-box">
+
+    <div class="modal-head">
+      <h3 id="modalTitle">Stock Opportunity</h3>
+      <button
+        class="btn"
+        onclick="closeModal()">
+        Close
+      </button>
+    </div>
+
+    <div class="modal-body" id="modalBody"></div>
+
+  </div>
+</div>
+
+
+<script>
+const SUPABASE_URL =
+  "https://tuehtnezhdnkqbbhttgp.supabase.co";
+
+const SUPABASE_ANON_KEY =
+  "sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
+
+const sb =
+  supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_ANON_KEY
+  );
+
+
+let currentUser = null;
+let dealership = null;
+let stock = [];
+let summary = null;
+
+
+function esc(value){
+  return String(value ?? "")
+    .replace(
+      /[&<>"']/g,
+      function(match){
+        return {
+          "&":"&amp;",
+          "<":"&lt;",
+          ">":"&gt;",
+          '"':"&quot;",
+          "'":"&#39;"
+        }[match];
+      }
+    );
+}
+
+
+function money(value){
+
+  if(
+    value === null ||
+    value === undefined ||
+    value === ""
+  ){
+    return "—";
+  }
+
+  return new Intl.NumberFormat(
+    "en-GB",
+    {
+      style:"currency",
+      currency:"GBP",
+      minimumFractionDigits:2,
+      maximumFractionDigits:2
+    }
+  ).format(
+    Number(value)
+  );
+}
+
+
+function parseMoneyInput(value){
+
+  const cleaned =
+    String(value ?? "")
+      .replace(/£/g,"")
+      .replace(/,/g,"")
+      .trim();
+
+  if(cleaned === ""){
+    return null;
+  }
+
+  const number =
+    Number(cleaned);
+
+  return Number.isFinite(number)
+    ? number
+    : null;
+}
+
+
+function formatMoneyInput(id){
+
+  const input =
+    document.getElementById(id);
+
+  if(!input){
+    return;
+  }
+
+  const number =
+    parseMoneyInput(
+      input.value
+    );
+
+  if(number === null){
+    input.value = "";
+    return;
+  }
+
+  input.value =
+    number.toLocaleString(
+      "en-GB",
+      {
+        minimumFractionDigits:2,
+        maximumFractionDigits:2
+      }
+    );
+}
+
+
+function badge(
+  text,
+  className
+){
+  return `
+    <span class="badge ${className || "blue"}">
+      ${esc(text)}
+    </span>
+  `;
+}
+
+
+function opportunityBadge(row){
+
+  switch(row.opportunity_status){
+
+    case "active":
+      return badge(
+        "Bottom Line Active",
+        "green"
+      );
+
+    case "scheduled":
+      return badge(
+        "Scheduled",
+        "amber"
+      );
+
+    case "call_off_today":
+      return badge(
+        "Call-Off Today",
+        "red"
+      );
+
+    case "call_off_overdue":
+      return badge(
+        "Call-Off Overdue",
+        "red"
+      );
+
+    default:
+      return badge(
+        "Add Bottom Line",
+        "blue"
+      );
+  }
+}
+
+
+function callOffText(row){
+
+  if(
+    row.days_to_call_off === null ||
+    row.days_to_call_off === undefined
+  ){
+    return "No call-off date";
+  }
+
+  const days =
+    Number(row.days_to_call_off);
+
+  if(days < 0){
+    return (
+      Math.abs(days) +
+      " days overdue"
+    );
+  }
+
+  if(days === 0){
+    return "Call-off today";
+  }
+
+  if(days === 1){
+    return "1 day until call-off";
+  }
+
+  return (
+    days +
+    " days until call-off"
+  );
+}
+
+
+function getCustomerLoginUrl(){
+
+  const returnUrl =
+    window.location.pathname +
+    window.location.search +
+    window.location.hash;
+
+  return (
+    "customer-register.html?return=" +
+    encodeURIComponent(
+      returnUrl
+    )
+  );
+}
+
+
+function redirectToCustomerLogin(){
+  window.location.replace(
+    getCustomerLoginUrl()
+  );
+}
+
+
+function showNotice(
+  message,
+  type
+){
+
+  const notice =
+    document.getElementById("notice");
+
+  if(!notice){
+    return;
+  }
+
+  notice.innerHTML =
+    `<div class="notice ${
+      type === "bad"
+        ? "bad"
+        : "good"
+    }">${esc(message)}</div>`;
+
+  setTimeout(
+    function(){
+      if(notice){
+        notice.innerHTML = "";
+      }
+    },
+    5000
+  );
+}
+
+
+function openModal(
+  title,
+  html
+){
+  document.getElementById(
+    "modalTitle"
+  ).textContent = title;
+
+  document.getElementById(
+    "modalBody"
+  ).innerHTML = html;
+
+  document.getElementById(
+    "modal"
+  ).classList.add("open");
+}
+
+
+function closeModal(){
+  document.getElementById(
+    "modal"
+  ).classList.remove("open");
+}
+
+
+async function loadUser(){
+
+  let user = null;
+
+  try{
+
+    const {
+      data:sessionData
+    } =
+      await sb.auth.getSession();
+
+    user =
+      sessionData?.session?.user ||
+      null;
+
+
+    if(!user){
+
+      const {
+        data:userData
+      } =
+        await sb.auth.getUser();
+
+      user =
+        userData?.user ||
+        null;
+    }
+
+  }catch(error){
+
+    console.error(
+      "Login check failed",
+      error
+    );
+  }
+
+
+  currentUser =
+    user || null;
+
+
+  if(!currentUser){
+
+    redirectToCustomerLogin();
+
+    return false;
+  }
+
+
+  return true;
+}
+
+
+async function loadDealership(){
+
+  const {
+    data,
+    error
+  } =
+    await sb.rpc(
+      "dealer_get_my_dealership"
+    );
+
+
+  if(error){
+    throw error;
+  }
+
+
+  const row =
+    Array.isArray(data)
+      ? data[0]
+      : data;
+
+
+  if(!row){
+
+    throw new Error(
+      "This AnyBike account is not linked to a verified dealership yet."
+    );
+  }
+
+
+  dealership =
+    row;
+
+
+  document.getElementById(
+    "dealerName"
+  ).textContent =
+    row.dealer_name;
+
+
+  return row;
+}
+
+
+async function loadStock(){
+
+  const {
+    data,
+    error
+  } =
+    await sb.rpc(
+      "dealer_get_my_stock"
+    );
+
+
+  if(error){
+    throw error;
+  }
+
+
+  stock =
+    Array.isArray(data)
+      ? data
+      : [];
+
+
+  renderStock();
+}
+
+
+async function loadSummary(){
+
+  const {
+    data,
+    error
+  } =
+    await sb.rpc(
+      "dealer_get_my_stock_summary"
+    );
+
+
+  if(error){
+    throw error;
+  }
+
+
+  summary =
+    Array.isArray(data)
+      ? data[0]
+      : data;
+
+
+  if(!summary){
+    return;
+  }
+
+
+  document.getElementById(
+    "kTotal"
+  ).textContent =
+    summary.total_stock ?? 0;
+
+
+  document.getElementById(
+    "kBottom"
+  ).textContent =
+    summary.bottom_lines_recorded ?? 0;
+
+
+  document.getElementById(
+    "kActive"
+  ).textContent =
+    summary.active_bottom_lines ?? 0;
+
+
+  document.getElementById(
+    "kScheduled"
+  ).textContent =
+    summary.scheduled_bottom_lines ?? 0;
+
+
+  document.getElementById(
+    "k7"
+  ).textContent =
+    summary.call_off_within_7_days ?? 0;
+
+
+  document.getElementById(
+    "kVat"
+  ).textContent =
+    summary.vat_confirmation_required ?? 0;
+}
+
+
+function renderStock(){
+
+  const search =
+    String(
+      document.getElementById(
+        "searchBox"
+      )?.value || ""
+    )
+    .trim()
+    .toLowerCase();
+
+
+  const filter =
+    document.getElementById(
+      "filterBox"
+    )?.value || "";
+
+
+  let rows =
+    stock.filter(
+      function(row){
+
+        const haystack =
+          [
+            row.registration,
+            row.make,
+            row.model,
+            row.variant
+          ]
+          .join(" ")
+          .toLowerCase();
+
+        return haystack.includes(
+          search
+        );
+      }
+    );
+
+
+  if(filter === "no_bottom_line"){
+
+    rows =
+      rows.filter(
+        function(row){
+          return (
+            row.confidential_bottom_line_gbp ===
+            null
+          );
+        }
+      );
+  }
+
+
+  if(filter === "active"){
+
+    rows =
+      rows.filter(
+        function(row){
+          return (
+            row.bottom_line_active ===
+            true
+          );
+        }
+      );
+  }
+
+
+  if(filter === "scheduled"){
+
+    rows =
+      rows.filter(
+        function(row){
+          return (
+            row.opportunity_status ===
+            "scheduled"
+          );
+        }
+      );
+  }
+
+
+  if(filter === "calloff14"){
+
+    rows =
+      rows.filter(
+        function(row){
+
+          if(
+            row.days_to_call_off === null ||
+            row.days_to_call_off === undefined
+          ){
+            return false;
+          }
+
+          const days =
+            Number(
+              row.days_to_call_off
+            );
+
+          return (
+            days >= 0 &&
+            days <= 14
+          );
+        }
+      );
+  }
+
+
+  if(filter === "vatcheck"){
+
+    rows =
+      rows.filter(
+        function(row){
+          return (
+            row.vat_confirmation_required ===
+            true
+          );
+        }
+      );
+  }
+
+
+  const grid =
+    document.getElementById(
+      "stockGrid"
+    );
+
+
+  if(!rows.length){
+
+    grid.innerHTML =
+      '<div class="empty">No motorcycles match this view.</div>';
+
+    return;
+  }
+
+
+  grid.innerHTML =
+    rows.map(
+      function(row){
+
+        const vat =
+          row.bottom_line_vat_treatment
+            ? String(
+                row.bottom_line_vat_treatment
+              )
+              .replaceAll(
+                "_",
+                " "
+              )
+            : "Not set";
+
+
+        const urgencyClass =
+          row.days_to_call_off !== null &&
+          row.days_to_call_off !== undefined &&
+          Number(
+            row.days_to_call_off
+          ) <= 7
+            ? "red"
+            : "amber";
+
+
+        return `
+          <article class="stock-card">
+
+            <div>
+              <div class="stock-title">
+                ${esc(row.make)}
+                ${esc(row.model)}
+              </div>
+
+              <div class="stock-sub">
+                ${esc(row.registration || "No registration")}
+                ${row.year ? " • " + esc(row.year) : ""}
+              </div>
+            </div>
+
+            <div>
+              ${opportunityBadge(row)}
+            </div>
+
+            <div class="price-row">
+
+              <div class="data-box">
+                <div class="k">Dealer Asking</div>
+                <div class="v">
+                  ${money(row.current_asking_price_gbp)}
+                </div>
+              </div>
+
+              <div class="data-box">
+                <div class="k">Confidential Bottom Line</div>
+                <div class="v">
+                  ${money(row.confidential_bottom_line_gbp)}
+                </div>
+              </div>
+
+            </div>
+
+            <div class="price-row">
+
+              <div class="data-box">
+                <div class="k">Mileage</div>
+                <div class="v">
+                  ${
+                    row.current_mileage !== null &&
+                    row.current_mileage !== undefined
+                      ? Number(row.current_mileage).toLocaleString("en-GB")
+                      : "—"
+                  }
+                </div>
+              </div>
+
+              <div class="data-box">
+                <div class="k">Bottom-Line VAT</div>
+                <div class="v">
+                  ${esc(vat)}
+                </div>
+              </div>
+
+            </div>
+
+            ${
+              row.stocking_plan_call_off_date
+                ? `
+                  <div>
+                    ${badge(
+                      callOffText(row),
+                      urgencyClass
+                    )}
+                  </div>
+                `
+                : ""
+            }
+
+            ${
+              row.vat_confirmation_required
+                ? `
+                  <div class="badge red">
+                    VAT confirmation required
+                  </div>
+                `
+                : ""
+            }
+
+            <button
+              class="btn red"
+              onclick="editOpportunity(${Number(row.dealer_stock_id)})">
+              ${
+                row.confidential_bottom_line_gbp === null
+                  ? "Add Confidential Bottom Line"
+                  : "Update Opportunity"
+              }
+            </button>
+
+          </article>
+        `;
+      }
+    ).join("");
+}
+
+
+function editOpportunity(
+  dealerStockId
+){
+
+  const row =
+    stock.find(
+      function(item){
+        return (
+          Number(item.dealer_stock_id) ===
+          Number(dealerStockId)
+        );
+      }
+    );
+
+
+  if(!row){
+    return;
+  }
+
+
+  const bottomValue =
+    row.confidential_bottom_line_gbp !== null &&
+    row.confidential_bottom_line_gbp !== undefined
+
+      ? Number(
+          row.confidential_bottom_line_gbp
+        ).toLocaleString(
+          "en-GB",
+          {
+            minimumFractionDigits:2,
+            maximumFractionDigits:2
+          }
+        )
+
+      : "";
+
+
+  openModal(
+    `${row.make} ${row.model} — ${row.registration || ""}`,
+
+    `
+
+    <div class="confidential">
+      <strong>Private to AnyBike.</strong>
+      Your confidential bottom-line price is not shown to buyers.
+      We use it to identify genuine opportunities and avoid missing
+      a profitable sale when suitable buyer demand appears.
+    </div>
+
+    <div class="form-grid" style="margin-top:16px">
+
+      <label>
+        Confidential Bottom-Line
+
+        <div class="currency-input">
+          <span class="currency-prefix">£</span>
+
+          <input
+            id="mBottom"
+            type="text"
+            inputmode="decimal"
+            autocomplete="off"
+            value="${esc(bottomValue)}"
+            placeholder="5,000.00"
+            onblur="formatMoneyInput('mBottom')">
+        </div>
+      </label>
+
+
+      <label>
+        VAT Treatment
+
+        <select id="mVat">
+
+          <option value="">
+            Select VAT basis
+          </option>
+
+          <option
+            value="margin_scheme"
+            ${
+              row.bottom_line_vat_treatment ===
+              "margin_scheme"
+                ? "selected"
+                : ""
+            }>
+            Margin Scheme
+          </option>
+
+          <option
+            value="full_vat"
+            ${
+              row.bottom_line_vat_treatment ===
+              "full_vat"
+                ? "selected"
+                : ""
+            }>
+            Full VAT / VAT Qualifying
+          </option>
+
+          <option
+            value="no_vat"
+            ${
+              row.bottom_line_vat_treatment ===
+              "no_vat"
+                ? "selected"
+                : ""
+            }>
+            No VAT
+          </option>
+
+          <option
+            value="unknown"
+            ${
+              row.bottom_line_vat_treatment ===
+              "unknown"
+                ? "selected"
+                : ""
+            }>
+            Unknown / Please Confirm
+          </option>
+
+        </select>
+      </label>
+
+
+      <label>
+        Does the bottom-line price include VAT?
+
+        <select id="mVatIncluded">
+
+          <option value="">
+            Not applicable / unknown
+          </option>
+
+          <option
+            value="true"
+            ${
+              row.bottom_line_price_includes_vat ===
+              true
+                ? "selected"
+                : ""
+            }>
+            Yes — VAT included
+          </option>
+
+          <option
+            value="false"
+            ${
+              row.bottom_line_price_includes_vat ===
+              false
+                ? "selected"
+                : ""
+            }>
+            No — VAT added on top
+          </option>
+
+        </select>
+      </label>
+
+
+      <label>
+        Bottom Line Effective From
+
+        <input
+          id="mEffective"
+          type="date"
+          value="${esc(row.bottom_line_effective_from || "")}">
+      </label>
+
+
+      <label>
+        Stocking-Plan Call-Off Date
+
+        <input
+          id="mCallOff"
+          type="date"
+          value="${esc(row.stocking_plan_call_off_date || "")}">
+      </label>
+
+
+      <label>
+        Reason
+
+        <select id="mReason">
+
+          <option value="">
+            Select reason
+          </option>
+
+          <option
+            value="stocking_plan"
+            ${
+              row.opportunity_reason ===
+              "stocking_plan"
+                ? "selected"
+                : ""
+            }>
+            Stocking Plan
+          </option>
+
+          <option
+            value="ageing_stock"
+            ${
+              row.opportunity_reason ===
+              "ageing_stock"
+                ? "selected"
+                : ""
+            }>
+            Ageing Stock / Dealer Owned
+          </option>
+
+          <option
+            value="cashflow"
+            ${
+              row.opportunity_reason ===
+              "cashflow"
+                ? "selected"
+                : ""
+            }>
+            Cashflow
+          </option>
+
+          <option
+            value="month_end"
+            ${
+              row.opportunity_reason ===
+              "month_end"
+                ? "selected"
+                : ""
+            }>
+            Month End
+          </option>
+
+          <option
+            value="other"
+            ${
+              row.opportunity_reason ===
+              "other"
+                ? "selected"
+                : ""
+            }>
+            Other
+          </option>
+
+        </select>
+      </label>
+
+
+      <label class="full">
+        Note for AnyBike
+
+        <textarea
+          id="mNotes"
+          rows="3"
+          placeholder="For example: would like this gone before the stocking-plan call-off date">${esc(row.opportunity_notes || "")}</textarea>
+      </label>
+
+
+      <label class="full">
+        <span>
+          Allow AnyBike to use this information when making suitable buyer offers
+        </span>
+
+        <select id="mOffers">
+
+          <option
+            value="true"
+            ${
+              row.anybike_may_make_offers !==
+              false
+                ? "selected"
+                : ""
+            }>
+            Yes
+          </option>
+
+          <option
+            value="false"
+            ${
+              row.anybike_may_make_offers ===
+              false
+                ? "selected"
+                : ""
+            }>
+            No
+          </option>
+
+        </select>
+      </label>
+
+
+      <div class="full">
+        <button
+          class="btn red"
+          onclick="saveOpportunity(${Number(row.dealer_stock_id)})">
+          Save Confidential Opportunity
+        </button>
+      </div>
+
+    </div>
+    `
+  );
+}
+
+
+async function saveOpportunity(
+  dealerStockId
+){
+
+  const bottom =
+    parseMoneyInput(
+      document.getElementById(
+        "mBottom"
+      ).value
+    );
+
+
+  const vatIncludedRaw =
+    document.getElementById(
+      "mVatIncluded"
+    ).value;
+
+
+  const {
+    error
+  } =
+    await sb.rpc(
+      "dealer_update_my_stock_opportunity",
+      {
+
+        p_dealer_stock_id:
+          dealerStockId,
+
+        p_confidential_bottom_line_gbp:
+          bottom,
+
+        p_bottom_line_vat_treatment:
+          document.getElementById(
+            "mVat"
+          ).value || null,
+
+        p_bottom_line_price_includes_vat:
+          vatIncludedRaw === ""
+            ? null
+            : vatIncludedRaw === "true",
+
+        p_bottom_line_effective_from:
+          document.getElementById(
+            "mEffective"
+          ).value || null,
+
+        p_stocking_plan_call_off_date:
+          document.getElementById(
+            "mCallOff"
+          ).value || null,
+
+        p_opportunity_reason:
+          document.getElementById(
+            "mReason"
+          ).value || null,
+
+        p_opportunity_notes:
+          document.getElementById(
+            "mNotes"
+          ).value || null,
+
+        p_anybike_may_make_offers:
+          document.getElementById(
+            "mOffers"
+          ).value === "true"
+      }
+    );
+
+
+  if(error){
+
+    showNotice(
+      error.message,
+      "bad"
+    );
+
+    return;
+  }
+
+
+  closeModal();
+
+
+  showNotice(
+    "Confidential stock opportunity saved.",
+    "good"
+  );
+
+
+  await Promise.all([
+    loadStock(),
+    loadSummary()
+  ]);
+}
+
+
+async function waitForPublicHeader(){
+
+  for(
+    let i = 0;
+    i < 50;
+    i++
+  ){
+
+    if(
+      document.querySelector(
+        ".public-header"
+      ) ||
+      document.getElementById(
+        "phUserArea"
+      )
+    ){
+      return;
+    }
+
+    await new Promise(
+      function(resolve){
+        setTimeout(
+          resolve,
+          100
+        );
+      }
+    );
+  }
+}
+
+
+(async function init(){
+
+  try{
+
+    const ok =
+      await loadUser();
+
+
+    if(!ok){
+      return;
+    }
+
+
+    await loadDealership();
+
+
+    document.documentElement
+      .classList.remove(
+        "customer-auth-pending"
+      );
+
+
+    await Promise.all([
+      loadStock(),
+      loadSummary()
+    ]);
+
+
+  }catch(error){
+
+    console.error(
+      "My Dealership failed",
+      error
+    );
+
+
+    document.documentElement
+      .classList.remove(
+        "customer-auth-pending"
+      );
+
+
+    const notice =
+      document.getElementById(
+        "notice"
+      );
+
+
+    if(notice){
+
+      notice.innerHTML =
+        `<div class="notice bad">${esc(
+          error.message ||
+          "My Dealership could not be loaded."
+        )}</div>`;
+    }
+
+
+    const grid =
+      document.getElementById(
+        "stockGrid"
+      );
+
+
+    if(grid){
+
+      grid.innerHTML =
+        '<div class="empty">Your dealership stock could not be loaded.</div>';
+    }
+
+  }
+
+})();
+</script>
+
+<script src="/public-header.js?v=12001"></script>
+
+</body>
+</html>
