@@ -162,7 +162,7 @@ input[type="date"]::-webkit-calendar-picker-indicator{
 }
 .selling-kpis{
   display:grid;
-  grid-template-columns:repeat(3,minmax(0,1fr));
+  grid-template-columns:repeat(2,minmax(0,1fr));
   gap:12px;
 }
 .buying-summary{
@@ -218,62 +218,6 @@ input[type="date"]::-webkit-calendar-picker-indicator{
 }
 
 
-.dealer-activity{
-  margin-top:18px;
-  background:rgba(17,17,17,.94);
-  border:1px solid var(--line);
-  border-radius:18px;
-  padding:18px;
-}
-.dealer-activity-head{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  gap:12px;
-  margin-bottom:12px;
-}
-.dealer-activity-head h2{
-  margin:0;
-  font-size:18px;
-}
-.activity-grid{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:12px;
-}
-.activity-card{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:16px;
-  padding:15px 16px;
-  background:#0d0d0d;
-  border:1px solid rgba(255,255,255,.08);
-  border-radius:14px;
-  color:#fff;
-  text-decoration:none;
-}
-.activity-card:hover{
-  border-color:rgba(255,255,255,.2);
-}
-.activity-card .activity-label{
-  color:#929292;
-  font-size:11px;
-  font-weight:900;
-  text-transform:uppercase;
-  letter-spacing:.07em;
-}
-.activity-card .activity-value{
-  margin-top:4px;
-  font-size:24px;
-  line-height:1;
-  font-weight:900;
-}
-.activity-card .activity-copy{
-  margin-top:5px;
-  color:#aaa;
-  font-size:12px;
-}
 .buying-kpis{
   display:grid;
   grid-template-columns:repeat(4,minmax(0,1fr));
@@ -308,11 +252,7 @@ input[type="date"]::-webkit-calendar-picker-indicator{
     grid-template-columns:repeat(2,minmax(0,1fr));
   }
 }
-@media(max-width:720px){
-  .activity-grid{
-    grid-template-columns:1fr;
-  }
-}
+
 
 
 .purpose-card{
@@ -431,6 +371,26 @@ input[type="date"]::-webkit-calendar-picker-indicator{
 }
 .purpose-copy-detail p:last-child{
   margin-bottom:0;
+}
+
+
+.purchases-landscape{
+  width:100%;
+  margin-top:18px;
+}
+.section-label.purchase{
+  display:inline-flex;
+  align-items:center;
+  width:max-content;
+  padding:5px 10px;
+  margin-bottom:10px;
+  border:1px solid rgba(255,255,255,.18);
+  border-radius:999px;
+  color:#fff;
+  font-size:11px;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.08em;
 }
 
 </style>
@@ -894,32 +854,7 @@ textarea:focus{
       </div>
     </div>
   </section>
-<section class="dealer-activity">
-    <div class="dealer-activity-head">
-      <h2>Dealer Activity</h2>
-    </div>
 
-    <div class="activity-grid">
-
-      <a class="activity-card" href="customer-messages.html">
-        <div>
-          <div class="activity-label">Messages</div>
-          <div class="activity-value" id="dealerUnreadMessages">–</div>
-          <div class="activity-copy">Unread notifications and messages</div>
-        </div>
-        <strong>Open →</strong>
-      </a>
-
-      <a class="activity-card" href="accounts-documents-v2.html">
-        <div>
-          <div class="activity-label">Accounts &amp; Documents</div>
-          <div class="activity-copy">Invoices, payments and motorcycle documents</div>
-        </div>
-        <strong>Open →</strong>
-      </a>
-
-    </div>
-  </section>
 
   <div class="top-purpose-grid">
     <section class="purpose-card">
@@ -959,16 +894,10 @@ textarea:focus{
           <div class="value" id="dealerPotentialMatches">–</div>
         </div>
 
-        <div class="buying-kpi">
-          <div class="label">Purchases</div>
-          <div class="value" id="dealerPurchases">–</div>
-        </div>
-
       </div>
 
       <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">
         <a class="btn outline" href="my-searches.html">Manage Searches</a>
-        <a class="btn outline" href="my-purchases.html">My Purchases</a>
       </div>
 
     </section>
@@ -998,6 +927,27 @@ textarea:focus{
       </div>
     </div>
   </section>
+
+  <section class="purpose-card purchases-landscape">
+    <div class="purpose-title-row">
+      <div>
+        <div class="section-label purchase">My Purchases</div>
+        <h2>Purchases</h2>
+      </div>
+
+      <a class="btn red" href="my-purchases.html">
+        Open My Purchases
+      </a>
+    </div>
+
+    <p class="purpose-copy">
+      Track motorcycles your dealership is buying through AnyBike, including accepted offers and purchases currently in progress.
+    </p>
+
+    <div class="offers-summary">
+    </div>
+  </section>
+
 
 
   <div class="selling-wrap">
@@ -1727,53 +1677,6 @@ async function loadDealerBuyingActivity(){
 }
 
 
-async function loadDealerUnreadMessages(){
-
-  if(!currentUser){
-    return;
-  }
-
-  const {
-    count,
-    error
-  } =
-    await sb
-      .from("customer_notifications")
-      .select(
-        "id",
-        {
-          count:"exact",
-          head:true
-        }
-      )
-      .eq(
-        "customer_id",
-        currentUser.id
-      )
-      .eq(
-        "is_read",
-        false
-      );
-
-  if(error){
-    console.warn(
-      "Dealer unread message count unavailable",
-      error.message
-    );
-    return;
-  }
-
-  const el =
-    document.getElementById(
-      "dealerUnreadMessages"
-    );
-
-  if(el){
-    el.textContent =
-      count ?? 0;
-  }
-}
-
 
 async function loadSavedSearchTotal(){
 
@@ -2502,8 +2405,7 @@ async function waitForPublicHeader(){
       loadStock(),
       loadSummary(),
       loadSavedSearchTotal(),
-      loadDealerBuyingActivity(),
-      loadDealerUnreadMessages()
+      loadDealerBuyingActivity()
     ]);
 
 
