@@ -42,6 +42,8 @@ const ANYBIKE_HEADER_TRANSLATIONS = {
     signIn:"Sign In",
     createAccount:"Create Free Account",
     dashboard:"Dashboard",
+    offers:"My Offers",
+    purchases:"My Purchases",
     profile:"My Profile",
     savedSearches:"Saved Searches",
     watchlist:"Watchlist",
@@ -66,6 +68,8 @@ const ANYBIKE_HEADER_TRANSLATIONS = {
     signIn:"Anmelden",
     createAccount:"Kostenloses Konto",
     dashboard:"Übersicht",
+    offers:"Meine Angebote",
+    purchases:"Meine Käufe",
     profile:"Mein Profil",
     savedSearches:"Gespeicherte Suchen",
     watchlist:"Merkliste",
@@ -90,6 +94,8 @@ const ANYBIKE_HEADER_TRANSLATIONS = {
     signIn:"Se connecter",
     createAccount:"Créer un compte gratuit",
     dashboard:"Tableau de bord",
+    offers:"Mes offres",
+    purchases:"Mes achats",
     profile:"Mon profil",
     savedSearches:"Recherches enregistrées",
     watchlist:"Favoris",
@@ -114,6 +120,8 @@ const ANYBIKE_HEADER_TRANSLATIONS = {
     signIn:"Iniciar sesión",
     createAccount:"Crear cuenta gratuita",
     dashboard:"Panel",
+    offers:"Mis ofertas",
+    purchases:"Mis compras",
     profile:"Mi perfil",
     savedSearches:"Búsquedas guardadas",
     watchlist:"Favoritos",
@@ -138,6 +146,8 @@ const ANYBIKE_HEADER_TRANSLATIONS = {
     signIn:"تسجيل الدخول",
     createAccount:"إنشاء حساب مجاني",
     dashboard:"لوحة التحكم",
+    offers:"عروضي",
+    purchases:"مشترياتي",
     profile:"ملفي الشخصي",
     savedSearches:"عمليات البحث المحفوظة",
     watchlist:"قائمة المتابعة",
@@ -177,6 +187,83 @@ async function loadPublicHeader(){
     console.error("Public header could not be loaded",error);
   }
 }
+
+
+async function addMyDealershipMenuIfEligible(user){
+
+  if(!user || typeof sb === "undefined"){
+    return;
+  }
+
+  try{
+
+    const {
+      data,
+      error
+    } =
+      await sb.rpc(
+        "dealer_get_my_dealership"
+      );
+
+    if(error){
+      return;
+    }
+
+    const dealership =
+      Array.isArray(data)
+        ? data[0]
+        : data;
+
+    if(!dealership){
+      return;
+    }
+
+    const desktopMenu =
+      document.getElementById(
+        "loggedInMenu"
+      );
+
+    const mobileMenu =
+      document.getElementById(
+        "mobileLoggedInMenu"
+      );
+
+    const linkHtml =
+      '<a href="my-dealership-stock.html" data-dealer-menu-link="true">My Dealership</a>';
+
+    if(
+      desktopMenu &&
+      !desktopMenu.querySelector(
+        '[data-dealer-menu-link="true"]'
+      )
+    ){
+      desktopMenu.insertAdjacentHTML(
+        "afterbegin",
+        linkHtml
+      );
+    }
+
+    if(
+      mobileMenu &&
+      !mobileMenu.querySelector(
+        '[data-dealer-menu-link="true"]'
+      )
+    ){
+      mobileMenu.insertAdjacentHTML(
+        "afterbegin",
+        linkHtml
+      );
+    }
+
+  }catch(error){
+
+    console.warn(
+      "Dealer menu check unavailable",
+      error
+    );
+  }
+}
+
 
 async function setupPublicHeader(){
   const mobileMenuButton = document.getElementById("mobileMenuButton");
@@ -334,6 +421,7 @@ async function setupPublicHeader(){
     mobileLoggedOutMenu?.classList.add("hidden");
     mobileLoggedInMenu?.classList.remove("hidden");
 
+    await addMyDealershipMenuIfEligible(user);
     await loadCustomerHeaderActivity(user);
 
     if(anybikeHeaderRefreshTimer){
