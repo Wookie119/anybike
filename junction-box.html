@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Junction Box v2.4 | AnyBike Admin</title>
+<title>Junction Box v2.5 | AnyBike Admin</title>
 <link rel="icon" href="/anybike-logo-new.jpg">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -28,10 +28,40 @@ input,select,textarea{background:#0d0d0d;color:#fff;border:1px solid #333;border
 .opportunity-strip .metric{background:#0d0d0d;border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:12px}
 .opportunity-strip .metric .k{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:#777;font-weight:800}
 .opportunity-strip .metric .v{font-size:22px;font-weight:900;margin-top:5px}.empty{padding:30px;text-align:center;color:#888}.error{padding:13px 15px;border-radius:10px;background:rgba(237,28,36,.12);border:1px solid rgba(237,28,36,.4);margin-bottom:15px}.success{padding:13px 15px;border-radius:10px;background:rgba(37,194,110,.1);border:1px solid rgba(37,194,110,.4);margin-bottom:15px}.modal{position:fixed;inset:0;background:rgba(0,0,0,.78);display:none;align-items:center;justify-content:center;padding:20px;z-index:1000}.modal.open{display:flex}.modal-box{width:min(760px,100%);max-height:90vh;overflow:auto;background:#121212;border:1px solid #333;border-radius:18px;box-shadow:0 30px 100px #000}.modal-head{padding:16px 18px;border-bottom:1px solid #2b2b2b;display:flex;justify-content:space-between;gap:10px;align-items:center}.modal-head h3{margin:0}.modal-body{padding:18px}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.form-grid label{font-size:12px;color:#aaa;font-weight:800;display:flex;flex-direction:column;gap:6px}.full{grid-column:1/-1}.stock-title{font-weight:900}.muted{color:#888}.money{font-weight:900}.source-compare{font-size:12px;color:#bbb;line-height:1.5}@media(max-width:1100px){.kpis{grid-template-columns:repeat(3,1fr)}.grid3{grid-template-columns:1fr}.overview-two{grid-template-columns:1fr}.opportunity-strip{grid-template-columns:repeat(3,1fr)}}@media(max-width:760px){.kpis{grid-template-columns:1fr 1fr}.grid2,.form-grid{grid-template-columns:1fr}.hero{align-items:flex-start;flex-direction:column}.wrap{padding:18px 12px}.topbar-inner{padding:10px 12px}}
+
+.currency-input{
+  display:flex;
+  align-items:center;
+  width:100%;
+  background:#0d0d0d;
+  border:1px solid #333;
+  border-radius:9px;
+  overflow:hidden;
+}
+.currency-input:focus-within{
+  border-color:var(--red);
+  box-shadow:0 0 0 3px rgba(237,28,36,.12);
+}
+.currency-prefix{
+  padding:10px 0 10px 12px;
+  font-weight:900;
+  color:#fff;
+}
+.currency-input input{
+  border:0!important;
+  border-radius:0!important;
+  box-shadow:none!important;
+  background:transparent!important;
+  padding-left:4px!important;
+}
+.currency-input input:focus{
+  box-shadow:none!important;
+}
+
 </style>
 </head>
 <body>
-<div class="topbar"><div class="topbar-inner"><div class="brand"><img src="/anybike-logo-new.jpg" alt="AnyBike"><div>ANYBIKE <span>JUNCTION BOX</span></div></div><div class="userbox"><span class="badge blue">JB v2.4</span><span id="adminEmail">Checking access…</span><button class="btn ghost small" onclick="location.reload()">Refresh</button></div></div></div>
+<div class="topbar"><div class="topbar-inner"><div class="brand"><img src="/anybike-logo-new.jpg" alt="AnyBike"><div>ANYBIKE <span>JUNCTION BOX</span></div></div><div class="userbox"><span class="badge blue">JB v2.5</span><span id="adminEmail">Checking access…</span><button class="btn ghost small" onclick="location.reload()">Refresh</button></div></div></div>
 <div class="wrap">
 <div id="notice"></div>
 <div class="hero"><div><h1>Junction <span>Box</span></h1><p>Provider-neutral stock control: dealers, feed health, source authority, dealer stock, visibility rules and confidential trade preferences.</p></div><div class="status-pill" id="systemState">Loading…</div></div>
@@ -85,7 +115,27 @@ const SUPABASE_URL="https://tuehtnezhdnkqbbhttgp.supabase.co";
 const SUPABASE_ANON_KEY="sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 const S={health:[],readiness:[],authority:[],stock:[],fields:[],alerts:[],quarantine:[],sourceValues:[],connections:[],opportunities:[],opportunitySummary:[]};
-function esc(v){return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]))}function money(v){return v===null||v===undefined||v===""?"—":new Intl.NumberFormat("en-GB",{style:"currency",currency:"GBP",maximumFractionDigits:0}).format(Number(v))}function dt(v){if(!v)return"—";return new Date(v).toLocaleString("en-GB",{dateStyle:"short",timeStyle:"short"})}function badge(v){const s=String(v??"unknown").toLowerCase();const cls=["healthy","ready","resolved","dealer_confirmed","anybike_confirmed","accepted"].includes(s)?"green":["failed","stale","critical","blocked","quarantined","disabled"].includes(s)?"red":["warning","unconfirmed","test_only","pending","suspicious"].includes(s)?"amber":"blue";return `<span class="badge ${cls}">${esc(v??"Unknown")}</span>`}function notify(msg,type="success"){document.getElementById("notice").innerHTML=`<div class="${type}">${esc(msg)}</div>`;setTimeout(()=>document.getElementById("notice").innerHTML="",5000)}function openModal(title,html){document.getElementById("modalTitle").textContent=title;document.getElementById("modalBody").innerHTML=html;document.getElementById("modal").classList.add("open")}function closeModal(){document.getElementById("modal").classList.remove("open")}function numOrNull(id){const v=document.getElementById(id).value;return v===""?null:Number(v)}
+function esc(v){return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]))}function money(v){return v===null||v===undefined||v===""?"—":new Intl.NumberFormat("en-GB",{style:"currency",currency:"GBP",minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(v))}
+function parseMoneyInput(value){
+  const cleaned=String(value??"")
+    .replace(/£/g,"")
+    .replace(/,/g,"")
+    .trim();
+  if(cleaned==="")return null;
+  const n=Number(cleaned);
+  return Number.isFinite(n)?n:null;
+}
+function formatMoneyInput(id){
+  const el=document.getElementById(id);
+  if(!el)return;
+  const n=parseMoneyInput(el.value);
+  if(n===null){
+    el.value="";
+    return;
+  }
+  el.value=n.toLocaleString("en-GB",{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+function dt(v){if(!v)return"—";return new Date(v).toLocaleString("en-GB",{dateStyle:"short",timeStyle:"short"})}function badge(v){const s=String(v??"unknown").toLowerCase();const cls=["healthy","ready","resolved","dealer_confirmed","anybike_confirmed","accepted"].includes(s)?"green":["failed","stale","critical","blocked","quarantined","disabled"].includes(s)?"red":["warning","unconfirmed","test_only","pending","suspicious"].includes(s)?"amber":"blue";return `<span class="badge ${cls}">${esc(v??"Unknown")}</span>`}function notify(msg,type="success"){document.getElementById("notice").innerHTML=`<div class="${type}">${esc(msg)}</div>`;setTimeout(()=>document.getElementById("notice").innerHTML="",5000)}function openModal(title,html){document.getElementById("modalTitle").textContent=title;document.getElementById("modalBody").innerHTML=html;document.getElementById("modal").classList.add("open")}function closeModal(){document.getElementById("modal").classList.remove("open")}function numOrNull(id){const v=document.getElementById(id).value;return v===""?null:Number(v)}
 document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));document.querySelectorAll(".panel").forEach(x=>x.classList.remove("active"));b.classList.add("active");document.getElementById(b.dataset.tab).classList.add("active")});
 async function q(table,select="*"){const {data,error}=await sb.from(table).select(select);if(error)throw new Error(`${table}: ${error.message}`);return data||[]}
 async function loadAll(){
@@ -354,10 +404,20 @@ function editStock(id){
     <div class="form-grid">
 
       <label>
-        Confidential Bottom-Line £
-        <input id="sBottom" type="number" min="0" step="1"
-          value="${o.confidential_bottom_line_gbp??""}"
-          placeholder="e.g. 5700">
+        Confidential Bottom-Line
+        <div class="currency-input">
+          <span class="currency-prefix">£</span>
+          <input
+            id="sBottom"
+            type="text"
+            inputmode="decimal"
+            autocomplete="off"
+            value="${o.confidential_bottom_line_gbp!==null&&o.confidential_bottom_line_gbp!==undefined
+              ?Number(o.confidential_bottom_line_gbp).toLocaleString("en-GB",{minimumFractionDigits:2,maximumFractionDigits:2})
+              :""}"
+            placeholder="5,000.00"
+            onblur="formatMoneyInput('sBottom')">
+        </div>
       </label>
 
       <label>
@@ -435,7 +495,7 @@ function editStock(id){
 
 async function saveStock(id){
   const vatIncRaw=document.getElementById("sVatInclusive").value;
-  const bottom=numOrNull("sBottom");
+  const bottom=parseMoneyInput(document.getElementById("sBottom")?.value);
   const x=S.stock.find(s=>Number(s.dealer_stock_id)===Number(id))||{};
 
   const {error}=await sb.rpc("admin_update_dealer_stock_preferences",{
