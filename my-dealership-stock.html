@@ -37,36 +37,48 @@ input[type="date"]::-webkit-calendar-picker-indicator{
 }
 .setup-grid{
   display:grid;
-  grid-template-columns:repeat(3,1fr);
-  gap:12px;
+  grid-template-columns:1fr 1fr;
+  gap:16px;
 }
 .setup-step{
   background:#0d0d0d;
   border:1px solid rgba(255,255,255,.08);
-  border-radius:14px;
-  padding:15px;
-}
-.setup-number{
-  width:30px;
-  height:30px;
-  border-radius:50%;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  background:var(--red);
-  color:#fff;
-  font-weight:900;
-  margin-bottom:10px;
+  border-radius:16px;
+  padding:20px;
 }
 .setup-step h3{
-  margin:0 0 7px;
-  font-size:16px;
+  margin:0 0 12px;
+  font-size:22px;
 }
 .setup-step p{
-  margin:0;
-  color:#bcbcbc;
-  font-size:15px;
+  margin:0 0 10px;
+  color:#c3c3c3;
+  font-size:16px;
   line-height:1.5;
+}
+.setup-step p:last-child{
+  margin-bottom:0;
+}
+.setup-label{
+  display:inline-flex;
+  align-items:center;
+  border-radius:999px;
+  padding:6px 10px;
+  margin-bottom:12px;
+  font-size:11px;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.06em;
+}
+.setup-label.sell{
+  background:rgba(237,28,36,.12);
+  border:1px solid rgba(237,28,36,.45);
+  color:#ff9b9f;
+}
+.setup-label.buy{
+  background:rgba(74,163,255,.1);
+  border:1px solid rgba(74,163,255,.42);
+  color:#aed4ff;
 }
 .why-box{
   margin-top:14px;
@@ -114,6 +126,8 @@ input[type="date"]::-webkit-calendar-picker-indicator{
   .setup-grid{grid-template-columns:1fr}
   .saved-search-row{align-items:flex-start;flex-direction:column}
 }
+
+
 
 </style>
 
@@ -575,44 +589,48 @@ textarea:focus{
   <section class="card setup-card">
     <div class="card-head">
       <div>
-        <h2>Getting Started with My Dealership</h2>
-        <div class="hint">Three simple ways to get value from your AnyBike connection</div>
+        <h2>Using My Dealership</h2>
+        <div class="hint">Sell stock through AnyBike and tell us what you want to buy</div>
       </div>
     </div>
 
     <div class="card-body">
       <p class="setup-intro">
-        Your stock feed is already connected. Use My Dealership to add confidential selling flexibility and tell us what stock you want to buy.
+        Your connected stock feeds into AnyBike automatically. Use this area for two things: selling opportunities from your own stock and buying opportunities for motorcycles your dealership wants.
       </p>
 
       <div class="setup-grid">
 
         <div class="setup-step">
-          <div class="setup-number">1</div>
-          <h3>Your stock arrives automatically</h3>
+          <div class="setup-label sell">Selling</div>
+          <h3>Sell stock through AnyBike</h3>
           <p>
-            Your connected stock feed keeps the motorcycle details and asking price up to date.
+            Your connected stock feed keeps motorcycle details and asking prices up to date automatically.
+          </p>
+          <p>
+            Add a confidential bottom line when you own a bike and would trade it, or when a stocking-plan bike is approaching call-off.
+          </p>
+          <p>
+            AnyBike can use that private information with internal AI matching to help identify suitable trade buyers and clear ageing stock.
           </p>
         </div>
 
         <div class="setup-step">
-          <div class="setup-number">2</div>
-          <h3>Add a confidential bottom line</h3>
+          <div class="setup-label buy">Buying</div>
+          <h3>Tell AnyBike what you want to buy</h3>
           <p>
-            Add a private bottom line for bikes you would trade or bikes approaching stocking-plan call-off.
+            Create as many Saved Searches as you need for the makes, models and buying requirements your dealership is interested in.
           </p>
-        </div>
-
-        <div class="setup-step">
-          <div class="setup-number">3</div>
-          <h3>Save motorcycles you want to buy</h3>
           <p>
-            Save the makes and models you want. AnyBike can use them to send suitable matching opportunities.
+            AnyBike can use those searches to match suitable motorcycles and send relevant buying opportunities to you.
+          </p>
+          <p>
+            Manage and filter all of your buying requirements from the Saved Searches page.
           </p>
         </div>
 
       </div>
-</div>
+    </div>
   </section>
 
   
@@ -657,22 +675,17 @@ textarea:focus{
         <div class="hint">Tell AnyBike what motorcycles your dealership wants to buy</div>
       </div>
 
-      <div class="saved-actions">
-        <a class="btn red" href="my-searches.html">Add / Manage Saved Searches</a>
-      </div>
+      <a class="btn red" href="my-searches.html">
+        Open Saved Searches
+      </a>
     </div>
 
     <div class="card-body">
       <p class="setup-intro" style="margin-bottom:0">
-        Saved Searches are not just for browsing. They give AnyBike an active record of
-        the stock your dealership is interested in buying. You can add as many Saved Searches
-        as you want for different makes, models and buying requirements. As suitable motorcycles
-        become available, we can use these searches to match and send opportunities to you.
+        Saved Searches give AnyBike an active record of the stock your dealership is interested in buying.
+        You can add as many as you want for different makes, models and buying requirements. Manage,
+        filter and update them from your Saved Searches page.
       </p>
-
-      <div id="dealerSavedSearches" class="saved-searches-list">
-        <div class="empty">Loading your saved searches…</div>
-      </div>
     </div>
   </section><section class="card">
 
@@ -1146,120 +1159,6 @@ async function loadStock(){
   renderStock();
 }
 
-
-
-async function loadDealerSavedSearches(){
-
-  const box =
-    document.getElementById(
-      "dealerSavedSearches"
-    );
-
-  if(!box || !currentUser){
-    return;
-  }
-
-  const {
-    data,
-    error
-  } =
-    await sb
-      .from("saved_searches")
-      .select("*")
-      .eq("customer_id",currentUser.id)
-      .order("created_at",{ascending:false})
-      .limit(10);
-
-  if(error){
-
-    console.warn(
-      "Dealer saved searches could not be loaded",
-      error.message
-    );
-
-    box.innerHTML =
-      '<div class="empty">Saved searches could not be loaded right now.</div>';
-
-    return;
-  }
-
-  const rows =
-    data || [];
-
-  if(!rows.length){
-
-    box.innerHTML = `
-      <div class="empty">
-        No buying searches saved yet.
-        <br><br>
-        <a class="btn red" href="my-searches.html">
-          Create Your First Saved Search
-        </a>
-      </div>
-    `;
-
-    return;
-  }
-
-  box.innerHTML =
-    rows.map(
-      function(search){
-
-        const title =
-          [
-            search.make || "Any make",
-            search.model || ""
-          ]
-          .filter(Boolean)
-          .join(" ");
-
-        const details = [];
-
-        if(search.min_year){
-          details.push(
-            "From " + search.min_year
-          );
-        }
-
-        if(search.max_price){
-          details.push(
-            "Up to " +
-            money(search.max_price)
-          );
-        }
-
-        if(search.email_alerts_enabled){
-          details.push(
-            "Email alerts on"
-          );
-        }
-
-        return `
-          <div class="saved-search-row">
-
-            <div>
-              <strong>${esc(title)}</strong>
-              <div class="saved-search-meta">
-                ${
-                  details.length
-                    ? esc(details.join(" • "))
-                    : "Any year / price"
-                }
-              </div>
-            </div>
-
-            <a
-              class="btn outline"
-              href="my-searches.html">
-              Manage
-            </a>
-
-          </div>
-        `;
-      }
-    )
-    .join("");
-}
 
 
 async function loadSummary(){
@@ -1997,8 +1896,7 @@ async function waitForPublicHeader(){
 
     await Promise.all([
       loadStock(),
-      loadSummary(),
-      loadDealerSavedSearches()
+      loadSummary()
     ]);
 
 
