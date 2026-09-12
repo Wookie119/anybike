@@ -15,6 +15,8 @@ document.documentElement.classList.add("customer-auth-pending");
 html.customer-auth-pending body{
   visibility:hidden;
 }
+
+.hidden{display:none!important}
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -1360,10 +1362,10 @@ function editOpportunity(
       <label>
         VAT Treatment
 
-        <select id="mVat">
+        <select id="mVat" onchange="updateVatEntryMode()">
 
           <option value="">
-            Select VAT basis
+            Select VAT treatment
           </option>
 
           <option
@@ -1388,39 +1390,18 @@ function editOpportunity(
             Full VAT / VAT Qualifying
           </option>
 
-          <option
-            value="no_vat"
-            ${
-              row.bottom_line_vat_treatment ===
-              "no_vat"
-                ? "selected"
-                : ""
-            }>
-            No VAT
-          </option>
-
-          <option
-            value="unknown"
-            ${
-              row.bottom_line_vat_treatment ===
-              "unknown"
-                ? "selected"
-                : ""
-            }>
-            Unknown / Please Confirm
-          </option>
 
         </select>
       </label>
 
 
-      <label>
-        Does the bottom-line price include VAT?
+      <label id="vatEntryModeWrap">
+        Bottom-line price entered as
 
         <select id="mVatIncluded">
 
           <option value="">
-            Not applicable / unknown
+            Select pricing basis
           </option>
 
           <option
@@ -1431,7 +1412,7 @@ function editOpportunity(
                 ? "selected"
                 : ""
             }>
-            Yes — VAT included
+            Including VAT
           </option>
 
           <option
@@ -1442,7 +1423,7 @@ function editOpportunity(
                 ? "selected"
                 : ""
             }>
-            No — VAT added on top
+            Excluding VAT (+ VAT)
           </option>
 
         </select>
@@ -1594,6 +1575,35 @@ function editOpportunity(
 }
 
 
+function updateVatEntryMode(){
+
+  const vatSelect =
+    document.getElementById("mVat");
+
+  const wrap =
+    document.getElementById("vatEntryModeWrap");
+
+  const includedSelect =
+    document.getElementById("mVatIncluded");
+
+  if(!vatSelect || !wrap || !includedSelect){
+    return;
+  }
+
+  const isFullVat =
+    vatSelect.value === "full_vat";
+
+  wrap.classList.toggle(
+    "hidden",
+    !isFullVat
+  );
+
+  if(!isFullVat){
+    includedSelect.value = "";
+  }
+}
+
+
 async function saveOpportunity(
   dealerStockId
 ){
@@ -1605,6 +1615,11 @@ async function saveOpportunity(
       ).value
     );
 
+
+  const vatTreatment =
+    document.getElementById(
+      "mVat"
+    ).value || null;
 
   const vatIncludedRaw =
     document.getElementById(
@@ -1626,14 +1641,16 @@ async function saveOpportunity(
           bottom,
 
         p_bottom_line_vat_treatment:
-          document.getElementById(
-            "mVat"
-          ).value || null,
+          vatTreatment,
 
         p_bottom_line_price_includes_vat:
-          vatIncludedRaw === ""
+          vatTreatment !== "full_vat"
             ? null
-            : vatIncludedRaw === "true",
+            : (
+                vatIncludedRaw === ""
+                  ? null
+                  : vatIncludedRaw === "true"
+              ),
 
         p_bottom_line_effective_from:
           document.getElementById(
