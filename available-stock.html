@@ -1,19 +1,11 @@
 
-
-
-
-
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Available Stock | AnyBike</title>
-<link rel="icon" href="/anybike-logo-new.jpg">
-<link rel="shortcut icon" href="/anybike-logo-new.jpg">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="/public-header.css?v=12001">
 
 <style>
 :root{
@@ -51,6 +43,78 @@ body:before{
   z-index:-1;
 }
 
+header{
+  background:rgba(5,5,5,.92);
+  backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--line);
+  position:sticky;
+  top:0;
+  z-index:20;
+}
+
+.header-inner{
+  max-width:1500px;
+  margin:auto;
+  padding:10px 18px;
+  display:grid;
+  grid-template-columns:220px 1fr 260px;
+  align-items:center;
+  gap:14px;
+}
+
+.logo{
+  width:210px;
+  max-width:100%;
+  height:auto;
+  display:block;
+  background:#fff;
+  border-radius:12px;
+  padding:5px;
+}
+
+nav{
+  display:flex;
+  gap:16px;
+  align-items:center;
+  flex-wrap:nowrap;
+  justify-content:center;
+}
+
+nav a{
+  color:#d8d8d8;
+  text-decoration:none;
+  font-weight:800;
+  font-size:14px;
+  white-space:nowrap;
+}
+
+nav a:hover,
+nav a.active{
+  color:var(--red2);
+}
+
+#userArea{
+  white-space:nowrap;
+  text-align:right;
+  font-weight:700;
+  color:#fff;
+  font-size:14px;
+}
+
+#userArea a{
+  color:#ffffff;
+  text-decoration:none;
+  font-weight:800;
+}
+
+#userArea a:hover{
+  color:var(--red2);
+}
+
+#userArea .user-name{
+  color:var(--red2);
+  font-weight:900;
+}
 .hero{
   background:transparent;
   padding:56px 18px 42px;
@@ -93,7 +157,7 @@ body:before{
 
 .toolbar{
   display:grid;
-  grid-template-columns:2fr 1fr 1fr 1fr 1fr 1fr;
+  grid-template-columns:2fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr;
   gap:10px;
 }
 
@@ -259,6 +323,13 @@ select:focus{
   min-height:28px;
 }
 
+.public-description{
+  color:#d7d7d7;
+  font-size:14px;
+  line-height:1.55;
+  margin-top:12px;
+}
+
 .price{
   color:var(--red2);
   font-size:28px;
@@ -319,12 +390,6 @@ button.watch.active{
   background:#fff;
   color:#111;
   border-color:#fff;
-}
-
-button:disabled{
-  opacity:.62;
-  cursor:not-allowed;
-  transform:none;
 }
 
 .pagination-wrap{
@@ -428,6 +493,19 @@ button:disabled{
 }
 
 @media(max-width:720px){
+  .header-inner{
+    justify-content:center;
+    text-align:center;
+  }
+
+  nav{
+    justify-content:center;
+    gap:14px;
+  }
+
+  .logo{
+    width:210px;
+  }
 
   .hero h1{
     font-size:36px;
@@ -446,32 +524,25 @@ button:disabled{
     min-height:auto;
   }
 }
-
-  .clickable-card{
-  cursor:pointer;
-}
-
-.view-advert{
-  display:block;
-  margin:14px 0 10px;
-  background:#ed1c24;
-  color:#fff;
-  text-align:center;
-  text-decoration:none;
-  font-weight:900;
-  padding:12px 16px;
-  border-radius:999px;
-}
-
-.view-advert:hover{
-  background:#ff3038;
-}
 </style>
 </head>
 
 <body>
 
-<div id="publicHeader"></div>
+<header>
+  <div class="header-inner">
+    <a href="index.html"><img class="logo" src="anybike-logo-new.jpg" alt="AnyBike"></a>
+    <nav>
+  <a href="index.html">Home</a>
+  <a class="active" href="available-stock.html">Available Stock</a>
+  <a href="index.html#sellbike">Sell Your Motorcycle</a>
+  <a href="index.html#requestbike">Request a Motorcycle</a>
+  <a href="index.html#services">Export Services</a>
+  <a href="index.html#contact">Contact</a>
+</nav>
+<div id="userArea"></div>
+  </div>
+</header>
 
 <section class="hero">
   <h1 id="pageTitle">Available <span>Stock</span></h1>
@@ -508,6 +579,24 @@ button:disabled{
         <option value="make_az">Make A → Z</option>
         <option value="make_za">Make Z → A</option>
       </select>
+
+      <select id="currency">
+        <option value="GBP">GBP £</option>
+        <option value="EUR">EUR €</option>
+        <option value="USD">USD $</option>
+        <option value="AUD">AUD A$</option>
+        <option value="NZD">NZD NZ$</option>
+        <option value="CAD">CAD C$</option>
+        <option value="AED">AED د.إ</option>
+      </select>
+
+      <select id="language">
+        <option value="en">English</option>
+        <option value="de">Deutsch</option>
+        <option value="fr">Français</option>
+        <option value="es">Español</option>
+        <option value="ar">العربية</option>
+      </select>
     </div>
   </section>
 
@@ -540,7 +629,7 @@ const SUPABASE_URL = "https://tuehtnezhdnkqbbhttgp.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-const logoFile = "/anybike-logo-new.jpg";
+const logoFile = "anybike-logo-new.jpg";
 const PAGE_SIZE = 24;
 
 let currentPage = Number(new URLSearchParams(location.search).get("page") || 1);
@@ -549,61 +638,8 @@ if(currentPage < 1) currentPage = 1;
 let totalRows = 0;
 let bikes = [];
 let filterRows = [];
-let savedSearchMinYear = null;
-let savedSearchMaxPrice = null;
 let currentUser = null;
 let watchedBikeIds = new Set();
-let watchUpdatesInProgress = new Set();
-
-function getCustomerLoginUrl(){
-  const returnUrl =
-    window.location.pathname +
-    window.location.search +
-    window.location.hash;
-
-  return "/customer-register.html?return=" +
-    encodeURIComponent(returnUrl);
-}
-
-function normaliseBikeId(value){
-  const id = Number(value);
-
-  return Number.isInteger(id) && id > 0
-    ? id
-    : null;
-}
-
-function escapeHtml(value){
-  return String(value ?? "").replace(/[&<>"']/g,function(char){
-    return {
-      "&":"&amp;",
-      "<":"&lt;",
-      ">":"&gt;",
-      '"':"&quot;",
-      "'":"&#39;"
-    }[char];
-  });
-}
-
-function safePublicUrl(value){
-  const raw = String(value || "").trim();
-
-  if(!raw){
-    return "";
-  }
-
-  try{
-    const parsed = new URL(raw,window.location.origin);
-
-    if(parsed.protocol !== "http:" && parsed.protocol !== "https:"){
-      return "";
-    }
-
-    return parsed.href;
-  }catch(error){
-    return "";
-  }
-}
 
 const rates = {
   GBP:{symbol:"£",rate:1},
@@ -720,115 +756,23 @@ const words = {
     page:"صفحة",
     of:"من",
     showing:"عرض"
-  },
-  id:{
-    title:'Stok <span>Tersedia</span>',
-    subtitle:"Sepeda motor tersedia melalui AnyBike. Pertanyaan ekspor internasional dipersilakan.",
-    request:"Minta Informasi Lebih Lanjut",
-    buy:"Saya Ingin Membeli Motor Ini",
-    watch:"♡ Tambahkan ke Daftar Pantauan",
-    watched:"✓ Ditambahkan ke Daftar Pantauan",
-    register:"Daftar Gratis",
-    view:"Untuk Melihat Gambar",
-    available:"Tersedia",
-    priceNote:"Harga dasar sepeda motor. Biaya ekspor dikutip terpisah.",
-    topNote:"Harga tidak termasuk pengiriman, bea, dan pajak lokal.",
-    loading:"Memuat stok tersedia...",
-    count:"sepeda motor saat ini tersedia",
-    noStock:"Tidak ada sepeda motor ditemukan.",
-    previous:"Sebelumnya",
-    next:"Berikutnya",
-    page:"Halaman",
-    of:"dari",
-    showing:"Menampilkan"
-  },
-  ms:{
-    title:'Stok <span>Tersedia</span>',
-    subtitle:"Motosikal tersedia melalui AnyBike. Pertanyaan eksport antarabangsa dialu-alukan.",
-    request:"Minta Maklumat Lanjut",
-    buy:"Saya Mahu Membeli Motosikal Ini",
-    watch:"♡ Tambah ke Senarai Pantauan",
-    watched:"✓ Ditambah ke Senarai Pantauan",
-    register:"Daftar Percuma",
-    view:"Untuk Melihat Gambar",
-    available:"Tersedia",
-    priceNote:"Harga asas motosikal. Kos eksport disebut secara berasingan.",
-    topNote:"Harga tidak termasuk penghantaran, duti dan cukai tempatan.",
-    loading:"Memuatkan stok tersedia...",
-    count:"motosikal tersedia sekarang",
-    noStock:"Tiada motosikal ditemui.",
-    previous:"Sebelumnya",
-    next:"Seterusnya",
-    page:"Halaman",
-    of:"daripada",
-    showing:"Menunjukkan"
-  },
-  zh:{
-    title:'现有<span>库存</span>',
-    subtitle:"通过 AnyBike 提供的摩托车。欢迎全球出口咨询。",
-    request:"索取更多信息",
-    buy:"我想购买这辆摩托车",
-    watch:"♡ 添加到关注列表",
-    watched:"✓ 已添加到关注列表",
-    register:"免费注册",
-    view:"查看图片",
-    available:"可用",
-    priceNote:"摩托车基础价格。出口费用另行报价。",
-    topNote:"价格不包括运输、关税和当地税费。",
-    loading:"正在加载现有库存...",
-    count:"辆摩托车目前可用",
-    noStock:"未找到摩托车。",
-    previous:"上一页",
-    next:"下一页",
-    page:"第",
-    of:"共",
-    showing:"显示"
   }
 };
 
-function lang(){
-  return localStorage.getItem("anybikeLanguage") ||
-    localStorage.getItem("anybike_language") ||
-    "en";
-}
-
-function t(key){
-  const pack = words[lang()] || words.en;
-  return pack[key] || words.en[key];
-}
-
-function currency(){
-  return localStorage.getItem("anybikeCurrency") ||
-    localStorage.getItem("anybike_currency") ||
-    "GBP";
-}
-
-function safe(value){
-  return value===undefined || value===null
-    ? ""
-    : String(value);
-}
+function lang(){return document.getElementById("language").value}
+function t(k){return words[lang()][k] || words.en[k]}
+function currency(){return document.getElementById("currency").value}
+function safe(v){return v===undefined||v===null ? "" : String(v)}
 
 function money(gbp){
-  const amount = Number(gbp);
-
-  if(!Number.isFinite(amount) || amount <= 0){
-    return "Price on request";
-  }
-
-  const selected = rates[currency()] || rates.GBP;
-
-  return selected.symbol +
-    Math.round(amount * selected.rate)
-      .toLocaleString("en-GB");
+  const n = Number(gbp || 0);
+  if(!n) return "Price on request";
+  const c = rates[currency()];
+  return c.symbol + Math.round(n * c.rate).toLocaleString("en-GB");
 }
 
-function miles(value){
-  const mileage = Number(value);
-
-  return Number.isFinite(mileage) && mileage > 0
-    ? mileage.toLocaleString("en-GB") + " miles"
-    : "Mileage TBC";
+function miles(n){
+  return n ? Number(n).toLocaleString("en-GB")+" miles" : "Mileage TBC";
 }
 
 function applyLanguage(){
@@ -872,7 +816,7 @@ function populateMakes(){
 
   document.getElementById("make").innerHTML =
     '<option value="">All Makes</option>' +
-    makes.map(m=>`<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join("");
+    makes.map(m=>`<option>${m}</option>`).join("");
 }
 
 function populateYears(){
@@ -880,7 +824,7 @@ function populateYears(){
 
   document.getElementById("year").innerHTML =
     '<option value="">All Years</option>' +
-    years.map(y=>`<option value="${escapeHtml(y)}">${escapeHtml(y)}</option>`).join("");
+    years.map(y=>`<option>${y}</option>`).join("");
 }
 
 function populateModels(){
@@ -895,13 +839,13 @@ function populateModels(){
 
   document.getElementById("model").innerHTML =
     '<option value="">All Models</option>' +
-    models.map(m=>`<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join("");
+    models.map(m=>`<option>${m}</option>`).join("");
 }
 
 function buildQuery(countType="exact"){
   let q = sb
     .from("public_available_stock")
-    .select("id,make,model,variant,year,mileage,engine_cc,price_gbp,colour,status,image_url,created_at", { count: countType })
+    .select("id,make,model,variant,year,mileage,engine_cc,price_gbp,colour,status,image_url,public_description,created_at", { count: countType })
     .not("make","is",null)
     .not("model","is",null);
 
@@ -911,29 +855,9 @@ function buildQuery(countType="exact"){
   const year = document.getElementById("year").value;
   const priceRange = document.getElementById("priceRange").value;
 
-  if(savedSearchMinYear){
-    q = q.gte("year", Number(savedSearchMinYear));
-  }
-
-  if(savedSearchMaxPrice){
-    q = q.lte("price_gbp", Number(savedSearchMaxPrice));
-  }
-
   if(search){
-    const cleanedSearch = search
-      .replace(/[%,()]/g," ")
-      .replace(/\s+/g," ")
-      .trim()
-      .slice(0,100);
-
-    if(cleanedSearch){
-      q = q.or(
-        `make.ilike.%${cleanedSearch}%,` +
-        `model.ilike.%${cleanedSearch}%,` +
-        `variant.ilike.%${cleanedSearch}%,` +
-        `colour.ilike.%${cleanedSearch}%`
-      );
-    }
+    const s = search.replaceAll("%","").replaceAll(","," ");
+    q = q.or(`make.ilike.%${s}%,model.ilike.%${s}%,variant.ilike.%${s}%,colour.ilike.%${s}%`);
   }
 
   if(make) q = q.eq("make", make);
@@ -1005,25 +929,20 @@ async function loadPage(page=1){
     return;
   }
 
-  bikes = (data || [])
-    .filter(function(row){
-      return normaliseBikeId(row.id);
-    })
-    .map(function(row){
-      return {
-        id:normaliseBikeId(row.id),
-        make:safe(row.make),
-        model:safe(row.model),
-        variant:safe(row.variant),
-        year:row.year || "",
-        mileage:Number(row.mileage) || 0,
-        cc:row.engine_cc || "",
-        price:Number(row.price_gbp) || 0,
-        colour:safe(row.colour),
-        status:safe(row.status) || "Available",
-        image_url:safePublicUrl(row.image_url)
-      };
-    });
+  bikes = (data || []).map(b=>({
+    id:b.id,
+    make:safe(b.make),
+    model:safe(b.model),
+    variant:safe(b.variant),
+    year:b.year || "",
+    mileage:b.mileage || 0,
+    cc:b.engine_cc || "",
+    price:Number(b.price_gbp || 0),
+    colour:safe(b.colour),
+    status:safe(b.status) || "Available",
+    image_url:safe(b.image_url),
+    public_description:safe(b.public_description)
+  }));
 
   totalRows = Number(count || 0);
 
@@ -1122,10 +1041,12 @@ function jumpToPage(){
   loadPage(p);
 }
 
-function imageHTML(bike){
+function imageHTML(b){
+  if(b.image_url){
+    return `<img class="real-image" src="${b.image_url}" alt="${b.make} ${b.model}" onerror="this.outerHTML=placeholderHTML()">`;
+  }
   return placeholderHTML();
 }
-
 
 function placeholderHTML(){
   return `
@@ -1136,69 +1057,30 @@ function placeholderHTML(){
   `;
 }
 
-function cardHTML(bike){
-  const id = normaliseBikeId(bike.id);
-
-  if(!id){
-    return "";
-  }
-
-  const watched = isWatched(id);
-  const yearText = bike.year || "Year TBC";
-  const ccText = bike.cc ? `${escapeHtml(bike.cc)}cc` : "CC TBC";
-  const detailsUrl =
-    `/bike-details.html?id=${encodeURIComponent(id)}`;
+function cardHTML(b){
+  const watched = isWatched(b.id);
+  const yearText = b.year || "Year TBC";
+  const ccText = b.cc ? `${b.cc}cc` : "CC TBC";
 
   return `
-    <article
-      class="card clickable-card"
-      onclick="openBikeDetails('${id}')"
-    >
-      ${imageHTML(bike)}
-
+    <article class="card">
+      ${imageHTML(b)}
       <div class="card-body">
-        <span class="badge">${escapeHtml(t("available"))}</span>
-
-        <h2>
-          ${escapeHtml(bike.make)} ${escapeHtml(bike.model)}
-        </h2>
-
-        <div class="variant">
-          ${bike.variant ? escapeHtml(bike.variant) : "&nbsp;"}
-        </div>
-
+        <span class="badge">${t("available")}</span>
+        <h2>${b.make} ${b.model}</h2>
+        <div class="variant">${b.variant || "&nbsp;"}</div>
         <div class="meta">
-          <div>
-            ${escapeHtml(yearText)} |
-            ${escapeHtml(miles(bike.mileage))} |
-            ${ccText}
-          </div>
-
-          ${
-            bike.colour
-              ? `<div>${escapeHtml(bike.colour)}</div>`
-              : ""
-          }
+          <div>${yearText} | ${miles(b.mileage)} | ${ccText}</div>
+          ${b.colour ? `<div>${b.colour}</div>` : ""}
         </div>
-
-        <div class="price">${escapeHtml(money(bike.price))}</div>
-        <div class="price-note">${escapeHtml(t("priceNote"))}</div>
-
+        ${b.public_description ? `<div class="public-description">${escapeHtml(b.public_description)}</div>` : ""}
+        <div class="price">${money(b.price)}</div>
+        <div class="price-note">${t("priceNote")}</div>
         <div class="actions">
-          <a
-            class="view-advert"
-            href="${detailsUrl}"
-            onclick="event.stopPropagation();"
-          >
-            View Full Advert
-          </a>
-
-          <button
-            class="watch ${watched ? "active" : ""}"
-            data-bike-id="${id}"
-            onclick="event.stopPropagation();toggleWatch('${id}',this)"
-          >
-            ${escapeHtml(watched ? t("watched") : t("watch"))}
+          <button class="primary" onclick="enquire('${b.id}','info')">${t("request")}</button>
+          <button class="dark" onclick="enquire('${b.id}','buy')">${t("buy")}</button>
+          <button class="watch ${watched ? "active" : ""}" onclick="toggleWatch('${b.id}', this)">
+            ${watched ? t("watched") : t("watch")}
           </button>
         </div>
       </div>
@@ -1206,36 +1088,69 @@ function cardHTML(bike){
   `;
 }
 
-function openBikeDetails(value){
-  const id = normaliseBikeId(value);
-
-  if(!id){
-    return;
-  }
-
-  window.location.href =
-    `/bike-details.html?id=${encodeURIComponent(id)}`;
-}
-
-  
 function findBike(id){
   return bikes.find(b=>String(b.id)===String(id));
 }
 
+function enquire(id,type){
+  const b = findBike(id);
+  if(!b) return;
+
+  const subject = encodeURIComponent(
+    type === "buy"
+      ? `I would like to buy this bike: ${b.make} ${b.model}`
+      : `Request more information: ${b.make} ${b.model}`
+  );
+
+  const body = encodeURIComponent(
+`Hello AnyBike,
+
+I am interested in:
+
+${b.make} ${b.model}
+${b.variant || ""}
+${b.year}
+${money(b.price)}
+
+Destination country:
+Name:
+Phone:
+
+Thanks`
+  );
+
+  window.location.href = `mailto:sales@anybike.co.uk?subject=${subject}&body=${body}`;
+}
 
 async function loadUserInfo(){
-  try{
-    const {data,error} = await sb.auth.getUser();
+  const { data:{ user } } = await sb.auth.getUser();
+  currentUser = user || null;
 
-    if(error){
-      console.warn("Customer session unavailable",error.message);
-    }
+  const userArea = document.getElementById("userArea");
 
-    currentUser = data?.user || null;
-  }catch(error){
-    console.warn("Customer session unavailable",error);
-    currentUser = null;
+  if(!currentUser){
+    userArea.innerHTML = `<a href="customer-register.html">Login / Register</a>`;
+    return;
   }
+
+  const { data:profile } = await sb
+    .from("customer_profiles")
+    .select("full_name")
+    .eq("id", currentUser.id)
+    .maybeSingle();
+
+  const name = profile?.full_name || currentUser.email;
+
+  userArea.innerHTML = `
+    👤 <span class="user-name">${name}</span>
+    <span>|</span>
+    <a href="#" onclick="logout()">Logout</a>
+  `;
+}
+
+async function logout(){
+  await sb.auth.signOut();
+  location.reload();
 }
 
 async function loadWatchlist(){
@@ -1260,152 +1175,77 @@ function isWatched(id){
   return watchedBikeIds.has(String(id));
 }
 
-async function toggleWatch(value,button){
-  const bikeId = normaliseBikeId(value);
-
-  if(!bikeId){
-    return;
-  }
-
+async function toggleWatch(id,btn){
   if(!currentUser){
-    window.location.href = getCustomerLoginUrl();
+    location.href = "customer-register.html";
     return;
   }
 
-  if(watchUpdatesInProgress.has(String(bikeId))){
-    return;
-  }
+  const bikeId = Number(id);
 
-  watchUpdatesInProgress.add(String(bikeId));
-
-  if(button){
-    button.disabled = true;
-  }
-
-  try{
-    if(isWatched(bikeId)){
-      const {error} = await sb
-        .from("customer_watchlist")
-        .delete()
-        .eq("customer_id",currentUser.id)
-        .eq("bike_id",bikeId);
-
-      if(error){
-        alert("Could not remove from watchlist: " + error.message);
-        return;
-      }
-
-      watchedBikeIds.delete(String(bikeId));
-
-      if(button){
-        button.textContent = t("watch");
-        button.classList.remove("active");
-      }
-
-      return;
-    }
-
-    const {error} = await sb
+  if(isWatched(bikeId)){
+    const { error } = await sb
       .from("customer_watchlist")
-      .insert({
-        customer_id:currentUser.id,
-        bike_id:bikeId
-      });
+      .delete()
+      .eq("customer_id", currentUser.id)
+      .eq("bike_id", bikeId);
 
     if(error){
-      if(String(error.code) === "23505"){
-        watchedBikeIds.add(String(bikeId));
-
-        if(button){
-          button.textContent = t("watched");
-          button.classList.add("active");
-        }
-
-        return;
-      }
-
-      alert("Could not add to watchlist: " + error.message);
+      alert("Could not remove from watchlist: " + error.message);
       return;
     }
 
-    watchedBikeIds.add(String(bikeId));
-
-    if(button){
-      button.textContent = t("watched");
-      button.classList.add("active");
-    }
-
-  }finally{
-    watchUpdatesInProgress.delete(String(bikeId));
-
-    if(button){
-      button.disabled = false;
-    }
+    watchedBikeIds.delete(String(bikeId));
+    btn.textContent = t("watch");
+    btn.classList.remove("active");
+    return;
   }
+
+  const { error } = await sb
+    .from("customer_watchlist")
+    .insert({
+      customer_id: currentUser.id,
+      bike_id: bikeId
+    });
+
+  if(error){
+    alert("Could not add to watchlist: " + error.message);
+    return;
+  }
+
+  watchedBikeIds.add(String(bikeId));
+  btn.textContent = t("watched");
+  btn.classList.add("active");
 }
 
 let searchTimer;
 
 document.getElementById("search").addEventListener("input",()=>{
   clearTimeout(searchTimer);
-  searchTimer = setTimeout(()=>{ savedSearchMinYear = null; savedSearchMaxPrice = null; loadPage(1); },350);
+  searchTimer = setTimeout(()=>loadPage(1),350);
 });
 
 ["model","year","priceRange","sortBy"].forEach(id=>{
-  document.getElementById(id).addEventListener("change",()=>{ savedSearchMinYear = null; savedSearchMaxPrice = null; loadPage(1); });
+  document.getElementById(id).addEventListener("change",()=>loadPage(1));
 });
 
 document.getElementById("make").addEventListener("change",()=>{
   populateModels();
-  savedSearchMinYear = null;
-  savedSearchMaxPrice = null;
   loadPage(1);
 });
 
-
-window.addEventListener("anybikeCurrencyChanged", function(e){
-  const selected = e.detail.currency || "GBP";
-
-  localStorage.setItem("anybikeCurrency",selected);
-  localStorage.setItem("anybike_currency",selected);
-
-  render();
-});
-
-window.addEventListener("anybikeLanguageChanged", function(e){
-  const selected = e.detail.language || "en";
-
-  localStorage.setItem("anybikeLanguage",selected);
-  localStorage.setItem("anybike_language",selected);
-
-  render();
+["currency","language"].forEach(id=>{
+  document.getElementById(id).addEventListener("change",render);
 });
 
 (async function init(){
-  const params = new URLSearchParams(window.location.search);
-  const urlMake = params.get("make") || "";
-  const urlSearch = params.get("search") || "";
-  savedSearchMinYear = params.get("minYear") || null;
-  savedSearchMaxPrice = params.get("maxPrice") || null;
-
   applyLanguage();
   await loadUserInfo();
   await loadWatchlist();
   await loadFilterOptions();
-
-  if(urlMake){
-    document.getElementById("make").value = urlMake;
-    populateModels();
-  }
-
-  if(urlSearch){
-    document.getElementById("search").value = urlSearch;
-  }
-
   await loadPage(currentPage);
 })();
 </script>
-<script src="/public-header.js?v=12001"></script>
 
 </body>
 </html>
