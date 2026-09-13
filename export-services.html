@@ -487,9 +487,9 @@ animation:routeTravel 2.2s linear infinite;
 }
 .enhanced-map .map-dot-dynamic{fill:#ff2a2a;stroke:#fff;stroke-width:3;filter:url(#routeGlow);animation:destinationPulse 1.8s ease-in-out infinite}
 .enhanced-map .map-dot-ping{fill:rgba(255,42,42,.18);stroke:rgba(255,42,42,.5);stroke-width:2;animation:pingExpand 1.8s ease-out infinite}
-.enhanced-map .map-country-badge rect{fill:rgba(255,255,255,.98);stroke:#ed1c24;stroke-width:1.5;rx:12;ry:12;filter:url(#badgeShadow)}
-.enhanced-map .map-country-badge text{fill:#111;font-size:13px;font-weight:900}
-.enhanced-map .map-country-badge .subcopy{fill:#666;font-size:11px;font-weight:800}
+.enhanced-map .map-country-badge rect{display:none}
+.enhanced-map .map-country-badge text{fill:#fff;font-size:13px;font-weight:900;paint-order:stroke;stroke:rgba(0,0,0,.78);stroke-width:4px;stroke-linejoin:round}
+.enhanced-map .map-country-badge .subcopy{display:none}
 .dynamic-route-group{opacity:1;transition:opacity .18s ease}
 .dynamic-route-group.is-hidden{opacity:0}
 .market-summary-panel{
@@ -616,9 +616,9 @@ linear-gradient(180deg,#08111b 0%,#071019 100%);
 .globe-destination-ping{fill:rgba(255,42,42,.2);stroke:rgba(255,42,42,.54);stroke-width:2;animation:pingExpand 1.8s ease-out infinite}
 .globe-destination{fill:#ff2a2a;stroke:#fff;stroke-width:3;filter:url(#routeGlow);animation:destinationPulse 1.8s ease-in-out infinite}
 .globe-panel-copy{max-width:760px;margin-top:14px;color:rgba(255,255,255,.74);font-size:13px;font-weight:700}
-.map-country-badge rect{fill:rgba(255,255,255,.98);stroke:#ed1c24;stroke-width:1.5;rx:12;ry:12;filter:url(#badgeShadow)}
-.map-country-badge text{fill:#111;font-size:13px;font-weight:900}
-.map-country-badge .subcopy{fill:#666;font-size:11px;font-weight:800}
+.map-country-badge rect{display:none}
+.map-country-badge text{fill:#fff;font-size:13px;font-weight:900;paint-order:stroke;stroke:rgba(0,0,0,.78);stroke-width:4px;stroke-linejoin:round}
+.map-country-badge .subcopy{display:none}
 @media(max-width:1120px){.map-card-full,.map-card-full .enhanced-map,.enhanced-map.globe-view{min-height:560px}}
 @media(max-width:760px){.map-card-full,.map-card-full .enhanced-map,.enhanced-map.globe-view{min-height:460px}}
 
@@ -676,6 +676,11 @@ linear-gradient(180deg,#08111b 0%,#071019 100%);
 @media(max-width:1120px){.map-card-full,.map-card-full .enhanced-map,.enhanced-map.realmap-view{min-height:560px}.map-summary-block{grid-template-columns:1fr}}
 @media(max-width:760px){.map-card-full,.map-card-full .enhanced-map,.enhanced-map.realmap-view{min-height:460px}.map-summary-block{padding:22px 18px}}
 
+
+/* Fix: keep selected destination label compact and never cover the map */
+#dynamicRouteLabelBg{display:none!important}
+#dynamicRouteLabelText{fill:#fff!important;font-size:13px!important;font-weight:900!important;paint-order:stroke;stroke:rgba(0,0,0,.82)!important;stroke-width:4px!important;stroke-linejoin:round}
+#dynamicRouteLabelSubcopy{display:none!important}
 </style>
 <script type="application/ld+json">
 {
@@ -1166,32 +1171,18 @@ function getControlPoint(target){
 
 function positionLabel(target){
   let anchor = 'start';
-  let lx = target.x + 14;
-  if(target.x > 760){ anchor = 'end'; lx = target.x - 14; }
-  if(target.x < 210){ anchor = 'start'; lx = target.x + 14; }
-  let ly = target.y - 18;
-  if(target.y < 118) ly = target.y + 30;
-  if(target.y > 455) ly = target.y - 34;
+  let lx = target.x + 16;
+  if(target.x > 780){ anchor = 'end'; lx = target.x - 16; }
+  if(target.x < 190){ anchor = 'start'; lx = target.x + 16; }
+  let ly = target.y - 12;
+  if(target.y < 115) ly = target.y + 24;
+  if(target.y > 455) ly = target.y - 20;
   routeLabelText.setAttribute('text-anchor', anchor);
-  routeLabelSubcopy.setAttribute('text-anchor', anchor);
   routeLabelText.setAttribute('x', lx);
   routeLabelText.setAttribute('y', ly);
-  routeLabelSubcopy.setAttribute('x', lx);
-  routeLabelSubcopy.setAttribute('y', ly + 16);
   routeLabelText.textContent = target.name;
-  routeLabelSubcopy.textContent = 'Live guide';
-  const mainBox = routeLabelText.getBBox();
-  const subBox = routeLabelSubcopy.getBBox();
-  const left = Math.min(mainBox.x, subBox.x);
-  const top = Math.min(mainBox.y, subBox.y);
-  const right = Math.max(mainBox.x + mainBox.width, subBox.x + subBox.width);
-  const bottom = Math.max(mainBox.y + mainBox.height, subBox.y + subBox.height);
-  routeLabelBg.setAttribute('x', left - 11);
-  routeLabelBg.setAttribute('y', top - 8);
-  routeLabelBg.setAttribute('width', (right - left) + 22);
-  routeLabelBg.setAttribute('height', (bottom - top) + 16);
+  routeLabelSubcopy.textContent = '';
 }
-
 function renderRoute(slug){
   const rawTarget = ROUTE_POINTS[slug];
   if(!rawTarget) return;
