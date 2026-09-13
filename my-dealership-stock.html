@@ -137,6 +137,38 @@ input[type="date"]::-webkit-calendar-picker-indicator{
   background:transparent;
   border:1px solid #444;
 }
+
+.stock-actions{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+  margin-top:auto;
+}
+
+.stock-actions .btn{
+  width:100%;
+}
+
+.note-preview{
+  margin-top:14px;
+  padding:12px 14px;
+  border:1px solid rgba(255,255,255,.09);
+  border-radius:12px;
+  background:#0d0d0d;
+  color:#cfcfcf;
+  font-size:13px;
+  line-height:1.5;
+}
+
+.note-preview strong{
+  color:#fff;
+}
+
+@media(max-width:520px){
+  .stock-actions{
+    grid-template-columns:1fr;
+  }
+}
 @media(max-width:900px){
   .setup-grid{grid-template-columns:1fr}
   .saved-search-row{align-items:flex-start;flex-direction:column}
@@ -2470,15 +2502,27 @@ function renderStock(){
                 : ""
             }
 
-            <button
-              class="btn red"
-              onclick="editOpportunity(${Number(row.dealer_stock_id)})">
-              ${
-                row.confidential_bottom_line_gbp === null
-                  ? "Set Rules"
-                  : "Update Record"
-              }
-            </button>
+            <div class="stock-actions">
+              <button
+                class="btn red"
+                onclick="editOpportunity(${Number(row.dealer_stock_id)})">
+                ${
+                  row.confidential_bottom_line_gbp === null
+                    ? "Add Trade Price"
+                    : "Update Trade Price"
+                }
+              </button>
+
+              <button
+                class="btn outline"
+                onclick="editNote(${Number(row.dealer_stock_id)})">
+                ${
+                  String(row.opportunity_notes || "").trim()
+                    ? "View / Edit Note"
+                    : "Add Note"
+                }
+              </button>
+            </div>
 
           </article>
         `;
@@ -2686,16 +2730,6 @@ function editOpportunity(
       </label>
 
 
-      <label class="full">
-        Note for AnyBike
-
-        <textarea
-          id="mNotes"
-          rows="3"
-          placeholder="For example: would like this gone before the stocking-plan call-off date">${esc(row.opportunity_notes || "")}</textarea>
-      </label>
-
-
       <div class="full">
         <button
           class="btn red"
@@ -2707,6 +2741,180 @@ function editOpportunity(
     </div>
     `
   );
+}
+
+
+function editNote(
+  dealerStockId
+){
+
+  const row =
+    stock.find(
+      function(item){
+        return (
+          Number(item.dealer_stock_id) ===
+          Number(dealerStockId)
+        );
+      }
+    );
+
+
+  if(!row){
+    return;
+  }
+
+
+  const existingNote =
+    String(
+      row.opportunity_notes || ""
+    ).trim();
+
+
+  openModal(
+    `${row.make} ${row.model} — ${row.registration || ""}`,
+
+    `
+      <div class="confidential">
+        <strong>Motorcycle note.</strong>
+        This note is linked only to this motorcycle and is not shown to buyers.
+        Use it for information AnyBike should know that does not belong in the Trade Price record.
+      </div>
+
+      ${
+        existingNote
+          ? `
+            <div class="note-preview">
+              <strong>Current note</strong><br>
+              ${esc(existingNote).replace(/\n/g,"<br>")}
+            </div>
+          `
+          : ""
+      }
+
+      <div class="form-grid" style="margin-top:16px">
+        <label class="full">
+          ${existingNote ? "Edit Note" : "Add Note"}
+
+          <textarea
+            id="mStockNote"
+            rows="5"
+            maxlength="2000"
+            placeholder="Add a note about this motorcycle…">${esc(row.opportunity_notes || "")}</textarea>
+        </label>
+
+        <div class="full">
+          <button
+            class="btn red"
+            onclick="saveNote(${Number(row.dealer_stock_id)})">
+            Save Note
+          </button>
+        </div>
+      </div>
+    `
+  );
+}
+
+
+async function saveNote(
+  dealerStockId
+){
+
+  const row =
+    stock.find(
+      function(item){
+        return (
+          Number(item.dealer_stock_id) ===
+          Number(dealerStockId)
+        );
+      }
+    );
+
+
+  if(!row){
+    showNotice(
+      "Motorcycle record could not be found.",
+      "bad"
+    );
+    return;
+  }
+
+
+  const noteInput =
+    document.getElementById(
+      "mStockNote"
+    );
+
+
+  const note =
+    String(
+      noteInput?.value || ""
+    ).trim() || null;
+
+
+  const {
+    error
+  } =
+    await sb.rpc(
+      "dealer_update_my_stock_opportunity",
+      {
+
+        p_dealer_stock_id:
+          dealerStockId,
+
+        p_confidential_bottom_line_gbp:
+          row.confidential_bottom_line_gbp ?? null,
+
+        p_bottom_line_vat_treatment:
+          row.bottom_line_vat_treatment || null,
+
+        p_bottom_line_price_includes_vat:
+          row.bottom_line_price_includes_vat === true
+            ? true
+            : row.bottom_line_price_includes_vat === false
+              ? false
+              : null,
+
+        p_bottom_line_effective_from:
+          row.bottom_line_effective_from || null,
+
+        p_stocking_plan_call_off_date:
+          row.stocking_plan_call_off_date || null,
+
+        p_opportunity_reason:
+          row.opportunity_reason || null,
+
+        p_opportunity_notes:
+          note,
+
+        p_anybike_may_make_offers:
+          true
+      }
+    );
+
+
+  if(error){
+
+    showNotice(
+      error.message,
+      "bad"
+    );
+
+    return;
+  }
+
+
+  closeModal();
+
+
+  showNotice(
+    note
+      ? "Motorcycle note saved."
+      : "Motorcycle note cleared.",
+    "good"
+  );
+
+
+  await loadStock();
 }
 
 
@@ -2803,9 +3011,13 @@ async function saveOpportunity(
           ).value || null,
 
         p_opportunity_notes:
-          document.getElementById(
-            "mNotes"
-          ).value || null,
+          (
+            stock.find(
+              function(item){
+                return Number(item.dealer_stock_id) === Number(dealerStockId);
+              }
+            )?.opportunity_notes
+          ) || null,
 
         p_anybike_may_make_offers:
           true
