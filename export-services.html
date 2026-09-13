@@ -542,6 +542,18 @@ box-shadow:inset 0 0 0 1px rgba(237,28,36,.18),0 6px 16px rgba(237,28,36,.08);
 .market-summary-hint{font-size:12px}
 }
 
+
+
+/* Export Services: map-side country selector */
+.map-country-picker{position:relative;z-index:2;margin:20px 0 4px;padding:16px;border:1px solid #e7e7e7;border-radius:16px;background:#fff}
+.map-country-picker label{display:block;margin-bottom:8px;color:#222;font-size:13px;font-weight:900;letter-spacing:.02em}
+.map-country-picker-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px}
+.map-country-picker select{width:100%;min-height:48px;padding:0 42px 0 14px;border:1px solid #d7d7d7;border-radius:12px;background:#f8f8f8;color:#111;font:inherit;font-weight:800;outline:none;cursor:pointer}
+.map-country-picker select:focus{border-color:#ed1c24;box-shadow:0 0 0 3px rgba(237,28,36,.10)}
+.map-country-picker .btn{min-height:48px;white-space:nowrap}
+.map-country-picker small{display:block;margin-top:8px;color:#777;font-size:12px;line-height:1.4}
+@media(max-width:680px){.map-country-picker-row{grid-template-columns:1fr}.map-country-picker .btn{width:100%}}
+
 </style>
 <script type="application/ld+json">
 {
@@ -777,6 +789,14 @@ box-shadow:inset 0 0 0 1px rgba(237,28,36,.18),0 6px 16px rgba(237,28,36,.08);
 <div class="summary-kicker">International Motorcycle Markets</div>
 <h3>71 live country guides.</h3>
 <p>Use AnyBike's dedicated market guides to explore buying UK motorcycles for your destination, with country-specific export information and direct routes into available stock.</p>
+<div class="map-country-picker">
+<label for="mapCountrySelect">Choose a destination</label>
+<div class="map-country-picker-row">
+<select id="mapCountrySelect" aria-label="Choose a live international market"></select>
+<a class="btn secondary" id="mapCountryGuideButton" href="/markets/australia.html">Open Guide</a>
+</div>
+<small>Select any live market to preview its route from the United Kingdom instantly.</small>
+</div>
 <div class="market-summary-stats">
 <div><strong>71</strong><span>Live markets</span></div>
 <div><strong>9</strong><span>World regions</span></div>
@@ -785,7 +805,7 @@ box-shadow:inset 0 0 0 1px rgba(237,28,36,.18),0 6px 16px rgba(237,28,36,.08);
 <a class="btn primary" href="/international-markets.html">View All International Markets</a>
 <a class="btn secondary" href="/available-stock.html">Browse Available Stock</a>
 </div>
-<div class="market-summary-hint"><span>●</span>Hover any live country guide below to preview a route beam from the United Kingdom.</div>
+<div class="market-summary-hint"><span>●</span>Choose a country above or hover any live guide below to preview its route from the United Kingdom.</div>
 </aside>
 </div>
 <div class="live-guides-section" id="liveCountryGuides">
@@ -1001,6 +1021,8 @@ const routePathUnder = document.getElementById('dynamicRoutePathUnder');
 const routePing = document.getElementById('dynamicRoutePing');
 const routeGroup = document.getElementById('dynamicRouteGroup');
 const guideLinks = Array.from(document.querySelectorAll('.live-market-links a[data-country]'));
+const countrySelect = document.getElementById('mapCountrySelect');
+const countryGuideButton = document.getElementById('mapCountryGuideButton');
 if(!routePath || !routePathUnder || !routeDot || !routePing || !routeLabel || !routeLabelBg || !routeLabelText || !routeLabelSubcopy || !guideLinks.length) return;
 
 function clearActive(){
@@ -1058,12 +1080,38 @@ function renderRoute(slug){
   routeGroup.classList.remove('is-hidden');
   clearActive();
   const activeLink = document.querySelector(`.live-market-links a[data-country="${slug}"]`);
-  if(activeLink) activeLink.classList.add('route-active');
+  if(activeLink){
+    activeLink.classList.add('route-active');
+    if(countryGuideButton) countryGuideButton.href = activeLink.href;
+  }
+  if(countrySelect && countrySelect.value !== slug) countrySelect.value = slug;
 }
 
 function bindLink(link){
   const slug = link.dataset.country;
   ['mouseenter','focus'].forEach(evt => link.addEventListener(evt, () => renderRoute(slug)));
+}
+
+if(countrySelect){
+  const grouped = {};
+  document.querySelectorAll('.live-market-group').forEach(group => {
+    const heading = group.querySelector('h3');
+    const region = heading ? heading.childNodes[0].textContent.trim() : 'Markets';
+    const links = Array.from(group.querySelectorAll('.live-market-links a[data-country]'));
+    grouped[region] = links;
+  });
+  Object.entries(grouped).forEach(([region, links]) => {
+    const optgroup = document.createElement('optgroup');
+    optgroup.label = region;
+    links.forEach(link => {
+      const option = document.createElement('option');
+      option.value = link.dataset.country;
+      option.textContent = link.textContent.replace('→','').trim();
+      optgroup.appendChild(option);
+    });
+    countrySelect.appendChild(optgroup);
+  });
+  countrySelect.addEventListener('change', () => renderRoute(countrySelect.value));
 }
 
 guideLinks.forEach(bindLink);
