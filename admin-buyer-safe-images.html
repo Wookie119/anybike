@@ -10,26 +10,623 @@
 <script src="/admin.js?v=12001"></script>
 <link rel="stylesheet" href="/admin-shell.css?v=12001">
 <style>
-:root{--red:#ed1c24;--line:rgba(255,255,255,.12);--green:#33cc66}
-*{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#080808;color:#fff}.admin-page-content{padding:24px}.hero,.card{background:#111;border:1px solid var(--line);border-radius:22px;padding:24px;margin-bottom:18px}.hero h1,.card h2{margin-top:0}.hero p,.card p{color:#bbb;line-height:1.5}.stats{display:grid;grid-template-columns:repeat(4,minmax(140px,1fr));gap:14px;margin-bottom:18px}.stat{background:#111;border:1px solid var(--line);border-radius:18px;padding:18px}.stat strong{display:block;color:var(--red);font-size:32px;margin-top:8px}.actions{display:flex;gap:10px;flex-wrap:wrap}button{border:0;border-radius:12px;padding:13px 18px;background:var(--red);color:#fff;font-weight:900;cursor:pointer}button.dark{background:#222;border:1px solid var(--line)}button:disabled{opacity:.45;cursor:not-allowed}.progress{height:18px;border-radius:999px;background:#252525;overflow:hidden;margin:16px 0}.progress span{display:block;height:100%;width:0;background:var(--red);transition:width .2s}.status{color:#bbb;min-height:24px}.good{color:var(--green)}.bad{color:#ff6969}@media(max-width:800px){.stats{grid-template-columns:repeat(2,1fr)}}
+:root{
+  --red:#ed1c24;
+  --line:rgba(255,255,255,.12);
+  --green:#33cc66;
+  --amber:#ffb020;
+  --muted:#bbb;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:Arial,Helvetica,sans-serif;
+  background:#080808;
+  color:#fff;
+}
+.admin-page-content{padding:24px}
+.hero,.card{
+  background:#111;
+  border:1px solid var(--line);
+  border-radius:22px;
+  padding:24px;
+  margin-bottom:18px;
+}
+.hero h1,.card h2{margin-top:0}
+.hero p,.card p{color:var(--muted);line-height:1.5}
+.stats{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(140px,1fr));
+  gap:14px;
+  margin-bottom:18px;
+}
+.stat{
+  background:#111;
+  border:1px solid var(--line);
+  border-radius:18px;
+  padding:18px;
+}
+.stat strong{
+  display:block;
+  color:var(--red);
+  font-size:32px;
+  margin-top:8px;
+}
+.actions{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+}
+button{
+  border:0;
+  border-radius:12px;
+  padding:13px 18px;
+  background:var(--red);
+  color:#fff;
+  font-weight:900;
+  cursor:pointer;
+}
+button.dark{
+  background:#222;
+  border:1px solid var(--line);
+}
+button:disabled{
+  opacity:.45;
+  cursor:not-allowed;
+}
+.progress{
+  height:18px;
+  border-radius:999px;
+  background:#252525;
+  overflow:hidden;
+  margin:16px 0;
+}
+.progress span{
+  display:block;
+  height:100%;
+  width:0;
+  background:var(--red);
+  transition:width .2s;
+}
+.status{
+  color:var(--muted);
+  min-height:24px;
+}
+.good{color:var(--green)}
+.bad{color:#ff6969}
+
+.compare-toolbar{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  align-items:center;
+  flex-wrap:wrap;
+  margin-bottom:16px;
+}
+.compare-toolbar p{
+  margin:0;
+}
+.compare-list{
+  display:grid;
+  gap:18px;
+}
+.compare-item{
+  background:#0b0b0b;
+  border:1px solid var(--line);
+  border-radius:18px;
+  overflow:hidden;
+}
+.compare-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  flex-wrap:wrap;
+  padding:14px 16px;
+  border-bottom:1px solid var(--line);
+  background:#151515;
+}
+.compare-title{
+  font-weight:900;
+}
+.compare-meta{
+  color:#aaa;
+  font-size:13px;
+}
+.badge{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:72px;
+  padding:7px 10px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+}
+.badge.safe{background:rgba(51,204,102,.12);color:var(--green);border:1px solid rgba(51,204,102,.35)}
+.badge.waiting{background:rgba(255,176,32,.12);color:var(--amber);border:1px solid rgba(255,176,32,.35)}
+.badge.processing{background:rgba(255,255,255,.08);color:#fff;border:1px solid var(--line)}
+.badge.failed{background:rgba(255,105,105,.12);color:#ff6969;border:1px solid rgba(255,105,105,.35)}
+
+.compare-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:1px;
+  background:var(--line);
+}
+.image-panel{
+  background:#0b0b0b;
+  padding:16px;
+}
+.image-panel h3{
+  margin:0 0 10px;
+  font-size:15px;
+}
+.image-stage{
+  min-height:280px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:14px;
+  background:#050505;
+  border:1px solid rgba(255,255,255,.08);
+  overflow:hidden;
+}
+.image-stage img{
+  display:block;
+  width:100%;
+  height:auto;
+  max-height:520px;
+  object-fit:contain;
+  background:#050505;
+}
+.image-placeholder{
+  color:#777;
+  padding:40px 20px;
+  text-align:center;
+}
+.image-info{
+  margin-top:10px;
+  color:#aaa;
+  font-size:13px;
+  line-height:1.5;
+  word-break:break-word;
+}
+.dim-good{color:var(--green);font-weight:800}
+.dim-bad{color:#ff6969;font-weight:800}
+.error-text{
+  margin:14px 16px 16px;
+  color:#ff8b8b;
+  font-size:13px;
+  line-height:1.5;
+}
+.empty{
+  color:#888;
+  text-align:center;
+  padding:30px;
+  border:1px dashed var(--line);
+  border-radius:16px;
+}
+
+@media(max-width:900px){
+  .compare-grid{grid-template-columns:1fr}
+}
+@media(max-width:800px){
+  .stats{grid-template-columns:repeat(2,1fr)}
+}
 </style>
 </head>
 <body>
-<div class="admin-shell"><div id="adminSidebar"></div><div class="admin-main"><div id="adminTopbar"></div><main class="admin-page-content">
-<section class="hero"><h1>Buyer-Safe Images</h1><p>Pilot processor for authorised dealer images. It creates a separate WebP buyer copy and removes the lower dealer-board area. Original source images remain untouched.</p></section>
-<section class="stats"><div class="stat">Waiting<strong id="waiting">0</strong></div><div class="stat">Processing<strong id="processing">0</strong></div><div class="stat">Safe<strong id="safe">0</strong></div><div class="stat">Failed<strong id="failed">0</strong></div></section>
-<section class="card"><h2>Automatic pilot</h2><p>One click processes every waiting pilot image. You do not need to approve them one by one.</p><div class="actions"><button id="oneBtn" onclick="processOne()">Process 1</button><button id="allBtn" onclick="processAll()">Process All Waiting</button><button class="dark" onclick="refreshStats()">Refresh</button></div><div class="progress"><span id="bar"></span></div><div class="status" id="status">Ready.</div></section>
-</main></div></div>
+<div class="admin-shell">
+  <div id="adminSidebar"></div>
+  <div class="admin-main">
+    <div id="adminTopbar"></div>
+    <main class="admin-page-content">
+
+      <section class="hero">
+        <h1>Buyer-Safe Images</h1>
+        <p>
+          Pilot processor for authorised dealer images. Google Vision decides whether seller branding is present.
+          Images that need cleaning are repaired into a separate buyer-safe copy while the original supplier image remains untouched.
+        </p>
+      </section>
+
+      <section class="stats">
+        <div class="stat">Waiting<strong id="waiting">0</strong></div>
+        <div class="stat">Processing<strong id="processing">0</strong></div>
+        <div class="stat">Safe<strong id="safe">0</strong></div>
+        <div class="stat">Failed<strong id="failed">0</strong></div>
+      </section>
+
+      <section class="card">
+        <h2>Automatic pilot</h2>
+        <p>
+          Use <strong>Process 1</strong> while testing. Do not use Process All Waiting until the comparison below has been checked.
+        </p>
+        <div class="actions">
+          <button id="oneBtn" onclick="processOne()">Process 1</button>
+          <button id="allBtn" onclick="processAll()">Process All Waiting</button>
+          <button class="dark" onclick="refreshAll()">Refresh</button>
+        </div>
+        <div class="progress"><span id="bar"></span></div>
+        <div class="status" id="status">Ready.</div>
+      </section>
+
+      <section class="card">
+        <div class="compare-toolbar">
+          <div>
+            <h2 style="margin-bottom:6px">Original vs Buyer-Safe</h2>
+            <p>Compare the supplier photo and the saved AnyBike buyer-safe result side by side.</p>
+          </div>
+          <button class="dark" onclick="loadComparisons()">Refresh Images</button>
+        </div>
+        <div id="compareList" class="compare-list">
+          <div class="empty">Loading image comparisons…</div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
 <script>
-const sb=getAdminSupabaseClient();let running=false,doneThisRun=0,startWaiting=0;
+const sb=getAdminSupabaseClient();
+let running=false,doneThisRun=0,startWaiting=0;
 const $=id=>document.getElementById(id);
-async function requireAdmin(){const {data}=await sb.auth.getSession();const user=data?.session?.user;if(!user){location.replace('/admin-login.html?return='+encodeURIComponent(location.pathname));return false}return true}
-async function counts(){const {data,error}=await sb.from('admin_buyer_safe_image_status').select('buyer_safe_status');if(error)throw error;const c={waiting:0,processing:0,safe:0,failed:0};(data||[]).forEach(r=>{const k=r.buyer_safe_status||'waiting';if(k in c)c[k]++});return c}
-async function refreshStats(){const c=await counts();$('waiting').textContent=c.waiting;$('processing').textContent=c.processing;$('safe').textContent=c.safe;$('failed').textContent=c.failed;const total=c.waiting+c.processing+c.safe+c.failed;$('bar').style.width=(total?Math.round(c.safe/total*100):0)+'%';return c}
-async function invokeOne(){const {data,error}=await sb.functions.invoke('process-buyer-safe-image',{body:{}});if(error)throw error;return data}
-async function processOne(){if(running)return;running=true;$('oneBtn').disabled=true;$('allBtn').disabled=true;try{$('status').textContent='Processing 1 buyer-safe image…';const data=await invokeOne();await refreshStats();if(data?.processed){$('status').innerHTML='<span class="good">1 image processed successfully. Check the stock test page before processing the rest.</span>'}else{$('status').innerHTML='<span class="good">No waiting buyer-safe image was processed.</span>'}}catch(e){console.error(e);$('status').innerHTML='<span class="bad">Stopped: '+String(e?.message||e)+'</span>'}finally{running=false;$('oneBtn').disabled=false;$('allBtn').disabled=false}}
-async function processAll(){if(running)return;running=true;doneThisRun=0;$('allBtn').disabled=true;try{const first=await refreshStats();startWaiting=first.waiting;if(!startWaiting){$('status').innerHTML='<span class="good">No waiting buyer-safe images.</span>';return}while(running){$('status').textContent=`Processing buyer-safe image ${doneThisRun+1} of ${startWaiting}…`;const data=await invokeOne();if(!data?.processed)break;doneThisRun++;const c=await refreshStats();$('bar').style.width=Math.min(100,Math.round(doneThisRun/startWaiting*100))+'%';if(c.waiting===0)break}await refreshStats();$('status').innerHTML=`<span class="good">Finished. ${doneThisRun} image${doneThisRun===1?'':'s'} processed.</span>`}catch(e){console.error(e);$('status').innerHTML='<span class="bad">Stopped: '+String(e?.message||e)+'</span>'}finally{running=false;$('oneBtn').disabled=false;$('allBtn').disabled=false}}
-(async()=>{if(!await requireAdmin())return;document.documentElement.classList.remove('admin-auth-pending');await refreshStats()})()
+
+async function requireAdmin(){
+  const {data}=await sb.auth.getSession();
+  const user=data?.session?.user;
+  if(!user){
+    location.replace('/admin-login.html?return='+encodeURIComponent(location.pathname));
+    return false;
+  }
+  return true;
+}
+
+async function counts(){
+  const {data,error}=await sb
+    .from('admin_buyer_safe_image_status')
+    .select('buyer_safe_status');
+
+  if(error)throw error;
+
+  const c={waiting:0,processing:0,safe:0,failed:0};
+  (data||[]).forEach(r=>{
+    const k=r.buyer_safe_status||'waiting';
+    if(k in c)c[k]++;
+  });
+  return c;
+}
+
+async function refreshStats(){
+  const c=await counts();
+
+  $('waiting').textContent=c.waiting;
+  $('processing').textContent=c.processing;
+  $('safe').textContent=c.safe;
+  $('failed').textContent=c.failed;
+
+  const total=c.waiting+c.processing+c.safe+c.failed;
+  $('bar').style.width=(total?Math.round(c.safe/total*100):0)+'%';
+
+  return c;
+}
+
+async function invokeOne(){
+  const {data,error}=await sb.functions.invoke('process-buyer-safe-image',{body:{}});
+  if(error)throw error;
+  return data;
+}
+
+function esc(value){
+  return String(value??'')
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#039;');
+}
+
+function badge(status){
+  const s=(status||'waiting').toLowerCase();
+  return `<span class="badge ${esc(s)}">${esc(s)}</span>`;
+}
+
+function imagePanel(label,url,idPrefix){
+  if(!url){
+    return `
+      <div class="image-panel">
+        <h3>${esc(label)}</h3>
+        <div class="image-stage">
+          <div class="image-placeholder">No image available</div>
+        </div>
+        <div class="image-info">Dimensions: —</div>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="image-panel">
+      <h3>${esc(label)}</h3>
+      <div class="image-stage">
+        <img
+          src="${esc(url)}"
+          alt="${esc(label)}"
+          loading="lazy"
+          data-dim-target="${esc(idPrefix)}"
+          onload="captureDimensions(this)"
+          onerror="imageLoadFailed(this)"
+        >
+      </div>
+      <div class="image-info">
+        Dimensions: <span id="${esc(idPrefix)}">Loading…</span>
+      </div>
+    </div>
+  `;
+}
+
+function captureDimensions(img){
+  const targetId=img.dataset.dimTarget;
+  const target=document.getElementById(targetId);
+  if(!target)return;
+
+  const w=img.naturalWidth||0;
+  const h=img.naturalHeight||0;
+  target.textContent=w&&h?`${w} × ${h}`:'Unknown';
+
+  const card=img.closest('.compare-item');
+  if(card)checkDimensionMatch(card);
+}
+
+function imageLoadFailed(img){
+  const targetId=img.dataset.dimTarget;
+  const target=document.getElementById(targetId);
+  if(target){
+    target.textContent='Could not load';
+    target.className='dim-bad';
+  }
+
+  img.style.display='none';
+  const stage=img.closest('.image-stage');
+  if(stage){
+    stage.insertAdjacentHTML('beforeend','<div class="image-placeholder">Image could not be loaded.</div>');
+  }
+}
+
+function checkDimensionMatch(card){
+  const original=card.querySelector('[data-role="original"]');
+  const safe=card.querySelector('[data-role="safe"]');
+  const result=card.querySelector('[data-role="dimension-check"]');
+
+  if(!result||!original||!safe)return;
+  if(!original.complete||!safe.complete)return;
+  if(!original.naturalWidth||!safe.naturalWidth)return;
+
+  const same=
+    original.naturalWidth===safe.naturalWidth &&
+    original.naturalHeight===safe.naturalHeight;
+
+  result.textContent=same
+    ? `Exact size match: ${original.naturalWidth} × ${original.naturalHeight}`
+    : `SIZE MISMATCH: original ${original.naturalWidth} × ${original.naturalHeight}, buyer-safe ${safe.naturalWidth} × ${safe.naturalHeight}`;
+
+  result.className=same?'dim-good':'dim-bad';
+}
+
+async function loadComparisons(){
+  const wrap=$('compareList');
+  wrap.innerHTML='<div class="empty">Loading image comparisons…</div>';
+
+  const {data,error}=await sb
+    .from('junction_stock_images')
+    .select(`
+      id,
+      junction_stock_id,
+      position,
+      source_url,
+      buyer_safe_status,
+      buyer_safe_url,
+      buyer_safe_storage_path,
+      buyer_safe_error,
+      buyer_safe_processed_at,
+      buyer_safe_updated_at
+    `)
+    .order('buyer_safe_updated_at',{ascending:false,nullsFirst:false})
+    .order('id',{ascending:false})
+    .limit(24);
+
+  if(error){
+    console.error(error);
+    wrap.innerHTML=`<div class="empty bad">Could not load image comparisons: ${esc(error.message)}</div>`;
+    return;
+  }
+
+  const rows=data||[];
+  if(!rows.length){
+    wrap.innerHTML='<div class="empty">No buyer-safe image records found.</div>';
+    return;
+  }
+
+  wrap.innerHTML=rows.map(row=>{
+    const originalId=`orig-dim-${row.id}`;
+    const safeId=`safe-dim-${row.id}`;
+    const processed=row.buyer_safe_processed_at
+      ? new Date(row.buyer_safe_processed_at).toLocaleString()
+      : 'Not processed yet';
+
+    const originalPanel=row.source_url
+      ? `
+        <div class="image-panel">
+          <h3>Original Supplier Image</h3>
+          <div class="image-stage">
+            <img
+              src="${esc(row.source_url)}"
+              alt="Original supplier image"
+              loading="lazy"
+              data-role="original"
+              data-dim-target="${esc(originalId)}"
+              onload="captureDimensions(this)"
+              onerror="imageLoadFailed(this)"
+            >
+          </div>
+          <div class="image-info">
+            Dimensions: <span id="${esc(originalId)}">Loading…</span>
+          </div>
+        </div>
+      `
+      : imagePanel('Original Supplier Image',null,originalId);
+
+    const safePanel=row.buyer_safe_url
+      ? `
+        <div class="image-panel">
+          <h3>Buyer-Safe Image</h3>
+          <div class="image-stage">
+            <img
+              src="${esc(row.buyer_safe_url)}"
+              alt="Buyer-safe image"
+              loading="lazy"
+              data-role="safe"
+              data-dim-target="${esc(safeId)}"
+              onload="captureDimensions(this)"
+              onerror="imageLoadFailed(this)"
+            >
+          </div>
+          <div class="image-info">
+            Dimensions: <span id="${esc(safeId)}">Loading…</span>
+          </div>
+        </div>
+      `
+      : imagePanel('Buyer-Safe Image',null,safeId);
+
+    return `
+      <article class="compare-item">
+        <div class="compare-head">
+          <div>
+            <div class="compare-title">
+              Image ID ${esc(row.id)} · Stock ${esc(row.junction_stock_id)} · Position ${esc(row.position??0)}
+            </div>
+            <div class="compare-meta">
+              Processed: ${esc(processed)}
+            </div>
+          </div>
+          <div>${badge(row.buyer_safe_status)}</div>
+        </div>
+
+        <div class="compare-grid">
+          ${originalPanel}
+          ${safePanel}
+        </div>
+
+        <div class="compare-head" style="border-top:1px solid var(--line);border-bottom:0">
+          <div class="compare-meta">
+            <span data-role="dimension-check">Waiting for both images to load…</span>
+          </div>
+          <div class="compare-meta">
+            ${row.buyer_safe_storage_path?`Saved: ${esc(row.buyer_safe_storage_path)}`:'No saved buyer-safe file yet'}
+          </div>
+        </div>
+
+        ${row.buyer_safe_error?`<div class="error-text"><strong>Error:</strong> ${esc(row.buyer_safe_error)}</div>`:''}
+      </article>
+    `;
+  }).join('');
+}
+
+async function refreshAll(){
+  await Promise.all([
+    refreshStats(),
+    loadComparisons()
+  ]);
+}
+
+async function processOne(){
+  if(running)return;
+
+  running=true;
+  $('oneBtn').disabled=true;
+  $('allBtn').disabled=true;
+
+  try{
+    $('status').textContent='Processing 1 buyer-safe image…';
+
+    const data=await invokeOne();
+
+    await refreshAll();
+
+    if(data?.processed){
+      $('status').innerHTML='<span class="good">1 image processed successfully. Compare the Original Supplier Image and Buyer-Safe Image below before processing the rest.</span>';
+    }else{
+      $('status').innerHTML='<span class="good">No waiting buyer-safe image was processed.</span>';
+    }
+  }catch(e){
+    console.error(e);
+    $('status').innerHTML='<span class="bad">Stopped: '+esc(String(e?.message||e))+'</span>';
+  }finally{
+    running=false;
+    $('oneBtn').disabled=false;
+    $('allBtn').disabled=false;
+  }
+}
+
+async function processAll(){
+  if(running)return;
+
+  running=true;
+  doneThisRun=0;
+  $('allBtn').disabled=true;
+  $('oneBtn').disabled=true;
+
+  try{
+    const first=await refreshStats();
+    startWaiting=first.waiting;
+
+    if(!startWaiting){
+      $('status').innerHTML='<span class="good">No waiting buyer-safe images.</span>';
+      return;
+    }
+
+    while(running){
+      $('status').textContent=`Processing buyer-safe image ${doneThisRun+1} of ${startWaiting}…`;
+
+      const data=await invokeOne();
+      if(!data?.processed)break;
+
+      doneThisRun++;
+
+      const c=await refreshStats();
+      $('bar').style.width=Math.min(100,Math.round(doneThisRun/startWaiting*100))+'%';
+
+      if(c.waiting===0)break;
+    }
+
+    await refreshAll();
+
+    $('status').innerHTML=`<span class="good">Finished. ${doneThisRun} image${doneThisRun===1?'':'s'} processed.</span>`;
+  }catch(e){
+    console.error(e);
+    $('status').innerHTML='<span class="bad">Stopped: '+esc(String(e?.message||e))+'</span>';
+  }finally{
+    running=false;
+    $('oneBtn').disabled=false;
+    $('allBtn').disabled=false;
+  }
+}
+
+(async()=>{
+  if(!await requireAdmin())return;
+
+  document.documentElement.classList.remove('admin-auth-pending');
+
+  try{
+    await refreshAll();
+  }catch(e){
+    console.error(e);
+    $('status').innerHTML='<span class="bad">Could not load buyer-safe image data: '+esc(String(e?.message||e))+'</span>';
+  }
+})();
 </script>
 </body>
 </html>
