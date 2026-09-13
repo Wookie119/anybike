@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Authorised Stock Test | AnyBike Admin</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" href="/anybike-logo-new.jpg">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--red:#ed1c24;--black:#050505;--panel:#111;--line:rgba(255,255,255,.12);--muted:#9a9a9a;--green:#25c26e}
+*{box-sizing:border-box}body{margin:0;background:#050505;color:#fff;font-family:Arial,Helvetica,sans-serif;min-height:100vh}.top{position:sticky;top:0;z-index:20;background:rgba(5,5,5,.97);border-bottom:1px solid var(--line);backdrop-filter:blur(12px)}.topin{max-width:1450px;margin:auto;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;gap:16px}.brand{display:flex;align-items:center;gap:12px;font-weight:900}.brand img{height:42px;border-radius:8px;background:#fff}.brand span{color:var(--red)}.user{display:flex;gap:10px;align-items:center;color:#aaa;font-size:13px}.wrap{max-width:1450px;margin:auto;padding:28px 20px 60px}.hero{display:flex;justify-content:space-between;gap:20px;align-items:end;margin-bottom:20px}.hero h1{margin:0;font-size:38px;letter-spacing:-.04em}.hero h1 span{color:var(--red)}.hero p{color:#aaa;max-width:850px;line-height:1.5;margin:7px 0 0}.badge{display:inline-flex;padding:6px 9px;border-radius:999px;border:1px solid #333;background:#151515;font-size:11px;font-weight:900}.badge.green{color:#a8f0c6;border-color:rgba(37,194,110,.45);background:rgba(37,194,110,.1)}.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0}.toolbar input,.toolbar select{background:#0d0d0d;color:#fff;border:1px solid #333;border-radius:10px;padding:11px 12px;font:inherit}.toolbar input{min-width:280px}.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px}.card{background:#101010;border:1px solid var(--line);border-radius:17px;overflow:hidden;box-shadow:0 15px 45px rgba(0,0,0,.28)}.media{aspect-ratio:4/3;background:#171717;position:relative;overflow:hidden}.media img{width:100%;height:100%;object-fit:cover;display:block}.placeholder{width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#666;font-weight:900;text-align:center;padding:25px}.photo-count{position:absolute;right:10px;bottom:10px;background:rgba(0,0,0,.75);border:1px solid rgba(255,255,255,.2);padding:5px 8px;border-radius:999px;font-size:11px;font-weight:900}.body{padding:15px}.make{color:var(--red);text-transform:uppercase;font-size:11px;font-weight:900;letter-spacing:.08em}.title{font-size:18px;font-weight:900;margin-top:5px;min-height:42px}.price{font-size:23px;font-weight:900;margin:12px 0}.specs{display:grid;grid-template-columns:1fr 1fr;gap:8px}.spec{background:#0a0a0a;border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:9px}.k{font-size:10px;color:#777;text-transform:uppercase;letter-spacing:.06em;font-weight:800}.v{font-size:13px;font-weight:800;margin-top:4px}.foot{padding:12px 15px;border-top:1px solid rgba(255,255,255,.08);display:flex;justify-content:space-between;align-items:center;color:#888;font-size:11px}.notice{padding:14px;border-radius:11px;margin-bottom:15px}.error{background:rgba(237,28,36,.12);border:1px solid rgba(237,28,36,.4)}.empty{padding:50px;text-align:center;color:#888;border:1px dashed #333;border-radius:14px}.btn{border:1px solid #444;background:#121212;color:#fff;border-radius:9px;padding:8px 11px;font-weight:900;cursor:pointer}.btn:hover{border-color:var(--red)}
+@media(max-width:1200px){.grid{grid-template-columns:repeat(3,1fr)}}@media(max-width:850px){.grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:560px){.grid{grid-template-columns:1fr}.hero{align-items:flex-start;flex-direction:column}.toolbar input{min-width:0;width:100%}}
+</style>
+</head>
+<body>
+<div class="top"><div class="topin"><div class="brand"><img src="/anybike-logo-new.jpg" alt="AnyBike"><div>ANYBIKE <span>AUTHORISED STOCK TEST</span></div></div><div class="user"><span class="badge green">PRIVATE TEST</span><span id="adminEmail">Checking access…</span><button class="btn" onclick="location.reload()">Refresh</button></div></div></div>
+<div class="wrap">
+  <div id="notice"></div>
+  <div class="hero"><div><h1>Authorised <span>Stock</span></h1><p>This is a private buyer-style test of genuine authorised dealer stock. Selling-dealer identity, source/provider information, registration, VIN, engine number and confidential Trade Price are deliberately excluded.</p></div><div class="badge" id="countBadge">Loading…</div></div>
+  <div class="toolbar"><input id="search" placeholder="Search make or model…"><select id="makeFilter"><option value="">All makes</option></select></div>
+  <div class="grid" id="grid"></div>
+</div>
+<script>
+const SUPABASE_URL="https://tuehtnezhdnkqbbhttgp.supabase.co";
+const SUPABASE_ANON_KEY="sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+let STOCK=[];
+const esc=v=>String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+const money=v=>v===null||v===undefined||v===""?"Price on request":new Intl.NumberFormat("en-GB",{style:"currency",currency:"GBP",minimumFractionDigits:0,maximumFractionDigits:0}).format(Number(v));
+const miles=v=>v===null||v===undefined?"—":new Intl.NumberFormat("en-GB").format(Number(v))+" miles";
+function imageUrl(row){const imgs=Array.isArray(row.images)?row.images:[];const first=imgs.find(x=>x?.source_url)||imgs[0];return first?.source_url||""}
+function render(){
+  const term=document.getElementById("search").value.trim().toLowerCase();
+  const make=document.getElementById("makeFilter").value;
+  const rows=STOCK.filter(r=>`${r.make||""} ${r.model||""} ${r.variant||""}`.toLowerCase().includes(term)).filter(r=>!make||r.make===make);
+  document.getElementById("countBadge").textContent=`${rows.length} motorcycle${rows.length===1?"":"s"}`;
+  document.getElementById("grid").innerHTML=rows.length?rows.map(r=>{
+    const imgs=Array.isArray(r.images)?r.images:[];
+    const src=imageUrl(r);
+    return `<article class="card">
+      <div class="media">${src?`<img src="${esc(src)}" alt="${esc(`${r.make||""} ${r.model||""}`)}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`:``}<div class="placeholder" style="${src?"display:none":""}">ANYBIKE<br>No image available</div>${imgs.length?`<div class="photo-count">${imgs.length} photo${imgs.length===1?"":"s"}</div>`:""}</div>
+      <div class="body">
+        <div class="make">${esc(r.make||"Motorcycle")}</div>
+        <div class="title">${esc(r.model||"")}${r.variant?` <span style="color:#aaa">${esc(r.variant)}</span>`:""}</div>
+        <div class="price">${money(r.asking_price_gbp)}</div>
+        <div class="specs">
+          <div class="spec"><div class="k">Year</div><div class="v">${esc(r.year??"—")}</div></div>
+          <div class="spec"><div class="k">Mileage</div><div class="v">${esc(miles(r.mileage))}</div></div>
+          <div class="spec"><div class="k">Colour</div><div class="v">${esc(r.colour||"—")}</div></div>
+          <div class="spec"><div class="k">Availability</div><div class="v">Available</div></div>
+        </div>
+      </div>
+      <div class="foot"><span>AnyBike authorised stock</span><span>Test ID ${r.dealer_stock_id}</span></div>
+    </article>`
+  }).join(""):`<div class="empty">No matching motorcycles</div>`;
+}
+async function load(){
+  try{
+    const {data:s,error}=await sb.auth.getSession();
+    if(error)throw error;
+    const user=s?.session?.user;
+    if(!user){location.replace('/admin-login.html?return='+encodeURIComponent(location.pathname));return}
+    if(String(user.email||"").toLowerCase()!=="sales@anybike.co.uk"){await sb.auth.signOut({scope:'local'});location.replace('/admin-login.html?error=not-authorized');return}
+    document.getElementById("adminEmail").textContent=user.email;
+    const {data:stockData,error:stockError}=await sb.from("admin_private_buyer_stock_test").select("*").order("dealer_stock_id");
+    if(stockError)throw stockError;
+    STOCK=stockData||[];
+    const makes=[...new Set(STOCK.map(x=>x.make).filter(Boolean))].sort();
+    document.getElementById("makeFilter").innerHTML='<option value="">All makes</option>'+makes.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join('');
+    render();
+  }catch(e){document.getElementById("notice").innerHTML=`<div class="notice error">${esc(e.message)}</div>`;document.getElementById("countBadge").textContent="Load error"}
+}
+document.getElementById("search").addEventListener("input",render);
+document.getElementById("makeFilter").addEventListener("change",render);
+load();
+</script>
+</body>
+</html>
