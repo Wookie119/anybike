@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Buyer-Safe Images | AnyBike Admin</title>
+<meta name="robots" content="noindex,nofollow">
+<script>document.documentElement.classList.add("admin-auth-pending");</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/admin.js?v=12001"></script>
+<link rel="stylesheet" href="/admin-shell.css?v=12001">
+<style>
+:root{--red:#ed1c24;--line:rgba(255,255,255,.12);--green:#33cc66}
+*{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#080808;color:#fff}.admin-page-content{padding:24px}.hero,.card{background:#111;border:1px solid var(--line);border-radius:22px;padding:24px;margin-bottom:18px}.hero h1,.card h2{margin-top:0}.hero p,.card p{color:#bbb;line-height:1.5}.stats{display:grid;grid-template-columns:repeat(4,minmax(140px,1fr));gap:14px;margin-bottom:18px}.stat{background:#111;border:1px solid var(--line);border-radius:18px;padding:18px}.stat strong{display:block;color:var(--red);font-size:32px;margin-top:8px}.actions{display:flex;gap:10px;flex-wrap:wrap}button{border:0;border-radius:12px;padding:13px 18px;background:var(--red);color:#fff;font-weight:900;cursor:pointer}button.dark{background:#222;border:1px solid var(--line)}button:disabled{opacity:.45;cursor:not-allowed}.progress{height:18px;border-radius:999px;background:#252525;overflow:hidden;margin:16px 0}.progress span{display:block;height:100%;width:0;background:var(--red);transition:width .2s}.status{color:#bbb;min-height:24px}.good{color:var(--green)}.bad{color:#ff6969}@media(max-width:800px){.stats{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<div class="admin-shell"><div id="adminSidebar"></div><div class="admin-main"><div id="adminTopbar"></div><main class="admin-page-content">
+<section class="hero"><h1>Buyer-Safe Images</h1><p>Pilot processor for authorised dealer images. It creates a separate WebP buyer copy and removes the lower dealer-board area. Original source images remain untouched.</p></section>
+<section class="stats"><div class="stat">Waiting<strong id="waiting">0</strong></div><div class="stat">Processing<strong id="processing">0</strong></div><div class="stat">Safe<strong id="safe">0</strong></div><div class="stat">Failed<strong id="failed">0</strong></div></section>
+<section class="card"><h2>Automatic pilot</h2><p>One click processes every waiting pilot image. You do not need to approve them one by one.</p><div class="actions"><button id="allBtn" onclick="processAll()">Process All Waiting</button><button class="dark" onclick="refreshStats()">Refresh</button></div><div class="progress"><span id="bar"></span></div><div class="status" id="status">Ready.</div></section>
+</main></div></div>
+<script>
+const sb=getAdminSupabaseClient();let running=false,doneThisRun=0,startWaiting=0;
+const $=id=>document.getElementById(id);
+async function requireAdmin(){const {data}=await sb.auth.getSession();const user=data?.session?.user;if(!user){location.replace('/admin-login.html?return='+encodeURIComponent(location.pathname));return false}return true}
+async function counts(){const {data,error}=await sb.from('admin_buyer_safe_image_status').select('buyer_safe_status');if(error)throw error;const c={waiting:0,processing:0,safe:0,failed:0};(data||[]).forEach(r=>{const k=r.buyer_safe_status||'waiting';if(k in c)c[k]++});return c}
+async function refreshStats(){const c=await counts();$('waiting').textContent=c.waiting;$('processing').textContent=c.processing;$('safe').textContent=c.safe;$('failed').textContent=c.failed;const total=c.waiting+c.processing+c.safe+c.failed;$('bar').style.width=(total?Math.round(c.safe/total*100):0)+'%';return c}
+async function invokeOne(){const {data,error}=await sb.functions.invoke('process-buyer-safe-image',{body:{}});if(error)throw error;return data}
+async function processAll(){if(running)return;running=true;doneThisRun=0;$('allBtn').disabled=true;try{const first=await refreshStats();startWaiting=first.waiting;if(!startWaiting){$('status').innerHTML='<span class="good">No waiting buyer-safe images.</span>';return}while(running){$('status').textContent=`Processing buyer-safe image ${doneThisRun+1} of ${startWaiting}…`;const data=await invokeOne();if(!data?.processed)break;doneThisRun++;const c=await refreshStats();$('bar').style.width=Math.min(100,Math.round(doneThisRun/startWaiting*100))+'%';if(c.waiting===0)break}await refreshStats();$('status').innerHTML=`<span class="good">Finished. ${doneThisRun} image${doneThisRun===1?'':'s'} processed.</span>`}catch(e){console.error(e);$('status').innerHTML='<span class="bad">Stopped: '+String(e?.message||e)+'</span>'}finally{running=false;$('allBtn').disabled=false}}
+(async()=>{if(!await requireAdmin())return;document.documentElement.classList.remove('admin-auth-pending');await refreshStats()})()
+</script>
+</body>
+</html>
