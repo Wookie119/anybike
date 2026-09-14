@@ -882,14 +882,14 @@ button:disabled{
       against authorised stock and send suitable AnyBike Offers when commercially viable opportunities become available.
     </p>
     <div class="trade-buying-actions">
-      <a class="primary" href="/my-searches.html">View My Saved Searches</a>
-      <a href="/buy-motorcycles.html">Create Buying Requirement</a>
+      <a class="primary" href="/my-searches.html">Create Buying Requirement</a>
+      <a href="/my-searches.html">View My Buying Requirements</a>
     </div>
   </section>
 
   <div class="count-row">
     <div class="count" id="count">Loading available stock...</div>
-    <div class="small" id="priceNoteTop">AnyBike Prices shown. Additional services and transaction-specific charges may apply.</div>
+    <div class="small" id="priceNoteTop">AnyBike Prices shown. UK delivery to Southampton, Tilbury, Felixstowe or Liverpool is included.</div>
   </div>
 
   <section class="grid" id="grid"></section>
@@ -940,6 +940,8 @@ let watchUpdatesInProgress = new Set();
 let selectedDestination = "";
 let selectedBuyerType = "";
 let selectedDeliveryPoints = [];
+let currentDealership = null;
+let currentUserIsVerifiedDealer = false;
 
 function getCustomerLoginUrl(){
   const returnUrl =
@@ -1012,8 +1014,8 @@ const words = {
     register:"Register Free",
     view:"To View Images",
     available:"Available",
-    priceNote:"AnyBike Price. Additional services and transaction-specific charges may apply.",
-    topNote:"AnyBike Prices shown. Additional services and transaction-specific charges may apply.",
+    priceNote:"AnyBike Price. UK delivery to Southampton, Tilbury, Felixstowe or Liverpool is included.",
+    topNote:"AnyBike Prices shown. UK delivery to Southampton, Tilbury, Felixstowe or Liverpool is included.",
     loading:"Loading available stock...",
     count:"motorcycles currently available",
     noStock:"No motorcycles found.",
@@ -1462,10 +1464,17 @@ function updateDestinationContext(){
       "UK motorcycle sales are trade-only.";
     status.classList.add("show","warning");
   }else{
+    const dealerDefaultNote =
+      currentUserIsVerifiedDealer &&
+      channel === "UK Trade"
+        ? " Your verified dealer account has been used to set this buying context automatically."
+        : "";
+
     status.innerHTML =
       "<strong>" + escapeHtml(channel) + "</strong> — browsing for " +
       escapeHtml(selectedDestination) +
-      ". Your destination will be carried through to motorcycle detail pages.";
+      ". Your destination will be carried through to motorcycle detail pages." +
+      dealerDefaultNote;
     status.classList.add("show");
   }
 
@@ -1874,6 +1883,9 @@ function findBike(id){
 
 
 async function loadUserInfo(){
+  currentDealership = null;
+  currentUserIsVerifiedDealer = false;
+
   try{
     const {data,error} = await sb.auth.getUser();
 
@@ -1882,9 +1894,37 @@ async function loadUserInfo(){
     }
 
     currentUser = data?.user || null;
+
+    if(!currentUser){
+      return;
+    }
+
+    try{
+      const {data:dealerData,error:dealerError} =
+        await sb.rpc("dealer_get_my_dealership");
+
+      if(!dealerError){
+        const dealership =
+          Array.isArray(dealerData)
+            ? dealerData[0]
+            : dealerData;
+
+        if(dealership){
+          currentDealership = dealership;
+          currentUserIsVerifiedDealer = true;
+        }
+      }else{
+        console.warn("Dealer identity check unavailable",dealerError.message);
+      }
+    }catch(dealerError){
+      console.warn("Dealer identity check unavailable",dealerError);
+    }
+
   }catch(error){
     console.warn("Customer session unavailable",error);
     currentUser = null;
+    currentDealership = null;
+    currentUserIsVerifiedDealer = false;
   }
 }
 
@@ -2089,6 +2129,24 @@ window.addEventListener("anybikeLanguageChanged", function(e){
   await loadWatchlist();
   await loadFilterOptions();
 
+  const destinationSelect = document.getElementById("destination");
+  const buyerTypeSelect = document.getElementById("buyerType");
+
+  // A verified dealer should not have to identify themselves again on every visit.
+  // Explicit URL buying context always wins, so dealers can still switch destination
+  // when buying for an export customer or another market.
+  if(currentUserIsVerifiedDealer){
+    if(!urlDestination){
+      destinationSelect.value = "United Kingdom";
+      selectedDestination = "United Kingdom";
+    }
+
+    if(!urlBuyerType){
+      buyerTypeSelect.value = "Trade";
+      selectedBuyerType = "Trade";
+    }
+  }
+
   if(urlMake){
     document.getElementById("make").value = urlMake;
     populateModels();
@@ -2099,7 +2157,6 @@ window.addEventListener("anybikeLanguageChanged", function(e){
   }
 
   if(urlDestination){
-    const destinationSelect = document.getElementById("destination");
     const hasDestination = Array.from(destinationSelect.options)
       .some(option => option.value === urlDestination);
 
