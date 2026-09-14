@@ -423,6 +423,7 @@ button:disabled{
 @media(max-width:1380px){
   .wrap{width:min(1280px,calc(100vw - 40px))}
   .grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .delivery-options{grid-template-columns:repeat(5,minmax(0,1fr))}
 }
 
 @media(max-width:1150px){
@@ -581,8 +582,8 @@ button:disabled{
 
 .delivery-picker{
   grid-column:1/-1;
-  margin-top:2px;
-  padding-top:12px;
+  margin-top:0;
+  padding-top:10px;
   border-top:1px solid rgba(255,255,255,.10);
 }
 .delivery-picker-head{
@@ -596,15 +597,15 @@ button:disabled{
 .delivery-picker-head span{color:#aaa;font-size:12px;text-align:right}
 .delivery-options{
   display:grid;
-  grid-template-columns:repeat(5,minmax(0,1fr));
-  gap:8px;
+  grid-template-columns:repeat(6,minmax(0,1fr));
+  gap:7px;
 }
 .delivery-option{
   display:flex;
-  align-items:flex-start;
+  align-items:center;
   gap:8px;
   min-width:0;
-  padding:8px 10px;
+  padding:7px 10px;
   border:1px solid rgba(255,255,255,.15);
   border-radius:11px;
   background:rgba(255,255,255,.04);
@@ -619,8 +620,8 @@ button:disabled{
   flex:0 0 auto;
   accent-color:var(--red2);
 }
-.delivery-option span{min-width:0;font-size:13px;line-height:1.25}
-.delivery-option small{display:block;margin-top:3px;color:#999;font-size:11px}
+.delivery-option span{min-width:0;font-size:13px;line-height:1.2;font-weight:800}
+.delivery-option small{display:none}
 .delivery-help{
   margin-top:12px;
   padding:12px 14px;
@@ -709,12 +710,6 @@ button:disabled{
 
 
 
-.trade-sale-card-note{
-  border-left:3px solid #ed1c24;
-  padding-left:10px;
-}
-.trade-sale-card-note strong{color:#fff}
-
 .requirement-match-panel{
   display:none;
   margin-bottom:14px;
@@ -756,6 +751,21 @@ button:disabled{
 }
 .tools.requirement-mode .toolbar{display:none}
 .tools.requirement-mode .destination-controls select:disabled{opacity:.7;cursor:not-allowed}
+
+.uk-trade-sale-summary{
+  display:none;
+  margin:0 0 16px;
+  padding:13px 15px;
+  border-left:3px solid var(--red2);
+  border-radius:12px;
+  background:rgba(237,28,36,.08);
+  color:#ddd;
+  font-size:13px;
+  line-height:1.5;
+}
+.uk-trade-sale-summary.show{display:block}
+.uk-trade-sale-summary strong{color:#fff;margin-right:6px}
+
 </style>
 </head>
 
@@ -834,8 +844,8 @@ button:disabled{
 
       <div class="delivery-picker" id="deliveryPicker">
         <div class="delivery-picker-head">
-          <strong>Choose your preferred UK delivery / handover point</strong>
-          <span>You can select up to 3 if you are still deciding.</span>
+          <strong>Preferred UK delivery / handover</strong>
+          <span>Select up to 3 if you are still deciding.</span>
         </div>
 
         <div class="delivery-options">
@@ -984,6 +994,12 @@ button:disabled{
     <strong>UK retail notice:</strong> AnyBike does not sell motorcycles to the general public in the UK.
     UK motorcycle sales through AnyBike are for verified motorcycle trade buyers only.
     Private buyers outside the UK can buy internationally through AnyBike.
+  </div>
+
+
+  <div class="uk-trade-sale-summary" id="ukTradeSaleSummary">
+    <strong>UK Trade Sale — No Warranty</strong>
+    Motorcycles purchased through the UK Trade route are supplied to verified motorcycle dealers / traders on a trade basis. No warranty is provided unless expressly stated in the formal quotation for that motorcycle.
   </div>
 
   <section class="trade-buying-box" id="tradeBuyingBox">
@@ -1570,12 +1586,16 @@ function deliveryPriceContextText(){
 
 function updateTradeBuyingGuidance(){
   const box = document.getElementById("tradeBuyingBox");
-  if(!box) return;
+  const tradeSummary = document.getElementById("ukTradeSaleSummary");
+  const isUKTrade = buyerChannel() === "UK Trade";
 
-  box.classList.toggle(
-    "show",
-    buyerChannel() === "UK Trade"
-  );
+  if(box){
+    box.classList.toggle("show",isUKTrade);
+  }
+
+  if(tradeSummary){
+    tradeSummary.classList.toggle("show",isUKTrade);
+  }
 }
 
 function updateDestinationContext(){
@@ -2169,22 +2189,13 @@ function cardHTML(bike){
 
         <div class="delivery-price-context">${escapeHtml(deliveryPriceContextText())}</div>
 
-        ${
-          selectedBuyerType === "Trade"
-            ? `<div class="offer-note trade-sale-card-note">
-                 <strong>Trade Sale — No Warranty</strong>
-                 Supplied to a motorcycle dealer / trader on a trade basis.
-               </div>`
-            : ""
-        }
-
         <div class="actions">
           <a
             class="view-advert"
             href="${detailsUrl}"
             onclick="event.stopPropagation();"
           >
-            View Full Advert
+            View Details
           </a>
 
           <button
