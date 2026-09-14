@@ -33,9 +33,9 @@ const ANYBIKE_HEADER_TRANSLATIONS = {
     language:"Language",
     currency:"Currency",
     home:"Home",
-    stock:"Available Stock",
+    stock:"Available Motorcycles",
     buy:"Buy a Motorcycle",
-    sell:"Sell Your Motorcycle",
+    sell:"Sell to AnyBike",
     export:"Export Services",
     connect:"AnyBike Connect",
     account:"My AnyBike",
@@ -61,7 +61,7 @@ const ANYBIKE_HEADER_TRANSLATIONS = {
     home:"Startseite",
     stock:"Verfügbare Motorräder",
     buy:"Motorrad kaufen",
-    sell:"Motorrad verkaufen",
+    sell:"An AnyBike verkaufen",
     export:"Exportservice",
     connect:"AnyBike Kontakt",
     account:"Mein AnyBike",
@@ -87,7 +87,7 @@ const ANYBIKE_HEADER_TRANSLATIONS = {
     home:"Accueil",
     stock:"Motos disponibles",
     buy:"Acheter une moto",
-    sell:"Vendre votre moto",
+    sell:"Vendre à AnyBike",
     export:"Services d’exportation",
     connect:"Contacter AnyBike",
     account:"Mon AnyBike",
@@ -113,7 +113,7 @@ const ANYBIKE_HEADER_TRANSLATIONS = {
     home:"Inicio",
     stock:"Motos disponibles",
     buy:"Comprar una moto",
-    sell:"Vender tu moto",
+    sell:"Vender a AnyBike",
     export:"Servicios de exportación",
     connect:"Contactar con AnyBike",
     account:"Mi AnyBike",
@@ -139,7 +139,7 @@ const ANYBIKE_HEADER_TRANSLATIONS = {
     home:"الرئيسية",
     stock:"الدراجات المتاحة",
     buy:"شراء دراجة نارية",
-    sell:"بيع دراجتك",
+    sell:"البيع إلى AnyBike",
     export:"خدمات التصدير",
     connect:"تواصل مع AnyBike",
     account:"حسابي",
@@ -541,8 +541,20 @@ function setActivePublicNav(){
     return;
   }
 
+  if(path.includes("about-us")){
+    markActive("about");
+    return;
+  }
+
   if(path.includes("contact-us") || path.includes("anybike-connect")){
-    markActive("connect");
+    const params = new URLSearchParams(window.location.search);
+    const journey = String(params.get("journey") || "").toLowerCase();
+
+    if(journey === "dealer" || journey === "trade"){
+      markActive("buy");
+    }else{
+      markActive("connect");
+    }
   }
 
   function markActive(page){
