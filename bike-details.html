@@ -90,6 +90,63 @@ body{
   text-transform:uppercase;
 }
 
+.gallery-thumbs{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:10px;
+  margin-top:14px;
+}
+
+.gallery-thumb{
+  position:relative;
+  min-width:0;
+  aspect-ratio:4/3;
+  overflow:hidden;
+  border:1px solid rgba(255,255,255,.13);
+  border-radius:12px;
+  background:linear-gradient(135deg,#151515,#222);
+}
+
+button.gallery-thumb{
+  width:100%;
+  padding:0;
+  cursor:pointer;
+}
+
+button.gallery-thumb:hover,
+button.gallery-thumb.active{
+  border-color:var(--red);
+}
+
+.gallery-thumb img.real{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  display:block;
+}
+
+.gallery-thumb.placeholder{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  cursor:default;
+}
+
+.gallery-thumb.placeholder img{
+  width:72%;
+  max-height:70%;
+  object-fit:contain;
+  opacity:.18;
+  filter:grayscale(1);
+}
+
+.gallery-count{
+  margin-top:10px;
+  color:#999;
+  font-size:12px;
+  text-align:center;
+}
+
 h1{
   font-size:clamp(34px,5vw,58px);
   margin:0 0 8px;
@@ -264,6 +321,11 @@ button:disabled{
 
   .grid{grid-template-columns:1fr}
   .imageBox{height:280px}
+  .gallery-thumbs{grid-template-columns:repeat(4,minmax(0,1fr))}
+}
+
+@media(max-width:520px){
+  .gallery-thumbs{grid-template-columns:repeat(3,minmax(0,1fr))}
 }
 
 
@@ -393,7 +455,7 @@ const SUPABASE_URL = "https://tuehtnezhdnkqbbhttgp.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-const logoFile="anybike-logo-new.jpg";
+const placeholderImageFile="/anybike-image-coming-soon.png";
 const ANYBIKE_PUBLIC_PRICE_ALLOWANCE_GBP=250;
 const STANDARD_INCLUDED_DELIVERY_POINTS=new Set([
   "Bristol",
@@ -416,6 +478,10 @@ const STANDARD_INCLUDED_DELIVERY_POINTS=new Set([
 let currentUser=null;
 let currentProfile=null;
 let bike=null;
+let bikeImages=[];
+let activeImageIndex=0;
+const GALLERY_PLACEHOLDER_SLOTS=8;
+const MAX_GALLERY_IMAGES=12;
 let watched=false;
 let enquirySubmitting=false;
 let watchUpdating=false;
@@ -689,6 +755,7 @@ async function loadBike(){
   }
 
   bike=data;
+  await loadBikeImages(id);
 
   if(currentUser){
     await saveRecentlyViewed(id);
@@ -720,18 +787,113 @@ async function checkWatchlist(id){
   watched=!!data;
 }
 
+async function loadBikeImages(bikeId){
+  bikeImages=[];
+  activeImageIndex=0;
+
+  try{
+    const {data,error}=await sb
+      .from("bike_images")
+      .select("id,bike_id,image_number,storage_path,is_primary")
+      .eq("bike_id",Number(bikeId))
+      .order("is_primary",{ascending:false})
+      .order("image_number",{ascending:true})
+      .limit(MAX_GALLERY_IMAGES);
+
+    if(error){
+      console.warn("Additional bike images could not be loaded",error.message);
+    }else{
+      const seen=new Set();
+
+      (data || []).forEach(function(row){
+        const storagePath=String(row.storage_path || "").trim();
+        if(!storagePath) return;
+
+        const {data:publicData}=sb.storage
+          .from("motorcycles")
+          .getPublicUrl(storagePath);
+
+        const url=safeUrl(publicData?.publicUrl || "");
+        if(!url || seen.has(url)) return;
+
+        seen.add(url);
+        bikeImages.push({
+          url,
+          imageNumber:Number(row.image_number || 0),
+          isPrimary:row.is_primary===true
+        });
+      });
+    }
+  }catch(error){
+    console.warn("Additional bike images could not be loaded",error);
+  }
+
+  const fallback=safeUrl(bike?.image_url);
+  if(fallback && !bikeImages.some(item=>item.url===fallback)){
+    bikeImages.unshift({url:fallback,imageNumber:0,isPrimary:bikeImages.length===0});
+  }
+
+  bikeImages=bikeImages.slice(0,MAX_GALLERY_IMAGES);
+}
+
+function currentGalleryImageUrl(){
+  return safeUrl(bikeImages[activeImageIndex]?.url || bike?.image_url || "");
+}
+
 function imageHTML(){
-  const imageUrl=safeUrl(bike?.image_url);
+  const imageUrl=currentGalleryImageUrl();
 
   if(imageUrl){
-    return `<img class="real" src="${safe(imageUrl)}" alt="${safe(bike.make)} ${safe(bike.model)}" loading="lazy" onerror="this.parentElement.innerHTML=placeholderHTML()">`;
+    return `<img class="real" src="${safe(imageUrl)}" alt="${safe(bike.make)} ${safe(bike.model)}" onerror="this.parentElement.innerHTML=placeholderHTML()">`;
   }
 
   return placeholderHTML();
 }
 
 function placeholderHTML(){
-  return `<img class="bg" src="${logoFile}" alt=""><div class="imageText">Register Free<br>To View Images</div>`;
+  return `<img class="real" src="${placeholderImageFile}" alt="AnyBike image coming soon">`;
+}
+
+function galleryHTML(){
+  const realCount=bikeImages.length;
+  const slotCount=Math.max(GALLERY_PLACEHOLDER_SLOTS,Math.min(MAX_GALLERY_IMAGES,realCount));
+  const slots=[];
+
+  for(let index=0;index<slotCount;index++){
+    const item=bikeImages[index];
+
+    if(item?.url){
+      slots.push(`
+        <button class="gallery-thumb ${index===activeImageIndex ? "active" : ""}" type="button" onclick="selectGalleryImage(${index})" aria-label="View motorcycle image ${index+1}">
+          <img class="real" src="${safe(item.url)}" alt="${safe(bike.make)} ${safe(bike.model)} image ${index+1}" loading="lazy">
+        </button>
+      `);
+    }else{
+      slots.push(`
+        <div class="gallery-thumb placeholder" aria-hidden="true">
+          <img src="${placeholderImageFile}" alt="">
+        </div>
+      `);
+    }
+  }
+
+  return `
+    <div class="gallery-thumbs">${slots.join("")}</div>
+    <div class="gallery-count">${realCount ? `${realCount} image${realCount===1 ? "" : "s"} available` : "Images will appear here when available"}</div>
+  `;
+}
+
+function selectGalleryImage(index){
+  const next=Number(index);
+  if(!Number.isInteger(next) || next<0 || next>=bikeImages.length) return;
+  activeImageIndex=next;
+
+  const box=document.querySelector(".imageBox");
+  if(box) box.innerHTML=imageHTML();
+
+  document.querySelectorAll("button.gallery-thumb").forEach(function(button,buttonIndex){
+    button.classList.toggle("active",buttonIndex===activeImageIndex);
+  });
 }
 
 function render(){
@@ -745,6 +907,7 @@ function render(){
     <div class="layout">
       <section class="panel">
         <div class="imageBox">${imageHTML()}</div>
+        ${galleryHTML()}
       </section>
 
       <section class="panel">
