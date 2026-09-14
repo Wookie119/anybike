@@ -491,6 +491,115 @@ button:disabled{
 @media(max-width:720px){
   .desc{font-size:16px;line-height:1.7}
 }
+
+.imageBox.clickable{
+  cursor:zoom-in;
+}
+
+.image-lightbox{
+  display:none;
+  position:fixed;
+  inset:0;
+  z-index:12000;
+  background:rgba(0,0,0,.94);
+  align-items:center;
+  justify-content:center;
+  padding:28px 76px;
+}
+
+.image-lightbox.open{
+  display:flex;
+}
+
+.image-lightbox-inner{
+  position:relative;
+  width:min(1500px,96vw);
+  height:min(900px,90vh);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.image-lightbox img{
+  max-width:100%;
+  max-height:100%;
+  object-fit:contain;
+  border-radius:12px;
+  box-shadow:0 30px 100px rgba(0,0,0,.65);
+}
+
+.image-lightbox-close{
+  position:fixed;
+  top:18px;
+  right:24px;
+  width:48px;
+  height:48px;
+  padding:0;
+  border-radius:50%;
+  background:rgba(255,255,255,.1);
+  border:1px solid rgba(255,255,255,.22);
+  color:#fff;
+  font-size:34px;
+  line-height:1;
+  z-index:12002;
+}
+
+.image-lightbox-close:hover{
+  background:#fff;
+  color:#111;
+}
+
+.image-lightbox-nav{
+  position:fixed;
+  top:50%;
+  transform:translateY(-50%);
+  width:52px;
+  height:70px;
+  padding:0;
+  border-radius:14px;
+  background:rgba(255,255,255,.09);
+  border:1px solid rgba(255,255,255,.18);
+  color:#fff;
+  font-size:34px;
+  z-index:12002;
+}
+
+.image-lightbox-nav:hover{
+  background:rgba(255,255,255,.18);
+}
+
+.image-lightbox-prev{left:18px}
+.image-lightbox-next{right:18px}
+
+.image-lightbox-counter{
+  position:fixed;
+  left:50%;
+  bottom:18px;
+  transform:translateX(-50%);
+  padding:8px 12px;
+  border-radius:999px;
+  background:rgba(0,0,0,.55);
+  border:1px solid rgba(255,255,255,.15);
+  color:#ddd;
+  font-size:13px;
+  z-index:12002;
+}
+
+@media(max-width:720px){
+  .image-lightbox{padding:64px 16px 72px}
+  .image-lightbox-nav{
+    top:auto;
+    bottom:16px;
+    transform:none;
+    width:48px;
+    height:48px;
+    border-radius:50%;
+  }
+  .image-lightbox-prev{left:18px}
+  .image-lightbox-next{right:18px}
+  .image-lightbox-counter{bottom:24px}
+}
+
 </style>
 </head>
 
@@ -542,6 +651,17 @@ button:disabled{
 
     <button id="sendEnquiryBtn" class="primary" onclick="submitBikeEnquiry()">Send Enquiry</button>
   </div>
+</div>
+
+
+<div id="imageLightbox" class="image-lightbox" aria-hidden="true">
+  <button class="image-lightbox-close" type="button" onclick="closeImageLightbox()" aria-label="Close image">×</button>
+  <button class="image-lightbox-nav image-lightbox-prev" type="button" onclick="moveLightbox(-1)" aria-label="Previous image">‹</button>
+  <div class="image-lightbox-inner">
+    <img id="imageLightboxImg" src="" alt="">
+  </div>
+  <button class="image-lightbox-nav image-lightbox-next" type="button" onclick="moveLightbox(1)" aria-label="Next image">›</button>
+  <div class="image-lightbox-counter" id="imageLightboxCounter"></div>
 </div>
 
 <footer class="footer">
@@ -700,7 +820,7 @@ function anybikeDeliveryPriceText(){
   const points=context.deliveryPoints || [];
 
   if(!points.length){
-    return "UK delivery to Bristol · Dover · Felixstowe · Harwich · Hull · Immingham · London Gateway · Plymouth · Poole · Portbury · Portsmouth · Purfleet · Sheerness · Southampton · Thamesport · Tilbury is included.";
+    return "AnyBike Price includes UK delivery to the following ports: Bristol · Dover · Felixstowe · Harwich · Hull · Immingham · London Gateway · Plymouth · Poole · Portbury · Portsmouth · Purfleet · Sheerness · Southampton · Thamesport · Tilbury.";
   }
 
   const allIncluded=points.every(point=>STANDARD_INCLUDED_DELIVERY_POINTS.has(point));
@@ -713,7 +833,7 @@ function anybikeDeliveryPriceText(){
     return "UK delivery to your selected export handover points is included.";
   }
 
-  return "UK delivery to Bristol · Dover · Felixstowe · Harwich · Hull · Immingham · London Gateway · Plymouth · Poole · Portbury · Portsmouth · Purfleet · Sheerness · Southampton · Thamesport · Tilbury is included. Delivery to other UK handover points is subject to confirmation.";
+  return "AnyBike Price includes UK delivery to the following ports: Bristol · Dover · Felixstowe · Harwich · Hull · Immingham · London Gateway · Plymouth · Poole · Portbury · Portsmouth · Purfleet · Sheerness · Southampton · Thamesport · Tilbury. Delivery to other UK handover points is subject to confirmation.";
 }
 
 function tradeSaleNoticeHTML(){
@@ -968,7 +1088,7 @@ function galleryHTML(){
 
     if(item?.url){
       slots.push(`
-        <button class="gallery-thumb ${index===activeImageIndex ? "active" : ""}" type="button" onclick="selectGalleryImage(${index})" aria-label="View motorcycle image ${index+1}">
+        <button class="gallery-thumb ${index===activeImageIndex ? "active" : ""}" type="button" onclick="selectGalleryImage(${index},true)" aria-label="View motorcycle image ${index+1}">
           <img class="real" src="${safe(item.url)}" alt="${safe(bike.make)} ${safe(bike.model)} image ${index+1}" loading="lazy">
         </button>
       `);
@@ -987,13 +1107,73 @@ function galleryHTML(){
   `;
 }
 
-function selectGalleryImage(index){
+function selectGalleryImage(index,openLarge=false){
   const next=Number(index);
   if(!Number.isInteger(next) || next<0 || next>=bikeImages.length) return;
   activeImageIndex=next;
 
   const box=document.querySelector(".imageBox");
-  if(box) box.innerHTML=imageHTML();
+  if(box){
+    box.innerHTML=imageHTML();
+    box.classList.add("clickable");
+    box.onclick=function(){openImageLightbox(activeImageIndex)};
+    box.title="Click to enlarge";
+  }
+
+  document.querySelectorAll("button.gallery-thumb").forEach(function(button,buttonIndex){
+    button.classList.toggle("active",buttonIndex===activeImageIndex);
+  });
+
+  if(openLarge){
+    openImageLightbox(activeImageIndex);
+  }
+}
+
+function openImageLightbox(index=activeImageIndex){
+  if(!bikeImages.length) return;
+
+  const next=Number(index);
+  if(Number.isInteger(next) && next>=0 && next<bikeImages.length){
+    activeImageIndex=next;
+  }
+
+  const item=bikeImages[activeImageIndex];
+  const url=safeUrl(item?.url || "");
+  if(!url) return;
+
+  const lightbox=document.getElementById("imageLightbox");
+  const image=document.getElementById("imageLightboxImg");
+  const counter=document.getElementById("imageLightboxCounter");
+
+  if(!lightbox || !image) return;
+
+  image.src=url;
+  image.alt=`${String(bike?.make || "")} ${String(bike?.model || "")} image ${activeImageIndex+1}`.trim();
+
+  if(counter){
+    counter.textContent=`${activeImageIndex+1} / ${bikeImages.length}`;
+  }
+
+  lightbox.classList.add("open");
+  lightbox.setAttribute("aria-hidden","false");
+  document.body.style.overflow="hidden";
+}
+
+function closeImageLightbox(){
+  const lightbox=document.getElementById("imageLightbox");
+  if(!lightbox) return;
+
+  lightbox.classList.remove("open");
+  lightbox.setAttribute("aria-hidden","true");
+  document.body.style.overflow="";
+}
+
+function moveLightbox(direction){
+  if(!bikeImages.length) return;
+
+  const step=Number(direction) || 0;
+  activeImageIndex=(activeImageIndex + step + bikeImages.length) % bikeImages.length;
+  openImageLightbox(activeImageIndex);
 
   document.querySelectorAll("button.gallery-thumb").forEach(function(button,buttonIndex){
     button.classList.toggle("active",buttonIndex===activeImageIndex);
@@ -1010,7 +1190,7 @@ function render(){
   document.getElementById("content").innerHTML=`
     <div class="layout">
       <section class="panel">
-        <div class="imageBox">${imageHTML()}</div>
+        <div class="imageBox ${bikeImages.length ? "clickable" : ""}" ${bikeImages.length ? 'onclick="openImageLightbox(activeImageIndex)" title="Click to enlarge"' : ""}>${imageHTML()}</div>
         ${galleryHTML()}
       </section>
 
@@ -1019,7 +1199,7 @@ function render(){
         <div class="variant">${variant || "&nbsp;"}</div>
 
         <div class="price">${anybikePriceText(bike.price_gbp)}</div>
-        <p class="muted"><strong>AnyBike Price.</strong> ${anybikeDeliveryPriceText()}</p>
+        <p class="muted">${anybikeDeliveryPriceText()}</p>
         <div class="grid">
           <div class="spec"><span>Year</span><strong>${bike.year || "TBC"}</strong></div>
           <div class="spec"><span>Mileage</span><strong>${miles(bike.mileage)}</strong></div>
@@ -1411,7 +1591,33 @@ document.getElementById("enquiryModal").addEventListener("click",function(event)
   }
 });
 
+document.getElementById("imageLightbox").addEventListener("click",function(event){
+  if(event.target===this){
+    closeImageLightbox();
+  }
+});
+
 document.addEventListener("keydown",function(event){
+  const lightbox=document.getElementById("imageLightbox");
+  const lightboxOpen=lightbox?.classList.contains("open");
+
+  if(lightboxOpen){
+    if(event.key==="Escape"){
+      closeImageLightbox();
+      return;
+    }
+
+    if(event.key==="ArrowLeft"){
+      moveLightbox(-1);
+      return;
+    }
+
+    if(event.key==="ArrowRight"){
+      moveLightbox(1);
+      return;
+    }
+  }
+
   if(event.key==="Escape" && !enquirySubmitting){
     closeEnquiryModal();
   }
