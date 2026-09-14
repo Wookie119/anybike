@@ -278,6 +278,57 @@ button:disabled{
   line-height:1.55;
 }
 .eligibility-box strong{color:#fff}
+
+.buying-context{
+  margin:16px 0 0;
+  padding:14px 16px;
+  border:1px solid rgba(255,255,255,.13);
+  border-radius:14px;
+  background:rgba(255,255,255,.04);
+}
+.buying-context-title{
+  margin:0 0 10px;
+  color:#fff;
+  font-size:13px;
+  font-weight:950;
+  letter-spacing:.04em;
+  text-transform:uppercase;
+}
+.buying-context-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:10px;
+}
+.buying-context-item{
+  min-width:0;
+  padding:10px 12px;
+  border:1px solid rgba(255,255,255,.09);
+  border-radius:11px;
+  background:rgba(0,0,0,.16);
+}
+.buying-context-item span{
+  display:block;
+  margin-bottom:4px;
+  color:#999;
+  font-size:11px;
+  font-weight:900;
+  text-transform:uppercase;
+}
+.buying-context-item strong{
+  color:#fff;
+  font-size:14px;
+  line-height:1.35;
+  overflow-wrap:anywhere;
+}
+.buying-context-note{
+  margin-top:10px;
+  color:#aaa;
+  font-size:12px;
+  line-height:1.45;
+}
+@media(max-width:850px){
+  .buying-context-grid{grid-template-columns:1fr}
+}
 </style>
 </head>
 
@@ -286,7 +337,7 @@ button:disabled{
 <div id="publicHeader"></div>
 
 <main class="wrap">
-  <a class="back" href="/available-stock.html">← Back to Available Stock</a>
+  <a class="back" id="backToStockLink" href="/available-stock.html">← Back to Available Stock</a>
   <div id="content">
     <p class="muted">Loading bike details...</p>
   </div>
@@ -298,6 +349,7 @@ button:disabled{
 
     <h2>Ask About This Bike</h2>
     <p class="muted" style="margin-top:-6px;">Availability and export eligibility will be confirmed by AnyBike before any formal offer is issued.</p>
+    <div id="enquiryContextBox"></div>
 
     <label>Phone / WhatsApp</label>
     <input id="enquiryPhone" placeholder="Phone / WhatsApp number">
@@ -333,7 +385,7 @@ button:disabled{
 
 <footer class="footer">
   <strong>ANYBIKE.CO.UK</strong><br>
-  <span>UK Motorcycle Export Specialists — Worldwide sourcing and export services.</span>
+  <span>International Retail • International Trade • UK Trade — Motorcycles bought and sold by AnyBike.</span>
 </footer>
 
 <script>
@@ -437,6 +489,81 @@ function idFromUrl(){
   return normaliseBikeId(
     new URLSearchParams(location.search).get("id")
   );
+}
+
+function getBuyingContext(){
+  const params=new URLSearchParams(location.search);
+
+  const destination=String(params.get("destination") || "").trim();
+  const buyerType=String(params.get("buyerType") || "").trim();
+  const channel=String(params.get("channel") || "").trim();
+
+  const deliveryPoints=params
+    .getAll("deliveryPoint")
+    .map(v=>String(v || "").trim())
+    .filter(Boolean)
+    .slice(0,3);
+
+  return {
+    destination,
+    buyerType,
+    channel,
+    deliveryPoints
+  };
+}
+
+function buyingContextHTML(){
+  const context=getBuyingContext();
+
+  const hasContext=
+    context.destination ||
+    context.buyerType ||
+    context.channel ||
+    context.deliveryPoints.length;
+
+  if(!hasContext){
+    return "";
+  }
+
+  const deliveryText=context.deliveryPoints.length
+    ? context.deliveryPoints.join(" · ")
+    : "Not selected";
+
+  return `
+    <div class="buying-context">
+      <div class="buying-context-title">Your buying details</div>
+
+      <div class="buying-context-grid">
+        ${
+          context.destination
+            ? `<div class="buying-context-item"><span>Buying For</span><strong>${safe(context.destination)}</strong></div>`
+            : ""
+        }
+
+        ${
+          context.buyerType
+            ? `<div class="buying-context-item"><span>Buying As</span><strong>${safe(context.buyerType==="Trade" ? "Motorcycle Dealer / Trader" : context.buyerType==="Private" ? "Private Buyer" : context.buyerType)}</strong></div>`
+            : ""
+        }
+
+        ${
+          context.channel
+            ? `<div class="buying-context-item"><span>AnyBike Route</span><strong>${safe(context.channel)}</strong></div>`
+            : ""
+        }
+
+        <div class="buying-context-item">
+          <span>Selected UK delivery / handover</span>
+          <strong>${safe(deliveryText)}</strong>
+        </div>
+      </div>
+
+      <div class="buying-context-note">
+        Selected UK delivery points are carried into your enquiry. Final delivery, export eligibility
+        and any transaction-specific charges are confirmed by AnyBike before a formal offer is issued.
+      </div>
+    </div>
+  `;
 }
 
 async function loadUser(){
@@ -579,6 +706,8 @@ function render(){
           AnyBike confirms availability and export suitability before issuing a formal offer.
         </div>
 
+        ${buyingContextHTML()}
+
         <div class="grid">
           <div class="spec"><span>Year</span><strong>${bike.year || "TBC"}</strong></div>
           <div class="spec"><span>Mileage</span><strong>${miles(bike.mileage)}</strong></div>
@@ -610,6 +739,12 @@ function openEnquiryModal(){
 
   document.getElementById("enquiryPhone").value = currentProfile?.phone || "";
   document.getElementById("buyerShippingAgent").value = currentProfile?.preferred_shipping_company || "";
+
+  const contextBox=document.getElementById("enquiryContextBox");
+  if(contextBox){
+    contextBox.innerHTML=buyingContextHTML();
+  }
+
   document.getElementById("enquiryModal").style.display = "flex";
 }
 
@@ -648,6 +783,7 @@ async function submitBikeEnquiry(){
   const offer_amount=offerValue ? Number(offerValue) : null;
   const buyer_shipping_agent=document.getElementById("buyerShippingAgent").value.trim();
   const message=document.getElementById("enquiryMessage").value.trim();
+  const buyingContext=getBuyingContext();
 
   const allowedQuestionTypes=[
     "Availability",
@@ -709,6 +845,10 @@ async function submitBikeEnquiry(){
     phone.toLowerCase(),
     offer_amount ?? "",
     buyer_shipping_agent.toLowerCase(),
+    buyingContext.destination.toLowerCase(),
+    buyingContext.buyerType.toLowerCase(),
+    buyingContext.channel.toLowerCase(),
+    buyingContext.deliveryPoints.join("~").toLowerCase(),
     message.toLowerCase()
   ].join("|");
 
@@ -744,6 +884,34 @@ async function submitBikeEnquiry(){
       navigator.userAgent.includes("Safari") ? "Safari" :
       "Unknown";
 
+    const contextLines=[];
+
+    if(buyingContext.buyerType){
+      contextLines.push("Buying As: " + (
+        buyingContext.buyerType==="Trade"
+          ? "Motorcycle Dealer / Trader"
+          : buyingContext.buyerType==="Private"
+            ? "Private Buyer"
+            : buyingContext.buyerType
+      ));
+    }
+
+    if(buyingContext.channel){
+      contextLines.push("AnyBike Route: " + buyingContext.channel);
+    }
+
+    if(buyingContext.deliveryPoints.length){
+      contextLines.push(
+        "Selected UK Delivery / Handover: " +
+        buyingContext.deliveryPoints.join(" | ")
+      );
+    }
+
+    const combinedMessage=[
+      ...contextLines,
+      message
+    ].filter(Boolean).join("\n\n");
+
     const {error}=await sb
       .from("bike_enquiries")
       .insert({
@@ -756,12 +924,15 @@ async function submitBikeEnquiry(){
         customer_email:currentUser.email,
         customer_name:currentProfile?.full_name || currentUser.email,
         customer_phone:phone,
-        destination_country:currentProfile?.country || "",
+        destination_country:
+          buyingContext.destination ||
+          currentProfile?.country ||
+          "",
         customer_city:currentProfile?.city || "",
         customer_region:currentProfile?.region || "",
         device_type:deviceType,
         browser,
-        message,
+        message:combinedMessage,
         status:"New"
       });
 
@@ -872,6 +1043,24 @@ async function toggleWatch(){
   }
 }
 
+
+function updateBackToStockLink(){
+  const link=document.getElementById("backToStockLink");
+  if(!link) return;
+
+  const currentParams=new URLSearchParams(location.search);
+  currentParams.delete("id");
+
+  const target=new URL("/available-stock.html",location.origin);
+
+  for(const [key,value] of currentParams.entries()){
+    target.searchParams.append(key,value);
+  }
+
+  link.href=target.pathname + target.search;
+}
+
+
 window.addEventListener("anybikeCurrencyChanged", function(e){
   localStorage.setItem("anybikeCurrency",e.detail.currency || "GBP");
   localStorage.setItem("anybike_currency",e.detail.currency || "GBP");
@@ -896,6 +1085,7 @@ document.addEventListener("keydown",function(event){
 });
 
 (async function init(){
+  updateBackToStockLink();
   await loadUser();
   await loadBike();
 })();
