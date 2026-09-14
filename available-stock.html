@@ -653,6 +653,52 @@ button:disabled{
 .delivery-price-context{margin-top:4px;color:#ddd;font-size:12px;line-height:1.4}
 .offer-note{margin-top:3px;color:#999;font-size:11px;line-height:1.4}
 
+
+.custom-delivery-wrap{
+  grid-column:1/-1;
+  display:grid;
+  grid-template-columns:auto 1fr;
+  gap:10px;
+  align-items:center;
+  padding:10px 11px;
+  border:1px solid rgba(255,255,255,.15);
+  border-radius:11px;
+  background:rgba(255,255,255,.04);
+}
+.custom-delivery-wrap input[type="checkbox"]{
+  width:auto;
+  margin:0;
+  padding:0;
+  accent-color:var(--red2);
+}
+.custom-delivery-input{
+  width:100%;
+  min-width:0;
+  padding:10px 11px;
+  border:1px solid rgba(255,255,255,.18);
+  border-radius:9px;
+  background:rgba(255,255,255,.07);
+  color:#fff;
+  font-size:13px;
+}
+.custom-delivery-input:disabled{
+  opacity:.45;
+  cursor:not-allowed;
+}
+
+
+.export-eligibility-note{
+  margin:0 0 20px;
+  padding:13px 15px;
+  border:1px solid rgba(255,255,255,.12);
+  border-left:3px solid rgba(237,28,36,.72);
+  border-radius:12px;
+  background:rgba(255,255,255,.035);
+  color:#cfcfcf;
+  font-size:13px;
+  line-height:1.5;
+}
+.export-eligibility-note strong{color:#fff}
 </style>
 </head>
 
@@ -724,7 +770,7 @@ button:disabled{
       <div class="delivery-picker" id="deliveryPicker">
         <div class="delivery-picker-head">
           <strong>Choose up to 3 UK delivery / export handover points</strong>
-          <span>Not sure which one to use? Compare several.</span>
+          <span>Not sure which one to use? Select up to 3 options.</span>
         </div>
 
         <div class="delivery-options">
@@ -756,6 +802,18 @@ button:disabled{
           <label class="delivery-option">
             <input type="checkbox" name="deliveryPoint" value="Mainland UK Dealer">
             <span>Mainland UK Dealer<small>Dealer delivery address</small></span>
+          </label>
+
+          <label class="custom-delivery-wrap">
+            <input type="checkbox" id="customDeliveryToggle" value="custom">
+            <input
+              type="text"
+              id="customDeliveryInput"
+              class="custom-delivery-input"
+              placeholder="Other UK port"
+              maxlength="80"
+              disabled
+            >
           </label>
         </div>
 
@@ -800,6 +858,13 @@ button:disabled{
     <strong>UK retail notice:</strong> AnyBike does not sell motorcycles to the general public in the UK.
     UK motorcycle sales through AnyBike are for verified motorcycle trade buyers only.
     Private buyers outside the UK can buy internationally through AnyBike.
+  </div>
+
+  <div class="export-eligibility-note">
+    <strong>Export eligibility is subject to confirmation.</strong>
+    Some motorcycles — particularly new, nearly new or manufacturer-controlled stock — may be subject to
+    supplier, manufacturer, franchise, finance, registration or destination-market restrictions.
+    AnyBike confirms availability and export suitability before issuing a formal offer.
   </div>
 
   <section class="trade-buying-box" id="tradeBuyingBox">
@@ -1263,23 +1328,50 @@ function buyerChannel(){
 }
 
 function getSelectedDeliveryPoints(){
-  return Array.from(
+  const points = Array.from(
     document.querySelectorAll('input[name="deliveryPoint"]:checked')
   ).map(function(input){
     return input.value;
   });
+
+  const customToggle = document.getElementById("customDeliveryToggle");
+  const customInput = document.getElementById("customDeliveryInput");
+  const customValue = String(customInput?.value || "").trim();
+
+  if(customToggle?.checked && customValue){
+    points.push(customValue);
+  }
+
+  return points.slice(0,3);
 }
 
 function syncDeliverySelection(){
   selectedDeliveryPoints = getSelectedDeliveryPoints();
+
+  const customToggle = document.getElementById("customDeliveryToggle");
+  const customInput = document.getElementById("customDeliveryInput");
+
+  const selectedCount =
+    document.querySelectorAll('input[name="deliveryPoint"]:checked').length +
+    (customToggle?.checked ? 1 : 0);
 
   document
     .querySelectorAll('input[name="deliveryPoint"]')
     .forEach(function(input){
       input.disabled =
         !input.checked &&
-        selectedDeliveryPoints.length >= 3;
+        selectedCount >= 3;
     });
+
+  if(customToggle){
+    customToggle.disabled =
+      !customToggle.checked &&
+      selectedCount >= 3;
+  }
+
+  if(customInput){
+    customInput.disabled = !customToggle?.checked;
+  }
 }
 
 function deliveryContextText(){
@@ -1288,10 +1380,10 @@ function deliveryContextText(){
   }
 
   if(selectedDeliveryPoints.length === 1){
-    return "UK delivery point: " + selectedDeliveryPoints[0];
+    return "Selected UK delivery point: " + selectedDeliveryPoints[0];
   }
 
-  return "Comparing: " + selectedDeliveryPoints.join(" · ");
+  return "Selected UK delivery points: " + selectedDeliveryPoints.join(" · ");
 }
 
 function updateTradeBuyingGuidance(){
@@ -1698,6 +1790,9 @@ function cardHTML(bike){
         <div class="offer-note">
           Additional services, administration and transaction-specific charges may apply and will be shown in your AnyBike Offer.
         </div>
+        <div class="offer-note">
+          Export eligibility subject to confirmation.
+        </div>
 
         <div class="actions">
           <a
@@ -1894,6 +1989,31 @@ document
     });
   });
 
+const customDeliveryToggle = document.getElementById("customDeliveryToggle");
+const customDeliveryInput = document.getElementById("customDeliveryInput");
+
+customDeliveryToggle?.addEventListener("change",function(){
+  if(customDeliveryInput){
+    customDeliveryInput.disabled = !customDeliveryToggle.checked;
+
+    if(customDeliveryToggle.checked){
+      customDeliveryInput.focus();
+    }else{
+      customDeliveryInput.value = "";
+    }
+  }
+
+  syncDeliverySelection();
+  updateUrl();
+  render();
+});
+
+customDeliveryInput?.addEventListener("input",function(){
+  syncDeliverySelection();
+  updateUrl();
+  render();
+});
+
 
 window.addEventListener("anybikeCurrencyChanged", function(e){
   const selected = e.detail.currency || "GBP";
@@ -1952,11 +2072,32 @@ window.addEventListener("anybikeLanguageChanged", function(e){
   }
 
   if(urlDeliveryPoints.length){
+    const presetValues = Array.from(
+      document.querySelectorAll('input[name="deliveryPoint"]')
+    ).map(function(input){
+      return input.value;
+    });
+
     document
       .querySelectorAll('input[name="deliveryPoint"]')
       .forEach(function(input){
         input.checked = urlDeliveryPoints.includes(input.value);
       });
+
+    const customValue = urlDeliveryPoints.find(function(point){
+      return !presetValues.includes(point);
+    });
+
+    if(customValue){
+      const customToggle = document.getElementById("customDeliveryToggle");
+      const customInput = document.getElementById("customDeliveryInput");
+
+      if(customToggle) customToggle.checked = true;
+      if(customInput){
+        customInput.disabled = false;
+        customInput.value = customValue;
+      }
+    }
 
     syncDeliverySelection();
   }
