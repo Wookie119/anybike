@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>My Saved Searches | AnyBike</title>
+<title>Buying Requirements | AnyBike</title>
 <meta name="robots" content="noindex,nofollow">
 
 <script>
@@ -209,6 +209,57 @@ button.danger{
 .search-row:last-child{border-bottom:0}
 
 .muted{color:#ccc}
+
+.requirement-intro{
+  margin:0 0 18px;
+  padding:15px 17px;
+  border:1px solid rgba(237,28,36,.40);
+  border-left:3px solid var(--red);
+  border-radius:14px;
+  background:rgba(237,28,36,.07);
+  color:#ddd;
+  line-height:1.55;
+}
+.requirement-intro strong{
+  display:block;
+  color:#fff;
+  margin-bottom:4px;
+}
+textarea{
+  width:100%;
+  min-height:105px;
+  padding:13px;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,.18);
+  background:rgba(255,255,255,.08);
+  color:#fff;
+  font:inherit;
+  resize:vertical;
+}
+.requirement-meta{
+  display:flex;
+  flex-wrap:wrap;
+  gap:7px;
+  margin-top:7px;
+}
+.requirement-pill{
+  display:inline-flex;
+  align-items:center;
+  padding:5px 8px;
+  border-radius:999px;
+  background:rgba(255,255,255,.07);
+  border:1px solid rgba(255,255,255,.1);
+  color:#ccc;
+  font-size:12px;
+  font-weight:800;
+}
+.requirement-status{
+  color:#36d37e;
+  font-size:12px;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+}
 .bad{color:#ff7676;font-weight:900}
 .ok{color:#36d37e;font-weight:900}
 .empty{color:#ccc}
@@ -283,8 +334,8 @@ button.danger{
     <nav class="main-nav">
 
       <a href="index.html">Home</a>
-      <a href="available-stock.html">Available Stock</a>
-      <a href="sell-your-motorcycle.html">Sell Your Bike</a>
+      <a href="available-stock.html">Available Motorcycles</a>
+      <a href="sell-your-motorcycle.html">Sell to AnyBike</a>
       <a href="export-services.html">Export Services</a>
       <a href="mailto:Sales@anybike.co.uk">Contact Us</a>
 
@@ -311,12 +362,18 @@ button.danger{
 <main class="wrap">
 
   <section class="hero">
-    <h1>My Saved <span>Searches</span></h1>
-    <p>Choose from live makes and models in the AnyBike stock feed. Later we can send alerts when matching motorcycles are added.</p>
+    <h1>My Buying <span>Requirements</span></h1>
+    <p>Tell AnyBike what motorcycles you want to buy. We will use your requirements to match suitable authorised stock and alert you when relevant opportunities become available.</p>
   </section>
 
   <section class="card">
-    <h2>Create Saved Search</h2>
+    <h2>Create Buying Requirement</h2>
+
+    <div class="requirement-intro">
+      <strong>UK trade buying is demand-led.</strong>
+      Save the motorcycles you want to buy and AnyBike can match suitable authorised stock as it becomes available.
+      Where a commercially viable opportunity exists, AnyBike can send you a private AnyBike Offer.
+    </div>
 
     <div class="grid">
       <div>
@@ -334,22 +391,64 @@ button.danger{
       </div>
 
       <div>
+        <label>Variant</label>
+        <input id="variant" type="text" maxlength="120" placeholder="e.g. GT, R, Adventure">
+      </div>
+
+      <div>
+        <label>Maximum mileage</label>
+        <input id="maxMileage" type="number" min="0" placeholder="20000">
+      </div>
+
+      <div>
         <label>Minimum year</label>
         <input id="minYear" type="number" placeholder="2020">
       </div>
 
       <div>
-        <label>Maximum price</label>
-        <input id="maxPrice" type="number" placeholder="10000">
+        <label>Maximum year</label>
+        <input id="maxYear" type="number" placeholder="2026">
+      </div>
+
+      <div>
+        <label>Maximum buying budget £</label>
+        <input id="maxPrice" type="number" min="0" placeholder="10000">
+      </div>
+
+      <div>
+        <label>Quantity wanted</label>
+        <input id="quantity" type="number" min="1" max="999" value="1">
+      </div>
+
+      <div>
+        <label>Buying frequency</label>
+        <select id="purchaseFrequency">
+          <option value="One-off">One-off purchase</option>
+          <option value="Occasional">Occasional</option>
+          <option value="Monthly">Monthly</option>
+          <option value="Weekly">Weekly / regular stock</option>
+          <option value="Ongoing">Ongoing requirement</option>
+        </select>
+      </div>
+
+      <div>
+        <label>Buying for</label>
+        <select id="destinationCountry">
+          <option value="United Kingdom">United Kingdom</option>
+          <option value="International">International / Export</option>
+        </select>
       </div>
     </div>
 
-    <button onclick="saveSearch()">Save Search</button>
+    <label>Additional requirement notes</label>
+    <textarea id="requirementNotes" maxlength="1500" placeholder="Preferred colours, specification, VAT requirement, condition, stock type or anything else AnyBike should know."></textarea>
+
+    <button onclick="saveSearch()">Save Buying Requirement</button>
     <p id="msg"></p>
   </section>
 
   <section class="card">
-    <h2>Saved Searches</h2>
+    <h2>My Buying Requirements</h2>
     <div id="searchList">Loading...</div>
   </section>
 
@@ -357,7 +456,7 @@ button.danger{
 
 <footer class="footer">
   <strong>ANYBIKE.CO.UK</strong>
-  <span>UK Motorcycle Export Specialists — Worldwide sourcing and export services.</span>
+  <span>International Retail • International Trade • UK Trade — Motorcycles bought and sold by AnyBike.</span>
 </footer>
 
 <script>
@@ -504,11 +603,21 @@ async function saveSearch(){
 
   const make=document.getElementById("make").value.trim();
   const model=document.getElementById("model").value.trim();
+  const variant=document.getElementById("variant").value.trim();
   const minYearValue=document.getElementById("minYear").value;
+  const maxYearValue=document.getElementById("maxYear").value;
+  const maxMileageValue=document.getElementById("maxMileage").value;
   const maxPriceValue=document.getElementById("maxPrice").value;
+  const quantityValue=document.getElementById("quantity").value;
+  const purchase_frequency=document.getElementById("purchaseFrequency").value;
+  const destination_country=document.getElementById("destinationCountry").value;
+  const requirement_notes=document.getElementById("requirementNotes").value.trim();
 
   const min_year=minYearValue ? Number(minYearValue) : null;
+  const max_year=maxYearValue ? Number(maxYearValue) : null;
+  const max_mileage=maxMileageValue ? Number(maxMileageValue) : null;
   const max_price=maxPriceValue ? Number(maxPriceValue) : null;
+  const quantity=quantityValue ? Number(quantityValue) : 1;
 
   if(min_year !== null && (!Number.isInteger(min_year) || min_year < 1900 || min_year > 2100)){
     msg("Please enter a valid minimum year.",false);
@@ -517,6 +626,31 @@ async function saveSearch(){
 
   if(max_price !== null && (!Number.isFinite(max_price) || max_price < 0 || max_price > 10000000)){
     msg("Please enter a valid maximum price.",false);
+    return;
+  }
+
+  if(max_year !== null && (!Number.isInteger(max_year) || max_year < 1900 || max_year > 2100)){
+    msg("Please enter a valid maximum year.",false);
+    return;
+  }
+
+  if(min_year !== null && max_year !== null && max_year < min_year){
+    msg("Maximum year cannot be earlier than minimum year.",false);
+    return;
+  }
+
+  if(max_mileage !== null && (!Number.isFinite(max_mileage) || max_mileage < 0 || max_mileage > 1000000)){
+    msg("Please enter a valid maximum mileage.",false);
+    return;
+  }
+
+  if(!Number.isInteger(quantity) || quantity < 1 || quantity > 999){
+    msg("Please enter a valid quantity.",false);
+    return;
+  }
+
+  if(variant.length > 120 || requirement_notes.length > 1500){
+    msg("Please shorten the requirement details.",false);
     return;
   }
 
@@ -529,8 +663,17 @@ async function saveSearch(){
     customer_id:currentUser.id,
     make:make || null,
     model:model || null,
+    variant:variant || null,
     min_year,
-    max_price
+    max_year,
+    max_mileage,
+    max_price,
+    quantity,
+    purchase_frequency,
+    destination_country,
+    buyer_type:"Motorcycle Trade",
+    requirement_notes:requirement_notes || null,
+    requirement_status:"Active"
   });
 
   if(error){
@@ -538,11 +681,18 @@ async function saveSearch(){
     return;
   }
 
-  msg("Search saved.");
+  msg("Buying requirement saved.");
   document.getElementById("make").value="";
   document.getElementById("model").innerHTML='<option value="">Any Model</option>';
+  document.getElementById("variant").value="";
   document.getElementById("minYear").value="";
+  document.getElementById("maxYear").value="";
+  document.getElementById("maxMileage").value="";
   document.getElementById("maxPrice").value="";
+  document.getElementById("quantity").value="1";
+  document.getElementById("purchaseFrequency").value="One-off";
+  document.getElementById("destinationCountry").value="United Kingdom";
+  document.getElementById("requirementNotes").value="";
   populateModels();
   loadSearches();
 }
@@ -564,29 +714,43 @@ async function loadSearches(){
 
   if(!data.length){
     document.getElementById("searchList").innerHTML =
-      `<p class="empty">No saved searches yet.</p>`;
+      `<p class="empty">No buying requirements yet.</p>`;
     return;
   }
 
   document.getElementById("searchList").innerHTML=data.map(s=>`
     <div class="search-row">
       <div>
-        <strong>${escapeHtml(s.make || "Any make")} ${escapeHtml(s.model || "")}</strong><br>
-        <span class="muted">
-          ${s.min_year ? "From year " + s.min_year + " · " : ""}
-          ${s.max_price ? "Up to £" + Number(s.max_price).toLocaleString("en-GB") : ""}
-        </span>
+        <strong>${escapeHtml(s.make || "Any make")} ${escapeHtml(s.model || "")}${s.variant ? " " + escapeHtml(s.variant) : ""}</strong><br>
+        <span class="requirement-status">${escapeHtml(s.requirement_status || "Active")}</span>
+        <div class="requirement-meta">
+          ${(s.min_year || s.max_year) ? `<span class="requirement-pill">Year ${s.min_year || "Any"}–${s.max_year || "Any"}</span>` : ""}
+          ${s.max_mileage ? `<span class="requirement-pill">Up to ${Number(s.max_mileage).toLocaleString("en-GB")} miles</span>` : ""}
+          ${s.max_price ? `<span class="requirement-pill">Budget up to £${Number(s.max_price).toLocaleString("en-GB")}</span>` : ""}
+          ${s.quantity ? `<span class="requirement-pill">Qty ${Number(s.quantity)}</span>` : ""}
+          ${s.purchase_frequency ? `<span class="requirement-pill">${escapeHtml(s.purchase_frequency)}</span>` : ""}
+          ${s.destination_country ? `<span class="requirement-pill">${escapeHtml(s.destination_country)}</span>` : ""}
+        </div>
+        ${s.requirement_notes ? `<div class="muted" style="margin-top:8px">${escapeHtml(s.requirement_notes)}</div>` : ""}
       </div>
 
      <div class="actions">
-  <button class="light" onclick="viewMatches(decodeURIComponent('${encodeURIComponent(String(s.make || ""))}'),decodeURIComponent('${encodeURIComponent(String(s.model || ""))}'),'${s.min_year || ""}','${s.max_price || ""}')">View Matches</button>
+  <button class="light" onclick="viewMatches(
+      decodeURIComponent('${encodeURIComponent(String(s.make || ""))}'),
+      decodeURIComponent('${encodeURIComponent(String(s.model || ""))}'),
+      decodeURIComponent('${encodeURIComponent(String(s.variant || ""))}'),
+      '${s.min_year || ""}',
+      '${s.max_year || ""}',
+      '${s.max_mileage || ""}',
+      '${s.max_price || ""}'
+    )">View Matches</button>
 
   <label style="margin:0;color:#fff;font-size:13px">
     <input type="checkbox"
       style="width:auto;margin-right:6px"
       ${s.email_alerts_enabled ? "checked" : ""}
       onchange="toggleSearchAlerts(${s.id}, this.checked)">
-    Email alerts
+    Match alerts
   </label>
 
   <select style="width:auto;padding:10px"
@@ -694,12 +858,16 @@ async function deleteSearch(searchId){
   loadSearches();
 }
 
-function viewMatches(make,model,minYear,maxPrice){
+function viewMatches(make,model,variant,minYear,maxYear,maxMileage,maxPrice){
   const params=new URLSearchParams();
 
   if(make) params.set("make",make);
-  if(model) params.set("search",model);
+  if(model || variant){
+    params.set("search",[model,variant].filter(Boolean).join(" "));
+  }
   if(minYear) params.set("minYear",minYear);
+  if(maxYear) params.set("maxYear",maxYear);
+  if(maxMileage) params.set("maxMileage",maxMileage);
   if(maxPrice) params.set("maxPrice",maxPrice);
 
   location.href="available-stock.html?"+params.toString();
