@@ -237,8 +237,9 @@ button:disabled{
 }
 
 .desc{
-  color:#ddd;
-  line-height:1.7;
+  color:#e5e5e5;
+  font-size:18px;
+  line-height:1.75;
   white-space:pre-wrap;
 }
 
@@ -487,6 +488,9 @@ button:disabled{
   .purchase-details-section{padding:18px}
 }
 
+@media(max-width:720px){
+  .desc{font-size:16px;line-height:1.7}
+}
 </style>
 </head>
 
@@ -809,6 +813,7 @@ async function loadUser(){
 function cleanPublicDescription(text){
   let s = String(text || "");
 
+  // Remove seller-identifying information.
   s = s.replace(/\b[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}\b/gi, "[postcode removed]");
   s = s.replace(/\b0\d{9,10}\b/g, "[phone removed]");
   s = s.replace(/\b\+44\s?\d{9,10}\b/g, "[phone removed]");
@@ -816,6 +821,17 @@ function cleanPublicDescription(text){
   s = s.replace(/https?:\/\/\S+/gi, "[link removed]");
   s = s.replace(/\b(collection only from around|collection from|located in|based in|near)\s+[^.]+\.?/gi, "");
   s = s.replace(/\b(Watford|Hertfordshire|London|Manchester|Birmingham|Bristol|Leeds|Liverpool|Glasgow|Edinburgh|Cardiff|Oxford|Cambridge|Nottingham|Sheffield|Derby|Stoke|Coventry|Southampton|Portsmouth|Reading|Milton Keynes)\b/gi, "");
+
+  // Keep the Description about the motorcycle, not generic AnyBike/export boilerplate.
+  s = s.replace(/Subject to applicable manufacturer and distributor restrictions,?\s*/gi, "");
+  s = s.replace(/AnyBike can assist customers in sourcing, purchasing and exporting motorcycles from the UK\.?/gi, "");
+  s = s.replace(/Motorcycle availability, specification, mileage and pricing are subject to confirmation at the time of enquiry\.?/gi, "");
+  s = s.replace(/Availability and export eligibility (?:will be|are) confirmed by AnyBike before any formal offer is issued\.?/gi, "");
+
+  // Tidy common generated wording without removing useful motorcycle facts.
+  s = s.replace(/Service history:\s*Service history not provided\.?/gi, "Service history not provided.");
+  s = s.replace(/\s+([.,;:!?])/g, "$1");
+  s = s.replace(/(?:\s*\.\s*){2,}/g, ". ");
   s = s.replace(/\s{2,}/g, " ").trim();
 
   return s || "Further details available on request.";
@@ -1022,7 +1038,7 @@ function render(){
 
     <section class="panel description-panel" style="margin-top:24px">
       <h2>Description</h2>
-      <div class="desc">${safe(bike.public_description || cleanPublicDescription(bike.raw_data?.Description || bike.raw_data?.description || "Further details available on request."))}</div>
+      <div class="desc">${safe(cleanPublicDescription(bike.public_description || bike.raw_data?.Description || bike.raw_data?.description || "Further details available on request."))}</div>
     </section>
 
     <section class="purchase-details-section">
