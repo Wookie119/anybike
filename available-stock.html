@@ -818,8 +818,10 @@ button:disabled{
         </div>
 
         <div class="delivery-help">
-          Select up to 3. UK dealer delivery is mainland Great Britain only and excludes Isle of Man, Jersey,
-          Guernsey, Isle of Wight, Northern Ireland and the Republic of Ireland.
+          Select up to 3. AnyBike Price includes UK delivery to Southampton, Tilbury, Felixstowe or Liverpool.
+          Other UK ports, freight forwarders and mainland UK dealer addresses are subject to confirmation.
+          UK dealer delivery is mainland Great Britain only and excludes Isle of Man, Jersey, Guernsey,
+          Isle of Wight, Northern Ireland and the Republic of Ireland.
         </div>
       </div>
     </div>
@@ -911,6 +913,12 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const logoFile = "/anybike-logo-new.jpg";
 const PAGE_SIZE = 24;
 const ANYBIKE_PUBLIC_PRICE_ALLOWANCE_GBP = 250;
+const STANDARD_INCLUDED_DELIVERY_POINTS = new Set([
+  "Southampton",
+  "Tilbury",
+  "Felixstowe",
+  "Liverpool"
+]);
 
 let currentPage = Number(new URLSearchParams(location.search).get("page") || 1);
 if(currentPage < 1) currentPage = 1;
@@ -1386,6 +1394,27 @@ function deliveryContextText(){
   return "Selected UK delivery points: " + selectedDeliveryPoints.join(" · ");
 }
 
+function allSelectedDeliveryPointsIncluded(){
+  return selectedDeliveryPoints.length > 0 &&
+    selectedDeliveryPoints.every(point => STANDARD_INCLUDED_DELIVERY_POINTS.has(point));
+}
+
+function deliveryPriceContextText(){
+  if(!selectedDeliveryPoints.length){
+    return "UK delivery to Southampton, Tilbury, Felixstowe or Liverpool included.";
+  }
+
+  if(allSelectedDeliveryPointsIncluded()){
+    if(selectedDeliveryPoints.length === 1){
+      return "UK delivery to " + selectedDeliveryPoints[0] + " included.";
+    }
+
+    return "UK delivery to your selected export handover points included.";
+  }
+
+  return "Delivery to your selected alternative UK handover point is subject to confirmation.";
+}
+
 function updateTradeBuyingGuidance(){
   const box = document.getElementById("tradeBuyingBox");
   if(!box) return;
@@ -1789,9 +1818,6 @@ function cardHTML(bike){
 
         <div class="offer-note">
           Additional services, administration and transaction-specific charges may apply and will be shown in your AnyBike Offer.
-        </div>
-        <div class="offer-note">
-          Export eligibility subject to confirmation.
         </div>
 
         <div class="actions">
