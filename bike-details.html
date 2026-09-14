@@ -1,6 +1,5 @@
 
 
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -9,7 +8,7 @@
 <title>Bike Details | AnyBike</title>
 <meta name="robots" content="index,follow">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="/public-header.css?v=20260712-4">
+<link rel="stylesheet" href="/public-header.css?v=12005">
 
 <style>
 :root{
@@ -266,6 +265,19 @@ button:disabled{
   .grid{grid-template-columns:1fr}
   .imageBox{height:280px}
 }
+
+.eligibility-box{
+  margin-top:16px;
+  padding:14px 16px;
+  border:1px solid rgba(255,255,255,.14);
+  border-left:3px solid var(--red);
+  border-radius:12px;
+  background:rgba(255,255,255,.04);
+  color:#ccc;
+  font-size:13px;
+  line-height:1.55;
+}
+.eligibility-box strong{color:#fff}
 </style>
 </head>
 
@@ -285,6 +297,7 @@ button:disabled{
     <button class="modal-close" onclick="closeEnquiryModal()">×</button>
 
     <h2>Ask About This Bike</h2>
+    <p class="muted" style="margin-top:-6px;">Availability and export eligibility will be confirmed by AnyBike before any formal offer is issued.</p>
 
     <label>Phone / WhatsApp</label>
     <input id="enquiryPhone" placeholder="Phone / WhatsApp number">
@@ -329,6 +342,7 @@ const SUPABASE_ANON_KEY = "sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const logoFile="anybike-logo-new.jpg";
+const ANYBIKE_PUBLIC_PRICE_ALLOWANCE_GBP=250;
 let currentUser=null;
 let currentProfile=null;
 let bike=null;
@@ -411,6 +425,14 @@ function money(gbp){
   return c.symbol + Math.round(n*c.rate).toLocaleString("en-GB");
 }
 function miles(n){return n ? Number(n).toLocaleString("en-GB")+" miles" : "Mileage TBC"}
+function anybikePublicPrice(feedPrice){
+  const n=Number(feedPrice||0);
+  return n>0 ? n+ANYBIKE_PUBLIC_PRICE_ALLOWANCE_GBP : 0;
+}
+function anybikePriceText(feedPrice){
+  const n=anybikePublicPrice(feedPrice);
+  return n>0 ? money(n) : "Price on request";
+}
 function idFromUrl(){
   return normaliseBikeId(
     new URLSearchParams(location.search).get("id")
@@ -471,10 +493,10 @@ async function loadBike(){
   }
 
   const {data,error}=await sb
-    .from("public_available_stock")
+    .from("available_stock")
     .select(`
       id,make,model,variant,year,mileage,engine_cc,
-      price_gbp,colour,status,image_url,public_description,vat_status,lifecycle_status
+      price_gbp,colour,status,image_url,public_description,raw_data
     `)
     .eq("id",id)
     .single();
@@ -517,13 +539,17 @@ async function checkWatchlist(id){
 }
 
 function imageHTML(){
+  const imageUrl=safeUrl(bike?.image_url);
+
+  if(imageUrl){
+    return `<img class="real" src="${safe(imageUrl)}" alt="${safe(bike.make)} ${safe(bike.model)}" loading="lazy" onerror="this.parentElement.innerHTML=placeholderHTML()">`;
+  }
 
   return placeholderHTML();
-
 }
 
 function placeholderHTML(){
-  return `<img class="bg" src="${logoFile}" alt="AnyBike"><div class="imageText">Register Free<br>To View Images</div>`;
+  return `<img class="bg" src="${logoFile}" alt=""><div class="imageText">Register Free<br>To View Images</div>`;
 }
 
 function render(){
@@ -543,8 +569,15 @@ function render(){
         <h1>${safe(bike.make)} <span>${safe(bike.model)}</span></h1>
         <div class="variant">${variant || "&nbsp;"}</div>
 
-        <div class="price">${money(bike.price_gbp)}</div>
-        <p class="muted">Base motorcycle price. Export costs quoted separately.</p>
+        <div class="price">${anybikePriceText(bike.price_gbp)}</div>
+        <p class="muted"><strong>AnyBike Price.</strong> Additional services, administration and transaction-specific charges may apply and will be shown in your AnyBike Offer.</p>
+
+        <div class="eligibility-box">
+          <strong>Export eligibility is subject to confirmation.</strong>
+          Some motorcycles — particularly new, nearly new or manufacturer-controlled stock — may be subject to
+          supplier, manufacturer, franchise, finance, registration or destination-market restrictions.
+          AnyBike confirms availability and export suitability before issuing a formal offer.
+        </div>
 
         <div class="grid">
           <div class="spec"><span>Year</span><strong>${bike.year || "TBC"}</strong></div>
@@ -564,7 +597,7 @@ function render(){
 
     <section class="panel" style="margin-top:24px">
       <h2>Description</h2>
-     <div class="desc">${safe(bike.public_description || "Further details available on request.")}</div>
+     <div class="desc">${safe(bike.public_description || cleanPublicDescription(bike.raw_data?.Description || bike.raw_data?.description || "Further details available on request."))}</div>
     </section>
   `;
 }
@@ -867,7 +900,7 @@ document.addEventListener("keydown",function(event){
   await loadBike();
 })();
 </script>
-<script src="/public-header.js?v=20260712-4"></script>
+<script src="/public-header.js?v=12005"></script>
 
 </body>
 </html>
