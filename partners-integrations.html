@@ -990,45 +990,36 @@ Consent: Confirmed`;
     const mapCountry=country||geoInfo.country||"Unknown";
     const mapSource=country?"input_country":(geoInfo.country?"ip_lookup":"unknown");
 
-    const {data:thread,error:threadError}=await sb.from("message_centre_threads").insert({
-      customer_name:contactName,
-      customer_email:email,
-      customer_phone:phone,
-      country:country||geoInfo.country||null,
-      source_type:"Integration Request",
-      source_page:"partners-integrations.html",
-      subject:subject,
-      status:"New",
-      department:"Business Development",
-      priority:"Medium",
-      last_message:integrationWanted,
-      last_message_at:new Date().toISOString(),
-      last_sender:"Customer",
-      ip_address:geoInfo.ip||null,
-      device_type:getDeviceType(),
-      browser:getBrowser(),
-      city:geoInfo.city||null,
-      region:geoInfo.region||null,
-      postcode_zip:geoInfo.postcode||null,
-      map_country:mapCountry,
-      map_source:mapSource
-    }).select("id").single();
-
-    if(threadError)throw threadError;
-
-    const {error:messageError}=await sb.from("message_centre_messages").insert({
-      thread_id:thread.id,
-      sender_type:"Customer",
-      sender_name:contactName,
-      sender_email:email,
-      message:fullMessage,
-      is_internal_note:false
+    const {data:rpcResult,error:rpcError}=await sb.rpc("submit_integration_request",{
+      p_customer_name:contactName,
+      p_customer_email:email,
+      p_customer_phone:phone || null,
+      p_country:country || geoInfo.country || null,
+      p_subject:subject,
+      p_last_message:integrationWanted,
+      p_full_message:fullMessage,
+      p_ip_address:geoInfo.ip || null,
+      p_device_type:getDeviceType(),
+      p_browser:getBrowser(),
+      p_city:geoInfo.city || null,
+      p_region:geoInfo.region || null,
+      p_postcode_zip:geoInfo.postcode || null,
+      p_map_country:mapCountry,
+      p_map_source:mapSource
     });
 
-    if(messageError)throw messageError;
+    if(rpcError)throw rpcError;
+
+    const threadId =
+      rpcResult?.thread_id ??
+      (Array.isArray(rpcResult) ? rpcResult[0]?.thread_id : null);
+
+    if(!threadId){
+      throw new Error("Integration request was saved but no thread ID was returned.");
+    }
 
     const {error:notificationError}=await sb.functions.invoke("send-connect-enquiry-notification",{
-      body:{thread_id:String(thread.id)}
+      body:{thread_id:String(threadId)}
     });
 
     if(notificationError){
