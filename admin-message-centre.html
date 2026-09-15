@@ -800,7 +800,17 @@ async function openThread(id){
 
     ${t.global_buyer_id
       ? globalBuyerWorkspaceHtml(t,globalBuyer,globalBuyerRequestItems,globalBuyerMatches,globalBuyerLoadError)
-      : `
+      : (
+          t.related_bike_id ||
+          t.related_enquiry_id ||
+          t.related_request_id ||
+          t.related_lead_id ||
+          t.bike_make ||
+          t.bike_model ||
+          t.bike_year ||
+          lead
+        )
+        ? `
     <div class="section">
       <h3>Motorcycle</h3>
 
@@ -835,6 +845,7 @@ async function openThread(id){
       </div>
     </div>
       `
+        : ""
     }
 
     <div class="section">
@@ -880,6 +891,19 @@ async function openThread(id){
       }
     </div>
 
+    ${
+      (
+        t.related_bike_id ||
+        t.related_enquiry_id ||
+        t.related_request_id ||
+        t.related_lead_id ||
+        t.bike_make ||
+        t.bike_model ||
+        t.bike_year ||
+        lead ||
+        t.global_buyer_id
+      )
+        ? `
     <div class="section">
       <h3>📤 Share Motorcycle Documents with Buyer</h3>
       <div class="buyer-share-note" style="margin:0 0 12px;">
@@ -895,7 +919,9 @@ async function openThread(id){
               ? `<div class="buyer-share-documents">${shareableMotorcycleDocuments.map(function(doc){return buyerShareDocumentCardHtml(doc);}).join("")}</div>`
               : `<div class="customer-doc-empty">No Buyer Visible Motorcycle 360 documents are available for the motorcycle(s) authorised for this conversation.</div>`
       }
-    </div>
+    </div>`
+        : ""
+    }
 
     <div class="section reply-area">
       <h3>Reply / Route</h3>
@@ -907,9 +933,24 @@ async function openThread(id){
       </select>
       <label>Department</label>
       <select id="departmentSelect">
-        ${["Message Centre","Bike Sales","Buying Team","Global Trade","Transport","Stock Preparation","Finance","Logistics","Customer 360","Technical Support"].map(function(d){
-          return option(t.department, d);
-        }).join("")}
+        ${
+          Array.from(new Set([
+            t.department,
+            "Message Centre",
+            "Bike Sales",
+            "Buying Team",
+            "Business Development",
+            "Global Trade",
+            "Transport",
+            "Stock Preparation",
+            "Finance",
+            "Logistics",
+            "Customer 360",
+            "Technical Support"
+          ].filter(Boolean))).map(function(d){
+            return option(t.department, d);
+          }).join("")
+        }
       </select>
 
       <label>Status</label>
