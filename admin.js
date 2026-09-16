@@ -254,7 +254,7 @@ return res.text();
     setupAdminIdentity();
 
     setTimeout(function(){
-      loadAdminNotifications();
+      anybikeRefreshAdminBellV2();
     },300);
   }
 
@@ -376,6 +376,168 @@ return String(value || "")
 .replaceAll("'","&#039;");
 }
 
+
+/*
+  SHARED ADMIN BELL V2
+  --------------------
+  Unique function names are deliberate.
+  Some older admin pages still declare their own loadAdminNotifications()
+  function after admin.js has loaded. Those page-local declarations can
+  overwrite the shared compatibility function.
+
+  These V2 functions cannot be overridden by those legacy page functions.
+  They read ONLY public.admin_notifications using the authenticated client
+  already verified by admin.js.
+*/
+
+async function anybikeRefreshAdminBellV2(){
+  const client=getAdminSupabaseClient();
+
+  if(!client){
+    return;
+  }
+
+  const countEl=document.getElementById("adminNotificationCount");
+  const listEl=document.getElementById("adminNotificationList");
+  const statusEl=document.getElementById("adminNotificationStatus");
+
+  if(!countEl || !listEl){
+    return;
+  }
+
+  try{
+    const {data,error}=await client
+      .from("admin_notifications")
+      .select("id,title,message,type,link,is_read,created_at")
+      .eq("is_read",false)
+      .order("created_at",{ascending:false})
+      .limit(50);
+
+    if(error){
+      throw error;
+    }
+
+    const rows=data || [];
+
+    countEl.textContent=String(rows.length);
+    countEl.style.display=rows.length ? "flex" : "none";
+
+    document.querySelectorAll(".admin-bell-count").forEach(function(badge){
+      badge.textContent=String(rows.length);
+      badge.style.display=rows.length ? "flex" : "none";
+    });
+
+    if(statusEl){
+      statusEl.textContent=rows.length ? rows.length + " waiting" : "Live";
+    }
+
+    if(!rows.length){
+      listEl.innerHTML=
+        '<div class="admin-notification-item">' +
+          '<div>' +
+            '<strong>No notifications</strong><br>' +
+            '<small>New admin alerts will appear here.</small>' +
+          '</div>' +
+        '</div>';
+      return;
+    }
+
+    listEl.innerHTML=rows.map(function(n){
+      const id=String(n.id || "");
+      const title=escapeNotificationHtml(n.title || n.type || "Admin notification");
+      const message=escapeNotificationHtml(String(n.message || "").slice(0,140));
+      const created=n.created_at
+        ? escapeNotificationHtml(new Date(n.created_at).toLocaleString("en-GB"))
+        : "";
+      const link=escapeNotificationHtml(n.link || "admin-dashboard.html");
+
+      return (
+        '<div class="admin-notification-item" ' +
+          'style="display:flex;gap:12px;align-items:flex-start;justify-content:space-between;">' +
+          '<a href="' + link + '" ' +
+            'style="display:block;min-width:0;flex:1;color:inherit;text-decoration:none;" ' +
+            'onclick="return anybikeOpenAdminNotificationV2(event,\'' + escapeNotificationHtml(id) + '\',this.href)">' +
+            '<div>' +
+              '<strong>' + title + '</strong><br>' +
+              '<small>' + message + '</small><br>' +
+              '<small>' + created + '</small>' +
+            '</div>' +
+          '</a>' +
+          '<button type="button" class="notify-clear" ' +
+            'onclick="anybikeClearAdminNotificationV2(event,\'' + escapeNotificationHtml(id) + '\')">' +
+            'Clear' +
+          '</button>' +
+        '</div>'
+      );
+    }).join("");
+
+  }catch(error){
+    console.warn("Shared admin bell refresh failed",error);
+
+    if(statusEl){
+      statusEl.textContent="Error";
+    }
+  }
+}
+
+
+async function anybikeOpenAdminNotificationV2(event,id,target){
+  event?.preventDefault?.();
+
+  const client=getAdminSupabaseClient();
+
+  if(client && id){
+    try{
+      await client
+        .from("admin_notifications")
+        .update({is_read:true})
+        .eq("id",id);
+    }catch(error){
+      console.warn("Admin notification read update failed",error);
+    }
+  }
+
+  if(target){
+    window.location.href=target;
+  }
+
+  return false;
+}
+
+
+async function anybikeClearAdminNotificationV2(event,id){
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
+
+  const client=getAdminSupabaseClient();
+
+  if(!client || !id){
+    return;
+  }
+
+  try{
+    const {error}=await client
+      .from("admin_notifications")
+      .update({is_read:true})
+      .eq("id",id);
+
+    if(error){
+      throw error;
+    }
+
+    await anybikeRefreshAdminBellV2();
+
+  }catch(error){
+    console.warn("Admin notification clear failed",error);
+  }
+}
+
+
+window.anybikeRefreshAdminBellV2=anybikeRefreshAdminBellV2;
+window.anybikeOpenAdminNotificationV2=anybikeOpenAdminNotificationV2;
+window.anybikeClearAdminNotificationV2=anybikeClearAdminNotificationV2;
+
+
 /*
   ADMIN NOTIFICATION OWNERSHIP
   ----------------------------
@@ -479,11 +641,10 @@ async function initialiseAdmin(){
     anybikeAdminInitialised=true;
 
     loadAdminShell();
-    loadAdminNotifications();
 
     anybikeAdminNotificationTimer=setInterval(
-      loadAdminNotifications,
-      60000
+      anybikeRefreshAdminBellV2,
+      5000
     );
   }
 }
@@ -512,6 +673,7 @@ window.addEventListener("focus",async function(){
   }
 
   await recheckAdminSession();
+  await anybikeRefreshAdminBellV2();
 });
 
 document.addEventListener("visibilitychange",async function(){
@@ -520,6 +682,7 @@ document.addEventListener("visibilitychange",async function(){
   }
 
   await recheckAdminSession();
+  await anybikeRefreshAdminBellV2();
 });
 
 initialiseAdmin();
