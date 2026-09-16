@@ -1,8 +1,8 @@
 /*
 AnyBike
-File: admin.js
-Version: 11.0
-Date: 13 July 2026
+File: admin-secure.js
+Version: 12.1
+Date: 15 July 2026
 
 Changes
 --------
@@ -14,7 +14,28 @@ Changes
 ✓ Adds per-browser Clear handling for bulk-buyer alerts
 ✓ Keeps existing thread Clear behaviour
 ✓ Refreshes notifications every 60 seconds
+✓ Hides protected admin content until authentication succeeds
+✓ Re-checks authentication when restored using browser Back/Forward cache
+✓ Redirects logged-out or unauthorised users before loading the admin shell
 */
+
+/*
+  IMPORTANT: For zero content flash, protected pages should also place this
+  small inline guard in <head> before page styles:
+
+  <script>document.documentElement.classList.add("admin-auth-pending");</script>
+  <style>html.admin-auth-pending body{visibility:hidden!important;pointer-events:none!important}</style>
+*/
+
+document.documentElement.classList.add("admin-auth-pending");
+
+function revealAdminPage(){
+  document.documentElement.classList.remove("admin-auth-pending");
+}
+
+function hideAdminPage(){
+  document.documentElement.classList.add("admin-auth-pending");
+}
 
 
 const ANYBIKE_ADMIN_EMAILS = [
@@ -53,6 +74,8 @@ function isAllowedAdminEmail(email){
 }
 
 async function requireAdminSession(){
+  hideAdminPage();
+
   const client = getAdminSupabaseClient();
 
   if(!client){
@@ -61,34 +84,46 @@ async function requireAdminSession(){
     return false;
   }
 
-  const sessionResult = await client.auth.getSession();
-  const user = sessionResult?.data?.session?.user || null;
+  try{
+    const sessionResult = await client.auth.getSession();
 
-  if(!user){
-    const returnUrl =
-      window.location.pathname +
-      window.location.search +
-      window.location.hash;
+    if(sessionResult.error){
+      throw sessionResult.error;
+    }
 
-    window.location.replace(
-      "/admin-login.html?return=" + encodeURIComponent(returnUrl)
-    );
+    const user = sessionResult?.data?.session?.user || null;
 
+    if(!user){
+      const returnUrl =
+        window.location.pathname +
+        window.location.search +
+        window.location.hash;
+
+      window.location.replace(
+        "/admin-login.html?return=" + encodeURIComponent(returnUrl)
+      );
+
+      return false;
+    }
+
+    if(!isAllowedAdminEmail(user.email)){
+      await client.auth.signOut();
+
+      window.location.replace(
+        "/admin-login.html?error=not-authorized"
+      );
+
+      return false;
+    }
+
+    anybikeAdminUser = user;
+    revealAdminPage();
+    return true;
+  }catch(error){
+    console.error("Admin session check failed", error);
+    window.location.replace("/admin-login.html?error=session");
     return false;
   }
-
-  if(!isAllowedAdminEmail(user.email)){
-    await client.auth.signOut();
-
-    window.location.replace(
-      "/admin-login.html?error=not-authorized"
-    );
-
-    return false;
-  }
-
-  anybikeAdminUser = user;
-  return true;
 }
 
 async function setupAdminIdentity(){
@@ -296,37 +331,180 @@ function escapeNotificationHtml(value){
     .replaceAll("'","&#039;");
 }
 
-function getClearedBulkBuyerIds(){
-  try{
-    const raw = localStorage.getItem("anybike_cleared_bulk_buyer_notifications");
-    const parsed = raw ? JSON.parse(raw) : [];
 
-    return Array.isArray(parsed) ? parsed.map(String) : [];
+const ANYBIKE_ADMIN_NOTIFICATION_STATE_KEY =
+  "anybike_admin_notification_state_v2";
+
+const ANYBIKE_ADMIN_NOTIFICATION_BASELINE_KEY =
+  "anybike_admin_notification_baseline_v2";
+
+
+function getAdminNotificationState(){
+  try{
+    const raw = localStorage.getItem(
+      ANYBIKE_ADMIN_NOTIFICATION_STATE_KEY
+    );
+
+    const parsed = raw ? JSON.parse(raw) : {};
+
+    return parsed && typeof parsed === "object"
+      ? parsed
+      : {};
   }catch(error){
-    return [];
+    return {};
   }
 }
 
-function saveClearedBulkBuyerIds(ids){
+
+function saveAdminNotificationState(state){
   try{
-    const clean = Array.from(new Set((ids || []).map(String))).slice(-500);
+    const entries = Object.entries(state || {})
+      .sort(function(a,b){
+        return Number(b[1] || 0) - Number(a[1] || 0);
+      })
+      .slice(0,1000);
+
     localStorage.setItem(
-      "anybike_cleared_bulk_buyer_notifications",
-      JSON.stringify(clean)
+      ANYBIKE_ADMIN_NOTIFICATION_STATE_KEY,
+      JSON.stringify(Object.fromEntries(entries))
     );
   }catch(error){
-    console.log("Could not save cleared bulk-buyer notifications", error);
+    console.warn(
+      "Could not save admin notification state",
+      error
+    );
   }
 }
 
-function isNewBulkBuyerStatus(status){
-  const value = String(status || "").trim().toLowerCase();
 
-  return !value ||
+function getAdminNotificationBaseline(){
+  try{
+    const existing = Number(
+      localStorage.getItem(
+        ANYBIKE_ADMIN_NOTIFICATION_BASELINE_KEY
+      ) || 0
+    );
+
+    if(Number.isFinite(existing) && existing > 0){
+      return existing;
+    }
+
+    /*
+      One-time clean baseline:
+      everything already present when this repaired header first runs
+      is treated as historical/acknowledged.
+
+      New customer replies and new business-development requests created
+      after this moment will appear normally.
+    */
+    const baseline = Date.now();
+
+    localStorage.setItem(
+      ANYBIKE_ADMIN_NOTIFICATION_BASELINE_KEY,
+      String(baseline)
+    );
+
+    return baseline;
+
+  }catch(error){
+    return Date.now();
+  }
+}
+
+
+function makeAdminNotificationKey(type,id,sortDate){
+  return [
+    String(type || "notification"),
+    String(id || ""),
+    String(sortDate || "")
+  ].join("|");
+}
+
+
+function isAdminNotificationDismissed(row){
+  const state = getAdminNotificationState();
+
+  const exactKey = makeAdminNotificationKey(
+    row?.type,
+    row?.id,
+    row?.sortDate
+  );
+
+  const legacyKey = makeAdminNotificationKey(
+    row?.type,
+    row?.id,
+    ""
+  );
+
+  return Boolean(
+    state[exactKey] ||
+    state[legacyKey]
+  );
+}
+
+
+function acknowledgeAdminNotification(type,id,sortDate){
+  const state = getAdminNotificationState();
+  const key = makeAdminNotificationKey(
+    type,
+    id,
+    sortDate
+  );
+
+  state[key] = Date.now();
+  saveAdminNotificationState(state);
+}
+
+
+function clearAdminNotification(event,type,id,sortDate){
+  event?.preventDefault();
+  event?.stopPropagation();
+
+  acknowledgeAdminNotification(
+    type,
+    id,
+    sortDate
+  );
+
+  loadAdminNotifications();
+}
+
+
+function shouldShowAdminNotification(row,baseline){
+  const created = new Date(row?.sortDate || 0).getTime();
+
+  if(
+    !Number.isFinite(created) ||
+    created <= 0
+  ){
+    return false;
+  }
+
+  if(created < baseline){
+    return false;
+  }
+
+  if(isAdminNotificationDismissed(row)){
+    return false;
+  }
+
+  return true;
+}
+
+
+function isNewBulkBuyerStatus(status){
+  const value = String(status || "")
+    .trim()
+    .toLowerCase();
+
+  return (
+    !value ||
     value === "new" ||
     value === "new potential buyer" ||
-    value === "new buyer registered";
+    value === "new buyer registered"
+  );
 }
+
 
 async function loadAdminNotifications(){
   const sb = createAdminSupabaseClient();
@@ -334,6 +512,8 @@ async function loadAdminNotifications(){
   if(!sb){
     return;
   }
+
+  const baseline = getAdminNotificationBaseline();
 
   const results = await Promise.all([
     sb
@@ -354,11 +534,17 @@ async function loadAdminNotifications(){
   const buyerResult = results[1];
 
   if(threadResult.error){
-    console.log("Notification thread load failed", threadResult.error.message);
+    console.log(
+      "Notification thread load failed",
+      threadResult.error.message
+    );
   }
 
   if(buyerResult.error){
-    console.log("Global buyer notification load failed", buyerResult.error.message);
+    console.log(
+      "Global buyer notification load failed",
+      buyerResult.error.message
+    );
   }
 
   const notificationRows = [];
@@ -367,8 +553,14 @@ async function loadAdminNotifications(){
     const uniqueMap = new Map();
 
     (threadResult.data || []).forEach(function(t){
-      const sender = String(t.last_sender || "").toLowerCase();
+      const sender = String(
+        t.last_sender || ""
+      ).toLowerCase();
 
+      /*
+        Only a customer-originated latest message is an admin reply alert.
+        AnyBike's own most recent reply must not keep the bell active.
+      */
       if(!sender.includes("customer")){
         return;
       }
@@ -378,7 +570,7 @@ async function loadAdminNotifications(){
         : "thread-" + String(t.id);
 
       if(!uniqueMap.has(key)){
-        uniqueMap.set(key, t);
+        uniqueMap.set(key,t);
       }
     });
 
@@ -387,27 +579,29 @@ async function loadAdminNotifications(){
         type:"message",
         id:String(t.id),
         sortDate:t.last_message_at || "",
-        title:t.customer_name || t.customer_email || "Customer",
-        subtitle:[t.bike_year, t.bike_make, t.bike_model]
-          .filter(Boolean)
-          .join(" ") || t.subject || t.source_type || "Message",
+        title:
+          t.customer_name ||
+          t.customer_email ||
+          "Customer",
+        subtitle:
+          [t.bike_year,t.bike_make,t.bike_model]
+            .filter(Boolean)
+            .join(" ") ||
+          t.subject ||
+          t.source_type ||
+          "Message",
         preview:t.last_message || "",
         country:t.country || "",
         status:t.status || "",
-        relatedEnquiryId:t.related_enquiry_id || null
+        relatedEnquiryId:
+          t.related_enquiry_id || null
       });
     });
   }
 
   if(!buyerResult.error){
-    const clearedBuyerIds = getClearedBulkBuyerIds();
-
     (buyerResult.data || []).forEach(function(b){
       if(!isNewBulkBuyerStatus(b.status)){
-        return;
-      }
-
-      if(clearedBuyerIds.includes(String(b.id))){
         return;
       }
 
@@ -415,61 +609,130 @@ async function loadAdminNotifications(){
         type:"bulk-buyer",
         id:String(b.id),
         sortDate:b.created_at || "",
-        title:b.business_name || b.contact_name || b.email || "New bulk buyer",
+        title:
+          b.business_name ||
+          b.contact_name ||
+          b.email ||
+          "New bulk buyer",
         subtitle:"Global Buyer Network request",
         preview:b.contact_name
           ? "New request from " + b.contact_name
           : "A new bulk motorcycle request has arrived.",
         country:b.country || "",
-        status:b.status || "New Buyer Registered",
+        status:
+          b.status || "New Buyer Registered",
         relatedEnquiryId:null
       });
     });
   }
 
-  notificationRows.sort(function(a,b){
-    return new Date(b.sortDate || 0) - new Date(a.sortDate || 0);
-  });
+  const visibleRows = notificationRows
+    .filter(function(row){
+      return shouldShowAdminNotification(
+        row,
+        baseline
+      );
+    })
+    .sort(function(a,b){
+      return (
+        new Date(b.sortDate || 0) -
+        new Date(a.sortDate || 0)
+      );
+    });
 
-  updateAdminNotificationBadge(notificationRows.length);
-  renderAdminNotificationList(notificationRows);
+  updateAdminNotificationBadge(
+    visibleRows.length
+  );
+
+  renderAdminNotificationList(
+    visibleRows
+  );
 }
+
 
 function updateAdminNotificationBadge(count){
-  document.querySelectorAll("#adminNotificationCount, .admin-bell-count").forEach(function(badge){
-    badge.textContent = count;
-    badge.style.display = count > 0 ? "flex" : "none";
-    badge.style.alignItems = "center";
-    badge.style.justifyContent = "center";
-  });
+  document
+    .querySelectorAll(
+      "#adminNotificationCount, .admin-bell-count"
+    )
+    .forEach(function(badge){
+      badge.textContent = count;
+      badge.style.display =
+        count > 0 ? "flex" : "none";
+      badge.style.alignItems = "center";
+      badge.style.justifyContent = "center";
+    });
 
-  const status = document.getElementById("adminNotificationStatus");
+  const status =
+    document.getElementById(
+      "adminNotificationStatus"
+    );
 
   if(status){
-    status.textContent = count > 0 ? count + " waiting" : "Live";
+    status.textContent =
+      count > 0
+        ? count + " waiting"
+        : "Live";
   }
 }
+
 
 function renderAdminNotificationList(rows){
   let notificationHtml = "";
 
   if(rows.length){
-    notificationHtml = rows.slice(0,12).map(function(row){
-      const title = escapeNotificationHtml(row.title);
-      const subtitle = escapeNotificationHtml(row.subtitle);
-      const preview = escapeNotificationHtml(String(row.preview || "").substring(0,90));
-      const country = escapeNotificationHtml(row.country || "");
-      const when = row.sortDate ? timeAgo(row.sortDate) : "";
-      const initial = escapeNotificationHtml(String(row.title || "?").charAt(0).toUpperCase());
+    notificationHtml = rows
+      .slice(0,12)
+      .map(function(row){
+        const title =
+          escapeNotificationHtml(row.title);
 
-      if(row.type === "bulk-buyer"){
-        const link = "admin-global-buyer-network.html?buyer=" + encodeURIComponent(row.id);
+        const subtitle =
+          escapeNotificationHtml(row.subtitle);
 
-        return `
+        const preview =
+          escapeNotificationHtml(
+            String(row.preview || "")
+              .substring(0,90)
+          );
+
+        const country =
+          escapeNotificationHtml(
+            row.country || ""
+          );
+
+        const when = row.sortDate
+          ? timeAgo(row.sortDate)
+          : "";
+
+        const initial =
+          escapeNotificationHtml(
+            String(row.title || "?")
+              .charAt(0)
+              .toUpperCase()
+          );
+
+        const safeType =
+          escapeNotificationHtml(row.type);
+
+        const safeId =
+          escapeNotificationHtml(row.id);
+
+        const safeDate =
+          escapeNotificationHtml(
+            row.sortDate || ""
+          );
+
+        if(row.type === "bulk-buyer"){
+          const link =
+            "admin-global-buyer-network.html?buyer=" +
+            encodeURIComponent(row.id);
+
+          return `
 <a class="admin-notification-item"
    href="${link}"
    style="display:flex;gap:12px;align-items:flex-start;"
-   onclick="markBulkBuyerNotificationOpened('${escapeNotificationHtml(row.id)}')">
+   onclick="acknowledgeAdminNotification('${safeType}','${safeId}','${safeDate}')">
 
   <div class="notify-avatar"
        style="width:38px;height:38px;min-width:38px;border-radius:50%;background:#ed1c24;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;line-height:1;">
@@ -485,7 +748,8 @@ function renderAdminNotificationList(rows){
     <div class="notify-bike">🌍 ${subtitle}</div>
     <div class="notify-preview">${preview}</div>
 
-    <div class="notify-footer" style="display:flex;justify-content:space-between;gap:12px;margin-top:5px;">
+    <div class="notify-footer"
+         style="display:flex;justify-content:space-between;gap:12px;margin-top:5px;">
       <span>${country}</span>
       <span>${escapeNotificationHtml(when)}</span>
     </div>
@@ -493,25 +757,35 @@ function renderAdminNotificationList(rows){
     <button
       type="button"
       class="notify-clear"
-      onclick="event.preventDefault();event.stopPropagation();clearBulkBuyerNotification('${escapeNotificationHtml(row.id)}')">
+      onclick="clearAdminNotification(event,'${safeType}','${safeId}','${safeDate}')">
       Clear
     </button>
   </div>
 
 </a>
 `;
-      }
+        }
 
-      const bikeLink = row.relatedEnquiryId
-        ? "admin-enquiries.html?open=" + encodeURIComponent(row.relatedEnquiryId) + "&focus=messages"
-        : "admin-message-centre.html?thread=" + encodeURIComponent(row.id);
+        const targetLink =
+          row.relatedEnquiryId
+            ? "admin-enquiries.html?open=" +
+              encodeURIComponent(
+                row.relatedEnquiryId
+              ) +
+              "&focus=messages"
+            : "admin-message-centre.html?thread=" +
+              encodeURIComponent(row.id);
 
-      const dot = row.status === "New" ? "🔴" : "🟢";
+        const dot =
+          row.status === "New"
+            ? "🔴"
+            : "🟢";
 
-      return `
+        return `
 <a class="admin-notification-item"
-   href="${bikeLink}"
-   style="display:flex;gap:12px;align-items:flex-start;">
+   href="${targetLink}"
+   style="display:flex;gap:12px;align-items:flex-start;"
+   onclick="acknowledgeAdminNotification('${safeType}','${safeId}','${safeDate}')">
 
   <div class="notify-avatar"
        style="width:38px;height:38px;min-width:38px;border-radius:50%;background:#ed1c24;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;line-height:1;">
@@ -519,15 +793,17 @@ function renderAdminNotificationList(rows){
   </div>
 
   <div class="notify-content" style="min-width:0;flex:1;">
-    <div class="notify-top" style="display:flex;justify-content:space-between;gap:10px;">
+    <div class="notify-top"
+         style="display:flex;justify-content:space-between;gap:10px;">
       <strong>${title}</strong>
       <span>${dot}</span>
     </div>
 
-    <div class="notify-bike">🏍 ${subtitle}</div>
+    <div class="notify-bike">💬 ${subtitle}</div>
     <div class="notify-preview">${preview}</div>
 
-    <div class="notify-footer" style="display:flex;justify-content:space-between;gap:12px;margin-top:5px;">
+    <div class="notify-footer"
+         style="display:flex;justify-content:space-between;gap:12px;margin-top:5px;">
       <span>${country}</span>
       <span>${escapeNotificationHtml(when)}</span>
     </div>
@@ -535,67 +811,92 @@ function renderAdminNotificationList(rows){
     <button
       type="button"
       class="notify-clear"
-      onclick="event.preventDefault();event.stopPropagation();markThreadHandled(event,'${escapeNotificationHtml(row.id)}')">
+      onclick="clearAdminNotification(event,'${safeType}','${safeId}','${safeDate}')">
       Clear
     </button>
   </div>
 
 </a>
 `;
-    }).join("");
+      })
+      .join("");
+
   }else{
     notificationHtml = `
       <div class="admin-notification-item">
         <strong>No admin actions waiting</strong>
-        <small>New messages and Global Buyer requests will appear here.</small>
+        <small>New customer replies and new business requests will appear here.</small>
       </div>
     `;
   }
 
-  document.querySelectorAll("#adminNotificationList, .admin-notification-list").forEach(function(list){
-    list.innerHTML = notificationHtml;
-  });
+  document
+    .querySelectorAll(
+      "#adminNotificationList, .admin-notification-list"
+    )
+    .forEach(function(list){
+      list.innerHTML = notificationHtml;
+    });
 }
 
+
+/*
+  Backwards-compatible names retained for any older admin pages.
+
+  These now acknowledge the notification only.
+  They DO NOT close Message Centre threads and DO NOT change buyer status.
+*/
 function markBulkBuyerNotificationOpened(buyerId){
-  const ids = getClearedBulkBuyerIds();
-
-  if(!ids.includes(String(buyerId))){
-    ids.push(String(buyerId));
-    saveClearedBulkBuyerIds(ids);
-  }
+  acknowledgeAdminNotification(
+    "bulk-buyer",
+    String(buyerId || ""),
+    ""
+  );
 }
+
 
 function clearBulkBuyerNotification(buyerId){
-  markBulkBuyerNotificationOpened(buyerId);
+  /*
+    Older inline handlers do not pass a timestamp, so hide every currently
+    rendered matching bulk-buyer notification by finding its row on refresh.
+    New shared-admin markup uses clearAdminNotification() with the timestamp.
+  */
+  const state = getAdminNotificationState();
+  state[
+    makeAdminNotificationKey(
+      "bulk-buyer",
+      String(buyerId || ""),
+      ""
+    )
+  ] = Date.now();
+
+  saveAdminNotificationState(state);
   loadAdminNotifications();
 }
 
-async function markThreadHandled(e, threadId){
 
-  e.preventDefault();
-  e.stopPropagation();
+async function markThreadHandled(event,threadId){
+  event?.preventDefault();
+  event?.stopPropagation();
 
-  const sb = createAdminSupabaseClient();
+  /*
+    Legacy compatibility only:
+    clearing a bell notification must not close the actual conversation.
+  */
+  const state = getAdminNotificationState();
 
-  if(!sb){
-    return;
-  }
+  state[
+    makeAdminNotificationKey(
+      "message",
+      String(threadId || ""),
+      ""
+    )
+  ] = Date.now();
 
-  const { error } = await sb
-    .from("message_centre_threads")
-    .update({
-      status: "Closed"
-    })
-    .eq("id", threadId);
-
-  if(error){
-    console.log(error);
-    return;
-  }
-
+  saveAdminNotificationState(state);
   loadAdminNotifications();
 }
+
 
 function timeAgo(date){
   const seconds = Math.floor((Date.now() - new Date(date)) / 1000);
@@ -617,6 +918,9 @@ function loadMessageCentreNotifications(){
   return loadAdminNotifications();
 }
 
+let anybikeAdminInitialised = false;
+let anybikeAdminNotificationTimer = null;
+
 async function initialiseAdmin(){
   const allowed = await requireAdminSession();
 
@@ -624,9 +928,29 @@ async function initialiseAdmin(){
     return;
   }
 
-  loadAdminShell();
-  loadAdminNotifications();
-  setInterval(loadAdminNotifications,60000);
+  if(!anybikeAdminInitialised){
+    anybikeAdminInitialised = true;
+    loadAdminShell();
+    loadAdminNotifications();
+
+    anybikeAdminNotificationTimer = setInterval(
+      loadAdminNotifications,
+      60000
+    );
+  }
 }
+
+window.addEventListener("pageshow", async function(event){
+  if(event.persisted){
+    anybikeAdminInitialised = false;
+
+    if(anybikeAdminNotificationTimer){
+      clearInterval(anybikeAdminNotificationTimer);
+      anybikeAdminNotificationTimer = null;
+    }
+
+    await initialiseAdmin();
+  }
+});
 
 initialiseAdmin();
