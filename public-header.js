@@ -269,6 +269,7 @@ async function setupPublicHeader(){
   const mobileMenuButton = document.getElementById("mobileMenuButton");
   const mobileMenuClose = document.getElementById("mobileMenuClose");
   const mobileDrawerBackdrop = document.getElementById("mobileDrawerBackdrop");
+  const mobileDrawer = document.getElementById("mobileDrawer");
 
   const publicAccount = document.querySelector(".public-account");
   const accountButton = document.getElementById("phAccountButton");
@@ -288,12 +289,28 @@ async function setupPublicHeader(){
   const languageSelect = document.getElementById("phLanguage");
   const currencySelect = document.getElementById("phCurrency");
 
-  mobileMenuButton?.addEventListener("click",function(){
-    document.body.classList.add("mobile-menu-open");
-  });
+  function openMobileMenu(event){
+    event?.preventDefault();
+    event?.stopPropagation();
 
+    document.body.classList.add("mobile-menu-open");
+    document.body.style.overflow = "hidden";
+    mobileMenuButton?.setAttribute("aria-expanded","true");
+    mobileDrawer?.setAttribute("aria-hidden","false");
+  }
+
+  mobileMenuButton?.setAttribute("aria-expanded","false");
+  mobileDrawer?.setAttribute("aria-hidden","true");
+
+  mobileMenuButton?.addEventListener("click",openMobileMenu);
   mobileMenuClose?.addEventListener("click",closeMobileMenu);
   mobileDrawerBackdrop?.addEventListener("click",closeMobileMenu);
+
+  mobileDrawer?.querySelectorAll("a[href]").forEach(function(link){
+    link.addEventListener("click",function(){
+      closeMobileMenu();
+    });
+  });
 
   accountButton?.addEventListener("click",function(event){
     event.preventDefault();
@@ -490,6 +507,13 @@ function normaliseCurrency(value){
 
 function closeMobileMenu(){
   document.body.classList.remove("mobile-menu-open");
+  document.body.style.overflow = "";
+
+  const mobileMenuButton = document.getElementById("mobileMenuButton");
+  const mobileDrawer = document.getElementById("mobileDrawer");
+
+  mobileMenuButton?.setAttribute("aria-expanded","false");
+  mobileDrawer?.setAttribute("aria-hidden","true");
 }
 
 async function logoutCustomer(event){
@@ -614,27 +638,46 @@ async function loadCustomerHeaderActivity(user){
       throw error;
     }
 
-    const notifications = (data || []).map(function(notification){
+    const unreadItems = (data || []).map(function(notification){
       const type = String(notification.type || "").toLowerCase();
+      const isMessage = type.includes("message");
 
       return {
         id:notification.id,
-        title:notification.title || "Notification",
+        title:notification.title || (isMessage ? "Message" : "Notification"),
         message:notification.message || "",
         link:notification.link || "/customer-messages.html",
-        icon:type.includes("message") ? "💬" : "🔔",
-        date:notification.created_at
+        icon:isMessage ? "💬" : "🔔",
+        date:notification.created_at,
+        type:type,
+        isMessage:isMessage
       };
     });
 
-    setMessageCount(notifications.length);
-    setNotificationCount(notifications.length);
-    renderNotificationList(notifications);
+    /*
+      IMPORTANT:
+      Messages and bell notifications are counted separately here.
+      This does NOT alter, replace or reconnect the live/instant messaging system.
+      It only changes the badges shown in the shared public header.
+    */
+    const unreadMessages = unreadItems.filter(function(item){
+      return item.isMessage;
+    });
+
+    const unreadNotifications = unreadItems.filter(function(item){
+      return !item.isMessage;
+    });
+
+    setMessageCount(unreadMessages.length);
+    setNotificationCount(unreadNotifications.length);
+    renderNotificationList(unreadNotifications);
 
     window.dispatchEvent(new CustomEvent("anybikeCustomerUnreadChanged",{
       detail:{
-        count:notifications.length,
-        items:notifications
+        count:unreadItems.length,
+        messageCount:unreadMessages.length,
+        notificationCount:unreadNotifications.length,
+        items:unreadItems
       }
     }));
 
@@ -646,6 +689,7 @@ async function loadCustomerHeaderActivity(user){
     renderNotificationList([]);
   }
 }
+
 
 function renderNotificationList(items){
   const list = document.getElementById("notificationListV3");
