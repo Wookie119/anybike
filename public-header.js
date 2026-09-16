@@ -162,6 +162,7 @@ const ANYBIKE_HEADER_TRANSLATIONS = {
 
 let anybikeHeaderUser = null;
 let anybikeHeaderRefreshTimer = null;
+let anybikeHeaderRealtimeChannel = null;
 let anybikeHeaderClockTimer = null;
 
 async function loadPublicHeader(){
@@ -454,14 +455,21 @@ async function setupPublicHeader(){
     await addMyDealershipMenuIfEligible(user);
     await loadCustomerHeaderActivity(user);
     bindHeaderMessagePageUnreadSync();
+    startCustomerHeaderRealtime(user);
 
     if(anybikeHeaderRefreshTimer){
       clearInterval(anybikeHeaderRefreshTimer);
     }
 
+    /*
+      Realtime is preferred. This 5-second timer is only a fallback for pages
+      or browsers where the realtime subscription is unavailable/delayed.
+    */
     anybikeHeaderRefreshTimer = setInterval(function(){
-      loadCustomerHeaderActivity(user);
-    },60000);
+      if(document.visibilityState === "visible"){
+        loadCustomerHeaderActivity(user);
+      }
+    },5000);
 
   }else{
     loggedOutMenu?.classList.remove("hidden");
@@ -645,6 +653,49 @@ async function saveHeaderPreference(field,value){
     console.warn("Header preference could not be saved",error);
   }
 }
+
+function startCustomerHeaderRealtime(user){
+  if(
+    typeof sb === "undefined" ||
+    !user?.id ||
+    anybikeHeaderRealtimeChannel
+  ){
+    return;
+  }
+
+  try{
+    anybikeHeaderRealtimeChannel =
+      sb
+        .channel("anybike-customer-header-activity-" + user.id)
+        .on(
+          "postgres_changes",
+          {
+            event:"*",
+            schema:"public",
+            table:"message_centre_messages"
+          },
+          function(){
+            loadCustomerHeaderActivity(user);
+          }
+        )
+        .on(
+          "postgres_changes",
+          {
+            event:"*",
+            schema:"public",
+            table:"customer_notifications"
+          },
+          function(){
+            loadCustomerHeaderActivity(user);
+          }
+        )
+        .subscribe();
+
+  }catch(error){
+    console.warn("Customer header realtime unavailable",error);
+  }
+}
+
 
 async function loadCustomerHeaderActivity(user){
   if(typeof sb === "undefined" || !user){
@@ -1349,11 +1400,19 @@ window.addEventListener("pageshow",function(event){
 
 window.addEventListener("focus",function(){
   verifyCustomerSession();
+
+  if(anybikeHeaderUser){
+    loadCustomerHeaderActivity(anybikeHeaderUser);
+  }
 });
 
 document.addEventListener("visibilitychange",function(){
   if(document.visibilityState === "visible"){
     verifyCustomerSession();
+
+    if(anybikeHeaderUser){
+      loadCustomerHeaderActivity(anybikeHeaderUser);
+    }
   }
 });
 /* =========================================================
