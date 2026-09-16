@@ -702,15 +702,40 @@ async function loadCustomerHeaderActivity(user){
         };
       });
 
-    setNotificationCount(notifications.length);
-    renderNotificationList(notifications);
+    /*
+      CUSTOMER BELL
+      -------------
+      The bell represents all current unread customer activity.
+      Message conversations are counted from the real conversation state,
+      while non-message alerts continue to come from customer_notifications.
+      This does not alter message delivery, realtime, or read-state storage.
+    */
+    const bellItems = notifications.slice();
+
+    if(unreadMessageCount > 0){
+      bellItems.unshift({
+        id:"",
+        title:unreadMessageCount === 1
+          ? "1 unread message from AnyBike"
+          : unreadMessageCount + " unread messages from AnyBike",
+        message:"Open My Messages to read the latest conversation.",
+        link:"/customer-messages.html",
+        icon:"💬",
+        date:new Date().toISOString()
+      });
+    }
+
+    const bellCount = unreadMessageCount + notifications.length;
+
+    setNotificationCount(bellCount);
+    renderNotificationList(bellItems);
 
     window.dispatchEvent(new CustomEvent("anybikeCustomerUnreadChanged",{
       detail:{
-        count:unreadMessageCount + notifications.length,
+        count:bellCount,
         messageCount:unreadMessageCount,
-        notificationCount:notifications.length,
-        items:notifications
+        notificationCount:bellCount,
+        items:bellItems
       }
     }));
 
