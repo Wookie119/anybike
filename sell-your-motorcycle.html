@@ -1,6 +1,5 @@
 
 
-
 <!doctype html>
 <html lang="en">
 <head>
@@ -928,63 +927,40 @@ document.getElementById("sellBikeForm").addEventListener("submit", async e=>{
 };
  
 
-const {data: leadData, error} = await sb
-  .from("anybike_leads")
-  .insert(payload)
-  .select("id")
-  .single();
-
-  btn.disabled = false;
-  btn.textContent = original;
-
-  if(error){
-    console.error(error);
-    setMsg("Sorry, your motorcycle valuation request could not be sent. Please email sales@anybike.co.uk.\\n\\n" + error.message, false);
-    return;
+const { data: submitResult, error } = await sb.rpc(
+  "submit_sell_motorcycle_request",
+  {
+    p_payload: payload
   }
-const { error: threadError } = await sb
-  .from("message_centre_threads")
-  .insert({
+);
 
-    source_type: "Sell Your Bike",
-    department: "Buying Team",
+btn.disabled = false;
+btn.textContent = original;
 
-    related_lead_id: leadData.id,
+if(error){
+  console.error(error);
+  setMsg(
+    "Sorry, your motorcycle valuation request could not be sent. Please email sales@anybike.co.uk.\\n\\n" +
+    error.message,
+    false
+  );
+  return;
+}
 
-    customer_name: o.name,
-    customer_email: o.email,
-    customer_phone: o.mobile,
-
-    country: payload.country,
-    postcode_zip: payload.postcode,
-
-    bike_make: o.make,
-    bike_model: o.model,
-    bike_year: String(o.bike_year || ""),
-
-    subject: "Sell Your Bike - " +
-             [o.bike_year, o.make, o.model]
-               .filter(Boolean)
-               .join(" "),
-
-    last_message: o.notes || "Customer wants to sell a motorcycle.",
-    last_message_at: new Date().toISOString(),
-    last_sender: "Customer",
-
-    status: "New"
-
-  });
-  
-
-if(threadError){
-  console.error(threadError);
-  setMsg("Lead saved, but Message Centre thread failed: " + threadError.message, false);
+if(!submitResult || submitResult.success !== true){
+  console.error("Unexpected seller submission response", submitResult);
+  setMsg(
+    "Sorry, your motorcycle valuation request could not be sent. Please email sales@anybike.co.uk.",
+    false
+  );
   return;
 }
 
 form.reset();
 
-  setMsg("Thank you. Your motorcycle details have been sent to AnyBike. We will review the bike and contact you.");
+setMsg(
+  "Thank you. Your motorcycle details have been sent to AnyBike. We will review the bike and contact you."
+);
 });
 
 detectCountry();
