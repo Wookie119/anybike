@@ -1,7 +1,7 @@
 /*
 AnyBike
 File: public-header.js
-Version: 2026.07.16-1
+Version: 2026.09.16-4
 Date: 16 July 2026
 
 Changes
@@ -453,6 +453,7 @@ async function setupPublicHeader(){
 
     await addMyDealershipMenuIfEligible(user);
     await loadCustomerHeaderActivity(user);
+    bindHeaderMessagePageUnreadSync();
 
     if(anybikeHeaderRefreshTimer){
       clearInterval(anybikeHeaderRefreshTimer);
@@ -732,70 +733,172 @@ async function getHeaderUnreadMessageThreadCount(user){
   }
 
   try{
-    const {data:threads,error:threadsError} = await sb
-      .from("message_centre_threads")
-      .select("id")
-      .eq("customer_id",user.id);
+    /*
+      Match the same two conversation sources shown by customer-messages.html:
+      1) bike_enquiries -> enquiry_messages
+      2) customer-visible message_centre_threads -> message_centre_messages
 
-    if(threadsError){
-      throw threadsError;
-    }
+      The read-state remains the existing localStorage map:
+      anybike_customer_read_message_ids
 
-    const threadIds = (threads || [])
-      .map(function(thread){
-        return Number(thread.id);
-      })
-      .filter(function(id){
-        return Number.isFinite(id);
-      });
+      This function is read-only. It does not send, receive, update or subscribe
+      to messages and therefore does not alter AnyBike instant messaging.
+    */
+    const results = await Promise.allSettled([
+      sb
+        .from("bike_enquiries")
+        .select("id")
+        .eq("customer_id",user.id),
 
-    if(!threadIds.length){
-      return 0;
-    }
+      sb
+        .from("message_centre_threads")
+        .select("id,source_type,department,subject")
+        .eq("customer_id",user.id)
+    ]);
 
-    const {data:messages,error:messagesError} = await sb
-      .from("message_centre_messages")
-      .select("*")
-      .in("thread_id",threadIds)
-      .order("created_at",{ascending:false});
+    const bikeRows =
+      results[0].status === "fulfilled" && !results[0].value?.error
+        ? (results[0].value?.data || [])
+        : [];
 
-    if(messagesError){
-      throw messagesError;
-    }
+    const allThreads =
+      results[1].status === "fulfilled" && !results[1].value?.error
+        ? (results[1].value?.data || [])
+        : [];
 
     /*
-      Rows are newest-first. Keep only the newest message for each thread.
+      Keep this filter aligned with customer-messages.html so the header only
+      counts conversations the customer can actually see in My Messages.
     */
-    const latestByThread = new Map();
+    const visibleThreads = allThreads.filter(function(thread){
+      const source = String(thread.source_type || "").toLowerCase();
+      const department = String(thread.department || "").toLowerCase();
+      const subject = String(thread.subject || "").toLowerCase();
 
-    (messages || []).forEach(function(message){
+      return (
+        source.includes("global buyer") ||
+        source.includes("bulk") ||
+        source.includes("my anybike") ||
+        source.includes("private buyer") ||
+        source.includes("private seller") ||
+        source.includes("dealer") ||
+        source.includes("trader") ||
+        source.includes("importer") ||
+        source.includes("exporter") ||
+        source.includes("finance") ||
+        source.includes("shipping") ||
+        source.includes("marketplace") ||
+        source.includes("trade partner") ||
+        source.includes("supplier") ||
+        source.includes("manufacturer") ||
+        source.includes("press") ||
+        source.includes("website support") ||
+        source.includes("general enquiry") ||
+        department.includes("global buyer") ||
+        subject.includes("global buyer")
+      );
+    });
+
+    const bikeIds = bikeRows
+      .map(function(row){ return Number(row.id); })
+      .filter(function(id){ return Number.isFinite(id); });
+
+    const threadIds = visibleThreads
+      .map(function(row){ return Number(row.id); })
+      .filter(function(id){ return Number.isFinite(id); });
+
+    const messageQueries = [];
+
+    if(bikeIds.length){
+      messageQueries.push(
+        sb
+          .from("enquiry_messages")
+          .select("*")
+          .in("enquiry_id",bikeIds)
+          .order("created_at",{ascending:false})
+      );
+    }else{
+      messageQueries.push(Promise.resolve({data:[],error:null}));
+    }
+
+    if(threadIds.length){
+      messageQueries.push(
+        sb
+          .from("message_centre_messages")
+          .select("*")
+          .in("thread_id",threadIds)
+          .order("created_at",{ascending:false})
+      );
+    }else{
+      messageQueries.push(Promise.resolve({data:[],error:null}));
+    }
+
+    const messageResults = await Promise.all(messageQueries);
+
+    const enquiryMessages = messageResults[0]?.data || [];
+    const threadMessages = messageResults[1]?.data || [];
+
+    if(messageResults[0]?.error){
+      throw messageResults[0].error;
+    }
+
+    if(messageResults[1]?.error){
+      throw messageResults[1].error;
+    }
+
+    const latestBikeMessage = new Map();
+    enquiryMessages.forEach(function(message){
+      const key = String(message.enquiry_id ?? "");
+      if(key && !latestBikeMessage.has(key)){
+        latestBikeMessage.set(key,message);
+      }
+    });
+
+    const latestThreadMessage = new Map();
+    threadMessages.forEach(function(message){
       const key = String(message.thread_id ?? "");
-
-      if(key && !latestByThread.has(key)){
-        latestByThread.set(key,message);
+      if(key && !latestThreadMessage.has(key)){
+        latestThreadMessage.set(key,message);
       }
     });
 
     const readMap = getHeaderCustomerReadMessageMap();
     let unreadCount = 0;
 
-    latestByThread.forEach(function(message,threadId){
+    /*
+      Bike enquiry unread rule copied from customer-messages.html:
+      only a latest message from AnyBike can be unread.
+      The read-map key is bike-<enquiry id>.
+    */
+    latestBikeMessage.forEach(function(message,enquiryId){
+      const sender = String(message?.sender || "").toLowerCase();
+
+      if(!sender.includes("anybike")){
+        return;
+      }
+
+      const latestKey = String(message?.id || message?.created_at || "");
+      const readKey = String(readMap["bike-" + String(enquiryId)] || "");
+
+      if(latestKey && readKey !== latestKey){
+        unreadCount += 1;
+      }
+    });
+
+    /*
+      Message Centre unread rule copied from customer-messages.html:
+      customer-originated latest messages are never unread.
+      The read-map key is the bare thread id.
+    */
+    latestThreadMessage.forEach(function(message,threadId){
       if(isHeaderCustomerMessageSender(message,user)){
         return;
       }
 
-      const latestMessageKey = String(
-        message?.id ||
-        message?.created_at ||
-        ""
-      );
+      const latestKey = String(message?.id || message?.created_at || "");
+      const readKey = String(readMap[String(threadId)] || "");
 
-      const lastReadKey = String(
-        readMap[String(threadId)] ||
-        ""
-      );
-
-      if(latestMessageKey && lastReadKey !== latestMessageKey){
+      if(latestKey && readKey !== latestKey){
         unreadCount += 1;
       }
     });
@@ -806,6 +909,47 @@ async function getHeaderUnreadMessageThreadCount(user){
     console.warn("Header unread message count unavailable",error);
     return 0;
   }
+}
+
+
+let anybikeHeaderMessagePageObserver = null;
+
+function bindHeaderMessagePageUnreadSync(){
+  const container = document.getElementById("customerEnquiries");
+
+  if(!container){
+    return;
+  }
+
+  const syncFromVisibleMessageCards = function(){
+    const cards = container.querySelectorAll(".customer-enquiry");
+    const unread = container.querySelectorAll(".customer-enquiry.has-unread");
+
+    /*
+      Only trust the DOM after conversations have actually rendered.
+      This is display-only and does not change message data or read state.
+    */
+    if(cards.length){
+      setMessageCount(unread.length);
+    }
+  };
+
+  syncFromVisibleMessageCards();
+
+  if(anybikeHeaderMessagePageObserver){
+    anybikeHeaderMessagePageObserver.disconnect();
+  }
+
+  anybikeHeaderMessagePageObserver = new MutationObserver(function(){
+    syncFromVisibleMessageCards();
+  });
+
+  anybikeHeaderMessagePageObserver.observe(container,{
+    childList:true,
+    subtree:true,
+    attributes:true,
+    attributeFilter:["class"]
+  });
 }
 
 
