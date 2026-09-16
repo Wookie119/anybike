@@ -295,12 +295,25 @@ async function setupPublicHeader(){
 
     document.body.classList.add("mobile-menu-open");
     document.body.style.overflow = "hidden";
+
+    if(mobileDrawer){
+      mobileDrawer.style.display = "block";
+      mobileDrawer.style.transform = "translateX(0)";
+      mobileDrawer.style.visibility = "visible";
+      mobileDrawer.style.pointerEvents = "auto";
+    }
+
+    if(mobileDrawerBackdrop){
+      mobileDrawerBackdrop.style.display = "block";
+      mobileDrawerBackdrop.style.visibility = "visible";
+      mobileDrawerBackdrop.style.opacity = "1";
+      mobileDrawerBackdrop.style.pointerEvents = "auto";
+    }
+
     mobileMenuButton?.setAttribute("aria-expanded","true");
-    mobileDrawer?.setAttribute("aria-hidden","false");
   }
 
   mobileMenuButton?.setAttribute("aria-expanded","false");
-  mobileDrawer?.setAttribute("aria-hidden","true");
 
   mobileMenuButton?.addEventListener("click",openMobileMenu);
   mobileMenuClose?.addEventListener("click",closeMobileMenu);
@@ -511,9 +524,23 @@ function closeMobileMenu(){
 
   const mobileMenuButton = document.getElementById("mobileMenuButton");
   const mobileDrawer = document.getElementById("mobileDrawer");
+  const mobileDrawerBackdrop = document.getElementById("mobileDrawerBackdrop");
+
+  if(mobileDrawer){
+    mobileDrawer.style.transform = "translateX(-105%)";
+    mobileDrawer.style.visibility = "";
+    mobileDrawer.style.pointerEvents = "";
+    mobileDrawer.style.display = "";
+  }
+
+  if(mobileDrawerBackdrop){
+    mobileDrawerBackdrop.style.display = "none";
+    mobileDrawerBackdrop.style.visibility = "";
+    mobileDrawerBackdrop.style.opacity = "";
+    mobileDrawerBackdrop.style.pointerEvents = "";
+  }
 
   mobileMenuButton?.setAttribute("aria-expanded","false");
-  mobileDrawer?.setAttribute("aria-hidden","true");
 }
 
 async function logoutCustomer(event){
