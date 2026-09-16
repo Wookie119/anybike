@@ -654,6 +654,26 @@ async function loadCustomerHeaderActivity(user){
   }
 
   try{
+    /*
+      MESSAGE BADGE
+      -------------
+      Use the same read-state model already used by the customer messaging UI:
+      latest message per owned Message Centre thread +
+      localStorage key anybike_customer_read_message_ids.
+
+      This is READ-ONLY header logic. It does not alter live messaging,
+      Message Centre delivery, replies, realtime subscriptions or routing.
+    */
+    const unreadMessageCount = await getHeaderUnreadMessageThreadCount(user);
+    setMessageCount(unreadMessageCount);
+
+    /*
+      BELL NOTIFICATIONS
+      ------------------
+      customer_notifications is used for the bell only.
+      Message-type notification rows are deliberately excluded because
+      the Messages badge now comes from the actual conversation state.
+    */
     const {data,error} = await sb
       .from("customer_notifications")
       .select("id,title,message,type,link,is_read,created_at")
@@ -665,56 +685,173 @@ async function loadCustomerHeaderActivity(user){
       throw error;
     }
 
-    const unreadItems = (data || []).map(function(notification){
-      const type = String(notification.type || "").toLowerCase();
-      const isMessage = type.includes("message");
+    const notifications = (data || [])
+      .filter(function(notification){
+        const type = String(notification.type || "").toLowerCase();
+        return !type.includes("message");
+      })
+      .map(function(notification){
+        return {
+          id:notification.id,
+          title:notification.title || "Notification",
+          message:notification.message || "",
+          link:notification.link || "/customer-messages.html",
+          icon:"🔔",
+          date:notification.created_at
+        };
+      });
 
-      return {
-        id:notification.id,
-        title:notification.title || (isMessage ? "Message" : "Notification"),
-        message:notification.message || "",
-        link:notification.link || "/customer-messages.html",
-        icon:isMessage ? "💬" : "🔔",
-        date:notification.created_at,
-        type:type,
-        isMessage:isMessage
-      };
-    });
-
-    /*
-      IMPORTANT:
-      Messages and bell notifications are counted separately here.
-      This does NOT alter, replace or reconnect the live/instant messaging system.
-      It only changes the badges shown in the shared public header.
-    */
-    const unreadMessages = unreadItems.filter(function(item){
-      return item.isMessage;
-    });
-
-    const unreadNotifications = unreadItems.filter(function(item){
-      return !item.isMessage;
-    });
-
-    setMessageCount(unreadMessages.length);
-    setNotificationCount(unreadNotifications.length);
-    renderNotificationList(unreadNotifications);
+    setNotificationCount(notifications.length);
+    renderNotificationList(notifications);
 
     window.dispatchEvent(new CustomEvent("anybikeCustomerUnreadChanged",{
       detail:{
-        count:unreadItems.length,
-        messageCount:unreadMessages.length,
-        notificationCount:unreadNotifications.length,
-        items:unreadItems
+        count:unreadMessageCount + notifications.length,
+        messageCount:unreadMessageCount,
+        notificationCount:notifications.length,
+        items:notifications
       }
     }));
 
   }catch(error){
-    console.error("Notification load failed",error);
+    console.error("Header activity load failed",error);
 
+    /*
+      Fail closed on badges only. Never interfere with messaging itself.
+    */
     setMessageCount(0);
     setNotificationCount(0);
     renderNotificationList([]);
   }
+}
+
+
+async function getHeaderUnreadMessageThreadCount(user){
+  if(typeof sb === "undefined" || !user?.id){
+    return 0;
+  }
+
+  try{
+    const {data:threads,error:threadsError} = await sb
+      .from("message_centre_threads")
+      .select("id")
+      .eq("customer_id",user.id);
+
+    if(threadsError){
+      throw threadsError;
+    }
+
+    const threadIds = (threads || [])
+      .map(function(thread){
+        return Number(thread.id);
+      })
+      .filter(function(id){
+        return Number.isFinite(id);
+      });
+
+    if(!threadIds.length){
+      return 0;
+    }
+
+    const {data:messages,error:messagesError} = await sb
+      .from("message_centre_messages")
+      .select("*")
+      .in("thread_id",threadIds)
+      .order("created_at",{ascending:false});
+
+    if(messagesError){
+      throw messagesError;
+    }
+
+    /*
+      Rows are newest-first. Keep only the newest message for each thread.
+    */
+    const latestByThread = new Map();
+
+    (messages || []).forEach(function(message){
+      const key = String(message.thread_id ?? "");
+
+      if(key && !latestByThread.has(key)){
+        latestByThread.set(key,message);
+      }
+    });
+
+    const readMap = getHeaderCustomerReadMessageMap();
+    let unreadCount = 0;
+
+    latestByThread.forEach(function(message,threadId){
+      if(isHeaderCustomerMessageSender(message,user)){
+        return;
+      }
+
+      const latestMessageKey = String(
+        message?.id ||
+        message?.created_at ||
+        ""
+      );
+
+      const lastReadKey = String(
+        readMap[String(threadId)] ||
+        ""
+      );
+
+      if(latestMessageKey && lastReadKey !== latestMessageKey){
+        unreadCount += 1;
+      }
+    });
+
+    return unreadCount;
+
+  }catch(error){
+    console.warn("Header unread message count unavailable",error);
+    return 0;
+  }
+}
+
+
+function getHeaderCustomerReadMessageMap(){
+  try{
+    const raw = localStorage.getItem(
+      "anybike_customer_read_message_ids"
+    );
+
+    const parsed = raw ? JSON.parse(raw) : {};
+
+    return parsed && typeof parsed === "object"
+      ? parsed
+      : {};
+
+  }catch(error){
+    return {};
+  }
+}
+
+
+function isHeaderCustomerMessageSender(message,user){
+  const values = [
+    message?.sender_type,
+    message?.sender_name,
+    message?.sender,
+    message?.sender_email
+  ]
+    .filter(Boolean)
+    .map(function(value){
+      return String(value).trim().toLowerCase();
+    });
+
+  const customerEmail = String(user?.email || "")
+    .trim()
+    .toLowerCase();
+
+  return values.some(function(value){
+    return (
+      value === "customer" ||
+      value === "buyer" ||
+      value === "user" ||
+      value.includes("customer") ||
+      (customerEmail && value === customerEmail)
+    );
+  });
 }
 
 
