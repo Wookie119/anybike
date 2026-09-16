@@ -2265,6 +2265,28 @@ async function sendGlobalBuyerMessage(threadId){
     status.className="reply-status ok";
   }
 
+  /*
+    Create the in-app admin bell row for Message Centre replies.
+    This is separate from the admin email notification below.
+  */
+  const {error:adminBellError} = await sb
+    .from("admin_notifications")
+    .insert({
+      title:"Customer replied",
+      message:"Customer replied in Message Centre thread #" + threadId,
+      icon:"💬",
+      type:"customer_reply",
+      link:"/admin-message-centre.html?thread=" + encodeURIComponent(threadId),
+      is_read:false
+    });
+
+  if(adminBellError){
+    console.error(
+      "Admin bell notification failed:",
+      adminBellError
+    );
+  }
+
   const {error:adminNotificationError} = await sb.functions.invoke(
     "send-admin-message-notification",
     {
