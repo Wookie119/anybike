@@ -2266,19 +2266,16 @@ async function sendGlobalBuyerMessage(threadId){
   }
 
   /*
-    Create the in-app admin bell row for Message Centre replies.
-    This is separate from the admin email notification below.
+    Create the in-app admin bell row through a SECURITY DEFINER RPC.
+    Customers cannot insert directly into admin_notifications because that
+    table is protected by admin-only RLS.
   */
-  const {error:adminBellError} = await sb
-    .from("admin_notifications")
-    .insert({
-      title:"Customer replied",
-      message:"Customer replied in Message Centre thread #" + threadId,
-      icon:"💬",
-      type:"customer_reply",
-      link:"/admin-message-centre.html?thread=" + encodeURIComponent(threadId),
-      is_read:false
-    });
+  const {error:adminBellError} = await sb.rpc(
+    "create_admin_notification_for_customer_message",
+    {
+      p_thread_id:Number(threadId)
+    }
+  );
 
   if(adminBellError){
     console.error(
