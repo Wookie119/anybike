@@ -781,6 +781,8 @@ async function getHeaderUnreadMessageThreadCount(user){
         source.includes("my anybike") ||
         source.includes("private buyer") ||
         source.includes("private seller") ||
+        source.includes("sell your bike") ||
+        source.includes("sell my motorcycle") ||
         source.includes("dealer") ||
         source.includes("trader") ||
         source.includes("importer") ||
