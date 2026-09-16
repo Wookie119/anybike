@@ -21,6 +21,9 @@ var anybikeAdminNotificationResetRunning = false;
 
 async function initialiseAdminNotificationReset(){
 
+  // Safety: never mass-mark unread admin notifications as read on page load.
+  return true;
+
   if(!window.sb){
     return false;
   }
@@ -516,7 +519,7 @@ document.addEventListener(
     anybikeAdminNotificationRefreshTimer =
       setInterval(
         loadSharedAdminNotifications,
-        60000
+        5000
       );
   }
 );
