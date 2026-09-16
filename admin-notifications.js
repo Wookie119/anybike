@@ -19,12 +19,40 @@ var anybikeAdminNotificationRefreshTimer = null;
 var anybikeAdminNotificationResetRunning = false;
 
 
+/*
+  Use the authenticated Supabase client already owned by admin.js.
+
+  Important:
+  - admin.js exposes getAdminSupabaseClient()
+  - page-level `const sb` is NOT window.sb
+  - therefore admin notifications must not depend on window.sb
+*/
+function getSharedAdminNotificationClient(){
+
+  if(typeof getAdminSupabaseClient === "function"){
+    return getAdminSupabaseClient();
+  }
+
+  if(typeof createAdminSupabaseClient === "function"){
+    return createAdminSupabaseClient();
+  }
+
+  if(typeof sb !== "undefined" && sb){
+    return sb;
+  }
+
+  return null;
+}
+
+
 async function initialiseAdminNotificationReset(){
 
   // Safety: never mass-mark unread admin notifications as read on page load.
   return true;
 
-  if(!window.sb){
+  var client = getSharedAdminNotificationClient();
+
+  if(!client){
     return false;
   }
 
@@ -52,7 +80,7 @@ async function initialiseAdminNotificationReset(){
 
   try{
 
-    var result = await window.sb
+    var result = await client
       .from("admin_notifications")
       .update({
         is_read:true
@@ -91,7 +119,10 @@ async function initialiseAdminNotificationReset(){
 
 async function loadSharedAdminNotifications(){
 
-  if(!window.sb){
+  var client = getSharedAdminNotificationClient();
+
+  if(!client){
+    console.warn("Admin notification client is unavailable.");
     return;
   }
 
@@ -116,7 +147,7 @@ async function loadSharedAdminNotifications(){
 
   await initialiseAdminNotificationReset();
 
-  var result = await window.sb
+  var result = await client
     .from("admin_notifications")
     .select("*")
     .eq("is_read",false)
@@ -321,7 +352,9 @@ async function markSharedAdminNotificationRead(
     event.preventDefault();
   }
 
-  if(!window.sb || !id){
+  var client = getSharedAdminNotificationClient();
+
+  if(!client || !id){
     return;
   }
 
@@ -336,7 +369,7 @@ async function markSharedAdminNotificationRead(
 
   try{
 
-    var result = await window.sb
+    var result = await client
       .from("admin_notifications")
       .update({
         is_read:true
@@ -371,7 +404,9 @@ async function clearSharedAdminNotification(
     event.stopPropagation();
   }
 
-  if(!window.sb || !id){
+  var client = getSharedAdminNotificationClient();
+
+  if(!client || !id){
     return;
   }
 
@@ -387,7 +422,7 @@ async function clearSharedAdminNotification(
 
   try{
 
-    var result = await window.sb
+    var result = await client
       .from("admin_notifications")
       .update({
         is_read:true
@@ -417,13 +452,15 @@ async function clearSharedAdminNotification(
 
 async function clearAllSharedAdminNotifications(){
 
-  if(!window.sb){
+  var client = getSharedAdminNotificationClient();
+
+  if(!client){
     return;
   }
 
   try{
 
-    var result = await window.sb
+    var result = await client
       .from("admin_notifications")
       .update({
         is_read:true
