@@ -1,139 +1,51 @@
-function loadAdminShell(){
-
-  var sidebar = document.getElementById("adminSidebar");
-  var topbar = document.getElementById("adminTopbar");
-
-  if(sidebar){
-    fetch("admin-sidebar.html")
-      .then(function(res){
-        return res.text();
-      })
-      .then(function(html){
-        sidebar.innerHTML = html;
-
-        var currentPage = window.location.pathname.split("/").pop() || "admin-dashboard.html";
-
-        document.querySelectorAll(".admin-menu a").forEach(function(link){
-          if(link.getAttribute("href") === currentPage){
-            link.classList.add("active");
-          }
-        });
-      })
-      .catch(function(){
-        sidebar.innerHTML =
-          '<aside class="admin-sidebar">' +
-            '<div style="font-weight:900;color:#fff;margin-bottom:16px;">AnyBike Admin</div>' +
-            '<nav class="admin-menu">' +
-              '<a href="admin-dashboard.html"><span class="menu-icon">🏠</span><span class="menu-text">Dashboard</span></a>' +
-              '<a href="admin-enquiries.html"><span class="menu-icon">💬</span><span class="menu-text">Bike Sales</span></a>' +
-              '<a href="admin-customers.html"><span class="menu-icon">👥</span><span class="menu-text">Customers</span></a>' +
-              '<a href="admin-stock.html"><span class="menu-icon">🏍️</span><span class="menu-text">Stock</span></a>' +
-            '</nav>' +
-          '</aside>';
-      });
-  }
-
-  if(topbar){
-    fetch("admin-topbar.html")
-      .then(function(res){
-        return res.text();
-      })
-      .then(function(html){
-        topbar.innerHTML = html;
-        setupAdminSearch();
-
-        setTimeout(function(){
-          loadSharedAdminNotifications();
-        },300);
-      })
-      .catch(function(){
-        topbar.innerHTML = "";
-      });
-  }
-}
-
-
-function setupAdminSearch(){
-
-  var search = document.getElementById("adminGlobalSearch");
-
-  if(!search){
-    return;
-  }
-
-  search.addEventListener("keydown",function(e){
-
-    if(e.key !== "Enter"){
-      return;
-    }
-
-    var q = String(search.value || "").trim().toLowerCase();
-
-    if(!q){
-      return;
-    }
-
-    if(q.includes("buyer") || q.includes("bulk") || q.includes("global")){
-      location.href = "admin-global-buyer-network.html";
-      return;
-    }
-
-    if(q.includes("stock") || q.includes("bike") || q.includes("motorcycle")){
-      location.href = "admin-stock.html";
-      return;
-    }
-
-    if(q.includes("customer") || q.includes("member") || q.includes("profile")){
-      location.href = "admin-customers.html";
-      return;
-    }
-
-    if(q.includes("ship") || q.includes("logistic") || q.includes("container")){
-      location.href = "admin-logistics.html";
-      return;
-    }
-
-    if(q.includes("market") || q.includes("intelligence") || q.includes("country")){
-      location.href = "admin-market-intelligence.html";
-      return;
-    }
-
-    location.href = "admin-enquiries.html";
-  });
-}
-
-
 /*
-  ADMIN NOTIFICATION CUTOVER
-  --------------------------
-  Everything created BEFORE this repair timestamp is historical and is
-  automatically marked read in admin_notifications.
+  AnyBike Admin Notifications
+  Single source of truth for the shared admin bell.
 
-  Only notifications created AFTER this timestamp may appear in the bell.
-
-  This changes ONLY admin_notifications.is_read.
-  It does NOT:
-  - close Message Centre threads
-  - change buyer status
-  - change lead/deal status
-  - alter instant/live messaging
+  Rules:
+  - Reads only admin_notifications.
+  - Does not read Global Buyer pipeline rows directly.
+  - Does not read Message Centre thread statuses directly.
+  - Clear only marks admin_notifications.is_read = true.
+  - Never closes a Message Centre thread.
+  - Never changes a buyer/deal/lead status.
+  - Does not alter instant/live messaging.
 */
-var ANYBIKE_ADMIN_NOTIFICATION_CUTOVER =
-  "2026-09-16T12:55:00.000Z";
+
+var ANYBIKE_ADMIN_NOTIFICATION_RESET_KEY =
+  "anybike_admin_notifications_reset_20260916_v1";
 
 var anybikeAdminNotificationRefreshTimer = null;
-var anybikeAdminHistoricalCleanupDone = false;
+var anybikeAdminNotificationResetRunning = false;
 
 
-async function clearHistoricalSharedAdminNotifications(){
-
-  if(anybikeAdminHistoricalCleanupDone){
-    return true;
-  }
+async function initialiseAdminNotificationReset(){
 
   if(!window.sb){
     return false;
   }
+
+  /*
+    One-time clean reset for the existing stale notification backlog.
+    After this succeeds, future notifications behave normally.
+  */
+  try{
+    if(
+      localStorage.getItem(
+        ANYBIKE_ADMIN_NOTIFICATION_RESET_KEY
+      ) === "done"
+    ){
+      return true;
+    }
+  }catch(error){
+    /* Continue even if localStorage is unavailable. */
+  }
+
+  if(anybikeAdminNotificationResetRunning){
+    return false;
+  }
+
+  anybikeAdminNotificationResetRunning = true;
 
   try{
 
@@ -142,24 +54,34 @@ async function clearHistoricalSharedAdminNotifications(){
       .update({
         is_read:true
       })
-      .eq("is_read",false)
-      .lt("created_at",ANYBIKE_ADMIN_NOTIFICATION_CUTOVER);
+      .eq("is_read",false);
 
     if(result.error){
       throw result.error;
     }
 
-    anybikeAdminHistoricalCleanupDone = true;
+    try{
+      localStorage.setItem(
+        ANYBIKE_ADMIN_NOTIFICATION_RESET_KEY,
+        "done"
+      );
+    }catch(error){
+      /* Database reset already succeeded. */
+    }
+
     return true;
 
-  }catch(err){
+  }catch(error){
 
     console.warn(
-      "Historical admin notification cleanup failed:",
-      err
+      "Initial admin notification reset failed:",
+      error
     );
 
     return false;
+
+  }finally{
+    anybikeAdminNotificationResetRunning = false;
   }
 }
 
@@ -171,31 +93,30 @@ async function loadSharedAdminNotifications(){
   }
 
   var countEl =
-    document.getElementById("adminNotificationCount");
+    document.getElementById(
+      "adminNotificationCount"
+    );
 
   var listEl =
-    document.getElementById("adminNotificationList");
+    document.getElementById(
+      "adminNotificationList"
+    );
 
   var statusEl =
-    document.getElementById("adminNotificationStatus");
+    document.getElementById(
+      "adminNotificationStatus"
+    );
 
   if(!countEl || !listEl){
     return;
   }
 
-  /*
-    First clear every pre-cutover unread record from the database.
-  */
-  await clearHistoricalSharedAdminNotifications();
+  await initialiseAdminNotificationReset();
 
-  /*
-    Then load only genuinely new post-cutover unread notifications.
-  */
   var result = await window.sb
     .from("admin_notifications")
     .select("*")
     .eq("is_read",false)
-    .gte("created_at",ANYBIKE_ADMIN_NOTIFICATION_CUTOVER)
     .order("created_at",{ascending:false})
     .limit(50);
 
@@ -231,7 +152,8 @@ async function loadSharedAdminNotifications(){
     }
   });
 
-  notifications = Array.from(unique.values());
+  notifications =
+    Array.from(unique.values());
 
   updateSharedAdminNotificationBadge(
     notifications.length
@@ -282,13 +204,13 @@ async function loadSharedAdminNotifications(){
       return '' +
 
         '<div class="admin-notification-item" ' +
-             'style="display:flex;gap:12px;align-items:flex-start;justify-content:space-between;">' +
+          'style="display:flex;gap:12px;align-items:flex-start;justify-content:space-between;">' +
 
           '<a href="' +
             escapeSharedAdminHtml(link) +
             '" ' +
             'style="display:block;min-width:0;flex:1;color:inherit;text-decoration:none;" ' +
-            'onclick="markSharedAdminNotificationRead(\'' +
+            'onclick="markSharedAdminNotificationRead(event,\'' +
               escapeSharedAdminHtml(id) +
             '\')">' +
 
@@ -323,7 +245,6 @@ async function loadSharedAdminNotifications(){
     }).join("");
 
   if(statusEl){
-
     statusEl.textContent =
       notifications.length +
       " waiting";
@@ -337,12 +258,12 @@ function updateSharedAdminNotificationBadge(count){
     .querySelectorAll(
       "#adminNotificationCount, .admin-bell-count"
     )
-    .forEach(function(countEl){
+    .forEach(function(badge){
 
-      countEl.textContent =
+      badge.textContent =
         String(count || 0);
 
-      countEl.style.display =
+      badge.style.display =
         count > 0
           ? "flex"
           : "none";
@@ -388,11 +309,27 @@ function adminNotificationUrl(n){
 }
 
 
-async function markSharedAdminNotificationRead(id){
+async function markSharedAdminNotificationRead(
+  event,
+  id
+){
+
+  if(event){
+    event.preventDefault();
+  }
 
   if(!window.sb || !id){
     return;
   }
+
+  var target =
+    event &&
+    event.currentTarget &&
+    event.currentTarget.getAttribute
+      ? event.currentTarget.getAttribute(
+          "href"
+        )
+      : "";
 
   try{
 
@@ -404,24 +341,27 @@ async function markSharedAdminNotificationRead(id){
       .eq("id",id);
 
     if(result.error){
-
-      console.warn(
-        "Notification read update failed:",
-        result.error.message
-      );
+      throw result.error;
     }
 
-  }catch(err){
+  }catch(error){
 
     console.warn(
-      "Notification read failed",
-      err
+      "Notification read update failed:",
+      error
     );
+  }
+
+  if(target){
+    window.location.href = target;
   }
 }
 
 
-async function clearSharedAdminNotification(event,id){
+async function clearSharedAdminNotification(
+  event,
+  id
+){
 
   if(event){
     event.preventDefault();
@@ -432,14 +372,14 @@ async function clearSharedAdminNotification(event,id){
     return;
   }
 
-  var clickedButton =
+  var button =
     event && event.currentTarget
       ? event.currentTarget
       : null;
 
-  if(clickedButton){
-    clickedButton.disabled = true;
-    clickedButton.textContent = "Clearing...";
+  if(button){
+    button.disabled = true;
+    button.textContent = "Clearing...";
   }
 
   try{
@@ -457,16 +397,16 @@ async function clearSharedAdminNotification(event,id){
 
     await loadSharedAdminNotifications();
 
-  }catch(err){
+  }catch(error){
 
     console.warn(
-      "Admin notification clear failed",
-      err
+      "Admin notification clear failed:",
+      error
     );
 
-    if(clickedButton){
-      clickedButton.disabled = false;
-      clickedButton.textContent = "Clear";
+    if(button){
+      button.disabled = false;
+      button.textContent = "Clear";
     }
   }
 }
@@ -493,11 +433,11 @@ async function clearAllSharedAdminNotifications(){
 
     await loadSharedAdminNotifications();
 
-  }catch(err){
+  }catch(error){
 
     console.warn(
-      "Could not clear all admin notifications",
-      err
+      "Could not clear all admin notifications:",
+      error
     );
   }
 }
@@ -529,7 +469,7 @@ function toggleAdminNotifications(){
 
 document.addEventListener(
   "click",
-  function(e){
+  function(event){
 
     var panel =
       document.getElementById(
@@ -546,8 +486,8 @@ document.addEventListener(
     }
 
     if(
-      !panel.contains(e.target) &&
-      !bell.contains(e.target)
+      !panel.contains(event.target) &&
+      !bell.contains(event.target)
     ){
       panel.classList.remove("open");
     }
@@ -559,10 +499,15 @@ document.addEventListener(
   "DOMContentLoaded",
   function(){
 
-    loadAdminShell();
+    /*
+      admin.js owns loading the shared sidebar/topbar.
+      This file owns the notification data only.
+    */
+    setTimeout(function(){
+      loadSharedAdminNotifications();
+    },500);
 
     if(anybikeAdminNotificationRefreshTimer){
-
       clearInterval(
         anybikeAdminNotificationRefreshTimer
       );
@@ -570,9 +515,7 @@ document.addEventListener(
 
     anybikeAdminNotificationRefreshTimer =
       setInterval(
-        function(){
-          loadSharedAdminNotifications();
-        },
+        loadSharedAdminNotifications,
         60000
       );
   }
