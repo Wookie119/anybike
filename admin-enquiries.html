@@ -7076,7 +7076,7 @@ function anyBikeDealMoney(value){
   return amount.toLocaleString("en-GB", {
     style:"currency",
     currency:"GBP",
-    minimumFractionDigits:0,
+    minimumFractionDigits:2,
     maximumFractionDigits:2
   });
 }
@@ -8621,7 +8621,10 @@ function openEditCandidateModal(candidateId){
 }
 
 function updateCandidatePotentialMargin(){
-  const asking=Number(document.getElementById("candidateSellerAsking")?.value || 0);
+  const askingInput=Number(document.getElementById("candidateSellerAsking")?.value || 0);
+  const activeRow=(adminDealCandidates || []).find(function(row){ return Number(row.id)===Number(activeCandidateId); });
+  const confirmed=Number(activeRow?.confirmed_seller_price_gbp || 0);
+  const asking=confirmed>0 ? confirmed : askingInput;
   const selling=Number(document.getElementById("candidateBuyerDisplayPrice")?.value || 0);
   const out=document.getElementById("candidatePotentialMargin");
   const note=document.getElementById("candidatePotentialMarginNote");
@@ -8634,10 +8637,10 @@ function updateCandidatePotentialMargin(){
   }
   const margin=selling-asking;
   const pct=selling>0 ? (margin/selling)*100 : 0;
-  out.textContent=(margin<0?"−":"")+"£"+Math.abs(margin).toLocaleString("en-GB",{minimumFractionDigits:0,maximumFractionDigits:2});
+  out.textContent=(margin<0?"−":"")+"£"+Math.abs(margin).toLocaleString("en-GB",{minimumFractionDigits:2,maximumFractionDigits:2});
   out.classList.toggle("positive",margin>=0);
   out.classList.toggle("negative",margin<0);
-  note.textContent=pct.toFixed(1)+"% of customer price before collection / delivery and other deal costs.";
+  note.textContent=(confirmed>0 ? "Using confirmed seller price "+anyBikeDealMoney(confirmed)+" · " : "Using seller asking price · ")+pct.toFixed(1)+"% of customer price before collection / delivery and other deal costs.";
 }
 
 function setCandidateSellerHoldHours(hours){
@@ -8932,7 +8935,12 @@ async function saveCandidateAvailability(){
 
     if(error){ throw error; }
 
-    const payload=data || {};
+    const payload=Array.isArray(data) ? (data[0] || {}) : (data || {});
+    const savedCandidateId=Number(activeCandidateId);
+    const beforeSave=(adminDealCandidates || []).find(function(row){ return Number(row.id)===savedCandidateId; });
+    const savedDealId=Number(payload.deal_id || beforeSave?.deal_id || 0);
+    const savedConfirmedPrice=priceRaw ? Number(priceRaw) : null;
+    const savedValidUntil=validRaw ? new Date(validRaw).toISOString() : null;
 
     if(status){
       status.className="anybike-candidate-status success";
@@ -8942,9 +8950,22 @@ async function saveCandidateAvailability(){
     closeCandidateAvailabilityModal();
     await loadAdminDealQueue();
 
-    if(payload.deal_id){
+    /* Keep the just-confirmed seller figures authoritative in the refreshed
+       admin view even if an older candidate queue RPC response is cached. */
+    const refreshed=(adminDealCandidates || []).find(function(row){ return Number(row.id)===savedCandidateId; });
+    if(refreshed){
+      refreshed.availability_status=availability;
+      refreshed.confirmed_seller_price_gbp=savedConfirmedPrice;
+      refreshed.availability_valid_until=savedValidUntil;
+      refreshed.availability_notes=notes || null;
+      if(availability==="Confirmed Available"){
+        refreshed.availability_confirmed_at=payload.availability_confirmed_at || refreshed.availability_confirmed_at || new Date().toISOString();
+      }
+    }
+
+    if(savedDealId){
       setTimeout(function(){
-        openConvertedEnquiryDeal(payload.deal_id);
+        openConvertedEnquiryDeal(savedDealId);
       },150);
     }
 
