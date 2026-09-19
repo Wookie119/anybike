@@ -217,7 +217,8 @@ main{width:min(1420px,94vw);margin:28px auto 70px}
     <div class="notice-box"><strong>Important:</strong> reporting a payment tells AnyBike what you have sent and how you want it allocated. It does not mark the money as received until AnyBike verifies the transfer in its bank account.</div>
     <div id="invoices"><div class="empty loading">Loading your invoices...</div></div>
 
-    <div id="reportPanel" class="report-panel">
+    <div id="reportPanel" class="report-panel section-anchor">
+      <div id="paymentJourneyNotice"></div>
       <div class="panel-head" style="margin-bottom:12px">
         <div><h2 style="font-size:20px">I’ve Made a Bank Transfer</h2><p>Confirm the transfer details and the split you selected above.</p></div>
       </div>
@@ -354,6 +355,7 @@ function renderInvoices(){
   }
   box.innerHTML=`<div class="invoice-grid ${accountInvoices.length===1?"single-invoice":""}">${accountInvoices.map(invoiceCard).join("")}</div>`;
   document.querySelectorAll(".pay-select,.pay-amount").forEach(el=>el.addEventListener("change",updatePaymentSelection));
+  applyRequestedPaymentJourney();
 }
 
 function invoiceCard(invoice){
@@ -391,6 +393,35 @@ function invoiceCard(invoice){
       ${paymentBlock}
     </div>
   </article>`;
+}
+
+function requestedPaymentJourney(){
+  const params=new URLSearchParams(window.location.search);
+  const deal=String(params.get("deal")||"").trim();
+  const payment=String(params.get("payment")||"").trim().toLowerCase();
+  const amount=Number(params.get("amount")||0);
+  if(!deal || payment!=="deposit" || !Number.isFinite(amount) || amount<=0)return null;
+  return {deal,amount:Number(amount.toFixed(2))};
+}
+
+function applyRequestedPaymentJourney(){
+  const request=requestedPaymentJourney();
+  if(!request)return;
+  const invoice=accountInvoices.find(row=>String(row.deal_number||"").trim()===request.deal && !!row.can_report_payment && Number(row.balance_due_gbp||0)>0);
+  if(!invoice)return;
+  document.querySelectorAll(".pay-select").forEach(el=>{el.checked=false;});
+  const id=Number(invoice.invoice_id);
+  const checkbox=document.getElementById("pay-select-"+id);
+  const amountInput=document.getElementById("pay-amount-"+id);
+  if(!checkbox || !amountInput)return;
+  const balance=Number(invoice.balance_due_gbp||0);
+  const requested=Math.min(request.amount,balance);
+  checkbox.checked=true;
+  amountInput.value=requested.toFixed(2);
+  const notice=document.getElementById("paymentJourneyNotice");
+  if(notice){notice.innerHTML=`<div class="notice-box" style="border-color:rgba(54,211,126,.38);background:rgba(54,211,126,.07);margin-bottom:16px"><strong>Deposit payment for ${safe(request.deal)}</strong><br>Your ${money(requested)} deposit is due. After making the bank transfer, enter the reference used with your bank below and submit the payment advice. AnyBike will verify the transfer before it is recorded as received.</div>`;}
+  updatePaymentSelection();
+  requestAnimationFrame(()=>setTimeout(()=>{const target=document.getElementById("reportPanel");if(target){const top=target.getBoundingClientRect().top+window.pageYOffset-24;window.scrollTo({top:Math.max(0,top),behavior:"smooth"});}},180));
 }
 
 function selectedAllocations(){
@@ -489,7 +520,7 @@ function scrollToAccountsSection(sectionId){
   const id=String(sectionId||"").replace(/^#/,"").trim();
   if(!id)return;
 
-  const target=document.getElementById(id);
+  const target=id==="bank-transfer" ? document.getElementById("reportPanel") : document.getElementById(id);
   if(!target)return;
 
   const top=target.getBoundingClientRect().top+window.pageYOffset-24;
