@@ -8116,13 +8116,32 @@ function renderAnyBikeDealPreSalePanel(deal){
   const firstBike=bikes[0] || {};
   const title=[firstBike.make,firstBike.model,firstBike.variant].filter(Boolean).join(" ") || deal.deal_title || "Motorcycle";
 
+  const selectedCandidate=firstBike && (firstBike.deal_motorcycle_id || firstBike.id)
+    ? dealCandidateForMotorcycle(firstBike.deal_motorcycle_id || firstBike.id)
+    : null;
+
   const sellerNames=anyBikeDealSellerNames(dealId);
-  const seller=sellerNames.length ? sellerNames.join(", ") : "Not confirmed";
+  const candidateSellerName=String((selectedCandidate && selectedCandidate.seller_name) || "").trim();
+  const candidateSellerType=String((selectedCandidate && selectedCandidate.seller_type) || "").trim();
+  const seller=sellerNames.length
+    ? sellerNames.join(", ")
+    : (candidateSellerName || candidateSellerType || "Not confirmed");
+
+  const candidateAvailability=String((selectedCandidate && selectedCandidate.availability_status) || "").trim();
+  const candidateAvailabilityUntil=selectedCandidate && selectedCandidate.availability_valid_until
+    ? new Date(selectedCandidate.availability_valid_until)
+    : null;
+  const candidateAvailabilityExpired=!!(candidateAvailabilityUntil && !Number.isNaN(candidateAvailabilityUntil.getTime()) && candidateAvailabilityUntil.getTime()<=Date.now());
+  const candidateAvailabilityConfirmed=candidateAvailability==="Confirmed Available" && !candidateAvailabilityExpired;
 
   const salePrice=Number(deal.buyer_value_gbp || firstBike.buyer_price_gbp || 0);
   const sellerPrice=Number(deal.seller_cost_gbp || firstBike.seller_price_gbp || 0);
   const secured=Number(deal.secured_count || 0)>0 || !!firstBike.bike_secured;
-  const nextAction=anyBikeDealPreSaleNextAction(deal);
+  const nextAction=candidateAvailabilityConfirmed
+    ? "Prepare Formal Offer"
+    : (selectedCandidate && candidateAvailabilityExpired
+        ? "Recheck seller availability"
+        : anyBikeDealPreSaleNextAction(deal));
 
   return `<div class="anybike-presale-panel">
     <div class="anybike-presale-head">
@@ -8151,6 +8170,9 @@ function renderAnyBikeDealPreSalePanel(deal){
       <div class="anybike-presale-item">
         <span>Seller</span>
         <strong>${escapeAdminHtml(seller)}</strong>
+        ${candidateSellerName && candidateSellerType ? `<small style="display:block;margin-top:4px;color:#aaa">${escapeAdminHtml(candidateSellerType)}</small>` : ""}
+        ${candidateAvailabilityConfirmed ? `<small style="display:block;margin-top:4px;color:#8cffb1">Availability Confirmed</small>` : ""}
+        ${selectedCandidate && candidateAvailabilityExpired ? `<small style="display:block;margin-top:4px;color:#ffb36b">Availability confirmation expired</small>` : ""}
       </div>
       <div class="anybike-presale-item">
         <span>AnyBike Sale Price</span>
