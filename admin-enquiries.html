@@ -5155,6 +5155,24 @@ input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-in
 @media(max-width:900px){.anybike-new-deal-grid{grid-template-columns:1fr 1fr}}@media(max-width:560px){.anybike-new-deal-grid{grid-template-columns:1fr}.anybike-new-deal-grid label.span2{grid-column:auto}}
 </style>
 
+<style>
+/* Candidate motorcycle editor / AnyBike-owned image upload */
+.candidate-section-title{margin:18px 0 10px;padding:10px 12px;border-left:4px solid #ed1c24;background:#151515;color:#fff;font-weight:950;border-radius:8px}
+.candidate-section-title.internal{border-left-color:#f0a000;background:#1b160c}
+.candidate-upload-panel{background:#111;border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:14px;margin-bottom:14px}
+.candidate-upload-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-bottom:12px}
+.candidate-upload-empty{color:#999;padding:12px;border:1px dashed rgba(255,255,255,.18);border-radius:10px}
+.candidate-upload-thumb{position:relative;background:#181818;border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:7px;overflow:hidden}
+.candidate-upload-thumb img{display:block;width:100%;height:100px;object-fit:cover;border-radius:8px}
+.candidate-upload-thumb button{width:100%;margin:7px 0 0;padding:7px 9px;border-radius:8px;background:#333}
+.candidate-upload-controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:8px 0}
+.candidate-upload-controls input[type=file]{flex:1;min-width:260px;background:#fff;color:#111;border-radius:10px;padding:10px}
+.candidate-upload-controls button{margin:0!important}
+.candidate-upload-status{color:#bbb;font-size:13px;font-weight:800}
+.candidate-upload-panel small{display:block;color:#999;line-height:1.45}
+.candidate-internal-grid{background:rgba(240,160,0,.04);border:1px solid rgba(240,160,0,.18);border-radius:14px;padding:12px}
+@media(max-width:700px){.candidate-upload-controls{align-items:stretch;flex-direction:column}.candidate-upload-controls input[type=file]{min-width:0;width:100%}}
+</style>
 </head>
 
 <body>
@@ -8322,7 +8340,8 @@ function renderAnyBikeDealCandidatePanel(deal){
       ${row.internal_notes ? `<div class="anybike-candidate-notes"><strong>Internal note:</strong> ${escapeAdminHtml(row.internal_notes)}</div>` : ""}
 
       <div class="anybike-candidate-actions">
-        ${sourceUrl ? `<a class="secondary" href="${escapeAdminHtml(sourceUrl)}" target="_blank" rel="noopener">Open Source Advert</a>` : ""}
+        <button type="button" class="secondary" onclick="openEditCandidateModal(${row.id});return false;">Edit Candidate</button>
+        ${sourceUrl ? `<a class="secondary" href="${escapeAdminHtml(sourceUrl)}" target="_blank" rel="noopener">Source Advert · Internal Only</a>` : ""}
         <button type="button" class="secondary" onclick="sendCandidateToBuyer(${row.id});return false;" ${sold || selected ? "disabled" : ""}>${status==="Sent to Buyer" ? "Send Again" : "Send to Buyer"}</button>
         <button type="button" class="secondary" onclick="setCandidateStatus(${row.id},'Interested');return false;" ${sold || selected ? "disabled" : ""}>Buyer Interested</button>
         <button type="button" class="secondary" onclick="setCandidateStatus(${row.id},'Declined');return false;" ${sold || selected ? "disabled" : ""}>Buyer Declined</button>
@@ -8364,41 +8383,154 @@ function candidateModalBackdrop(event){
   }
 }
 
-function openAddCandidateModal(dealId){
-  activeCandidateDealId=Number(dealId);
-  activeCandidateId=null;
+function candidateSetField(id,value){
+  const el=document.getElementById(id);
+  if(el){ el.value=value ?? ""; }
+}
 
-  const modal=document.getElementById("candidateMotorcycleModal");
-  if(!modal){ return; }
+function candidateCurrentImageUrls(){
+  const holder=document.getElementById("candidateExistingImages");
+  if(!holder){ return []; }
+  try{
+    const parsed=JSON.parse(holder.dataset.urls || "[]");
+    return Array.isArray(parsed) ? parsed.filter(Boolean).slice(0,10) : [];
+  }catch(_){ return []; }
+}
 
+function renderCandidateExistingImages(urls){
+  const holder=document.getElementById("candidateExistingImages");
+  if(!holder){ return; }
+  const clean=(Array.isArray(urls) ? urls : []).filter(Boolean).slice(0,10);
+  holder.dataset.urls=JSON.stringify(clean);
+  holder.innerHTML=clean.length ? clean.map(function(url,index){
+    const safe=candidateSafeUrl(url);
+    if(!safe){ return ""; }
+    return `<div class="candidate-upload-thumb">
+      <img src="${escapeAdminHtml(safe)}" alt="Candidate motorcycle image ${index+1}">
+      <button type="button" onclick="removeCandidateExistingImage(${index});return false;">Remove</button>
+    </div>`;
+  }).join("") : `<div class="candidate-upload-empty">No images uploaded yet.</div>`;
+}
+
+function removeCandidateExistingImage(index){
+  const urls=candidateCurrentImageUrls();
+  urls.splice(Number(index),1);
+  renderCandidateExistingImages(urls);
+}
+
+async function uploadCandidateImages(){
+  const input=document.getElementById("candidateImageFiles");
+  const status=document.getElementById("candidateUploadStatus");
+  const files=Array.from(input?.files || []);
+  if(!files.length){
+    if(status){ status.textContent="Choose one or more images first."; }
+    return;
+  }
+
+  let urls=candidateCurrentImageUrls();
+  const remaining=Math.max(0,10-urls.length);
+  if(!remaining){
+    if(status){ status.textContent="This candidate already has 10 images."; }
+    return;
+  }
+  const chosen=files.slice(0,remaining);
+  if(status){ status.textContent=`Uploading ${chosen.length} image${chosen.length===1?"":"s"}…`; }
+
+  try{
+    for(let i=0;i<chosen.length;i++){
+      const file=chosen[i];
+      if(file.size>10485760){ throw new Error(`${file.name} is larger than 10 MB.`); }
+      const ext=(String(file.name).split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g,"") || "jpg";
+      const key=(window.crypto?.randomUUID ? crypto.randomUUID() : (Date.now()+"-"+Math.random().toString(16).slice(2)));
+      const dealPart=Number.isFinite(Number(activeCandidateDealId)) ? `deal-${Number(activeCandidateDealId)}` : "unassigned";
+      const candidatePart=Number.isFinite(Number(activeCandidateId)) ? `candidate-${Number(activeCandidateId)}` : "new-candidate";
+      const path=`${dealPart}/${candidatePart}/${key}.${ext}`;
+      const uploaded=await sb.storage.from("candidate-motorcycles").upload(path,file,{cacheControl:"3600",upsert:false,contentType:file.type || undefined});
+      if(uploaded.error){ throw uploaded.error; }
+      const publicResult=sb.storage.from("candidate-motorcycles").getPublicUrl(path);
+      const publicUrl=publicResult?.data?.publicUrl || "";
+      if(!publicUrl){ throw new Error("Image uploaded but its display URL could not be created."); }
+      urls.push(publicUrl);
+      renderCandidateExistingImages(urls);
+      if(status){ status.textContent=`Uploaded ${i+1} of ${chosen.length}.`; }
+    }
+    if(input){ input.value=""; }
+    if(status){ status.textContent=`Upload complete. ${urls.length} image${urls.length===1?"":"s"} attached.`; }
+  }catch(error){
+    console.error("Candidate image upload failed:",error);
+    if(status){ status.textContent="Upload failed: "+(error?.message || error); }
+  }
+}
+
+function resetCandidateModal(){
   [
     "candidateMake","candidateModel","candidateVariant","candidateYear","candidateMileage",
     "candidateColour","candidateRegistration","candidateSellerAsking","candidateBuyerDisplayPrice","candidateSellerName",
     "candidateSellerType","candidateSellerPhone","candidateSellerEmail","candidateSellerLocation",
-    "candidateSourceUrl","candidateImageUrls","candidateInternalNotes"
-  ].forEach(function(id){
-    const el=document.getElementById(id);
-    if(el){ el.value=""; }
-  });
-
+    "candidateSourceUrl","candidateInternalNotes","candidateCustomerDescription","candidateCustomerSpecification","candidateCustomerUpdateNote"
+  ].forEach(function(id){ candidateSetField(id,""); });
+  const fileInput=document.getElementById("candidateImageFiles");
+  if(fileInput){ fileInput.value=""; }
+  renderCandidateExistingImages([]);
+  const uploadStatus=document.getElementById("candidateUploadStatus");
+  if(uploadStatus){ uploadStatus.textContent=""; }
   const status=document.getElementById("candidateModalStatus");
-  if(status){
-    status.className="anybike-candidate-status";
-    status.textContent="";
-  }
+  if(status){ status.className="anybike-candidate-status"; status.textContent=""; }
+}
 
+function openAddCandidateModal(dealId){
+  activeCandidateDealId=Number(dealId);
+  activeCandidateId=null;
+  const modal=document.getElementById("candidateMotorcycleModal");
+  if(!modal){ return; }
+  resetCandidateModal();
+  document.getElementById("candidateMotorcycleTitle").textContent="Add Candidate Motorcycle";
+  document.getElementById("candidateSaveButton").textContent="Add Candidate";
   modal.classList.add("open");
   document.body.style.overflow="hidden";
+  setTimeout(function(){ document.getElementById("candidateMake")?.focus(); },50);
+}
 
-  setTimeout(function(){
-    document.getElementById("candidateMake")?.focus();
-  },50);
+function openEditCandidateModal(candidateId){
+  const id=Number(candidateId);
+  const row=(adminDealCandidates || []).find(function(item){ return Number(item.id)===id; });
+  if(!row){ alert("Candidate motorcycle could not be found."); return; }
+
+  activeCandidateId=id;
+  activeCandidateDealId=Number(row.deal_id);
+  const modal=document.getElementById("candidateMotorcycleModal");
+  if(!modal){ return; }
+  resetCandidateModal();
+
+  candidateSetField("candidateMake",row.make);
+  candidateSetField("candidateModel",row.model);
+  candidateSetField("candidateVariant",row.variant);
+  candidateSetField("candidateYear",row.year);
+  candidateSetField("candidateMileage",row.mileage);
+  candidateSetField("candidateColour",row.colour);
+  candidateSetField("candidateRegistration",row.registration);
+  candidateSetField("candidateSellerAsking",row.seller_asking_price_gbp);
+  candidateSetField("candidateBuyerDisplayPrice",row.buyer_display_price_gbp);
+  candidateSetField("candidateSellerName",row.seller_name);
+  candidateSetField("candidateSellerType",row.seller_type);
+  candidateSetField("candidateSellerPhone",row.seller_phone);
+  candidateSetField("candidateSellerEmail",row.seller_email);
+  candidateSetField("candidateSellerLocation",row.seller_location);
+  candidateSetField("candidateSourceUrl",row.source_url);
+  candidateSetField("candidateInternalNotes",row.internal_notes);
+  candidateSetField("candidateCustomerDescription",row.customer_description);
+  candidateSetField("candidateCustomerSpecification",row.customer_specification);
+  candidateSetField("candidateCustomerUpdateNote",row.customer_update_note);
+  renderCandidateExistingImages(Array.isArray(row.image_urls) ? row.image_urls : []);
+
+  document.getElementById("candidateMotorcycleTitle").textContent="Edit Candidate Motorcycle";
+  document.getElementById("candidateSaveButton").textContent="Save Changes";
+  modal.classList.add("open");
+  document.body.style.overflow="hidden";
 }
 
 async function saveCandidateMotorcycle(){
-  if(candidateSaveBusy || !Number.isFinite(Number(activeCandidateDealId))){
-    return;
-  }
+  if(candidateSaveBusy || !Number.isFinite(Number(activeCandidateDealId))){ return; }
 
   const make=String(document.getElementById("candidateMake")?.value || "").trim();
   const model=String(document.getElementById("candidateModel")?.value || "").trim();
@@ -8406,91 +8538,77 @@ async function saveCandidateMotorcycle(){
   const yearRaw=String(document.getElementById("candidateYear")?.value || "").trim();
   const mileageRaw=String(document.getElementById("candidateMileage")?.value || "").trim();
   const askingRaw=String(document.getElementById("candidateSellerAsking")?.value || "").trim();
-
-  const imageUrls=String(document.getElementById("candidateImageUrls")?.value || "")
-    .split(/\r?\n|,/)
-    .map(function(v){ return v.trim(); })
-    .filter(Boolean)
-    .slice(0,10);
-
+  const imageUrls=candidateCurrentImageUrls();
   const status=document.getElementById("candidateModalStatus");
   const button=document.getElementById("candidateSaveButton");
+  const editing=Number.isFinite(Number(activeCandidateId));
 
   function fail(message){
-    if(status){
-      status.className="anybike-candidate-status error";
-      status.textContent=message;
-    }
+    if(status){ status.className="anybike-candidate-status error"; status.textContent=message; }
   }
-
-  if(!make || !model){
-    fail("Make and model are required.");
-    return;
-  }
+  if(!make || !model){ fail("Make and model are required."); return; }
 
   candidateSaveBusy=true;
+  if(button){ button.disabled=true; button.textContent="Saving…"; }
+  if(status){ status.className="anybike-candidate-status"; status.textContent=editing ? "Saving candidate changes…" : "Saving candidate motorcycle…"; }
 
-  if(button){
-    button.disabled=true;
-    button.textContent="Saving…";
-  }
-
-  if(status){
-    status.className="anybike-candidate-status";
-    status.textContent="Saving candidate motorcycle…";
-  }
+  const common={
+    p_make:make,
+    p_model:model,
+    p_variant:variant || null,
+    p_year:yearRaw ? Number(yearRaw) : null,
+    p_mileage:mileageRaw ? Number(mileageRaw) : null,
+    p_colour:String(document.getElementById("candidateColour")?.value || "").trim() || null,
+    p_registration:String(document.getElementById("candidateRegistration")?.value || "").trim() || null,
+    p_seller_asking_price_gbp:askingRaw ? Number(askingRaw) : null,
+    p_buyer_display_price_gbp:String(document.getElementById("candidateBuyerDisplayPrice")?.value || "").trim() ? Number(document.getElementById("candidateBuyerDisplayPrice").value) : null,
+    p_seller_name:String(document.getElementById("candidateSellerName")?.value || "").trim() || null,
+    p_seller_type:String(document.getElementById("candidateSellerType")?.value || "").trim() || null,
+    p_seller_phone:String(document.getElementById("candidateSellerPhone")?.value || "").trim() || null,
+    p_seller_email:String(document.getElementById("candidateSellerEmail")?.value || "").trim() || null,
+    p_seller_location:String(document.getElementById("candidateSellerLocation")?.value || "").trim() || null,
+    p_source_url:String(document.getElementById("candidateSourceUrl")?.value || "").trim() || null,
+    p_image_urls:imageUrls,
+    p_internal_notes:String(document.getElementById("candidateInternalNotes")?.value || "").trim() || null
+  };
 
   try{
-    const {data,error}=await sb.rpc("admin_add_deal_candidate_v1",{
-      p_deal_id:Number(activeCandidateDealId),
-      p_make:make,
-      p_model:model,
-      p_variant:variant || null,
-      p_year:yearRaw ? Number(yearRaw) : null,
-      p_mileage:mileageRaw ? Number(mileageRaw) : null,
-      p_colour:String(document.getElementById("candidateColour")?.value || "").trim() || null,
-      p_registration:String(document.getElementById("candidateRegistration")?.value || "").trim() || null,
-      p_seller_asking_price_gbp:askingRaw ? Number(askingRaw) : null,
-      p_buyer_display_price_gbp:String(document.getElementById("candidateBuyerDisplayPrice")?.value || "").trim()
-        ? Number(document.getElementById("candidateBuyerDisplayPrice").value)
-        : null,
-      p_seller_name:String(document.getElementById("candidateSellerName")?.value || "").trim() || null,
-      p_seller_type:String(document.getElementById("candidateSellerType")?.value || "").trim() || null,
-      p_seller_phone:String(document.getElementById("candidateSellerPhone")?.value || "").trim() || null,
-      p_seller_email:String(document.getElementById("candidateSellerEmail")?.value || "").trim() || null,
-      p_seller_location:String(document.getElementById("candidateSellerLocation")?.value || "").trim() || null,
-      p_source_url:String(document.getElementById("candidateSourceUrl")?.value || "").trim() || null,
-      p_image_urls:imageUrls,
-      p_internal_notes:String(document.getElementById("candidateInternalNotes")?.value || "").trim() || null
-    });
-
-    if(error){ throw error; }
-
-    if(status){
-      status.className="anybike-candidate-status success";
-      status.textContent="Candidate added.";
+    if(editing){
+      const updateArgs={...common,
+        p_candidate_id:Number(activeCandidateId),
+        p_customer_description:String(document.getElementById("candidateCustomerDescription")?.value || "").trim() || null,
+        p_customer_specification:String(document.getElementById("candidateCustomerSpecification")?.value || "").trim() || null,
+        p_customer_update_note:String(document.getElementById("candidateCustomerUpdateNote")?.value || "").trim() || null
+      };
+      const result=await sb.rpc("admin_update_deal_candidate_v1",updateArgs);
+      if(result.error){ throw result.error; }
+    }else{
+      const result=await sb.rpc("admin_add_deal_candidate_v1",{p_deal_id:Number(activeCandidateDealId),...common});
+      if(result.error){ throw result.error; }
+      const payload=result.data || {};
+      const newId=Number(payload.candidate_id || payload.id || (Array.isArray(payload) && payload[0] ? (payload[0].candidate_id || payload[0].id) : NaN));
+      const customerDescription=String(document.getElementById("candidateCustomerDescription")?.value || "").trim();
+      const customerSpecification=String(document.getElementById("candidateCustomerSpecification")?.value || "").trim();
+      const customerUpdateNote=String(document.getElementById("candidateCustomerUpdateNote")?.value || "").trim();
+      if(Number.isFinite(newId) && (customerDescription || customerSpecification || customerUpdateNote)){
+        const updateResult=await sb.rpc("admin_update_deal_candidate_v1",{...common,p_candidate_id:newId,p_customer_description:customerDescription||null,p_customer_specification:customerSpecification||null,p_customer_update_note:customerUpdateNote||null});
+        if(updateResult.error){ console.warn("Candidate created but customer-visible detail update failed:",updateResult.error); }
+      }
     }
 
     const dealId=activeCandidateDealId;
+    if(status){ status.className="anybike-candidate-status success"; status.textContent=editing ? "Candidate updated." : "Candidate added."; }
     closeCandidateModal();
     await loadAdminDealQueue();
-
-    setTimeout(function(){
-      openConvertedEnquiryDeal(dealId);
-    },150);
-
+    setTimeout(function(){ openConvertedEnquiryDeal(dealId); },150);
   }catch(error){
     console.error("Candidate motorcycle could not be saved:",error);
     fail("Could not save candidate: "+(error?.message || error));
   }finally{
     candidateSaveBusy=false;
-    if(button){
-      button.disabled=false;
-      button.textContent="Add Candidate";
-    }
+    if(button){ button.disabled=false; button.textContent=editing ? "Save Changes" : "Add Candidate"; }
   }
 }
-
 
 async function sendCandidateToBuyer(candidateId){
   const id=Number(candidateId);
@@ -13631,49 +13749,51 @@ loadEnquiries = async function(){
     </div>
 
     <div class="anybike-candidate-modal-body">
+      <div class="candidate-section-title">Customer-visible motorcycle details</div>
       <div class="anybike-candidate-form-grid">
         <label><span>Make *</span><input id="candidateMake" type="text" autocomplete="off"></label>
         <label><span>Model *</span><input id="candidateModel" type="text" autocomplete="off"></label>
         <label><span>Variant / Derivative</span><input id="candidateVariant" type="text" autocomplete="off"></label>
         <label><span>Year</span><input id="candidateYear" type="number" min="1900" max="2100"></label>
-
         <label><span>Mileage</span><input id="candidateMileage" type="number" min="0" step="1"></label>
         <label><span>Colour</span><input id="candidateColour" type="text"></label>
         <label><span>Registration</span><input id="candidateRegistration" type="text"></label>
-        <label><span>Seller Asking Price (£)</span><input id="candidateSellerAsking" type="number" min="0" step="0.01"></label>
         <label><span>Indicative AnyBike Price (£)</span><input id="candidateBuyerDisplayPrice" type="number" min="0" step="0.01" placeholder="Optional"></label>
 
-        <label><span>Seller Name / Dealer</span><input id="candidateSellerName" type="text"></label>
-        <label><span>Seller Type</span>
+        <label class="full"><span>Customer Description</span><textarea id="candidateCustomerDescription" placeholder="Customer-facing description of this motorcycle. Do not include seller identity or source details."></textarea></label>
+        <label class="full"><span>Customer Specification / Details</span><textarea id="candidateCustomerSpecification" placeholder="Equipment, condition, service history, accessories, specification or other useful buyer-facing details."></textarea></label>
+        <label class="full"><span>Customer Update Note</span><textarea id="candidateCustomerUpdateNote" placeholder="Optional note explaining a meaningful update, for example: New photographs and service-history details added."></textarea></label>
+      </div>
+
+      <div class="candidate-section-title">Candidate images</div>
+      <div class="candidate-upload-panel">
+        <div id="candidateExistingImages" class="candidate-upload-grid" data-urls="[]"></div>
+        <div class="candidate-upload-controls">
+          <input id="candidateImageFiles" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" multiple>
+          <button type="button" class="secondary" onclick="uploadCandidateImages();return false;">Upload Images</button>
+          <span id="candidateUploadStatus" class="candidate-upload-status"></span>
+        </div>
+        <small>Up to 10 images. Files are uploaded to AnyBike's candidate-motorcycles storage. Existing images can be retained or removed when editing.</small>
+      </div>
+
+      <div class="candidate-section-title internal">Internal sourcing information — never shown to buyer</div>
+      <div class="anybike-candidate-form-grid candidate-internal-grid">
+        <label><span>Seller Asking Price (£) · Internal Only</span><input id="candidateSellerAsking" type="number" min="0" step="0.01"></label>
+        <label><span>Seller Name / Dealer · Internal Only</span><input id="candidateSellerName" type="text"></label>
+        <label><span>Seller Type · Internal Only</span>
           <select id="candidateSellerType">
-            <option value="">Select</option>
-            <option>Dealer</option>
-            <option>Private Seller</option>
-            <option>Auction</option>
-            <option>Trade Supplier</option>
-            <option>Other</option>
+            <option value="">Select</option><option>Dealer</option><option>Private Seller</option><option>Auction</option><option>Trade Supplier</option><option>Other</option>
           </select>
         </label>
-        <label><span>Seller Phone</span><input id="candidateSellerPhone" type="text"></label>
-        <label><span>Seller Email</span><input id="candidateSellerEmail" type="email"></label>
-
-        <label class="span2"><span>Seller Location / Postcode</span><input id="candidateSellerLocation" type="text"></label>
-        <label class="span2"><span>Source Advert URL</span><input id="candidateSourceUrl" type="url" placeholder="https://..."></label>
-
-        <label class="full">
-          <span>Candidate Image URLs — up to 10</span>
-          <textarea id="candidateImageUrls" placeholder="Paste one image URL per line"></textarea>
-        </label>
-
-        <label class="full">
-          <span>Internal Notes</span>
-          <textarea id="candidateInternalNotes" placeholder="Seller notes, advert details, buyer fit, questions to check, etc."></textarea>
-        </label>
+        <label><span>Seller Phone · Internal Only</span><input id="candidateSellerPhone" type="text"></label>
+        <label><span>Seller Email · Internal Only</span><input id="candidateSellerEmail" type="email"></label>
+        <label><span>Seller Location / Postcode · Internal Only</span><input id="candidateSellerLocation" type="text"></label>
+        <label class="span2"><span>Source Advert URL · Internal Only</span><input id="candidateSourceUrl" type="url" placeholder="https://..."></label>
+        <label class="full"><span>Internal Notes · Never shown to buyer</span><textarea id="candidateInternalNotes" placeholder="Seller notes, advert details, buyer fit, questions to check, etc."></textarea></label>
       </div>
 
       <p class="anybike-candidate-modal-note">
-        This creates a private Deal 360 candidate only. It does not publish the motorcycle as Available Stock,
-        does not send a customer message, does not take payment and does not secure the motorcycle.
+        This is a private Deal 360 candidate. Seller identity, seller contact details, seller asking price, source advert URL and internal notes are internal AnyBike information and must never be exposed to the customer.
       </p>
     </div>
 
