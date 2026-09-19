@@ -9256,7 +9256,7 @@ function renderAnyBikeDealShippingRoutePanel(deal, options={}){
             <div>
               <strong style="font-size:18px">Purchase Safety Gate</strong>
               <div style="color:#aaa;font-size:13px;line-height:1.45;margin-top:5px">
-                International/export motorcycles cannot be secured and seller payments cannot be made until a workable UK handover route is confirmed.
+                International/export motorcycles cannot be secured and seller payments cannot be made until a workable UK handover plan is verified. A verified plan confirms where and how AnyBike can hand over the motorcycle in the UK; it does not mean transport or international shipping has been booked.
               </div>
             </div>
             <span class="panel-badge ${confirmed ? "badge-green" : (status==="Not Required" ? "" : "badge-red")}">
@@ -9301,7 +9301,7 @@ function renderAnyBikeDealShippingRoutePanel(deal, options={}){
             </div>
 
             <div class="anybike-commercial-field" style="grid-column:1 / -1">
-              <label>Internal Shipping Notes</label>
+              <label>Internal Handover Notes</label>
               <textarea id="deal-shipping-notes-${dealId}" placeholder="Handover instructions, route checks or other internal notes" ${busy ? "disabled" : ""}>${escapeAdminHtml(route.shipping_route_notes || "")}</textarea>
             </div>
           </div>
@@ -9338,6 +9338,37 @@ async function loadDealShippingRoutes(){
     (result.data || []).forEach(function(row){
       adminDealShippingRoutes.set(String(row.deal_id || ""), row);
     });
+
+    /*
+      The shipping RPC can return the route while an older RPC version omits
+      destination_country. Read the authoritative Deal value as a display/edit
+      fallback so staff never have to retype a destination already on the Deal.
+      This is read-only and does not alter messaging, notifications or payments.
+    */
+    const missingDestinationIds = Array.from(adminDealShippingRoutes.values())
+      .filter(function(row){ return row && row.deal_id && !String(row.destination_country || "").trim(); })
+      .map(function(row){ return Number(row.deal_id); })
+      .filter(Number.isFinite);
+
+    if(missingDestinationIds.length){
+      const dealResult = await sb
+        .from("anybike_deals")
+        .select("id,destination_country")
+        .in("id", missingDestinationIds);
+
+      if(!dealResult.error){
+        (dealResult.data || []).forEach(function(dealRow){
+          const key = String(dealRow.id || "");
+          const existing = adminDealShippingRoutes.get(key);
+          if(existing && !String(existing.destination_country || "").trim() && dealRow.destination_country){
+            existing.destination_country = dealRow.destination_country;
+            adminDealShippingRoutes.set(key, existing);
+          }
+        });
+      }else{
+        console.warn("Deal destination fallback could not be loaded:",dealResult.error);
+      }
+    }
   }catch(error){
     console.warn("Deal shipping routes could not be loaded:",error);
   }
@@ -11994,7 +12025,7 @@ function renderAnyBikeGuidedJourney(deal,bikes,bikeRows,dealNumber,buyerName,raw
 
   return `<section class="deal-journey">
     <div class="deal-journey-head"><h3>Deal 360 Journey · ${escapeAdminHtml(dealNumber)}</h3><p>${escapeAdminHtml(buyerName)} · ${escapeAdminHtml(stage)} · ${escapeAdminHtml(status)}</p><div class="deal-journey-status">${chips}</div></div>
-    <div class="deal-journey-next"><strong>Next Action: ${escapeAdminHtml(primary || "Review Deal")}</strong><span>${escapeAdminHtml(primaryInstruction)}</span>${secondary.length?`<span class="deal-journey-secondary">Also required before purchase: ${escapeAdminHtml(secondary.join(" · "))}</span>`:""}</div>
+    <div class="deal-journey-next"><strong>Next Action: ${escapeAdminHtml(primaryDisplay || "Review Deal")}</strong><span>${escapeAdminHtml(primaryInstruction)}</span>${secondary.length?`<span class="deal-journey-secondary">Also required before purchase: ${escapeAdminHtml(secondary.join(" · "))}</span>`:""}</div>
     <div class="deal-journey-steps">
       ${anyBikeJourneyStep({title:"Customer & Requirement",subtitle:"Buyer, conversation and original requirement",state:"done",tooltip:"Review the buyer and original requirement when needed.",body:renderAnyBikeDealMessageBridge(deal)})}
       ${anyBikeJourneyStep({title:"Motorcycle Selected",subtitle:hasMotorcycle?((bikes[0]&&[bikes[0].year,bikes[0].make,bikes[0].model,bikes[0].variant].filter(Boolean).join(" "))||"Selected motorcycle"):"No motorcycle selected",state:hasMotorcycle?"done":"action",open:!hasMotorcycle,instruction:hasMotorcycle?"Review the selected motorcycle or candidate details only if something changes.":"Find and select a suitable candidate motorcycle for this Deal.",body:`<div class="anybike-deal-bike-list">${bikeRows}</div>${renderAnyBikeDealCandidatePanel(deal)}`})}
