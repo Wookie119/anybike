@@ -8136,6 +8136,504 @@ async function promoteFormalOfferToDeal(matchId){
   }
 }
 
+
+/* ======================================================
+   SOURCE-ON-DEMAND / CANDIDATE MOTORCYCLES — V2
+   Deal 360 only. Does not modify Message Centre, realtime,
+   shared admin notification bell or admin authentication.
+====================================================== */
+function candidateSafeUrl(value){
+  const raw=String(value || "").trim();
+  if(!raw){ return ""; }
+  try{
+    const u=new URL(raw,window.location.origin);
+    if(u.protocol==="http:" || u.protocol==="https:"){ return u.href; }
+  }catch(_){}
+  return "";
+}
+
+function anyBikeDealCandidatesFor(dealId){
+  return (adminDealCandidates || []).filter(function(row){
+    return String(row.deal_id || "")===String(dealId || "");
+  });
+}
+
+function candidateStatusClass(row){
+  const availability=String(row.availability_status || "");
+  const status=String(row.candidate_status || "");
+  if(status==="Sold / No Longer Available" || availability==="Sold / No Longer Available"){ return "bad"; }
+  if(status==="Selected" || availability==="Confirmed Available"){ return "good"; }
+  if(status==="Availability Check" || status==="Interested"){ return "warn"; }
+  return "";
+}
+
+function candidateAvailabilityLabel(row){
+  const availability=String(row.availability_status || "").trim();
+  if(availability){ return availability; }
+  if(String(row.candidate_status || "")==="Sold / No Longer Available"){ return "Sold / No Longer Available"; }
+  return "Not Checked";
+}
+
+function candidateCanSelect(row){
+  if(!row){ return false; }
+  if(String(row.candidate_status || "")==="Selected"){ return false; }
+  if(String(row.availability_status || "")!=="Confirmed Available"){ return false; }
+
+  const validUntil=row.availability_valid_until ? new Date(row.availability_valid_until) : null;
+  if(validUntil && !Number.isNaN(validUntil.getTime()) && validUntil.getTime()<=Date.now()){
+    return false;
+  }
+  return true;
+}
+
+function renderAnyBikeDealCandidatePanel(deal){
+  const dealId=Number(deal && deal.deal_id);
+  if(!Number.isFinite(dealId)){ return ""; }
+
+  const candidates=anyBikeDealCandidatesFor(dealId);
+
+  const cards=candidates.map(function(row){
+    const title=[row.year,row.make,row.model,row.variant].filter(Boolean).join(" ") || "Candidate motorcycle";
+    const status=String(row.candidate_status || "Found");
+    const availability=candidateAvailabilityLabel(row);
+    const badgeClass=candidateStatusClass(row);
+    const sourceUrl=candidateSafeUrl(row.source_url);
+    const selected=String(status)==="Selected" || !!row.selected_deal_motorcycle_id;
+    const sold=status==="Sold / No Longer Available" || availability==="Sold / No Longer Available";
+    const images=Array.isArray(row.image_urls) ? row.image_urls.filter(Boolean).slice(0,10) : [];
+    const confirmedAt=row.availability_confirmed_at
+      ? new Date(row.availability_confirmed_at).toLocaleString("en-GB")
+      : "Not confirmed";
+    const validUntil=row.availability_valid_until
+      ? new Date(row.availability_valid_until).toLocaleString("en-GB")
+      : "No hold expiry recorded";
+    const sellerPrice=Number(row.confirmed_seller_price_gbp || row.seller_asking_price_gbp || 0);
+
+    return `<article class="anybike-candidate-card ${selected ? "selected" : ""} ${sold ? "sold" : ""}">
+      <div class="anybike-candidate-top">
+        <div class="anybike-candidate-title">
+          <strong>${escapeAdminHtml(title)}</strong>
+          <small>
+            ${row.registration ? "Reg: "+escapeAdminHtml(row.registration)+" · " : ""}
+            ${row.mileage ? Number(row.mileage).toLocaleString("en-GB")+" miles" : "Mileage not recorded"}
+            ${row.colour ? " · "+escapeAdminHtml(row.colour) : ""}
+          </small>
+        </div>
+        <div class="anybike-candidate-badges">
+          <span class="anybike-candidate-badge ${badgeClass}">${escapeAdminHtml(status)}</span>
+          <span class="anybike-candidate-badge ${
+            availability==="Confirmed Available"
+              ? "good"
+              : (availability==="Sold / No Longer Available" ? "bad" : "warn")
+          }">${escapeAdminHtml(availability)}</span>
+        </div>
+      </div>
+
+      <div class="anybike-candidate-grid">
+        <div><span>Seller Asking</span><strong>${row.seller_asking_price_gbp ? anyBikeDealMoney(row.seller_asking_price_gbp) : "Not recorded"}</strong></div>
+        <div><span>Confirmed Seller Price</span><strong>${sellerPrice>0 ? anyBikeDealMoney(sellerPrice) : "Not confirmed"}</strong></div>
+        <div><span>Seller</span><strong>${escapeAdminHtml(row.seller_name || row.seller_type || "Not recorded")}</strong></div>
+        <div><span>Location</span><strong>${escapeAdminHtml(row.seller_location || "Not recorded")}</strong></div>
+        <div><span>Availability Confirmed</span><strong>${escapeAdminHtml(confirmedAt)}</strong></div>
+        <div><span>Hold / Valid Until</span><strong>${escapeAdminHtml(validUntil)}</strong></div>
+      </div>
+
+      ${images.length ? `<div class="anybike-candidate-images">${
+        images.map(function(url){
+          const safe=candidateSafeUrl(url);
+          return safe
+            ? `<a href="${escapeAdminHtml(safe)}" target="_blank" rel="noopener"><img src="${escapeAdminHtml(safe)}" alt="${escapeAdminHtml(title)} candidate image"></a>`
+            : "";
+        }).join("")
+      }</div>` : ""}
+
+      ${row.internal_notes ? `<div class="anybike-candidate-notes"><strong>Internal note:</strong> ${escapeAdminHtml(row.internal_notes)}</div>` : ""}
+
+      <div class="anybike-candidate-actions">
+        ${sourceUrl ? `<a class="secondary" href="${escapeAdminHtml(sourceUrl)}" target="_blank" rel="noopener">Open Source Advert</a>` : ""}
+        <button type="button" class="secondary" onclick="setCandidateStatus(${row.id},'Sent to Buyer');return false;" ${sold || selected ? "disabled" : ""}>Mark Sent to Buyer</button>
+        <button type="button" class="secondary" onclick="setCandidateStatus(${row.id},'Interested');return false;" ${sold || selected ? "disabled" : ""}>Buyer Interested</button>
+        <button type="button" class="secondary" onclick="setCandidateStatus(${row.id},'Declined');return false;" ${sold || selected ? "disabled" : ""}>Buyer Declined</button>
+        <button type="button" onclick="openCandidateAvailabilityModal(${row.id});return false;" ${selected ? "disabled" : ""}>Check Availability</button>
+        <button type="button" class="good" onclick="selectCandidateForDeal(${row.id});return false;" ${candidateCanSelect(row) ? "" : "disabled"}>Select for Deal</button>
+        <button type="button" class="danger" onclick="markCandidateSold(${row.id});return false;" ${selected || sold ? "disabled" : ""}>Sold / Unavailable</button>
+      </div>
+    </article>`;
+  }).join("");
+
+  return `<section class="anybike-candidate-panel">
+    <div class="anybike-candidate-panel-head">
+      <div>
+        <span>Source-on-Demand</span>
+        <h4>Candidate Motorcycles</h4>
+        <p>Add motorcycles found for this buyer without creating public stock. A candidate can be shown to the buyer, accepted or declined, rechecked with the seller, then promoted into the real Deal motorcycle.</p>
+      </div>
+      <button type="button" onclick="openAddCandidateModal(${dealId});return false;">+ Add Candidate Motorcycle</button>
+    </div>
+    ${
+      cards
+        ? `<div class="anybike-candidate-list">${cards}</div>`
+        : `<div class="anybike-candidate-empty">No candidate motorcycles have been added to this Deal yet.</div>`
+    }
+    <p class="anybike-candidate-rule"><strong>Deposit protection:</strong> a manually sourced candidate cannot enter the Formal Offer / deposit path until live seller availability has been confirmed. If the seller reports the motorcycle sold, keep the sourcing Deal open and send the buyer alternatives.</p>
+  </section>`;
+}
+
+function closeCandidateModal(){
+  const modal=document.getElementById("candidateMotorcycleModal");
+  if(modal){ modal.classList.remove("open"); }
+  document.body.style.overflow="";
+  activeCandidateDealId=null;
+}
+
+function candidateModalBackdrop(event){
+  if(event.target && event.target.id==="candidateMotorcycleModal"){
+    closeCandidateModal();
+  }
+}
+
+function openAddCandidateModal(dealId){
+  activeCandidateDealId=Number(dealId);
+  activeCandidateId=null;
+
+  const modal=document.getElementById("candidateMotorcycleModal");
+  if(!modal){ return; }
+
+  [
+    "candidateMake","candidateModel","candidateVariant","candidateYear","candidateMileage",
+    "candidateColour","candidateRegistration","candidateSellerAsking","candidateSellerName",
+    "candidateSellerType","candidateSellerPhone","candidateSellerEmail","candidateSellerLocation",
+    "candidateSourceUrl","candidateImageUrls","candidateInternalNotes"
+  ].forEach(function(id){
+    const el=document.getElementById(id);
+    if(el){ el.value=""; }
+  });
+
+  const status=document.getElementById("candidateModalStatus");
+  if(status){
+    status.className="anybike-candidate-status";
+    status.textContent="";
+  }
+
+  modal.classList.add("open");
+  document.body.style.overflow="hidden";
+
+  setTimeout(function(){
+    document.getElementById("candidateMake")?.focus();
+  },50);
+}
+
+async function saveCandidateMotorcycle(){
+  if(candidateSaveBusy || !Number.isFinite(Number(activeCandidateDealId))){
+    return;
+  }
+
+  const make=String(document.getElementById("candidateMake")?.value || "").trim();
+  const model=String(document.getElementById("candidateModel")?.value || "").trim();
+  const variant=String(document.getElementById("candidateVariant")?.value || "").trim();
+  const yearRaw=String(document.getElementById("candidateYear")?.value || "").trim();
+  const mileageRaw=String(document.getElementById("candidateMileage")?.value || "").trim();
+  const askingRaw=String(document.getElementById("candidateSellerAsking")?.value || "").trim();
+
+  const imageUrls=String(document.getElementById("candidateImageUrls")?.value || "")
+    .split(/\r?\n|,/)
+    .map(function(v){ return v.trim(); })
+    .filter(Boolean)
+    .slice(0,10);
+
+  const status=document.getElementById("candidateModalStatus");
+  const button=document.getElementById("candidateSaveButton");
+
+  function fail(message){
+    if(status){
+      status.className="anybike-candidate-status error";
+      status.textContent=message;
+    }
+  }
+
+  if(!make || !model){
+    fail("Make and model are required.");
+    return;
+  }
+
+  candidateSaveBusy=true;
+
+  if(button){
+    button.disabled=true;
+    button.textContent="Saving…";
+  }
+
+  if(status){
+    status.className="anybike-candidate-status";
+    status.textContent="Saving candidate motorcycle…";
+  }
+
+  try{
+    const {data,error}=await sb.rpc("admin_add_deal_candidate_v1",{
+      p_deal_id:Number(activeCandidateDealId),
+      p_make:make,
+      p_model:model,
+      p_variant:variant || null,
+      p_year:yearRaw ? Number(yearRaw) : null,
+      p_mileage:mileageRaw ? Number(mileageRaw) : null,
+      p_colour:String(document.getElementById("candidateColour")?.value || "").trim() || null,
+      p_registration:String(document.getElementById("candidateRegistration")?.value || "").trim() || null,
+      p_seller_asking_price_gbp:askingRaw ? Number(askingRaw) : null,
+      p_seller_name:String(document.getElementById("candidateSellerName")?.value || "").trim() || null,
+      p_seller_type:String(document.getElementById("candidateSellerType")?.value || "").trim() || null,
+      p_seller_phone:String(document.getElementById("candidateSellerPhone")?.value || "").trim() || null,
+      p_seller_email:String(document.getElementById("candidateSellerEmail")?.value || "").trim() || null,
+      p_seller_location:String(document.getElementById("candidateSellerLocation")?.value || "").trim() || null,
+      p_source_url:String(document.getElementById("candidateSourceUrl")?.value || "").trim() || null,
+      p_image_urls:imageUrls,
+      p_internal_notes:String(document.getElementById("candidateInternalNotes")?.value || "").trim() || null
+    });
+
+    if(error){ throw error; }
+
+    if(status){
+      status.className="anybike-candidate-status success";
+      status.textContent="Candidate added.";
+    }
+
+    const dealId=activeCandidateDealId;
+    closeCandidateModal();
+    await loadAdminDealQueue();
+
+    setTimeout(function(){
+      openConvertedEnquiryDeal(dealId);
+    },150);
+
+  }catch(error){
+    console.error("Candidate motorcycle could not be saved:",error);
+    fail("Could not save candidate: "+(error?.message || error));
+  }finally{
+    candidateSaveBusy=false;
+    if(button){
+      button.disabled=false;
+      button.textContent="Add Candidate";
+    }
+  }
+}
+
+async function setCandidateStatus(candidateId,nextStatus){
+  const id=Number(candidateId);
+  if(!Number.isFinite(id)){ return; }
+
+  try{
+    const {error}=await sb.rpc("admin_set_deal_candidate_status_v1",{
+      p_candidate_id:id,
+      p_candidate_status:String(nextStatus),
+      p_note:null
+    });
+
+    if(error){ throw error; }
+    await loadAdminDealQueue();
+
+  }catch(error){
+    console.error("Candidate status could not be updated:",error);
+    alert("Candidate status could not be updated.\n\n"+(error?.message || error));
+  }
+}
+
+function closeCandidateAvailabilityModal(){
+  const modal=document.getElementById("candidateAvailabilityModal");
+  if(modal){ modal.classList.remove("open"); }
+  document.body.style.overflow="";
+  activeCandidateId=null;
+}
+
+function candidateAvailabilityBackdrop(event){
+  if(event.target && event.target.id==="candidateAvailabilityModal"){
+    closeCandidateAvailabilityModal();
+  }
+}
+
+function openCandidateAvailabilityModal(candidateId){
+  const row=(adminDealCandidates || []).find(function(item){
+    return Number(item.id)===Number(candidateId);
+  });
+
+  if(!row){ return; }
+
+  activeCandidateId=Number(candidateId);
+
+  const modal=document.getElementById("candidateAvailabilityModal");
+  if(!modal){ return; }
+
+  const title=[row.year,row.make,row.model,row.variant].filter(Boolean).join(" ") || "Candidate motorcycle";
+
+  document.getElementById("candidateAvailabilityTitle").textContent=title;
+
+  document.getElementById("candidateAvailabilityStatus").value=
+    row.availability_status==="Sold / No Longer Available"
+      ? "Sold / No Longer Available"
+      : "Confirmed Available";
+
+  document.getElementById("candidateConfirmedSellerPrice").value=
+    row.confirmed_seller_price_gbp ?? row.seller_asking_price_gbp ?? "";
+
+  document.getElementById("candidateAvailabilityNotes").value=
+    row.availability_notes || "";
+
+  const until=document.getElementById("candidateAvailabilityValidUntil");
+
+  if(until){
+    if(row.availability_valid_until){
+      const d=new Date(row.availability_valid_until);
+      const pad=n=>String(n).padStart(2,"0");
+      until.value=
+        d.getFullYear()+"-"+
+        pad(d.getMonth()+1)+"-"+
+        pad(d.getDate())+"T"+
+        pad(d.getHours())+":"+
+        pad(d.getMinutes());
+    }else{
+      until.value="";
+    }
+  }
+
+  const status=document.getElementById("candidateAvailabilityModalStatus");
+  if(status){
+    status.className="anybike-candidate-status";
+    status.textContent="";
+  }
+
+  modal.classList.add("open");
+  document.body.style.overflow="hidden";
+}
+
+async function saveCandidateAvailability(){
+  if(!activeCandidateId){ return; }
+
+  const availability=String(document.getElementById("candidateAvailabilityStatus")?.value || "");
+  const priceRaw=String(document.getElementById("candidateConfirmedSellerPrice")?.value || "").trim();
+  const validRaw=String(document.getElementById("candidateAvailabilityValidUntil")?.value || "").trim();
+  const notes=String(document.getElementById("candidateAvailabilityNotes")?.value || "").trim();
+  const status=document.getElementById("candidateAvailabilityModalStatus");
+
+  try{
+    if(status){
+      status.className="anybike-candidate-status";
+      status.textContent="Saving seller availability check…";
+    }
+
+    const {data,error}=await sb.rpc("admin_confirm_deal_candidate_availability_v1",{
+      p_candidate_id:Number(activeCandidateId),
+      p_availability_status:availability,
+      p_confirmed_seller_price_gbp:priceRaw ? Number(priceRaw) : null,
+      p_valid_until:validRaw ? new Date(validRaw).toISOString() : null,
+      p_notes:notes || null
+    });
+
+    if(error){ throw error; }
+
+    const payload=data || {};
+
+    if(status){
+      status.className="anybike-candidate-status success";
+      status.textContent="Availability saved.";
+    }
+
+    closeCandidateAvailabilityModal();
+    await loadAdminDealQueue();
+
+    if(payload.deal_id){
+      setTimeout(function(){
+        openConvertedEnquiryDeal(payload.deal_id);
+      },150);
+    }
+
+  }catch(error){
+    console.error("Availability check could not be saved:",error);
+    if(status){
+      status.className="anybike-candidate-status error";
+      status.textContent="Could not save: "+(error?.message || error);
+    }
+  }
+}
+
+async function markCandidateSold(candidateId){
+  if(!window.confirm(
+    "Mark this motorcycle Sold / No Longer Available?\n\n"+
+    "The sourcing Deal will remain open so alternatives can be added."
+  )){
+    return;
+  }
+
+  try{
+    const {error}=await sb.rpc("admin_confirm_deal_candidate_availability_v1",{
+      p_candidate_id:Number(candidateId),
+      p_availability_status:"Sold / No Longer Available",
+      p_confirmed_seller_price_gbp:null,
+      p_valid_until:null,
+      p_notes:"Marked sold / unavailable by AnyBike staff."
+    });
+
+    if(error){ throw error; }
+    await loadAdminDealQueue();
+
+  }catch(error){
+    console.error("Candidate could not be marked unavailable:",error);
+    alert("Could not mark candidate unavailable.\n\n"+(error?.message || error));
+  }
+}
+
+async function selectCandidateForDeal(candidateId){
+  const row=(adminDealCandidates || []).find(function(item){
+    return Number(item.id)===Number(candidateId);
+  });
+
+  if(!row){ return; }
+
+  if(!candidateCanSelect(row)){
+    alert("Live seller availability must be confirmed before this motorcycle can be selected for the Deal.");
+    return;
+  }
+
+  const title=[row.year,row.make,row.model,row.variant].filter(Boolean).join(" ") || "this motorcycle";
+
+  if(!window.confirm(
+    "Select this candidate for the Deal?\n\n"+
+    title+"\n\n"+
+    "This creates the Deal motorcycle with no public stock record. "+
+    "It does NOT take a deposit, send an offer, pay the seller or secure the motorcycle."
+  )){
+    return;
+  }
+
+  try{
+    const {data,error}=await sb.rpc(
+      "admin_select_deal_candidate_v1",
+      {p_candidate_id:Number(candidateId)}
+    );
+
+    if(error){ throw error; }
+
+    const payload=data || {};
+
+    alert(
+      "Candidate selected for Deal 360.\n\n"+
+      "Motorcycle status: Seller Check\n"+
+      "Deposit taken: NO\n"+
+      "Motorcycle secured: NO"
+    );
+
+    await loadAdminDealQueue();
+
+    if(payload.deal_id){
+      setTimeout(function(){
+        openConvertedEnquiryDeal(payload.deal_id);
+      },150);
+    }
+
+  }catch(error){
+    console.error("Candidate could not be selected:",error);
+    alert("Candidate could not be selected.\n\n"+(error?.message || error));
+  }
+}
+
+
 async function loadAdminDealQueue(){
   try{
     const result = await sb.rpc("admin_get_deal_queue");
