@@ -450,7 +450,7 @@
 const SUPABASE_URL="https://tuehtnezhdnkqbbhttgp.supabase.co";
 const SUPABASE_ANON_KEY="sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
-let allThreads=[];let selectedThread=null;let selectedIds=new Set();let activeFilter="all";let liveChatRefreshRunning=false;let enquiryDealLinkMap=new Map();let dealLinkByIdMap=new Map();
+let allThreads=[];let selectedThread=null;let selectedIds=new Set();let activeFilter="all";let liveChatRefreshRunning=false;let enquiryDealLinkMap=new Map();let dealLinkByIdMap=new Map();let directDealByIdMap=new Map();
 function safe(v){return v===null||v===undefined||v===""?"—":String(v)}
 function money(v){return v?"£"+Number(v).toLocaleString("en-GB"):"—"}
 function shortDate(v){if(!v)return"—";return new Date(v).toLocaleString("en-GB",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"})}
@@ -477,6 +477,29 @@ async function loadThreads(){
   allThreads=data||[];
   enquiryDealLinkMap=new Map();
   dealLinkByIdMap=new Map();
+  directDealByIdMap=new Map();
+
+  /*
+    Deal 360 bridge:
+    load the existing Deal Queue so sourcing Deals that did not originate from a
+    legacy bike_enquiries row can still be resolved from related_deal_id.
+    This is read-only and does not alter Message Centre messaging/realtime logic.
+  */
+  try{
+    const directDealsResult=await sb.rpc("admin_get_deal_queue");
+
+    if(directDealsResult.error){
+      throw directDealsResult.error;
+    }
+
+    (directDealsResult.data||[]).forEach(function(row){
+      if(row.deal_id){
+        directDealByIdMap.set(String(row.deal_id),row);
+      }
+    });
+  }catch(directDealError){
+    console.warn("Direct Deal 360 records could not be loaded:",directDealError);
+  }
 
   try{
     const dealLinksResult=await sb.rpc("admin_get_enquiry_deal_links_v1");
@@ -574,14 +597,25 @@ async function openThread(id){
   let relatedDeal = null;
 
   if(t.related_deal_id){
-    const direct = dealLinkByIdMap.get(String(t.related_deal_id));
+    const directDeal = directDealByIdMap.get(String(t.related_deal_id));
+    const convertedDeal = dealLinkByIdMap.get(String(t.related_deal_id));
+    const direct = directDeal || convertedDeal;
+
     if(direct){
       relatedDeal = {
-        id: direct.converted_deal_id,
+        id: direct.deal_id || direct.converted_deal_id || t.related_deal_id,
         deal_number: direct.deal_number,
-        deal_stage: direct.deal_stage,
-        status: direct.deal_status,
-        source_enquiry_id: direct.enquiry_id
+        deal_stage: direct.deal_stage || direct.stage,
+        status: direct.deal_status || direct.status,
+        source_enquiry_id: direct.enquiry_id || direct.source_enquiry_id || null
+      };
+    }else{
+      relatedDeal = {
+        id: t.related_deal_id,
+        deal_number: null,
+        deal_stage: null,
+        status: null,
+        source_enquiry_id: null
       };
     }
   }
