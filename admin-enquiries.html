@@ -4027,6 +4027,18 @@ body{
 @media(max-width:980px){.anybike-deal-row{grid-template-columns:26px 95px 1fr 1fr 1.2fr 90px}.anybike-deal-row>div:nth-child(n+7){display:none}}
 @media(max-width:720px){.anybike-deal-row{grid-template-columns:26px 92px 1fr}.anybike-deal-row>div:nth-child(n+4){display:none}.anybike-deal-rollup{grid-template-columns:1fr 1fr}.anybike-deal-bike-row{grid-template-columns:1fr 1fr}.anybike-real-deals-head{align-items:flex-start;flex-direction:column}}
 
+
+
+/* DEAL 360 — GUIDED JOURNEY */
+.deal-journey{margin:14px 0 18px;border:1px solid rgba(255,255,255,.10);border-radius:16px;background:#0b0b0b;overflow:hidden}
+.deal-journey-head{padding:18px 20px;background:linear-gradient(135deg,#151515,#090909);border-bottom:1px solid rgba(255,255,255,.08)}
+.deal-journey-head h3{margin:0 0 6px;font-size:22px}.deal-journey-head p{margin:0;color:#aeb7c3}
+.deal-journey-status{display:flex;gap:8px;flex-wrap:wrap;margin-top:13px}.deal-journey-chip{padding:7px 10px;border-radius:999px;border:1px solid #3a3a3a;background:#141414;font-size:12px;font-weight:900}.deal-journey-chip.done{border-color:#286a3c;color:#9cf0b5;background:#102318}.deal-journey-chip.action{border-color:#d93632;color:#ffd0ce;background:#2b1010}.deal-journey-chip.waiting{color:#c7c7c7}.deal-journey-chip.locked{color:#8e8e8e}
+.deal-journey-next{margin:16px 20px;padding:14px 16px;border-left:4px solid #df3934;border-radius:10px;background:#171111}.deal-journey-next strong{display:block;font-size:16px;margin-bottom:5px}.deal-journey-next span{color:#c7c7c7;line-height:1.45}.deal-journey-secondary{margin-top:7px;color:#ffd36b!important;font-weight:800}
+.deal-journey-steps{padding:0 20px 20px;display:grid;gap:9px}.deal-journey-step{border:1px solid rgba(255,255,255,.10);border-radius:12px;background:#101010;overflow:hidden}.deal-journey-step[open]{border-color:rgba(217,54,50,.62);box-shadow:0 0 0 1px rgba(217,54,50,.10)}
+.deal-journey-step>summary{display:flex;align-items:center;gap:12px;cursor:pointer;list-style:none;padding:14px 16px}.deal-journey-step>summary::-webkit-details-marker{display:none}.deal-step-icon{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:#252525;font-weight:900;flex:0 0 28px}.deal-journey-step.done .deal-step-icon{background:#153b22;color:#9cf0b5}.deal-journey-step.action .deal-step-icon{background:#5b1818;color:#fff}.deal-journey-step.locked{opacity:.68}.deal-step-copy{min-width:0;flex:1}.deal-step-title{font-weight:900;font-size:15px}.deal-step-sub{color:#999;font-size:12px;margin-top:3px}.deal-step-badge{padding:6px 9px;border-radius:999px;border:1px solid #3a3a3a;font-size:11px;font-weight:900;white-space:nowrap}.deal-journey-step.done .deal-step-badge{border-color:#286a3c;color:#9cf0b5}.deal-journey-step.action .deal-step-badge{border-color:#d93632;color:#ffd0ce}.deal-step-help{width:25px;height:25px;border:1px solid #444;border-radius:50%;display:grid;place-items:center;color:#bbb;font-size:12px;font-weight:900;cursor:help}.deal-step-body{padding:0 14px 14px}.deal-step-instruction{padding:12px 14px;margin-bottom:12px;border-radius:9px;background:#151515;color:#c9c9c9;line-height:1.45}.deal-step-instruction strong{color:#fff}.deal-step-body>.anybike-customer-account,.deal-step-body>.anybike-payment-panel,.deal-step-body>.anybike-transaction-panel,.deal-step-body>.anybike-invoice-panel,.deal-step-body>.anybike-financial-panel,.deal-step-body>.anybike-seller-panel,.deal-step-body>.anybike-presale-panel,.deal-step-body>.deal360-panel{margin-top:0}
+@media(max-width:720px){.deal-journey-head,.deal-journey-steps{padding-left:12px;padding-right:12px}.deal-journey-next{margin-left:12px;margin-right:12px}.deal-journey-step>summary{align-items:flex-start}.deal-step-badge{white-space:normal}}
+
 /* DEAL 360 — DEPOSIT / PAYMENT PANEL */
 .anybike-payment-panel{margin-top:12px;border:2px solid #d71920;border-radius:12px;overflow:hidden;background:#090909}
 .anybike-payment-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;padding:14px 16px;border-bottom:1px solid rgba(215,25,32,.5);background:linear-gradient(135deg,#121212,#070707)}
@@ -11901,6 +11913,98 @@ function renderBikeSalesActionQueue(){
   </section>`;
 }
 
+
+function anyBikeDealNextActionFor(dealId){
+  return (adminDealNextActions || []).find(function(row){
+    return String(row.deal_id || "")===String(dealId || "");
+  }) || null;
+}
+
+function anyBikeJourneyStep(options){
+  const state=options.state || "waiting";
+  const open=!!options.open;
+  const badge=state==="done" ? "✓ Complete" : state==="action" ? "Action Required" : state==="locked" ? "Locked" : "Waiting";
+  const icon=state==="done" ? "✓" : state==="action" ? "▶" : state==="locked" ? "🔒" : "○";
+  const tooltip=escapeAdminHtml(options.tooltip || options.instruction || "");
+  return `<details class="deal-journey-step ${state}" ${open ? "open" : ""}>
+    <summary>
+      <span class="deal-step-icon">${icon}</span>
+      <div class="deal-step-copy"><div class="deal-step-title">${escapeAdminHtml(options.title || "Stage")}</div><div class="deal-step-sub">${escapeAdminHtml(options.subtitle || "")}</div></div>
+      <span class="deal-step-badge">${badge}</span>
+      <span class="deal-step-help" title="${tooltip}">i</span>
+    </summary>
+    <div class="deal-step-body">
+      ${options.instruction ? `<div class="deal-step-instruction"><strong>What you need to do:</strong> ${escapeAdminHtml(options.instruction)}</div>` : ""}
+      ${options.body || ""}
+    </div>
+  </details>`;
+}
+
+function renderAnyBikeGuidedJourney(deal,bikes,bikeRows,dealNumber,buyerName,rawStage,stage,status){
+  const dealId=String(deal.deal_id || "");
+  const action=anyBikeDealNextActionFor(dealId);
+  const primary=String(action?.primary_action || "");
+  const depositOutstanding=Number(action?.deposit_outstanding_gbp || 0);
+  const depositRequired=Number(action?.deposit_required_gbp || 0);
+  const depositDone=depositRequired<=0 || depositOutstanding<=0.009;
+  const sellerDone=!!action?.seller_check_ok;
+  const shippingDone=!!action?.shipping_ok;
+  const vatDone=!!action?.vat_ok;
+  const secured=!!action?.bike_secured;
+  const hasMotorcycle=(bikes || []).length>0;
+  const offerAccepted=["Payment / Deposit","Operations","Shipping","Completed"].includes(String(rawStage || "")) || depositRequired>0;
+  const customerAccount=adminDealCustomerAccounts.get(dealId) || {};
+  const dealValue=anyBikeAccountNumber(customerAccount,["deal_value_gbp"],deal.buyer_value_gbp);
+  const balance=anyBikeAccountNumber(customerAccount,["customer_balance_due_gbp"],dealValue);
+  const customerPaid=dealValue>0 && balance<=0.009;
+  const purchaseReady=!!action?.purchase_ready;
+
+  let primaryInstruction="Review this Deal and complete the next outstanding action.";
+  if(primary.includes("Shipping")) primaryInstruction="Confirm the customer's destination, UK port or handover point and freight forwarder / shipper. The motorcycle cannot be purchased until a workable route is confirmed.";
+  else if(primary.includes("VAT")) primaryInstruction="Verify whether the motorcycle is Margin Scheme, Full VAT or another treatment and mark the VAT treatment Verified before purchase.";
+  else if(primary.includes("Seller")) primaryInstruction="Recheck the motorcycle with the seller and confirm that it is still available at the agreed seller price.";
+  else if(primary==="Deposit Due") primaryInstruction="Confirm receipt of the required customer deposit and allocate it to the selected motorcycle.";
+  else if(primary==="Ready to Purchase") primaryInstruction="All current purchase gates are satisfied. Review the supplier purchase details and authorise / secure the motorcycle.";
+  else if(primary==="Operations") primaryInstruction="The motorcycle is secured. Continue with preparation, documents and the Operations workflow.";
+
+  const secondary=[];
+  if(!shippingDone && !primary.includes("Shipping")) secondary.push("Confirm Shipping / UK Handover");
+  if(!vatDone && !primary.includes("VAT")) secondary.push("Verify VAT Treatment");
+  if(!sellerDone && !primary.includes("Seller")) secondary.push("Final Seller Check");
+
+  const chips=[
+    `<span class="deal-journey-chip ${hasMotorcycle?"done":"waiting"}">${hasMotorcycle?"✓ ":""}Motorcycle ${hasMotorcycle?"selected":"required"}</span>`,
+    `<span class="deal-journey-chip ${offerAccepted?"done":"waiting"}">${offerAccepted?"✓ ":""}Formal Offer ${offerAccepted?"accepted":"pending"}</span>`,
+    `<span class="deal-journey-chip ${depositDone?"done":"action"}">${depositDone?"✓ Deposit paid":"Deposit due"}</span>`,
+    `<span class="deal-journey-chip ${shippingDone?"done":primary.includes("Shipping")?"action":"waiting"}">${shippingDone?"✓ Shipping confirmed":"Shipping required"}</span>`,
+    `<span class="deal-journey-chip ${vatDone?"done":primary.includes("VAT")?"action":"waiting"}">${vatDone?"✓ VAT verified":"VAT required"}</span>`,
+    `<span class="deal-journey-chip ${secured?"done":"locked"}">${secured?"✓ Motorcycle secured":"Motorcycle not secured"}</span>`
+  ].join("");
+
+  const stageControl=`<div class="anybike-presale-panel" style="margin-top:0"><div class="anybike-presale-head"><div><span>Admin Override</span><h4>${escapeAdminHtml(dealNumber)}</h4></div><div><div class="anybike-stage-control"><select id="deal-stage-select-${deal.deal_id}" ${dealStageSaveBusy.has(String(deal.deal_id)) ? "disabled" : ""}>${anyBikeDealStageOptions(rawStage)}</select><button type="button" ${dealStageSaveBusy.has(String(deal.deal_id)) ? "disabled" : ""} onclick="saveDealStage(${deal.deal_id});return false;">${dealStageSaveBusy.has(String(deal.deal_id)) ? "Saving..." : "Save Stage"}</button></div><div class="anybike-stage-help">Use only when an exceptional Deal needs a manual stage override.</div></div></div></div>`;
+
+  const moneyBody=`${renderAnyBikeDealCustomerAccount(deal)}${renderAnyBikeDealCustomerLedger(deal)}${renderAnyBikeDealPaymentPanel(deal)}${renderAnyBikeDealInvoiceDocuments(deal)}`;
+  const purchaseBody=`${renderAnyBikeDealFinancialPanel(deal)}${renderAnyBikeDealSellerCheckPanel(deal)}`;
+
+  return `<section class="deal-journey">
+    <div class="deal-journey-head"><h3>Deal 360 Journey · ${escapeAdminHtml(dealNumber)}</h3><p>${escapeAdminHtml(buyerName)} · ${escapeAdminHtml(stage)} · ${escapeAdminHtml(status)}</p><div class="deal-journey-status">${chips}</div></div>
+    <div class="deal-journey-next"><strong>Next Action: ${escapeAdminHtml(primary || "Review Deal")}</strong><span>${escapeAdminHtml(primaryInstruction)}</span>${secondary.length?`<span class="deal-journey-secondary">Also required before purchase: ${escapeAdminHtml(secondary.join(" · "))}</span>`:""}</div>
+    <div class="deal-journey-steps">
+      ${anyBikeJourneyStep({title:"Customer & Requirement",subtitle:"Buyer, conversation and original requirement",state:"done",tooltip:"Review the buyer and original requirement when needed.",body:renderAnyBikeDealMessageBridge(deal)})}
+      ${anyBikeJourneyStep({title:"Motorcycle Selected",subtitle:hasMotorcycle?((bikes[0]&&[bikes[0].year,bikes[0].make,bikes[0].model,bikes[0].variant].filter(Boolean).join(" "))||"Selected motorcycle"):"No motorcycle selected",state:hasMotorcycle?"done":"action",open:!hasMotorcycle,instruction:hasMotorcycle?"Review the selected motorcycle or candidate details only if something changes.":"Find and select a suitable candidate motorcycle for this Deal.",body:`<div class="anybike-deal-bike-list">${bikeRows}</div>${renderAnyBikeDealCandidatePanel(deal)}`})}
+      ${anyBikeJourneyStep({title:"Formal Offer",subtitle:offerAccepted?"Customer accepted the AnyBike offer":"Offer not yet accepted",state:offerAccepted?"done":"action",open:!offerAccepted,instruction:offerAccepted?"No action required unless the agreed offer needs to be reviewed.":"Prepare and send the Formal Offer after seller availability has been confirmed.",body:stageControl})}
+      ${anyBikeJourneyStep({title:"Deposit & Customer Money",subtitle:depositDone?(depositRequired>0?"Required deposit received":"No deposit required"):(anyBikeDealMoney(depositOutstanding)+" deposit outstanding"),state:depositDone?"done":"action",open:primary==="Deposit Due",instruction:depositDone?"Deposit requirement is complete. Open this section only to review receipts, allocations, Proforma or customer balance.":"Record and allocate the required deposit when cleared funds are received.",body:moneyBody})}
+      ${anyBikeJourneyStep({title:"Shipping / UK Handover",subtitle:shippingDone?"Route confirmed":String(action?.shipping_route_status || "To Be Confirmed"),state:shippingDone?"done":primary.includes("Shipping")?"action":"waiting",open:primary.includes("Shipping"),instruction:shippingDone?"The UK handover route is confirmed. Reopen only if shipping details change.":"Enter the destination country, UK handover point and freight forwarder / shipper, then confirm the route.",body:renderAnyBikeDealShippingRoutePanel(deal)})}
+      ${anyBikeJourneyStep({title:"VAT & Purchase Checks",subtitle:vatDone?"VAT verified":String(action?.vat_treatment || "VAT treatment requires verification"),state:(vatDone&&sellerDone)?"done":primary.includes("VAT")||primary.includes("Seller")?"action":"waiting",open:primary.includes("VAT")||primary.includes("Seller"),instruction:(vatDone&&sellerDone)?"VAT and seller checks are complete.":(!sellerDone?"Complete the final seller availability check and verify VAT treatment before purchase.":"Verify the VAT treatment before purchase."),body:purchaseBody})}
+      ${anyBikeJourneyStep({title:"Purchase / Secure Motorcycle",subtitle:secured?"Motorcycle secured":purchaseReady?"All purchase gates satisfied":"Waiting for purchase gates",state:secured?"done":purchaseReady?"action":"locked",open:primary==="Ready to Purchase",instruction:secured?"Purchase/security step is complete.":purchaseReady?"Review the purchase order and supplier details, then secure the motorcycle.":"Complete the outstanding seller, shipping, VAT and payment gates before purchasing the motorcycle.",body:renderAnyBikeDealTransactionCompletion(deal)})}
+      ${anyBikeJourneyStep({title:"Balance & Documents",subtitle:customerPaid?"Customer balance cleared":(balance>0?anyBikeDealMoney(balance)+" customer balance due":"Documents / balance review"),state:customerPaid?"done":secured?"action":"locked",open:secured&&!customerPaid,instruction:customerPaid?"Customer balance is cleared. Review documents only when required.":"Once the motorcycle is secured, collect the remaining customer balance and complete the required documents.",body:renderAnyBikeDealInvoiceDocuments(deal)})}
+      ${anyBikeJourneyStep({title:"Operations",subtitle:secured?"Preparation and operational checks":"Starts after motorcycle is secured",state:secured?(primary==="Operations"?"action":"waiting"):"locked",open:primary==="Operations",instruction:"Complete motorcycle preparation and operational checks before shipping.",body:"<div class=\"deal-step-instruction\">Operations checklists remain connected to this Deal and become the focus once the motorcycle is secured.</div>"})}
+      ${anyBikeJourneyStep({title:"Shipping",subtitle:"Final UK handover / shipping workflow",state:String(rawStage)==="Shipping"?"action":"locked",open:String(rawStage)==="Shipping",instruction:"Complete final handover and shipping milestones, then close the Deal when finished.",body:"<div class=\"deal-step-instruction\">Shipping workflow remains connected to the Deal and becomes active at the Shipping stage.</div>"})}
+      ${anyBikeJourneyStep({title:"Completed",subtitle:String(rawStage)==="Completed"?"Deal completed":"Final stage",state:String(rawStage)==="Completed"?"done":"locked",instruction:"No further action is required once the Deal is completed.",body:""})}
+    </div>
+  </section>`;
+}
+
 function renderAdminDealQueue(){
   const box = document.getElementById("anybikeDeals");
   if(!box){ return; }
@@ -12166,50 +12270,20 @@ function renderAdminDealQueue(){
             </div>
             <button type="button" class="close-enquiry-btn" onclick="toggleAnyBikeDeal('${dealId}');return false;">▲ Close</button>
           </div>
-          ${renderAnyBikeDealMessageBridge(deal)}
-          <div class="anybike-deal-rollup">
-            <div><span>AnyBike Sale Price</span><strong>${preSale ? (projectedCommercial.salePrice!==null ? anyBikeDealMoney(projectedCommercial.salePrice) : "Not agreed") : anyBikeDealMoney(deal.buyer_value_gbp)}</strong></div>
-            <div><span>${preSale ? "Total Internal Cost" : "Seller Purchase Price"}</span><strong>${preSale ? (projectedCommercial.totalInternalCost!==null ? anyBikeDealMoney(projectedCommercial.totalInternalCost) : "Not confirmed") : anyBikeDealMoney(deal.seller_cost_gbp)}</strong></div>
-            <div><span>${preSale ? "Projected Profit" : "Gross Profit"}</span><strong>${preSale ? (projectedCommercial.projectedProfit!==null ? anyBikeDealMoney(projectedCommercial.projectedProfit) : "—") : anyBikeDealMoney(deal.gross_profit_gbp)}</strong>${preSale && projectedCommercial.projectedMargin!==null ? `<small style="display:block;margin-top:4px;color:#8f8f8f">${projectedCommercial.projectedMargin.toFixed(1)}% projected margin</small>` : ""}</div>
-            <div><span>Deal Stage</span><strong>${stage}</strong></div>
-          </div>
-          <div class="anybike-deal-bike-list">${bikeRows}</div>
-          ${renderAnyBikeDealCandidatePanel(deal)}
           ${preSale ? `
+            ${renderAnyBikeDealMessageBridge(deal)}
+            <div class="anybike-deal-rollup">
+              <div><span>AnyBike Sale Price</span><strong>${projectedCommercial.salePrice!==null ? anyBikeDealMoney(projectedCommercial.salePrice) : "Not agreed"}</strong></div>
+              <div><span>Total Internal Cost</span><strong>${projectedCommercial.totalInternalCost!==null ? anyBikeDealMoney(projectedCommercial.totalInternalCost) : "Not confirmed"}</strong></div>
+              <div><span>Projected Profit</span><strong>${projectedCommercial.projectedProfit!==null ? anyBikeDealMoney(projectedCommercial.projectedProfit) : "—"}</strong>${projectedCommercial.projectedMargin!==null ? `<small style="display:block;margin-top:4px;color:#8f8f8f">${projectedCommercial.projectedMargin.toFixed(1)}% projected margin</small>` : ""}</div>
+              <div><span>Deal Stage</span><strong>${stage}</strong></div>
+            </div>
+            <div class="anybike-deal-bike-list">${bikeRows}</div>
+            ${renderAnyBikeDealCandidatePanel(deal)}
             ${renderAnyBikeDealPreSalePanel(deal)}
             ${renderAnyBikeDealCommercialSetup(deal)}
             ${renderAnyBikeDealShippingRoutePanel(deal)}
-          ` : `
-            ${renderAnyBikeDealShippingRoutePanel(deal)}
-            <div class="anybike-presale-panel" style="margin-top:14px">
-              <div class="anybike-presale-head">
-                <div>
-                  <span>Deal 360 · Current Stage</span>
-                  <h4>${escapeAdminHtml(dealNumber)}</h4>
-                </div>
-                <div>
-                  <div class="anybike-stage-control">
-                    <select id="deal-stage-select-${deal.deal_id}" ${dealStageSaveBusy.has(String(deal.deal_id)) ? "disabled" : ""}>
-                      ${anyBikeDealStageOptions(rawStage)}
-                    </select>
-                    <button type="button" ${dealStageSaveBusy.has(String(deal.deal_id)) ? "disabled" : ""} onclick="saveDealStage(${deal.deal_id});return false;">
-                      ${dealStageSaveBusy.has(String(deal.deal_id)) ? "Saving..." : "Save Stage"}
-                    </button>
-                  </div>
-                  <div class="anybike-stage-help">Keeps Deal 360, the linked enquiry and Message Centre lead status together.</div>
-                </div>
-              </div>
-            </div>
-
-            ${renderAnyBikeDealCustomerAccount(deal)}
-            ${renderAnyBikeDealCustomerLedger(deal)}
-            ${renderAnyBikeDealPaymentPanel(deal)}
-            ${renderAnyBikeDealTransactionCompletion(deal)}
-            ${renderAnyBikeDealInvoiceDocuments(deal)}
-            ${renderAnyBikeDealFinancialPanel(deal)}
-            ${renderAnyBikeDealSellerCheckPanel(deal)}
-          `}
-          <div class="anybike-deal-next-note">${preSale ? "Lead / Sales Deal. Payments, seller purchase, invoicing and Operations remain inactive until the commercial sale progresses." : "Deal 360 record. Messages, tasks, documents, payments and Operations remain connected to this Deal as the transaction progresses."}</div>
+          ` : renderAnyBikeGuidedJourney(deal,bikes,bikeRows,dealNumber,buyerName,rawStage,stage,status)}
         </div>
       </div>`;
   }).join("");
