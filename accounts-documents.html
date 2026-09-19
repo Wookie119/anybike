@@ -241,7 +241,7 @@ main{width:min(1420px,94vw);margin:28px auto 70px}
         </div>
       </div>
       <div class="report-total"><span>Total you are reporting</span><strong id="reportedTotal">£0.00</strong></div>
-      <div class="report-note">The selected allocations must add up exactly to the bank transfer you made. AnyBike will verify the actual bank receipt before your Deal 360 balances are updated.</div>
+      <div class="report-note">The selected allocations must add up exactly to the bank transfer you made. AnyBike will verify the actual bank receipt before your purchase balance is updated.</div>
       <div class="report-actions">
         <button id="submitAdvice" class="action-btn primary" type="button">Submit Payment Advice</button>
         <button id="closeReport" class="action-btn" type="button">Cancel</button>
@@ -371,7 +371,7 @@ function invoiceCard(invoice){
       <div class="auto-allocation-icon">✓</div>
       <div class="auto-allocation-copy">
         <strong>Automatic allocation</strong>
-        <small>AnyBike will apply this payment to the correct Deal and payment stage.</small>
+        <small>AnyBike will apply this payment to the correct purchase and payment stage.</small>
       </div>
     </div>
   </div>`:`<div class="notice-box" style="margin:12px 0 0">${Number(invoice.balance_due_gbp||0)<=0?"This document has no customer balance remaining.":"This document is not currently open for payment advice."}</div>`;
@@ -384,7 +384,7 @@ function invoiceCard(invoice){
         <div class="metric ${Number(invoice.balance_due_gbp||0)>0?"due":"good"}"><span>Balance Due</span><strong>${money(invoice.balance_due_gbp)}</strong></div>
       </div>
       <div class="invoice-meta">
-        <div class="meta"><span>Deal</span><strong>${safe(invoice.deal_number||("Deal #"+invoice.deal_id))}</strong></div>
+        <div class="meta"><span>Deal</span><strong>${safe(invoice.deal_number||("Purchase #"+invoice.deal_id))}</strong></div>
         <div class="meta"><span>Issued</span><strong>${safe(niceDate(invoice.issued_at))}</strong></div>
         <div class="meta" style="grid-column:1/-1"><span>Motorcycle</span><strong>${safe(invoice.motorcycle_summary||"Motorcycle purchase")}</strong></div>
       </div>
@@ -462,7 +462,7 @@ async function submitPaymentAdvice(){
   const bankReference=document.getElementById("bankReference").value.trim();
   const notes=document.getElementById("customerNotes").value.trim();
   if(!paymentDate){alert("Enter the date you made the bank transfer.");return;}
-  if(!confirm("Report "+money(total)+" bank transfer to AnyBike?\n\nAnyBike will automatically apply it to the correct underlying Deal and payment stage.\n\nThe money will still be verified by AnyBike before your account balance changes."))return;
+  if(!confirm("Report "+money(total)+" bank transfer to AnyBike?\n\nAnyBike will automatically apply it to the correct purchase and payment stage.\n\nThe money will still be verified by AnyBike before your account balance changes."))return;
   submitBusy=true;updatePaymentSelection();
   try{
     const result=await sb.rpc("customer_submit_payment_advice",{
@@ -474,9 +474,14 @@ async function submitPaymentAdvice(){
     });
     if(result.error)throw result.error;
     const payload=result.data||{};
-    alert("Payment reported successfully.\n\nReference: "+(payload.advice_number||"Payment Advice")+"\nAmount: "+money(payload.reported_amount_gbp||total)+"\nStatus: "+(payload.advice_status||"Awaiting Verification")+"\n\nYour Deal 360 balance will not change until AnyBike verifies the bank receipt.");
+    alert("Payment reported successfully.\n\nReference: "+(payload.advice_number||"Payment Advice")+"\nAmount: "+money(payload.reported_amount_gbp||total)+"\nStatus: "+(payload.advice_status||"Awaiting Verification")+"\n\nYour purchase balance will not change until AnyBike verifies the bank receipt.");
     document.getElementById("bankReference").value="";
     document.getElementById("customerNotes").value="";
+    const journey=requestedPaymentJourney();
+    if(journey){
+      location.href="my-purchases.html";
+      return;
+    }
     await loadAccounts();
   }catch(error){
     console.error(error);
@@ -503,8 +508,8 @@ function renderHistory(){
   if(!groups.length){box.innerHTML='<div class="empty">You have not reported any bank transfers yet.</div>';return;}
   box.innerHTML=`<div class="history-list">${groups.map(group=>{
     const canCancel=String(group.advice_status||"")==="Awaiting Verification";
-    const allocations=group.allocations.map(row=>`<div class="history-alloc"><span>${safe(row.deal_number||("Deal #"+row.deal_id))} · ${safe(row.invoice_number||row.invoice_type||"Invoice")} · ${safe(row.allocation_purpose||"Payment")}</span><strong>${money(row.proposed_amount_gbp)}</strong></div>`).join("");
-    return `<article class="history-card"><div class="history-head"><div><strong>${safe(group.advice_number||("Payment Advice #"+group.payment_advice_id))} · ${money(group.reported_amount_gbp)}</strong><small>Reported ${safe(group.reported_payment_date||"")} · ${safe(group.customer_bank_reference||"No bank reference supplied")}</small></div><div class="status-pill ${statusClass(group.ledger_status==="Posted"?"Posted":group.advice_status)}">${safe(group.ledger_status==="Posted"?"Posted":group.advice_status)}</div></div><div class="history-body">${allocations}<div class="history-message">${group.ledger_status==="Posted"?"AnyBike has verified and posted this payment to the authoritative Deal 360 ledger.":group.advice_status==="Verified"?"AnyBike has verified the bank receipt. Posting to the Deal 360 ledger is pending.":group.advice_status==="Awaiting Verification"?"AnyBike is checking that this transfer has arrived. Your Deal 360 balance has not changed yet.":"This payment advice is no longer active."}</div>${canCancel?`<button class="action-btn" type="button" onclick="cancelAdvice(${Number(group.payment_advice_id)})">Cancel Payment Advice</button>`:""}</div></article>`;
+    const allocations=group.allocations.map(row=>`<div class="history-alloc"><span>${safe(row.deal_number||("Purchase #"+row.deal_id))} · ${safe(row.invoice_number||row.invoice_type||"Invoice")} · ${safe(row.allocation_purpose||"Payment")}</span><strong>${money(row.proposed_amount_gbp)}</strong></div>`).join("");
+    return `<article class="history-card"><div class="history-head"><div><strong>${safe(group.advice_number||("Payment Advice #"+group.payment_advice_id))} · ${money(group.reported_amount_gbp)}</strong><small>Reported ${safe(group.reported_payment_date||"")} · ${safe(group.customer_bank_reference||"No bank reference supplied")}</small></div><div class="status-pill ${statusClass(group.ledger_status==="Posted"?"Posted":group.advice_status)}">${safe(group.ledger_status==="Posted"?"Posted":group.advice_status)}</div></div><div class="history-body">${allocations}<div class="history-message">${group.ledger_status==="Posted"?"AnyBike has verified and posted this payment to the authoritative purchase ledger.":group.advice_status==="Verified"?"AnyBike has verified the bank receipt. Posting to your purchase is pending.":group.advice_status==="Awaiting Verification"?"AnyBike is checking that this transfer has arrived. Your purchase balance has not changed yet.":"This payment advice is no longer active."}</div>${canCancel?`<button class="action-btn" type="button" onclick="cancelAdvice(${Number(group.payment_advice_id)})">Cancel Payment Advice</button>`:""}</div></article>`;
   }).join("")}</div>`;
 }
 
