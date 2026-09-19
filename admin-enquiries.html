@@ -11330,6 +11330,89 @@ function toggleAnyBikeDeal(dealId){
 }
 
 
+
+function renderAnyBikePurchaseActionGuide(deal){
+  const dealId=String(deal?.deal_id || "");
+  const action=anyBikeDealNextActionFor(dealId) || {};
+  const financialRows=(adminDealFinancialStatus || []).filter(function(row){
+    return String(row.deal_id || "")===dealId;
+  });
+  const financial=financialRows[0] || {};
+
+  const sellerPrice=Number(
+    financial.seller_purchase_price_gbp ||
+    financial.confirmed_seller_price_gbp ||
+    0
+  );
+
+  const sellerCheckComplete=!!action.seller_check_ok;
+  const shippingConfirmed=!!action.shipping_ok;
+  const vatVerified=!!action.vat_ok;
+  const purchaseReady=!!action.purchase_ready;
+  const secured=!!action.bike_secured;
+
+  const sellerPriceText=sellerPrice>0
+    ? anyBikeDealMoney(sellerPrice)
+    : "the agreed supplier price";
+
+  const step=function(number,title,copy,done){
+    return `<div style="display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:12px;align-items:start;padding:12px 0;border-top:1px solid rgba(255,255,255,.08)">
+      <div style="width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:950;background:${done?"rgba(51,204,102,.16)":"rgba(237,28,36,.14)"};border:1px solid ${done?"rgba(51,204,102,.45)":"rgba(237,28,36,.38)"};color:${done?"#8cffb1":"#fff"}">${done?"✓":number}</div>
+      <div>
+        <strong style="display:block;color:#fff;font-size:14px;margin-bottom:4px">${escapeAdminHtml(title)}</strong>
+        <span style="display:block;color:#bbb;font-size:12px;line-height:1.5">${escapeAdminHtml(copy)}</span>
+      </div>
+      <span class="panel-badge ${done?"badge-green":"badge-red"}">${done?"DONE":"ACTION"}</span>
+    </div>`;
+  };
+
+  return `<div style="margin:0 0 14px;padding:16px;background:#111;border:1px solid rgba(237,28,36,.45);border-radius:14px">
+    <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-bottom:4px">
+      <div>
+        <div style="color:#ed1c24;font-size:11px;font-weight:950;letter-spacing:.08em;text-transform:uppercase">Bike Sales Purchase Instructions</div>
+        <h4 style="margin:5px 0 5px;color:#fff;font-size:19px">What AnyBike needs to do now</h4>
+        <p style="margin:0;color:#aaa;font-size:12px;line-height:1.5">Follow these steps in order. Do not mark the motorcycle Secured until AnyBike has a genuine seller-side commitment, hold or payment arrangement.</p>
+      </div>
+      <span class="panel-badge ${purchaseReady?"badge-green":"badge-red"}">${purchaseReady?"PURCHASE GATES PASSED":"PURCHASE BLOCKED"}</span>
+    </div>
+
+    ${step(
+      1,
+      "Reconfirm the motorcycle with the seller",
+      "Contact the seller now. Confirm the motorcycle is still available, the condition/details have not materially changed, and the agreed supplier price is still "+sellerPriceText+".",
+      sellerCheckComplete
+    )}
+
+    ${step(
+      2,
+      "Review supplier and purchase details",
+      "Check the supplier identity, motorcycle details, agreed purchase price, VAT treatment and any supplier reference before committing AnyBike to the purchase.",
+      sellerCheckComplete && vatVerified
+    )}
+
+    ${step(
+      3,
+      "Confirm the UK handover plan is still workable",
+      "Check that the confirmed UK handover point and freight forwarder / shipper remain suitable before AnyBike commits funds to the motorcycle.",
+      shippingConfirmed
+    )}
+
+    ${step(
+      4,
+      "Authorise and secure the motorcycle",
+      "Once the checks above are current, complete the seller-side purchase / hold arrangement. Record any supplier deposit or full supplier payment separately if that is how the motorcycle is being secured.",
+      secured
+    )}
+
+    ${step(
+      5,
+      "Mark the motorcycle Secured only when it is genuinely secured",
+      "Use the Final Seller Check / seller payment controls below to record the seller-side position. Customer money alone does not secure the motorcycle.",
+      secured
+    )}
+  </div>`;
+}
+
 function renderAnyBikeDealTransactionCompletion(deal){
   const dealId=String(deal.deal_id||"");
   const rows=adminDealFinancialStatus.filter(function(row){ return String(row.deal_id)===dealId; });
@@ -11350,10 +11433,10 @@ function renderAnyBikeDealTransactionCompletion(deal){
     let nextAction="";
     if(financiallyComplete){
       nextAction="Invoice / Documents";
-    }else if(!customerPaid){
-      nextAction="Customer Balance Due";
     }else if(!secured){
       nextAction="Final Seller Check / Secure Motorcycle";
+    }else if(!customerPaid){
+      nextAction="Customer Balance Due";
     }else if(!supplierPaid){
       nextAction="Supplier Payment Due";
     }else{
@@ -12360,7 +12443,7 @@ function renderAnyBikeGuidedJourney(deal,bikes,bikeRows,dealNumber,buyerName,raw
   else if(primary.includes("VAT")) primaryInstruction="Verify whether the motorcycle is Margin Scheme, Full VAT or another treatment and mark the VAT treatment Verified before purchase.";
   else if(primary.includes("Seller")) primaryInstruction="Recheck the motorcycle with the seller and confirm that it is still available at the agreed seller price.";
   else if(primary==="Deposit Due") primaryInstruction="Confirm receipt of the required customer deposit and allocate it to the selected motorcycle.";
-  else if(primary==="Ready to Purchase") primaryInstruction="All current purchase gates are satisfied. Review the supplier purchase details and authorise / secure the motorcycle.";
+  else if(primary==="Ready to Purchase") primaryInstruction="Contact the seller now, reconfirm availability and the agreed supplier price, review the supplier and purchase details, then complete the seller-side arrangement and mark the motorcycle Secured only when AnyBike genuinely has control of it.";
   else if(primary==="Operations") primaryInstruction="The motorcycle is secured. Continue with preparation, documents and the Operations workflow.";
 
   const secondary=[];
@@ -12380,7 +12463,7 @@ function renderAnyBikeGuidedJourney(deal,bikes,bikeRows,dealNumber,buyerName,raw
   const stageControl=`<div class="anybike-presale-panel" style="margin-top:0"><div class="anybike-presale-head"><div><span>Admin Override</span><h4>${escapeAdminHtml(dealNumber)}</h4></div><div><div class="anybike-stage-control"><select id="deal-stage-select-${deal.deal_id}" ${dealStageSaveBusy.has(String(deal.deal_id)) ? "disabled" : ""}>${anyBikeDealStageOptions(rawStage)}</select><button type="button" ${dealStageSaveBusy.has(String(deal.deal_id)) ? "disabled" : ""} onclick="saveDealStage(${deal.deal_id});return false;">${dealStageSaveBusy.has(String(deal.deal_id)) ? "Saving..." : "Save Stage"}</button></div><div class="anybike-stage-help">Use only when an exceptional Deal needs a manual stage override.</div></div></div></div>`;
 
   const moneyBody=`${renderAnyBikeDealCustomerAccount(deal)}${renderAnyBikeDealCustomerLedger(deal)}${renderAnyBikeDealPaymentPanel(deal)}${renderAnyBikeDealInvoiceDocuments(deal)}`;
-  const purchaseBody=`${renderAnyBikeDealFinancialPanel(deal)}${renderAnyBikeDealSellerCheckPanel(deal)}`;
+  const purchaseBody=`${renderAnyBikeDealFinancialPanel(deal)}${purchaseReady?"":renderAnyBikeDealSellerCheckPanel(deal)}`;
 
   return `<section class="deal-journey">
     <div class="deal-journey-head"><h3>Deal 360 Journey · ${escapeAdminHtml(dealNumber)}</h3><p>${escapeAdminHtml(buyerName)} · ${escapeAdminHtml(stage)} · ${escapeAdminHtml(status)}</p><div class="deal-journey-status">${chips}</div></div>
@@ -12392,7 +12475,7 @@ function renderAnyBikeGuidedJourney(deal,bikes,bikeRows,dealNumber,buyerName,raw
       ${anyBikeJourneyStep({title:"Deposit & Customer Money",subtitle:depositDone?(depositRequired>0?"Required deposit received":"No deposit required"):(anyBikeDealMoney(depositOutstanding)+" deposit outstanding"),state:depositDone?"done":"action",open:primary==="Deposit Due",instruction:depositDone?"Deposit requirement is complete. Open this section only to review receipts, allocations, Proforma or customer balance.":"Record and allocate the required deposit when cleared funds are received.",body:moneyBody})}
       ${anyBikeJourneyStep({title:"UK Handover Plan",subtitle:shippingDone?"Plan confirmed":String(action?.shipping_route_status || "To Be Confirmed"),state:shippingDone?"done":primary.includes("Shipping")?"action":"waiting",open:primary.includes("Shipping"),instruction:shippingDone?"The UK handover plan is confirmed. Reopen only if the handover arrangement changes.":"Confirm where and how AnyBike can hand the motorcycle over in the UK: destination country, UK handover point and freight forwarder / shipper.",body:renderAnyBikeDealShippingRoutePanel(deal)})}
       ${anyBikeJourneyStep({title:"VAT & Purchase Checks",subtitle:vatDone?"VAT verified":String(action?.vat_treatment || "VAT treatment requires verification"),state:(vatDone&&sellerDone)?"done":"action",open:primary.includes("VAT")||primary.includes("Seller"),instruction:(vatDone&&sellerDone)?"VAT and seller checks are complete.":(!sellerDone?"Complete the final seller availability check and verify VAT treatment before purchase.":"Verify the VAT treatment before purchase."),body:purchaseBody})}
-      ${anyBikeJourneyStep({title:"Purchase / Secure Motorcycle",subtitle:secured?"Motorcycle secured":purchaseReady?"All purchase gates satisfied":"Waiting for purchase gates",state:secured?"done":purchaseReady?"action":"locked",open:primary==="Ready to Purchase",instruction:secured?"Purchase/security step is complete.":purchaseReady?"Review the purchase order and supplier details, then secure the motorcycle.":"Complete the outstanding seller, UK handover, VAT and payment gates before purchasing the motorcycle.",body:renderAnyBikeDealTransactionCompletion(deal)})}
+      ${anyBikeJourneyStep({title:"Purchase / Secure Motorcycle",subtitle:secured?"Motorcycle secured":purchaseReady?"All purchase gates satisfied":"Waiting for purchase gates",state:secured?"done":purchaseReady?"action":"locked",open:primary==="Ready to Purchase",instruction:secured?"Purchase/security step is complete.":purchaseReady?"Contact the seller, reconfirm availability and price, review the supplier purchase details, then secure the motorcycle and record the seller-side position.":"Complete the outstanding seller, UK handover, VAT and payment gates before purchasing the motorcycle.",body:`${renderAnyBikePurchaseActionGuide(deal)}${renderAnyBikeDealTransactionCompletion(deal)}${renderAnyBikeDealSellerCheckPanel(deal)}`})}
       ${anyBikeJourneyStep({title:"Balance & Documents",subtitle:customerPaid?"Customer balance cleared":(balance>0?anyBikeDealMoney(balance)+" customer balance due":"Documents / balance review"),state:customerPaid?"done":secured?"action":"locked",open:secured&&!customerPaid,instruction:customerPaid?"Customer balance is cleared. Review documents only when required.":"Once the motorcycle is secured, collect the remaining customer balance and complete the required documents.",body:renderAnyBikeDealInvoiceDocuments(deal)})}
       ${anyBikeJourneyStep({title:"Operations",subtitle:secured?"Preparation and operational checks":"Starts after motorcycle is secured",state:secured?(primary==="Operations"?"action":"waiting"):"locked",open:primary==="Operations",instruction:"Complete motorcycle preparation and operational checks before shipping.",body:"<div class=\"deal-step-instruction\">Operations checklists remain connected to this Deal and become the focus once the motorcycle is secured.</div>"})}
       ${anyBikeJourneyStep({title:"Shipping",subtitle:"Final UK handover / shipping workflow",state:String(rawStage)==="Shipping"?"action":"locked",open:String(rawStage)==="Shipping",instruction:"Complete final handover and shipping milestones, then close the Deal when finished.",body:"<div class=\"deal-step-instruction\">Shipping workflow remains connected to the Deal and becomes active at the Shipping stage.</div>"})}
