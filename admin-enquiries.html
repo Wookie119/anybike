@@ -10625,6 +10625,55 @@ function renderAnyBikeDealSellerCheckPanel(deal){
     const dealMotorcycleId = Number(row.deal_motorcycle_id);
     const c = anyBikeDealSellerConfirmationForMotorcycle(dealMotorcycleId);
     const sellerPayment = anyBikeDealSellerPaymentForMotorcycle(dealMotorcycleId);
+    const sellerDisplay = adminDealSellerDisplay.get(String(dealMotorcycleId)) || {};
+    const dealMotorcycle = adminDealMotorcycles.find(function(bike){
+      return Number(bike.deal_motorcycle_id || bike.id) === dealMotorcycleId;
+    }) || {};
+
+    const sellerContactName = String(
+      c?.seller_contact_name ||
+      sellerDisplay.seller_contact_name ||
+      sellerDisplay.seller_name ||
+      sellerDisplay.seller_business_name ||
+      sellerDisplay.dealer_name ||
+      sellerDisplay.source_name ||
+      dealMotorcycle.seller_name ||
+      dealMotorcycle.seller_business_name ||
+      dealMotorcycle.source_name ||
+      ""
+    ).trim();
+
+    const sellerPhone = String(
+      sellerDisplay.seller_phone ||
+      sellerDisplay.phone ||
+      dealMotorcycle.seller_phone ||
+      ""
+    ).trim();
+
+    const sellerEmail = String(
+      sellerDisplay.seller_email ||
+      sellerDisplay.email ||
+      dealMotorcycle.seller_email ||
+      ""
+    ).trim();
+
+    const sellerContactDetailsFallback = [
+      sellerPhone,
+      sellerEmail
+    ].filter(Boolean).join(" · ");
+
+    const sellerContactDetails = String(
+      c?.seller_contact_details ||
+      sellerDisplay.seller_contact_details ||
+      sellerContactDetailsFallback ||
+      ""
+    ).trim();
+
+    const sellerContactMethod = String(
+      c?.contact_method ||
+      (sellerPhone && sellerEmail ? "Phone / Email" : sellerPhone ? "Phone" : sellerEmail ? "Email" : "")
+    ).trim();
+
     const title = [row.make,row.model,row.variant].filter(Boolean).join(" ") || "Motorcycle";
     const state = anyBikeSellerState(c);
     const sellerPrice =
@@ -10696,15 +10745,15 @@ function renderAnyBikeDealSellerCheckPanel(deal){
           </div>
           <div class="anybike-seller-field">
             <label for="deal-seller-contact-method-${dealMotorcycleId}">Contact Method</label>
-            <input id="deal-seller-contact-method-${dealMotorcycleId}" value="${escapeAdminHtml(c?.contact_method || "")}" placeholder="Phone / Email / WhatsApp">
+            <input id="deal-seller-contact-method-${dealMotorcycleId}" value="${escapeAdminHtml(sellerContactMethod)}" placeholder="Phone / Email / WhatsApp">
           </div>
           <div class="anybike-seller-field">
             <label for="deal-seller-contact-name-${dealMotorcycleId}">Seller Contact Name</label>
-            <input id="deal-seller-contact-name-${dealMotorcycleId}" value="${escapeAdminHtml(c?.seller_contact_name || "")}">
+            <input id="deal-seller-contact-name-${dealMotorcycleId}" value="${escapeAdminHtml(sellerContactName)}">
           </div>
           <div class="anybike-seller-field anybike-seller-span2">
             <label for="deal-seller-contact-details-${dealMotorcycleId}">Seller Contact Details</label>
-            <input id="deal-seller-contact-details-${dealMotorcycleId}" value="${escapeAdminHtml(c?.seller_contact_details || "")}">
+            <input id="deal-seller-contact-details-${dealMotorcycleId}" value="${escapeAdminHtml(sellerContactDetails)}">
           </div>
           <div class="anybike-seller-field">
             <label for="deal-seller-hold-reference-${dealMotorcycleId}">Hold Reference</label>
