@@ -8116,9 +8116,20 @@ function renderAnyBikeDealPreSalePanel(deal){
   const firstBike=bikes[0] || {};
   const title=[firstBike.make,firstBike.model,firstBike.variant].filter(Boolean).join(" ") || deal.deal_title || "Motorcycle";
 
-  const selectedCandidate=firstBike && (firstBike.deal_motorcycle_id || firstBike.id)
-    ? dealCandidateForMotorcycle(firstBike.deal_motorcycle_id || firstBike.id)
-    : null;
+  // Source-on-Demand: resolve the selected candidate by the Deal itself.
+  // Do not depend on a particular motorcycle-id alias from the Deal queue RPC.
+  const dealCandidates=anyBikeDealCandidatesFor(dealId);
+  const selectedCandidate=dealCandidates.find(function(row){
+    if(!row){ return false; }
+    if(String(row.candidate_status || "")==="Selected"){ return true; }
+    if(row.selected_deal_motorcycle_id){
+      return bikes.some(function(bike){
+        const bikeId=bike.deal_motorcycle_id || bike.id || bike.motorcycle_id;
+        return Number(bikeId)===Number(row.selected_deal_motorcycle_id);
+      });
+    }
+    return false;
+  }) || null;
 
   const sellerNames=anyBikeDealSellerNames(dealId);
   const candidateSellerName=String((selectedCandidate && selectedCandidate.seller_name) || "").trim();
