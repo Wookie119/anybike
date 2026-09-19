@@ -9216,7 +9216,7 @@ async function selectCandidateForDeal(candidateId){
 
 
 /* =========================================================
-   V10 — DEAL 360 SHIPPING / UK HANDOVER ROUTE
+   V13 — DEAL 360 UK HANDOVER PLAN
    Additive only. Does not alter bell, Message Centre,
    realtime messaging, notifications or existing payment logic.
    ========================================================= */
@@ -9248,18 +9248,12 @@ function renderAnyBikeDealShippingRoutePanel(deal){
   const confirmed = status === "Confirmed" && !!route.shipping_route_confirmed_at;
 
   return `
-    <details class="deal360-panel" ${status !== "Not Required" ? "open" : ""}>
-      <summary>
-        <span class="panel-title">🚢 Shipping / UK Handover</span>
-        <span class="panel-badge ${anyBikeShippingRouteBadgeClass(status)}">${escapeAdminHtml(status)}</span>
-      </summary>
-      <div class="deal360-panel-body">
         <div style="background:#111;border:1px solid rgba(237,28,36,.35);border-radius:14px;padding:16px">
           <div style="display:flex;justify-content:space-between;gap:14px;align-items:flex-start;flex-wrap:wrap;margin-bottom:14px">
             <div>
               <strong style="font-size:18px">Purchase Safety Gate</strong>
               <div style="color:#aaa;font-size:13px;line-height:1.45;margin-top:5px">
-                International/export motorcycles cannot be secured and seller payments cannot be made until a workable UK handover route is confirmed.
+                International/export motorcycles cannot be secured and seller payments cannot be made until a workable UK handover plan is confirmed.
               </div>
             </div>
             <span class="panel-badge ${confirmed ? "badge-green" : (status==="Not Required" ? "" : "badge-red")}">
@@ -9269,7 +9263,7 @@ function renderAnyBikeDealShippingRoutePanel(deal){
 
           <div class="anybike-commercial-grid">
             <div class="anybike-commercial-field">
-              <label>Shipping Route Status</label>
+              <label>UK Handover Plan Status</label>
               <select id="deal-shipping-status-${dealId}" ${busy ? "disabled" : ""}>
                 <option value="Not Required"${status==="Not Required" ? " selected" : ""}>Not Required</option>
                 <option value="To Be Confirmed"${status==="To Be Confirmed" ? " selected" : ""}>To Be Confirmed</option>
@@ -9280,7 +9274,7 @@ function renderAnyBikeDealShippingRoutePanel(deal){
 
             <div class="anybike-commercial-field">
               <label>Destination Country</label>
-              <input id="deal-shipping-country-${dealId}" type="text" value="${escapeAdminHtml(route.destination_country || "")}" placeholder="e.g. Australia" ${busy ? "disabled" : ""}>
+              <input id="deal-shipping-country-${dealId}" type="text" value="${escapeAdminHtml(route.destination_country || deal.buyer_country || "")}" placeholder="e.g. Australia" ${busy ? "disabled" : ""}>
             </div>
 
             <div class="anybike-commercial-field">
@@ -9304,24 +9298,22 @@ function renderAnyBikeDealShippingRoutePanel(deal){
             </div>
 
             <div class="anybike-commercial-field" style="grid-column:1 / -1">
-              <label>Internal Shipping Notes</label>
+              <label>Internal Handover Notes</label>
               <textarea id="deal-shipping-notes-${dealId}" placeholder="Handover instructions, route checks or other internal notes" ${busy ? "disabled" : ""}>${escapeAdminHtml(route.shipping_route_notes || "")}</textarea>
             </div>
           </div>
 
           <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:14px">
             <button type="button" ${busy ? "disabled" : ""} onclick="saveDealShippingRoute(${dealId});return false;">
-              ${busy ? "Saving..." : "Save Shipping / Handover"}
+              ${busy ? "Saving..." : "Save UK Handover Plan"}
             </button>
-            ${confirmed ? `<span style="color:#8cffb1;font-weight:900">✓ Route confirmed${route.shipping_route_confirmed_at ? " · "+escapeAdminHtml(new Date(route.shipping_route_confirmed_at).toLocaleString()) : ""}</span>` : ""}
+            ${confirmed ? `<span style="color:#8cffb1;font-weight:900">✓ Handover plan confirmed${route.shipping_route_confirmed_at ? " · "+escapeAdminHtml(new Date(route.shipping_route_confirmed_at).toLocaleString()) : ""}</span>` : ""}
           </div>
 
           <div style="margin-top:12px;color:#888;font-size:12px;line-height:1.45">
             Setting status to Confirmed requires a destination country, UK port/handover point and freight forwarder. Confirmation records the staff user and time automatically.
           </div>
-        </div>
-      </div>
-    </details>`;
+        </div>`;
 }
 
 async function loadDealShippingRoutes(){
@@ -11799,8 +11791,8 @@ function bikeSalesActionBlockers(action){
   else if(Number(action.deposit_required_gbp || 0) > 0){ blockers.push("✓ Deposit paid"); }
   if(action.seller_check_ok){ blockers.push("✓ Seller available"); }
   else{ blockers.push("Seller check required"); }
-  if(action.shipping_ok){ blockers.push("✓ Shipping route"); }
-  else{ blockers.push("Shipping required"); }
+  if(action.shipping_ok){ blockers.push("✓ UK handover plan"); }
+  else{ blockers.push("UK handover plan required"); }
   if(action.vat_ok){ blockers.push("✓ VAT verified"); }
   else{ blockers.push("VAT check required"); }
   blockers.push(action.bike_secured ? "✓ Motorcycle secured" : "Motorcycle not secured");
@@ -11820,7 +11812,7 @@ function buildBikeSalesActions(){
     let type="Action required", icon="⚠️", cls="seller";
     const primary=String(action.primary_action || "Action required");
     if(primary==="Deposit Due"){ type="Deposit Due"; icon="💷"; cls="deposit"; }
-    else if(primary.includes("Shipping")){ type="Shipping Required"; icon="🚢"; cls="shipping"; }
+    else if(primary.includes("Shipping")){ type="UK Handover Required"; icon="🚢"; cls="shipping"; }
     else if(primary.includes("VAT")){ type="VAT Check"; icon="🧾"; cls="vat"; }
     else if(primary.includes("Seller")){ type="Seller Check"; icon="☎️"; cls="seller"; }
     else if(primary==="Ready to Purchase"){ type="Ready to Purchase"; icon="✅"; cls="ready"; }
@@ -11831,7 +11823,7 @@ function buildBikeSalesActions(){
       dealNumber:action.deal_number || deal.deal_number || ("Deal #"+action.deal_id),
       motorcycle:action.motorcycle || "Motorcycle",
       type:type,
-      title:primary,
+      title:(primary.includes("Shipping") ? "Confirm UK Handover Plan" : primary),
       icon:icon,
       cls:cls,
       blockers:bikeSalesActionBlockers(action),
@@ -11896,7 +11888,7 @@ function renderBikeSalesActionQueue(){
 
   return `<section class="bike-sales-action-queue">
     <div class="bike-sales-action-head">
-      <div><h3>🚨 Bike Sales Action Queue</h3><p>Live Deal 360 actions. The primary action is calculated from payment, seller availability, shipping, VAT and motorcycle security.</p></div>
+      <div><h3>🚨 Bike Sales Action Queue</h3><p>Live Deal 360 actions. The primary action is calculated from payment, seller availability, UK handover, VAT and motorcycle security.</p></div>
       <span class="bike-sales-action-total">${actions.length}</span>
     </div>
     <div class="bike-sales-action-summary">
@@ -11904,7 +11896,7 @@ function renderBikeSalesActionQueue(){
       <div><span>Needs Sourcing</span><strong>${counts.sourcing}</strong></div>
       <div><span>Seller Check</span><strong>${counts.seller}</strong></div>
       <div><span>Deposit Due</span><strong>${counts.deposit}</strong></div>
-      <div><span>Shipping</span><strong>${counts.shipping}</strong></div>
+      <div><span>UK Handover</span><strong>${counts.shipping}</strong></div>
       <div><span>VAT Check</span><strong>${counts.vat}</strong></div>
       <div><span>Ready to Purchase</span><strong>${counts.ready}</strong></div>
       <div><span>Operations</span><strong>${counts.operations}</strong></div>
@@ -11960,7 +11952,7 @@ function renderAnyBikeGuidedJourney(deal,bikes,bikeRows,dealNumber,buyerName,raw
   const purchaseReady=!!action?.purchase_ready;
 
   let primaryInstruction="Review this Deal and complete the next outstanding action.";
-  if(primary.includes("Shipping")) primaryInstruction="Confirm the customer's destination, UK port or handover point and freight forwarder / shipper. The motorcycle cannot be purchased until a workable route is confirmed.";
+  if(primary.includes("Shipping")) primaryInstruction="Confirm the customer's destination, UK handover point and freight forwarder / shipper. The motorcycle cannot be purchased until a workable UK handover plan is confirmed.";
   else if(primary.includes("VAT")) primaryInstruction="Verify whether the motorcycle is Margin Scheme, Full VAT or another treatment and mark the VAT treatment Verified before purchase.";
   else if(primary.includes("Seller")) primaryInstruction="Recheck the motorcycle with the seller and confirm that it is still available at the agreed seller price.";
   else if(primary==="Deposit Due") primaryInstruction="Confirm receipt of the required customer deposit and allocate it to the selected motorcycle.";
@@ -11968,7 +11960,7 @@ function renderAnyBikeGuidedJourney(deal,bikes,bikeRows,dealNumber,buyerName,raw
   else if(primary==="Operations") primaryInstruction="The motorcycle is secured. Continue with preparation, documents and the Operations workflow.";
 
   const secondary=[];
-  if(!shippingDone && !primary.includes("Shipping")) secondary.push("Confirm Shipping / UK Handover");
+  if(!shippingDone && !primary.includes("Shipping")) secondary.push("Confirm UK Handover Plan");
   if(!vatDone && !primary.includes("VAT")) secondary.push("Verify VAT Treatment");
   if(!sellerDone && !primary.includes("Seller")) secondary.push("Final Seller Check");
 
@@ -11976,7 +11968,7 @@ function renderAnyBikeGuidedJourney(deal,bikes,bikeRows,dealNumber,buyerName,raw
     `<span class="deal-journey-chip ${hasMotorcycle?"done":"waiting"}">${hasMotorcycle?"✓ ":""}Motorcycle ${hasMotorcycle?"selected":"required"}</span>`,
     `<span class="deal-journey-chip ${offerAccepted?"done":"waiting"}">${offerAccepted?"✓ ":""}Formal Offer ${offerAccepted?"accepted":"pending"}</span>`,
     `<span class="deal-journey-chip ${depositDone?"done":"action"}">${depositDone?"✓ Deposit paid":"Deposit due"}</span>`,
-    `<span class="deal-journey-chip ${shippingDone?"done":primary.includes("Shipping")?"action":"waiting"}">${shippingDone?"✓ Shipping confirmed":"Shipping required"}</span>`,
+    `<span class="deal-journey-chip ${shippingDone?"done":primary.includes("Shipping")?"action":"waiting"}">${shippingDone?"✓ Handover confirmed":"UK handover required"}</span>`,
     `<span class="deal-journey-chip ${vatDone?"done":primary.includes("VAT")?"action":"waiting"}">${vatDone?"✓ VAT verified":"VAT required"}</span>`,
     `<span class="deal-journey-chip ${secured?"done":"locked"}">${secured?"✓ Motorcycle secured":"Motorcycle not secured"}</span>`
   ].join("");
@@ -11994,9 +11986,9 @@ function renderAnyBikeGuidedJourney(deal,bikes,bikeRows,dealNumber,buyerName,raw
       ${anyBikeJourneyStep({title:"Motorcycle Selected",subtitle:hasMotorcycle?((bikes[0]&&[bikes[0].year,bikes[0].make,bikes[0].model,bikes[0].variant].filter(Boolean).join(" "))||"Selected motorcycle"):"No motorcycle selected",state:hasMotorcycle?"done":"action",open:!hasMotorcycle,instruction:hasMotorcycle?"Review the selected motorcycle or candidate details only if something changes.":"Find and select a suitable candidate motorcycle for this Deal.",body:`<div class="anybike-deal-bike-list">${bikeRows}</div>${renderAnyBikeDealCandidatePanel(deal)}`})}
       ${anyBikeJourneyStep({title:"Formal Offer",subtitle:offerAccepted?"Customer accepted the AnyBike offer":"Offer not yet accepted",state:offerAccepted?"done":"action",open:!offerAccepted,instruction:offerAccepted?"No action required unless the agreed offer needs to be reviewed.":"Prepare and send the Formal Offer after seller availability has been confirmed.",body:stageControl})}
       ${anyBikeJourneyStep({title:"Deposit & Customer Money",subtitle:depositDone?(depositRequired>0?"Required deposit received":"No deposit required"):(anyBikeDealMoney(depositOutstanding)+" deposit outstanding"),state:depositDone?"done":"action",open:primary==="Deposit Due",instruction:depositDone?"Deposit requirement is complete. Open this section only to review receipts, allocations, Proforma or customer balance.":"Record and allocate the required deposit when cleared funds are received.",body:moneyBody})}
-      ${anyBikeJourneyStep({title:"Shipping / UK Handover",subtitle:shippingDone?"Route confirmed":String(action?.shipping_route_status || "To Be Confirmed"),state:shippingDone?"done":primary.includes("Shipping")?"action":"waiting",open:primary.includes("Shipping"),instruction:shippingDone?"The UK handover route is confirmed. Reopen only if shipping details change.":"Enter the destination country, UK handover point and freight forwarder / shipper, then confirm the route.",body:renderAnyBikeDealShippingRoutePanel(deal)})}
-      ${anyBikeJourneyStep({title:"VAT & Purchase Checks",subtitle:vatDone?"VAT verified":String(action?.vat_treatment || "VAT treatment requires verification"),state:(vatDone&&sellerDone)?"done":primary.includes("VAT")||primary.includes("Seller")?"action":"waiting",open:primary.includes("VAT")||primary.includes("Seller"),instruction:(vatDone&&sellerDone)?"VAT and seller checks are complete.":(!sellerDone?"Complete the final seller availability check and verify VAT treatment before purchase.":"Verify the VAT treatment before purchase."),body:purchaseBody})}
-      ${anyBikeJourneyStep({title:"Purchase / Secure Motorcycle",subtitle:secured?"Motorcycle secured":purchaseReady?"All purchase gates satisfied":"Waiting for purchase gates",state:secured?"done":purchaseReady?"action":"locked",open:primary==="Ready to Purchase",instruction:secured?"Purchase/security step is complete.":purchaseReady?"Review the purchase order and supplier details, then secure the motorcycle.":"Complete the outstanding seller, shipping, VAT and payment gates before purchasing the motorcycle.",body:renderAnyBikeDealTransactionCompletion(deal)})}
+      ${anyBikeJourneyStep({title:"UK Handover Plan",subtitle:shippingDone?"Plan confirmed":String(action?.shipping_route_status || "To Be Confirmed"),state:shippingDone?"done":primary.includes("Shipping")?"action":"waiting",open:primary.includes("Shipping"),instruction:shippingDone?"The UK handover plan is confirmed. Reopen only if the handover arrangement changes.":"Confirm where and how AnyBike can hand the motorcycle over in the UK: destination country, UK handover point and freight forwarder / shipper.",body:renderAnyBikeDealShippingRoutePanel(deal)})}
+      ${anyBikeJourneyStep({title:"VAT & Purchase Checks",subtitle:vatDone?"VAT verified":String(action?.vat_treatment || "VAT treatment requires verification"),state:(vatDone&&sellerDone)?"done":"action",open:primary.includes("VAT")||primary.includes("Seller"),instruction:(vatDone&&sellerDone)?"VAT and seller checks are complete.":(!sellerDone?"Complete the final seller availability check and verify VAT treatment before purchase.":"Verify the VAT treatment before purchase."),body:purchaseBody})}
+      ${anyBikeJourneyStep({title:"Purchase / Secure Motorcycle",subtitle:secured?"Motorcycle secured":purchaseReady?"All purchase gates satisfied":"Waiting for purchase gates",state:secured?"done":purchaseReady?"action":"locked",open:primary==="Ready to Purchase",instruction:secured?"Purchase/security step is complete.":purchaseReady?"Review the purchase order and supplier details, then secure the motorcycle.":"Complete the outstanding seller, UK handover, VAT and payment gates before purchasing the motorcycle.",body:renderAnyBikeDealTransactionCompletion(deal)})}
       ${anyBikeJourneyStep({title:"Balance & Documents",subtitle:customerPaid?"Customer balance cleared":(balance>0?anyBikeDealMoney(balance)+" customer balance due":"Documents / balance review"),state:customerPaid?"done":secured?"action":"locked",open:secured&&!customerPaid,instruction:customerPaid?"Customer balance is cleared. Review documents only when required.":"Once the motorcycle is secured, collect the remaining customer balance and complete the required documents.",body:renderAnyBikeDealInvoiceDocuments(deal)})}
       ${anyBikeJourneyStep({title:"Operations",subtitle:secured?"Preparation and operational checks":"Starts after motorcycle is secured",state:secured?(primary==="Operations"?"action":"waiting"):"locked",open:primary==="Operations",instruction:"Complete motorcycle preparation and operational checks before shipping.",body:"<div class=\"deal-step-instruction\">Operations checklists remain connected to this Deal and become the focus once the motorcycle is secured.</div>"})}
       ${anyBikeJourneyStep({title:"Shipping",subtitle:"Final UK handover / shipping workflow",state:String(rawStage)==="Shipping"?"action":"locked",open:String(rawStage)==="Shipping",instruction:"Complete final handover and shipping milestones, then close the Deal when finished.",body:"<div class=\"deal-step-instruction\">Shipping workflow remains connected to the Deal and becomes active at the Shipping stage.</div>"})}
