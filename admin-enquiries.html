@@ -5966,6 +5966,7 @@ let allEnquiryRecords = [];
 // These are loaded only through secure admin RPCs.
 let adminDealQueue = [];
 let adminDealNextActions = [];
+let adminCustomerProfiles = new Map();
 let adminPaymentAdviceNumbers = new Map();
 let adminDealMessageThreads = new Map();
 let adminDealCommercialSetup = [];
@@ -7201,6 +7202,61 @@ function anyBikeDealSourceEnquiry(deal){
   return (allEnquiryRecords || []).find(function(enquiry){
     return String(enquiry.converted_deal_id || "")===dealId;
   }) || null;
+}
+
+function anyBikeDealCustomerProfile(deal){
+  const enquiry=anyBikeDealSourceEnquiry(deal);
+  const customerId=String(
+    (deal && deal.customer_id) ||
+    (enquiry && enquiry.customer_id) ||
+    ""
+  ).trim();
+
+  return customerId ? (adminCustomerProfiles.get(customerId) || null) : null;
+}
+
+function anyBikeDealDestinationCountry(deal, route){
+  const profile=anyBikeDealCustomerProfile(deal);
+  const enquiry=anyBikeDealSourceEnquiry(deal);
+
+  return String(
+    (route && route.destination_country) ||
+    (profile && profile.country) ||
+    (enquiry && enquiry.destination_country) ||
+    ""
+  ).trim();
+}
+
+async function loadAdminDealCustomerProfiles(){
+  adminCustomerProfiles = new Map();
+
+  const ids = Array.from(new Set(
+    (adminDealQueue || []).map(function(deal){
+      const enquiry=anyBikeDealSourceEnquiry(deal);
+      return String(
+        (deal && deal.customer_id) ||
+        (enquiry && enquiry.customer_id) ||
+        ""
+      ).trim();
+    }).filter(Boolean)
+  ));
+
+  if(!ids.length){ return; }
+
+  try{
+    const {data,error}=await sb
+      .from("customer_profiles")
+      .select("id,country")
+      .in("id",ids);
+
+    if(error){ throw error; }
+
+    (data || []).forEach(function(profile){
+      adminCustomerProfiles.set(String(profile.id), profile);
+    });
+  }catch(error){
+    console.warn("Customer profile countries could not be loaded:", error);
+  }
 }
 
 function anyBikeDealBuyerName(deal){
@@ -9274,7 +9330,7 @@ function renderAnyBikeDealShippingRoutePanel(deal){
 
             <div class="anybike-commercial-field">
               <label>Destination Country</label>
-              <input id="deal-shipping-country-${dealId}" type="text" value="${escapeAdminHtml(route.destination_country || deal.buyer_country || "")}" placeholder="e.g. Australia" ${busy ? "disabled" : ""}>
+              <input id="deal-shipping-country-${dealId}" type="text" value="${escapeAdminHtml(anyBikeDealDestinationCountry(deal, route))}" placeholder="e.g. Australia" ${busy ? "disabled" : ""}>
             </div>
 
             <div class="anybike-commercial-field">
@@ -9405,6 +9461,7 @@ async function loadAdminDealQueue(){
     if(result.error){ throw result.error; }
     adminDealQueue = result.data || [];
     await loadDealShippingRoutes();
+    await loadAdminDealCustomerProfiles();
 
     try{
       const actionResult = await sb.rpc("admin_get_deal_next_actions_secure_v1");
