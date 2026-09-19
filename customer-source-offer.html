@@ -328,6 +328,73 @@ button:disabled{
   color:#ff9b9b;
 }
 
+.offer-status.accepted{
+  background:#15351f;
+  border-color:#2f9e44;
+  color:#9bf0b8;
+}
+
+.offer-status.declined{
+  background:#321515;
+  border-color:#8d3030;
+  color:#ff9b9b;
+}
+
+.decision-success{
+  margin-top:24px;
+  padding:22px;
+  border-radius:14px;
+  background:#102719;
+  border:1px solid #2f9e44;
+}
+
+.decision-success h2{
+  margin:0 0 8px;
+  font-size:22px;
+  color:#9bf0b8;
+}
+
+.decision-success p{
+  margin:0;
+  color:#d6eadc;
+  line-height:1.6;
+}
+
+.payment-cta{
+  display:inline-block;
+  margin-top:18px;
+  padding:14px 20px;
+  border-radius:10px;
+  background:#ed1c24;
+  color:#fff;
+  font-weight:900;
+  text-decoration:none;
+}
+
+.payment-cta:hover{
+  filter:brightness(1.08);
+}
+
+.decision-declined{
+  margin-top:24px;
+  padding:22px;
+  border-radius:14px;
+  background:#211313;
+  border:1px solid #8d3030;
+}
+
+.decision-declined h2{
+  margin:0 0 8px;
+  font-size:22px;
+  color:#ff9b9b;
+}
+
+.decision-declined p{
+  margin:0;
+  color:#ddd;
+  line-height:1.6;
+}
+
 @media(max-width:800px){
 
   .page{
@@ -742,6 +809,14 @@ function renderOffer(){
     statusClass = "expired";
   }
 
+  if(status === "Accepted" || o.customer_decision === "Accepted"){
+    statusClass = "accepted";
+  }
+
+  if(status === "Declined" || o.customer_decision === "Declined"){
+    statusClass = "declined";
+  }
+
 
   shell.innerHTML = `
 
@@ -1034,60 +1109,67 @@ function renderOffer(){
               </div>
 
 
-              <div
-                id="offerCountdown"
-                class="countdown"
-              >
-                Calculating time remaining…
-              </div>
+              ${
+                o.customer_decision === "Accepted" || status === "Accepted"
+                  ? `<div class="countdown">
+                       Offer accepted ${o.customer_decided_at ? `on ${formatDate(o.customer_decided_at)}` : ""}
+                     </div>`
+                  : o.customer_decision === "Declined" || status === "Declined"
+                    ? `<div class="countdown expired">Offer declined</div>`
+                    : `<div
+                         id="offerCountdown"
+                         class="countdown"
+                       >
+                         Calculating time remaining…
+                       </div>`
+              }
 
             </div>
 
           </div>
 
 
-          <div class="actions">
-
-            <h2>
-              Your decision
-            </h2>
-
-            <p>
-              Review the motorcycle and offer above.
-              If you accept, AnyBike will record your
-              acceptance and move the transaction to the
-              next stage.
-            </p>
-
-            <div class="action-buttons">
-
-              <button
-                id="acceptButton"
-                class="accept"
-                type="button"
-              >
-                Accept AnyBike Offer
-              </button>
-
-              <button
-                id="declineButton"
-                class="decline"
-                type="button"
-              >
-                Decline Offer
-              </button>
-
-            </div>
-
-            <div class="notice">
-
-              Customer acceptance does not mean that
-              payment has been received and does not
-              by itself secure the motorcycle.
-
-            </div>
-
-          </div>
+          ${
+            o.customer_decision === "Accepted" || status === "Accepted"
+              ? `<div class="decision-success">
+                   <h2>Offer Accepted</h2>
+                   <p>
+                     Thank you. Your acceptance has been recorded.
+                     ${o.deposit_required_at_acceptance
+                       ? `The next step is your ${money(o.deposit_amount_gbp)} deposit.`
+                       : `The next payment step is now available in your account.`}
+                     Payment is not treated as received until AnyBike verifies it, and acceptance/payment does not by itself secure the motorcycle.
+                   </p>
+                   <a class="payment-cta" href="/accounts-documents.html#financial-documents">
+                     ${o.deposit_required_at_acceptance
+                       ? `Pay / Report ${money(o.deposit_amount_gbp)} Deposit`
+                       : `Go to Accounts & Documents`}
+                   </a>
+                 </div>`
+              : o.customer_decision === "Declined" || status === "Declined"
+                ? `<div class="decision-declined">
+                     <h2>Offer Declined</h2>
+                     <p>Your decision has been recorded. AnyBike can continue helping with your sourcing requirement.</p>
+                   </div>`
+                : `<div class="actions">
+                     <h2>Your decision</h2>
+                     <p>
+                       Review the motorcycle and offer above.
+                       If you accept, AnyBike will record your acceptance and move the transaction to the next stage.
+                     </p>
+                     <div class="action-buttons">
+                       <button id="acceptButton" class="accept" type="button">
+                         Accept AnyBike Offer
+                       </button>
+                       <button id="declineButton" class="decline" type="button">
+                         Decline Offer
+                       </button>
+                     </div>
+                     <div class="notice">
+                       Customer acceptance does not mean that payment has been received and does not by itself secure the motorcycle.
+                     </div>
+                   </div>`
+          }
 
         </div>
 
@@ -1113,33 +1195,14 @@ function renderOffer(){
     );
 
 
-  updateCountdown();
-
   if(countdownTimer){
     clearInterval(countdownTimer);
+    countdownTimer = null;
   }
 
-  countdownTimer =
-    setInterval(
-      updateCountdown,
-      1000
-    );
-
-
-  if(
-    o.customer_decision ||
-    status !== "Sent"
-  ){
-
-    const accept =
-      document.getElementById("acceptButton");
-
-    const decline =
-      document.getElementById("declineButton");
-
-    if(accept) accept.disabled = true;
-    if(decline) decline.disabled = true;
-
+  if(!o.customer_decision && status === "Sent"){
+    updateCountdown();
+    countdownTimer = setInterval(updateCountdown,1000);
   }
 
 }
@@ -1306,7 +1369,6 @@ async function acceptOffer(){
 
     if(result.error) throw result.error;
 
-    alert("Your AnyBike offer has been accepted. No payment has been recorded and the motorcycle is not yet secured.");
     await loadOffer();
 
   }catch(error){
