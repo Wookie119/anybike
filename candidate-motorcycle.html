@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Motorcycle Found For You | AnyBike</title>
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#050505">
+<link rel="icon" href="/anybike-logo-new.jpg" type="image/jpeg">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="/public-header.css?v=12005">
+
+<style>
+:root{--red:#ed1c24;--bg:#050505;--panel:#101010;--panel2:#171717;--line:rgba(255,255,255,.12);--muted:#aaa;--text:#fff;--green:#38d57a}
+*{box-sizing:border-box}
+html{background:var(--bg)}
+body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,Helvetica,sans-serif}
+main{max-width:1180px;margin:0 auto;padding:34px 20px 70px}
+.hero{padding:30px;border:1px solid var(--line);border-radius:22px;background:radial-gradient(circle at top right,rgba(237,28,36,.22),transparent 42%),#111;margin-bottom:18px}
+.eyebrow{color:var(--red);font-size:12px;font-weight:950;letter-spacing:.12em;text-transform:uppercase}
+h1{font-size:clamp(32px,5vw,56px);margin:7px 0 10px}
+.hero p{color:#bbb;max-width:820px;line-height:1.55;margin:0}
+.notice{padding:14px 16px;border-radius:14px;border:1px solid rgba(255,190,80,.25);background:rgba(255,190,80,.06);color:#d8c79f;margin-bottom:18px}
+.card{border:1px solid var(--line);border-radius:20px;background:var(--panel);overflow:hidden}
+.gallery{display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px;padding:12px;background:#0a0a0a}
+.gallery img{width:100%;height:220px;object-fit:cover;border-radius:12px;background:#222}
+.gallery img:first-child{height:448px;grid-row:span 2}
+.details{padding:24px}
+.title{font-size:30px;font-weight:950;margin-bottom:5px}
+.meta{color:#bbb;font-size:16px;margin-bottom:20px}
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:20px}
+.info{background:var(--panel2);border:1px solid var(--line);border-radius:13px;padding:14px}
+.info span{display:block;color:#888;font-size:11px;text-transform:uppercase;font-weight:900;letter-spacing:.06em;margin-bottom:5px}
+.info strong{font-size:17px}
+.price{font-size:34px;font-weight:950;color:#fff;margin:10px 0 3px}
+.price-note{color:#999;font-size:13px;margin-bottom:20px}
+.actions{display:flex;flex-wrap:wrap;gap:12px;padding-top:18px;border-top:1px solid var(--line)}
+button{appearance:none;border:0;border-radius:12px;padding:13px 18px;font-weight:950;font-size:15px;cursor:pointer}
+.primary{background:var(--red);color:#fff}
+.secondary{background:#222;color:#fff;border:1px solid var(--line)}
+button:disabled{opacity:.55;cursor:not-allowed}
+.status{margin-top:14px;font-weight:850}
+.status.ok{color:#88f3af}.status.bad{color:#ff969b}
+.response{padding:16px;border-radius:14px;background:rgba(56,213,122,.08);border:1px solid rgba(56,213,122,.25);color:#aaf2c2;margin-top:18px}
+.loading{padding:40px;text-align:center;color:#aaa}
+@media(max-width:800px){
+  .gallery{grid-template-columns:1fr 1fr}
+  .gallery img:first-child{grid-column:1/-1;height:300px;grid-row:auto}
+  .gallery img{height:150px}
+  .grid{grid-template-columns:1fr 1fr}
+}
+@media(max-width:520px){.grid{grid-template-columns:1fr}.actions button{width:100%}}
+</style>
+</head>
+<body>
+<div id="publicHeader"></div>
+
+<main>
+  <section class="hero">
+    <div class="eyebrow">AnyBike · Motorcycle Found For You</div>
+    <h1>Is this one of the bikes you want us to pursue?</h1>
+    <p>This is a candidate motorcycle AnyBike has found for your buying requirement. It is not yet reserved and availability can change until AnyBike confirms it with the seller.</p>
+  </section>
+
+  <div class="notice">
+    <strong>Important:</strong> choosing Interested does not take a deposit and is not a Formal Offer. It tells AnyBike to recheck live availability and purchase terms with the seller.
+  </div>
+
+  <div id="candidateArea" class="card">
+    <div class="loading">Loading motorcycle...</div>
+  </div>
+</main>
+
+<script>
+const SUPABASE_URL="https://tuehtnezhdnkqbbhttgp.supabase.co";
+const SUPABASE_ANON_KEY="sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+
+let currentUser=null;
+let candidateRecord=null;
+
+function safe(value){
+  return String(value??"").replace(/[&<>"']/g,function(ch){
+    return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[ch];
+  });
+}
+
+function money(value){
+  const n=Number(value);
+  if(!Number.isFinite(n) || n<=0) return "Price to be confirmed";
+  return new Intl.NumberFormat("en-GB",{style:"currency",currency:"GBP",maximumFractionDigits:0}).format(n);
+}
+
+function shareIdFromUrl(){
+  const raw=new URLSearchParams(location.search).get("id");
+  const id=Number(raw);
+  return Number.isFinite(id) ? id : null;
+}
+
+async function requireUser(){
+  const {data,error}=await sb.auth.getUser();
+  if(error || !data?.user){
+    const returnTo=encodeURIComponent(location.pathname+location.search);
+    location.href="/customer-login.html?return="+returnTo;
+    return null;
+  }
+  return data.user;
+}
+
+function renderCandidate(row){
+  const box=document.getElementById("candidateArea");
+  if(!box) return;
+
+  const images=Array.isArray(row.image_urls) ? row.image_urls.filter(Boolean).slice(0,5) : [];
+  const title=[row.year,row.make,row.model,row.variant].filter(Boolean).join(" ");
+  const mileage=row.mileage ? Number(row.mileage).toLocaleString("en-GB")+" miles" : "Mileage on request";
+  const response=String(row.buyer_response || "");
+  const responded=Boolean(response);
+
+  box.innerHTML=`
+    ${images.length ? `<div class="gallery">${images.map(url=>`<img src="${safe(url)}" alt="${safe(title)}" loading="lazy" referrerpolicy="no-referrer">`).join("")}</div>` : ""}
+    <div class="details">
+      <div class="title">${safe(title || "Candidate motorcycle")}</div>
+      <div class="meta">${safe(mileage)}${row.colour ? " · "+safe(row.colour) : ""}</div>
+
+      <div class="grid">
+        <div class="info"><span>Year</span><strong>${safe(row.year || "On request")}</strong></div>
+        <div class="info"><span>Mileage</span><strong>${safe(mileage)}</strong></div>
+        <div class="info"><span>Colour</span><strong>${safe(row.colour || "On request")}</strong></div>
+        <div class="info"><span>Deal</span><strong>${safe(row.deal_number || "AnyBike sourcing")}</strong></div>
+      </div>
+
+      <div class="price">${money(row.buyer_display_price_gbp)}</div>
+      <div class="price-note">Indicative AnyBike price at the time this motorcycle was sent to you. Final terms are confirmed only in a Formal AnyBike Offer after availability is rechecked.</div>
+
+      ${responded ? `
+        <div class="response">Your response: <strong>${safe(response)}</strong>${row.buyer_response_note ? "<br>"+safe(row.buyer_response_note) : ""}</div>
+      ` : `
+        <div class="actions">
+          <button class="primary" onclick="respondToCandidate('Interested')">Interested — Check Availability</button>
+          <button class="secondary" onclick="respondToCandidate('Not for Me')">Not for Me</button>
+        </div>
+        <div id="responseStatus" class="status"></div>
+      `}
+    </div>
+  `;
+}
+
+async function loadCandidate(){
+  currentUser=await requireUser();
+  if(!currentUser) return;
+
+  const id=shareIdFromUrl();
+  if(!id){
+    document.getElementById("candidateArea").innerHTML='<div class="loading">Candidate link is missing or invalid.</div>';
+    return;
+  }
+
+  const {data,error}=await sb.rpc("get_my_candidate_message_v1",{p_candidate_message_id:id});
+
+  if(error){
+    document.getElementById("candidateArea").innerHTML='<div class="loading">This motorcycle could not be loaded: '+safe(error.message)+'</div>';
+    return;
+  }
+
+  candidateRecord=data || null;
+
+  if(!candidateRecord){
+    document.getElementById("candidateArea").innerHTML='<div class="loading">This candidate motorcycle is not available to this account.</div>';
+    return;
+  }
+
+  renderCandidate(candidateRecord);
+}
+
+async function respondToCandidate(response){
+  const id=shareIdFromUrl();
+  const status=document.getElementById("responseStatus");
+  if(!id) return;
+
+  if(status){
+    status.className="status";
+    status.textContent="Saving your response...";
+  }
+
+  try{
+    const {data,error}=await sb.rpc("customer_respond_to_candidate_v1",{
+      p_candidate_message_id:id,
+      p_response:response,
+      p_note:null
+    });
+
+    if(error) throw error;
+
+    const payload=data || {};
+
+    try{
+      if(payload.thread_id){
+        await sb.functions.invoke(
+          "send-admin-message-notification",
+          {body:{source_type:"message_centre",thread_id:String(payload.thread_id)}}
+        );
+      }
+    }catch(notificationError){
+      console.warn("Response saved; admin email notification unavailable:",notificationError);
+    }
+
+    if(status){
+      status.className="status ok";
+      status.textContent=response==="Interested"
+        ? "Thanks. AnyBike will recheck live availability with the seller."
+        : "Thanks. We will keep looking for alternatives.";
+    }
+
+    await loadCandidate();
+
+  }catch(error){
+    if(status){
+      status.className="status bad";
+      status.textContent="Your response could not be saved: "+(error?.message || error);
+    }
+  }
+}
+
+document.addEventListener("DOMContentLoaded",loadCandidate);
+</script>
+
+<script src="/public-header.js?v=12005"></script>
+<script src="/live-chat.js?v=6"></script>
+</body>
+</html>
