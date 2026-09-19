@@ -634,6 +634,61 @@ button,input,select,textarea{font:inherit}
   font-size:13px;
 }
 
+
+/* SHIPPING PREFERENCES */
+.shipping-pref-panel{
+  border-color:rgba(237,28,36,.34);
+  background:
+    radial-gradient(circle at 96% 0%,rgba(237,28,36,.10),transparent 30%),
+    rgba(16,16,16,.97);
+}
+.shipping-pref-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:12px;
+}
+.shipping-pref-field label{
+  display:block;
+  margin-bottom:6px;
+  color:#bbb;
+  font-size:11px;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+}
+.shipping-pref-field input{
+  width:100%;
+  min-height:44px;
+  padding:10px 12px;
+  border:1px solid var(--line);
+  border-radius:11px;
+  background:#171717;
+  color:#fff;
+}
+.shipping-pref-field.full{grid-column:1/-1}
+.shipping-pref-actions{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  flex-wrap:wrap;
+  margin-top:14px;
+}
+.shipping-pref-note{
+  margin:12px 0 0;
+  color:#888;
+  font-size:11px;
+  line-height:1.45;
+}
+.shipping-pref-status{
+  min-height:18px;
+  color:var(--muted);
+  font-size:12px;
+}
+@media(max-width:700px){
+  .shipping-pref-grid{grid-template-columns:1fr}
+  .shipping-pref-field.full{grid-column:auto}
+}
+
 footer{
   border-top:1px solid var(--line);padding:28px 20px;color:var(--muted);text-align:center;
 }
@@ -1449,6 +1504,52 @@ body.customer-offer-modal-open{overflow:hidden}
            style="margin-top:10px;text-align:center"></p>
       </section>
     </div>
+
+<section class="panel shipping-pref-panel" id="shipping-preferences">
+  <div class="panel-head">
+    <div>
+      <h2>🚢 Shipping Preferences</h2>
+      <p>Save the UK handover point and freight forwarder details you normally use. AnyBike can reuse these details when preparing a UK Handover Plan for a purchase.</p>
+    </div>
+  </div>
+
+  <div class="shipping-pref-grid">
+    <div class="shipping-pref-field">
+      <label for="shippingPrefUkPoint">Preferred UK Port / Handover Point</label>
+      <input id="shippingPrefUkPoint" type="text" placeholder="e.g. Southampton">
+    </div>
+
+    <div class="shipping-pref-field">
+      <label for="shippingPrefCompany">Preferred Freight Forwarder / Shipper</label>
+      <input id="shippingPrefCompany" type="text" placeholder="Company name">
+    </div>
+
+    <div class="shipping-pref-field">
+      <label for="shippingPrefContactName">Forwarder Contact Name</label>
+      <input id="shippingPrefContactName" type="text" placeholder="Contact name">
+    </div>
+
+    <div class="shipping-pref-field">
+      <label for="shippingPrefPhone">Forwarder Telephone</label>
+      <input id="shippingPrefPhone" type="tel" placeholder="Telephone number">
+    </div>
+
+    <div class="shipping-pref-field full">
+      <label for="shippingPrefEmail">Forwarder Email Address</label>
+      <input id="shippingPrefEmail" type="email" placeholder="name@company.com">
+    </div>
+  </div>
+
+  <div class="shipping-pref-actions">
+    <button class="mini-btn primary" id="saveShippingPreferencesBtn" type="button" onclick="saveShippingPreferences()">Save Shipping Preferences</button>
+    <span id="shippingPreferencesStatus" class="shipping-pref-status"></span>
+  </div>
+
+  <p class="shipping-pref-note">
+    These are preferred contact details only. Saving them does not confirm a booking, reserve shipping space or authorise AnyBike to purchase a motorcycle.
+  </p>
+</section>
+
 <section class="panel" id="recently-viewed">
       <div class="panel-head">
         <div>
@@ -2954,6 +3055,18 @@ async function loadUser(){
   currentProfile=profile || {
     email:currentUser.email || ""
   };
+
+  const shippingPrefUkPoint=document.getElementById("shippingPrefUkPoint");
+  const shippingPrefCompany=document.getElementById("shippingPrefCompany");
+  const shippingPrefContactName=document.getElementById("shippingPrefContactName");
+  const shippingPrefPhone=document.getElementById("shippingPrefPhone");
+  const shippingPrefEmail=document.getElementById("shippingPrefEmail");
+
+  if(shippingPrefUkPoint) shippingPrefUkPoint.value=currentProfile.preferred_uk_collection_point || "";
+  if(shippingPrefCompany) shippingPrefCompany.value=currentProfile.preferred_shipping_company || "";
+  if(shippingPrefContactName) shippingPrefContactName.value=currentProfile.shipping_contact_name || "";
+  if(shippingPrefPhone) shippingPrefPhone.value=currentProfile.shipping_contact_phone || "";
+  if(shippingPrefEmail) shippingPrefEmail.value=currentProfile.shipping_contact_email || "";
   const displayName = getCustomerDisplayName();
 
   setUserAreaHtml(
@@ -3051,6 +3164,56 @@ document.getElementById("welcomeText").textContent =
 
 updateProfileSummary();
 setProfileEditMode(false);
+}
+
+
+async function saveShippingPreferences(){
+  if(!currentUser) return;
+
+  const btn=document.getElementById("saveShippingPreferencesBtn");
+  const status=document.getElementById("shippingPreferencesStatus");
+
+  const payload={
+    preferred_uk_collection_point:document.getElementById("shippingPrefUkPoint")?.value.trim() || null,
+    preferred_shipping_company:document.getElementById("shippingPrefCompany")?.value.trim() || null,
+    shipping_contact_name:document.getElementById("shippingPrefContactName")?.value.trim() || null,
+    shipping_contact_phone:document.getElementById("shippingPrefPhone")?.value.trim() || null,
+    shipping_contact_email:document.getElementById("shippingPrefEmail")?.value.trim() || null
+  };
+
+  if(btn){
+    btn.disabled=true;
+    btn.textContent="Saving...";
+  }
+  if(status){
+    status.textContent="";
+    status.className="shipping-pref-status";
+  }
+
+  const {error}=await sb
+    .from("customer_profiles")
+    .update(payload)
+    .eq("id",currentUser.id);
+
+  if(btn){
+    btn.disabled=false;
+    btn.textContent="Save Shipping Preferences";
+  }
+
+  if(error){
+    if(status){
+      status.textContent="Could not save shipping preferences: "+error.message;
+      status.className="shipping-pref-status bad";
+    }
+    return;
+  }
+
+  currentProfile={...currentProfile,...payload};
+
+  if(status){
+    status.textContent="Shipping preferences saved.";
+    status.className="shipping-pref-status ok";
+  }
 }
 
 async function loadCounts(){
