@@ -665,6 +665,16 @@ button,input,select,textarea{font:inherit}
   background:#171717;
   color:#fff;
 }
+.shipping-pref-field textarea{
+  width:100%;
+  min-height:100px;
+  padding:10px 12px;
+  border:1px solid var(--line);
+  border-radius:11px;
+  background:#171717;
+  color:#fff;
+  resize:vertical;
+}
 .shipping-pref-field.full{grid-column:1/-1}
 .shipping-pref-actions{
   display:flex;
@@ -683,6 +693,57 @@ button,input,select,textarea{font:inherit}
   min-height:18px;
   color:var(--muted);
   font-size:12px;
+}
+
+.shipper-help{
+  margin-top:12px;
+  border:1px solid rgba(255,255,255,.10);
+  border-radius:12px;
+  background:#0d0d0d;
+  overflow:hidden;
+}
+.shipper-help summary{
+  cursor:pointer;
+  list-style:none;
+  padding:12px 14px;
+  font-size:12px;
+  font-weight:900;
+  color:#fff;
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.shipper-help summary::-webkit-details-marker{display:none}
+.shipper-help summary::before{
+  content:"ⓘ";
+  color:var(--red);
+  font-size:15px;
+}
+.shipper-help[open] summary{
+  border-bottom:1px solid rgba(255,255,255,.08);
+}
+.shipper-help-body{
+  padding:14px;
+  color:#cfcfcf;
+  font-size:12px;
+  line-height:1.5;
+}
+.shipper-help-body p{
+  margin:0 0 10px;
+}
+.shipper-help-body ul{
+  margin:0;
+  padding-left:20px;
+  display:grid;
+  gap:6px;
+}
+.shipper-help-tip{
+  margin-top:12px;
+  padding:10px 12px;
+  border-radius:10px;
+  background:rgba(237,28,36,.07);
+  border:1px solid rgba(237,28,36,.22);
+  color:#ddd;
 }
 @media(max-width:700px){
   .shipping-pref-grid{grid-template-columns:1fr}
@@ -1715,11 +1776,32 @@ body.customer-offer-modal-open{overflow:hidden}
 
   <div class="shipping-guidance">
     <h3>Set up your shipping before you buy</h3>
-    <p>Spending a few minutes saving the freight forwarders you may use can save time later when you accept an AnyBike offer. You can research providers in AnyBike's independent directory, save several options, and choose the right one for each purchase.</p>
+    <p>Spending a few minutes saving the freight forwarders you may use can save time later when you accept an AnyBike offer. We recommend contacting the shipper directly to discuss your motorcycle, destination and requirements, then saving the name, telephone number, extension and email address of the person handling your enquiry. You can also record useful details such as sailing days, container loading deadlines and special instructions.</p>
     <div class="shipping-guidance-actions">
       <a class="mini-btn primary" href="/freight-forwarders.html" target="_blank" rel="noopener">Research Freight Forwarders ↗</a>
       <a class="mini-btn" href="#shipping-directory-options">Choose From Directory</a>
     </div>
+
+    <details class="shipper-help">
+      <summary>What should I ask the shipper?</summary>
+      <div class="shipper-help-body">
+        <p>Before saving a shipper, contact them directly and discuss your motorcycle, destination and shipping requirements. Useful questions include:</p>
+        <ul>
+          <li>Can you handle this motorcycle and destination?</li>
+          <li>Which UK port or handover point should AnyBike deliver to?</li>
+          <li>Who will be the named contact for this shipment?</li>
+          <li>What telephone number and extension should AnyBike use?</li>
+          <li>What email address should documents be sent to?</li>
+          <li>Is there a quote, booking, account or customer reference we should use?</li>
+          <li>What day does the vessel normally depart?</li>
+          <li>When must the motorcycle or container arrive or be loaded?</li>
+          <li>Are there any fuel, battery, size, crating or preparation requirements?</li>
+          <li>Which documents do you need from AnyBike before handover?</li>
+          <li>Are there any booking, loading or documentation deadlines we should know about?</li>
+        </ul>
+        <div class="shipper-help-tip"><strong>Tip:</strong> Save the answers in your Shipping Preferences so you do not need to collect them again for every motorcycle.</div>
+      </div>
+    </details>
   </div>
 
   <div class="shipping-directory-box" id="shipping-directory-options">
@@ -1898,8 +1980,23 @@ body.customer-offer-modal-open{overflow:hidden}
     </div>
 
     <div class="shipping-pref-field">
+      <label for="shippingPrefExtension">Extension</label>
+      <input id="shippingPrefExtension" type="text" placeholder="e.g. Ext 214">
+    </div>
+
+    <div class="shipping-pref-field">
       <label for="shippingPrefEmail">Forwarder Email Address</label>
       <input id="shippingPrefEmail" type="email" placeholder="name@company.com">
+    </div>
+
+    <div class="shipping-pref-field">
+      <label for="shippingPrefReference">Account / Quote / Booking Reference</label>
+      <input id="shippingPrefReference" type="text" placeholder="Optional reference">
+    </div>
+
+    <div class="shipping-pref-field full">
+      <label for="shippingPrefNotes">Shipping Notes</label>
+      <textarea id="shippingPrefNotes" placeholder="e.g. Vessel normally departs on Friday. Container needs to be loaded by Wednesday. Contact Gary before delivery."></textarea>
     </div>
 
     <div class="shipping-pref-field full">
@@ -3540,7 +3637,7 @@ setProfileEditMode(false);
 
 function clearShippingPreferenceForm(){
   editingShippingPreferenceId=null;
-  ["shippingPlanName","shippingPrefUkPoint","shippingPrefCompany","shippingPrefContactName","shippingPrefPhone","shippingPrefEmail"]
+  ["shippingPlanName","shippingPrefUkPoint","shippingPrefCompany","shippingPrefContactName","shippingPrefPhone","shippingPrefExtension","shippingPrefEmail","shippingPrefReference","shippingPrefNotes"]
     .forEach(function(id){
       const el=document.getElementById(id);
       if(el) el.value="";
@@ -3636,7 +3733,10 @@ function editShippingPreference(planId){
     shippingPrefCompany:plan.freight_forwarder_name || "",
     shippingPrefContactName:plan.contact_name || "",
     shippingPrefPhone:plan.contact_phone || "",
-    shippingPrefEmail:plan.contact_email || ""
+    shippingPrefExtension:plan.contact_extension || "",
+    shippingPrefEmail:plan.contact_email || "",
+    shippingPrefReference:plan.forwarder_reference || "",
+    shippingPrefNotes:plan.shipping_notes || ""
   };
 
   Object.entries(values).forEach(function([id,value]){
@@ -3691,9 +3791,11 @@ function renderSavedShippingPreferences(){
         </div>
         <div class="saved-shipper-meta">
           <div><span>Contact</span>${safe(plan.contact_name || "-")}</div>
-          <div><span>Telephone</span>${safe(plan.contact_phone || "-")}</div>
+          <div><span>Telephone</span>${safe(plan.contact_phone || "-")}${plan.contact_extension ? " · "+safe(plan.contact_extension) : ""}</div>
           <div><span>Email</span>${safe(plan.contact_email || "-")}</div>
           <div><span>UK Handover</span>${safe(plan.uk_handover_point || "-")}</div>
+          ${plan.forwarder_reference ? `<div><span>Reference</span>${safe(plan.forwarder_reference)}</div>` : ""}
+          ${plan.shipping_notes ? `<div style="grid-column:1/-1"><span>Shipping Notes</span>${safe(plan.shipping_notes)}</div>` : ""}
         </div>
         <div class="saved-shipper-actions">
           <button class="mini-btn" type="button" onclick="editShippingPreference(${Number(plan.id)})">Edit / Complete</button>
@@ -3760,7 +3862,10 @@ async function saveShippingPreference(){
     freight_forwarder_name:document.getElementById("shippingPrefCompany")?.value.trim() || null,
     contact_name:document.getElementById("shippingPrefContactName")?.value.trim() || null,
     contact_phone:document.getElementById("shippingPrefPhone")?.value.trim() || null,
+    contact_extension:document.getElementById("shippingPrefExtension")?.value.trim() || null,
     contact_email:document.getElementById("shippingPrefEmail")?.value.trim() || null,
+    forwarder_reference:document.getElementById("shippingPrefReference")?.value.trim() || null,
+    shipping_notes:document.getElementById("shippingPrefNotes")?.value.trim() || null,
     is_default:Boolean(document.getElementById("shippingPrefDefault")?.checked),
     is_active:true
   };
