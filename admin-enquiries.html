@@ -9168,11 +9168,201 @@ async function selectCandidateForDeal(candidateId){
 }
 
 
+
+/* =========================================================
+   V10 — DEAL 360 SHIPPING / UK HANDOVER ROUTE
+   Additive only. Does not alter bell, Message Centre,
+   realtime messaging, notifications or existing payment logic.
+   ========================================================= */
+let adminDealShippingRoutes = new Map();
+const dealShippingRouteSaveBusy = new Set();
+
+function anyBikeShippingRouteForDeal(dealId){
+  return adminDealShippingRoutes.get(String(dealId || "")) || {};
+}
+
+function anyBikeShippingRouteBadgeClass(status){
+  if(status === "Confirmed"){ return "badge-green"; }
+  if(status === "Details Provided"){ return "badge-orange"; }
+  if(status === "To Be Confirmed"){ return "badge-red"; }
+  return "";
+}
+
+function renderAnyBikeDealShippingRoutePanel(deal){
+  const dealId = Number(deal && deal.deal_id);
+  if(!Number.isFinite(dealId)){ return ""; }
+
+  const route = anyBikeShippingRouteForDeal(dealId);
+  const status = route.shipping_route_status || "Not Required";
+  const busy = dealShippingRouteSaveBusy.has(String(dealId));
+  const confirmed = status === "Confirmed" && !!route.shipping_route_confirmed_at;
+
+  return `
+    <details class="deal360-panel" ${status !== "Not Required" ? "open" : ""}>
+      <summary>
+        <span class="panel-title">🚢 Shipping / UK Handover</span>
+        <span class="panel-badge ${anyBikeShippingRouteBadgeClass(status)}">${escapeAdminHtml(status)}</span>
+      </summary>
+      <div class="deal360-panel-body">
+        <div style="background:#111;border:1px solid rgba(237,28,36,.35);border-radius:14px;padding:16px">
+          <div style="display:flex;justify-content:space-between;gap:14px;align-items:flex-start;flex-wrap:wrap;margin-bottom:14px">
+            <div>
+              <strong style="font-size:18px">Purchase Safety Gate</strong>
+              <div style="color:#aaa;font-size:13px;line-height:1.45;margin-top:5px">
+                International/export motorcycles cannot be secured and seller payments cannot be made until a workable UK handover route is confirmed.
+              </div>
+            </div>
+            <span class="panel-badge ${confirmed ? "badge-green" : (status==="Not Required" ? "" : "badge-red")}">
+              ${confirmed ? "PURCHASE AUTHORISED" : (status==="Not Required" ? "NOT REQUIRED" : "PURCHASE BLOCKED")}
+            </span>
+          </div>
+
+          <div class="anybike-commercial-grid">
+            <div class="anybike-commercial-field">
+              <label>Shipping Route Status</label>
+              <select id="deal-shipping-status-${dealId}" ${busy ? "disabled" : ""}>
+                <option value="Not Required"${status==="Not Required" ? " selected" : ""}>Not Required</option>
+                <option value="To Be Confirmed"${status==="To Be Confirmed" ? " selected" : ""}>To Be Confirmed</option>
+                <option value="Details Provided"${status==="Details Provided" ? " selected" : ""}>Details Provided</option>
+                <option value="Confirmed"${status==="Confirmed" ? " selected" : ""}>Confirmed</option>
+              </select>
+            </div>
+
+            <div class="anybike-commercial-field">
+              <label>Destination Country</label>
+              <input id="deal-shipping-country-${dealId}" type="text" value="${escapeAdminHtml(route.destination_country || "")}" placeholder="e.g. Australia" ${busy ? "disabled" : ""}>
+            </div>
+
+            <div class="anybike-commercial-field">
+              <label>UK Port / Handover Point</label>
+              <input id="deal-shipping-port-${dealId}" type="text" value="${escapeAdminHtml(route.uk_handover_port || "")}" placeholder="e.g. Southampton Port" ${busy ? "disabled" : ""}>
+            </div>
+
+            <div class="anybike-commercial-field">
+              <label>Freight Forwarder / Shipper</label>
+              <input id="deal-shipping-forwarder-${dealId}" type="text" value="${escapeAdminHtml(route.freight_forwarder_name || "")}" placeholder="Company name" ${busy ? "disabled" : ""}>
+            </div>
+
+            <div class="anybike-commercial-field" style="grid-column:span 2">
+              <label>Forwarder Contact Details</label>
+              <input id="deal-shipping-contact-${dealId}" type="text" value="${escapeAdminHtml(route.freight_forwarder_contact || "")}" placeholder="Name, email, telephone or booking contact" ${busy ? "disabled" : ""}>
+            </div>
+
+            <div class="anybike-commercial-field" style="grid-column:span 2">
+              <label>Booking / Forwarder Reference</label>
+              <input id="deal-shipping-reference-${dealId}" type="text" value="${escapeAdminHtml(route.freight_forwarder_reference || "")}" placeholder="Optional reference" ${busy ? "disabled" : ""}>
+            </div>
+
+            <div class="anybike-commercial-field" style="grid-column:1 / -1">
+              <label>Internal Shipping Notes</label>
+              <textarea id="deal-shipping-notes-${dealId}" placeholder="Handover instructions, route checks or other internal notes" ${busy ? "disabled" : ""}>${escapeAdminHtml(route.shipping_route_notes || "")}</textarea>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:14px">
+            <button type="button" ${busy ? "disabled" : ""} onclick="saveDealShippingRoute(${dealId});return false;">
+              ${busy ? "Saving..." : "Save Shipping / Handover"}
+            </button>
+            ${confirmed ? `<span style="color:#8cffb1;font-weight:900">✓ Route confirmed${route.shipping_route_confirmed_at ? " · "+escapeAdminHtml(new Date(route.shipping_route_confirmed_at).toLocaleString()) : ""}</span>` : ""}
+          </div>
+
+          <div style="margin-top:12px;color:#888;font-size:12px;line-height:1.45">
+            Setting status to Confirmed requires a destination country, UK port/handover point and freight forwarder. Confirmation records the staff user and time automatically.
+          </div>
+        </div>
+      </div>
+    </details>`;
+}
+
+async function loadDealShippingRoutes(){
+  adminDealShippingRoutes = new Map();
+  try{
+    const result = await sb.rpc("admin_get_deal_shipping_routes_v1");
+    if(result.error){ throw result.error; }
+    (result.data || []).forEach(function(row){
+      adminDealShippingRoutes.set(String(row.deal_id || ""), row);
+    });
+  }catch(error){
+    console.warn("Deal shipping routes could not be loaded:",error);
+  }
+}
+
+async function saveDealShippingRoute(dealId){
+  const id = Number(dealId);
+  if(!Number.isFinite(id) || dealShippingRouteSaveBusy.has(String(id))){ return; }
+
+  const value = function(name){
+    const el=document.getElementById(name+"-"+id);
+    return el ? String(el.value || "").trim() : "";
+  };
+
+  const status=value("deal-shipping-status");
+  const country=value("deal-shipping-country");
+  const port=value("deal-shipping-port");
+  const forwarder=value("deal-shipping-forwarder");
+  const contact=value("deal-shipping-contact");
+  const reference=value("deal-shipping-reference");
+  const notes=value("deal-shipping-notes");
+
+  if(status==="Confirmed" && (!country || !port || !forwarder)){
+    alert("To confirm the shipping route, enter the destination country, UK port / handover point and freight forwarder / shipper.");
+    return;
+  }
+
+  if(status==="Confirmed" && !window.confirm(
+    "Confirm this shipping / handover route?\n\n"+
+    "Once confirmed, the database purchase gate can allow AnyBike to secure the motorcycle or make seller payments, subject to the other existing Deal 360 checks."
+  )){
+    return;
+  }
+
+  dealShippingRouteSaveBusy.add(String(id));
+  renderAdminDealQueue();
+
+  try{
+    const result=await sb.rpc("admin_save_deal_shipping_route_v1",{
+      p_deal_id:id,
+      p_shipping_route_status:status,
+      p_destination_country:country || null,
+      p_uk_handover_port:port || null,
+      p_freight_forwarder_name:forwarder || null,
+      p_freight_forwarder_contact:contact || null,
+      p_freight_forwarder_reference:reference || null,
+      p_shipping_route_notes:notes || null
+    });
+    if(result.error){ throw result.error; }
+
+    await loadDealShippingRoutes();
+    renderAdminDealQueue();
+
+    const row=document.getElementById("anybike-deal-"+id);
+    if(row){
+      row.classList.add("open");
+      openAnyBikeDealId=String(id);
+    }
+
+    const payload=result.data || {};
+    alert(
+      "Shipping / Handover saved.\n\n"+
+      "Status: "+(payload.shipping_route_status || status)+"\n"+
+      "Purchase gate: "+((payload.shipping_route_status==="Confirmed" && payload.shipping_route_confirmed_at) ? "OPEN" : (payload.shipping_route_status==="Not Required" ? "NOT REQUIRED" : "BLOCKED"))
+    );
+  }catch(error){
+    console.error("Shipping / Handover could not be saved:",error);
+    alert("Shipping / Handover could not be saved.\n\n"+(error?.message || error));
+  }finally{
+    dealShippingRouteSaveBusy.delete(String(id));
+    renderAdminDealQueue();
+  }
+}
+
+
 async function loadAdminDealQueue(){
   try{
     const result = await sb.rpc("admin_get_deal_queue");
     if(result.error){ throw result.error; }
     adminDealQueue = result.data || [];
+    await loadDealShippingRoutes();
   }catch(error){
     console.error("AnyBike Deal Queue could not be loaded:", error);
     adminDealQueue = [];
@@ -11750,7 +11940,9 @@ function renderAdminDealQueue(){
           ${preSale ? `
             ${renderAnyBikeDealPreSalePanel(deal)}
             ${renderAnyBikeDealCommercialSetup(deal)}
+            ${renderAnyBikeDealShippingRoutePanel(deal)}
           ` : `
+            ${renderAnyBikeDealShippingRoutePanel(deal)}
             <div class="anybike-presale-panel" style="margin-top:14px">
               <div class="anybike-presale-head">
                 <div>
