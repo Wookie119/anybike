@@ -5328,6 +5328,37 @@ input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-in
 }
 </style>
 
+
+<style>
+/* =========================================================
+   V11 — BIKE SALES ACTION QUEUE
+   Presentation only. Does not alter shared notifications,
+   Message Centre, realtime messaging or reply behaviour.
+   ========================================================= */
+.bike-sales-action-queue{margin:0 0 18px;background:#0d0d0d;border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:14px}
+.bike-sales-action-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin-bottom:12px}
+.bike-sales-action-head h3{margin:0 0 4px;font-size:20px}
+.bike-sales-action-head p{margin:0;color:#999;font-size:13px;line-height:1.4}
+.bike-sales-action-total{min-width:38px;height:38px;border-radius:999px;background:#ed1c24;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:950}
+.bike-sales-action-summary{display:grid;grid-template-columns:repeat(8,minmax(110px,1fr));gap:7px;margin-bottom:12px}
+.bike-sales-action-summary div{background:#151515;border:1px solid rgba(255,255,255,.1);border-radius:11px;padding:9px}
+.bike-sales-action-summary span{display:block;color:#888;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px}
+.bike-sales-action-summary strong{font-size:20px;color:#fff}
+.bike-sales-action-list{display:grid;gap:8px}
+.bike-sales-action-card{display:grid;grid-template-columns:42px minmax(0,1fr) auto;gap:11px;align-items:center;background:#151515;border:1px solid rgba(255,255,255,.1);border-left:5px solid #ffcc33;border-radius:12px;padding:11px 12px;cursor:pointer}
+.bike-sales-action-card:hover{background:#1b1b1b;border-color:rgba(237,28,36,.6)}
+.bike-sales-action-card.shipping{border-left-color:#4da3ff}.bike-sales-action-card.deposit{border-left-color:#ff9900}.bike-sales-action-card.vat{border-left-color:#ffcc33}.bike-sales-action-card.seller{border-left-color:#ff676d}.bike-sales-action-card.ready{border-left-color:#33cc66}.bike-sales-action-card.operations{border-left-color:#9b6cff}.bike-sales-action-card.reply{border-left-color:#ed1c24}.bike-sales-action-card.sourcing{border-left-color:#62d0ff}
+.bike-sales-action-icon{width:36px;height:36px;border-radius:9px;background:#222;display:flex;align-items:center;justify-content:center;font-size:18px}
+.bike-sales-action-title{font-weight:950;margin-bottom:3px}.bike-sales-action-meta{color:#aaa;font-size:12px;line-height:1.4}.bike-sales-action-blockers{margin-top:5px;color:#ccc;font-size:12px;line-height:1.4}
+.bike-sales-action-open{color:#ed1c24;font-size:12px;font-weight:950;white-space:nowrap}
+.bike-sales-action-empty{padding:16px;text-align:center;color:#999;border:1px dashed rgba(255,255,255,.14);border-radius:12px}
+.deal-stage-filter-label{margin:0 0 8px;color:#aaa;font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:.06em}
+.ab-received-at-wrap{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:6px;align-items:end}
+.ab-received-at-wrap input{min-width:0}
+.ab-date-helper{height:42px!important;margin:0!important;padding:0 11px!important;border-radius:9px!important;background:#222!important;border:1px solid rgba(255,255,255,.15)!important;white-space:nowrap}
+@media(max-width:1350px){.bike-sales-action-summary{grid-template-columns:repeat(4,minmax(110px,1fr))}}
+@media(max-width:760px){.bike-sales-action-summary{grid-template-columns:repeat(2,minmax(110px,1fr))}.bike-sales-action-card{grid-template-columns:38px minmax(0,1fr)}.bike-sales-action-open{grid-column:2}.ab-received-at-wrap{grid-template-columns:1fr auto}.ab-received-at-wrap .ab-now{grid-column:1 / -1}}
+</style>
 </head>
 
 <body>
@@ -5425,8 +5456,8 @@ input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-in
 <!-- ===================================================== -->
 <div class="deal-queue-heading">
   <div>
-    <h2 class="pipeline-label">Deal Queue</h2>
-    <div class="pipeline-note">Buyer Deals can contain multiple motorcycles. Existing single-bike enquiries remain below while we migrate them safely.</div>
+    <h2 class="pipeline-label">Bike Sales Action Queue</h2>
+    <div class="pipeline-note">Deal 360 now identifies what needs doing next. Deal stages remain available below as filters and for reporting.</div>
   </div>
 
   <div class="deal-queue-actions">
@@ -5531,6 +5562,7 @@ input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-in
 </aside>
 
 <!-- SHARED LEAD STATUS FILTER BAR -->
+<div class="deal-stage-filter-label">Deal Stage Filters</div>
 <div class="lead-status-bar">
   <button type="button" onclick="filterEnquiries('all')"><span>All</span><strong id="queueCountAll">0</strong></button>
   <button type="button" onclick="filterEnquiries('newLead')"><span>New Lead</span><strong id="queueCountNewLead">0</strong></button>
@@ -5921,6 +5953,8 @@ let allEnquiryRecords = [];
 // Genuine AnyBike Deal records (multi-bike capable).
 // These are loaded only through secure admin RPCs.
 let adminDealQueue = [];
+let adminDealNextActions = [];
+let adminPaymentAdviceNumbers = new Map();
 let adminDealMessageThreads = new Map();
 let adminDealCommercialSetup = [];
 const dealCommercialSaveBusy = new Set();
@@ -9192,7 +9226,11 @@ function renderAnyBikeDealShippingRoutePanel(deal){
   const dealId = Number(deal && deal.deal_id);
   if(!Number.isFinite(dealId)){ return ""; }
 
-  const route = anyBikeShippingRouteForDeal(dealId);
+  const loadedRoute = anyBikeShippingRouteForDeal(dealId);
+  const nextActionRoute = (adminDealNextActions || []).find(function(row){
+    return Number(row.deal_id) === dealId;
+  }) || {};
+  const route = Object.assign({}, nextActionRoute, loadedRoute);
   const status = route.shipping_route_status || "Not Required";
   const busy = dealShippingRouteSaveBusy.has(String(dealId));
   const confirmed = status === "Confirmed" && !!route.shipping_route_confirmed_at;
@@ -9363,6 +9401,15 @@ async function loadAdminDealQueue(){
     if(result.error){ throw result.error; }
     adminDealQueue = result.data || [];
     await loadDealShippingRoutes();
+
+    try{
+      const actionResult = await sb.rpc("admin_get_deal_next_actions_secure_v1");
+      if(actionResult.error){ throw actionResult.error; }
+      adminDealNextActions = Array.isArray(actionResult.data) ? actionResult.data : [];
+    }catch(actionError){
+      console.warn("Deal 360 Next Action engine could not be loaded:", actionError);
+      adminDealNextActions = [];
+    }
   }catch(error){
     console.error("AnyBike Deal Queue could not be loaded:", error);
     adminDealQueue = [];
@@ -9472,6 +9519,32 @@ async function loadAdminDealQueue(){
       adminDealCustomerPayments.set(String(dealId), []);
     }
   }));
+
+  adminPaymentAdviceNumbers = new Map();
+  try{
+    const adviceIds = Array.from(new Set(
+      Array.from(adminDealCustomerPayments.values())
+        .flat()
+        .map(function(row){ return Number(row && row.payment_advice_id); })
+        .filter(function(id){ return Number.isFinite(id) && id > 0; })
+    ));
+
+    if(adviceIds.length){
+      const adviceResult = await sb
+        .from("anybike_payment_advices")
+        .select("id,advice_number")
+        .in("id", adviceIds);
+      if(adviceResult.error){ throw adviceResult.error; }
+      (adviceResult.data || []).forEach(function(row){
+        if(row && row.id){
+          adminPaymentAdviceNumbers.set(String(row.id), row.advice_number || "");
+        }
+      });
+    }
+  }catch(error){
+    console.warn("Payment Advice references could not be loaded:", error);
+    adminPaymentAdviceNumbers = new Map();
+  }
 
   adminDealInvoices = new Map();
   await Promise.all(adminDealQueue.map(async function(deal){
@@ -9713,6 +9786,25 @@ function renderAnyBikeDealCustomerAccount(deal){
 }
 
 
+function anyBikePaymentDisplayReference(paymentId, paymentRow){
+  const row = paymentRow || {};
+  const adviceId = row.payment_advice_id !== null && row.payment_advice_id !== undefined
+    ? String(row.payment_advice_id)
+    : "";
+  const adviceNumber = adviceId ? String(adminPaymentAdviceNumbers.get(adviceId) || "").trim() : "";
+  if(adviceNumber){ return adviceNumber; }
+  return "Customer Payment";
+}
+
+function anyBikeFindCustomerPayment(paymentId){
+  const id=Number(paymentId);
+  for(const rows of adminDealCustomerPayments.values()){
+    const found=(rows || []).find(function(row){ return Number(row.payment_id)===id; });
+    if(found){ return found; }
+  }
+  return null;
+}
+
 function renderAnyBikeDealCustomerLedger(deal){
   const dealId = String(deal.deal_id || "");
   const account = adminDealCustomerAccounts.get(dealId) || {};
@@ -9805,8 +9897,10 @@ function renderAnyBikeDealCustomerLedger(deal){
         <button type="button" ${allocationBusy ? "disabled" : ""} onclick="allocateDealCustomerPayment(${paymentId},${Number(deal.deal_id)});return false;">${allocationBusy ? "Allocating..." : "Allocate"}</button>
       </div>` : "";
 
+    const paymentDisplayReference = anyBikePaymentDisplayReference(paymentId,p);
+
     return `<div class="ab-ledger-row">
-      <div><span>Receipt #${paymentId}</span><strong>${anyBikeDealMoney(amount)}</strong><small>${escapeAdminHtml(p.payment_purpose || "Payment")} · ${escapeAdminHtml(p.payment_status || "")}</small></div>
+      <div><span>${escapeAdminHtml(paymentDisplayReference)}</span><strong>${anyBikeDealMoney(amount)}</strong><small>${escapeAdminHtml(p.payment_purpose || "Payment")} · ${escapeAdminHtml(p.payment_status || "")}</small></div>
       <div><span>Received</span><strong>${escapeAdminHtml(when)}</strong><small>${escapeAdminHtml(p.payment_method || "Method not recorded")}${p.payment_reference ? " · Ref " + escapeAdminHtml(p.payment_reference) : ""}</small></div>
       <div><span>Allocation</span><strong>${anyBikeDealMoney(allocated)}</strong><small>${anyBikeDealMoney(unallocated)} unallocated</small></div>
       ${allocation}
@@ -9824,7 +9918,7 @@ function renderAnyBikeDealCustomerLedger(deal){
       <div><label>Amount Received</label><input id="ab-receipt-amount-${dealId}" type="number" min="0.01" step="0.01" value="${cashDue > 0 ? cashDue.toFixed(2) : ""}"></div>
       <div><label>Method</label><select id="ab-receipt-method-${dealId}"><option value="Bank Transfer">Bank Transfer</option><option value="Card">Card</option><option value="Cash">Cash</option><option value="Other">Other</option></select></div>
       <div><label>Reference</label><input id="ab-receipt-reference-${dealId}" type="text" maxlength="200" placeholder="Bank / card / internal reference"></div>
-      <div><label>Received At</label><input id="ab-receipt-date-${dealId}" type="datetime-local"></div>
+      <div><label>Received At</label><div class="ab-received-at-wrap"><input id="ab-receipt-date-${dealId}" type="datetime-local"><button type="button" class="ab-date-helper" onclick="openDealReceiptPicker(${Number(deal.deal_id)});return false;">📅</button><button type="button" class="ab-date-helper ab-now" onclick="setDealReceiptNow(${Number(deal.deal_id)});return false;">Now</button></div></div>
       <div><label>Notes</label><input id="ab-receipt-notes-${dealId}" type="text" maxlength="500" placeholder="Optional internal note"></div>
       <button type="button" ${busy ? "disabled" : ""} onclick="recordDealCustomerReceipt(${Number(deal.deal_id)});return false;">${busy ? "Recording..." : "Record Customer Payment"}</button>
     </div>
@@ -10635,6 +10729,25 @@ async function saveDealFinalSellerCheck(dealMotorcycleId){
   }
 }
 
+function setDealReceiptNow(dealId){
+  const input=document.getElementById("ab-receipt-date-"+Number(dealId));
+  if(!input){ return; }
+  const now=new Date();
+  const local=new Date(now.getTime()-now.getTimezoneOffset()*60000);
+  input.value=local.toISOString().slice(0,16);
+}
+
+function openDealReceiptPicker(dealId){
+  const input=document.getElementById("ab-receipt-date-"+Number(dealId));
+  if(!input){ return; }
+  try{
+    if(typeof input.showPicker === "function"){ input.showPicker(); }
+    else{ input.focus(); input.click(); }
+  }catch(error){
+    input.focus();
+  }
+}
+
 async function recordDealCustomerReceipt(dealId){
   const id=Number(dealId);
   const purpose=document.getElementById("ab-receipt-purpose-"+id)?.value || "Balance";
@@ -10682,7 +10795,8 @@ async function allocateDealCustomerPayment(paymentId,dealId){
 
   if(!Number.isFinite(motorcycleId) || motorcycleId<=0){ alert("Choose a motorcycle."); return; }
   if(!Number.isFinite(amount) || amount<=0){ alert("Enter a valid allocation amount."); return; }
-  if(!confirm("Allocate "+anyBikeDealMoney(amount)+" from receipt #"+payment+" to the selected motorcycle?\n\nThis does NOT secure the motorcycle.")){ return; }
+  const paymentReference=anyBikePaymentDisplayReference(payment,anyBikeFindCustomerPayment(payment));
+  if(!confirm("Allocate "+anyBikeDealMoney(amount)+" from "+paymentReference+" to the selected motorcycle?\n\nThis does NOT secure the motorcycle.")){ return; }
 
   dealCustomerAllocationBusy.add(String(payment)); renderAdminDealQueue();
   try{
@@ -11663,6 +11777,130 @@ function openAnyBikeDealFromUrl(){
   },0);
 }
 
+function bikeSalesDealById(dealId){
+  return (adminDealQueue || []).find(function(row){ return String(row.deal_id || "")===String(dealId || ""); }) || null;
+}
+
+function bikeSalesActionBlockers(action){
+  const blockers=[];
+  if(Number(action.deposit_outstanding_gbp || 0) > 0.009){ blockers.push("Deposit due "+anyBikeDealMoney(action.deposit_outstanding_gbp)); }
+  else if(Number(action.deposit_required_gbp || 0) > 0){ blockers.push("✓ Deposit paid"); }
+  if(action.seller_check_ok){ blockers.push("✓ Seller available"); }
+  else{ blockers.push("Seller check required"); }
+  if(action.shipping_ok){ blockers.push("✓ Shipping route"); }
+  else{ blockers.push("Shipping required"); }
+  if(action.vat_ok){ blockers.push("✓ VAT verified"); }
+  else{ blockers.push("VAT check required"); }
+  blockers.push(action.bike_secured ? "✓ Motorcycle secured" : "Motorcycle not secured");
+  return blockers.join(" · ");
+}
+
+function buildBikeSalesActions(){
+  const items=[];
+  const actionDealIds=new Set();
+
+  (adminDealNextActions || []).forEach(function(action){
+    const deal=bikeSalesDealById(action.deal_id) || {};
+    const stage=String(deal.deal_stage || action.deal_stage || "");
+    if(["Completed","Closed","Lost","Save For Later"].includes(stage)){ return; }
+    actionDealIds.add(String(action.deal_id));
+
+    let type="Action required", icon="⚠️", cls="seller";
+    const primary=String(action.primary_action || "Action required");
+    if(primary==="Deposit Due"){ type="Deposit Due"; icon="💷"; cls="deposit"; }
+    else if(primary.includes("Shipping")){ type="Shipping Required"; icon="🚢"; cls="shipping"; }
+    else if(primary.includes("VAT")){ type="VAT Check"; icon="🧾"; cls="vat"; }
+    else if(primary.includes("Seller")){ type="Seller Check"; icon="☎️"; cls="seller"; }
+    else if(primary==="Ready to Purchase"){ type="Ready to Purchase"; icon="✅"; cls="ready"; }
+    else if(primary==="Operations"){ type="Operations"; icon="⚙️"; cls="operations"; }
+
+    items.push({
+      dealId:String(action.deal_id),
+      dealNumber:action.deal_number || deal.deal_number || ("Deal #"+action.deal_id),
+      motorcycle:action.motorcycle || "Motorcycle",
+      type:type,
+      title:primary,
+      icon:icon,
+      cls:cls,
+      blockers:bikeSalesActionBlockers(action),
+      priority:Number(action.action_priority || 999)
+    });
+  });
+
+  (adminDealQueue || []).forEach(function(deal){
+    const dealId=String(deal.deal_id || "");
+    const stage=String(anyBikeEffectiveDealStage(deal) || "");
+    if(["Completed","Closed","Lost","Save For Later"].includes(stage)){ return; }
+
+    const thread=adminDealMessageThreads.get(dealId);
+    if(thread && String(thread.last_sender || "").toLowerCase().includes("customer")){
+      items.unshift({
+        dealId:dealId,
+        dealNumber:deal.deal_number || ("Deal #"+dealId),
+        motorcycle:"Customer conversation",
+        type:"Needs Reply",
+        title:"Customer replied",
+        icon:"💬",
+        cls:"reply",
+        blockers:String(thread.last_message || "Open the conversation and reply."),
+        priority:5
+      });
+    }
+
+    if(Number(deal.motorcycle_count || 0)===0 && !actionDealIds.has(dealId)){
+      items.push({
+        dealId:dealId,
+        dealNumber:deal.deal_number || ("Deal #"+dealId),
+        motorcycle:"Sourcing requirement",
+        type:"Needs Sourcing",
+        title:"Find candidate motorcycle",
+        icon:"🔎",
+        cls:"sourcing",
+        blockers:"No motorcycle has been selected for this Deal yet.",
+        priority:15
+      });
+    }
+  });
+
+  return items.sort(function(a,b){ return Number(a.priority)-Number(b.priority); });
+}
+
+function renderBikeSalesActionQueue(){
+  const actions=buildBikeSalesActions();
+  const counts={reply:0,sourcing:0,seller:0,deposit:0,shipping:0,vat:0,ready:0,operations:0};
+  actions.forEach(function(item){ if(counts[item.cls]!==undefined){ counts[item.cls]++; } });
+
+  const cards=actions.length ? actions.map(function(item){
+    return `<article class="bike-sales-action-card ${escapeAdminHtml(item.cls)}" onclick="location.href='admin-enquiries.html?deal=${encodeURIComponent(item.dealId)}'">
+      <div class="bike-sales-action-icon">${item.icon}</div>
+      <div>
+        <div class="bike-sales-action-title">${escapeAdminHtml(item.type)} · ${escapeAdminHtml(item.dealNumber)} — ${escapeAdminHtml(item.title)}</div>
+        <div class="bike-sales-action-meta">${escapeAdminHtml(item.motorcycle)}</div>
+        <div class="bike-sales-action-blockers">${escapeAdminHtml(item.blockers)}</div>
+      </div>
+      <div class="bike-sales-action-open">Open Deal →</div>
+    </article>`;
+  }).join("") : `<div class="bike-sales-action-empty"><strong>No Bike Sales actions waiting.</strong><div style="margin-top:5px">The current Deal 360 records have no outstanding actions.</div></div>`;
+
+  return `<section class="bike-sales-action-queue">
+    <div class="bike-sales-action-head">
+      <div><h3>🚨 Bike Sales Action Queue</h3><p>Live Deal 360 actions. The primary action is calculated from payment, seller availability, shipping, VAT and motorcycle security.</p></div>
+      <span class="bike-sales-action-total">${actions.length}</span>
+    </div>
+    <div class="bike-sales-action-summary">
+      <div><span>Needs Reply</span><strong>${counts.reply}</strong></div>
+      <div><span>Needs Sourcing</span><strong>${counts.sourcing}</strong></div>
+      <div><span>Seller Check</span><strong>${counts.seller}</strong></div>
+      <div><span>Deposit Due</span><strong>${counts.deposit}</strong></div>
+      <div><span>Shipping</span><strong>${counts.shipping}</strong></div>
+      <div><span>VAT Check</span><strong>${counts.vat}</strong></div>
+      <div><span>Ready to Purchase</span><strong>${counts.ready}</strong></div>
+      <div><span>Operations</span><strong>${counts.operations}</strong></div>
+    </div>
+    <div class="bike-sales-action-list">${cards}</div>
+  </section>`;
+}
+
 function renderAdminDealQueue(){
   const box = document.getElementById("anybikeDeals");
   if(!box){ return; }
@@ -12009,6 +12247,7 @@ function renderAdminDealQueue(){
   const activeTableFilters=anyBikeDealTableActiveFilterCount();
 
   box.innerHTML = `
+    ${renderBikeSalesActionQueue()}
     <section class="anybike-real-deals">
       <div class="anybike-real-deals-head">
         <div>
