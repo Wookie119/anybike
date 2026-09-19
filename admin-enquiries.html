@@ -5967,6 +5967,8 @@ let allEnquiryRecords = [];
 let adminDealQueue = [];
 let adminDealNextActions = [];
 let adminCustomerProfiles = new Map();
+let adminCustomerHandoverPlans = new Map();
+let adminDealHandoverSelections = new Map();
 let adminPaymentAdviceNumbers = new Map();
 let adminDealMessageThreads = new Map();
 let adminDealCommercialSetup = [];
@@ -7257,6 +7259,214 @@ async function loadAdminDealCustomerProfiles(){
   }catch(error){
     console.warn("Customer profile countries could not be loaded:", error);
   }
+}
+
+
+function anyBikeDealCustomerId(deal){
+  const enquiry=anyBikeDealSourceEnquiry(deal);
+  return String(
+    (deal && deal.customer_id) ||
+    (enquiry && enquiry.customer_id) ||
+    ""
+  ).trim();
+}
+
+function anyBikeCustomerHandoverPlansForDeal(deal){
+  const customerId=anyBikeDealCustomerId(deal);
+  return customerId ? (adminCustomerHandoverPlans.get(customerId) || []) : [];
+}
+
+function anyBikeCustomerHandoverSelectionForDeal(dealId){
+  return adminDealHandoverSelections.get(String(dealId || "")) || null;
+}
+
+function anyBikeCustomerHandoverPlanLabel(plan){
+  return String(
+    (plan && plan.plan_name) ||
+    [plan && plan.uk_handover_point, plan && plan.freight_forwarder_name].filter(Boolean).join(" · ") ||
+    "Customer shipping preference"
+  ).trim();
+}
+
+function anyBikeCustomerHandoverContactLine(plan){
+  const parts=[];
+  if(plan && plan.contact_name){ parts.push(plan.contact_name); }
+  if(plan && plan.contact_phone){
+    parts.push(plan.contact_phone + (plan.contact_extension ? " · "+plan.contact_extension : ""));
+  }
+  if(plan && plan.contact_email){ parts.push(plan.contact_email); }
+  return parts.join(" · ");
+}
+
+async function loadAdminCustomerHandoverData(){
+  adminCustomerHandoverPlans = new Map();
+  adminDealHandoverSelections = new Map();
+
+  const customerIds=Array.from(new Set(
+    (adminDealQueue || []).map(function(deal){
+      return anyBikeDealCustomerId(deal);
+    }).filter(Boolean)
+  ));
+
+  const dealIds=(adminDealQueue || [])
+    .map(function(deal){ return Number(deal && deal.deal_id); })
+    .filter(function(id){ return Number.isFinite(id); });
+
+  if(customerIds.length){
+    try{
+      const {data,error}=await sb
+        .from("customer_handover_plans")
+        .select("id,customer_id,plan_name,destination_country,uk_handover_point,freight_forwarder_name,provider_website,source_type,contact_name,contact_email,contact_phone,contact_extension,forwarder_reference,shipping_notes,customer_notes,is_default,is_active,created_at,updated_at")
+        .in("customer_id",customerIds)
+        .eq("is_active",true)
+        .order("is_default",{ascending:false})
+        .order("created_at",{ascending:true});
+
+      if(error){ throw error; }
+
+      (data || []).forEach(function(plan){
+        const key=String(plan.customer_id || "");
+        if(!key){ return; }
+        if(!adminCustomerHandoverPlans.has(key)){
+          adminCustomerHandoverPlans.set(key,[]);
+        }
+        adminCustomerHandoverPlans.get(key).push(plan);
+      });
+    }catch(error){
+      console.warn("Customer shipping preferences could not be loaded:",error);
+    }
+  }
+
+  if(dealIds.length){
+    try{
+      const {data,error}=await sb
+        .from("deal_customer_handover_selections")
+        .select("id,customer_id,deal_id,handover_plan_id,status,selected_at,verified_at,verified_by,created_at,updated_at")
+        .in("deal_id",dealIds);
+
+      if(error){ throw error; }
+
+      (data || []).forEach(function(row){
+        adminDealHandoverSelections.set(String(row.deal_id || ""),row);
+      });
+    }catch(error){
+      console.warn("Customer Deal handover selections could not be loaded:",error);
+    }
+  }
+}
+
+function renderAnyBikeCustomerShippingPreferences(deal){
+  const dealId=Number(deal && deal.deal_id);
+  if(!Number.isFinite(dealId)){ return ""; }
+
+  const plans=anyBikeCustomerHandoverPlansForDeal(deal);
+  const selection=anyBikeCustomerHandoverSelectionForDeal(dealId);
+  const selectedPlanId=Number(selection && selection.handover_plan_id || 0);
+
+  if(!plans.length){
+    return `<div style="margin-bottom:16px;padding:14px;border:1px dashed rgba(255,255,255,.18);border-radius:12px;color:#aaa">
+      <strong style="display:block;color:#fff;margin-bottom:5px">Customer Shipping Preferences</strong>
+      No saved shipping preferences found for this customer.
+    </div>`;
+  }
+
+  const cards=plans.map(function(plan){
+    const selected=Number(plan.id)===selectedPlanId;
+    const contact=anyBikeCustomerHandoverContactLine(plan);
+    const notes=String(plan.shipping_notes || plan.customer_notes || "").trim();
+    const reference=String(plan.forwarder_reference || "").trim();
+
+    return `<article style="padding:13px;border:1px solid ${selected ? "rgba(51,204,102,.55)" : "rgba(255,255,255,.10)"};border-radius:12px;background:${selected ? "rgba(51,204,102,.07)" : "#151515"}">
+      <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap">
+        <div>
+          <strong style="font-size:15px">${escapeAdminHtml(anyBikeCustomerHandoverPlanLabel(plan))}</strong>
+          <div style="color:#aaa;font-size:12px;margin-top:4px">
+            ${escapeAdminHtml(plan.uk_handover_point || "UK handover point not supplied")} · ${escapeAdminHtml(plan.freight_forwarder_name || "Shipper not supplied")}
+          </div>
+        </div>
+        <div style="display:flex;gap:7px;flex-wrap:wrap">
+          ${selected ? `<span class="panel-badge badge-green">CUSTOMER SELECTED</span>` : ""}
+          ${plan.is_default ? `<span class="panel-badge">DEFAULT</span>` : ""}
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px;margin-top:10px">
+        <div style="background:#0d0d0d;border-radius:9px;padding:9px"><span style="display:block;color:#888;font-size:10px;font-weight:900;margin-bottom:3px">CONTACT</span>${escapeAdminHtml(contact || "Not supplied")}</div>
+        <div style="background:#0d0d0d;border-radius:9px;padding:9px"><span style="display:block;color:#888;font-size:10px;font-weight:900;margin-bottom:3px">REFERENCE</span>${escapeAdminHtml(reference || "Not supplied")}</div>
+        ${notes ? `<div style="background:#0d0d0d;border-radius:9px;padding:9px;grid-column:1/-1"><span style="display:block;color:#888;font-size:10px;font-weight:900;margin-bottom:3px">CUSTOMER SHIPPING NOTES</span>${escapeAdminHtml(notes)}</div>` : ""}
+      </div>
+
+      <div style="display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-top:10px">
+        <button type="button" style="margin:0" onclick="useCustomerHandoverPlan(${dealId},${Number(plan.id)});return false;">Use in UK Handover Plan</button>
+        ${selected && selection && selection.selected_at ? `<span style="color:#8cffb1;font-size:12px;font-weight:900">Selected by customer ${escapeAdminHtml(new Date(selection.selected_at).toLocaleString())}</span>` : ""}
+      </div>
+    </article>`;
+  }).join("");
+
+  return `<div style="margin-bottom:16px;padding:14px;border:1px solid rgba(237,28,36,.30);border-radius:14px;background:#0d0d0d">
+    <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-bottom:10px">
+      <div>
+        <strong style="display:block;font-size:17px">Customer Shipping Preferences</strong>
+        <div style="color:#aaa;font-size:12px;line-height:1.45;margin-top:4px">
+          Saved by the customer in My AnyBike. Use the customer's selected preference where appropriate, then verify the details before confirming the purchase gate.
+        </div>
+      </div>
+      <span class="panel-badge">${plans.length} SAVED</span>
+    </div>
+    <div style="display:grid;gap:9px">${cards}</div>
+  </div>`;
+}
+
+function useCustomerHandoverPlan(dealId,planId){
+  const deal=(adminDealQueue || []).find(function(row){
+    return Number(row && row.deal_id)===Number(dealId);
+  });
+  if(!deal){ return; }
+
+  const plan=anyBikeCustomerHandoverPlansForDeal(deal).find(function(row){
+    return Number(row && row.id)===Number(planId);
+  });
+  if(!plan){ return; }
+
+  const setValue=function(id,value){
+    const el=document.getElementById(id+"-"+dealId);
+    if(el && value!==undefined && value!==null && String(value).trim()!==""){
+      el.value=String(value);
+    }
+  };
+
+  const route=anyBikeShippingRouteForDeal(dealId);
+  const currentStatus=String(route.shipping_route_status || "");
+  const statusEl=document.getElementById("deal-shipping-status-"+dealId);
+
+  setValue("deal-shipping-country",plan.destination_country);
+  setValue("deal-shipping-port",plan.uk_handover_point);
+  setValue("deal-shipping-forwarder",plan.freight_forwarder_name);
+
+  const contact=anyBikeCustomerHandoverContactLine(plan);
+  setValue("deal-shipping-contact",contact);
+  setValue("deal-shipping-reference",plan.forwarder_reference);
+
+  const notesParts=[];
+  if(plan.shipping_notes){ notesParts.push("Customer shipping notes: "+plan.shipping_notes); }
+  if(plan.customer_notes){ notesParts.push("Customer notes: "+plan.customer_notes); }
+  if(notesParts.length){
+    setValue("deal-shipping-notes",notesParts.join("\n"));
+  }
+
+  if(statusEl && currentStatus!=="Confirmed"){
+    statusEl.value="Details Provided";
+  }
+
+  const port=String(plan.uk_handover_point || "").trim();
+  const forwarder=String(plan.freight_forwarder_name || "").trim();
+
+  if(!port || !forwarder){
+    alert("Customer shipping preference loaded, but some handover details are incomplete. Review the fields before saving.");
+    return;
+  }
+
+  alert("Customer shipping preference loaded into the UK Handover Plan.\n\nReview the details, then save or confirm the plan when verified.");
 }
 
 function anyBikeDealBuyerName(deal){
@@ -9304,6 +9514,7 @@ function renderAnyBikeDealShippingRoutePanel(deal){
   const confirmed = status === "Confirmed" && !!route.shipping_route_confirmed_at;
 
   return `
+        ${renderAnyBikeCustomerShippingPreferences(deal)}
         <div style="background:#111;border:1px solid rgba(237,28,36,.35);border-radius:14px;padding:16px">
           <div style="display:flex;justify-content:space-between;gap:14px;align-items:flex-start;flex-wrap:wrap;margin-bottom:14px">
             <div>
@@ -9462,6 +9673,7 @@ async function loadAdminDealQueue(){
     adminDealQueue = result.data || [];
     await loadDealShippingRoutes();
     await loadAdminDealCustomerProfiles();
+    await loadAdminCustomerHandoverData();
 
     try{
       const actionResult = await sb.rpc("admin_get_deal_next_actions_secure_v1");
