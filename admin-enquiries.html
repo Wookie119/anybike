@@ -10662,7 +10662,7 @@ function renderAnyBikeDealSellerCheckPanel(deal){
     }
 
     return `
-      <div class="anybike-seller-panel">
+      <div class="anybike-seller-panel" id="deal-seller-panel-${dealMotorcycleId}">
         <div class="anybike-seller-head">
           <div>
             <span>Seller Security</span>
@@ -11331,6 +11331,43 @@ function toggleAnyBikeDeal(dealId){
 
 
 
+
+function anyBikeScrollToSellerPurchaseControl(dealId,target){
+  const id=String(dealId || "");
+  const paymentRow=(adminDealPaymentStatus || []).find(function(row){
+    return String(row.deal_id || "")===id;
+  });
+
+  if(!paymentRow){
+    alert("Seller security controls are not available for this Deal yet.");
+    return;
+  }
+
+  const dealMotorcycleId=Number(paymentRow.deal_motorcycle_id);
+  if(!Number.isFinite(dealMotorcycleId)){
+    alert("The Deal motorcycle could not be resolved.");
+    return;
+  }
+
+  const panel=document.getElementById("deal-seller-panel-"+dealMotorcycleId);
+  const secured=document.getElementById("deal-seller-secured-"+dealMotorcycleId);
+
+  if(target==="secured" && secured){
+    secured.scrollIntoView({behavior:"smooth",block:"center"});
+    setTimeout(function(){
+      try{ secured.focus({preventScroll:true}); }catch(_){ secured.focus(); }
+    },450);
+    return;
+  }
+
+  if(panel){
+    panel.scrollIntoView({behavior:"smooth",block:"start"});
+    return;
+  }
+
+  alert("Final Seller Check controls could not be found on the page.");
+}
+
 function renderAnyBikePurchaseActionGuide(deal){
   const dealId=String(deal?.deal_id || "");
   const action=anyBikeDealNextActionFor(dealId) || {};
@@ -11355,14 +11392,24 @@ function renderAnyBikePurchaseActionGuide(deal){
     ? anyBikeDealMoney(sellerPrice)
     : "the agreed supplier price";
 
-  const step=function(number,title,copy,done){
+  const step=function(number,title,copy,done,actionLabel,actionTarget){
+    const actionHtml = done
+      ? `<span class="panel-badge badge-green">DONE</span>`
+      : actionLabel
+        ? `<button type="button"
+                   style="margin:0;white-space:nowrap;border-radius:10px;padding:9px 12px"
+                   onclick="anyBikeScrollToSellerPurchaseControl(${Number(deal.deal_id)},'${escapeAdminHtml(actionTarget || "panel")}');return false;">
+             ${escapeAdminHtml(actionLabel)}
+           </button>`
+        : `<span class="panel-badge badge-red">ACTION</span>`;
+
     return `<div style="display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:12px;align-items:start;padding:12px 0;border-top:1px solid rgba(255,255,255,.08)">
       <div style="width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:950;background:${done?"rgba(51,204,102,.16)":"rgba(237,28,36,.14)"};border:1px solid ${done?"rgba(51,204,102,.45)":"rgba(237,28,36,.38)"};color:${done?"#8cffb1":"#fff"}">${done?"✓":number}</div>
       <div>
         <strong style="display:block;color:#fff;font-size:14px;margin-bottom:4px">${escapeAdminHtml(title)}</strong>
         <span style="display:block;color:#bbb;font-size:12px;line-height:1.5">${escapeAdminHtml(copy)}</span>
       </div>
-      <span class="panel-badge ${done?"badge-green":"badge-red"}">${done?"DONE":"ACTION"}</span>
+      ${actionHtml}
     </div>`;
   };
 
@@ -11401,14 +11448,18 @@ function renderAnyBikePurchaseActionGuide(deal){
       4,
       "Authorise and secure the motorcycle",
       "Once the checks above are current, complete the seller-side purchase / hold arrangement. Record any supplier deposit or full supplier payment separately if that is how the motorcycle is being secured.",
-      secured
+      secured,
+      "Open Final Seller Check ↓",
+      "panel"
     )}
 
     ${step(
       5,
       "Mark the motorcycle Secured only when it is genuinely secured",
       "Use the Final Seller Check / seller payment controls below to record the seller-side position. Customer money alone does not secure the motorcycle.",
-      secured
+      secured,
+      "Go to Motorcycle Secured ↓",
+      "secured"
     )}
   </div>`;
 }
