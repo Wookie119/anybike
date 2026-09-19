@@ -689,6 +689,106 @@ button,input,select,textarea{font:inherit}
   .shipping-pref-field.full{grid-column:auto}
 }
 
+.saved-shippers-list{
+  display:grid;
+  gap:10px;
+  margin-bottom:16px;
+}
+.saved-shipper-card{
+  border:1px solid var(--line);
+  border-radius:14px;
+  background:#141414;
+  padding:14px;
+}
+.saved-shipper-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  flex-wrap:wrap;
+}
+.saved-shipper-head h3{margin:0 0 4px;font-size:17px}
+.saved-shipper-head p{margin:0;color:var(--muted);font-size:12px}
+.saved-shipper-badges{display:flex;gap:7px;flex-wrap:wrap}
+.saved-shipper-badge{
+  display:inline-flex;
+  align-items:center;
+  padding:5px 9px;
+  border-radius:999px;
+  border:1px solid var(--line);
+  font-size:10px;
+  font-weight:900;
+}
+.saved-shipper-badge.default{
+  border-color:rgba(54,211,126,.45);
+  background:rgba(54,211,126,.12);
+  color:#a9f4c1;
+}
+.saved-shipper-meta{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:8px;
+  margin-top:12px;
+}
+.saved-shipper-meta div{
+  padding:9px 10px;
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:10px;
+  background:#0d0d0d;
+  font-size:12px;
+}
+.saved-shipper-meta span{
+  display:block;
+  color:#888;
+  font-size:9px;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.05em;
+  margin-bottom:3px;
+}
+.saved-shipper-actions{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-top:12px;
+}
+.shipper-choice{
+  margin-top:14px;
+  padding:13px;
+  border:1px solid rgba(237,28,36,.28);
+  border-radius:12px;
+  background:#0d0d0d;
+}
+.shipper-choice-title{
+  font-size:12px;
+  font-weight:900;
+  margin-bottom:9px;
+}
+.shipper-choice-list{
+  display:grid;
+  gap:7px;
+}
+.shipper-choice-option{
+  display:flex;
+  gap:9px;
+  align-items:flex-start;
+  padding:10px;
+  border:1px solid rgba(255,255,255,.10);
+  border-radius:10px;
+  background:#151515;
+  cursor:pointer;
+}
+.shipper-choice-option input{
+  margin-top:3px;
+  flex:0 0 auto;
+}
+.shipper-choice-option strong{display:block;font-size:12px}
+.shipper-choice-option small{display:block;color:#999;font-size:10px;margin-top:3px;line-height:1.35}
+.shipper-choice-status{min-height:17px;margin-top:8px;font-size:11px;color:var(--muted)}
+@media(max-width:700px){
+  .saved-shipper-meta{grid-template-columns:1fr}
+}
+
 footer{
   border-top:1px solid var(--line);padding:28px 20px;color:var(--muted);text-align:center;
 }
@@ -1505,22 +1605,32 @@ body.customer-offer-modal-open{overflow:hidden}
       </section>
     </div>
 
+
 <section class="panel shipping-pref-panel" id="shipping-preferences">
   <div class="panel-head">
     <div>
-      <h2>🚢 Shipping Preferences</h2>
-      <p>Save the UK handover point and freight forwarder details you normally use. AnyBike can reuse these details when preparing a UK Handover Plan for a purchase.</p>
+      <h2>🚢 Saved Shipping Preferences</h2>
+      <p>Keep more than one UK handover / freight-forwarder option. You can choose the right shipper for each AnyBike purchase.</p>
     </div>
+  </div>
+
+  <div id="savedShippersList" class="saved-shippers-list">
+    <div class="buyer-match-empty">Loading your saved shipping preferences...</div>
   </div>
 
   <div class="shipping-pref-grid">
     <div class="shipping-pref-field">
-      <label for="shippingPrefUkPoint">Preferred UK Port / Handover Point</label>
+      <label for="shippingPlanName">Preference Name</label>
+      <input id="shippingPlanName" type="text" placeholder="e.g. Southampton – LV Logistics">
+    </div>
+
+    <div class="shipping-pref-field">
+      <label for="shippingPrefUkPoint">UK Port / Handover Point</label>
       <input id="shippingPrefUkPoint" type="text" placeholder="e.g. Southampton">
     </div>
 
     <div class="shipping-pref-field">
-      <label for="shippingPrefCompany">Preferred Freight Forwarder / Shipper</label>
+      <label for="shippingPrefCompany">Freight Forwarder / Shipper</label>
       <input id="shippingPrefCompany" type="text" placeholder="Company name">
     </div>
 
@@ -1534,21 +1644,29 @@ body.customer-offer-modal-open{overflow:hidden}
       <input id="shippingPrefPhone" type="tel" placeholder="Telephone number">
     </div>
 
-    <div class="shipping-pref-field full">
+    <div class="shipping-pref-field">
       <label for="shippingPrefEmail">Forwarder Email Address</label>
       <input id="shippingPrefEmail" type="email" placeholder="name@company.com">
+    </div>
+
+    <div class="shipping-pref-field full">
+      <label style="display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0">
+        <input id="shippingPrefDefault" type="checkbox" style="width:auto;min-height:0">
+        Make this my default shipping preference
+      </label>
     </div>
   </div>
 
   <div class="shipping-pref-actions">
-    <button class="mini-btn primary" id="saveShippingPreferencesBtn" type="button" onclick="saveShippingPreferences()">Save Shipping Preferences</button>
+    <button class="mini-btn primary" id="saveShippingPreferencesBtn" type="button" onclick="saveShippingPreference()">Add Shipping Preference</button>
     <span id="shippingPreferencesStatus" class="shipping-pref-status"></span>
   </div>
 
   <p class="shipping-pref-note">
-    These are preferred contact details only. Saving them does not confirm a booking, reserve shipping space or authorise AnyBike to purchase a motorcycle.
+    Saved preferences are reusable contact details only. Choosing one for a purchase does not confirm a booking or authorise AnyBike to buy the motorcycle; AnyBike must verify the UK Handover Plan first.
   </p>
 </section>
+
 
 <section class="panel" id="recently-viewed">
       <div class="panel-head">
@@ -1663,6 +1781,8 @@ let myDealNegotiationCache={};
 let myBuyerMatchPools=[];
 let currentBuyerMatchRows=[];
 let openCustomerOfferMatchId=null;
+let savedHandoverPlans=[];
+let dealHandoverSelections={};
 
 async function claimRequestedMessageThread(){
   const params = new URLSearchParams(window.location.search);
@@ -2629,6 +2749,8 @@ function customerPurchaseCardHtml(match){
           <strong>${safe(nextStep)}</strong>
         </div>
 
+        ${customerDealShipperChoiceHtml(match)}
+
         <div class="my-purchase-actions">
           <a class="my-purchase-view" href="${match?._offer_source==="deal360"
             ? `my-purchases.html?deal=${encodeURIComponent(match._deal_id || "")}`
@@ -2751,6 +2873,11 @@ async function loadBuyerPotentialMatches(){
   if(!box || !currentUser) return;
 
   box.innerHTML=`<div class="buyer-match-empty">Loading your AnyBike Potential Matches...</div>`;
+
+  await Promise.allSettled([
+    loadSavedShippingPreferences(),
+    loadDealHandoverSelections()
+  ]);
 
   const [poolRes,matchRes,dealRes,dealOfferRes]=await Promise.all([
     sb.rpc("get_my_buyer_match_pools"),
@@ -3056,17 +3183,6 @@ async function loadUser(){
     email:currentUser.email || ""
   };
 
-  const shippingPrefUkPoint=document.getElementById("shippingPrefUkPoint");
-  const shippingPrefCompany=document.getElementById("shippingPrefCompany");
-  const shippingPrefContactName=document.getElementById("shippingPrefContactName");
-  const shippingPrefPhone=document.getElementById("shippingPrefPhone");
-  const shippingPrefEmail=document.getElementById("shippingPrefEmail");
-
-  if(shippingPrefUkPoint) shippingPrefUkPoint.value=currentProfile.preferred_uk_collection_point || "";
-  if(shippingPrefCompany) shippingPrefCompany.value=currentProfile.preferred_shipping_company || "";
-  if(shippingPrefContactName) shippingPrefContactName.value=currentProfile.shipping_contact_name || "";
-  if(shippingPrefPhone) shippingPrefPhone.value=currentProfile.shipping_contact_phone || "";
-  if(shippingPrefEmail) shippingPrefEmail.value=currentProfile.shipping_contact_email || "";
   const displayName = getCustomerDisplayName();
 
   setUserAreaHtml(
@@ -3167,52 +3283,292 @@ setProfileEditMode(false);
 }
 
 
-async function saveShippingPreferences(){
+
+function clearShippingPreferenceForm(){
+  ["shippingPlanName","shippingPrefUkPoint","shippingPrefCompany","shippingPrefContactName","shippingPrefPhone","shippingPrefEmail"]
+    .forEach(function(id){
+      const el=document.getElementById(id);
+      if(el) el.value="";
+    });
+  const defaultEl=document.getElementById("shippingPrefDefault");
+  if(defaultEl) defaultEl.checked=false;
+}
+
+function shippingPlanLabel(plan){
+  return String(
+    plan?.plan_name ||
+    [plan?.uk_handover_point,plan?.freight_forwarder_name].filter(Boolean).join(" · ") ||
+    "Shipping preference"
+  ).trim();
+}
+
+function renderSavedShippingPreferences(){
+  const box=document.getElementById("savedShippersList");
+  if(!box) return;
+
+  if(!savedHandoverPlans.length){
+    box.innerHTML='<div class="buyer-match-empty">No saved shipping preferences yet. Add your first shipper below.</div>';
+    return;
+  }
+
+  box.innerHTML=savedHandoverPlans.map(function(plan){
+    return `
+      <article class="saved-shipper-card">
+        <div class="saved-shipper-head">
+          <div>
+            <h3>${safe(shippingPlanLabel(plan))}</h3>
+            <p>${safe(plan.uk_handover_point || "UK handover point not set")} · ${safe(plan.freight_forwarder_name || "Shipper not set")}</p>
+          </div>
+          <div class="saved-shipper-badges">
+            ${plan.is_default ? '<span class="saved-shipper-badge default">Default</span>' : ''}
+          </div>
+        </div>
+        <div class="saved-shipper-meta">
+          <div><span>Contact</span>${safe(plan.contact_name || "-")}</div>
+          <div><span>Telephone</span>${safe(plan.contact_phone || "-")}</div>
+          <div><span>Email</span>${safe(plan.contact_email || "-")}</div>
+          <div><span>UK Handover</span>${safe(plan.uk_handover_point || "-")}</div>
+        </div>
+        <div class="saved-shipper-actions">
+          ${plan.is_default ? "" : `<button class="mini-btn" type="button" onclick="setDefaultShippingPreference(${Number(plan.id)})">Make Default</button>`}
+          <button class="mini-btn" type="button" onclick="deleteShippingPreference(${Number(plan.id)})">Delete</button>
+        </div>
+      </article>
+    `;
+  }).join("");
+}
+
+async function loadSavedShippingPreferences(){
+  if(!currentUser) return;
+
+  const {data,error}=await sb
+    .from("customer_handover_plans")
+    .select("*")
+    .eq("customer_id",currentUser.id)
+    .eq("is_active",true)
+    .order("is_default",{ascending:false})
+    .order("created_at",{ascending:true});
+
+  if(error){
+    console.warn("Saved shipping preferences could not be loaded",error.message);
+    savedHandoverPlans=[];
+    renderSavedShippingPreferences();
+    return;
+  }
+
+  savedHandoverPlans=data || [];
+  renderSavedShippingPreferences();
+}
+
+async function loadDealHandoverSelections(){
+  if(!currentUser) return;
+
+  const {data,error}=await sb
+    .from("deal_customer_handover_selections")
+    .select("deal_id,handover_plan_id,status,selected_at")
+    .eq("customer_id",currentUser.id);
+
+  dealHandoverSelections={};
+
+  if(error){
+    console.warn("Deal handover selections could not be loaded",error.message);
+    return;
+  }
+
+  (data || []).forEach(function(row){
+    dealHandoverSelections[String(row.deal_id)]=row;
+  });
+}
+
+async function saveShippingPreference(){
   if(!currentUser) return;
 
   const btn=document.getElementById("saveShippingPreferencesBtn");
   const status=document.getElementById("shippingPreferencesStatus");
 
   const payload={
-    preferred_uk_collection_point:document.getElementById("shippingPrefUkPoint")?.value.trim() || null,
-    preferred_shipping_company:document.getElementById("shippingPrefCompany")?.value.trim() || null,
-    shipping_contact_name:document.getElementById("shippingPrefContactName")?.value.trim() || null,
-    shipping_contact_phone:document.getElementById("shippingPrefPhone")?.value.trim() || null,
-    shipping_contact_email:document.getElementById("shippingPrefEmail")?.value.trim() || null
+    customer_id:currentUser.id,
+    plan_name:document.getElementById("shippingPlanName")?.value.trim() || null,
+    uk_handover_point:document.getElementById("shippingPrefUkPoint")?.value.trim() || null,
+    freight_forwarder_name:document.getElementById("shippingPrefCompany")?.value.trim() || null,
+    contact_name:document.getElementById("shippingPrefContactName")?.value.trim() || null,
+    contact_phone:document.getElementById("shippingPrefPhone")?.value.trim() || null,
+    contact_email:document.getElementById("shippingPrefEmail")?.value.trim() || null,
+    is_default:Boolean(document.getElementById("shippingPrefDefault")?.checked),
+    is_active:true
   };
 
-  if(btn){
-    btn.disabled=true;
-    btn.textContent="Saving...";
-  }
-  if(status){
-    status.textContent="";
-    status.className="shipping-pref-status";
-  }
-
-  const {error}=await sb
-    .from("customer_profiles")
-    .update(payload)
-    .eq("id",currentUser.id);
-
-  if(btn){
-    btn.disabled=false;
-    btn.textContent="Save Shipping Preferences";
-  }
-
-  if(error){
+  if(!payload.uk_handover_point || !payload.freight_forwarder_name){
     if(status){
-      status.textContent="Could not save shipping preferences: "+error.message;
+      status.textContent="Enter the UK handover point and freight forwarder / shipper.";
       status.className="shipping-pref-status bad";
     }
     return;
   }
 
-  currentProfile={...currentProfile,...payload};
+  if(btn){ btn.disabled=true; btn.textContent="Saving..."; }
+
+  if(payload.is_default){
+    await sb
+      .from("customer_handover_plans")
+      .update({is_default:false})
+      .eq("customer_id",currentUser.id);
+  }
+
+  const {error}=await sb
+    .from("customer_handover_plans")
+    .insert(payload);
+
+  if(btn){ btn.disabled=false; btn.textContent="Add Shipping Preference"; }
+
+  if(error){
+    if(status){
+      status.textContent="Could not save shipping preference: "+error.message;
+      status.className="shipping-pref-status bad";
+    }
+    return;
+  }
+
+  clearShippingPreferenceForm();
+  await loadSavedShippingPreferences();
 
   if(status){
-    status.textContent="Shipping preferences saved.";
+    status.textContent="Shipping preference saved.";
     status.className="shipping-pref-status ok";
+  }
+
+  if(currentBuyerMatchRows.length){
+    renderMyPurchases(currentBuyerMatchRows);
+  }
+}
+
+async function setDefaultShippingPreference(planId){
+  if(!currentUser || !planId) return;
+
+  await sb
+    .from("customer_handover_plans")
+    .update({is_default:false})
+    .eq("customer_id",currentUser.id);
+
+  const {error}=await sb
+    .from("customer_handover_plans")
+    .update({is_default:true})
+    .eq("id",Number(planId))
+    .eq("customer_id",currentUser.id);
+
+  if(error){
+    alert("Could not update the default shipping preference: "+error.message);
+    return;
+  }
+
+  await loadSavedShippingPreferences();
+  if(currentBuyerMatchRows.length){
+    renderMyPurchases(currentBuyerMatchRows);
+  }
+}
+
+async function deleteShippingPreference(planId){
+  if(!currentUser || !planId) return;
+  if(!confirm("Delete this saved shipping preference?")) return;
+
+  const {error}=await sb
+    .from("customer_handover_plans")
+    .update({is_active:false,is_default:false})
+    .eq("id",Number(planId))
+    .eq("customer_id",currentUser.id);
+
+  if(error){
+    alert("Could not delete the shipping preference: "+error.message);
+    return;
+  }
+
+  await loadSavedShippingPreferences();
+  if(currentBuyerMatchRows.length){
+    renderMyPurchases(currentBuyerMatchRows);
+  }
+}
+
+function customerDealShipperChoiceHtml(match){
+  if(match?._offer_source!=="deal360" || !match?._deal_id) return "";
+
+  const dealId=String(match._deal_id);
+  const current=dealHandoverSelections[dealId];
+  const selectedId=Number(current?.handover_plan_id || 0);
+
+  if(!savedHandoverPlans.length){
+    return `
+      <div class="shipper-choice">
+        <div class="shipper-choice-title">UK Handover / Shipper</div>
+        <div class="buyer-match-empty">Add a saved shipping preference below, then return to this purchase to choose it.</div>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="shipper-choice">
+      <div class="shipper-choice-title">Choose the shipper / UK handover plan you want to use for this purchase</div>
+      <div class="shipper-choice-list">
+        ${savedHandoverPlans.map(function(plan){
+          const checked=Number(plan.id)===selectedId ? "checked" : "";
+          return `
+            <label class="shipper-choice-option">
+              <input type="radio" name="deal-shipper-${safe(dealId)}" value="${Number(plan.id)}" ${checked}>
+              <span>
+                <strong>${safe(shippingPlanLabel(plan))}${plan.is_default ? " · Default" : ""}</strong>
+                <small>${safe(plan.uk_handover_point || "-")} · ${safe(plan.freight_forwarder_name || "-")}${plan.contact_name ? " · "+safe(plan.contact_name) : ""}</small>
+              </span>
+            </label>
+          `;
+        }).join("")}
+      </div>
+      <div class="saved-shipper-actions">
+        <button class="mini-btn primary" type="button" onclick="saveDealHandoverSelection(${Number(match._deal_id)})">Use Selected Shipper</button>
+        <a class="mini-btn" href="#shipping-preferences">Add Another Shipper</a>
+      </div>
+      <div id="deal-shipper-status-${safe(dealId)}" class="shipper-choice-status">
+        ${current ? "Selected for this Deal · awaiting AnyBike verification." : "No shipper selected for this Deal yet."}
+      </div>
+    </div>
+  `;
+}
+
+async function saveDealHandoverSelection(dealId){
+  if(!currentUser || !dealId) return;
+
+  const selected=document.querySelector(`input[name="deal-shipper-${dealId}"]:checked`);
+  const status=document.getElementById(`deal-shipper-status-${dealId}`);
+
+  if(!selected){
+    if(status) status.textContent="Choose a saved shipper first.";
+    return;
+  }
+
+  const planId=Number(selected.value);
+  const payload={
+    customer_id:currentUser.id,
+    deal_id:Number(dealId),
+    handover_plan_id:planId,
+    status:"Customer Selected",
+    selected_at:new Date().toISOString()
+  };
+
+  const {error}=await sb
+    .from("deal_customer_handover_selections")
+    .upsert(payload,{onConflict:"customer_id,deal_id"});
+
+  if(error){
+    if(status){
+      status.textContent="Could not save your shipper choice: "+error.message;
+      status.className="shipper-choice-status bad";
+    }
+    return;
+  }
+
+  await loadDealHandoverSelections();
+
+  if(status){
+    status.textContent="Selected for this Deal · awaiting AnyBike verification.";
+    status.className="shipper-choice-status ok";
   }
 }
 
