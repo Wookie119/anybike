@@ -430,6 +430,7 @@ const sb =
 
 let activeOffer = null;
 let countdownTimer = null;
+let activeClient = null;
 
 
 function esc(value){
@@ -577,6 +578,8 @@ async function loadOffer(){
 
     return;
   }
+
+  activeClient = client;
 
 
   try{
@@ -823,6 +826,17 @@ function renderOffer(){
                              Colour:
                              <strong>
                                ${esc(bike.colour)}
+                             </strong>
+                           </div>`
+                        : ""
+                    }
+
+                    ${
+                      o.deal_number
+                        ? `<div>
+                             AnyBike Reference:
+                             <strong>
+                               ${esc(o.deal_number)}
                              </strong>
                            </div>`
                         : ""
@@ -1263,16 +1277,37 @@ async function acceptOffer(){
   }
 
 
-  /*
-    We deliberately do not directly update the table.
+  if(!activeClient){
+    alert("AnyBike customer connection is not available. Please refresh and try again.");
+    return;
+  }
 
-    A dedicated secure customer RPC should be the only route
-    for accepting a Deal 360 native offer.
-  */
+  const acceptButton = document.getElementById("acceptButton");
+  const declineButton = document.getElementById("declineButton");
+  if(acceptButton) acceptButton.disabled = true;
+  if(declineButton) declineButton.disabled = true;
 
-  alert(
-    "The customer acceptance RPC for native Deal 360 offers is the next database step."
-  );
+  try{
+    const result = await activeClient.rpc(
+      "customer_respond_to_deal_offer_v1",
+      {
+        p_offer_id: Number(o.id || o.offer_id),
+        p_action: "Accept",
+        p_decline_reason: null
+      }
+    );
+
+    if(result.error) throw result.error;
+
+    alert("Your AnyBike offer has been accepted. No payment has been recorded and the motorcycle is not yet secured.");
+    await loadOffer();
+
+  }catch(error){
+    console.error("Deal 360 offer acceptance failed", error);
+    alert(error?.message || "Your acceptance could not be recorded. Please try again.");
+    if(acceptButton) acceptButton.disabled = false;
+    if(declineButton) declineButton.disabled = false;
+  }
 
 }
 
@@ -1308,15 +1343,37 @@ async function declineOffer(){
   }
 
 
-  /*
-    Same deliberate protection as acceptance.
-    We will connect this to the native Deal 360
-    customer decision RPC after the read layer is proven.
-  */
+  if(!activeClient){
+    alert("AnyBike customer connection is not available. Please refresh and try again.");
+    return;
+  }
 
-  alert(
-    "The customer decline RPC for native Deal 360 offers is the next database step."
-  );
+  const acceptButton = document.getElementById("acceptButton");
+  const declineButton = document.getElementById("declineButton");
+  if(acceptButton) acceptButton.disabled = true;
+  if(declineButton) declineButton.disabled = true;
+
+  try{
+    const result = await activeClient.rpc(
+      "customer_respond_to_deal_offer_v1",
+      {
+        p_offer_id: Number(o.id || o.offer_id),
+        p_action: "Decline",
+        p_decline_reason: String(reason || "").trim() || null
+      }
+    );
+
+    if(result.error) throw result.error;
+
+    alert("Your decision has been recorded. AnyBike can continue helping with your sourcing requirement.");
+    await loadOffer();
+
+  }catch(error){
+    console.error("Deal 360 offer decline failed", error);
+    alert(error?.message || "Your decision could not be recorded. Please try again.");
+    if(acceptButton) acceptButton.disabled = false;
+    if(declineButton) declineButton.disabled = false;
+  }
 
 }
 
