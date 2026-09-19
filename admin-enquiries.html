@@ -7500,11 +7500,11 @@ function useCustomerHandoverPlan(dealId,planId){
     if(String(plan.destination_country || "").trim()){
       cachedRoute.destination_country=String(plan.destination_country).trim();
     }
-    cachedRoute.uk_handover_point=String(plan.uk_handover_point || "").trim();
-    cachedRoute.freight_forwarder=String(plan.freight_forwarder_name || "").trim();
-    cachedRoute.forwarder_contact=contactParts.join(" · ");
-    cachedRoute.forwarder_reference=String(plan.forwarder_reference || "").trim();
-    cachedRoute.internal_notes=combinedNotes;
+    cachedRoute.uk_handover_port=String(plan.uk_handover_point || "").trim();
+    cachedRoute.freight_forwarder_name=String(plan.freight_forwarder_name || "").trim();
+    cachedRoute.freight_forwarder_contact=contactParts.join(" · ");
+    cachedRoute.freight_forwarder_reference=String(plan.forwarder_reference || "").trim();
+    cachedRoute.shipping_route_notes=combinedNotes;
     if(String(cachedRoute.shipping_route_status || "")!=="Confirmed"){
       cachedRoute.shipping_route_status="Details Provided";
     }
@@ -9549,8 +9549,58 @@ async function selectCandidateForDeal(candidateId){
 let adminDealShippingRoutes = new Map();
 const dealShippingRouteSaveBusy = new Set();
 
+function normalizeAnyBikeShippingRoute(row){
+  const source=row || {};
+
+  return Object.assign({}, source, {
+    shipping_route_status:
+      source.shipping_route_status ||
+      source.status ||
+      "Not Required",
+
+    destination_country:
+      source.destination_country ||
+      source.country ||
+      "",
+
+    uk_handover_port:
+      source.uk_handover_port ||
+      source.uk_handover_point ||
+      source.handover_port ||
+      source.handover_point ||
+      "",
+
+    freight_forwarder_name:
+      source.freight_forwarder_name ||
+      source.freight_forwarder ||
+      source.shipper_name ||
+      source.shipper ||
+      "",
+
+    freight_forwarder_contact:
+      source.freight_forwarder_contact ||
+      source.forwarder_contact ||
+      source.shipper_contact ||
+      "",
+
+    freight_forwarder_reference:
+      source.freight_forwarder_reference ||
+      source.forwarder_reference ||
+      source.booking_reference ||
+      "",
+
+    shipping_route_notes:
+      source.shipping_route_notes ||
+      source.internal_notes ||
+      source.handover_notes ||
+      ""
+  });
+}
+
 function anyBikeShippingRouteForDeal(dealId){
-  return adminDealShippingRoutes.get(String(dealId || "")) || {};
+  return normalizeAnyBikeShippingRoute(
+    adminDealShippingRoutes.get(String(dealId || "")) || {}
+  );
 }
 
 function anyBikeShippingRouteBadgeClass(status){
@@ -9649,7 +9699,8 @@ async function loadDealShippingRoutes(){
     const result = await sb.rpc("admin_get_deal_shipping_routes_v1");
     if(result.error){ throw result.error; }
     (result.data || []).forEach(function(row){
-      adminDealShippingRoutes.set(String(row.deal_id || ""), row);
+      const normalized=normalizeAnyBikeShippingRoute(row);
+      adminDealShippingRoutes.set(String(normalized.deal_id || row.deal_id || ""), normalized);
     });
   }catch(error){
     console.warn("Deal shipping routes could not be loaded:",error);
@@ -9702,6 +9753,30 @@ async function saveDealShippingRoute(dealId){
     if(result.error){ throw result.error; }
 
     await loadDealShippingRoutes();
+
+    const savedRoute=normalizeAnyBikeShippingRoute(
+      adminDealShippingRoutes.get(String(id)) || {}
+    );
+
+    adminDealShippingRoutes.set(String(id), Object.assign({}, savedRoute, {
+      deal_id:id,
+      shipping_route_status:status,
+      destination_country:country,
+      uk_handover_port:port,
+      freight_forwarder_name:forwarder,
+      freight_forwarder_contact:contact,
+      freight_forwarder_reference:reference,
+      shipping_route_notes:notes,
+      shipping_route_confirmed_at:
+        status==="Confirmed"
+          ? (
+              (result.data && result.data.shipping_route_confirmed_at) ||
+              savedRoute.shipping_route_confirmed_at ||
+              new Date().toISOString()
+            )
+          : savedRoute.shipping_route_confirmed_at
+    }));
+
     renderAdminDealQueue();
 
     const row=document.getElementById("anybike-deal-"+id);
