@@ -5262,6 +5262,72 @@ input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-in
 #candidateAvailabilityModal .anybike-candidate-form-grid small{display:block;color:#999;margin-top:7px;line-height:1.4}
 @media(max-width:900px){.candidate-commercial-grid{grid-template-columns:1fr}.candidate-services-strip{grid-template-columns:1fr}}
 </style>
+
+<style>
+/* =========================================================
+   DEAL 360 -> MESSAGE CENTRE BRIDGE
+   Added 19 September 2026
+   Presentation/read-only bridge only. Does not alter messaging,
+   notifications, realtime subscriptions or unread handling.
+   ========================================================= */
+.anybike-deal-message-bridge{
+  margin:14px 0;
+  padding:14px;
+  border:1px solid rgba(255,255,255,.12);
+  border-left:4px solid #ed1c24;
+  border-radius:12px;
+  background:linear-gradient(90deg,rgba(237,28,36,.08),rgba(255,255,255,.025));
+}
+.anybike-deal-message-bridge-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:14px;
+}
+.anybike-deal-message-bridge-copy span{
+  display:block;
+  color:#ed1c24;
+  font-size:10px;
+  font-weight:900;
+  letter-spacing:1px;
+  text-transform:uppercase;
+  margin-bottom:4px;
+}
+.anybike-deal-message-bridge-copy strong{
+  display:block;
+  color:#fff;
+  font-size:15px;
+}
+.anybike-deal-message-bridge-copy small{
+  display:block;
+  margin-top:5px;
+  color:#9aa4b2;
+  font-size:12px;
+  line-height:1.45;
+}
+.anybike-deal-message-bridge-actions{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+}
+.anybike-deal-message-bridge-actions a{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:9px 12px;
+  border-radius:8px;
+  background:#ed1c24;
+  color:#fff !important;
+  text-decoration:none;
+  font-size:12px;
+  font-weight:900;
+  white-space:nowrap;
+}
+@media(max-width:760px){
+  .anybike-deal-message-bridge-head{flex-direction:column}
+}
+</style>
+
 </head>
 
 <body>
@@ -5855,6 +5921,7 @@ let allEnquiryRecords = [];
 // Genuine AnyBike Deal records (multi-bike capable).
 // These are loaded only through secure admin RPCs.
 let adminDealQueue = [];
+let adminDealMessageThreads = new Map();
 let adminDealCommercialSetup = [];
 const dealCommercialSaveBusy = new Set();
 let activeDealOfferMotorcycleId = null;
@@ -9069,6 +9136,33 @@ async function loadAdminDealQueue(){
     adminDealQueue = [];
   }
 
+  /*
+    Deal 360 -> Message Centre bridge.
+    Read the existing thread relationship only; messages remain owned by
+    Message Centre and no notification/realtime behaviour is changed.
+  */
+  adminDealMessageThreads = new Map();
+
+  try{
+    const threadResult = await sb
+      .from("message_centre_threads")
+      .select("id,related_deal_id,subject,status,lead_status,last_message,last_message_at,last_sender,updated_at")
+      .not("related_deal_id","is",null)
+      .order("last_message_at",{ascending:false,nullsFirst:false});
+
+    if(threadResult.error){ throw threadResult.error; }
+
+    (threadResult.data || []).forEach(function(thread){
+      const key = String(thread.related_deal_id || "");
+      if(key && !adminDealMessageThreads.has(key)){
+        adminDealMessageThreads.set(key,thread);
+      }
+    });
+  }catch(error){
+    console.warn("Deal 360 Message Centre bridge could not be loaded:",error);
+    adminDealMessageThreads = new Map();
+  }
+
   try{
     const commercialResult = await sb.rpc("admin_get_deal_commercial_setup_v1", { p_deal_id:null });
     if(commercialResult.error){ throw commercialResult.error; }
@@ -11251,6 +11345,92 @@ async function createCombinedProformaFromSelection(){
   }
 }
 
+function renderAnyBikeDealMessageBridge(deal){
+  const dealId=String(deal?.deal_id || "");
+  if(!dealId){ return ""; }
+
+  const thread=adminDealMessageThreads.get(dealId);
+  if(!thread){ return ""; }
+
+  const dealNumber=String(deal?.deal_number || ("Deal #" + dealId));
+  const status=thread.status || thread.lead_status || "Active";
+  const sender=thread.last_sender || "Message Centre";
+  const preview=String(thread.last_message || thread.subject || "Open the linked customer conversation.")
+    .replace(/[<>&"]/g,function(ch){
+      return {"<":"&lt;",">":"&gt;","&":"&amp;","\"":"&quot;"}[ch];
+    });
+
+  return `
+    <div class="anybike-deal-message-bridge">
+      <div class="anybike-deal-message-bridge-head">
+        <div class="anybike-deal-message-bridge-copy">
+          <span>Customer Conversation · ${escapeAdminHtml(dealNumber)}</span>
+          <strong>${escapeAdminHtml(status)} · Message Centre</strong>
+          <small><b>${escapeAdminHtml(sender)}:</b> ${preview}</small>
+        </div>
+        <div class="anybike-deal-message-bridge-actions">
+          <a href="admin-message-centre.html?thread=${encodeURIComponent(thread.id)}">Open Conversation</a>
+        </div>
+      </div>
+    </div>`;
+}
+
+function openAnyBikeDealFromUrl(){
+  const params=new URLSearchParams(window.location.search);
+  const dealId=String(params.get("deal") || "").trim();
+  if(!dealId){ return; }
+
+  let row=document.getElementById("anybike-deal-" + dealId);
+
+  /*
+    A Message Centre deep-link must open the actual Deal, not merely Bike Sales HQ.
+    If staff had Deal Queue filters active, clear those presentation filters and
+    render once more so the linked Deal can be found. No Deal data is changed.
+  */
+  if(!row){
+    /*
+      The Deal Queue is affected by three separate presentation filters:
+      the main stage filter, the Deal Queue search term, and the Deal table
+      filters. Clear all three only for an explicit ?deal= deep-link so the
+      requested Deal can be rendered and opened.
+    */
+    currentFilter="all";
+    dealQueueSearchTerm="";
+    dealTableFilters={
+      buyer:"",
+      seller:"",
+      motorcycle:"",
+      stage:"",
+      customerPayment:"",
+      supplierPayment:"",
+      secured:"",
+      updated:""
+    };
+
+    const searchBox=document.getElementById("dealQueueSearch");
+    if(searchBox){ searchBox.value=""; }
+
+    renderAdminDealQueue();
+    row=document.getElementById("anybike-deal-" + dealId);
+  }
+
+  if(!row){
+    console.warn("Deal 360 row not found for URL:",dealId);
+    return;
+  }
+
+  document.querySelectorAll(".anybike-deal-record.open").forEach(function(item){
+    if(item !== row){ item.classList.remove("open"); }
+  });
+
+  row.classList.add("open");
+  openAnyBikeDealId=dealId;
+
+  setTimeout(function(){
+    row.scrollIntoView({behavior:"auto",block:"start"});
+  },0);
+}
+
 function renderAdminDealQueue(){
   const box = document.getElementById("anybikeDeals");
   if(!box){ return; }
@@ -11516,6 +11696,7 @@ function renderAdminDealQueue(){
             </div>
             <button type="button" class="close-enquiry-btn" onclick="toggleAnyBikeDeal('${dealId}');return false;">▲ Close</button>
           </div>
+          ${renderAnyBikeDealMessageBridge(deal)}
           <div class="anybike-deal-rollup">
             <div><span>AnyBike Sale Price</span><strong>${preSale ? (projectedCommercial.salePrice!==null ? anyBikeDealMoney(projectedCommercial.salePrice) : "Not agreed") : anyBikeDealMoney(deal.buyer_value_gbp)}</strong></div>
             <div><span>${preSale ? "Total Internal Cost" : "Seller Purchase Price"}</span><strong>${preSale ? (projectedCommercial.totalInternalCost!==null ? anyBikeDealMoney(projectedCommercial.totalInternalCost) : "Not confirmed") : anyBikeDealMoney(deal.seller_cost_gbp)}</strong></div>
@@ -12045,9 +12226,24 @@ if(!requestedOpenEnquiryId && window.adminStaffFilter){
 
 render(visibleData);
 
-setTimeout(function(){
-  openEnquiryFromUrl();
-}, 800);
+/*
+  Use only one deep-link path.
+  A Deal 360 URL (?deal=...) must not also run the legacy enquiry opener,
+  otherwise the page briefly scrolls to Unconverted Enquiries before returning
+  to the requested Deal.
+*/
+const pageUrlParams = new URLSearchParams(window.location.search);
+const requestedDealId = String(pageUrlParams.get("deal") || "").trim();
+
+if(requestedDealId){
+  setTimeout(function(){
+    openAnyBikeDealFromUrl();
+  }, 950);
+}else{
+  setTimeout(function(){
+    openEnquiryFromUrl();
+  }, 800);
+}
 
 }
 
