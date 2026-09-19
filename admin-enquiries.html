@@ -4986,6 +4986,7 @@ input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-in
   color:#fff !important;
   border:1px solid rgba(255,255,255,.14) !important;
 }
+.anybike-candidate-actions .send-candidate{background:#ed1c24!important;color:#fff!important}
 .anybike-candidate-actions .good{
   background:#16833a !important;
 }
@@ -8302,8 +8303,8 @@ function renderAnyBikeDealCandidatePanel(deal){
 
       <div class="anybike-candidate-grid">
         <div><span>Seller Asking</span><strong>${row.seller_asking_price_gbp ? anyBikeDealMoney(row.seller_asking_price_gbp) : "Not recorded"}</strong></div>
+        <div><span>Indicative AnyBike Price</span><strong>${row.buyer_display_price_gbp ? anyBikeDealMoney(row.buyer_display_price_gbp) : "Not set"}</strong></div>
         <div><span>Confirmed Seller Price</span><strong>${sellerPrice>0 ? anyBikeDealMoney(sellerPrice) : "Not confirmed"}</strong></div>
-        <div><span>Seller</span><strong>${escapeAdminHtml(row.seller_name || row.seller_type || "Not recorded")}</strong></div>
         <div><span>Location</span><strong>${escapeAdminHtml(row.seller_location || "Not recorded")}</strong></div>
         <div><span>Availability Confirmed</span><strong>${escapeAdminHtml(confirmedAt)}</strong></div>
         <div><span>Hold / Valid Until</span><strong>${escapeAdminHtml(validUntil)}</strong></div>
@@ -8322,7 +8323,7 @@ function renderAnyBikeDealCandidatePanel(deal){
 
       <div class="anybike-candidate-actions">
         ${sourceUrl ? `<a class="secondary" href="${escapeAdminHtml(sourceUrl)}" target="_blank" rel="noopener">Open Source Advert</a>` : ""}
-        <button type="button" class="secondary" onclick="setCandidateStatus(${row.id},'Sent to Buyer');return false;" ${sold || selected ? "disabled" : ""}>Mark Sent to Buyer</button>
+        <button type="button" class="secondary" onclick="sendCandidateToBuyer(${row.id});return false;" ${sold || selected ? "disabled" : ""}>${status==="Sent to Buyer" ? "Send Again" : "Send to Buyer"}</button>
         <button type="button" class="secondary" onclick="setCandidateStatus(${row.id},'Interested');return false;" ${sold || selected ? "disabled" : ""}>Buyer Interested</button>
         <button type="button" class="secondary" onclick="setCandidateStatus(${row.id},'Declined');return false;" ${sold || selected ? "disabled" : ""}>Buyer Declined</button>
         <button type="button" onclick="openCandidateAvailabilityModal(${row.id});return false;" ${selected ? "disabled" : ""}>Check Availability</button>
@@ -8337,7 +8338,7 @@ function renderAnyBikeDealCandidatePanel(deal){
       <div>
         <span>Source-on-Demand</span>
         <h4>Candidate Motorcycles</h4>
-        <p>Add motorcycles found for this buyer without creating public stock. A candidate can be shown to the buyer, accepted or declined, rechecked with the seller, then promoted into the real Deal motorcycle.</p>
+        <p>Add motorcycles found for this buyer without creating public stock. Each candidate is sent to the buyer as its own message. The buyer can choose Interested — Check Availability or Not for Me. Interested candidates are rechecked with the seller before any Formal Offer.</p>
       </div>
       <button type="button" onclick="openAddCandidateModal(${dealId});return false;">+ Add Candidate Motorcycle</button>
     </div>
@@ -8372,7 +8373,7 @@ function openAddCandidateModal(dealId){
 
   [
     "candidateMake","candidateModel","candidateVariant","candidateYear","candidateMileage",
-    "candidateColour","candidateRegistration","candidateSellerAsking","candidateSellerName",
+    "candidateColour","candidateRegistration","candidateSellerAsking","candidateBuyerDisplayPrice","candidateSellerName",
     "candidateSellerType","candidateSellerPhone","candidateSellerEmail","candidateSellerLocation",
     "candidateSourceUrl","candidateImageUrls","candidateInternalNotes"
   ].forEach(function(id){
@@ -8450,6 +8451,9 @@ async function saveCandidateMotorcycle(){
       p_colour:String(document.getElementById("candidateColour")?.value || "").trim() || null,
       p_registration:String(document.getElementById("candidateRegistration")?.value || "").trim() || null,
       p_seller_asking_price_gbp:askingRaw ? Number(askingRaw) : null,
+      p_buyer_display_price_gbp:String(document.getElementById("candidateBuyerDisplayPrice")?.value || "").trim()
+        ? Number(document.getElementById("candidateBuyerDisplayPrice").value)
+        : null,
       p_seller_name:String(document.getElementById("candidateSellerName")?.value || "").trim() || null,
       p_seller_type:String(document.getElementById("candidateSellerType")?.value || "").trim() || null,
       p_seller_phone:String(document.getElementById("candidateSellerPhone")?.value || "").trim() || null,
@@ -8486,6 +8490,87 @@ async function saveCandidateMotorcycle(){
     }
   }
 }
+
+
+async function sendCandidateToBuyer(candidateId){
+  const id=Number(candidateId);
+  if(!Number.isFinite(id)){ return; }
+
+  const row=(adminDealCandidates || []).find(function(item){
+    return Number(item.id)===id;
+  });
+
+  if(!row){ return; }
+
+  if(String(row.availability_status || "")==="Sold / No Longer Available" ||
+     String(row.candidate_status || "")==="Sold / No Longer Available"){
+    alert("This motorcycle is marked Sold / No Longer Available and cannot be sent to the buyer.");
+    return;
+  }
+
+  const title=[row.year,row.make,row.model,row.variant].filter(Boolean).join(" ") || "this motorcycle";
+  const price=row.buyer_display_price_gbp
+    ? anyBikeDealMoney(row.buyer_display_price_gbp)
+    : "Price to be confirmed";
+
+  const confirmed=window.confirm(
+    "Send this one motorcycle to the buyer?\n\n"+
+    title+"\n"+
+    "Indicative AnyBike Price: "+price+"\n\n"+
+    "This sends ONE candidate motorcycle in ONE My AnyBike message.\n"+
+    "The buyer can choose Interested — Check Availability or Not for Me.\n\n"+
+    "This is NOT a Formal Offer and does NOT request a deposit."
+  );
+
+  if(!confirmed){ return; }
+
+  try{
+    const {data,error}=await sb.rpc(
+      "admin_send_deal_candidate_to_buyer_v1",
+      {
+        p_candidate_id:id,
+        p_intro_text:null
+      }
+    );
+
+    if(error){ throw error; }
+
+    const payload=data || {};
+
+    if(payload.thread_id){
+      try{
+        const notify=await sb.functions.invoke(
+          "send-message-notification",
+          {body:{thread_id:String(payload.thread_id)}}
+        );
+        if(notify.error){
+          console.warn("Candidate message saved, but customer email notification failed:",notify.error);
+        }
+      }catch(notificationError){
+        console.warn("Candidate message saved, but customer email notification could not be sent:",notificationError);
+      }
+    }
+
+    alert(
+      "Candidate motorcycle sent to the buyer.\n\n"+
+      "One motorcycle = one message.\n"+
+      "Formal Offer: NO\n"+
+      "Deposit requested: NO\n"+
+      "Availability guaranteed: NO"
+    );
+
+    await loadAdminDealQueue();
+
+  }catch(error){
+    console.error("Candidate motorcycle could not be sent to buyer:",error);
+    alert(
+      "Candidate could not be sent.\n\n"+
+      (error?.message || error)+
+      "\n\nIf this Deal came from email/phone/WhatsApp, make sure the buyer has a My AnyBike account using the same email address."
+    );
+  }
+}
+
 
 async function setCandidateStatus(candidateId,nextStatus){
   const id=Number(candidateId);
@@ -13556,6 +13641,7 @@ loadEnquiries = async function(){
         <label><span>Colour</span><input id="candidateColour" type="text"></label>
         <label><span>Registration</span><input id="candidateRegistration" type="text"></label>
         <label><span>Seller Asking Price (£)</span><input id="candidateSellerAsking" type="number" min="0" step="0.01"></label>
+        <label><span>Indicative AnyBike Price (£)</span><input id="candidateBuyerDisplayPrice" type="number" min="0" step="0.01" placeholder="Optional"></label>
 
         <label><span>Seller Name / Dealer</span><input id="candidateSellerName" type="text"></label>
         <label><span>Seller Type</span>
