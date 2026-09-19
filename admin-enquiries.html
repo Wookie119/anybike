@@ -5240,6 +5240,28 @@ input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-in
   .anybike-candidate-modal-actions button:last-child{min-width:150px;padding:12px 22px!important}
 }
 </style>
+
+<style id="candidate-commercial-workflow-v2">
+.candidate-commercial-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.candidate-money-card,.candidate-margin-card{display:block;background:#151515;border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:14px;min-width:0}
+.candidate-money-card>span,.candidate-margin-card>span{display:block;color:#cfcfcf;font-size:12px;font-weight:900;margin-bottom:8px}
+.candidate-money-input{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:8px;background:#fff;border-radius:10px;padding:0 12px}
+.candidate-money-input b{color:#111;font-size:22px}
+.candidate-money-input input{border:0!important;outline:0!important;background:transparent!important;color:#111!important;font-size:22px!important;font-weight:950!important;padding:10px 0!important;min-height:48px!important;width:100%}
+.candidate-money-card small,.candidate-margin-card small{display:block;color:#999;line-height:1.35;margin-top:8px}
+.customer-money{border-color:rgba(237,28,36,.42);background:rgba(237,28,36,.06)}
+.internal-money{border-color:rgba(240,160,0,.28)}
+.candidate-margin-card{display:flex;flex-direction:column;justify-content:center}
+.candidate-margin-card strong{display:block;font-size:30px;line-height:1.1;color:#fff}
+.candidate-margin-card strong.positive{color:#73e59a}.candidate-margin-card strong.negative{color:#ff7b7b}
+.candidate-services-strip{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(320px,.75fr);gap:14px;margin-top:12px;padding:12px 14px;border:1px solid rgba(255,255,255,.10);border-radius:14px;background:#101010}
+.candidate-services-strip>div{display:flex;flex-wrap:wrap;gap:7px;align-items:center}.candidate-services-strip>div strong{width:100%;margin-bottom:2px}
+.candidate-services-strip>div span{display:inline-flex;padding:6px 9px;border-radius:999px;background:#1d1d1d;border:1px solid rgba(255,255,255,.10);font-size:12px;font-weight:850;color:#ddd}
+.candidate-services-strip p{margin:0;padding:10px 12px;border-radius:10px;background:#171717;color:#aaa;font-size:12.5px;line-height:1.45}.candidate-services-strip p strong{color:#fff}
+.candidate-hold-quick{display:flex;flex-wrap:wrap;gap:7px;margin-top:8px}.candidate-hold-quick button{margin:0!important;padding:7px 10px!important;font-size:12px!important}
+#candidateAvailabilityModal .anybike-candidate-form-grid small{display:block;color:#999;margin-top:7px;line-height:1.4}
+@media(max-width:900px){.candidate-commercial-grid{grid-template-columns:1fr}.candidate-services-strip{grid-template-columns:1fr}}
+</style>
 </head>
 
 <body>
@@ -8543,6 +8565,7 @@ function resetCandidateModal(){
   if(uploadStatus){ uploadStatus.textContent=""; }
   const status=document.getElementById("candidateModalStatus");
   if(status){ status.className="anybike-candidate-status"; status.textContent=""; }
+  updateCandidatePotentialMargin();
 }
 
 function openAddCandidateModal(dealId){
@@ -8589,12 +8612,52 @@ function openEditCandidateModal(candidateId){
   candidateSetField("candidateCustomerSpecification",row.customer_specification);
   candidateSetField("candidateCustomerUpdateNote",row.customer_update_note);
   renderCandidateExistingImages(Array.isArray(row.image_urls) ? row.image_urls : []);
+  updateCandidatePotentialMargin();
 
   document.getElementById("candidateMotorcycleTitle").textContent="Edit Candidate Motorcycle";
   document.getElementById("candidateSaveButton").textContent="Save Changes";
   modal.classList.add("open");
   document.body.style.overflow="hidden";
 }
+
+function updateCandidatePotentialMargin(){
+  const asking=Number(document.getElementById("candidateSellerAsking")?.value || 0);
+  const selling=Number(document.getElementById("candidateBuyerDisplayPrice")?.value || 0);
+  const out=document.getElementById("candidatePotentialMargin");
+  const note=document.getElementById("candidatePotentialMarginNote");
+  if(!out || !note){ return; }
+  if(!(asking>0) || !(selling>0)){
+    out.textContent="—";
+    out.classList.remove("positive","negative");
+    note.textContent="Enter seller and AnyBike prices to calculate.";
+    return;
+  }
+  const margin=selling-asking;
+  const pct=selling>0 ? (margin/selling)*100 : 0;
+  out.textContent=(margin<0?"−":"")+"£"+Math.abs(margin).toLocaleString("en-GB",{minimumFractionDigits:0,maximumFractionDigits:2});
+  out.classList.toggle("positive",margin>=0);
+  out.classList.toggle("negative",margin<0);
+  note.textContent=pct.toFixed(1)+"% of customer price before collection / delivery and other deal costs.";
+}
+
+function setCandidateSellerHoldHours(hours){
+  const input=document.getElementById("candidateAvailabilityValidUntil");
+  if(!input){ return; }
+  const d=new Date(Date.now()+(Number(hours)*60*60*1000));
+  const pad=n=>String(n).padStart(2,"0");
+  input.value=d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())+"T"+pad(d.getHours())+":"+pad(d.getMinutes());
+}
+
+function clearCandidateSellerHold(){
+  const input=document.getElementById("candidateAvailabilityValidUntil");
+  if(input){ input.value=""; }
+}
+
+
+document.addEventListener("DOMContentLoaded",function(){
+  document.getElementById("candidateSellerAsking")?.addEventListener("input",updateCandidatePotentialMargin);
+  document.getElementById("candidateBuyerDisplayPrice")?.addEventListener("input",updateCandidatePotentialMargin);
+});
 
 async function saveCandidateMotorcycle(){
   if(candidateSaveBusy || !Number.isFinite(Number(activeCandidateDealId))){ return; }
@@ -13842,27 +13905,41 @@ loadEnquiries = async function(){
         <small>Up to 10 images. Files are uploaded to AnyBike's candidate-motorcycles storage. Existing images can be retained or removed when editing.</small>
       </div>
 
-      <div class="candidate-section-title">Customer pricing</div>
-      <div class="anybike-candidate-form-grid candidate-pricing-grid">
-        <label class="span2">
-          <span>Indicative AnyBike Price (£) · Customer Visible</span>
-          <input id="candidateBuyerDisplayPrice" type="number" min="0" step="0.01" placeholder="Price shown to the customer">
-          <small style="display:block;color:#aaa;margin-top:6px;line-height:1.35;">This is the motorcycle price shown to the customer. If blank, the customer sees “Price to be confirmed”.</small>
+      <div class="candidate-section-title">Candidate estimate</div>
+      <div class="candidate-commercial-grid">
+        <label class="candidate-money-card internal-money">
+          <span>Seller Asking · Internal Only</span>
+          <div class="candidate-money-input"><b>£</b><input id="candidateSellerAsking" type="number" min="0" step="0.01" placeholder="0.00"></div>
+          <small>What the seller is currently asking. Never shown to the customer.</small>
         </label>
-        <div class="candidate-service-card">
-          <strong style="display:block;color:#fff;margin-bottom:5px;">Optional AnyBike service</strong>
-          <span style="display:block;color:#ddd;font-weight:900;">Visual collection check — from £95</span>
-          <small style="display:block;color:#aaa;margin-top:6px;line-height:1.35;">Optional and additional to the motorcycle price.</small>
+
+        <label class="candidate-money-card customer-money">
+          <span>Indicative AnyBike Price · Customer Visible</span>
+          <div class="candidate-money-input"><b>£</b><input id="candidateBuyerDisplayPrice" type="number" min="0" step="0.01" placeholder="0.00"></div>
+          <small>The motorcycle price shown while the buyer decides whether we should pursue it.</small>
+        </label>
+
+        <div class="candidate-margin-card">
+          <span>Potential Gross Margin · Internal Only</span>
+          <strong id="candidatePotentialMargin">—</strong>
+          <small id="candidatePotentialMarginNote">Enter seller and AnyBike prices to calculate.</small>
         </div>
+      </div>
+
+      <div class="candidate-services-strip">
+        <div>
+          <strong>Optional customer services</strong>
+          <span>Visual collection check — from £95</span>
+          <span>Enhanced inspection — quoted</span>
+          <span>Export crating — quoted</span>
+          <span>Documentation / export assistance — quoted</span>
+          <span>Storage / preparation — quoted where required</span>
+        </div>
+        <p><strong>Delivery:</strong> UK collection / delivery and any other deal costs are confirmed before the Formal Offer. They are not included in the potential gross margin above.</p>
       </div>
 
       <div class="candidate-section-title internal">Internal sourcing information — never shown to buyer</div>
       <div class="anybike-candidate-form-grid candidate-internal-grid">
-        <label>
-          <span>Seller Asking Price (£) · Internal Only</span>
-          <input id="candidateSellerAsking" type="number" min="0" step="0.01" placeholder="What the seller is asking">
-          <small style="display:block;color:#aaa;margin-top:6px;line-height:1.35;">Internal sourcing figure. Never shown to the customer.</small>
-        </label>
         <label><span>Seller Name / Dealer · Internal Only</span><input id="candidateSellerName" type="text"></label>
         <label><span>Seller Type · Internal Only</span>
           <select id="candidateSellerType">
@@ -13918,8 +13995,14 @@ loadEnquiries = async function(){
         </label>
 
         <label class="span2">
-          <span>Seller Hold / Availability Valid Until</span>
+          <span>Seller Commitment / Hold Until</span>
           <input id="candidateAvailabilityValidUntil" type="datetime-local">
+          <div class="candidate-hold-quick">
+            <button type="button" class="secondary" onclick="setCandidateSellerHoldHours(24);return false;">Seller gives 24 hours</button>
+            <button type="button" class="secondary" onclick="setCandidateSellerHoldHours(48);return false;">Seller gives 48 hours</button>
+            <button type="button" class="secondary" onclick="clearCandidateSellerHold();return false;">No hold</button>
+          </div>
+          <small>Record the actual commitment obtained from the seller. The customer offer deadline must not exceed this.</small>
         </label>
 
         <label class="full">
@@ -13929,8 +14012,7 @@ loadEnquiries = async function(){
       </div>
 
       <p class="anybike-candidate-modal-note">
-        A manually sourced motorcycle cannot be selected for the Formal Offer / deposit path until availability is confirmed.
-        If the seller has sold the motorcycle, mark it unavailable and keep the sourcing Deal open for alternatives.
+        Buyer interest means “please check availability” — it is not a reservation or Formal Offer. Confirm the motorcycle, confirmed seller price and any seller hold first. Then create the Formal Offer with the exact customer price, services, deposit and an expiry that fits inside the seller commitment. If sold, mark it unavailable and keep the sourcing Deal open.
       </p>
     </div>
 
