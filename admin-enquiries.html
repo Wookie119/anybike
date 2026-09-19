@@ -5137,6 +5137,23 @@ input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-in
 }
 </style>
 
+
+<style id="anybike-new-deal-css">
+.anybike-new-deal-btn{display:inline-flex!important;align-items:center!important;justify-content:center!important;gap:8px!important;margin:0!important;padding:11px 16px!important;border-radius:12px!important;background:#ed1c24!important;color:#fff!important;border:0!important;font-weight:950!important;white-space:nowrap!important}
+.anybike-new-deal-backdrop{position:fixed;inset:0;z-index:5200;display:none;align-items:flex-start;justify-content:center;padding:28px 16px;overflow:auto;background:rgba(0,0,0,.84);backdrop-filter:blur(7px)}
+.anybike-new-deal-backdrop.open{display:flex}
+.anybike-new-deal-modal{width:min(1080px,100%);background:#0d0d0d;border:1px solid rgba(255,255,255,.14);border-radius:22px;overflow:hidden;box-shadow:0 34px 110px rgba(0,0,0,.72)}
+.anybike-new-deal-head{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;padding:22px 24px;background:radial-gradient(circle at top right,rgba(237,28,36,.22),transparent 38%),#151515;border-bottom:1px solid rgba(255,255,255,.10)}
+.anybike-new-deal-head .eyebrow{color:#ed1c24;font-size:11px;font-weight:950;text-transform:uppercase;letter-spacing:.12em}.anybike-new-deal-head h2{margin:5px 0;color:#fff;font-size:28px}.anybike-new-deal-head p{margin:0;color:#aaa;max-width:780px;line-height:1.5}
+.anybike-new-deal-close{width:40px!important;min-width:40px!important;height:40px!important;padding:0!important;margin:0!important;border-radius:50%!important;background:#222!important}
+.anybike-new-deal-body{padding:22px 24px}.anybike-new-deal-section{border:1px solid rgba(255,255,255,.10);border-radius:16px;background:#111;overflow:hidden;margin-bottom:16px}
+.anybike-new-deal-section h3{margin:0;padding:14px 16px;font-size:16px;background:#171717;border-bottom:1px solid rgba(255,255,255,.08)}.anybike-new-deal-section .section-copy{padding:0 16px 14px;margin:-7px 0 0;color:#888;font-size:12px;background:#171717}
+.anybike-new-deal-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;padding:16px}.anybike-new-deal-grid label{display:grid;gap:6px;min-width:0}.anybike-new-deal-grid label.span2{grid-column:span 2}.anybike-new-deal-grid label.full{grid-column:1/-1}
+.anybike-new-deal-grid label>span{color:#aaa;font-size:12px;font-weight:900}.anybike-new-deal-grid input,.anybike-new-deal-grid select,.anybike-new-deal-grid textarea{width:100%;min-height:44px;margin:0;padding:10px 11px;border:1px solid rgba(255,255,255,.16);border-radius:10px;background:#fff;color:#000;font:inherit}.anybike-new-deal-grid textarea{min-height:105px;resize:vertical}
+.anybike-new-deal-foot{display:flex;gap:10px;align-items:center;justify-content:flex-end;padding:16px 24px;border-top:1px solid rgba(255,255,255,.10);background:#111}.anybike-new-deal-status{margin-right:auto;color:#aaa;font-size:12px;font-weight:850}.anybike-new-deal-status.error{color:#ff9096}.anybike-new-deal-status.success{color:#8cffb1}.anybike-new-deal-note{margin:0;color:#999;font-size:12px;line-height:1.55}
+@media(max-width:900px){.anybike-new-deal-grid{grid-template-columns:1fr 1fr}}@media(max-width:560px){.anybike-new-deal-grid{grid-template-columns:1fr}.anybike-new-deal-grid label.span2{grid-column:auto}}
+</style>
+
 </head>
 
 <body>
@@ -5239,6 +5256,7 @@ input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-in
   </div>
 
   <div class="deal-queue-actions">
+    <button type="button" class="anybike-new-deal-btn" onclick="openNewDealModal();return false;">+ New Deal</button>
     <button
       id="dealFilterButton"
       class="deal-filter-button"
@@ -8134,6 +8152,55 @@ async function promoteFormalOfferToDeal(matchId){
     formalOfferPromotionBusy.delete(String(id));
     renderAcceptedFormalOffersAwaitingDeal();
   }
+}
+
+
+
+/* ======================================================
+   NEW DEAL — COMMUNICATION-FIRST CREATOR
+====================================================== */
+let newDealCreateBusy=false;
+
+function newDealLocalDateTimeValue(date){
+  const d=date instanceof Date ? date : new Date();
+  const pad=n=>String(n).padStart(2,"0");
+  return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())+"T"+pad(d.getHours())+":"+pad(d.getMinutes());
+}
+function openNewDealModal(){
+  const modal=document.getElementById("newDealModal"); if(!modal) return;
+  ["newDealOriginReference","newDealOriginSubject","newDealOriginMessage","newDealContactName","newDealBusinessName","newDealEmail","newDealPhone","newDealCountry","newDealDestinationCountry","newDealReqMake","newDealReqModel","newDealReqVariant","newDealReqYearFrom","newDealReqYearTo","newDealReqMileageMax","newDealReqBudgetMax","newDealReqNotes"].forEach(function(id){const el=document.getElementById(id);if(el)el.value="";});
+  const received=document.getElementById("newDealOriginReceivedAt"); if(received) received.value=newDealLocalDateTimeValue(new Date());
+  const status=document.getElementById("newDealStatus"); if(status){status.className="anybike-new-deal-status";status.textContent="";}
+  modal.classList.add("open"); document.body.style.overflow="hidden";
+}
+function closeNewDealModal(){const modal=document.getElementById("newDealModal");if(modal)modal.classList.remove("open");document.body.style.overflow="";}
+function newDealBackdrop(event){if(event.target&&event.target.id==="newDealModal")closeNewDealModal();}
+async function createCommunicationDeal(){
+  if(newDealCreateBusy)return;
+  const channel=String(document.getElementById("newDealOriginChannel")?.value||"").trim();
+  const contactName=String(document.getElementById("newDealContactName")?.value||"").trim();
+  const message=String(document.getElementById("newDealOriginMessage")?.value||"").trim();
+  const notes=String(document.getElementById("newDealReqNotes")?.value||"").trim();
+  const status=document.getElementById("newDealStatus"),button=document.getElementById("newDealCreateButton");
+  const fail=t=>{if(status){status.className="anybike-new-deal-status error";status.textContent=t;}};
+  if(!channel){fail("Choose the communication source.");return;} if(!contactName){fail("Contact name is required.");return;} if(!message){fail("Original communication or a communication summary is required.");return;} if(!notes){fail("Buying requirement notes are required.");return;}
+  const receivedRaw=String(document.getElementById("newDealOriginReceivedAt")?.value||"").trim(),yearFromRaw=String(document.getElementById("newDealReqYearFrom")?.value||"").trim(),yearToRaw=String(document.getElementById("newDealReqYearTo")?.value||"").trim(),mileageRaw=String(document.getElementById("newDealReqMileageMax")?.value||"").trim(),budgetRaw=String(document.getElementById("newDealReqBudgetMax")?.value||"").trim();
+  newDealCreateBusy=true;if(button){button.disabled=true;button.textContent="Creating…";}if(status){status.className="anybike-new-deal-status";status.textContent="Creating Deal 360…";}
+  try{
+    const result=await sb.rpc("admin_create_communication_deal_v1",{
+      p_origin_channel:channel,p_origin_received_at:receivedRaw?new Date(receivedRaw).toISOString():null,
+      p_origin_reference:String(document.getElementById("newDealOriginReference")?.value||"").trim()||null,
+      p_origin_subject:String(document.getElementById("newDealOriginSubject")?.value||"").trim()||null,p_origin_message:message,
+      p_contact_name:contactName,p_business_name:String(document.getElementById("newDealBusinessName")?.value||"").trim()||null,
+      p_email:String(document.getElementById("newDealEmail")?.value||"").trim()||null,p_phone:String(document.getElementById("newDealPhone")?.value||"").trim()||null,p_country:String(document.getElementById("newDealCountry")?.value||"").trim()||null,
+      p_requirement_make:String(document.getElementById("newDealReqMake")?.value||"").trim()||null,p_requirement_model:String(document.getElementById("newDealReqModel")?.value||"").trim()||null,p_requirement_variant:String(document.getElementById("newDealReqVariant")?.value||"").trim()||null,
+      p_year_from:yearFromRaw?Number(yearFromRaw):null,p_year_to:yearToRaw?Number(yearToRaw):null,p_mileage_max:mileageRaw?Number(mileageRaw):null,p_budget_max_gbp:budgetRaw?Number(budgetRaw):null,
+      p_destination_country:String(document.getElementById("newDealDestinationCountry")?.value||"").trim()||null,p_requirement_notes:notes
+    });
+    if(result.error)throw result.error;const payload=result.data||{},dealId=Number(payload.deal_id);if(!Number.isFinite(dealId))throw new Error("Deal created without a Deal ID.");
+    closeNewDealModal();await loadEnquiries();alert((payload.deal_number||("Deal #"+dealId))+" created.\n\nSource: "+channel+"\nMotorcycle secured: NO\nDeposit requested: NO\nNext: add Candidate Motorcycles.");setTimeout(function(){openConvertedEnquiryDeal(dealId);},200);
+  }catch(error){console.error("Communication-first Deal could not be created:",error);fail("Could not create Deal: "+(error?.message||error));}
+  finally{newDealCreateBusy=false;if(button){button.disabled=false;button.textContent="Create Deal 360";}}
 }
 
 
@@ -13379,6 +13446,65 @@ loadEnquiries = async function(){
 <!-- =========================================================
      SOURCE-ON-DEMAND — ADD CANDIDATE MOTORCYCLE
      ========================================================= -->
+
+<div id="newDealModal" class="anybike-new-deal-backdrop" onclick="newDealBackdrop(event)">
+  <div class="anybike-new-deal-modal" role="dialog" aria-modal="true" aria-labelledby="newDealTitle">
+    <div class="anybike-new-deal-head">
+      <div>
+        <div class="eyebrow">Bike Sales HQ · Deal 360</div>
+        <h2 id="newDealTitle">Create New Deal</h2>
+        <p>Create a Deal 360 from an email, phone call, WhatsApp message, Message Centre conversation, website/model-page lead, social message or any other communication. No stock motorcycle is required.</p>
+      </div>
+      <button type="button" class="anybike-new-deal-close" onclick="closeNewDealModal()" aria-label="Close">×</button>
+    </div>
+    <div class="anybike-new-deal-body">
+      <section class="anybike-new-deal-section">
+        <h3>1. How did this deal start?</h3>
+        <p class="section-copy">Preserve the original communication so Deal 360 always shows where the opportunity came from.</p>
+        <div class="anybike-new-deal-grid">
+          <label><span>Communication source *</span><select id="newDealOriginChannel"><option>Email</option><option>Phone</option><option>WhatsApp</option><option>Message Centre</option><option>Website / Model Page</option><option>Website Chat</option><option>Social Media</option><option>Dealer Referral</option><option>Existing Customer</option><option>Walk-in / In Person</option><option>Other</option></select></label>
+          <label><span>Received / Contact Date</span><input id="newDealOriginReceivedAt" type="datetime-local"></label>
+          <label class="span2"><span>Reference / Message ID / URL</span><input id="newDealOriginReference" type="text"></label>
+          <label class="full"><span>Subject / Short Description</span><input id="newDealOriginSubject" type="text"></label>
+          <label class="full"><span>Original Message / Communication Summary *</span><textarea id="newDealOriginMessage"></textarea></label>
+        </div>
+      </section>
+      <section class="anybike-new-deal-section">
+        <h3>2. Buyer / Contact</h3>
+        <p class="section-copy">This creates a Deal contact snapshot. It does not create a customer login.</p>
+        <div class="anybike-new-deal-grid">
+          <label><span>Contact Name *</span><input id="newDealContactName" type="text"></label>
+          <label><span>Business / Company</span><input id="newDealBusinessName" type="text"></label>
+          <label><span>Email</span><input id="newDealEmail" type="email"></label>
+          <label><span>Phone / WhatsApp</span><input id="newDealPhone" type="text"></label>
+          <label class="span2"><span>Country</span><input id="newDealCountry" type="text"></label>
+          <label class="span2"><span>Destination Country</span><input id="newDealDestinationCountry" type="text"></label>
+        </div>
+      </section>
+      <section class="anybike-new-deal-section">
+        <h3>3. Buying Requirement</h3>
+        <p class="section-copy">The requirement can be broad. Candidate Motorcycles are added after the Deal is created.</p>
+        <div class="anybike-new-deal-grid">
+          <label><span>Make</span><input id="newDealReqMake" type="text"></label>
+          <label><span>Model</span><input id="newDealReqModel" type="text"></label>
+          <label class="span2"><span>Variant / Specification</span><input id="newDealReqVariant" type="text"></label>
+          <label><span>Year From</span><input id="newDealReqYearFrom" type="number" min="1900" max="2100"></label>
+          <label><span>Year To</span><input id="newDealReqYearTo" type="number" min="1900" max="2100"></label>
+          <label><span>Maximum Mileage</span><input id="newDealReqMileageMax" type="number" min="0"></label>
+          <label><span>Maximum Budget (£)</span><input id="newDealReqBudgetMax" type="number" min="0" step="0.01"></label>
+          <label class="full"><span>Requirement / Flexibility Notes *</span><textarea id="newDealReqNotes"></textarea></label>
+        </div>
+      </section>
+      <p class="anybike-new-deal-note">Creating the Deal does not send a message, request a deposit, create a Formal Offer, secure a motorcycle or publish anything publicly.</p>
+    </div>
+    <div class="anybike-new-deal-foot">
+      <div id="newDealStatus" class="anybike-new-deal-status"></div>
+      <button type="button" onclick="closeNewDealModal()">Cancel</button>
+      <button type="button" id="newDealCreateButton" class="anybike-new-deal-btn" onclick="createCommunicationDeal()">Create Deal 360</button>
+    </div>
+  </div>
+</div>
+
 <div id="candidateMotorcycleModal" class="anybike-candidate-backdrop" onclick="candidateModalBackdrop(event)">
   <div class="anybike-candidate-modal" role="dialog" aria-modal="true" aria-labelledby="candidateMotorcycleTitle">
     <div class="anybike-candidate-modal-head">
