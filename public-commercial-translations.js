@@ -1,0 +1,161 @@
+/*
+AnyBike
+File: public-commercial-translations.js
+Purpose: French completion pass for public commercial/supply pages
+Date: 20 September 2026
+*/
+(function(){
+  if(!window.AnyBikePageLanguage){ return; }
+  const path=String(location.pathname||"").toLowerCase();
+
+  function register(target,fr,attributes){
+    if(path!==target) return;
+    window.AnyBikePageLanguage.register({
+      root:"main",
+      translations:{
+        en:{text:{}},
+        fr:{text:fr,attributes:attributes||{}}
+      }
+    });
+  }
+
+  register("/sell-your-motorcycle.html",{
+    "Sell your motorcycle":"Vendre votre moto",
+    "Sell your motorcycle to AnyBike.":"Vendez votre moto à AnyBike.",
+    "AnyBike buys motorcycles across the UK from private sellers, dealers and trade sellers for stock, sourcing and worldwide export.":"AnyBike achète des motos partout au Royaume-Uni auprès de particuliers, concessionnaires et vendeurs professionnels pour son stock, ses recherches clients et l’exportation internationale.",
+    "Send your bike details today. We review the motorcycle, make a decision quickly and can arrange UK collection.":"Envoyez-nous les informations de votre moto dès aujourd’hui. Nous l’examinons rapidement et pouvons organiser son enlèvement au Royaume-Uni.",
+    "Start Valuation":"Commencer l’estimation",
+    "Bikes We Want":"Motos recherchées",
+    "Quick start valuation":"Estimation rapide",
+    "Enter your registration and mileage, then complete the full form below.":"Saisissez l’immatriculation et le kilométrage, puis complétez le formulaire ci-dessous.",
+    "Value My Bike":"Estimer ma moto",
+    "UK collection":"Enlèvement UK",
+    "Dealers welcome":"Professionnels bienvenus",
+    "Export buyers":"Acheteurs export",
+    "Motorcycle valuation form":"Formulaire d’estimation moto",
+    "Tell us about your motorcycle.":"Parlez-nous de votre moto.",
+    "The more detail you provide, the faster we can review your bike and make a serious buying decision.":"Plus vous fournissez d’informations, plus nous pouvons examiner rapidement votre moto et prendre une décision d’achat sérieuse.",
+    "Bike details":"Détails de la moto",
+    "Registration, make, model, year and mileage.":"Immatriculation, marque, modèle, année et kilométrage.",
+    "Condition":"État",
+    "Service history, owners, keys, MOT and photos.":"Historique d’entretien, propriétaires, clés, MOT et photos.",
+    "Your details":"Vos coordonnées",
+    "We contact you with a buying decision.":"Nous vous contactons avec une décision d’achat.",
+    "Collection":"Enlèvement",
+    "UK collection can be arranged if agreed.":"Un enlèvement au Royaume-Uni peut être organisé si convenu.",
+    "Registration number":"Numéro d’immatriculation",
+    "Bike location postcode":"Code postal où se trouve la moto",
+    "Select make":"Sélectionner la marque",
+    "Year":"Année","Mileage":"Kilométrage","Engine CC":"Cylindrée","Fuel Type":"Carburant",
+    "Select fuel type":"Sélectionner le carburant","Petrol":"Essence","Electric":"Électrique","Hybrid":"Hybride",
+    "Transmission":"Transmission","Select transmission":"Sélectionner la transmission","Manual":"Manuelle","Automatic":"Automatique","Semi-Automatic":"Semi-automatique",
+    "Colour":"Couleur","Select condition":"Sélectionner l’état","Excellent":"Excellent","Good":"Bon","Average":"Moyen","Poor":"Mauvais","Damaged":"Endommagée","Non-running":"Non roulante",
+    "Service History":"Historique d’entretien","Select service history":"Sélectionner l’historique d’entretien","Full service history":"Historique complet","Partial service history":"Historique partiel","No service history":"Aucun historique","Unknown":"Inconnu",
+    "Owners":"Propriétaires","Please select":"Veuillez sélectionner","MOT Expiry":"Expiration du MOT","Spare keys":"Clés de rechange","Yes":"Oui","No":"Non",
+    "Asking price":"Prix souhaité","Upload photos":"Télécharger des photos",
+    "Photo filenames are saved with your enquiry. Direct image storage can be connected later.":"Les noms des fichiers photo sont enregistrés avec votre demande. Le stockage direct des images pourra être ajouté ultérieurement.",
+    "Notes":"Notes","Seller type":"Type de vendeur","Private seller":"Vendeur particulier","Motorcycle dealer":"Professionnel moto",
+    "Your name":"Votre nom","Email":"E-mail","Phone / WhatsApp":"Téléphone / WhatsApp","Dealership name if applicable":"Nom de l’entreprise si applicable",
+    "I confirm that I am the legal owner of the motorcycle or authorised to sell it.":"Je confirme être le propriétaire légal de la moto ou être autorisé à la vendre.",
+    "Send Valuation Request":"Envoyer la demande d’estimation",
+    "Why sell to AnyBike?":"Pourquoi vendre à AnyBike ?","A motorcycle buyer built for export and stock demand.":"Un acheteur moto orienté export et demande réelle.",
+    "AnyBike does not only buy motorcycles for resale. We connect UK sellers with real stock demand from customers, dealers and bulk buyers worldwide.":"AnyBike n’achète pas seulement des motos pour les revendre. Nous relions les vendeurs britanniques à une demande réelle provenant de clients, professionnels et acheteurs en volume du monde entier.",
+    "We buy UK motorcycles":"Nous achetons des motos au Royaume-Uni","Export buyer demand":"Demande d’acheteurs export","UK collection available":"Enlèvement disponible au Royaume-Uni","Clear buying decision":"Décision d’achat claire","Dealer stock welcome":"Stock professionnel bienvenu","Sourcing intelligence":"Analyse de la demande",
+    "High-demand motorcycles":"Motos très recherchées","Bikes AnyBike is looking for.":"Motos recherchées par AnyBike.","Wanted":"Recherchée",
+    "Dealer or trade stock?":"Stock professionnel ?","How it works":"Comment ça marche","Selling your motorcycle to AnyBike.":"Vendre votre moto à AnyBike.","Send details":"Envoyer les informations","We review":"Nous examinons","Offer":"Offre","Payment":"Paiement",
+    "FAQ":"FAQ","Questions about selling your motorcycle.":"Questions sur la vente de votre moto.","Ready to sell your motorcycle?":"Prêt à vendre votre moto ?",
+    "UK Motorcycle Buyers & Export Specialists":"Acheteur de motos UK & spécialiste export"
+  },{
+    placeholder:{
+      "Mileage":"Kilométrage",
+      "Enter reg":"Saisir l’immatriculation",
+      "Example: OX44 7RW":"Exemple : OX44 7RW",
+      "Example: MT-07, Africa Twin, GS1250":"Exemple : MT-07, Africa Twin, GS1250",
+      "Example: Adventure Sports, Rally, GT":"Exemple : Adventure Sports, Rally, GT",
+      "Finance outstanding, damage, modifications, extras, service book, V5, spare keys...":"Financement en cours, dommages, modifications, options, carnet d’entretien, V5, clés de rechange..."
+    }
+  });
+
+  register("/buy-motorcycles.html",{
+    "Buy motorcycles from the UK":"Acheter des motos au Royaume-Uni",
+    "Buy UK motorcycles for export.":"Achetez des motos britanniques pour l’export.",
+    "AnyBike supplies UK motorcycles to trade and business buyers, dealers, wholesalers and overseas importers.":"AnyBike fournit des motos britanniques aux acheteurs professionnels, concessionnaires, grossistes et importateurs étrangers.",
+    "Browse live stock, request one motorcycle, register as a trade buyer or build a container-ready buying list. Purchases from AnyBike are made on an agreed trade/export basis.":"Consultez le stock disponible, demandez une moto, inscrivez-vous comme acheteur professionnel ou constituez une liste prête pour un conteneur. Les achats auprès d’AnyBike sont réalisés selon des conditions professionnelles/export convenues.",
+    "Browse Available Stock":"Voir les motos disponibles","Request Multiple Bikes":"Demander plusieurs motos",
+    "🏍 Browse live stock":"🏍 Voir le stock disponible","🌍 Bulk buyer request":"🌍 Demande acheteur en volume","🚢 Export destinations":"🚢 Destinations export","👤 Create My AnyBike account":"👤 Créer mon compte AnyBike",
+    "Buyer routes":"Parcours acheteur","Choose how you want to buy.":"Choisissez comment vous souhaitez acheter.",
+    "AnyBike separates individual motorcycle enquiries from global buyer and bulk buying requests, so the right workflow reaches the right team.":"AnyBike distingue les demandes pour une moto précise des demandes globales et en volume afin que chaque demande soit dirigée vers la bonne équipe.",
+    "Buy one motorcycle":"Acheter une moto","Browse live stock, open full adverts and enquire about a specific motorcycle.":"Consultez le stock disponible, ouvrez les fiches complètes et demandez des informations sur une moto précise.","Browse Stock":"Voir le stock",
+    "Request a motorcycle":"Demander une moto","Tell us the make, model, year, budget and destination if you cannot find the bike you need.":"Indiquez-nous la marque, le modèle, l’année, le budget et la destination si vous ne trouvez pas la moto recherchée.","Buy Motorcycles":"Demander une moto",
+    "Bulk buyers & dealers":"Acheteurs en volume & professionnels","Register your business, monthly buying volume, selling links and motorcycle wish list.":"Enregistrez votre entreprise, votre volume d’achat mensuel, vos liens de vente et votre liste de motos recherchées.","Register Buyer":"Inscrire l’acheteur",
+    "Live UK stock":"Stock UK en direct","Available motorcycles.":"Motos disponibles.","Selected live motorcycles from the AnyBike stock database.":"Sélection de motos disponibles dans la base AnyBike.","Browse All Stock":"Voir tout le stock","Loading live motorcycles...":"Chargement des motos...",
+    "How buying works":"Comment fonctionne l’achat","From enquiry to UK shipper.":"De la demande au transporteur UK.","AnyBike supports UK motorcycle purchasing and delivery to your preferred UK freight forwarder or shipping company.":"AnyBike accompagne l’achat de motos au Royaume-Uni et leur livraison à votre transitaire ou transporteur britannique préféré.",
+    "Search or request":"Rechercher ou demander","Browse stock or send a buying request.":"Consultez le stock ou envoyez une demande d’achat.","We review":"Nous examinons","AnyBike checks availability, price and suitability.":"AnyBike vérifie la disponibilité, le prix et l’adéquation.","Agree deal":"Convenir de l’achat","Discuss price, documents and delivery requirements.":"Nous convenons du prix, des documents et des besoins de livraison.","UK collection":"Enlèvement UK","Motorcycles can be collected or moved to depot.":"Les motos peuvent être enlevées ou acheminées vers un dépôt.","Shipper delivery":"Livraison au transporteur","Delivery to your UK freight forwarder or port.":"Livraison à votre transitaire ou port britannique.",
+    "Export destinations":"Destinations export","Popular motorcycle export markets.":"Marchés populaires pour l’export de motos.","Dedicated country pages are planned. These links currently route buyers into the request workflow.":"Des pages pays dédiées sont prévues. Ces liens dirigent actuellement les acheteurs vers le parcours de demande.",
+    "Buyer FAQ":"FAQ acheteur","Buying motorcycles from the UK.":"Acheter des motos depuis le Royaume-Uni.","Can I buy one motorcycle?":"Puis-je acheter une seule moto ?","Can dealers request multiple motorcycles?":"Les professionnels peuvent-ils demander plusieurs motos ?","Do you ship overseas?":"Expédiez-vous à l’étranger ?","Can I use my own UK shipper?":"Puis-je utiliser mon propre transporteur UK ?","Does an export motorcycle include a mechanical warranty?":"Une moto export inclut-elle une garantie mécanique ?","Where are the trade sale terms?":"Où trouver les conditions de vente professionnelle ?",
+    "Read AnyBike's Trade & Export Sale Policy.":"Lire la politique de vente professionnelle & export d’AnyBike.",
+    "Ready to buy motorcycles from the UK?":"Prêt à acheter des motos au Royaume-Uni ?","Browse live stock or send AnyBike your motorcycle buying list.":"Consultez le stock disponible ou envoyez à AnyBike votre liste de motos recherchées.","UK Motorcycle Export Specialists":"Spécialistes britanniques de l’export moto"
+  });
+
+  register("/partners-integrations.html",{
+    "Partners & Integrations":"Partenaires & intégrations","Connect motorcycle supply to":"Connectez l’offre moto à","AnyBike.":"AnyBike.",
+    "AnyBike is building a provider-neutral integration network that allows authorised dealer stock, dealership data and selected motorcycle services to connect into the AnyBike platform.":"AnyBike développe un réseau d’intégration indépendant des fournisseurs permettant au stock autorisé des concessionnaires, aux données des points de vente et à certains services moto de se connecter à la plateforme AnyBike.",
+    "We work with dealerships, DMS providers, website providers, stock-feed providers and technology partners. Integrations are only activated with the appropriate dealer or provider authorisation.":"Nous travaillons avec des concessionnaires, fournisseurs DMS, prestataires de sites web, fournisseurs de flux de stock et partenaires technologiques. Les intégrations ne sont activées qu’avec l’autorisation appropriée du concessionnaire ou du fournisseur.",
+    "Request an Integration":"Demander une intégration","AnyBike Connect":"AnyBike Connect",
+    "How integrations work":"Comment fonctionnent les intégrations","One connection. A wider route to market.":"Une connexion. Un accès plus large au marché.",
+    "AnyBike is designed to receive authorised motorcycle stock from multiple systems without asking dealers to maintain the same inventory twice. A connected dealer can continue using its existing DMS, website or stock-management process while eligible motorcycles flow into AnyBike through an approved integration.":"AnyBike est conçu pour recevoir des stocks moto autorisés depuis plusieurs systèmes sans demander aux concessionnaires de maintenir deux fois le même inventaire. Un concessionnaire connecté peut continuer d’utiliser son DMS, son site web ou son système de gestion de stock existant pendant que les motos éligibles sont transmises à AnyBike via une intégration approuvée.",
+    "1. Dealer or provider authorises the connection":"1. Le concessionnaire ou le fournisseur autorise la connexion","2. AnyBike maps the available data":"2. AnyBike mappe les données disponibles","3. Eligible stock synchronises automatically":"3. Le stock éligible se synchronise automatiquement","4. AnyBike creates new commercial opportunities":"4. AnyBike crée de nouvelles opportunités commerciales",
+    "Integration network":"Réseau d’intégration","Current integration work.":"Intégrations actuellement en cours.","DMS Integration Partner":"Partenaire d’intégration DMS","More integrations will be added here.":"D’autres intégrations seront ajoutées ici.",
+    "Provider-neutral architecture":"Architecture indépendante des fournisseurs","Built to connect different systems.":"Conçue pour connecter différents systèmes.",
+    "API Integrations":"Intégrations API","XML / JSON Feeds":"Flux XML / JSON","CSV / File Feeds":"Flux CSV / fichiers","Dealer Onboarding":"Intégration des concessionnaires",
+    "Request an integration":"Demander une intégration","Want your system connected to AnyBike?":"Vous souhaitez connecter votre système à AnyBike ?","Integration request":"Demande d’intégration","Fields marked * are required.":"Les champs marqués * sont obligatoires.",
+    "Company / Dealership Name *":"Entreprise / concession *","Contact Name *":"Nom du contact *","Email Address *":"Adresse e-mail *","Telephone / WhatsApp":"Téléphone / WhatsApp","Country *":"Pays *","Organisation Type *":"Type d’organisation *","Please select":"Veuillez sélectionner","Current System / Provider *":"Système / fournisseur actuel *","Approx. Motorcycles in Stock":"Nombre approximatif de motos en stock","Approx. Number of Dealers / Locations":"Nombre approximatif de concessions / sites","Feed / Integration Type":"Type de flux / intégration","Preferred Contact Method":"Méthode de contact préférée","What would you like to integrate? *":"Que souhaitez-vous intégrer ? *","Anything else we should know?":"Autre information utile ?",
+    "Send Integration Request":"Envoyer la demande d’intégration","General Enquiry":"Demande générale","Integration request sent.":"Demande d’intégration envoyée.","Thank you. AnyBike has received your integration request and will review the details.":"Merci. AnyBike a reçu votre demande d’intégration et va examiner les informations."
+  });
+
+  register("/freight-forwarders.html",{
+    "Independent shipping directory":"Annuaire indépendant de transport","Motorcycle freight forwarders":"Transitaires moto","and shipping companies.":"et sociétés de transport.",
+    "Explore independent businesses offering motorcycle freight, vehicle container loading, RoRo shipping, air freight, export packing and related UK transport services.":"Découvrez des entreprises indépendantes proposant fret moto, chargement de véhicules en conteneur, transport RoRo, fret aérien, emballage export et services de transport associés au Royaume-Uni.",
+    "Find a Shipping Company":"Trouver une société de transport","Ask AnyBike for Help":"Demander l’aide d’AnyBike",
+    "Listings are provided for research and comparison. Inclusion is not an endorsement, recommendation or guarantee by AnyBike.":"Les entreprises sont présentées à des fins de recherche et de comparaison. Leur présence ne constitue ni une approbation, ni une recommandation, ni une garantie d’AnyBike.",
+    "Sea Freight":"Fret maritime","RoRo Shipping":"Transport RoRo","Containers":"Conteneurs","Air Freight":"Fret aérien","UK Collection":"Enlèvement UK","Worldwide Routes":"Routes internationales",
+    "Choosing the right provider":"Choisir le bon prestataire","Shipping support for motorcycles leaving the United Kingdom.":"Solutions de transport pour les motos quittant le Royaume-Uni.",
+    "Different companies provide different parts of the journey. Some manage international freight from collection to destination, while others specialise in UK collection, packing, container loading or port handover.":"Les entreprises prennent en charge différentes étapes du transport. Certaines gèrent le fret international de l’enlèvement à la destination, tandis que d’autres sont spécialisées dans l’enlèvement au Royaume-Uni, l’emballage, le chargement en conteneur ou la remise au port.",
+    "What does a freight forwarder do?":"Que fait un transitaire ?","Questions to ask before booking":"Questions à poser avant de réserver",
+    "Do you regularly handle motorcycles?":"Transportez-vous régulièrement des motos ?","Is the quotation port-to-port or door-to-door?":"Le devis est-il port à port ou porte à porte ?","Are packing, storage and UK collection included?":"L’emballage, le stockage et l’enlèvement au Royaume-Uni sont-ils inclus ?","Who completes the UK export declaration?":"Qui effectue la déclaration d’export britannique ?","What insurance is included or available?":"Quelle assurance est incluse ou disponible ?","Which destination charges are excluded?":"Quels frais à destination sont exclus ?",
+    "Motorcycle shipping methods":"Méthodes de transport moto","Compare the main international transport options.":"Comparez les principales options de transport international.",
+    "Container shipping":"Transport en conteneur","The motorcycle is secured inside a full or shared shipping container. Packing and loading requirements vary by provider and destination.":"La moto est sécurisée dans un conteneur complet ou partagé. Les exigences d’emballage et de chargement varient selon le prestataire et la destination.",
+    "Roll-on/Roll-off":"RoRo","RoRo services carry vehicles on specialist vessels. Route availability, motorcycle acceptance and handling rules must be confirmed.":"Les services RoRo transportent les véhicules sur des navires spécialisés. La disponibilité des routes, l’acceptation des motos et les règles de manutention doivent être confirmées.",
+    "Air freight":"Fret aérien","Air freight can provide faster transit but normally requires specialist preparation, accurate dimensions and compliance with airline rules.":"Le fret aérien peut être plus rapide mais nécessite généralement une préparation spécialisée, des dimensions précises et le respect des règles des compagnies aériennes.",
+    "UK handover":"Remise au Royaume-Uni","A specialist UK motorcycle transporter can collect from the seller and deliver to the selected packer, warehouse, depot or port.":"Un transporteur moto spécialisé au Royaume-Uni peut enlever la moto chez le vendeur et la livrer à l’emballeur, l’entrepôt, le dépôt ou le port choisi.",
+    "Public directory":"Annuaire public","Motorcycle shippers, forwarders and transport partners.":"Transporteurs moto, transitaires et partenaires logistiques.","Use the filters to narrow the list. Always obtain a current written quotation directly from the provider and confirm services for your exact motorcycle and destination.":"Utilisez les filtres pour affiner la liste. Demandez toujours un devis écrit à jour directement au prestataire et confirmez les services pour votre moto et votre destination précises.",
+    "All provider types":"Tous les types de prestataires","Freight forwarder":"Transitaire","Motorcycle specialist":"Spécialiste moto","Packing / container loading":"Emballage / chargement conteneur","UK transport partner":"Partenaire transport UK","All methods":"Toutes les méthodes","Sea freight":"Fret maritime","Container":"Conteneur","Road transport":"Transport routier","Clear":"Effacer","Showing 15 providers":"15 prestataires affichés",
+    "Profile":"Profil","Methods":"Méthodes","Best for":"Idéal pour","Motorcycles":"Motos","Collection":"Enlèvement","Packing":"Emballage","Customs":"Douane","Visit Website":"Voir le site","Ask AnyBike":"Demander à AnyBike",
+    "No matching providers were found.":"Aucun prestataire correspondant n’a été trouvé.","Try clearing the filters or contact AnyBike with your motorcycle and destination.":"Essayez d’effacer les filtres ou contactez AnyBike avec les détails de votre moto et de votre destination.",
+    "How AnyBike can assist":"Comment AnyBike peut aider","Connect the motorcycle purchase to the shipping handover.":"Relier l’achat de la moto à sa remise au transporteur.","Seller and dealer collection":"Enlèvement chez le vendeur ou concessionnaire","Freight-depot delivery":"Livraison au dépôt de fret","Purchase and shipping communication":"Coordination achat et transport",
+    "Before the motorcycle leaves":"Avant le départ de la moto","Important points to confirm in writing.":"Points importants à confirmer par écrit.","Quotation scope":"Contenu du devis","Destination charges":"Frais à destination","Motorcycle preparation":"Préparation de la moto","Import eligibility":"Éligibilité à l’importation","Independent-provider notice":"Avis concernant les prestataires indépendants",
+    "Motorcycle purchase and export support":"Achat moto et assistance export","Found the motorcycle but need help with the UK handover?":"Vous avez trouvé la moto mais avez besoin d’aide pour la remise au Royaume-Uni ?","Browse Available Stock":"Voir les motos disponibles","Send a Buying Request":"Envoyer une demande d’achat","Ask About Shipping Support":"Demander une assistance transport",
+    "Independent Motorcycle Shipping Directory":"Annuaire indépendant de transport moto","UK motorcycle sourcing, collection and export support":"Recherche, enlèvement et assistance export de motos au Royaume-Uni"
+  });
+
+  register("/services-and-fees.html",{
+    "AnyBike Services & Fees":"Services & frais AnyBike","Clear costs before work begins.":"Des coûts clairs avant le début du travail.",
+    "Sourcing, inspection, UK collection, export preparation and shipping support — with AnyBike charges and third-party costs shown separately where practical.":"Recherche, inspection, enlèvement au Royaume-Uni, préparation à l’export et assistance transport — avec les frais AnyBike et les coûts tiers présentés séparément lorsque possible.",
+    "Start an Enquiry":"Commencer une demande","View Export Services":"Voir les services export","Before you commit":"Avant de vous engager",
+    "AnyBike confirms the scope, applicable service fee and known third-party charges before paid work begins.":"AnyBike confirme le périmètre, les frais de service applicables et les coûts tiers connus avant le début de tout travail payant.",
+    "Motorcycle price, freight, duties, taxes, registration and destination-country costs are separate unless specifically stated as included.":"Le prix de la moto, le fret, les droits, taxes, immatriculation et frais dans le pays de destination sont séparés sauf mention explicite de leur inclusion.",
+    "Fee Summary":"Résumé des frais","Buyer Fee":"Frais acheteur","Transport & Export":"Transport & export","Admin & Storage":"Administration & stockage","International Markets":"Marchés internationaux",
+    "At a glance":"En un coup d’œil","Service fee summary":"Résumé des frais de service","Final charges depend on the motorcycle, location, destination and agreed scope. AnyBike confirms the applicable amount before chargeable work begins.":"Les frais finaux dépendent de la moto, de son emplacement, de la destination et du périmètre convenu. AnyBike confirme le montant applicable avant le début de tout travail facturable.",
+    "Service":"Service","How it is charged":"Mode de facturation","More information":"Plus d’informations","AnyBike Buyer Fee":"Frais acheteur AnyBike","From £395":"À partir de 395 £","View Buyer Fees →":"Voir les frais acheteur →","Collection Inspection":"Inspection lors de l’enlèvement","From £95":"À partir de 95 £","View inspection details →":"Voir les détails de l’inspection →","International buyer collection & port delivery":"Enlèvement acheteur international & livraison au port","View transport details →":"Voir les détails du transport →","Export crating / packing":"Mise en caisse / emballage export","Third-party quotation":"Devis tiers","Export crating →":"Mise en caisse export →","Shipping support":"Assistance transport","UK-side handover and freight coordination.":"Remise au Royaume-Uni et coordination du fret.","Quoted if applicable":"Sur devis si applicable","Shipping advice →":"Conseils transport →","Depot storage":"Stockage au dépôt","View additional services →":"Voir les services supplémentaires →",
+    "How charges work":"Comment fonctionnent les frais","AnyBike fee or third-party cost?":"Frais AnyBike ou coût tiers ?","AnyBike fee":"Frais AnyBike","Our service charge":"Nos frais de service","Third-party cost":"Coût tiers","External provider charge":"Frais d’un prestataire externe",
+    "A clear Buyer Fee based on the motorcycle price.":"Des frais acheteur clairs basés sur le prix de la moto.","International buyers":"Acheteurs internationaux","Buyer Fees apply to international motorcycle purchases.":"Les frais acheteur s’appliquent aux achats internationaux de motos.","UK trade buyers":"Acheteurs professionnels UK","No standard Buyer Fee.":"Aucun frais acheteur standard.","Motorcycle price":"Prix de la moto","Buyer Fees shown include VAT where applicable.":"Les frais acheteur affichés incluent la TVA lorsqu’elle s’applique.",
+    "Included in the Buyer Fee":"Inclus dans les frais acheteur","Charged separately where applicable":"Facturé séparément si applicable","Selling or supplying a motorcycle to AnyBike is currently free.":"Vendre ou fournir une moto à AnyBike est actuellement gratuit.",
+    "Visual collection check — from £95.":"Contrôle visuel lors de l’enlèvement — à partir de 95 £.","Enhanced / specialist inspection":"Inspection approfondie / spécialisée","Quoted separately":"Devis séparé",
+    "Transport & export services":"Services transport & export","Collection, port delivery, crating and shipping support.":"Enlèvement, livraison au port, mise en caisse et assistance transport.","International buyer collection":"Enlèvement acheteur international","Seller collection & port delivery":"Enlèvement chez le vendeur & livraison au port","Export crating":"Mise en caisse export","Export crating & packing coordination":"Coordination mise en caisse & emballage export","Planning the UK side of international shipping":"Organisation de la partie britannique du transport international",
+    "Additional services":"Services supplémentaires","Administration, storage and non-standard requirements.":"Administration, stockage et besoins non standards.","Standard transaction documents":"Documents standards de transaction","Included where stated":"Inclus lorsqu’indiqué","Additional document / admin work":"Travail documentaire / administratif supplémentaire","Confirmed before work starts":"Confirmé avant le début du travail","AnyBike depot storage":"Stockage au dépôt AnyBike","Multi-bike orders / consolidated shipments":"Commandes multi-motos / expéditions groupées","At AnyBike's discretion":"À la discrétion d’AnyBike",
+    "How an international AnyBike purchase works":"Comment fonctionne un achat international AnyBike","From offer acceptance to collection.":"De l’acceptation de l’offre à l’enlèvement.","Accept AnyBike offer":"Accepter l’offre AnyBike","Choose optional services":"Choisir les services optionnels","Pay £250 deposit + selected services":"Payer l’acompte de 250 £ + services choisis","Pay motorcycle balance in full":"Payer le solde intégral de la moto","Collection released":"Enlèvement autorisé","Collection Inspection if selected":"Inspection lors de l’enlèvement si choisie","Operations / shipping":"Opérations / transport",
+    "Important:":"Important :","AnyBike must receive full payment before the motorcycle is collected from the seller.":"AnyBike doit recevoir le paiement intégral avant l’enlèvement de la moto chez le vendeur.",
+    "Pricing principles":"Principes tarifaires","No surprise service charges.":"Aucun frais de service surprise.","We confirm the scope before paid work begins.":"Nous confirmons le périmètre avant le début du travail payant.","AnyBike fees and third-party charges are separated where practical.":"Les frais AnyBike et les coûts tiers sont séparés lorsque possible.","Destination taxes, duties and registration costs are destination-specific.":"Les taxes, droits et frais d’immatriculation dépendent de la destination.","If the scope changes, we confirm any additional charge before proceeding.":"Si le périmètre change, nous confirmons tout coût supplémentaire avant de poursuivre.",
+    "AnyBike Connect":"AnyBike Connect","Tell us what you need.":"Dites-nous ce dont vous avez besoin.","Explore International Markets":"Découvrir les marchés internationaux"
+  });
+})();
