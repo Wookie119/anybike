@@ -831,12 +831,215 @@ function renderPaymentQueue(){
 
         ${
           item.ledger_status==="Posted"
-          ? `<div class="preview-ready"><strong>Posted to Deal 360.</strong> Verified amount ${money(item.verified_amount_gbp||item.reported_amount_gbp)} is now represented in the authoritative customer payment ledger. Motorcycle security was not changed.</div>`
+          ? `<div class="preview-ready">
+              <strong>Posted to Deal 360.</strong> Verified amount ${money(item.verified_amount_gbp||item.reported_amount_gbp)} is now represented in the authoritative customer payment ledger. Motorcycle security was not changed.
+              <div class="verify-actions" style="margin-top:10px">
+                <button type="button" onclick="openPaymentReallocation(${Number(item.payment_advice_id)});return false;">Reallocate Payment</button>
+              </div>
+            </div>`
           : ""
         }
       </div>
     </article>
   `).join("");
+}
+
+
+async function sendPaymentReallocationCustomerMessage(result){
+  const amount=Number(result?.amount_gbp||0);
+  const sourceDeal=String(result?.source_deal_number||("Deal #"+result?.source_deal_id));
+  const targetDeal=String(result?.target_deal_number||("Deal #"+result?.target_deal_id));
+  const dealIds=[...new Set([Number(result?.source_deal_id),Number(result?.target_deal_id)].filter(Number.isFinite))];
+  const message=
+    "Payment allocation updated.\n\n"+
+    "AnyBike has moved "+money(amount)+" of your verified payment from "+sourceDeal+" to "+targetDeal+".\n\n"+
+    "Your My Purchases balances have been recalculated to reflect the change. The original bank receipt remains fully recorded in your payment history.";
+
+  let sent=0;
+  for(const dealId of dealIds){
+    const threadResult=await sb
+      .from("message_centre_threads")
+      .select("id")
+      .eq("related_deal_id",dealId)
+      .order("created_at",{ascending:false})
+      .limit(1)
+      .maybeSingle();
+
+    if(threadResult.error || !threadResult.data){ continue; }
+
+    const threadId=Number(threadResult.data.id);
+    const duplicate=await sb
+      .from("message_centre_messages")
+      .select("id")
+      .eq("thread_id",threadId)
+      .eq("sender_type","AnyBike")
+      .eq("message",message)
+      .limit(1)
+      .maybeSingle();
+
+    if(!duplicate.data){
+      const now=new Date().toISOString();
+      const msgResult=await sb.from("message_centre_messages").insert({
+        thread_id:threadId,
+        sender_type:"AnyBike",
+        sender_name:"AnyBike",
+        sender_email:"admin@anybike.co.uk",
+        message:message,
+        created_at:now
+      });
+
+      if(!msgResult.error){
+        await sb.from("message_centre_threads").update({
+          last_message:message,
+          last_message_at:now,
+          last_sender:"AnyBike",
+          status:"Replied",
+          updated_at:now
+        }).eq("id",threadId);
+
+        try{
+          await sb.functions.invoke("send-message-notification",{body:{thread_id:String(threadId)}});
+        }catch(_error){}
+        sent++;
+      }
+    }
+  }
+  return sent;
+}
+
+async function openPaymentReallocation(paymentAdviceId){
+  const result=await sb.rpc("admin_get_payment_reallocation_options",{
+    p_payment_advice_id:Number(paymentAdviceId)
+  });
+
+  if(result.error){
+    alert("Payment reallocation options could not be loaded.\n\n"+result.error.message);
+    return;
+  }
+
+  const data=result.data||{};
+  const allocations=Array.isArray(data.allocations)?data.allocations:[];
+  const targets=Array.isArray(data.targets)?data.targets:[];
+
+  if(!allocations.length){
+    alert("This posted payment has no Active allocation available to move.");
+    return;
+  }
+
+  const movableTargets=targets.filter(t=>Number(t.balance_due_gbp||0)>0.009);
+  if(!movableTargets.length){
+    alert("This customer does not currently have another motorcycle with an outstanding balance. There is nowhere eligible to reallocate this payment.");
+    return;
+  }
+
+  const sourceLines=allocations.map((a,i)=>
+    (i+1)+". "+String(a.deal_number||("Deal #"+a.deal_id))+" · "+String(a.motorcycle||"Motorcycle")+" · "+money(a.amount_gbp)
+  ).join("\n");
+
+  const sourceChoice=allocations.length===1
+    ? "1"
+    : prompt("Choose the current allocation to move:\n\n"+sourceLines+"\n\nEnter number:","1");
+
+  if(sourceChoice===null)return;
+  const source=allocations[Number(sourceChoice)-1];
+  if(!source){
+    alert("Invalid allocation selection.");
+    return;
+  }
+
+  const eligible=movableTargets.filter(t=>Number(t.deal_motorcycle_id)!==Number(source.deal_motorcycle_id));
+  if(!eligible.length){
+    alert("No other motorcycle for this customer currently has an outstanding balance.");
+    return;
+  }
+
+  const targetLines=eligible.map((t,i)=>
+    (i+1)+". "+String(t.deal_number||("Deal #"+t.deal_id))+" · "+String(t.motorcycle||"Motorcycle")+" · Balance "+money(t.balance_due_gbp)
+  ).join("\n");
+
+  const targetChoice=prompt("Choose the motorcycle to receive the payment:\n\n"+targetLines+"\n\nEnter number:","1");
+  if(targetChoice===null)return;
+  const target=eligible[Number(targetChoice)-1];
+  if(!target){
+    alert("Invalid target selection.");
+    return;
+  }
+
+  const maximum=Math.min(Number(source.amount_gbp||0),Number(target.balance_due_gbp||0));
+  const amountText=prompt(
+    "How much should be moved?\n\n"+
+    "Current allocation: "+money(source.amount_gbp)+"\n"+
+    "Target balance due: "+money(target.balance_due_gbp)+"\n"+
+    "Maximum: "+money(maximum),
+    maximum.toFixed(2)
+  );
+  if(amountText===null)return;
+  const amount=Number(amountText);
+  if(!Number.isFinite(amount)||amount<=0||amount>maximum+0.009){
+    alert("Enter an amount between £0.01 and "+money(maximum)+".");
+    return;
+  }
+
+  const purposeOptions=["Deposit","Balance","Full Payment","Additional Payment","General Payment"];
+  const defaultPurpose=purposeOptions.includes(String(source.allocation_purpose||""))
+    ? String(source.allocation_purpose)
+    : "General Payment";
+  const purpose=prompt(
+    "Allocation purpose on the target motorcycle:\n\n"+
+    purposeOptions.join(" · "),
+    defaultPurpose
+  );
+  if(purpose===null)return;
+  if(!purposeOptions.includes(String(purpose).trim())){
+    alert("Choose one of: "+purposeOptions.join(", "));
+    return;
+  }
+
+  const reason=prompt(
+    "Reason for reallocating this verified payment:\n\nThis reason is kept in the audit trail.",
+    "Payment matched to the wrong motorcycle."
+  );
+  if(reason===null)return;
+  if(!String(reason).trim()){
+    alert("A reason is required.");
+    return;
+  }
+
+  if(!confirm(
+    "REALLOCATE VERIFIED CUSTOMER PAYMENT?\n\n"+
+    money(amount)+"\n"+
+    "FROM: "+String(source.deal_number||"")+" · "+String(source.motorcycle||"")+"\n"+
+    "TO: "+String(target.deal_number||"")+" · "+String(target.motorcycle||"")+"\n"+
+    "Purpose: "+String(purpose).trim()+"\n\n"+
+    "The original bank receipt will NOT be deleted. The old allocation will be reversed and the new allocation will be fully audited."
+  ))return;
+
+  const move=await sb.rpc("admin_reallocate_customer_payment_v1",{
+    p_allocation_id:Number(source.allocation_id),
+    p_target_deal_motorcycle_id:Number(target.deal_motorcycle_id),
+    p_amount_gbp:Number(amount.toFixed(2)),
+    p_target_purpose:String(purpose).trim(),
+    p_reason:String(reason).trim()
+  });
+
+  if(move.error){
+    alert("Payment could not be reallocated.\n\n"+move.error.message);
+    return;
+  }
+
+  const moved=move.data||{};
+  const messagesSent=await sendPaymentReallocationCustomerMessage(moved);
+
+  alert(
+    "Payment reallocated successfully.\n\n"+
+    "Moved: "+money(moved.amount_gbp||amount)+"\n"+
+    "From: "+String(moved.source_deal_number||"Source Deal")+"\n"+
+    "To: "+String(moved.target_deal_number||"Target Deal")+"\n"+
+    "Source remainder: "+money(moved.source_remainder_gbp||0)+"\n\n"+
+    (messagesSent ? "Customer Message Centre notification sent." : "No linked customer Message Centre thread was found.")
+  );
+
+  await loadPaymentQueue();
 }
 
 async function verifyPaymentAdvice(id){
