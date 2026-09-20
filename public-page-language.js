@@ -310,7 +310,7 @@ sent to an external translation service.
     if(!["sell-your-motorcycle.html","buy-motorcycles.html","partners-integrations.html","freight-forwarders.html","services-and-fees.html"].includes(name)){ return; }
     if(document.querySelector('script[data-anybike-commercial-translations="true"]')){ return; }
     const script=document.createElement("script");
-    script.src="/public-commercial-translations.js?v=20260920-3";
+    script.src="/public-commercial-translations.js?v=20260920-4";
     script.async=false;
     script.dataset.anybikeCommercialTranslations="true";
     document.head.appendChild(script);
@@ -323,6 +323,17 @@ sent to an external translation service.
     script.src="/public-privacy-translations.js?v=20260920-2";
     script.async=false;
     script.dataset.anybikePrivacyTranslations="true";
+    document.head.appendChild(script);
+  }
+
+  function loadFinalFrenchFixes(){
+    const name=location.pathname.split("/").pop();
+    if(!["freight-forwarders.html","services-and-fees.html","privacy-policy.html"].includes(name)){ return; }
+    if(document.querySelector('script[data-anybike-final-fr-fixes="true"]')){ return; }
+    const script=document.createElement("script");
+    script.src="/public-final-fr-fixes.js?v=20260920-1";
+    script.async=false;
+    script.dataset.anybikeFinalFrFixes="true";
     document.head.appendChild(script);
   }
 
@@ -408,6 +419,7 @@ sent to an external translation service.
       loadExportMarketsTranslationBundle();
       loadCommercialTranslationBundle();
       loadPrivacyTranslationBundle();
+      loadFinalFrenchFixes();
       loadLegalTranslationBundle();
       loadInspectionShippingTranslationBundle();
       loadStockTranslationBundle();
@@ -422,6 +434,7 @@ sent to an external translation service.
       loadExportMarketsTranslationBundle();
       loadCommercialTranslationBundle();
       loadPrivacyTranslationBundle();
+      loadFinalFrenchFixes();
       loadLegalTranslationBundle();
       loadInspectionShippingTranslationBundle();
       loadStockTranslationBundle();
