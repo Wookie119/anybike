@@ -286,6 +286,16 @@ sent to an external translation service.
     document.head.appendChild(script);
   }
 
+  function loadLegalTranslationBundle(){
+    if(location.pathname!=="/terms-and-conditions.html"){ return; }
+    if(document.querySelector('script[data-anybike-legal-translations="true"]')){ return; }
+    const script=document.createElement("script");
+    script.src="/public-legal-translations.js?v=20260920-1";
+    script.async=false;
+    script.dataset.anybikeLegalTranslations="true";
+    document.head.appendChild(script);
+  }
+
   function loadDictionaryBundle(){
     if(document.querySelector('script[data-anybike-page-translations="true"]')){
       return;
@@ -324,6 +334,7 @@ sent to an external translation service.
       loadDictionaryBundle();
       loadMarketTranslationBundle();
       loadExportServiceTranslationBundle();
+      loadLegalTranslationBundle();
       apply(selectedLanguage());
       startMutationObserver();
     },{once:true});
@@ -331,6 +342,7 @@ sent to an external translation service.
     loadDictionaryBundle();
       loadMarketTranslationBundle();
       loadExportServiceTranslationBundle();
+      loadLegalTranslationBundle();
       apply(selectedLanguage());
     startMutationObserver();
   }
