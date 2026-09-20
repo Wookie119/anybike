@@ -317,6 +317,16 @@ sent to an external translation service.
     document.head.appendChild(script);
   }
 
+  function loadHomeTranslationBundle(){
+    if(!["/","/index.html"].includes(location.pathname)){ return; }
+    if(document.querySelector('script[data-anybike-home-translations="true"]')){ return; }
+    const script=document.createElement("script");
+    script.src="/public-home-translations.js?v=20260920-1";
+    script.async=false;
+    script.dataset.anybikeHomeTranslations="true";
+    document.head.appendChild(script);
+  }
+
   function loadDictionaryBundle(){
     if(document.querySelector('script[data-anybike-page-translations="true"]')){
       return;
@@ -358,6 +368,7 @@ sent to an external translation service.
       loadLegalTranslationBundle();
       loadInspectionShippingTranslationBundle();
       loadStockTranslationBundle();
+      loadHomeTranslationBundle();
       apply(selectedLanguage());
       startMutationObserver();
     },{once:true});
@@ -368,6 +379,7 @@ sent to an external translation service.
       loadLegalTranslationBundle();
       loadInspectionShippingTranslationBundle();
       loadStockTranslationBundle();
+      loadHomeTranslationBundle();
       apply(selectedLanguage());
     startMutationObserver();
   }
