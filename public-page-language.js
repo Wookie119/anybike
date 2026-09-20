@@ -275,6 +275,17 @@ sent to an external translation service.
     document.head.appendChild(script);
   }
 
+  function loadExportServiceTranslationBundle(){
+    const name=location.pathname.split("/").pop();
+    if(!["export-crating.html","motorcycle-collection.html"].includes(name)){ return; }
+    if(document.querySelector('script[data-anybike-export-service-translations="true"]')){ return; }
+    const script=document.createElement("script");
+    script.src="/public-export-service-translations.js?v=20260920-1";
+    script.async=false;
+    script.dataset.anybikeExportServiceTranslations="true";
+    document.head.appendChild(script);
+  }
+
   function loadDictionaryBundle(){
     if(document.querySelector('script[data-anybike-page-translations="true"]')){
       return;
@@ -312,12 +323,14 @@ sent to an external translation service.
     document.addEventListener("DOMContentLoaded",function(){
       loadDictionaryBundle();
       loadMarketTranslationBundle();
+      loadExportServiceTranslationBundle();
       apply(selectedLanguage());
       startMutationObserver();
     },{once:true});
   }else{
     loadDictionaryBundle();
       loadMarketTranslationBundle();
+      loadExportServiceTranslationBundle();
       apply(selectedLanguage());
     startMutationObserver();
   }
