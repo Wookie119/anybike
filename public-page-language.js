@@ -93,7 +93,7 @@ sent to an external translation service.
       const source=String(originalText.get(node) || "");
       const leading=(source.match(/^\s*/) || [""])[0];
       const trailing=(source.match(/\s*$/) || [""])[0];
-      const key=source.trim();
+      const key=source.trim().replace(/\\s+/g," ");
 
       if(!key){
         return;
@@ -310,7 +310,7 @@ sent to an external translation service.
     if(!["sell-your-motorcycle.html","buy-motorcycles.html","partners-integrations.html","freight-forwarders.html","services-and-fees.html"].includes(name)){ return; }
     if(document.querySelector('script[data-anybike-commercial-translations="true"]')){ return; }
     const script=document.createElement("script");
-    script.src="/public-commercial-translations.js?v=20260920-2";
+    script.src="/public-commercial-translations.js?v=20260920-3";
     script.async=false;
     script.dataset.anybikeCommercialTranslations="true";
     document.head.appendChild(script);
@@ -320,7 +320,7 @@ sent to an external translation service.
     if(location.pathname!=="/privacy-policy.html"){ return; }
     if(document.querySelector('script[data-anybike-privacy-translations="true"]')){ return; }
     const script=document.createElement("script");
-    script.src="/public-privacy-translations.js?v=20260920-1";
+    script.src="/public-privacy-translations.js?v=20260920-2";
     script.async=false;
     script.dataset.anybikePrivacyTranslations="true";
     document.head.appendChild(script);
