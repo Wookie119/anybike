@@ -266,7 +266,7 @@ sent to an external translation service.
   }
 
   function loadMarketTranslationBundle(){
-    if(!/^\\/markets\\//i.test(location.pathname)){ return; }
+    if(!/^\/markets\//i.test(location.pathname)){ return; }
     if(document.querySelector('script[data-anybike-market-translations="true"]')){ return; }
     const script=document.createElement("script");
     script.src="/public-market-translations.js?v=20260920-1";
