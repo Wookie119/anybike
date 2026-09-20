@@ -404,8 +404,8 @@ function requestedPaymentJourney(){
   const deal=String(params.get("deal")||"").trim();
   const payment=String(params.get("payment")||"").trim().toLowerCase();
   const amount=Number(params.get("amount")||0);
-  if(!deal || payment!=="deposit" || !Number.isFinite(amount) || amount<=0)return null;
-  return {deal,amount:Number(amount.toFixed(2))};
+  if(!deal || !["deposit","balance"].includes(payment) || !Number.isFinite(amount) || amount<=0)return null;
+  return {deal,payment,amount:Number(amount.toFixed(2))};
 }
 
 function applyRequestedPaymentJourney(){
@@ -423,7 +423,13 @@ function applyRequestedPaymentJourney(){
   checkbox.checked=true;
   amountInput.value=requested.toFixed(2);
   const notice=document.getElementById("paymentJourneyNotice");
-  if(notice){notice.innerHTML=`<div class="notice-box" style="border-color:rgba(54,211,126,.38);background:rgba(54,211,126,.07);margin-bottom:16px"><strong>Deposit payment for ${safe(request.deal)}</strong><br>Your ${money(requested)} deposit is due. After making the bank transfer, enter the reference used with your bank below and submit the payment advice. AnyBike will verify the transfer before it is recorded as received.</div>`;}
+  if(notice){
+    const label=request.payment==="balance" ? "Balance payment" : "Deposit payment";
+    const copy=request.payment==="balance"
+      ? "Your remaining balance of "+money(requested)+" is due. Use the bank details below, quote "+safe(request.deal)+" as your reference, then report the transfer so AnyBike can verify it."
+      : "Your "+money(requested)+" deposit is due. After making the bank transfer, enter the reference used with your bank below and submit the payment advice. AnyBike will verify the transfer before it is recorded as received.";
+    notice.innerHTML=`<div class="notice-box" style="border-color:rgba(54,211,126,.38);background:rgba(54,211,126,.07);margin-bottom:16px"><strong>${label} for ${safe(request.deal)}</strong><br>${copy}</div>`;
+  }
   const bankReference=document.getElementById("bankReference");
   if(bankReference && !bankReference.value.trim()){bankReference.value=request.deal;}
   updatePaymentSelection();
