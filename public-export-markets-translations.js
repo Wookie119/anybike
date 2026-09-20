@@ -102,6 +102,18 @@ Date: 20 September 2026
         "Send a Buying Request":"Envoyer une demande d’achat",
         "Contact the Export Team":"Contacter l’équipe export",
         "UK Motorcycle Export Specialists":"Spécialistes britanniques de l’export moto",
+        "Can AnyBike source a specific motorcycle?":"AnyBike peut-il rechercher une moto précise ?",
+        "Yes. Send the make, model, year, mileage, condition and budget required and our team can search the UK motorcycle market.":"Oui. Indiquez la marque, le modèle, l’année, le kilométrage, l’état et le budget recherchés, et notre équipe pourra rechercher la moto sur le marché britannique.",
+        "Can you inspect a bike before purchase?":"Pouvez-vous inspecter une moto avant l’achat ?",
+        "Viewing, visible condition checks, seller confirmation, photos and video can be arranged depending on the motorcycle and location.":"Une visite, des contrôles de l’état visible, la confirmation des informations du vendeur ainsi que des photos et vidéos peuvent être organisés selon la moto et son emplacement.",
+        "Does AnyBike make export crates?":"AnyBike fabrique-t-il des caisses d’export ?",
+        "No. AnyBike does not manufacture crates. Where crating is required, we coordinate delivery to trusted specialist third-party export packing companies.":"Non. AnyBike ne fabrique pas de caisses. Lorsqu’une mise en caisse est nécessaire, nous coordonnons la livraison vers des sociétés tierces spécialisées et de confiance.",
+        "Can you use my freight forwarder?":"Pouvez-vous travailler avec mon transitaire ?",
+        "Yes. We can contact your nominated shipper, follow their UK delivery instructions and arrange the motorcycle handover.":"Oui. Nous pouvons contacter le transporteur que vous avez désigné, suivre ses instructions de livraison au Royaume-Uni et organiser la remise de la moto.",
+        "Can you deliver directly to a UK port?":"Pouvez-vous livrer directement dans un port britannique ?",
+        "Yes. Motorcycle delivery can be arranged to ports, terminals, depots and freight warehouses throughout the UK.":"Oui. La livraison d’une moto peut être organisée vers des ports, terminaux, dépôts et entrepôts de fret dans tout le Royaume-Uni.",
+        "Is door-to-door motorcycle shipping available?":"La livraison de motos porte à porte est-elle disponible ?",
+        "Door-to-door service may be available depending on the destination, customs rules and local delivery coverage.":"Un service porte à porte peut être disponible selon la destination, les règles douanières et la couverture de livraison locale.",
         "Worldwide motorcycle sourcing, collection and export support":"Recherche, enlèvement et assistance export de motos dans le monde entier",
         "Europe":"Europe","North America":"Amérique du Nord","Central America":"Amérique centrale","Caribbean":"Caraïbes","South America":"Amérique du Sud","Africa":"Afrique","Middle East":"Moyen-Orient","Asia":"Asie","Oceania":"Océanie"
       }},
@@ -181,21 +193,46 @@ Date: 20 September 2026
 
     reg(T,function(language,dictionary){
       const count=document.getElementById("resultsNote");
+      const formats={
+        en:n=>n+" market"+(n===1?"":"s")+" shown",
+        fr:n=>n+" marché"+(n===1?"":"s")+" affiché"+(n===1?"":"s"),
+        de:n=>n+" Markt"+(n===1?"":"märkte")+" angezeigt",
+        es:n=>n+" mercado"+(n===1?"":"s")+" mostrado"+(n===1?"":"s"),
+        ar:n=>"تم عرض "+n+" سوق",
+        id:n=>n+" pasar ditampilkan",
+        ms:n=>n+" pasaran dipaparkan",
+        zh:n=>"显示 "+n+" 个市场"
+      };
       if(count){
         const m=String(count.textContent||"").match(/(\d+)/);
         const n=m?Number(m[1]):0;
-        const formats={
-          en:n+" market"+(n===1?"":"s")+" shown",
-          fr:n+" marché"+(n===1?"":"s")+" affiché"+(n===1?"":"s"),
-          de:n+" Markt"+(n===1?"":"märkte")+" angezeigt",
-          es:n+" mercado"+(n===1?"":"s")+" mostrado"+(n===1?"":"s"),
-          ar:"تم عرض "+n+" سوق",
-          id:n+" pasar ditampilkan",
-          ms:n+" pasaran dipaparkan",
-          zh:"显示 "+n+" 个市场"
-        };
-        count.textContent=formats[language]||formats.en;
+        count.textContent=(formats[language]||formats.en)(n);
       }
+
+      const ui={
+        en:{open:"Market Open",soon:"Coming Soon",find:"Find motorcycles for your market",develop:"Market page in development",explore:"Explore Market →",markets:n=>n+" markets"},
+        fr:{open:"Marché ouvert",soon:"Bientôt disponible",find:"Trouver des motos pour votre marché",develop:"Page marché en cours de développement",explore:"Découvrir le marché →",markets:n=>n+" marchés"},
+        de:{open:"Markt geöffnet",soon:"Demnächst",find:"Motorräder für Ihren Markt finden",develop:"Marktseite in Entwicklung",explore:"Markt entdecken →",markets:n=>n+" Märkte"},
+        es:{open:"Mercado abierto",soon:"Próximamente",find:"Encontrar motocicletas para su mercado",develop:"Página de mercado en desarrollo",explore:"Explorar mercado →",markets:n=>n+" mercados"},
+        ar:{open:"السوق متاح",soon:"قريباً",find:"ابحث عن دراجات لسوقك",develop:"صفحة السوق قيد التطوير",explore:"استكشف السوق ←",markets:n=>n+" سوق"},
+        id:{open:"Pasar Aktif",soon:"Segera Hadir",find:"Temukan sepeda motor untuk pasar Anda",develop:"Halaman pasar sedang dikembangkan",explore:"Jelajahi Pasar →",markets:n=>n+" pasar"},
+        ms:{open:"Pasaran Dibuka",soon:"Akan Datang",find:"Cari motosikal untuk pasaran anda",develop:"Halaman pasaran sedang dibangunkan",explore:"Terokai Pasaran →",markets:n=>n+" pasaran"},
+        zh:{open:"市场已开放",soon:"即将上线",find:"查找适合您市场的摩托车",develop:"市场页面开发中",explore:"探索市场 →",markets:n=>n+" 个市场"}
+      };
+      const t=ui[language]||ui.en;
+
+      document.querySelectorAll(".country-card .status-live").forEach(el=>{el.textContent=t.open;});
+      document.querySelectorAll(".country-card .status-soon").forEach(el=>{el.textContent=t.soon;});
+      document.querySelectorAll(".country-card small").forEach(el=>{
+        const card=el.closest(".country-card");
+        el.textContent=card&&card.querySelector(".status-live")?t.find:t.develop;
+      });
+      document.querySelectorAll(".country-card .arrow").forEach(el=>{el.textContent=t.explore;});
+      document.querySelectorAll(".market-title > span").forEach(el=>{
+        const m=String(el.textContent||"").match(/(\d+)/);
+        if(m) el.textContent=t.markets(Number(m[1]));
+      });
+    });
     });
   }
 })();
