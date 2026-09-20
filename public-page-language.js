@@ -277,7 +277,7 @@ sent to an external translation service.
     if(!/^\/markets\//i.test(location.pathname)){ return; }
     if(document.querySelector('script[data-anybike-market-translations="true"]')){ return; }
     const script=document.createElement("script");
-    script.src="/public-market-translations.js?v=20260920-1";
+    script.src="/public-market-translations.js?v=20260920-2";
     script.async=false;
     script.dataset.anybikeMarketTranslations="true";
     document.head.appendChild(script);
