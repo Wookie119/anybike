@@ -190,3 +190,78 @@ Every message must keep links to the correct customer, bike, enquiry, request, d
 - Market/country pages must obey the header selection even if their default content was originally written in the destination country's local language.
 - Use a **shared translation controller/page-family architecture**, not separate one-off language selectors on individual pages.
 - Translation rollout is a HIGH-PRIORITY public-site workstream. A page is not considered language-complete until its full visible content responds to the shared header selector.
+
+
+## 20 September 2026 — Public Language Rollout Checkpoint
+
+### Locked public-language rule
+- The shared public header language selector is the authoritative language for the **entire public page**, not just the header/navigation.
+- Supported public languages are now:
+  - English
+  - German
+  - French
+  - Spanish
+  - Arabic
+  - Bahasa Indonesia
+  - Bahasa Melayu
+  - Chinese
+- A public page is not considered language-complete while visible English copy remains after another language is selected.
+- Motorcycle makes/models, registrations, VINs, prices, customer-entered text and other factual identifiers should not be translated unless there is a deliberate display rule.
+- English remains the drafting/source-of-truth language for legal/commercial text until professionally reviewed translations are adopted.
+
+### Translation architecture now proven
+- `about-us.html` is the reference implementation for full-page translation behaviour.
+- Shared page-family translation logic has been introduced so page groups do not need independent language systems.
+- The country-market family under `/markets/*.html` now uses shared structural translation logic across all eight supported languages.
+- Tested successfully by the user on `/markets/indonesia.html`.
+- Full/major translation coverage has also been added for:
+  - Home page
+  - Available Stock
+  - Bike Details UI
+  - Terms & Conditions
+  - Trade & Export Sale Policy
+  - Motorcycle Collection
+  - Motorcycle Inspection
+  - Export Crating
+  - Shipping Advice
+- Available Stock initially developed a flashing/repaint loop because both the generic language observer and the stock-specific observer were reacting to the same DOM changes.
+- This has been fixed: `available-stock.html` now uses its dedicated translation observer without the generic observer competing with it.
+- User confirmed the Available Stock flashing issue is fixed.
+
+### Current Bike Details checkpoint
+- Bike Details static/dynamic UI labels are translating, including Purchase Details / Optional Services and other interface copy.
+- **Known remaining defect:** the motorcycle description text itself is still English when another language is selected.
+- Example seen in French:
+  - heading/UI translated to French;
+  - source description remained English, e.g. “2022 Sinnis GPX 125 Euro 5 124cc presented in Black with 1,300 miles...”.
+- Next task: make the motorcycle description respect the selected public language.
+- Important: descriptions are motorcycle-specific/dynamic content, so this should not be solved by a one-off static text dictionary. The translation/generation method must preserve factual motorcycle details such as year, make, model, variant, engine size, mileage, colour, owner count and transmission while translating the prose around them.
+- Re-render the description immediately when the shared header language changes, without altering the underlying English source description in the database unless a deliberate multilingual storage design is introduced later.
+- After Bike Details description translation is proven, continue the full-page audit of all remaining public pages and remove any mixed-language sections.
+
+### Remaining public-page language audit
+Pages still requiring a complete end-to-end language audit and/or completion include:
+- Buy Motorcycles
+- Sell Your Motorcycle
+- Export Services
+- Services & Fees
+- International Markets
+- Freight Forwarders
+- Bulk Buying Request
+- Partners & Integrations
+- Privacy Policy
+- any other public page surfaced through the shared header/navigation
+
+For each page test:
+- all eight header languages;
+- headings and body copy;
+- buttons and links;
+- forms, labels, placeholders and validation;
+- dynamic content;
+- notices and legal/commercial text;
+- modals/dialogues;
+- footer;
+- browser/page title where applicable.
+
+### Resume point
+Resume from **Bike Details motorcycle-description translation**. Do not move on to the next public page until the description itself changes language cleanly and the page no longer shows a mixed-language result.
