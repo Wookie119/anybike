@@ -20,6 +20,8 @@ Date: 20 September 2026
           "Last updated":"Dernière mise à jour",
           "14 July 2026":"14 juillet 2026",
           "On this page":"Sur cette page",
+          "operates the website":"exploite le site",
+          "and provides UK motorcycle buying, selling, sourcing, stock and export-support services.":"et propose des services d’achat, de vente, de recherche, de stock et d’assistance export de motos au Royaume-Uni.",
           "1. Who we are":"1. Qui sommes-nous",
           "2. Information collected":"2. Informations collectées",
           "3. How it is collected":"3. Comment elles sont collectées",
