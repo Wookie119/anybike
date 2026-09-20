@@ -10100,13 +10100,27 @@ async function loadAdminDealQueue(){
       Number(paymentRow.buyer_match_id) > 0;
 
     try{
-      const result = hasBuyerMatch
-        ? await sb.rpc("admin_get_seller_confirmation", {
-            p_match_id:Number(paymentRow.buyer_match_id)
-          })
-        : await sb.rpc("admin_get_deal_seller_confirmation_v1", {
-            p_deal_motorcycle_id:dealMotorcycleId
-          });
+      // Deal 360 must use the Deal-native seller confirmation as the
+      // authoritative seller/security record. A Deal motorcycle can still carry
+      // a legacy buyer_match_id after promotion, but reading the legacy match
+      // confirmation here causes Deal 360 to show stale seller/security state.
+      let result = await sb.rpc("admin_get_deal_seller_confirmation_v1", {
+        p_deal_motorcycle_id:dealMotorcycleId
+      });
+
+      // Compatibility fallback for older promoted Deals that do not yet have a
+      // Deal-native seller confirmation record.
+      if(
+        (result.error || !result.data) &&
+        hasBuyerMatch
+      ){
+        const legacyResult = await sb.rpc("admin_get_seller_confirmation", {
+          p_match_id:Number(paymentRow.buyer_match_id)
+        });
+        if(!legacyResult.error && legacyResult.data){
+          result = legacyResult;
+        }
+      }
 
       if(result.error){ throw result.error; }
 
@@ -11400,15 +11414,14 @@ async function saveDealFinalSellerCheck(dealMotorcycleId){
       p_bike_secured:bikeSecured
     };
 
-    let result = hasBuyerMatch
-      ? await sb.rpc("admin_save_final_seller_check", Object.assign({
-          p_match_id:Number(paymentRow.buyer_match_id),
-          p_seller_deposit_paid:false,
-          p_seller_deposit_payment_reference:null
-        }, commonArgs))
-      : await sb.rpc("admin_save_deal_final_seller_check_v1", Object.assign({
-          p_deal_motorcycle_id:id
-        }, commonArgs));
+    // Once a motorcycle is inside Deal 360, the Deal-native seller
+    // confirmation is authoritative even when the motorcycle originated from a
+    // legacy buyer match. Saving against the old match record leaves Deal 360's
+    // motorcycle_secured state unchanged and makes the Seller Check appear not
+    // to update.
+    let result = await sb.rpc("admin_save_deal_final_seller_check_v1", Object.assign({
+      p_deal_motorcycle_id:id
+    }, commonArgs));
 
     /*
       Source-on-demand Deal motorcycles can legitimately have no legacy stock_id.
@@ -11421,7 +11434,6 @@ async function saveDealFinalSellerCheck(dealMotorcycleId){
       leaving the Deal motorcycle's existing seller price untouched.
     */
     if(
-      !hasBuyerMatch &&
       result.error &&
       /Stock\s*<NULL>\s*could not be found while classifying confirmed seller price/i.test(String(result.error.message || ""))
     ){
