@@ -34,7 +34,7 @@ function loadAnyBikePublicPageLanguageController(){
     }
 
     const script=document.createElement("script");
-    script.src="/public-page-language.js?v=20260920-4";
+    script.src="/public-page-language.js?v=20260920-5";
     script.async=false;
     script.dataset.anybikePageLanguage="true";
     script.onload=function(){
@@ -77,6 +77,8 @@ const ANYBIKE_HEADER_TRANSLATIONS = {
     dashboard:"Dashboard",
     offers:"My Offers",
     purchases:"My Purchases",
+    accountsDocuments:"Accounts & Documents",
+    dealership:"My Dealership",
     profile:"My Profile",
     savedSearches:"Saved Searches",
     watchlist:"Watchlist",
@@ -103,6 +105,8 @@ const ANYBIKE_HEADER_TRANSLATIONS = {
     dashboard:"Übersicht",
     offers:"Meine Angebote",
     purchases:"Meine Käufe",
+    accountsDocuments:"Konten & Dokumente",
+    dealership:"Mein Händlerbereich",
     profile:"Mein Profil",
     savedSearches:"Gespeicherte Suchen",
     watchlist:"Merkliste",
@@ -129,6 +133,8 @@ const ANYBIKE_HEADER_TRANSLATIONS = {
     dashboard:"Tableau de bord",
     offers:"Mes offres",
     purchases:"Mes achats",
+    accountsDocuments:"Comptes & documents",
+    dealership:"Ma concession",
     profile:"Mon profil",
     savedSearches:"Recherches enregistrées",
     watchlist:"Favoris",
@@ -155,6 +161,8 @@ const ANYBIKE_HEADER_TRANSLATIONS = {
     dashboard:"Panel",
     offers:"Mis ofertas",
     purchases:"Mis compras",
+    accountsDocuments:"Cuentas y documentos",
+    dealership:"Mi concesionario",
     profile:"Mi perfil",
     savedSearches:"Búsquedas guardadas",
     watchlist:"Favoritos",
@@ -181,6 +189,8 @@ const ANYBIKE_HEADER_TRANSLATIONS = {
     dashboard:"لوحة التحكم",
     offers:"عروضي",
     purchases:"مشترياتي",
+    accountsDocuments:"الحسابات والمستندات",
+    dealership:"وكالتي",
     profile:"ملفي الشخصي",
     savedSearches:"عمليات البحث المحفوظة",
     watchlist:"قائمة المتابعة",
@@ -207,6 +217,10 @@ const ANYBIKE_HEADER_TRANSLATIONS = {
     dashboard:"Dasbor",
     offers:"Penawaran Saya",
     purchases:"Pembelian Saya",
+    accountsDocuments:"Akaun & Dokumen",
+    dealership:"Pengedar Saya",
+    accountsDocuments:"Akun & Dokumen",
+    dealership:"Dealer Saya",
     profile:"Profil Saya",
     savedSearches:"Pencarian Tersimpan",
     watchlist:"Daftar Pantau",
@@ -259,6 +273,8 @@ const ANYBIKE_HEADER_TRANSLATIONS = {
     dashboard:"控制面板",
     offers:"我的报价",
     purchases:"我的购买",
+    accountsDocuments:"账户与文件",
+    dealership:"我的经销商",
     profile:"我的资料",
     savedSearches:"已保存搜索",
     watchlist:"关注列表",
@@ -341,7 +357,7 @@ async function addMyDealershipMenuIfEligible(user){
       );
 
     const linkHtml =
-      '<a href="my-dealership-stock.html" data-dealer-menu-link="true">My Dealership</a>';
+      '<a href="my-dealership-stock.html" data-dealer-menu-link="true" data-i18n="dealership">My Dealership</a>';
 
     if(
       desktopMenu &&
