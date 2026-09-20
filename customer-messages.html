@@ -1099,6 +1099,24 @@ function candidateMessageIdFromText(value){
 
 function candidateMessageHtml(value){
   const text=String(value||"");
+  const paymentMatch=text.match(/https:\/\/www\.anybike\.co\.uk\/accounts-documents\.html\?[^\s]+#bank-transfer/i);
+  if(paymentMatch){
+    const url=paymentMatch[0];
+    const cleaned=text.replace(url,"").replace(/Pay \/ report your bank transfer here:\s*/i,"").replace(/\n{3,}/g,"\n\n").trim();
+    let amountLabel="Open Payment";
+    try{
+      const parsed=new URL(url);
+      const amount=Number(parsed.searchParams.get("amount")||0);
+      const payment=String(parsed.searchParams.get("payment")||"").toLowerCase();
+      if(Number.isFinite(amount)&&amount>0){
+        amountLabel=(payment==="balance"?"Pay / Report Balance ":"Pay / Report Payment ")+money(amount);
+      }
+    }catch(_error){}
+    return `${safe(cleaned)}
+      <div style="margin-top:12px">
+        <a href="${safe(url)}" style="display:inline-flex;align-items:center;justify-content:center;padding:11px 16px;border-radius:999px;background:#fff;color:#111;font-weight:950;text-decoration:none">${safe(amountLabel)} →</a>
+      </div>`;
+  }
   const candidateMessageId=candidateMessageIdFromText(text);
   if(!candidateMessageId) return safe(text);
 
