@@ -123,6 +123,23 @@ body{margin:0;background:#ececec;color:#111;font-family:Arial,Helvetica,sans-ser
     const ref=md.payment_reference||d.deal_number||"";
     const combined=!!(d.combined_proforma||md.combined_proforma||(Array.isArray(d.deals)&&d.deals.length>1));
     const dealRefs=Array.isArray(d.deals) ? d.deals.map(x=>x.deal_number).filter(Boolean) : [];
+    const handoverPort=String(md.uk_handover_port||"").trim();
+    const forwarderName=String(md.freight_forwarder_name||"").trim();
+    const forwarderContact=String(md.freight_forwarder_contact||"").trim();
+    const forwarderReference=String(md.freight_forwarder_reference||"").trim();
+    const destinationCountry=String(md.destination_country||"").trim();
+    const handoverHtml=(handoverPort||forwarderName||destinationCountry)
+      ? '<section class="meta"><div class="box"><h3>UK Delivery / Handover</h3><p><strong>'+
+          esc(handoverPort||"Agreed UK handover point")+
+          '</strong></p>'+
+          (destinationCountry?'<p>Destination country: '+esc(destinationCountry)+'</p>':'')+
+          '</div><div class="box"><h3>Freight Forwarder / Shipping Agent</h3><p><strong>'+
+          esc(forwarderName||"To be confirmed")+
+          '</strong></p>'+
+          (forwarderContact?'<p>'+esc(forwarderContact)+'</p>':'')+
+          (forwarderReference?'<p>Shipping reference: '+esc(forwarderReference)+'</p>':'')+
+          '</div></section>'
+      : '';
     const docRef=d.invoice_number || (previewMode ? ("Draft Proforma v"+Number(d.version_number||1)) : "Proforma");
     document.title=(previewMode ? "Preview — " : "")+docRef+" | AnyBike";
     box.innerHTML=`${previewMode ? '<div class="preview-watermark">DRAFT PREVIEW</div><div class="preview-banner">DRAFT PREVIEW — NOT ISSUED · NOT VISIBLE TO CUSTOMER</div>' : ''}
@@ -137,6 +154,7 @@ body{margin:0;background:#ececec;color:#111;font-family:Arial,Helvetica,sans-ser
         <div class="box"><h3>Bill To</h3><p><strong>${esc(d.business_name||d.customer_name||"")}</strong></p>${d.business_name&&d.customer_name?`<p>${esc(d.customer_name)}</p>`:""}<p>${esc(d.billing_address||"")}<br>${esc(d.billing_city||"")} ${esc(d.billing_postcode||"")}<br>${esc(d.billing_country||"")}</p><p>${esc(d.customer_email||"")}${d.customer_phone?"<br>"+esc(d.customer_phone):""}</p></div>
         <div class="box"><h3>AnyBike</h3><p>${esc(issuer.legal_company_name||"")} trading as ${esc(issuer.trading_name||"Anybike")}</p><p>Company No. ${esc(issuer.company_number||"")}<br>VAT No. ${esc(issuer.vat_number||"")}</p><p>${esc(issuer.email||"")}<br>${esc(issuer.phone||"")}</p></div>
       </section>
+      ${handoverHtml}
       <table class="lines"><thead><tr><th>Description</th><th>Qty</th><th>Amount</th></tr></thead><tbody>${linesHtml(d.lines,combined)}</tbody></table>
       <section class="summary"><div class="metric"><span>Subtotal</span><strong>${money(d.subtotal_gbp)}</strong></div><div class="metric"><span>Delivery</span><strong>${money(d.delivery_total_gbp)}</strong></div><div class="metric"><span>Total Due</span><strong>${money(d.total_gbp)}</strong></div></section>
       <div class="warning"><strong>PROFORMA INVOICE — ${esc(warning)}</strong><span>No VAT breakdown is shown on this Proforma. VAT treatment remains subject to the final invoice stage.</span></div>
