@@ -347,6 +347,16 @@ sent to an external translation service.
     document.head.appendChild(script);
   }
 
+  function loadFullFrenchServicesFees(){
+    if(location.pathname!=="/services-and-fees.html"){ return; }
+    if(document.querySelector('script[data-anybike-services-fees-full-fr="true"]')){ return; }
+    const script=document.createElement("script");
+    script.src="/services-fees-fr-full.js?v=20260920-1";
+    script.async=false;
+    script.dataset.anybikeServicesFeesFullFr="true";
+    document.head.appendChild(script);
+  }
+
   function loadLegalTranslationBundle(){
     if(location.pathname!=="/terms-and-conditions.html"){ return; }
     if(document.querySelector('script[data-anybike-legal-translations="true"]')){ return; }
@@ -431,6 +441,7 @@ sent to an external translation service.
       loadPrivacyTranslationBundle();
       loadFinalFrenchFixes();
       loadFullFrenchPrivacy();
+      loadFullFrenchServicesFees();
       loadLegalTranslationBundle();
       loadInspectionShippingTranslationBundle();
       loadStockTranslationBundle();
@@ -447,6 +458,7 @@ sent to an external translation service.
       loadPrivacyTranslationBundle();
       loadFinalFrenchFixes();
       loadFullFrenchPrivacy();
+      loadFullFrenchServicesFees();
       loadLegalTranslationBundle();
       loadInspectionShippingTranslationBundle();
       loadStockTranslationBundle();
