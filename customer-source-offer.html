@@ -532,6 +532,9 @@ let activeOffer = null;
 let countdownTimer = null;
 let activeClient = null;
 
+const ANYBIKE_TERMS_VERSION = "2026-09-20";
+const ANYBIKE_TRADE_POLICY_VERSION = "2026-09-20";
+
 
 function esc(value){
 
@@ -1448,6 +1451,36 @@ async function acceptOffer(){
   if(declineButton) declineButton.disabled = true;
 
   try{
+    const legalAcceptance = await activeClient.rpc(
+      "customer_record_buyer_legal_acceptance_v1",
+      {
+        p_offer_id: Number(o.id || o.offer_id),
+        p_terms_version: ANYBIKE_TERMS_VERSION,
+        p_trade_policy_version: ANYBIKE_TRADE_POLICY_VERSION,
+        p_terms_accepted: true,
+        p_trade_policy_accepted: true,
+        p_trade_buyer_confirmed: true,
+        p_inspection_basis_confirmed: true
+      }
+    );
+
+    if(legalAcceptance.error){
+      throw new Error(
+        "Your legal acceptance could not be recorded, so this offer has not been accepted. " +
+        (legalAcceptance.error.message || "")
+      );
+    }
+
+    const legalResult = Array.isArray(legalAcceptance.data)
+      ? legalAcceptance.data[0]
+      : legalAcceptance.data;
+
+    if(!legalResult?.success || !legalResult?.acceptance_id){
+      throw new Error(
+        "Your legal acceptance could not be verified, so this offer has not been accepted."
+      );
+    }
+
     const result = await activeClient.rpc(
       "customer_respond_to_deal_offer_v1",
       {
