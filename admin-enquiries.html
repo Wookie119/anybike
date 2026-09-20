@@ -10658,9 +10658,10 @@ function anyBikeExtractUkPostcode(value){
   return match ? match[1].toUpperCase().replace(/\s+/g," ").trim() : "";
 }
 
-function anyBikeSellerPackedDetails(address,postcode,phone,email){
+function anyBikeSellerPackedDetails(address,townCity,postcode,phone,email){
   return [
     address ? "Address: "+address : "",
+    townCity ? "Town / City: "+townCity : "",
     postcode ? "Postcode: "+postcode : "",
     phone ? "Phone: "+phone : "",
     email ? "Email: "+email : ""
@@ -10744,6 +10745,14 @@ function renderAnyBikeDealSellerCheckPanel(deal){
     const sellerAddress = sellerPostcode
       ? sellerLocation.replace(sellerPostcode,"").replace(/[\s,·-]+$/,"").trim()
       : sellerLocation;
+
+    const sellerTownCity = String(
+      sellerDisplay.seller_town_city ||
+      sellerDisplay.town_city ||
+      dealMotorcycle.seller_town_city ||
+      selectedCandidate.seller_town_city ||
+      ""
+    ).trim();
 
     const sellerContactDetailsFallback = [
       sellerLocation,
@@ -10863,8 +10872,12 @@ function renderAnyBikeDealSellerCheckPanel(deal){
             <input id="deal-seller-contact-name-${dealMotorcycleId}" value="${escapeAdminHtml(sellerContactName)}" placeholder="Seller or dealership name">
           </div>
           <div class="anybike-seller-field">
-            <label for="deal-seller-address-${dealMotorcycleId}">Address / Location</label>
-            <input id="deal-seller-address-${dealMotorcycleId}" value="${escapeAdminHtml(sellerAddress)}" placeholder="Street / town / city">
+            <label for="deal-seller-address-${dealMotorcycleId}">Address</label>
+            <input id="deal-seller-address-${dealMotorcycleId}" value="${escapeAdminHtml(sellerAddress)}" placeholder="Street / address">
+          </div>
+          <div class="anybike-seller-field">
+            <label for="deal-seller-town-city-${dealMotorcycleId}">Town / City</label>
+            <input id="deal-seller-town-city-${dealMotorcycleId}" value="${escapeAdminHtml(sellerTownCity)}" placeholder="Town / City">
           </div>
           <div class="anybike-seller-field">
             <label for="deal-seller-postcode-${dealMotorcycleId}">Postcode</label>
@@ -11180,6 +11193,7 @@ async function saveDealFinalSellerCheck(dealMotorcycleId){
   const contactNameEl = document.getElementById("deal-seller-contact-name-" + id);
   const contactDetailsEl = document.getElementById("deal-seller-contact-details-" + id);
   const sellerAddressEl = document.getElementById("deal-seller-address-" + id);
+  const sellerTownCityEl = document.getElementById("deal-seller-town-city-" + id);
   const sellerPostcodeEl = document.getElementById("deal-seller-postcode-" + id);
   const sellerPhoneEl = document.getElementById("deal-seller-phone-" + id);
   const sellerEmailEl = document.getElementById("deal-seller-email-" + id);
@@ -11293,6 +11307,7 @@ async function saveDealFinalSellerCheck(dealMotorcycleId){
       p_seller_contact_name:contactNameEl ? (String(contactNameEl.value || "").trim() || null) : null,
       p_seller_contact_details:anyBikeSellerPackedDetails(
         sellerAddressEl ? String(sellerAddressEl.value || "").trim() : "",
+        sellerTownCityEl ? String(sellerTownCityEl.value || "").trim() : "",
         sellerPostcodeEl ? String(sellerPostcodeEl.value || "").trim() : "",
         sellerPhoneEl ? String(sellerPhoneEl.value || "").trim() : "",
         sellerEmailEl ? String(sellerEmailEl.value || "").trim() : ""
