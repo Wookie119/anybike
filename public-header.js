@@ -34,7 +34,7 @@ function loadAnyBikePublicPageLanguageController(){
     }
 
     const script=document.createElement("script");
-    script.src="/public-page-language.js?v=20260920-6";
+    script.src="/public-page-language.js?v=20260920-7";
     script.async=false;
     script.dataset.anybikePageLanguage="true";
     script.onload=function(){
