@@ -379,6 +379,29 @@ sent to an external translation service.
     document.head.appendChild(script);
   }
 
+  function loadCompleteLanguagePacks(){
+    const name=location.pathname.split("/").pop();
+    if(!["customer-dashboard.html","customer-messages.html","my-searches.html","my-watchlist.html","my-purchases.html","accounts-documents.html","buy-motorcycles.html","sell-your-motorcycle.html","partners-integrations.html","freight-forwarders.html","services-and-fees.html","privacy-policy.html"].includes(name)){ return; }
+    if(document.querySelector('script[data-anybike-complete-language-packs="true"]')){ return; }
+
+    const files=[
+      "/public-language-pack-de.js?v=20260920-1",
+      "/public-language-pack-es.js?v=20260920-1",
+      "/public-language-pack-ar.js?v=20260920-1",
+      "/public-language-pack-id.js?v=20260920-1",
+      "/public-language-pack-ms.js?v=20260920-1",
+      "/public-language-pack-zh.js?v=20260920-1",
+      "/public-language-pack-runtime.js?v=20260920-1"
+    ];
+    files.forEach((src,index)=>{
+      const script=document.createElement("script");
+      script.src=src;
+      script.async=false;
+      if(index===0) script.dataset.anybikeCompleteLanguagePacks="true";
+      document.head.appendChild(script);
+    });
+  }
+
   function loadLegalTranslationBundle(){
     if(location.pathname!=="/terms-and-conditions.html"){ return; }
     if(document.querySelector('script[data-anybike-legal-translations="true"]')){ return; }
@@ -466,6 +489,7 @@ sent to an external translation service.
       loadFullFrenchServicesFees();
       loadCustomerAreaTranslations();
       loadAllLanguagesExpansion();
+      loadCompleteLanguagePacks();
       loadLegalTranslationBundle();
       loadInspectionShippingTranslationBundle();
       loadStockTranslationBundle();
@@ -485,6 +509,7 @@ sent to an external translation service.
       loadFullFrenchServicesFees();
       loadCustomerAreaTranslations();
       loadAllLanguagesExpansion();
+      loadCompleteLanguagePacks();
       loadLegalTranslationBundle();
       loadInspectionShippingTranslationBundle();
       loadStockTranslationBundle();
