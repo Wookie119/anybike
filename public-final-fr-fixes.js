@@ -9,6 +9,7 @@ Date: 20 September 2026
 
   const maps={
     "/freight-forwarders.html":{
+      "Tell AnyBike which motorcycle you are buying, where it is located and which freight company or destination you plan to use.":"Indiquez à AnyBike quelle moto vous achetez, où elle se trouve et quelle société de transport ou destination vous prévoyez d’utiliser.",
       "AnyBike sells and sources motorcycles. Shipping supports the motorcycle purchase and can be arranged independently by the buyer.":"AnyBike vend et recherche des motos. Le transport accompagne l’achat de la moto et peut être organisé indépendamment par l’acheteur.",
       "AnyBike can help coordinate collection instructions after the motorcycle purchase has been agreed.":"AnyBike peut aider à coordonner les instructions d’enlèvement une fois l’achat de la moto convenu.",
       "The motorcycle can be handed to a nominated UK forwarder, warehouse, packer, port or transport partner.":"La moto peut être remise à un transitaire britannique désigné, un entrepôt, un emballeur, un port ou un partenaire transport.",
@@ -58,6 +59,32 @@ Date: 20 September 2026
       "Vehicle logistics":"Logistique véhicules","Freight forwarding":"Transit","Adventure travel":"Voyage aventure","Worldwide":"Monde entier","Warehouse":"Entrepôt","Middle East":"Moyen-Orient","Caribbean":"Caraïbes","Shared container":"Conteneur partagé","Door to door":"Porte à porte","UK ports":"Ports UK","Dealer pickup":"Enlèvement concessionnaire","Depot delivery":"Livraison dépôt"
     },
     "/services-and-fees.html":{
+      "Sourcing or securing the motorcycle":"Recherche ou sécurisation de la moto",
+      "Managing the seller or dealer relationship":"Gestion de la relation avec le vendeur ou concessionnaire",
+      "Checking availability and agreed motorcycle details":"Vérification de la disponibilité et des informations convenues sur la moto",
+      "Negotiating purchase terms where possible":"Négociation des conditions d’achat lorsque possible",
+      "Managing the AnyBike purchase":"Gestion de l’achat AnyBike",
+      "Customer communication through the buying process":"Communication avec le client pendant le processus d’achat",
+      "Setting the deal up through Deal 360 / operations":"Mise en place de l’affaire dans Deal 360 / opérations",
+      "Standard transaction administration":"Administration standard de la transaction",
+      "Motorcycle purchase price":"Prix d’achat de la moto",
+      "UK collection / delivery":"Enlèvement / livraison UK",
+      "International freight":"Fret international",
+      "Storage":"Stockage",
+      "Destination taxes, duties and registration":"Taxes, droits et immatriculation à destination",
+      "Unusual or additional document / admin work":"Travail documentaire / administratif inhabituel ou supplémentaire",
+      "There are no seller-side listing or transaction fees at present. The buyer pays the applicable AnyBike Buyer Fee. Any future dealer membership or subscription services would be separate.":"Il n’y a actuellement aucun frais d’annonce ou de transaction côté vendeur. L’acheteur paie les frais acheteur AnyBike applicables. Toute future adhésion professionnelle ou service d’abonnement serait facturé séparément.",
+      "Add a Collection Inspection when you accept the AnyBike offer. The inspection charge is added to the initial £250 motorcycle deposit together with any other optional services selected at that stage.":"Ajoutez une inspection lors de l’enlèvement lorsque vous acceptez l’offre AnyBike. Le coût de l’inspection est ajouté à l’acompte initial de 250 £ avec les autres services optionnels choisis à ce stade.",
+      "Standard UK mainland motorcycle collection from the seller, dealer or auction and delivery to an agreed UK port or handover point.":"Enlèvement standard d’une moto en Grande-Bretagne continentale auprès du vendeur, concessionnaire ou site d’enchères, puis livraison au port ou point de remise UK convenu.",
+      "AnyBike can arrange handover to an experienced third-party packing provider where crating or specialist export packing is required.":"AnyBike peut organiser la remise à un prestataire tiers expérimenté lorsqu’une mise en caisse ou un emballage export spécialisé est nécessaire.",
+      "We can coordinate ports, depots, packing requirements and freight-forwarder instructions. Buyers may nominate their own shipper.":"Nous pouvons coordonner ports, dépôts, exigences d’emballage et instructions du transitaire. Les acheteurs peuvent désigner leur propre transporteur.",
+      "The £349 rate is intended for standard UK mainland motorcycle movements. Remote locations, islands, unusual access, non-running motorcycles, specialist loading or additional movements may require a separate quotation.":"Le tarif de 349 £ concerne les transports standard de motos en Grande-Bretagne continentale. Les zones isolées, îles, accès difficiles, motos non roulantes, chargements spécialisés ou mouvements supplémentaires peuvent nécessiter un devis séparé.",
+      "Most transactions follow the standard AnyBike process. Additional charges only arise where extra work, waiting time, storage or special arrangements are required.":"La plupart des transactions suivent le processus standard AnyBike. Des frais supplémentaires ne s’appliquent que si un travail supplémentaire, un temps d’attente, du stockage ou des dispositions particulières sont nécessaires.",
+      "Normal documents included with an AnyBike purchase.":"Documents habituels inclus avec un achat AnyBike.",
+      "Replacement paperwork or other non-standard work requested outside the normal transaction process.":"Documents de remplacement ou autre travail non standard demandé en dehors du processus normal de transaction.",
+      "Where a motorcycle is held at the AnyBike depot before onward movement.":"Lorsqu’une moto est conservée au dépôt AnyBike avant son acheminement suivant.",
+      "AnyBike may waive or reduce storage while an active multi-motorcycle order or consolidated shipment is being built.":"AnyBike peut supprimer ou réduire les frais de stockage pendant la constitution d’une commande active multi-motos ou d’une expédition groupée.",
+      "If onward movement is delayed by the buyer, storage charges may apply from the date AnyBike notifies the buyer. Waivers are discretionary and may be reviewed where payment, shipping instructions, freight booking or collection is delayed.":"Si l’acheminement suivant est retardé par l’acheteur, des frais de stockage peuvent s’appliquer à partir de la date de notification par AnyBike. Les exonérations sont discrétionnaires et peuvent être réexaminées en cas de retard de paiement, d’instructions d’expédition, de réservation de fret ou d’enlèvement.",
       "The Buyer Fee covers AnyBike's work in sourcing or securing the motorcycle, managing the seller or dealer relationship, managing the purchase and moving the transaction into the AnyBike buying and operations process.":"Les frais acheteur couvrent le travail d’AnyBike pour rechercher ou sécuriser la moto, gérer la relation avec le vendeur ou le concessionnaire, gérer l’achat et faire passer la transaction dans le processus d’achat et d’opérations AnyBike.",
       "These fees apply where an international buyer uses AnyBike to source, secure and purchase a motorcycle from the UK.":"Ces frais s’appliquent lorsqu’un acheteur international utilise AnyBike pour rechercher, sécuriser et acheter une moto au Royaume-Uni.",
       "Standard UK trade motorcycles are sold at the agreed AnyBike trade price. Delivery and any specifically requested additional services may be charged separately.":"Les motos destinées au commerce UK sont vendues au prix professionnel AnyBike convenu. La livraison et tout service supplémentaire demandé spécifiquement peuvent être facturés séparément.",
@@ -96,7 +123,7 @@ Date: 20 September 2026
   }
 
   function apply(){
-    if(lang()!=="fr") return;
+    if(!lang().startsWith("fr")) return;
     const map=maps[path];
     if(!map) return;
     document.querySelectorAll("main p, main li, main span, main small, main td, main th, main h2, main h3, main strong, main .tag, main .provider-type, main .notice, main .disclaimer-box p").forEach(el=>{
