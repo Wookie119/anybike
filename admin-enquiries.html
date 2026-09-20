@@ -10491,6 +10491,19 @@ function anyBikeDealSellerConfirmationForMotorcycle(dealMotorcycleId){
   return adminDealSellerConfirmations.get(String(dealMotorcycleId || "")) || null;
 }
 
+function anyBikeSellerSecuredChanged(dealMotorcycleId){
+  const id=Number(dealMotorcycleId);
+  const secured=document.getElementById("deal-seller-secured-"+id);
+  const availability=document.getElementById("deal-seller-availability-"+id);
+
+  if(secured && secured.checked && availability){
+    const current=String(availability.value || "Unknown");
+    if(current==="Unknown"){
+      availability.value="Available";
+    }
+  }
+}
+
 function updateDealSellerCheckFormState(dealMotorcycleId){
   const id = Number(dealMotorcycleId);
   const hold = document.getElementById("deal-seller-hold-" + id);
@@ -10757,7 +10770,7 @@ function renderAnyBikeDealSellerCheckPanel(deal){
           </div>
 
           <label class="anybike-seller-secure-box">
-            <input id="deal-seller-secured-${dealMotorcycleId}" type="checkbox" ${secured ? "checked" : ""} ${securityBlocked && !secured ? "disabled" : ""}>
+            <input id="deal-seller-secured-${dealMotorcycleId}" type="checkbox" ${secured ? "checked" : ""} ${securityBlocked && !secured ? "disabled" : ""} onchange="anyBikeSellerSecuredChanged(${dealMotorcycleId})">
             Motorcycle genuinely secured with seller
           </label>
         </div>
@@ -11073,12 +11086,21 @@ async function saveDealFinalSellerCheck(dealMotorcycleId){
   const securedEl = document.getElementById("deal-seller-secured-" + id);
   const statusEl = document.getElementById("deal-seller-status-" + id);
 
-  const availability = availabilityEl ? String(availabilityEl.value || "Unknown") : "Unknown";
+  let availability = availabilityEl ? String(availabilityEl.value || "Unknown") : "Unknown";
   const sellerPrice = anyBikeSellerMoneyNumber(priceEl ? priceEl.value : "");
   const holdConfirmed = !!(holdEl && holdEl.checked);
   const sellerDepositRequired = !!(depReqEl && depReqEl.checked);
   const sellerDepositAmount = anyBikeSellerMoneyNumber(depAmountEl ? depAmountEl.value : "");
   const bikeSecured = !!(securedEl && securedEl.checked);
+
+  // If staff explicitly confirms the motorcycle is secured, an untouched
+  // "Unknown" availability field is contradictory. Treat that as Available
+  // automatically so the seller-security RPC receives a valid state.
+  if(bikeSecured && availability==="Unknown"){
+    availability="Available";
+    if(availabilityEl){ availabilityEl.value="Available"; }
+  }
+
   const customerDepositOutstanding = Number(paymentRow.deposit_outstanding_gbp || 0);
   const sellerDepositOutstanding = sellerPaymentRow
     ? Number(sellerPaymentRow.seller_deposit_outstanding_gbp || 0)
@@ -11089,6 +11111,14 @@ async function saveDealFinalSellerCheck(dealMotorcycleId){
     if(statusEl){
       statusEl.className = "anybike-seller-statusline error";
       statusEl.textContent = "Enter the seller deposit amount.";
+    }
+    return;
+  }
+
+  if(bikeSecured && !["Available","Reserved"].includes(availability)){
+    if(statusEl){
+      statusEl.className = "anybike-seller-statusline error";
+      statusEl.textContent = "Set Availability to Available or Reserved before marking the motorcycle Secured.";
     }
     return;
   }
