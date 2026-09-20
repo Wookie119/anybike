@@ -299,7 +299,7 @@ sent to an external translation service.
     if(!["export-services.html","international-markets.html"].includes(name)){ return; }
     if(document.querySelector('script[data-anybike-export-markets-translations="true"]')){ return; }
     const script=document.createElement("script");
-    script.src="/public-export-markets-translations.js?v=20260920-3";
+    script.src="/public-export-markets-translations.js?v=20260920-4";
     script.async=false;
     script.dataset.anybikeExportMarketsTranslations="true";
     document.head.appendChild(script);
