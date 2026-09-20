@@ -1,3 +1,16 @@
+
+(function ensureAnyBikeFavicon(){
+  try{
+    let icon=document.querySelector('link[rel~="icon"]');
+    if(!icon){
+      icon=document.createElement('link');
+      icon.rel='icon';
+      document.head.appendChild(icon);
+    }
+    icon.href='/anybike-logo-new.jpg';
+    icon.type='image/jpeg';
+  }catch(e){}
+})();
 /*
 AnyBike
 File: public-header.js
