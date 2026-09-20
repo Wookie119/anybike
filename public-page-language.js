@@ -236,6 +236,14 @@ sent to an external translation service.
   }
 
   function startMutationObserver(){
+    // Available Stock has its own dedicated dynamic translation observer.
+    // Running the generic body observer here as well causes the two
+    // translation systems to react to each other's DOM updates and can
+    // produce a visible repaint/flashing loop near the filters/count area.
+    if(location.pathname==="/available-stock.html"){
+      return;
+    }
+
     if(translationObserver || !document.body){
       return;
     }
