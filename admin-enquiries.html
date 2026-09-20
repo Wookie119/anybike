@@ -12106,7 +12106,10 @@ function renderAnyBikeDealInvoiceDocuments(deal){
 
     const issuedActions =
       String(invoice.invoice_type||"")==="Proforma" && status==="Issued" && Number.isFinite(invoiceId)
-      ? `<div class="anybike-invoice-card-actions"><a class="anybike-invoice-view-btn" href="proforma.html?invoice=${encodeURIComponent(invoiceId)}&doc=${encodeURIComponent(label)}&cb=${Date.now()}" target="anybike-proforma-${invoiceId}" rel="noopener">View Proforma</a></div>`
+      ? `<div class="anybike-invoice-card-actions">
+          <a class="anybike-invoice-view-btn" href="proforma.html?invoice=${encodeURIComponent(invoiceId)}&doc=${encodeURIComponent(label)}&cb=${Date.now()}" target="anybike-proforma-${invoiceId}" rel="noopener">View Proforma</a>
+          ${!combined ? `<button type="button" class="anybike-invoice-secondary-btn" ${dealProformaBusy.has(String(deal.deal_id)) ? "disabled" : ""} onclick="createOrRefreshDealProforma(${Number(deal.deal_id)});return false;">${dealProformaBusy.has(String(deal.deal_id)) ? "Creating Corrected Draft..." : "Create Corrected Draft"}</button>` : ""}
+        </div>`
       : "";
 
     return `<div class="anybike-invoice-card">
@@ -12130,11 +12133,11 @@ function renderAnyBikeDealInvoiceDocuments(deal){
       <div><span>Invoice / Documents</span><h4>${escapeAdminHtml(deal.deal_number||("Deal #"+dealId))}</h4><p>Single and Combined Proformas linked to this Deal are shown here. Combined document totals are separated from this Deal's own share.</p></div>
       <div class="anybike-invoice-badge">${escapeAdminHtml(badgeText)}</div>
     </div>
-    <div class="anybike-invoice-rule"><strong>PROFORMA RULE</strong><span>A Proforma is not a VAT invoice and does not show a VAT breakdown. VAT verification remains separate until the Final Invoice stage.</span></div>
+    <div class="anybike-invoice-rule"><strong>PROFORMA RULE</strong><span>A Proforma is not a VAT invoice and does not show a VAT breakdown. VAT verification remains separate until the Final Invoice stage. Issued Proformas are frozen for audit; if information is missing or changes, correct the Deal/customer/handover information and create a corrected Draft version rather than editing the issued document in place.</span></div>
     ${invoiceCards}
     <div class="anybike-invoice-actions">
       <div>${canCreate ? "Customer offer accepted. A single-Deal Proforma can still be created independently; Combined Proformas remain linked across all included Deals." : "A Proforma becomes available once the customer has accepted the formal AnyBike offer."}</div>
-      ${!latestSingleProforma ? `<button type="button" ${busy||!canCreate ? "disabled" : ""} onclick="createOrRefreshDealProforma(${Number(deal.deal_id)});return false;">${escapeAdminHtml(buttonText)}</button>` : (latestSingleProforma && String(latestSingleProforma.invoice_status||"")==="Issued" ? `<button type="button" class="anybike-invoice-secondary-btn" ${busy||!canCreate ? "disabled" : ""} onclick="createOrRefreshDealProforma(${Number(deal.deal_id)});return false;">${busy ? "Creating New Draft..." : "Create New Draft Version"}</button>` : '')}
+      ${!latestSingleProforma ? `<button type="button" ${busy||!canCreate ? "disabled" : ""} onclick="createOrRefreshDealProforma(${Number(deal.deal_id)});return false;">${escapeAdminHtml(buttonText)}</button>` : (latestSingleProforma && String(latestSingleProforma.invoice_status||"")==="Issued" ? `<button type="button" class="anybike-invoice-secondary-btn" ${busy||!canCreate ? "disabled" : ""} onclick="createOrRefreshDealProforma(${Number(deal.deal_id)});return false;">${busy ? "Creating Corrected Draft..." : "Create Corrected Draft"}</button>` : '')}
     </div>
   </div>`;
 }
