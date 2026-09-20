@@ -296,6 +296,17 @@ sent to an external translation service.
     document.head.appendChild(script);
   }
 
+  function loadInspectionShippingTranslationBundle(){
+    const name=location.pathname.split("/").pop();
+    if(!["motorcycle-inspection.html","shipping-advice.html"].includes(name)){ return; }
+    if(document.querySelector('script[data-anybike-inspection-shipping-translations="true"]')){ return; }
+    const script=document.createElement("script");
+    script.src="/public-inspection-shipping-translations.js?v=20260920-1";
+    script.async=false;
+    script.dataset.anybikeInspectionShippingTranslations="true";
+    document.head.appendChild(script);
+  }
+
   function loadDictionaryBundle(){
     if(document.querySelector('script[data-anybike-page-translations="true"]')){
       return;
@@ -335,6 +346,7 @@ sent to an external translation service.
       loadMarketTranslationBundle();
       loadExportServiceTranslationBundle();
       loadLegalTranslationBundle();
+      loadInspectionShippingTranslationBundle();
       apply(selectedLanguage());
       startMutationObserver();
     },{once:true});
@@ -343,6 +355,7 @@ sent to an external translation service.
       loadMarketTranslationBundle();
       loadExportServiceTranslationBundle();
       loadLegalTranslationBundle();
+      loadInspectionShippingTranslationBundle();
       apply(selectedLanguage());
     startMutationObserver();
   }
