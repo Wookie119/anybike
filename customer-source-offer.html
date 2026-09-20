@@ -244,6 +244,38 @@ h1{
   margin-top:24px;
 }
 
+.trade-acceptance-box{
+  margin-top:20px;
+  padding:18px;
+  border:1px solid #3b3b3b;
+  border-radius:14px;
+  background:#101010;
+}
+.trade-acceptance-box h3{
+  margin:0 0 12px;
+  font-size:17px;
+}
+.trade-acceptance-item{
+  display:flex;
+  align-items:flex-start;
+  gap:10px;
+  margin-top:10px;
+  color:#d6d6d6;
+  font-size:13px;
+  line-height:1.5;
+}
+.trade-acceptance-item input{
+  width:18px;
+  height:18px;
+  margin-top:2px;
+  flex:0 0 auto;
+  accent-color:#ed1c24;
+}
+.trade-acceptance-item a{
+  text-decoration:underline;
+  font-weight:900;
+}
+
 .actions{
   margin-top:24px;
   padding:22px;
@@ -1155,11 +1187,29 @@ function renderOffer(){
                 : `<div class="actions">
                      <h2>Your decision</h2>
                      <p>
-                       Review the motorcycle and offer above.
-                       If you accept, AnyBike will record your acceptance and move the transaction to the next stage.
+                       Review the motorcycle and offer above. You must confirm the trade sale basis and current AnyBike legal terms before acceptance can be recorded.
                      </p>
+                     <div class="trade-acceptance-box">
+                       <h3>Required before acceptance</h3>
+                       <label class="trade-acceptance-item">
+                         <input id="acceptTerms" type="checkbox">
+                         <span>I have read and agree to the <a href="/terms-and-conditions.html" target="_blank" rel="noopener">AnyBike Terms &amp; Conditions</a> (version 20 September 2026).</span>
+                       </label>
+                       <label class="trade-acceptance-item">
+                         <input id="acceptTradePolicy" type="checkbox">
+                         <span>I have read and agree to the <a href="/trade-sales-policy.html" target="_blank" rel="noopener">Trade &amp; Export Sale Policy</a> (version 20 September 2026).</span>
+                       </label>
+                       <label class="trade-acceptance-item">
+                         <input id="acceptTradeBuyer" type="checkbox">
+                         <span>I confirm that I am purchasing this motorcycle wholly or mainly for purposes relating to my trade, business, craft or profession.</span>
+                       </label>
+                       <label class="trade-acceptance-item">
+                         <input id="acceptInspectionBasis" type="checkbox">
+                         <span>I understand that AnyBike's collection/condition check is visual only and is not a mechanical or engineering inspection. If I require a mechanical assessment, I must request an independent third-party inspection before purchase and pay its cost unless agreed otherwise in writing.</span>
+                       </label>
+                     </div>
                      <div class="action-buttons">
-                       <button id="acceptButton" class="accept" type="button">
+                       <button id="acceptButton" class="accept" type="button" disabled>
                          Accept AnyBike Offer
                        </button>
                        <button id="declineButton" class="decline" type="button">
@@ -1179,6 +1229,26 @@ function renderOffer(){
     </div>
   `;
 
+
+  const acceptanceCheckboxes=[
+    "acceptTerms",
+    "acceptTradePolicy",
+    "acceptTradeBuyer",
+    "acceptInspectionBasis"
+  ].map(function(id){ return document.getElementById(id); }).filter(Boolean);
+
+  function syncAcceptanceButton(){
+    const button=document.getElementById("acceptButton");
+    if(!button){ return; }
+    button.disabled=
+      acceptanceCheckboxes.length !== 4 ||
+      !acceptanceCheckboxes.every(function(box){ return box.checked; });
+  }
+
+  acceptanceCheckboxes.forEach(function(box){
+    box.addEventListener("change",syncAcceptanceButton);
+  });
+  syncAcceptanceButton();
 
   document
     .getElementById("acceptButton")
@@ -1294,6 +1364,22 @@ async function acceptOffer(){
     activeOffer?.offer;
 
   if(!o){
+    return;
+  }
+
+  const requiredAcceptances=[
+    document.getElementById("acceptTerms"),
+    document.getElementById("acceptTradePolicy"),
+    document.getElementById("acceptTradeBuyer"),
+    document.getElementById("acceptInspectionBasis")
+  ];
+
+  if(
+    requiredAcceptances.some(function(box){
+      return !box || !box.checked;
+    })
+  ){
+    alert("You must agree to the Terms & Conditions, Trade & Export Sale Policy, trade-buyer declaration and inspection basis before accepting this offer.");
     return;
   }
 
