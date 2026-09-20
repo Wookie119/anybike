@@ -11889,6 +11889,29 @@ function anyBikeInvoiceStatusClass(status){
   return "draft";
 }
 
+function renderAnyBikeDealBalanceRequestGuide(deal){
+  const dealId=String(deal.deal_id||"");
+  const account=adminDealCustomerAccounts.get(dealId)||{};
+  const dealValue=anyBikeAccountNumber(account,["deal_value_gbp"],deal.buyer_value_gbp);
+  const allocated=anyBikeAccountNumber(account,["customer_money_allocated_gbp","allocated_gbp"],0);
+  const balance=anyBikeAccountNumber(account,["customer_balance_due_gbp","balance_due_gbp"],Math.max(dealValue-allocated,0));
+  const thread=adminDealMessageThreads.get(dealId)||null;
+  const invoices=adminDealInvoices.get(dealId)||[];
+  const issued=invoices.find(function(inv){ return String(inv.invoice_type||"")==="Proforma" && String(inv.invoice_status||"")==="Issued" && !inv.is_combined; })||null;
+  const draft=invoices.find(function(inv){ return String(inv.invoice_type||"")==="Proforma" && String(inv.invoice_status||"")==="Draft" && !inv.is_combined; })||null;
+  const docState=issued ? (issued.invoice_number||"Issued Proforma") : (draft ? "Draft Proforma — issue before requesting payment" : "No Proforma issued");
+  const action=thread ? '<a class="anybike-invoice-view-btn" href="admin-message-centre.html?thread='+encodeURIComponent(thread.id)+'">Open Customer Conversation →</a>' : '<span style="color:#ff9b9f;font-weight:900">No linked customer conversation</span>';
+  return '<div class="anybike-transaction-panel" style="margin-bottom:14px">'+
+    '<div class="anybike-transaction-head"><div><span>Next Customer Action</span><h4>Request Full Balance</h4></div><div class="anybike-transaction-badge">'+escapeAdminHtml(anyBikeDealMoney(balance)+' DUE')+'</div></div>'+
+    '<div class="anybike-transaction-grid">'+
+      '<div class="anybike-transaction-state"><span>1 · Document</span><strong>'+escapeAdminHtml(docState)+'</strong></div>'+
+      '<div class="anybike-transaction-state"><span>2 · Request Buyer Payment</span><strong>'+(issued?'READY':'WAITING FOR PROFORMA')+'</strong></div>'+
+      '<div class="anybike-transaction-state"><span>3 · Cleared Funds</span><strong>WAIT FOR PAYMENT</strong></div>'+
+      '<div class="anybike-transaction-state"><span>4 · Record & Allocate</span><strong>ONLY AFTER FUNDS ARRIVE</strong></div>'+
+    '</div>'+
+    '<div class="anybike-transaction-next"><span>Once the motorcycle is secured, issue the current Proforma and request the remaining balance from the buyer. Do not record customer money until cleared funds have actually arrived.</span><strong>'+action+'</strong></div>'+
+  '</div>';
+}
 function renderAnyBikeDealInvoiceDocuments(deal){
   const dealId=String(deal.deal_id||"");
   const invoices=adminDealInvoices.get(dealId)||[];
@@ -12883,7 +12906,7 @@ function renderAnyBikeGuidedJourney(deal,bikes,bikeRows,dealNumber,buyerName,raw
     : `${renderAnyBikeDealCustomerAccount(deal)}${renderAnyBikeDealCustomerLedger(deal)}${renderAnyBikeDealPaymentPanel(deal)}${renderAnyBikeDealInvoiceDocuments(deal)}`;
 
   const balanceBody=secured
-    ? `${renderAnyBikeDealCustomerAccount(deal)}${renderAnyBikeDealCustomerLedger(deal)}${renderAnyBikeDealInvoiceDocuments(deal)}`
+    ? `${renderAnyBikeDealBalanceRequestGuide(deal)}${renderAnyBikeDealInvoiceDocuments(deal)}${renderAnyBikeDealCustomerAccount(deal)}${renderAnyBikeDealCustomerLedger(deal)}`
     : renderAnyBikeDealInvoiceDocuments(deal);
   const purchaseBody=`${renderAnyBikeDealFinancialPanel(deal)}${purchaseReady?"":renderAnyBikeDealSellerCheckPanel(deal)}`;
 
@@ -12898,7 +12921,7 @@ function renderAnyBikeGuidedJourney(deal,bikes,bikeRows,dealNumber,buyerName,raw
       ${anyBikeJourneyStep({title:"UK Handover Plan",subtitle:shippingDone?"Plan confirmed":String(action?.shipping_route_status || "To Be Confirmed"),state:shippingDone?"done":primary.includes("Shipping")?"action":"waiting",open:primary.includes("Shipping"),instruction:shippingDone?"The UK handover plan is confirmed. Reopen only if the handover arrangement changes.":"Confirm where and how AnyBike can hand the motorcycle over in the UK: destination country, UK handover point and freight forwarder / shipper.",body:renderAnyBikeDealShippingRoutePanel(deal)})}
       ${anyBikeJourneyStep({title:"VAT & Purchase Checks",subtitle:vatDone?"VAT verified":String(action?.vat_treatment || "VAT treatment requires verification"),state:(vatDone&&sellerDone)?"done":"action",open:primary.includes("VAT")||primary.includes("Seller"),instruction:(vatDone&&sellerDone)?"VAT and seller checks are complete.":(!sellerDone?"Complete the final seller availability check and verify VAT treatment before purchase.":"Verify the VAT treatment before purchase."),body:purchaseBody})}
       ${anyBikeJourneyStep({title:"Purchase / Secure Motorcycle",subtitle:secured?"Motorcycle secured":purchaseReady?"All purchase gates satisfied":"Waiting for purchase gates",state:secured?"done":purchaseReady?"action":"locked",open:primary==="Ready to Purchase",instruction:secured?"Purchase/security step is complete.":purchaseReady?"Contact the seller, reconfirm availability and price, review the supplier purchase details, then secure the motorcycle and record the seller-side position.":"Complete the outstanding seller, UK handover, VAT and payment gates before purchasing the motorcycle.",body:`${renderAnyBikePurchaseActionGuide(deal)}${renderAnyBikeDealTransactionCompletion(deal)}${renderAnyBikeDealSellerCheckPanel(deal)}`})}
-      ${anyBikeJourneyStep({title:"Balance & Documents",subtitle:customerPaid?"Customer balance cleared":(balance>0?anyBikeDealMoney(balance)+" customer balance due":"Documents / balance review"),state:customerPaid?"done":secured?"action":"locked",open:secured&&!customerPaid,instruction:customerPaid?"Customer balance is cleared. Review the payment ledger and documents when required.":"Record the cleared customer balance here, then allocate the receipt to the motorcycle. The balance only clears after the payment is allocated.",body:balanceBody})}
+      ${anyBikeJourneyStep({title:"Balance & Documents",subtitle:customerPaid?"Customer balance cleared":(balance>0?anyBikeDealMoney(balance)+" customer balance due":"Documents / balance review"),state:customerPaid?"done":secured?"action":"locked",open:secured&&!customerPaid,instruction:customerPaid?"Customer balance is cleared. Review the payment ledger and documents when required.":"The motorcycle is secured. First issue the current Proforma and request the remaining balance from the buyer. Only after cleared funds arrive should you record and allocate the payment.",body:balanceBody})}
       ${anyBikeJourneyStep({title:"Operations",subtitle:secured?"Preparation and operational checks":"Starts after motorcycle is secured",state:secured?(primary==="Operations"?"action":"waiting"):"locked",open:primary==="Operations",instruction:"Complete motorcycle preparation and operational checks before shipping.",body:"<div class=\"deal-step-instruction\">Operations checklists remain connected to this Deal and become the focus once the motorcycle is secured.</div>"})}
       ${anyBikeJourneyStep({title:"Shipping",subtitle:"Final UK handover / shipping workflow",state:String(rawStage)==="Shipping"?"action":"locked",open:String(rawStage)==="Shipping",instruction:"Complete final handover and shipping milestones, then close the Deal when finished.",body:"<div class=\"deal-step-instruction\">Shipping workflow remains connected to the Deal and becomes active at the Shipping stage.</div>"})}
       ${anyBikeJourneyStep({title:"Completed",subtitle:String(rawStage)==="Completed"?"Deal completed":"Final stage",state:String(rawStage)==="Completed"?"done":"locked",instruction:"No further action is required once the Deal is completed.",body:""})}
