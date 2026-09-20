@@ -233,6 +233,5 @@ Date: 20 September 2026
         if(m) el.textContent=t.markets(Number(m[1]));
       });
     });
-    });
   }
 })();
