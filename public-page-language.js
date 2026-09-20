@@ -368,6 +368,17 @@ sent to an external translation service.
     document.head.appendChild(script);
   }
 
+  function loadAllLanguagesExpansion(){
+    const name=location.pathname.split("/").pop();
+    if(!["customer-dashboard.html","customer-messages.html","my-searches.html","my-watchlist.html","my-purchases.html","accounts-documents.html","buy-motorcycles.html","sell-your-motorcycle.html","partners-integrations.html","freight-forwarders.html","services-and-fees.html","privacy-policy.html"].includes(name)){ return; }
+    if(document.querySelector('script[data-anybike-all-languages-expansion="true"]')){ return; }
+    const script=document.createElement("script");
+    script.src="/public-all-languages-expansion.js?v=20260920-1";
+    script.async=false;
+    script.dataset.anybikeAllLanguagesExpansion="true";
+    document.head.appendChild(script);
+  }
+
   function loadLegalTranslationBundle(){
     if(location.pathname!=="/terms-and-conditions.html"){ return; }
     if(document.querySelector('script[data-anybike-legal-translations="true"]')){ return; }
@@ -454,6 +465,7 @@ sent to an external translation service.
       loadFullFrenchPrivacy();
       loadFullFrenchServicesFees();
       loadCustomerAreaTranslations();
+      loadAllLanguagesExpansion();
       loadLegalTranslationBundle();
       loadInspectionShippingTranslationBundle();
       loadStockTranslationBundle();
@@ -472,6 +484,7 @@ sent to an external translation service.
       loadFullFrenchPrivacy();
       loadFullFrenchServicesFees();
       loadCustomerAreaTranslations();
+      loadAllLanguagesExpansion();
       loadLegalTranslationBundle();
       loadInspectionShippingTranslationBundle();
       loadStockTranslationBundle();
