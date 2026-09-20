@@ -362,7 +362,7 @@ sent to an external translation service.
     if(!["customer-dashboard.html","customer-messages.html","my-searches.html","my-watchlist.html","my-purchases.html","accounts-documents.html"].includes(name)){ return; }
     if(document.querySelector('script[data-anybike-customer-area-translations="true"]')){ return; }
     const script=document.createElement("script");
-    script.src="/public-customer-area-translations.js?v=20260920-1";
+    script.src="/public-customer-area-translations.js?v=20260920-2";
     script.async=false;
     script.dataset.anybikeCustomerAreaTranslations="true";
     document.head.appendChild(script);
