@@ -5,7 +5,8 @@
  let busy=false;
  const lang=()=>window.AnyBikePageLanguage.selectedLanguage();
  const d=()=>D[lang()]||D.en;
- const txt=(el,v)=>{if(el&&v!=null)el.textContent=String(v);};
+ const txt=(el,v)=>{if(!el||v==null)return;const next=String(v);if(el.textContent!==next)el.textContent=next;};
+ const html=(el,v)=>{if(!el||v==null)return;const next=String(v);if(el.innerHTML!==next)el.innerHTML=next;};
  function setOption(select,index,value){if(select?.options[index])select.options[index].textContent=value;}
  function applyStatic(){
   if(busy)return;busy=true;
@@ -20,13 +21,13 @@
    document.querySelectorAll('.delivery-option input[name="deliveryPoint"]').forEach(input=>{const small=input.closest("label")?.querySelector("small");if(small)txt(small,x.portHandover);});
    const opts=document.querySelectorAll(".delivery-option");if(opts.length>=18){const a=opts[16].querySelector("span"),b=opts[17].querySelector("span");if(a){a.childNodes[0].nodeValue=x.myForwarder;txt(a.querySelector("small"),x.nominated);}if(b){b.childNodes[0].nodeValue=x.mainlandDealer;txt(b.querySelector("small"),x.dealerAddress);}}
    const custom=document.getElementById("customDeliveryInput");if(custom)custom.placeholder=x.otherPort;
-   const help=document.querySelector(".delivery-help");if(help){txt(help.querySelector("strong"),x.includedStrong);const nodes=[...help.childNodes].filter(n=>n.nodeType===3&&n.nodeValue.trim());if(nodes.length)nodes[nodes.length-1].nodeValue=" "+x.includedRest;}
+   const help=document.querySelector(".delivery-help");if(help){txt(help.querySelector("strong"),x.includedStrong);const nodes=[...help.childNodes].filter(n=>n.nodeType===3&&n.nodeValue.trim());if(nodes.length){const next=" "+x.includedRest;if(nodes[nodes.length-1].nodeValue!==next)nodes[nodes.length-1].nodeValue=next;}}
    const search=document.getElementById("search");if(search)search.placeholder=x.search;
    setOption(document.getElementById("make"),0,x.allMakes);setOption(document.getElementById("model"),0,x.allModels);setOption(document.getElementById("year"),0,x.allYears);
    const pr=document.getElementById("priceRange");[x.allPrices,x.upTo,x.range1,x.range2,x.range3].forEach((v,i)=>setOption(pr,i,v));
    const sort=document.getElementById("sortBy");x.sort.forEach((v,i)=>setOption(sort,i,v));
-   const notice=document.querySelector(".uk-trade-note");if(notice){txt(notice.querySelector("strong"),x.tradeNoticeStrong);const link=notice.querySelector("a");txt(link,x.policy);const tn=[...notice.childNodes].filter(n=>n.nodeType===3&&n.nodeValue.trim());if(tn[0])tn[0].nodeValue=" "+x.tradeNotice+" ";}
-   const sum=document.getElementById("ukTradeSaleSummary");if(sum){txt(sum.querySelector("strong"),x.ukTradeStrong);const tn=[...sum.childNodes].filter(n=>n.nodeType===3&&n.nodeValue.trim());if(tn[0])tn[0].nodeValue=" "+x.ukTrade;}
+   const notice=document.querySelector(".uk-trade-note");if(notice){txt(notice.querySelector("strong"),x.tradeNoticeStrong);const link=notice.querySelector("a");txt(link,x.policy);const tn=[...notice.childNodes].filter(n=>n.nodeType===3&&n.nodeValue.trim());if(tn[0]){const next=" "+x.tradeNotice+" ";if(tn[0].nodeValue!==next)tn[0].nodeValue=next;}}
+   const sum=document.getElementById("ukTradeSaleSummary");if(sum){txt(sum.querySelector("strong"),x.ukTradeStrong);const tn=[...sum.childNodes].filter(n=>n.nodeType===3&&n.nodeValue.trim());if(tn[0]){const next=" "+x.ukTrade;if(tn[0].nodeValue!==next)tn[0].nodeValue=next;}}
    const box=document.getElementById("tradeBuyingBox");if(box){txt(box.querySelector("h3"),x.looking);txt(box.querySelector("p"),x.lookingText);const links=box.querySelectorAll("a");txt(links[0],x.createReq);txt(links[1],x.viewReq);}
    const jump=document.querySelector(".jump");if(jump){txt(jump.querySelector("span"),x.goPage);txt(jump.querySelector("button"),x.go);}
    txt(document.querySelector(".footer span"),x.footer);
@@ -40,12 +41,12 @@
    const x=d();
    const dest=document.getElementById("destination")?.value||"",buyer=document.getElementById("buyerType")?.value||"",status=document.getElementById("destinationStatus");
    if(status&&status.classList.contains("show")){
-     if(dest&&!buyer)status.textContent=x.destinationOnly(dest);
-     else if(!dest&&buyer)status.textContent=x.chooseDestinationStatus;
+     if(dest&&!buyer)txt(status,x.destinationOnly(dest));
+     else if(!dest&&buyer)txt(status,x.chooseDestinationStatus);
      else if(dest&&buyer){
        const isUk=/^(United Kingdom|UK|Great Britain)$/i.test(dest);
-       if(isUk&&buyer==="Private")status.innerHTML="<strong>"+x.ukRetailStrong+"</strong> "+x.ukRetail;
-       else{const raw=isUk?"UK Trade":(buyer==="Trade"?"International Trade":"International Retail");status.textContent=x.channel(channelLabel(raw),dest,false);}
+       if(isUk&&buyer==="Private")html(status,"<strong>"+x.ukRetailStrong+"</strong> "+x.ukRetail);
+       else{const raw=isUk?"UK Trade":(buyer==="Trade"?"International Trade":"International Retail");txt(status,x.channel(channelLabel(raw),dest,false));}
      }
    }
    const rs=document.getElementById("requirementMatchSummary");if(rs){
@@ -57,5 +58,9 @@
  }
  function apply(){applyStatic();}
  window.addEventListener("anybikeLanguageChanged",()=>setTimeout(apply,0));window.addEventListener("anybikePageLanguageApplied",()=>setTimeout(apply,0));window.addEventListener("anybikePublicHeaderReady",()=>setTimeout(apply,0));
- const obs=new MutationObserver(()=>{if(!busy)setTimeout(applyDynamic,0);});document.addEventListener("DOMContentLoaded",()=>{apply();obs.observe(document.querySelector("main")||document.body,{childList:true,subtree:true,characterData:true});});if(document.readyState!=="loading"){apply();obs.observe(document.querySelector("main")||document.body,{childList:true,subtree:true,characterData:true});}
+ let dynamicTimer=0;
+ const obs=new MutationObserver(()=>{if(busy)return;clearTimeout(dynamicTimer);dynamicTimer=setTimeout(applyDynamic,30);});
+ function startObserver(){const root=document.querySelector("main")||document.body;if(root&&!root.dataset.anybikeStockTranslationObserved){root.dataset.anybikeStockTranslationObserved="1";obs.observe(root,{childList:true,subtree:true});}}
+ document.addEventListener("DOMContentLoaded",()=>{apply();startObserver();});
+ if(document.readyState!=="loading"){apply();startObserver();}
 })();
