@@ -2130,6 +2130,7 @@ let myDealMotorcycleByMatch={};
 let myDealNegotiationCache={};
 let myBuyerMatchPools=[];
 let currentBuyerMatchRows=[];
+let myPurchaseByDeal={};
 let openCustomerOfferMatchId=null;
 let savedHandoverPlans=[];
 let dealHandoverSelections={};
@@ -3035,27 +3036,134 @@ document.addEventListener("click",function(event){
   }
 });
 
-function customerPurchaseCardHtml(match){
-  const title=[match.stock_make,match.stock_model].filter(Boolean).join(" ") || "Motorcycle";
-  const variant=String(match.stock_variant || "").trim();
-  const image=String(match.stock_image_url || "").trim();
-  const motorcyclePrice=Number(match.confirmed_customer_price_gbp || 0);
-  const deliveryCharge=Number(match.offer_delivery_charge_gbp || 0);
-  const total=motorcyclePrice+deliveryCharge;
-  const deposit=Number(match.offer_deposit_amount_gbp || 0);
-  const acceptedAt=match.customer_offer_decided_at || match.buyer_responded_at || null;
-  const status=String(match.match_status || "");
-  const destination=String(match.offer_delivery_destination || "").trim();
-  const saleBasis=String(match.offer_sale_basis || "").trim() || "AnyBike offer";
+function customerDashboardPurchaseState(purchase){
+  if(!purchase) return null;
 
-  let progressTitle="Purchase in Progress";
-  let progressText="Your AnyBike offer has been accepted. The motorcycle is not yet treated as secured with the seller.";
-  let nextStep="Deposit / payment stage";
+  const depositRequired=Boolean(purchase.deposit_required);
+  const depositDue=Number(purchase.deposit_due_gbp || 0);
+  const depositAllocated=Number(purchase.deposit_allocated_gbp || 0);
+  const depositOutstanding=Number(purchase.deposit_outstanding_gbp || 0);
+  const moneyReceived=Number(purchase.customer_money_received_deal_gbp || 0);
+  const allocated=Number(purchase.customer_allocated_motorcycle_gbp || 0);
+  const balance=Number(purchase.customer_balance_motorcycle_gbp || 0);
+  const secured=Boolean(purchase.motorcycle_secured);
+
+  const depositSatisfied=
+    !depositRequired ||
+    depositDue<=0 ||
+    depositOutstanding<=0;
+
+  const fullyPaid=balance<=0;
+
+  let heading="Purchase in Progress";
+  let message="Your AnyBike purchase is progressing.";
+  let nextStep=String(purchase.next_customer_stage || "").trim();
+
+  if(secured && fullyPaid){
+    heading="Motorcycle Secured & Paid";
+    message="Your motorcycle has been secured with the seller and your motorcycle payment has been received in full.";
+  }else if(secured){
+    heading="Motorcycle Secured";
+    message="AnyBike has secured this motorcycle with the seller. The remaining balance and documentation stages can now continue.";
+  }else if(!depositSatisfied){
+    heading="Deposit / Payment Required";
+    message="Your formal AnyBike offer has been accepted. Your deposit is currently due and the motorcycle has not yet been secured with the seller.";
+  }else{
+    heading="Final Seller Check";
+    message="Your deposit has been received. AnyBike is completing the final seller security stage before the motorcycle is marked as secured.";
+  }
+
+  if(!nextStep){
+    if(!depositSatisfied) nextStep="Deposit / payment stage";
+    else if(!secured) nextStep="Final Seller Check / securing motorcycle";
+    else if(!fullyPaid) nextStep="Balance & Documents";
+    else nextStep="Operations / Shipping";
+  }
+
+  let paymentStatus=String(purchase.customer_payment_status || "").trim();
+  if(fullyPaid) paymentStatus="Paid in Full";
+  else if(!depositSatisfied) paymentStatus="Deposit Due";
+  else if(allocated>0 || depositAllocated>0) paymentStatus="Deposit Paid / Verified";
+  else paymentStatus=paymentStatus || "Part Paid";
+
+  return {
+    depositRequired,
+    depositDue,
+    depositAllocated,
+    depositOutstanding,
+    depositSatisfied,
+    moneyReceived,
+    allocated,
+    balance,
+    secured,
+    fullyPaid,
+    heading,
+    message,
+    nextStep,
+    paymentStatus
+  };
+}
+
+function customerPurchaseCardHtml(match){
+  const purchase=match?._deal_id ? myPurchaseByDeal[String(match._deal_id)] : null;
+  const state=customerDashboardPurchaseState(purchase);
+
+  const title=[
+    purchase?.make || match.stock_make,
+    purchase?.model || match.stock_model
+  ].filter(Boolean).join(" ") || "Motorcycle";
+
+  const variant=String(purchase?.variant || match.stock_variant || "").trim();
+  const image=String(
+    purchase?.image_url ||
+    purchase?.snapshot_primary_image_url ||
+    purchase?.stock_image_url ||
+    match.stock_image_url ||
+    ""
+  ).trim();
+
+  const motorcyclePrice=Number(
+    purchase?.motorcycle_price_gbp ??
+    match.confirmed_customer_price_gbp ??
+    0
+  );
+  const deliveryCharge=Number(
+    purchase?.delivery_charge_gbp ??
+    match.offer_delivery_charge_gbp ??
+    0
+  );
+  const total=motorcyclePrice+deliveryCharge;
+
+  const legacyDeposit=Number(match.offer_deposit_amount_gbp || 0);
+  const acceptedAt=purchase?.offer_accepted_at || match.customer_offer_decided_at || match.buyer_responded_at || null;
+  const status=String(match.match_status || "");
+  const destination=String(purchase?.delivery_destination || match.offer_delivery_destination || "").trim();
+  const saleBasis=String(purchase?.sale_basis || match.offer_sale_basis || "").trim() || "AnyBike offer";
+
+  let progressTitle=state?.heading || "Purchase in Progress";
+  let progressText=state?.message || "Your AnyBike offer has been accepted. The motorcycle is not yet treated as secured with the seller.";
+  let nextStep=state?.nextStep || "Deposit / payment stage";
 
   if(status==="Sold"){
     progressTitle="Purchase Completed";
     progressText="This motorcycle has progressed to the completed purchase stage.";
     nextStep="Completed";
+  }
+
+  let depositDisplay=legacyDeposit>0 ? `${buyerMatchMoney(legacyDeposit)} due` : "No deposit specified";
+  let paymentStatus=legacyDeposit>0 ? "Deposit Due" : "Payment stage";
+  let motorcycleStatus="Not Yet Secured";
+
+  if(state){
+    if(state.depositRequired){
+      depositDisplay=state.depositSatisfied
+        ? `${buyerMatchMoney(state.depositDue)} received`
+        : `${buyerMatchMoney(state.depositOutstanding || state.depositDue)} due`;
+    }else{
+      depositDisplay="No deposit required";
+    }
+    paymentStatus=state.paymentStatus;
+    motorcycleStatus=state.secured ? "SECURED" : "Not Yet Secured";
   }
 
   return `
@@ -3086,12 +3194,14 @@ function customerPurchaseCardHtml(match){
         </div>
 
         <div class="my-offer-details">
-          <div class="my-offer-detail"><span>Deposit</span>${deposit>0 ? `${safe(buyerMatchMoney(deposit))} due` : "No deposit specified"}</div>
-          <div class="my-offer-detail"><span>Payment status</span>${deposit>0 ? "Deposit Due" : "Payment stage"}</div>
-          <div class="my-offer-detail"><span>Motorcycle status</span>Not Yet Secured</div>
+          <div class="my-offer-detail"><span>Deposit</span>${safe(depositDisplay)}</div>
+          <div class="my-offer-detail"><span>Payment status</span>${safe(paymentStatus)}</div>
+          <div class="my-offer-detail"><span>Motorcycle status</span>${safe(motorcycleStatus)}</div>
           <div class="my-offer-detail"><span>Sale basis</span>${safe(saleBasis)}</div>
           <div class="my-offer-detail"><span>Delivery / collection</span>${safe(customerOfferDeliveryLabel(match))}</div>
           <div class="my-offer-detail"><span>Offer accepted</span>${acceptedAt ? safe(new Date(acceptedAt).toLocaleString("en-GB")) : "-"}</div>
+          ${state ? `<div class="my-offer-detail"><span>Payments received</span>${safe(buyerMatchMoney(state.moneyReceived) || "£0.00")}</div>` : ""}
+          ${state ? `<div class="my-offer-detail"><span>Balance remaining</span>${safe(buyerMatchMoney(state.balance) || "£0.00")}</div>` : ""}
           ${destination ? `<div class="my-offer-detail" style="grid-column:1/-1"><span>Destination</span>${safe(destination)}</div>` : ""}
         </div>
 
@@ -3100,7 +3210,7 @@ function customerPurchaseCardHtml(match){
           <strong>${safe(nextStep)}</strong>
         </div>
 
-        ${customerDealShipperChoiceHtml(match)}
+        ${customerDealShipperChoiceHtml(match,purchase)}
 
         <div class="my-purchase-actions">
           <a class="my-purchase-view" href="${match?._offer_source==="deal360"
@@ -3109,7 +3219,10 @@ function customerPurchaseCardHtml(match){
           }">View Purchase</a>
         </div>
 
-        <p class="my-offer-note">Acceptance records your commitment to the AnyBike offer. The motorcycle remains not yet secured until AnyBike completes the final seller security stage.</p>
+        <p class="my-offer-note">${state?.depositSatisfied
+          ? "Your deposit has been received. Motorcycle security is confirmed separately by AnyBike after the final seller check."
+          : "Acceptance records your commitment to the AnyBike offer. The motorcycle remains not yet secured until AnyBike completes the final seller security stage."
+        }</p>
       </div>
     </article>
   `;
@@ -3230,11 +3343,12 @@ async function loadBuyerPotentialMatches(){
     loadDealHandoverSelections()
   ]);
 
-  const [poolRes,matchRes,dealRes,dealOfferRes]=await Promise.all([
+  const [poolRes,matchRes,dealRes,dealOfferRes,purchaseRes]=await Promise.all([
     sb.rpc("get_my_buyer_match_pools"),
     sb.rpc("get_my_buyer_match_dashboard_v3"),
     sb.rpc("get_my_deal_motorcycles"),
-    sb.rpc("get_my_deal_offers_v2")
+    sb.rpc("get_my_deal_offers_v2"),
+    sb.rpc("get_my_purchases_v2")
   ]);
 
   if(poolRes.error){
@@ -3272,6 +3386,17 @@ async function loadBuyerPotentialMatches(){
     console.warn("Deal 360 formal offers could not be loaded",dealOfferRes.error.message);
   }else{
     deal360OfferRows=(dealOfferRes.data || []).map(normaliseDeal360OfferForDashboard);
+  }
+
+  myPurchaseByDeal={};
+  if(purchaseRes.error){
+    console.warn("Current purchase progress could not be loaded",purchaseRes.error.message);
+  }else{
+    (purchaseRes.data || []).forEach(purchase=>{
+      if(purchase?.deal_id!==null && purchase?.deal_id!==undefined){
+        myPurchaseByDeal[String(purchase.deal_id)]=purchase;
+      }
+    });
   }
 
   const allCustomerOfferRows=[...buyerMatchRows,...deal360OfferRows];
@@ -3966,12 +4091,46 @@ async function deleteShippingPreference(planId){
   }
 }
 
-function customerDealShipperChoiceHtml(match){
+function customerDealShipperChoiceHtml(match,purchase=null){
   if(match?._offer_source!=="deal360" || !match?._deal_id) return "";
 
   const dealId=String(match._deal_id);
   const current=dealHandoverSelections[dealId];
   const selectedId=Number(current?.handover_plan_id || 0);
+  const selectedPlan=savedHandoverPlans.find(plan=>Number(plan.id)===selectedId) || null;
+
+  const nextStage=String(purchase?.next_customer_stage || "").trim().toLowerCase();
+  const secured=Boolean(purchase?.motorcycle_secured);
+  const handoverConfirmed=
+    secured ||
+    nextStage.includes("final seller") ||
+    nextStage.includes("motorcycle secured") ||
+    nextStage.includes("balance") ||
+    nextStage.includes("document") ||
+    nextStage.includes("operation") ||
+    nextStage.includes("shipping") ||
+    nextStage.includes("complete");
+
+  if(handoverConfirmed){
+    const planName=selectedPlan ? shippingPlanLabel(selectedPlan) : "Confirmed with AnyBike";
+    const detail=selectedPlan
+      ? [
+          selectedPlan.uk_handover_point,
+          selectedPlan.freight_forwarder_name,
+          selectedPlan.contact_name
+        ].filter(Boolean).join(" · ")
+      : "Your UK handover / shipper plan has been confirmed for this purchase.";
+
+    return `
+      <div class="shipper-choice">
+        <div class="shipper-choice-title">UK Handover / Shipper</div>
+        <div class="shipper-choice-status ok">
+          <strong>✓ Handover plan confirmed</strong><br>
+          ${safe(planName)}${detail ? ` · ${safe(detail)}` : ""}
+        </div>
+      </div>
+    `;
+  }
 
   if(!savedHandoverPlans.length){
     return `
