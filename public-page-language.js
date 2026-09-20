@@ -307,6 +307,16 @@ sent to an external translation service.
     document.head.appendChild(script);
   }
 
+  function loadStockTranslationBundle(){
+    if(location.pathname!=="/available-stock.html"){ return; }
+    if(document.querySelector('script[data-anybike-stock-translations="true"]')){ return; }
+    const script=document.createElement("script");
+    script.src="/public-stock-translations.js?v=20260920-1";
+    script.async=false;
+    script.dataset.anybikeStockTranslations="true";
+    document.head.appendChild(script);
+  }
+
   function loadDictionaryBundle(){
     if(document.querySelector('script[data-anybike-page-translations="true"]')){
       return;
@@ -347,6 +357,7 @@ sent to an external translation service.
       loadExportServiceTranslationBundle();
       loadLegalTranslationBundle();
       loadInspectionShippingTranslationBundle();
+      loadStockTranslationBundle();
       apply(selectedLanguage());
       startMutationObserver();
     },{once:true});
@@ -356,6 +367,7 @@ sent to an external translation service.
       loadExportServiceTranslationBundle();
       loadLegalTranslationBundle();
       loadInspectionShippingTranslationBundle();
+      loadStockTranslationBundle();
       apply(selectedLanguage());
     startMutationObserver();
   }
