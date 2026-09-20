@@ -91,7 +91,7 @@ Date: 20 September 2026
     if(!lang().startsWith("fr")) return;
     document.querySelectorAll("main *").forEach(el=>{
       const key=String(el.textContent||"").replace(/\s+/g," ").trim();
-      if(map[key] && el.children.length===0) el.textContent=map[key];
+      if(map[key] && map[key]!==key && el.children.length===0) el.textContent=map[key];
     });
 
     document.querySelectorAll("main p.card-note").forEach(el=>{
@@ -104,7 +104,5 @@ Date: 20 September 2026
   }
   window.addEventListener("anybikeLanguageChanged",()=>setTimeout(apply,0));
   document.addEventListener("DOMContentLoaded",()=>setTimeout(apply,50));
-  const obs=new MutationObserver(()=>apply());
-  obs.observe(document.documentElement,{childList:true,subtree:true});
   setTimeout(apply,100);
 })();
