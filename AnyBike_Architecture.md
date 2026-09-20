@@ -95,3 +95,16 @@ Every message must keep links to the correct customer, bike, enquiry, request, d
 - Motorcycle Inspection page to distinguish visual collection checks from independent mechanical inspection.
 - Buying / Available Stock / Export / Formal Offer pages to be aligned with the trade/export sale basis.
 - Next database work: auditable Trade Buyer Declaration and auditable Inspection Basis captured at offer acceptance / Deal 360.
+
+
+### Buyer legal acceptance rule
+- All AnyBike account registrations must explicitly accept the current Terms & Conditions and Privacy Policy.
+- Account registration acceptance does **not** replace the transaction-level trade declaration.
+- A buyer must not be able to accept a motorcycle Formal Offer until they explicitly confirm all of the following:
+  1. current AnyBike Terms & Conditions;
+  2. current Trade & Export Sale Policy;
+  3. that the purchase is wholly or mainly for purposes relating to their trade, business, craft or profession;
+  4. that AnyBike's collection/condition check is visual only and is not a mechanical or engineering inspection, and that any required independent mechanical inspection must be requested before purchase and paid for by the buyer unless otherwise agreed.
+- These transaction acceptances must ultimately be stored as a permanent audit record with user ID, offer/deal ID, acceptance timestamp and policy/version identifiers.
+- Future Formal Offer acceptance must fail closed if the required legal acceptance record cannot be created.
+- Current policy version introduced 20 September 2026.
