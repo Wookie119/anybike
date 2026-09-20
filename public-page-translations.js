@@ -563,4 +563,115 @@ English remains the drafting/source language.
     });
   }
 
+
+
+  // Indonesian / Malay / Chinese — shared public vocabulary.
+  window.AnyBikePageLanguage.register({
+    root:"body",
+    translations:{
+      id:{text:{
+        "Home":"Beranda","Available Stock":"Stok Tersedia","Available Motorcycles":"Motor Tersedia","Motorcycles":"Sepeda Motor","Trade":"Perdagangan","Export":"Ekspor","About AnyBike":"Tentang AnyBike","Partners":"Mitra","Contact AnyBike":"Hubungi AnyBike",
+        "Browse Motorcycles":"Lihat Sepeda Motor","Browse Available Stock":"Lihat Stok Tersedia","View Details":"Lihat Detail","Learn More":"Pelajari Selengkapnya","Send Message":"Kirim Pesan","Continue":"Lanjut","Back":"Kembali","Close":"Tutup","Search":"Cari","Clear":"Hapus","Please select":"Silakan pilih",
+        "Name":"Nama","Your Name":"Nama Anda","Email":"Email","Phone":"Telepon","Country":"Negara","Postcode":"Kode Pos","Website":"Situs Web","Message":"Pesan","Subject":"Subjek","Notes":"Catatan",
+        "Make":"Merek","Model":"Model","Variant":"Varian","Year":"Tahun","Mileage":"Jarak Tempuh","Colour":"Warna","Price":"Harga","Deposit":"Deposit","Balance":"Sisa","Total":"Total","Delivery":"Pengiriman","Collection":"Pengambilan","Inspection":"Inspeksi","Shipping":"Pengiriman","Documents":"Dokumen",
+        "Terms & Conditions":"Syarat & Ketentuan","Privacy Policy":"Kebijakan Privasi","Trade & Export Sale Policy":"Kebijakan Penjualan Perdagangan & Ekspor"
+      }},
+      ms:{text:{
+        "Home":"Laman Utama","Available Stock":"Stok Tersedia","Available Motorcycles":"Motosikal Tersedia","Motorcycles":"Motosikal","Trade":"Perdagangan","Export":"Eksport","About AnyBike":"Tentang AnyBike","Partners":"Rakan Kongsi","Contact AnyBike":"Hubungi AnyBike",
+        "Browse Motorcycles":"Lihat Motosikal","Browse Available Stock":"Lihat Stok Tersedia","View Details":"Lihat Butiran","Learn More":"Ketahui Lebih Lanjut","Send Message":"Hantar Mesej","Continue":"Teruskan","Back":"Kembali","Close":"Tutup","Search":"Cari","Clear":"Kosongkan","Please select":"Sila pilih",
+        "Name":"Nama","Your Name":"Nama Anda","Email":"E-mel","Phone":"Telefon","Country":"Negara","Postcode":"Poskod","Website":"Laman Web","Message":"Mesej","Subject":"Subjek","Notes":"Nota",
+        "Make":"Jenama","Model":"Model","Variant":"Varian","Year":"Tahun","Mileage":"Perbatuan","Colour":"Warna","Price":"Harga","Deposit":"Deposit","Balance":"Baki","Total":"Jumlah","Delivery":"Penghantaran","Collection":"Pengambilan","Inspection":"Pemeriksaan","Shipping":"Penghantaran","Documents":"Dokumen",
+        "Terms & Conditions":"Terma & Syarat","Privacy Policy":"Dasar Privasi","Trade & Export Sale Policy":"Dasar Jualan Perdagangan & Eksport"
+      }},
+      zh:{text:{
+        "Home":"首页","Available Stock":"可售库存","Available Motorcycles":"可售摩托车","Motorcycles":"摩托车","Trade":"贸易","Export":"出口","About AnyBike":"关于 AnyBike","Partners":"合作伙伴","Contact AnyBike":"联系 AnyBike",
+        "Browse Motorcycles":"浏览摩托车","Browse Available Stock":"浏览可售库存","View Details":"查看详情","Learn More":"了解更多","Send Message":"发送消息","Continue":"继续","Back":"返回","Close":"关闭","Search":"搜索","Clear":"清除","Please select":"请选择",
+        "Name":"姓名","Your Name":"您的姓名","Email":"电子邮箱","Phone":"电话","Country":"国家","Postcode":"邮编","Website":"网站","Message":"消息","Subject":"主题","Notes":"备注",
+        "Make":"品牌","Model":"车型","Variant":"版本","Year":"年份","Mileage":"里程","Colour":"颜色","Price":"价格","Deposit":"订金","Balance":"余额","Total":"合计","Delivery":"交付","Collection":"提车","Inspection":"检查","Shipping":"运输","Documents":"文件",
+        "Terms & Conditions":"条款与条件","Privacy Policy":"隐私政策","Trade & Export Sale Policy":"贸易与出口销售政策"
+      }}
+    }
+  });
+
+  if(path==="/about-us.html"){
+    window.AnyBikePageLanguage.register({
+      root:"body",
+      translations:{
+        id:{text:{
+          "About AnyBike":"Tentang AnyBike","A different way to buy and trade":"Cara berbeda untuk membeli dan memperdagangkan","UK motorcycles.":"sepeda motor Inggris.",
+          "AnyBike is a motorcycle trading platform built to bring authorised UK motorcycle supply together with international retail buyers, international trade buyers and UK motorcycle trade customers.":"AnyBike adalah platform perdagangan sepeda motor yang mempertemukan pasokan sepeda motor Inggris yang terotorisasi dengan pembeli internasional dan pelanggan perdagangan sepeda motor.",
+          "Unlike a traditional classified marketplace, AnyBike does not simply introduce buyers to supplying dealers. Where a transaction proceeds, AnyBike agrees the purchase, buys the motorcycle and resells it to the customer.":"Berbeda dari situs iklan biasa, AnyBike tidak sekadar mempertemukan pembeli dengan pemasok. Saat transaksi berjalan, AnyBike menyetujui pembelian, membeli sepeda motor, lalu menjualnya kembali kepada pelanggan.",
+          "How AnyBike works":"Cara kerja AnyBike","AnyBike is the buyer and the seller.":"AnyBike adalah pembeli sekaligus penjual.",
+          "Experience":"Pengalaman","Approximately 40 years of motorcycle industry experience behind AnyBike.":"Sekitar 40 tahun pengalaman industri sepeda motor mendukung AnyBike.",
+          "Why we are building AnyBike":"Mengapa kami membangun AnyBike","Motorcycles should move more intelligently between markets.":"Sepeda motor seharusnya berpindah antar pasar dengan lebih cerdas.",
+          "Who AnyBike sells to":"Kepada siapa AnyBike menjual","International buyers and motorcycle trade customers.":"Pembeli internasional dan pelanggan perdagangan sepeda motor.",
+          "International Retail":"Internasional","International Trade":"Perdagangan Internasional","UK Trade":"Perdagangan Inggris","No UK Retail Sales":"Tidak Ada Penjualan Ritel di Inggris",
+          "For motorcycle dealers":"Untuk dealer sepeda motor","A supply network and a buying network.":"Jaringan pasokan sekaligus jaringan pembelian.","Dealer Opportunities":"Peluang Dealer","Connect stock":"Hubungkan stok","Confidential Trade Prices":"Harga Perdagangan Rahasia","Sell to AnyBike":"Jual ke AnyBike","Buy through AnyBike":"Beli melalui AnyBike","Buy, sell, supply or work with AnyBike.":"Beli, jual, pasok, atau bekerja sama dengan AnyBike."
+        }},
+        ms:{text:{
+          "About AnyBike":"Tentang AnyBike","A different way to buy and trade":"Cara berbeza untuk membeli dan berdagang","UK motorcycles.":"motosikal UK.",
+          "AnyBike is a motorcycle trading platform built to bring authorised UK motorcycle supply together with international retail buyers, international trade buyers and UK motorcycle trade customers.":"AnyBike ialah platform perdagangan motosikal yang menghubungkan bekalan motosikal UK yang sah dengan pembeli antarabangsa dan pelanggan perdagangan motosikal.",
+          "Unlike a traditional classified marketplace, AnyBike does not simply introduce buyers to supplying dealers. Where a transaction proceeds, AnyBike agrees the purchase, buys the motorcycle and resells it to the customer.":"Tidak seperti laman iklan biasa, AnyBike bukan sekadar memperkenalkan pembeli kepada pembekal. Apabila transaksi diteruskan, AnyBike bersetuju membeli motosikal dan menjualnya semula kepada pelanggan.",
+          "How AnyBike works":"Cara AnyBike berfungsi","AnyBike is the buyer and the seller.":"AnyBike ialah pembeli dan penjual.",
+          "Experience":"Pengalaman","Approximately 40 years of motorcycle industry experience behind AnyBike.":"AnyBike disokong oleh kira-kira 40 tahun pengalaman industri motosikal.",
+          "Why we are building AnyBike":"Mengapa kami membina AnyBike","Motorcycles should move more intelligently between markets.":"Motosikal patut bergerak antara pasaran dengan lebih bijak.",
+          "Who AnyBike sells to":"Kepada siapa AnyBike menjual","International buyers and motorcycle trade customers.":"Pembeli antarabangsa dan pelanggan perdagangan motosikal.",
+          "International Retail":"Antarabangsa","International Trade":"Perdagangan Antarabangsa","UK Trade":"Perdagangan UK","No UK Retail Sales":"Tiada Jualan Runcit UK",
+          "For motorcycle dealers":"Untuk peniaga motosikal","A supply network and a buying network.":"Rangkaian bekalan dan rangkaian pembelian.","Dealer Opportunities":"Peluang Peniaga","Connect stock":"Sambung stok","Confidential Trade Prices":"Harga Perdagangan Sulit","Sell to AnyBike":"Jual kepada AnyBike","Buy through AnyBike":"Beli melalui AnyBike","Buy, sell, supply or work with AnyBike.":"Beli, jual, bekal atau bekerjasama dengan AnyBike."
+        }},
+        zh:{text:{
+          "About AnyBike":"关于 AnyBike","A different way to buy and trade":"一种不同的购买和交易方式","UK motorcycles.":"英国摩托车。",
+          "AnyBike is a motorcycle trading platform built to bring authorised UK motorcycle supply together with international retail buyers, international trade buyers and UK motorcycle trade customers.":"AnyBike 是一个摩托车交易平台，将获授权的英国摩托车供应与国际买家及摩托车贸易客户连接起来。",
+          "Unlike a traditional classified marketplace, AnyBike does not simply introduce buyers to supplying dealers. Where a transaction proceeds, AnyBike agrees the purchase, buys the motorcycle and resells it to the customer.":"与传统分类广告平台不同，AnyBike 不只是介绍买家与供应商认识。交易继续时，AnyBike 会达成采购、买入摩托车，再转售给客户。",
+          "How AnyBike works":"AnyBike 如何运作","AnyBike is the buyer and the seller.":"AnyBike 既是买方也是卖方。",
+          "Experience":"经验","Approximately 40 years of motorcycle industry experience behind AnyBike.":"AnyBike 背后拥有约 40 年摩托车行业经验。",
+          "Why we are building AnyBike":"我们为什么建立 AnyBike","Motorcycles should move more intelligently between markets.":"摩托车应当更智能地在不同市场之间流通。",
+          "Who AnyBike sells to":"AnyBike 的销售对象","International buyers and motorcycle trade customers.":"国际买家及摩托车贸易客户。",
+          "International Retail":"国际客户","International Trade":"国际贸易","UK Trade":"英国贸易","No UK Retail Sales":"英国不向公众零售",
+          "For motorcycle dealers":"面向摩托车经销商","A supply network and a buying network.":"既是供应网络，也是采购网络。","Dealer Opportunities":"经销商机会","Connect stock":"连接库存","Confidential Trade Prices":"保密贸易价格","Sell to AnyBike":"卖给 AnyBike","Buy through AnyBike":"通过 AnyBike 购买","Buy, sell, supply or work with AnyBike.":"通过 AnyBike 购买、销售、供货或合作。"
+        }}
+      }
+    });
+  }
+
+  if(path==="/anybike-connect.html"){
+    window.AnyBikePageLanguage.register({
+      root:"body",
+      translations:{
+        id:{text:{
+          "International & trade motorcycle buying":"Pembelian sepeda motor internasional & perdagangan","AnyBike Connect":"AnyBike Connect",
+          "Buy motorcycles from AnyBike internationally, trade motorcycles within the UK dealer network, supply motorcycles to AnyBike or arrange international motorcycle services.":"Beli sepeda motor dari AnyBike secara internasional, berdagang dalam jaringan dealer Inggris, pasok sepeda motor ke AnyBike, atau atur layanan sepeda motor internasional.",
+          "Important: AnyBike does not sell motorcycles to the general public in the UK.":"Penting: AnyBike tidak menjual sepeda motor kepada masyarakat umum di Inggris.",
+          "What would you like to do?":"Apa yang ingin Anda lakukan?","Choose the route that best matches what you need. AnyBike will collect the right information and send your enquiry to the correct team.":"Pilih jalur yang paling sesuai. AnyBike akan mengumpulkan informasi yang tepat dan mengirim permintaan Anda ke tim yang sesuai.",
+          "Buy a Motorcycle":"Beli Sepeda Motor","Sell / Supply a Motorcycle":"Jual / Pasok Sepeda Motor","I'm a Motorcycle Dealer":"Saya Dealer Sepeda Motor","International Motorcycle Services":"Layanan Sepeda Motor Internasional",
+          "Your Name *":"Nama Anda *","Company Name":"Nama Perusahaan","Email Address *":"Alamat Email *","Phone / WhatsApp":"Telepon / WhatsApp","Country *":"Negara *","Postcode / ZIP":"Kode Pos","Preferred Contact":"Kontak Pilihan","Subject *":"Subjek *","Message *":"Pesan *","Send Message":"Kirim Pesan","Choose Different Journey":"Pilih Jalur Lain","Something else?":"Keperluan lain?",
+          "Buying details":"Detail pembelian","Buying as":"Membeli sebagai","Private buyer":"Pembeli pribadi","Motorcycle dealer / trader":"Dealer / pedagang sepeda motor","Motorcycle wanted":"Sepeda motor yang dicari","Preferred year / age":"Tahun / usia pilihan","Maximum mileage":"Jarak tempuh maksimum","Budget":"Anggaran","Quantity":"Jumlah","Delivery / shipping requirements":"Kebutuhan pengiriman",
+          "Motorcycle supply details":"Detail pasokan","You are":"Anda adalah","Private Seller":"Penjual Pribadi","Motorcycle Dealer / Trader":"Dealer / Pedagang Sepeda Motor","Registration":"Registrasi","Price wanted":"Harga yang diinginkan","Finance outstanding?":"Masih ada pembiayaan?","Interested in a quick sale?":"Tertarik menjual cepat?",
+          "Dealer enquiry":"Permintaan dealer","International service requirement":"Kebutuhan layanan internasional","Service required":"Layanan yang dibutuhkan","Destination country":"Negara tujuan","Destination city / port":"Kota / pelabuhan tujuan","Freight forwarder / shipping company":"Freight forwarder / perusahaan pengiriman"
+        }},
+        ms:{text:{
+          "International & trade motorcycle buying":"Pembelian motosikal antarabangsa & perdagangan","AnyBike Connect":"AnyBike Connect",
+          "Buy motorcycles from AnyBike internationally, trade motorcycles within the UK dealer network, supply motorcycles to AnyBike or arrange international motorcycle services.":"Beli motosikal daripada AnyBike secara antarabangsa, berdagang dalam rangkaian peniaga UK, bekalkan motosikal kepada AnyBike atau atur perkhidmatan motosikal antarabangsa.",
+          "Important: AnyBike does not sell motorcycles to the general public in the UK.":"Penting: AnyBike tidak menjual motosikal kepada orang awam di UK.",
+          "What would you like to do?":"Apa yang anda mahu lakukan?","Choose the route that best matches what you need. AnyBike will collect the right information and send your enquiry to the correct team.":"Pilih laluan yang paling sesuai dengan keperluan anda. AnyBike akan mengumpulkan maklumat yang betul dan menghantar pertanyaan anda kepada pasukan yang sesuai.",
+          "Buy a Motorcycle":"Beli Motosikal","Sell / Supply a Motorcycle":"Jual / Bekal Motosikal","I'm a Motorcycle Dealer":"Saya Peniaga Motosikal","International Motorcycle Services":"Perkhidmatan Motosikal Antarabangsa",
+          "Your Name *":"Nama Anda *","Company Name":"Nama Syarikat","Email Address *":"Alamat E-mel *","Phone / WhatsApp":"Telefon / WhatsApp","Country *":"Negara *","Postcode / ZIP":"Poskod","Preferred Contact":"Hubungan Pilihan","Subject *":"Subjek *","Message *":"Mesej *","Send Message":"Hantar Mesej","Choose Different Journey":"Pilih Laluan Lain","Something else?":"Perkara lain?",
+          "Buying details":"Butiran pembelian","Buying as":"Membeli sebagai","Private buyer":"Pembeli persendirian","Motorcycle dealer / trader":"Peniaga / pedagang motosikal","Motorcycle wanted":"Motosikal yang dicari","Preferred year / age":"Tahun / umur pilihan","Maximum mileage":"Perbatuan maksimum","Budget":"Bajet","Quantity":"Kuantiti","Delivery / shipping requirements":"Keperluan penghantaran",
+          "Motorcycle supply details":"Butiran bekalan","You are":"Anda ialah","Private Seller":"Penjual Persendirian","Motorcycle Dealer / Trader":"Peniaga / Pedagang Motosikal","Registration":"Pendaftaran","Price wanted":"Harga diminta","Finance outstanding?":"Pembiayaan masih ada?","Interested in a quick sale?":"Berminat jualan cepat?",
+          "Dealer enquiry":"Pertanyaan peniaga","International service requirement":"Keperluan perkhidmatan antarabangsa","Service required":"Perkhidmatan diperlukan","Destination country":"Negara destinasi","Destination city / port":"Bandar / pelabuhan destinasi","Freight forwarder / shipping company":"Penghantar fret / syarikat perkapalan"
+        }},
+        zh:{text:{
+          "International & trade motorcycle buying":"国际与贸易摩托车采购","AnyBike Connect":"AnyBike Connect",
+          "Buy motorcycles from AnyBike internationally, trade motorcycles within the UK dealer network, supply motorcycles to AnyBike or arrange international motorcycle services.":"通过 AnyBike 国际购买摩托车、在英国经销商网络内进行交易、向 AnyBike 供应摩托车，或安排国际摩托车服务。",
+          "Important: AnyBike does not sell motorcycles to the general public in the UK.":"重要：AnyBike 不在英国向公众零售摩托车。",
+          "What would you like to do?":"您想做什么？","Choose the route that best matches what you need. AnyBike will collect the right information and send your enquiry to the correct team.":"请选择最符合您需求的路径。AnyBike 会收集所需信息，并将您的咨询发送给相应团队。",
+          "Buy a Motorcycle":"购买摩托车","Sell / Supply a Motorcycle":"出售 / 供应摩托车","I'm a Motorcycle Dealer":"我是摩托车经销商","International Motorcycle Services":"国际摩托车服务",
+          "Your Name *":"您的姓名 *","Company Name":"公司名称","Email Address *":"电子邮箱 *","Phone / WhatsApp":"电话 / WhatsApp","Country *":"国家 *","Postcode / ZIP":"邮编","Preferred Contact":"首选联系方式","Subject *":"主题 *","Message *":"消息 *","Send Message":"发送消息","Choose Different Journey":"选择其他路径","Something else?":"其他事项？",
+          "Buying details":"购买详情","Buying as":"购买身份","Private buyer":"个人买家","Motorcycle dealer / trader":"摩托车经销商 / 贸易商","Motorcycle wanted":"所需摩托车","Preferred year / age":"期望年份 / 车龄","Maximum mileage":"最高里程","Budget":"预算","Quantity":"数量","Delivery / shipping requirements":"交付 / 运输要求",
+          "Motorcycle supply details":"供应详情","You are":"您的身份","Private Seller":"个人卖家","Motorcycle Dealer / Trader":"摩托车经销商 / 贸易商","Registration":"车牌 / 注册号","Price wanted":"期望价格","Finance outstanding?":"是否有未结清贷款？","Interested in a quick sale?":"是否希望快速出售？",
+          "Dealer enquiry":"经销商咨询","International service requirement":"国际服务需求","Service required":"所需服务","Destination country":"目的国家","Destination city / port":"目的城市 / 港口","Freight forwarder / shipping company":"货运代理 / 船运公司"
+        }}
+      }
+    });
+  }
 })();
