@@ -19,7 +19,7 @@ sent to an external translation service.
     return;
   }
 
-  const SUPPORTED=["en","de","fr","es","ar"];
+  const SUPPORTED=["en","de","fr","es","ar","id","ms","zh"];
   const registrations=[];
   const originalText=new WeakMap();
   const originalAttributes=new WeakMap();
