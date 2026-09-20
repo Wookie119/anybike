@@ -10594,6 +10594,12 @@ function renderAnyBikeSellerPaymentLedger(dealMotorcycleId, c){
   const badgeClass = supplierBalance <= 0 && sellerPrice > 0 ? "paid" : "due";
   const badgeLabel = supplierBalance <= 0 && sellerPrice > 0 ? "SUPPLIER PAID" : "SUPPLIER BALANCE " + anyBikeDealMoney(supplierBalance);
 
+  const bankAccountName = String(c?.seller_bank_account_name || "").trim();
+  const bankAccountNumber = String(c?.seller_bank_account_number || "").trim();
+  const bankSortCode = String(c?.seller_bank_sort_code || "").trim();
+  const bankInternationalNotes = String(c?.seller_bank_international_notes || "").trim();
+  const payeeName = String(c?.seller_contact_name || "").trim();
+
   return `
     <div class="anybike-seller-payment">
       <div class="anybike-seller-payment-head">
@@ -10610,6 +10616,29 @@ function renderAnyBikeSellerPaymentLedger(dealMotorcycleId, c){
 
       ${supplierBalance > 0 ? `
       <div class="anybike-seller-payment-action">
+        <div class="anybike-seller-payment-field">
+          <label for="deal-seller-payment-payee-${id}">Payee / Seller Name</label>
+          <input id="deal-seller-payment-payee-${id}" type="text" value="${escapeAdminHtml(payeeName)}" placeholder="Person or business being paid">
+        </div>
+        <div class="anybike-seller-payment-field">
+          <label for="deal-seller-payment-bank-name-${id}">Bank Account Name</label>
+          <input id="deal-seller-payment-bank-name-${id}" type="text" value="${escapeAdminHtml(bankAccountName)}" placeholder="Name on bank account">
+        </div>
+        <div class="anybike-seller-payment-field">
+          <label for="deal-seller-payment-account-number-${id}">Account Number</label>
+          <input id="deal-seller-payment-account-number-${id}" type="text" inputmode="numeric" value="${escapeAdminHtml(bankAccountNumber)}" placeholder="e.g. 12345678">
+        </div>
+        <div class="anybike-seller-payment-field">
+          <label for="deal-seller-payment-sort-code-${id}">Sort Code</label>
+          <input id="deal-seller-payment-sort-code-${id}" type="text" inputmode="numeric" value="${escapeAdminHtml(bankSortCode)}" placeholder="e.g. 12-34-56">
+        </div>
+        <div class="anybike-seller-payment-field" style="grid-column:span 2">
+          <label for="deal-seller-payment-bank-notes-${id}">IBAN / SWIFT / International Bank Notes</label>
+          <textarea id="deal-seller-payment-bank-notes-${id}" placeholder="IBAN, SWIFT / BIC, bank name or international transfer instructions">${escapeAdminHtml(bankInternationalNotes)}</textarea>
+        </div>
+        <div class="anybike-seller-payment-note" style="grid-column:1/-1">
+          The bank details used here are copied onto the supplier payment as a permanent snapshot. Changing the seller's bank details later will not change the historical payment record.
+        </div>
         <div class="anybike-seller-payment-field">
           <label for="deal-seller-payment-purpose-${id}">Payment Purpose</label>
           <select id="deal-seller-payment-purpose-${id}">
@@ -10968,6 +10997,11 @@ async function recordDealSellerPayment(dealMotorcycleId){
     return;
   }
 
+  const payeeName=String(document.getElementById("deal-seller-payment-payee-"+id)?.value || "").trim();
+  const bankAccountName=String(document.getElementById("deal-seller-payment-bank-name-"+id)?.value || "").trim();
+  const bankAccountNumber=String(document.getElementById("deal-seller-payment-account-number-"+id)?.value || "").trim();
+  const bankSortCode=String(document.getElementById("deal-seller-payment-sort-code-"+id)?.value || "").trim();
+  const bankInternationalNotes=String(document.getElementById("deal-seller-payment-bank-notes-"+id)?.value || "").trim();
   const purpose=document.getElementById("deal-seller-payment-purpose-"+id)?.value || "Full Purchase";
   const amount=anyBikeSellerMoneyNumber(document.getElementById("deal-seller-payment-amount-"+id)?.value || "");
   const method=String(document.getElementById("deal-seller-payment-method-"+id)?.value || "").trim();
@@ -10982,13 +11016,28 @@ async function recordDealSellerPayment(dealMotorcycleId){
   if(supplierBalance>0 && amount>supplierBalance+0.009){ alert("The seller payment cannot exceed the supplier balance of "+anyBikeDealMoney(supplierBalance)+"."); return; }
   if(!method){ alert("Choose how the seller was paid."); return; }
 
+  if(method==="Bank Transfer"){
+    if(!payeeName){ alert("Enter the payee / seller name before recording a bank transfer."); return; }
+    if(!bankAccountName){ alert("Enter the bank account name before recording a bank transfer."); return; }
+    if(!bankAccountNumber && !bankInternationalNotes){
+      alert("Enter the destination account number, or enter the IBAN / SWIFT details for an international bank transfer.");
+      return;
+    }
+  }
+
   if(!window.confirm(
     "Record seller payment?\n\n" +
     "Purpose: "+purpose+"\n" +
     "Amount: "+anyBikeDealMoney(amount)+"\n" +
     "Method: "+method+"\n" +
-    "Reference: "+(reference||"No reference entered")+
-    "\n\nThis records money paid OUT by AnyBike. It does NOT change motorcycle security."
+    "Payee: "+(payeeName||"Not entered")+"\n" +
+    "Account name: "+(bankAccountName||"Not entered")+"\n" +
+    "Account number: "+(bankAccountNumber||"Not entered")+"\n" +
+    "Sort code: "+(bankSortCode||"Not entered")+"\n" +
+    (bankInternationalNotes ? "IBAN / SWIFT / Bank notes: "+bankInternationalNotes+"\n" : "") +
+    "Reference: "+(reference||"No reference entered")+"\n" +
+    "Date / time: "+(paidAt ? new Date(paidAt).toLocaleString("en-GB") : "Now")+
+    "\n\nThe bank details above will be permanently snapshotted against this supplier payment. This records money paid OUT by AnyBike. It does NOT change motorcycle security."
   )){ return; }
 
   dealSellerPaymentBusy.add(String(id));
@@ -11001,33 +11050,43 @@ async function recordDealSellerPayment(dealMotorcycleId){
       paymentRow.buyer_match_id !== undefined &&
       Number(paymentRow.buyer_match_id) > 0;
 
+    const bankArgs={
+      p_payment_purpose:purpose,
+      p_amount_gbp:amount,
+      p_payment_method:method||null,
+      p_payment_provider:null,
+      p_payment_reference:reference||null,
+      p_provider_transaction_id:null,
+      p_paid_at:paidAt,
+      p_notes:notes||null,
+      p_payee_name:payeeName||null,
+      p_bank_account_name:bankAccountName||null,
+      p_bank_account_number:bankAccountNumber||null,
+      p_bank_sort_code:bankSortCode||null,
+      p_bank_international_notes:bankInternationalNotes||null
+    };
+
     const result = hasBuyerMatch
-      ? await sb.rpc("admin_record_seller_payment",{
-          p_match_id:Number(paymentRow.buyer_match_id),
-          p_payment_purpose:purpose,
-          p_amount_gbp:amount,
-          p_payment_method:method||null,
-          p_payment_provider:null,
-          p_payment_reference:reference||null,
-          p_provider_transaction_id:null,
-          p_paid_at:paidAt,
-          p_notes:notes||null
-        })
-      : await sb.rpc("admin_record_deal_seller_payment_v1",{
-          p_deal_motorcycle_id:id,
-          p_payment_purpose:purpose,
-          p_amount_gbp:amount,
-          p_payment_method:method||null,
-          p_payment_provider:null,
-          p_payment_reference:reference||null,
-          p_provider_transaction_id:null,
-          p_paid_at:paidAt,
-          p_notes:notes||null
-        });
+      ? await sb.rpc("admin_record_seller_payment_with_bank_v1",Object.assign({
+          p_match_id:Number(paymentRow.buyer_match_id)
+        },bankArgs))
+      : await sb.rpc("admin_record_deal_seller_payment_with_bank_v1",Object.assign({
+          p_deal_motorcycle_id:id
+        },bankArgs));
 
     if(result.error){ throw result.error; }
 
-    alert("Seller payment recorded successfully.");
+    const payload=result.data || {};
+    alert(
+      "Seller payment recorded successfully.\n\n" +
+      "Amount: "+anyBikeDealMoney(payload.amount_gbp ?? amount)+"\n" +
+      "Payee: "+(payeeName||"Not entered")+"\n" +
+      "Account name: "+(bankAccountName||"Not entered")+"\n" +
+      "Account number: "+(bankAccountNumber||"Not entered")+"\n" +
+      "Sort code: "+(bankSortCode||"Not entered")+"\n" +
+      "Reference: "+(reference||"No reference entered")+"\n\n" +
+      "Bank snapshot recorded: "+(payload.bank_snapshot_recorded ? "YES" : "CHECK REQUIRED")
+    );
 
     const currentDealId = paymentRow?.deal_id || row.deal_id;
     await loadAdminDealQueue();
@@ -11063,12 +11122,22 @@ async function recordDealSellerDeposit(dealMotorcycleId){
     return;
   }
 
+  const payeeEl = document.getElementById("deal-seller-payment-payee-" + id);
+  const bankNameEl = document.getElementById("deal-seller-payment-bank-name-" + id);
+  const accountNumberEl = document.getElementById("deal-seller-payment-account-number-" + id);
+  const sortCodeEl = document.getElementById("deal-seller-payment-sort-code-" + id);
+  const bankNotesEl = document.getElementById("deal-seller-payment-bank-notes-" + id);
   const amountEl = document.getElementById("deal-seller-payment-amount-" + id);
   const methodEl = document.getElementById("deal-seller-payment-method-" + id);
   const referenceEl = document.getElementById("deal-seller-payment-reference-" + id);
   const dateEl = document.getElementById("deal-seller-payment-date-" + id);
   const notesEl = document.getElementById("deal-seller-payment-notes-" + id);
 
+  const payeeName = payeeEl ? String(payeeEl.value || "").trim() : "";
+  const bankAccountName = bankNameEl ? String(bankNameEl.value || "").trim() : "";
+  const bankAccountNumber = accountNumberEl ? String(accountNumberEl.value || "").trim() : "";
+  const bankSortCode = sortCodeEl ? String(sortCodeEl.value || "").trim() : "";
+  const bankInternationalNotes = bankNotesEl ? String(bankNotesEl.value || "").trim() : "";
   const amount = anyBikeSellerMoneyNumber(amountEl ? amountEl.value : "");
   const outstanding = Number(row.seller_deposit_outstanding_gbp || 0);
   const method = methodEl ? String(methodEl.value || "").trim() : "";
@@ -11091,12 +11160,26 @@ async function recordDealSellerDeposit(dealMotorcycleId){
     return;
   }
 
+  if(method==="Bank Transfer"){
+    if(!payeeName){ alert("Enter the payee / seller name before recording a bank transfer."); return; }
+    if(!bankAccountName){ alert("Enter the bank account name before recording a bank transfer."); return; }
+    if(!bankAccountNumber && !bankInternationalNotes){
+      alert("Enter the destination account number, or enter the IBAN / SWIFT details for an international bank transfer.");
+      return;
+    }
+  }
+
   let message =
     "Record seller deposit payment?\n\n" +
     "Amount: " + anyBikeDealMoney(amount) + "\n" +
     "Method: " + method + "\n" +
+    "Payee: " + (payeeName || "Not entered") + "\n" +
+    "Account name: " + (bankAccountName || "Not entered") + "\n" +
+    "Account number: " + (bankAccountNumber || "Not entered") + "\n" +
+    "Sort code: " + (bankSortCode || "Not entered") + "\n" +
+    (bankInternationalNotes ? "IBAN / SWIFT / Bank notes: " + bankInternationalNotes + "\n" : "") +
     "Reference: " + (reference || "No reference entered") + "\n\n" +
-    "This records money paid OUT by AnyBike to the seller. It does NOT by itself mark the motorcycle as Secured.";
+    "The bank details above will be permanently snapshotted against this supplier payment. This records money paid OUT by AnyBike to the seller. It does NOT by itself mark the motorcycle as Secured.";
 
   if(!window.confirm(message)){ return; }
 
@@ -11110,29 +11193,29 @@ async function recordDealSellerDeposit(dealMotorcycleId){
       paymentRow.buyer_match_id !== undefined &&
       Number(paymentRow.buyer_match_id) > 0;
 
+    const bankArgs={
+      p_payment_purpose:"Seller Deposit",
+      p_amount_gbp:amount,
+      p_payment_method:method || null,
+      p_payment_provider:null,
+      p_payment_reference:reference || null,
+      p_provider_transaction_id:null,
+      p_paid_at:paidAt,
+      p_notes:notes || null,
+      p_payee_name:payeeName || null,
+      p_bank_account_name:bankAccountName || null,
+      p_bank_account_number:bankAccountNumber || null,
+      p_bank_sort_code:bankSortCode || null,
+      p_bank_international_notes:bankInternationalNotes || null
+    };
+
     const result = hasBuyerMatch
-      ? await sb.rpc("admin_record_seller_payment", {
-          p_match_id:Number(paymentRow.buyer_match_id),
-          p_payment_purpose:"Seller Deposit",
-          p_amount_gbp:amount,
-          p_payment_method:method || null,
-          p_payment_provider:null,
-          p_payment_reference:reference || null,
-          p_provider_transaction_id:null,
-          p_paid_at:paidAt,
-          p_notes:notes || null
-        })
-      : await sb.rpc("admin_record_deal_seller_payment_v1", {
-          p_deal_motorcycle_id:id,
-          p_payment_purpose:"Seller Deposit",
-          p_amount_gbp:amount,
-          p_payment_method:method || null,
-          p_payment_provider:null,
-          p_payment_reference:reference || null,
-          p_provider_transaction_id:null,
-          p_paid_at:paidAt,
-          p_notes:notes || null
-        });
+      ? await sb.rpc("admin_record_seller_payment_with_bank_v1", Object.assign({
+          p_match_id:Number(paymentRow.buyer_match_id)
+        },bankArgs))
+      : await sb.rpc("admin_record_deal_seller_payment_with_bank_v1", Object.assign({
+          p_deal_motorcycle_id:id
+        },bankArgs));
 
     if(result.error){ throw result.error; }
 
@@ -11352,6 +11435,22 @@ async function saveDealFinalSellerCheck(dealMotorcycleId){
     }
 
     if(result.error){ throw result.error; }
+
+    const bankAccountNameEl=document.getElementById("deal-seller-payment-bank-name-"+id);
+    const bankAccountNumberEl=document.getElementById("deal-seller-payment-account-number-"+id);
+    const bankSortCodeEl=document.getElementById("deal-seller-payment-sort-code-"+id);
+    const bankNotesEl=document.getElementById("deal-seller-payment-bank-notes-"+id);
+
+    if(bankAccountNameEl || bankAccountNumberEl || bankSortCodeEl || bankNotesEl){
+      const bankSave=await sb.rpc("admin_save_deal_seller_bank_details_v1",{
+        p_deal_motorcycle_id:id,
+        p_account_name:bankAccountNameEl ? (String(bankAccountNameEl.value||"").trim()||null) : null,
+        p_account_number:bankAccountNumberEl ? (String(bankAccountNumberEl.value||"").trim()||null) : null,
+        p_sort_code:bankSortCodeEl ? (String(bankSortCodeEl.value||"").trim()||null) : null,
+        p_international_notes:bankNotesEl ? (String(bankNotesEl.value||"").trim()||null) : null
+      });
+      if(bankSave.error){ throw bankSave.error; }
+    }
 
     const payload = result.data || {};
 
