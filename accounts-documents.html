@@ -404,9 +404,10 @@ function requestedPaymentJourney(){
   const deal=String(params.get("deal")||"").trim();
   const invoiceId=Number(params.get("invoice")||0);
   const payment=String(params.get("payment")||"").trim().toLowerCase();
+  const reference=String(params.get("ref")||"").trim();
   const amount=Number(params.get("amount")||0);
-  if((!deal && !Number.isFinite(invoiceId)) || !["deposit","balance"].includes(payment) || !Number.isFinite(amount) || amount<=0)return null;
-  return {deal,invoiceId:Number.isFinite(invoiceId)&&invoiceId>0?invoiceId:null,payment,amount:Number(amount.toFixed(2))};
+  if((!deal && !(Number.isFinite(invoiceId)&&invoiceId>0)) || !["deposit","balance"].includes(payment) || !Number.isFinite(amount) || amount<=0)return null;
+  return {deal,invoiceId:Number.isFinite(invoiceId)&&invoiceId>0?invoiceId:null,payment,reference,amount:Number(amount.toFixed(2))};
 }
 
 function applyRequestedPaymentJourney(){
@@ -430,7 +431,7 @@ function applyRequestedPaymentJourney(){
   const notice=document.getElementById("paymentJourneyNotice");
   if(notice){
     const label=request.payment==="balance" ? "Balance payment" : "Deposit payment";
-    const paymentRef=String(invoice.payment_reference||invoice.deal_number||request.deal||"").trim();
+    const paymentRef=String(request.reference||invoice.payment_reference||invoice.deal_number||request.deal||"").trim();
     const copy=request.payment==="balance"
       ? "Your remaining balance of "+money(requested)+" is due. Use the bank details below, quote "+safe(paymentRef)+" as your bank reference, then report the transfer so AnyBike can verify and allocate it."
       : "Your "+money(requested)+" deposit is due. After making the bank transfer, enter the reference used with your bank below and submit the payment advice. AnyBike will verify the transfer before it is recorded as received.";
@@ -438,7 +439,7 @@ function applyRequestedPaymentJourney(){
   }
   const bankReference=document.getElementById("bankReference");
   if(bankReference && !bankReference.value.trim()){
-    bankReference.value=String(invoice.payment_reference||invoice.deal_number||request.deal||"");
+    bankReference.value=String(request.reference||invoice.payment_reference||invoice.deal_number||request.deal||"");
   }
   updatePaymentSelection();
   requestAnimationFrame(()=>setTimeout(()=>{const target=document.getElementById("reportPanel");if(target){const top=target.getBoundingClientRect().top+window.pageYOffset-24;window.scrollTo({top:Math.max(0,top),behavior:"smooth"});}},180));
@@ -483,13 +484,26 @@ async function submitPaymentAdvice(){
   if(!confirm("Report "+money(total)+" bank transfer to AnyBike?\n\nAnyBike will automatically apply it to the correct purchase and payment stage.\n\nThe money will still be verified by AnyBike before your account balance changes."))return;
   submitBusy=true;updatePaymentSelection();
   try{
-    const result=await sb.rpc("customer_submit_payment_advice",{
-      p_reported_amount_gbp:total,
-      p_reported_payment_date:paymentDate,
-      p_customer_bank_reference:bankReference||null,
-      p_customer_notes:notes||null,
-      p_allocations:allocations
-    });
+    const selectedInvoice=allocations.length===1
+      ? accountInvoices.find(row=>Number(row.invoice_id)===Number(allocations[0].invoice_id))
+      : null;
+    const combinedSelected=!!selectedInvoice && String(selectedInvoice.deal_number||"").includes(" + ");
+
+    const result=combinedSelected
+      ? await sb.rpc("customer_submit_combined_payment_advice_v1",{
+          p_invoice_id:Number(selectedInvoice.invoice_id),
+          p_reported_amount_gbp:total,
+          p_reported_payment_date:paymentDate,
+          p_customer_bank_reference:bankReference||null,
+          p_customer_notes:notes||null
+        })
+      : await sb.rpc("customer_submit_payment_advice",{
+          p_reported_amount_gbp:total,
+          p_reported_payment_date:paymentDate,
+          p_customer_bank_reference:bankReference||null,
+          p_customer_notes:notes||null,
+          p_allocations:allocations
+        });
     if(result.error)throw result.error;
     const payload=result.data||{};
     alert("Payment reported successfully.\n\nReference: "+(payload.advice_number||"Payment Advice")+"\nAmount: "+money(payload.reported_amount_gbp||total)+"\nStatus: "+(payload.advice_status||"Awaiting Verification")+"\n\nYour purchase balance will not change until AnyBike verifies the bank receipt.");
