@@ -921,6 +921,104 @@ async function refreshPaymentPreview(id){
   renderPaymentQueue();
 }
 
+
+async function sendPostedPaymentCustomerMessage(item,postedAmount){
+  const allocations=Array.isArray(item?.allocations)?item.allocations:[];
+  const dealIds=[...new Set(allocations.map(a=>Number(a.deal_id)).filter(Number.isFinite))];
+
+  if(!dealIds.length){
+    return {sent:0,warnings:["No linked Deal was found for the posted payment."]};
+  }
+
+  let sent=0;
+  const warnings=[];
+
+  for(const dealId of dealIds){
+    const dealAllocations=allocations.filter(a=>Number(a.deal_id)===dealId);
+    const dealNumber=String(dealAllocations[0]?.deal_number||("Deal #"+dealId));
+    const amount=dealAllocations.reduce((sum,a)=>sum+Number(a.proposed_amount_gbp||0),0);
+    const purpose=String(dealAllocations[0]?.allocation_purpose||"Payment");
+    const threadResult=await sb
+      .from("message_centre_threads")
+      .select("id,customer_id,related_enquiry_id")
+      .eq("related_deal_id",dealId)
+      .order("created_at",{ascending:false})
+      .limit(1)
+      .maybeSingle();
+
+    if(threadResult.error || !threadResult.data){
+      warnings.push(dealNumber+": linked customer conversation could not be found.");
+      continue;
+    }
+
+    const thread=threadResult.data;
+    const lowerPurpose=purpose.toLowerCase();
+    const paymentLabel=lowerPurpose.includes("deposit")
+      ? "deposit"
+      : (lowerPurpose.includes("balance") ? "remaining balance" : "payment");
+
+    const message=
+      "Payment received and verified.\n\n"+
+      "We have received "+money(amount||postedAmount)+" for "+dealNumber+" and allocated it to your "+paymentLabel+".\n\n"+
+      "Your AnyBike account and purchase record have been updated. We will now continue with the next stage of your motorcycle purchase and keep you updated through My AnyBike.";
+
+    const duplicate=await sb
+      .from("message_centre_messages")
+      .select("id")
+      .eq("thread_id",Number(thread.id))
+      .eq("sender_type","AnyBike")
+      .eq("message",message)
+      .limit(1)
+      .maybeSingle();
+
+    if(duplicate.data){
+      continue;
+    }
+
+    const now=new Date().toISOString();
+    const msgResult=await sb.from("message_centre_messages").insert({
+      thread_id:Number(thread.id),
+      sender_type:"AnyBike",
+      sender_name:"AnyBike",
+      sender_email:"admin@anybike.co.uk",
+      message:message,
+      created_at:now
+    });
+
+    if(msgResult.error){
+      warnings.push(dealNumber+": customer payment confirmation could not be stored.");
+      continue;
+    }
+
+    const threadUpdate=await sb.from("message_centre_threads").update({
+      last_message:message,
+      last_message_at:now,
+      last_sender:"AnyBike",
+      status:"Replied",
+      updated_at:now
+    }).eq("id",Number(thread.id));
+
+    if(threadUpdate.error){
+      console.error("Payment confirmation thread update failed:",threadUpdate.error);
+    }
+
+    try{
+      const notification=await sb.functions.invoke("send-message-notification",{
+        body:{thread_id:String(thread.id)}
+      });
+      if(notification.error){
+        warnings.push(dealNumber+": Message Centre confirmation saved, but email notification could not be confirmed.");
+      }
+    }catch(error){
+      warnings.push(dealNumber+": Message Centre confirmation saved, but email notification could not be confirmed.");
+    }
+
+    sent++;
+  }
+
+  return {sent,warnings};
+}
+
 async function postPaymentAdvice(id){
   const item=paymentAdviceGroups.get(Number(id));
   const preview=paymentPostingPreviews.get(Number(id))||{};
@@ -953,13 +1051,25 @@ async function postPaymentAdvice(id){
   }
 
   const p=result.data||{};
+  const confirmation=await sendPostedPaymentCustomerMessage(
+    item,
+    Number(p.posted_total_gbp||item.verified_amount_gbp||item.reported_amount_gbp||0)
+  );
+  const confirmationNote=confirmation.sent
+    ? "\\nCustomer Message Centre confirmation sent."
+    : "\\nNo customer confirmation message was sent.";
+  const warningNote=confirmation.warnings?.length
+    ? "\\n\\n"+confirmation.warnings.join("\\n")
+    : "";
 
   alert(
     "Payment posted to Deal 360 successfully.\\n\\n"+
     "Amount: "+money(p.posted_total_gbp||0)+"\\n"+
     "Deal payment rows: "+Number(p.deal_payment_rows||0)+"\\n"+
-    "Motorcycle allocations: "+Number(p.motorcycle_allocation_rows||0)+"\\n\\n"+
-    "Motorcycle security was NOT changed."
+    "Motorcycle allocations: "+Number(p.motorcycle_allocation_rows||0)+
+    confirmationNote+
+    warningNote+
+    "\\n\\nMotorcycle security was NOT changed."
   );
 
   await loadPaymentQueue();
