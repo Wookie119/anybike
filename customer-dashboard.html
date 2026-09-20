@@ -1530,6 +1530,48 @@ footer{
   font-size:11px;
   line-height:1.4;
 }
+.customer-offer-legal-checks{
+  margin-top:14px;
+  padding:13px;
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:11px;
+  background:#101010;
+}
+.customer-offer-legal-checks strong{
+  display:block;
+  margin-bottom:8px;
+  font-size:12px;
+}
+.customer-offer-legal-check{
+  display:flex;
+  gap:8px;
+  align-items:flex-start;
+  margin-top:8px;
+  color:#d0d0d0;
+  font-size:10px;
+  line-height:1.45;
+}
+.customer-offer-legal-check input{
+  width:16px;
+  height:16px;
+  margin:1px 0 0;
+  flex:0 0 auto;
+  accent-color:var(--red);
+}
+.customer-offer-legal-check a{
+  text-decoration:underline;
+  font-weight:900;
+}
+.customer-offer-legacy-warning{
+  margin-top:14px;
+  padding:12px;
+  border:1px solid rgba(237,28,36,.38);
+  border-radius:10px;
+  background:rgba(237,28,36,.08);
+  color:#ffd6d8;
+  font-size:10px;
+  line-height:1.45;
+}
 .customer-offer-actions{
   display:grid;
   gap:9px;
@@ -2706,6 +2748,23 @@ function customerOfferCardHtml(match){
   const title=[match.stock_make,match.stock_model].filter(Boolean).join(" ") || "Motorcycle";
   const variant=String(match.stock_variant || "").trim();
   const image=String(match.stock_image_url || "").trim();
+  if(match?._offer_source!=="deal360"){
+    alert("This legacy offer must be reissued as a Deal 360 Formal Offer under the current AnyBike terms before it can be accepted.");
+    return;
+  }
+
+  const legalBoxes=[
+    document.getElementById("dashboardAcceptTerms"),
+    document.getElementById("dashboardAcceptTradePolicy"),
+    document.getElementById("dashboardAcceptTradeBuyer"),
+    document.getElementById("dashboardAcceptInspection")
+  ];
+
+  if(legalBoxes.some(function(box){ return !box || !box.checked; })){
+    alert("Please agree to the Terms & Conditions, Trade & Export Sale Policy, trade-buyer declaration and inspection basis before accepting this offer.");
+    return;
+  }
+
   const motorcyclePrice=Number(match.confirmed_customer_price_gbp || 0);
   const advertisedPrice=Number(match.listed_price_snapshot_gbp || 0);
   const deliveryCharge=Number(match.offer_delivery_charge_gbp || 0);
@@ -2935,10 +2994,24 @@ function customerOfferModalHtml(match){
 
         <section class="customer-offer-box customer-offer-decision">
           <h3>Your decision</h3>
-          <p>Review the motorcycle and offer above. Acceptance will later continue directly to the deposit/payment stage. The motorcycle is not treated as secured merely because this offer has been sent.</p>
+          <p>Review the motorcycle and offer above. A Deal 360 offer can only be accepted after the current AnyBike legal terms and trade sale declarations are confirmed.</p>
+
+          ${match?._offer_source==="deal360" ? `
+            <div class="customer-offer-legal-checks">
+              <strong>Required before acceptance</strong>
+              <label class="customer-offer-legal-check"><input id="dashboardAcceptTerms" type="checkbox"><span>I agree to the <a href="/terms-and-conditions.html" target="_blank" rel="noopener">Terms &amp; Conditions</a> (20 September 2026).</span></label>
+              <label class="customer-offer-legal-check"><input id="dashboardAcceptTradePolicy" type="checkbox"><span>I agree to the <a href="/trade-sales-policy.html" target="_blank" rel="noopener">Trade &amp; Export Sale Policy</a> (20 September 2026).</span></label>
+              <label class="customer-offer-legal-check"><input id="dashboardAcceptTradeBuyer" type="checkbox"><span>I confirm this purchase is wholly or mainly for purposes relating to my trade, business, craft or profession.</span></label>
+              <label class="customer-offer-legal-check"><input id="dashboardAcceptInspection" type="checkbox"><span>I understand AnyBike's collection/condition check is visual only, not a mechanical or engineering inspection, and any independent mechanical check must be requested before purchase at my cost unless agreed otherwise.</span></label>
+            </div>
+          ` : `
+            <div class="customer-offer-legacy-warning">
+              This is a legacy offer route. It cannot be accepted under the current AnyBike legal acceptance policy. AnyBike must reissue it as a Deal 360 Formal Offer before acceptance.
+            </div>
+          `}
 
           <div class="customer-offer-actions">
-            <button id="customerOfferAcceptBtn" class="customer-offer-accept" type="button" ${expired ? "disabled" : ""} onclick="customerOfferAccept(${Number(match.id)})">✓ &nbsp; Accept AnyBike Offer</button>
+            <button id="customerOfferAcceptBtn" class="customer-offer-accept" type="button" ${expired || match?._offer_source!=="deal360" ? "disabled" : "disabled"} onclick="customerOfferAccept(${Number(match.id)})">✓ &nbsp; Accept AnyBike Offer</button>
             <button id="customerOfferDeclineBtn" class="customer-offer-decline" type="button" ${expired ? "disabled" : ""} onclick="customerOfferDecline(${Number(match.id)})">× &nbsp; Decline Offer</button>
           </div>
 
@@ -2980,6 +3053,29 @@ function openCustomerOfferModal(matchId){
   if(badge) badge.textContent=expired ? "Expired Offer" : (match?._offer_source==="deal360" ? "Deal 360 Offer" : "AnyBike Offer");
 
   body.innerHTML=customerOfferModalHtml(match);
+
+  if(match?._offer_source==="deal360" && !expired){
+    const legalBoxes=[
+      "dashboardAcceptTerms",
+      "dashboardAcceptTradePolicy",
+      "dashboardAcceptTradeBuyer",
+      "dashboardAcceptInspection"
+    ].map(function(id){ return document.getElementById(id); }).filter(Boolean);
+
+    const syncLegalAcceptance=function(){
+      const acceptButton=document.getElementById("customerOfferAcceptBtn");
+      if(!acceptButton){ return; }
+      acceptButton.disabled=
+        legalBoxes.length !== 4 ||
+        !legalBoxes.every(function(box){ return box.checked; });
+    };
+
+    legalBoxes.forEach(function(box){
+      box.addEventListener("change",syncLegalAcceptance);
+    });
+    syncLegalAcceptance();
+  }
+
   modal.classList.add("open");
   modal.setAttribute("aria-hidden","false");
   document.body.classList.add("customer-offer-modal-open");
@@ -3049,21 +3145,41 @@ async function customerOfferAccept(matchId){
   setCustomerOfferDecisionBusy(true,"Recording your acceptance securely…");
 
   try{
-    const responseRpc=match?._offer_source==="deal360"
-      ? "customer_respond_to_deal_offer_v1"
-      : "customer_respond_to_anybike_offer";
+    const legalAcceptance=await sb.rpc(
+      "customer_record_buyer_legal_acceptance_v1",
+      {
+        p_offer_id:Number(match._deal_offer_id),
+        p_terms_version:"2026-09-20",
+        p_trade_policy_version:"2026-09-20",
+        p_terms_accepted:true,
+        p_trade_policy_accepted:true,
+        p_trade_buyer_confirmed:true,
+        p_inspection_basis_confirmed:true
+      }
+    );
 
-    const responseArgs=match?._offer_source==="deal360"
-      ? {
-          p_offer_id:Number(match._deal_offer_id),
-          p_action:"accept",
-          p_decline_reason:null
-        }
-      : {
-          p_match_id:Number(matchId),
-          p_action:"accept",
-          p_decline_reason:null
-        };
+    if(legalAcceptance.error){
+      throw new Error(
+        "Your legal acceptance could not be recorded, so this offer has not been accepted. " +
+        (legalAcceptance.error.message || "")
+      );
+    }
+
+    const legalResult=Array.isArray(legalAcceptance.data)
+      ? legalAcceptance.data[0]
+      : legalAcceptance.data;
+
+    if(!legalResult?.success || !legalResult?.acceptance_id){
+      throw new Error("Your legal acceptance could not be verified, so this offer has not been accepted.");
+    }
+
+    const responseRpc="customer_respond_to_deal_offer_v1";
+
+    const responseArgs={
+      p_offer_id:Number(match._deal_offer_id),
+      p_action:"accept",
+      p_decline_reason:null
+    };
 
     const {data,error}=await sb.rpc(responseRpc,responseArgs);
 
