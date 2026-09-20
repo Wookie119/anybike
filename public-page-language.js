@@ -294,6 +294,17 @@ sent to an external translation service.
     document.head.appendChild(script);
   }
 
+  function loadExportMarketsTranslationBundle(){
+    const name=location.pathname.split("/").pop();
+    if(!["export-services.html","international-markets.html"].includes(name)){ return; }
+    if(document.querySelector('script[data-anybike-export-markets-translations="true"]')){ return; }
+    const script=document.createElement("script");
+    script.src="/public-export-markets-translations.js?v=20260920-1";
+    script.async=false;
+    script.dataset.anybikeExportMarketsTranslations="true";
+    document.head.appendChild(script);
+  }
+
   function loadLegalTranslationBundle(){
     if(location.pathname!=="/terms-and-conditions.html"){ return; }
     if(document.querySelector('script[data-anybike-legal-translations="true"]')){ return; }
@@ -373,6 +384,7 @@ sent to an external translation service.
       loadDictionaryBundle();
       loadMarketTranslationBundle();
       loadExportServiceTranslationBundle();
+      loadExportMarketsTranslationBundle();
       loadLegalTranslationBundle();
       loadInspectionShippingTranslationBundle();
       loadStockTranslationBundle();
@@ -384,6 +396,7 @@ sent to an external translation service.
     loadDictionaryBundle();
       loadMarketTranslationBundle();
       loadExportServiceTranslationBundle();
+      loadExportMarketsTranslationBundle();
       loadLegalTranslationBundle();
       loadInspectionShippingTranslationBundle();
       loadStockTranslationBundle();
