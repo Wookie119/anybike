@@ -4064,6 +4064,18 @@ body{
 .anybike-seller-secure-box{display:flex;align-items:center;gap:11px;padding:11px 13px;border:1px solid rgba(237,28,36,.38);border-radius:9px;background:rgba(237,28,36,.07);color:#fff;font-size:13px;font-weight:900}
 .anybike-seller-secure-box input{width:auto;accent-color:#d71920;transform:scale(1.12)}
 .anybike-seller-notes-compact{padding:0 16px 14px}
+.anybike-seller-bike-details{margin:0 16px 14px;padding:14px;border:1px solid rgba(255,255,255,.10);border-radius:11px;background:#111}
+.anybike-seller-bike-details h5{margin:0 0 10px;color:#fff;font-size:14px}
+.anybike-seller-bike-grid{display:grid;grid-template-columns:repeat(7,minmax(110px,1fr));gap:8px}
+.anybike-seller-bike-grid>div{padding:10px;border:1px solid rgba(255,255,255,.08);border-radius:8px;background:#0d0d0d}
+.anybike-seller-bike-grid span{display:block;color:#8f9bad;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.05em}
+.anybike-seller-bike-grid strong{display:block;margin-top:4px;color:#fff;font-size:13px;overflow-wrap:anywhere}
+.anybike-seller-po-fields{display:grid;grid-template-columns:repeat(5,minmax(160px,1fr));gap:10px;padding:0 16px 14px}
+.anybike-seller-po-note{margin:0 16px 14px;padding:10px 12px;border:1px solid rgba(255,191,71,.25);border-radius:9px;background:rgba(255,191,71,.06);color:#d7c79a;font-size:11px;line-height:1.45}
+@media(max-width:1250px){.anybike-seller-bike-grid{grid-template-columns:repeat(4,1fr)}.anybike-seller-po-fields{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:800px){.anybike-seller-bike-grid,.anybike-seller-po-fields{grid-template-columns:1fr 1fr}}
+@media(max-width:550px){.anybike-seller-bike-grid,.anybike-seller-po-fields{grid-template-columns:1fr}}
+
 .anybike-seller-optional{margin:0 16px 12px;border:1px solid rgba(255,255,255,.10);border-radius:10px;background:#0f0f0f;overflow:hidden}
 .anybike-seller-optional summary{cursor:pointer;list-style:none;padding:11px 13px;color:#ddd;font-size:12px;font-weight:900}
 .anybike-seller-optional summary::-webkit-details-marker{display:none}
@@ -10363,7 +10375,15 @@ function renderAnyBikeDealPaymentPanel(deal){
 
   return rows.map(function(row){
     const matchId = Number(row.buyer_match_id);
-    const title = [row.make,row.model,row.variant].filter(Boolean).join(" ") || "Motorcycle";
+    const bikeMake = String(dealMotorcycle.make || selectedCandidate.make || row.make || "").trim();
+    const bikeModel = String(dealMotorcycle.model || selectedCandidate.model || row.model || "").trim();
+    const bikeVariant = String(dealMotorcycle.variant || selectedCandidate.variant || row.variant || "").trim();
+    const bikeYear = dealMotorcycle.year || selectedCandidate.year || row.year || "";
+    const bikeColour = String(dealMotorcycle.colour || selectedCandidate.colour || row.colour || "").trim();
+    const bikeRegistration = String(dealMotorcycle.registration || selectedCandidate.registration || row.registration || "").trim();
+    const bikeMileage = dealMotorcycle.mileage || selectedCandidate.mileage || row.mileage || "";
+
+    const title = [bikeMake,bikeModel,bikeVariant].filter(Boolean).join(" ") || "Motorcycle";
     const depositDue = Number(row.deposit_due_gbp || 0);
     const depositPaid = Number(row.deposit_paid_gbp || 0);
     const depositOutstanding = Number(row.deposit_outstanding_gbp || 0);
@@ -10639,6 +10659,22 @@ function renderAnyBikeSellerPaymentLedger(dealMotorcycleId, c){
     </div>`;
 }
 
+
+function anyBikeExtractUkPostcode(value){
+  const text=String(value || "");
+  const match=text.match(/\b([A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2})\b/i);
+  return match ? match[1].toUpperCase().replace(/\s+/g," ").trim() : "";
+}
+
+function anyBikeSellerPackedDetails(address,postcode,phone,email){
+  return [
+    address ? "Address: "+address : "",
+    postcode ? "Postcode: "+postcode : "",
+    phone ? "Phone: "+phone : "",
+    email ? "Email: "+email : ""
+  ].filter(Boolean).join("\n");
+}
+
 function renderAnyBikeDealSellerCheckPanel(deal){
   const dealId = String(deal.deal_id || "");
   const rows = adminDealPaymentStatus.filter(function(row){
@@ -10703,6 +10739,19 @@ function renderAnyBikeDealSellerCheckPanel(deal){
       selectedCandidate.seller_location ||
       ""
     ).trim();
+
+    const sellerPostcode = String(
+      sellerDisplay.seller_postcode ||
+      sellerDisplay.postcode ||
+      dealMotorcycle.seller_postcode ||
+      selectedCandidate.seller_postcode ||
+      anyBikeExtractUkPostcode(sellerLocation) ||
+      ""
+    ).trim();
+
+    const sellerAddress = sellerPostcode
+      ? sellerLocation.replace(sellerPostcode,"").replace(/[\s,·-]+$/,"").trim()
+      : sellerLocation;
 
     const sellerContactDetailsFallback = [
       sellerLocation,
@@ -10776,6 +10825,19 @@ function renderAnyBikeDealSellerCheckPanel(deal){
           <div><span class="anybike-seller-label">Motorcycle</span><strong class="${secured ? "anybike-seller-good" : "anybike-seller-danger"}">${secured ? "SECURED" : "NOT YET SECURED"}</strong></div>
         </div>
 
+        <div class="anybike-seller-bike-details">
+          <h5>Motorcycle details for purchase</h5>
+          <div class="anybike-seller-bike-grid">
+            <div><span>Make</span><strong>${escapeAdminHtml(bikeMake || "Not recorded")}</strong></div>
+            <div><span>Model</span><strong>${escapeAdminHtml(bikeModel || "Not recorded")}</strong></div>
+            <div><span>Variant</span><strong>${escapeAdminHtml(bikeVariant || "—")}</strong></div>
+            <div><span>Year</span><strong>${escapeAdminHtml(bikeYear || "—")}</strong></div>
+            <div><span>Colour</span><strong>${escapeAdminHtml(bikeColour || "Not recorded")}</strong></div>
+            <div><span>Registration</span><strong>${escapeAdminHtml(bikeRegistration || "Not recorded")}</strong></div>
+            <div><span>Mileage</span><strong>${bikeMileage ? Number(bikeMileage).toLocaleString("en-GB")+" miles" : "Not recorded"}</strong></div>
+          </div>
+        </div>
+
         <div class="anybike-seller-core">
           <div class="anybike-seller-field">
             <label for="deal-seller-availability-${dealMotorcycleId}">Availability</label>
@@ -10789,20 +10851,39 @@ function renderAnyBikeDealSellerCheckPanel(deal){
             <input id="deal-seller-price-${dealMotorcycleId}" type="number" min="0" step="0.01" value="${sellerPrice ? Number(sellerPrice).toFixed(2) : ""}" placeholder="e.g. 5200.00">
           </div>
 
-          <div class="anybike-seller-field">
-            <label for="deal-seller-contact-name-${dealMotorcycleId}">Seller / Business Name</label>
-            <input id="deal-seller-contact-name-${dealMotorcycleId}" value="${escapeAdminHtml(sellerContactName)}" placeholder="Seller or dealership name">
-          </div>
-
-          <div class="anybike-seller-field">
-            <label for="deal-seller-contact-details-${dealMotorcycleId}">Seller Address / Location / Contact</label>
-            <input id="deal-seller-contact-details-${dealMotorcycleId}" value="${escapeAdminHtml(sellerContactDetails)}" placeholder="Address/location · phone · email">
-          </div>
-
           <label class="anybike-seller-secure-box">
             <input id="deal-seller-secured-${dealMotorcycleId}" type="checkbox" ${secured ? "checked" : ""} ${securityBlocked && !secured ? "disabled" : ""} onchange="anyBikeSellerSecuredChanged(${dealMotorcycleId})">
             Motorcycle genuinely secured with seller
           </label>
+        </div>
+
+        <div class="anybike-seller-po-fields">
+          <div class="anybike-seller-field">
+            <label for="deal-seller-contact-name-${dealMotorcycleId}">Seller / Business Name</label>
+            <input id="deal-seller-contact-name-${dealMotorcycleId}" value="${escapeAdminHtml(sellerContactName)}" placeholder="Seller or dealership name">
+          </div>
+          <div class="anybike-seller-field">
+            <label for="deal-seller-address-${dealMotorcycleId}">Address / Location</label>
+            <input id="deal-seller-address-${dealMotorcycleId}" value="${escapeAdminHtml(sellerAddress)}" placeholder="Street / town / city">
+          </div>
+          <div class="anybike-seller-field">
+            <label for="deal-seller-postcode-${dealMotorcycleId}">Postcode</label>
+            <input id="deal-seller-postcode-${dealMotorcycleId}" value="${escapeAdminHtml(sellerPostcode)}" placeholder="Postcode">
+          </div>
+          <div class="anybike-seller-field">
+            <label for="deal-seller-phone-${dealMotorcycleId}">Telephone</label>
+            <input id="deal-seller-phone-${dealMotorcycleId}" value="${escapeAdminHtml(sellerPhone)}" placeholder="Telephone">
+          </div>
+          <div class="anybike-seller-field">
+            <label for="deal-seller-email-${dealMotorcycleId}">Email</label>
+            <input id="deal-seller-email-${dealMotorcycleId}" value="${escapeAdminHtml(sellerEmail)}" placeholder="Email">
+          </div>
+        </div>
+
+        <input id="deal-seller-contact-details-${dealMotorcycleId}" type="hidden" value="${escapeAdminHtml(sellerContactDetails)}">
+
+        <div class="anybike-seller-po-note">
+          These seller and motorcycle details are the information AnyBike will use for the Purchase Order. Complete any missing seller address/contact information before the PO is generated.
         </div>
 
         <div class="anybike-seller-notes-compact">
@@ -11098,6 +11179,10 @@ async function saveDealFinalSellerCheck(dealMotorcycleId){
   const contactMethodEl = document.getElementById("deal-seller-contact-method-" + id);
   const contactNameEl = document.getElementById("deal-seller-contact-name-" + id);
   const contactDetailsEl = document.getElementById("deal-seller-contact-details-" + id);
+  const sellerAddressEl = document.getElementById("deal-seller-address-" + id);
+  const sellerPostcodeEl = document.getElementById("deal-seller-postcode-" + id);
+  const sellerPhoneEl = document.getElementById("deal-seller-phone-" + id);
+  const sellerEmailEl = document.getElementById("deal-seller-email-" + id);
   const notesEl = document.getElementById("deal-seller-notes-" + id);
   const holdEl = document.getElementById("deal-seller-hold-" + id);
   const holdRefEl = document.getElementById("deal-seller-hold-reference-" + id);
@@ -11206,7 +11291,12 @@ async function saveDealFinalSellerCheck(dealMotorcycleId){
       p_valid_until:anyBikeSellerIsoOrNull(validUntilEl ? validUntilEl.value : ""),
       p_contact_method:contactMethodEl ? (String(contactMethodEl.value || "").trim() || null) : null,
       p_seller_contact_name:contactNameEl ? (String(contactNameEl.value || "").trim() || null) : null,
-      p_seller_contact_details:contactDetailsEl ? (String(contactDetailsEl.value || "").trim() || null) : null,
+      p_seller_contact_details:anyBikeSellerPackedDetails(
+        sellerAddressEl ? String(sellerAddressEl.value || "").trim() : "",
+        sellerPostcodeEl ? String(sellerPostcodeEl.value || "").trim() : "",
+        sellerPhoneEl ? String(sellerPhoneEl.value || "").trim() : "",
+        sellerEmailEl ? String(sellerEmailEl.value || "").trim() : ""
+      ) || (contactDetailsEl ? (String(contactDetailsEl.value || "").trim() || null) : null),
       p_notes:notesEl ? (String(notesEl.value || "").trim() || null) : null,
       p_hold_confirmed:holdConfirmed,
       p_hold_reference:holdConfirmed && holdRefEl ? (String(holdRefEl.value || "").trim() || null) : null,
