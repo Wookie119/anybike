@@ -265,6 +265,16 @@ sent to an external translation service.
     });
   }
 
+  function loadMarketTranslationBundle(){
+    if(!/^\\/markets\\//i.test(location.pathname)){ return; }
+    if(document.querySelector('script[data-anybike-market-translations="true"]')){ return; }
+    const script=document.createElement("script");
+    script.src="/public-market-translations.js?v=20260920-1";
+    script.async=false;
+    script.dataset.anybikeMarketTranslations="true";
+    document.head.appendChild(script);
+  }
+
   function loadDictionaryBundle(){
     if(document.querySelector('script[data-anybike-page-translations="true"]')){
       return;
@@ -301,12 +311,14 @@ sent to an external translation service.
   if(document.readyState==="loading"){
     document.addEventListener("DOMContentLoaded",function(){
       loadDictionaryBundle();
+      loadMarketTranslationBundle();
       apply(selectedLanguage());
       startMutationObserver();
     },{once:true});
   }else{
     loadDictionaryBundle();
-    apply(selectedLanguage());
+      loadMarketTranslationBundle();
+      apply(selectedLanguage());
     startMutationObserver();
   }
 })();
