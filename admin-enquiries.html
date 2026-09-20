@@ -11195,7 +11195,7 @@ async function saveDealFinalSellerCheck(dealMotorcycleId){
       p_bike_secured:bikeSecured
     };
 
-    const result = hasBuyerMatch
+    let result = hasBuyerMatch
       ? await sb.rpc("admin_save_final_seller_check", Object.assign({
           p_match_id:Number(paymentRow.buyer_match_id),
           p_seller_deposit_paid:false,
@@ -11205,6 +11205,30 @@ async function saveDealFinalSellerCheck(dealMotorcycleId){
           p_deal_motorcycle_id:id
         }, commonArgs));
 
+    /*
+      Source-on-demand Deal motorcycles can legitimately have no legacy stock_id.
+      Some older database price-classification logic still attempts a stock lookup
+      when a confirmed price is supplied and throws:
+      "Stock <NULL> could not be found while classifying confirmed seller price".
+      The Deal motorcycle already carries its agreed seller price, so for this
+      specific legacy failure retry the seller-security save without asking the
+      stock-price classifier to run. This preserves availability/security while
+      leaving the Deal motorcycle's existing seller price untouched.
+    */
+    if(
+      !hasBuyerMatch &&
+      result.error &&
+      /Stock\s*<NULL>\s*could not be found while classifying confirmed seller price/i.test(String(result.error.message || ""))
+    ){
+      const manualSourceArgs=Object.assign({},commonArgs,{
+        p_confirmed_min_price_gbp:null
+      });
+
+      result=await sb.rpc("admin_save_deal_final_seller_check_v1",Object.assign({
+        p_deal_motorcycle_id:id
+      },manualSourceArgs));
+    }
+
     if(result.error){ throw result.error; }
 
     const payload = result.data || {};
@@ -11212,7 +11236,7 @@ async function saveDealFinalSellerCheck(dealMotorcycleId){
     alert(
       "Final Seller Check saved successfully.\n\n" +
       "Availability: " + (payload.availability_status || availability) + "\n" +
-      "Seller price: " + anyBikeDealMoney(payload.seller_purchase_price_gbp) + "\n" +
+      "Seller price: " + anyBikeDealMoney(payload.seller_purchase_price_gbp ?? sellerPrice) + "\n" +
       "Seller deposit required: " + (payload.seller_deposit_required ? "YES" : "NO") + "\n" +
       "Seller deposit paid: " + (payload.seller_deposit_paid ? "YES" : "NO") + "\n" +
       "Motorcycle secured: " + (payload.motorcycle_secured ? "YES" : "NO") + "\n" +
