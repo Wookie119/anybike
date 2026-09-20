@@ -4060,7 +4060,7 @@ body{
 .anybike-seller-summary{display:grid;grid-template-columns:repeat(5,minmax(120px,1fr));gap:10px;padding:14px 16px}.anybike-seller-summary>div{padding:10px 11px;border:1px solid rgba(255,255,255,.1);border-radius:9px;background:#111}.anybike-seller-summary strong{display:block;margin-top:5px;color:#fff;font-size:14px}.anybike-seller-danger{color:#ff4e55!important}.anybike-seller-good{color:#6ce59a!important}.anybike-seller-warning{color:#ffd05d!important}
 .anybike-seller-form{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:10px;padding:0 16px 14px}.anybike-seller-field label{display:block;margin-bottom:5px;color:#9aa3ae;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.05em}.anybike-seller-field input,.anybike-seller-field select,.anybike-seller-field textarea{width:100%;box-sizing:border-box;border:1px solid #353535;border-radius:8px;background:#111;color:#fff;padding:10px 11px;font:inherit}.anybike-seller-field textarea{min-height:74px;resize:vertical}.anybike-seller-span2{grid-column:span 2}.anybike-seller-checks{display:grid;grid-template-columns:repeat(3,minmax(180px,1fr));gap:10px;padding:0 16px 14px}.anybike-seller-check{display:flex;align-items:center;gap:9px;padding:10px 11px;border:1px solid rgba(255,255,255,.1);border-radius:9px;background:#111;color:#fff;font-size:12px;font-weight:800}.anybike-seller-check input{width:auto;accent-color:#d71920}.anybike-seller-readonly{opacity:.82}.anybike-seller-footer{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:12px 16px;border-top:1px solid rgba(255,255,255,.08);background:#101010;color:#c4c4c4;font-size:12px}.anybike-seller-footer strong{color:#ff5158}.anybike-seller-footer button{border:0;border-radius:8px;background:#d71920;color:#fff;padding:11px 14px;font-weight:900;cursor:pointer}.anybike-seller-footer button:disabled{background:#555;color:#ddd;cursor:not-allowed;opacity:.7}.anybike-seller-statusline{padding:0 16px 12px;font-size:12px;font-weight:800;color:#bfc5cc}.anybike-seller-statusline.error{color:#ff6b71}.anybike-seller-statusline.success{color:#79d79b}.anybike-seller-none{margin-top:12px;padding:12px 14px;border:1px dashed rgba(255,255,255,.15);border-radius:10px;color:#9aa3ae;font-size:12px}
 
-.anybike-seller-core{display:grid;grid-template-columns:minmax(170px,.8fr) minmax(180px,.8fr) minmax(240px,1.2fr);gap:10px;padding:0 16px 14px}
+.anybike-seller-core{display:grid;grid-template-columns:minmax(160px,.7fr) minmax(170px,.75fr) minmax(200px,.95fr) minmax(260px,1.25fr) minmax(250px,1.15fr);gap:10px;padding:0 16px 14px}
 .anybike-seller-secure-box{display:flex;align-items:center;gap:11px;padding:11px 13px;border:1px solid rgba(237,28,36,.38);border-radius:9px;background:rgba(237,28,36,.07);color:#fff;font-size:13px;font-weight:900}
 .anybike-seller-secure-box input{width:auto;accent-color:#d71920;transform:scale(1.12)}
 .anybike-seller-notes-compact{padding:0 16px 14px}
@@ -10658,6 +10658,13 @@ function renderAnyBikeDealSellerCheckPanel(deal){
       return Number(bike.deal_motorcycle_id || bike.id) === dealMotorcycleId;
     }) || {};
 
+    const selectedCandidate = (adminDealCandidates || []).find(function(candidate){
+      if(!candidate){ return false; }
+      if(Number(candidate.selected_deal_motorcycle_id || 0) === dealMotorcycleId){ return true; }
+      return String(candidate.deal_id || "") === String(row.deal_id || "") &&
+             String(candidate.candidate_status || "") === "Selected";
+    }) || {};
+
     const sellerContactName = String(
       c?.seller_contact_name ||
       sellerDisplay.seller_contact_name ||
@@ -10668,6 +10675,8 @@ function renderAnyBikeDealSellerCheckPanel(deal){
       dealMotorcycle.seller_name ||
       dealMotorcycle.seller_business_name ||
       dealMotorcycle.source_name ||
+      selectedCandidate.seller_name ||
+      selectedCandidate.seller_type ||
       ""
     ).trim();
 
@@ -10675,6 +10684,7 @@ function renderAnyBikeDealSellerCheckPanel(deal){
       sellerDisplay.seller_phone ||
       sellerDisplay.phone ||
       dealMotorcycle.seller_phone ||
+      selectedCandidate.seller_phone ||
       ""
     ).trim();
 
@@ -10682,10 +10692,20 @@ function renderAnyBikeDealSellerCheckPanel(deal){
       sellerDisplay.seller_email ||
       sellerDisplay.email ||
       dealMotorcycle.seller_email ||
+      selectedCandidate.seller_email ||
+      ""
+    ).trim();
+
+    const sellerLocation = String(
+      sellerDisplay.seller_location ||
+      sellerDisplay.location ||
+      dealMotorcycle.seller_location ||
+      selectedCandidate.seller_location ||
       ""
     ).trim();
 
     const sellerContactDetailsFallback = [
+      sellerLocation,
       sellerPhone,
       sellerEmail
     ].filter(Boolean).join(" · ");
@@ -10769,6 +10789,16 @@ function renderAnyBikeDealSellerCheckPanel(deal){
             <input id="deal-seller-price-${dealMotorcycleId}" type="number" min="0" step="0.01" value="${sellerPrice ? Number(sellerPrice).toFixed(2) : ""}" placeholder="e.g. 5200.00">
           </div>
 
+          <div class="anybike-seller-field">
+            <label for="deal-seller-contact-name-${dealMotorcycleId}">Seller / Business Name</label>
+            <input id="deal-seller-contact-name-${dealMotorcycleId}" value="${escapeAdminHtml(sellerContactName)}" placeholder="Seller or dealership name">
+          </div>
+
+          <div class="anybike-seller-field">
+            <label for="deal-seller-contact-details-${dealMotorcycleId}">Seller Address / Location / Contact</label>
+            <input id="deal-seller-contact-details-${dealMotorcycleId}" value="${escapeAdminHtml(sellerContactDetails)}" placeholder="Address/location · phone · email">
+          </div>
+
           <label class="anybike-seller-secure-box">
             <input id="deal-seller-secured-${dealMotorcycleId}" type="checkbox" ${secured ? "checked" : ""} ${securityBlocked && !secured ? "disabled" : ""} onchange="anyBikeSellerSecuredChanged(${dealMotorcycleId})">
             Motorcycle genuinely secured with seller
@@ -10783,7 +10813,7 @@ function renderAnyBikeDealSellerCheckPanel(deal){
         </div>
 
         <details class="anybike-seller-optional">
-          <summary>Seller contact / confirmation details — optional</summary>
+          <summary>Seller confirmation timing / contact method — optional</summary>
           <div class="anybike-seller-form">
             <div class="anybike-seller-field">
               <label for="deal-seller-valid-until-${dealMotorcycleId}">Confirmation Valid Until</label>
@@ -10792,14 +10822,6 @@ function renderAnyBikeDealSellerCheckPanel(deal){
             <div class="anybike-seller-field">
               <label for="deal-seller-contact-method-${dealMotorcycleId}">Contact Method</label>
               <input id="deal-seller-contact-method-${dealMotorcycleId}" value="${escapeAdminHtml(sellerContactMethod)}" placeholder="Phone / Email / WhatsApp">
-            </div>
-            <div class="anybike-seller-field">
-              <label for="deal-seller-contact-name-${dealMotorcycleId}">Seller Contact Name</label>
-              <input id="deal-seller-contact-name-${dealMotorcycleId}" value="${escapeAdminHtml(sellerContactName)}">
-            </div>
-            <div class="anybike-seller-field">
-              <label for="deal-seller-contact-details-${dealMotorcycleId}">Seller Contact Details</label>
-              <input id="deal-seller-contact-details-${dealMotorcycleId}" value="${escapeAdminHtml(sellerContactDetails)}">
             </div>
           </div>
         </details>
@@ -11258,7 +11280,17 @@ async function saveDealFinalSellerCheck(dealMotorcycleId){
 
   }catch(error){
     console.error("Final Seller Check could not be saved:", error);
-    alert("Final Seller Check could not be saved.\n\n" + (error && error.message ? error.message : "Unknown error"));
+    const message=String(error && error.message ? error.message : "Unknown error");
+
+    if(/seller purchase price must be confirmed before the motorcycle can be marked Secured/i.test(message)){
+      alert(
+        "Final Seller Check could not be saved.\n\n" +
+        "This sourced motorcycle already has a seller price in Deal 360, but the current database seller-security function is not yet accepting that source-on-demand price as the confirmed purchase price.\n\n" +
+        "The seller details and price shown on this form are correct; the database function needs the source-on-demand purchase-price path updated before Secured can be saved."
+      );
+    }else{
+      alert("Final Seller Check could not be saved.\n\n" + message);
+    }
   }finally{
     dealSellerCheckBusy.delete(String(id));
 
