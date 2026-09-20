@@ -391,6 +391,9 @@ sent to an external translation service.
       "/public-language-pack-id.js?v=20260920-1",
       "/public-language-pack-ms.js?v=20260920-1",
       "/public-language-pack-zh.js?v=20260920-1",
+      "/public-language-supplement-de-es.js?v=20260920-1",
+      "/public-language-supplement-ar-id.js?v=20260920-1",
+      "/public-language-supplement-ms-zh.js?v=20260920-1",
       "/public-language-pack-runtime.js?v=20260920-1"
     ];
     files.forEach((src,index)=>{
