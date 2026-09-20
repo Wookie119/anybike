@@ -168,3 +168,25 @@ Every message must keep links to the correct customer, bike, enquiry, request, d
   - if a fully paid Buyer later changes their mind, AnyBike's standard commercial remedy is resale of the motorcycle on the Buyer's behalf/for their account, not cancellation with an immediate refund;
   - the original AnyBike fees remain payable and are deducted as part of the resale reconciliation;
   - additional reasonable resale/default costs may also be deducted.
+
+
+### Site-wide public language rule
+- The language selected in the shared public header is the **authoritative language for the entire public AnyBike page**, not only the navigation/header.
+- Every customer-facing public page must translate its visible page content when the header language changes.
+- Supported shared-header languages currently are: **English, German, French, Spanish and Arabic**.
+- The selected language must persist across public-page navigation using the existing AnyBike language preference/local storage and logged-in profile preference.
+- Public page translation must include, where applicable:
+  - headings, paragraphs and explanatory copy;
+  - buttons, CTAs and links;
+  - form labels, placeholders, help text, validation and success/error messages;
+  - FAQs, notices, policy text and legal acceptance wording;
+  - dynamically rendered stock/search/market UI labels;
+  - modal/dialogue text;
+  - footer copy;
+  - page title / browser title.
+- Do not translate motorcycle makes, model names, VINs, registrations, customer-entered text, dealer-entered text, prices, proper supplier names or other factual identifiers unless there is a deliberate display rule.
+- Do not rely on the browser's automatic translation or an unapproved external translation service for contractual/legal text.
+- Legal/policy translations must retain the same meaning and version as the English master. The English version remains the drafting source of truth until professionally reviewed translations are adopted.
+- Market/country pages must obey the header selection even if their default content was originally written in the destination country's local language.
+- Use a **shared translation controller/page-family architecture**, not separate one-off language selectors on individual pages.
+- Translation rollout is a HIGH-PRIORITY public-site workstream. A page is not considered language-complete until its full visible content responds to the shared header selector.
