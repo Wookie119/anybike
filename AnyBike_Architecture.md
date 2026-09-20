@@ -108,3 +108,63 @@ Every message must keep links to the correct customer, bike, enquiry, request, d
 - These transaction acceptances must ultimately be stored as a permanent audit record with user ID, offer/deal ID, acceptance timestamp and policy/version identifiers.
 - Future Formal Offer acceptance must fail closed if the required legal acceptance record cannot be created.
 - Current policy version introduced 20 September 2026.
+
+
+### Buyer change-of-mind / resale-on-behalf policy
+- Once a Buyer has accepted a Formal Offer and AnyBike has purchased or secured the motorcycle in reliance on that acceptance, the transaction is not treated as a normal refundable reservation.
+- If the Buyer later changes their mind, fails to complete, fails to provide shipping/handover instructions, or fails to take delivery, the matter is treated as **Buyer Default / Buyer-Initiated Resale**, subject to the agreed contract terms and applicable law.
+- If the Buyer has **fully paid** and then changes their mind, the standard AnyBike remedy is **not an automatic refund**.
+- The only commercial exit route offered by AnyBike in that situation is for AnyBike to **resell the motorcycle on the Buyer's behalf / for the Buyer's account** through one or more reasonable channels, which may include:
+  - AnyBike;
+  - AnyBike's verified UK dealer network;
+  - international trade buyers;
+  - other appropriate trade/commercial resale channels.
+- AnyBike may retain possession of the motorcycle pending resale and may require the Buyer to provide any documents or authority reasonably needed to complete the resale.
+- AnyBike must account for the resale proceeds against the Buyer's transaction account.
+- Before any surplus is returned, AnyBike may deduct all reasonable sums due under the original transaction and all reasonable costs/losses arising from the Buyer's change of mind/default.
+- Deductible amounts may include, where applicable:
+  - the **original AnyBike fees and charges that the Buyer was due to pay under the original purchase**;
+  - motorcycle purchase price / supplier commitment already incurred by AnyBike;
+  - original collection, transport, preparation, documentation, inspection coordination, export handling or delivery charges already incurred;
+  - storage and insurance;
+  - additional collection, redelivery or repositioning costs;
+  - remarketing and resale administration;
+  - dealer/trade selling costs or commissions;
+  - third-party cancellation or handling charges;
+  - any shortfall between the original transaction value and the eventual resale proceeds;
+  - other directly attributable and properly evidenced costs caused by the Buyer's default/change of mind.
+- The resale is to be handled as an account reconciliation, not a simple refund:
+  - **Resale proceeds**
+  - less **original AnyBike fees/charges due under the original deal**
+  - less **additional resale/default costs**
+  - less **any other sums properly due**
+  - equals **final Buyer surplus or shortfall**.
+- If a shortfall remains after resale, the Buyer may remain liable for that shortfall under the contract.
+- If a genuine surplus remains after all properly due amounts have been deducted and the account is fully reconciled, that surplus is handled in accordance with the contract and applicable law.
+- AnyBike should take reasonable steps to mitigate loss and should keep a clear audit trail of:
+  - Buyer default / change-of-mind date;
+  - notice given;
+  - original transaction value;
+  - original fees and charges;
+  - additional storage/transport/resale costs;
+  - resale channel(s);
+  - offers received;
+  - resale price achieved;
+  - final reconciliation;
+  - any Buyer shortfall or surplus.
+- Deal 360 should ultimately support a dedicated **Buyer Default / Resale on Behalf** workflow:
+  1. Buyer change of mind / failure to complete;
+  2. Notice to Buyer;
+  3. Remedy period where appropriate;
+  4. Resale authorised / initiated;
+  5. Motorcycle offered on AnyBike and/or to dealer/trade network;
+  6. Resale agreed;
+  7. Costs and original fees deducted;
+  8. Buyer account reconciled;
+  9. Shortfall collected or surplus dealt with;
+  10. Deal closed with full audit history.
+- Customer-facing Terms & Conditions and Formal Offer wording should make clear before acceptance that:
+  - deposits and full payments are not automatically refundable after AnyBike has committed to or purchased the motorcycle;
+  - if a fully paid Buyer later changes their mind, AnyBike's standard commercial remedy is resale of the motorcycle on the Buyer's behalf/for their account, not cancellation with an immediate refund;
+  - the original AnyBike fees remain payable and are deducted as part of the resale reconciliation;
+  - additional reasonable resale/default costs may also be deducted.
