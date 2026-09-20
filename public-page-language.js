@@ -331,9 +331,19 @@ sent to an external translation service.
     if(!["freight-forwarders.html","services-and-fees.html","privacy-policy.html"].includes(name)){ return; }
     if(document.querySelector('script[data-anybike-final-fr-fixes="true"]')){ return; }
     const script=document.createElement("script");
-    script.src="/public-final-fr-fixes.js?v=20260920-1";
+    script.src="/public-final-fr-fixes.js?v=20260920-2";
     script.async=false;
     script.dataset.anybikeFinalFrFixes="true";
+    document.head.appendChild(script);
+  }
+
+  function loadFullFrenchPrivacy(){
+    if(location.pathname!=="/privacy-policy.html"){ return; }
+    if(document.querySelector('script[data-anybike-privacy-full-fr="true"]')){ return; }
+    const script=document.createElement("script");
+    script.src="/privacy-policy-fr-full.js?v=20260920-1";
+    script.async=false;
+    script.dataset.anybikePrivacyFullFr="true";
     document.head.appendChild(script);
   }
 
@@ -420,6 +430,7 @@ sent to an external translation service.
       loadCommercialTranslationBundle();
       loadPrivacyTranslationBundle();
       loadFinalFrenchFixes();
+      loadFullFrenchPrivacy();
       loadLegalTranslationBundle();
       loadInspectionShippingTranslationBundle();
       loadStockTranslationBundle();
@@ -435,6 +446,7 @@ sent to an external translation service.
       loadCommercialTranslationBundle();
       loadPrivacyTranslationBundle();
       loadFinalFrenchFixes();
+      loadFullFrenchPrivacy();
       loadLegalTranslationBundle();
       loadInspectionShippingTranslationBundle();
       loadStockTranslationBundle();
