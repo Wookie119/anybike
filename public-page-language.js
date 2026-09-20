@@ -331,7 +331,7 @@ sent to an external translation service.
     if(!["freight-forwarders.html","services-and-fees.html","privacy-policy.html"].includes(name)){ return; }
     if(document.querySelector('script[data-anybike-final-fr-fixes="true"]')){ return; }
     const script=document.createElement("script");
-    script.src="/public-final-fr-fixes.js?v=20260920-2";
+    script.src="/public-final-fr-fixes.js?v=20260920-3";
     script.async=false;
     script.dataset.anybikeFinalFrFixes="true";
     document.head.appendChild(script);
@@ -351,7 +351,7 @@ sent to an external translation service.
     if(location.pathname!=="/services-and-fees.html"){ return; }
     if(document.querySelector('script[data-anybike-services-fees-full-fr="true"]')){ return; }
     const script=document.createElement("script");
-    script.src="/services-fees-fr-full.js?v=20260920-1";
+    script.src="/services-fees-fr-full.js?v=20260920-2";
     script.async=false;
     script.dataset.anybikeServicesFeesFullFr="true";
     document.head.appendChild(script);
