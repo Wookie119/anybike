@@ -17,6 +17,39 @@ Changes
 
 document.addEventListener("DOMContentLoaded", loadPublicHeader);
 
+function loadAnyBikePublicPageLanguageController(){
+  if(window.AnyBikePageLanguage){
+    return Promise.resolve(window.AnyBikePageLanguage);
+  }
+
+  return new Promise(function(resolve){
+    const existing=document.querySelector('script[data-anybike-page-language="true"]');
+
+    if(existing){
+      existing.addEventListener("load",function(){
+        resolve(window.AnyBikePageLanguage || null);
+      },{once:true});
+      resolve(window.AnyBikePageLanguage || null);
+      return;
+    }
+
+    const script=document.createElement("script");
+    script.src="/public-page-language.js?v=20260920";
+    script.async=false;
+    script.dataset.anybikePageLanguage="true";
+    script.onload=function(){
+      resolve(window.AnyBikePageLanguage || null);
+    };
+    script.onerror=function(){
+      console.warn("AnyBike public page language controller could not be loaded.");
+      resolve(null);
+    };
+    document.head.appendChild(script);
+  });
+}
+
+loadAnyBikePublicPageLanguageController();
+
 const ANYBIKE_HEADER_CURRENCY_RATES = {
   GBP:1,
   EUR:1.17,
@@ -1292,6 +1325,10 @@ function applyHeaderLanguage(language){
       language:language
     }
   }));
+
+  if(window.AnyBikePageLanguage){
+    window.AnyBikePageLanguage.apply(language);
+  }
 }
 
 function setText(selector,value){
