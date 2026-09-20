@@ -674,4 +674,96 @@ English remains the drafting/source language.
       }
     });
   }
+
+
+  // Complete Indonesian / Malay / Chinese translation coverage for About Us.
+  // Added after the earlier dictionaries so all remaining English body copy is covered.
+  if(path==="/about-us.html"){
+    window.AnyBikePageLanguage.register({
+      root:"body",
+      translations:{
+        id:{text:{
+          "Our model is deliberately different from a classified website. The supplying dealer or seller remains confidential to the buyer, AnyBike handles the commercial transaction, and the buyer purchases from AnyBike.":"Model kami memang berbeda dari situs iklan biasa. Dealer atau penjual pemasok tetap dirahasiakan dari pembeli, AnyBike menangani transaksi komersial, dan pembeli membeli dari AnyBike.",
+          "1. UK motorcycles enter the AnyBike supply network":"1. Sepeda motor Inggris masuk ke jaringan pasokan AnyBike",
+          "Authorised dealer feeds, direct dealer supply, private sellers and other approved UK sources provide motorcycles for AnyBike to assess, source and purchase.":"Feed dealer resmi, pasokan langsung dealer, penjual pribadi, dan sumber Inggris lain yang disetujui menyediakan sepeda motor untuk dinilai, dicari, dan dibeli oleh AnyBike.",
+          "2. AnyBike understands buyer demand":"2. AnyBike memahami permintaan pembeli",
+          "International buyers and motorcycle trade customers tell us what they need, or browse motorcycles already available through AnyBike.":"Pembeli internasional dan pelanggan perdagangan sepeda motor memberi tahu kami apa yang mereka butuhkan atau melihat sepeda motor yang sudah tersedia melalui AnyBike.",
+          "3. AnyBike agrees the commercial terms":"3. AnyBike menyepakati ketentuan komersial",
+          "Where a motorcycle is suitable, AnyBike confirms availability, purchase terms, costs and the buyer proposition.":"Jika sepeda motor sesuai, AnyBike mengonfirmasi ketersediaan, ketentuan pembelian, biaya, dan penawaran kepada pembeli.",
+          "4. AnyBike buys and resells the motorcycle":"4. AnyBike membeli dan menjual kembali sepeda motor",
+          "AnyBike purchases the motorcycle from the supplier and sells it onward to the qualifying buyer.":"AnyBike membeli sepeda motor dari pemasok dan menjualnya kembali kepada pembeli yang memenuhi syarat.",
+          "The experience behind AnyBike spans approximately 40 years across motorcycle retail, distribution and transport. That practical industry background shapes how AnyBike approaches stock, dealers, buyers, collection, logistics and international transactions.":"Pengalaman di balik AnyBike mencakup sekitar 40 tahun di bidang ritel, distribusi, dan transportasi sepeda motor. Latar belakang praktis ini membentuk cara AnyBike menangani stok, dealer, pembeli, pengambilan, logistik, dan transaksi internasional.",
+          "The UK has a large and diverse motorcycle market, while demand varies significantly by country and by buyer type. AnyBike is being built to understand that demand, identify commercially suitable motorcycles and move the right stock to the right market.":"Inggris memiliki pasar sepeda motor yang besar dan beragam, sementara permintaan berbeda menurut negara dan jenis pembeli. AnyBike dibangun untuk memahami permintaan tersebut, mengidentifikasi sepeda motor yang sesuai secara komersial, dan mengarahkan stok yang tepat ke pasar yang tepat.",
+          "AnyBike has a clear market boundary. International buyers can purchase privately or as a trade business. Within the UK, motorcycle sales through AnyBike are trade-only.":"AnyBike memiliki batas pasar yang jelas. Pembeli internasional dapat membeli sebagai pribadi atau bisnis perdagangan. Di Inggris, penjualan sepeda motor melalui AnyBike hanya untuk perdagangan.",
+          "Private buyers outside the United Kingdom can buy suitable motorcycles from AnyBike for international delivery or export.":"Pembeli pribadi di luar Inggris dapat membeli sepeda motor yang sesuai dari AnyBike untuk pengiriman internasional atau ekspor.",
+          "Motorcycle dealers, traders, importers and professional buyers outside the UK can source individual bikes or regular stock through AnyBike.":"Dealer, pedagang, importir, dan pembeli profesional di luar Inggris dapat mencari sepeda motor satuan atau stok rutin melalui AnyBike.",
+          "Verified UK motorcycle dealers and traders can buy motorcycles through AnyBike, including dealer-to-dealer trading opportunities.":"Dealer dan pedagang sepeda motor Inggris yang terverifikasi dapat membeli melalui AnyBike, termasuk peluang perdagangan antar-dealer.",
+          "AnyBike does not sell motorcycles to the general public in the UK. UK motorcycle sales through AnyBike are for motorcycle trade buyers only.":"AnyBike tidak menjual sepeda motor kepada masyarakat umum di Inggris. Penjualan sepeda motor di Inggris melalui AnyBike hanya untuk pembeli perdagangan sepeda motor.",
+          "Explore Where AnyBike Sells":"Lihat pasar tempat AnyBike menjual","Tell Us What You Need":"Beri tahu kami kebutuhan Anda",
+          "Dealers can work with AnyBike in both directions: supply motorcycles and confidential Trade Prices to AnyBike, and use AnyBike to source or buy suitable trade stock from the wider network.":"Dealer dapat bekerja dengan AnyBike dalam dua arah: memasok sepeda motor dan Harga Perdagangan rahasia kepada AnyBike, serta menggunakan AnyBike untuk mencari atau membeli stok perdagangan yang sesuai dari jaringan yang lebih luas.",
+          "Authorised stock feeds allow eligible dealer inventory to flow into AnyBike automatically.":"Feed stok resmi memungkinkan inventaris dealer yang memenuhi syarat masuk ke AnyBike secara otomatis.",
+          "Dealers can provide private commercial prices to AnyBike without exposing those figures publicly.":"Dealer dapat memberikan harga komersial rahasia kepada AnyBike tanpa menampilkannya kepada publik.",
+          "AnyBike can purchase suitable motorcycles from dealers for international or UK trade resale.":"AnyBike dapat membeli sepeda motor yang sesuai dari dealer untuk dijual kembali secara internasional atau dalam perdagangan Inggris.",
+          "UK and international trade buyers can source motorcycles through AnyBike from the same connected supply network.":"Pembeli perdagangan Inggris dan internasional dapat mencari sepeda motor melalui AnyBike dari jaringan pasokan terhubung yang sama.",
+          "Tell us whether you are buying a motorcycle, supplying stock, representing a dealership or looking for international motorcycle services.":"Beri tahu kami apakah Anda ingin membeli sepeda motor, memasok stok, mewakili dealer, atau mencari layanan sepeda motor internasional.",
+          "Explore Where AnyBike Sells":"Lihat pasar AnyBike","Dealer Opportunities":"Peluang Dealer","Staff Login":"Login Staf",
+          "International Retail • International Trade • UK Trade":"Internasional • Perdagangan Internasional • Perdagangan Inggris"
+        }},
+        ms:{text:{
+          "Our model is deliberately different from a classified website. The supplying dealer or seller remains confidential to the buyer, AnyBike handles the commercial transaction, and the buyer purchases from AnyBike.":"Model kami sengaja berbeza daripada laman iklan biasa. Peniaga atau penjual pembekal kekal sulit kepada pembeli, AnyBike mengurus transaksi komersial dan pembeli membeli daripada AnyBike.",
+          "1. UK motorcycles enter the AnyBike supply network":"1. Motosikal UK memasuki rangkaian bekalan AnyBike",
+          "Authorised dealer feeds, direct dealer supply, private sellers and other approved UK sources provide motorcycles for AnyBike to assess, source and purchase.":"Suapan peniaga yang dibenarkan, bekalan terus peniaga, penjual persendirian dan sumber UK lain yang diluluskan menyediakan motosikal untuk dinilai, diperoleh dan dibeli oleh AnyBike.",
+          "2. AnyBike understands buyer demand":"2. AnyBike memahami permintaan pembeli",
+          "International buyers and motorcycle trade customers tell us what they need, or browse motorcycles already available through AnyBike.":"Pembeli antarabangsa dan pelanggan perdagangan motosikal memberitahu kami apa yang mereka perlukan atau melihat motosikal yang telah tersedia melalui AnyBike.",
+          "3. AnyBike agrees the commercial terms":"3. AnyBike bersetuju dengan terma komersial",
+          "Where a motorcycle is suitable, AnyBike confirms availability, purchase terms, costs and the buyer proposition.":"Apabila motosikal sesuai, AnyBike mengesahkan ketersediaan, terma pembelian, kos dan tawaran kepada pembeli.",
+          "4. AnyBike buys and resells the motorcycle":"4. AnyBike membeli dan menjual semula motosikal",
+          "AnyBike purchases the motorcycle from the supplier and sells it onward to the qualifying buyer.":"AnyBike membeli motosikal daripada pembekal dan menjualnya semula kepada pembeli yang layak.",
+          "The experience behind AnyBike spans approximately 40 years across motorcycle retail, distribution and transport. That practical industry background shapes how AnyBike approaches stock, dealers, buyers, collection, logistics and international transactions.":"Pengalaman di sebalik AnyBike merangkumi kira-kira 40 tahun dalam runcit motosikal, pengedaran dan pengangkutan. Latar belakang industri praktikal ini membentuk cara AnyBike mengurus stok, peniaga, pembeli, pengambilan, logistik dan transaksi antarabangsa.",
+          "The UK has a large and diverse motorcycle market, while demand varies significantly by country and by buyer type. AnyBike is being built to understand that demand, identify commercially suitable motorcycles and move the right stock to the right market.":"UK mempunyai pasaran motosikal yang besar dan pelbagai, manakala permintaan berbeza mengikut negara dan jenis pembeli. AnyBike dibina untuk memahami permintaan itu, mengenal pasti motosikal yang sesuai secara komersial dan memindahkan stok yang betul ke pasaran yang betul.",
+          "AnyBike has a clear market boundary. International buyers can purchase privately or as a trade business. Within the UK, motorcycle sales through AnyBike are trade-only.":"AnyBike mempunyai sempadan pasaran yang jelas. Pembeli antarabangsa boleh membeli secara persendirian atau sebagai perniagaan perdagangan. Di UK, jualan motosikal melalui AnyBike adalah untuk perdagangan sahaja.",
+          "Private buyers outside the United Kingdom can buy suitable motorcycles from AnyBike for international delivery or export.":"Pembeli persendirian di luar United Kingdom boleh membeli motosikal yang sesuai daripada AnyBike untuk penghantaran antarabangsa atau eksport.",
+          "Motorcycle dealers, traders, importers and professional buyers outside the UK can source individual bikes or regular stock through AnyBike.":"Peniaga motosikal, pedagang, pengimport dan pembeli profesional di luar UK boleh mendapatkan motosikal individu atau stok tetap melalui AnyBike.",
+          "Verified UK motorcycle dealers and traders can buy motorcycles through AnyBike, including dealer-to-dealer trading opportunities.":"Peniaga dan pedagang motosikal UK yang disahkan boleh membeli motosikal melalui AnyBike, termasuk peluang perdagangan antara peniaga.",
+          "AnyBike does not sell motorcycles to the general public in the UK. UK motorcycle sales through AnyBike are for motorcycle trade buyers only.":"AnyBike tidak menjual motosikal kepada orang awam di UK. Jualan motosikal UK melalui AnyBike hanya untuk pembeli perdagangan motosikal.",
+          "Explore Where AnyBike Sells":"Lihat pasaran AnyBike","Tell Us What You Need":"Beritahu Kami Apa Yang Anda Perlukan",
+          "Dealers can work with AnyBike in both directions: supply motorcycles and confidential Trade Prices to AnyBike, and use AnyBike to source or buy suitable trade stock from the wider network.":"Peniaga boleh bekerjasama dengan AnyBike dalam kedua-dua arah: membekalkan motosikal dan Harga Perdagangan sulit kepada AnyBike, serta menggunakan AnyBike untuk mendapatkan atau membeli stok perdagangan yang sesuai daripada rangkaian yang lebih luas.",
+          "Authorised stock feeds allow eligible dealer inventory to flow into AnyBike automatically.":"Suapan stok yang dibenarkan membolehkan inventori peniaga yang layak masuk ke AnyBike secara automatik.",
+          "Dealers can provide private commercial prices to AnyBike without exposing those figures publicly.":"Peniaga boleh memberikan harga komersial sulit kepada AnyBike tanpa mendedahkan angka itu kepada umum.",
+          "AnyBike can purchase suitable motorcycles from dealers for international or UK trade resale.":"AnyBike boleh membeli motosikal yang sesuai daripada peniaga untuk jualan semula antarabangsa atau perdagangan UK.",
+          "UK and international trade buyers can source motorcycles through AnyBike from the same connected supply network.":"Pembeli perdagangan UK dan antarabangsa boleh mendapatkan motosikal melalui AnyBike daripada rangkaian bekalan yang sama.",
+          "Tell us whether you are buying a motorcycle, supplying stock, representing a dealership or looking for international motorcycle services.":"Beritahu kami sama ada anda membeli motosikal, membekalkan stok, mewakili pengedar atau mencari perkhidmatan motosikal antarabangsa.",
+          "Dealer Opportunities":"Peluang Peniaga","Staff Login":"Log Masuk Kakitangan",
+          "International Retail • International Trade • UK Trade":"Antarabangsa • Perdagangan Antarabangsa • Perdagangan UK"
+        }},
+        zh:{text:{
+          "Our model is deliberately different from a classified website. The supplying dealer or seller remains confidential to the buyer, AnyBike handles the commercial transaction, and the buyer purchases from AnyBike.":"我们的模式有意区别于分类广告网站。供应经销商或卖家的身份对买家保密，AnyBike 负责商业交易，买家向 AnyBike 购买。",
+          "1. UK motorcycles enter the AnyBike supply network":"1. 英国摩托车进入 AnyBike 供应网络",
+          "Authorised dealer feeds, direct dealer supply, private sellers and other approved UK sources provide motorcycles for AnyBike to assess, source and purchase.":"获授权的经销商库存源、经销商直接供货、个人卖家及其他经批准的英国来源，为 AnyBike 提供可评估、采购和购买的摩托车。",
+          "2. AnyBike understands buyer demand":"2. AnyBike 了解买家需求",
+          "International buyers and motorcycle trade customers tell us what they need, or browse motorcycles already available through AnyBike.":"国际买家和摩托车贸易客户可以告诉我们他们的需求，或浏览 AnyBike 已有的摩托车。",
+          "3. AnyBike agrees the commercial terms":"3. AnyBike 确认商业条款",
+          "Where a motorcycle is suitable, AnyBike confirms availability, purchase terms, costs and the buyer proposition.":"当摩托车合适时，AnyBike 会确认供应情况、采购条款、成本及买家方案。",
+          "4. AnyBike buys and resells the motorcycle":"4. AnyBike 买入并转售摩托车",
+          "AnyBike purchases the motorcycle from the supplier and sells it onward to the qualifying buyer.":"AnyBike 从供应商处购买摩托车，再出售给符合条件的买家。",
+          "The experience behind AnyBike spans approximately 40 years across motorcycle retail, distribution and transport. That practical industry background shapes how AnyBike approaches stock, dealers, buyers, collection, logistics and international transactions.":"AnyBike 背后的经验横跨约 40 年的摩托车零售、分销和运输。这些实际行业经验塑造了 AnyBike 对库存、经销商、买家、提车、物流和国际交易的处理方式。",
+          "The UK has a large and diverse motorcycle market, while demand varies significantly by country and by buyer type. AnyBike is being built to understand that demand, identify commercially suitable motorcycles and move the right stock to the right market.":"英国拥有庞大且多元的摩托车市场，而不同国家和买家类型的需求差异很大。AnyBike 的目标是理解这些需求，识别具有商业可行性的摩托车，并把合适的库存带到合适的市场。",
+          "AnyBike has a clear market boundary. International buyers can purchase privately or as a trade business. Within the UK, motorcycle sales through AnyBike are trade-only.":"AnyBike 有明确的市场边界。国际买家可以个人或贸易业务身份购买；在英国境内，AnyBike 的摩托车销售仅面向贸易客户。",
+          "Private buyers outside the United Kingdom can buy suitable motorcycles from AnyBike for international delivery or export.":"英国以外的个人买家可以从 AnyBike 购买合适的摩托车用于国际交付或出口。",
+          "Motorcycle dealers, traders, importers and professional buyers outside the UK can source individual bikes or regular stock through AnyBike.":"英国以外的摩托车经销商、贸易商、进口商及专业买家可以通过 AnyBike 采购单台摩托车或长期库存。",
+          "Verified UK motorcycle dealers and traders can buy motorcycles through AnyBike, including dealer-to-dealer trading opportunities.":"经过验证的英国摩托车经销商和贸易商可以通过 AnyBike 购买摩托车，包括经销商之间的交易机会。",
+          "AnyBike does not sell motorcycles to the general public in the UK. UK motorcycle sales through AnyBike are for motorcycle trade buyers only.":"AnyBike 不在英国向公众零售摩托车。AnyBike 在英国的摩托车销售仅面向摩托车贸易买家。",
+          "Explore Where AnyBike Sells":"查看 AnyBike 的销售市场","Tell Us What You Need":"告诉我们您的需求",
+          "Dealers can work with AnyBike in both directions: supply motorcycles and confidential Trade Prices to AnyBike, and use AnyBike to source or buy suitable trade stock from the wider network.":"经销商可以双向使用 AnyBike：向 AnyBike 提供摩托车和保密贸易价格，也可以利用 AnyBike 从更广泛的网络采购合适的贸易库存。",
+          "Authorised stock feeds allow eligible dealer inventory to flow into AnyBike automatically.":"获授权的库存源可让符合条件的经销商库存自动进入 AnyBike。",
+          "Dealers can provide private commercial prices to AnyBike without exposing those figures publicly.":"经销商可以向 AnyBike 提供私密商业价格，而无需公开这些数字。",
+          "AnyBike can purchase suitable motorcycles from dealers for international or UK trade resale.":"AnyBike 可以从经销商处购买合适的摩托车，用于国际或英国贸易转售。",
+          "UK and international trade buyers can source motorcycles through AnyBike from the same connected supply network.":"英国及国际贸易买家可以通过 AnyBike 从同一个互联供应网络采购摩托车。",
+          "Tell us whether you are buying a motorcycle, supplying stock, representing a dealership or looking for international motorcycle services.":"请告诉我们您是要购买摩托车、供应库存、代表经销商，还是需要国际摩托车服务。",
+          "Dealer Opportunities":"经销商机会","Staff Login":"员工登录",
+          "International Retail • International Trade • UK Trade":"国际 • 国际贸易 • 英国贸易"
+        }}
+      }
+    });
+  }
 })();
