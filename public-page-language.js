@@ -23,6 +23,9 @@ sent to an external translation service.
   const registrations=[];
   const originalText=new WeakMap();
   const originalAttributes=new WeakMap();
+  let translationObserver=null;
+  let mutationApplyTimer=null;
+  let applying=false;
 
   function normaliseLanguage(value){
     return SUPPORTED.includes(String(value || "").toLowerCase())
@@ -194,14 +197,24 @@ sent to an external translation service.
   }
 
   function apply(language){
+    if(applying){
+      return 0;
+    }
+
+    applying=true;
+
     const selected=normaliseLanguage(language || selectedLanguage());
     let applied=0;
 
-    registrations.forEach(function(registration){
-      if(applyRegistration(registration,selected)){
-        applied+=1;
-      }
-    });
+    try{
+      registrations.forEach(function(registration){
+        if(applyRegistration(registration,selected)){
+          applied+=1;
+        }
+      });
+    }finally{
+      applying=false;
+    }
 
     window.dispatchEvent(new CustomEvent("anybikePageLanguageApplied",{
       detail:{
@@ -220,6 +233,36 @@ sent to an external translation service.
 
     registrations.push(registration);
     apply(selectedLanguage());
+  }
+
+  function startMutationObserver(){
+    if(translationObserver || !document.body){
+      return;
+    }
+
+    translationObserver=new MutationObserver(function(mutations){
+      if(applying){
+        return;
+      }
+
+      const hasRelevantChange=mutations.some(function(mutation){
+        return mutation.type==="childList" && mutation.addedNodes?.length;
+      });
+
+      if(!hasRelevantChange){
+        return;
+      }
+
+      clearTimeout(mutationApplyTimer);
+      mutationApplyTimer=setTimeout(function(){
+        apply(selectedLanguage());
+      },40);
+    });
+
+    translationObserver.observe(document.body,{
+      childList:true,
+      subtree:true
+    });
   }
 
   function loadDictionaryBundle(){
@@ -259,9 +302,11 @@ sent to an external translation service.
     document.addEventListener("DOMContentLoaded",function(){
       loadDictionaryBundle();
       apply(selectedLanguage());
+      startMutationObserver();
     },{once:true});
   }else{
     loadDictionaryBundle();
     apply(selectedLanguage());
+    startMutationObserver();
   }
 })();
