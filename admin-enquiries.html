@@ -11890,6 +11890,109 @@ function anyBikeInvoiceStatusClass(status){
   return "draft";
 }
 
+
+function anyBikeSameCustomerBalanceDeals(deal){
+  const customerId=String(deal?.customer_id||"");
+  if(!customerId){ return []; }
+
+  return adminDealQueue.filter(function(row){
+    if(String(row.customer_id||"")!==customerId){ return false; }
+    if(["Cancelled","Closed"].includes(String(row.deal_status||row.status||"").trim())){ return false; }
+
+    const account=adminDealCustomerAccounts.get(String(row.deal_id||""))||{};
+    const value=anyBikeAccountNumber(account,["deal_value_gbp"],row.buyer_value_gbp);
+    const allocated=anyBikeAccountNumber(account,["customer_money_allocated_gbp","allocated_gbp"],0);
+    const balance=anyBikeAccountNumber(account,["customer_balance_due_gbp","balance_due_gbp"],Math.max(value-allocated,0));
+    if(balance<=0.009){ return false; }
+
+    const bikes=adminDealMotorcycles.filter(function(bike){ return Number(bike.deal_id)===Number(row.deal_id); });
+    if(!bikes.length){ return false; }
+    return bikes.every(function(bike){ return !!bike.bike_secured; });
+  });
+}
+
+async function createCombinedBalanceProforma(dealId){
+  if(combinedProformaBusy){ return; }
+
+  const id=Number(dealId);
+  const deal=adminDealQueue.find(function(row){ return Number(row.deal_id)===id; });
+  if(!deal){ return; }
+
+  const eligible=anyBikeSameCustomerBalanceDeals(deal);
+  if(eligible.length<2){
+    alert("There is not another secured motorcycle with an outstanding balance for this customer.");
+    return;
+  }
+
+  const lines=eligible.map(function(row,index){
+    const account=adminDealCustomerAccounts.get(String(row.deal_id||""))||{};
+    const value=anyBikeAccountNumber(account,["deal_value_gbp"],row.buyer_value_gbp);
+    const allocated=anyBikeAccountNumber(account,["customer_money_allocated_gbp","allocated_gbp"],0);
+    const balance=anyBikeAccountNumber(account,["customer_balance_due_gbp","balance_due_gbp"],Math.max(value-allocated,0));
+    const bikes=adminDealMotorcycles.filter(function(bike){ return Number(bike.deal_id)===Number(row.deal_id); });
+    const bikeLabel=bikes.map(function(b){ return [b.year,b.make,b.model,b.variant].filter(Boolean).join(" "); }).join(" / ");
+    return (index+1)+". "+(row.deal_number||("Deal #"+row.deal_id))+" · "+bikeLabel+" · Balance "+anyBikeDealMoney(balance);
+  }).join("\n");
+
+  const defaultSelection=eligible.map(function(_row,index){ return String(index+1); }).join(",");
+  const answer=prompt(
+    "Create a Combined Proforma for this customer.\n\n"+
+    "Enter the numbers of the Deals to include, separated by commas.\n\n"+
+    lines,
+    defaultSelection
+  );
+  if(answer===null){ return; }
+
+  const indexes=String(answer).split(",")
+    .map(function(v){ return Number(String(v).trim())-1; })
+    .filter(function(v,index,array){ return Number.isInteger(v) && v>=0 && v<eligible.length && array.indexOf(v)===index; });
+
+  const selected=indexes.map(function(i){ return eligible[i]; });
+  if(selected.length<2){
+    alert("Select at least two Deals for a Combined Proforma.");
+    return;
+  }
+  if(!selected.some(function(row){ return Number(row.deal_id)===id; })){
+    alert("The current Deal must be included in the Combined Proforma.");
+    return;
+  }
+
+  const dealIds=selected.map(function(row){ return Number(row.deal_id); });
+  const dealNumbers=selected.map(function(row){ return row.deal_number||("Deal #"+row.deal_id); });
+
+  if(!confirm(
+    "Create Combined Draft Proforma?\n\n"+
+    dealNumbers.join("\n")+
+    "\n\nYou will be able to preview it before issuing it. No payment is requested until the Combined Proforma has been issued."
+  )){ return; }
+
+  combinedProformaBusy=true;
+  renderAdminDealQueue();
+
+  try{
+    const result=await sb.rpc("admin_create_combined_proforma",{p_deal_ids:dealIds});
+    if(result.error){ throw result.error; }
+    const payload=result.data||{};
+
+    alert(
+      "Combined Draft Proforma created.\n\n"+
+      "Deals: "+(payload.deal_count||dealIds.length)+"\n"+
+      "Total: "+anyBikeDealMoney(payload.total_gbp)+"\n\n"+
+      "Next: Preview the Combined Proforma, then Issue Proforma. After it is issued, Deal 360 will offer the combined balance request."
+    );
+
+    await loadAdminDealQueue();
+    const row=document.getElementById("anybike-deal-"+id);
+    if(row){ row.classList.add("open"); openAnyBikeDealId=String(id); }
+  }catch(error){
+    console.error("Combined balance Proforma could not be created:",error);
+    alert("Combined Proforma could not be created.\n\n"+(error?.message||"Unknown error"));
+  }finally{
+    combinedProformaBusy=false;
+    renderAdminDealQueue();
+  }
+}
+
 function renderAnyBikeDealBalanceRequestGuide(deal){
   const dealId=String(deal.deal_id||"");
   const account=adminDealCustomerAccounts.get(dealId)||{};
@@ -11898,74 +12001,128 @@ function renderAnyBikeDealBalanceRequestGuide(deal){
   const balance=anyBikeAccountNumber(account,["customer_balance_due_gbp","balance_due_gbp"],Math.max(dealValue-allocated,0));
   const thread=adminDealMessageThreads.get(dealId)||null;
   const invoices=adminDealInvoices.get(dealId)||[];
-  const issued=invoices.find(function(inv){ return String(inv.invoice_type||"")==="Proforma" && String(inv.invoice_status||"")==="Issued" && !inv.is_combined; })||null;
-  const draft=invoices.find(function(inv){ return String(inv.invoice_type||"")==="Proforma" && String(inv.invoice_status||"")==="Draft" && !inv.is_combined; })||null;
-  const docState=issued ? (issued.invoice_number||"Issued Proforma") : (draft ? "Draft Proforma — issue before requesting payment" : "No Proforma issued");
+  const issuedSingle=invoices.find(function(inv){ return String(inv.invoice_type||"")==="Proforma" && String(inv.invoice_status||"")==="Issued" && !inv.is_combined; })||null;
+  const issuedCombined=invoices.find(function(inv){ return String(inv.invoice_type||"")==="Proforma" && String(inv.invoice_status||"")==="Issued" && !!inv.is_combined; })||null;
+  const draft=invoices.find(function(inv){ return String(inv.invoice_type||"")==="Proforma" && String(inv.invoice_status||"")==="Draft"; })||null;
+  const issued=issuedCombined||issuedSingle;
+  const docState=issued
+    ? ((issuedCombined?"Combined · ":"")+(issued.invoice_number||"Issued Proforma"))
+    : (draft ? ((draft.is_combined?"Combined ":"")+"Draft Proforma — issue before requesting payment") : "No Proforma issued");
+
   const busy=dealBalanceRequestBusy.has(dealId);
-  const canRequest=balance>0.009 && !!thread && !!issued;
-  const action=canRequest
-    ? '<button type="button" '+(busy?'disabled':'')+' onclick="requestDealCustomerBalance('+Number(deal.deal_id)+');return false;">'+(busy?'Sending...':'Request '+escapeAdminHtml(anyBikeDealMoney(balance))+' Balance')+'</button>'
+  const sameCustomerDue=anyBikeSameCustomerBalanceDeals(deal);
+  const combineButton=sameCustomerDue.length>1
+    ? '<button type="button" class="anybike-invoice-secondary-btn" '+(combinedProformaBusy?'disabled':'')+' onclick="createCombinedBalanceProforma('+Number(deal.deal_id)+');return false;">'+(combinedProformaBusy?'Preparing...':'Create / Combine Proforma')+'</button>'
+    : '';
+
+  const requestButtons=[];
+  if(balance>0.009 && thread && issuedSingle){
+    requestButtons.push('<button type="button" '+(busy?'disabled':'')+' onclick="requestDealCustomerBalance('+Number(deal.deal_id)+','+Number(issuedSingle.invoice_id)+');return false;">'+(busy?'Sending...':'Request '+escapeAdminHtml(anyBikeDealMoney(balance))+' Balance')+'</button>');
+  }
+  if(thread && issuedCombined){
+    const linkedIds=Array.isArray(issuedCombined.linked_deal_ids)?issuedCombined.linked_deal_ids.map(Number).filter(Number.isFinite):[];
+    const combinedBalance=linkedIds.reduce(function(sum,linkedId){
+      const linkedDeal=adminDealQueue.find(function(row){ return Number(row.deal_id)===linkedId; })||{};
+      const linkedAccount=adminDealCustomerAccounts.get(String(linkedId))||{};
+      const value=anyBikeAccountNumber(linkedAccount,["deal_value_gbp"],linkedDeal.buyer_value_gbp);
+      const alloc=anyBikeAccountNumber(linkedAccount,["customer_money_allocated_gbp","allocated_gbp"],0);
+      return sum+anyBikeAccountNumber(linkedAccount,["customer_balance_due_gbp","balance_due_gbp"],Math.max(value-alloc,0));
+    },0);
+    if(combinedBalance>0.009){
+      requestButtons.unshift('<button type="button" '+(busy?'disabled':'')+' onclick="requestDealCustomerBalance('+Number(deal.deal_id)+','+Number(issuedCombined.invoice_id)+');return false;">'+(busy?'Sending...':'Request Combined '+escapeAdminHtml(anyBikeDealMoney(combinedBalance))+' Balance')+'</button>');
+    }
+  }
+
+  const requestAction=requestButtons.length
+    ? requestButtons.join(' ')
     : (thread ? '<a class="anybike-invoice-view-btn" href="admin-message-centre.html?thread='+encodeURIComponent(thread.id)+'">Open Customer Conversation →</a>' : '<span style="color:#ff9b9f;font-weight:900">No linked customer conversation</span>');
+
   return '<div class="anybike-transaction-panel" style="margin-bottom:14px">'+
-    '<div class="anybike-transaction-head"><div><span>Next Customer Action</span><h4>Request Full Balance</h4></div><div class="anybike-transaction-badge">'+escapeAdminHtml(anyBikeDealMoney(balance)+' DUE')+'</div></div>'+
+    '<div class="anybike-transaction-head"><div><span>Next Customer Action</span><h4>Proforma → Request Balance</h4></div><div class="anybike-transaction-badge">'+escapeAdminHtml(anyBikeDealMoney(balance)+' DUE')+'</div></div>'+
     '<div class="anybike-transaction-grid">'+
-      '<div class="anybike-transaction-state"><span>1 · Document</span><strong>'+escapeAdminHtml(docState)+'</strong></div>'+
-      '<div class="anybike-transaction-state"><span>2 · Request Buyer Payment</span><strong>'+(issued?'READY':'WAITING FOR PROFORMA')+'</strong></div>'+
-      '<div class="anybike-transaction-state"><span>3 · Cleared Funds</span><strong>WAIT FOR PAYMENT</strong></div>'+
-      '<div class="anybike-transaction-state"><span>4 · Record & Allocate</span><strong>ONLY AFTER FUNDS ARRIVE</strong></div>'+
+      '<div class="anybike-transaction-state"><span>1 · Choose Document</span><strong>'+escapeAdminHtml(docState)+'</strong></div>'+
+      '<div class="anybike-transaction-state"><span>2 · Issue Proforma</span><strong>'+(issued?'READY':'REQUIRED')+'</strong></div>'+
+      '<div class="anybike-transaction-state"><span>3 · Request Buyer Payment</span><strong>'+(issued?'READY':'WAITING FOR PROFORMA')+'</strong></div>'+
+      '<div class="anybike-transaction-state"><span>4 · Verify & Allocate</span><strong>AFTER FUNDS ARRIVE</strong></div>'+
     '</div>'+
-    '<div class="anybike-transaction-next"><span>Once the motorcycle is secured, issue the current Proforma and request the remaining balance from the buyer. Do not record customer money until cleared funds have actually arrived.</span><strong>'+action+'</strong></div>'+
+    '<div class="anybike-transaction-next"><span>Before requesting the balance, choose whether this Deal uses its own Proforma or is combined with other secured motorcycles for the same customer. Combined Proformas use one dedicated bank payment reference for all included Deals.</span><strong>'+combineButton+' '+requestAction+'</strong></div>'+
   '</div>';
 }
 
-async function requestDealCustomerBalance(dealId){
+async function requestDealCustomerBalance(dealId,preferredInvoiceId){
   const id=Number(dealId);
   const key=String(dealId||"");
   if(!Number.isFinite(id) || dealBalanceRequestBusy.has(key)){ return; }
 
   const deal=adminDealQueue.find(function(row){ return Number(row.deal_id)===id; });
   const thread=adminDealMessageThreads.get(key);
-  const account=adminDealCustomerAccounts.get(key)||{};
   const invoices=adminDealInvoices.get(key)||[];
-  const issued=invoices.find(function(inv){
-    return String(inv.invoice_type||"")==="Proforma" &&
-           String(inv.invoice_status||"")==="Issued" &&
-           !inv.is_combined;
-  })||null;
+  const issuedCandidates=invoices.filter(function(inv){
+    return String(inv.invoice_type||"")==="Proforma" && String(inv.invoice_status||"")==="Issued";
+  });
+  const issued=issuedCandidates.find(function(inv){ return Number(inv.invoice_id)===Number(preferredInvoiceId); }) ||
+    issuedCandidates.find(function(inv){ return !!inv.is_combined; }) ||
+    issuedCandidates.find(function(inv){ return !inv.is_combined; }) || null;
 
   if(!deal || !thread){
     alert("A linked customer conversation is required before the balance can be requested.");
     return;
   }
   if(!issued){
-    alert("Issue the current Proforma before requesting the customer balance.");
+    alert("Issue a Proforma before requesting the customer balance.");
     return;
   }
 
-  const dealValue=anyBikeAccountNumber(account,["deal_value_gbp"],deal.buyer_value_gbp);
-  const allocated=anyBikeAccountNumber(account,["customer_money_allocated_gbp","allocated_gbp"],0);
-  const balance=anyBikeAccountNumber(account,["customer_balance_due_gbp","balance_due_gbp"],Math.max(dealValue-allocated,0));
+  const combined=!!issued.is_combined || Number(issued.linked_deal_count||0)>1;
+  const linkedDealIds=combined && Array.isArray(issued.linked_deal_ids)
+    ? issued.linked_deal_ids.map(Number).filter(Number.isFinite)
+    : [id];
+  const linkedDealNumbers=combined && Array.isArray(issued.linked_deal_numbers)
+    ? issued.linked_deal_numbers.filter(Boolean)
+    : [deal.deal_number||("Deal #"+id)];
+
+  let balance=0;
+  linkedDealIds.forEach(function(linkedId){
+    const linkedDeal=adminDealQueue.find(function(row){ return Number(row.deal_id)===linkedId; })||{};
+    const account=adminDealCustomerAccounts.get(String(linkedId))||{};
+    const value=anyBikeAccountNumber(account,["deal_value_gbp"],linkedDeal.buyer_value_gbp);
+    const allocated=anyBikeAccountNumber(account,["customer_money_allocated_gbp","allocated_gbp"],0);
+    balance+=anyBikeAccountNumber(account,["customer_balance_due_gbp","balance_due_gbp"],Math.max(value-allocated,0));
+  });
+  balance=Number(balance.toFixed(2));
 
   if(balance<=0.009){
-    alert("This Deal has no customer balance remaining.");
+    alert("The selected Proforma has no customer balance remaining.");
     return;
   }
 
   const dealNumber=deal.deal_number||("Deal #"+id);
+  const invoiceId=Number(issued.invoice_id);
   const proformaNumber=issued.invoice_number||("Proforma v"+Number(issued.version_number||1));
-  const paymentUrl="https://www.anybike.co.uk/accounts-documents.html?deal="+encodeURIComponent(dealNumber)+"&payment=balance&amount="+encodeURIComponent(balance.toFixed(2))+"#bank-transfer";
+  const metadata=issued.metadata&&typeof issued.metadata==="object" ? issued.metadata : {};
+  const paymentReference=String(
+    metadata.payment_reference ||
+    (combined ? ("CPF-"+String(invoiceId).padStart(8,"0")) : dealNumber)
+  );
+  const paymentUrl="https://www.anybike.co.uk/accounts-documents.html?invoice="+encodeURIComponent(invoiceId)+"&payment=balance&amount="+encodeURIComponent(balance.toFixed(2))+"#bank-transfer";
+  const dealText=linkedDealNumbers.join(", ");
+
   const message=
-    "Your motorcycle has now been secured with the seller.\n\n"+
-    "The remaining balance for "+dealNumber+" is "+anyBikeDealMoney(balance)+".\n\n"+
+    (combined
+      ? "Your motorcycles on "+proformaNumber+" are ready for the balance payment stage.\n\n"
+      : "Your motorcycle has now been secured with the seller.\n\n")+
+    "The remaining balance "+(combined?"across "+dealText:"for "+dealNumber)+" is "+anyBikeDealMoney(balance)+".\n\n"+
     "Pay / report your bank transfer here:\n"+paymentUrl+"\n\n"+
-    "Please quote "+dealNumber+" as the payment reference. Your current Proforma is "+proformaNumber+".\n\n"+
-    "Payment is treated as received only after AnyBike has verified the cleared funds. We will continue with the next operational stage once the full balance has been received and allocated to this purchase.";
+    "Please quote "+paymentReference+" as the bank payment reference. Your current Proforma is "+proformaNumber+"."+
+    (combined?" This single payment reference covers "+dealText+".":"")+
+    "\n\nPayment is treated as received only after AnyBike has verified the cleared funds. We will then allocate the verified payment to the motorcycles shown on the Proforma.";
 
   if(!window.confirm(
-    "Send full balance request to the buyer?\n\n"+
-    "Deal: "+dealNumber+"\n"+
+    "Send "+(combined?"combined ":"")+"balance request to the buyer?\n\n"+
+    "Proforma: "+proformaNumber+"\n"+
+    "Deals: "+dealText+"\n"+
     "Balance requested: "+anyBikeDealMoney(balance)+"\n"+
-    "Proforma: "+proformaNumber+"\n\n"+
+    "Bank reference: "+paymentReference+"\n\n"+
     "This will send a Message Centre reply and attempt the normal customer email notification."
   )){ return; }
 
@@ -12009,7 +12166,8 @@ async function requestDealCustomerBalance(dealId){
     alert(
       "Customer balance requested.\n\n"+
       "Balance: "+anyBikeDealMoney(balance)+"\n"+
-      "Proforma: "+proformaNumber+
+      "Proforma: "+proformaNumber+"\n"+
+      "Bank reference: "+paymentReference+
       "\n\nDo not record the balance as received until cleared funds have actually arrived."+
       emailWarning
     );
