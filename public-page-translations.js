@@ -12,6 +12,49 @@ English remains the drafting/source language.
     return;
   }
 
+  // Common public-site vocabulary applied on every public page.
+  // Exact-text matching means customer-entered data, registrations, VINs,
+  // motorcycle makes/models and other factual values are left untouched.
+  window.AnyBikePageLanguage.register({
+    root:"main",
+    translations:{
+      en:{text:{}},
+      de:{text:{
+        "Home":"Startseite","Available Stock":"Verfügbarer Bestand","Available Motorcycles":"Verfügbare Motorräder","Motorcycles":"Motorräder","Trade":"Handel","Export":"Export","About AnyBike":"Über AnyBike","Partners":"Partner","Contact AnyBike":"AnyBike kontaktieren",
+        "Learn More":"Mehr erfahren","Find Out More":"Mehr erfahren","View Details":"Details ansehen","View Bike":"Motorrad ansehen","View Motorcycle":"Motorrad ansehen","Browse Stock":"Bestand ansehen","Browse Available Stock":"Verfügbaren Bestand ansehen","Browse Motorcycles":"Motorräder ansehen",
+        "Contact Us":"Kontakt","Send Message":"Nachricht senden","Submit":"Absenden","Continue":"Weiter","Back":"Zurück","Close":"Schließen","Search":"Suchen","Clear":"Löschen","Loading...":"Wird geladen...","Please select":"Bitte wählen","Yes":"Ja","No":"Nein",
+        "Name":"Name","Your Name":"Ihr Name","Email":"E-Mail","Email Address":"E-Mail-Adresse","Phone":"Telefon","Phone / WhatsApp":"Telefon / WhatsApp","Country":"Land","Postcode":"Postleitzahl","Website":"Website","Message":"Nachricht","Subject":"Betreff","Notes":"Hinweise",
+        "Make":"Marke","Model":"Modell","Variant":"Variante","Year":"Baujahr","Mileage":"Kilometerstand","Colour":"Farbe","Price":"Preis","Deposit":"Anzahlung","Balance":"Restbetrag","Total":"Gesamt","Delivery":"Lieferung","Collection":"Abholung","Inspection":"Prüfung","Shipping":"Versand","Documents":"Dokumente",
+        "Terms & Conditions":"Allgemeine Geschäftsbedingungen","Privacy Policy":"Datenschutzrichtlinie","Trade & Export Sale Policy":"Richtlinie für Handels- & Exportverkäufe"
+      }},
+      fr:{text:{
+        "Home":"Accueil","Available Stock":"Stock disponible","Available Motorcycles":"Motos disponibles","Motorcycles":"Motos","Trade":"Professionnels","Export":"Export","About AnyBike":"À propos d’AnyBike","Partners":"Partenaires","Contact AnyBike":"Contacter AnyBike",
+        "Learn More":"En savoir plus","Find Out More":"En savoir plus","View Details":"Voir les détails","View Bike":"Voir la moto","View Motorcycle":"Voir la moto","Browse Stock":"Voir le stock","Browse Available Stock":"Voir le stock disponible","Browse Motorcycles":"Voir les motos",
+        "Contact Us":"Nous contacter","Send Message":"Envoyer le message","Submit":"Envoyer","Continue":"Continuer","Back":"Retour","Close":"Fermer","Search":"Rechercher","Clear":"Effacer","Loading...":"Chargement...","Please select":"Veuillez choisir","Yes":"Oui","No":"Non",
+        "Name":"Nom","Your Name":"Votre nom","Email":"E-mail","Email Address":"Adresse e-mail","Phone":"Téléphone","Phone / WhatsApp":"Téléphone / WhatsApp","Country":"Pays","Postcode":"Code postal","Website":"Site web","Message":"Message","Subject":"Objet","Notes":"Notes",
+        "Make":"Marque","Model":"Modèle","Variant":"Variante","Year":"Année","Mileage":"Kilométrage","Colour":"Couleur","Price":"Prix","Deposit":"Acompte","Balance":"Solde","Total":"Total","Delivery":"Livraison","Collection":"Enlèvement","Inspection":"Inspection","Shipping":"Expédition","Documents":"Documents",
+        "Terms & Conditions":"Conditions générales","Privacy Policy":"Politique de confidentialité","Trade & Export Sale Policy":"Politique de vente professionnelle & export"
+      }},
+      es:{text:{
+        "Home":"Inicio","Available Stock":"Stock disponible","Available Motorcycles":"Motocicletas disponibles","Motorcycles":"Motocicletas","Trade":"Comercio","Export":"Exportación","About AnyBike":"Sobre AnyBike","Partners":"Socios","Contact AnyBike":"Contactar con AnyBike",
+        "Learn More":"Más información","Find Out More":"Más información","View Details":"Ver detalles","View Bike":"Ver motocicleta","View Motorcycle":"Ver motocicleta","Browse Stock":"Ver stock","Browse Available Stock":"Ver stock disponible","Browse Motorcycles":"Ver motocicletas",
+        "Contact Us":"Contacto","Send Message":"Enviar mensaje","Submit":"Enviar","Continue":"Continuar","Back":"Atrás","Close":"Cerrar","Search":"Buscar","Clear":"Borrar","Loading...":"Cargando...","Please select":"Seleccione","Yes":"Sí","No":"No",
+        "Name":"Nombre","Your Name":"Su nombre","Email":"Correo electrónico","Email Address":"Correo electrónico","Phone":"Teléfono","Phone / WhatsApp":"Teléfono / WhatsApp","Country":"País","Postcode":"Código postal","Website":"Sitio web","Message":"Mensaje","Subject":"Asunto","Notes":"Notas",
+        "Make":"Marca","Model":"Modelo","Variant":"Variante","Year":"Año","Mileage":"Kilometraje","Colour":"Color","Price":"Precio","Deposit":"Depósito","Balance":"Saldo","Total":"Total","Delivery":"Entrega","Collection":"Recogida","Inspection":"Inspección","Shipping":"Envío","Documents":"Documentos",
+        "Terms & Conditions":"Términos y condiciones","Privacy Policy":"Política de privacidad","Trade & Export Sale Policy":"Política de venta comercial y exportación"
+      }},
+      ar:{text:{
+        "Home":"الرئيسية","Available Stock":"المخزون المتاح","Available Motorcycles":"الدراجات المتاحة","Motorcycles":"الدراجات","Trade":"التجارة","Export":"التصدير","About AnyBike":"عن AnyBike","Partners":"الشركاء","Contact AnyBike":"تواصل مع AnyBike",
+        "Learn More":"اعرف المزيد","Find Out More":"اعرف المزيد","View Details":"عرض التفاصيل","View Bike":"عرض الدراجة","View Motorcycle":"عرض الدراجة","Browse Stock":"تصفح المخزون","Browse Available Stock":"تصفح المخزون المتاح","Browse Motorcycles":"تصفح الدراجات",
+        "Contact Us":"اتصل بنا","Send Message":"إرسال الرسالة","Submit":"إرسال","Continue":"متابعة","Back":"رجوع","Close":"إغلاق","Search":"بحث","Clear":"مسح","Loading...":"جارٍ التحميل...","Please select":"يرجى الاختيار","Yes":"نعم","No":"لا",
+        "Name":"الاسم","Your Name":"اسمك","Email":"البريد الإلكتروني","Email Address":"البريد الإلكتروني","Phone":"الهاتف","Phone / WhatsApp":"الهاتف / واتساب","Country":"البلد","Postcode":"الرمز البريدي","Website":"الموقع الإلكتروني","Message":"الرسالة","Subject":"الموضوع","Notes":"ملاحظات",
+        "Make":"الماركة","Model":"الموديل","Variant":"الفئة","Year":"السنة","Mileage":"المسافة","Colour":"اللون","Price":"السعر","Deposit":"العربون","Balance":"الرصيد","Total":"الإجمالي","Delivery":"التسليم","Collection":"الاستلام","Inspection":"الفحص","Shipping":"الشحن","Documents":"المستندات",
+        "Terms & Conditions":"الشروط والأحكام","Privacy Policy":"سياسة الخصوصية","Trade & Export Sale Policy":"سياسة البيع التجاري والتصدير"
+      }}
+    }
+  });
+
+
   const path=String(location.pathname || "/").toLowerCase();
 
   function register(paths,translations){
