@@ -402,16 +402,21 @@ function invoiceCard(invoice){
 function requestedPaymentJourney(){
   const params=new URLSearchParams(window.location.search);
   const deal=String(params.get("deal")||"").trim();
+  const invoiceId=Number(params.get("invoice")||0);
   const payment=String(params.get("payment")||"").trim().toLowerCase();
   const amount=Number(params.get("amount")||0);
-  if(!deal || !["deposit","balance"].includes(payment) || !Number.isFinite(amount) || amount<=0)return null;
-  return {deal,payment,amount:Number(amount.toFixed(2))};
+  if((!deal && !Number.isFinite(invoiceId)) || !["deposit","balance"].includes(payment) || !Number.isFinite(amount) || amount<=0)return null;
+  return {deal,invoiceId:Number.isFinite(invoiceId)&&invoiceId>0?invoiceId:null,payment,amount:Number(amount.toFixed(2))};
 }
 
 function applyRequestedPaymentJourney(){
   const request=requestedPaymentJourney();
   if(!request)return;
-  const invoice=accountInvoices.find(row=>String(row.deal_number||"").trim()===request.deal && !!row.can_report_payment && Number(row.balance_due_gbp||0)>0);
+  const invoice=accountInvoices.find(row=>{
+    if(!row.can_report_payment || Number(row.balance_due_gbp||0)<=0)return false;
+    if(request.invoiceId)return Number(row.invoice_id)===Number(request.invoiceId);
+    return String(row.deal_number||"").trim()===request.deal;
+  });
   if(!invoice)return;
   document.querySelectorAll(".pay-select").forEach(el=>{el.checked=false;});
   const id=Number(invoice.invoice_id);
@@ -425,13 +430,16 @@ function applyRequestedPaymentJourney(){
   const notice=document.getElementById("paymentJourneyNotice");
   if(notice){
     const label=request.payment==="balance" ? "Balance payment" : "Deposit payment";
+    const paymentRef=String(invoice.payment_reference||invoice.deal_number||request.deal||"").trim();
     const copy=request.payment==="balance"
-      ? "Your remaining balance of "+money(requested)+" is due. Use the bank details below, quote "+safe(request.deal)+" as your reference, then report the transfer so AnyBike can verify it."
+      ? "Your remaining balance of "+money(requested)+" is due. Use the bank details below, quote "+safe(paymentRef)+" as your bank reference, then report the transfer so AnyBike can verify and allocate it."
       : "Your "+money(requested)+" deposit is due. After making the bank transfer, enter the reference used with your bank below and submit the payment advice. AnyBike will verify the transfer before it is recorded as received.";
     notice.innerHTML=`<div class="notice-box" style="border-color:rgba(54,211,126,.38);background:rgba(54,211,126,.07);margin-bottom:16px"><strong>${label} for ${safe(request.deal)}</strong><br>${copy}</div>`;
   }
   const bankReference=document.getElementById("bankReference");
-  if(bankReference && !bankReference.value.trim()){bankReference.value=request.deal;}
+  if(bankReference && !bankReference.value.trim()){
+    bankReference.value=String(invoice.payment_reference||invoice.deal_number||request.deal||"");
+  }
   updatePaymentSelection();
   requestAnimationFrame(()=>setTimeout(()=>{const target=document.getElementById("reportPanel");if(target){const top=target.getBoundingClientRect().top+window.pageYOffset-24;window.scrollTo({top:Math.max(0,top),behavior:"smooth"});}},180));
 }
