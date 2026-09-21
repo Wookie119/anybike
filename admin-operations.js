@@ -190,6 +190,35 @@
     const secured=!!row.motorcycle_secured_at || collected;
     const driverWorkflow=paymentRequested || sellerConfirmedPaid || photosConfirmed || collected;
 
+    if(collected){
+      return `
+        <div class="ab-collect">
+          <div class="ab-collect-head"><span>Collection complete</span><h5>Move driver collection completed</h5></div>
+          <div class="ab-collect-steps">
+            <div class="ab-collect-step ${eta?"done":""}"><span>1 · Driver ETA</span><strong>${esc(eta?niceDateTime(row.driver_eta_received_at):"Waiting")}</strong></div>
+            <div class="ab-collect-step ${arrived?"done":""}"><span>2 · Driver Arrived</span><strong>${esc(arrived?niceDateTime(row.driver_arrived_at):"Waiting")}</strong></div>
+            <div class="ab-collect-step ${passed?"done":""}"><span>3 · Visual Check</span><strong>${esc(passed?"Passed":visual||"Pending")}</strong></div>
+            <div class="ab-collect-step ${custodyComplete?"done":""}"><span>4 · Handover</span><strong>${esc(custodyComplete?"Complete":(custodyExpected?custodyReceived+"/"+custodyExpected:"Pending"))}</strong></div>
+            <div class="ab-collect-step ${photosConfirmed?"done":""}"><span>5 · Photos</span><strong>${esc(photosConfirmed?"Saved":"Pending")}</strong></div>
+            <div class="ab-collect-step ${sellerConfirmedPaid?"done":""}"><span>6 · Seller Payment</span><strong>${esc(sellerConfirmedPaid?"Confirmed received":"Pending")}</strong></div>
+            <div class="ab-collect-step done"><span>7 · Motorcycle</span><strong>Collected & secured</strong></div>
+          </div>
+          <div style="padding:0 14px 14px">
+            <div class="ab-collect-money">
+              <div class="ab-ops-metric"><span>Collected</span><strong>${esc(niceDateTime(row.collection_actual_at))}</strong></div>
+              <div class="ab-ops-metric"><span>Seller Price</span><strong>${esc(gbp(row.seller_price_gbp))}</strong></div>
+              <div class="ab-ops-metric"><span>Seller Paid</span><strong>${esc(gbp(paid))}</strong></div>
+              <div class="ab-ops-metric"><span>Balance</span><strong>${esc(gbp(balance))}</strong></div>
+            </div>
+            <div class="ab-collect-actions" style="margin-top:10px">
+              <button type="button" class="ab-ops-button" onclick="viewAnyBikeCollectionReport(${id});return false;">View Collection Report</button>
+            </div>
+            <div id="ab-collection-report-${id}" class="ab-collect-status" style="display:none;margin-top:10px"></div>
+          </div>
+        </div>
+      `;
+    }
+
     return `
       <div class="ab-collect">
         <div class="ab-collect-head"><span>Collection & Supplier Payment</span><h5>Driver-on-site controls</h5></div>
