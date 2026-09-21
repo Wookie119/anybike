@@ -565,12 +565,4 @@
   window.saveAnyBikeMoveDraft=saveMoveDraft;
   window.bookAnyBikeMoveShipment=bookMoveShipment;
 
-  // If Bike Sales rendered before this isolated module finished loading,
-  // rerender once so the Operations step can attach without touching
-  // Message Centre/header notification initialization.
-  setTimeout(function(){
-    if(typeof renderAdminDealQueue === "function"){
-      renderAdminDealQueue();
-    }
-  },0);
 })();
