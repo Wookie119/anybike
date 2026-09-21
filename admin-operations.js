@@ -247,6 +247,7 @@
     const customerMobile=data.customer_mobile||"";
     const smsType=data.sms_recipient_type||"anybike";
     const smsMobile=data.sms_mobile || (smsType==="customer"?customerMobile:"+447949574299");
+    const movePrice=data.move_price_agreed_gbp == null ? "" : String(data.move_price_agreed_gbp);
 
     host.innerHTML=`
       <div class="ab-move-head">
@@ -279,6 +280,10 @@
         <div class="ab-move-field"><label>Postcode *</label><input id="ab-move-receiver-postcode-${id}" value="${esc(receiver.postcode||"")}"></div>
         <div class="ab-move-field"><label>Country</label><input id="ab-move-receiver-country-${id}" value="${esc(receiver.country||"United Kingdom")}"></div>
         <div class="ab-move-field"><label>Receiver Contact Phone</label><input id="ab-move-receiver-phone-${id}" value="${esc(receiver.contact_phone||"")}"></div>
+
+        <div class="ab-move-section">Move commercial booking details — internal only</div>
+        <div class="ab-move-field"><label>Price Agreed with Move Motorcycles (£)</label><input id="ab-move-price-${id}" type="number" min="0" step="0.01" value="${esc(movePrice)}" placeholder="0.00"></div>
+        <div class="ab-move-field"><label>Move Customer Reference</label><input value="${esc(data.deal_number||"")}" readonly></div>
 
         <div class="ab-move-section">Move booking notification preference</div>
         <input type="hidden" id="ab-move-customer-mobile-${id}" value="${esc(customerMobile)}">
@@ -348,7 +353,8 @@
       p_receiver_contact_name:fieldValue("ab-move-receiver-contact-"+id),
       p_receiver_contact_phone:fieldValue("ab-move-receiver-phone-"+id),
       p_sms_recipient_type:smsType,
-      p_sms_mobile:smsMobile
+      p_sms_mobile:smsMobile,
+      p_move_price_agreed_gbp:fieldValue("ab-move-price-"+id)==="" ? null : Number(fieldValue("ab-move-price-"+id))
     };
   }
 
