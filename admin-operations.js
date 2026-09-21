@@ -242,6 +242,7 @@
     if(!host) return;
     const sender=data.sender||{};
     const receiver=data.receiver||{};
+    const motorcycle=data.motorcycle||{};
     const move=data.move||{};
     const customerMobile=data.customer_mobile||"";
     const smsType=data.sms_recipient_type||"anybike";
@@ -253,6 +254,12 @@
         <div class="ab-ops-state">${esc(move.raw_status||"Draft")}</div>
       </div>
       <div class="ab-move-grid">
+        <div class="ab-move-section">Motorcycle details sent to Move</div>
+        <div class="ab-move-field"><label>Make *</label><input value="${esc(motorcycle.make||"")}" readonly></div>
+        <div class="ab-move-field"><label>Model *</label><input value="${esc(motorcycle.model||"")}" readonly></div>
+        <div class="ab-move-field"><label>Registration *</label><input value="${esc(motorcycle.registration||"")}" readonly></div>
+        <div class="ab-move-field"><label>Variant</label><input value="${esc(motorcycle.variant||"")}" readonly></div>
+
         <div class="ab-move-section">Collection from seller — internal operational information</div>
         <div class="ab-move-field"><label>Seller / Sender Name *</label><input id="ab-move-sender-name-${id}" value="${esc(sender.name||"")}"></div>
         <div class="ab-move-field"><label>Contact Name</label><input id="ab-move-sender-contact-${id}" value="${esc(sender.contact_name||"")}"></div>
