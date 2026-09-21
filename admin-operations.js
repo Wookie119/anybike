@@ -192,7 +192,6 @@
           ${confirmed ? (booked
             ? `<div class="ab-move-booked"><strong>Move Motorcycles:</strong> ${esc(row.move_tracking_no ? "Booked · Tracking "+row.move_tracking_no : "Booked")}</div>`
             : `<div id="ab-move-booking-${id}" class="ab-move"><div class="ab-ops-loading">Loading Move booking details…</div></div>`) : ""}
-          ${confirmed ? `<div id="ab-collection-control-${id}" class="ab-collection"><div class="ab-ops-loading">Loading Collection & Supplier Payment controls…</div></div>` : ""}
           <div class="ab-ops-next">
             <span><strong>Next:</strong> ${confirmed ? (booked ? "Move collection is linked to this motorcycle." : "Review and complete the Move Motorcycles booking.") : "Contact the seller, confirm AnyBike is proceeding and obtain the Ready Date."}</span>
             <span class="ab-ops-private">${phone ? "Seller contact held internally" : "Seller details remain internal"}</span>
@@ -206,13 +205,6 @@
       const booked=!!row.move_shipment_id || ["booked","driver_assigned","collected"].includes(String(row.collection_status||""));
       if(confirmed && !booked){
         setTimeout(function(){ loadMoveBooking(row.deal_motorcycle_id,false); },0);
-      }
-      if(confirmed){
-        setTimeout(function(){
-          if(typeof window.loadAnyBikeCollectionControl === "function"){
-            window.loadAnyBikeCollectionControl(row.deal_motorcycle_id,false);
-          }
-        },0);
       }
     });
   }
