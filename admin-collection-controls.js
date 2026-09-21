@@ -123,6 +123,7 @@
   }
 
   addStyle();
+  window.loadAnyBikeCollectionControl=load;
   window.updateAnyBikeCollectionControl=update;
   window.recordAnyBikeCollectionSupplierPayment=recordPayment;
   const mo=new MutationObserver(function(){scan();});
