@@ -283,6 +283,10 @@
         <div class="ab-move-field"><label>Receiver Contact Phone</label><input id="ab-move-receiver-phone-${id}" value="${esc(receiver.contact_phone||"")}"></div>
         <div class="ab-move-field"><label>Receiver Email</label><input id="ab-move-receiver-email-${id}" type="email" value="${esc(receiver.email||"")}"></div>
 
+        <div class="ab-move-section">Move account</div>
+        <div class="ab-move-field"><label>Account Name</label><input value="AnyBike" readonly></div>
+        <div class="ab-move-field"><label>Account Number</label><input value="13882" readonly></div>
+
         <div class="ab-move-section">Move commercial booking details — internal only</div>
         <div class="ab-move-field"><label>Price Agreed with Move Motorcycles (£)</label><input id="ab-move-price-${id}" type="number" min="0" step="0.01" value="${esc(movePrice)}" placeholder="0.00"></div>
         <div class="ab-move-field"><label>Move Customer Reference</label><input value="${esc(data.deal_number||"")}" readonly></div>
