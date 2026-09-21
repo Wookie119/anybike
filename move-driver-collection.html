@@ -25,7 +25,7 @@ textarea{width:100%;min-height:90px;border:1px solid rgba(160,140,88,.45);border
 .check{display:flex;align-items:flex-start;gap:10px;padding:12px 0;border-bottom:1px solid rgba(255,255,255,.08)}.check:last-child{border-bottom:0}.check input{width:22px;height:22px;accent-color:var(--gold)}
 .check strong{display:block;color:var(--goldSoft)}.check small{display:block;color:var(--muted);margin-top:3px}
 .status{font-size:13px;color:var(--goldText);line-height:1.45}.status.good{color:#92e4b4}.status.warn{color:#ffd891} #addressBox{color:var(--goldText)} #addressBox strong{color:var(--goldSoft)}
-.error{padding:16px;border-radius:12px;background:#4a1515;border:1px solid #a94d4d;color:#fff}.photo-list{display:grid;gap:10px;margin-top:12px}.photo-row{padding:12px;border:1px solid rgba(160,140,88,.28);border-radius:10px;background:rgba(0,0,0,.14)}.photo-row strong{display:block;color:var(--goldSoft);margin-bottom:4px}.photo-row small{display:block;color:var(--muted);margin-bottom:9px;line-height:1.4}.photo-row input[type=file]{display:block;width:100%;color:var(--goldText);margin-bottom:8px}.photo-done{color:#92e4b4;font-weight:900}.hidden{display:none!important}
+.error{padding:16px;border-radius:12px;background:#4a1515;border:1px solid #a94d4d;color:#fff}.photo-list{display:grid;gap:10px;margin-top:12px}.photo-row{padding:12px;border:1px solid rgba(160,140,88,.28);border-radius:10px;background:rgba(0,0,0,.14)}.photo-row strong{display:block;color:var(--goldSoft);margin-bottom:4px}.photo-row small{display:block;color:var(--muted);margin-bottom:9px;line-height:1.4}.photo-row input[type=file]{display:none}.step-help{margin-top:7px;color:var(--muted);font-size:12px;line-height:1.4}.photo-done{color:#92e4b4;font-weight:900}.hidden{display:none!important}
 @media(max-width:600px){.grid{grid-template-columns:1fr}.wrap{padding:10px 10px 34px}.body,.head{padding:14px}}
 </style>
 </head>
@@ -57,7 +57,7 @@ textarea{width:100%;min-height:90px;border:1px solid rgba(160,140,88,.45);border
           <button id="passBtn" class="btn" onclick="doAction('visual_passed')">Visual Check Passed</button>
           <button id="problemBtn" class="btn danger" onclick="doAction('visual_discrepancy')">Save Discrepancy & Stop Collection</button>
         </div>
-        <p class="status" id="visualStatus"></p><div id="damagePhotoBox" class="photo-row hidden"><strong>Damage close-up photo</strong><small>Take this before the motorcycle is moved.</small><input id="photo-damage" type="file" accept="image/*" capture="environment"><button class="btn secondary" onclick="uploadPhoto('damage')">Upload Damage Photo</button><div id="photo-status-damage" class="status"></div></div>
+        <p class="status" id="visualStatus"></p><div id="damagePhotoBox" class="photo-row hidden"><strong>Damage close-up photo</strong><small>Take this before the motorcycle is moved.</small><input id="photo-damage" type="file" accept="image/*" capture="environment" onchange="uploadSelectedPhoto('damage')"><button class="btn secondary" onclick="openCamera('damage')">Take Damage Photo</button><div id="photo-status-damage" class="status"></div></div>
       </div>
     </section>
     <section class="card">
@@ -66,8 +66,10 @@ textarea{width:100%;min-height:90px;border:1px solid rgba(160,140,88,.45);border
         <div class="notice"><strong>After the visual check passes:</strong> call AnyBike so payment can be made to the seller. Do not take the motorcycle until the seller confirms the money has arrived.</div>
         <div class="actions">
           <a id="callPaymentBtn" class="btn" href="tel:+447949574299" style="display:block;text-align:center;text-decoration:none">Call AnyBike for Seller Payment</a>
-          <button id="paymentRequestedBtn" class="btn secondary" onclick="doAction('payment_requested')">Seller Payment Requested ✓</button>
-          <button id="sellerPaidBtn" class="btn secondary" onclick="confirmSellerPaid()">Seller Confirms Payment Received ✓</button>
+          <button id="paymentRequestedBtn" class="btn secondary" onclick="doAction('payment_requested')">2. Mark Seller Payment Requested ✓</button>
+          <div id="paymentRequestedHelp" class="step-help">After speaking to AnyBike and payment has been requested/sent, tap this first.</div>
+          <button id="sellerPaidBtn" class="btn secondary" onclick="confirmSellerPaid()">3. Seller Confirms Payment Received ✓</button>
+          <div id="sellerPaidHelp" class="step-help">This unlocks after the payment-request step above. Only tap it after the seller confirms the money is in their account.</div>
           <button id="refreshBtn" class="btn secondary" onclick="refreshJob()">Refresh Status</button>
         </div>
         <p id="clearanceStatus" class="status warn"></p>
@@ -156,8 +158,8 @@ function renderPhotos(s,photos,collected){
   host.innerHTML=photoSlots.map(([slot,title,help])=>{
     const done=uploaded.has(slot);
     return '<div class="photo-row"><strong>'+esc(title)+(done?' <span class="photo-done">✓ Uploaded</span>':'')+'</strong><small>'+esc(help)+'</small>'+
-      '<input id="photo-'+slot+'" type="file" accept="image/*" capture="environment" '+((!paymentReceived||collected)?"disabled":"")+'>'+
-      '<button class="btn secondary" '+((!paymentReceived||collected)?"disabled":"")+' onclick="uploadPhoto(\''+slot+'\')">'+(done?"Upload Replacement":"Upload Photo")+'</button>'+
+      '<input id="photo-'+slot+'" type="file" accept="image/*" capture="environment" '+((!paymentReceived||collected)?"disabled":"")+' onchange="uploadSelectedPhoto(\''+slot+'\')">'+
+      '<button class="btn secondary" '+((!paymentReceived||collected)?"disabled":"")+' onclick="openCamera(\''+slot+'\')">'+(done?"Retake Photo":"Take Photo")+'</button>'+
       '<div id="photo-status-'+slot+'" class="status"></div></div>';
   }).join("");
 }
@@ -192,9 +194,13 @@ function render(){
 
   document.getElementById("callPaymentBtn").classList.toggle("hidden",!passed||collected);
   document.getElementById("paymentRequestedBtn").disabled=!passed||requested||collected;
-  document.getElementById("paymentRequestedBtn").textContent=requested?"Seller Payment Requested ✓":"Seller Payment Requested ✓";
+  document.getElementById("paymentRequestedBtn").textContent=requested?"2. Seller Payment Requested ✓":"2. Mark Seller Payment Requested ✓";
   document.getElementById("sellerPaidBtn").disabled=!requested||paymentReceived||collected;
-  document.getElementById("sellerPaidBtn").textContent=paymentReceived?"Seller Confirms Payment Received ✓":"Seller Confirms Payment Received ✓";
+  document.getElementById("sellerPaidBtn").textContent=paymentReceived?"3. Seller Confirmed Payment Received ✓":"3. Seller Confirms Payment Received ✓";
+  const requestHelp=document.getElementById("paymentRequestedHelp");
+  const sellerHelp=document.getElementById("sellerPaidHelp");
+  if(requestHelp) requestHelp.textContent=requested?"Payment request recorded. The seller-confirmation button is now available.":"After speaking to AnyBike and payment has been requested/sent, tap this first.";
+  if(sellerHelp) sellerHelp.textContent=paymentReceived?"Seller payment receipt confirmed.":requested?"Ask the seller to check their bank. Tap only when they confirm the money is in their account.":"This unlocks after the payment-request step above.";
   const cs=document.getElementById("clearanceStatus");
   cs.textContent=paymentReceived?(cleared?"Seller payment confirmed and AnyBike clearance received.":"Seller says payment received. Waiting for AnyBike ledger/clearance confirmation."):(requested?"Payment requested — wait with the seller until they confirm receipt.":passed?"Call AnyBike, then mark Seller Payment Requested.":"Waiting for visual check.");
   cs.className="status "+(cleared&&paymentReceived?"good":"warn");
@@ -243,7 +249,12 @@ async function setItem(itemId,status){
   if(r.error){alert(r.error.message);return;}current=r.data;render();
 }
 
-async function uploadPhoto(slot){
+function openCamera(slot){
+  const input=document.getElementById("photo-"+slot);
+  if(input&&!input.disabled) input.click();
+}
+
+async function uploadSelectedPhoto(slot){
   const input=document.getElementById("photo-"+slot),status=document.getElementById("photo-status-"+slot);
   const file=input&&input.files&&input.files[0];
   if(!file){if(status){status.textContent="Choose or take a photo first.";status.className="status warn";}return;}
