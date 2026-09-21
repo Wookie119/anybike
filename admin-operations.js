@@ -256,7 +256,7 @@
               ?"Motorcycle collected "+esc(niceDateTime(row.collection_actual_at))+" and secured to AnyBike."
               :(driverWorkflow
                 ?"Driver workflow controls final collection after handover, condition photos and seller payment confirmation."
-                :"Requires driver arrival, passed visual check, payment authorisation and a zero supplier balance.")}</div><div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.09)"><h6>Move Driver Collection Link</h6><div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px;align-items:end"><div><label style="display:block;margin-bottom:4px;color:#9aa3ae;font-size:9px;font-weight:900;text-transform:uppercase">Driver name</label><input id="ab-driver-name-${id}" style="width:100%;box-sizing:border-box;border:1px solid #353535;border-radius:7px;background:#070707;color:#fff;padding:8px" placeholder="Move driver"></div><div><label style="display:block;margin-bottom:4px;color:#9aa3ae;font-size:9px;font-weight:900;text-transform:uppercase">Driver mobile</label><input id="ab-driver-mobile-${id}" style="width:100%;box-sizing:border-box;border:1px solid #353535;border-radius:7px;background:#070707;color:#fff;padding:8px" placeholder="Optional"></div><div><label style="display:block;margin-bottom:4px;color:#9aa3ae;font-size:9px;font-weight:900;text-transform:uppercase">Buyer mobile (special SMS)</label><input id="ab-buyer-mobile-${id}" style="width:100%;box-sizing:border-box;border:1px solid #353535;border-radius:7px;background:#070707;color:#fff;padding:8px" placeholder="Only for special payment-on-arrival jobs"></div><button type="button" class="ab-ops-button" onclick="createAnyBikeDriverCollectionLink(${id});return false;">Generate Driver Link</button></div><label style="display:flex;gap:8px;align-items:flex-start;margin-top:10px;color:#ddd;font-size:11px;line-height:1.45"><input id="ab-special-sms-${id}" type="checkbox" style="margin-top:2px"><span><strong>Special payment-on-arrival collection</strong> — send the buyer a Collection Report SMS when the driver marks the motorcycle collected. Leave this OFF for normal Move Motorcycles jobs because Move already sends its normal collection/delivery status texts.</span></label><div id="ab-driver-result-${id}" style="display:none;gap:7px;align-items:center;margin-top:8px"><input id="ab-driver-url-${id}" style="flex:1;min-width:0;border:1px solid #353535;border-radius:7px;background:#070707;color:#fff;padding:8px" readonly><button type="button" class="ab-ops-button ab-move-secondary" onclick="copyAnyBikeDriverLink(${id});return false;">Copy</button><a id="ab-driver-open-${id}" class="ab-ops-button ab-move-secondary" target="_blank" rel="noopener" style="text-decoration:none;display:inline-flex;align-items:center">Open</a></div><div class="ab-collect-status">Secure Move-branded page. The extra Collection Report SMS is opt-in and is not used for normal Move status messaging.</div></div>
+                :"Requires driver arrival, passed visual check, payment authorisation and a zero supplier balance.")}</div><div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.09)"><h6>Move Pay-on-Site Collection</h6><div class="ab-collect-status ${collected?"good":""}">${collected?"Collection is complete. No new driver link can be created for this motorcycle.":"Driver links for special Move Motorcycles pay-on-site collections are now created from Logistics HQ."}</div>${collected?"":'<div class="ab-collect-actions" style="margin-top:8px"><a class="ab-ops-button ab-move-secondary" href="admin-logistics.html#pay-on-site" style="text-decoration:none">Open Logistics HQ</a></div>'}</div>
             ${collected?`<div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.09)">
               <h6>Driver Collection Report</h6>
               <div class="ab-collect-actions">
@@ -311,19 +311,19 @@
             <div class="ab-ops-field">
               <label>Seller Ready Date *</label>
               <div class="ab-date-wrap">
-                <input id="ab-ops-ready-${id}" type="date" value="${esc(readyDate)}">
-                <button type="button" class="ab-date-open" onclick="openAnyBikeReadyCalendar(${id});return false;" title="Open calendar">📅</button>
+                <input id="ab-ops-ready-${id}" type="date" value="${esc(readyDate)}" ${collected?"disabled":""}>
+                <button type="button" class="ab-date-open" ${collected?"disabled":""} onclick="openAnyBikeReadyCalendar(${id});return false;" title="${collected?"Collection complete":"Open calendar"}">📅</button>
               </div>
               <div class="ab-date-shortcuts">
-                <button type="button" onclick="setAnyBikeReadyDate(${id},0);return false;">Today</button>
-                <button type="button" onclick="setAnyBikeReadyDate(${id},1);return false;">Tomorrow</button>
+                <button type="button" ${collected?"disabled":""} onclick="setAnyBikeReadyDate(${id},0);return false;">Today</button>
+                <button type="button" ${collected?"disabled":""} onclick="setAnyBikeReadyDate(${id},1);return false;">Tomorrow</button>
               </div>
             </div>
             <div class="ab-ops-field">
               <label>Seller / Collection Notes</label>
-              <textarea id="ab-ops-notes-${id}" placeholder="Opening hours, notice required, collection instructions...">${esc(row.seller_ready_notes||"")}</textarea>
+              <textarea id="ab-ops-notes-${id}" ${collected?"disabled":""} placeholder="Opening hours, notice required, collection instructions...">${esc(row.seller_ready_notes||"")}</textarea>
             </div>
-            <button type="button" class="ab-ops-button" id="ab-ops-save-${id}" onclick="saveAnyBikeSellerReady(${id},${Number(dealId)});return false;">${confirmed ? "Update Ready Date" : "Confirm Seller & Ready Date"}</button>
+            <button type="button" class="ab-ops-button" id="ab-ops-save-${id}" ${collected?"disabled":""} onclick="saveAnyBikeSellerReady(${id},${Number(dealId)});return false;">${collected ? "Collection Complete" : (confirmed ? "Update Ready Date" : "Confirm Seller & Ready Date")}</button>
           </div>
 
           ${confirmed ? (booked
