@@ -564,5 +564,9 @@
   window.updateAnyBikeMoveSmsPreview=updateSmsPreview;
   window.saveAnyBikeMoveDraft=saveMoveDraft;
   window.bookAnyBikeMoveShipment=bookMoveShipment;
+  document.querySelectorAll('[id^="anybike-operations-"]').forEach(function(host){
+    const dealId=String(host.id.replace("anybike-operations-","")).trim();
+    if(dealId){ loadDeal(dealId,false); }
+  });
 
 })();
