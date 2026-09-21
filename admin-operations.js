@@ -144,7 +144,7 @@
       .ab-collect-head{padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.08)}
       .ab-collect-head span{display:block;color:#ed1c24;font-size:10px;font-weight:950;text-transform:uppercase}
       .ab-collect-head h5{margin:4px 0 0;color:#fff;font-size:15px}
-      .ab-collect-steps{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:7px;padding:12px 14px}
+      .ab-collect-steps{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:7px;padding:12px 14px}
       .ab-collect-step{padding:9px;border:1px solid #333;border-radius:8px;background:#0a0a0a}
       .ab-collect-step span{display:block;color:#8f9bab;font-size:9px;font-weight:900;text-transform:uppercase}
       .ab-collect-step strong{display:block;margin-top:4px;color:#fff;font-size:11px}
@@ -180,8 +180,15 @@
     const paid=Number(row.supplier_total_paid_gbp||0);
     const balance=Number(row.supplier_balance_gbp||0);
     const cleared=balance<=0.005;
+    const paymentRequested=!!row.seller_payment_requested_at;
+    const sellerConfirmedPaid=!!row.seller_payment_received_confirmed_at;
+    const photosConfirmed=!!row.condition_photos_confirmed_at;
+    const custodyExpected=Number(row.custody_expected_count||0);
+    const custodyReceived=Number(row.custody_received_count||0);
+    const custodyComplete=custodyExpected>0 && custodyReceived>=custodyExpected;
     const collected=String(row.collection_status||"")==="collected";
     const secured=!!row.motorcycle_secured_at || collected;
+    const driverWorkflow=paymentRequested || sellerConfirmedPaid || photosConfirmed || collected;
 
     return `
       <div class="ab-collect">
@@ -190,54 +197,66 @@
           <div class="ab-collect-step ${eta?"done":""}"><span>1 · Driver ETA</span><strong>${esc(eta?niceDateTime(row.driver_eta_received_at):"Waiting")}</strong></div>
           <div class="ab-collect-step ${arrived?"done":""}"><span>2 · Driver Arrived</span><strong>${esc(arrived?niceDateTime(row.driver_arrived_at):"Waiting")}</strong></div>
           <div class="ab-collect-step ${passed?"done":(discrepancy?"warn":"")}"><span>3 · Visual Check</span><strong>${esc(passed?"Passed":(discrepancy?"Discrepancy":"Pending"))}</strong></div>
-          <div class="ab-collect-step ${authorised?"done":""}"><span>4 · Payment</span><strong>${esc(authorised?"Authorised":"Not authorised")}</strong></div>
-          <div class="ab-collect-step ${cleared?"done":""}"><span>5 · Supplier Balance</span><strong>${esc(cleared?"Paid in full":gbp(balance)+" due")}</strong></div>
-          <div class="ab-collect-step ${collected&&secured?"done":""}"><span>6 · Motorcycle</span><strong>${esc(collected&&secured?"Collected & secured":"Not collected")}</strong></div>
+          <div class="ab-collect-step ${custodyComplete?"done":""}"><span>4 · Handover</span><strong>${esc(custodyComplete?"Complete":(custodyExpected?custodyReceived+"/"+custodyExpected:"Pending"))}</strong></div>
+          <div class="ab-collect-step ${photosConfirmed?"done":""}"><span>5 · Photos</span><strong>${esc(photosConfirmed?"Saved":"Pending")}</strong></div>
+          <div class="ab-collect-step ${sellerConfirmedPaid?"done":(paymentRequested?"warn":"")}"><span>6 · Seller Payment</span><strong>${esc(sellerConfirmedPaid?"Seller confirmed received":(paymentRequested?"Requested":"Pending"))}</strong></div>
+          <div class="ab-collect-step ${collected&&secured?"done":""}"><span>7 · Motorcycle</span><strong>${esc(collected&&secured?"Collected & secured":"Not collected")}</strong></div>
         </div>
         <div class="ab-collect-body">
           <div class="ab-collect-card">
             <h6>Driver arrival & visual check</h6>
             <div class="ab-collect-actions">
-              <button type="button" class="ab-ops-button ab-move-secondary" ${eta?"disabled":""} onclick="updateAnyBikeCollectionStep(${id},${Number(dealId)},'eta_received');return false;">Record Driver ETA</button>
-              <button type="button" class="ab-ops-button ab-move-secondary" ${arrived?"disabled":""} onclick="updateAnyBikeCollectionStep(${id},${Number(dealId)},'driver_arrived');return false;">Driver Arrived</button>
+              <button type="button" class="ab-ops-button ab-move-secondary" ${eta||collected?"disabled":""} onclick="updateAnyBikeCollectionStep(${id},${Number(dealId)},'eta_received');return false;">Record Driver ETA</button>
+              <button type="button" class="ab-ops-button ab-move-secondary" ${arrived||collected?"disabled":""} onclick="updateAnyBikeCollectionStep(${id},${Number(dealId)},'driver_arrived');return false;">Driver Arrived</button>
             </div>
             <textarea id="ab-collect-notes-${id}" class="ab-collect-note" placeholder="Visual check or discrepancy notes…">${esc(row.visual_check_notes||"")}</textarea>
             <div class="ab-collect-actions">
-              <button type="button" class="ab-ops-button" ${arrived?"":"disabled"} onclick="updateAnyBikeCollectionStep(${id},${Number(dealId)},'visual_passed');return false;">Visual Check Passed</button>
-              <button type="button" class="ab-ops-button ab-move-secondary" ${arrived?"":"disabled"} onclick="updateAnyBikeCollectionStep(${id},${Number(dealId)},'visual_discrepancy');return false;">Record Discrepancy</button>
+              <button type="button" class="ab-ops-button" ${arrived&&!collected?"":"disabled"} onclick="updateAnyBikeCollectionStep(${id},${Number(dealId)},'visual_passed');return false;">Visual Check Passed</button>
+              <button type="button" class="ab-ops-button ab-move-secondary" ${arrived&&!collected?"":"disabled"} onclick="updateAnyBikeCollectionStep(${id},${Number(dealId)},'visual_discrepancy');return false;">Record Discrepancy</button>
             </div>
             ${discrepancy?'<div class="ab-collect-status warn">Supplier payment is blocked until the discrepancy is resolved and the visual check is passed.</div>':""}
           </div>
 
           <div class="ab-collect-card">
-            <h6>Supplier payment</h6>
+            <h6>Seller payment / accounting</h6>
             <div class="ab-collect-money">
               <div class="ab-ops-metric"><span>Seller Price</span><strong>${esc(gbp(row.seller_price_gbp))}</strong></div>
-              <div class="ab-ops-metric"><span>Paid</span><strong>${esc(gbp(paid))}</strong></div>
-              <div class="ab-ops-metric"><span>Balance</span><strong>${esc(gbp(balance))}</strong></div>
+              <div class="ab-ops-metric"><span>Accounting Ledger Paid</span><strong>${esc(gbp(paid))}</strong></div>
+              <div class="ab-ops-metric"><span>Ledger Balance</span><strong>${esc(gbp(balance))}</strong></div>
             </div>
-            <div class="ab-collect-actions">
-              <button type="button" class="ab-ops-button" ${(!arrived||!passed||authorised)?"disabled":""} onclick="updateAnyBikeCollectionStep(${id},${Number(dealId)},'authorise_supplier_payment');return false;">Authorise Supplier Payment</button>
-            </div>
-            <div class="ab-collect-status ${authorised?"good":"warn"}">${authorised?"Payment is authorised. Record it only after the bank transfer has actually been made.":"Driver must be on site and the visual check must pass before payment can be authorised."}</div>
-            ${authorised&&!cleared?`
-              <div class="ab-collect-pay">
-                <div><label>Amount paid *</label><input id="ab-collect-pay-amount-${id}" type="number" min="0.01" step="0.01" value="${esc(balance.toFixed(2))}"></div>
-                <div><label>Payment reference</label><input id="ab-collect-pay-ref-${id}" value="${esc(row.deal_number||"")}"></div>
+            ${driverWorkflow?`
+              <div class="ab-collect-status ${sellerConfirmedPaid?"good":"warn"}">${sellerConfirmedPaid
+                ?"Seller confirmed payment received on the driver collection workflow"+(row.seller_payment_received_confirmed_at?" · "+esc(niceDateTime(row.seller_payment_received_confirmed_at)):"")+"."
+                :(paymentRequested?"Seller payment has been requested and is awaiting seller confirmation.":"Seller payment confirmation is pending.")}</div>
+              ${sellerConfirmedPaid&&!cleared?`<div class="ab-collect-status warn">Accounting reconciliation required: the supplier payment ledger still shows ${esc(gbp(balance))} outstanding. This does not undo the completed collection; record/reconcile the actual supplier payment separately.</div>`:""}
+            `:`
+              <div class="ab-collect-actions">
+                <button type="button" class="ab-ops-button" ${(!arrived||!passed||authorised)?"disabled":""} onclick="updateAnyBikeCollectionStep(${id},${Number(dealId)},'authorise_supplier_payment');return false;">Authorise Supplier Payment</button>
               </div>
-              <div class="ab-collect-actions" style="margin-top:9px">
-                <button type="button" class="ab-ops-button" onclick="recordAnyBikeCollectionPayment(${id},${Number(dealId)});return false;">Record Supplier Payment</button>
-              </div>
-              <div class="ab-collect-status">This records the payment in AnyBike only. It does not initiate a bank transfer.</div>
-            `:""}
+              <div class="ab-collect-status ${authorised?"good":"warn"}">${authorised?"Payment is authorised. Record it only after the bank transfer has actually been made.":"Driver must be on site and the visual check must pass before payment can be authorised."}</div>
+              ${authorised&&!cleared?`
+                <div class="ab-collect-pay">
+                  <div><label>Amount paid *</label><input id="ab-collect-pay-amount-${id}" type="number" min="0.01" step="0.01" value="${esc(balance.toFixed(2))}"></div>
+                  <div><label>Payment reference</label><input id="ab-collect-pay-ref-${id}" value="${esc(row.deal_number||"")}"></div>
+                </div>
+                <div class="ab-collect-actions" style="margin-top:9px">
+                  <button type="button" class="ab-ops-button" onclick="recordAnyBikeCollectionPayment(${id},${Number(dealId)});return false;">Record Supplier Payment</button>
+                </div>
+                <div class="ab-collect-status">This records the payment in AnyBike only. It does not initiate a bank transfer.</div>
+              `:""}
+            `}
           </div>
 
           <div class="ab-collect-card" style="grid-column:1/-1">
             <h6>Collection completion</h6>
             <div class="ab-collect-actions">
-              <button type="button" class="ab-ops-button" ${(!arrived||!passed||!authorised||!cleared||collected)?"disabled":""} onclick="updateAnyBikeCollectionStep(${id},${Number(dealId)},'mark_collected');return false;">Mark Motorcycle Collected & Secured</button>
+              <button type="button" class="ab-ops-button" ${(driverWorkflow||!arrived||!passed||!authorised||!cleared||collected)?"disabled":""} onclick="updateAnyBikeCollectionStep(${id},${Number(dealId)},'mark_collected');return false;">Mark Motorcycle Collected & Secured</button>
             </div>
-            <div class="ab-collect-status">${collected&&secured?"Motorcycle collected "+esc(niceDateTime(row.collection_actual_at))+" and secured to AnyBike.":"Requires driver arrival, passed visual check, payment authorisation and a zero supplier balance."}</div><div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.09)"><h6>Move Driver Collection Link</h6><div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px;align-items:end"><div><label style="display:block;margin-bottom:4px;color:#9aa3ae;font-size:9px;font-weight:900;text-transform:uppercase">Driver name</label><input id="ab-driver-name-${id}" style="width:100%;box-sizing:border-box;border:1px solid #353535;border-radius:7px;background:#070707;color:#fff;padding:8px" placeholder="Move driver"></div><div><label style="display:block;margin-bottom:4px;color:#9aa3ae;font-size:9px;font-weight:900;text-transform:uppercase">Driver mobile</label><input id="ab-driver-mobile-${id}" style="width:100%;box-sizing:border-box;border:1px solid #353535;border-radius:7px;background:#070707;color:#fff;padding:8px" placeholder="Optional"></div><div><label style="display:block;margin-bottom:4px;color:#9aa3ae;font-size:9px;font-weight:900;text-transform:uppercase">Buyer mobile (special SMS)</label><input id="ab-buyer-mobile-${id}" style="width:100%;box-sizing:border-box;border:1px solid #353535;border-radius:7px;background:#070707;color:#fff;padding:8px" placeholder="Only for special payment-on-arrival jobs"></div><button type="button" class="ab-ops-button" onclick="createAnyBikeDriverCollectionLink(${id});return false;">Generate Driver Link</button></div><label style="display:flex;gap:8px;align-items:flex-start;margin-top:10px;color:#ddd;font-size:11px;line-height:1.45"><input id="ab-special-sms-${id}" type="checkbox" style="margin-top:2px"><span><strong>Special payment-on-arrival collection</strong> — send the buyer a Collection Report SMS when the driver marks the motorcycle collected. Leave this OFF for normal Move Motorcycles jobs because Move already sends its normal collection/delivery status texts.</span></label><div id="ab-driver-result-${id}" style="display:none;gap:7px;align-items:center;margin-top:8px"><input id="ab-driver-url-${id}" style="flex:1;min-width:0;border:1px solid #353535;border-radius:7px;background:#070707;color:#fff;padding:8px" readonly><button type="button" class="ab-ops-button ab-move-secondary" onclick="copyAnyBikeDriverLink(${id});return false;">Copy</button><a id="ab-driver-open-${id}" class="ab-ops-button ab-move-secondary" target="_blank" rel="noopener" style="text-decoration:none;display:inline-flex;align-items:center">Open</a></div><div class="ab-collect-status">Secure Move-branded page. The extra Collection Report SMS is opt-in and is not used for normal Move status messaging.</div></div>
+            <div class="ab-collect-status">${collected&&secured
+              ?"Motorcycle collected "+esc(niceDateTime(row.collection_actual_at))+" and secured to AnyBike."
+              :(driverWorkflow
+                ?"Driver workflow controls final collection after handover, condition photos and seller payment confirmation."
+                :"Requires driver arrival, passed visual check, payment authorisation and a zero supplier balance.")}</div><div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.09)"><h6>Move Driver Collection Link</h6><div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px;align-items:end"><div><label style="display:block;margin-bottom:4px;color:#9aa3ae;font-size:9px;font-weight:900;text-transform:uppercase">Driver name</label><input id="ab-driver-name-${id}" style="width:100%;box-sizing:border-box;border:1px solid #353535;border-radius:7px;background:#070707;color:#fff;padding:8px" placeholder="Move driver"></div><div><label style="display:block;margin-bottom:4px;color:#9aa3ae;font-size:9px;font-weight:900;text-transform:uppercase">Driver mobile</label><input id="ab-driver-mobile-${id}" style="width:100%;box-sizing:border-box;border:1px solid #353535;border-radius:7px;background:#070707;color:#fff;padding:8px" placeholder="Optional"></div><div><label style="display:block;margin-bottom:4px;color:#9aa3ae;font-size:9px;font-weight:900;text-transform:uppercase">Buyer mobile (special SMS)</label><input id="ab-buyer-mobile-${id}" style="width:100%;box-sizing:border-box;border:1px solid #353535;border-radius:7px;background:#070707;color:#fff;padding:8px" placeholder="Only for special payment-on-arrival jobs"></div><button type="button" class="ab-ops-button" onclick="createAnyBikeDriverCollectionLink(${id});return false;">Generate Driver Link</button></div><label style="display:flex;gap:8px;align-items:flex-start;margin-top:10px;color:#ddd;font-size:11px;line-height:1.45"><input id="ab-special-sms-${id}" type="checkbox" style="margin-top:2px"><span><strong>Special payment-on-arrival collection</strong> — send the buyer a Collection Report SMS when the driver marks the motorcycle collected. Leave this OFF for normal Move Motorcycles jobs because Move already sends its normal collection/delivery status texts.</span></label><div id="ab-driver-result-${id}" style="display:none;gap:7px;align-items:center;margin-top:8px"><input id="ab-driver-url-${id}" style="flex:1;min-width:0;border:1px solid #353535;border-radius:7px;background:#070707;color:#fff;padding:8px" readonly><button type="button" class="ab-ops-button ab-move-secondary" onclick="copyAnyBikeDriverLink(${id});return false;">Copy</button><a id="ab-driver-open-${id}" class="ab-ops-button ab-move-secondary" target="_blank" rel="noopener" style="text-decoration:none;display:inline-flex;align-items:center">Open</a></div><div class="ab-collect-status">Secure Move-branded page. The extra Collection Report SMS is opt-in and is not used for normal Move status messaging.</div></div>
             ${collected?`<div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.09)">
               <h6>Driver Collection Report</h6>
               <div class="ab-collect-actions">
@@ -265,7 +284,8 @@
       const confirmed=String(row.purchase_status||"")==="proceeding_confirmed";
       const readyDate=row.seller_ready_date || "";
       const booked=!!row.move_shipment_id || ["booked","driver_assigned","collected"].includes(String(row.collection_status||""));
-      const moveStatus=row.raw_move_status || (booked ? row.collection_status : "Not booked");
+      const collected=String(row.collection_status||"")==="collected";
+      const moveStatus=collected ? "Collected" : (row.raw_move_status || (booked ? row.collection_status : "Not booked"));
       const storage=row.storage_status || "not_started";
       const seller=sellerNameFor(row);
       const phone=sellerPhoneFor(row);
@@ -307,11 +327,11 @@
           </div>
 
           ${confirmed ? (booked
-            ? `<div class="ab-move-booked"><strong>Move Motorcycles:</strong> ${esc(row.move_tracking_no ? "Booked · Tracking "+row.move_tracking_no : "Booked")}</div>`
+            ? `<div class="ab-move-booked"><strong>Move Motorcycles:</strong> ${esc(collected ? ("Collected"+(row.collection_actual_at?" · "+niceDateTime(row.collection_actual_at):"")) : (row.move_tracking_no ? "Booked · Tracking "+row.move_tracking_no : "Booked"))}</div>`
             : `<div id="ab-move-booking-${id}" class="ab-move"><div class="ab-ops-loading">Loading Move booking details…</div></div>`) : ""}
           ${confirmed ? collectionPanel(row,dealId) : ""}
           <div class="ab-ops-next">
-            <span><strong>Next:</strong> ${confirmed ? (booked ? "Move collection is linked to this motorcycle." : "Review and complete the Move Motorcycles booking.") : "Contact the seller, confirm AnyBike is proceeding and obtain the Ready Date."}</span>
+            <span><strong>Next:</strong> ${confirmed ? (collected ? "Motorcycle is collected and secured. Continue depot/storage or final shipping handover." : (booked ? "Move collection is linked to this motorcycle." : "Review and complete the Move Motorcycles booking.")) : "Contact the seller, confirm AnyBike is proceeding and obtain the Ready Date."}</span>
             <span class="ab-ops-private">${phone ? "Seller contact held internally" : "Seller details remain internal"}</span>
           </div>
         </section>
@@ -607,7 +627,7 @@
 
     operationsLoading.add(key);
     try{
-      const result=await client().rpc("admin_get_deal_operations_v2",{p_deal_id:Number(dealId)});
+      const result=await client().rpc("admin_get_deal_operations_v3",{p_deal_id:Number(dealId)});
       if(result.error) throw result.error;
       const rows=result.data || [];
       operationsCache.set(key,rows);
