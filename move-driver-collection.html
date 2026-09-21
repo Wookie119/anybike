@@ -38,42 +38,42 @@ textarea{width:100%;min-height:90px;border:1px solid rgba(160,140,88,.45);border
   <div id="errorBox" class="error hidden"></div>
   <main id="app" class="hidden">
     <section class="card">
-      <div class="head"><h2 id="bikeTitle">Collection Job</h2></div>
-      <div class="body grid" id="jobGrid"></div>
-    </section>
-    <section class="card">
       <div class="head"><h3>Collection Address</h3></div>
       <div class="body" id="addressBox"></div>
     </section>
+
+    <section class="card">
+      <div class="head"><h2 id="bikeTitle">Collection Job</h2></div>
+      <div class="body grid" id="jobGrid"></div>
+    </section>
+
     <section class="card">
       <div class="head"><h3>1. Arrive & Check Motorcycle</h3></div>
       <div class="body">
-        <div class="notice"><strong>Before taking the motorcycle:</strong> confirm you are at the correct seller, check the motorcycle against the registration, and report any obvious discrepancy before proceeding.</div>
+        <div class="notice"><strong>Before loading the motorcycle:</strong> confirm you are at the correct collection address and check the motorcycle against the registration.</div>
         <div class="actions">
           <button id="arrivedBtn" class="btn" onclick="doAction('arrived')">I Have Arrived</button>
         </div>
-        <textarea id="visualNotes" placeholder="Describe any damage, mismatch or missing item before reporting a discrepancy..."></textarea><div id="discrepancyHelp" class="status warn hidden" style="margin-top:8px">Please describe the discrepancy above, then press Report Discrepancy again.</div>
+        <textarea id="visualNotes" placeholder="Describe any damage, mismatch or other discrepancy..."></textarea>
+        <div id="discrepancyHelp" class="status warn hidden" style="margin-top:8px">Describe the discrepancy above, then save it.</div>
         <div class="actions">
           <button id="passBtn" class="btn" onclick="doAction('visual_passed')">Visual Check Passed</button>
-          <button id="problemBtn" class="btn danger" onclick="doAction('visual_discrepancy')">Save Discrepancy & Stop Collection</button>
+          <button id="problemBtn" class="btn danger" onclick="doAction('visual_discrepancy')">Save Discrepancy</button>
         </div>
-        <p class="status" id="visualStatus"></p><div id="damagePhotoBox" class="photo-row hidden"><strong>Damage close-up photo</strong><small>Take this before the motorcycle is moved.</small><input id="photo-damage" type="file" accept="image/*" capture="environment" onchange="uploadSelectedPhoto('damage')"><button class="btn secondary" onclick="openCamera('damage')">Take Damage Photo</button><div id="photo-status-damage" class="status"></div></div>
+        <p class="status" id="visualStatus"></p>
+        <div id="discrepancyActions" class="hidden">
+          <div class="notice" style="margin-top:10px"><strong>Discrepancy saved.</strong> Call the customer to discuss it. You may continue checking the documents and taking condition photos, but <strong>do not load the motorcycle</strong> until the discrepancy has been resolved.</div>
+          <div class="actions"><a id="callCustomerBtn" class="btn danger" href="#">Call Customer</a></div>
+          <div id="damagePhotoBox" class="photo-row"><strong>Damage / discrepancy close-up</strong><small>Take this before the motorcycle is moved.</small><input id="photo-damage" type="file" accept="image/*" capture="environment" onchange="uploadSelectedPhoto('damage')"><button class="btn secondary" onclick="openCamera('damage')">Take Damage Photo</button><div id="photo-status-damage" class="status"></div></div>
+        </div>
       </div>
     </section>
+
     <section class="card">
-      <div class="head"><h3>2. Seller Payment</h3></div>
+      <div class="head"><h3>2. Handover Checklist</h3></div>
       <div class="body">
-        <div class="notice"><strong>After the visual check passes:</strong> call AnyBike so payment can be made to the seller. Do not take the motorcycle until the seller confirms the money has arrived.</div>
-        <div class="actions">
-          <a id="callPaymentBtn" class="btn" href="tel:+447949574299" style="display:block;text-align:center;text-decoration:none">Call AnyBike for Seller Payment</a>
-          <button id="paymentRequestedBtn" class="btn secondary" onclick="doAction('payment_requested')">2. Mark Seller Payment Requested ✓</button>
-          <div id="paymentRequestedHelp" class="step-help">After speaking to AnyBike and payment has been requested/sent, tap this first.</div>
-          <button id="sellerPaidBtn" class="btn secondary" onclick="confirmSellerPaid()">3. Seller Confirms Payment Received ✓</button>
-          <div id="sellerPaidHelp" class="step-help">This unlocks after the payment-request step above. Only tap it after the seller confirms the money is in their account.</div>
-          <button id="refreshBtn" class="btn secondary" onclick="refreshJob()">Refresh Status</button>
-        </div>
-        <p id="clearanceStatus" class="status warn"></p>
-        <p id="refreshStatus" class="status"></p>
+        <div class="notice">Check the <strong>complete V5C</strong>, all keys and everything supplied with the motorcycle. Mark each item as collected. If an item genuinely does not apply, use N/A.</div>
+        <div id="custodyList"></div>
       </div>
     </section>
 
@@ -83,23 +83,32 @@ textarea{width:100%;min-height:90px;border:1px solid rgba(160,140,88,.45);border
         <div class="notice">Take the minimum <strong>9 Move condition photos</strong> before loading the motorcycle. If damage is seen, take extra close-up pictures before the bike is moved.</div>
         <div class="notice" style="margin-top:10px;border-color:#d0ad55;background:rgba(208,173,85,.14)"><strong>Important photo privacy warning:</strong> these pictures may be shared directly with the buyer. <strong>Do not photograph the dealership or supplier identity.</strong> Keep dealership names, signs, banners, branded walls, staff badges, paperwork headers and other identifying details out of the frame wherever possible.</div>
         <div id="photoGate" class="status warn" style="margin-top:10px"></div>
-        <div id="photoList" class="photo-list"></div><div class="actions" style="margin-top:14px"><button id="savePhotosBtn" class="btn" onclick="saveConditionPhotos()">Save Condition Photos ✓</button></div><p id="savePhotosStatus" class="status"></p>
+        <div id="photoList" class="photo-list"></div>
+        <div class="actions" style="margin-top:14px"><button id="savePhotosBtn" class="btn" onclick="saveConditionPhotos()">Save Condition Photos ✓</button></div>
+        <p id="savePhotosStatus" class="status"></p>
       </div>
     </section>
 
     <section class="card">
-      <div class="head"><h3>4. Handover Checklist</h3></div>
+      <div class="head"><h3>4. Seller Payment & Clearance</h3></div>
       <div class="body">
-        <div class="notice">Collect the <strong>complete V5C</strong>, all keys and everything supplied with the motorcycle. Mark items as collected. If an item genuinely does not apply, use N/A.</div>
-        <div id="custodyList"></div>
+        <div class="notice">When the motorcycle, documents and photos have been checked, call the client so seller payment can be handled. Do not load the motorcycle until the seller confirms the money has arrived and clearance is complete.</div>
+        <div class="actions">
+          <a id="callPaymentBtn" class="btn" href="tel:+447949574299" style="display:block;text-align:center;text-decoration:none">Call Client for Seller Payment</a>
+          <button id="paymentRequestedBtn" class="btn secondary" onclick="doAction('payment_requested')">Mark Seller Payment Requested ✓</button>
+          <div id="paymentRequestedHelp" class="step-help">After speaking to the client and payment has been requested/sent, tap this.</div>
+          <button id="sellerPaidBtn" class="btn secondary" onclick="confirmSellerPaid()">Seller Confirms Payment Received ✓</button>
+          <div id="sellerPaidHelp" class="step-help">Only tap this after the seller confirms the money is in their account.</div>
+        </div>
+        <p id="clearanceStatus" class="status warn"></p>
       </div>
     </section>
 
     <section class="card">
-      <div class="head"><h3>5. Collect Motorcycle</h3></div>
+      <div class="head"><h3>5. Load Motorcycle</h3></div>
       <div class="body">
-        <div class="notice">Only mark collected once the seller has confirmed payment, all 9 required photos are uploaded, the handover checklist is complete and AnyBike clearance is showing.</div>
-        <div class="actions"><button id="collectedBtn" class="btn" onclick="doAction('collected')">Mark Motorcycle Collected</button></div>
+        <div class="notice">Only load the motorcycle once any discrepancy has been resolved, the handover checklist is complete, the condition photos are saved, the seller has confirmed payment, and clearance is complete.</div>
+        <div class="actions"><button id="collectedBtn" class="btn" onclick="doAction('collected')">Motorcycle Loaded & Collected</button></div>
         <p id="completeStatus" class="status"></p>
       </div>
     </section>
@@ -126,36 +135,26 @@ const photoSlots=[
   ["right_rear","9. Right Rear","Low rear-quarter view of right rear half, wheel, swingarm and exhaust/luggage."]
 ];
 
-async function loadJob(showRefresh=false){
-  const refreshBtn=document.getElementById("refreshBtn");
-  const refreshStatus=document.getElementById("refreshStatus");
+async function loadJob(){
   try{
-    if(showRefresh&&refreshBtn){refreshBtn.disabled=true;refreshBtn.textContent="Refreshing…";}
     const r=await sb.rpc("move_driver_collection_get_v2",{p_token:token});
     if(r.error)throw r.error;
     current=r.data;
     render();
-    if(showRefresh&&refreshStatus){refreshStatus.textContent="Status refreshed "+new Date().toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})+".";refreshStatus.className="status good";}
-  }catch(e){
-    if(showRefresh&&refreshStatus){refreshStatus.textContent=e.message||String(e);refreshStatus.className="status warn";}
-    else showError(e.message||String(e));
-  }finally{
-    if(refreshBtn){refreshBtn.disabled=false;refreshBtn.textContent="Refresh Status";}
-  }
+  }catch(e){showError(e.message||String(e));}
 }
 
-async function refreshJob(){await loadJob(true);}
 
 function renderPhotos(s,photos,collected){
   const host=document.getElementById("photoList");
   const gate=document.getElementById("photoGate");
   if(!host||!gate)return;
-  const paymentReceived=!!s.seller_payment_received_at;
+  const photoAllowed=["passed","discrepancy"].includes(s.visual_check_status||"");
   const uploaded=new Set((photos||[]).map(p=>p.slot).filter(Boolean));
   const allUploaded=photoSlots.every(x=>uploaded.has(x[0]));
   const photosSaved=!!s.photos_confirmed_at;
-  gate.textContent=!paymentReceived
-    ? "Photo stage unlocks after the seller confirms payment has been received."
+  gate.textContent=!photoAllowed
+    ? "Complete the visual check or save a discrepancy before taking the condition photos."
     : photosSaved
       ? "All 9 condition photos saved ✓"
       : allUploaded
@@ -165,14 +164,14 @@ function renderPhotos(s,photos,collected){
   host.innerHTML=photoSlots.map(([slot,title,help])=>{
     const done=uploaded.has(slot);
     return '<div class="photo-row"><strong>'+esc(title)+(done?' <span class="photo-done">✓ Uploaded</span>':'')+'</strong><small>'+esc(help)+'</small>'+
-      '<input id="photo-'+slot+'" type="file" accept="image/*" capture="environment" '+((!paymentReceived||collected)?"disabled":"")+' onchange="uploadSelectedPhoto(\''+slot+'\')">'+
-      '<button class="btn secondary" '+((!paymentReceived||collected)?"disabled":"")+' onclick="openCamera(\''+slot+'\')">'+(done?"Retake Photo":"Take Photo")+'</button>'+
+      '<input id="photo-'+slot+'" type="file" accept="image/*" capture="environment" '+((!photoAllowed||collected)?"disabled":"")+' onchange="uploadSelectedPhoto(\''+slot+'\')">'+
+      '<button class="btn secondary" '+((!photoAllowed||collected)?"disabled":"")+' onclick="openCamera(\''+slot+'\')">'+(done?"Retake Photo":"Take Photo")+'</button>'+
       '<div id="photo-status-'+slot+'" class="status"></div></div>';
   }).join("");
   const saveBtn=document.getElementById("savePhotosBtn");
   const saveStatus=document.getElementById("savePhotosStatus");
   if(saveBtn){
-    saveBtn.disabled=!paymentReceived||!allUploaded||photosSaved||collected;
+    saveBtn.disabled=!photoAllowed||!allUploaded||photosSaved||collected;
     saveBtn.textContent=photosSaved?"Condition Photos Saved ✓":"Save Condition Photos ✓";
   }
   if(saveStatus){
@@ -188,11 +187,13 @@ function renderPhotos(s,photos,collected){
 function render(){
   const d=current||{},j=d.job||{},c=d.collection||{},s=d.status||{},items=d.custody||[],photos=d.photos||[];
   document.getElementById("errorBox").classList.add("hidden");document.getElementById("app").classList.remove("hidden");
-  document.getElementById("clientLine").textContent="Collection job for "+(j.client_name||"AnyBike");
+  document.getElementById("clientLine").textContent="Driver Collection";
   document.getElementById("bikeTitle").textContent=j.motorcycle||"Motorcycle Collection";
   document.getElementById("jobGrid").innerHTML=
     '<div class="metric"><span>Reference</span><strong>'+esc(j.deal_number||"-")+'</strong></div>'+
     '<div class="metric"><span>Registration</span><strong>'+esc(j.registration||"-")+'</strong></div>'+
+    '<div class="metric"><span>Customer</span><strong>'+esc(j.customer_name||"-")+'</strong></div>'+
+    '<div class="metric"><span>Client</span><strong>'+esc(j.client_name||"AnyBike")+'</strong></div>'+
     '<div class="metric"><span>Ready Date</span><strong>'+esc(j.ready_date||"-")+'</strong></div>'+
     '<div class="metric"><span>Driver</span><strong>'+esc((d.link||{}).driver_name||"Move Driver")+'</strong></div>';
   document.getElementById("addressBox").innerHTML=
@@ -210,9 +211,15 @@ function render(){
   document.getElementById("arrivedBtn").disabled=arrived||collected;
   document.getElementById("passBtn").disabled=!arrived||collected;
   document.getElementById("problemBtn").disabled=!arrived||collected;
-  document.getElementById("visualStatus").textContent=problem?"Discrepancy saved — stop collection and contact AnyBike.":passed?"Visual check passed.":arrived?"Arrival recorded "+nice(s.arrived_at)+". Complete the visual check.":"Tap Arrived when you are physically with the seller.";
+  document.getElementById("visualStatus").textContent=problem?"Discrepancy saved — call the customer. Continue checklist/photos but do not load the motorcycle.":passed?"Visual check passed.":arrived?"Arrival recorded "+nice(s.arrived_at)+". Complete the visual check.":"Tap Arrived when you are physically at the collection address.";
   document.getElementById("visualStatus").className="status "+(problem?"warn":passed?"good":"");
-  const damageBox=document.getElementById("damagePhotoBox");if(damageBox)damageBox.classList.toggle("hidden",!problem);
+  const discrepancyActions=document.getElementById("discrepancyActions");
+  if(discrepancyActions) discrepancyActions.classList.toggle("hidden",!problem);
+  const callCustomerBtn=document.getElementById("callCustomerBtn");
+  if(callCustomerBtn){
+    if(j.customer_phone){callCustomerBtn.href="tel:"+String(j.customer_phone).replace(/[^+0-9]/g,"");callCustomerBtn.classList.remove("hidden");}
+    else callCustomerBtn.classList.add("hidden");
+  }
 
   document.getElementById("callPaymentBtn").classList.toggle("hidden",!passed||collected);
   document.getElementById("paymentRequestedBtn").disabled=!passed||requested||collected;
@@ -237,6 +244,7 @@ function render(){
 
   document.getElementById("collectedBtn").disabled=!arrived||!passed||!requested||!paymentReceived||!cleared||!photosComplete||!photosSaved||incomplete||collected;
   const reasons=[];
+  if(problem)reasons.push("resolve discrepancy");
   if(!paymentReceived)reasons.push("seller payment confirmation");
   if(!photosComplete)reasons.push("all 9 condition photos");
   else if(!photosSaved)reasons.push("Save Condition Photos");
@@ -254,12 +262,12 @@ async function doAction(action){
     return;
   }
   if(helpEl)helpEl.classList.add("hidden");
-  if(action==="visual_discrepancy"&&!confirm("Save this discrepancy and stop the collection until AnyBike resolves it?"))return;
+  if(action==="visual_discrepancy"&&!confirm("Save this discrepancy? You can continue checking documents and taking photos, but do not load the motorcycle until it is resolved."))return;
   if(action==="collected"&&!confirm("Confirm the motorcycle, keys and required documents are now in your custody?"))return;
   const r=await sb.rpc("move_driver_collection_action_v2",{p_token:token,p_action:action,p_payload:payload});
   if(r.error){alert(r.error.message);return;}
   current=r.data;render();
-  if(action==="visual_discrepancy")alert("Discrepancy saved. Do not take the motorcycle until AnyBike resolves it.");
+  if(action==="visual_discrepancy")alert("Discrepancy saved. Call the customer to discuss it. Continue the checklist and photos, but do not load the motorcycle until it is resolved.");
 }
 
 async function saveConditionPhotos(){
@@ -296,13 +304,13 @@ async function uploadSelectedPhoto(slot){
     const result=await response.json().catch(()=>({}));
     if(!response.ok||!result.success)throw new Error(result.error||"Photo upload failed");
     if(status){status.textContent="Uploaded ✓";status.className="status good";}
-    await loadJob(false);
+    await loadJob();
   }catch(e){
     if(status){status.textContent=e.message||String(e);status.className="status warn";}
   }
 }
 
-if(!token)showError("This collection link is missing its secure token."); else loadJob(false);
+if(!token)showError("This collection link is missing its secure token."); else {loadJob();setInterval(()=>{if(document.visibilityState==="visible")loadJob();},20000);}
 </script>
 </body>
 </html>
