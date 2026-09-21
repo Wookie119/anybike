@@ -65,8 +65,14 @@ textarea{width:100%;min-height:90px;border:1px solid rgba(160,140,88,.45);border
       </div>
     </section>
     <section class="card">
-      <div class="head"><h3>3. AnyBike Clearance</h3></div>
+      <div class="head"><h3>3. Seller Payment & AnyBike Clearance</h3></div>
       <div class="body">
+        <div id="paymentCallBox" class="hidden">
+          <div class="notice"><strong>Visual check passed.</strong> Call AnyBike now so seller payment can be handled before you take the motorcycle.</div>
+          <div class="actions">
+            <a class="btn" href="tel:+447949574299" style="display:block;text-align:center;text-decoration:none">Call AnyBike for Seller Payment</a>
+          </div>
+        </div>
         <p id="clearanceStatus" class="status warn">Waiting for AnyBike clearance.</p>
         <button id="refreshBtn" class="btn secondary" onclick="loadJob()">Refresh Status</button>
       </div>
@@ -125,8 +131,10 @@ function render(){
     return '<div class="check"><input type="checkbox" '+(checked?'checked':'')+' '+(collected?'disabled':'')+' onchange="setItem('+Number(x.id)+',this.checked?\'collected_from_seller\':\'expected\')"><div style="flex:1"><strong>'+esc(x.description||x.item_type)+'</strong><small>Status: '+esc(checked?"Collected":na?"N/A":"Expected")+'</small></div><button class="btn secondary" style="width:auto;padding:7px 10px;font-size:12px" '+(collected?'disabled':'')+' onclick="setItem('+Number(x.id)+',\''+(na?'expected':'not_applicable')+'\')">'+(na?'Undo N/A':'N/A')+'</button></div>';
   }).join("");
   const incomplete=items.some(x=>!["collected_from_seller","not_applicable"].includes(x.status));
+  const callBox=document.getElementById("paymentCallBox");
+  if(callBox) callBox.classList.toggle("hidden",!passed||cleared||collected);
   const cs=document.getElementById("clearanceStatus");
-  cs.textContent=cleared?"AnyBike clearance received — motorcycle may be collected.":"Waiting for AnyBike payment/collection clearance. Refresh after AnyBike confirms.";
+  cs.textContent=cleared?"AnyBike clearance received — motorcycle may be collected.":passed?"Visual check passed — call AnyBike for seller payment, then refresh after AnyBike confirms.":"Waiting for visual check before seller payment can be requested.";
   cs.className="status "+(cleared?"good":"warn");
   document.getElementById("collectedBtn").disabled=!arrived||!passed||!cleared||incomplete||collected;
   document.getElementById("completeStatus").textContent=collected?"Collection completed "+nice(s.collected_at)+". Thank you.":incomplete?"Complete the handover checklist before collecting.":"";
