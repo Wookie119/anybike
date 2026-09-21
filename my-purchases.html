@@ -634,7 +634,15 @@ function purchaseState(purchase){
   let message =
     "Your AnyBike purchase is progressing.";
 
-  if(secured && fullyPaid){
+  if(String(purchase.deal_status||"")==="Collected"){
+
+    heading =
+      "Collected";
+
+    message =
+      "Your motorcycle has been collected and the driver collection report is available.";
+
+  }else if(secured && fullyPaid){
 
     heading =
       "Motorcycle Secured & Paid";
@@ -1241,6 +1249,19 @@ function purchaseCard(purchase){
 
         ${journeyHtml(purchase,state)}
 
+        ${String(purchase.deal_status||"")==="Collected" ? `
+          <div style="margin-top:16px;padding:14px;border:1px solid rgba(237,28,36,.30);border-radius:12px;background:#111">
+            <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap">
+              <div>
+                <strong style="display:block;color:#fff">Collection Report</strong>
+                <span style="display:block;margin-top:4px;color:#aaa;font-size:12px">Your motorcycle has been collected. View the driver handover checklist and condition photos.</span>
+              </div>
+              <button type="button" onclick="loadMyCollectionReport(${Number(purchase.deal_motorcycle_id)})" style="border:1px solid #ed1c24;background:#ed1c24;color:#fff;border-radius:10px;padding:10px 14px;font-weight:900;cursor:pointer">View Collection Report</button>
+            </div>
+            <div id="my-collection-report-${Number(purchase.deal_motorcycle_id)}" style="display:none;margin-top:12px"></div>
+          </div>
+        ` : ""}
+
         <div class="notice">
           ${notice}
         </div>
@@ -1251,6 +1272,52 @@ function purchaseCard(purchase){
 
   `;
 }
+
+function myCollectionReportHtml(report){
+  const photos=Array.isArray(report?.photos)?report.photos:[];
+  const custody=Array.isArray(report?.custody)?report.custody:[];
+  const collectedAt=report?.collection?.collected_at
+    ? new Date(report.collection.collected_at).toLocaleString("en-GB")
+    : "Recorded";
+
+  const custodyHtml=custody.length
+    ? custody.map(function(x){
+        const status=String(x.status||"");
+        const ok=["collected_from_seller","at_depot","with_delivery_driver","delivered_to_shipper","not_applicable"].includes(status);
+        return '<div style="display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid #222"><span>'+safe(x.description||x.item_type||"Item")+'</span><strong style="color:'+(ok?"#8ee0aa":"#ffb0b0")+'">'+safe(status==="not_applicable"?"N/A":ok?"Collected":status||"Expected")+'</strong></div>';
+      }).join("")
+    : '<div style="color:#888;margin-top:8px">No handover items recorded.</div>';
+
+  const photoHtml=photos.length
+    ? '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;margin-top:10px">'+photos.map(function(p){
+        return '<a href="'+safe(p.url||"#")+'" target="_blank" rel="noopener" style="display:block;text-decoration:none"><img src="'+safe(p.url||"")+'" alt="'+safe(p.caption||"Collection photo")+'" style="width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:10px;border:1px solid #2d2d2d"><div style="margin-top:4px;color:#bbb;font-size:11px">'+safe(p.caption||p.slot||"Photo")+'</div></a>';
+      }).join("")+'</div>'
+    : '<div style="color:#888;margin-top:8px">No collection photos are available.</div>';
+
+  return '<div style="padding:14px;border-radius:12px;background:#080808;border:1px solid #292929">'+
+    '<div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap"><div><span style="display:block;color:#888;font-size:10px;text-transform:uppercase">Status</span><strong style="color:#fff">Collected</strong></div><div><span style="display:block;color:#888;font-size:10px;text-transform:uppercase">Collected</span><strong style="color:#fff">'+safe(collectedAt)+'</strong></div></div>'+
+    '<div style="margin-top:14px"><strong style="color:#fff">Handover checklist</strong>'+custodyHtml+'</div>'+
+    '<div style="margin-top:14px"><strong style="color:#fff">Condition photos</strong>'+photoHtml+'</div>'+
+  '</div>';
+}
+
+async function loadMyCollectionReport(dealMotorcycleId){
+  const id=Number(dealMotorcycleId);
+  const box=document.getElementById("my-collection-report-"+id);
+  if(!box) return;
+  box.style.display="block";
+  box.innerHTML='<div style="color:#aaa">Loading collection report…</div>';
+  try{
+    const result=await sb.functions.invoke("collection-report",{body:{deal_motorcycle_id:id}});
+    if(result.error) throw result.error;
+    if(!result.data?.success) throw new Error(result.data?.error||"Collection report could not be loaded.");
+    box.innerHTML=myCollectionReportHtml(result.data);
+  }catch(error){
+    box.innerHTML='<div style="color:#ff9e9e">Collection report could not be loaded: '+safe(error.message||error)+'</div>';
+  }
+}
+
+window.loadMyCollectionReport=loadMyCollectionReport;
 
 async function loadPurchases(){
 
