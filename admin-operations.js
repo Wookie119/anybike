@@ -790,10 +790,15 @@
       const result=await client().functions.invoke("collection-report",{body:{deal_motorcycle_id:id}});
       if(result.error) throw result.error;
       if(!result.data?.success) throw new Error(result.data?.error||"Collection report could not be loaded.");
-      box.innerHTML=collectionReportAdminHtml(result.data);
+      box.innerHTML=collectionReportAdminHtml(result.data)+'<div class="ab-collect-actions" style="margin-top:10px"><button type="button" class="ab-ops-button ab-move-secondary" onclick="closeAnyBikeCollectionReport('+id+');return false;">Close Collection Report</button></div>';
     }catch(error){
       box.innerHTML='<span style="color:#ff9e9e">Collection report could not be loaded: '+esc(error.message||error)+'</span>';
     }
+  }
+
+  function closeCollectionReport(dealMotorcycleId){
+    const box=document.getElementById("ab-collection-report-"+Number(dealMotorcycleId));
+    if(box){box.style.display="none";box.innerHTML="";}
   }
 
   async function createDriverCollectionLink(dealMotorcycleId){
@@ -845,6 +850,7 @@
   window.createAnyBikeDriverCollectionLink=createDriverCollectionLink;
   window.copyAnyBikeDriverLink=copyDriverLink;
   window.viewAnyBikeCollectionReport=viewCollectionReport;
+  window.closeAnyBikeCollectionReport=closeCollectionReport;
   document.querySelectorAll('[id^="anybike-operations-"]').forEach(function(host){
     const dealId=String(host.id.replace("anybike-operations-","")).trim();
     if(dealId){ loadDeal(dealId,false); }
