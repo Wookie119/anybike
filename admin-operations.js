@@ -453,7 +453,16 @@
       }
       const payload=result.data||{};
       if(payload.error){
-        const extra=payload.missing_fields&&payload.missing_fields.length?"\n\nMissing:\n"+payload.missing_fields.join("\n"):"";
+        let extra="";
+        if(payload.stage) extra+="\n\nStage: "+payload.stage;
+        if(payload.code) extra+="\nCode: "+payload.code;
+        if(payload.move_status) extra+="\nMove HTTP status: "+payload.move_status;
+        if(payload.missing_fields&&payload.missing_fields.length) extra+="\n\nMissing:\n"+payload.missing_fields.join("\n");
+        if(payload.detail) extra+="\n\nDetail:\n"+payload.detail;
+        if(payload.move_response){
+          const mr=typeof payload.move_response==="string" ? payload.move_response : JSON.stringify(payload.move_response,null,2);
+          extra+="\n\nMove response:\n"+mr;
+        }
         throw new Error(payload.error+extra);
       }
       moveBookingCache.delete(String(id));
