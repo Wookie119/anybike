@@ -557,6 +557,53 @@ main{
   gap:10px;
 }
 .handover-card strong{display:block}
+.shipper-name-link{
+  appearance:none;
+  border:0;
+  background:transparent;
+  color:#fff;
+  padding:0;
+  font:inherit;
+  font-weight:900;
+  text-align:left;
+  cursor:pointer;
+  text-decoration:underline;
+  text-decoration-color:rgba(237,28,36,.65);
+  text-underline-offset:3px;
+}
+.shipper-authorisation{
+  grid-column:1/-1;
+  border-top:1px solid rgba(255,255,255,.08);
+  margin-top:2px;
+  padding-top:11px;
+}
+.shipper-authorisation-status{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  align-items:center;
+  flex-wrap:wrap;
+}
+.shipper-authorisation-status strong{
+  color:#ffd27a;
+}
+.shipper-authorisation-status.good strong{color:#8ff0b0}
+.shipper-authorisation-status.bad strong{color:#ff9f9f}
+.shipper-authorisation button{
+  border:1px solid var(--red);
+  background:var(--red);
+  color:#fff;
+  border-radius:9px;
+  padding:9px 12px;
+  font-weight:900;
+  cursor:pointer;
+}
+.shipper-authorisation small{
+  display:block;
+  color:#999;
+  margin-top:5px;
+  line-height:1.4;
+}
 .purchase-more{
   margin-top:12px;
   border:1px solid rgba(255,255,255,.1);
@@ -901,7 +948,14 @@ function purchaseCard(purchase){
             </div>
             <div>
               <span>Shipper / freight forwarder</span>
-              <strong>${safe(forwarder||"To be confirmed")}</strong>
+              ${forwarder
+                ? `<button type="button" class="shipper-name-link" onclick="focusShipperAuthorisation(${Number(purchase.deal_motorcycle_id)});return false;">${safe(forwarder)}</button>`
+                : `<strong>To be confirmed</strong>`}
+            </div>
+            <div id="shipper-auth-${Number(purchase.deal_motorcycle_id)}" class="shipper-authorisation">
+              <div class="shipper-authorisation-status">
+                <strong>Checking shipper authorisation…</strong>
+              </div>
             </div>
           </div>
         `:""}
@@ -1008,6 +1062,97 @@ function closeMyCollectionReport(dealMotorcycleId){
 
 window.loadMyCollectionReport=loadMyCollectionReport;
 window.closeMyCollectionReport=closeMyCollectionReport;
+
+function focusShipperAuthorisation(dealMotorcycleId){
+  const el=document.getElementById("shipper-auth-"+Number(dealMotorcycleId));
+  if(el) el.scrollIntoView({behavior:"smooth",block:"center"});
+}
+
+async function loadShipperAuthorisation(purchase){
+  const dmId=Number(purchase.deal_motorcycle_id);
+  const dealId=Number(purchase.deal_id);
+  const box=document.getElementById("shipper-auth-"+dmId);
+  if(!box||!dealId) return;
+
+  try{
+    const result=await sb.rpc("get_my_shipper_authorisation_v1",{p_deal_id:dealId});
+    if(result.error) throw result.error;
+    const a=result.data||{};
+    const status=String(a.status||"Not Authorised");
+    const shipper=String(purchase.freight_forwarder_name||a.shipper_name||"the nominated shipper");
+    const confirmed=status==="Shipper Confirmed";
+    const declined=status==="Shipper Declined";
+    const sent=status==="Email Sent";
+    const authorised=status==="Buyer Authorised";
+
+    if(confirmed){
+      box.innerHTML='<div class="shipper-authorisation-status good"><div><strong>✓ Shipper confirmed acceptance</strong><small>'+safe(shipper)+' has confirmed they can accept this motorcycle from AnyBike / Move Motorcycles.</small></div></div>';
+      return;
+    }
+
+    if(declined){
+      box.innerHTML='<div class="shipper-authorisation-status bad"><div><strong>Shipper cannot currently accept</strong><small>AnyBike has been notified and will contact you before delivery is arranged.</small></div></div>';
+      return;
+    }
+
+    if(sent||authorised){
+      box.innerHTML='<div class="shipper-authorisation-status good"><div><strong>✓ You authorised '+safe(shipper)+'</strong><small>'+(sent?'An email has been sent to the shipper. Waiting for them to confirm they can accept the motorcycle.':'Your authorisation has been recorded. AnyBike is completing the shipper notification.')+'</small></div></div>';
+      return;
+    }
+
+    box.innerHTML='<div class="shipper-authorisation-status"><div><strong>Shipper authorisation required</strong><small>Authorise '+safe(shipper)+' to accept this motorcycle from AnyBike / Move Motorcycles on your behalf.</small></div><button type="button" onclick="authoriseShipper('+dmId+','+dealId+','+JSON.stringify(shipper)+');return false;">Authorise Shipper</button></div>';
+  }catch(error){
+    box.innerHTML='<div class="shipper-authorisation-status bad"><div><strong>Shipper authorisation status unavailable</strong><small>'+safe(error.message||error)+'</small></div></div>';
+  }
+}
+
+async function authoriseShipper(dealMotorcycleId,dealId,shipper){
+  const dmId=Number(dealMotorcycleId);
+  const id=Number(dealId);
+  const box=document.getElementById("shipper-auth-"+dmId);
+  if(!box||!id) return;
+
+  try{
+    const current=await sb.rpc("get_my_shipper_authorisation_v1",{p_deal_id:id});
+    if(current.error) throw current.error;
+    const status=String(current.data?.status||"");
+    if(["Email Sent","Buyer Authorised","Shipper Confirmed"].includes(status)){
+      await loadShipperAuthorisation({deal_motorcycle_id:dmId,deal_id:id,freight_forwarder_name:shipper});
+      return;
+    }
+  }catch(_ignore){}
+
+  if(!window.confirm(
+    "Authorise "+shipper+" to accept this motorcycle from AnyBike / Move Motorcycles on your behalf?\n\n"+
+    "AnyBike will email the shipper and ask them to confirm they can accept the motorcycle before delivery."
+  )) return;
+
+  box.innerHTML='<div class="shipper-authorisation-status"><strong>Sending authorisation to shipper…</strong></div>';
+
+  try{
+    const result=await sb.functions.invoke("customer-authorise-shipper",{
+      body:{deal_id:id,deal_motorcycle_id:dmId}
+    });
+    if(result.error){
+      let message=result.error.message||"The shipper could not be authorised.";
+      try{
+        if(result.error.context){
+          const response=typeof result.error.context.clone==="function"?result.error.context.clone():result.error.context;
+          const detail=await response.json();
+          if(detail?.error) message=detail.error;
+        }
+      }catch(_detail){}
+      throw new Error(message);
+    }
+    if(result.data?.error) throw new Error(result.data.error);
+    await loadShipperAuthorisation({deal_motorcycle_id:dmId,deal_id:id,freight_forwarder_name:shipper});
+  }catch(error){
+    box.innerHTML='<div class="shipper-authorisation-status bad"><div><strong>Could not send shipper authorisation</strong><small>'+safe(error.message||error)+'</small></div><button type="button" onclick="authoriseShipper('+dmId+','+id+','+JSON.stringify(shipper)+');return false;">Try Again</button></div>';
+  }
+}
+
+window.focusShipperAuthorisation=focusShipperAuthorisation;
+window.authoriseShipper=authoriseShipper;
 
 async function loadPurchases(){
 
@@ -1160,6 +1305,12 @@ async function loadPurchases(){
     </div>
 
   `;
+
+  orderedPurchases.forEach(function(purchase){
+    if(purchase.freight_forwarder_name || purchase.uk_handover_port){
+      loadShipperAuthorisation(purchase);
+    }
+  });
 
 }
 
