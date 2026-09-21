@@ -22,7 +22,7 @@ textarea{width:100%;min-height:90px;border:1px solid rgba(160,140,88,.45);border
 .check{display:flex;align-items:flex-start;gap:10px;padding:12px 0;border-bottom:1px solid rgba(255,255,255,.08)}.check:last-child{border-bottom:0}.check input{width:22px;height:22px;accent-color:var(--gold)}
 .check strong{display:block;color:var(--goldSoft)}.check small{display:block;color:var(--muted);margin-top:3px}
 .status{font-size:13px;color:var(--goldText);line-height:1.45}.status.good{color:#92e4b4}.status.warn{color:#ffd891} #addressBox{color:var(--goldText)} #addressBox strong{color:var(--goldSoft)}
-.error{padding:16px;border-radius:12px;background:#4a1515;border:1px solid #a94d4d;color:#fff}.hidden{display:none!important}
+.error{padding:16px;border-radius:12px;background:#4a1515;border:1px solid #a94d4d;color:#fff}.photo-list{display:grid;gap:10px;margin-top:12px}.photo-row{padding:12px;border:1px solid rgba(160,140,88,.28);border-radius:10px;background:rgba(0,0,0,.14)}.photo-row strong{display:block;color:var(--goldSoft);margin-bottom:4px}.photo-row small{display:block;color:var(--muted);margin-bottom:9px;line-height:1.4}.photo-row input[type=file]{display:block;width:100%;color:var(--goldText);margin-bottom:8px}.photo-done{color:#92e4b4;font-weight:900}.hidden{display:none!important}
 @media(max-width:600px){.grid{grid-template-columns:1fr}.wrap{padding:10px 10px 34px}.body,.head{padding:14px}}
 </style>
 </head>
@@ -52,36 +52,48 @@ textarea{width:100%;min-height:90px;border:1px solid rgba(160,140,88,.45);border
         <textarea id="visualNotes" placeholder="Describe any damage, mismatch or missing item before reporting a discrepancy..."></textarea><div id="discrepancyHelp" class="status warn hidden" style="margin-top:8px">Please describe the discrepancy above, then press Report Discrepancy again.</div>
         <div class="actions">
           <button id="passBtn" class="btn" onclick="doAction('visual_passed')">Visual Check Passed</button>
-          <button id="problemBtn" class="btn danger" onclick="doAction('visual_discrepancy')">Report Discrepancy</button>
+          <button id="problemBtn" class="btn danger" onclick="doAction('visual_discrepancy')">Save Discrepancy & Stop Collection</button>
         </div>
-        <p class="status" id="visualStatus"></p>
+        <p class="status" id="visualStatus"></p><div id="damagePhotoBox" class="photo-row hidden"><strong>Damage close-up photo</strong><small>Take this before the motorcycle is moved.</small><input id="photo-damage" type="file" accept="image/*" capture="environment"><button class="btn secondary" onclick="uploadPhoto('damage')">Upload Damage Photo</button><div id="photo-status-damage" class="status"></div></div>
       </div>
     </section>
     <section class="card">
-      <div class="head"><h3>2. Handover Checklist</h3></div>
+      <div class="head"><h3>2. Seller Payment</h3></div>
+      <div class="body">
+        <div class="notice"><strong>After the visual check passes:</strong> call AnyBike so payment can be made to the seller. Do not take the motorcycle until the seller confirms the money has arrived.</div>
+        <div class="actions">
+          <a id="callPaymentBtn" class="btn" href="tel:+447949574299" style="display:block;text-align:center;text-decoration:none">Call AnyBike for Seller Payment</a>
+          <button id="paymentRequestedBtn" class="btn secondary" onclick="doAction('payment_requested')">Seller Payment Requested ✓</button>
+          <button id="sellerPaidBtn" class="btn secondary" onclick="confirmSellerPaid()">Seller Confirms Payment Received ✓</button>
+          <button id="refreshBtn" class="btn secondary" onclick="refreshJob()">Refresh Status</button>
+        </div>
+        <p id="clearanceStatus" class="status warn"></p>
+        <p id="refreshStatus" class="status"></p>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="head"><h3>3. Condition Photos</h3></div>
+      <div class="body">
+        <div class="notice">Take the minimum <strong>9 Move condition photos</strong> before loading the motorcycle. If damage is seen, take extra close-up pictures before the bike is moved.</div>
+        <div id="photoGate" class="status warn" style="margin-top:10px"></div>
+        <div id="photoList" class="photo-list"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="head"><h3>4. Handover Checklist</h3></div>
       <div class="body">
         <div class="notice">Collect the <strong>complete V5C</strong>, all keys and everything supplied with the motorcycle. Mark items as collected. If an item genuinely does not apply, use N/A.</div>
         <div id="custodyList"></div>
       </div>
     </section>
+
     <section class="card">
-      <div class="head"><h3>3. Seller Payment & AnyBike Clearance</h3></div>
+      <div class="head"><h3>5. Collect Motorcycle</h3></div>
       <div class="body">
-        <div id="paymentCallBox" class="hidden">
-          <div class="notice"><strong>Visual check passed.</strong> Call AnyBike now so seller payment can be handled before you take the motorcycle.</div>
-          <div class="actions">
-            <a class="btn" href="tel:+447949574299" style="display:block;text-align:center;text-decoration:none">Call AnyBike for Seller Payment</a>
-          </div>
-        </div>
-        <p id="clearanceStatus" class="status warn">Waiting for AnyBike clearance.</p>
-        <button id="refreshBtn" class="btn secondary" onclick="loadJob()">Refresh Status</button>
-      </div>
-    </section>
-    <section class="card">
-      <div class="head"><h3>4. Collect Motorcycle</h3></div>
-      <div class="body">
-        <div class="notice">Only mark collected once the motorcycle, keys and required paperwork are physically in your custody and AnyBike has cleared the collection.</div>
-        <div class="actions"><button id="collectedBtn" class="btn" onclick="doAction('collected')">Motorcycle Collected</button></div>
+        <div class="notice">Only mark collected once the seller has confirmed payment, all 9 required photos are uploaded, the handover checklist is complete and AnyBike clearance is showing.</div>
+        <div class="actions"><button id="collectedBtn" class="btn" onclick="doAction('collected')">Mark Motorcycle Collected</button></div>
         <p id="completeStatus" class="status"></p>
       </div>
     </section>
@@ -96,15 +108,59 @@ let current=null;
 function esc(v){return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));}
 function nice(v){if(!v)return "Not recorded";const d=new Date(v);return isNaN(d)?"":d.toLocaleString("en-GB");}
 function showError(msg){document.getElementById("app").classList.add("hidden");const e=document.getElementById("errorBox");e.textContent=msg;e.classList.remove("hidden");}
-async function loadJob(){
+const photoSlots=[
+  ["rear","1. Rear","Square-on rear view showing registration and rear equipment."],
+  ["tank_seat","2. Tank and Seat","High view showing tank, seat and handlebar controls."],
+  ["left_rear","3. Left Rear","Low rear-quarter view of left rear half, wheel, swingarm and exhaust/luggage."],
+  ["left_side","4. Left Full Side","Full left side with the bike filling most of the frame and some background visible."],
+  ["left_front","5. Left Front","Low front-quarter view of left front half, fairing, frame and engine cases."],
+  ["front","6. Front View","Square-on front showing screen, mirrors, headlight, controls, levers, mudguard and forks."],
+  ["right_front","7. Right Front","Low front-quarter view of right front half, fairing, frame and engine cases."],
+  ["right_side","8. Right Full Side","Full right side with the bike filling most of the frame and some background visible."],
+  ["right_rear","9. Right Rear","Low rear-quarter view of right rear half, wheel, swingarm and exhaust/luggage."]
+];
+
+async function loadJob(showRefresh=false){
+  const refreshBtn=document.getElementById("refreshBtn");
+  const refreshStatus=document.getElementById("refreshStatus");
   try{
-    const r=await sb.rpc("move_driver_collection_get_v1",{p_token:token});
+    if(showRefresh&&refreshBtn){refreshBtn.disabled=true;refreshBtn.textContent="Refreshing…";}
+    const r=await sb.rpc("move_driver_collection_get_v2",{p_token:token});
     if(r.error)throw r.error;
-    current=r.data; render();
-  }catch(e){showError(e.message||String(e));}
+    current=r.data;
+    render();
+    if(showRefresh&&refreshStatus){refreshStatus.textContent="Status refreshed "+new Date().toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})+".";refreshStatus.className="status good";}
+  }catch(e){
+    if(showRefresh&&refreshStatus){refreshStatus.textContent=e.message||String(e);refreshStatus.className="status warn";}
+    else showError(e.message||String(e));
+  }finally{
+    if(refreshBtn){refreshBtn.disabled=false;refreshBtn.textContent="Refresh Status";}
+  }
 }
+
+async function refreshJob(){await loadJob(true);}
+
+function renderPhotos(s,photos,collected){
+  const host=document.getElementById("photoList");
+  const gate=document.getElementById("photoGate");
+  if(!host||!gate)return;
+  const paymentReceived=!!s.seller_payment_received_at;
+  const uploaded=new Set((photos||[]).map(p=>p.slot).filter(Boolean));
+  gate.textContent=paymentReceived
+    ? uploaded.size+" photo slot"+(uploaded.size===1?"":"s")+" recorded. All 9 required before collection."
+    : "Photo stage unlocks after the seller confirms payment has been received.";
+  gate.className="status "+(paymentReceived&&photoSlots.every(x=>uploaded.has(x[0]))?"good":"warn");
+  host.innerHTML=photoSlots.map(([slot,title,help])=>{
+    const done=uploaded.has(slot);
+    return '<div class="photo-row"><strong>'+esc(title)+(done?' <span class="photo-done">✓ Uploaded</span>':'')+'</strong><small>'+esc(help)+'</small>'+
+      '<input id="photo-'+slot+'" type="file" accept="image/*" capture="environment" '+((!paymentReceived||collected)?"disabled":"")+'>'+
+      '<button class="btn secondary" '+((!paymentReceived||collected)?"disabled":"")+' onclick="uploadPhoto(\''+slot+'\')">'+(done?"Upload Replacement":"Upload Photo")+'</button>'+
+      '<div id="photo-status-'+slot+'" class="status"></div></div>';
+  }).join("");
+}
+
 function render(){
-  const d=current||{},j=d.job||{},c=d.collection||{},s=d.status||{},items=d.custody||[];
+  const d=current||{},j=d.job||{},c=d.collection||{},s=d.status||{},items=d.custody||[],photos=d.photos||[];
   document.getElementById("errorBox").classList.add("hidden");document.getElementById("app").classList.remove("hidden");
   document.getElementById("clientLine").textContent="Collection job for "+(j.client_name||"AnyBike");
   document.getElementById("bikeTitle").textContent=j.motorcycle||"Motorcycle Collection";
@@ -114,54 +170,94 @@ function render(){
     '<div class="metric"><span>Ready Date</span><strong>'+esc(j.ready_date||"-")+'</strong></div>'+
     '<div class="metric"><span>Driver</span><strong>'+esc((d.link||{}).driver_name||"Move Driver")+'</strong></div>';
   document.getElementById("addressBox").innerHTML=
-    '<strong>'+esc(c.name||"Seller / dealer")+'</strong><br>'+
-    esc(c.contact_name||"")+'<br>'+
+    '<strong>'+esc(c.name||"Seller / dealer")+'</strong><br>'+esc(c.contact_name||"")+'<br>'+
     esc([c.street,c.city,c.county,c.postcode,c.country].filter(Boolean).join(", "))+
     (c.phone?'<br><br><a style="color:#c0a96d;font-weight:900" href="tel:'+esc(c.phone)+'">'+esc(c.phone)+'</a>':"")+
     (j.special_instructions?'<div class="notice" style="margin-top:12px">'+esc(j.special_instructions)+'</div>':"");
-  const arrived=!!s.arrived_at, passed=s.visual_check_status==="passed", problem=s.visual_check_status==="discrepancy", cleared=!!s.payment_cleared, collected=s.collection_status==="collected";
+
+  const arrived=!!s.arrived_at,passed=s.visual_check_status==="passed",problem=s.visual_check_status==="discrepancy";
+  const requested=!!s.payment_requested_at,paymentReceived=!!s.seller_payment_received_at,cleared=!!s.payment_cleared,collected=s.collection_status==="collected";
+  const uploadedRequired=new Set(photos.filter(p=>p.evidence_type==="condition_photo").map(p=>p.slot).filter(Boolean));
+  const photosComplete=photoSlots.every(x=>uploadedRequired.has(x[0]));
+
   document.getElementById("arrivedBtn").disabled=arrived||collected;
   document.getElementById("passBtn").disabled=!arrived||collected;
   document.getElementById("problemBtn").disabled=!arrived||collected;
-  document.getElementById("visualStatus").textContent=problem?"Discrepancy recorded — contact AnyBike before proceeding.":passed?"Visual check passed.":arrived?"Arrival recorded "+nice(s.arrived_at)+". Complete the visual check.":"Tap Arrived when you are physically with the seller.";
+  document.getElementById("visualStatus").textContent=problem?"Discrepancy saved — stop collection and contact AnyBike.":passed?"Visual check passed.":arrived?"Arrival recorded "+nice(s.arrived_at)+". Complete the visual check.":"Tap Arrived when you are physically with the seller.";
   document.getElementById("visualStatus").className="status "+(problem?"warn":passed?"good":"");
+  const damageBox=document.getElementById("damagePhotoBox");if(damageBox)damageBox.classList.toggle("hidden",!problem);
+
+  document.getElementById("callPaymentBtn").classList.toggle("hidden",!passed||collected);
+  document.getElementById("paymentRequestedBtn").disabled=!passed||requested||collected;
+  document.getElementById("paymentRequestedBtn").textContent=requested?"Seller Payment Requested ✓":"Seller Payment Requested ✓";
+  document.getElementById("sellerPaidBtn").disabled=!requested||paymentReceived||collected;
+  document.getElementById("sellerPaidBtn").textContent=paymentReceived?"Seller Confirms Payment Received ✓":"Seller Confirms Payment Received ✓";
+  const cs=document.getElementById("clearanceStatus");
+  cs.textContent=paymentReceived?(cleared?"Seller payment confirmed and AnyBike clearance received.":"Seller says payment received. Waiting for AnyBike ledger/clearance confirmation."):(requested?"Payment requested — wait with the seller until they confirm receipt.":passed?"Call AnyBike, then mark Seller Payment Requested.":"Waiting for visual check.");
+  cs.className="status "+(cleared&&paymentReceived?"good":"warn");
+
   document.getElementById("custodyList").innerHTML=items.map(x=>{
-    const checked=x.status==="collected_from_seller";
-    const na=x.status==="not_applicable";
+    const checked=x.status==="collected_from_seller",na=x.status==="not_applicable";
     return '<div class="check"><input type="checkbox" '+(checked?'checked':'')+' '+(collected?'disabled':'')+' onchange="setItem('+Number(x.id)+',this.checked?\'collected_from_seller\':\'expected\')"><div style="flex:1"><strong>'+esc(x.description||x.item_type)+'</strong><small>Status: '+esc(checked?"Collected":na?"N/A":"Expected")+'</small></div><button class="btn secondary" style="width:auto;padding:7px 10px;font-size:12px" '+(collected?'disabled':'')+' onclick="setItem('+Number(x.id)+',\''+(na?'expected':'not_applicable')+'\')">'+(na?'Undo N/A':'N/A')+'</button></div>';
   }).join("");
   const incomplete=items.some(x=>!["collected_from_seller","not_applicable"].includes(x.status));
-  const callBox=document.getElementById("paymentCallBox");
-  if(callBox) callBox.classList.toggle("hidden",!passed||cleared||collected);
-  const cs=document.getElementById("clearanceStatus");
-  cs.textContent=cleared?"AnyBike clearance received — motorcycle may be collected.":passed?"Visual check passed — call AnyBike for seller payment, then refresh after AnyBike confirms.":"Waiting for visual check before seller payment can be requested.";
-  cs.className="status "+(cleared?"good":"warn");
-  document.getElementById("collectedBtn").disabled=!arrived||!passed||!cleared||incomplete||collected;
-  document.getElementById("completeStatus").textContent=collected?"Collection completed "+nice(s.collected_at)+". Thank you.":incomplete?"Complete the handover checklist before collecting.":"";
+
+  renderPhotos(s,photos,collected);
+
+  document.getElementById("collectedBtn").disabled=!arrived||!passed||!requested||!paymentReceived||!cleared||!photosComplete||incomplete||collected;
+  const reasons=[];
+  if(!paymentReceived)reasons.push("seller payment confirmation");
+  if(!photosComplete)reasons.push("all 9 condition photos");
+  if(incomplete)reasons.push("handover checklist");
+  if(!cleared)reasons.push("AnyBike clearance");
+  document.getElementById("completeStatus").textContent=collected?"Collection completed "+nice(s.collected_at)+". Thank you.":reasons.length?"Still required: "+reasons.join(", ")+".":"Ready to mark collected.";
 }
+
 async function doAction(action){
-  const notesEl=document.getElementById("visualNotes");
-  const helpEl=document.getElementById("discrepancyHelp");
+  const notesEl=document.getElementById("visualNotes"),helpEl=document.getElementById("discrepancyHelp");
   const payload={notes:(notesEl?.value||"").trim()};
   if(action==="visual_discrepancy"&&!payload.notes){
-    if(helpEl) helpEl.classList.remove("hidden");
+    if(helpEl)helpEl.classList.remove("hidden");
     if(notesEl){notesEl.focus();notesEl.scrollIntoView({behavior:"smooth",block:"center"});}
     return;
   }
-  if(helpEl) helpEl.classList.add("hidden");
-  if(action==="visual_discrepancy"&&!confirm("Report this discrepancy to AnyBike and stop the collection until it is resolved?"))return;
+  if(helpEl)helpEl.classList.add("hidden");
+  if(action==="visual_discrepancy"&&!confirm("Save this discrepancy and stop the collection until AnyBike resolves it?"))return;
   if(action==="collected"&&!confirm("Confirm the motorcycle, keys and required documents are now in your custody?"))return;
-  const r=await sb.rpc("move_driver_collection_action_v1",{p_token:token,p_action:action,p_payload:payload});
+  const r=await sb.rpc("move_driver_collection_action_v2",{p_token:token,p_action:action,p_payload:payload});
   if(r.error){alert(r.error.message);return;}
-  current=r.data;
-  render();
-  if(action==="visual_discrepancy") alert("Discrepancy recorded. Do not take the motorcycle until AnyBike resolves it.");
+  current=r.data;render();
+  if(action==="visual_discrepancy")alert("Discrepancy saved. Do not take the motorcycle until AnyBike resolves it.");
 }
+
+async function confirmSellerPaid(){
+  if(!confirm("Have you verbally confirmed with the seller that the payment has arrived in their account?"))return;
+  await doAction("seller_payment_received");
+}
+
 async function setItem(itemId,status){
-  const r=await sb.rpc("move_driver_collection_action_v1",{p_token:token,p_action:"custody",p_payload:{item_id:itemId,status}});
-  if(r.error){alert(r.error.message);return;} current=r.data;render();
+  const r=await sb.rpc("move_driver_collection_action_v2",{p_token:token,p_action:"custody",p_payload:{item_id:itemId,status}});
+  if(r.error){alert(r.error.message);return;}current=r.data;render();
 }
-if(!token)showError("This collection link is missing its secure token."); else loadJob();
+
+async function uploadPhoto(slot){
+  const input=document.getElementById("photo-"+slot),status=document.getElementById("photo-status-"+slot);
+  const file=input&&input.files&&input.files[0];
+  if(!file){if(status){status.textContent="Choose or take a photo first.";status.className="status warn";}return;}
+  if(status){status.textContent="Uploading…";status.className="status";}
+  try{
+    const form=new FormData();form.append("token",token);form.append("slot",slot);form.append("file",file);
+    const response=await fetch(SUPABASE_URL+"/functions/v1/move-driver-upload-photo",{method:"POST",body:form});
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok||!result.success)throw new Error(result.error||"Photo upload failed");
+    if(status){status.textContent="Uploaded ✓";status.className="status good";}
+    await loadJob(false);
+  }catch(e){
+    if(status){status.textContent=e.message||String(e);status.className="status warn";}
+  }
+}
+
+if(!token)showError("This collection link is missing its secure token."); else loadJob(false);
 </script>
 </body>
 </html>
