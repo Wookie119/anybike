@@ -14,6 +14,7 @@
   const moveBookingCache = new Map();
   const moveBookingLoading = new Set();
   const moveBookingSaving = new Set();
+  const collectionSaving = new Set();
 
   function client(){
     if(typeof window.sb !== "undefined") return window.sb;
@@ -37,6 +38,17 @@
     if(!value) return "Not set";
     const d = new Date(value + (String(value).length === 10 ? "T12:00:00" : ""));
     return Number.isNaN(d.getTime()) ? String(value) : d.toLocaleDateString("en-GB");
+  }
+
+  function niceDateTime(value){
+    if(!value) return "Not recorded";
+    const d=new Date(value);
+    return Number.isNaN(d.getTime()) ? String(value) : d.toLocaleString("en-GB");
+  }
+
+  function gbp(value){
+    const n=Number(value||0);
+    return "£"+n.toLocaleString("en-GB",{minimumFractionDigits:2,maximumFractionDigits:2});
   }
 
   function motorcycleTitle(row){
@@ -128,10 +140,108 @@
       .ab-ops-private{color:#ff9ca0;font-weight:800}
       .ab-ops-loading,.ab-ops-empty,.ab-ops-error{padding:14px;border:1px dashed rgba(255,255,255,.18);border-radius:10px;color:#aaa;background:#0c0c0c}
       .ab-ops-error{color:#ff8f94;border-color:rgba(237,28,36,.35)}
+      .ab-collect{margin:0 16px 14px;border:1px solid rgba(255,255,255,.11);border-radius:11px;background:#101010;overflow:hidden}
+      .ab-collect-head{padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.08)}
+      .ab-collect-head span{display:block;color:#ed1c24;font-size:10px;font-weight:950;text-transform:uppercase}
+      .ab-collect-head h5{margin:4px 0 0;color:#fff;font-size:15px}
+      .ab-collect-steps{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:7px;padding:12px 14px}
+      .ab-collect-step{padding:9px;border:1px solid #333;border-radius:8px;background:#0a0a0a}
+      .ab-collect-step span{display:block;color:#8f9bab;font-size:9px;font-weight:900;text-transform:uppercase}
+      .ab-collect-step strong{display:block;margin-top:4px;color:#fff;font-size:11px}
+      .ab-collect-step.done{border-color:#2f8d55;background:#102719}
+      .ab-collect-step.warn{border-color:#9a6b17;background:#211707}
+      .ab-collect-body{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 14px 14px}
+      .ab-collect-card{padding:11px;border:1px solid rgba(255,255,255,.09);border-radius:9px;background:#0b0b0b}
+      .ab-collect-card h6{margin:0 0 8px;color:#fff;font-size:12px}
+      .ab-collect-actions{display:flex;gap:7px;flex-wrap:wrap}
+      .ab-collect-note{width:100%;box-sizing:border-box;margin:8px 0;border:1px solid #353535;border-radius:8px;background:#070707;color:#fff;padding:9px;min-height:58px;resize:vertical}
+      .ab-collect-money{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:9px}
+      .ab-collect-pay{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+      .ab-collect-pay label{display:block;margin-bottom:4px;color:#9aa3ae;font-size:9px;font-weight:900;text-transform:uppercase}
+      .ab-collect-pay input{width:100%;box-sizing:border-box;border:1px solid #353535;border-radius:7px;background:#070707;color:#fff;padding:8px}
+      .ab-collect-status{margin-top:8px;color:#aaa;font-size:11px;line-height:1.4}
+      .ab-collect-status.good{color:#8ff0b0;font-weight:800}
+      .ab-collect-status.warn{color:#ffd18a;font-weight:800}
+      @media(max-width:1100px){.ab-collect-steps{grid-template-columns:repeat(3,1fr)}}
       @media(max-width:950px){.ab-ops-grid{grid-template-columns:1fr 1fr}.ab-ops-ready{grid-template-columns:1fr}}
-      @media(max-width:560px){.ab-ops-grid{grid-template-columns:1fr}.ab-ops-head,.ab-ops-next{flex-direction:column;align-items:flex-start}}
+      @media(max-width:560px){.ab-ops-grid{grid-template-columns:1fr}.ab-ops-head,.ab-ops-next{flex-direction:column;align-items:flex-start}.ab-collect-steps,.ab-collect-body,.ab-collect-pay{grid-template-columns:1fr}}
     `;
     document.head.appendChild(el);
+  }
+
+  function collectionPanel(row,dealId){
+    const id=Number(row.deal_motorcycle_id);
+    const eta=!!row.driver_eta_received_at;
+    const arrived=!!row.driver_arrived_at;
+    const visual=String(row.visual_check_status||"pending");
+    const passed=visual==="passed";
+    const discrepancy=visual==="discrepancy";
+    const authorised=!!row.supplier_payment_authorised_at;
+    const paid=Number(row.supplier_total_paid_gbp||0);
+    const balance=Number(row.supplier_balance_gbp||0);
+    const cleared=balance<=0.005;
+    const collected=String(row.collection_status||"")==="collected";
+    const secured=!!row.motorcycle_secured_at || collected;
+
+    return `
+      <div class="ab-collect">
+        <div class="ab-collect-head"><span>Collection & Supplier Payment</span><h5>Driver-on-site controls</h5></div>
+        <div class="ab-collect-steps">
+          <div class="ab-collect-step ${eta?"done":""}"><span>1 · Driver ETA</span><strong>${esc(eta?niceDateTime(row.driver_eta_received_at):"Waiting")}</strong></div>
+          <div class="ab-collect-step ${arrived?"done":""}"><span>2 · Driver Arrived</span><strong>${esc(arrived?niceDateTime(row.driver_arrived_at):"Waiting")}</strong></div>
+          <div class="ab-collect-step ${passed?"done":(discrepancy?"warn":"")}"><span>3 · Visual Check</span><strong>${esc(passed?"Passed":(discrepancy?"Discrepancy":"Pending"))}</strong></div>
+          <div class="ab-collect-step ${authorised?"done":""}"><span>4 · Payment</span><strong>${esc(authorised?"Authorised":"Not authorised")}</strong></div>
+          <div class="ab-collect-step ${cleared?"done":""}"><span>5 · Supplier Balance</span><strong>${esc(cleared?"Paid in full":gbp(balance)+" due")}</strong></div>
+          <div class="ab-collect-step ${collected&&secured?"done":""}"><span>6 · Motorcycle</span><strong>${esc(collected&&secured?"Collected & secured":"Not collected")}</strong></div>
+        </div>
+        <div class="ab-collect-body">
+          <div class="ab-collect-card">
+            <h6>Driver arrival & visual check</h6>
+            <div class="ab-collect-actions">
+              <button type="button" class="ab-ops-button ab-move-secondary" ${eta?"disabled":""} onclick="updateAnyBikeCollectionStep(${id},${Number(dealId)},'eta_received');return false;">Record Driver ETA</button>
+              <button type="button" class="ab-ops-button ab-move-secondary" ${arrived?"disabled":""} onclick="updateAnyBikeCollectionStep(${id},${Number(dealId)},'driver_arrived');return false;">Driver Arrived</button>
+            </div>
+            <textarea id="ab-collect-notes-${id}" class="ab-collect-note" placeholder="Visual check or discrepancy notes…">${esc(row.visual_check_notes||"")}</textarea>
+            <div class="ab-collect-actions">
+              <button type="button" class="ab-ops-button" ${arrived?"":"disabled"} onclick="updateAnyBikeCollectionStep(${id},${Number(dealId)},'visual_passed');return false;">Visual Check Passed</button>
+              <button type="button" class="ab-ops-button ab-move-secondary" ${arrived?"":"disabled"} onclick="updateAnyBikeCollectionStep(${id},${Number(dealId)},'visual_discrepancy');return false;">Record Discrepancy</button>
+            </div>
+            ${discrepancy?'<div class="ab-collect-status warn">Supplier payment is blocked until the discrepancy is resolved and the visual check is passed.</div>':""}
+          </div>
+
+          <div class="ab-collect-card">
+            <h6>Supplier payment</h6>
+            <div class="ab-collect-money">
+              <div class="ab-ops-metric"><span>Seller Price</span><strong>${esc(gbp(row.seller_price_gbp))}</strong></div>
+              <div class="ab-ops-metric"><span>Paid</span><strong>${esc(gbp(paid))}</strong></div>
+              <div class="ab-ops-metric"><span>Balance</span><strong>${esc(gbp(balance))}</strong></div>
+            </div>
+            <div class="ab-collect-actions">
+              <button type="button" class="ab-ops-button" ${(!arrived||!passed||authorised)?"disabled":""} onclick="updateAnyBikeCollectionStep(${id},${Number(dealId)},'authorise_supplier_payment');return false;">Authorise Supplier Payment</button>
+            </div>
+            <div class="ab-collect-status ${authorised?"good":"warn"}">${authorised?"Payment is authorised. Record it only after the bank transfer has actually been made.":"Driver must be on site and the visual check must pass before payment can be authorised."}</div>
+            ${authorised&&!cleared?`
+              <div class="ab-collect-pay">
+                <div><label>Amount paid *</label><input id="ab-collect-pay-amount-${id}" type="number" min="0.01" step="0.01" value="${esc(balance.toFixed(2))}"></div>
+                <div><label>Payment reference</label><input id="ab-collect-pay-ref-${id}" value="${esc(row.deal_number||"")}"></div>
+              </div>
+              <div class="ab-collect-actions" style="margin-top:9px">
+                <button type="button" class="ab-ops-button" onclick="recordAnyBikeCollectionPayment(${id},${Number(dealId)});return false;">Record Supplier Payment</button>
+              </div>
+              <div class="ab-collect-status">This records the payment in AnyBike only. It does not initiate a bank transfer.</div>
+            `:""}
+          </div>
+
+          <div class="ab-collect-card" style="grid-column:1/-1">
+            <h6>Collection completion</h6>
+            <div class="ab-collect-actions">
+              <button type="button" class="ab-ops-button" ${(!arrived||!passed||!authorised||!cleared||collected)?"disabled":""} onclick="updateAnyBikeCollectionStep(${id},${Number(dealId)},'mark_collected');return false;">Mark Motorcycle Collected & Secured</button>
+            </div>
+            <div class="ab-collect-status">${collected&&secured?"Motorcycle collected "+esc(niceDateTime(row.collection_actual_at))+" and secured to AnyBike.":"Requires driver arrival, passed visual check, payment authorisation and a zero supplier balance."}</div>
+          </div>
+        </div>
+      </div>
+    `;
   }
 
   function renderRows(dealId,rows){
@@ -192,6 +302,7 @@
           ${confirmed ? (booked
             ? `<div class="ab-move-booked"><strong>Move Motorcycles:</strong> ${esc(row.move_tracking_no ? "Booked · Tracking "+row.move_tracking_no : "Booked")}</div>`
             : `<div id="ab-move-booking-${id}" class="ab-move"><div class="ab-ops-loading">Loading Move booking details…</div></div>`) : ""}
+          ${confirmed ? collectionPanel(row,dealId) : ""}
           <div class="ab-ops-next">
             <span><strong>Next:</strong> ${confirmed ? (booked ? "Move collection is linked to this motorcycle." : "Review and complete the Move Motorcycles booking.") : "Contact the seller, confirm AnyBike is proceeding and obtain the Ready Date."}</span>
             <span class="ab-ops-private">${phone ? "Seller contact held internally" : "Seller details remain internal"}</span>
@@ -468,7 +579,6 @@
       moveBookingCache.delete(String(id));
       operationsCache.clear();
       alert("Move booking created.\n\nTracking: "+(payload.tracking_no||"Not returned")+"\nReference: "+(payload.reference_no||"")+"\n\nThe motorcycle is now marked Booked with Move.");
-      if(typeof renderAdminDealQueue==="function") renderAdminDealQueue();
     }catch(error){
       console.error("Move booking failed:",error);
       alert("Move booking was not created.\n\n"+(error.message||error));
@@ -490,7 +600,7 @@
 
     operationsLoading.add(key);
     try{
-      const result=await client().rpc("admin_get_deal_operations_v1",{p_deal_id:Number(dealId)});
+      const result=await client().rpc("admin_get_deal_operations_v2",{p_deal_id:Number(dealId)});
       if(result.error) throw result.error;
       const rows=result.data || [];
       operationsCache.set(key,rows);
@@ -556,6 +666,81 @@
     }
   }
 
+  async function updateCollectionStep(dealMotorcycleId,dealId,action){
+    const id=Number(dealMotorcycleId);
+    const key=String(id);
+    if(collectionSaving.has(key)) return;
+    const notes=fieldValue("ab-collect-notes-"+id);
+    if(action==="visual_discrepancy" && !notes){
+      alert("Describe the discrepancy before recording it.");
+      return;
+    }
+    const prompts={
+      eta_received:"Record that the Move driver has given AnyBike an ETA?",
+      driver_arrived:"Confirm the driver is now on site with the seller?",
+      visual_passed:"Confirm the motorcycle has passed the visual/basic collection check?",
+      visual_discrepancy:"Record this discrepancy and block supplier payment until it is resolved?",
+      authorise_supplier_payment:"Authorise supplier payment now?\n\nThis does not send money.",
+      mark_collected:"Mark the motorcycle Collected & Secured?\n\nThis confirms the supplier balance is zero and the driver has taken custody."
+    };
+    if(!window.confirm(prompts[action]||"Save this collection update?")) return;
+
+    collectionSaving.add(key);
+    try{
+      const result=await client().rpc("admin_update_collection_control_v1",{
+        p_deal_motorcycle_id:id,
+        p_action:action,
+        p_notes:notes||null
+      });
+      if(result.error) throw result.error;
+      operationsCache.delete(String(dealId));
+      await loadDeal(dealId,true);
+    }catch(error){
+      console.error("Collection update failed:",error);
+      alert("Collection update could not be saved.\n\n"+(error.message||error));
+    }finally{
+      collectionSaving.delete(key);
+    }
+  }
+
+  async function recordCollectionPayment(dealMotorcycleId,dealId){
+    const id=Number(dealMotorcycleId);
+    const key=String(id);
+    if(collectionSaving.has(key)) return;
+    const amount=Number(fieldValue("ab-collect-pay-amount-"+id)||0);
+    const reference=fieldValue("ab-collect-pay-ref-"+id);
+    if(!(amount>0)){
+      alert("Enter the supplier payment amount.");
+      return;
+    }
+    if(!window.confirm("Record "+gbp(amount)+" as PAID to the supplier?\n\nOnly continue if the bank transfer has actually been made.\n\nThis action does not send money.")) return;
+
+    collectionSaving.add(key);
+    try{
+      const result=await client().rpc("admin_record_collection_supplier_payment_v1",{
+        p_deal_motorcycle_id:id,
+        p_amount_gbp:amount,
+        p_payment_method:"Bank Transfer",
+        p_payment_reference:reference||null,
+        p_notes:null,
+        p_payee_name:null,
+        p_bank_account_name:null,
+        p_bank_account_number:null,
+        p_bank_sort_code:null,
+        p_bank_international_notes:null
+      });
+      if(result.error) throw result.error;
+      operationsCache.delete(String(dealId));
+      await loadDeal(dealId,true);
+      alert("Supplier payment recorded in AnyBike.\n\nNo bank transfer was initiated by this action.");
+    }catch(error){
+      console.error("Supplier payment record failed:",error);
+      alert("Supplier payment could not be recorded.\n\n"+(error.message||error));
+    }finally{
+      collectionSaving.delete(key);
+    }
+  }
+
   window.renderAnyBikeOperationsPanel=renderPanel;
   window.loadAnyBikeOperationsPanel=loadDeal;
   window.saveAnyBikeSellerReady=saveSellerReady;
@@ -564,6 +749,8 @@
   window.updateAnyBikeMoveSmsPreview=updateSmsPreview;
   window.saveAnyBikeMoveDraft=saveMoveDraft;
   window.bookAnyBikeMoveShipment=bookMoveShipment;
+  window.updateAnyBikeCollectionStep=updateCollectionStep;
+  window.recordAnyBikeCollectionPayment=recordCollectionPayment;
   document.querySelectorAll('[id^="anybike-operations-"]').forEach(function(host){
     const dealId=String(host.id.replace("anybike-operations-","")).trim();
     if(dealId){ loadDeal(dealId,false); }
