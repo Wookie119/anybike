@@ -113,7 +113,8 @@
       .ab-move-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:14px}
       .ab-move-section{grid-column:1/-1;color:#fff;font-size:12px;font-weight:950;border-bottom:1px solid rgba(255,255,255,.08);padding:3px 0 7px}
       .ab-move-field label{display:block;margin-bottom:5px;color:#9aa3ae;font-size:10px;font-weight:900;text-transform:uppercase}
-      .ab-move-field input,.ab-move-field select{width:100%;box-sizing:border-box;border:1px solid #353535;border-radius:8px;background:#090909;color:#fff;padding:9px 10px;font:inherit}
+      .ab-move-field input,.ab-move-field select,.ab-move-field textarea{width:100%;box-sizing:border-box;border:1px solid #353535;border-radius:8px;background:#090909;color:#fff;padding:9px 10px;font:inherit}
+      .ab-move-field textarea{min-height:76px;resize:vertical}
       .ab-move-actions{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border-top:1px solid rgba(255,255,255,.08);background:#0c0c0c}
       .ab-move-actions small{color:#999;line-height:1.4}
       .ab-move-actions div{display:flex;gap:8px}
@@ -248,6 +249,9 @@
     const smsType=data.sms_recipient_type||"anybike";
     const smsMobile=data.sms_mobile || (smsType==="customer"?customerMobile:"+447949574299");
     const movePrice=data.move_price_agreed_gbp == null ? "" : String(data.move_price_agreed_gbp);
+    const salesPrice=motorcycle.sales_price_gbp == null ? "" : String(motorcycle.sales_price_gbp);
+    const moveInstructions=data.move_special_instructions||"";
+    const moveContactAt=data.move_contact_at_name||sender.contact_name||"";
 
     host.innerHTML=`
       <div class="ab-move-head">
@@ -287,8 +291,18 @@
         <div class="ab-move-field"><label>Account Name</label><input value="AnyBike" readonly></div>
         <div class="ab-move-field"><label>Account Number</label><input value="13882" readonly></div>
 
-        <div class="ab-move-section">Move commercial booking details — internal only</div>
-        <div class="ab-move-field"><label>Price Agreed with Move Motorcycles (£)</label><input id="ab-move-price-${id}" type="number" min="0" step="0.01" value="${esc(movePrice)}" placeholder="0.00"></div>
+        <div class="ab-move-section">Mandatory Move shipment fields</div>
+        <div class="ab-move-field"><label>Vehicle Ready Date *</label><input value="${esc(data.ready_date||"")}" readonly></div>
+        <div class="ab-move-field"><label>Shipping Mode *</label><input value="Up to 7 Working days from ready date" readonly></div>
+        <div class="ab-move-field"><label>Vehicle Type *</label><input value="Motorcycle or Scooter" readonly></div>
+        <div class="ab-move-field"><label>Currency *</label><input value="GBP" readonly></div>
+        <div class="ab-move-field"><label>Shipment Payer *</label><input value="Sender" readonly></div>
+        <div class="ab-move-field"><label>Sales Price (£) *</label><input id="ab-move-sales-price-${id}" value="${esc(salesPrice)}" readonly></div>
+        <div class="ab-move-field"><label>Price Agreed with Move Motorcycles (£) *</label><input id="ab-move-price-${id}" type="number" min="0" step="0.01" value="${esc(movePrice)}" placeholder="0.00"></div>
+        <div class="ab-move-field"><label>Buyer needs to pay for the bike — call</label><input value="Anybike 07949574299" readonly></div>
+        <div class="ab-move-field"><label>Complete V5 required from seller</label><input value="Yes — buyer is trade" readonly></div>
+        <div class="ab-move-field"><label>Contact at name Dealer? *</label><input id="ab-move-contact-at-${id}" value="${esc(moveContactAt)}"></div>
+        <div class="ab-move-field" style="grid-column:1/-1"><label>Special Instructions *</label><textarea id="ab-move-instructions-${id}" placeholder="Special Instructions">${esc(moveInstructions)}</textarea></div>
         <div class="ab-move-field"><label>Move Customer Reference</label><input value="${esc(data.deal_number||"")}" readonly></div>
 
         <div class="ab-move-section">Move booking notification preference</div>
@@ -362,7 +376,9 @@
       p_receiver_email:fieldValue("ab-move-receiver-email-"+id),
       p_sms_recipient_type:smsType,
       p_sms_mobile:smsMobile,
-      p_move_price_agreed_gbp:fieldValue("ab-move-price-"+id)==="" ? null : Number(fieldValue("ab-move-price-"+id))
+      p_move_price_agreed_gbp:fieldValue("ab-move-price-"+id)==="" ? null : Number(fieldValue("ab-move-price-"+id)),
+      p_move_special_instructions:fieldValue("ab-move-instructions-"+id),
+      p_move_contact_at_name:fieldValue("ab-move-contact-at-"+id)
     };
   }
 
@@ -397,7 +413,11 @@
       ["Shipper / Receiver Name",fieldValue("ab-move-receiver-name-"+id)],
       ["Receiver Street Address",fieldValue("ab-move-receiver-street-"+id)],
       ["Receiver City",fieldValue("ab-move-receiver-city-"+id)],
-      ["Receiver Postcode",fieldValue("ab-move-receiver-postcode-"+id)]
+      ["Receiver Postcode",fieldValue("ab-move-receiver-postcode-"+id)],
+      ["Sales Price",fieldValue("ab-move-sales-price-"+id)],
+      ["Price Agreed with Move Motorcycles",fieldValue("ab-move-price-"+id)],
+      ["Contact at name Dealer?",fieldValue("ab-move-contact-at-"+id)],
+      ["Special Instructions",fieldValue("ab-move-instructions-"+id)]
     ];
     const missing=required.filter(function(item){ return !item[1]; }).map(function(item){ return item[0]; });
     if(missing.length){
