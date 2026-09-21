@@ -115,18 +115,4 @@
     }catch(e){console.error(e);alert("Supplier payment could not be recorded.\n\n"+(e.message||e));}
   }
 
-  function scan(){
-    document.querySelectorAll('input[id^="ab-ops-ready-"]').forEach(function(el){
-      const id=Number(el.id.replace("ab-ops-ready-",""));
-      if(id) load(id,false);
-    });
-  }
-
-  addStyle();
-  window.loadAnyBikeCollectionControl=load;
-  window.updateAnyBikeCollectionControl=update;
-  window.recordAnyBikeCollectionSupplierPayment=recordPayment;
-  const mo=new MutationObserver(function(){scan();});
-  if(document.body)mo.observe(document.body,{childList:true,subtree:true});
-  setTimeout(scan,100);
 })();
