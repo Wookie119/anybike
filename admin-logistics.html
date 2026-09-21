@@ -554,7 +554,7 @@ a{text-decoration:none;color:inherit}
   <div class="pay-site-body">
     <div class="pay-site-grid">
       <div class="pay-site-field full">
-        <label for="paySiteDeal">Active collection</label>
+        <label for="paySiteDeal">Eligible Move collection</label>
         <select id="paySiteDeal" onchange="selectPaySiteDeal()">
           <option value="">Loading eligible collections…</option>
         </select>
@@ -562,9 +562,11 @@ a{text-decoration:none;color:inherit}
 
       <div class="pay-site-summary" id="paySiteSummary" style="display:none">
         <div><span>Motorcycle</span><strong id="paySiteBike">—</strong></div>
-        <div><span>Seller</span><strong id="paySiteSeller">—</strong></div>
+        <div><span>Registration</span><strong id="paySiteRegistration">—</strong></div>
         <div><span>Ready Date</span><strong id="paySiteReady">—</strong></div>
         <div><span>Move Status</span><strong id="paySiteMove">—</strong></div>
+        <div style="grid-column:1/-1"><span>Move collection address</span><strong id="paySiteAddress">—</strong></div>
+        <div style="grid-column:1/-1"><span>Collection contact</span><strong id="paySiteContact">—</strong></div>
       </div>
 
       <div class="pay-site-field">
@@ -668,9 +670,11 @@ function selectPaySiteDeal(){
   }
   if(summary) summary.style.display="grid";
   document.getElementById("paySiteBike").textContent=row.motorcycle||"—";
-  document.getElementById("paySiteSeller").textContent=row.seller_name||"—";
+  document.getElementById("paySiteRegistration").textContent=row.registration||"—";
   document.getElementById("paySiteReady").textContent=paySiteNiceDate(row.seller_ready_date);
   document.getElementById("paySiteMove").textContent=row.move_status||row.collection_status||"—";
+  document.getElementById("paySiteAddress").textContent=row.collection_address||"—";
+  document.getElementById("paySiteContact").textContent=row.collection_contact||row.seller_name||"—";
   if(buyer) buyer.value=row.buyer_mobile||"";
   if(button) button.disabled=false;
 }
@@ -678,20 +682,21 @@ function selectPaySiteDeal(){
 async function loadPaySiteCollections(){
   const status=document.getElementById("paySiteStatus");
   const select=document.getElementById("paySiteDeal");
-  const result=await logisticsSb.rpc("admin_get_pay_on_site_collection_candidates_v1");
+  const result=await logisticsSb.rpc("admin_get_pay_on_site_collection_candidates_v2");
   if(result.error) throw result.error;
   paySiteRows=result.data||[];
-  select.innerHTML='<option value="">Select an active Move pay-on-site collection…</option>'+
+  select.innerHTML='<option value="">Select an eligible Move collection…</option>'+
     paySiteRows.map(function(row){
       return '<option value="'+Number(row.deal_motorcycle_id)+'">'+
         escLogistics((row.deal_number||"Deal")+" · "+(row.motorcycle||"Motorcycle")+
-        (row.seller_ready_date?" · Ready "+paySiteNiceDate(row.seller_ready_date):""))+
+        (row.registration?" · "+row.registration:"")+
+        (row.collection_address?" · "+row.collection_address:""))+
         '</option>';
     }).join("");
   if(status){
     status.textContent=paySiteRows.length
       ? paySiteRows.length+" eligible collection"+(paySiteRows.length===1?"":"s")+" available."
-      : "No active pay-on-site collections are currently eligible.";
+      : "No eligible Move collections yet. A job appears here when AnyBike is proceeding, the seller Ready Date is set, the Move job has a full collection address/contact, and the motorcycle has not already been collected.";
   }
 }
 
