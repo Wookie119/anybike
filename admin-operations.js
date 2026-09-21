@@ -237,7 +237,7 @@
             <div class="ab-collect-actions">
               <button type="button" class="ab-ops-button" ${(!arrived||!passed||!authorised||!cleared||collected)?"disabled":""} onclick="updateAnyBikeCollectionStep(${id},${Number(dealId)},'mark_collected');return false;">Mark Motorcycle Collected & Secured</button>
             </div>
-            <div class="ab-collect-status">${collected&&secured?"Motorcycle collected "+esc(niceDateTime(row.collection_actual_at))+" and secured to AnyBike.":"Requires driver arrival, passed visual check, payment authorisation and a zero supplier balance."}</div>
+            <div class="ab-collect-status">${collected&&secured?"Motorcycle collected "+esc(niceDateTime(row.collection_actual_at))+" and secured to AnyBike.":"Requires driver arrival, passed visual check, payment authorisation and a zero supplier balance."}</div><div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.09)"><h6>Move Driver Collection Link</h6><div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end"><div><label style="display:block;margin-bottom:4px;color:#9aa3ae;font-size:9px;font-weight:900;text-transform:uppercase">Driver name</label><input id="ab-driver-name-${id}" style="width:100%;box-sizing:border-box;border:1px solid #353535;border-radius:7px;background:#070707;color:#fff;padding:8px" placeholder="Move driver"></div><div><label style="display:block;margin-bottom:4px;color:#9aa3ae;font-size:9px;font-weight:900;text-transform:uppercase">Driver mobile</label><input id="ab-driver-mobile-${id}" style="width:100%;box-sizing:border-box;border:1px solid #353535;border-radius:7px;background:#070707;color:#fff;padding:8px" placeholder="Optional"></div><button type="button" class="ab-ops-button" onclick="createAnyBikeDriverCollectionLink(${id});return false;">Generate Driver Link</button></div><div id="ab-driver-result-${id}" style="display:none;gap:7px;align-items:center;margin-top:8px"><input id="ab-driver-url-${id}" style="flex:1;min-width:0;border:1px solid #353535;border-radius:7px;background:#070707;color:#fff;padding:8px" readonly><button type="button" class="ab-ops-button ab-move-secondary" onclick="copyAnyBikeDriverLink(${id});return false;">Copy</button><a id="ab-driver-open-${id}" class="ab-ops-button ab-move-secondary" target="_blank" rel="noopener" style="text-decoration:none;display:inline-flex;align-items:center">Open</a></div><div class="ab-collect-status">Secure Move-branded page. Supplier price, buyer payments and AnyBike margin are not shown.</div></div>
           </div>
         </div>
       </div>
@@ -741,6 +741,42 @@
     }
   }
 
+  async function createDriverCollectionLink(dealMotorcycleId){
+    const id=Number(dealMotorcycleId);
+    try{
+      const result=await client().rpc("admin_create_move_driver_collection_link_v1",{
+        p_deal_motorcycle_id:id,
+        p_driver_name:fieldValue("ab-driver-name-"+id)||null,
+        p_driver_mobile:fieldValue("ab-driver-mobile-"+id)||null,
+        p_expires_hours:72
+      });
+      if(result.error) throw result.error;
+      const path=result.data&&result.data.path;
+      if(!path) throw new Error("Driver link was not returned.");
+      const url=new URL(path,window.location.origin).href;
+      const box=document.getElementById("ab-driver-result-"+id);
+      const input=document.getElementById("ab-driver-url-"+id);
+      const open=document.getElementById("ab-driver-open-"+id);
+      if(input) input.value=url;
+      if(open) open.href=url;
+      if(box) box.style.display="flex";
+    }catch(error){
+      alert("Driver link could not be created.\n\n"+(error.message||error));
+    }
+  }
+
+  async function copyDriverLink(id){
+    const input=document.getElementById("ab-driver-url-"+Number(id));
+    if(!input||!input.value) return;
+    try{
+      await navigator.clipboard.writeText(input.value);
+      alert("Driver collection link copied.");
+    }catch(_error){
+      input.select();
+      document.execCommand("copy");
+      alert("Driver collection link copied.");
+    }
+  }
   window.renderAnyBikeOperationsPanel=renderPanel;
   window.loadAnyBikeOperationsPanel=loadDeal;
   window.saveAnyBikeSellerReady=saveSellerReady;
@@ -751,6 +787,8 @@
   window.bookAnyBikeMoveShipment=bookMoveShipment;
   window.updateAnyBikeCollectionStep=updateCollectionStep;
   window.recordAnyBikeCollectionPayment=recordCollectionPayment;
+  window.createAnyBikeDriverCollectionLink=createDriverCollectionLink;
+  window.copyAnyBikeDriverLink=copyDriverLink;
   document.querySelectorAll('[id^="anybike-operations-"]').forEach(function(host){
     const dealId=String(host.id.replace("anybike-operations-","")).trim();
     if(dealId){ loadDeal(dealId,false); }

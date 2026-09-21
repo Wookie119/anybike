@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Move Motorcycles | Driver Collection</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--navy:#071a2d;--navy2:#0c2843;--gold:#a08c58;--gold2:#c0a96d;--white:#f7f7f5;--muted:#b9c2cc;--danger:#b54444;--ok:#2d8a57}
+*{box-sizing:border-box} body{margin:0;background:linear-gradient(180deg,var(--navy),#04111e 70%);color:var(--white);font-family:Arial,Helvetica,sans-serif;min-height:100vh}
+.wrap{max-width:760px;margin:0 auto;padding:18px 14px 46px}
+.brand{text-align:center;padding:14px 0 18px}.brand img{width:min(310px,76vw);max-height:150px;object-fit:contain;filter:none}.brand .for{margin-top:4px;color:var(--gold2);font-weight:800;letter-spacing:.05em}
+.card{background:rgba(8,28,48,.92);border:1px solid rgba(160,140,88,.42);border-radius:16px;margin:12px 0;overflow:hidden;box-shadow:0 18px 48px rgba(0,0,0,.22)}
+.card h2,.card h3{margin:0;color:var(--gold2)} .head{padding:16px 18px;border-bottom:1px solid rgba(160,140,88,.25)}
+.body{padding:16px 18px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.metric{padding:12px;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:rgba(0,0,0,.15)}
+.metric span{display:block;color:var(--muted);font-size:11px;font-weight:800;text-transform:uppercase}.metric strong{display:block;margin-top:5px;font-size:15px}
+.notice{padding:12px;border-radius:10px;background:rgba(160,140,88,.13);border:1px solid rgba(160,140,88,.4);color:#f4e7bd;line-height:1.45}
+.actions{display:grid;gap:10px;margin-top:12px}.btn{width:100%;border:0;border-radius:10px;padding:14px 16px;font-size:16px;font-weight:900;cursor:pointer;background:var(--gold);color:#071a2d}
+.btn.secondary{background:transparent;color:var(--gold2);border:1px solid var(--gold)}.btn.danger{background:var(--danger);color:#fff}.btn:disabled{opacity:.42;cursor:not-allowed}
+textarea{width:100%;min-height:90px;border:1px solid rgba(160,140,88,.45);border-radius:10px;background:#061522;color:#fff;padding:11px;margin-top:10px;font:inherit}
+.check{display:flex;align-items:flex-start;gap:10px;padding:12px 0;border-bottom:1px solid rgba(255,255,255,.08)}.check:last-child{border-bottom:0}.check input{width:22px;height:22px;accent-color:var(--gold)}
+.check strong{display:block;color:#fff}.check small{display:block;color:var(--muted);margin-top:3px}
+.status{font-size:13px;color:var(--muted);line-height:1.45}.status.good{color:#92e4b4}.status.warn{color:#ffd891}
+.error{padding:16px;border-radius:12px;background:#4a1515;border:1px solid #a94d4d;color:#fff}.hidden{display:none!important}
+@media(max-width:600px){.grid{grid-template-columns:1fr}.wrap{padding:10px 10px 34px}.body,.head{padding:14px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand">
+    <img src="https://static.wixstatic.com/media/a2662e_5b3efe7e827a4e5799f6eab582a7b6d3%7Emv2.png/v1/fit/w_900,h_480,al_c/a2662e_5b3efe7e827a4e5799f6eab582a7b6d3%7Emv2.png" alt="Move Motorcycles">
+    <div class="for" id="clientLine">Driver Collection</div>
+  </div>
+  <div id="errorBox" class="error hidden"></div>
+  <main id="app" class="hidden">
+    <section class="card">
+      <div class="head"><h2 id="bikeTitle">Collection Job</h2></div>
+      <div class="body grid" id="jobGrid"></div>
+    </section>
+    <section class="card">
+      <div class="head"><h3>Collection Address</h3></div>
+      <div class="body" id="addressBox"></div>
+    </section>
+    <section class="card">
+      <div class="head"><h3>1. Arrive & Check Motorcycle</h3></div>
+      <div class="body">
+        <div class="notice"><strong>Before taking the motorcycle:</strong> confirm you are at the correct seller, check the motorcycle against the registration, and report any obvious discrepancy before proceeding.</div>
+        <div class="actions">
+          <button id="arrivedBtn" class="btn" onclick="doAction('arrived')">I Have Arrived</button>
+        </div>
+        <textarea id="visualNotes" placeholder="Add notes only if needed — condition issue, damage, mismatch, missing item..."></textarea>
+        <div class="actions">
+          <button id="passBtn" class="btn" onclick="doAction('visual_passed')">Visual Check Passed</button>
+          <button id="problemBtn" class="btn danger" onclick="doAction('visual_discrepancy')">Report Discrepancy</button>
+        </div>
+        <p class="status" id="visualStatus"></p>
+      </div>
+    </section>
+    <section class="card">
+      <div class="head"><h3>2. Handover Checklist</h3></div>
+      <div class="body">
+        <div class="notice">Collect the <strong>complete V5C</strong>, all keys and everything supplied with the motorcycle. Mark items as collected. If an item genuinely does not apply, use N/A.</div>
+        <div id="custodyList"></div>
+      </div>
+    </section>
+    <section class="card">
+      <div class="head"><h3>3. AnyBike Clearance</h3></div>
+      <div class="body">
+        <p id="clearanceStatus" class="status warn">Waiting for AnyBike clearance.</p>
+        <button id="refreshBtn" class="btn secondary" onclick="loadJob()">Refresh Status</button>
+      </div>
+    </section>
+    <section class="card">
+      <div class="head"><h3>4. Collect Motorcycle</h3></div>
+      <div class="body">
+        <div class="notice">Only mark collected once the motorcycle, keys and required paperwork are physically in your custody and AnyBike has cleared the collection.</div>
+        <div class="actions"><button id="collectedBtn" class="btn" onclick="doAction('collected')">Motorcycle Collected</button></div>
+        <p id="completeStatus" class="status"></p>
+      </div>
+    </section>
+  </main>
+</div>
+<script>
+const SUPABASE_URL="https://tuehtnezhdnkqbbhttgp.supabase.co";
+const SUPABASE_ANON_KEY="sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+const token=new URLSearchParams(location.search).get("token")||"";
+let current=null;
+function esc(v){return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));}
+function nice(v){if(!v)return "Not recorded";const d=new Date(v);return isNaN(d)?"":d.toLocaleString("en-GB");}
+function showError(msg){document.getElementById("app").classList.add("hidden");const e=document.getElementById("errorBox");e.textContent=msg;e.classList.remove("hidden");}
+async function loadJob(){
+  try{
+    const r=await sb.rpc("move_driver_collection_get_v1",{p_token:token});
+    if(r.error)throw r.error;
+    current=r.data; render();
+  }catch(e){showError(e.message||String(e));}
+}
+function render(){
+  const d=current||{},j=d.job||{},c=d.collection||{},s=d.status||{},items=d.custody||[];
+  document.getElementById("errorBox").classList.add("hidden");document.getElementById("app").classList.remove("hidden");
+  document.getElementById("clientLine").textContent="Collection job for "+(j.client_name||"AnyBike");
+  document.getElementById("bikeTitle").textContent=j.motorcycle||"Motorcycle Collection";
+  document.getElementById("jobGrid").innerHTML=
+    '<div class="metric"><span>Reference</span><strong>'+esc(j.deal_number||"-")+'</strong></div>'+
+    '<div class="metric"><span>Registration</span><strong>'+esc(j.registration||"-")+'</strong></div>'+
+    '<div class="metric"><span>Ready Date</span><strong>'+esc(j.ready_date||"-")+'</strong></div>'+
+    '<div class="metric"><span>Driver</span><strong>'+esc((d.link||{}).driver_name||"Move Driver")+'</strong></div>';
+  document.getElementById("addressBox").innerHTML=
+    '<strong>'+esc(c.name||"Seller / dealer")+'</strong><br>'+
+    esc(c.contact_name||"")+'<br>'+
+    esc([c.street,c.city,c.county,c.postcode,c.country].filter(Boolean).join(", "))+
+    (c.phone?'<br><br><a style="color:#c0a96d;font-weight:900" href="tel:'+esc(c.phone)+'">'+esc(c.phone)+'</a>':"")+
+    (j.special_instructions?'<div class="notice" style="margin-top:12px">'+esc(j.special_instructions)+'</div>':"");
+  const arrived=!!s.arrived_at, passed=s.visual_check_status==="passed", problem=s.visual_check_status==="discrepancy", cleared=!!s.payment_cleared, collected=s.collection_status==="collected";
+  document.getElementById("arrivedBtn").disabled=arrived||collected;
+  document.getElementById("passBtn").disabled=!arrived||collected;
+  document.getElementById("problemBtn").disabled=!arrived||collected;
+  document.getElementById("visualStatus").textContent=problem?"Discrepancy recorded — contact AnyBike before proceeding.":passed?"Visual check passed.":arrived?"Arrival recorded "+nice(s.arrived_at)+". Complete the visual check.":"Tap Arrived when you are physically with the seller.";
+  document.getElementById("visualStatus").className="status "+(problem?"warn":passed?"good":"");
+  document.getElementById("custodyList").innerHTML=items.map(x=>{
+    const checked=x.status==="collected_from_seller";
+    const na=x.status==="not_applicable";
+    return '<div class="check"><input type="checkbox" '+(checked?'checked':'')+' '+(collected?'disabled':'')+' onchange="setItem('+Number(x.id)+',this.checked?\'collected_from_seller\':\'expected\')"><div style="flex:1"><strong>'+esc(x.description||x.item_type)+'</strong><small>Status: '+esc(checked?"Collected":na?"N/A":"Expected")+'</small></div><button class="btn secondary" style="width:auto;padding:7px 10px;font-size:12px" '+(collected?'disabled':'')+' onclick="setItem('+Number(x.id)+',\''+(na?'expected':'not_applicable')+'\')">'+(na?'Undo N/A':'N/A')+'</button></div>';
+  }).join("");
+  const incomplete=items.some(x=>!["collected_from_seller","not_applicable"].includes(x.status));
+  const cs=document.getElementById("clearanceStatus");
+  cs.textContent=cleared?"AnyBike clearance received — motorcycle may be collected.":"Waiting for AnyBike payment/collection clearance. Refresh after AnyBike confirms.";
+  cs.className="status "+(cleared?"good":"warn");
+  document.getElementById("collectedBtn").disabled=!arrived||!passed||!cleared||incomplete||collected;
+  document.getElementById("completeStatus").textContent=collected?"Collection completed "+nice(s.collected_at)+". Thank you.":incomplete?"Complete the handover checklist before collecting.":"";
+}
+async function doAction(action){
+  const payload={notes:(document.getElementById("visualNotes")?.value||"").trim()};
+  if(action==="visual_discrepancy"&&!payload.notes){alert("Please describe the discrepancy.");return;}
+  if(action==="collected"&&!confirm("Confirm the motorcycle, keys and required documents are now in your custody?"))return;
+  const r=await sb.rpc("move_driver_collection_action_v1",{p_token:token,p_action:action,p_payload:payload});
+  if(r.error){alert(r.error.message);return;} current=r.data;render();
+}
+async function setItem(itemId,status){
+  const r=await sb.rpc("move_driver_collection_action_v1",{p_token:token,p_action:"custody",p_payload:{item_id:itemId,status}});
+  if(r.error){alert(r.error.message);return;} current=r.data;render();
+}
+if(!token)showError("This collection link is missing its secure token."); else loadJob();
+</script>
+</body>
+</html>
