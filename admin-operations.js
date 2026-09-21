@@ -270,6 +270,7 @@
         <div class="ab-move-field"><label>Postcode *</label><input id="ab-move-sender-postcode-${id}" value="${esc(sender.postcode||"")}"></div>
         <div class="ab-move-field"><label>Country</label><input id="ab-move-sender-country-${id}" value="${esc(sender.country||"United Kingdom")}"></div>
         <div class="ab-move-field"><label>Seller Contact Phone</label><input id="ab-move-sender-phone-${id}" value="${esc(sender.contact_phone||"")}"></div>
+        <div class="ab-move-field"><label>Seller Email</label><input id="ab-move-sender-email-${id}" type="email" value="${esc(sender.email||"")}"></div>
 
         <div class="ab-move-section">Deliver to buyer's shipper / freight forwarder</div>
         <div class="ab-move-field"><label>Shipper / Receiver Name *</label><input id="ab-move-receiver-name-${id}" value="${esc(receiver.name||"")}"></div>
@@ -280,6 +281,7 @@
         <div class="ab-move-field"><label>Postcode *</label><input id="ab-move-receiver-postcode-${id}" value="${esc(receiver.postcode||"")}"></div>
         <div class="ab-move-field"><label>Country</label><input id="ab-move-receiver-country-${id}" value="${esc(receiver.country||"United Kingdom")}"></div>
         <div class="ab-move-field"><label>Receiver Contact Phone</label><input id="ab-move-receiver-phone-${id}" value="${esc(receiver.contact_phone||"")}"></div>
+        <div class="ab-move-field"><label>Receiver Email</label><input id="ab-move-receiver-email-${id}" type="email" value="${esc(receiver.email||"")}"></div>
 
         <div class="ab-move-section">Move commercial booking details — internal only</div>
         <div class="ab-move-field"><label>Price Agreed with Move Motorcycles (£)</label><input id="ab-move-price-${id}" type="number" min="0" step="0.01" value="${esc(movePrice)}" placeholder="0.00"></div>
@@ -344,6 +346,7 @@
       p_sender_postcode:fieldValue("ab-move-sender-postcode-"+id),
       p_sender_contact_name:fieldValue("ab-move-sender-contact-"+id),
       p_sender_contact_phone:fieldValue("ab-move-sender-phone-"+id),
+      p_sender_email:fieldValue("ab-move-sender-email-"+id),
       p_receiver_name:fieldValue("ab-move-receiver-name-"+id),
       p_receiver_street_address:fieldValue("ab-move-receiver-street-"+id),
       p_receiver_city:fieldValue("ab-move-receiver-city-"+id),
@@ -352,6 +355,7 @@
       p_receiver_postcode:fieldValue("ab-move-receiver-postcode-"+id),
       p_receiver_contact_name:fieldValue("ab-move-receiver-contact-"+id),
       p_receiver_contact_phone:fieldValue("ab-move-receiver-phone-"+id),
+      p_receiver_email:fieldValue("ab-move-receiver-email-"+id),
       p_sms_recipient_type:smsType,
       p_sms_mobile:smsMobile,
       p_move_price_agreed_gbp:fieldValue("ab-move-price-"+id)==="" ? null : Number(fieldValue("ab-move-price-"+id))
