@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Shipper Handover Confirmation | AnyBike</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" href="/anybike-logo-new.jpg" type="image/jpeg">
+<style>
+:root{--red:#ed1c24;--green:#36d37e;--bg:#050505;--panel:#111;--muted:#aaa}
+*{box-sizing:border-box}
+body{margin:0;background:#050505;color:#fff;font-family:Arial,Helvetica,sans-serif}
+.wrap{width:min(760px,92vw);margin:48px auto}
+.card{background:#111;border:1px solid rgba(255,255,255,.13);border-radius:20px;overflow:hidden}
+.head{padding:26px;background:#0b0b0b;border-bottom:3px solid var(--red)}
+.head img{display:block;width:min(320px,80%);margin:auto}
+.body{padding:28px}
+.eyebrow{color:var(--red);font-size:12px;font-weight:900;letter-spacing:.14em;text-transform:uppercase}
+h1{font-size:30px;margin:8px 0 12px}
+p{color:#ccc;line-height:1.55}
+.summary{display:grid;gap:9px;margin:22px 0}
+.row{background:#080808;border:1px solid rgba(255,255,255,.09);border-radius:11px;padding:12px}
+.row span{display:block;color:#888;font-size:10px;font-weight:900;text-transform:uppercase;margin-bottom:4px}
+textarea{width:100%;min-height:90px;background:#080808;color:#fff;border:1px solid #333;border-radius:10px;padding:11px;font:inherit}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+button{border:0;border-radius:10px;padding:12px 16px;font-weight:900;cursor:pointer}
+button.primary{background:var(--red);color:#fff}
+button.secondary{background:#1a1a1a;color:#fff;border:1px solid #444}
+button:disabled{opacity:.45;cursor:not-allowed}
+.status{margin-top:16px;padding:13px;border-radius:10px;background:#080808;color:#bbb}
+.status.good{color:#a7ffc7;border:1px solid rgba(54,211,126,.35)}
+.status.bad{color:#ffb3b3;border:1px solid rgba(237,28,36,.35)}
+.footer{padding:18px 28px;background:#0b0b0b;color:#888;font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <div class="head"><img src="/assets/Anybike-email-logo-white.png" alt="AnyBike"></div>
+    <div class="body">
+      <div class="eyebrow">UK Motorcycle Handover</div>
+      <h1>Confirm motorcycle acceptance</h1>
+      <p id="intro">Checking this handover request…</p>
+      <div id="summary" class="summary" style="display:none"></div>
+      <div id="responseBox" style="display:none">
+        <label for="note" style="display:block;font-weight:900;margin:14px 0 6px">Optional note for AnyBike</label>
+        <textarea id="note" placeholder="Opening hours, booking instructions, reason you cannot accept, or other handover information"></textarea>
+        <div class="actions">
+          <button id="confirmBtn" class="primary" type="button" onclick="respond('confirm')">Yes — we can accept this motorcycle</button>
+          <button id="declineBtn" class="secondary" type="button" onclick="respond('decline')">We cannot accept this motorcycle</button>
+        </div>
+      </div>
+      <div id="status" class="status">Loading…</div>
+    </div>
+    <div class="footer">AnyBike · UK motorcycle sourcing, purchase and handover</div>
+  </div>
+</div>
+<script>
+const token=new URLSearchParams(location.search).get("token")||"";
+const endpoint="https://tuehtnezhdnkqbbhttgp.supabase.co/functions/v1/shipper-handover-response";
+const apikey="sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
+const safe=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
+async function call(action,note){
+  const r=await fetch(endpoint,{method:"POST",headers:{"Content-Type":"application/json","apikey":apikey},body:JSON.stringify({token,action,note:note||""})});
+  const data=await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(data.error||"This handover request could not be loaded.");
+  return data;
+}
+async function load(){
+  const status=document.getElementById("status");
+  try{
+    if(!token) throw new Error("This handover link is incomplete.");
+    const d=await call("lookup");
+    document.getElementById("intro").textContent="The buyer has authorised "+d.shipper_name+" to receive this motorcycle from AnyBike. Please confirm whether you can accept the handover.";
+    document.getElementById("summary").innerHTML=
+      '<div class="row"><span>AnyBike reference</span><strong>'+safe(d.deal_number||"—")+'</strong></div>'+
+      '<div class="row"><span>Motorcycle</span><strong>'+safe(d.motorcycle||"Motorcycle")+'</strong></div>'+
+      '<div class="row"><span>Handover point</span><strong>'+safe(d.uk_handover_point||"—")+'</strong></div>'+
+      (d.forwarder_reference?'<div class="row"><span>Reference</span><strong>'+safe(d.forwarder_reference)+'</strong></div>':'');
+    document.getElementById("summary").style.display="grid";
+    if(d.status==="Shipper Confirmed"){
+      status.className="status good";status.textContent="Acceptance already confirmed. AnyBike has been notified.";
+    }else if(d.status==="Shipper Declined"){
+      status.className="status bad";status.textContent="You have already advised AnyBike that you cannot accept this motorcycle.";
+    }else{
+      document.getElementById("responseBox").style.display="block";
+      status.textContent="Please confirm whether you can accept the motorcycle.";
+    }
+  }catch(e){
+    status.className="status bad";status.textContent=e.message||String(e);
+    document.getElementById("intro").textContent="We could not verify this handover request.";
+  }
+}
+async function respond(action){
+  const status=document.getElementById("status");
+  const confirmBtn=document.getElementById("confirmBtn");
+  const declineBtn=document.getElementById("declineBtn");
+  confirmBtn.disabled=true;declineBtn.disabled=true;
+  status.className="status";status.textContent="Saving your response…";
+  try{
+    const d=await call(action,document.getElementById("note").value);
+    document.getElementById("responseBox").style.display="none";
+    if(d.status==="Shipper Confirmed"){
+      status.className="status good";status.textContent="Thank you. Your acceptance has been confirmed and AnyBike has been notified.";
+    }else{
+      status.className="status bad";status.textContent="Thank you. AnyBike has been notified that you cannot currently accept this motorcycle.";
+    }
+  }catch(e){
+    confirmBtn.disabled=false;declineBtn.disabled=false;
+    status.className="status bad";status.textContent=e.message||String(e);
+  }
+}
+load();
+</script>
+</body>
+</html>
