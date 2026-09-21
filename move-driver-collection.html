@@ -90,11 +90,11 @@ textarea{width:100%;min-height:90px;border:1px solid rgba(160,140,88,.45);border
     </section>
 
     <section class="card">
-      <div class="head"><h3>4. Seller Payment & Clearance</h3></div>
+      <div class="head"><h3>4. Buyer Payment & Seller Confirmation</h3></div>
       <div class="body">
-        <div class="notice">When the motorcycle, documents and photos have been checked, call the client so seller payment can be handled. Do not load the motorcycle until the seller confirms the money has arrived and clearance is complete.</div>
+        <div class="notice">When the motorcycle, documents and photos have been checked, call the client so buyer payment can be handled. Do not load the motorcycle until the seller confirms the money has arrived.</div>
         <div class="actions">
-          <a id="callPaymentBtn" class="btn" href="tel:+447949574299" style="display:block;text-align:center;text-decoration:none">Call Client for Seller Payment</a>
+          <a id="callPaymentBtn" class="btn" href="tel:+447949574299" style="display:block;text-align:center;text-decoration:none">Call Client for Buyer Payment</a>
           <button id="paymentRequestedBtn" class="btn secondary" onclick="doAction('payment_requested')">Mark Buyer Payment Requested ✓</button>
           <div id="paymentRequestedHelp" class="step-help">After speaking to the client and the buyer payment has been requested/sent, tap this.</div>
           <button id="sellerPaidBtn" class="btn secondary" onclick="confirmSellerPaid()">Seller Confirms Payment Received ✓</button>
@@ -109,7 +109,7 @@ textarea{width:100%;min-height:90px;border:1px solid rgba(160,140,88,.45);border
     <section class="card" id="loadMotorcycleStep">
       <div class="head"><h3>5. Load Motorcycle</h3></div>
       <div class="body">
-        <div class="notice">Only load the motorcycle once any discrepancy has been resolved, the handover checklist is complete, the condition photos are saved, the seller has confirmed payment, and clearance is complete.</div>
+        <div class="notice">Only load the motorcycle once any discrepancy has been resolved, the handover checklist is complete, the condition photos are saved, and the seller has confirmed payment received.</div>
         <div class="actions"><button id="collectedBtn" class="btn" onclick="doAction('collected')">Motorcycle Loaded & Collected</button></div>
         <p id="completeStatus" class="status"></p>
       </div>
@@ -205,7 +205,7 @@ function render(){
     (j.special_instructions?'<div class="notice" style="margin-top:12px">'+esc(j.special_instructions)+'</div>':"");
 
   const arrived=!!s.arrived_at,passed=s.visual_check_status==="passed",problem=s.visual_check_status==="discrepancy";
-  const requested=!!s.payment_requested_at,paymentReceived=!!s.seller_payment_received_at,cleared=!!s.payment_cleared,collected=s.collection_status==="collected";
+  const requested=!!s.payment_requested_at,paymentReceived=!!s.seller_payment_received_at,cleared=!!s.driver_load_cleared,collected=s.collection_status==="collected";
   const uploadedRequired=new Set(photos.filter(p=>p.evidence_type==="condition_photo").map(p=>p.slot).filter(Boolean));
   const photosComplete=photoSlots.every(x=>uploadedRequired.has(x[0]));
   const photosSaved=!!s.photos_confirmed_at;
@@ -233,7 +233,7 @@ function render(){
   if(requestHelp) requestHelp.textContent=requested?"Buyer payment request recorded. The seller-confirmation button is now available.":"After speaking to the client and the buyer payment has been requested/sent, tap this.";
   if(sellerHelp) sellerHelp.textContent=paymentReceived?"Seller payment receipt confirmed.":requested?"Ask the seller to check their bank. Tap only when they confirm the money is in their account.":"This unlocks after the payment-request step above.";
   const cs=document.getElementById("clearanceStatus");
-  cs.textContent=paymentReceived?(cleared?"Seller payment confirmed and clearance received.":"Seller says payment received. Waiting for payment/collection clearance."):(requested?"Buyer payment requested — wait with the seller until they confirm receipt.":passed?"Call the client, then mark Buyer Payment Requested.":"Waiting for visual check.");
+  cs.textContent=paymentReceived?"Seller has confirmed payment received — driver is cleared to proceed once the other checks are complete.":requested?"Buyer payment requested — wait with the seller until they confirm receipt.":passed?"Call the client, then mark Buyer Payment Requested.":"Waiting for visual check.";
   cs.className="status "+(cleared&&paymentReceived?"good":"warn");
 
   document.getElementById("custodyList").innerHTML=items.map(x=>{
@@ -253,7 +253,7 @@ function render(){
   if(!photosComplete)reasons.push("all 9 condition photos");
   else if(!photosSaved)reasons.push("Save Condition Photos");
   if(incomplete)reasons.push("handover checklist");
-  if(!cleared)reasons.push("payment/collection clearance");
+  if(!cleared)reasons.push("seller payment confirmation");
 
   const goBtn=document.getElementById("goToLoadBtn");
   const goStatus=document.getElementById("goToLoadStatus");
