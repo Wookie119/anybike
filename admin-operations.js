@@ -237,7 +237,7 @@
             <div class="ab-collect-actions">
               <button type="button" class="ab-ops-button" ${(!arrived||!passed||!authorised||!cleared||collected)?"disabled":""} onclick="updateAnyBikeCollectionStep(${id},${Number(dealId)},'mark_collected');return false;">Mark Motorcycle Collected & Secured</button>
             </div>
-            <div class="ab-collect-status">${collected&&secured?"Motorcycle collected "+esc(niceDateTime(row.collection_actual_at))+" and secured to AnyBike.":"Requires driver arrival, passed visual check, payment authorisation and a zero supplier balance."}</div><div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.09)"><h6>Move Driver Collection Link</h6><div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end"><div><label style="display:block;margin-bottom:4px;color:#9aa3ae;font-size:9px;font-weight:900;text-transform:uppercase">Driver name</label><input id="ab-driver-name-${id}" style="width:100%;box-sizing:border-box;border:1px solid #353535;border-radius:7px;background:#070707;color:#fff;padding:8px" placeholder="Move driver"></div><div><label style="display:block;margin-bottom:4px;color:#9aa3ae;font-size:9px;font-weight:900;text-transform:uppercase">Driver mobile</label><input id="ab-driver-mobile-${id}" style="width:100%;box-sizing:border-box;border:1px solid #353535;border-radius:7px;background:#070707;color:#fff;padding:8px" placeholder="Optional"></div><button type="button" class="ab-ops-button" onclick="createAnyBikeDriverCollectionLink(${id});return false;">Generate Driver Link</button></div><div id="ab-driver-result-${id}" style="display:none;gap:7px;align-items:center;margin-top:8px"><input id="ab-driver-url-${id}" style="flex:1;min-width:0;border:1px solid #353535;border-radius:7px;background:#070707;color:#fff;padding:8px" readonly><button type="button" class="ab-ops-button ab-move-secondary" onclick="copyAnyBikeDriverLink(${id});return false;">Copy</button><a id="ab-driver-open-${id}" class="ab-ops-button ab-move-secondary" target="_blank" rel="noopener" style="text-decoration:none;display:inline-flex;align-items:center">Open</a></div><div class="ab-collect-status">Secure Move-branded page. Supplier price, buyer payments and AnyBike margin are not shown.</div></div>
+            <div class="ab-collect-status">${collected&&secured?"Motorcycle collected "+esc(niceDateTime(row.collection_actual_at))+" and secured to AnyBike.":"Requires driver arrival, passed visual check, payment authorisation and a zero supplier balance."}</div><div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.09)"><h6>Move Driver Collection Link</h6><div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px;align-items:end"><div><label style="display:block;margin-bottom:4px;color:#9aa3ae;font-size:9px;font-weight:900;text-transform:uppercase">Driver name</label><input id="ab-driver-name-${id}" style="width:100%;box-sizing:border-box;border:1px solid #353535;border-radius:7px;background:#070707;color:#fff;padding:8px" placeholder="Move driver"></div><div><label style="display:block;margin-bottom:4px;color:#9aa3ae;font-size:9px;font-weight:900;text-transform:uppercase">Driver mobile</label><input id="ab-driver-mobile-${id}" style="width:100%;box-sizing:border-box;border:1px solid #353535;border-radius:7px;background:#070707;color:#fff;padding:8px" placeholder="Optional"></div><div><label style="display:block;margin-bottom:4px;color:#9aa3ae;font-size:9px;font-weight:900;text-transform:uppercase">Buyer mobile (SMS)</label><input id="ab-buyer-mobile-${id}" style="width:100%;box-sizing:border-box;border:1px solid #353535;border-radius:7px;background:#070707;color:#fff;padding:8px" placeholder="Leave blank to use customer profile"></div><button type="button" class="ab-ops-button" onclick="createAnyBikeDriverCollectionLink(${id});return false;">Generate Driver Link</button></div><div id="ab-driver-result-${id}" style="display:none;gap:7px;align-items:center;margin-top:8px"><input id="ab-driver-url-${id}" style="flex:1;min-width:0;border:1px solid #353535;border-radius:7px;background:#070707;color:#fff;padding:8px" readonly><button type="button" class="ab-ops-button ab-move-secondary" onclick="copyAnyBikeDriverLink(${id});return false;">Copy</button><a id="ab-driver-open-${id}" class="ab-ops-button ab-move-secondary" target="_blank" rel="noopener" style="text-decoration:none;display:inline-flex;align-items:center">Open</a></div><div class="ab-collect-status">Secure Move-branded page. When the driver marks the motorcycle collected, ClickSend can text the buyer a link to their collection report. Supplier price, buyer payments and AnyBike margin are not shown.</div></div>
             ${collected?`<div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.09)">
               <h6>Driver Collection Report</h6>
               <div class="ab-collect-actions">
@@ -804,10 +804,11 @@
   async function createDriverCollectionLink(dealMotorcycleId){
     const id=Number(dealMotorcycleId);
     try{
-      const result=await client().rpc("admin_create_move_driver_collection_link_v1",{
+      const result=await client().rpc("admin_create_move_driver_collection_link_v2",{
         p_deal_motorcycle_id:id,
         p_driver_name:fieldValue("ab-driver-name-"+id)||null,
         p_driver_mobile:fieldValue("ab-driver-mobile-"+id)||null,
+        p_buyer_mobile:fieldValue("ab-buyer-mobile-"+id)||null,
         p_expires_hours:72
       });
       if(result.error) throw result.error;
@@ -820,6 +821,9 @@
       if(input) input.value=url;
       if(open) open.href=url;
       if(box) box.style.display="flex";
+      const buyerMobile=result.data&&result.data.buyer_mobile;
+      const buyerInput=document.getElementById("ab-buyer-mobile-"+id);
+      if(buyerInput && buyerMobile && !buyerInput.value) buyerInput.value=buyerMobile;
     }catch(error){
       alert("Driver link could not be created.\n\n"+(error.message||error));
     }
