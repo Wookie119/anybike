@@ -579,7 +579,6 @@
       moveBookingCache.delete(String(id));
       operationsCache.clear();
       alert("Move booking created.\n\nTracking: "+(payload.tracking_no||"Not returned")+"\nReference: "+(payload.reference_no||"")+"\n\nThe motorcycle is now marked Booked with Move.");
-      if(typeof renderAdminDealQueue==="function") renderAdminDealQueue();
     }catch(error){
       console.error("Move booking failed:",error);
       alert("Move booking was not created.\n\n"+(error.message||error));
