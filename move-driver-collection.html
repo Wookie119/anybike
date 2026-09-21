@@ -289,6 +289,38 @@ async function doAction(action){
   if(r.error){alert(r.error.message);return;}
   current=r.data;render();
   if(action==="visual_discrepancy")alert("Discrepancy saved. Call the customer to discuss it. Continue the checklist and photos, but do not load the motorcycle until it is resolved.");
+  if(action==="collected") await sendCollectedSms();
+}
+
+async function sendCollectedSms(){
+  const status=document.getElementById("completeStatus");
+  try{
+    if(status){
+      status.textContent="Collection completed. Sending buyer collection text…";
+      status.className="status good";
+    }
+    const response=await fetch(SUPABASE_URL+"/functions/v1/move-driver-send-collected-sms",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({token})
+    });
+    const result=await response.json().catch(()=>({}));
+    if(result?.sent){
+      if(status){status.textContent="Collection completed. Buyer collection text sent ✓";status.className="status good";}
+      return;
+    }
+    if(result?.already_sent){
+      if(status){status.textContent="Collection completed. Buyer collection text already sent ✓";status.className="status good";}
+      return;
+    }
+    if(result?.skipped){
+      if(status){status.textContent="Collection completed. No buyer mobile number was supplied.";status.className="status warn";}
+      return;
+    }
+    if(status){status.textContent="Collection completed. Buyer text could not be sent automatically.";status.className="status warn";}
+  }catch(_error){
+    if(status){status.textContent="Collection completed. Buyer text could not be sent automatically.";status.className="status warn";}
+  }
 }
 
 async function saveConditionPhotos(){
