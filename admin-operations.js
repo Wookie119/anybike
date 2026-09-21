@@ -773,6 +773,7 @@
         '<div><span style="display:block;color:#888;font-size:9px;text-transform:uppercase">Collected</span><strong>'+esc(niceDateTime(collection.collected_at)||"-")+'</strong></div>'+
         '<div><span style="display:block;color:#888;font-size:9px;text-transform:uppercase">Driver</span><strong>'+esc(driver.name||"-")+'</strong></div>'+
         '<div><span style="display:block;color:#888;font-size:9px;text-transform:uppercase">Arrived</span><strong>'+esc(niceDateTime(internal.arrived_at)||"-")+'</strong></div>'+
+        '<div><span style="display:block;color:#888;font-size:9px;text-transform:uppercase">Buyer SMS</span><strong>'+esc(driver.collection_sms_sent_at?"Sent "+niceDateTime(driver.collection_sms_sent_at):(driver.collection_sms_status||"Not sent"))+'</strong></div>'+
       '</div>'+
       (internal.visual_check_notes?'<div style="margin-top:10px"><span style="display:block;color:#888;font-size:9px;text-transform:uppercase">Driver notes</span><div style="margin-top:3px;color:#fff">'+esc(internal.visual_check_notes)+'</div></div>':"")+
       '<div style="margin-top:12px"><strong>Handover checklist</strong>'+custodyHtml+'</div>'+
