@@ -83,7 +83,7 @@ textarea{width:100%;min-height:90px;border:1px solid rgba(160,140,88,.45);border
         <div class="notice">Take the minimum <strong>9 Move condition photos</strong> before loading the motorcycle. If damage is seen, take extra close-up pictures before the bike is moved.</div>
         <div class="notice" style="margin-top:10px;border-color:#d0ad55;background:rgba(208,173,85,.14)"><strong>Important photo privacy warning:</strong> these pictures may be shared directly with the buyer. <strong>Do not photograph the dealership or supplier identity.</strong> Keep dealership names, signs, banners, branded walls, staff badges, paperwork headers and other identifying details out of the frame wherever possible.</div>
         <div id="photoGate" class="status warn" style="margin-top:10px"></div>
-        <div id="photoList" class="photo-list"></div>
+        <div id="photoList" class="photo-list"></div><div class="actions" style="margin-top:14px"><button id="savePhotosBtn" class="btn" onclick="saveConditionPhotos()">Save Condition Photos ✓</button></div><p id="savePhotosStatus" class="status"></p>
       </div>
     </section>
 
@@ -152,10 +152,16 @@ function renderPhotos(s,photos,collected){
   if(!host||!gate)return;
   const paymentReceived=!!s.seller_payment_received_at;
   const uploaded=new Set((photos||[]).map(p=>p.slot).filter(Boolean));
-  gate.textContent=paymentReceived
-    ? uploaded.size+" photo slot"+(uploaded.size===1?"":"s")+" recorded. All 9 required before collection."
-    : "Photo stage unlocks after the seller confirms payment has been received.";
-  gate.className="status "+(paymentReceived&&photoSlots.every(x=>uploaded.has(x[0]))?"good":"warn");
+  const allUploaded=photoSlots.every(x=>uploaded.has(x[0]));
+  const photosSaved=!!s.photos_confirmed_at;
+  gate.textContent=!paymentReceived
+    ? "Photo stage unlocks after the seller confirms payment has been received."
+    : photosSaved
+      ? "All 9 condition photos saved ✓"
+      : allUploaded
+        ? "All 9 photos uploaded. Press Save Condition Photos below."
+        : uploaded.size+" of 9 required photo positions uploaded.";
+  gate.className="status "+(photosSaved?"good":"warn");
   host.innerHTML=photoSlots.map(([slot,title,help])=>{
     const done=uploaded.has(slot);
     return '<div class="photo-row"><strong>'+esc(title)+(done?' <span class="photo-done">✓ Uploaded</span>':'')+'</strong><small>'+esc(help)+'</small>'+
@@ -163,6 +169,20 @@ function renderPhotos(s,photos,collected){
       '<button class="btn secondary" '+((!paymentReceived||collected)?"disabled":"")+' onclick="openCamera(\''+slot+'\')">'+(done?"Retake Photo":"Take Photo")+'</button>'+
       '<div id="photo-status-'+slot+'" class="status"></div></div>';
   }).join("");
+  const saveBtn=document.getElementById("savePhotosBtn");
+  const saveStatus=document.getElementById("savePhotosStatus");
+  if(saveBtn){
+    saveBtn.disabled=!paymentReceived||!allUploaded||photosSaved||collected;
+    saveBtn.textContent=photosSaved?"Condition Photos Saved ✓":"Save Condition Photos ✓";
+  }
+  if(saveStatus){
+    saveStatus.textContent=photosSaved
+      ? "Photo stage completed "+nice(s.photos_confirmed_at)+"."
+      : allUploaded
+        ? "Review the 9 photos above, then save this photo stage."
+        : "All 9 required photos must be uploaded before this can be saved.";
+    saveStatus.className="status "+(photosSaved?"good":"");
+  }
 }
 
 function render(){
@@ -185,6 +205,7 @@ function render(){
   const requested=!!s.payment_requested_at,paymentReceived=!!s.seller_payment_received_at,cleared=!!s.payment_cleared,collected=s.collection_status==="collected";
   const uploadedRequired=new Set(photos.filter(p=>p.evidence_type==="condition_photo").map(p=>p.slot).filter(Boolean));
   const photosComplete=photoSlots.every(x=>uploadedRequired.has(x[0]));
+  const photosSaved=!!s.photos_confirmed_at;
 
   document.getElementById("arrivedBtn").disabled=arrived||collected;
   document.getElementById("passBtn").disabled=!arrived||collected;
@@ -214,10 +235,11 @@ function render(){
 
   renderPhotos(s,photos,collected);
 
-  document.getElementById("collectedBtn").disabled=!arrived||!passed||!requested||!paymentReceived||!cleared||!photosComplete||incomplete||collected;
+  document.getElementById("collectedBtn").disabled=!arrived||!passed||!requested||!paymentReceived||!cleared||!photosComplete||!photosSaved||incomplete||collected;
   const reasons=[];
   if(!paymentReceived)reasons.push("seller payment confirmation");
   if(!photosComplete)reasons.push("all 9 condition photos");
+  else if(!photosSaved)reasons.push("Save Condition Photos");
   if(incomplete)reasons.push("handover checklist");
   if(!cleared)reasons.push("AnyBike clearance");
   document.getElementById("completeStatus").textContent=collected?"Collection completed "+nice(s.collected_at)+". Thank you.":reasons.length?"Still required: "+reasons.join(", ")+".":"Ready to mark collected.";
@@ -238,6 +260,14 @@ async function doAction(action){
   if(r.error){alert(r.error.message);return;}
   current=r.data;render();
   if(action==="visual_discrepancy")alert("Discrepancy saved. Do not take the motorcycle until AnyBike resolves it.");
+}
+
+async function saveConditionPhotos(){
+  if(!confirm("Save these 9 condition photos as the completed collection photo set?"))return;
+  const r=await sb.rpc("move_driver_collection_action_v2",{p_token:token,p_action:"photos_confirmed",p_payload:{}});
+  if(r.error){alert(r.error.message);return;}
+  current=r.data;
+  render();
 }
 
 async function confirmSellerPaid(){
