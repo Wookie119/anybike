@@ -633,6 +633,7 @@ a{text-decoration:none;color:inherit}
 
 <script>
 let paySiteRows=[];
+const logisticsSb=getAdminSupabaseClient();
 
 function escLogistics(value){
   return String(value??"").replace(/[&<>"']/g,function(ch){
@@ -677,7 +678,7 @@ function selectPaySiteDeal(){
 async function loadPaySiteCollections(){
   const status=document.getElementById("paySiteStatus");
   const select=document.getElementById("paySiteDeal");
-  const result=await sb.rpc("admin_get_pay_on_site_collection_candidates_v1");
+  const result=await logisticsSb.rpc("admin_get_pay_on_site_collection_candidates_v1");
   if(result.error) throw result.error;
   paySiteRows=result.data||[];
   select.innerHTML='<option value="">Select an active Move pay-on-site collection…</option>'+
@@ -705,7 +706,7 @@ async function generatePaySiteDriverLink(){
   status.className="pay-site-status";
   status.textContent="Generating secure driver link…";
   try{
-    const rpc=await sb.rpc("admin_create_move_driver_collection_link_v2",{
+    const rpc=await logisticsSb.rpc("admin_create_move_driver_collection_link_v2",{
       p_deal_motorcycle_id:Number(row.deal_motorcycle_id),
       p_driver_name:String(document.getElementById("paySiteDriverName").value||"").trim()||null,
       p_driver_mobile:String(document.getElementById("paySiteDriverMobile").value||"").trim()||null,
@@ -753,7 +754,7 @@ async function copyPaySiteLink(){
   document.documentElement.classList.remove("admin-auth-pending");
 
   try{
-    const access=await sb.rpc("anybike_is_pay_on_site_admin_v1");
+    const access=await logisticsSb.rpc("anybike_is_pay_on_site_admin_v1");
     if(access.error) throw access.error;
     if(access.data===true){
       document.getElementById("pay-on-site").style.display="block";
