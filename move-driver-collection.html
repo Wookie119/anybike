@@ -49,7 +49,7 @@ textarea{width:100%;min-height:90px;border:1px solid rgba(160,140,88,.45);border
         <div class="actions">
           <button id="arrivedBtn" class="btn" onclick="doAction('arrived')">I Have Arrived</button>
         </div>
-        <textarea id="visualNotes" placeholder="Add notes only if needed — condition issue, damage, mismatch, missing item..."></textarea>
+        <textarea id="visualNotes" placeholder="Describe any damage, mismatch or missing item before reporting a discrepancy..."></textarea><div id="discrepancyHelp" class="status warn hidden" style="margin-top:8px">Please describe the discrepancy above, then press Report Discrepancy again.</div>
         <div class="actions">
           <button id="passBtn" class="btn" onclick="doAction('visual_passed')">Visual Check Passed</button>
           <button id="problemBtn" class="btn danger" onclick="doAction('visual_discrepancy')">Report Discrepancy</button>
@@ -140,11 +140,22 @@ function render(){
   document.getElementById("completeStatus").textContent=collected?"Collection completed "+nice(s.collected_at)+". Thank you.":incomplete?"Complete the handover checklist before collecting.":"";
 }
 async function doAction(action){
-  const payload={notes:(document.getElementById("visualNotes")?.value||"").trim()};
-  if(action==="visual_discrepancy"&&!payload.notes){alert("Please describe the discrepancy.");return;}
+  const notesEl=document.getElementById("visualNotes");
+  const helpEl=document.getElementById("discrepancyHelp");
+  const payload={notes:(notesEl?.value||"").trim()};
+  if(action==="visual_discrepancy"&&!payload.notes){
+    if(helpEl) helpEl.classList.remove("hidden");
+    if(notesEl){notesEl.focus();notesEl.scrollIntoView({behavior:"smooth",block:"center"});}
+    return;
+  }
+  if(helpEl) helpEl.classList.add("hidden");
+  if(action==="visual_discrepancy"&&!confirm("Report this discrepancy to AnyBike and stop the collection until it is resolved?"))return;
   if(action==="collected"&&!confirm("Confirm the motorcycle, keys and required documents are now in your custody?"))return;
   const r=await sb.rpc("move_driver_collection_action_v1",{p_token:token,p_action:action,p_payload:payload});
-  if(r.error){alert(r.error.message);return;} current=r.data;render();
+  if(r.error){alert(r.error.message);return;}
+  current=r.data;
+  render();
+  if(action==="visual_discrepancy") alert("Discrepancy recorded. Do not take the motorcycle until AnyBike resolves it.");
 }
 async function setItem(itemId,status){
   const r=await sb.rpc("move_driver_collection_action_v1",{p_token:token,p_action:"custody",p_payload:{item_id:itemId,status}});
