@@ -482,6 +482,161 @@ main{
   }
 }
 
+
+/* MY PURCHASES — CURRENT OPERATIONS-DRIVEN LAYOUT */
+.purchase-current{
+  margin:16px 0 12px;
+  padding:16px;
+  border:1px solid rgba(54,211,126,.35);
+  border-radius:14px;
+  background:rgba(54,211,126,.06);
+}
+.purchase-current .label{
+  display:block;
+  color:#8f9bab;
+  font-size:10px;
+  font-weight:900;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  margin-bottom:6px;
+}
+.purchase-current strong{
+  display:block;
+  color:#a7ffc7;
+  font-size:21px;
+}
+.purchase-current p{
+  margin:6px 0 0;
+  color:#d0d0d0;
+  line-height:1.45;
+  font-size:13px;
+}
+.purchase-overview{
+  display:grid;
+  grid-template-columns:1.4fr 1fr 1fr 1fr;
+  gap:8px;
+  margin:12px 0;
+}
+.purchase-overview .overview-box{
+  background:#0d0d0d;
+  border:1px solid rgba(255,255,255,.1);
+  border-radius:12px;
+  padding:12px;
+}
+.purchase-overview .overview-box.total{
+  grid-row:span 2;
+}
+.purchase-overview span,
+.handover-card span{
+  display:block;
+  color:#8f9bab;
+  font-size:9px;
+  font-weight:900;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  margin-bottom:5px;
+}
+.purchase-overview strong{
+  display:block;
+  font-size:15px;
+}
+.purchase-overview .total strong{
+  font-size:26px;
+}
+.purchase-overview .good{
+  color:var(--green);
+}
+.handover-card{
+  margin:12px 0;
+  padding:13px;
+  border:1px solid rgba(255,255,255,.11);
+  border-radius:12px;
+  background:#0d0d0d;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+}
+.handover-card strong{display:block}
+.purchase-more{
+  margin-top:12px;
+  border:1px solid rgba(255,255,255,.1);
+  border-radius:12px;
+  background:#0d0d0d;
+  overflow:hidden;
+}
+.purchase-more summary{
+  cursor:pointer;
+  padding:13px 14px;
+  font-weight:900;
+  list-style:none;
+}
+.purchase-more summary::-webkit-details-marker{display:none}
+.purchase-more summary::after{
+  content:"＋";
+  float:right;
+  color:#aaa;
+}
+.purchase-more[open] summary::after{content:"−"}
+.purchase-more-body{
+  padding:0 14px 14px;
+  border-top:1px solid rgba(255,255,255,.08);
+}
+.purchase-more-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:8px;
+  padding-top:12px;
+}
+.collection-card{
+  margin-top:12px;
+  padding:13px;
+  border:1px solid rgba(54,211,126,.28);
+  border-radius:12px;
+  background:rgba(54,211,126,.04);
+}
+.collection-card-head{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  align-items:center;
+  flex-wrap:wrap;
+}
+.collection-card strong{display:block}
+.collection-card span{
+  display:block;
+  margin-top:4px;
+  color:#aaa;
+  font-size:12px;
+  line-height:1.4;
+}
+.collection-card button{
+  border:1px solid #ed1c24;
+  background:#ed1c24;
+  color:#fff;
+  border-radius:10px;
+  padding:10px 14px;
+  font-weight:900;
+  cursor:pointer;
+}
+.step.current-shipping{
+  border-color:rgba(255,159,28,.72);
+  background:rgba(255,159,28,.14);
+  color:#ffc46e;
+}
+.step.current-shipping::before{
+  content:"●";
+  display:inline-block;
+  margin-right:5px;
+  font-size:9px;
+}
+@media(max-width:820px){
+  .purchase-overview{grid-template-columns:1fr 1fr}
+  .purchase-overview .overview-box.total{grid-row:auto;grid-column:1/-1}
+}
+@media(max-width:560px){
+  .purchase-overview,.handover-card,.purchase-more-grid{grid-template-columns:1fr}
+}
+
 </style>
 </head>
 
@@ -584,692 +739,221 @@ function deliveryLabel(value){
 
 function purchaseState(purchase){
 
-  const depositRequired =
-    !!purchase.deposit_required;
+  const depositRequired=!!purchase.deposit_required;
+  const depositDue=Number(purchase.deposit_due_gbp||0);
+  const depositAllocated=Number(purchase.deposit_allocated_gbp||0);
+  const depositOutstanding=Number(purchase.deposit_outstanding_gbp||0);
+  const moneyReceived=Number(purchase.customer_money_received_deal_gbp||0);
+  const allocated=Number(purchase.customer_allocated_motorcycle_gbp||0);
+  const balance=Number(purchase.customer_balance_motorcycle_gbp||0);
+  const secured=!!purchase.motorcycle_secured;
+  const collected=String(purchase.collection_status||"").toLowerCase()==="collected" ||
+    String(purchase.deal_status||"").toLowerCase()==="collected";
+  const delivered=!!purchase.delivered_to_shipper_at;
+  const completed=String(purchase.deal_status||"").toLowerCase()==="completed" ||
+    String(purchase.deal_stage||"").toLowerCase()==="completed" ||
+    !!purchase.operations_complete;
+  const depositSatisfied=!depositRequired || depositDue<=0 || depositOutstanding<=0;
+  const fullyPaid=balance<=0;
 
-  const depositDue =
-    Number(
-      purchase.deposit_due_gbp || 0
-    );
+  let heading="Purchase in Progress";
+  let message="Your AnyBike purchase is progressing.";
 
-  const depositAllocated =
-    Number(
-      purchase.deposit_allocated_gbp || 0
-    );
-
-  const depositOutstanding =
-    Number(
-      purchase.deposit_outstanding_gbp || 0
-    );
-
-  const moneyReceived =
-    Number(
-      purchase.customer_money_received_deal_gbp || 0
-    );
-
-  const allocated =
-    Number(
-      purchase.customer_allocated_motorcycle_gbp || 0
-    );
-
-  const balance =
-    Number(
-      purchase.customer_balance_motorcycle_gbp || 0
-    );
-
-  const secured =
-    !!purchase.motorcycle_secured;
-
-  const depositSatisfied =
-    !depositRequired ||
-    depositDue <= 0 ||
-    depositOutstanding <= 0;
-
-  const fullyPaid =
-    balance <= 0;
-
-  let heading =
-    "Purchase in Progress";
-
-  let message =
-    "Your AnyBike purchase is progressing.";
-
-  if(String(purchase.deal_status||"")==="Collected"){
-
-    heading =
-      "Collected";
-
-    message =
-      "Your motorcycle has been collected and the driver collection report is available.";
-
+  if(completed){
+    heading="Completed";
+    message="Your AnyBike purchase and UK handover are complete.";
+  }else if(delivered){
+    heading="Delivered to Shipper";
+    message="Your motorcycle has been handed over to the agreed UK shipper / freight forwarder.";
+  }else if(collected){
+    heading="Collected";
+    message="Your motorcycle has been collected from the seller and is now moving through the UK handover / shipping stage.";
   }else if(secured && fullyPaid){
-
-    heading =
-      "Motorcycle Secured & Paid";
-
-    message =
-      "Your motorcycle has been secured with the seller and your motorcycle payment has been received in full.";
-
-  }else if(secured && !depositSatisfied){
-
-    heading =
-      "Motorcycle Secured";
-
-    message =
-      "AnyBike has secured this motorcycle with the seller. Your customer deposit is still outstanding.";
-
+    heading="Motorcycle Secured";
+    message="Your motorcycle is secured and paid in full. AnyBike is preparing the collection and UK handover.";
   }else if(secured){
-
-    heading =
-      "Motorcycle Secured";
-
-    message =
-      "AnyBike has secured this motorcycle with the seller. The remaining balance and documentation stages can now continue.";
-
+    heading="Motorcycle Secured";
+    message="Your motorcycle has been secured. Any outstanding payment and collection arrangements can now continue.";
   }else if(!depositSatisfied){
-
-    heading =
-      "Deposit / Payment Required";
-
-    message =
-      "Your formal AnyBike offer has been accepted. Your deposit is currently due and the motorcycle has not yet been secured with the seller.";
-
+    heading="Payment Required";
+    message="Your AnyBike offer has been accepted. The required payment is still outstanding.";
   }else{
-
-    heading =
-      "Final Seller Check";
-
-    message =
-      "Your payment stage has progressed. AnyBike is completing the final seller security stage before the motorcycle is marked as secured.";
-
+    heading="Purchase Confirmed";
+    message="Your offer is accepted and AnyBike is completing the seller-side purchase arrangements.";
   }
 
-  let paymentStatus =
-    String(
-      purchase.customer_payment_status || ""
-    ).trim();
-
-  if(fullyPaid){
-
-    paymentStatus =
-      "Paid in Full";
-
-  }else if(!depositSatisfied){
-
-    paymentStatus =
-      "Deposit Due";
-
-  }else if(allocated > 0){
-
-    paymentStatus =
-      "Part Paid";
-
-  }else if(!depositRequired){
-
-    paymentStatus =
-      "Balance Due";
-
-  }
+  let paymentStatus=String(purchase.customer_payment_status||"").trim();
+  if(fullyPaid) paymentStatus="Paid in Full";
+  else if(!depositSatisfied) paymentStatus="Deposit Due";
+  else if(allocated>0) paymentStatus="Part Paid";
+  else paymentStatus="Balance Due";
 
   return {
-    depositRequired,
-    depositDue,
-    depositAllocated,
-    depositOutstanding,
-    depositSatisfied,
-    moneyReceived,
-    allocated,
-    balance,
-    secured,
-    fullyPaid,
-    heading,
-    message,
-    paymentStatus
+    depositRequired,depositDue,depositAllocated,depositOutstanding,depositSatisfied,
+    moneyReceived,allocated,balance,secured,collected,delivered,completed,fullyPaid,
+    heading,message,paymentStatus
   };
 }
 
 function journeyHtml(purchase,state){
 
-  const nextStage =
-    String(
-      purchase.next_customer_stage || ""
-    ).trim();
+  const paymentDone=state.fullyPaid;
+  const collectedDone=state.collected;
+  const shippingDone=state.delivered || state.completed;
 
-  const offerDone =
-    true;
-
-  const depositDone =
-    state.depositSatisfied;
-
-  const sellerCheckDone =
-    state.secured;
-
-  const securedDone =
-    state.secured;
-
-  const balanceDone =
-    state.fullyPaid;
-
-  const operationsReached =
-    nextStage === "Operations / Shipping" ||
-    String(purchase.deal_stage || "")
-      .toLowerCase()
-      .includes("operation") ||
-    String(purchase.deal_status || "")
-      .toLowerCase()
-      .includes("complete");
-
-  const completed =
-    String(purchase.deal_status || "")
-      .toLowerCase() === "completed" ||
-    String(purchase.deal_stage || "")
-      .toLowerCase() === "completed";
-
-  const depositCurrent =
-    !state.depositSatisfied;
-
-  const sellerCurrent =
-    state.depositSatisfied &&
-    !state.secured;
-
-  const balanceCurrent =
-    state.secured &&
-    !state.fullyPaid &&
-    !depositCurrent;
-
-  const operationsCurrent =
-    state.secured &&
-    state.fullyPaid &&
-    !completed;
-
-  const stepClass = (done,current) => {
-    if(done){
-      return "done";
-    }
-
-    if(current){
-      return "current";
-    }
-
+  const stepClass=(done,current)=>{
+    if(done) return "done";
+    if(current) return "current-shipping";
     return "todo";
   };
 
   return `
     <div class="journey">
-
-      <div class="journey-title">
-        Purchase journey
-      </div>
-
+      <div class="journey-title">Purchase journey</div>
       <div class="steps">
-
-        <span class="step ${stepClass(offerDone,false)}">
-          Offer Accepted
-        </span>
-
-        <span class="step ${stepClass(depositDone,depositCurrent)}">
-          ${
-            state.depositRequired
-              ? (
-                  depositDone
-                    ? "Deposit Paid"
-                    : "Deposit Due"
-                )
-              : "No Deposit Required"
-          }
-        </span>
-
-        <span class="step ${stepClass(sellerCheckDone,sellerCurrent)}">
-          Final Seller Check
-        </span>
-
-        <span class="step ${stepClass(securedDone,false)}">
-          Motorcycle Secured
-        </span>
-
-        <span class="step ${stepClass(balanceDone,balanceCurrent)}">
-          Balance / Documents
-        </span>
-
-        <span class="step ${stepClass(operationsReached,operationsCurrent)}">
-          Operations / Shipping
-        </span>
-
-        <span class="step ${stepClass(completed,false)}">
-          Completed
-        </span>
-
+        <span class="step done">Offer Accepted</span>
+        <span class="step ${stepClass(paymentDone,!paymentDone)}">${paymentDone?"Payment Complete":"Payment"}</span>
+        <span class="step ${stepClass(state.secured,paymentDone&&!state.secured)}">Motorcycle Secured</span>
+        <span class="step ${stepClass(collectedDone,state.secured&&!collectedDone)}">Collected</span>
+        <span class="step ${stepClass(shippingDone,collectedDone&&!shippingDone)}">UK Handover / Shipping</span>
+        <span class="step ${stepClass(state.completed,false)}">Completed</span>
       </div>
-
     </div>
   `;
 }
 
 function purchaseCard(purchase){
 
-  const state =
-    purchaseState(purchase);
+  const state=purchaseState(purchase);
+  const title=[purchase.make,purchase.model].filter(Boolean).join(" ")||"Motorcycle";
+  const variant=String(purchase.variant||"").trim();
+  const image=String(purchase.image_url||purchase.snapshot_primary_image_url||purchase.stock_image_url||"").trim();
+  const motorcyclePrice=Number(purchase.motorcycle_price_gbp||0);
+  const deliveryCharge=Number(purchase.delivery_charge_gbp||0);
+  const displayedTotal=motorcyclePrice+deliveryCharge;
+  const acceptedAt=purchase.offer_accepted_at||null;
+  const saleBasis=String(purchase.sale_basis||"").trim()||"AnyBike purchase";
+  const handoverPoint=String(purchase.uk_handover_port||"").trim();
+  const forwarder=String(purchase.freight_forwarder_name||"").trim();
+  const collectedAt=purchase.collection_actual_at
+    ? new Date(purchase.collection_actual_at).toLocaleString("en-GB")
+    : "";
 
-  const title =
-    [
-      purchase.make,
-      purchase.model
-    ]
-    .filter(Boolean)
-    .join(" ") || "Motorcycle";
-
-  const variant =
-    String(
-      purchase.variant || ""
-    ).trim();
-
-  const image =
-    String(
-      purchase.image_url ||
-      purchase.snapshot_primary_image_url ||
-      purchase.stock_image_url ||
-      ""
-    ).trim();
-
-  const motorcyclePrice =
-    Number(
-      purchase.motorcycle_price_gbp || 0
-    );
-
-  const deliveryCharge =
-    Number(
-      purchase.delivery_charge_gbp || 0
-    );
-
-  const displayedTotal =
-    motorcyclePrice + deliveryCharge;
-
-  const destination =
-    String(
-      purchase.delivery_destination || ""
-    ).trim();
-
-  const saleBasis =
-    String(
-      purchase.sale_basis || ""
-    ).trim() || "AnyBike purchase";
-
-  const acceptedAt =
-    purchase.offer_accepted_at || null;
-
-  const paymentDue =
-    state.balance > 0;
-
-  let depositDisplay =
-    "No deposit required";
-
+  let depositDisplay="No deposit required";
   if(state.depositRequired){
-
-    if(state.depositOutstanding > 0){
-
-      depositDisplay =
-        money(state.depositOutstanding) +
-        " due";
-
-    }else{
-
-      depositDisplay =
-        money(state.depositDue) +
-        " paid";
-
-    }
-
-  }
-
-  let notice = "";
-
-  if(state.secured && !state.depositSatisfied){
-
-    notice = `
-      <strong>Your motorcycle is secured.</strong>
-      Customer payment and motorcycle security are separate stages.
-      Your deposit remains due even though AnyBike has already secured
-      the motorcycle with the seller.
-    `;
-
-  }else if(state.secured){
-
-    notice = `
-      <strong>Your motorcycle has been secured with the seller.</strong>
-      Any remaining customer balance, documents and operational stages
-      will continue through your AnyBike purchase.
-    `;
-
-  }else if(!state.depositSatisfied){
-
-    notice = `
-      Acceptance records your commitment to the AnyBike offer.
-      Your deposit is currently outstanding. The motorcycle will only
-      show as secured when AnyBike completes the seller security stage.
-    `;
-
-  }else{
-
-    notice = `
-      Your payment stage has progressed. Motorcycle security is confirmed
-      separately by AnyBike after the final seller check.
-    `;
-
+    depositDisplay=state.depositOutstanding>0
+      ? money(state.depositOutstanding)+" due"
+      : money(state.depositDue)+" paid";
   }
 
   return `
-
-    <article class="card ${state.secured ? "secured" : ""}">
-
+    <article class="card ${state.secured?"secured":""}">
       <div class="image">
-
-        ${
-          image
-
-          ? `
-            <img
-              src="${safe(image)}"
-              alt="${safe(title)}"
-              loading="lazy"
-            >
-          `
-
-          : `
-            <div style="font-size:60px">
-              🏍️
-            </div>
-          `
-        }
-
+        ${image
+          ? `<img src="${safe(image)}" alt="${safe(title)}" loading="lazy">`
+          : `<div style="font-size:60px">🏍️</div>`}
       </div>
 
       <div class="body">
-
         <div class="top">
-
           <div>
-
-            <h2>
-              ${safe(title)}
-            </h2>
-
-            ${
-              variant
-
-              ? `
-                <div class="variant">
-                  ${safe(variant)}
-                </div>
-              `
-
-              : ""
-            }
-
+            <h2>${safe(title)}</h2>
+            ${variant?`<div class="variant">${safe(variant)}</div>`:""}
           </div>
-
           <div class="badges">
-
-            <span class="badge">
-              Offer Accepted
-            </span>
-
-            ${
-              state.secured
-
-              ? `
-                <span class="badge secured">
-                  ✓ Motorcycle Secured
-                </span>
-              `
-
-              : ""
-            }
-
-            ${
-              paymentDue
-
-              ? `
-                <span class="badge payment-due">
-                  ${safe(state.paymentStatus)}
-                </span>
-              `
-
-              : `
-                <span class="badge secured">
-                  Paid
-                </span>
-              `
-            }
-
+            <span class="badge">Offer Accepted</span>
+            ${state.secured?`<span class="badge secured">✓ Motorcycle Secured</span>`:""}
+            <span class="badge ${state.fullyPaid?"secured":"payment-due"}">${safe(state.paymentStatus)}</span>
           </div>
-
         </div>
 
-        <div class="status ${
-          !state.depositSatisfied
-            ? "payment-due"
-            : ""
-        }">
-
-          <strong>
-            ${safe(state.heading)}
-          </strong>
-
-          <span>
-            ${safe(state.message)}
-          </span>
-
+        <div class="purchase-current">
+          <span class="label">Current status</span>
+          <strong>${safe(state.heading)}</strong>
+          <p>${safe(state.message)}</p>
         </div>
 
-        <div class="price">
-
-          <strong>
-            ${money(displayedTotal)}
-          </strong>
-
-          <span>
-            Accepted AnyBike purchase price
-          </span>
-
+        <div class="purchase-overview">
+          <div class="overview-box total">
+            <span>Purchase price</span>
+            <strong>${money(displayedTotal)}</strong>
+            <span style="margin-top:7px">Accepted AnyBike purchase price</span>
+          </div>
+          <div class="overview-box">
+            <span>Payment</span>
+            <strong class="${state.fullyPaid?"good":""}">${safe(state.paymentStatus)}</strong>
+          </div>
+          <div class="overview-box">
+            <span>Motorcycle</span>
+            <strong class="${state.secured?"good":""}">${state.secured?"Secured":"In progress"}</strong>
+          </div>
+          <div class="overview-box">
+            <span>Deal reference</span>
+            <strong>${safe(purchase.deal_number||"AnyBike Purchase")}</strong>
+          </div>
         </div>
 
-        <div class="payment-summary">
-
-          <div class="payment-box ${
-            state.moneyReceived > 0
-              ? "good"
-              : ""
-          }">
-
-            <span>
-              Payments Received
-            </span>
-
-            <strong>
-              ${money(state.moneyReceived)}
-            </strong>
-
-          </div>
-
-          <div class="payment-box ${
-            state.depositSatisfied
-              ? "good"
-              : "due"
-          }">
-
-            <span>
-              Deposit
-            </span>
-
-            <strong>
-              ${safe(depositDisplay)}
-            </strong>
-
-          </div>
-
-          <div class="payment-box ${
-            state.balance > 0
-              ? "due"
-              : "good"
-          }">
-
-            <span>
-              Balance Remaining
-            </span>
-
-            <strong>
-              ${money(state.balance)}
-            </strong>
-
-          </div>
-
-        </div>
-
-        <div class="details">
-
-          <div class="detail">
-
-            <span>
-              Payment Status
-            </span>
-
-            <div class="${
-              state.fullyPaid
-                ? "good-text"
-                : "due-text"
-            }">
-              ${safe(state.paymentStatus)}
+        ${(handoverPoint||forwarder)?`
+          <div class="handover-card">
+            <div>
+              <span>UK handover</span>
+              <strong>${safe(handoverPoint||"To be confirmed")}</strong>
             </div>
-
-          </div>
-
-          <div class="detail">
-
-            <span>
-              Motorcycle Status
-            </span>
-
-            <div class="${
-              state.secured
-                ? "good-text"
-                : "due-text"
-            }">
-              ${
-                state.secured
-                  ? "SECURED"
-                  : "Not Yet Secured"
-              }
+            <div>
+              <span>Shipper / freight forwarder</span>
+              <strong>${safe(forwarder||"To be confirmed")}</strong>
             </div>
-
           </div>
-
-          <div class="detail">
-
-            <span>
-              Sale Basis
-            </span>
-
-            ${safe(saleBasis)}
-
-          </div>
-
-          <div class="detail">
-
-            <span>
-              Delivery / Collection
-            </span>
-
-            ${safe(
-              deliveryLabel(
-                purchase.delivery_type
-              )
-            )}
-
-          </div>
-
-          <div class="detail">
-
-            <span>
-              Offer Accepted
-            </span>
-
-            ${
-              acceptedAt
-
-              ? safe(
-                  new Date(
-                    acceptedAt
-                  ).toLocaleString(
-                    "en-GB"
-                  )
-                )
-
-              : "-"
-            }
-
-          </div>
-
-          <div class="detail">
-
-            <span>
-              Deal Reference
-            </span>
-
-            ${safe(
-              purchase.deal_number ||
-              "AnyBike Purchase"
-            )}
-
-          </div>
-
-          ${
-            destination
-
-            ? `
-
-              <div
-                class="detail"
-                style="grid-column:1/-1"
-              >
-
-                <span>
-                  Destination
-                </span>
-
-                ${safe(destination)}
-
-              </div>
-
-            `
-
-            : ""
-          }
-
-        </div>
+        `:""}
 
         ${journeyHtml(purchase,state)}
 
-        ${String(purchase.deal_status||"")==="Collected" ? `
-          <div style="margin-top:16px;padding:14px;border:1px solid rgba(237,28,36,.30);border-radius:12px;background:#111">
-            <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap">
+        ${state.collected?`
+          <div class="collection-card">
+            <div class="collection-card-head">
               <div>
-                <strong style="display:block;color:#fff">Collection Report</strong>
-                <span style="display:block;margin-top:4px;color:#aaa;font-size:12px">Your motorcycle has been collected. View the driver handover checklist and condition photos.</span>
+                <strong>✓ Collected${collectedAt?" · "+safe(collectedAt):""}</strong>
+                <span>Driver handover and condition report completed.</span>
               </div>
-              <button type="button" onclick="loadMyCollectionReport(${Number(purchase.deal_motorcycle_id)})" style="border:1px solid #ed1c24;background:#ed1c24;color:#fff;border-radius:10px;padding:10px 14px;font-weight:900;cursor:pointer">View Collection Report</button>
+              <button type="button" onclick="loadMyCollectionReport(${Number(purchase.deal_motorcycle_id)})">View Collection Report</button>
             </div>
             <div id="my-collection-report-${Number(purchase.deal_motorcycle_id)}" style="display:none;margin-top:12px"></div>
           </div>
-        ` : ""}
+        `:""}
 
-        <div class="notice">
-          ${notice}
-        </div>
-
+        <details class="purchase-more">
+          <summary>Payment & purchase details</summary>
+          <div class="purchase-more-body">
+            <div class="purchase-more-grid">
+              <div class="detail">
+                <span>Payments Received</span>
+                <div class="${state.moneyReceived>0?"good-text":""}">${money(state.moneyReceived)}</div>
+              </div>
+              <div class="detail">
+                <span>Deposit</span>
+                <div class="${state.depositSatisfied?"good-text":"due-text"}">${safe(depositDisplay)}</div>
+              </div>
+              <div class="detail">
+                <span>Balance Remaining</span>
+                <div class="${state.balance>0?"due-text":"good-text"}">${money(state.balance)}</div>
+              </div>
+              <div class="detail">
+                <span>Sale Basis</span>
+                ${safe(saleBasis)}
+              </div>
+              <div class="detail">
+                <span>Offer Accepted</span>
+                ${acceptedAt?safe(new Date(acceptedAt).toLocaleString("en-GB")):"-"}
+              </div>
+              <div class="detail">
+                <span>Deal Reference</span>
+                ${safe(purchase.deal_number||"AnyBike Purchase")}
+              </div>
+            </div>
+          </div>
+        </details>
       </div>
-
     </article>
-
   `;
 }
 
@@ -1361,7 +1045,7 @@ async function loadPurchases(){
     data,
     error
   } = await sb.rpc(
-    "get_my_purchases_v2"
+    "get_my_purchases_v3"
   );
 
   if(error){
