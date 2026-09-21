@@ -48,11 +48,11 @@
 
   function sellerNameFor(row){
     const id=String(row.deal_motorcycle_id || "");
-    const display=(window.adminDealSellerDisplay && window.adminDealSellerDisplay.get)
-      ? (window.adminDealSellerDisplay.get(id) || {})
+    const display=(typeof adminDealSellerDisplay !== "undefined" && adminDealSellerDisplay && adminDealSellerDisplay.get)
+      ? (adminDealSellerDisplay.get(id) || {})
       : {};
-    const confirmation=(window.adminDealSellerConfirmations && window.adminDealSellerConfirmations.get)
-      ? (window.adminDealSellerConfirmations.get(id) || {})
+    const confirmation=(typeof adminDealSellerConfirmations !== "undefined" && adminDealSellerConfirmations && adminDealSellerConfirmations.get)
+      ? (adminDealSellerConfirmations.get(id) || {})
       : {};
     return row.seller_name ||
       display.seller_name ||
@@ -66,11 +66,11 @@
 
   function sellerPhoneFor(row){
     const id=String(row.deal_motorcycle_id || "");
-    const display=(window.adminDealSellerDisplay && window.adminDealSellerDisplay.get)
-      ? (window.adminDealSellerDisplay.get(id) || {})
+    const display=(typeof adminDealSellerDisplay !== "undefined" && adminDealSellerDisplay && adminDealSellerDisplay.get)
+      ? (adminDealSellerDisplay.get(id) || {})
       : {};
-    const confirmation=(window.adminDealSellerConfirmations && window.adminDealSellerConfirmations.get)
-      ? (window.adminDealSellerConfirmations.get(id) || {})
+    const confirmation=(typeof adminDealSellerConfirmations !== "undefined" && adminDealSellerConfirmations && adminDealSellerConfirmations.get)
+      ? (adminDealSellerConfirmations.get(id) || {})
       : {};
     return row.seller_phone ||
       display.seller_phone ||
@@ -253,4 +253,13 @@
   window.renderAnyBikeOperationsPanel=renderPanel;
   window.loadAnyBikeOperationsPanel=loadDeal;
   window.saveAnyBikeSellerReady=saveSellerReady;
+
+  // If Bike Sales rendered before this isolated module finished loading,
+  // rerender once so the Operations step can attach without touching
+  // Message Centre/header notification initialization.
+  setTimeout(function(){
+    if(typeof renderAdminDealQueue === "function"){
+      renderAdminDealQueue();
+    }
+  },0);
 })();
