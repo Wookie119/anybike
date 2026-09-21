@@ -117,8 +117,6 @@
 
   function scan(){
     document.querySelectorAll('input[id^="ab-ops-ready-"]').forEach(function(el){
-      const bike=el.closest(".ab-ops-bike");
-      if(!bike || !bike.querySelector(".ab-ops-state.ready")) return;
       const id=Number(el.id.replace("ab-ops-ready-",""));
       if(id) load(id,false);
     });
