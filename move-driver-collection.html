@@ -95,16 +95,18 @@ textarea{width:100%;min-height:90px;border:1px solid rgba(160,140,88,.45);border
         <div class="notice">When the motorcycle, documents and photos have been checked, call the client so seller payment can be handled. Do not load the motorcycle until the seller confirms the money has arrived and clearance is complete.</div>
         <div class="actions">
           <a id="callPaymentBtn" class="btn" href="tel:+447949574299" style="display:block;text-align:center;text-decoration:none">Call Client for Seller Payment</a>
-          <button id="paymentRequestedBtn" class="btn secondary" onclick="doAction('payment_requested')">Mark Seller Payment Requested ✓</button>
-          <div id="paymentRequestedHelp" class="step-help">After speaking to the client and payment has been requested/sent, tap this.</div>
+          <button id="paymentRequestedBtn" class="btn secondary" onclick="doAction('payment_requested')">Mark Buyer Payment Requested ✓</button>
+          <div id="paymentRequestedHelp" class="step-help">After speaking to the client and the buyer payment has been requested/sent, tap this.</div>
           <button id="sellerPaidBtn" class="btn secondary" onclick="confirmSellerPaid()">Seller Confirms Payment Received ✓</button>
           <div id="sellerPaidHelp" class="step-help">Only tap this after the seller confirms the money is in their account.</div>
         </div>
         <p id="clearanceStatus" class="status warn"></p>
+        <div class="actions" style="margin-top:14px"><button id="goToLoadBtn" class="btn" onclick="goToLoadStep()">Proceed to Step 5 – Load Motorcycle</button></div>
+        <p id="goToLoadStatus" class="status"></p>
       </div>
     </section>
 
-    <section class="card">
+    <section class="card" id="loadMotorcycleStep">
       <div class="head"><h3>5. Load Motorcycle</h3></div>
       <div class="body">
         <div class="notice">Only load the motorcycle once any discrepancy has been resolved, the handover checklist is complete, the condition photos are saved, the seller has confirmed payment, and clearance is complete.</div>
@@ -223,15 +225,15 @@ function render(){
 
   document.getElementById("callPaymentBtn").classList.toggle("hidden",!passed||collected);
   document.getElementById("paymentRequestedBtn").disabled=!passed||requested||collected;
-  document.getElementById("paymentRequestedBtn").textContent=requested?"2. Seller Payment Requested ✓":"2. Mark Seller Payment Requested ✓";
+  document.getElementById("paymentRequestedBtn").textContent=requested?"Buyer Payment Requested ✓":"Mark Buyer Payment Requested ✓";
   document.getElementById("sellerPaidBtn").disabled=!requested||paymentReceived||collected;
   document.getElementById("sellerPaidBtn").textContent=paymentReceived?"3. Seller Confirmed Payment Received ✓":"3. Seller Confirms Payment Received ✓";
   const requestHelp=document.getElementById("paymentRequestedHelp");
   const sellerHelp=document.getElementById("sellerPaidHelp");
-  if(requestHelp) requestHelp.textContent=requested?"Payment request recorded. The seller-confirmation button is now available.":"After speaking to AnyBike and payment has been requested/sent, tap this first.";
+  if(requestHelp) requestHelp.textContent=requested?"Buyer payment request recorded. The seller-confirmation button is now available.":"After speaking to the client and the buyer payment has been requested/sent, tap this.";
   if(sellerHelp) sellerHelp.textContent=paymentReceived?"Seller payment receipt confirmed.":requested?"Ask the seller to check their bank. Tap only when they confirm the money is in their account.":"This unlocks after the payment-request step above.";
   const cs=document.getElementById("clearanceStatus");
-  cs.textContent=paymentReceived?(cleared?"Seller payment confirmed and AnyBike clearance received.":"Seller says payment received. Waiting for AnyBike ledger/clearance confirmation."):(requested?"Payment requested — wait with the seller until they confirm receipt.":passed?"Call AnyBike, then mark Seller Payment Requested.":"Waiting for visual check.");
+  cs.textContent=paymentReceived?(cleared?"Seller payment confirmed and clearance received.":"Seller says payment received. Waiting for payment/collection clearance."):(requested?"Buyer payment requested — wait with the seller until they confirm receipt.":passed?"Call the client, then mark Buyer Payment Requested.":"Waiting for visual check.");
   cs.className="status "+(cleared&&paymentReceived?"good":"warn");
 
   document.getElementById("custodyList").innerHTML=items.map(x=>{
@@ -242,15 +244,34 @@ function render(){
 
   renderPhotos(s,photos,collected);
 
-  document.getElementById("collectedBtn").disabled=!arrived||!passed||!requested||!paymentReceived||!cleared||!photosComplete||!photosSaved||incomplete||collected;
+  const finalReady=arrived&&passed&&requested&&paymentReceived&&cleared&&photosComplete&&photosSaved&&!incomplete&&!collected;
+  document.getElementById("collectedBtn").disabled=!finalReady||collected;
   const reasons=[];
   if(problem)reasons.push("resolve discrepancy");
+  if(!requested)reasons.push("Buyer Payment Requested");
   if(!paymentReceived)reasons.push("seller payment confirmation");
   if(!photosComplete)reasons.push("all 9 condition photos");
   else if(!photosSaved)reasons.push("Save Condition Photos");
   if(incomplete)reasons.push("handover checklist");
-  if(!cleared)reasons.push("AnyBike clearance");
-  document.getElementById("completeStatus").textContent=collected?"Collection completed "+nice(s.collected_at)+". Thank you.":reasons.length?"Still required: "+reasons.join(", ")+".":"Ready to mark collected.";
+  if(!cleared)reasons.push("payment/collection clearance");
+
+  const goBtn=document.getElementById("goToLoadBtn");
+  const goStatus=document.getElementById("goToLoadStatus");
+  if(goBtn){
+    goBtn.disabled=!finalReady;
+    goBtn.textContent=finalReady?"Proceed to Step 5 – Load Motorcycle":"Step 5 – Load Motorcycle Locked";
+  }
+  if(goStatus){
+    goStatus.textContent=finalReady?"Everything is complete. Proceed to Step 5 and load the motorcycle.":reasons.length?"Before Step 5: "+reasons.join(", ")+".":"";
+    goStatus.className="status "+(finalReady?"good":"warn");
+  }
+
+  document.getElementById("completeStatus").textContent=collected?"Collection completed "+nice(s.collected_at)+". Thank you.":finalReady?"Ready to load and mark collected.":reasons.length?"Still required: "+reasons.join(", ")+".":"";
+}
+
+function goToLoadStep(){
+  const step=document.getElementById("loadMotorcycleStep");
+  if(step) step.scrollIntoView({behavior:"smooth",block:"start"});
 }
 
 async function doAction(action){
