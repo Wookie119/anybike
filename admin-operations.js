@@ -429,7 +429,28 @@
     if(!saved) return;
     try{
       const result=await client().functions.invoke("book-move-shipment",{body:{deal_motorcycle_id:Number(id)}});
-      if(result.error) throw result.error;
+      if(result.error){
+        let detailedMessage="";
+        try{
+          const ctx=result.error.context;
+          if(ctx){
+            const response=typeof ctx.clone==="function" ? ctx.clone() : ctx;
+            const body=await response.json();
+            if(body){
+              detailedMessage=body.error||"";
+              if(body.code) detailedMessage+=(detailedMessage?"\n":"")+body.code;
+              if(Array.isArray(body.missing_fields)&&body.missing_fields.length){
+                detailedMessage+=(detailedMessage?"\n\n":"")+"Missing:\n"+body.missing_fields.join("\n");
+              }
+              if(body.move_response){
+                const mr=typeof body.move_response==="string" ? body.move_response : JSON.stringify(body.move_response,null,2);
+                detailedMessage+=(detailedMessage?"\n\n":"")+"Move response:\n"+mr;
+              }
+            }
+          }
+        }catch(_detailError){}
+        throw new Error(detailedMessage||result.error.message||"Move Edge Function failed.");
+      }
       const payload=result.data||{};
       if(payload.error){
         const extra=payload.missing_fields&&payload.missing_fields.length?"\n\nMissing:\n"+payload.missing_fields.join("\n"):"";
