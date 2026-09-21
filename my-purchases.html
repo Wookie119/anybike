@@ -604,6 +604,53 @@ main{
   margin-top:5px;
   line-height:1.4;
 }
+.shipper-prep{
+  display:grid;
+  grid-template-columns:1fr auto;
+  gap:8px;
+  margin:10px 0;
+}
+.shipper-prep input{
+  width:100%;
+  min-width:0;
+  background:#080808;
+  color:#fff;
+  border:1px solid #333;
+  border-radius:9px;
+  padding:10px;
+}
+.shipper-docs{
+  display:grid;
+  gap:7px;
+  margin-top:8px;
+}
+.shipper-doc-row{
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  align-items:center;
+  padding:8px 10px;
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:9px;
+  background:#0a0a0a;
+}
+.shipper-doc-row button{
+  background:#151515;
+  border-color:#444;
+}
+.shipper-file{
+  margin-top:9px;
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  align-items:center;
+}
+.shipper-file input{
+  max-width:100%;
+}
+@media(max-width:560px){
+  .shipper-prep{grid-template-columns:1fr}
+}
 .purchase-more{
   margin-top:12px;
   border:1px solid rgba(255,255,255,.1);
@@ -1075,36 +1122,96 @@ async function loadShipperAuthorisation(purchase){
   if(!box||!dealId) return;
 
   try{
-    const result=await sb.rpc("get_my_shipper_authorisation_v1",{p_deal_id:dealId});
-    if(result.error) throw result.error;
-    const a=result.data||{};
+    const [authResult,docsResult]=await Promise.all([
+      sb.rpc("get_my_shipper_authorisation_v1",{p_deal_id:dealId}),
+      sb.rpc("get_my_shipper_documents_v1",{p_deal_id:dealId})
+    ]);
+    if(authResult.error) throw authResult.error;
+    if(docsResult.error) throw docsResult.error;
+
+    const a=authResult.data||{};
+    const docs=Array.isArray(docsResult.data)?docsResult.data:[];
     const status=String(a.status||"Not Authorised");
     const shipper=String(purchase.freight_forwarder_name||a.shipper_name||"the nominated shipper");
-    const confirmed=status==="Shipper Confirmed";
-    const declined=status==="Shipper Declined";
-    const sent=status==="Email Sent";
-    const authorised=status==="Buyer Authorised";
+    const locked=["Buyer Authorised","Email Sent","Shipper Confirmed"].includes(status);
+    const ref=String(purchase.freight_forwarder_reference||"");
+    const docsHtml=docs.length
+      ? docs.map(function(doc){
+          return '<div class="shipper-doc-row"><span>'+safe(doc.file_name)+' <small>'+Math.max(1,Math.round(Number(doc.file_size||0)/1024))+' KB</small></span>'+
+            (locked?'':'<button type="button" onclick="deleteShipperDocument('+Number(doc.id)+','+dealId+','+dmId+','+JSON.stringify(shipper)+');return false;">Remove</button>')+
+          '</div>';
+        }).join("")
+      : '<small>No documents attached. You can add up to 3 PDF/JPG/PNG files, max 4 MB each.</small>';
 
-    if(confirmed){
-      box.innerHTML='<div class="shipper-authorisation-status good"><div><strong>✓ Shipper confirmed acceptance</strong><small>'+safe(shipper)+' has confirmed they can accept this motorcycle from AnyBike / Move Motorcycles.</small></div></div>';
-      return;
+    let statusHtml="";
+    if(status==="Shipper Confirmed"){
+      statusHtml='<div class="shipper-authorisation-status good"><div><strong>✓ Shipper confirmed acceptance</strong><small>'+safe(shipper)+' has confirmed they can accept this motorcycle from AnyBike / Move Motorcycles.</small></div></div>';
+    }else if(status==="Shipper Declined"){
+      statusHtml='<div class="shipper-authorisation-status bad"><div><strong>Shipper cannot currently accept</strong><small>AnyBike has been notified and will contact you before delivery is arranged.</small></div></div>';
+    }else if(status==="Email Sent"||status==="Buyer Authorised"){
+      statusHtml='<div class="shipper-authorisation-status good"><div><strong>✓ You authorised '+safe(shipper)+'</strong><small>'+(status==="Email Sent"?'The shipper email has been sent with your reference and attached documents. Waiting for their confirmation.':'Your authorisation has been recorded.')+'</small></div></div>';
+    }else{
+      statusHtml='<div class="shipper-authorisation-status"><div><strong>Shipper authorisation required</strong><small>Check the shipper reference and documents below, then authorise '+safe(shipper)+' to accept this motorcycle on your behalf.</small></div><button type="button" onclick="authoriseShipper('+dmId+','+dealId+','+JSON.stringify(shipper)+');return false;">Authorise Shipper</button></div>';
     }
 
-    if(declined){
-      box.innerHTML='<div class="shipper-authorisation-status bad"><div><strong>Shipper cannot currently accept</strong><small>AnyBike has been notified and will contact you before delivery is arranged.</small></div></div>';
-      return;
-    }
+    box.innerHTML=
+      '<div><span>Reference for shipper</span>'+
+      '<div class="shipper-prep"><input id="shipper-ref-'+dmId+'" value="'+safe(ref)+'" placeholder="Booking / customer / container reference" '+(locked?'disabled':'')+'>'+
+      (locked?'':'<button type="button" onclick="saveShipperReference('+dealId+','+dmId+','+JSON.stringify(shipper)+');return false;">Save Reference</button>')+
+      '</div></div>'+
+      '<div><span>Documents to email to shipper</span><div id="shipper-docs-'+dmId+'" class="shipper-docs">'+docsHtml+'</div>'+
+      (locked?'':'<div class="shipper-file"><input id="shipper-file-'+dmId+'" type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"><button type="button" onclick="uploadShipperDocument('+dealId+','+dmId+','+JSON.stringify(shipper)+');return false;">Upload Document</button></div>')+
+      '</div><div style="margin-top:12px">'+statusHtml+'</div>';
 
-    if(sent||authorised){
-      box.innerHTML='<div class="shipper-authorisation-status good"><div><strong>✓ You authorised '+safe(shipper)+'</strong><small>'+(sent?'An email has been sent to the shipper. Waiting for them to confirm they can accept the motorcycle.':'Your authorisation has been recorded. AnyBike is completing the shipper notification.')+'</small></div></div>';
-      return;
-    }
-
-    box.innerHTML='<div class="shipper-authorisation-status"><div><strong>Shipper authorisation required</strong><small>Authorise '+safe(shipper)+' to accept this motorcycle from AnyBike / Move Motorcycles on your behalf.</small></div><button type="button" onclick="authoriseShipper('+dmId+','+dealId+','+JSON.stringify(shipper)+');return false;">Authorise Shipper</button></div>';
   }catch(error){
     box.innerHTML='<div class="shipper-authorisation-status bad"><div><strong>Shipper authorisation status unavailable</strong><small>'+safe(error.message||error)+'</small></div></div>';
   }
 }
+
+async function saveShipperReference(dealId,dealMotorcycleId,shipper){
+  const input=document.getElementById("shipper-ref-"+Number(dealMotorcycleId));
+  if(!input) return;
+  const result=await sb.rpc("save_my_shipper_reference_v1",{p_deal_id:Number(dealId),p_reference:String(input.value||"").trim()||null});
+  if(result.error){alert(result.error.message);return;}
+  await loadShipperAuthorisation({deal_id:Number(dealId),deal_motorcycle_id:Number(dealMotorcycleId),freight_forwarder_name:shipper,freight_forwarder_reference:String(input.value||"").trim()});
+}
+
+async function uploadShipperDocument(dealId,dealMotorcycleId,shipper){
+  const dmId=Number(dealMotorcycleId),id=Number(dealId);
+  const input=document.getElementById("shipper-file-"+dmId);
+  const file=input?.files?.[0];
+  if(!file) return;
+  if(!["application/pdf","image/jpeg","image/png"].includes(file.type)){alert("Only PDF, JPG and PNG files can be sent to the shipper.");return;}
+  if(file.size>4194304){alert("Each document must be 4 MB or smaller.");return;}
+
+  const session=(await sb.auth.getSession()).data.session;
+  if(!session){location.href="login.html";return;}
+  const clean=file.name.replace(/[^a-zA-Z0-9._-]+/g,"_").slice(-120);
+  const path="customers/"+session.user.id+"/shipping/"+id+"/"+Date.now()+"-"+clean;
+  const upload=await sb.storage.from("deal-files").upload(path,file,{contentType:file.type,upsert:false});
+  if(upload.error){alert(upload.error.message);return;}
+  const reg=await sb.rpc("register_my_shipper_document_v1",{
+    p_deal_id:id,p_deal_motorcycle_id:dmId,p_file_name:file.name,p_storage_path:path,p_mime_type:file.type,p_file_size:file.size
+  });
+  if(reg.error){
+    await sb.storage.from("deal-files").remove([path]);
+    alert(reg.error.message);
+    return;
+  }
+  await loadShipperAuthorisation({deal_id:id,deal_motorcycle_id:dmId,freight_forwarder_name:shipper,freight_forwarder_reference:document.getElementById("shipper-ref-"+dmId)?.value||""});
+}
+
+async function deleteShipperDocument(documentId,dealId,dealMotorcycleId,shipper){
+  if(!confirm("Remove this document from the shipper email?")) return;
+  const del=await sb.rpc("delete_my_shipper_document_v1",{p_document_id:Number(documentId)});
+  if(del.error){alert(del.error.message);return;}
+  if(del.data?.storage_path) await sb.storage.from("deal-files").remove([del.data.storage_path]);
+  await loadShipperAuthorisation({deal_id:Number(dealId),deal_motorcycle_id:Number(dealMotorcycleId),freight_forwarder_name:shipper,freight_forwarder_reference:document.getElementById("shipper-ref-"+Number(dealMotorcycleId))?.value||""});
+}
+
+window.saveShipperReference=saveShipperReference;
+window.uploadShipperDocument=uploadShipperDocument;
+window.deleteShipperDocument=deleteShipperDocument;
 
 async function authoriseShipper(dealMotorcycleId,dealId,shipper){
   const dmId=Number(dealMotorcycleId);
@@ -1190,7 +1297,7 @@ async function loadPurchases(){
     data,
     error
   } = await sb.rpc(
-    "get_my_purchases_v3"
+    "get_my_purchases_v4"
   );
 
   if(error){
