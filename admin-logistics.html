@@ -659,6 +659,34 @@ a{text-decoration:none;color:inherit}
         </div>
         <button class="pay-site-button secondary" type="button" onclick="loadMoveDriverJobs()">Refresh Jobs</button>
       </div>
+
+      <div class="pay-site-grid" style="margin-bottom:14px">
+        <div class="pay-site-field">
+          <label for="moveJobsClientFilter">Filter by client</label>
+          <select id="moveJobsClientFilter" onchange="renderMoveDriverJobs()">
+            <option value="">All clients</option>
+          </select>
+        </div>
+        <div class="pay-site-field">
+          <label for="moveJobsDateFilter">Filter by collection date</label>
+          <select id="moveJobsDateFilter" onchange="moveJobsDateFilterChanged()">
+            <option value="">All dates</option>
+            <option value="today">Today</option>
+            <option value="tomorrow">Tomorrow</option>
+            <option value="this_week">This week</option>
+            <option value="custom">Custom date</option>
+            <option value="no_date">No collection date</option>
+          </select>
+        </div>
+        <div class="pay-site-field" id="moveJobsCustomDateWrap" style="display:none">
+          <label for="moveJobsCustomDate">Choose date</label>
+          <input id="moveJobsCustomDate" type="date" onchange="renderMoveDriverJobs()">
+        </div>
+        <div class="pay-site-field" style="align-self:end">
+          <button class="pay-site-button secondary" type="button" onclick="clearMoveJobFilters()">Clear Filters</button>
+        </div>
+      </div>
+      <div id="moveJobsFilterSummary" style="color:#aaa;font-size:12px;margin:0 0 10px"></div>
       <div id="moveJobsList" style="display:grid;gap:10px"></div>
     </div>
   </div>
@@ -816,13 +844,85 @@ function moveJobBadge(status){
   return '<span class="badge '+(status==="collected"?"green":"blue")+'" style="text-transform:capitalize">'+escLogistics(label)+'</span>';
 }
 
+function moveJobDateString(date){
+  const y=date.getFullYear();
+  const m=String(date.getMonth()+1).padStart(2,"0");
+  const d=String(date.getDate()).padStart(2,"0");
+  return y+"-"+m+"-"+d;
+}
+
+function moveJobsDateFilterChanged(){
+  const mode=document.getElementById("moveJobsDateFilter")?.value||"";
+  const wrap=document.getElementById("moveJobsCustomDateWrap");
+  if(wrap)wrap.style.display=mode==="custom"?"grid":"none";
+  renderMoveDriverJobs();
+}
+
+function clearMoveJobFilters(){
+  const client=document.getElementById("moveJobsClientFilter");
+  const date=document.getElementById("moveJobsDateFilter");
+  const custom=document.getElementById("moveJobsCustomDate");
+  if(client)client.value="";
+  if(date)date.value="";
+  if(custom)custom.value="";
+  moveJobsDateFilterChanged();
+}
+
+function filteredMoveDriverJobs(){
+  const client=(document.getElementById("moveJobsClientFilter")?.value||"").trim();
+  const dateMode=document.getElementById("moveJobsDateFilter")?.value||"";
+  const customDate=document.getElementById("moveJobsCustomDate")?.value||"";
+  const now=new Date();
+  now.setHours(12,0,0,0);
+  const today=moveJobDateString(now);
+  const tomorrowDate=new Date(now);tomorrowDate.setDate(tomorrowDate.getDate()+1);
+  const tomorrow=moveJobDateString(tomorrowDate);
+  const monday=new Date(now);
+  const day=monday.getDay();
+  monday.setDate(monday.getDate()-(day===0?6:day-1));
+  const sunday=new Date(monday);sunday.setDate(sunday.getDate()+6);
+  const weekStart=moveJobDateString(monday),weekEnd=moveJobDateString(sunday);
+
+  return moveDriverJobs.filter(row=>{
+    if(client&&String(row.client_name||"")!==client)return false;
+    const rowDate=String(row.collection_date||"").slice(0,10);
+    if(dateMode==="today"&&rowDate!==today)return false;
+    if(dateMode==="tomorrow"&&rowDate!==tomorrow)return false;
+    if(dateMode==="this_week"&&(!rowDate||rowDate<weekStart||rowDate>weekEnd))return false;
+    if(dateMode==="custom"&&customDate&&rowDate!==customDate)return false;
+    if(dateMode==="custom"&&!customDate)return false;
+    if(dateMode==="no_date"&&rowDate)return false;
+    return true;
+  });
+}
+
+function refreshMoveJobsClientFilter(){
+  const select=document.getElementById("moveJobsClientFilter");
+  if(!select)return;
+  const previous=select.value;
+  const names=[...new Set(moveDriverJobs.map(x=>String(x.client_name||"").trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+  select.innerHTML='<option value="">All clients</option>'+names.map(name=>'<option value="'+escLogistics(name)+'">'+escLogistics(name)+'</option>').join("");
+  if(names.includes(previous))select.value=previous;
+}
+
 function renderMoveDriverJobs(){
   const host=document.getElementById("moveJobsList");
+  const summary=document.getElementById("moveJobsFilterSummary");
   if(!moveDriverJobs.length){
+    if(summary)summary.textContent="";
     host.innerHTML='<div class="card"><p style="margin:0;color:#aaa">No Move Driver Jobs have been created yet.</p></div>';
     return;
   }
-  host.innerHTML=moveDriverJobs.map(row=>{
+
+  const rows=filteredMoveDriverJobs();
+  if(summary)summary.textContent=rows.length+" of "+moveDriverJobs.length+" driver job"+(moveDriverJobs.length===1?"":"s")+" shown.";
+
+  if(!rows.length){
+    host.innerHTML='<div class="card"><p style="margin:0;color:#aaa">No driver jobs match the selected filters.</p></div>';
+    return;
+  }
+
+  host.innerHTML=rows.map(row=>{
     const open=row.active_link_expires_at?'<span style="color:#7ee2a8;font-weight:900">Driver link active'+(row.link_opened_at?' · opened':'')+'</span>':'<span style="color:#aaa">No active driver link</span>';
     return '<div class="card" style="padding:14px">'+
       '<div style="display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr) auto;gap:12px;align-items:center">'+
@@ -849,6 +949,7 @@ async function loadMoveDriverJobs(){
   const r=await logisticsSb.rpc("admin_list_move_driver_jobs_v1");
   if(r.error) throw r.error;
   moveDriverJobs=r.data||[];
+  refreshMoveJobsClientFilter();
   renderMoveDriverJobs();
 }
 
