@@ -74,6 +74,14 @@ textarea{width:100%;min-height:90px;border:1px solid rgba(160,140,88,.45);border
       <div class="body">
         <div class="notice">Check the <strong>complete V5C</strong>, all keys and everything supplied with the motorcycle. Mark each item as collected. If an item genuinely does not apply, use N/A.</div>
         <div id="custodyList"></div>
+        <div style="margin-top:14px">
+          <label for="handoverNotes" style="display:block;color:var(--muted);font-size:12px;font-weight:900;text-transform:uppercase;margin-bottom:6px">Handover Notes</label>
+          <textarea id="handoverNotes" placeholder="Add notes about documents, keys, accessories, missing items, seller comments or anything relevant to the handover..."></textarea>
+          <div class="actions" style="margin-top:8px">
+            <button id="saveHandoverNotesBtn" class="btn secondary" type="button" onclick="saveHandoverNotes()">Save Handover Notes</button>
+          </div>
+          <p id="handoverNotesStatus" class="status"></p>
+        </div>
       </div>
     </section>
 
@@ -370,12 +378,57 @@ async function maybeAutoCompletePhotoStage(){
   }
 }
 
+async function loadHandoverNotes(){
+  try{
+    const r=await sb.rpc("move_driver_handover_notes_get_v1",{p_token:token});
+    if(r.error)throw r.error;
+    const box=document.getElementById("handoverNotes");
+    const status=document.getElementById("handoverNotesStatus");
+    if(box&&document.activeElement!==box)box.value=r.data?.notes||"";
+    if(status&&r.data?.updated_at){
+      status.textContent="Saved "+nice(r.data.updated_at)+".";
+      status.className="status good";
+    }
+  }catch(e){
+    const status=document.getElementById("handoverNotesStatus");
+    if(status){
+      status.textContent="Handover notes could not be loaded.";
+      status.className="status warn";
+    }
+  }
+}
+
+async function saveHandoverNotes(){
+  const box=document.getElementById("handoverNotes");
+  const button=document.getElementById("saveHandoverNotesBtn");
+  const status=document.getElementById("handoverNotesStatus");
+  if(!box)return;
+  button.disabled=true;
+  if(status){status.textContent="Saving handover notes…";status.className="status";}
+  try{
+    const r=await sb.rpc("move_driver_handover_notes_save_v1",{p_token:token,p_notes:box.value||""});
+    if(r.error)throw r.error;
+    if(status){
+      status.textContent=(r.data?.notes?"Handover notes saved ✓":"Handover notes cleared ✓");
+      status.className="status good";
+    }
+  }catch(e){
+    if(status){
+      status.textContent=e.message||String(e);
+      status.className="status warn";
+    }
+  }finally{
+    button.disabled=false;
+  }
+}
+
 async function loadJob(){
   try{
     const r=await sb.rpc("move_driver_collection_get_v3",{p_token:token});
     if(r.error)throw r.error;
     current=r.data;
     render();
+    await loadHandoverNotes();
     await maybeAutoCompletePhotoStage();
   }catch(e){showError(e.message||String(e));}
 }
