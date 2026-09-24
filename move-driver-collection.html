@@ -47,7 +47,7 @@ textarea{width:100%;min-height:90px;border:1px solid rgba(160,140,88,.45);border
       <div class="body grid" id="jobGrid"></div>
     </section>
 
-    <section class="card">
+    <section class="card" id="arrivalVisualStep">
       <div class="head"><h3>1. Arrive & Check Motorcycle</h3></div>
       <div class="body">
         <div class="notice"><strong>Before loading the motorcycle:</strong> confirm you are at the correct collection address and check the motorcycle against the registration.</div>
@@ -69,7 +69,7 @@ textarea{width:100%;min-height:90px;border:1px solid rgba(160,140,88,.45);border
       </div>
     </section>
 
-    <section class="card">
+    <section class="card" id="handoverChecklistStep">
       <div class="head"><h3>2. Handover Checklist</h3></div>
       <div class="body">
         <div class="notice">Check the <strong>complete V5C</strong>, all keys and everything supplied with the motorcycle. Mark each item as collected. If an item genuinely does not apply, use N/A.</div>
@@ -522,8 +522,11 @@ function render(){
   const photosSaved=!!s.photos_confirmed_at;
 
   document.getElementById("arrivedBtn").disabled=arrived||collected;
-  document.getElementById("passBtn").disabled=!arrived||collected;
-  document.getElementById("problemBtn").disabled=!arrived||collected;
+  document.getElementById("arrivedBtn").textContent=arrived?"Arrived ✓":"I Have Arrived";
+  document.getElementById("passBtn").disabled=!arrived||passed||problem||collected;
+  document.getElementById("problemBtn").disabled=!arrived||passed||problem||collected;
+  document.getElementById("passBtn").textContent=passed?"Visual Check Passed ✓":"Visual Check Passed";
+  document.getElementById("problemBtn").textContent=problem?"Discrepancy Saved ✓":"Save Discrepancy";
   document.getElementById("visualStatus").textContent=problem?"Discrepancy saved — call the customer. Continue checklist/photos but do not load the motorcycle.":passed?"Visual check passed.":arrived?"Arrival recorded "+nice(s.arrived_at)+". Complete the visual check.":"Tap Arrived when you are physically at the collection address.";
   document.getElementById("visualStatus").className="status "+(problem?"warn":passed?"good":"");
   const discrepancyActions=document.getElementById("discrepancyActions");
@@ -534,7 +537,7 @@ function render(){
     else callCustomerBtn.classList.add("hidden");
   }
 
-  document.getElementById("callPaymentBtn").classList.toggle("hidden",!passed||collected);
+  document.getElementById("callPaymentBtn").classList.toggle("hidden",!passed||requested||collected);
   document.getElementById("paymentRequestedBtn").disabled=!passed||requested||collected;
   document.getElementById("paymentRequestedBtn").textContent=requested?"Buyer Payment Requested ✓":"Mark Buyer Payment Requested ✓";
   document.getElementById("sellerPaidBtn").disabled=!requested||paymentReceived||collected;
@@ -569,27 +572,63 @@ function render(){
   const goBtn=document.getElementById("goToLoadBtn");
   const goStatus=document.getElementById("goToLoadStatus");
   if(goBtn){
-    goBtn.disabled=!finalReady;
-    goBtn.textContent=finalReady?"Proceed to Step 5 – Load Motorcycle":"Step 5 – Load Motorcycle Locked";
+    if(collected){
+      goBtn.disabled=true;
+      goBtn.textContent="Step 5 Complete ✓";
+      goBtn.classList.add("hidden");
+    }else{
+      goBtn.classList.toggle("hidden",finalReady);
+      goBtn.disabled=!finalReady;
+      goBtn.textContent=finalReady?"Step 5 Ready ✓":"Step 5 – Load Motorcycle Locked";
+    }
   }
   if(goStatus){
-    goStatus.textContent=finalReady
-      ?"Everything is complete. Proceed to Step 5 and load the motorcycle."
-      :reasons.length
-        ?"Step 5 is locked. "+reasons.join(", ")+". Photos only count when they show Uploaded ✓ to AnyBike."
-        :"";
-    goStatus.className="status "+(finalReady?"good":"warn");
+    goStatus.textContent=collected
+      ?"Collection complete ✓"
+      :finalReady
+        ?"Everything is complete. Moving to Step 5 – Load Motorcycle…"
+        :reasons.length
+          ?"Step 5 is locked. "+reasons.join(", ")+". Photos only count when they show Uploaded ✓ to AnyBike."
+          :"";
+    goStatus.className="status "+((finalReady||collected)?"good":"warn");
   }
 
   const loadStep=document.getElementById("loadMotorcycleStep");
   const clearanceStep=document.getElementById("paymentClearanceStep");
-  if(collected) loadStepEntered=true;
+  if(finalReady||collected) loadStepEntered=true;
   if(loadStep){
     loadStep.classList.toggle("hidden",!loadStepEntered&&!collected);
     loadStep.classList.toggle("active-load-step",loadStepEntered&&!collected);
+    loadStep.classList.toggle("step-complete",collected);
   }
-  if(clearanceStep) clearanceStep.classList.toggle("step-complete",loadStepEntered||collected);
-  document.getElementById("completeStatus").textContent=collected?"Collection completed "+nice(s.collected_at)+". Thank you.":finalReady?"Ready to load and mark collected.":reasons.length?"Still required: "+reasons.join(", ")+".":"";
+  if(clearanceStep) clearanceStep.classList.toggle("step-complete",finalReady||loadStepEntered||collected);
+
+  const collectedBtn=document.getElementById("collectedBtn");
+  if(collectedBtn){
+    collectedBtn.disabled=!finalReady||collected;
+    collectedBtn.textContent=collected?"Motorcycle Loaded & Collected ✓":"Motorcycle Loaded & Collected";
+  }
+  const completeStatus=document.getElementById("completeStatus");
+  completeStatus.textContent=collected?"Collection completed "+nice(s.collected_at)+". Job complete ✓":finalReady?"Ready to load and mark collected.":reasons.length?"Still required: "+reasons.join(", ")+".":"";
+  completeStatus.className="status "+(collected||finalReady?"good":"warn");
+
+  // Completed jobs are read-only and should not look actionable.
+  const visualNotes=document.getElementById("visualNotes");
+  if(visualNotes)visualNotes.disabled=passed||problem||collected;
+  const handoverNotes=document.getElementById("handoverNotes");
+  const saveHandover=document.getElementById("saveHandoverNotesBtn");
+  if(collected){
+    if(handoverNotes)handoverNotes.disabled=true;
+    if(saveHandover)saveHandover.disabled=true;
+    document.getElementById("paymentRequestedBtn").disabled=true;
+    document.getElementById("sellerPaidBtn").disabled=true;
+  }
+}
+
+function advanceDriverTo(elementId){
+  const el=document.getElementById(elementId);
+  if(!el)return;
+  setTimeout(()=>el.scrollIntoView({behavior:"smooth",block:"start"}),250);
 }
 
 function goToLoadStep(){
@@ -625,8 +664,29 @@ async function doAction(action){
   const r=await sb.rpc("move_driver_collection_action_v3",{p_token:token,p_action:action,p_payload:payload});
   if(r.error){alert(r.error.message);return;}
   current=r.data;render();
-  if(action==="visual_discrepancy")alert("Discrepancy saved. Call the customer to discuss it. Continue the checklist and photos, but do not load the motorcycle until it is resolved.");
-  if(action==="collected") await sendCollectedSms();
+  if(action==="arrived") advanceDriverTo("arrivalVisualStep");
+  if(action==="visual_passed") advanceDriverTo("handoverChecklistStep");
+  if(action==="visual_discrepancy"){
+    alert("Discrepancy saved. Call the customer to discuss it. Continue the checklist and photos, but do not load the motorcycle until it is resolved.");
+    advanceDriverTo("handoverChecklistStep");
+  }
+  if(action==="payment_requested") advanceDriverTo("paymentClearanceStep");
+  if(action==="seller_payment_received"){
+    const s=current?.status||{};
+    const items=current?.custody||[];
+    const photos=current?.photos||[];
+    const uploaded=new Set(photos.filter(p=>p.evidence_type==="condition_photo").map(p=>p.slot).filter(Boolean));
+    const ready=!!s.arrived_at&&s.visual_check_status==="passed"&&!!s.payment_requested_at&&!!s.seller_payment_received_at&&!!s.driver_load_cleared&&!!s.photos_confirmed_at&&photoSlots.every(x=>uploaded.has(x[0]))&&!items.some(x=>!["collected_from_seller","not_applicable"].includes(x.status));
+    if(ready){
+      loadStepEntered=true;
+      render();
+      advanceDriverTo("loadMotorcycleStep");
+    }
+  }
+  if(action==="collected"){
+    advanceDriverTo("loadMotorcycleStep");
+    await sendCollectedSms();
+  }
 }
 
 async function sendCollectedSms(){
@@ -682,7 +742,13 @@ async function confirmSellerPaid(){
 
 async function setItem(itemId,status){
   const r=await sb.rpc("move_driver_collection_action_v3",{p_token:token,p_action:"custody",p_payload:{item_id:itemId,status}});
-  if(r.error){alert(r.error.message);return;}current=r.data;render();
+  if(r.error){alert(r.error.message);return;}
+  current=r.data;
+  render();
+  const items=current?.custody||[];
+  if(items.length&&!items.some(x=>!["collected_from_seller","not_applicable"].includes(x.status))){
+    advanceDriverTo("conditionPhotosStep");
+  }
 }
 
 function openCamera(slot){
