@@ -25,7 +25,7 @@ textarea{width:100%;min-height:90px;border:1px solid rgba(160,140,88,.45);border
 .check{display:flex;align-items:flex-start;gap:10px;padding:12px 0;border-bottom:1px solid rgba(255,255,255,.08)}.check:last-child{border-bottom:0}.check input{width:22px;height:22px;accent-color:var(--gold)}
 .check strong{display:block;color:var(--goldSoft)}.check small{display:block;color:var(--muted);margin-top:3px}
 .status{font-size:13px;color:var(--goldText);line-height:1.45}.status.good{color:#92e4b4}.status.warn{color:#ffd891} #addressBox{color:var(--goldText)} #addressBox strong{color:var(--goldSoft)}
-.error{padding:16px;border-radius:12px;background:#4a1515;border:1px solid #a94d4d;color:#fff}.photo-list{display:grid;gap:10px;margin-top:12px}.photo-row{padding:12px;border:1px solid rgba(160,140,88,.28);border-radius:10px;background:rgba(0,0,0,.14)}.photo-row strong{display:block;color:var(--goldSoft);margin-bottom:4px}.photo-row small{display:block;color:var(--muted);margin-bottom:9px;line-height:1.4}.photo-row input[type=file]{display:none}.step-help{margin-top:7px;color:var(--muted);font-size:12px;line-height:1.4}.photo-done{color:#92e4b4;font-weight:900}.hidden{display:none!important}
+.error{padding:16px;border-radius:12px;background:#4a1515;border:1px solid #a94d4d;color:#fff}.photo-list{display:grid;gap:10px;margin-top:12px}.photo-row{padding:12px;border:1px solid rgba(160,140,88,.28);border-radius:10px;background:rgba(0,0,0,.14)}.photo-row strong{display:block;color:var(--goldSoft);margin-bottom:4px}.photo-row small{display:block;color:var(--muted);margin-bottom:9px;line-height:1.4}.photo-row input[type=file]{display:none}.step-help{margin-top:7px;color:var(--muted);font-size:12px;line-height:1.4}.photo-done{color:#92e4b4;font-weight:900}.photo-queued{color:#ffd891;font-weight:900}.offline-photo-box{margin-top:10px;padding:12px;border-radius:10px;border:1px solid rgba(255,216,145,.4);background:rgba(255,216,145,.08)}.step-complete{border-color:rgba(45,138,87,.7)}.step-complete .head{background:rgba(45,138,87,.13)}.active-load-step{box-shadow:0 0 0 2px rgba(192,169,109,.4),0 18px 48px rgba(0,0,0,.22)}.hidden{display:none!important}
 @media(max-width:600px){.grid{grid-template-columns:1fr}.wrap{padding:10px 10px 34px}.body,.head{padding:14px}}
 </style>
 </head>
@@ -83,13 +83,18 @@ textarea{width:100%;min-height:90px;border:1px solid rgba(160,140,88,.45);border
         <div class="notice">Take the minimum <strong>9 Move condition photos</strong> before loading the motorcycle. If damage is seen, take extra close-up pictures before the bike is moved.</div>
         <div class="notice" style="margin-top:10px;border-color:#d0ad55;background:rgba(208,173,85,.14)"><strong>Important photo privacy warning:</strong> these pictures may be shared directly with the buyer. <strong>Do not photograph the dealership or supplier identity.</strong> Keep dealership names, signs, banners, branded walls, staff badges, paperwork headers and other identifying details out of the frame wherever possible.</div>
         <div id="photoGate" class="status warn" style="margin-top:10px"></div>
+        <div id="offlinePhotoBox" class="offline-photo-box">
+          <strong id="offlinePhotoTitle">Photo upload status</strong>
+          <div id="offlinePhotoStatus" class="status" style="margin-top:5px">Checking phone storage…</div>
+          <div class="actions" style="margin-top:9px"><button id="syncPhotosBtn" class="btn secondary" type="button" onclick="syncQueuedPhotos()">Upload Saved Photos</button></div>
+        </div>
         <div id="photoList" class="photo-list"></div>
         <div class="actions" style="margin-top:14px"><button id="savePhotosBtn" class="btn" onclick="saveConditionPhotos()">Save Condition Photos ✓</button></div>
         <p id="savePhotosStatus" class="status"></p>
       </div>
     </section>
 
-    <section class="card">
+    <section class="card" id="paymentClearanceStep">
       <div class="head"><h3>4. Buyer Payment & Seller Confirmation</h3></div>
       <div class="body">
         <div class="notice">When the motorcycle, documents and photos have been checked, call the client so buyer payment can be handled. Do not load the motorcycle until the seller confirms the money has arrived.</div>
@@ -106,7 +111,7 @@ textarea{width:100%;min-height:90px;border:1px solid rgba(160,140,88,.45);border
       </div>
     </section>
 
-    <section class="card" id="loadMotorcycleStep">
+    <section class="card hidden" id="loadMotorcycleStep">
       <div class="head"><h3>5. Load Motorcycle</h3></div>
       <div class="body">
         <div class="notice">Only load the motorcycle once any discrepancy has been resolved, the handover checklist is complete, the condition photos are saved, and the seller has confirmed payment received.</div>
@@ -122,6 +127,11 @@ const SUPABASE_ANON_KEY="sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 const token=new URLSearchParams(location.search).get("token")||"";
 let current=null;
+let loadStepEntered=false;
+let photoQueueScope="";
+let offlinePhotoSlots=new Set();
+let syncingQueuedPhotos=false;
+
 function esc(v){return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));}
 function nice(v){if(!v)return "Not recorded";const d=new Date(v);return isNaN(d)?"":d.toLocaleString("en-GB");}
 function showError(msg){document.getElementById("app").classList.add("hidden");const e=document.getElementById("errorBox");e.textContent=msg;e.classList.remove("hidden");}
@@ -136,6 +146,134 @@ const photoSlots=[
   ["right_side","8. Right Full Side","Full right side with the bike filling most of the frame and some background visible."],
   ["right_rear","9. Right Rear","Low rear-quarter view of right rear half, wheel, swingarm and exhaust/luggage."]
 ];
+
+
+async function hashText(value){
+  const digest=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(value));
+  return Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,"0")).join("");
+}
+
+function openMovePhotoDb(){
+  return new Promise((resolve,reject)=>{
+    const req=indexedDB.open("move-driver-offline-v1",1);
+    req.onupgradeneeded=()=>{
+      const db=req.result;
+      if(!db.objectStoreNames.contains("photos")) db.createObjectStore("photos",{keyPath:"id"});
+    };
+    req.onsuccess=()=>resolve(req.result);
+    req.onerror=()=>reject(req.error||new Error("Phone photo storage could not be opened"));
+  });
+}
+
+async function getQueuedPhotoRecords(){
+  if(!photoQueueScope) return [];
+  const db=await openMovePhotoDb();
+  return await new Promise((resolve,reject)=>{
+    const tx=db.transaction("photos","readonly");
+    const req=tx.objectStore("photos").getAll();
+    req.onsuccess=()=>resolve((req.result||[]).filter(x=>x.scope===photoQueueScope));
+    req.onerror=()=>reject(req.error);
+  });
+}
+
+async function savePhotoOnPhone(slot,file){
+  const db=await openMovePhotoDb();
+  const record={
+    id:photoQueueScope+":"+slot,
+    scope:photoQueueScope,
+    slot,
+    file,
+    file_name:file.name||("photo-"+slot+".jpg"),
+    file_type:file.type||"image/jpeg",
+    saved_at:new Date().toISOString()
+  };
+  await new Promise((resolve,reject)=>{
+    const tx=db.transaction("photos","readwrite");
+    tx.objectStore("photos").put(record);
+    tx.oncomplete=()=>resolve();
+    tx.onerror=()=>reject(tx.error);
+  });
+  offlinePhotoSlots.add(slot);
+  updatePhotoQueueStatus();
+}
+
+async function removePhotoFromPhone(slot){
+  if(!photoQueueScope) return;
+  const db=await openMovePhotoDb();
+  await new Promise((resolve,reject)=>{
+    const tx=db.transaction("photos","readwrite");
+    tx.objectStore("photos").delete(photoQueueScope+":"+slot);
+    tx.oncomplete=()=>resolve();
+    tx.onerror=()=>reject(tx.error);
+  });
+  offlinePhotoSlots.delete(slot);
+  updatePhotoQueueStatus();
+}
+
+function updatePhotoQueueStatus(){
+  const status=document.getElementById("offlinePhotoStatus");
+  const button=document.getElementById("syncPhotosBtn");
+  if(!status||!button)return;
+  const count=offlinePhotoSlots.size;
+  const online=navigator.onLine;
+  status.textContent=count
+    ? count+" photo"+(count===1?"":"s")+" saved safely on this phone"+(online?" and waiting to upload.":" — no signal required. They will upload when signal returns.")
+    : online
+      ? "Online. Photos will upload immediately, with a phone copy kept until upload succeeds."
+      : "Offline. Take the photos normally — they will be saved on this phone and uploaded when signal returns.";
+  status.className="status "+(count?"warn":"good");
+  button.disabled=!count||!online||syncingQueuedPhotos;
+  button.textContent=syncingQueuedPhotos?"Uploading Saved Photos…":count?"Upload Saved Photos ("+count+")":"No Saved Photos Waiting";
+}
+
+async function initOfflinePhotoQueue(){
+  try{
+    photoQueueScope=await hashText(token);
+    if(navigator.storage&&navigator.storage.persist){
+      try{await navigator.storage.persist();}catch(_e){}
+    }
+    const queued=await getQueuedPhotoRecords();
+    offlinePhotoSlots=new Set(queued.map(x=>x.slot));
+    updatePhotoQueueStatus();
+  }catch(e){
+    const status=document.getElementById("offlinePhotoStatus");
+    if(status){status.textContent="Phone photo storage is unavailable on this browser. Keep this page open and wait for signal before taking required photos.";status.className="status warn";}
+  }
+}
+
+async function uploadPhotoRecord(record,statusEl){
+  const form=new FormData();
+  form.append("token",token);
+  form.append("slot",record.slot);
+  form.append("file",record.file,record.file_name||("photo-"+record.slot+".jpg"));
+  const response=await fetch(SUPABASE_URL+"/functions/v1/move-driver-upload-photo",{method:"POST",body:form});
+  const result=await response.json().catch(()=>({}));
+  if(!response.ok||!result.success) throw new Error(result.error||"Photo upload failed");
+  await removePhotoFromPhone(record.slot);
+  if(statusEl){statusEl.textContent="Uploaded ✓";statusEl.className="status good";}
+  return result;
+}
+
+async function syncQueuedPhotos(){
+  if(syncingQueuedPhotos||!navigator.onLine)return;
+  syncingQueuedPhotos=true;
+  updatePhotoQueueStatus();
+  try{
+    const queued=await getQueuedPhotoRecords();
+    for(const record of queued){
+      const status=document.getElementById("photo-status-"+record.slot);
+      if(status){status.textContent="Uploading saved photo…";status.className="status";}
+      await uploadPhotoRecord(record,status);
+    }
+    await loadJob();
+  }catch(e){
+    const status=document.getElementById("offlinePhotoStatus");
+    if(status){status.textContent="Upload paused: "+(e.message||String(e))+". The photos are still safe on this phone.";status.className="status warn";}
+  }finally{
+    syncingQueuedPhotos=false;
+    updatePhotoQueueStatus();
+  }
+}
 
 async function loadJob(){
   try{
@@ -153,6 +291,7 @@ function renderPhotos(s,photos,collected){
   if(!host||!gate)return;
   const photoAllowed=["passed","discrepancy"].includes(s.visual_check_status||"");
   const uploaded=new Set((photos||[]).map(p=>p.slot).filter(Boolean));
+  const queued=new Set([...offlinePhotoSlots].filter(slot=>!uploaded.has(slot)));
   const allUploaded=photoSlots.every(x=>uploaded.has(x[0]));
   const photosSaved=!!s.photos_confirmed_at;
   gate.textContent=!photoAllowed
@@ -161,11 +300,13 @@ function renderPhotos(s,photos,collected){
       ? "All 9 condition photos saved ✓"
       : allUploaded
         ? "All 9 photos uploaded. Press Save Condition Photos below."
-        : uploaded.size+" of 9 required photo positions uploaded.";
+        : queued.size
+          ? uploaded.size+" of 9 uploaded · "+queued.size+" saved on this phone waiting for signal/upload."
+          : uploaded.size+" of 9 required photo positions uploaded.";
   gate.className="status "+(photosSaved?"good":"warn");
   host.innerHTML=photoSlots.map(([slot,title,help])=>{
-    const done=uploaded.has(slot);
-    return '<div class="photo-row"><strong>'+esc(title)+(done?' <span class="photo-done">✓ Uploaded</span>':'')+'</strong><small>'+esc(help)+'</small>'+
+    const done=uploaded.has(slot),queuedHere=queued.has(slot);
+    return '<div class="photo-row"><strong>'+esc(title)+(done?' <span class="photo-done">✓ Uploaded</span>':queuedHere?' <span class="photo-queued">✓ Saved on phone</span>':'')+'</strong><small>'+esc(help)+'</small>'+
       '<input id="photo-'+slot+'" type="file" accept="image/*" capture="environment" '+((!photoAllowed||collected)?"disabled":"")+' onchange="uploadSelectedPhoto(\''+slot+'\')">'+
       '<button class="btn secondary" '+((!photoAllowed||collected)?"disabled":"")+' onclick="openCamera(\''+slot+'\')">'+(done?"Retake Photo":"Take Photo")+'</button>'+
       '<div id="photo-status-'+slot+'" class="status"></div></div>';
@@ -181,9 +322,12 @@ function renderPhotos(s,photos,collected){
       ? "Photo stage completed "+nice(s.photos_confirmed_at)+"."
       : allUploaded
         ? "Review the 9 photos above, then save this photo stage."
-        : "All 9 required photos must be uploaded before this can be saved.";
+        : offlinePhotoSlots.size
+          ? "Photos saved on the phone must finish uploading before this stage can be saved."
+          : "All 9 required photos must be uploaded before this can be saved.";
     saveStatus.className="status "+(photosSaved?"good":"");
   }
+  updatePhotoQueueStatus();
 }
 
 function render(){
@@ -266,12 +410,34 @@ function render(){
     goStatus.className="status "+(finalReady?"good":"warn");
   }
 
+  const loadStep=document.getElementById("loadMotorcycleStep");
+  const clearanceStep=document.getElementById("paymentClearanceStep");
+  if(collected) loadStepEntered=true;
+  if(loadStep){
+    loadStep.classList.toggle("hidden",!loadStepEntered&&!collected);
+    loadStep.classList.toggle("active-load-step",loadStepEntered&&!collected);
+  }
+  if(clearanceStep) clearanceStep.classList.toggle("step-complete",loadStepEntered||collected);
   document.getElementById("completeStatus").textContent=collected?"Collection completed "+nice(s.collected_at)+". Thank you.":finalReady?"Ready to load and mark collected.":reasons.length?"Still required: "+reasons.join(", ")+".":"";
 }
 
 function goToLoadStep(){
+  const button=document.getElementById("goToLoadBtn");
+  if(button?.disabled)return;
+  loadStepEntered=true;
+  const clearance=document.getElementById("paymentClearanceStep");
   const step=document.getElementById("loadMotorcycleStep");
-  if(step) step.scrollIntoView({behavior:"smooth",block:"start"});
+  if(clearance)clearance.classList.add("step-complete");
+  if(step){
+    step.classList.remove("hidden");
+    step.classList.add("active-load-step");
+    requestAnimationFrame(()=>{
+      step.scrollIntoView({behavior:"smooth",block:"center"});
+      setTimeout(()=>document.getElementById("collectedBtn")?.focus({preventScroll:true}),500);
+    });
+  }
+  const status=document.getElementById("goToLoadStatus");
+  if(status){status.textContent="Step 4 complete ✓ — proceed to Load Motorcycle.";status.className="status good";}
 }
 
 async function doAction(action){
@@ -355,20 +521,40 @@ async function uploadSelectedPhoto(slot){
   const input=document.getElementById("photo-"+slot),status=document.getElementById("photo-status-"+slot);
   const file=input&&input.files&&input.files[0];
   if(!file){if(status){status.textContent="Choose or take a photo first.";status.className="status warn";}return;}
-  if(status){status.textContent="Uploading…";status.className="status";}
+
   try{
-    const form=new FormData();form.append("token",token);form.append("slot",slot);form.append("file",file);
-    const response=await fetch(SUPABASE_URL+"/functions/v1/move-driver-upload-photo",{method:"POST",body:form});
-    const result=await response.json().catch(()=>({}));
-    if(!response.ok||!result.success)throw new Error(result.error||"Photo upload failed");
-    if(status){status.textContent="Uploaded ✓";status.className="status good";}
+    if(status){status.textContent="Saving photo on this phone…";status.className="status";}
+    await savePhotoOnPhone(slot,file);
+    if(status){status.textContent=navigator.onLine?"Saved on phone. Uploading…":"Saved on phone ✓ — waiting for signal.";status.className=navigator.onLine?"status":"status good";}
+
+    if(!navigator.onLine){
+      render();
+      return;
+    }
+
+    const queued=(await getQueuedPhotoRecords()).find(x=>x.slot===slot);
+    if(queued) await uploadPhotoRecord(queued,status);
     await loadJob();
   }catch(e){
-    if(status){status.textContent=e.message||String(e);status.className="status warn";}
+    offlinePhotoSlots.add(slot);
+    updatePhotoQueueStatus();
+    if(status){status.textContent="Saved on phone ✓ — upload will retry when signal returns.";status.className="status warn";}
   }
 }
 
-if(!token)showError("This collection link is missing its secure token."); else {loadJob();setInterval(()=>{if(document.visibilityState==="visible")loadJob();},20000);}
+async function startDriverCollection(){
+  if(!token){showError("This collection link is missing its secure token.");return;}
+  await initOfflinePhotoQueue();
+  await loadJob();
+  window.addEventListener("online",()=>{updatePhotoQueueStatus();setTimeout(syncQueuedPhotos,800);});
+  window.addEventListener("offline",updatePhotoQueueStatus);
+  setInterval(()=>{if(document.visibilityState==="visible"&&navigator.onLine)loadJob();},20000);
+  if(navigator.onLine&&offlinePhotoSlots.size)setTimeout(syncQueuedPhotos,1200);
+  if("serviceWorker" in navigator){
+    navigator.serviceWorker.register("/move-driver-sw.js").catch(()=>{});
+  }
+}
+startDriverCollection();
 </script>
 </body>
 </html>
