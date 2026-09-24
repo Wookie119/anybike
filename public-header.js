@@ -1831,7 +1831,7 @@ document.addEventListener("visibilitychange",function(){
   if(!/^\/markets\//i.test(window.location.pathname)) return;
   if(document.querySelector('script[data-anybike-market-corrections]')) return;
   const s=document.createElement("script");
-  s.src="/market-page-corrections.js?v=2";
+  s.src="/market-page-corrections.js?v=3";
   s.defer=true;
   s.dataset.anybikeMarketCorrections="1";
   document.head.appendChild(s);
