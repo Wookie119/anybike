@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Move Motorcycles | Collection Report</title>
+<style>
+:root{--navy:#071a2d;--panel:#0b2239;--gold:#c0a96d;--gold2:#eadcae;--line:rgba(192,169,109,.3);--muted:#cbb882;--ok:#92e4b4;--warn:#ffd891}
+*{box-sizing:border-box}
+body{margin:0;background:linear-gradient(180deg,var(--navy),#04111e 70%);color:var(--gold2);font-family:Arial,Helvetica,sans-serif;min-height:100vh}
+.wrap{max-width:980px;margin:0 auto;padding:20px 14px 50px}
+.brand{text-align:center;margin-bottom:16px}.brand img{width:min(320px,80vw);max-height:150px;object-fit:contain}.brand p{color:var(--gold);font-weight:900}
+.card{background:rgba(8,28,48,.94);border:1px solid var(--line);border-radius:16px;margin:12px 0;overflow:hidden}
+.head{padding:16px 18px;border-bottom:1px solid var(--line)}.head h1,.head h2,.head h3{margin:0;color:var(--gold)}
+.body{padding:16px 18px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.metric{padding:12px;border:1px solid var(--line);border-radius:10px;background:rgba(0,0,0,.15)}
+.metric span{display:block;color:var(--muted);font-size:11px;text-transform:uppercase;font-weight:900}.metric strong{display:block;margin-top:5px;color:var(--gold2)}
+.status{padding:12px;border-radius:10px;border:1px solid rgba(146,228,180,.35);background:rgba(146,228,180,.08);color:var(--ok)}
+.check{padding:11px 0;border-bottom:1px solid rgba(255,255,255,.08)}.check:last-child{border-bottom:0}.check strong{display:block}.check small{color:var(--muted)}
+.photos{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.photo{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#061522}.photo img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover}.photo div{padding:10px;color:var(--gold2);font-weight:800}
+.error{padding:16px;border-radius:12px;background:#4a1515;border:1px solid #a94d4d;color:#fff}.hidden{display:none!important}
+@media(max-width:650px){.grid,.photos{grid-template-columns:1fr}.wrap{padding:10px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand">
+    <img src="https://static.wixstatic.com/media/a2662e_8755cf2a8a844e4aa2319a806efa8cdb~mv2.png/v1/fit/w_700,h_700,q_90/Move%20Motorcycles%20Gold.png" alt="Move Motorcycles">
+    <p>Motorcycle Collection Report</p>
+  </div>
+
+  <div id="errorBox" class="error hidden"></div>
+  <main id="report" class="hidden">
+    <section class="card">
+      <div class="head"><h1 id="bikeTitle">Collection Report</h1></div>
+      <div class="body">
+        <div class="status">Collection completed ✓</div>
+        <div class="grid" id="summary" style="margin-top:12px"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="head"><h2>Handover Checklist</h2></div>
+      <div class="body" id="custody"></div>
+    </section>
+
+    <section class="card" id="issueCard">
+      <div class="head"><h2>Condition / Issue Information</h2></div>
+      <div class="body" id="issueInfo"></div>
+    </section>
+
+    <section class="card">
+      <div class="head"><h2>Collection Photos</h2></div>
+      <div class="body">
+        <div class="photos" id="photos"></div>
+      </div>
+    </section>
+  </main>
+</div>
+<script>
+const SUPABASE_URL="https://tuehtnezhdnkqbbhttgp.supabase.co";
+const token=new URLSearchParams(location.search).get("token")||"";
+function esc(v){return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));}
+function nice(v){if(!v)return "—";const d=new Date(v);return Number.isNaN(d.getTime())?String(v):d.toLocaleString("en-GB");}
+function fail(msg){document.getElementById("report").classList.add("hidden");const e=document.getElementById("errorBox");e.textContent=msg;e.classList.remove("hidden");}
+async function loadReport(){
+  if(!token){fail("This collection report link is missing its secure token.");return;}
+  try{
+    const response=await fetch(SUPABASE_URL+"/functions/v1/move-collection-report",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({token})
+    });
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok||!data.success)throw new Error(data.error||"Collection report could not be loaded");
+
+    document.getElementById("errorBox").classList.add("hidden");
+    document.getElementById("report").classList.remove("hidden");
+    const j=data.job||{},c=data.collection||{};
+    document.getElementById("bikeTitle").textContent=j.motorcycle||"Motorcycle Collection";
+    document.getElementById("summary").innerHTML=
+      '<div class="metric"><span>Reference</span><strong>'+esc(j.job_number||"—")+'</strong></div>'+
+      '<div class="metric"><span>Registration</span><strong>'+esc(j.registration||"—")+'</strong></div>'+
+      '<div class="metric"><span>Customer</span><strong>'+esc(j.customer_name||"—")+'</strong></div>'+
+      '<div class="metric"><span>Collected</span><strong>'+esc(nice(j.collected_at))+'</strong></div>'+
+      '<div class="metric"><span>Driver</span><strong>'+esc(j.driver_name||"Move Motorcycles")+'</strong></div>'+
+      '<div class="metric"><span>Client</span><strong>'+esc(j.client_name||"Move Motorcycles")+'</strong></div>';
+
+    const custody=data.custody||[];
+    document.getElementById("custody").innerHTML=custody.length?custody.map(x=>
+      '<div class="check"><strong>'+esc(x.description||x.item_type||"Item")+'</strong><small>'+esc(x.status==="collected_from_seller"?"Collected":x.status==="not_applicable"?"Not applicable":x.status||"Recorded")+'</small></div>'
+    ).join(""):'<p>No handover items were recorded.</p>';
+
+    const issue=document.getElementById("issueInfo");
+    if(c.discrepancy_recorded_at){
+      issue.innerHTML='<div class="status" style="border-color:rgba(255,216,145,.4);color:var(--warn);background:rgba(255,216,145,.08)"><strong>Issue recorded during collection.</strong><br><br>'+esc(c.issue_note||"See the collection photographs for details.")+(c.buyer_issue_informed_at?'<br><br>Buyer informed before collection proceeded ✓':'')+'</div>';
+    }else{
+      issue.innerHTML='<div class="status">No discrepancy was recorded during the collection check.</div>';
+    }
+
+    const photos=data.photos||[];
+    document.getElementById("photos").innerHTML=photos.length?photos.map(p=>
+      '<div class="photo"><img src="'+esc(p.url)+'" alt="'+esc(p.caption||"Collection photo")+'"><div>'+esc(p.caption||(p.evidence_type==="damage_photo"?"Damage / issue photo":"Condition photo"))+'</div></div>'
+    ).join(""):'<p>No collection photos are available.</p>';
+  }catch(e){fail(e.message||String(e));}
+}
+loadReport();
+</script>
+</body>
+</html>
