@@ -612,6 +612,8 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let allCustomers = [];
 let messageMap = {};
 let visitActivityMap = {};
+let customerWorkspaceMap = {};
+let customerWorkspaceLoading = {};
 
 const countryCoords = {
   "United Kingdom":[48,38],"UK":[48,38],"Ireland":[45,37],
@@ -627,7 +629,12 @@ function safe(v){return v===undefined||v===null||v===""?"-":String(v)}
 function money(v){const n=Number(v||0);return "£"+(Number.isFinite(n)?n:0).toFixed(2)}
 function cleanId(v){return String(v||"customer").replace(/[^a-zA-Z0-9]/g,"")}
 function initials(name){return String(name||"?").split(" ").map(x=>x[0]).join("").slice(0,2).toUpperCase()}
-function toggleCustomer(id){const el=document.getElementById("customer-"+id);if(el)el.classList.toggle("open")}
+function toggleCustomer(id){
+  const el=document.getElementById("customer-"+id);
+  if(!el)return;
+  el.classList.toggle("open");
+  if(el.classList.contains("open"))ensureCustomerWorkspace(id);
+}
 function customerStatus(c){if(c.deals.length>=3)return"VIP";if(c.deals.some(d=>d.status==="Completed"))return"Completed";if(c.deals.length>0)return"Active";return"New"}
 function badgeClass(s){if(s==="VIP")return"badge-red";if(s==="Completed")return"badge-green";if(s==="Active")return"badge-amber";return""}
 
@@ -648,6 +655,282 @@ function switchTab(customerId, tabName){
   const panel=document.querySelector(`#customer-${customerId} .tab-panel[data-panel="${tabName}"]`);
   if(btn)btn.classList.add("active");
   if(panel)panel.classList.add("active");
+  ensureCustomerWorkspace(customerId);
+}
+
+function findCustomerRecord(id){
+  return allCustomers.find(c=>
+    String(c.id)===String(id) ||
+    String(c.customerId)===String(id)
+  ) || null;
+}
+
+function fmtDate(value){
+  if(!value)return "-";
+  const d=new Date(value);
+  return Number.isFinite(d.getTime()) ? d.toLocaleString("en-GB") : "-";
+}
+
+function fmtSeconds(value){
+  const n=Math.max(0,Number(value)||0);
+  if(n<60)return Math.round(n)+" sec";
+  const m=Math.floor(n/60);
+  if(m<60)return m+" min";
+  return Math.floor(m/60)+"h "+(m%60)+"m";
+}
+
+function renderWorkspaceMessageThread(thread){
+  const messages=Array.isArray(thread.messages)?thread.messages:[];
+  const rows=messages.length ? messages.map(m=>{
+    const internal=m.is_internal_note===true;
+    const who=internal ? "Internal note" : (m.sender_name || m.sender_type || "Message");
+    return `
+      <div class="timeline-item" style="${internal?"border-left-color:#d4a017":""}">
+        <strong>${safe(who)} · ${fmtDate(m.created_at)}</strong>
+        <div class="small" style="white-space:pre-wrap;margin-top:4px">${safe(m.message)}</div>
+      </div>`;
+  }).join("") : '<div class="small">No messages recorded in this thread.</div>';
+
+  return `
+    <div class="deal-card">
+      <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap">
+        <div>
+          <strong>${safe(thread.subject || "Message Centre conversation")}</strong>
+          <div class="small">${safe(thread.department)} · ${safe(thread.status)} · ${fmtDate(thread.updated_at || thread.created_at)}</div>
+        </div>
+        <a class="btn" href="admin-message-centre.html?thread=${encodeURIComponent(thread.id)}">Open Thread</a>
+      </div>
+      <div style="margin-top:12px">${rows}</div>
+    </div>`;
+}
+
+function renderCustomerWorkspace(customer){
+  const w=customerWorkspaceMap[String(customer.customerId)] || {};
+  customer.workspace=w;
+  const root=document.getElementById("customer-"+customer.id);
+  if(!root)return;
+
+  const setPanel=(name,html)=>{
+    const panel=root.querySelector('[data-panel="'+name+'"]');
+    if(panel)panel.innerHTML=html;
+  };
+
+  const messages=Array.isArray(w.messages)?w.messages:[];
+  setPanel("messages",
+    '<h3>Messages</h3>'+
+    (messages.length
+      ? messages.map(renderWorkspaceMessageThread).join("")
+      : '<div class="note-box">No Message Centre conversations recorded for this customer.</div>')
+  );
+
+  const enquiries=Array.isArray(w.enquiries)?w.enquiries:[];
+  setPanel("enquiries",
+    '<h3>Enquiries</h3>'+
+    (enquiries.length
+      ? enquiries.map(e=>`
+        <div class="deal-card">
+          <strong>Enquiry #${e.id} · ${safe(e.question_type || "Motorcycle enquiry")}</strong>
+          <div class="small">${fmtDate(e.created_at)} · ${safe(e.lead_status || e.status)}</div>
+          ${e.destination_country?'<div class="small">Destination: '+safe(e.destination_country)+'</div>':""}
+          ${e.message?'<div class="note-box" style="margin-top:8px;white-space:pre-wrap">'+safe(e.message)+'</div>':""}
+          <div style="margin-top:10px"><a class="btn" href="admin-enquiries.html?open=${encodeURIComponent(e.id)}">Open in Bike Sales HQ</a></div>
+        </div>`).join("")
+      : '<div class="note-box">No enquiries recorded for this customer.</div>')
+  );
+
+  const searches=Array.isArray(w.saved_searches)?w.saved_searches:[];
+  const searchHtml=searches.length ? searches.map(s=>`
+    <div class="deal-card">
+      <strong>🔎 ${safe([s.make,s.model,s.variant].filter(Boolean).join(" ") || "Saved buying requirement")}</strong>
+      <div class="small">${s.min_year||s.max_year?"Year: "+safe(s.min_year||"Any")+"–"+safe(s.max_year||"Any"):""} ${s.max_mileage?" · Max "+Number(s.max_mileage).toLocaleString("en-GB")+" miles":""}</div>
+      <div class="small">${s.destination_country?"Destination: "+safe(s.destination_country):""} ${s.buyer_type?" · "+safe(s.buyer_type):""}</div>
+      ${s.requirement_notes?'<div class="small" style="margin-top:5px">'+safe(s.requirement_notes)+'</div>':""}
+      <div class="small">Saved ${fmtDate(s.created_at)}</div>
+    </div>`).join("") : '<div class="note-box">No saved searches / buying requirements.</div>';
+
+  const watchHtml=customer.watchlistItems?.length ? customer.watchlistItems.map(item=>{
+    const bike=item.available_stock||{};
+    return `<div class="deal-card"><strong>❤️ ${safe([bike.make,bike.model,bike.variant].filter(Boolean).join(" "))}</strong><div class="small">${bike.year?"Year "+safe(bike.year):""} ${bike.mileage?" · "+Number(bike.mileage).toLocaleString("en-GB")+" miles":""}</div><div class="small">Added ${fmtDate(item.created_at)}</div></div>`;
+  }).join("") : '<div class="note-box">No Watchlist motorcycles.</div>';
+
+  const recentHtml=customer.recentViewItems?.length ? customer.recentViewItems.slice(0,20).map(item=>{
+    const bike=item.available_stock||{};
+    return `<div class="deal-card"><strong>👀 ${safe([bike.make,bike.model,bike.variant].filter(Boolean).join(" "))}</strong><div class="small">Viewed ${fmtDate(item.viewed_at)}</div></div>`;
+  }).join("") : '<div class="note-box">No recently viewed motorcycles.</div>';
+
+  setPanel("interests",
+    '<h3>Motorcycle Interests</h3>'+
+    '<h3 class="section-title">🔎 Saved Searches / Buying Requirements</h3>'+searchHtml+
+    '<h3 class="section-title">❤️ Watchlist</h3>'+watchHtml+
+    '<h3 class="section-title">👀 Recently Viewed</h3>'+recentHtml
+  );
+
+  const deals=Array.isArray(w.deals)?w.deals:[];
+  setPanel("deals",
+    '<h3>Deals</h3>'+
+    (deals.length ? deals.map(d=>{
+      const bikes=Array.isArray(d.motorcycles)?d.motorcycles:[];
+      const bikeHtml=bikes.length?bikes.map(b=>`
+        <div class="panel" style="margin-top:8px">
+          <strong>${safe([b.year,b.make,b.model,b.variant].filter(Boolean).join(" "))}</strong>
+          <div class="small">Status: ${safe(b.item_status)} · Buyer price: ${money(b.buyer_price_gbp)} · Secured: ${b.bike_secured?"Yes":"No"}</div>
+        </div>`).join(""):'<div class="small">No candidate motorcycles currently linked.</div>';
+      return `
+        <div class="deal-card">
+          <strong>${safe(d.deal_number || ("Deal #"+d.id))} · ${safe(d.title || "Sourcing Deal")}</strong>
+          <div class="small">Stage: ${safe(d.deal_stage)} · Status: ${safe(d.status)} · Updated: ${fmtDate(d.updated_at)}</div>
+          ${d.destination_country?'<div class="small">Destination: '+safe(d.destination_country)+'</div>':""}
+          <div style="margin-top:8px">${bikeHtml}</div>
+          <div style="margin-top:10px"><a class="btn" href="admin-enquiries.html">Open Bike Sales HQ</a></div>
+        </div>`;
+    }).join("") : '<div class="note-box">No Deal 360 records for this customer.</div>')
+  );
+
+  const shipping=w.shipping||{};
+  const move=Array.isArray(shipping.move_shipments)?shipping.move_shipments:[];
+  const auths=Array.isArray(shipping.shipper_authorisations)?shipping.shipper_authorisations:[];
+  let shippingHtml="";
+  if(deals.length){
+    shippingHtml += '<h3 class="section-title">Shipping Routes</h3>'+
+      deals.filter(d=>d.shipping_route_status||d.freight_forwarder_name||d.uk_handover_port).map(d=>`
+        <div class="deal-card">
+          <strong>${safe(d.deal_number || ("Deal #"+d.id))}</strong>
+          <div class="small">Route status: ${safe(d.shipping_route_status)}</div>
+          <div class="small">UK handover: ${safe(d.uk_handover_port)}</div>
+          <div class="small">Forwarder: ${safe(d.freight_forwarder_name)} ${d.freight_forwarder_reference?" · Ref "+safe(d.freight_forwarder_reference):""}</div>
+          ${d.shipping_route_notes?'<div class="small">'+safe(d.shipping_route_notes)+'</div>':""}
+        </div>`).join("");
+  }
+  if(move.length){
+    shippingHtml += '<h3 class="section-title">Move Motorcycles</h3>'+
+      move.map(s=>`<div class="deal-card"><strong>${safe(s.tracking_no || s.reference_no || ("Move shipment #"+s.id))}</strong><div class="small">Status: ${safe(s.status)} · Booked: ${fmtDate(s.booked_at)}</div><div class="small">Delivery: ${safe([s.receiver_city,s.receiver_country].filter(Boolean).join(", "))}</div></div>`).join("");
+  }
+  if(auths.length){
+    shippingHtml += '<h3 class="section-title">Buyer Shipper Authorisations</h3>'+
+      auths.map(a=>`<div class="deal-card"><strong>${safe(a.shipper_name)}</strong><div class="small">Status: ${safe(a.status)} · Handover: ${safe(a.uk_handover_point)}</div><div class="small">${safe(a.shipper_email)} ${a.forwarder_reference?" · Ref "+safe(a.forwarder_reference):""}</div></div>`).join("");
+  }
+  setPanel("shipping",'<h3>Shipping</h3>'+(shippingHtml||'<div class="note-box">No shipping or shipper records yet.</div>'));
+
+  const docs=w.documents||{};
+  const cd=Array.isArray(docs.customer_documents)?docs.customer_documents:[];
+  const md=Array.isArray(docs.motorcycle_documents)?docs.motorcycle_documents:[];
+  const sd=Array.isArray(docs.shipper_documents)?docs.shipper_documents:[];
+  const inv=Array.isArray(docs.invoices)?docs.invoices:[];
+  let docsHtml="";
+  if(inv.length) docsHtml+='<h3 class="section-title">Invoices / Proformas</h3>'+inv.map(i=>`<div class="deal-card"><strong>${safe(i.invoice_number || i.invoice_type)}</strong><div class="small">${safe(i.invoice_status)} · ${money(i.gross_amount_gbp ?? i.total_gbp)} · ${fmtDate(i.issued_at || i.created_at)}</div></div>`).join("");
+  if(cd.length) docsHtml+='<h3 class="section-title">Customer Documents</h3>'+cd.map(d=>`<div class="deal-card"><strong>${safe(d.document_title || d.original_file_name || d.document_type)}</strong><div class="small">${safe(d.document_type)} · ${safe(d.verification_status || d.document_status)} · ${fmtDate(d.created_at)}</div></div>`).join("");
+  if(md.length) docsHtml+='<h3 class="section-title">Motorcycle Documents</h3>'+md.map(d=>`<div class="deal-card"><strong>${safe(d.document_title || d.original_file_name || d.document_type)}</strong><div class="small">${d.buyer_visible?"Buyer visible":"Internal"} · ${fmtDate(d.created_at)}</div></div>`).join("");
+  if(sd.length) docsHtml+='<h3 class="section-title">Shipper Documents</h3>'+sd.map(d=>`<div class="deal-card"><strong>${safe(d.file_name)}</strong><div class="small">${safe(d.mime_type)} · ${fmtDate(d.created_at)}</div></div>`).join("");
+  setPanel("documents",'<h3>Documents</h3>'+(docsHtml||'<div class="note-box">No documents or invoices recorded yet.</div>'));
+
+  const notes=Array.isArray(w.notes)?w.notes:[];
+  setPanel("notes",`
+    <h3>Internal Notes</h3>
+    <div style="display:grid;gap:8px;margin-bottom:14px">
+      <textarea id="customerNote-${customer.id}" placeholder="Add an internal customer note..." style="min-height:90px"></textarea>
+      <div><button class="btn" type="button" onclick="saveCustomer360Note('${customer.id}')">Save Note</button></div>
+    </div>
+    <div id="customerNotesList-${customer.id}">
+      ${notes.length?notes.map(n=>`<div class="timeline-item"><strong>${fmtDate(n.created_at)} · ${safe(n.created_by_name || "Admin")}</strong><div class="small" style="white-space:pre-wrap">${safe(n.note)}</div></div>`).join(""):'<div class="note-box">No internal notes yet.</div>'}
+    </div>`
+  );
+
+  const visits=Array.isArray(w.visits)?w.visits:[];
+  const intel=contactIntel(customer);
+  setPanel("communication",`
+    <h3>Communication Intelligence</h3>
+    <div class="detail-grid">
+      <div class="panel"><span>Best Contact Window</span><strong>${intel.bestWindow}</strong></div>
+      <div class="panel"><span>Best Day</span><strong>${intel.bestDay}</strong></div>
+      <div class="panel"><span>Preferred Channel</span><strong>${intel.channel}</strong></div>
+      <div class="panel"><span>Confidence</span><strong>${intel.score}%</strong></div>
+    </div>
+    <div class="note-box">🤖 ${intel.recommendation}</div>
+    <h3 class="section-title">Recent Logged-in Browsing</h3>
+    ${visits.length?visits.slice(0,20).map(v=>`<div class="timeline-item"><strong>${fmtDate(v.entered_at)} · ${fmtSeconds(v.active_seconds)}</strong><div class="small">${safe(v.page_title || v.path)}</div><div class="small">${safe(v.path)}</div></div>`).join(""):'<div class="note-box">No logged-in page visits recorded yet.</div>'}
+    <h3 class="section-title">How this is calculated</h3>
+    <div class="note-box">Uses logged-in AnyBike browsing times from the last 90 days and customer reply times. Replies are weighted more strongly than browsing.</div>`
+  );
+
+  const timeline=Array.isArray(w.timeline)?w.timeline:[];
+  setPanel("timeline",'<h3>Customer Timeline</h3><div class="timeline">'+
+    (timeline.length?timeline.map(e=>`
+      <div class="timeline-item">
+        <strong>${fmtDate(e.event_at)} · ${safe(e.title)}</strong>
+        <div class="small">${safe(e.detail)}</div>
+        ${e.link?'<div style="margin-top:5px"><a class="btn" href="'+safe(e.link)+'">Open</a></div>':""}
+      </div>`).join(""):'<div class="note-box">No customer activity recorded yet.</div>')+
+    '</div>'
+  );
+}
+
+async function ensureCustomerWorkspace(id,force){
+  const customer=findCustomerRecord(id);
+  if(!customer)return;
+  const key=String(customer.customerId);
+
+  if(customerWorkspaceMap[key] && !force){
+    renderCustomerWorkspace(customer);
+    return;
+  }
+  if(customerWorkspaceLoading[key])return customerWorkspaceLoading[key];
+
+  customerWorkspaceLoading[key]=(async()=>{
+    const root=document.getElementById("customer-"+customer.id);
+    if(root){
+      ["messages","enquiries","interests","deals","shipping","documents","notes","timeline"].forEach(name=>{
+        const panel=root.querySelector('[data-panel="'+name+'"]');
+        if(panel && !customerWorkspaceMap[key])panel.innerHTML='<div class="note-box">Loading customer data…</div>';
+      });
+    }
+
+    const {data,error}=await sb.rpc("admin_get_customer_360_workspace_v1",{
+      p_customer_id:customer.customerId
+    });
+
+    if(error){
+      console.error("Customer 360 workspace could not be loaded",error);
+      if(root){
+        root.querySelectorAll(".tab-panel").forEach(panel=>{
+          if(panel.innerHTML.includes("Loading customer data")){
+            panel.innerHTML='<div class="note-box" style="color:#ff8b90">Could not load customer data: '+safe(error.message)+'</div>';
+          }
+        });
+      }
+      return;
+    }
+
+    customerWorkspaceMap[key]=data||{};
+    renderCustomerWorkspace(customer);
+  })();
+
+  try{
+    await customerWorkspaceLoading[key];
+  }finally{
+    delete customerWorkspaceLoading[key];
+  }
+}
+
+async function saveCustomer360Note(id){
+  const customer=findCustomerRecord(id);
+  if(!customer)return;
+  const input=document.getElementById("customerNote-"+customer.id);
+  const note=String(input?.value||"").trim();
+  if(!note){alert("Enter a note first.");return;}
+
+  const {error}=await sb.rpc("admin_save_customer_360_note_v1",{
+    p_customer_id:customer.customerId,
+    p_note:note
+  });
+
+  if(error){
+    alert("Note could not be saved: "+error.message);
+    return;
+  }
+
+  if(input)input.value="";
+  delete customerWorkspaceMap[String(customer.customerId)];
+  await ensureCustomerWorkspace(customer.id,true);
 }
 
 function contactIntel(c){
@@ -766,6 +1049,8 @@ async function loadMessagesForIntel(){
 }
 
 async function loadCustomers(){
+  customerWorkspaceMap={};
+  customerWorkspaceLoading={};
   await Promise.all([
     loadMessagesForIntel(),
     loadVisitActivityForIntel()
@@ -1180,6 +1465,8 @@ function openCustomerFromMap(customerId){
 
   if(!customer) return;
 
+  ensureCustomerWorkspace(customer.id);
+
   const search = document.getElementById("search");
 
   if(search){
@@ -1537,8 +1824,7 @@ function renderCustomers(){
               </div>
 
               <div class="tab-panel" data-panel="messages">
-                <h3>Messages</h3>
-                <div class="note-box">Message history will be shown here from enquiry_messages in the next stage.</div>
+                <div class="note-box">Open this customer to load Message Centre history.</div>
               </div>
 
 <div class="tab-panel" data-panel="enquiries">
@@ -1683,25 +1969,19 @@ function renderCustomers(){
               </div>
 
               <div class="tab-panel" data-panel="shipping">
-                <h3>Shipping</h3>
-                <div class="note-box">Future: preferred freight forwarder, destination port, container, export documents and shipment tracking.</div>
+                <div class="note-box">Open this customer to load shipping history.</div>
               </div>
 
               <div class="tab-panel" data-panel="documents">
-                <h3>Documents</h3>
-                <div class="note-box">Future: invoices, export docs, ID verification, proof of payment and shipping paperwork.</div>
+                <div class="note-box">Open this customer to load documents and invoices.</div>
               </div>
 
               <div class="tab-panel" data-panel="notes">
-                <h3>Internal Notes</h3>
-                <textarea placeholder="Future customer notes will save here..."></textarea>
+                <div class="note-box">Open this customer to load internal notes.</div>
               </div>
 
               <div class="tab-panel" data-panel="timeline">
-                <h3>Customer Timeline</h3>
-                <div class="timeline">
-                  ${c.deals.map(d=>`<div class="timeline-item"><strong>${new Date(d.created_at).toLocaleString("en-GB")}</strong><div class="small">Enquiry #${d.id} created — Status: ${safe(d.status)}</div></div>`).join("")}
-                </div>
+                <div class="note-box">Open this customer to load the complete timeline.</div>
               </div>
             </section>
 
