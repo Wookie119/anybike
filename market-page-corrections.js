@@ -32,7 +32,22 @@
 
   function fixHero(market){
     const img=document.querySelector(".hero-bike");
-    if(img)img.alt="Motorcycle sourced in the UK for a buyer in "+market.name;
+
+    if(img){
+      // Country landing-page heroes must remain country-specific and neutral.
+      // Never promote a motorcycle from buyer-interest data into the hero.
+      if(market.slug==="australia"){
+        img.src="/assets/australia-motorcycle-hero.jpg";
+      }else if(market.slug==="france"){
+        img.src="/assets/france-hero-horo.webp";
+      }else if(market.slug!=="reunion"){
+        img.src="/assets/"+market.slug+"-motorcycle-hero.webp";
+      }
+
+      img.alt="UK motorcycle sourcing for buyers in "+market.name;
+      img.dataset.marketHero="country";
+    }
+
     const strong=document.querySelector(".country-line strong");
     if(strong)strong.textContent=market.name;
   }
@@ -48,6 +63,100 @@
       if(node.nodeValue.indexOf(wrong)>=0){
         node.nodeValue=node.nodeValue.split(wrong).join(market.name);
       }
+    }
+  }
+
+  function marketMoney(gbp){
+    try{
+      if(typeof money==="function") return money(gbp);
+    }catch(error){}
+
+    const value=Number(gbp);
+    return Number.isFinite(value) && value>0
+      ? "£"+Math.round(value).toLocaleString("en-GB")
+      : "Price on request";
+  }
+
+  function marketMileage(mileage){
+    const value=Number(mileage);
+    if(!Number.isFinite(value) || value<=0)return "";
+    return Math.round(value).toLocaleString("en-GB")+" miles";
+  }
+
+  function interestSectionHtml(market,bikes){
+    return '<section class="section" id="countryBuyerInterestSection" data-country-interest="'+esc(market.slug)+'">'+
+      '<div class="wrap">'+
+        '<div class="section-head">'+
+          '<div class="eyebrow">Real buyer interest in '+esc(market.name)+'</div>'+
+          '<h2>Motorcycles recently viewed by buyers in '+esc(market.name)+'.</h2>'+
+          '<p>This section reflects recent AnyBike activity associated with '+esc(market.name)+'. It shows only the motorcycles attracting interest and never identifies individual visitors or customers.</p>'+
+        '</div>'+
+        '<div class="stock-grid">'+
+          bikes.map(function(bike){
+            const title=[bike.year,bike.make,bike.model,bike.variant].filter(Boolean).join(" ");
+            const image=bike.image_url
+              ? '<img src="'+esc(bike.image_url)+'" alt="'+esc(title)+'" loading="lazy" onerror="this.src=\'/anybike-logo-new.jpg\'">'
+              : '<img src="/anybike-logo-new.jpg" alt="'+esc(title)+'" loading="lazy">';
+
+            return '<a class="stock-card" href="/bike-details.html?id='+encodeURIComponent(bike.bike_id)+'">'+
+              image+
+              '<div class="stock-copy">'+
+                '<h3>'+esc(title)+'</h3>'+
+                (bike.mileage!=null?'<div class="stock-meta">'+esc(marketMileage(bike.mileage))+'</div>':'')+
+                '<div class="stock-price">'+esc(marketMoney(bike.price_gbp))+'</div>'+
+                '<div class="stock-meta" style="margin-top:8px;color:#ed3b3b;font-weight:900">View this motorcycle →</div>'+
+              '</div>'+
+            '</a>';
+          }).join("")+
+        '</div>'+
+      '</div>'+
+    '</section>';
+  }
+
+  async function loadCountryBuyerInterest(market){
+    // Réunion already has a dedicated localised implementation on its own page.
+    if(document.getElementById("reunionInterestGrid"))return;
+    if(document.getElementById("countryBuyerInterestSection"))return;
+
+    let client=null;
+    try{
+      if(typeof sb!=="undefined" && sb?.rpc){
+        client=sb;
+      }else if(window.supabase?.createClient){
+        client=window.supabase.createClient(
+          "https://tuehtnezhdnkqbbhttgp.supabase.co",
+          "sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK"
+        );
+      }
+    }catch(error){
+      console.warn("Country buyer-interest client unavailable",error);
+      return;
+    }
+
+    if(!client)return;
+
+    try{
+      const {data,error}=await client.rpc("get_country_motorcycle_interest_v1",{
+        p_country:market.name,
+        p_limit:8
+      });
+
+      if(error)throw error;
+
+      const bikes=Array.isArray(data)?data.filter(function(b){
+        return b && b.bike_id && b.make && b.model;
+      }):[];
+
+      // Never invent or pad demand. If there is no real country activity,
+      // no buyer-interest section is shown.
+      if(!bikes.length)return;
+
+      const hero=document.querySelector(".hero");
+      if(!hero)return;
+
+      hero.insertAdjacentHTML("afterend",interestSectionHtml(market,bikes));
+    }catch(error){
+      console.warn("Country buyer interest could not be loaded",market.name,error);
     }
   }
 
@@ -101,6 +210,7 @@
     fixHero(market);
     cleanCountryGrammar(market);
     replaceShipping(market);
+    loadCountryBuyerInterest(market);
   }
 
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",run,{once:true});
