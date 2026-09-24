@@ -634,7 +634,18 @@
       }
       moveBookingCache.delete(String(id));
       operationsCache.clear();
-      alert("Move booking created.\n\nTracking: "+(payload.tracking_no||"Not returned")+"\nReference: "+(payload.reference_no||"")+"\n\nThe motorcycle is now marked Booked with Move.");
+
+      let inboundMessage="";
+      try{
+        const inbound=await client().rpc("admin_send_anybike_collection_to_move_v1",{p_deal_motorcycle_id:Number(id)});
+        if(inbound.error)throw inbound.error;
+        inboundMessage="\n\nIncoming Collection Job: "+(inbound.data?.job_number||"created")+" ✓";
+      }catch(inboundError){
+        console.warn("Move booking succeeded but Incoming Collection Job was not created:",inboundError);
+        inboundMessage="\n\nMove booking succeeded, but the Incoming Collection Job needs to be sent from the Collection panel.";
+      }
+
+      alert("Move booking created.\n\nTracking: "+(payload.tracking_no||"Not returned")+"\nReference: "+(payload.reference_no||"")+"\n\nThe motorcycle is now marked Booked with Move."+inboundMessage);
     }catch(error){
       console.error("Move booking failed:",error);
       alert("Move booking was not created.\n\n"+(error.message||error));
