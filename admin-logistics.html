@@ -583,6 +583,10 @@ a{text-decoration:none;color:inherit}
         </div>
       </div>
       <div class="pay-site-field">
+        <label for="moveJobShipmentNumber">Shipment No.</label>
+        <input id="moveJobShipmentNumber" placeholder="e.g. 123456">
+      </div>
+      <div class="pay-site-field">
         <label for="moveJobCustomerName">Customer / buyer name</label>
         <input id="moveJobCustomerName" placeholder="Customer name">
       </div>
@@ -1013,6 +1017,7 @@ function renderMoveDriverJobs(){
     return '<div class="card" style="padding:14px">'+
       '<div style="display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr) auto;gap:12px;align-items:center">'+
         '<div><strong style="font-size:16px">'+escLogistics(row.job_number)+' · '+escLogistics(row.motorcycle)+'</strong>'+
+          (row.shipment_number?'<div style="color:#ed1c24;margin-top:4px;font-size:12px;font-weight:900">Shipment No. '+escLogistics(row.shipment_number)+'</div>':'')+
           '<div style="color:#aaa;margin-top:5px">'+escLogistics(row.client_name||"Move Motorcycles")+
           (row.registration?' · '+escLogistics(row.registration):'')+
           (row.customer_name?' · '+escLogistics(row.customer_name):'')+'</div>'+
@@ -1113,6 +1118,7 @@ function renderMoveJobDetail(data,clickSendConfigured){
       '<div><span>Customer Mobile</span><strong>'+escLogistics(customer.mobile||"—")+'</strong></div>'+
       '<div><span>Driver</span><strong>'+escLogistics(j.driver_name||"—")+'</strong></div>'+
       '<div><span>Registration</span><strong>'+escLogistics(j.registration||"—")+'</strong></div>'+
+      '<div><span>Shipment No.</span><strong>'+escLogistics(j.shipment_number||"—")+'</strong></div>'+
     '</div>'+
 
     '<div class="card"><h3>Collection Details</h3>'+
@@ -1252,7 +1258,7 @@ async function sendMoveBuyerReportSms(jobId){
 async function loadMoveDriverJobs(){
   const host=document.getElementById("moveJobsList");
   if(host) host.innerHTML='<div class="card"><p style="margin:0;color:#aaa">Loading Move jobs…</p></div>';
-  const r=await logisticsSb.rpc("admin_list_move_driver_jobs_v1");
+  const r=await logisticsSb.rpc("admin_list_move_driver_jobs_v2");
   if(r.error) throw r.error;
   moveDriverJobs=r.data||[];
   refreshMoveJobsClientFilter();
@@ -1269,13 +1275,14 @@ async function createMoveDriverJob(){
     const clientId=Number(document.getElementById("moveJobClient")?.value||0)||null;
     const client=moveClients.find(x=>Number(x.id)===clientId);
     const savedCustomerId=await saveMoveCustomerFromForm();
-    const r=await logisticsSb.rpc("admin_create_move_driver_job_v2",{
+    const r=await logisticsSb.rpc("admin_create_move_driver_job_v3",{
       p_client_id:clientId,
       p_client_name:client?.name||"Move Motorcycles",
       p_customer_id:savedCustomerId||null,
       p_customer_name:moveJobField("moveJobCustomerName")||null,
       p_customer_mobile:moveJobField("moveJobCustomerMobile")||null,
       p_customer_email:moveJobField("moveJobCustomerEmail")||null,
+      p_shipment_number:moveJobField("moveJobShipmentNumber")||null,
       p_motorcycle:moveJobField("moveJobMotorcycle"),
       p_registration:moveJobField("moveJobRegistration")||null,
       p_collection_contact_name:moveJobField("moveJobContactName")||null,
@@ -1294,7 +1301,7 @@ async function createMoveDriverJob(){
     if(r.error) throw r.error;
     status.className="pay-site-status success";
     status.textContent=(r.data?.job_number||"Move job")+" created. Generate the secure driver link from the job below.";
-    ["moveJobCustomerName","moveJobCustomerMobile","moveJobCustomerEmail","moveJobMotorcycle","moveJobRegistration","moveJobContactName","moveJobContactMobile","moveJobAddress1","moveJobCity","moveJobCounty","moveJobPostcode","moveJobDriverName","moveJobDriverMobile","moveJobInstructions"].forEach(id=>{const el=document.getElementById(id);if(el)el.value="";});
+    ["moveJobCustomerName","moveJobCustomerMobile","moveJobCustomerEmail","moveJobShipmentNumber","moveJobMotorcycle","moveJobRegistration","moveJobContactName","moveJobContactMobile","moveJobAddress1","moveJobCity","moveJobCounty","moveJobPostcode","moveJobDriverName","moveJobDriverMobile","moveJobInstructions"].forEach(id=>{const el=document.getElementById(id);if(el)el.value="";});
     const savedSelect=document.getElementById("moveJobSavedCustomer");
     if(savedSelect)savedSelect.value="";
     await loadMoveCustomers();
