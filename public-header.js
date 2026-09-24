@@ -1822,7 +1822,7 @@ document.addEventListener("visibilitychange",function(){
   }
 
   const script=document.createElement("script");
-  script.src="/live-chat.js?v=7";
+  script.src="/live-chat.js?v=8";
   script.async=true;
   script.dataset.anybikeLiveChat="1";
   document.head.appendChild(script);
