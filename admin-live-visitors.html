@@ -1070,7 +1070,9 @@ function renderVisitors(visitors){
 
   list.innerHTML = visitors.map(function(visitor){
     const visitorId = escapeHtml(visitor.visitor_id);
-    const linkedUser = visitor.user_id ? "Logged in" : "Guest";
+    const linkedUser = visitor.user_id
+      ? customer360Link(visitor,visitor.customer_name || visitor.customer_email || "Logged-in customer")
+      : "Guest";
 
     return `
       <div class="visitor-card" data-visitor-id="${visitorId}">
@@ -1083,7 +1085,7 @@ function renderVisitors(visitors){
 
         <div class="visitor-meta">
           <div>📍 <strong>${escapeHtml(locationText(visitor))}</strong></div>
-          <div>👤 <strong>${escapeHtml(linkedUser)}</strong></div>
+          <div>👤 <strong>${linkedUser}</strong></div>
           <div>💻 <strong>${escapeHtml(displayDeviceType(visitor.device_type))} · ${escapeHtml(visitor.browser || "—")}</strong></div>
           <div>👁 <strong>${Number(visitor.pageviews) || 0} pages</strong></div>
           <div>⏱ <strong>${escapeHtml(formatDuration(visitor.session_started_at || visitor.first_seen_at))}</strong></div>
@@ -1184,7 +1186,7 @@ function renderVisitorHistory(visitors){
         </div>
 
         <div class="history-cell history-user">
-          <strong>${escapeHtml(linkedUser)}</strong>
+          <strong>${linkedUser}</strong>
         </div>
 
         <div class="history-cell history-device">
@@ -1325,7 +1327,7 @@ async function loadVisitorHistory(){
   const count = document.getElementById("historyCount");
 
   try{
-    const {data,error} = await sb.rpc("get_visitors_today");
+    const {data,error} = await sb.rpc("admin_get_visitors_today_v2");
 
     if(error){
       throw error;
@@ -1390,7 +1392,7 @@ async function loadLiveVisitors(){
       summaryResult,
       chatLinksResult
     ] = await Promise.all([
-      sb.rpc("get_live_visitors"),
+      sb.rpc("admin_get_live_visitors_v2"),
       sb.rpc("get_visitor_summary"),
       sb.rpc("get_live_visitor_chat_links")
     ]);
