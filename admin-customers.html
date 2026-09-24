@@ -611,6 +611,7 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 let allCustomers = [];
 let messageMap = {};
+let visitActivityMap = {};
 
 const countryCoords = {
   "United Kingdom":[48,38],"UK":[48,38],"Ireland":[45,37],
@@ -654,45 +655,98 @@ function contactIntel(c){
   const msgs = ids.flatMap(id => messageMap[String(id)] || [])
     .filter(m => String(m.sender || "").toLowerCase().includes("customer"));
 
-  if(!msgs.length){
+  const visits = visitActivityMap[String(c.customerId)] || [];
+  const hourScores = {};
+  const dayScores = {};
+
+  function addSignal(value,weight){
+    const d = new Date(value);
+    if(!Number.isFinite(d.getTime())) return;
+
+    const h = d.getHours();
+    const day = d.toLocaleDateString("en-GB",{weekday:"long"});
+
+    hourScores[h] = (hourScores[h] || 0) + weight;
+    dayScores[day] = (dayScores[day] || 0) + weight;
+  }
+
+  // Browsing behaviour is useful early evidence. Longer active page visits
+  // carry a little more weight, but are capped so one long page does not dominate.
+  visits.forEach(v=>{
+    const active = Math.max(0,Number(v.active_seconds)||0);
+    const weight = Math.min(3,1 + (active / 120));
+    addSignal(v.entered_at,weight);
+  });
+
+  // An actual customer reply is a stronger indication of when they are
+  // genuinely available to communicate.
+  msgs.forEach(m=>addSignal(m.created_at,4));
+
+  const totalSignals = visits.length + msgs.length;
+
+  if(!totalSignals){
     return {
       bestWindow:"Not enough data",
       bestDay:"Not enough data",
       avgDelay:"Unknown",
       channel:"Email / WhatsApp",
-      recommendation:"No customer message pattern yet. Use normal business hours until more replies are recorded.",
-      score:15
+      recommendation:"No browsing or reply pattern yet. Use normal business hours until activity is recorded.",
+      score:10
     };
   }
 
-  const hourCounts = {};
-  const dayCounts = {};
+  const bestHourEntry = Object.entries(hourScores).sort((a,b)=>b[1]-a[1])[0];
+  const bestDayEntry = Object.entries(dayScores).sort((a,b)=>b[1]-a[1])[0];
 
-  msgs.forEach(m=>{
-    const d = new Date(m.created_at);
-    const h = d.getHours();
-    const day = d.toLocaleDateString("en-GB",{weekday:"long"});
-    hourCounts[h] = (hourCounts[h] || 0) + 1;
-    dayCounts[day] = (dayCounts[day] || 0) + 1;
-  });
-
-  const bestHour = Number(Object.entries(hourCounts).sort((a,b)=>b[1]-a[1])[0][0]);
-  const bestDay = Object.entries(dayCounts).sort((a,b)=>b[1]-a[1])[0][0];
+  const bestHour = Number(bestHourEntry?.[0] ?? 9);
+  const bestDay = bestDayEntry?.[0] || "Not enough data";
 
   const start = String(bestHour).padStart(2,"0") + ":00";
   const endHour = (bestHour + 2) % 24;
   const end = String(endHour).padStart(2,"0") + ":00";
 
-  const score = Math.min(100, 35 + msgs.length * 12);
+  // Confidence rises with repeated visits and especially with replies,
+  // but remains deliberately moderate when we only have browsing behaviour.
+  let score = 15 + Math.min(45,visits.length * 4) + Math.min(40,msgs.length * 12);
+  score = Math.min(100,Math.round(score));
+
+  const evidence = [];
+  if(visits.length) evidence.push(visits.length+" site page visit"+(visits.length===1?"":"s"));
+  if(msgs.length) evidence.push(msgs.length+" customer repl"+(msgs.length===1?"y":"ies"));
+
+  const basis = evidence.join(" and ");
+  const recommendation = msgs.length
+    ? `Based on ${basis}, this customer is most active around ${start}. Best contact window is ${start}–${end} UK time, especially on ${bestDay}.`
+    : `Based on ${basis}, this customer tends to browse AnyBike around ${start}. Try ${start}–${end} UK time, especially on ${bestDay}. Confidence will improve as more visits or replies are recorded.`;
 
   return {
     bestWindow:`${start}–${end} UK time`,
     bestDay,
     avgDelay:"To be calculated",
     channel:"Email / WhatsApp",
-    recommendation:`Usually replies around ${start}. Best first contact window is ${start}–${end} UK time, especially on ${bestDay}.`,
+    recommendation,
     score
   };
+}
+
+async function loadVisitActivityForIntel(){
+  const {data,error}=await sb.rpc("admin_get_customer_visit_activity_v1",{
+    p_days:90
+  });
+
+  visitActivityMap={};
+
+  if(error){
+    console.warn("Customer visit activity could not be loaded",error.message);
+    return;
+  }
+
+  (data||[]).forEach(row=>{
+    if(!row.user_id) return;
+    const key=String(row.user_id);
+    if(!visitActivityMap[key]) visitActivityMap[key]=[];
+    visitActivityMap[key].push(row);
+  });
 }
 
 async function loadMessagesForIntel(){
@@ -712,7 +766,10 @@ async function loadMessagesForIntel(){
 }
 
 async function loadCustomers(){
-  await loadMessagesForIntel();
+  await Promise.all([
+    loadMessagesForIntel(),
+    loadVisitActivityForIntel()
+  ]);
 
   const { data:profiles, error:profileError } = await sb
     .from("customer_profiles")
@@ -1475,8 +1532,8 @@ function renderCustomers(){
                   <div class="panel"><span>Confidence</span><strong>${intel.score}%</strong></div>
                 </div>
                 <div class="note-box">🤖 ${intel.recommendation}</div>
-                <h3 class="section-title">Future Improvements</h3>
-                <div class="note-box">Next: use customer local time zone, WhatsApp/email channel, reply delay, day-of-week pattern and AI follow-up suggestions.</div>
+                <h3 class="section-title">How this is calculated</h3>
+                <div class="note-box">Uses logged-in AnyBike browsing times from the last 90 days and customer reply times. Replies are weighted more strongly than browsing. The recommendation updates automatically as more activity is recorded.</div>
               </div>
 
               <div class="tab-panel" data-panel="messages">
