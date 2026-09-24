@@ -90,6 +90,7 @@ textarea{width:100%;min-height:90px;border:1px solid rgba(160,140,88,.45);border
           <div class="actions" style="margin-top:9px"><button id="syncPhotosBtn" class="btn secondary" type="button" onclick="syncQueuedPhotos()">Upload Saved Photos</button></div>
         </div>
         <div id="photoList" class="photo-list"></div>
+        <div id="missingPhotosWarning" class="notice hidden" style="margin-top:14px;border-color:#b54444;background:rgba(181,68,68,.16);color:#fff"></div>
         <div class="actions" style="margin-top:14px"><button id="savePhotosBtn" class="btn" onclick="saveConditionPhotos()">Save Condition Photos ✓</button></div>
         <p id="savePhotosStatus" class="status"></p>
       </div>
@@ -334,8 +335,8 @@ function renderPhotos(s,photos,collected){
       : allUploaded
         ? "All 9 photos uploaded. Press Save Condition Photos below."
         : queued.size
-          ? uploaded.size+" of 9 uploaded · "+queued.size+" saved on this phone waiting for signal/upload."
-          : uploaded.size+" of 9 uploaded. Still required: "+missingPhotoTitles.join(", ")+". Use Choose from Gallery if a previous upload failed.";
+          ? uploaded.size+" of 9 uploaded to AnyBike · "+queued.size+" saved on this phone but NOT uploaded yet. Do not leave until they show Uploaded ✓."
+          : uploaded.size+" of 9 uploaded to AnyBike. Missing: "+missingPhotoTitles.join(", ")+". If you already took them, use Choose from Gallery to add them again.";
   gate.className="status "+(photosSaved?"good":"warn");
   host.innerHTML=photoSlots.map(([slot,title,help])=>{
     const done=uploaded.has(slot),queuedHere=queued.has(slot);
@@ -348,6 +349,18 @@ function renderPhotos(s,photos,collected){
       '</div>'+
       '<div id="photo-status-'+slot+'" class="status">'+(queuedHere?(photoUploadStates.get(slot)==="uploading"?"Uploading…":"Saved on phone ✓ — waiting to upload"):"")+'</div></div>';
   }).join("");
+  const missingWarning=document.getElementById("missingPhotosWarning");
+  if(missingWarning){
+    if(photoAllowed&&!photosSaved&&missingPhotoTitles.length){
+      missingWarning.innerHTML='<strong>Photos still missing from AnyBike:</strong><br>'+esc(missingPhotoTitles.join(", "))+
+        '<br><br>If you already took these pictures, they did not finish uploading. <strong>Add them again using Choose from Gallery.</strong> Step 5 cannot be completed until all 9 show as Uploaded ✓.';
+      missingWarning.classList.remove("hidden");
+    }else{
+      missingWarning.classList.add("hidden");
+      missingWarning.innerHTML="";
+    }
+  }
+
   const saveBtn=document.getElementById("savePhotosBtn");
   const saveStatus=document.getElementById("savePhotosStatus");
   if(saveBtn){
@@ -360,8 +373,8 @@ function renderPhotos(s,photos,collected){
       : allUploaded
         ? "Review the 9 photos above, then save this photo stage."
         : offlinePhotoSlots.size
-          ? "Photos saved on the phone must finish uploading before this stage can be saved."
-          : "All 9 required photos must be uploaded before this can be saved.";
+          ? "Some photos are saved on the phone but have NOT reached AnyBike yet. Wait for Uploaded ✓ or use Choose from Gallery to add them again."
+          : "All 9 photos must show Uploaded ✓ before this stage can be saved.";
     saveStatus.className="status "+(photosSaved?"good":"");
   }
   updatePhotoQueueStatus();
@@ -432,7 +445,7 @@ function render(){
   if(problem)reasons.push("resolve discrepancy");
   if(!requested)reasons.push("Buyer Payment Requested");
   if(!paymentReceived)reasons.push("seller payment confirmation");
-  if(!photosComplete)reasons.push("missing photos: "+missingRequiredPhotos.map(x=>x[1]).join(", "));
+  if(!photosComplete)reasons.push("add missing photos from Gallery: "+missingRequiredPhotos.map(x=>x[1]).join(", "));
   else if(!photosSaved)reasons.push("Save Condition Photos");
   if(incomplete)reasons.push("handover checklist");
   if(!cleared)reasons.push("seller payment confirmation");
@@ -444,7 +457,11 @@ function render(){
     goBtn.textContent=finalReady?"Proceed to Step 5 – Load Motorcycle":"Step 5 – Load Motorcycle Locked";
   }
   if(goStatus){
-    goStatus.textContent=finalReady?"Everything is complete. Proceed to Step 5 and load the motorcycle.":reasons.length?"Before Step 5: "+reasons.join(", ")+".":"";
+    goStatus.textContent=finalReady
+      ?"Everything is complete. Proceed to Step 5 and load the motorcycle."
+      :reasons.length
+        ?"Step 5 is locked. "+reasons.join(", ")+". Photos only count when they show Uploaded ✓ to AnyBike."
+        :"";
     goStatus.className="status "+(finalReady?"good":"warn");
   }
 
