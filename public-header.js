@@ -1564,6 +1564,9 @@ document.addEventListener("visibilitychange",function(){
    ========================================================= */
 
 (function initialiseAnyBikeVisitorTracking(){
+  if(window.__anybikeVisitorJourneyTrackingStarted){ return; }
+  window.__anybikeVisitorJourneyTrackingStarted=true;
+
   const TRACK_VISITOR_URL =
     "https://tuehtnezhdnkqbbhttgp.supabase.co/functions/v1/track-visitor";
 
