@@ -317,6 +317,22 @@ button{font:inherit}
   grid-template-columns:repeat(4,minmax(0,1fr));
   gap:15px;
 }
+.stock-group-label{
+  grid-column:1/-1;
+  margin:8px 0 0;
+  padding-top:4px;
+}
+.stock-group-label strong{
+  display:block;
+  color:#fff;
+  font-size:20px;
+}
+.stock-group-label span{
+  display:block;
+  margin-top:4px;
+  color:#999;
+  font-size:13px;
+}
 .stock-card{
   overflow:hidden;
   border:1px solid var(--line);
@@ -608,41 +624,22 @@ footer{
   <section class="section">
     <div class="wrap">
       <div class="section-head">
-        <div class="eyebrow">Intérêt réel des acheteurs à La Réunion</div>
-        <h2>Motos récemment consultées par des acheteurs de La Réunion.</h2>
+        <div class="eyebrow">Intérêt moto à La Réunion</div>
+        <h2>Motos qui attirent l’attention des acheteurs à La Réunion.</h2>
         <p>
-          Cette sélection reflète l’intérêt récent enregistré par AnyBike à La Réunion. Elle présente uniquement les motos concernées, sans afficher l’identité des visiteurs ou clients, et évolue automatiquement selon l’activité récente.
+          Les premières motos ci-dessous reflètent une activité récente réellement enregistrée à La Réunion.
+          AnyBike complète ensuite la sélection avec des motos similaires actuellement disponibles au Royaume-Uni.
+          Aucune identité de visiteur ou de client n’est affichée.
         </p>
       </div>
 
-      <div class="stock-grid" id="reunionInterestGrid">
-        <div class="loading">Chargement des motos récemment consultées à La Réunion…</div>
+      <div class="stock-grid" id="reunionMarketSelectionGrid">
+        <div class="loading">Chargement de la sélection pour La Réunion…</div>
       </div>
 
       <div class="btn-row" style="margin-top:24px">
         <a class="btn btn-primary" href="/available-stock.html">Voir toutes les motos disponibles</a>
         <a class="btn" href="/buy-motorcycles.html">Faire rechercher une moto</a>
-      </div>
-    </div>
-  </section>
-
-  <section class="section">
-    <div class="wrap">
-      <div class="section-head">
-        <div class="eyebrow">Motos disponibles</div>
-        <h2>Motos actuellement disponibles au Royaume-Uni.</h2>
-        <p>
-          Les motos récemment ajoutées sont chargées directement depuis le stock AnyBike.
-          Ouvrez une annonce pour consulter les informations complètes et envoyer une demande.
-        </p>
-      </div>
-
-      <div class="stock-grid" id="stockGrid">
-        <div class="loading">Chargement des motos disponibles.</div>
-      </div>
-
-      <div class="btn-row" style="margin-top:24px">
-        <a class="btn btn-primary" href="/available-stock.html">Voir tout le stock</a>
       </div>
     </div>
   </section>
@@ -898,108 +895,93 @@ function money(gbp){
   });
 }
 
-async function loadReunionInterest(){
-  const grid=document.getElementById("reunionInterestGrid");
+function reunionBikeCard(bike,badgeText){
+  const id=bike.bike_id ?? bike.id;
+  const title=[bike.year,bike.make,bike.model,bike.variant].filter(Boolean).join(" ");
+  const mileage=Number(bike.mileage);
+  const mileageText=Number.isFinite(mileage) && mileage>0
+    ? "environ "+Math.round(mileage*1.60934).toLocaleString("fr-FR")+" km"
+    : "Kilométrage sur demande";
+  const image=bike.image_url || "/anybike-logo-new.jpg";
+
+  return `
+    <a class="stock-card" href="/bike-details.html?id=${encodeURIComponent(id)}">
+      <img
+        src="${escapeHtml(image)}"
+        alt="${escapeHtml(title)}"
+        loading="lazy"
+        onerror="this.src='/anybike-logo-new.jpg';"
+      >
+      <div class="stock-copy">
+        <h3>${escapeHtml(title)}</h3>
+        <div class="stock-meta">${escapeHtml(mileageText)}</div>
+        <div class="stock-price">${escapeHtml(money(bike.price_gbp))}</div>
+        <div class="stock-meta" style="margin-top:8px;color:#ed3b3b;font-weight:900">${escapeHtml(badgeText)}</div>
+      </div>
+    </a>
+  `;
+}
+
+async function loadReunionMarketSelection(){
+  const grid=document.getElementById("reunionMarketSelectionGrid");
   if(!grid)return;
 
   try{
-    const {data,error}=await sb.rpc("get_country_motorcycle_interest_v1",{
-      p_country:"Réunion",
-      p_limit:8
-    });
-    if(error)throw error;
+    const [interestResult,similarResult]=await Promise.all([
+      sb.rpc("get_country_motorcycle_interest_v1",{
+        p_country:"Réunion",
+        p_limit:8
+      }),
+      sb.rpc("get_country_similar_motorcycles_v1",{
+        p_country:"Réunion",
+        p_limit:8
+      })
+    ]);
 
-    const bikes=Array.isArray(data)?data:[];
+    if(interestResult.error)throw interestResult.error;
+    if(similarResult.error)throw similarResult.error;
 
-    if(!bikes.length){
-      grid.innerHTML='<div class="loading">Les données d’intérêt à La Réunion vont apparaître ici au fur et à mesure des recherches et consultations.</div>';
+    const interest=Array.isArray(interestResult.data)?interestResult.data:[];
+    const similar=Array.isArray(similarResult.data)?similarResult.data:[];
+
+    const parts=[];
+
+    if(interest.length){
+      parts.push(
+        '<div class="stock-group-label"><strong>Récemment consultées à La Réunion</strong>'+
+        '<span>Ces motos reflètent une activité récente réellement enregistrée dans ce marché.</span></div>'
+      );
+      parts.push(interest.map(function(bike){
+        return reunionBikeCard(bike,"Intérêt récent à La Réunion");
+      }).join(""));
+    }
+
+    if(similar.length){
+      parts.push(
+        '<div class="stock-group-label"><strong>Motos similaires actuellement disponibles</strong>'+
+        '<span>Sélectionnées à partir des marques, modèles, années, cylindrées et budgets observés ci-dessus.</span></div>'
+      );
+      parts.push(similar.map(function(bike){
+        return reunionBikeCard(bike,"Moto similaire disponible");
+      }).join(""));
+    }
+
+    if(!parts.length){
+      grid.innerHTML='<div class="loading">La sélection pour La Réunion apparaîtra ici à mesure que de nouvelles activités seront enregistrées.</div>';
       return;
     }
 
-    grid.innerHTML=bikes.map(function(bike){
-      const title=[bike.year,bike.make,bike.model,bike.variant].filter(Boolean).join(" ");
-      const image=bike.image_url
-        ? '<img src="'+escapeHtml(bike.image_url)+'" alt="'+escapeHtml(title)+'" loading="lazy" style="width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:12px 12px 0 0">'
-        : '';
-
-      return '<a class="stock-card" href="/bike-details.html?id='+encodeURIComponent(bike.bike_id)+'">'+
-        image+
-        '<div style="padding:18px">'+
-          '<h3>'+escapeHtml(title)+'</h3>'+
-          '<p style="margin:8px 0;color:#aaa">'+
-            (bike.mileage!=null ? 'environ '+Math.round(Number(bike.mileage)*1.60934).toLocaleString("fr-FR")+' km' : '')+
-          '</p>'+
-          '<strong style="font-size:24px">'+money(bike.price_gbp)+'</strong>'+
-          '<div style="margin-top:12px;color:#ed3b3b;font-weight:900">Voir cette moto →</div>'+
-        '</div>'+
-      '</a>';
-    }).join("");
+    grid.innerHTML=parts.join("");
   }catch(error){
-    console.error("Réunion buyer interest could not be loaded",error);
-    grid.innerHTML='<div class="loading">Les motos récemment consultées ne sont pas disponibles pour le moment.</div>';
+    console.error("Réunion market selection could not be loaded",error);
+    grid.innerHTML='<div class="loading">La sélection pour La Réunion n’a pas pu être chargée.</div>';
   }
 }
 
-async function loadStock(){
-  const grid = document.getElementById("stockGrid");
-
-  try{
-    const {data,error} = await sb
-      .from("public_available_stock")
-      .select("id,make,model,variant,year,mileage,price_gbp,image_url,status,created_at")
-      .not("make","is",null)
-      .not("model","is",null)
-      .order("created_at",{ascending:false})
-      .limit(8);
-
-    if(error) throw error;
-
-    if(!data || !data.length){
-      grid.innerHTML = '<div class="loading">Aucune moto n’est actuellement disponible.</div>';
-      return;
-    }
-
-    grid.innerHTML = data.slice(0,4).map(function(bike){
-      const title = [bike.year,bike.make,bike.model,bike.variant]
-        .filter(Boolean)
-        .join(" ");
-
-      const mileage = Number(bike.mileage);
-      const mileageText = Number.isFinite(mileage) && mileage > 0
-        ? "environ " + Math.round(mileage * 1.60934).toLocaleString("fr-FR") + " km"
-        : "Kilométrage sur demande";
-
-      return `
-        <a class="stock-card" href="/bike-details.html?id=${encodeURIComponent(bike.id)}">
-          <img
-            src="${escapeHtml(bike.image_url || "/anybike-logo-new.jpg")}"
-            alt="${escapeHtml(title)}"
-            loading="lazy"
-            onerror="this.src='/anybike-logo-new.jpg';"
-          >
-          <div class="stock-copy">
-            <h3>${escapeHtml(title)}</h3>
-            <div class="stock-meta">${escapeHtml(mileageText)}</div>
-            <div class="stock-price">${escapeHtml(money(bike.price_gbp))}</div>
-          </div>
-        </a>
-      `;
-    }).join("");
-
-  }catch(error){
-    console.warn("Les motos disponibles n’ont pas pu être chargées",error);
-    grid.innerHTML = '<div class="loading">Le stock disponible n’a pas pu être chargé.</div>';
-  }
-}
-
-window.addEventListener("anybikeCurrencyChanged",function(){
-  loadReunionInterest();
-  loadStock();
-});
+window.addEventListener("anybikeCurrencyChanged",loadReunionMarketSelection);
 
 document.addEventListener("DOMContentLoaded",function(){
-  loadReunionInterest();
-  loadStock();
+  loadReunionMarketSelection();
 });
 </script>
 
@@ -1022,6 +1004,6 @@ document.addEventListener("DOMContentLoaded",function(){
 })();
 </script>
 
-<script src="../public-header.js?v=12022"></script>
+<script src="../public-header.js?v=12023"></script>
 </body>
 </html>
