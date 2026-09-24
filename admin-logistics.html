@@ -1245,9 +1245,53 @@ async function generateMoveJobLink(jobId){
   box.style.display="grid";
   box.innerHTML='<input value="'+escLogistics(url)+'" readonly>'+
     '<button class="pay-site-button secondary" type="button" onclick="copyMoveJobLink(this)">Copy Link</button>'+
-    '<a class="pay-site-button secondary" href="'+escLogistics(url)+'" target="_blank" rel="noopener">Open Driver Page</a>';
+    '<a class="pay-site-button secondary" href="'+escLogistics(url)+'" target="_blank" rel="noopener">Open Driver Page</a>'+
+    '<button class="pay-site-button" type="button" onclick="sendMoveDriverLinkSms('+Number(jobId)+',this)">Send to Driver by SMS</button>'+
+    '<span id="move-driver-sms-status-'+Number(jobId)+'" style="color:#aaa;font-size:12px"></span>';
   box.dataset.url=url;
   row.active_link_expires_at=new Date(Date.now()+72*3600000).toISOString();
+
+  if(row.driver_mobile){
+    const sendNow=confirm("Driver link created. Send it now by SMS to "+(row.driver_name||"the driver")+" at "+row.driver_mobile+"?");
+    if(sendNow){
+      const btn=box.querySelector('button[onclick^="sendMoveDriverLinkSms"]');
+      await sendMoveDriverLinkSms(jobId,btn);
+    }
+  }
+}
+
+async function sendMoveDriverLinkSms(jobId,button){
+  const box=document.getElementById("move-job-link-"+Number(jobId));
+  const url=box?.dataset.url||box?.querySelector("input")?.value||"";
+  const status=document.getElementById("move-driver-sms-status-"+Number(jobId));
+  const row=moveDriverJobs.find(x=>Number(x.job_id)===Number(jobId));
+  if(!url){if(status)status.textContent="Generate the driver link first.";return;}
+  if(!row?.driver_mobile){if(status)status.textContent="No driver mobile number is saved on this job.";return;}
+
+  if(button)button.disabled=true;
+  if(status){status.style.color="#aaa";status.textContent="Sending driver link by SMS…";}
+  try{
+    const access=await moveAdminAccessToken();
+    const response=await fetch("https://tuehtnezhdnkqbbhttgp.supabase.co/functions/v1/move-admin-send-driver-link-sms",{
+      method:"POST",
+      headers:{"Content-Type":"application/json","Authorization":"Bearer "+access},
+      body:JSON.stringify({job_id:Number(jobId),driver_url:url})
+    });
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok||!result.success)throw new Error(result.error||"Driver SMS could not be sent");
+    if(status){
+      status.style.color="#7ee2a8";
+      status.textContent="Driver link sent by SMS ✓";
+    }
+    if(button)button.textContent="Send Again to Driver";
+  }catch(e){
+    if(status){
+      status.style.color="#ff9696";
+      status.textContent=e.message||String(e);
+    }
+  }finally{
+    if(button)button.disabled=false;
+  }
 }
 
 async function copyMoveJobLink(button){
