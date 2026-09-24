@@ -285,7 +285,7 @@
               ?"Motorcycle collected "+esc(niceDateTime(row.collection_actual_at))+" and secured to AnyBike."
               :(driverWorkflow
                 ?"Driver workflow controls final collection after handover, condition photos and seller payment confirmation."
-                :"Requires driver arrival, passed visual check, payment authorisation and a zero supplier balance.")}</div><div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.09)"><h6>Move Pay-on-Site Collection</h6><div class="ab-collect-status ${collected?"good":""}">${collected?"Collection is complete. No new driver link can be created for this motorcycle.":"Driver links for special Move Motorcycles pay-on-site collections are now created from Logistics HQ."}</div>${collected?"":'<div class="ab-collect-actions" style="margin-top:8px"><a class="ab-ops-button ab-move-secondary" href="admin-logistics.html#pay-on-site" style="text-decoration:none">Open Logistics HQ</a></div>'}</div>
+                :"Requires driver arrival, passed visual check, payment authorisation and a zero supplier balance.")}</div><div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.09)"><h6>Incoming Collection Job</h6><div class="ab-collect-status ${collected?"good":""}">${collected?"Collection is complete and linked back to this AnyBike purchase.":"Send this AnyBike collection into Logistics HQ. It will use the standard Move driver workflow, condition photos, handover checklist and collection report."}</div>${collected?"":'<div class="ab-collect-actions" style="margin-top:8px"><button type="button" class="ab-ops-button" onclick="sendAnyBikeCollectionToMove('+id+','+Number(dealId)+');return false;">Send to Incoming Collection Jobs</button><a class="ab-ops-button ab-move-secondary" href="admin-logistics.html#pay-on-site" style="text-decoration:none">Open Logistics HQ</a></div>'}</div>
             ${collected?`<div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.09)">
               <h6>Driver Collection Report</h6>
               <div class="ab-collect-actions">
@@ -851,6 +851,25 @@
     if(box){box.style.display="none";box.innerHTML="";}
   }
 
+  async function sendAnyBikeCollectionToMove(dealMotorcycleId,dealId){
+    const id=Number(dealMotorcycleId);
+    if(!id)return;
+    if(!window.confirm("Send this AnyBike collection to Logistics HQ?\n\nIt will create one linked Incoming Collection Job using the current Move collection details."))return;
+    try{
+      const result=await client().rpc("admin_send_anybike_collection_to_move_v1",{p_deal_motorcycle_id:id});
+      if(result.error)throw result.error;
+      const data=result.data||{};
+      operationsCache.delete(String(dealId));
+      await loadDeal(dealId,true);
+      alert(data.already_exists
+        ? "This collection is already in Logistics HQ as "+(data.job_number||"a Move job")+"."
+        : "Collection sent to Logistics HQ as "+(data.job_number||"a Move job")+".");
+    }catch(error){
+      console.error("AnyBike collection could not be sent to Logistics HQ:",error);
+      alert("Collection could not be sent to Logistics HQ.\n\n"+(error.message||error));
+    }
+  }
+
   async function createDriverCollectionLink(dealMotorcycleId){
     const id=Number(dealMotorcycleId);
     try{
@@ -902,6 +921,7 @@
   window.bookAnyBikeMoveShipment=bookMoveShipment;
   window.updateAnyBikeCollectionStep=updateCollectionStep;
   window.recordAnyBikeCollectionPayment=recordCollectionPayment;
+  window.sendAnyBikeCollectionToMove=sendAnyBikeCollectionToMove;
   window.createAnyBikeDriverCollectionLink=createDriverCollectionLink;
   window.copyAnyBikeDriverLink=copyDriverLink;
   window.viewAnyBikeCollectionReport=viewCollectionReport;
