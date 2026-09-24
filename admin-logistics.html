@@ -560,7 +560,21 @@ a{text-decoration:none;color:inherit}
       </div>
       <div class="pay-site-field">
         <label for="moveJobCollectionDate">Collection date</label>
-        <input id="moveJobCollectionDate" type="date">
+        <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(150px,.65fr);gap:8px">
+          <input id="moveJobCollectionDate" type="date">
+          <select id="moveJobCollectionDateQuick" onchange="setMoveJobCollectionDateQuick(this.value)">
+            <option value="">Quick date…</option>
+            <option value="today">Today</option>
+            <option value="tomorrow">Tomorrow</option>
+            <option value="plus2">In 2 days</option>
+            <option value="monday">Next Monday</option>
+            <option value="tuesday">Next Tuesday</option>
+            <option value="wednesday">Next Wednesday</option>
+            <option value="thursday">Next Thursday</option>
+            <option value="friday">Next Friday</option>
+            <option value="custom">Custom date…</option>
+          </select>
+        </div>
       </div>
       <div class="pay-site-field">
         <label for="moveJobCustomerName">Customer / buyer name</label>
@@ -745,6 +759,49 @@ let moveClients=[];
 let moveDriverJobs=[];
 
 function moveJobField(id){return String(document.getElementById(id)?.value||"").trim();}
+
+function moveDateInputValue(date){
+  const y=date.getFullYear();
+  const m=String(date.getMonth()+1).padStart(2,"0");
+  const d=String(date.getDate()).padStart(2,"0");
+  return y+"-"+m+"-"+d;
+}
+
+function nextWeekdayDate(targetDay){
+  const now=new Date();
+  now.setHours(12,0,0,0);
+  let add=(targetDay-now.getDay()+7)%7;
+  if(add===0) add=7;
+  now.setDate(now.getDate()+add);
+  return now;
+}
+
+function setMoveJobCollectionDateQuick(value){
+  const input=document.getElementById("moveJobCollectionDate");
+  const select=document.getElementById("moveJobCollectionDateQuick");
+  if(!input) return;
+
+  const today=new Date();
+  today.setHours(12,0,0,0);
+
+  let chosen=null;
+  if(value==="today") chosen=today;
+  else if(value==="tomorrow"){chosen=new Date(today);chosen.setDate(chosen.getDate()+1);}
+  else if(value==="plus2"){chosen=new Date(today);chosen.setDate(chosen.getDate()+2);}
+  else if(value==="monday") chosen=nextWeekdayDate(1);
+  else if(value==="tuesday") chosen=nextWeekdayDate(2);
+  else if(value==="wednesday") chosen=nextWeekdayDate(3);
+  else if(value==="thursday") chosen=nextWeekdayDate(4);
+  else if(value==="friday") chosen=nextWeekdayDate(5);
+  else if(value==="custom"){
+    if(typeof input.showPicker==="function"){ try{ input.showPicker(); }catch(_e){} }
+    if(select) select.value="";
+    return;
+  }
+
+  if(chosen) input.value=moveDateInputValue(chosen);
+  if(select) select.value="";
+}
 
 async function loadMoveClients(){
   const r=await logisticsSb.rpc("admin_list_move_clients_v1");
