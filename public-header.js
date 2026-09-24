@@ -1806,3 +1806,24 @@ document.addEventListener("visibilitychange",function(){
   });
 
 })();
+
+
+/* =========================================================
+   LOAD LIVE CHAT ON EVERY SHARED-HEADER PAGE
+   ========================================================= */
+(function ensureAnyBikeLiveChatLoaded(){
+  if(window.__anybikeLiveChatStarted){
+    return;
+  }
+
+  const existing=document.querySelector('script[src*="/live-chat.js"]');
+  if(existing){
+    return;
+  }
+
+  const script=document.createElement("script");
+  script.src="/live-chat.js?v=7";
+  script.async=true;
+  script.dataset.anybikeLiveChat="1";
+  document.head.appendChild(script);
+})();
