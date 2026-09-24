@@ -626,6 +626,11 @@ function render(){
   const missingRequiredPhotos=photoSlots.filter(x=>!uploadedRequired.has(x[0]));
   const photosComplete=missingRequiredPhotos.length===0;
   const photosSaved=!!s.photos_confirmed_at;
+  const incomplete=items.some(x=>!["collected_from_seller","not_applicable"].includes(x.status));
+  const guided=updateGuidedWorkflow({
+    arrived,passed,unresolvedDiscrepancy,incomplete,photosComplete,photosSaved,
+    requested,paymentReceived,collected,uploadedRequired
+  });
 
   document.getElementById("arrivedBtn").disabled=arrived||collected;
   document.getElementById("arrivedBtn").textContent=arrived?"Arrived ✓":"I Have Arrived";
@@ -681,13 +686,6 @@ function render(){
     const checked=x.status==="collected_from_seller",na=x.status==="not_applicable";
     return '<div class="check"><input type="checkbox" '+(checked?'checked':'')+' '+(collected?'disabled':'')+' onchange="setItem('+Number(x.id)+',this.checked?\'collected_from_seller\':\'expected\')"><div style="flex:1"><strong>'+esc(x.description||x.item_type)+'</strong><small>Status: '+esc(checked?"Collected":na?"N/A":"Expected")+'</small></div><button class="btn secondary" style="width:auto;padding:7px 10px;font-size:12px" '+(collected?'disabled':'')+' onclick="setItem('+Number(x.id)+',\''+(na?'expected':'not_applicable')+'\')">'+(na?'Undo N/A':'N/A')+'</button></div>';
   }).join("");
-  const incomplete=items.some(x=>!["collected_from_seller","not_applicable"].includes(x.status));
-
-  const guided=updateGuidedWorkflow({
-    arrived,passed,unresolvedDiscrepancy,incomplete,photosComplete,photosSaved,
-    requested,paymentReceived,collected,uploadedRequired
-  });
-
   renderPhotos(s,photos,collected);
 
   const finalReady=guided.canFinalise&&cleared&&!incomplete&&!collected;
