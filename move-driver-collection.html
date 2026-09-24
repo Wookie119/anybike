@@ -956,28 +956,58 @@ function openCamera(slot){
 
 function openGallery(slot){
   const input=document.getElementById("gallery-"+slot);
-  if(input&&!input.disabled) input.click();
+  if(input&&!input.disabled){
+    // Clear the previous selection so Android fires change even if the driver
+    // chooses the same gallery photo again after a failed upload.
+    input.value="";
+    input.click();
+  }
+}
+
+function inferredImageType(file){
+  const type=String(file?.type||"").toLowerCase();
+  if(type.startsWith("image/"))return type;
+  const name=String(file?.name||"").toLowerCase();
+  if(/\.jpe?g$/.test(name))return "image/jpeg";
+  if(/\.png$/.test(name))return "image/png";
+  if(/\.webp$/.test(name))return "image/webp";
+  if(/\.heic$/.test(name))return "image/heic";
+  if(/\.heif$/.test(name))return "image/heif";
+  return "";
+}
+
+function normaliseSelectedImage(file){
+  const type=inferredImageType(file);
+  if(!type)throw new Error("This gallery file is not recognised as a supported image. Try another photo or take a new picture.");
+  if(file.size>12*1024*1024)throw new Error("This photo is larger than 12 MB. Choose a smaller image or take a new photo.");
+  if(file.type===type)return file;
+  return new File([file],file.name||"photo.jpg",{type,lastModified:file.lastModified||Date.now()});
 }
 
 async function uploadSelectedPhoto(slot,inputPrefix="photo-"){
   const input=document.getElementById(inputPrefix+slot),status=document.getElementById("photo-status-"+slot);
-  const file=input&&input.files&&input.files[0];
-  if(!file){if(status){status.textContent="Choose or take a photo first.";status.className="status warn";}return;}
+  const selected=input&&input.files&&input.files[0];
+  if(!selected){if(status){status.textContent="Choose or take a photo first.";status.className="status warn";}return;}
 
   try{
-    if(status){status.textContent="Saving photo on this phone…";status.className="status";}
+    const file=normaliseSelectedImage(selected);
+    if(status){
+      status.textContent=inputPrefix==="gallery-"?"Preparing gallery photo…":"Preparing photo…";
+      status.className="status";
+    }
     await savePhotoOnPhone(slot,file);
     photoUploadStates.set(slot,"waiting");
     if(status){
       status.textContent=navigator.onLine?"Saved on phone ✓ — queued to upload.":"Saved on phone ✓ — waiting for signal.";
       status.className="status good";
     }
+    if(input)input.value="";
     render();
 
     // All uploads go through one queue. Taking the next photo cannot interrupt this one.
     if(navigator.onLine) setTimeout(syncQueuedPhotos,100);
   }catch(e){
-    if(status){status.textContent="Could not save this photo on the phone. Please retake it.";status.className="status warn";}
+    if(status){status.textContent=e.message||"Could not save this photo on the phone. Please choose it again.";status.className="status warn";}
   }
 }
 
