@@ -916,6 +916,18 @@ function journeyHtml(purchase,state){
   `;
 }
 
+function collectionJobCustomerLabel(status){
+  const value=String(status||"").toLowerCase();
+  if(value==="new")return "Collection being arranged";
+  if(value==="driver_link_ready")return "Driver assigned";
+  if(value==="driver_opened")return "Driver has collection details";
+  if(value==="arrived")return "Driver arrived";
+  if(value==="discrepancy")return "Collection check in progress";
+  if(value==="ready_to_load")return "Ready to collect";
+  if(value==="collected")return "Collected";
+  return value ? value.replaceAll("_"," ") : "";
+}
+
 function purchaseCard(purchase){
 
   const state=purchaseState(purchase);
@@ -1002,6 +1014,17 @@ function purchaseCard(purchase){
             <div id="shipper-auth-${Number(purchase.deal_motorcycle_id)}" class="shipper-authorisation">
               <div class="shipper-authorisation-status">
                 <strong>Checking shipper authorisation…</strong>
+              </div>
+            </div>
+          </div>
+        `:""}
+
+        ${purchase.collection_job_status && !state.collected ? `
+          <div class="collection-card">
+            <div class="collection-card-head">
+              <div>
+                <strong>UK Collection · ${safe(collectionJobCustomerLabel(purchase.collection_job_status))}</strong>
+                <span>${purchase.collection_job_date ? "Planned collection date: "+safe(new Date(purchase.collection_job_date+"T00:00:00").toLocaleDateString("en-GB")) : "AnyBike and Move Motorcycles are arranging collection from the seller."}</span>
               </div>
             </div>
           </div>
@@ -1321,12 +1344,12 @@ async function loadPurchases(){
 
   }
 
-  const {
-    data,
-    error
-  } = await sb.rpc(
-    "get_my_purchases_v4"
-  );
+  const [purchaseResult,collectionJobsResult]=await Promise.all([
+    sb.rpc("get_my_purchases_v4"),
+    sb.rpc("get_my_collection_jobs_v1")
+  ]);
+  const data=purchaseResult.data;
+  const error=purchaseResult.error;
 
   if(error){
 
@@ -1361,6 +1384,27 @@ async function loadPurchases(){
             ? [data]
             : []
         );
+
+  const collectionJobsByMotorcycle={};
+  if(!collectionJobsResult.error){
+    (collectionJobsResult.data||[]).forEach(function(job){
+      collectionJobsByMotorcycle[String(job.deal_motorcycle_id)]=job;
+    });
+    purchases.forEach(function(purchase){
+      const job=collectionJobsByMotorcycle[String(purchase.deal_motorcycle_id)];
+      if(job){
+        purchase.collection_job_id=job.move_job_id;
+        purchase.collection_job_number=job.move_job_number;
+        purchase.collection_job_status=job.status;
+        purchase.collection_job_date=job.collection_date;
+        purchase.collection_job_arrived_at=job.driver_arrived_at;
+        purchase.collection_job_photos_at=job.condition_photos_confirmed_at;
+        purchase.collection_job_collected_at=job.collected_at;
+      }
+    });
+  }else{
+    console.warn("Collection job progress could not be loaded:",collectionJobsResult.error.message);
+  }
 
   if(!purchases.length){
 
