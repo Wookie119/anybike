@@ -62,9 +62,17 @@ textarea{width:100%;min-height:90px;border:1px solid rgba(160,140,88,.45);border
         </div>
         <p class="status" id="visualStatus"></p>
         <div id="discrepancyActions" class="hidden">
-          <div class="notice" style="margin-top:10px"><strong>Discrepancy saved.</strong> Call the customer to discuss it. You may continue checking the documents and taking condition photos, but <strong>do not load the motorcycle</strong> until the discrepancy has been resolved.</div>
-          <div class="actions"><a id="callCustomerBtn" class="btn danger" href="#">Call Customer</a></div>
+          <div class="notice" style="margin-top:10px"><strong>Discrepancy saved.</strong> Call the buyer/client and explain the issue. You may continue checking the documents and taking condition photos, but <strong>do not load the motorcycle</strong> until they have been informed and you have recorded it below.</div>
+          <div class="actions"><a id="callCustomerBtn" class="btn danger" href="#">Call Buyer / Client</a></div>
           <div id="damagePhotoBox" class="photo-row"><strong>Damage / discrepancy close-up</strong><small>For important damage evidence, use the phone Camera app first if possible so a copy remains in the driver's Gallery/Photos. Then upload it here.</small><input id="photo-damage" type="file" accept="image/*" capture="environment" onchange="uploadSelectedPhoto('damage','photo-')"><input id="gallery-damage" type="file" accept="image/*" onchange="uploadSelectedPhoto('damage','gallery-')"><div class="actions" style="grid-template-columns:1fr 1fr"><button class="btn secondary" onclick="openCamera('damage')">Take Damage Photo</button><button class="btn secondary" onclick="openGallery('damage')">Choose from Gallery</button></div><div id="photo-status-damage" class="status"></div></div>
+          <div id="buyerIssueConfirmBox" style="margin-top:12px">
+            <label for="buyerIssueNotes" style="display:block;color:var(--muted);font-size:12px;font-weight:900;text-transform:uppercase;margin-bottom:6px">What was agreed / discussed</label>
+            <textarea id="buyerIssueNotes" placeholder="Optional note, e.g. buyer informed of mirror damage and approved collection to continue."></textarea>
+            <div class="actions" style="margin-top:8px">
+              <button id="buyerIssueInformedBtn" class="btn" type="button" onclick="markBuyerIssueInformed()">Buyer / Client Informed ✓ – Continue</button>
+            </div>
+            <p id="buyerIssueStatus" class="status"></p>
+          </div>
         </div>
       </div>
     </section>
@@ -515,6 +523,9 @@ function render(){
     (j.special_instructions?'<div class="notice" style="margin-top:12px">'+esc(j.special_instructions)+'</div>':"");
 
   const arrived=!!s.arrived_at,passed=s.visual_check_status==="passed",problem=s.visual_check_status==="discrepancy";
+  const discrepancyRecorded=!!s.discrepancy_recorded_at;
+  const buyerIssueInformed=!!s.buyer_issue_informed_at;
+  const unresolvedDiscrepancy=discrepancyRecorded&&!buyerIssueInformed;
   const requested=!!s.payment_requested_at,paymentReceived=!!s.seller_payment_received_at,cleared=!!s.driver_load_cleared,collected=s.collection_status==="collected";
   const uploadedRequired=new Set(photos.filter(p=>p.evidence_type==="condition_photo").map(p=>p.slot).filter(Boolean));
   const missingRequiredPhotos=photoSlots.filter(x=>!uploadedRequired.has(x[0]));
@@ -530,15 +541,34 @@ function render(){
   document.getElementById("visualStatus").textContent=problem?"Discrepancy saved — call the customer. Continue checklist/photos but do not load the motorcycle.":passed?"Visual check passed.":arrived?"Arrival recorded "+nice(s.arrived_at)+". Complete the visual check.":"Tap Arrived when you are physically at the collection address.";
   document.getElementById("visualStatus").className="status "+(problem?"warn":passed?"good":"");
   const discrepancyActions=document.getElementById("discrepancyActions");
-  if(discrepancyActions) discrepancyActions.classList.toggle("hidden",!problem);
+  if(discrepancyActions) discrepancyActions.classList.toggle("hidden",!discrepancyRecorded);
   const callCustomerBtn=document.getElementById("callCustomerBtn");
   if(callCustomerBtn){
     if(j.customer_phone){callCustomerBtn.href="tel:"+String(j.customer_phone).replace(/[^+0-9]/g,"");callCustomerBtn.classList.remove("hidden");}
     else callCustomerBtn.classList.add("hidden");
   }
+  const buyerIssueBtn=document.getElementById("buyerIssueInformedBtn");
+  const buyerIssueNotes=document.getElementById("buyerIssueNotes");
+  const buyerIssueStatus=document.getElementById("buyerIssueStatus");
+  if(buyerIssueBtn){
+    buyerIssueBtn.disabled=buyerIssueInformed||collected;
+    buyerIssueBtn.textContent=buyerIssueInformed?"Buyer / Client Informed ✓":"Buyer / Client Informed ✓ – Continue";
+  }
+  if(buyerIssueNotes){
+    buyerIssueNotes.disabled=buyerIssueInformed||collected;
+    if(buyerIssueInformed&&s.buyer_issue_informed_note&&!buyerIssueNotes.value) buyerIssueNotes.value=s.buyer_issue_informed_note;
+  }
+  if(buyerIssueStatus){
+    buyerIssueStatus.textContent=buyerIssueInformed
+      ?"Buyer/client informed "+nice(s.buyer_issue_informed_at)+(s.buyer_issue_informed_note?" — "+s.buyer_issue_informed_note:"")+"."
+      :discrepancyRecorded
+        ?"Required before payment/loading: speak to the buyer/client, then record that they have been informed."
+        :"";
+    buyerIssueStatus.className="status "+(buyerIssueInformed?"good":"warn");
+  }
 
-  document.getElementById("callPaymentBtn").classList.toggle("hidden",!passed||requested||collected);
-  document.getElementById("paymentRequestedBtn").disabled=!passed||requested||collected;
+  document.getElementById("callPaymentBtn").classList.toggle("hidden",!passed||unresolvedDiscrepancy||requested||collected);
+  document.getElementById("paymentRequestedBtn").disabled=!passed||unresolvedDiscrepancy||requested||collected;
   document.getElementById("paymentRequestedBtn").textContent=requested?"Buyer Payment Requested ✓":"Mark Buyer Payment Requested ✓";
   document.getElementById("sellerPaidBtn").disabled=!requested||paymentReceived||collected;
   document.getElementById("sellerPaidBtn").textContent=paymentReceived?"3. Seller Confirmed Payment Received ✓":"3. Seller Confirms Payment Received ✓";
@@ -547,7 +577,9 @@ function render(){
   if(requestHelp) requestHelp.textContent=requested?"Buyer payment request recorded. The seller-confirmation button is now available.":"After speaking to the client and the buyer payment has been requested/sent, tap this.";
   if(sellerHelp) sellerHelp.textContent=paymentReceived?"Seller payment receipt confirmed.":requested?"Ask the seller to check their bank. Tap only when they confirm the money is in their account.":"This unlocks after the payment-request step above.";
   const cs=document.getElementById("clearanceStatus");
-  cs.textContent=paymentReceived?"Seller has confirmed payment received — driver is cleared to proceed once the other checks are complete.":requested?"Buyer payment requested — wait with the seller until they confirm receipt.":passed?"Call the client, then mark Buyer Payment Requested.":"Waiting for visual check.";
+  cs.textContent=unresolvedDiscrepancy
+    ?"Damage/issue recorded — inform the buyer/client and record it above before requesting payment or loading."
+    :paymentReceived?"Seller has confirmed payment received — driver is cleared to proceed once the other checks are complete.":requested?"Buyer payment requested — wait with the seller until they confirm receipt.":passed?"Call the client, then mark Buyer Payment Requested.":"Waiting for visual check.";
   cs.className="status "+(cleared&&paymentReceived?"good":"warn");
 
   document.getElementById("custodyList").innerHTML=items.map(x=>{
@@ -558,10 +590,11 @@ function render(){
 
   renderPhotos(s,photos,collected);
 
-  const finalReady=arrived&&passed&&requested&&paymentReceived&&cleared&&photosComplete&&photosSaved&&!incomplete&&!collected;
+  const finalReady=arrived&&passed&&!unresolvedDiscrepancy&&requested&&paymentReceived&&cleared&&photosComplete&&photosSaved&&!incomplete&&!collected;
   document.getElementById("collectedBtn").disabled=!finalReady||collected;
   const reasons=[];
-  if(problem)reasons.push("resolve discrepancy");
+  if(unresolvedDiscrepancy)reasons.push("inform buyer/client about recorded damage or issue");
+  else if(problem)reasons.push("resolve discrepancy");
   if(!requested)reasons.push("Buyer Payment Requested");
   if(!paymentReceived)reasons.push("seller payment confirmation");
   if(!photosComplete)reasons.push("add missing photos from Gallery: "+missingRequiredPhotos.map(x=>x[1]).join(", "));
@@ -629,6 +662,41 @@ function advanceDriverTo(elementId){
   const el=document.getElementById(elementId);
   if(!el)return;
   setTimeout(()=>el.scrollIntoView({behavior:"smooth",block:"start"}),250);
+}
+
+async function markBuyerIssueInformed(){
+  const notes=(document.getElementById("buyerIssueNotes")?.value||"").trim();
+  if(!confirm("Confirm the buyer/client has been told about the recorded damage or issue and collection may continue?"))return;
+  const button=document.getElementById("buyerIssueInformedBtn");
+  const status=document.getElementById("buyerIssueStatus");
+  if(button)button.disabled=true;
+  if(status){status.textContent="Saving buyer/client confirmation…";status.className="status";}
+  const r=await sb.rpc("move_driver_collection_action_v3",{
+    p_token:token,
+    p_action:"buyer_issue_informed",
+    p_payload:{notes}
+  });
+  if(r.error){
+    if(button)button.disabled=false;
+    if(status){status.textContent=r.error.message;status.className="status warn";}
+    return;
+  }
+  current=r.data;
+  render();
+
+  const s=current?.status||{};
+  const items=current?.custody||[];
+  const photos=current?.photos||[];
+  const uploaded=new Set(photos.filter(p=>p.evidence_type==="condition_photo").map(p=>p.slot).filter(Boolean));
+  const ready=!!s.arrived_at&&s.visual_check_status==="passed"&&!!s.payment_requested_at&&!!s.seller_payment_received_at&&!!s.driver_load_cleared&&!!s.photos_confirmed_at&&photoSlots.every(x=>uploaded.has(x[0]))&&!items.some(x=>!["collected_from_seller","not_applicable"].includes(x.status));
+
+  if(ready){
+    loadStepEntered=true;
+    render();
+    advanceDriverTo("loadMotorcycleStep");
+  }else{
+    advanceDriverTo("paymentClearanceStep");
+  }
 }
 
 function goToLoadStep(){
