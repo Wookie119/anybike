@@ -829,7 +829,10 @@ async function doAction(action){
   const r=await sb.rpc("move_driver_collection_action_v3",{p_token:token,p_action:action,p_payload:payload});
   if(r.error){alert(r.error.message);return;}
   current=r.data;render();
-  if(action==="arrived") advanceDriverTo("arrivalVisualStep");
+  if(action==="arrived"){
+    advanceDriverTo("arrivalVisualStep");
+    await sendArrivedSms();
+  }
   if(action==="visual_passed") advanceDriverTo("handoverChecklistStep");
   if(action==="visual_discrepancy"){
     alert("Discrepancy saved. Call the customer to discuss it. Continue the checklist and photos, but do not load the motorcycle until it is resolved.");
@@ -851,6 +854,36 @@ async function doAction(action){
   if(action==="collected"){
     advanceDriverTo("loadMotorcycleStep");
     await sendCollectedSms();
+  }
+}
+
+async function sendArrivedSms(){
+  const status=document.getElementById("visualStatus");
+  try{
+    const response=await fetch(SUPABASE_URL+"/functions/v1/move-driver-send-arrived-sms",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({token})
+    });
+    const result=await response.json().catch(()=>({}));
+    if(result?.sent){
+      if(status){
+        status.textContent=(status.textContent?status.textContent+" ":"")+"Buyer/customer arrival text sent ✓";
+        status.className="status good";
+      }
+      return;
+    }
+    if(result?.already_sent)return;
+    if(result?.skipped)return;
+    if(status){
+      status.textContent=(status.textContent?status.textContent+" ":"")+"Arrival text could not be sent automatically.";
+      status.className="status warn";
+    }
+  }catch(_error){
+    if(status){
+      status.textContent=(status.textContent?status.textContent+" ":"")+"Arrival text could not be sent automatically.";
+      status.className="status warn";
+    }
   }
 }
 
