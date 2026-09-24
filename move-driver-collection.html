@@ -324,7 +324,8 @@ function renderPhotos(s,photos,collected){
   const photoAllowed=["passed","discrepancy"].includes(s.visual_check_status||"");
   const uploaded=new Set((photos||[]).map(p=>p.slot).filter(Boolean));
   const queued=new Set([...offlinePhotoSlots].filter(slot=>!uploaded.has(slot)));
-  const allUploaded=photoSlots.every(x=>uploaded.has(x[0]));
+  const missingPhotoTitles=photoSlots.filter(x=>!uploaded.has(x[0])).map(x=>x[1]);
+  const allUploaded=missingPhotoTitles.length===0;
   const photosSaved=!!s.photos_confirmed_at;
   gate.textContent=!photoAllowed
     ? "Complete the visual check or save a discrepancy before taking the condition photos."
@@ -334,7 +335,7 @@ function renderPhotos(s,photos,collected){
         ? "All 9 photos uploaded. Press Save Condition Photos below."
         : queued.size
           ? uploaded.size+" of 9 uploaded · "+queued.size+" saved on this phone waiting for signal/upload."
-          : uploaded.size+" of 9 required photo positions uploaded.";
+          : uploaded.size+" of 9 uploaded. Still required: "+missingPhotoTitles.join(", ")+". Use Choose from Gallery if a previous upload failed.";
   gate.className="status "+(photosSaved?"good":"warn");
   host.innerHTML=photoSlots.map(([slot,title,help])=>{
     const done=uploaded.has(slot),queuedHere=queued.has(slot);
@@ -387,7 +388,8 @@ function render(){
   const arrived=!!s.arrived_at,passed=s.visual_check_status==="passed",problem=s.visual_check_status==="discrepancy";
   const requested=!!s.payment_requested_at,paymentReceived=!!s.seller_payment_received_at,cleared=!!s.driver_load_cleared,collected=s.collection_status==="collected";
   const uploadedRequired=new Set(photos.filter(p=>p.evidence_type==="condition_photo").map(p=>p.slot).filter(Boolean));
-  const photosComplete=photoSlots.every(x=>uploadedRequired.has(x[0]));
+  const missingRequiredPhotos=photoSlots.filter(x=>!uploadedRequired.has(x[0]));
+  const photosComplete=missingRequiredPhotos.length===0;
   const photosSaved=!!s.photos_confirmed_at;
 
   document.getElementById("arrivedBtn").disabled=arrived||collected;
@@ -430,7 +432,7 @@ function render(){
   if(problem)reasons.push("resolve discrepancy");
   if(!requested)reasons.push("Buyer Payment Requested");
   if(!paymentReceived)reasons.push("seller payment confirmation");
-  if(!photosComplete)reasons.push("all 9 condition photos");
+  if(!photosComplete)reasons.push("missing photos: "+missingRequiredPhotos.map(x=>x[1]).join(", "));
   else if(!photosSaved)reasons.push("Save Condition Photos");
   if(incomplete)reasons.push("handover checklist");
   if(!cleared)reasons.push("seller payment confirmation");
