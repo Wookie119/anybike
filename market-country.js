@@ -1,0 +1,18 @@
+(function(){
+const root=document.documentElement;
+const country=root.dataset.country||"";
+const aliases=JSON.parse(root.dataset.countryAliases||"[]");
+const isUK=root.dataset.slug==="united-kingdom";
+const SUPA="https://tuehtnezhdnkqbbhttgp.supabase.co";
+const KEY="sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
+const rates={GBP:1,EUR:1.17,USD:1.27,AUD:1.93,NZD:2.10,CAD:1.73,AED:4.66};
+const esc=v=>String(v??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
+function currency(){return localStorage.getItem("anybikeCurrency")||localStorage.getItem("anybike_currency")||"GBP"}
+function money(gbp){const v=Number(gbp);if(!Number.isFinite(v)||v<=0)return"Price on request";const c=currency();const n=Math.round(v*(rates[c]||1));const locale=c==="GBP"?"en-GB":c==="USD"?"en-US":"en-GB";return n.toLocaleString(locale,{style:"currency",currency:c,maximumFractionDigits:0})}
+function mileage(v){const n=Number(v);return Number.isFinite(n)&&n>0?n.toLocaleString("en-GB")+" miles":""}
+function card(b,label){const id=b.bike_id??b.id;const title=[b.year,b.make,b.model,b.variant].filter(Boolean).join(" ");return '<a class="stock-card" href="/bike-details.html?id='+encodeURIComponent(id)+'"><img src="'+esc(b.image_url||"/anybike-logo-new.jpg")+'" alt="'+esc(title)+'" loading="lazy" onerror="this.src=\'/anybike-logo-new.jpg\'"><div class="stock-copy"><h3>'+esc(title)+'</h3><div class="stock-meta">'+esc(mileage(b.mileage))+'</div><div class="stock-price">'+esc(money(b.price_gbp))+'</div><div class="stock-meta" style="margin-top:8px;color:#ed3b3b;font-weight:900">'+esc(label)+'</div></div></a>'}
+async function queryAll(client,fn,limit){const calls=aliases.map(a=>client.rpc(fn,{p_country:a,p_limit:limit}));const results=await Promise.all(calls);const out=[];const seen=new Set();for(const r of results){if(r.error)continue;for(const row of(r.data||[])){const id=row.bike_id??row.id;if(!id||seen.has(id))continue;seen.add(id);out.push(row)}}return out}
+async function load(){const section=document.getElementById("marketSelectionSection");const grid=document.getElementById("marketSelectionGrid");if(!section||!grid||!window.supabase?.createClient)return;const client=window.supabase.createClient(SUPA,KEY);try{const interest=await queryAll(client,"get_country_motorcycle_interest_v1",8);if(!interest.length){section.hidden=true;return}const similar=await queryAll(client,"get_country_similar_motorcycles_v1",8);const interestIds=new Set(interest.map(x=>x.bike_id));const filtered=similar.filter(x=>!interestIds.has(x.bike_id)).sort((a,b)=>(b.similarity_score||0)-(a.similarity_score||0));const parts=['<div class="stock-group-label"><strong>Recently viewed in '+esc(country)+'</strong><span>These motorcycles reflect genuine recent activity associated with this market.</span></div>',interest.slice(0,8).map(x=>card(x,"Recent interest")).join("")];if(filtered.length){parts.push('<div class="stock-group-label"><strong>Similar motorcycles currently available</strong><span>Selected from live UK stock using the makes, models, years, engine sizes and budgets above.</span></div>',filtered.slice(0,8).map(x=>card(x,"Similar available motorcycle")).join(""))}grid.innerHTML=parts.join("");section.hidden=false}catch(e){console.warn("Market selection unavailable",country,e);section.hidden=true}}
+window.addEventListener("anybikeCurrencyChanged",load);
+document.addEventListener("DOMContentLoaded",load);
+})();
