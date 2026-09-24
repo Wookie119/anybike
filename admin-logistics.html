@@ -556,7 +556,13 @@ a{text-decoration:none;color:inherit}
     <div class="pay-site-grid">
       <div class="pay-site-field">
         <label for="moveJobClient">Client</label>
-        <select id="moveJobClient"><option value="">Loading clients…</option></select>
+        <select id="moveJobClient" onchange="refreshMoveSavedCustomerOptions()"><option value="">Loading clients…</option></select>
+      </div>
+      <div class="pay-site-field">
+        <label for="moveJobSavedCustomer">Saved customer / buyer</label>
+        <select id="moveJobSavedCustomer" onchange="selectMoveSavedCustomer(this.value)">
+          <option value="">New customer…</option>
+        </select>
       </div>
       <div class="pay-site-field">
         <label for="moveJobCollectionDate">Collection date</label>
@@ -587,6 +593,12 @@ a{text-decoration:none;color:inherit}
       <div class="pay-site-field">
         <label for="moveJobCustomerEmail">Customer email</label>
         <input id="moveJobCustomerEmail" type="email" placeholder="Optional">
+      </div>
+      <div class="pay-site-field" style="align-self:end">
+        <label style="display:flex;align-items:center;gap:9px;min-height:48px;text-transform:none;font-size:13px">
+          <input id="moveJobSaveCustomer" type="checkbox" checked style="width:18px;height:18px">
+          Save / update this customer for future jobs
+        </label>
       </div>
       <div class="pay-site-field">
         <label for="moveJobNotify">Completion notification</label>
@@ -799,9 +811,68 @@ a{text-decoration:none;color:inherit}
 
 <script>
 let moveClients=[];
+let moveCustomers=[];
 let moveDriverJobs=[];
 
 function moveJobField(id){return String(document.getElementById(id)?.value||"").trim();}
+
+
+function refreshMoveSavedCustomerOptions(){
+  const select=document.getElementById("moveJobSavedCustomer");
+  if(!select)return;
+  const clientId=Number(document.getElementById("moveJobClient")?.value||0)||null;
+  const current=select.value;
+  const filtered=moveCustomers.filter(x=>!clientId||Number(x.client_id)===clientId);
+  select.innerHTML='<option value="">New customer…</option>'+
+    filtered.map(x=>'<option value="'+Number(x.id)+'">'+escLogistics(x.customer_name)+(x.customer_mobile?' · '+escLogistics(x.customer_mobile):'')+'</option>').join("");
+  if(current&&filtered.some(x=>String(x.id)===String(current)))select.value=current;
+  else select.value="";
+}
+
+function selectMoveSavedCustomer(value){
+  const id=Number(value||0);
+  const customer=moveCustomers.find(x=>Number(x.id)===id);
+  if(!customer)return;
+  const map={
+    moveJobCustomerName:customer.customer_name||"",
+    moveJobCustomerMobile:customer.customer_mobile||"",
+    moveJobCustomerEmail:customer.customer_email||"",
+    moveJobNotify:customer.default_notification_preference||"none"
+  };
+  Object.entries(map).forEach(([key,val])=>{const el=document.getElementById(key);if(el)el.value=val;});
+  const save=document.getElementById("moveJobSaveCustomer");
+  if(save)save.checked=true;
+}
+
+async function loadMoveCustomers(){
+  const r=await logisticsSb.rpc("admin_list_move_customers_v1");
+  if(r.error)throw r.error;
+  moveCustomers=r.data||[];
+  refreshMoveSavedCustomerOptions();
+}
+
+async function saveMoveCustomerFromForm(){
+  const save=document.getElementById("moveJobSaveCustomer");
+  if(!save?.checked)return null;
+  const name=moveJobField("moveJobCustomerName");
+  if(!name)return null;
+  const customerId=Number(document.getElementById("moveJobSavedCustomer")?.value||0)||null;
+  const clientId=Number(document.getElementById("moveJobClient")?.value||0)||null;
+  const r=await logisticsSb.rpc("admin_save_move_customer_v1",{
+    p_customer_id:customerId,
+    p_client_id:clientId,
+    p_customer_name:name,
+    p_customer_mobile:moveJobField("moveJobCustomerMobile")||null,
+    p_customer_email:moveJobField("moveJobCustomerEmail")||null,
+    p_default_notification_preference:moveJobField("moveJobNotify")||"none"
+  });
+  if(r.error)throw r.error;
+  await loadMoveCustomers();
+  const id=Number(r.data?.customer_id||0)||null;
+  const select=document.getElementById("moveJobSavedCustomer");
+  if(select&&id)select.value=String(id);
+  return id;
+}
 
 function moveDateInputValue(date){
   const y=date.getFullYear();
@@ -1197,9 +1268,11 @@ async function createMoveDriverJob(){
   try{
     const clientId=Number(document.getElementById("moveJobClient")?.value||0)||null;
     const client=moveClients.find(x=>Number(x.id)===clientId);
-    const r=await logisticsSb.rpc("admin_create_move_driver_job_v1",{
+    const savedCustomerId=await saveMoveCustomerFromForm();
+    const r=await logisticsSb.rpc("admin_create_move_driver_job_v2",{
       p_client_id:clientId,
       p_client_name:client?.name||"Move Motorcycles",
+      p_customer_id:savedCustomerId||null,
       p_customer_name:moveJobField("moveJobCustomerName")||null,
       p_customer_mobile:moveJobField("moveJobCustomerMobile")||null,
       p_customer_email:moveJobField("moveJobCustomerEmail")||null,
@@ -1222,6 +1295,9 @@ async function createMoveDriverJob(){
     status.className="pay-site-status success";
     status.textContent=(r.data?.job_number||"Move job")+" created. Generate the secure driver link from the job below.";
     ["moveJobCustomerName","moveJobCustomerMobile","moveJobCustomerEmail","moveJobMotorcycle","moveJobRegistration","moveJobContactName","moveJobContactMobile","moveJobAddress1","moveJobCity","moveJobCounty","moveJobPostcode","moveJobDriverName","moveJobDriverMobile","moveJobInstructions"].forEach(id=>{const el=document.getElementById(id);if(el)el.value="";});
+    const savedSelect=document.getElementById("moveJobSavedCustomer");
+    if(savedSelect)savedSelect.value="";
+    await loadMoveCustomers();
     await loadMoveDriverJobs();
   }catch(error){
     status.className="pay-site-status error";
@@ -1435,6 +1511,7 @@ async function copyPaySiteLink(){
       document.getElementById("driver-jobs").style.display="block";
       document.getElementById("pay-on-site").style.display="block";
       await loadMoveClients();
+    await loadMoveCustomers();
       await loadMoveDriverJobs();
       await loadPaySiteCollections();
     }else{
