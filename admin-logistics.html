@@ -772,6 +772,21 @@ a{text-decoration:none;color:inherit}
 
 </div>
 
+<div id="moveJobDetailModal" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.82);padding:20px;overflow:auto">
+  <div style="max-width:1100px;margin:20px auto;background:#0d0d0d;border:1px solid rgba(237,28,36,.5);border-radius:20px;overflow:hidden;box-shadow:0 30px 90px rgba(0,0,0,.7)">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:18px 20px;border-bottom:1px solid var(--line)">
+      <div>
+        <div style="color:#ed1c24;font-size:11px;font-weight:950;text-transform:uppercase;letter-spacing:.12em">Move Driver Job</div>
+        <h2 id="moveJobDetailTitle" style="margin:4px 0 0">Loading…</h2>
+      </div>
+      <button class="pay-site-button secondary" type="button" onclick="closeMoveJobDetail()">Close</button>
+    </div>
+    <div id="moveJobDetailBody" style="padding:20px">
+      <p style="color:#aaa">Loading job…</p>
+    </div>
+  </div>
+</div>
+
 <div id="paySiteRestricted" class="pay-site pay-site-locked" style="display:none">
   Pay-on-site collection tools are restricted to the authorised Logistics administrator.
 </div>
@@ -935,12 +950,221 @@ function renderMoveDriverJobs(){
           '<div style="color:#888;margin-top:4px;font-size:12px">'+(row.collection_date?paySiteNiceDate(row.collection_date):"Collection date not set")+
           (row.driver_name?' · '+escLogistics(row.driver_name):'')+'</div></div>'+
         '<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">'+
+          '<button class="pay-site-button secondary" type="button" onclick="viewMoveJob('+Number(row.job_id)+')">View Job</button>'+
           (row.status!=="collected"&&row.status!=="cancelled"?'<button class="pay-site-button" type="button" onclick="generateMoveJobLink('+Number(row.job_id)+')">Generate Driver Link</button>':'')+
         '</div>'+
       '</div>'+
       '<div id="move-job-link-'+Number(row.job_id)+'" class="pay-site-result" style="margin-top:10px"></div>'+
     '</div>';
   }).join("");
+}
+
+let moveJobDetailCurrent=null;
+let moveBuyerReportUrl="";
+
+function closeMoveJobDetail(){
+  const modal=document.getElementById("moveJobDetailModal");
+  if(modal)modal.style.display="none";
+  moveJobDetailCurrent=null;
+  moveBuyerReportUrl="";
+}
+
+function moveJobDetailNice(value){
+  if(!value)return "—";
+  const d=new Date(value);
+  return Number.isNaN(d.getTime())?String(value):d.toLocaleString("en-GB");
+}
+
+async function moveAdminAccessToken(){
+  const {data,error}=await logisticsSb.auth.getSession();
+  if(error)throw error;
+  const access=data?.session?.access_token||"";
+  if(!access)throw new Error("Admin session has expired. Please sign in again.");
+  return access;
+}
+
+async function checkMoveClickSendStatus(){
+  try{
+    const access=await moveAdminAccessToken();
+    const response=await fetch("https://tuehtnezhdnkqbbhttgp.supabase.co/functions/v1/move-admin-send-collection-sms",{
+      method:"POST",
+      headers:{"Content-Type":"application/json","Authorization":"Bearer "+access},
+      body:JSON.stringify({action:"status"})
+    });
+    const result=await response.json().catch(()=>({}));
+    return !!(response.ok&&result.configured);
+  }catch(_e){
+    return false;
+  }
+}
+
+function renderMoveJobDetail(data,clickSendConfigured){
+  const body=document.getElementById("moveJobDetailBody");
+  const title=document.getElementById("moveJobDetailTitle");
+  const j=data.job||{},customer=data.customer||{},address=data.collection_address||{},internal=data.internal||{},collection=data.collection||{};
+  const custody=data.custody||[],photos=data.photos||[];
+  title.textContent=(j.job_number||"Move Job")+" · "+(j.motorcycle||"Motorcycle");
+
+  const addressText=[address.address_1,address.city,address.county,address.postcode,address.country].filter(Boolean).join(", ");
+  const smsState=internal.sms_status==="sent"
+    ? '<span style="color:#7ee2a8;font-weight:900">Sent '+escLogistics(moveJobDetailNice(internal.sms_sent_at))+'</span>'
+    : internal.sms_status==="failed"
+      ? '<span style="color:#ff9696;font-weight:900">Failed'+(internal.sms_error?' · '+escLogistics(internal.sms_error):'')+'</span>'
+      : '<span style="color:#aaa">Not sent</span>';
+
+  const issueHtml=collection.discrepancy_recorded_at
+    ? '<div class="card" style="border-color:#8c5b23"><h3>Damage / Discrepancy</h3><p style="color:#ffd891">'+escLogistics(internal.visual_check_notes||"Issue recorded")+'</p>'+
+      '<p style="color:#aaa;margin-bottom:0">Recorded: '+escLogistics(moveJobDetailNice(collection.discrepancy_recorded_at))+
+      (collection.buyer_issue_informed_at?' · Buyer informed: '+escLogistics(moveJobDetailNice(collection.buyer_issue_informed_at)):' · Buyer not yet recorded as informed')+'</p></div>'
+    : '';
+
+  const custodyHtml=custody.length?custody.map(x=>
+    '<div style="padding:10px 0;border-bottom:1px solid var(--line)"><strong>'+escLogistics(x.description||x.item_type||"Item")+'</strong>'+
+    '<div style="color:#aaa;font-size:12px;margin-top:4px">'+escLogistics(x.status==="collected_from_seller"?"Collected":x.status==="not_applicable"?"N/A":x.status||"Expected")+
+    (x.notes?' · '+escLogistics(x.notes):'')+'</div></div>'
+  ).join(""):'<p style="color:#aaa">No checklist items.</p>';
+
+  const photosHtml=photos.length?photos.map(p=>
+    '<a href="'+escLogistics(p.url)+'" target="_blank" rel="noopener" style="display:block;background:#070707;border:1px solid #333;border-radius:12px;overflow:hidden;color:#fff;text-decoration:none">'+
+      '<img src="'+escLogistics(p.url)+'" alt="'+escLogistics(p.caption||"Collection photo")+'" style="display:block;width:100%;aspect-ratio:4/3;object-fit:cover">'+
+      '<div style="padding:9px;font-size:12px;font-weight:900">'+escLogistics(p.caption||(p.evidence_type==="damage_photo"?"Damage photo":"Condition photo"))+'</div>'+
+    '</a>'
+  ).join(""):'<p style="color:#aaa">No collection photos uploaded yet.</p>';
+
+  const collected=j.status==="collected";
+  body.innerHTML=
+    '<div class="pay-site-summary" style="display:grid;margin-bottom:14px">'+
+      '<div><span>Status</span><strong>'+escLogistics(j.status||"—")+'</strong></div>'+
+      '<div><span>Client</span><strong>'+escLogistics(j.client_name||"Move Motorcycles")+'</strong></div>'+
+      '<div><span>Collection Date</span><strong>'+escLogistics(j.collection_date?paySiteNiceDate(j.collection_date):"—")+'</strong></div>'+
+      '<div><span>Collected</span><strong>'+escLogistics(moveJobDetailNice(j.collected_at))+'</strong></div>'+
+      '<div><span>Customer</span><strong>'+escLogistics(customer.name||j.customer_name||"—")+'</strong></div>'+
+      '<div><span>Customer Mobile</span><strong>'+escLogistics(customer.mobile||"—")+'</strong></div>'+
+      '<div><span>Driver</span><strong>'+escLogistics(j.driver_name||"—")+'</strong></div>'+
+      '<div><span>Registration</span><strong>'+escLogistics(j.registration||"—")+'</strong></div>'+
+    '</div>'+
+
+    '<div class="card"><h3>Collection Details</h3>'+
+      '<p><strong>Motorcycle:</strong> '+escLogistics(j.motorcycle||"—")+'</p>'+
+      '<p><strong>Collection contact:</strong> '+escLogistics(address.contact_name||"—")+(address.contact_mobile?' · '+escLogistics(address.contact_mobile):'')+'</p>'+
+      '<p><strong>Collection address:</strong> '+escLogistics(addressText||"—")+'</p>'+
+      (internal.instructions?'<p><strong>Instructions:</strong> '+escLogistics(internal.instructions)+'</p>':'')+
+    '</div>'+
+
+    '<div class="card"><h3>Completed Form / Timeline</h3>'+
+      '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">'+
+        '<div class="metric"><span>Driver Arrived</span><strong>'+escLogistics(moveJobDetailNice(internal.arrived_at))+'</strong></div>'+
+        '<div class="metric"><span>Visual Check</span><strong>'+escLogistics(collection.visual_check_status||"—")+'</strong></div>'+
+        '<div class="metric"><span>Photos Saved</span><strong>'+escLogistics(moveJobDetailNice(collection.photos_confirmed_at))+'</strong></div>'+
+        '<div class="metric"><span>Buyer Payment Requested</span><strong>'+escLogistics(moveJobDetailNice(internal.payment_requested_at))+'</strong></div>'+
+        '<div class="metric"><span>Seller Confirmed Payment</span><strong>'+escLogistics(moveJobDetailNice(internal.seller_payment_received_at))+'</strong></div>'+
+        '<div class="metric"><span>Collection Completed</span><strong>'+escLogistics(moveJobDetailNice(j.collected_at))+'</strong></div>'+
+      '</div>'+
+      (internal.handover_notes?'<div class="notice" style="margin-top:12px"><strong>Handover Notes</strong><br>'+escLogistics(internal.handover_notes)+'</div>':'')+
+    '</div>'+
+
+    issueHtml+
+
+    '<div class="card"><h3>Handover Checklist</h3>'+custodyHtml+'</div>'+
+
+    '<div class="card"><h3>Collection Photos</h3><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:12px">'+photosHtml+'</div></div>'+
+
+    '<div class="card" style="border-color:rgba(237,28,36,.5)"><h3>Buyer Collection Report</h3>'+
+      (collected
+        ? '<p style="color:#aaa">Generate a buyer-safe secure link. It excludes the supplier/collection identity and seller-payment information.</p>'+
+          '<div id="moveBuyerReportResult" class="pay-site-result" style="display:none;margin:10px 0"></div>'+
+          '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
+            '<button class="pay-site-button" type="button" onclick="generateMoveBuyerReportLink('+Number(j.id)+')">Generate Buyer Link</button>'+
+            '<button id="moveBuyerSmsBtn" class="pay-site-button secondary" type="button" onclick="sendMoveBuyerReportSms('+Number(j.id)+')" '+(clickSendConfigured?'':'disabled')+'>Send Link by SMS</button>'+
+          '</div>'+
+          '<p id="moveBuyerSmsStatus" style="color:#aaa;margin:10px 0 0">ClickSend: '+(clickSendConfigured?'<span style="color:#7ee2a8;font-weight:900">configured</span>':'<span style="color:#ff9696;font-weight:900">credentials not configured</span>')+' · Previous SMS: '+smsState+'</p>'
+        : '<p style="color:#ffd891">Buyer report becomes available after the driver marks the collection completed.</p>')+
+    '</div>';
+}
+
+async function viewMoveJob(jobId){
+  const modal=document.getElementById("moveJobDetailModal");
+  const body=document.getElementById("moveJobDetailBody");
+  const title=document.getElementById("moveJobDetailTitle");
+  modal.style.display="block";
+  title.textContent="Loading Move job…";
+  body.innerHTML='<p style="color:#aaa">Loading completed form and photographs…</p>';
+  moveBuyerReportUrl="";
+  try{
+    const access=await moveAdminAccessToken();
+    const [response,configured]=await Promise.all([
+      fetch("https://tuehtnezhdnkqbbhttgp.supabase.co/functions/v1/move-collection-report",{
+        method:"POST",
+        headers:{"Content-Type":"application/json","Authorization":"Bearer "+access},
+        body:JSON.stringify({job_id:Number(jobId)})
+      }),
+      checkMoveClickSendStatus()
+    ]);
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok||!result.success)throw new Error(result.error||"Move job could not be loaded");
+    moveJobDetailCurrent=result;
+    renderMoveJobDetail(result,configured);
+  }catch(e){
+    title.textContent="Move Driver Job";
+    body.innerHTML='<div class="pay-site-status error">'+escLogistics(e.message||String(e))+'</div>';
+  }
+}
+
+async function generateMoveBuyerReportLink(jobId){
+  const box=document.getElementById("moveBuyerReportResult");
+  if(box){box.style.display="grid";box.innerHTML='<span style="color:#aaa">Generating secure buyer report link…</span>';}
+  const r=await logisticsSb.rpc("admin_create_move_collection_report_link_v1",{p_job_id:Number(jobId),p_expires_days:90});
+  if(r.error){
+    if(box)box.innerHTML='<span style="color:#ff9696">'+escLogistics(r.error.message)+'</span>';
+    return "";
+  }
+  moveBuyerReportUrl=new URL(r.data.path,window.location.origin).href;
+  if(box){
+    box.innerHTML='<input id="moveBuyerReportUrl" value="'+escLogistics(moveBuyerReportUrl)+'" readonly>'+
+      '<button class="pay-site-button secondary" type="button" onclick="copyMoveBuyerReportLink()">Copy Buyer Link</button>'+
+      '<a class="pay-site-button secondary" href="'+escLogistics(moveBuyerReportUrl)+'" target="_blank" rel="noopener">Open Buyer Report</a>';
+  }
+  return moveBuyerReportUrl;
+}
+
+async function copyMoveBuyerReportLink(){
+  if(!moveBuyerReportUrl)return;
+  try{await navigator.clipboard.writeText(moveBuyerReportUrl);}
+  catch(_e){
+    const input=document.getElementById("moveBuyerReportUrl");
+    if(input){input.select();document.execCommand("copy");}
+  }
+  const status=document.getElementById("moveBuyerSmsStatus");
+  if(status)status.innerHTML='Buyer report link copied ✓';
+}
+
+async function sendMoveBuyerReportSms(jobId){
+  const status=document.getElementById("moveBuyerSmsStatus");
+  const button=document.getElementById("moveBuyerSmsBtn");
+  if(button)button.disabled=true;
+  try{
+    let url=moveBuyerReportUrl;
+    if(!url)url=await generateMoveBuyerReportLink(jobId);
+    if(!url)throw new Error("Buyer report link could not be generated.");
+    if(!confirm("Send the collection report link by SMS to the customer mobile saved on this job?"))return;
+    if(status){status.textContent="Sending collection report SMS…";status.style.color="#aaa";}
+    const access=await moveAdminAccessToken();
+    const response=await fetch("https://tuehtnezhdnkqbbhttgp.supabase.co/functions/v1/move-admin-send-collection-sms",{
+      method:"POST",
+      headers:{"Content-Type":"application/json","Authorization":"Bearer "+access},
+      body:JSON.stringify({job_id:Number(jobId),report_url:url})
+    });
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok||!result.success)throw new Error(result.error||"SMS could not be sent");
+    if(status){
+      status.style.color="#7ee2a8";
+      status.textContent=result.already_sent?"Collection report SMS was already sent ✓":"Collection report SMS sent ✓";
+    }
+  }catch(e){
+    if(status){status.style.color="#ff9696";status.textContent=e.message||String(e);}
+  }finally{
+    if(button)button.disabled=false;
+  }
 }
 
 async function loadMoveDriverJobs(){
