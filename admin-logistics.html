@@ -739,8 +739,133 @@ a{text-decoration:none;color:inherit}
 
 </div>
 
-<script>
-let paySiteRows=[];
+<script>\nlet moveClients=[];
+let moveDriverJobs=[];
+
+function moveJobField(id){return String(document.getElementById(id)?.value||"").trim();}
+
+async function loadMoveClients(){
+  const r=await logisticsSb.rpc("admin_list_move_clients_v1");
+  if(r.error) throw r.error;
+  moveClients=r.data||[];
+  const select=document.getElementById("moveJobClient");
+  select.innerHTML=moveClients.map(x=>'<option value="'+Number(x.id)+'">'+escLogistics(x.name)+'</option>').join("");
+}
+
+function moveJobBadge(status){
+  const label=String(status||"new").replaceAll("_"," ");
+  return '<span class="badge '+(status==="collected"?"green":"blue")+'" style="text-transform:capitalize">'+escLogistics(label)+'</span>';
+}
+
+function renderMoveDriverJobs(){
+  const host=document.getElementById("moveJobsList");
+  if(!moveDriverJobs.length){
+    host.innerHTML='<div class="card"><p style="margin:0;color:#aaa">No Move Driver Jobs have been created yet.</p></div>';
+    return;
+  }
+  host.innerHTML=moveDriverJobs.map(row=>{
+    const open=row.active_link_expires_at?'<span style="color:#7ee2a8;font-weight:900">Driver link active'+(row.link_opened_at?' · opened':'')+'</span>':'<span style="color:#aaa">No active driver link</span>';
+    return '<div class="card" style="padding:14px">'+
+      '<div style="display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr) auto;gap:12px;align-items:center">'+
+        '<div><strong style="font-size:16px">'+escLogistics(row.job_number)+' · '+escLogistics(row.motorcycle)+'</strong>'+
+          '<div style="color:#aaa;margin-top:5px">'+escLogistics(row.client_name||"Move Motorcycles")+
+          (row.registration?' · '+escLogistics(row.registration):'')+
+          (row.customer_name?' · '+escLogistics(row.customer_name):'')+'</div>'+
+          '<div style="color:#888;margin-top:4px;font-size:12px">'+escLogistics(row.collection_address||"")+'</div></div>'+
+        '<div>'+moveJobBadge(row.status)+'<div style="margin-top:6px;font-size:12px">'+open+'</div>'+
+          '<div style="color:#888;margin-top:4px;font-size:12px">'+(row.collection_date?paySiteNiceDate(row.collection_date):"Collection date not set")+
+          (row.driver_name?' · '+escLogistics(row.driver_name):'')+'</div></div>'+
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">'+
+          (row.status!=="collected"&&row.status!=="cancelled"?'<button class="pay-site-button" type="button" onclick="generateMoveJobLink('+Number(row.job_id)+')">Generate Driver Link</button>':'')+
+        '</div>'+
+      '</div>'+
+      '<div id="move-job-link-'+Number(row.job_id)+'" class="pay-site-result" style="margin-top:10px"></div>'+
+    '</div>';
+  }).join("");
+}
+
+async function loadMoveDriverJobs(){
+  const host=document.getElementById("moveJobsList");
+  if(host) host.innerHTML='<div class="card"><p style="margin:0;color:#aaa">Loading Move jobs…</p></div>';
+  const r=await logisticsSb.rpc("admin_list_move_driver_jobs_v1");
+  if(r.error) throw r.error;
+  moveDriverJobs=r.data||[];
+  renderMoveDriverJobs();
+}
+
+async function createMoveDriverJob(){
+  const status=document.getElementById("moveJobStatus");
+  const button=document.getElementById("moveJobCreate");
+  status.className="pay-site-status";
+  status.textContent="Creating Move job…";
+  button.disabled=true;
+  try{
+    const clientId=Number(document.getElementById("moveJobClient")?.value||0)||null;
+    const client=moveClients.find(x=>Number(x.id)===clientId);
+    const r=await logisticsSb.rpc("admin_create_move_driver_job_v1",{
+      p_client_id:clientId,
+      p_client_name:client?.name||"Move Motorcycles",
+      p_customer_name:moveJobField("moveJobCustomerName")||null,
+      p_customer_mobile:moveJobField("moveJobCustomerMobile")||null,
+      p_customer_email:moveJobField("moveJobCustomerEmail")||null,
+      p_motorcycle:moveJobField("moveJobMotorcycle"),
+      p_registration:moveJobField("moveJobRegistration")||null,
+      p_collection_contact_name:moveJobField("moveJobContactName")||null,
+      p_collection_contact_mobile:moveJobField("moveJobContactMobile")||null,
+      p_collection_address_1:moveJobField("moveJobAddress1"),
+      p_collection_city:moveJobField("moveJobCity")||null,
+      p_collection_county:moveJobField("moveJobCounty")||null,
+      p_collection_postcode:moveJobField("moveJobPostcode")||null,
+      p_collection_country:moveJobField("moveJobCountry")||"United Kingdom",
+      p_collection_date:moveJobField("moveJobCollectionDate")||null,
+      p_driver_name:moveJobField("moveJobDriverName")||null,
+      p_driver_mobile:moveJobField("moveJobDriverMobile")||null,
+      p_instructions:moveJobField("moveJobInstructions")||null,
+      p_notification_preference:moveJobField("moveJobNotify")||"none"
+    });
+    if(r.error) throw r.error;
+    status.className="pay-site-status success";
+    status.textContent=(r.data?.job_number||"Move job")+" created. Generate the secure driver link from the job below.";
+    ["moveJobCustomerName","moveJobCustomerMobile","moveJobCustomerEmail","moveJobMotorcycle","moveJobRegistration","moveJobContactName","moveJobContactMobile","moveJobAddress1","moveJobCity","moveJobCounty","moveJobPostcode","moveJobDriverName","moveJobDriverMobile","moveJobInstructions"].forEach(id=>{const el=document.getElementById(id);if(el)el.value="";});
+    await loadMoveDriverJobs();
+  }catch(error){
+    status.className="pay-site-status error";
+    status.textContent=error.message||String(error);
+  }finally{button.disabled=false;}
+}
+
+async function generateMoveJobLink(jobId){
+  const row=moveDriverJobs.find(x=>Number(x.job_id)===Number(jobId));
+  if(!row) return;
+  if(!confirm("Generate a secure driver link for "+row.job_number+"?\n\nAny previous active link for this Move job will be revoked.")) return;
+  const r=await logisticsSb.rpc("admin_create_move_job_driver_link_v1",{
+    p_job_id:Number(jobId),
+    p_driver_name:row.driver_name||null,
+    p_driver_mobile:row.driver_mobile||null,
+    p_expires_hours:72
+  });
+  if(r.error){alert(r.error.message||String(r.error));return;}
+  const url=new URL(r.data.path,window.location.origin).href;
+  const box=document.getElementById("move-job-link-"+Number(jobId));
+  box.style.display="grid";
+  box.innerHTML='<input value="'+escLogistics(url)+'" readonly>'+
+    '<button class="pay-site-button secondary" type="button" onclick="copyMoveJobLink(this)">Copy Link</button>'+
+    '<a class="pay-site-button secondary" href="'+escLogistics(url)+'" target="_blank" rel="noopener">Open Driver Page</a>';
+  box.dataset.url=url;
+  row.active_link_expires_at=new Date(Date.now()+72*3600000).toISOString();
+}
+
+async function copyMoveJobLink(button){
+  const box=button.closest(".pay-site-result");
+  const url=box?.dataset.url||box?.querySelector("input")?.value||"";
+  if(!url) return;
+  try{await navigator.clipboard.writeText(url);}catch(_error){
+    const input=box.querySelector("input"); input.select(); document.execCommand("copy");
+  }
+  button.textContent="Copied ✓";
+}
+
+\nlet paySiteRows=[];
 const logisticsSb=getAdminSupabaseClient();
 
 function escLogistics(value){
@@ -868,7 +993,10 @@ async function copyPaySiteLink(){
     const access=await logisticsSb.rpc("anybike_is_pay_on_site_admin_v1");
     if(access.error) throw access.error;
     if(access.data===true){
+      document.getElementById("driver-jobs").style.display="block";
       document.getElementById("pay-on-site").style.display="block";
+      await loadMoveClients();
+      await loadMoveDriverJobs();
       await loadPaySiteCollections();
     }else{
       document.getElementById("paySiteRestricted").style.display="block";
