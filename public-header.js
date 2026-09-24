@@ -1827,3 +1827,14 @@ document.addEventListener("visibilitychange",function(){
   script.dataset.anybikeLiveChat="1";
   document.head.appendChild(script);
 })();
+
+/* Market country-page correction layer */
+(function loadMarketPageCorrections(){
+  if(!/^\/markets\//i.test(window.location.pathname)) return;
+  if(document.querySelector('script[data-anybike-market-corrections]')) return;
+  const s=document.createElement("script");
+  s.src="/market-page-corrections.js?v=1";
+  s.defer=true;
+  s.dataset.anybikeMarketCorrections="1";
+  document.head.appendChild(s);
+})();
