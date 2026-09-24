@@ -376,6 +376,29 @@ body{
   color:#fff;
 }
 
+.history-journey-btn{
+  border:0;
+  background:transparent;
+  color:#fff;
+  padding:0;
+  text-align:left;
+  font:inherit;
+  cursor:pointer;
+  font-weight:950;
+}
+.history-journey-btn span{
+  display:block;
+  margin-top:3px;
+  color:#ff6b70;
+  font-size:10px;
+  font-weight:900;
+  text-decoration:underline;
+  text-underline-offset:2px;
+}
+.history-journey-btn:hover span{
+  color:#fff;
+}
+
 .history-offline{
   display:inline-flex;
   align-items:center;
@@ -1197,7 +1220,14 @@ function renderVisitorHistory(visitors){
         </div>
 
         <div class="history-cell history-pages">
-          <strong>${Number(visitor.pageviews) || 0}</strong>
+          <button
+            type="button"
+            class="history-journey-btn"
+            onclick="openVisitorJourney('${escapeHtml(visitor.session_id || "")}','${escapeHtml(visitor.visitor_id || "")}')"
+          >
+            ${Number(visitor.pageviews) || 0} pages
+            <span>View journey</span>
+          </button>
         </div>
 
         <div class="history-cell history-duration">
@@ -1288,7 +1318,7 @@ function renderVisitorJourneys(){
         }).join("")
       : '<div class="empty-state">No page-level entries were recorded for this visit.</div>';
 
-    return '<div class="journey-session" data-journey="'+index+'">'+
+    return '<div class="journey-session" data-journey="'+index+'" data-session-id="'+escapeHtml(row.session_id||"")+'" data-visitor-id="'+escapeHtml(row.visitor_id||"")+'">'+
       '<button type="button" class="journey-summary" onclick="this.parentElement.classList.toggle(\'open\')">'+
         '<div class="journey-person"><strong>'+customer360Link(row,person.title)+'</strong><span>'+escapeHtml(person.sub)+'</span>'+badge+'</div>'+
         '<div class="journey-stat"><strong>'+Number(row.page_count||0)+'</strong><span>Pages</span></div>'+
@@ -1299,6 +1329,31 @@ function renderVisitorJourneys(){
       '<div class="journey-pages">'+pageHtml+'</div>'+
     '</div>';
   }).join("");
+}
+
+function openVisitorJourney(sessionId,visitorId){
+  const journeys=document.getElementById("visitorJourneys");
+  const card=journeys?.querySelector(
+    sessionId
+      ? '[data-session-id="'+CSS.escape(String(sessionId))+'"]'
+      : '[data-visitor-id="'+CSS.escape(String(visitorId||""))+'"]'
+  );
+
+  if(card){
+    card.classList.add("open");
+    card.scrollIntoView({behavior:"smooth",block:"center"});
+    card.animate(
+      [
+        {boxShadow:"0 0 0 0 rgba(237,28,36,0)"},
+        {boxShadow:"0 0 0 3px rgba(237,28,36,.65)"},
+        {boxShadow:"0 0 0 0 rgba(237,28,36,0)"}
+      ],
+      {duration:1200}
+    );
+    return;
+  }
+
+  alert("Detailed page-by-page history is not available for this visit. Journey tracking was added recently, so older visits only have the summary.");
 }
 
 async function loadVisitorJourneys(){
