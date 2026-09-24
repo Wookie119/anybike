@@ -460,6 +460,28 @@ body{
   }
 }
 
+.top-visitors-table{display:grid;gap:8px}
+.top-visitor-row{
+  display:grid;
+  grid-template-columns:48px minmax(180px,1.4fr) 110px 110px 110px minmax(170px,1fr);
+  gap:12px;
+  align-items:center;
+  padding:12px 13px;
+  border:1px solid rgba(255,255,255,.09);
+  border-radius:12px;
+  background:#151515;
+}
+.top-visitor-rank{font-size:22px;font-weight:950;color:#ed1c24}
+.top-visitor-main strong{display:block;color:#fff}
+.top-visitor-main span,.top-visitor-meta{display:block;color:#999;font-size:11px;margin-top:3px}
+.top-visitor-stat strong{display:block;color:#fff;font-size:16px}
+.top-visitor-stat span{display:block;color:#888;font-size:10px;text-transform:uppercase;font-weight:900;margin-top:3px}
+@media(max-width:900px){
+  .top-visitor-row{grid-template-columns:40px 1fr 1fr}
+  .top-visitor-main{grid-column:2/-1}
+  .top-visitor-meta{grid-column:2/-1}
+}
+
 .journey-card{
   margin-top:18px;
 }
@@ -706,6 +728,24 @@ body{
     <section class="card journey-card">
       <div class="journey-toolbar">
         <div>
+          <h2>Top Visitors</h2>
+          <div class="subtitle">Ranked by active browsing time, then real page views and return visits.</div>
+        </div>
+        <div class="journey-controls">
+          <select id="topVisitorsDays" onchange="loadTopVisitors()">
+            <option value="1">Today</option>
+            <option value="7">Last 7 days</option>
+            <option value="30" selected>Last 30 days</option>
+            <option value="90">Last 90 days</option>
+          </select>
+        </div>
+      </div>
+      <div id="topVisitorsList"><div class="empty-state">Loading top visitors…</div></div>
+    </section>
+
+    <section class="card journey-card">
+      <div class="journey-toolbar">
+        <div>
           <h2>Visitor Journeys</h2>
           <div class="subtitle">
             Ordered page-by-page visits for guests and logged-in customers, including returning visits and active time on each page.
@@ -769,6 +809,7 @@ let liveMap = null;
 let visitorMarkers = new Map();
 let latestVisitors = [];
 let visitorJourneys = [];
+let topVisitors = [];
 
 function escapeHtml(value){
   return String(value ?? "").replace(/[&<>"']/g,function(char){
@@ -954,7 +995,7 @@ function markerPopup(visitor,isLive){
     <div class="map-popup-row"><strong>Page:</strong> ${escapeHtml(displayPath(visitor))}</div>
     <div class="map-popup-row"><strong>Location:</strong> ${escapeHtml(locationText(visitor))}</div>
     <div class="map-popup-row"><strong>Device:</strong> ${escapeHtml(displayDeviceType(visitor.device_type))} · ${escapeHtml(visitor.browser || "—")}</div>
-    <div class="map-popup-row"><strong>Pages:</strong> ${Number(visitor.pageviews) || 0}</div>
+    <div class="map-popup-row"><strong>Pages:</strong> ${Number(visitor.accurate_pageviews ?? visitor.pageviews) || 0}</div>
     <div class="map-popup-row"><strong>Time on site:</strong> ${escapeHtml(isLive ? formatDuration(visitor.session_started_at || visitor.first_seen_at) : formatVisitDuration(visitor))}</div>
   `;
 }
@@ -1110,7 +1151,7 @@ function renderVisitors(visitors){
           <div>📍 <strong>${escapeHtml(locationText(visitor))}</strong></div>
           <div>👤 <strong>${linkedUser}</strong></div>
           <div>💻 <strong>${escapeHtml(displayDeviceType(visitor.device_type))} · ${escapeHtml(visitor.browser || "—")}</strong></div>
-          <div>👁 <strong>${Number(visitor.pageviews) || 0} pages</strong></div>
+          <div>👁 <strong>${Number(visitor.accurate_pageviews ?? visitor.pageviews) || 0} pages</strong></div>
           <div>⏱ <strong>${escapeHtml(formatDuration(visitor.session_started_at || visitor.first_seen_at))}</strong></div>
           <div>🟢 <strong>${escapeHtml(formatLastSeen(visitor.last_seen_at))}</strong></div>
         </div>
@@ -1225,13 +1266,13 @@ function renderVisitorHistory(visitors){
             class="history-journey-btn"
             onclick="openVisitorJourney('${escapeHtml(visitor.session_id || "")}','${escapeHtml(visitor.visitor_id || "")}')"
           >
-            ${Number(visitor.pageviews) || 0} pages
+            ${Number(visitor.accurate_pageviews ?? visitor.pageviews) || 0} pages
             <span>View journey</span>
           </button>
         </div>
 
         <div class="history-cell history-duration">
-          <strong>${escapeHtml(formatVisitDuration(visitor))}</strong>
+          <strong>${escapeHtml(visitor.active_seconds!==undefined ? formatSeconds(visitor.active_seconds) : formatVisitDuration(visitor))}</strong>
         </div>
 
         <div class="history-cell history-page">
@@ -1276,6 +1317,45 @@ function customer360Link(row,label){
   return '<a href="admin-customers.html?customer='+encodeURIComponent(row.user_id)+'" '+
     'style="color:#fff;text-decoration:underline;text-decoration-color:#ed1c24;text-underline-offset:3px" '+
     'onclick="event.stopPropagation()">'+escapeHtml(label||"Logged-in customer")+'</a>';
+}
+
+function renderTopVisitors(){
+  const box=document.getElementById("topVisitorsList");
+  if(!box)return;
+  if(!topVisitors.length){
+    box.innerHTML='<div class="empty-state">No detailed journey data yet for this period.</div>';
+    return;
+  }
+
+  box.innerHTML='<div class="top-visitors-table">'+topVisitors.map((row,index)=>{
+    const name=row.customer_name || row.customer_email || "Guest visitor";
+    const person=row.user_id
+      ? customer360Link(row,name)
+      : escapeHtml(name);
+    const loc=[row.city,row.country].filter(Boolean).join(", ") || "Location unavailable";
+    return '<div class="top-visitor-row">'+
+      '<div class="top-visitor-rank">#'+(index+1)+'</div>'+
+      '<div class="top-visitor-main"><strong>'+person+'</strong><span>'+escapeHtml(row.customer_email || String(row.visitor_id||"").slice(0,8)+"…")+'</span></div>'+
+      '<div class="top-visitor-stat"><strong>'+Number(row.total_pages||0)+'</strong><span>Pages</span></div>'+
+      '<div class="top-visitor-stat"><strong>'+Number(row.total_sessions||0)+'</strong><span>Visits</span></div>'+
+      '<div class="top-visitor-stat"><strong>'+escapeHtml(formatSeconds(row.total_active_seconds))+'</strong><span>Active time</span></div>'+
+      '<div class="top-visitor-meta"><strong>'+escapeHtml(loc)+'</strong><span>'+escapeHtml(displayDeviceType(row.device_types)+" · "+(row.browsers||"—"))+'</span><span>Last: '+escapeHtml(row.last_path||"—")+'</span></div>'+
+    '</div>';
+  }).join("")+'</div>';
+}
+
+async function loadTopVisitors(){
+  const box=document.getElementById("topVisitorsList");
+  const days=Number(document.getElementById("topVisitorsDays")?.value||30);
+  try{
+    const {data,error}=await sb.rpc("admin_get_top_visitors_v1",{p_days:days,p_limit:20});
+    if(error)throw error;
+    topVisitors=data||[];
+    renderTopVisitors();
+  }catch(error){
+    console.error("Top visitors could not be loaded",error);
+    box.innerHTML='<div class="error-state">Top visitors could not be loaded.<br><br>'+escapeHtml(error?.message||String(error))+'</div>';
+  }
 }
 
 function renderVisitorJourneys(){
@@ -1384,7 +1464,7 @@ async function loadVisitorHistory(){
   const count = document.getElementById("historyCount");
 
   try{
-    const {data,error} = await sb.rpc("admin_get_visitors_today_v2");
+    const {data,error} = await sb.rpc("admin_get_visitors_today_v3");
 
     if(error){
       throw error;
@@ -1528,7 +1608,8 @@ async function startLiveVisitors(){
   initMap();
   await Promise.all([
     loadLiveVisitors(),
-    loadVisitorJourneys()
+    loadVisitorJourneys(),
+    loadTopVisitors()
   ]);
 
   setInterval(loadLiveVisitors,10000);
