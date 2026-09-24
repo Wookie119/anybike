@@ -131,6 +131,8 @@ let loadStepEntered=false;
 let photoQueueScope="";
 let offlinePhotoSlots=new Set();
 let syncingQueuedPhotos=false;
+let photoUploadStates=new Map();
+let photoRetryTimer=null;
 
 function esc(v){return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));}
 function nice(v){if(!v)return "Not recorded";const d=new Date(v);return isNaN(d)?"":d.toLocaleString("en-GB");}
@@ -242,33 +244,62 @@ async function initOfflinePhotoQueue(){
 }
 
 async function uploadPhotoRecord(record,statusEl){
-  const form=new FormData();
-  form.append("token",token);
-  form.append("slot",record.slot);
-  form.append("file",record.file,record.file_name||("photo-"+record.slot+".jpg"));
-  const response=await fetch(SUPABASE_URL+"/functions/v1/move-driver-upload-photo",{method:"POST",body:form});
-  const result=await response.json().catch(()=>({}));
-  if(!response.ok||!result.success) throw new Error(result.error||"Photo upload failed");
-  await removePhotoFromPhone(record.slot);
-  if(statusEl){statusEl.textContent="Uploaded ✓";statusEl.className="status good";}
-  return result;
+  const controller=new AbortController();
+  const timeout=setTimeout(()=>controller.abort(),45000);
+  photoUploadStates.set(record.slot,"uploading");
+  if(statusEl){statusEl.textContent="Uploading…";statusEl.className="status";}
+  try{
+    const form=new FormData();
+    form.append("token",token);
+    form.append("slot",record.slot);
+    form.append("file",record.file,record.file_name||("photo-"+record.slot+".jpg"));
+    const response=await fetch(SUPABASE_URL+"/functions/v1/move-driver-upload-photo",{
+      method:"POST",
+      body:form,
+      signal:controller.signal
+    });
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok||!result.success) throw new Error(result.error||"Photo upload failed");
+    await removePhotoFromPhone(record.slot);
+    photoUploadStates.set(record.slot,"uploaded");
+    if(statusEl){statusEl.textContent="Uploaded ✓";statusEl.className="status good";}
+    return result;
+  }catch(e){
+    photoUploadStates.set(record.slot,"waiting");
+    const msg=e?.name==="AbortError"?"Upload timed out — saved on phone, will retry.":(e.message||String(e));
+    if(statusEl){statusEl.textContent=msg;statusEl.className="status warn";}
+    throw e;
+  }finally{
+    clearTimeout(timeout);
+  }
 }
 
 async function syncQueuedPhotos(){
   if(syncingQueuedPhotos||!navigator.onLine)return;
   syncingQueuedPhotos=true;
   updatePhotoQueueStatus();
+  let uploadedAny=false;
+  let failed=0;
   try{
-    const queued=await getQueuedPhotoRecords();
+    const queued=(await getQueuedPhotoRecords()).sort((a,b)=>String(a.saved_at||"").localeCompare(String(b.saved_at||"")));
     for(const record of queued){
+      if(!navigator.onLine) break;
       const status=document.getElementById("photo-status-"+record.slot);
-      if(status){status.textContent="Uploading saved photo…";status.className="status";}
-      await uploadPhotoRecord(record,status);
+      try{
+        await uploadPhotoRecord(record,status);
+        uploadedAny=true;
+      }catch(_e){
+        failed++;
+        // Keep going: one poor upload must not block later photos in the outbox.
+      }
     }
-    await loadJob();
-  }catch(e){
-    const status=document.getElementById("offlinePhotoStatus");
-    if(status){status.textContent="Upload paused: "+(e.message||String(e))+". The photos are still safe on this phone.";status.className="status warn";}
+    if(uploadedAny) await loadJob();
+    const remaining=(await getQueuedPhotoRecords()).length;
+    const box=document.getElementById("offlinePhotoStatus");
+    if(box&&remaining){
+      box.textContent=remaining+" photo"+(remaining===1?"":"s")+" still saved safely on this phone. "+(failed?"A failed upload will retry automatically.":"Waiting to upload.");
+      box.className="status warn";
+    }
   }finally{
     syncingQueuedPhotos=false;
     updatePhotoQueueStatus();
@@ -309,7 +340,7 @@ function renderPhotos(s,photos,collected){
     return '<div class="photo-row"><strong>'+esc(title)+(done?' <span class="photo-done">✓ Uploaded</span>':queuedHere?' <span class="photo-queued">✓ Saved on phone</span>':'')+'</strong><small>'+esc(help)+'</small>'+
       '<input id="photo-'+slot+'" type="file" accept="image/*" capture="environment" '+((!photoAllowed||collected)?"disabled":"")+' onchange="uploadSelectedPhoto(\''+slot+'\')">'+
       '<button class="btn secondary" '+((!photoAllowed||collected)?"disabled":"")+' onclick="openCamera(\''+slot+'\')">'+(done||queuedHere?"Retake Photo":"Take Photo")+'</button>'+
-      '<div id="photo-status-'+slot+'" class="status">'+(queuedHere?"Saved on phone ✓ — waiting to upload":"")+'</div></div>';
+      '<div id="photo-status-'+slot+'" class="status">'+(queuedHere?(photoUploadStates.get(slot)==="uploading"?"Uploading…":"Saved on phone ✓ — waiting to upload"):"")+'</div></div>';
   }).join("");
   const saveBtn=document.getElementById("savePhotosBtn");
   const saveStatus=document.getElementById("savePhotosStatus");
@@ -525,20 +556,17 @@ async function uploadSelectedPhoto(slot){
   try{
     if(status){status.textContent="Saving photo on this phone…";status.className="status";}
     await savePhotoOnPhone(slot,file);
-    if(status){status.textContent=navigator.onLine?"Saved on phone. Uploading…":"Saved on phone ✓ — waiting for signal.";status.className=navigator.onLine?"status":"status good";}
-
-    if(!navigator.onLine){
-      render();
-      return;
+    photoUploadStates.set(slot,"waiting");
+    if(status){
+      status.textContent=navigator.onLine?"Saved on phone ✓ — queued to upload.":"Saved on phone ✓ — waiting for signal.";
+      status.className="status good";
     }
+    render();
 
-    const queued=(await getQueuedPhotoRecords()).find(x=>x.slot===slot);
-    if(queued) await uploadPhotoRecord(queued,status);
-    await loadJob();
+    // All uploads go through one queue. Taking the next photo cannot interrupt this one.
+    if(navigator.onLine) setTimeout(syncQueuedPhotos,100);
   }catch(e){
-    offlinePhotoSlots.add(slot);
-    updatePhotoQueueStatus();
-    if(status){status.textContent="Saved on phone ✓ — upload will retry when signal returns.";status.className="status warn";}
+    if(status){status.textContent="Could not save this photo on the phone. Please retake it.";status.className="status warn";}
   }
 }
 
@@ -548,7 +576,16 @@ async function startDriverCollection(){
   await loadJob();
   window.addEventListener("online",()=>{updatePhotoQueueStatus();setTimeout(syncQueuedPhotos,800);});
   window.addEventListener("offline",updatePhotoQueueStatus);
+  document.addEventListener("visibilitychange",()=>{
+    if(document.visibilityState==="visible"&&navigator.onLine){
+      loadJob();
+      if(offlinePhotoSlots.size)setTimeout(syncQueuedPhotos,500);
+    }
+  });
   setInterval(()=>{if(document.visibilityState==="visible"&&navigator.onLine)loadJob();},20000);
+  photoRetryTimer=setInterval(()=>{
+    if(document.visibilityState==="visible"&&navigator.onLine&&offlinePhotoSlots.size)syncQueuedPhotos();
+  },15000);
   if(navigator.onLine&&offlinePhotoSlots.size)setTimeout(syncQueuedPhotos,1200);
   if("serviceWorker" in navigator){
     navigator.serviceWorker.register("/move-driver-sw.js").catch(()=>{});
