@@ -430,6 +430,11 @@ async function setupPublicHeader(){
   const languageSelect = document.getElementById("phLanguage");
   const currencySelect = document.getElementById("phCurrency");
 
+  // Render clocks immediately after the shared header is inserted so auth/profile calls cannot leave placeholders visible.
+  updateHeaderTimes();
+  if(anybikeHeaderClockTimer){ clearInterval(anybikeHeaderClockTimer); }
+  anybikeHeaderClockTimer = setInterval(updateHeaderTimes,30000);
+
   function openMobileMenu(event){
     event?.preventDefault();
     event?.stopPropagation();
@@ -628,13 +633,6 @@ async function setupPublicHeader(){
   setActivePublicNav();
   applyHeaderLanguage(savedLanguage);
   applyHeaderCurrency(savedCurrency);
-  updateHeaderTimes();
-
-  if(anybikeHeaderClockTimer){
-    clearInterval(anybikeHeaderClockTimer);
-  }
-
-  anybikeHeaderClockTimer = setInterval(updateHeaderTimes,30000);
 
   window.dispatchEvent(new CustomEvent("anybikePublicHeaderReady",{
     detail:{
