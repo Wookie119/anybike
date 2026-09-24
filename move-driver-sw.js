@@ -1,4 +1,4 @@
-const CACHE_NAME="move-driver-shell-v1";
+const CACHE_NAME="move-driver-shell-v2";
 const CORE=["/move-driver-collection.html"];
 
 self.addEventListener("install",event=>{
