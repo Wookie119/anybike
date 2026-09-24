@@ -437,6 +437,77 @@ body{
   }
 }
 
+.journey-card{
+  margin-top:18px;
+}
+.journey-toolbar{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:14px;
+  margin-bottom:12px;
+}
+.journey-toolbar h2{margin:0 0 5px;font-size:21px}
+.journey-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.journey-controls select{
+  background:#111;color:#fff;border:1px solid var(--line);border-radius:9px;padding:8px 10px;font-weight:800
+}
+.journey-session{
+  border:1px solid rgba(255,255,255,.10);
+  background:#141414;
+  border-radius:13px;
+  margin-bottom:10px;
+  overflow:hidden;
+}
+.journey-summary{
+  width:100%;
+  display:grid;
+  grid-template-columns:minmax(190px,1.3fr) 110px 110px 110px minmax(170px,1fr);
+  gap:12px;
+  align-items:center;
+  padding:13px;
+  background:transparent;
+  color:#fff;
+  border:0;
+  text-align:left;
+  cursor:pointer;
+}
+.journey-summary:hover{background:#191919}
+.journey-person strong{display:block;font-size:13px}
+.journey-person span,.journey-meta span{display:block;color:#999;font-size:11px;margin-top:3px}
+.journey-stat strong{display:block;color:#fff;font-size:16px}
+.journey-stat span{display:block;color:#888;font-size:10px;text-transform:uppercase;font-weight:900;margin-top:3px}
+.journey-badge{
+  display:inline-flex;align-items:center;border-radius:999px;padding:5px 8px;font-size:10px;font-weight:950;
+  background:#222;border:1px solid rgba(255,255,255,.12);margin-top:5px
+}
+.journey-badge.returning{background:rgba(237,28,36,.12);border-color:rgba(237,28,36,.35);color:#ff8b90}
+.journey-pages{display:none;border-top:1px solid rgba(255,255,255,.09);padding:12px}
+.journey-session.open .journey-pages{display:block}
+.journey-page{
+  display:grid;
+  grid-template-columns:34px 90px minmax(0,1fr) 110px;
+  gap:10px;
+  align-items:start;
+  padding:10px 0;
+  border-bottom:1px solid rgba(255,255,255,.07);
+}
+.journey-page:last-child{border-bottom:0}
+.journey-page-number{
+  width:28px;height:28px;border-radius:50%;background:#ed1c24;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:950
+}
+.journey-page-time{color:#aaa;font-size:11px}
+.journey-page-main strong{display:block;color:#fff;font-size:12px}
+.journey-page-main span{display:block;color:#999;font-size:11px;margin-top:3px;word-break:break-word}
+.journey-page-duration{text-align:right;font-size:12px;font-weight:950}
+.journey-note{color:#777;font-size:11px;line-height:1.45;margin-top:10px}
+@media(max-width:900px){
+  .journey-summary{grid-template-columns:1fr 1fr}
+  .journey-summary .journey-meta{grid-column:1/-1}
+  .journey-page{grid-template-columns:30px 74px minmax(0,1fr)}
+  .journey-page-duration{grid-column:3;text-align:left}
+}
+
 @media(max-width:1050px){
   .live-layout{grid-template-columns:1fr}
   #liveMap{height:420px}
@@ -609,6 +680,40 @@ body{
 
 
 
+    <section class="card journey-card">
+      <div class="journey-toolbar">
+        <div>
+          <h2>Visitor Journeys</h2>
+          <div class="subtitle">
+            Ordered page-by-page visits for guests and logged-in customers, including returning visits and active time on each page.
+          </div>
+        </div>
+        <div class="journey-controls">
+          <select id="journeyDays" onchange="loadVisitorJourneys()">
+            <option value="1">Today</option>
+            <option value="7">Last 7 days</option>
+            <option value="30" selected>Last 30 days</option>
+            <option value="90">Last 90 days</option>
+          </select>
+          <select id="journeyType" onchange="renderVisitorJourneys()">
+            <option value="">All visitors</option>
+            <option value="loggedin">Logged-in customers</option>
+            <option value="guest">Guests</option>
+            <option value="returning">Returning visitors</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="journeyCount" class="history-count" style="margin-bottom:10px;">Loading…</div>
+      <div id="visitorJourneys">
+        <div class="empty-state">Loading visitor journeys…</div>
+      </div>
+
+      <div class="journey-note">
+        Page-by-page journey history is recorded from this tracking upgrade onward. Earlier visitor records only contain their last known page and total visit summary.
+      </div>
+    </section>
+
     <section class="card history-card">
       <div class="history-toolbar">
         <div>
@@ -640,6 +745,7 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let liveMap = null;
 let visitorMarkers = new Map();
 let latestVisitors = [];
+let visitorJourneys = [];
 
 function escapeHtml(value){
   return String(value ?? "").replace(/[&<>"']/g,function(char){
@@ -1101,6 +1207,104 @@ function renderVisitorHistory(visitors){
   box.innerHTML = header + body;
 }
 
+function formatSeconds(total){
+  const seconds=Math.max(0,Number(total)||0);
+  if(seconds<60)return Math.floor(seconds)+" sec";
+  const minutes=Math.floor(seconds/60);
+  if(minutes<60)return minutes+" min "+Math.floor(seconds%60)+" sec";
+  const hours=Math.floor(minutes/60);
+  return hours+"h "+(minutes%60)+"m";
+}
+
+function journeyPerson(row){
+  if(row.customer_name || row.customer_email){
+    return {
+      title:row.customer_name || row.customer_email || "Logged-in customer",
+      sub:row.customer_email || "Logged-in customer"
+    };
+  }
+  return {
+    title:"Guest visitor",
+    sub:String(row.visitor_id||"").slice(0,8)+"…"
+  };
+}
+
+function renderVisitorJourneys(){
+  const box=document.getElementById("visitorJourneys");
+  const count=document.getElementById("journeyCount");
+  const filter=document.getElementById("journeyType")?.value || "";
+
+  let rows=[...visitorJourneys];
+
+  if(filter==="loggedin")rows=rows.filter(r=>!!r.user_id);
+  if(filter==="guest")rows=rows.filter(r=>!r.user_id);
+  if(filter==="returning")rows=rows.filter(r=>r.is_returning===true);
+
+  count.textContent=rows.length===1 ? "1 visit" : rows.length+" visits";
+
+  if(!rows.length){
+    box.innerHTML='<div class="empty-state">No visitor journeys match this filter.</div>';
+    return;
+  }
+
+  box.innerHTML=rows.map(function(row,index){
+    const person=journeyPerson(row);
+    const location=[row.city,row.region,row.country].filter(Boolean).join(", ") || "Location unavailable";
+    const pages=Array.isArray(row.pages) ? row.pages : [];
+    const badge=row.is_returning
+      ? '<span class="journey-badge returning">Returning · Visit #'+Number(row.visit_number||1)+'</span>'
+      : '<span class="journey-badge">First recorded visit</span>';
+
+    const pageHtml=pages.length
+      ? pages.map(function(page,pageIndex){
+          return '<div class="journey-page">'+
+            '<div class="journey-page-number">'+(pageIndex+1)+'</div>'+
+            '<div class="journey-page-time">'+escapeHtml(formatClockTime(page.entered_at))+'</div>'+
+            '<div class="journey-page-main">'+
+              '<strong>'+escapeHtml(page.title || page.path || "Page")+'</strong>'+
+              '<span>'+escapeHtml(page.path || "/")+'</span>'+
+            '</div>'+
+            '<div class="journey-page-duration">'+escapeHtml(formatSeconds(page.active_seconds))+'</div>'+
+          '</div>';
+        }).join("")
+      : '<div class="empty-state">No page-level entries were recorded for this visit.</div>';
+
+    return '<div class="journey-session" data-journey="'+index+'">'+
+      '<button type="button" class="journey-summary" onclick="this.parentElement.classList.toggle(\'open\')">'+
+        '<div class="journey-person"><strong>'+escapeHtml(person.title)+'</strong><span>'+escapeHtml(person.sub)+'</span>'+badge+'</div>'+
+        '<div class="journey-stat"><strong>'+Number(row.page_count||0)+'</strong><span>Pages</span></div>'+
+        '<div class="journey-stat"><strong>'+escapeHtml(formatSeconds(row.active_seconds))+'</strong><span>Active time</span></div>'+
+        '<div class="journey-stat"><strong>'+Number(row.total_visits||1)+'</strong><span>Total visits</span></div>'+
+        '<div class="journey-meta"><strong>'+escapeHtml(new Date(row.started_at).toLocaleString("en-GB"))+'</strong><span>'+escapeHtml(location)+'</span><span>'+escapeHtml((row.device_type||"—")+" · "+(row.browser||"—"))+'</span></div>'+
+      '</button>'+
+      '<div class="journey-pages">'+pageHtml+'</div>'+
+    '</div>';
+  }).join("");
+}
+
+async function loadVisitorJourneys(){
+  const box=document.getElementById("visitorJourneys");
+  const count=document.getElementById("journeyCount");
+  const days=Number(document.getElementById("journeyDays")?.value || 30);
+
+  try{
+    const {data,error}=await sb.rpc("admin_get_visitor_journeys_v1",{
+      p_days:days,
+      p_limit:300
+    });
+
+    if(error)throw error;
+
+    visitorJourneys=data || [];
+    renderVisitorJourneys();
+
+  }catch(error){
+    console.error("Visitor journeys could not be loaded",error);
+    count.textContent="Unavailable";
+    box.innerHTML='<div class="error-state">Visitor journeys could not be loaded.<br><br>'+escapeHtml(error?.message || String(error))+'</div>';
+  }
+}
+
 async function loadVisitorHistory(){
   const box = document.getElementById("visitorHistory");
   const count = document.getElementById("historyCount");
@@ -1248,7 +1452,10 @@ async function startLiveVisitors(){
   }
 
   initMap();
-  await loadLiveVisitors();
+  await Promise.all([
+    loadLiveVisitors(),
+    loadVisitorJourneys()
+  ]);
 
   setInterval(loadLiveVisitors,10000);
 
