@@ -1560,7 +1560,7 @@ document.addEventListener("visibilitychange",function(){
   }
 });
 /* =========================================================
-   ANYBIKE LIVE VISITOR TRACKING
+   ANYBIKE LIVE VISITOR + JOURNEY TRACKING
    ========================================================= */
 
 (function initialiseAnyBikeVisitorTracking(){
@@ -1571,6 +1571,12 @@ document.addEventListener("visibilitychange",function(){
 
   let heartbeatTimer = null;
   let lastSendStartedAt = 0;
+  const pageViewId = createUuid();
+  let accumulatedVisibleMs = 0;
+  let visibleStartedAt =
+    document.visibilityState === "visible"
+      ? Date.now()
+      : null;
 
   function createUuid(){
     if(window.crypto?.randomUUID){
@@ -1604,11 +1610,7 @@ document.addEventListener("visibilitychange",function(){
       return value;
 
     }catch(error){
-      console.warn(
-        "AnyBike visitor ID storage unavailable",
-        error
-      );
-
+      console.warn("AnyBike visitor ID storage unavailable",error);
       return createUuid();
     }
   }
@@ -1627,29 +1629,19 @@ document.addEventListener("visibilitychange",function(){
       return value;
 
     }catch(error){
-      console.warn(
-        "AnyBike session ID storage unavailable",
-        error
-      );
-
+      console.warn("AnyBike session ID storage unavailable",error);
       return createUuid();
     }
   }
 
   function detectDeviceType(){
-    const userAgent =
-      String(navigator.userAgent || "");
+    const userAgent=String(navigator.userAgent || "");
 
-    if(
-      /tablet|ipad|playbook|silk/i.test(userAgent)
-    ){
+    if(/tablet|ipad|playbook|silk/i.test(userAgent)){
       return "Tablet";
     }
 
-    if(
-      /mobile|iphone|ipod|android.*mobile|blackberry|opera mini|iemobile/i
-        .test(userAgent)
-    ){
+    if(/mobile|iphone|ipod|android.*mobile|blackberry|opera mini|iemobile/i.test(userAgent)){
       return "Mobile";
     }
 
@@ -1657,18 +1649,14 @@ document.addEventListener("visibilitychange",function(){
   }
 
   function detectBrowser(){
-    const userAgent =
-      String(navigator.userAgent || "");
+    const userAgent=String(navigator.userAgent || "");
 
     if(/Edg\//i.test(userAgent)) return "Edge";
     if(/OPR\//i.test(userAgent)) return "Opera";
     if(/Chrome\//i.test(userAgent)) return "Chrome";
     if(/Firefox\//i.test(userAgent)) return "Firefox";
 
-    if(
-      /Safari\//i.test(userAgent) &&
-      !/Chrome\//i.test(userAgent)
-    ){
+    if(/Safari\//i.test(userAgent) && !/Chrome\//i.test(userAgent)){
       return "Safari";
     }
 
@@ -1690,64 +1678,69 @@ document.addEventListener("visibilitychange",function(){
     return null;
   }
 
-  async function sendVisitorHeartbeat(){
-    const now = Date.now();
+  function commitVisibleTime(){
+    if(visibleStartedAt !== null){
+      accumulatedVisibleMs += Math.max(0,Date.now() - visibleStartedAt);
+      visibleStartedAt = null;
+    }
+  }
 
-    if(now - lastSendStartedAt < 1500){
+  function resumeVisibleTime(){
+    if(visibleStartedAt === null && document.visibilityState === "visible"){
+      visibleStartedAt = Date.now();
+    }
+  }
+
+  function activeSeconds(){
+    let ms=accumulatedVisibleMs;
+
+    if(visibleStartedAt !== null){
+      ms += Math.max(0,Date.now() - visibleStartedAt);
+    }
+
+    return Math.max(0,Math.floor(ms / 1000));
+  }
+
+  async function sendVisitorHeartbeat(options){
+    const settings=options || {};
+    const now=Date.now();
+
+    if(!settings.force && now - lastSendStartedAt < 1500){
       return;
     }
 
-    lastSendStartedAt = now;
+    lastSendStartedAt=now;
 
-    const payload = {
+    const payload={
       visitor_id:getOrCreateVisitorId(),
       session_id:getOrCreateSessionId(),
+      page_view_id:pageViewId,
       user_id:getLoggedInUserId(),
 
       current_path:
         window.location.pathname +
         window.location.search,
 
-      page_title:
-        document.title || "",
-
-      referrer:
-        document.referrer || "",
-
-      language:
-        navigator.language || "",
-
-      timezone:
-        Intl.DateTimeFormat()
-          .resolvedOptions()
-          .timeZone || "",
-
-      device_type:
-        detectDeviceType(),
-
-      browser:
-        detectBrowser()
+      page_title:document.title || "",
+      referrer:document.referrer || "",
+      language:navigator.language || "",
+      timezone:Intl.DateTimeFormat().resolvedOptions().timeZone || "",
+      device_type:detectDeviceType(),
+      browser:detectBrowser(),
+      active_seconds:activeSeconds(),
+      page_left:settings.pageLeft === true
     };
 
     try{
-      const response =
-        await fetch(TRACK_VISITOR_URL,{
-          method:"POST",
-
-          headers:{
-            "Content-Type":"application/json"
-          },
-
-          body:JSON.stringify(payload),
-
-          keepalive:true
-        });
+      const response=await fetch(TRACK_VISITOR_URL,{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify(payload),
+        keepalive:true
+      });
 
       if(!response.ok){
-        const errorText =
-          await response.text()
-            .catch(() => "");
-
+        const errorText=await response.text().catch(()=>"");
         console.warn(
           "AnyBike visitor tracking request failed",
           response.status,
@@ -1756,71 +1749,57 @@ document.addEventListener("visibilitychange",function(){
       }
 
     }catch(error){
-      console.warn(
-        "AnyBike visitor tracking unavailable",
-        error
-      );
+      console.warn("AnyBike visitor tracking unavailable",error);
     }
   }
 
   function startVisitorHeartbeat(){
-    sendVisitorHeartbeat();
+    resumeVisibleTime();
+    sendVisitorHeartbeat({force:true});
 
     if(heartbeatTimer){
       clearInterval(heartbeatTimer);
     }
 
-    heartbeatTimer =
-      setInterval(function(){
-
-        if(
-          document.visibilityState === "visible"
-        ){
-          sendVisitorHeartbeat();
-        }
-
-      },HEARTBEAT_MS);
+    heartbeatTimer=setInterval(function(){
+      if(document.visibilityState === "visible"){
+        sendVisitorHeartbeat();
+      }
+    },HEARTBEAT_MS);
   }
 
   if(document.readyState === "loading"){
-
     document.addEventListener(
       "DOMContentLoaded",
       startVisitorHeartbeat,
       {once:true}
     );
-
   }else{
-
     startVisitorHeartbeat();
-
   }
 
-  document.addEventListener(
-    "visibilitychange",
-    function(){
-
-      if(
-        document.visibilityState === "visible"
-      ){
-        sendVisitorHeartbeat();
-      }
-
+  document.addEventListener("visibilitychange",function(){
+    if(document.visibilityState === "visible"){
+      resumeVisibleTime();
+      sendVisitorHeartbeat({force:true});
+    }else{
+      commitVisibleTime();
+      sendVisitorHeartbeat({force:true});
     }
-  );
+  });
 
-  window.addEventListener(
-    "focus",
-    function(){
-      sendVisitorHeartbeat();
-    }
-  );
+  window.addEventListener("focus",function(){
+    resumeVisibleTime();
+    sendVisitorHeartbeat();
+  });
 
-  window.addEventListener(
-    "anybikePublicHeaderReady",
-    function(){
-      sendVisitorHeartbeat();
-    }
-  );
+  window.addEventListener("pagehide",function(){
+    commitVisibleTime();
+    sendVisitorHeartbeat({force:true,pageLeft:true});
+  });
+
+  window.addEventListener("anybikePublicHeaderReady",function(){
+    sendVisitorHeartbeat({force:true});
+  });
 
 })();
