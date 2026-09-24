@@ -123,15 +123,34 @@ Standalone anonymous Live Chat.
      API
      ========================================================= */
 
+  async function getCustomerAccessToken(){
+    try{
+      if(typeof sb !== "undefined" && sb?.auth?.getSession){
+        const {data}=await sb.auth.getSession();
+        return data?.session?.access_token || "";
+      }
+    }catch(error){
+      console.warn("AnyBike Live Chat could not read customer session",error);
+    }
+    return "";
+  }
+
   async function callGuestChat(payload){
+
+    const accessToken=await getCustomerAccessToken();
+    const headers={
+      "Content-Type":"application/json"
+    };
+
+    if(accessToken){
+      headers.Authorization="Bearer "+accessToken;
+    }
 
     const response = await fetch(
       GUEST_CHAT_URL,
       {
         method:"POST",
-        headers:{
-          "Content-Type":"application/json"
-        },
+        headers,
         body:JSON.stringify(payload)
       }
     );
@@ -184,6 +203,7 @@ Standalone anonymous Live Chat.
     }
 
     return Boolean(
+      data?.authenticated === true ||
       getGuestToken() ||
       data?.guest_token
     );
