@@ -248,27 +248,37 @@ function renderSignals(interest){
 }
 async function loadMarketSelection(){
  const grid=document.getElementById("reunionMarketSelectionGrid");
+ if(!grid)return;
  try{
-  const results=await Promise.all([
-   sb.rpc("get_country_motorcycle_interest_v1",{p_country:"Réunion",p_limit:8}),
-   sb.rpc("get_country_similar_motorcycles_v2",{p_country:"Réunion",p_limit:16})
-  ]);
-  if(results[0].error)throw results[0].error;
-  if(results[1].error)throw results[1].error;
-  const interest=Array.isArray(results[0].data)?results[0].data:[];
-  const viewedIds=new Set(interest.map(function(x){return x.bike_id}));
-  const similar=diverseSimilar((Array.isArray(results[1].data)?results[1].data:[]).filter(function(x){return !viewedIds.has(x.bike_id)}),8);
+  const interestResult=await sb.rpc("get_country_motorcycle_interest_v1",{p_country:"Réunion",p_limit:8});
+  if(interestResult.error)throw interestResult.error;
+  const interest=Array.isArray(interestResult.data)?interestResult.data:[];
   renderSignals(interest);
-  const parts=[];
-  if(interest.length){
-   parts.push('<div class="stock-group-label"><strong>Récemment consultées à La Réunion</strong><span>Activité de consultation réellement enregistrée pour ce marché. Aucune identité de client n’est affichée.</span></div>');
-   parts.push(interest.map(function(b){return bikeCard(b,"Voir cette moto")}).join(""));
+
+  const render=function(similarRows){
+   const viewedIds=new Set(interest.map(function(x){return x.bike_id}));
+   const similar=diverseSimilar((similarRows||[]).filter(function(x){return !viewedIds.has(x.bike_id)}),8);
+   const parts=[];
+   if(interest.length){
+    parts.push('<div class="stock-group-label"><strong>Récemment consultées à La Réunion</strong><span>Activité de consultation réellement enregistrée pour ce marché. Aucune identité de client n’est affichée.</span></div>');
+    parts.push(interest.map(function(b){return bikeCard(b,"Voir cette moto")}).join(""));
+   }
+   if(similar.length){
+    parts.push('<div class="stock-group-label"><strong>Motos similaires actuellement disponibles</strong><span>Alternatives choisies dans le stock actif à partir des marques, modèles, années, cylindrées et budgets observés ci-dessus.</span></div>');
+    parts.push(similar.map(function(b){return bikeCard(b,"Voir cette alternative")}).join(""));
+   }
+   grid.innerHTML=parts.length?parts.join(""):'<div class="loading">La sélection apparaîtra ici dès que suffisamment d’activité sera enregistrée à La Réunion.</div>';
+  };
+
+  // Show genuine Réunion viewing activity immediately; similar stock is an enhancement, not a blocker.
+  render([]);
+
+  const similarResult=await sb.rpc("get_country_similar_motorcycles_v2",{p_country:"Réunion",p_limit:16});
+  if(similarResult.error){
+   console.warn("Réunion similar motorcycles unavailable",similarResult.error);
+   return;
   }
-  if(similar.length){
-   parts.push('<div class="stock-group-label"><strong>Motos similaires actuellement disponibles</strong><span>Alternatives choisies dans le stock actif à partir des marques, modèles, années, cylindrées et budgets observés ci-dessus.</span></div>');
-   parts.push(similar.map(function(b){return bikeCard(b,"Voir cette alternative")}).join(""));
-  }
-  grid.innerHTML=parts.length?parts.join(""):'<div class="loading">La sélection apparaîtra ici dès que suffisamment d’activité sera enregistrée à La Réunion.</div>';
+  render(Array.isArray(similarResult.data)?similarResult.data:[]);
  }catch(e){
   console.error("Réunion market selection",e);
   grid.innerHTML='<div class="loading">La sélection de motos ne peut pas être chargée pour le moment.</div>';
@@ -285,7 +295,7 @@ if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded"
  if(!c){localStorage.setItem("anybikeCurrency","EUR");localStorage.setItem("anybike_currency","EUR")}
 })();
 </script>
-<script src="../public-header.js?v=12030"></script>
+<script src="../public-header.js?v=12032"></script>
 <script>
 (function localiseReunionPage(){
   function apply(){
