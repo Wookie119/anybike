@@ -711,26 +711,26 @@ a{text-decoration:none;color:inherit}
 <section class="pay-site" id="pay-on-site" style="display:none;scroll-margin-top:90px">
   <div class="pay-site-head">
     <div>
-      <h2>Move Motorcycles — Pay-on-Site Collections</h2>
-      <p>Create the secure driver collection link for the special jobs where the driver completes the handover, condition photos and seller-payment confirmation on site.</p>
+      <h2>Incoming Collection Jobs</h2>
+      <p>Collections sent in from AnyBike now, and later from the Move Motorcycles API. These jobs use the standard secure Move driver workflow.</p>
     </div>
     <div class="pay-site-private">Restricted tool</div>
   </div>
   <div class="pay-site-body">
     <div class="pay-site-grid">
       <div class="pay-site-field full">
-        <label for="paySiteDeal">Eligible Move collection</label>
+        <label for="paySiteDeal">Incoming collection job</label>
         <select id="paySiteDeal" onchange="selectPaySiteDeal()">
-          <option value="">Loading eligible collections…</option>
+          <option value="">Loading incoming jobs…</option>
         </select>
       </div>
 
       <div class="pay-site-summary" id="paySiteSummary" style="display:none">
         <div><span>Motorcycle</span><strong id="paySiteBike">—</strong></div>
         <div><span>Registration</span><strong id="paySiteRegistration">—</strong></div>
-        <div><span>Ready Date</span><strong id="paySiteReady">—</strong></div>
-        <div><span>Move Status</span><strong id="paySiteMove">—</strong></div>
-        <div style="grid-column:1/-1"><span>Move collection address</span><strong id="paySiteAddress">—</strong></div>
+        <div><span>Collection Date</span><strong id="paySiteReady">—</strong></div>
+        <div><span>Job Status</span><strong id="paySiteMove">—</strong></div>
+        <div style="grid-column:1/-1"><span>Collection address</span><strong id="paySiteAddress">—</strong></div>
         <div style="grid-column:1/-1"><span>Collection contact</span><strong id="paySiteContact">—</strong></div>
       </div>
 
@@ -742,18 +742,8 @@ a{text-decoration:none;color:inherit}
         <label for="paySiteDriverMobile">Driver mobile</label>
         <input id="paySiteDriverMobile" placeholder="Optional">
       </div>
-      <div class="pay-site-field full">
-        <label for="paySiteBuyerMobile">Buyer mobile for special Collection Report SMS</label>
-        <input id="paySiteBuyerMobile" placeholder="Only used when the SMS option below is enabled">
-      </div>
-
-      <label class="pay-site-check">
-        <input id="paySiteSms" type="checkbox">
-        <span><strong>Send the buyer the extra Collection Report SMS when the driver marks the motorcycle collected.</strong><br>Leave this off for normal Move status messaging. Use it only when this pay-on-site job requires the additional AnyBike collection report message.</span>
-      </label>
-
       <div class="pay-site-actions">
-        <button id="paySiteGenerate" class="pay-site-button" type="button" onclick="generatePaySiteDriverLink()" disabled>Generate Secure Driver Link</button>
+        <button id="paySiteGenerate" class="pay-site-button" type="button" onclick="generatePaySiteDriverLink()" disabled>Generate Driver Link</button>
         <span id="paySiteStatus" class="pay-site-status"></span>
       </div>
 
@@ -804,7 +794,7 @@ a{text-decoration:none;color:inherit}
 </div>
 
 <div id="paySiteRestricted" class="pay-site pay-site-locked" style="display:none">
-  Pay-on-site collection tools are restricted to the authorised Logistics administrator.
+  Incoming collection tools are restricted to the authorised Logistics administrator.
 </div>
 
 </main>
@@ -1404,14 +1394,13 @@ function paySiteNiceDate(value){
 
 function currentPaySiteRow(){
   const id=Number(document.getElementById("paySiteDeal")?.value||0);
-  return paySiteRows.find(function(row){return Number(row.deal_motorcycle_id)===id;})||null;
+  return paySiteRows.find(function(row){return Number(row.job_id)===id;})||null;
 }
 
 function selectPaySiteDeal(){
   const row=currentPaySiteRow();
   const summary=document.getElementById("paySiteSummary");
   const button=document.getElementById("paySiteGenerate");
-  const buyer=document.getElementById("paySiteBuyerMobile");
   const result=document.getElementById("paySiteResult");
   const status=document.getElementById("paySiteStatus");
   if(result) result.style.display="none";
@@ -1424,32 +1413,35 @@ function selectPaySiteDeal(){
   if(summary) summary.style.display="grid";
   document.getElementById("paySiteBike").textContent=row.motorcycle||"—";
   document.getElementById("paySiteRegistration").textContent=row.registration||"—";
-  document.getElementById("paySiteReady").textContent=paySiteNiceDate(row.seller_ready_date);
-  document.getElementById("paySiteMove").textContent=row.move_status||row.collection_status||"—";
+  document.getElementById("paySiteReady").textContent=paySiteNiceDate(row.collection_date);
+  document.getElementById("paySiteMove").textContent=row.status||"—";
   document.getElementById("paySiteAddress").textContent=row.collection_address||"—";
-  document.getElementById("paySiteContact").textContent=row.collection_contact||row.seller_name||"—";
-  if(buyer) buyer.value=row.buyer_mobile||"";
+  document.getElementById("paySiteContact").textContent=row.collection_contact||"—";
+  const driverName=document.getElementById("paySiteDriverName");
+  const driverMobile=document.getElementById("paySiteDriverMobile");
+  if(driverName)driverName.value=row.driver_name||"";
+  if(driverMobile)driverMobile.value=row.driver_mobile||"";
   if(button) button.disabled=false;
 }
 
 async function loadPaySiteCollections(){
   const status=document.getElementById("paySiteStatus");
   const select=document.getElementById("paySiteDeal");
-  const result=await logisticsSb.rpc("admin_get_pay_on_site_collection_candidates_v2");
+  const result=await logisticsSb.rpc("admin_list_incoming_collection_jobs_v1");
   if(result.error) throw result.error;
   paySiteRows=result.data||[];
-  select.innerHTML='<option value="">Select an eligible Move collection…</option>'+
+  select.innerHTML='<option value="">Select an incoming collection job…</option>'+
     paySiteRows.map(function(row){
-      return '<option value="'+Number(row.deal_motorcycle_id)+'">'+
-        escLogistics((row.deal_number||"Deal")+" · "+(row.motorcycle||"Motorcycle")+
+      return '<option value="'+Number(row.job_id)+'">'+
+        escLogistics((row.client_name||"Incoming")+" · "+(row.job_number||"Job")+" · "+(row.motorcycle||"Motorcycle")+
         (row.registration?" · "+row.registration:"")+
-        (row.collection_address?" · "+row.collection_address:""))+
+        (row.shipment_number?" · Shipment "+row.shipment_number:""))+
         '</option>';
     }).join("");
   if(status){
     status.textContent=paySiteRows.length
-      ? paySiteRows.length+" eligible collection"+(paySiteRows.length===1?"":"s")+" available."
-      : "No eligible Move collections yet. A job appears here when AnyBike is proceeding, the seller Ready Date is set, the Move job has a full collection address/contact, and the motorcycle has not already been collected.";
+      ? paySiteRows.length+" incoming collection job"+(paySiteRows.length===1?"":"s")+" available."
+      : "No incoming collection jobs yet. Send an AnyBike collection here from the Operations section of its Deal 360 thread.";
   }
 }
 
@@ -1459,17 +1451,17 @@ async function generatePaySiteDriverLink(){
   const button=document.getElementById("paySiteGenerate");
   const status=document.getElementById("paySiteStatus");
   const resultBox=document.getElementById("paySiteResult");
-  if(!confirm("Generate a new secure Move driver link for "+(row.deal_number||"this deal")+"?\n\nAny previous uncompleted collection link for this motorcycle will be revoked.")) return;
+  if(!confirm("Generate a secure driver link for "+(row.job_number||"this incoming collection")+"?\n\nAny previous active link for this job will be revoked.")) return;
   button.disabled=true;
   status.className="pay-site-status";
   status.textContent="Generating secure driver link…";
   try{
-    const rpc=await logisticsSb.rpc("admin_create_move_driver_collection_link_v2",{
-      p_deal_motorcycle_id:Number(row.deal_motorcycle_id),
-      p_driver_name:String(document.getElementById("paySiteDriverName").value||"").trim()||null,
-      p_driver_mobile:String(document.getElementById("paySiteDriverMobile").value||"").trim()||null,
-      p_buyer_mobile:String(document.getElementById("paySiteBuyerMobile").value||"").trim()||null,
-      p_send_collection_report_sms:!!document.getElementById("paySiteSms").checked,
+    const driverName=String(document.getElementById("paySiteDriverName").value||"").trim()||null;
+    const driverMobile=String(document.getElementById("paySiteDriverMobile").value||"").trim()||null;
+    const rpc=await logisticsSb.rpc("admin_create_move_job_driver_link_v1",{
+      p_job_id:Number(row.job_id),
+      p_driver_name:driverName,
+      p_driver_mobile:driverMobile,
       p_expires_hours:72
     });
     if(rpc.error) throw rpc.error;
@@ -1478,8 +1470,27 @@ async function generatePaySiteDriverLink(){
     document.getElementById("paySiteUrl").value=url;
     document.getElementById("paySiteOpen").href=url;
     resultBox.style.display="grid";
+    resultBox.dataset.url=url;
+    row.driver_name=driverName||row.driver_name;
+    row.driver_mobile=driverMobile||row.driver_mobile;
     status.className="pay-site-status success";
     status.textContent="Secure driver link created. It expires in 72 hours.";
+
+    if(row.driver_mobile){
+      const sendNow=confirm("Send the driver link now by SMS to "+(row.driver_name||"the driver")+" at "+row.driver_mobile+"?");
+      if(sendNow){
+        const access=await moveAdminAccessToken();
+        const response=await fetch("https://tuehtnezhdnkqbbhttgp.supabase.co/functions/v1/move-admin-send-driver-link-sms",{
+          method:"POST",
+          headers:{"Content-Type":"application/json","Authorization":"Bearer "+access},
+          body:JSON.stringify({job_id:Number(row.job_id),driver_url:url})
+        });
+        const sent=await response.json().catch(()=>({}));
+        if(!response.ok||!sent.success)throw new Error(sent.error||"Driver SMS could not be sent");
+        status.textContent="Secure driver link created and sent to driver by SMS ✓";
+      }
+    }
+    await loadPaySiteCollections();
   }catch(error){
     status.className="pay-site-status error";
     status.textContent=error.message||String(error);
