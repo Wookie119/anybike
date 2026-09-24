@@ -16,6 +16,8 @@ Standalone anonymous Live Chat.
 */
 
 (function initialiseAnyBikeLiveChat(){
+  if(window.__anybikeLiveChatStarted){ return; }
+  window.__anybikeLiveChatStarted=true;
 
   const GUEST_CHAT_URL =
     "https://tuehtnezhdnkqbbhttgp.supabase.co/functions/v1/guest-live-chat";
