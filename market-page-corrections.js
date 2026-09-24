@@ -114,8 +114,8 @@
   }
 
   async function loadCountryBuyerInterest(market){
-    // Réunion already has a dedicated localised implementation on its own page.
-    if(document.getElementById("reunionInterestGrid"))return;
+    // Réunion has its own fully localised buyer-interest implementation.
+    if(market.slug==="reunion" && (document.getElementById("reunionMarketSelectionGrid") || document.getElementById("reunionInterestGrid")))return;
     if(document.getElementById("countryBuyerInterestSection"))return;
 
     let client=null;
