@@ -64,7 +64,7 @@ textarea{width:100%;min-height:90px;border:1px solid rgba(160,140,88,.45);border
         <div id="discrepancyActions" class="hidden">
           <div class="notice" style="margin-top:10px"><strong>Discrepancy saved.</strong> Call the customer to discuss it. You may continue checking the documents and taking condition photos, but <strong>do not load the motorcycle</strong> until the discrepancy has been resolved.</div>
           <div class="actions"><a id="callCustomerBtn" class="btn danger" href="#">Call Customer</a></div>
-          <div id="damagePhotoBox" class="photo-row"><strong>Damage / discrepancy close-up</strong><small>Take this before the motorcycle is moved.</small><input id="photo-damage" type="file" accept="image/*" capture="environment" onchange="uploadSelectedPhoto('damage')"><button class="btn secondary" onclick="openCamera('damage')">Take Damage Photo</button><div id="photo-status-damage" class="status"></div></div>
+          <div id="damagePhotoBox" class="photo-row"><strong>Damage / discrepancy close-up</strong><small>For important damage evidence, use the phone Camera app first if possible so a copy remains in the driver's Gallery/Photos. Then upload it here.</small><input id="photo-damage" type="file" accept="image/*" capture="environment" onchange="uploadSelectedPhoto('damage','photo-')"><input id="gallery-damage" type="file" accept="image/*" onchange="uploadSelectedPhoto('damage','gallery-')"><div class="actions" style="grid-template-columns:1fr 1fr"><button class="btn secondary" onclick="openCamera('damage')">Take Damage Photo</button><button class="btn secondary" onclick="openGallery('damage')">Choose from Gallery</button></div><div id="photo-status-damage" class="status"></div></div>
         </div>
       </div>
     </section>
@@ -81,6 +81,7 @@ textarea{width:100%;min-height:90px;border:1px solid rgba(160,140,88,.45);border
       <div class="head"><h3>3. Condition Photos</h3></div>
       <div class="body">
         <div class="notice">Take the minimum <strong>9 Move condition photos</strong> before loading the motorcycle. If damage is seen, take extra close-up pictures before the bike is moved.</div>
+        <div class="notice" style="margin-top:10px"><strong>Photo backup:</strong> for a guaranteed copy in the driver's normal phone Gallery/Photos app, take the picture with the phone's Camera app first, then use <strong>Choose from Gallery</strong> below. If an upload fails, the same gallery photo can be selected again later.</div>
         <div class="notice" style="margin-top:10px;border-color:#d0ad55;background:rgba(208,173,85,.14)"><strong>Important photo privacy warning:</strong> these pictures may be shared directly with the buyer. <strong>Do not photograph the dealership or supplier identity.</strong> Keep dealership names, signs, banners, branded walls, staff badges, paperwork headers and other identifying details out of the frame wherever possible.</div>
         <div id="photoGate" class="status warn" style="margin-top:10px"></div>
         <div id="offlinePhotoBox" class="offline-photo-box">
@@ -338,8 +339,12 @@ function renderPhotos(s,photos,collected){
   host.innerHTML=photoSlots.map(([slot,title,help])=>{
     const done=uploaded.has(slot),queuedHere=queued.has(slot);
     return '<div class="photo-row"><strong>'+esc(title)+(done?' <span class="photo-done">✓ Uploaded</span>':queuedHere?' <span class="photo-queued">✓ Saved on phone</span>':'')+'</strong><small>'+esc(help)+'</small>'+
-      '<input id="photo-'+slot+'" type="file" accept="image/*" capture="environment" '+((!photoAllowed||collected)?"disabled":"")+' onchange="uploadSelectedPhoto(\''+slot+'\')">'+
-      '<button class="btn secondary" '+((!photoAllowed||collected)?"disabled":"")+' onclick="openCamera(\''+slot+'\')">'+(done||queuedHere?"Retake Photo":"Take Photo")+'</button>'+
+      '<input id="photo-'+slot+'" type="file" accept="image/*" capture="environment" '+((!photoAllowed||collected)?"disabled":"")+' onchange="uploadSelectedPhoto(\''+slot+'\',\'photo-\')">'+
+      '<input id="gallery-'+slot+'" type="file" accept="image/*" '+((!photoAllowed||collected)?"disabled":"")+' onchange="uploadSelectedPhoto(\''+slot+'\',\'gallery-\')">'+
+      '<div class="actions" style="grid-template-columns:1fr 1fr">'+
+        '<button class="btn secondary" '+((!photoAllowed||collected)?"disabled":"")+' onclick="openCamera(\''+slot+'\')">'+(done||queuedHere?"Retake Photo":"Take Photo")+'</button>'+
+        '<button class="btn secondary" '+((!photoAllowed||collected)?"disabled":"")+' onclick="openGallery(\''+slot+'\')">Choose from Gallery</button>'+
+      '</div>'+
       '<div id="photo-status-'+slot+'" class="status">'+(queuedHere?(photoUploadStates.get(slot)==="uploading"?"Uploading…":"Saved on phone ✓ — waiting to upload"):"")+'</div></div>';
   }).join("");
   const saveBtn=document.getElementById("savePhotosBtn");
@@ -548,8 +553,13 @@ function openCamera(slot){
   if(input&&!input.disabled) input.click();
 }
 
-async function uploadSelectedPhoto(slot){
-  const input=document.getElementById("photo-"+slot),status=document.getElementById("photo-status-"+slot);
+function openGallery(slot){
+  const input=document.getElementById("gallery-"+slot);
+  if(input&&!input.disabled) input.click();
+}
+
+async function uploadSelectedPhoto(slot,inputPrefix="photo-"){
+  const input=document.getElementById(inputPrefix+slot),status=document.getElementById("photo-status-"+slot);
   const file=input&&input.files&&input.files[0];
   if(!file){if(status){status.textContent="Choose or take a photo first.";status.className="status warn";}return;}
 
