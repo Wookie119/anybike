@@ -83,38 +83,110 @@
     return Math.round(value).toLocaleString("en-GB")+" miles";
   }
 
-  function interestSectionHtml(market,bikes){
+  function uniqueBy(arr,keyFn){
+    const seen=new Set();
+    return arr.filter(function(item){
+      const key=keyFn(item);
+      if(seen.has(key))return false;
+      seen.add(key);
+      return true;
+    });
+  }
+
+  function diverseSimilar(rows,limit){
+    const counts={};
+    const out=[];
+    rows.slice().sort(function(a,b){
+      return Number(b.similarity_score||0)-Number(a.similarity_score||0);
+    }).forEach(function(bike){
+      if(out.length>=limit)return;
+      const key=((bike.make||"")+"|"+(bike.model||"")).toLowerCase();
+      if((counts[key]||0)>=2)return;
+      counts[key]=(counts[key]||0)+1;
+      out.push(bike);
+    });
+    return out;
+  }
+
+  function marketBikeCard(bike,label){
+    const title=[bike.year,bike.make,bike.model,bike.variant].filter(Boolean).join(" ");
+    const image=bike.image_url
+      ? '<img src="'+esc(bike.image_url)+'" alt="'+esc(title)+'" loading="lazy" onerror="this.onerror=null;this.src=\'/anybike-logo-new.jpg\'">'
+      : '<img src="/anybike-logo-new.jpg" alt="'+esc(title)+'" loading="lazy">';
+
+    return '<a class="stock-card" href="/bike-details.html?id='+encodeURIComponent(bike.bike_id)+'">'+
+      image+
+      '<div class="stock-copy">'+
+        '<h3>'+esc(title)+'</h3>'+
+        (bike.mileage!=null?'<div class="stock-meta">'+esc(marketMileage(bike.mileage))+'</div>':'')+
+        '<div class="stock-price">'+esc(marketMoney(bike.price_gbp))+'</div>'+
+        '<div class="stock-meta" style="margin-top:8px;color:#ed3b3b;font-weight:900">'+esc(label)+' →</div>'+
+      '</div>'+
+    '</a>';
+  }
+
+  function interestSectionHtml(market,viewed,similar){
+    const makes=uniqueBy(
+      viewed.map(function(b){return b.make}).filter(Boolean),
+      function(v){return String(v).toLowerCase()}
+    ).slice(0,8);
+    const models=uniqueBy(
+      viewed.map(function(b){return [b.make,b.model].filter(Boolean).join(" ")}).filter(Boolean),
+      function(v){return String(v).toLowerCase()}
+    ).slice(0,10);
+
+    const signalHtml=(makes.length||models.length)
+      ? '<div class="signal-bar" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:24px 0">'+
+          '<div class="signal-card" style="border:1px solid #2d2d2d;border-radius:18px;padding:20px;background:#111">'+
+            '<strong>Brands attracting interest</strong>'+
+            '<div class="area-list" style="margin-top:12px">'+
+              (makes.length?makes.map(function(m){return '<span>'+esc(m)+'</span>'}).join(""):'<span>Building from real viewing activity</span>')+
+            '</div>'+
+          '</div>'+
+          '<div class="signal-card" style="border:1px solid #2d2d2d;border-radius:18px;padding:20px;background:#111">'+
+            '<strong>Models attracting interest</strong>'+
+            '<div class="area-list" style="margin-top:12px">'+
+              (models.length?models.map(function(m){return '<span>'+esc(m)+'</span>'}).join(""):'<span>Building from real viewing activity</span>')+
+            '</div>'+
+          '</div>'+
+        '</div>'
+      : '';
+
+    const groups=[];
+    if(viewed.length){
+      groups.push(
+        '<div class="stock-group-label" style="grid-column:1/-1;margin:6px 0 2px">'+
+          '<strong style="display:block;font-size:1.15rem">Recently viewed in '+esc(market.name)+'</strong>'+
+          '<span style="display:block;color:#aaa;margin-top:4px">Real recent viewing activity associated with this market. Individual visitors are never identified.</span>'+
+        '</div>'+
+        viewed.map(function(b){return marketBikeCard(b,"View this motorcycle")}).join("")
+      );
+    }
+    if(similar.length){
+      groups.push(
+        '<div class="stock-group-label" style="grid-column:1/-1;margin:22px 0 2px">'+
+          '<strong style="display:block;font-size:1.15rem">Similar motorcycles currently available</strong>'+
+          '<span style="display:block;color:#aaa;margin-top:4px">Current UK stock selected from the makes, models, years, engine sizes and budgets attracting interest above.</span>'+
+        '</div>'+
+        similar.map(function(b){return marketBikeCard(b,"View similar motorcycle")}).join("")
+      );
+    }
+
     return '<section class="section" id="countryBuyerInterestSection" data-country-interest="'+esc(market.slug)+'">'+
       '<div class="wrap">'+
         '<div class="section-head">'+
-          '<div class="eyebrow">Real buyer interest in '+esc(market.name)+'</div>'+
-          '<h2>Motorcycles recently viewed by buyers in '+esc(market.name)+'.</h2>'+
-          '<p>This section reflects recent AnyBike activity associated with '+esc(market.name)+'. It shows only the motorcycles attracting interest and never identifies individual visitors or customers.</p>'+
+          '<div class="eyebrow">Buyer interest in '+esc(market.name)+'</div>'+
+          '<h2>Motorcycles attracting attention in '+esc(market.name)+'.</h2>'+
+          '<p>Real motorcycles viewed from this market appear first. Where suitable, the selection then continues with similar motorcycles currently available in the United Kingdom. We do not show visitor identities or imply a number of buyers.</p>'+
         '</div>'+
-        '<div class="stock-grid">'+
-          bikes.map(function(bike){
-            const title=[bike.year,bike.make,bike.model,bike.variant].filter(Boolean).join(" ");
-            const image=bike.image_url
-              ? '<img src="'+esc(bike.image_url)+'" alt="'+esc(title)+'" loading="lazy" onerror="this.src=\'/anybike-logo-new.jpg\'">'
-              : '<img src="/anybike-logo-new.jpg" alt="'+esc(title)+'" loading="lazy">';
-
-            return '<a class="stock-card" href="/bike-details.html?id='+encodeURIComponent(bike.bike_id)+'">'+
-              image+
-              '<div class="stock-copy">'+
-                '<h3>'+esc(title)+'</h3>'+
-                (bike.mileage!=null?'<div class="stock-meta">'+esc(marketMileage(bike.mileage))+'</div>':'')+
-                '<div class="stock-price">'+esc(marketMoney(bike.price_gbp))+'</div>'+
-                '<div class="stock-meta" style="margin-top:8px;color:#ed3b3b;font-weight:900">View this motorcycle →</div>'+
-              '</div>'+
-            '</a>';
-          }).join("")+
-        '</div>'+
+        signalHtml+
+        '<div class="stock-grid">'+groups.join("")+'</div>'+
       '</div>'+
     '</section>';
   }
 
   async function loadCountryBuyerInterest(market){
-    // Réunion has its own fully localised buyer-interest implementation.
+    // Réunion has its own fully localised buyer-interest + similar-stock implementation.
     if(market.slug==="reunion" && (document.getElementById("reunionMarketSelectionGrid") || document.getElementById("reunionInterestGrid")))return;
     if(document.getElementById("countryBuyerInterestSection"))return;
 
@@ -136,25 +208,33 @@
     if(!client)return;
 
     try{
-      const {data,error}=await client.rpc("get_country_motorcycle_interest_v1",{
-        p_country:market.name,
-        p_limit:8
-      });
+      const results=await Promise.all([
+        client.rpc("get_country_motorcycle_interest_v1",{p_country:market.name,p_limit:8}),
+        client.rpc("get_country_similar_motorcycles_v2",{p_country:market.name,p_limit:16})
+      ]);
 
-      if(error)throw error;
+      if(results[0].error)throw results[0].error;
+      if(results[1].error)throw results[1].error;
 
-      const bikes=Array.isArray(data)?data.filter(function(b){
-        return b && b.bike_id && b.make && b.model;
-      }):[];
+      const viewed=Array.isArray(results[0].data)
+        ? results[0].data.filter(function(b){return b && b.bike_id && b.make && b.model})
+        : [];
 
-      // Never invent or pad demand. If there is no real country activity,
-      // no buyer-interest section is shown.
-      if(!bikes.length)return;
+      // Do not manufacture a demand section where no real country activity exists.
+      if(!viewed.length)return;
+
+      const viewedIds=new Set(viewed.map(function(b){return b.bike_id}));
+      const similar=diverseSimilar(
+        (Array.isArray(results[1].data)?results[1].data:[]).filter(function(b){
+          return b && b.bike_id && b.make && b.model && !viewedIds.has(b.bike_id);
+        }),
+        8
+      );
 
       const hero=document.querySelector(".hero");
       if(!hero)return;
 
-      hero.insertAdjacentHTML("afterend",interestSectionHtml(market,bikes));
+      hero.insertAdjacentHTML("afterend",interestSectionHtml(market,viewed,similar));
     }catch(error){
       console.warn("Country buyer interest could not be loaded",market.name,error);
     }
