@@ -216,7 +216,31 @@ footer{margin-top:auto;border-top:1px solid var(--line);color:#aaa;padding:18px 
         <span class="status" id="formStatus"></span>
       </div>
 
-      <div class="success-box" id="successBox"><strong>Message sent.</strong><br>Thank you for contacting AnyBike. Your enquiry has been sent to the correct team.</div>
+      <div class="success-box" id="successBox">
+        <strong>Message sent.</strong><br>Thank you for contacting AnyBike. Your enquiry has been sent to the correct team.
+        <div id="marketDiscoveryPrompt" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid rgba(255,255,255,.14)">
+          <strong style="display:block;margin-bottom:6px">One optional question — help us understand your local motorcycle market.</strong>
+          <div style="color:#cfcfcf;margin-bottom:10px">Where do you normally look for motorcycles for sale? A website, publication, dealer site, Facebook group, forum or anything else is useful.</div>
+          <div style="display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:10px">
+            <select id="marketDiscoveryChannel" style="width:100%;padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,.15);background:#111;color:#fff">
+              <option value="">Type of source</option>
+              <option>Motorcycle marketplace</option>
+              <option>Dealer website</option>
+              <option>Magazine / publication</option>
+              <option>Facebook group</option>
+              <option>Forum / club</option>
+              <option>YouTube / social media</option>
+              <option>Other</option>
+            </select>
+            <input id="marketDiscoverySource" placeholder="Website, publication, group or source name" style="width:100%;padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,.15);background:#111;color:#fff">
+          </div>
+          <input id="marketDiscoveryHeard" placeholder="Optional: where did you first hear about AnyBike?" style="width:100%;margin-top:10px;padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,.15);background:#111;color:#fff">
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px">
+            <button type="button" id="marketDiscoverySaveBtn" onclick="saveMarketDiscoveryResponse()" style="padding:10px 16px">Send answer</button>
+            <span id="marketDiscoveryStatus" style="color:#ddd;font-size:13px"></span>
+          </div>
+        </div>
+      </div>
     </form>
   </section>
 
@@ -235,6 +259,8 @@ document.getElementById("year").textContent = new Date().getFullYear();
 let selectedJourney = null;
 let geoInfo = {};
 let buyerChannel = "";
+let lastSubmittedThreadId = null;
+let lastSubmittedVisitorId = null;
 
 const journeys = [
   {key:"Buy a Motorcycle",icon:"🏍️",group:"Buyer",dept:"Bike Sales",priority:"Normal",title:"Buy / Source Motorcycles",desc:"Tell AnyBike what motorcycle or motorcycles your business needs, or continue from the live stock pages.",tags:"UK Trade • International Trade • Export"},
@@ -531,13 +557,66 @@ ${getDynamicMessage()}`;
   if(notificationError)console.error("AnyBike Connect admin email notification failed:",notificationError);
 
   status.textContent="";
+  lastSubmittedThreadId=thread.id;
+  lastSubmittedVisitorId=originVisitorId;
   document.getElementById("successBox").classList.add("show");
+  const marketPrompt=document.getElementById("marketDiscoveryPrompt");
+  if(marketPrompt){
+    marketPrompt.style.display=(originMarketSlug || !isUnitedKingdom(countryInput||geoInfo.country||"")) ? "block" : "none";
+  }
   document.getElementById("connectForm").reset();
   btn.disabled=false;
   buyerChannel="";
   document.getElementById("channelBox").classList.remove("show");
   document.getElementById("blockBox").classList.remove("show");
 });
+
+
+async function saveMarketDiscoveryResponse(){
+  const status=document.getElementById("marketDiscoveryStatus");
+  const btn=document.getElementById("marketDiscoverySaveBtn");
+  const channel=document.getElementById("marketDiscoveryChannel")?.value||"";
+  const source=document.getElementById("marketDiscoverySource")?.value?.trim()||"";
+  const heard=document.getElementById("marketDiscoveryHeard")?.value?.trim()||"";
+
+  if(!lastSubmittedThreadId || !lastSubmittedVisitorId){
+    if(status)status.textContent="Your enquiry is saved, but this optional answer could not be linked.";
+    return;
+  }
+  if(!source && !heard){
+    if(status)status.textContent="Add a source name or tell us where you heard about AnyBike.";
+    return;
+  }
+
+  if(btn)btn.disabled=true;
+  if(status)status.textContent="Saving…";
+
+  try{
+    const response=await fetch(
+      "https://tuehtnezhdnkqbbhttgp.supabase.co/functions/v1/market-discovery-response",
+      {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          thread_id:lastSubmittedThreadId,
+          visitor_id:lastSubmittedVisitorId,
+          channel_type:channel||"Other",
+          source_name:source||null,
+          heard_about_anybike:heard||null,
+          submitted_from_page:window.location.href
+        })
+      }
+    );
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(data?.error||"Could not save");
+    if(status)status.textContent="Thank you — that helps us understand your local market.";
+    if(btn)btn.style.display="none";
+  }catch(error){
+    console.error("Market discovery response failed",error);
+    if(status)status.textContent="Your enquiry is safe. This optional answer could not be saved.";
+    if(btn)btn.disabled=false;
+  }
+}
 
 function applyUrlPrefill(){
   const params=new URLSearchParams(window.location.search);
