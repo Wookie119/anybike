@@ -377,13 +377,28 @@ input,select,textarea{padding:12px;border-radius:10px;border:1px solid #333;back
 .profile-row span{display:block;color:#999;font-size:12px;margin-bottom:4px}
 .profile-row strong{font-size:15px}
 
-.comm-panel{margin-top:14px;padding:14px;border-radius:16px;background:#171111;border:1px solid rgba(237,28,36,.35)}
-.comm-panel h3{margin:0 0 10px}
+.comm-panel{margin-top:14px;padding:12px;border-radius:14px;background:#171111;border:1px solid rgba(237,28,36,.35)}
+.comm-panel h3{margin:0 0 8px;font-size:16px}
+.comm-compact{display:grid;gap:7px}
+.comm-compact strong{font-size:15px}
+.comm-compact .small{line-height:1.35}
 .comm-score{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .comm-box{background:#111;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:10px}
 .comm-box span{display:block;color:#999;font-size:12px;margin-bottom:4px}
 .comm-box strong{color:#fff;font-size:16px}
 .recommendation{margin-top:10px;color:#ddd;font-size:13px;line-height:1.4}
+
+.interest-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px}
+.interest-card{display:grid;grid-template-columns:92px minmax(0,1fr);gap:12px;background:#181818;border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:10px}
+.interest-card img{width:92px;height:72px;object-fit:cover;border-radius:10px;background:#0b0b0b}
+.interest-card a{color:#fff;text-decoration:none;font-weight:900}
+.interest-card a:hover{color:var(--red)}
+.interest-meta{color:#aaa;font-size:12px;line-height:1.45}
+.interest-count{display:inline-flex;padding:4px 7px;border-radius:999px;background:rgba(237,28,36,.12);color:#ff6d72;font-size:11px;font-weight:900;margin-top:5px}
+
+.timeline-group{background:#181818;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:12px}
+.timeline-group strong{display:block;margin-bottom:4px}
+.timeline-group-pages{color:#aaa;font-size:12px;line-height:1.45}
 
 .workspace-main{background:#111;border:1px solid var(--line);border-radius:18px;padding:16px}
 .tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
@@ -841,6 +856,65 @@ function renderCustomerIntelligence(customer,w){
     '<h3 class="section-title">Recent Journey</h3>'+
     '<div class="intel-section-card"><div class="intel-journey">'+journeyHtml+'</div></div>';
 }
+
+function groupRecentMotorcycleViews(items){
+  const map=new Map();
+  (items||[]).forEach(item=>{
+    const bike=item.available_stock||{};
+    const key=String(item.bike_id||bike.id||"unknown");
+    if(!map.has(key)){
+      map.set(key,{bike,item,count:0,lastViewed:item.viewed_at});
+    }
+    const row=map.get(key);
+    row.count+=1;
+    if(new Date(item.viewed_at||0)>new Date(row.lastViewed||0))row.lastViewed=item.viewed_at;
+  });
+  return [...map.values()].sort((a,b)=>new Date(b.lastViewed||0)-new Date(a.lastViewed||0));
+}
+
+function groupTimelineEvents(events){
+  const out=[];
+  let visitGroup=null;
+
+  function flush(){
+    if(visitGroup){
+      out.push(visitGroup);
+      visitGroup=null;
+    }
+  }
+
+  (events||[]).forEach(e=>{
+    const isVisit=String(e.type||"").toLowerCase()==="visit";
+    const time=new Date(e.event_at||0).getTime();
+
+    if(!isVisit){
+      flush();
+      out.push({kind:"event",event:e});
+      return;
+    }
+
+    if(!visitGroup){
+      visitGroup={kind:"visits",start:e.event_at,end:e.event_at,count:1,pages:[e.detail||e.title||"Website page"]};
+      return;
+    }
+
+    const prev=new Date(visitGroup.end||0).getTime();
+    const gap=Math.abs(prev-time);
+    if(gap<=30*60*1000){
+      visitGroup.end=e.event_at;
+      visitGroup.count+=1;
+      const label=e.detail||e.title||"Website page";
+      if(!visitGroup.pages.includes(label) && visitGroup.pages.length<5)visitGroup.pages.push(label);
+    }else{
+      flush();
+      visitGroup={kind:"visits",start:e.event_at,end:e.event_at,count:1,pages:[e.detail||e.title||"Website page"]};
+    }
+  });
+
+  flush();
+  return out;
+}
+
 function renderCustomerWorkspace(customer){
   const w=customerWorkspaceMap[String(customer.customerId)] || {};
   customer.workspace=w;
@@ -897,15 +971,27 @@ function renderCustomerWorkspace(customer){
     return `<div class="deal-card"><strong>${title}</strong><div class="small">${bike.year?"Year "+safe(bike.year):""} ${bike.mileage?" · "+Number(bike.mileage).toLocaleString("en-GB")+" miles":""}</div><div class="small">Added ${fmtDate(item.created_at)}</div></div>`;
   }).join("") : '<div class="note-box">No Watchlist motorcycles.</div>';
 
-  const recentHtml=customer.recentViewItems?.length ? customer.recentViewItems.slice(0,20).map(item=>{
-    const bike=item.available_stock||{};
+  const groupedRecent=groupRecentMotorcycleViews(customer.recentViewItems||[]);
+  const recentHtml=groupedRecent.length ? '<div class="interest-grid">'+groupedRecent.slice(0,12).map(row=>{
+    const item=row.item||{};
+    const bike=row.bike||{};
     const bikeId=Number(item.bike_id || bike.id || 0);
     const label=safe([bike.make,bike.model,bike.variant].filter(Boolean).join(" "));
-    const title=bikeId
-      ? `<a href="bike-details.html?id=${encodeURIComponent(bikeId)}" target="_blank" rel="noopener" style="color:#fff;text-decoration:underline;text-decoration-color:#ed1c24;text-underline-offset:3px">👀 ${label}</a>`
-      : `👀 ${label}`;
-    return `<div class="deal-card"><strong>${title}</strong><div class="small">Viewed ${fmtDate(item.viewed_at)}</div></div>`;
-  }).join("") : '<div class="note-box">No recently viewed motorcycles.</div>';
+    const image=safe(bike.image_url||"");
+    const href=bikeId?"bike-details.html?id="+encodeURIComponent(bikeId):"#";
+    const meta=[
+      bike.year?"Year "+safe(bike.year):"",
+      bike.mileage?Number(bike.mileage).toLocaleString("en-GB")+" miles":""
+    ].filter(Boolean).join(" · ");
+
+    return '<div class="interest-card">'+
+      (image?'<img src="'+image+'" alt="">':'<div style="width:92px;height:72px;border-radius:10px;background:#0b0b0b"></div>')+
+      '<div><a href="'+href+'" target="_blank" rel="noopener">'+label+'</a>'+
+      (meta?'<div class="interest-meta">'+meta+'</div>':"")+
+      '<div class="interest-meta">Last viewed '+fmtDate(row.lastViewed)+'</div>'+
+      '<div class="interest-count">Viewed '+row.count+' time'+(row.count===1?"":"s")+'</div></div>'+
+    '</div>';
+  }).join("")+'</div>' : '<div class="note-box">No recently viewed motorcycles.</div>';
 
   setPanel("interests",
     '<h3>Motorcycle Interests</h3>'+
@@ -986,6 +1072,9 @@ function renderCustomerWorkspace(customer){
 
   const visits=Array.isArray(w.visits)?w.visits:[];
   const intel=contactIntel(customer);
+  const messageThreads=Array.isArray(w.messages)?w.messages:[];
+  const latestThread=messageThreads[0]||{};
+  const latestMessage=(Array.isArray(latestThread.messages)?latestThread.messages:[]).slice(-1)[0]||null;
   setPanel("communication",`
     <h3>Communication Intelligence</h3>
     <div class="detail-grid">
@@ -993,22 +1082,32 @@ function renderCustomerWorkspace(customer){
       <div class="panel"><span>Best Day</span><strong>${intel.bestDay}</strong></div>
       <div class="panel"><span>Preferred Channel</span><strong>${intel.channel}</strong></div>
       <div class="panel"><span>Confidence</span><strong>${intel.score}%</strong></div>
+      <div class="panel"><span>Message Threads</span><strong>${messageThreads.length}</strong></div>
+      <div class="panel"><span>Last Message</span><strong>${latestMessage?fmtDate(latestMessage.created_at):"-"}</strong></div>
     </div>
     <div class="note-box">🤖 ${intel.recommendation}</div>
-    <h3 class="section-title">Recent Logged-in Browsing</h3>
-    ${visits.length?visits.slice(0,20).map(v=>`<div class="timeline-item"><strong>${fmtDate(v.entered_at)} · ${fmtSeconds(v.active_seconds)}</strong><div class="small">${safe(v.page_title || v.path)}</div><div class="small">${safe(v.path)}</div></div>`).join(""):'<div class="note-box">No logged-in page visits recorded yet.</div>'}
-    <h3 class="section-title">How this is calculated</h3>
-    <div class="note-box">Uses logged-in AnyBike browsing times from the last 90 days and customer reply times. Replies are weighted more strongly than browsing.</div>`
+    <h3 class="section-title">Communication Basis</h3>
+    <div class="note-box">Contact timing uses recent AnyBike browsing patterns and customer reply times. Browsing detail now lives in Intelligence; this tab is focused on when and how to contact the customer.</div>`
   );
 
   const timeline=Array.isArray(w.timeline)?w.timeline:[];
+  const groupedTimeline=groupTimelineEvents(timeline);
   setPanel("timeline",'<h3>Customer Timeline</h3><div class="timeline">'+
-    (timeline.length?timeline.map(e=>`
-      <div class="timeline-item">
-        <strong>${fmtDate(e.event_at)} · ${safe(e.title)}</strong>
-        <div class="small">${safe(e.detail)}</div>
-        ${e.link?'<div style="margin-top:5px"><a class="btn" href="'+safe(e.link)+'">Open</a></div>':""}
-      </div>`).join(""):'<div class="note-box">No customer activity recorded yet.</div>')+
+    (groupedTimeline.length?groupedTimeline.map(item=>{
+      if(item.kind==="visits"){
+        const start=new Date(item.start||0);
+        const end=new Date(item.end||0);
+        const mins=Math.max(1,Math.round(Math.abs(start-end)/60000));
+        return '<div class="timeline-group"><strong>'+fmtDate(item.start)+' · Browsed AnyBike</strong>'+
+          '<div class="small">'+item.count+' page view'+(item.count===1?"":"s")+' · about '+mins+' min</div>'+
+          '<div class="timeline-group-pages">'+item.pages.map(friendlyIntelPageName).join(" · ")+'</div></div>';
+      }
+      const e=item.event||{};
+      return '<div class="timeline-item"><strong>'+fmtDate(e.event_at)+' · '+safe(e.title)+'</strong>'+
+        '<div class="small">'+safe(e.detail)+'</div>'+
+        (e.link?'<div style="margin-top:5px"><a class="btn" href="'+safe(e.link)+'">Open</a></div>':"")+
+      '</div>';
+    }).join(""):'<div class="note-box">No customer activity recorded yet.</div>')+
     '</div>'
   );
 }
@@ -1927,15 +2026,12 @@ function renderCustomers(){
               <div class="profile-row"><span>Latest Activity</span><strong>${c.latest?new Date(c.latest).toLocaleString("en-GB"):"-"}</strong></div>
 
               <div class="comm-panel">
-                <h3>🕒 Best Contact Time</h3>
-                <div class="comm-score">
-                  <div class="comm-box"><span>Best Window</span><strong>${intel.bestWindow}</strong></div>
-                  <div class="comm-box"><span>Best Day</span><strong>${intel.bestDay}</strong></div>
-                  <div class="comm-box"><span>Channel</span><strong>${intel.channel}</strong></div>
-                  <div class="comm-box"><span>Confidence</span><strong>${intel.score}%</strong></div>
+                <h3>🕒 Best Contact</h3>
+                <div class="comm-compact">
+                  <strong>${intel.bestDay} · ${intel.bestWindow}</strong>
+                  <div class="small">${intel.channel} · ${intel.score}% confidence</div>
                 </div>
                 <div class="spark"><div style="width:${intel.score}%"></div></div>
-                <div class="recommendation">🤖 ${intel.recommendation}</div>
               </div>
             </aside>
 
