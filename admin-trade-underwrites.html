@@ -76,6 +76,7 @@ async function load(){
  '<div class="data"><div class="box"><span>Seller wants</span><strong>'+money(r.seller_price_wanted_gbp)+'</strong></div><div class="box"><span>Invited</span><strong>'+r.invited_trade_count+'</strong></div><div class="box"><span>Bid range</span><strong>'+money(r.lowest_live_bid_gbp)+' – '+money(r.highest_live_bid_gbp)+'</strong></div><div class="box"><span>Average</span><strong>'+money(r.average_live_bid_gbp)+'</strong></div></div>'+
  '<div class="meta">Seller-visible genuine bid count: '+r.seller_visible_bid_count+' only. Bid amounts remain internal.</div>'+
  '<div class="actions"><button onclick="viewBids('+r.opportunity_id+')">View Confidential Bids</button>'+
+ (r.opportunity_status==="completed"?'<button class="red" onclick="openUnderwriteDeal('+r.opportunity_id+')">Create / Open Deal 360</button>':'')+
  (r.opportunity_status==='live'?'<button onclick="closeUnderwrite('+r.opportunity_id+')">Close Underwrite</button>':'')+
  '<button class="red" onclick="openOffer('+r.opportunity_id+','+(r.highest_live_bid_gbp??"null")+')">Make AnyBike Offer</button>'+
  (r.latest_offer_amount_gbp?'<span class="btn">Latest seller offer '+money(r.latest_offer_amount_gbp)+' · '+esc(r.latest_offer_status)+(r.seller_counter_gbp?' · counter '+money(r.seller_counter_gbp):'')+'</span>':'')+
@@ -218,6 +219,12 @@ async function saveOffer(){
  closeOffer();await load();
 }
 
+async function openUnderwriteDeal(opportunityId){
+  const {data,error}=await sb.rpc("admin_promote_trade_underwrite_to_deal_v1",{p_opportunity_id:Number(opportunityId)});
+  if(error){alert(error.message);return;}
+  if(!data?.deal_id){alert("Deal 360 could not be opened.");return;}
+  location.href="/admin-enquiries.html?deal="+encodeURIComponent(data.deal_id);
+}
 async function recordSellerResponse(offerId,response){
   const label=response==="accepted"?"accepted":"declined";
   if(!confirm("Record that the seller has "+label+" AnyBike's offer?"))return;
