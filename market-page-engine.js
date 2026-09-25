@@ -1,5 +1,5 @@
 /* AnyBike shared international market intelligence engine
-   v1.0 | 25 Sep 2026
+   v1.1 | 25 Sep 2026
    Additive layer: works across both legacy rich market pages and newer lightweight guides.
    Never manufactures buyer demand. Country-specific local destination data is only shown when verified/configured.
 */
@@ -57,7 +57,10 @@
     const style=document.createElement("style");
     style.id="anybikeMarketEngineStyles";
     style.textContent=
-      ".ab-market-section{padding:76px 0;border-bottom:1px solid rgba(255,255,255,.08);background:#080808;color:#fff}"+
+      "body .section{padding-top:46px!important;padding-bottom:46px!important}"+
+      "body .section .section-head{margin-bottom:22px!important}"+
+      "body .section .source-panel,body .section .cta{margin-top:0!important;margin-bottom:0!important}"+
+      ".ab-market-section{padding:46px 0;border-bottom:1px solid rgba(255,255,255,.08);background:#080808;color:#fff}"+
       ".ab-market-wrap{width:min(1240px,92vw);margin:0 auto}"+
       ".ab-market-head{max-width:900px;margin-bottom:28px}"+
       ".ab-market-eyebrow{color:#ed1c24;font-size:12px;font-weight:950;letter-spacing:.14em;text-transform:uppercase}"+
@@ -79,8 +82,14 @@
       ".ab-stock-copy{padding:16px}.ab-stock-copy h3{margin:0 0 7px;font-size:18px;line-height:1.25}.ab-stock-meta{color:#999;font-size:13px}.ab-stock-price{margin-top:9px;font-size:21px;font-weight:950}.ab-stock-action{margin-top:9px;color:#ed1c24;font-size:13px;font-weight:950}"+
       ".ab-market-actions{display:flex;flex-wrap:wrap;gap:11px;margin-top:22px}.ab-market-btn{display:inline-flex;align-items:center;justify-content:center;min-height:50px;padding:12px 20px;border:1px solid rgba(255,255,255,.18);border-radius:999px;background:#161616;color:#fff;text-decoration:none;font-weight:950}.ab-market-btn.primary{background:#ed1c24;border-color:#ed1c24}"+
       ".ab-local-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}"+
-      "@media(max-width:950px){.ab-stock-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}"+
-      "@media(max-width:700px){.ab-market-section{padding:56px 0}.ab-signal-grid,.ab-local-grid,.ab-stock-grid{grid-template-columns:1fr}.ab-stock-card img{height:230px}.ab-market-actions{display:grid}.ab-market-btn{width:100%}}";
+      ".ab-link-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}"+
+      ".ab-link-card{display:flex;flex-direction:column;min-height:145px;padding:19px;border:1px solid rgba(255,255,255,.12);border-radius:17px;background:#111;color:#fff;text-decoration:none;transition:.18s}"+
+      ".ab-link-card:hover{transform:translateY(-2px);border-color:#ed1c24}.ab-link-card strong{font-size:17px;margin-bottom:7px}.ab-link-card span{color:#999;font-size:13px;line-height:1.45}.ab-link-card b{margin-top:auto;padding-top:12px;color:#ed1c24;font-size:12px}"+
+      ".ab-hero-enhanced{padding:0!important;display:grid!important;grid-template-columns:minmax(0,.95fr) minmax(0,1.05fr);min-height:560px;overflow:hidden}"+
+      ".ab-hero-enhanced>.wrap{width:auto!important;margin:0!important;padding:64px max(4vw,calc((100vw - 1240px)/2));padding-right:42px;align-self:center}"+
+      ".ab-hero-scene{min-height:560px;background:#141414 center/cover no-repeat;position:relative}.ab-hero-scene:after{content:\"\";position:absolute;inset:0;background:linear-gradient(90deg,rgba(5,5,5,.2),transparent 28%)}"+
+      "@media(max-width:950px){.ab-stock-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.ab-link-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.ab-hero-enhanced{grid-template-columns:1fr;min-height:0}.ab-hero-enhanced>.wrap{padding:50px 5vw}.ab-hero-scene{min-height:390px}}"+
+      "@media(max-width:700px){body .section{padding-top:36px!important;padding-bottom:36px!important}.ab-market-section{padding:36px 0}.ab-signal-grid,.ab-local-grid,.ab-stock-grid,.ab-link-grid{grid-template-columns:1fr}.ab-stock-card img{height:230px}.ab-market-actions{display:grid}.ab-market-btn{width:100%}.ab-hero-scene{min-height:300px}}";
     document.head.appendChild(style);
   }
 
@@ -208,6 +217,67 @@
     wrap.appendChild(panel);
   }
 
+
+  function enhanceHero(slug,name){
+    const hero=document.querySelector(".hero");
+    if(!hero || hero.querySelector(".hero-media,.ab-hero-scene")) return;
+
+    const wrap=hero.querySelector(":scope > .wrap");
+    if(!wrap) return;
+
+    const candidates=slug==="reunion"
+      ? ["/assets/reunion-hero-selected.jpg","/assets/reunion-motorcycle-hero.webp"]
+      : ["/assets/"+slug+"-motorcycle-hero.webp"];
+
+    function tryCandidate(index){
+      if(index>=candidates.length) return;
+      const src=candidates[index];
+      const img=new Image();
+      img.onload=function(){
+        hero.classList.add("ab-hero-enhanced");
+        const scene=document.createElement("div");
+        scene.className="ab-hero-scene";
+        scene.setAttribute("role","img");
+        scene.setAttribute("aria-label","Motorcycle and scenic view for "+name);
+        scene.style.backgroundImage='url("'+src.replace(/"/g,"%22")+'")';
+        hero.appendChild(scene);
+      };
+      img.onerror=function(){ tryCandidate(index+1); };
+      img.src=src;
+    }
+    tryCandidate(0);
+  }
+
+  function addInternalLinks(name){
+    if(document.querySelector("[data-anybike-internal-links]")) return;
+    const main=document.querySelector("main");
+    if(!main) return;
+
+    const section=document.createElement("section");
+    section.className="ab-market-section";
+    section.dataset.anybikeInternalLinks="1";
+    section.innerHTML='<div class="ab-market-wrap">'+
+      '<div class="ab-market-head"><div class="ab-market-eyebrow">Explore AnyBike</div>'+
+      '<h2>More help buying a UK motorcycle for '+esc(name)+'.</h2>'+
+      '<p>Continue into motorcycle sourcing, inspection, collection, export preparation and international market information without leaving the AnyBike buying journey.</p></div>'+
+      '<div class="ab-link-grid">'+
+        '<a class="ab-link-card" href="/available-stock.html"><strong>Available Motorcycles</strong><span>Browse motorcycles currently available through AnyBike.</span><b>Browse stock →</b></a>'+
+        '<a class="ab-link-card" href="/buy-motorcycles.html"><strong>Source a Motorcycle</strong><span>Tell AnyBike the make, model, year, mileage and budget you need.</span><b>Create a sourcing request →</b></a>'+
+        '<a class="ab-link-card" href="/motorcycle-inspection.html"><strong>Motorcycle Inspection</strong><span>See the inspection and condition-check options available before purchase.</span><b>Inspection options →</b></a>'+
+        '<a class="ab-link-card" href="/motorcycle-collection.html"><strong>UK Motorcycle Collection</strong><span>How AnyBike and Move Motorcycles collect motorcycles from UK sellers.</span><b>Collection service →</b></a>'+
+        '<a class="ab-link-card" href="/export-crating.html"><strong>Export Crating</strong><span>Preparation and crating options when required by the shipping route.</span><b>Export crating →</b></a>'+
+        '<a class="ab-link-card" href="/shipping-advice.html"><strong>Shipping Advice</strong><span>Plan the UK handover to your nominated freight forwarder or shipping agent.</span><b>Shipping advice →</b></a>'+
+        '<a class="ab-link-card" href="/freight-forwarders.html"><strong>Freight Forwarders</strong><span>Explore freight-forwarder information for onward international transport.</span><b>Freight forwarders →</b></a>'+
+        '<a class="ab-link-card" href="/services-and-fees.html"><strong>Services &amp; Fees</strong><span>See AnyBike services, buying support and applicable charges.</span><b>View services &amp; fees →</b></a>'+
+        '<a class="ab-link-card" href="/international-markets.html"><strong>International Markets</strong><span>Explore the full network of AnyBike destination-country guides.</span><b>View all markets →</b></a>'+
+        '<a class="ab-link-card" href="/anybike-connect.html"><strong>AnyBike Connect</strong><span>Contact AnyBike and tell us what you are trying to buy or arrange.</span><b>Connect with AnyBike →</b></a>'+
+      '</div></div>';
+
+    const finalCta=main.querySelector(".cta")?.closest("section");
+    if(finalCta&&finalCta.parentNode) finalCta.parentNode.insertBefore(section,finalCta);
+    else main.appendChild(section);
+  }
+
   function standardiseUkHandover(name){
     if(document.querySelector("[data-anybike-handover-standardised]")) return;
     const pillContainers=Array.from(document.querySelectorAll(".pills,.port-list,.area-list"));
@@ -315,8 +385,10 @@
     if(!slug) return;
     const name=marketName();
     ensureStyles();
+    enhanceHero(slug,name);
     standardiseUkHandover(name);
     addVerifiedLocalDestination(slug,name);
+    addInternalLinks(name);
     try{
       await loadDemand(name);
     }catch(error){
