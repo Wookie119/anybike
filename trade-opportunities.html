@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Trade Opportunities | AnyBike</title>
+<meta name="robots" content="noindex,nofollow">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--red:#ed1c24;--line:rgba(255,255,255,.12)}
+*{box-sizing:border-box}body{margin:0;background:#070707;color:#fff;font-family:Arial,Helvetica,sans-serif}
+.wrap{max-width:1300px;margin:auto;padding:24px}.hero,.card{background:#111;border:1px solid var(--line);border-radius:20px}
+.hero{padding:24px;margin-bottom:16px;background:radial-gradient(circle at top right,rgba(237,28,36,.2),transparent 38%),#111}
+h1{margin:5px 0}.eyebrow{color:var(--red);font-weight:900;font-size:11px;letter-spacing:.12em;text-transform:uppercase}
+p{color:#bbb;line-height:1.5}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.card{overflow:hidden}.img{aspect-ratio:4/3;background:#191919;display:flex;align-items:center;justify-content:center}
+.img img{width:100%;height:100%;object-fit:cover}.body{padding:16px}.bike{font-size:22px;font-weight:900;margin:4px 0}.meta{font-size:12px;color:#999}
+.data{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:13px 0}.box{background:#0b0b0b;border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:9px}
+.box span{display:block;color:#777;font-size:9px;text-transform:uppercase;font-weight:900}.box strong{display:block;margin-top:3px}
+input,textarea{width:100%;background:#090909;color:#fff;border:1px solid #333;border-radius:10px;padding:11px;font:inherit;margin-top:6px}
+textarea{min-height:68px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}button,.btn{border:0;border-radius:10px;padding:10px 13px;background:#292929;color:#fff;font-weight:900;cursor:pointer;text-decoration:none}.red{background:var(--red)}
+.notice{padding:12px;border:1px solid var(--line);border-radius:12px;margin-bottom:14px;color:#bbb}.empty{padding:30px;border:1px dashed #333;border-radius:16px;text-align:center;color:#888}
+@media(max-width:1000px){.grid{grid-template-columns:1fr 1fr}}@media(max-width:680px){.grid{grid-template-columns:1fr}.wrap{padding:14px}}
+</style>
+</head>
+<body>
+<div id="publicHeader"></div>
+<main class="wrap">
+  <section class="hero">
+    <div class="eyebrow">Verified Trade Only</div>
+    <h1>Private Trade Opportunities</h1>
+    <p>Confidential AnyBike underwrite opportunities. The seller and other bidders are not identified. You can see and update only your dealership's own bid.</p>
+  </section>
+  <div class="notice">These are not public classifieds. AnyBike controls the opportunity, communicates with the seller and decides whether to make an AnyBike purchase offer.</div>
+  <div id="grid" class="grid"><div class="empty">Loading…</div></div>
+</main>
+
+<script>
+const SUPABASE_URL="https://tuehtnezhdnkqbbhttgp.supabase.co";
+const SUPABASE_ANON_KEY="sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+const esc=v=>String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+const money=v=>v===null||v===undefined?"—":"£"+Number(v).toLocaleString("en-GB",{maximumFractionDigits:0});
+function countdown(v){if(!v)return"—";const ms=new Date(v)-Date.now();if(ms<=0)return"Closed";const h=Math.floor(ms/3600000),m=Math.floor(ms%3600000/60000);return h+"h "+m+"m";}
+
+async function load(){
+  const {data:session}=await sb.auth.getSession();
+  if(!session?.session){location.replace("/customer-register.html?return="+encodeURIComponent(location.pathname));return;}
+  const {data,error}=await sb.rpc("trade_get_my_underwrite_opportunities_v1");
+  const host=document.getElementById("grid");
+  if(error){host.innerHTML='<div class="empty">'+esc(error.message)+'</div>';return;}
+  const rows=data||[];
+  if(!rows.length){host.innerHTML='<div class="empty">No private trade opportunities are currently available to your dealership.</div>';return;}
+  host.innerHTML=rows.map(r=>'<article class="card">'+
+    '<div class="img"><img src="'+esc(r.image_url||"/anybike-image-coming-soon.png")+'" alt="" onerror="this.src=\'/anybike-image-coming-soon.png\'"></div>'+
+    '<div class="body">'+
+      '<div class="meta">'+esc(r.reference)+' · closes in '+esc(countdown(r.closes_at))+'</div>'+
+      '<div class="bike">'+esc([r.make,r.model,r.variant].filter(Boolean).join(" "))+'</div>'+
+      '<div class="data"><div class="box"><span>Year</span><strong>'+esc(r.bike_year||"—")+'</strong></div><div class="box"><span>Mileage</span><strong>'+(r.mileage===null?"—":Number(r.mileage).toLocaleString("en-GB"))+'</strong></div></div>'+
+      (r.notes?'<p>'+esc(r.notes)+'</p>':'')+
+      '<label>Your confidential bid (£)<input id="bid-'+r.opportunity_id+'" type="number" min="1" step="1" value="'+esc(r.my_bid_gbp??"")+'" placeholder="Enter amount"></label>'+
+      '<label style="display:block;margin-top:10px">Notes to AnyBike only<textarea id="note-'+r.opportunity_id+'" placeholder="Optional conditions or notes"></textarea></label>'+
+      '<div class="actions"><button class="red" onclick="submitBid('+r.opportunity_id+')">'+(r.my_bid_gbp?"Update My Bid":"Submit Bid")+'</button>'+
+      (r.my_bid_gbp?'<button onclick="withdrawBid('+r.opportunity_id+')">Withdraw My Bid</button>':'')+
+      '</div>'+
+      (r.my_bid_gbp?'<div class="meta" style="margin-top:8px">Your current live bid: '+money(r.my_bid_gbp)+'</div>':'')+
+    '</div></article>').join("");
+}
+async function submitBid(id){
+  const amount=Number(document.getElementById("bid-"+id).value);
+  const notes=document.getElementById("note-"+id).value.trim()||null;
+  if(!amount||amount<=0){alert("Enter your bid amount.");return;}
+  const {error}=await sb.rpc("trade_submit_underwrite_bid_v1",{p_opportunity_id:id,p_amount_gbp:amount,p_notes:notes});
+  if(error){alert(error.message);return;} alert("Your confidential bid has been recorded by AnyBike."); await load();
+}
+async function withdrawBid(id){
+  if(!confirm("Withdraw your current bid?"))return;
+  const {error}=await sb.rpc("trade_withdraw_underwrite_bid_v1",{p_opportunity_id:id});
+  if(error){alert(error.message);return;} await load();
+}
+load();
+setInterval(()=>{document.querySelectorAll(".meta").forEach(()=>{});},60000);
+</script>
+<script src="/public-header.js?v=12001"></script>
+</body>
+</html>
