@@ -114,7 +114,7 @@ async function scanUrls(){
   try{
     const {data,error}=await sb().functions.invoke("scan-used-bike-advert",{body:{urls}});
     if(error) throw error;
-    scanned=(data?.results||[]).map((x,i)=>({...x,_key:i,delivery_allowance_gbp:nval("deliveryAllowance",250),fee_allowance_gbp:0,selected_for_buyer:false,price_checked:false}));
+    scanned=(data?.results||[]).map((x,i)=>{const fee=anybikeFeeFromRrp(x.rrp_gbp);const src=Number(x.source_advertised_price_gbp)||0;const delivery=nval("deliveryAllowance",250);return {...x,_key:i,delivery_allowance_gbp:delivery,fee_allowance_gbp:fee,anybike_price_gbp:src?src+delivery+fee:null,selected_for_buyer:false,price_checked:false};});
     renderScans(false);
     document.getElementById("saveBatchButton").disabled=!scanned.length;
     const ok=scanned.filter(x=>x.scan_status!=="failed").length,fail=scanned.length-ok;
