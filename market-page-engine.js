@@ -253,25 +253,50 @@
     const main=document.querySelector("main");
     if(!main) return;
 
+    const french=String(document.documentElement.lang||"").toLowerCase().startsWith("fr");
+    const copy=french ? {
+      eyebrow:"Explorer AnyBike",
+      title:"Plus de services pour acheter une moto au Royaume-Uni pour "+name+".",
+      intro:"Poursuivez votre parcours AnyBike : recherche de moto, inspection, collecte, préparation export et informations sur les marchés internationaux.",
+      links:[
+        ["/available-stock.html","Motos disponibles","Parcourez les motos actuellement disponibles via AnyBike.","Voir le stock →"],
+        ["/buy-motorcycles.html","Faire rechercher une moto","Indiquez la marque, le modèle, l’année, le kilométrage et le budget recherchés.","Créer une demande →"],
+        ["/motorcycle-inspection.html","Inspection de moto","Découvrez les options d’inspection et de contrôle disponibles avant l’achat.","Voir les inspections →"],
+        ["/motorcycle-collection.html","Collecte au Royaume-Uni","Découvrez comment AnyBike et Move Motorcycles collectent les motos auprès des vendeurs britanniques.","Service de collecte →"],
+        ["/export-crating.html","Caisse export","Préparation et mise en caisse lorsque votre itinéraire d’expédition l’exige.","Voir la caisse export →"],
+        ["/shipping-advice.html","Conseils d’expédition","Préparez la remise au Royaume-Uni à votre transitaire ou agent maritime désigné.","Conseils d’expédition →"],
+        ["/freight-forwarders.html","Transitaires","Consultez les informations sur les transitaires pour le transport international.","Voir les transitaires →"],
+        ["/services-and-fees.html","Services & frais","Consultez les services AnyBike et les frais applicables.","Voir les services & frais →"],
+        ["/international-markets.html","Marchés internationaux","Explorez tous les guides pays et territoires AnyBike.","Voir tous les marchés →"],
+        ["/anybike-connect.html","AnyBike Connect","Contactez AnyBike et expliquez-nous ce que vous souhaitez acheter ou organiser.","Contacter AnyBike →"]
+      ]
+    } : {
+      eyebrow:"Explore AnyBike",
+      title:"More help buying a UK motorcycle for "+name+".",
+      intro:"Continue into motorcycle sourcing, inspection, collection, export preparation and international market information without leaving the AnyBike buying journey.",
+      links:[
+        ["/available-stock.html","Available Motorcycles","Browse motorcycles currently available through AnyBike.","Browse stock →"],
+        ["/buy-motorcycles.html","Source a Motorcycle","Tell AnyBike the make, model, year, mileage and budget you need.","Create a sourcing request →"],
+        ["/motorcycle-inspection.html","Motorcycle Inspection","See the inspection and condition-check options available before purchase.","Inspection options →"],
+        ["/motorcycle-collection.html","UK Motorcycle Collection","How AnyBike and Move Motorcycles collect motorcycles from UK sellers.","Collection service →"],
+        ["/export-crating.html","Export Crating","Preparation and crating options when required by the shipping route.","Export crating →"],
+        ["/shipping-advice.html","Shipping Advice","Plan the UK handover to your nominated freight forwarder or shipping agent.","Shipping advice →"],
+        ["/freight-forwarders.html","Freight Forwarders","Explore freight-forwarder information for onward international transport.","Freight forwarders →"],
+        ["/services-and-fees.html","Services & Fees","See AnyBike services, buying support and applicable charges.","View services & fees →"],
+        ["/international-markets.html","International Markets","Explore the full network of AnyBike destination-country guides.","View all markets →"],
+        ["/anybike-connect.html","AnyBike Connect","Contact AnyBike and tell us what you are trying to buy or arrange.","Connect with AnyBike →"]
+      ]
+    };
+
     const section=document.createElement("section");
     section.className="ab-market-section";
     section.dataset.anybikeInternalLinks="1";
     section.innerHTML='<div class="ab-market-wrap">'+
-      '<div class="ab-market-head"><div class="ab-market-eyebrow">Explore AnyBike</div>'+
-      '<h2>More help buying a UK motorcycle for '+esc(name)+'.</h2>'+
-      '<p>Continue into motorcycle sourcing, inspection, collection, export preparation and international market information without leaving the AnyBike buying journey.</p></div>'+
-      '<div class="ab-link-grid">'+
-        '<a class="ab-link-card" href="/available-stock.html"><strong>Available Motorcycles</strong><span>Browse motorcycles currently available through AnyBike.</span><b>Browse stock →</b></a>'+
-        '<a class="ab-link-card" href="/buy-motorcycles.html"><strong>Source a Motorcycle</strong><span>Tell AnyBike the make, model, year, mileage and budget you need.</span><b>Create a sourcing request →</b></a>'+
-        '<a class="ab-link-card" href="/motorcycle-inspection.html"><strong>Motorcycle Inspection</strong><span>See the inspection and condition-check options available before purchase.</span><b>Inspection options →</b></a>'+
-        '<a class="ab-link-card" href="/motorcycle-collection.html"><strong>UK Motorcycle Collection</strong><span>How AnyBike and Move Motorcycles collect motorcycles from UK sellers.</span><b>Collection service →</b></a>'+
-        '<a class="ab-link-card" href="/export-crating.html"><strong>Export Crating</strong><span>Preparation and crating options when required by the shipping route.</span><b>Export crating →</b></a>'+
-        '<a class="ab-link-card" href="/shipping-advice.html"><strong>Shipping Advice</strong><span>Plan the UK handover to your nominated freight forwarder or shipping agent.</span><b>Shipping advice →</b></a>'+
-        '<a class="ab-link-card" href="/freight-forwarders.html"><strong>Freight Forwarders</strong><span>Explore freight-forwarder information for onward international transport.</span><b>Freight forwarders →</b></a>'+
-        '<a class="ab-link-card" href="/services-and-fees.html"><strong>Services &amp; Fees</strong><span>See AnyBike services, buying support and applicable charges.</span><b>View services &amp; fees →</b></a>'+
-        '<a class="ab-link-card" href="/international-markets.html"><strong>International Markets</strong><span>Explore the full network of AnyBike destination-country guides.</span><b>View all markets →</b></a>'+
-        '<a class="ab-link-card" href="/anybike-connect.html"><strong>AnyBike Connect</strong><span>Contact AnyBike and tell us what you are trying to buy or arrange.</span><b>Connect with AnyBike →</b></a>'+
-      '</div></div>';
+      '<div class="ab-market-head"><div class="ab-market-eyebrow">'+esc(copy.eyebrow)+'</div>'+
+      '<h2>'+esc(copy.title)+'</h2><p>'+esc(copy.intro)+'</p></div>'+
+      '<div class="ab-link-grid">'+copy.links.map(function(link){
+        return '<a class="ab-link-card" href="'+esc(link[0])+'"><strong>'+esc(link[1])+'</strong><span>'+esc(link[2])+'</span><b>'+esc(link[3])+'</b></a>';
+      }).join("")+'</div></div>';
 
     const finalCta=main.querySelector(".cta")?.closest("section");
     if(finalCta&&finalCta.parentNode) finalCta.parentNode.insertBefore(section,finalCta);
