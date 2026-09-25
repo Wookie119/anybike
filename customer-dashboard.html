@@ -3733,15 +3733,32 @@ function renderBuyerPotentialMatches(rows){
 async function loadSourcedMatchBatches(){
   const box=document.getElementById("sourcedMatchBatchesBox");
   if(!box||!currentUser)return;
-  const {data,error}=await supabaseClient.rpc("customer_get_sourced_match_batches_v1");
-  if(error){box.innerHTML='<div class="buyer-match-empty">Could not load your hand-picked selections.</div>';return}
-  const rows=data||[];
-  if(!rows.length){box.innerHTML='<div class="buyer-match-empty">No hand-picked selections have been shared with you yet.</div>';return}
-  box.innerHTML=rows.map(r=>{
-    const title=[r.make,r.model].filter(Boolean).join(" ")||"Motorcycle selection";
-    const meta=[r.total_matches+" matches",r.interested_count? r.interested_count+" interested":"",r.watching_count? r.watching_count+" watching":"",r.declined_count? r.declined_count+" declined":""].filter(Boolean).join(" · ");
-    return '<div class="buyer-match-pool-card"><div><strong>'+escapeHtml(title)+'</strong><div class="buyer-match-card-meta">'+escapeHtml(meta)+'</div></div><a class="mini-btn" href="/customer-sourced-matches.html?batch='+encodeURIComponent(r.id)+'">Open selection</a></div>';
-  }).join("");
+
+  try{
+    const {data,error}=await sb.rpc("customer_get_sourced_match_batches_v1");
+    if(error) throw error;
+
+    const rows=data||[];
+    if(!rows.length){
+      box.innerHTML='<div class="buyer-match-empty">No hand-picked selections have been shared with you yet.</div>';
+      return;
+    }
+
+    box.innerHTML=rows.map(r=>{
+      const title=[r.make,r.model].filter(Boolean).join(" ")||"Motorcycle selection";
+      const meta=[
+        Number(r.total_matches||0)+" matches",
+        r.interested_count? r.interested_count+" interested":"",
+        r.watching_count? r.watching_count+" watching":"",
+        r.declined_count? r.declined_count+" declined":""
+      ].filter(Boolean).join(" · ");
+
+      return '<div class="buyer-match-pool-card"><div><strong>'+safe(title)+'</strong><div class="buyer-match-card-meta">'+safe(meta)+'</div></div><a class="mini-btn" href="/customer-sourced-matches.html?batch='+encodeURIComponent(r.id)+'">Open selection</a></div>';
+    }).join("");
+  }catch(error){
+    console.error("Hand-picked selections could not be loaded",error);
+    box.innerHTML='<div class="buyer-match-empty"><span class="bad">Hand-picked selections could not be loaded.</span></div>';
+  }
 }
 
 async function loadBuyerPotentialMatches(){
@@ -6287,14 +6304,21 @@ async function initialiseCustomerNotifications(){
 
     document.documentElement.classList.remove("customer-auth-pending");
 
-    await Promise.allSettled([
+    const dashboardLoads=await Promise.allSettled([
       loadCounts(),
       loadRecentlyViewed(),
       loadDashboardConversationCount(),
       loadRecommendations(),
+      loadSourcedMatchBatches(),
       loadBuyerPotentialMatches(),
       loadBuyerMatchNotificationPreference()
     ]);
+
+    dashboardLoads.forEach((result,index)=>{
+      if(result.status==="rejected"){
+        console.error("Dashboard section failed",index,result.reason);
+      }
+    });
 
     await initialiseCustomerNotifications();
   }catch(error){
