@@ -579,6 +579,31 @@ function numberText(v,suffix){
   return n.toLocaleString("en-GB")+(suffix||"");
 }
 
+function anyBikeMotorcyclePlaceholder(title){
+  return '<div class="image-placeholder" style="display:grid;place-items:center;gap:12px;min-height:250px;width:100%;background:linear-gradient(145deg,#111,#1b1b1b);padding:28px">'+
+    '<img src="/anybike-logo-new.jpg" alt="AnyBike" style="width:120px;max-width:42%;border-radius:12px;opacity:.95">'+
+    '<div style="font-weight:900;color:#fff">AnyBike Motorcycle</div>'+
+    '<div style="color:#888;font-size:12px">Original image unavailable for '+safe(title||"this motorcycle")+'.</div>'+
+  '</div>';
+}
+
+function usableMotorcycleImageUrl(value){
+  const url=String(value||"").trim();
+  if(!url) return "";
+  const lower=url.toLowerCase();
+  if(
+    url.includes("{resize}") ||
+    lower.includes("placeholder") ||
+    lower.includes("no-image") ||
+    lower.includes("no_image") ||
+    lower.includes("image-not-available") ||
+    lower.includes("imagenotavailable")
+  ){
+    return "";
+  }
+  return url;
+}
+
 function dateText(v){
   if(!v) return "-";
   const d=new Date(v);
@@ -1073,11 +1098,11 @@ function renderBike(b){
     b.price_gbp
   );
 
-  const imageUrl=first(
+  const imageUrl=usableMotorcycleImageUrl(first(
     b.image_url,
     b.public_image_url,
     b.primary_image_url
-  );
+  ));
 
   const status=first(
     b.status,
@@ -1086,8 +1111,8 @@ function renderBike(b){
   );
 
   const imageHtml=imageUrl
-    ? '<img src="'+safe(imageUrl)+'" alt="'+safe(title)+'" onerror="this.parentElement.innerHTML=\'<div class=&quot;image-placeholder&quot;>Image could not be loaded.</div>\'">'
-    : '<div class="image-placeholder">No motorcycle image stored.</div>';
+    ? '<img src="'+safe(imageUrl)+'" alt="'+safe(title)+'" onerror="this.parentElement.innerHTML=anyBikeMotorcyclePlaceholder(\''+safe(title).replace(/'/g,"\\&#39;")+'\')">'
+    : anyBikeMotorcyclePlaceholder(title);
 
   const vatTreatment=first(b.vat_treatment,"Check Required");
   const vatTreatmentStatus=first(b.vat_treatment_status,"Check Required");
