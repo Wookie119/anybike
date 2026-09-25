@@ -104,10 +104,12 @@ async function loadSourceFacets(){
   const cid=document.getElementById("connectorFilter").value?Number(document.getElementById("connectorFilter").value):null;
   const makeEl=document.getElementById("makeFilter");
   const modelEl=document.getElementById("modelFilter");
+  const previousMake=makeEl.value;
+  const previousModel=modelEl.value;
   sourceFacets={makes:[],models:[]};
-  makeEl.innerHTML='<option value="">All makes</option>';
-  modelEl.innerHTML='<option value="">All models</option>';
   if(!cid){
+    makeEl.innerHTML='<option value="">Choose a source first</option>';
+    modelEl.innerHTML='<option value="">Choose a source first</option>';
     makeEl.disabled=true;
     modelEl.disabled=true;
     return;
@@ -122,18 +124,22 @@ async function loadSourceFacets(){
   const makes=sourceFacets.makes||[];
   makeEl.disabled=false;
   modelEl.disabled=false;
-  makeEl.innerHTML='<option value="">All makes</option>'+makes.map(m=>'<option value="'+esc(m)+'">'+esc(m)+'</option>').join("");
   if(!makes.length){
-    makeEl.innerHTML='<option value="">No live makes yet — refresh source first</option>';
+    makeEl.innerHTML='<option value="">Source not populated yet — refresh source</option>';
     modelEl.innerHTML='<option value="">No live models yet</option>';
+    return;
   }
-  refreshModelOptions();
+  makeEl.innerHTML='<option value="">All makes</option>'+makes.map(m=>'<option value="'+esc(m)+'">'+esc(m)+'</option>').join("");
+  if(previousMake && makes.includes(previousMake)) makeEl.value=previousMake;
+  refreshModelOptions(previousModel);
 }
-function refreshModelOptions(){
+function refreshModelOptions(previousModel){
   const make=document.getElementById("makeFilter").value;
   const modelEl=document.getElementById("modelFilter");
   const rows=(sourceFacets.models||[]).filter(x=>!make||x.make===make);
-  modelEl.innerHTML='<option value="">All models</option>'+rows.map(x=>'<option value="'+esc(x.model)+'">'+esc(x.model)+'</option>').join("");
+  const models=[...new Set(rows.map(x=>x.model))].sort((a,b)=>String(a).localeCompare(String(b)));
+  modelEl.innerHTML='<option value="">All models</option>'+models.map(m=>'<option value="'+esc(m)+'">'+esc(m)+'</option>').join("");
+  if(previousModel && models.includes(previousModel)) modelEl.value=previousModel;
   if(!rows.length&&make)modelEl.innerHTML='<option value="">No live models for this make</option>';
 }
 async function loadHub(){
@@ -226,6 +232,14 @@ async function createBatch(){
   const allowed=await requireAdminSession();if(!allowed)return;
   await Promise.all([loadHub(),loadBuyers()]);
   await loadItems();
+
+  // Keep Make / Model lists current if a source refresh runs in another tab
+  // or an automated source refresh adds a new model while this page is open.
+  setInterval(async()=>{
+    const cid=document.getElementById("connectorFilter").value;
+    if(!cid)return;
+    await loadSourceFacets();
+  },60000);
 })();
 </script>
 </body>
