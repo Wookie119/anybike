@@ -250,6 +250,34 @@ button:disabled{
 
 .muted{color:#ccc}
 
+.market-related{
+  width:min(1240px,calc(100vw - 36px));
+  margin:20px auto 44px;
+  padding:28px;
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:24px;
+  background:#0e0e0e;
+}
+.market-related[hidden]{display:none!important}
+.market-related-head{max-width:860px;margin-bottom:20px}
+.market-related-eyebrow{color:var(--red);font-size:12px;font-weight:950;letter-spacing:.14em;text-transform:uppercase}
+.market-related-head h2{margin:7px 0 8px;font-size:clamp(26px,3vw,40px);letter-spacing:-.03em}
+.market-related-head p{margin:0;color:#aaa;line-height:1.55}
+.market-related-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.market-related-card{padding:18px;border:1px solid rgba(255,255,255,.1);border-radius:18px;background:#131313}
+.market-related-card h3{margin:0 0 12px;font-size:18px}
+.market-related-tags{display:flex;flex-wrap:wrap;gap:8px}
+.market-related-tags a{
+  display:inline-flex;align-items:center;min-height:36px;padding:7px 11px;
+  border:1px solid rgba(255,255,255,.13);border-radius:999px;
+  background:#1a1a1a;color:#ddd;text-decoration:none;font-size:13px;font-weight:850
+}
+.market-related-tags a:hover{border-color:var(--red);color:#fff}
+@media(max-width:760px){
+  .market-related{width:calc(100vw - 24px);padding:20px;margin-bottom:28px}
+  .market-related-grid{grid-template-columns:1fr}
+}
+
 .footer{
   text-align:center;
   background:rgba(5,5,5,.95);
@@ -692,6 +720,43 @@ button:disabled{
   <button class="image-lightbox-nav image-lightbox-next" type="button" onclick="moveLightbox(1)" aria-label="Next image">›</button>
   <div class="image-lightbox-counter" id="imageLightboxCounter"></div>
 </div>
+
+<section id="marketRelatedLinks" class="market-related" hidden>
+  <div class="market-related-head">
+    <div class="market-related-eyebrow">Explore AnyBike</div>
+    <h2 id="marketRelatedTitle">Motorcycles and buying guides for your market</h2>
+    <p id="marketRelatedIntro">Related motorcycles, brands, markets and UK buying services.</p>
+  </div>
+
+  <div class="market-related-grid">
+    <div class="market-related-card">
+      <h3 id="marketPopularHeading">Popular in your market</h3>
+      <div id="marketPopularLinks" class="market-related-tags"></div>
+    </div>
+
+    <div class="market-related-card">
+      <h3>Explore this motorcycle</h3>
+      <div id="marketBikeLinks" class="market-related-tags"></div>
+    </div>
+
+    <div class="market-related-card">
+      <h3>International buying</h3>
+      <div id="marketCountryLinks" class="market-related-tags"></div>
+    </div>
+
+    <div class="market-related-card">
+      <h3>AnyBike services</h3>
+      <div class="market-related-tags">
+        <a href="/motorcycle-inspection.html">Motorcycle Inspection</a>
+        <a href="/motorcycle-collection.html">UK Motorcycle Collection</a>
+        <a href="/export-crating.html">Export Crating</a>
+        <a href="/shipping-advice.html">Shipping Advice</a>
+        <a href="/freight-forwarders.html">Freight Forwarders</a>
+        <a href="/services-and-fees.html">Services &amp; Fees</a>
+      </div>
+    </div>
+  </div>
+</section>
 
 <footer class="footer">
   <strong>ANYBIKE.CO.UK</strong><br>
@@ -1744,6 +1809,141 @@ async function saveBikeMarketDiscovery(){
   }
 }
 
+
+function slugifyMarketCountry(value){
+  return String(value||"")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g,"")
+    .toLowerCase()
+    .replace(/&/g," and ")
+    .replace(/[^a-z0-9]+/g,"-")
+    .replace(/^-+|-+$/g,"");
+}
+
+function marketContextFromPage(){
+  const params=new URLSearchParams(window.location.search);
+  const buying=getBuyingContext();
+  const originUrl=params.get("from")||params.get("page")||"";
+  let originSlug="";
+  let originCountry="";
+
+  const match=String(originUrl).match(/\/markets\/([^\/?#]+)\.html/i);
+  if(match) originSlug=String(match[1]||"").toLowerCase();
+
+  const destination=String(
+    buying.destination ||
+    currentProfile?.country ||
+    ""
+  ).trim();
+
+  originCountry=destination;
+
+  return {
+    country:originCountry,
+    slug:originSlug || slugifyMarketCountry(originCountry)
+  };
+}
+
+function marketModelHref(make,model){
+  return "/available-stock.html?make="+encodeURIComponent(make)+"&model="+encodeURIComponent(model);
+}
+
+function marketBrandHref(make){
+  return "/available-stock.html?make="+encodeURIComponent(make);
+}
+
+function uniqueMarketModels(rows,limit=8){
+  const out=[];
+  const seen=new Set();
+  (rows||[]).forEach(row=>{
+    const make=String(row?.make||"").trim();
+    const model=String(row?.model||"").trim();
+    if(!make||!model||out.length>=limit)return;
+    const key=(make+"|"+model).toLowerCase();
+    if(seen.has(key))return;
+    seen.add(key);
+    out.push({make,model,label:make+" "+model});
+  });
+  return out;
+}
+
+function marketLink(href,label,attrs=""){
+  return '<a href="'+safe(href)+'" '+attrs+'>'+safe(label)+'</a>';
+}
+
+async function loadMarketRelatedLinks(){
+  const section=document.getElementById("marketRelatedLinks");
+  if(!section||!bike)return;
+
+  const context=marketContextFromPage();
+  const country=context.country;
+  const make=String(bike.make||"").trim();
+  const model=String(bike.model||"").trim();
+
+  const bikeLinks=[];
+  if(make){
+    bikeLinks.push(marketLink(marketBrandHref(make),"More "+make+" motorcycles",'data-future-brand-key="'+safe(make)+'"'));
+  }
+  if(make&&model){
+    bikeLinks.push(marketLink(
+      marketModelHref(make,model),
+      make+" "+model,
+      'data-future-model-key="'+safe(make+"|"+model)+'"'
+    ));
+  }
+  bikeLinks.push(marketLink("/available-stock.html","Browse all available motorcycles"));
+  document.getElementById("marketBikeLinks").innerHTML=bikeLinks.join("");
+
+  const countryLinks=[];
+  if(country && context.slug){
+    countryLinks.push(marketLink("/markets/"+encodeURIComponent(context.slug)+".html",country+" motorcycle buying guide"));
+  }
+  countryLinks.push(marketLink("/international-markets.html","View all international markets"));
+  countryLinks.push(marketLink("/buy-motorcycles.html","Ask AnyBike to source a motorcycle"));
+  document.getElementById("marketCountryLinks").innerHTML=countryLinks.join("");
+
+  const popularWrap=document.getElementById("marketPopularLinks");
+  const popularHeading=document.getElementById("marketPopularHeading");
+
+  if(country){
+    document.getElementById("marketRelatedTitle").textContent="Motorcycles and buying guides for "+country;
+    document.getElementById("marketRelatedIntro").textContent=
+      "Explore motorcycles attracting attention in "+country+", related brands and models, and AnyBike services for buying from the United Kingdom.";
+    popularHeading.textContent="Popular in "+country;
+
+    try{
+      const {data,error}=await sb.rpc("get_country_motorcycle_interest_v1",{
+        p_country:country,
+        p_limit:12
+      });
+      if(error)throw error;
+
+      const models=uniqueMarketModels(Array.isArray(data)?data:[],8);
+      if(models.length){
+        popularWrap.innerHTML=models.map(row=>
+          marketLink(
+            marketModelHref(row.make,row.model),
+            row.label,
+            'data-future-model-key="'+safe(row.make+"|"+row.model)+'"'
+          )
+        ).join("");
+      }else{
+        popularWrap.innerHTML='<span class="muted">We are still building real motorcycle-interest data for this market.</span>';
+      }
+    }catch(error){
+      console.warn("Country motorcycle interest could not be loaded",error);
+      popularWrap.innerHTML='<span class="muted">Market-interest links will appear as local demand builds.</span>';
+    }
+  }else{
+    popularHeading.textContent="International motorcycle interest";
+    popularWrap.innerHTML=make
+      ? marketLink(marketBrandHref(make),"More "+make+" motorcycles")
+      : marketLink("/available-stock.html","Browse available motorcycles");
+  }
+
+  section.hidden=false;
+}
+
 async function toggleWatch(){
   if(watchUpdating){
     return;
@@ -1904,6 +2104,7 @@ document.addEventListener("keydown",function(event){
   updateBackToStockLink();
   await loadUser();
   await loadBike();
+  await loadMarketRelatedLinks();
 })();
 </script>
 <script src="/public-header.js?v=12009"></script>
