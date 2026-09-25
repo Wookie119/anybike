@@ -250,6 +250,41 @@ button:disabled{
 
 .muted{color:#ccc}
 
+.same-model-section{
+  width:min(1240px,calc(100vw - 36px));
+  margin:20px auto 0;
+  padding:28px;
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:24px;
+  background:#0e0e0e;
+}
+.same-model-section[hidden]{display:none!important}
+.same-model-head{display:flex;justify-content:space-between;gap:18px;align-items:end;margin-bottom:18px}
+.same-model-head h2{margin:6px 0 0;font-size:clamp(26px,3vw,38px);letter-spacing:-.03em}
+.same-model-head p{margin:7px 0 0;color:#aaa;line-height:1.5}
+.same-model-head a{color:#ed1c24;font-weight:900;text-decoration:none;white-space:nowrap}
+.same-model-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.same-model-card{
+  display:block;overflow:hidden;border:1px solid rgba(255,255,255,.12);
+  border-radius:18px;background:#131313;color:#fff;text-decoration:none;transition:.18s
+}
+.same-model-card:hover{transform:translateY(-2px);border-color:#ed1c24}
+.same-model-image{height:180px;background:#191919;overflow:hidden}
+.same-model-image img{width:100%;height:100%;object-fit:cover;display:block}
+.same-model-copy{padding:14px}
+.same-model-copy h3{margin:0 0 6px;font-size:17px;line-height:1.28}
+.same-model-meta{color:#999;font-size:12px;line-height:1.45}
+.same-model-price{font-size:20px;font-weight:950;margin-top:9px}
+.same-model-action{color:#ed1c24;font-size:12px;font-weight:950;margin-top:9px}
+@media(max-width:1050px){.same-model-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:650px){
+  .same-model-section{width:calc(100vw - 24px);padding:20px}
+  .same-model-grid{grid-template-columns:1fr}
+  .same-model-head{display:block}
+  .same-model-head a{display:inline-block;margin-top:12px}
+  .same-model-image{height:220px}
+}
+
 .market-related{
   width:min(1240px,calc(100vw - 36px));
   margin:20px auto 44px;
@@ -723,6 +758,18 @@ button:disabled{
   <button class="image-lightbox-nav image-lightbox-next" type="button" onclick="moveLightbox(1)" aria-label="Next image">›</button>
   <div class="image-lightbox-counter" id="imageLightboxCounter"></div>
 </div>
+
+<section id="sameModelSection" class="same-model-section" hidden>
+  <div class="same-model-head">
+    <div>
+      <div class="market-related-eyebrow">Compare similar motorcycles</div>
+      <h2 id="sameModelTitle">More motorcycles like this</h2>
+      <p id="sameModelIntro">Compare other currently available examples of the same model.</p>
+    </div>
+    <a id="sameModelAllLink" href="/available-stock.html">View all →</a>
+  </div>
+  <div id="sameModelGrid" class="same-model-grid"></div>
+</section>
 
 <section id="marketRelatedLinks" class="market-related" hidden>
   <div class="market-related-head">
@@ -1816,6 +1863,86 @@ async function saveBikeMarketDiscovery(){
 }
 
 
+
+function bikeDetailsLinkWithContext(id){
+  const current=new URLSearchParams(window.location.search);
+  const params=new URLSearchParams();
+  params.set("id",String(id));
+
+  ["destination","buyerType","channel","from","page","pageTitle","title"].forEach(key=>{
+    const value=current.get(key);
+    if(value)params.set(key,value);
+  });
+  current.getAll("deliveryPoint").slice(0,3).forEach(value=>{
+    if(value)params.append("deliveryPoint",value);
+  });
+
+  return "/bike-details.html?"+params.toString();
+}
+
+async function loadSameModelGallery(){
+  const section=document.getElementById("sameModelSection");
+  const grid=document.getElementById("sameModelGrid");
+  if(!section||!grid||!bike?.id||!bike?.make||!bike?.model)return;
+
+  try{
+    const {data,error}=await sb
+      .from("available_stock")
+      .select("id,make,model,variant,year,mileage,price_gbp,image_url,status,lifecycle_status,source_removed_at")
+      .ilike("make",String(bike.make))
+      .ilike("model",String(bike.model))
+      .eq("status","Active")
+      .eq("lifecycle_status","live")
+      .is("source_removed_at",null)
+      .neq("id",Number(bike.id))
+      .order("year",{ascending:false,nullsFirst:false})
+      .limit(8);
+
+    if(error)throw error;
+
+    const rows=(Array.isArray(data)?data:[]).filter(row=>row&&row.id);
+    if(!rows.length){
+      section.hidden=true;
+      return;
+    }
+
+    const title=[bike.make,bike.model].filter(Boolean).join(" ");
+    document.getElementById("sameModelTitle").textContent="More "+title+" motorcycles";
+    document.getElementById("sameModelIntro").textContent=
+      "Compare other "+title+" motorcycles currently available through AnyBike.";
+
+    const allLink=document.getElementById("sameModelAllLink");
+    if(allLink){
+      allLink.href=marketModelHref(bike.make,bike.model);
+      allLink.textContent="View all "+title+" →";
+    }
+
+    grid.innerHTML=rows.map(row=>{
+      const name=[row.year,row.make,row.model,row.variant].filter(Boolean).join(" ");
+      const image=safeUrl(row.image_url)||placeholderImageFile;
+      const meta=[
+        row.mileage!=null?miles(row.mileage):"",
+        row.variant||""
+      ].filter(Boolean).join(" · ");
+
+      return '<a class="same-model-card" href="'+safe(bikeDetailsLinkWithContext(row.id))+'">'+
+        '<div class="same-model-image"><img src="'+safe(image)+'" alt="'+safe(name)+'" loading="lazy" onerror="this.onerror=null;this.src=\''+placeholderImageFile+'\'"></div>'+
+        '<div class="same-model-copy">'+
+          '<h3>'+safe(name)+'</h3>'+
+          (meta?'<div class="same-model-meta">'+safe(meta)+'</div>':'')+
+          '<div class="same-model-price">'+safe(anybikePriceText(row.price_gbp))+'</div>'+
+          '<div class="same-model-action">View motorcycle →</div>'+
+        '</div>'+
+      '</a>';
+    }).join("");
+
+    section.hidden=false;
+  }catch(error){
+    console.warn("Same model gallery could not be loaded",error);
+    section.hidden=true;
+  }
+}
+
 function slugifyMarketCountry(value){
   return String(value||"")
     .normalize("NFD")
@@ -2156,7 +2283,10 @@ document.addEventListener("keydown",function(event){
   updateBackToStockLink();
   await loadUser();
   await loadBike();
-  await loadMarketRelatedLinks();
+  await Promise.all([
+    loadSameModelGallery(),
+    loadMarketRelatedLinks()
+  ]);
 })();
 </script>
 <script src="/public-header.js?v=12009"></script>
