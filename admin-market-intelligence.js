@@ -12,6 +12,14 @@ function miSeconds(v){
 function miMarketName(slug){
   return String(slug||"").split("-").filter(Boolean).map(x=>x.charAt(0).toUpperCase()+x.slice(1)).join(" ");
 }
+function miEngagement(seconds,views,visitors){
+  const active=Number(seconds||0);
+  const repeat=Number(visitors||0)>0 ? Number(views||0)/Number(visitors||0) : 0;
+  if(active>=90 || (active>=45 && repeat>=2)) return {label:"Strong",cls:"strong"};
+  if(active>=30 || (active>=18 && repeat>=2)) return {label:"Engaged",cls:"engaged"};
+  if(active>=10) return {label:"Light",cls:"light"};
+  return {label:"Brief",cls:"brief"};
+}
 
 async function loadMarketIntelligence(){
   const body=document.getElementById("marketRows");
@@ -49,13 +57,16 @@ async function loadMarketIntelligence(){
       const views=Number(r.page_views||0);
       const leads=Number(r.enquiries||0);
       const deals=Number(r.linked_deals||0);
+      const visitors=Number(r.unique_visitors||0);
       const rate=views>0?(leads/views*100):0;
+      const engagement=miEngagement(r.avg_active_seconds,views,visitors);
+      const viewsPerVisitor=visitors>0?(views/visitors):0;
       return '<tr>'+
-        '<td data-label="Market"><div class="market-name">'+miEsc(miMarketName(r.market_slug))+'</div><div class="muted">'+miEsc(r.page_title||"")+'</div></td>'+
+        '<td data-label="Market"><div class="market-name">'+miEsc(miMarketName(r.market_slug))+'</div><div class="market-title" title="'+miEsc(r.page_title||"")+'">'+miEsc(r.page_title||"")+'</div></td>'+
         '<td data-label="Views" class="num">'+miNum(views)+'</td>'+
         '<td data-label="Visitors" class="num">'+miNum(r.unique_visitors)+'</td>'+
         '<td data-label="Known users" class="num">'+miNum(r.known_users)+'</td>'+
-        '<td data-label="Avg active">'+miSeconds(r.avg_active_seconds)+'</td>'+
+        '<td data-label="Engagement"><span class="engagement '+engagement.cls+'">'+engagement.label+'</span><span class="engagement-detail">'+miSeconds(r.avg_active_seconds)+' avg · '+viewsPerVisitor.toFixed(1)+' views/visitor</span></td>'+
         '<td data-label="Enquiries" class="num '+(leads?"good":"zero")+'">'+miNum(leads)+'</td>'+
         '<td data-label="Deals" class="num '+(deals?"good":"zero")+'">'+miNum(deals)+'</td>'+
         '<td data-label="Lead rate"><strong>'+rate.toFixed(1)+'%</strong><div class="bar"><span style="width:'+Math.min(100,rate*10)+'%"></span></div></td>'+
