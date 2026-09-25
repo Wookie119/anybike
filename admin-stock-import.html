@@ -1,769 +1,439 @@
-
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Stock Import Manager | AnyBike Admin</title>
+<title>Junction Box | AnyBike Admin</title>
 <meta name="robots" content="noindex,nofollow">
-<script>
-document.documentElement.classList.add("admin-auth-pending");
-</script>
-
-<style>
-html.admin-auth-pending body{
-  visibility:visible;
-}
-</style>
-
+<script>document.documentElement.classList.add("admin-auth-pending");</script>
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/admin.js?v=12001"></script>
-
-<style>
-:root{
-  --red:#ed1c24;
-  --line:rgba(255,255,255,.12);
-  --muted:#aaa;
-  --green:#33cc66;
-  --panel:#111;
-  --panel2:#181818;
-}
-*{box-sizing:border-box}
-body{
-  margin:0;
-  font-family:Arial,Helvetica,sans-serif;
-  background:
-    radial-gradient(circle at top left,rgba(237,28,36,.20),transparent 34%),
-    linear-gradient(120deg,#050505,#101010 60%,#050505);
-  color:#fff;
-}
-a{text-decoration:none;color:inherit}
-.admin-layout{
-  display:grid;
-  grid-template-columns:265px 1fr;
-  min-height:100vh;
-}
-.sidebar{
-  background:#090909;
-  border-right:1px solid var(--line);
-  padding:18px;
-  position:sticky;
-  top:0;
-  height:100vh;
-  overflow:hidden;
-  display:flex;
-  flex-direction:column;
-}
-.logo{
-  background:#fff;
-  border-radius:18px;
-  padding:10px;
-  margin-bottom:14px;
-}
-.logo img{width:100%;display:block}
-.staff-card{
-  background:linear-gradient(135deg,#111,#181818);
-  border:1px solid var(--line);
-  border-radius:16px;
-  padding:14px;
-  margin-bottom:18px;
-}
-.staff-name{font-weight:900}
-.small{color:var(--muted);font-size:13px}
-.online{color:var(--green);font-size:13px;margin-top:5px}
-.admin-menu{
-  display:grid;
-  gap:6px;
-  overflow:auto;
-  padding-right:4px;
-}
-.admin-menu::-webkit-scrollbar{width:0}
-.admin-menu a{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  color:#fff;
-  text-decoration:none;
-  padding:10px 11px;
-  border-radius:14px;
-  font-weight:900;
-  border:1px solid transparent;
-}
-.admin-menu a:hover,
-.admin-menu a.active{
-  background:rgba(237,28,36,.16);
-  border-color:rgba(237,28,36,.45);
-}
-.admin-menu a.active{
-  background:var(--red);
-  border-color:var(--red);
-}
-.menu-icon{
-  width:28px;
-  text-align:center;
-  font-size:18px;
-  flex:0 0 28px;
-}
-.menu-text{flex:1}
-.public-links{
-  margin-top:12px;
-  border-top:1px solid var(--line);
-  padding-top:10px;
-}
-.public-links a{
-  display:block;
-  color:#ddd;
-  text-decoration:none;
-  font-weight:850;
-  font-size:13px;
-  padding:7px 4px;
-}
-.public-links a:hover{color:#fff}
-
-.main{
-  padding:24px;
-  min-width:0;
-}
-
-.department-hero{
-  display:block;
-  background:
-    radial-gradient(circle at top right,rgba(237,28,36,.22),transparent 36%),
-    #111;
-  border:1px solid var(--line);
-  border-radius:22px;
-  padding:30px;
-  margin:0 0 16px;
-}
-.dept-eyebrow{
-  color:var(--red);
-  text-transform:uppercase;
-  letter-spacing:.14em;
-  font-size:12px;
-  font-weight:950;
-  margin-bottom:8px;
-}
-.department-hero h1{
-  margin:0 0 8px;
-  color:#fff;
-  font-size:38px;
-  letter-spacing:-.035em;
-}
-.department-hero p{
-  margin:0;
-  color:#bbb;
-  max-width:1050px;
-  font-size:17px;
-  line-height:1.55;
-}
-.dept-actions{
-  display:flex;
-  flex-wrap:wrap;
-  gap:10px;
-  margin-top:22px;
-}
-.dept-actions a{
-  background:#181818;
-  border:1px solid rgba(255,255,255,.12);
-  color:#fff;
-  border-radius:999px;
-  padding:10px 14px;
-  font-weight:900;
-  text-decoration:none;
-  white-space:nowrap;
-}
-.dept-actions a:hover{border-color:var(--red)}
-
-.card{
-  background:rgba(17,17,17,.96);
-  border:1px solid var(--line);
-  border-radius:20px;
-  padding:22px;
-  box-shadow:0 18px 42px rgba(0,0,0,.22);
-  margin-bottom:18px;
-}
-.card h1,.card h2,.card h3{margin-top:0;color:#fff}
-.card p{color:#bbb;line-height:1.45}
-input,button{
-  width:100%;
-  padding:13px;
-  border-radius:12px;
-  border:1px solid rgba(255,255,255,.16);
-  font-size:16px;
-}
-input{
-  background:#fff;
-  color:#111;
-}
-button{
-  background:var(--red);
-  color:#fff;
-  font-weight:900;
-  border:0;
-  cursor:pointer;
-  margin-top:12px;
-}
-button.dark{
-  background:#222;
-  border:1px solid rgba(255,255,255,.16);
-}
-button:disabled{opacity:.55;cursor:not-allowed}
-.grid{
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
-  gap:14px;
-}
-.stat{
-  background:#111;
-  color:#fff;
-  border:1px solid var(--line);
-  border-radius:18px;
-  padding:18px;
-}
-.stat strong{
-  display:block;
-  font-size:34px;
-  color:var(--red);
-}
-table{
-  width:100%;
-  border-collapse:separate;
-  border-spacing:0 8px;
-  margin-top:15px;
-  font-size:14px;
-}
-th{
-  background:#222;
-  color:#fff;
-  padding:11px;
-  text-align:left;
-}
-td{
-  background:#151515;
-  border-top:1px solid var(--line);
-  border-bottom:1px solid var(--line);
-  padding:11px;
-  text-align:left;
-}
-td:first-child{border-left:1px solid var(--line);border-radius:12px 0 0 12px}
-td:last-child{border-right:1px solid var(--line);border-radius:0 12px 12px 0}
-.ok{color:#33cc66;font-weight:900}
-.bad{color:#ff5757;font-weight:900}
-.hidden{display:none}
-.import-tabs{
-  display:flex;
-  flex-wrap:wrap;
-  gap:10px;
-  margin-bottom:18px;
-}
-.import-tabs span{
-  background:#181818;
-  border:1px solid var(--line);
-  border-radius:999px;
-  padding:9px 13px;
-  font-weight:900;
-  color:#ddd;
-}
-.import-tabs span.active{
-  background:var(--red);
-  border-color:var(--red);
-  color:#fff;
-}
-#adminStockList > div{
-  background:#151515!important;
-  color:#fff!important;
-  border-color:rgba(255,255,255,.12)!important;
-}
-#adminStockList input{
-  margin:5px 0 10px;
-}
-#adminStockList h3{
-  color:#fff;
-}
-#adminStockList .grid{
-  grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
-}
-@media(max-width:1000px){
-  .admin-layout{grid-template-columns:1fr}
-  .sidebar{position:relative;height:auto;overflow:visible}
-  .admin-menu{overflow:visible}
-}
-</style>
 <link rel="stylesheet" href="/admin-shell.css?v=12001">
+<style>
+:root{--red:#ed1c24;--line:rgba(255,255,255,.12);--muted:#aaa;--green:#42d17b;--amber:#f0ad35;--panel:#111}
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#070707;color:#fff}
+.admin-page-content{padding:24px;max-width:1800px;margin:0 auto}
+.hero,.card{background:rgba(17,17,17,.97);border:1px solid var(--line);border-radius:20px}
+.hero{padding:28px;margin-bottom:16px;background:radial-gradient(circle at top right,rgba(237,28,36,.22),transparent 35%),#111}
+.eyebrow{color:var(--red);font-size:12px;font-weight:900;letter-spacing:.12em;text-transform:uppercase}
+h1{font-size:38px;margin:6px 0 8px} h2{margin:0 0 8px} h3{margin:0}
+p{color:#bbb;line-height:1.5}
+.card{padding:20px;margin-bottom:16px}
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.stat{background:#0c0c0c;border:1px solid var(--line);border-radius:14px;padding:14px}
+.stat span{display:block;color:#888;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.07em}
+.stat strong{display:block;margin-top:5px;font-size:28px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+label{display:block;color:#bbb;font-size:13px;font-weight:800}
+select,input,textarea{width:100%;margin-top:6px;background:#0c0c0c;color:#fff;border:1px solid #333;border-radius:10px;padding:11px;font:inherit}
+textarea{min-height:84px;resize:vertical}
+button{border:0;border-radius:10px;padding:11px 14px;background:#292929;color:#fff;font-weight:900;cursor:pointer}
+button.red{background:var(--red)} button.green{background:#157a44} button.amber{background:#8a5e0b} button:disabled{opacity:.45;cursor:not-allowed}
+.actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}
+.notice{padding:12px 14px;border-radius:12px;background:#0c0c0c;border:1px solid var(--line);margin:12px 0}
+.notice.good{border-color:rgba(66,209,123,.45)} .notice.bad{border-color:rgba(237,28,36,.55)}
+.mapping{overflow:auto}
+table{width:100%;border-collapse:collapse;margin-top:12px;font-size:13px}
+th,td{padding:10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{color:#aaa;text-transform:uppercase;font-size:10px;letter-spacing:.06em}
+td select{margin:0;min-width:180px}
+.badge{display:inline-block;padding:5px 8px;border-radius:999px;border:1px solid #444;font-size:11px;font-weight:900}
+.badge.good{color:#9df0be;border-color:rgba(66,209,123,.45)}
+.badge.warn{color:#ffd28a;border-color:rgba(240,173,53,.45)}
+.badge.bad{color:#ff9da1;border-color:rgba(237,28,36,.5)}
+.batch{border:1px solid var(--line);border-radius:15px;padding:15px;margin-top:10px;background:#0c0c0c}
+.batch-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start}
+.batch-meta{color:#999;font-size:12px;margin-top:5px}
+.batch-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;margin-top:12px}
+.mini{background:#121212;border-radius:10px;padding:9px;border:1px solid rgba(255,255,255,.07)}
+.mini span{display:block;color:#777;font-size:9px;text-transform:uppercase;font-weight:900}
+.mini strong{display:block;margin-top:3px}
+.image-rule{border:1px solid rgba(237,28,36,.35);background:rgba(237,28,36,.06);border-radius:14px;padding:14px;margin-top:14px}
+.image-rule strong{color:#fff}
+.preview-wrap{overflow:auto;max-height:430px}
+.small{font-size:12px;color:#888}
+@media(max-width:1000px){.grid,.batch-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.row{grid-template-columns:1fr}}
+@media(max-width:600px){.grid,.batch-grid{grid-template-columns:1fr}.admin-page-content{padding:14px}h1{font-size:31px}.batch-head{flex-direction:column}}
+</style>
 </head>
-
 <body>
-
 <div class="admin-shell">
-
   <div id="adminSidebar"></div>
-
   <div class="admin-main">
-
     <div id="adminTopbar"></div>
-
     <main class="admin-page-content">
+      <section class="hero">
+        <div class="eyebrow">AnyBike Stock Department</div>
+        <h1>Junction Box</h1>
+        <p>Stage incoming dealer stock, map their fields to AnyBike, review the changes, then explicitly allow, hold or decline the import. Nothing on this page writes directly to public Available Stock.</p>
+      </section>
 
-      <div class="department-hero">
+      <section class="card">
+        <h2>1. Receive Spreadsheet</h2>
+        <div class="row">
+          <label>Dealer / stock connection
+            <select id="connectionSelect"><option value="">Loading connections…</option></select>
+          </label>
+          <label>Spreadsheet
+            <input id="csvFile" type="file" accept=".csv,text/csv">
+          </label>
+        </div>
+        <div class="actions">
+          <button class="red" onclick="readSpreadsheet()">Read & Map Spreadsheet</button>
+        </div>
+        <div id="receiveNotice"></div>
+      </section>
 
-    <div class="dept-eyebrow">AnyBike Stock Department</div>
-    <h1>📥 Stock Import Manager</h1>
-    <p>Upload supplier CSV files, preview mapping, import motorcycles into available stock and manage private stock buying details. Official profit still comes from the Bike Sales CRM Deal Calculator.</p>
+      <section class="card" id="mappingCard" style="display:none">
+        <h2>2. Field Mapping</h2>
+        <p>Check how the incoming spreadsheet maps into AnyBike. Save this mapping with the batch before review.</p>
+        <div class="grid">
+          <div class="stat"><span>Rows received</span><strong id="rowsReceived">0</strong></div>
+          <div class="stat"><span>Columns</span><strong id="columnsReceived">0</strong></div>
+          <div class="stat"><span>Images found</span><strong id="imagesFound">0</strong></div>
+          <div class="stat"><span>Batch</span><strong id="batchRef">—</strong></div>
+        </div>
+        <div class="mapping" id="mappingTable"></div>
+        <div class="actions">
+          <button class="red" onclick="stageBatch()">Save Mapping & Stage for Review</button>
+        </div>
+      </section>
 
-    <div class="dept-actions">
-      <a href="admin-stock.html">🏍 Stock HQ</a>
-      <a href="admin-platform-audit.html">🧪 Mission Control</a>
-      <a href="available-stock.html" target="_blank">👁️ Public Stock</a>
-    </div>
-  </div>
+      <section class="card" id="previewCard" style="display:none">
+        <h2>3. Staged Preview</h2>
+        <div class="grid">
+          <div class="stat"><span>Valid</span><strong id="validCount">0</strong></div>
+          <div class="stat"><span>Warnings</span><strong id="warningCount">0</strong></div>
+          <div class="stat"><span>Invalid</span><strong id="invalidCount">0</strong></div>
+          <div class="stat"><span>Awaiting image</span><strong id="placeholderCount">0</strong></div>
+        </div>
+        <div class="image-rule">
+          <strong>Image safety rule:</strong> source images remain quarantined. Dealer names, banners, phone numbers, website text, rude/malicious content and poor dealer placeholders must not reach buyers. Until an image is approved, sanitised and usable, AnyBike uses <strong>AnyBike Awaiting Image</strong>.
+        </div>
+        <div id="stagedPreview" class="preview-wrap"></div>
+        <label style="margin-top:14px">Review notes
+          <textarea id="decisionNotes" placeholder="Optional reason, mapping note or issue to resolve"></textarea>
+        </label>
+        <div class="actions">
+          <button class="green" id="allowBtn" onclick="decideBatch('allowed')">Allow Import</button>
+          <button class="amber" onclick="decideBatch('held')">Hold for Review</button>
+          <button class="red" onclick="decideBatch('declined')">Decline Import</button>
+          <button id="importAllowedBtn" onclick="importAllowedBatch()" disabled>Import Allowed Batch</button>
+        </div>
+        <div id="decisionNotice"></div>
+      </section>
 
-  <div class="import-tabs">
-    <span class="active">📋 Preview</span>
-    <span>🗺 Mapping</span>
-    <span>🏍 Buying Details</span>
-  </div>
-
-  <section id="adminArea">
-
-    <div class="card">
-      <h1>📤 Upload Supplier CSV</h1>
-      <p>Upload the supplier CSV. This imports new stock rows without deleting linked enquiries.</p>
-      <input id="csvFile" type="file" accept=".csv">
-      <button onclick="previewCSV()">Preview CSV</button>
-      <button class="dark" id="importBtn" onclick="importCSV()" disabled>Import Available Stock</button>
-      <p id="uploadMsg"></p>
-    </div>
-
-    <div class="grid">
-      <div class="stat">Rows detected<strong id="rowsCount">0</strong></div>
-      <div class="stat">Ready to import<strong id="readyCount">0</strong></div>
-      <div class="stat">Skipped rows<strong id="skipCount">0</strong></div>
-      <div class="stat">Columns detected<strong id="colCount">0</strong></div>
-    </div>
-
-    <div class="card">
-      <h2>🗺 Column Mapping</h2>
-      <table>
-        <tr><th>AnyBike Field</th><th>Spreadsheet Source</th></tr>
-        <tr><td>Make</td><td>Standard Make → Make</td></tr>
-        <tr><td>Model</td><td>Standard Model → Normalized Model → Model</td></tr>
-        <tr><td>Variant</td><td>Standard Trim → Variant</td></tr>
-        <tr><td>Year</td><td>Year</td></tr>
-        <tr><td>Mileage</td><td>Mileage</td></tr>
-        <tr><td>Engine CC</td><td>Standard Engine CC → Engine CC</td></tr>
-        <tr><td>Price</td><td>Listed Price</td></tr>
-        <tr><td>Colour</td><td>Colour</td></tr>
-        <tr><td>Status</td><td>Listing Status → Status</td></tr>
-        <tr><td>Image URL</td><td>Image URL</td></tr>
-        <tr><td>Private fields</td><td>Stored safely for staff use only</td></tr>
-      </table>
-    </div>
-
-    <div class="card">
-      <h2>📋 Preview</h2>
-      <div id="preview"></div>
-    </div>
-
-    <div class="card">
-      <h2>🏍 Admin Stock Management</h2>
-      <p>Private seller details and buying costs. These are not visible on the public website. Official deal profit remains inside Bike Sales CRM.</p>
-      <button class="dark" onclick="loadAdminStock()">Load Stock Management</button>
-      <div id="adminStockList" style="margin-top:20px"></div>
-    </div>
-
-</section>
-
+      <section class="card">
+        <h2>Recent Junction Batches</h2>
+        <p>Every incoming batch has an audit trail. Declined or held batches leave current stock untouched.</p>
+        <div id="batchList"><div class="small">Loading…</div></div>
+      </section>
     </main>
-
   </div>
-
 </div>
 
 <script>
-const SUPABASE_URL = "https://tuehtnezhdnkqbbhttgp.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const SUPABASE_URL="https://tuehtnezhdnkqbbhttgp.supabase.co";
+const SUPABASE_ANON_KEY="sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+const PLACEHOLDER="/anybike-image-coming-soon.png";
+let connections=[];
+let rawRows=[];
+let columns=[];
+let currentBatchId=null;
+let currentFileName="";
+let stagedDetail=null;
 
-let parsedRows = [];
-let importRows = [];
+const TARGETS=[
+  ["","Ignore"],
+  ["registration","Registration"],
+  ["vin","VIN"],
+  ["source_stock_id","Source Stock ID"],
+  ["source_stock_number","Stock Number"],
+  ["make","Make"],
+  ["model","Model"],
+  ["variant","Variant / Trim"],
+  ["year","Year"],
+  ["mileage","Mileage"],
+  ["engine_cc","Engine CC"],
+  ["price_gbp","Retail Price"],
+  ["colour","Colour"],
+  ["status","Availability Status"],
+  ["first_registration_date","First Registration Date"],
+  ["mot_due_date","MOT Due Date"],
+  ["warranty","Warranty"],
+  ["vat_status","VAT Status"],
+  ["service_history","Service History"],
+  ["owners","Owners"],
+  ["image_urls","Image URL(s)"]
+];
 
-function clean(v){
-  if(v === undefined || v === null) return "";
-  return String(v).trim();
-}
+const SYNONYMS={
+  registration:["registration","reg","reg no","reg number","registration number","vrm"],
+  vin:["vin","chassis","chassis number"],
+  source_stock_id:["id","stock id","listing id","vehicle id"],
+  source_stock_number:["stock no","stock number","stock ref","stock reference"],
+  make:["make","manufacturer","standard make"],
+  model:["model","standard model","normalized model"],
+  variant:["variant","trim","standard trim","derivative"],
+  year:["year","model year"],
+  mileage:["mileage","miles","odometer"],
+  engine_cc:["engine cc","cc","standard engine cc"],
+  price_gbp:["price","listed price","retail","retail price","asking price"],
+  colour:["colour","color"],
+  status:["status","listing status","availability"],
+  first_registration_date:["registration date","first registration date","date first registered"],
+  mot_due_date:["mot due","mot due date"],
+  warranty:["warranty"],
+  vat_status:["vat","vat status"],
+  service_history:["service history"],
+  owners:["owners","previous owners"],
+  image_urls:["image url","image","photo url","images","image urls","photo urls"]
+};
 
-function numberOnly(v){
-  if(!v) return null;
-  const n = Number(String(v).replace(/[£,$,A-Z,a-z, ]/g,"").replace(/,/g,""));
-  return Number.isFinite(n) ? n : null;
-}
+function esc(v){return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));}
+function badge(text,type){return '<span class="badge '+(type||'')+'">'+esc(text)+'</span>';}
+function norm(s){return String(s||"").trim().toLowerCase().replace(/[_-]+/g," ").replace(/\s+/g," ");}
 
-function intOnly(v){
-  const n = numberOnly(v);
-  return n === null ? null : Math.round(n);
-}
-
-function pick(row, names){
-  for(const name of names){
-    if(clean(row[name])) return clean(row[name]);
+function guessTarget(column){
+  const n=norm(column);
+  for(const [target,names] of Object.entries(SYNONYMS)){
+    if(names.some(x=>n===x || n.includes(x))) return target;
   }
+  if(n.includes("image")||n.includes("photo")) return "image_urls";
   return "";
 }
 
-function mapRow(row){
-  const make = pick(row, ["Standard Make","Make"]);
-  const model = pick(row, ["Standard Model","Normalized Model","Model"]);
-  const variant = pick(row, ["Standard Trim","Variant"]);
-  const year = intOnly(pick(row, ["Year"]));
-  const mileage = intOnly(pick(row, ["Mileage"]));
-  const engine_cc = intOnly(pick(row, ["Standard Engine CC","Engine CC"]));
-  const price_gbp = numberOnly(pick(row, ["Listed Price"]));
-  const colour = pick(row, ["Colour"]);
-  const status = pick(row, ["Listing Status","Status"]) || "Available";
-  const image_url = pick(row, ["Image URL"]);
-
-  if(!make || !model) return null;
-
-return {
-  make,
-  model,
-  variant,
-  year,
-  mileage,
-  engine_cc,
-  price_gbp,
-  colour,
-  status,
-  image_url,
-
-  private_seller_name:
-    pick(row, ["Dealer Name","Seller Name","Dealer","Seller"]),
-
-  private_seller_type:
-    pick(row, ["Dealer or Private"]),
-
-  private_seller_phone:
-    pick(row, ["Dealer Phone","Seller Phone","Phone","Telephone","Mobile"]),
-
-  private_seller_email:
-    pick(row, ["Dealer Email","Seller Email","Email"]),
-
-  private_seller_location:
-    pick(row, ["Location","Town","City","Address"]),
-
-  private_seller_postcode:
-    pick(row, ["Dealer Postcode","Postcode","Postcode Area"]),
-
-  private_source_name:
-    pick(row, ["Source"]),
-
-  private_source_url:
-    pick(row, ["Source URL","Listing URL","URL","Web Link"]),
-
-  private_listing_id:
-    pick(row, ["Listing ID","Stock Ref","Stock Number","Registration","Reg Number"]),
-
-private_source: pick(row, ["Source"]),
-private_source_url: pick(row, ["Source URL"]),
-private_last_seen_date: pick(row, ["Last Seen Date"]),
-private_dealer_or_private: pick(row, ["Dealer or Private"]),
-private_dealer_name: pick(row, ["Dealer Name"]),
-private_service_history: pick(row, ["Service History"]),
-private_owners: pick(row, ["Owners"]),
-private_listed_price: numberOnly(pick(row, ["Listed Price"])),
-private_price_reduced: pick(row, ["Price Reduced"]),
-private_previous_price: numberOnly(pick(row, ["Previous Price"])),
-private_days_live: intOnly(pick(row, ["Days Live"])),
-private_location: pick(row, ["Location"]),
-private_postcode_area: pick(row, ["Postcode Area"]),
-private_estimated_trade: numberOnly(pick(row, ["Estimated Trade"])),
-private_estimated_retail: numberOnly(pick(row, ["Estimated Retail"])),
-private_confidence_score: pick(row, ["Confidence Score"]),
-private_in_stock_days: intOnly(pick(row, ["In Stock Days"])),
-private_registration_date: pick(row, ["Registration Date"]),
-private_dealer_postcode: pick(row, ["Dealer Postcode"]),
-private_price_change: numberOnly(pick(row, ["Price Change"])),
-private_days_on_market: intOnly(pick(row, ["Days On Market"])),
-private_derivative_id: pick(row, ["Derivative ID"]),
-
-raw_data: row,
-source_upload: new Date().toISOString()
-};
+function mappingValue(column){
+  return document.querySelector('[data-map-source="'+CSS.escape(column)+'"]')?.value || "";
 }
 
-function previewCSV(){
-  const file = document.getElementById("csvFile").files[0];
-  if(!file){
-    alert("Choose a CSV file first.");
-    return;
-  }
+function cleanNumber(v,integer){
+  if(v===null||v===undefined||v==="")return "";
+  const n=Number(String(v).replace(/[£,$,]/g,"").replace(/\s*(miles|mile|cc)$/i,"").trim());
+  if(!Number.isFinite(n))return String(v).trim();
+  return integer?String(Math.round(n)):String(n);
+}
 
-  document.getElementById("uploadMsg").textContent = "Reading CSV...";
+function transformValue(target,value){
+  const v=String(value??"").trim();
+  if(!v)return "";
+  if(target==="registration") return v.toUpperCase().replace(/\s+/g,"");
+  if(["year","mileage","engine_cc","owners"].includes(target)) return cleanNumber(v,true);
+  if(target==="price_gbp") return cleanNumber(v,false);
+  return v;
+}
 
-  Papa.parse(file,{
-    header:true,
-    skipEmptyLines:true,
-    complete:function(results){
-      parsedRows = results.data || [];
-      importRows = parsedRows.map(mapRow).filter(Boolean);
-
-      const skipped = parsedRows.length - importRows.length;
-      const columns = results.meta.fields || [];
-
-      document.getElementById("rowsCount").textContent = parsedRows.length.toLocaleString("en-GB");
-      document.getElementById("readyCount").textContent = importRows.length.toLocaleString("en-GB");
-      document.getElementById("skipCount").textContent = skipped.toLocaleString("en-GB");
-      document.getElementById("colCount").textContent = columns.length.toLocaleString("en-GB");
-
-      document.getElementById("importBtn").disabled = importRows.length === 0;
-
-      document.getElementById("uploadMsg").innerHTML =
-        `<span class="ok">CSV preview ready. ${importRows.length.toLocaleString("en-GB")} bikes ready to import.</span>`;
-
-      renderPreview(importRows.slice(0,20));
-    },
-    error:function(err){
-      document.getElementById("uploadMsg").innerHTML =
-        `<span class="bad">CSV could not be read: ${err.message}</span>`;
-    }
+function mappedRows(){
+  return rawRows.map((row,index)=>{
+    const mapped={};
+    const images=[];
+    columns.forEach(col=>{
+      const target=mappingValue(col);
+      if(!target)return;
+      const value=transformValue(target,row[col]);
+      if(!value)return;
+      if(target==="image_urls"){
+        String(value).split(/[;|,]\s*(?=https?:\/\/)|\n+/).map(x=>x.trim()).filter(Boolean).forEach(x=>images.push(x));
+      }else if(mapped[target]===undefined){
+        mapped[target]=value;
+      }
+    });
+    if(images.length)mapped.image_urls=[...new Set(images)];
+    return {row_number:index+1,raw_row:row,mapped_row:mapped};
   });
 }
 
-function renderPreview(rows){
-  if(!rows.length){
-    document.getElementById("preview").innerHTML = "<p>No valid rows found.</p>";
-    return;
-  }
-
-  document.getElementById("preview").innerHTML = `
-    <table>
-      <tr>
-        <th>Make</th><th>Model</th><th>Variant</th><th>Year</th>
-        <th>Mileage</th><th>CC</th><th>Price</th><th>Status</th>
-      </tr>
-      ${rows.map(r=>`
-        <tr>
-          <td>${r.make || ""}</td>
-          <td>${r.model || ""}</td>
-          <td>${r.variant || ""}</td>
-          <td>${r.year || ""}</td>
-          <td>${r.mileage || ""}</td>
-          <td>${r.engine_cc || ""}</td>
-          <td>${r.price_gbp || ""}</td>
-          <td>${r.status || ""}</td>
-        </tr>
-      `).join("")}
-    </table>
-    <p>Showing first 20 rows only.</p>
-  `;
+function renderMapping(){
+  const rows=columns.map(col=>{
+    const guess=guessTarget(col);
+    const sample=rawRows.slice(0,3).map(r=>r[col]).filter(Boolean).join(" · ");
+    return '<tr><td><strong>'+esc(col)+'</strong></td><td>'+esc(sample.slice(0,160))+'</td><td><select data-map-source="'+esc(col)+'">'+
+      TARGETS.map(([v,l])=>'<option value="'+esc(v)+'" '+(v===guess?'selected':'')+'>'+esc(l)+'</option>').join("")+
+      '</select></td></tr>';
+  }).join("");
+  document.getElementById("mappingTable").innerHTML='<table><thead><tr><th>Incoming field</th><th>Sample</th><th>Map to AnyBike</th></tr></thead><tbody>'+rows+'</tbody></table>';
 }
 
-async function importCSV(){
-  if(!importRows.length){
-    alert("Preview a valid CSV first.");
-    return;
-  }
-
-  if(!confirm("This will delete existing available stock and replace it with this CSV. Continue?")){
-    return;
-  }
-
-  const btn = document.getElementById("importBtn");
-  btn.disabled = true;
-  btn.textContent = "Importing...";
-
-document.getElementById("uploadMsg").textContent = "Importing stock without deleting linked enquiries...";
-  
-const del = { error: null };
-  
-  if(del.error){
-    document.getElementById("uploadMsg").innerHTML =
-      `<span class="bad">Delete failed: ${del.error.message}</span>`;
-    btn.disabled = false;
-    btn.textContent = "Import & Replace Available Stock";
-    return;
-  }
-
-  const batchSize = 500;
-  let imported = 0;
-
-  for(let i=0; i<importRows.length; i += batchSize){
-    const batch = importRows.slice(i, i + batchSize);
-
-    document.getElementById("uploadMsg").textContent =
-      `Importing ${Math.min(i + batchSize, importRows.length).toLocaleString("en-GB")} of ${importRows.length.toLocaleString("en-GB")}...`;
-
-    const ins = await sb.from("available_stock").insert(batch);
-
-    if(ins.error){
-      document.getElementById("uploadMsg").innerHTML =
-        `<span class="bad">Import failed after ${imported} rows: ${ins.error.message}</span>`;
-      btn.disabled = false;
-      btn.textContent = "Import & Replace Available Stock";
-      return;
-    }
-
-    imported += batch.length;
-  }
-
-  document.getElementById("uploadMsg").innerHTML =
-    `<span class="ok">Import complete. ${imported.toLocaleString("en-GB")} bikes uploaded to available_stock.</span>`;
-
-  btn.disabled = false;
-  btn.textContent = "Import & Replace Available Stock";
-}
-  function money(v){
-  const n=Number(v||0);
-  return "£"+(Number.isFinite(n)?n:0).toFixed(2);
+async function loadConnections(){
+  const {data,error}=await sb.rpc("admin_get_junction_connections_v1");
+  if(error)throw error;
+  connections=data||[];
+  const el=document.getElementById("connectionSelect");
+  el.innerHTML='<option value="">Choose dealer / connection</option>'+connections.map(c=>
+    '<option value="'+c.connection_id+'">'+esc((c.dealer_name||c.connection_name)+" — "+c.provider_name)+'</option>'
+  ).join("");
 }
 
-async function loadAdminStock(){
-  const box = document.getElementById("adminStockList");
-  box.innerHTML = "Loading stock...";
-
-  const {data,error} = await sb
-    .from("available_stock")
-    .select(`
-      id, make, model, variant, year, price_gbp,
-      cost_price_gbp, prep_costs_gbp, admin_fee_gbp, target_sale_price_gbp,
-      private_seller_name, private_seller_type, private_seller_phone,
-      private_seller_email, private_seller_location, private_seller_postcode,
-      private_source_name, private_source_url, private_listing_id
-    `)
-    .order("created_at",{ascending:false})
-    .limit(100);
-
-  if(error){
-    box.innerHTML = `<span class="bad">${error.message}</span>`;
-    return;
-  }
-
-  if(!data || !data.length){
-    box.innerHTML = "No stock found.";
-    return;
-  }
-
-  box.innerHTML = data.map(bikeAdminCard).join("");
+function readSpreadsheet(){
+  const connectionId=Number(document.getElementById("connectionSelect").value||0);
+  const file=document.getElementById("csvFile").files[0];
+  if(!connectionId){alert("Choose the dealer or stock connection first.");return;}
+  if(!file){alert("Choose a CSV spreadsheet first.");return;}
+  currentFileName=file.name;
+  document.getElementById("receiveNotice").innerHTML='<div class="notice">Reading spreadsheet…</div>';
+  Papa.parse(file,{
+    header:true,skipEmptyLines:true,
+    complete:r=>{
+      rawRows=r.data||[];
+      columns=r.meta.fields||[];
+      if(!rawRows.length||!columns.length){
+        document.getElementById("receiveNotice").innerHTML='<div class="notice bad">No usable rows were found.</div>';return;
+      }
+      renderMapping();
+      document.getElementById("rowsReceived").textContent=rawRows.length.toLocaleString("en-GB");
+      document.getElementById("columnsReceived").textContent=columns.length.toLocaleString("en-GB");
+      const imageCols=columns.filter(c=>guessTarget(c)==="image_urls");
+      const imageCount=rawRows.reduce((n,row)=>n+imageCols.reduce((x,c)=>x+(String(row[c]||"").trim()?1:0),0),0);
+      document.getElementById("imagesFound").textContent=imageCount.toLocaleString("en-GB");
+      document.getElementById("batchRef").textContent="Not staged";
+      document.getElementById("mappingCard").style.display="";
+      document.getElementById("previewCard").style.display="none";
+      document.getElementById("receiveNotice").innerHTML='<div class="notice good">Spreadsheet read. Check the field mapping below.</div>';
+    },
+    error:e=>document.getElementById("receiveNotice").innerHTML='<div class="notice bad">'+esc(e.message)+'</div>'
+  });
 }
 
-function bikeAdminCard(b){
-  const title = [b.make,b.model,b.variant].filter(Boolean).join(" ");
-  const cost = Number(b.cost_price_gbp || 0);
-  const prep = Number(b.prep_costs_gbp || 0);
-  const admin = Number(b.admin_fee_gbp || 0);
-  const target = Number(b.target_sale_price_gbp || b.price_gbp || 0);
-  const profit = target - cost - prep - admin;
-
-  return `
-    <div style="
-      border:1px solid #ddd;
-      border-radius:14px;
-      padding:16px;
-      margin-bottom:14px;
-      background:#fafafa;
-    ">
-      <h3>${title || "Bike"} ${b.year ? `(${b.year})` : ""}</h3>
-
-      <div class="grid">
-        <div>
-          <strong>Seller Details</strong><br>
-          Name: ${b.private_seller_name || "-"}<br>
-          Type: ${b.private_seller_type || "-"}<br>
-          Phone: ${b.private_seller_phone || "-"}<br>
-          Email: ${b.private_seller_email || "-"}<br>
-          Location: ${b.private_seller_location || "-"}<br>
-          Postcode: ${b.private_seller_postcode || "-"}<br>
-          Source: ${b.private_source_name || "-"}<br>
-          Ref/Reg: ${b.private_listing_id || "-"}
-        </div>
-
-        <div>
-          <strong>Buying & Profit</strong><br>
-
-          <label>Cost Price</label>
-          <input id="cost-${b.id}" type="number" value="${b.cost_price_gbp || ""}">
-
-          <label>Prep Costs</label>
-          <input id="prep-${b.id}" type="number" value="${b.prep_costs_gbp || 0}">
-
-          <label>Admin Fee</label>
-          <input id="admin-${b.id}" type="number" value="${b.admin_fee_gbp || 0}">
-
-          <label>Target Sale Price</label>
-          <input id="target-${b.id}" type="number" value="${b.target_sale_price_gbp || b.price_gbp || ""}">
-
-          <p><strong>Stock estimate only:</strong> ${money(profit)}<br><small>Official deal profit comes from Bike Sales CRM Deal Calculator.</small></p>
-
-          <button onclick="saveAdminStock(${b.id})">Save Buying Details</button>
-        </div>
-      </div>
-    </div>
-  `;
-}
-
-async function saveAdminStock(id){
-  const cost = Number(document.getElementById(`cost-${id}`).value || 0);
-  const prep = Number(document.getElementById(`prep-${id}`).value || 0);
-  const admin = Number(document.getElementById(`admin-${id}`).value || 0);
-  const target = Number(document.getElementById(`target-${id}`).value || 0);
-  const profit = target - cost - prep - admin;
-
-  const {error} = await sb
-    .from("available_stock")
-    .update({
-      cost_price_gbp: cost,
-      prep_costs_gbp: prep,
-      admin_fee_gbp: admin,
-      target_sale_price_gbp: target,
-      expected_profit_gbp: profit
-    })
-    .eq("id", id);
-
-  if(error){
-    alert("Save failed: " + error.message);
-    return;
-  }
-
-  alert("Buying details saved. Stock estimate only: " + money(profit));
-  loadAdminStock();
-}
-
-(async function startStockImportManager(){
+async function stageBatch(){
+  const connectionId=Number(document.getElementById("connectionSelect").value||0);
+  if(!connectionId||!rawRows.length)return;
+  const mappings=columns.map(source_field=>{
+    const target_field=mappingValue(source_field);
+    let transform_kind="trim";
+    if(target_field==="registration")transform_kind="registration";
+    if(["year","mileage","engine_cc","owners"].includes(target_field))transform_kind="integer";
+    if(target_field==="price_gbp")transform_kind="numeric";
+    if(["first_registration_date","mot_due_date"].includes(target_field))transform_kind="date";
+    return {source_field,target_field:target_field||null,transform_kind,ignored:!target_field};
+  });
   try{
-    if(typeof requireAdminSession !== "function"){
-      throw new Error("admin.js did not load correctly.");
+    const created=await sb.rpc("admin_create_stock_import_batch_v2",{
+      p_connection_id:connectionId,p_source_kind:"csv",p_source_file_name:currentFileName,p_source_columns:columns
+    });
+    if(created.error)throw created.error;
+    currentBatchId=Number(created.data);
+    document.getElementById("batchRef").textContent="#"+currentBatchId;
+
+    const saved=await sb.rpc("admin_save_stock_import_mapping_v2",{p_batch_id:currentBatchId,p_mappings:mappings});
+    if(saved.error)throw saved.error;
+
+    const rows=mappedRows();
+    const chunkSize=150;
+    for(let i=0;i<rows.length;i+=chunkSize){
+      const staged=await sb.rpc("admin_stage_stock_import_rows_v3",{p_batch_id:currentBatchId,p_rows:rows.slice(i,i+chunkSize)});
+      if(staged.error)throw staged.error;
     }
+    await loadBatchDetail(currentBatchId);
+    await loadBatches();
+    document.getElementById("previewCard").style.display="";
+    document.getElementById("previewCard").scrollIntoView({behavior:"smooth",block:"start"});
+  }catch(e){
+    document.getElementById("receiveNotice").innerHTML='<div class="notice bad">'+esc(e.message||e)+'</div>';
+  }
+}
 
-    const allowed = await requireAdminSession();
+async function loadBatchDetail(id){
+  const {data,error}=await sb.rpc("admin_get_stock_import_batch_detail_v2",{p_batch_id:Number(id)});
+  if(error)throw error;
+  stagedDetail=data;
+  currentBatchId=Number(id);
+  const b=data.batch||{};
+  const rows=data.rows||[];
+  document.getElementById("validCount").textContent=Number(b.rows_valid||0);
+  document.getElementById("warningCount").textContent=Number(b.rows_warning||0);
+  document.getElementById("invalidCount").textContent=Number(b.rows_invalid||0);
+  document.getElementById("placeholderCount").textContent=Number(b.motorcycles_using_placeholder||0);
+  document.getElementById("importAllowedBtn").disabled=b.status!=="allowed";
+  document.getElementById("allowBtn").disabled=Number(b.rows_invalid||0)>0;
+  document.getElementById("stagedPreview").innerHTML=renderRows(rows.slice(0,30));
+  document.getElementById("previewCard").style.display="";
+}
 
-    if(!allowed){
-      return;
-    }
+function renderRows(rows){
+  if(!rows.length)return '<p>No staged rows.</p>';
+  return '<table><thead><tr><th>Row</th><th>Motorcycle</th><th>Reg</th><th>Mileage</th><th>Price</th><th>Images</th><th>Validation</th></tr></thead><tbody>'+
+    rows.map(r=>{
+      const m=r.mapped_row||{};
+      const imgs=Array.isArray(m.image_urls)?m.image_urls.length:(m.image_url?1:0);
+      const cls=r.validation_status==="valid"?"good":r.validation_status==="warning"?"warn":"bad";
+      return '<tr><td>'+r.row_number+'</td><td>'+esc([m.make,m.model,m.variant].filter(Boolean).join(" "))+'</td><td>'+esc(m.registration||"—")+'</td><td>'+esc(m.mileage||"—")+'</td><td>'+esc(m.price_gbp||"—")+'</td><td>'+(imgs?imgs+" quarantined":'<strong>AnyBike Awaiting Image</strong>')+'</td><td>'+badge(r.validation_status,cls)+'</td></tr>';
+    }).join("")+'</tbody></table><p class="small">Showing first 30 staged rows.</p>';
+}
 
+async function decideBatch(decision){
+  if(!currentBatchId)return;
+  const notes=document.getElementById("decisionNotes").value.trim()||null;
+  try{
+    const {data,error}=await sb.rpc("admin_set_stock_import_decision_v2",{p_batch_id:currentBatchId,p_decision:decision,p_notes:notes});
+    if(error)throw error;
+    document.getElementById("decisionNotice").innerHTML='<div class="notice good">Batch '+esc(decision)+'.</div>';
+    await loadBatchDetail(currentBatchId);
+    await loadBatches();
+  }catch(e){
+    document.getElementById("decisionNotice").innerHTML='<div class="notice bad">'+esc(e.message||e)+'</div>';
+  }
+}
+
+async function importAllowedBatch(){
+  if(!currentBatchId)return;
+  if(!confirm("Import this allowed batch into the Junction and canonical stock layer? Quarantined images will remain hidden and use AnyBike Awaiting Image."))return;
+  try{
+    const {data,error}=await sb.rpc("admin_import_allowed_stock_batch_v2",{p_batch_id:currentBatchId});
+    if(error)throw error;
+    document.getElementById("decisionNotice").innerHTML='<div class="notice good">'+Number(data?.imported||0)+' motorcycles imported. Source images remain quarantined until approved and sanitised.</div>';
+    await loadBatchDetail(currentBatchId);
+    await loadBatches();
+  }catch(e){
+    document.getElementById("decisionNotice").innerHTML='<div class="notice bad">'+esc(e.message||e)+'</div>';
+  }
+}
+
+async function loadBatches(){
+  const {data,error}=await sb.rpc("admin_get_stock_import_batches_v2",{p_limit:50});
+  if(error)throw error;
+  const list=document.getElementById("batchList");
+  const rows=data||[];
+  if(!rows.length){list.innerHTML='<div class="small">No Junction batches yet.</div>';return;}
+  list.innerHTML=rows.map(b=>{
+    const cls=b.status==="imported"||b.status==="allowed"?"good":b.status==="declined"?"bad":b.status==="held"?"warn":"";
+    return '<div class="batch">'+
+      '<div class="batch-head"><div><h3>#'+b.batch_id+' · '+esc(b.dealer_name||b.connection_name)+'</h3><div class="batch-meta">'+esc(b.source_file_name||b.source_kind)+' · '+esc(b.provider_name)+' · '+new Date(b.created_at).toLocaleString("en-GB")+'</div></div><div>'+badge(b.status,cls)+'</div></div>'+
+      '<div class="batch-grid">'+
+        '<div class="mini"><span>Rows</span><strong>'+b.records_received+'</strong></div>'+
+        '<div class="mini"><span>Valid</span><strong>'+b.rows_valid+'</strong></div>'+
+        '<div class="mini"><span>Warnings</span><strong>'+b.rows_warning+'</strong></div>'+
+        '<div class="mini"><span>Invalid</span><strong>'+b.rows_invalid+'</strong></div>'+
+        '<div class="mini"><span>Images</span><strong>'+b.images_received+'</strong></div>'+
+        '<div class="mini"><span>Awaiting image</span><strong>'+b.motorcycles_using_placeholder+'</strong></div>'+
+      '</div>'+
+      '<div class="actions"><button onclick="openBatch('+b.batch_id+')">Open Batch</button></div>'+
+    '</div>';
+  }).join("");
+}
+
+async function openBatch(id){
+  try{
+    await loadBatchDetail(id);
+    document.getElementById("previewCard").scrollIntoView({behavior:"smooth",block:"start"});
+  }catch(e){alert(e.message||e);}
+}
+
+(async function init(){
+  try{
+    if(typeof requireAdminSession!=="function")throw new Error("admin.js did not load correctly.");
+    const allowed=await requireAdminSession();
+    if(!allowed)return;
     document.documentElement.classList.remove("admin-auth-pending");
-
-  }catch(error){
-    console.error("Stock Import startup error:", error);
-
+    await Promise.all([loadConnections(),loadBatches()]);
+  }catch(e){
+    console.error(e);
     document.documentElement.classList.remove("admin-auth-pending");
-
-    const adminArea = document.getElementById("adminArea");
-
-    if(adminArea){
-      adminArea.innerHTML = `
-        <div class="card">
-          <h2>Stock Import could not start</h2>
-          <p>${error.message || "Unknown startup error"}</p>
-        </div>
-      `;
-    }
+    document.querySelector(".admin-page-content").insertAdjacentHTML("afterbegin",'<div class="notice bad">'+esc(e.message||e)+'</div>');
   }
 })();
-
 </script>
-
-
 </body>
 </html>
