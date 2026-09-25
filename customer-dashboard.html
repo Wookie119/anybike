@@ -1909,14 +1909,10 @@ body.customer-offer-modal-open{overflow:hidden}
       <div class="panel-head">
         <div>
           <h2>🔎 Hand-picked for You</h2>
-          <p>Motorcycles you have marked Interested from AnyBike private selections. We will use this shortlist while checking availability and preparing any official offer.</p>
+          <p>Motorcycles AnyBike has selected specifically for your buying requirements. Review each bike and mark it Interested, Watch or Not Interested.</p>
         </div>
       </div>
       <div id="handPickedForYouBox"><div class="buyer-match-empty">Loading your hand-picked motorcycles...</div></div>
-      <div style="margin-top:16px">
-        <h3 style="margin:0 0 10px">Your private selections</h3>
-        <div id="sourcedMatchBatchesBox"><div class="buyer-match-empty">Loading your selections...</div></div>
-      </div>
     </section>
 
     <section class="panel buyer-match-panel" id="buyer-potential-matches">
@@ -3744,36 +3740,51 @@ async function loadHandPickedForYou(){
 
     const rows=data||[];
     if(!rows.length){
-      box.innerHTML='<div class="buyer-match-empty">No motorcycles are in your hand-picked shortlist yet. Open one of your private selections below and mark a motorcycle Interested.</div>';
+      box.innerHTML='<div class="buyer-match-empty">No hand-picked motorcycles are waiting for you at the moment.</div>';
       return;
     }
 
-    box.innerHTML=rows.map(r=>{
+    box.innerHTML='<div class="bike-grid">'+rows.map(r=>{
       const title=[r.year,r.make,r.model,r.variant].filter(Boolean).join(" ");
+      const image=Array.isArray(r.image_urls) && r.image_urls.length ? r.image_urls[0] : "";
       const facts=[
         r.mileage!==null && r.mileage!==undefined ? Number(r.mileage).toLocaleString("en-GB")+" miles" : "",
-        r.colour || "",
-        r.source_status==="live" ? "Still listed" : (r.source_status==="ended" ? "No longer listed" : "")
+        r.colour || ""
       ].filter(Boolean).join(" · ");
 
       const price=Number(r.price_gbp||0)>0
         ? Number(r.price_gbp).toLocaleString("en-GB",{style:"currency",currency:"GBP",maximumFractionDigits:0})
         : "Price to be confirmed";
 
-      return '<div class="buyer-match-pool-card">' +
-        '<div>' +
-          '<strong>'+safe(title || "Motorcycle")+'</strong>' +
-          '<div class="buyer-match-card-meta">'+safe(facts)+'</div>' +
-          '<div class="buyer-match-card-meta" style="margin-top:6px"><strong>'+safe(price)+'</strong> · Interested</div>' +
+      const response=String(r.buyer_response||"");
+      const status=response==="Interested"
+        ? "Interested"
+        : response==="Watching"
+          ? "Watching"
+          : "New selection";
+
+      return '<article class="bike-card">' +
+        '<div class="bike-image '+(image?"":"fallback")+'">' +
+          (image?'<img src="'+safe(image)+'" alt="'+safe(title||"Motorcycle")+'" loading="lazy" onerror="this.closest(\'.bike-image\').classList.add(\'fallback\');this.remove();">':'') +
+          '<div class="bike-fallback">ANYBIKE</div>' +
         '</div>' +
-        '<a class="mini-btn" href="/customer-sourced-matches.html?batch='+encodeURIComponent(r.batch_id)+'">Open selection</a>' +
-      '</div>';
-    }).join("");
+        '<div class="bike-card-body">' +
+          '<div class="recommend-reason">'+safe(status)+'</div>' +
+          '<h3>'+safe(title||"Motorcycle")+'</h3>' +
+          '<p>'+safe(facts||"Hand-picked by AnyBike")+'</p>' +
+          '<div class="bike-card-foot">' +
+            '<strong>'+safe(price)+'</strong>' +
+            '<a href="/customer-sourced-matches.html?batch='+encodeURIComponent(r.batch_id)+'">Review &amp; respond →</a>' +
+          '</div>' +
+        '</div>' +
+      '</article>';
+    }).join("")+'</div>';
   }catch(error){
-    console.error("Hand-picked shortlist could not be loaded",error);
-    box.innerHTML='<div class="buyer-match-empty"><span class="bad">Your hand-picked shortlist could not be loaded.</span></div>';
+    console.error("Hand-picked motorcycles could not be loaded",error);
+    box.innerHTML='<div class="buyer-match-empty"><span class="bad">Your hand-picked motorcycles could not be loaded.</span></div>';
   }
 }
+
 
 async function loadSourcedMatchBatches(){
   const box=document.getElementById("sourcedMatchBatchesBox");
@@ -6385,7 +6396,6 @@ async function initialiseCustomerNotifications(){
       loadDashboardConversationCount(),
       loadRecommendations(),
       loadHandPickedForYou(),
-      loadSourcedMatchBatches(),
       loadBuyerPotentialMatches(),
       loadBuyerMatchNotificationPreference()
     ]);
