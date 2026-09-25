@@ -263,6 +263,14 @@ button:disabled{
 .same-model-head h2{margin:6px 0 0;font-size:clamp(26px,3vw,38px);letter-spacing:-.03em}
 .same-model-head p{margin:7px 0 0;color:#aaa;line-height:1.5}
 .same-model-head a{color:#ed1c24;font-weight:900;text-decoration:none;white-space:nowrap}
+.same-model-filters{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 18px}
+.same-model-filter{
+  min-height:36px;padding:7px 12px;border:1px solid rgba(255,255,255,.14);
+  border-radius:999px;background:#181818;color:#ddd;font-size:13px;font-weight:900;cursor:pointer
+}
+.same-model-filter:hover{border-color:#ed1c24;color:#fff}
+.same-model-filter.active{background:#ed1c24;border-color:#ed1c24;color:#fff}
+.same-model-count{color:#777;font-size:12px;margin-left:3px}
 .same-model-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
 .same-model-card{
   display:block;overflow:hidden;border:1px solid rgba(255,255,255,.12);
@@ -283,6 +291,15 @@ button:disabled{
   .same-model-head{display:block}
   .same-model-head a{display:inline-block;margin-top:12px}
   .same-model-image{height:220px}
+}
+
+.purchase-details-mount{
+  width:min(1240px,calc(100vw - 36px));
+  margin:20px auto 0;
+}
+.purchase-details-mount .purchase-details-section{margin-top:0}
+@media(max-width:650px){
+  .purchase-details-mount{width:calc(100vw - 24px)}
 }
 
 .market-related{
@@ -768,8 +785,11 @@ button:disabled{
     </div>
     <a id="sameModelAllLink" href="/available-stock.html">View all →</a>
   </div>
+  <div id="sameModelYearFilters" class="same-model-filters" hidden></div>
   <div id="sameModelGrid" class="same-model-grid"></div>
 </section>
+
+<div id="purchaseDetailsMount" class="purchase-details-mount"></div>
 
 <section id="marketRelatedLinks" class="market-related" hidden>
   <div class="market-related-head">
@@ -1521,29 +1541,35 @@ function render(){
       <div class="desc">${safe(localisePublicDescription(bike.public_description || bike.raw_data?.Description || bike.raw_data?.description || bt("detailsRequest")))}</div>
     </section>
 
-    <section class="purchase-details-section">
-      <div class="purchase-details-heading">
-        <span>${bt("buyingDelivery")}</span>
-        <h2>${bt("purchaseDetails")}</h2>
-      </div>
+  `;
 
-      <div class="purchase-details-grid ${purchaseContextHtml ? "" : "no-context"}">
-        <div class="purchase-detail-card services-card">
-          <div class="purchase-detail-kicker">${bt("optionalServices")}</div>
-          <h3>${bt("supportTitle")}</h3>
-          <p>${bt("supportText")}</p>
+  const purchaseMount=document.getElementById("purchaseDetailsMount");
+  if(purchaseMount){
+    purchaseMount.innerHTML=`
+      <section class="purchase-details-section">
+        <div class="purchase-details-heading">
+          <span>${bt("buyingDelivery")}</span>
+          <h2>${bt("purchaseDetails")}</h2>
         </div>
 
-        ${purchaseContextHtml ? `
-          <div class="purchase-detail-card context-card">
-            ${purchaseContextHtml}
+        <div class="purchase-details-grid ${purchaseContextHtml ? "" : "no-context"}">
+          <div class="purchase-detail-card services-card">
+            <div class="purchase-detail-kicker">${bt("optionalServices")}</div>
+            <h3>${bt("supportTitle")}</h3>
+            <p>${bt("supportText")}</p>
           </div>
-        ` : ""}
-      </div>
 
-      ${tradeSaleNoticeHTML()}
-    </section>
-  `;
+          ${purchaseContextHtml ? `
+            <div class="purchase-detail-card context-card">
+              ${purchaseContextHtml}
+            </div>
+          ` : ""}
+        </div>
+
+        ${tradeSaleNoticeHTML()}
+      </section>
+    `;
+  }
 }
 
 function openEnquiryModal(){
@@ -1880,9 +1906,69 @@ function bikeDetailsLinkWithContext(id){
   return "/bike-details.html?"+params.toString();
 }
 
+let sameModelRows=[];
+let sameModelSelectedYear="all";
+
+function renderSameModelGalleryRows(){
+  const grid=document.getElementById("sameModelGrid");
+  const filters=document.getElementById("sameModelYearFilters");
+  const section=document.getElementById("sameModelSection");
+  if(!grid||!section)return;
+
+  const filtered=sameModelSelectedYear==="all"
+    ? sameModelRows
+    : sameModelRows.filter(row=>String(row.year||"")===String(sameModelSelectedYear));
+
+  const visible=filtered.slice(0,8);
+
+  grid.innerHTML=visible.map(row=>{
+    const name=[row.year,row.make,row.model,row.variant].filter(Boolean).join(" ");
+    const image=safeUrl(row.image_url)||placeholderImageFile;
+    const meta=[
+      row.mileage!=null?miles(row.mileage):"",
+      row.variant||""
+    ].filter(Boolean).join(" · ");
+
+    return '<a class="same-model-card" href="'+safe(bikeDetailsLinkWithContext(row.id))+'">'+
+      '<div class="same-model-image"><img src="'+safe(image)+'" alt="'+safe(name)+'" loading="lazy" onerror="this.onerror=null;this.src=\''+placeholderImageFile+'\'"></div>'+
+      '<div class="same-model-copy">'+
+        '<h3>'+safe(name)+'</h3>'+
+        (meta?'<div class="same-model-meta">'+safe(meta)+'</div>':'')+
+        '<div class="same-model-price">'+safe(anybikePriceText(row.price_gbp))+'</div>'+
+        '<div class="same-model-action">View motorcycle →</div>'+
+      '</div>'+
+    '</a>';
+  }).join("");
+
+  if(filters){
+    filters.querySelectorAll("[data-year]").forEach(btn=>{
+      btn.classList.toggle(
+        "active",
+        String(btn.dataset.year)===String(sameModelSelectedYear)
+      );
+    });
+  }
+
+  const intro=document.getElementById("sameModelIntro");
+  if(intro){
+    const title=[bike.make,bike.model].filter(Boolean).join(" ");
+    if(sameModelSelectedYear==="all"){
+      intro.textContent="Compare other "+title+" motorcycles currently available through AnyBike.";
+    }else{
+      intro.textContent="Showing "+sameModelSelectedYear+" "+title+" motorcycles currently available through AnyBike.";
+    }
+  }
+}
+
+function selectSameModelYear(year){
+  sameModelSelectedYear=String(year||"all");
+  renderSameModelGalleryRows();
+}
+
 async function loadSameModelGallery(){
   const section=document.getElementById("sameModelSection");
   const grid=document.getElementById("sameModelGrid");
+  const filters=document.getElementById("sameModelYearFilters");
   if(!section||!grid||!bike?.id||!bike?.make||!bike?.model)return;
 
   try{
@@ -1896,20 +1982,20 @@ async function loadSameModelGallery(){
       .is("source_removed_at",null)
       .neq("id",Number(bike.id))
       .order("year",{ascending:false,nullsFirst:false})
-      .limit(8);
+      .limit(60);
 
     if(error)throw error;
 
-    const rows=(Array.isArray(data)?data:[]).filter(row=>row&&row.id);
-    if(!rows.length){
+    sameModelRows=(Array.isArray(data)?data:[]).filter(row=>row&&row.id);
+    sameModelSelectedYear="all";
+
+    if(!sameModelRows.length){
       section.hidden=true;
       return;
     }
 
     const title=[bike.make,bike.model].filter(Boolean).join(" ");
     document.getElementById("sameModelTitle").textContent="More "+title+" motorcycles";
-    document.getElementById("sameModelIntro").textContent=
-      "Compare other "+title+" motorcycles currently available through AnyBike.";
 
     const allLink=document.getElementById("sameModelAllLink");
     if(allLink){
@@ -1917,25 +2003,32 @@ async function loadSameModelGallery(){
       allLink.textContent="View all "+title+" →";
     }
 
-    grid.innerHTML=rows.map(row=>{
-      const name=[row.year,row.make,row.model,row.variant].filter(Boolean).join(" ");
-      const image=safeUrl(row.image_url)||placeholderImageFile;
-      const meta=[
-        row.mileage!=null?miles(row.mileage):"",
-        row.variant||""
-      ].filter(Boolean).join(" · ");
+    const yearCounts={};
+    sameModelRows.forEach(row=>{
+      const year=Number(row.year);
+      if(!Number.isFinite(year))return;
+      yearCounts[year]=(yearCounts[year]||0)+1;
+    });
 
-      return '<a class="same-model-card" href="'+safe(bikeDetailsLinkWithContext(row.id))+'">'+
-        '<div class="same-model-image"><img src="'+safe(image)+'" alt="'+safe(name)+'" loading="lazy" onerror="this.onerror=null;this.src=\''+placeholderImageFile+'\'"></div>'+
-        '<div class="same-model-copy">'+
-          '<h3>'+safe(name)+'</h3>'+
-          (meta?'<div class="same-model-meta">'+safe(meta)+'</div>':'')+
-          '<div class="same-model-price">'+safe(anybikePriceText(row.price_gbp))+'</div>'+
-          '<div class="same-model-action">View motorcycle →</div>'+
-        '</div>'+
-      '</a>';
-    }).join("");
+    const years=Object.keys(yearCounts)
+      .map(Number)
+      .sort((a,b)=>b-a);
 
+    if(filters){
+      if(years.length>1){
+        filters.innerHTML=
+          '<button type="button" class="same-model-filter active" data-year="all" onclick="selectSameModelYear(\'all\')">All years <span class="same-model-count">'+sameModelRows.length+'</span></button>'+
+          years.map(year=>
+            '<button type="button" class="same-model-filter" data-year="'+year+'" onclick="selectSameModelYear(\''+year+'\')">'+year+' <span class="same-model-count">'+yearCounts[year]+'</span></button>'
+          ).join("");
+        filters.hidden=false;
+      }else{
+        filters.innerHTML="";
+        filters.hidden=true;
+      }
+    }
+
+    renderSameModelGalleryRows();
     section.hidden=false;
   }catch(error){
     console.warn("Same model gallery could not be loaded",error);
