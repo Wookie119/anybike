@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Seller & Underwrite Queue | AnyBike Admin</title>
+<meta name="robots" content="noindex,nofollow">
+<script>document.documentElement.classList.add("admin-auth-pending");</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/admin.js?v=12001"></script>
+<link rel="stylesheet" href="/admin-shell.css?v=12001">
+<style>
+:root{--red:#ed1c24;--line:rgba(255,255,255,.12);--muted:#aaa}
+*{box-sizing:border-box}
+body{margin:0;background:#070707;color:#fff;font-family:Arial,Helvetica,sans-serif}
+.admin-page-content{padding:24px;max-width:1800px;margin:auto}
+.hero,.card{background:#111;border:1px solid var(--line);border-radius:20px}
+.hero{padding:26px;margin-bottom:16px;background:radial-gradient(circle at top right,rgba(237,28,36,.22),transparent 36%),#111}
+.eyebrow{color:var(--red);font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.12em}
+h1{margin:6px 0 8px;font-size:36px} p{color:#bbb;line-height:1.5}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+.toolbar input,.toolbar select{background:#111;color:#fff;border:1px solid #333;border-radius:10px;padding:11px}
+button,.btn{border:0;border-radius:10px;padding:10px 13px;background:#292929;color:#fff;font-weight:900;cursor:pointer;text-decoration:none;display:inline-block}
+button.red,.btn.red{background:var(--red)}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.card{padding:17px}
+.top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.ref{font-weight:900;font-size:18px}.meta{color:#888;font-size:12px;margin-top:4px}
+.badge{display:inline-block;border:1px solid #444;border-radius:999px;padding:5px 8px;font-size:10px;font-weight:900;text-transform:uppercase}
+.badge.dealer{border-color:rgba(237,28,36,.45);color:#ff9da1}
+.bike{font-size:22px;font-weight:900;margin:14px 0 4px}
+.sub{color:#aaa;font-size:13px}
+.data{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:13px 0}
+.box{background:#0b0b0b;border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:9px}
+.box span{display:block;color:#777;font-size:9px;text-transform:uppercase;font-weight:900}
+.box strong{display:block;margin-top:3px}
+.image-state{padding:10px;border-radius:10px;background:#0b0b0b;font-size:12px;color:#bbb;margin:10px 0}
+.comps{border-top:1px solid var(--line);padding-top:12px;margin-top:12px}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.empty{padding:30px;text-align:center;color:#888;border:1px dashed #333;border-radius:15px}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.75);display:none;align-items:center;justify-content:center;padding:20px;z-index:999}
+.modal.open{display:flex}.modal-box{width:min(650px,100%);background:#111;border:1px solid #444;border-radius:18px;padding:20px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.full{grid-column:1/-1}
+label{display:block;color:#bbb;font-size:12px;font-weight:800}input{width:100%;margin-top:6px;background:#090909;color:#fff;border:1px solid #333;border-radius:10px;padding:11px}
+@media(max-width:1100px){.grid{grid-template-columns:1fr 1fr}}
+@media(max-width:720px){.grid,.form-grid{grid-template-columns:1fr}.full{grid-column:auto}.admin-page-content{padding:14px}}
+</style>
+</head>
+<body>
+<div class="admin-shell">
+  <div id="adminSidebar"></div>
+  <div class="admin-main">
+    <div id="adminTopbar"></div>
+    <main class="admin-page-content">
+      <section class="hero">
+        <div class="eyebrow">AnyBike Buying Team</div>
+        <h1>Seller & Underwrite Queue</h1>
+        <p>Private seller enquiries and dealer underwrites now arrive through the same motorcycle intake. Use current authorised stock comparables as one piece of valuation evidence; seller identity and trade bid values remain internal.</p>
+      </section>
+
+      <div class="toolbar">
+        <input id="search" placeholder="Search reg, make, model, seller…" oninput="render()">
+        <select id="filter" onchange="render()">
+          <option value="">All submissions</option>
+          <option value="sell_your_bike">Sell Your Bike</option>
+          <option value="dealer_underwrite">Dealer Underwrite</option>
+          <option value="needs_vehicle">Needs vehicle details</option>
+          <option value="image_review">Image review</option>
+        </select>
+        <button onclick="loadQueue()">Refresh</button>
+      </div>
+
+      <div id="queue" class="grid"><div class="empty">Loading…</div></div>
+    </main>
+  </div>
+</div>
+
+<div id="modal" class="modal">
+  <div class="modal-box">
+    <h3 style="margin-top:0">Update Motorcycle Details</h3>
+    <div class="form-grid">
+      <label>Make<input id="mMake"></label>
+      <label>Model<input id="mModel"></label>
+      <label>Variant<input id="mVariant"></label>
+      <label>Year<input id="mYear" type="number"></label>
+      <label>Mileage<input id="mMileage" type="number"></label>
+      <div class="full actions">
+        <button class="red" onclick="saveVehicle()">Save</button>
+        <button onclick="closeModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL="https://tuehtnezhdnkqbbhttgp.supabase.co";
+const SUPABASE_ANON_KEY="sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+let rows=[];
+let editId=null;
+const esc=v=>String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+const money=v=>v===null||v===undefined||v===""?"—":"£"+Number(v).toLocaleString("en-GB",{maximumFractionDigits:0});
+
+async function loadQueue(){
+  const {data,error}=await sb.rpc("admin_get_seller_submission_queue_v1",{p_limit:150});
+  if(error){document.getElementById("queue").innerHTML='<div class="empty">'+esc(error.message)+'</div>';return;}
+  rows=data||[];
+  render();
+}
+
+function render(){
+  const q=String(document.getElementById("search").value||"").trim().toLowerCase();
+  const filter=document.getElementById("filter").value;
+  let list=rows.filter(r=>[r.reference,r.registration,r.make,r.model,r.seller_name,r.dealer_name].join(" ").toLowerCase().includes(q));
+  if(filter==="sell_your_bike")list=list.filter(r=>r.source_channel==="sell_your_bike");
+  if(filter==="dealer_underwrite")list=list.filter(r=>r.source_channel==="dealer_underwrite");
+  if(filter==="needs_vehicle")list=list.filter(r=>!r.make||!r.model);
+  if(filter==="image_review")list=list.filter(r=>Number(r.image_review||0)>0);
+
+  const host=document.getElementById("queue");
+  if(!list.length){host.innerHTML='<div class="empty">No submissions match this view.</div>';return;}
+
+  host.innerHTML=list.map(r=>{
+    const dealer=r.source_channel==="dealer_underwrite";
+    const imageText=Number(r.image_total||0)===0
+      ?"AnyBike Awaiting Image — no photos supplied"
+      : Number(r.image_approved||0)>0
+        ?Number(r.image_approved)+" approved image"+(Number(r.image_approved)===1?"":"s")
+        : Number(r.image_review||0)>0
+          ?Number(r.image_review)+" image"+(Number(r.image_review)===1?" needs":"s need")+" review — Awaiting Image remains"
+          : Number(r.image_rejected||0)>=Number(r.image_total||0)
+            ?"No usable seller images — AnyBike Awaiting Image"
+            :"Images being safety checked — AnyBike Awaiting Image";
+
+    const hasComps=r.latest_snapshot_at!==null;
+    return '<article class="card">'+
+      '<div class="top"><div><div class="ref">'+esc(r.reference)+'</div><div class="meta">'+new Date(r.created_at).toLocaleString("en-GB")+'</div></div><span class="badge '+(dealer?"dealer":"")+'">'+esc(dealer?"Dealer Underwrite":"Sell Your Bike")+'</span></div>'+
+      '<div class="bike">'+esc([r.make,r.model,r.variant].filter(Boolean).join(" ")||r.registration||"Motorcycle details needed")+'</div>'+
+      '<div class="sub">'+esc(r.registration||"No registration")+(r.bike_year?" · "+esc(r.bike_year):"")+(r.mileage!==null?" · "+Number(r.mileage).toLocaleString("en-GB")+" miles":"")+'</div>'+
+      '<div class="data">'+
+        '<div class="box"><span>Seller needs</span><strong>'+money(r.price_wanted_gbp)+'</strong></div>'+
+        '<div class="box"><span>Seller</span><strong>'+esc(r.dealer_name||r.seller_name||"—")+'</strong></div>'+
+        '<div class="box"><span>Underwrite</span><strong>'+esc(String(r.underwrite_status||"").replaceAll("_"," "))+'</strong></div>'+
+        '<div class="box"><span>International match</span><strong>'+esc(String(r.international_match_status||"").replaceAll("_"," "))+'</strong></div>'+
+      '</div>'+
+      '<div class="image-state">'+esc(imageText)+'</div>'+
+      '<div class="comps">'+
+        (hasComps
+          ?'<div class="data"><div class="box"><span>Comparable count</span><strong>'+Number(r.latest_comparable_count||0)+'</strong></div><div class="box"><span>Median ask</span><strong>'+money(r.latest_median_ask_gbp)+'</strong></div><div class="box"><span>Range</span><strong>'+money(r.latest_lowest_ask_gbp)+' – '+money(r.latest_highest_ask_gbp)+'</strong></div><div class="box"><span>Average</span><strong>'+money(r.latest_average_ask_gbp)+'</strong></div></div>'
+          :'<div class="sub">No comparable snapshot captured yet.</div>')+
+      '</div>'+
+      (r.notes?'<p>'+esc(r.notes)+'</p>':"")+
+      '<div class="actions">'+
+        '<button class="red" onclick="captureComps('+Number(r.submission_id)+')">Capture Comparables</button>'+
+        '<button onclick="editVehicle('+Number(r.submission_id)+')">Edit Bike Details</button>'+
+        (r.message_thread_id?'<a class="btn" href="/admin-message-centre.html?thread='+Number(r.message_thread_id)+'">Open Message</a>':"")+
+      '</div>'+
+    '</article>';
+  }).join("");
+}
+
+async function captureComps(id){
+  const {data,error}=await sb.rpc("admin_capture_seller_submission_comparables_v1",{p_submission_id:Number(id)});
+  if(error){alert(error.message);return;}
+  if(!data?.success){alert(data?.message||"Comparable snapshot could not be captured.");return;}
+  alert("Snapshot captured: "+Number(data.comparable_count||0)+" connected-stock comparables.");
+  await loadQueue();
+}
+
+function editVehicle(id){
+  editId=Number(id);
+  const r=rows.find(x=>Number(x.submission_id)===editId);
+  if(!r)return;
+  document.getElementById("mMake").value=r.make||"";
+  document.getElementById("mModel").value=r.model||"";
+  document.getElementById("mVariant").value=r.variant||"";
+  document.getElementById("mYear").value=r.bike_year||"";
+  document.getElementById("mMileage").value=r.mileage??"";
+  document.getElementById("modal").classList.add("open");
+}
+function closeModal(){document.getElementById("modal").classList.remove("open");editId=null;}
+
+async function saveVehicle(){
+  if(!editId)return;
+  const args={
+    p_submission_id:editId,
+    p_make:document.getElementById("mMake").value.trim(),
+    p_model:document.getElementById("mModel").value.trim(),
+    p_variant:document.getElementById("mVariant").value.trim()||null,
+    p_bike_year:Number(document.getElementById("mYear").value)||null,
+    p_mileage:Number(document.getElementById("mMileage").value)||null
+  };
+  const {error}=await sb.rpc("admin_update_seller_submission_vehicle_v1",args);
+  if(error){alert(error.message);return;}
+  closeModal();
+  await loadQueue();
+}
+
+(async function init(){
+  try{
+    const allowed=await requireAdminSession();
+    if(!allowed)return;
+    document.documentElement.classList.remove("admin-auth-pending");
+    await loadQueue();
+  }catch(e){
+    document.documentElement.classList.remove("admin-auth-pending");
+    document.getElementById("queue").innerHTML='<div class="empty">'+esc(e.message||e)+'</div>';
+  }
+})();
+</script>
+</body>
+</html>
