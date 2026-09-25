@@ -4503,6 +4503,50 @@ function updateStats(rows){
   const counts={};rows.forEach(b=>{if(b.country)counts[b.country]=(counts[b.country]||0)+1;});
   const top=Object.entries(counts).sort((a,b)=>b[1]-a[1])[0];document.getElementById('topCountry').textContent=top?top[0]:'-';
 }
+
+function buyerVisibleMessageMatches(buyerId){
+  return (buyerMatches || []).filter(function(match){
+    return Number(match.buyer_id)===Number(buyerId) && match.buyer_visible===true;
+  });
+}
+
+function buyerMessageAttachmentsHtml(buyerId){
+  const rows=buyerVisibleMessageMatches(buyerId);
+  if(!rows.length){
+    return `
+      <div style="margin:10px 0;padding:10px 12px;border:1px dashed rgba(255,255,255,.16);border-radius:10px;color:#888;font-size:12px">
+        No buyer-visible motorcycles available to attach. Add motorcycles to Buyer Matches first.
+      </div>
+    `;
+  }
+
+  return `
+    <div style="margin:10px 0;padding:11px 12px;border:1px solid rgba(255,255,255,.12);border-radius:12px;background:#0d0d0d">
+      <strong style="display:block;margin-bottom:7px">Attach motorcycles to this message</strong>
+      <div style="display:grid;gap:7px">
+        ${rows.map(function(match){
+          const bike=[match.stock_year,match.stock_make,match.stock_model,match.stock_variant].filter(Boolean).join(" ") || ("Motorcycle #"+match.stock_id);
+          return `
+            <label style="display:flex;gap:9px;align-items:flex-start;cursor:pointer">
+              <input type="checkbox"
+                data-buyer-message-attachment="${safe(buyerId)}"
+                value="${safe(match.id)}"
+                style="margin-top:3px">
+              <span>
+                <strong>${safe(bike)}</strong>
+                <small style="display:block;color:#888;margin-top:2px">Potential Match #${safe(match.id)}</small>
+              </span>
+            </label>
+          `;
+        }).join("")}
+      </div>
+      <div style="color:#777;font-size:11px;margin-top:8px">
+        Only tick the motorcycles you want this specific message to contain.
+      </div>
+    </div>
+  `;
+}
+
 function buyerHtml(b,its){
   const qty=its.reduce((s,i)=>s+Number(i.quantity||0),0);
   const archived=isBuyerArchived(b);
@@ -4572,6 +4616,8 @@ function buyerHtml(b,its){
                 <option value="We have identified potential motorcycles that may match your requirements. Please confirm whether you would like us to prepare a detailed offer.">Potential matches found</option>
                 <option value="Please confirm your preferred UK freight forwarder, destination port and any shipping instructions so we can plan the next stage.">Confirm shipping details</option>
               </select>
+
+              ${buyerMessageAttachmentsHtml(b.id)}
 
               <label for="buyer-message-${b.id}">Message</label>
               <textarea id="buyer-message-${b.id}" placeholder="Write a welcome message or reply..."></textarea>
@@ -5261,7 +5307,15 @@ async function sendBuyerMessage(buyerId){
       thread=await createBuyerThread(buyer,message,now);
     }
 
-    const {error:messageError}=await sb
+    const selectedMatchIds=Array.from(
+      document.querySelectorAll(
+        '[data-buyer-message-attachment="' + String(buyerId) + '"]:checked'
+      )
+    )
+      .map(function(input){ return Number(input.value); })
+      .filter(Number.isFinite);
+
+    const {data:sentMessage,error:messageError}=await sb
       .from("message_centre_messages")
       .insert({
         thread_id:thread.id,
@@ -5270,10 +5324,32 @@ async function sendBuyerMessage(buyerId){
         sender_email:"admin@anybike.co.uk",
         message:message,
         created_at:now
-      });
+      })
+      .select("id")
+      .single();
 
     if(messageError){
       throw new Error(messageError.message);
+    }
+
+    let attachmentCount=0;
+    let attachmentWarning="";
+
+    if(selectedMatchIds.length){
+      const {data:attachmentResult,error:attachmentError}=await sb.rpc(
+        "admin_attach_matches_to_message_v1",
+        {
+          p_message_id:Number(sentMessage.id),
+          p_match_ids:selectedMatchIds
+        }
+      );
+
+      if(attachmentError){
+        console.error("Could not attach motorcycles to buyer message",attachmentError);
+        attachmentWarning=" Message sent, but the selected motorcycles could not be attached.";
+      }else{
+        attachmentCount=Number(attachmentResult?.attached_count || 0);
+      }
     }
 
     const {error:threadError}=await sb
@@ -5315,7 +5391,10 @@ async function sendBuyerMessage(buyerId){
     if(quick) quick.value="";
 
     if(status){
-      status.textContent="Message added to the buyer conversation.";
+      status.textContent=attachmentWarning ||
+        (attachmentCount
+          ? "Message sent with " + attachmentCount + " motorcycle" + (attachmentCount===1 ? "" : "s") + " attached."
+          : "Message added to the buyer conversation.");
     }
 
     await loadBuyerConversation(buyerId,true);
