@@ -4113,20 +4113,50 @@ function setUserAreaHtml(html){
   }
 }
 
-async function loadUser(){
-  let user=null;
-
+async function getDashboardCustomerUser(){
   try{
-    const {data:sessionData}=await sb.auth.getSession();
-    user=sessionData?.session?.user || null;
+    let sessionResult=await sb.auth.getSession();
+    let user=sessionResult?.data?.session?.user || null;
+    if(user) return user;
 
-    if(!user){
-      const {data:userData}=await sb.auth.getUser();
-      user=userData?.user || null;
-    }
+    const userResult=await sb.auth.getUser();
+    user=userResult?.data?.user || null;
+    if(user) return user;
+
+    // Give Supabase a brief restore window before deciding the customer
+    // is genuinely signed out. This mirrors the older dashboard's more
+    // tolerant auth-state approach without restoring the old page.
+    user=await new Promise(resolve=>{
+      let settled=false;
+      const finish=value=>{
+        if(settled) return;
+        settled=true;
+        try{subscription?.unsubscribe();}catch(error){}
+        resolve(value || null);
+      };
+
+      const {data:{subscription}}=sb.auth.onAuthStateChange((event,session)=>{
+        const restored=session?.user || null;
+        if(restored){
+          finish(restored);
+        }
+      });
+
+      setTimeout(()=>finish(null),1600);
+    });
+
+    if(user) return user;
+
+    sessionResult=await sb.auth.getSession();
+    return sessionResult?.data?.session?.user || null;
   }catch(error){
-    console.error("Login check failed",error);
+    console.error("Dashboard login restore failed",error);
+    return null;
   }
+}
+
+async function loadUser(){
+  const user=await getDashboardCustomerUser();
 
   currentUser=user || null;
 
