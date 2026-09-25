@@ -13,11 +13,11 @@
 <style>
 :root{--red:#ed1c24;--line:rgba(255,255,255,.12);--muted:#aaa;--green:#4bd17b;--amber:#f1b94d}
 *{box-sizing:border-box}body{margin:0;background:#080808;color:#fff;font-family:Arial,Helvetica,sans-serif}
-.page{display:flex;min-height:100vh}.main{flex:1;min-width:0}.content{max-width:1500px;margin:0 auto;padding:24px}
+.page{display:flex;min-height:100vh}.main{flex:1;min-width:0}.content{max-width:1900px;margin:0 auto;padding:24px}
 .hero,.panel,.source-card,.bike{background:#111;border:1px solid var(--line);border-radius:18px}.hero,.panel{padding:22px;margin-bottom:16px}
 .hero{background:radial-gradient(circle at top right,rgba(237,28,36,.22),transparent 38%),#111}.eyebrow{color:var(--red);font-size:12px;font-weight:900;letter-spacing:.12em;text-transform:uppercase}
 h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:16px}
-.source-card{padding:16px}.source-card h3{margin:0 0 5px;font-size:18px}.source-meta{font-size:12px;color:#aaa;line-height:1.5}.stats{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.pill{border:1px solid #333;border-radius:999px;padding:6px 9px;font-size:12px}.pill.live{color:#85efaa;border-color:#2b6440}.pill.end{color:#aaa}.pill.review{color:#ffd27a;border-color:#665025}
+.source-card{padding:16px;cursor:pointer;transition:border-color .15s,box-shadow .15s}.source-card.active{border-color:#ed1c24;box-shadow:0 0 0 1px rgba(237,28,36,.25)}.source-card h3{margin:0 0 5px;font-size:18px}.source-meta{font-size:12px;color:#aaa;line-height:1.5}.stats{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.pill{border:1px solid #333;border-radius:999px;padding:6px 9px;font-size:12px}.pill.live{color:#85efaa;border-color:#2b6440}.pill.end{color:#aaa}.pill.review{color:#ffd27a;border-color:#665025}
 .btn{display:inline-block;border:1px solid #333;background:#181818;color:#fff;border-radius:10px;padding:10px 13px;font-weight:900;cursor:pointer;text-decoration:none}.btn.red{background:var(--red);border-color:var(--red)}.btn.green{background:#143d27;border-color:#276941}.btn:disabled{opacity:.45;cursor:not-allowed}
 .filters{display:grid;grid-template-columns:1.1fr 1fr 1fr 1fr auto;gap:10px;align-items:end}.field{display:grid;gap:5px}.field label{font-size:12px;color:#bbb;font-weight:800}input,select{width:100%;background:#090909;color:#fff;border:1px solid #333;border-radius:10px;padding:10px;font:inherit}
 .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:12px 0}.status{font-size:13px;color:#bbb}.status.good{color:var(--green)}.status.bad{color:#ff8181}
@@ -52,8 +52,9 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
       <section class="sources" id="sources"></section>
 
       <section class="panel">
-        <div class="filters">
-          <div class="field"><label>Source</label><select id="connectorFilter"><option value="">All sources</option></select></div>
+        <div class="filters" style="grid-template-columns:1.1fr 1fr 1fr auto">
+          <input type="hidden" id="connectorFilter" value="">
+          <div class="field"><label>Selected channel</label><div id="activeSourceLabel" class="btn" style="cursor:default;text-align:left">Choose a channel above</div></div>
           <div class="field"><label>Make</label><select id="makeFilter" onchange="refreshModelOptions()"><option value="">All makes</option></select></div>
           <div class="field"><label>Model</label><select id="modelFilter"><option value="">All models</option></select></div>
           <div class="field"><label>Status</label><select id="statusFilter"><option value="live">Live only</option><option value="">All</option><option value="ended">No longer listed</option><option value="review">Needs review</option></select></div>
@@ -147,18 +148,37 @@ async function loadHub(){
   if(error){document.getElementById("sources").innerHTML='<div class="status bad">'+esc(error.message)+'</div>';return}
   hub=data||{connectors:[]};
   const cs=hub.connectors||[];
-  document.getElementById("sources").innerHTML=cs.map(c=>'<article class="source-card">'+
+  const selectedId=Number(document.getElementById("connectorFilter").value||0);
+  document.getElementById("sources").innerHTML=cs.map(c=>'<article class="source-card '+(selectedId===Number(c.id)?"active":"")+'" onclick="selectSourceChannel('+c.id+')">'+
     '<div class="eyebrow">'+esc(c.source_type||"website")+'</div><h3>'+esc(c.name)+'</h3>'+
-    '<div class="source-meta">Adapter: '+esc(c.adapter_key||"generic")+'<br>Last refresh: '+esc(date(c.last_refresh_completed_at))+'</div>'+
+    '<div class="source-meta">Adapter: '+esc(c.adapter_key||"not built")+'<br>Last completed refresh: '+esc(date(c.last_refresh_completed_at))+'</div>'+
     '<div class="stats"><span class="pill live">'+c.live_count+' live</span><span class="pill end">'+c.ended_count+' ended</span><span class="pill review">'+c.review_count+' review</span></div>'+
-    '<div class="toolbar"><a class="btn" href="'+esc(c.results_url||c.base_url||"#")+'" target="_blank">Open source ↗</a>'+(c.status==="adapter_ready"?'<button class="btn red" onclick="refreshSource('+c.id+',event)">Refresh Source</button>':'<button class="btn" disabled>Adapter needed</button>')+'<a class="btn green" href="admin-used-bike-scanner.html?source='+encodeURIComponent(c.id)+'">Use Scanner</a></div><div class="status" id="refresh-'+c.id+'" style="margin-top:7px">'+(c.status==="needs_adapter"?'Live refresh is not available for this website yet. Use Scanner until a source adapter is added.':'')+'</div>'+
+    '<div class="toolbar"><a class="btn" href="'+esc(c.results_url||c.base_url||"#")+'" target="_blank" onclick="event.stopPropagation()">Open source ↗</a>'+(c.status==="adapter_ready"?'<span class="btn green" style="cursor:default">Automatic refresh</span>':'<span class="btn" style="cursor:default">Adapter needed</span>')+'<a class="btn green" href="admin-used-bike-scanner.html?source='+encodeURIComponent(c.id)+'" onclick="event.stopPropagation()">Use Scanner</a></div><div class="status" id="refresh-'+c.id+'" style="margin-top:7px">'+(c.status==="adapter_ready"?'This channel updates automatically in the background.':'Live refresh is not available for this website yet. Use Scanner until a source adapter is added.')+'</div>'+
     '</article>').join("");
-  document.getElementById("connectorFilter").innerHTML='<option value="">Choose source…</option>'+cs.map(c=>'<option value="'+c.id+'">'+esc(c.name)+'</option>').join("");
-  if(cs.length===1){
-    document.getElementById("connectorFilter").value=String(cs[0].id);
-    await loadSourceFacets();
+
+  if(!selectedId){
+    const preferred=cs.find(c=>c.adapter_key==="bmw-approved-used-uk"&&c.status==="adapter_ready") || cs[0];
+    if(preferred){
+      document.getElementById("connectorFilter").value=String(preferred.id);
+      document.getElementById("activeSourceLabel").textContent=preferred.name;
+      await loadSourceFacets();
+    }
+  }else{
+    const current=cs.find(c=>Number(c.id)===selectedId);
+    document.getElementById("activeSourceLabel").textContent=current?.name||"Selected channel";
   }
 }
+async function selectSourceChannel(id){
+  selected.clear();
+  document.getElementById("connectorFilter").value=String(id);
+  const connector=(hub?.connectors||[]).find(c=>Number(c.id)===Number(id));
+  document.getElementById("activeSourceLabel").textContent=connector?.name||"Selected channel";
+  document.querySelectorAll(".source-card").forEach(card=>card.classList.remove("active"));
+  await loadHub();
+  await loadSourceFacets();
+  await loadItems();
+}
+
 async function refreshSource(id,event){
   if(event)event.stopPropagation();
   const st=document.getElementById("refresh-"+id);
@@ -223,11 +243,6 @@ async function loadRequests(){
   el.innerHTML='<option value="">General sourcing</option>'+(data||[]).map(r=>'<option value="'+r.id+'">'+esc([r.make,r.model,r.year_from&&("from "+r.year_from)].filter(Boolean).join(" · "))+'</option>').join("");
 }
 document.getElementById("buyerSelect").addEventListener("change",loadRequests);
-document.getElementById("connectorFilter").addEventListener("change",async()=>{
-  selected.clear();
-  await loadSourceFacets();
-  await loadItems();
-});
 
 async function createBatch(){
   const bid=Number(document.getElementById("buyerSelect").value),rid=document.getElementById("requestSelect").value?Number(document.getElementById("requestSelect").value):null;
