@@ -132,6 +132,7 @@
       .ab-move-actions div{display:flex;gap:8px}
       .ab-move-secondary{border:1px solid #555!important;background:#171717!important}
       .ab-move-warning{margin:0 14px 12px;padding:10px 11px;border:1px solid rgba(255,181,71,.3);border-radius:8px;background:#211707;color:#ffd18a;font-size:11px;line-height:1.4}
+      .ab-move-warning.ab-move-ready{border-color:rgba(47,141,85,.5);background:#102719;color:#9cf0b5}
       .ab-move-booked{margin:0 16px 14px;padding:12px 14px;border:1px solid rgba(47,141,85,.4);border-radius:10px;background:#102719;color:#9cf0b5}
       .ab-ops-button{min-height:39px;border:0;border-radius:8px;background:#ed1c24;color:#fff;padding:10px 14px;font-weight:900;cursor:pointer}
       .ab-ops-button:disabled{opacity:.45;cursor:not-allowed}
@@ -189,6 +190,8 @@
     const collected=String(row.collection_status||"")==="collected";
     const secured=!!row.motorcycle_secured_at || collected;
     const driverWorkflow=paymentRequested || sellerConfirmedPaid || photosConfirmed || collected;
+    const collectionReady=!!row.collection_ready_for_move;
+    const collectionMissing=Array.isArray(row.collection_missing_fields)?row.collection_missing_fields.filter(Boolean):[];
 
     if(collected){
       return `
@@ -285,7 +288,7 @@
               ?"Motorcycle collected "+esc(niceDateTime(row.collection_actual_at))+" and secured to AnyBike."
               :(driverWorkflow
                 ?"Driver workflow controls final collection after handover, condition photos and seller payment confirmation."
-                :"Requires driver arrival, passed visual check, payment authorisation and a zero supplier balance.")}</div><div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.09)"><h6>Incoming Collection Job</h6><div class="ab-collect-status ${collected?"good":""}">${collected?"Collection is complete and linked back to this AnyBike purchase.":"Send this AnyBike collection into Logistics HQ. It will use the standard Move driver workflow, condition photos, handover checklist and collection report."}</div>${collected?"":'<div class="ab-collect-actions" style="margin-top:8px"><button type="button" class="ab-ops-button" onclick="sendAnyBikeCollectionToMove('+id+','+Number(dealId)+');return false;">Send to Incoming Collection Jobs</button><a class="ab-ops-button ab-move-secondary" href="admin-logistics.html#pay-on-site" style="text-decoration:none">Open Logistics HQ</a></div>'}</div>
+                :"Requires driver arrival, passed visual check, payment authorisation and a zero supplier balance.")}</div><div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.09)"><h6>Incoming Collection Job</h6><div class="ab-collect-status ${collected||collectionReady?"good":"warn"}">${collected?"Collection is complete and linked back to this AnyBike purchase.":(collectionReady?"Collection details are complete. This motorcycle is ready to send to Move Motorcycles.":"Collection is NOT ready for Move yet. Missing: "+esc(collectionMissing.join(", ")||"required collection details")+".")}</div>${collected?"":'<div class="ab-collect-actions" style="margin-top:8px"><button type="button" class="ab-ops-button" '+(collectionReady?'':'disabled title="Complete the collection-readiness items first"')+' onclick="sendAnyBikeCollectionToMove('+id+','+Number(dealId)+');return false;">'+(collectionReady?'Send to Incoming Collection Jobs':'Waiting for Collection Details')+'</button><a class="ab-ops-button ab-move-secondary" href="admin-logistics.html#pay-on-site" style="text-decoration:none">Open Logistics HQ</a></div>'}</div>
             ${collected?`<div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.09)">
               <h6>Driver Collection Report</h6>
               <div class="ab-collect-actions">
@@ -405,6 +408,43 @@
     if(out) out.value=mobile;
   }
 
+  function moveCollectionReadinessFromForm(id,data){
+    const missing=[];
+    const purchaseStatus=String(data?.purchase_status||"");
+    const readyDate=String(data?.ready_date||"").trim();
+    const checks=[
+      ["Seller / sender name",fieldValue("ab-move-sender-name-"+id)],
+      ["Collection street address",fieldValue("ab-move-sender-street-"+id)],
+      ["Collection town / city",fieldValue("ab-move-sender-city-"+id)],
+      ["Collection postcode",fieldValue("ab-move-sender-postcode-"+id)],
+      ["Collection country",fieldValue("ab-move-sender-country-"+id)],
+      ["Collection contact name",fieldValue("ab-move-sender-contact-"+id)],
+      ["Collection contact phone",fieldValue("ab-move-sender-phone-"+id)],
+      ["Access / handover instructions",fieldValue("ab-move-instructions-"+id)]
+    ];
+    if(purchaseStatus!=="proceeding_confirmed") missing.push("Seller proceeding confirmation");
+    if(!readyDate) missing.push("Ready From date");
+    checks.forEach(function(item){ if(!item[1]) missing.push(item[0]); });
+    return {ready:missing.length===0,missing:missing};
+  }
+
+  function updateMoveCollectionReadiness(id,data){
+    const state=moveCollectionReadinessFromForm(id,data||moveBookingCache.get(String(id))||{});
+    const box=document.getElementById("ab-move-readiness-"+id);
+    const book=document.getElementById("ab-move-book-"+id);
+    if(box){
+      box.className="ab-move-warning"+(state.ready?" ab-move-ready":"");
+      box.innerHTML=state.ready
+        ? "<strong>Ready for Move:</strong> seller collection details, contact information, Ready From date and access / handover instructions are complete."
+        : "<strong>Not ready for Move:</strong> "+esc(state.missing.join(", "));
+    }
+    if(book){
+      book.disabled=!state.ready;
+      book.title=state.ready?"":"Complete the collection-readiness items first";
+    }
+    return state;
+  }
+
   function renderMoveBooking(id,data){
     const host=document.getElementById("ab-move-booking-"+id);
     if(!host) return;
@@ -483,15 +523,25 @@
         </div>
         <div class="ab-move-field"><label>Selected Mobile</label><input id="ab-move-sms-mobile-${id}" value="${esc(smsMobile)}" readonly></div>
       </div>
+      <div id="ab-move-readiness-${id}" class="ab-move-warning"></div>
       <div class="ab-move-warning"><strong>SMS note:</strong> AnyBike saves this preference now. The supplied Move shipment API documentation does not expose the exact SMS/mobile field, so the booking integration will not guess one or overwrite seller/shipper contact details.</div>
       <div class="ab-move-actions">
         <small>Required fields must be complete before a live Move booking is created. Seller identity remains internal to AnyBike/Move.</small>
         <div>
           <button type="button" class="ab-ops-button ab-move-secondary" onclick="saveAnyBikeMoveDraft(${id});return false;">Save Draft</button>
-          <button type="button" class="ab-ops-button" onclick="bookAnyBikeMoveShipment(${id});return false;">Book with Move</button>
+          <button type="button" class="ab-ops-button" id="ab-move-book-${id}" onclick="bookAnyBikeMoveShipment(${id});return false;">Book with Move</button>
         </div>
       </div>
     `;
+    [
+      "ab-move-sender-name-","ab-move-sender-street-","ab-move-sender-city-",
+      "ab-move-sender-postcode-","ab-move-sender-country-","ab-move-sender-contact-",
+      "ab-move-sender-phone-","ab-move-instructions-"
+    ].forEach(function(prefix){
+      const el=document.getElementById(prefix+id);
+      if(el) el.addEventListener("input",function(){ updateMoveCollectionReadiness(id,data); });
+    });
+    updateMoveCollectionReadiness(id,data);
   }
 
   async function loadMoveBooking(dealMotorcycleId,force){
@@ -558,8 +608,14 @@
       if(result.error) throw result.error;
       moveBookingCache.delete(key);
       if(!quiet){
-        await loadMoveBooking(id,true);
-        alert("Move booking draft saved.");
+        const dealId=Number(result.data?.deal_id||0);
+        if(dealId){
+          operationsCache.delete(String(dealId));
+          await loadDeal(dealId,true);
+        }else{
+          await loadMoveBooking(id,true);
+        }
+        alert("Move booking draft saved.\n\nCollection readiness has been rechecked.");
       }
       return true;
     }catch(error){
@@ -572,6 +628,11 @@
   }
 
   async function bookMoveShipment(id){
+    const readiness=updateMoveCollectionReadiness(id);
+    if(!readiness.ready){
+      alert("This collection cannot be sent to Move yet.\n\nComplete:\n"+readiness.missing.join("\n"));
+      return;
+    }
     const required=[
       ["Seller / Sender Name",fieldValue("ab-move-sender-name-"+id)],
       ["Seller Street Address",fieldValue("ab-move-sender-street-"+id)],
@@ -667,7 +728,7 @@
 
     operationsLoading.add(key);
     try{
-      const result=await client().rpc("admin_get_deal_operations_v3",{p_deal_id:Number(dealId)});
+      const result=await client().rpc("admin_get_deal_operations_v4",{p_deal_id:Number(dealId)});
       if(result.error) throw result.error;
       const rows=result.data || [];
       operationsCache.set(key,rows);
@@ -928,6 +989,7 @@
   window.openAnyBikeReadyCalendar=openReadyCalendar;
   window.setAnyBikeReadyDate=setReadyDate;
   window.updateAnyBikeMoveSmsPreview=updateSmsPreview;
+  window.updateAnyBikeMoveCollectionReadiness=updateMoveCollectionReadiness;
   window.saveAnyBikeMoveDraft=saveMoveDraft;
   window.bookAnyBikeMoveShipment=bookMoveShipment;
   window.updateAnyBikeCollectionStep=updateCollectionStep;
