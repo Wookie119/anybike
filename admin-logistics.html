@@ -508,7 +508,30 @@ a{text-decoration:none;color:inherit}
 .ops-toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:14px 22px;border-bottom:1px solid var(--line)}
 .ops-toolbar select{background:#111;color:#fff;border:1px solid #333;border-radius:10px;padding:10px 12px}
 .ops-list{display:grid;gap:12px;padding:18px 22px}
-.ops-card{background:#131313;border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:16px}
+.ops-card{background:#131313;border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:16px;cursor:pointer;transition:border-color .15s ease,transform .15s ease}
+.ops-card:hover{border-color:rgba(237,28,36,.55);transform:translateY(-1px)}
+.ops-edit-hint{margin-top:12px;color:#888;font-size:11px;font-weight:800}
+.ops-modal-backdrop{display:none;position:fixed;inset:0;z-index:240;background:rgba(0,0,0,.84);padding:20px;overflow:auto}
+.ops-modal{max-width:1050px;margin:20px auto;background:#0d0d0d;border:1px solid rgba(237,28,36,.5);border-radius:20px;overflow:hidden;box-shadow:0 30px 90px rgba(0,0,0,.72)}
+.ops-modal-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;padding:19px 21px;border-bottom:1px solid var(--line)}
+.ops-modal-head h2{margin:4px 0 0}
+.ops-modal-body{padding:20px}
+.ops-modal-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.ops-modal-field{display:grid;gap:6px}
+.ops-modal-field.wide{grid-column:span 2}
+.ops-modal-field.full{grid-column:1/-1}
+.ops-modal-field label{color:#8f9bab;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.05em}
+.ops-modal-field input,.ops-modal-field textarea{width:100%;background:#070707;color:#fff;border:1px solid #333;border-radius:10px;padding:11px;font:inherit}
+.ops-modal-field textarea{min-height:90px;resize:vertical}
+.ops-preset-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.ops-finance-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin:16px 0}
+.ops-finance-summary>div{background:#131313;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:12px}
+.ops-finance-summary span{display:block;color:#888;font-size:10px;font-weight:900;text-transform:uppercase}
+.ops-finance-summary strong{display:block;margin-top:5px;font-size:18px}
+.ops-modal-section{margin-top:16px;padding-top:16px;border-top:1px solid var(--line)}
+@media(max-width:800px){.ops-modal-grid,.ops-finance-summary{grid-template-columns:1fr 1fr}.ops-modal-field.wide{grid-column:1/-1}}
+@media(max-width:520px){.ops-modal-grid,.ops-finance-summary{grid-template-columns:1fr}.ops-modal-field.wide{grid-column:auto}}
+
 .ops-card-top{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex-wrap:wrap}
 .ops-card h3{margin:0 0 5px;font-size:20px}
 .ops-sub{color:#aaa;font-size:12px;line-height:1.45}
@@ -864,6 +887,21 @@ a{text-decoration:none;color:inherit}
     <p>Global logistics partner database and service matching.</p>
   </div>
 
+</div>
+
+
+<div id="opsDetailModal" class="ops-modal-backdrop" onclick="if(event.target===this)closeOpsDetail()">
+  <div class="ops-modal">
+    <div class="ops-modal-head">
+      <div>
+        <div style="color:#ed1c24;font-size:11px;font-weight:950;text-transform:uppercase;letter-spacing:.12em">AnyBike Custody & Storage</div>
+        <h2 id="opsDetailTitle">Motorcycle</h2>
+        <div id="opsDetailSub" class="ops-sub" style="margin-top:5px"></div>
+      </div>
+      <button class="pay-site-button secondary" type="button" onclick="closeOpsDetail()">Close</button>
+    </div>
+    <div id="opsDetailBody" class="ops-modal-body"></div>
+  </div>
 </div>
 
 <div id="moveJobDetailModal" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.82);padding:20px;overflow:auto">
@@ -1526,16 +1564,7 @@ function renderOperationsStorageQueue(){
       completed?opsPill("Operations complete","green"):""
     ].filter(Boolean).join("");
 
-    const storageForm=atDepot&&!completed
-      ? '<div class="ops-storage-form">'+
-          '<label>Storage location<input id="ops-location-'+dm+'" value="'+escLogistics(row.storage_location||"")+'" placeholder="e.g. Bay A12"></label>'+
-          '<label>Daily rate £<input id="ops-rate-'+dm+'" type="number" min="0" step="0.01" value="'+Number(row.storage_daily_rate_gbp||0)+'"></label>'+
-          '<label>Chargeable from<input id="ops-chargeable-'+dm+'" type="datetime-local" value="'+opsLocalInput(row.storage_chargeable_from)+'"></label>'+
-          '<label>Manual adjustment £<input id="ops-adjust-'+dm+'" type="number" step="0.01" value="'+Number(row.storage_manual_adjustment_gbp||0)+'"></label>'+
-          '<label>Override reason / notes<input id="ops-notes-'+dm+'" value="'+escLogistics(row.charge_override_reason||row.agreement_notes||"")+'" placeholder="Reason for any override"></label>'+
-          '<button class="pay-site-button secondary" type="button" onclick="saveOpsStorage('+dm+')">Save Override</button>'+
-        '</div>'
-      : '';
+    const storageForm='';
 
     const actions=[];
     if(inbound)actions.push('<button class="pay-site-button" type="button" onclick="markOpsDepotArrived('+dm+')">Arrived at Depot</button>');
@@ -1549,7 +1578,7 @@ function renderOperationsStorageQueue(){
     if(atDepot&&approved&&!completed)actions.push('<button class="pay-site-button" type="button" onclick="completeOpsHandover('+dm+')">Confirm Final Handover</button>');
     actions.push('<a class="pay-site-button secondary" href="admin-enquiries.html" target="_blank" rel="noopener">Open Bike Sales HQ</a>');
 
-    return '<div class="ops-card">'+
+    return '<div class="ops-card" role="button" tabindex="0" onclick="openOpsDetail('+dm+')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();openOpsDetail('+dm+')}">'+
       '<div class="ops-card-top"><div><h3>'+escLogistics(opsBikeName(row))+'</h3>'+
         '<div class="ops-sub">'+escLogistics(row.deal_number||("Deal #"+row.deal_id))+
         (row.customer_name?' · '+escLogistics(row.customer_name):'')+
@@ -1571,11 +1600,163 @@ function renderOperationsStorageQueue(){
         '<div class="ops-detail"><span>Condition photos</span><strong>'+escLogistics(row.condition_photos_confirmed_at?"Saved":"Not confirmed")+'</strong></div>'+
       '</div>'+
       storageForm+
-      '<div class="ops-actions">'+actions.join("")+'</div>'+
+      '<div class="ops-edit-hint">Click this motorcycle to edit storage settings, fees and handover controls.</div>'+
+      '<div class="ops-actions" onclick="event.stopPropagation()">'+actions.join("")+'</div>'+
     '</div>';
   }).join("");
 }
 
+
+
+let opsDetailMotorcycleId=null;
+
+function opsDetailRow(){
+  return operationsStorageRows.find(row=>Number(row.deal_motorcycle_id)===Number(opsDetailMotorcycleId))||null;
+}
+function opsAddHoursIso(base,hours){
+  const d=new Date(base||Date.now());
+  d.setTime(d.getTime()+Number(hours||0)*3600000);
+  return opsLocalInput(d.toISOString());
+}
+function setOpsGracePreset(hours){
+  const row=opsDetailRow();
+  if(!row)return;
+  const base=row.collection_actual_at||row.storage_started_at||new Date().toISOString();
+  const input=document.getElementById("ops-modal-chargeable");
+  if(input)input.value=opsAddHoursIso(base,hours);
+  const label=document.getElementById("ops-modal-grace-label");
+  if(label)label.textContent=hours===24?"24 hours":hours===168?"7 days":hours===336?"14 days":hours+" hours";
+}
+function closeOpsDetail(){
+  const modal=document.getElementById("opsDetailModal");
+  if(modal)modal.style.display="none";
+  opsDetailMotorcycleId=null;
+}
+function renderOpsDetail(){
+  const row=opsDetailRow();
+  if(!row)return;
+  const body=document.getElementById("opsDetailBody");
+  const title=document.getElementById("opsDetailTitle");
+  const sub=document.getElementById("opsDetailSub");
+  const dm=Number(row.deal_motorcycle_id);
+  const atDepot=row.depot_status==="at_depot";
+  const approved=row.release_status==="approved";
+  const completed=!!row.operations_complete;
+  const collected=row.collection_status==="collected";
+  const charge=Number(row.storage_accrued_charge_gbp||0);
+  const adjustment=Number(row.storage_manual_adjustment_gbp||0);
+
+  title.textContent=opsBikeName(row);
+  sub.textContent=(row.deal_number||("Deal #"+row.deal_id))+
+    (row.customer_name?" · "+row.customer_name:"")+
+    (row.destination_country?" · "+row.destination_country:"");
+
+  body.innerHTML=
+    '<div class="ops-finance-summary">'+
+      '<div><span>Collected</span><strong>'+escLogistics(opsNiceDate(row.collection_actual_at))+'</strong></div>'+
+      '<div><span>Chargeable From</span><strong>'+escLogistics(opsNiceDate(row.storage_chargeable_from))+'</strong></div>'+
+      '<div><span>Daily Rate</span><strong>'+escLogistics(opsMoney(row.storage_daily_rate_gbp))+'</strong></div>'+
+      '<div><span>Current Charge</span><strong>'+escLogistics(row.storage_charge_waived?"Waived":opsMoney(charge))+'</strong></div>'+
+    '</div>'+
+
+    '<div class="ops-modal-grid">'+
+      '<div class="ops-modal-field wide"><label>Internal storage location</label><input id="ops-modal-location" value="'+escLogistics(row.storage_location||"")+'" placeholder="Secure internal location"></div>'+
+      '<div class="ops-modal-field"><label>Daily storage rate £</label><input id="ops-modal-rate" type="number" min="0" step="0.01" value="'+Number(row.storage_daily_rate_gbp||0)+'"></div>'+
+      '<div class="ops-modal-field"><label>Manual adjustment £</label><input id="ops-modal-adjustment" type="number" step="0.01" value="'+adjustment+'"></div>'+
+      '<div class="ops-modal-field wide"><label>Chargeable from</label><input id="ops-modal-chargeable" type="datetime-local" value="'+opsLocalInput(row.storage_chargeable_from)+'"></div>'+
+      '<div class="ops-modal-field wide"><label>Grace period preset</label><div class="ops-preset-row">'+
+        '<button class="pay-site-button secondary" type="button" onclick="setOpsGracePreset(24)">24 Hours</button>'+
+        '<button class="pay-site-button secondary" type="button" onclick="setOpsGracePreset(168)">7 Days</button>'+
+        '<button class="pay-site-button secondary" type="button" onclick="setOpsGracePreset(336)">14 Days</button>'+
+        '<span id="ops-modal-grace-label" style="color:#aaa;align-self:center;font-size:12px">Choose a preset or edit the date/time</span>'+
+      '</div></div>'+
+      '<div class="ops-modal-field full"><label>Internal override / storage notes</label><textarea id="ops-modal-notes" placeholder="Why was this rate, date or charge changed?">'+escLogistics(row.charge_override_reason||row.agreement_notes||"")+'</textarea></div>'+
+    '</div>'+
+
+    '<div class="ops-actions">'+
+      '<button class="pay-site-button" type="button" onclick="saveOpsDetail()">Save Storage & Fees</button>'+
+      (row.storage_charge_waived
+        ? '<button class="pay-site-button secondary" type="button" onclick="resumeOpsStorageFromDetail()">Resume Charging</button>'
+        : '<button class="pay-site-button secondary" type="button" onclick="waiveOpsStorageFromDetail()">Waive Storage Charge</button>')+
+      (row.storage_status==="paused"
+        ? '<button class="pay-site-button secondary" type="button" onclick="resumeOpsClockFromDetail()">Resume Storage Clock</button>'
+        : (!completed&&row.storage_status!=="stopped"
+          ? '<button class="pay-site-button secondary" type="button" onclick="pauseOpsStorageFromDetail()">Pause Storage Clock</button>'
+          : ''))+
+    '</div>'+
+
+    '<div class="ops-modal-section">'+
+      '<h3 style="margin:0 0 10px">Custody & Handover</h3>'+
+      '<div class="ops-detail-grid">'+
+        '<div class="ops-detail"><span>Collection</span><strong>'+escLogistics(row.collection_status||"—")+'</strong></div>'+
+        '<div class="ops-detail"><span>Depot</span><strong>'+escLogistics(row.depot_status||"—")+'</strong></div>'+
+        '<div class="ops-detail"><span>Storage</span><strong>'+escLogistics(row.storage_status||"—")+'</strong></div>'+
+        '<div class="ops-detail"><span>Release</span><strong>'+escLogistics(row.release_status||"—")+'</strong></div>'+
+        '<div class="ops-detail"><span>Forwarder</span><strong>'+escLogistics(row.freight_forwarder_name||"—")+'</strong></div>'+
+        '<div class="ops-detail"><span>Forwarder ref</span><strong>'+escLogistics(row.freight_forwarder_reference||"—")+'</strong></div>'+
+        '<div class="ops-detail"><span>UK handover</span><strong>'+escLogistics(row.uk_handover_port||"—")+'</strong></div>'+
+        '<div class="ops-detail"><span>Final handover</span><strong>'+escLogistics(opsNiceDate(row.delivered_to_shipper_at))+'</strong></div>'+
+      '</div>'+
+      '<div class="ops-actions">'+
+        (collected&&!atDepot&&!completed?'<button class="pay-site-button" type="button" onclick="markOpsDepotArrivedFromDetail()">Arrived at Depot</button>':'')+
+        (atDepot&&!approved&&!completed?'<button class="pay-site-button" type="button" onclick="approveOpsReleaseFromDetail()">Approve Release</button>':'')+
+        (atDepot&&approved&&!completed?'<button class="pay-site-button" type="button" onclick="completeOpsHandoverFromDetail()">Confirm Final Handover</button>':'')+
+        '<a class="pay-site-button secondary" href="admin-enquiries.html" target="_blank" rel="noopener">Open Bike Sales HQ</a>'+
+      '</div>'+
+    '</div>';
+}
+function openOpsDetail(dm){
+  opsDetailMotorcycleId=Number(dm);
+  const modal=document.getElementById("opsDetailModal");
+  if(!modal)return;
+  renderOpsDetail();
+  modal.style.display="block";
+}
+async function saveOpsDetail(){
+  const dm=Number(opsDetailMotorcycleId);
+  if(!dm)return;
+  try{
+    await runOpsAction(dm,"save_storage_override",{
+      p_storage_location:String(document.getElementById("ops-modal-location")?.value||"").trim()||null,
+      p_daily_rate_gbp:Number(document.getElementById("ops-modal-rate")?.value||0),
+      p_chargeable_from:document.getElementById("ops-modal-chargeable")?.value
+        ? new Date(document.getElementById("ops-modal-chargeable").value).toISOString()
+        : null,
+      p_manual_adjustment_gbp:Number(document.getElementById("ops-modal-adjustment")?.value||0),
+      p_notes:String(document.getElementById("ops-modal-notes")?.value||"").trim()||null
+    });
+    opsDetailMotorcycleId=dm;
+    renderOpsDetail();
+  }catch(error){alert(error.message||String(error));}
+}
+async function waiveOpsStorageFromDetail(){
+  const dm=Number(opsDetailMotorcycleId);
+  await waiveOpsStorage(dm); opsDetailMotorcycleId=dm; renderOpsDetail();
+}
+async function pauseOpsStorageFromDetail(){
+  const dm=Number(opsDetailMotorcycleId);
+  await pauseOpsStorage(dm); opsDetailMotorcycleId=dm; renderOpsDetail();
+}
+async function resumeOpsClockFromDetail(){
+  const dm=Number(opsDetailMotorcycleId);
+  await resumeOpsStorage(dm); opsDetailMotorcycleId=dm; renderOpsDetail();
+}
+async function resumeOpsStorageFromDetail(){
+  const dm=Number(opsDetailMotorcycleId);
+  await resumeOpsStorage(dm); opsDetailMotorcycleId=dm; renderOpsDetail();
+}
+async function markOpsDepotArrivedFromDetail(){
+  const dm=Number(opsDetailMotorcycleId);
+  await markOpsDepotArrived(dm); opsDetailMotorcycleId=dm; renderOpsDetail();
+}
+async function approveOpsReleaseFromDetail(){
+  const dm=Number(opsDetailMotorcycleId);
+  await approveOpsRelease(dm); opsDetailMotorcycleId=dm; renderOpsDetail();
+}
+async function completeOpsHandoverFromDetail(){
+  const dm=Number(opsDetailMotorcycleId);
+  await completeOpsHandover(dm); opsDetailMotorcycleId=dm; renderOpsDetail();
+}
 
 async function loadOperationsStorageSettings(){
   const status=document.getElementById("opsSettingsStatus");
@@ -1657,20 +1838,7 @@ async function markOpsDepotArrived(dm){
   try{await runOpsAction(dm,"depot_arrived",{p_storage_location:location||null});}
   catch(error){alert(error.message||String(error));}
 }
-async function saveOpsStorage(dm){
-  try{
-    await runOpsAction(dm,"save_storage_override",{
-      p_storage_location:String(document.getElementById("ops-location-"+dm)?.value||"").trim()||null,
-      p_daily_rate_gbp:Number(document.getElementById("ops-rate-"+dm)?.value||0),
-      p_chargeable_from:document.getElementById("ops-chargeable-"+dm)?.value
-        ? new Date(document.getElementById("ops-chargeable-"+dm).value).toISOString()
-        : null,
-      p_manual_adjustment_gbp:Number(document.getElementById("ops-adjust-"+dm)?.value||0),
-      p_notes:String(document.getElementById("ops-notes-"+dm)?.value||"").trim()||null
-    });
-  }catch(error){alert(error.message||String(error));}
-}
-
+async function saveOpsStorage(dm){ openOpsDetail(dm); }
 async function waiveOpsStorage(dm){
   const reason=prompt("Reason for waiving storage charges:","Goodwill / buyer arranged prompt onward delivery");
   if(reason===null)return;
