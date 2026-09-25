@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Live Source Hub | AnyBike Admin</title>
+<meta name="robots" content="noindex,nofollow">
+<script>document.documentElement.classList.add("admin-auth-pending");</script>
+<style>html.admin-auth-pending body{visibility:hidden}</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="admin.js?v=12000"></script>
+<link rel="stylesheet" href="admin-shell.css?v=12000">
+<style>
+:root{--red:#ed1c24;--line:rgba(255,255,255,.12);--muted:#aaa;--green:#4bd17b;--amber:#f1b94d}
+*{box-sizing:border-box}body{margin:0;background:#080808;color:#fff;font-family:Arial,Helvetica,sans-serif}
+.page{display:flex;min-height:100vh}.main{flex:1;min-width:0}.content{max-width:1500px;margin:0 auto;padding:24px}
+.hero,.panel,.source-card,.bike{background:#111;border:1px solid var(--line);border-radius:18px}.hero,.panel{padding:22px;margin-bottom:16px}
+.hero{background:radial-gradient(circle at top right,rgba(237,28,36,.22),transparent 38%),#111}.eyebrow{color:var(--red);font-size:12px;font-weight:900;letter-spacing:.12em;text-transform:uppercase}
+h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:16px}
+.source-card{padding:16px}.source-card h3{margin:0 0 5px;font-size:18px}.source-meta{font-size:12px;color:#aaa;line-height:1.5}.stats{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.pill{border:1px solid #333;border-radius:999px;padding:6px 9px;font-size:12px}.pill.live{color:#85efaa;border-color:#2b6440}.pill.end{color:#aaa}.pill.review{color:#ffd27a;border-color:#665025}
+.btn{display:inline-block;border:1px solid #333;background:#181818;color:#fff;border-radius:10px;padding:10px 13px;font-weight:900;cursor:pointer;text-decoration:none}.btn.red{background:var(--red);border-color:var(--red)}.btn.green{background:#143d27;border-color:#276941}.btn:disabled{opacity:.45;cursor:not-allowed}
+.filters{display:grid;grid-template-columns:1.1fr 1fr 1fr 1fr auto;gap:10px;align-items:end}.field{display:grid;gap:5px}.field label{font-size:12px;color:#bbb;font-weight:800}input,select{width:100%;background:#090909;color:#fff;border:1px solid #333;border-radius:10px;padding:10px;font:inherit}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:12px 0}.status{font-size:13px;color:#bbb}.status.good{color:var(--green)}.status.bad{color:#ff8181}
+.bikes{display:grid;gap:10px}.bike{display:grid;grid-template-columns:34px 110px 1.5fr 1fr 1fr 1fr 120px;gap:12px;align-items:center;padding:12px}.bike img{width:110px;height:78px;object-fit:cover;border-radius:9px;background:#181818}.bike-title{font-weight:900;font-size:17px}.small{font-size:12px;color:#aaa;line-height:1.4}.secret{color:#ff777c}.money{font-weight:900}.empty{padding:25px;text-align:center;color:#888}
+.batch-panel{position:sticky;bottom:10px;background:#0d0d0df2;border:1px solid #333;border-radius:16px;padding:14px;z-index:5}.batch-grid{display:grid;grid-template-columns:1.2fr 1.2fr .7fr auto;gap:10px;align-items:end}
+@media(max-width:1100px){.sources{grid-template-columns:1fr}.filters,.batch-grid{grid-template-columns:1fr 1fr}.bike{grid-template-columns:30px 90px 1fr 1fr}.bike .optional{display:none}.bike img{width:90px;height:68px}}
+@media(max-width:650px){.content{padding:12px}.filters,.batch-grid{grid-template-columns:1fr}.bike{grid-template-columns:30px 1fr}.bike img{display:none}}
+</style>
+</head>
+<body>
+<div class="page">
+  <div id="adminSidebar"></div>
+  <div class="main">
+    <div id="adminTopbar"></div>
+    <main class="content">
+      <section class="hero">
+        <div class="eyebrow">Sourcing · Internal only</div>
+        <h1>Live Source Hub</h1>
+        <p class="muted">Saved external motorcycle sources feed one internal sourcing pool. A motorcycle disappearing from a source is <strong>not deleted</strong>: it is marked No Longer Listed, kept for history, and excluded from new buyer batches.</p>
+      </section>
+
+      <section class="sources" id="sources"></section>
+
+      <section class="panel">
+        <div class="filters">
+          <div class="field"><label>Source</label><select id="connectorFilter"><option value="">All sources</option></select></div>
+          <div class="field"><label>Make</label><input id="makeFilter" placeholder="BMW"></div>
+          <div class="field"><label>Model</label><input id="modelFilter" placeholder="S 1000 RR"></div>
+          <div class="field"><label>Status</label><select id="statusFilter"><option value="live">Live only</option><option value="">All</option><option value="ended">No longer listed</option><option value="review">Needs review</option></select></div>
+          <button class="btn red" onclick="loadItems()">Search</button>
+        </div>
+        <div class="toolbar">
+          <span id="poolStatus" class="status">Loading source pool…</span>
+          <button class="btn" onclick="selectVisible()">Select visible</button>
+          <button class="btn" onclick="clearSelected()">Clear</button>
+        </div>
+        <div class="bikes" id="bikes"><div class="empty">Loading…</div></div>
+      </section>
+
+      <section class="batch-panel">
+        <div class="batch-grid">
+          <div class="field"><label>Buyer</label><select id="buyerSelect"><option value="">Choose buyer…</option></select></div>
+          <div class="field"><label>Buyer request</label><select id="requestSelect"><option value="">Select buyer first</option></select></div>
+          <div class="field"><label>UK delivery (£)</label><input id="delivery" type="number" value="250" min="0"></div>
+          <button class="btn red" onclick="createBatch()">Prepare selected bikes</button>
+        </div>
+        <div class="status" id="batchStatus" style="margin-top:8px">Select up to 20 live motorcycles. They will open in Used Bike Scanner for final price check and buyer-safe review.</div>
+      </section>
+    </main>
+  </div>
+</div>
+<script>
+const sb=()=>getAdminSupabaseClient();
+let hub=null,items=[],buyers=[],selected=new Set();
+function esc(v){return String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;")}
+function gbp(v){const n=Number(v);return Number.isFinite(n)?new Intl.NumberFormat("en-GB",{style:"currency",currency:"GBP",maximumFractionDigits:0}).format(n):"—"}
+function date(v){if(!v)return"Never";try{return new Date(v).toLocaleString("en-GB")}catch{return v}}
+function firstImg(i){return Array.isArray(i.source_image_urls)&&i.source_image_urls[0]?i.source_image_urls[0]:"/anybike-logo-new.jpg"}
+
+async function loadHub(){
+  const {data,error}=await sb().rpc("admin_get_live_source_hub_v1");
+  if(error){document.getElementById("sources").innerHTML='<div class="status bad">'+esc(error.message)+'</div>';return}
+  hub=data||{connectors:[]};
+  const cs=hub.connectors||[];
+  document.getElementById("sources").innerHTML=cs.map(c=>'<article class="source-card">'+
+    '<div class="eyebrow">'+esc(c.source_type||"website")+'</div><h3>'+esc(c.name)+'</h3>'+
+    '<div class="source-meta">Adapter: '+esc(c.adapter_key||"generic")+'<br>Last refresh: '+esc(date(c.last_refresh_completed_at))+'</div>'+
+    '<div class="stats"><span class="pill live">'+c.live_count+' live</span><span class="pill end">'+c.ended_count+' ended</span><span class="pill review">'+c.review_count+' review</span></div>'+
+    '<div class="toolbar"><a class="btn" href="'+esc(c.results_url||c.base_url||"#")+'" target="_blank">Open source ↗</a><a class="btn green" href="admin-used-bike-scanner.html?source='+encodeURIComponent(c.id)+'">Use Scanner</a></div>'+
+    '</article>').join("");
+  document.getElementById("connectorFilter").innerHTML='<option value="">All sources</option>'+cs.map(c=>'<option value="'+c.id+'">'+esc(c.name)+'</option>').join("");
+}
+async function loadItems(){
+  const st=document.getElementById("poolStatus");st.textContent="Loading…";
+  const cid=document.getElementById("connectorFilter").value?Number(document.getElementById("connectorFilter").value):null;
+  const make=document.getElementById("makeFilter").value.trim()||null;
+  const model=document.getElementById("modelFilter").value.trim()||null;
+  const status=document.getElementById("statusFilter").value||null;
+  const {data,error}=await sb().rpc("admin_get_live_source_items_v1",{p_connector_id:cid,p_make:make,p_model:model,p_status:status,p_limit:300});
+  if(error){st.className="status bad";st.textContent=error.message;return}
+  items=data||[];renderItems();st.className="status";st.textContent=items.length+" motorcycles shown · "+selected.size+" selected";
+}
+function renderItems(){
+  const el=document.getElementById("bikes");
+  if(!items.length){el.innerHTML='<div class="empty">No motorcycles in this source pool yet. Use the Scanner to add tested adverts while the source adapter is being expanded.</div>';return}
+  el.innerHTML=items.map(i=>'<article class="bike">'+
+    '<input type="checkbox" '+(selected.has(i.id)?"checked":"")+' '+(i.source_status!=="live"?"disabled":"")+' onchange="toggle('+i.id+',this.checked)">'+
+    '<img src="'+esc(firstImg(i))+'" onerror="this.src=\'/anybike-logo-new.jpg\'">'+
+    '<div><div class="bike-title">'+esc([i.year,i.make,i.model,i.variant].filter(Boolean).join(" "))+'</div><div class="small">'+esc([i.mileage!=null?Number(i.mileage).toLocaleString("en-GB")+" miles":"",i.colour].filter(Boolean).join(" · "))+'</div></div>'+
+    '<div class="optional"><div class="small">Source price</div><div class="money">'+gbp(i.source_price_gbp)+'</div></div>'+
+    '<div class="optional"><div class="small secret">Internal source</div><div>'+esc(i.seller_name||i.source_domain||"")+'</div><div class="small">'+esc(i.source_stock_id||"")+'</div></div>'+
+    '<div class="optional"><div class="small">Last seen</div><div>'+esc(date(i.last_seen_at))+'</div></div>'+
+    '<div><span class="pill '+(i.source_status==="live"?"live":i.source_status==="ended"?"end":"review")+'">'+esc(i.source_status)+'</span><br><a class="small secret" href="'+esc(i.source_url)+'" target="_blank">source ↗</a></div>'+
+    '</article>').join("");
+}
+function toggle(id,on){if(on&&selected.size>=20){alert("Maximum 20 motorcycles per buyer batch.");renderItems();return}on?selected.add(id):selected.delete(id);document.getElementById("poolStatus").textContent=items.length+" motorcycles shown · "+selected.size+" selected"}
+function selectVisible(){for(const i of items){if(i.source_status==="live"&&selected.size<20)selected.add(i.id)}renderItems();document.getElementById("poolStatus").textContent=items.length+" motorcycles shown · "+selected.size+" selected"}
+function clearSelected(){selected.clear();renderItems();document.getElementById("poolStatus").textContent=items.length+" motorcycles shown · 0 selected"}
+
+async function loadBuyers(){
+  const {data}=await sb().from("global_buyer_network").select("id,business_name,contact_name,email,archived_at").is("archived_at",null).order("created_at",{ascending:false}).limit(200);
+  buyers=data||[];
+  document.getElementById("buyerSelect").innerHTML='<option value="">Choose buyer…</option>'+buyers.map(b=>'<option value="'+b.id+'">'+esc((b.business_name?b.business_name+" — ":"")+(b.contact_name||b.email||"Buyer"))+'</option>').join("");
+}
+async function loadRequests(){
+  const bid=document.getElementById("buyerSelect").value;const el=document.getElementById("requestSelect");
+  if(!bid){el.innerHTML='<option value="">Select buyer first</option>';return}
+  const {data}=await sb().from("global_buyer_request_items").select("id,make,model,year_from,year_to,max_price_gbp").eq("buyer_id",bid).order("id",{ascending:false});
+  el.innerHTML='<option value="">General sourcing</option>'+(data||[]).map(r=>'<option value="'+r.id+'">'+esc([r.make,r.model,r.year_from&&("from "+r.year_from)].filter(Boolean).join(" · "))+'</option>').join("");
+}
+document.getElementById("buyerSelect").addEventListener("change",loadRequests);
+
+async function createBatch(){
+  const bid=Number(document.getElementById("buyerSelect").value),rid=document.getElementById("requestSelect").value?Number(document.getElementById("requestSelect").value):null;
+  const st=document.getElementById("batchStatus");
+  if(!bid){st.className="status bad";st.textContent="Choose a buyer.";return}
+  if(!selected.size){st.className="status bad";st.textContent="Select at least one live motorcycle.";return}
+  st.className="status";st.textContent="Preparing "+selected.size+" motorcycles…";
+  const {data,error}=await sb().rpc("admin_create_scan_batch_from_live_source_v1",{p_buyer_id:bid,p_request_item_id:rid,p_item_ids:[...selected],p_delivery_allowance_gbp:Number(document.getElementById("delivery").value)||250});
+  if(error){st.className="status bad";st.textContent=error.message;return}
+  location.href="admin-used-bike-scanner.html?batch="+data;
+}
+
+(async()=>{
+  const allowed=await requireAdminSession();if(!allowed)return;
+  await Promise.all([loadHub(),loadBuyers()]);
+  await loadItems();
+})();
+</script>
+</body>
+</html>
