@@ -151,7 +151,7 @@ async function loadHub(){
     '<div class="eyebrow">'+esc(c.source_type||"website")+'</div><h3>'+esc(c.name)+'</h3>'+
     '<div class="source-meta">Adapter: '+esc(c.adapter_key||"generic")+'<br>Last refresh: '+esc(date(c.last_refresh_completed_at))+'</div>'+
     '<div class="stats"><span class="pill live">'+c.live_count+' live</span><span class="pill end">'+c.ended_count+' ended</span><span class="pill review">'+c.review_count+' review</span></div>'+
-    '<div class="toolbar"><a class="btn" href="'+esc(c.results_url||c.base_url||"#")+'" target="_blank">Open source ↗</a><button class="btn red" onclick="refreshSource('+c.id+',event)">Refresh Source</button><a class="btn green" href="admin-used-bike-scanner.html?source='+encodeURIComponent(c.id)+'">Use Scanner</a></div><div class="status" id="refresh-'+c.id+'" style="margin-top:7px"></div>'+
+    '<div class="toolbar"><a class="btn" href="'+esc(c.results_url||c.base_url||"#")+'" target="_blank">Open source ↗</a>'+(c.status==="adapter_ready"?'<button class="btn red" onclick="refreshSource('+c.id+',event)">Refresh Source</button>':'<button class="btn" disabled>Adapter needed</button>')+'<a class="btn green" href="admin-used-bike-scanner.html?source='+encodeURIComponent(c.id)+'">Use Scanner</a></div><div class="status" id="refresh-'+c.id+'" style="margin-top:7px">'+(c.status==="needs_adapter"?'Live refresh is not available for this website yet. Use Scanner until a source adapter is added.':'')+'</div>'+
     '</article>').join("");
   document.getElementById("connectorFilter").innerHTML='<option value="">Choose source…</option>'+cs.map(c=>'<option value="'+c.id+'">'+esc(c.name)+'</option>').join("");
   if(cs.length===1){
@@ -163,14 +163,19 @@ async function refreshSource(id,event){
   if(event)event.stopPropagation();
   const st=document.getElementById("refresh-"+id);
   st.className="status";st.textContent="Refreshing source…";
-  const {data,error}=await sb().functions.invoke("refresh-live-source",{body:{connector_id:Number(id),limit:20}});
-  if(error){st.className="status bad";st.textContent=error.message||"Refresh failed";return}
-  if(data?.error){st.className="status bad";st.textContent=data.error;return}
-  st.className=data?.synced_count>0?"status good":"status bad";
-  st.textContent=data?.message||("Discovered "+(data?.discovered_count||0)+" · synced "+(data?.synced_count||0));
-  await loadHub();
-  const current=document.getElementById("connectorFilter").value;
-  if(Number(current)===Number(id)){await loadSourceFacets();await loadItems();}
+  try{
+    const {data,error}=await sb().functions.invoke("refresh-live-source",{body:{connector_id:Number(id),limit:20}});
+    if(error) throw error;
+    if(data?.error){st.className="status bad";st.textContent=data.error;return}
+    st.className=data?.synced_count>0?"status good":"status";
+    st.textContent=data?.message||("Discovered "+(data?.discovered_count||0)+" · synced "+(data?.synced_count||0));
+    await loadHub();
+    const current=document.getElementById("connectorFilter").value;
+    if(Number(current)===Number(id)){await loadSourceFacets();await loadItems();}
+  }catch(e){
+    st.className="status bad";
+    st.textContent=(e?.context?.body?.error||e?.message||"Refresh failed");
+  }
 }
 async function loadItems(){
   const st=document.getElementById("poolStatus");st.textContent="Loading…";
