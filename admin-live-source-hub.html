@@ -153,7 +153,7 @@ async function loadHub(){
     '<div class="eyebrow">'+esc(c.source_type||"website")+'</div><h3>'+esc(c.name)+'</h3>'+
     '<div class="source-meta">Adapter: '+esc(c.adapter_key||"not built")+'<br>Last completed refresh: '+esc(date(c.last_refresh_completed_at))+'</div>'+
     '<div class="stats"><span class="pill live">'+c.live_count+' live</span><span class="pill end">'+c.ended_count+' ended</span><span class="pill review">'+c.review_count+' review</span></div>'+
-    '<div class="toolbar"><a class="btn" href="'+esc(c.results_url||c.base_url||"#")+'" target="_blank" onclick="event.stopPropagation()">Open source ↗</a>'+(c.status==="adapter_ready"?'<span class="btn green" style="cursor:default">Automatic refresh</span>':'<span class="btn" style="cursor:default">Adapter needed</span>')+'<a class="btn green" href="admin-used-bike-scanner.html?source='+encodeURIComponent(c.id)+'" onclick="event.stopPropagation()">Use Scanner</a></div><div class="status" id="refresh-'+c.id+'" style="margin-top:7px">'+(c.status==="adapter_ready"?'This channel updates automatically in the background.':'Live refresh is not available for this website yet. Use Scanner until a source adapter is added.')+'</div>'+
+    '<div class="toolbar"><a class="btn" href="'+esc(c.results_url||c.base_url||"#")+'" target="_blank" onclick="event.stopPropagation()">Open source ↗</a>'+(c.status==="adapter_ready"?'<button class="btn green" onclick="refreshSource('+c.id+',event)">Refresh now</button><span class="pill live" style="align-self:center">Auto refresh ON</span>':'<span class="btn" style="cursor:default">Adapter needed</span>')+'<a class="btn green" href="admin-used-bike-scanner.html?source='+encodeURIComponent(c.id)+'" onclick="event.stopPropagation()">Use Scanner</a></div><div class="status" id="refresh-'+c.id+'" style="margin-top:7px">'+(c.status==="adapter_ready"?'Automatic background refresh is enabled. Use Refresh now only when you want an immediate check.':'Live refresh is not available for this website yet. Use Scanner until a source adapter is added.')+'</div>'+
     '</article>').join("");
 
   if(!selectedId){
@@ -193,7 +193,7 @@ async function refreshSource(id,event){
   const st=document.getElementById("refresh-"+id);
   st.className="status";st.textContent="Refreshing source…";
   try{
-    const {data,error}=await sb().functions.invoke("refresh-live-source",{body:{connector_id:Number(id),limit:5000}});
+    const {data,error}=await sb().functions.invoke("refresh-live-source",{body:{connector_id:Number(id),chunk_size:20}});
     if(error) throw error;
     if(data?.error){st.className="status bad";st.textContent=data.error;return}
     st.className=data?.synced_count>0?"status good":"status";
