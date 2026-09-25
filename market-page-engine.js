@@ -307,7 +307,7 @@
   function decorateJourneyLinks(name){
     const from=window.location.pathname+window.location.search;
     const pageTitle=document.title||("AnyBike market: "+name);
-    document.querySelectorAll('a[href^="/anybike-connect.html"],a[href^="/buy-motorcycles.html"]').forEach(function(link){
+    document.querySelectorAll('a[href^="/anybike-connect.html"],a[href^="/buy-motorcycles.html"],a[href^="/available-stock.html"]').forEach(function(link){
       try{
         const url=new URL(link.getAttribute("href"),window.location.origin);
         if(!url.searchParams.has("from")) url.searchParams.set("from",from);
