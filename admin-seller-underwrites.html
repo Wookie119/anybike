@@ -66,12 +66,27 @@ label{display:block;color:#bbb;font-size:12px;font-weight:800}input{width:100%;m
           <option value="dealer_underwrite">Dealer Underwrite</option>
           <option value="needs_vehicle">Needs vehicle details</option>
           <option value="image_review">Image review</option>
+          <option value="buyer_matches">International buyer matches</option>
         </select>
         <button onclick="loadQueue()">Refresh</button>
       </div>
 
       <div id="queue" class="grid"><div class="empty">Loading…</div></div>
     </main>
+  </div>
+</div>
+
+<div id="demandModal" class="modal">
+  <div class="modal-box" style="width:min(820px,100%)">
+    <div class="top">
+      <div>
+        <div class="eyebrow">Factual Demand Evidence</div>
+        <h3 id="demandTitle" style="margin:5px 0 0">International Buyer Matches</h3>
+      </div>
+      <button onclick="closeDemandModal()">Close</button>
+    </div>
+    <p>These are matches against explicit buyer requirements. Buyer budgets are shown as a separate commercial check because the seller's target price is not the AnyBike customer selling price.</p>
+    <div id="demandList"></div>
   </div>
 </div>
 
@@ -102,7 +117,7 @@ const esc=v=>String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&
 const money=v=>v===null||v===undefined||v===""?"—":"£"+Number(v).toLocaleString("en-GB",{maximumFractionDigits:0});
 
 async function loadQueue(){
-  const {data,error}=await sb.rpc("admin_get_seller_submission_queue_v1",{p_limit:150});
+  const {data,error}=await sb.rpc("admin_get_seller_submission_queue_v3",{p_limit:150});
   if(error){document.getElementById("queue").innerHTML='<div class="empty">'+esc(error.message)+'</div>';return;}
   rows=data||[];
   render();
@@ -116,6 +131,7 @@ function render(){
   if(filter==="dealer_underwrite")list=list.filter(r=>r.source_channel==="dealer_underwrite");
   if(filter==="needs_vehicle")list=list.filter(r=>!r.make||!r.model);
   if(filter==="image_review")list=list.filter(r=>Number(r.image_review||0)>0);
+  if(filter==="buyer_matches")list=list.filter(r=>Number(r.unique_buyer_match_count||0)>0);
 
   const host=document.getElementById("queue");
   if(!list.length){host.innerHTML='<div class="empty">No submissions match this view.</div>';return;}
@@ -141,9 +157,12 @@ function render(){
         '<div class="box"><span>Seller needs</span><strong>'+money(r.price_wanted_gbp)+'</strong></div>'+
         '<div class="box"><span>Seller</span><strong>'+esc(r.dealer_name||r.seller_name||"—")+'</strong></div>'+
         '<div class="box"><span>Underwrite</span><strong>'+esc(String(r.underwrite_status||"").replaceAll("_"," "))+'</strong></div>'+
-        '<div class="box"><span>International match</span><strong>'+esc(String(r.international_match_status||"").replaceAll("_"," "))+'</strong></div>'+
+        '<div class="box"><span>International buyers</span><strong>'+Number(r.unique_buyer_match_count||0)+'</strong></div>'+
       '</div>'+
       '<div class="image-state">'+esc(imageText)+'</div>'+
+      (Number(r.unique_buyer_match_count||0)>0
+        ?'<div class="image-state"><strong>'+Number(r.unique_buyer_match_count)+' international buyer'+(Number(r.unique_buyer_match_count)===1?'':'s')+' match</strong> across '+Number(r.match_country_count||0)+' countr'+(Number(r.match_country_count)===1?'y':'ies')+'. '+Number(r.demand_match_count||0)+' underlying demand record'+(Number(r.demand_match_count)===1?'':'s')+'.</div>'
+        :'<div class="image-state">No current factual international buyer match found.</div>')+
       '<div class="comps">'+
         (hasComps
           ?'<div class="data"><div class="box"><span>Comparable count</span><strong>'+Number(r.latest_comparable_count||0)+'</strong></div><div class="box"><span>Median ask</span><strong>'+money(r.latest_median_ask_gbp)+'</strong></div><div class="box"><span>Range</span><strong>'+money(r.latest_lowest_ask_gbp)+' – '+money(r.latest_highest_ask_gbp)+'</strong></div><div class="box"><span>Average</span><strong>'+money(r.latest_average_ask_gbp)+'</strong></div></div>'
@@ -152,6 +171,8 @@ function render(){
       (r.notes?'<p>'+esc(r.notes)+'</p>':"")+
       '<div class="actions">'+
         '<button class="red" onclick="captureComps('+Number(r.submission_id)+')">Capture Comparables</button>'+
+        '<button onclick="refreshDemand('+Number(r.submission_id)+')">Refresh Buyer Match</button>'+
+        (Number(r.unique_buyer_match_count||0)>0?'<button onclick="viewDemand('+Number(r.submission_id)+')">View '+Number(r.unique_buyer_match_count)+' Buyer Match'+(Number(r.unique_buyer_match_count)===1?'':'es')+'</button>':'')+
         '<button onclick="editVehicle('+Number(r.submission_id)+')">Edit Bike Details</button>'+
         (r.message_thread_id?'<a class="btn" href="/admin-message-centre.html?thread='+Number(r.message_thread_id)+'">Open Message</a>':"")+
       '</div>'+
@@ -166,6 +187,53 @@ async function captureComps(id){
   alert("Snapshot captured: "+Number(data.comparable_count||0)+" connected-stock comparables.");
   await loadQueue();
 }
+
+
+async function refreshDemand(id){
+  const {data,error}=await sb.rpc("admin_refresh_seller_submission_demand_v1",{p_submission_id:Number(id)});
+  if(error){alert(error.message);return;}
+  alert(
+    Number(data?.match_count||0)+" factual demand record"+
+    (Number(data?.match_count||0)===1?"":"s")+" found."
+  );
+  await loadQueue();
+}
+
+async function viewDemand(id){
+  const row=rows.find(x=>Number(x.submission_id)===Number(id));
+  document.getElementById("demandTitle").textContent=(row?.reference||"Submission")+" · International Buyer Matches";
+  document.getElementById("demandList").innerHTML='<div class="empty">Loading…</div>';
+  document.getElementById("demandModal").classList.add("open");
+
+  const {data,error}=await sb.rpc("admin_get_seller_submission_demand_matches_v1",{p_submission_id:Number(id)});
+  if(error){
+    document.getElementById("demandList").innerHTML='<div class="empty">'+esc(error.message)+'</div>';
+    return;
+  }
+  const matches=data||[];
+  if(!matches.length){
+    document.getElementById("demandList").innerHTML='<div class="empty">No current international demand matches.</div>';
+    return;
+  }
+
+  document.getElementById("demandList").innerHTML=matches.map(m=>{
+    const source=m.source_type==="saved_search"?"Saved Search":m.source_type==="sourcing_deal"?"Active Sourcing Deal":"Global Buyer Request";
+    const buyer=m.buyer_business_name||m.customer_name||m.customer_email||"Buyer identity held internally";
+    const year=[m.year_from,m.year_to].filter(v=>v!==null&&v!==undefined).join(" – ")||"Any";
+    const budget=m.budget_max_gbp!==null&&m.budget_max_gbp!==undefined?money(m.budget_max_gbp):"Not specified";
+    return '<div class="card" style="margin-top:10px">'+
+      '<div class="top"><div><strong>'+esc(source)+'</strong><div class="meta">'+esc(buyer)+'</div></div><span class="badge">'+esc(m.destination_country||"International")+'</span></div>'+
+      '<div class="data">'+
+        '<div class="box"><span>Requirement</span><strong>'+esc([m.make,m.model,m.variant].filter(Boolean).join(" "))+'</strong></div>'+
+        '<div class="box"><span>Year</span><strong>'+esc(year)+'</strong></div>'+
+        '<div class="box"><span>Max mileage</span><strong>'+(m.mileage_max===null||m.mileage_max===undefined?"Any":Number(m.mileage_max).toLocaleString("en-GB"))+'</strong></div>'+
+        '<div class="box"><span>Buyer budget</span><strong>'+budget+'</strong></div>'+
+      '</div>'+
+      (m.commercial_price_check_required?'<div class="sub">Budget exists — commercial price check required before presenting this motorcycle.</div>':'<div class="sub">No buyer budget recorded on this requirement.</div>')+
+    '</div>';
+  }).join("");
+}
+function closeDemandModal(){document.getElementById("demandModal").classList.remove("open");}
 
 function editVehicle(id){
   editId=Number(id);
