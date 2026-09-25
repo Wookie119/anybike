@@ -143,12 +143,13 @@ function cardHtml(s,saved){
         field(id,"make","Make",s.make,saved)+field(id,"model","Model",s.model,saved)+field(id,"variant","Variant",s.variant,saved)+field(id,"year","Year",s.year,saved)+field(id,"mileage","Mileage",s.mileage,saved)+field(id,"colour","Colour",s.colour,saved)+
       '</div><div class="field" style="margin-top:8px"><label>Buyer description</label><textarea data-k="'+id+'" data-f="buyer_description">'+esc(s.buyer_description||"")+'</textarea></div>'+
       '<label class="check"><input type="checkbox" data-k="'+id+'" data-f="approve_first_image" '+((s.buyer_image_urls||[]).length?"checked":"")+'><span>Approve first source image for this private buyer presentation <span class="note">(only where AnyBike is permitted to reuse it)</span></span></label></div>'+
-      '<div class="box"><h3>Price check</h3>'+(Number(s.source_advertised_price_gbp)>0?"":'<div class="status bad" style="margin-bottom:9px">Advert price was not extracted — enter the seller advertised price below.</div>')
-        priceField(id,"source_advertised_price_gbp","1. Seller advertised price",s.source_advertised_price_gbp)+priceField(id,"rrp_gbp","2. RRP / original retail price",s.rrp_gbp)+
-        priceField(id,"delivery_allowance_gbp","3. Add UK delivery allowance",s.delivery_allowance_gbp)+
-        '<div class="field" style="margin-bottom:7px"><label>4. AnyBike Buyer Fee from RRP</label><input type="text" id="fee-'+id+'" value="'+gbp(s.fee_allowance_gbp||0)+'" readonly></div>'+
+      '<div class="box"><h3>Price check</h3>'+
+        (Number(s.source_advertised_price_gbp)>0?"":'<div class="status bad" style="margin-bottom:9px">Motorcycle price was not extracted — enter the advertised selling price below.</div>')+
+        priceField(id,"source_advertised_price_gbp","1. Motorcycle selling price",s.source_advertised_price_gbp)+
+        priceField(id,"delivery_allowance_gbp","2. Add UK delivery allowance",s.delivery_allowance_gbp)+
+        '<div class="field" style="margin-bottom:7px"><label>3. AnyBike Buyer Fee from motorcycle price</label><input type="text" id="fee-'+id+'" value="'+gbp(s.fee_allowance_gbp||0)+'" readonly></div>'+
         '<div class="note"><a class="source-link" href="/services-and-fees.html" target="_blank">View AnyBike Fees ↗</a></div>'+
-        '<div style="margin-top:9px;font-weight:900">= Buyer-facing AnyBike price</div><div class="money" id="price-'+id+'">'+(Number(s.source_advertised_price_gbp)>0?gbp(s.anybike_price_gbp??anyPrice):"Enter seller price")+'</div><div class="note">Buyer sees this final AnyBike price only. Seller price, delivery allowance and AnyBike fee calculation stay internal.</div>'+
+        '<div style="margin-top:9px;font-weight:900">= Buyer-facing AnyBike price</div><div class="money" id="price-'+id+'">'+(Number(s.source_advertised_price_gbp)>0?gbp(s.anybike_price_gbp??anyPrice):"Enter motorcycle price")+'</div><div class="note">Buyer sees this final AnyBike price only. Seller/source details and the internal price calculation are not shown.</div>'+
         '<label class="check"><input type="checkbox" data-k="'+id+'" data-f="price_checked" '+(s.price_checked?"checked":"")+'><span>Price checked — happy to present this price</span></label>'+
         '<label class="check"><input type="checkbox" data-k="'+id+'" data-f="selected_for_buyer" '+(s.selected_for_buyer?"checked":"")+'><span>Include in buyer selection</span></label>'+
         (saved?'<button class="btn green" style="margin-top:10px" onclick="saveScan('+id+')">Save motorcycle</button>':'')+
@@ -156,8 +157,8 @@ function cardHtml(s,saved){
     '</div></article>';
 }
 function field(k,f,label,v,saved){return '<div class="field"><label>'+label+'</label><input data-k="'+k+'" data-f="'+f+'" value="'+esc(v??"")+'"></div>'}
-function anybikeFeeFromRrp(rrp){
-  const n=Number(rrp);
+function anybikeFeeFromPrice(price){
+  const n=Number(price);
   if(!Number.isFinite(n)||n<=0)return 0;
   if(n<=2999)return 395;
   if(n<=4999)return 495;
@@ -181,11 +182,19 @@ function collectCard(k){
     else if(el.type==="checkbox")s[f]=el.checked;
     else s[f]=el.value;
   });
-  const src=Number(s.source_advertised_price_gbp)||0,del=Number(s.delivery_allowance_gbp)||0,fee=Number(s.fee_allowance_gbp)||0;
+  const src=Number(s.source_advertised_price_gbp)||0;
+  const del=Number(s.delivery_allowance_gbp)||0;
+  const fee=anybikeFeeFromPrice(src);
+  s.fee_allowance_gbp=fee;
   s.anybike_price_gbp=src?src+del+fee:null;
   return s;
 }
-function recalc(k){const s=collectCard(k);if(!s)return;const feeEl=document.getElementById("fee-"+k);if(feeEl)feeEl.value=Number(s.source_advertised_price_gbp)>0?gbp(s.fee_allowance_gbp):"Enter motorcycle price";document.getElementById("price-"+k).textContent=Number(s.source_advertised_price_gbp)>0?gbp(s.anybike_price_gbp):"Enter motorcycle price"}
+function recalc(k){
+  const s=collectCard(k);if(!s)return;
+  const feeEl=document.getElementById("fee-"+k);
+  if(feeEl)feeEl.value=Number(s.source_advertised_price_gbp)>0?gbp(s.fee_allowance_gbp):"Enter motorcycle price";
+  document.getElementById("price-"+k).textContent=Number(s.source_advertised_price_gbp)>0?gbp(s.anybike_price_gbp):"Enter motorcycle price";
+}
 
 async function saveNewBatch(){
   scanned.forEach(s=>collectCard(s._key));
