@@ -3306,8 +3306,21 @@ function customerDashboardPurchaseState(purchase){
 
   const collectionJobStatus=String(purchase.collection_job_status||"").toLowerCase();
   const collectionCollected=collectionJobStatus==="collected" || String(purchase.collection_status||"").toLowerCase()==="collected" || String(purchase.deal_status||"")==="Collected";
+  const deliveryStatus=String(purchase.delivery_handover_status||"").toLowerCase();
 
-  if(collectionCollected){
+  if(deliveryStatus==="delivered" || purchase.delivery_completed_at){
+    heading="Delivered to Shipper";
+    message="Your motorcycle has been handed over to "+String(purchase.delivery_receiver_company||purchase.freight_forwarder_name||"your confirmed shipping company")+".";
+    nextStep="UK Handover Complete";
+  }else if(["driver_link_ready","driver_opened","arrived"].includes(deliveryStatus)){
+    heading="Out for Delivery";
+    message="Move Motorcycles is completing the agreed delivery to your confirmed shipping company.";
+    nextStep="Delivery / Handover";
+  }else if(deliveryStatus==="ready"){
+    heading="Ready for Shipper Delivery";
+    message="Your motorcycle is cleared for the confirmed UK handover.";
+    nextStep="Move Motorcycles Delivery";
+  }else if(collectionCollected){
     heading="Collected";
     message="Your motorcycle has been collected and the driver collection report is available.";
     nextStep="Operations / Shipping";
@@ -3485,8 +3498,12 @@ function customerPurchaseCardHtml(match){
           ${purchase && (String(purchase.collection_job_status||"").toLowerCase()==="collected" || String(purchase.collection_status||"").toLowerCase()==="collected" || String(purchase.deal_status||"")==="Collected") ? `
             <button type="button" class="my-purchase-view" onclick="loadDashboardCollectionReport(${Number(purchase.deal_motorcycle_id)});return false;">Collection Report</button>
           ` : ""}
+          ${purchase && String(purchase.delivery_handover_status||"").toLowerCase()==="delivered" ? `
+            <button type="button" class="my-purchase-view" onclick="loadDashboardDeliveryReport(${Number(purchase.deal_motorcycle_id)});return false;">Delivery Report</button>
+          ` : ""}
         </div>
         ${purchase && (String(purchase.collection_job_status||"").toLowerCase()==="collected" || String(purchase.collection_status||"").toLowerCase()==="collected" || String(purchase.deal_status||"")==="Collected") ? `<div id="dashboard-collection-report-${Number(purchase.deal_motorcycle_id)}" style="display:none;margin-top:12px"></div>` : ""}
+        ${purchase && String(purchase.delivery_handover_status||"").toLowerCase()==="delivered" ? `<div id="dashboard-delivery-report-${Number(purchase.deal_motorcycle_id)}" style="display:none;margin-top:12px"></div>` : ""}
 
         <p class="my-offer-note">${state?.depositSatisfied
           ? "Your deposit has been received. Motorcycle security is confirmed separately by AnyBike after the final seller check."
@@ -3548,6 +3565,39 @@ function closeDashboardCollectionReport(dealMotorcycleId){
 
 window.loadDashboardCollectionReport=loadDashboardCollectionReport;
 window.closeDashboardCollectionReport=closeDashboardCollectionReport;
+
+function dashboardDeliveryReportHtml(report){
+  const evidence=Array.isArray(report?.evidence)?report.evidence:[];
+  const deliveredAt=report?.delivered_at?new Date(report.delivered_at).toLocaleString("en-GB"):"Recorded";
+  const photos=evidence.length?'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:8px;margin-top:10px">'+evidence.map(function(e){return '<a href="'+safe(e.url||"#")+'" target="_blank" rel="noopener" style="display:block;text-decoration:none"><img src="'+safe(e.url||"")+'" alt="'+safe(e.caption||"Delivery evidence")+'" style="width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:9px;border:1px solid #333"><div style="margin-top:4px;color:#bbb;font-size:10px">'+safe(e.caption||"Delivery evidence")+'</div></a>';}).join("")+'</div>':'';
+  return '<div style="padding:12px;border-radius:12px;background:#0b0b0b;border:1px solid rgba(54,211,126,.25)">'+
+    '<div class="my-offer-details">'+
+      '<div class="my-offer-detail"><span>Delivered</span>'+safe(deliveredAt)+'</div>'+
+      '<div class="my-offer-detail"><span>Shipping company</span>'+safe(report?.shipper||"—")+'</div>'+
+      '<div class="my-offer-detail"><span>Received by</span>'+safe(report?.recipient_name||"—")+(report?.recipient_role?" · "+safe(report.recipient_role):"")+'</div>'+
+      '<div class="my-offer-detail"><span>Reference</span>'+safe(report?.reference||"—")+'</div>'+
+    '</div>'+photos+'</div>';
+}
+async function loadDashboardDeliveryReport(dealMotorcycleId){
+  const id=Number(dealMotorcycleId),box=document.getElementById("dashboard-delivery-report-"+id);
+  if(!box)return;
+  box.style.display="block";box.innerHTML='<div class="buyer-match-empty">Loading delivery report...</div>';
+  try{
+    const result=await sb.functions.invoke("delivery-report",{body:{deal_motorcycle_id:id}});
+    if(result.error)throw result.error;
+    if(!result.data?.success)throw new Error(result.data?.error||"Delivery report could not be loaded.");
+    box.innerHTML=dashboardDeliveryReportHtml(result.data)+'<div style="margin-top:10px"><button type="button" class="my-purchase-view" onclick="closeDashboardDeliveryReport('+id+');return false;">Close Delivery Report</button></div>';
+  }catch(error){
+    box.innerHTML='<div class="buyer-match-empty"><span class="bad">Delivery report could not be loaded: '+safe(error.message||error)+'</span></div>';
+  }
+}
+function closeDashboardDeliveryReport(dealMotorcycleId){
+  const box=document.getElementById("dashboard-delivery-report-"+Number(dealMotorcycleId));
+  if(box){box.style.display="none";box.innerHTML="";}
+}
+window.loadDashboardDeliveryReport=loadDashboardDeliveryReport;
+window.closeDashboardDeliveryReport=closeDashboardDeliveryReport;
+
 
 function renderMyPurchases(rows){
   const box=document.getElementById("myPurchasesBox");
@@ -3669,7 +3719,7 @@ async function loadBuyerPotentialMatches(){
     sb.rpc("get_my_buyer_match_dashboard_v3"),
     sb.rpc("get_my_deal_motorcycles"),
     sb.rpc("get_my_deal_offers_v2"),
-    sb.rpc("get_my_purchases_v2"),
+    sb.rpc("get_my_purchases_v6"),
     sb.rpc("get_my_collection_jobs_v1")
   ]);
 
