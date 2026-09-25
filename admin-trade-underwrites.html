@@ -85,11 +85,53 @@ async function load(){
  '</div></article>').join("");
 }
 async function viewBids(id){
- const r=rows.find(x=>Number(x.opportunity_id)===Number(id));document.getElementById("bidTitle").textContent=(r?.reference||"Underwrite")+" · Confidential Bids";
- document.getElementById("bidModal").classList.add("open");document.getElementById("bidList").innerHTML='<div class="empty">Loading…</div>';
- const {data,error}=await sb.rpc("admin_get_trade_underwrite_bids_v1",{p_opportunity_id:id});
+ const r=rows.find(x=>Number(x.opportunity_id)===Number(id));
+ document.getElementById("bidTitle").textContent=(r?.reference||"Underwrite")+" · Confidential Bids";
+ document.getElementById("bidModal").classList.add("open");
+ document.getElementById("bidList").innerHTML='<div class="empty">Loading…</div>';
+
+ const [{data:bids,error},{data:confirmations,error:confirmationError}]=await Promise.all([
+   sb.rpc("admin_get_trade_underwrite_bids_v1",{p_opportunity_id:id}),
+   sb.rpc("admin_get_trade_bid_confirmations_v1",{p_opportunity_id:id})
+ ]);
  if(error){document.getElementById("bidList").innerHTML='<div class="empty">'+esc(error.message)+'</div>';return;}
- const bids=data||[];document.getElementById("bidList").innerHTML=bids.length?'<table><thead><tr><th>Dealer</th><th>Bidder</th><th>Amount</th><th>Status</th><th>Notes</th><th>Submitted</th></tr></thead><tbody>'+bids.map(b=>'<tr><td>'+esc(b.dealer_name)+'</td><td>'+esc(b.bidder_email||"")+'</td><td><strong>'+money(b.amount_gbp)+'</strong></td><td>'+esc(b.status)+'</td><td>'+esc(b.notes||"")+'</td><td>'+new Date(b.submitted_at).toLocaleString("en-GB")+'</td></tr>').join("")+'</tbody></table>':'<div class="empty">No bids submitted.</div>';
+ if(confirmationError){document.getElementById("bidList").innerHTML='<div class="empty">'+esc(confirmationError.message)+'</div>';return;}
+
+ const list=bids||[];
+ const cMap=new Map((confirmations||[]).map(x=>[Number(x.bid_id),x]));
+ if(!list.length){document.getElementById("bidList").innerHTML='<div class="empty">No bids submitted.</div>';return;}
+
+ document.getElementById("bidList").innerHTML=
+   '<table><thead><tr><th>Dealer</th><th>Bidder</th><th>Amount</th><th>Bid</th><th>Confirmation</th><th>Notes</th><th></th></tr></thead><tbody>'+
+   list.map(b=>{
+     const conf=cMap.get(Number(b.bid_id));
+     const confLabel=conf?esc(String(conf.status).replaceAll("_"," ")):"Reserve";
+     const effective=conf&&conf.effective_return_gbp!==null
+       ?'<div class="meta">Effective return '+money(conf.effective_return_gbp)+'</div>'
+       :"";
+     let action="";
+     if(!conf||["declined","expired","cancelled"].includes(conf.status)){
+       action='<button onclick="openConfirmModal('+Number(b.bid_id)+','+JSON.stringify(String(b.dealer_name||"Trade buyer"))+','+Number(b.amount_gbp)+')">Ask to Confirm</button>';
+     }else if(conf.status==="confirmed"){
+       action=r?.latest_offer_status==="accepted"
+         ?'<button class="red" onclick="selectConfirmed('+Number(conf.confirmation_id)+')">Select for Transaction</button>'
+         :'<span class="meta">Confirmed — reserves stay live until seller accepts AnyBike offer</span>';
+     }else if(conf.status==="requested"){
+       action='<span class="meta">Awaiting dealer confirmation</span>';
+     }else if(conf.status==="selected_for_transaction"){
+       action='<span class="meta">Selected for transaction</span>';
+     }
+     return '<tr>'+
+       '<td>'+esc(b.dealer_name)+'</td>'+
+       '<td>'+esc(b.bidder_email||"")+'</td>'+
+       '<td><strong>'+money(b.amount_gbp)+'</strong></td>'+
+       '<td>'+esc(b.status)+'</td>'+
+       '<td>'+confLabel+effective+'</td>'+
+       '<td>'+esc(b.notes||"")+'</td>'+
+       '<td>'+action+'</td>'+
+     '</tr>';
+   }).join("")+
+   '</tbody></table>';
 }
 function closeBids(){document.getElementById("bidModal").classList.remove("open");}
 function openConfirmModal(bidId,dealer,amount){
