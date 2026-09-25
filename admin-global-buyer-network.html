@@ -2229,9 +2229,7 @@ function escapeAdminHtml(value){
 </script>
 
 <script>
-const SUPABASE_URL = "https://tuehtnezhdnkqbbhttgp.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const sb = getAdminSupabaseClient();
 
 
 
@@ -2369,7 +2367,9 @@ async function loadBuyers(){
     );
   }
 
-  stock=await loadRelevantBuyerStock(items);
+  // Render the CRM immediately from buyer/request data. Matching the large
+  // available_stock pool is secondary enrichment and must not block the page.
+  stock=[];
 
   buyerMatches=
     mRes && !mRes.error
@@ -2432,6 +2432,15 @@ async function loadBuyers(){
   updatePipelineCounts();
   renderBuyerOffers();
   renderBuyers();
+
+  // Load matching Available Stock after the core CRM is usable.
+  loadRelevantBuyerStock(items).then(function(rows){
+    stock=rows || [];
+    renderBuyerOffers();
+    renderBuyers();
+  }).catch(function(error){
+    console.warn("Matching stock enrichment could not be loaded",error);
+  });
 }
 function buildFilters(){
   const countries=[...new Set(buyers.map(b=>b.country).filter(Boolean))].sort();
