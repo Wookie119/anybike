@@ -29,6 +29,35 @@ Security
 })();
 
 
+/*
+  Keep staff/admin authentication separate from customer authentication.
+  Both areas use the same Supabase project and therefore Supabase's default
+  browser storage key would otherwise be shared. An admin page could then see
+  a customer session as its own and sign it out as "not authorised".
+*/
+const ANYBIKE_ADMIN_AUTH_STORAGE_KEY = "anybike-admin-auth";
+
+(function isolateAnyBikeAdminAuthStorage(){
+  if(typeof supabase === "undefined" || supabase.__anybikeAdminAuthIsolated){
+    return;
+  }
+
+  const originalCreateClient = supabase.createClient.bind(supabase);
+
+  supabase.createClient = function(url,key,options){
+    const nextOptions = Object.assign({},options || {});
+    nextOptions.auth = Object.assign({},nextOptions.auth || {},{
+      storageKey:ANYBIKE_ADMIN_AUTH_STORAGE_KEY,
+      persistSession:true,
+      autoRefreshToken:true,
+      detectSessionInUrl:true
+    });
+    return originalCreateClient(url,key,nextOptions);
+  };
+
+  supabase.__anybikeAdminAuthIsolated = true;
+})();
+
 let anybikeAdminSupabase = null;
 let anybikeAdminUser = null;
 let anybikeAdminRecord = null;
