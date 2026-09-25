@@ -306,10 +306,10 @@ html.modal-open,body.modal-open{overflow:hidden!important;}
         <div id="sellerReviewContext" class="status-box success"></div>
         <div id="sellerOfferHighlight"></div>
         <div class="seller-form">
-          <div class="field"><label>Seller</label><input id="srSellerName"></div>
-          <div class="field"><label>Seller type</label><select id="srSellerType"><option>Dealer</option><option>Private Seller</option><option>Other</option></select></div>
-          <div class="field"><label>Phone</label><input id="srSellerPhone"></div>
-          <div class="field"><label>Email</label><input id="srSellerEmail"></div>
+          <div class="field"><label>Seller</label><input id="srSellerName" readonly title="Source identity is locked. Change it on the source motorcycle record if it is genuinely wrong."></div>
+          <div class="field"><label>Seller type</label><select id="srSellerType" disabled title="Source identity is locked."><option>Dealer</option><option>Private Seller</option><option>Other</option></select></div>
+          <div class="field"><label>Phone</label><input id="srSellerPhone" readonly title="Source contact details are locked here."></div>
+          <div class="field"><label>Email</label><input id="srSellerEmail" readonly title="Source contact details are locked here."></div>
           <div class="field"><label>Availability</label><select id="srAvailability"><option value="">Choose...</option><option>Unknown</option><option>Available</option><option>Reserved</option><option>Unavailable</option><option>Sold</option><option>Withdrawn</option></select></div>
           <div class="field"><label>AnyBike Trade / Purchase Price</label><input id="srSellerPrice" inputmode="decimal" placeholder="£0.00"></div>
           <div class="field"><label>Price valid until</label><input id="srPriceValidUntil" type="datetime-local"></div>
@@ -1159,14 +1159,14 @@ async function openSellerReview(matchId){
     document.getElementById("srRecordResponse").disabled=done;
     document.getElementById("srRecordResponse").textContent=done?"Seller Response Recorded":"Record Seller Response";
     status.className=done?"status-box success":"status-box";
-    status.innerHTML=done?`<strong>Seller response recorded${req.availability_status?" — "+esc(req.availability_status):""}${req.seller_price_gbp!=null?" at "+esc(queueMoney(req.seller_price_gbp)):""}.</strong><br><span style="font-size:13px;opacity:.82">Next step: Review deal viability and prepare the AnyBike customer price.</span>`:"Internal only — contact the seller manually, then record the genuine response here. Nothing is sent from this screen.";
+    status.innerHTML=done?`<strong>Seller response recorded${req.availability_status?" — "+esc(req.availability_status):""}${req.seller_price_gbp!=null?" at "+esc(queueMoney(req.seller_price_gbp)):""}.</strong><br><span style="font-size:13px;opacity:.82">Next step: Review deal viability and prepare the AnyBike customer price.</span>`:"Internal only — source motorcycle and seller identity are locked here. Record only the genuine seller response, price, availability, preparation and notes.";
   }catch(err){ status.className="status-box error"; status.textContent="Could not open Seller Review: "+err.message; }
 }
 
 async function saveSellerQueueDraft(){
   const ctx=queueContextByMatch.get(activeSellerQueueMatchId); if(!ctx?.sellerRequest) return;
   const status=document.getElementById("sellerReviewStatus");
-  const patch={seller_name:document.getElementById("srSellerName").value.trim()||null,seller_phone:document.getElementById("srSellerPhone").value.trim()||null,seller_email:document.getElementById("srSellerEmail").value.trim()||null,availability_status:document.getElementById("srAvailability").value||null,seller_price_gbp:document.getElementById("srSellerPrice").value.trim()===""?null:qNumber(document.getElementById("srSellerPrice").value),price_valid_until:qIso(document.getElementById("srPriceValidUntil").value),response_channel:document.getElementById("srResponseChannel").value||"Admin",preparation_status:document.getElementById("srPreparation").value||null,mot_requirement:document.getElementById("srMotRequirement").value||null,response_notes:document.getElementById("srNotes").value.trim()||null};
+  const patch={availability_status:document.getElementById("srAvailability").value||null,seller_price_gbp:document.getElementById("srSellerPrice").value.trim()===""?null:qNumber(document.getElementById("srSellerPrice").value),price_valid_until:qIso(document.getElementById("srPriceValidUntil").value),response_channel:document.getElementById("srResponseChannel").value||"Admin",preparation_status:document.getElementById("srPreparation").value||null,mot_requirement:document.getElementById("srMotRequirement").value||null,response_notes:document.getElementById("srNotes").value.trim()||null};
   const client=getAdminSupabaseClient(); const {data,error}=await client.from("seller_price_requests").update(patch).eq("id",ctx.sellerRequest.id).eq("request_status","Draft").select().single();
   if(error){status.className="status-box error";status.textContent="Could not save internal record: "+error.message;return;}
   ctx.sellerRequest=data; status.className="status-box success";status.textContent="Internal seller review saved. Nothing has been sent to the seller."; await loadInterestedMatchesQueue();
