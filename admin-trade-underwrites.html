@@ -67,8 +67,23 @@ function openOffer(id,high){offerId=id;document.getElementById("offerAmount").va
 function closeOffer(){offerId=null;document.getElementById("offerModal").classList.remove("open");}
 async function saveOffer(){
  const amount=Number(document.getElementById("offerAmount").value),hours=Number(document.getElementById("offerHours").value)||24;if(!amount){alert("Enter the AnyBike offer amount.");return;}
- const {data,error}=await sb.rpc("admin_create_seller_underwrite_offer_v1",{p_opportunity_id:offerId,p_amount_gbp:amount,p_valid_hours:hours,p_internal_basis:{created_from:"trade_underwrite_desk"}});
- if(error){alert(error.message);return;}alert("AnyBike seller offer created at "+money(data.amount_gbp)+".");closeOffer();await load();
+ const {data,error}=await sb.rpc("admin_create_seller_underwrite_offer_v2",{p_opportunity_id:offerId,p_amount_gbp:amount,p_valid_hours:hours,p_internal_basis:{created_from:"trade_underwrite_desk"}});
+ if(error){alert(error.message);return;}
+ const {data:sessionData}=await sb.auth.getSession();
+ const token=sessionData?.session?.access_token||"";
+ if(!token){alert("Your admin session has expired.");return;}
+ const response=await fetch(SUPABASE_URL+"/functions/v1/admin-send-seller-underwrite-offer",{
+   method:"POST",
+   headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"},
+   body:JSON.stringify({offer_id:data.offer_id})
+ });
+ const sent=await response.json().catch(()=>null);
+ if(!response.ok||!sent?.success){
+   alert("The offer was saved as Draft, but seller notification failed: "+(sent?.error||"Unknown error"));
+   closeOffer();await load();return;
+ }
+ alert("AnyBike offer "+money(data.amount_gbp)+" sent to the seller. The seller was shown only AnyBike's offer and "+Number(sent.genuine_bid_count||0)+" genuine bid"+(Number(sent.genuine_bid_count||0)===1?"":"s")+" received.");
+ closeOffer();await load();
 }
 (async()=>{const ok=await requireAdminSession();if(!ok)return;document.documentElement.classList.remove("admin-auth-pending");await load();})();
 </script></body></html>
