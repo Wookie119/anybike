@@ -1820,27 +1820,66 @@ function slugifyMarketCountry(value){
     .replace(/^-+|-+$/g,"");
 }
 
-function marketContextFromPage(){
+async function marketContextFromPage(){
   const params=new URLSearchParams(window.location.search);
   const buying=getBuyingContext();
   const originUrl=params.get("from")||params.get("page")||"";
   let originSlug="";
-  let originCountry="";
 
   const match=String(originUrl).match(/\/markets\/([^\/?#]+)\.html/i);
   if(match) originSlug=String(match[1]||"").toLowerCase();
 
-  const destination=String(
+  let country=String(
     buying.destination ||
     currentProfile?.country ||
     ""
   ).trim();
 
-  originCountry=destination;
+  if(!country && originSlug){
+    const marketAliases={
+      reunion:"Réunion"
+    };
+    country=marketAliases[originSlug] || originSlug.split("-").map(part=>part.charAt(0).toUpperCase()+part.slice(1)).join(" ");
+  }
+
+  if(!country){
+    try{
+      const raw=localStorage.getItem("anybike_market_country_hint");
+      const cached=raw?JSON.parse(raw):null;
+      if(
+        cached?.country &&
+        Number(cached?.saved_at||0) > Date.now()-(24*60*60*1000)
+      ){
+        country=String(cached.country).trim();
+      }
+    }catch(error){}
+  }
+
+  if(!country){
+    try{
+      const response=await fetch(
+        "https://tuehtnezhdnkqbbhttgp.supabase.co/functions/v1/visitor-market-country",
+        {method:"GET"}
+      );
+      const data=await response.json().catch(()=>({}));
+      if(response.ok && data?.country){
+        country=String(data.country).trim();
+        try{
+          localStorage.setItem("anybike_market_country_hint",JSON.stringify({
+            country:country,
+            country_code:data.country_code||null,
+            saved_at:Date.now()
+          }));
+        }catch(error){}
+      }
+    }catch(error){
+      console.warn("Visitor market country hint unavailable",error);
+    }
+  }
 
   return {
-    country:originCountry,
-    slug:originSlug || slugifyMarketCountry(originCountry)
+    country:country,
+    slug:originSlug || slugifyMarketCountry(country)
   };
 }
 
@@ -1875,7 +1914,7 @@ async function loadMarketRelatedLinks(){
   const section=document.getElementById("marketRelatedLinks");
   if(!section||!bike)return;
 
-  const context=marketContextFromPage();
+  const context=await marketContextFromPage();
   const country=context.country;
   const make=String(bike.make||"").trim();
   const model=String(bike.model||"").trim();
