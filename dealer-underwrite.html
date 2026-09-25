@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Request Underwrite | AnyBike</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" href="/anybike-logo-new.jpg">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--red:#ed1c24;--line:rgba(255,255,255,.12)}
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#070707;color:#fff}
+.wrap{width:min(760px,calc(100vw - 28px));margin:0 auto;padding:28px 0 60px}
+.hero{padding:24px;border:1px solid var(--line);border-radius:22px;background:radial-gradient(circle at top right,rgba(237,28,36,.22),transparent 35%),#111;margin-bottom:16px}
+.eyebrow{color:var(--red);text-transform:uppercase;font-size:11px;font-weight:900;letter-spacing:.12em}
+h1{margin:7px 0 9px;font-size:34px}p{color:#bbb;line-height:1.5}
+.card{background:#111;border:1px solid var(--line);border-radius:20px;padding:20px}
+.field{margin-bottom:15px}label{display:block;font-size:13px;font-weight:900;margin-bottom:7px}
+input,textarea{width:100%;background:#0b0b0b;color:#fff;border:1px solid #343434;border-radius:12px;padding:14px;font:inherit}
+textarea{min-height:90px;resize:vertical}
+.photo-box{border:1px dashed #444;border-radius:14px;padding:16px;background:#0c0c0c}
+.btn{width:100%;border:0;border-radius:12px;background:var(--red);color:#fff;padding:14px;font-weight:900;font-size:16px;cursor:pointer}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.msg{margin-bottom:14px;padding:12px;border-radius:12px;display:none}
+.msg.good{display:block;border:1px solid rgba(66,209,123,.45);background:rgba(66,209,123,.07)}
+.msg.bad{display:block;border:1px solid rgba(237,28,36,.45);background:rgba(237,28,36,.07)}
+.small{font-size:12px;color:#888;margin-top:7px}
+.back{display:inline-block;color:#fff;text-decoration:none;margin:0 0 14px;font-weight:800}
+</style>
+</head>
+<body>
+<div id="publicHeader"></div>
+<main class="wrap">
+  <a class="back" href="/my-dealership-stock.html">← My Dealership</a>
+
+  <section class="hero">
+    <div class="eyebrow">My Dealership</div>
+    <h1>Request Underwrite</h1>
+    <p>Keep it quick. Send the bike and AnyBike will check private trade interest and international buyer demand. Your dealership identity stays private.</p>
+  </section>
+
+  <section class="card">
+    <div id="msg" class="msg"></div>
+
+    <form id="underwriteForm">
+      <div class="field">
+        <label for="registration">Registration</label>
+        <input id="registration" name="registration" required autocomplete="off" placeholder="AB12 CDE">
+      </div>
+
+      <div class="field">
+        <label for="mileage">Mileage</label>
+        <input id="mileage" name="mileage" type="number" min="0" inputmode="numeric" required placeholder="12500">
+      </div>
+
+      <div class="field">
+        <label for="price_wanted_gbp">What do you need for it? <span style="font-weight:400">(optional)</span></label>
+        <input id="price_wanted_gbp" name="price_wanted_gbp" type="number" min="0" step="1" inputmode="decimal" placeholder="£">
+      </div>
+
+      <div class="field">
+        <label for="notes">Notes <span style="font-weight:400">(optional)</span></label>
+        <textarea id="notes" name="notes" placeholder="Part exchange, available now, damage, deadline, extras…"></textarea>
+      </div>
+
+      <div class="field">
+        <label for="photos">Photos <span style="font-weight:400">(optional)</span></label>
+        <div class="photo-box">
+          <input id="photos" name="photos" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" multiple>
+          <div class="small">Take photos or select several at once. Up to 12. If there are no usable photos, AnyBike Awaiting Image is used.</div>
+          <div id="photoCount" class="small" style="font-weight:900;color:#fff"></div>
+        </div>
+      </div>
+
+      <input type="hidden" name="source_channel" value="dealer_underwrite">
+      <input type="hidden" name="submission_purpose" value="both">
+      <input type="hidden" name="seller_type" value="dealer">
+
+      <button class="btn" type="submit">Request Underwrite</button>
+      <div class="small">By submitting, you confirm you are authorised by your dealership to offer this motorcycle. Bid values remain private to AnyBike.</div>
+    </form>
+  </section>
+</main>
+
+<script>
+const SUPABASE_URL="https://tuehtnezhdnkqbbhttgp.supabase.co";
+const SUPABASE_ANON_KEY="sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+
+function showMsg(text,good){
+  const el=document.getElementById("msg");
+  el.className="msg "+(good?"good":"bad");
+  el.textContent=text;
+}
+document.getElementById("photos").addEventListener("change",function(){
+  const n=Array.from(this.files||[]).length;
+  document.getElementById("photoCount").textContent=n?n+" photo"+(n===1?"":"s")+" selected":"";
+});
+
+(async function init(){
+  const {data}=await sb.auth.getSession();
+  if(!data?.session){
+    location.replace("/customer-register.html?return="+encodeURIComponent(location.pathname));
+    return;
+  }
+  const {data:dealer,error}=await sb.rpc("dealer_get_my_dealership");
+  if(error||!(Array.isArray(dealer)?dealer[0]:dealer)){
+    showMsg("This account is not linked to a verified dealership.",false);
+    document.querySelector("button[type='submit']").disabled=true;
+  }
+})();
+
+document.getElementById("underwriteForm").addEventListener("submit",async function(e){
+  e.preventDefault();
+  const btn=this.querySelector("button[type='submit']");
+  const files=Array.from(document.getElementById("photos").files||[]);
+  if(files.length>12){showMsg("Please choose no more than 12 photos.",false);return;}
+
+  const {data:sessionData}=await sb.auth.getSession();
+  const token=sessionData?.session?.access_token||"";
+  if(!token){location.reload();return;}
+
+  btn.disabled=true;
+  btn.textContent="Sending…";
+
+  try{
+    const fd=new FormData(this);
+    fd.set("legal_owner_confirmed","true");
+    fd.set("source_url",location.href);
+    fd.set("country","United Kingdom");
+
+    const response=await fetch(SUPABASE_URL+"/functions/v1/seller-quick-intake",{
+      method:"POST",
+      headers:{Authorization:"Bearer "+token},
+      body:fd
+    });
+    const result=await response.json().catch(()=>null);
+    if(!response.ok||!result?.success)throw new Error(result?.error||"Underwrite request could not be sent.");
+
+    this.reset();
+    document.getElementById("photoCount").textContent="";
+    showMsg(
+      "Underwrite requested ✓  Reference "+result.reference+
+      ". AnyBike is checking trade interest and international demand."+
+      (Number(result.photos_received||0)?" Photos are being safety checked.":""),
+      true
+    );
+  }catch(error){
+    showMsg(error.message||"Underwrite request could not be sent.",false);
+  }finally{
+    btn.disabled=false;
+    btn.textContent="Request Underwrite";
+  }
+});
+</script>
+<script src="/public-header.js?v=12001"></script>
+</body>
+</html>
