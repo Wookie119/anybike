@@ -1829,17 +1829,17 @@ async function marketContextFromPage(){
   const match=String(originUrl).match(/\/markets\/([^\/?#]+)\.html/i);
   if(match) originSlug=String(match[1]||"").toLowerCase();
 
-  let country=String(
-    buying.destination ||
-    currentProfile?.country ||
-    ""
-  ).trim();
+  let country=String(buying.destination||"").trim();
 
   if(!country && originSlug){
     const marketAliases={
       reunion:"Réunion"
     };
     country=marketAliases[originSlug] || originSlug.split("-").map(part=>part.charAt(0).toUpperCase()+part.slice(1)).join(" ");
+  }
+
+  if(!country){
+    country=String(currentProfile?.country||"").trim();
   }
 
   if(!country){
@@ -1934,7 +1934,8 @@ async function loadMarketRelatedLinks(){
   document.getElementById("marketBikeLinks").innerHTML=bikeLinks.join("");
 
   const countryLinks=[];
-  if(country && context.slug){
+  const isUkMarket=/^(uk|u\.k\.|united kingdom|great britain|england|scotland|wales|northern ireland)$/i.test(country);
+  if(country && context.slug && !isUkMarket){
     countryLinks.push(marketLink("/markets/"+encodeURIComponent(context.slug)+".html",country+" motorcycle buying guide"));
   }
   countryLinks.push(marketLink("/international-markets.html","View all international markets"));
@@ -1944,7 +1945,7 @@ async function loadMarketRelatedLinks(){
   const popularWrap=document.getElementById("marketPopularLinks");
   const popularHeading=document.getElementById("marketPopularHeading");
 
-  if(country){
+  if(country && !isUkMarket){
     document.getElementById("marketRelatedTitle").textContent="Motorcycles and buying guides for "+country;
     document.getElementById("marketRelatedIntro").textContent=
       "Explore motorcycles attracting attention in "+country+", related brands and models, and AnyBike services for buying from the United Kingdom.";
