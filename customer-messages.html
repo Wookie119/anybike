@@ -3859,13 +3859,43 @@ function startCustomerMessageRealtime(){
 
     document.documentElement.classList.remove("customer-auth-pending");
 
-    await loadCustomerEnquiries();
-    startCustomerMessageRealtime();
-    await refreshSharedCustomerHeader();
-    await markRequestedThreadNotificationsRead();
+    try{
+      await loadCustomerEnquiries();
+    }catch(error){
+      console.error("Customer conversations failed to load",error);
+      const welcome=document.getElementById("welcomeText");
+      const enquiries=document.getElementById("customerEnquiries");
+      if(welcome){
+        welcome.textContent="We could not finish loading your messages. Please refresh the page.";
+      }
+      if(enquiries){
+        enquiries.innerHTML='<p class="bad">Your messages could not be loaded. Please refresh the page.</p>';
+      }
+      return;
+    }
+
+    // Messaging has loaded successfully at this point. Realtime/header/read-state
+    // enhancements must never wipe a working conversation list if one of them fails.
+    try{
+      startCustomerMessageRealtime();
+    }catch(error){
+      console.warn("Customer realtime could not start",error);
+    }
+
+    try{
+      await refreshSharedCustomerHeader();
+    }catch(error){
+      console.warn("Customer header activity refresh failed",error);
+    }
+
+    try{
+      await markRequestedThreadNotificationsRead();
+    }catch(error){
+      console.warn("Requested thread read-state update failed",error);
+    }
 
   }catch(error){
-    console.error("My Messages failed to initialise",error);
+    console.error("My Messages failed before conversations loaded",error);
 
     if(currentUser){
       document.documentElement.classList.remove("customer-auth-pending");
