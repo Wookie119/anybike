@@ -264,6 +264,8 @@ button:disabled{
 .market-related-head h2{margin:7px 0 8px;font-size:clamp(26px,3vw,40px);letter-spacing:-.03em}
 .market-related-head p{margin:0;color:#aaa;line-height:1.55}
 .market-related-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.market-related-grid.no-market{grid-template-columns:repeat(3,minmax(0,1fr))}
+.market-related-card[hidden]{display:none!important}
 .market-related-card{padding:18px;border:1px solid rgba(255,255,255,.1);border-radius:18px;background:#131313}
 .market-related-card h3{margin:0 0 12px;font-size:18px}
 .market-related-tags{display:flex;flex-wrap:wrap;gap:8px}
@@ -275,7 +277,7 @@ button:disabled{
 .market-related-tags a:hover{border-color:var(--red);color:#fff}
 @media(max-width:760px){
   .market-related{width:calc(100vw - 24px);padding:20px;margin-bottom:28px}
-  .market-related-grid{grid-template-columns:1fr}
+  .market-related-grid,.market-related-grid.no-market{grid-template-columns:1fr}
 }
 
 .footer{
@@ -477,6 +479,7 @@ button:disabled{
   gap:14px;
   align-items:stretch;
 }
+.purchase-details-grid.no-context{grid-template-columns:1fr}
 
 .purchase-detail-card{
   min-width:0;
@@ -728,8 +731,8 @@ button:disabled{
     <p id="marketRelatedIntro">Related motorcycles, brands, markets and UK buying services.</p>
   </div>
 
-  <div class="market-related-grid">
-    <div class="market-related-card">
+  <div class="market-related-grid" id="marketRelatedGrid">
+    <div class="market-related-card" id="marketPopularCard">
       <h3 id="marketPopularHeading">Popular in your market</h3>
       <div id="marketPopularLinks" class="market-related-tags"></div>
     </div>
@@ -1432,6 +1435,7 @@ function moveLightbox(direction){
 function render(){
   const variant=safe(bike.variant);
   const cc=bike.engine_cc ? `${bike.engine_cc}cc` : bt("ccTbc");
+  const purchaseContextHtml=buyingContextHTML();
   document.title=
     `${String(bike.make||"")} ${String(bike.model||"")}`.trim() +
     " | AnyBike";
@@ -1476,16 +1480,18 @@ function render(){
         <h2>${bt("purchaseDetails")}</h2>
       </div>
 
-      <div class="purchase-details-grid">
+      <div class="purchase-details-grid ${purchaseContextHtml ? "" : "no-context"}">
         <div class="purchase-detail-card services-card">
           <div class="purchase-detail-kicker">${bt("optionalServices")}</div>
           <h3>${bt("supportTitle")}</h3>
           <p>${bt("supportText")}</p>
         </div>
 
-        <div class="purchase-detail-card context-card">
-          ${buyingContextHTML()}
-        </div>
+        ${purchaseContextHtml ? `
+          <div class="purchase-detail-card context-card">
+            ${purchaseContextHtml}
+          </div>
+        ` : ""}
       </div>
 
       ${tradeSaleNoticeHTML()}
@@ -1944,8 +1950,12 @@ async function loadMarketRelatedLinks(){
 
   const popularWrap=document.getElementById("marketPopularLinks");
   const popularHeading=document.getElementById("marketPopularHeading");
+  const popularCard=document.getElementById("marketPopularCard");
+  const relatedGrid=document.getElementById("marketRelatedGrid");
 
   if(country && !isUkMarket){
+    if(popularCard)popularCard.hidden=false;
+    if(relatedGrid)relatedGrid.classList.remove("no-market");
     document.getElementById("marketRelatedTitle").textContent="Motorcycles and buying guides for "+country;
     document.getElementById("marketRelatedIntro").textContent=
       "Explore motorcycles attracting attention in "+country+", related brands and models, and AnyBike services for buying from the United Kingdom.";
@@ -1975,10 +1985,12 @@ async function loadMarketRelatedLinks(){
       popularWrap.innerHTML='<span class="muted">Market-interest links will appear as local demand builds.</span>';
     }
   }else{
-    popularHeading.textContent="International motorcycle interest";
-    popularWrap.innerHTML=make
-      ? marketLink(marketBrandHref(make),"More "+make+" motorcycles")
-      : marketLink("/available-stock.html","Browse available motorcycles");
+    if(popularCard)popularCard.hidden=true;
+    if(relatedGrid)relatedGrid.classList.add("no-market");
+    document.getElementById("marketRelatedTitle").textContent="Explore this motorcycle and AnyBike buying services";
+    document.getElementById("marketRelatedIntro").textContent=
+      "Browse related motorcycles, international buying information and the AnyBike services available around this purchase.";
+    popularWrap.innerHTML="";
   }
 
   section.hidden=false;
