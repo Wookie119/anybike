@@ -32,6 +32,7 @@ textarea{min-height:68px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top
     <p>Confidential AnyBike underwrite opportunities. The seller and other bidders are not identified. You can see and update only your dealership's own bid.</p>
   </section>
   <div class="notice">These are not public classifieds. AnyBike controls the opportunity, communicates with the seller and decides whether to make an AnyBike purchase offer.</div>
+  <div id="confirmations"></div>
   <div id="grid" class="grid"><div class="empty">Loading…</div></div>
 </main>
 
@@ -46,7 +47,11 @@ function countdown(v){if(!v)return"—";const ms=new Date(v)-Date.now();if(ms<=0
 async function load(){
   const {data:session}=await sb.auth.getSession();
   if(!session?.session){location.replace("/customer-register.html?return="+encodeURIComponent(location.pathname));return;}
-  const {data,error}=await sb.rpc("trade_get_my_underwrite_opportunities_v2");
+  const [{data,error},{data:confirmations,error:confirmationError}]=await Promise.all([
+    sb.rpc("trade_get_my_underwrite_opportunities_v2"),
+    sb.rpc("trade_get_my_bid_confirmations_v1")
+  ]);
+  renderConfirmations(confirmations||[],confirmationError);
   const host=document.getElementById("grid");
   if(error){host.innerHTML='<div class="empty">'+esc(error.message)+'</div>';return;}
   const rows=data||[];
@@ -66,6 +71,64 @@ async function load(){
       (r.my_bid_gbp?'<div class="meta" style="margin-top:8px">Your current live bid: '+money(r.my_bid_gbp)+'</div>':'')+
     '</div></article>').join("");
 }
+
+function deliveryText(c){
+  if(c.delivery_treatment==="included_by_anybike")return "Delivery to your confirmed dealership address is included by AnyBike.";
+  if(c.delivery_treatment==="buyer_contribution")return "AnyBike will arrange delivery. Your delivery contribution is "+money(c.buyer_delivery_contribution_gbp)+".";
+  return "AnyBike will arrange delivery. Delivery charge is "+money(c.buyer_delivery_contribution_gbp)+".";
+}
+function renderConfirmations(rows,error){
+  const host=document.getElementById("confirmations");
+  if(error){host.innerHTML='<div class="notice">'+esc(error.message)+'</div>';return;}
+  if(!rows.length){host.innerHTML="";return;}
+  host.innerHTML='<section class="hero" style="padding:18px"><div class="eyebrow">Action Required</div><h2 style="margin:5px 0 10px">Confirm Your Bid</h2><p>AnyBike has selected one of your bids to progress. Your original bid is not yet a completed purchase. Please reconfirm the amount and the dealership delivery details.</p></section>'+
+  rows.map(c=>{
+    const requested=c.confirmation_status==="requested";
+    return '<article class="card" style="margin-bottom:14px"><div class="body">'+
+      '<div class="meta">'+esc(c.underwrite_reference)+' · '+esc(String(c.confirmation_type).replaceAll("_"," "))+'</div>'+
+      '<div class="bike">'+esc([c.make,c.model,c.variant].filter(Boolean).join(" "))+'</div>'+
+      '<div class="data"><div class="box"><span>Your confirmed bid</span><strong>'+money(c.bid_amount_gbp)+'</strong></div><div class="box"><span>Status</span><strong>'+esc(c.confirmation_status)+'</strong></div></div>'+
+      '<p><strong>'+esc(deliveryText(c))+'</strong></p>'+
+      (requested?'<div id="confirm-form-'+c.confirmation_id+'">'+
+        '<label>Delivery company<input id="company-'+c.confirmation_id+'" value="'+esc(c.delivery_company_name||"")+'" disabled></label>'+
+        '<label style="display:block;margin-top:8px">Contact name<input id="contact-'+c.confirmation_id+'" value="'+esc(c.delivery_contact_name||"")+'"></label>'+
+        '<label style="display:block;margin-top:8px">Contact phone<input id="phone-'+c.confirmation_id+'" value="'+esc(c.delivery_contact_phone||"")+'"></label>'+
+        '<label style="display:block;margin-top:8px">Contact email<input id="email-'+c.confirmation_id+'" value="'+esc(c.delivery_contact_email||"")+'"></label>'+
+        '<label style="display:block;margin-top:8px">Address<input id="addr1-'+c.confirmation_id+'" value="'+esc(c.delivery_address_1||"")+'"></label>'+
+        '<label style="display:block;margin-top:8px">Address 2<input id="addr2-'+c.confirmation_id+'" value="'+esc(c.delivery_address_2||"")+'"></label>'+
+        '<div class="data"><label>City<input id="city-'+c.confirmation_id+'" value="'+esc(c.delivery_city||"")+'"></label><label>County<input id="county-'+c.confirmation_id+'" value="'+esc(c.delivery_county||"")+'"></label></div>'+
+        '<div class="data"><label>Postcode<input id="postcode-'+c.confirmation_id+'" value="'+esc(c.delivery_postcode||"")+'"></label><label>Country<input id="country-'+c.confirmation_id+'" value="'+esc(c.delivery_country||"United Kingdom")+'"></label></div>'+
+        '<label>Delivery reference<input id="reference-'+c.confirmation_id+'" value="'+esc(c.delivery_reference||"")+'" placeholder="Optional"></label>'+
+        '<label style="display:block;margin-top:8px">Delivery notes<textarea id="delivery-notes-'+c.confirmation_id+'" placeholder="Opening hours, access, branch instructions…">'+esc(c.delivery_notes||"")+'</textarea></label>'+
+        '<div class="actions"><button class="red" onclick="respondConfirmation('+c.confirmation_id+',\'confirm\')">Confirm Bid & Delivery</button><button onclick="respondConfirmation('+c.confirmation_id+',\'decline\')">No Longer Available</button></div>'+
+      '</div>':'<div class="notice">Your bid and delivery details are confirmed. AnyBike will contact you if the transaction progresses.</div>')+
+    '</div></article>';
+  }).join("");
+}
+async function respondConfirmation(id,action){
+  if(action==="decline"&&!confirm("Tell AnyBike you no longer wish to proceed at this bid?"))return;
+  const args={p_confirmation_id:Number(id),p_action:action};
+  if(action==="confirm"){
+    Object.assign(args,{
+      p_delivery_contact_name:document.getElementById("contact-"+id).value.trim(),
+      p_delivery_contact_phone:document.getElementById("phone-"+id).value.trim(),
+      p_delivery_contact_email:document.getElementById("email-"+id).value.trim()||null,
+      p_delivery_address_1:document.getElementById("addr1-"+id).value.trim(),
+      p_delivery_address_2:document.getElementById("addr2-"+id).value.trim()||null,
+      p_delivery_city:document.getElementById("city-"+id).value.trim(),
+      p_delivery_county:document.getElementById("county-"+id).value.trim()||null,
+      p_delivery_postcode:document.getElementById("postcode-"+id).value.trim(),
+      p_delivery_country:document.getElementById("country-"+id).value.trim()||"United Kingdom",
+      p_delivery_reference:document.getElementById("reference-"+id).value.trim()||null,
+      p_delivery_notes:document.getElementById("delivery-notes-"+id).value.trim()||null
+    });
+  }
+  const {error}=await sb.rpc("trade_respond_bid_confirmation_v1",args);
+  if(error){alert(error.message);return;}
+  alert(action==="confirm"?"Your bid and delivery details are confirmed.":"AnyBike has been told you no longer wish to proceed.");
+  await load();
+}
+
 async function submitBid(id){
   const amount=Number(document.getElementById("bid-"+id).value);
   const notes=document.getElementById("note-"+id).value.trim()||null;
