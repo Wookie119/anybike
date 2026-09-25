@@ -1905,14 +1905,18 @@ body.customer-offer-modal-open{overflow:hidden}
       </div>
     </section>
 
-    <section class="panel buyer-match-panel" id="sourced-match-batches">
+    <section class="panel buyer-match-panel" id="hand-picked">
       <div class="panel-head">
         <div>
-          <h2>🔎 Hand-picked Motorcycle Selections</h2>
-          <p>Private selections prepared by AnyBike for your buying requirements. Open a selection to mark bikes Interested, Watch or Not Interested.</p>
+          <h2>🔎 Hand-picked for You</h2>
+          <p>Motorcycles you have marked Interested from AnyBike private selections. We will use this shortlist while checking availability and preparing any official offer.</p>
         </div>
       </div>
-      <div id="sourcedMatchBatchesBox"><div class="buyer-match-empty">Loading your selections...</div></div>
+      <div id="handPickedForYouBox"><div class="buyer-match-empty">Loading your hand-picked motorcycles...</div></div>
+      <div style="margin-top:16px">
+        <h3 style="margin:0 0 10px">Your private selections</h3>
+        <div id="sourcedMatchBatchesBox"><div class="buyer-match-empty">Loading your selections...</div></div>
+      </div>
     </section>
 
     <section class="panel buyer-match-panel" id="buyer-potential-matches">
@@ -3728,6 +3732,47 @@ function renderBuyerPotentialMatches(rows){
       </div>
     </section>
   `).join("");
+}
+
+async function loadHandPickedForYou(){
+  const box=document.getElementById("handPickedForYouBox");
+  if(!box||!currentUser)return;
+
+  try{
+    const {data,error}=await sb.rpc("customer_get_hand_picked_for_you_v1");
+    if(error) throw error;
+
+    const rows=data||[];
+    if(!rows.length){
+      box.innerHTML='<div class="buyer-match-empty">No motorcycles are in your hand-picked shortlist yet. Open one of your private selections below and mark a motorcycle Interested.</div>';
+      return;
+    }
+
+    box.innerHTML=rows.map(r=>{
+      const title=[r.year,r.make,r.model,r.variant].filter(Boolean).join(" ");
+      const facts=[
+        r.mileage!==null && r.mileage!==undefined ? Number(r.mileage).toLocaleString("en-GB")+" miles" : "",
+        r.colour || "",
+        r.source_status==="live" ? "Still listed" : (r.source_status==="ended" ? "No longer listed" : "")
+      ].filter(Boolean).join(" · ");
+
+      const price=Number(r.price_gbp||0)>0
+        ? Number(r.price_gbp).toLocaleString("en-GB",{style:"currency",currency:"GBP",maximumFractionDigits:0})
+        : "Price to be confirmed";
+
+      return '<div class="buyer-match-pool-card">' +
+        '<div>' +
+          '<strong>'+safe(title || "Motorcycle")+'</strong>' +
+          '<div class="buyer-match-card-meta">'+safe(facts)+'</div>' +
+          '<div class="buyer-match-card-meta" style="margin-top:6px"><strong>'+safe(price)+'</strong> · Interested</div>' +
+        '</div>' +
+        '<a class="mini-btn" href="/customer-sourced-matches.html?batch='+encodeURIComponent(r.batch_id)+'">Open selection</a>' +
+      '</div>';
+    }).join("");
+  }catch(error){
+    console.error("Hand-picked shortlist could not be loaded",error);
+    box.innerHTML='<div class="buyer-match-empty"><span class="bad">Your hand-picked shortlist could not be loaded.</span></div>';
+  }
 }
 
 async function loadSourcedMatchBatches(){
@@ -6309,6 +6354,7 @@ async function initialiseCustomerNotifications(){
       loadRecentlyViewed(),
       loadDashboardConversationCount(),
       loadRecommendations(),
+      loadHandPickedForYou(),
       loadSourcedMatchBatches(),
       loadBuyerPotentialMatches(),
       loadBuyerMatchNotificationPreference()
