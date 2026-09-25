@@ -98,7 +98,23 @@ async function loginCustomer(){
   try{
     const {data,error}=await sb.auth.signInWithPassword({email,password});
     if(error){showMsg(error.message,false);return;}
-    if(!data.user){showMsg("Login could not be completed. Please try again.",false);return;}
+    if(!data.user || !data.session){showMsg("Login could not be completed. Please try again.",false);return;}
+
+    // Confirm the browser has persisted the customer session before leaving
+    // the login page. This avoids the protected dashboard racing the auth write.
+    let confirmedSession=null;
+    for(let attempt=0;attempt<6;attempt++){
+      const sessionResult=await sb.auth.getSession();
+      confirmedSession=sessionResult?.data?.session || null;
+      if(confirmedSession?.user?.id===data.user.id) break;
+      await new Promise(resolve=>setTimeout(resolve,150));
+    }
+
+    if(!confirmedSession){
+      showMsg("Your login was accepted, but the browser session could not be saved. Please try again.",false);
+      return;
+    }
+
     const profileError=await createCustomerProfileIfMissing(data.user);
     if(profileError) console.error("Missing profile could not be created:",profileError);
     showMsg("Logged in successfully. Opening My AnyBike...");
