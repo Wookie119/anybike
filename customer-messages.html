@@ -885,6 +885,19 @@ footer{
 }
 
 </style>
+<style>
+.message-bike-attachments{display:grid;gap:9px;margin-top:12px}
+.message-bike-card{display:grid;grid-template-columns:92px minmax(0,1fr);gap:11px;padding:10px;border:1px solid rgba(255,255,255,.14);border-radius:12px;background:#111}
+.message-bike-image{width:92px;height:70px;border-radius:9px;overflow:hidden;background:#171717;display:flex;align-items:center;justify-content:center}
+.message-bike-image img{width:100%;height:100%;object-fit:cover;display:block}
+.message-bike-placeholder{display:grid;place-items:center;width:100%;height:100%;padding:8px;text-align:center;color:#aaa;font-size:9px;font-weight:900}
+.message-bike-placeholder img{width:38px;height:38px;object-fit:cover;border-radius:7px;margin-bottom:3px}
+.message-bike-copy{min-width:0}
+.message-bike-copy strong{display:block;color:#fff;font-size:14px}
+.message-bike-copy span{display:block;color:#aaa;font-size:11px;margin-top:3px}
+.message-bike-copy a{display:inline-flex;margin-top:7px;padding:6px 9px;border-radius:8px;background:#222;border:1px solid rgba(255,255,255,.14);color:#fff;font-size:11px;font-weight:900;text-decoration:none}
+@media(max-width:520px){.message-bike-card{grid-template-columns:72px minmax(0,1fr)}.message-bike-image{width:72px;height:60px}}
+</style>
 </head>
 
 <body>
@@ -2135,6 +2148,81 @@ function updateCustomerUnreadMessageCount(){
 window.anybikeCustomerThreadMessages={};
 
 
+
+function customerMessageMotorcycleImage(url,title){
+  const value=String(url||"").trim();
+  const lower=value.toLowerCase();
+  const usable=value &&
+    !value.includes("{resize}") &&
+    !lower.includes("placeholder") &&
+    !lower.includes("no-image") &&
+    !lower.includes("no_image") &&
+    !lower.includes("image-not-available") &&
+    !lower.includes("imagenotavailable");
+
+  if(!usable){
+    return `<div class="message-bike-placeholder"><img src="/anybike-logo-new.jpg" alt=""><span>AnyBike</span></div>`;
+  }
+
+  return `<img src="${safe(value)}" alt="${safe(title||"Motorcycle")}" onerror="this.parentElement.innerHTML='<div class=&quot;message-bike-placeholder&quot;><img src=&quot;/anybike-logo-new.jpg&quot; alt=&quot;&quot;><span>AnyBike</span></div>'">`;
+}
+
+function customerMessageMoney(value){
+  if(value===null || value===undefined || value==="") return "";
+  const amount=Number(value);
+  return Number.isFinite(amount)
+    ? "£"+amount.toLocaleString("en-GB",{minimumFractionDigits:0,maximumFractionDigits:2})
+    : "";
+}
+
+async function loadCustomerMessageMatchAttachments(threadId){
+  const {data,error}=await sb.rpc(
+    "customer_get_message_match_attachments_v1",
+    {p_thread_id:Number(threadId)}
+  );
+
+  if(error){
+    console.warn("Could not load message motorcycle attachments",error.message);
+    return new Map();
+  }
+
+  const byMessage=new Map();
+  (data||[]).forEach(function(row){
+    const key=String(row.message_id);
+    if(!byMessage.has(key)) byMessage.set(key,[]);
+    byMessage.get(key).push(row);
+  });
+  return byMessage;
+}
+
+function customerMessageAttachmentsHtml(messageId,byMessage){
+  const rows=byMessage?.get(String(messageId)) || [];
+  if(!rows.length) return "";
+
+  return `
+    <div class="message-bike-attachments">
+      ${rows.map(function(row){
+        const title=[row.year,row.make,row.model,row.variant].filter(Boolean).join(" ") || "Motorcycle";
+        const mileage=row.mileage!==null && row.mileage!==undefined
+          ? Number(row.mileage).toLocaleString("en-GB")+" miles"
+          : "";
+        const price=customerMessageMoney(row.display_price_gbp);
+        return `
+          <div class="message-bike-card">
+            <div class="message-bike-image">${customerMessageMotorcycleImage(row.image_url,title)}</div>
+            <div class="message-bike-copy">
+              <strong>${safe(title)}</strong>
+              <span>${safe([mileage,price].filter(Boolean).join(" · ") || "Potential Match")}</span>
+              <span>Selected by AnyBike for your buying request.</span>
+              <a href="/customer-dashboard.html#buyer-potential-matches">View in My AnyBike</a>
+            </div>
+          </div>
+        `;
+      }).join("")}
+    </div>
+  `;
+}
+
 async function loadGlobalBuyerMessages(threadId){
   if(!currentUser){
     redirectToCustomerLogin();
@@ -2171,6 +2259,7 @@ async function loadGlobalBuyerMessages(threadId){
   }
 
   const messages=data||[];
+  const messageMatchAttachments=await loadCustomerMessageMatchAttachments(threadId);
   window.anybikeCustomerThreadMessages[String(threadId)]=messages;
 
   if(!messages.length){
@@ -2220,6 +2309,7 @@ async function loadGlobalBuyerMessages(threadId){
       <div class="msg ${isCustomer?'customer':'admin'}">
         <strong>${safe(label)}</strong>
         <div class="msg-text">${candidateMessageHtml(message.message)}</div>
+        ${customerMessageAttachmentsHtml(message.id,messageMatchAttachments)}
         <small>${message.created_at ? new Date(message.created_at).toLocaleString("en-GB") : ""}</small>
       </div>
     `;
@@ -2311,6 +2401,7 @@ async function refreshOpenCustomerLiveChat(){
     }
 
     window.anybikeCustomerThreadMessages[String(threadId)]=rows;
+    const liveMessageMatchAttachments=await loadCustomerMessageMatchAttachments(threadId);
 
     box.innerHTML=rows.length
       ? rows.map(message=>{
@@ -2323,6 +2414,7 @@ async function refreshOpenCustomerLiveChat(){
             <div class="msg ${isCustomer?'customer':'admin'}">
               <strong>${safe(label)}</strong>
               <div class="msg-text">${candidateMessageHtml(message.message)}</div>
+              ${customerMessageAttachmentsHtml(message.id,liveMessageMatchAttachments)}
               <small>${message.created_at ? new Date(message.created_at).toLocaleString("en-GB") : ""}</small>
             </div>
           `;
