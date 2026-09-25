@@ -401,6 +401,16 @@ input,select,textarea{padding:12px;border-radius:10px;border:1px solid #333;back
 textarea{width:100%;min-height:120px}
 .spark{height:8px;background:#222;border-radius:999px;overflow:hidden;margin-top:8px}
 .spark div{height:100%;background:var(--red);width:45%}
+.intel-summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:14px}
+.intel-card{background:#181818;border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:13px}
+.intel-card span{display:block;color:#999;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px}
+.intel-card strong{font-size:18px}
+.intel-tags{display:flex;flex-wrap:wrap;gap:8px}
+.intel-tag{display:inline-flex;align-items:center;gap:6px;padding:7px 10px;border:1px solid rgba(255,255,255,.12);border-radius:999px;background:#141414;font-size:12px;font-weight:900}
+.intel-tag b{color:var(--red)}
+.intel-columns{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.intel-source{border-left:3px solid var(--red)}
+@media(max-width:900px){.intel-columns{grid-template-columns:1fr}}
 
 @media(max-width:1200px){
   .control-grid{grid-template-columns:1fr}
@@ -704,7 +714,7 @@ function renderWorkspaceMessageThread(thread){
     </div>`;
 }
 
-function renderCustomerWorkspace(customer){
+function renderCustomerIntelligence(customer,w){\n  const intel=w?.intelligence||{};\n  const summary=intel.summary||{};\n  const first=intel.first_session||{};\n  const origin=intel.first_attributed_origin||{};\n  const brands=Array.isArray(intel.top_brands)?intel.top_brands:[];\n  const models=Array.isArray(intel.top_models)?intel.top_models:[];\n  const pages=Array.isArray(intel.recent_pages)?intel.recent_pages:[];\n  const discovery=Array.isArray(intel.discovery_responses)?intel.discovery_responses:[];\n  const sourceTitle=origin.origin_page_title||origin.origin_page_url||first.landing_title||first.landing_path||"Unknown";\n  const sourceDetail=origin.origin_page_url||first.landing_path||"No attributable source recorded";\n  const market=origin.origin_market_slug||first.country||customer.country||customer.destinationCountry||"Unknown";\n\n  const brandHtml=brands.length\n    ? '<div class="intel-tags">'+brands.map(b=>\n        '<span class="intel-tag">'+safe(b.make)+' <b>'+Number(b.page_views||0)+' views</b></span>'\n      ).join("")+'</div>'\n    : '<div class="note-box">No brand browsing signals yet.</div>';\n\n  const modelHtml=models.length\n    ? models.map(m=>\n        '<div class="deal-card"><strong>'+safe(m.make)+' '+safe(m.model)+'</strong>'+\n        '<div class="small">'+Number(m.page_views||0)+' page views · '+Number(m.motorcycles_viewed||0)+' motorcycles · '+fmtSeconds(m.active_seconds)+'</div>'+\n        '<div class="small">Last viewed: '+fmtDate(m.last_viewed_at)+'</div></div>'\n      ).join("")\n    : '<div class="note-box">No model browsing signals yet.</div>';\n\n  const discoveryHtml=discovery.length\n    ? discovery.map(d=>\n        '<div class="deal-card"><strong>'+safe(d.source_name||d.response_text||"Buyer discovery response")+'</strong>'+\n        '<div class="small">'+safe(d.channel_type||d.response_type)+(d.country?' · '+safe(d.country):"")+'</div>'+\n        (d.source_url?'<div class="small">'+safe(d.source_url)+'</div>':"")+\n        (d.heard_about_anybike?'<div class="small">First heard about AnyBike: '+safe(d.heard_about_anybike)+'</div>':"")+\n        '<div class="small">Recorded '+fmtDate(d.created_at)+'</div></div>'\n      ).join("")\n    : '<div class="note-box">No buyer-discovery response recorded yet.</div>';\n\n  const journeyHtml=pages.length\n    ? pages.slice(0,20).map(p=>\n        '<div class="timeline-item"><strong>'+fmtDate(p.entered_at)+' · '+fmtSeconds(p.active_seconds)+'</strong>'+\n        '<div class="small">'+safe(p.page_title||p.path)+'</div><div class="small">'+safe(p.path)+'</div></div>'\n      ).join("")\n    : '<div class="note-box">No logged-in journey recorded in this period.</div>';\n\n  return '<h3>Customer Intelligence</h3>'+\n    '<div class="intel-summary-grid">'+\n      '<div class="intel-card"><span>Sessions</span><strong>'+Number(summary.sessions||0)+'</strong></div>'+\n      '<div class="intel-card"><span>Page Views</span><strong>'+Number(summary.page_views||0)+'</strong></div>'+\n      '<div class="intel-card"><span>Active Time</span><strong>'+fmtSeconds(summary.active_seconds)+'</strong></div>'+\n      '<div class="intel-card"><span>Market Context</span><strong>'+safe(market)+'</strong></div>'+\n    '</div>'+\n    '<div class="intel-columns"><div>'+\n      '<h3 class="section-title">Source & Attribution</h3>'+\n      '<div class="note-box intel-source"><strong>'+safe(sourceTitle)+'</strong>'+\n        '<div class="small" style="margin-top:5px">'+safe(sourceDetail)+'</div>'+\n        '<div class="small" style="margin-top:5px">'+(origin.source_record?safe(origin.source_record)+' · ':"")+(origin.origin_page_type?safe(origin.origin_page_type)+' · ':"")+(origin.event_at?fmtDate(origin.event_at):first.started_at?fmtDate(first.started_at):"")+'</div>'+\n        (first.referrer?'<div class="small">Referrer: '+safe(first.referrer)+'</div>':"")+\n      '</div>'+\n      '<h3 class="section-title">Top Brands</h3>'+brandHtml+\n      '<h3 class="section-title">Top Models</h3>'+modelHtml+\n    '</div><div>'+\n      '<h3 class="section-title">Where this buyer shops</h3>'+discoveryHtml+\n      '<h3 class="section-title">Recent Journey</h3><div class="timeline">'+journeyHtml+'</div>'+\n    '</div></div>';\n}\nfunction renderCustomerWorkspace(customer){
   const w=customerWorkspaceMap[String(customer.customerId)] || {};
   customer.workspace=w;
   const root=document.getElementById("customer-"+customer.id);
@@ -714,6 +724,8 @@ function renderCustomerWorkspace(customer){
     const panel=root.querySelector('[data-panel="'+name+'"]');
     if(panel)panel.innerHTML=html;
   };
+
+  setPanel("intelligence",renderCustomerIntelligence(customer,w));
 
   const messages=Array.isArray(w.messages)?w.messages:[];
   setPanel("messages",
@@ -888,15 +900,28 @@ async function ensureCustomerWorkspace(id,force){
   customerWorkspaceLoading[key]=(async()=>{
     const root=document.getElementById("customer-"+customer.id);
     if(root){
-      ["messages","enquiries","interests","deals","shipping","documents","notes","timeline"].forEach(name=>{
+      ["intelligence","messages","enquiries","interests","deals","shipping","documents","notes","timeline"].forEach(name=>{
         const panel=root.querySelector('[data-panel="'+name+'"]');
         if(panel && !customerWorkspaceMap[key])panel.innerHTML='<div class="note-box">Loading customer data…</div>';
       });
     }
 
-    const {data,error}=await sb.rpc("admin_get_customer_360_workspace_v1",{
-      p_customer_id:customer.customerId
-    });
+    const [workspaceResult,intelligenceResult]=await Promise.all([
+      sb.rpc("admin_get_customer_360_workspace_v1",{
+        p_customer_id:customer.customerId
+      }),
+      sb.rpc("admin_get_customer_intelligence_v1",{
+        p_customer_id:customer.customerId,
+        p_days:90
+      })
+    ]);
+
+    const data=workspaceResult.data;
+    const error=workspaceResult.error;
+
+    if(intelligenceResult.error){
+      console.warn("Customer intelligence could not be loaded",intelligenceResult.error);
+    }
 
     if(error){
       console.error("Customer 360 workspace could not be loaded",error);
@@ -910,7 +935,10 @@ async function ensureCustomerWorkspace(id,force){
       return;
     }
 
-    customerWorkspaceMap[key]=data||{};
+    customerWorkspaceMap[key]={
+      ...(data||{}),
+      intelligence:intelligenceResult?.data||{}
+    };
     renderCustomerWorkspace(customer);
   })();
 
@@ -1787,6 +1815,7 @@ function renderCustomers(){
             <section class="workspace-main">
               <div class="tabs">
                 <button class="tab-btn active" data-tab="profile" onclick="switchTab('${c.id}','profile')">Profile</button>
+                <button class="tab-btn" data-tab="intelligence" onclick="switchTab('${c.id}','intelligence')">Intelligence</button>
                 <button class="tab-btn" data-tab="communication" onclick="switchTab('${c.id}','communication')">Communication</button>
                 <button class="tab-btn" data-tab="messages" onclick="switchTab('${c.id}','messages')">Messages</button>
                 <button class="tab-btn" data-tab="enquiries" onclick="switchTab('${c.id}','enquiries')">Enquiries</button>
@@ -1818,6 +1847,10 @@ function renderCustomers(){
                   <div class="panel"><span>Sort Code</span><strong>${safe(c.bankSortCode)}</strong></div>
                   <div class="panel" style="grid-column:1/-1"><span>IBAN / SWIFT / International Notes</span><strong style="white-space:pre-wrap">${safe(c.bankInternationalNotes)}</strong></div>
                 </div>
+              </div>
+
+              <div class="tab-panel" data-panel="intelligence">
+                <div class="note-box">Open this customer to load source, market and browsing intelligence.</div>
               </div>
 
               <div class="tab-panel" data-panel="communication">
