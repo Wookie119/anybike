@@ -1438,6 +1438,7 @@ const {data:messageThread,error:threadCreateError}=await sb
     customer_phone:phone || null,
     country:values.country || null,
     source_type:"Global Buyer",
+    global_buyer_id:Number(buyerId),
     subject:threadSubject,
     department:"Global Buyer Network",
     status:"Needs Reply",
@@ -1469,19 +1470,11 @@ if(threadCreateError){
       created_at:threadNow
     });
 
-  await sb
-    .from("admin_notifications")
-    .insert({
-      title:"New Global Buyer",
-      message:
-        values.company_name +
-        " has submitted a Global Buyer Network request.",
-      icon:"🌍",
-      type:"global_buyer",
-      link:
-        "/admin-message-centre.html?thread=" +
-        encodeURIComponent(messageThread.id)
-    });
+  /*
+    Admin bell notification is created server-side by the
+    global_buyer_network database trigger. Customers must not be granted
+    permission to insert arbitrary admin_notifications.
+  */
 
   const {error:adminEmailError}=await sb.functions.invoke(
     "send-admin-message-notification",
