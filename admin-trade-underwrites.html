@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Trade Underwrite Desk | AnyBike Admin</title><meta name="robots" content="noindex,nofollow">
+<script>document.documentElement.classList.add("admin-auth-pending");</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/admin.js?v=12001"></script><link rel="stylesheet" href="/admin-shell.css?v=12001">
+<style>
+:root{--red:#ed1c24;--line:rgba(255,255,255,.12)}*{box-sizing:border-box}body{margin:0;background:#070707;color:#fff;font-family:Arial,Helvetica,sans-serif}
+.admin-page-content{padding:24px;max-width:1750px;margin:auto}.hero,.card{background:#111;border:1px solid var(--line);border-radius:20px}.hero{padding:25px;margin-bottom:16px;background:radial-gradient(circle at top right,rgba(237,28,36,.2),transparent 35%),#111}
+.eyebrow{color:var(--red);font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.12em}h1{margin:5px 0}p{color:#bbb;line-height:1.5}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.card{padding:17px}.top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.ref{font-size:19px;font-weight:900}.meta{font-size:12px;color:#888}.bike{font-size:23px;font-weight:900;margin:12px 0 3px}
+.data{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:12px 0}.box{background:#0b0b0b;border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:9px}.box span{display:block;color:#777;font-size:9px;text-transform:uppercase;font-weight:900}.box strong{display:block;margin-top:3px}
+button,.btn{border:0;border-radius:10px;padding:10px 13px;background:#292929;color:#fff;font-weight:900;cursor:pointer;text-decoration:none;display:inline-block}.red{background:var(--red)}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.78);display:none;align-items:center;justify-content:center;padding:20px;z-index:1000}.modal.open{display:flex}.modal-box{width:min(900px,100%);max-height:90vh;overflow:auto;background:#111;border:1px solid #444;border-radius:18px;padding:20px}
+table{width:100%;border-collapse:collapse;margin-top:12px}th,td{padding:9px;border-bottom:1px solid var(--line);text-align:left;font-size:13px}th{font-size:10px;color:#888;text-transform:uppercase}
+input{background:#090909;color:#fff;border:1px solid #333;border-radius:10px;padding:10px}.empty{padding:25px;text-align:center;color:#888;border:1px dashed #333;border-radius:14px}
+@media(max-width:950px){.grid{grid-template-columns:1fr}.data{grid-template-columns:1fr 1fr}}@media(max-width:600px){.admin-page-content{padding:14px}}
+</style></head>
+<body>
+<div class="admin-shell"><div id="adminSidebar"></div><div class="admin-main"><div id="adminTopbar"></div>
+<main class="admin-page-content">
+<section class="hero"><div class="eyebrow">AnyBike Buying Team</div><h1>Trade Underwrite Desk</h1>
+<p>AnyBike sees the commercial market. Sellers do not see bidder identities or bid values; they may only be told the number of genuine live bids. Any AnyBike offer is a separate decision.</p></section>
+<div id="grid" class="grid"><div class="empty">Loading…</div></div>
+</main></div></div>
+
+<div id="bidModal" class="modal"><div class="modal-box"><div class="top"><div><div class="eyebrow">Confidential Trade Bids</div><h3 id="bidTitle" style="margin:5px 0">Bids</h3></div><button onclick="closeBids()">Close</button></div><div id="bidList"></div></div></div>
+
+<div id="offerModal" class="modal"><div class="modal-box" style="width:min(560px,100%)"><h3>Make AnyBike Offer to Seller</h3>
+<p>This is AnyBike's own offer. The seller will not see trade bids or bidder identities.</p>
+<label>AnyBike offer (£)<input id="offerAmount" type="number" min="1" step="1"></label>
+<label style="margin-left:10px">Valid for hours<input id="offerHours" type="number" value="24" min="1" max="168"></label>
+<div class="actions"><button class="red" onclick="saveOffer()">Create AnyBike Offer</button><button onclick="closeOffer()">Cancel</button></div></div></div>
+
+<script>
+const SUPABASE_URL="https://tuehtnezhdnkqbbhttgp.supabase.co",SUPABASE_ANON_KEY="sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);let rows=[],offerId=null;
+const esc=v=>String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+const money=v=>v===null||v===undefined?"—":"£"+Number(v).toLocaleString("en-GB",{maximumFractionDigits:0});
+async function load(){
+ const {data,error}=await sb.rpc("admin_get_trade_underwrite_queue_v1");const host=document.getElementById("grid");
+ if(error){host.innerHTML='<div class="empty">'+esc(error.message)+'</div>';return;}rows=data||[];
+ if(!rows.length){host.innerHTML='<div class="empty">No trade underwrites yet.</div>';return;}
+ host.innerHTML=rows.map(r=>'<article class="card"><div class="top"><div><div class="ref">'+esc(r.reference)+'</div><div class="meta">'+esc(r.submission_reference)+' · '+esc(r.opportunity_status)+'</div></div><strong>'+esc(r.live_bid_count)+' live bid'+(Number(r.live_bid_count)===1?'':'s')+'</strong></div>'+
+ '<div class="bike">'+esc([r.make,r.model,r.variant].filter(Boolean).join(" "))+'</div><div class="meta">'+esc(r.registration||"")+(r.bike_year?' · '+r.bike_year:'')+(r.mileage!==null?' · '+Number(r.mileage).toLocaleString("en-GB")+' miles':'')+'</div>'+
+ '<div class="data"><div class="box"><span>Seller wants</span><strong>'+money(r.seller_price_wanted_gbp)+'</strong></div><div class="box"><span>Invited</span><strong>'+r.invited_trade_count+'</strong></div><div class="box"><span>Bid range</span><strong>'+money(r.lowest_live_bid_gbp)+' – '+money(r.highest_live_bid_gbp)+'</strong></div><div class="box"><span>Average</span><strong>'+money(r.average_live_bid_gbp)+'</strong></div></div>'+
+ '<div class="meta">Seller-visible genuine bid count: '+r.seller_visible_bid_count+' only. Bid amounts remain internal.</div>'+
+ '<div class="actions"><button onclick="viewBids('+r.opportunity_id+')">View Confidential Bids</button>'+
+ (r.opportunity_status==='live'?'<button onclick="closeUnderwrite('+r.opportunity_id+')">Close Underwrite</button>':'')+
+ '<button class="red" onclick="openOffer('+r.opportunity_id+','+(r.highest_live_bid_gbp??"null")+')">Make AnyBike Offer</button>'+
+ (r.latest_offer_amount_gbp?'<span class="btn">Latest seller offer '+money(r.latest_offer_amount_gbp)+' · '+esc(r.latest_offer_status)+'</span>':'')+
+ '</div></article>').join("");
+}
+async function viewBids(id){
+ const r=rows.find(x=>Number(x.opportunity_id)===Number(id));document.getElementById("bidTitle").textContent=(r?.reference||"Underwrite")+" · Confidential Bids";
+ document.getElementById("bidModal").classList.add("open");document.getElementById("bidList").innerHTML='<div class="empty">Loading…</div>';
+ const {data,error}=await sb.rpc("admin_get_trade_underwrite_bids_v1",{p_opportunity_id:id});
+ if(error){document.getElementById("bidList").innerHTML='<div class="empty">'+esc(error.message)+'</div>';return;}
+ const bids=data||[];document.getElementById("bidList").innerHTML=bids.length?'<table><thead><tr><th>Dealer</th><th>Bidder</th><th>Amount</th><th>Status</th><th>Notes</th><th>Submitted</th></tr></thead><tbody>'+bids.map(b=>'<tr><td>'+esc(b.dealer_name)+'</td><td>'+esc(b.bidder_email||"")+'</td><td><strong>'+money(b.amount_gbp)+'</strong></td><td>'+esc(b.status)+'</td><td>'+esc(b.notes||"")+'</td><td>'+new Date(b.submitted_at).toLocaleString("en-GB")+'</td></tr>').join("")+'</tbody></table>':'<div class="empty">No bids submitted.</div>';
+}
+function closeBids(){document.getElementById("bidModal").classList.remove("open");}
+async function closeUnderwrite(id){if(!confirm("Close this underwrite now?"))return;const {error}=await sb.rpc("admin_close_trade_underwrite_v1",{p_opportunity_id:id});if(error){alert(error.message);return;}await load();}
+function openOffer(id,high){offerId=id;document.getElementById("offerAmount").value=high||"";document.getElementById("offerModal").classList.add("open");}
+function closeOffer(){offerId=null;document.getElementById("offerModal").classList.remove("open");}
+async function saveOffer(){
+ const amount=Number(document.getElementById("offerAmount").value),hours=Number(document.getElementById("offerHours").value)||24;if(!amount){alert("Enter the AnyBike offer amount.");return;}
+ const {data,error}=await sb.rpc("admin_create_seller_underwrite_offer_v1",{p_opportunity_id:offerId,p_amount_gbp:amount,p_valid_hours:hours,p_internal_basis:{created_from:"trade_underwrite_desk"}});
+ if(error){alert(error.message);return;}alert("AnyBike seller offer created at "+money(data.amount_gbp)+".");closeOffer();await load();
+}
+(async()=>{const ok=await requireAdminSession();if(!ok)return;document.documentElement.classList.remove("admin-auth-pending");await load();})();
+</script></body></html>
