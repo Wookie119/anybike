@@ -131,7 +131,7 @@ function cardHtml(s,saved){
   return '<article class="scan-card" data-scan="'+id+'">'+
     '<div class="scan-head"><img class="thumb" src="'+esc(first)+'" onerror="this.src=\'/anybike-logo-new.jpg\'"><div style="flex:1"><div class="scan-title">'+esc([s.year,s.make,s.model,s.variant].filter(Boolean).join(" ")||"Advert needs review")+'</div>'+
     '<span class="tag '+(fail?"fail":"ready")+'">'+esc(s.scan_status||"review")+'</span><span class="tag">'+esc(s.source_domain||"source")+'</span>'+
-    (s.source_url?'<div style="margin-top:7px"><a class="source-link" href="'+esc(s.source_url)+'" target="_blank">Open original advert ↗</a></div>':'')+
+    (s.source_url?'<div style="margin-top:7px"><a class="source-link" href="'+esc(s.source_url)+'" target="_blank">Open original advert ↗</a></div>':'')+    (!fail?'<div style="margin-top:8px"><button type="button" class="btn green" onclick="addToLiveSource('+id+')">Save to Live Source Hub</button></div>':'')+
     (s.error?'<div class="status bad" style="margin-top:7px">'+esc(s.error)+'</div>':'')+'</div></div>'+
     '<div class="cols">'+
       '<div class="box secret"><h3>Internal seller/source — never shown to buyer</h3><div class="mini">'+
@@ -215,6 +215,25 @@ async function loadBatch(id){
   document.getElementById("batchSummary").style.display="block";
   document.getElementById("batchSummary").innerHTML='<div class="eyebrow">Saved sourcing batch #'+id+'</div><h2 style="margin:5px 0">'+esc(buyerName(data.buyer||{}))+'</h2><div class="muted">'+esc(data.request_item?[data.request_item.make,data.request_item.model].filter(Boolean).join(" "):"General sourcing")+' · '+scanned.length+' scanned adverts</div><div class="actions" style="margin-top:12px"><a class="btn" href="admin-used-bike-scanner.html">+ New batch</a><a class="btn" href="/services-and-fees.html" target="_blank">View AnyBike Fees ↗</a></div>';
   renderScans(true);
+}
+async function resolveLiveSourceConnector(s){
+  if(sourceConnectorId)return sourceConnectorId;
+  const {data,error}=await sb().rpc("admin_get_live_source_hub_v1");
+  if(error)return null;
+  const domain=String(s.source_domain||"").replace(/^www\./,"").toLowerCase();
+  const match=(data?.connectors||[]).find(c=>{
+    try{return new URL(c.base_url||c.results_url).hostname.replace(/^www\./,"").toLowerCase()===domain}catch{return false}
+  });
+  return match?.id||null;
+}
+async function addToLiveSource(k){
+  const s=collectCard(k);
+  if(!s)return;
+  const connectorId=await resolveLiveSourceConnector(s);
+  if(!connectorId){alert("This website is not yet added to Live Source Hub. Add it there first, then scan from that source.");return}
+  const {data,error}=await sb().rpc("admin_upsert_live_source_item_v1",{p_connector_id:Number(connectorId),p_item:s});
+  if(error){alert(error.message);return}
+  alert("Saved to Live Source Hub.");
 }
 async function saveScan(id){
   const s=collectCard(id);
