@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Used Bike Scanner | AnyBike Admin</title>
+<meta name="robots" content="noindex,nofollow">
+<script>document.documentElement.classList.add("admin-auth-pending");</script>
+<style>html.admin-auth-pending body{visibility:hidden}</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="admin.js?v=12000"></script>
+<link rel="stylesheet" href="admin-shell.css?v=12000">
+<style>
+:root{--red:#ed1c24;--line:rgba(255,255,255,.12);--muted:#aaa;--panel:#111;--panel2:#181818;--green:#43d17a;--amber:#ffbf47}
+*{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#080808;color:#fff}
+.page{display:flex;min-height:100vh}.main{flex:1;min-width:0}.content{padding:24px;max-width:1500px;margin:0 auto}
+.hero,.panel{background:#111;border:1px solid var(--line);border-radius:20px;padding:22px;margin-bottom:16px}
+.hero{background:radial-gradient(circle at top right,rgba(237,28,36,.22),transparent 38%),#111}
+.eyebrow{color:var(--red);font-size:12px;font-weight:900;letter-spacing:.12em;text-transform:uppercase}
+h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.field{display:grid;gap:6px}.field.full{grid-column:1/-1}.field label{font-size:12px;color:#bbb;font-weight:800}
+input,select,textarea{width:100%;background:#090909;color:#fff;border:1px solid #333;border-radius:10px;padding:11px;font:inherit}
+textarea{min-height:120px;resize:vertical}.btn{border:1px solid #333;background:#181818;color:#fff;border-radius:10px;padding:11px 15px;font-weight:900;cursor:pointer}.btn.red{background:var(--red);border-color:var(--red)}.btn.green{background:#123c25;border-color:#236b40}.btn:disabled{opacity:.45;cursor:not-allowed}
+.actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.status{color:#bbb;font-size:13px}.status.good{color:var(--green)}.status.bad{color:#ff7777}
+.scan-list{display:grid;gap:14px}.scan-card{background:#151515;border:1px solid var(--line);border-radius:16px;padding:15px}.scan-head{display:flex;gap:14px;align-items:flex-start}.thumb{width:150px;height:105px;object-fit:cover;background:#222;border-radius:10px}.scan-title{font-size:20px;font-weight:900}.tag{display:inline-block;border:1px solid #333;border-radius:999px;padding:5px 9px;font-size:12px;color:#bbb;margin:4px 5px 0 0}.tag.ready{color:#8df0ad;border-color:#315e40}.tag.fail{color:#ff8b8b;border-color:#6a3030}
+.cols{display:grid;grid-template-columns:1.15fr 1fr 1fr;gap:12px;margin-top:14px}.box{background:#0d0d0d;border:1px solid #282828;border-radius:12px;padding:12px}.box h3{font-size:13px;margin:0 0 10px;color:#ddd;text-transform:uppercase;letter-spacing:.08em}
+.mini{display:grid;grid-template-columns:1fr 1fr;gap:8px}.money{font-size:18px;font-weight:900}.secret{border-left:3px solid var(--red)}
+.check{display:flex;gap:8px;align-items:flex-start;margin-top:8px;font-size:13px;color:#ccc}.check input{width:auto;margin-top:2px}
+.note{font-size:12px;color:#999;line-height:1.45}.source-link{color:#ff7378;text-decoration:underline;word-break:break-all}.sharebar{position:sticky;bottom:10px;background:#0d0d0df2;border:1px solid #333;border-radius:16px;padding:14px;z-index:3}
+@media(max-width:1000px){.grid{grid-template-columns:1fr 1fr}.cols{grid-template-columns:1fr}.scan-head{flex-direction:column}.thumb{width:100%;height:200px}}
+@media(max-width:650px){.content{padding:12px}.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="page">
+  <div id="adminSidebar"></div>
+  <div class="main">
+    <div id="adminTopbar"></div>
+    <main class="content">
+      <section class="hero">
+        <div class="eyebrow">Sourcing · Internal only</div>
+        <h1>Used Bike Scanner</h1>
+        <p class="muted">Paste up to 20 live motorcycle adverts from different sources. AnyBike keeps the real seller/source privately, builds a separate buyer-safe record, and lets you price-check the motorcycles before sharing one private selection with the buyer.</p>
+      </section>
+
+      <section class="panel" id="newBatchPanel">
+        <div class="grid">
+          <div class="field"><label>Buyer</label><select id="buyerSelect"><option value="">Loading buyers…</option></select></div>
+          <div class="field"><label>Buyer request</label><select id="requestSelect"><option value="">Select buyer first</option></select></div>
+          <div class="field"><label>UK delivery allowance (£)</label><input id="deliveryAllowance" type="number" min="0" step="1" value="250"></div>
+          <div class="field"><label>AnyBike fees to add (£)</label><input id="feeAllowance" type="number" min="0" step="1" value="0"><a class="source-link" href="/services-and-fees.html" target="_blank">View AnyBike Fees ↗</a></div>
+          <div class="field full"><label>Advert URLs — one per line, maximum 20</label><textarea id="urlInput" placeholder="https://dealer.example/bike-1&#10;https://www.autotrader.co.uk/...&#10;https://www.ebay.co.uk/..."></textarea></div>
+        </div>
+        <div class="actions" style="margin-top:12px">
+          <button class="btn red" id="scanButton" onclick="scanUrls()">Scan adverts</button>
+          <button class="btn" id="saveBatchButton" onclick="saveNewBatch()" disabled>Save batch</button>
+          <span id="scanStatus" class="status"></span>
+        </div>
+      </section>
+
+      <section class="panel" id="batchSummary" style="display:none"></section>
+      <section class="scan-list" id="scanList"></section>
+
+      <section class="panel sharebar" id="sharePanel" style="display:none">
+        <div class="field">
+          <label>One message to the buyer</label>
+          <textarea id="shareMessage" style="min-height:100px"></textarea>
+        </div>
+        <div class="actions" style="margin-top:10px">
+          <button class="btn red" onclick="shareBatch()">Share selected motorcycles</button>
+          <span id="shareStatus" class="status"></span>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+<script>
+const sb=()=>getAdminSupabaseClient();
+let scanned=[];
+let currentBatchId=null;
+let currentBatch=null;
+let buyers=[];
+
+function esc(v){return String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;")}
+function gbp(v){const n=Number(v);return Number.isFinite(n)?new Intl.NumberFormat("en-GB",{style:"currency",currency:"GBP"}).format(n):"—"}
+function nval(id,def=0){const n=Number(document.getElementById(id)?.value);return Number.isFinite(n)?n:def}
+function urlLines(){return [...new Set(document.getElementById("urlInput").value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean))]}
+function buyerName(b){return b.business_name?b.business_name+" — "+(b.contact_name||b.email||""):b.contact_name||b.email||("Buyer "+b.id)}
+
+async function loadBuyers(){
+  const {data,error}=await sb().from("global_buyer_network").select("id,business_name,contact_name,email,country,archived_at").is("archived_at",null).order("created_at",{ascending:false}).limit(200);
+  if(error){document.getElementById("buyerSelect").innerHTML='<option value="">Could not load buyers</option>';return}
+  buyers=data||[];
+  document.getElementById("buyerSelect").innerHTML='<option value="">Choose buyer…</option>'+buyers.map(b=>'<option value="'+b.id+'">'+esc(buyerName(b))+'</option>').join("");
+  const q=new URLSearchParams(location.search);
+  if(q.get("buyer")){document.getElementById("buyerSelect").value=q.get("buyer");await loadRequests()}
+}
+async function loadRequests(){
+  const buyerId=document.getElementById("buyerSelect").value;
+  const el=document.getElementById("requestSelect");
+  if(!buyerId){el.innerHTML='<option value="">Select buyer first</option>';return}
+  const {data,error}=await sb().from("global_buyer_request_items").select("id,make,model,year_from,year_to,mileage_max,max_price_gbp,notes").eq("buyer_id",buyerId).order("id",{ascending:false});
+  if(error){el.innerHTML='<option value="">Could not load requests</option>';return}
+  el.innerHTML='<option value="">General sourcing</option>'+(data||[]).map(r=>'<option value="'+r.id+'">'+esc([r.make,r.model,r.year_from&&("from "+r.year_from),r.max_price_gbp&&("up to "+gbp(r.max_price_gbp))].filter(Boolean).join(" · "))+'</option>').join("");
+}
+document.getElementById("buyerSelect").addEventListener("change",loadRequests);
+
+async function scanUrls(){
+  const urls=urlLines();
+  if(!document.getElementById("buyerSelect").value){alert("Choose the buyer first.");return}
+  if(!urls.length||urls.length>20){alert("Paste between 1 and 20 advert URLs, one per line.");return}
+  const btn=document.getElementById("scanButton"),st=document.getElementById("scanStatus");
+  btn.disabled=true;st.className="status";st.textContent="Scanning "+urls.length+" live adverts…";
+  try{
+    const {data,error}=await sb().functions.invoke("scan-used-bike-advert",{body:{urls}});
+    if(error) throw error;
+    scanned=(data?.results||[]).map((x,i)=>({...x,_key:i,delivery_allowance_gbp:nval("deliveryAllowance",250),fee_allowance_gbp:nval("feeAllowance",0),selected_for_buyer:false,price_checked:false}));
+    renderScans(false);
+    document.getElementById("saveBatchButton").disabled=!scanned.length;
+    const ok=scanned.filter(x=>x.scan_status!=="failed").length,fail=scanned.length-ok;
+    st.className="status "+(ok?"good":"bad");st.textContent=ok+" scanned"+(fail?" · "+fail+" need attention":"");
+  }catch(e){st.className="status bad";st.textContent=e.message||"Scan failed"}
+  finally{btn.disabled=false}
+}
+
+function cardHtml(s,saved){
+  const id=saved?s.id:s._key;
+  const first=(Array.isArray(s.source_image_urls)?s.source_image_urls:[])[0]||"/anybike-logo-new.jpg";
+  const anyPrice=(Number(s.source_advertised_price_gbp)||0)+(Number(s.delivery_allowance_gbp)||0)+(Number(s.fee_allowance_gbp)||0);
+  const fail=s.scan_status==="failed";
+  return '<article class="scan-card" data-scan="'+id+'">'+
+    '<div class="scan-head"><img class="thumb" src="'+esc(first)+'" onerror="this.src=\'/anybike-logo-new.jpg\'"><div style="flex:1"><div class="scan-title">'+esc([s.year,s.make,s.model,s.variant].filter(Boolean).join(" ")||"Advert needs review")+'</div>'+
+    '<span class="tag '+(fail?"fail":"ready")+'">'+esc(s.scan_status||"review")+'</span><span class="tag">'+esc(s.source_domain||"source")+'</span>'+
+    (s.source_url?'<div style="margin-top:7px"><a class="source-link" href="'+esc(s.source_url)+'" target="_blank">Open original advert ↗</a></div>':'')+
+    (s.error?'<div class="status bad" style="margin-top:7px">'+esc(s.error)+'</div>':'')+'</div></div>'+
+    '<div class="cols">'+
+      '<div class="box secret"><h3>Internal seller/source — never shown to buyer</h3><div class="mini">'+
+        field(id,"seller_name","Seller / dealer",s.seller_name,saved)+field(id,"source_stock_id","Source stock / Bike ID",s.source_stock_id,saved)+
+        field(id,"seller_phone","Telephone",s.seller_phone,saved)+field(id,"seller_email","Email",s.seller_email,saved)+
+        field(id,"seller_address","Seller location",s.seller_address,saved)+field(id,"registration","Registration",s.registration,saved)+
+      '</div></div>'+
+      '<div class="box"><h3>Buyer-safe motorcycle</h3><div class="mini">'+
+        field(id,"make","Make",s.make,saved)+field(id,"model","Model",s.model,saved)+field(id,"variant","Variant",s.variant,saved)+field(id,"year","Year",s.year,saved)+field(id,"mileage","Mileage",s.mileage,saved)+field(id,"colour","Colour",s.colour,saved)+
+      '</div><div class="field" style="margin-top:8px"><label>Buyer description</label><textarea data-k="'+id+'" data-f="buyer_description">'+esc(s.buyer_description||"")+'</textarea></div>'+
+      '<label class="check"><input type="checkbox" data-k="'+id+'" data-f="approve_first_image" '+((s.buyer_image_urls||[]).length?"checked":"")+'><span>Approve first source image for this private buyer presentation <span class="note">(only where AnyBike is permitted to reuse it)</span></span></label></div>'+
+      '<div class="box"><h3>Price check</h3>'+
+        priceField(id,"source_advertised_price_gbp","Advertised seller price",s.source_advertised_price_gbp)+
+        priceField(id,"delivery_allowance_gbp","UK delivery allowance",s.delivery_allowance_gbp)+
+        priceField(id,"fee_allowance_gbp","AnyBike fees",s.fee_allowance_gbp)+
+        '<div class="note"><a class="source-link" href="/services-and-fees.html" target="_blank">View AnyBike Fees ↗</a></div>'+
+        '<div style="margin-top:9px">Suggested AnyBike price</div><div class="money" id="price-'+id+'">'+gbp(s.anybike_price_gbp??anyPrice)+'</div>'+
+        '<label class="check"><input type="checkbox" data-k="'+id+'" data-f="price_checked" '+(s.price_checked?"checked":"")+'><span>Price checked — happy to present this price</span></label>'+
+        '<label class="check"><input type="checkbox" data-k="'+id+'" data-f="selected_for_buyer" '+(s.selected_for_buyer?"checked":"")+'><span>Include in buyer selection</span></label>'+
+        (saved?'<button class="btn green" style="margin-top:10px" onclick="saveScan('+id+')">Save motorcycle</button>':'')+
+      '</div>'+
+    '</div></article>';
+}
+function field(k,f,label,v,saved){return '<div class="field"><label>'+label+'</label><input data-k="'+k+'" data-f="'+f+'" value="'+esc(v??"")+'"></div>'}
+function priceField(k,f,label,v){return '<div class="field" style="margin-bottom:7px"><label>'+label+' (£)</label><input type="number" min="0" step="1" data-k="'+k+'" data-f="'+f+'" value="'+esc(v??0)+'" oninput="recalc('+k+')"></div>'}
+function renderScans(saved){
+  document.getElementById("scanList").innerHTML=(scanned||[]).map(s=>cardHtml(s,saved)).join("");
+  if(saved){document.getElementById("sharePanel").style.display="block";buildMessage()}
+}
+function collectCard(k){
+  const s=scanned.find(x=>String(x.id??x._key)===String(k)); if(!s)return null;
+  document.querySelectorAll('[data-k="'+k+'"][data-f]').forEach(el=>{
+    const f=el.dataset.f;
+    if(f==="approve_first_image"){s.buyer_image_urls=el.checked&&Array.isArray(s.source_image_urls)&&s.source_image_urls[0]?[s.source_image_urls[0]]:[]}
+    else if(el.type==="checkbox")s[f]=el.checked;
+    else s[f]=el.value;
+  });
+  const src=Number(s.source_advertised_price_gbp)||0,del=Number(s.delivery_allowance_gbp)||0,fee=Number(s.fee_allowance_gbp)||0;
+  s.anybike_price_gbp=src?src+del+fee:null;
+  return s;
+}
+function recalc(k){const s=collectCard(k);if(s)document.getElementById("price-"+k).textContent=gbp(s.anybike_price_gbp)}
+
+async function saveNewBatch(){
+  scanned.forEach(s=>collectCard(s._key));
+  const buyer=Number(document.getElementById("buyerSelect").value),req=document.getElementById("requestSelect").value?Number(document.getElementById("requestSelect").value):null;
+  const payload=scanned.map(({_key,...s})=>s);
+  const st=document.getElementById("scanStatus");st.textContent="Saving batch…";
+  const {data,error}=await sb().rpc("admin_create_used_bike_scan_batch_v1",{p_buyer_id:buyer,p_request_item_id:req,p_scans:payload,p_delivery_allowance_gbp:nval("deliveryAllowance",250),p_fee_allowance_gbp:nval("feeAllowance",0)});
+  if(error){st.className="status bad";st.textContent=error.message;return}
+  currentBatchId=data;history.replaceState(null,"","?batch="+data);await loadBatch(data);
+  st.className="status good";st.textContent="Batch saved.";
+}
+
+async function loadBatch(id){
+  const {data,error}=await sb().rpc("admin_get_used_bike_scan_batch_v1",{p_batch_id:Number(id)});
+  if(error){document.getElementById("scanStatus").className="status bad";document.getElementById("scanStatus").textContent=error.message;return}
+  currentBatch=data;currentBatchId=Number(id);scanned=data.scans||[];
+  document.getElementById("newBatchPanel").style.display="none";
+  document.getElementById("batchSummary").style.display="block";
+  document.getElementById("batchSummary").innerHTML='<div class="eyebrow">Saved sourcing batch #'+id+'</div><h2 style="margin:5px 0">'+esc(buyerName(data.buyer||{}))+'</h2><div class="muted">'+esc(data.request_item?[data.request_item.make,data.request_item.model].filter(Boolean).join(" "):"General sourcing")+' · '+scanned.length+' scanned adverts</div><div class="actions" style="margin-top:12px"><a class="btn" href="admin-used-bike-scanner.html">+ New batch</a><a class="btn" href="/services-and-fees.html" target="_blank">View AnyBike Fees ↗</a></div>';
+  renderScans(true);
+}
+async function saveScan(id){
+  const s=collectCard(id);
+  const patch={source_advertised_price_gbp:s.source_advertised_price_gbp,delivery_allowance_gbp:s.delivery_allowance_gbp,fee_allowance_gbp:s.fee_allowance_gbp,make:s.make,model:s.model,variant:s.variant,year:s.year,mileage:s.mileage,colour:s.colour,registration:s.registration,buyer_description:s.buyer_description,seller_name:s.seller_name,seller_phone:s.seller_phone,seller_email:s.seller_email,seller_address:s.seller_address,source_stock_id:s.source_stock_id,buyer_image_urls:s.buyer_image_urls,price_checked:s.price_checked,selected_for_buyer:s.selected_for_buyer};
+  const {data,error}=await sb().rpc("admin_update_used_bike_scan_v1",{p_scan_id:Number(id),p_patch:patch});
+  if(error){alert(error.message);return}
+  Object.assign(s,data);recalc(id);buildMessage();
+}
+function buildMessage(){
+  if(document.getElementById("shareMessage").value.trim())return;
+  const name=(currentBatch?.buyer?.contact_name||"there").split(" ")[0];
+  const req=currentBatch?.request_item; const model=req?[req.make,req.model].filter(Boolean).join(" "):"motorcycles";
+  document.getElementById("shareMessage").value="Dear "+name+",\n\nGood news — we have found a hand-picked selection of "+model+" motorcycles that we think could suit your requirements.\n\nSimply review the motorcycles and mark each one Interested or Not Interested. If you are interested, we will check it is still available, confirm the purchase terms with the seller and send you an official AnyBike offer. The offer will include the agreed UK delivery to your chosen port and our applicable fees, so the price we quote is the price you pay to AnyBike.\n\nIf you accept our official offer, we will ask for a deposit and move quickly to secure the motorcycle for you.";
+}
+async function shareBatch(){
+  for(const s of scanned){collectCard(s.id);await saveScan(s.id)}
+  const ids=scanned.filter(s=>s.selected_for_buyer).map(s=>Number(s.id));
+  if(!ids.length){alert("Select at least one motorcycle.");return}
+  const st=document.getElementById("shareStatus");st.className="status";st.textContent="Sharing selection…";
+  const {data,error}=await sb().rpc("admin_share_used_bike_scan_batch_v1",{p_batch_id:currentBatchId,p_scan_ids:ids,p_message_text:document.getElementById("shareMessage").value});
+  if(error){st.className="status bad";st.textContent=error.message;return}
+  st.className="status good";st.innerHTML="Shared "+data.shared_count+" motorcycles in one message. Buyer page: <a class='source-link' target='_blank' href='"+esc(data.customer_url)+"'>open ↗</a>";
+}
+
+(async()=>{while(!window.anybikeAdminUser)await new Promise(r=>setTimeout(r,100));await loadBuyers();const q=new URLSearchParams(location.search);if(q.get("batch"))await loadBatch(q.get("batch"));})();
+</script>
+</body>
+</html>
