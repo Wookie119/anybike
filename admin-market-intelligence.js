@@ -1,7 +1,7 @@
 let marketDays=30;
 
 function miEsc(v){
-  return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]);
+  return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 }
 function miNum(v){return Number(v||0).toLocaleString("en-GB");}
 function miSeconds(v){
