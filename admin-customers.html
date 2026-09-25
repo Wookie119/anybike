@@ -408,9 +408,20 @@ textarea{width:100%;min-height:120px}
 .intel-tags{display:flex;flex-wrap:wrap;gap:8px}
 .intel-tag{display:inline-flex;align-items:center;gap:6px;padding:7px 10px;border:1px solid rgba(255,255,255,.12);border-radius:999px;background:#141414;font-size:12px;font-weight:900}
 .intel-tag b{color:var(--red)}
-.intel-columns{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.intel-source{border-left:3px solid var(--red)}
-@media(max-width:900px){.intel-columns{grid-template-columns:1fr}}
+.intel-columns{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(280px,.8fr);gap:14px}
+.intel-source{border-left:3px solid var(--red);padding:16px}
+.intel-source-title{font-size:18px;font-weight:900;margin-bottom:4px}
+.intel-source-url{color:#aaa;font-size:12px;overflow-wrap:anywhere}
+.intel-meta{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
+.intel-meta span{display:inline-flex;align-items:center;padding:6px 9px;border:1px solid rgba(255,255,255,.1);border-radius:999px;background:#141414;color:#ccc;font-size:11px;font-weight:850}
+.intel-section-card{background:#131313;border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:14px}
+.intel-journey{display:grid;gap:8px}
+.intel-journey .timeline-item{margin:0}
+.intel-journey-path{color:#aaa;font-size:12px;overflow-wrap:anywhere}
+.intel-discovery{min-height:100%}
+@media(max-width:1100px){.intel-columns{grid-template-columns:1fr}}
+@media(max-width:900px){.intel-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:620px){.intel-summary-grid{grid-template-columns:1fr}}
 
 @media(max-width:1200px){
   .control-grid{grid-template-columns:1fr}
@@ -714,6 +725,32 @@ function renderWorkspaceMessageThread(thread){
     </div>`;
 }
 
+function friendlyIntelPageName(value){
+  const raw=String(value||"").trim();
+  if(!raw)return "Unknown";
+  const clean=raw.split("?")[0].split("#")[0];
+  const file=clean.split("/").filter(Boolean).pop()||clean;
+  const map={
+    "anybike-connect.html":"AnyBike Connect",
+    "available-stock.html":"Available Stock",
+    "bike-details.html":"Bike Details",
+    "customer-messages.html":"My Messages",
+    "customer-dashboard.html":"My AnyBike",
+    "international-markets.html":"International Markets",
+    "motorcycle-inspection.html":"Motorcycle Inspection",
+    "motorcycle-collection.html":"UK Motorcycle Collection",
+    "export-crating.html":"Export Crating",
+    "shipping-advice.html":"Shipping Advice",
+    "freight-forwarders.html":"Freight Forwarders",
+    "services-and-fees.html":"Services & Fees"
+  };
+  if(map[file])return map[file];
+  if(file.endsWith(".html")){
+    return file.replace(/\.html$/i,"").split("-").map(x=>x.charAt(0).toUpperCase()+x.slice(1)).join(" ");
+  }
+  return raw;
+}
+
 function renderCustomerIntelligence(customer,w){
   const intel=w?.intelligence||{};
   const summary=intel.summary||{};
@@ -723,8 +760,10 @@ function renderCustomerIntelligence(customer,w){
   const models=Array.isArray(intel.top_models)?intel.top_models:[];
   const pages=Array.isArray(intel.recent_pages)?intel.recent_pages:[];
   const discovery=Array.isArray(intel.discovery_responses)?intel.discovery_responses:[];
-  const sourceTitle=origin.origin_page_title||origin.origin_page_url||first.landing_title||first.landing_path||"Unknown";
-  const sourceDetail=origin.origin_page_url||first.landing_path||"No attributable source recorded";
+
+  const rawSource=origin.origin_page_url||first.landing_path||"";
+  const sourceTitle=friendlyIntelPageName(origin.origin_page_title||origin.origin_page_url||first.landing_title||first.landing_path||"Unknown");
+  const sourceUrl=origin.origin_page_url||first.landing_path||"";
   const market=origin.origin_market_slug||first.country||customer.country||customer.destinationCountry||"Unknown";
 
   const brandHtml=brands.length
@@ -745,7 +784,7 @@ function renderCustomerIntelligence(customer,w){
     ? discovery.map(d=>
         '<div class="deal-card"><strong>'+safe(d.source_name||d.response_text||"Buyer discovery response")+'</strong>'+
         '<div class="small">'+safe(d.channel_type||d.response_type)+(d.country?' · '+safe(d.country):"")+'</div>'+
-        (d.source_url?'<div class="small">'+safe(d.source_url)+'</div>':"")+
+        (d.source_url?'<div class="intel-source-url">'+safe(d.source_url)+'</div>':"")+
         (d.heard_about_anybike?'<div class="small">First heard about AnyBike: '+safe(d.heard_about_anybike)+'</div>':"")+
         '<div class="small">Recorded '+fmtDate(d.created_at)+' · '+safe(d.identity_source||"Customer")+'</div></div>'
       ).join("")
@@ -754,10 +793,18 @@ function renderCustomerIntelligence(customer,w){
   const journeyHtml=pages.length
     ? pages.slice(0,20).map(p=>
         '<div class="timeline-item"><strong>'+fmtDate(p.entered_at)+' · '+fmtSeconds(p.active_seconds)+'</strong>'+
-        '<div class="small">'+safe(p.page_title||p.path)+'</div>'+
-        '<div class="small">'+safe(p.path)+' · '+safe(p.identity_source||"Logged in")+'</div></div>'
+        '<div class="small">'+safe(friendlyIntelPageName(p.page_title||p.path))+'</div>'+
+        '<div class="intel-journey-path">'+safe(p.path)+'</div>'+
+        '<div class="small">'+safe(p.identity_source||"Logged in")+'</div></div>'
       ).join("")
     : '<div class="note-box">No linked journey recorded in this period.</div>';
+
+  const sourceMeta=[];
+  if(origin.source_record)sourceMeta.push(safe(origin.source_record));
+  if(origin.origin_page_type)sourceMeta.push(safe(origin.origin_page_type));
+  if(first.identity_source)sourceMeta.push(safe(first.identity_source));
+  if(origin.event_at)sourceMeta.push(fmtDate(origin.event_at));
+  else if(first.started_at)sourceMeta.push(fmtDate(first.started_at));
 
   return '<h3>Customer Intelligence</h3>'+
     '<div class="intel-summary-grid">'+
@@ -768,20 +815,31 @@ function renderCustomerIntelligence(customer,w){
       '<div class="intel-card"><span>Visitor Links</span><strong>'+Number(summary.linked_visitor_ids||0)+'</strong></div>'+
       '<div class="intel-card"><span>Market Context</span><strong>'+safe(market)+'</strong></div>'+
     '</div>'+
-    '<div class="intel-columns"><div>'+
-      '<h3 class="section-title">Source & Attribution</h3>'+
-      '<div class="note-box intel-source"><strong>'+safe(sourceTitle)+'</strong>'+
-        '<div class="small" style="margin-top:5px">'+safe(sourceDetail)+'</div>'+
-        '<div class="small" style="margin-top:5px">'+(origin.source_record?safe(origin.source_record)+' · ':"")+(origin.origin_page_type?safe(origin.origin_page_type)+' · ':"")+(origin.event_at?fmtDate(origin.event_at):first.started_at?fmtDate(first.started_at):"")+'</div>'+
-        (first.referrer?'<div class="small">Referrer: '+safe(first.referrer)+'</div>':"")+
-        (first.identity_source?'<div class="small">Identity: '+safe(first.identity_source)+'</div>':"")+
+
+    '<h3 class="section-title">Source & Attribution</h3>'+
+    '<div class="note-box intel-source">'+
+      '<div class="intel-source-title">'+safe(sourceTitle)+'</div>'+
+      (sourceUrl?'<div class="intel-source-url">'+safe(sourceUrl)+'</div>':"")+
+      (first.referrer?'<div class="intel-source-url" style="margin-top:6px">Referrer: '+safe(first.referrer)+'</div>':"")+
+      (sourceMeta.length?'<div class="intel-meta">'+sourceMeta.map(x=>'<span>'+x+'</span>').join("")+'</div>':"")+
+    '</div>'+
+
+    '<div class="intel-columns" style="margin-top:14px">'+
+      '<div>'+
+        '<div class="intel-section-card">'+
+          '<h3 style="margin-top:0">Top Brands</h3>'+brandHtml+
+          '<h3 class="section-title">Top Models</h3>'+modelHtml+
+        '</div>'+
       '</div>'+
-      '<h3 class="section-title">Top Brands</h3>'+brandHtml+
-      '<h3 class="section-title">Top Models</h3>'+modelHtml+
-    '</div><div>'+
-      '<h3 class="section-title">Where this buyer shops</h3>'+discoveryHtml+
-      '<h3 class="section-title">Recent Journey</h3><div class="timeline">'+journeyHtml+'</div>'+
-    '</div></div>';
+      '<div>'+
+        '<div class="intel-section-card intel-discovery">'+
+          '<h3 style="margin-top:0">Where this buyer shops</h3>'+discoveryHtml+
+        '</div>'+
+      '</div>'+
+    '</div>'+
+
+    '<h3 class="section-title">Recent Journey</h3>'+
+    '<div class="intel-section-card"><div class="intel-journey">'+journeyHtml+'</div></div>';
 }
 function renderCustomerWorkspace(customer){
   const w=customerWorkspaceMap[String(customer.customerId)] || {};
