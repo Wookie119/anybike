@@ -48,7 +48,7 @@ textarea{min-height:120px;resize:vertical;white-space:pre-wrap;overflow-wrap:any
           <div class="field"><label>Buyer</label><select id="buyerSelect"><option value="">Loading buyers…</option></select></div>
           <div class="field"><label>Buyer request</label><select id="requestSelect"><option value="">Select buyer first</option></select></div>
           <div class="field"><label>1. UK delivery allowance (£)</label><input id="deliveryAllowance" type="number" min="0" step="1" value="250"><div class="note">Added to every bike in this batch.</div></div>
-          <div class="field"><label>AnyBike Buyer Fee</label><div class="box" style="padding:11px"><strong>Calculated per motorcycle from RRP</strong><div class="note" style="margin-top:5px">Each scanned bike gets its own RRP and fee band. The fee is not set for the whole batch.</div><a class="source-link" href="/services-and-fees.html" target="_blank">View AnyBike Fees ↗</a></div></div>
+          <div class="field"><label>AnyBike Buyer Fee</label><div class="box" style="padding:11px"><strong>Calculated per motorcycle from its selling price</strong><div class="note" style="margin-top:5px">The fee band is calculated automatically for each scanned bike.</div><a class="source-link" href="/services-and-fees.html" target="_blank">View AnyBike Fees ↗</a></div></div>
           <div class="field full"><label>Advert URLs — maximum 20</label><textarea id="urlInput" wrap="soft" spellcheck="false" placeholder="Paste each advert URL here. Long URLs will wrap onto several visible lines automatically.&#10;&#10;https://dealer.example/bike-1&#10;https://www.autotrader.co.uk/...&#10;https://www.ebay.co.uk/..."></textarea><div class="note">You do not need to see the whole URL on one line — long links wrap automatically. Put each new advert on a new paragraph/line.</div></div>
         </div>
         <div class="actions" style="margin-top:12px">
@@ -114,7 +114,7 @@ async function scanUrls(){
   try{
     const {data,error}=await sb().functions.invoke("scan-used-bike-advert",{body:{urls}});
     if(error) throw error;
-    scanned=(data?.results||[]).map((x,i)=>{const fee=anybikeFeeFromRrp(x.rrp_gbp);const src=Number(x.source_advertised_price_gbp)||0;const delivery=nval("deliveryAllowance",250);return {...x,_key:i,delivery_allowance_gbp:delivery,fee_allowance_gbp:fee,anybike_price_gbp:src?src+delivery+fee:null,selected_for_buyer:false,price_checked:false};});
+    scanned=(data?.results||[]).map((x,i)=>{const fee=anybikeFeeFromPrice(x.source_advertised_price_gbp);const src=Number(x.source_advertised_price_gbp)||0;const delivery=nval("deliveryAllowance",250);return {...x,_key:i,delivery_allowance_gbp:delivery,fee_allowance_gbp:fee,anybike_price_gbp:src?src+delivery+fee:null,selected_for_buyer:false,price_checked:false};});
     renderScans(false);
     document.getElementById("saveBatchButton").disabled=!scanned.length;
     const ok=scanned.filter(x=>x.scan_status!=="failed").length,fail=scanned.length-ok;
@@ -143,12 +143,12 @@ function cardHtml(s,saved){
         field(id,"make","Make",s.make,saved)+field(id,"model","Model",s.model,saved)+field(id,"variant","Variant",s.variant,saved)+field(id,"year","Year",s.year,saved)+field(id,"mileage","Mileage",s.mileage,saved)+field(id,"colour","Colour",s.colour,saved)+
       '</div><div class="field" style="margin-top:8px"><label>Buyer description</label><textarea data-k="'+id+'" data-f="buyer_description">'+esc(s.buyer_description||"")+'</textarea></div>'+
       '<label class="check"><input type="checkbox" data-k="'+id+'" data-f="approve_first_image" '+((s.buyer_image_urls||[]).length?"checked":"")+'><span>Approve first source image for this private buyer presentation <span class="note">(only where AnyBike is permitted to reuse it)</span></span></label></div>'+
-      '<div class="box"><h3>Price check</h3>'+(Number(s.source_advertised_price_gbp)>0?"":'<div class="status bad" style="margin-bottom:9px">Advert price was not extracted — enter the seller advertised price below.</div>')+(Number(s.rrp_gbp)>0?'<div class="status good" style="margin-bottom:9px">RRP found: '+gbp(s.rrp_gbp)+(s.rrp_source?' · '+esc(s.rrp_source):'')+'</div>':'<div class="status bad" style="margin-bottom:9px">RRP was not found in the advert — enter it below so AnyBike can calculate the correct Buyer Fee.</div>')+
+      '<div class="box"><h3>Price check</h3>'+(Number(s.source_advertised_price_gbp)>0?"":'<div class="status bad" style="margin-bottom:9px">Advert price was not extracted — enter the seller advertised price below.</div>')
         priceField(id,"source_advertised_price_gbp","1. Seller advertised price",s.source_advertised_price_gbp)+priceField(id,"rrp_gbp","2. RRP / original retail price",s.rrp_gbp)+
         priceField(id,"delivery_allowance_gbp","3. Add UK delivery allowance",s.delivery_allowance_gbp)+
         '<div class="field" style="margin-bottom:7px"><label>4. AnyBike Buyer Fee from RRP</label><input type="text" id="fee-'+id+'" value="'+gbp(s.fee_allowance_gbp||0)+'" readonly></div>'+
         '<div class="note"><a class="source-link" href="/services-and-fees.html" target="_blank">View AnyBike Fees ↗</a></div>'+
-        '<div style="margin-top:9px;font-weight:900">= Buyer-facing AnyBike price</div><div class="money" id="price-'+id+'">'+(Number(s.source_advertised_price_gbp)>0?gbp(s.anybike_price_gbp??anyPrice):"Enter seller price")+'</div><div class="note">Buyer sees this final AnyBike price only. Seller price, delivery allowance and margin stay internal.</div>'+
+        '<div style="margin-top:9px;font-weight:900">= Buyer-facing AnyBike price</div><div class="money" id="price-'+id+'">'+(Number(s.source_advertised_price_gbp)>0?gbp(s.anybike_price_gbp??anyPrice):"Enter seller price")+'</div><div class="note">Buyer sees this final AnyBike price only. Seller price, delivery allowance and AnyBike fee calculation stay internal.</div>'+
         '<label class="check"><input type="checkbox" data-k="'+id+'" data-f="price_checked" '+(s.price_checked?"checked":"")+'><span>Price checked — happy to present this price</span></label>'+
         '<label class="check"><input type="checkbox" data-k="'+id+'" data-f="selected_for_buyer" '+(s.selected_for_buyer?"checked":"")+'><span>Include in buyer selection</span></label>'+
         (saved?'<button class="btn green" style="margin-top:10px" onclick="saveScan('+id+')">Save motorcycle</button>':'')+
@@ -185,7 +185,7 @@ function collectCard(k){
   s.anybike_price_gbp=src?src+del+fee:null;
   return s;
 }
-function recalc(k){const s=collectCard(k);if(!s)return;const feeEl=document.getElementById("fee-"+k);if(feeEl)feeEl.value=Number(s.rrp_gbp)>0?gbp(s.fee_allowance_gbp):"Enter RRP";document.getElementById("price-"+k).textContent=Number(s.source_advertised_price_gbp)>0&&Number(s.rrp_gbp)>0?gbp(s.anybike_price_gbp):Number(s.source_advertised_price_gbp)>0?"Enter RRP":"Enter seller price"}
+function recalc(k){const s=collectCard(k);if(!s)return;const feeEl=document.getElementById("fee-"+k);if(feeEl)feeEl.value=Number(s.source_advertised_price_gbp)>0?gbp(s.fee_allowance_gbp):"Enter motorcycle price";document.getElementById("price-"+k).textContent=Number(s.source_advertised_price_gbp)>0?gbp(s.anybike_price_gbp):"Enter motorcycle price"}
 
 async function saveNewBatch(){
   scanned.forEach(s=>collectCard(s._key));
@@ -209,7 +209,7 @@ async function loadBatch(id){
 }
 async function saveScan(id){
   const s=collectCard(id);
-  const patch={source_advertised_price_gbp:s.source_advertised_price_gbp,rrp_gbp:s.rrp_gbp,rrp_source:s.rrp_source||"",delivery_allowance_gbp:s.delivery_allowance_gbp,make:s.make,model:s.model,variant:s.variant,year:s.year,mileage:s.mileage,colour:s.colour,registration:s.registration,buyer_description:s.buyer_description,seller_name:s.seller_name,seller_phone:s.seller_phone,seller_email:s.seller_email,seller_address:s.seller_address,source_stock_id:s.source_stock_id,buyer_image_urls:s.buyer_image_urls,price_checked:s.price_checked,selected_for_buyer:s.selected_for_buyer};
+  const patch={source_advertised_price_gbp:s.source_advertised_price_gbp,delivery_allowance_gbp:s.delivery_allowance_gbp,make:s.make,model:s.model,variant:s.variant,year:s.year,mileage:s.mileage,colour:s.colour,registration:s.registration,buyer_description:s.buyer_description,seller_name:s.seller_name,seller_phone:s.seller_phone,seller_email:s.seller_email,seller_address:s.seller_address,source_stock_id:s.source_stock_id,buyer_image_urls:s.buyer_image_urls,price_checked:s.price_checked,selected_for_buyer:s.selected_for_buyer};
   const {data,error}=await sb().rpc("admin_update_used_bike_scan_v1",{p_scan_id:Number(id),p_patch:patch});
   if(error){alert(error.message);return}
   Object.assign(s,data);recalc(id);buildMessage();
