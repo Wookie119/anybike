@@ -1483,7 +1483,7 @@ function getCustomerReturnLoginUrl(){
     window.location.search +
     window.location.hash;
 
-  return "/customer-register.html?return=" +
+  return "/customer-login.html?return=" +
     encodeURIComponent(returnUrl);
 }
 
