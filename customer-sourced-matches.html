@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Your Motorcycle Matches | AnyBike</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" href="/anybike-logo-new.jpg" type="image/jpeg">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="/public-header.css?v=12001">
+<style>
+:root{--red:#ed1c24;--line:#e5e5e5;--muted:#666}
+*{box-sizing:border-box}body{margin:0;background:#f5f5f5;color:#111;font-family:Arial,Helvetica,sans-serif}
+main{max-width:1200px;margin:0 auto;padding:28px 18px 60px}.hero,.card,.how{background:#fff;border:1px solid var(--line);border-radius:18px}
+.hero{padding:24px;margin-bottom:18px}.eyebrow{font-size:12px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;color:var(--red)}
+h1{font-size:34px;margin:6px 0 10px}.intro{white-space:pre-line;line-height:1.6;color:#333}.fee-link{display:inline-block;margin-top:12px;color:#b20f16;font-weight:800}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.card{overflow:hidden;display:flex;flex-direction:column}
+.photo{width:100%;height:230px;object-fit:cover;background:#111}.body{padding:16px;display:flex;flex-direction:column;gap:10px;flex:1}.title{font-size:21px;font-weight:900}.facts{display:flex;gap:8px;flex-wrap:wrap}.pill{background:#f0f0f0;border-radius:999px;padding:6px 9px;font-size:12px;font-weight:800}.price{font-size:25px;font-weight:950}.desc{color:#555;line-height:1.5}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto}.btn{border:1px solid #ccc;background:#fff;border-radius:10px;padding:10px 13px;font-weight:900;cursor:pointer}.btn.red{background:var(--red);border-color:var(--red);color:#fff}.btn.dark{background:#111;border-color:#111;color:#fff}.response{font-weight:900;margin-top:4px}.response.good{color:#157b3c}.response.no{color:#777}
+.reason{display:none;margin-top:8px}.reason select{width:100%;padding:10px;border:1px solid #ccc;border-radius:9px;background:#fff}
+.how{padding:20px;margin-top:18px}.how h2{margin-top:0}.how p{color:#555;line-height:1.55}.status{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px}
+@media(max-width:900px){.grid{grid-template-columns:1fr 1fr}}@media(max-width:620px){.grid{grid-template-columns:1fr}h1{font-size:28px}.photo{height:250px}}
+</style>
+</head>
+<body>
+<div id="publicHeader"></div>
+<main>
+  <section class="hero" id="hero"><div class="eyebrow">Your AnyBike selection</div><h1>Loading your motorcycle matches…</h1></section>
+  <div id="status" class="status">Checking your secure AnyBike account…</div>
+  <section class="grid" id="matchGrid" style="display:none"></section>
+  <section class="how" id="how" style="display:none">
+    <h2>What happens next?</h2>
+    <p>Mark any motorcycle <strong>Interested</strong> and AnyBike will check that it is still available, confirm the purchase terms with the seller and prepare an official AnyBike offer. The official offer will show the amount payable to AnyBike, including the agreed UK delivery to your chosen port and applicable AnyBike fees.</p>
+    <p>If you accept the official offer, we will ask for the required deposit and move quickly to secure the motorcycle for you.</p>
+    <a class="fee-link" href="/services-and-fees.html" target="_blank">View AnyBike Services &amp; Fees ↗</a>
+  </section>
+</main>
+<script src="/public-header.js?v=12006"></script>
+<script>
+const SUPABASE_URL="https://tuehtnezhdnkqbbhttgp.supabase.co";
+const SUPABASE_ANON_KEY="sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+const batchId=Number(new URLSearchParams(location.search).get("batch"));
+let payload=null;
+function esc(v){return String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;")}
+function gbp(v){const n=Number(v);return Number.isFinite(n)?new Intl.NumberFormat("en-GB",{style:"currency",currency:"GBP",maximumFractionDigits:0}).format(n):"Price on request"}
+function title(s){return [s.year,s.make,s.model,s.variant].filter(Boolean).join(" ")||"Motorcycle match"}
+function imageUrl(s){return Array.isArray(s.image_urls)&&s.image_urls[0]?s.image_urls[0]:"/anybike-logo-new.jpg"}
+function facts(s){return [s.mileage!=null?Number(s.mileage).toLocaleString("en-GB")+" miles":"",s.colour||"",s.engine_cc?Number(s.engine_cc).toLocaleString("en-GB")+" cc":""].filter(Boolean)}
+function render(){
+  const b=payload.batch||{},buyer=payload.buyer||{},scans=payload.scans||[];
+  const first=(buyer.contact_name||"").split(" ")[0]||"there";
+  const request=payload.request||{};
+  const reqName=[request.make,request.model].filter(Boolean).join(" ");
+  document.getElementById("hero").innerHTML='<div class="eyebrow">Your AnyBike selection</div><h1>'+esc(reqName?("Your "+reqName+" matches"):"Your motorcycle matches")+'</h1>'+
+    '<div class="intro">'+esc(b.message_text||("Dear "+first+",\n\nGood news — we have found a hand-picked selection of motorcycles that could suit your requirements. Simply mark each one Interested or Not Interested."))+'</div>'+
+    '<a class="fee-link" href="/services-and-fees.html" target="_blank">View AnyBike Services &amp; Fees ↗</a>';
+  document.getElementById("status").style.display="none";
+  const grid=document.getElementById("matchGrid");grid.style.display="grid";
+  grid.innerHTML=scans.map(s=>'<article class="card" id="card-'+s.id+'">'+
+    '<img class="photo" src="'+esc(imageUrl(s))+'" onerror="this.src=\'/anybike-logo-new.jpg\'">'+
+    '<div class="body"><div class="title">'+esc(title(s))+'</div>'+
+    '<div class="facts">'+facts(s).map(f=>'<span class="pill">'+esc(f)+'</span>').join("")+'</div>'+
+    '<div class="price">'+gbp(s.price_gbp)+'</div>'+
+    '<div class="desc">'+esc(s.description||"Selected by AnyBike for your requirements.")+'</div>'+
+    '<div class="response '+(s.response==="Interested"?"good":s.response==="Not Interested"?"no":"")+'" id="resp-'+s.id+'">'+esc(s.response||"")+'</div>'+
+    '<div class="actions"><button class="btn red" onclick="respond('+s.id+',\'Interested\')">Interested</button><button class="btn dark" onclick="toggleReason('+s.id+')">Not Interested</button></div>'+
+    '<div class="reason" id="reason-'+s.id+'"><select id="reasonSelect-'+s.id+'"><option value="">Choose a reason (optional)</option><option>Price too high</option><option>Mileage too high</option><option>Too old</option><option>Wrong colour / specification</option><option>I prefer a different make or model</option><option>Show me something else</option><option>Other</option></select><button class="btn" style="margin-top:8px" onclick="respond('+s.id+',\'Not Interested\')">Send feedback</button></div>'+
+    '</div></article>').join("");
+  document.getElementById("how").style.display="block";
+}
+function toggleReason(id){const e=document.getElementById("reason-"+id);e.style.display=e.style.display==="block"?"none":"block"}
+async function respond(id,response){
+  const reason=response==="Not Interested"?(document.getElementById("reasonSelect-"+id)?.value||""):null;
+  const el=document.getElementById("resp-"+id);el.className="response";el.textContent="Saving…";
+  const {data,error}=await sb.rpc("customer_respond_used_bike_scan_v1",{p_scan_id:id,p_response:response,p_reason:reason});
+  if(error){el.textContent="Could not save your response. Please try again.";return}
+  el.textContent=data.response+(data.reason?" — "+data.reason:"");el.className="response "+(data.response==="Interested"?"good":"no");
+  const r=document.getElementById("reason-"+id);if(r)r.style.display="none";
+}
+async function init(){
+  if(!batchId){document.getElementById("status").textContent="This selection link is incomplete.";return}
+  const {data:{session}}=await sb.auth.getSession();
+  if(!session){
+    const ret=location.pathname+location.search;
+    location.replace("/customer-login.html?return="+encodeURIComponent(ret));
+    return;
+  }
+  const {data,error}=await sb.rpc("customer_get_used_bike_scan_batch_v1",{p_batch_id:batchId});
+  if(error){document.getElementById("status").textContent="We could not open this selection. Please make sure you are signed into the AnyBike account it was sent to.";return}
+  payload=data;render();
+}
+init();
+</script>
+</body>
+</html>
