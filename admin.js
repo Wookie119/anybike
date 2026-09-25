@@ -213,7 +213,7 @@ async function adminLogout(){
 
 function loadAdminShell(){
 
-fetch("admin-sidebar.html?v=4000")
+fetch("admin-sidebar.html?v=4001")
 .then(function(res){
 return res.text();
 })
