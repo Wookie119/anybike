@@ -39,6 +39,16 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
         <p class="muted">Saved external motorcycle sources feed one internal sourcing pool. A motorcycle disappearing from a source is <strong>not deleted</strong>: it is marked No Longer Listed, kept for history, and excluded from new buyer batches.</p>
       </section>
 
+      <section class="panel">
+        <div class="eyebrow">Add another website</div>
+        <div class="filters" style="grid-template-columns:1.1fr 2fr 1fr auto;margin-top:10px">
+          <div class="field"><label>Source name</label><input id="newSourceName" placeholder="e.g. Auto Trader UK"></div>
+          <div class="field"><label>Search / results URL</label><input id="newSourceUrl" placeholder="https://..."></div>
+          <div class="field"><label>Adapter key (optional)</label><input id="newAdapterKey" placeholder="generic / source-specific"></div>
+          <button class="btn red" onclick="addSource()">Add Source</button>
+        </div>
+        <div class="status" id="sourceAddStatus" style="margin-top:8px">Add websites here. If a site needs special extraction rules, we can give it its own adapter without changing the buyer workflow.</div>
+      </section>
       <section class="sources" id="sources"></section>
 
       <section class="panel">
@@ -77,6 +87,19 @@ function gbp(v){const n=Number(v);return Number.isFinite(n)?new Intl.NumberForma
 function date(v){if(!v)return"Never";try{return new Date(v).toLocaleString("en-GB")}catch{return v}}
 function firstImg(i){return Array.isArray(i.source_image_urls)&&i.source_image_urls[0]?i.source_image_urls[0]:"/anybike-logo-new.jpg"}
 
+async function addSource(){
+  const name=document.getElementById("newSourceName").value.trim();
+  const url=document.getElementById("newSourceUrl").value.trim();
+  const adapter=document.getElementById("newAdapterKey").value.trim()||null;
+  const st=document.getElementById("sourceAddStatus");
+  if(!name||!url){st.className="status bad";st.textContent="Enter a source name and URL.";return}
+  st.className="status";st.textContent="Adding source…";
+  const {data,error}=await sb().rpc("admin_save_live_source_connector_v1",{p_id:null,p_name:name,p_results_url:url,p_adapter_key:adapter,p_notes:null});
+  if(error){st.className="status bad";st.textContent=error.message;return}
+  st.className="status good";st.textContent="Source added.";
+  document.getElementById("newSourceName").value="";document.getElementById("newSourceUrl").value="";document.getElementById("newAdapterKey").value="";
+  await loadHub();
+}
 async function loadHub(){
   const {data,error}=await sb().rpc("admin_get_live_source_hub_v1");
   if(error){document.getElementById("sources").innerHTML='<div class="status bad">'+esc(error.message)+'</div>';return}
