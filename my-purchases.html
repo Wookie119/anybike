@@ -712,6 +712,37 @@ main{
   font-weight:900;
   cursor:pointer;
 }
+
+.storage-card{
+  margin:12px 0;
+  padding:14px;
+  border:1px solid rgba(255,159,28,.32);
+  border-radius:12px;
+  background:rgba(255,159,28,.06);
+}
+.storage-card-head{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  align-items:flex-start;
+  flex-wrap:wrap;
+}
+.storage-card strong{display:block;color:#fff}
+.storage-card span{display:block;color:#bbb;font-size:12px;line-height:1.45;margin-top:4px}
+.storage-charge{
+  text-align:right;
+}
+.storage-charge b{
+  display:block;
+  color:#ffc46e;
+  font-size:20px;
+}
+.storage-charge small{color:#999}
+.storage-card.waived{
+  border-color:rgba(54,211,126,.35);
+  background:rgba(54,211,126,.06);
+}
+.storage-card.waived .storage-charge b{color:#a7ffc7}
 .step.current-shipping{
   border-color:rgba(255,159,28,.72);
   background:rgba(255,159,28,.14);
@@ -861,7 +892,7 @@ function purchaseState(purchase){
     message="Your motorcycle has been handed over to the agreed UK shipper / freight forwarder.";
   }else if(collected){
     heading="Collected";
-    message="Your motorcycle has been collected from the seller and is now moving through the UK handover / shipping stage.";
+    message="Your motorcycle has been collected and is now moving through the secure UK custody / shipping stage.";
   }else if(secured && fullyPaid){
     heading="Motorcycle Secured";
     message="Your motorcycle is secured and paid in full. AnyBike is preparing the collection and UK handover.";
@@ -873,7 +904,7 @@ function purchaseState(purchase){
     message="Your AnyBike offer has been accepted. The required payment is still outstanding.";
   }else{
     heading="Purchase Confirmed";
-    message="Your offer is accepted and AnyBike is completing the seller-side purchase arrangements.";
+    message="Your offer is accepted and AnyBike is completing the purchase arrangements.";
   }
 
   let paymentStatus=String(purchase.customer_payment_status||"").trim();
@@ -926,6 +957,37 @@ function collectionJobCustomerLabel(status){
   if(value==="ready_to_load")return "Ready to collect";
   if(value==="collected")return "Collected";
   return value ? value.replaceAll("_"," ") : "";
+}
+
+
+function buyerStorageHtml(purchase,state){
+  if(!state.collected || !purchase.storage_status)return "";
+  const waived=!!purchase.storage_charge_waived;
+  const status=String(purchase.storage_status||"");
+  const charge=Number(purchase.storage_current_charge_gbp||0);
+  const rate=Number(purchase.storage_daily_rate_gbp||0);
+  const chargeable=purchase.storage_chargeable_from
+    ? new Date(purchase.storage_chargeable_from).toLocaleString("en-GB")
+    : "";
+  const released=!!purchase.storage_released_at || status==="stopped";
+
+  let message="Your motorcycle is in secure UK custody while onward handover is arranged.";
+  if(released)message="Secure UK storage has ended because the motorcycle has moved to its onward handover stage.";
+  else if(waived)message="AnyBike has waived the current storage charge.";
+  else if(status==="paused")message="The storage charging clock is currently paused.";
+  else if(chargeable && rate>0)message="Storage is free until "+chargeable+". Charges after that time are shown below.";
+
+  return '<div class="storage-card '+(waived?"waived":"")+'">'+
+    '<div class="storage-card-head">'+
+      '<div><strong>Secure UK Storage</strong><span>'+safe(message)+'</span>'+
+      ((!released&&!waived&&rate>0&&chargeable)?'<span>Rate after free period: '+money(rate)+' per day</span>':"")+
+      '</div>'+
+      '<div class="storage-charge">'+
+        '<small>Current storage charge</small>'+
+        '<b>'+(waived?"Waived":money(charge))+'</b>'+
+      '</div>'+
+    '</div>'+
+  '</div>';
 }
 
 function purchaseCard(purchase){
@@ -1024,7 +1086,7 @@ function purchaseCard(purchase){
             <div class="collection-card-head">
               <div>
                 <strong>UK Collection · ${safe(collectionJobCustomerLabel(purchase.collection_job_status))}</strong>
-                <span>${purchase.collection_job_date ? "Planned collection date: "+safe(new Date(purchase.collection_job_date+"T00:00:00").toLocaleDateString("en-GB")) : "AnyBike and Move Motorcycles are arranging collection from the seller."}</span>
+                <span>${purchase.collection_job_date ? "Planned collection date: "+safe(new Date(purchase.collection_job_date+"T00:00:00").toLocaleDateString("en-GB")) : "AnyBike and Move Motorcycles are arranging collection."}</span>
               </div>
             </div>
           </div>
@@ -1044,6 +1106,8 @@ function purchaseCard(purchase){
             <div id="my-collection-report-${Number(purchase.deal_motorcycle_id)}" style="display:none;margin-top:12px"></div>
           </div>
         `:""}
+
+        ${buyerStorageHtml(purchase,state)}
 
         <details class="purchase-more">
           <summary>Payment & purchase details</summary>
@@ -1345,7 +1409,7 @@ async function loadPurchases(){
   }
 
   const [purchaseResult,collectionJobsResult]=await Promise.all([
-    sb.rpc("get_my_purchases_v4"),
+    sb.rpc("get_my_purchases_v5"),
     sb.rpc("get_my_collection_jobs_v1")
   ]);
   const data=purchaseResult.data;
