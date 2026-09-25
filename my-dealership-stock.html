@@ -1486,6 +1486,7 @@ textarea:focus{
   </section>
 
   <div id="stockConnectionPanel" class="stock-connect-panel"></div>
+  <div id="deliveryProfilePanel" class="stock-connect-panel"></div>
 
   <div class="selling-wrap">
     <div class="full-width-stock">
@@ -1590,6 +1591,7 @@ let dealership = null;
 let stock = [];
 let summary = null;
 let stockFoundation = null;
+let deliveryProfile = null;
 
 
 function esc(value){
@@ -2012,6 +2014,47 @@ async function loadDealership(){
 
 
 
+async function loadDeliveryProfile(){
+  const {data,error}=await sb.rpc("dealer_get_my_delivery_profile_v1");
+  if(error){throw error;}
+  deliveryProfile=Array.isArray(data)?(data[0]||null):data;
+  renderDeliveryProfile();
+}
+
+function renderDeliveryProfile(){
+  const host=document.getElementById("deliveryProfilePanel");
+  if(!host)return;
+  if(!deliveryProfile){host.innerHTML="";return;}
+  const p=deliveryProfile;
+  const address=[p.delivery_address_1,p.delivery_address_2,p.delivery_city,p.delivery_county,p.delivery_postcode,p.delivery_country].filter(Boolean).join(", ");
+  host.innerHTML=`<section class="stock-connect-card"><div class="stock-connect-top"><div><h2>Delivery Details</h2><p>${p.profile_complete?`Used automatically when your dealership confirms an AnyBike trade purchase. <strong>${esc(address)}</strong>`:"Complete these details once. AnyBike will reuse them for future trade purchases and Move deliveries."}</p>${p.profile_complete?`<div class="stock-connect-note"><strong>${esc(p.delivery_contact_name||"")}</strong>${p.delivery_contact_phone?` · ${esc(p.delivery_contact_phone)}`:""}${p.delivery_contact_email?` · ${esc(p.delivery_contact_email)}`:""}${p.delivery_opening_hours?`<br>Opening hours: ${esc(p.delivery_opening_hours)}`:""}</div>`:""}</div><div class="stock-connect-actions"><span class="badge ${p.profile_complete?"green":"amber"}">${p.profile_complete?"Ready for delivery":"Needs details"}</span><button class="btn ${p.profile_complete?"":"red"}" type="button" onclick="openDeliveryProfile()">${p.profile_complete?"Edit Delivery Details":"Complete Delivery Details"}</button></div></div></section>`;
+}
+
+function openDeliveryProfile(){
+  const p=deliveryProfile||{};
+  openModal("Delivery Details",`<div class="confidential">These details are saved to your verified dealership account and reused for AnyBike trade deliveries.</div><div class="form-grid" style="margin-top:14px"><label>Delivery contact name<input id="dpContactName" value="${esc(p.delivery_contact_name||"")}"></label><label>Phone<input id="dpPhone" value="${esc(p.delivery_contact_phone||"")}"></label><label>Email<input id="dpEmail" type="email" value="${esc(p.delivery_contact_email||"")}"></label><label>Address 1<input id="dpAddress1" value="${esc(p.delivery_address_1||"")}"></label><label>Address 2<input id="dpAddress2" value="${esc(p.delivery_address_2||"")}"></label><label>Town / City<input id="dpCity" value="${esc(p.delivery_city||"")}"></label><label>County<input id="dpCounty" value="${esc(p.delivery_county||"")}"></label><label>Postcode<input id="dpPostcode" value="${esc(p.delivery_postcode||"")}"></label><label>Country<input id="dpCountry" value="${esc(p.delivery_country||"United Kingdom")}"></label><label class="full">Opening hours / delivery times<input id="dpHours" value="${esc(p.delivery_opening_hours||"")}" placeholder="e.g. Mon-Fri 09:00-17:30"></label><label class="full">Standing delivery instructions<textarea id="dpInstructions" placeholder="Goods-in access, gate instructions, preferred entrance…">${esc(p.delivery_instructions||"")}</textarea></label><div class="full" style="display:flex;gap:10px;justify-content:flex-end"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn red" onclick="saveDeliveryProfile()">Save Delivery Details</button></div></div>`);
+}
+
+async function saveDeliveryProfile(){
+  const args={
+    p_delivery_contact_name:document.getElementById("dpContactName").value.trim(),
+    p_delivery_contact_phone:document.getElementById("dpPhone").value.trim(),
+    p_delivery_contact_email:document.getElementById("dpEmail").value.trim(),
+    p_delivery_address_1:document.getElementById("dpAddress1").value.trim(),
+    p_delivery_address_2:document.getElementById("dpAddress2").value.trim()||null,
+    p_delivery_city:document.getElementById("dpCity").value.trim(),
+    p_delivery_county:document.getElementById("dpCounty").value.trim()||null,
+    p_delivery_postcode:document.getElementById("dpPostcode").value.trim(),
+    p_delivery_country:document.getElementById("dpCountry").value.trim()||"United Kingdom",
+    p_delivery_opening_hours:document.getElementById("dpHours").value.trim()||null,
+    p_delivery_instructions:document.getElementById("dpInstructions").value.trim()||null
+  };
+  const {error}=await sb.rpc("dealer_save_my_delivery_profile_v1",args);
+  if(error){showNotice(error.message,"bad");return;}
+  closeModal();
+  await loadDeliveryProfile();
+  showNotice("Delivery details saved to your dealership account.","good");
+}
 async function loadStockFoundation(){
   const {data,error}=await sb.rpc("dealer_get_my_stock_foundation_v1");
   if(error){throw error;}
@@ -3164,7 +3207,8 @@ async function waitForPublicHeader(){
       loadSummary(),
       loadSavedSearchTotal(),
       loadDealerBuyingActivity(),
-      loadStockFoundation()
+      loadStockFoundation(),
+      loadDeliveryProfile()
     ]);
 
 
