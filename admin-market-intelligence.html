@@ -18,10 +18,10 @@ a{color:inherit;text-decoration:none}.department-hero{display:grid;grid-template
 .dept-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}.dept-actions a,.btn{background:#181818;border:1px solid var(--line);color:#fff;border-radius:999px;padding:10px 14px;font-weight:900;cursor:pointer}.btn.active{background:var(--red);border-color:var(--red)}
 .kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin:16px 0}.kpi{padding:18px;border:1px solid var(--line);border-radius:18px;background:#111}.kpi span{display:block;color:#999;font-size:12px;text-transform:uppercase;letter-spacing:.08em;font-weight:900}.kpi strong{display:block;font-size:30px;margin-top:7px}.kpi small{color:#777}
 .panel{border:1px solid var(--line);border-radius:20px;background:#101010;margin-top:16px;overflow:hidden}.panel-head{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:18px 20px;border-bottom:1px solid var(--line)}.panel-head h2{margin:0;font-size:23px}.panel-head p{margin:5px 0 0;color:#999}.filters{display:flex;gap:8px;flex-wrap:wrap}
-.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;min-width:980px}th,td{padding:13px 14px;border-bottom:1px solid rgba(255,255,255,.07);text-align:left;vertical-align:top}th{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#888;background:#0c0c0c;position:sticky;top:0}td{font-size:14px}.market-name{font-weight:950}.muted{color:#999}.num{font-weight:900}.good{color:#57d985}.warn{color:#ffcc66}.zero{color:#666}
+.table-wrap{overflow:visible}table{width:100%;border-collapse:collapse;table-layout:fixed}th,td{padding:13px 14px;border-bottom:1px solid rgba(255,255,255,.07);text-align:left;vertical-align:top}th{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#888;background:#0c0c0c;position:sticky;top:0}td{font-size:14px}.market-name{font-weight:950}.muted{color:#999}.num{font-weight:900}.good{color:#57d985}.warn{color:#ffcc66}.zero{color:#666}
 .bar{height:6px;background:#222;border-radius:999px;overflow:hidden;margin-top:6px}.bar span{display:block;height:100%;background:#ed1c24}
 .empty{padding:30px;text-align:center;color:#888}.source-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;padding:16px}.source-card{padding:16px;border:1px solid var(--line);border-radius:16px;background:#141414}.source-card strong{display:block;margin-bottom:5px}.source-card small{color:#888}.source-card .count{font-size:24px;font-weight:950;margin-top:10px}
-@media(max-width:1100px){.kpis{grid-template-columns:repeat(2,1fr)}.department-hero{grid-template-columns:1fr}.dept-actions{justify-content:flex-start}}@media(max-width:650px){.kpis{grid-template-columns:1fr}}
+@media(max-width:1100px){.kpis{grid-template-columns:repeat(2,1fr)}.department-hero{grid-template-columns:1fr}.dept-actions{justify-content:flex-start}th,td{padding:11px 9px;font-size:12px}}@media(max-width:780px){.table-wrap{overflow:visible}table,thead,tbody,tr,th,td{display:block;width:100%}thead{display:none}tbody tr{margin:0 0 12px;border:1px solid rgba(255,255,255,.09);border-radius:14px;padding:8px;background:#111}tbody td{display:grid;grid-template-columns:120px 1fr;gap:12px;border-bottom:1px solid rgba(255,255,255,.06);padding:10px}tbody td:last-child{border-bottom:0}tbody td:before{content:attr(data-label);color:#888;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.06em}.empty{display:block!important}.empty:before{display:none}}@media(max-width:650px){.kpis{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -74,88 +74,6 @@ a{color:inherit;text-decoration:none}.department-hero{display:grid;grid-template
   </div>
 </div>
 
-<script>
-let marketDays=30;
-function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])}
-function num(v){return Number(v||0).toLocaleString("en-GB")}
-function seconds(v){const n=Number(v||0);if(n<60)return Math.round(n)+"s";return Math.floor(n/60)+"m "+Math.round(n%60)+"s"}
-
-async function loadMarketIntelligence(){
-  const body=document.getElementById("marketRows");
-  body.innerHTML='<tr><td colspan="9" class="empty">Loading market intelligence…</td></tr>';
-
-  const client=getAdminSupabaseClient();
-  if(!client){
-    body.innerHTML='<tr><td colspan="9" class="empty">Admin data connection is unavailable.</td></tr>';
-    return;
-  }
-
-  const [marketResult,discoveryResult]=await Promise.all([
-    client.rpc("admin_get_market_intelligence_v1",{p_days:marketDays}),
-    client.rpc("admin_get_market_discovery_v1",{p_days:Math.max(marketDays,90)})
-  ]);
-
-  if(marketResult.error){
-    body.innerHTML='<tr><td colspan="9" class="empty">Could not load market intelligence: '+esc(marketResult.error.message)+'</td></tr>';
-    return;
-  }
-
-  const rows=marketResult.data||[];
-  const totals=rows.reduce((a,r)=>({
-    views:a.views+Number(r.page_views||0),
-    visitors:a.visitors+Number(r.unique_visitors||0),
-    leads:a.leads+Number(r.enquiries||0),
-    deals:a.deals+Number(r.linked_deals||0)
-  }),{views:0,visitors:0,leads:0,deals:0});
-
-  document.getElementById("kpiViews").textContent=num(totals.views);
-  document.getElementById("kpiVisitors").textContent=num(totals.visitors);
-  document.getElementById("kpiLeads").textContent=num(totals.leads);
-  document.getElementById("kpiDeals").textContent=num(totals.deals);
-  document.getElementById("kpiMarkets").textContent=num(rows.length);
-
-  body.innerHTML=rows.length?rows.map(r=>{
-    const views=Number(r.page_views||0),leads=Number(r.enquiries||0),deals=Number(r.linked_deals||0);
-    const rate=views>0?(leads/views*100):0;
-    const market=String(r.market_slug||"").split("-").map(x=>x.charAt(0).toUpperCase()+x.slice(1)).join(" ");
-    return '<tr>'+
-      '<td><div class="market-name">'+esc(market)+'</div><div class="muted">'+esc(r.page_title||"")+'</div></td>'+
-      '<td class="num">'+num(views)+'</td>'+
-      '<td class="num">'+num(r.unique_visitors)+'</td>'+
-      '<td class="num">'+num(r.known_users)+'</td>'+
-      '<td>'+seconds(r.avg_active_seconds)+'</td>'+
-      '<td class="num '+(leads?"good":"zero")+'">'+num(leads)+'</td>'+
-      '<td class="num '+(deals?"good":"zero")+'">'+num(deals)+'</td>'+
-      '<td><strong>'+rate.toFixed(1)+'%</strong><div class="bar"><span style="width:'+Math.min(100,rate*10)+'%"></span></div></td>'+
-      '<td><a href="'+esc(r.page_path||("#"))+'" target="_blank" style="color:#ed1c24;font-weight:900">Open ↗</a></td>'+
-    '</tr>';
-  }).join(""):'<tr><td colspan="9" class="empty">No market activity recorded in this period.</td></tr>';
-
-  const discovery=document.getElementById("discoveryRows");
-  if(discoveryResult.error){
-    discovery.innerHTML='<div class="empty">Buyer discovery data unavailable.</div>';
-  }else{
-    const d=discoveryResult.data||[];
-    discovery.innerHTML=d.length?d.slice(0,40).map(r=>{
-      const market=String(r.market_slug||r.country||"Unknown market").split("-").map(x=>x.charAt(0).toUpperCase()+x.slice(1)).join(" ");
-      return '<div class="source-card"><strong>'+esc(r.source_name)+'</strong><small>'+esc(market)+' · '+esc(r.channel_type||"Other")+'</small><div class="count">'+num(r.mentions)+' mention'+(Number(r.mentions)===1?"":"s")+'</div></div>';
-    }).join(""):'<div class="empty">No buyer-discovery answers yet. They will appear here as customers answer the optional post-enquiry question.</div>';
-  }
-}
-
-document.getElementById("rangeButtons").addEventListener("click",e=>{
-  const btn=e.target.closest("[data-days]");if(!btn)return;
-  marketDays=Number(btn.dataset.days)||30;
-  document.querySelectorAll("[data-days]").forEach(x=>x.classList.toggle("active",x===btn));
-  loadMarketIntelligence();
-});
-
-(async function start(){
-  const allowed=await requireAdminSession();
-  if(!allowed)return;
-  document.documentElement.classList.remove("admin-auth-pending");
-  await loadMarketIntelligence();
-})();
-</script>
+<script src="/admin-market-intelligence.js?v=1"></script>
 </body>
 </html>
