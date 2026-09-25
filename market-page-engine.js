@@ -303,6 +303,20 @@
     else main.appendChild(section);
   }
 
+
+  function decorateJourneyLinks(name){
+    const from=window.location.pathname+window.location.search;
+    const pageTitle=document.title||("AnyBike market: "+name);
+    document.querySelectorAll('a[href^="/anybike-connect.html"],a[href^="/buy-motorcycles.html"]').forEach(function(link){
+      try{
+        const url=new URL(link.getAttribute("href"),window.location.origin);
+        if(!url.searchParams.has("from")) url.searchParams.set("from",from);
+        if(!url.searchParams.has("pageTitle")) url.searchParams.set("pageTitle",pageTitle);
+        link.setAttribute("href",url.pathname+url.search+url.hash);
+      }catch(error){}
+    });
+  }
+
   function standardiseUkHandover(name){
     if(document.querySelector("[data-anybike-handover-standardised]")) return;
     const pillContainers=Array.from(document.querySelectorAll(".pills,.port-list,.area-list"));
@@ -414,6 +428,7 @@
     standardiseUkHandover(name);
     addVerifiedLocalDestination(slug,name);
     addInternalLinks(name);
+    decorateJourneyLinks(name);
     try{
       await loadDemand(name);
     }catch(error){
