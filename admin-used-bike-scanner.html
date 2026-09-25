@@ -138,25 +138,31 @@ function cardHtml(s,saved){
         field(id,"seller_name","Seller / dealer",s.seller_name,saved)+field(id,"source_stock_id","Source stock / Bike ID",s.source_stock_id,saved)+
         field(id,"seller_phone","Telephone",s.seller_phone,saved)+field(id,"seller_email","Email",s.seller_email,saved)+
         field(id,"seller_address","Seller location",s.seller_address,saved)+field(id,"registration","Registration",s.registration,saved)+
+        sourceRetailPriceField(id,s.source_advertised_price_gbp,saved,s.extraction)+
       '</div></div>'+
       '<div class="box"><h3>Buyer-safe motorcycle</h3><div class="mini">'+
         field(id,"make","Make",s.make,saved)+field(id,"model","Model",s.model,saved)+field(id,"variant","Variant",s.variant,saved)+field(id,"year","Year",s.year,saved)+field(id,"mileage","Mileage",s.mileage,saved)+field(id,"colour","Colour",s.colour,saved)+
       '</div><div class="field" style="margin-top:8px"><label>Buyer description</label><textarea data-k="'+id+'" data-f="buyer_description">'+esc(s.buyer_description||"")+'</textarea></div>'+
       '<label class="check"><input type="checkbox" data-k="'+id+'" data-f="approve_first_image" '+((s.buyer_image_urls||[]).length?"checked":"")+'><span>Approve first source image for this private buyer presentation <span class="note">(only where AnyBike is permitted to reuse it)</span></span></label></div>'+
       '<div class="box"><h3>Price check</h3>'+
-        (Number(s.source_advertised_price_gbp)>0?"":'<div class="status bad" style="margin-bottom:9px">Motorcycle price was not extracted — enter the advertised selling price below.</div>')+
-        priceField(id,"source_advertised_price_gbp","1. Motorcycle selling price",s.source_advertised_price_gbp)+
+        (Number(s.source_advertised_price_gbp)>0?"":'<div class="status bad" style="margin-bottom:9px">Source retail price is missing. Return to the source record and correct it before presenting this motorcycle.</div>')+
+        '<div class="field" style="margin-bottom:7px"><label>1. Source retail price — fixed</label><input type="text" value="'+(Number(s.source_advertised_price_gbp)>0?gbp(s.source_advertised_price_gbp):"Missing")+'" readonly></div>'+
         priceField(id,"delivery_allowance_gbp","2. Add UK delivery allowance",s.delivery_allowance_gbp)+
         '<div class="field" style="margin-bottom:7px"><label>3. AnyBike Buyer Fee from motorcycle price</label><input type="text" id="fee-'+id+'" value="'+gbp(s.fee_allowance_gbp||0)+'" readonly></div>'+
         '<div class="note"><a class="source-link" href="/services-and-fees.html" target="_blank">View AnyBike Fees ↗</a></div>'+
         '<div style="margin-top:9px;font-weight:900">= Buyer-facing AnyBike price</div><div class="money" id="price-'+id+'">'+(Number(s.source_advertised_price_gbp)>0?gbp(s.anybike_price_gbp??anyPrice):"Enter motorcycle price")+'</div><div class="note">Buyer sees this final AnyBike price only. Seller/source details and the internal price calculation are not shown.</div>'+
         '<label class="check"><input type="checkbox" data-k="'+id+'" data-f="price_checked" '+(s.price_checked?"checked":"")+'><span>Price checked — happy to present this price</span></label>'+
         '<label class="check"><input type="checkbox" data-k="'+id+'" data-f="selected_for_buyer" '+(s.selected_for_buyer?"checked":"")+'><span>Include in buyer selection</span></label>'+
-        (saved?'<button class="btn green" style="margin-top:10px" onclick="saveScan('+id+')">Save motorcycle</button>':'')+
+        (saved?'<button id="save-scan-'+id+'" class="btn green" style="margin-top:10px" onclick="saveScan('+id+')">Save motorcycle</button><span id="save-scan-status-'+id+'" class="status" style="margin-left:10px"></span>':'')+
       '</div>'+
     '</div></article>';
 }
 function field(k,f,label,v,saved){return '<div class="field"><label>'+label+'</label><input data-k="'+k+'" data-f="'+f+'" value="'+esc(v??"")+'"></div>'}
+function sourceRetailPriceField(k,v,saved,extraction){
+  const locked=saved || (extraction && extraction.live_source_item_id);
+  const value=Number(v)>0 ? Number(v) : "";
+  return '<div class="field"><label>Source retail price (£)</label><input type="number" min="0" step="1" data-k="'+k+'" data-f="source_advertised_price_gbp" value="'+esc(value)+'" '+(locked?'readonly':'')+'><div class="note">Captured from the source advert'+(locked?' and fixed for this sourcing record.':'.')+'</div></div>';
+}
 function anybikeFeeFromPrice(price){
   const n=Number(price);
   if(!Number.isFinite(n)||n<=0)return 0;
@@ -237,10 +243,27 @@ async function addToLiveSource(k){
 }
 async function saveScan(id){
   const s=collectCard(id);
+  if(!s)return false;
+  const btn=document.getElementById("save-scan-"+id);
+  const st=document.getElementById("save-scan-status-"+id);
+  if(btn){btn.disabled=true;btn.textContent="Saving…";}
+  if(st){st.className="status";st.textContent="";}
+
   const patch={source_advertised_price_gbp:s.source_advertised_price_gbp,delivery_allowance_gbp:s.delivery_allowance_gbp,make:s.make,model:s.model,variant:s.variant,year:s.year,mileage:s.mileage,colour:s.colour,registration:s.registration,buyer_description:s.buyer_description,seller_name:s.seller_name,seller_phone:s.seller_phone,seller_email:s.seller_email,seller_address:s.seller_address,source_stock_id:s.source_stock_id,buyer_image_urls:s.buyer_image_urls,price_checked:s.price_checked,selected_for_buyer:s.selected_for_buyer};
   const {data,error}=await sb().rpc("admin_update_used_bike_scan_v1",{p_scan_id:Number(id),p_patch:patch});
-  if(error){alert(error.message);return}
-  Object.assign(s,data);recalc(id);buildMessage();
+
+  if(btn){btn.disabled=false;btn.textContent="Save motorcycle";}
+  if(error){
+    if(st){st.className="status bad";st.textContent="Save failed";}
+    alert(error.message);
+    return false;
+  }
+
+  Object.assign(s,data);
+  recalc(id);
+  buildMessage();
+  if(st){st.className="status good";st.textContent="Saved ✓";}
+  return true;
 }
 function buildMessage(){
   if(document.getElementById("shareMessage").value.trim())return;
