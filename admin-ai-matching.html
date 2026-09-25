@@ -1039,7 +1039,7 @@ async function loadInterestedMatchesQueue(){
     const responseAmount=match.buyer_response==="Offer Made" ? queueMoney(match.buyer_offer_gbp) : "";
     queueContextByMatch.set(Number(match.id),{match,buyer,stock,sellerRequest,buyerName,bike,sellerName,sellerType,sellerPrice,responseAmount});
     return `
-      <article class="queue-card ${queueResponseClass(match.buyer_response)}">
+      <article class="queue-card ${queueResponseClass(match.buyer_response)}" data-queue-match-id="${esc(match.id)}">
         <div class="queue-top">
           <div>
             <div class="queue-bike">${esc(bike)}</div>
@@ -1070,6 +1070,32 @@ async function loadInterestedMatchesQueue(){
 }
 
 document.getElementById("refreshInterestedQueueBtn").addEventListener("click",loadInterestedMatchesQueue);
+
+async function openInterestedMatchFromUrl(){
+  const params=new URLSearchParams(window.location.search);
+  const matchId=Number(params.get("match")||0);
+  if(!matchId)return;
+
+  const ctx=queueContextByMatch.get(matchId);
+  if(!ctx){
+    const status=document.getElementById("interestedQueueStatus");
+    if(status){
+      status.className="status-box error";
+      status.textContent="The linked buyer response could not be found in the current Interested queue.";
+    }
+    return;
+  }
+
+  const card=document.querySelector('[data-queue-match-id="'+matchId+'"]');
+  if(card){
+    card.scrollIntoView({behavior:"smooth",block:"center"});
+    card.style.outline="2px solid #ed1c24";
+    card.style.outlineOffset="2px";
+  }
+
+  await openSellerReview(matchId);
+}
+
 
 function syncQueueModalScrollLock(){
   const anyOpen=["sellerReviewModal","queueViabilityModal","queueMotorcycleModal"].some(id=>document.getElementById(id)?.classList.contains("open"));
@@ -1223,6 +1249,7 @@ document.getElementById("queueMotorcycleClose").addEventListener("click",()=>clo
   if(!allowed) return;
   document.documentElement.classList.remove("admin-auth-pending");
   await Promise.all([loadBuyerRequests(),loadInterestedMatchesQueue()]);
+  await openInterestedMatchFromUrl();
 })();
 </script>
 </body>
