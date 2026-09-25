@@ -1700,8 +1700,32 @@ function renderOpsDetail(){
       '<div class="ops-actions">'+
         (collected&&!atDepot&&!completed?'<button class="pay-site-button" type="button" onclick="markOpsDepotArrivedFromDetail()">Arrived at Depot</button>':'')+
         (atDepot&&!approved&&!completed?'<button class="pay-site-button" type="button" onclick="approveOpsReleaseFromDetail()">Approve Release</button>':'')+
-        (atDepot&&approved&&!completed?'<button class="pay-site-button" type="button" onclick="completeOpsHandoverFromDetail()">Confirm Final Handover</button>':'')+
         '<a class="pay-site-button secondary" href="admin-enquiries.html" target="_blank" rel="noopener">Open Bike Sales HQ</a>'+
+      '</div>'+
+    '</div>'+
+    '<div class="ops-modal-section">'+
+      '<h3 style="margin:0 0 10px">Move Delivery Handover</h3>'+
+      '<div class="ops-detail-grid">'+
+        '<div class="ops-detail"><span>Customer balance</span><strong>'+escLogistics(opsMoney(row.customer_balance_gbp||0))+'</strong></div>'+
+        '<div class="ops-detail"><span>Move Shipment No.</span><strong>'+escLogistics(row.move_shipment_number||"—")+'</strong></div>'+
+        '<div class="ops-detail"><span>Shipper acceptance</span><strong>'+escLogistics(row.shipper_authorisation_status||"Not confirmed")+'</strong></div>'+
+        '<div class="ops-detail"><span>Receiver details</span><strong>'+escLogistics(row.receiver_details_confirmed_at?"Confirmed":"Not confirmed")+'</strong></div>'+
+        '<div class="ops-detail"><span>Receiving company</span><strong>'+escLogistics(row.receiver_company_name||"—")+'</strong></div>'+
+        '<div class="ops-detail"><span>Contact</span><strong>'+escLogistics(row.receiver_contact_name||"—")+'</strong></div>'+
+        '<div class="ops-detail"><span>Delivery form</span><strong>'+escLogistics(row.delivery_handover_status||"Not prepared")+'</strong></div>'+
+        '<div class="ops-detail"><span>Notification</span><strong>'+escLogistics(row.delivery_notification_sent_at?opsNiceDate(row.delivery_notification_sent_at):"Not sent")+'</strong></div>'+
+      '</div>'+
+      (row.receiver_details_confirmed_at?'<div class="ops-sub" style="margin-top:10px"><strong style="color:#fff">Confirmed delivery address:</strong> '+escLogistics([row.receiver_address_1,row.receiver_address_2,row.receiver_city,row.receiver_county,row.receiver_postcode,row.receiver_country].filter(Boolean).join(", "))+'</div>':'')+
+      '<div class="ops-modal-grid" style="margin-top:12px">'+
+        '<div class="ops-modal-field wide"><label>Move driver name</label><input id="ops-delivery-driver-name" value="'+escLogistics(row.delivery_driver_name||"")+'" placeholder="Driver name"></div>'+
+        '<div class="ops-modal-field wide"><label>Move driver mobile</label><input id="ops-delivery-driver-mobile" value="'+escLogistics(row.delivery_driver_mobile||"")+'" placeholder="Driver mobile"></div>'+
+        '<div class="ops-modal-field full"><label>Delivery instructions for Move / driver</label><textarea id="ops-delivery-instructions" placeholder="Access, booking time, reference or other delivery instructions"></textarea></div>'+
+      '</div>'+
+      '<div id="ops-delivery-result" class="pay-site-result" style="display:none;margin-top:12px"></div>'+
+      '<div class="ops-actions">'+
+        (!row.delivery_handover_id?'<button class="pay-site-button" type="button" onclick="prepareOpsDelivery()">Prepare Delivery to Shipper</button>':'')+
+        (row.delivery_handover_id?'<button class="pay-site-button" type="button" onclick="sendOpsDeliveryNotification()">Email Buyer & Shipper</button>':'')+
+        (row.delivery_handover_id&&row.delivery_handover_status!=="delivered"?'<button class="pay-site-button secondary" type="button" onclick="createOpsDeliveryDriverLink()">Generate Move Delivery Form</button>':'')+
       '</div>'+
     '</div>';
 }
@@ -1756,6 +1780,52 @@ async function approveOpsReleaseFromDetail(){
 async function completeOpsHandoverFromDetail(){
   const dm=Number(opsDetailMotorcycleId);
   await completeOpsHandover(dm); opsDetailMotorcycleId=dm; renderOpsDetail();
+}
+
+
+function opsDeliveryResult(html,isError){
+  const box=document.getElementById("ops-delivery-result");
+  if(!box)return;
+  box.style.display="grid";
+  box.innerHTML=html;
+  box.style.color=isError?"#ff9696":"";
+}
+async function prepareOpsDelivery(){
+  const dm=Number(opsDetailMotorcycleId);if(!dm)return;
+  try{
+    opsDeliveryResult('<span style="color:#aaa">Checking payment, shipper confirmation and Move Shipment No.…</span>',false);
+    const instructions=String(document.getElementById("ops-delivery-instructions")?.value||"").trim()||null;
+    const r=await logisticsSb.rpc("admin_prepare_anybike_delivery_v1",{p_deal_motorcycle_id:dm,p_delivery_instructions:instructions});
+    if(r.error)throw r.error;
+    await loadOperationsStorageQueue();opsDetailMotorcycleId=dm;renderOpsDetail();
+    opsDeliveryResult('<span style="color:#7ee2a8">Delivery handover prepared for Move Shipment No. '+escLogistics(r.data?.move_shipment_number||"")+' ✓</span>',false);
+  }catch(e){opsDeliveryResult('<span>'+escLogistics(e.message||String(e))+'</span>',true);}
+}
+async function sendOpsDeliveryNotification(){
+  const dm=Number(opsDetailMotorcycleId);if(!dm)return;
+  try{
+    opsDeliveryResult('<span style="color:#aaa">Sending delivery notification and authorised documents…</span>',false);
+    const r=await logisticsSb.functions.invoke("anybike-send-delivery-notification",{body:{deal_motorcycle_id:dm}});
+    if(r.error)throw r.error;if(r.data?.error)throw new Error(r.data.error);
+    await loadOperationsStorageQueue();opsDetailMotorcycleId=dm;renderOpsDetail();
+    opsDeliveryResult('<span style="color:#7ee2a8">Buyer and shipping company notified ✓ · '+Number(r.data?.document_count||0)+' document(s)</span>',false);
+  }catch(e){opsDeliveryResult('<span>'+escLogistics(e.message||String(e))+'</span>',true);}
+}
+async function createOpsDeliveryDriverLink(){
+  const dm=Number(opsDetailMotorcycleId);if(!dm)return;
+  try{
+    opsDeliveryResult('<span style="color:#aaa">Generating secure Move delivery form…</span>',false);
+    const r=await logisticsSb.rpc("admin_create_anybike_delivery_driver_link_v1",{
+      p_deal_motorcycle_id:dm,
+      p_driver_name:String(document.getElementById("ops-delivery-driver-name")?.value||"").trim()||null,
+      p_driver_mobile:String(document.getElementById("ops-delivery-driver-mobile")?.value||"").trim()||null,
+      p_expires_hours:72
+    });
+    if(r.error)throw r.error;
+    const url=new URL(r.data.path,window.location.origin).href;
+    await loadOperationsStorageQueue();opsDetailMotorcycleId=dm;renderOpsDetail();
+    opsDeliveryResult('<input id="opsDeliveryDriverUrl" value="'+escLogistics(url)+'" readonly><button class="pay-site-button secondary" type="button" onclick="navigator.clipboard.writeText(document.getElementById(\'opsDeliveryDriverUrl\').value)">Copy Driver Link</button><a class="pay-site-button secondary" href="'+escLogistics(url)+'" target="_blank" rel="noopener">Open Delivery Form</a>',false);
+  }catch(e){opsDeliveryResult('<span>'+escLogistics(e.message||String(e))+'</span>',true);}
 }
 
 async function loadOperationsStorageSettings(){
