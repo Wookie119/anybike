@@ -596,6 +596,21 @@ a{text-decoration:none;color:inherit}
     </div>
     <button class="pay-site-button secondary" type="button" onclick="loadOperationsStorageQueue()">Refresh Queue</button>
   </div>
+  <div class="ops-toolbar" style="border-bottom:1px solid var(--line)">
+    <strong style="margin-right:6px">Storage charging</strong>
+    <label style="display:flex;align-items:center;gap:6px;color:#aaa;font-size:12px">
+      Grace period
+      <input id="opsDefaultGraceHours" type="number" min="0" max="720" step="1" value="24" style="width:90px;background:#111;color:#fff;border:1px solid #333;border-radius:9px;padding:9px">
+      hours
+    </label>
+    <label style="display:flex;align-items:center;gap:6px;color:#aaa;font-size:12px">
+      Default rate £
+      <input id="opsDefaultDailyRate" type="number" min="0" step="0.01" value="0" style="width:100px;background:#111;color:#fff;border:1px solid #333;border-radius:9px;padding:9px">
+      / day
+    </label>
+    <button class="pay-site-button secondary" type="button" onclick="saveOperationsStorageSettings()">Save Defaults</button>
+    <span id="opsSettingsStatus" style="color:#aaa;font-size:12px"></span>
+  </div>
   <div class="ops-summary">
     <div class="ops-metric"><span>In Queue</span><strong id="opsTotal">0</strong></div>
     <div class="ops-metric"><span>Collected / Inbound</span><strong id="opsCollected">0</strong></div>
@@ -1458,6 +1473,13 @@ function opsNiceDate(value){
   const d=new Date(value);
   return Number.isNaN(d.getTime())?String(value):d.toLocaleString("en-GB");
 }
+function opsLocalInput(value){
+  if(!value)return "";
+  const d=new Date(value);
+  if(Number.isNaN(d.getTime()))return "";
+  const pad=n=>String(n).padStart(2,"0");
+  return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())+"T"+pad(d.getHours())+":"+pad(d.getMinutes());
+}
 function opsMoney(value){
   const n=Number(value||0);
   return "£"+(Number.isFinite(n)?n:0).toFixed(2);
@@ -1499,7 +1521,7 @@ function renderOperationsStorageQueue(){
     const statuses=[
       opsPill("Collection: "+(row.collection_status||"not booked"),row.collection_status==="collected"?"green":""),
       opsPill("Depot: "+(row.depot_status||"not at depot"),atDepot?"green":inbound?"amber":""),
-      opsPill("Storage: "+(row.storage_status||"not started"),row.storage_status==="chargeable"?"amber":row.storage_status==="stopped"?"":""),
+      opsPill(row.storage_charge_waived?"Storage charge waived":"Storage: "+(row.storage_status||"not started"),row.storage_charge_waived?"green":row.storage_status==="chargeable"?"amber":row.storage_status==="stopped"?"":""),
       opsPill("Release: "+(row.release_status||"not ready"),approved?"green":row.release_status==="blocked"?"red":""),
       completed?opsPill("Operations complete","green"):""
     ].filter(Boolean).join("");
@@ -1508,14 +1530,21 @@ function renderOperationsStorageQueue(){
       ? '<div class="ops-storage-form">'+
           '<label>Storage location<input id="ops-location-'+dm+'" value="'+escLogistics(row.storage_location||"")+'" placeholder="e.g. Bay A12"></label>'+
           '<label>Daily rate £<input id="ops-rate-'+dm+'" type="number" min="0" step="0.01" value="'+Number(row.storage_daily_rate_gbp||0)+'"></label>'+
-          '<label>Free days<input id="ops-free-'+dm+'" type="number" min="0" step="1" value="'+Number(row.storage_free_days||0)+'"></label>'+
-          '<label>Storage notes<input id="ops-notes-'+dm+'" value="'+escLogistics(row.agreement_notes||"")+'" placeholder="Agreement / handling notes"></label>'+
-          '<button class="pay-site-button secondary" type="button" onclick="saveOpsStorage('+dm+')">Save Storage</button>'+
+          '<label>Chargeable from<input id="ops-chargeable-'+dm+'" type="datetime-local" value="'+opsLocalInput(row.storage_chargeable_from)+'"></label>'+
+          '<label>Manual adjustment £<input id="ops-adjust-'+dm+'" type="number" step="0.01" value="'+Number(row.storage_manual_adjustment_gbp||0)+'"></label>'+
+          '<label>Override reason / notes<input id="ops-notes-'+dm+'" value="'+escLogistics(row.charge_override_reason||row.agreement_notes||"")+'" placeholder="Reason for any override"></label>'+
+          '<button class="pay-site-button secondary" type="button" onclick="saveOpsStorage('+dm+')">Save Override</button>'+
         '</div>'
       : '';
 
     const actions=[];
     if(inbound)actions.push('<button class="pay-site-button" type="button" onclick="markOpsDepotArrived('+dm+')">Arrived at Depot</button>');
+    if(atDepot&&!completed){
+      if(row.storage_charge_waived)actions.push('<button class="pay-site-button secondary" type="button" onclick="resumeOpsStorage('+dm+')">Resume Charging</button>');
+      else actions.push('<button class="pay-site-button secondary" type="button" onclick="waiveOpsStorage('+dm+')">Waive Storage</button>');
+      if(row.storage_status==="paused")actions.push('<button class="pay-site-button secondary" type="button" onclick="resumeOpsStorage('+dm+')">Resume Storage Clock</button>');
+      else if(row.storage_status!=="stopped")actions.push('<button class="pay-site-button secondary" type="button" onclick="pauseOpsStorage('+dm+')">Pause Storage Clock</button>');
+    }
     if(atDepot&&!approved&&!completed)actions.push('<button class="pay-site-button" type="button" onclick="approveOpsRelease('+dm+')">Approve Release</button>');
     if(atDepot&&approved&&!completed)actions.push('<button class="pay-site-button" type="button" onclick="completeOpsHandover('+dm+')">Confirm Final Handover</button>');
     actions.push('<a class="pay-site-button secondary" href="admin-enquiries.html" target="_blank" rel="noopener">Open Bike Sales HQ</a>');
@@ -1545,6 +1574,42 @@ function renderOperationsStorageQueue(){
       '<div class="ops-actions">'+actions.join("")+'</div>'+
     '</div>';
   }).join("");
+}
+
+
+async function loadOperationsStorageSettings(){
+  const status=document.getElementById("opsSettingsStatus");
+  try{
+    const result=await logisticsSb.rpc("admin_get_operations_settings_v1");
+    if(result.error)throw result.error;
+    const data=result.data||{};
+    const grace=document.getElementById("opsDefaultGraceHours");
+    const rate=document.getElementById("opsDefaultDailyRate");
+    if(grace)grace.value=Number(data.default_storage_grace_hours??24);
+    if(rate)rate.value=Number(data.default_storage_daily_rate_gbp??0);
+    if(status)status.textContent=Number(data.default_storage_daily_rate_gbp||0)>0
+      ? "New collections become chargeable automatically after "+Number(data.default_storage_grace_hours||24)+" hours."
+      : "24-hour clock is active; set a £/day rate to begin automatic charging.";
+  }catch(error){
+    if(status)status.textContent="Could not load storage defaults.";
+  }
+}
+
+async function saveOperationsStorageSettings(){
+  const status=document.getElementById("opsSettingsStatus");
+  try{
+    const grace=Number(document.getElementById("opsDefaultGraceHours")?.value||24);
+    const rate=Number(document.getElementById("opsDefaultDailyRate")?.value||0);
+    const result=await logisticsSb.rpc("admin_save_operations_settings_v1",{
+      p_default_storage_grace_hours:grace,
+      p_default_storage_daily_rate_gbp:rate
+    });
+    if(result.error)throw result.error;
+    if(status)status.textContent="Storage defaults saved.";
+    await loadOperationsStorageQueue();
+  }catch(error){
+    if(status)status.textContent=error.message||String(error);
+  }
 }
 
 async function loadOperationsStorageQueue(){
@@ -1577,10 +1642,11 @@ async function runOpsAction(dm,action,args){
     p_action:action,
     p_storage_location:null,
     p_daily_rate_gbp:null,
-    p_free_days:null,
+    p_chargeable_from:null,
+    p_manual_adjustment_gbp:null,
     p_notes:null
   },args||{});
-  const result=await logisticsSb.rpc("admin_operations_storage_action_v1",payload);
+  const result=await logisticsSb.rpc("admin_operations_storage_action_v2",payload);
   if(result.error)throw result.error;
   await loadOperationsStorageQueue();
 }
@@ -1593,14 +1659,37 @@ async function markOpsDepotArrived(dm){
 }
 async function saveOpsStorage(dm){
   try{
-    await runOpsAction(dm,"save_storage",{
+    await runOpsAction(dm,"save_storage_override",{
       p_storage_location:String(document.getElementById("ops-location-"+dm)?.value||"").trim()||null,
       p_daily_rate_gbp:Number(document.getElementById("ops-rate-"+dm)?.value||0),
-      p_free_days:Number(document.getElementById("ops-free-"+dm)?.value||0),
+      p_chargeable_from:document.getElementById("ops-chargeable-"+dm)?.value
+        ? new Date(document.getElementById("ops-chargeable-"+dm).value).toISOString()
+        : null,
+      p_manual_adjustment_gbp:Number(document.getElementById("ops-adjust-"+dm)?.value||0),
       p_notes:String(document.getElementById("ops-notes-"+dm)?.value||"").trim()||null
     });
   }catch(error){alert(error.message||String(error));}
 }
+
+async function waiveOpsStorage(dm){
+  const reason=prompt("Reason for waiving storage charges:","Goodwill / buyer arranged prompt onward delivery");
+  if(reason===null)return;
+  try{await runOpsAction(dm,"waive_storage",{p_notes:reason||"Waived by AnyBike"});}
+  catch(error){alert(error.message||String(error));}
+}
+async function pauseOpsStorage(dm){
+  const reason=prompt("Reason for pausing the storage clock (optional):","");
+  if(reason===null)return;
+  try{await runOpsAction(dm,"pause_storage",{p_notes:reason||null});}
+  catch(error){alert(error.message||String(error));}
+}
+async function resumeOpsStorage(dm){
+  const reason=prompt("Reason for resuming storage charging (optional):","");
+  if(reason===null)return;
+  try{await runOpsAction(dm,"resume_storage",{p_notes:reason||null});}
+  catch(error){alert(error.message||String(error));}
+}
+
 async function approveOpsRelease(dm){
   const notes=prompt("Release / handover note (optional):","");
   if(notes===null)return;
@@ -1761,7 +1850,10 @@ async function copyPaySiteLink(){
 
   document.documentElement.classList.remove("admin-auth-pending");
 
-  await loadOperationsStorageQueue();
+  await Promise.all([
+    loadOperationsStorageSettings(),
+    loadOperationsStorageQueue()
+  ]);
 
   try{
     const access=await logisticsSb.rpc("anybike_is_pay_on_site_admin_v1");
