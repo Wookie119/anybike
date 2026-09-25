@@ -29,6 +29,33 @@ input{background:#090909;color:#fff;border:1px solid #333;border-radius:10px;pad
 
 <div id="bidModal" class="modal"><div class="modal-box"><div class="top"><div><div class="eyebrow">Confidential Trade Bids</div><h3 id="bidTitle" style="margin:5px 0">Bids</h3></div><button onclick="closeBids()">Close</button></div><div id="bidList"></div></div></div>
 
+<div id="confirmModal" class="modal"><div class="modal-box" style="width:min(620px,100%)">
+<h3>Ask Trade Buyer to Confirm</h3>
+<p>The dealer will reconfirm their bid and delivery address. Other bidders remain available as reserves.</p>
+<div class="data">
+  <div class="box"><span>Bid</span><strong id="confirmBidAmount">—</strong></div>
+  <div class="box"><span>Dealer</span><strong id="confirmDealer">—</strong></div>
+</div>
+<label>Confirmation type
+<select id="confirmType" style="width:100%;margin-top:6px;background:#090909;color:#fff;border:1px solid #333;border-radius:10px;padding:10px">
+<option value="preferred">Preferred Bid</option>
+<option value="second_chance">Second Chance</option>
+</select></label>
+<label style="display:block;margin-top:10px">Delivery treatment
+<select id="deliveryTreatment" style="width:100%;margin-top:6px;background:#090909;color:#fff;border:1px solid #333;border-radius:10px;padding:10px" onchange="toggleContribution()">
+<option value="included_by_anybike">Included by AnyBike</option>
+<option value="buyer_contribution">Buyer contribution</option>
+<option value="charged_separately">Delivery charged separately</option>
+</select></label>
+<label id="contributionWrap" style="display:none;margin-top:10px">Buyer delivery contribution (£)
+<input id="buyerContribution" type="number" min="0" step="1" value="0"></label>
+<label style="display:block;margin-top:10px">Internal Move transport allocation (£)
+<input id="internalMoveCost" type="number" min="0" step="1" placeholder="Internal cost only"></label>
+<label style="display:block;margin-top:10px">Confirmation window (hours)
+<input id="confirmHours" type="number" min="1" max="24" value="2"></label>
+<div class="actions"><button class="red" onclick="sendConfirmation()">Send Confirmation Request</button><button onclick="closeConfirmModal()">Cancel</button></div>
+</div></div>
+
 <div id="offerModal" class="modal"><div class="modal-box" style="width:min(560px,100%)"><h3>Make AnyBike Offer to Seller</h3>
 <p>This is AnyBike's own offer. The seller will not see trade bids or bidder identities.</p>
 <label>AnyBike offer (£)<input id="offerAmount" type="number" min="1" step="1"></label>
@@ -37,7 +64,7 @@ input{background:#090909;color:#fff;border:1px solid #333;border-radius:10px;pad
 
 <script>
 const SUPABASE_URL="https://tuehtnezhdnkqbbhttgp.supabase.co",SUPABASE_ANON_KEY="sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
-const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);let rows=[],offerId=null;
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);let rows=[],offerId=null,confirmBidId=null;
 const esc=v=>String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
 const money=v=>v===null||v===undefined?"—":"£"+Number(v).toLocaleString("en-GB",{maximumFractionDigits:0});
 async function load(){
@@ -62,6 +89,49 @@ async function viewBids(id){
  const bids=data||[];document.getElementById("bidList").innerHTML=bids.length?'<table><thead><tr><th>Dealer</th><th>Bidder</th><th>Amount</th><th>Status</th><th>Notes</th><th>Submitted</th></tr></thead><tbody>'+bids.map(b=>'<tr><td>'+esc(b.dealer_name)+'</td><td>'+esc(b.bidder_email||"")+'</td><td><strong>'+money(b.amount_gbp)+'</strong></td><td>'+esc(b.status)+'</td><td>'+esc(b.notes||"")+'</td><td>'+new Date(b.submitted_at).toLocaleString("en-GB")+'</td></tr>').join("")+'</tbody></table>':'<div class="empty">No bids submitted.</div>';
 }
 function closeBids(){document.getElementById("bidModal").classList.remove("open");}
+function openConfirmModal(bidId,dealer,amount){
+  confirmBidId=Number(bidId);
+  document.getElementById("confirmDealer").textContent=dealer||"Trade buyer";
+  document.getElementById("confirmBidAmount").textContent=money(amount);
+  document.getElementById("confirmType").value="preferred";
+  document.getElementById("deliveryTreatment").value="included_by_anybike";
+  document.getElementById("buyerContribution").value="0";
+  document.getElementById("internalMoveCost").value="";
+  document.getElementById("confirmHours").value="2";
+  toggleContribution();
+  document.getElementById("confirmModal").classList.add("open");
+}
+function closeConfirmModal(){confirmBidId=null;document.getElementById("confirmModal").classList.remove("open");}
+function toggleContribution(){
+  const v=document.getElementById("deliveryTreatment").value;
+  document.getElementById("contributionWrap").style.display=v==="included_by_anybike"?"none":"block";
+}
+async function sendConfirmation(){
+  if(!confirmBidId)return;
+  const treatment=document.getElementById("deliveryTreatment").value;
+  const contribution=treatment==="included_by_anybike"?0:Number(document.getElementById("buyerContribution").value||0);
+  const moveCost=document.getElementById("internalMoveCost").value.trim();
+  const hours=Number(document.getElementById("confirmHours").value||2);
+  const {data,error}=await sb.rpc("admin_request_trade_bid_confirmation_v1",{
+    p_bid_id:confirmBidId,
+    p_confirmation_type:document.getElementById("confirmType").value,
+    p_expires_hours:hours,
+    p_delivery_treatment:treatment,
+    p_buyer_delivery_contribution_gbp:contribution,
+    p_internal_move_transport_cost_gbp:moveCost===""?null:Number(moveCost)
+  });
+  if(error){alert(error.message);return;}
+  alert("Confirmation requested. Other live bids remain available as reserves.");
+  closeConfirmModal();closeBids();await load();
+}
+async function selectConfirmed(confirmationId){
+  if(!confirm("Mark this confirmed dealer as selected for the transaction? This will close the other reserve bids."))return;
+  const {data,error}=await sb.rpc("admin_select_confirmed_trade_buyer_v1",{p_confirmation_id:Number(confirmationId)});
+  if(error){alert(error.message);return;}
+  alert("Trade buyer selected. Delivery details have been retained for AnyBike / Move operations.");
+  closeBids();await load();
+}
+
 async function closeUnderwrite(id){if(!confirm("Close this underwrite now?"))return;const {error}=await sb.rpc("admin_close_trade_underwrite_v1",{p_opportunity_id:id});if(error){alert(error.message);return;}await load();}
 function openOffer(id,high){offerId=id;document.getElementById("offerAmount").value=high||"";document.getElementById("offerModal").classList.add("open");}
 function closeOffer(){offerId=null;document.getElementById("offerModal").classList.remove("open");}
