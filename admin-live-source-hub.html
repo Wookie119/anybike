@@ -75,7 +75,7 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
           <div class="field"><label>UK delivery (£)</label><input id="delivery" type="number" value="250" min="0"></div>
           <button class="btn red" onclick="createBatch()">Prepare selected bikes</button>
         </div>
-        <div class="status" id="batchStatus" style="margin-top:8px">Select up to 20 live motorcycles. They will open in Used Bike Scanner for final price check and buyer-safe review.</div>
+        <div class="status" id="batchStatus" style="margin-top:8px"></div>
       </section>
     </main>
   </div>
@@ -171,12 +171,21 @@ async function loadHub(){
 async function selectSourceChannel(id){
   selected.clear();
   document.getElementById("connectorFilter").value=String(id);
+  document.getElementById("makeFilter").value="";
+  document.getElementById("modelFilter").value="";
+  document.getElementById("statusFilter").value="live";
+
   const connector=(hub?.connectors||[]).find(c=>Number(c.id)===Number(id));
   document.getElementById("activeSourceLabel").textContent=connector?.name||"Selected channel";
-  document.querySelectorAll(".source-card").forEach(card=>card.classList.remove("active"));
-  await loadHub();
+
   await loadSourceFacets();
+
+  document.getElementById("makeFilter").value="";
+  refreshModelOptions("");
+  document.getElementById("modelFilter").value="";
+
   await loadItems();
+  await loadHub();
 }
 
 async function refreshSource(id,event){
@@ -258,6 +267,13 @@ async function createBatch(){
 (async()=>{
   const allowed=await requireAdminSession();if(!allowed)return;
   await Promise.all([loadHub(),loadBuyers()]);
+
+  // Opening Live Source Hub should show the whole selected live channel,
+  // not retain a make/model filter from a previous sourcing search.
+  document.getElementById("makeFilter").value="";
+  refreshModelOptions("");
+  document.getElementById("modelFilter").value="";
+  document.getElementById("statusFilter").value="live";
   await loadItems();
 
   // Keep Make / Model lists current if a source refresh runs in another tab
