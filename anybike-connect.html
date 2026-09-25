@@ -469,6 +469,20 @@ Preferred Contact: ${preferredContact}
 --- Extra Details ---
 ${getDynamicMessage()}`;
 
+
+  const attributionParams=new URLSearchParams(window.location.search);
+  const originPageUrl=attributionParams.get("from") || attributionParams.get("page") || document.referrer || window.location.href;
+  const originPageTitle=attributionParams.get("pageTitle") || attributionParams.get("title") || document.title || "AnyBike Connect";
+  let originMarketSlug=null;
+  try{
+    const match=String(originPageUrl||"").match(/\/markets\/([^\/?#]+)\.html/i);
+    originMarketSlug=match?.[1]?.toLowerCase()||null;
+  }catch(error){}
+  let originVisitorId=null;
+  let originSessionId=null;
+  try{ originVisitorId=localStorage.getItem("anybike_visitor_id")||null; }catch(error){}
+  try{ originSessionId=sessionStorage.getItem("anybike_session_id")||null; }catch(error){}
+
   const {data:thread,error:threadError}=await sb.from("message_centre_threads").insert({
     customer_name:name,
     customer_email:email,
@@ -476,6 +490,13 @@ ${getDynamicMessage()}`;
     country:countryInput||geoInfo.country||null,
     source_type:selectedJourney.key,
     source_page:"anybike-connect.html",
+    related_page_title:originPageTitle,
+    related_page_url:originPageUrl,
+    origin_page_url:originPageUrl,
+    origin_page_title:originPageTitle,
+    origin_market_slug:originMarketSlug,
+    origin_session_id:originSessionId,
+    visitor_id:originVisitorId,
     subject:subject,
     status:"New",
     department:selectedJourney.dept,
