@@ -874,7 +874,9 @@ function purchaseState(purchase){
   const secured=!!purchase.motorcycle_secured;
   const collected=String(purchase.collection_status||"").toLowerCase()==="collected" ||
     String(purchase.deal_status||"").toLowerCase()==="collected";
-  const delivered=!!purchase.delivered_to_shipper_at;
+  const deliveryStage=String(purchase.delivery_handover_status||"").toLowerCase();
+  const delivered=!!purchase.delivered_to_shipper_at || deliveryStage==="delivered";
+  const outForDelivery=["driver_link_ready","driver_opened","arrived"].includes(deliveryStage);
   const completed=String(purchase.deal_status||"").toLowerCase()==="completed" ||
     String(purchase.deal_stage||"").toLowerCase()==="completed" ||
     !!purchase.operations_complete;
@@ -889,7 +891,10 @@ function purchaseState(purchase){
     message="Your AnyBike purchase and UK handover are complete.";
   }else if(delivered){
     heading="Delivered to Shipper";
-    message="Your motorcycle has been handed over to the agreed UK shipper / freight forwarder.";
+    message="Your motorcycle has been handed over to the confirmed shipping company.";
+  }else if(outForDelivery){
+    heading="Out for Delivery";
+    message="Move Motorcycles is completing the agreed handover to your confirmed shipping company.";
   }else if(collected){
     heading="Collected";
     message="Your motorcycle has been collected and is now moving through the secure UK custody / shipping stage.";
@@ -915,7 +920,7 @@ function purchaseState(purchase){
 
   return {
     depositRequired,depositDue,depositAllocated,depositOutstanding,depositSatisfied,
-    moneyReceived,allocated,balance,secured,collected,delivered,completed,fullyPaid,
+    moneyReceived,allocated,balance,secured,collected,delivered,outForDelivery,completed,fullyPaid,
     heading,message,paymentStatus
   };
 }
@@ -1109,6 +1114,21 @@ function purchaseCard(purchase){
 
         ${buyerStorageHtml(purchase,state)}
 
+        ${purchase.delivery_handover_status?`
+          <div class="collection-card">
+            <div class="collection-card-head">
+              <div>
+                <strong>${state.delivered?"✓ Delivered to "+safe(purchase.delivery_receiver_company||purchase.freight_forwarder_name||"shipping company"):"UK Delivery · "+safe(String(purchase.delivery_handover_status||"").replaceAll("_"," "))}</strong>
+                <span>${state.delivered
+                  ? "Handover completed"+(purchase.delivery_completed_at?" · "+safe(new Date(purchase.delivery_completed_at).toLocaleString("en-GB")):"")+(purchase.delivery_recipient_name?" · Received by "+safe(purchase.delivery_recipient_name):"")
+                  : "Your motorcycle is being prepared for or is on its way to the confirmed shipping company."}</span>
+              </div>
+              ${state.delivered?`<button type="button" onclick="loadMyDeliveryReport(${Number(purchase.deal_motorcycle_id)})">View Delivery Report</button>`:""}
+            </div>
+            <div id="my-delivery-report-${Number(purchase.deal_motorcycle_id)}" style="display:none;margin-top:12px"></div>
+          </div>
+        `:""}
+
         <details class="purchase-more">
           <summary>Payment & purchase details</summary>
           <div class="purchase-more-body">
@@ -1196,6 +1216,41 @@ function closeMyCollectionReport(dealMotorcycleId){
 
 window.loadMyCollectionReport=loadMyCollectionReport;
 window.closeMyCollectionReport=closeMyCollectionReport;
+
+
+function myDeliveryReportHtml(report){
+  const evidence=Array.isArray(report?.evidence)?report.evidence:[];
+  const delivered=report?.delivered_at?new Date(report.delivered_at).toLocaleString("en-GB"):"Recorded";
+  return '<div style="background:#0d0d0d;border:1px solid #2b2b2b;border-radius:12px;padding:14px">'+
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:9px">'+
+      '<div class="detail"><span>Delivered</span>'+safe(delivered)+'</div>'+
+      '<div class="detail"><span>Shipping company</span>'+safe(report?.shipper||"—")+'</div>'+
+      '<div class="detail"><span>Received by</span>'+safe(report?.recipient_name||"—")+(report?.recipient_role?" · "+safe(report.recipient_role):"")+'</div>'+
+      '<div class="detail"><span>Reference</span>'+safe(report?.reference||"—")+'</div>'+
+    '</div>'+
+    (evidence.length?'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;margin-top:12px">'+evidence.map(function(e){return '<a href="'+safe(e.url||"#")+'" target="_blank" rel="noopener" style="text-decoration:none;color:#fff"><img src="'+safe(e.url||"")+'" alt="'+safe(e.caption||"Delivery evidence")+'" style="width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:10px;border:1px solid #333"><div style="font-size:11px;color:#bbb;margin-top:4px">'+safe(e.caption||"Delivery evidence")+'</div></a>';}).join("")+'</div>':'')+
+  '</div>';
+}
+async function loadMyDeliveryReport(dealMotorcycleId){
+  const id=Number(dealMotorcycleId),box=document.getElementById("my-delivery-report-"+id);
+  if(!box)return;
+  box.style.display="block";
+  box.innerHTML='<div style="color:#aaa">Loading delivery report…</div>';
+  try{
+    const r=await sb.functions.invoke("delivery-report",{body:{deal_motorcycle_id:id}});
+    if(r.error)throw r.error;
+    if(!r.data?.success)throw new Error(r.data?.error||"Delivery report could not be loaded.");
+    box.innerHTML=myDeliveryReportHtml(r.data)+'<div style="margin-top:10px"><button type="button" onclick="closeMyDeliveryReport('+id+')" style="border:1px solid #444;background:#111;color:#fff;border-radius:10px;padding:10px 14px;font-weight:900;cursor:pointer">Close Delivery Report</button></div>';
+  }catch(e){
+    box.innerHTML='<div style="color:#ff9e9e">Delivery report could not be loaded: '+safe(e.message||e)+'</div>';
+  }
+}
+function closeMyDeliveryReport(dealMotorcycleId){
+  const box=document.getElementById("my-delivery-report-"+Number(dealMotorcycleId));
+  if(box){box.style.display="none";box.innerHTML="";}
+}
+window.loadMyDeliveryReport=loadMyDeliveryReport;
+window.closeMyDeliveryReport=closeMyDeliveryReport;
 
 const shipperPurchaseLookup=new Map();
 
@@ -1409,7 +1464,7 @@ async function loadPurchases(){
   }
 
   const [purchaseResult,collectionJobsResult]=await Promise.all([
-    sb.rpc("get_my_purchases_v5"),
+    sb.rpc("get_my_purchases_v6"),
     sb.rpc("get_my_collection_jobs_v1")
   ]);
   const data=purchaseResult.data;
