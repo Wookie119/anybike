@@ -52,6 +52,8 @@ async function loadMarketIntelligence(){
     document.getElementById("kpiLeads").textContent=miNum(totals.leads);
     document.getElementById("kpiDeals").textContent=miNum(totals.deals);
     document.getElementById("kpiMarkets").textContent=miNum(rows.length);
+    const coverage=Number(data?.attribution?.coverage_percent);
+    document.getElementById("kpiCoverage").textContent=Number.isFinite(coverage)?coverage.toFixed(1)+"%":"—";
 
     body.innerHTML=rows.length?rows.map(r=>{
       const views=Number(r.page_views||0);
