@@ -54,8 +54,8 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
       <section class="panel">
         <div class="filters">
           <div class="field"><label>Source</label><select id="connectorFilter"><option value="">All sources</option></select></div>
-          <div class="field"><label>Make</label><input id="makeFilter" placeholder="BMW"></div>
-          <div class="field"><label>Model</label><input id="modelFilter" placeholder="S 1000 RR"></div>
+          <div class="field"><label>Make</label><select id="makeFilter" onchange="refreshModelOptions()"><option value="">All makes</option></select></div>
+          <div class="field"><label>Model</label><select id="modelFilter"><option value="">All models</option></select></div>
           <div class="field"><label>Status</label><select id="statusFilter"><option value="live">Live only</option><option value="">All</option><option value="ended">No longer listed</option><option value="review">Needs review</option></select></div>
           <button class="btn red" onclick="loadItems()">Search</button>
         </div>
@@ -81,7 +81,7 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
 </div>
 <script>
 const sb=()=>getAdminSupabaseClient();
-let hub=null,items=[],buyers=[],selected=new Set();
+let hub=null,items=[],buyers=[],selected=new Set(),sourceFacets={makes:[],models:[]};
 function esc(v){return String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;")}
 function gbp(v){const n=Number(v);return Number.isFinite(n)?new Intl.NumberFormat("en-GB",{style:"currency",currency:"GBP",maximumFractionDigits:0}).format(n):"—"}
 function date(v){if(!v)return"Never";try{return new Date(v).toLocaleString("en-GB")}catch{return v}}
@@ -100,6 +100,42 @@ async function addSource(){
   document.getElementById("newSourceName").value="";document.getElementById("newSourceUrl").value="";document.getElementById("newAdapterKey").value="";
   await loadHub();
 }
+async function loadSourceFacets(){
+  const cid=document.getElementById("connectorFilter").value?Number(document.getElementById("connectorFilter").value):null;
+  const makeEl=document.getElementById("makeFilter");
+  const modelEl=document.getElementById("modelFilter");
+  sourceFacets={makes:[],models:[]};
+  makeEl.innerHTML='<option value="">All makes</option>';
+  modelEl.innerHTML='<option value="">All models</option>';
+  if(!cid){
+    makeEl.disabled=true;
+    modelEl.disabled=true;
+    return;
+  }
+  const {data,error}=await sb().rpc("admin_get_live_source_facets_v1",{p_connector_id:cid});
+  if(error){
+    makeEl.innerHTML='<option value="">Could not load source makes</option>';
+    modelEl.innerHTML='<option value="">Could not load source models</option>';
+    return;
+  }
+  sourceFacets=data||{makes:[],models:[]};
+  const makes=sourceFacets.makes||[];
+  makeEl.disabled=false;
+  modelEl.disabled=false;
+  makeEl.innerHTML='<option value="">All makes</option>'+makes.map(m=>'<option value="'+esc(m)+'">'+esc(m)+'</option>').join("");
+  if(!makes.length){
+    makeEl.innerHTML='<option value="">No live makes yet — refresh source first</option>';
+    modelEl.innerHTML='<option value="">No live models yet</option>';
+  }
+  refreshModelOptions();
+}
+function refreshModelOptions(){
+  const make=document.getElementById("makeFilter").value;
+  const modelEl=document.getElementById("modelFilter");
+  const rows=(sourceFacets.models||[]).filter(x=>!make||x.make===make);
+  modelEl.innerHTML='<option value="">All models</option>'+rows.map(x=>'<option value="'+esc(x.model)+'">'+esc(x.model)+'</option>').join("");
+  if(!rows.length&&make)modelEl.innerHTML='<option value="">No live models for this make</option>';
+}
 async function loadHub(){
   const {data,error}=await sb().rpc("admin_get_live_source_hub_v1");
   if(error){document.getElementById("sources").innerHTML='<div class="status bad">'+esc(error.message)+'</div>';return}
@@ -111,13 +147,17 @@ async function loadHub(){
     '<div class="stats"><span class="pill live">'+c.live_count+' live</span><span class="pill end">'+c.ended_count+' ended</span><span class="pill review">'+c.review_count+' review</span></div>'+
     '<div class="toolbar"><a class="btn" href="'+esc(c.results_url||c.base_url||"#")+'" target="_blank">Open source ↗</a><a class="btn green" href="admin-used-bike-scanner.html?source='+encodeURIComponent(c.id)+'">Use Scanner</a></div>'+
     '</article>').join("");
-  document.getElementById("connectorFilter").innerHTML='<option value="">All sources</option>'+cs.map(c=>'<option value="'+c.id+'">'+esc(c.name)+'</option>').join("");
+  document.getElementById("connectorFilter").innerHTML='<option value="">Choose source…</option>'+cs.map(c=>'<option value="'+c.id+'">'+esc(c.name)+'</option>').join("");
+  if(cs.length===1){
+    document.getElementById("connectorFilter").value=String(cs[0].id);
+    await loadSourceFacets();
+  }
 }
 async function loadItems(){
   const st=document.getElementById("poolStatus");st.textContent="Loading…";
   const cid=document.getElementById("connectorFilter").value?Number(document.getElementById("connectorFilter").value):null;
-  const make=document.getElementById("makeFilter").value.trim()||null;
-  const model=document.getElementById("modelFilter").value.trim()||null;
+  const make=document.getElementById("makeFilter").value||null;
+  const model=document.getElementById("modelFilter").value||null;
   const status=document.getElementById("statusFilter").value||null;
   const {data,error}=await sb().rpc("admin_get_live_source_items_v1",{p_connector_id:cid,p_make:make,p_model:model,p_status:status,p_limit:300});
   if(error){st.className="status bad";st.textContent=error.message;return}
@@ -152,6 +192,11 @@ async function loadRequests(){
   el.innerHTML='<option value="">General sourcing</option>'+(data||[]).map(r=>'<option value="'+r.id+'">'+esc([r.make,r.model,r.year_from&&("from "+r.year_from)].filter(Boolean).join(" · "))+'</option>').join("");
 }
 document.getElementById("buyerSelect").addEventListener("change",loadRequests);
+document.getElementById("connectorFilter").addEventListener("change",async()=>{
+  selected.clear();
+  await loadSourceFacets();
+  await loadItems();
+});
 
 async function createBatch(){
   const bid=Number(document.getElementById("buyerSelect").value),rid=document.getElementById("requestSelect").value?Number(document.getElementById("requestSelect").value):null;
