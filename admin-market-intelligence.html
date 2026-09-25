@@ -84,9 +84,15 @@ async function loadMarketIntelligence(){
   const body=document.getElementById("marketRows");
   body.innerHTML='<tr><td colspan="9" class="empty">Loading market intelligence…</td></tr>';
 
+  const client=getAdminSupabaseClient();
+  if(!client){
+    body.innerHTML='<tr><td colspan="9" class="empty">Admin data connection is unavailable.</td></tr>';
+    return;
+  }
+
   const [marketResult,discoveryResult]=await Promise.all([
-    sb.rpc("admin_get_market_intelligence_v1",{p_days:marketDays}),
-    sb.rpc("admin_get_market_discovery_v1",{p_days:Math.max(marketDays,90)})
+    client.rpc("admin_get_market_intelligence_v1",{p_days:marketDays}),
+    client.rpc("admin_get_market_discovery_v1",{p_days:Math.max(marketDays,90)})
   ]);
 
   if(marketResult.error){
