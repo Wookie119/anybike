@@ -714,7 +714,72 @@ function renderWorkspaceMessageThread(thread){
     </div>`;
 }
 
-function renderCustomerIntelligence(customer,w){\n  const intel=w?.intelligence||{};\n  const summary=intel.summary||{};\n  const first=intel.first_session||{};\n  const origin=intel.first_attributed_origin||{};\n  const brands=Array.isArray(intel.top_brands)?intel.top_brands:[];\n  const models=Array.isArray(intel.top_models)?intel.top_models:[];\n  const pages=Array.isArray(intel.recent_pages)?intel.recent_pages:[];\n  const discovery=Array.isArray(intel.discovery_responses)?intel.discovery_responses:[];\n  const sourceTitle=origin.origin_page_title||origin.origin_page_url||first.landing_title||first.landing_path||"Unknown";\n  const sourceDetail=origin.origin_page_url||first.landing_path||"No attributable source recorded";\n  const market=origin.origin_market_slug||first.country||customer.country||customer.destinationCountry||"Unknown";\n\n  const brandHtml=brands.length\n    ? '<div class="intel-tags">'+brands.map(b=>\n        '<span class="intel-tag">'+safe(b.make)+' <b>'+Number(b.page_views||0)+' views</b></span>'\n      ).join("")+'</div>'\n    : '<div class="note-box">No brand browsing signals yet.</div>';\n\n  const modelHtml=models.length\n    ? models.map(m=>\n        '<div class="deal-card"><strong>'+safe(m.make)+' '+safe(m.model)+'</strong>'+\n        '<div class="small">'+Number(m.page_views||0)+' page views · '+Number(m.motorcycles_viewed||0)+' motorcycles · '+fmtSeconds(m.active_seconds)+'</div>'+\n        '<div class="small">Last viewed: '+fmtDate(m.last_viewed_at)+'</div></div>'\n      ).join("")\n    : '<div class="note-box">No model browsing signals yet.</div>';\n\n  const discoveryHtml=discovery.length\n    ? discovery.map(d=>\n        '<div class="deal-card"><strong>'+safe(d.source_name||d.response_text||"Buyer discovery response")+'</strong>'+\n        '<div class="small">'+safe(d.channel_type||d.response_type)+(d.country?' · '+safe(d.country):"")+'</div>'+\n        (d.source_url?'<div class="small">'+safe(d.source_url)+'</div>':"")+\n        (d.heard_about_anybike?'<div class="small">First heard about AnyBike: '+safe(d.heard_about_anybike)+'</div>':"")+\n        '<div class="small">Recorded '+fmtDate(d.created_at)+'</div></div>'\n      ).join("")\n    : '<div class="note-box">No buyer-discovery response recorded yet.</div>';\n\n  const journeyHtml=pages.length\n    ? pages.slice(0,20).map(p=>\n        '<div class="timeline-item"><strong>'+fmtDate(p.entered_at)+' · '+fmtSeconds(p.active_seconds)+'</strong>'+\n        '<div class="small">'+safe(p.page_title||p.path)+'</div><div class="small">'+safe(p.path)+'</div></div>'\n      ).join("")\n    : '<div class="note-box">No logged-in journey recorded in this period.</div>';\n\n  return '<h3>Customer Intelligence</h3>'+\n    '<div class="intel-summary-grid">'+\n      '<div class="intel-card"><span>Sessions</span><strong>'+Number(summary.sessions||0)+'</strong></div>'+\n      '<div class="intel-card"><span>Page Views</span><strong>'+Number(summary.page_views||0)+'</strong></div>'+\n      '<div class="intel-card"><span>Active Time</span><strong>'+fmtSeconds(summary.active_seconds)+'</strong></div>'+\n      '<div class="intel-card"><span>Market Context</span><strong>'+safe(market)+'</strong></div>'+\n    '</div>'+\n    '<div class="intel-columns"><div>'+\n      '<h3 class="section-title">Source & Attribution</h3>'+\n      '<div class="note-box intel-source"><strong>'+safe(sourceTitle)+'</strong>'+\n        '<div class="small" style="margin-top:5px">'+safe(sourceDetail)+'</div>'+\n        '<div class="small" style="margin-top:5px">'+(origin.source_record?safe(origin.source_record)+' · ':"")+(origin.origin_page_type?safe(origin.origin_page_type)+' · ':"")+(origin.event_at?fmtDate(origin.event_at):first.started_at?fmtDate(first.started_at):"")+'</div>'+\n        (first.referrer?'<div class="small">Referrer: '+safe(first.referrer)+'</div>':"")+\n      '</div>'+\n      '<h3 class="section-title">Top Brands</h3>'+brandHtml+\n      '<h3 class="section-title">Top Models</h3>'+modelHtml+\n    '</div><div>'+\n      '<h3 class="section-title">Where this buyer shops</h3>'+discoveryHtml+\n      '<h3 class="section-title">Recent Journey</h3><div class="timeline">'+journeyHtml+'</div>'+\n    '</div></div>';\n}\nfunction renderCustomerWorkspace(customer){
+function renderCustomerIntelligence(customer,w){
+  const intel=w?.intelligence||{};
+  const summary=intel.summary||{};
+  const first=intel.first_session||{};
+  const origin=intel.first_attributed_origin||{};
+  const brands=Array.isArray(intel.top_brands)?intel.top_brands:[];
+  const models=Array.isArray(intel.top_models)?intel.top_models:[];
+  const pages=Array.isArray(intel.recent_pages)?intel.recent_pages:[];
+  const discovery=Array.isArray(intel.discovery_responses)?intel.discovery_responses:[];
+  const sourceTitle=origin.origin_page_title||origin.origin_page_url||first.landing_title||first.landing_path||"Unknown";
+  const sourceDetail=origin.origin_page_url||first.landing_path||"No attributable source recorded";
+  const market=origin.origin_market_slug||first.country||customer.country||customer.destinationCountry||"Unknown";
+
+  const brandHtml=brands.length
+    ? '<div class="intel-tags">'+brands.map(b=>
+        '<span class="intel-tag">'+safe(b.make)+' <b>'+Number(b.page_views||0)+' views</b></span>'
+      ).join("")+'</div>'
+    : '<div class="note-box">No brand browsing signals yet.</div>';
+
+  const modelHtml=models.length
+    ? models.map(m=>
+        '<div class="deal-card"><strong>'+safe(m.make)+' '+safe(m.model)+'</strong>'+
+        '<div class="small">'+Number(m.page_views||0)+' page views · '+Number(m.motorcycles_viewed||0)+' motorcycles · '+fmtSeconds(m.active_seconds)+'</div>'+
+        '<div class="small">Last viewed: '+fmtDate(m.last_viewed_at)+'</div></div>'
+      ).join("")
+    : '<div class="note-box">No model browsing signals yet.</div>';
+
+  const discoveryHtml=discovery.length
+    ? discovery.map(d=>
+        '<div class="deal-card"><strong>'+safe(d.source_name||d.response_text||"Buyer discovery response")+'</strong>'+
+        '<div class="small">'+safe(d.channel_type||d.response_type)+(d.country?' · '+safe(d.country):"")+'</div>'+
+        (d.source_url?'<div class="small">'+safe(d.source_url)+'</div>':"")+
+        (d.heard_about_anybike?'<div class="small">First heard about AnyBike: '+safe(d.heard_about_anybike)+'</div>':"")+
+        '<div class="small">Recorded '+fmtDate(d.created_at)+'</div></div>'
+      ).join("")
+    : '<div class="note-box">No buyer-discovery response recorded yet.</div>';
+
+  const journeyHtml=pages.length
+    ? pages.slice(0,20).map(p=>
+        '<div class="timeline-item"><strong>'+fmtDate(p.entered_at)+' · '+fmtSeconds(p.active_seconds)+'</strong>'+
+        '<div class="small">'+safe(p.page_title||p.path)+'</div><div class="small">'+safe(p.path)+'</div></div>'
+      ).join("")
+    : '<div class="note-box">No logged-in journey recorded in this period.</div>';
+
+  return '<h3>Customer Intelligence</h3>'+
+    '<div class="intel-summary-grid">'+
+      '<div class="intel-card"><span>Sessions</span><strong>'+Number(summary.sessions||0)+'</strong></div>'+
+      '<div class="intel-card"><span>Page Views</span><strong>'+Number(summary.page_views||0)+'</strong></div>'+
+      '<div class="intel-card"><span>Active Time</span><strong>'+fmtSeconds(summary.active_seconds)+'</strong></div>'+
+      '<div class="intel-card"><span>Market Context</span><strong>'+safe(market)+'</strong></div>'+
+    '</div>'+
+    '<div class="intel-columns"><div>'+
+      '<h3 class="section-title">Source & Attribution</h3>'+
+      '<div class="note-box intel-source"><strong>'+safe(sourceTitle)+'</strong>'+
+        '<div class="small" style="margin-top:5px">'+safe(sourceDetail)+'</div>'+
+        '<div class="small" style="margin-top:5px">'+(origin.source_record?safe(origin.source_record)+' · ':"")+(origin.origin_page_type?safe(origin.origin_page_type)+' · ':"")+(origin.event_at?fmtDate(origin.event_at):first.started_at?fmtDate(first.started_at):"")+'</div>'+
+        (first.referrer?'<div class="small">Referrer: '+safe(first.referrer)+'</div>':"")+
+      '</div>'+
+      '<h3 class="section-title">Top Brands</h3>'+brandHtml+
+      '<h3 class="section-title">Top Models</h3>'+modelHtml+
+    '</div><div>'+
+      '<h3 class="section-title">Where this buyer shops</h3>'+discoveryHtml+
+      '<h3 class="section-title">Recent Journey</h3><div class="timeline">'+journeyHtml+'</div>'+
+    '</div></div>';
+}
+function renderCustomerWorkspace(customer){
   const w=customerWorkspaceMap[String(customer.customerId)] || {};
   customer.workspace=w;
   const root=document.getElementById("customer-"+customer.id);
