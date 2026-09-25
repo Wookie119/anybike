@@ -1579,6 +1579,19 @@ async function submitBikeEnquiry(){
       message
     ].filter(Boolean).join("\n\n");
 
+    const attributionParams=new URLSearchParams(window.location.search);
+    const originPageUrl=attributionParams.get("from") || attributionParams.get("page") || document.referrer || window.location.href;
+    const originPageTitle=attributionParams.get("pageTitle") || attributionParams.get("title") || document.title || "Motorcycle details";
+    let originMarketSlug=null;
+    try{
+      const match=String(originPageUrl||"").match(/\/markets\/([^\/?#]+)\.html/i);
+      originMarketSlug=match?.[1]?.toLowerCase()||null;
+    }catch(error){}
+    let originVisitorId=null;
+    let originSessionId=null;
+    try{ originVisitorId=localStorage.getItem("anybike_visitor_id")||null; }catch(error){}
+    try{ originSessionId=sessionStorage.getItem("anybike_session_id")||null; }catch(error){}
+
     const {error}=await sb
       .from("bike_enquiries")
       .insert({
@@ -1599,6 +1612,13 @@ async function submitBikeEnquiry(){
         customer_region:currentProfile?.region || "",
         device_type:deviceType,
         browser,
+        origin_page_url:originPageUrl,
+        origin_page_title:originPageTitle,
+        origin_market_slug:originMarketSlug,
+        origin_brand:bike.make||null,
+        origin_model:bike.model||null,
+        origin_visitor_id:originVisitorId,
+        origin_session_id:originSessionId,
         message:combinedMessage,
         status:"New"
       });
