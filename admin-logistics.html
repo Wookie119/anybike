@@ -496,6 +496,48 @@ a{text-decoration:none;color:inherit}
   .pay-site-result{grid-template-columns:1fr}
 }
 
+
+.ops-queue{margin:16px 0;background:#0d0d0d;border:1px solid rgba(255,255,255,.12);border-radius:20px;overflow:hidden}
+.ops-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;padding:20px 22px;border-bottom:1px solid var(--line)}
+.ops-head h2{margin:0 0 6px}
+.ops-head p{margin:0;color:#aaa;line-height:1.45}
+.ops-summary{display:grid;grid-template-columns:repeat(5,minmax(120px,1fr));gap:10px;padding:16px 22px;border-bottom:1px solid var(--line)}
+.ops-metric{background:#151515;border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:12px}
+.ops-metric span{display:block;color:#888;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.06em}
+.ops-metric strong{display:block;margin-top:5px;font-size:24px}
+.ops-toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:14px 22px;border-bottom:1px solid var(--line)}
+.ops-toolbar select{background:#111;color:#fff;border:1px solid #333;border-radius:10px;padding:10px 12px}
+.ops-list{display:grid;gap:12px;padding:18px 22px}
+.ops-card{background:#131313;border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:16px}
+.ops-card-top{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex-wrap:wrap}
+.ops-card h3{margin:0 0 5px;font-size:20px}
+.ops-sub{color:#aaa;font-size:12px;line-height:1.45}
+.ops-statuses{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.ops-pill{display:inline-flex;align-items:center;padding:6px 9px;border-radius:999px;background:#222;border:1px solid rgba(255,255,255,.1);font-size:11px;font-weight:900}
+.ops-pill.green{color:#7ee2a8;border-color:rgba(51,204,102,.35);background:rgba(51,204,102,.08)}
+.ops-pill.amber{color:#ffd891;border-color:rgba(255,190,80,.32);background:rgba(255,190,80,.07)}
+.ops-pill.red{color:#ff9d9d;border-color:rgba(237,28,36,.35);background:rgba(237,28,36,.08)}
+.ops-detail-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin-top:14px}
+.ops-detail{background:#0d0d0d;border:1px solid rgba(255,255,255,.07);border-radius:11px;padding:10px}
+.ops-detail span{display:block;color:#777;font-size:10px;font-weight:900;text-transform:uppercase;margin-bottom:4px}
+.ops-detail strong{font-size:13px}
+.ops-storage-form{display:grid;grid-template-columns:1.2fr .55fr .45fr 1.5fr auto;gap:8px;margin-top:14px;align-items:end}
+.ops-storage-form label{display:grid;gap:5px;color:#888;font-size:10px;font-weight:900;text-transform:uppercase}
+.ops-storage-form input{width:100%;min-width:0;background:#070707;color:#fff;border:1px solid #333;border-radius:9px;padding:10px}
+.ops-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.ops-empty{padding:30px;text-align:center;color:#aaa}
+@media(max-width:1100px){
+  .ops-summary{grid-template-columns:repeat(3,minmax(120px,1fr))}
+  .ops-detail-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .ops-storage-form{grid-template-columns:1fr 1fr}
+  .ops-storage-form label:last-of-type{grid-column:1/-1}
+}
+@media(max-width:650px){
+  .ops-summary,.ops-detail-grid,.ops-storage-form{grid-template-columns:1fr}
+  .ops-head{display:block}
+  .ops-head .pay-site-button{margin-top:12px}
+}
+
 @media(max-width:1000px){
   .admin-shell{
     grid-template-columns:1fr;
@@ -537,12 +579,43 @@ a{text-decoration:none;color:inherit}
   </div>
 
   <div class="dept-actions">
-    <a href="#driver-jobs" style="background:#ed1c24;border-color:#ed1c24">🚚 Move Driver Jobs</a>
+    <a href="#custody-storage" style="background:#ed1c24;border-color:#ed1c24">🏍 Custody & Storage</a>
+    <a href="#driver-jobs">🚚 Move Driver Jobs</a>
     <a href="#pay-on-site">📥 Incoming Collection Jobs</a>
     <a href="admin-dashboard.html">🏠 Admin HQ</a>
     <a href="admin-platform-audit.html">🧪 Mission Control</a>
   </div>
 </div>
+
+
+<section class="ops-queue" id="custody-storage" style="scroll-margin-top:90px">
+  <div class="ops-head">
+    <div>
+      <h2>🏍 AnyBike Custody & Storage</h2>
+      <p>Motorcycles collected for AnyBike, depot arrival, storage, release approval and final handover. A Deal is only completed here once the agreed handover is recorded.</p>
+    </div>
+    <button class="pay-site-button secondary" type="button" onclick="loadOperationsStorageQueue()">Refresh Queue</button>
+  </div>
+  <div class="ops-summary">
+    <div class="ops-metric"><span>In Queue</span><strong id="opsTotal">0</strong></div>
+    <div class="ops-metric"><span>Collected / Inbound</span><strong id="opsCollected">0</strong></div>
+    <div class="ops-metric"><span>At Depot</span><strong id="opsDepot">0</strong></div>
+    <div class="ops-metric"><span>Release Ready</span><strong id="opsRelease">0</strong></div>
+    <div class="ops-metric"><span>Completed</span><strong id="opsCompleted">0</strong></div>
+  </div>
+  <div class="ops-toolbar">
+    <select id="opsFilter" onchange="renderOperationsStorageQueue()">
+      <option value="active">Active custody</option>
+      <option value="">All records</option>
+      <option value="inbound">Collected / inbound</option>
+      <option value="depot">At depot / storage</option>
+      <option value="release">Release approved</option>
+      <option value="completed">Completed handovers</option>
+    </select>
+    <span id="opsStatus" style="color:#aaa;font-size:12px">Loading custody queue…</span>
+  </div>
+  <div id="opsList" class="ops-list"><div class="ops-empty">Loading…</div></div>
+</section>
 
 <section class="pay-site" id="driver-jobs" style="display:none;scroll-margin-top:90px">
   <div class="pay-site-head">
@@ -759,9 +832,9 @@ a{text-decoration:none;color:inherit}
 
 <div class="cards">
   <div class="card">
-    <h3>🚚 Shipping Workflow</h3>
-    <p class="badge blue">Planned</p>
-    <p>Move motorcycles through collection, on-site, ready to ship and freight stages.</p>
+    <h3>🚚 Delivery & Final Handover</h3>
+    <p class="badge blue">Next</p>
+    <p>Driver assignment, out-for-delivery evidence and freight-forwarder handover will build on the live custody queue above.</p>
   </div>
 
   <div class="card">
@@ -1377,6 +1450,172 @@ async function copyMoveJobLink(button){
   button.textContent="Copied ✓";
 }
 
+
+let operationsStorageRows=[];
+
+function opsNiceDate(value){
+  if(!value)return "—";
+  const d=new Date(value);
+  return Number.isNaN(d.getTime())?String(value):d.toLocaleString("en-GB");
+}
+function opsMoney(value){
+  const n=Number(value||0);
+  return "£"+(Number.isFinite(n)?n:0).toFixed(2);
+}
+function opsBikeName(row){
+  return [row.year,row.make,row.model,row.variant].filter(Boolean).join(" ")||"Motorcycle";
+}
+function opsPill(label,type){
+  return '<span class="ops-pill '+(type||"")+'>'+escLogistics(label)+'</span>';
+}
+function opsRowMatches(row,filter){
+  if(!filter)return true;
+  if(filter==="active")return !row.operations_complete;
+  if(filter==="inbound")return row.collection_status==="collected" && (row.depot_status||"not_at_depot")==="not_at_depot";
+  if(filter==="depot")return row.depot_status==="at_depot" && !row.operations_complete;
+  if(filter==="release")return row.release_status==="approved" && !row.operations_complete;
+  if(filter==="completed")return !!row.operations_complete;
+  return true;
+}
+function renderOperationsStorageQueue(){
+  const host=document.getElementById("opsList");
+  if(!host)return;
+  const filter=String(document.getElementById("opsFilter")?.value||"active");
+  const rows=operationsStorageRows.filter(row=>opsRowMatches(row,filter));
+  const status=document.getElementById("opsStatus");
+  if(status)status.textContent=rows.length+" record"+(rows.length===1?"":"s")+" shown.";
+
+  if(!rows.length){
+    host.innerHTML='<div class="ops-empty">No motorcycles currently match this custody view.</div>';
+    return;
+  }
+
+  host.innerHTML=rows.map(row=>{
+    const dm=Number(row.deal_motorcycle_id);
+    const atDepot=row.depot_status==="at_depot";
+    const inbound=row.collection_status==="collected" && !atDepot && !row.operations_complete;
+    const approved=row.release_status==="approved";
+    const completed=!!row.operations_complete;
+    const statuses=[
+      opsPill("Collection: "+(row.collection_status||"not booked"),row.collection_status==="collected"?"green":""),
+      opsPill("Depot: "+(row.depot_status||"not at depot"),atDepot?"green":inbound?"amber":""),
+      opsPill("Storage: "+(row.storage_status||"not started"),row.storage_status==="chargeable"?"amber":row.storage_status==="stopped"?"":""),
+      opsPill("Release: "+(row.release_status||"not ready"),approved?"green":row.release_status==="blocked"?"red":""),
+      completed?opsPill("Operations complete","green"):""
+    ].filter(Boolean).join("");
+
+    const storageForm=atDepot&&!completed
+      ? '<div class="ops-storage-form">'+
+          '<label>Storage location<input id="ops-location-'+dm+'" value="'+escLogistics(row.storage_location||"")+'" placeholder="e.g. Bay A12"></label>'+
+          '<label>Daily rate £<input id="ops-rate-'+dm+'" type="number" min="0" step="0.01" value="'+Number(row.storage_daily_rate_gbp||0)+'"></label>'+
+          '<label>Free days<input id="ops-free-'+dm+'" type="number" min="0" step="1" value="'+Number(row.storage_free_days||0)+'"></label>'+
+          '<label>Storage notes<input id="ops-notes-'+dm+'" value="'+escLogistics(row.agreement_notes||"")+'" placeholder="Agreement / handling notes"></label>'+
+          '<button class="pay-site-button secondary" type="button" onclick="saveOpsStorage('+dm+')">Save Storage</button>'+
+        '</div>'
+      : '';
+
+    const actions=[];
+    if(inbound)actions.push('<button class="pay-site-button" type="button" onclick="markOpsDepotArrived('+dm+')">Arrived at Depot</button>');
+    if(atDepot&&!approved&&!completed)actions.push('<button class="pay-site-button" type="button" onclick="approveOpsRelease('+dm+')">Approve Release</button>');
+    if(atDepot&&approved&&!completed)actions.push('<button class="pay-site-button" type="button" onclick="completeOpsHandover('+dm+')">Confirm Final Handover</button>');
+    actions.push('<a class="pay-site-button secondary" href="admin-enquiries.html" target="_blank" rel="noopener">Open Bike Sales HQ</a>');
+
+    return '<div class="ops-card">'+
+      '<div class="ops-card-top"><div><h3>'+escLogistics(opsBikeName(row))+'</h3>'+
+        '<div class="ops-sub">'+escLogistics(row.deal_number||("Deal #"+row.deal_id))+
+        (row.customer_name?' · '+escLogistics(row.customer_name):'')+
+        (row.destination_country?' · Destination '+escLogistics(row.destination_country):'')+'</div>'+
+        '<div class="ops-statuses">'+statuses+'</div></div>'+
+        '<div class="ops-sub" style="text-align:right">'+
+          (row.freight_forwarder_name?'<strong style="color:#fff">Forwarder: '+escLogistics(row.freight_forwarder_name)+'</strong><br>':'')+
+          (row.freight_forwarder_reference?'Ref '+escLogistics(row.freight_forwarder_reference)+'<br>':'')+
+          (row.uk_handover_port?'Handover '+escLogistics(row.uk_handover_port):'')+
+        '</div></div>'+
+      '<div class="ops-detail-grid">'+
+        '<div class="ops-detail"><span>Collected</span><strong>'+escLogistics(opsNiceDate(row.collection_actual_at))+'</strong></div>'+
+        '<div class="ops-detail"><span>Depot arrival</span><strong>'+escLogistics(opsNiceDate(row.depot_arrived_at))+'</strong></div>'+
+        '<div class="ops-detail"><span>Storage location</span><strong>'+escLogistics(row.storage_location||"—")+'</strong></div>'+
+        '<div class="ops-detail"><span>Storage accrued</span><strong>'+escLogistics(opsMoney(row.storage_accrued_charge_gbp))+'</strong></div>'+
+        '<div class="ops-detail"><span>Storage started</span><strong>'+escLogistics(opsNiceDate(row.storage_started_at))+'</strong></div>'+
+        '<div class="ops-detail"><span>Chargeable from</span><strong>'+escLogistics(opsNiceDate(row.storage_chargeable_from))+'</strong></div>'+
+        '<div class="ops-detail"><span>Visual check</span><strong>'+escLogistics(row.visual_check_status||"—")+'</strong></div>'+
+        '<div class="ops-detail"><span>Condition photos</span><strong>'+escLogistics(row.condition_photos_confirmed_at?"Saved":"Not confirmed")+'</strong></div>'+
+      '</div>'+
+      storageForm+
+      '<div class="ops-actions">'+actions.join("")+'</div>'+
+    '</div>';
+  }).join("");
+}
+
+async function loadOperationsStorageQueue(){
+  const status=document.getElementById("opsStatus");
+  const host=document.getElementById("opsList");
+  if(status)status.textContent="Loading custody queue…";
+  if(host)host.innerHTML='<div class="ops-empty">Loading…</div>';
+  try{
+    const result=await logisticsSb.rpc("admin_get_operations_storage_queue_v1");
+    if(result.error)throw result.error;
+    const payload=result.data||{};
+    operationsStorageRows=Array.isArray(payload.rows)?payload.rows:[];
+    const summary=payload.summary||{};
+    document.getElementById("opsTotal").textContent=Number(summary.total||0);
+    document.getElementById("opsCollected").textContent=Number(summary.collected||0);
+    document.getElementById("opsDepot").textContent=Number(summary.at_depot||0);
+    document.getElementById("opsRelease").textContent=Number(summary.release_ready||0);
+    document.getElementById("opsCompleted").textContent=Number(summary.completed||0);
+    renderOperationsStorageQueue();
+  }catch(error){
+    console.error("Operations storage queue could not be loaded",error);
+    if(status)status.textContent="Could not load custody queue.";
+    if(host)host.innerHTML='<div class="ops-empty" style="color:#ff9d9d">'+escLogistics(error.message||String(error))+'</div>';
+  }
+}
+
+async function runOpsAction(dm,action,args){
+  const payload=Object.assign({
+    p_deal_motorcycle_id:Number(dm),
+    p_action:action,
+    p_storage_location:null,
+    p_daily_rate_gbp:null,
+    p_free_days:null,
+    p_notes:null
+  },args||{});
+  const result=await logisticsSb.rpc("admin_operations_storage_action_v1",payload);
+  if(result.error)throw result.error;
+  await loadOperationsStorageQueue();
+}
+async function markOpsDepotArrived(dm){
+  const location=prompt("Depot/storage location (optional):","");
+  if(location===null)return;
+  if(!confirm("Confirm this motorcycle has physically arrived at the depot?\n\nThis will start its storage record."))return;
+  try{await runOpsAction(dm,"depot_arrived",{p_storage_location:location||null});}
+  catch(error){alert(error.message||String(error));}
+}
+async function saveOpsStorage(dm){
+  try{
+    await runOpsAction(dm,"save_storage",{
+      p_storage_location:String(document.getElementById("ops-location-"+dm)?.value||"").trim()||null,
+      p_daily_rate_gbp:Number(document.getElementById("ops-rate-"+dm)?.value||0),
+      p_free_days:Number(document.getElementById("ops-free-"+dm)?.value||0),
+      p_notes:String(document.getElementById("ops-notes-"+dm)?.value||"").trim()||null
+    });
+  }catch(error){alert(error.message||String(error));}
+}
+async function approveOpsRelease(dm){
+  const notes=prompt("Release / handover note (optional):","");
+  if(notes===null)return;
+  if(!confirm("Approve this motorcycle for release from AnyBike / Move custody?"))return;
+  try{await runOpsAction(dm,"approve_release",{p_notes:notes||null});}
+  catch(error){alert(error.message||String(error));}
+}
+async function completeOpsHandover(dm){
+  const notes=prompt("Final handover note / recipient reference (optional):","");
+  if(notes===null)return;
+  if(!confirm("Confirm final handover has physically taken place?\n\nThis will stop storage and mark AnyBike operations complete."))return;
+  try{await runOpsAction(dm,"handover_complete",{p_notes:notes||null});}
+  catch(error){alert(error.message||String(error));}
+}
+
 let paySiteRows=[];
 const logisticsSb=getAdminSupabaseClient();
 
@@ -1521,6 +1760,8 @@ async function copyPaySiteLink(){
   }
 
   document.documentElement.classList.remove("admin-auth-pending");
+
+  await loadOperationsStorageQueue();
 
   try{
     const access=await logisticsSb.rpc("anybike_is_pay_on_site_admin_v1");
