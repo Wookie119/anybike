@@ -68,7 +68,7 @@ const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);let rows=[],offer
 const esc=v=>String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
 const money=v=>v===null||v===undefined?"—":"£"+Number(v).toLocaleString("en-GB",{maximumFractionDigits:0});
 async function load(){
- const {data,error}=await sb.rpc("admin_get_trade_underwrite_queue_v1");const host=document.getElementById("grid");
+ const {data,error}=await sb.rpc("admin_get_trade_underwrite_queue_v2");const host=document.getElementById("grid");
  if(error){host.innerHTML='<div class="empty">'+esc(error.message)+'</div>';return;}rows=data||[];
  if(!rows.length){host.innerHTML='<div class="empty">No trade underwrites yet.</div>';return;}
  host.innerHTML=rows.map(r=>'<article class="card"><div class="top"><div><div class="ref">'+esc(r.reference)+'</div><div class="meta">'+esc(r.submission_reference)+' · '+esc(r.opportunity_status)+'</div></div><strong>'+esc(r.live_bid_count)+' live bid'+(Number(r.live_bid_count)===1?'':'s')+'</strong></div>'+
@@ -78,7 +78,10 @@ async function load(){
  '<div class="actions"><button onclick="viewBids('+r.opportunity_id+')">View Confidential Bids</button>'+
  (r.opportunity_status==='live'?'<button onclick="closeUnderwrite('+r.opportunity_id+')">Close Underwrite</button>':'')+
  '<button class="red" onclick="openOffer('+r.opportunity_id+','+(r.highest_live_bid_gbp??"null")+')">Make AnyBike Offer</button>'+
- (r.latest_offer_amount_gbp?'<span class="btn">Latest seller offer '+money(r.latest_offer_amount_gbp)+' · '+esc(r.latest_offer_status)+'</span>':'')+
+ (r.latest_offer_amount_gbp?'<span class="btn">Latest seller offer '+money(r.latest_offer_amount_gbp)+' · '+esc(r.latest_offer_status)+(r.seller_counter_gbp?' · counter '+money(r.seller_counter_gbp):'')+'</span>':'')+
+ (r.latest_offer_id&&["sent","countered"].includes(r.latest_offer_status)
+   ?'<button onclick="recordSellerResponse('+Number(r.latest_offer_id)+',\'accepted\')">Seller Accepted</button><button onclick="recordSellerResponse('+Number(r.latest_offer_id)+',\'declined\')">Seller Declined</button><button onclick="recordSellerCounter('+Number(r.latest_offer_id)+')">Seller Countered</button>'
+   :'')+
  '</div></article>').join("");
 }
 async function viewBids(id){
@@ -121,7 +124,24 @@ async function sendConfirmation(){
     p_internal_move_transport_cost_gbp:moveCost===""?null:Number(moveCost)
   });
   if(error){alert(error.message);return;}
-  alert("Confirmation requested. Other live bids remain available as reserves.");
+  const {data:sessionData}=await sb.auth.getSession();
+  const token=sessionData?.session?.access_token||"";
+  let notified=false,notifyError="";
+  if(token){
+    try{
+      const response=await fetch(SUPABASE_URL+"/functions/v1/admin-send-trade-bid-confirmation",{
+        method:"POST",
+        headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"},
+        body:JSON.stringify({confirmation_id:data.confirmation_id})
+      });
+      const sent=await response.json().catch(()=>null);
+      notified=Boolean(response.ok&&sent?.success);
+      if(!notified)notifyError=sent?.error||"Notification failed";
+    }catch(e){notifyError=e.message||String(e);}
+  }
+  alert(notified
+    ?"Confirmation requested and emailed. Other live bids remain available as reserves."
+    :"Confirmation request was saved, but the dealer email was not sent: "+(notifyError||"Unknown error"));
   closeConfirmModal();closeBids();await load();
 }
 async function selectConfirmed(confirmationId){
@@ -154,6 +174,36 @@ async function saveOffer(){
  }
  alert("AnyBike offer "+money(data.amount_gbp)+" sent to the seller. The seller was shown only AnyBike's offer and "+Number(sent.genuine_bid_count||0)+" genuine bid"+(Number(sent.genuine_bid_count||0)===1?"":"s")+" received.");
  closeOffer();await load();
+}
+
+async function recordSellerResponse(offerId,response){
+  const label=response==="accepted"?"accepted":"declined";
+  if(!confirm("Record that the seller has "+label+" AnyBike's offer?"))return;
+  const {error}=await sb.rpc("admin_record_seller_underwrite_response_v1",{
+    p_offer_id:Number(offerId),
+    p_response:response,
+    p_counter_gbp:null,
+    p_note:null
+  });
+  if(error){alert(error.message);return;}
+  alert("Seller response recorded as "+label+".");
+  await load();
+}
+async function recordSellerCounter(offerId){
+  const raw=prompt("Seller counter amount (£)");
+  if(raw===null)return;
+  const amount=Number(raw);
+  if(!amount||amount<=0){alert("Enter a valid counter amount.");return;}
+  const note=prompt("Optional note about the counter")||null;
+  const {error}=await sb.rpc("admin_record_seller_underwrite_response_v1",{
+    p_offer_id:Number(offerId),
+    p_response:"countered",
+    p_counter_gbp:amount,
+    p_note:note
+  });
+  if(error){alert(error.message);return;}
+  alert("Seller counter recorded at "+money(amount)+". Reserve bids remain live.");
+  await load();
 }
 (async()=>{const ok=await requireAdminSession();if(!ok)return;document.documentElement.classList.remove("admin-auth-pending");await load();})();
 </script></body></html>
