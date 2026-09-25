@@ -1436,6 +1436,20 @@ textarea:focus{
   .form-grid{grid-template-columns:1fr}
   .full{grid-column:auto}
 }
+
+.stock-connect-panel{margin:0 0 16px}
+.stock-connect-card{background:linear-gradient(135deg,rgba(237,28,36,.09),rgba(17,17,17,.98));border:1px solid rgba(237,28,36,.32);border-radius:18px;padding:20px 22px}
+.stock-connect-top{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:24px;align-items:center}
+.stock-connect-card h2{margin:0 0 7px;font-size:25px}
+.stock-connect-card p{margin:0;color:#c8c8c8;font-size:15px;line-height:1.55;max-width:1050px}
+.stock-connect-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+.stock-connect-stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-top:15px}
+.stock-connect-stat{background:#0c0c0c;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:11px 13px}
+.stock-connect-stat span{display:block;color:#888;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.06em}
+.stock-connect-stat strong{display:block;margin-top:4px;font-size:21px}
+.stock-connect-note{margin-top:12px;padding:11px 13px;border-radius:10px;background:rgba(255,255,255,.035);color:#bdbdbd;font-size:13px;line-height:1.5}
+@media(max-width:900px){.stock-connect-top{grid-template-columns:1fr}.stock-connect-actions{justify-content:flex-start}.stock-connect-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){.stock-connect-stats{grid-template-columns:1fr}}
 </style>
 </head>
 
@@ -1471,6 +1485,7 @@ textarea:focus{
     </div>
   </section>
 
+  <div id="stockConnectionPanel" class="stock-connect-panel"></div>
 
   <div class="top-purpose-grid">
     <section class="purpose-card compact-dashboard-section">
@@ -1605,6 +1620,7 @@ textarea:focus{
           <option value="">All stock</option>
           <option value="no_bottom_line">Add Trade Price</option>
           <option value="due_soon">Stocking plan due soon</option>
+          <option value="needs_confirmation">Manual stock to review</option>
         </select>
       </div>
 
@@ -1662,6 +1678,7 @@ let currentUser = null;
 let dealership = null;
 let stock = [];
 let summary = null;
+let stockFoundation = null;
 
 
 function esc(value){
@@ -2083,6 +2100,141 @@ async function loadDealership(){
 }
 
 
+
+async function loadStockFoundation(){
+  const {data,error}=await sb.rpc("dealer_get_my_stock_foundation_v1");
+  if(error){throw error;}
+  stockFoundation=data || null;
+  renderStockFoundation();
+}
+
+function renderStockFoundation(){
+  const host=document.getElementById("stockConnectionPanel");
+  if(!host||!stockFoundation)return;
+
+  const d=stockFoundation.dealer||{};
+  const s=stockFoundation.summary||{};
+  const connections=Array.isArray(stockFoundation.connections)?stockFoundation.connections:[];
+  const connected=String(d.stock_connection_status||"")==="connected" || connections.some(function(x){return x.enabled;});
+  const needs=Number(s.needs_confirmation||0);
+
+  host.innerHTML=`
+    <section class="stock-connect-card">
+      <div class="stock-connect-top">
+        <div>
+          <h2>${connected?"Connected Stock":"Connect Your Stock to AnyBike"}</h2>
+          <p>${connected
+            ?"Your connected feed can keep motorcycle availability up to date automatically. AnyBike only needs a bike-specific check when we have genuine customer interest and want to discuss a confidential purchase price or short hold."
+            :"Connect your dealership stock once and AnyBike can keep availability current automatically. We sell suitable motorcycles to international buyers, handle the UK logistics, and the buyer pays AnyBike's service and logistics fees. When we have genuine interest in one of your bikes, we contact you to confirm availability, agree a confidential purchase price and, where appropriate, ask for a short hold."
+          }</p>
+        </div>
+        <div class="stock-connect-actions">
+          ${!connected?`<button class="btn red" type="button" onclick="openStockConnectionRequest()">Connect My Stock</button>`:""}
+          ${needs>0?`<button class="btn" type="button" onclick="confirmRemainingManualStock()">Confirm Remaining Manual Stock</button>`:""}
+        </div>
+      </div>
+      <div class="stock-connect-stats">
+        <div class="stock-connect-stat"><span>Total stock</span><strong>${Number(s.total_stock||0)}</strong></div>
+        <div class="stock-connect-stat"><span>Feed stock</span><strong>${Number(s.feed_stock||0)}</strong></div>
+        <div class="stock-connect-stat"><span>Manual stock</span><strong>${Number(s.manual_stock||0)}</strong></div>
+        <div class="stock-connect-stat"><span>Needs review</span><strong>${needs}</strong></div>
+        <div class="stock-connect-stat"><span>Connection</span><strong style="font-size:16px">${esc(connected?"Connected":String(d.stock_connection_status||"Not connected").replaceAll("_"," "))}</strong></div>
+      </div>
+      ${needs>0?`<div class="stock-connect-note"><strong style="color:#fff">${needs} manually managed motorcycle${needs===1?"":"s"} need an availability review.</strong> Mark any sold/removed bikes below first, then use <strong>Confirm Remaining Manual Stock</strong> once for everything left. We will never send one reminder per motorcycle.</div>`:""}
+    </section>`;
+}
+
+function openStockConnectionRequest(){
+  openModal("Connect Your Stock to AnyBike",`
+    <div class="confidential">
+      <strong>One connection — no bike-by-bike updating.</strong>
+      Tell us how your stock is managed and AnyBike can arrange the most suitable connection.
+    </div>
+    <div class="form-grid" style="margin-top:16px">
+      <label>
+        Stock system / provider
+        <select id="stockConnectMethod">
+          <option value="">Choose</option>
+          <option value="deep_blue">Deep Blue</option>
+          <option value="api">API</option>
+          <option value="xml">XML feed</option>
+          <option value="json">JSON feed</option>
+          <option value="csv">CSV / stock file</option>
+          <option value="dealer_website">Dealer website / web feed</option>
+          <option value="other">Other / not sure</option>
+        </select>
+      </label>
+      <label>
+        Provider name
+        <input id="stockConnectProvider" placeholder="e.g. Deep Blue, Dealerwebs or your DMS">
+      </label>
+      <label class="full">
+        Anything we should know? <span style="font-weight:400">(optional)</span>
+        <textarea id="stockConnectNotes" placeholder="Who should we contact, feed details, or leave blank and AnyBike will contact you."></textarea>
+      </label>
+      <div class="full"><button class="btn red" type="button" onclick="requestStockConnection()">Request Stock Connection</button></div>
+    </div>
+  `);
+}
+
+async function requestStockConnection(){
+  const method=String(document.getElementById("stockConnectMethod")?.value||"").trim()||null;
+  const provider=String(document.getElementById("stockConnectProvider")?.value||"").trim()||null;
+  const notes=String(document.getElementById("stockConnectNotes")?.value||"").trim()||null;
+  try{
+    const {data,error}=await sb.rpc("dealer_request_stock_integration_v1",{
+      p_provider_name:provider,
+      p_connection_method:method,
+      p_notes:notes
+    });
+    if(error)throw error;
+    closeModal();
+    showNotice("Stock connection request sent to AnyBike.","good");
+    await loadStockFoundation();
+  }catch(error){
+    showNotice(error.message||"Stock connection request could not be sent.","bad");
+  }
+}
+
+async function confirmRemainingManualStock(){
+  const needs=stock.filter(function(row){
+    return row.intake_method==="manual" && row.availability_status==="needs_confirmation";
+  });
+  if(!needs.length){
+    showNotice("There is no manual stock waiting for confirmation.","good");
+    return;
+  }
+  if(!window.confirm("Confirm all "+needs.length+" remaining manually managed motorcycles as still available? Mark sold/removed bikes individually first."))return;
+  try{
+    const ids=needs.map(function(row){return Number(row.dealer_stock_id);});
+    const {data,error}=await sb.rpc("dealer_confirm_my_manual_stock_v1",{p_stock_ids:ids});
+    if(error)throw error;
+    showNotice(String(data?.confirmed_count||ids.length)+" motorcycles confirmed available.","good");
+    await Promise.all([loadStock(),loadStockFoundation()]);
+  }catch(error){
+    showNotice(error.message||"Manual stock could not be confirmed.","bad");
+  }
+}
+
+async function markDealerStockUnavailable(dealerStockId){
+  const row=stock.find(function(x){return Number(x.dealer_stock_id)===Number(dealerStockId);});
+  if(!row)return;
+  if(!window.confirm("Mark "+[row.registration,row.make,row.model].filter(Boolean).join(" ")+" as sold / no longer available?"))return;
+  try{
+    const {error}=await sb.rpc("dealer_mark_my_stock_unavailable_v1",{p_stock_id:Number(dealerStockId),p_reason:"sold"});
+    if(error)throw error;
+    showNotice("Motorcycle marked no longer available.","good");
+    await Promise.all([loadStock(),loadStockFoundation(),loadSummary()]);
+  }catch(error){
+    showNotice(error.message||"The motorcycle could not be updated.","bad");
+  }
+}
+
+window.openStockConnectionRequest=openStockConnectionRequest;
+window.requestStockConnection=requestStockConnection;
+window.confirmRemainingManualStock=confirmRemainingManualStock;
+window.markDealerStockUnavailable=markDealerStockUnavailable;
+
 async function loadStock(){
 
   const {
@@ -2090,7 +2242,7 @@ async function loadStock(){
     error
   } =
     await sb.rpc(
-      "dealer_get_my_stock"
+      "dealer_get_my_stock_v2"
     );
 
 
@@ -2368,6 +2520,12 @@ function renderStock(){
       );
   }
 
+  if(filter === "needs_confirmation"){
+    rows=rows.filter(function(row){
+      return row.intake_method==="manual" && row.availability_status==="needs_confirmation";
+    });
+  }
+
 
   const grid =
     document.getElementById(
@@ -2425,8 +2583,10 @@ function renderStock(){
               </div>
             </div>
 
-            <div>
+            <div style="display:flex;gap:7px;flex-wrap:wrap">
               ${opportunityBadge(row)}
+              ${badge(row.intake_method==="feed"?"Feed":row.intake_method==="manual"?"Manual":"Source: "+String(row.intake_method||"other"),row.intake_method==="feed"?"green":"blue")}
+              ${badge(row.availability_status==="needs_confirmation"?"Needs Availability Check":String(row.availability_status||"unknown").replaceAll("_"," "),row.availability_status==="available"?"green":row.availability_status==="needs_confirmation"?"amber":"red")}
             </div>
 
             <div class="price-row">
@@ -2513,6 +2673,11 @@ function renderStock(){
                     : "Add Note"
                 }
               </button>
+              ${row.intake_method==="manual" && !["sold","removed"].includes(String(row.availability_status||"")) ? `
+                <button class="btn outline" type="button" onclick="markDealerStockUnavailable(${Number(row.dealer_stock_id)})">
+                  Sold / Remove
+                </button>
+              ` : ""}
             </div>
 
           </article>
@@ -3087,7 +3252,8 @@ async function waitForPublicHeader(){
       loadStock(),
       loadSummary(),
       loadSavedSearchTotal(),
-      loadDealerBuyingActivity()
+      loadDealerBuyingActivity(),
+      loadStockFoundation()
     ]);
 
 
