@@ -3260,25 +3260,33 @@ async function loadWorldActivity(){
     </div>
   `;
 
-  const enquiryResult = await sb
-    .from("bike_enquiries")
-    .select(`
-      id,
-      created_at,
-      status,
-      lead_status,
-      customer_name,
-      customer_email,
-      destination_country,
-      bike_id,
-      available_stock (
-        make,
-        model,
-        year
-      )
-    `)
-    .order("created_at",{ascending:false})
-    .limit(30);
+  const [enquiryResult,globalBuyerResult] = await Promise.all([
+    sb
+      .from("bike_enquiries")
+      .select(`
+        id,
+        created_at,
+        status,
+        lead_status,
+        customer_name,
+        customer_email,
+        destination_country,
+        bike_id,
+        available_stock (
+          make,
+          model,
+          year
+        )
+      `)
+      .order("created_at",{ascending:false})
+      .limit(30),
+    sb
+      .from("global_buyer_network")
+      .select("id,created_at,business_name,contact_name,email,country,status,archived_at")
+      .is("archived_at",null)
+      .order("created_at",{ascending:false})
+      .limit(30)
+  ]);
 
   if(enquiryResult.error){
     console.warn(
@@ -3296,6 +3304,17 @@ async function loadWorldActivity(){
   }
 
   const enquiries = enquiryResult.data || [];
+  const globalBuyers = globalBuyerResult && !globalBuyerResult.error
+    ? (globalBuyerResult.data || [])
+    : [];
+
+  if(globalBuyerResult && globalBuyerResult.error){
+    console.warn(
+      "Live World Activity Global Buyer load failed:",
+      globalBuyerResult.error
+    );
+  }
+
   const enquiryById = {};
 
   enquiries.forEach(function(enquiry){
@@ -3372,6 +3391,34 @@ async function loadWorldActivity(){
   }
 
   const items = [];
+
+  globalBuyers.forEach(function(buyer){
+    const buyerName =
+      buyer.business_name ||
+      buyer.contact_name ||
+      buyer.email ||
+      ("Global Buyer #" + buyer.id);
+
+    items.push({
+      key:"global-buyer-" + buyer.id,
+      when:new Date(buyer.created_at),
+      html:`
+        <div class="work-item"
+          onclick="location.href='admin-global-buyer-network.html?buyer=${encodeURIComponent(buyer.id)}'"
+          style="cursor:pointer;">
+          <div>
+            <strong>🌍 ${escapeDashboardText(buyer.country || "Global Buyer")}</strong><br>
+            New Global Buyer request · ${escapeDashboardText(buyerName)}<br>
+            <span class="small">
+              ${escapeDashboardText(buyer.contact_name || buyer.email || "Buyer")} ·
+              ${escapeDashboardText(buyer.status || "New Potential Buyer")}
+            </span>
+          </div>
+          <span>${timeAgo(buyer.created_at)}</span>
+        </div>
+      `
+    });
+  });
 
   enquiries.forEach(function(enquiry){
     const details = dealDetails(enquiry);
@@ -3707,7 +3754,8 @@ async function loadGlobalOperations(){
       "Motorcycle Trader",
       "Motorcycle Importer",
       "Motorcycle Exporter",
-      "Trade Partner"
+      "Trade Partner",
+      "Global Buyer"
     ])
     .neq("status","Deleted")
     .order("created_at",{ascending:false});
