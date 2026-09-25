@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Move Motorcycles | Driver Delivery</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--navy:#071a2d;--gold:#c0a96d;--gold2:#eadcae;--muted:#cbb882;--ok:#2d8a57;--danger:#b54444}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:linear-gradient(180deg,var(--navy),#04111e 72%);color:var(--gold2);font-family:Arial,Helvetica,sans-serif}
+.wrap{max-width:760px;margin:auto;padding:18px 14px 46px}.brand{text-align:center;padding:10px 0 18px}.brand img{width:min(330px,78vw);max-height:165px;object-fit:contain}
+.card{background:rgba(8,28,48,.94);border:1px solid rgba(160,140,88,.42);border-radius:16px;margin:12px 0;overflow:hidden}.head{padding:16px 18px;border-bottom:1px solid rgba(160,140,88,.25)}.head h2,.head h3{margin:0;color:var(--gold)}.body{padding:16px 18px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.metric{padding:12px;border:1px solid rgba(160,140,88,.24);border-radius:10px;background:rgba(0,0,0,.15)}.metric span{display:block;color:var(--muted);font-size:11px;font-weight:900;text-transform:uppercase}.metric strong{display:block;margin-top:5px;color:#fff}
+.notice{padding:12px;border-radius:10px;background:rgba(160,140,88,.12);border:1px solid rgba(160,140,88,.38);line-height:1.45}
+.btn{width:100%;border:0;border-radius:10px;padding:14px 16px;font-size:16px;font-weight:900;background:#a08c58;color:#071a2d;cursor:pointer}.btn.secondary{background:transparent;color:var(--gold);border:1px solid #a08c58}.btn.danger{background:var(--danger);color:#fff}.btn:disabled{opacity:.45}
+.actions{display:grid;gap:9px;margin-top:12px}input,textarea{width:100%;background:#061522;color:#fff;border:1px solid rgba(160,140,88,.45);border-radius:10px;padding:11px;font:inherit}textarea{min-height:90px}.field{display:grid;gap:5px;margin-top:10px}.field label{color:var(--muted);font-size:11px;font-weight:900;text-transform:uppercase}
+.status{margin-top:10px;font-size:13px;color:var(--muted)}.good{color:#92e4b4}.bad{color:#ffb0b0}.hidden{display:none!important}
+canvas{width:100%;height:180px;background:#fff;border-radius:10px;touch-action:none}
+@media(max-width:600px){.grid{grid-template-columns:1fr}.wrap{padding:10px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand"><img src="https://static.wixstatic.com/media/a2662e_8755cf2a8a844e4aa2319a806efa8cdb~mv2.png/v1/fit/w_700,h_700,q_90/Move%20Motorcycles%20Gold.png" alt="Move Motorcycles"><div style="font-weight:900">Driver Delivery</div></div>
+  <div id="errorBox" class="card hidden"><div class="body bad" id="errorText"></div></div>
+  <main id="app" class="hidden">
+    <section class="card"><div class="head"><h2 id="bikeTitle">Delivery</h2></div><div class="body grid" id="jobGrid"></div></section>
+    <section class="card"><div class="head"><h3>Delivery Address</h3></div><div class="body" id="receiverBox"></div></section>
+    <section class="card"><div class="head"><h3>1. Arrive at Receiver</h3></div><div class="body">
+      <div class="notice">Check the Shipment No., motorcycle and receiving company before unloading.</div>
+      <div class="actions"><button id="arriveBtn" class="btn" onclick="doAction('arrived')">I Have Arrived</button></div>
+      <div id="arriveStatus" class="status"></div>
+    </div></section>
+    <section class="card"><div class="head"><h3>2. Delivery Evidence</h3></div><div class="body">
+      <div class="notice">Take one photo showing the motorcycle at the delivery point and one handover photo. Avoid photographing unrelated people or confidential paperwork.</div>
+      <div class="field"><label>Motorcycle at delivery point</label><input id="arrivalPhoto" type="file" accept="image/*" capture="environment"><button class="btn secondary" onclick="uploadPhoto('arrival','arrivalPhoto')">Upload Arrival Photo</button><div id="arrivalPhotoStatus" class="status"></div></div>
+      <div class="field"><label>Handover photo</label><input id="handoverPhoto" type="file" accept="image/*" capture="environment"><button class="btn secondary" onclick="uploadPhoto('handover','handoverPhoto')">Upload Handover Photo</button><div id="handoverPhotoStatus" class="status"></div></div>
+    </div></section>
+    <section class="card"><div class="head"><h3>3. Receiver Sign-off</h3></div><div class="body">
+      <div class="field"><label>Recipient name</label><input id="recipientName"></div>
+      <div class="field"><label>Role / department</label><input id="recipientRole" placeholder="e.g. Warehouse Manager"></div>
+      <div class="field"><label>Delivery notes</label><textarea id="deliveryNotes" placeholder="Reference checked, documents handed over, any relevant notes"></textarea></div>
+      <div class="field"><label>Recipient signature</label><canvas id="signature"></canvas><button class="btn secondary" onclick="clearSignature()">Clear Signature</button><button class="btn secondary" onclick="uploadSignature()">Save Signature</button><div id="signatureStatus" class="status"></div></div>
+      <div class="actions"><button id="completeBtn" class="btn" onclick="completeDelivery()">Motorcycle Delivered & Handed Over</button><button class="btn danger" onclick="reportProblem()">Report Delivery Problem</button></div>
+      <div id="completeStatus" class="status"></div>
+    </div></section>
+  </main>
+</div>
+<script>
+const U="https://tuehtnezhdnkqbbhttgp.supabase.co",K="sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
+const sb=supabase.createClient(U,K),token=new URLSearchParams(location.search).get("token")||"";
+let current=null,signatureSaved=false;
+const esc=v=>String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
+function showError(m){document.getElementById("app").classList.add("hidden");document.getElementById("errorBox").classList.remove("hidden");document.getElementById("errorText").textContent=m}
+async function load(){
+ try{
+  const r=await sb.rpc("anybike_delivery_driver_get_v1",{p_token:token});if(r.error)throw r.error;current=r.data;
+  document.getElementById("bikeTitle").textContent=current.motorcycle||"Motorcycle Delivery";
+  document.getElementById("jobGrid").innerHTML='<div class="metric"><span>Shipment No.</span><strong>'+esc(current.move_shipment_number)+'</strong></div><div class="metric"><span>Status</span><strong>'+esc(current.status)+'</strong></div><div class="metric"><span>Receiver</span><strong>'+esc(current.receiver.company_name)+'</strong></div><div class="metric"><span>Reference</span><strong>'+esc(current.receiver.reference||"—")+'</strong></div>';
+  const a=current.receiver;document.getElementById("receiverBox").innerHTML='<strong style="color:#fff">'+esc(a.company_name)+'</strong><p>'+esc([a.address_1,a.address_2,a.city,a.county,a.postcode,a.country].filter(Boolean).join(", "))+'</p><p><strong>'+esc(a.contact_name)+'</strong>'+(a.contact_phone?' · <a style="color:#fff" href="tel:'+esc(a.contact_phone)+'">'+esc(a.contact_phone)+'</a>':'')+'<br>'+esc(a.contact_email||"")+'</p>'+(current.delivery_instructions?'<div class="notice">'+esc(current.delivery_instructions)+'</div>':'');
+  if(current.driver_arrived_at){document.getElementById("arriveStatus").textContent="Arrival recorded";document.getElementById("arriveStatus").className="status good";document.getElementById("arriveBtn").disabled=true}
+  if(current.delivered_at){document.getElementById("completeStatus").textContent="Delivery completed";document.getElementById("completeStatus").className="status good";document.getElementById("completeBtn").disabled=true}
+  document.getElementById("app").classList.remove("hidden");
+ }catch(e){showError(e.message||String(e))}
+}
+async function doAction(action,extra={}){
+ const r=await sb.rpc("anybike_delivery_driver_action_v1",{p_token:token,p_action:action,p_recipient_name:extra.recipient_name||null,p_recipient_role:extra.recipient_role||null,p_notes:extra.notes||null});if(r.error)throw r.error;await load()
+}
+async function uploadPhoto(slot,inputId){
+ const input=document.getElementById(inputId),status=document.getElementById(inputId+"Status"),file=input.files?.[0];if(!file){status.textContent="Choose a photo first.";status.className="status bad";return}
+ status.textContent="Uploading…";status.className="status";
+ const fd=new FormData();fd.append("token",token);fd.append("slot",slot);fd.append("file",file,file.name);
+ const r=await fetch(U+"/functions/v1/move-driver-delivery-upload",{method:"POST",body:fd});const d=await r.json().catch(()=>({}));if(!r.ok||!d.success){status.textContent=d.error||"Upload failed";status.className="status bad";return}
+ status.textContent="Uploaded ✓";status.className="status good"
+}
+const canvas=document.getElementById("signature"),ctx=canvas.getContext("2d");let drawing=false;
+function sizeCanvas(){const r=canvas.getBoundingClientRect(),d=devicePixelRatio||1;canvas.width=r.width*d;canvas.height=r.height*d;ctx.scale(d,d);ctx.lineWidth=2;ctx.lineCap="round";ctx.strokeStyle="#111"}
+function pos(e){const r=canvas.getBoundingClientRect(),t=e.touches?.[0]||e;return{x:t.clientX-r.left,y:t.clientY-r.top}}
+function start(e){drawing=true;const p=pos(e);ctx.beginPath();ctx.moveTo(p.x,p.y);e.preventDefault()}
+function move(e){if(!drawing)return;const p=pos(e);ctx.lineTo(p.x,p.y);ctx.stroke();e.preventDefault()}
+function stop(){drawing=false}
+canvas.addEventListener("mousedown",start);canvas.addEventListener("mousemove",move);window.addEventListener("mouseup",stop);canvas.addEventListener("touchstart",start,{passive:false});canvas.addEventListener("touchmove",move,{passive:false});canvas.addEventListener("touchend",stop);window.addEventListener("resize",sizeCanvas);setTimeout(sizeCanvas,50);
+function clearSignature(){ctx.clearRect(0,0,canvas.width,canvas.height);signatureSaved=false;document.getElementById("signatureStatus").textContent=""}
+async function uploadSignature(){const status=document.getElementById("signatureStatus");status.textContent="Saving signature…";canvas.toBlob(async blob=>{const fd=new FormData();fd.append("token",token);fd.append("slot","signature");fd.append("file",blob,"signature.png");const r=await fetch(U+"/functions/v1/move-driver-delivery-upload",{method:"POST",body:fd});const d=await r.json().catch(()=>({}));if(!r.ok||!d.success){status.textContent=d.error||"Signature failed";status.className="status bad";return}signatureSaved=true;status.textContent="Signature saved ✓";status.className="status good"},"image/png")}
+async function completeDelivery(){const name=document.getElementById("recipientName").value.trim();if(!name){alert("Enter the recipient name.");return}if(!signatureSaved&&!current?.delivered_at){alert("Save the recipient signature first.");return}try{document.getElementById("completeStatus").textContent="Completing delivery…";await doAction("delivered",{recipient_name:name,recipient_role:document.getElementById("recipientRole").value.trim(),notes:document.getElementById("deliveryNotes").value.trim()});document.getElementById("completeStatus").textContent="Delivered ✓";document.getElementById("completeStatus").className="status good"}catch(e){document.getElementById("completeStatus").textContent=e.message||String(e);document.getElementById("completeStatus").className="status bad"}}
+async function reportProblem(){const note=prompt("Describe the delivery problem:");if(!note)return;try{await doAction("problem",{notes:note});alert("Problem recorded. Contact AnyBike / Move before completing the handover.")}catch(e){alert(e.message||String(e))}}
+load();
+</script>
+</body>
+</html>
