@@ -47,8 +47,8 @@ textarea{min-height:120px;resize:vertical;white-space:pre-wrap;overflow-wrap:any
         <div class="grid">
           <div class="field"><label>Buyer</label><select id="buyerSelect"><option value="">Loading buyers…</option></select></div>
           <div class="field"><label>Buyer request</label><select id="requestSelect"><option value="">Select buyer first</option></select></div>
-          <div class="field"><label>UK delivery allowance (£)</label><input id="deliveryAllowance" type="number" min="0" step="1" value="250"></div>
-          <div class="field"><label>AnyBike fees to add (£)</label><input id="feeAllowance" type="number" min="0" step="1" value="0"><a class="source-link" href="/services-and-fees.html" target="_blank">View AnyBike Fees ↗</a></div>
+          <div class="field"><label>1. UK delivery allowance (£)</label><input id="deliveryAllowance" type="number" min="0" step="1" value="250"><div class="note">Added to every bike in this batch.</div></div>
+          <div class="field"><label>2. AnyBike fee / margin to add (£)</label><input id="feeAllowance" type="number" min="0" step="1" value="0"><div class="note">Added on top of seller price + delivery. You can change it per bike after scanning.</div><a class="source-link" href="/services-and-fees.html" target="_blank">View AnyBike Fees ↗</a></div>
           <div class="field full"><label>Advert URLs — maximum 20</label><textarea id="urlInput" wrap="soft" spellcheck="false" placeholder="Paste each advert URL here. Long URLs will wrap onto several visible lines automatically.&#10;&#10;https://dealer.example/bike-1&#10;https://www.autotrader.co.uk/...&#10;https://www.ebay.co.uk/..."></textarea><div class="note">You do not need to see the whole URL on one line — long links wrap automatically. Put each new advert on a new paragraph/line.</div></div>
         </div>
         <div class="actions" style="margin-top:12px">
@@ -143,12 +143,12 @@ function cardHtml(s,saved){
         field(id,"make","Make",s.make,saved)+field(id,"model","Model",s.model,saved)+field(id,"variant","Variant",s.variant,saved)+field(id,"year","Year",s.year,saved)+field(id,"mileage","Mileage",s.mileage,saved)+field(id,"colour","Colour",s.colour,saved)+
       '</div><div class="field" style="margin-top:8px"><label>Buyer description</label><textarea data-k="'+id+'" data-f="buyer_description">'+esc(s.buyer_description||"")+'</textarea></div>'+
       '<label class="check"><input type="checkbox" data-k="'+id+'" data-f="approve_first_image" '+((s.buyer_image_urls||[]).length?"checked":"")+'><span>Approve first source image for this private buyer presentation <span class="note">(only where AnyBike is permitted to reuse it)</span></span></label></div>'+
-      '<div class="box"><h3>Price check</h3>'+
-        priceField(id,"source_advertised_price_gbp","Advertised seller price",s.source_advertised_price_gbp)+
-        priceField(id,"delivery_allowance_gbp","UK delivery allowance",s.delivery_allowance_gbp)+
-        priceField(id,"fee_allowance_gbp","AnyBike fees",s.fee_allowance_gbp)+
+      '<div class="box"><h3>Price check</h3>'+(Number(s.source_advertised_price_gbp)>0?"":'<div class="status bad" style="margin-bottom:9px">Advert price was not extracted — enter the seller advertised price below before price checking.</div>')+
+        priceField(id,"source_advertised_price_gbp","1. Seller advertised price",s.source_advertised_price_gbp)+
+        priceField(id,"delivery_allowance_gbp","2. Add UK delivery allowance",s.delivery_allowance_gbp)+
+        priceField(id,"fee_allowance_gbp","3. Add AnyBike fee / margin",s.fee_allowance_gbp)+
         '<div class="note"><a class="source-link" href="/services-and-fees.html" target="_blank">View AnyBike Fees ↗</a></div>'+
-        '<div style="margin-top:9px">Suggested AnyBike price</div><div class="money" id="price-'+id+'">'+gbp(s.anybike_price_gbp??anyPrice)+'</div>'+
+        '<div style="margin-top:9px;font-weight:900">= Buyer-facing AnyBike price</div><div class="money" id="price-'+id+'">'+(Number(s.source_advertised_price_gbp)>0?gbp(s.anybike_price_gbp??anyPrice):"Enter seller price")+'</div><div class="note">Buyer sees this final AnyBike price only. Seller price, delivery allowance and margin stay internal.</div>'+
         '<label class="check"><input type="checkbox" data-k="'+id+'" data-f="price_checked" '+(s.price_checked?"checked":"")+'><span>Price checked — happy to present this price</span></label>'+
         '<label class="check"><input type="checkbox" data-k="'+id+'" data-f="selected_for_buyer" '+(s.selected_for_buyer?"checked":"")+'><span>Include in buyer selection</span></label>'+
         (saved?'<button class="btn green" style="margin-top:10px" onclick="saveScan('+id+')">Save motorcycle</button>':'')+
@@ -173,7 +173,7 @@ function collectCard(k){
   s.anybike_price_gbp=src?src+del+fee:null;
   return s;
 }
-function recalc(k){const s=collectCard(k);if(s)document.getElementById("price-"+k).textContent=gbp(s.anybike_price_gbp)}
+function recalc(k){const s=collectCard(k);if(s)document.getElementById("price-"+k).textContent=Number(s.source_advertised_price_gbp)>0?gbp(s.anybike_price_gbp):"Enter seller price"}
 
 async function saveNewBatch(){
   scanned.forEach(s=>collectCard(s._key));
