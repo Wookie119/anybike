@@ -653,6 +653,35 @@ button:disabled{
   </div>
 </div>
 
+<div id="marketDiscoveryModal" class="modal">
+  <div class="modal-box">
+    <button class="modal-close" type="button" onclick="closeMarketDiscoveryModal()">×</button>
+    <h2>Where do you normally look for motorcycles in your country?</h2>
+    <p style="margin:0 0 14px;color:#bbb;line-height:1.5">Optional — a website, marketplace, dealer site, magazine, Facebook group, forum or other source is useful.</p>
+
+    <label>Type of source</label>
+    <select id="marketDiscoveryChannel">
+      <option value="">Select a type</option>
+      <option>Motorcycle marketplace</option>
+      <option>Dealer website</option>
+      <option>Magazine / publication</option>
+      <option>Facebook group</option>
+      <option>Forum / club</option>
+      <option>YouTube / social media</option>
+      <option>Other</option>
+    </select>
+
+    <label>Website, publication, group or source name</label>
+    <input id="marketDiscoverySource" placeholder="e.g. local marketplace, dealer site or group">
+
+    <label>Optional: where did you first hear about AnyBike?</label>
+    <input id="marketDiscoveryHeard" placeholder="Google, Facebook, recommendation, publication...">
+
+    <button id="marketDiscoverySaveBtn" class="primary" type="button" onclick="saveBikeMarketDiscovery()" style="margin-top:16px">Send answer</button>
+    <div id="marketDiscoveryStatus" style="margin-top:10px;color:#bbb;font-size:14px"></div>
+  </div>
+</div>
+
 
 <div id="imageLightbox" class="image-lightbox" aria-hidden="true">
   <button class="image-lightbox-close" type="button" onclick="closeImageLightbox()" aria-label="Close image">×</button>
@@ -806,6 +835,7 @@ let enquirySubmitting=false;
 let watchUpdating=false;
 let lastEnquiryFingerprint="";
 let lastEnquirySubmittedAt=0;
+let lastSubmittedBikeEnquiryId=null;
 
 function getCustomerLoginUrl(){
   const returnUrl =
@@ -1592,7 +1622,7 @@ async function submitBikeEnquiry(){
     try{ originVisitorId=localStorage.getItem("anybike_visitor_id")||null; }catch(error){}
     try{ originSessionId=sessionStorage.getItem("anybike_session_id")||null; }catch(error){}
 
-    const {error}=await sb
+    const {data:createdEnquiry,error}=await sb
       .from("bike_enquiries")
       .insert({
         customer_id:currentUser.id,
@@ -1621,7 +1651,9 @@ async function submitBikeEnquiry(){
         origin_session_id:originSessionId,
         message:combinedMessage,
         status:"New"
-      });
+      })
+      .select("id")
+      .single();
 
     if(error){
       alert(bt("sendFailed")+error.message);
@@ -1630,6 +1662,7 @@ async function submitBikeEnquiry(){
 
     lastEnquiryFingerprint=fingerprint;
     lastEnquirySubmittedAt=Date.now();
+    lastSubmittedBikeEnquiryId=createdEnquiry?.id||null;
 
     alert(bt("sent"));
 
@@ -1640,6 +1673,15 @@ async function submitBikeEnquiry(){
     document.getElementById("enquiryMessage").value="";
     handleQuestionTypeChange();
 
+    const discoveryCountry=String(buyingContext.destination||currentProfile?.country||"").trim();
+    if(
+      lastSubmittedBikeEnquiryId &&
+      discoveryCountry &&
+      !/^(uk|u\.k\.|united kingdom|great britain|england|scotland|wales|northern ireland)$/i.test(discoveryCountry)
+    ){
+      setTimeout(openMarketDiscoveryModal,150);
+    }
+
   }finally{
     enquirySubmitting=false;
 
@@ -1647,6 +1689,58 @@ async function submitBikeEnquiry(){
       sendButton.disabled=false;
       sendButton.textContent=bt("send");
     }
+  }
+}
+
+
+function openMarketDiscoveryModal(){
+  const modal=document.getElementById("marketDiscoveryModal");
+  if(modal) modal.style.display="flex";
+}
+
+function closeMarketDiscoveryModal(){
+  const modal=document.getElementById("marketDiscoveryModal");
+  if(modal) modal.style.display="none";
+}
+
+async function saveBikeMarketDiscovery(){
+  const status=document.getElementById("marketDiscoveryStatus");
+  const btn=document.getElementById("marketDiscoverySaveBtn");
+  const channel=document.getElementById("marketDiscoveryChannel")?.value||"";
+  const source=document.getElementById("marketDiscoverySource")?.value?.trim()||"";
+  const heard=document.getElementById("marketDiscoveryHeard")?.value?.trim()||"";
+
+  if(!source && !heard){
+    if(status)status.textContent="Add a source name or tell us where you heard about AnyBike.";
+    return;
+  }
+  if(!lastSubmittedBikeEnquiryId){
+    if(status)status.textContent="Your enquiry is safe, but this optional answer could not be linked.";
+    return;
+  }
+
+  if(btn)btn.disabled=true;
+  if(status)status.textContent="Saving…";
+
+  try{
+    const {data,error}=await sb.functions.invoke("market-discovery-response",{
+      body:{
+        bike_enquiry_id:lastSubmittedBikeEnquiryId,
+        channel_type:channel||"Other",
+        source_name:source||null,
+        heard_about_anybike:heard||null,
+        submitted_from_page:window.location.href
+      }
+    });
+    if(error)throw error;
+    if(!data?.ok)throw new Error(data?.error||"Could not save");
+    if(status)status.textContent="Thank you — that helps us understand your local motorcycle market.";
+    if(btn)btn.style.display="none";
+    setTimeout(closeMarketDiscoveryModal,900);
+  }catch(error){
+    console.error("Market discovery response failed",error);
+    if(status)status.textContent="Your enquiry is safe. This optional answer could not be saved.";
+    if(btn)btn.disabled=false;
   }
 }
 
@@ -1764,6 +1858,12 @@ window.addEventListener("anybikeLanguageChanged", function(e){
 document.getElementById("enquiryModal").addEventListener("click",function(event){
   if(event.target===this && !enquirySubmitting){
     closeEnquiryModal();
+  }
+});
+
+document.getElementById("marketDiscoveryModal").addEventListener("click",function(event){
+  if(event.target===this){
+    closeMarketDiscoveryModal();
   }
 });
 
