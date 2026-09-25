@@ -1899,6 +1899,16 @@ body.customer-offer-modal-open{overflow:hidden}
       </div>
     </section>
 
+    <section class="panel buyer-match-panel" id="sourced-match-batches">
+      <div class="panel-head">
+        <div>
+          <h2>🔎 Hand-picked Motorcycle Selections</h2>
+          <p>Private selections prepared by AnyBike for your buying requirements. Open a selection to mark bikes Interested, Watch or Not Interested.</p>
+        </div>
+      </div>
+      <div id="sourcedMatchBatchesBox"><div class="buyer-match-empty">Loading your selections...</div></div>
+    </section>
+
     <section class="panel buyer-match-panel" id="buyer-potential-matches">
       <div class="panel-head buyer-match-toolbar">
         <div>
@@ -2660,7 +2670,7 @@ async function chooseBuyerMatchCount(requestItemId,count,button){
   try{
     const {error}=await sb.rpc("customer_choose_buyer_match_count",{p_request_item_id:Number(requestItemId),p_count:Number(count)});
     if(error) throw error;
-    await loadBuyerPotentialMatches();
+    await loadBuyerPotentialMatches();\n  loadSourcedMatchBatches();
   }catch(error){
     console.error("Could not choose Potential Match quantity",error);
     if(state){ state.textContent="We could not update your Potential Matches: "+(error?.message || "Unknown error"); state.className="buyer-match-pool-state bad"; }
@@ -3711,6 +3721,20 @@ function renderBuyerPotentialMatches(rows){
       </div>
     </section>
   `).join("");
+}
+
+async function loadSourcedMatchBatches(){
+  const box=document.getElementById("sourcedMatchBatchesBox");
+  if(!box||!currentUser)return;
+  const {data,error}=await supabaseClient.rpc("customer_get_sourced_match_batches_v1");
+  if(error){box.innerHTML='<div class="buyer-match-empty">Could not load your hand-picked selections.</div>';return}
+  const rows=data||[];
+  if(!rows.length){box.innerHTML='<div class="buyer-match-empty">No hand-picked selections have been shared with you yet.</div>';return}
+  box.innerHTML=rows.map(r=>{
+    const title=[r.make,r.model].filter(Boolean).join(" ")||"Motorcycle selection";
+    const meta=[r.total_matches+" matches",r.interested_count? r.interested_count+" interested":"",r.watching_count? r.watching_count+" watching":"",r.declined_count? r.declined_count+" declined":""].filter(Boolean).join(" · ");
+    return '<div class="buyer-match-pool-card"><div><strong>'+escapeHtml(title)+'</strong><div class="buyer-match-card-meta">'+escapeHtml(meta)+'</div></div><a class="mini-btn" href="/customer-sourced-matches.html?batch='+encodeURIComponent(r.id)+'">Open selection</a></div>';
+  }).join("");
 }
 
 async function loadBuyerPotentialMatches(){
