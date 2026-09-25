@@ -290,6 +290,24 @@ input:focus,select:focus,textarea:focus{
   display:grid;
   gap:10px;
 }
+.sourced-interest{
+  border:1px solid rgba(237,28,36,.45);
+  background:rgba(237,28,36,.08);
+  border-radius:16px;
+  padding:12px;
+  margin-bottom:12px;
+}
+.sourced-interest-head{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  align-items:center;
+  margin-bottom:8px;
+}
+.sourced-interest-title{font-weight:900;font-size:16px}
+.sourced-interest-meta{font-size:12px;color:#bbb;line-height:1.45}
+.sourced-interest-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.sourced-interest-actions .btn{border-radius:10px}
 .bike-item{
   background:rgba(0,0,0,.24);
   border:1px solid rgba(255,255,255,.10);
@@ -472,6 +490,7 @@ const STATUSES = [
 
 let buyers = [];
 let requestItems = [];
+let sourcedInterests = [];
 let currentFilter = "All";
 
 function safe(v){
@@ -545,6 +564,16 @@ async function loadRequests(){
     }
   }
 
+  const {data:interestData,error:interestError}=await sb
+    .rpc("admin_get_interested_sourced_motorcycles_v1",{p_buyer_id:null});
+
+  if(interestError){
+    console.warn("Could not load interested sourced motorcycles",interestError);
+    sourcedInterests=[];
+  }else{
+    sourcedInterests=interestData || [];
+  }
+
   populateCountryFilter();
   updateCounts();
   renderRequests();
@@ -552,6 +581,82 @@ async function loadRequests(){
 
 function itemsForBuyer(id){
   return requestItems.filter(i => Number(i.buyer_id) === Number(id));
+}
+
+function sourcedInterestsForBuyer(id){
+  return sourcedInterests.filter(i=>Number(i.buyer_id)===Number(id));
+}
+
+function sourcedInterestHtml(row){
+  const bike=[row.year,row.make,row.model,row.variant].filter(Boolean).join(" ") || "Sourced motorcycle";
+  const source=row.source_channel || "Live Source";
+  const price=Number(row.anybike_price_gbp||0);
+  const sourcePrice=Number(row.source_advertised_price_gbp||0);
+
+  return `
+    <div class="sourced-interest">
+      <div class="sourced-interest-head">
+        <div>
+          <div class="sourced-interest-title">Buyer Interested · ${safe(bike)}</div>
+          <div class="sourced-interest-meta">
+            ${safe(source)}
+            ${row.source_stock_id ? " · Source ID "+safe(row.source_stock_id) : ""}
+            ${sourcePrice>0 ? " · Source price "+money(sourcePrice) : ""}
+            ${price>0 ? " · AnyBike price "+money(price) : ""}
+          </div>
+        </div>
+        <span class="badge green">Interested</span>
+      </div>
+      <div class="sourced-interest-actions">
+        ${row.deal_id
+          ? `<a class="btn small" href="admin-enquiries.html?deal=${Number(row.deal_id)}">Open Deal 360 →</a>`
+          : `<button id="create-sourced-deal-${Number(row.scan_id)}" class="btn small" onclick="event.stopPropagation();createDealFromSourcedInterest(${Number(row.scan_id)})">Check Availability / Create Deal 360</button>`
+        }
+        ${row.source_url ? `<a class="btn small dark" href="${safe(row.source_url)}" target="_blank" onclick="event.stopPropagation()">Open source ↗</a>` : ""}
+      </div>
+      <div class="msg" id="sourced-msg-${Number(row.scan_id)}"></div>
+    </div>
+  `;
+}
+
+async function createDealFromSourcedInterest(scanId){
+  const id=Number(scanId);
+  const btn=document.getElementById("create-sourced-deal-"+id);
+  const msg=document.getElementById("sourced-msg-"+id);
+
+  if(btn){
+    btn.disabled=true;
+    btn.textContent="Creating Deal 360…";
+  }
+
+  const {data,error}=await sb.rpc("admin_create_deal_from_interested_sourced_scan_v1",{p_scan_id:id});
+
+  if(error){
+    if(btn){
+      btn.disabled=false;
+      btn.textContent="Check Availability / Create Deal 360";
+    }
+    if(msg){
+      msg.className="msg bad";
+      msg.textContent=error.message;
+    }
+    return;
+  }
+
+  const dealId=Number(data?.deal_id||0);
+  if(!dealId){
+    if(btn){
+      btn.disabled=false;
+      btn.textContent="Check Availability / Create Deal 360";
+    }
+    if(msg){
+      msg.className="msg bad";
+      msg.textContent="Deal 360 was not returned.";
+    }
+    return;
+  }
+
+  window.location.href="admin-enquiries.html?deal="+dealId;
 }
 
 function buyerSearchText(b){
@@ -636,6 +741,7 @@ function renderRequests(){
 
 function renderCard(b){
   const items = itemsForBuyer(b.id);
+  const interests = sourcedInterestsForBuyer(b.id);
   const status = b.status || "New Potential Buyer";
   const bikesPreview = items.slice(0,3).map(i => `${safe(i.make)} ${safe(i.model)}`).join("<br>") || "No bike items saved";
   const totalQty = items.reduce((sum,i) => sum + Number(i.quantity || 0),0);
@@ -662,6 +768,7 @@ function renderCard(b){
 
         <div class="hide-mobile">
           <div class="small">${bikesPreview}</div>
+          ${interests.length ? `<div style="margin-top:5px"><span class="badge green">${interests.length} Interested sourced</span></div>` : ""}
         </div>
 
         <div>
@@ -696,6 +803,12 @@ function renderCard(b){
 
           <section class="panel">
             <h3>Requested Motorcycles</h3>
+            ${interests.length ? `
+              <div style="margin-bottom:12px">
+                <div class="eyebrow" style="margin-bottom:8px">${interests.length} interested sourced motorcycle${interests.length===1?"":"s"} — action needed</div>
+                ${interests.map(sourcedInterestHtml).join("")}
+              </div>
+            ` : ""}
             <div class="bike-list">
               ${items.length ? items.map(renderBikeItem).join("") : `<div class="empty">No motorcycle request items found for this buyer.</div>`}
             </div>
