@@ -1826,13 +1826,34 @@ document.addEventListener("visibilitychange",function(){
   document.head.appendChild(script);
 })();
 
-/* Market country-page correction layer */
-(function loadMarketPageCorrections(){
+/* Market country-page shared layers */
+(function loadMarketPageLayers(){
   if(!/^\/markets\//i.test(window.location.pathname)) return;
-  if(document.querySelector('script[data-anybike-market-corrections]')) return;
-  const s=document.createElement("script");
-  s.src="/market-page-corrections.js?v=3";
-  s.defer=true;
-  s.dataset.anybikeMarketCorrections="1";
-  document.head.appendChild(s);
+
+  function loadEngine(){
+    if(document.querySelector('script[data-anybike-market-engine]')) return;
+    const engine=document.createElement("script");
+    engine.src="/market-page-engine.js?v=1";
+    engine.defer=true;
+    engine.dataset.anybikeMarketEngine="1";
+    document.head.appendChild(engine);
+  }
+
+  const existingCorrections=document.querySelector('script[data-anybike-market-corrections]');
+  if(existingCorrections){
+    if(existingCorrections.dataset.anybikeLoaded==="1") loadEngine();
+    else existingCorrections.addEventListener("load",loadEngine,{once:true});
+    return;
+  }
+
+  const corrections=document.createElement("script");
+  corrections.src="/market-page-corrections.js?v=3";
+  corrections.defer=true;
+  corrections.dataset.anybikeMarketCorrections="1";
+  corrections.addEventListener("load",function(){
+    corrections.dataset.anybikeLoaded="1";
+    loadEngine();
+  },{once:true});
+  corrections.addEventListener("error",loadEngine,{once:true});
+  document.head.appendChild(corrections);
 })();
