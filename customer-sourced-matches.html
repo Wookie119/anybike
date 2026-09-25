@@ -77,9 +77,32 @@ async function respond(id,response){
   el.textContent=data.response+(data.reason?" — "+data.reason:"");el.className="response "+(data.response==="Interested"?"good":"no");
   const r=document.getElementById("reason-"+id);if(r)r.style.display="none";
 }
+async function getCustomerSessionSafely(){
+  try{
+    let result=await sb.auth.getSession();
+    if(result?.data?.session) return result.data.session;
+
+    // If the access token has expired, getUser gives Supabase a chance to
+    // refresh the persisted session instead of immediately sending the customer
+    // back to login.
+    await sb.auth.getUser().catch(()=>({data:{user:null}}));
+    result=await sb.auth.getSession();
+    if(result?.data?.session) return result.data.session;
+
+    // Allow a short browser/session restore window when navigating directly
+    // from another AnyBike page.
+    await new Promise(resolve=>setTimeout(resolve,500));
+    result=await sb.auth.getSession();
+    return result?.data?.session || null;
+  }catch(error){
+    console.warn("Customer session restore failed",error);
+    return null;
+  }
+}
+
 async function init(){
   if(!batchId){document.getElementById("status").textContent="This selection link is incomplete.";return}
-  const {data:{session}}=await sb.auth.getSession();
+  const session=await getCustomerSessionSafely();
   if(!session){
     const ret=location.pathname+location.search;
     location.replace("/customer-login.html?return="+encodeURIComponent(ret));
