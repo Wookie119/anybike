@@ -21,7 +21,7 @@ p{color:#ccc;line-height:1.55}
 .summary{display:grid;gap:9px;margin:22px 0}
 .row{background:#080808;border:1px solid rgba(255,255,255,.09);border-radius:11px;padding:12px}
 .row span{display:block;color:#888;font-size:10px;font-weight:900;text-transform:uppercase;margin-bottom:4px}
-textarea{width:100%;min-height:90px;background:#080808;color:#fff;border:1px solid #333;border-radius:10px;padding:11px;font:inherit}
+input,textarea{width:100%;background:#080808;color:#fff;border:1px solid #333;border-radius:10px;padding:11px;font:inherit} textarea{min-height:90px} .receiver-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}.receiver-grid label{display:grid;gap:5px;color:#bbb;font-size:12px;font-weight:800}.receiver-grid .full{grid-column:1/-1}@media(max-width:600px){.receiver-grid{grid-template-columns:1fr}.receiver-grid .full{grid-column:auto}}
 .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
 button{border:0;border-radius:10px;padding:12px 16px;font-weight:900;cursor:pointer}
 button.primary{background:var(--red);color:#fff}
@@ -43,6 +43,19 @@ button:disabled{opacity:.45;cursor:not-allowed}
       <p id="intro">Checking this handover request…</p>
       <div id="summary" class="summary" style="display:none"></div>
       <div id="responseBox" style="display:none">
+        <div class="notice" style="margin-top:14px;padding:12px;border-radius:10px;background:#080808;border:1px solid #333;color:#ccc;line-height:1.5"><strong style="color:#fff">Confirm the delivery details below.</strong><br>AnyBike and Move Motorcycles will use these exact details for the motorcycle delivery.</div>
+        <div class="receiver-grid">
+          <label class="full">Receiving company<input id="receiverCompany" autocomplete="organization"></label>
+          <label>Contact name<input id="receiverContact" autocomplete="name"></label>
+          <label>Contact phone<input id="receiverPhone" autocomplete="tel"></label>
+          <label class="full">Contact email<input id="receiverEmail" type="email" autocomplete="email"></label>
+          <label class="full">Address line 1<input id="receiverAddress1" autocomplete="address-line1"></label>
+          <label class="full">Address line 2<input id="receiverAddress2" autocomplete="address-line2"></label>
+          <label>Town / city<input id="receiverCity" autocomplete="address-level2"></label>
+          <label>County / region<input id="receiverCounty" autocomplete="address-level1"></label>
+          <label>Postcode<input id="receiverPostcode" autocomplete="postal-code"></label>
+          <label>Country<input id="receiverCountry" autocomplete="country-name" value="United Kingdom"></label>
+        </div>
         <label for="note" style="display:block;font-weight:900;margin:14px 0 6px">Optional note for AnyBike</label>
         <textarea id="note" placeholder="Opening hours, booking instructions, reason you cannot accept, or other handover information"></textarea>
         <div class="actions">
@@ -78,6 +91,9 @@ async function load(){
       '<div class="row"><span>Handover point</span><strong>'+safe(d.uk_handover_point||"—")+'</strong></div>'+
       (d.forwarder_reference?'<div class="row"><span>Reference</span><strong>'+safe(d.forwarder_reference)+'</strong></div>':'');
     document.getElementById("summary").style.display="grid";
+    const r=d.receiver||{};
+    const fields={receiverCompany:r.company_name||d.shipper_name||"",receiverContact:r.contact_name||"",receiverPhone:r.contact_phone||"",receiverEmail:r.contact_email||d.shipper_email||"",receiverAddress1:r.address_1||"",receiverAddress2:r.address_2||"",receiverCity:r.city||"",receiverCounty:r.county||"",receiverPostcode:r.postcode||"",receiverCountry:r.country||"United Kingdom"};
+    Object.entries(fields).forEach(([id,val])=>{const el=document.getElementById(id);if(el)el.value=val;});
     if(d.status==="Shipper Confirmed"){
       status.className="status good";status.textContent="Acceptance already confirmed. AnyBike has been notified.";
     }else if(d.status==="Shipper Declined"){
@@ -98,7 +114,21 @@ async function respond(action){
   confirmBtn.disabled=true;declineBtn.disabled=true;
   status.className="status";status.textContent="Saving your response…";
   try{
-    const d=await call(action,document.getElementById("note").value);
+    const receiver=action==="confirm"?{
+      company_name:document.getElementById("receiverCompany").value.trim(),
+      contact_name:document.getElementById("receiverContact").value.trim(),
+      contact_phone:document.getElementById("receiverPhone").value.trim(),
+      contact_email:document.getElementById("receiverEmail").value.trim(),
+      address_1:document.getElementById("receiverAddress1").value.trim(),
+      address_2:document.getElementById("receiverAddress2").value.trim(),
+      city:document.getElementById("receiverCity").value.trim(),
+      county:document.getElementById("receiverCounty").value.trim(),
+      postcode:document.getElementById("receiverPostcode").value.trim(),
+      country:document.getElementById("receiverCountry").value.trim()
+    }:null;
+    const r=await fetch(endpoint,{method:"POST",headers:{"Content-Type":"application/json","apikey":apikey},body:JSON.stringify({token,action,note:document.getElementById("note").value,receiver})});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok)throw new Error(d.error||"Your response could not be saved.");
     document.getElementById("responseBox").style.display="none";
     if(d.status==="Shipper Confirmed"){
       status.className="status good";status.textContent="Thank you. Your acceptance has been confirmed and AnyBike has been notified.";
