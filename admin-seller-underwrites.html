@@ -171,6 +171,7 @@ function render(){
       (r.notes?'<p>'+esc(r.notes)+'</p>':"")+
       '<div class="actions">'+
         '<button class="red" onclick="captureComps('+Number(r.submission_id)+')">Capture Comparables</button>'+
+        (r.underwrite_status!=="live"?'<button onclick="startUnderwrite('+Number(r.submission_id)+')">Start 48h Underwrite</button>':'<a class="btn" href="/admin-trade-underwrites.html">Open Underwrite Desk</a>')+
         '<button onclick="refreshDemand('+Number(r.submission_id)+')">Refresh Buyer Match</button>'+
         (Number(r.unique_buyer_match_count||0)>0?'<button onclick="viewDemand('+Number(r.submission_id)+')">View '+Number(r.unique_buyer_match_count)+' Buyer Match'+(Number(r.unique_buyer_match_count)===1?'':'es')+'</button>':'')+
         '<button onclick="editVehicle('+Number(r.submission_id)+')">Edit Bike Details</button>'+
@@ -180,6 +181,18 @@ function render(){
   }).join("");
 }
 
+
+async function startUnderwrite(id){
+  if(!confirm("Open this motorcycle to verified trade members for 48 hours? Seller identity and bid values will remain private."))return;
+  const {data,error}=await sb.rpc("admin_create_trade_underwrite_v1",{
+    p_submission_id:Number(id),
+    p_duration_hours:48,
+    p_invitation_mode:"all_verified_trade"
+  });
+  if(error){alert(error.message);return;}
+  alert("Underwrite "+data.reference+" opened. "+Number(data.invited_count||0)+" verified trade dealer"+(Number(data.invited_count||0)===1?" was":"s were")+" invited.");
+  await loadQueue();
+}
 async function captureComps(id){
   const {data,error}=await sb.rpc("admin_capture_seller_submission_comparables_v1",{p_submission_id:Number(id)});
   if(error){alert(error.message);return;}
