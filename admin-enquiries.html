@@ -13310,7 +13310,7 @@ function openAnyBikeDealFromUrl(){
   }
 
   setTimeout(function(){
-    row.scrollIntoView({behavior:"auto",block:"start"});
+    scrollBikeSalesTargetIntoView(row);
   },0);
 }
 
@@ -13645,6 +13645,35 @@ async function saveDealRequirement(event,dealId){
 }
 
 
+function bikeSalesStickyHeaderBottom(){
+  let bottom=0;
+  const candidates=document.querySelectorAll(
+    '#adminTopbar, header, nav, [class*="topbar"], [class*="top-nav"], [class*="topnav"], [class*="nav-row"], [class*="menu-bar"]'
+  );
+
+  candidates.forEach(function(el){
+    const style=window.getComputedStyle(el);
+    if(style.display==="none" || style.visibility==="hidden"){ return; }
+    if(style.position!=="fixed" && style.position!=="sticky"){ return; }
+
+    const rect=el.getBoundingClientRect();
+    if(rect.height<=0 || rect.bottom<=0){ return; }
+    if(rect.top>320){ return; }
+
+    bottom=Math.max(bottom,rect.bottom);
+  });
+
+  return Math.max(0,Math.ceil(bottom));
+}
+
+function scrollBikeSalesTargetIntoView(target){
+  if(!target){ return; }
+  const headerBottom=bikeSalesStickyHeaderBottom();
+  const rect=target.getBoundingClientRect();
+  const top=Math.max(0,window.scrollY + rect.top - headerBottom - 14);
+  window.scrollTo({top:top,behavior:"auto"});
+}
+
 function openBikeSalesAction(dealId,tab){
   const id=String(dealId || "").trim();
   const targetTab=String(tab || "timeline").trim() || "timeline";
@@ -13693,10 +13722,8 @@ function openBikeSalesAction(dealId,tab){
   history.replaceState(null,"",url.pathname+"?"+url.searchParams.toString()+url.hash);
 
   requestAnimationFrame(function(){
-    /* Keep the selected sale identity and summary visible.
-       The working tab still opens immediately, but we do not scroll so far
-       into the tab that the sale heading disappears behind the sticky nav. */
-    row.scrollIntoView({behavior:"auto",block:"start"});
+    /* Measure the live sticky shell instead of guessing an offset. */
+    scrollBikeSalesTargetIntoView(row);
   });
 }
 
