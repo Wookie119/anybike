@@ -4751,6 +4751,8 @@ input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-in
   grid-template-columns:1fr 1fr;
   gap:12px;
 }
+.deal-offer-price-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+.deal-offer-payment-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
 .deal-offer-grid label{
   display:grid;
   gap:6px;
@@ -4845,7 +4847,9 @@ input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-in
 }
 @media(max-width:760px){
   .deal-offer-summary{grid-template-columns:1fr 1fr}
-  .deal-offer-grid{grid-template-columns:1fr}
+  .deal-offer-grid,
+  .deal-offer-price-grid,
+  .deal-offer-payment-grid{grid-template-columns:1fr}
   .deal-offer-full{grid-column:auto}
   .deal-offer-actions{align-items:stretch;flex-direction:column}
   .deal-offer-status{width:100%}
@@ -9041,17 +9045,20 @@ async function sendDealOffer(){
   const depositRequired=!!document.getElementById("dealOfferDepositRequired")?.checked;
   const depositAmount=dealOfferNumber("dealOfferDepositAmount");
   const customerTotal=motorcyclePrice+anybikeFee+deliveryCharge;
+  const balanceAfterDeposit=Math.max(0,customerTotal-(depositRequired ? depositAmount : 0));
+  const alreadySecured=dealMotorcycleIsSecured(activeDealOfferMotorcycleId);
 
   const confirmed=window.confirm(
     "Send this formal AnyBike offer to the customer?\n\n"+
     "Motorcycle: "+dealOfferMoney(motorcyclePrice)+"\n"+
     "AnyBike sourcing fee: "+dealOfferMoney(anybikeFee)+"\n"+
-    "Delivery: "+dealOfferMoney(deliveryCharge)+"\n"+
+    "UK collection from seller & delivery: "+dealOfferMoney(deliveryCharge)+"\n"+
     "Customer total: "+dealOfferMoney(customerTotal)+"\n"+
     "Deposit due on acceptance: "+dealOfferMoney(depositRequired ? depositAmount : 0)+"\n"+
+    "Balance after deposit: "+dealOfferMoney(balanceAfterDeposit)+"\n"+
     "Offer expires: "+expiry.toLocaleString("en-GB")+"\n\n"+
-    "This will move the Deal stage to Proposal Sent.\n"+
-    "It will NOT record payment and will NOT secure the motorcycle."
+    "This will move the Deal stage to Proposal Sent and notify the customer in My AnyBike and Message Centre.\n"+
+    (alreadySecured ? "The motorcycle is already secured and will remain secured." : "Sending this offer does NOT itself secure the motorcycle.")
   );
 
   if(!confirmed) return;
@@ -9079,9 +9086,10 @@ async function sendDealOffer(){
     if(status){
       status.className="deal-offer-status success";
       status.textContent=
-        "AnyBike Offer sent • Customer total "+
+        "✓ AnyBike Offer sent • Customer notified • Customer total "+
         dealOfferMoney(row?.customer_total_gbp ?? customerTotal)+
-        " • Deal stage Proposal Sent • Motorcycle remains NOT SECURED";
+        " • Balance after deposit "+dealOfferMoney(balanceAfterDeposit)+
+        " • Deal stage Proposal Sent • Motorcycle "+(alreadySecured ? "SECURED" : "not yet secured");
     }
 
     document.getElementById("dealOfferState").textContent=
@@ -18193,7 +18201,7 @@ document.querySelector(".admin-page-content .wrap")?.classList.add("sales-view-a
 
       <section class="deal-offer-section">
         <h3>1. Customer Price</h3>
-        <div class="deal-offer-grid">
+        <div class="deal-offer-grid deal-offer-price-grid">
           <label>
             <span>Motorcycle Price (£)</span>
             <input id="dealOfferMotorcyclePrice" type="number" min="0" step="0.01" oninput="calculateDealOfferPreview()">
@@ -18310,7 +18318,7 @@ document.querySelector(".admin-page-content .wrap")?.classList.add("sales-view-a
 
       <section class="deal-offer-section">
         <h3>4. Deposit & Payment Terms</h3>
-        <div class="deal-offer-grid">
+        <div class="deal-offer-grid deal-offer-payment-grid">
           <label class="deal-offer-check">
             <input id="dealOfferDepositRequired" type="checkbox" checked onchange="updateDealOfferDepositState()">
             <span>Deposit required immediately on acceptance</span>
