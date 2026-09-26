@@ -33,6 +33,14 @@
 <div class="kpi"><span>Learning Mode</span><strong id="learningMode">—</strong><small>TEST until workflows are proven</small></div>
 </div>
 <section class="panel"><div class="panel-head"><div><h2>Learning controls</h2><p>The advisor can learn from evidence, but procedure changes remain human-approved.</p></div><div class="mode" id="modeBadges"></div></div><div class="learning-note" id="settingsNote">Loading process settings…</div></section>
+<section class="panel">
+  <div class="panel-head">
+    <div><h2>Sales Go-Live Readiness</h2><p>Critical areas that must be proven before AnyBike relies on the platform for live motorcycle sales.</p></div>
+    <button id="runAdvisorButton" type="button" onclick="runProcessAdvisor()" style="background:#ed1c24;border:0;color:#fff;border-radius:999px;padding:10px 14px;font-weight:900;cursor:pointer">Run Process Advisor</button>
+  </div>
+  <div id="readinessSummary" class="learning-note">Loading readiness…</div>
+  <div id="readinessList" class="observations"><div class="empty">Loading readiness…</div></div>
+</section>
 <section class="panel"><div class="panel-head"><div><h2>Procedure Manual</h2><p>Each chapter explains the purpose, the reason for the process and the current step-by-step method.</p></div></div><div id="chapterList" class="chapter-list"><div class="empty">Loading manual…</div></div></section>
 <section class="panel"><div class="panel-head"><div><h2>AI Process Advisor</h2><p>Issues and suggested improvements will appear here as enough process evidence builds up.</p></div></div><div id="observationList" class="observations"><div class="empty">No observations loaded yet.</div></div></section>
 </div></main></div></div>
@@ -46,9 +54,10 @@ async function loadProcessHQ(){
     processClient.from("anybike_process_manual_chapters").select("*").order("chapter_order",{ascending:true}),
     processClient.from("anybike_process_manual_steps").select("*").order("step_order",{ascending:true}),
     processClient.from("anybike_process_events").select("id",{count:"exact",head:true}),
-    processClient.from("anybike_process_observations").select("*").order("last_observed_at",{ascending:false}).limit(100)
+    processClient.from("anybike_process_observations").select("*").order("last_observed_at",{ascending:false}).limit(100),
+    processClient.from("anybike_sales_readiness").select("*").order("area_order",{ascending:true})
   ]);
-  var settings=results[0].data||{}, chapters=results[1].data||[], steps=results[2].data||[], observations=results[4].data||[];
+  var settings=results[0].data||{}, chapters=results[1].data||[], steps=results[2].data||[], observations=results[4].data||[], readiness=results[5].data||[];
   if(results[1].error)throw results[1].error; if(results[2].error)throw results[2].error;
   document.getElementById("chapterCount").textContent=chapters.length;
   document.getElementById("stepCount").textContent=steps.length;
@@ -57,6 +66,27 @@ async function loadProcessHQ(){
   document.getElementById("learningMode").textContent=settings.learning_mode||"TEST";
   document.getElementById("modeBadges").innerHTML='<span class="pill '+((settings.learning_mode||"TEST")==="LIVE"?"live":"test")+'">'+esc(settings.learning_mode||"TEST")+' LEARNING</span><span class="pill safe">'+(settings.advisor_enabled===false?"ADVISOR OFF":"AI ADVISOR ON")+'</span><span class="pill safe">'+(settings.auto_apply_process_changes?"AUTO APPLY ON":"HUMAN APPROVAL REQUIRED")+'</span>';
   document.getElementById("settingsNote").textContent=settings.notes||"";
+
+  var readinessCounts={Red:0,Amber:0,Green:0};
+  readiness.forEach(function(r){if(readinessCounts[r.status]!==undefined)readinessCounts[r.status]++;});
+  document.getElementById("readinessSummary").innerHTML=
+    '<strong>Current readiness:</strong> '+
+    '<span style="color:#ff7b82">'+readinessCounts.Red+' Red</span> · '+
+    '<span style="color:#ffd27c">'+readinessCounts.Amber+' Amber</span> · '+
+    '<span style="color:#67df98">'+readinessCounts.Green+' Green</span>'+
+    '<br><span style="color:#8f98a5">Amber means built but not yet proven through the full live-style journey. Green should only be used after a clean end-to-end test.</span>';
+
+  document.getElementById("readinessList").innerHTML=readiness.length?readiness.map(function(r){
+    var colour=r.status==="Green"?"#67df98":r.status==="Red"?"#ff7b82":"#ffd27c";
+    return '<article class="obs" style="border-left:4px solid '+colour+'">'+
+      '<span class="pill" style="color:'+colour+'">'+esc(r.status)+'</span>'+
+      '<h3>'+esc(r.title)+'</h3>'+
+      '<p><strong>Why it matters:</strong> '+esc(r.why_it_matters||"")+'</p>'+
+      '<p><strong>Current position:</strong> '+esc(r.current_position||"")+'</p>'+
+      (r.blocker?'<p><strong>Still to prove:</strong> '+esc(r.blocker)+'</p>':'')+
+      (r.next_test?'<div class="learning-note"><strong>Next test</strong><br>'+esc(r.next_test)+'</div>':'')+
+    '</article>';
+  }).join(""):'<div class="empty">No readiness areas configured.</div>';
   var byChapter=new Map(); steps.forEach(function(step){var key=String(step.chapter_id);if(!byChapter.has(key))byChapter.set(key,[]);byChapter.get(key).push(step);});
   var chapterHtml=chapters.map(function(c,index){
     var rows=byChapter.get(String(c.id))||[];
@@ -71,6 +101,22 @@ async function loadProcessHQ(){
   }).join(""):'<div class="empty">The advisor is watching process events. Suggestions will appear when there is enough repeated evidence to justify bothering you.</div>';
   document.getElementById("observationList").innerHTML=obsHtml;
 }
+async function runProcessAdvisor(){
+  var button=document.getElementById("runAdvisorButton");
+  if(button){button.disabled=true;button.textContent="Analysing…";}
+  try{
+    var result=await processClient.rpc("admin_refresh_process_advisor_v1");
+    if(result.error)throw result.error;
+    var created=Number(result.data&&result.data.created||0);
+    alert(created>0 ? "Process Advisor found "+created+" new pattern"+(created===1?"":"s")+" to review." : "Process Advisor completed. There is not enough repeated evidence for a new suggestion yet.");
+    await loadProcessHQ();
+  }catch(err){
+    alert("Process Advisor could not run.\n\n"+(err.message||err));
+  }finally{
+    if(button){button.disabled=false;button.textContent="Run Process Advisor";}
+  }
+}
+
 document.addEventListener("DOMContentLoaded",function(){loadProcessHQ().catch(function(err){console.error(err);document.getElementById("chapterList").innerHTML='<div class="empty">Process HQ could not be loaded: '+esc(err.message||err)+'</div>';});});
 </script>
 </body>
