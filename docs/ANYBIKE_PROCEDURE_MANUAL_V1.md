@@ -556,17 +556,21 @@ Hand the motorcycle only to a recipient authorised by the buyer.
 
 ## Buyer shipping profile
 Reusable buyer details may include:
-- shipper;
-- UK handover address;
+- shipper / freight forwarder;
+- UK handover address or port;
 - destination country;
 - destination port;
 - contact details;
 - account / booking / quote reference;
 - shipping method.
 
+Where practical, the customer should choose the UK port / handover point and freight forwarder from controlled dropdown lists rather than retyping names. This reduces spelling errors and helps AnyBike reuse the same shipping data consistently. "Other / not listed" must remain available for genuine exceptions.
+
 Saved details are defaults only.
 
-Each Deal must still confirm that the selected shipper / route can receive the motorcycle.
+If a Deal reaches the Formal Offer stage and the shipper is not yet known, staff may send a **Confirm your shipper / freight forwarder** request from the Formal Offer. The customer receives a Message Centre message and bell notification linking directly to Saved Shipping Preferences.
+
+Each Deal must still confirm that the selected shipper / route can receive the motorcycle before AnyBike commits to purchase where the shipping route is required.
 
 ## Authorisation
 The buyer can authorise a shipper to receive the motorcycle.
