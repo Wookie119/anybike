@@ -1,4 +1,6 @@
 let marketDays=30;
+let marketPersonalisationFilter="all";
+let marketPersonalisationRows=[];
 
 function miEsc(v){
   return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -89,6 +91,88 @@ async function loadMarketIntelligence(){
   }
 }
 
+
+function miMarketSlug(country){
+  const key=String(country||"").trim().toLowerCase();
+  const aliases={
+    "united states":"usa",
+    "united kingdom":"united-kingdom",
+    "united arab emirates":"uae",
+    "turkey":"turkiye",
+    "réunion":"reunion",
+    "réunion island":"reunion",
+    "reunion island":"reunion",
+    "ivory coast":"ivory-coast"
+  };
+  if(aliases[key])return aliases[key];
+  return key.normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/&/g,"and").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
+}
+function miDate(v){
+  if(!v)return "—";
+  try{return new Date(v).toLocaleString("en-GB");}catch(e){return "—";}
+}
+function renderMarketPersonalisation(){
+  const body=document.getElementById("personalisationRows");
+  if(!body)return;
+  const rows=marketPersonalisationRows.filter(r=>{
+    if(marketPersonalisationFilter==="guest")return Number(r.guest_events||0)>0;
+    if(marketPersonalisationFilter==="search")return Number(r.search_events||0)>0;
+    return Number(r.viewed_bikes||0)>0 || Number(r.search_events||0)>0;
+  });
+  body.innerHTML=rows.length?rows.map(r=>{
+    const country=r.country||"Unknown";
+    const bikes=Array.isArray(r.bikes)?r.bikes.slice(0,8):[];
+    const searches=Array.isArray(r.searches)?r.searches.slice(0,8):[];
+    const bikeChips=bikes.map(b=>'<span class="signal-chip">'+miEsc([b.year,b.make,b.model].filter(Boolean).join(" "))+'</span>').join("");
+    const searchChips=searches.map(s=>'<span class="signal-chip">'+miEsc([s.make,s.model].filter(Boolean).join(" ")||"Filtered stock search")+(Number(s.events||0)>1?" ×"+miNum(s.events):"")+'</span>').join("");
+    const reason='<div class="market-signal-detail">'+
+      (bikeChips?'<strong>Viewed motorcycles</strong><br>'+bikeChips:"")+
+      (searchChips?'<div style="margin-top:8px"><strong>Search signals</strong><br>'+searchChips+'</div>':"")+
+      '</div>';
+    const guest=Number(r.guest_events||0)>0;
+    const searched=Number(r.search_events||0)>0;
+    const status=guest
+      ? '<span class="personalisation-badge guest">Guest-driven</span>'
+      : '<span class="personalisation-badge live">Known-user activity</span>';
+    return '<tr class="personalisation-row">'+
+      '<td data-label="Market"><div class="market-name">'+miEsc(country)+'</div></td>'+
+      '<td data-label="Status">'+status+(searched?'<div style="margin-top:6px"><span class="personalisation-badge live">Search influenced</span></div>':"")+'</td>'+
+      '<td data-label="Viewed bikes" class="num">'+miNum(r.viewed_bikes)+'</td>'+
+      '<td data-label="Guest signals" class="num '+(guest?"good":"zero")+'">'+miNum(r.guest_events)+'</td>'+
+      '<td data-label="Search signals" class="num '+(searched?"good":"zero")+'">'+miNum(r.search_events)+'</td>'+
+      '<td data-label="Last activity">'+miEsc(miDate(r.last_activity_at))+'</td>'+
+      '<td data-label="Why / bikes"><details><summary>Show signals</summary>'+reason+'</details></td>'+
+      '<td data-label="Page"><a href="/markets/'+miEsc(miMarketSlug(country))+'.html" target="_blank" rel="noopener" style="color:#ed1c24;font-weight:900">Open ↗</a></td>'+
+    '</tr>';
+  }).join(""):'<tr><td colspan="8" class="empty">No personalised market activity recorded in this period.</td></tr>';
+}
+async function loadMarketPersonalisation(){
+  const body=document.getElementById("personalisationRows");
+  if(!body)return;
+  const client=getAdminSupabaseClient();
+  if(!client)return;
+  try{
+    const {data,error}=await client.rpc("admin_get_market_personalisation_v1",{p_days:marketDays});
+    if(error)throw error;
+    marketPersonalisationRows=Array.isArray(data?.markets)?data.markets:[];
+    renderMarketPersonalisation();
+  }catch(err){
+    console.error("Market personalisation load failed",err);
+    body.innerHTML='<tr><td colspan="8" class="empty">Could not load live market personalisation: '+miEsc(err?.message||"Unknown error")+'</td></tr>';
+  }
+}
+function bindMarketPersonalisationFilters(){
+  const wrap=document.getElementById("personalisationFilters");
+  if(!wrap)return;
+  wrap.addEventListener("click",event=>{
+    const btn=event.target.closest("[data-personalisation-filter]");
+    if(!btn)return;
+    marketPersonalisationFilter=btn.dataset.personalisationFilter||"all";
+    wrap.querySelectorAll("[data-personalisation-filter]").forEach(x=>x.classList.toggle("active",x===btn));
+    renderMarketPersonalisation();
+  });
+}
+
 function bindMarketRangeButtons(){
   const wrap=document.getElementById("rangeButtons");
   if(!wrap)return;
@@ -98,6 +182,7 @@ function bindMarketRangeButtons(){
     marketDays=Number(btn.dataset.days)||30;
     wrap.querySelectorAll("[data-days]").forEach(x=>x.classList.toggle("active",x===btn));
     loadMarketIntelligence();
+    loadMarketPersonalisation();
   });
 }
 
@@ -106,5 +191,6 @@ function bindMarketRangeButtons(){
   if(!allowed)return;
   document.documentElement.classList.remove("admin-auth-pending");
   bindMarketRangeButtons();
-  await loadMarketIntelligence();
+  bindMarketPersonalisationFilters();
+  await Promise.all([loadMarketIntelligence(),loadMarketPersonalisation()]);
 })();
