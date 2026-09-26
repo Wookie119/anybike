@@ -9203,7 +9203,7 @@ function renderAnyBikeDealCandidatePanel(deal){
       : "No hold expiry recorded";
     const sellerPrice=Number(row.confirmed_seller_price_gbp || row.seller_asking_price_gbp || 0);
 
-    return `<article class="anybike-candidate-card ${selected ? "selected" : ""} ${sold ? "sold" : ""}">
+    return `<article id="anybike-candidate-${row.id}" class="anybike-candidate-card ${selected ? "selected" : ""} ${sold ? "sold" : ""}">
       <div class="anybike-candidate-top">
         <div class="anybike-candidate-title">
           <strong>${escapeAdminHtml(title)}</strong>
@@ -9779,9 +9779,31 @@ async function saveCandidateAvailability(){
     }
 
     if(savedDealId){
+      renderAdminDealQueue();
+
+      const dealId=String(savedDealId);
+      const url=new URL(window.location.href);
+      url.searchParams.set("deal",dealId);
+      url.searchParams.set("tab","sourcing");
+      history.replaceState(null,"",url.pathname+"?"+url.searchParams.toString()+url.hash);
+
       setTimeout(function(){
-        openConvertedEnquiryDeal(savedDealId);
-      },150);
+        setBikeSalesView("active",document.querySelector('#salesHqViewTabs [data-sales-view="active"]'));
+
+        const rowEl=document.getElementById("anybike-deal-"+dealId);
+        if(!rowEl){ return; }
+
+        document.querySelectorAll(".anybike-deal-record.open").forEach(function(item){
+          if(item!==rowEl){ item.classList.remove("open"); }
+        });
+
+        rowEl.classList.add("open");
+        openAnyBikeDealId=dealId;
+        bikeSalesJourneyTab(dealId,"sourcing",false);
+
+        const candidateEl=document.getElementById("anybike-candidate-"+savedCandidateId);
+        scrollBikeSalesTargetIntoView(candidateEl || rowEl);
+      },80);
     }
 
   }catch(error){
