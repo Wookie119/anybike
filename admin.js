@@ -416,6 +416,11 @@ if(q.includes("market") || q.includes("intelligence") || q.includes("country")){
   return;
 }
 
+if(q.includes("process") || q.includes("procedure") || q.includes("manual") || q.includes("continuity")){
+  location.href = "admin-process-hq.html";
+  return;
+}
+
 location.href = "admin-enquiries.html";
 });
 }
