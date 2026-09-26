@@ -8050,7 +8050,7 @@ function renderAnyBikeDealCommercialSetup(deal){
   return `<div class="anybike-commercial-panel">
     <div class="anybike-commercial-head">
       <div>
-        <span>Deal 360 Commercial Setup</span>
+        <span>Commercial Setup</span>
         <h4>${escapeAdminHtml(title)}</h4>
       </div>
       <div class="anybike-commercial-status">${escapeAdminHtml(status)}</div>
@@ -8143,7 +8143,7 @@ function renderAnyBikeDealCommercialSetup(deal){
     </div>
 
     <div class="anybike-commercial-actions">
-      <p>Commercial Setup remains internal. Prepare Formal Offer copies the customer-facing commercial position into the Deal 360 offer layer; nothing is sent until Send AnyBike Offer is confirmed.</p>
+      <p>Commercial Setup remains internal. Prepare Formal Offer copies the customer-facing commercial position into the formal offer. Nothing is sent until Send AnyBike Offer is confirmed.</p>
       <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
         <button class="anybike-commercial-save" type="button" ${busy ? "disabled" : ""} onclick="saveDealCommercialSetup(${id});return false;">${busy ? "Saving..." : "Save Commercial Setup"}</button>
         <button class="anybike-formal-offer-button" type="button" onclick="openDealOfferModal(${id});return false;">Prepare Formal Offer</button>
@@ -8299,7 +8299,7 @@ async function openDealOfferModal(dealMotorcycleId){
   const status=document.getElementById("dealOfferStatus");
   if(status){
     status.className="deal-offer-status";
-    status.textContent="Loading any existing Deal 360 offer…";
+    status.textContent="Loading any existing formal offer…";
   }
 
   try{
@@ -8339,7 +8339,7 @@ async function openDealOfferModal(dealMotorcycleId){
           : offer.offer_status;
 
       if(status){
-        status.textContent="Existing Deal 360 offer loaded.";
+        status.textContent="Existing formal offer loaded.";
       }
     }else if(status){
       status.textContent="Ready to prepare a formal offer from Commercial Setup.";
@@ -8410,7 +8410,7 @@ async function saveDealOffer(){
   }
   if(status){
     status.className="deal-offer-status";
-    status.textContent="Saving prepared Deal 360 offer…";
+    status.textContent="Saving prepared formal offer…";
   }
 
   try{
@@ -8514,7 +8514,7 @@ async function sendDealOffer(){
   try{
     if(status){
       status.className="deal-offer-status";
-      status.textContent="Sending Deal 360 formal offer…";
+      status.textContent="Sending formal AnyBike offer…";
     }
 
     const {data,error}=await sb.rpc("admin_send_deal_offer_v1",{
@@ -9696,19 +9696,29 @@ async function selectCandidateForDeal(candidateId){
 
     const payload=data || {};
 
-    alert(
-      "Candidate selected for Deal 360.\n\n"+
-      "Motorcycle status: Seller Check\n"+
-      "Deposit taken: NO\n"+
-      "Motorcycle secured: NO"
-    );
-
     await loadAdminDealQueue();
+    renderAdminDealQueue();
 
     if(payload.deal_id){
+      const dealId=String(payload.deal_id);
+      const url=new URL(window.location.href);
+      url.searchParams.set("deal",dealId);
+      url.searchParams.set("tab","seller");
+      history.replaceState(null,"",url.pathname+"?"+url.searchParams.toString()+url.hash);
+
       setTimeout(function(){
-        openConvertedEnquiryDeal(payload.deal_id);
-      },150);
+        setBikeSalesView("active",document.querySelector('#salesHqViewTabs [data-sales-view="active"]'));
+        const rowEl=document.getElementById("anybike-deal-"+dealId);
+        if(rowEl){
+          document.querySelectorAll(".anybike-deal-record.open").forEach(function(item){
+            if(item!==rowEl)item.classList.remove("open");
+          });
+          rowEl.classList.add("open");
+          openAnyBikeDealId=dealId;
+          bikeSalesJourneyTab(dealId,"seller",false);
+          rowEl.scrollIntoView({behavior:"smooth",block:"start"});
+        }
+      },50);
     }
 
   }catch(error){
