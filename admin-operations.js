@@ -134,6 +134,18 @@
       .ab-move-warning{margin:0 14px 12px;padding:10px 11px;border:1px solid rgba(255,181,71,.3);border-radius:8px;background:#211707;color:#ffd18a;font-size:11px;line-height:1.4}
       .ab-move-warning.ab-move-ready{border-color:rgba(47,141,85,.5);background:#102719;color:#9cf0b5}
       .ab-move-booked{margin:0 16px 14px;padding:12px 14px;border:1px solid rgba(47,141,85,.4);border-radius:10px;background:#102719;color:#9cf0b5}
+      .ab-ops-progress{margin:0 16px 14px;padding:12px 14px;border:1px solid rgba(255,255,255,.09);border-radius:10px;background:#0d0d0d}
+      .ab-ops-progress-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:9px}
+      .ab-ops-progress-head span{color:#888;font-size:10px;font-weight:950;text-transform:uppercase;letter-spacing:.06em}
+      .ab-ops-progress-head strong{color:#fff;font-size:11px}
+      .ab-ops-progress-track{height:7px;background:#262626;border-radius:999px;overflow:hidden}
+      .ab-ops-progress-fill{height:100%;background:linear-gradient(90deg,#ed1c24,#ff555b);border-radius:inherit}
+      .ab-ops-progress-steps{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+      .ab-ops-progress-step{padding:5px 7px;border:1px solid rgba(255,255,255,.10);border-radius:999px;color:#666;font-size:9px;font-weight:950}
+      .ab-ops-progress-step.done{border-color:rgba(47,141,85,.48);background:rgba(47,141,85,.10);color:#9cf0b5}
+      .ab-ops-progress-step.current{border-color:rgba(255,181,71,.45);background:rgba(255,181,71,.08);color:#ffd18a}
+      .ab-ops-next-action{margin-top:9px;color:#bbb;font-size:11px;line-height:1.45}
+      .ab-ops-next-action strong{color:#fff}
       .ab-ops-button{min-height:39px;border:0;border-radius:8px;background:#ed1c24;color:#fff;padding:10px 14px;font-weight:900;cursor:pointer}
       .ab-ops-button:disabled{opacity:.45;cursor:not-allowed}
       .ab-ops-next{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 16px;border-top:1px solid rgba(255,255,255,.08);background:#101010;color:#aaa;font-size:12px}
@@ -322,6 +334,32 @@
       const seller=sellerNameFor(row);
       const phone=sellerPhoneFor(row);
 
+      const atDepot=!!row.depot_arrived_at || ["at_depot","in_storage","stored"].includes(String(row.depot_status||"").toLowerCase()) || ["active","paused","stopped"].includes(String(storage).toLowerCase());
+      const delivered=!!row.delivered_to_shipper_at || ["delivered","completed","handed_over"].includes(String(row.delivery_status||"").toLowerCase()) || !!row.operations_complete;
+      const operationsStages=[
+        ["Seller confirmed",confirmed],
+        ["Move booked",booked],
+        ["Collected",collected],
+        ["Depot / storage",atDepot],
+        ["Delivered",delivered]
+      ];
+      const completedStages=operationsStages.filter(function(item){return !!item[1];}).length;
+      const operationsPercent=Math.round((completedStages/operationsStages.length)*100);
+      let operationsCurrent=operationsStages.findIndex(function(item){return !item[1];});
+      if(operationsCurrent<0) operationsCurrent=operationsStages.length-1;
+      const operationsStepsHtml=operationsStages.map(function(item,index){
+        const cls=item[1]?"done":(index===operationsCurrent?"current":"");
+        return '<span class="ab-ops-progress-step '+cls+'">'+(item[1]?'✓ ':'')+esc(item[0])+'</span>';
+      }).join("");
+
+      let operationsNext="Review the motorcycle operations record.";
+      if(!confirmed) operationsNext="Contact the seller, confirm AnyBike is proceeding and obtain the Ready Date.";
+      else if(!booked) operationsNext="Complete the collection details and book Move Motorcycles.";
+      else if(!collected) operationsNext="Track the Move collection and complete the driver handover workflow.";
+      else if(!atDepot) operationsNext="Motorcycle collected. Confirm depot arrival / custody and storage status.";
+      else if(!delivered) operationsNext="Motorcycle is in UK custody. Complete the final handover / delivery to the buyer's shipper.";
+      else operationsNext="Operations complete. Finalise the invoice and close the sale when all commercial records are complete.";
+
       return `
         <section class="ab-ops-bike">
           <div class="ab-ops-head">
@@ -330,6 +368,13 @@
               <h4>${esc(motorcycleTitle(row))}</h4>
             </div>
             <div class="ab-ops-state ${confirmed ? "ready" : ""}">${confirmed ? "Seller proceeding confirmed" : "Seller confirmation required"}</div>
+          </div>
+
+          <div class="ab-ops-progress">
+            <div class="ab-ops-progress-head"><span>Operations Progress</span><strong>${completedStages} / ${operationsStages.length} stages · ${operationsPercent}%</strong></div>
+            <div class="ab-ops-progress-track"><div class="ab-ops-progress-fill" style="width:${operationsPercent}%"></div></div>
+            <div class="ab-ops-progress-steps">${operationsStepsHtml}</div>
+            <div class="ab-ops-next-action"><strong>Next:</strong> ${esc(operationsNext)}</div>
           </div>
 
           <div class="ab-ops-grid">
@@ -363,7 +408,7 @@
             : `<div id="ab-move-booking-${id}" class="ab-move"><div class="ab-ops-loading">Loading Move booking details…</div></div>`) : ""}
           ${confirmed ? collectionPanel(row,dealId) : ""}
           <div class="ab-ops-next">
-            <span><strong>Next:</strong> ${confirmed ? (collected ? "Motorcycle is collected and secured. Continue depot/storage or final shipping handover." : (booked ? "Move collection is linked to this motorcycle." : "Review and complete the Move Motorcycles booking.")) : "Contact the seller, confirm AnyBike is proceeding and obtain the Ready Date."}</span>
+            <span><strong>Current operations status:</strong> ${esc(delivered ? "Delivered / handover complete" : atDepot ? "At depot / storage" : collected ? "Collected" : booked ? "Booked with Move" : confirmed ? "Seller confirmed" : "Seller confirmation required")}</span>
             <span class="ab-ops-private">${phone ? "Seller contact held internally" : "Seller details remain internal"}</span>
           </div>
         </section>
