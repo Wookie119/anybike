@@ -4,6 +4,32 @@
 (function(){
   const MARKET_COUNTRIES={"antigua-and-barbuda":["Antigua and Barbuda","ag"],"argentina":["Argentina","ar"],"australia":["Australia","au"],"austria":["Austria","at"],"bahamas":["Bahamas","bs"],"bahrain":["Bahrain","bh"],"barbados":["Barbados","bb"],"belgium":["Belgium","be"],"belize":["Belize","bz"],"bolivia":["Bolivia","bo"],"brazil":["Brazil","br"],"canada":["Canada","ca"],"chile":["Chile","cl"],"colombia":["Colombia","co"],"costa-rica":["Costa Rica","cr"],"cuba":["Cuba","cu"],"denmark":["Denmark","dk"],"dominica":["Dominica","dm"],"dominican-republic":["Dominican Republic","do"],"ecuador":["Ecuador","ec"],"egypt":["Egypt","eg"],"el-salvador":["El Salvador","sv"],"finland":["Finland","fi"],"france":["France","fr"],"germany":["Germany","de"],"grenada":["Grenada","gd"],"guatemala":["Guatemala","gt"],"guyana":["Guyana","gy"],"haiti":["Haiti","ht"],"honduras":["Honduras","hn"],"india":["India","in"],"indonesia":["Indonesia","id"],"ireland":["Ireland","ie"],"italy":["Italy","it"],"jamaica":["Jamaica","jm"],"japan":["Japan","jp"],"jordan":["Jordan","jo"],"kenya":["Kenya","ke"],"kuwait":["Kuwait","kw"],"malaysia":["Malaysia","my"],"mexico":["Mexico","mx"],"morocco":["Morocco","ma"],"netherlands":["Netherlands","nl"],"new-zealand":["New Zealand","nz"],"nicaragua":["Nicaragua","ni"],"nigeria":["Nigeria","ng"],"norway":["Norway","no"],"oman":["Oman","om"],"panama":["Panama","pa"],"paraguay":["Paraguay","py"],"peru":["Peru","pe"],"philippines":["Philippines","ph"],"portugal":["Portugal","pt"],"puerto-rico":["Puerto Rico","pr"],"qatar":["Qatar","qa"],"reunion":["Réunion Island","re"],"saint-kitts-and-nevis":["Saint Kitts and Nevis","kn"],"saint-lucia":["Saint Lucia","lc"],"saint-vincent-and-the-grenadines":["Saint Vincent and the Grenadines","vc"],"saudi-arabia":["Saudi Arabia","sa"],"singapore":["Singapore","sg"],"south-africa":["South Africa","za"],"south-korea":["South Korea","kr"],"spain":["Spain","es"],"sweden":["Sweden","se"],"switzerland":["Switzerland","ch"],"taiwan":["Taiwan","tw"],"thailand":["Thailand","th"],"trinidad-and-tobago":["Trinidad and Tobago","tt"],"turkiye":["Türkiye","tr"],"uae":["UAE","ae"],"uruguay":["Uruguay","uy"],"usa":["USA","us"]};
   const UK_PORTS=["Bristol","Dover","Felixstowe","Harwich","Hull","Immingham","London Gateway","Plymouth","Poole","Portbury","Portsmouth","Purfleet","Sheerness","Southampton","Thamesport","Tilbury"];
+
+  function ukPortMapUrl(port){
+    const queries={
+      "Bristol":"Port of Bristol, Avonmouth, United Kingdom",
+      "Dover":"Port of Dover, United Kingdom",
+      "Felixstowe":"Port of Felixstowe, United Kingdom",
+      "Harwich":"Harwich International Port, United Kingdom",
+      "Hull":"Port of Hull, United Kingdom",
+      "Immingham":"Port of Immingham, United Kingdom",
+      "London Gateway":"DP World London Gateway, United Kingdom",
+      "Plymouth":"Port of Plymouth, United Kingdom",
+      "Poole":"Port of Poole, United Kingdom",
+      "Portbury":"Royal Portbury Dock, United Kingdom",
+      "Portsmouth":"Portsmouth International Port, United Kingdom",
+      "Purfleet":"Purfleet Thames Terminal, United Kingdom",
+      "Sheerness":"Port of Sheerness, United Kingdom",
+      "Southampton":"Port of Southampton, United Kingdom",
+      "Thamesport":"Thamesport, Isle of Grain, United Kingdom",
+      "Tilbury":"Port of Tilbury, United Kingdom"
+    };
+    return "https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(queries[port]||("Port of "+port+", United Kingdom"));
+  }
+
+  function ukPortLink(port){
+    return '<a href="'+ukPortMapUrl(port)+'" target="_blank" rel="noopener noreferrer" title="View '+esc(port)+' on a UK map" aria-label="View '+esc(port)+' on a UK map" style="display:inline-flex;align-items:center;padding:7px 10px;border:1px solid rgba(255,255,255,.12);border-radius:999px;background:#181818;color:inherit;text-decoration:none;font-weight:850">'+esc(port)+' ↗</a>';
+  }
   const ARTICLE_COUNTRIES=new Set(["bahamas","netherlands","philippines","uae","usa"]);
 
   function esc(value){
@@ -262,11 +288,11 @@
         '<p>AnyBike arranges the UK-side motorcycle collection and handover. You can nominate your own freight forwarder, shipping agent, warehouse or port handling facility. Your freight provider is responsible for the onward international shipment to '+esc(market.name)+'.</p>';
     }
 
-    const chips=UK_PORTS.map(function(p){return '<span>'+esc(p)+'</span>';}).join("");
+    const chips=UK_PORTS.map(function(p){return ukPortLink(p);}).join("");
 
     grid.innerHTML=
       '<article class="port-card"><h3>AnyBike UK handover ports</h3>'+
-      '<p>AnyBike can arrange UK delivery to the agreed handover point used by your freight forwarder. The available AnyBike handover ports are:</p>'+
+      '<p>Use the map links to compare where each UK handover port is located. The final handover point should be agreed with your freight forwarder before purchase.</p>'+
       '<div class="area-list">'+chips+'</div></article>'+
       '<article class="port-card"><h3>Your freight forwarder to '+esc(market.name)+'</h3>'+
       '<p>Before purchase, confirm the destination, international route, receiving agent and final delivery arrangements with your chosen freight provider. AnyBike coordinates the UK handover using the agreed reference and collection instructions.</p>'+
