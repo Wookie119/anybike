@@ -14,6 +14,12 @@ document.documentElement.classList.add("admin-auth-pending");
 </script>
 <style>
 html.admin-auth-pending body{visibility:hidden}
+
+.sourcing-nav{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:0 0 14px;padding:6px;background:#101010;border:1px solid rgba(255,255,255,.12);border-radius:14px}
+.sourcing-nav a{color:#aaa;text-decoration:none;font-weight:900;font-size:13px;padding:9px 12px;border-radius:10px;border:1px solid transparent}
+.sourcing-nav a.active{background:#ed1c24;border-color:#ed1c24;color:#fff}
+.sourcing-context{margin-left:auto;color:#aaa;font-size:12px;font-weight:800}
+.sourcing-context a{padding:0;border:0;color:#fff;text-decoration:underline}
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -177,6 +183,14 @@ html.modal-open,body.modal-open{overflow:hidden!important;}
   <div class="admin-main">
     <div id="adminTopbar"></div>
     <main class="admin-page-content">
+
+      <nav class="sourcing-nav" aria-label="Sourcing workspace">
+        <a class="active" id="srcRecommended" href="admin-ai-matching.html">Recommended</a>
+        <a id="srcLive" href="admin-live-source-hub.html">Live Sources</a>
+        <a id="srcScanner" href="admin-used-bike-scanner.html">Scan Advert</a>
+        <a id="srcResponses" href="#interestedQueue">Buyer Responses</a>
+        <span class="sourcing-context" id="sourcingContext"></span>
+      </nav>
 
       <div class="department-hero">
         <div>
@@ -386,6 +400,25 @@ function numberText(value){
   return n.toLocaleString();
 }
 
+const sourcingParams=new URLSearchParams(location.search);
+function sourcingContextQuery(){
+  const p=new URLSearchParams();
+  ["deal","buyer","request"].forEach(k=>{const v=sourcingParams.get(k);if(v)p.set(k,v)});
+  const s=p.toString();return s?"?"+s:"";
+}
+function syncSourcingNav(){
+  const q=sourcingContextQuery();
+  document.getElementById("srcRecommended").href="admin-ai-matching.html"+q;
+  document.getElementById("srcLive").href="admin-live-source-hub.html"+q;
+  document.getElementById("srcScanner").href="admin-used-bike-scanner.html"+q;
+  document.getElementById("srcResponses").href=(q||"")+"#interestedQueue";
+  const deal=sourcingParams.get("deal"),buyer=sourcingParams.get("buyer"),request=sourcingParams.get("request");
+  const bits=[];
+  if(deal) bits.push('<a href="admin-enquiries.html?deal='+encodeURIComponent(deal)+'">← Back to sale</a>');
+  if(buyer) bits.push("Buyer #"+esc(buyer));
+  if(request) bits.push("Request #"+esc(request));
+  document.getElementById("sourcingContext").innerHTML=bits.join(" · ");
+}
 function yearText(item){
   if(item.year_from && item.year_to){
     return Number(item.year_from)===Number(item.year_to)
@@ -814,7 +847,13 @@ async function loadBuyerRequests(){
     return `<option value="${esc(item.id)}">${esc(label)}</option>`;
   }).join("");
 
-  const preferred=aiRequestItems.find(item=>Number(item.id)===44) || aiRequestItems[0];
+  const requestedRequest=Number(sourcingParams.get("request")||0);
+  const requestedBuyer=Number(sourcingParams.get("buyer")||0);
+  const preferred=
+    (requestedRequest ? aiRequestItems.find(item=>Number(item.id)===requestedRequest) : null) ||
+    (requestedBuyer ? aiRequestItems.find(item=>Number(item.buyer_id)===requestedBuyer) : null) ||
+    aiRequestItems.find(item=>Number(item.id)===44) ||
+    aiRequestItems[0];
   select.value=String(preferred.id);
   activeRequestItem=preferred;
   renderRequestSummary();
@@ -1254,6 +1293,7 @@ document.getElementById("queueMotorcycleClose").addEventListener("click",()=>clo
   const allowed=await requireAdminSession();
   if(!allowed) return;
   document.documentElement.classList.remove("admin-auth-pending");
+  syncSourcingNav();
   await Promise.all([loadBuyerRequests(),loadInterestedMatchesQueue()]);
   await openInterestedMatchFromUrl();
 })();
