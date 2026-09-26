@@ -8760,6 +8760,72 @@ function dealMotorcycleIsSecured(dealMotorcycleId){
   return !!row?.bike_secured;
 }
 
+function dealOfferSavedShipperForDeal(deal){
+  const plans=anyBikeCustomerHandoverPlansForDeal(deal);
+  const selection=anyBikeCustomerHandoverSelectionForDeal(deal?.deal_id);
+  const selectedId=Number(selection?.handover_plan_id || 0);
+  return plans.find(function(plan){ return Number(plan.id)===selectedId; })
+    || plans.find(function(plan){ return !!plan.is_default; })
+    || plans[0]
+    || null;
+}
+
+function renderDealOfferShipperSummary(deal){
+  const box=document.getElementById("dealOfferShipperSummary");
+  if(!box) return;
+  const plan=dealOfferSavedShipperForDeal(deal);
+  const profile=anyBikeDealCustomerProfile(deal) || {};
+  const name=String(plan?.freight_forwarder_name || profile.preferred_shipping_company || "").trim();
+  const ukPoint=String(plan?.uk_handover_point || profile.preferred_uk_collection_point || "").trim();
+  const contactName=String(plan?.contact_name || profile.shipping_contact_name || "").trim();
+  const contactEmail=String(plan?.contact_email || profile.shipping_contact_email || "").trim();
+  const contactPhone=String(plan?.contact_phone || profile.shipping_contact_phone || "").trim();
+  const ref=String(plan?.forwarder_reference || "").trim();
+  const isSelected=!!plan && Number(anyBikeCustomerHandoverSelectionForDeal(deal?.deal_id)?.handover_plan_id||0)===Number(plan.id);
+
+  if(!name && !ukPoint && !contactName && !contactEmail && !contactPhone){
+    box.innerHTML='<strong style="display:block;color:#fff;margin-bottom:5px">No shipper confirmed yet</strong>'+
+      '<span>The buyer can choose from AnyBike\'s freight-forwarder directory and confirm the UK handover point in My AnyBike. This does not block sending the Formal Offer, but it must be resolved before AnyBike commits to purchase where the shipping route is required.</span>';
+    return;
+  }
+
+  box.innerHTML=
+    '<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap">'+
+      '<div><strong style="display:block;color:#fff;font-size:16px">'+escapeAdminHtml(name || "Saved shipping preference")+'</strong>'+
+      '<span style="display:block;margin-top:4px">'+escapeAdminHtml(ukPoint || "UK handover point not supplied")+'</span></div>'+
+      '<span class="panel-badge '+(isSelected?'badge-green':'')+'">'+(isSelected?'CUSTOMER SELECTED':plan?.is_default?'DEFAULT SAVED':'SAVED')+'</span>'+
+    '</div>'+
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px;margin-top:10px">'+
+      '<div style="padding:9px;background:#151515;border-radius:9px"><span style="display:block;color:#888;font-size:10px;font-weight:900">CONTACT</span>'+escapeAdminHtml(contactName || "Not supplied")+'</div>'+
+      '<div style="padding:9px;background:#151515;border-radius:9px"><span style="display:block;color:#888;font-size:10px;font-weight:900">PHONE</span>'+escapeAdminHtml(contactPhone || "Not supplied")+'</div>'+
+      '<div style="padding:9px;background:#151515;border-radius:9px"><span style="display:block;color:#888;font-size:10px;font-weight:900">EMAIL</span>'+escapeAdminHtml(contactEmail || "Not supplied")+'</div>'+
+      '<div style="padding:9px;background:#151515;border-radius:9px"><span style="display:block;color:#888;font-size:10px;font-weight:900">REFERENCE</span>'+escapeAdminHtml(ref || "Not supplied")+'</div>'+
+    '</div>';
+}
+
+async function requestBuyerShippingDetailsFromOffer(){
+  const status=document.getElementById("dealOfferShippingRequestStatus");
+  const button=document.getElementById("dealOfferRequestShippingButton");
+  if(!activeDealOfferDealId) return;
+  if(button){button.disabled=true;button.textContent="Sending request…";}
+  if(status){status.textContent="";}
+  try{
+    const {data,error}=await sb.rpc("admin_request_buyer_shipping_details_v1",{p_deal_id:Number(activeDealOfferDealId)});
+    if(error) throw error;
+    if(status){
+      status.textContent="✓ Buyer notified in Message Centre and bell. Their link opens Saved Shipping Preferences.";
+      status.style.color="#9bf0b8";
+    }
+  }catch(error){
+    if(status){
+      status.textContent="Could not send shipping request: "+(error?.message || error);
+      status.style.color="#ff9da1";
+    }
+  }finally{
+    if(button){button.disabled=false;button.textContent="Request buyer to confirm / update shipping details";}
+  }
+}
+
 function candidateOfferGuardMessage(dealMotorcycleId){
   if(dealMotorcycleIsSecured(dealMotorcycleId)){ return ""; }
   const candidate=dealCandidateForMotorcycle(dealMotorcycleId);
@@ -8822,8 +8888,10 @@ async function openDealOfferModal(dealMotorcycleId){
 
   document.getElementById("dealOfferSaleBasis").value="Trade / Export Sale";
   document.getElementById("dealOfferTerms").value=defaultDealOfferTerms();
+  const savedShipperPlan=dealOfferSavedShipperForDeal(deal);
   const preferredUkHandover=String(
     deal.uk_handover_port ||
+    savedShipperPlan?.uk_handover_point ||
     profile.preferred_uk_collection_point ||
     ""
   ).trim();
@@ -8835,6 +8903,9 @@ async function openDealOfferModal(dealMotorcycleId){
   document.getElementById("dealOfferExpiresAt").value=defaultDealOfferExpiry();
   document.getElementById("dealOfferInternalNotes").value=row.commercial_notes || "";
   document.getElementById("dealOfferState").textContent="Prepared internally — not sent";
+  renderDealOfferShipperSummary(deal);
+  const shippingRequestStatus=document.getElementById("dealOfferShippingRequestStatus");
+  if(shippingRequestStatus){shippingRequestStatus.textContent="";shippingRequestStatus.style.color="#888";}
 
   const status=document.getElementById("dealOfferStatus");
   if(status){
@@ -18317,7 +18388,18 @@ document.querySelector(".admin-page-content .wrap")?.classList.add("sales-view-a
       </section>
 
       <section class="deal-offer-section">
-        <h3>4. Deposit & Payment Terms</h3>
+        <h3>4. Shipper / Freight Forwarder</h3>
+        <div id="dealOfferShipperSummary" style="padding:14px;border:1px solid rgba(255,255,255,.10);border-radius:12px;background:#0d0d0d;color:#bbb;line-height:1.5">
+          Loading saved customer shipping details…
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px">
+          <button type="button" id="dealOfferRequestShippingButton" onclick="requestBuyerShippingDetailsFromOffer()">Request buyer to confirm / update shipping details</button>
+          <span id="dealOfferShippingRequestStatus" style="font-size:12px;color:#888"></span>
+        </div>
+      </section>
+
+      <section class="deal-offer-section">
+        <h3>5. Deposit & Payment Terms</h3>
         <div class="deal-offer-grid deal-offer-payment-grid">
           <label class="deal-offer-check">
             <input id="dealOfferDepositRequired" type="checkbox" checked onchange="updateDealOfferDepositState()">
@@ -18342,7 +18424,7 @@ document.querySelector(".admin-page-content .wrap")?.classList.add("sales-view-a
       </section>
 
       <section class="deal-offer-section">
-        <h3>5. Offer Timing</h3>
+        <h3>6. Offer Timing</h3>
         <div class="deal-offer-grid">
           <label>
             <span>Offer Valid Until</span>
