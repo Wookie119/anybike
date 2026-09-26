@@ -360,9 +360,12 @@ Customer acceptance must never be inferred from unrelated events.
 4. Confirm the motorcycle price.
 5. Add the AnyBike Service Fee separately where applicable, so staff and the buyer can see what is motorcycle price versus AnyBike's fee.
 6. Add any customer delivery charge separately.
-7. Confirm the resulting Customer Total.
-8. Confirm delivery / payment terms where relevant.
-9. Send offer.
+7. Confirm the UK delivery / handover destination. Use the Deal or saved customer shipping preference first; otherwise choose from the maintained UK port list or enter the agreed UK address.
+8. Confirm the motorcycle registration and/or VIN where known. Vehicle identity shown on a sent Formal Offer should be snapshotted so later edits do not silently change what the buyer accepted.
+9. Confirm the resulting Customer Total.
+10. Confirm delivery / payment terms where relevant.
+11. Include the standard offer wording linking the Formal Offer to the current AnyBike Terms & Conditions and Trade & Export Sale Policy. The buyer still confirms the current legal declarations separately at acceptance.
+12. Send offer.
 7. Customer reviews.
 8. Customer explicitly Accepts or Declines.
 
