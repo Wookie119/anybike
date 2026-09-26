@@ -12463,7 +12463,16 @@ function renderAnyBikeDealInvoiceDocuments(deal){
           <a class="anybike-invoice-view-btn" href="proforma.html?invoice=${encodeURIComponent(invoiceId)}&doc=${encodeURIComponent(label)}&cb=${Date.now()}" target="anybike-proforma-${invoiceId}" rel="noopener">View Proforma</a>
           ${!combined ? `<button type="button" class="anybike-invoice-secondary-btn" ${dealProformaBusy.has(String(deal.deal_id)) ? "disabled" : ""} onclick="createOrRefreshDealProforma(${Number(deal.deal_id)});return false;">${dealProformaBusy.has(String(deal.deal_id)) ? "Creating Corrected Draft..." : "Create Corrected Draft"}</button>` : ""}
         </div>`
-      : "";
+      : String(invoice.invoice_type||"")==="Final Invoice" && status==="Draft" && Number.isFinite(invoiceId)
+        ? `<div class="anybike-invoice-card-actions">
+            <a class="anybike-invoice-view-btn anybike-invoice-preview-btn" href="final-invoice.html?invoice=${encodeURIComponent(invoiceId)}&preview=1&cb=${Date.now()}" target="anybike-final-invoice-preview-${invoiceId}" rel="noopener">Preview Final Invoice Draft</a>
+            <button type="button" class="anybike-invoice-secondary-btn" onclick="openFinalInvoiceVatReview(${invoiceId},${Number(deal.deal_id)});return false;">Accounting VAT Review</button>
+          </div>`
+        : String(invoice.invoice_type||"")==="Final Invoice" && status==="Issued" && Number.isFinite(invoiceId)
+          ? `<div class="anybike-invoice-card-actions">
+              <a class="anybike-invoice-view-btn" href="final-invoice.html?invoice=${encodeURIComponent(invoiceId)}&cb=${Date.now()}" target="anybike-final-invoice-${invoiceId}" rel="noopener">View Final Invoice</a>
+            </div>`
+          : "";
 
     return `<div class="anybike-invoice-card">
       <div class="anybike-invoice-card-head">
@@ -12473,6 +12482,8 @@ function renderAnyBikeDealInvoiceDocuments(deal){
       ${combinedNote}
       ${summaryGrid}
       ${String(invoice.invoice_type||"")==="Proforma" ? '<div class="anybike-invoice-warning"><strong>PROFORMA INVOICE</strong><span>NOT A VAT INVOICE · No VAT breakdown is shown.</span></div>' : ''}
+      ${String(invoice.invoice_type||"")==="Final Invoice" && status==="Draft" ? '<div class="anybike-invoice-warning"><strong>FINAL INVOICE DRAFT</strong><span>Accounting VAT review required before issue.</span></div>' : ''}
+      ${String(invoice.invoice_type||"")==="Final Invoice" && status==="Issued" ? '<div class="anybike-invoice-combined-note"><strong>FINAL INVOICE</strong><span>Issued accounting document.</span></div>' : ''}
       <div class="anybike-invoice-lines">${lineHtml}</div>
       ${draftActions}
       ${issuedActions}
