@@ -1846,7 +1846,7 @@ document.addEventListener("visibilitychange",function(){
   function loadEngine(){
     if(document.querySelector('script[data-anybike-market-engine]')) return;
     const engine=document.createElement("script");
-    engine.src="/market-page-engine.js?v=9";
+    engine.src="/market-page-engine.js?v=10";
     engine.defer=true;
     engine.dataset.anybikeMarketEngine="1";
     document.head.appendChild(engine);
@@ -1860,7 +1860,7 @@ document.addEventListener("visibilitychange",function(){
   }
 
   const corrections=document.createElement("script");
-  corrections.src="/market-page-corrections.js?v=6";
+  corrections.src="/market-page-corrections.js?v=7";
   corrections.defer=true;
   corrections.dataset.anybikeMarketCorrections="1";
   corrections.addEventListener("load",function(){
