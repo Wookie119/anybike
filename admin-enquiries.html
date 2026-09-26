@@ -13532,10 +13532,85 @@ function renderBikeSalesActionQueue(){
 }
 
 
+function anyBikeDealActionsFor(dealId){
+  return (adminDealNextActions || [])
+    .filter(function(row){
+      return String(row.deal_id || "")===String(dealId || "");
+    })
+    .sort(function(a,b){
+      return Number(a.action_priority||999)-Number(b.action_priority||999);
+    });
+}
+
 function anyBikeDealNextActionFor(dealId){
-  return (adminDealNextActions || []).find(function(row){
-    return String(row.deal_id || "")===String(dealId || "");
-  }) || null;
+  return anyBikeDealActionsFor(dealId)[0] || null;
+}
+
+function renderAdminMotorcycleJourneys(deal,bikes){
+  const dealId=String(deal?.deal_id||"");
+  const actions=anyBikeDealActionsFor(dealId);
+
+  if(!(bikes||[]).length){
+    const candidateState=bikeSalesCandidateStateForDeal(dealId);
+    const title=candidateState.interested
+      ? bikeSalesCandidateTitle(candidateState.interested)
+      : candidateState.confirmed
+        ? bikeSalesCandidateTitle(candidateState.confirmed)
+        : "Motorcycle sourcing requirement";
+    const status=candidateState.interested && !candidateState.confirmed
+      ? "Check Seller Availability"
+      : candidateState.confirmed && !candidateState.selected
+        ? "Select Motorcycle for Sale"
+        : candidateState.sent
+          ? "Waiting for Buyer Response"
+          : "Find Potential Matches";
+
+    return '<section class="motorcycle-journeys"><div class="motorcycle-journeys-head"><span>Motorcycle journey</span><h4>'+escapeAdminHtml(title)+'</h4></div>'+
+      '<article class="motorcycle-journey-card"><div><strong>'+escapeAdminHtml(status)+'</strong><span>No sale motorcycle has been created yet. This requirement remains in sourcing.</span></div>'+
+      '<a href="#" onclick="bikeSalesJourneyTab(\''+dealId+'\',\'sourcing\');return false;">Open Sourcing →</a></article></section>';
+  }
+
+  const cards=(bikes||[]).map(function(bike,index){
+    const bikeId=Number(bike.deal_motorcycle_id||bike.id||0);
+    const action=actions.find(function(row){return Number(row.deal_motorcycle_id||0)===bikeId;}) || {};
+    const title=[bike.year,bike.make,bike.model,bike.variant].filter(Boolean).join(" ") || ("Motorcycle "+(index+1));
+    const primary=String(action.primary_action||bike.negotiation_status||bike.item_status||"Review motorcycle");
+    const secured=!!action.bike_secured || !!bike.bike_secured;
+    const depositOutstanding=Number(action.deposit_outstanding_gbp||0);
+    const sellerOk=!!action.seller_check_ok;
+    const shippingOk=!!action.shipping_ok;
+    const vatOk=!!action.vat_ok;
+
+    const stages=[
+      ["Selected",true],
+      ["Seller",sellerOk],
+      ["Offer",Number(action.deposit_required_gbp||0)>0 || ["Payment / Deposit","Operations","Shipping","Completed"].includes(String(deal.deal_stage||""))],
+      ["Deposit",Number(action.deposit_required_gbp||0)<=0 || depositOutstanding<=0.009],
+      ["Secured",secured],
+      ["Collection",String(action.primary_action||"")==="Shipping" || String(action.primary_action||"")==="Completed"],
+      ["Delivery",String(action.primary_action||"")==="Completed"]
+    ];
+
+    const stageHtml=stages.map(function(s){
+      return '<span class="motorcycle-mini-step '+(s[1]?'done':'')+'">'+(s[1]?'✓ ':'')+escapeAdminHtml(s[0])+'</span>';
+    }).join("");
+
+    let tab="seller";
+    if(primary==="Deposit Due")tab="payment";
+    else if(primary==="Operations")tab="collection";
+    else if(primary==="Shipping" || primary.includes("Shipping"))tab="delivery";
+    else if(primary.includes("Seller") || primary.includes("VAT"))tab="seller";
+    else if(primary==="Ready to Purchase")tab="seller";
+
+    return '<article class="motorcycle-journey-card">'+
+      '<div class="motorcycle-journey-main"><span>Motorcycle '+(index+1)+'</span><strong>'+escapeAdminHtml(title)+'</strong><div class="motorcycle-mini-steps">'+stageHtml+'</div></div>'+
+      '<div class="motorcycle-journey-next"><span>Next action</span><strong>'+escapeAdminHtml(primary)+'</strong>'+
+      '<small>'+escapeAdminHtml(bikeSalesActionBlockers(action))+'</small></div>'+
+      '<a href="#" onclick="bikeSalesJourneyTab(\''+dealId+'\',\''+tab+'\');return false;">Open Stage →</a>'+
+    '</article>';
+  }).join("");
+
+  return '<section class="motorcycle-journeys"><div class="motorcycle-journeys-head"><span>Independent motorcycle journeys</span><h4>'+bikes.length+' motorcycle'+(bikes.length===1?'':'s')+' in this sale</h4><p>Each motorcycle can be at a different stage. Shared payment, Proforma, storage and delivery can still be used where appropriate.</p></div>'+cards+'</section>';
 }
 
 function anyBikeJourneyStep(options){
@@ -13787,7 +13862,7 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
     panel("collection",renderAnyBikePurchaseActionGuide(deal)+renderAnyBikeDealTransactionCompletion(deal)+operationsBody)+
     panel("invoice",renderAnyBikeDealInvoiceDocuments(deal))+
     panel("delivery",renderAnyBikeDealShippingRoutePanel(deal)+(collected?'<div class="sales-what-next"><strong>What happens next?</strong><span>Complete the agreed UK handover / delivery and record the final milestone.</span></div>':'<div class="sales-what-next"><strong>What happens next?</strong><span>Delivery becomes active after the motorcycle has been purchased and collected.</span></div>'))+
-    panel("timeline",renderDealRequirementWorkspace(deal)+'<div class="sales-timeline">'+timelineHtml+'</div><div class="sales-what-next"><strong>What happens next?</strong><span>'+escapeAdminHtml(nextText)+'</span></div>')+
+    panel("timeline",renderAdminMotorcycleJourneys(deal,bikes)+renderDealRequirementWorkspace(deal)+'<div class="sales-timeline">'+timelineHtml+'</div><div class="sales-what-next"><strong>What happens next?</strong><span>'+escapeAdminHtml(nextText)+'</span></div>')+
   '</section>';
 };
 
