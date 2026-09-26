@@ -73,6 +73,23 @@ const ANYBIKE_HEADER_CURRENCY_RATES = {
   AED:4.66
 };
 
+window.AnyBikeCurrency = {
+  rates:ANYBIKE_HEADER_CURRENCY_RATES,
+  formatGBP:function(gbp,currency){
+    const value=Number(gbp);
+    if(!Number.isFinite(value) || value<=0) return "Price on request";
+    const code=normaliseCurrency(currency || window.anybikeCurrency || localStorage.getItem("anybikeCurrency") || "GBP");
+    const converted=Math.round(value*(ANYBIKE_HEADER_CURRENCY_RATES[code]||1));
+    const locale=code==="USD"?"en-US":"en-GB";
+    return converted.toLocaleString(locale,{
+      style:"currency",
+      currency:code,
+      currencyDisplay:"symbol",
+      maximumFractionDigits:0
+    });
+  }
+};
+
 const ANYBIKE_HEADER_TRANSLATIONS = {
   en:{
     messages:"Messages",
@@ -1391,11 +1408,7 @@ function updateSharedPagePrices(currency){
         return;
       }
 
-      element.textContent = (raw * rate).toLocaleString("en-GB",{
-        style:"currency",
-        currency:currency,
-        maximumFractionDigits:0
-      });
+      element.textContent = window.AnyBikeCurrency.formatGBP(raw,currency);
     });
 }
 
@@ -1833,7 +1846,7 @@ document.addEventListener("visibilitychange",function(){
   function loadEngine(){
     if(document.querySelector('script[data-anybike-market-engine]')) return;
     const engine=document.createElement("script");
-    engine.src="/market-page-engine.js?v=5";
+    engine.src="/market-page-engine.js?v=6";
     engine.defer=true;
     engine.dataset.anybikeMarketEngine="1";
     document.head.appendChild(engine);
