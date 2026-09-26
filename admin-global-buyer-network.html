@@ -3618,13 +3618,13 @@ async function saveAnyBikeOffer(options={}){
 }
 
 
-async function notifyBuyerOfAnyBikeOffer(matchId,row,expiry,customerTotal,depositAmount){
+async function notifyBuyerOfDeal360Offer(matchId,dealOfferId,row,expiry,customerTotal,depositAmount){
   const match=(buyerMatches || []).find(m=>Number(m.id)===Number(matchId));
   if(!match) throw new Error("The buyer match could not be reloaded for customer notification.");
 
   const buyer=(buyers || []).find(b=>Number(b.id)===Number(match.buyer_id));
   if(!buyer) throw new Error("The buyer record could not be found for customer notification.");
-  if(!buyer.email) throw new Error("The offer is live in My AnyBike, but this buyer has no email address for notification.");
+  if(!buyer.email) throw new Error("The Deal 360 offer is live in My AnyBike, but this buyer has no email address for notification.");
 
   const now=new Date().toISOString();
   let thread=findBuyerThread(buyer);
@@ -3637,13 +3637,13 @@ async function notifyBuyerOfAnyBikeOffer(matchId,row,expiry,customerTotal,deposi
     match.stock_variant || bike.variant
   ].filter(Boolean).join(" ") || "motorcycle";
 
-  const motorcyclePrice=Number(row?.confirmed_customer_price_gbp ?? match.provisional_customer_price_gbp ?? 0);
+  const motorcyclePrice=Number(row?.motorcycle_price_gbp ?? match.provisional_customer_price_gbp ?? 0);
   const anybikeFee=Number(row?.anybike_fee_gbp ?? match.offer_anybike_fee_gbp ?? 0);
   const deliveryCharge=Number(row?.delivery_charge_gbp ?? match.offer_delivery_charge_gbp ?? 0);
-  const total=Number(row?.customer_offer_total_gbp ?? customerTotal ?? (motorcyclePrice+anybikeFee+deliveryCharge));
-  const deposit=Number(row?.deposit_required_gbp ?? depositAmount ?? match.offer_deposit_amount_gbp ?? 0);
-  const expiresAt=row?.offer_expires_at || expiry?.toISOString?.() || match.confirmed_offer_expires_at;
-  const offerRef="AnyBike Offer ref "+String(matchId);
+  const total=Number(row?.customer_total_gbp ?? customerTotal ?? (motorcyclePrice+anybikeFee+deliveryCharge));
+  const deposit=Number(row?.deposit_amount_gbp ?? row?.deposit_required_gbp ?? depositAmount ?? match.offer_deposit_amount_gbp ?? 0);
+  const expiresAt=row?.offer_expires_at || expiry?.toISOString?.();
+  const offerRef="Deal 360 Offer ref "+String(dealOfferId);
 
   const message=[
     "Your AnyBike offer is ready to review.",
@@ -3656,7 +3656,7 @@ async function notifyBuyerOfAnyBikeOffer(matchId,row,expiry,customerTotal,deposi
     "Deposit due on acceptance: "+money(deposit),
     expiresAt ? "Offer valid until: "+dateTxt(expiresAt) : "",
     "",
-    "Please sign in to My AnyBike to review and respond to the offer.",
+    "Review the formal Deal 360 offer, confirm the required AnyBike legal terms and then accept or decline it in My AnyBike.",
     "The motorcycle is not secured until AnyBike confirms it has been secured.",
     "",
     offerRef
@@ -3687,12 +3687,13 @@ async function notifyBuyerOfAnyBikeOffer(matchId,row,expiry,customerTotal,deposi
         created_at:now
       });
 
-    if(messageError) throw new Error("Offer is live in My AnyBike, but the customer message could not be created: "+messageError.message);
+    if(messageError) throw new Error("Deal 360 offer is live, but the customer message could not be created: "+messageError.message);
   }
 
   const {error:threadError}=await sb
     .from("message_centre_threads")
     .update({
+      related_deal_id:Number(row?.deal_id || null),
       last_message:message,
       last_message_at:now,
       last_sender:"AnyBike",
@@ -3705,13 +3706,44 @@ async function notifyBuyerOfAnyBikeOffer(matchId,row,expiry,customerTotal,deposi
 
   if(threadError) throw new Error("Offer message was created, but the conversation could not be updated: "+threadError.message);
 
+  const notificationLink="/customer-dashboard.html?deal_offer="+encodeURIComponent(dealOfferId)+"#my-offers";
+  const {data:existingNotification,error:notificationCheckError}=await sb
+    .from("customer_notifications")
+    .select("id")
+    .eq("customer_id",match.customer_id)
+    .eq("type","anybike_offer")
+    .eq("link",notificationLink)
+    .eq("is_read",false)
+    .limit(1);
+
+  if(notificationCheckError){
+    console.warn("Could not check customer offer notification",notificationCheckError.message);
+  }else if(!(existingNotification || []).length){
+    const {error:notificationError}=await sb
+      .from("customer_notifications")
+      .insert({
+        customer_id:match.customer_id,
+        title:"New AnyBike offer",
+        message:bikeName+" — "+money(total)+" total. Review and respond before the offer expires.",
+        icon:"🤝",
+        type:"anybike_offer",
+        link:notificationLink,
+        is_read:false,
+        created_at:now
+      });
+
+    if(notificationError){
+      console.warn("Could not create customer bell notification",notificationError.message);
+    }
+  }
+
   const {error:notifyError}=await sb.functions.invoke(
     "send-message-notification",
     {body:{thread_id:String(thread.id)}}
   );
 
   if(notifyError){
-    throw new Error("Offer is live and the Message Centre message was created, but the email notification failed: "+notifyError.message);
+    throw new Error("Deal 360 offer is live and the Message Centre message was created, but the email notification failed: "+notifyError.message);
   }
 
   delete buyerConversationCache[thread.id];
@@ -3748,16 +3780,22 @@ async function sendAnyBikeOffer(){
   const deliveryCharge=anybikeOfferNumber("aboDeliveryCharge");
   const customerTotal=motorcyclePrice+anybikeFee+deliveryCharge;
   const depositAmount=anybikeOfferNumber("aboDepositAmount");
+  const saleBasis=document.getElementById("aboSaleBasis")?.value || "";
+  const offerTerms=document.getElementById("aboOfferTerms")?.value || "";
+  const deliveryType=document.getElementById("aboDeliveryType")?.value || "";
+  const deliveryDestination=document.getElementById("aboDeliveryDestination")?.value || "";
+  const paymentTerms=document.getElementById("aboPaymentTerms")?.value || "";
+  const internalNotes=document.getElementById("aboNotes")?.value || "";
 
   const confirmed=window.confirm(
-    "Send this AnyBike offer to the customer now?\n\n"+
+    "Send this Deal 360 Formal Offer to the customer now?\n\n"+
     "Motorcycle: "+money(motorcyclePrice)+"\n"+
     "AnyBike service fee: "+money(anybikeFee)+"\n"+
     "Delivery: "+money(deliveryCharge)+"\n"+
     "Customer total: "+money(customerTotal)+"\n"+
     "Deposit due on acceptance: "+money(depositAmount)+"\n"+
     "Offer expires: "+expiry.toLocaleString()+"\n\n"+
-    "This does NOT secure the motorcycle or create a Deal."
+    "The Deal 360 record will be created before sending. The motorcycle will remain NOT SECURED."
   );
   if(!confirmed) return;
 
@@ -3769,45 +3807,103 @@ async function sendAnyBikeOffer(){
   try{
     if(status){
       status.className="seller-modal-status";
-      status.textContent="Checking and saving the prepared offer…";
+      status.textContent="Creating / linking Deal 360…";
     }
 
-    const saved=await saveAnyBikeOffer({skipReload:true});
-    if(!saved) return;
+    const {data:dealData,error:dealError}=await sb.rpc(
+      "admin_create_deal_for_formal_offer_v1",
+      {p_match_id:Number(matchId)}
+    );
+    if(dealError) throw dealError;
+    const dealRow=Array.isArray(dealData) ? dealData[0] : dealData;
+    if(!dealRow?.deal_motorcycle_id) throw new Error("Deal 360 motorcycle could not be created.");
 
-    if(status) status.textContent="Re-checking seller position and releasing offer to customer…";
+    if(status) status.textContent="Preparing Deal 360 Formal Offer…";
 
-    const {data,error}=await sb.rpc("admin_send_anybike_offer_v2",{
-      p_match_id:Number(matchId),
-      p_offer_expires_at:expiry.toISOString()
-    });
-    if(error) throw error;
+    const {data:preparedData,error:preparedError}=await sb.rpc(
+      "admin_prepare_deal_offer_v2",
+      {
+        p_deal_motorcycle_id:Number(dealRow.deal_motorcycle_id),
+        p_motorcycle_price_gbp:motorcyclePrice,
+        p_anybike_fee_gbp:anybikeFee,
+        p_delivery_charge_gbp:deliveryCharge,
+        p_sale_basis:saleBasis,
+        p_offer_terms_text:offerTerms || null,
+        p_delivery_type:deliveryType,
+        p_delivery_destination:deliveryDestination || null,
+        p_deposit_required_at_acceptance:depositAmount>0,
+        p_deposit_amount_gbp:depositAmount,
+        p_payment_terms_text:paymentTerms,
+        p_internal_notes:internalNotes || null
+      }
+    );
+    if(preparedError) throw preparedError;
+    const preparedRow=Array.isArray(preparedData) ? preparedData[0] : preparedData;
+    if(!preparedRow?.offer_id) throw new Error("Deal 360 Formal Offer could not be prepared.");
 
-    const row=Array.isArray(data) ? data[0] : data;
+    if(status) status.textContent="Sending Deal 360 Formal Offer…";
 
-    if(status) status.textContent="Offer is live in My AnyBike. Sending the customer Message Centre and email notification…";
-    const threadId=await notifyBuyerOfAnyBikeOffer(matchId,row,expiry,customerTotal,depositAmount);
+    const {data:sentData,error:sentError}=await sb.rpc(
+      "admin_send_deal_offer_v1",
+      {
+        p_offer_id:Number(preparedRow.offer_id),
+        p_offer_expires_at:expiry.toISOString()
+      }
+    );
+    if(sentError) throw sentError;
+    const sentRow=Array.isArray(sentData) ? sentData[0] : sentData;
+
+    const displayRow={
+      ...sentRow,
+      deal_id:Number(dealRow.deal_id),
+      motorcycle_price_gbp:motorcyclePrice,
+      anybike_fee_gbp:anybikeFee,
+      delivery_charge_gbp:deliveryCharge,
+      customer_total_gbp:customerTotal,
+      deposit_amount_gbp:depositAmount
+    };
+
+    if(status) status.textContent="Formal offer is live in My AnyBike. Sending customer notifications…";
+    const threadId=await notifyBuyerOfDeal360Offer(
+      matchId,
+      Number(preparedRow.offer_id),
+      displayRow,
+      expiry,
+      customerTotal,
+      depositAmount
+    );
+
+    await sb
+      .from("buyer_motorcycle_matches")
+      .update({
+        match_status:"Deal 360 Offer Sent",
+        confirmed_offer_sent_at:new Date().toISOString(),
+        confirmed_offer_expires_at:expiry.toISOString(),
+        updated_at:new Date().toISOString()
+      })
+      .eq("id",Number(matchId));
 
     if(status){
       status.className="seller-modal-status success";
       status.textContent=
-        "AnyBike Offer sent to customer • Customer total "+money(row?.customer_offer_total_gbp ?? customerTotal)+
-        " • Deposit "+money(row?.deposit_required_gbp ?? depositAmount)+
-        " • Expires "+dateTxt(row?.offer_expires_at || expiry.toISOString())+
+        "Deal 360 Formal Offer sent • "+String(dealRow.deal_number || "Deal 360")+
+        " • Customer total "+money(customerTotal)+
+        " • Deposit "+money(depositAmount)+
+        " • Expires "+dateTxt(expiry.toISOString())+
         " • Message Centre thread #"+String(threadId)+
         " • Motorcycle remains NOT SECURED";
     }
 
     const sendState=document.getElementById("aboSendState");
     if(sendState){
-      sendState.textContent="Sent now • Expires "+dateTxt(row?.offer_expires_at || expiry.toISOString());
+      sendState.textContent="Deal 360 Formal Offer sent • Expires "+dateTxt(expiry.toISOString());
       sendState.style.color="#9bf0b8";
     }
 
     await loadBuyers();
   }catch(err){
-    console.error("Send AnyBike Offer failed",err);
-    setError("Could not send AnyBike offer: "+(err?.message || err));
+    console.error("Send Deal 360 Formal Offer failed",err);
+    setError("Could not send Deal 360 Formal Offer: "+(err?.message || err));
   }finally{
     if(sendButton){
       sendButton.disabled=false;
