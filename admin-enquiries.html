@@ -13987,104 +13987,71 @@ function bikeSalesCandidateTitle(row){
 
 function buildBikeSalesActions(){
   const items=[];
-  const actionDealIds=new Set();
-
-  (adminDealNextActions || []).forEach(function(action){
-    const deal=bikeSalesDealById(action.deal_id) || {};
-    const stage=String(deal.deal_stage || action.deal_stage || "");
-    if(["Completed","Closed","Lost","Save For Later"].includes(stage)){ return; }
-    actionDealIds.add(String(action.deal_id));
-
-    let type="Action required", icon="⚠️", cls="seller";
-    const primary=String(action.primary_action || "Action required");
-    if(primary==="Deposit Due"){ type="Deposit Due"; icon="💷"; cls="deposit"; }
-    else if(primary.includes("Shipping")){ type="UK Handover Required"; icon="🚢"; cls="shipping"; }
-    else if(primary.includes("VAT")){ type="VAT Check"; icon="🧾"; cls="vat"; }
-    else if(primary.includes("Seller")){ type="Seller Check"; icon="☎️"; cls="seller"; }
-    else if(primary==="Ready to Purchase"){ type="Ready to Purchase"; icon="✅"; cls="ready"; }
-    else if(primary==="Operations"){ type="Operations"; icon="⚙️"; cls="operations"; }
-
-    items.push({
-      dealId:String(action.deal_id),
-      dealNumber:action.deal_number || deal.deal_number || ("Deal #"+action.deal_id),
-      motorcycle:action.motorcycle || "Motorcycle",
-      type:type,
-      title:(primary.includes("Shipping") ? "Confirm UK Handover Plan" : primary),
-      icon:icon,
-      cls:cls,
-      blockers:bikeSalesActionBlockers(action),
-      priority:Number(action.action_priority || 999)
-    });
-  });
 
   (adminDealQueue || []).forEach(function(deal){
-    const dealId=String(deal.deal_id || "");
-    const stage=String(anyBikeEffectiveDealStage(deal) || "");
-    if(["Completed","Closed","Lost","Save For Later"].includes(stage)){ return; }
+    const dealId=String(deal.deal_id||"");
+    const stage=String(anyBikeEffectiveDealStage(deal)||"");
+    if(["Closed","Lost","Save For Later"].includes(stage)) return;
 
     const thread=adminDealMessageThreads.get(dealId);
-    if(thread && String(thread.last_sender || "").toLowerCase().includes("customer")){
-      items.unshift({
+    if(thread && String(thread.last_sender||"").toLowerCase().includes("customer")){
+      items.push({
         dealId:dealId,
-        dealNumber:deal.deal_number || ("Deal #"+dealId),
+        dealNumber:deal.deal_number||("Deal #"+dealId),
         motorcycle:"Customer conversation",
         type:"Needs Reply",
-        title:"Customer replied",
+        title:"Reply to Customer",
         icon:"💬",
         cls:"reply",
-        blockers:String(thread.last_message || "Open the conversation and reply."),
-        priority:5
+        blockers:String(thread.last_message||"Open the conversation and reply."),
+        priority:1
       });
     }
 
-    if(Number(deal.motorcycle_count || 0)===0 && !actionDealIds.has(dealId)){
-      const candidateState=bikeSalesCandidateStateForDeal(dealId);
+    const action=(adminDealNextActions||[]).find(function(row){
+      return String(row.deal_id||"")===dealId;
+    }) || {};
+    const flags=bikeSalesFlagsForDeal(deal,action);
+    const primary=bikeSalesEffectivePrimary(action,flags,deal);
 
-      if(candidateState.interested && !candidateState.confirmed){
-        items.push({
-          dealId:dealId,
-          dealNumber:deal.deal_number || ("Deal #"+dealId),
-          motorcycle:bikeSalesCandidateTitle(candidateState.interested),
-          type:"Buyer Interested",
-          title:"Check Seller Availability",
-          icon:"☎️",
-          cls:"sourcing",
-          blockers:"Buyer is interested. Confirm the motorcycle is still available and confirm the seller price before progressing.",
-          priority:8
-        });
-      }else if(candidateState.confirmed && !candidateState.selected){
-        items.push({
-          dealId:dealId,
-          dealNumber:deal.deal_number || ("Deal #"+dealId),
-          motorcycle:bikeSalesCandidateTitle(candidateState.confirmed),
-          type:"Availability Confirmed",
-          title:"Select Motorcycle for Sale",
-          icon:"✅",
-          cls:"sourcing",
-          blockers:"Seller availability is confirmed. Review the commercial position and select this motorcycle into the sale before preparing the Formal Offer.",
-          priority:9
-        });
-}else if(candidateState.sent){
-        /* Waiting for the buyer is deliberately omitted from Needs Attention. */
-      }else{
-        items.push({
-          dealId:dealId,
-          dealNumber:deal.deal_number || ("Deal #"+dealId),
-          motorcycle:"Sourcing requirement",
-          type:"Needs Sourcing",
-          title:"Find candidate motorcycle",
-          icon:"🔎",
-          cls:"sourcing",
-          blockers:"No motorcycle has been selected for this sale yet.",
-          priority:15
-        });
-      }
-    }
+    if(primary==="Waiting for Buyer Response" || primary==="Sale Complete") return;
+
+    let type="Your Next Action",icon="▶",cls="seller",priority=50;
+    if(primary==="Find Potential Matches"){type="Needs Sourcing";icon="🔎";cls="sourcing";priority=10;}
+    else if(primary==="Check Seller Availability"){type="Seller Availability";icon="☎️";cls="sourcing";priority=11;}
+    else if(primary==="Select Motorcycle for Sale"){type="Select Motorcycle";icon="✅";cls="sourcing";priority=12;}
+    else if(primary==="Seller / Viability"){type="Seller / Viability";icon="📋";cls="seller";priority=20;}
+    else if(primary==="Send Formal Offer"){type="Formal Offer";icon="📨";cls="offer";priority=25;}
+    else if(primary==="Deposit Due"){type="Deposit Due";icon="💷";cls="deposit";priority=30;}
+    else if(primary.includes("Account")){type="Buyer Account";icon="⛔";cls="onboarding";priority=5;}
+    else if(primary==="Review Buyer Onboarding"){type="Buyer Onboarding";icon="🛡️";cls="onboarding";priority=31;}
+    else if(primary==="Confirm UK Handover Plan"){type="UK Handover";icon="🚢";cls="shipping";priority=32;}
+    else if(primary==="Ready to Purchase"){type="Ready to Purchase";icon="✅";cls="ready";priority=35;}
+    else if(primary==="Customer Balance Due"){type="Customer Balance";icon="💷";cls="balance";priority=40;}
+    else if(primary==="Start Purchase & Collection"){type="Purchase & Collection";icon="🚚";cls="operations";priority=45;}
+    else if(primary==="Complete Delivery / Handover"){type="Delivery / Handover";icon="📦";cls="delivery";priority=46;}
+    else if(primary==="Issue Final Invoice"){type="Final Invoice";icon="🧾";cls="invoice";priority=47;}
+
+    const bikes=(adminDealMotorcycles||[]).filter(function(row){return String(row.deal_id||"")===dealId;});
+    const motorcycle=bikes.length
+      ? ([bikes[0].year,bikes[0].make,bikes[0].model,bikes[0].variant].filter(Boolean).join(" ") || "Motorcycle")
+      : "Sourcing requirement";
+
+    items.push({
+      dealId:dealId,
+      dealNumber:deal.deal_number||("Deal #"+dealId),
+      motorcycle:motorcycle,
+      type:type,
+      title:primary,
+      icon:icon,
+      cls:cls,
+      blockers:bikeSalesJourneyInstruction({primary_action:primary},flags),
+      priority:priority
+    });
   });
 
   return items.sort(function(a,b){ return Number(a.priority)-Number(b.priority); });
 }
-
 
 function setBikeSalesView(view,button){
   const wrap=document.querySelector(".admin-page-content .wrap");
@@ -14477,11 +14444,11 @@ function openBikeSalesAction(dealId,tab){
 
 function renderBikeSalesActionQueue(){
   const actions=buildBikeSalesActions();
-  const counts={reply:0,sourcing:0,seller:0,deposit:0,shipping:0,vat:0,ready:0,operations:0};
+  const counts={reply:0,sourcing:0,seller:0,offer:0,deposit:0,onboarding:0,shipping:0,ready:0,balance:0,operations:0,delivery:0,invoice:0};
   actions.forEach(function(item){ if(counts[item.cls]!==undefined){ counts[item.cls]++; } });
 
   const cards=actions.length ? actions.map(function(item){
-    const tab=({reply:"request",sourcing:"sourcing",seller:"seller",deposit:"payment",shipping:"delivery",vat:"seller",ready:"seller",operations:"collection"})[item.cls]||"timeline";
+    const tab=({reply:"request",sourcing:"sourcing",seller:"seller",offer:"offer",deposit:"payment",onboarding:"seller",shipping:"delivery",ready:"seller",balance:"payment",operations:"collection",delivery:"delivery",invoice:"invoice"})[item.cls]||"timeline";
     return `<article class="bike-sales-action-card ${escapeAdminHtml(item.cls)}" onclick="openBikeSalesAction('${escapeAdminHtml(item.dealId)}','${escapeAdminHtml(tab)}');return false;">
       <div class="bike-sales-action-icon">${item.icon}</div>
       <div>
@@ -14501,12 +14468,16 @@ function renderBikeSalesActionQueue(){
     <div class="bike-sales-action-summary">
       <div><span>Needs Reply</span><strong>${counts.reply}</strong></div>
       <div><span>Needs Sourcing</span><strong>${counts.sourcing}</strong></div>
-      <div><span>Seller Check</span><strong>${counts.seller}</strong></div>
+      <div><span>Seller / Viability</span><strong>${counts.seller}</strong></div>
+      <div><span>Formal Offer</span><strong>${counts.offer}</strong></div>
       <div><span>Deposit Due</span><strong>${counts.deposit}</strong></div>
+      <div><span>Buyer Setup</span><strong>${counts.onboarding}</strong></div>
       <div><span>UK Handover</span><strong>${counts.shipping}</strong></div>
-      <div><span>VAT Check</span><strong>${counts.vat}</strong></div>
       <div><span>Ready to Purchase</span><strong>${counts.ready}</strong></div>
-      <div><span>Operations</span><strong>${counts.operations}</strong></div>
+      <div><span>Customer Balance</span><strong>${counts.balance}</strong></div>
+      <div><span>Purchase / Collection</span><strong>${counts.operations}</strong></div>
+      <div><span>Delivery</span><strong>${counts.delivery}</strong></div>
+      <div><span>Final Invoice</span><strong>${counts.invoice}</strong></div>
     </div>
     <div class="bike-sales-action-list">${cards}</div>
   </section>`;
