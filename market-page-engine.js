@@ -174,7 +174,7 @@
       '<div class="ab-signal-card"><strong>Brands attracting interest</strong><p>Calculated from real motorcycle viewing activity associated with this market. Guest activity is included without identifying individual visitors.</p><div class="ab-tags">'+
       signals.makes.map(function(make){return '<a class="ab-tag" href="'+brandUrl(make)+'">'+esc(make)+'</a>';}).join("")+
       '</div></div>'+
-      '<div class="ab-signal-card"><strong>Models attracting interest</strong><p>These links are generated from real demand and are ready to connect to future Brand → Model → Variant research pages.</p><div class="ab-tags">'+
+      '<div class="ab-signal-card"><strong>Models attracting interest</strong><p>Explore the motorcycle models attracting attention in this market.</p><div class="ab-tags">'+
       signals.modelRows.map(function(row){return '<a class="ab-tag" data-future-model-key="'+esc(row.make+"|"+row.model)+'" href="'+modelUrl(row.make,row.model)+'">'+esc(row.label)+'</a>';}).join("")+
       '</div></div></div>';
   }
@@ -201,7 +201,9 @@
 
   function enhanceExistingDemand(viewed){
     const existing=document.getElementById("countryBuyerInterestSection")||document.getElementById("market-interest");
-    if(!existing||existing.querySelector("[data-anybike-model-links]")) return;
+    if(!existing
+      || existing.querySelector("[data-anybike-model-links]")
+      || existing.querySelector('a[href^="/motorcycle-brand.html"],a[href^="/motorcycle-model.html"]')) return;
     const signals=buildSignals(viewed);
     if(!signals.modelRows.length&&!signals.makes.length) return;
     const wrap=existing.querySelector(".wrap")||existing;
@@ -209,7 +211,7 @@
     panel.className="ab-model-panel";
     panel.dataset.anybikeModelLinks="1";
     panel.style.marginTop="18px";
-    panel.innerHTML='<h3>Demand → Brand / Model links</h3><p>This is generated from real market activity. Today it opens filtered stock; when the Brand → Model → Variant pages are live, these same demand keys can point directly to those research pages.</p>'+
+    panel.innerHTML='<h3>Explore popular brands and models</h3><p>These links are based on motorcycle interest seen in this market.</p>'+
       '<div class="ab-tags">'+
       signals.makes.slice(0,6).map(function(make){return '<a class="ab-tag" href="'+brandUrl(make)+'">'+esc(make)+'</a>';}).join("")+
       signals.modelRows.slice(0,8).map(function(row){return '<a class="ab-tag" data-future-model-key="'+esc(row.make+"|"+row.model)+'" href="'+modelUrl(row.make,row.model)+'">'+esc(row.label)+'</a>';}).join("")+
