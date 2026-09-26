@@ -6173,6 +6173,8 @@ let adminDealCustomerAccounts = new Map();
 let adminDealMotorcycleCustomerAccounts = new Map();
 let adminDealCustomerPayments = new Map();
 let adminDealInvoices = new Map();
+const finalInvoiceReadinessCache = new Map();
+const finalInvoiceReadinessLoading = new Set();
 let dealProformaBusy = new Set();
 let dealProformaIssueBusy = new Set();
 let dealCustomerReceiptBusy = new Set();
@@ -13630,6 +13632,62 @@ function renderAdminMotorcycleJourneys(deal,bikes){
 }
 
 
+function finalInvoiceReadinessHtml(dealId,data){
+  const ready=!!data?.ready_for_final_invoice;
+  const missing=Array.isArray(data?.missing)?data.missing:[];
+  const motorcycleCount=Number(data?.motorcycle_count||0);
+  const delivered=Number(data?.delivered_count||0);
+  const vatVerified=Number(data?.vat_verified_count||0);
+
+  return '<div class="final-invoice-readiness '+(ready?'ready':'waiting')+'">'+
+    '<div class="final-invoice-readiness-head"><div><span>Final Invoice Readiness</span><strong>'+(ready?'Ready to prepare':'Waiting for prerequisites')+'</strong></div><div class="final-invoice-readiness-state">'+(ready?'READY':'NOT READY')+'</div></div>'+
+    '<div class="final-invoice-readiness-grid">'+
+      '<div><span>Motorcycles delivered</span><strong>'+delivered+' / '+motorcycleCount+'</strong></div>'+
+      '<div><span>VAT verified</span><strong>'+vatVerified+' / '+motorcycleCount+'</strong></div>'+
+      '<div><span>Motorcycle total</span><strong>'+anyBikeDealMoney(data?.motorcycle_total_gbp||0)+'</strong></div>'+
+      '<div><span>Agreed delivery</span><strong>'+anyBikeDealMoney(data?.agreed_delivery_total_gbp||0)+'</strong></div>'+
+      '<div><span>Storage</span><strong>'+anyBikeDealMoney(data?.storage_total_gbp||0)+'</strong></div>'+
+      '<div><span>Known charge total</span><strong>'+anyBikeDealMoney(data?.known_customer_charge_total_gbp||0)+'</strong></div>'+
+    '</div>'+
+    (missing.length?'<div class="final-invoice-readiness-missing"><strong>Still required:</strong> '+escapeAdminHtml(missing.join(" · "))+'</div>':'<div class="final-invoice-readiness-ok">All current operational and VAT prerequisites are satisfied.</div>')+
+    '<div class="final-invoice-readiness-note">This readiness check does not issue an invoice and does not calculate VAT. It only confirms the transaction data that must be complete before final invoicing.</div>'+
+  '</div>';
+}
+
+async function loadFinalInvoiceReadiness(dealId,force){
+  const id=String(dealId||"");
+  const host=document.getElementById("final-invoice-readiness-"+id);
+  if(!id||!host)return;
+
+  if(!force && finalInvoiceReadinessCache.has(id)){
+    host.innerHTML=finalInvoiceReadinessHtml(id,finalInvoiceReadinessCache.get(id));
+    return;
+  }
+
+  if(finalInvoiceReadinessLoading.has(id))return;
+  finalInvoiceReadinessLoading.add(id);
+
+  try{
+    const result=await sb.rpc("admin_get_final_invoice_readiness_v1",{p_deal_id:Number(id)});
+    if(result.error)throw result.error;
+    const data=result.data||{};
+    finalInvoiceReadinessCache.set(id,data);
+    host.innerHTML=finalInvoiceReadinessHtml(id,data);
+  }catch(error){
+    console.error("Final Invoice readiness could not be loaded:",error);
+    host.innerHTML='<div class="anybike-invoice-empty">Final Invoice readiness could not be loaded: '+escapeAdminHtml(error?.message||error)+'</div>';
+  }finally{
+    finalInvoiceReadinessLoading.delete(id);
+  }
+}
+
+function renderFinalInvoiceReadinessPanel(deal){
+  const id=String(deal?.deal_id||"");
+  if(!id)return "";
+  setTimeout(function(){loadFinalInvoiceReadiness(id,false);},0);
+  return '<div id="final-invoice-readiness-'+escapeAdminHtml(id)+'"><div class="anybike-invoice-empty">Loading Final Invoice readiness…</div></div>';
+}
+
 function renderFinalInvoiceStageStatus(deal,collected,complete){
   const dealId=String(deal?.deal_id||"");
   const invoices=adminDealInvoices.get(dealId)||[];
@@ -13975,7 +14033,7 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
         renderAnyBikeDealInvoiceDocuments(deal);
     })())+
     panel("collection",renderAnyBikePurchaseActionGuide(deal)+renderAnyBikeDealTransactionCompletion(deal)+operationsBody)+
-    panel("invoice",renderFinalInvoiceStageStatus(deal,collected,complete)+renderAnyBikeDealInvoiceDocuments(deal))+
+    panel("invoice",renderFinalInvoiceStageStatus(deal,collected,complete)+renderFinalInvoiceReadinessPanel(deal)+renderAnyBikeDealInvoiceDocuments(deal))+
     panel("delivery",(typeof renderAnyBikeDeliveryStatusPanel==="function"?renderAnyBikeDeliveryStatusPanel(deal):"")+renderAnyBikeDealShippingRoutePanel(deal)+(collected?'<div class="sales-what-next"><strong>What happens next?</strong><span>Complete the agreed UK handover / delivery, confirm depot/storage where applicable, then record the final handover milestone.</span></div>':'<div class="sales-what-next"><strong>What happens next?</strong><span>Delivery becomes active after the motorcycle has been purchased and collected.</span></div>'))+
     panel("timeline",renderAdminMotorcycleJourneys(deal,bikes)+renderDealRequirementWorkspace(deal)+'<div class="sales-timeline">'+timelineHtml+'</div><div class="sales-what-next"><strong>What happens next?</strong><span>'+escapeAdminHtml(nextText)+'</span></div>')+
   '</section>';
