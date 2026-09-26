@@ -3673,6 +3673,24 @@ function renderMyOffers(rows){
   box.innerHTML=`<div class="my-offers-grid">${offers.map(customerOfferCardHtml).join("")}</div>`;
 }
 
+function openRequestedCustomerOffer(){
+  const params=new URLSearchParams(window.location.search);
+  const requestedId=Number(params.get("offer")||0);
+  if(!requestedId) return;
+
+  const match=(currentBuyerMatchRows || []).find(row=>
+    Number(row?.id)===requestedId ||
+    Number(row?._deal_offer_id)===requestedId
+  );
+
+  if(!match) return;
+
+  setTimeout(()=>{
+    document.getElementById("my-offers")?.scrollIntoView({behavior:"smooth",block:"start"});
+    openCustomerOfferModal(Number(match.id));
+  },150);
+}
+
 function refreshMyOfferCountdowns(){
   document.querySelectorAll("[data-offer-expiry]").forEach(el=>{
     const expiresAt=el.getAttribute("data-offer-expiry");
@@ -6413,6 +6431,7 @@ async function initialiseCustomerNotifications(){
       }
     });
 
+    openRequestedCustomerOffer();
     await initialiseCustomerNotifications();
   }catch(error){
     console.error("My AnyBike failed to initialise",error);
