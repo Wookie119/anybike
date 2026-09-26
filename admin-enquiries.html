@@ -13529,6 +13529,58 @@ async function saveDealRequirement(event,dealId){
 }
 
 
+function openBikeSalesAction(dealId,tab){
+  const id=String(dealId || "").trim();
+  const targetTab=String(tab || "timeline").trim() || "timeline";
+  if(!id){ return; }
+
+  /* Needs Attention cards must be a genuine one-click route into the sale.
+     Do not navigate back to this same page and wait for a second click. */
+  setBikeSalesView("active",document.querySelector('#salesHqViewTabs [data-sales-view="active"]'));
+
+  let row=document.getElementById("anybike-deal-" + id);
+  if(!row){
+    currentFilter="all";
+    dealQueueSearchTerm="";
+    dealTableFilters={
+      buyer:"",
+      seller:"",
+      motorcycle:"",
+      stage:"",
+      customerPayment:"",
+      supplierPayment:"",
+      secured:"",
+      updated:""
+    };
+    const searchBox=document.getElementById("dealQueueSearch");
+    if(searchBox){ searchBox.value=""; }
+    renderAdminDealQueue();
+    row=document.getElementById("anybike-deal-" + id);
+  }
+
+  if(!row){
+    console.warn("Bike Sales action could not find sale:",id);
+    return;
+  }
+
+  document.querySelectorAll(".anybike-deal-record.open").forEach(function(item){
+    if(item!==row){ item.classList.remove("open"); }
+  });
+
+  row.classList.add("open");
+  openAnyBikeDealId=id;
+  bikeSalesJourneyTab(id,targetTab,false);
+
+  const url=new URL(window.location.href);
+  url.searchParams.set("deal",id);
+  url.searchParams.set("tab",targetTab);
+  history.replaceState(null,"",url.pathname+"?"+url.searchParams.toString()+url.hash);
+
+  requestAnimationFrame(function(){
+    row.scrollIntoView({behavior:"auto",block:"start"});
+  });
+}
+
 function renderBikeSalesActionQueue(){
   const actions=buildBikeSalesActions();
   const counts={reply:0,sourcing:0,seller:0,deposit:0,shipping:0,vat:0,ready:0,operations:0};
@@ -13536,7 +13588,7 @@ function renderBikeSalesActionQueue(){
 
   const cards=actions.length ? actions.map(function(item){
     const tab=({reply:"request",sourcing:"sourcing",seller:"seller",deposit:"payment",shipping:"delivery",vat:"seller",ready:"seller",operations:"collection"})[item.cls]||"timeline";
-    return `<article class="bike-sales-action-card ${escapeAdminHtml(item.cls)}" onclick="location.href='admin-enquiries.html?deal=${encodeURIComponent(item.dealId)}&tab=${encodeURIComponent(tab)}'">
+    return `<article class="bike-sales-action-card ${escapeAdminHtml(item.cls)}" onclick="openBikeSalesAction('${escapeAdminHtml(item.dealId)}','${escapeAdminHtml(tab)}');return false;">
       <div class="bike-sales-action-icon">${item.icon}</div>
       <div>
         <div class="bike-sales-action-title">${escapeAdminHtml(item.type)} · ${escapeAdminHtml(item.dealNumber)} — ${escapeAdminHtml(item.title)}</div>
