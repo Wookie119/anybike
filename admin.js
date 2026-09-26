@@ -271,7 +271,7 @@ function loadAdminShell(){
 ensureFreshAdminShellCss();
 
 Promise.all([
-  fetch("admin-sidebar.html?v=202609261140").then(function(res){ return res.text(); }),
+  fetch("admin-sidebar.html?v=202609262235").then(function(res){ return res.text(); }),
   fetch("admin-topbar.html?v=202609261140").then(function(res){ return res.text(); })
 ])
 .then(function(parts){
@@ -391,8 +391,28 @@ if(q.includes("message") || q.includes("inbox") || q.includes("reply")){
   return;
 }
 
+if(q.includes("match") || q.includes("recommended") || q.includes("potential")){
+  location.href = "admin-ai-matching.html";
+  return;
+}
+
+if(q.includes("advert") || q.includes("scanner") || q.includes("scan")){
+  location.href = "admin-used-bike-scanner.html";
+  return;
+}
+
+if(q.includes("source") || q.includes("sourcing")){
+  location.href = "admin-live-source-hub.html";
+  return;
+}
+
 if(q.includes("buyer") || q.includes("bulk") || q.includes("global")){
   location.href = "admin-global-buyer-network.html";
+  return;
+}
+
+if(q.includes("underwrite") || q.includes("seller")){
+  location.href = "admin-seller-underwrites.html";
   return;
 }
 
