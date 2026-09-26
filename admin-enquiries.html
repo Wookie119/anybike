@@ -13613,6 +13613,49 @@ function renderAdminMotorcycleJourneys(deal,bikes){
   return '<section class="motorcycle-journeys"><div class="motorcycle-journeys-head"><span>Independent motorcycle journeys</span><h4>'+bikes.length+' motorcycle'+(bikes.length===1?'':'s')+' in this sale</h4><p>Each motorcycle can be at a different stage. Shared payment, Proforma, storage and delivery can still be used where appropriate.</p></div>'+cards+'</section>';
 }
 
+
+function renderFinalInvoiceStageStatus(deal,collected,complete){
+  const dealId=String(deal?.deal_id||"");
+  const invoices=adminDealInvoices.get(dealId)||[];
+  const finalInvoices=invoices.filter(function(inv){
+    return String(inv.invoice_type||"")==="Final Invoice";
+  });
+  const issued=finalInvoices.find(function(inv){
+    return String(inv.invoice_status||"")==="Issued";
+  }) || null;
+  const draft=finalInvoices.find(function(inv){
+    return String(inv.invoice_status||"")==="Draft";
+  }) || null;
+
+  let state="locked";
+  let title="Final Invoice not ready";
+  let text="The Final Invoice is created after the motorcycle is collected and the final delivery, storage and other chargeable costs are known.";
+
+  if(issued){
+    state="done";
+    title="Final Invoice issued";
+    text="The customer has been notified and can view the Final Invoice in Accounts & Documents.";
+  }else if(draft){
+    state="action";
+    title="Final Invoice draft prepared";
+    text="Review the final charges and issue the invoice when correct.";
+  }else if(collected){
+    state="action";
+    title="Finalise charges for the Final Invoice";
+    text="Collection is complete. Confirm delivery, storage and other final charges before creating the Final Invoice.";
+  }
+
+  if(complete && !issued){
+    state="action";
+    title="Final Invoice still required";
+    text="The operational journey is complete, but the sale should not be closed financially until the Final Invoice is issued.";
+  }
+
+  return '<div class="final-invoice-stage '+state+'"><div><span>Final Invoice</span><strong>'+escapeAdminHtml(title)+'</strong><p>'+escapeAdminHtml(text)+'</p></div>'+
+    (issued?'<div class="final-invoice-stage-badge">✓ Issued</div>':draft?'<div class="final-invoice-stage-badge">Draft</div>':collected?'<div class="final-invoice-stage-badge">Action Required</div>':'<div class="final-invoice-stage-badge">Waiting</div>')+
+  '</div>';
+}
+
 function renderDealOfferWorkspace(deal,bikes){
   const dealId=String(deal?.deal_id||"");
   const stage=String(deal?.deal_stage||"");
@@ -13911,8 +13954,8 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
         renderAnyBikeDealInvoiceDocuments(deal);
     })())+
     panel("collection",renderAnyBikePurchaseActionGuide(deal)+renderAnyBikeDealTransactionCompletion(deal)+operationsBody)+
-    panel("invoice",renderAnyBikeDealInvoiceDocuments(deal))+
-    panel("delivery",renderAnyBikeDealShippingRoutePanel(deal)+(collected?'<div class="sales-what-next"><strong>What happens next?</strong><span>Complete the agreed UK handover / delivery and record the final milestone.</span></div>':'<div class="sales-what-next"><strong>What happens next?</strong><span>Delivery becomes active after the motorcycle has been purchased and collected.</span></div>'))+
+    panel("invoice",renderFinalInvoiceStageStatus(deal,collected,complete)+renderAnyBikeDealInvoiceDocuments(deal))+
+    panel("delivery",(typeof renderAnyBikeDeliveryStatusPanel==="function"?renderAnyBikeDeliveryStatusPanel(deal):"")+renderAnyBikeDealShippingRoutePanel(deal)+(collected?'<div class="sales-what-next"><strong>What happens next?</strong><span>Complete the agreed UK handover / delivery, confirm depot/storage where applicable, then record the final handover milestone.</span></div>':'<div class="sales-what-next"><strong>What happens next?</strong><span>Delivery becomes active after the motorcycle has been purchased and collected.</span></div>'))+
     panel("timeline",renderAdminMotorcycleJourneys(deal,bikes)+renderDealRequirementWorkspace(deal)+'<div class="sales-timeline">'+timelineHtml+'</div><div class="sales-what-next"><strong>What happens next?</strong><span>'+escapeAdminHtml(nextText)+'</span></div>')+
   '</section>';
 };
