@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+<title>Final Invoice | AnyBike</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#ececec;color:#111;font-family:Arial,Helvetica,sans-serif}
+.toolbar{position:sticky;top:0;z-index:8;display:flex;justify-content:center;gap:10px;padding:12px;background:#080808;border-bottom:3px solid #ed1c24}
+.toolbar button,.toolbar a{border:0;border-radius:9px;padding:10px 16px;background:#ed1c24;color:#fff;font-weight:900;text-decoration:none;cursor:pointer}
+.toolbar a.secondary{background:#242424}
+.page{position:relative;width:min(940px,calc(100% - 28px));margin:28px auto;background:#fff;box-shadow:0 16px 48px rgba(0,0,0,.2);padding:44px;min-height:160px}
+.head{display:grid;grid-template-columns:1fr 1fr;gap:30px;border-bottom:3px solid #ed1c24;padding-bottom:22px}
+.brand img{width:270px;max-width:100%;height:auto;display:block}
+.doc-title{text-align:right}.doc-title h1{margin:0;font-size:34px}.doc-title strong{display:block;color:#ed1c24;margin-top:5px}.doc-title p{line-height:1.45}
+.meta{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin:26px 0}.box{border:1px solid #ddd;border-radius:8px;padding:16px}.box h3{margin:0 0 10px;font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:#666}.box p{margin:4px 0;line-height:1.45}
+.lines{width:100%;border-collapse:collapse;margin-top:24px}.lines th,.lines td{padding:11px 9px;border-bottom:1px solid #ddd;text-align:left;vertical-align:top}.lines th:last-child,.lines td:last-child{text-align:right}.lines small{display:block;color:#666;margin-top:3px}
+.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:20px 0}.metric{background:#f6f6f6;border:1px solid #ddd;border-radius:8px;padding:14px}.metric span{display:block;color:#666;font-size:12px}.metric strong{display:block;margin-top:5px;font-size:20px}
+.vat{margin:22px 0;border:1px solid #ccc;border-radius:9px;overflow:hidden}.vat-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;background:#111;color:#fff}.vat-head strong{font-size:15px}.vat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:0}.vat-grid>div{padding:13px;border-right:1px solid #ddd;border-top:1px solid #ddd}.vat-grid>div:last-child{border-right:0}.vat-grid span{display:block;color:#666;font-size:11px}.vat-grid strong{display:block;margin-top:4px}
+.review{margin:0 0 24px;padding:15px;border:2px solid #d98900;background:#fff8ea;border-radius:9px}.review strong{display:block;color:#9b6200;font-size:17px}.review span{display:block;margin-top:5px;line-height:1.45}
+.issued{margin:0 0 24px;padding:13px 15px;border:1px solid #3da568;background:#f1fff6;border-radius:9px;color:#176d3b;font-weight:900}
+.foot{margin-top:30px;padding-top:16px;border-top:1px solid #ddd;color:#555;font-size:12px;line-height:1.55}
+.loading{padding:12px 0}.loading strong{display:block;margin-bottom:5px}.loading span{color:#666;font-size:13px}
+.error{padding:24px;border:1px solid #ed1c24;background:#fff5f5;border-radius:8px;line-height:1.5}
+.preview-banner{margin:-44px -44px 28px;padding:11px 18px;background:#fff4df;border-bottom:2px solid #d98900;color:#8c5900;text-align:center;font-weight:900;letter-spacing:.04em}
+.preview-watermark{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%) rotate(-28deg);font-size:78px;font-weight:900;color:rgba(217,137,0,.07);pointer-events:none;z-index:1;white-space:nowrap}
+.page>*{position:relative;z-index:2}
+@media(max-width:700px){.page{padding:24px}.preview-banner{margin:-24px -24px 22px}.head,.meta{grid-template-columns:1fr}.doc-title{text-align:left}.summary,.vat-grid{grid-template-columns:1fr}.vat-grid>div{border-right:0}}
+@media print{body{background:#fff}.toolbar{display:none}.page{width:100%;margin:0;box-shadow:none;padding:16mm}.preview-watermark{font-size:64px}}
+</style>
+</head>
+<body>
+<div class="toolbar">
+  <button type="button" onclick="window.print()">Print / Save PDF</button>
+  <a class="secondary" href="/accounts-documents.html">Accounts &amp; Documents</a>
+</div>
+<main class="page" id="document"><div class="loading"><strong>Loading Final Invoice…</strong><span>Retrieving the AnyBike accounting document.</span></div></main>
+<script>
+(function(){
+  "use strict";
+  const SUPABASE_URL="https://tuehtnezhdnkqbbhttgp.supabase.co";
+  const SUPABASE_ANON_KEY="sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
+  const PROJECT_REF="tuehtnezhdnkqbbhttgp";
+  const box=document.getElementById("document");
+  const params=new URLSearchParams(location.search);
+  const invoiceId=Number(params.get("invoice")||0);
+  const preview=params.get("preview")==="1";
+
+  const issuerFallback={
+    legal_company_name:"Giffords Empire Ltd",
+    trading_name:"Anybike",
+    company_number:"8068196",
+    vat_number:"GB 182781972",
+    business_address:"28 Monument business park Oxford OX447RW",
+    email:"mocp@hotmail.co.uk",
+    phone:"01865590521"
+  };
+
+  const esc=value=>String(value??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[ch]||ch));
+  const money=value=>{
+    const n=Number(value);
+    return Number.isFinite(n)?"£"+n.toLocaleString("en-GB",{minimumFractionDigits:2,maximumFractionDigits:2}):"—";
+  };
+  const date=value=>{
+    if(!value)return "—";
+    const d=new Date(value);
+    return Number.isNaN(d.getTime())?String(value):d.toLocaleDateString("en-GB");
+  };
+
+  function token(){
+    const keys=["anybike-admin-auth","sb-"+PROJECT_REF+"-auth-token"];
+    for(let i=0;i<localStorage.length;i++){
+      const k=localStorage.key(i);
+      if(k&&!keys.includes(k)&&k.includes("auth"))keys.push(k);
+    }
+    for(const key of keys){
+      try{
+        const raw=localStorage.getItem(key);
+        if(!raw)continue;
+        const parsed=JSON.parse(raw);
+        if(parsed?.access_token)return parsed.access_token;
+        if(parsed?.currentSession?.access_token)return parsed.currentSession.access_token;
+        if(Array.isArray(parsed)&&parsed[0]?.access_token)return parsed[0].access_token;
+      }catch(_error){}
+    }
+    return "";
+  }
+
+  async function getInvoice(access){
+    const response=await fetch(SUPABASE_URL+"/rest/v1/rpc/get_invoice_document_v1",{
+      method:"POST",
+      headers:{
+        apikey:SUPABASE_ANON_KEY,
+        Authorization:"Bearer "+access,
+        "Content-Type":"application/json",
+        Accept:"application/json"
+      },
+      body:JSON.stringify({p_invoice_id:invoiceId}),
+      cache:"no-store"
+    });
+    const raw=await response.text();
+    let payload=null;
+    try{payload=raw?JSON.parse(raw):null}catch(_error){payload=raw}
+    if(!response.ok)throw new Error(payload?.message||payload?.error_description||raw||("Request failed "+response.status));
+    return payload;
+  }
+
+  function lineRows(lines){
+    return (Array.isArray(lines)?lines:[]).map(line=>{
+      const vat=line.vat_treatment?'<small>VAT: '+esc(line.vat_treatment)+(line.vat_rate_percent!==null&&line.vat_rate_percent!==undefined?' · '+esc(line.vat_rate_percent)+'%':'')+'</small>':'';
+      return '<tr><td>'+esc(line.description||line.line_type||"Line")+vat+'</td><td>'+esc(line.quantity??1)+'</td><td>'+money(line.line_total_gbp)+'</td></tr>';
+    }).join("");
+  }
+
+  function render(d){
+    if(String(d?.invoice_type||"")!=="Final Invoice")throw new Error("The selected document is not a Final Invoice.");
+
+    const md=d.metadata||{};
+    const issuer=Object.assign({},issuerFallback,md.issuer||{});
+    const isDraft=String(d.invoice_status||"")==="Draft";
+    const vatVerified=String(d.vat_treatment_status||"")==="Verified" &&
+      d.net_amount_gbp!==null && d.vat_amount_gbp!==null && d.gross_amount_gbp!==null;
+    const number=d.invoice_number || ("Draft Final Invoice v"+Number(d.version_number||1));
+    document.title=(isDraft?"Draft — ":"")+number+" | AnyBike";
+
+    box.innerHTML=
+      (isDraft?'<div class="preview-watermark">DRAFT</div><div class="preview-banner">DRAFT FINAL INVOICE — ACCOUNTING REVIEW REQUIRED · NOT ISSUED · NOT VISIBLE TO CUSTOMER</div>':'')+
+      '<section class="head">'+
+        '<div class="brand"><img src="/anybike-logo-new.jpg" alt="AnyBike"><p><strong>'+esc(issuer.trading_name)+'</strong><br>'+esc(issuer.legal_company_name)+'<br>'+esc(issuer.business_address)+'</p></div>'+
+        '<div class="doc-title"><h1>FINAL INVOICE</h1><strong>'+esc(isDraft?"DRAFT — NOT ISSUED":d.invoice_status||"Issued")+'</strong><p>'+esc(number)+'<br>Sale '+esc(d.deal_number||d.deal_id||"")+'<br>'+(d.issued_at?date(d.issued_at):"Draft")+'</p></div>'+
+      '</section>'+
+      '<section class="meta">'+
+        '<div class="box"><h3>Bill To</h3><p><strong>'+esc(d.business_name||d.customer_name||"")+'</strong></p>'+(d.business_name&&d.customer_name?'<p>'+esc(d.customer_name)+'</p>':'')+'<p>'+esc(d.billing_address||"")+'<br>'+esc(d.billing_city||"")+' '+esc(d.billing_postcode||"")+'<br>'+esc(d.billing_country||"")+'</p><p>'+esc(d.customer_email||"")+(d.customer_phone?'<br>'+esc(d.customer_phone):'')+'</p></div>'+
+        '<div class="box"><h3>AnyBike</h3><p>'+esc(issuer.legal_company_name)+' trading as '+esc(issuer.trading_name)+'</p><p>Company No. '+esc(issuer.company_number)+'<br>VAT No. '+esc(issuer.vat_number)+'</p><p>'+esc(issuer.email)+'<br>'+esc(issuer.phone)+'</p></div>'+
+      '</section>'+
+      (isDraft?'<div class="review"><strong>ACCOUNTING REVIEW REQUIRED</strong><span>This draft contains the completed transaction charges, but the VAT snapshot must be reviewed and verified before the Final Invoice can be issued.</span></div>':'<div class="issued">✓ Issued Final Invoice</div>')+
+      '<table class="lines"><thead><tr><th>Description</th><th>Qty</th><th>Amount</th></tr></thead><tbody>'+lineRows(d.lines)+'</tbody></table>'+
+      '<section class="summary"><div class="metric"><span>Subtotal</span><strong>'+money(d.subtotal_gbp)+'</strong></div><div class="metric"><span>Delivery</span><strong>'+money(d.delivery_total_gbp)+'</strong></div><div class="metric"><span>Invoice Total</span><strong>'+money(d.total_gbp)+'</strong></div></section>'+
+      '<section class="vat"><div class="vat-head"><strong>VAT Summary</strong><span>'+esc(d.vat_treatment_status||"Check Required")+'</span></div>'+
+        '<div class="vat-grid">'+
+          '<div><span>Treatment</span><strong>'+esc(d.vat_treatment||"Accounting Review Required")+'</strong></div>'+
+          '<div><span>Net</span><strong>'+money(d.net_amount_gbp)+'</strong></div>'+
+          '<div><span>VAT</span><strong>'+money(d.vat_amount_gbp)+'</strong></div>'+
+          '<div><span>Gross</span><strong>'+money(d.gross_amount_gbp??d.total_gbp)+'</strong></div>'+
+        '</div>'+
+      '</section>'+
+      (!vatVerified?'<div class="review"><strong>VAT SNAPSHOT NOT VERIFIED</strong><span>This document must not be issued until the accounting VAT treatment, net amount, VAT amount and gross amount have been reviewed and saved as Verified.</span></div>':'')+
+      '<footer class="foot">This Final Invoice records the completed AnyBike transaction. Keep it with the motorcycle purchase, shipping and export documents. A Proforma is a separate payment-stage document and is not the Final Invoice.</footer>';
+  }
+
+  async function load(){
+    try{
+      if(!Number.isFinite(invoiceId)||invoiceId<=0)throw new Error("No valid Final Invoice was selected.");
+      const access=token();
+      if(!access)throw new Error("Your AnyBike session could not be found. Please sign in and reopen the document.");
+      const d=await getInvoice(access);
+      if(Number(d?.invoice_id)!==invoiceId)throw new Error("The wrong invoice was returned.");
+      render(d);
+    }catch(error){
+      console.error("Final Invoice could not be loaded:",error);
+      box.innerHTML='<div class="error"><strong>Final Invoice could not be loaded.</strong><br><br>'+esc(error?.message||error)+'</div>';
+    }
+  }
+  load();
+})();
+</script>
+</body>
+</html>
