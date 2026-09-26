@@ -13,6 +13,32 @@
   const SUPABASE_KEY="sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
   const UK_PORTS=["Bristol","Dover","Felixstowe","Harwich","Hull","Immingham","London Gateway","Plymouth","Poole","Portbury","Portsmouth","Purfleet","Sheerness","Southampton","Thamesport","Tilbury"];
 
+  function ukPortMapUrl(port){
+    const queries={
+      "Bristol":"Port of Bristol, Avonmouth, United Kingdom",
+      "Dover":"Port of Dover, United Kingdom",
+      "Felixstowe":"Port of Felixstowe, United Kingdom",
+      "Harwich":"Harwich International Port, United Kingdom",
+      "Hull":"Port of Hull, United Kingdom",
+      "Immingham":"Port of Immingham, United Kingdom",
+      "London Gateway":"DP World London Gateway, United Kingdom",
+      "Plymouth":"Port of Plymouth, United Kingdom",
+      "Poole":"Port of Poole, United Kingdom",
+      "Portbury":"Royal Portbury Dock, United Kingdom",
+      "Portsmouth":"Portsmouth International Port, United Kingdom",
+      "Purfleet":"Purfleet Thames Terminal, United Kingdom",
+      "Sheerness":"Port of Sheerness, United Kingdom",
+      "Southampton":"Port of Southampton, United Kingdom",
+      "Thamesport":"Thamesport, Isle of Grain, United Kingdom",
+      "Tilbury":"Port of Tilbury, United Kingdom"
+    };
+    return "https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(queries[port]||("Port of "+port+", United Kingdom"));
+  }
+
+  function ukPortLink(port,cssClass){
+    return '<a class="'+esc(cssClass||"ab-tag")+'" href="'+ukPortMapUrl(port)+'" target="_blank" rel="noopener noreferrer" title="View '+esc(port)+' on a UK map" aria-label="View '+esc(port)+' on a UK map">'+esc(port)+' ↗</a>';
+  }
+
   const VERIFIED_LOCAL_DESTINATIONS={
     reunion:{
       title:"Arrival in Réunion",
@@ -331,7 +357,22 @@
         const text=(node.textContent||"").toLowerCase();
         return text.includes("southampton")&&text.includes("tilbury")&&text.includes("bristol");
       });
-      if(target) target.dataset.anybikeHandoverStandardised="1";
+      if(target){
+        target.dataset.anybikeHandoverStandardised="1";
+        target.querySelectorAll("span").forEach(function(node){
+          const port=(node.textContent||"").trim();
+          if(!UK_PORTS.includes(port))return;
+          const holder=document.createElement("span");
+          holder.innerHTML=ukPortLink(port,"ab-tag");
+          const link=holder.firstElementChild;
+          if(link)node.replaceWith(link);
+        });
+        const card=target.closest(".card,.port-card,.ab-local-card,article");
+        if(card){
+          const p=card.querySelector("p");
+          if(p)p.textContent="Use the map links to compare where each UK handover port is located. The final handover point should be agreed with your freight provider before purchase.";
+        }
+      }
       return;
     }
 
@@ -343,8 +384,8 @@
     section.innerHTML='<div class="ab-market-wrap"><div class="ab-market-head"><div class="ab-market-eyebrow">UK collection & handover</div>'+
       '<h2>From the UK seller to your nominated freight provider.</h2>'+
       '<p>AnyBike arranges the UK-side collection and agreed handover. The buyer’s nominated freight forwarder or shipping agent is responsible for onward international transport to '+esc(name)+'.</p></div>'+
-      '<div class="ab-local-card"><h3>AnyBike UK handover ports</h3><p>The handover point is agreed before collection and can be linked to the freight provider’s shipping reference.</p><div class="ab-tags">'+
-      UK_PORTS.map(function(port){return '<span class="ab-tag">'+esc(port)+'</span>';}).join("")+
+      '<div class="ab-local-card"><h3>AnyBike UK handover ports</h3><p>Use the map links to compare where each UK handover port is located. The final handover point should be agreed with your freight provider before purchase.</p><div class="ab-tags">'+
+      UK_PORTS.map(function(port){return ukPortLink(port,"ab-tag");}).join("")+
       '</div></div></div>';
     const last=main.querySelector("section:last-of-type");
     if(last) main.insertBefore(section,last); else main.appendChild(section);
