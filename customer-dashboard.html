@@ -2196,12 +2196,34 @@ body.customer-offer-modal-open{overflow:hidden}
 
     <div class="shipping-pref-field">
       <label for="shippingPrefUkPoint">UK Port / Handover Point</label>
-      <input id="shippingPrefUkPoint" type="text" placeholder="e.g. Southampton">
+      <select id="shippingPrefUkPoint" onchange="updateCustomerShippingCustomFields()">
+        <option value="">Choose UK handover point…</option>
+        <option value="Aberdeen">Aberdeen</option><option value="Belfast">Belfast</option><option value="Bristol / Avonmouth">Bristol / Avonmouth</option>
+        <option value="Cairnryan">Cairnryan</option><option value="Cardiff">Cardiff</option><option value="Dover">Dover</option>
+        <option value="Falmouth">Falmouth</option><option value="Felixstowe">Felixstowe</option><option value="Fishguard">Fishguard</option>
+        <option value="Grangemouth">Grangemouth</option><option value="Great Yarmouth">Great Yarmouth</option><option value="Greenock">Greenock</option>
+        <option value="Harwich">Harwich</option><option value="Heysham">Heysham</option><option value="Holyhead">Holyhead</option>
+        <option value="Hull">Hull</option><option value="Immingham">Immingham</option><option value="Ipswich">Ipswich</option>
+        <option value="Larne">Larne</option><option value="Leith">Leith</option><option value="Liverpool">Liverpool</option>
+        <option value="London Gateway">London Gateway</option><option value="Milford Haven">Milford Haven</option><option value="Newcastle / Port of Tyne">Newcastle / Port of Tyne</option>
+        <option value="Newhaven">Newhaven</option><option value="Pembroke">Pembroke</option><option value="Plymouth">Plymouth</option>
+        <option value="Poole">Poole</option><option value="Portbury">Portbury</option><option value="Portsmouth">Portsmouth</option>
+        <option value="Purfleet">Purfleet</option><option value="Ramsgate">Ramsgate</option><option value="Sheerness">Sheerness</option>
+        <option value="Southampton">Southampton</option><option value="Sunderland">Sunderland</option><option value="Swansea">Swansea</option>
+        <option value="Teesport">Teesport</option><option value="Thamesport">Thamesport</option><option value="Tilbury">Tilbury</option>
+        <option value="Warrenpoint">Warrenpoint</option>
+        <option value="__other__">Other UK address / handover point…</option>
+      </select>
+      <input id="shippingPrefUkPointOther" type="text" placeholder="Enter UK handover point" style="display:none;margin-top:8px">
     </div>
 
     <div class="shipping-pref-field">
       <label for="shippingPrefCompany">Freight Forwarder / Shipper</label>
-      <input id="shippingPrefCompany" type="text" placeholder="Company name">
+      <select id="shippingPrefCompany" onchange="updateCustomerShippingCustomFields()">
+        <option value="">Choose freight forwarder…</option>
+        <option value="__other__">Other / not listed…</option>
+      </select>
+      <input id="shippingPrefCompanyOther" type="text" placeholder="Enter company name" style="display:none;margin-top:8px">
     </div>
 
     <div class="shipping-pref-field">
@@ -4553,17 +4575,89 @@ setProfileEditMode(false);
 
 function clearShippingPreferenceForm(){
   editingShippingPreferenceId=null;
-  ["shippingPlanName","shippingPrefUkPoint","shippingPrefCompany","shippingPrefContactName","shippingPrefPhone","shippingPrefExtension","shippingPrefEmail","shippingPrefReference","shippingPrefNotes"]
+  ["shippingPlanName","shippingPrefContactName","shippingPrefPhone","shippingPrefExtension","shippingPrefEmail","shippingPrefReference","shippingPrefNotes","shippingPrefUkPointOther","shippingPrefCompanyOther"]
     .forEach(function(id){
       const el=document.getElementById(id);
       if(el) el.value="";
     });
+  setCustomerShippingUkPointValue("");
+  setCustomerShippingCompanyValue("");
   const defaultEl=document.getElementById("shippingPrefDefault");
   if(defaultEl) defaultEl.checked=false;
   const btn=document.getElementById("saveShippingPreferencesBtn");
   if(btn) btn.textContent="Add Shipping Preference";
 }
 
+
+function customerShippingDirectoryNames(){
+  return Array.from(document.querySelectorAll(".shipping-directory-check"))
+    .map(function(el){return String(el.value||"").trim();})
+    .filter(Boolean);
+}
+
+function refreshCustomerShippingCompanyDropdown(){
+  const select=document.getElementById("shippingPrefCompany");
+  if(!select) return;
+  const previous=select.value;
+  const names=Array.from(new Set(customerShippingDirectoryNames())).sort(function(a,b){return a.localeCompare(b);});
+  select.innerHTML='<option value="">Choose freight forwarder…</option>'+
+    names.map(function(name){return '<option value="'+safe(name)+'">'+safe(name)+'</option>';}).join("")+
+    '<option value="__other__">Other / not listed…</option>';
+  if(names.includes(previous)||previous==="__other__") select.value=previous;
+}
+
+function updateCustomerShippingCustomFields(){
+  const portSelect=document.getElementById("shippingPrefUkPoint");
+  const portOther=document.getElementById("shippingPrefUkPointOther");
+  const companySelect=document.getElementById("shippingPrefCompany");
+  const companyOther=document.getElementById("shippingPrefCompanyOther");
+  if(portOther) portOther.style.display=portSelect?.value==="__other__"?"block":"none";
+  if(companyOther) companyOther.style.display=companySelect?.value==="__other__"?"block":"none";
+}
+
+function customerShippingUkPointValue(){
+  const select=document.getElementById("shippingPrefUkPoint");
+  return select?.value==="__other__"
+    ? String(document.getElementById("shippingPrefUkPointOther")?.value||"").trim()
+    : String(select?.value||"").trim();
+}
+
+function customerShippingCompanyValue(){
+  const select=document.getElementById("shippingPrefCompany");
+  return select?.value==="__other__"
+    ? String(document.getElementById("shippingPrefCompanyOther")?.value||"").trim()
+    : String(select?.value||"").trim();
+}
+
+function setCustomerShippingUkPointValue(value){
+  const select=document.getElementById("shippingPrefUkPoint");
+  const other=document.getElementById("shippingPrefUkPointOther");
+  if(!select||!other) return;
+  const text=String(value||"").trim();
+  const values=Array.from(select.options).map(function(o){return o.value;});
+  if(!text){select.value="";other.value="";}
+  else if(values.includes(text)){select.value=text;other.value="";}
+  else{select.value="__other__";other.value=text;}
+  updateCustomerShippingCustomFields();
+}
+
+function setCustomerShippingCompanyValue(value){
+  refreshCustomerShippingCompanyDropdown();
+  const select=document.getElementById("shippingPrefCompany");
+  const other=document.getElementById("shippingPrefCompanyOther");
+  if(!select||!other) return;
+  const text=String(value||"").trim();
+  const values=Array.from(select.options).map(function(o){return o.value;});
+  if(!text){select.value="";other.value="";}
+  else if(values.includes(text)){select.value=text;other.value="";}
+  else{select.value="__other__";other.value=text;}
+  updateCustomerShippingCustomFields();
+}
+
+setTimeout(function(){
+  refreshCustomerShippingCompanyDropdown();
+  updateCustomerShippingCustomFields();
+},0);
 
 function clearDirectoryShipperSelection(){
   document.querySelectorAll(".shipping-directory-check").forEach(function(el){
@@ -4645,8 +4739,6 @@ function editShippingPreference(planId){
 
   const values={
     shippingPlanName:plan.plan_name || "",
-    shippingPrefUkPoint:plan.uk_handover_point || "",
-    shippingPrefCompany:plan.freight_forwarder_name || "",
     shippingPrefContactName:plan.contact_name || "",
     shippingPrefPhone:plan.contact_phone || "",
     shippingPrefExtension:plan.contact_extension || "",
@@ -4659,6 +4751,8 @@ function editShippingPreference(planId){
     const el=document.getElementById(id);
     if(el) el.value=value;
   });
+  setCustomerShippingUkPointValue(plan.uk_handover_point || "");
+  setCustomerShippingCompanyValue(plan.freight_forwarder_name || "");
 
   const defaultEl=document.getElementById("shippingPrefDefault");
   if(defaultEl) defaultEl.checked=Boolean(plan.is_default);
@@ -4774,8 +4868,8 @@ async function saveShippingPreference(){
   const payload={
     customer_id:currentUser.id,
     plan_name:document.getElementById("shippingPlanName")?.value.trim() || null,
-    uk_handover_point:document.getElementById("shippingPrefUkPoint")?.value.trim() || null,
-    freight_forwarder_name:document.getElementById("shippingPrefCompany")?.value.trim() || null,
+    uk_handover_point:customerShippingUkPointValue() || null,
+    freight_forwarder_name:customerShippingCompanyValue() || null,
     contact_name:document.getElementById("shippingPrefContactName")?.value.trim() || null,
     contact_phone:document.getElementById("shippingPrefPhone")?.value.trim() || null,
     contact_extension:document.getElementById("shippingPrefExtension")?.value.trim() || null,
