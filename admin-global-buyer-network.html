@@ -3506,7 +3506,8 @@ async function openAnyBikeOffer(matchId){
   document.body.style.overflow="hidden";
 }
 
-async function saveAnyBikeOffer(){
+async function saveAnyBikeOffer(options={}){
+  const skipReload=!!options.skipReload;
   const matchId=activeAnyBikeOfferMatchId;
   if(!matchId) return;
 
@@ -3597,7 +3598,9 @@ async function saveAnyBikeOffer(){
         " • Projected profit "+money(saved?.projected_profit_gbp ?? projectedProfit);
     }
 
-    await loadBuyers();
+    if(!skipReload){
+      await loadBuyers();
+    }
     return true;
   }catch(err){
     console.error("Prepare AnyBike Offer failed",err);
@@ -3612,6 +3615,107 @@ async function saveAnyBikeOffer(){
       button.textContent="Save Prepared Offer";
     }
   }
+}
+
+
+async function notifyBuyerOfAnyBikeOffer(matchId,row,expiry,customerTotal,depositAmount){
+  const match=(buyerMatches || []).find(m=>Number(m.id)===Number(matchId));
+  if(!match) throw new Error("The buyer match could not be reloaded for customer notification.");
+
+  const buyer=(buyers || []).find(b=>Number(b.id)===Number(match.buyer_id));
+  if(!buyer) throw new Error("The buyer record could not be found for customer notification.");
+  if(!buyer.email) throw new Error("The offer is live in My AnyBike, but this buyer has no email address for notification.");
+
+  const now=new Date().toISOString();
+  let thread=findBuyerThread(buyer);
+
+  const bike=offerStockForMatch(match) || {};
+  const bikeName=[
+    match.stock_year || bike.year,
+    match.stock_make || bike.make,
+    match.stock_model || bike.model,
+    match.stock_variant || bike.variant
+  ].filter(Boolean).join(" ") || "motorcycle";
+
+  const motorcyclePrice=Number(row?.confirmed_customer_price_gbp ?? match.provisional_customer_price_gbp ?? 0);
+  const anybikeFee=Number(row?.anybike_fee_gbp ?? match.offer_anybike_fee_gbp ?? 0);
+  const deliveryCharge=Number(row?.delivery_charge_gbp ?? match.offer_delivery_charge_gbp ?? 0);
+  const total=Number(row?.customer_offer_total_gbp ?? customerTotal ?? (motorcyclePrice+anybikeFee+deliveryCharge));
+  const deposit=Number(row?.deposit_required_gbp ?? depositAmount ?? match.offer_deposit_amount_gbp ?? 0);
+  const expiresAt=row?.offer_expires_at || expiry?.toISOString?.() || match.confirmed_offer_expires_at;
+  const offerRef="AnyBike Offer ref "+String(matchId);
+
+  const message=[
+    "Your AnyBike offer is ready to review.",
+    "",
+    bikeName,
+    "Motorcycle: "+money(motorcyclePrice),
+    "AnyBike service fee: "+money(anybikeFee),
+    "Delivery: "+money(deliveryCharge),
+    "Customer total: "+money(total),
+    "Deposit due on acceptance: "+money(deposit),
+    expiresAt ? "Offer valid until: "+dateTxt(expiresAt) : "",
+    "",
+    "Please sign in to My AnyBike to review and respond to the offer.",
+    "The motorcycle is not secured until AnyBike confirms it has been secured.",
+    "",
+    offerRef
+  ].filter(v=>v!=="").join("\n");
+
+  if(!thread){
+    thread=await createBuyerThread(buyer,message,now);
+  }
+
+  const {data:existing,error:existingError}=await sb
+    .from("message_centre_messages")
+    .select("id")
+    .eq("thread_id",thread.id)
+    .ilike("message","%"+offerRef+"%")
+    .limit(1);
+
+  if(existingError) throw new Error("Could not check the buyer conversation: "+existingError.message);
+
+  if(!(existing || []).length){
+    const {error:messageError}=await sb
+      .from("message_centre_messages")
+      .insert({
+        thread_id:thread.id,
+        sender_type:"AnyBike",
+        sender_name:"AnyBike",
+        sender_email:"admin@anybike.co.uk",
+        message:message,
+        created_at:now
+      });
+
+    if(messageError) throw new Error("Offer is live in My AnyBike, but the customer message could not be created: "+messageError.message);
+  }
+
+  const {error:threadError}=await sb
+    .from("message_centre_threads")
+    .update({
+      last_message:message,
+      last_message_at:now,
+      last_sender:"AnyBike",
+      status:"Replied",
+      lead_status:"Proposal Sent",
+      department:"Global Buyer Network",
+      updated_at:now
+    })
+    .eq("id",thread.id);
+
+  if(threadError) throw new Error("Offer message was created, but the conversation could not be updated: "+threadError.message);
+
+  const {error:notifyError}=await sb.functions.invoke(
+    "send-message-notification",
+    {body:{thread_id:String(thread.id)}}
+  );
+
+  if(notifyError){
+    throw new Error("Offer is live and the Message Centre message was created, but the email notification failed: "+notifyError.message);
+  }
+
+  delete buyerConversationCache[thread.id];
+  return thread.id;
 }
 
 async function sendAnyBikeOffer(){
@@ -3668,7 +3772,7 @@ async function sendAnyBikeOffer(){
       status.textContent="Checking and saving the prepared offer…";
     }
 
-    const saved=await saveAnyBikeOffer();
+    const saved=await saveAnyBikeOffer({skipReload:true});
     if(!saved) return;
 
     if(status) status.textContent="Re-checking seller position and releasing offer to customer…";
@@ -3680,12 +3784,17 @@ async function sendAnyBikeOffer(){
     if(error) throw error;
 
     const row=Array.isArray(data) ? data[0] : data;
+
+    if(status) status.textContent="Offer is live in My AnyBike. Sending the customer Message Centre and email notification…";
+    const threadId=await notifyBuyerOfAnyBikeOffer(matchId,row,expiry,customerTotal,depositAmount);
+
     if(status){
       status.className="seller-modal-status success";
       status.textContent=
-        "AnyBike Offer sent • Customer total "+money(row?.customer_offer_total_gbp ?? customerTotal)+
+        "AnyBike Offer sent to customer • Customer total "+money(row?.customer_offer_total_gbp ?? customerTotal)+
         " • Deposit "+money(row?.deposit_required_gbp ?? depositAmount)+
         " • Expires "+dateTxt(row?.offer_expires_at || expiry.toISOString())+
+        " • Message Centre thread #"+String(threadId)+
         " • Motorcycle remains NOT SECURED";
     }
 
