@@ -11251,7 +11251,7 @@ function anyBikeProcessKeyForNextAction(primary){
   if(["Find Potential Matches","Waiting for Buyer Response","Select Motorcycle for Sale"].includes(action)) return "sourcing";
   if(action==="Check Seller Availability") return "seller-availability";
   if(action==="Seller / Viability") return "seller-viability";
-  if(action==="Send Formal Offer") return "formal-offer";
+  if(action==="Send Formal Offer" || action==="Waiting for Formal Offer Response") return "formal-offer";
   if(action==="Deposit Due") return "customer-deposit";
   if(action.includes("Buyer Account")) return "account-control";
   if(action==="Review Buyer Onboarding") return "buyer-purchase-clearance";
@@ -14388,6 +14388,7 @@ function bikeSalesFlagsForDeal(deal,action){
     accountOnHold:accountStatus==="On Hold",
     depositRequired:Number(action?.deposit_required_gbp||0),
     depositOutstanding:Number(action?.deposit_outstanding_gbp||0),
+    offerSent:rawStage==="Proposal Sent",
     offerAccepted:["Payment / Deposit","Operations","Shipping","Completed"].includes(rawStage)
   };
 }
@@ -14408,6 +14409,7 @@ function bikeSalesEffectivePrimary(action,flags,deal){
   }
 
   if(!flags.sellerDone || !flags.vatDone) return "Seller / Viability";
+  if(!flags.offerAccepted && flags.offerSent) return "Waiting for Formal Offer Response";
   if(!flags.offerAccepted) return "Send Formal Offer";
   if(flags.depositRequired>0 && flags.depositOutstanding>0.009) return "Deposit Due";
   if(!flags.onboardingApproved) return "Review Buyer Onboarding";
@@ -14516,6 +14518,7 @@ function bikeSalesJourneyInstruction(action,flags){
     "Select Motorcycle for Sale":"Availability is confirmed. Review the commercial position and select the motorcycle into the Deal.",
     "Seller / Viability":"Review seller availability, agreed supplier price, VAT treatment and commercial viability before preparing the Formal Offer.",
     "Send Formal Offer":"Prepare and send the Deal 360 Formal Offer with the agreed customer price, fees, delivery and payment terms.",
+    "Waiting for Formal Offer Response":"The Formal Offer has been sent. No sales action is required until the buyer accepts, declines or asks a question.",
     "Deposit Due":"Wait for the required deposit to clear, then verify and allocate it to this Deal.",
     "Buyer Account Stopped":"Do not progress the purchase. Review the stop reason, tell the customer what is required and reactivate only when resolved.",
     "Buyer Account On Hold":"Resolve the outstanding buyer-account item before committing AnyBike money to the motorcycle.",
@@ -15318,7 +15321,8 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
   const onboardingApproved=anyBikeBuyerOnboardingApproved(deal);
   const onboardingRow=anyBikeBuyerOnboardingForDeal(deal)||{};
   const accountStatus=String(onboardingRow.account_status||"Active");
-  const flags={depositOutstanding,depositRequired,sellerDone,shippingDone,vatDone,secured,hasMotorcycle,offerAccepted,customerPaid,collected,complete,finalInvoiceIssued,onboardingApproved,accountStopped:accountStatus==="Stopped",accountOnHold:accountStatus==="On Hold"};
+  const offerSent=String(rawStage||"")==="Proposal Sent";
+  const flags={depositOutstanding,depositRequired,sellerDone,shippingDone,vatDone,secured,hasMotorcycle,offerSent,offerAccepted,customerPaid,collected,complete,finalInvoiceIssued,onboardingApproved,accountStopped:accountStatus==="Stopped",accountOnHold:accountStatus==="On Hold"};
   primary=bikeSalesEffectivePrimary(action,flags,deal);
   const effectiveAction=Object.assign({},action||{},{primary_action:primary});
   const current=bikeSalesJourneyStage(effectiveAction,deal,flags);
@@ -15333,8 +15337,10 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
     }else{
       nextText="Find suitable motorcycles, send the best potential matches to the buyer and wait for their response.";
     }
+  }else if(primary==="Waiting for Formal Offer Response"){
+    nextText="The Formal Offer has been sent. Wait for the buyer to accept, decline or ask a question; their response will appear in Message Centre and the admin bell.";
   }
-  const waiting=primary==="Waiting for Buyer Response";
+  const waiting=primary==="Waiting for Buyer Response" || primary==="Waiting for Formal Offer Response";
   let activeTab=current==="complete"?"timeline":current;
   if(!hasMotorcycle && ["Check Seller Availability","Select Motorcycle for Sale","Waiting for Buyer Response","Find Potential Matches"].includes(primary)){
     activeTab="sourcing";
