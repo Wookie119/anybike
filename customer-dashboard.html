@@ -1150,9 +1150,17 @@ footer{
 .customer-purchase-step{padding:7px 9px;border-radius:999px;border:1px solid rgba(255,255,255,.10);color:#707070;background:#111;font-size:10px;font-weight:900}
 .customer-purchase-step.done{border-color:rgba(54,211,126,.45);color:#9fffc3;background:rgba(54,211,126,.10)}
 .customer-purchase-step.current{border-color:#ed1c24;color:#fff;background:rgba(237,28,36,.16)}
-.customer-purchase-whats-next{margin-top:9px;padding:9px 10px;border-left:3px solid #ed1c24;background:#121212;border-radius:8px}
+.customer-purchase-whats-next{
+  display:block;margin-top:9px;padding:9px 10px;border-left:3px solid #ed1c24;
+  border-top:1px solid rgba(237,28,36,.22);border-right:1px solid rgba(237,28,36,.22);border-bottom:1px solid rgba(237,28,36,.22);
+  background:#121212;border-radius:8px;text-decoration:none;cursor:pointer;
+  transition:transform .12s ease,border-color .12s ease,background .12s ease;
+}
+.customer-purchase-whats-next:hover{transform:translateY(-1px);background:#181818;border-color:#ed1c24}
 .customer-purchase-whats-next strong{display:block;font-size:12px;color:#fff}
 .customer-purchase-whats-next span{display:block;font-size:11px;color:#999;margin-top:3px;line-height:1.4}
+.customer-purchase-whats-next .customer-next-cta{color:#fff;font-weight:900;text-transform:uppercase;letter-spacing:.04em;margin-top:7px}
+.customer-purchase-whats-next:hover .customer-next-cta{text-decoration:underline}
 @media(max-width:900px){.my-purchases-grid{grid-template-columns:1fr}}
 .my-purchase-actions{display:flex;gap:10px;margin-top:12px}
 .my-purchase-view{display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:0 16px;border-radius:10px;border:1px solid var(--red);background:var(--red);color:#fff;font-weight:900;text-decoration:none;cursor:pointer}
@@ -3433,26 +3441,41 @@ function customerPurchaseTimelineHtml(purchase,state){
   const storageStatus=String(purchase?.storage_status||"").toLowerCase();
   const inStorage=collected && !["","not_started","released"].includes(storageStatus) && !purchase?.storage_released_at;
   const delivered=String(purchase?.delivery_handover_status||"").toLowerCase()==="delivered" || !!purchase?.delivery_completed_at;
+  const dealNumber=String(purchase?.deal_number||"").trim();
+  const dealId=String(purchase?.deal_id||"").trim();
 
   let current="deposit",nextTitle="Pay / report your deposit",nextText="Open Accounts & Documents to view your Proforma and report the bank transfer.";
+  let nextHref=dealNumber
+    ? "/accounts-documents.html?deal="+encodeURIComponent(dealNumber)+"&payment=deposit&amount="+encodeURIComponent(Number(state.depositOutstanding||state.depositDue||0).toFixed(2))+"&ref="+encodeURIComponent(dealNumber)
+    : "my-purchases.html"+(dealId?"?deal="+encodeURIComponent(dealId):"");
   if(state.depositSatisfied && !state.secured){
     current="seller";nextTitle="AnyBike completes the final seller check";nextText="No action is required from you while AnyBike reconfirms the motorcycle and seller position.";
+    nextHref="my-purchases.html"+(dealId?"?deal="+encodeURIComponent(dealId):"");
   }else if(state.secured && !state.fullyPaid){
-    current="balance";nextTitle="Complete the remaining balance / documents";nextText="AnyBike will show the amount and documents needed before collection.";
+    current="balance";nextTitle="Complete the remaining balance / documents";nextText="Open Accounts & Documents to view the remaining amount and any documents needed before collection.";
+    nextHref=dealNumber
+      ? "/accounts-documents.html?deal="+encodeURIComponent(dealNumber)+"&payment=balance&amount="+encodeURIComponent(Number(state.balance||0).toFixed(2))+"&ref="+encodeURIComponent(dealNumber)
+      : "my-purchases.html"+(dealId?"?deal="+encodeURIComponent(dealId):"");
   }else if(state.secured && state.fullyPaid && !collected){
     current="collection";nextTitle="AnyBike arranges collection";nextText="Move Motorcycles will collect the motorcycle and the collection status will update here.";
+    nextHref="my-purchases.html"+(dealId?"?deal="+encodeURIComponent(dealId):"");
   }else if(collected && !delivered){
     current=inStorage?"storage":"delivery";
     nextTitle=inStorage?"Secure UK custody / storage":"Arrange the UK handover";
     nextText=inStorage
       ?"Your motorcycle is secure in the UK while AnyBike and Move arrange the confirmed handover to your shipper."
       :"Your motorcycle has been collected. AnyBike and Move will now complete the agreed UK handover.";
+    nextHref="my-purchases.html"+(dealId?"?deal="+encodeURIComponent(dealId):"");
   }else if(delivered){
     current="invoice";nextTitle="Final invoice";nextText="The UK handover is complete. AnyBike will now finalise the transaction charges and issue the Final Invoice.";
+    nextHref="/accounts-documents.html"+(dealNumber?"?deal="+encodeURIComponent(dealNumber):"");
   }
 
   const complete=String(purchase?.deal_stage||"").toLowerCase()==="completed" || String(purchase?.deal_status||"").toLowerCase()==="completed";
-  if(complete){current="complete";nextTitle="Purchase complete";nextText="No further action is required for this motorcycle.";}
+  if(complete){
+    current="complete";nextTitle="Purchase complete";nextText="No further action is required for this motorcycle.";
+    nextHref="my-purchases.html"+(dealId?"?deal="+encodeURIComponent(dealId):"");
+  }
 
   const steps=[
     ["offer","Offer",true],
@@ -3468,7 +3491,7 @@ function customerPurchaseTimelineHtml(purchase,state){
   ];
   return '<div class="customer-purchase-timeline"><div class="customer-purchase-timeline-title">Your motorcycle journey</div><div class="customer-purchase-steps">'+
     steps.map(function(s){return '<span class="customer-purchase-step '+(s[2]?"done":s[0]===current?"current":"")+'">'+safe(s[1])+'</span>';}).join("")+
-    '</div><div class="customer-purchase-whats-next"><strong>What happens next? '+safe(nextTitle)+'</strong><span>'+safe(nextText)+'</span></div></div>';
+    '</div><a class="customer-purchase-whats-next" href="'+safe(nextHref)+'" title="Click to proceed to the next task"><strong>What happens next? '+safe(nextTitle)+'</strong><span>'+safe(nextText)+'</span><span class="customer-next-cta">Click to proceed →</span></a></div>';
 }
 
 function customerPurchaseCardHtml(match){
