@@ -1846,7 +1846,7 @@ document.addEventListener("visibilitychange",function(){
   function loadEngine(){
     if(document.querySelector('script[data-anybike-market-engine]')) return;
     const engine=document.createElement("script");
-    engine.src="/market-page-engine.js?v=6";
+    engine.src="/market-page-engine.js?v=7";
     engine.defer=true;
     engine.dataset.anybikeMarketEngine="1";
     document.head.appendChild(engine);
