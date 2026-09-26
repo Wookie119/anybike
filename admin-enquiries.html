@@ -5682,6 +5682,14 @@ input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-in
 }
 .sales-compact-pipeline button.attention{background:#ed1c24!important;border-color:#ed1c24!important;color:#fff!important}
 
+.sales-guidance-line{display:flex;gap:10px;align-items:center;padding:10px 16px;border-top:1px solid rgba(255,255,255,.06);border-bottom:1px solid rgba(255,255,255,.06);background:#0c0c0c;color:#b8c0ca;font-size:12px}
+.sales-guidance-line strong{color:#fff}
+.sales-workspace-menu{margin:0;border-bottom:1px solid rgba(255,255,255,.08);background:#0b0b0b}
+.sales-workspace-menu>summary{cursor:pointer;list-style:none;padding:10px 16px;color:#9ea7b3;font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:.06em}
+.sales-workspace-menu>summary::-webkit-details-marker{display:none}
+.sales-workspace-menu>summary:after{content:" ▾";color:#e63b40}
+.sales-workspace-menu[open]>summary:after{content:" ▴"}
+
 .sales-workspace-row{
   display:grid;grid-template-columns:118px minmax(0,1fr);align-items:stretch;
   background:#0e0e0e;border-bottom:1px solid rgba(255,255,255,.05);
@@ -14860,9 +14868,8 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
   const pipelineHtml=pipeline.map(function(item,index){
     const key=item[0], label=item[1], done=!!item[2];
     const cls=key===current?"current":done?"done":"";
-    const target=key==="interest"?"sourcing":key==="complete"?"timeline":key;
     const statePrefix=done ? "✓ " : "";
-    return '<button type="button" class="'+cls+'" title="'+(done?"Complete":"Incomplete")+'" onclick="bikeSalesJourneyTab(\''+dealId+'\',\''+target+'\');return false;">'+statePrefix+(index+1)+'. '+escapeAdminHtml(label)+'</button>';
+    return '<span class="'+cls+'" title="'+(done?"Complete":key===current?"Current stage":"Not reached yet")+'">'+statePrefix+(index+1)+'. '+escapeAdminHtml(label)+'</span>';
   }).join("");
   const progressDone=pipeline.filter(function(item){return !!item[2];}).length;
   const progressPercent=Math.max(0,Math.min(100,Math.round((progressDone/pipeline.length)*100)));
@@ -14905,8 +14912,9 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
   return '<section class="sales-journey" data-deal-id="'+escapeAdminHtml(dealId)+'">'+
     '<div class="sales-journey-head"><div class="sales-journey-headline"><div><h3>'+escapeAdminHtml(dealNumber)+' · '+escapeAdminHtml(buyerName)+'</h3><p>'+escapeAdminHtml(status)+' · '+escapeAdminHtml(stage)+'</p></div>'+
     '<div class="sales-next-action '+(waiting?"waiting":"action")+'" role="button" tabindex="0" title="Click to proceed to the next task" onclick="openBikeSalesNextTask(\''+dealId+'\');return false;" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();openBikeSalesNextTask(\''+dealId+'\');}"><span class="sales-next-action-copy"><strong>'+(waiting?"Waiting / Next":"Your next action")+': '+escapeAdminHtml(primary||"Review sale")+'</strong><span>'+escapeAdminHtml(nextText)+'</span></span><span class="sales-next-action-cta">Proceed →</span></div></div></div>'+
-    '<div class="sales-row-with-label"><div class="sales-row-label">Deal Progress</div><div class="sales-compact-pipeline">'+pipelineHtml+'</div></div>'+
-    '<div class="sales-workspace-row"><div class="sales-row-label">Deal Workspace</div><nav class="sales-work-tabs" aria-label="Sale stages">'+
+    '<div class="sales-row-with-label"><div class="sales-row-label">Deal Journey</div><div class="sales-compact-pipeline">'+pipelineHtml+'</div></div>'+
+    '<div class="sales-guidance-line"><strong>What do I do next?</strong><span>Use the red “Your next action” box above. The journey below is status only.</span></div>'+
+    '<details class="sales-workspace-menu"><summary>View / change deal section</summary><div class="sales-workspace-row"><div class="sales-row-label">Deal Sections</div><nav class="sales-work-tabs" aria-label="Deal sections">'+
       tabButton("request","Request")+
       tabButton("sourcing","Sourcing")+
       tabButton("seller","Seller / Viability")+
@@ -14916,7 +14924,7 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
       tabButton("delivery","Delivery")+
       tabButton("invoice","Final Invoice")+
       tabButton("timeline","Timeline")+
-    '</nav></div>'+
+    '</nav></div></details>'+
     panel("request",renderAnyBikeDealMessageBridge(deal)+renderAnyBikeCustomerShippingPreferences(deal))+
     panel("sourcing",(function(){
       const qp=new URLSearchParams();
