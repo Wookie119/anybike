@@ -13676,6 +13676,134 @@ function finalInvoiceReadinessHtml(dealId,data){
   '</div>';
 }
 
+function closeFinalInvoiceVatReview(){
+  document.getElementById("finalVatReviewBackdrop")?.remove();
+}
+
+function finalVatNumber(id){
+  const n=Number(document.getElementById(id)?.value||0);
+  return Number.isFinite(n)?n:0;
+}
+
+async function openFinalInvoiceVatReview(invoiceId,dealId){
+  closeFinalInvoiceVatReview();
+
+  try{
+    const result=await sb.rpc("get_invoice_document_v1",{p_invoice_id:Number(invoiceId)});
+    if(result.error)throw result.error;
+    const invoice=result.data||{};
+    if(String(invoice.invoice_type||"")!=="Final Invoice")throw new Error("This is not a Final Invoice.");
+
+    const verified=String(invoice.vat_treatment_status||"")==="Verified";
+    const treatment=String(invoice.vat_treatment||"");
+    const modal=document.createElement("div");
+    modal.id="finalVatReviewBackdrop";
+    modal.className="final-vat-review-backdrop";
+    modal.onclick=function(event){if(event.target===modal)closeFinalInvoiceVatReview();};
+    modal.innerHTML=
+      '<div class="final-vat-review-modal">'+
+        '<div class="final-vat-review-head"><div><span>Final Invoice · Accounting Review</span><h3>'+escapeAdminHtml(invoice.invoice_number||("Draft Final Invoice #"+invoiceId))+'</h3></div><button type="button" aria-label="Close" onclick="closeFinalInvoiceVatReview()">×</button></div>'+
+        '<div class="final-vat-review-body">'+
+          '<div class="final-vat-review-warning"><strong>Manual accounting review only.</strong><br>AnyBike is not calculating VAT here. Enter the reviewed figures exactly as they should be frozen on the accounting document. Net + VAT must equal gross, and gross must equal the Final Invoice total.</div>'+
+          '<div class="final-vat-review-total"><span>Final Invoice total</span><strong>'+anyBikeDealMoney(invoice.total_gbp||0)+'</strong></div>'+
+          '<div class="final-vat-review-grid">'+
+            '<div class="final-vat-review-field"><label>VAT treatment</label><select id="finalVatTreatment">'+
+              ['Margin Scheme','Full VAT','Zero Rated','Outside Scope','Exempt'].map(function(v){return '<option value="'+v+'" '+(treatment===v?'selected':'')+'>'+v+'</option>';}).join('')+
+            '</select></div>'+
+            '<div class="final-vat-review-field"><label>VAT rate %</label><input id="finalVatRate" type="number" min="0" max="100" step="0.001" value="'+escapeAdminHtml(invoice.vat_rate_percent??20)+'"></div>'+
+            '<div class="final-vat-review-field"><label>Status</label><input value="'+escapeAdminHtml(verified?'Verified':'Check Required')+'" readonly></div>'+
+            '<div class="final-vat-review-field"><label>Net £</label><input id="finalVatNet" type="number" min="0" step="0.01" value="'+(invoice.net_amount_gbp===null||invoice.net_amount_gbp===undefined?'':Number(invoice.net_amount_gbp).toFixed(2))+'"></div>'+
+            '<div class="final-vat-review-field"><label>VAT £</label><input id="finalVatAmount" type="number" min="0" step="0.01" value="'+(invoice.vat_amount_gbp===null||invoice.vat_amount_gbp===undefined?'':Number(invoice.vat_amount_gbp).toFixed(2))+'"></div>'+
+            '<div class="final-vat-review-field"><label>Gross £</label><input id="finalVatGross" type="number" min="0" step="0.01" value="'+Number(invoice.gross_amount_gbp??invoice.total_gbp??0).toFixed(2)+'"></div>'+
+            '<div class="final-vat-review-field wide"><label>Accounting review notes</label><textarea id="finalVatNotes" rows="3" placeholder="Basis/evidence used for this reviewed VAT snapshot"></textarea></div>'+
+          '</div>'+
+          '<div class="final-vat-review-status '+(verified?'good':'')+'" id="finalVatReviewStatus">'+(verified?'✓ VAT snapshot is currently Verified.':'Save the reviewed VAT snapshot before issue.')+'</div>'+
+        '</div>'+
+        '<div class="final-vat-review-actions">'+
+          '<button type="button" onclick="window.open(\'final-invoice.html?invoice='+Number(invoiceId)+'&preview=1\',\'_blank\')">Preview Draft</button>'+
+          '<button type="button" class="primary" id="finalVatSaveButton" onclick="saveFinalInvoiceVatReview('+Number(invoiceId)+','+Number(dealId)+');return false;">Save & Verify VAT Snapshot</button>'+
+          '<button type="button" class="issue" id="finalInvoiceIssueButton" '+(verified?'':'disabled')+' onclick="issueFinalInvoice('+Number(invoiceId)+','+Number(dealId)+');return false;">Issue Final Invoice</button>'+
+        '</div>'+
+      '</div>';
+    document.body.appendChild(modal);
+  }catch(error){
+    console.error("Final Invoice VAT review could not be loaded:",error);
+    alert("Final Invoice VAT review could not be loaded.\n\n"+(error?.message||error));
+  }
+}
+
+async function saveFinalInvoiceVatReview(invoiceId,dealId){
+  const status=document.getElementById("finalVatReviewStatus");
+  const button=document.getElementById("finalVatSaveButton");
+  if(button){button.disabled=true;button.textContent="Saving...";}
+  if(status){status.className="final-vat-review-status";status.textContent="Saving reviewed VAT snapshot...";}
+
+  try{
+    const result=await sb.rpc("admin_set_final_invoice_vat_snapshot_v1",{
+      p_invoice_id:Number(invoiceId),
+      p_vat_treatment:String(document.getElementById("finalVatTreatment")?.value||""),
+      p_vat_rate_percent:finalVatNumber("finalVatRate"),
+      p_net_amount_gbp:finalVatNumber("finalVatNet"),
+      p_vat_amount_gbp:finalVatNumber("finalVatAmount"),
+      p_gross_amount_gbp:finalVatNumber("finalVatGross"),
+      p_notes:String(document.getElementById("finalVatNotes")?.value||"").trim()||null
+    });
+    if(result.error)throw result.error;
+
+    if(status){status.className="final-vat-review-status good";status.textContent="✓ Accounting VAT snapshot Verified. Review the draft, then issue when correct.";}
+    const issue=document.getElementById("finalInvoiceIssueButton");
+    if(issue)issue.disabled=false;
+
+    finalInvoiceReadinessCache.delete(String(dealId));
+    await loadAdminDealQueue();
+  }catch(error){
+    if(status){status.className="final-vat-review-status bad";status.textContent=error?.message||String(error);}
+  }finally{
+    if(button){button.disabled=false;button.textContent="Save & Verify VAT Snapshot";}
+  }
+}
+
+async function issueFinalInvoice(invoiceId,dealId){
+  if(!window.confirm(
+    "Issue this Final Invoice?\n\n"+
+    "This freezes the reviewed accounting document, gives it its Final Invoice number and notifies the customer in Message Centre / bell.\n\n"+
+    "Only continue if the VAT snapshot and all charges have been checked."
+  ))return;
+
+  const button=document.getElementById("finalInvoiceIssueButton");
+  const status=document.getElementById("finalVatReviewStatus");
+  if(button){button.disabled=true;button.textContent="Issuing...";}
+
+  try{
+    const result=await sb.rpc("admin_issue_final_invoice_v1",{p_invoice_id:Number(invoiceId)});
+    if(result.error)throw result.error;
+    const payload=result.data||{};
+
+    if(status){
+      status.className="final-vat-review-status good";
+      status.textContent="✓ Final Invoice issued: "+String(payload.invoice_number||"");
+    }
+
+    finalInvoiceReadinessCache.delete(String(dealId));
+    closeFinalInvoiceVatReview();
+    await loadAdminDealQueue();
+    renderAdminDealQueue();
+
+    setTimeout(function(){
+      const row=document.getElementById("anybike-deal-"+String(dealId));
+      if(row){
+        row.classList.add("open");
+        openAnyBikeDealId=String(dealId);
+        bikeSalesJourneyTab(String(dealId),"invoice",false);
+        row.scrollIntoView({behavior:"smooth",block:"start"});
+      }
+    },50);
+  }catch(error){
+    if(status){status.className="final-vat-review-status bad";status.textContent=error?.message||String(error);}
+    if(button){button.disabled=false;button.textContent="Issue Final Invoice";}
+  }
+}
+
 async function createOrRefreshFinalInvoiceDraft(dealId){
   const id=Number(dealId);
   const key=String(id);
