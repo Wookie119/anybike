@@ -1167,6 +1167,33 @@ function candidateMessageHtml(value){
       '</div>';
   }
 
+  const relativePaymentMatch=text.match(/\/?accounts-documents\.html\?[^\s]+/i);
+  if(relativePaymentMatch){
+    const raw=relativePaymentMatch[0];
+    const url=raw.startsWith("/")?raw:"/"+raw;
+    const cleaned=text.replace(raw,"").replace(/Accounts & Documents:\s*/ig,"").replace(/View Accounts & Documents:\s*/ig,"").replace(/\n{3,}/g,"\n\n").trim();
+    let label="Open Accounts & Documents";
+    try{
+      const parsed=new URL(url,window.location.origin);
+      const amount=Number(parsed.searchParams.get("amount")||0);
+      const payment=String(parsed.searchParams.get("payment")||"").toLowerCase();
+      if(Number.isFinite(amount)&&amount>0){
+        label=(payment==="deposit"?"Pay / Report Deposit ":"Pay / Report Payment ")+money(amount);
+      }
+    }catch(_error){}
+    return safe(cleaned)+
+      '<div style="margin-top:12px"><a href="'+safe(url)+'" style="display:inline-flex;align-items:center;justify-content:center;padding:11px 16px;border-radius:999px;background:#fff;color:#111;font-weight:950;text-decoration:none">'+safe(label)+' →</a></div>';
+  }
+
+  const purchaseMatch=text.match(/\/?my-purchases\.html\?deal=\d+/i);
+  if(purchaseMatch){
+    const raw=purchaseMatch[0];
+    const url=raw.startsWith("/")?raw:"/"+raw;
+    const cleaned=text.replace(raw,"").replace(/View your purchase:\s*/ig,"").replace(/\n{3,}/g,"\n\n").trim();
+    return safe(cleaned)+
+      '<div style="margin-top:12px"><a href="'+safe(url)+'" style="display:inline-flex;align-items:center;justify-content:center;padding:11px 16px;border-radius:999px;background:#fff;color:#111;font-weight:950;text-decoration:none">View Purchase →</a></div>';
+  }
+
   const paymentMatch=text.match(/https:\/\/www\.anybike\.co\.uk\/accounts-documents\.html\?[^\s]+#bank-transfer/i);
   if(paymentMatch){
     const url=paymentMatch[0];
