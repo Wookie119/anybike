@@ -32,7 +32,19 @@
 <div class="kpi"><span>Learning Issues</span><strong id="issueCount">—</strong><small>Watching / suggested</small></div>
 <div class="kpi"><span>Learning Mode</span><strong id="learningMode">—</strong><small>TEST until workflows are proven</small></div>
 </div>
-<section class="panel"><div class="panel-head"><div><h2>Learning controls</h2><p>The advisor can learn from evidence, but procedure changes remain human-approved.</p></div><div class="mode" id="modeBadges"></div></div><div class="learning-note" id="settingsNote">Loading process settings…</div></section>
+<section class="panel">
+  <div class="panel-head">
+    <div><h2>Learning controls</h2><p>Development work is excluded from learning. Use Training only for deliberate end-to-end rehearsals, and Live only for genuine customer trading.</p></div>
+    <div class="mode" id="modeBadges"></div>
+  </div>
+  <div class="learning-note" id="settingsNote">Loading process settings…</div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;padding:14px 18px;border-top:1px solid rgba(255,255,255,.07)">
+    <button type="button" onclick="setLearningMode('DEVELOPMENT')" style="background:#181818;border:1px solid #9ad1ff;color:#fff;border-radius:999px;padding:9px 12px;font-weight:900;cursor:pointer">Development</button>
+    <button type="button" onclick="setLearningMode('TRAINING')" style="background:#181818;border:1px solid #ffd27c;color:#fff;border-radius:999px;padding:9px 12px;font-weight:900;cursor:pointer">Training Run</button>
+    <button type="button" onclick="setLearningMode('LIVE')" style="background:#181818;border:1px solid #67df98;color:#fff;border-radius:999px;padding:9px 12px;font-weight:900;cursor:pointer">Live Trading</button>
+    <a href="docs/ANYBIKE_PROCEDURE_MANUAL_V1.md" target="_blank" style="display:inline-flex;align-items:center;border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:9px 12px;font-weight:900">Open Manual v1 →</a>
+  </div>
+</section>
 <section class="panel">
   <div class="panel-head">
     <div><h2>Sales Go-Live Readiness</h2><p>Critical areas that must be proven before AnyBike relies on the platform for live motorcycle sales.</p></div>
@@ -63,8 +75,10 @@ async function loadProcessHQ(){
   document.getElementById("stepCount").textContent=steps.length;
   document.getElementById("eventCount").textContent=results[3].count||0;
   document.getElementById("issueCount").textContent=observations.filter(function(o){return ["Watching","Suggested"].includes(String(o.status));}).length;
-  document.getElementById("learningMode").textContent=settings.learning_mode||"TEST";
-  document.getElementById("modeBadges").innerHTML='<span class="pill '+((settings.learning_mode||"TEST")==="LIVE"?"live":"test")+'">'+esc(settings.learning_mode||"TEST")+' LEARNING</span><span class="pill safe">'+(settings.advisor_enabled===false?"ADVISOR OFF":"AI ADVISOR ON")+'</span><span class="pill safe">'+(settings.auto_apply_process_changes?"AUTO APPLY ON":"HUMAN APPROVAL REQUIRED")+'</span>';
+  document.getElementById("learningMode").textContent=settings.learning_mode||"DEVELOPMENT";
+  var modeName=settings.learning_mode||"DEVELOPMENT";
+  var modeClass=modeName==="LIVE"?"live":"test";
+  document.getElementById("modeBadges").innerHTML='<span class="pill '+modeClass+'">'+esc(modeName)+'</span><span class="pill safe">'+(settings.advisor_enabled===false?"ADVISOR OFF":"PROCESS ADVISOR ON")+'</span><span class="pill safe">'+(settings.auto_apply_process_changes?"AUTO APPLY ON":"HUMAN APPROVAL REQUIRED")+'</span>';
   document.getElementById("settingsNote").textContent=settings.notes||"";
 
   var readinessCounts={Red:0,Amber:0,Green:0};
@@ -109,6 +123,22 @@ async function loadProcessHQ(){
   }).join(""):'<div class="empty">The advisor is watching process events. Suggestions will appear when there is enough repeated evidence to justify bothering you.</div>';
   document.getElementById("observationList").innerHTML=obsHtml;
 }
+async function setLearningMode(mode){
+  if(mode==="LIVE"){
+    var ok=window.confirm("Switch Process HQ to LIVE TRADING mode?\n\nOnly use this when the actions being recorded are genuine customer business. Development/page testing will then count as live evidence.");
+    if(!ok)return;
+  }
+  if(mode==="TRAINING"){
+    var trainOk=window.confirm("Start a TRAINING run?\n\nUse this only when you are deliberately following the intended process end-to-end. Normal page building should stay in DEVELOPMENT.");
+    if(!trainOk)return;
+  }
+  try{
+    var result=await processClient.rpc("admin_set_process_learning_mode_v1",{p_mode:mode});
+    if(result.error)throw result.error;
+    await loadProcessHQ();
+  }catch(err){alert("Learning mode could not be changed.\n\n"+(err.message||err));}
+}
+
 async function setReadiness(areaKey,status){
   var reason=window.prompt("Optional note for "+status+" readiness:");
   try{
