@@ -130,3 +130,6 @@ Do not remove a shared function until repository search confirms it is not used 
 
 ### Current first-pass status
 The initial Bike Sales overhaul does not delete the old UI or old journey implementation. The original sections remain in `admin-enquiries.html` and are currently hidden or superseded at presentation level only.
+
+
+Preview deployment trigger: 26 September 2026 — sales-overhaul-2026-09-26
