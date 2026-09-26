@@ -2872,7 +2872,10 @@ function customerOfferCardHtml(match){
         ${match.offer_payment_terms_text ? `<div class="my-offer-detail" style="margin-top:8px"><span>Payment terms</span>${safe(match.offer_payment_terms_text)}</div>` : ""}
 
         <div class="my-offer-countdown ${expired ? "expired" : ""}" data-offer-expiry="${safe(expiresAt || "")}">${safe(customerOfferCountdownText(expiresAt))}</div>
-        <p class="my-offer-note">This is an AnyBike offer to you. Seller availability and any motorcycle hold remain separate until the later security stage.</p>
+        <p class="my-offer-note">${match.bike_secured
+          ? "This motorcycle is already secured by AnyBike. Review the Formal Offer and decide whether you wish to proceed."
+          : "This is an AnyBike offer to you. Seller availability and any motorcycle hold remain separate until the later security stage."
+        }</p>
       </div>
     </article>
   `;
@@ -3083,7 +3086,9 @@ function customerOfferModalHtml(match){
           <div class="customer-offer-decision-note" id="customerOfferDecisionStatus">
             ${expired
               ? "This offer has expired. Please contact AnyBike if you would like us to review the motorcycle again."
-              : "Acceptance records your decision and moves this offer to the deposit/payment stage. The motorcycle is not yet secured with the seller."
+              : (match.bike_secured
+                  ? "Acceptance records your decision and moves this offer to the deposit/payment stage. This motorcycle is already secured by AnyBike."
+                  : "Acceptance records your decision and moves this offer to the deposit/payment stage. AnyBike will then complete the final seller security stage.")
             }
           </div>
         </section>
@@ -3247,8 +3252,11 @@ async function customerOfferAccept(matchId){
   const confirmed=window.confirm(
     "Accept this formal AnyBike offer?\n\n"+
     "Total AnyBike offer: "+(buyerMatchMoney(total) || "-")+"\n"+
-    "Deposit due: "+(buyerMatchMoney(deposit) || "£0.00")+"\n\n"+
-    "Acceptance will move this offer to the deposit/payment stage. The motorcycle is not yet secured with the seller."
+    "Deposit due: "+(buyerMatchMoney(deposit) || "£0.00")+"\n"+
+    "Balance after deposit: "+(buyerMatchMoney(Math.max(0,total-deposit)) || "£0.00")+"\n\n"+
+    (match.bike_secured
+      ? "Acceptance will move this offer to the deposit/payment stage. This motorcycle is already secured by AnyBike."
+      : "Acceptance will move this offer to the deposit/payment stage. AnyBike will then complete the final seller security stage.")
   );
 
   if(!confirmed) return;
@@ -3306,8 +3314,11 @@ async function customerOfferAccept(matchId){
 
     alert(
       "Your AnyBike offer has been accepted.\n\n"+
-      "Deposit due: "+depositDue+"\n\n"+
-      "The motorcycle is not yet secured with the seller. AnyBike will continue through the agreed deposit/payment and final seller security stages."
+      "Deposit due: "+depositDue+"\n"+
+      "Balance after deposit: "+(buyerMatchMoney(Math.max(0,total-deposit)) || "£0.00")+"\n\n"+
+      (match.bike_secured
+        ? "The motorcycle is already secured by AnyBike. Your next stage is the agreed deposit/payment process."
+        : "AnyBike will now continue through the agreed deposit/payment and final seller security stages.")
     );
 
     closeCustomerOfferModal();
