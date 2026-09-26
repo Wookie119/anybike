@@ -144,11 +144,11 @@
   }
 
   function brandUrl(make){
-    return "/available-stock.html?make="+encodeURIComponent(make);
+    return "/motorcycle-brand.html?make="+encodeURIComponent(make);
   }
 
   function modelUrl(make,model){
-    return "/available-stock.html?make="+encodeURIComponent(make)+"&model="+encodeURIComponent(model);
+    return "/motorcycle-model.html?make="+encodeURIComponent(make)+"&model="+encodeURIComponent(model);
   }
 
   function buildSignals(viewed){
