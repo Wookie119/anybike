@@ -6338,6 +6338,7 @@ let allEnquiryRecords = [];
 let adminDealQueue = [];
 let adminDealNextActions = [];
 let adminCustomerProfiles = new Map();
+let adminCustomerOnboarding = new Map();
 let adminCustomerHandoverPlans = new Map();
 let adminDealHandoverSelections = new Map();
 let adminPaymentAdviceNumbers = new Map();
@@ -7621,7 +7622,7 @@ async function loadAdminDealCustomerProfiles(){
   try{
     const {data,error}=await sb
       .from("customer_profiles")
-      .select("id,country")
+      .select("id,email,full_name,country,business_name,business_address,phone,buyer_eori_number,preferred_destination_port,preferred_shipping_method,typical_bikes_per_shipment,preferred_shipping_company,shipping_contact_name,shipping_contact_email,shipping_contact_phone,preferred_uk_collection_point,identity_document_path,proof_of_address_document_path,driving_licence_document_path,onboarding_submitted_at")
       .in("id",ids);
 
     if(error){ throw error; }
@@ -7634,6 +7635,163 @@ async function loadAdminDealCustomerProfiles(){
   }
 }
 
+
+function anyBikeBuyerOnboardingForDeal(deal){
+  const customerId=anyBikeDealCustomerId(deal);
+  return customerId ? (adminCustomerOnboarding.get(customerId) || null) : null;
+}
+
+function anyBikeBuyerOnboardingApproved(deal){
+  const row=anyBikeBuyerOnboardingForDeal(deal);
+  return !!row && ["Approved","Approved with Exceptions"].includes(String(row.approval_status||""));
+}
+
+async function loadAdminBuyerOnboarding(){
+  adminCustomerOnboarding=new Map();
+  const customerIds=Array.from(new Set(
+    (adminDealQueue||[]).map(function(deal){ return anyBikeDealCustomerId(deal); }).filter(Boolean)
+  ));
+  if(!customerIds.length) return;
+
+  try{
+    const {data,error}=await sb
+      .from("customer_buyer_onboarding")
+      .select("*")
+      .in("customer_id",customerIds);
+    if(error) throw error;
+    (data||[]).forEach(function(row){
+      adminCustomerOnboarding.set(String(row.customer_id||""),row);
+    });
+  }catch(error){
+    console.warn("Buyer onboarding could not be loaded:",error);
+    adminCustomerOnboarding=new Map();
+  }
+}
+
+function anyBikeOnboardingStatusOptions(current){
+  const values=["Not Provided","Provided","Verified","Not Required","Waived","Review Required","Failed"];
+  return values.map(function(v){
+    return '<option value="'+escapeAdminHtml(v)+'"'+(String(current||"")===v?' selected':'')+'>'+escapeAdminHtml(v)+'</option>';
+  }).join("");
+}
+
+function anyBikeBuyerOnboardingSuggestedStatus(profile,field){
+  if(field==="identity_status") return profile?.identity_document_path ? "Provided" : "Not Provided";
+  if(field==="address_status") return profile?.proof_of_address_document_path ? "Provided" : "Not Provided";
+  if(field==="licence_status") return profile?.driving_licence_document_path ? "Provided" : "Not Required";
+  if(field==="eori_status") return profile?.buyer_eori_number ? "Provided" : "Not Provided";
+  if(field==="shipper_status"){
+    return (profile?.preferred_shipping_company && profile?.preferred_uk_collection_point) ? "Provided" : "Not Provided";
+  }
+  if(field==="business_status") return profile?.business_name ? "Provided" : "Not Required";
+  return field==="source_of_funds_status" ? "Not Required" : "Not Provided";
+}
+
+function renderAnyBikeBuyerOnboardingPanel(deal){
+  const customerId=anyBikeDealCustomerId(deal);
+  if(!customerId){
+    return '<section class="anybike-commercial-panel" style="margin-top:14px"><div class="anybike-commercial-head"><div><span>Buyer Onboarding</span><h4>No linked customer account</h4></div><div class="anybike-commercial-status">REVIEW</div></div><div style="padding:14px;color:#aaa">Link the Deal to a customer account before buyer verification can be stored.</div></section>';
+  }
+
+  const profile=adminCustomerProfiles.get(customerId)||{};
+  const row=adminCustomerOnboarding.get(customerId)||{};
+  const approval=String(row.approval_status||"Not Reviewed");
+  const approved=["Approved","Approved with Exceptions"].includes(approval);
+  const statusFor=function(key){ return String(row[key]||anyBikeBuyerOnboardingSuggestedStatus(profile,key)); };
+  const shipper=[profile.preferred_shipping_company,profile.shipping_contact_name,profile.shipping_contact_email,profile.shipping_contact_phone].filter(Boolean).join(" · ");
+  const route=[profile.preferred_uk_collection_point,profile.preferred_destination_port,profile.preferred_shipping_method,profile.typical_bikes_per_shipment].filter(Boolean).join(" · ");
+
+  return '<section class="anybike-commercial-panel" style="margin-top:14px" id="buyer-onboarding-panel-'+escapeAdminHtml(customerId)+'">'+
+    '<div class="anybike-commercial-head"><div><span>Buyer Onboarding</span><h4>Reusable buyer verification & purchase clearance</h4></div>'+
+    '<div class="anybike-commercial-status">'+escapeAdminHtml(approval)+'</div></div>'+
+    '<div style="padding:12px 16px;background:'+(approved?'rgba(42,159,89,.08)':'rgba(237,28,36,.06)')+';border-bottom:1px solid rgba(255,255,255,.08);font-size:12px;line-height:1.5;color:#bbb">'+
+      (approved
+        ? '✓ Buyer may proceed to purchase. “Approved with Exceptions” is a valid controlled override when a check is genuinely not relevant or has been accepted by staff.'
+        : 'The Formal Offer can still be prepared and sent. Before AnyBike commits to buying the motorcycle, approve the buyer or use “Approved with Exceptions” with a reason. “Blocked” prevents purchase.')+
+    '</div>'+
+    '<div class="anybike-commercial-grid">'+
+      '<div class="anybike-commercial-field"><label>Approval</label><select id="buyer-onboarding-approval-'+customerId+'">'+
+        ["Not Reviewed","In Progress","Approved","Approved with Exceptions","Blocked","Review Required"].map(function(v){return '<option value="'+v+'"'+(approval===v?' selected':'')+'>'+v+'</option>';}).join("")+
+      '</select></div>'+
+      '<div class="anybike-commercial-field"><label>Review Level</label><select id="buyer-onboarding-review-'+customerId+'"><option value="Standard"'+(String(row.review_level||"Standard")==="Standard"?' selected':'')+'>Standard</option><option value="Enhanced"'+(String(row.review_level||"")==="Enhanced"?' selected':'')+'>Enhanced</option></select></div>'+
+      '<div class="anybike-commercial-field"><label>Photo ID / Passport</label><select id="buyer-onboarding-identity-'+customerId+'">'+anyBikeOnboardingStatusOptions(statusFor("identity_status"))+'</select>'+(profile.identity_document_path?'<button type="button" style="margin-top:7px" onclick="openBuyerOnboardingDocument(\''+customerId+'\',\'identity_document_path\');return false;">View Document</button>':'')+'</div>'+
+      '<div class="anybike-commercial-field"><label>Proof of Address</label><select id="buyer-onboarding-address-'+customerId+'">'+anyBikeOnboardingStatusOptions(statusFor("address_status"))+'</select>'+(profile.proof_of_address_document_path?'<button type="button" style="margin-top:7px" onclick="openBuyerOnboardingDocument(\''+customerId+'\',\'proof_of_address_document_path\');return false;">View Document</button>':'')+'</div>'+
+      '<div class="anybike-commercial-field"><label>Driving Licence</label><select id="buyer-onboarding-licence-'+customerId+'">'+anyBikeOnboardingStatusOptions(statusFor("licence_status"))+'</select>'+(profile.driving_licence_document_path?'<button type="button" style="margin-top:7px" onclick="openBuyerOnboardingDocument(\''+customerId+'\',\'driving_licence_document_path\');return false;">View Document</button>':'')+'</div>'+
+      '<div class="anybike-commercial-field"><label>EORI / Customs ID</label><select id="buyer-onboarding-eori-'+customerId+'">'+anyBikeOnboardingStatusOptions(statusFor("eori_status"))+'</select><small style="display:block;color:#888;margin-top:5px">'+escapeAdminHtml(profile.buyer_eori_number||"Not supplied")+'</small></div>'+
+      '<div class="anybike-commercial-field"><label>Shipper / UK Handover</label><select id="buyer-onboarding-shipper-'+customerId+'">'+anyBikeOnboardingStatusOptions(statusFor("shipper_status"))+'</select><small style="display:block;color:#888;margin-top:5px">'+escapeAdminHtml(shipper||"No saved shipper")+(route?'<br>'+escapeAdminHtml(route):'')+'</small></div>'+
+      '<div class="anybike-commercial-field"><label>Test Bank Payment</label><select id="buyer-onboarding-test-payment-'+customerId+'">'+anyBikeOnboardingStatusOptions(statusFor("test_payment_status"))+'</select></div>'+
+      '<div class="anybike-commercial-field"><label>Sanctions / Identity Screening</label><select id="buyer-onboarding-sanctions-'+customerId+'">'+anyBikeOnboardingStatusOptions(statusFor("sanctions_status"))+'</select></div>'+
+      '<div class="anybike-commercial-field"><label>Business Verification</label><select id="buyer-onboarding-business-'+customerId+'">'+anyBikeOnboardingStatusOptions(statusFor("business_status"))+'</select></div>'+
+      '<div class="anybike-commercial-field"><label>Source of Funds (only when needed)</label><select id="buyer-onboarding-funds-'+customerId+'">'+anyBikeOnboardingStatusOptions(statusFor("source_of_funds_status"))+'</select></div>'+
+      '<div class="anybike-commercial-field"><label>Test Payment Amount £</label><input id="buyer-onboarding-test-amount-'+customerId+'" type="number" min="0" step="0.01" value="'+escapeAdminHtml(row.test_payment_amount_gbp??"")+'" placeholder="e.g. 1.00"></div>'+
+      '<div class="anybike-commercial-field"><label>Test Payment Reference</label><input id="buyer-onboarding-test-ref-'+customerId+'" value="'+escapeAdminHtml(row.test_payment_reference||"")+'" placeholder="Bank reference"></div>'+
+      '<div class="anybike-commercial-field" style="grid-column:1/-1"><label>Override / Exception Reason</label><textarea id="buyer-onboarding-override-'+customerId+'" placeholder="Required when using Approved with Exceptions or Waived checks">'+escapeAdminHtml(row.override_reason||"")+'</textarea></div>'+
+      '<div class="anybike-commercial-field" style="grid-column:1/-1"><label>Internal Notes</label><textarea id="buyer-onboarding-notes-'+customerId+'" placeholder="Verification notes, payer name, shipper confirmation, concerns...">'+escapeAdminHtml(row.internal_notes||"")+'</textarea></div>'+
+    '</div>'+
+    '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:14px 16px;border-top:1px solid #2a2a2a;background:#0d0d0d">'+
+      '<button type="button" onclick="saveBuyerOnboarding(\''+customerId+'\');return false;">Save Buyer Onboarding</button>'+
+      '<a href="admin-customers.html?customer='+encodeURIComponent(customerId)+'" style="color:#fff;font-weight:800">Open Customer 360 →</a>'+
+      '<span style="color:'+(approved?'#8cffb1':'#ffb36b')+';font-weight:900">'+(approved?'✓ PURCHASE CLEARANCE AVAILABLE':'Purchase clearance not yet approved')+'</span>'+
+    '</div>'+
+  '</section>';
+}
+
+async function openBuyerOnboardingDocument(customerId,field){
+  const profile=adminCustomerProfiles.get(String(customerId||""))||{};
+  const path=String(profile[field]||"");
+  if(!path){ alert("No document is stored for this item."); return; }
+  const {data,error}=await sb.storage.from("deal-files").createSignedUrl(path,300);
+  if(error || !data?.signedUrl){
+    alert("Could not open the document.\n\n"+(error?.message||"Unknown error"));
+    return;
+  }
+  window.open(data.signedUrl,"_blank","noopener");
+}
+
+async function saveBuyerOnboarding(customerId){
+  const id=String(customerId||"").trim();
+  if(!id) return;
+  const value=function(prefix){ return String(document.getElementById(prefix+"-"+id)?.value||"").trim(); };
+  const approval=value("buyer-onboarding-approval");
+  const overrideReason=value("buyer-onboarding-override");
+
+  if(approval==="Approved with Exceptions" && !overrideReason){
+    alert("Add a short reason for Approved with Exceptions so the decision is auditable.");
+    return;
+  }
+
+  const amountRaw=value("buyer-onboarding-test-amount");
+  const payload={
+    customer_id:id,
+    approval_status:approval,
+    review_level:value("buyer-onboarding-review")||"Standard",
+    identity_status:value("buyer-onboarding-identity"),
+    address_status:value("buyer-onboarding-address"),
+    licence_status:value("buyer-onboarding-licence"),
+    eori_status:value("buyer-onboarding-eori"),
+    shipper_status:value("buyer-onboarding-shipper"),
+    test_payment_status:value("buyer-onboarding-test-payment"),
+    sanctions_status:value("buyer-onboarding-sanctions"),
+    business_status:value("buyer-onboarding-business"),
+    source_of_funds_status:value("buyer-onboarding-funds"),
+    test_payment_amount_gbp:amountRaw===""?null:Number(amountRaw),
+    test_payment_reference:value("buyer-onboarding-test-ref")||null,
+    test_payment_received_at:value("buyer-onboarding-test-payment")==="Verified" ? new Date().toISOString() : null,
+    override_reason:overrideReason||null,
+    internal_notes:value("buyer-onboarding-notes")||null,
+    approved_at:["Approved","Approved with Exceptions"].includes(approval)?new Date().toISOString():null,
+    last_reviewed_at:new Date().toISOString(),
+    updated_at:new Date().toISOString()
+  };
+
+  const {error}=await sb.from("customer_buyer_onboarding").upsert(payload,{onConflict:"customer_id"});
+  if(error){
+    alert("Buyer onboarding could not be saved.\n\n"+error.message);
+    return;
+  }
+  await loadAdminBuyerOnboarding();
+  renderAdminDealQueue();
+}
 
 function anyBikeDealCustomerId(deal){
   const enquiry=anyBikeDealSourceEnquiry(deal);
@@ -10477,6 +10635,7 @@ async function loadAdminDealQueue(){
     await loadDealShippingRoutes();
     await loadCompanyExportIdentity();
     await loadAdminDealCustomerProfiles();
+    await loadAdminBuyerOnboarding();
     await loadAdminCustomerHandoverData();
 
     try{
@@ -13933,6 +14092,13 @@ function bikeSalesEffectivePrimary(action,flags){
     return "Deposit Due";
   }
 
+  /* Buyer onboarding is deliberately flexible: the purchase gate opens for
+     either Approved or Approved with Exceptions. It does not prevent AnyBike
+     from sourcing or sending a Formal Offer. */
+  if(!flags.onboardingApproved){
+    return "Review Buyer Onboarding";
+  }
+
   /* After acceptance/deposit, honour remaining purchase gates before the
      motorcycle is finally secured with the supplier. */
   if(!flags.shippingDone && backendPrimary.includes("Shipping")){
@@ -13972,6 +14138,10 @@ function bikeSalesNextActionTarget(action,deal,flags){
 
   if(!flags.hasMotorcycle){
     return {tab:"sourcing",selector:"#anybike-deal-"+dealId+" .sales-tab-panel[data-tab=\"sourcing\"]"};
+  }
+  if(primary.includes("Onboarding")){
+    const customerId=anyBikeDealCustomerId(deal);
+    return {tab:"seller",selector:"#buyer-onboarding-panel-"+customerId};
   }
   if(primary.includes("VAT")){
     return {tab:"seller",selector:"#anybike-deal-"+dealId+" .anybike-financial-panel"};
@@ -14020,6 +14190,7 @@ function openBikeSalesNextTask(dealId){
     sellerDone:!!action.seller_check_ok,
     vatDone:!!action.vat_ok,
     shippingDone:!!action.shipping_ok,
+    onboardingApproved:anyBikeBuyerOnboardingApproved(deal),
     depositRequired:Number(action.deposit_required_gbp||0),
     depositOutstanding:Number(action.deposit_outstanding_gbp||0),
     offerAccepted:["Payment / Deposit","Operations","Shipping","Completed"].includes(String(deal.deal_stage||""))
@@ -14039,6 +14210,7 @@ function bikeSalesJourneyInstruction(action,flags){
   const primary=String(action?.primary_action||"");
   if(primary==="Deposit Due") return "Waiting for the buyer to pay or report the required deposit. When it is reported, verify the bank receipt.";
   if(primary==="Customer Balance Due") return "The Formal Offer has been accepted and the motorcycle is secured. Issue the Proforma / balance request, then record and allocate cleared customer funds.";
+  if(primary==="Review Buyer Onboarding") return "Review the buyer setup before AnyBike commits money to the motorcycle. Approve normally, or use Approved with Exceptions with a reason when a check is safely not relevant.";
   if(primary==="Seller / Viability") return "Review the seller, confirmed purchase price, VAT treatment and commercial viability before preparing the customer offer.";
   if(primary.includes("Seller")) return "Confirm the motorcycle is still available and the seller price is correct before progressing.";
   if(primary.includes("VAT")) return "Verify the VAT treatment before AnyBike commits to purchase.";
@@ -14830,7 +15002,8 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
   const finalInvoiceIssued=(adminDealInvoices.get(dealId)||[]).some(function(inv){
     return String(inv.invoice_type||"")==="Final Invoice" && String(inv.invoice_status||"")==="Issued";
   });
-  const flags={depositOutstanding,depositRequired,sellerDone,shippingDone,vatDone,secured,hasMotorcycle,offerAccepted,customerPaid,collected,complete,finalInvoiceIssued};
+  const onboardingApproved=anyBikeBuyerOnboardingApproved(deal);
+  const flags={depositOutstanding,depositRequired,sellerDone,shippingDone,vatDone,secured,hasMotorcycle,offerAccepted,customerPaid,collected,complete,finalInvoiceIssued,onboardingApproved};
   primary=bikeSalesEffectivePrimary(action,flags);
   const effectiveAction=Object.assign({},action||{},{primary_action:primary});
   const current=bikeSalesJourneyStage(effectiveAction,deal,flags);
@@ -14938,7 +15111,7 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
         '<span>These tools keep this sale and buyer context while you source.</span></div>'+
         '<div class="anybike-deal-bike-list">'+bikeRows+'</div>'+renderAnyBikeDealCandidatePanel(deal);
     })())+
-    panel("seller",renderAnyBikeDealCommercialSetup(deal)+renderAnyBikeDealExportTaxIdentity(deal)+renderAnyBikeDealSellerCheckPanel(deal)+renderAnyBikeDealFinancialPanel(deal))+
+    panel("seller",renderAnyBikeBuyerOnboardingPanel(deal)+renderAnyBikeDealCommercialSetup(deal)+renderAnyBikeDealExportTaxIdentity(deal)+renderAnyBikeDealSellerCheckPanel(deal)+renderAnyBikeDealFinancialPanel(deal))+
     panel("offer",renderDealOfferWorkspace(deal,bikes)+(!offerAccepted?'<div class="sales-what-next"><strong>What happens next?</strong><span>When the formal offer is sent, the buyer reviews the price and terms. Their response returns to AnyBike through the Message Centre and bell.</span></div>':'')+'<details class="sales-payment-advanced"><summary>Stage override / exceptional use only</summary>'+stageControl+'</details>')+
     panel("payment",(function(){
       const depositComplete=depositRequired<=0 || depositOutstanding<=0.009;
