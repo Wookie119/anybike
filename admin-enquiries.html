@@ -4099,6 +4099,17 @@ body{
 
 /* DEAL 360 — SELLER PAYMENT LEDGER */
 .anybike-seller-payment{margin:0 16px 14px;padding:14px;border:1px solid rgba(237,28,36,.5);border-radius:10px;background:#101010}
+.anybike-po-card{margin:0 16px 14px;border:1px solid rgba(42,159,89,.48);border-radius:10px;background:#0f1410;overflow:hidden}
+.anybike-po-head{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:12px 14px;border-bottom:1px solid rgba(42,159,89,.25)}
+.anybike-po-head span{display:block;color:#8cffb1;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.06em}
+.anybike-po-head strong{display:block;margin-top:4px;color:#fff;font-size:15px}
+.anybike-po-head button{margin:0;border:0;border-radius:999px;background:#1d6f36;color:#fff;padding:9px 12px;font-weight:900;cursor:pointer}
+.anybike-po-summary{display:grid;grid-template-columns:repeat(4,minmax(120px,1fr));gap:8px;padding:12px 14px}
+.anybike-po-summary>div{padding:10px;border:1px solid rgba(255,255,255,.08);border-radius:8px;background:#111}
+.anybike-po-summary span{display:block;color:#8f9bad;font-size:10px;font-weight:900;text-transform:uppercase}
+.anybike-po-summary strong{display:block;margin-top:4px;color:#fff;font-size:13px}
+.anybike-po-details{display:none;padding:0 14px 14px;color:#bbb;font-size:12px;line-height:1.5}
+.anybike-po-details.open{display:block}
 .anybike-seller-payment-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px}.anybike-seller-payment-head span{display:block;color:#ff5158;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.06em}.anybike-seller-payment-head h5{margin:4px 0 0;color:#fff;font-size:15px}.anybike-seller-payment-badge{padding:6px 9px;border-radius:999px;font-size:11px;font-weight:900;white-space:nowrap}.anybike-seller-payment-badge.paid{background:#143b25;color:#c6ffd9;border:1px solid #2a9f59}.anybike-seller-payment-badge.due{background:#5d1518;color:#ffd2d4;border:1px solid #d71920}.anybike-seller-payment-badge.neutral{background:#252525;color:#ddd;border:1px solid #444}
 .anybike-seller-payment-metrics{display:grid;grid-template-columns:repeat(4,minmax(120px,1fr));gap:9px;margin-bottom:12px}.anybike-seller-payment-metrics>div{padding:10px;border:1px solid rgba(255,255,255,.1);border-radius:8px;background:#151515}.anybike-seller-payment-metrics span{display:block;color:#9aa3ae;font-size:11px;font-weight:900;text-transform:uppercase}.anybike-seller-payment-metrics strong{display:block;margin-top:5px;color:#fff;font-size:13px}
 .anybike-seller-payment-action{display:grid;grid-template-columns:repeat(4,minmax(140px,1fr));gap:10px;align-items:end}.anybike-seller-payment-field label{display:block;margin-bottom:5px;color:#9aa3ae;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.05em}.anybike-seller-payment-field input,.anybike-seller-payment-field select,.anybike-seller-payment-field textarea{width:100%;box-sizing:border-box;border:1px solid #353535;border-radius:8px;background:#111;color:#fff;padding:10px 11px;font:inherit}.anybike-seller-payment-field textarea{min-height:44px;resize:vertical}.anybike-seller-payment-action button{margin:0;border:0;border-radius:8px;background:#d71920;color:#fff;padding:11px 14px;font-weight:900;cursor:pointer}.anybike-seller-payment-action button:disabled{background:#555;color:#ddd;cursor:not-allowed;opacity:.7}.anybike-seller-payment-note{margin-top:10px;color:#bfc5cc;font-size:11px;line-height:1.45}.anybike-seller-payment-note strong{color:#fff}
@@ -6354,6 +6365,7 @@ let dealCustomerReceiptBusy = new Set();
 let dealCustomerAllocationBusy = new Set();
 let dealBalanceRequestBusy = new Set();
 let adminDealSellerPaymentStatus = [];
+let adminDealPurchaseOrders = new Map();
 let adminDealSellerConfirmations = new Map();
 let adminDealSellerDisplay = new Map();
 let selectedCombinedProformaDeals = new Set();
@@ -10545,6 +10557,18 @@ async function loadAdminDealQueue(){
     adminDealPaymentStatus = [];
   }
 
+  adminDealPurchaseOrders = new Map();
+  try{
+    const poResult = await sb.rpc("admin_get_deal_purchase_orders_v1",{p_deal_id:null});
+    if(poResult.error){ throw poResult.error; }
+    (poResult.data || []).forEach(function(po){
+      adminDealPurchaseOrders.set(String(po.deal_motorcycle_id || ""),po);
+    });
+  }catch(error){
+    console.warn("Deal Purchase Orders could not be loaded:",error);
+    adminDealPurchaseOrders = new Map();
+  }
+
   adminDealCustomerAccounts = new Map();
   await Promise.all(adminDealQueue.map(async function(deal){
     const dealId = Number(deal.deal_id);
@@ -11215,6 +11239,41 @@ function anyBikeSellerPaymentBadge(row){
   return {className:"due",label:"Seller Deposit Due"};
 }
 
+
+function renderAnyBikePurchaseOrderCard(dealMotorcycleId){
+  const id=Number(dealMotorcycleId);
+  const po=adminDealPurchaseOrders.get(String(id));
+  if(!po){ return ""; }
+
+  const bike=[po.year,po.make,po.model,po.variant].filter(Boolean).join(" ") || "Motorcycle";
+  const vat=[po.vat_treatment_snapshot,po.vat_treatment_status_snapshot].filter(Boolean).join(" · ") || "Not recorded";
+
+  return '<div class="anybike-po-card">'+
+    '<div class="anybike-po-head"><div><span>Purchase Order</span><strong>'+escapeAdminHtml(po.purchase_order_number || ("PO · Motorcycle #"+id))+'</strong></div>'+
+    '<button type="button" onclick="toggleAnyBikePurchaseOrder('+id+');return false;">View Purchase Order</button></div>'+
+    '<div class="anybike-po-summary">'+
+      '<div><span>Supplier</span><strong>'+escapeAdminHtml(po.supplier_name || "Not recorded")+'</strong></div>'+
+      '<div><span>Purchase Price</span><strong>'+anyBikeDealMoney(po.purchase_gross_gbp || 0)+'</strong></div>'+
+      '<div><span>Seller Deposit Paid</span><strong>'+anyBikeDealMoney(po.seller_deposit_paid_gbp || 0)+'</strong></div>'+
+      '<div><span>Supplier Balance</span><strong>'+anyBikeDealMoney(po.supplier_balance_due_gbp || 0)+'</strong></div>'+
+    '</div>'+
+    '<div class="anybike-po-details" id="deal-po-details-'+id+'">'+
+      '<strong style="display:block;color:#fff;margin-bottom:6px">'+escapeAdminHtml(bike)+'</strong>'+
+      (po.registration ? 'Registration: '+escapeAdminHtml(po.registration)+'<br>' : '')+
+      (po.vin ? 'VIN: '+escapeAdminHtml(po.vin)+'<br>' : '')+
+      'Total paid to supplier: <strong style="color:#fff">'+anyBikeDealMoney(po.supplier_paid_gbp || 0)+'</strong><br>'+
+      'VAT: <strong style="color:#fff">'+escapeAdminHtml(vat)+'</strong><br>'+
+      'Status: <strong style="color:#fff">'+escapeAdminHtml(po.purchase_order_status || "Draft")+'</strong>'+
+    '</div>'+
+  '</div>';
+}
+
+function toggleAnyBikePurchaseOrder(dealMotorcycleId){
+  const el=document.getElementById("deal-po-details-"+Number(dealMotorcycleId));
+  if(!el){ return; }
+  el.classList.toggle("open");
+}
+
 function renderAnyBikeSellerPaymentLedger(dealMotorcycleId, c){
   const id = Number(dealMotorcycleId);
   const row = anyBikeDealSellerPaymentForMotorcycle(id);
@@ -11623,6 +11682,7 @@ function renderAnyBikeDealSellerCheckPanel(deal){
           </div>
         </details>
 
+        ${renderAnyBikePurchaseOrderCard(dealMotorcycleId)}
         ${renderAnyBikeSellerPaymentLedger(dealMotorcycleId, c)}
 
         <div id="deal-seller-status-${dealMotorcycleId}" class="anybike-seller-statusline${depositOutstanding > 0 ? " error" : ""}">${escapeAdminHtml(sellerStatusMessage)}</div>
