@@ -1036,12 +1036,18 @@ function money(gbp){
   const value = Number(gbp);
   if(!Number.isFinite(value) || value <= 0) return "Preis auf Anfrage";
 
+  if(window.AnyBikeCurrency && typeof window.AnyBikeCurrency.formatGBP==="function"){
+    return window.AnyBikeCurrency.formatGBP(value,currentCurrency());
+  }
+
   const currency = currentCurrency();
   const rate = currencyRates[currency] || 1;
+  const locale = currency==="GBP" ? "en-GB" : (currency==="USD" ? "en-US" : "de-DE");
 
-  return (value * rate).toLocaleString("de-DE",{
+  return (value * rate).toLocaleString(locale,{
     style:"currency",
     currency:currency,
+    currencyDisplay:"symbol",
     maximumFractionDigits:0
   });
 }
@@ -1086,7 +1092,7 @@ async function loadStock(){
           <div class="stock-copy">
             <h3>${escapeHtml(title)}</h3>
             <div class="stock-meta">${escapeHtml(mileageText)}</div>
-            <div class="stock-price">${escapeHtml(money(bike.price_gbp))}</div>
+            <div class="stock-price" data-price-gbp="${escapeHtml(bike.price_gbp)}">${escapeHtml(money(bike.price_gbp))}</div>
           </div>
         </a>
       `;
@@ -1124,6 +1130,6 @@ document.addEventListener("DOMContentLoaded",function(){
 })();
 </script>
 
-<script src="../public-header.js?v=12020"></script>
+<script src="../public-header.js?v=12021"></script>
 </body>
 </html>
