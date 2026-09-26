@@ -130,27 +130,31 @@
       viewed.map(function(b){return b.make}).filter(Boolean),
       function(v){return String(v).toLowerCase()}
     ).slice(0,8);
-    const models=uniqueBy(
-      viewed.map(function(b){return [b.make,b.model].filter(Boolean).join(" ")}).filter(Boolean),
-      function(v){return String(v).toLowerCase()}
-    ).slice(0,10);
+    const modelRows=[];
+    const modelSeen=new Set();
+    viewed.forEach(function(b){
+      const make=String(b.make||"").trim();
+      const model=String(b.model||"").trim();
+      if(!make||!model)return;
+      const key=(make+"|"+model).toLowerCase();
+      if(modelSeen.has(key)||modelRows.length>=10)return;
+      modelSeen.add(key);
+      modelRows.push({make:make,model:model,label:make+" "+model});
+    });
 
-    const signalHtml=(makes.length||models.length)
+    const signalHtml=(makes.length||modelRows.length)
       ? '<div class="signal-bar" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:24px 0">'+
           '<div class="signal-card" style="border:1px solid #2d2d2d;border-radius:18px;padding:20px;background:#111">'+
             '<strong>Brands attracting interest</strong>'+
             '<div class="area-list" style="margin-top:12px">'+
-              (makes.length?makes.map(function(m){return '<a class="interest-tag" href="/motorcycle-brand.html?make='+encodeURIComponent(m)+'">'+esc(m)+'</a>'}).join(""):'<span>Building from real viewing activity</span>')+
+              (makes.length?makes.map(function(m){return '<a class="interest-tag" style="display:inline-flex;align-items:center;padding:7px 10px;border:1px solid rgba(255,255,255,.12);border-radius:999px;background:#181818;color:inherit;text-decoration:none;font-weight:850" href="/motorcycle-brand.html?make='+encodeURIComponent(m)+'" aria-label="Explore '+esc(m)+' motorcycles">'+esc(m)+'</a>'}).join(""):'<span>Building from real viewing activity</span>')+
             '</div>'+
           '</div>'+
           '<div class="signal-card" style="border:1px solid #2d2d2d;border-radius:18px;padding:20px;background:#111">'+
             '<strong>Models attracting interest</strong>'+
             '<div class="area-list" style="margin-top:12px">'+
-              (models.length?models.map(function(m){
-  var parts=String(m||"").split(" ");
-  var make=parts.shift()||"";
-  var model=parts.join(" ");
-  return '<a class="interest-tag" href="/motorcycle-model.html?make='+encodeURIComponent(make)+'&model='+encodeURIComponent(model)+'">'+esc(m)+'</a>';
+              (modelRows.length?modelRows.map(function(row){
+  return '<a class="interest-tag" style="display:inline-flex;align-items:center;padding:7px 10px;border:1px solid rgba(255,255,255,.12);border-radius:999px;background:#181818;color:inherit;text-decoration:none;font-weight:850" href="/motorcycle-model.html?make='+encodeURIComponent(row.make)+'&model='+encodeURIComponent(row.model)+'" aria-label="Explore '+esc(row.label)+' motorcycles">'+esc(row.label)+'</a>';
 }).join(""):'<span>Building from real viewing activity</span>')+
             '</div>'+
           '</div>'+
