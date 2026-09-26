@@ -7696,7 +7696,8 @@ function renderAnyBikeBuyerOnboardingPanel(deal){
   const profile=adminCustomerProfiles.get(customerId)||{};
   const row=adminCustomerOnboarding.get(customerId)||{};
   const approval=String(row.approval_status||"Not Reviewed");
-  const approved=["Approved","Approved with Exceptions"].includes(approval);
+  const accountStatus=String(row.account_status||"Active");
+  const approved=["Approved","Approved with Exceptions"].includes(approval) && accountStatus!=="Stopped";
   const statusFor=function(key){ return String(row[key]||anyBikeBuyerOnboardingSuggestedStatus(profile,key)); };
   const shipper=[profile.preferred_shipping_company,profile.shipping_contact_name,profile.shipping_contact_email,profile.shipping_contact_phone].filter(Boolean).join(" · ");
   const route=[profile.preferred_uk_collection_point,profile.preferred_destination_port,profile.preferred_shipping_method,profile.typical_bikes_per_shipment].filter(Boolean).join(" · ");
@@ -7710,6 +7711,7 @@ function renderAnyBikeBuyerOnboardingPanel(deal){
         : 'The Formal Offer can still be prepared and sent. Before AnyBike commits to buying the motorcycle, approve the buyer or use “Approved with Exceptions” with a reason. “Blocked” prevents purchase.')+
     '</div>'+
     '<div class="anybike-commercial-grid">'+
+      '<div class="anybike-commercial-field"><label>Buyer Account Status</label><select id="buyer-onboarding-account-status-'+customerId+'"><option value="Active"'+(accountStatus==="Active"?' selected':'')+'>Active</option><option value="On Hold"'+(accountStatus==="On Hold"?' selected':'')+'>On Hold</option><option value="Stopped"'+(accountStatus==="Stopped"?' selected':'')+'>Stopped</option></select><small style="display:block;color:#888;margin-top:5px">Stopped blocks offer acceptance and purchase progression until staff reactivates the account.</small></div>'+
       '<div class="anybike-commercial-field"><label>Approval</label><select id="buyer-onboarding-approval-'+customerId+'">'+
         ["Not Reviewed","In Progress","Approved","Approved with Exceptions","Blocked","Review Required"].map(function(v){return '<option value="'+v+'"'+(approval===v?' selected':'')+'>'+v+'</option>';}).join("")+
       '</select></div>'+
@@ -7725,6 +7727,7 @@ function renderAnyBikeBuyerOnboardingPanel(deal){
       '<div class="anybike-commercial-field"><label>Source of Funds (only when needed)</label><select id="buyer-onboarding-funds-'+customerId+'">'+anyBikeOnboardingStatusOptions(statusFor("source_of_funds_status"))+'</select></div>'+
       '<div class="anybike-commercial-field"><label>Test Payment Amount £</label><input id="buyer-onboarding-test-amount-'+customerId+'" type="number" min="0" step="0.01" value="'+escapeAdminHtml(row.test_payment_amount_gbp??"")+'" placeholder="e.g. 1.00"></div>'+
       '<div class="anybike-commercial-field"><label>Test Payment Reference</label><input id="buyer-onboarding-test-ref-'+customerId+'" value="'+escapeAdminHtml(row.test_payment_reference||"")+'" placeholder="Bank reference"></div>'+
+      '<div class="anybike-commercial-field" style="grid-column:1/-1"><label>Account Hold / Stop Reason</label><textarea id="buyer-onboarding-stop-reason-'+customerId+'" placeholder="Explain clearly what the customer must do before the account can continue">'+escapeAdminHtml(row.account_stop_reason||"")+'</textarea></div>'+
       '<div class="anybike-commercial-field" style="grid-column:1/-1"><label>Override / Exception Reason</label><textarea id="buyer-onboarding-override-'+customerId+'" placeholder="Required when using Approved with Exceptions or Waived checks">'+escapeAdminHtml(row.override_reason||"")+'</textarea></div>'+
       '<div class="anybike-commercial-field" style="grid-column:1/-1"><label>Internal Notes</label><textarea id="buyer-onboarding-notes-'+customerId+'" placeholder="Verification notes, payer name, shipper confirmation, concerns...">'+escapeAdminHtml(row.internal_notes||"")+'</textarea></div>'+
     '</div>'+
@@ -7753,7 +7756,14 @@ async function saveBuyerOnboarding(customerId){
   if(!id) return;
   const value=function(prefix){ return String(document.getElementById(prefix+"-"+id)?.value||"").trim(); };
   const approval=value("buyer-onboarding-approval");
+  const accountStatus=value("buyer-onboarding-account-status")||"Active";
+  const stopReason=value("buyer-onboarding-stop-reason");
   const overrideReason=value("buyer-onboarding-override");
+
+  if(accountStatus==="Stopped" && !stopReason){
+    alert("Add a clear reason before stopping the buyer account. This reason is shown to the customer.");
+    return;
+  }
 
   if(approval==="Approved with Exceptions" && !overrideReason){
     alert("Add a short reason for Approved with Exceptions so the decision is auditable.");
@@ -7764,6 +7774,9 @@ async function saveBuyerOnboarding(customerId){
   const payload={
     customer_id:id,
     approval_status:approval,
+    account_status:accountStatus,
+    account_stop_reason:accountStatus==="Stopped"||accountStatus==="On Hold" ? (stopReason||null) : null,
+    account_stopped_at:accountStatus==="Stopped" ? new Date().toISOString() : null,
     review_level:value("buyer-onboarding-review")||"Standard",
     identity_status:value("buyer-onboarding-identity"),
     address_status:value("buyer-onboarding-address"),
@@ -7784,11 +7797,51 @@ async function saveBuyerOnboarding(customerId){
     updated_at:new Date().toISOString()
   };
 
+  const previous=adminCustomerOnboarding.get(id)||{};
   const {error}=await sb.from("customer_buyer_onboarding").upsert(payload,{onConflict:"customer_id"});
   if(error){
     alert("Buyer onboarding could not be saved.\n\n"+error.message);
     return;
   }
+
+  if(String(previous.account_status||"Active")!==accountStatus){
+    const notification=
+      accountStatus==="Stopped"
+        ? {
+            customer_id:id,
+            title:"Your AnyBike account has been placed on stop",
+            message:stopReason || "Your AnyBike account needs review before you can continue with a purchase. Please open My AnyBike for your next action.",
+            icon:"⛔",
+            type:"buyer_account_stopped",
+            link:"/customer-dashboard.html#buyer-setup",
+            is_read:false
+          }
+        : accountStatus==="On Hold"
+          ? {
+              customer_id:id,
+              title:"Your AnyBike account is on hold",
+              message:stopReason || "We need to confirm some details before progressing your next purchase. Please open My AnyBike for your next action.",
+              icon:"⏸️",
+              type:"buyer_account_hold",
+              link:"/customer-dashboard.html#buyer-setup",
+              is_read:false
+            }
+          : {
+              customer_id:id,
+              title:"Your AnyBike account is active",
+              message:"Your account can continue through the AnyBike buying process. Open My AnyBike to see your next action.",
+              icon:"✅",
+              type:"buyer_account_active",
+              link:"/customer-dashboard.html#buyer-setup",
+              is_read:false
+            };
+
+    const notifyResult=await sb.from("customer_notifications").insert(notification);
+    if(notifyResult.error){
+      console.warn("Customer account-status notification could not be created:",notifyResult.error);
+    }
+  }
+
   await loadAdminBuyerOnboarding();
   renderAdminDealQueue();
 }
@@ -14095,6 +14148,12 @@ function bikeSalesEffectivePrimary(action,flags){
   /* Buyer onboarding is deliberately flexible: the purchase gate opens for
      either Approved or Approved with Exceptions. It does not prevent AnyBike
      from sourcing or sending a Formal Offer. */
+  if(flags.accountStopped){
+    return "Buyer Account Stopped";
+  }
+  if(flags.accountOnHold){
+    return "Buyer Account On Hold";
+  }
   if(!flags.onboardingApproved){
     return "Review Buyer Onboarding";
   }
@@ -14140,7 +14199,7 @@ function bikeSalesNextActionTarget(action,deal,flags){
   if(!flags.hasMotorcycle){
     return {tab:"sourcing",selector:"#anybike-deal-"+dealId+" .sales-tab-panel[data-tab=\"sourcing\"]"};
   }
-  if(primary.includes("Onboarding")){
+  if(primary.includes("Onboarding") || primary.includes("Account Stopped") || primary.includes("Account On Hold")){
     const customerId=anyBikeDealCustomerId(deal);
     return {tab:"seller",selector:"#buyer-onboarding-panel-"+customerId};
   }
@@ -14183,6 +14242,8 @@ function openBikeSalesNextTask(dealId){
   const customerAccount=adminDealCustomerAccounts.get(id)||{};
   const dealValue=anyBikeAccountNumber(customerAccount,["deal_value_gbp"],deal.buyer_value_gbp);
   const balance=anyBikeAccountNumber(customerAccount,["customer_balance_due_gbp"],dealValue);
+  const onboardingRow=anyBikeBuyerOnboardingForDeal(deal)||{};
+  const accountStatus=String(onboardingRow.account_status||"Active");
   const flags={
     hasMotorcycle:bikes.length>0,
     collected:String(deal.deal_status||deal.status||"").toLowerCase()==="collected",
@@ -14192,6 +14253,8 @@ function openBikeSalesNextTask(dealId){
     vatDone:!!action.vat_ok,
     shippingDone:!!action.shipping_ok,
     onboardingApproved:anyBikeBuyerOnboardingApproved(deal),
+    accountStopped:accountStatus==="Stopped",
+    accountOnHold:accountStatus==="On Hold",
     depositRequired:Number(action.deposit_required_gbp||0),
     depositOutstanding:Number(action.deposit_outstanding_gbp||0),
     offerAccepted:["Payment / Deposit","Operations","Shipping","Completed"].includes(String(deal.deal_stage||""))
@@ -14211,6 +14274,8 @@ function bikeSalesJourneyInstruction(action,flags){
   const primary=String(action?.primary_action||"");
   if(primary==="Deposit Due") return "Waiting for the buyer to pay or report the required deposit. When it is reported, verify the bank receipt.";
   if(primary==="Customer Balance Due") return "The Formal Offer has been accepted and the motorcycle is secured. Issue the Proforma / balance request, then record and allocate cleared customer funds.";
+  if(primary==="Buyer Account Stopped") return "This buyer account is stopped. Review the reason and required action before allowing any purchase to continue.";
+  if(primary==="Buyer Account On Hold") return "This buyer account is on hold. Resolve the outstanding item or reactivate it before purchase progression.";
   if(primary==="Review Buyer Onboarding") return "Review the buyer setup before AnyBike commits money to the motorcycle. Approve normally, or use Approved with Exceptions with a reason when a check is safely not relevant.";
   if(primary==="Seller / Viability") return "Review the seller, confirmed purchase price, VAT treatment and commercial viability before preparing the customer offer.";
   if(primary.includes("Seller")) return "Confirm the motorcycle is still available and the seller price is correct before progressing.";
@@ -15004,7 +15069,9 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
     return String(inv.invoice_type||"")==="Final Invoice" && String(inv.invoice_status||"")==="Issued";
   });
   const onboardingApproved=anyBikeBuyerOnboardingApproved(deal);
-  const flags={depositOutstanding,depositRequired,sellerDone,shippingDone,vatDone,secured,hasMotorcycle,offerAccepted,customerPaid,collected,complete,finalInvoiceIssued,onboardingApproved};
+  const onboardingRow=anyBikeBuyerOnboardingForDeal(deal)||{};
+  const accountStatus=String(onboardingRow.account_status||"Active");
+  const flags={depositOutstanding,depositRequired,sellerDone,shippingDone,vatDone,secured,hasMotorcycle,offerAccepted,customerPaid,collected,complete,finalInvoiceIssued,onboardingApproved,accountStopped:accountStatus==="Stopped",accountOnHold:accountStatus==="On Hold"};
   primary=bikeSalesEffectivePrimary(action,flags);
   const effectiveAction=Object.assign({},action||{},{primary_action:primary});
   const current=bikeSalesJourneyStage(effectiveAction,deal,flags);
