@@ -8600,13 +8600,61 @@ function dealOfferBackdropClick(event){
   }
 }
 
+function dealOfferPortValues(){
+  return Array.from(document.getElementById("dealOfferDeliveryDestination")?.options || [])
+    .map(function(option){ return String(option.value || ""); })
+    .filter(function(value){ return value && value!=="__other__"; });
+}
+
+function setDealOfferDestinationValue(value){
+  const destination=document.getElementById("dealOfferDeliveryDestination");
+  const custom=document.getElementById("dealOfferDeliveryCustomDestination");
+  if(!destination || !custom) return;
+  const text=String(value || "").trim();
+  if(!text){
+    destination.value="";
+    custom.value="";
+  }else if(dealOfferPortValues().includes(text)){
+    destination.value=text;
+    custom.value="";
+  }else{
+    destination.value="__other__";
+    custom.value=text;
+  }
+  updateDealOfferDestinationState();
+}
+
+function getDealOfferDestinationValue(){
+  const destination=document.getElementById("dealOfferDeliveryDestination");
+  const custom=document.getElementById("dealOfferDeliveryCustomDestination");
+  if(!destination) return "";
+  return destination.value==="__other__"
+    ? String(custom?.value || "").trim()
+    : String(destination.value || "").trim();
+}
+
+function updateDealOfferDestinationState(){
+  const destination=document.getElementById("dealOfferDeliveryDestination");
+  const custom=document.getElementById("dealOfferDeliveryCustomDestination");
+  if(custom){
+    custom.style.display=destination?.value==="__other__" ? "block" : "none";
+  }
+}
+
 function updateDealOfferDeliveryState(){
   const type=document.getElementById("dealOfferDeliveryType")?.value || "";
   const destination=document.getElementById("dealOfferDeliveryDestination");
+  const custom=document.getElementById("dealOfferDeliveryCustomDestination");
+  const disabled=type==="Buyer Arranged / Collection";
   if(destination){
-    destination.disabled=type==="Buyer Arranged / Collection";
-    if(destination.disabled){ destination.value=""; }
+    destination.disabled=disabled;
+    if(disabled){ destination.value=""; }
   }
+  if(custom){
+    custom.disabled=disabled;
+    if(disabled){ custom.value=""; custom.style.display="none"; }
+  }
+  if(!disabled) updateDealOfferDestinationState();
 }
 
 function updateDealOfferDepositState(){
@@ -8645,7 +8693,15 @@ function dealCandidateForMotorcycle(dealMotorcycleId){
   }) || null;
 }
 
+function dealMotorcycleIsSecured(dealMotorcycleId){
+  const row=(adminDealMotorcycles || []).find(function(item){
+    return Number(item.deal_motorcycle_id || item.id)===Number(dealMotorcycleId);
+  });
+  return !!row?.bike_secured;
+}
+
 function candidateOfferGuardMessage(dealMotorcycleId){
+  if(dealMotorcycleIsSecured(dealMotorcycleId)){ return ""; }
   const candidate=dealCandidateForMotorcycle(dealMotorcycleId);
   if(!candidate){ return ""; }
 
@@ -8716,7 +8772,7 @@ async function openDealOfferModal(dealMotorcycleId){
     ""
   ).trim();
   document.getElementById("dealOfferDeliveryType").value=preferredUkHandover ? "Delivery to UK Port" : "Buyer Arranged / Collection";
-  document.getElementById("dealOfferDeliveryDestination").value=preferredUkHandover;
+  setDealOfferDestinationValue(preferredUkHandover);
   document.getElementById("dealOfferDepositRequired").checked=true;
   document.getElementById("dealOfferDepositAmount").value="";
   document.getElementById("dealOfferPaymentTerms").value="Deposit payable immediately on acceptance. The remaining balance must be received in cleared funds before collection of the motorcycle from the seller.";
@@ -8747,7 +8803,7 @@ async function openDealOfferModal(dealMotorcycleId){
       document.getElementById("dealOfferSaleBasis").value=offer.sale_basis || "Trade / Export Sale";
       document.getElementById("dealOfferTerms").value=offer.offer_terms_text || "";
       document.getElementById("dealOfferDeliveryType").value=offer.delivery_type || "Buyer Arranged / Collection";
-      document.getElementById("dealOfferDeliveryDestination").value=offer.delivery_destination || "";
+      setDealOfferDestinationValue(offer.delivery_destination || "");
       document.getElementById("dealOfferDepositRequired").checked=!!offer.deposit_required_at_acceptance;
       document.getElementById("dealOfferDepositAmount").value=Number(offer.deposit_amount_gbp || 0).toFixed(2);
       document.getElementById("dealOfferPaymentTerms").value=offer.payment_terms_text || "";
@@ -8768,7 +8824,7 @@ async function openDealOfferModal(dealMotorcycleId){
           : offer.offer_status;
 
       if(status){
-        status.textContent="Existing formal offer loaded.";
+        status.textContent="Existing formal offer loaded. Review any changes, then Save Prepared Offer or Send AnyBike Offer.";
       }
     }else if(status){
       status.textContent="Ready to prepare a formal offer from Commercial Setup.";
@@ -8808,7 +8864,7 @@ async function saveDealOffer(){
   const saleBasis=(document.getElementById("dealOfferSaleBasis")?.value || "").trim();
   const offerTerms=(document.getElementById("dealOfferTerms")?.value || "").trim();
   const deliveryType=(document.getElementById("dealOfferDeliveryType")?.value || "").trim();
-  const deliveryDestination=(document.getElementById("dealOfferDeliveryDestination")?.value || "").trim();
+  const deliveryDestination=getDealOfferDestinationValue();
   const depositRequired=!!document.getElementById("dealOfferDepositRequired")?.checked;
   const depositAmount=dealOfferNumber("dealOfferDepositAmount");
   const paymentTerms=(document.getElementById("dealOfferPaymentTerms")?.value || "").trim();
@@ -8868,7 +8924,7 @@ async function saveDealOffer(){
     if(status){
       status.className="deal-offer-status success";
       status.textContent=
-        "Prepared internally • Customer total "+
+        "✓ Saved successfully — Prepared internally • Customer total "+
         dealOfferMoney(row?.customer_total_gbp ?? (motorcyclePrice+anybikeFee+deliveryCharge))+
         " • AnyBike sourcing fee "+
         dealOfferMoney(row?.anybike_fee_gbp ?? anybikeFee)+
@@ -8889,7 +8945,12 @@ async function saveDealOffer(){
   }finally{
     if(button){
       button.disabled=false;
-      button.textContent="Save Prepared Offer";
+      button.textContent=status?.classList.contains("success") ? "✓ Saved" : "Save Prepared Offer";
+      if(button.textContent==="✓ Saved"){
+        setTimeout(function(){
+          if(button && !button.disabled) button.textContent="Save Prepared Offer";
+        },1800);
+      }
     }
   }
 }
@@ -18144,24 +18205,52 @@ document.querySelector(".admin-page-content .wrap")?.classList.add("sales-view-a
 
           <label>
             <span>Destination</span>
-            <input id="dealOfferDeliveryDestination" type="text" list="dealOfferUkPorts" placeholder="Choose a UK port or enter a full UK address">
-            <datalist id="dealOfferUkPorts">
-              <option value="Aberdeen"></option><option value="Belfast"></option><option value="Bristol / Avonmouth"></option>
-              <option value="Cairnryan"></option><option value="Cardiff"></option><option value="Dover"></option>
-              <option value="Falmouth"></option><option value="Felixstowe"></option><option value="Fishguard"></option>
-              <option value="Grangemouth"></option><option value="Great Yarmouth"></option><option value="Greenock"></option>
-              <option value="Harwich"></option><option value="Heysham"></option><option value="Holyhead"></option>
-              <option value="Hull"></option><option value="Immingham"></option><option value="Ipswich"></option>
-              <option value="Larne"></option><option value="Leith"></option><option value="Liverpool"></option>
-              <option value="London Gateway"></option><option value="Milford Haven"></option><option value="Newcastle / Port of Tyne"></option>
-              <option value="Newhaven"></option><option value="Pembroke"></option><option value="Plymouth"></option>
-              <option value="Poole"></option><option value="Portbury"></option><option value="Portsmouth"></option>
-              <option value="Purfleet"></option><option value="Ramsgate"></option><option value="Sheerness"></option>
-              <option value="Southampton"></option><option value="Sunderland"></option><option value="Swansea"></option>
-              <option value="Teesport"></option><option value="Thamesport"></option><option value="Tilbury"></option>
-              <option value="Warrenpoint"></option>
-            </datalist>
-            <small style="display:block;color:#888;margin-top:5px">Prefilled from the Deal/customer shipping preference where available. You can still type a UK address.</small>
+            <select id="dealOfferDeliveryDestination" onchange="updateDealOfferDestinationState()">
+              <option value="">Choose destination…</option>
+              <option value="Aberdeen">Aberdeen</option>
+              <option value="Belfast">Belfast</option>
+              <option value="Bristol / Avonmouth">Bristol / Avonmouth</option>
+              <option value="Cairnryan">Cairnryan</option>
+              <option value="Cardiff">Cardiff</option>
+              <option value="Dover">Dover</option>
+              <option value="Falmouth">Falmouth</option>
+              <option value="Felixstowe">Felixstowe</option>
+              <option value="Fishguard">Fishguard</option>
+              <option value="Grangemouth">Grangemouth</option>
+              <option value="Great Yarmouth">Great Yarmouth</option>
+              <option value="Greenock">Greenock</option>
+              <option value="Harwich">Harwich</option>
+              <option value="Heysham">Heysham</option>
+              <option value="Holyhead">Holyhead</option>
+              <option value="Hull">Hull</option>
+              <option value="Immingham">Immingham</option>
+              <option value="Ipswich">Ipswich</option>
+              <option value="Larne">Larne</option>
+              <option value="Leith">Leith</option>
+              <option value="Liverpool">Liverpool</option>
+              <option value="London Gateway">London Gateway</option>
+              <option value="Milford Haven">Milford Haven</option>
+              <option value="Newcastle / Port of Tyne">Newcastle / Port of Tyne</option>
+              <option value="Newhaven">Newhaven</option>
+              <option value="Pembroke">Pembroke</option>
+              <option value="Plymouth">Plymouth</option>
+              <option value="Poole">Poole</option>
+              <option value="Portbury">Portbury</option>
+              <option value="Portsmouth">Portsmouth</option>
+              <option value="Purfleet">Purfleet</option>
+              <option value="Ramsgate">Ramsgate</option>
+              <option value="Sheerness">Sheerness</option>
+              <option value="Southampton">Southampton</option>
+              <option value="Sunderland">Sunderland</option>
+              <option value="Swansea">Swansea</option>
+              <option value="Teesport">Teesport</option>
+              <option value="Thamesport">Thamesport</option>
+              <option value="Tilbury">Tilbury</option>
+              <option value="Warrenpoint">Warrenpoint</option>
+              <option value="__other__">Other UK address / handover point…</option>
+            </select>
+            <input id="dealOfferDeliveryCustomDestination" type="text" placeholder="Enter full UK address / handover point" style="display:none;margin-top:8px">
+            <small style="display:block;color:#888;margin-top:5px">Full UK port list. Prefilled from the Deal/customer shipping preference where available.</small>
           </label>
         </div>
       </section>
