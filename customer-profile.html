@@ -196,6 +196,16 @@
       font-weight:800;
     }
 
+
+    .onboarding-status{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 18px}
+    .onboarding-pill{padding:8px 11px;border-radius:999px;background:#1b1b1b;border:1px solid var(--line);font-size:12px;font-weight:900}
+    .onboarding-pill.good{border-color:rgba(54,211,126,.55);color:#7af0a8}
+    .onboarding-pill.warn{border-color:rgba(237,28,36,.5);color:#ff8d92}
+    .upload-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .upload-row input[type="file"]{padding:10px}
+    .file-state{font-size:12px;color:var(--muted);font-weight:800}
+    .file-state.good{color:var(--green)}
+    .risk-note{margin-top:14px;padding:13px 14px;border-radius:12px;background:rgba(237,28,36,.07);border:1px solid rgba(237,28,36,.24);color:#d5d5d5;line-height:1.5;font-size:13px}
     .hidden{display:none!important}
 
     @media(max-width:760px){
@@ -393,9 +403,82 @@
           </div>
         </section>
 
+        <section class="card" id="buyer-onboarding">
+          <h2>Buyer Setup & Verification</h2>
+          <p class="card-intro">Complete as much as you can once. We reuse these details for future purchases so a motorcycle is not bought before there is a workable buyer, payment and shipping route. AnyBike can approve sensible exceptions where a check is not relevant.</p>
+
+          <div id="buyerOnboardingStatus" class="onboarding-status"></div>
+
+          <div class="grid">
+            <div>
+              <label for="buyerEori">EORI / Customs ID</label>
+              <input id="buyerEori" placeholder="If your business or country uses one">
+            </div>
+
+            <div>
+              <label for="destinationPort">Usual destination port</label>
+              <input id="destinationPort" placeholder="e.g. Mombasa, Tema, Jebel Ali">
+            </div>
+
+            <div>
+              <label for="shippingMethod">Usual shipping method</label>
+              <select id="shippingMethod">
+                <option value="">Select / Not sure</option>
+                <option>FCL — Full Container Load</option>
+                <option>Shared / Consolidated Container</option>
+                <option>LCL — Less than Container Load</option>
+                <option>RoRo</option>
+                <option>Air Freight</option>
+                <option>Other / Varies</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="typicalQuantity">Typical motorcycles per shipment</label>
+              <select id="typicalQuantity">
+                <option value="">Select / Varies</option>
+                <option>1 motorcycle</option>
+                <option>2 motorcycles</option>
+                <option>3–5 motorcycles</option>
+                <option>6–10 motorcycles</option>
+                <option>Filling a container</option>
+                <option>Varies</option>
+              </select>
+            </div>
+
+            <div class="full">
+              <label>Passport / photo ID</label>
+              <div class="upload-row">
+                <input id="identityDocument" type="file" accept=".pdf,image/jpeg,image/png,image/webp">
+                <span id="identityDocumentState" class="file-state">No document uploaded</span>
+              </div>
+            </div>
+
+            <div class="full">
+              <label>Proof of address</label>
+              <div class="upload-row">
+                <input id="addressDocument" type="file" accept=".pdf,image/jpeg,image/png,image/webp">
+                <span id="addressDocumentState" class="file-state">No document uploaded</span>
+              </div>
+            </div>
+
+            <div class="full">
+              <label>Driving licence <span style="color:#999;font-weight:normal">(optional / only where useful)</span></label>
+              <div class="upload-row">
+                <input id="licenceDocument" type="file" accept=".pdf,image/jpeg,image/png,image/webp">
+                <span id="licenceDocumentState" class="file-state">No document uploaded</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="risk-note">
+            AnyBike may also ask for a small test bank payment before the first purchase. This helps us verify the paying account. We will never ask you to send a large payment simply to complete onboarding.
+          </div>
+        </section>
+
         <section class="card">
           <h2>Shipping Preferences</h2>
-          <p class="card-intro">Optional details that can speed up future motorcycle purchases and export arrangements.</p>
+          <p class="card-intro">Your normal shipper is stored for future purchases. We will still confirm the route for each Deal before AnyBike commits to buying the motorcycle.</p>
 
           <div class="grid">
             <div>
@@ -512,9 +595,82 @@
       setValue("shippingContactEmail", profile?.shipping_contact_email);
       setValue("shippingContactPhone", profile?.shipping_contact_phone);
       setValue("collectionPoint", profile?.preferred_uk_collection_point);
+      setValue("buyerEori", profile?.buyer_eori_number);
+      setValue("destinationPort", profile?.preferred_destination_port);
+      setValue("shippingMethod", profile?.preferred_shipping_method);
+      setValue("typicalQuantity", profile?.typical_bikes_per_shipment);
+
+      setDocumentState("identityDocumentState", profile?.identity_document_path);
+      setDocumentState("addressDocumentState", profile?.proof_of_address_document_path);
+      setDocumentState("licenceDocumentState", profile?.driving_licence_document_path);
+
+      await loadBuyerOnboardingStatus();
 
       document.getElementById("loadingBox").classList.add("hidden");
       document.getElementById("profilePage").classList.remove("hidden");
+    }
+
+    function setDocumentState(id,path){
+      const el=document.getElementById(id);
+      if(!el) return;
+      if(path){
+        el.textContent="✓ Document on file";
+        el.className="file-state good";
+      }else{
+        el.textContent="No document uploaded";
+        el.className="file-state";
+      }
+    }
+
+    async function loadBuyerOnboardingStatus(){
+      const host=document.getElementById("buyerOnboardingStatus");
+      if(!host || !currentUser) return;
+
+      const {data,error}=await sb
+        .from("customer_buyer_onboarding")
+        .select("approval_status,identity_status,address_status,licence_status,eori_status,shipper_status,test_payment_status")
+        .eq("customer_id",currentUser.id)
+        .maybeSingle();
+
+      if(error){
+        host.innerHTML='<span class="onboarding-pill warn">Verification status unavailable</span>';
+        return;
+      }
+
+      if(!data){
+        host.innerHTML='<span class="onboarding-pill warn">Setup not yet reviewed by AnyBike</span>';
+        return;
+      }
+
+      const approved=["Approved","Approved with Exceptions"].includes(String(data.approval_status||""));
+      host.innerHTML=
+        '<span class="onboarding-pill '+(approved?"good":"warn")+'">'+safeOnboarding(data.approval_status||"Not Reviewed")+'</span>'+
+        '<span class="onboarding-pill">ID: '+safeOnboarding(data.identity_status||"Not Provided")+'</span>'+
+        '<span class="onboarding-pill">Address: '+safeOnboarding(data.address_status||"Not Provided")+'</span>'+
+        '<span class="onboarding-pill">Shipper: '+safeOnboarding(data.shipper_status||"Not Provided")+'</span>'+
+        '<span class="onboarding-pill">Test payment: '+safeOnboarding(data.test_payment_status||"Not Provided")+'</span>';
+    }
+
+    function safeOnboarding(value){
+      return String(value||"").replace(/[<>&"']/g,function(ch){
+        return {"<":"&lt;",">":"&gt;","&":"&amp;","\"":"&quot;","'":"&#039;"}[ch];
+      });
+    }
+
+    function cleanFileName(name){
+      return String(name||"document").replace(/[^a-zA-Z0-9._-]+/g,"-").slice(-120);
+    }
+
+    async function uploadOnboardingDocument(inputId,kind){
+      const input=document.getElementById(inputId);
+      const file=input?.files?.[0];
+      if(!file) return null;
+      if(file.size>10*1024*1024) throw new Error("Each onboarding document must be 10MB or smaller.");
+
+      const path="customers/"+currentUser.id+"/onboarding/"+kind+"-"+Date.now()+"-"+cleanFileName(file.name);
+      const {error}=await sb.storage.from("deal-files").upload(path,file,{upsert:false});
+      if(error) throw error;
+      return path;
     }
 
     async function saveProfile(){
@@ -552,8 +708,27 @@
         shipping_contact_name: value("shippingContactName") || null,
         shipping_contact_email: value("shippingContactEmail") || null,
         shipping_contact_phone: value("shippingContactPhone") || null,
-        preferred_uk_collection_point: value("collectionPoint") || null
+        preferred_uk_collection_point: value("collectionPoint") || null,
+        buyer_eori_number: value("buyerEori") || null,
+        preferred_destination_port: value("destinationPort") || null,
+        preferred_shipping_method: document.getElementById("shippingMethod").value || null,
+        typical_bikes_per_shipment: document.getElementById("typicalQuantity").value || null,
+        onboarding_submitted_at: new Date().toISOString()
       };
+
+      try{
+        const identityPath=await uploadOnboardingDocument("identityDocument","identity");
+        const addressPath=await uploadOnboardingDocument("addressDocument","address");
+        const licencePath=await uploadOnboardingDocument("licenceDocument","licence");
+        if(identityPath) profile.identity_document_path=identityPath;
+        if(addressPath) profile.proof_of_address_document_path=addressPath;
+        if(licencePath) profile.driving_licence_document_path=licencePath;
+      }catch(uploadError){
+        saveBtn.disabled=false;
+        saveBtn.textContent="Save Profile";
+        showMsg("Document upload failed: "+uploadError.message,false);
+        return;
+      }
 
       const { error } = await sb
         .from("customer_profiles")
@@ -572,7 +747,14 @@
         profile.preferred_language
       );
 
-      showMsg("Profile saved successfully.");
+      setDocumentState("identityDocumentState", profile.identity_document_path || document.getElementById("identityDocumentState")?.classList.contains("good"));
+      setDocumentState("addressDocumentState", profile.proof_of_address_document_path || document.getElementById("addressDocumentState")?.classList.contains("good"));
+      setDocumentState("licenceDocumentState", profile.driving_licence_document_path || document.getElementById("licenceDocumentState")?.classList.contains("good"));
+      document.getElementById("identityDocument").value="";
+      document.getElementById("addressDocument").value="";
+      document.getElementById("licenceDocument").value="";
+      await loadBuyerOnboardingStatus();
+      showMsg("Profile and buyer setup saved successfully.");
     }
 
     document.getElementById("saveBtn").addEventListener("click", saveProfile);
