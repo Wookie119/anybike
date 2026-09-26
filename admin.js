@@ -279,6 +279,31 @@ return res.text();
 
   if(topbar){
     topbar.innerHTML = html;
+
+    /*
+      Top navigation overhaul:
+      reuse the existing search, bell, notification panel and profile controls,
+      but move them into the full-width header row loaded from admin-sidebar.html.
+      This changes presentation only; auth/search/notification behaviour stays shared.
+    */
+    var headerSearchSlot=document.getElementById("adminHeaderSearchSlot");
+    var headerActionsSlot=document.getElementById("adminHeaderActionsSlot");
+    var loadedSearch=topbar.querySelector(".admin-search");
+    var loadedActions=topbar.querySelector(".admin-actions");
+    var loadedNotifications=topbar.querySelector(".admin-notification-panel");
+
+    if(headerSearchSlot && loadedSearch){
+      headerSearchSlot.appendChild(loadedSearch);
+    }
+
+    if(headerActionsSlot && loadedActions){
+      headerActionsSlot.appendChild(loadedActions);
+    }
+
+    if(headerActionsSlot && loadedNotifications){
+      headerActionsSlot.appendChild(loadedNotifications);
+    }
+
     setupAdminSearch();
     setupAdminIdentity();
 
