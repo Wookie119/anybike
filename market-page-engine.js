@@ -171,7 +171,7 @@
 
   function signalsHtml(signals){
     return '<div class="ab-signal-grid">'+
-      '<div class="ab-signal-card"><strong>Brands attracting interest</strong><p>Calculated from real motorcycle viewing activity associated with this market.</p><div class="ab-tags">'+
+      '<div class="ab-signal-card"><strong>Brands attracting interest</strong><p>Calculated from real motorcycle viewing activity associated with this market. Guest activity is included without identifying individual visitors.</p><div class="ab-tags">'+
       signals.makes.map(function(make){return '<a class="ab-tag" href="'+brandUrl(make)+'">'+esc(make)+'</a>';}).join("")+
       '</div></div>'+
       '<div class="ab-signal-card"><strong>Models attracting interest</strong><p>These links are generated from real demand and are ready to connect to future Brand → Model → Variant research pages.</p><div class="ab-tags">'+
@@ -183,17 +183,17 @@
     const signals=buildSignals(viewed);
     let groups='';
     if(viewed.length){
-      groups+='<div class="ab-stock-label"><strong>Recently viewed in '+esc(name)+'</strong><span>Real recent viewing activity associated with this market. Individual visitors are never identified.</span></div>'+
+      groups+='<div class="ab-stock-label"><strong>Recently viewed in '+esc(name)+'</strong><span>Real viewing activity from this market, including guest visits. Individual visitors are never identified.</span></div>'+
         viewed.slice(0,8).map(function(b){return bikeCard(b,"View this motorcycle");}).join("");
     }
     if(similar.length){
-      groups+='<div class="ab-stock-label"><strong>Similar motorcycles currently available</strong><span>Current UK motorcycles selected from the makes, models, years, engine sizes and budgets attracting interest above.</span></div>'+
+      groups+='<div class="ab-stock-label"><strong>Similar motorcycles currently available</strong><span>Current UK motorcycles selected from real viewing and search activity in this market, including guest activity.</span></div>'+
         similar.slice(0,8).map(function(b){return bikeCard(b,"View similar motorcycle");}).join("");
     }
     return '<section class="ab-market-section" id="countryBuyerInterestSection" data-anybike-market-engine="demand">'+
       '<div class="ab-market-wrap"><div class="ab-market-head"><div class="ab-market-eyebrow">Buyer interest in '+esc(name)+'</div>'+
       '<h2>Motorcycles attracting attention in '+esc(name)+'.</h2>'+
-      '<p>Real motorcycles viewed from this market appear first. Where suitable, the selection continues with similar motorcycles currently available in the United Kingdom.</p></div>'+
+      '<p>Motorcycles actually viewed from this market appear first. Guest views are included, and market searches also influence the similar motorcycles shown underneath. Individual visitors are never identified.</p></div>'+
       signalsHtml(signals)+'<div class="ab-stock-grid">'+groups+'</div>'+
       '<div class="ab-market-actions"><a class="ab-market-btn primary" href="/available-stock.html">Browse available motorcycles</a><a class="ab-market-btn" href="/buy-motorcycles.html">Ask AnyBike to source another motorcycle</a></div>'+
       '</div></section>';
