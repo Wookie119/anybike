@@ -9112,6 +9112,7 @@ function openNewDealModal(){
   ["newDealOriginReference","newDealOriginSubject","newDealOriginMessage","newDealContactName","newDealBusinessName","newDealEmail","newDealPhone","newDealCountry","newDealDestinationCountry","newDealReqMake","newDealReqModel","newDealReqVariant","newDealReqYearFrom","newDealReqYearTo","newDealReqMileageMax","newDealReqBudgetMax","newDealReqNotes"].forEach(function(id){const el=document.getElementById(id);if(el)el.value="";});
   const received=document.getElementById("newDealOriginReceivedAt"); if(received) received.value=newDealLocalDateTimeValue(new Date());
   const buyerType=document.getElementById("newDealBuyerType"); if(buyerType) buyerType.value="Unknown / Confirm Later";
+  const vatBasis=document.getElementById("newDealVatBasis"); if(vatBasis) vatBasis.value="Not Yet Confirmed";
   const category=document.getElementById("newDealReqCategory"); if(category) category.value="";
   const quantity=document.getElementById("newDealReqQuantity"); if(quantity) quantity.value="1";
   const status=document.getElementById("newDealStatus"); if(status){status.className="anybike-new-deal-status";status.textContent="";}
@@ -9143,7 +9144,10 @@ async function createCommunicationDeal(){
       p_destination_country:String(document.getElementById("newDealDestinationCountry")?.value||"").trim()||null,p_requirement_notes:notes
     });
     if(result.error)throw result.error;const payload=result.data||{},dealId=Number(payload.deal_id);if(!Number.isFinite(dealId))throw new Error("Deal created without a Deal ID.");
-    closeNewDealModal();await loadEnquiries();alert((payload.deal_number||("Deal #"+dealId))+" created.\n\nSource: "+channel+"\nMotorcycle secured: NO\nDeposit requested: NO\nNext: add Candidate Motorcycles.");setTimeout(function(){openConvertedEnquiryDeal(dealId);},200);
+    const vatBasis=String(document.getElementById("newDealVatBasis")?.value||"Not Yet Confirmed").trim()||"Not Yet Confirmed";
+    const vatResult=await sb.rpc("admin_set_deal_initial_vat_basis_v1",{p_deal_id:dealId,p_vat_basis:vatBasis});
+    if(vatResult.error)throw vatResult.error;
+    closeNewDealModal();await loadEnquiries();alert((payload.deal_number||("Deal #"+dealId))+" created.\n\nSource: "+channel+"\nVAT Basis: "+vatBasis+"\nMotorcycle secured: NO\nDeposit requested: NO\nNext: add Candidate Motorcycles.");setTimeout(function(){openConvertedEnquiryDeal(dealId);},200);
   }catch(error){console.error("Communication-first Deal could not be created:",error);fail("Could not create Deal: "+(error?.message||error));}
   finally{newDealCreateBusy=false;if(button){button.disabled=false;button.textContent="Start Sale";}}
 }
@@ -17374,6 +17378,14 @@ document.querySelector(".admin-page-content .wrap")?.classList.add("sales-view-a
           </label>
           <label><span>Country</span><input id="newDealCountry" type="text"></label>
           <label><span>Destination Country</span><input id="newDealDestinationCountry" type="text"></label>
+          <label class="span2"><span>VAT Basis</span>
+            <select id="newDealVatBasis">
+              <option value="Not Yet Confirmed">Not Yet Confirmed</option>
+              <option value="VAT Qualifying">VAT Qualifying</option>
+              <option value="Margin Scheme">Margin Scheme</option>
+            </select>
+            <small>Used to pre-fill the later VAT treatment. It must still be verified before purchase.</small>
+          </label>
         </div>
       </section>
       <section class="anybike-new-deal-section">
