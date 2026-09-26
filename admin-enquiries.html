@@ -11024,7 +11024,52 @@ async function loadAdminDealQueue(){
   }));
 
   renderAdminDealQueue();
+  await recordBikeSalesProcessSnapshots();
   await loadAcceptedFormalOffersAwaitingDeal();
+}
+
+function anyBikeProcessKeyForNextAction(primary){
+  const action=String(primary||"");
+  if(["Find Potential Matches","Waiting for Buyer Response","Select Motorcycle for Sale"].includes(action)) return "sourcing";
+  if(action==="Check Seller Availability") return "seller-availability";
+  if(action==="Seller / Viability") return "seller-viability";
+  if(action==="Send Formal Offer") return "formal-offer";
+  if(action==="Deposit Due") return "customer-deposit";
+  if(action.includes("Buyer Account")) return "account-control";
+  if(action==="Review Buyer Onboarding") return "buyer-purchase-clearance";
+  if(action==="Confirm UK Handover Plan") return "shipping-handover";
+  if(action==="Ready to Purchase") return "secure-motorcycle";
+  if(action==="Customer Balance Due") return "customer-balance";
+  if(action==="Start Purchase & Collection") return "collection";
+  if(action==="Complete Delivery / Handover") return "shipping-handover";
+  if(action==="Issue Final Invoice" || action==="Sale Complete") return "final-invoice";
+  return "business-principles";
+}
+
+async function recordBikeSalesProcessSnapshots(){
+  const jobs=(adminDealQueue||[]).map(async function(deal){
+    const dealId=Number(deal?.deal_id);
+    if(!Number.isFinite(dealId)) return;
+    const action=(adminDealNextActions||[]).find(function(row){
+      return Number(row.deal_id)===dealId;
+    }) || {};
+    const flags=bikeSalesFlagsForDeal(deal,action);
+    const primary=bikeSalesEffectivePrimary(action,flags,deal);
+    const processKey=anyBikeProcessKeyForNextAction(primary);
+    try{
+      const result=await sb.rpc("admin_record_process_next_action_v1",{
+        p_deal_id:dealId,
+        p_process_key:processKey,
+        p_next_action:primary,
+        p_source_page:"admin-enquiries.html",
+        p_notes:"Deal stage: "+String(deal.deal_stage||"")+" · Deal status: "+String(deal.deal_status||deal.status||"")
+      });
+      if(result.error) throw result.error;
+    }catch(error){
+      console.warn("Process learning snapshot could not be recorded for Deal "+dealId+":",error);
+    }
+  });
+  await Promise.all(jobs);
 }
 
 function anyBikePaymentStatusClass(status){
