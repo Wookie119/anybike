@@ -13268,7 +13268,7 @@ function buildBikeSalesActions(){
           type:"Buyer Interested",
           title:"Check Seller Availability",
           icon:"☎️",
-          cls:"seller",
+          cls:"sourcing",
           blockers:"Buyer is interested. Confirm the motorcycle is still available and confirm the seller price before progressing.",
           priority:8
         });
@@ -13284,18 +13284,8 @@ function buildBikeSalesActions(){
           blockers:"Seller availability is confirmed. Review the commercial position and select this motorcycle into the sale before preparing the Formal Offer.",
           priority:9
         });
-      }else if(candidateState.sent){
-        items.push({
-          dealId:dealId,
-          dealNumber:deal.deal_number || ("Deal #"+dealId),
-          motorcycle:bikeSalesCandidateTitle(candidateState.sent),
-          type:"Waiting for Buyer",
-          title:"Potential Match Sent",
-          icon:"⏳",
-          cls:"sourcing",
-          blockers:"A potential match has been sent. No action is required until the buyer responds.",
-          priority:40
-        });
+}else if(candidateState.sent){
+        /* Waiting for the buyer is deliberately omitted from Needs Attention. */
       }else{
         items.push({
           dealId:dealId,
@@ -13637,7 +13627,19 @@ function renderAnyBikeGuidedJourney(deal,bikes,bikeRows,dealNumber,buyerName,raw
 renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,rawStage,stage,status){
   const dealId=String(deal.deal_id||"");
   const action=anyBikeDealNextActionFor(dealId);
-  const primary=String(action?.primary_action||"");
+  const candidateState=bikeSalesCandidateStateForDeal(dealId);
+  let primary=String(action?.primary_action||"");
+  if(!primary && !(bikes||[]).length){
+    if(candidateState.interested && !candidateState.confirmed){
+      primary="Check Seller Availability";
+    }else if(candidateState.confirmed && !candidateState.selected){
+      primary="Select Motorcycle for Sale";
+    }else if(candidateState.sent){
+      primary="Waiting for Buyer Response";
+    }else{
+      primary="Find Potential Matches";
+    }
+  }
   const depositOutstanding=Number(action?.deposit_outstanding_gbp||0);
   const depositRequired=Number(action?.deposit_required_gbp||0);
   const sellerDone=!!action?.seller_check_ok;
@@ -13656,9 +13658,23 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
   const complete=String(rawStage||"")==="Completed";
   const flags={depositOutstanding,depositRequired,sellerDone,shippingDone,vatDone,secured,hasMotorcycle,offerAccepted,customerPaid,collected,complete};
   const current=bikeSalesJourneyStage(action,deal,flags);
-  const nextText=bikeSalesJourneyInstruction(action,flags);
-  const waiting=primary==="" || primary==="Deposit Due";
-  const activeTab=current==="complete"?"timeline":current;
+  let nextText=bikeSalesJourneyInstruction(action,flags);
+  if(!hasMotorcycle){
+    if(primary==="Check Seller Availability"){
+      nextText="The buyer is interested. Contact the seller now, confirm the motorcycle is still available and confirm the seller price. Then save the availability check.";
+    }else if(primary==="Select Motorcycle for Sale"){
+      nextText="Seller availability is confirmed. Review the price and commercial position, then select the candidate into the sale so the Formal Offer can be prepared.";
+    }else if(primary==="Waiting for Buyer Response"){
+      nextText="A potential match has been sent to the buyer. No action is required until they respond.";
+    }else{
+      nextText="Find suitable motorcycles, send the best potential matches to the buyer and wait for their response.";
+    }
+  }
+  const waiting=primary==="Waiting for Buyer Response";
+  let activeTab=current==="complete"?"timeline":current;
+  if(!hasMotorcycle && ["Check Seller Availability","Select Motorcycle for Sale","Waiting for Buyer Response","Find Potential Matches"].includes(primary)){
+    activeTab="sourcing";
+  }
 
   const pipeline=[
     ["request","Request",true],
