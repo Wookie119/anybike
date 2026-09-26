@@ -1882,6 +1882,16 @@ body.customer-offer-modal-open{overflow:hidden}
     </div>
   </section>
 
+  <section id="buyerSetupBanner" class="panel" style="display:none;border-color:rgba(237,28,36,.36)">
+    <div class="panel-head" style="align-items:center">
+      <div>
+        <h2 id="buyerSetupTitle">🛡️ Buyer Setup</h2>
+        <p id="buyerSetupText">Complete your reusable buyer and shipping details so future purchases can move quickly.</p>
+      </div>
+      <a id="buyerSetupAction" class="panel-link" href="customer-profile.html#buyer-onboarding">Complete Buyer Setup →</a>
+    </div>
+  </section>
+
 
     <section class="panel my-offers-panel" id="my-offers">
       <div class="panel-head">
@@ -4375,7 +4385,50 @@ async function loadUser(){
   }
 updateProfileSummary();
   setProfileEditMode(false);
+  await loadBuyerSetupBanner();
   return true;
+}
+
+async function loadBuyerSetupBanner(){
+  const banner=document.getElementById("buyerSetupBanner");
+  const title=document.getElementById("buyerSetupTitle");
+  const textEl=document.getElementById("buyerSetupText");
+  const action=document.getElementById("buyerSetupAction");
+  if(!banner || !currentUser) return;
+
+  let onboarding=null;
+  try{
+    const {data,error}=await sb
+      .from("customer_buyer_onboarding")
+      .select("approval_status,identity_status,address_status,shipper_status,test_payment_status")
+      .eq("customer_id",currentUser.id)
+      .maybeSingle();
+    if(!error) onboarding=data||null;
+  }catch(error){}
+
+  const approved=onboarding && ["Approved","Approved with Exceptions"].includes(String(onboarding.approval_status||""));
+  const profileReady=Boolean(
+    currentProfile?.identity_document_path &&
+    currentProfile?.proof_of_address_document_path &&
+    currentProfile?.preferred_shipping_company &&
+    currentProfile?.preferred_uk_collection_point
+  );
+
+  banner.style.display="";
+  if(approved){
+    title.textContent="✓ Buyer Setup Approved";
+    textEl.textContent="Your reusable buyer verification is approved. We will still confirm the shipper and route for each motorcycle before purchase.";
+    action.textContent="Review Buyer & Shipping Details →";
+    banner.style.borderColor="rgba(54,211,126,.45)";
+  }else if(profileReady){
+    title.textContent="🛡️ Buyer Setup — Awaiting AnyBike Review";
+    textEl.textContent="Your main identity, address and shipper details are on file. AnyBike will review them before we commit to buying a motorcycle for you.";
+    action.textContent="Review Your Details →";
+  }else{
+    title.textContent="🛡️ Complete Buyer Setup";
+    textEl.textContent="Add your ID, proof of address, usual shipper and export details once so future purchases are not delayed.";
+    action.textContent="Complete Buyer Setup →";
+  }
 }
 
 async function saveProfile(){
