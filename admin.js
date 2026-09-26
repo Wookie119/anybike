@@ -187,6 +187,8 @@ async function requireAdminSession(){
 async function setupAdminIdentity(){
 const nameEl = document.getElementById("adminProfileName");
 const emailEl = document.getElementById("adminProfileEmail");
+const dropdownNameEl = document.getElementById("adminProfileDropdownName");
+const dropdownRoleEl = document.getElementById("adminProfileDropdownRole");
 
 if(!anybikeAdminUser){
 return;
@@ -198,8 +200,21 @@ anybikeAdminUser.user_metadata?.full_name ||
 anybikeAdminUser.user_metadata?.name ||
 "AnyBike Admin";
 
+const displayRole =
+anybikeAdminRecord?.role ||
+anybikeAdminRecord?.department ||
+"Administrator";
+
 if(nameEl){
 nameEl.textContent = displayName;
+}
+
+if(dropdownNameEl){
+dropdownNameEl.textContent = displayName;
+}
+
+if(dropdownRoleEl){
+dropdownRoleEl.textContent = displayRole;
 }
 
 if(emailEl){
