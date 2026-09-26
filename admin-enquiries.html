@@ -13132,6 +13132,11 @@ function openAnyBikeDealFromUrl(){
   row.classList.add("open");
   openAnyBikeDealId=dealId;
 
+  const requestedTab=String(params.get("tab")||"").trim();
+  if(requestedTab){
+    bikeSalesJourneyTab(dealId,requestedTab,false);
+  }
+
   setTimeout(function(){
     row.scrollIntoView({behavior:"auto",block:"start"});
   },0);
@@ -13243,15 +13248,23 @@ function setBikeSalesView(view,button){
   }
 }
 
-function bikeSalesJourneyTab(dealId,tab){
+function bikeSalesJourneyTab(dealId,tab,updateUrl){
   const root=document.querySelector('.sales-journey[data-deal-id="'+String(dealId)+'"]');
   if(!root){return;}
+  const validTabs=["request","sourcing","seller","offer","payment","collection","invoice","delivery","timeline"];
+  const target=validTabs.includes(String(tab||""))?String(tab):"timeline";
   root.querySelectorAll(".sales-work-tabs button").forEach(function(btn){
-    btn.classList.toggle("active",btn.dataset.tab===tab);
+    btn.classList.toggle("active",btn.dataset.tab===target);
   });
   root.querySelectorAll(".sales-tab-panel").forEach(function(panel){
-    panel.classList.toggle("active",panel.dataset.tab===tab);
+    panel.classList.toggle("active",panel.dataset.tab===target);
   });
+  if(updateUrl!==false){
+    const url=new URL(window.location.href);
+    url.searchParams.set("deal",String(dealId));
+    url.searchParams.set("tab",target);
+    history.replaceState(null,"",url.pathname+"?"+url.searchParams.toString()+url.hash);
+  }
 }
 
 function bikeSalesJourneyStage(action,deal,flags){
@@ -13290,7 +13303,8 @@ function renderBikeSalesActionQueue(){
   actions.forEach(function(item){ if(counts[item.cls]!==undefined){ counts[item.cls]++; } });
 
   const cards=actions.length ? actions.map(function(item){
-    return `<article class="bike-sales-action-card ${escapeAdminHtml(item.cls)}" onclick="location.href='admin-enquiries.html?deal=${encodeURIComponent(item.dealId)}'">
+    const tab=({reply:"request",sourcing:"sourcing",seller:"seller",deposit:"payment",shipping:"delivery",vat:"seller",ready:"seller",operations:"collection"})[item.cls]||"timeline";
+    return `<article class="bike-sales-action-card ${escapeAdminHtml(item.cls)}" onclick="location.href='admin-enquiries.html?deal=${encodeURIComponent(item.dealId)}&tab=${encodeURIComponent(tab)}'">
       <div class="bike-sales-action-icon">${item.icon}</div>
       <div>
         <div class="bike-sales-action-title">${escapeAdminHtml(item.type)} · ${escapeAdminHtml(item.dealNumber)} — ${escapeAdminHtml(item.title)}</div>
