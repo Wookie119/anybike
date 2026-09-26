@@ -4052,6 +4052,14 @@ body{
 
 /* DEAL 360 — FINAL SELLER CHECK PANEL */
 .anybike-seller-panel{margin-top:12px;border:2px solid #d71920;border-radius:12px;overflow:hidden;background:#0a0a0a}
+.anybike-seller-panel.is-secured{border-color:#2a9f59;box-shadow:0 0 0 1px rgba(42,159,89,.14)}
+.anybike-seller-panel.is-secured .anybike-seller-head{border-bottom-color:rgba(42,159,89,.55)}
+.anybike-seller-state-box{border:1px solid rgba(237,28,36,.48)!important;background:rgba(237,28,36,.07)!important;border-radius:9px;padding:9px}
+.anybike-seller-state-box.is-complete{border-color:rgba(42,159,89,.6)!important;background:rgba(42,159,89,.10)!important}
+.anybike-seller-state-box.is-complete input,.anybike-seller-state-box.is-complete select{border-color:#2a9f59!important}
+.anybike-seller-state-box.is-incomplete input,.anybike-seller-state-box.is-incomplete select{border-color:#d71920!important}
+.anybike-seller-secure-box.is-complete{border-color:#2a9f59!important;background:rgba(42,159,89,.12)!important}
+.anybike-seller-secure-box.is-incomplete{border-color:#d71920!important;background:rgba(237,28,36,.09)!important}
 .anybike-seller-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;padding:14px 16px;border-bottom:1px solid rgba(215,25,32,.5);background:linear-gradient(135deg,#151515,#080808)}
 .anybike-seller-head span,.anybike-seller-label{display:block;color:#9aa3ae;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.06em}
 .anybike-seller-head h4{margin:4px 0 0;color:#fff;font-size:17px}
@@ -11202,7 +11210,7 @@ function renderAnyBikeSellerPaymentLedger(dealMotorcycleId, c){
       <div class="anybike-seller-payment">
         <div class="anybike-seller-payment-head">
           <div><span>AnyBike → Seller</span><h5>Seller / Supplier Payments</h5></div>
-          <div class="anybike-seller-payment-badge neutral">Save Seller Check First</div>
+          <button type="button" class="anybike-seller-payment-badge neutral" style="cursor:pointer" onclick="saveDealFinalSellerCheck(${id});return false;">Save Seller Check First</button>
         </div>
         <div class="anybike-seller-payment-note">Save the Final Seller Check first. Supplier payments are recorded separately from motorcycle security.</div>
       </div>`;
@@ -11443,6 +11451,8 @@ function renderAnyBikeDealSellerCheckPanel(deal){
             })?.seller_price_gbp || 0
           );
     const availability = c?.availability_status || "Unknown";
+    const availabilityComplete = ["Available","Reserved"].includes(availability);
+    const priceComplete = Number(sellerPrice || 0) > 0;
     const holdStatus = c?.hold_confirmed ? "Yes" : "No";
     const sellerDepositRequired = !!c?.seller_deposit_required;
     const sellerDepositDue = sellerPayment ? Number(sellerPayment.seller_deposit_due_gbp || 0) : Number(c?.seller_deposit_amount_gbp || 0);
@@ -11469,7 +11479,7 @@ function renderAnyBikeDealSellerCheckPanel(deal){
     }
 
     return `
-      <div class="anybike-seller-panel" id="deal-seller-panel-${dealMotorcycleId}">
+      <div class="anybike-seller-panel ${secured ? "is-secured" : "is-incomplete"}" id="deal-seller-panel-${dealMotorcycleId}">
         <div class="anybike-seller-head">
           <div>
             <span>Seller Security</span>
@@ -11500,19 +11510,19 @@ function renderAnyBikeDealSellerCheckPanel(deal){
         </div>
 
         <div class="anybike-seller-core">
-          <div class="anybike-seller-field">
+          <div class="anybike-seller-field anybike-seller-state-box ${availabilityComplete ? "is-complete" : "is-incomplete"}">
             <label for="deal-seller-availability-${dealMotorcycleId}">Availability</label>
             <select id="deal-seller-availability-${dealMotorcycleId}">
               ${["Unknown","Available","Reserved","Unavailable","Sold","Withdrawn"].map(function(v){ return `<option value="${v}" ${availability===v?"selected":""}>${v}</option>`; }).join("")}
             </select>
           </div>
 
-          <div class="anybike-seller-field">
+          <div class="anybike-seller-field anybike-seller-state-box ${priceComplete ? "is-complete" : "is-incomplete"}">
             <label for="deal-seller-price-${dealMotorcycleId}">Confirmed Seller Price</label>
             <input id="deal-seller-price-${dealMotorcycleId}" type="number" min="0" step="0.01" value="${sellerPrice ? Number(sellerPrice).toFixed(2) : ""}" placeholder="e.g. 5200.00">
           </div>
 
-          <label class="anybike-seller-secure-box">
+          <label class="anybike-seller-secure-box ${secured ? "is-complete" : "is-incomplete"}">
             <input id="deal-seller-secured-${dealMotorcycleId}" type="checkbox" ${secured ? "checked" : ""} ${securityBlocked && !secured ? "disabled" : ""} onchange="anyBikeSellerSecuredChanged(${dealMotorcycleId})">
             Motorcycle genuinely secured with seller
           </label>
@@ -12100,6 +12110,16 @@ async function saveDealFinalSellerCheck(dealMotorcycleId){
       if(dealRow){
         dealRow.classList.add("open");
         openAnyBikeDealId = String(currentDealId);
+
+        const nextAction=String(payload.next_required_action || "");
+        if(payload.motorcycle_secured && nextAction==="Balance Due"){
+          bikeSalesJourneyTab(String(currentDealId),"payment",true);
+          setTimeout(function(){
+            const target=dealRow.querySelector('.sales-tab-panel[data-tab="payment"] .anybike-transaction-panel') ||
+                         dealRow.querySelector('.sales-tab-panel[data-tab="payment"]');
+            scrollBikeSalesTargetIntoView(target || dealRow);
+          },60);
+        }
       }
     }
 
