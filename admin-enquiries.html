@@ -13664,7 +13664,22 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
     })())+
     panel("seller",renderAnyBikeDealCommercialSetup(deal)+renderAnyBikeDealSellerCheckPanel(deal)+renderAnyBikeDealFinancialPanel(deal))+
     panel("offer",stageControl+(!offerAccepted?'<div class="sales-what-next"><strong>What happens next?</strong><span>When the formal offer is sent, the buyer will review the price and terms. Their response should return to AnyBike as a notification and Message Centre event.</span></div>':''))+
-    panel("payment",renderAnyBikeDealCustomerAccount(deal)+renderAnyBikeDealCustomerLedger(deal)+renderAnyBikeDealPaymentPanel(deal)+renderAnyBikeDealBalanceRequestGuide(deal)+renderAnyBikeDealInvoiceDocuments(deal))+
+    panel("payment",(function(){
+      const depositComplete=depositRequired<=0 || depositOutstanding<=0.009;
+      if(!secured){
+        return renderAnyBikeDealCustomerAccount(deal)+
+          '<div class="sales-payment-phase"><strong>Current payment stage: '+(depositComplete?'Deposit received / seller check next':'Deposit only')+'</strong>'+
+          '<span>'+(depositComplete?'Do not request the remaining balance yet. Complete the final seller check and secure the motorcycle first.':'Only the required deposit is due now. The remaining purchase balance must not be requested until the motorcycle has passed the final seller check and is secured.')+'</span></div>'+
+          renderAnyBikeDealPaymentPanel(deal)+
+          '<details class="sales-payment-advanced"><summary>Payment records & allocation</summary>'+renderAnyBikeDealCustomerLedger(deal)+'</details>'+
+          renderAnyBikeDealInvoiceDocuments(deal);
+      }
+      return renderAnyBikeDealCustomerAccount(deal)+
+        '<div class="sales-payment-phase ready"><strong>Motorcycle secured — remaining balance stage</strong><span>The sale has passed the seller/security gate. You can now issue/request the remaining customer balance and documents.</span></div>'+
+        renderAnyBikeDealCustomerLedger(deal)+
+        renderAnyBikeDealBalanceRequestGuide(deal)+
+        renderAnyBikeDealInvoiceDocuments(deal);
+    })())+
     panel("collection",renderAnyBikePurchaseActionGuide(deal)+renderAnyBikeDealTransactionCompletion(deal)+operationsBody)+
     panel("invoice",renderAnyBikeDealInvoiceDocuments(deal))+
     panel("delivery",renderAnyBikeDealShippingRoutePanel(deal)+(collected?'<div class="sales-what-next"><strong>What happens next?</strong><span>Complete the agreed UK handover / delivery and record the final milestone.</span></div>':'<div class="sales-what-next"><strong>What happens next?</strong><span>Delivery becomes active after the motorcycle has been purchased and collected.</span></div>'))+
