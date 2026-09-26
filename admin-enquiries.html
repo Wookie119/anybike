@@ -6175,6 +6175,7 @@ let adminDealCustomerPayments = new Map();
 let adminDealInvoices = new Map();
 const finalInvoiceReadinessCache = new Map();
 const finalInvoiceReadinessLoading = new Set();
+const finalInvoiceDraftBusy = new Set();
 let dealProformaBusy = new Set();
 let dealProformaIssueBusy = new Set();
 let dealCustomerReceiptBusy = new Set();
@@ -13639,6 +13640,15 @@ function finalInvoiceReadinessHtml(dealId,data){
   const delivered=Number(data?.delivered_count||0);
   const vatVerified=Number(data?.vat_verified_count||0);
 
+  const draftId=Number(data?.final_invoice_draft_id||0);
+  const issuedId=Number(data?.final_invoice_issued_id||0);
+  const busy=finalInvoiceDraftBusy.has(String(dealId));
+  const actionHtml=issuedId
+    ? '<div class="final-invoice-readiness-action"><strong>Final Invoice issued</strong><span>'+escapeAdminHtml(data?.final_invoice_number||"Issued")+'</span></div>'
+    : ready
+      ? '<button type="button" class="final-invoice-draft-button" '+(busy?'disabled':'')+' onclick="createOrRefreshFinalInvoiceDraft('+Number(dealId)+');return false;">'+(busy?'Building Draft...':(draftId?'Refresh Final Invoice Draft':'Create Final Invoice Draft'))+'</button>'
+      : '';
+
   return '<div class="final-invoice-readiness '+(ready?'ready':'waiting')+'">'+
     '<div class="final-invoice-readiness-head"><div><span>Final Invoice Readiness</span><strong>'+(ready?'Ready to prepare':'Waiting for prerequisites')+'</strong></div><div class="final-invoice-readiness-state">'+(ready?'READY':'NOT READY')+'</div></div>'+
     '<div class="final-invoice-readiness-grid">'+
@@ -13650,8 +13660,50 @@ function finalInvoiceReadinessHtml(dealId,data){
       '<div><span>Known charge total</span><strong>'+anyBikeDealMoney(data?.known_customer_charge_total_gbp||0)+'</strong></div>'+
     '</div>'+
     (missing.length?'<div class="final-invoice-readiness-missing"><strong>Still required:</strong> '+escapeAdminHtml(missing.join(" · "))+'</div>':'<div class="final-invoice-readiness-ok">All current operational and VAT prerequisites are satisfied.</div>')+
-    '<div class="final-invoice-readiness-note">This readiness check does not issue an invoice and does not calculate VAT. It only confirms the transaction data that must be complete before final invoicing.</div>'+
+    actionHtml+
+    '<div class="final-invoice-readiness-note">The draft is built from the issued Proforma plus completed transaction charges. It remains blocked from issue until the accounting VAT snapshot is reviewed.</div>'+
   '</div>';
+}
+
+async function createOrRefreshFinalInvoiceDraft(dealId){
+  const id=Number(dealId);
+  const key=String(id);
+  if(!Number.isFinite(id)||finalInvoiceDraftBusy.has(key))return;
+
+  if(!window.confirm(
+    "Create / refresh the Final Invoice Draft?\n\n"+
+    "This copies the accepted transaction from the issued Proforma and adds completed storage charges.\n\n"+
+    "It does NOT issue the Final Invoice and does NOT calculate VAT."
+  ))return;
+
+  finalInvoiceDraftBusy.add(key);
+  const readiness=finalInvoiceReadinessCache.get(key);
+  const host=document.getElementById("final-invoice-readiness-"+key);
+  if(host&&readiness)host.innerHTML=finalInvoiceReadinessHtml(key,readiness);
+
+  try{
+    const result=await sb.rpc("admin_create_or_refresh_final_invoice_draft_v1",{p_deal_id:id});
+    if(result.error)throw result.error;
+
+    finalInvoiceReadinessCache.delete(key);
+    await loadAdminDealQueue();
+    renderAdminDealQueue();
+
+    setTimeout(function(){
+      const row=document.getElementById("anybike-deal-"+key);
+      if(row){
+        row.classList.add("open");
+        openAnyBikeDealId=key;
+        bikeSalesJourneyTab(key,"invoice",false);
+        row.scrollIntoView({behavior:"smooth",block:"start"});
+      }
+    },50);
+  }catch(error){
+    console.error("Final Invoice Draft could not be created:",error);
+    alert("Final Invoice Draft could not be created.\n\n"+(error?.message||error));
+  }finally{
+    finalInvoiceDraftBusy.delete(key);
+  }
 }
 
 async function loadFinalInvoiceReadiness(dealId,force){
