@@ -357,9 +357,12 @@ Customer acceptance must never be inferred from unrelated events.
 1. Seller / Viability is complete.
 2. Prepare Formal Offer.
 3. Confirm motorcycle details.
-4. Confirm customer price and fees.
-5. Confirm delivery / payment terms where relevant.
-6. Send offer.
+4. Confirm the motorcycle price.
+5. Add the AnyBike Service Fee separately where applicable, so staff and the buyer can see what is motorcycle price versus AnyBike's fee.
+6. Add any customer delivery charge separately.
+7. Confirm the resulting Customer Total.
+8. Confirm delivery / payment terms where relevant.
+9. Send offer.
 7. Customer reviews.
 8. Customer explicitly Accepts or Declines.
 
