@@ -15400,6 +15400,12 @@ function renderAdminDealQueue(){
     if(motorcycleCount > 0 && securedCount >= motorcycleCount){ securedClass="paid"; securedLabel="SECURED"; }
     else if(securedCount > 0){ securedClass="part"; securedLabel=securedCount + "/" + motorcycleCount; }
 
+    const queueAction=(adminDealNextActions || []).find(function(row){
+      return String(row.deal_id||"")===dealId;
+    }) || {};
+    const queueFlags=bikeSalesFlagsForDeal(deal,queueAction);
+    const queueNextAction=bikeSalesEffectivePrimary(queueAction,queueFlags,deal);
+
     const bikeRows = bikes.length
       ? bikes.map(function(bike){
           const title = [bike.make, bike.model, bike.variant].filter(Boolean).join(" ");
@@ -15461,7 +15467,7 @@ function renderAdminDealQueue(){
           <div><span class="anybike-queue-finance-badge ${supplierClass}">${supplierLabel}</span><small>${preSale ? "Seller purchase not started" : (supplierBalance > 0.009 ? anyBikeDealMoney(supplierBalance)+" due" : anyBikeDealMoney(supplierPaid)+" paid")}</small></div>
           <div><span class="anybike-queue-finance-badge ${securedClass}">${escapeAdminHtml(securedLabel)}</span><small>Motorcycle</small></div>
           <div><span class="queue-status">${stage}</span><small>${status}</small></div>
-          <div><strong>${escapeAdminHtml(latest)}</strong><small>Updated</small></div>
+          <div><strong style="color:${queueNextAction==="Waiting for Buyer Response"?"#ffd27c":"#ff8a8f"}">${escapeAdminHtml(queueNextAction)}</strong><small>${escapeAdminHtml(latest)} · Your next action</small></div>
         </div>
         <div class="anybike-deal-detail">
           <div class="anybike-deal-detail-head">
@@ -15621,7 +15627,7 @@ function renderAdminDealQueue(){
         </div>
       </div>
       <div class="anybike-deal-columns" aria-hidden="true">
-        <span></span><span></span><span>Deal</span><span>Buyer</span><span>Seller</span><span>Motorcycle</span><span>Sale</span><span>Cost</span><span>Profit</span><span>Customer</span><span>Supplier</span><span>Secured</span><span>Stage</span><span>Updated</span>
+        <span></span><span></span><span>Deal</span><span>Buyer</span><span>Seller</span><span>Motorcycle</span><span>Sale</span><span>Cost</span><span>Profit</span><span>Customer</span><span>Supplier</span><span>Secured</span><span>Stage</span><span>Your Next Action</span>
       </div>
       ${rows || '<div class="anybike-deal-empty">No sales match the current filters.</div>'}
     </section>`;
