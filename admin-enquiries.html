@@ -8687,21 +8687,36 @@ async function openDealOfferModal(dealMotorcycleId){
   const deal=(adminDealQueue || []).find(function(item){
     return Number(item.deal_id)===Number(row.deal_id);
   }) || {};
+  const profile=anyBikeDealCustomerProfile(deal) || {};
+  const motorcycle=(adminDealMotorcycles || []).find(function(item){
+    return Number(item.deal_motorcycle_id || item.id)===id;
+  }) || {};
 
   const bikeName=[row.year,row.make,row.model,row.variant].filter(Boolean).join(" ") || "Motorcycle";
 
   document.getElementById("dealOfferBike").textContent=bikeName;
   document.getElementById("dealOfferDealNumber").textContent=deal.deal_number || ("Deal #"+String(row.deal_id || ""));
   document.getElementById("dealOfferInternalCost").textContent=dealOfferMoney(activeDealOfferInternalCost);
+  document.getElementById("dealOfferRegistration").textContent=String(motorcycle.registration || "Not recorded");
+  document.getElementById("dealOfferVin").textContent=String(motorcycle.vin || "Not recorded");
 
   document.getElementById("dealOfferMotorcyclePrice").value=Number(row.anybike_sale_price_gbp || 0).toFixed(2);
   document.getElementById("dealOfferAnyBikeFee").value="0.00";
   document.getElementById("dealOfferDeliveryCharge").value=Number(row.delivery_charge_gbp || 0).toFixed(2);
 
   document.getElementById("dealOfferSaleBasis").value="Trade / Export Sale";
-  document.getElementById("dealOfferTerms").value="";
-  document.getElementById("dealOfferDeliveryType").value="Buyer Arranged / Collection";
-  document.getElementById("dealOfferDeliveryDestination").value="";
+  document.getElementById("dealOfferTerms").value=
+    "This Formal Offer is subject to AnyBike's Terms & Conditions and Trade & Export Sale Policy. "+
+    "The buyer must confirm the current legal declarations when accepting the offer. "+
+    "AnyBike's collection check is visual only and is not a mechanical or engineering inspection. "+
+    "Any independent mechanical inspection must be requested before purchase unless otherwise agreed.";
+  const preferredUkHandover=String(
+    deal.uk_handover_port ||
+    profile.preferred_uk_collection_point ||
+    ""
+  ).trim();
+  document.getElementById("dealOfferDeliveryType").value=preferredUkHandover ? "Delivery to UK Port" : "Buyer Arranged / Collection";
+  document.getElementById("dealOfferDeliveryDestination").value=preferredUkHandover;
   document.getElementById("dealOfferDepositRequired").checked=true;
   document.getElementById("dealOfferDepositAmount").value="";
   document.getElementById("dealOfferPaymentTerms").value="Deposit payable immediately on acceptance. The remaining balance must be received in cleared funds before collection of the motorcycle from the seller.";
@@ -18058,6 +18073,8 @@ document.querySelector(".admin-page-content .wrap")?.classList.add("sales-view-a
         <div><span>Deal</span><strong id="dealOfferDealNumber">-</strong></div>
         <div><span>Projected Internal Cost</span><strong id="dealOfferInternalCost">-</strong></div>
         <div><span>Projected Profit</span><strong id="dealOfferProjectedProfit">-</strong></div>
+        <div><span>Registration</span><strong id="dealOfferRegistration">-</strong></div>
+        <div><span>VIN / Chassis</span><strong id="dealOfferVin">-</strong></div>
       </div>
 
       <section class="deal-offer-section">
@@ -18127,7 +18144,24 @@ document.querySelector(".admin-page-content .wrap")?.classList.add("sales-view-a
 
           <label>
             <span>Destination</span>
-            <input id="dealOfferDeliveryDestination" type="text" placeholder="e.g. Southampton Port or full UK address">
+            <input id="dealOfferDeliveryDestination" type="text" list="dealOfferUkPorts" placeholder="Choose a UK port or enter a full UK address">
+            <datalist id="dealOfferUkPorts">
+              <option value="Aberdeen"></option><option value="Belfast"></option><option value="Bristol / Avonmouth"></option>
+              <option value="Cairnryan"></option><option value="Cardiff"></option><option value="Dover"></option>
+              <option value="Falmouth"></option><option value="Felixstowe"></option><option value="Fishguard"></option>
+              <option value="Grangemouth"></option><option value="Great Yarmouth"></option><option value="Greenock"></option>
+              <option value="Harwich"></option><option value="Heysham"></option><option value="Holyhead"></option>
+              <option value="Hull"></option><option value="Immingham"></option><option value="Ipswich"></option>
+              <option value="Larne"></option><option value="Leith"></option><option value="Liverpool"></option>
+              <option value="London Gateway"></option><option value="Milford Haven"></option><option value="Newcastle / Port of Tyne"></option>
+              <option value="Newhaven"></option><option value="Pembroke"></option><option value="Plymouth"></option>
+              <option value="Poole"></option><option value="Portbury"></option><option value="Portsmouth"></option>
+              <option value="Purfleet"></option><option value="Ramsgate"></option><option value="Sheerness"></option>
+              <option value="Southampton"></option><option value="Sunderland"></option><option value="Swansea"></option>
+              <option value="Teesport"></option><option value="Thamesport"></option><option value="Tilbury"></option>
+              <option value="Warrenpoint"></option>
+            </datalist>
+            <small style="display:block;color:#888;margin-top:5px">Prefilled from the Deal/customer shipping preference where available. You can still type a UK address.</small>
           </label>
         </div>
       </section>
