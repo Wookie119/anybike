@@ -790,6 +790,17 @@ main{
   .purchase-overview,.handover-card,.purchase-more-grid{grid-template-columns:1fr}
 }
 
+
+.purchase-group{margin:0 0 18px;border:1px solid rgba(255,255,255,.10);border-radius:16px;background:#090909;overflow:hidden}
+.purchase-group-head{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.09);background:#101010}
+.purchase-group-head span{display:block;color:#888;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.08em}
+.purchase-group-head h2{margin:3px 0 0;font-size:18px}
+.purchase-group-head p{margin:3px 0 0;color:#999;font-size:12px}
+.purchase-group-head a{display:inline-flex;align-items:center;justify-content:center;padding:9px 12px;border-radius:9px;background:#171717;border:1px solid rgba(255,255,255,.12);color:#fff;text-decoration:none;font-weight:900;font-size:12px}
+.purchase-group-head a:hover{border-color:#ed1c24}
+.purchase-group-grid{display:grid;gap:12px;padding:12px}
+.purchase-group.multi .purchase-group-grid{grid-template-columns:repeat(auto-fit,minmax(520px,1fr))}
+@media(max-width:700px){.purchase-group.multi .purchase-group-grid{grid-template-columns:1fr}}
 </style>
 </head>
 
@@ -1666,19 +1677,24 @@ async function loadPurchases(){
 
   }
 
-  purchasesBox.innerHTML = `
+  const purchaseGroups=new Map();
+  orderedPurchases.forEach(function(purchase){
+    const key=String(purchase.deal_id||purchase.deal_number||purchase.deal_motorcycle_id||"purchase");
+    if(!purchaseGroups.has(key)) purchaseGroups.set(key,[]);
+    purchaseGroups.get(key).push(purchase);
+  });
 
-    <div class="grid">
-
-      ${
-        orderedPurchases
-          .map(purchaseCard)
-          .join("")
-      }
-
-    </div>
-
-  `;
+  purchasesBox.innerHTML=Array.from(purchaseGroups.values()).map(function(group){
+    const first=group[0]||{};
+    const dealNumber=first.deal_number||"AnyBike Purchase";
+    const count=group.length;
+    return '<section class="purchase-group '+(count>1?'multi':'single')+'">'+
+      '<div class="purchase-group-head"><div><span>AnyBike purchase</span><h2>'+safe(dealNumber)+'</h2>'+
+      '<p>'+count+' motorcycle'+(count===1?'':'s')+' in this purchase. Each motorcycle follows its own journey and can progress independently.</p></div>'+
+      '<a href="customer-messages.html">+ Ask AnyBike for another motorcycle</a></div>'+
+      '<div class="purchase-group-grid">'+group.map(purchaseCard).join("")+'</div>'+
+    '</section>';
+  }).join("");
 
   shipperPurchaseLookup.clear();
   orderedPurchases.forEach(function(purchase){
