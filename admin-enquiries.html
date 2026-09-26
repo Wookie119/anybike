@@ -13613,6 +13613,54 @@ function renderAdminMotorcycleJourneys(deal,bikes){
   return '<section class="motorcycle-journeys"><div class="motorcycle-journeys-head"><span>Independent motorcycle journeys</span><h4>'+bikes.length+' motorcycle'+(bikes.length===1?'':'s')+' in this sale</h4><p>Each motorcycle can be at a different stage. Shared payment, Proforma, storage and delivery can still be used where appropriate.</p></div>'+cards+'</section>';
 }
 
+function renderDealOfferWorkspace(deal,bikes){
+  const dealId=String(deal?.deal_id||"");
+  const stage=String(deal?.deal_stage||"");
+  const actions=anyBikeDealActionsFor(dealId);
+
+  if(!(bikes||[]).length){
+    return '<section class="offer-workspace"><div class="offer-workspace-head"><span>Formal Offer</span><h4>No motorcycle selected yet</h4><p>Select a confirmed candidate motorcycle before preparing a customer offer.</p></div><button type="button" onclick="bikeSalesJourneyTab(\''+dealId+'\',\'sourcing\');return false;">Open Sourcing →</button></section>';
+  }
+
+  const cards=(bikes||[]).map(function(bike,index){
+    const bikeId=Number(bike.deal_motorcycle_id||bike.id||0);
+    const action=actions.find(function(row){return Number(row.deal_motorcycle_id||0)===bikeId;}) || {};
+    const commercial=(adminDealCommercialSetup||[]).find(function(row){
+      return Number(row.deal_motorcycle_id||0)===bikeId;
+    }) || {};
+    const title=[bike.year,bike.make,bike.model,bike.variant].filter(Boolean).join(" ") || ("Motorcycle "+(index+1));
+
+    let status="Prepare Offer";
+    let note="Review the commercial position, deposit and terms before sending anything to the buyer.";
+    if(["Payment / Deposit","Operations","Shipping","Completed"].includes(stage) || Number(action.deposit_required_gbp||0)>0){
+      status="Offer Accepted";
+      note=Number(action.deposit_outstanding_gbp||0)>0
+        ? "The buyer accepted the offer. The required deposit is now the active customer action."
+        : "The offer has been accepted and the deposit requirement is satisfied.";
+    }else if(stage==="Proposal Sent" || String(bike.negotiation_status||"").toLowerCase().includes("negotiat")){
+      status="Offer Sent";
+      note="Waiting for the buyer to accept, decline or ask a question. Their response will appear in the Message Centre and admin bell.";
+    }else if(String(commercial.commercial_price_status||"")==="Ready for Offer"){
+      status="Ready to Send";
+      note="Commercial figures are marked Ready for Offer. Open the Formal Offer builder to review and send.";
+    }
+
+    const price=Number(commercial.anybike_sale_price_gbp ?? bike.buyer_price_gbp ?? 0);
+    const delivery=Number(commercial.delivery_charge_gbp ?? bike.delivery_charge_gbp ?? 0);
+
+    return '<article class="offer-workspace-card">'+
+      '<div><span>Motorcycle '+(index+1)+'</span><strong>'+escapeAdminHtml(title)+'</strong><small>'+escapeAdminHtml(status)+'</small></div>'+
+      '<div class="offer-workspace-money"><span>Motorcycle</span><strong>'+(price>0?anyBikeDealMoney(price):"Not agreed")+'</strong></div>'+
+      '<div class="offer-workspace-money"><span>Delivery</span><strong>'+anyBikeDealMoney(delivery)+'</strong></div>'+
+      '<div class="offer-workspace-copy">'+escapeAdminHtml(note)+'</div>'+
+      '<button type="button" onclick="openDealOfferModal('+bikeId+');return false;">'+(status==="Offer Sent"||status==="Offer Accepted"?"View / Review Formal Offer":"Prepare Formal Offer")+'</button>'+
+    '</article>';
+  }).join("");
+
+  return '<section class="offer-workspace"><div class="offer-workspace-head"><span>Formal Offer</span><h4>Customer offer workspace</h4><p>This is the single place to prepare, review and send the formal offer for each motorcycle.</p></div>'+cards+'</section>';
+}
+
+
 function anyBikeJourneyStep(options){
   const state=options.state || "waiting";
   const open=!!options.open;
@@ -13842,7 +13890,7 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
         '<div class="anybike-deal-bike-list">'+bikeRows+'</div>'+renderAnyBikeDealCandidatePanel(deal);
     })())+
     panel("seller",renderAnyBikeDealCommercialSetup(deal)+renderAnyBikeDealSellerCheckPanel(deal)+renderAnyBikeDealFinancialPanel(deal))+
-    panel("offer",stageControl+(!offerAccepted?'<div class="sales-what-next"><strong>What happens next?</strong><span>When the formal offer is sent, the buyer will review the price and terms. Their response should return to AnyBike as a notification and Message Centre event.</span></div>':''))+
+    panel("offer",renderDealOfferWorkspace(deal,bikes)+(!offerAccepted?'<div class="sales-what-next"><strong>What happens next?</strong><span>When the formal offer is sent, the buyer reviews the price and terms. Their response returns to AnyBike through the Message Centre and bell.</span></div>':'')+'<details class="sales-payment-advanced"><summary>Stage override / exceptional use only</summary>'+stageControl+'</details>')+
     panel("payment",(function(){
       const depositComplete=depositRequired<=0 || depositOutstanding<=0.009;
       if(!secured){
