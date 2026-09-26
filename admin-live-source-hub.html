@@ -13,7 +13,7 @@
 <style>
 :root{--red:#ed1c24;--line:rgba(255,255,255,.12);--muted:#aaa;--green:#4bd17b;--amber:#f1b94d}
 *{box-sizing:border-box}body{margin:0;background:#080808;color:#fff;font-family:Arial,Helvetica,sans-serif}
-.page{display:flex;min-height:100vh}.main{flex:1;min-width:0}.content{max-width:1900px;margin:0 auto;padding:24px}
+.page{display:flex;min-height:100vh}.main{flex:1;min-width:0}.content{width:100%;max-width:none;margin:0;padding:18px 20px 32px}
 .hero,.panel,.source-card,.bike{background:#111;border:1px solid var(--line);border-radius:18px}.hero,.panel{padding:22px;margin-bottom:16px}
 .hero{background:radial-gradient(circle at top right,rgba(237,28,36,.22),transparent 38%),#111}.eyebrow{color:var(--red);font-size:12px;font-weight:900;letter-spacing:.12em;text-transform:uppercase}
 h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:16px}
@@ -22,6 +22,11 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
 .filters{display:grid;grid-template-columns:1.1fr 1fr 1fr 1fr auto;gap:10px;align-items:end}.field{display:grid;gap:5px}.field label{font-size:12px;color:#bbb;font-weight:800}input,select{width:100%;background:#090909;color:#fff;border:1px solid #333;border-radius:10px;padding:10px;font:inherit}
 .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:12px 0}.status{font-size:13px;color:#bbb}.status.good{color:var(--green)}.status.bad{color:#ff8181}
 .bikes{display:grid;gap:10px}.bike{display:grid;grid-template-columns:34px 110px 1.5fr 1fr 1fr 1fr 120px;gap:12px;align-items:center;padding:12px}.bike img{width:110px;height:78px;object-fit:cover;border-radius:9px;background:#181818}.bike-title{font-weight:900;font-size:17px}.small{font-size:12px;color:#aaa;line-height:1.4}.secret{color:#ff777c}.money{font-weight:900}.empty{padding:25px;text-align:center;color:#888}
+.sourcing-nav{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:0 0 14px;padding:6px;background:#101010;border:1px solid var(--line);border-radius:14px}
+.sourcing-nav a{color:#aaa;text-decoration:none;font-weight:900;font-size:13px;padding:9px 12px;border-radius:10px;border:1px solid transparent}
+.sourcing-nav a.active{background:var(--red);border-color:var(--red);color:#fff}
+.sourcing-context{margin-left:auto;color:#aaa;font-size:12px;font-weight:800}
+.sourcing-context a{padding:0;border:0;color:#fff;text-decoration:underline}
 .batch-panel{position:sticky;bottom:10px;background:#0d0d0df2;border:1px solid #333;border-radius:16px;padding:14px;z-index:5}.batch-grid{display:grid;grid-template-columns:1.2fr 1.2fr .7fr auto;gap:10px;align-items:end}
 @media(max-width:1100px){.sources{grid-template-columns:1fr}.filters,.batch-grid{grid-template-columns:1fr 1fr}.bike{grid-template-columns:30px 90px 1fr 1fr}.bike .optional{display:none}.bike img{width:90px;height:68px}}
 @media(max-width:650px){.content{padding:12px}.filters,.batch-grid{grid-template-columns:1fr}.bike{grid-template-columns:30px 1fr}.bike img{display:none}}
@@ -33,6 +38,14 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
   <div class="main">
     <div id="adminTopbar"></div>
     <main class="content">
+      <nav class="sourcing-nav" aria-label="Sourcing workspace">
+        <a id="srcRecommended" href="admin-ai-matching.html">Recommended</a>
+        <a class="active" id="srcLive" href="admin-live-source-hub.html">Live Sources</a>
+        <a id="srcScanner" href="admin-used-bike-scanner.html">Scan Advert</a>
+        <a id="srcResponses" href="admin-ai-matching.html#interestedQueue">Buyer Responses</a>
+        <span class="sourcing-context" id="sourcingContext"></span>
+      </nav>
+
       <section class="hero">
         <div class="eyebrow">Sourcing · Internal only</div>
         <h1>Live Source Hub</h1>
@@ -83,6 +96,25 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
 <script>
 const sb=()=>getAdminSupabaseClient();
 let hub=null,items=[],buyers=[],selected=new Set(),sourceFacets={makes:[],models:[]};
+const sourcingParams=new URLSearchParams(location.search);
+function sourcingContextQuery(extra){
+  const p=new URLSearchParams();
+  ["deal","buyer","request"].forEach(k=>{const v=sourcingParams.get(k);if(v)p.set(k,v)});
+  if(extra) Object.entries(extra).forEach(([k,v])=>{if(v!==null&&v!==undefined&&v!=="")p.set(k,String(v))});
+  const s=p.toString();return s?"?"+s:"";
+}
+function syncSourcingNav(){
+  document.getElementById("srcRecommended").href="admin-ai-matching.html"+sourcingContextQuery();
+  document.getElementById("srcLive").href="admin-live-source-hub.html"+sourcingContextQuery();
+  document.getElementById("srcScanner").href="admin-used-bike-scanner.html"+sourcingContextQuery();
+  document.getElementById("srcResponses").href="admin-ai-matching.html"+sourcingContextQuery()+"#interestedQueue";
+  const deal=sourcingParams.get("deal"),buyer=sourcingParams.get("buyer"),request=sourcingParams.get("request");
+  const bits=[];
+  if(deal) bits.push('<a href="admin-enquiries.html?deal='+encodeURIComponent(deal)+'">← Back to sale</a>');
+  if(buyer) bits.push("Buyer #"+esc(buyer));
+  if(request) bits.push("Request #"+esc(request));
+  document.getElementById("sourcingContext").innerHTML=bits.join(" · ");
+}
 function esc(v){return String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;")}
 function gbp(v){const n=Number(v);return Number.isFinite(n)?new Intl.NumberFormat("en-GB",{style:"currency",currency:"GBP",maximumFractionDigits:0}).format(n):"—"}
 function date(v){if(!v)return"Never";try{return new Date(v).toLocaleString("en-GB")}catch{return v}}
@@ -153,7 +185,7 @@ async function loadHub(){
     '<div class="eyebrow">'+esc(c.source_type||"website")+'</div><h3>'+esc(c.name)+'</h3>'+
     '<div class="source-meta">Adapter: '+esc(c.adapter_key||"not built")+'<br>Last completed refresh: '+esc(date(c.last_refresh_completed_at))+'</div>'+
     '<div class="stats"><span class="pill live">'+c.live_count+' live</span><span class="pill end">'+c.ended_count+' ended</span><span class="pill review">'+c.review_count+' review</span></div>'+
-    '<div class="toolbar"><a class="btn" href="'+esc(c.results_url||c.base_url||"#")+'" target="_blank" onclick="event.stopPropagation()">Open source ↗</a>'+(c.status==="adapter_ready"?'<button class="btn green" type="button" data-refresh-source="'+c.id+'" onclick="refreshSource('+c.id+',event,this)">Refresh Source</button><span class="pill live" style="align-self:center">Auto refresh ON</span>':'<span class="btn" style="cursor:default">Adapter needed</span>')+'<a class="btn green" href="admin-used-bike-scanner.html?source='+encodeURIComponent(c.id)+'" onclick="event.stopPropagation()">Use Scanner</a></div><div class="status" id="refresh-'+c.id+'" style="margin-top:7px">'+(c.status==="adapter_ready"?'Automatic background refresh is enabled. Use Refresh now only when you want an immediate check.':'Live refresh is not available for this website yet. Use Scanner until a source adapter is added.')+'</div>'+
+    '<div class="toolbar"><a class="btn" href="'+esc(c.results_url||c.base_url||"#")+'" target="_blank" onclick="event.stopPropagation()">Open source ↗</a>'+(c.status==="adapter_ready"?'<button class="btn green" type="button" data-refresh-source="'+c.id+'" onclick="refreshSource('+c.id+',event,this)">Refresh Source</button><span class="pill live" style="align-self:center">Auto refresh ON</span>':'<span class="btn" style="cursor:default">Adapter needed</span>')+'<a class="btn green" href="admin-used-bike-scanner.html"+sourcingContextQuery({source:c.id}) onclick="event.stopPropagation()">Use Scanner</a></div><div class="status" id="refresh-'+c.id+'" style="margin-top:7px">'+(c.status==="adapter_ready"?'Automatic background refresh is enabled. Use Refresh now only when you want an immediate check.':'Live refresh is not available for this website yet. Use Scanner until a source adapter is added.')+'</div>'+
     '</article>').join("");
 
   if(!selectedId){
@@ -251,9 +283,11 @@ async function loadBuyers(){
 }
 async function loadRequests(){
   const bid=document.getElementById("buyerSelect").value;const el=document.getElementById("requestSelect");
-  if(!bid){el.innerHTML='<option value="">Select buyer first</option>';return}
+  if(!bid){el.innerHTML='<option value="">Select buyer first</option>';return []}
   const {data}=await sb().from("global_buyer_request_items").select("id,make,model,year_from,year_to,max_price_gbp").eq("buyer_id",bid).order("id",{ascending:false});
-  el.innerHTML='<option value="">General sourcing</option>'+(data||[]).map(r=>'<option value="'+r.id+'">'+esc([r.make,r.model,r.year_from&&("from "+r.year_from)].filter(Boolean).join(" · "))+'</option>').join("");
+  const rows=data||[];
+  el.innerHTML='<option value="">General sourcing</option>'+rows.map(r=>'<option value="'+r.id+'">'+esc([r.make,r.model,r.year_from&&("from "+r.year_from)].filter(Boolean).join(" · "))+'</option>').join("");
+  return rows;
 }
 document.getElementById("buyerSelect").addEventListener("change",loadRequests);
 
@@ -265,12 +299,30 @@ async function createBatch(){
   st.className="status";st.textContent="Preparing "+selected.size+" motorcycles…";
   const {data,error}=await sb().rpc("admin_create_scan_batch_from_live_source_v1",{p_buyer_id:bid,p_request_item_id:rid,p_item_ids:[...selected],p_delivery_allowance_gbp:Number(document.getElementById("delivery").value)||250});
   if(error){st.className="status bad";st.textContent=error.message;return}
-  location.href="admin-used-bike-scanner.html?batch="+data;
+  location.href="admin-used-bike-scanner.html?batch="+data+(sourcingParams.get("deal")?"&deal="+encodeURIComponent(sourcingParams.get("deal")):"");
 }
 
 (async()=>{
   const allowed=await requireAdminSession();if(!allowed)return;
+  syncSourcingNav();
   await Promise.all([loadHub(),loadBuyers()]);
+  const requestedBuyer=sourcingParams.get("buyer");
+  const requestedRequest=sourcingParams.get("request");
+  if(requestedBuyer && [...document.getElementById("buyerSelect").options].some(o=>o.value===String(requestedBuyer))){
+    document.getElementById("buyerSelect").value=String(requestedBuyer);
+    const requestRows=await loadRequests();
+    if(requestedRequest && requestRows.some(r=>String(r.id)===String(requestedRequest))){
+      document.getElementById("requestSelect").value=String(requestedRequest);
+      const req=requestRows.find(r=>String(r.id)===String(requestedRequest));
+      if(req && req.make && (sourceFacets.makes||[]).includes(req.make)){
+        document.getElementById("makeFilter").value=req.make;
+        refreshModelOptions(req.model||"");
+        if(req.model && [...document.getElementById("modelFilter").options].some(o=>o.value===String(req.model))){
+          document.getElementById("modelFilter").value=req.model;
+        }
+      }
+    }
+  }
 
   // Opening Live Source Hub should show the whole selected live channel,
   // not retain a make/model filter from a previous sourcing search.
