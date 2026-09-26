@@ -8580,12 +8580,62 @@ function dealOfferNumber(id){
   return Number.isFinite(n) ? n : 0;
 }
 
+function dealOfferDateTimeLocal(value){
+  const d=value instanceof Date ? value : new Date(value);
+  if(Number.isNaN(d.getTime())) return "";
+  const pad=n=>String(n).padStart(2,"0");
+  return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())+"T"+pad(d.getHours())+":"+pad(d.getMinutes());
+}
+
 function defaultDealOfferExpiry(){
   const d=new Date();
   d.setDate(d.getDate()+3);
   d.setHours(17,0,0,0);
-  const pad=n=>String(n).padStart(2,"0");
-  return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())+"T"+pad(d.getHours())+":"+pad(d.getMinutes());
+  return dealOfferDateTimeLocal(d);
+}
+
+function defaultDealOfferTerms(){
+  return "This Formal Offer is subject to AnyBike's Terms & Conditions and Trade & Export Sale Policy. "+
+    "The buyer must confirm the current legal declarations when accepting the offer. "+
+    "AnyBike's collection check is visual only and is not a mechanical or engineering inspection. "+
+    "Any independent mechanical inspection must be requested before purchase unless otherwise agreed.";
+}
+
+function configureDealOfferExpiryLimit(dealMotorcycleId){
+  const input=document.getElementById("dealOfferExpiresAt");
+  const help=document.getElementById("dealOfferExpiryHelp");
+  if(!input) return;
+
+  input.removeAttribute("max");
+
+  if(dealMotorcycleIsSecured(dealMotorcycleId)){
+    if(help){
+      help.textContent="Motorcycle secured by AnyBike — the earlier seller availability window no longer limits this customer offer.";
+      help.style.color="#9bf0b8";
+    }
+    return;
+  }
+
+  const candidate=dealCandidateForMotorcycle(dealMotorcycleId);
+  const until=candidate?.availability_valid_until ? new Date(candidate.availability_valid_until) : null;
+  if(!until || Number.isNaN(until.getTime())){
+    if(help){
+      help.textContent="Offer expiry should remain within any live seller availability / hold window.";
+      help.style.color="#888";
+    }
+    return;
+  }
+
+  const maxValue=dealOfferDateTimeLocal(until);
+  input.max=maxValue;
+  const current=input.value ? new Date(input.value) : null;
+  if(current && !Number.isNaN(current.getTime()) && current.getTime()>until.getTime()){
+    input.value=maxValue;
+  }
+  if(help){
+    help.textContent="Maximum while the bike is not yet secured: "+until.toLocaleString("en-GB")+". Recheck the seller to extend this.";
+    help.style.color="#ffd27c";
+  }
 }
 
 function closeDealOfferModal(){
@@ -8761,11 +8811,7 @@ async function openDealOfferModal(dealMotorcycleId){
   document.getElementById("dealOfferDeliveryCharge").value=Number(row.delivery_charge_gbp || 0).toFixed(2);
 
   document.getElementById("dealOfferSaleBasis").value="Trade / Export Sale";
-  document.getElementById("dealOfferTerms").value=
-    "This Formal Offer is subject to AnyBike's Terms & Conditions and Trade & Export Sale Policy. "+
-    "The buyer must confirm the current legal declarations when accepting the offer. "+
-    "AnyBike's collection check is visual only and is not a mechanical or engineering inspection. "+
-    "Any independent mechanical inspection must be requested before purchase unless otherwise agreed.";
+  document.getElementById("dealOfferTerms").value=defaultDealOfferTerms();
   const preferredUkHandover=String(
     deal.uk_handover_port ||
     profile.preferred_uk_collection_point ||
@@ -8801,7 +8847,7 @@ async function openDealOfferModal(dealMotorcycleId){
       document.getElementById("dealOfferAnyBikeFee").value=Number(offer.anybike_fee_gbp || 0).toFixed(2);
       document.getElementById("dealOfferDeliveryCharge").value=Number(offer.delivery_charge_gbp || 0).toFixed(2);
       document.getElementById("dealOfferSaleBasis").value=offer.sale_basis || "Trade / Export Sale";
-      document.getElementById("dealOfferTerms").value=offer.offer_terms_text || "";
+      document.getElementById("dealOfferTerms").value=String(offer.offer_terms_text || "").trim() || defaultDealOfferTerms();
       document.getElementById("dealOfferDeliveryType").value=offer.delivery_type || "Buyer Arranged / Collection";
       setDealOfferDestinationValue(offer.delivery_destination || "");
       document.getElementById("dealOfferDepositRequired").checked=!!offer.deposit_required_at_acceptance;
@@ -8840,6 +8886,7 @@ async function openDealOfferModal(dealMotorcycleId){
 
   updateDealOfferDeliveryState();
   updateDealOfferDepositState();
+  configureDealOfferExpiryLimit(id);
   calculateDealOfferPreview();
 
   document.getElementById("dealOfferModal").classList.add("open");
@@ -8878,7 +8925,7 @@ async function saveDealOffer(){
   };
 
   if(motorcyclePrice<=0){ setError("Enter a valid motorcycle price."); return false; }
-  if(anybikeFee<0){ setError("AnyBike Service Fee cannot be negative."); return false; }
+  if(anybikeFee<0){ setError("AnyBike Sourcing Fee cannot be negative."); return false; }
   if(!saleBasis){ setError("Select a sale basis."); return false; }
   if(!deliveryType){ setError("Select a delivery / collection option."); return false; }
   if(deliveryType!=="Buyer Arranged / Collection" && !deliveryDestination){
@@ -18281,6 +18328,7 @@ document.querySelector(".admin-page-content .wrap")?.classList.add("sales-view-a
           <label>
             <span>Offer Valid Until</span>
             <input id="dealOfferExpiresAt" type="datetime-local">
+            <small id="dealOfferExpiryHelp" style="display:block;color:#888;margin-top:5px"></small>
           </label>
 
           <div class="deal-offer-readout">
