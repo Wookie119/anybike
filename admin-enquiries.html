@@ -13171,6 +13171,40 @@ function bikeSalesActionBlockers(action){
   return blockers.join(" · ");
 }
 
+function bikeSalesCandidateStateForDeal(dealId){
+  const rows=(adminDealCandidates||[]).filter(function(row){
+    return String(row.deal_id||"")===String(dealId||"");
+  });
+
+  const selected=rows.find(function(row){
+    return String(row.candidate_status||"")==="Selected" || Number(row.selected_deal_motorcycle_id||0)>0;
+  }) || null;
+
+  const interested=rows.find(function(row){
+    return String(row.candidate_status||"")==="Interested";
+  }) || null;
+
+  const confirmed=rows.find(function(row){
+    if(String(row.availability_status||"")!=="Confirmed Available") return false;
+    if(row.availability_valid_until){
+      const until=new Date(row.availability_valid_until);
+      if(!Number.isNaN(until.getTime()) && until.getTime()<=Date.now()) return false;
+    }
+    return true;
+  }) || null;
+
+  const sent=rows.find(function(row){
+    return String(row.candidate_status||"")==="Sent to Buyer";
+  }) || null;
+
+  return {rows:rows,selected:selected,interested:interested,confirmed:confirmed,sent:sent};
+}
+
+function bikeSalesCandidateTitle(row){
+  if(!row) return "Motorcycle";
+  return [row.year,row.make,row.model,row.variant].filter(Boolean).join(" ") || "Motorcycle";
+}
+
 function buildBikeSalesActions(){
   const items=[];
   const actionDealIds=new Set();
@@ -13224,17 +13258,57 @@ function buildBikeSalesActions(){
     }
 
     if(Number(deal.motorcycle_count || 0)===0 && !actionDealIds.has(dealId)){
-      items.push({
-        dealId:dealId,
-        dealNumber:deal.deal_number || ("Deal #"+dealId),
-        motorcycle:"Sourcing requirement",
-        type:"Needs Sourcing",
-        title:"Find candidate motorcycle",
-        icon:"🔎",
-        cls:"sourcing",
-        blockers:"No motorcycle has been selected for this Deal yet.",
-        priority:15
-      });
+      const candidateState=bikeSalesCandidateStateForDeal(dealId);
+
+      if(candidateState.interested && !candidateState.confirmed){
+        items.push({
+          dealId:dealId,
+          dealNumber:deal.deal_number || ("Deal #"+dealId),
+          motorcycle:bikeSalesCandidateTitle(candidateState.interested),
+          type:"Buyer Interested",
+          title:"Check Seller Availability",
+          icon:"☎️",
+          cls:"seller",
+          blockers:"Buyer is interested. Confirm the motorcycle is still available and confirm the seller price before progressing.",
+          priority:8
+        });
+      }else if(candidateState.confirmed && !candidateState.selected){
+        items.push({
+          dealId:dealId,
+          dealNumber:deal.deal_number || ("Deal #"+dealId),
+          motorcycle:bikeSalesCandidateTitle(candidateState.confirmed),
+          type:"Availability Confirmed",
+          title:"Select Motorcycle for Sale",
+          icon:"✅",
+          cls:"sourcing",
+          blockers:"Seller availability is confirmed. Review the commercial position and select this motorcycle into the sale before preparing the Formal Offer.",
+          priority:9
+        });
+      }else if(candidateState.sent){
+        items.push({
+          dealId:dealId,
+          dealNumber:deal.deal_number || ("Deal #"+dealId),
+          motorcycle:bikeSalesCandidateTitle(candidateState.sent),
+          type:"Waiting for Buyer",
+          title:"Potential Match Sent",
+          icon:"⏳",
+          cls:"sourcing",
+          blockers:"A potential match has been sent. No action is required until the buyer responds.",
+          priority:40
+        });
+      }else{
+        items.push({
+          dealId:dealId,
+          dealNumber:deal.deal_number || ("Deal #"+dealId),
+          motorcycle:"Sourcing requirement",
+          type:"Needs Sourcing",
+          title:"Find candidate motorcycle",
+          icon:"🔎",
+          cls:"sourcing",
+          blockers:"No motorcycle has been selected for this sale yet.",
+          priority:15
+        });
+      }
     }
   });
 
@@ -13291,6 +13365,8 @@ function bikeSalesJourneyStage(action,deal,flags){
   if(flags.offerAccepted) return "payment";
   if(flags.hasMotorcycle && (primary.includes("Seller")||primary.includes("VAT")||primary.includes("Shipping"))) return "seller";
   if(flags.hasMotorcycle) return "offer";
+  const candidateState=bikeSalesCandidateStateForDeal(deal?.deal_id);
+  if(candidateState.interested && !candidateState.confirmed) return "seller";
   return "sourcing";
 }
 
@@ -13302,7 +13378,9 @@ function bikeSalesJourneyInstruction(action,flags){
   if(primary.includes("Shipping")) return "Confirm the UK handover / shipper plan before purchase.";
   if(primary==="Ready to Purchase") return "All purchase gates are satisfied. Reconfirm with the seller and secure the motorcycle.";
   if(primary==="Operations") return "Continue the purchase and Move Motorcycles collection workflow.";
-  if(!flags.hasMotorcycle) return "Find suitable potential matches and send them to the buyer.";
+  if(!flags.hasMotorcycle){
+    return "Use the sourcing workspace to manage potential matches. If the buyer is interested, confirm live seller availability before selecting the motorcycle into the sale.";
+  }
   if(!flags.offerAccepted) return "Prepare the customer-facing offer when the motorcycle and commercial position are ready.";
   if(flags.customerPaid && !flags.collected) return "Customer funds are clear. Continue purchase and collection.";
   return "Review the latest activity and complete the next outstanding action.";
