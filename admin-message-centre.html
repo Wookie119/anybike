@@ -464,6 +464,32 @@ function safeSourceHref(v){
   }
 }
 function money(v){const n=Number(v);return v&&Number.isFinite(n)?"£"+n.toFixed(2):"—"}
+function adminWorkflowMessageHtml(value){
+  const text=String(value||"");
+  const actions=[];
+  const seen=new Set();
+  const patterns=[
+    {re:/\/admin-accounts\.html\?payment_advice=\d+/ig,label:"Verify Payment →"},
+    {re:/\/admin-enquiries\.html\?deal=\d+(?:&tab=[A-Za-z0-9_-]+)?/ig,label:"Open Sale →"},
+    {re:/\/admin-logistics\.html(?:\?[^\s]+)?/ig,label:"Open Logistics →"}
+  ];
+  patterns.forEach(function(item){
+    const matches=text.match(item.re)||[];
+    matches.forEach(function(url){
+      if(seen.has(url))return;
+      seen.add(url);
+      actions.push({url:url,label:item.label});
+    });
+  });
+  const body=safe(text);
+  if(!actions.length)return body;
+  return body+'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">'+
+    actions.map(function(a){
+      return '<a href="'+safe(a.url)+'" style="display:inline-flex;align-items:center;justify-content:center;padding:9px 12px;border-radius:9px;background:#ed1c24;color:#fff;text-decoration:none;font-weight:900;font-size:12px">'+safe(a.label)+'</a>';
+    }).join("")+
+    '</div>';
+}
+
 function shortDate(v){if(!v)return"—";return new Date(v).toLocaleString("en-GB",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"})}
 function niceType(type){const raw=String(type||"").trim();const key=raw.toLowerCase().replaceAll("_"," ");const map={"bike enquiry":"Bike Enquiry","buyer question":"Bike Enquiry","sell your bike":"Sell Your Bike","sell bike":"Sell Your Bike","contact us":"Contact Us","contact":"Contact Us","multi bike request":"Multi-Bike Request","bulk buying":"Multi-Bike Request","general":"General"};return map[key]||raw||"General"}
 function typeMatches(t,filter){return niceType(t.source_type).toLowerCase()===String(filter).toLowerCase()}
@@ -909,7 +935,7 @@ async function openThread(id){
                       <strong>${safe(m.sender_name || m.sender_type)}</strong>
                       <span>${shortDate(m.created_at)}</span>
                     </div>
-                    <div class="msg-text">${safe(m.message)}</div>
+                    <div class="msg-text">${adminWorkflowMessageHtml(m.message)}</div>
                   </div>
                 `;
               }).join("")
@@ -1820,7 +1846,7 @@ function liveChatMessageHtml(messages){
               <strong>${safe(m.sender_name || m.sender_type)}</strong>
               <span>${shortDate(m.created_at)}</span>
             </div>
-            <div class="msg-text">${safe(m.message)}</div>
+            <div class="msg-text">${adminWorkflowMessageHtml(m.message)}</div>
           </div>
         `;
       }).join("")
