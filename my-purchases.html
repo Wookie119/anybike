@@ -358,9 +358,9 @@ main{
 }
 
 .step.todo{
-  border-color:rgba(237,28,36,.5);
-  background:rgba(237,28,36,.09);
-  color:#ff8589;
+  border-color:rgba(255,255,255,.12);
+  background:#111;
+  color:#747474;
 }
 
 .step.done::before,
@@ -383,6 +383,34 @@ main{
 
 .step.todo::before{
   content:"○";
+}
+
+.journey-next{
+  margin-top:12px;
+  padding:12px 13px;
+  border:1px solid rgba(237,28,36,.35);
+  border-radius:11px;
+  background:#121212;
+}
+.journey-next span{
+  display:block;
+  color:#999;
+  font-size:11px;
+  text-transform:uppercase;
+  font-weight:900;
+  letter-spacing:.07em;
+}
+.journey-next strong{
+  display:block;
+  margin-top:4px;
+  color:#fff;
+  font-size:14px;
+}
+.journey-next p{
+  margin:4px 0 0;
+  color:#aaa;
+  font-size:12px;
+  line-height:1.45;
 }
 
 .notice{
@@ -927,26 +955,62 @@ function purchaseState(purchase){
 
 function journeyHtml(purchase,state){
 
-  const paymentDone=state.fullyPaid;
-  const collectedDone=state.collected;
-  const shippingDone=state.delivered || state.completed;
+  let current="deposit";
+  let nextTitle="Pay / report your deposit";
+  let nextText="Open Accounts & Documents to view your Proforma and report the bank transfer.";
 
-  const stepClass=(done,current)=>{
-    if(done) return "done";
-    if(current) return "current-shipping";
-    return "todo";
-  };
+  if(state.depositSatisfied && !state.secured){
+    current="seller";
+    nextTitle="AnyBike completes the final seller check";
+    nextText="No action is required from you. AnyBike will reconfirm the motorcycle and seller position before securing it.";
+  }else if(state.secured && !state.fullyPaid){
+    current="balance";
+    nextTitle="Complete the remaining balance / documents";
+    nextText="AnyBike will show the amount and documents required before collection can proceed.";
+  }else if(state.secured && state.fullyPaid && !state.collected){
+    current="collection";
+    nextTitle="AnyBike arranges collection";
+    nextText="Move Motorcycles will collect the motorcycle and the collection progress will appear here.";
+  }else if(state.collected && !state.delivered && !state.completed){
+    current="invoice";
+    nextTitle="Final invoice and UK handover";
+    nextText="AnyBike will finalise the invoice and arrange the confirmed delivery / handover to your shipper.";
+  }else if(state.delivered && !state.completed){
+    current="complete";
+    nextTitle="Complete the purchase";
+    nextText="The UK handover is complete. AnyBike will close the remaining transaction steps.";
+  }else if(state.completed){
+    current="complete";
+    nextTitle="Purchase complete";
+    nextText="No further action is required for this motorcycle.";
+  }
+
+  const steps=[
+    ["offer","Offer Accepted",true],
+    ["deposit","Deposit / Proforma",state.depositSatisfied],
+    ["seller","Seller Check",state.secured],
+    ["secured","Motorcycle Secured",state.secured],
+    ["balance","Balance & Documents",state.fullyPaid],
+    ["collection","Collection",state.collected],
+    ["invoice","Final Invoice",state.delivered||state.completed],
+    ["delivery","Delivery / Handover",state.delivered||state.completed],
+    ["complete","Complete",state.completed]
+  ];
+
+  const stepHtml=steps.map(function(step){
+    const key=step[0],label=step[1],done=step[2];
+    const isCurrent=key===current && !done;
+    return '<span class="step '+(done?"done":isCurrent?"current-shipping":"todo")+'">'+safe(label)+'</span>';
+  }).join("");
 
   return `
     <div class="journey">
-      <div class="journey-title">Purchase journey</div>
-      <div class="steps">
-        <span class="step done">Offer Accepted</span>
-        <span class="step ${stepClass(paymentDone,!paymentDone)}">${paymentDone?"Payment Complete":"Payment"}</span>
-        <span class="step ${stepClass(state.secured,paymentDone&&!state.secured)}">Motorcycle Secured</span>
-        <span class="step ${stepClass(collectedDone,state.secured&&!collectedDone)}">Collected</span>
-        <span class="step ${stepClass(shippingDone,collectedDone&&!shippingDone)}">UK Handover / Shipping</span>
-        <span class="step ${stepClass(state.completed,false)}">Completed</span>
+      <div class="journey-title">Your motorcycle journey</div>
+      <div class="steps">${stepHtml}</div>
+      <div class="journey-next">
+        <span>What happens next?</span>
+        <strong>${safe(nextTitle)}</strong>
+        <p>${safe(nextText)}</p>
       </div>
     </div>
   `;
