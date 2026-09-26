@@ -5602,8 +5602,11 @@ input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-in
 .sales-journey-head p{margin:4px 0 0;color:#909090;font-size:12px}
 .sales-next-action{
   min-width:280px;max-width:640px;padding:10px 12px;border-radius:11px;
-  background:#171717;border:1px solid rgba(255,255,255,.10)
+  background:#171717;border:1px solid rgba(255,255,255,.10);
+  cursor:pointer;transition:transform .12s ease,border-color .12s ease,background .12s ease;
 }
+.sales-next-action:hover{transform:translateY(-1px);background:#1d1d1d;border-color:#ed1c24}
+.sales-next-action:focus{outline:2px solid #ed1c24;outline-offset:2px}
 .sales-next-action.action{border-color:rgba(237,28,36,.60)}
 .sales-next-action.waiting{border-color:rgba(255,255,255,.12)}
 .sales-next-action strong{display:block;color:#fff;font-size:14px}
@@ -13787,6 +13790,68 @@ function bikeSalesJourneyStage(action,deal,flags){
   return "sourcing";
 }
 
+function bikeSalesNextActionTarget(action,deal,flags){
+  const primary=String(action?.primary_action || "");
+  const dealId=String(deal?.deal_id || "");
+
+  if(!flags.hasMotorcycle){
+    return {tab:"sourcing",selector:"#anybike-deal-"+dealId+" .sales-tab-panel[data-tab=\"sourcing\"]"};
+  }
+  if(primary.includes("VAT")){
+    return {tab:"seller",selector:"#anybike-deal-"+dealId+" .anybike-financial-panel"};
+  }
+  if(primary.includes("Seller")){
+    return {tab:"seller",selector:"#anybike-deal-"+dealId+" .anybike-seller-panel, #anybike-deal-"+dealId+" .anybike-seller-none"};
+  }
+  if(primary.includes("Shipping")){
+    return {tab:"delivery",selector:"#anybike-deal-"+dealId+" .sales-tab-panel[data-tab=\"delivery\"]"};
+  }
+  if(primary==="Deposit Due"){
+    return {tab:"payment",selector:"#anybike-deal-"+dealId+" .sales-tab-panel[data-tab=\"payment\"]"};
+  }
+  if(primary==="Ready to Purchase" || primary==="Operations"){
+    return {tab:"collection",selector:"#anybike-deal-"+dealId+" .sales-tab-panel[data-tab=\"collection\"]"};
+  }
+  if(primary.includes("Offer")){
+    return {tab:"offer",selector:"#anybike-deal-"+dealId+" .sales-tab-panel[data-tab=\"offer\"]"};
+  }
+  return {tab:"seller",selector:"#anybike-deal-"+dealId+" .sales-tab-panel[data-tab=\"seller\"]"};
+}
+
+function openBikeSalesNextTask(dealId){
+  const id=String(dealId || "");
+  const deal=bikeSalesDealById(id);
+  if(!deal){ return; }
+
+  const action=(adminDealNextActions || []).find(function(row){
+    return String(row.deal_id || "")===id;
+  }) || {};
+
+  const bikes=(adminDealMotorcycles || []).filter(function(row){
+    return String(row.deal_id || "")===id;
+  });
+  const customerAccount=adminDealCustomerAccounts.get(id)||{};
+  const dealValue=anyBikeAccountNumber(customerAccount,["deal_value_gbp"],deal.buyer_value_gbp);
+  const balance=anyBikeAccountNumber(customerAccount,["customer_balance_due_gbp"],dealValue);
+  const flags={
+    hasMotorcycle:bikes.length>0,
+    collected:String(deal.deal_status||deal.status||"").toLowerCase()==="collected",
+    customerPaid:dealValue>0 && balance<=0.009,
+    secured:!!action.bike_secured,
+    depositRequired:Number(action.deposit_required_gbp||0),
+    depositOutstanding:Number(action.deposit_outstanding_gbp||0),
+    offerAccepted:["Payment / Deposit","Operations","Shipping","Completed"].includes(String(deal.deal_stage||""))
+  };
+
+  const target=bikeSalesNextActionTarget(action,deal,flags);
+  bikeSalesJourneyTab(id,target.tab,true);
+
+  setTimeout(function(){
+    const el=document.querySelector(target.selector) || document.querySelector('.sales-journey[data-deal-id="'+id+'"]');
+    if(el){ scrollBikeSalesTargetIntoView(el); }
+  },30);
+}
+
 function bikeSalesJourneyInstruction(action,flags){
   const primary=String(action?.primary_action||"");
   if(primary==="Deposit Due") return "Waiting for the buyer to pay or report the required deposit. When it is reported, verify the bank receipt.";
@@ -14660,7 +14725,7 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
 
   return '<section class="sales-journey" data-deal-id="'+escapeAdminHtml(dealId)+'">'+
     '<div class="sales-journey-head"><div class="sales-journey-headline"><div><h3>'+escapeAdminHtml(dealNumber)+' · '+escapeAdminHtml(buyerName)+'</h3><p>'+escapeAdminHtml(status)+' · '+escapeAdminHtml(stage)+'</p></div>'+
-    '<div class="sales-next-action '+(waiting?"waiting":"action")+'"><strong>'+(waiting?"Waiting / Next":"Your next action")+': '+escapeAdminHtml(primary||"Review sale")+'</strong><span>'+escapeAdminHtml(nextText)+'</span></div></div></div>'+
+    '<div class="sales-next-action '+(waiting?"waiting":"action")+'" role="button" tabindex="0" title="Open next task" onclick="openBikeSalesNextTask(\''+dealId+'\');return false;" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();openBikeSalesNextTask(\''+dealId+'\');}"><strong>'+(waiting?"Waiting / Next":"Your next action")+': '+escapeAdminHtml(primary||"Review sale")+'</strong><span>'+escapeAdminHtml(nextText)+'</span></div></div></div>'+
     '<div class="sales-compact-pipeline">'+pipelineHtml+'</div>'+
     '<nav class="sales-work-tabs" aria-label="Sale stages">'+
       tabButton("request","Request")+
