@@ -468,7 +468,7 @@
           '<div class="ab-ops-metric"><span>Storage</span><strong>'+esc(statusLabel(row.storage_status||"Not started"))+'</strong></div>'+
           '<div class="ab-ops-metric"><span>Delivery</span><strong>'+esc(row.delivered_to_shipper_at?("Delivered · "+niceDateTime(row.delivered_to_shipper_at)):statusLabel(row.delivery_status||"Pending"))+'</strong></div>'+
         '</div>'+
-        '<div class="ab-ops-next"><span><strong>Motorcycle '+(index+1)+':</strong> '+esc(next)+'</span><a class="ab-ops-button ab-move-secondary" href="admin-logistics.html" style="text-decoration:none">Open Logistics HQ</a></div>'+
+        '<div class="ab-ops-next"><span><strong>Motorcycle '+(index+1)+':</strong> '+esc(next)+'</span><a class="ab-ops-button ab-move-secondary" href="admin-logistics.html?motorcycle='+id+'#custody-storage" style="text-decoration:none">Open Handover Controls →</a></div>'+
       '</section>';
     }).join("");
   }
