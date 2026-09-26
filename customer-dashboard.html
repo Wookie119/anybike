@@ -3675,13 +3675,22 @@ function renderMyOffers(rows){
 
 function openRequestedCustomerOffer(){
   const params=new URLSearchParams(window.location.search);
-  const requestedId=Number(params.get("offer")||0);
-  if(!requestedId) return;
+  const requestedDealOfferId=Number(params.get("deal_offer")||0);
+  const requestedLegacyId=Number(params.get("offer")||0);
 
-  const match=(currentBuyerMatchRows || []).find(row=>
-    Number(row?.id)===requestedId ||
-    Number(row?._deal_offer_id)===requestedId
-  );
+  let match=null;
+
+  if(requestedDealOfferId){
+    match=(currentBuyerMatchRows || []).find(row=>
+      row?._offer_source==="deal360" &&
+      Number(row?._deal_offer_id)===requestedDealOfferId
+    ) || null;
+  }else if(requestedLegacyId){
+    match=(currentBuyerMatchRows || []).find(row=>
+      Number(row?.id)===requestedLegacyId ||
+      Number(row?._deal_offer_id)===requestedLegacyId
+    ) || null;
+  }
 
   if(!match) return;
 
@@ -3857,7 +3866,7 @@ async function loadBuyerPotentialMatches(){
     sb.rpc("get_my_buyer_match_pools"),
     sb.rpc("get_my_buyer_match_dashboard_v4"),
     sb.rpc("get_my_deal_motorcycles"),
-    sb.rpc("get_my_deal_offers_v2"),
+    sb.rpc("get_my_deal_offers_v3"),
     sb.rpc("get_my_purchases_v6"),
     sb.rpc("get_my_collection_jobs_v1")
   ]);
