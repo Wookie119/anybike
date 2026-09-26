@@ -67,14 +67,14 @@
   }
 
   function marketMoney(gbp){
-    try{
-      if(typeof money==="function") return money(gbp);
-    }catch(error){}
-
     const value=Number(gbp);
-    return Number.isFinite(value) && value>0
-      ? "£"+Math.round(value).toLocaleString("en-GB")
-      : "Price on request";
+    if(!Number.isFinite(value) || value<=0) return "Price on request";
+
+    if(window.AnyBikeCurrency && typeof window.AnyBikeCurrency.formatGBP==="function"){
+      try{return window.AnyBikeCurrency.formatGBP(value);}catch(error){}
+    }
+
+    return "£"+Math.round(value).toLocaleString("en-GB");
   }
 
   function marketMileage(mileage){
@@ -119,7 +119,7 @@
       '<div class="stock-copy">'+
         '<h3>'+esc(title)+'</h3>'+
         (bike.mileage!=null?'<div class="stock-meta">'+esc(marketMileage(bike.mileage))+'</div>':'')+
-        '<div class="stock-price">'+esc(marketMoney(bike.price_gbp))+'</div>'+
+        '<div class="stock-price" data-price-gbp="'+esc(bike.price_gbp)+'">'+esc(marketMoney(bike.price_gbp))+'</div>'+
         '<div class="stock-meta" style="margin-top:8px;color:#ed3b3b;font-weight:900">'+esc(label)+' →</div>'+
       '</div>'+
     '</a>';
@@ -157,7 +157,7 @@
       groups.push(
         '<div class="stock-group-label" style="grid-column:1/-1;margin:6px 0 2px">'+
           '<strong style="display:block;font-size:1.15rem">Recently viewed in '+esc(market.name)+'</strong>'+
-          '<span style="display:block;color:#aaa;margin-top:4px">Real recent viewing activity associated with this market. Individual visitors are never identified.</span>'+
+          '<span style="display:block;color:#aaa;margin-top:4px">Real viewing activity from this market, including guest visits. Individual visitors are never identified.</span>'+
         '</div>'+
         viewed.map(function(b){return marketBikeCard(b,"View this motorcycle")}).join("")
       );
@@ -166,7 +166,7 @@
       groups.push(
         '<div class="stock-group-label" style="grid-column:1/-1;margin:22px 0 2px">'+
           '<strong style="display:block;font-size:1.15rem">Similar motorcycles currently available</strong>'+
-          '<span style="display:block;color:#aaa;margin-top:4px">Current UK stock selected from the makes, models, years, engine sizes and budgets attracting interest above.</span>'+
+          '<span style="display:block;color:#aaa;margin-top:4px">Current UK stock selected from real viewing and search activity in this market, including guest activity.</span>'+
         '</div>'+
         similar.map(function(b){return marketBikeCard(b,"View similar motorcycle")}).join("")
       );
