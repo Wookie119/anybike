@@ -96,8 +96,8 @@
   function money(gbp){
     const value=Number(gbp);
     if(!Number.isFinite(value)||value<=0) return "Price on request";
-    if(typeof window.money==="function"){
-      try{return window.money(value);}catch(error){}
+    if(window.AnyBikeCurrency && typeof window.AnyBikeCurrency.formatGBP==="function"){
+      return window.AnyBikeCurrency.formatGBP(value);
     }
     return "£"+Math.round(value).toLocaleString("en-GB");
   }
@@ -139,7 +139,7 @@
       '<img src="'+esc(img)+'" alt="'+esc(title)+'" loading="lazy" onerror="this.onerror=null;this.src=\'/anybike-logo-new.jpg\'">'+
       '<div class="ab-stock-copy"><h3>'+esc(title)+'</h3>'+
       (mileage(bike.mileage)?'<div class="ab-stock-meta">'+esc(mileage(bike.mileage))+'</div>':'')+
-      '<div class="ab-stock-price">'+esc(money(bike.price_gbp))+'</div>'+
+      '<div class="ab-stock-price" data-price-gbp="'+esc(bike.price_gbp)+'">'+esc(money(bike.price_gbp))+'</div>'+
       '<div class="ab-stock-action">'+esc(label)+' →</div></div></a>';
   }
 
