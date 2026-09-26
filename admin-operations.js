@@ -134,6 +134,18 @@
       .ab-move-warning{margin:0 14px 12px;padding:10px 11px;border:1px solid rgba(255,181,71,.3);border-radius:8px;background:#211707;color:#ffd18a;font-size:11px;line-height:1.4}
       .ab-move-warning.ab-move-ready{border-color:rgba(47,141,85,.5);background:#102719;color:#9cf0b5}
       .ab-move-booked{margin:0 16px 14px;padding:12px 14px;border:1px solid rgba(47,141,85,.4);border-radius:10px;background:#102719;color:#9cf0b5}
+      .ab-ops-progress{margin:0 16px 14px;padding:12px 14px;border:1px solid rgba(255,255,255,.09);border-radius:10px;background:#0d0d0d}
+      .ab-ops-progress-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:9px}
+      .ab-ops-progress-head span{color:#888;font-size:10px;font-weight:950;text-transform:uppercase;letter-spacing:.06em}
+      .ab-ops-progress-head strong{color:#fff;font-size:11px}
+      .ab-ops-progress-track{height:7px;background:#262626;border-radius:999px;overflow:hidden}
+      .ab-ops-progress-fill{height:100%;background:linear-gradient(90deg,#ed1c24,#ff555b);border-radius:inherit}
+      .ab-ops-progress-steps{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+      .ab-ops-progress-step{padding:5px 7px;border:1px solid rgba(255,255,255,.10);border-radius:999px;color:#666;font-size:9px;font-weight:950}
+      .ab-ops-progress-step.done{border-color:rgba(47,141,85,.48);background:rgba(47,141,85,.10);color:#9cf0b5}
+      .ab-ops-progress-step.current{border-color:rgba(255,181,71,.45);background:rgba(255,181,71,.08);color:#ffd18a}
+      .ab-ops-next-action{margin-top:9px;color:#bbb;font-size:11px;line-height:1.45}
+      .ab-ops-next-action strong{color:#fff}
       .ab-ops-button{min-height:39px;border:0;border-radius:8px;background:#ed1c24;color:#fff;padding:10px 14px;font-weight:900;cursor:pointer}
       .ab-ops-button:disabled{opacity:.45;cursor:not-allowed}
       .ab-ops-next{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 16px;border-top:1px solid rgba(255,255,255,.08);background:#101010;color:#aaa;font-size:12px}
@@ -322,6 +334,32 @@
       const seller=sellerNameFor(row);
       const phone=sellerPhoneFor(row);
 
+      const atDepot=!!row.depot_arrived_at || ["at_depot","in_storage","stored"].includes(String(row.depot_status||"").toLowerCase()) || ["free","chargeable","paused","stopped"].includes(String(storage).toLowerCase());
+      const delivered=!!row.delivered_to_shipper_at || ["delivered","completed","handed_over"].includes(String(row.delivery_status||"").toLowerCase()) || !!row.operations_complete;
+      const operationsStages=[
+        ["Seller confirmed",confirmed],
+        ["Move booked",booked],
+        ["Collected",collected],
+        ["Depot / storage",atDepot],
+        ["Delivered",delivered]
+      ];
+      const completedStages=operationsStages.filter(function(item){return !!item[1];}).length;
+      const operationsPercent=Math.round((completedStages/operationsStages.length)*100);
+      let operationsCurrent=operationsStages.findIndex(function(item){return !item[1];});
+      if(operationsCurrent<0) operationsCurrent=operationsStages.length-1;
+      const operationsStepsHtml=operationsStages.map(function(item,index){
+        const cls=item[1]?"done":(index===operationsCurrent?"current":"");
+        return '<span class="ab-ops-progress-step '+cls+'">'+(item[1]?'✓ ':'')+esc(item[0])+'</span>';
+      }).join("");
+
+      let operationsNext="Review the motorcycle operations record.";
+      if(!confirmed) operationsNext="Contact the seller, confirm AnyBike is proceeding and obtain the Ready Date.";
+      else if(!booked) operationsNext="Complete the collection details and book Move Motorcycles.";
+      else if(!collected) operationsNext="Track the Move collection and complete the driver handover workflow.";
+      else if(!atDepot) operationsNext="Motorcycle collected. Confirm depot arrival / custody and storage status.";
+      else if(!delivered) operationsNext="Motorcycle is in UK custody. Complete the final handover / delivery to the buyer's shipper.";
+      else operationsNext="Operations complete. Finalise the invoice and close the sale when all commercial records are complete.";
+
       return `
         <section class="ab-ops-bike">
           <div class="ab-ops-head">
@@ -330,6 +368,13 @@
               <h4>${esc(motorcycleTitle(row))}</h4>
             </div>
             <div class="ab-ops-state ${confirmed ? "ready" : ""}">${confirmed ? "Seller proceeding confirmed" : "Seller confirmation required"}</div>
+          </div>
+
+          <div class="ab-ops-progress">
+            <div class="ab-ops-progress-head"><span>Operations Progress</span><strong>${completedStages} / ${operationsStages.length} stages · ${operationsPercent}%</strong></div>
+            <div class="ab-ops-progress-track"><div class="ab-ops-progress-fill" style="width:${operationsPercent}%"></div></div>
+            <div class="ab-ops-progress-steps">${operationsStepsHtml}</div>
+            <div class="ab-ops-next-action"><strong>Next:</strong> ${esc(operationsNext)}</div>
           </div>
 
           <div class="ab-ops-grid">
@@ -363,7 +408,7 @@
             : `<div id="ab-move-booking-${id}" class="ab-move"><div class="ab-ops-loading">Loading Move booking details…</div></div>`) : ""}
           ${confirmed ? collectionPanel(row,dealId) : ""}
           <div class="ab-ops-next">
-            <span><strong>Next:</strong> ${confirmed ? (collected ? "Motorcycle is collected and secured. Continue depot/storage or final shipping handover." : (booked ? "Move collection is linked to this motorcycle." : "Review and complete the Move Motorcycles booking.")) : "Contact the seller, confirm AnyBike is proceeding and obtain the Ready Date."}</span>
+            <span><strong>Current operations status:</strong> ${esc(delivered ? "Delivered / handover complete" : atDepot ? "At depot / storage" : collected ? "Collected" : booked ? "Booked with Move" : confirmed ? "Seller confirmed" : "Seller confirmation required")}</span>
             <span class="ab-ops-private">${phone ? "Seller contact held internally" : "Seller details remain internal"}</span>
           </div>
         </section>
@@ -377,6 +422,82 @@
         setTimeout(function(){ loadMoveBooking(row.deal_motorcycle_id,false); },0);
       }
     });
+  }
+
+
+  function renderDeliveryRows(dealId,rows){
+    const host=document.getElementById("anybike-delivery-status-"+dealId);
+    if(!host) return;
+
+    if(!rows.length){
+      host.innerHTML='<div class="ab-ops-empty">No selected motorcycle is available for delivery yet.</div>';
+      return;
+    }
+
+    host.innerHTML='<div class="ab-ops">'+rows.map(function(row,index){
+      const collected=String(row.collection_status||"")==="collected";
+      const atDepot=!!row.depot_arrived_at || ["at_depot","in_storage","stored"].includes(String(row.depot_status||"").toLowerCase()) || ["free","chargeable","paused","stopped"].includes(String(row.storage_status||"").toLowerCase());
+      const delivered=!!row.delivered_to_shipper_at || ["delivered","completed","handed_over"].includes(String(row.delivery_status||"").toLowerCase()) || !!row.operations_complete;
+      const title=motorcycleTitle(row);
+      const stages=[
+        ["Collected",collected],
+        ["Depot / storage",atDepot],
+        ["Delivery / handover",delivered]
+      ];
+      const completeCount=stages.filter(function(s){return s[1];}).length;
+      const percent=Math.round((completeCount/stages.length)*100);
+      const firstOpen=Math.max(0,stages.findIndex(function(s){return !s[1];}));
+      const stageHtml=stages.map(function(s,i){
+        const cls=s[1]?"done":(!delivered && i===firstOpen?"current":"");
+        return '<span class="ab-ops-progress-step '+cls+'">'+(s[1]?'✓ ':'')+esc(s[0])+'</span>';
+      }).join("");
+
+      let next="Collection must be completed before delivery starts.";
+      if(collected&&!atDepot) next="Confirm depot arrival / custody and storage.";
+      else if(atDepot&&!delivered) next="Arrange and complete final delivery / handover to the buyer's shipper.";
+      else if(delivered) next="Delivery / handover complete. Finalise invoice and close the sale.";
+
+      return '<section class="ab-ops-bike">'+
+        '<div class="ab-ops-head"><div><span>Delivery & Handover</span><h4>'+esc(title)+'</h4></div><div class="ab-ops-state '+(delivered?'ready':'')+'">'+esc(delivered?'Delivered':atDepot?'At depot / storage':collected?'Collected':'Waiting for collection')+'</div></div>'+
+        '<div class="ab-ops-progress"><div class="ab-ops-progress-head"><span>Delivery progress</span><strong>'+completeCount+' / '+stages.length+' stages · '+percent+'%</strong></div>'+
+        '<div class="ab-ops-progress-track"><div class="ab-ops-progress-fill" style="width:'+percent+'%"></div></div>'+
+        '<div class="ab-ops-progress-steps">'+stageHtml+'</div><div class="ab-ops-next-action"><strong>Next:</strong> '+esc(next)+'</div></div>'+
+        '<div class="ab-ops-grid">'+
+          '<div class="ab-ops-metric"><span>Collection</span><strong>'+esc(statusLabel(row.collection_status||"Not collected"))+'</strong></div>'+
+          '<div class="ab-ops-metric"><span>Depot</span><strong>'+esc(row.depot_arrived_at?niceDateTime(row.depot_arrived_at):statusLabel(row.depot_status||"Pending"))+'</strong></div>'+
+          '<div class="ab-ops-metric"><span>Storage</span><strong>'+esc(statusLabel(row.storage_status||"Not started"))+'</strong></div>'+
+          '<div class="ab-ops-metric"><span>Delivery</span><strong>'+esc(row.delivered_to_shipper_at?("Delivered · "+niceDateTime(row.delivered_to_shipper_at)):statusLabel(row.delivery_status||"Pending"))+'</strong></div>'+
+        '</div>'+
+        '<div class="ab-ops-next"><span><strong>Motorcycle '+(index+1)+':</strong> '+esc(next)+'</span><a class="ab-ops-button ab-move-secondary" href="admin-logistics.html?motorcycle='+id+'#custody-storage" style="text-decoration:none">Open Handover Controls →</a></div>'+
+      '</section>';
+    }).join("");
+  }
+
+  async function loadDelivery(dealId,force){
+    const key=String(dealId||"");
+    const host=document.getElementById("anybike-delivery-status-"+key);
+    if(!key || !host) return;
+
+    try{
+      let rows=operationsCache.get(key);
+      if(force || !rows){
+        const result=await client().rpc("admin_get_deal_operations_v4",{p_deal_id:Number(key)});
+        if(result.error) throw result.error;
+        rows=result.data||[];
+        operationsCache.set(key,rows);
+      }
+      renderDeliveryRows(key,rows||[]);
+    }catch(error){
+      console.error("Delivery status could not be loaded:",error);
+      host.innerHTML='<div class="ab-ops-error">Delivery status could not be loaded: '+esc(error.message||error)+'</div>';
+    }
+  }
+
+  function renderDeliveryPanel(deal){
+    const dealId=String(deal && deal.deal_id || "");
+    if(!dealId) return "";
+    setTimeout(function(){ loadDelivery(dealId,false); },0);
+    return '<div id="anybike-delivery-status-'+esc(dealId)+'"><div class="ab-ops-loading">Loading Delivery &amp; Handover…</div></div>';
   }
 
   function fieldValue(id){
@@ -733,6 +854,9 @@
       const rows=result.data || [];
       operationsCache.set(key,rows);
       renderRows(key,rows);
+      if(force && typeof window.invalidateFinalInvoiceReadiness==="function"){
+        window.invalidateFinalInvoiceReadiness(key);
+      }
     }catch(error){
       console.error("Deal Operations could not be loaded:",error);
       if(host) host.innerHTML='<div class="ab-ops-error">Purchase & Collection could not be loaded: '+esc(error.message||error)+'</div>';
@@ -984,6 +1108,8 @@
     }
   }
   window.renderAnyBikeOperationsPanel=renderPanel;
+  window.renderAnyBikeDeliveryStatusPanel=renderDeliveryPanel;
+  window.loadAnyBikeDeliveryStatusPanel=loadDelivery;
   window.loadAnyBikeOperationsPanel=loadDeal;
   window.saveAnyBikeSellerReady=saveSellerReady;
   window.openAnyBikeReadyCalendar=openReadyCalendar;

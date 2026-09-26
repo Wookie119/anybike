@@ -1887,6 +1887,21 @@ async function loadOperationsStorageQueue(){
   }
 }
 
+function openRequestedOpsMotorcycleFromUrl(){
+  const params=new URLSearchParams(window.location.search);
+  const dm=Number(params.get("motorcycle")||0);
+  if(!Number.isFinite(dm)||dm<=0)return;
+
+  const row=operationsStorageRows.find(function(item){
+    return Number(item.deal_motorcycle_id)===dm;
+  });
+  if(!row)return;
+
+  const section=document.getElementById("custody-storage");
+  if(section)section.scrollIntoView({behavior:"auto",block:"start"});
+  setTimeout(function(){openOpsDetail(dm);},50);
+}
+
 async function runOpsAction(dm,action,args){
   const payload=Object.assign({
     p_deal_motorcycle_id:Number(dm),
@@ -2092,6 +2107,8 @@ async function copyPaySiteLink(){
     loadOperationsStorageSettings(),
     loadOperationsStorageQueue()
   ]);
+
+  openRequestedOpsMotorcycleFromUrl();
 
   try{
     const access=await logisticsSb.rpc("anybike_is_pay_on_site_admin_v1");

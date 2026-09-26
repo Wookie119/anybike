@@ -358,9 +358,9 @@ main{
 }
 
 .step.todo{
-  border-color:rgba(237,28,36,.5);
-  background:rgba(237,28,36,.09);
-  color:#ff8589;
+  border-color:rgba(255,255,255,.12);
+  background:#111;
+  color:#747474;
 }
 
 .step.done::before,
@@ -383,6 +383,34 @@ main{
 
 .step.todo::before{
   content:"○";
+}
+
+.journey-next{
+  margin-top:12px;
+  padding:12px 13px;
+  border:1px solid rgba(237,28,36,.35);
+  border-radius:11px;
+  background:#121212;
+}
+.journey-next span{
+  display:block;
+  color:#999;
+  font-size:11px;
+  text-transform:uppercase;
+  font-weight:900;
+  letter-spacing:.07em;
+}
+.journey-next strong{
+  display:block;
+  margin-top:4px;
+  color:#fff;
+  font-size:14px;
+}
+.journey-next p{
+  margin:4px 0 0;
+  color:#aaa;
+  font-size:12px;
+  line-height:1.45;
 }
 
 .notice{
@@ -762,6 +790,34 @@ main{
   .purchase-overview,.handover-card,.purchase-more-grid{grid-template-columns:1fr}
 }
 
+
+.purchase-group{margin:0 0 18px;border:1px solid rgba(255,255,255,.10);border-radius:16px;background:#090909;overflow:hidden}
+.purchase-group-head{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.09);background:#101010}
+.purchase-group-head span{display:block;color:#888;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.08em}
+.purchase-group-head h2{margin:3px 0 0;font-size:18px}
+.purchase-group-head p{margin:3px 0 0;color:#999;font-size:12px}
+.purchase-group-head a{display:inline-flex;align-items:center;justify-content:center;padding:9px 12px;border-radius:9px;background:#171717;border:1px solid rgba(255,255,255,.12);color:#fff;text-decoration:none;font-weight:900;font-size:12px}
+.purchase-group-head a:hover{border-color:#ed1c24}
+.purchase-group-grid{display:grid;gap:12px;padding:12px}
+.purchase-group.multi .purchase-group-grid{grid-template-columns:repeat(auto-fit,minmax(520px,1fr))}
+@media(max-width:700px){.purchase-group.multi .purchase-group-grid{grid-template-columns:1fr}}
+
+.purchase-add-bike{margin-top:10px;padding:12px;border-top:1px solid rgba(255,255,255,.08);background:#0d0d0d}
+.purchase-add-bike-form{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.purchase-add-bike-form label{display:block;color:#888;font-size:9px;font-weight:900;text-transform:uppercase;margin-bottom:4px}
+.purchase-add-bike-form input,.purchase-add-bike-form textarea{width:100%;background:#090909;color:#fff;border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:9px;font:inherit}
+.purchase-add-bike-form .wide{grid-column:span 4}
+.purchase-add-bike-actions{grid-column:span 4;display:flex;justify-content:flex-end;gap:8px}
+.purchase-add-bike-actions button{border:1px solid #ed1c24;background:#ed1c24;color:#fff;border-radius:9px;padding:9px 12px;font-weight:900;cursor:pointer}
+.purchase-add-bike-actions button.secondary{background:#171717;border-color:#444}
+.purchase-add-bike-note{font-size:11px;color:#888;line-height:1.45;margin-bottom:10px}
+@media(max-width:760px){.purchase-add-bike-form{grid-template-columns:1fr 1fr}.purchase-add-bike-form .wide,.purchase-add-bike-actions{grid-column:span 2}}
+
+.buyer-progress-meter{display:grid;grid-template-columns:auto minmax(160px,1fr) auto;gap:10px;align-items:center;margin:12px 0;padding:9px 11px;border:1px solid rgba(255,255,255,.10);border-radius:10px;background:#0d0d0d}
+.buyer-progress-meter>span{font-size:10px;font-weight:900;color:#888;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap}
+.buyer-progress-track{height:7px;border-radius:999px;background:#242424;overflow:hidden}
+.buyer-progress-fill{height:100%;border-radius:inherit;background:linear-gradient(90deg,#ed1c24,#ff5158)}
+.buyer-progress-meter>strong{font-size:11px;color:#fff;white-space:nowrap}
 </style>
 </head>
 
@@ -874,6 +930,8 @@ function purchaseState(purchase){
   const secured=!!purchase.motorcycle_secured;
   const collected=String(purchase.collection_status||"").toLowerCase()==="collected" ||
     String(purchase.deal_status||"").toLowerCase()==="collected";
+  const storageStatus=String(purchase.storage_status||"").toLowerCase();
+  const inStorage=collected && !["","not_started","released"].includes(storageStatus) && !purchase.storage_released_at;
   const deliveryStage=String(purchase.delivery_handover_status||"").toLowerCase();
   const delivered=!!purchase.delivered_to_shipper_at || deliveryStage==="delivered";
   const outForDelivery=["driver_link_ready","driver_opened","arrived"].includes(deliveryStage);
@@ -895,9 +953,12 @@ function purchaseState(purchase){
   }else if(outForDelivery){
     heading="Out for Delivery";
     message="Move Motorcycles is completing the agreed handover to your confirmed shipping company.";
+  }else if(inStorage){
+    heading="Secure UK Custody / Storage";
+    message="Your motorcycle has been collected and is being held securely in the UK while the final handover is arranged.";
   }else if(collected){
     heading="Collected";
-    message="Your motorcycle has been collected and is now moving through the secure UK custody / shipping stage.";
+    message="Your motorcycle has been collected and is moving into secure UK custody / onward handover.";
   }else if(secured && fullyPaid){
     heading="Motorcycle Secured";
     message="Your motorcycle is secured and paid in full. AnyBike is preparing the collection and UK handover.";
@@ -920,36 +981,145 @@ function purchaseState(purchase){
 
   return {
     depositRequired,depositDue,depositAllocated,depositOutstanding,depositSatisfied,
-    moneyReceived,allocated,balance,secured,collected,delivered,outForDelivery,completed,fullyPaid,
+    moneyReceived,allocated,balance,secured,collected,inStorage,storageStatus,delivered,outForDelivery,completed,fullyPaid,
     heading,message,paymentStatus
   };
 }
 
+function buyerProgressHtml(purchase,state){
+  const complete=String(purchase?.deal_stage||"").toLowerCase()==="completed" || String(purchase?.deal_status||"").toLowerCase()==="completed";
+  const stages=[
+    true,
+    state.depositSatisfied,
+    state.secured,
+    state.fullyPaid,
+    state.collected,
+    state.inStorage||state.delivered||complete,
+    state.delivered||complete,
+    complete
+  ];
+  const done=stages.filter(Boolean).length;
+  const total=stages.length;
+  const percent=Math.max(0,Math.min(100,Math.round((done/total)*100)));
+  return '<div class="buyer-progress-meter"><span>Purchase progress</span><div class="buyer-progress-track"><div class="buyer-progress-fill" style="width:'+percent+'%"></div></div><strong>'+done+' / '+total+' stages</strong></div>';
+}
+
 function journeyHtml(purchase,state){
 
-  const paymentDone=state.fullyPaid;
-  const collectedDone=state.collected;
-  const shippingDone=state.delivered || state.completed;
+  let current="deposit";
+  let nextTitle="Pay / report your deposit";
+  let nextText="Open Accounts & Documents to view your Proforma and report the bank transfer.";
 
-  const stepClass=(done,current)=>{
-    if(done) return "done";
-    if(current) return "current-shipping";
-    return "todo";
-  };
+  if(state.depositSatisfied && !state.secured){
+    current="seller";
+    nextTitle="AnyBike completes the final seller check";
+    nextText="No action is required from you. AnyBike will reconfirm the motorcycle and seller position before securing it.";
+  }else if(state.secured && !state.fullyPaid){
+    current="balance";
+    nextTitle="Complete the remaining balance / documents";
+    nextText="AnyBike will show the amount and documents required before collection can proceed.";
+  }else if(state.secured && state.fullyPaid && !state.collected){
+    current="collection";
+    nextTitle="AnyBike arranges collection";
+    nextText="Move Motorcycles will collect the motorcycle and the collection progress will appear here.";
+  }else if(state.collected && !state.delivered && !state.completed){
+    current=state.inStorage?"storage":"delivery";
+    nextTitle=state.inStorage?"Secure UK custody / storage":"Arrange the UK handover";
+    nextText=state.inStorage
+      ?"Your motorcycle is secure in the UK while AnyBike and Move arrange the confirmed handover to your shipper."
+      :"Your motorcycle has been collected. AnyBike and Move will now complete the agreed UK handover.";
+  }else if(state.delivered && !state.completed){
+    current="invoice";
+    nextTitle="Final invoice";
+    nextText="The UK handover is complete. AnyBike will now finalise the transaction charges and issue the Final Invoice.";
+  }else if(state.completed){
+    current="complete";
+    nextTitle="Purchase complete";
+    nextText="No further action is required for this motorcycle.";
+  }
+
+  const steps=[
+    ["offer","Offer Accepted",true],
+    ["deposit","Deposit / Proforma",state.depositSatisfied],
+    ["seller","Seller Check",state.secured],
+    ["secured","Motorcycle Secured",state.secured],
+    ["balance","Balance & Documents",state.fullyPaid],
+    ["collection","Collection",state.collected],
+    ["storage","UK Custody / Storage",state.inStorage||state.delivered||state.completed],
+    ["delivery","Delivery / Handover",state.delivered||state.completed],
+    ["invoice","Final Invoice",state.completed],
+    ["complete","Complete",state.completed]
+  ];
+
+  const stepHtml=steps.map(function(step){
+    const key=step[0],label=step[1],done=step[2];
+    const isCurrent=key===current && !done;
+    return '<span class="step '+(done?"done":isCurrent?"current-shipping":"todo")+'">'+safe(label)+'</span>';
+  }).join("");
 
   return `
     <div class="journey">
-      <div class="journey-title">Purchase journey</div>
-      <div class="steps">
-        <span class="step done">Offer Accepted</span>
-        <span class="step ${stepClass(paymentDone,!paymentDone)}">${paymentDone?"Payment Complete":"Payment"}</span>
-        <span class="step ${stepClass(state.secured,paymentDone&&!state.secured)}">Motorcycle Secured</span>
-        <span class="step ${stepClass(collectedDone,state.secured&&!collectedDone)}">Collected</span>
-        <span class="step ${stepClass(shippingDone,collectedDone&&!shippingDone)}">UK Handover / Shipping</span>
-        <span class="step ${stepClass(state.completed,false)}">Completed</span>
+      <div class="journey-title">Your motorcycle journey</div>
+      <div class="steps">${stepHtml}</div>
+      <div class="journey-next">
+        <span>What happens next?</span>
+        <strong>${safe(nextTitle)}</strong>
+        <p>${safe(nextText)}</p>
       </div>
     </div>
   `;
+}
+
+function toggleCustomerAddBike(dealId){
+  const box=document.getElementById("purchase-add-bike-"+String(dealId));
+  if(!box)return;
+  box.style.display=box.style.display==="none"?"block":"none";
+}
+
+async function submitCustomerAddBike(event,dealId){
+  event.preventDefault();
+  const form=event.currentTarget;
+  const submit=form.querySelector('button[type="submit"]');
+  const fd=new FormData(form);
+  const value=function(name){return String(fd.get(name)||"").trim();};
+  const numberOrNull=function(name){
+    const raw=value(name);
+    if(!raw)return null;
+    const n=Number(raw);
+    return Number.isFinite(n)?n:null;
+  };
+
+  if(submit){submit.disabled=true;submit.textContent="Sending...";}
+
+  try{
+    const {data,error}=await sb.rpc("customer_add_deal_requirement_v1",{
+      p_deal_id:Number(dealId),
+      p_make:value("make")||null,
+      p_model:value("model")||null,
+      p_variant:value("variant")||null,
+      p_year_from:numberOrNull("year_from"),
+      p_year_to:numberOrNull("year_to"),
+      p_mileage_max:numberOrNull("mileage_max"),
+      p_budget_max_gbp:numberOrNull("budget_max_gbp"),
+      p_quantity:numberOrNull("quantity")||1,
+      p_notes:value("notes")||""
+    });
+    if(error)throw error;
+
+    form.reset();
+    const qty=form.querySelector('[name="quantity"]');
+    if(qty)qty.value="1";
+
+    const box=document.getElementById("purchase-add-bike-"+String(dealId));
+    if(box){
+      box.innerHTML='<div style="padding:12px;border:1px solid rgba(54,211,126,.35);border-radius:10px;background:rgba(54,211,126,.08);color:#b9ffd0;font-weight:900">Request sent to AnyBike. It has been added to this purchase and the Bike Sales team has been notified.</div>';
+      box.style.display="block";
+    }
+  }catch(error){
+    alert("Your additional motorcycle request could not be sent.\n\n"+(error?.message||error));
+  }finally{
+    if(submit){submit.disabled=false;submit.textContent="Send Request";}
+  }
 }
 
 function collectionJobCustomerLabel(status){
@@ -1045,6 +1215,8 @@ function purchaseCard(purchase){
           <strong>${safe(state.heading)}</strong>
           <p>${safe(state.message)}</p>
         </div>
+
+        ${buyerProgressHtml(purchase,state)}
 
         <div class="purchase-overview">
           <div class="overview-box total">
@@ -1602,19 +1774,39 @@ async function loadPurchases(){
 
   }
 
-  purchasesBox.innerHTML = `
+  const purchaseGroups=new Map();
+  orderedPurchases.forEach(function(purchase){
+    const key=String(purchase.deal_id||purchase.deal_number||purchase.deal_motorcycle_id||"purchase");
+    if(!purchaseGroups.has(key)) purchaseGroups.set(key,[]);
+    purchaseGroups.get(key).push(purchase);
+  });
 
-    <div class="grid">
-
-      ${
-        orderedPurchases
-          .map(purchaseCard)
-          .join("")
-      }
-
-    </div>
-
-  `;
+  purchasesBox.innerHTML=Array.from(purchaseGroups.values()).map(function(group){
+    const first=group[0]||{};
+    const dealNumber=first.deal_number||"AnyBike Purchase";
+    const count=group.length;
+    return '<section class="purchase-group '+(count>1?'multi':'single')+'">'+
+      '<div class="purchase-group-head"><div><span>AnyBike purchase</span><h2>'+safe(dealNumber)+'</h2>'+
+      '<p>'+count+' motorcycle'+(count===1?'':'s')+' in this purchase. Each motorcycle follows its own journey and can progress independently.</p></div>'+
+      '<button type="button" onclick="toggleCustomerAddBike(\''+safe(String(first.deal_id||""))+'\')" style="display:inline-flex;align-items:center;justify-content:center;padding:9px 12px;border-radius:9px;background:#171717;border:1px solid rgba(255,255,255,.12);color:#fff;font-weight:900;font-size:12px;cursor:pointer">+ Add another motorcycle</button></div>'+
+      '<div class="purchase-group-grid">'+group.map(purchaseCard).join("")+'</div>'+
+      '<div class="purchase-add-bike" id="purchase-add-bike-'+safe(String(first.deal_id||""))+'" style="display:none">'+
+        '<div class="purchase-add-bike-note">Tell AnyBike what else you want to buy. This adds another sourcing requirement to the same purchase and alerts the Bike Sales team.</div>'+
+        '<form class="purchase-add-bike-form" onsubmit="submitCustomerAddBike(event,\''+safe(String(first.deal_id||""))+'\');return false;">'+
+          '<div><label>Make</label><input name="make" placeholder="e.g. Honda"></div>'+
+          '<div><label>Model</label><input name="model" placeholder="e.g. Gold Wing"></div>'+
+          '<div><label>Variant</label><input name="variant" placeholder="Optional"></div>'+
+          '<div><label>Quantity</label><input name="quantity" type="number" min="1" max="20" value="1"></div>'+
+          '<div><label>Year from</label><input name="year_from" type="number" min="1900" max="2100"></div>'+
+          '<div><label>Year to</label><input name="year_to" type="number" min="1900" max="2100"></div>'+
+          '<div><label>Max mileage</label><input name="mileage_max" type="number" min="0"></div>'+
+          '<div><label>Budget £</label><input name="budget_max_gbp" type="number" min="0" step="0.01"></div>'+
+          '<div class="wide"><label>Notes</label><textarea name="notes" rows="3" placeholder="Colour, specification, flexibility or anything else AnyBike should know"></textarea></div>'+
+          '<div class="purchase-add-bike-actions"><button type="button" class="secondary" onclick="toggleCustomerAddBike(\''+safe(String(first.deal_id||""))+'\')">Cancel</button><button type="submit">Send Request</button></div>'+
+        '</form>'+
+      '</div>'+
+    '</section>';
+  }).join("");
 
   shipperPurchaseLookup.clear();
   orderedPurchases.forEach(function(purchase){

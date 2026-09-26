@@ -1144,6 +1144,15 @@ footer{
 }
 .my-purchase-next span{display:block;color:#888;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
 .my-purchase-next strong{color:#fff}
+.customer-purchase-timeline{margin-top:12px;padding:12px;border:1px solid rgba(255,255,255,.10);border-radius:12px;background:#0d0d0d}
+.customer-purchase-timeline-title{font-size:10px;color:#888;text-transform:uppercase;font-weight:900;letter-spacing:.06em;margin-bottom:8px}
+.customer-purchase-steps{display:flex;gap:6px;flex-wrap:wrap}
+.customer-purchase-step{padding:7px 9px;border-radius:999px;border:1px solid rgba(255,255,255,.10);color:#707070;background:#111;font-size:10px;font-weight:900}
+.customer-purchase-step.done{border-color:rgba(54,211,126,.45);color:#9fffc3;background:rgba(54,211,126,.10)}
+.customer-purchase-step.current{border-color:#ed1c24;color:#fff;background:rgba(237,28,36,.16)}
+.customer-purchase-whats-next{margin-top:9px;padding:9px 10px;border-left:3px solid #ed1c24;background:#121212;border-radius:8px}
+.customer-purchase-whats-next strong{display:block;font-size:12px;color:#fff}
+.customer-purchase-whats-next span{display:block;font-size:11px;color:#999;margin-top:3px;line-height:1.4}
 @media(max-width:900px){.my-purchases-grid{grid-template-columns:1fr}}
 .my-purchase-actions{display:flex;gap:10px;margin-top:12px}
 .my-purchase-view{display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:0 16px;border-radius:10px;border:1px solid var(--red);background:var(--red);color:#fff;font-weight:900;text-decoration:none;cursor:pointer}
@@ -3340,6 +3349,8 @@ function customerDashboardPurchaseState(purchase){
 
   const collectionJobStatus=String(purchase.collection_job_status||"").toLowerCase();
   const collectionCollected=collectionJobStatus==="collected" || String(purchase.collection_status||"").toLowerCase()==="collected" || String(purchase.deal_status||"")==="Collected";
+  const storageStatus=String(purchase.storage_status||"").toLowerCase();
+  const inStorage=collectionCollected && !["","not_started","released"].includes(storageStatus) && !purchase.storage_released_at;
   const deliveryStatus=String(purchase.delivery_handover_status||"").toLowerCase();
 
   if(deliveryStatus==="delivered" || purchase.delivery_completed_at){
@@ -3354,10 +3365,14 @@ function customerDashboardPurchaseState(purchase){
     heading="Ready for Shipper Delivery";
     message="Your motorcycle is cleared for the confirmed UK handover.";
     nextStep="Move Motorcycles Delivery";
+  }else if(inStorage){
+    heading="Secure UK Custody / Storage";
+    message="Your motorcycle has been collected and is being held securely in the UK while the final handover is arranged.";
+    nextStep="UK Custody / Handover";
   }else if(collectionCollected){
     heading="Collected";
     message="Your motorcycle has been collected and the driver collection report is available.";
-    nextStep="Operations / Shipping";
+    nextStep="UK Custody / Handover";
   }else if(collectionJobStatus){
     heading=collectionJobStatus==="arrived"?"Driver Arrived":"UK Collection Arranged";
     message=collectionJobStatus==="arrived"
@@ -3402,11 +3417,58 @@ function customerDashboardPurchaseState(purchase){
     balance,
     secured,
     fullyPaid,
+    inStorage,
+    storageStatus,
     heading,
     message,
     nextStep,
     paymentStatus
   };
+}
+
+function customerPurchaseTimelineHtml(purchase,state){
+  if(!state) return "";
+  const collectionStatus=String(purchase?.collection_job_status||purchase?.collection_status||"").toLowerCase();
+  const collected=collectionStatus==="collected" || String(purchase?.deal_status||"").toLowerCase()==="collected";
+  const storageStatus=String(purchase?.storage_status||"").toLowerCase();
+  const inStorage=collected && !["","not_started","released"].includes(storageStatus) && !purchase?.storage_released_at;
+  const delivered=String(purchase?.delivery_handover_status||"").toLowerCase()==="delivered" || !!purchase?.delivery_completed_at;
+
+  let current="deposit",nextTitle="Pay / report your deposit",nextText="Open Accounts & Documents to view your Proforma and report the bank transfer.";
+  if(state.depositSatisfied && !state.secured){
+    current="seller";nextTitle="AnyBike completes the final seller check";nextText="No action is required from you while AnyBike reconfirms the motorcycle and seller position.";
+  }else if(state.secured && !state.fullyPaid){
+    current="balance";nextTitle="Complete the remaining balance / documents";nextText="AnyBike will show the amount and documents needed before collection.";
+  }else if(state.secured && state.fullyPaid && !collected){
+    current="collection";nextTitle="AnyBike arranges collection";nextText="Move Motorcycles will collect the motorcycle and the collection status will update here.";
+  }else if(collected && !delivered){
+    current=inStorage?"storage":"delivery";
+    nextTitle=inStorage?"Secure UK custody / storage":"Arrange the UK handover";
+    nextText=inStorage
+      ?"Your motorcycle is secure in the UK while AnyBike and Move arrange the confirmed handover to your shipper."
+      :"Your motorcycle has been collected. AnyBike and Move will now complete the agreed UK handover.";
+  }else if(delivered){
+    current="invoice";nextTitle="Final invoice";nextText="The UK handover is complete. AnyBike will now finalise the transaction charges and issue the Final Invoice.";
+  }
+
+  const complete=String(purchase?.deal_stage||"").toLowerCase()==="completed" || String(purchase?.deal_status||"").toLowerCase()==="completed";
+  if(complete){current="complete";nextTitle="Purchase complete";nextText="No further action is required for this motorcycle.";}
+
+  const steps=[
+    ["offer","Offer",true],
+    ["deposit","Deposit",state.depositSatisfied],
+    ["seller","Seller Check",state.secured],
+    ["secured","Secured",state.secured],
+    ["balance","Balance",state.fullyPaid],
+    ["collection","Collection",collected],
+    ["storage","UK Custody",inStorage||delivered||complete],
+    ["delivery","Delivery",delivered||complete],
+    ["invoice","Final Invoice",complete],
+    ["complete","Complete",complete]
+  ];
+  return '<div class="customer-purchase-timeline"><div class="customer-purchase-timeline-title">Your motorcycle journey</div><div class="customer-purchase-steps">'+
+    steps.map(function(s){return '<span class="customer-purchase-step '+(s[2]?"done":s[0]===current?"current":"")+'">'+safe(s[1])+'</span>';}).join("")+
+    '</div><div class="customer-purchase-whats-next"><strong>What happens next? '+safe(nextTitle)+'</strong><span>'+safe(nextText)+'</span></div></div>';
 }
 
 function customerPurchaseCardHtml(match){
@@ -3514,6 +3576,8 @@ function customerPurchaseCardHtml(match){
           <span>Next step</span>
           <strong>${safe(nextStep)}</strong>
         </div>
+
+        ${customerPurchaseTimelineHtml(purchase,state)}
 
         ${customerDealShipperChoiceHtml(match,purchase)}
 

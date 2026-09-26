@@ -6,14 +6,20 @@
 <title>Used Bike Scanner | AnyBike Admin</title>
 <meta name="robots" content="noindex,nofollow">
 <script>document.documentElement.classList.add("admin-auth-pending");</script>
-<style>html.admin-auth-pending body{visibility:hidden}</style>
+<style>html.admin-auth-pending body{visibility:hidden}
+.sourcing-nav{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:0 0 14px;padding:6px;background:#101010;border:1px solid var(--line);border-radius:14px}
+.sourcing-nav a{color:#aaa;text-decoration:none;font-weight:900;font-size:13px;padding:9px 12px;border-radius:10px;border:1px solid transparent}
+.sourcing-nav a.active{background:var(--red);border-color:var(--red);color:#fff}
+.sourcing-context{margin-left:auto;color:#aaa;font-size:12px;font-weight:800}
+.sourcing-context a{padding:0;border:0;color:#fff;text-decoration:underline}
+</style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="admin.js?v=12000"></script>
 <link rel="stylesheet" href="admin-shell.css?v=12000">
 <style>
 :root{--red:#ed1c24;--line:rgba(255,255,255,.12);--muted:#aaa;--panel:#111;--panel2:#181818;--green:#43d17a;--amber:#ffbf47}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#080808;color:#fff}
-.page{display:flex;min-height:100vh}.main{flex:1;min-width:0}.content{padding:24px;max-width:1500px;margin:0 auto}
+.page{display:flex;min-height:100vh}.main{flex:1;min-width:0}.content{padding:18px 20px 32px;max-width:none;width:100%;margin:0}
 .hero,.panel{background:#111;border:1px solid var(--line);border-radius:20px;padding:22px;margin-bottom:16px}
 .hero{background:radial-gradient(circle at top right,rgba(237,28,36,.22),transparent 38%),#111}
 .eyebrow{color:var(--red);font-size:12px;font-weight:900;letter-spacing:.12em;text-transform:uppercase}
@@ -37,6 +43,14 @@ textarea{min-height:120px;resize:vertical;white-space:pre-wrap;overflow-wrap:any
   <div class="main">
     <div id="adminTopbar"></div>
     <main class="content">
+      <nav class="sourcing-nav" aria-label="Sourcing workspace">
+        <a id="srcRecommended" href="admin-ai-matching.html">Recommended</a>
+        <a id="srcLive" href="admin-live-source-hub.html">Live Sources</a>
+        <a class="active" id="srcScanner" href="admin-used-bike-scanner.html">Scan Advert</a>
+        <a id="srcResponses" href="admin-ai-matching.html#interestedQueue">Buyer Responses</a>
+        <span class="sourcing-context" id="sourcingContext"></span>
+      </nav>
+
       <section class="hero">
         <div class="eyebrow">Sourcing · Internal only</div>
         <h1>Used Bike Scanner</h1>
@@ -80,6 +94,25 @@ let scanned=[];
 let currentBatchId=null;
 let currentBatch=null;
 let buyers=[];
+const sourcingParams=new URLSearchParams(location.search);
+function sourcingContextQuery(extra){
+  const p=new URLSearchParams();
+  ["deal","buyer","request"].forEach(k=>{const v=sourcingParams.get(k);if(v)p.set(k,v)});
+  if(extra) Object.entries(extra).forEach(([k,v])=>{if(v!==null&&v!==undefined&&v!=="")p.set(k,String(v))});
+  const s=p.toString();return s?"?"+s:"";
+}
+function syncSourcingNav(){
+  document.getElementById("srcRecommended").href="admin-ai-matching.html"+sourcingContextQuery();
+  document.getElementById("srcLive").href="admin-live-source-hub.html"+sourcingContextQuery();
+  document.getElementById("srcScanner").href="admin-used-bike-scanner.html"+sourcingContextQuery();
+  document.getElementById("srcResponses").href="admin-ai-matching.html"+sourcingContextQuery()+"#interestedQueue";
+  const deal=sourcingParams.get("deal"),buyer=sourcingParams.get("buyer"),request=sourcingParams.get("request");
+  const bits=[];
+  if(deal) bits.push('<a href="admin-enquiries.html?deal='+encodeURIComponent(deal)+'">← Back to sale</a>');
+  if(buyer) bits.push("Buyer #"+esc(buyer));
+  if(request) bits.push("Request #"+esc(request));
+  document.getElementById("sourcingContext").innerHTML=bits.join(" · ");
+}
 
 function esc(v){return String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;")}
 function gbp(v){const n=Number(v);return Number.isFinite(n)?new Intl.NumberFormat("en-GB",{style:"currency",currency:"GBP"}).format(n):"—"}
@@ -92,8 +125,14 @@ async function loadBuyers(){
   if(error){document.getElementById("buyerSelect").innerHTML='<option value="">Could not load buyers</option>';return}
   buyers=data||[];
   document.getElementById("buyerSelect").innerHTML='<option value="">Choose buyer…</option>'+buyers.map(b=>'<option value="'+b.id+'">'+esc(buyerName(b))+'</option>').join("");
-  const q=new URLSearchParams(location.search);
-  if(q.get("buyer")){document.getElementById("buyerSelect").value=q.get("buyer");await loadRequests()}
+  const q=sourcingParams;
+  if(q.get("buyer")){
+    document.getElementById("buyerSelect").value=q.get("buyer");
+    await loadRequests();
+    if(q.get("request") && [...document.getElementById("requestSelect").options].some(o=>o.value===String(q.get("request")))){
+      document.getElementById("requestSelect").value=String(q.get("request"));
+    }
+  }
 }
 async function loadRequests(){
   const buyerId=document.getElementById("buyerSelect").value;
@@ -284,8 +323,9 @@ async function shareBatch(){
 (async()=>{
   const allowed = await requireAdminSession();
   if(!allowed) return;
+  syncSourcingNav();
   await loadBuyers();
-  const q=new URLSearchParams(location.search);
+  const q=sourcingParams;
   if(q.get("batch")) await loadBatch(q.get("batch"));
 })();
 </script>

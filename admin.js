@@ -187,6 +187,8 @@ async function requireAdminSession(){
 async function setupAdminIdentity(){
 const nameEl = document.getElementById("adminProfileName");
 const emailEl = document.getElementById("adminProfileEmail");
+const dropdownNameEl = document.getElementById("adminProfileDropdownName");
+const dropdownRoleEl = document.getElementById("adminProfileDropdownRole");
 
 if(!anybikeAdminUser){
 return;
@@ -198,8 +200,21 @@ anybikeAdminUser.user_metadata?.full_name ||
 anybikeAdminUser.user_metadata?.name ||
 "AnyBike Admin";
 
+const displayRole =
+anybikeAdminRecord?.role ||
+anybikeAdminRecord?.department ||
+"Administrator";
+
 if(nameEl){
 nameEl.textContent = displayName;
+}
+
+if(dropdownNameEl){
+dropdownNameEl.textContent = displayName;
+}
+
+if(dropdownRoleEl){
+dropdownRoleEl.textContent = displayRole;
 }
 
 if(emailEl){
@@ -240,56 +255,90 @@ async function adminLogout(){
   window.location.replace("/admin-login.html");
 }
 
+function ensureFreshAdminShellCss(){
+  var existing=document.getElementById("anybike-admin-shell-refresh");
+  if(existing){ return; }
+
+  var link=document.createElement("link");
+  link.id="anybike-admin-shell-refresh";
+  link.rel="stylesheet";
+  link.href="admin-shell.css?v=202609261125";
+  document.head.appendChild(link);
+}
+
 function loadAdminShell(){
 
-fetch("admin-sidebar.html?v=4001")
-.then(function(res){
-return res.text();
-})
-.then(function(html){
+ensureFreshAdminShellCss();
 
-  var sidebar = document.getElementById("adminSidebar");
+Promise.all([
+  fetch("admin-sidebar.html?v=202609261140").then(function(res){ return res.text(); }),
+  fetch("admin-topbar.html?v=202609261140").then(function(res){ return res.text(); })
+])
+.then(function(parts){
+  var sidebarHtml=parts[0];
+  var topbarHtml=parts[1];
+
+  var sidebar=document.getElementById("adminSidebar");
+  var topbar=document.getElementById("adminTopbar");
 
   if(sidebar){
-    sidebar.innerHTML = html;
-    setupAdminFolders();
+    sidebar.innerHTML=sidebarHtml;
   }
 
-  var currentPage = window.location.pathname.split("/").pop() || "admin-dashboard.html";
+  if(topbar){
+    topbar.innerHTML=topbarHtml;
+  }
+
+  /*
+    Both shared fragments now exist before anything is moved.
+    This prevents the search/profile row appearing below the department menu.
+  */
+  var headerSearchSlot=document.getElementById("adminHeaderSearchSlot");
+  var headerActionsSlot=document.getElementById("adminHeaderActionsSlot");
+  var loadedSearch=topbar?.querySelector(".admin-search");
+  var loadedActions=topbar?.querySelector(".admin-actions");
+  var loadedNotifications=topbar?.querySelector(".admin-notification-panel");
+
+  if(headerSearchSlot && loadedSearch){
+    headerSearchSlot.appendChild(loadedSearch);
+  }
+
+  if(headerActionsSlot && loadedActions){
+    headerActionsSlot.appendChild(loadedActions);
+  }
+
+  if(headerActionsSlot && loadedNotifications){
+    headerActionsSlot.appendChild(loadedNotifications);
+  }
+
+  setupAdminFolders();
+  setupAdminSearch();
+  setupAdminIdentity();
+
+  var currentPage=window.location.pathname.split("/").pop() || "admin-dashboard.html";
 
   document.querySelectorAll(".admin-menu a, .submenu a").forEach(function(link){
-    var href = String(link.getAttribute("href") || "").split("?")[0];
+    var href=String(link.getAttribute("href") || "").split("?")[0];
 
-    if(href === currentPage){
+    if(href===currentPage){
       link.classList.add("active");
+
+      var submenu=link.closest(".submenu");
+      if(submenu){
+        var button=document.querySelector('.menu-folder[data-target="'+submenu.id+'"]');
+        if(button){
+          button.classList.add("active-parent");
+        }
+      }
     }
   });
 
+  setTimeout(function(){
+    anybikeRefreshAdminBellV2();
+  },300);
 })
 .catch(function(error){
-  console.log("Admin sidebar load failed", error);
-});
-fetch("admin-topbar.html?v=4000")
-.then(function(res){
-return res.text();
-})
-.then(function(html){
-
-  var topbar = document.getElementById("adminTopbar");
-
-  if(topbar){
-    topbar.innerHTML = html;
-    setupAdminSearch();
-    setupAdminIdentity();
-
-    setTimeout(function(){
-      anybikeRefreshAdminBellV2();
-    },300);
-  }
-
-})
-.catch(function(error){
-  console.log("Admin topbar load failed", error);
+  console.log("Admin shell load failed",error);
 });
 }
 

@@ -73,6 +73,7 @@ main{width:min(1660px,96vw);margin:28px auto 70px}
 .meta{border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:10px;background:#0b0b0b}.meta span{display:block;color:#777;font-size:9px;text-transform:uppercase;font-weight:900;margin-bottom:4px}.meta strong{font-size:12px;color:#ddd}
 .invoice-lines{border-top:1px solid rgba(255,255,255,.08);margin-top:10px;padding-top:9px}.invoice-line{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06);font-size:12px}.invoice-line:last-child{border-bottom:0}.invoice-line small{display:block;color:#777;margin-top:2px}
 .proforma-warning{margin-top:11px;padding:10px;border-radius:10px;border:1px solid rgba(237,28,36,.28);background:rgba(237,28,36,.07)}.proforma-warning strong{display:block;color:#fff;font-size:11px}.proforma-warning span{display:block;color:#aaa;font-size:11px;margin-top:3px}
+.final-invoice-warning{margin-top:11px;padding:10px;border-radius:10px;border:1px solid rgba(54,211,126,.30);background:rgba(54,211,126,.07)}.final-invoice-warning strong{display:block;color:#b9ffd0;font-size:11px}.final-invoice-warning span{display:block;color:#aaa;font-size:11px;margin-top:3px}
 .payment-select{
   margin-top:14px;
   padding:14px;
@@ -134,7 +135,7 @@ main{width:min(1660px,96vw);margin:28px auto 70px}
 .document-meta div{border:1px solid rgba(255,255,255,.08);border-radius:9px;background:#111;padding:9px}
 .document-meta span{display:block;color:#777;font-size:9px;font-weight:900;text-transform:uppercase;margin-bottom:4px}
 .document-meta strong{font-size:12px;color:#ddd;word-break:break-word}
-.document-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.document-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.invoice-doc-action{display:inline-flex;align-items:center;justify-content:center;margin-top:12px;padding:10px 13px;border-radius:9px;background:#ed1c24;color:#fff;text-decoration:none;font-size:12px;font-weight:900}.invoice-doc-action.secondary{background:#171717;border:1px solid rgba(255,255,255,.14)}
 .document-desc{color:#aaa;font-size:12px;line-height:1.45;margin-top:8px}
 .section-anchor{scroll-margin-top:120px}
 
@@ -392,8 +393,11 @@ function invoiceCard(invoice){
         <div class="meta"><span>Issued</span><strong>${safe(niceDate(invoice.issued_at))}</strong></div>
         <div class="meta" style="grid-column:1/-1"><span>Motorcycle</span><strong>${safe(invoice.motorcycle_summary||"Motorcycle purchase")}</strong></div>
       </div>
-      ${String(invoice.invoice_type||"")==="Proforma"?'<div class="proforma-warning"><strong>PROFORMA INVOICE — NOT A VAT INVOICE</strong><span>No VAT breakdown is shown on a Proforma.</span></div>':""}
+      ${String(invoice.invoice_type||"")==="Proforma"?'<div class="proforma-warning"><strong>PROFORMA INVOICE — NOT A VAT INVOICE</strong><span>This is used for the payment stage. Keep the Final Invoice separately when AnyBike issues it after the transaction is completed.</span></div>':""}
+      ${String(invoice.invoice_type||"")==="Final Invoice"?'<div class="final-invoice-warning"><strong>FINAL INVOICE</strong><span>This is the final accounting document for the completed AnyBike transaction. Keep it with your purchase and export records.</span></div>':""}
       <div class="invoice-lines">${lineHtml}</div>
+      ${String(invoice.invoice_type||"")==="Proforma"&&String(invoice.invoice_status||"")==="Issued"?'<a class="invoice-doc-action secondary" href="/proforma.html?invoice='+Number(invoice.invoice_id)+'" target="_blank" rel="noopener">Open Proforma →</a>':""}
+      ${String(invoice.invoice_type||"")==="Final Invoice"&&String(invoice.invoice_status||"")==="Issued"?'<a class="invoice-doc-action" href="/final-invoice.html?invoice='+Number(invoice.invoice_id)+'" target="_blank" rel="noopener">Open Final Invoice →</a>':""}
       ${paymentBlock}
     </div>
   </article>`;
