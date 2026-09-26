@@ -8047,6 +8047,10 @@ function renderAnyBikeDealCommercialSetup(deal){
   const margin=row.projected_margin_percent;
   const status=row.commercial_price_status || "Estimate";
   const notes=row.commercial_notes || "";
+  const acceptedLocked=!!row.accepted_at || String(row.negotiation_status||"").toLowerCase()==="accepted";
+  const sentPriceLocked=acceptedLocked || String(deal?.deal_stage||"")==="Proposal Sent" || String(row.negotiation_status||"").toLowerCase()==="negotiating";
+  const priceLockAttribute=sentPriceLocked ? " readonly" : "";
+  const acceptedDisableAttribute=acceptedLocked ? " disabled" : "";
 
   const profitClass=profit===null || profit===undefined ? "" : (Number(profit)<0 ? "loss" : "profit");
 
@@ -8059,6 +8063,7 @@ function renderAnyBikeDealCommercialSetup(deal){
       <div class="anybike-commercial-status">${escapeAdminHtml(status)}</div>
     </div>
 
+    ${sentPriceLocked ? '<div class="anybike-commercial-lock"><strong>'+(acceptedLocked?'✓ Accepted customer terms — locked':'Formal Offer sent — customer price locked')+'</strong><span>'+(acceptedLocked?'The customer-facing motorcycle price and delivery charge are frozen to the accepted Formal Offer.':'The customer-facing motorcycle price and delivery charge are frozen while the sent Formal Offer is active. Internal cost assumptions can still be reviewed.')+'</span></div>' : ''}
     <div class="anybike-commercial-grid">
       <div class="anybike-commercial-field">
         <label>Original Advertised Price</label>
@@ -8068,12 +8073,12 @@ function renderAnyBikeDealCommercialSetup(deal){
 
       <div class="anybike-commercial-field">
         <label>AnyBike Sale Price</label>
-        <input id="deal-commercial-sale-${id}" type="number" min="0" step="0.01" value="${sale===null || sale===undefined ? "" : Number(sale).toFixed(2)}" placeholder="Not agreed" oninput="updateDealCommercialPreview(${id})">
+        <input id="deal-commercial-sale-${id}" type="number" min="0" step="0.01" value="${sale===null || sale===undefined ? "" : Number(sale).toFixed(2)}" placeholder="Not agreed" oninput="updateDealCommercialPreview(${id})"${priceLockAttribute}>
       </div>
 
       <div class="anybike-commercial-field">
         <label>Delivery Charge to Customer</label>
-        <input id="deal-commercial-delivery-charge-${id}" type="number" min="0" step="0.01" value="${deliveryCharge.toFixed(2)}" oninput="updateDealCommercialPreview(${id})">
+        <input id="deal-commercial-delivery-charge-${id}" type="number" min="0" step="0.01" value="${deliveryCharge.toFixed(2)}" oninput="updateDealCommercialPreview(${id})"${priceLockAttribute}>
       </div>
 
       <div class="anybike-commercial-field">
@@ -8148,8 +8153,8 @@ function renderAnyBikeDealCommercialSetup(deal){
     <div class="anybike-commercial-actions">
       <p>Commercial Setup remains internal. Prepare Formal Offer copies the customer-facing commercial position into the formal offer. Nothing is sent until Send AnyBike Offer is confirmed.</p>
       <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
-        <button class="anybike-commercial-save" type="button" ${busy ? "disabled" : ""} onclick="saveDealCommercialSetup(${id});return false;">${busy ? "Saving..." : "Save Commercial Setup"}</button>
-        <button class="anybike-formal-offer-button" type="button" onclick="openDealOfferModal(${id});return false;">Prepare Formal Offer</button>
+        <button class="anybike-commercial-save" type="button" ${busy || acceptedLocked ? "disabled" : ""} onclick="saveDealCommercialSetup(${id});return false;">${acceptedLocked ? "Accepted Terms Locked" : busy ? "Saving..." : "Save Commercial Setup"}</button>
+        ${acceptedLocked ? '' : '<button class="anybike-formal-offer-button" type="button" onclick="openDealOfferModal('+id+');return false;">'+(sentPriceLocked?'Review Sent Formal Offer':'Prepare Formal Offer')+'</button>'}
       </div>
     </div>
   </div>`;
