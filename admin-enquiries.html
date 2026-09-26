@@ -6163,6 +6163,8 @@ let adminDealFinancialStatus = [];
 const dealVatSaveBusy = new Set();
 let adminDealMotorcycles = [];
 let adminDealCandidates = [];
+let adminDealRequirements = [];
+const dealRequirementSaveBusy = new Set();
 let activeCandidateDealId = null;
 let activeCandidateId = null;
 let candidateSaveBusy = false;
@@ -10055,6 +10057,15 @@ async function loadAdminDealQueue(){
   }
 
   try{
+    const result = await sb.rpc("admin_get_deal_requirements_v1", { p_deal_id:null });
+    if(result.error){ throw result.error; }
+    adminDealRequirements = Array.isArray(result.data) ? result.data : [];
+  }catch(error){
+    console.warn("AnyBike Deal requirements could not be loaded:", error);
+    adminDealRequirements = [];
+  }
+
+  try{
     const result = await sb.rpc("admin_get_deal_payment_status", { p_deal_id:null });
     if(result.error){ throw result.error; }
     adminDealPaymentStatus = result.data || [];
@@ -13297,6 +13308,114 @@ function bikeSalesJourneyInstruction(action,flags){
   return "Review the latest activity and complete the next outstanding action.";
 }
 
+function dealRequirementRows(dealId){
+  return adminDealRequirements.filter(function(row){
+    return String(row.deal_id||"")===String(dealId||"");
+  });
+}
+
+function dealRequirementSummary(row){
+  const bike=[row.make,row.model,row.variant].filter(Boolean).join(" ") || "Flexible motorcycle requirement";
+  const bits=[];
+  if(row.year_from||row.year_to){
+    bits.push("Year "+(row.year_from||"Any")+"–"+(row.year_to||"Any"));
+  }
+  if(row.mileage_max) bits.push("Max "+Number(row.mileage_max).toLocaleString("en-GB")+" miles");
+  if(row.budget_max_gbp) bits.push("Budget "+anyBikeDealMoney(row.budget_max_gbp));
+  if(Number(row.quantity||1)>1) bits.push("Qty "+Number(row.quantity));
+  return {bike:bike,bits:bits};
+}
+
+function renderDealRequirementWorkspace(deal){
+  const dealId=String(deal.deal_id||"");
+  const rows=dealRequirementRows(dealId);
+  const cards=rows.length ? rows.map(function(row){
+    const summary=dealRequirementSummary(row);
+    return '<article class="sales-requirement-card">'+
+      '<div><span>Requirement #'+escapeAdminHtml(row.id)+'</span><strong>'+escapeAdminHtml(summary.bike)+'</strong>'+
+      '<small>'+escapeAdminHtml(summary.bits.join(" · ") || "Open sourcing requirement")+'</small>'+
+      (row.notes?'<p>'+escapeAdminHtml(row.notes)+'</p>':'')+
+      '</div>'+
+      '<a href="admin-live-source-hub.html?deal='+encodeURIComponent(dealId)+'&requirement='+encodeURIComponent(row.id)+'">Source this motorcycle →</a>'+
+    '</article>';
+  }).join("") : '<div class="anybike-deal-empty">No separate sourcing requirements have been added to this sale yet.</div>';
+
+  return '<section class="sales-requirements">'+
+    '<div class="sales-requirements-head"><div><span>Motorcycles in this sale</span><h4>Requirements & additional motorcycles</h4><p>Each requirement can progress independently. Adding another motorcycle does not alter the existing motorcycle or payment record.</p></div>'+
+    '<button type="button" onclick="toggleAddDealRequirement(\''+dealId+'\');return false;">+ Add another motorcycle</button></div>'+
+    '<div class="sales-requirement-list">'+cards+'</div>'+
+    '<form id="add-deal-requirement-'+escapeAdminHtml(dealId)+'" class="sales-requirement-form" style="display:none" onsubmit="saveDealRequirement(event,\''+dealId+'\');return false;">'+
+      '<div><label>Make</label><input name="make" placeholder="e.g. BMW"></div>'+
+      '<div><label>Model</label><input name="model" placeholder="e.g. S 1000 RR"></div>'+
+      '<div><label>Variant</label><input name="variant" placeholder="Optional"></div>'+
+      '<div><label>Quantity</label><input name="quantity" type="number" min="1" max="100" value="1"></div>'+
+      '<div><label>Year from</label><input name="year_from" type="number" min="1900" max="2100"></div>'+
+      '<div><label>Year to</label><input name="year_to" type="number" min="1900" max="2100"></div>'+
+      '<div><label>Max mileage</label><input name="mileage_max" type="number" min="0"></div>'+
+      '<div><label>Max budget £</label><input name="budget_max_gbp" type="number" min="0" step="0.01"></div>'+
+      '<div class="wide"><label>Notes / specification</label><textarea name="notes" rows="3" placeholder="Colour, specification, flexibility, buyer notes..."></textarea></div>'+
+      '<div class="sales-requirement-form-actions"><button type="button" class="secondary" onclick="toggleAddDealRequirement(\''+dealId+'\');return false;">Cancel</button><button type="submit">Add Requirement</button></div>'+
+    '</form>'+
+  '</section>';
+}
+
+function toggleAddDealRequirement(dealId){
+  const form=document.getElementById("add-deal-requirement-"+String(dealId));
+  if(!form)return;
+  form.style.display=form.style.display==="none"?"grid":"none";
+}
+
+async function saveDealRequirement(event,dealId){
+  event.preventDefault();
+  const id=String(dealId||"");
+  const form=event.currentTarget;
+  if(!form || dealRequirementSaveBusy.has(id)) return;
+
+  const fd=new FormData(form);
+  const value=function(name){return String(fd.get(name)||"").trim();};
+  const numberOrNull=function(name){
+    const raw=value(name);
+    if(!raw)return null;
+    const n=Number(raw);
+    return Number.isFinite(n)?n:null;
+  };
+
+  dealRequirementSaveBusy.add(id);
+  const submit=form.querySelector('button[type="submit"]');
+  if(submit){submit.disabled=true;submit.textContent="Adding...";}
+
+  try{
+    const result=await sb.rpc("admin_add_deal_requirement_v1",{
+      p_deal_id:Number(id),
+      p_make:value("make")||null,
+      p_model:value("model")||null,
+      p_variant:value("variant")||null,
+      p_year_from:numberOrNull("year_from"),
+      p_year_to:numberOrNull("year_to"),
+      p_mileage_max:numberOrNull("mileage_max"),
+      p_budget_max_gbp:numberOrNull("budget_max_gbp"),
+      p_destination_country:null,
+      p_quantity:numberOrNull("quantity")||1,
+      p_notes:value("notes")||""
+    });
+    if(result.error) throw result.error;
+
+    await loadAdminDealQueue();
+    renderAdminDealQueue();
+    setTimeout(function(){
+      const row=document.getElementById("anybike-deal-"+id);
+      row?.classList.add("open");
+      bikeSalesJourneyTab(id,"sourcing",false);
+    },0);
+  }catch(error){
+    alert("Additional motorcycle could not be added.\n\n"+(error?.message||error));
+  }finally{
+    dealRequirementSaveBusy.delete(id);
+    if(submit){submit.disabled=false;submit.textContent="Add Requirement";}
+  }
+}
+
+
 function renderBikeSalesActionQueue(){
   const actions=buildBikeSalesActions();
   const counts={reply:0,sourcing:0,seller:0,deposit:0,shipping:0,vat:0,ready:0,operations:0};
@@ -13536,7 +13655,7 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
       qp.set("deal",dealId);
       if(deal.buyer_id!==null&&deal.buyer_id!==undefined&&String(deal.buyer_id)!=="") qp.set("buyer",String(deal.buyer_id));
       const qs=qp.toString()?"?"+qp.toString():"";
-      return '<div class="sales-sourcing-launcher"><strong>Find motorcycles for this buyer</strong>'+
+      return renderDealRequirementWorkspace(deal)+'<div class="sales-sourcing-launcher"><strong>Find motorcycles for this buyer</strong>'+
         '<a class="primary" href="admin-live-source-hub.html'+qs+'">Open Sourcing Workspace</a>'+
         '<a href="admin-ai-matching.html'+qs+'">Recommended Matches</a>'+
         '<a href="admin-used-bike-scanner.html'+qs+'">Scan Advert</a>'+
@@ -13549,7 +13668,7 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
     panel("collection",renderAnyBikePurchaseActionGuide(deal)+renderAnyBikeDealTransactionCompletion(deal)+operationsBody)+
     panel("invoice",renderAnyBikeDealInvoiceDocuments(deal))+
     panel("delivery",renderAnyBikeDealShippingRoutePanel(deal)+(collected?'<div class="sales-what-next"><strong>What happens next?</strong><span>Complete the agreed UK handover / delivery and record the final milestone.</span></div>':'<div class="sales-what-next"><strong>What happens next?</strong><span>Delivery becomes active after the motorcycle has been purchased and collected.</span></div>'))+
-    panel("timeline",'<div class="sales-timeline">'+timelineHtml+'</div><div class="sales-what-next"><strong>What happens next?</strong><span>'+escapeAdminHtml(nextText)+'</span></div>')+
+    panel("timeline",renderDealRequirementWorkspace(deal)+'<div class="sales-timeline">'+timelineHtml+'</div><div class="sales-what-next"><strong>What happens next?</strong><span>'+escapeAdminHtml(nextText)+'</span></div>')+
   '</section>';
 };
 
