@@ -367,7 +367,15 @@ Customer acceptance must never be inferred from unrelated events.
 9. Confirm the resulting Customer Total.
 10. Confirm delivery / payment terms where relevant.
 11. Include the standard offer wording linking the Formal Offer to the current AnyBike Terms & Conditions and Trade & Export Sale Policy. The buyer still confirms the current legal declarations separately at acceptance.
-12. Send offer.
+12. Show the customer deposit and the remaining balance after that deposit so both sides can see the immediate payment obligation and what remains.
+13. Send offer.
+14. Sending a Formal Offer must automatically:
+   - move the Deal to Proposal Sent;
+   - create or link a Message Centre thread if one does not already exist;
+   - send a customer Message Centre message;
+   - create a customer notification linking to the offer;
+   - make the offer visible in My AnyBike / My Offers;
+   - preserve whether the motorcycle is already secured rather than incorrectly resetting or describing it as unsecured.
 7. Customer reviews.
 8. Customer explicitly Accepts or Declines.
 
