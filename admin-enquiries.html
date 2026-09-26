@@ -9913,12 +9913,20 @@ async function selectCandidateForDeal(candidateId){
    realtime messaging, notifications or existing payment logic.
    ========================================================= */
 let adminDealShippingRoutes = new Map();
+let adminCompanyExportIdentity = {
+  legal_name:"Giffords Empire Ltd",
+  trading_name:"AnyBike",
+  gb_eori:""
+};
 const dealShippingRouteSaveBusy = new Set();
+const dealExportTaxSaveBusy = new Set();
 
 function normalizeAnyBikeShippingRoute(row){
   const source=row || {};
 
   return Object.assign({}, source, {
+    deal_id: source.deal_id || source.id || null,
+
     shipping_route_status:
       source.shipping_route_status ||
       source.status ||
@@ -9974,6 +9982,210 @@ function anyBikeShippingRouteBadgeClass(status){
   if(status === "Details Provided"){ return "badge-orange"; }
   if(status === "To Be Confirmed"){ return "badge-red"; }
   return "";
+}
+
+
+function anyBikeDestinationCustomsRegion(country){
+  const value=String(country || "").trim().toLowerCase();
+  if(!value){ return "Not confirmed"; }
+  if(["united kingdom","uk","great britain","england","scotland","wales","northern ireland"].includes(value)){
+    return "United Kingdom";
+  }
+  const eu=[
+    "austria","belgium","bulgaria","croatia","cyprus","czech republic","czechia","denmark",
+    "estonia","finland","france","germany","greece","hungary","ireland","italy","latvia",
+    "lithuania","luxembourg","malta","netherlands","poland","portugal","romania","slovakia",
+    "slovenia","spain","sweden"
+  ];
+  return eu.includes(value) ? "European Union" : "Outside EU";
+}
+
+function renderAnyBikeDealExportTaxIdentity(deal){
+  const dealId=Number(deal && deal.deal_id);
+  if(!Number.isFinite(dealId)){ return ""; }
+
+  const route=anyBikeShippingRouteForDeal(dealId);
+  const busy=dealExportTaxSaveBusy.has(String(dealId));
+  const destination=anyBikeDealDestinationCountry(deal,route);
+  const buyerBusiness=String(route.buyer_business_name || deal.buyer_business_name || "").trim();
+  const buyerType=String(route.buyer_type || (buyerBusiness ? "Business" : "Private Consumer"));
+  const status=String(route.export_tax_identity_status || "To Be Confirmed");
+  const isBusiness=buyerType==="Business";
+  const confirmed=status==="Confirmed" && !!route.export_tax_identity_confirmed_at;
+  const companyName=adminCompanyExportIdentity.legal_name || "Giffords Empire Ltd";
+  const anyBikeEori=adminCompanyExportIdentity.gb_eori || "Not configured";
+
+  return `
+    <section class="anybike-commercial-panel" style="margin-top:14px" id="deal-export-tax-panel-${dealId}">
+      <div class="anybike-commercial-head">
+        <div>
+          <span>Export & Tax Identity</span>
+          <h4>Buyer, importer and customs details</h4>
+        </div>
+        <div class="anybike-commercial-status">${escapeAdminHtml(status)}</div>
+      </div>
+
+      <div style="padding:12px 16px;background:rgba(237,28,36,.06);border-bottom:1px solid rgba(237,28,36,.18);color:#bbb;font-size:12px;line-height:1.5">
+        Record who is buying, who is importing and which customs identities apply before the export paperwork is finalised.
+        AnyBike's exporter EORI is kept separately from the buyer/importer's customs identity.
+      </div>
+
+      <div class="anybike-commercial-grid">
+        <div class="anybike-commercial-field">
+          <label>Buyer Type</label>
+          <select id="deal-export-buyer-type-${dealId}" onchange="updateDealExportTaxBuyerType(${dealId})" ${busy ? "disabled" : ""}>
+            <option value="Business"${buyerType==="Business" ? " selected" : ""}>Business</option>
+            <option value="Private Consumer"${buyerType==="Private Consumer" ? " selected" : ""}>Private Consumer</option>
+          </select>
+        </div>
+
+        <div class="anybike-commercial-field">
+          <label>Destination Country</label>
+          <input id="deal-export-country-${dealId}" type="text" value="${escapeAdminHtml(destination)}" placeholder="e.g. France" readonly>
+        </div>
+
+        <div class="anybike-commercial-field">
+          <label>Destination Customs Region</label>
+          <input type="text" value="${escapeAdminHtml(anyBikeDestinationCustomsRegion(destination))}" readonly>
+        </div>
+
+        <div class="anybike-commercial-field">
+          <label>Export / Identity Status</label>
+          <select id="deal-export-status-${dealId}" ${busy ? "disabled" : ""}>
+            <option value="To Be Confirmed"${status==="To Be Confirmed" ? " selected" : ""}>To Be Confirmed</option>
+            <option value="Details Provided"${status==="Details Provided" ? " selected" : ""}>Details Provided</option>
+            <option value="Confirmed"${status==="Confirmed" ? " selected" : ""}>Confirmed</option>
+          </select>
+        </div>
+
+        <div class="anybike-commercial-field deal-export-business-${dealId}" style="${isBusiness ? "" : "display:none"}">
+          <label>Buyer Business Name</label>
+          <input id="deal-export-business-name-${dealId}" type="text" value="${escapeAdminHtml(buyerBusiness)}" placeholder="Registered business name" ${busy ? "disabled" : ""}>
+        </div>
+
+        <div class="anybike-commercial-field deal-export-business-${dealId}" style="${isBusiness ? "" : "display:none"}">
+          <label>Buyer VAT Number</label>
+          <input id="deal-export-vat-${dealId}" type="text" value="${escapeAdminHtml(route.buyer_vat_number || "")}" placeholder="If applicable" ${busy ? "disabled" : ""}>
+        </div>
+
+        <div class="anybike-commercial-field deal-export-business-${dealId}" style="${isBusiness ? "" : "display:none"}">
+          <label>Buyer EORI / Customs ID</label>
+          <input id="deal-export-eori-${dealId}" type="text" value="${escapeAdminHtml(route.buyer_eori_number || "")}" placeholder="Required for business buyer before confirmation" ${busy ? "disabled" : ""}>
+        </div>
+
+        <div class="anybike-commercial-field">
+          <label>Importer of Record</label>
+          <select id="deal-export-importer-${dealId}" ${busy ? "disabled" : ""}>
+            <option value="">Select</option>
+            <option value="Buyer"${route.importer_of_record==="Buyer" ? " selected" : ""}>Buyer</option>
+            <option value="Buyer Business"${route.importer_of_record==="Buyer Business" ? " selected" : ""}>Buyer Business</option>
+            <option value="Freight Forwarder / Agent"${route.importer_of_record==="Freight Forwarder / Agent" ? " selected" : ""}>Freight Forwarder / Agent</option>
+            <option value="Other"${route.importer_of_record==="Other" ? " selected" : ""}>Other</option>
+          </select>
+        </div>
+
+        <div class="anybike-commercial-field">
+          <label>Who Arranges Export?</label>
+          <select id="deal-export-arranged-by-${dealId}" ${busy ? "disabled" : ""}>
+            <option value="">Select</option>
+            <option value="AnyBike"${route.export_arranged_by==="AnyBike" ? " selected" : ""}>AnyBike</option>
+            <option value="Buyer"${route.export_arranged_by==="Buyer" ? " selected" : ""}>Buyer</option>
+            <option value="Buyer Shipper / Forwarder"${route.export_arranged_by==="Buyer Shipper / Forwarder" ? " selected" : ""}>Buyer Shipper / Forwarder</option>
+          </select>
+        </div>
+
+        <div class="anybike-commercial-field">
+          <label>AnyBike Exporter</label>
+          <input type="text" value="${escapeAdminHtml(companyName)}" readonly>
+        </div>
+
+        <div class="anybike-commercial-field">
+          <label>AnyBike GB EORI</label>
+          <input type="text" value="${escapeAdminHtml(anyBikeEori)}" readonly>
+        </div>
+
+        <div class="anybike-commercial-field" style="grid-column:1 / -1">
+          <label>Internal Export / Tax Notes</label>
+          <textarea id="deal-export-notes-${dealId}" placeholder="Buyer/importer identity checks, customs notes or document requirements" ${busy ? "disabled" : ""}>${escapeAdminHtml(route.export_tax_identity_notes || "")}</textarea>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:14px 16px;border-top:1px solid #2a2a2a;background:#0d0d0d">
+        <button type="button" onclick="saveDealExportTaxIdentity(${dealId});return false;" ${busy ? "disabled" : ""}>
+          ${busy ? "Saving..." : "Save Export & Tax Identity"}
+        </button>
+        ${confirmed ? '<span style="color:#8cffb1;font-weight:900">✓ Export & tax identity confirmed</span>' : '<span style="color:#ffb36b;font-weight:900">Export / tax identity not yet confirmed</span>'}
+      </div>
+    </section>`;
+}
+
+function updateDealExportTaxBuyerType(dealId){
+  const id=String(dealId);
+  const type=document.getElementById("deal-export-buyer-type-"+id)?.value || "";
+  document.querySelectorAll(".deal-export-business-"+id).forEach(function(el){
+    el.style.display=type==="Business" ? "" : "none";
+  });
+}
+
+async function saveDealExportTaxIdentity(dealId){
+  const id=Number(dealId);
+  if(!Number.isFinite(id) || dealExportTaxSaveBusy.has(String(id))){ return; }
+
+  const value=function(prefix){
+    return String(document.getElementById(prefix+"-"+id)?.value || "").trim();
+  };
+
+  const buyerType=value("deal-export-buyer-type");
+  const businessName=value("deal-export-business-name");
+  const vatNumber=value("deal-export-vat");
+  const buyerEori=value("deal-export-eori");
+  const importer=value("deal-export-importer");
+  const arrangedBy=value("deal-export-arranged-by");
+  const status=value("deal-export-status");
+  const notes=value("deal-export-notes");
+
+  if(status==="Confirmed" && buyerType==="Business" && !buyerEori){
+    alert("Buyer EORI / Customs ID is required before a business buyer can be confirmed.");
+    return;
+  }
+
+  dealExportTaxSaveBusy.add(String(id));
+  renderAdminDealQueue();
+
+  try{
+    const result=await sb.rpc("admin_save_deal_export_tax_identity_v1",{
+      p_deal_id:id,
+      p_buyer_type:buyerType,
+      p_buyer_business_name:businessName || null,
+      p_buyer_vat_number:vatNumber || null,
+      p_buyer_eori_number:buyerEori || null,
+      p_importer_of_record:importer || null,
+      p_export_arranged_by:arrangedBy || null,
+      p_status:status,
+      p_notes:notes || null
+    });
+    if(result.error){ throw result.error; }
+
+    await loadDealShippingRoutes();
+    renderAdminDealQueue();
+
+    const row=document.getElementById("anybike-deal-"+id);
+    if(row){
+      row.classList.add("open");
+      openAnyBikeDealId=String(id);
+      bikeSalesJourneyTab(String(id),"seller",false);
+      setTimeout(function(){
+        const panel=document.getElementById("deal-export-tax-panel-"+id);
+        scrollBikeSalesTargetIntoView(panel || row);
+      },50);
+    }
+  }catch(error){
+    console.error("Export & Tax Identity could not be saved:",error);
+    alert("Export & Tax Identity could not be saved.\n\n"+(error?.message || error));
+  }finally{
+    dealExportTaxSaveBusy.delete(String(id));
+    renderAdminDealQueue();
+  }
 }
 
 function renderAnyBikeDealShippingRoutePanel(deal){
@@ -10057,6 +10269,16 @@ function renderAnyBikeDealShippingRoutePanel(deal){
             Setting status to Confirmed requires a destination country, UK port/handover point and freight forwarder. Confirmation records the staff user and time automatically.
           </div>
         </div>`;
+}
+
+async function loadCompanyExportIdentity(){
+  try{
+    const result=await sb.rpc("admin_get_company_export_identity_v1");
+    if(result.error){ throw result.error; }
+    adminCompanyExportIdentity=Object.assign({},adminCompanyExportIdentity,result.data || {});
+  }catch(error){
+    console.warn("Company export identity could not be loaded:",error);
+  }
 }
 
 async function loadDealShippingRoutes(){
@@ -10173,6 +10395,7 @@ async function loadAdminDealQueue(){
     if(result.error){ throw result.error; }
     adminDealQueue = result.data || [];
     await loadDealShippingRoutes();
+    await loadCompanyExportIdentity();
     await loadAdminDealCustomerProfiles();
     await loadAdminCustomerHandoverData();
 
@@ -14457,7 +14680,7 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
         '<span>These tools keep this sale and buyer context while you source.</span></div>'+
         '<div class="anybike-deal-bike-list">'+bikeRows+'</div>'+renderAnyBikeDealCandidatePanel(deal);
     })())+
-    panel("seller",renderAnyBikeDealCommercialSetup(deal)+renderAnyBikeDealSellerCheckPanel(deal)+renderAnyBikeDealFinancialPanel(deal))+
+    panel("seller",renderAnyBikeDealCommercialSetup(deal)+renderAnyBikeDealExportTaxIdentity(deal)+renderAnyBikeDealSellerCheckPanel(deal)+renderAnyBikeDealFinancialPanel(deal))+
     panel("offer",renderDealOfferWorkspace(deal,bikes)+(!offerAccepted?'<div class="sales-what-next"><strong>What happens next?</strong><span>When the formal offer is sent, the buyer reviews the price and terms. Their response returns to AnyBike through the Message Centre and bell.</span></div>':'')+'<details class="sales-payment-advanced"><summary>Stage override / exceptional use only</summary>'+stageControl+'</details>')+
     panel("payment",(function(){
       const depositComplete=depositRequired<=0 || depositOutstanding<=0.009;
