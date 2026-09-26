@@ -930,6 +930,8 @@ function purchaseState(purchase){
   const secured=!!purchase.motorcycle_secured;
   const collected=String(purchase.collection_status||"").toLowerCase()==="collected" ||
     String(purchase.deal_status||"").toLowerCase()==="collected";
+  const storageStatus=String(purchase.storage_status||"").toLowerCase();
+  const inStorage=collected && !["","not_started","released"].includes(storageStatus) && !purchase.storage_released_at;
   const deliveryStage=String(purchase.delivery_handover_status||"").toLowerCase();
   const delivered=!!purchase.delivered_to_shipper_at || deliveryStage==="delivered";
   const outForDelivery=["driver_link_ready","driver_opened","arrived"].includes(deliveryStage);
@@ -951,9 +953,12 @@ function purchaseState(purchase){
   }else if(outForDelivery){
     heading="Out for Delivery";
     message="Move Motorcycles is completing the agreed handover to your confirmed shipping company.";
+  }else if(inStorage){
+    heading="Secure UK Custody / Storage";
+    message="Your motorcycle has been collected and is being held securely in the UK while the final handover is arranged.";
   }else if(collected){
     heading="Collected";
-    message="Your motorcycle has been collected and is now moving through the secure UK custody / shipping stage.";
+    message="Your motorcycle has been collected and is moving into secure UK custody / onward handover.";
   }else if(secured && fullyPaid){
     heading="Motorcycle Secured";
     message="Your motorcycle is secured and paid in full. AnyBike is preparing the collection and UK handover.";
@@ -976,7 +981,7 @@ function purchaseState(purchase){
 
   return {
     depositRequired,depositDue,depositAllocated,depositOutstanding,depositSatisfied,
-    moneyReceived,allocated,balance,secured,collected,delivered,outForDelivery,completed,fullyPaid,
+    moneyReceived,allocated,balance,secured,collected,inStorage,storageStatus,delivered,outForDelivery,completed,fullyPaid,
     heading,message,paymentStatus
   };
 }
@@ -989,6 +994,7 @@ function buyerProgressHtml(purchase,state){
     state.secured,
     state.fullyPaid,
     state.collected,
+    state.inStorage||state.delivered||complete,
     state.delivered||complete,
     complete
   ];
@@ -1017,13 +1023,15 @@ function journeyHtml(purchase,state){
     nextTitle="AnyBike arranges collection";
     nextText="Move Motorcycles will collect the motorcycle and the collection progress will appear here.";
   }else if(state.collected && !state.delivered && !state.completed){
-    current="invoice";
-    nextTitle="Final invoice and UK handover";
-    nextText="AnyBike will finalise the invoice and arrange the confirmed delivery / handover to your shipper.";
+    current=state.inStorage?"storage":"delivery";
+    nextTitle=state.inStorage?"Secure UK custody / storage":"Arrange the UK handover";
+    nextText=state.inStorage
+      ?"Your motorcycle is secure in the UK while AnyBike and Move arrange the confirmed handover to your shipper."
+      :"Your motorcycle has been collected. AnyBike and Move will now complete the agreed UK handover.";
   }else if(state.delivered && !state.completed){
-    current="complete";
-    nextTitle="Complete the purchase";
-    nextText="The UK handover is complete. AnyBike will close the remaining transaction steps.";
+    current="invoice";
+    nextTitle="Final invoice";
+    nextText="The UK handover is complete. AnyBike will now finalise the transaction charges and issue the Final Invoice.";
   }else if(state.completed){
     current="complete";
     nextTitle="Purchase complete";
@@ -1037,8 +1045,9 @@ function journeyHtml(purchase,state){
     ["secured","Motorcycle Secured",state.secured],
     ["balance","Balance & Documents",state.fullyPaid],
     ["collection","Collection",state.collected],
-    ["invoice","Final Invoice",state.delivered||state.completed],
+    ["storage","UK Custody / Storage",state.inStorage||state.delivered||state.completed],
     ["delivery","Delivery / Handover",state.delivered||state.completed],
+    ["invoice","Final Invoice",state.completed],
     ["complete","Complete",state.completed]
   ];
 
