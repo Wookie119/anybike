@@ -812,6 +812,12 @@ main{
 .purchase-add-bike-actions button.secondary{background:#171717;border-color:#444}
 .purchase-add-bike-note{font-size:11px;color:#888;line-height:1.45;margin-bottom:10px}
 @media(max-width:760px){.purchase-add-bike-form{grid-template-columns:1fr 1fr}.purchase-add-bike-form .wide,.purchase-add-bike-actions{grid-column:span 2}}
+
+.buyer-progress-meter{display:grid;grid-template-columns:auto minmax(160px,1fr) auto;gap:10px;align-items:center;margin:12px 0;padding:9px 11px;border:1px solid rgba(255,255,255,.10);border-radius:10px;background:#0d0d0d}
+.buyer-progress-meter>span{font-size:10px;font-weight:900;color:#888;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap}
+.buyer-progress-track{height:7px;border-radius:999px;background:#242424;overflow:hidden}
+.buyer-progress-fill{height:100%;border-radius:inherit;background:linear-gradient(90deg,#ed1c24,#ff5158)}
+.buyer-progress-meter>strong{font-size:11px;color:#fff;white-space:nowrap}
 </style>
 </head>
 
@@ -973,6 +979,23 @@ function purchaseState(purchase){
     moneyReceived,allocated,balance,secured,collected,delivered,outForDelivery,completed,fullyPaid,
     heading,message,paymentStatus
   };
+}
+
+function buyerProgressHtml(purchase,state){
+  const complete=String(purchase?.deal_stage||"").toLowerCase()==="completed" || String(purchase?.deal_status||"").toLowerCase()==="completed";
+  const stages=[
+    true,
+    state.depositSatisfied,
+    state.secured,
+    state.fullyPaid,
+    state.collected,
+    state.delivered||complete,
+    complete
+  ];
+  const done=stages.filter(Boolean).length;
+  const total=stages.length;
+  const percent=Math.max(0,Math.min(100,Math.round((done/total)*100)));
+  return '<div class="buyer-progress-meter"><span>Purchase progress</span><div class="buyer-progress-track"><div class="buyer-progress-fill" style="width:'+percent+'%"></div></div><strong>'+done+' / '+total+' stages</strong></div>';
 }
 
 function journeyHtml(purchase,state){
@@ -1183,6 +1206,8 @@ function purchaseCard(purchase){
           <strong>${safe(state.heading)}</strong>
           <p>${safe(state.message)}</p>
         </div>
+
+        ${buyerProgressHtml(purchase,state)}
 
         <div class="purchase-overview">
           <div class="overview-box total">
