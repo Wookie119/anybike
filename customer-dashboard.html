@@ -1885,8 +1885,10 @@ body.customer-offer-modal-open{overflow:hidden}
   <section id="buyerSetupBanner" class="panel" style="display:none;border-color:rgba(237,28,36,.36)">
     <div class="panel-head" style="align-items:center">
       <div>
+        <div class="eyebrow" style="margin-bottom:5px">Your next action</div>
         <h2 id="buyerSetupTitle">🛡️ Buyer Setup</h2>
         <p id="buyerSetupText">Complete your reusable buyer and shipping details so future purchases can move quickly.</p>
+        <p style="margin-top:8px;color:#aaa">AnyBike uses the same clear process for every buyer so both sides know who they are dealing with, how payment will work and where the motorcycle will go. The aim is to build strong, trustworthy relationships and grow our businesses together.</p>
       </div>
       <a id="buyerSetupAction" class="panel-link" href="customer-profile.html#buyer-onboarding">Complete Buyer Setup →</a>
     </div>
@@ -2368,6 +2370,7 @@ let openCustomerOfferMatchId=null;
 let savedHandoverPlans=[];
 let dealHandoverSelections={};
 let editingShippingPreferenceId=null;
+let buyerAccountState={account_status:"Active",account_stop_reason:"",approval_status:"Not Reviewed"};
 
 async function claimRequestedMessageThread(){
   const params = new URLSearchParams(window.location.search);
@@ -3081,6 +3084,22 @@ function customerOfferModalHtml(match){
   `;
 }
 
+function buyerAccountCanTransact(){
+  return !["Stopped","On Hold"].includes(String(buyerAccountState?.account_status||"Active"));
+}
+
+function buyerAccountStopMessage(){
+  const status=String(buyerAccountState?.account_status||"Active");
+  const reason=String(buyerAccountState?.account_stop_reason||"").trim();
+  if(status==="Stopped"){
+    return reason || "Your AnyBike account is currently on stop. Please follow Your next action in My AnyBike before accepting an offer.";
+  }
+  if(status==="On Hold"){
+    return reason || "Your AnyBike account is currently on hold while we confirm some details.";
+  }
+  return "";
+}
+
 function openCustomerOfferModal(matchId){
   const modal=document.getElementById("customerOfferModal");
   const body=document.getElementById("customerOfferModalBody");
@@ -3119,8 +3138,14 @@ function openCustomerOfferModal(matchId){
       const acceptButton=document.getElementById("customerOfferAcceptBtn");
       if(!acceptButton){ return; }
       acceptButton.disabled=
+        !buyerAccountCanTransact() ||
         legalBoxes.length !== 4 ||
         !legalBoxes.every(function(box){ return box.checked; });
+
+      if(!buyerAccountCanTransact()){
+        const status=document.getElementById("customerOfferDecisionStatus");
+        if(status) status.textContent="Your account cannot accept this offer yet. "+buyerAccountStopMessage();
+      }
     };
 
     legalBoxes.forEach(function(box){
@@ -3172,6 +3197,12 @@ function setCustomerOfferDecisionBusy(isBusy,message=""){
 async function customerOfferAccept(matchId){
   if(!currentUser){
     redirectToCustomerLogin();
+    return;
+  }
+
+  if(!buyerAccountCanTransact()){
+    alert("Your AnyBike account cannot accept an offer yet.\n\n"+buyerAccountStopMessage());
+    document.getElementById("buyer-setup")?.scrollIntoView({behavior:"smooth",block:"start"});
     return;
   }
 
@@ -4400,13 +4431,16 @@ async function loadBuyerSetupBanner(){
   try{
     const {data,error}=await sb
       .from("customer_buyer_onboarding")
-      .select("approval_status,identity_status,address_status,shipper_status,test_payment_status")
+      .select("approval_status,identity_status,address_status,shipper_status,test_payment_status,account_status,account_stop_reason")
       .eq("customer_id",currentUser.id)
       .maybeSingle();
     if(!error) onboarding=data||null;
   }catch(error){}
 
-  const approved=onboarding && ["Approved","Approved with Exceptions"].includes(String(onboarding.approval_status||""));
+  buyerAccountState=onboarding || {account_status:"Active",account_stop_reason:"",approval_status:"Not Reviewed"};
+  const accountStatus=String(buyerAccountState.account_status||"Active");
+  const stopReason=String(buyerAccountState.account_stop_reason||"").trim();
+  const approved=onboarding && ["Approved","Approved with Exceptions"].includes(String(onboarding.approval_status||"")) && accountStatus==="Active";
   const profileReady=Boolean(
     currentProfile?.identity_document_path &&
     currentProfile?.proof_of_address_document_path &&
@@ -4415,7 +4449,18 @@ async function loadBuyerSetupBanner(){
   );
 
   banner.style.display="";
-  if(approved){
+  banner.id="buyer-setup";
+  if(accountStatus==="Stopped"){
+    title.textContent="⛔ Your AnyBike account is on stop";
+    textEl.textContent=stopReason || "We need to resolve an account issue before you can accept offers or continue a purchase.";
+    action.textContent="Review Your Buyer Details →";
+    banner.style.borderColor="rgba(237,28,36,.75)";
+  }else if(accountStatus==="On Hold"){
+    title.textContent="⏸️ Your AnyBike account is on hold";
+    textEl.textContent=stopReason || "We need to confirm some details before your next purchase can progress.";
+    action.textContent="Review What We Need →";
+    banner.style.borderColor="rgba(255,179,107,.55)";
+  }else if(approved){
     title.textContent="✓ Buyer Setup Approved";
     textEl.textContent="Your reusable buyer verification is approved. We will still confirm the shipper and route for each motorcycle before purchase.";
     action.textContent="Review Buyer & Shipping Details →";
