@@ -801,6 +801,17 @@ main{
 .purchase-group-grid{display:grid;gap:12px;padding:12px}
 .purchase-group.multi .purchase-group-grid{grid-template-columns:repeat(auto-fit,minmax(520px,1fr))}
 @media(max-width:700px){.purchase-group.multi .purchase-group-grid{grid-template-columns:1fr}}
+
+.purchase-add-bike{margin-top:10px;padding:12px;border-top:1px solid rgba(255,255,255,.08);background:#0d0d0d}
+.purchase-add-bike-form{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.purchase-add-bike-form label{display:block;color:#888;font-size:9px;font-weight:900;text-transform:uppercase;margin-bottom:4px}
+.purchase-add-bike-form input,.purchase-add-bike-form textarea{width:100%;background:#090909;color:#fff;border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:9px;font:inherit}
+.purchase-add-bike-form .wide{grid-column:span 4}
+.purchase-add-bike-actions{grid-column:span 4;display:flex;justify-content:flex-end;gap:8px}
+.purchase-add-bike-actions button{border:1px solid #ed1c24;background:#ed1c24;color:#fff;border-radius:9px;padding:9px 12px;font-weight:900;cursor:pointer}
+.purchase-add-bike-actions button.secondary{background:#171717;border-color:#444}
+.purchase-add-bike-note{font-size:11px;color:#888;line-height:1.45;margin-bottom:10px}
+@media(max-width:760px){.purchase-add-bike-form{grid-template-columns:1fr 1fr}.purchase-add-bike-form .wide,.purchase-add-bike-actions{grid-column:span 2}}
 </style>
 </head>
 
@@ -1025,6 +1036,58 @@ function journeyHtml(purchase,state){
       </div>
     </div>
   `;
+}
+
+function toggleCustomerAddBike(dealId){
+  const box=document.getElementById("purchase-add-bike-"+String(dealId));
+  if(!box)return;
+  box.style.display=box.style.display==="none"?"block":"none";
+}
+
+async function submitCustomerAddBike(event,dealId){
+  event.preventDefault();
+  const form=event.currentTarget;
+  const submit=form.querySelector('button[type="submit"]');
+  const fd=new FormData(form);
+  const value=function(name){return String(fd.get(name)||"").trim();};
+  const numberOrNull=function(name){
+    const raw=value(name);
+    if(!raw)return null;
+    const n=Number(raw);
+    return Number.isFinite(n)?n:null;
+  };
+
+  if(submit){submit.disabled=true;submit.textContent="Sending...";}
+
+  try{
+    const {data,error}=await sb.rpc("customer_add_deal_requirement_v1",{
+      p_deal_id:Number(dealId),
+      p_make:value("make")||null,
+      p_model:value("model")||null,
+      p_variant:value("variant")||null,
+      p_year_from:numberOrNull("year_from"),
+      p_year_to:numberOrNull("year_to"),
+      p_mileage_max:numberOrNull("mileage_max"),
+      p_budget_max_gbp:numberOrNull("budget_max_gbp"),
+      p_quantity:numberOrNull("quantity")||1,
+      p_notes:value("notes")||""
+    });
+    if(error)throw error;
+
+    form.reset();
+    const qty=form.querySelector('[name="quantity"]');
+    if(qty)qty.value="1";
+
+    const box=document.getElementById("purchase-add-bike-"+String(dealId));
+    if(box){
+      box.innerHTML='<div style="padding:12px;border:1px solid rgba(54,211,126,.35);border-radius:10px;background:rgba(54,211,126,.08);color:#b9ffd0;font-weight:900">Request sent to AnyBike. It has been added to this purchase and the Bike Sales team has been notified.</div>';
+      box.style.display="block";
+    }
+  }catch(error){
+    alert("Your additional motorcycle request could not be sent.\n\n"+(error?.message||error));
+  }finally{
+    if(submit){submit.disabled=false;submit.textContent="Send Request";}
+  }
 }
 
 function collectionJobCustomerLabel(status){
@@ -1691,8 +1754,23 @@ async function loadPurchases(){
     return '<section class="purchase-group '+(count>1?'multi':'single')+'">'+
       '<div class="purchase-group-head"><div><span>AnyBike purchase</span><h2>'+safe(dealNumber)+'</h2>'+
       '<p>'+count+' motorcycle'+(count===1?'':'s')+' in this purchase. Each motorcycle follows its own journey and can progress independently.</p></div>'+
-      '<a href="customer-messages.html">+ Ask AnyBike for another motorcycle</a></div>'+
+      '<button type="button" onclick="toggleCustomerAddBike(\''+safe(String(first.deal_id||""))+'\')" style="display:inline-flex;align-items:center;justify-content:center;padding:9px 12px;border-radius:9px;background:#171717;border:1px solid rgba(255,255,255,.12);color:#fff;font-weight:900;font-size:12px;cursor:pointer">+ Add another motorcycle</button></div>'+
       '<div class="purchase-group-grid">'+group.map(purchaseCard).join("")+'</div>'+
+      '<div class="purchase-add-bike" id="purchase-add-bike-'+safe(String(first.deal_id||""))+'" style="display:none">'+
+        '<div class="purchase-add-bike-note">Tell AnyBike what else you want to buy. This adds another sourcing requirement to the same purchase and alerts the Bike Sales team.</div>'+
+        '<form class="purchase-add-bike-form" onsubmit="submitCustomerAddBike(event,\''+safe(String(first.deal_id||""))+'\');return false;">'+
+          '<div><label>Make</label><input name="make" placeholder="e.g. Honda"></div>'+
+          '<div><label>Model</label><input name="model" placeholder="e.g. Gold Wing"></div>'+
+          '<div><label>Variant</label><input name="variant" placeholder="Optional"></div>'+
+          '<div><label>Quantity</label><input name="quantity" type="number" min="1" max="20" value="1"></div>'+
+          '<div><label>Year from</label><input name="year_from" type="number" min="1900" max="2100"></div>'+
+          '<div><label>Year to</label><input name="year_to" type="number" min="1900" max="2100"></div>'+
+          '<div><label>Max mileage</label><input name="mileage_max" type="number" min="0"></div>'+
+          '<div><label>Budget £</label><input name="budget_max_gbp" type="number" min="0" step="0.01"></div>'+
+          '<div class="wide"><label>Notes</label><textarea name="notes" rows="3" placeholder="Colour, specification, flexibility or anything else AnyBike should know"></textarea></div>'+
+          '<div class="purchase-add-bike-actions"><button type="button" class="secondary" onclick="toggleCustomerAddBike(\''+safe(String(first.deal_id||""))+'\')">Cancel</button><button type="submit">Send Request</button></div>'+
+        '</form>'+
+      '</div>'+
     '</section>';
   }).join("");
 
