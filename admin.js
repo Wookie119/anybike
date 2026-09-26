@@ -240,9 +240,22 @@ async function adminLogout(){
   window.location.replace("/admin-login.html");
 }
 
+function ensureFreshAdminShellCss(){
+  var existing=document.getElementById("anybike-admin-shell-refresh");
+  if(existing){ return; }
+
+  var link=document.createElement("link");
+  link.id="anybike-admin-shell-refresh";
+  link.rel="stylesheet";
+  link.href="admin-shell.css?v=202609261125";
+  document.head.appendChild(link);
+}
+
 function loadAdminShell(){
 
-fetch("admin-sidebar.html?v=4001")
+ensureFreshAdminShellCss();
+
+fetch("admin-sidebar.html?v=202609261125")
 .then(function(res){
 return res.text();
 })
@@ -269,7 +282,7 @@ return res.text();
 .catch(function(error){
   console.log("Admin sidebar load failed", error);
 });
-fetch("admin-topbar.html?v=4000")
+fetch("admin-topbar.html?v=202609261125")
 .then(function(res){
 return res.text();
 })
