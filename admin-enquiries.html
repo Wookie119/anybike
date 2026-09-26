@@ -13832,7 +13832,10 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
   const shippingRoute=anyBikeShippingRouteForDeal(dealId);
   const collected=String(deal.deal_status||deal.status||status||"").toLowerCase()==="collected" || ["Shipping","Completed"].includes(String(rawStage||""));
   const complete=String(rawStage||"")==="Completed";
-  const flags={depositOutstanding,depositRequired,sellerDone,shippingDone,vatDone,secured,hasMotorcycle,offerAccepted,customerPaid,collected,complete};
+  const finalInvoiceIssued=(adminDealInvoices.get(dealId)||[]).some(function(inv){
+    return String(inv.invoice_type||"")==="Final Invoice" && String(inv.invoice_status||"")==="Issued";
+  });
+  const flags={depositOutstanding,depositRequired,sellerDone,shippingDone,vatDone,secured,hasMotorcycle,offerAccepted,customerPaid,collected,complete,finalInvoiceIssued};
   const current=bikeSalesJourneyStage(action,deal,flags);
   let nextText=bikeSalesJourneyInstruction(action,flags);
   if(!hasMotorcycle){
@@ -13860,9 +13863,9 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
     ["offer","Offer",offerAccepted],
     ["payment","Payment",secured||customerPaid||(depositRequired>0&&depositOutstanding<=0.009)],
     ["collection","Collection",collected],
-    ["invoice","Invoice",complete],
     ["delivery","Delivery",complete],
-    ["complete","Complete",complete]
+    ["invoice","Final Invoice",finalInvoiceIssued],
+    ["complete","Complete",complete&&finalInvoiceIssued]
   ];
 
   const pipelineHtml=pipeline.map(function(item){
@@ -13890,7 +13893,9 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
     ["Deposit / customer payment",depositRequired<=0||depositOutstanding<=0.009,(depositRequired>0?((depositOutstanding<=0.009)?"Required deposit is clear.":anyBikeDealMoney(depositOutstanding)+" still required."):"No deposit currently required.")],
     ["Motorcycle secured",secured,secured?"AnyBike has secured the motorcycle.":"Do not mark secured until AnyBike genuinely controls the motorcycle."],
     ["Collection",collected,collected?"Collection completed / in handover.":"Move collection follows the purchase/payment gates."],
-    ["Delivery / completion",complete,complete?"Sale completed.":"Delivery and completion follow collection."]
+    ["Delivery / handover",complete,complete?"UK handover / delivery recorded.":"Delivery follows collection and UK custody."],
+    ["Final Invoice",finalInvoiceIssued,finalInvoiceIssued?"Final Invoice issued to the customer.":"Issue the Final Invoice when final delivery/storage charges are known."],
+    ["Complete",complete&&finalInvoiceIssued,(complete&&finalInvoiceIssued)?"Sale and financial close complete.":"Complete only after handover and Final Invoice."]
   ];
   let currentMarked=false;
   const timelineHtml=timelineRows.map(function(row){
@@ -13918,8 +13923,8 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
       tabButton("offer","Offer")+
       tabButton("payment","Payment")+
       tabButton("collection","Collection")+
-      tabButton("invoice","Invoice")+
       tabButton("delivery","Delivery")+
+      tabButton("invoice","Final Invoice")+
       tabButton("timeline","Timeline")+
     '</nav>'+
     panel("request",renderAnyBikeDealMessageBridge(deal)+renderAnyBikeCustomerShippingPreferences(deal))+
