@@ -310,6 +310,8 @@ Used motorcycles can sell quickly. Website adverts and dealer listings become st
 5. Record the live availability check.
 6. Note any time-limited hold or reservation.
 
+Before the motorcycle is secured, a customer Formal Offer must not remain valid beyond the seller-confirmed availability / hold window. If AnyBike has subsequently **genuinely secured the motorcycle**, that earlier availability window has completed its purpose and no longer limits the customer offer expiry.
+
 If sold:
 - mark candidate Sold / No Longer Available;
 - keep the buyer's sourcing Deal open for alternatives.
