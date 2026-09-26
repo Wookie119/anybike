@@ -334,7 +334,7 @@
       const seller=sellerNameFor(row);
       const phone=sellerPhoneFor(row);
 
-      const atDepot=!!row.depot_arrived_at || ["at_depot","in_storage","stored"].includes(String(row.depot_status||"").toLowerCase()) || ["active","paused","stopped"].includes(String(storage).toLowerCase());
+      const atDepot=!!row.depot_arrived_at || ["at_depot","in_storage","stored"].includes(String(row.depot_status||"").toLowerCase()) || ["free","chargeable","paused","stopped"].includes(String(storage).toLowerCase());
       const delivered=!!row.delivered_to_shipper_at || ["delivered","completed","handed_over"].includes(String(row.delivery_status||"").toLowerCase()) || !!row.operations_complete;
       const operationsStages=[
         ["Seller confirmed",confirmed],
@@ -436,7 +436,7 @@
 
     host.innerHTML='<div class="ab-ops">'+rows.map(function(row,index){
       const collected=String(row.collection_status||"")==="collected";
-      const atDepot=!!row.depot_arrived_at || ["at_depot","in_storage","stored"].includes(String(row.depot_status||"").toLowerCase()) || ["active","paused","stopped"].includes(String(row.storage_status||"").toLowerCase());
+      const atDepot=!!row.depot_arrived_at || ["at_depot","in_storage","stored"].includes(String(row.depot_status||"").toLowerCase()) || ["free","chargeable","paused","stopped"].includes(String(row.storage_status||"").toLowerCase());
       const delivered=!!row.delivered_to_shipper_at || ["delivered","completed","handed_over"].includes(String(row.delivery_status||"").toLowerCase()) || !!row.operations_complete;
       const title=motorcycleTitle(row);
       const stages=[
@@ -854,6 +854,9 @@
       const rows=result.data || [];
       operationsCache.set(key,rows);
       renderRows(key,rows);
+      if(force && typeof window.invalidateFinalInvoiceReadiness==="function"){
+        window.invalidateFinalInvoiceReadiness(key);
+      }
     }catch(error){
       console.error("Deal Operations could not be loaded:",error);
       if(host) host.innerHTML='<div class="ab-ops-error">Purchase & Collection could not be loaded: '+esc(error.message||error)+'</div>';
