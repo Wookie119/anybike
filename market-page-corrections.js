@@ -140,13 +140,18 @@
           '<div class="signal-card" style="border:1px solid #2d2d2d;border-radius:18px;padding:20px;background:#111">'+
             '<strong>Brands attracting interest</strong>'+
             '<div class="area-list" style="margin-top:12px">'+
-              (makes.length?makes.map(function(m){return '<span>'+esc(m)+'</span>'}).join(""):'<span>Building from real viewing activity</span>')+
+              (makes.length?makes.map(function(m){return '<a class="interest-tag" href="/motorcycle-brand.html?make='+encodeURIComponent(m)+'">'+esc(m)+'</a>'}).join(""):'<span>Building from real viewing activity</span>')+
             '</div>'+
           '</div>'+
           '<div class="signal-card" style="border:1px solid #2d2d2d;border-radius:18px;padding:20px;background:#111">'+
             '<strong>Models attracting interest</strong>'+
             '<div class="area-list" style="margin-top:12px">'+
-              (models.length?models.map(function(m){return '<span>'+esc(m)+'</span>'}).join(""):'<span>Building from real viewing activity</span>')+
+              (models.length?models.map(function(m){
+  var parts=String(m||"").split(" ");
+  var make=parts.shift()||"";
+  var model=parts.join(" ");
+  return '<a class="interest-tag" href="/motorcycle-model.html?make='+encodeURIComponent(make)+'&model='+encodeURIComponent(model)+'">'+esc(m)+'</a>';
+}).join(""):'<span>Building from real viewing activity</span>')+
             '</div>'+
           '</div>'+
         '</div>'
