@@ -85,6 +85,11 @@ async function loadProcessHQ(){
       '<p><strong>Current position:</strong> '+esc(r.current_position||"")+'</p>'+
       (r.blocker?'<p><strong>Still to prove:</strong> '+esc(r.blocker)+'</p>':'')+
       (r.next_test?'<div class="learning-note"><strong>Next test</strong><br>'+esc(r.next_test)+'</div>':'')+
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">'+
+        '<button type="button" onclick="setReadiness(\''+esc(r.area_key)+'\',\'Red\')" style="background:#2a0c0e;border:1px solid #ff7b82;color:#fff;border-radius:999px;padding:7px 10px;cursor:pointer">Red</button>'+
+        '<button type="button" onclick="setReadiness(\''+esc(r.area_key)+'\',\'Amber\')" style="background:#2a210c;border:1px solid #ffd27c;color:#fff;border-radius:999px;padding:7px 10px;cursor:pointer">Amber</button>'+
+        '<button type="button" onclick="setReadiness(\''+esc(r.area_key)+'\',\'Green\')" style="background:#0d2417;border:1px solid #67df98;color:#fff;border-radius:999px;padding:7px 10px;cursor:pointer">Green</button>'+
+      '</div>'+
     '</article>';
   }).join(""):'<div class="empty">No readiness areas configured.</div>';
   var byChapter=new Map(); steps.forEach(function(step){var key=String(step.chapter_id);if(!byChapter.has(key))byChapter.set(key,[]);byChapter.get(key).push(step);});
@@ -97,10 +102,37 @@ async function loadProcessHQ(){
   }).join("");
   document.getElementById("chapterList").innerHTML=chapterHtml||'<div class="empty">No manual chapters yet.</div>';
   var obsHtml=observations.length?observations.map(function(o){
-    return '<article class="obs"><span class="pill test">'+esc(o.observation_type)+'</span> <span class="pill">'+esc(o.status)+'</span><h3>'+esc(o.title)+'</h3><p>'+esc(o.evidence_summary||"")+'</p>'+(o.suggested_change?'<div class="learning-note"><strong>Suggested improvement</strong><br>'+esc(o.suggested_change)+'</div>':'')+'</article>';
+    var controls=["Watching","Accepted","Rejected"].map(function(st){
+      return '<button type="button" onclick="reviewObservation('+Number(o.id)+',\''+st+'\')" style="background:#181818;border:1px solid rgba(255,255,255,.16);color:#fff;border-radius:999px;padding:7px 10px;cursor:pointer">'+st+'</button>';
+    }).join("");
+    return '<article class="obs"><span class="pill test">'+esc(o.observation_type)+'</span> <span class="pill">'+esc(o.status)+'</span><h3>'+esc(o.title)+'</h3><p>'+esc(o.evidence_summary||"")+'</p>'+(o.suggested_change?'<div class="learning-note"><strong>Suggested improvement</strong><br>'+esc(o.suggested_change)+'</div>':'')+'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">'+controls+'</div></article>';
   }).join(""):'<div class="empty">The advisor is watching process events. Suggestions will appear when there is enough repeated evidence to justify bothering you.</div>';
   document.getElementById("observationList").innerHTML=obsHtml;
 }
+async function setReadiness(areaKey,status){
+  var reason=window.prompt("Optional note for "+status+" readiness:");
+  try{
+    var result=await processClient.rpc("admin_set_sales_readiness_v1",{
+      p_area_key:areaKey,
+      p_status:status,
+      p_current_position:reason||null,
+      p_blocker:status==="Green"?null:undefined,
+      p_next_test:null
+    });
+    if(result.error)throw result.error;
+    await loadProcessHQ();
+  }catch(err){alert("Readiness could not be updated.\n\n"+(err.message||err));}
+}
+
+async function reviewObservation(id,status){
+  var note=window.prompt(status==="Accepted"?"Why should this become part of the process?":status==="Rejected"?"Why are we rejecting this suggestion?":"What should the advisor keep watching?");
+  try{
+    var result=await processClient.rpc("admin_review_process_observation_v1",{p_observation_id:id,p_status:status,p_review_notes:note||null});
+    if(result.error)throw result.error;
+    await loadProcessHQ();
+  }catch(err){alert("Advisor review could not be saved.\n\n"+(err.message||err));}
+}
+
 async function runProcessAdvisor(){
   var button=document.getElementById("runAdvisorButton");
   if(button){button.disabled=true;button.textContent="Analysing…";}
