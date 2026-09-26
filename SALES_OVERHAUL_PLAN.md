@@ -103,3 +103,30 @@ Keep pipeline compact and give the main workspace the majority of vertical and h
 6. Audit every lifecycle event for bell + Message Centre + deep link.
 7. Test existing live records against the new UI.
 8. Only after verification, replace the old Bike Sales presentation on main.
+
+
+## Preservation rule during overhaul
+
+No existing sales UI section or working code path is to be deleted merely because it is confusing or no longer belongs on the main Bike Sales screen.
+
+Before removing anything from its current location, it must be handled in one of these ways:
+1. Relocated into its confirmed new home.
+2. Left in place but hidden/collapsed while the new workflow is tested.
+3. Copied into a clearly labelled legacy/archive file when it is not yet clear where it belongs.
+
+This applies especially to:
+- Existing lead/deal pipeline controls
+- KPI/commercial summary blocks
+- Task summaries
+- Legacy enquiry tables
+- Deal/offer/payment panels
+- Seller and VAT controls
+- Candidate/matching components
+- Shipping/operations components
+- Message Centre bridges
+- Any helper JavaScript used by other admin pages
+
+Do not remove a shared function until repository search confirms it is not used elsewhere.
+
+### Current first-pass status
+The initial Bike Sales overhaul does not delete the old UI or old journey implementation. The original sections remain in `admin-enquiries.html` and are currently hidden or superseded at presentation level only.
