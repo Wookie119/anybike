@@ -34,7 +34,7 @@ h1{font-size:34px;margin:6px 0 10px}.intro{white-space:pre-line;line-height:1.6;
   <section class="grid" id="matchGrid" style="display:none"></section>
   <section class="how" id="how" style="display:none">
     <h2>What happens next?</h2>
-    <p>Mark any motorcycle <strong>Interested</strong> and AnyBike will check that it is still available, confirm the purchase terms with the seller and prepare an official AnyBike offer. The official offer will show the amount payable to AnyBike, including the agreed UK delivery to your chosen port and applicable AnyBike fees.</p>
+    <p>Choose <strong>Interested — Check Availability</strong> only when you want AnyBike to contact the seller and investigate that motorcycle for you. We will check that it is still available, confirm the purchase terms with the seller and prepare an official AnyBike offer where appropriate. This does not commit you to buy.</p>
     <p>If you accept the official offer, we will ask for the required deposit and move quickly to secure the motorcycle for you.</p>
     <a class="fee-link" href="/services-and-fees.html" target="_blank">View AnyBike Services &amp; Fees ↗</a>
   </section>
@@ -57,7 +57,7 @@ function render(){
   const request=payload.request||{};
   const reqName=[request.make,request.model].filter(Boolean).join(" ");
   document.getElementById("hero").innerHTML='<div class="eyebrow">Your AnyBike selection</div><h1>'+esc(reqName?("Your "+reqName+" matches"):"Your motorcycle matches")+'</h1>'+
-    '<div class="intro">'+esc(b.message_text||("Dear "+first+",\n\nGood news — we have found a hand-picked selection of motorcycles that could suit your requirements. Simply mark each one Interested or Not Interested."))+'</div>'+
+    '<div class="intro">'+esc(b.message_text||("Dear "+first+",\n\nGood news — we have found a hand-picked selection of motorcycles that could suit your requirements. Use Watch to save a motorcycle for later. Choose Interested — Check Availability only when you want AnyBike to contact the seller and investigate it for you."))+'</div>'+
     '<a class="fee-link" href="/services-and-fees.html" target="_blank">View AnyBike Services &amp; Fees ↗</a>';
   document.getElementById("status").style.display="none";
   const grid=document.getElementById("matchGrid");grid.style.display="grid";
@@ -67,14 +67,18 @@ function render(){
     '<div class="facts">'+facts(s).map(f=>'<span class="pill">'+esc(f)+'</span>').join("")+'</div>'+
     '<div class="price">'+gbp(s.price_gbp)+'</div>'+
     '<div class="desc">'+esc(s.description||"Selected by AnyBike for your requirements.")+'</div>'+
-    '<div class="response '+(s.response==="Interested"?"good":s.response==="Not Interested"?"no":"")+'" id="resp-'+s.id+'">'+esc((s.source_status==="ended"?"No longer listed · ":"")+(s.response||""))+'</div>'+
-    '<div class="actions"><button class="btn red" onclick="respond('+s.id+',\'Interested\')">Interested</button><button class="btn" onclick="respond('+s.id+',\'Watching\')">Watch</button><button class="btn dark" onclick="toggleReason('+s.id+')">Not Interested</button></div>'+
+    '<div class="response '+(s.response==="Interested"?"good":s.response==="Not Interested"?"no":"")+'" id="resp-'+s.id+'">'+esc((s.source_status==="ended"?"No longer listed · ":"")+(s.response==="Interested"?"Availability check requested":(s.response||"")))+'</div>'+
+    '<div class="actions"><button class="btn red" onclick="respond('+s.id+',\'Interested\')">Interested — Check Availability</button><button class="btn" onclick="respond('+s.id+',\'Watching\')">Watch / Save for Later</button><button class="btn dark" onclick="toggleReason('+s.id+')">Not Interested</button></div>'+
     '<div class="reason" id="reason-'+s.id+'"><select id="reasonSelect-'+s.id+'"><option value="">Choose a reason (optional)</option><option>Price too high</option><option>Mileage too high</option><option>Too old</option><option>Wrong colour / specification</option><option>I prefer a different make or model</option><option>Show me something else</option><option>Other</option></select><button class="btn" style="margin-top:8px" onclick="respond('+s.id+',\'Not Interested\')">Send feedback</button></div>'+
     '</div></article>').join("");
   document.getElementById("how").style.display="block";
 }
 function toggleReason(id){const e=document.getElementById("reason-"+id);e.style.display=e.style.display==="block"?"none":"block"}
 async function respond(id,response){
+  if(response==="Interested"){
+    const ok=confirm("Ask AnyBike to check this motorcycle?\n\nBy continuing, you are asking AnyBike to contact the seller and check availability and purchase terms for you. This does not commit you to buy.");
+    if(!ok)return;
+  }
   const reason=response==="Not Interested"?(document.getElementById("reasonSelect-"+id)?.value||""):null;
   const el=document.getElementById("resp-"+id);el.className="response";el.textContent="Saving…";
   const {data,error}=await sb.rpc("customer_respond_used_bike_scan_v1",{p_scan_id:id,p_response:response,p_reason:reason});
