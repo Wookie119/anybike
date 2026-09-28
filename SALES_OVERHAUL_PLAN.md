@@ -280,3 +280,25 @@ Admin effect:
 - Deal 360 returns to Seller Check / Negotiating
 - Dashboard **Your Next Actions** surfaces **Re-check seller availability** under Sales
 - once rechecked, the existing Formal Offer workflow is used to send a fresh offer rather than reviving the expired one
+
+
+### Second-chance expired offer — seller confirmation now leads to deposit
+Refined the expired-offer recovery route so it does not waste a genuine sale by forcing the buyer through another full offer cycle.
+
+Agreed journey:
+1. Formal Offer expires before the buyer acts.
+2. Buyer clicks **Ask AnyBike to Buy This Motorcycle** and confirms they still want the motorcycle at the expired offer price.
+3. Deal returns to Seller Check.
+4. AnyBike confirms seller availability and current seller price/terms.
+5. If the previous customer price is still commercially viable, AnyBike automatically creates/issues the Proforma and sends the buyer a deposit request.
+6. Buyer opens Accounts & Documents, confirms the current trade-sale/legal declarations, pays/reports the requested deposit.
+7. AnyBike verifies/allocates the deposit and continues the normal motorcycle-securing workflow.
+
+Important protections:
+- the expired offer itself is not revived
+- seller availability must be Available/Reserved and current
+- commercial viability is rechecked using the seller-confirmed price before the deposit request is sent
+- if the old customer price is no longer viable, an admin price-review notification is created instead of sending a deposit request
+- the second-chance deposit route requires fresh confirmation of Terms & Conditions, Trade & Export Sale Policy, trade-buyer status and visual-inspection basis
+- server-side payment allocation is blocked if that second-chance legal confirmation has not been recorded
+- customer receives both Message Centre and customer-notification deposit instructions
