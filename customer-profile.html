@@ -692,6 +692,18 @@
       if(selected) el.value=selected;
     }
 
+    function ensureDestinationPortOption(port){
+      const select=document.getElementById("destinationPort");
+      const clean=String(port||"").trim();
+      if(!select || !clean) return;
+      if(!Array.from(select.options).some(o=>o.value===clean)){
+        const option=document.createElement("option");
+        option.value=clean;
+        option.textContent=clean;
+        select.appendChild(option);
+      }
+    }
+
     async function loadFreightForwarderDirectory(){
       const select=document.getElementById("shippingDirectorySelect");
       if(!select) return;
@@ -701,6 +713,10 @@
         return;
       }
       freightForwarderDirectory=data||[];
+      freightForwarderDirectory.forEach(r=>{
+        ensureDestinationPortOption(r.destination_port);
+        if(Array.isArray(r.ports_served)) r.ports_served.forEach(ensureDestinationPortOption);
+      });
       const current=select.value;
       select.innerHTML='<option value="">Select a shipper</option>'+
         freightForwarderDirectory.map(r=>'<option value="'+r.id+'">'+(r.company_name||"Unnamed shipper")+(r.country?' — '+r.country:'')+'</option>').join("")+
@@ -790,6 +806,7 @@
         document.getElementById("customShipperNote")?.classList.toggle("hidden",shipSelect.value!=="custom");
       }
       setValue("buyerEori", profile?.buyer_eori_number);
+      ensureDestinationPortOption(profile?.preferred_destination_port);
       setValue("destinationPort", profile?.preferred_destination_port);
       setValue("shippingMethod", profile?.preferred_shipping_method);
       setValue("typicalQuantity", profile?.typical_bikes_per_shipment);
@@ -1140,6 +1157,16 @@
 
     async function suggestCustomShipperIfNeeded(profile){
       if(!currentUser || !isCustomShipper() || !profile.preferred_shipping_company) return;
+      const completeEnough=Boolean(
+        profile.preferred_shipping_company &&
+        profile.shipping_contact_name &&
+        profile.shipping_contact_email &&
+        profile.shipping_contact_phone &&
+        profile.shipping_country &&
+        profile.shipping_address_line1 &&
+        profile.shipping_city
+      );
+      if(!completeEnough) return;
       const company=profile.preferred_shipping_company.trim();
       const {data:existing}=await sb.from("freight_forwarder_suggestions")
         .select("id,status")
