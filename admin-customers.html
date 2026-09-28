@@ -544,7 +544,8 @@ textarea{width:100%;min-height:120px}
   <select id="attentionFilter" onchange="renderCustomers()">
     <option value="">All Attention Statuses</option>
     <option value="needs">Needs Attention</option>
-    <option value="setup">Buyer Setup Incomplete</option>
+    <option value="availability">Check Seller Availability</option>
+    <option value="setup">Serious Buyer — Setup Incomplete</option>
     <option value="review">Ready for Admin Review</option>
     <option value="deposit">Deposit Outstanding</option>
     <option value="balance">Balance Outstanding</option>
@@ -710,12 +711,14 @@ function customerAttention(c){
   const count=Number(a.setup_complete_count||0);
   const approval=String(a.approval_status||"not_reviewed").toLowerCase();
   const account=String(a.account_status||"active").toLowerCase();
+  const serious=a.serious_intent===true;
   if(account==="stopped"||account==="on_hold") return {kind:"review",label:account==="stopped"?"Stopped":"On Hold",title:"Review account status",detail:"This buyer account needs admin review."};
-  if(count<7) return {kind:"setup",label:"Buyer Setup "+count+"/7",title:"Remind buyer to complete setup",detail:(a.setup_missing_sections||[]).join(", ")||"Buyer Setup is incomplete."};
-  if(!["approved","approved_with_exception"].includes(approval)) return {kind:"review",label:"Ready for Review",title:"Review completed Buyer Setup",detail:"7 of 7 sections complete and awaiting an AnyBike decision."};
   if(Number(a.deposit_outstanding_gbp||0)>0) return {kind:"deposit",label:"Deposit Due",title:"Chase deposit",detail:"Outstanding deposit: "+money(a.deposit_outstanding_gbp)};
   if(Number(a.balance_outstanding_gbp||0)>0) return {kind:"balance",label:"Balance Due",title:"Chase full payment",detail:"Outstanding balance: "+money(a.balance_outstanding_gbp)};
-  return {kind:"clear",label:"No Immediate Action",title:"No immediate action",detail:"Buyer Setup and current payment actions are clear."};
+  if(Number(a.availability_requests||0)>0) return {kind:"availability",label:"Buyer Request",title:"Check seller availability",detail:Number(a.availability_requests)+" motorcycle"+(Number(a.availability_requests)===1?"":"s")+" waiting for an availability check."};
+  if(count===7 && !["approved","approved_with_exception"].includes(approval)) return {kind:"review",label:"Ready for Review",title:"Review completed Buyer Setup",detail:"7 of 7 sections complete and awaiting an AnyBike decision."};
+  if(serious && count<7) return {kind:"setup",label:"Buyer Setup "+count+"/7",title:"Remind serious buyer to complete setup",detail:(a.setup_missing_sections||[]).join(", ")||"Buyer Setup is incomplete."};
+  return {kind:"clear",label:String(a.buyer_stage||"Registered / Browsing"),title:"No staff action required",detail:"Keep this customer in Customer 360 for intelligence and future matching. Do not chase Buyer Setup yet."};
 }
 
 function showNeedsAttention(){
@@ -728,13 +731,14 @@ function showNeedsAttention(){
 function updateNeedsAttentionBanner(){
   const actions=allCustomers.map(customerAttention);
   const needs=actions.filter(a=>a.kind!=="clear");
-  const counts={setup:0,review:0,deposit:0,balance:0};
+  const counts={availability:0,setup:0,review:0,deposit:0,balance:0};
   needs.forEach(a=>{if(counts[a.kind]!==undefined)counts[a.kind]++;});
   const title=document.getElementById("customerNeedsAttentionTitle");
   const note=document.getElementById("customerNeedsAttentionText");
   if(title) title.textContent=needs.length?needs.length+" customer"+(needs.length===1?"":"s")+" need attention":"No customers need immediate attention";
   if(note) note.textContent=needs.length?[
-    counts.setup?counts.setup+" setup incomplete":"",
+    counts.availability?counts.availability+" seller check"+(counts.availability===1?"":"s"):"",
+    counts.setup?counts.setup+" serious buyer setup incomplete":"",
     counts.review?counts.review+" ready for review":"",
     counts.deposit?counts.deposit+" deposit outstanding":"",
     counts.balance?counts.balance+" balance outstanding":""
@@ -1386,7 +1390,7 @@ async function loadCustomers(){
   const [, , attentionResult] = await Promise.all([
     loadMessagesForIntel(),
     loadVisitActivityForIntel(),
-    sb.rpc("admin_get_customer_needs_attention_v1")
+    sb.rpc("admin_get_customer_needs_attention_v2")
   ]);
   if(attentionResult?.error){
     console.warn("Customer Needs Attention could not be loaded",attentionResult.error);
@@ -2115,7 +2119,7 @@ function renderCustomers(){
 
               <div class="profile-row"><span>Email</span><strong>${safe(c.email)}</strong></div>
               <div class="profile-row"><span>Phone / WhatsApp</span><strong>${safe(c.phone)}</strong></div>
-              <div class="profile-row"><span>Customer Type</span><strong>${type}</strong></div>
+              <div class="profile-row"><span>Buyer Stage</span><strong>${safe(customerAttentionMap[String(c.customerId)]?.buyer_stage||"Registered / Browsing")}</strong></div>\n              <div class="profile-row"><span>CRM Activity</span><strong>${type}</strong></div>
               <div class="profile-row"><span>Total Pipeline</span><strong>${money(c.totalValue)}</strong></div>
               <div class="profile-row"><span>Total Profit</span><strong>${money(c.totalProfit)}</strong></div>
               <div class="profile-row"><span>Latest Activity</span><strong>${c.latest?new Date(c.latest).toLocaleString("en-GB"):"-"}</strong></div>
