@@ -260,3 +260,23 @@ Primary rule:
 - reporting, maps, pipelines and intelligence belong on specialist pages
 - headline business figures are collapsed into a secondary Business Snapshot below the working area
 - clearing the action queue should directly move buyers toward purchase and deals toward completion
+
+
+### Expired Formal Offer — second-chance buyer request
+If a Deal 360 Formal Offer expires before the buyer sees or accepts it, the buyer must not be allowed to accept the expired offer automatically.
+
+Customer route:
+- show that the offer has expired
+- allow **Ask AnyBike for a Second Chance**
+- buyer explicitly confirms they are happy with the expired offer price and still want the motorcycle
+- buyer may add an optional note
+- the request does not accept the offer, reserve the motorcycle or bind either party
+- AnyBike must re-check seller availability and whether the previous commercial terms can still be honoured
+- if still available/viable, AnyBike issues a fresh valid Formal Offer through the normal Deal 360 route
+
+Admin effect:
+- request creates a customer Message Centre message
+- request creates an admin notification
+- Deal 360 returns to Seller Check / Negotiating
+- Dashboard **Your Next Actions** surfaces **Re-check seller availability** under Sales
+- once rechecked, the existing Formal Offer workflow is used to send a fresh offer rather than reviving the expired one
