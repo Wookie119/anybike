@@ -221,6 +221,7 @@ main{width:min(1660px,96vw);margin:28px auto 70px}
 
     <div id="reportPanel" class="report-panel section-anchor">
       <div id="paymentJourneyNotice"></div>
+      <div id="secondChanceLegalBox"></div>
       <div class="panel-head" style="margin-bottom:12px">
         <div><h2 style="font-size:20px">I’ve Made a Bank Transfer</h2><p>Confirm the transfer details and the split you selected above.</p></div>
       </div>
@@ -292,6 +293,8 @@ let accountInvoices=[];
 let paymentAdviceRows=[];
 let centralDocumentData={account_documents:[],customer_documents:[],motorcycle_documents:[],counts:{}};
 let submitBusy=false;
+const ANYBIKE_TERMS_VERSION="2026-09-20";
+const ANYBIKE_TRADE_POLICY_VERSION="2026-09-20";
 
 const safe=value=>String(value??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[ch]));
 const money=value=>{
@@ -410,8 +413,18 @@ function requestedPaymentJourney(){
   const payment=String(params.get("payment")||"").trim().toLowerCase();
   const reference=String(params.get("ref")||"").trim();
   const amount=Number(params.get("amount")||0);
+  const secondChance=String(params.get("second_chance")||"")==="1";
+  const offerId=Number(params.get("offer")||0);
   if((!deal && !(Number.isFinite(invoiceId)&&invoiceId>0)) || !["deposit","balance"].includes(payment) || !Number.isFinite(amount) || amount<=0)return null;
-  return {deal,invoiceId:Number.isFinite(invoiceId)&&invoiceId>0?invoiceId:null,payment,reference,amount:Number(amount.toFixed(2))};
+  return {
+    deal,
+    invoiceId:Number.isFinite(invoiceId)&&invoiceId>0?invoiceId:null,
+    payment,
+    reference,
+    amount:Number(amount.toFixed(2)),
+    secondChance,
+    offerId:Number.isFinite(offerId)&&offerId>0?offerId:null
+  };
 }
 
 function applyRequestedPaymentJourney(){
@@ -434,13 +447,34 @@ function applyRequestedPaymentJourney(){
   amountInput.value=requested.toFixed(2);
   const notice=document.getElementById("paymentJourneyNotice");
   if(notice){
-    const label=request.payment==="balance" ? "Balance payment" : "Deposit payment";
+    const label=request.secondChance ? "Seller confirmed — deposit now requested" : (request.payment==="balance" ? "Balance payment" : "Deposit payment");
     const paymentRef=String(request.reference||invoice.payment_reference||invoice.deal_number||request.deal||"").trim();
-    const copy=request.payment==="balance"
-      ? "Your remaining balance of "+money(requested)+" is due. Use the bank details below, quote "+safe(paymentRef)+" as your bank reference, then report the transfer so AnyBike can verify and allocate it."
-      : "Your "+money(requested)+" deposit is due. After making the bank transfer, enter the reference used with your bank below and submit the payment advice. AnyBike will verify the transfer before it is recorded as received.";
+    const copy=request.secondChance
+      ? "Good news — the seller has confirmed the motorcycle is still available. You asked AnyBike to proceed at the expired offer price. Your "+money(requested)+" deposit is now due. Confirm the current trade-sale terms below, make the bank transfer, then report it so AnyBike can verify and allocate it."
+      : request.payment==="balance"
+        ? "Your remaining balance of "+money(requested)+" is due. Use the bank details below, quote "+safe(paymentRef)+" as your bank reference, then report the transfer so AnyBike can verify and allocate it."
+        : "Your "+money(requested)+" deposit is due. After making the bank transfer, enter the reference used with your bank below and submit the payment advice. AnyBike will verify the transfer before it is recorded as received.";
     notice.innerHTML=`<div class="notice-box" style="border-color:rgba(54,211,126,.38);background:rgba(54,211,126,.07);margin-bottom:16px"><strong>${label} for ${safe(request.deal)}</strong><br>${copy}</div>`;
   }
+  const legalBox=document.getElementById("secondChanceLegalBox");
+  if(legalBox){
+    legalBox.innerHTML=request.secondChance
+      ? `<div class="notice-box" style="border-color:rgba(237,28,36,.38);background:rgba(237,28,36,.06);margin-bottom:16px">
+           <strong>Confirm before paying this deposit</strong>
+           <div style="margin-top:10px;display:grid;gap:8px">
+             <label><input id="scTerms" type="checkbox"> I agree to the <a href="/terms-and-conditions.html" target="_blank" rel="noopener">AnyBike Terms &amp; Conditions</a>.</label>
+             <label><input id="scTradePolicy" type="checkbox"> I agree to the <a href="/trade-sales-policy.html" target="_blank" rel="noopener">Trade &amp; Export Sale Policy</a>.</label>
+             <label><input id="scTradeBuyer" type="checkbox"> I confirm this purchase is wholly or mainly for my trade, business, craft or profession.</label>
+             <label><input id="scInspection" type="checkbox"> I understand AnyBike's collection/condition check is visual only and is not a mechanical or engineering inspection.</label>
+           </div>
+           <div style="margin-top:10px;color:#aaa">Paying/reporting this deposit confirms you want AnyBike to proceed with the purchase on the seller-confirmed terms.</div>
+         </div>`
+      : "";
+    ["scTerms","scTradePolicy","scTradeBuyer","scInspection"].forEach(id=>{
+      document.getElementById(id)?.addEventListener("change",updatePaymentSelection);
+    });
+  }
+
   const bankReference=document.getElementById("bankReference");
   if(bankReference && !bankReference.value.trim()){
     bankReference.value=String(request.reference||invoice.payment_reference||invoice.deal_number||request.deal||"");
@@ -468,7 +502,14 @@ function updatePaymentSelection(){
   document.getElementById("reportedTotal").textContent=money(total);
   const panel=document.getElementById("reportPanel");
   panel.classList.toggle("open",allocations.length>0);
-  document.getElementById("submitAdvice").disabled=allocations.length===0 || total<=0 || submitBusy;
+  const request=requestedPaymentJourney();
+  const secondChanceReady=!request?.secondChance || (
+    !!document.getElementById("scTerms")?.checked &&
+    !!document.getElementById("scTradePolicy")?.checked &&
+    !!document.getElementById("scTradeBuyer")?.checked &&
+    !!document.getElementById("scInspection")?.checked
+  );
+  document.getElementById("submitAdvice").disabled=allocations.length===0 || total<=0 || submitBusy || !secondChanceReady;
 }
 
 async function submitPaymentAdvice(){
@@ -485,9 +526,41 @@ async function submitPaymentAdvice(){
   const bankReference=document.getElementById("bankReference").value.trim();
   const notes=document.getElementById("customerNotes").value.trim();
   if(!paymentDate){alert("Enter the date you made the bank transfer.");return;}
+
+  const journey=requestedPaymentJourney();
+  if(journey?.secondChance){
+    const legalReady=
+      !!document.getElementById("scTerms")?.checked &&
+      !!document.getElementById("scTradePolicy")?.checked &&
+      !!document.getElementById("scTradeBuyer")?.checked &&
+      !!document.getElementById("scInspection")?.checked;
+
+    if(!legalReady){
+      alert("Confirm the current AnyBike trade-sale terms before reporting this deposit.");
+      return;
+    }
+
+    if(!journey.offerId){
+      alert("This deposit request is missing its AnyBike offer reference. Please open the deposit request again from your message or notification.");
+      return;
+    }
+  }
+
   if(!confirm("Report "+money(total)+" bank transfer to AnyBike?\n\nAnyBike will automatically apply it to the correct purchase and payment stage.\n\nThe money will still be verified by AnyBike before your account balance changes."))return;
   submitBusy=true;updatePaymentSelection();
   try{
+    if(journey?.secondChance){
+      const legalAcceptance=await sb.rpc("customer_record_second_chance_deposit_acceptance_v1",{
+        p_offer_id:Number(journey.offerId),
+        p_terms_version:ANYBIKE_TERMS_VERSION,
+        p_trade_policy_version:ANYBIKE_TRADE_POLICY_VERSION,
+        p_terms_accepted:true,
+        p_trade_policy_accepted:true,
+        p_trade_buyer_confirmed:true,
+        p_inspection_basis_confirmed:true
+      });
+      if(legalAcceptance.error) throw legalAcceptance.error;
+    }
     const selectedInvoice=allocations.length===1
       ? accountInvoices.find(row=>Number(row.invoice_id)===Number(allocations[0].invoice_id))
       : null;
@@ -513,8 +586,8 @@ async function submitPaymentAdvice(){
     alert("Payment reported successfully.\n\nReference: "+(payload.advice_number||"Payment Advice")+"\nAmount: "+money(payload.reported_amount_gbp||total)+"\nStatus: "+(payload.advice_status||"Awaiting Verification")+"\n\nYour purchase balance will not change until AnyBike verifies the bank receipt.");
     document.getElementById("bankReference").value="";
     document.getElementById("customerNotes").value="";
-    const journey=requestedPaymentJourney();
-    if(journey){
+    const completedJourney=requestedPaymentJourney();
+    if(completedJourney){
       location.href="my-purchases.html";
       return;
     }
