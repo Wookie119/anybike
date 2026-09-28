@@ -240,3 +240,11 @@ International Markets is public and may remain in navigation.
 - Legacy lead-status breakdown has been removed from the Dashboard. Historical/legacy status reporting must not be presented as current operational truth.
 - Headline Dashboard financials use committed-sale logic only: deposit received or completed sale.
 - Old prospective enquiry values must not appear as current committed sales or profit.
+
+
+### Dashboard action-first simplification
+- Admin Dashboard is now action-first: **Your Next Actions** sits immediately under the greeting/date and before KPI cards.
+- Removed Global Operations Centre, Live World Activity, operations map, country summary and upcoming-deadline map panel from the Dashboard.
+- Removed the redundant standalone Bike Sales strip from the Dashboard.
+- Dashboard should not act as a pipeline/map reporting page. Reporting/intelligence remains available in the relevant specialist pages (Market Intelligence, Reports, Customer 360, Logistics, Bike Sales HQ).
+- Dashboard purpose: tell the admin what needs doing next, then provide concise KPIs and shortcuts.
