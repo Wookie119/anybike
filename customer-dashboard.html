@@ -5305,45 +5305,60 @@ function customerDealShipperChoiceHtml(match,purchase=null){
   const current=dealHandoverSelections[dealId];
   const selectedId=Number(current?.handover_plan_id || 0);
   const selectedPlan=savedHandoverPlans.find(plan=>Number(plan.id)===selectedId) || null;
-
-  const nextStage=String(purchase?.next_customer_stage || "").trim().toLowerCase();
-  const secured=Boolean(purchase?.motorcycle_secured);
-  const handoverConfirmed=
-    secured ||
-    nextStage.includes("final seller") ||
-    nextStage.includes("motorcycle secured") ||
-    nextStage.includes("balance") ||
-    nextStage.includes("document") ||
-    nextStage.includes("operation") ||
-    nextStage.includes("shipping") ||
-    nextStage.includes("complete");
+  const handoverStatus=String(current?.status || "").trim().toLowerCase();
+  const handoverConfirmed=Boolean(
+    current &&
+    selectedId &&
+    (handoverStatus.includes("confirm") ||
+     handoverStatus.includes("verif") ||
+     handoverStatus.includes("approv"))
+  );
 
   if(handoverConfirmed){
-    const planName=selectedPlan ? shippingPlanLabel(selectedPlan) : "Confirmed with AnyBike";
+    const planName=selectedPlan ? shippingPlanLabel(selectedPlan) : "Confirmed handover plan";
     const detail=selectedPlan
       ? [
           selectedPlan.uk_handover_point,
           selectedPlan.freight_forwarder_name,
           selectedPlan.contact_name
         ].filter(Boolean).join(" · ")
-      : "Your UK handover / shipper plan has been confirmed for this purchase.";
+      : "";
 
     return `
       <div class="shipper-choice">
         <div class="shipper-choice-title">UK Handover / Shipper</div>
         <div class="shipper-choice-status ok">
-          <strong>✓ Handover plan confirmed</strong><br>
-          ${safe(planName)}${detail ? ` · ${safe(detail)}` : ""}
+          <strong>✓ Handover plan confirmed</strong>
+          ${planName ? `<br>${safe(planName)}${detail ? ` · ${safe(detail)}` : ""}` : ""}
         </div>
       </div>
     `;
+  }
+
+  if(current && selectedId){
+    const planName=selectedPlan ? shippingPlanLabel(selectedPlan) : "Selected handover plan";
+    return `
+      <div class="shipper-choice">
+        <div class="shipper-choice-title">UK Handover / Shipper</div>
+        <div class="shipper-choice-status">
+          <strong>Handover plan selected · awaiting AnyBike confirmation</strong><br>
+          ${safe(planName)}
+        </div>
+      </div>
+    `;
+  }
+
+  const depositDue=Number(purchase?.customer_deposit_outstanding || purchase?.deposit_outstanding || 0);
+  const paymentStatus=String(purchase?.customer_payment_status || "").toLowerCase();
+  if(depositDue>0 || paymentStatus.includes("deposit due")){
+    return "";
   }
 
   if(!savedHandoverPlans.length){
     return `
       <div class="shipper-choice">
         <div class="shipper-choice-title">UK Handover / Shipper</div>
-        <div class="buyer-match-empty">Add a saved shipping preference below, then return to this purchase to choose it.</div>
+        <div class="buyer-match-empty">No handover plan has been selected for this purchase yet. You can add one below when you are ready.</div>
       </div>
     `;
   }
