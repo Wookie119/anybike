@@ -875,10 +875,13 @@ color:#ed1c24;
 .action-group-chip.group-accounts{background:rgba(76,175,80,.12);color:#8bdc8e;border-color:rgba(76,175,80,.35)}
 .action-group-chip.group-operations{background:rgba(126,87,194,.14);color:#b9a0ff;border-color:rgba(126,87,194,.38)}
 .action-group-chip.group-messages{background:rgba(33,150,243,.14);color:#75c0ff;border-color:rgba(33,150,243,.38)}
+.action-group-chip.group-stock{background:rgba(0,188,212,.12);color:#72dce8;border-color:rgba(0,188,212,.35)}
+.action-group-chip.group-matching{background:rgba(156,39,176,.13);color:#d99be3;border-color:rgba(156,39,176,.36)}
+.action-group-chip.group-platform{background:rgba(158,158,158,.12);color:#d0d0d0;border-color:rgba(158,158,158,.32)}
 
 
 /* ADMIN ACTION QUEUE V2 */
-.action-queue-summary{display:grid;grid-template-columns:repeat(5,minmax(120px,1fr));gap:8px;margin:0 0 14px}
+.action-queue-summary{display:grid;grid-template-columns:repeat(4,minmax(130px,1fr));gap:8px;margin:0 0 14px}
 .action-summary-tile{
   min-height:66px;padding:10px 11px;border-radius:12px;background:#151515;
   border:1px solid rgba(255,255,255,.10);text-align:left;cursor:pointer;color:inherit;font:inherit
@@ -899,6 +902,10 @@ color:#ed1c24;
 .action-summary-tile.urgent strong{color:#ff676d}.action-summary-tile.today strong{color:#ffb24a}
 .action-summary-tile.waiting strong{color:#ffe06a}.action-summary-tile.operations strong{color:#9f8cff}
 .action-summary-tile.shipping strong{color:#77b8ff}
+.action-summary-tile.messages strong{color:#77b8ff}
+.action-summary-tile.stock strong{color:#72dce8}
+.action-summary-tile.matching strong{color:#d99be3}
+.action-summary-tile.platform strong{color:#cfcfcf}
 .action-queue-group{margin-top:15px}.action-queue-group:first-child{margin-top:0}
 .action-queue-group-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 8px;padding:0 2px}
 .action-queue-group-head h3{margin:0;font-size:13px;letter-spacing:.06em;text-transform:uppercase}
@@ -1821,7 +1828,7 @@ color:#ed1c24;
     <div class="card-head">
       <div>
         <h2>✅ Your Next Actions</h2>
-        <p>Work these from the top. Each action is clearly marked SALES, CUSTOMER, ACCOUNTS, OPERATIONS or MESSAGE.</p>
+        <p>Work these from the top. Click an area to see only the actions for Sales, Messages, Customers, Accounts, Operations, Stock, Matching or Platform.</p>
       </div>
 
       <span id="actionQueueTotal" class="queue-total">0</span>
@@ -1829,10 +1836,13 @@ color:#ed1c24;
 
     <div class="action-queue-summary" aria-label="Action counts by area">
       <button type="button" class="action-summary-tile urgent" data-action-filter="sales" onclick="setDashboardActionFilter('sales')"><span>Sales</span><strong id="actionSalesCount">0</strong></button>
+      <button type="button" class="action-summary-tile messages" data-action-filter="messages" onclick="setDashboardActionFilter('messages')"><span>Messages</span><strong id="actionMessagesCount">0</strong></button>
       <button type="button" class="action-summary-tile today" data-action-filter="customers" onclick="setDashboardActionFilter('customers')"><span>Customers</span><strong id="actionCustomersCount">0</strong></button>
       <button type="button" class="action-summary-tile waiting" data-action-filter="accounts" onclick="setDashboardActionFilter('accounts')"><span>Accounts</span><strong id="actionAccountsCount">0</strong></button>
       <button type="button" class="action-summary-tile operations" data-action-filter="operations" onclick="setDashboardActionFilter('operations')"><span>Operations</span><strong id="actionOperationsCount">0</strong></button>
-      <button type="button" class="action-summary-tile shipping" data-action-filter="messages" onclick="setDashboardActionFilter('messages')"><span>Messages</span><strong id="actionMessagesCount">0</strong></button>
+      <button type="button" class="action-summary-tile stock" data-action-filter="stock" onclick="setDashboardActionFilter('stock')"><span>Stock</span><strong id="actionStockCount">0</strong></button>
+      <button type="button" class="action-summary-tile matching" data-action-filter="matching" onclick="setDashboardActionFilter('matching')"><span>Matching</span><strong id="actionMatchingCount">0</strong></button>
+      <button type="button" class="action-summary-tile platform" data-action-filter="platform" onclick="setDashboardActionFilter('platform')"><span>Platform</span><strong id="actionPlatformCount">0</strong></button>
     </div>
     <div class="action-filter-row">
       <button type="button" id="actionFilterAll" class="action-filter-clear active" onclick="setDashboardActionFilter('all')">Show all actions</button>
@@ -2851,7 +2861,7 @@ function setDashboardActionFilter(group){
   if(allButton){ allButton.classList.toggle("active",dashboardActionFilter==="all"); }
 
   const label=document.getElementById("actionFilterLabel");
-  const names={sales:"Sales",customers:"Customers",accounts:"Accounts",operations:"Operations",messages:"Messages"};
+  const names={sales:"Sales",messages:"Messages",customers:"Customers",accounts:"Accounts",operations:"Operations",stock:"Stock",matching:"Matching",platform:"Platform"};
   if(label){
     label.textContent=dashboardActionFilter==="all"
       ? "Showing all actions"
@@ -2867,7 +2877,7 @@ function renderDashboardActionQueue(actions,fromFilter){
   const badge = document.getElementById("actionQueueTotal");
   if(!queue){ return; }
 
-  const counts = {sales:0,customers:0,accounts:0,operations:0,messages:0};
+  const counts = {sales:0,messages:0,customers:0,accounts:0,operations:0,stock:0,matching:0,platform:0};
   const priorityRank = {urgent:0,high:1,operations:2,shipping:2,medium:3};
 
   (actions || []).forEach(function(action){
@@ -2875,10 +2885,13 @@ function renderDashboardActionQueue(actions,fromFilter){
   });
 
   setText("actionSalesCount",counts.sales);
+  setText("actionMessagesCount",counts.messages);
   setText("actionCustomersCount",counts.customers);
   setText("actionAccountsCount",counts.accounts);
   setText("actionOperationsCount",counts.operations);
-  setText("actionMessagesCount",counts.messages);
+  setText("actionStockCount",counts.stock);
+  setText("actionMatchingCount",counts.matching);
+  setText("actionPlatformCount",counts.platform);
   if(badge){ badge.textContent=(actions || []).length; }
 
   if(!actions || !actions.length){
@@ -2906,10 +2919,13 @@ function renderDashboardActionQueue(actions,fromFilter){
     const meta=[action.customer,action.country,action.assigned].filter(Boolean).join(" · ");
     const groupLabel={
       sales:"SALES",
+      messages:"MESSAGE",
       customers:"CUSTOMER",
       accounts:"ACCOUNTS",
       operations:"OPERATIONS",
-      messages:"MESSAGE"
+      stock:"STOCK",
+      matching:"MATCHING",
+      platform:"PLATFORM"
     }[action.group] || "ACTION";
 
     return '<article class="action-card-v2 text-only priority-'+action.priority+'" onclick="location.href=\''+action.url+'\'">'+
