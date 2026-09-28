@@ -493,13 +493,13 @@ textarea{width:100%;min-height:120px}
   </div>
 </div>
 
-<div class="customer-next-action">
+<div class="customer-next-action" id="customerNeedsAttentionBanner">
   <div>
     <div class="eyebrow">Your next action</div>
-    <strong>Review Bike Sales HQ — Needs Attention</strong>
-    <span>Bike Sales HQ is the working queue for sales actions. Open Needs Attention and work through the next action shown for each sale.</span>
+    <strong id="customerNeedsAttentionTitle">Review customers that need attention</strong>
+    <span id="customerNeedsAttentionText">Loading customer actions…</span>
   </div>
-  <a href="admin-enquiries.html#needs-attention">Open Needs Attention →</a>
+  <a href="#customers" onclick="showNeedsAttention();return false;">Open Needs Attention →</a>
 </div>
 
 <div class="department-cards">
@@ -541,6 +541,15 @@ textarea{width:100%;min-height:120px}
 <div class="toolbar">
   <input class="search" id="searchBox" placeholder="Search name, email, phone, country..." oninput="renderCustomers()">
   <select id="countryFilter" onchange="renderCustomers()"><option value="">All Countries</option></select>
+  <select id="attentionFilter" onchange="renderCustomers()">
+    <option value="">All Attention Statuses</option>
+    <option value="needs">Needs Attention</option>
+    <option value="setup">Buyer Setup Incomplete</option>
+    <option value="review">Ready for Admin Review</option>
+    <option value="deposit">Deposit Outstanding</option>
+    <option value="balance">Balance Outstanding</option>
+    <option value="clear">No Immediate Action</option>
+  </select>
   <select id="statusFilter" onchange="renderCustomers()">
     <option value="">All Customer Types</option>
     <option value="New">New</option>
@@ -671,6 +680,7 @@ let messageMap = {};
 let visitActivityMap = {};
 let customerWorkspaceMap = {};
 let customerWorkspaceLoading = {};
+let customerAttentionMap = {};
 
 const countryCoords = {
   "United Kingdom":[48,38],"UK":[48,38],"Ireland":[45,37],
@@ -694,6 +704,42 @@ function toggleCustomer(id){
 }
 function customerStatus(c){if(c.deals.length>=3)return"VIP";if(c.deals.some(d=>d.status==="Completed"))return"Completed";if(c.deals.length>0)return"Active";return"New"}
 function badgeClass(s){if(s==="VIP")return"badge-red";if(s==="Completed")return"badge-green";if(s==="Active")return"badge-amber";return""}
+
+function customerAttention(c){
+  const a=customerAttentionMap[String(c.customerId)]||{};
+  const count=Number(a.setup_complete_count||0);
+  const approval=String(a.approval_status||"not_reviewed").toLowerCase();
+  const account=String(a.account_status||"active").toLowerCase();
+  if(account==="stopped"||account==="on_hold") return {kind:"review",label:account==="stopped"?"Stopped":"On Hold",title:"Review account status",detail:"This buyer account needs admin review."};
+  if(count<7) return {kind:"setup",label:"Buyer Setup "+count+"/7",title:"Remind buyer to complete setup",detail:(a.setup_missing_sections||[]).join(", ")||"Buyer Setup is incomplete."};
+  if(!["approved","approved_with_exception"].includes(approval)) return {kind:"review",label:"Ready for Review",title:"Review completed Buyer Setup",detail:"7 of 7 sections complete and awaiting an AnyBike decision."};
+  if(Number(a.deposit_outstanding_gbp||0)>0) return {kind:"deposit",label:"Deposit Due",title:"Chase deposit",detail:"Outstanding deposit: "+money(a.deposit_outstanding_gbp)};
+  if(Number(a.balance_outstanding_gbp||0)>0) return {kind:"balance",label:"Balance Due",title:"Chase full payment",detail:"Outstanding balance: "+money(a.balance_outstanding_gbp)};
+  return {kind:"clear",label:"No Immediate Action",title:"No immediate action",detail:"Buyer Setup and current payment actions are clear."};
+}
+
+function showNeedsAttention(){
+  const f=document.getElementById("attentionFilter");
+  if(f)f.value="needs";
+  renderCustomers();
+  document.getElementById("customers")?.scrollIntoView({behavior:"smooth",block:"start"});
+}
+
+function updateNeedsAttentionBanner(){
+  const actions=allCustomers.map(customerAttention);
+  const needs=actions.filter(a=>a.kind!=="clear");
+  const counts={setup:0,review:0,deposit:0,balance:0};
+  needs.forEach(a=>{if(counts[a.kind]!==undefined)counts[a.kind]++;});
+  const title=document.getElementById("customerNeedsAttentionTitle");
+  const note=document.getElementById("customerNeedsAttentionText");
+  if(title) title.textContent=needs.length?needs.length+" customer"+(needs.length===1?"":"s")+" need attention":"No customers need immediate attention";
+  if(note) note.textContent=needs.length?[
+    counts.setup?counts.setup+" setup incomplete":"",
+    counts.review?counts.review+" ready for review":"",
+    counts.deposit?counts.deposit+" deposit outstanding":"",
+    counts.balance?counts.balance+" balance outstanding":""
+  ].filter(Boolean).join(" · "):"Buyer Setup and current payment actions are clear.";
+}
 
 function countryFlag(country){
   const c=String(country||"").toLowerCase();
@@ -1336,10 +1382,19 @@ async function loadMessagesForIntel(){
 async function loadCustomers(){
   customerWorkspaceMap={};
   customerWorkspaceLoading={};
-  await Promise.all([
+  customerAttentionMap={};
+  const [, , attentionResult] = await Promise.all([
     loadMessagesForIntel(),
-    loadVisitActivityForIntel()
+    loadVisitActivityForIntel(),
+    sb.rpc("admin_get_customer_needs_attention_v1")
   ]);
+  if(attentionResult?.error){
+    console.warn("Customer Needs Attention could not be loaded",attentionResult.error);
+  }else{
+    (attentionResult?.data||[]).forEach(row=>{
+      if(row.customer_id) customerAttentionMap[String(row.customer_id)]=row;
+    });
+  }
 
   const { data:profiles, error:profileError } = await sb
     .from("customer_profiles")
@@ -1704,6 +1759,7 @@ const firstSeen =
   populateCountries();
   updateStats();
   renderMap();
+  updateNeedsAttentionBanner();
   renderCustomers();
 }
 
@@ -1985,11 +2041,20 @@ function renderCustomers(){
   const q=document.getElementById("searchBox").value.toLowerCase();
   const country=document.getElementById("countryFilter").value;
   const status=document.getElementById("statusFilter").value;
+  const attentionFilter=document.getElementById("attentionFilter")?.value||"";
   let rows=[...allCustomers];
 
   if(q)rows=rows.filter(c=>(c.name||"").toLowerCase().includes(q)||(c.email||"").toLowerCase().includes(q)||(c.phone||"").toLowerCase().includes(q)||(c.country||"").toLowerCase().includes(q));
   if(country)rows=rows.filter(c=>c.country===country);
   if(status)rows=rows.filter(c=>customerStatus(c)===status);
+  if(attentionFilter){
+    rows=rows.filter(c=>{
+      const a=customerAttention(c);
+      if(attentionFilter==="needs") return a.kind!=="clear";
+      if(attentionFilter==="clear") return a.kind==="clear";
+      return a.kind===attentionFilter;
+    });
+  }
 
   const box=document.getElementById("customers");
   if(!rows.length){box.innerHTML="<p>No customers found.</p>";return;}
@@ -1999,6 +2064,7 @@ function renderCustomers(){
     const latestDeal=c.deals[0]||{};
     const b=latestDeal.available_stock||{};
     const intel = contactIntel(c);
+    const attention = customerAttention(c);
 
     return `
       <div class="customer-card" id="customer-${c.id}">
@@ -2013,6 +2079,14 @@ function renderCustomers(){
         </div>
 
         <div class="customer-workspace" onclick="event.stopPropagation()">
+          <div class="customer-next-action" style="margin-top:0">
+            <div>
+              <div class="eyebrow">Your next action</div>
+              <strong>${safe(attention.title)}</strong>
+              <span>${safe(attention.detail)}</span>
+            </div>
+            <span class="badge ${attention.kind==="clear"?"badge-green":"badge-red"}">${safe(attention.label)}</span>
+          </div>
 
   <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
     <button
