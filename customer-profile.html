@@ -229,6 +229,12 @@
     .section-msg.ok{color:#7af0a8}.section-msg.bad{color:#ff8f94}
     .setup-target{scroll-margin-top:120px}
     .setup-target.focused{border-color:rgba(237,28,36,.8);box-shadow:0 0 0 3px rgba(237,28,36,.08)}
+    .autosave-line{display:flex;align-items:center;gap:8px;flex-wrap:wrap;color:#aaa;font-size:13px;margin-top:12px}
+    .autosave-dot{width:9px;height:9px;border-radius:999px;background:#777}
+    .autosave-line.saving .autosave-dot{background:#f4b942}
+    .autosave-line.saved .autosave-dot{background:var(--green)}
+    .autosave-line.error .autosave-dot{background:var(--red)}
+    .custom-shipper-note{margin-top:12px;padding:13px 14px;border:1px solid rgba(244,185,66,.34);background:rgba(244,185,66,.08);border-radius:12px;color:#ffe2a1;font-size:13px;line-height:1.45}
     .hidden{display:none!important}
 
     @media(max-width:760px){
@@ -274,8 +280,9 @@
           <div class="setup-summary-head">
             <div>
               <div class="eyebrow">Buyer Setup</div>
-              <h2>Complete what you can and save as you go</h2>
-              <p class="card-intro" style="margin-bottom:0">You can leave anything you do not know yet and come back later. We will keep reminding you which required sections are still needed before Buyer Setup is complete.</p>
+              <h2>Complete what you can — your changes save automatically</h2>
+              <p class="card-intro" style="margin-bottom:0">Fill in what you know and skip anything you do not have yet. Your entries save as you work, and AnyBike will keep showing the next missing Buyer Setup item.</p>
+              <div class="autosave-line" id="autosaveStatus"><span class="autosave-dot"></span><span>Ready</span></div>
             </div>
             <div id="setupProgressText" style="font-weight:900">Checking setup…</div>
           </div>
@@ -371,8 +378,6 @@
               <input id="region" autocomplete="address-level1">
             </div>
           </div>
-          <button class="section-save" type="button" data-save-section="contact">Save Contact Details</button>
-          <div class="section-msg" id="msg-contact"></div>
         </section>
 
         <section class="card setup-target" id="section-business">
@@ -390,8 +395,6 @@
               <textarea id="businessAddress" autocomplete="street-address"></textarea>
             </div>
           </div>
-          <button class="section-save" type="button" data-save-section="business">Save Business Details</button>
-          <div class="section-msg" id="msg-business"></div>
         </section>
 
         <section class="card setup-target" id="section-bank">
@@ -419,8 +422,6 @@
               <textarea id="bankInternationalNotes" autocomplete="off" placeholder="IBAN, SWIFT / BIC, bank name or any international payment instructions"></textarea>
             </div>
           </div>
-          <button class="section-save" type="button" data-save-section="bank">Save Bank Details</button>
-          <div class="section-msg" id="msg-bank"></div>
         </section>
 
         <section class="card setup-target" id="section-preferences">
@@ -455,12 +456,10 @@
               </select>
             </div>
           </div>
-          <button class="section-save" type="button" data-save-section="preferences">Save Display Preferences</button>
-          <div class="section-msg" id="msg-preferences"></div>
         </section>
 
         <section class="card setup-target" id="buyer-onboarding">
-          <div class="section-head"><div><h2>Buyer & Export Details</h2><p class="card-intro">Add what you know now. If you do not know your destination port or shipping method yet, leave it blank, save the section and come back later.</p></div><span class="section-state" id="state-buyer">Needs attention</span></div>
+          <div class="section-head"><div><h2>Buyer & Export Details</h2><p class="card-intro">Add what you know. A usual destination port is helpful but is not required to complete Buyer Setup.</p></div><span class="section-state" id="state-buyer">Needs attention</span></div>
 
           <div id="buyerOnboardingStatus" class="onboarding-status"></div>
 
@@ -471,14 +470,31 @@
             </div>
 
             <div>
-              <label for="destinationPort">Usual destination port</label>
-              <input id="destinationPort" placeholder="e.g. Mombasa, Tema, Jebel Ali">
+              <label for="destinationPort">Usual destination port <span style="color:#999;font-weight:normal">(optional)</span></label>
+              <select id="destinationPort">
+                <option value="">Select / Not sure yet</option>
+                <option>Alexandria</option>
+                <option>Apapa / Lagos</option>
+                <option>Durban</option>
+                <option>Felixstowe</option>
+                <option>Jebel Ali</option>
+                <option>Khalifa Port</option>
+                <option>Mombasa</option>
+                <option>Port Klang</option>
+                <option>Port of Singapore</option>
+                <option>Salalah</option>
+                <option>Sohar</option>
+                <option>Southampton</option>
+                <option>Tema</option>
+                <option>Tin Can Island / Lagos</option>
+                <option>Other / Varies</option>
+              </select>
             </div>
 
             <div>
               <label for="shippingMethod">Usual shipping method</label>
               <select id="shippingMethod">
-                <option value="">Select / Not sure</option>
+                <option value="Not sure yet">Not sure yet</option>
                 <option>FCL — Full Container Load</option>
                 <option>Shared / Consolidated Container</option>
                 <option>LCL — Less than Container Load</option>
@@ -529,45 +545,94 @@
           <div class="risk-note">
             AnyBike may also ask for a small test bank payment before the first purchase. This helps us verify the paying account. We will never ask you to send a large payment simply to complete onboarding.
           </div>
-          <button class="section-save" type="button" data-save-section="buyer">Save Buyer & Export Details</button>
-          <div class="section-msg" id="msg-buyer"></div>
         </section>
 
         <section class="card setup-target" id="section-shipping">
-          <div class="section-head"><div><h2>Shipping Preferences</h2><p class="card-intro">Add your usual UK shipper or freight-forwarder details when you know them. Save what you have now and return later for anything missing.</p></div><span class="section-state" id="state-shipping">Needs attention</span></div>
+          <div class="section-head"><div><h2>Shipping Preferences</h2><p class="card-intro">Choose a shipper already known to AnyBike, or select “My shipper is not listed” and add the full details. These preferences can be reused for future purchases.</p></div><span class="section-state" id="state-shipping">Needs attention</span></div>
 
           <div class="grid">
-            <div>
-              <label for="shippingCompany">Preferred shipping company</label>
-              <input id="shippingCompany">
+            <div class="full">
+              <label for="shippingDirectorySelect">Choose shipper / freight forwarder</label>
+              <select id="shippingDirectorySelect">
+                <option value="">Select a shipper</option>
+                <option value="custom">My shipper is not listed — enter a new one</option>
+              </select>
             </div>
 
             <div>
-              <label for="shippingContactName">Shipping contact name</label>
-              <input id="shippingContactName">
+              <label for="shippingCompany">Shipping company</label>
+              <input id="shippingCompany" placeholder="Company name">
             </div>
 
             <div>
-              <label for="shippingContactEmail">Shipping contact email</label>
+              <label for="shippingCountry">Shipper country</label>
+              <select id="shippingCountry">
+                <option value="">Select country</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="shippingContactName">Contact name</label>
+              <input id="shippingContactName" placeholder="Main contact">
+            </div>
+
+            <div>
+              <label for="shippingContactRole">Job title / department</label>
+              <input id="shippingContactRole" placeholder="e.g. Export desk">
+            </div>
+
+            <div>
+              <label for="shippingContactEmail">Contact email</label>
               <input id="shippingContactEmail" type="email">
             </div>
 
             <div>
-              <label for="shippingContactPhone">Shipping contact phone</label>
+              <label for="shippingContactPhone">Contact phone / WhatsApp</label>
               <input id="shippingContactPhone" type="tel">
             </div>
 
             <div class="full">
-              <label for="collectionPoint">Preferred UK collection point / freight forwarder address</label>
-              <textarea id="collectionPoint"></textarea>
+              <label for="shippingWebsite">Website</label>
+              <input id="shippingWebsite" type="url" placeholder="https://">
+            </div>
+
+            <div class="full">
+              <label for="shippingAddress1">Address line 1</label>
+              <input id="shippingAddress1" autocomplete="address-line1">
+            </div>
+
+            <div class="full">
+              <label for="shippingAddress2">Address line 2 <span style="color:#999;font-weight:normal">(optional)</span></label>
+              <input id="shippingAddress2" autocomplete="address-line2">
+            </div>
+
+            <div>
+              <label for="shippingCity">Town / City</label>
+              <input id="shippingCity" autocomplete="address-level2">
+            </div>
+
+            <div>
+              <label for="shippingRegion">Region / State / County</label>
+              <input id="shippingRegion" autocomplete="address-level1">
+            </div>
+
+            <div>
+              <label for="shippingPostcode">Postcode / ZIP</label>
+              <input id="shippingPostcode" autocomplete="postal-code">
+            </div>
+
+            <div>
+              <label for="collectionPoint">UK receiving point / delivery instructions <span style="color:#999;font-weight:normal">(if different)</span></label>
+              <input id="collectionPoint" placeholder="Depot, terminal, port or UK receiving point">
             </div>
           </div>
 
-          <button class="section-save" type="button" data-save-section="shipping">Save Shipping Preferences</button>
-          <div class="section-msg" id="msg-shipping"></div>
+          <div class="custom-shipper-note hidden" id="customShipperNote">
+            This shipper is not currently in AnyBike's directory. Saving the profile will send the details to AnyBike for review so it can be considered for the directory for future buyers.
+          </div>
 
           <div class="actions">
-            <a class="back-btn" href="/customer-dashboard.html">← Back to My AnyBike</a>
+            <a class="back-btn" id="backToDashboardBtn" href="/customer-dashboard.html">← Back to My AnyBike</a>
             <button class="save-btn" id="saveBtn" type="button">Save Everything Entered</button>
           </div>
 
@@ -584,6 +649,11 @@
     const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     let currentUser = null;
+    let freightForwarderDirectory = [];
+    let autosaveTimer = null;
+    let autosaveInFlight = false;
+    let profileDirty = false;
+    let initialLoadComplete = false;
 
     function value(id){
       return document.getElementById(id).value.trim();
@@ -611,6 +681,55 @@
       window.dispatchEvent(new CustomEvent("anybikeLanguageChanged", {
         detail:{ language:language || "en" }
       }));
+    }
+
+    const SHIPPING_COUNTRIES = ["Australia","Bahrain","Belgium","Botswana","Canada","Chile","Egypt","France","Germany","Ghana","Hong Kong","India","Indonesia","Ireland","Italy","Japan","Jordan","Kenya","Kuwait","Malaysia","Namibia","Netherlands","New Zealand","Nigeria","Oman","Peru","Philippines","Portugal","Qatar","Réunion","Saudi Arabia","Singapore","South Africa","South Korea","Spain","Taiwan","Tanzania","Thailand","Uganda","United Arab Emirates","United Kingdom","United States","Vietnam","Zimbabwe","Other"];
+
+    function populateShippingCountries(selected=""){
+      const el=document.getElementById("shippingCountry");
+      if(!el) return;
+      el.innerHTML='<option value="">Select country</option>'+SHIPPING_COUNTRIES.map(x=>'<option value="'+x.replace(/"/g,'&quot;')+'">'+x+'</option>').join("");
+      if(selected) el.value=selected;
+    }
+
+    async function loadFreightForwarderDirectory(){
+      const select=document.getElementById("shippingDirectorySelect");
+      if(!select) return;
+      const {data,error}=await sb.from("freight_forwarders").select("id,company_name,country,city,uk_address,contact_name,contact_role,email,phone,website,destination_port,countries_covered,is_active,verification_status").eq("is_active",true).order("company_name",{ascending:true});
+      if(error){
+        console.warn("Could not load freight forwarder directory",error);
+        return;
+      }
+      freightForwarderDirectory=data||[];
+      const current=select.value;
+      select.innerHTML='<option value="">Select a shipper</option>'+
+        freightForwarderDirectory.map(r=>'<option value="'+r.id+'">'+(r.company_name||"Unnamed shipper")+(r.country?' — '+r.country:'')+'</option>').join("")+
+        '<option value="custom">My shipper is not listed — enter a new one</option>';
+      if(current) select.value=current;
+    }
+
+    function fillShipperFromDirectory(id){
+      const r=freightForwarderDirectory.find(x=>String(x.id)===String(id));
+      if(!r) return;
+      setValue("shippingCompany",r.company_name);
+      populateShippingCountries(r.country||"");
+      setValue("shippingContactName",r.contact_name);
+      setValue("shippingContactRole",r.contact_role);
+      setValue("shippingContactEmail",r.email);
+      setValue("shippingContactPhone",r.phone);
+      setValue("shippingWebsite",r.website);
+      setValue("shippingAddress1",r.uk_address);
+      setValue("shippingAddress2","");
+      setValue("shippingCity",r.city);
+      setValue("shippingRegion","");
+      setValue("shippingPostcode","");
+      setValue("collectionPoint",r.uk_address);
+      document.getElementById("customShipperNote")?.classList.add("hidden");
+      markDirtyAndAutosave();
+    }
+
+    function isCustomShipper(){
+      return document.getElementById("shippingDirectorySelect")?.value==="custom";
     }
 
     async function loadProfile(){
@@ -649,11 +768,27 @@
       setValue("bankInternationalNotes", profile?.bank_international_notes);
       setValue("currency", profile?.preferred_currency || "GBP");
       setValue("language", profile?.preferred_language || "en");
+      populateShippingCountries(profile?.shipping_country || profile?.country || "");
+      await loadFreightForwarderDirectory();
       setValue("shippingCompany", profile?.preferred_shipping_company);
       setValue("shippingContactName", profile?.shipping_contact_name);
+      setValue("shippingContactRole", profile?.shipping_contact_role);
       setValue("shippingContactEmail", profile?.shipping_contact_email);
       setValue("shippingContactPhone", profile?.shipping_contact_phone);
+      setValue("shippingWebsite", profile?.shipping_website);
+      setValue("shippingAddress1", profile?.shipping_address_line1);
+      setValue("shippingAddress2", profile?.shipping_address_line2);
+      setValue("shippingCity", profile?.shipping_city);
+      setValue("shippingRegion", profile?.shipping_region);
+      setValue("shippingPostcode", profile?.shipping_postcode);
       setValue("collectionPoint", profile?.preferred_uk_collection_point);
+      const shipSelect=document.getElementById("shippingDirectorySelect");
+      if(shipSelect){
+        const directoryId=profile?.shipping_directory_forwarder_id;
+        const known=directoryId && freightForwarderDirectory.some(x=>String(x.id)===String(directoryId));
+        shipSelect.value=known?String(directoryId):(profile?.preferred_shipping_company?"custom":"");
+        document.getElementById("customShipperNote")?.classList.toggle("hidden",shipSelect.value!=="custom");
+      }
       setValue("buyerEori", profile?.buyer_eori_number);
       setValue("destinationPort", profile?.preferred_destination_port);
       setValue("shippingMethod", profile?.preferred_shipping_method);
@@ -668,6 +803,8 @@
       document.getElementById("loadingBox").classList.add("hidden");
       document.getElementById("profilePage").classList.remove("hidden");
       updateSetupReminder();
+      initialLoadComplete=true;
+      setAutosaveStatus("saved","All changes saved");
     }
 
     function setDocumentState(id,path){
@@ -742,10 +879,10 @@
     function buyerSetupCompletion(){
       return {
         contact:Boolean(value("fullName") && value("phone") && value("country") && value("city")),
-        buyer:Boolean(value("destinationPort") && document.getElementById("shippingMethod").value),
+        buyer:Boolean(document.getElementById("shippingMethod").value),
         identity:documentOnFile("identityDocumentState","identityDocument"),
         address:documentOnFile("addressDocumentState","addressDocument"),
-        shipping:Boolean(value("shippingCompany") && value("shippingContactName") && value("shippingContactEmail") && value("shippingContactPhone") && value("collectionPoint"))
+        shipping:Boolean(value("shippingCompany") && value("shippingContactName") && value("shippingContactEmail") && value("shippingContactPhone") && value("shippingCountry") && value("shippingAddress1") && value("shippingCity"))
       };
     }
 
@@ -784,9 +921,9 @@
       let copy="Add the missing contact details, then save that section.";
 
       if(s.contact && !s.buyer){
-        target="buyer-onboarding"; field=!value("destinationPort")?"destinationPort":"shippingMethod";
+        target="buyer-onboarding"; field="shippingMethod";
         button="Complete Buyer & Export →"; heading="Your next action: Complete Buyer & Export Details";
-        copy="Add your usual destination port and shipping method when you know them.";
+        copy="Choose your usual shipping method. Your usual destination port is optional and can be added later.";
       }else if(s.contact && s.buyer && !s.identity){
         target="buyer-onboarding"; field="identityDocument";
         button="Upload Photo ID →"; heading="Your next action: Upload Photo ID";
@@ -796,9 +933,9 @@
         button="Upload Proof of Address →"; heading="Your next action: Upload Proof of Address";
         copy="Proof of your current address is still needed to complete Buyer Setup.";
       }else if(s.contact && s.buyer && s.identity && s.address && !s.shipping){
-        target="section-shipping"; field="shippingCompany";
+        target="section-shipping"; field="shippingDirectorySelect";
         button="Complete Shipping Preferences →"; heading="Your next action: Complete Shipping Preferences";
-        copy="Add your usual shipper or freight-forwarder and UK collection point. Save what you know and return for anything missing.";
+        copy="Choose a known shipper or add your own shipper's contact and address details.";
       }else if(done===keys.length){
         target="customer-dashboard.html"; field="";
         button="Return to My AnyBike →"; heading="✓ Buyer Setup details complete";
@@ -828,7 +965,21 @@
       if(section==="bank") return {...base,bank_account_name:value("bankAccountName")||null,bank_account_number:value("bankAccountNumber")||null,bank_sort_code:value("bankSortCode")||null,bank_international_notes:value("bankInternationalNotes")||null};
       if(section==="preferences") return {...base,preferred_currency:document.getElementById("currency").value||"GBP",preferred_language:document.getElementById("language").value||"en"};
       if(section==="buyer") return {...base,buyer_eori_number:value("buyerEori")||null,preferred_destination_port:value("destinationPort")||null,preferred_shipping_method:document.getElementById("shippingMethod").value||null,typical_bikes_per_shipment:document.getElementById("typicalQuantity").value||null};
-      if(section==="shipping") return {...base,preferred_shipping_company:value("shippingCompany")||null,shipping_contact_name:value("shippingContactName")||null,shipping_contact_email:value("shippingContactEmail")||null,shipping_contact_phone:value("shippingContactPhone")||null,preferred_uk_collection_point:value("collectionPoint")||null};
+      if(section==="shipping") return {...base,
+        shipping_directory_forwarder_id:document.getElementById("shippingDirectorySelect").value && document.getElementById("shippingDirectorySelect").value!=="custom" ? Number(document.getElementById("shippingDirectorySelect").value) : null,
+        preferred_shipping_company:value("shippingCompany")||null,
+        shipping_contact_name:value("shippingContactName")||null,
+        shipping_contact_role:value("shippingContactRole")||null,
+        shipping_contact_email:value("shippingContactEmail")||null,
+        shipping_contact_phone:value("shippingContactPhone")||null,
+        shipping_website:value("shippingWebsite")||null,
+        shipping_address_line1:value("shippingAddress1")||null,
+        shipping_address_line2:value("shippingAddress2")||null,
+        shipping_city:value("shippingCity")||null,
+        shipping_region:value("shippingRegion")||null,
+        shipping_postcode:value("shippingPostcode")||null,
+        shipping_country:value("shippingCountry")||null,
+        preferred_uk_collection_point:value("collectionPoint")||null};
       return base;
     }
 
@@ -884,7 +1035,8 @@
 
       const saveBtn = document.getElementById("saveBtn");
       saveBtn.disabled = true;
-      saveBtn.textContent = "Saving...";
+      saveBtn.textContent = "Saving…";
+      setAutosaveStatus("saving","Saving everything entered…");
       showMsg("Saving your profile...");
 
       const profile = {
@@ -903,10 +1055,19 @@
         bank_international_notes: value("bankInternationalNotes") || null,
         preferred_currency: document.getElementById("currency").value || "GBP",
         preferred_language: document.getElementById("language").value || "en",
+        shipping_directory_forwarder_id: document.getElementById("shippingDirectorySelect").value && document.getElementById("shippingDirectorySelect").value!=="custom" ? Number(document.getElementById("shippingDirectorySelect").value) : null,
         preferred_shipping_company: value("shippingCompany") || null,
         shipping_contact_name: value("shippingContactName") || null,
+        shipping_contact_role: value("shippingContactRole") || null,
         shipping_contact_email: value("shippingContactEmail") || null,
         shipping_contact_phone: value("shippingContactPhone") || null,
+        shipping_website: value("shippingWebsite") || null,
+        shipping_address_line1: value("shippingAddress1") || null,
+        shipping_address_line2: value("shippingAddress2") || null,
+        shipping_city: value("shippingCity") || null,
+        shipping_region: value("shippingRegion") || null,
+        shipping_postcode: value("shippingPostcode") || null,
+        shipping_country: value("shippingCountry") || null,
         preferred_uk_collection_point: value("collectionPoint") || null,
         buyer_eori_number: value("buyerEori") || null,
         preferred_destination_port: value("destinationPort") || null,
@@ -924,7 +1085,7 @@
         if(licencePath) profile.driving_licence_document_path=licencePath;
       }catch(uploadError){
         saveBtn.disabled=false;
-        saveBtn.textContent="Save Profile";
+        saveBtn.textContent="Save Everything Entered";
         showMsg("Document upload failed: "+uploadError.message,false);
         return;
       }
@@ -953,22 +1114,168 @@
       document.getElementById("addressDocument").value="";
       document.getElementById("licenceDocument").value="";
       await loadBuyerOnboardingStatus();
+      await suggestCustomShipperIfNeeded(profile);
+      profileDirty=false;
+      setAutosaveStatus("saved","All changes saved");
       showMsg("Everything entered so far has been saved. You can return later for any incomplete Buyer Setup sections.");
       updateSetupReminder();
     }
 
-    document.querySelectorAll("[data-save-section]").forEach(btn=>{
-      btn.addEventListener("click",()=>saveSection(btn.dataset.saveSection,btn));
-    });
+    function setAutosaveStatus(state,text){
+      const el=document.getElementById("autosaveStatus");
+      if(!el) return;
+      el.className="autosave-line "+state;
+      const span=el.querySelector("span:last-child");
+      if(span) span.textContent=text;
+    }
 
-    ["fullName","phone","country","city","destinationPort","shippingMethod","identityDocument","addressDocument","shippingCompany","shippingContactName","shippingContactEmail","shippingContactPhone","collectionPoint"].forEach(id=>{
+    function markDirtyAndAutosave(){
+      if(!initialLoadComplete) return;
+      profileDirty=true;
+      setAutosaveStatus("saving","Saving changes…");
+      updateSetupReminder();
+      clearTimeout(autosaveTimer);
+      autosaveTimer=setTimeout(()=>autosaveProfile(false),700);
+    }
+
+    async function suggestCustomShipperIfNeeded(profile){
+      if(!currentUser || !isCustomShipper() || !profile.preferred_shipping_company) return;
+      const company=profile.preferred_shipping_company.trim();
+      const {data:existing}=await sb.from("freight_forwarder_suggestions")
+        .select("id,status")
+        .eq("customer_id",currentUser.id)
+        .ilike("company_name",company)
+        .in("status",["Pending","Added"])
+        .limit(1);
+      if(existing?.length) return;
+      await sb.from("freight_forwarder_suggestions").insert({
+        customer_id:currentUser.id,
+        customer_email:currentUser.email || value("email") || null,
+        customer_name:value("fullName")||null,
+        customer_country:value("country")||null,
+        company_name:company,
+        contact_name:profile.shipping_contact_name,
+        contact_role:profile.shipping_contact_role,
+        email:profile.shipping_contact_email,
+        phone:profile.shipping_contact_phone,
+        website:profile.shipping_website,
+        address_line1:profile.shipping_address_line1,
+        address_line2:profile.shipping_address_line2,
+        city:profile.shipping_city,
+        region:profile.shipping_region,
+        postcode:profile.shipping_postcode,
+        country:profile.shipping_country,
+        destination_port:profile.preferred_destination_port,
+        notes:"Suggested from customer Buyer Setup Shipping Preferences"
+      });
+    }
+
+    async function autosaveProfile(force=false){
+      if(!currentUser || autosaveInFlight || (!profileDirty && !force)) return;
+      autosaveInFlight=true;
+      clearTimeout(autosaveTimer);
+      try{
+        const profile={
+          id:currentUser.id,
+          email:currentUser.email || value("email"),
+          full_name:value("fullName")||null,
+          phone:value("phone")||null,
+          country:value("country")||null,
+          city:value("city")||null,
+          region:value("region")||null,
+          business_name:value("businessName")||null,
+          business_address:value("businessAddress")||null,
+          bank_account_name:value("bankAccountName")||null,
+          bank_account_number:value("bankAccountNumber")||null,
+          bank_sort_code:value("bankSortCode")||null,
+          bank_international_notes:value("bankInternationalNotes")||null,
+          preferred_currency:document.getElementById("currency").value||"GBP",
+          preferred_language:document.getElementById("language").value||"en",
+          buyer_eori_number:value("buyerEori")||null,
+          preferred_destination_port:value("destinationPort")||null,
+          preferred_shipping_method:document.getElementById("shippingMethod").value||null,
+          typical_bikes_per_shipment:document.getElementById("typicalQuantity").value||null,
+          ...sectionPayload("shipping")
+        };
+        if(document.getElementById("identityDocument").files?.length || document.getElementById("addressDocument").files?.length || document.getElementById("licenceDocument").files?.length){
+          const identityPath=await uploadOnboardingDocument("identityDocument","identity");
+          const addressPath=await uploadOnboardingDocument("addressDocument","address");
+          const licencePath=await uploadOnboardingDocument("licenceDocument","licence");
+          if(identityPath){profile.identity_document_path=identityPath;setDocumentState("identityDocumentState",identityPath);document.getElementById("identityDocument").value="";}
+          if(addressPath){profile.proof_of_address_document_path=addressPath;setDocumentState("addressDocumentState",addressPath);document.getElementById("addressDocument").value="";}
+          if(licencePath){profile.driving_licence_document_path=licencePath;setDocumentState("licenceDocumentState",licencePath);document.getElementById("licenceDocument").value="";}
+        }
+        const {error}=await sb.from("customer_profiles").upsert(profile,{onConflict:"id"});
+        if(error) throw error;
+        syncHeaderPreferences(profile.preferred_currency,profile.preferred_language);
+        await suggestCustomShipperIfNeeded(profile);
+        profileDirty=false;
+        setAutosaveStatus("saved","All changes saved");
+        updateSetupReminder();
+      }catch(err){
+        console.error("Buyer Setup autosave failed",err);
+        setAutosaveStatus("error","Could not save automatically — use Save Everything Entered");
+      }finally{
+        autosaveInFlight=false;
+      }
+    }
+
+    const autosaveFields=["fullName","phone","country","city","region","businessName","businessAddress","bankAccountName","bankAccountNumber","bankSortCode","bankInternationalNotes","currency","language","buyerEori","destinationPort","shippingMethod","typicalQuantity","identityDocument","addressDocument","licenceDocument","shippingCompany","shippingCountry","shippingContactName","shippingContactRole","shippingContactEmail","shippingContactPhone","shippingWebsite","shippingAddress1","shippingAddress2","shippingCity","shippingRegion","shippingPostcode","collectionPoint"];
+    autosaveFields.forEach(id=>{
       const el=document.getElementById(id);
       if(!el) return;
-      el.addEventListener("input",updateSetupReminder);
-      el.addEventListener("change",updateSetupReminder);
+      el.addEventListener("input",markDirtyAndAutosave);
+      el.addEventListener("change",markDirtyAndAutosave);
+      el.addEventListener("blur",()=>{ if(profileDirty) autosaveProfile(false); });
     });
 
-    document.getElementById("saveBtn").addEventListener("click", saveProfile);
+    document.getElementById("shippingDirectorySelect")?.addEventListener("change",e=>{
+      const v=e.target.value;
+      const note=document.getElementById("customShipperNote");
+      if(v==="custom"){
+        note?.classList.remove("hidden");
+        setValue("shippingCompany","");
+        setValue("shippingContactName","");
+        setValue("shippingContactRole","");
+        setValue("shippingContactEmail","");
+        setValue("shippingContactPhone","");
+        setValue("shippingWebsite","");
+        setValue("shippingAddress1","");
+        setValue("shippingAddress2","");
+        setValue("shippingCity","");
+        setValue("shippingRegion","");
+        setValue("shippingPostcode","");
+        setValue("collectionPoint","");
+        populateShippingCountries(value("country"));
+        markDirtyAndAutosave();
+      }else if(v){
+        fillShipperFromDirectory(v);
+      }else{
+        note?.classList.add("hidden");
+        markDirtyAndAutosave();
+      }
+    });
+
+    document.getElementById("saveBtn").addEventListener("click", async ()=>{
+      profileDirty=true;
+      await saveProfile();
+    });
+
+    document.getElementById("backToDashboardBtn")?.addEventListener("click",async e=>{
+      if(profileDirty || autosaveInFlight){
+        e.preventDefault();
+        setAutosaveStatus("saving","Saving before you leave…");
+        await autosaveProfile(true);
+        window.location.href=e.currentTarget.href;
+      }
+    });
+
+    window.addEventListener("beforeunload",e=>{
+      if(profileDirty || autosaveInFlight){
+        e.preventDefault();
+        e.returnValue="";
+      }
+    });
 
     sb.auth.onAuthStateChange((event, session) => {
       if(event === "SIGNED_OUT" || !session){
