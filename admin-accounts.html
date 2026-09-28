@@ -669,6 +669,18 @@ async function loadPaymentQueue(){
   );
 
   renderPaymentQueue();
+
+  const requestedAdvice=Number(new URLSearchParams(location.search).get("payment_advice")||0);
+  if(requestedAdvice){
+    setTimeout(()=>{
+      const card=document.getElementById("payment-advice-"+requestedAdvice);
+      if(card){
+        card.scrollIntoView({behavior:"smooth",block:"center"});
+        card.style.boxShadow="0 0 0 3px rgba(237,28,36,.75)";
+        setTimeout(()=>{card.style.boxShadow="";},3500);
+      }
+    },120);
+  }
 }
 
 function paymentStatusClass(item){
@@ -719,7 +731,7 @@ function verificationBox(item){
       </div>
       <div class="field">
         <label>Bank transaction reference</label>
-        <input id="verifyReference-${id}" type="text" placeholder="Lloyds / bank transaction reference">
+        <input id="verifyReference-${id}" type="text" value="${esc(item.customer_bank_reference || item.allocations?.[0]?.deal_number || "")}" placeholder="Bank transaction reference">
       </div>
       <div class="field">
         <label>Verification notes</label>
@@ -727,7 +739,8 @@ function verificationBox(item){
       </div>
     </div>
     <div class="verify-actions">
-      <button class="primary" type="button" onclick="verifyPaymentAdvice(${id})">Verify Bank Receipt</button>
+      <button class="primary" type="button" onclick="verifyAndPostPaymentAdvice(${id})">Verify &amp; Post ${money(item.reported_amount_gbp)} to ${esc(item.allocations?.[0]?.deal_number || "Deal 360")}</button>
+      <button type="button" onclick="verifyPaymentAdvice(${id})">Verify Only</button>
       <button class="danger" type="button" onclick="rejectPaymentAdvice(${id})">Reject Advice</button>
     </div>
   </div>`;
@@ -803,7 +816,7 @@ function renderPaymentQueue(){
   }
 
   queue.innerHTML=visible.map(item=>`
-    <article class="payment-advice-card ${paymentStatusClass(item)}">
+    <article class="payment-advice-card ${paymentStatusClass(item)}" id="payment-advice-${Number(item.payment_advice_id)}">
       <div class="payment-advice-head">
         <div>
           <div class="eyebrow">Customer Bank Transfer</div>
@@ -1037,6 +1050,88 @@ async function openPaymentReallocation(paymentAdviceId){
     "To: "+String(moved.target_deal_number||"Target Deal")+"\n"+
     "Source remainder: "+money(moved.source_remainder_gbp||0)+"\n\n"+
     (messagesSent ? "Customer Message Centre notification sent." : "No linked customer Message Centre thread was found.")
+  );
+
+  await loadPaymentQueue();
+}
+
+async function verifyAndPostPaymentAdvice(id){
+  const item=paymentAdviceGroups.get(Number(id));
+  if(!item)return;
+
+  const amount=Number(document.getElementById("verifyAmount-"+id)?.value||0);
+  const bankRef=String(document.getElementById("verifyReference-"+id)?.value||"").trim();
+  const notes=String(document.getElementById("verifyNotes-"+id)?.value||"").trim();
+  const allocationText=(item.allocations||[])
+    .map(a=>(a.deal_number||("Deal #"+a.deal_id))+" · "+(a.allocation_purpose||"Payment")+" · "+money(a.proposed_amount_gbp))
+    .join("\n");
+
+  if(!Number.isFinite(amount)||amount<=0){
+    alert("Enter the amount actually received in the bank.");
+    return;
+  }
+
+  if(!confirm(
+    "VERIFY AND POST CUSTOMER PAYMENT?\n\n"+
+    (item.advice_number||("#"+id))+"\n"+
+    "Bank amount: "+money(amount)+"\n"+
+    "Bank reference: "+(bankRef||"Not supplied")+"\n\n"+
+    allocationText+"\n\n"+
+    "This will verify the bank receipt and immediately post the payment to the linked Deal 360 allocation. Motorcycle security will not be changed."
+  ))return;
+
+  const verify=await sb.rpc("admin_verify_payment_advice",{
+    p_payment_advice_id:Number(id),
+    p_verified_amount_gbp:amount,
+    p_bank_transaction_reference:bankRef||null,
+    p_verification_notes:notes||null
+  });
+
+  if(verify.error){
+    alert("Bank receipt could not be verified.\n\n"+verify.error.message);
+    return;
+  }
+
+  const preview=await sb.rpc("admin_get_payment_advice_posting_preview",{
+    p_payment_advice_id:Number(id)
+  });
+
+  if(preview.error || !preview.data?.ready_to_post){
+    await loadPaymentQueue();
+    alert(
+      "The bank receipt was verified, but the payment could not be posted automatically.\n\n"+
+      (preview.error?.message || (Array.isArray(preview.data?.issues)?preview.data.issues.join("\n"):"Open the posting preview to review it."))
+    );
+    return;
+  }
+
+  const post=await sb.rpc("admin_post_verified_payment_advice",{
+    p_payment_advice_id:Number(id)
+  });
+
+  if(post.error){
+    await loadPaymentQueue();
+    alert("The bank receipt was verified, but posting to Deal 360 failed.\n\n"+post.error.message);
+    return;
+  }
+
+  const posted=post.data||{};
+  const confirmation=await sendPostedPaymentCustomerMessage(
+    item,
+    Number(posted.posted_total_gbp||amount)
+  );
+
+  const warningNote=confirmation.warnings?.length
+    ? "\n\n"+confirmation.warnings.join("\n")
+    : "";
+
+  alert(
+    "Payment verified and posted successfully.\n\n"+
+    "Amount: "+money(posted.posted_total_gbp||amount)+"\n"+
+    "Deal: "+String(item.allocations?.[0]?.deal_number||"Deal 360")+"\n"+
+    "Status: Posted"+
+    (confirmation.sent?"\nCustomer confirmation sent.":"")+
+    warningNote
   );
 
   await loadPaymentQueue();
