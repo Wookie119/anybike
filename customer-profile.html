@@ -206,6 +206,29 @@
     .file-state{font-size:12px;color:var(--muted);font-weight:800}
     .file-state.good{color:var(--green)}
     .risk-note{margin-top:14px;padding:13px 14px;border-radius:12px;background:rgba(237,28,36,.07);border:1px solid rgba(237,28,36,.24);color:#d5d5d5;line-height:1.5;font-size:13px}
+    .setup-summary{border-color:rgba(237,28,36,.58);background:radial-gradient(circle at 95% 0%,rgba(237,28,36,.13),transparent 32%),#111}
+    .setup-summary-head,.section-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}
+    .setup-progress{height:10px;border-radius:999px;background:#252525;overflow:hidden;margin:16px 0;border:1px solid rgba(255,255,255,.08)}
+    .setup-progress>div{height:100%;width:0;background:var(--green);transition:width .2s ease}
+    .setup-step-list{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-bottom:16px}
+    .setup-step{border:1px solid var(--line);border-radius:12px;background:#161616;padding:11px 12px;font-size:12px;color:#aaa;line-height:1.4}
+    .setup-step strong{display:block;color:#fff;font-size:13px;margin-bottom:3px}
+    .setup-step.complete{border-color:rgba(54,211,126,.5);background:rgba(54,211,126,.07)}
+    .setup-step.complete strong{color:#7af0a8}
+    .next-action{display:flex;align-items:center;justify-content:space-between;gap:16px;border:1px solid rgba(237,28,36,.6);border-left:5px solid var(--red);border-radius:13px;padding:15px 17px;background:#151515}
+    .next-action strong{display:block;font-size:18px;margin-bottom:4px}
+    .next-action span{color:#bbb;font-size:13px;line-height:1.45}
+    .next-action button,.section-save{border:0;border-radius:999px;background:var(--red);color:#fff;font-weight:900;cursor:pointer}
+    .next-action button{padding:12px 17px;white-space:nowrap}
+    .section-save{padding:10px 15px;margin-top:16px}
+    .section-save[disabled]{opacity:.55;cursor:wait}
+    .section-state{display:inline-flex;align-items:center;border:1px solid rgba(237,28,36,.45);border-radius:999px;padding:6px 10px;color:#ff9a9e;font-weight:900;font-size:12px;white-space:nowrap}
+    .section-state.complete{border-color:rgba(54,211,126,.5);background:rgba(54,211,126,.07);color:#7af0a8}
+    .section-state.optional{border-color:#444;color:#aaa}
+    .section-msg{margin-top:10px;font-size:13px;min-height:18px;color:#aaa}
+    .section-msg.ok{color:#7af0a8}.section-msg.bad{color:#ff8f94}
+    .setup-target{scroll-margin-top:120px}
+    .setup-target.focused{border-color:rgba(237,28,36,.8);box-shadow:0 0 0 3px rgba(237,28,36,.08)}
     .hidden{display:none!important}
 
     @media(max-width:760px){
@@ -220,6 +243,9 @@
       .full{grid-column:auto}
       .actions{flex-direction:column}
       .back-btn,.save-btn{width:100%}
+      .setup-step-list{grid-template-columns:1fr}
+      .next-action{align-items:stretch;flex-direction:column}
+      .next-action button{width:100%}
     }
     </style>
     </head>
@@ -244,9 +270,31 @@
           <a class="back-btn" href="/customer-dashboard.html">← Back to My AnyBike</a>
         </section>
 
-        <section class="card">
-          <h2>Contact Details</h2>
-          <p class="card-intro">Your main contact information for your AnyBike account.</p>
+        <section class="card setup-summary" id="buyer-setup-summary">
+          <div class="setup-summary-head">
+            <div>
+              <div class="eyebrow">Buyer Setup</div>
+              <h2>Complete what you can and save as you go</h2>
+              <p class="card-intro" style="margin-bottom:0">You can leave anything you do not know yet and come back later. We will keep reminding you which required sections are still needed before Buyer Setup is complete.</p>
+            </div>
+            <div id="setupProgressText" style="font-weight:900">Checking setup…</div>
+          </div>
+          <div class="setup-progress"><div id="setupProgressFill"></div></div>
+          <div class="setup-step-list">
+            <div class="setup-step" data-setup="contact"><strong>Contact Details</strong><span>Required</span></div>
+            <div class="setup-step" data-setup="buyer"><strong>Buyer & Export</strong><span>Required</span></div>
+            <div class="setup-step" data-setup="identity"><strong>Photo ID</strong><span>Required</span></div>
+            <div class="setup-step" data-setup="address"><strong>Proof of Address</strong><span>Required</span></div>
+            <div class="setup-step" data-setup="shipping"><strong>Shipping Preferences</strong><span>Required</span></div>
+          </div>
+          <div class="next-action">
+            <div><strong id="setupNextTitle">Your next action</strong><span id="setupNextText">Checking what is still needed…</span></div>
+            <button type="button" id="setupNextButton">Continue →</button>
+          </div>
+        </section>
+
+        <section class="card setup-target" id="section-contact">
+          <div class="section-head"><div><h2>Contact Details</h2><p class="card-intro">Your main contact information for your AnyBike account.</p></div><span class="section-state" id="state-contact">Needs attention</span></div>
 
           <div class="grid">
             <div>
@@ -323,11 +371,13 @@
               <input id="region" autocomplete="address-level1">
             </div>
           </div>
+          <button class="section-save" type="button" data-save-section="contact">Save Contact Details</button>
+          <div class="section-msg" id="msg-contact"></div>
         </section>
 
-        <section class="card">
-          <h2>Business Details</h2>
-          <p class="card-intro">Optional business information used when dealing with AnyBike as a trade or commercial customer.</p>
+        <section class="card setup-target" id="section-business">
+          <div class="section-head"><h2>Business / Trade Details</h2><span class="section-state optional">Optional</span></div>
+          <p class="card-intro">Add what applies to you. If you do not know or have something yet, leave it blank and save what you do have.</p>
 
           <div class="grid">
             <div>
@@ -340,11 +390,13 @@
               <textarea id="businessAddress" autocomplete="street-address"></textarea>
             </div>
           </div>
+          <button class="section-save" type="button" data-save-section="business">Save Business Details</button>
+          <div class="section-msg" id="msg-business"></div>
         </section>
 
-        <section class="card">
-          <h2>Bank Details</h2>
-          <p class="card-intro">Optional bank details for refunds, credits and other agreed payments involving your AnyBike account. These details are kept private within your account.</p>
+        <section class="card setup-target" id="section-bank">
+          <div class="section-head"><h2>Bank Details</h2><span class="section-state optional">Optional</span></div>
+          <p class="card-intro">Add these only if you want AnyBike to hold refund or credit payment details on your account. You can skip this section and return later.</p>
 
           <div class="grid">
             <div>
@@ -367,11 +419,13 @@
               <textarea id="bankInternationalNotes" autocomplete="off" placeholder="IBAN, SWIFT / BIC, bank name or any international payment instructions"></textarea>
             </div>
           </div>
+          <button class="section-save" type="button" data-save-section="bank">Save Bank Details</button>
+          <div class="section-msg" id="msg-bank"></div>
         </section>
 
-        <section class="card">
-          <h2>AnyBike Preferences</h2>
-          <p class="card-intro">Choose how AnyBike should display information to you.</p>
+        <section class="card setup-target" id="section-preferences">
+          <div class="section-head"><h2>Display Preferences</h2><span class="section-state complete">Preference</span></div>
+          <p class="card-intro">Choose your normal currency and language. These can be changed at any time.</p>
 
           <div class="grid">
             <div>
@@ -401,11 +455,12 @@
               </select>
             </div>
           </div>
+          <button class="section-save" type="button" data-save-section="preferences">Save Display Preferences</button>
+          <div class="section-msg" id="msg-preferences"></div>
         </section>
 
-        <section class="card" id="buyer-onboarding">
-          <h2>Buyer Setup & Verification</h2>
-          <p class="card-intro">Complete as much as you can once. We reuse these details for future purchases so a motorcycle is not bought before there is a workable buyer, payment and shipping route. AnyBike can approve sensible exceptions where a check is not relevant.</p>
+        <section class="card setup-target" id="buyer-onboarding">
+          <div class="section-head"><div><h2>Buyer & Export Details</h2><p class="card-intro">Add what you know now. If you do not know your destination port or shipping method yet, leave it blank, save the section and come back later.</p></div><span class="section-state" id="state-buyer">Needs attention</span></div>
 
           <div id="buyerOnboardingStatus" class="onboarding-status"></div>
 
@@ -474,11 +529,12 @@
           <div class="risk-note">
             AnyBike may also ask for a small test bank payment before the first purchase. This helps us verify the paying account. We will never ask you to send a large payment simply to complete onboarding.
           </div>
+          <button class="section-save" type="button" data-save-section="buyer">Save Buyer & Export Details</button>
+          <div class="section-msg" id="msg-buyer"></div>
         </section>
 
-        <section class="card">
-          <h2>Shipping Preferences</h2>
-          <p class="card-intro">Your normal shipper is stored for future purchases. We will still confirm the route for each Deal before AnyBike commits to buying the motorcycle.</p>
+        <section class="card setup-target" id="section-shipping">
+          <div class="section-head"><div><h2>Shipping Preferences</h2><p class="card-intro">Add your usual UK shipper or freight-forwarder details when you know them. Save what you have now and return later for anything missing.</p></div><span class="section-state" id="state-shipping">Needs attention</span></div>
 
           <div class="grid">
             <div>
@@ -507,9 +563,12 @@
             </div>
           </div>
 
+          <button class="section-save" type="button" data-save-section="shipping">Save Shipping Preferences</button>
+          <div class="section-msg" id="msg-shipping"></div>
+
           <div class="actions">
-            <a class="back-btn" href="/customer-dashboard.html">Cancel</a>
-            <button class="save-btn" id="saveBtn" type="button">Save Profile</button>
+            <a class="back-btn" href="/customer-dashboard.html">← Back to My AnyBike</a>
+            <button class="save-btn" id="saveBtn" type="button">Save Everything Entered</button>
           </div>
 
           <div id="msg" class="msg"></div>
@@ -608,6 +667,7 @@
 
       document.getElementById("loadingBox").classList.add("hidden");
       document.getElementById("profilePage").classList.remove("hidden");
+      updateSetupReminder();
     }
 
     function setDocumentState(id,path){
@@ -673,15 +733,154 @@
       return path;
     }
 
+    function documentOnFile(stateId,inputId){
+      const state=document.getElementById(stateId);
+      const input=document.getElementById(inputId);
+      return Boolean(state?.classList.contains("good") || input?.files?.length);
+    }
+
+    function buyerSetupCompletion(){
+      return {
+        contact:Boolean(value("fullName") && value("phone") && value("country") && value("city")),
+        buyer:Boolean(value("destinationPort") && document.getElementById("shippingMethod").value),
+        identity:documentOnFile("identityDocumentState","identityDocument"),
+        address:documentOnFile("addressDocumentState","addressDocument"),
+        shipping:Boolean(value("shippingCompany") && value("shippingContactName") && value("shippingContactEmail") && value("shippingContactPhone") && value("collectionPoint"))
+      };
+    }
+
+    function updateSetupReminder(){
+      const s=buyerSetupCompletion();
+      const keys=["contact","buyer","identity","address","shipping"];
+      const done=keys.filter(k=>s[k]).length;
+      const progress=document.getElementById("setupProgressFill");
+      if(progress) progress.style.width=((done/keys.length)*100)+"%";
+      const progressText=document.getElementById("setupProgressText");
+      if(progressText) progressText.textContent=done+" of "+keys.length+" required sections complete";
+
+      document.querySelectorAll("[data-setup]").forEach(el=>{
+        el.classList.toggle("complete",Boolean(s[el.dataset.setup]));
+      });
+
+      const setState=(id,complete)=>{
+        const el=document.getElementById(id);
+        if(!el) return;
+        el.textContent=complete?"✓ Complete":"Needs attention";
+        el.classList.toggle("complete",complete);
+      };
+      setState("state-contact",s.contact);
+      setState("state-buyer",s.buyer && s.identity && s.address);
+      setState("state-shipping",s.shipping);
+
+      const title=document.getElementById("setupNextTitle");
+      const desc=document.getElementById("setupNextText");
+      const btn=document.getElementById("setupNextButton");
+      if(!title||!desc||!btn) return;
+
+      let target="section-contact";
+      let field="fullName";
+      let button="Complete Contact Details →";
+      let heading="Your next action: Complete Contact Details";
+      let copy="Add the missing contact details, then save that section.";
+
+      if(s.contact && !s.buyer){
+        target="buyer-onboarding"; field=!value("destinationPort")?"destinationPort":"shippingMethod";
+        button="Complete Buyer & Export →"; heading="Your next action: Complete Buyer & Export Details";
+        copy="Add your usual destination port and shipping method when you know them.";
+      }else if(s.contact && s.buyer && !s.identity){
+        target="buyer-onboarding"; field="identityDocument";
+        button="Upload Photo ID →"; heading="Your next action: Upload Photo ID";
+        copy="A passport or other photo ID is still needed to complete Buyer Setup.";
+      }else if(s.contact && s.buyer && s.identity && !s.address){
+        target="buyer-onboarding"; field="addressDocument";
+        button="Upload Proof of Address →"; heading="Your next action: Upload Proof of Address";
+        copy="Proof of your current address is still needed to complete Buyer Setup.";
+      }else if(s.contact && s.buyer && s.identity && s.address && !s.shipping){
+        target="section-shipping"; field="shippingCompany";
+        button="Complete Shipping Preferences →"; heading="Your next action: Complete Shipping Preferences";
+        copy="Add your usual shipper or freight-forwarder and UK collection point. Save what you know and return for anything missing.";
+      }else if(done===keys.length){
+        target="customer-dashboard.html"; field="";
+        button="Return to My AnyBike →"; heading="✓ Buyer Setup details complete";
+        copy="All required Buyer Setup sections are complete. AnyBike can now review and reuse these details for purchases.";
+      }
+
+      title.textContent=heading;
+      desc.textContent=copy;
+      btn.textContent=button;
+      btn.onclick=()=>{
+        if(target==="customer-dashboard.html"){
+          window.location.href="/customer-dashboard.html";
+          return;
+        }
+        document.querySelectorAll(".setup-target").forEach(el=>el.classList.remove("focused"));
+        const section=document.getElementById(target);
+        section?.classList.add("focused");
+        section?.scrollIntoView({behavior:"smooth",block:"start"});
+        setTimeout(()=>document.getElementById(field)?.focus({preventScroll:true}),350);
+      };
+    }
+
+    function sectionPayload(section){
+      const base={id:currentUser.id,email:currentUser.email || value("email")};
+      if(section==="contact") return {...base,full_name:value("fullName")||null,phone:value("phone")||null,country:value("country")||null,city:value("city")||null,region:value("region")||null};
+      if(section==="business") return {...base,business_name:value("businessName")||null,business_address:value("businessAddress")||null};
+      if(section==="bank") return {...base,bank_account_name:value("bankAccountName")||null,bank_account_number:value("bankAccountNumber")||null,bank_sort_code:value("bankSortCode")||null,bank_international_notes:value("bankInternationalNotes")||null};
+      if(section==="preferences") return {...base,preferred_currency:document.getElementById("currency").value||"GBP",preferred_language:document.getElementById("language").value||"en"};
+      if(section==="buyer") return {...base,buyer_eori_number:value("buyerEori")||null,preferred_destination_port:value("destinationPort")||null,preferred_shipping_method:document.getElementById("shippingMethod").value||null,typical_bikes_per_shipment:document.getElementById("typicalQuantity").value||null};
+      if(section==="shipping") return {...base,preferred_shipping_company:value("shippingCompany")||null,shipping_contact_name:value("shippingContactName")||null,shipping_contact_email:value("shippingContactEmail")||null,shipping_contact_phone:value("shippingContactPhone")||null,preferred_uk_collection_point:value("collectionPoint")||null};
+      return base;
+    }
+
+    async function saveSection(section,button){
+      if(!currentUser) return;
+      const msg=document.getElementById("msg-"+section);
+      const original=button.textContent;
+      button.disabled=true;
+      button.textContent="Saving…";
+      if(msg){msg.textContent="Saving what you have entered…";msg.className="section-msg";}
+
+      const payload=sectionPayload(section);
+
+      try{
+        if(section==="buyer"){
+          const identityPath=await uploadOnboardingDocument("identityDocument","identity");
+          const addressPath=await uploadOnboardingDocument("addressDocument","address");
+          const licencePath=await uploadOnboardingDocument("licenceDocument","licence");
+          if(identityPath) payload.identity_document_path=identityPath;
+          if(addressPath) payload.proof_of_address_document_path=addressPath;
+          if(licencePath) payload.driving_licence_document_path=licencePath;
+        }
+
+        const {error}=await sb.from("customer_profiles").upsert(payload,{onConflict:"id"});
+        if(error) throw error;
+
+        if(section==="preferences") syncHeaderPreferences(payload.preferred_currency,payload.preferred_language);
+
+        if(section==="buyer"){
+          if(payload.identity_document_path) setDocumentState("identityDocumentState",payload.identity_document_path);
+          if(payload.proof_of_address_document_path) setDocumentState("addressDocumentState",payload.proof_of_address_document_path);
+          if(payload.driving_licence_document_path) setDocumentState("licenceDocumentState",payload.driving_licence_document_path);
+          document.getElementById("identityDocument").value="";
+          document.getElementById("addressDocument").value="";
+          document.getElementById("licenceDocument").value="";
+          await loadBuyerOnboardingStatus();
+        }
+
+        if(msg){msg.textContent="✓ Saved. You can continue now or come back later.";msg.className="section-msg ok";}
+        updateSetupReminder();
+      }catch(err){
+        if(msg){msg.textContent="Could not save this section: "+err.message;msg.className="section-msg bad";}
+      }finally{
+        button.disabled=false;
+        button.textContent=original;
+      }
+    }
+
     async function saveProfile(){
       if(!currentUser) return;
 
-      const fullName = value("fullName");
-
-      if(!fullName){
-        showMsg("Please enter your full name.", false);
-        return;
-      }
+      const fullName = value("fullName") || null;
 
       const saveBtn = document.getElementById("saveBtn");
       saveBtn.disabled = true;
@@ -754,8 +953,20 @@
       document.getElementById("addressDocument").value="";
       document.getElementById("licenceDocument").value="";
       await loadBuyerOnboardingStatus();
-      showMsg("Profile and buyer setup saved successfully.");
+      showMsg("Everything entered so far has been saved. You can return later for any incomplete Buyer Setup sections.");
+      updateSetupReminder();
     }
+
+    document.querySelectorAll("[data-save-section]").forEach(btn=>{
+      btn.addEventListener("click",()=>saveSection(btn.dataset.saveSection,btn));
+    });
+
+    ["fullName","phone","country","city","destinationPort","shippingMethod","identityDocument","addressDocument","shippingCompany","shippingContactName","shippingContactEmail","shippingContactPhone","collectionPoint"].forEach(id=>{
+      const el=document.getElementById(id);
+      if(!el) return;
+      el.addEventListener("input",updateSetupReminder);
+      el.addEventListener("change",updateSetupReminder);
+    });
 
     document.getElementById("saveBtn").addEventListener("click", saveProfile);
 
