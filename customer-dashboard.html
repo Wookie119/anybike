@@ -1981,9 +1981,11 @@ body.customer-offer-modal-open{overflow:hidden}
           <div class="buyer-setup-progress-track"><div class="buyer-setup-progress-fill" id="buyerSetupProgressFill"></div></div>
           <div class="buyer-setup-steps">
             <div class="buyer-setup-step" data-dashboard-setup="contact"><strong>Contact Details</strong><span>Required</span></div>
+            <div class="buyer-setup-step" data-dashboard-setup="business"><strong>Buyer Type &amp; Business</strong><span>Required</span></div>
             <div class="buyer-setup-step" data-dashboard-setup="buyer"><strong>Buyer &amp; Export</strong><span>Required</span></div>
             <div class="buyer-setup-step" data-dashboard-setup="identity"><strong>Photo ID</strong><span>Required</span></div>
             <div class="buyer-setup-step" data-dashboard-setup="address"><strong>Proof of Address</strong><span>Required</span></div>
+            <div class="buyer-setup-step" data-dashboard-setup="bank"><strong>Bank Details</strong><span>Required</span></div>
             <div class="buyer-setup-step" data-dashboard-setup="shipping"><strong>Shipping Preferences</strong><span>Required</span></div>
           </div>
           <div class="buyer-setup-next" id="buyerSetupNext">
@@ -4847,11 +4849,18 @@ async function loadBuyerSetupBanner(){
   const stopReason=String(buyerAccountState.account_stop_reason||"").trim();
   const approved=onboarding && ["Approved","Approved with Exceptions"].includes(String(onboarding.approval_status||"")) && accountStatus==="Active";
 
+  const buyerType=String(currentProfile?.buyer_type||"").trim();
+  const tradeBuyer=Boolean(buyerType && buyerType!=="Private Buyer");
   const setup={
     contact:Boolean(currentProfile?.full_name && currentProfile?.phone && currentProfile?.country && currentProfile?.city),
+    business:Boolean(buyerType && (!tradeBuyer || (currentProfile?.business_name && currentProfile?.business_address))),
     buyer:Boolean(currentProfile?.preferred_shipping_method),
     identity:Boolean(currentProfile?.identity_document_path),
     address:Boolean(currentProfile?.proof_of_address_document_path),
+    bank:Boolean(
+      currentProfile?.bank_account_name &&
+      ((currentProfile?.bank_account_number && currentProfile?.bank_sort_code) || currentProfile?.bank_international_notes)
+    ),
     shipping:Boolean(
       currentProfile?.preferred_shipping_company &&
       currentProfile?.shipping_contact_name &&
@@ -4863,7 +4872,7 @@ async function loadBuyerSetupBanner(){
     )
   };
 
-  const keys=["contact","buyer","identity","address","shipping"];
+  const keys=["contact","business","buyer","identity","address","bank","shipping"];
   const done=keys.filter(k=>setup[k]).length;
   const complete=done===keys.length;
 
@@ -4887,6 +4896,11 @@ async function loadBuyerSetupBanner(){
     actionText="Complete Contact Details →";
     nextHeading="Your next action: Complete Contact Details";
     nextCopy="Add your name, telephone number, country and city.";
+  }else if(!setup.business){
+    href="customer-profile.html#section-business";
+    actionText="Confirm Buyer Type →";
+    nextHeading="Your next action: Confirm Buyer Type & Business Details";
+    nextCopy="Tell us whether you are buying privately or as a dealer / business. Trade buyers must add their business name and address.";
   }else if(!setup.buyer){
     href="customer-profile.html#buyer-onboarding";
     actionText="Complete Buyer & Export →";
@@ -4902,6 +4916,11 @@ async function loadBuyerSetupBanner(){
     actionText="Upload Proof of Address →";
     nextHeading="Your next action: Upload Proof of Address";
     nextCopy="Upload a current document that confirms your address.";
+  }else if(!setup.bank){
+    href="customer-profile.html#section-bank";
+    actionText="Complete Bank Details →";
+    nextHeading="Your next action: Complete Bank Details";
+    nextCopy="Add the account name and either UK account details or international IBAN / SWIFT details.";
   }else if(!setup.shipping){
     href="customer-profile.html#section-shipping";
     actionText="Complete Shipping Preferences →";
@@ -4910,8 +4929,8 @@ async function loadBuyerSetupBanner(){
   }else if(complete && !approved){
     href="customer-profile.html#buyer-setup-summary";
     actionText="Review Your Details →";
-    nextHeading="Buyer Setup complete — awaiting AnyBike review";
-    nextCopy="All 5 required sections are complete. AnyBike can now review the information you supplied.";
+    nextHeading="✓ Buyer Setup complete";
+    nextCopy="All 7 required sections are complete. AnyBike will review these details before committing to buy a motorcycle for you.";
   }else if(approved){
     href="customer-profile.html#buyer-setup-summary";
     actionText="Review Buyer Details →";
@@ -4942,12 +4961,12 @@ async function loadBuyerSetupBanner(){
     textEl.textContent="All required Buyer Setup details have been completed and approved.";
     banner.style.borderColor="rgba(54,211,126,.45)";
   }else if(complete){
-    title.textContent="🛡️ Buyer Setup — Awaiting AnyBike Review";
-    textEl.textContent="All 5 required Buyer Setup sections are complete and ready for AnyBike to review.";
+    title.textContent="🛡️ Buyer Setup Complete";
+    textEl.textContent="All 7 required Buyer Setup sections are complete. AnyBike will review these details before committing to buy a motorcycle for you.";
     banner.style.borderColor="rgba(255,179,107,.45)";
   }else{
     title.textContent="🛡️ Complete Buyer Setup";
-    textEl.textContent=done+" of 5 required sections are complete. Finish the outstanding section so AnyBike has the information needed to progress your purchases.";
+    textEl.textContent=done+" of 7 required sections are complete. Finish the outstanding sections so AnyBike has the information needed to progress your purchases.";
     banner.style.borderColor="rgba(237,28,36,.55)";
   }
 }
