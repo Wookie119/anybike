@@ -154,3 +154,82 @@ Future runtime QA pass:
 7. Protect Message Centre realtime, notification bell behaviour, customer auth and Deal 360 while making link fixes.
 
 This is a deferred QA task, not a blocker for current Customer 360 / Buyer Setup work unless a navigation defect is found in the active workflow.
+
+
+## 28 September 2026 — Customer focus, Dashboard actions and navigation checkpoint
+
+### Customer 360 buyer-intent model
+Customer 360 must distinguish browsing from genuine buying intent so staff time is spent on serious buyers.
+
+Buyer stages:
+- Registered / Browsing — account exists, but no staff chase.
+- Potential Buyer — passive signals such as saved searches, watchlist or repeat interest; suitable for future automated matching, but not a manual Buyer Setup chase by default.
+- Buyer Request — buyer has explicitly asked AnyBike to act, including `Interested — Check Availability`.
+- Active Purchase — live Deal 360 / payment / operations journey.
+- Ready for Review — Buyer Setup 7/7 complete and waiting for admin review.
+- Approved Buyer.
+- On Hold / Stopped.
+
+Buyer Setup reminders only become staff actions when the buyer has a serious-intent signal or the complete 7/7 setup is waiting for review.
+
+### Sourced motorcycle response semantics
+`Interested` is not a casual like.
+Customer wording is now `Interested — Check Availability`.
+
+Selecting it means the buyer is asking AnyBike to contact the seller and investigate current availability and purchase terms. It does not commit the buyer to purchase.
+
+Casual interest belongs in Watch / Save for Later and must not create unnecessary staff work.
+
+### Admin Dashboard — Your Next Actions
+The main Admin Dashboard is the central action surface. Do not create another separate action-centre page.
+
+`Your Next Actions` is positioned near the top of Admin HQ and combines genuine work from:
+- Sales
+- Customers
+- Accounts
+- Operations
+- Messages
+
+The queue should be state-driven from the authoritative underlying workflows. Completing the real task removes the action automatically.
+
+Old or casual `New Lead` records must not stay permanently urgent merely because they exist. Sales actions should be driven by genuine buyer requests, Deal 360 state, seller checks, replies or another real obligation.
+
+Customer 360 actions include:
+- buyer asked AnyBike to check seller availability
+- serious buyer setup incomplete
+- 7/7 Buyer Setup ready for review
+- account on hold / stopped requiring review
+
+Accounts actions include outstanding deposits and balances where the underlying transaction genuinely requires attention.
+
+Dashboard financial KPI rule:
+- `Committed Sales` only counts a sale once a deposit has been received or the sale is completed.
+- `Projected Profit` on the Dashboard must use the same committed-sale population.
+- Prospective calculator values and uncommitted enquiries must not inflate the headline sales/profit figures.
+
+### Admin navigation
+Keep the admin menu aligned with the live operating model:
+- Dashboard / Your Next Actions
+- Bike Sales HQ
+- Message Centre
+- Customer 360 / Buyer Setup
+- Live Source Hub
+- Buyer Match Responses
+- Global Buyer Network
+- Operations / Logistics / Freight Forwarders
+- Accounts
+- Market Intelligence
+- Project Plan
+- Mission Control
+- Public Website shortcuts
+
+### Public Brand / Model / Variant navigation hold
+Brand → Model → Variant architecture remains an important SEO/product workstream, but the pages are only partially built.
+
+Until the templates, database population, page QA, imagery, contact-to-Message-Centre routing and SEO content are complete:
+- do not add Manufacturer / Brand / Model / Variant pages to the main public navigation
+- do not advertise them as fully live
+- they may remain reachable through controlled internal links used for development and market-page linking where appropriate
+- review the public-menu decision only after the taxonomy pages have passed a dedicated QA checkpoint
+
+International Markets is public and may remain in navigation.
