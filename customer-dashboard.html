@@ -4094,6 +4094,22 @@ function renderCustomerNextActions(){
   list.innerHTML=actions.slice(0,8).map(customerActionCardHtml).join("");
 }
 
+function customerPurchaseUrgency(match){
+  const purchase=match?._deal_id ? myPurchaseByDeal[String(match._deal_id)] : null;
+  const state=customerDashboardPurchaseState(purchase);
+
+  // Lower number = higher priority in My Purchases.
+  if(!state) return 90;
+
+  if(!state.depositSatisfied && !state.pendingDepositAdvice) return 5;   // customer must pay/report deposit
+  if(state.depositSatisfied && state.secured && !state.fullyPaid) return 10; // customer must pay balance
+  if(!state.depositSatisfied && state.pendingDepositAdvice) return 30;  // waiting for AnyBike verification
+  if(state.depositSatisfied && !state.secured) return 35;               // waiting for seller check
+  if(state.secured && state.fullyPaid) return 40;                       // AnyBike arranging operations
+
+  return 80;
+}
+
 function renderMyPurchases(rows){
   const box=document.getElementById("myPurchasesBox");
   if(!box) return;
@@ -4102,6 +4118,15 @@ function renderMyPurchases(rows){
     const status=String(match?.match_status || "");
     const decision=String(match?.customer_offer_decision || "");
     return status==="Customer Accepted Offer" || decision==="Accepted";
+  }).sort((a,b)=>{
+    const priorityDiff=customerPurchaseUrgency(a)-customerPurchaseUrgency(b);
+    if(priorityDiff!==0) return priorityDiff;
+
+    const aPurchase=a?._deal_id ? myPurchaseByDeal[String(a._deal_id)] : null;
+    const bPurchase=b?._deal_id ? myPurchaseByDeal[String(b._deal_id)] : null;
+    const aAccepted=new Date(aPurchase?.offer_accepted_at || a?.customer_offer_decided_at || 0).getTime() || 0;
+    const bAccepted=new Date(bPurchase?.offer_accepted_at || b?.customer_offer_decided_at || 0).getTime() || 0;
+    return bAccepted-aAccepted;
   });
 
   if(!purchases.length){
