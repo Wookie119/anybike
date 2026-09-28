@@ -1099,8 +1099,21 @@ footer{
 .my-offer-image-link{display:block;width:100%;height:100%;color:inherit;text-decoration:none}
 .my-offer-title-link{color:inherit;text-decoration:none}
 .my-offer-title-link:hover{text-decoration:underline}
-.my-offer-view-link{display:inline-block;margin-top:8px;color:#ff3940;font-size:12px;font-weight:900;text-decoration:none}
-.my-offer-view-link:hover{text-decoration:underline}
+.my-offer-view-link{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  margin-top:10px;
+  padding:10px 14px;
+  border-radius:10px;
+  background:var(--red);
+  color:#fff;
+  font-size:13px;
+  font-weight:950;
+  text-decoration:none;
+  box-shadow:0 0 0 1px rgba(255,255,255,.05) inset;
+}
+.my-offer-view-link:hover{background:#ff343b;text-decoration:none}
 .my-offer-body{padding:16px}
 .my-offer-top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
 .my-offer-top h3{margin:0;font-size:21px}
@@ -2893,9 +2906,9 @@ function customerOfferCardHtml(match){
           <div>
             <h3><a class="my-offer-title-link" href="#" onclick="event.preventDefault();openCustomerOfferModal(${Number(match.id)})">${safe(title)}</a></h3>
             ${variant ? `<div class="buyer-match-variant">${safe(variant)}</div>` : ""}
-            <a class="my-offer-view-link" href="#" onclick="event.preventDefault();openCustomerOfferModal(${Number(match.id)})">View Bike &amp; Offer →</a>
+            <a class="my-offer-view-link" href="#" onclick="event.preventDefault();openCustomerOfferModal(${Number(match.id)})">Review Formal Offer →</a>
           </div>
-          <span class="my-offer-badge">${expired ? "Expired Offer" : (match?._offer_source==="deal360" ? "Deal 360 Offer" : "AnyBike Offer")}</span>
+          <span class="my-offer-badge">${expired ? "Expired Offer" : (match?._offer_source==="deal360" ? "Formal Offer" : "AnyBike Offer")}</span>
         </div>
 
         <div class="my-offer-price">
@@ -3187,7 +3200,7 @@ function openCustomerOfferModal(matchId){
 
   const expiresAt=match.confirmed_offer_expires_at || null;
   const expired=expiresAt ? new Date(expiresAt).getTime()<=Date.now() : false;
-  if(badge) badge.textContent=expired ? "Expired Offer" : (match?._offer_source==="deal360" ? "Deal 360 Offer" : "AnyBike Offer");
+  if(badge) badge.textContent=expired ? "Expired Offer" : (match?._offer_source==="deal360" ? "Formal Offer" : "AnyBike Offer");
 
   body.innerHTML=customerOfferModalHtml(match);
 
@@ -3509,23 +3522,26 @@ function customerDashboardPurchaseState(purchase){
       ?"The Move Motorcycles driver has arrived for collection."
       :"Your motorcycle collection has been passed to Move Motorcycles and is progressing.";
     nextStep="UK Collection";
+  }else if(!depositSatisfied){
+    heading=secured ? "Motorcycle Secured · Deposit Due" : "Deposit / Payment Required";
+    message=secured
+      ? "AnyBike has secured this motorcycle with the seller. Your agreed deposit is now due."
+      : "Your formal AnyBike offer has been accepted. Your deposit is currently due.";
   }else if(secured && fullyPaid){
     heading="Motorcycle Secured & Paid";
     message="Your motorcycle has been secured with the seller and your motorcycle payment has been received in full.";
   }else if(secured){
     heading="Motorcycle Secured";
     message="AnyBike has secured this motorcycle with the seller. The remaining balance and documentation stages can now continue.";
-  }else if(!depositSatisfied){
-    heading="Deposit / Payment Required";
-    message="Your formal AnyBike offer has been accepted. Your deposit is currently due and the motorcycle has not yet been secured with the seller.";
   }else{
     heading="Final Seller Check";
     message="Your deposit has been received. AnyBike is completing the final seller security stage before the motorcycle is marked as secured.";
   }
 
-  if(!nextStep){
-    if(!depositSatisfied) nextStep="Deposit / payment stage";
-    else if(!secured) nextStep="Final Seller Check / securing motorcycle";
+  if(!depositSatisfied){
+    nextStep="Pay / Report "+(buyerMatchMoney(depositOutstanding || depositDue) || "Deposit")+" Deposit";
+  }else if(!nextStep){
+    if(!secured) nextStep="Final Seller Check / securing motorcycle";
     else if(!fullyPaid) nextStep="Balance & Documents";
     else nextStep="Operations / Shipping";
   }
@@ -3566,20 +3582,34 @@ function customerPurchaseTimelineHtml(purchase,state){
   const dealNumber=String(purchase?.deal_number||"").trim();
   const dealId=String(purchase?.deal_id||"").trim();
 
-  let current="deposit",nextTitle="Pay / report your deposit",nextText="Open Accounts & Documents to view your Proforma and report the bank transfer.";
+  const depositAmount=Number(state.depositOutstanding||state.depositDue||0);
+  let current="deposit",
+      nextTitle="Pay / report your "+(buyerMatchMoney(depositAmount)||"")+" deposit",
+      nextText="Open Accounts & Documents to view your Proforma and report the bank transfer.",
+      nextCta="Pay / Report "+(buyerMatchMoney(depositAmount)||"")+" Deposit →";
   let nextHref=dealNumber
-    ? "/accounts-documents.html?deal="+encodeURIComponent(dealNumber)+"&payment=deposit&amount="+encodeURIComponent(Number(state.depositOutstanding||state.depositDue||0).toFixed(2))+"&ref="+encodeURIComponent(dealNumber)
+    ? "/accounts-documents.html?deal="+encodeURIComponent(dealNumber)+"&payment=deposit&amount="+encodeURIComponent(depositAmount.toFixed(2))+"&ref="+encodeURIComponent(dealNumber)
     : "my-purchases.html"+(dealId?"?deal="+encodeURIComponent(dealId):"");
+
   if(state.depositSatisfied && !state.secured){
-    current="seller";nextTitle="AnyBike completes the final seller check";nextText="No action is required from you while AnyBike reconfirms the motorcycle and seller position.";
+    current="seller";
+    nextTitle="AnyBike completes the final seller check";
+    nextText="No action is required from you while AnyBike reconfirms the motorcycle and seller position.";
+    nextCta="View Purchase →";
     nextHref="my-purchases.html"+(dealId?"?deal="+encodeURIComponent(dealId):"");
-  }else if(state.secured && !state.fullyPaid){
-    current="balance";nextTitle="Complete the remaining balance / documents";nextText="Open Accounts & Documents to view the remaining amount and any documents needed before collection.";
+  }else if(state.depositSatisfied && state.secured && !state.fullyPaid){
+    current="balance";
+    nextTitle="Complete the remaining balance / documents";
+    nextText="Open Accounts & Documents to view the remaining amount and any documents needed before collection.";
+    nextCta="Open Accounts & Documents →";
     nextHref=dealNumber
       ? "/accounts-documents.html?deal="+encodeURIComponent(dealNumber)+"&payment=balance&amount="+encodeURIComponent(Number(state.balance||0).toFixed(2))+"&ref="+encodeURIComponent(dealNumber)
       : "my-purchases.html"+(dealId?"?deal="+encodeURIComponent(dealId):"");
-  }else if(state.secured && state.fullyPaid && !collected){
-    current="collection";nextTitle="AnyBike arranges collection";nextText="Move Motorcycles will collect the motorcycle and the collection status will update here.";
+  }else if(state.depositSatisfied && state.secured && state.fullyPaid && !collected){
+    current="collection";
+    nextTitle="AnyBike arranges collection";
+    nextText="Move Motorcycles will collect the motorcycle and the collection status will update here.";
+    nextCta="View Collection Progress →";
     nextHref="my-purchases.html"+(dealId?"?deal="+encodeURIComponent(dealId):"");
   }else if(collected && !delivered){
     current=inStorage?"storage":"delivery";
@@ -3587,15 +3617,19 @@ function customerPurchaseTimelineHtml(purchase,state){
     nextText=inStorage
       ?"Your motorcycle is secure in the UK while AnyBike and Move arrange the confirmed handover to your shipper."
       :"Your motorcycle has been collected. AnyBike and Move will now complete the agreed UK handover.";
+    nextCta="View Purchase →";
     nextHref="my-purchases.html"+(dealId?"?deal="+encodeURIComponent(dealId):"");
   }else if(delivered){
-    current="invoice";nextTitle="Final invoice";nextText="The UK handover is complete. AnyBike will now finalise the transaction charges and issue the Final Invoice.";
+    current="invoice";
+    nextTitle="Final invoice";
+    nextText="The UK handover is complete. AnyBike will now finalise the transaction charges and issue the Final Invoice.";
+    nextCta="Open Accounts & Documents →";
     nextHref="/accounts-documents.html"+(dealNumber?"?deal="+encodeURIComponent(dealNumber):"");
   }
 
   const complete=String(purchase?.deal_stage||"").toLowerCase()==="completed" || String(purchase?.deal_status||"").toLowerCase()==="completed";
   if(complete){
-    current="complete";nextTitle="Purchase complete";nextText="No further action is required for this motorcycle.";
+    current="complete";nextTitle="Purchase complete";nextText="No further action is required for this motorcycle.";nextCta="View Purchase →";
     nextHref="my-purchases.html"+(dealId?"?deal="+encodeURIComponent(dealId):"");
   }
 
@@ -3613,7 +3647,7 @@ function customerPurchaseTimelineHtml(purchase,state){
   ];
   return '<div class="customer-purchase-timeline"><div class="customer-purchase-timeline-title">Your motorcycle journey</div><div class="customer-purchase-steps">'+
     steps.map(function(s){return '<span class="customer-purchase-step '+(s[2]?"done":s[0]===current?"current":"")+'">'+safe(s[1])+'</span>';}).join("")+
-    '</div><a class="customer-purchase-whats-next" href="'+safe(nextHref)+'" title="Click to proceed to the next task"><span class="customer-purchase-next-copy"><strong>What happens next? '+safe(nextTitle)+'</strong><span>'+safe(nextText)+'</span></span><span class="customer-next-cta">Click to proceed →</span></a></div>';
+    '</div><a class="customer-purchase-whats-next" href="'+safe(nextHref)+'" title="Click to proceed to the next task"><span class="customer-purchase-next-copy"><strong>What happens next? '+safe(nextTitle)+'</strong><span>'+safe(nextText)+'</span></span><span class="customer-next-cta">'+safe(nextCta)+'</span></a></div>';
 }
 
 function customerPurchaseCardHtml(match){
@@ -3755,7 +3789,9 @@ function customerPurchaseCardHtml(match){
 
         <p class="my-offer-note">${state?.depositSatisfied
           ? "Your deposit has been received. Motorcycle security is confirmed separately by AnyBike after the final seller check."
-          : "Acceptance records your commitment to the AnyBike offer. The motorcycle remains not yet secured until AnyBike completes the final seller security stage."
+          : "${state?.secured
+  ? "Your offer is accepted and this motorcycle is already secured by AnyBike. Complete the payment stages shown above."
+  : "Acceptance records your commitment to the AnyBike offer. The motorcycle remains not yet secured until AnyBike completes the final seller security stage."}"
         }</p>
       </div>
     </article>
@@ -3869,7 +3905,10 @@ function renderMyOffers(rows){
   const box=document.getElementById("myOffersBox");
   if(!box) return;
 
-  const offers=(rows || []).filter(match=>String(match?.match_status || "")==="Confirmed Offer Sent");
+  const offers=(rows || []).filter(match=>
+    String(match?.match_status || "")==="Confirmed Offer Sent" &&
+    !String(match?.customer_offer_decision || "").trim()
+  );
   const active=offers.filter(match=>{
     if(!match.confirmed_offer_expires_at) return true;
     const expiry=new Date(match.confirmed_offer_expires_at).getTime();
@@ -3879,10 +3918,13 @@ function renderMyOffers(rows){
   const count=document.getElementById("pendingOfferCount");
   if(count) count.textContent=active.length.toLocaleString("en-GB");
 
+  const panel=box.closest(".my-offers-panel");
   if(!offers.length){
-    box.innerHTML='<div class="buyer-match-empty">You do not have any AnyBike offers waiting for you at the moment.</div>';
+    if(panel) panel.style.display="none";
+    box.innerHTML="";
     return;
   }
+  if(panel) panel.style.display="";
 
   box.innerHTML=`<div class="my-offers-grid">${offers.map(customerOfferCardHtml).join("")}</div>`;
 }
