@@ -1859,6 +1859,23 @@ body.customer-offer-modal-open{overflow:hidden}
   grid-template-columns:repeat(auto-fit,minmax(min(100%,520px),1fr));
 }
 
+.buyer-setup-tracker{margin-top:18px}
+.buyer-setup-progress-line{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:9px;font-weight:900}
+.buyer-setup-progress-track{height:12px;border-radius:999px;background:#2b2b2b;overflow:hidden;border:1px solid rgba(255,255,255,.08)}
+.buyer-setup-progress-fill{height:100%;width:0;background:#36d37e;transition:width .25s ease}
+.buyer-setup-steps{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-top:14px}
+.buyer-setup-step{padding:12px 13px;border-radius:14px;border:1px solid rgba(255,255,255,.12);background:#141414}
+.buyer-setup-step strong{display:block;font-size:13px}
+.buyer-setup-step span{display:block;margin-top:5px;color:#999;font-size:12px}
+.buyer-setup-step.complete{border-color:rgba(54,211,126,.55);background:rgba(54,211,126,.08)}
+.buyer-setup-step.complete strong{color:#54e695}
+.buyer-setup-next{margin-top:14px;padding:14px 16px;border:1px solid rgba(237,28,36,.42);border-left:5px solid #ed1c24;border-radius:14px;background:#111;display:flex;justify-content:space-between;align-items:center;gap:16px}
+.buyer-setup-next strong{display:block;font-size:16px}
+.buyer-setup-next span{display:block;margin-top:5px;color:#aaa;font-size:13px}
+.buyer-setup-next a{white-space:nowrap}
+@media(max-width:900px){.buyer-setup-steps{grid-template-columns:1fr 1fr}.buyer-setup-next{align-items:flex-start;flex-direction:column}}
+@media(max-width:560px){.buyer-setup-steps{grid-template-columns:1fr}}
+
 .shipping-pref-grid{
   grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));
 }
@@ -1951,14 +1968,33 @@ body.customer-offer-modal-open{overflow:hidden}
   </section>
 
   <section id="buyerSetupBanner" class="panel" style="display:none;border-color:rgba(237,28,36,.36)">
-    <div class="panel-head" style="align-items:center">
-      <div>
+    <div class="panel-head" style="align-items:flex-start">
+      <div style="width:100%">
         <div class="eyebrow" style="margin-bottom:5px">Account setup</div>
         <h2 id="buyerSetupTitle">🛡️ Buyer Setup</h2>
         <p id="buyerSetupText">Complete your reusable buyer and shipping details so future purchases can move quickly.</p>
-        <p style="margin-top:8px;color:#aaa">AnyBike uses the same clear process for every buyer so both sides know who they are dealing with, how payment will work and where the motorcycle will go. The aim is to build strong, trustworthy relationships and grow our businesses together.</p>
+
+        <div class="buyer-setup-tracker" id="buyerSetupTracker">
+          <div class="buyer-setup-progress-line">
+            <strong id="buyerSetupProgressText">Checking Buyer Setup…</strong>
+          </div>
+          <div class="buyer-setup-progress-track"><div class="buyer-setup-progress-fill" id="buyerSetupProgressFill"></div></div>
+          <div class="buyer-setup-steps">
+            <div class="buyer-setup-step" data-dashboard-setup="contact"><strong>Contact Details</strong><span>Required</span></div>
+            <div class="buyer-setup-step" data-dashboard-setup="buyer"><strong>Buyer &amp; Export</strong><span>Required</span></div>
+            <div class="buyer-setup-step" data-dashboard-setup="identity"><strong>Photo ID</strong><span>Required</span></div>
+            <div class="buyer-setup-step" data-dashboard-setup="address"><strong>Proof of Address</strong><span>Required</span></div>
+            <div class="buyer-setup-step" data-dashboard-setup="shipping"><strong>Shipping Preferences</strong><span>Required</span></div>
+          </div>
+          <div class="buyer-setup-next" id="buyerSetupNext">
+            <div>
+              <strong id="buyerSetupNextTitle">Your next action</strong>
+              <span id="buyerSetupNextText">Checking what is still needed…</span>
+            </div>
+            <a id="buyerSetupAction" class="panel-link" href="customer-profile.html#buyer-onboarding">Continue Buyer Setup →</a>
+          </div>
+        </div>
       </div>
-      <a id="buyerSetupAction" class="panel-link" href="customer-profile.html#buyer-onboarding">Complete Buyer Setup →</a>
     </div>
   </section>
 
@@ -4789,6 +4825,11 @@ async function loadBuyerSetupBanner(){
   const title=document.getElementById("buyerSetupTitle");
   const textEl=document.getElementById("buyerSetupText");
   const action=document.getElementById("buyerSetupAction");
+  const tracker=document.getElementById("buyerSetupTracker");
+  const progressText=document.getElementById("buyerSetupProgressText");
+  const progressFill=document.getElementById("buyerSetupProgressFill");
+  const nextTitle=document.getElementById("buyerSetupNextTitle");
+  const nextText=document.getElementById("buyerSetupNextText");
   if(!banner || !currentUser) return;
 
   let onboarding=null;
@@ -4805,38 +4846,109 @@ async function loadBuyerSetupBanner(){
   const accountStatus=String(buyerAccountState.account_status||"Active");
   const stopReason=String(buyerAccountState.account_stop_reason||"").trim();
   const approved=onboarding && ["Approved","Approved with Exceptions"].includes(String(onboarding.approval_status||"")) && accountStatus==="Active";
-  const profileReady=Boolean(
-    currentProfile?.identity_document_path &&
-    currentProfile?.proof_of_address_document_path &&
-    currentProfile?.preferred_shipping_company &&
-    currentProfile?.preferred_uk_collection_point
-  );
+
+  const setup={
+    contact:Boolean(currentProfile?.full_name && currentProfile?.phone && currentProfile?.country && currentProfile?.city),
+    buyer:Boolean(currentProfile?.preferred_shipping_method),
+    identity:Boolean(currentProfile?.identity_document_path),
+    address:Boolean(currentProfile?.proof_of_address_document_path),
+    shipping:Boolean(
+      currentProfile?.preferred_shipping_company &&
+      currentProfile?.shipping_contact_name &&
+      currentProfile?.shipping_contact_email &&
+      currentProfile?.shipping_contact_phone &&
+      currentProfile?.shipping_country &&
+      currentProfile?.shipping_address_line1 &&
+      currentProfile?.shipping_city
+    )
+  };
+
+  const keys=["contact","buyer","identity","address","shipping"];
+  const done=keys.filter(k=>setup[k]).length;
+  const complete=done===keys.length;
 
   banner.style.display="";
   banner.id="buyer-setup";
+  if(progressText) progressText.textContent=done+" of "+keys.length+" required sections complete";
+  if(progressFill) progressFill.style.width=((done/keys.length)*100)+"%";
+  document.querySelectorAll("[data-dashboard-setup]").forEach(el=>{
+    el.classList.toggle("complete",Boolean(setup[el.dataset.dashboardSetup]));
+    const span=el.querySelector("span");
+    if(span) span.textContent=setup[el.dataset.dashboardSetup]?"✓ Complete":"Required";
+  });
+
+  let href="customer-profile.html#buyer-onboarding";
+  let actionText="Continue Buyer Setup →";
+  let nextHeading="Your next action: Complete Buyer Setup";
+  let nextCopy="Complete the next required section shown below.";
+
+  if(!setup.contact){
+    href="customer-profile.html#section-contact";
+    actionText="Complete Contact Details →";
+    nextHeading="Your next action: Complete Contact Details";
+    nextCopy="Add your name, telephone number, country and city.";
+  }else if(!setup.buyer){
+    href="customer-profile.html#buyer-onboarding";
+    actionText="Complete Buyer & Export →";
+    nextHeading="Your next action: Complete Buyer & Export Details";
+    nextCopy="Choose your usual shipping method. Your destination port can be added later if you do not know it yet.";
+  }else if(!setup.identity){
+    href="customer-profile.html#buyer-onboarding";
+    actionText="Upload Photo ID →";
+    nextHeading="Your next action: Upload Photo ID";
+    nextCopy="Upload a passport or other suitable photo ID.";
+  }else if(!setup.address){
+    href="customer-profile.html#buyer-onboarding";
+    actionText="Upload Proof of Address →";
+    nextHeading="Your next action: Upload Proof of Address";
+    nextCopy="Upload a current document that confirms your address.";
+  }else if(!setup.shipping){
+    href="customer-profile.html#section-shipping";
+    actionText="Complete Shipping Preferences →";
+    nextHeading="Your next action: Complete Shipping Preferences";
+    nextCopy="Choose a shipper from the directory or add your own shipper's contact and address details.";
+  }else if(complete && !approved){
+    href="customer-profile.html#buyer-setup-summary";
+    actionText="Review Your Details →";
+    nextHeading="Buyer Setup complete — awaiting AnyBike review";
+    nextCopy="All 5 required sections are complete. AnyBike can now review the information you supplied.";
+  }else if(approved){
+    href="customer-profile.html#buyer-setup-summary";
+    actionText="Review Buyer Details →";
+    nextHeading="✓ Buyer Setup approved";
+    nextCopy="Your reusable Buyer Setup is approved. You can update these details whenever they change.";
+  }
+
+  if(action){action.href=href;action.textContent=actionText;}
+  if(nextTitle) nextTitle.textContent=nextHeading;
+  if(nextText) nextText.textContent=nextCopy;
+
   if(accountStatus==="Stopped"){
     title.textContent="⛔ Your AnyBike account is on stop";
     textEl.textContent=stopReason || "We need to resolve an account issue before you can accept offers or continue a purchase.";
-    action.textContent="Review Your Buyer Details →";
+    if(action){action.textContent="Review Your Buyer Details →";action.href="customer-profile.html#buyer-setup-summary";}
+    if(nextTitle) nextTitle.textContent="Your next action: Review the account issue";
+    if(nextText) nextText.textContent=stopReason || "AnyBike needs an account issue resolved before your next purchase can progress.";
     banner.style.borderColor="rgba(237,28,36,.75)";
   }else if(accountStatus==="On Hold"){
     title.textContent="⏸️ Your AnyBike account is on hold";
     textEl.textContent=stopReason || "We need to confirm some details before your next purchase can progress.";
-    action.textContent="Review What We Need →";
+    if(action){action.textContent="Review What We Need →";action.href="customer-profile.html#buyer-setup-summary";}
+    if(nextTitle) nextTitle.textContent="Your next action: Review the outstanding details";
+    if(nextText) nextText.textContent=stopReason || "Check the Buyer Setup details AnyBike still needs.";
     banner.style.borderColor="rgba(255,179,107,.55)";
   }else if(approved){
     title.textContent="✓ Buyer Setup Approved";
-    textEl.textContent="Your reusable buyer verification is approved. We will still confirm the shipper and route for each motorcycle before purchase.";
-    action.textContent="Review Buyer & Shipping Details →";
+    textEl.textContent="All required Buyer Setup details have been completed and approved.";
     banner.style.borderColor="rgba(54,211,126,.45)";
-  }else if(profileReady){
+  }else if(complete){
     title.textContent="🛡️ Buyer Setup — Awaiting AnyBike Review";
-    textEl.textContent="Your main identity, address and shipper details are on file. AnyBike will review them before we commit to buying a motorcycle for you.";
-    action.textContent="Review Your Details →";
+    textEl.textContent="All 5 required Buyer Setup sections are complete and ready for AnyBike to review.";
+    banner.style.borderColor="rgba(255,179,107,.45)";
   }else{
     title.textContent="🛡️ Complete Buyer Setup";
-    textEl.textContent="Add your ID, proof of address, usual shipper and export details once so future purchases are not delayed.";
-    action.textContent="Complete Buyer Setup →";
+    textEl.textContent=done+" of 5 required sections are complete. Finish the outstanding section so AnyBike has the information needed to progress your purchases.";
+    banner.style.borderColor="rgba(237,28,36,.55)";
   }
 }
 
