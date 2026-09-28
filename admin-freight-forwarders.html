@@ -112,6 +112,33 @@ a{color:inherit;text-decoration:none}
   color:#ffe4a7;
 }
 .notice.show{display:block}
+.suggestion-panel{
+  margin-bottom:18px;
+  border:1px solid rgba(244,185,66,.38);
+  background:rgba(244,185,66,.07);
+  border-radius:18px;
+  overflow:hidden;
+}
+.suggestion-head{
+  padding:16px 18px;
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  align-items:center;
+  border-bottom:1px solid rgba(255,255,255,.08);
+}
+.suggestion-head h2{margin:0;font-size:18px}
+.suggestion-head p{margin:4px 0 0;color:#cbbd9a;font-size:13px}
+.suggestion-count{display:inline-flex;align-items:center;justify-content:center;min-width:32px;height:32px;padding:0 10px;border-radius:999px;background:#5a3b06;color:#ffe29a;font-weight:900}
+.suggestion-list{display:grid}
+.suggestion-card{padding:16px 18px;border-top:1px solid rgba(255,255,255,.07)}
+.suggestion-card:first-child{border-top:0}
+.suggestion-grid{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:12px}
+.suggestion-card strong{display:block;font-size:17px;margin-bottom:5px}
+.suggestion-card small{color:#aaa;line-height:1.45}
+.suggestion-meta{font-size:13px;color:#ddd;line-height:1.5}
+.suggestion-actions{display:flex;gap:8px;justify-content:flex-end;align-items:center;flex-wrap:wrap}
+.suggestion-empty{padding:18px;color:#999}
 
 .kpis{
   display:grid;
@@ -376,6 +403,19 @@ a{color:inherit;text-decoration:none}
         The Supabase table is not available yet. This page is using temporary browser storage until the database setup is added.
       </div>
 
+      <section class="suggestion-panel">
+        <div class="suggestion-head">
+          <div>
+            <h2>Customer-suggested shippers</h2>
+            <p>New shipping companies entered by buyers appear here for AnyBike review before being added to the reusable directory.</p>
+          </div>
+          <span class="suggestion-count" id="suggestionCount">0</span>
+        </div>
+        <div id="suggestionList" class="suggestion-list">
+          <div class="suggestion-empty">Loading customer suggestions…</div>
+        </div>
+      </section>
+
       <section class="kpis">
         <div class="kpi"><span>Total Directory</span><strong id="kpiTotal">0</strong><small>All active records</small></div>
         <div class="kpi"><span>Verified</span><strong id="kpiVerified">0</strong><small>Checked by AnyBike</small></div>
@@ -589,6 +629,7 @@ const TABLE_NAME = "freight_forwarders";
 const LOCAL_KEY = "anybikeFreightForwardersDraft";
 let records = [];
 let usingLocalFallback = false;
+let customerSuggestions = [];
 
 function escapeHtml(value){
   return String(value ?? "").replace(/[&<>"']/g, c => ({
@@ -606,6 +647,111 @@ function dateDisplay(value){
   if(!value) return "Never";
   const d = new Date(value);
   return Number.isNaN(d.getTime()) ? value : d.toLocaleDateString("en-GB");
+}
+
+async function loadCustomerSuggestions(){
+  const host=document.getElementById("suggestionList");
+  const count=document.getElementById("suggestionCount");
+  if(!host||!count) return;
+
+  const {data,error}=await sb
+    .from("freight_forwarder_suggestions")
+    .select("*")
+    .eq("status","Pending")
+    .order("created_at",{ascending:true});
+
+  if(error){
+    console.warn("Could not load customer shipper suggestions",error);
+    host.innerHTML='<div class="suggestion-empty">Customer suggestions could not be loaded.</div>';
+    count.textContent="0";
+    return;
+  }
+
+  customerSuggestions=data||[];
+  count.textContent=String(customerSuggestions.length);
+
+  if(!customerSuggestions.length){
+    host.innerHTML='<div class="suggestion-empty">No new customer-suggested shippers are waiting for review.</div>';
+    return;
+  }
+
+  host.innerHTML=customerSuggestions.map(s=>{
+    const address=[s.address_line1,s.address_line2,s.city,s.region,s.postcode,s.country].filter(Boolean).join(", ");
+    return '<article class="suggestion-card">'+
+      '<div class="suggestion-grid">'+
+        '<div><strong>'+escapeHtml(s.company_name||"Unnamed shipper")+'</strong>'+
+          '<small>Suggested by '+escapeHtml(s.customer_name||s.customer_email||"customer")+
+          (s.customer_country?' · Buyer country: '+escapeHtml(s.customer_country):'')+'</small></div>'+
+        '<div class="suggestion-meta">'+
+          '<div><b>Contact:</b> '+escapeHtml(s.contact_name||"-")+'</div>'+
+          '<div><b>Email:</b> '+escapeHtml(s.email||"-")+'</div>'+
+          '<div><b>Phone:</b> '+escapeHtml(s.phone||"-")+'</div>'+
+          '<div><b>Address:</b> '+escapeHtml(address||"-")+'</div>'+
+        '</div>'+
+        '<div class="suggestion-actions">'+
+          '<button class="btn btn-primary" type="button" onclick="addSuggestionToDirectory('+Number(s.id)+')">Add to Directory</button>'+
+          '<button class="btn btn-dark" type="button" onclick="declineSuggestion('+Number(s.id)+')">Not now</button>'+
+        '</div>'+
+      '</div>'+
+    '</article>';
+  }).join("");
+}
+
+async function addSuggestionToDirectory(id){
+  const s=customerSuggestions.find(x=>Number(x.id)===Number(id));
+  if(!s) return;
+  if(!confirm("Add "+(s.company_name||"this shipper")+" to the AnyBike freight-forwarder directory?")) return;
+
+  const fullAddress=[s.address_line1,s.address_line2,s.city,s.region,s.postcode,s.country].filter(Boolean).join(", ");
+  const payload={
+    company_name:s.company_name,
+    scope:s.country==="United Kingdom"?"UK":"Destination",
+    country:s.country||s.customer_country||"Unknown",
+    city:s.city||null,
+    uk_address:fullAddress||null,
+    contact_name:s.contact_name||null,
+    contact_role:s.contact_role||null,
+    email:s.email||null,
+    phone:s.phone||null,
+    website:s.website||null,
+    destination_port:s.destination_port||null,
+    countries_covered:[s.country||s.customer_country].filter(Boolean),
+    ports_served:[s.destination_port].filter(Boolean),
+    services:[],
+    source_customer:[s.customer_name,s.customer_email].filter(Boolean).join(" · ")||"Customer suggestion",
+    verification_status:"Unverified",
+    partner_status:"Standard",
+    is_active:true,
+    internal_notes:"Added from Buyer Setup customer suggestion. Verify details before marking Verified.",
+    updated_at:new Date().toISOString()
+  };
+
+  const {data:created,error}=await sb.from(TABLE_NAME).insert(payload).select("id").single();
+  if(error){
+    alert("Could not add shipper: "+error.message);
+    return;
+  }
+
+  const {error:updateError}=await sb.from("freight_forwarder_suggestions")
+    .update({status:"Added",added_freight_forwarder_id:created.id,reviewed_at:new Date().toISOString()})
+    .eq("id",id);
+  if(updateError) console.warn(updateError);
+
+  await Promise.all([loadCustomerSuggestions(),loadForwarders()]);
+}
+
+async function declineSuggestion(id){
+  const s=customerSuggestions.find(x=>Number(x.id)===Number(id));
+  if(!s) return;
+  if(!confirm("Remove this suggestion from the review queue?")) return;
+  const {error}=await sb.from("freight_forwarder_suggestions")
+    .update({status:"Declined",reviewed_at:new Date().toISOString()})
+    .eq("id",id);
+  if(error){
+    alert("Could not update suggestion: "+error.message);
+    return;
+  }
+  await loadCustomerSuggestions();
 }
 
 async function loadForwarders(){
@@ -967,6 +1113,7 @@ window.addEventListener("load", function(){
     if(!window.anybikeFreightForwardersLoaded){
       window.anybikeFreightForwardersLoaded = true;
       loadForwarders();
+      loadCustomerSuggestions();
     }
   };
 
