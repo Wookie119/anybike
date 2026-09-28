@@ -133,3 +133,24 @@ The initial Bike Sales overhaul does not delete the old UI or old journey implem
 
 
 Preview deployment trigger: 26 September 2026 — sales-overhaul-2026-09-26
+
+
+## Deferred QA — runtime link and navigation audit
+
+Run this when a wider QA pass is required, before a major release, after large navigation/menu changes, or whenever unexplained 404s appear.
+
+Current static-link audit status (28 September 2026):
+- Repository-wide static internal links were checked across the main HTML/JavaScript files, all 217 market pages, and CSS asset URLs.
+- Known broken static references found during that audit were corrected.
+- Market Intelligence public country links now use canonical `/markets/<slug>.html` paths.
+
+Future runtime QA pass:
+1. Crawl the deployed AnyBike site, not only repository source.
+2. Open/click internal links generated at runtime from JavaScript, Supabase/database values, menus, cards, notifications and deep links.
+3. Check logged-out customer redirects, logged-in customer journeys, admin navigation, Message Centre links, bell notifications, Deal 360 links, invoices/proformas, shipping/operations links and market-page links.
+4. Record every 404, redirect loop, wrong-host URL, missing asset and link that lands on the wrong page.
+5. Fix links at their source rather than adding one-off redirects where possible.
+6. Re-run the crawl after fixes and retain a short QA result/checkpoint.
+7. Protect Message Centre realtime, notification bell behaviour, customer auth and Deal 360 while making link fixes.
+
+This is a deferred QA task, not a blocker for current Customer 360 / Buyer Setup work unless a navigation defect is found in the active workflow.
