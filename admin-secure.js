@@ -766,15 +766,18 @@ function renderAdminNotificationList(rows){
 `;
         }
 
+        const paymentActionMatch=String(row.preview||"").match(/\/admin-accounts\.html\?payment_advice=\d+/i);
         const targetLink =
-          row.relatedEnquiryId
-            ? "admin-enquiries.html?open=" +
-              encodeURIComponent(
-                row.relatedEnquiryId
-              ) +
-              "&focus=messages"
-            : "admin-message-centre.html?thread=" +
-              encodeURIComponent(row.id);
+          paymentActionMatch
+            ? paymentActionMatch[0]
+            : row.relatedEnquiryId
+              ? "admin-enquiries.html?open=" +
+                encodeURIComponent(
+                  row.relatedEnquiryId
+                ) +
+                "&focus=messages"
+              : "admin-message-centre.html?thread=" +
+                encodeURIComponent(row.id);
 
         const dot =
           row.status === "New"
