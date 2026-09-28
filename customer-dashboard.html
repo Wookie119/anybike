@@ -3599,11 +3599,19 @@ function customerPurchaseTimelineHtml(purchase,state){
 
   const depositAmount=Number(state.depositOutstanding||state.depositDue||0);
   let current="deposit",
-      nextTitle="Pay / report your "+(buyerMatchMoney(depositAmount)||"")+" deposit",
-      nextText="Open Accounts & Documents to view your Proforma and report the bank transfer.",
-      nextCta="Pay / Report "+(buyerMatchMoney(depositAmount)||"")+" Deposit →";
+      nextTitle=state.pendingDepositAdvice
+        ? "Deposit reported · awaiting AnyBike verification"
+        : "Pay / report your "+(buyerMatchMoney(depositAmount)||"")+" deposit",
+      nextText=state.pendingDepositAdvice
+        ? (buyerMatchMoney(state.pendingDepositAdviceAmount)+" has been reported. Your purchase balance will update after AnyBike verifies the bank receipt.")
+        : "Open Accounts & Documents to view your Proforma and report the bank transfer.",
+      nextCta=state.pendingDepositAdvice
+        ? "View Payment Status →"
+        : "Pay / Report "+(buyerMatchMoney(depositAmount)||"")+" Deposit →";
   let nextHref=dealNumber
-    ? "/accounts-documents.html?deal="+encodeURIComponent(dealNumber)+"&payment=deposit&amount="+encodeURIComponent(depositAmount.toFixed(2))+"&ref="+encodeURIComponent(dealNumber)
+    ? (state.pendingDepositAdvice
+        ? "/accounts-documents.html?deal="+encodeURIComponent(dealNumber)
+        : "/accounts-documents.html?deal="+encodeURIComponent(dealNumber)+"&payment=deposit&amount="+encodeURIComponent(depositAmount.toFixed(2))+"&ref="+encodeURIComponent(dealNumber))
     : "my-purchases.html"+(dealId?"?deal="+encodeURIComponent(dealId):"");
 
   if(state.depositSatisfied && !state.secured){
@@ -3787,7 +3795,7 @@ function customerPurchaseCardHtml(match){
             ? `my-purchases.html?deal=${encodeURIComponent(match._deal_id || "")}`
             : `my-purchases.html?purchase=${encodeURIComponent(match.id)}`
           }">View Purchase</a>
-          ${state && !state.depositSatisfied && state.depositOutstanding>0 && purchase?.deal_number ? `
+          ${state && !state.depositSatisfied && !state.pendingDepositAdvice && state.depositOutstanding>0 && purchase?.deal_number ? `
             <a class="my-purchase-view" href="/accounts-documents.html?deal=${encodeURIComponent(purchase.deal_number)}&payment=deposit&amount=${encodeURIComponent(Number(state.depositOutstanding).toFixed(2))}&ref=${encodeURIComponent(purchase.deal_number)}">
               Pay / Report ${safe(buyerMatchMoney(state.depositOutstanding))} Deposit
             </a>
