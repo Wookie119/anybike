@@ -1873,7 +1873,11 @@ body.customer-offer-modal-open{overflow:hidden}
 .buyer-setup-next strong{display:block;font-size:16px}
 .buyer-setup-next span{display:block;margin-top:5px;color:#aaa;font-size:13px}
 .buyer-setup-next a{white-space:nowrap}
-@media(max-width:900px){.buyer-setup-steps{grid-template-columns:1fr 1fr}.buyer-setup-next{align-items:flex-start;flex-direction:column}}
+.buyer-setup-complete-row{display:flex;align-items:center;justify-content:space-between;gap:14px}
+.buyer-setup-complete-row h2{margin:0}
+.buyer-setup-hide-btn{border:1px solid rgba(255,255,255,.18);background:#1b1b1b;color:#fff;border-radius:999px;padding:10px 15px;font-weight:900;cursor:pointer}
+.buyer-setup-hide-btn:hover{background:#292929}
+@media(max-width:900px){.buyer-setup-steps{grid-template-columns:1fr 1fr}.buyer-setup-next{align-items:flex-start;flex-direction:column}.buyer-setup-complete-row{align-items:flex-start;flex-direction:column}}
 @media(max-width:560px){.buyer-setup-steps{grid-template-columns:1fr}}
 
 .shipping-pref-grid{
@@ -1973,6 +1977,16 @@ body.customer-offer-modal-open{overflow:hidden}
         <div class="eyebrow" style="margin-bottom:5px">Account setup</div>
         <h2 id="buyerSetupTitle">🛡️ Buyer Setup</h2>
         <p id="buyerSetupText">Complete your reusable buyer and shipping details so future purchases can move quickly.</p>
+
+        <div id="buyerSetupCompleteCompact" style="display:none">
+          <div class="buyer-setup-complete-row">
+            <div>
+              <h2>✓ Buyer Setup complete</h2>
+              <p style="margin:6px 0 0;color:#aaa">Your required Buyer Setup information has been completed.</p>
+            </div>
+            <button class="buyer-setup-hide-btn" id="hideBuyerSetupCompleteBtn" type="button">Hide this</button>
+          </div>
+        </div>
 
         <div class="buyer-setup-tracker" id="buyerSetupTracker">
           <div class="buyer-setup-progress-line">
@@ -4828,6 +4842,7 @@ async function loadBuyerSetupBanner(){
   const textEl=document.getElementById("buyerSetupText");
   const action=document.getElementById("buyerSetupAction");
   const tracker=document.getElementById("buyerSetupTracker");
+  const compactComplete=document.getElementById("buyerSetupCompleteCompact");
   const progressText=document.getElementById("buyerSetupProgressText");
   const progressFill=document.getElementById("buyerSetupProgressFill");
   const nextTitle=document.getElementById("buyerSetupNextTitle");
@@ -4890,8 +4905,40 @@ async function loadBuyerSetupBanner(){
   const done=keys.filter(k=>setup[k]).length;
   const complete=done===keys.length;
 
+  const dismissKey="anybikeBuyerSetupCompleteHidden:"+currentUser.id;
+  const dismissed=localStorage.getItem(dismissKey)==="1";
+
+  // Account stop/hold messages always take priority and must remain visible.
+  if(complete && accountStatus==="Active"){
+    if(dismissed){
+      banner.style.display="none";
+      return;
+    }
+    banner.style.display="";
+    banner.id="buyer-setup";
+    tracker?.style.setProperty("display","none");
+    compactComplete?.style.setProperty("display","block");
+    if(title) title.style.display="none";
+    if(textEl) textEl.style.display="none";
+    banner.style.borderColor=approved?"rgba(54,211,126,.45)":"rgba(255,179,107,.45)";
+
+    const hideBtn=document.getElementById("hideBuyerSetupCompleteBtn");
+    if(hideBtn && !hideBtn.dataset.bound){
+      hideBtn.dataset.bound="1";
+      hideBtn.addEventListener("click",()=>{
+        localStorage.setItem(dismissKey,"1");
+        banner.style.display="none";
+      });
+    }
+    return;
+  }
+
   banner.style.display="";
   banner.id="buyer-setup";
+  tracker?.style.removeProperty("display");
+  compactComplete?.style.setProperty("display","none");
+  if(title) title.style.removeProperty("display");
+  if(textEl) textEl.style.removeProperty("display");
   if(progressText) progressText.textContent=done+" of "+keys.length+" required sections complete";
   if(progressFill) progressFill.style.width=((done/keys.length)*100)+"%";
   document.querySelectorAll("[data-dashboard-setup]").forEach(el=>{
