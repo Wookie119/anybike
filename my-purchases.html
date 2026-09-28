@@ -850,6 +850,15 @@ main{
 
 </section>
 
+<section class="panel" id="purchaseNextActionsPanel" style="display:none;border-color:rgba(237,28,36,.55)">
+  <div style="margin-bottom:12px">
+    <div class="eyebrow">YOUR NEXT ACTION</div>
+    <h2 style="margin:4px 0 5px">What needs your attention</h2>
+    <p id="purchaseNextActionsSummary" style="margin:0;color:#aaa">We will show each motorcycle that needs something from you.</p>
+  </div>
+  <div id="purchaseNextActionsList" style="display:grid;gap:10px"></div>
+</section>
+
 <section class="panel">
 
   <div id="purchases">
@@ -1647,6 +1656,110 @@ async function authoriseShipper(dealMotorcycleId,dealId){
 window.focusShipperAuthorisation=focusShipperAuthorisation;
 window.authoriseShipper=authoriseShipper;
 
+function purchaseNextAction(purchase){
+  const state=purchaseState(purchase);
+  const deal=String(purchase.deal_number||"").trim();
+  const bike=[purchase.make,purchase.model,purchase.variant].filter(Boolean).join(" ")||"Motorcycle";
+  const balance=Number(state.balance||0);
+  const depositOutstanding=Number(state.depositOutstanding||state.depositDue||0);
+
+  if(!state.depositSatisfied && state.pendingDepositAdvice){
+    return {
+      priority:30,waiting:true,deal:deal,
+      title:"Deposit reported · awaiting verification",
+      text:money(state.pendingDepositAdviceAmount)+" has been reported for "+bike+". You do not need to report the payment again while AnyBike verifies the bank receipt.",
+      href:deal?"/accounts-documents.html?deal="+encodeURIComponent(deal):"/accounts-documents.html",
+      cta:"View payment status →"
+    };
+  }
+  if(!state.depositSatisfied){
+    return {
+      priority:5,waiting:false,deal:deal,
+      title:"Pay / report "+money(depositOutstanding)+" deposit",
+      text:"Your deposit is the next action required for "+bike+".",
+      href:deal?"/accounts-documents.html?deal="+encodeURIComponent(deal)+"&payment=deposit&amount="+encodeURIComponent(depositOutstanding.toFixed(2))+"&ref="+encodeURIComponent(deal):"/accounts-documents.html",
+      cta:"Pay / Report Deposit →"
+    };
+  }
+  if(!state.secured){
+    return {
+      priority:35,waiting:true,deal:deal,
+      title:"AnyBike is completing the seller check",
+      text:"Your deposit is complete for "+bike+". No action is required from you while AnyBike confirms and secures the motorcycle.",
+      href:"/my-purchases.html?deal="+encodeURIComponent(purchase.deal_id||""),
+      cta:"View purchase →"
+    };
+  }
+  if(!state.fullyPaid && balance>0){
+    return {
+      priority:10,waiting:false,deal:deal,
+      title:"Pay remaining balance · "+money(balance),
+      text:bike+" is secured. Complete the remaining balance and any required documents before collection.",
+      href:deal?"/accounts-documents.html?deal="+encodeURIComponent(deal)+"&payment=balance&amount="+encodeURIComponent(balance.toFixed(2))+"&ref="+encodeURIComponent(deal):"/accounts-documents.html",
+      cta:"Pay Balance / Documents →"
+    };
+  }
+
+  const collected=String(purchase.collection_status||"").toLowerCase()==="collected" ||
+    String(purchase.collection_job_status||"").toLowerCase()==="collected";
+  const delivered=String(purchase.delivery_handover_status||"").toLowerCase()==="delivered" || !!purchase.delivery_completed_at;
+
+  if(!collected && !delivered){
+    return {
+      priority:40,waiting:true,deal:deal,
+      title:"AnyBike is arranging collection",
+      text:"Payment is complete for "+bike+". No action is required from you while collection is arranged.",
+      href:"/my-purchases.html?deal="+encodeURIComponent(purchase.deal_id||""),
+      cta:"View purchase →"
+    };
+  }
+  if(!delivered){
+    return {
+      priority:45,waiting:true,deal:deal,
+      title:"Collection / UK handover in progress",
+      text:bike+" is progressing through collection, custody or handover. We will show you here if anything is needed from you.",
+      href:"/my-purchases.html?deal="+encodeURIComponent(purchase.deal_id||""),
+      cta:"View progress →"
+    };
+  }
+  return null;
+}
+
+function renderPurchaseNextActions(purchases){
+  const panel=document.getElementById("purchaseNextActionsPanel");
+  const list=document.getElementById("purchaseNextActionsList");
+  const summary=document.getElementById("purchaseNextActionsSummary");
+  if(!panel||!list)return;
+
+  const actions=(purchases||[])
+    .map(purchaseNextAction)
+    .filter(Boolean)
+    .sort((a,b)=>a.priority-b.priority);
+
+  if(!actions.length){
+    panel.style.display="none";
+    list.innerHTML="";
+    return;
+  }
+
+  const customerTasks=actions.filter(a=>!a.waiting).length;
+  summary.textContent=customerTasks
+    ? (customerTasks===1
+        ? "You have 1 action that needs your attention. Other motorcycles may be waiting for AnyBike."
+        : "You have "+customerTasks+" actions that need your attention across your purchases.")
+    : "Nothing needs you to act right now. These are the stages AnyBike is currently progressing for you.";
+
+  list.innerHTML=actions.map(function(action){
+    return '<div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:center;padding:14px 15px;border:1px solid '+(action.waiting?'rgba(255,179,107,.34)':'rgba(237,28,36,.48)')+';border-radius:12px;background:'+(action.waiting?'rgba(255,159,28,.05)':'rgba(237,28,36,.055)')+'">'+
+      '<div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><strong>'+safe(action.title)+'</strong>'+(action.deal?'<span style="font-size:10px;color:#bbb;border:1px solid rgba(255,255,255,.14);border-radius:999px;padding:3px 7px">'+safe(action.deal)+'</span>':'')+'</div>'+
+      '<div style="margin-top:5px;color:#aaa;font-size:12px;line-height:1.45">'+safe(action.text)+'</div></div>'+
+      '<a href="'+safe(action.href)+'" style="display:inline-flex;align-items:center;justify-content:center;padding:10px 13px;border-radius:9px;background:'+(action.waiting?'#171717':'#ed1c24')+';border:1px solid '+(action.waiting?'#444':'#ed1c24')+';color:#fff;text-decoration:none;font-weight:900;font-size:12px;white-space:nowrap">'+safe(action.cta)+'</a>'+
+    '</div>';
+  }).join("");
+
+  panel.style.display="";
+}
+
 async function loadPurchases(){
 
   const purchasesBox =
@@ -1743,6 +1856,8 @@ async function loadPurchases(){
 
   if(!purchases.length){
 
+    renderPurchaseNextActions([]);
+
     purchasesBox.innerHTML = `
 
       <div class="empty">
@@ -1757,6 +1872,8 @@ async function loadPurchases(){
     return;
 
   }
+
+  renderPurchaseNextActions(purchases);
 
   const purchaseParams =
     new URLSearchParams(
