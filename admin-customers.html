@@ -552,11 +552,15 @@ textarea{width:100%;min-height:120px}
     <option value="clear">No Immediate Action</option>
   </select>
   <select id="statusFilter" onchange="renderCustomers()">
-    <option value="">All Customer Types</option>
-    <option value="New">New</option>
-    <option value="Active">Active</option>
-    <option value="VIP">VIP</option>
-    <option value="Completed">Completed Buyer</option>
+    <option value="">All Buyer Stages</option>
+    <option value="Registered / Browsing">Registered / Browsing</option>
+    <option value="Potential Buyer">Potential Buyer</option>
+    <option value="Buyer Request">Buyer Request</option>
+    <option value="Active Purchase">Active Purchase</option>
+    <option value="Ready for Review">Ready for Review</option>
+    <option value="Approved Buyer">Approved Buyer</option>
+    <option value="On Hold">On Hold</option>
+    <option value="Stopped">Stopped</option>
   </select>
 </div>
 
@@ -1390,7 +1394,7 @@ async function loadCustomers(){
   const [, , attentionResult] = await Promise.all([
     loadMessagesForIntel(),
     loadVisitActivityForIntel(),
-    sb.rpc("admin_get_customer_needs_attention_v2")
+    sb.rpc("admin_get_customer_needs_attention_v3")
   ]);
   if(attentionResult?.error){
     console.warn("Customer Needs Attention could not be loaded",attentionResult.error);
@@ -2050,7 +2054,7 @@ function renderCustomers(){
 
   if(q)rows=rows.filter(c=>(c.name||"").toLowerCase().includes(q)||(c.email||"").toLowerCase().includes(q)||(c.phone||"").toLowerCase().includes(q)||(c.country||"").toLowerCase().includes(q));
   if(country)rows=rows.filter(c=>c.country===country);
-  if(status)rows=rows.filter(c=>customerStatus(c)===status);
+  if(status)rows=rows.filter(c=>String(customerAttentionMap[String(c.customerId)]?.buyer_stage||"Registered / Browsing")===status);
   if(attentionFilter){
     rows=rows.filter(c=>{
       const a=customerAttention(c);
