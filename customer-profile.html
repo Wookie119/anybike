@@ -383,16 +383,16 @@
         </section>
 
         <section class="card setup-target" id="section-business">
-          <div class="section-head"><div><h2>Buyer Type &amp; Business Details</h2><p class="card-intro">Tell AnyBike whether you are buying privately or as a dealer / business. Business details are required when you are buying in a trade or professional capacity.</p></div><span class="section-state" id="state-business">Needs attention</span></div>
+          <div class="section-head"><div><h2>Buyer Type &amp; Business Details</h2><p class="card-intro">AnyBike currently sells motorcycles on a trade / business basis. Tell us the trade capacity in which you are buying and provide the business details used for the purchase.</p></div><span class="section-state" id="state-business">Needs attention</span></div>
 
           <div class="grid">
             <div>
               <label for="buyerType">I am buying as</label>
               <select id="buyerType">
                 <option value="">Select buyer type</option>
-                <option>Private Buyer</option>
                 <option>Motorcycle Dealer / Trader</option>
                 <option>Importer / Wholesaler</option>
+                <option>Trade / Business Buyer</option>
                 <option>Other Business / Professional</option>
               </select>
             </div>
@@ -408,7 +408,7 @@
             </div>
 
             <div class="full" id="buyerTypeHelp" style="color:#b9b9b9;font-size:13px;line-height:1.5">
-              Select your buyer type first. Private international buyers do not need a business name or business address. UK motorcycle sales through AnyBike are trade-only.
+              Select the trade / business capacity in which you are buying. A business / trading name and business / trading address are required for Buyer Setup.
             </div>
           </div>
         </section>
@@ -916,23 +916,14 @@
 
     function updateBuyerTypeFields(){
       const type=value("buyerType");
-      const trade=Boolean(type && type!=="Private Buyer");
-      const country=value("country");
       const help=document.getElementById("buyerTypeHelp");
-      if(help){
-        if(type==="Private Buyer" && country==="United Kingdom"){
-          help.textContent="AnyBike does not sell motorcycles to the general public in the UK. UK purchases must be made by a verified trade / business buyer.";
-          help.style.color="#ff8d92";
-        }else if(type==="Private Buyer"){
-          help.textContent="Private international buyer selected. Business name and business address are not required.";
-          help.style.color="#b9b9b9";
-        }else if(trade){
-          help.textContent="Trade / business buyer selected. Business / trading name and business / trading address are required.";
-          help.style.color="#b9b9b9";
-        }else{
-          help.textContent="Select your buyer type first. Private international buyers do not need a business name or business address. UK motorcycle sales through AnyBike are trade-only.";
-          help.style.color="#b9b9b9";
-        }
+      if(!help) return;
+      if(type){
+        help.textContent="AnyBike currently sells motorcycles on a trade / business basis. Your business / trading name and address are required and should match the capacity in which you are buying.";
+        help.style.color="#b9b9b9";
+      }else{
+        help.textContent="Select the trade / business capacity in which you are buying. Private customer purchasing is not currently part of the AnyBike sales route.";
+        help.style.color="#b9b9b9";
       }
     }
 
@@ -1029,12 +1020,11 @@
 
     function buyerSetupCompletion(){
       const buyerType=value("buyerType");
-      const tradeBuyer=buyerType && buyerType!=="Private Buyer";
       const bankUk=Boolean(value("bankAccountName") && value("bankAccountNumber") && value("bankSortCode"));
       const bankInternational=Boolean(value("bankAccountName") && value("bankInternationalNotes"));
       return {
         contact:Boolean(value("fullName") && value("phone") && value("country") && value("city")),
-        business:Boolean(buyerType && (!tradeBuyer || (value("businessName") && value("businessAddress")))),
+        business:Boolean(buyerType && value("businessName") && value("businessAddress")),
         buyer:Boolean(document.getElementById("shippingMethod").value),
         identity:documentOnFile("identityDocumentState","identityDocument"),
         address:documentOnFile("addressDocumentState","addressDocument"),
@@ -1082,7 +1072,7 @@
       if(s.contact && !s.business){
         target="section-business"; field="buyerType";
         button="Confirm Buyer Type →"; heading="Your next action: Confirm Buyer Type & Business Details";
-        copy="Tell us whether you are buying privately or as a dealer / business. Trade buyers must add their business name and address.";
+        copy="Select your trade / business buyer type and add the business / trading name and address used for the purchase.";
       }else if(s.contact && s.business && !s.buyer){
         target="buyer-onboarding"; field="shippingMethod";
         button="Complete Buyer & Export →"; heading="Your next action: Complete Buyer & Export Details";
