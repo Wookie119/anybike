@@ -1922,6 +1922,17 @@ body.customer-offer-modal-open{overflow:hidden}
     </div>
   </section>
 
+  <section id="customerNextActionsPanel" class="panel" style="display:none;border-color:rgba(237,28,36,.55)">
+    <div class="panel-head" style="align-items:flex-start">
+      <div>
+        <div class="eyebrow" style="margin-bottom:5px">Your next action</div>
+        <h2>What needs your attention</h2>
+        <p id="customerNextActionsSummary">We will show each purchase or offer that needs something from you.</p>
+      </div>
+    </div>
+    <div id="customerNextActionsList" style="display:grid;gap:10px"></div>
+  </section>
+
   <section id="buyerSetupBanner" class="panel" style="display:none;border-color:rgba(237,28,36,.36)">
     <div class="panel-head" style="align-items:center">
       <div>
@@ -3908,6 +3919,181 @@ window.loadDashboardDeliveryReport=loadDashboardDeliveryReport;
 window.closeDashboardDeliveryReport=closeDashboardDeliveryReport;
 
 
+let latestCustomerPurchaseRows=[];
+let latestCustomerNotificationRows=[];
+let latestCustomerOfferRows=[];
+
+function customerActionCardHtml(action){
+  const waiting=action.waiting===true;
+  return '<div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;align-items:center;padding:15px 16px;border:1px solid '+(waiting?'rgba(255,179,107,.34)':'rgba(237,28,36,.48)')+';border-radius:14px;background:'+(waiting?'rgba(255,159,28,.05)':'rgba(237,28,36,.055)')+'">'+
+    '<div>'+
+      '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:5px">'+
+        '<strong style="font-size:16px">'+safe(action.title)+'</strong>'+
+        (action.deal?'<span style="font-size:10px;font-weight:900;color:#bbb;border:1px solid rgba(255,255,255,.14);border-radius:999px;padding:4px 7px">'+safe(action.deal)+'</span>':'')+
+      '</div>'+
+      '<div style="color:#bbb;font-size:13px;line-height:1.45">'+safe(action.text)+'</div>'+
+    '</div>'+
+    (action.href
+      ? '<a class="panel-link" style="white-space:nowrap" href="'+safe(action.href)+'">'+safe(action.cta||"Open →")+'</a>'
+      : '<span style="font-size:12px;font-weight:900;color:#ffb36b;white-space:nowrap">Waiting for AnyBike</span>')+
+  '</div>';
+}
+
+function buildPurchaseCustomerAction(purchase){
+  const state=customerDashboardPurchaseState(purchase);
+  if(!state) return null;
+
+  const deal=String(purchase.deal_number||"").trim();
+  const bike=[purchase.make,purchase.model,purchase.variant].filter(Boolean).join(" ")||"Motorcycle";
+  const balance=Number(state.balance||0);
+  const depositOutstanding=Number(state.depositOutstanding||state.depositDue||0);
+
+  if(!state.depositSatisfied && state.pendingDepositAdvice){
+    return {
+      priority:30,
+      waiting:true,
+      deal:deal,
+      title:"Deposit reported · awaiting verification",
+      text:(buyerMatchMoney(state.pendingDepositAdviceAmount)||"Your deposit")+" for "+bike+" has been reported. You do not need to report it again while AnyBike checks the bank receipt.",
+      href:deal?"/accounts-documents.html?deal="+encodeURIComponent(deal):"",
+      cta:"View payment status →"
+    };
+  }
+
+  if(!state.depositSatisfied){
+    return {
+      priority:5,
+      deal:deal,
+      title:"Pay / report "+(buyerMatchMoney(depositOutstanding)||"")+" deposit",
+      text:"Your Formal Offer for "+bike+" has been accepted. The deposit is the next action required from you.",
+      href:deal?"/accounts-documents.html?deal="+encodeURIComponent(deal)+"&payment=deposit&amount="+encodeURIComponent(depositOutstanding.toFixed(2))+"&ref="+encodeURIComponent(deal):"/accounts-documents.html",
+      cta:"Pay / Report Deposit →"
+    };
+  }
+
+  if(!state.secured){
+    return {
+      priority:35,
+      waiting:true,
+      deal:deal,
+      title:"AnyBike is completing the seller check",
+      text:"Your deposit is complete for "+bike+". No action is required from you while AnyBike confirms and secures the motorcycle.",
+      href:deal?"/my-purchases.html?deal="+encodeURIComponent(purchase.deal_id):"/my-purchases.html",
+      cta:"View purchase →"
+    };
+  }
+
+  if(!state.fullyPaid && balance>0){
+    return {
+      priority:10,
+      deal:deal,
+      title:"Pay remaining balance · "+(buyerMatchMoney(balance)||""),
+      text:bike+" is secured. Your next action is to complete the remaining balance and any required documents before collection.",
+      href:deal?"/accounts-documents.html?deal="+encodeURIComponent(deal)+"&payment=balance&amount="+encodeURIComponent(balance.toFixed(2))+"&ref="+encodeURIComponent(deal):"/accounts-documents.html",
+      cta:"Pay Balance / Documents →"
+    };
+  }
+
+  const collectionStatus=String(purchase.collection_job_status||purchase.collection_status||"").toLowerCase();
+  const delivered=String(purchase.delivery_handover_status||"").toLowerCase()==="delivered" || !!purchase.delivery_completed_at;
+
+  if(!collectionStatus && !delivered){
+    return {
+      priority:40,
+      waiting:true,
+      deal:deal,
+      title:"AnyBike is arranging collection",
+      text:"Payment is complete for "+bike+". No action is required from you while collection is arranged.",
+      href:"/my-purchases.html?deal="+encodeURIComponent(purchase.deal_id||""),
+      cta:"View purchase →"
+    };
+  }
+
+  if(!delivered){
+    return {
+      priority:45,
+      waiting:true,
+      deal:deal,
+      title:"Collection / UK handover in progress",
+      text:bike+" is progressing through collection, custody or UK handover. We will show you here if anything is needed from you.",
+      href:"/my-purchases.html?deal="+encodeURIComponent(purchase.deal_id||""),
+      cta:"View progress →"
+    };
+  }
+
+  return null;
+}
+
+function renderCustomerNextActions(){
+  const panel=document.getElementById("customerNextActionsPanel");
+  const list=document.getElementById("customerNextActionsList");
+  const summary=document.getElementById("customerNextActionsSummary");
+  if(!panel||!list) return;
+
+  const actions=[];
+
+  (latestCustomerOfferRows||[]).forEach(function(match){
+    if(String(match?.match_status||"")!=="Confirmed Offer Sent" || String(match?.customer_offer_decision||"").trim()) return;
+    const expires=match.confirmed_offer_expires_at ? new Date(match.confirmed_offer_expires_at).getTime() : null;
+    if(expires && Number.isFinite(expires) && expires<=Date.now()) return;
+    const title=[match.stock_make,match.stock_model,match.stock_variant].filter(Boolean).join(" ")||"motorcycle";
+    actions.push({
+      priority:1,
+      deal:String(match._deal_number||"").trim(),
+      title:"Review Formal Offer",
+      text:"AnyBike has sent you a Formal Offer for "+title+". Review and accept or decline it before it expires.",
+      href:match._offer_source==="deal360"
+        ? "/customer-dashboard.html?deal_offer="+encodeURIComponent(match._deal_offer_id)+"#my-offers"
+        : "/customer-dashboard.html?offer="+encodeURIComponent(match.id)+"#my-offers",
+      cta:"Review Formal Offer →"
+    });
+  });
+
+  (latestCustomerPurchaseRows||[]).forEach(function(purchase){
+    const action=buildPurchaseCustomerAction(purchase);
+    if(action) actions.push(action);
+  });
+
+  const hasMessageAction=actions.some(a=>a.priority<=10);
+  if(!hasMessageAction){
+    const messageNotice=(latestCustomerNotificationRows||[]).find(function(n){
+      const type=String(n.type||"").toLowerCase();
+      const msg=String(n.message||"").toLowerCase();
+      return type.includes("message") &&
+        !msg.includes("payment received and verified") &&
+        !msg.includes("verified and allocated your payment");
+    });
+    if(messageNotice){
+      actions.push({
+        priority:20,
+        title:"Read your new message from AnyBike",
+        text:String(messageNotice.message||"AnyBike has sent you a new message."),
+        href:messageNotice.link||"/customer-messages.html",
+        cta:"Read Message →"
+      });
+    }
+  }
+
+  actions.sort((a,b)=>a.priority-b.priority);
+
+  if(!actions.length){
+    panel.style.display="none";
+    list.innerHTML="";
+    return;
+  }
+
+  panel.style.display="";
+  const customerTasks=actions.filter(a=>!a.waiting).length;
+  if(summary){
+    summary.textContent=customerTasks
+      ? (customerTasks===1
+          ? "You have 1 action that needs your attention. Other purchases may be waiting for AnyBike."
+          : "You have "+customerTasks+" actions that need your attention across your AnyBike activity.")
+      : "Nothing needs you to act right now. These are the stages AnyBike is currently progressing for you.";
+  }
+  list.innerHTML=actions.slice(0,8).map(customerActionCardHtml).join("");
+}
+
 function renderMyPurchases(rows){
   const box=document.getElementById("myPurchasesBox");
   if(!box) return;
@@ -4221,9 +4407,12 @@ async function loadBuyerPotentialMatches(){
 
   const allCustomerOfferRows=[...buyerMatchRows,...deal360OfferRows];
   currentBuyerMatchRows=allCustomerOfferRows;
+  latestCustomerOfferRows=allCustomerOfferRows;
+  latestCustomerPurchaseRows=purchaseRes.error ? [] : (purchaseRes.data || []);
 
   renderMyOffers(allCustomerOfferRows);
   renderMyPurchases(allCustomerOfferRows);
+  renderCustomerNextActions();
 
   renderBuyerPotentialMatches(buyerMatchRows.filter(match=>{
     const status=String(match?.match_status || "");
@@ -6736,9 +6925,11 @@ async function loadCustomerNotifications(){
   }
 
   const rows=data || [];
+  latestCustomerNotificationRows=rows;
 
   setCustomerNotificationBadges(rows.length);
   renderCustomerNotifications(rows);
+  renderCustomerNextActions();
 }
 
 async function markCustomerNotificationRead(notificationId){
