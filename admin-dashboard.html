@@ -879,7 +879,21 @@ color:#ed1c24;
 
 /* ADMIN ACTION QUEUE V2 */
 .action-queue-summary{display:grid;grid-template-columns:repeat(5,minmax(120px,1fr));gap:8px;margin:0 0 14px}
-.action-summary-tile{min-height:66px;padding:10px 11px;border-radius:12px;background:#151515;border:1px solid rgba(255,255,255,.10)}
+.action-summary-tile{
+  min-height:66px;padding:10px 11px;border-radius:12px;background:#151515;
+  border:1px solid rgba(255,255,255,.10);text-align:left;cursor:pointer;color:inherit;font:inherit
+}
+.action-summary-tile:hover{border-color:rgba(237,28,36,.65);transform:translateY(-1px)}
+.action-summary-tile.active{box-shadow:0 0 0 2px rgba(237,28,36,.35) inset;border-color:#ed1c24}
+.action-filter-row{display:flex;align-items:center;gap:10px;margin:-2px 0 14px}
+.action-filter-clear{
+  background:#181818;color:#ddd;border:1px solid rgba(255,255,255,.12);
+  border-radius:999px;padding:7px 11px;font-weight:900;cursor:pointer
+}
+.action-filter-clear.active,.action-filter-clear:hover{border-color:#ed1c24;color:#fff}
+#actionFilterLabel{color:#888;font-size:12px;font-weight:800}
+.action-card-v2.text-only{grid-template-columns:minmax(0,1fr) auto}
+
 .action-summary-tile span{display:block;color:#888;font-size:10px;font-weight:950;letter-spacing:.06em;text-transform:uppercase;margin-bottom:7px}
 .action-summary-tile strong{display:block;color:#fff;font-size:22px;line-height:1}
 .action-summary-tile.urgent strong{color:#ff676d}.action-summary-tile.today strong{color:#ffb24a}
@@ -902,7 +916,7 @@ color:#ed1c24;
 .action-card-open{align-self:center;white-space:nowrap;color:#ed1c24;font-size:12px;font-weight:950}
 .action-queue-empty{padding:18px;text-align:center;color:#999;background:#141414;border:1px dashed rgba(255,255,255,.15);border-radius:12px}
 .action-queue-note{margin-top:12px;color:#777;font-size:12px;line-height:1.45}
-@media(max-width:900px){.action-queue-summary{grid-template-columns:repeat(2,minmax(120px,1fr))}.action-card-v2{grid-template-columns:40px minmax(0,1fr)}.action-card-open{grid-column:2;justify-self:start}}
+@media(max-width:900px){.action-queue-summary{grid-template-columns:repeat(2,minmax(120px,1fr))}.action-card-v2.text-only{grid-template-columns:1fr}.action-card-open{grid-column:1;justify-self:start}}
 
 
 /* ADMIN HQ COMPACT KPI GRID */
@@ -1814,11 +1828,15 @@ color:#ed1c24;
     </div>
 
     <div class="action-queue-summary" aria-label="Action counts by area">
-      <div class="action-summary-tile urgent"><span>Sales</span><strong id="actionSalesCount">0</strong></div>
-      <div class="action-summary-tile today"><span>Customers</span><strong id="actionCustomersCount">0</strong></div>
-      <div class="action-summary-tile waiting"><span>Accounts</span><strong id="actionAccountsCount">0</strong></div>
-      <div class="action-summary-tile operations"><span>Operations</span><strong id="actionOperationsCount">0</strong></div>
-      <div class="action-summary-tile shipping"><span>Messages</span><strong id="actionMessagesCount">0</strong></div>
+      <button type="button" class="action-summary-tile urgent" data-action-filter="sales" onclick="setDashboardActionFilter('sales')"><span>Sales</span><strong id="actionSalesCount">0</strong></button>
+      <button type="button" class="action-summary-tile today" data-action-filter="customers" onclick="setDashboardActionFilter('customers')"><span>Customers</span><strong id="actionCustomersCount">0</strong></button>
+      <button type="button" class="action-summary-tile waiting" data-action-filter="accounts" onclick="setDashboardActionFilter('accounts')"><span>Accounts</span><strong id="actionAccountsCount">0</strong></button>
+      <button type="button" class="action-summary-tile operations" data-action-filter="operations" onclick="setDashboardActionFilter('operations')"><span>Operations</span><strong id="actionOperationsCount">0</strong></button>
+      <button type="button" class="action-summary-tile shipping" data-action-filter="messages" onclick="setDashboardActionFilter('messages')"><span>Messages</span><strong id="actionMessagesCount">0</strong></button>
+    </div>
+    <div class="action-filter-row">
+      <button type="button" id="actionFilterAll" class="action-filter-clear active" onclick="setDashboardActionFilter('all')">Show all actions</button>
+      <span id="actionFilterLabel">Showing all actions</span>
     </div>
 
     <div id="dashboardActionQueue">
@@ -2819,8 +2837,33 @@ function buildDashboardDealActions(
   return actions;
 }
 
-function renderDashboardActionQueue(actions){
+let dashboardActionFilter="all";
+let dashboardLastActions=[];
+
+function setDashboardActionFilter(group){
+  dashboardActionFilter=group || "all";
+
+  document.querySelectorAll("[data-action-filter]").forEach(function(tile){
+    tile.classList.toggle("active",tile.getAttribute("data-action-filter")===dashboardActionFilter);
+  });
+
+  const allButton=document.getElementById("actionFilterAll");
+  if(allButton){ allButton.classList.toggle("active",dashboardActionFilter==="all"); }
+
+  const label=document.getElementById("actionFilterLabel");
+  const names={sales:"Sales",customers:"Customers",accounts:"Accounts",operations:"Operations",messages:"Messages"};
+  if(label){
+    label.textContent=dashboardActionFilter==="all"
+      ? "Showing all actions"
+      : "Showing "+(names[dashboardActionFilter]||"filtered")+" actions";
+  }
+
+  renderDashboardActionQueue(dashboardLastActions,true);
+}
+
+function renderDashboardActionQueue(actions,fromFilter){
   const queue = document.getElementById("dashboardActionQueue");
+  if(!fromFilter){ dashboardLastActions=(actions||[]).slice(); }
   const badge = document.getElementById("actionQueueTotal");
   if(!queue){ return; }
 
@@ -2843,7 +2886,16 @@ function renderDashboardActionQueue(actions){
     return;
   }
 
-  const ordered = (actions || []).slice().sort(function(a,b){
+  const visibleActions = dashboardActionFilter==="all"
+    ? (actions || [])
+    : (actions || []).filter(function(action){ return action.group===dashboardActionFilter; });
+
+  if(!visibleActions.length){
+    queue.innerHTML='<div class="action-queue-empty"><strong>No actions in this area.</strong><div style="margin-top:5px;">Choose another category or show all actions.</div></div>';
+    return;
+  }
+
+  const ordered = visibleActions.slice().sort(function(a,b){
     const pa = priorityRank[a.priority] ?? 9;
     const pb = priorityRank[b.priority] ?? 9;
     if(pa !== pb){ return pa-pb; }
@@ -2860,8 +2912,7 @@ function renderDashboardActionQueue(actions){
       messages:"MESSAGE"
     }[action.group] || "ACTION";
 
-    return '<article class="action-card-v2 priority-'+action.priority+'" onclick="location.href=\''+action.url+'\'">'+
-      '<div class="action-card-icon">'+action.icon+'</div>'+
+    return '<article class="action-card-v2 text-only priority-'+action.priority+'" onclick="location.href=\''+action.url+'\'">'+
       '<div class="action-card-main">'+
         '<div class="action-card-title">'+
           '<span class="action-order">'+(index+1)+'</span>'+
