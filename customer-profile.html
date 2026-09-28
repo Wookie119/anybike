@@ -289,9 +289,11 @@
           <div class="setup-progress"><div id="setupProgressFill"></div></div>
           <div class="setup-step-list">
             <div class="setup-step" data-setup="contact"><strong>Contact Details</strong><span>Required</span></div>
-            <div class="setup-step" data-setup="buyer"><strong>Buyer & Export</strong><span>Required</span></div>
+            <div class="setup-step" data-setup="business"><strong>Buyer Type &amp; Business</strong><span>Required</span></div>
+            <div class="setup-step" data-setup="buyer"><strong>Buyer &amp; Export</strong><span>Required</span></div>
             <div class="setup-step" data-setup="identity"><strong>Photo ID</strong><span>Required</span></div>
             <div class="setup-step" data-setup="address"><strong>Proof of Address</strong><span>Required</span></div>
+            <div class="setup-step" data-setup="bank"><strong>Bank Details</strong><span>Required</span></div>
             <div class="setup-step" data-setup="shipping"><strong>Shipping Preferences</strong><span>Required</span></div>
           </div>
           <div class="next-action">
@@ -381,25 +383,38 @@
         </section>
 
         <section class="card setup-target" id="section-business">
-          <div class="section-head"><h2>Business / Trade Details</h2><span class="section-state optional">Optional</span></div>
-          <p class="card-intro">Add what applies to you. If you do not know or have something yet, leave it blank and save what you do have.</p>
+          <div class="section-head"><div><h2>Buyer Type &amp; Business Details</h2><p class="card-intro">Tell AnyBike whether you are buying privately or as a dealer / business. Business details are required when you are buying in a trade or professional capacity.</p></div><span class="section-state" id="state-business">Needs attention</span></div>
 
           <div class="grid">
             <div>
-              <label for="businessName">Business name</label>
-              <input id="businessName" autocomplete="organization">
+              <label for="buyerType">I am buying as</label>
+              <select id="buyerType">
+                <option value="">Select buyer type</option>
+                <option>Private Buyer</option>
+                <option>Motorcycle Dealer / Trader</option>
+                <option>Importer / Wholesaler</option>
+                <option>Other Business / Professional</option>
+              </select>
             </div>
 
-            <div class="full">
-              <label for="businessAddress">Business address</label>
-              <textarea id="businessAddress" autocomplete="street-address"></textarea>
+            <div id="businessNameWrap">
+              <label for="businessName">Business / trading name</label>
+              <input id="businessName" autocomplete="organization" placeholder="Required for trade / business buyers">
+            </div>
+
+            <div class="full" id="businessAddressWrap">
+              <label for="businessAddress">Business / trading address</label>
+              <textarea id="businessAddress" autocomplete="street-address" placeholder="Required for trade / business buyers"></textarea>
+            </div>
+
+            <div class="full" id="buyerTypeHelp" style="color:#b9b9b9;font-size:13px;line-height:1.5">
+              Select your buyer type first. Private international buyers do not need a business name or business address. UK motorcycle sales through AnyBike are trade-only.
             </div>
           </div>
         </section>
 
         <section class="card setup-target" id="section-bank">
-          <div class="section-head"><h2>Bank Details</h2><span class="section-state optional">Optional</span></div>
-          <p class="card-intro">Add these only if you want AnyBike to hold refund or credit payment details on your account. You can skip this section and return later.</p>
+          <div class="section-head"><div><h2>Bank Details</h2><p class="card-intro">Required for Buyer Setup so AnyBike can identify the paying account and return funds or credits correctly when needed. Enter UK bank details or your international IBAN / SWIFT details.</p></div><span class="section-state" id="state-bank">Needs attention</span></div>
 
           <div class="grid">
             <div>
@@ -826,6 +841,7 @@
       setValue("country", profile?.country);
       setValue("city", profile?.city);
       setValue("region", profile?.region);
+      setValue("buyerType", profile?.buyer_type);
       setValue("businessName", profile?.business_name);
       setValue("businessAddress", profile?.business_address);
       setValue("bankAccountName", profile?.bank_account_name);
@@ -868,6 +884,7 @@
 
       document.getElementById("loadingBox").classList.add("hidden");
       document.getElementById("profilePage").classList.remove("hidden");
+      updateBuyerTypeFields();
       updateSetupReminder();
       initialLoadComplete=true;
       setAutosaveStatus("saved","All changes saved");
@@ -897,8 +914,35 @@
 
     window.addEventListener("hashchange",scrollToProfileHash);
 
+    function updateBuyerTypeFields(){
+      const type=value("buyerType");
+      const trade=Boolean(type && type!=="Private Buyer");
+      const country=value("country");
+      const help=document.getElementById("buyerTypeHelp");
+      if(help){
+        if(type==="Private Buyer" && country==="United Kingdom"){
+          help.textContent="AnyBike does not sell motorcycles to the general public in the UK. UK purchases must be made by a verified trade / business buyer.";
+          help.style.color="#ff8d92";
+        }else if(type==="Private Buyer"){
+          help.textContent="Private international buyer selected. Business name and business address are not required.";
+          help.style.color="#b9b9b9";
+        }else if(trade){
+          help.textContent="Trade / business buyer selected. Business / trading name and business / trading address are required.";
+          help.style.color="#b9b9b9";
+        }else{
+          help.textContent="Select your buyer type first. Private international buyers do not need a business name or business address. UK motorcycle sales through AnyBike are trade-only.";
+          help.style.color="#b9b9b9";
+        }
+      }
+    }
+
+    document.getElementById("buyerType")?.addEventListener("change",()=>{
+      updateBuyerTypeFields();
+      markDirtyAndAutosave();
+    });
     document.getElementById("country")?.addEventListener("change",()=>{
       populateDestinationPorts(document.getElementById("country")?.value||"","");
+      updateBuyerTypeFields();
       markDirtyAndAutosave();
     });
     document.getElementById("destinationPort")?.addEventListener("change",()=>{
@@ -936,7 +980,10 @@
       }
 
       if(!data){
-        host.innerHTML='<span class="onboarding-pill warn">Setup not yet reviewed by AnyBike</span>';
+        const complete=Object.values(buyerSetupCompletion()).every(Boolean);
+        host.innerHTML=complete
+          ? '<span class="onboarding-pill warn">Buyer Setup complete — ready for AnyBike review</span>'
+          : '<span class="onboarding-pill warn">Buyer Setup in progress</span>';
         return;
       }
 
@@ -978,18 +1025,24 @@
     }
 
     function buyerSetupCompletion(){
+      const buyerType=value("buyerType");
+      const tradeBuyer=buyerType && buyerType!=="Private Buyer";
+      const bankUk=Boolean(value("bankAccountName") && value("bankAccountNumber") && value("bankSortCode"));
+      const bankInternational=Boolean(value("bankAccountName") && value("bankInternationalNotes"));
       return {
         contact:Boolean(value("fullName") && value("phone") && value("country") && value("city")),
+        business:Boolean(buyerType && (!tradeBuyer || (value("businessName") && value("businessAddress")))),
         buyer:Boolean(document.getElementById("shippingMethod").value),
         identity:documentOnFile("identityDocumentState","identityDocument"),
         address:documentOnFile("addressDocumentState","addressDocument"),
+        bank:Boolean(bankUk || bankInternational),
         shipping:Boolean(value("shippingCompany") && value("shippingContactName") && value("shippingContactEmail") && value("shippingContactPhone") && value("shippingCountry") && value("shippingAddress1") && value("shippingCity"))
       };
     }
 
     function updateSetupReminder(){
       const s=buyerSetupCompletion();
-      const keys=["contact","buyer","identity","address","shipping"];
+      const keys=["contact","business","buyer","identity","address","bank","shipping"];
       const done=keys.filter(k=>s[k]).length;
       const progress=document.getElementById("setupProgressFill");
       if(progress) progress.style.width=((done/keys.length)*100)+"%";
@@ -1007,7 +1060,9 @@
         el.classList.toggle("complete",complete);
       };
       setState("state-contact",s.contact);
+      setState("state-business",s.business);
       setState("state-buyer",s.buyer && s.identity && s.address);
+      setState("state-bank",s.bank);
       setState("state-shipping",s.shipping);
 
       const title=document.getElementById("setupNextTitle");
@@ -1021,19 +1076,27 @@
       let heading="Your next action: Complete Contact Details";
       let copy="Add the missing contact details, then save that section.";
 
-      if(s.contact && !s.buyer){
+      if(s.contact && !s.business){
+        target="section-business"; field="buyerType";
+        button="Confirm Buyer Type →"; heading="Your next action: Confirm Buyer Type & Business Details";
+        copy="Tell us whether you are buying privately or as a dealer / business. Trade buyers must add their business name and address.";
+      }else if(s.contact && s.business && !s.buyer){
         target="buyer-onboarding"; field="shippingMethod";
         button="Complete Buyer & Export →"; heading="Your next action: Complete Buyer & Export Details";
-        copy="Choose your usual shipping method. Your usual destination port is optional and can be added later.";
-      }else if(s.contact && s.buyer && !s.identity){
+        copy="Choose your usual shipping method. Your onward destination port is optional and can be added later.";
+      }else if(s.contact && s.business && s.buyer && !s.identity){
         target="buyer-onboarding"; field="identityDocument";
         button="Upload Photo ID →"; heading="Your next action: Upload Photo ID";
         copy="A passport or other photo ID is still needed to complete Buyer Setup.";
-      }else if(s.contact && s.buyer && s.identity && !s.address){
+      }else if(s.contact && s.business && s.buyer && s.identity && !s.address){
         target="buyer-onboarding"; field="addressDocument";
         button="Upload Proof of Address →"; heading="Your next action: Upload Proof of Address";
         copy="Proof of your current address is still needed to complete Buyer Setup.";
-      }else if(s.contact && s.buyer && s.identity && s.address && !s.shipping){
+      }else if(s.contact && s.business && s.buyer && s.identity && s.address && !s.bank){
+        target="section-bank"; field="bankAccountName";
+        button="Complete Bank Details →"; heading="Your next action: Complete Bank Details";
+        copy="Add the account name and either UK account details or international IBAN / SWIFT details.";
+      }else if(s.contact && s.business && s.buyer && s.identity && s.address && s.bank && !s.shipping){
         target="section-shipping"; field="shippingDirectorySelect";
         button="Complete Shipping Preferences →"; heading="Your next action: Complete Shipping Preferences";
         copy="Choose a known shipper or add your own shipper's contact and address details.";
@@ -1062,7 +1125,7 @@
     function sectionPayload(section){
       const base={id:currentUser.id,email:currentUser.email || value("email")};
       if(section==="contact") return {...base,full_name:value("fullName")||null,phone:value("phone")||null,country:value("country")||null,city:value("city")||null,region:value("region")||null};
-      if(section==="business") return {...base,business_name:value("businessName")||null,business_address:value("businessAddress")||null};
+      if(section==="business") return {...base,buyer_type:value("buyerType")||null,business_name:value("businessName")||null,business_address:value("businessAddress")||null};
       if(section==="bank") return {...base,bank_account_name:value("bankAccountName")||null,bank_account_number:value("bankAccountNumber")||null,bank_sort_code:value("bankSortCode")||null,bank_international_notes:value("bankInternationalNotes")||null};
       if(section==="preferences") return {...base,preferred_currency:document.getElementById("currency").value||"GBP",preferred_language:document.getElementById("language").value||"en"};
       if(section==="buyer") return {...base,buyer_eori_number:value("buyerEori")||null,preferred_destination_port:selectedDestinationPort()||null,preferred_shipping_method:document.getElementById("shippingMethod").value||null,typical_bikes_per_shipment:document.getElementById("typicalQuantity").value||null};
@@ -1148,6 +1211,7 @@
         country: value("country") || null,
         city: value("city") || null,
         region: value("region") || null,
+        buyer_type: value("buyerType") || null,
         business_name: value("businessName") || null,
         business_address: value("businessAddress") || null,
         bank_account_name: value("bankAccountName") || null,
@@ -1171,7 +1235,7 @@
         shipping_country: value("shippingCountry") || null,
         preferred_uk_collection_point: value("collectionPoint") || null,
         buyer_eori_number: value("buyerEori") || null,
-        preferred_destination_port: value("destinationPort") || null,
+        preferred_destination_port: selectedDestinationPort() || null,
         preferred_shipping_method: document.getElementById("shippingMethod").value || null,
         typical_bikes_per_shipment: document.getElementById("typicalQuantity").value || null,
         onboarding_submitted_at: new Date().toISOString()
@@ -1294,6 +1358,7 @@
           country:value("country")||null,
           city:value("city")||null,
           region:value("region")||null,
+          buyer_type:value("buyerType")||null,
           business_name:value("businessName")||null,
           business_address:value("businessAddress")||null,
           bank_account_name:value("bankAccountName")||null,
@@ -1303,7 +1368,7 @@
           preferred_currency:document.getElementById("currency").value||"GBP",
           preferred_language:document.getElementById("language").value||"en",
           buyer_eori_number:value("buyerEori")||null,
-          preferred_destination_port:value("destinationPort")||null,
+          preferred_destination_port:selectedDestinationPort()||null,
           preferred_shipping_method:document.getElementById("shippingMethod").value||null,
           typical_bikes_per_shipment:document.getElementById("typicalQuantity").value||null,
           ...sectionPayload("shipping")
