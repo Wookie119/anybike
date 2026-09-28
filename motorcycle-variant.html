@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Motorcycle Variant Guide | AnyBike</title>
+<meta name="description" content="Explore a motorcycle variant and current UK motorcycles available through AnyBike.">
+<meta name="robots" content="index,follow">
+<link rel="canonical" id="canonicalLink" href="https://www.anybike.co.uk/motorcycle-variant.html">
+<link rel="stylesheet" href="/public-header.css?v=12021">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--red:#ed1c24;--bg:#080808;--panel:#111;--line:rgba(255,255,255,.12);--muted:#aaa}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:#fff;font-family:Arial,Helvetica,sans-serif}a{color:inherit;text-decoration:none}
+main{width:min(1500px,94vw);margin:auto;padding:52px 0 70px}.eyebrow{color:var(--red);font-weight:950;text-transform:uppercase;letter-spacing:.12em;font-size:12px}
+h1{font-size:clamp(38px,6vw,68px);margin:8px 0 12px;line-height:.98}p{color:var(--muted);line-height:1.55}
+.breadcrumbs{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 24px;color:#bbb}.breadcrumbs a:hover{color:#fff}
+.stock{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-top:24px}.bike{overflow:hidden;border:1px solid var(--line);border-radius:18px;background:#111}.bike:hover{border-color:var(--red)}.bike img{width:100%;aspect-ratio:4/3;object-fit:cover;background:#eee}.copy{padding:16px}.copy h3{margin:0 0 8px}.price{font-size:22px;font-weight:950;margin-top:9px}.btn{display:inline-block;margin-top:18px;background:var(--red);padding:12px 16px;border-radius:999px;font-weight:950}
+.info{margin-top:28px;padding:22px;border:1px solid var(--line);border-radius:18px;background:var(--panel)}.info h2{margin-top:0}
+</style>
+</head>
+<body>
+<header id="publicHeader"></header>
+<main>
+  <nav id="breadcrumbs" class="breadcrumbs" aria-label="Breadcrumb"></nav>
+  <div class="eyebrow">AnyBike Variant Guide</div>
+  <h1 id="title">Motorcycle variant</h1>
+  <p id="intro">Explore this motorcycle derivative and current UK motorcycles.</p>
+  <section class="info">
+    <h2>Buying this motorcycle through AnyBike</h2>
+    <p>Browse current UK examples below. If the exact year, colour, mileage or specification you need is not listed, AnyBike can source a suitable motorcycle from the UK market.</p>
+    <a id="sourceLink" class="btn" href="/buy-motorcycles.html">Ask AnyBike to source one</a>
+  </section>
+  <div id="stock" class="stock"></div>
+</main>
+<script>
+const sb=supabase.createClient("https://tuehtnezhdnkqbbhttgp.supabase.co","sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK");
+const params=new URLSearchParams(location.search);
+const make=(params.get("make")||"").trim();
+const model=(params.get("model")||"").trim();
+const variant=(params.get("variant")||"").trim();
+function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function money(v){return window.AnyBikeCurrency?.formatGBP?window.AnyBikeCurrency.formatGBP(v):"£"+Number(v||0).toLocaleString("en-GB")}
+async function load(){
+ if(!make||!model||!variant){document.getElementById("title").textContent="Motorcycle variant guide";document.getElementById("stock").innerHTML='<div class="bike"><div class="copy">Choose a manufacturer, model and variant to view this guide.</div></div>';return}
+ const label=[make,model,variant].join(" ");
+ document.title=label+" Motorcycles from the UK | AnyBike";
+ document.querySelector('meta[name="description"]').content="Explore "+label+" motorcycles and current UK examples available through AnyBike.";
+ document.getElementById("canonicalLink").href="https://www.anybike.co.uk/motorcycle-variant.html?make="+encodeURIComponent(make)+"&model="+encodeURIComponent(model)+"&variant="+encodeURIComponent(variant);
+ document.getElementById("title").textContent=label;
+ document.getElementById("intro").textContent="Explore current UK "+label+" motorcycles by year, mileage and price.";
+ document.getElementById("sourceLink").href="/buy-motorcycles.html?make="+encodeURIComponent(make)+"&model="+encodeURIComponent(model)+"&variant="+encodeURIComponent(variant);
+ document.getElementById("breadcrumbs").innerHTML='<a href="/motorcycle-brand.html?make='+encodeURIComponent(make)+'">'+esc(make)+'</a><span>→</span><a href="/motorcycle-model.html?make='+encodeURIComponent(make)+'&model='+encodeURIComponent(model)+'">'+esc(model)+'</a><span>→</span><span>'+esc(variant)+'</span>';
+ const {data,error}=await sb.from("public_available_stock").select("id,make,model,variant,year,mileage,price_gbp,image_url").eq("make",make).eq("model",model).eq("variant",variant).order("year",{ascending:false}).limit(80);
+ if(error)throw error;const rows=data||[];
+ document.getElementById("stock").innerHTML=rows.length?rows.map(b=>'<a class="bike" href="/bike-details.html?id='+encodeURIComponent(b.id)+'"><img src="'+esc((b.image_url||"/anybike-logo-new.jpg").replace("{resize}","w800"))+'" onerror="this.src=\'/anybike-logo-new.jpg\'"><div class="copy"><h3>'+esc([b.year,b.make,b.model,b.variant].filter(Boolean).join(" "))+'</h3><div>'+esc(b.mileage?Number(b.mileage).toLocaleString("en-GB")+" miles":"Mileage on request")+'</div><div class="price" data-price-gbp="'+esc(b.price_gbp)+'">'+esc(money(b.price_gbp))+'</div></div></a>').join(""):'<div class="bike"><div class="copy"><h3>No live examples currently listed</h3><p>AnyBike can still source this exact variant on request.</p></div></div>';
+}
+load().catch(()=>{document.getElementById("stock").innerHTML='<div class="bike"><div class="copy">Could not load this variant.</div></div>'});
+</script>
+<script src="/public-header.js?v=12021"></script>
+</body></html>
