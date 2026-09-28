@@ -825,7 +825,31 @@
       updateSetupReminder();
       initialLoadComplete=true;
       setAutosaveStatus("saved","All changes saved");
+
+      // The profile content is hidden while the customer's data loads, so the browser
+      // cannot reliably honour a URL fragment such as #section-shipping on first load.
+      // Re-apply the requested section after the page has been revealed.
+      scrollToProfileHash();
     }
+
+    function scrollToProfileHash(){
+      const raw=String(window.location.hash||"").replace(/^#/,"");
+      if(!raw) return;
+      let id="";
+      try{id=decodeURIComponent(raw);}catch(_){id=raw;}
+      const target=document.getElementById(id);
+      if(!target) return;
+
+      requestAnimationFrame(()=>{
+        requestAnimationFrame(()=>{
+          target.scrollIntoView({behavior:"smooth",block:"start"});
+          // Leave room for the fixed AnyBike header so the section title is visible.
+          window.setTimeout(()=>window.scrollBy({top:-120,left:0,behavior:"smooth"}),80);
+        });
+      });
+    }
+
+    window.addEventListener("hashchange",scrollToProfileHash);
 
     function setDocumentState(id,path){
       const el=document.getElementById(id);
