@@ -248,3 +248,15 @@ International Markets is public and may remain in navigation.
 - Removed the redundant standalone Bike Sales strip from the Dashboard.
 - Dashboard should not act as a pipeline/map reporting page. Reporting/intelligence remains available in the relevant specialist pages (Market Intelligence, Reports, Customer 360, Logistics, Bike Sales HQ).
 - Dashboard purpose: tell the admin what needs doing next, then provide concise KPIs and shortcuts.
+
+
+### Dashboard operating principle — action before information
+The Admin Dashboard is an execution surface, not a reporting wall.
+
+Primary rule:
+- the first question the Dashboard must answer is **What do I need to do next?**
+- actions should be ordered and task-led, e.g. Check Availability, Send Matches, Send Formal Offer, Send Pro-forma, Match Deposit, Request Balance, Raise Invoice, Book Collection, Send to Move, Review Buyer Setup, Reply to Buyer
+- category is secondary metadata only
+- reporting, maps, pipelines and intelligence belong on specialist pages
+- headline business figures are collapsed into a secondary Business Snapshot below the working area
+- clearing the action queue should directly move buyers toward purchase and deals toward completion
