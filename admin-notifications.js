@@ -320,6 +320,26 @@ function updateSharedAdminNotificationBadge(count){
 
 function adminNotificationUrl(n){
 
+  /*
+    Explicit notification actions always win.
+    Payment alerts should open Accounts HQ; Deal alerts should open Deal 360.
+    Only fall back to a generic enquiry/message route when no action link exists.
+  */
+  if(n && n.link){
+    return n.link;
+  }
+
+  var message=String((n && (n.message || n.body)) || "");
+  var paymentAction=message.match(/\/admin-accounts\.html\?payment_advice=\d+/i);
+  if(paymentAction){
+    return paymentAction[0];
+  }
+
+  var dealAction=message.match(/\/admin-enquiries\.html\?deal=\d+(?:&[^\s]+)?/i);
+  if(dealAction){
+    return dealAction[0];
+  }
+
   var enquiryId =
     n.enquiry_id ||
     n.bike_enquiry_id ||
@@ -333,10 +353,6 @@ function adminNotificationUrl(n){
       encodeURIComponent(enquiryId) +
       "&focus=messages"
     );
-  }
-
-  if(n.link){
-    return n.link;
   }
 
   return "admin-dashboard.html";
