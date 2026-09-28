@@ -427,6 +427,48 @@ button:disabled{
   line-height:1.6;
 }
 
+.second-chance{
+  margin-top:24px;
+  padding:22px;
+  border-radius:14px;
+  background:#19130b;
+  border:1px solid #8a5a1f;
+}
+.second-chance h2{
+  margin:0 0 8px;
+  font-size:22px;
+  color:#ffd18a;
+}
+.second-chance p{
+  margin:0 0 14px;
+  color:#e6dccd;
+  line-height:1.6;
+}
+.second-chance button{
+  background:#ed1c24;
+  color:#fff;
+}
+.second-chance button:disabled{
+  opacity:.55;
+}
+.second-chance-note{
+  width:100%;
+  min-height:86px;
+  resize:vertical;
+  margin:10px 0 14px;
+  padding:12px 13px;
+  border-radius:10px;
+  background:#0f0f0f;
+  color:#fff;
+  border:1px solid #3a3a3a;
+  font:inherit;
+}
+.second-chance-confirmed{
+  background:#102719;
+  border-color:#2f9e44;
+}
+.second-chance-confirmed h2{color:#9bf0b8}
+
 @media(max-width:800px){
 
   .page{
@@ -714,7 +756,7 @@ async function loadOffer(){
 
     const result =
       await client.rpc(
-        "get_my_deal_offer_detail_v1",
+        "get_my_deal_offer_detail_v2",
         {
           p_offer_id: offerId
         }
@@ -1187,7 +1229,28 @@ function renderOffer(){
                      <h2>Offer Declined</h2>
                      <p>Your decision has been recorded. AnyBike can continue helping with your sourcing requirement.</p>
                    </div>`
-                : `<div class="actions">
+                : expired
+                  ? (o.second_chance_request_status === "Requested"
+                      ? `<div class="second-chance second-chance-confirmed">
+                           <h2>Second Chance Requested</h2>
+                           <p>
+                             You have told AnyBike you are happy with the expired offer price and would still like to buy this motorcycle.
+                             We will re-check with the seller that it is still available before we can issue a fresh offer.
+                           </p>
+                         </div>`
+                      : `<div class="second-chance">
+                           <h2>Still want this motorcycle?</h2>
+                           <p>
+                             This offer has expired, so it cannot be accepted automatically. If you are happy with the offer price but did not see it in time,
+                             ask AnyBike for a second chance. We will check with the seller that the motorcycle is still available and whether the same offer can still be honoured.
+                           </p>
+                           <textarea id="secondChanceNote" class="second-chance-note" maxlength="1200" placeholder="Optional note to AnyBike"></textarea>
+                           <button id="secondChanceButton" type="button">Ask AnyBike for a Second Chance</button>
+                           <div class="notice">
+                             This is a request only. It does not accept the expired offer, reserve the motorcycle or commit either party until AnyBike confirms seller availability and issues a fresh valid offer.
+                           </div>
+                         </div>`)
+                  : `<div class="actions">
                      <h2>Your decision</h2>
                      <p>
                        Review the motorcycle and offer above. You must confirm the trade sale basis and current AnyBike legal terms before acceptance can be recorded.
@@ -1266,6 +1329,13 @@ function renderOffer(){
     ?.addEventListener(
       "click",
       declineOffer
+    );
+
+  document
+    .getElementById("secondChanceButton")
+    ?.addEventListener(
+      "click",
+      requestSecondChance
     );
 
 
@@ -1354,6 +1424,75 @@ function updateCountdown(){
 
   }
 
+}
+
+
+/* ------------------------------------------------------------
+   EXPIRED OFFER — SECOND CHANCE REQUEST
+   ------------------------------------------------------------ */
+
+async function requestSecondChance(){
+
+  const o = activeOffer?.offer;
+
+  if(!o || !activeClient){
+    alert("AnyBike customer connection is not available. Please refresh and try again.");
+    return;
+  }
+
+  const expired =
+    o.offer_status === "Expired" ||
+    (
+      o.offer_expires_at &&
+      new Date(o.offer_expires_at).getTime() <= Date.now()
+    );
+
+  if(!expired){
+    alert("This offer has not expired.");
+    return;
+  }
+
+  if(o.second_chance_request_status === "Requested"){
+    alert("You have already asked AnyBike for a second chance on this offer.");
+    return;
+  }
+
+  const confirmed = window.confirm(
+    "Ask AnyBike for a second chance on this expired offer?\n\n" +
+    "You are confirming that you are happy with the offer price shown and would still like to buy the motorcycle if the seller confirms it is still available.\n\n" +
+    "AnyBike will re-check availability before a fresh offer can be issued."
+  );
+
+  if(!confirmed){ return; }
+
+  const button=document.getElementById("secondChanceButton");
+  const note=document.getElementById("secondChanceNote");
+  if(button){
+    button.disabled=true;
+    button.textContent="Sending request…";
+  }
+
+  try{
+    const result=await activeClient.rpc(
+      "customer_request_expired_deal_offer_second_chance_v1",
+      {
+        p_offer_id:Number(o.id || o.offer_id),
+        p_message:String(note?.value || "").trim() || null
+      }
+    );
+
+    if(result.error){ throw result.error; }
+
+    await loadOffer();
+
+  }catch(error){
+    console.error("Second chance request failed",error);
+    alert(error?.message || "Your second chance request could not be sent. Please try again.");
+    if(button){
+      button.disabled=false;
+      button.textContent="Ask AnyBike for a Second Chance";
+    }
+  }
 }
 
 
