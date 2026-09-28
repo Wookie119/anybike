@@ -3478,8 +3478,7 @@ function customerDashboardPurchaseState(purchase){
   const allocated=Number(purchase.customer_allocated_motorcycle_gbp || 0);
   const balance=Number(purchase.customer_balance_motorcycle_gbp || 0);
   const secured=Boolean(purchase.motorcycle_secured);
-
-  const depositSatisfied=
+  const pendingDepositAdvice=\n    String(purchase.pending_payment_advice_purpose||"").toLowerCase()==="deposit" &&\n    ["awaiting verification","submitted","pending"].includes(String(purchase.pending_payment_advice_status||"").toLowerCase()) &&\n    Number(purchase.pending_payment_advice_amount_gbp||0)>0;\n  const pendingDepositAdviceAmount=Number(purchase.pending_payment_advice_amount_gbp||0);\n\n  const depositSatisfied=
     !depositRequired ||
     depositDue<=0 ||
     depositOutstanding<=0;
@@ -3522,11 +3521,7 @@ function customerDashboardPurchaseState(purchase){
       ?"The Move Motorcycles driver has arrived for collection."
       :"Your motorcycle collection has been passed to Move Motorcycles and is progressing.";
     nextStep="UK Collection";
-  }else if(!depositSatisfied){
-    heading=secured ? "Motorcycle Secured · Deposit Due" : "Deposit / Payment Required";
-    message=secured
-      ? "AnyBike has secured this motorcycle with the seller. Your agreed deposit is now due."
-      : "Your formal AnyBike offer has been accepted. Your deposit is currently due.";
+  }else if(!depositSatisfied && pendingDepositAdvice){\n    heading=secured ? "Motorcycle Secured · Deposit Reported" : "Deposit Reported";\n    message="Your "+(buyerMatchMoney(pendingDepositAdviceAmount)||"deposit")+" bank transfer has been reported and is awaiting AnyBike verification.";\n  }else if(!depositSatisfied){\n    heading=secured ? "Motorcycle Secured · Deposit Due" : "Deposit / Payment Required";\n    message=secured\n      ? "AnyBike has secured this motorcycle with the seller. Your agreed deposit is now due."\n      : "Your formal AnyBike offer has been accepted. Your deposit is currently due.";
   }else if(secured && fullyPaid){
     heading="Motorcycle Secured & Paid";
     message="Your motorcycle has been secured with the seller and your motorcycle payment has been received in full.";
@@ -3538,9 +3533,7 @@ function customerDashboardPurchaseState(purchase){
     message="Your deposit has been received. AnyBike is completing the final seller security stage before the motorcycle is marked as secured.";
   }
 
-  if(!depositSatisfied){
-    nextStep="Pay / Report "+(buyerMatchMoney(depositOutstanding || depositDue) || "Deposit")+" Deposit";
-  }else if(!nextStep){
+  if(!depositSatisfied && pendingDepositAdvice){\n    nextStep="Deposit Reported · Awaiting Verification";\n  }else if(!depositSatisfied){\n    nextStep="Pay / Report "+(buyerMatchMoney(depositOutstanding || depositDue) || "Deposit")+" Deposit";\n  }else if(!nextStep){
     if(!secured) nextStep="Final Seller Check / securing motorcycle";
     else if(!fullyPaid) nextStep="Balance & Documents";
     else nextStep="Operations / Shipping";
@@ -3557,8 +3550,7 @@ function customerDashboardPurchaseState(purchase){
     depositDue,
     depositAllocated,
     depositOutstanding,
-    depositSatisfied,
-    moneyReceived,
+    depositSatisfied,\n    pendingDepositAdvice,\n    pendingDepositAdviceAmount,\n    pendingDepositAdviceNumber:String(purchase.pending_payment_advice_number||""),\n    pendingDepositAdviceStatus:String(purchase.pending_payment_advice_status||""),\n    pendingDepositAdviceSubmittedAt:purchase.pending_payment_advice_submitted_at||null,\n    moneyReceived,
     allocated,
     balance,
     secured,
@@ -4125,7 +4117,7 @@ async function loadBuyerPotentialMatches(){
     sb.rpc("get_my_buyer_match_dashboard_v4"),
     sb.rpc("get_my_deal_motorcycles"),
     sb.rpc("get_my_deal_offers_v4"),
-    sb.rpc("get_my_purchases_v6"),
+    sb.rpc("get_my_purchases_v7"),
     sb.rpc("get_my_collection_jobs_v1")
   ]);
 
