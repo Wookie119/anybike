@@ -74,7 +74,7 @@ async function loadMarketIntelligence(){
         '<td data-label="Enquiries" class="num '+(leads?"good":"zero")+'">'+miNum(leads)+'</td>'+
         '<td data-label="Deals" class="num '+(deals?"good":"zero")+'">'+miNum(deals)+'</td>'+
         '<td data-label="Lead rate"><strong>'+rate.toFixed(1)+'%</strong><div class="bar"><span style="width:'+Math.min(100,rate*10)+'%"></span></div></td>'+
-        '<td data-label="Page"><a href="'+miEsc(r.page_path||"#")+'" target="_blank" rel="noopener" style="color:#ed1c24;font-weight:900">Open ↗</a></td>'+
+        '<td data-label="Page"><a href="/markets/'+miEsc(miMarketSlug(r.market_slug))+'.html" target="_blank" rel="noopener" style="color:#ed1c24;font-weight:900">Open ↗</a></td>'+
       '</tr>';
     }).join(""):'<tr><td colspan="9" class="empty">No market activity recorded in this period.</td></tr>';
 
