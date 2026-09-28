@@ -505,15 +505,15 @@ textarea{width:100%;min-height:120px}
 <div class="department-cards">
   <div class="dept-card"><span>👥</span><strong id="deptTotalCustomers">0</strong><small>Total Customers</small></div>
   <div class="dept-card"><span>⭐</span><strong id="deptVipCustomers">0</strong><small>VIP / High Activity</small></div>
-  <div class="dept-card"><span>💷</span><strong id="deptPipeline">£0</strong><small>Total Pipeline</small></div>
-  <div class="dept-card"><span>📈</span><strong id="deptProfit">£0</strong><small>Total Profit</small></div>
+  <div class="dept-card"><span>💷</span><strong id="deptPipeline">£0</strong><small>Committed Sales</small></div>
+  <div class="dept-card"><span>📈</span><strong id="deptProfit">£0</strong><small>Projected Profit (Committed)</small></div>
 </div>
 
 <section class="grid">
   <div class="card"><h3>Total Customers</h3><div class="big-number" id="totalCustomers">—</div><div class="small">Grouped by email / phone / customer ID</div></div>
   <div class="card"><h3>VIP Customers</h3><div class="big-number" id="vipCustomers">—</div><div class="small">3+ enquiries / deals</div></div>
-  <div class="card"><h3>Total Pipeline</h3><div class="big-number" id="totalPipeline">—</div><div class="small">Saved deal invoice totals</div></div>
-  <div class="card"><h3>Total Profit</h3><div class="big-number" id="totalProfit">—</div><div class="small">Saved deal net profit</div></div>
+  <div class="card"><h3>Committed Sales</h3><div class="big-number" id="totalPipeline">—</div><div class="small">Only sales with a deposit received or completed sale</div></div>
+  <div class="card"><h3>Projected Profit (Committed)</h3><div class="big-number" id="totalProfit">—</div><div class="small">Projected profit only on committed sales</div></div>
 </section>
 
 <section class="control-grid">
@@ -1525,6 +1525,8 @@ if(recentViewsError){
       deal_total_income,
       deal_net_profit,
       deal_saved_by,
+      deposit_received,
+      completed_at,
       available_stock(
         id,
         make,
@@ -1609,15 +1611,21 @@ if(recentViewsError){
     const latestVisitor =
   latestVisitorByCustomer[String(profile.id)] || null;
 
-    const totalValue = deals.reduce(
+    const committedDeals = deals.filter(d=>
+      Number(d.deposit_received || 0) > 0 ||
+      !!d.completed_at ||
+      String(d.status || "").toLowerCase() === "completed"
+    );
+
+    const totalValue = committedDeals.reduce(
       (sum,d)=>sum + Number(d.deal_total_income || 0),
       0
     );
 
-    const totalProfit = deals.reduce(
-  (sum,d)=>sum + Number(d.deal_net_profit || 0),
-  0
-);
+    const totalProfit = committedDeals.reduce(
+      (sum,d)=>sum + Number(d.deal_net_profit || 0),
+      0
+    );
 
 const latestCandidates = [
   latestDeal?.created_at,
@@ -2081,8 +2089,8 @@ function renderCustomers(){
           <div><div class="customer-name">${safe(c.name)}</div><div class="small">${safe(c.email)}</div><div class="small">${safe(c.phone)}</div></div>
           <div>${countryFlag(c.country)} ${safe(c.country)}<div class="small">${safe(c.city)} ${safe(c.region)}</div></div>
           <div class="stat-mini"><strong>${c.deals.length}</strong><div class="small">Enquiries</div></div>
-          <div class="stat-mini"><strong>${money(c.totalValue)}</strong><div class="small">Pipeline</div></div>
-          <div class="stat-mini"><strong>${money(c.totalProfit)}</strong><div class="small">Profit</div></div>
+          <div class="stat-mini"><strong>${money(c.totalValue)}</strong><div class="small">Committed</div></div>
+          <div class="stat-mini"><strong>${money(c.totalProfit)}</strong><div class="small">Projected profit</div></div>
           <div><span class="badge ${badgeClass(type)}">${type}</span></div>
         </div>
 
@@ -2124,8 +2132,8 @@ function renderCustomers(){
               <div class="profile-row"><span>Email</span><strong>${safe(c.email)}</strong></div>
               <div class="profile-row"><span>Phone / WhatsApp</span><strong>${safe(c.phone)}</strong></div>
               <div class="profile-row"><span>Buyer Stage</span><strong>${safe(customerAttentionMap[String(c.customerId)]?.buyer_stage||"Registered / Browsing")}</strong></div>\n              <div class="profile-row"><span>CRM Activity</span><strong>${type}</strong></div>
-              <div class="profile-row"><span>Total Pipeline</span><strong>${money(c.totalValue)}</strong></div>
-              <div class="profile-row"><span>Total Profit</span><strong>${money(c.totalProfit)}</strong></div>
+              <div class="profile-row"><span>Committed Sales</span><strong>${money(c.totalValue)}</strong></div>
+              <div class="profile-row"><span>Projected Profit</span><strong>${money(c.totalProfit)}</strong></div>
               <div class="profile-row"><span>Latest Activity</span><strong>${c.latest?new Date(c.latest).toLocaleString("en-GB"):"-"}</strong></div>
 
               <div class="comm-panel">
