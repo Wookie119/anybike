@@ -928,6 +928,11 @@ function purchaseState(purchase){
   const allocated=Number(purchase.customer_allocated_motorcycle_gbp||0);
   const balance=Number(purchase.customer_balance_motorcycle_gbp||0);
   const secured=!!purchase.motorcycle_secured;
+  const pendingDepositAdvice=
+    String(purchase.pending_payment_advice_purpose||"").toLowerCase()==="deposit" &&
+    ["awaiting verification","submitted","pending"].includes(String(purchase.pending_payment_advice_status||"").toLowerCase()) &&
+    Number(purchase.pending_payment_advice_amount_gbp||0)>0;
+  const pendingDepositAdviceAmount=Number(purchase.pending_payment_advice_amount_gbp||0);
   const collected=String(purchase.collection_status||"").toLowerCase()==="collected" ||
     String(purchase.deal_status||"").toLowerCase()==="collected";
   const storageStatus=String(purchase.storage_status||"").toLowerCase();
@@ -959,6 +964,9 @@ function purchaseState(purchase){
   }else if(collected){
     heading="Collected";
     message="Your motorcycle has been collected and is moving into secure UK custody / onward handover.";
+  }else if(!depositSatisfied && pendingDepositAdvice){
+    heading=secured ? "Motorcycle Secured · Deposit Reported" : "Deposit Reported";
+    message="Your "+money(pendingDepositAdviceAmount)+" bank transfer has been reported and is awaiting AnyBike verification.";
   }else if(secured && fullyPaid){
     heading="Motorcycle Secured";
     message="Your motorcycle is secured and paid in full. AnyBike is preparing the collection and UK handover.";
@@ -981,6 +989,10 @@ function purchaseState(purchase){
 
   return {
     depositRequired,depositDue,depositAllocated,depositOutstanding,depositSatisfied,
+    pendingDepositAdvice,pendingDepositAdviceAmount,
+    pendingDepositAdviceNumber:String(purchase.pending_payment_advice_number||""),
+    pendingDepositAdviceStatus:String(purchase.pending_payment_advice_status||""),
+    pendingDepositAdviceSubmittedAt:purchase.pending_payment_advice_submitted_at||null,
     moneyReceived,allocated,balance,secured,collected,inStorage,storageStatus,delivered,outForDelivery,completed,fullyPaid,
     heading,message,paymentStatus
   };
@@ -1010,7 +1022,11 @@ function journeyHtml(purchase,state){
   let nextTitle="Pay / report your deposit";
   let nextText="Open Accounts & Documents to view your Proforma and report the bank transfer.";
 
-  if(!state.depositSatisfied){
+  if(!state.depositSatisfied && state.pendingDepositAdvice){
+    current="deposit";
+    nextTitle="Deposit reported · awaiting AnyBike verification";
+    nextText=money(state.pendingDepositAdviceAmount)+" has been reported. Your purchase balance will update after AnyBike verifies the bank receipt.";
+  }else if(!state.depositSatisfied){
     current="deposit";
     nextTitle="Pay / report your "+(money(state.depositOutstanding || state.depositDue))+" deposit";
     nextText="Open Accounts & Documents to view your Proforma and report the bank transfer.";
@@ -1275,7 +1291,19 @@ function purchaseCard(purchase){
 
         ${journeyHtml(purchase,state)}
 
-        ${!state.depositSatisfied && state.depositOutstanding>0 && purchase.deal_number ? `
+        \${state.pendingDepositAdvice ? \`
+          <div class="collection-card" style="border-color:rgba(255,190,0,.35)">
+            <div class="collection-card-head">
+              <div>
+                <strong>Deposit reported · \${money(state.pendingDepositAdviceAmount)} · Awaiting Verification</strong>
+                <span>Payment advice \${safe(state.pendingDepositAdviceNumber||"")} has been submitted to AnyBike. Your balance will update after the bank receipt is verified.</span>
+              </div>
+              <span style="display:inline-flex;align-items:center;justify-content:center;padding:11px 15px;border-radius:10px;background:#2a2410;color:#ffd86b;border:1px solid rgba(255,190,0,.35);font-weight:900">Awaiting AnyBike</span>
+            </div>
+          </div>
+        \`:""}
+
+        ${!state.depositSatisfied && !state.pendingDepositAdvice && state.depositOutstanding>0 && purchase.deal_number ? `
           <div class="collection-card" style="border-color:rgba(255,190,0,.35)">
             <div class="collection-card-head">
               <div>
@@ -1652,7 +1680,7 @@ async function loadPurchases(){
   }
 
   const [purchaseResult,collectionJobsResult]=await Promise.all([
-    sb.rpc("get_my_purchases_v6"),
+    sb.rpc("get_my_purchases_v7"),
     sb.rpc("get_my_collection_jobs_v1")
   ]);
   const data=purchaseResult.data;
