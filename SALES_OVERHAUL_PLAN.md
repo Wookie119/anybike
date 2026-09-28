@@ -233,3 +233,10 @@ Until the templates, database population, page QA, imagery, contact-to-Message-C
 - review the public-menu decision only after the taxonomy pages have passed a dedicated QA checkpoint
 
 International Markets is public and may remain in navigation.
+
+
+### Dashboard simplification follow-up
+- Staff Workload has been removed from Admin Dashboard while there is only one active admin user. Reintroduce only when multi-user assignment/workload management is genuinely needed.
+- Legacy lead-status breakdown has been removed from the Dashboard. Historical/legacy status reporting must not be presented as current operational truth.
+- Headline Dashboard financials use committed-sale logic only: deposit received or completed sale.
+- Old prospective enquiry values must not appear as current committed sales or profit.
