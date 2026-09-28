@@ -3832,15 +3832,20 @@ function customerPurchaseCardHtml(match){
         `:""}
 
         <div class="my-purchase-actions">
-          <a class="my-purchase-view" href="${match?._offer_source==="deal360"
-            ? `my-purchases.html?deal=${encodeURIComponent(match._deal_id || "")}`
-            : `my-purchases.html?purchase=${encodeURIComponent(match.id)}`
-          }">View Purchase</a>
           ${state && !state.depositSatisfied && !state.pendingDepositAdvice && state.depositOutstanding>0 && purchase?.deal_number ? `
             <a class="my-purchase-view" href="/accounts-documents.html?deal=${encodeURIComponent(purchase.deal_number)}&payment=deposit&amount=${encodeURIComponent(Number(state.depositOutstanding).toFixed(2))}&ref=${encodeURIComponent(purchase.deal_number)}">
               Pay / Report ${safe(buyerMatchMoney(state.depositOutstanding))} Deposit
             </a>
-          ` : ""}
+          ` : state && state.depositSatisfied && state.secured && !state.fullyPaid && Number(state.balance||0)>0 && purchase?.deal_number ? `
+            <a class="my-purchase-view" href="/accounts-documents.html?deal=${encodeURIComponent(purchase.deal_number)}&payment=balance&amount=${encodeURIComponent(Number(state.balance).toFixed(2))}&ref=${encodeURIComponent(purchase.deal_number)}">
+              Pay ${safe(buyerMatchMoney(state.balance))} Balance
+            </a>
+          ` : `
+            <a class="my-purchase-view" href="${match?._offer_source==="deal360"
+              ? `my-purchases.html?deal=${encodeURIComponent(match._deal_id || "")}`
+              : `my-purchases.html?purchase=${encodeURIComponent(match.id)}`
+            }">View Purchase</a>
+          `}
           ${purchase && (String(purchase.collection_job_status||"").toLowerCase()==="collected" || String(purchase.collection_status||"").toLowerCase()==="collected" || String(purchase.deal_status||"")==="Collected") ? `
             <button type="button" class="my-purchase-view" onclick="loadDashboardCollectionReport(${Number(purchase.deal_motorcycle_id)});return false;">Collection Report</button>
           ` : ""}
