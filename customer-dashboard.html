@@ -405,9 +405,35 @@ button,input,select,textarea{font:inherit}
   display:flex;gap:12px;overflow-x:auto;padding:2px 0 5px;scroll-behavior:smooth;
 }
 .recent-bike{
-  flex:0 0 220px;background:#151515;border:1px solid var(--line);
-  border-radius:14px;padding:13px;
+  flex:0 0 250px;background:#151515;border:1px solid var(--line);
+  border-radius:14px;overflow:hidden;padding:0;
 }
+.recent-bike-image{
+  width:100%;
+  height:150px;
+  background:#080808;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  overflow:hidden;
+  border-bottom:1px solid var(--line);
+}
+.recent-bike-image img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  display:block;
+}
+.recent-bike-image-fallback{
+  width:100%;
+  height:100%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:38px;
+  color:#555;
+}
+.recent-bike-body{padding:13px}
 .recent-bike h3{margin:0 0 5px;font-size:16px}
 .recent-bike p{margin:3px 0;color:var(--muted);font-size:12px}
 .recent-bike a{color:var(--red);font-weight:900;font-size:12px}
@@ -1817,7 +1843,9 @@ body.customer-offer-modal-open{overflow:hidden}
   max-width:1960px;
 }
 
-.my-purchases-grid,
+.my-purchases-grid{
+  grid-template-columns:1fr !important;
+}
 .my-offers-grid,
 .buyer-match-grid{
   grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));
@@ -1936,7 +1964,7 @@ body.customer-offer-modal-open{overflow:hidden}
   <section id="buyerSetupBanner" class="panel" style="display:none;border-color:rgba(237,28,36,.36)">
     <div class="panel-head" style="align-items:center">
       <div>
-        <div class="eyebrow" style="margin-bottom:5px">Your next action</div>
+        <div class="eyebrow" style="margin-bottom:5px">Account setup</div>
         <h2 id="buyerSetupTitle">🛡️ Buyer Setup</h2>
         <p id="buyerSetupText">Complete your reusable buyer and shipping details so future purchases can move quickly.</p>
         <p style="margin-top:8px;color:#aaa">AnyBike uses the same clear process for every buyer so both sides know who they are dealing with, how payment will work and where the motorcycle will go. The aim is to build strong, trustworthy relationships and grow our businesses together.</p>
@@ -4134,7 +4162,7 @@ function renderMyPurchases(rows){
     return;
   }
 
-  box.innerHTML=`<div class="my-purchases-grid">${purchases.map(customerPurchaseCardHtml).join("")}</div>`;
+  box.innerHTML=`<div class="my-purchases-grid" style="display:grid;grid-template-columns:1fr;gap:14px">${purchases.map(customerPurchaseCardHtml).join("")}</div>`;
 }
 
 function renderMyOffers(rows){
@@ -5421,6 +5449,12 @@ const stock = await sb
   document.getElementById("stockCount").textContent=(stock.count || 0).toLocaleString("en-GB");
 }
 
+function recentBikeImageUrl(value){
+  const raw=String(value||"").trim();
+  if(!raw) return "";
+  return raw.replace("{resize}","w800h600");
+}
+
 async function loadRecentlyViewed(){
   const box = document.getElementById("recentlyViewedBox");
 
@@ -5463,14 +5497,24 @@ async function loadRecentlyViewed(){
   const bikeMap = new Map((stock || []).map(b => [String(b.id), b]));
   const rows = views.map(v => bikeMap.get(String(v.bike_id))).filter(Boolean);
 
-  box.innerHTML = rows.map(b => `
-    <div class="recent-bike">
-      <h3>${safe(b.make)} ${safe(b.model)}</h3>
-      <p>${safe(b.variant)}</p>
-      <p>${safe(b.year)}</p>
-      <a href="bike-details.html?id=${b.id}">View Bike →</a>
-    </div>
-  `).join("");
+  box.innerHTML = rows.map(b => {
+    const image=recentBikeImageUrl(b.image_url);
+    const fallbackDisplay=image ? "none" : "flex";
+    return `
+      <div class="recent-bike">
+        <a class="recent-bike-image" href="bike-details.html?id=${b.id}" aria-label="View ${safe(b.make)} ${safe(b.model)}">
+          ${image ? `<img src="${safe(image)}" alt="${safe([b.make,b.model,b.variant].filter(Boolean).join(" "))}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">` : ""}
+          <div class="recent-bike-image-fallback" style="display:${fallbackDisplay}">🏍️</div>
+        </a>
+        <div class="recent-bike-body">
+          <h3>${safe(b.make)} ${safe(b.model)}</h3>
+          ${b.variant ? `<p>${safe(b.variant)}</p>` : ""}
+          ${b.year ? `<p>${safe(b.year)}</p>` : ""}
+          <a href="bike-details.html?id=${b.id}">View Bike →</a>
+        </div>
+      </div>
+    `;
+  }).join("");
 }
 
 
