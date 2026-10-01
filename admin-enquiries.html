@@ -10517,9 +10517,23 @@ function renderAnyBikeDealExportTaxIdentity(deal){
   const busy=dealExportTaxSaveBusy.has(String(dealId));
   const destination=anyBikeDealDestinationCountry(deal,route);
   const buyerBusiness=String(route.buyer_business_name || deal.buyer_business_name || "").trim();
-  const buyerType=String(route.buyer_type || (buyerBusiness ? "Business" : "Private Consumer"));
+  const customerId=anyBikeDealCustomerId(deal);
+  const customerProfile=customerId ? (adminCustomerProfiles.get(customerId) || {}) : {};
+  const allowedBuyerTypes=[
+    "Motorcycle Dealer / Trader",
+    "Importer / Wholesaler",
+    "Trade / Business Buyer",
+    "Other Business / Professional"
+  ];
+  const profileBuyerType=String(customerProfile.buyer_type || "").trim();
+  const legacyBuyerType=String(route.buyer_type || "").trim();
+  const buyerType=allowedBuyerTypes.includes(legacyBuyerType)
+    ? legacyBuyerType
+    : (allowedBuyerTypes.includes(profileBuyerType)
+        ? profileBuyerType
+        : "Trade / Business Buyer");
   const status=String(route.export_tax_identity_status || "To Be Confirmed");
-  const isBusiness=buyerType==="Business";
+  const isBusiness=true;
   const confirmed=status==="Confirmed" && !!route.export_tax_identity_confirmed_at;
   const companyName=adminCompanyExportIdentity.legal_name || "Giffords Empire Ltd";
   const anyBikeEori=adminCompanyExportIdentity.gb_eori || "Not configured";
@@ -10543,8 +10557,10 @@ function renderAnyBikeDealExportTaxIdentity(deal){
         <div class="anybike-commercial-field">
           <label>Buyer Type</label>
           <select id="deal-export-buyer-type-${dealId}" onchange="updateDealExportTaxBuyerType(${dealId})" ${busy ? "disabled" : ""}>
-            <option value="Business"${buyerType==="Business" ? " selected" : ""}>Business</option>
-            <option value="Private Consumer"${buyerType==="Private Consumer" ? " selected" : ""}>Private Consumer</option>
+            <option value="Motorcycle Dealer / Trader"${buyerType==="Motorcycle Dealer / Trader" ? " selected" : ""}>Motorcycle Dealer / Trader</option>
+            <option value="Importer / Wholesaler"${buyerType==="Importer / Wholesaler" ? " selected" : ""}>Importer / Wholesaler</option>
+            <option value="Trade / Business Buyer"${buyerType==="Trade / Business Buyer" ? " selected" : ""}>Trade / Business Buyer</option>
+            <option value="Other Business / Professional"${buyerType==="Other Business / Professional" ? " selected" : ""}>Other Business / Professional</option>
           </select>
         </div>
 
@@ -10632,7 +10648,7 @@ function updateDealExportTaxBuyerType(dealId){
   const id=String(dealId);
   const type=document.getElementById("deal-export-buyer-type-"+id)?.value || "";
   document.querySelectorAll(".deal-export-business-"+id).forEach(function(el){
-    el.style.display=type==="Business" ? "" : "none";
+    el.style.display="";
   });
 }
 
@@ -10653,8 +10669,18 @@ async function saveDealExportTaxIdentity(dealId){
   const status=value("deal-export-status");
   const notes=value("deal-export-notes");
 
-  if(status==="Confirmed" && buyerType==="Business" && !buyerEori){
-    alert("Buyer EORI / Customs ID is required before a business buyer can be confirmed.");
+  const allowedBuyerTypes=[
+    "Motorcycle Dealer / Trader",
+    "Importer / Wholesaler",
+    "Trade / Business Buyer",
+    "Other Business / Professional"
+  ];
+  if(!allowedBuyerTypes.includes(buyerType)){
+    alert("Choose a valid trade / business buyer type.");
+    return;
+  }
+  if(status==="Confirmed" && !buyerEori){
+    alert("Buyer EORI / Customs ID is required before a trade buyer can be confirmed.");
     return;
   }
 
@@ -12193,7 +12219,9 @@ function renderAnyBikeDealSellerCheckPanel(deal){
 
         <div class="anybike-seller-footer">
           <div><strong>Motorcycle security is confirmed separately with the seller.</strong> Customer payment alone does not secure the motorcycle.</div>
-          <button type="button" ${busy ? "disabled" : ""} onclick="saveDealFinalSellerCheck(${dealMotorcycleId});return false;">${busy ? "Saving Final Seller Check..." : "Save Final Seller Check"}</button>
+          ${row.motorcycle_secured
+            ? '<span style="color:#7ddd99;font-weight:900">✓ Final Seller Check complete</span>'
+            : '<button type="button" '+(busy ? "disabled" : "")+' onclick="saveDealFinalSellerCheck('+dealMotorcycleId+');return false;">'+(busy ? "Saving Final Seller Check..." : "Save Final Seller Check")+'</button>'}
         </div>
       </div>`;
   }).join("");
