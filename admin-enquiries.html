@@ -13688,6 +13688,12 @@ function renderAnyBikeDealFinancialPanel(deal){
   if(!rows.length){return `<div class="anybike-financial-none">Financial/VAT status is not available for this Deal yet. Existing Deal 360 functions are unaffected.</div>`;}
   return rows.map(function(row){
     const dmId=Number(row.deal_motorcycle_id);
+    const motorcycleAccount=(adminDealMotorcycleCustomerAccounts.get(dealId)||[]).find(function(item){
+      return Number(item.deal_motorcycle_id)===dmId;
+    }) || null;
+    const authoritativeCustomerBalance=motorcycleAccount
+      ? Number(motorcycleAccount.customer_balance_gbp||0)
+      : Number(row.customer_balance_due_gbp||0);
     const title=[row.make,row.model,row.variant].filter(Boolean).join(" ")||"Motorcycle";
     const treatment=row.vat_treatment||"Check Required";
     const status=row.vat_treatment_status||"Check Required";
@@ -13717,7 +13723,7 @@ function renderAnyBikeDealFinancialPanel(deal){
     return `<div class="anybike-financial-panel">
       <div class="anybike-financial-head"><div><span>Sale Financials</span><h4>${escapeAdminHtml(title)}</h4></div><div class="anybike-financial-badge ${anyBikeFinancialStatusClass(status)}">${escapeAdminHtml(vatSummary)}</div></div>
       <div class="anybike-financial-grid ${gridClass}">
-        <div class="anybike-financial-metric"><span>Customer Balance</span><strong>${anyBikeNullableMoney(row.customer_balance_due_gbp)}</strong></div>
+        <div class="anybike-financial-metric"><span>Customer Balance</span><strong>${anyBikeNullableMoney(authoritativeCustomerBalance)}</strong></div>
         <div class="anybike-financial-metric"><span>Supplier Balance</span><strong>${anyBikeNullableMoney(row.supplier_balance_due_gbp)}</strong></div>
         <div class="anybike-financial-metric"><span>Gross Margin</span><strong>${anyBikeNullableMoney(row.gross_margin_gbp)}</strong></div>
         ${vatMetrics}
@@ -14372,6 +14378,15 @@ function bikeSalesFlagsForDeal(deal,action){
   const finalInvoiceIssued=(adminDealInvoices.get(dealId)||[]).some(function(inv){
     return String(inv.invoice_type||"")==="Final Invoice" && String(inv.invoice_status||"")==="Issued";
   });
+  const secured=
+    !!action?.bike_secured ||
+    Number(deal?.secured_count||0)>0 ||
+    bikes.some(function(row){ return !!row.bike_secured; });
+  const acceptedFromMotorcycle=
+    Number(deal?.accepted_count||0)>0 ||
+    bikes.some(function(row){
+      return !!row.accepted_at || String(row.negotiation_status||"").toLowerCase()==="accepted";
+    });
 
   return {
     hasMotorcycle:bikes.length>0,
@@ -14379,8 +14394,8 @@ function bikeSalesFlagsForDeal(deal,action){
     complete:rawStage==="Completed",
     finalInvoiceIssued:finalInvoiceIssued,
     customerPaid:dealValue>0 && balance<=0.009,
-    secured:!!action?.bike_secured,
-    sellerDone:!!action?.seller_check_ok,
+    secured:secured,
+    sellerDone:secured || !!action?.seller_check_ok,
     vatDone:!!action?.vat_ok,
     shippingDone:!!action?.shipping_ok,
     onboardingApproved:anyBikeBuyerOnboardingApproved(deal),
@@ -14389,7 +14404,7 @@ function bikeSalesFlagsForDeal(deal,action){
     depositRequired:Number(action?.deposit_required_gbp||0),
     depositOutstanding:Number(action?.deposit_outstanding_gbp||0),
     offerSent:rawStage==="Proposal Sent",
-    offerAccepted:["Payment / Deposit","Operations","Shipping","Completed"].includes(rawStage)
+    offerAccepted:acceptedFromMotorcycle || ["Payment / Deposit","Operations","Shipping","Completed"].includes(rawStage)
   };
 }
 
@@ -15214,12 +15229,14 @@ function renderAnyBikeGuidedJourney(deal,bikes,bikeRows,dealNumber,buyerName,raw
   const depositOutstanding=Number(action?.deposit_outstanding_gbp || 0);
   const depositRequired=Number(action?.deposit_required_gbp || 0);
   const depositDone=depositRequired<=0 || depositOutstanding<=0.009;
-  const sellerDone=!!action?.seller_check_ok;
   const shippingDone=!!action?.shipping_ok;
   const vatDone=!!action?.vat_ok;
-  const secured=!!action?.bike_secured;
+  const secured=!!action?.bike_secured || Number(deal?.secured_count||0)>0 || (bikes||[]).some(function(row){ return !!row.bike_secured; });
+  const sellerDone=secured || !!action?.seller_check_ok;
   const hasMotorcycle=(bikes || []).length>0;
-  const offerAccepted=["Payment / Deposit","Operations","Shipping","Completed"].includes(String(rawStage || "")) || depositRequired>0;
+  const offerAccepted=Number(deal?.accepted_count||0)>0 ||
+    (bikes||[]).some(function(row){ return !!row.accepted_at || String(row.negotiation_status||"").toLowerCase()==="accepted"; }) ||
+    ["Payment / Deposit","Operations","Shipping","Completed"].includes(String(rawStage || "")) || depositRequired>0;
   const customerAccount=adminDealCustomerAccounts.get(dealId) || {};
   const dealValue=anyBikeAccountNumber(customerAccount,["deal_value_gbp"],deal.buyer_value_gbp);
   const balance=anyBikeAccountNumber(customerAccount,["customer_balance_due_gbp"],dealValue);
@@ -15301,12 +15318,14 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
   }
   const depositOutstanding=Number(action?.deposit_outstanding_gbp||0);
   const depositRequired=Number(action?.deposit_required_gbp||0);
-  const sellerDone=!!action?.seller_check_ok;
   const shippingDone=!!action?.shipping_ok;
   const vatDone=!!action?.vat_ok;
-  const secured=!!action?.bike_secured;
+  const secured=!!action?.bike_secured || Number(deal?.secured_count||0)>0 || (bikes||[]).some(function(row){ return !!row.bike_secured; });
+  const sellerDone=secured || !!action?.seller_check_ok;
   const hasMotorcycle=(bikes||[]).length>0;
-  const offerAccepted=["Payment / Deposit","Operations","Shipping","Completed"].includes(String(rawStage||""));
+  const offerAccepted=Number(deal?.accepted_count||0)>0 ||
+    (bikes||[]).some(function(row){ return !!row.accepted_at || String(row.negotiation_status||"").toLowerCase()==="accepted"; }) ||
+    ["Payment / Deposit","Operations","Shipping","Completed"].includes(String(rawStage||""));
   const customerAccount=adminDealCustomerAccounts.get(dealId)||{};
   const dealValue=anyBikeAccountNumber(customerAccount,["deal_value_gbp"],deal.buyer_value_gbp);
   const balance=anyBikeAccountNumber(customerAccount,["customer_balance_due_gbp"],dealValue);
