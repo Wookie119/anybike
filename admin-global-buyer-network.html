@@ -269,7 +269,6 @@
         <h3>Expected Costs</h3>
         <div class="seller-grid">
           <div class="seller-field"><label>Prep / PDI / MOT Cost (£)</label><input id="dvPrepCost" type="text" inputmode="decimal" value="£0.00" onfocus="focusViabilityMoney(this)" oninput="calculateDealViability()" onblur="formatViabilityMoney(this)"></div>
-          <div class="seller-field"><label>Collection / Delivery Cost (£)</label><input id="dvDeliveryCost" type="text" inputmode="decimal" value="£0.00" onfocus="focusViabilityMoney(this)" oninput="calculateDealViability()" onblur="formatViabilityMoney(this)"></div>
           <div class="seller-field"><label>Export / Docs Cost (£)</label><input id="dvDocsCost" type="text" inputmode="decimal" value="£0.00" onfocus="focusViabilityMoney(this)" oninput="calculateDealViability()" onblur="formatViabilityMoney(this)"></div>
           <div class="seller-field"><label>Other Cost (£)</label><input id="dvOtherCost" type="text" inputmode="decimal" value="£0.00" onfocus="focusViabilityMoney(this)" oninput="calculateDealViability()" onblur="formatViabilityMoney(this)"></div>
         </div>
@@ -3106,7 +3105,7 @@ async function openDealViability(matchId){
   document.getElementById("dvSellerPrice").textContent=sellerPrice!==null ? money(sellerPrice) : "Unknown";
   document.getElementById("dvSellerPrice").dataset.value=sellerPrice!==null ? String(sellerPrice) : "";
   document.getElementById("dvSellerConfidence").textContent=confidence;
-  ["dvPrepCost","dvDeliveryCost","dvDocsCost","dvOtherCost"].forEach(id=>{ const el=document.getElementById(id); if(el){ el.type="text"; el.setAttribute("inputmode","decimal"); el.removeAttribute("step"); el.removeAttribute("min"); el.value="£0.00"; } });
+  ["dvPrepCost","dvDocsCost","dvOtherCost"].forEach(id=>{ const el=document.getElementById(id); if(el){ el.type="text"; el.setAttribute("inputmode","decimal"); el.removeAttribute("step"); el.removeAttribute("min"); el.value="£0.00"; } });
   let prep=[];
   if(request){
     if(request.preparation_status) prep.push("Preparation: "+request.preparation_status);
@@ -3182,7 +3181,7 @@ return `<div style="border:1px solid #333;border-radius:10px;padding:12px;backgr
           <div class="seller-field"><label>Expected Margin</label><div class="seller-review-value">${viabilityEscape(margin)}</div></div>
           <div class="seller-field"><label>Seller Price Source</label><div class="seller-review-value">${viabilityEscape(source)}</div></div>
         </div>
-        <div class="seller-review-note" style="margin-top:8px">Prep/PDI/MOT ${viabilityEscape(money(row.prep_cost_gbp))} • Collection/Delivery ${viabilityEscape(money(row.delivery_cost_gbp))} • Export/Docs ${viabilityEscape(money(row.export_docs_cost_gbp))} • Other ${viabilityEscape(money(row.other_cost_gbp))}</div>
+        <div class="seller-review-note" style="margin-top:8px">Prep/PDI/MOT ${viabilityEscape(money(row.prep_cost_gbp))} • Export/Docs ${viabilityEscape(money(row.export_docs_cost_gbp))} • Other ${viabilityEscape(money(row.other_cost_gbp))}</div>
         ${notes}
       </div>`;
     }).join("");
@@ -3208,7 +3207,7 @@ function calculateDealViability(){
     return;
   }
   const seller=Number(sellerRaw);
-  const extra=viabilityNumber("dvPrepCost")+viabilityNumber("dvDeliveryCost")+viabilityNumber("dvDocsCost")+viabilityNumber("dvOtherCost");
+  const extra=viabilityNumber("dvPrepCost")+viabilityNumber("dvDocsCost")+viabilityNumber("dvOtherCost");
   const total=seller+extra;
   const profit=buyer-total;
   const margin=buyer>0 ? (profit/buyer)*100 : 0;
@@ -3254,7 +3253,7 @@ async function saveDealViability(){
       p_buyer_match_id:Number(match.id),
       p_seller_price_history_id:Number(activeDealViabilitySellerPriceHistoryId),
       p_prep_cost_gbp:viabilityNumber("dvPrepCost"),
-      p_delivery_cost_gbp:viabilityNumber("dvDeliveryCost"),
+      p_delivery_cost_gbp:0,
       p_export_docs_cost_gbp:viabilityNumber("dvDocsCost"),
       p_other_cost_gbp:viabilityNumber("dvOtherCost"),
       p_notes:(document.getElementById("dvNotes")?.value || "").trim() || null
@@ -3383,8 +3382,9 @@ function calculateAnyBikeOffer(){
     return;
   }
 
-  const profit=customerTotal-totalCost;
-  const margin=customerTotal>0 ? (profit/customerTotal)*100 : 0;
+  const motorcycleRevenue=motorcyclePrice+anybikeFee;
+  const profit=motorcycleRevenue-totalCost;
+  const margin=motorcycleRevenue>0 ? (profit/motorcycleRevenue)*100 : 0;
   if(profitEl) profitEl.textContent=money(profit);
   if(marginEl) marginEl.textContent=margin.toFixed(2)+"%";
 
@@ -3416,7 +3416,7 @@ async function openAnyBikeOffer(matchId){
 
   const {data,error}=await sb
     .from("deal_viability_history")
-    .select("id,buyer_offer_gbp,seller_price_gbp,total_cost_gbp,expected_profit_gbp,expected_margin_percent,anybike_fee_gbp,customer_total_gbp,created_at")
+    .select("id,buyer_offer_gbp,seller_price_gbp,prep_cost_gbp,export_docs_cost_gbp,other_cost_gbp,total_cost_gbp,expected_profit_gbp,expected_margin_percent,anybike_fee_gbp,customer_total_gbp,created_at")
     .eq("buyer_match_id",Number(matchId))
     .order("created_at",{ascending:false})
     .order("id",{ascending:false})
@@ -3440,7 +3440,7 @@ async function openAnyBikeOffer(matchId){
   }
 
   activeAnyBikeOfferMatchId=Number(matchId);
-  activeAnyBikeOfferTotalCost=Number(viability.total_cost_gbp);
+  activeAnyBikeOfferTotalCost=Number(viability.seller_price_gbp||0)+Number(viability.prep_cost_gbp||0)+Number(viability.export_docs_cost_gbp||0)+Number(viability.other_cost_gbp||0);
 
   const bike=offerStockForMatch(match) || {};
   const bikeName=[
@@ -3453,7 +3453,7 @@ async function openAnyBikeOffer(matchId){
   document.getElementById("aboBikeName").textContent=bikeName || ("Stock #"+String(match.stock_id || "-"));
   document.getElementById("aboBuyerOffer").textContent=money(match.buyer_offer_gbp);
   document.getElementById("aboSellerPrice").textContent=money(viability.seller_price_gbp);
-  document.getElementById("aboTotalCost").textContent=money(viability.total_cost_gbp);
+  document.getElementById("aboTotalCost").textContent=money(activeAnyBikeOfferTotalCost);
   document.getElementById("aboViabilityProfit").textContent=money(viability.expected_profit_gbp);
   document.getElementById("aboViabilityMargin").textContent=Number(viability.expected_margin_percent || 0).toFixed(2)+"%";
 
@@ -3536,7 +3536,7 @@ async function saveAnyBikeOffer(options={}){
   const depositAmount=anybikeOfferNumber("aboDepositAmount");
   const totalCost=Number(activeAnyBikeOfferTotalCost);
   const customerTotal=motorcyclePrice+anybikeFee+deliveryCharge;
-  const projectedProfit=customerTotal-totalCost;
+  const projectedProfit=(motorcyclePrice+anybikeFee)-totalCost;
   const saleBasis=(document.getElementById("aboSaleBasis")?.value || "").trim();
   const offerTerms=(document.getElementById("aboOfferTerms")?.value || "").trim();
   const deliveryType=(document.getElementById("aboDeliveryType")?.value || "").trim();
