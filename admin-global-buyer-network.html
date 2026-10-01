@@ -5164,6 +5164,18 @@ function potentialMatchesHtml(buyer,its){
     const tradeText=m.private_estimated_trade!=null && m.private_estimated_trade!==''
       ? money(m.private_estimated_trade)
       : '-';
+    const initialMotorcyclePrice=Number(
+      existing?.provisional_customer_price_gbp ??
+      m.target_sale_price_gbp ??
+      m.price_gbp ??
+      0
+    );
+    const initialFee=Number(
+      existing?.offer_anybike_fee_gbp ??
+      anybikeSourcingFeeFromPrice(initialMotorcyclePrice)
+    );
+    const initialDelivery=Number(existing?.offer_delivery_charge_gbp ?? 250);
+    const initialDeliveredTotal=Math.max(0,initialMotorcyclePrice)+Math.max(0,initialFee)+Math.max(0,initialDelivery);
 
     return `
       <div class="match-card">
@@ -5204,6 +5216,53 @@ function potentialMatchesHtml(buyer,its){
             </label>
 
             <div class="match-approval-field">
+              <label for="buyer-match-price-${buyer.id}-${m.id}">Motorcycle Sale Price (£)</label>
+              <input
+                type="number"
+                id="buyer-match-price-${buyer.id}-${m.id}"
+                min="0.01"
+                step="0.01"
+                inputmode="decimal"
+                value="${safe(initialMotorcyclePrice.toFixed(2))}"
+                oninput="syncBuyerMatchCommercialPreview('${buyer.id}','${m.id}')"
+                onblur="normaliseGbpInput(this);syncBuyerMatchCommercialPreview('${buyer.id}','${m.id}')"
+              >
+            </div>
+
+            <div class="match-approval-field">
+              <label for="buyer-match-fee-${buyer.id}-${m.id}">AnyBike Sourcing Fee (£)</label>
+              <input
+                type="number"
+                id="buyer-match-fee-${buyer.id}-${m.id}"
+                min="0"
+                step="5"
+                inputmode="decimal"
+                value="${safe(initialFee.toFixed(2))}"
+                oninput="syncBuyerMatchCommercialPreview('${buyer.id}','${m.id}')"
+                onblur="normaliseGbpInput(this);syncBuyerMatchCommercialPreview('${buyer.id}','${m.id}')"
+              >
+            </div>
+
+            <div class="match-approval-field">
+              <label for="buyer-match-delivery-${buyer.id}-${m.id}">UK Delivery to Any Port (£)</label>
+              <input
+                type="number"
+                id="buyer-match-delivery-${buyer.id}-${m.id}"
+                min="0"
+                step="0.01"
+                inputmode="decimal"
+                value="${safe(initialDelivery.toFixed(2))}"
+                oninput="syncBuyerMatchCommercialPreview('${buyer.id}','${m.id}')"
+                onblur="normaliseGbpInput(this);syncBuyerMatchCommercialPreview('${buyer.id}','${m.id}')"
+              >
+            </div>
+
+            <div class="match-approval-field">
+              <label>AnyBike Delivered to Any UK Port Price</label>
+              <strong id="buyer-match-total-${buyer.id}-${m.id}" style="display:block;font-size:20px;color:#36d37e">${safe(money(initialDeliveredTotal))}</strong>
+            </div>
+
+            <div class="match-approval-field">
               <label for="buyer-match-profit-${buyer.id}-${m.id}">Projected AnyBike profit (£)</label>
               <input
                 type="number"
@@ -5224,7 +5283,7 @@ function potentialMatchesHtml(buyer,its){
           </div>
 
           <div class="match-approval-note">
-            Checking this box means AnyBike believes there is a realistic route to a positive profit. It is still a provisional match: seller availability, seller minimum price and any final buyer price can be confirmed later if the buyer engages.
+            The buyer sees the complete <strong>AnyBike Delivered to Any UK Port Price</strong> from the first communication: Motorcycle Sale Price + AnyBike Sourcing Fee + UK collection/delivery. Seller availability still needs confirmation, but the commercial proposition is established before the buyer responds.
           </div>
         </div>
       </div>
@@ -5232,11 +5291,27 @@ function potentialMatchesHtml(buyer,its){
   }).join('');
 }
 
+function syncBuyerMatchCommercialPreview(buyerId,stockId){
+  const priceEl=document.getElementById(`buyer-match-price-${buyerId}-${stockId}`);
+  const feeEl=document.getElementById(`buyer-match-fee-${buyerId}-${stockId}`);
+  const deliveryEl=document.getElementById(`buyer-match-delivery-${buyerId}-${stockId}`);
+  const totalEl=document.getElementById(`buyer-match-total-${buyerId}-${stockId}`);
+  if(!priceEl || !feeEl || !deliveryEl || !totalEl) return;
+
+  const price=Math.max(0,Number(priceEl.value||0));
+  const fee=Math.max(0,Number(feeEl.value||0));
+  const delivery=Math.max(0,Number(deliveryEl.value||0));
+  totalEl.textContent=money(price+fee+delivery);
+}
+
 async function toggleBuyerDashboardMatch(buyerId,stockId,requestItemId,checkbox){
   const buyer=buyers.find(b=>String(b.id)===String(buyerId));
   const bike=stock.find(s=>String(s.id)===String(stockId));
   const requestItem=items.find(i=>String(i.id)===String(requestItemId));
   const profitInput=document.getElementById(`buyer-match-profit-${buyerId}-${stockId}`);
+  const priceInput=document.getElementById(`buyer-match-price-${buyerId}-${stockId}`);
+  const feeInput=document.getElementById(`buyer-match-fee-${buyerId}-${stockId}`);
+  const deliveryInput=document.getElementById(`buyer-match-delivery-${buyerId}-${stockId}`);
   const status=document.getElementById(`buyer-match-status-${buyerId}-${stockId}`);
   const existing=buyerMatchForStock(buyerId,stockId);
 
@@ -5260,6 +5335,9 @@ async function toggleBuyerDashboardMatch(buyerId,stockId,requestItemId,checkbox)
 
   checkbox.disabled=true;
   if(profitInput) profitInput.disabled=true;
+  if(priceInput) priceInput.disabled=true;
+  if(feeInput) feeInput.disabled=true;
+  if(deliveryInput) deliveryInput.disabled=true;
 
   try{
     const {data:userData}=await sb.auth.getUser();
@@ -5268,6 +5346,22 @@ async function toggleBuyerDashboardMatch(buyerId,stockId,requestItemId,checkbox)
 
     if(checkbox.checked){
       const projectedProfit=Number(profitInput ? profitInput.value : 0);
+      const motorcycleSalePrice=Number(priceInput ? priceInput.value : 0);
+      const anybikeFee=Number(feeInput ? feeInput.value : 0);
+      const deliveryCharge=Number(deliveryInput ? deliveryInput.value : 0);
+      const deliveredToPortTotal=motorcycleSalePrice+anybikeFee+deliveryCharge;
+
+      if(!Number.isFinite(motorcycleSalePrice) || motorcycleSalePrice<=0 ||
+         !Number.isFinite(anybikeFee) || anybikeFee<0 ||
+         !Number.isFinite(deliveryCharge) || deliveryCharge<0 ||
+         !Number.isFinite(deliveredToPortTotal) || deliveredToPortTotal<=0){
+        checkbox.checked=false;
+        if(status){
+          status.className='match-approval-status warn';
+          status.textContent='Enter the complete AnyBike Delivered to Any UK Port pricing before sharing this match.';
+        }
+        return;
+      }
 
       if(!Number.isFinite(projectedProfit) || projectedProfit<=0){
         checkbox.checked=false;
@@ -5301,7 +5395,10 @@ async function toggleBuyerDashboardMatch(buyerId,stockId,requestItemId,checkbox)
         stock_vat_status:bike.vat_status||null,
         listed_price_snapshot_gbp:bike.price_gbp||null,
         trade_value_snapshot_gbp:bike.private_estimated_trade||null,
-        provisional_customer_price_gbp:null,
+        provisional_customer_price_gbp:motorcycleSalePrice,
+        offer_anybike_fee_gbp:anybikeFee,
+        offer_delivery_charge_gbp:deliveryCharge,
+        estimated_delivery_revenue_gbp:deliveryCharge,
         projected_profit_gbp:projectedProfit,
         profit_confidence:'Unknown',
         profit_viable:true,
@@ -5346,7 +5443,7 @@ async function toggleBuyerDashboardMatch(buyerId,stockId,requestItemId,checkbox)
           actor_user_id:adminUserId,
           action_type:'Approved for Buyer',
           amount_gbp:projectedProfit,
-          message:'Motorcycle added to the buyer Potential Matches dashboard.'
+          message:'Motorcycle added to the buyer Potential Matches dashboard at an AnyBike Delivered to Any UK Port Price of '+money(deliveredToPortTotal)+'.'
         });
 
       if(activityError){
@@ -5411,6 +5508,9 @@ async function toggleBuyerDashboardMatch(buyerId,stockId,requestItemId,checkbox)
   }finally{
     checkbox.disabled=false;
     if(profitInput) profitInput.disabled=false;
+  if(priceInput) priceInput.disabled=false;
+  if(feeInput) feeInput.disabled=false;
+  if(deliveryInput) deliveryInput.disabled=false;
   }
 }
 
