@@ -559,7 +559,7 @@ function renderItems(){
   const el=document.getElementById("bikes");
   if(!items.length){el.innerHTML='<div class="empty">No motorcycles in this source pool yet. Use the Scanner to add tested adverts while the source adapter is being expanded.</div>';return}
   el.innerHTML=items.map(i=>'<article class="bike">'+
-    '<input type="checkbox" '+(selected.has(i.id)?"checked":"")+' '+(i.source_status!=="live"?"disabled":"")+' onchange="toggle('+i.id+',this.checked)">'+
+    '<input type="checkbox" class="bike-select-checkbox" data-bike-id="'+i.id+'" '+(selected.has(i.id)?"checked":"")+' '+(i.source_status!=="live"?"disabled":"")+' onchange="toggle('+i.id+',this.checked)">'+
     '<div><img src="'+esc(firstImg(i))+'" onerror="this.src=\'/anybike-logo-new.jpg\'">'+
       (i.buyer_safe_url
         ?'<div class="status good" style="margin-top:5px;font-weight:800">✓ Buyer-safe image</div>'
@@ -644,17 +644,28 @@ async function applySelectedBuyerRequest(){
 
 document.getElementById("buyerSelect").addEventListener("change",async function(){
   await loadRequests();
-  selected.clear();
+  // Keep the motorcycles already selected while choosing/changing the buyer.
+  // The buyer choice must not silently clear a prepared shortlist.
+  renderItems();
+  document.getElementById("poolStatus").textContent=items.length+" motorcycles shown · "+selected.size+" selected";
 });
 document.getElementById("requestSelect").addEventListener("change",applySelectedBuyerRequest);
+
+function syncSelectedFromVisibleCheckboxes(){
+  const checked=[...document.querySelectorAll('.bike-select-checkbox:checked')]
+    .map(cb=>Number(cb.dataset.bikeId))
+    .filter(id=>Number.isFinite(id));
+  for(const id of checked)selected.add(id);
+  return [...selected].filter(id=>items.some(i=>Number(i.id)===Number(id)&&i.source_status==="live"));
+}
 
 async function createBatch(){
   const bid=Number(document.getElementById("buyerSelect").value),rid=document.getElementById("requestSelect").value?Number(document.getElementById("requestSelect").value):null;
   const st=document.getElementById("batchStatus");
   if(!bid){st.className="status bad";st.textContent="Choose a buyer.";return}
-  if(!selected.size){st.className="status bad";st.textContent="Select at least one live motorcycle.";return}
 
-  const ids=[...selected];
+  const ids=syncSelectedFromVisibleCheckboxes();
+  if(!ids.length){st.className="status bad";st.textContent="Select at least one live motorcycle.";return}
   let cleaned=0,needsAttention=0;
 
   for(let i=0;i<ids.length;i++){
