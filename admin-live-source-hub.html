@@ -86,7 +86,10 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
           <span id="poolStatus" class="status">Loading source pool…</span>
           <button class="btn green" id="loadPhotosBtn" onclick="loadBmwPhotos()">Load BMW source photos (internal)</button>
           <button class="btn green" id="cleanSelectedBtn" onclick="cleanSelectedImages()">Clean selected images</button>
-          <button class="btn" onclick="selectVisible()">Select visible</button>
+          <label class="btn" style="display:flex;align-items:center;gap:8px;cursor:pointer">
+            <input id="selectAllVisibleCheck" type="checkbox" style="width:auto" onchange="toggleSelectAllVisible(this.checked)">
+            Select all visible
+          </label>
           <button class="btn" onclick="clearSelected()">Clear</button>
         </div>
         <div class="bikes" id="bikes"><div class="empty">Loading…</div></div>
@@ -572,6 +575,7 @@ function renderItems(){
     '<div><span class="pill '+(i.source_status==="live"?"live":i.source_status==="ended"?"end":"review")+'">'+esc(i.source_status)+'</span><br><a class="small secret" href="'+esc(i.source_url)+'" target="_blank">source ↗</a>'+
       '<label class="small" style="display:flex;gap:6px;align-items:center;margin-top:10px;color:#ff8a8a"><input type="checkbox" style="width:auto" onchange="excludeLiveSourceItem('+i.id+',this.checked)"> Remove</label></div>'+
     '</article>').join("");
+  syncSelectAllVisibleState();
 }
 async function excludeLiveSourceItem(id,on){
   if(!on)return;
@@ -596,8 +600,32 @@ async function excludeLiveSourceItem(id,on){
   st.textContent=items.length+" motorcycles shown · "+selected.size+" selected";
 }
 function toggle(id,on){if(on&&selected.size>=20){alert("Maximum 20 motorcycles per buyer batch.");renderItems();return}on?selected.add(id):selected.delete(id);document.getElementById("poolStatus").textContent=items.length+" motorcycles shown · "+selected.size+" selected"}
-function selectVisible(){for(const i of items){if(i.source_status==="live"&&selected.size<20)selected.add(i.id)}renderItems();document.getElementById("poolStatus").textContent=items.length+" motorcycles shown · "+selected.size+" selected"}
-function clearSelected(){selected.clear();renderItems();document.getElementById("poolStatus").textContent=items.length+" motorcycles shown · 0 selected"}
+function syncSelectAllVisibleState(){
+  const cb=document.getElementById("selectAllVisibleCheck");
+  if(!cb)return;
+  const visibleLive=items.filter(i=>i.source_status==="live");
+  cb.checked=visibleLive.length>0 && visibleLive.every(i=>selected.has(i.id));
+  cb.indeterminate=!cb.checked && visibleLive.some(i=>selected.has(i.id));
+}
+function toggleSelectAllVisible(on){
+  if(on){
+    for(const i of items){
+      if(i.source_status==="live"&&selected.size<20)selected.add(i.id);
+    }
+  }else{
+    for(const i of items)selected.delete(i.id);
+  }
+  renderItems();
+  document.getElementById("poolStatus").textContent=items.length+" motorcycles shown · "+selected.size+" selected";
+  syncSelectAllVisibleState();
+}
+function selectVisible(){toggleSelectAllVisible(true)}
+function clearSelected(){
+  selected.clear();
+  renderItems();
+  document.getElementById("poolStatus").textContent=items.length+" motorcycles shown · 0 selected";
+  syncSelectAllVisibleState();
+}
 
 async function loadBuyers(){
   const {data}=await sb().from("global_buyer_network").select("id,business_name,contact_name,email,archived_at").is("archived_at",null).order("created_at",{ascending:false}).limit(200);
