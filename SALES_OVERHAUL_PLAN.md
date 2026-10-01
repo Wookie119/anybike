@@ -352,3 +352,19 @@ Additional corrections made from screenshot review:
 - Business/customs fields remain visible for all AnyBike buyers.
 - Buyer EORI / Customs ID validation applies to all trade buyer types when confirming export/tax identity.
 - Once a motorcycle is genuinely secured, the redundant Save Final Seller Check button is replaced by a completed status.
+
+
+## 1 October 2026 — VAT-inclusive delivery charge
+
+Business rule confirmed:
+- AnyBike customer delivery charges are VAT-inclusive.
+- Deal 360 financial calculations must use the full accepted customer total, not motorcycle price alone.
+- For AB-000023 the accepted terms are £17,290 motorcycle + £250 VAT-inclusive delivery = £17,540 total.
+- With £15,000 seller cost and no delivery cost entered, gross margin before VAT is £2,540.
+- At 20% Margin Scheme calculation on the VAT-inclusive margin, estimated VAT liability is £423.33 and net margin after VAT is £2,116.67.
+- The posted £540 customer payment leaves £17,000 customer balance.
+
+Live database change:
+- Replaced admin_get_deal_financial_status so customer balance, gross margin and VAT calculations use accepted customer terms including delivery_charge_gbp.
+- Full VAT output calculation now also uses the full accepted customer total.
+- Existing VAT-status guardrails remain in place.
