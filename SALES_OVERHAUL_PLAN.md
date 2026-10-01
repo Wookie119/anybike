@@ -368,3 +368,43 @@ Live database change:
 - Replaced admin_get_deal_financial_status so customer balance, gross margin and VAT calculations use accepted customer terms including delivery_charge_gbp.
 - Full VAT output calculation now also uses the full accepted customer total.
 - Existing VAT-status guardrails remain in place.
+
+
+## 1 October 2026 — Export VAT Clearance gate
+
+Built a live Deal 360 control for UK export zero-rating.
+
+Workflow states:
+- Not Assessed
+- Pending Export
+- Awaiting Evidence
+- Evidence Received
+- Zero Rate Confirmed
+
+Deal-level evidence fields:
+- zero-rate intention
+- Direct Export vs Indirect Export
+- evidence due date
+- actual UK export / departure date
+- customs / export declaration reference
+- transport / shipping evidence reference
+- proof motorcycle left UK
+- proof links export to overseas destination
+- V5C permanent export notification dealt with
+- evidence / audit notes
+- evidence received and final confirmation timestamps / admin identity
+
+Hard controls:
+- Zero Rated VAT cannot be marked Verified until Export VAT Clearance is Zero Rate Confirmed.
+- A zero-rated Final Invoice cannot be issued until Export VAT Clearance is Zero Rate Confirmed.
+- Export & Tax Identity must be Confirmed, the destination must be non-UK, and export method must be recorded before the clearance can progress.
+- Evidence Received / Zero Rate Confirmed require actual departure plus customs and transport references and both proof checks.
+- Backend Export & Tax Identity now accepts only the agreed trade-only buyer types; legacy Private Consumer / generic Business validation removed.
+
+Dashboard:
+- Awaiting Evidence creates an Accounts action: Collect Export VAT Evidence.
+- Evidence Received creates an Accounts action: Confirm Export VAT Clearance.
+- Actions deep-link back to Deal 360.
+
+Verification:
+- Deliberate attempt to set AB-000023 to Zero Rated / Verified before clearance was blocked by the database trigger.
