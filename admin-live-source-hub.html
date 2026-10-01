@@ -375,6 +375,7 @@ async function cleanSelectedImages(){
 
   if(btn){btn.disabled=true;btn.textContent="Cleaning…";}
   let ready=0,attention=0;
+  let lastError="";
 
   for(let i=0;i<ids.length;i++){
     const id=ids[i];
@@ -382,6 +383,7 @@ async function cleanSelectedImages(){
     const hasReal=(item?.source_image_urls||[]).some(u=>/\/api\/Image\/GetImg\?imgId=/i.test(String(u)));
     if(!hasReal){
       attention++;
+      lastError="No real motorcycle source photo is loaded.";
       continue;
     }
 
@@ -391,16 +393,24 @@ async function cleanSelectedImages(){
       const {data,error}=await sb().functions.invoke("prepare-live-source-buyer-safe-images",{
         body:{live_source_item_id:id}
       });
-      if(error||data?.error){attention++;continue}
+      if(error||data?.error){
+        attention++;
+        lastError=String(data?.error||error?.message||"Image cleaning failed");
+        continue;
+      }
       if(Number(data?.safe_count||0)>0)ready++;
-      else attention++;
-    }catch{
+      else{
+        attention++;
+        lastError=String(data?.message||data?.process?.error||"No clean image was approved.");
+      }
+    }catch(e){
       attention++;
+      lastError=String(e?.message||e||"Image cleaning failed");
     }
   }
 
   st.className=ready>0?"status good":"status bad";
-  st.textContent=ready+" clean image"+(ready===1?"":"s")+" ready"+(attention?" · "+attention+" need attention":"");
+  st.textContent=ready+" clean image"+(ready===1?"":"s")+" ready"+(attention?" · "+attention+" need attention":"")+(lastError?" — "+lastError:"");
   if(btn){btn.disabled=false;btn.textContent="Clean selected images";}
 }
 
