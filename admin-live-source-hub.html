@@ -569,8 +569,31 @@ function renderItems(){
     '<div class="optional"><div class="small">Source price</div><div class="money">'+gbp(i.source_price_gbp)+'</div></div>'+
     '<div class="optional"><div class="small secret">Internal source</div><div>'+esc(i.seller_name||i.source_domain||"")+'</div><div class="small">'+esc(i.source_stock_id||"")+'</div></div>'+
     '<div class="optional"><div class="small">Last seen</div><div>'+esc(date(i.last_seen_at))+'</div></div>'+
-    '<div><span class="pill '+(i.source_status==="live"?"live":i.source_status==="ended"?"end":"review")+'">'+esc(i.source_status)+'</span><br><a class="small secret" href="'+esc(i.source_url)+'" target="_blank">source ↗</a></div>'+
+    '<div><span class="pill '+(i.source_status==="live"?"live":i.source_status==="ended"?"end":"review")+'">'+esc(i.source_status)+'</span><br><a class="small secret" href="'+esc(i.source_url)+'" target="_blank">source ↗</a>'+
+      '<label class="small" style="display:flex;gap:6px;align-items:center;margin-top:10px;color:#ff8a8a"><input type="checkbox" style="width:auto" onchange="excludeLiveSourceItem('+i.id+',this.checked)"> Remove</label></div>'+
     '</article>').join("");
+}
+async function excludeLiveSourceItem(id,on){
+  if(!on)return;
+  const item=items.find(x=>Number(x.id)===Number(id));
+  const title=[item?.year,item?.make,item?.model,item?.variant].filter(Boolean).join(" ")||"this motorcycle";
+  const ok=confirm("Remove "+title+" from the sourcing pool?\n\nThis will hide it from Live Source but will not delete the source record.");
+  if(!ok){renderItems();return}
+  const st=document.getElementById("poolStatus");
+  st.className="status";
+  st.textContent="Removing motorcycle from sourcing pool…";
+  const {data,error}=await sb().rpc("admin_set_live_source_excluded_v1",{p_item_id:Number(id),p_excluded:true});
+  if(error||data?.error){
+    st.className="status bad";
+    st.textContent=data?.error||error?.message||"Could not remove motorcycle.";
+    renderItems();
+    return;
+  }
+  selected.delete(Number(id));
+  items=items.filter(x=>Number(x.id)!==Number(id));
+  renderItems();
+  st.className="status good";
+  st.textContent=items.length+" motorcycles shown · "+selected.size+" selected";
 }
 function toggle(id,on){if(on&&selected.size>=20){alert("Maximum 20 motorcycles per buyer batch.");renderItems();return}on?selected.add(id):selected.delete(id);document.getElementById("poolStatus").textContent=items.length+" motorcycles shown · "+selected.size+" selected"}
 function selectVisible(){for(const i of items){if(i.source_status==="live"&&selected.size<20)selected.add(i.id)}renderItems();document.getElementById("poolStatus").textContent=items.length+" motorcycles shown · "+selected.size+" selected"}
