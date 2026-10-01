@@ -22,7 +22,7 @@ h1{font-size:34px;margin:6px 0 10px}.intro{white-space:pre-line;line-height:1.6;
 .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.card{overflow:hidden;display:flex;flex-direction:column;background:var(--panel2)}
 .photo{width:100%;height:250px;object-fit:cover;background:#090909;border-bottom:1px solid #242424}.body{padding:16px;display:flex;flex-direction:column;gap:10px;flex:1}.title{font-size:21px;font-weight:900}.facts{display:flex;gap:8px;flex-wrap:wrap}.pill{background:#242424;border:1px solid #333;border-radius:999px;padding:6px 9px;font-size:12px;font-weight:800}.price{font-size:27px;font-weight:950;color:#fff}.desc{color:#c9c9c9;line-height:1.5}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto}.btn{border:1px solid #444;background:#1c1c1c;color:#fff;border-radius:10px;padding:10px 13px;font-weight:900;cursor:pointer}.btn.red{background:var(--red);border-color:var(--red);color:#fff}.btn.dark{background:#090909;border-color:#444;color:#fff}.response{font-weight:900;margin-top:4px}.response.good{color:#58d585}.response.no{color:#aaa}
 .reason{display:none;margin-top:8px}.reason select{width:100%;padding:10px;border:1px solid #444;border-radius:9px;background:#090909;color:#fff}
-.how{padding:20px;margin-top:18px}.how h2{margin-top:0}.how p{color:#ccc;line-height:1.55}.status{background:#111;border:1px solid var(--line);border-radius:14px;padding:18px;color:#ddd}
+.more-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:1000;align-items:center;justify-content:center;padding:20px}.more-backdrop.open{display:flex}.more-modal{width:min(720px,100%);background:#111;border:1px solid #333;border-radius:16px;padding:20px}.more-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.more-grid label{display:grid;gap:6px;font-weight:900}.more-grid select{min-height:170px;background:#090909;color:#fff;border:1px solid #444;border-radius:10px;padding:8px}.more-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:16px}.more-note{color:#aaa;line-height:1.5;margin-top:8px}.how{padding:20px;margin-top:18px}.how h2{margin-top:0}.how p{color:#ccc;line-height:1.55}.status{background:#111;border:1px solid var(--line);border-radius:14px;padding:18px;color:#ddd}
 @media(max-width:900px){.grid{grid-template-columns:1fr 1fr}}@media(max-width:620px){.grid{grid-template-columns:1fr}h1{font-size:28px}.photo{height:250px}}
 </style>
 </head>
@@ -35,11 +35,27 @@ h1{font-size:34px;margin:6px 0 10px}.intro{white-space:pre-line;line-height:1.6;
   <section class="how" id="how" style="display:none">
     <h2>What happens next?</h2>
     <p><strong>Interested — Check Availability</strong> is a serious request for AnyBike to act on that motorcycle. When you click it, an AnyBike salesperson will contact the seller, confirm the motorcycle is still available and check the current purchase terms.</p>
-    <p>Where the seller is willing, we will also try to obtain a short hold while you consider the personalised AnyBike quote. A hold cannot be guaranteed and may be time-limited, so please use <strong>Watch / Save for Later</strong> if you are not yet ready for us to contact the seller.</p>
+    <p>Where the seller is willing, we will also try to obtain a short 24- or 48-hour hold while you consider the personalised AnyBike quote. A hold cannot be guaranteed and may be time-limited, so please only choose Interested when you are ready to make a quick decision.</p>
     <p>If the motorcycle is available, we will come back to you with a personalised AnyBike quote based on your agreed UK handover / freight-forwarder details. If you accept the formal offer, we will ask for the required deposit and move quickly to secure the motorcycle.</p>
     <a class="fee-link" href="/services-and-fees.html" target="_blank">View AnyBike Services &amp; Fees ↗</a>
   </section>
 </main>
+<div class="more-backdrop" id="moreMatchesModal" onclick="if(event.target===this)closeMoreMatches()">
+  <div class="more-modal">
+    <div class="eyebrow">More potential matches</div>
+    <h2 id="moreMatchesTitle" style="margin:6px 0 8px">Request more motorcycles</h2>
+    <div class="more-note">Tell AnyBike which colours you prefer and which you would rather avoid. Hold Ctrl/Cmd to choose more than one colour.</div>
+    <div class="more-grid" style="margin-top:14px">
+      <label>Preferred colours<select id="preferredColourSelect" multiple></select></label>
+      <label>Colours to avoid<select id="avoidColourSelect" multiple></select></label>
+    </div>
+    <div id="moreMatchesStatus" class="status" style="margin-top:12px;display:none"></div>
+    <div class="more-actions">
+      <button class="btn" onclick="closeMoreMatches()">Cancel</button>
+      <button class="btn red" onclick="submitMoreMatches()">Request more matches</button>
+    </div>
+  </div>
+</div>
 <script src="/public-header.js?v=12006"></script>
 <script>
 const SUPABASE_URL="https://tuehtnezhdnkqbbhttgp.supabase.co";
@@ -58,7 +74,7 @@ function render(){
   const request=payload.request||{};
   const reqName=[request.make,request.model].filter(Boolean).join(" ");
   document.getElementById("hero").innerHTML='<div class="eyebrow">Your AnyBike selection</div><h1>'+esc(reqName?("Your "+reqName+" matches"):"Your motorcycle matches")+'</h1>'+
-    '<div class="intro">'+esc(b.message_text||("Dear "+first+",\n\nGood news — we have found a hand-picked selection of motorcycles that could suit your requirements. Use Watch to save a motorcycle for later. Choose Interested — Check Availability only when you want AnyBike to contact the seller and investigate it for you."))+'</div>'+
+    '<div class="intro">'+esc(b.message_text||("Dear "+first+",\n\nGood news — we have found a hand-picked selection of motorcycles that could suit your requirements. Choose Interested — Check Availability only when you are ready for AnyBike to contact the seller and act on that motorcycle."))+'</div>'+
     '<a class="fee-link" href="/services-and-fees.html" target="_blank">View AnyBike Services &amp; Fees ↗</a>';
   document.getElementById("status").style.display="none";
   const grid=document.getElementById("matchGrid");grid.style.display="grid";
@@ -68,16 +84,18 @@ function render(){
     '<div class="facts">'+facts(s).map(f=>'<span class="pill">'+esc(f)+'</span>').join("")+'</div>'+
     '<div class="price">'+gbp(s.price_gbp)+'</div>'+
     '<div class="desc">'+esc(s.description||"Selected by AnyBike for your requirements.")+'</div>'+
-    '<div class="response '+(s.response==="Interested"?"good":s.response==="Not Interested"?"no":"")+'" id="resp-'+s.id+'">'+esc((s.source_status==="ended"?"No longer listed · ":"")+(s.response==="Interested"?"Availability check requested":(s.response||"")))+'</div>'+
-    '<div class="actions"><button class="btn red" onclick="respond('+s.id+',\'Interested\')">Interested — Check Availability</button><button class="btn" onclick="respond('+s.id+',\'Watching\')">Watch / Save for Later</button><button class="btn dark" onclick="toggleReason('+s.id+')">Not Interested</button></div>'+
-    '<div class="reason" id="reason-'+s.id+'"><select id="reasonSelect-'+s.id+'"><option value="">Choose a reason (optional)</option><option>Price too high</option><option>Mileage too high</option><option>Too old</option><option>Wrong colour / specification</option><option>I prefer a different make or model</option><option>Show me something else</option><option>Other</option></select><button class="btn" style="margin-top:8px" onclick="respond('+s.id+',\'Not Interested\')">Send feedback</button></div>'+
+    '<div class="response '+(s.response==="Interested"?"good":s.response==="Not Interested"?"no":"")+'" id="resp-'+s.id+'">'+esc((s.source_status==="ended"?"No Longer Available":(s.response==="Interested"?"Availability check requested":(s.response||""))))+'</div>'+
+    (s.source_status==="ended"
+      ?'<div class="actions"><button class="btn red" onclick="openMoreMatches()">Request More '+esc(reqName||[s.make,s.model].filter(Boolean).join(" "))+' Matches</button></div>'
+      :'<div class="actions"><button class="btn red" onclick="respond('+s.id+',\'Interested\')">Interested — Check Availability</button><button class="btn dark" onclick="toggleReason('+s.id+')">Not Interested</button></div>'+
+       '<div class="reason" id="reason-'+s.id+'"><select id="reasonSelect-'+s.id+'"><option value="">Choose a reason (optional)</option><option>Price too high</option><option>Mileage too high</option><option>Too old</option><option>Wrong colour / specification</option><option>I prefer a different make or model</option><option>Show me something else</option><option>Other</option></select><button class="btn" style="margin-top:8px" onclick="respond('+s.id+',\'Not Interested\')">Send feedback</button></div>')+
     '</div></article>').join("");
   document.getElementById("how").style.display="block";
 }
 function toggleReason(id){const e=document.getElementById("reason-"+id);e.style.display=e.style.display==="block"?"none":"block"}
 async function respond(id,response){
   if(response==="Interested"){
-    const ok=confirm("Ask AnyBike to check this motorcycle?\n\nThis creates a real action for the AnyBike sales team. We will contact the seller, confirm availability and current purchase terms, and where possible ask the seller for a short hold while you consider our personalised quote.\n\nIf you are not ready for us to contact the seller, choose Watch / Save for Later instead.");
+    const ok=confirm("Ask AnyBike to check this motorcycle?\n\nThis creates a real action for the AnyBike sales team. We will contact the seller, confirm availability and current purchase terms, and where possible ask the seller for a short 24- or 48-hour hold while you consider our personalised quote.\n\nPlease continue only if you are ready to make a quick decision if the motorcycle is available.");
     if(!ok)return;
   }
   const reason=response==="Not Interested"?(document.getElementById("reasonSelect-"+id)?.value||""):null;
@@ -90,6 +108,50 @@ async function respond(id,response){
   el.className="response "+(data.response==="Interested"?"good":"no");
   const r=document.getElementById("reason-"+id);if(r)r.style.display="none";
 }
+async function openMoreMatches(){
+  const req=payload?.request||{};
+  document.getElementById("moreMatchesTitle").textContent="Request More "+([req.make,req.model].filter(Boolean).join(" ")||"Motorcycle")+" Matches";
+  const pref=document.getElementById("preferredColourSelect");
+  const avoid=document.getElementById("avoidColourSelect");
+  pref.innerHTML='<option>Loading colours…</option>';
+  avoid.innerHTML='<option>Loading colours…</option>';
+  document.getElementById("moreMatchesModal").classList.add("open");
+  const {data,error}=await sb.rpc("customer_get_sourced_colour_options_v1",{p_batch_id:batchId});
+  const colours=error?[]:(data||[]);
+  const html=colours.length
+    ? colours.map(x=>'<option value="'+esc(x)+'">'+esc(x)+'</option>').join("")
+    : '<option value="">No live colour options found</option>';
+  pref.innerHTML=html;
+  avoid.innerHTML=html;
+}
+function closeMoreMatches(){
+  document.getElementById("moreMatchesModal").classList.remove("open");
+}
+function selectedValues(id){
+  return [...document.getElementById(id).selectedOptions].map(o=>o.value).filter(Boolean);
+}
+async function submitMoreMatches(){
+  const preferred=selectedValues("preferredColourSelect");
+  const avoid=selectedValues("avoidColourSelect");
+  const status=document.getElementById("moreMatchesStatus");
+  status.style.display="block";
+  status.className="status";
+  status.textContent="Sending your request to AnyBike…";
+  const {data,error}=await sb.rpc("customer_request_more_sourced_matches_v1",{
+    p_batch_id:batchId,
+    p_preferred_colours:preferred,
+    p_avoid_colours:avoid
+  });
+  if(error){
+    status.className="status bad";
+    status.textContent=error.message;
+    return;
+  }
+  status.className="status good";
+  status.textContent="Request sent. AnyBike will prepare more potential matches for you.";
+  setTimeout(closeMoreMatches,1200);
+}
+
 async function getCustomerSessionSafely(){
   try{
     let result=await sb.auth.getSession();
