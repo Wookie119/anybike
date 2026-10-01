@@ -8484,9 +8484,9 @@ async function saveDealCommercialSetup(dealMotorcycleId,options){
       alert(
         "Commercial Setup saved.\n\n" +
         "Customer total: " + (payload.customer_total_gbp===null ? "Not agreed" : anyBikeDealMoney(payload.customer_total_gbp)) + "\n" +
-        "Total internal cost: " + (payload.total_internal_cost_gbp===null ? "Not confirmed" : anyBikeDealMoney(payload.total_internal_cost_gbp)) + "\n" +
-        "Projected profit: " + (payload.projected_profit_gbp===null ? "Not calculated" : anyBikeDealMoney(payload.projected_profit_gbp)) + "\n" +
-        "Margin: " + (payload.projected_margin_percent===null ? "—" : Number(payload.projected_margin_percent).toFixed(1)+"%") + "\n\n" +
+        "Motorcycle / deal cost basis: " + (payload.total_internal_cost_gbp===null ? "Not confirmed" : anyBikeDealMoney(payload.total_internal_cost_gbp)) + "\n" +
+        "Motorcycle commercial profit: " + (payload.projected_profit_gbp===null ? "Not calculated" : anyBikeDealMoney(payload.projected_profit_gbp)) + "\n" +
+        "Motorcycle commercial margin: " + (payload.projected_margin_percent===null ? "—" : Number(payload.projected_margin_percent).toFixed(1)+"%") + "\n\n" +
         "Customer visible: NO\n" +
         "Offer sent: NO\n" +
         "Motorcycle secured: " + (payload.motorcycle_secured ? "YES" : "NO")
@@ -9226,8 +9226,8 @@ async function saveDealOffer(){
         dealOfferMoney(row?.anybike_fee_gbp ?? anybikeFee)+
         " • Deposit "+
         dealOfferMoney(row?.deposit_amount_gbp ?? depositAmount)+
-        " • Projected profit "+
-        dealOfferMoney(row?.projected_profit_gbp ?? ((motorcyclePrice+anybikeFee+deliveryCharge)-activeDealOfferInternalCost));
+        " • Motorcycle commercial profit "+
+        dealOfferMoney(row?.projected_profit_gbp ?? ((motorcyclePrice+anybikeFee)-activeDealOfferInternalCost));
     }
 
     document.getElementById("dealOfferState").textContent="Prepared internally — not sent";
@@ -16479,7 +16479,7 @@ function renderAdminDealQueue(){
               </div>
               <div><span>AnyBike Sale Price</span><strong>${preSale ? anyBikeDealPendingMoney(bike.buyer_price_gbp,"Not agreed") : anyBikeDealMoney(bike.buyer_price_gbp)}</strong></div>
               <div><span>Seller Purchase Price</span><strong>${preSale ? anyBikeDealPendingMoney(bike.seller_price_gbp,"Not confirmed") : anyBikeDealMoney(bike.seller_price_gbp)}</strong></div>
-              <div><span>${preSale ? "Projected Profit" : "Gross Profit"}</span><strong>${
+              <div><span>${preSale ? "Motorcycle Commercial Profit" : "Gross Profit"}</span><strong>${
                 preSale
                   ? (
                       (function(){
@@ -16522,8 +16522,8 @@ function renderAdminDealQueue(){
           <div><strong>${escapeAdminHtml(sellerSummary)}</strong><small>${sellerNames.length ? "Seller / supplier" : (preSale ? "Seller check not started" : "Final Seller Check")}</small></div>
           <div><strong>${escapeAdminHtml(motorcycleSummary)}</strong><small>${escapeAdminHtml(firstBikeYear || (motorcycleCount + " motorcycle" + (motorcycleCount===1?"":"s")))}</small></div>
           <div><strong>${preSale ? (queueSaleValue>0 ? anyBikeDealMoney(queueSaleValue) : "Not agreed") : anyBikeDealMoney(deal.buyer_value_gbp)}</strong><small>${preSale ? "Motorcycle sale" : "Sale"}</small></div>
-          <div><strong>${preSale ? (queueCostValue>0 ? anyBikeDealMoney(queueCostValue) : "Not confirmed") : anyBikeDealMoney(deal.seller_cost_gbp)}</strong><small>${preSale ? "Total internal cost" : "Cost"}</small></div>
-          <div><strong>${preSale ? (projectedCommercial.projectedProfit!==null ? anyBikeDealMoney(queueProfitValue) : "—") : anyBikeDealMoney(deal.gross_profit_gbp)}</strong><small>${preSale ? (projectedCommercial.projectedMargin!==null ? queueMarginValue.toFixed(1)+"% projected" : "Not calculated") : Number(deal.gross_margin_percent || 0).toFixed(1)+"%"}</small></div>
+          <div><strong>${preSale ? (queueCostValue>0 ? anyBikeDealMoney(queueCostValue) : "Not confirmed") : anyBikeDealMoney(deal.seller_cost_gbp)}</strong><small>${preSale ? "Motorcycle / deal cost basis" : "Cost"}</small></div>
+          <div><strong>${preSale ? (projectedCommercial.projectedProfit!==null ? anyBikeDealMoney(queueProfitValue) : "—") : anyBikeDealMoney(deal.gross_profit_gbp)}</strong><small>${preSale ? (projectedCommercial.projectedMargin!==null ? queueMarginValue.toFixed(1)+"% motorcycle commercial margin" : "Not calculated") : Number(deal.gross_margin_percent || 0).toFixed(1)+"%"}</small></div>
           <div><span class="anybike-queue-finance-badge ${customerClass}">${customerLabel}</span><small>${preSale ? "No payment stage yet" : (customerBalance > 0.009 ? anyBikeDealMoney(customerBalance)+" due" : anyBikeDealMoney(customerReceived)+" received")}</small></div>
           <div><span class="anybike-queue-finance-badge ${supplierClass}">${supplierLabel}</span><small>${preSale ? "Seller purchase not started" : (supplierBalance > 0.009 ? anyBikeDealMoney(supplierBalance)+" due" : anyBikeDealMoney(supplierPaid)+" paid")}</small></div>
           <div><span class="anybike-queue-finance-badge ${securedClass}">${escapeAdminHtml(securedLabel)}</span><small>Motorcycle</small></div>
@@ -19077,8 +19077,8 @@ document.querySelector(".admin-page-content .wrap")?.classList.add("sales-view-a
       <div class="deal-offer-summary">
         <div><span>Motorcycle</span><strong id="dealOfferBike">-</strong></div>
         <div><span>Deal</span><strong id="dealOfferDealNumber">-</strong></div>
-        <div><span>Projected Internal Cost</span><strong id="dealOfferInternalCost">-</strong></div>
-        <div><span>Projected Profit</span><strong id="dealOfferProjectedProfit">-</strong></div>
+        <div><span>Motorcycle / Deal Cost Basis</span><strong id="dealOfferInternalCost">-</strong></div>
+        <div><span>Motorcycle Commercial Profit</span><strong id="dealOfferProjectedProfit">-</strong></div>
         <div><span>Registration</span><strong id="dealOfferRegistration">-</strong></div>
         <div><span>VIN / Chassis</span><strong id="dealOfferVin">-</strong></div>
       </div>
@@ -19100,6 +19100,7 @@ document.querySelector(".admin-page-content .wrap")?.classList.add("sales-view-a
           <label>
             <span>UK Collection &amp; Delivery to Agreed Handover Point (£)</span>
             <input id="dealOfferDeliveryCharge" type="number" min="0" step="0.01" oninput="calculateDealOfferPreview()">
+            <small style="display:block;color:#888;margin-top:5px">Customer transport charge. Included in Customer Total, but kept separate from motorcycle commercial profit/margin. VAT is accounted for separately on the transport line.</small>
           </label>
 
           <div class="deal-offer-readout">
@@ -19108,7 +19109,7 @@ document.querySelector(".admin-page-content .wrap")?.classList.add("sales-view-a
           </div>
 
           <div class="deal-offer-readout">
-            <span>Projected Margin</span>
+            <span>Motorcycle Commercial Margin</span>
             <strong id="dealOfferProjectedMargin">-</strong>
           </div>
         </div>
