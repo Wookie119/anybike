@@ -336,3 +336,19 @@ Further live changes:
 - Pending Payment Advice suppresses downstream Deal payment actions until verification/posting is resolved.
 - Removed duplicate customer-level deposit/balance cards; payment work is owned by the Deal-specific ledger/action engine.
 - Buyer purchase-clearance waiting now stays visually in the Payment/clearance phase rather than highlighting a completed Seller Check again.
+
+
+## 1 October 2026 — Screenshot review follow-up
+
+Screenshots of AB-000023 confirmed the authoritative-state corrections:
+- Your next action now correctly shows Review Buyer Onboarding instead of sending staff back to Seller / Viability.
+- Deal Journey shows Request, Sourcing, Interested, Seller Check and Offer complete.
+- Motorcycle is shown Secured, Purchase Order PO-AB-000023-15 exists, supplier balance is £15,000 and supplier payment is locked pending purchase clearance.
+- Sale Financials now shows the authoritative £17,000 customer balance after the £540 posted allocation against the £17,540 accepted total.
+
+Additional corrections made from screenshot review:
+- Removed the legacy Private Consumer option from Deal 360 Export & Tax Identity.
+- Export & Tax Identity now uses the agreed trade-only buyer types and loads the saved Customer Profile buyer_type.
+- Business/customs fields remain visible for all AnyBike buyers.
+- Buyer EORI / Customs ID validation applies to all trade buyer types when confirming export/tax identity.
+- Once a motorcycle is genuinely secured, the redundant Save Final Seller Check button is replaced by a completed status.
