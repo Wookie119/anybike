@@ -106,7 +106,7 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
 </div>
 <script>
 const sb=()=>getAdminSupabaseClient();
-let hub=null,items=[],buyers=[],selected=new Set(),sourceFacets={makes:[],models:[]},buyerRequests=[],selectedDealers=new Set();
+let hub=null,items=[],buyers=[],selected=new Set(),sourceFacets={makes:[],models:[]},buyerRequests=[],selectedDealers=new Set(),sourceRefreshInProgress=false;
 const sourcingParams=new URLSearchParams(location.search);
 function sourcingContextQuery(extra){
   const p=new URLSearchParams();
@@ -264,6 +264,14 @@ async function refreshSource(id,event,button){
   if(event){event.preventDefault();event.stopPropagation();}
   const st=document.getElementById("refresh-"+id);
   const btn=button||document.querySelector('[data-refresh-source="'+id+'"]');
+  const savedFilters={
+    connectorId:Number(document.getElementById("connectorFilter").value||id),
+    make:document.getElementById("makeFilter").value||"",
+    model:document.getElementById("modelFilter").value||"",
+    status:document.getElementById("statusFilter").value||"live",
+    dealers:[...selectedDealers]
+  };
+  sourceRefreshInProgress=true;
   if(btn){btn.disabled=true;btn.textContent="Refreshing…";}
   st.className="status";st.textContent="Starting full source refresh…";
 
@@ -309,21 +317,38 @@ async function refreshSource(id,event,button){
       (finalData?.discovered_count!=null?" · "+Number(finalData.discovered_count).toLocaleString("en-GB")+" discovered":"");
 
     await loadHub();
-    const current=document.getElementById("connectorFilter").value;
-    if(Number(current)===Number(id)){
-      await loadSourceFacets();
-      const requestId=Number(document.getElementById("requestSelect")?.value||0);
-      if(requestId){
-        await applySelectedBuyerRequest();
-      }else{
-        await loadItems();
-      }
+
+    document.getElementById("connectorFilter").value=String(savedFilters.connectorId);
+    const connector=(hub?.connectors||[]).find(c=>Number(c.id)===Number(savedFilters.connectorId));
+    document.getElementById("activeSourceLabel").textContent=connector?.name||"Selected channel";
+    syncSourceSpecificControls();
+
+    await loadSourceFacets();
+
+    if(savedFilters.make && [...document.getElementById("makeFilter").options].some(o=>o.value===savedFilters.make)){
+      document.getElementById("makeFilter").value=savedFilters.make;
+    }
+    refreshModelOptions(savedFilters.model);
+    if(savedFilters.model){
+      const modelOption=[...document.getElementById("modelFilter").options]
+        .find(o=>normaliseModelName(o.value)===normaliseModelName(savedFilters.model));
+      if(modelOption)document.getElementById("modelFilter").value=modelOption.value;
+    }
+    document.getElementById("statusFilter").value=savedFilters.status;
+    selectedDealers=new Set(savedFilters.dealers);
+
+    const requestId=Number(document.getElementById("requestSelect")?.value||0);
+    if(requestId){
+      await applySelectedBuyerRequest();
+    }else{
+      await loadItems();
     }
   }catch(e){
     st.className="status bad";
     const msg=(e?.context?.body?.error||e?.message||"Refresh paused");
     st.textContent="Refresh paused, but progress has been saved. Press Refresh Source to resume. "+msg;
   }finally{
+    sourceRefreshInProgress=false;
     if(btn){btn.disabled=false;btn.textContent="Refresh Source";}
   }
 }
@@ -691,9 +716,16 @@ async function createBatch(){
   // Keep Make / Model lists current if a source refresh runs in another tab
   // or an automated source refresh adds a new model while this page is open.
   setInterval(async()=>{
+    if(sourceRefreshInProgress)return;
     const cid=document.getElementById("connectorFilter").value;
     if(!cid)return;
+    const savedMake=document.getElementById("makeFilter").value||"";
+    const savedModel=document.getElementById("modelFilter").value||"";
     await loadSourceFacets();
+    if(savedMake && [...document.getElementById("makeFilter").options].some(o=>o.value===savedMake)){
+      document.getElementById("makeFilter").value=savedMake;
+      refreshModelOptions(savedModel);
+    }
   },60000);
 })();
 </script>
