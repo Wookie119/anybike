@@ -62,7 +62,7 @@ textarea{min-height:120px;resize:vertical;white-space:pre-wrap;overflow-wrap:any
           <div class="field"><label>Buyer</label><select id="buyerSelect"><option value="">Loading buyers…</option></select></div>
           <div class="field"><label>Buyer request</label><select id="requestSelect"><option value="">Select buyer first</option></select></div>
           <div class="field"><label>1. UK delivery allowance (£)</label><input id="deliveryAllowance" type="number" min="0" step="1" value="250"><div class="note">Added to every bike in this batch.</div></div>
-          <div class="field"><label>AnyBike Buyer Fee</label><div class="box" style="padding:11px"><strong>Calculated per motorcycle from its selling price</strong><div class="note" style="margin-top:5px">The fee band is calculated automatically for each scanned bike.</div><a class="source-link" href="/services-and-fees.html" target="_blank">View AnyBike Fees ↗</a></div></div>
+          <div class="field"><label>AnyBike Sourcing Fee</label><div class="box" style="padding:11px"><strong>Calculated per motorcycle from its selling price</strong><div class="note" style="margin-top:5px">The sourcing fee is calculated automatically at 8% of the motorcycle price, rounded to the nearest £5, minimum £395.</div><a class="source-link" href="/services-and-fees.html" target="_blank">View AnyBike Fees ↗</a></div></div>
           <div class="field full"><label>Advert URLs — maximum 20</label><textarea id="urlInput" wrap="soft" spellcheck="false" placeholder="Paste each advert URL here. Long URLs will wrap onto several visible lines automatically.&#10;&#10;https://dealer.example/bike-1&#10;https://www.autotrader.co.uk/...&#10;https://www.ebay.co.uk/..."></textarea><div class="note">You do not need to see the whole URL on one line — long links wrap automatically. Put each new advert on a new paragraph/line.</div></div>
         </div>
         <div class="actions" style="margin-top:12px">
@@ -259,7 +259,7 @@ function cardHtml(s,saved){
         (Number(s.source_advertised_price_gbp)>0?"":'<div class="status bad" style="margin-bottom:9px">Source retail price is missing. Return to the source record and correct it before presenting this motorcycle.</div>')+
         '<div class="field" style="margin-bottom:7px"><label>1. Source retail price — fixed</label><input type="text" value="'+(Number(s.source_advertised_price_gbp)>0?gbp(s.source_advertised_price_gbp):"Missing")+'" readonly></div>'+
         priceField(id,"delivery_allowance_gbp","2. Add UK delivery allowance",s.delivery_allowance_gbp)+
-        '<div class="field" style="margin-bottom:7px"><label>3. AnyBike Buyer Fee from motorcycle price</label><input type="text" id="fee-'+id+'" value="'+gbp(s.fee_allowance_gbp||0)+'" readonly></div>'+
+        '<div class="field" style="margin-bottom:7px"><label>3. AnyBike Sourcing Fee — 8% of motorcycle price</label><input type="text" id="fee-'+id+'" value="'+gbp(s.fee_allowance_gbp||0)+'" readonly></div>'+
         '<div class="note"><a class="source-link" href="/services-and-fees.html" target="_blank">View AnyBike Fees ↗</a></div>'+
         '<div style="margin-top:9px;font-weight:900">= Buyer-facing AnyBike price</div><div class="money" id="price-'+id+'">'+(Number(s.source_advertised_price_gbp)>0?gbp(s.anybike_price_gbp??anyPrice):"Enter motorcycle price")+'</div><div class="note">Buyer sees this final AnyBike price only. Seller/source details and the internal price calculation are not shown.</div>'+
         '<label class="check"><input type="checkbox" data-k="'+id+'" data-f="price_checked" '+(s.price_checked?"checked":"")+'><span>Price checked — happy to present this price</span></label>'+
@@ -277,14 +277,7 @@ function sourceRetailPriceField(k,v,saved,extraction){
 function anybikeFeeFromPrice(price){
   const n=Number(price);
   if(!Number.isFinite(n)||n<=0)return 0;
-  if(n<=2999)return 395;
-  if(n<=4999)return 495;
-  if(n<=7499)return 695;
-  if(n<=9999)return 895;
-  if(n<=14999)return 1095;
-  if(n<=19999)return 1295;
-  if(n<=29999)return 1495;
-  return 1695;
+  return Math.max(395,Math.round((n*0.08)/5)*5);
 }
 function priceField(k,f,label,v){return '<div class="field" style="margin-bottom:7px"><label>'+label+' (£)</label><input type="number" min="0" step="1" data-k="'+k+'" data-f="'+f+'" value="'+esc(v??0)+'" oninput="recalc('+k+')"></div>'}
 function toggleSharePanel(){
