@@ -408,3 +408,20 @@ Dashboard:
 
 Verification:
 - Deliberate attempt to set AB-000023 to Zero Rated / Verified before clearance was blocked by the database trigger.
+
+
+## 1 October 2026 — Export VAT evidence documents
+
+The Export VAT Clearance gate now has a real private evidence-document workflow:
+- multi-file click-to-upload and drag/drop area in Deal 360
+- stored privately in the existing deal-files bucket under the Deal
+- document types: Customs Declaration / MRN, CMR / Road Consignment, Bill of Lading, Freight Forwarder Confirmation, Port / Ferry Evidence, V5C Export Evidence, Other
+- optional evidence reference per upload
+- uploaded files are listed in the gate with View and Delete actions
+- 50 MB maximum per document
+- dedicated anybike_export_vat_documents metadata/audit table with RLS enabled and no direct customer table access
+- admin-only RPCs register, list and soft-delete evidence records
+
+Clearance rule tightened:
+- Evidence Received and Zero Rate Confirmed now require at least one active uploaded Export VAT evidence document in addition to the customs reference, transport reference, actual departure date and proof checkboxes.
+- The database enforces this, not just the Deal 360 screen.
