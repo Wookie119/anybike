@@ -182,7 +182,18 @@ function cardHtml(s,saved){
       '<div class="box"><h3>Buyer-safe motorcycle</h3><div class="mini">'+
         field(id,"make","Make",s.make,saved)+field(id,"model","Model",s.model,saved)+field(id,"variant","Variant",s.variant,saved)+field(id,"year","Year",s.year,saved)+field(id,"mileage","Mileage",s.mileage,saved)+field(id,"colour","Colour",s.colour,saved)+
       '</div><div class="field" style="margin-top:8px"><label>Buyer description</label><textarea data-k="'+id+'" data-f="buyer_description">'+esc(s.buyer_description||"")+'</textarea></div>'+
-      '<label class="check"><input type="checkbox" data-k="'+id+'" data-f="approve_first_image" '+((s.buyer_image_urls||[]).length?"checked":"")+'><span>Approve first source image for this private buyer presentation <span class="note">(only where AnyBike is permitted to reuse it)</span></span></label></div>'+
+      (s.extraction&&s.extraction.live_source_item_id
+        ?'<div style="margin-top:10px;padding:10px;border:1px solid #333;border-radius:10px;background:#0b0b0b">'+
+          '<div style="font-weight:900">Buyer-safe images</div>'+
+          '<div class="note" style="margin-top:4px">'+(((s.buyer_image_urls||[]).length)
+            ?((s.buyer_image_urls||[]).length+' approved clean image'+((s.buyer_image_urls||[]).length===1?'':'s')+' ready')
+            :'No approved buyer-safe image yet. Raw dealer images are internal only.')+'</div>'+
+          '<button type="button" class="btn green" style="margin-top:8px" onclick="prepareBuyerSafeImages('+id+','+Number(s.extraction.live_source_item_id)+')">'+
+            (((s.buyer_image_urls||[]).length)?'Re-check buyer-safe images':'Prepare buyer-safe images')+
+          '</button> <span id="buyer-safe-status-'+id+'" class="status"></span>'+
+        '</div>'
+        :'<div class="note" style="margin-top:10px">Use only images AnyBike is permitted to present to the buyer.</div>')+
+      '</div>'+
       '<div class="box"><h3>Price check</h3>'+
         (Number(s.source_advertised_price_gbp)>0?"":'<div class="status bad" style="margin-bottom:9px">Source retail price is missing. Return to the source record and correct it before presenting this motorcycle.</div>')+
         '<div class="field" style="margin-bottom:7px"><label>1. Source retail price — fixed</label><input type="text" value="'+(Number(s.source_advertised_price_gbp)>0?gbp(s.source_advertised_price_gbp):"Missing")+'" readonly></div>'+
@@ -223,8 +234,7 @@ function collectCard(k){
   const s=scanned.find(x=>String(x.id??x._key)===String(k)); if(!s)return null;
   document.querySelectorAll('[data-k="'+k+'"][data-f]').forEach(el=>{
     const f=el.dataset.f;
-    if(f==="approve_first_image"){s.buyer_image_urls=el.checked&&Array.isArray(s.source_image_urls)&&s.source_image_urls[0]?[s.source_image_urls[0]]:[]}
-    else if(el.type==="checkbox")s[f]=el.checked;
+    if(el.type==="checkbox")s[f]=el.checked;
     else s[f]=el.value;
   });
   const src=Number(s.source_advertised_price_gbp)||0;
@@ -280,6 +290,40 @@ async function addToLiveSource(k){
   if(error){alert(error.message);return}
   alert("Saved to Live Source Hub.");
 }
+async function prepareBuyerSafeImages(scanId,liveSourceItemId){
+  const st=document.getElementById("buyer-safe-status-"+scanId);
+  if(st){st.className="status";st.textContent="Checking source photos…";}
+  try{
+    const {data,error}=await sb().functions.invoke("prepare-live-source-buyer-safe-images",{
+      body:{live_source_item_id:Number(liveSourceItemId)}
+    });
+    if(error)throw error;
+    if(data?.error)throw new Error(data.error);
+
+    const refreshed=await sb().rpc("admin_refresh_scan_buyer_safe_images_v1",{p_scan_id:Number(scanId)});
+    if(refreshed.error)throw refreshed.error;
+
+    const s=scanned.find(x=>Number(x.id)===Number(scanId));
+    if(s){
+      s.buyer_image_urls=refreshed.data?.buyer_image_urls||[];
+      s.extraction=Object.assign({},s.extraction||{},{
+        buyer_safe_image_status:(refreshed.data?.buyer_safe_image_count||0)>0?"ready":"pending"
+      });
+    }
+
+    if(st){
+      const safe=Number(data?.safe_count||0);
+      const blocked=Number(data?.blocked_branding_count||0);
+      st.className=safe>0?"status good":"status bad";
+      st.textContent=safe+" clean · "+blocked+" dealer-branded blocked";
+    }
+    renderScans(true);
+  }catch(e){
+    if(st){st.className="status bad";st.textContent=e?.message||"Image check failed";}
+    alert("Buyer-safe image preparation could not complete.\n\n"+(e?.message||e));
+  }
+}
+
 async function saveScan(id){
   const s=collectCard(id);
   if(!s)return false;
@@ -312,8 +356,14 @@ function buildMessage(){
 }
 async function shareBatch(){
   for(const s of scanned){collectCard(s.id);await saveScan(s.id)}
-  const ids=scanned.filter(s=>s.selected_for_buyer).map(s=>Number(s.id));
+  const selectedRows=scanned.filter(s=>s.selected_for_buyer);
+  const ids=selectedRows.map(s=>Number(s.id));
   if(!ids.length){alert("Select at least one motorcycle.");return}
+  const missingSafe=selectedRows.filter(s=>s.extraction&&s.extraction.live_source_item_id&&!(Array.isArray(s.buyer_image_urls)&&s.buyer_image_urls.length));
+  if(missingSafe.length){
+    alert("Every Live Source motorcycle needs at least one approved buyer-safe image before it can be shared.\n\nUse Prepare buyer-safe images on the highlighted motorcycles first.");
+    return;
+  }
   const st=document.getElementById("shareStatus");st.className="status";st.textContent="Sharing selection…";
   const {data,error}=await sb().rpc("admin_share_used_bike_scan_batch_v1",{p_batch_id:currentBatchId,p_scan_ids:ids,p_message_text:document.getElementById("shareMessage").value});
   if(error){st.className="status bad";st.textContent=error.message;return}
