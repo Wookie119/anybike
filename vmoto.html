@@ -32,10 +32,15 @@ h1{margin:10px 0 18px;font-size:clamp(44px,7vw,88px);line-height:.95;letter-spac
 .retail-enquiry-copy h2{margin-top:6px}.retail-enquiry-copy p{color:#555}.retail-enquiry-points{display:grid;gap:10px;margin-top:18px}.retail-enquiry-points span{font-weight:800}.retail-enquiry-points span::before{content:"✓";color:var(--red);margin-right:8px}
 .retail-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.retail-field{display:grid;gap:6px}.retail-field.full{grid-column:1/-1}.retail-field label{font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:.05em;color:#555}.retail-field input,.retail-field select,.retail-field textarea{width:100%;border:1px solid #ccc;border-radius:12px;background:#fff;color:#111;padding:12px;font:inherit}.retail-field textarea{min-height:95px;resize:vertical}.retail-submit{grid-column:1/-1;display:flex;align-items:center;gap:12px;flex-wrap:wrap}.retail-submit button{border:0;cursor:pointer}.retail-status{font-size:14px;font-weight:800}.retail-status.good{color:#148647}.retail-status.bad{color:#b3161d}
 .retail-small{font-size:12px;color:#777;margin-top:10px}
+.faq-wrap{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(300px,.6fr);gap:22px;align-items:start}
+.faq-list{display:grid;gap:10px}.faq-item{border:1px solid var(--line);border-radius:16px;background:#111;overflow:hidden}.faq-item summary{cursor:pointer;list-style:none;padding:17px 18px;font-weight:900}.faq-item summary::-webkit-details-marker{display:none}.faq-item summary::after{content:"+";float:right;color:#ff5b61;font-size:20px}.faq-item[open] summary::after{content:"−"}.faq-answer{padding:0 18px 18px;color:#bbb;white-space:pre-line}.faq-category{display:inline-block;margin-bottom:7px;color:#ff666b;font-size:10px;font-weight:900;letter-spacing:.12em;text-transform:uppercase}
+.faq-empty{padding:18px;border:1px dashed rgba(255,255,255,.2);border-radius:16px;color:#aaa}
+.faq-ask{border:1px solid var(--line);border-radius:18px;background:#111;padding:20px;position:sticky;top:20px}.faq-ask h3{margin:0 0 8px;font-size:24px}.faq-ask p{margin:0 0 14px;color:#aaa}.faq-ask textarea,.faq-ask input{width:100%;border:1px solid #333;border-radius:12px;background:#090909;color:#fff;padding:11px;font:inherit;margin-bottom:10px}.faq-ask textarea{min-height:110px;resize:vertical}.faq-status{font-size:13px;font-weight:800;margin-top:10px}.faq-status.good{color:#80efad}.faq-status.bad{color:#ff767b}
+
 
 footer{padding:26px 20px;border-top:1px solid var(--line);color:#999;text-align:center}
 @media(max-width:1000px){.model-grid{grid-template-columns:repeat(2,1fr)}.choice-grid,.coverage{grid-template-columns:repeat(2,1fr)}.process{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:900px){.retail-enquiry-card{grid-template-columns:1fr}}
+@media(max-width:900px){.retail-enquiry-card,.faq-wrap{grid-template-columns:1fr}.faq-ask{position:static}}
 @media(max-width:700px){.wrap{width:calc(100% - 26px)}.hero{padding:50px 0}.split-grid,.model-grid,.choice-grid,.coverage,.process,.retail-form{grid-template-columns:1fr}.retail-field.full,.retail-submit{grid-column:1}.actions{display:grid}.btn{width:100%}}
 </style>
 </head>
@@ -82,6 +87,28 @@ footer{padding:26px 20px;border-top:1px solid var(--line);color:#999;text-align:
       <div class="choice"><strong>Battery &amp; range</strong><span>Battery option, quoted range and relevant charging information.</span></div>
       <div class="choice"><strong>Colour &amp; availability</strong><span>Exact colour choice and stock status for the selected configuration.</span></div>
       <div class="choice"><strong>Ownership information</strong><span>Licence, warranty, servicing and insurance information as confirmed for each model.</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="vmoto-faq">
+  <div class="wrap">
+    <div class="kicker">VMOTO FAQ</div>
+    <h2>Questions about buying a VMoto?</h2>
+    <p class="section-intro">Answers shown here are maintained from AnyBike's approved VMoto knowledge base. We will use VMoto UK guidance for product, warranty, servicing, registration and ownership questions rather than guessing.</p>
+    <div class="faq-wrap">
+      <div id="vmotoFaqList" class="faq-list">
+        <div class="faq-empty">VMoto UK FAQ answers are being prepared. Approved answers will appear here automatically.</div>
+      </div>
+      <aside class="faq-ask">
+        <h3>Ask a question</h3>
+        <p>If your question is not covered, send it to AnyBike. We can add recurring questions to the approved VMoto FAQ once the answer is confirmed.</p>
+        <textarea id="vmotoFaqQuestion" maxlength="1000" placeholder="What would you like to know about the VMoto range?"></textarea>
+        <input id="vmotoFaqName" maxlength="160" placeholder="Your name (optional)">
+        <input id="vmotoFaqEmail" maxlength="254" type="email" placeholder="Email (optional)">
+        <button class="btn" id="vmotoFaqSubmit" type="button">Send Question</button>
+        <div id="vmotoFaqStatus" class="faq-status"></div>
+      </aside>
     </div>
   </div>
 </section>
@@ -201,6 +228,59 @@ footer{padding:26px 20px;border-top:1px solid var(--line);color:#999;text-align:
 const VMOTO_SUPABASE_URL="https://tuehtnezhdnkqbbhttgp.supabase.co";
 const VMOTO_SUPABASE_ANON_KEY="sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
 const vmotoSb=supabase.createClient(VMOTO_SUPABASE_URL,VMOTO_SUPABASE_ANON_KEY);
+
+async function loadVmotoFaqs(){
+  const list=document.getElementById("vmotoFaqList");
+  if(!list) return;
+  try{
+    const {data,error}=await vmotoSb.rpc("public_get_vmoto_faqs_v1",{p_model_slug:null,p_territory_slug:null});
+    if(error) throw error;
+    const rows=Array.isArray(data)?data:[];
+    if(!rows.length){
+      list.innerHTML='<div class="faq-empty">VMoto UK FAQ answers are being prepared. Approved answers will appear here automatically.</div>';
+      return;
+    }
+    const esc=function(v){return String(v??"").replace(/[&<>"']/g,function(ch){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch];});};
+    list.innerHTML=rows.map(function(row){
+      return '<details class="faq-item"><summary><span class="faq-category">'+esc(row.category||"General")+'</span><br>'+esc(row.question||"")+'</summary><div class="faq-answer">'+esc(row.answer||"")+'</div></details>';
+    }).join("");
+  }catch(error){
+    console.error("VMoto FAQ could not be loaded",error);
+    list.innerHTML='<div class="faq-empty">FAQ answers could not be loaded right now. Please use Ask a question.</div>';
+  }
+}
+
+document.getElementById("vmotoFaqSubmit")?.addEventListener("click",async function(){
+  const button=this;
+  const question=document.getElementById("vmotoFaqQuestion")?.value||"";
+  const name=document.getElementById("vmotoFaqName")?.value||"";
+  const email=document.getElementById("vmotoFaqEmail")?.value||"";
+  const status=document.getElementById("vmotoFaqStatus");
+  button.disabled=true;
+  status.className="faq-status";
+  status.textContent="";
+  try{
+    const {error}=await vmotoSb.rpc("public_submit_vmoto_faq_question_v1",{
+      p_question:question,
+      p_model_slug:null,
+      p_origin_page_url:window.location.pathname,
+      p_customer_name:name||null,
+      p_customer_email:email||null
+    });
+    if(error) throw error;
+    status.className="faq-status good";
+    status.textContent="Thanks — your question has been sent to AnyBike.";
+    document.getElementById("vmotoFaqQuestion").value="";
+  }catch(error){
+    console.error("VMoto FAQ question could not be sent",error);
+    status.className="faq-status bad";
+    status.textContent=error?.message||"Your question could not be sent.";
+  }finally{
+    button.disabled=false;
+  }
+});
+
+loadVmotoFaqs();
 
 document.getElementById("vmotoRetailForm")?.addEventListener("submit",async function(event){
   event.preventDefault();
