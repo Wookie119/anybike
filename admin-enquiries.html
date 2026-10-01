@@ -8336,14 +8336,18 @@ function anyBikeDealProjectedCommercialTotals(deal){
     }
   });
 
+  const motorcycleRevenue=rows.reduce(function(sum,row){
+    return sum+Number(row.anybike_sale_price_gbp||0)+Number(row.anybike_buyer_fee_gbp||0);
+  },0);
+
   const projectedProfit=
     hasSale && hasSeller && allComplete
-      ? customerTotal-totalInternalCost
+      ? motorcycleRevenue-totalInternalCost
       : null;
 
   const projectedMargin=
-    projectedProfit!==null && customerTotal>0
-      ? (projectedProfit/customerTotal)*100
+    projectedProfit!==null && motorcycleRevenue>0
+      ? (projectedProfit/motorcycleRevenue)*100
       : null;
 
   return {
@@ -8887,8 +8891,9 @@ function calculateDealOfferPreview(){
   const anybikeFee=dealOfferNumber("dealOfferAnyBikeFee");
   const deliveryCharge=dealOfferNumber("dealOfferDeliveryCharge");
   const customerTotal=motorcyclePrice+anybikeFee+deliveryCharge;
-  const profit=customerTotal-Number(activeDealOfferInternalCost || 0);
-  const margin=customerTotal>0 ? (profit/customerTotal)*100 : 0;
+  const motorcycleRevenue=motorcyclePrice+anybikeFee;
+  const profit=motorcycleRevenue-Number(activeDealOfferInternalCost || 0);
+  const margin=motorcycleRevenue>0 ? (profit/motorcycleRevenue)*100 : 0;
 
   const totalEl=document.getElementById("dealOfferCustomerTotal");
   const profitEl=document.getElementById("dealOfferProjectedProfit");
