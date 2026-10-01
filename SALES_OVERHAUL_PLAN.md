@@ -627,3 +627,5 @@ Frontend alignment completed:
 - Repeated real customer questions should be sent to VMoto UK for an approved answer, then converted into the public FAQ so the knowledge base improves over time.
 - Source name/reference is stored internally with each FAQ answer so AnyBike can retain where the approved wording came from.
 - The public FAQ starts empty until Cameron/VMoto UK provides approved questions and answers; no VMoto product answers should be fabricated just to populate the section.
+
+- VMoto FAQ scoping rule: the main VMoto hub shows only general approved FAQs. Individual model pages show the general approved FAQs plus FAQs specifically assigned to that model. Model-specific answers must never leak onto unrelated model pages.
