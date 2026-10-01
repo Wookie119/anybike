@@ -129,6 +129,20 @@ function syncSourcingNav(){
 function esc(v){return String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;")}
 function gbp(v){const n=Number(v);return Number.isFinite(n)?new Intl.NumberFormat("en-GB",{style:"currency",currency:"GBP",maximumFractionDigits:0}).format(n):"—"}
 function date(v){if(!v)return"Never";try{return new Date(v).toLocaleString("en-GB")}catch{return v}}
+function currentConnector(){
+  const id=Number(document.getElementById("connectorFilter")?.value||0);
+  return (hub?.connectors||[]).find(x=>Number(x.id)===id)||null;
+}
+function isBmwConnector(){
+  return currentConnector()?.adapter_key==="bmw-approved-used-uk";
+}
+function syncSourceSpecificControls(){
+  const bmw=isBmwConnector();
+  const photoBtn=document.getElementById("loadPhotosBtn");
+  const cleanBtn=document.getElementById("cleanSelectedBtn");
+  if(photoBtn)photoBtn.style.display=bmw?"":"none";
+  if(cleanBtn)cleanBtn.style.display=bmw?"":"none";
+}
 function firstImg(i){
   if(i.buyer_safe_url)return i.buyer_safe_url;
   const urls=Array.isArray(i.source_image_urls)?i.source_image_urls:[];
@@ -216,11 +230,13 @@ async function loadHub(){
     if(preferred){
       document.getElementById("connectorFilter").value=String(preferred.id);
       document.getElementById("activeSourceLabel").textContent=preferred.name;
+      syncSourceSpecificControls();
       await loadSourceFacets();
     }
   }else{
     const current=cs.find(c=>Number(c.id)===selectedId);
     document.getElementById("activeSourceLabel").textContent=current?.name||"Selected channel";
+    syncSourceSpecificControls();
   }
 }
 async function selectSourceChannel(id){
@@ -232,6 +248,7 @@ async function selectSourceChannel(id){
 
   const connector=(hub?.connectors||[]).find(c=>Number(c.id)===Number(id));
   document.getElementById("activeSourceLabel").textContent=connector?.name||"Selected channel";
+  syncSourceSpecificControls();
 
   await loadSourceFacets();
 
@@ -316,7 +333,7 @@ async function loadBmwPhotos(){
   const model=document.getElementById("modelFilter").value||null;
   const st=document.getElementById("poolStatus");
   const btn=document.getElementById("loadPhotosBtn");
-  if(!cid){st.className="status bad";st.textContent="Choose BMW Approved Used first.";return}
+  if(!cid||!isBmwConnector()){st.className="status bad";st.textContent="BMW photo loading is only available on BMW Motorrad Approved Used UK.";return}
   if(btn){btn.disabled=true;btn.textContent="Loading photos…";}
   st.className="status";st.textContent="Loading internal BMW source photos for "+([make,model].filter(Boolean).join(" ")||"visible source")+"…";
   try{
@@ -368,6 +385,11 @@ async function cleanSelectedImages(){
   const st=document.getElementById("poolStatus");
   const btn=document.getElementById("cleanSelectedBtn");
   const ids=[...selected].map(Number);
+  if(!isBmwConnector()){
+    st.className="status bad";
+    st.textContent="Buyer-safe BMW image cleaning is only available on BMW Motorrad Approved Used UK.";
+    return;
+  }
   if(!ids.length){
     st.className="status bad";
     st.textContent="Select at least one motorcycle to clean.";
@@ -629,6 +651,15 @@ async function createBatch(){
   const allowed=await requireAdminSession();if(!allowed)return;
   syncSourcingNav();
   await Promise.all([loadHub(),loadBuyers()]);
+  const requestedSource=sourcingParams.get("source");
+  if(requestedSource && (hub?.connectors||[]).some(x=>String(x.id)===String(requestedSource))){
+    await selectSourceChannel(Number(requestedSource));
+  }else{
+    const bmw=(hub?.connectors||[]).find(x=>x.adapter_key==="bmw-approved-used-uk"&&x.status==="adapter_ready");
+    if(bmw && Number(document.getElementById("connectorFilter").value)!==Number(bmw.id)){
+      await selectSourceChannel(Number(bmw.id));
+    }
+  }
   const requestedBuyer=sourcingParams.get("buyer");
   const requestedRequest=sourcingParams.get("request");
   if(requestedBuyer && [...document.getElementById("buyerSelect").options].some(o=>o.value===String(requestedBuyer))){
