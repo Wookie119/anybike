@@ -968,3 +968,75 @@ Current standard depot storage rate:
 The operating objective remains to move paid-for motorcycles to the confirmed UK receiver promptly. Storage is for genuine consolidation or unavoidable delay, not a default holding stage.
 
 Freight method, container size and international carrier choice remain transaction-specific and are not hard-coded into Deal 360.
+
+
+---
+
+# 29. Motorcycle Commercial Margin and Transport Treatment — 1 October 2026
+
+## Purpose
+Deal 360 must keep the motorcycle commercial decision separate from the customer transport line so staff do not create false profit or false costs.
+
+## Customer Total
+Customer Total is:
+- Motorcycle Sale Price;
+- plus AnyBike Sourcing Fee;
+- plus UK Collection & Delivery Charge;
+- plus any other separately agreed customer-facing charge where the workflow explicitly supports it.
+
+The UK Collection & Delivery Charge remains a real customer charge. It is not removed from the offer or invoice merely because it is excluded from the motorcycle margin.
+
+## Motorcycle commercial revenue
+For the Deal 360 commercial margin calculation:
+
+**Motorcycle commercial revenue = Motorcycle Sale Price + AnyBike Sourcing Fee**
+
+Do not add the UK Collection & Delivery Charge to motorcycle commercial revenue.
+
+## Motorcycle / Deal Cost Basis
+Include only genuine motorcycle/deal-specific costs:
+- Agreed Seller Purchase Price;
+- genuine prep / rectification;
+- genuine export documentation cost;
+- genuine additional deal administration cost;
+- genuine other deal-specific costs.
+
+Do **not** invent an internal Move Motorcycles collection/delivery cost simply because AnyBike charges the buyer for transport. If a genuine accounted transport supplier cost or invoice exists in a future transaction, it must be handled according to the accounting design in force at that time rather than inserted as an assumed figure.
+
+## Motorcycle commercial profit and margin
+Calculate:
+
+**Motorcycle Commercial Profit = Motorcycle commercial revenue - Motorcycle / Deal Cost Basis**
+
+**Motorcycle Commercial Margin = Motorcycle Commercial Profit / Motorcycle commercial revenue**
+
+Delivery must not increase either figure.
+
+For AB-000026, with:
+- Motorcycle Sale Price £13,835;
+- AnyBike Sourcing Fee £1,105;
+- UK Collection & Delivery Charge £250;
+- Agreed Seller Purchase Price £12,000;
+- no other genuine motorcycle/deal costs;
+
+the operating figures are:
+- Customer Total £15,190;
+- Motorcycle commercial revenue £14,940;
+- Motorcycle / Deal Cost Basis £12,000;
+- Motorcycle Commercial Profit £2,940;
+- Motorcycle Commercial Margin approximately 19.7%.
+
+## VAT treatment
+Do not describe delivery as automatically VAT-free or zero-rated.
+
+The Deal 360 motorcycle VAT estimate excludes delivery so that the motorcycle treatment is not distorted by the transport line. UK Collection & Delivery remains a separate invoice/accounting line and the Final Invoice accounting VAT review is authoritative for its VAT treatment.
+
+## Staff screen rule
+Where these figures are shown, use clear labels:
+- **Motorcycle / Deal Cost Basis**
+- **Motorcycle Commercial Profit**
+- **Motorcycle Commercial Margin**
+
+The customer transport field should explain that it is included in Customer Total but is separate from motorcycle commercial profit/margin.
+
+The AI Matching viability and Global Buyer offer tools must follow the same rule so staff are not taught conflicting commercial logic before a Deal reaches Deal 360.
