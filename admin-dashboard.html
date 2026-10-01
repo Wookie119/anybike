@@ -3096,22 +3096,40 @@ setText("kpiPrivateSellers", countSourceType([
       if(!String(thread.last_sender || "").toLowerCase().includes("customer")){ return; }
 
       const enquiryId = thread.related_enquiry_id;
+      const relatedDealId = Number(thread.related_deal_id || 0);
+      const linkedEnquiry = enquiryId
+        ? rows.find(function(row){ return String(row.id)===String(enquiryId); })
+        : null;
+      const linkedDeal = relatedDealId > 0;
+      const linkedConverted = enquiryId && dashboardEnquiryDealMap.has(String(enquiryId));
+      const seriousEnquiry = !!linkedEnquiry && (
+        String(linkedEnquiry.question_type || "").toLowerCase()==="availability" ||
+        Number(linkedEnquiry.deposit_received || 0)>0 ||
+        Number(linkedEnquiry.balance_due || 0)>0
+      );
+
+      // Browsing, watch-list and unlinked casual chat remain visible in Message
+      // Centre, but they must not create Dashboard work. Your Next Actions is
+      // reserved for a live Deal or a genuine buyer request.
+      if(!linkedDeal && !linkedConverted && !seriousEnquiry){ return; }
+
       const bike = [thread.bike_year,thread.bike_make,thread.bike_model]
         .filter(Boolean).join(" ") || "Motorcycle enquiry";
 
-      const key = [enquiryId || "",thread.customer_email || thread.customer_name || "",thread.last_message || ""]
+      const key = [thread.id || "",enquiryId || "",relatedDealId || "",thread.last_message || ""]
         .join("|").toLowerCase();
 
       if(seenReplies.has(key)){ return; }
       seenReplies.add(key);
 
       actions.push(createDashboardAction({
-        group:"messages",priority:"urgent",icon:"💬",type:"Customer replied",
-        title:"Reply waiting",customer:thread.customer_name || thread.customer_email || "Customer",
+        group:"messages",priority:"urgent",icon:"",type:"Buyer message",
+        title:"Reply to Buyer",customer:thread.customer_name || thread.customer_email || "Customer",
         bike:bike,country:thread.country || "",assigned:"Bike Sales",
-        preview:thread.last_message || "Customer reply waiting.",
+        preview:thread.last_message || "Buyer reply waiting.",
         age:timeAgo(thread.last_message_at),createdAt:thread.last_message_at,
-        url:enquiryId ? dashboardDealUrl(enquiryId,"messages") : "admin-message-centre.html?thread="+thread.id
+        url:"admin-message-centre.html?thread="+encodeURIComponent(thread.id),
+        openLabel:"Reply now →"
       }));
     });
 
@@ -3305,7 +3323,7 @@ setText("kpiPrivateSellers", countSourceType([
             ". Re-check the seller now. If availability and commercial terms are confirmed, AnyBike will issue the Proforma and send the deposit request automatically.",
           age:timeAgo(item.requested_at),
           createdAt:item.requested_at,
-          url:"admin-enquiries.html?deal="+encodeURIComponent(item.deal_id),
+          url:"admin-enquiries.html?deal="+encodeURIComponent(item.deal_id)+"&tab=seller",
           openLabel:"Re-check seller →"
         }));
       });
