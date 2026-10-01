@@ -8715,11 +8715,14 @@ function configureDealOfferExpiryLimit(dealMotorcycleId){
   const help=document.getElementById("dealOfferExpiryHelp");
   if(!input) return;
 
+  // Seller availability / a temporary hold is evidence that the bike was live
+  // when AnyBike prepared the offer. It is not the customer-offer clock.
+  // The seller is rechecked again immediately before AnyBike purchases the bike.
   input.removeAttribute("max");
 
   if(dealMotorcycleIsSecured(dealMotorcycleId)){
     if(help){
-      help.textContent="Motorcycle secured by AnyBike — the earlier seller availability window no longer limits this customer offer.";
+      help.textContent="Motorcycle already purchased / secured by AnyBike.";
       help.style.color="#9bf0b8";
     }
     return;
@@ -8729,20 +8732,15 @@ function configureDealOfferExpiryLimit(dealMotorcycleId){
   const until=candidate?.availability_valid_until ? new Date(candidate.availability_valid_until) : null;
   if(!until || Number.isNaN(until.getTime())){
     if(help){
-      help.textContent="Offer expiry should remain within any live seller availability / hold window.";
+      help.textContent="Choose a sensible customer-offer expiry. AnyBike will recheck seller availability again before paying the seller.";
       help.style.color="#888";
     }
     return;
   }
 
-  const maxValue=dealOfferDateTimeLocal(until);
-  input.max=maxValue;
-  const current=input.value ? new Date(input.value) : null;
-  if(current && !Number.isNaN(current.getTime()) && current.getTime()>until.getTime()){
-    input.value=maxValue;
-  }
   if(help){
-    help.textContent="Maximum while the bike is not yet secured: "+until.toLocaleString("en-GB")+". Recheck the seller to extend this.";
+    help.textContent="Seller availability / hold currently runs to "+until.toLocaleString("en-GB")+
+      ". This does not secure the motorcycle for the whole customer-offer period. AnyBike must recheck the seller immediately before purchase.";
     help.style.color="#ffd27c";
   }
 }
