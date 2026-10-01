@@ -891,3 +891,80 @@ When a deliberate TRAINING Deal proves a process, its chapter can move from Test
 When LIVE Deals confirm it works reliably, it can move to Live.
 
 The goal is that a future operator can understand not only which buttons to press, but the commercial judgement AnyBike was designed to preserve.
+
+
+---
+
+# 28. First Order, Seller Purchase and Consolidation Rules — 1 October 2026
+
+## Seller availability is not motorcycle ownership
+A seller availability check records:
+- the motorcycle is still available;
+- the agreed seller purchase price;
+- any temporary seller hold / reservation;
+- the time until which that seller confirmation is valid.
+
+A temporary hold does **not** mean the motorcycle is purchased or secured by AnyBike.
+
+The customer Formal Offer has its own expiry. It does not need to end at exactly the same time as a temporary seller hold. AnyBike must recheck the seller immediately before paying the seller. If the saved seller availability has expired, supplier payment is blocked until the seller is rechecked.
+
+## When AnyBike purchases the motorcycle
+AnyBike only pays the seller after:
+1. the buyer has accepted the Formal Offer;
+2. AnyBike has received and allocated the buyer's full cleared payment for the Deal;
+3. the buyer account is not On Hold or Stopped;
+4. Buyer Verification and Export & Tax Identity are complete, unless the buyer is inside the controlled first-order seven-day grace period;
+5. for an export/international transaction, the UK handover route is Confirmed;
+6. the buyer's freight forwarder is recorded;
+7. the UK shipping / receiving company is recorded separately where it is a different business;
+8. the exact UK delivery / handover address and postcode are recorded;
+9. seller availability has been rechecked and is still valid.
+
+The motorcycle becomes **Purchased / Secured** when the seller purchase price has actually been paid in full. Staff should not mark a motorcycle secured merely because it is available or held.
+
+## First-order seven-day verification grace
+The first accepted Deal 360 Formal Offer for a new buyer starts one seven-day first-order grace period.
+
+During this period the buyer may complete:
+- Buyer Verification; and
+- Export & Tax Identity.
+
+The grace period does not remove the requirements for:
+- cleared customer funds before AnyBike pays the seller;
+- an active customer account;
+- a current seller recheck; or
+- a complete UK handover route for an export purchase.
+
+Accepting additional motorcycles during the first order does not restart the Buyer Verification deadline.
+
+## Freight forwarder versus UK receiving company
+Do not assume the buyer's freight forwarder is the same business that receives the motorcycle in the UK.
+
+Record separately:
+- Buyer Freight Forwarder;
+- UK Shipping / Receiving Company;
+- UK receiver contact;
+- exact UK delivery / handover address;
+- postcode;
+- port / terminal or handover-point label where relevant;
+- booking / forwarder reference where available.
+
+Move Motorcycles must know the exact UK delivery location before AnyBike pays the seller on an export Deal.
+
+## First-order multi-bike consolidation and storage
+A buyer's first order may contain several motorcycles.
+
+When the first motorcycle in that first order enters depot storage:
+- a seven-day free first-order consolidation period begins;
+- further motorcycles can be added to the same first order;
+- if the buyer genuinely commits to another motorcycle while the consolidation window is active, the consolidation deadline may extend to allow that committed motorcycle to join the shipment;
+- merely saying they may buy another motorcycle is not a commitment.
+
+If the buyer does not commit to another motorcycle or complete an agreed onward handover by the end of the free consolidation period, normal depot storage charges begin.
+
+Current standard depot storage rate:
+- **£6.95 per motorcycle per day including VAT.**
+
+The operating objective remains to move paid-for motorcycles to the confirmed UK receiver promptly. Storage is for genuine consolidation or unavoidable delay, not a default holding stage.
+
+Freight method, container size and international carrier choice remain transaction-specific and are not hard-coded into Deal 360.
