@@ -20,7 +20,7 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
 .source-card{padding:16px;cursor:pointer;transition:border-color .15s,box-shadow .15s}.source-card.active{border-color:#ed1c24;box-shadow:0 0 0 1px rgba(237,28,36,.25)}.source-card h3{margin:0 0 5px;font-size:18px}.source-meta{font-size:12px;color:#aaa;line-height:1.5}.stats{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.pill{border:1px solid #333;border-radius:999px;padding:6px 9px;font-size:12px}.pill.live{color:#85efaa;border-color:#2b6440}.pill.end{color:#aaa}.pill.review{color:#ffd27a;border-color:#665025}
 .btn{display:inline-block;border:1px solid #333;background:#181818;color:#fff;border-radius:10px;padding:10px 13px;font-weight:900;cursor:pointer;text-decoration:none}.btn.red{background:var(--red);border-color:var(--red)}.btn.green{background:#143d27;border-color:#276941}.btn:disabled{opacity:.45;cursor:not-allowed}
 .filters{display:grid;grid-template-columns:1.1fr 1fr 1fr 1fr auto;gap:10px;align-items:end}.field{display:grid;gap:5px}.field label{font-size:12px;color:#bbb;font-weight:800}input,select{width:100%;background:#090909;color:#fff;border:1px solid #333;border-radius:10px;padding:10px;font:inherit}
-.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:12px 0}.status{font-size:13px;color:#bbb}.status.good{color:var(--green)}.status.bad{color:#ff8181}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:12px 0}.dealer-filter-wrap{margin-top:12px;padding:12px;border:1px solid #2b2b2b;border-radius:12px;background:#0d0d0d}.dealer-filter-head{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px}.dealer-filter-checks{display:flex;gap:8px 14px;flex-wrap:wrap}.dealer-filter-checks label{display:flex;align-items:center;gap:6px;font-size:12px;color:#ddd}.dealer-filter-checks input{width:auto}.status{font-size:13px;color:#bbb}.status.good{color:var(--green)}.status.bad{color:#ff8181}
 .bikes{display:grid;gap:10px}.bike{display:grid;grid-template-columns:34px 110px 1.5fr 1fr 1fr 1fr 120px;gap:12px;align-items:center;padding:12px}.bike img{width:110px;height:78px;object-fit:cover;border-radius:9px;background:#181818}.bike-title{font-weight:900;font-size:17px}.small{font-size:12px;color:#aaa;line-height:1.4}.secret{color:#ff777c}.money{font-weight:900}.empty{padding:25px;text-align:center;color:#888}
 .sourcing-nav{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:0 0 14px;padding:6px;background:#101010;border:1px solid var(--line);border-radius:14px}
 .sourcing-nav a{color:#aaa;text-decoration:none;font-weight:900;font-size:13px;padding:9px 12px;border-radius:10px;border:1px solid transparent}
@@ -65,13 +65,22 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
       <section class="sources" id="sources"></section>
 
       <section class="panel">
-        <div class="filters" style="grid-template-columns:1.1fr 1fr 1fr auto">
+        <div class="filters" style="grid-template-columns:1.1fr 1fr 1fr 1fr auto">
           <input type="hidden" id="connectorFilter" value="">
           <div class="field"><label>Selected channel</label><div id="activeSourceLabel" class="btn" style="cursor:default;text-align:left">Choose a channel above</div></div>
           <div class="field"><label>Make</label><select id="makeFilter" onchange="refreshModelOptions()"><option value="">All makes</option></select></div>
           <div class="field"><label>Model</label><select id="modelFilter"><option value="">All models</option></select></div>
           <div class="field"><label>Status</label><select id="statusFilter"><option value="live">Live only</option><option value="">All</option><option value="ended">No longer listed</option><option value="review">Needs review</option></select></div>
           <button class="btn red" onclick="loadItems()">Search</button>
+        </div>
+        <div class="dealer-filter-wrap">
+          <div class="dealer-filter-head">
+            <strong>Internal source filter</strong>
+            <span class="small">Choose one or more dealers</span>
+            <button type="button" class="btn" onclick="selectAllDealerFilters()">All</button>
+            <button type="button" class="btn" onclick="clearDealerFilters()">Clear</button>
+          </div>
+          <div id="dealerFilterChecks" class="dealer-filter-checks"><span class="small">Dealer filters will appear after the source loads.</span></div>
         </div>
         <div class="toolbar">
           <span id="poolStatus" class="status">Loading source pool…</span>
@@ -96,7 +105,7 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
 </div>
 <script>
 const sb=()=>getAdminSupabaseClient();
-let hub=null,items=[],buyers=[],selected=new Set(),sourceFacets={makes:[],models:[]},buyerRequests=[];
+let hub=null,items=[],buyers=[],selected=new Set(),sourceFacets={makes:[],models:[]},buyerRequests=[],selectedDealers=new Set();
 const sourcingParams=new URLSearchParams(location.search);
 function sourcingContextQuery(extra){
   const p=new URLSearchParams();
@@ -325,7 +334,35 @@ async function loadBmwPhotos(){
   }
 }
 
-async function loadItems(){
+function renderDealerFilters(rows){
+  const el=document.getElementById("dealerFilterChecks");
+  if(!el)return;
+  const dealers=[...new Set((rows||[]).map(i=>String(i.seller_name||"").trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+  if(!dealers.length){
+    el.innerHTML='<span class="small">No internal source names found.</span>';
+    return;
+  }
+  selectedDealers=new Set([...selectedDealers].filter(d=>dealers.includes(d)));
+  el.innerHTML=dealers.map(d=>'<label><input type="checkbox" value="'+esc(d)+'" '+(selectedDealers.has(d)?'checked':'')+' onchange="toggleDealerFilter(this.value,this.checked)"><span>'+esc(d)+'</span></label>').join("");
+}
+function toggleDealerFilter(name,on){
+  if(on)selectedDealers.add(name);else selectedDealers.delete(name);
+  applyDealerFilter();
+}
+function selectAllDealerFilters(){
+  document.querySelectorAll('#dealerFilterChecks input[type="checkbox"]').forEach(cb=>{cb.checked=true;selectedDealers.add(cb.value)});
+  applyDealerFilter();
+}
+function clearDealerFilters(){
+  selectedDealers.clear();
+  document.querySelectorAll('#dealerFilterChecks input[type="checkbox"]').forEach(cb=>cb.checked=false);
+  applyDealerFilter();
+}
+function applyDealerFilter(){
+  loadItems(true);
+}
+
+async function loadItems(preserveDealerOptions=false){
   const st=document.getElementById("poolStatus");st.textContent="Loading…";
   const cid=document.getElementById("connectorFilter").value?Number(document.getElementById("connectorFilter").value):null;
   const make=document.getElementById("makeFilter").value||null;
@@ -334,6 +371,7 @@ async function loadItems(){
   const {data,error}=await sb().rpc("admin_get_live_source_items_v1",{p_connector_id:cid,p_make:make,p_model:model,p_status:status,p_limit:2000});
   if(error){st.className="status bad";st.textContent=error.message;return}
   let rows=data||[];
+  const dealerSourceRows=[...rows];
 
   const requestId=Number(document.getElementById("requestSelect")?.value||0);
   const request=buyerRequests.find(r=>Number(r.id)===requestId)||null;
@@ -348,6 +386,11 @@ async function loadItems(){
       if(request.max_price_gbp && Number(i.source_price_gbp||0)>Number(request.max_price_gbp)) return false;
       return true;
     });
+  }
+
+  if(!preserveDealerOptions)renderDealerFilters(dealerSourceRows);
+  if(selectedDealers.size){
+    rows=rows.filter(i=>selectedDealers.has(String(i.seller_name||"").trim()));
   }
 
   items=rows;
