@@ -425,3 +425,30 @@ The Export VAT Clearance gate now has a real private evidence-document workflow:
 Clearance rule tightened:
 - Evidence Received and Zero Rate Confirmed now require at least one active uploaded Export VAT evidence document in addition to the customs reference, transport reference, actual departure date and proof checkboxes.
 - The database enforces this, not just the Deal 360 screen.
+
+
+## 1 October 2026 — Live Source buyer-safe image gate
+
+Live Source / Used Bike Scanner image handling has been hardened.
+
+Rules:
+- raw supplier/dealer source images are internal only
+- Live Source buyer presentations may use only approved buyer-safe image URLs
+- the old Scanner control that copied/approved the first raw source image has been removed
+- every Live Source motorcycle must have at least one approved buyer-safe image before a batch can be shared
+- database trigger rejects raw/unapproved supplier image URLs being written into buyer_image_urls
+- buyer Interest on Live Source records is blocked when no approved buyer-safe image exists
+- Deal 360 candidate creation already takes images from buyer_image_urls, preserving the buyer-safe image set into the deal
+
+Image preparation:
+- BMW advert scanner now extracts additional HTML image candidates instead of relying only on structured metadata
+- new prepare-live-source-buyer-safe-images Edge Function examines source photos with Google Vision
+- photos showing dealer identity, dealer-name text, phone/email/website contact data or matched dealer logos are blocked
+- only clean approved photos are copied into AnyBike's own motorcycles/live-source-buyer-safe storage path
+- blocked supplier-branded photos stay internal and are never sent to the buyer
+- if no clean photo is available, the bike remains blocked from buyer presentation rather than exposing the seller
+
+Scanner:
+- each Live Source scan now has Prepare buyer-safe images
+- prepared clean images can be refreshed into the scan via admin_refresh_scan_buyer_safe_images_v1
+- Live Source batch creation automatically reuses existing approved clean images when already available
