@@ -70,10 +70,8 @@ footer{padding:26px 20px;border-top:1px solid var(--line);color:#999;text-align:
   <div class="wrap">
     <h2>VMoto model range.</h2>
     <p class="section-intro">The model catalogue is ready for Cameron's official media pack, model information and price list. Each model will support its own battery/specification choices, colours, pricing and availability.</p>
-    <div class="model-grid">
-      <article class="model-card"><div class="model-image">⚡</div><div class="model-body"><h3>VMoto model pages</h3><p>Official imagery, specifications, range, charging, licence information, warranty and delivered-to-door pricing.</p><div class="model-status">Media pack awaiting import</div></div></article>
-      <article class="model-card"><div class="model-image">🔋</div><div class="model-body"><h3>Battery / specification choices</h3><p>Standard and higher-capacity battery versions can be presented as clear offers where a model supports more than one configuration.</p><div class="model-status">Variant structure prepared</div></div></article>
-      <article class="model-card"><div class="model-image">🎨</div><div class="model-body"><h3>Colour choices</h3><p>Available colours sit underneath the chosen model and battery/version so buyers are not overwhelmed by duplicate cards.</p><div class="model-status">Colour structure prepared</div></div></article>
+    <div class="model-grid" id="vmotoModelGrid">
+      <article class="model-card"><div class="model-image">⚡</div><div class="model-body"><h3>VMoto model pages</h3><p>Official models will appear here automatically when they are added and published in VMoto HQ.</p><div class="model-status">Media pack awaiting import</div></div></article>
     </div>
   </div>
 </section>
@@ -229,6 +227,44 @@ const VMOTO_SUPABASE_URL="https://tuehtnezhdnkqbbhttgp.supabase.co";
 const VMOTO_SUPABASE_ANON_KEY="sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
 const vmotoSb=supabase.createClient(VMOTO_SUPABASE_URL,VMOTO_SUPABASE_ANON_KEY);
 
+function vmotoEsc(value){
+  return String(value??"").replace(/[&<>"']/g,function(ch){
+    return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch];
+  });
+}
+function vmotoMoney(value){
+  const n=Number(value);
+  return Number.isFinite(n)&&n>0
+    ? n.toLocaleString("en-GB",{style:"currency",currency:"GBP",maximumFractionDigits:0})
+    : "Price on request";
+}
+async function loadVmotoCatalogue(){
+  const grid=document.getElementById("vmotoModelGrid");
+  if(!grid) return;
+  try{
+    const {data,error}=await vmotoSb.rpc("public_get_vmoto_catalogue_v1");
+    if(error) throw error;
+    const models=Array.isArray(data)?data:[];
+    if(!models.length){
+      grid.innerHTML='<article class="model-card"><div class="model-image">⚡</div><div class="model-body"><h3>VMoto model pages</h3><p>Official VMoto model information will appear here as soon as the model pack is loaded.</p><div class="model-status">Media pack awaiting import</div></div></article>';
+      return;
+    }
+    grid.innerHTML=models.map(function(model){
+      const variants=Array.isArray(model.variants)?model.variants:[];
+      const image=model.hero_image_url
+        ? '<img src="'+vmotoEsc(model.hero_image_url)+'" alt="'+vmotoEsc(model.model_name)+'" style="width:100%;height:100%;object-fit:cover">'
+        : '⚡';
+      return '<a class="model-card" href="/vmoto-model.html?model='+encodeURIComponent(model.slug)+'">'+
+        '<div class="model-image">'+image+'</div>'+
+        '<div class="model-body"><h3>'+vmotoEsc(model.model_name)+'</h3>'+
+        '<p>'+vmotoEsc(model.short_description||"Explore this VMoto model, available versions, colours and approved FAQs.")+'</p>'+
+        '<div class="model-status">'+vmotoEsc(variants.length?variants.length+" version"+(variants.length===1?"":"s")+" available":"Model information available")+' · '+vmotoMoney(model.base_retail_price_gbp)+'</div></div></a>';
+    }).join("");
+  }catch(error){
+    console.error("VMoto catalogue could not be loaded",error);
+  }
+}
+
 async function loadVmotoFaqs(){
   const list=document.getElementById("vmotoFaqList");
   if(!list) return;
@@ -280,7 +316,21 @@ document.getElementById("vmotoFaqSubmit")?.addEventListener("click",async functi
   }
 });
 
+loadVmotoCatalogue();
 loadVmotoFaqs();
+
+const rememberedModel=sessionStorage.getItem("vmotoSelectedModel");
+const rememberedVariant=sessionStorage.getItem("vmotoSelectedVariant");
+if(rememberedModel){
+  const modelInput=document.getElementById("vmotoModel");
+  if(modelInput) modelInput.value=rememberedModel;
+  sessionStorage.removeItem("vmotoSelectedModel");
+}
+if(rememberedVariant){
+  const variantInput=document.getElementById("vmotoVariant");
+  if(variantInput) variantInput.value=rememberedVariant;
+  sessionStorage.removeItem("vmotoSelectedVariant");
+}
 
 document.getElementById("vmotoRetailForm")?.addEventListener("submit",async function(event){
   event.preventDefault();
