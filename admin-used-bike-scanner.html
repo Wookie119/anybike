@@ -221,7 +221,9 @@ function cardHtml(s,saved){
       (isLiveSource
         ?(safeFirst
           ?'<div class="status good" style="margin-top:5px;font-weight:900">✓ Buyer-safe image ready</div>'
-          :'<div class="status bad" style="margin-top:5px;font-weight:800">Clean image not ready</div>')
+          :'<div style="margin-top:7px"><div class="status bad" style="font-weight:800">Clean image not ready</div>'+
+            '<button type="button" class="btn green" style="margin-top:7px" onclick="prepareBuyerSafeImages('+id+','+Number(s.extraction.live_source_item_id)+')">Prepare clean image</button>'+
+            '<span id="buyer-safe-top-status-'+id+'" class="status" style="margin-left:8px"></span></div>')
         :'')+
     '</div><div style="flex:1"><div class="scan-title">'+esc([s.year,s.make,s.model,cleanVariantText(s.variant)].filter(Boolean).join(" ")||"Advert needs review")+'</div>'+
     '<span class="tag '+(fail?"fail":"ready")+'">'+esc(s.scan_status||"review")+'</span><span class="tag">'+esc(s.source_domain||"source")+'</span>'+
@@ -359,7 +361,9 @@ async function addToLiveSource(k){
 }
 async function prepareBuyerSafeImages(scanId,liveSourceItemId){
   const st=document.getElementById("buyer-safe-status-"+scanId);
+  const topSt=document.getElementById("buyer-safe-top-status-"+scanId);
   if(st){st.className="status";st.textContent="Checking source photos…";}
+  if(topSt){topSt.className="status";topSt.textContent="Cleaning…";}
   try{
     const {data,error}=await sb().functions.invoke("prepare-live-source-buyer-safe-images",{
       body:{live_source_item_id:Number(liveSourceItemId)}
@@ -378,15 +382,20 @@ async function prepareBuyerSafeImages(scanId,liveSourceItemId){
       });
     }
 
+    const safe=Number(data?.safe_count||0);
+    const blocked=Number(data?.blocked_branding_count||0);
     if(st){
-      const safe=Number(data?.safe_count||0);
-      const blocked=Number(data?.blocked_branding_count||0);
       st.className=safe>0?"status good":"status bad";
       st.textContent=safe+" clean · "+blocked+" dealer-branded blocked";
+    }
+    if(topSt){
+      topSt.className=safe>0?"status good":"status bad";
+      topSt.textContent=safe>0?"Clean image ready":"No clean image approved";
     }
     renderScans(true);
   }catch(e){
     if(st){st.className="status bad";st.textContent=e?.message||"Image check failed";}
+    if(topSt){topSt.className="status bad";topSt.textContent="Image clean failed";}
     alert("Buyer-safe image preparation could not complete.\n\n"+(e?.message||e));
   }
 }
