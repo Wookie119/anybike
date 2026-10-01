@@ -280,3 +280,17 @@ Resume from **Bike Details motorcycle-description translation**. Do not move on 
 - VMoto model, county and town pages should be generated from shared catalogue/location data rather than maintained as independent hard-coded pages.
 - Reuse existing Message Centre, notifications, matching responses and Deal 360 foundations where safe, but keep B2B export legal/commercial gates separate from B2C retail terms and aftersales obligations.
 - Deposit automation remains a separate business-rule decision and must not be hard-coded until the percentage/minimum/rounding rule is agreed.
+
+
+### 1 October 2026 — Deal 360 Sale Route foundation implemented
+
+- Supabase migration `add_deal_sale_route_foundation` applied live.
+- `anybike_deals.sale_route` now stores one of:
+  - `USED_EXPORT_B2B` — default for all existing Deals and the existing used/export workflow.
+  - `NEW_RETAIL_B2C` — separate UK new-motorcycle consumer retail workflow.
+- Existing live Deals were preserved and defaulted to `USED_EXPORT_B2B`; no existing payment, offer, Message Centre, notification or operations records were rewritten.
+- Admin-only RPCs now read/change the route with an admin guard.
+- Deal 360 now displays the route and lets staff deliberately switch a Deal between the two routes.
+- A `NEW_RETAIL_B2C` Deal shows the retail journey foundation instead of presenting export-only freight-forwarder/port steps as if they applied to a consumer order.
+- Retail journey foundation: Customer Order → Stock Confirmation → Customer Payment → Order VMoto → VMoto PDI → Move Collection → Home Delivery.
+- Retail checkout/actions remain intentionally controlled until VMoto pricing, warranty/aftersales, B2C servicing and retail terms are confirmed.
