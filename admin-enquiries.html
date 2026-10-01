@@ -16328,6 +16328,21 @@ function anyBikeSaleRouteHeadline(route){
     : "AnyBike Delivered to Any UK Port";
 }
 
+function anyBikeRetailNextAction(deal){
+  const order=adminRetailOrders.get(String(deal?.deal_id||""));
+  const stage=String(order?.retail_stage||"Customer Order");
+  if(stage==="Customer Order") return "Confirm VMoto Stock & Specification";
+  if(stage==="Stock Confirmation") return "Confirm Retail Price & Customer Payment";
+  if(stage==="Customer Payment") return "Confirm Customer Payment";
+  if(stage==="Order VMoto") return "Place / Confirm VMoto Order";
+  if(stage==="VMoto PDI") return "Confirm VMoto PDI Ready";
+  if(stage==="Move Collection") return "Book / Confirm Move Collection";
+  if(stage==="Home Delivery") return "Complete Full Customer Handover";
+  if(stage==="Completed") return "Completed";
+  if(stage==="Cancelled") return "Closed";
+  return "Review VMoto Retail Deal";
+}
+
 async function setAnyBikeDealSaleRoute(dealId,route){
   const id=Number(dealId);
   const next=String(route||"").trim();
@@ -16681,7 +16696,9 @@ function renderAdminDealQueue(){
       return String(row.deal_id||"")===dealId;
     }) || {};
     const queueFlags=bikeSalesFlagsForDeal(deal,queueAction);
-    const queueNextAction=bikeSalesEffectivePrimary(queueAction,queueFlags,deal);
+    const queueNextAction=String(deal.sale_route||"USED_EXPORT_B2B")==="NEW_RETAIL_B2C"
+      ? anyBikeRetailNextAction(deal)
+      : bikeSalesEffectivePrimary(queueAction,queueFlags,deal);
 
     const bikeRows = bikes.length
       ? bikes.map(function(bike){
