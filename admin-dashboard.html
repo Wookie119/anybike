@@ -3236,18 +3236,25 @@ setText("kpiPrivateSellers", countSourceType([
       stage label. Empty/zero-bike Deals do not create work here.
     */
     try{
-      const [dealQueueResult,nextActionResult] = await Promise.all([
+      const [dealQueueResult,nextActionResult,shippingRouteResult] = await Promise.all([
         sb.rpc("admin_get_deal_queue"),
-        sb.rpc("admin_get_deal_next_actions_secure_v1")
+        sb.rpc("admin_get_deal_next_actions_secure_v1"),
+        sb.rpc("admin_get_deal_shipping_routes_v1")
       ]);
       if(dealQueueResult.error){ throw dealQueueResult.error; }
       if(nextActionResult.error){ throw nextActionResult.error; }
+      if(shippingRouteResult.error){ throw shippingRouteResult.error; }
 
       const dealRows=Array.isArray(dealQueueResult.data)?dealQueueResult.data:[];
       const nextByDeal=new Map();
       (nextActionResult.data || []).forEach(function(row){
         const key=String(row.deal_id || "");
         if(key && !nextByDeal.has(key)){ nextByDeal.set(key,row); }
+      });
+      const routeByDeal=new Map();
+      (shippingRouteResult.data || []).forEach(function(row){
+        const key=String(row.deal_id || row.id || "");
+        if(key){ routeByDeal.set(key,row); }
       });
 
       const actionableDeals=dealRows.filter(function(deal){
@@ -3300,6 +3307,8 @@ setText("kpiPrivateSellers", countSourceType([
         const country=deal.buyer_country || "";
         const baseUrl="admin-enquiries.html?deal="+encodeURIComponent(deal.deal_id);
         const secured=next.bike_secured===true || Number(deal.secured_count||0)>0;
+        const route=routeByDeal.get(dealId)||{};
+        const exportVatStatus=String(route.export_vat_clearance_status||"Not Assessed");
 
         // Purchase clearance has priority over committing AnyBike money.
         if(!purchaseApproved){ continue; }
@@ -3344,6 +3353,29 @@ setText("kpiPrivateSellers", countSourceType([
             createdAt:deal.updated_at || deal.latest_activity_at,
             age:timeAgo(deal.updated_at || deal.latest_activity_at),
             url:baseUrl+"&tab=payment",openLabel:"Request balance →"
+          }));
+          continue;
+        }
+
+        if(secured && dealValue>0 && customerBalance<=0.009 &&
+           ["Awaiting Evidence","Evidence Received"].includes(exportVatStatus)){
+          actions.push(createDashboardAction({
+            group:"accounts",
+            priority:"urgent",
+            icon:"",
+            type:"Export VAT",
+            title:exportVatStatus==="Evidence Received" ? "Confirm Export VAT Clearance" : "Collect Export VAT Evidence",
+            customer:customer,
+            bike:bike,
+            country:country,
+            assigned:"Accounts",
+            preview:exportVatStatus==="Evidence Received"
+              ? "Export evidence has been recorded. Review it and confirm the UK zero-rating before VAT is Verified or the Final Invoice is issued."
+              : "The motorcycle has left the UK. Obtain the customs and transport evidence needed to support zero-rating.",
+            createdAt:route.export_vat_exported_at || deal.updated_at || deal.latest_activity_at,
+            age:timeAgo(route.export_vat_exported_at || deal.updated_at || deal.latest_activity_at),
+            url:baseUrl+"&tab=seller",
+            openLabel:exportVatStatus==="Evidence Received" ? "Review evidence →" : "Record evidence →"
           }));
           continue;
         }
