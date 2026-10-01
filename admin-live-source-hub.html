@@ -570,7 +570,7 @@ function renderItems(){
     '</div>'+
     '<div><div class="bike-title">'+esc([i.year,i.make,i.model,i.variant].filter(Boolean).join(" "))+'</div><div class="small">'+esc([i.mileage!=null?Number(i.mileage).toLocaleString("en-GB")+" miles":"",i.colour].filter(Boolean).join(" · "))+'</div></div>'+
     '<div class="optional"><div class="small">Source price</div><div class="money">'+gbp(i.source_price_gbp)+'</div>'+
-      '<div class="field" style="margin-top:8px"><label>UK delivery (£)</label><input type="number" min="0" step="1" value="'+esc(deliveryAllowances.has(Number(i.id))?deliveryAllowances.get(Number(i.id)):250)+'" onchange="setDeliveryAllowance('+i.id+',this.value)"></div></div>'+
+      '<div class="field" style="margin-top:8px"><label>UK delivery</label><input type="text" inputmode="decimal" value="'+esc(formatDeliveryAllowance(deliveryAllowances.has(Number(i.id))?deliveryAllowances.get(Number(i.id)):250))+'" onfocus="deliveryInputFocus(this)" onblur="deliveryInputBlur('+i.id+',this)"></div></div>'+
     '<div class="optional"><div class="small secret">Internal source</div><div>'+esc(i.seller_name||i.source_domain||"")+'</div><div class="small">'+esc(i.source_stock_id||"")+'</div></div>'+
     '<div class="optional"><div class="small">Last seen</div><div>'+esc(date(i.last_seen_at))+'</div></div>'+
     '<div><span class="pill '+(i.source_status==="live"?"live":i.source_status==="ended"?"end":"review")+'">'+esc(i.source_status)+'</span><br><a class="small secret" href="'+esc(i.source_url)+'" target="_blank">source ↗</a>'+
@@ -600,9 +600,24 @@ async function excludeLiveSourceItem(id,on){
   st.className="status good";
   st.textContent=items.length+" motorcycles shown · "+selected.size+" selected";
 }
+function normaliseDeliveryValue(value){
+  const n=Number(String(value??"").replace(/[^0-9.-]/g,""));
+  return Number.isFinite(n)&&n>=0?n:250;
+}
+function formatDeliveryAllowance(value){
+  return "£"+normaliseDeliveryValue(value).toFixed(2);
+}
 function setDeliveryAllowance(id,value){
-  const n=Number(value);
-  deliveryAllowances.set(Number(id),Number.isFinite(n)&&n>=0?n:250);
+  deliveryAllowances.set(Number(id),normaliseDeliveryValue(value));
+}
+function deliveryInputFocus(input){
+  input.value=normaliseDeliveryValue(input.value).toFixed(2);
+  try{input.select()}catch{}
+}
+function deliveryInputBlur(id,input){
+  const value=normaliseDeliveryValue(input.value);
+  deliveryAllowances.set(Number(id),value);
+  input.value=formatDeliveryAllowance(value);
 }
 function toggle(id,on){if(on&&selected.size>=20){alert("Maximum 20 motorcycles per buyer batch.");renderItems();return}on?selected.add(id):selected.delete(id);document.getElementById("poolStatus").textContent=items.length+" motorcycles shown · "+selected.size+" selected"}
 function syncSelectAllVisibleState(){
