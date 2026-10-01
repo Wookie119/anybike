@@ -237,9 +237,25 @@ async function refreshSource(id,event,button){
   try{
     let finalData=null;
     for(let pass=0;pass<100;pass++){
-      const {data,error}=await sb().functions.invoke("refresh-live-source",{body:{connector_id:Number(id),chunk_size:20}});
-      if(error) throw error;
-      if(data?.error){throw new Error(data.error);}
+      let data=null;
+      let lastError=null;
+
+      for(let attempt=1;attempt<=4;attempt++){
+        const result=await sb().functions.invoke("refresh-live-source",{body:{connector_id:Number(id),chunk_size:20}});
+        if(!result.error && !result.data?.error){
+          data=result.data;
+          lastError=null;
+          break;
+        }
+
+        lastError=result.error || new Error(result.data?.error||"Refresh request failed");
+        st.className="status";
+        st.textContent="BMW refresh is still saved. Temporary request problem — retrying "+attempt+" / 4…";
+        await new Promise(resolve=>setTimeout(resolve,1000*attempt));
+      }
+
+      if(lastError) throw lastError;
+
       finalData=data||{};
       const cursor=Number(finalData.cursor||0);
       const total=Number(finalData.total||finalData.discovered_count||0);
@@ -248,7 +264,7 @@ async function refreshSource(id,event,button){
         ? (finalData.message||"Source refresh completed.")
         : ("Refreshing BMW source… "+cursor.toLocaleString("en-GB")+" / "+total.toLocaleString("en-GB")+" motorcycles processed");
       if(finalData.completed) break;
-      await new Promise(resolve=>setTimeout(resolve,150));
+      await new Promise(resolve=>setTimeout(resolve,250));
     }
 
     if(finalData && !finalData.completed){
@@ -272,7 +288,8 @@ async function refreshSource(id,event,button){
     }
   }catch(e){
     st.className="status bad";
-    st.textContent=(e?.context?.body?.error||e?.message||"Refresh failed");
+    const msg=(e?.context?.body?.error||e?.message||"Refresh paused");
+    st.textContent="Refresh paused, but progress has been saved. Press Refresh Source to resume. "+msg;
   }finally{
     if(btn){btn.disabled=false;btn.textContent="Refresh Source";}
   }
