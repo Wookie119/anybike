@@ -452,3 +452,25 @@ Scanner:
 - each Live Source scan now has Prepare buyer-safe images
 - prepared clean images can be refreshed into the scan via admin_refresh_scan_buyer_safe_images_v1
 - Live Source batch creation automatically reuses existing approved clean images when already available
+
+
+## 1 October 2026 — Public Live Source pool concept
+
+Future direction saved:
+- Live Source can power country pages and future Make / Model / Variant pages.
+- Public motorcycles must be presented only as available to source through AnyBike / current UK motorcycles AnyBike can source.
+- Public and buyer-facing cards must use approved clean AnyBike buyer-safe images only.
+- Never expose dealer name, dealer logo, dealer phone/email, source URL or raw supplier-branded imagery.
+- Every public Live Source motorcycle card must route back into AnyBike: motorcycle detail / Interested / Check Availability / buyer request / Deal 360.
+- Raw supplier source details remain internal for AnyBike staff.
+- Only fresh live source records should be public; stale/ended bikes should automatically disappear from public pages.
+- Use curated examples rather than dumping the whole source pool onto a page.
+- Country demand and make/model relevance should influence which motorcycles surface.
+
+Live Source usability direction:
+- add model-specific refresh for urgent buyer searches instead of forcing a full catalogue refresh
+- keep full catalogue/channel refreshes for overnight/background operation
+- add dealer preference management such as Preferred / Normal / Avoid with internal notes (relationship, discount potential, logistics)
+- rank buyer shortlists using buyer requirement fit, dealer preference, price, year, mileage, condition/spec and collection practicality
+- keep Show all matches / manual override
+- send buyers a curated shortlist rather than the entire matching pool
