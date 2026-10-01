@@ -11791,6 +11791,20 @@ function renderAnyBikeSellerPaymentLedger(dealMotorcycleId, c){
   const amountDue = purpose === "Seller Deposit" ? depositOutstanding : supplierBalance;
   const badgeClass = supplierBalance <= 0 && sellerPrice > 0 ? "paid" : "due";
   const badgeLabel = supplierBalance <= 0 && sellerPrice > 0 ? "SUPPLIER PAID" : "SUPPLIER BALANCE " + anyBikeDealMoney(supplierBalance);
+  const dealId=String(row.deal_id||"");
+  const deal=bikeSalesDealById(dealId)||{};
+  const onboardingApproved=anyBikeBuyerOnboardingApproved(deal);
+  const customerAccount=adminDealCustomerAccounts.get(dealId)||{};
+  const customerDealValue=anyBikeAccountNumber(customerAccount,["deal_value_gbp"],deal.buyer_value_gbp);
+  const customerBalance=anyBikeAccountNumber(customerAccount,["customer_balance_due_gbp"],customerDealValue);
+  const fullSupplierPaymentUnlocked=onboardingApproved && customerDealValue>0 && customerBalance<=0.009;
+  const sellerDepositUnlocked=onboardingApproved && depositRequired && depositOutstanding>0;
+  const sellerPaymentUnlocked=(purpose==="Seller Deposit") ? sellerDepositUnlocked : fullSupplierPaymentUnlocked;
+  const sellerPaymentLockReason=!onboardingApproved
+    ? "Approve Buyer Onboarding / Purchase Clearance before AnyBike pays the supplier."
+    : (purpose!=="Seller Deposit" && customerBalance>0.009
+        ? "Customer balance "+anyBikeDealMoney(customerBalance)+" is still outstanding. Clear customer funds before paying the supplier in full."
+        : "Supplier payment is not ready yet.");
 
   const bankAccountName = String(c?.seller_bank_account_name || "").trim();
   const bankAccountNumber = String(c?.seller_bank_account_number || "").trim();
@@ -11812,7 +11826,8 @@ function renderAnyBikeSellerPaymentLedger(dealMotorcycleId, c){
         <div><span>Seller Deposit</span><strong>${depositRequired ? anyBikeDealMoney(depositPaid) + " paid" : "Not Required"}</strong></div>
       </div>
 
-      ${supplierBalance > 0 ? `
+      ${supplierBalance > 0 && !sellerPaymentUnlocked ? `<div class="anybike-seller-payment-note" style="margin-top:12px;padding:14px;border:1px solid rgba(237,28,36,.55);border-radius:12px;background:rgba(237,28,36,.08)"><strong style="display:block;color:#fff;margin-bottom:5px">Supplier payment locked</strong>${escapeAdminHtml(sellerPaymentLockReason)}</div>` : ""}
+      ${supplierBalance > 0 && sellerPaymentUnlocked ? `
       <div class="anybike-seller-payment-action">
         <div class="anybike-seller-payment-field">
           <label for="deal-seller-payment-payee-${id}">Payee / Seller Name</label>
@@ -12212,6 +12227,21 @@ async function recordDealSellerPayment(dealMotorcycleId){
   const sellerPrice=Number(row.seller_price_gbp ?? row.confirmed_seller_price_gbp ?? 0);
   const totalPaid=Number(row.total_supplier_payments_gbp || 0);
   const supplierBalance=Math.max(sellerPrice-totalPaid,0);
+  const gateDealId=String(paymentRow?.deal_id || row.deal_id || "");
+  const gateDeal=bikeSalesDealById(gateDealId)||{};
+  const onboardingApproved=anyBikeBuyerOnboardingApproved(gateDeal);
+  const customerAccount=adminDealCustomerAccounts.get(gateDealId)||{};
+  const customerDealValue=anyBikeAccountNumber(customerAccount,["deal_value_gbp"],gateDeal.buyer_value_gbp);
+  const customerBalance=anyBikeAccountNumber(customerAccount,["customer_balance_due_gbp"],customerDealValue);
+
+  if(!onboardingApproved){
+    alert("Supplier payment is locked until Buyer Onboarding / Purchase Clearance is approved.");
+    return;
+  }
+  if(purpose!=="Seller Deposit" && customerBalance>0.009){
+    alert("Supplier payment is locked. The customer still owes "+anyBikeDealMoney(customerBalance)+". Clear the customer balance before paying the seller in full.");
+    return;
+  }
 
   if(!Number.isFinite(amount) || amount<=0){ alert("Enter the amount actually paid to the seller."); return; }
   if(supplierBalance>0 && amount>supplierBalance+0.009){ alert("The seller payment cannot exceed the supplier balance of "+anyBikeDealMoney(supplierBalance)+"."); return; }
