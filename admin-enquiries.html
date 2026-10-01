@@ -5672,19 +5672,19 @@ input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-in
   display:flex;align-items:center;gap:5px;overflow-x:auto;padding:9px 12px;
   scrollbar-width:thin;border-bottom:0;
 }
-.sales-compact-pipeline button{
+.sales-compact-pipeline span{
   margin:0!important;flex:0 0 auto!important;padding:7px 10px!important;border-radius:999px!important;
   border:1px solid #ed1c24!important;background:rgba(237,28,36,.14)!important;
-  color:#ff7d82!important;font-size:11px!important;font-weight:900!important;white-space:nowrap!important;
+  color:#ff8d91!important;font-size:11px!important;font-weight:900!important;white-space:nowrap!important;
 }
-.sales-compact-pipeline button.done{
+.sales-compact-pipeline span.done{
   background:#173d22!important;border-color:#45985e!important;color:#9af0b2!important;
 }
-.sales-compact-pipeline button.current{
-  background:#ed1c24!important;border-color:#ed1c24!important;color:#fff!important;
-  box-shadow:0 0 0 2px rgba(237,28,36,.18)!important;
+.sales-compact-pipeline span.current{
+  background:#ed1c24!important;border-color:#ff555b!important;color:#fff!important;
+  box-shadow:0 0 0 2px rgba(237,28,36,.20),0 0 14px rgba(237,28,36,.22)!important;
 }
-.sales-compact-pipeline button.attention{background:#ed1c24!important;border-color:#ed1c24!important;color:#fff!important}
+.sales-compact-pipeline span.attention{background:#ed1c24!important;border-color:#ed1c24!important;color:#fff!important}
 
 .sales-guidance-line{display:flex;gap:10px;align-items:center;padding:10px 16px;border-top:1px solid rgba(255,255,255,.06);border-bottom:1px solid rgba(255,255,255,.06);background:#0c0c0c;color:#b8c0ca;font-size:12px}
 .sales-guidance-line strong{color:#fff}
@@ -5729,6 +5729,15 @@ input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-in
 .sales-what-next{margin-top:10px;padding:11px 12px;border-radius:10px;background:#101010;border:1px solid rgba(237,28,36,.28)}
 .sales-what-next strong{display:block;font-size:13px}
 .sales-what-next span{display:block;color:#aaa;font-size:12px;margin-top:3px;line-height:1.45}
+.deal-section-next-action{margin:12px 16px;padding:12px 14px;border-radius:12px;border:1px solid rgba(237,28,36,.62);background:rgba(237,28,36,.07);display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center}
+.deal-section-next-action.complete{border-color:rgba(69,152,94,.72);background:rgba(23,61,34,.48)}
+.deal-section-next-action .eyebrow{font-size:10px;font-weight:950;text-transform:uppercase;letter-spacing:.08em;color:#ff7d82;margin-bottom:3px}
+.deal-section-next-action.complete .eyebrow{color:#9af0b2}
+.deal-section-next-action strong{display:block;color:#fff;font-size:13px}
+.deal-section-next-action span{display:block;color:#aaa;font-size:11px;line-height:1.45;margin-top:3px}
+.deal-section-next-action button{margin:0!important;border:0!important;border-radius:999px!important;padding:9px 13px!important;background:#ed1c24!important;color:#fff!important;font-size:11px!important;font-weight:950!important;white-space:nowrap}
+.deal-section-next-action.complete button{background:#2f8d55!important}
+@media(max-width:760px){.deal-section-next-action{grid-template-columns:1fr}.deal-section-next-action button{justify-self:start}}
 
 @media(max-width:900px){
   .admin-page-content{padding:10px!important}
@@ -15002,6 +15011,55 @@ function bikeSalesJourneyTab(dealId,tab,updateUrl){
   }
 }
 
+function bikeSalesSellerPositionReady(dealId){
+  const id=String(dealId||"");
+  const motorcycles=(adminDealMotorcycles||[]).filter(function(row){
+    return String(row.deal_id||"")===id;
+  });
+  if(!motorcycles.length) return false;
+
+  return motorcycles.every(function(motorcycle){
+    const dmId=Number(motorcycle.deal_motorcycle_id||motorcycle.id||0);
+    const confirmation=anyBikeDealSellerConfirmationForMotorcycle(dmId);
+
+    if(confirmation){
+      const status=String(confirmation.availability_status||"");
+      const validUntil=confirmation.valid_until ? new Date(confirmation.valid_until) : null;
+      const live=!validUntil || (!Number.isNaN(validUntil.getTime()) && validUntil.getTime()>Date.now());
+      const price=Number(confirmation.confirmed_min_price_gbp||motorcycle.seller_price_gbp||0);
+      if(["Available","Reserved"].includes(status) && live && price>0) return true;
+    }
+
+    const candidate=(adminDealCandidates||[]).find(function(row){
+      return Number(row.selected_deal_motorcycle_id||0)===dmId ||
+        (Number(motorcycle.source_candidate_id||0)>0 && Number(row.id||0)===Number(motorcycle.source_candidate_id));
+    });
+    if(!candidate) return false;
+
+    const validUntil=candidate.availability_valid_until ? new Date(candidate.availability_valid_until) : null;
+    const live=!validUntil || (!Number.isNaN(validUntil.getTime()) && validUntil.getTime()>Date.now());
+
+    return String(candidate.availability_status||"")==="Confirmed Available" &&
+      live &&
+      Number(candidate.confirmed_seller_price_gbp||motorcycle.seller_price_gbp||0)>0;
+  });
+}
+
+function bikeSalesCommercialSetupReady(dealId){
+  const id=String(dealId||"");
+  const rows=(adminDealCommercialSetup||[]).filter(function(row){
+    return String(row.deal_id||"")===id;
+  });
+  if(!rows.length) return false;
+
+  return rows.every(function(row){
+    return String(row.commercial_price_status||"")==="Ready for Offer" &&
+      Number(row.anybike_sale_price_gbp||0)>0 &&
+      Number(row.seller_purchase_price_gbp||0)>0 &&
+      Number(row.customer_total_gbp||0)>0;
+  });
+}
+
 function bikeSalesFlagsForDeal(deal,action){
   const dealId=String(deal?.deal_id||"");
   const bikes=(adminDealMotorcycles||[]).filter(function(row){
@@ -15033,7 +15091,8 @@ function bikeSalesFlagsForDeal(deal,action){
     finalInvoiceIssued:finalInvoiceIssued,
     customerPaid:dealValue>0 && balance<=0.009,
     secured:secured,
-    sellerDone:secured || !!action?.seller_check_ok,
+    sellerDone:secured || !!action?.seller_check_ok || bikeSalesSellerPositionReady(dealId),
+    commercialReady:bikeSalesCommercialSetupReady(dealId),
     vatDone:!!action?.vat_ok,
     shippingDone:(function(){
       const route=anyBikeShippingRouteForDeal(dealId);
@@ -15073,7 +15132,9 @@ function bikeSalesEffectivePrimary(action,flags,deal){
     return "Find Potential Matches";
   }
 
-  if(!flags.sellerDone || !flags.vatDone) return "Seller / Viability";
+  if(!flags.sellerDone) return "Seller Position";
+  if(!flags.commercialReady) return "Commercial Setup";
+  if(!flags.vatDone) return "Verify VAT Treatment";
   if(!flags.offerAccepted && flags.offerSent) return "Waiting for Formal Offer Response";
   if(!flags.offerAccepted) return "Send Formal Offer";
   if(flags.depositRequired>0 && flags.depositOutstanding>0.009) return "Deposit Due";
@@ -15093,7 +15154,7 @@ function bikeSalesJourneyStage(action,deal,flags){
   if(flags.collected) return "delivery";
   if(!flags.hasMotorcycle) return "sourcing";
   if(flags.accountStopped || flags.accountOnHold) return "seller";
-  if(!flags.sellerDone || !flags.vatDone) return "seller";
+  if(!flags.sellerDone || !flags.commercialReady || !flags.vatDone) return "seller";
   if(!flags.offerAccepted) return "offer";
   if(flags.depositRequired>0 && flags.depositOutstanding>0.009) return "payment";
   // Buyer purchase clearance is a post-acceptance/payment gate. Do not
@@ -15114,6 +15175,9 @@ function bikeSalesNextActionTarget(action,deal,flags){
   if(primary.includes("Onboarding") || primary.includes("Account Stopped") || primary.includes("Account On Hold")){
     const customerId=anyBikeDealCustomerId(deal);
     return {tab:"seller",selector:"#buyer-onboarding-panel-"+customerId};
+  }
+  if(primary==="Commercial Setup"){
+    return {tab:"seller",selector:"#anybike-deal-"+dealId+" [id^=\"deal-commercial-panel-\"]"};
   }
   if(primary.includes("VAT")){
     return {tab:"seller",selector:"#anybike-deal-"+dealId+" .anybike-financial-panel"};
@@ -15184,7 +15248,9 @@ function bikeSalesJourneyInstruction(action,flags){
     "Waiting for Buyer Response":"No sales action is required right now. Wait for the buyer's response; AnyBike will surface it when received.",
     "Check Seller Availability":"Contact the seller now. Confirm the motorcycle is still available, confirm the seller price and record the live availability check.",
     "Select Motorcycle for Sale":"Availability is confirmed. Review the commercial position and select the motorcycle into the Deal.",
-    "Seller / Viability":"Review seller availability, agreed supplier price, VAT treatment and commercial viability before preparing the Formal Offer.",
+    "Seller Position":"Confirm or review seller availability, the agreed seller purchase price and any temporary hold. AnyBike should bring an active seller check in automatically.",
+    "Commercial Setup":"Review the Motorcycle Sale Price, automatic AnyBike Sourcing Fee, UK collection/delivery charge, internal costs, customer total and projected profit. If the figures are right, proceed to the Formal Offer.",
+    "Verify VAT Treatment":"Confirm the motorcycle VAT treatment before the Formal Offer is sent.",
     "Send Formal Offer":"Prepare and send the Deal 360 Formal Offer with the agreed customer price, fees, delivery and payment terms.",
     "Waiting for Formal Offer Response":"The Formal Offer has been sent. No sales action is required until the buyer accepts, declines or asks a question.",
     "Deposit Due":"Wait for the required deposit to clear, then verify and allocate it to this Deal.",
@@ -15201,7 +15267,8 @@ function bikeSalesJourneyInstruction(action,flags){
   };
   if(map[primary]) return map[primary];
   if(primary.includes("VAT")) return "Verify the VAT treatment before AnyBike commits to purchase.";
-  if(primary.includes("Seller")) return "Confirm the motorcycle is still available and the seller price is correct before progressing.";
+  if(primary.includes("Seller")) return "Confirm the motorcycle is still available and the seller purchase price is correct before progressing.";
+  if(primary.includes("Commercial")) return "Review the customer price, automatic fee, delivery charge, internal costs and projected profit before preparing the Formal Offer.";
   if(primary.includes("Shipping")) return "Confirm the UK handover / shipper plan before purchase.";
   return "Review the latest Deal activity and complete the next outstanding action.";
 }
@@ -15974,7 +16041,8 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
   const shippingDone=!!action?.shipping_ok;
   const vatDone=!!action?.vat_ok;
   const secured=!!action?.bike_secured || Number(deal?.secured_count||0)>0 || (bikes||[]).some(function(row){ return !!row.bike_secured; });
-  const sellerDone=secured || !!action?.seller_check_ok;
+  const sellerDone=secured || !!action?.seller_check_ok || bikeSalesSellerPositionReady(dealId);
+  const commercialReady=bikeSalesCommercialSetupReady(dealId);
   const hasMotorcycle=(bikes||[]).length>0;
   const offerAccepted=Number(deal?.accepted_count||0)>0 ||
     (bikes||[]).some(function(row){ return !!row.accepted_at || String(row.negotiation_status||"").toLowerCase()==="accepted"; }) ||
@@ -15994,7 +16062,7 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
   const onboardingRow=anyBikeBuyerOnboardingForDeal(deal)||{};
   const accountStatus=String(onboardingRow.account_status||"Active");
   const offerSent=String(rawStage||"")==="Proposal Sent";
-  const flags={depositOutstanding,depositRequired,sellerDone,shippingDone,vatDone,secured,hasMotorcycle,offerSent,offerAccepted,customerPaid,collected,complete,finalInvoiceIssued,onboardingApproved,accountStopped:accountStatus==="Stopped",accountOnHold:accountStatus==="On Hold"};
+  const flags={depositOutstanding,depositRequired,sellerDone,commercialReady,shippingDone,vatDone,secured,hasMotorcycle,offerSent,offerAccepted,customerPaid,collected,complete,finalInvoiceIssued,onboardingApproved,firstOrderGraceActive:anyBikeFirstOrderGraceActive(deal),purchaseClearanceAllowed:anyBikePurchaseClearanceAllowed(deal),accountStopped:accountStatus==="Stopped",accountOnHold:accountStatus==="On Hold"};
   primary=bikeSalesEffectivePrimary(action,flags,deal);
   const effectiveAction=Object.assign({},action||{},{primary_action:primary});
   const current=bikeSalesJourneyStage(effectiveAction,deal,flags);
@@ -16025,7 +16093,7 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
     ["request","Request",true],
     ["sourcing","Sourcing",hasMotorcycle],
     ["interest","Interested",hasMotorcycle],
-    ["seller","Seller Check",sellerDone],
+    ["seller","Seller / Commercial",sellerDone&&commercialReady&&vatDone],
     ["offer","Offer",offerAccepted],
     ["payment","Payment",customerPaid],
     ["collection","Collection",collected],
@@ -16082,11 +16150,11 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
     '<div class="sales-journey-head"><div class="sales-journey-headline"><div><h3>'+escapeAdminHtml(dealNumber)+' · '+escapeAdminHtml(buyerName)+'</h3><p>'+escapeAdminHtml(status)+' · '+escapeAdminHtml(stage)+'</p></div>'+
     '<div class="sales-next-action '+(waiting?"waiting":"action")+'" role="button" tabindex="0" title="Click to proceed to the next task" onclick="openBikeSalesNextTask(\''+dealId+'\');return false;" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();openBikeSalesNextTask(\''+dealId+'\');}"><span class="sales-next-action-copy"><strong>'+(waiting?"Waiting / Next":"Your next action")+': '+escapeAdminHtml(primary||"Review sale")+'</strong><span>'+escapeAdminHtml(nextText)+'</span></span><span class="sales-next-action-cta">Proceed →</span></div></div></div>'+
     '<div class="sales-row-with-label"><div class="sales-row-label">Deal Journey</div><div class="sales-compact-pipeline">'+pipelineHtml+'</div></div>'+
-    '<div class="sales-guidance-line"><strong>What do I do next?</strong><span>Use the red “Your next action” box above. The journey below is status only.</span></div>'+
+    '<div class="sales-guidance-line"><strong>How to read this Deal</strong><span>Green journey boxes are complete. Red boxes still need work. The highlighted red box is the current stage. Every working section should tell you exactly what to do next.</span></div>'+
     '<details class="sales-workspace-menu"><summary>View / change deal section</summary><div class="sales-workspace-row"><div class="sales-row-label">Deal Sections</div><nav class="sales-work-tabs" aria-label="Deal sections">'+
       tabButton("request","Request")+
       tabButton("sourcing","Sourcing")+
-      tabButton("seller","Seller / Viability")+
+      tabButton("seller","Seller / Commercial")+
       tabButton("offer","Offer")+
       tabButton("payment","Payment")+
       tabButton("collection","Collection")+
