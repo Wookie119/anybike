@@ -12382,11 +12382,15 @@ function renderAnyBikeSellerPaymentLedger(dealMotorcycleId, c){
   const deal=bikeSalesDealById(dealId)||{};
   const purchaseClearanceAllowed=anyBikePurchaseClearanceAllowed(deal);
   const route=anyBikeShippingRouteForDeal(dealId);
-  const handoverReady=String(route.shipping_route_status||"")==="Confirmed" &&
+  const destination=String(anyBikeDealDestinationCountry(deal,route)||"").trim().toLowerCase();
+  const ukDestination=["","united kingdom","uk","great britain","england","scotland","wales","northern ireland"].includes(destination);
+  const handoverReady=(ukDestination && String(route.shipping_route_status||"Not Required")==="Not Required") || (
+    String(route.shipping_route_status||"")==="Confirmed" &&
     String(route.freight_forwarder_name||"").trim() &&
     String(route.shipping_company_name||"").trim() &&
     String(route.uk_handover_address_1||"").trim() &&
-    String(route.uk_handover_postcode||"").trim();
+    String(route.uk_handover_postcode||"").trim()
+  );
   const customerAccount=adminDealCustomerAccounts.get(dealId)||{};
   const customerDealValue=anyBikeAccountNumber(customerAccount,["deal_value_gbp"],deal.buyer_value_gbp);
   const customerBalance=anyBikeAccountNumber(customerAccount,["customer_balance_due_gbp"],customerDealValue);
@@ -15024,6 +15028,9 @@ function bikeSalesFlagsForDeal(deal,action){
     vatDone:!!action?.vat_ok,
     shippingDone:(function(){
       const route=anyBikeShippingRouteForDeal(dealId);
+      const destination=String(anyBikeDealDestinationCountry(deal,route)||"").trim().toLowerCase();
+      const ukDestination=["","united kingdom","uk","great britain","england","scotland","wales","northern ireland"].includes(destination);
+      if(ukDestination && String(route.shipping_route_status||"Not Required")==="Not Required") return true;
       return String(route.shipping_route_status||"")==="Confirmed" &&
         Boolean(String(route.freight_forwarder_name||"").trim()) &&
         Boolean(String(route.shipping_company_name||"").trim()) &&
