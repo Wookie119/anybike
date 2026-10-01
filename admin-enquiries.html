@@ -4052,8 +4052,10 @@ body{
 
 /* DEAL 360 — FINAL SELLER CHECK PANEL */
 .anybike-seller-panel{margin-top:12px;border:2px solid #d71920;border-radius:12px;overflow:hidden;background:#0a0a0a}
-.anybike-seller-panel.is-secured{border-color:#2a9f59;box-shadow:0 0 0 1px rgba(42,159,89,.14)}
-.anybike-seller-panel.is-secured .anybike-seller-head{border-bottom-color:rgba(42,159,89,.55)}
+.anybike-seller-panel.is-secured,
+.anybike-seller-panel.is-complete{border-color:#2a9f59;box-shadow:0 0 0 1px rgba(42,159,89,.14)}
+.anybike-seller-panel.is-secured .anybike-seller-head,
+.anybike-seller-panel.is-complete .anybike-seller-head{border-bottom-color:rgba(42,159,89,.55)}
 .anybike-seller-state-box{border:1px solid rgba(237,28,36,.48)!important;background:rgba(237,28,36,.07)!important;border-radius:9px;padding:9px}
 .anybike-seller-state-box.is-complete{border-color:rgba(42,159,89,.6)!important;background:rgba(42,159,89,.10)!important}
 .anybike-seller-state-box.is-complete input,.anybike-seller-state-box.is-complete select{border-color:#2a9f59!important}
@@ -12692,6 +12694,7 @@ function renderAnyBikeDealSellerCheckPanel(deal){
     const availability = c?.availability_status || (candidateAvailabilityLive ? "Available" : "Unknown");
     const availabilityComplete = ["Available","Reserved"].includes(availability);
     const priceComplete = Number(sellerPrice || 0) > 0;
+    const sellerPositionComplete = availabilityComplete && priceComplete;
     const holdStatus = c?.hold_confirmed ? "Yes" : "No";
     const sellerDepositRequired = !!c?.seller_deposit_required;
     const sellerDepositDue = sellerPayment ? Number(sellerPayment.seller_deposit_due_gbp || 0) : Number(c?.seller_deposit_amount_gbp || 0);
@@ -12718,7 +12721,7 @@ function renderAnyBikeDealSellerCheckPanel(deal){
     }
 
     return `
-      <div class="anybike-seller-panel ${secured ? "is-secured" : "is-incomplete"}" id="deal-seller-panel-${dealMotorcycleId}">
+      <div class="anybike-seller-panel ${secured ? "is-secured" : sellerPositionComplete ? "is-complete" : "is-incomplete"}" id="deal-seller-panel-${dealMotorcycleId}">
         <div class="anybike-seller-head">
           <div>
             <span>Seller Position</span>
@@ -12726,6 +12729,10 @@ function renderAnyBikeDealSellerCheckPanel(deal){
           </div>
           <div class="anybike-seller-state ${state.className}">${escapeAdminHtml(state.label)}</div>
         </div>
+
+        ${sellerPositionComplete
+          ? '<div class="deal-section-next-action complete"><div><div class="eyebrow">Complete</div><strong>Seller Position confirmed</strong><span>The motorcycle is currently available at the agreed seller purchase price. Any temporary hold is separate from AnyBike actually purchasing the bike.</span></div><button type="button" onclick="document.getElementById(\'deal-commercial-panel-'+dealMotorcycleId+'\')?.scrollIntoView({behavior:\'smooth\',block:\'start\'});return false;">GO TO COMMERCIAL SETUP →</button></div>'
+          : '<div class="deal-section-next-action"><div><div class="eyebrow">Your next action</div><strong>Confirm seller availability and purchase price</strong><span>Check that the motorcycle is still available, confirm what the seller will accept and record any temporary hold. This does not buy the motorcycle.</span></div><button type="button" onclick="document.getElementById(\'deal-seller-availability-'+dealMotorcycleId+'\')?.focus();return false;">START HERE →</button></div>'}
 
         <div class="anybike-seller-summary">
           <div><span class="anybike-seller-label">Seller Price</span><strong>${sellerPrice ? anyBikeDealMoney(sellerPrice) : "Not Reconfirmed"}</strong></div>
