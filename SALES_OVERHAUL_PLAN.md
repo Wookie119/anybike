@@ -302,3 +302,24 @@ Important protections:
 - the second-chance deposit route requires fresh confirmation of Terms & Conditions, Trade & Export Sale Policy, trade-buyer status and visual-inspection basis
 - server-side payment allocation is blocked if that second-chance legal confirmation has not been recorded
 - customer receives both Message Centre and customer-notification deposit instructions
+
+
+## 1 October 2026 — Deal 360 authoritative-state correction
+
+Live testing of AB-000023 exposed contradictory workflow state: the £540 customer deposit was Verified and Posted, the motorcycle was genuinely secured and a Purchase Order existed, while the Deal 360 next-action card still sent staff backwards to Seller / Viability and Sale Financials showed a £16,750 customer balance by omitting the £250 delivery charge.
+
+Implemented on main:
+- Deal 360 next-action logic now treats genuine motorcycle security as stronger evidence than an expired/stale seller-availability flag.
+- Accepted motorcycle/offer facts now take precedence over stale stored stage labels when determining progress.
+- Sale Financials displays the authoritative motorcycle customer balance from accepted customer terms and active allocations, so AB-000023 resolves to £17,540 accepted total less £540 allocated = £17,000 outstanding.
+- Supplier full-payment controls are hidden/locked until Buyer Onboarding / Purchase Clearance is approved and the customer balance is clear. Seller deposits remain a separate controlled case.
+- Admin Dashboard no longer creates the old generic converted-deal "Payment or deposit needs attention" card.
+- Dashboard payment work now comes from the authoritative Payment Advice workflow and deep-links directly to the exact advice:
+  - Match / Verify Payment while awaiting verification.
+  - Post verified payment when bank verified and Ready to Post.
+  - no action after ledger status Posted.
+- Customer-level deposit/balance Dashboard actions are suppressed until purchase clearance is approved, so Buyer Setup review can correctly take priority.
+- Posted payment advice PA-AB-000023-01 remains authoritative evidence: £540 Verified, Posted and allocated to AB-000023.
+
+Guardrail:
+- A stored `deal_stage` is a summary label, not the sole workflow truth. Stronger transactional facts (accepted terms, active allocations, purchase clearance, motorcycle security, PO, operations state) must drive the next action and self-clear completed tasks.
