@@ -545,8 +545,23 @@ async function loadItems(preserveDealerOptions=false){
       if(request.year_to && Number(i.year||0)>Number(request.year_to)) return false;
       if(request.mileage_max && Number(i.mileage||0)>Number(request.mileage_max)) return false;
       if(request.max_price_gbp && Number(i.source_price_gbp||0)>Number(request.max_price_gbp)) return false;
+      const colour=String(i.colour||"").toLowerCase();
+      const avoid=Array.isArray(request.avoid_colours)?request.avoid_colours:[];
+      if(avoid.some(x=>colour.includes(String(x||"").toLowerCase()))) return false;
       return true;
     });
+
+    const preferred=String(request.preferred_colour||"")
+      .split(",").map(x=>x.trim().toLowerCase()).filter(Boolean);
+    if(preferred.length){
+      rows.sort((a,b)=>{
+        const ac=String(a.colour||"").toLowerCase();
+        const bc=String(b.colour||"").toLowerCase();
+        const ap=preferred.some(x=>ac.includes(x))?0:1;
+        const bp=preferred.some(x=>bc.includes(x))?0:1;
+        return ap-bp;
+      });
+    }
   }
 
   if(!preserveDealerOptions)renderDealerFilters(dealerSourceRows);
@@ -667,7 +682,7 @@ async function loadRequests(){
   buyerRequests=[];
   if(!bid){el.innerHTML='<option value="">Select buyer first</option>';return []}
   const {data,error}=await sb().from("global_buyer_request_items")
-    .select("id,make,model,year_from,year_to,mileage_max,max_price_gbp,condition_preference,notes")
+    .select("id,make,model,year_from,year_to,mileage_max,max_price_gbp,preferred_colour,avoid_colours,condition_preference,notes")
     .eq("buyer_id",bid).order("id",{ascending:false});
   if(error){el.innerHTML='<option value="">Could not load requests</option>';return []}
   buyerRequests=data||[];
