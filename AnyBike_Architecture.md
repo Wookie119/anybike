@@ -265,3 +265,18 @@ For each page test:
 
 ### Resume point
 Resume from **Bike Details motorcycle-description translation**. Do not move on to the next public page until the description itself changes language cleanly and the page no longer shows a mixed-language result.
+
+
+## 1 October 2026 — Two-Sided AnyBike Sales Architecture
+
+- AnyBike now has two distinct customer-facing sales routes sharing one platform:
+  - **Used Bike Export — B2B**: used motorcycles for genuine trade/business buyers only, with the headline proposition **AnyBike Delivered to Any UK Port Price**.
+  - **New Motorcycle Retail — B2C**: UK consumer retail for selected new motorcycles, beginning with VMoto electric motorcycles and scooters, with the headline proposition **Delivered to Your Door**.
+- Do not reintroduce private/consumer buyers into the existing used/export buyer type. Consumer retail must be route-specific.
+- The used/export first motorcycle communication must show the commercial proposition from the outset: Motorcycle Sale Price + AnyBike Sourcing Fee + UK Collection & Delivery = **AnyBike Delivered to Any UK Port Price**.
+- The VMoto retail route is model-led: Model → Battery/Specification → Colour → Stock Availability → Retail Order → VMoto Preparation/PDI → Move Collection → Home Delivery.
+- VMoto stock should be connector/API-ready so live availability can replace manual/imported availability later without redesigning the catalogue.
+- Initial VMoto virtual dealer pilot areas agreed with VMoto UK: South Wales; North East England; Sheffield / South Yorkshire; Liverpool / Merseyside.
+- VMoto model, county and town pages should be generated from shared catalogue/location data rather than maintained as independent hard-coded pages.
+- Reuse existing Message Centre, notifications, matching responses and Deal 360 foundations where safe, but keep B2B export legal/commercial gates separate from B2C retail terms and aftersales obligations.
+- Deposit automation remains a separate business-rule decision and must not be hard-coded until the percentage/minimum/rounding rule is agreed.
