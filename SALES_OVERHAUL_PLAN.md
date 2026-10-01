@@ -474,3 +474,19 @@ Live Source usability direction:
 - rank buyer shortlists using buyer requirement fit, dealer preference, price, year, mileage, condition/spec and collection practicality
 - keep Show all matches / manual override
 - send buyers a curated shortlist rather than the entire matching pool
+
+
+## 1 October 2026 — BMW Live Source reconnected to proven buyer-safe cleaner
+
+The new BMW Live Source route now feeds the established Junction Stock buyer-safe image pipeline rather than using a separate detection-only cleaner.
+
+Implemented:
+- BMW source/dealer records are bridged into Junction Stock for image processing.
+- BMW dealer names and identity tokens are registered as internal dealer aliases so dealer-wall branding/signage can be detected.
+- BMW source images are queued through the existing process-buyer-safe-image engine.
+- Existing Vision + Gemini local-repair workflow remains the canonical cleaner.
+- The cleaner preserves the motorcycle and framing, removes seller/dealer identity where detected, and QA checks the result.
+- A targeted buyer-safe claim lets an admin clean the exact Live Source motorcycle being prepared rather than waiting behind unrelated image jobs.
+- Cleaned buyer-safe output syncs back into anybike_live_source_buyer_safe_images so Live Source / Scanner / Deal 360 gates continue to use only approved clean images.
+- Raw BMW photos remain internal and are labelled as source photos in the admin UI.
+- Buyer/public use still requires a real approved clean image; source placeholders and branded/raw images are not eligible.
