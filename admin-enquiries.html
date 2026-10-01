@@ -8292,6 +8292,7 @@ function updateDealCommercialPreview(dealMotorcycleId){
 
   try{
     const sale=anyBikeCommercialInputNumber("deal-commercial-sale-"+id);
+    const buyerFee=anyBikeCommercialInputNumber("deal-commercial-buyer-fee-"+id);
     const deliveryCharge=anyBikeCommercialInputNumber("deal-commercial-delivery-charge-"+id);
     const seller=anyBikeCommercialInputNumber("deal-commercial-seller-"+id);
     const prep=anyBikeCommercialInputNumber("deal-commercial-prep-"+id);
@@ -8300,7 +8301,7 @@ function updateDealCommercialPreview(dealMotorcycleId){
     const admin=anyBikeCommercialInputNumber("deal-commercial-admin-"+id);
     const other=anyBikeCommercialInputNumber("deal-commercial-other-"+id);
 
-    const customerTotal=sale>0 ? sale+deliveryCharge : null;
+    const customerTotal=sale>0 ? sale+buyerFee+deliveryCharge : null;
     const totalInternal=seller>0 ? seller+prep+deliveryCost+docs+admin+other : null;
     const profit=customerTotal!==null && totalInternal!==null ? customerTotal-totalInternal : null;
     const margin=profit!==null && customerTotal>0 ? (profit/customerTotal)*100 : null;
@@ -8331,9 +8332,10 @@ async function saveDealCommercialSetup(dealMotorcycleId){
   const statusEl=document.getElementById("deal-commercial-status-"+id);
   const notesEl=document.getElementById("deal-commercial-notes-"+id);
 
-  let sale,deliveryCharge,seller,prep,deliveryCost,docs,admin,other;
+  let sale,buyerFee,deliveryCharge,seller,prep,deliveryCost,docs,admin,other;
   try{
     sale=anyBikeCommercialInputNumber("deal-commercial-sale-"+id);
+    buyerFee=anyBikeCommercialInputNumber("deal-commercial-buyer-fee-"+id);
     deliveryCharge=anyBikeCommercialInputNumber("deal-commercial-delivery-charge-"+id);
     seller=anyBikeCommercialInputNumber("deal-commercial-seller-"+id);
     prep=anyBikeCommercialInputNumber("deal-commercial-prep-"+id);
@@ -8357,6 +8359,7 @@ async function saveDealCommercialSetup(dealMotorcycleId){
   const confirmed=window.confirm(
     "Save Commercial Setup?\n\n" +
     "AnyBike Sale Price: " + (sale>0 ? anyBikeDealMoney(sale) : "Not agreed") + "\n" +
+    "AnyBike Buyer Fee: " + anyBikeDealMoney(buyerFee) + "\n" +
     "Delivery Charge: " + anyBikeDealMoney(deliveryCharge) + "\n" +
     "Seller Purchase Price: " + (seller>0 ? anyBikeDealMoney(seller) : "Not confirmed") + "\n" +
     "Commercial Status: " + commercialStatus + "\n\n" +
@@ -8372,6 +8375,7 @@ async function saveDealCommercialSetup(dealMotorcycleId){
     const result=await sb.rpc("admin_save_deal_commercial_setup_v1",{
       p_deal_motorcycle_id:id,
       p_anybike_sale_price_gbp:sale,
+      p_anybike_buyer_fee_gbp:buyerFee,
       p_delivery_charge_gbp:deliveryCharge,
       p_seller_purchase_price_gbp:seller,
       p_prep_cost_gbp:prep,
@@ -8440,6 +8444,7 @@ function renderAnyBikeDealCommercialSetup(deal){
   const title=[row.make,row.model,row.variant].filter(Boolean).join(" ") || "Motorcycle";
 
   const sale=row.anybike_sale_price_gbp;
+  const buyerFee=anyBikeCommercialNumber(row.anybike_buyer_fee_gbp);
   const deliveryCharge=anyBikeCommercialNumber(row.delivery_charge_gbp);
   const seller=row.seller_purchase_price_gbp;
   const prep=anyBikeCommercialNumber(row.prep_cost_gbp);
@@ -8470,7 +8475,7 @@ function renderAnyBikeDealCommercialSetup(deal){
       <div class="anybike-commercial-status">${escapeAdminHtml(status)}</div>
     </div>
 
-    ${sentPriceLocked ? '<div class="anybike-commercial-lock"><strong>'+(acceptedLocked?'✓ Accepted customer terms — locked':'Formal Offer sent — customer price locked')+'</strong><span>'+(acceptedLocked?'The customer-facing motorcycle price and delivery charge are frozen to the accepted Formal Offer.':'The customer-facing motorcycle price and delivery charge are frozen while the sent Formal Offer is active. Internal cost assumptions can still be reviewed.')+'</span></div>' : ''}
+    ${sentPriceLocked ? '<div class="anybike-commercial-lock"><strong>'+(acceptedLocked?'✓ Accepted customer terms — locked':'Formal Offer sent — customer price locked')+'</strong><span>'+(acceptedLocked?'The customer-facing motorcycle price, Buyer Fee and delivery charge are frozen to the accepted Formal Offer.':'The customer-facing motorcycle price, Buyer Fee and delivery charge are frozen while the sent Formal Offer is active. Internal cost assumptions can still be reviewed.')+'</span></div>' : ''}
     <div class="anybike-commercial-grid">
       <div class="anybike-commercial-field">
         <label>Original Advertised Price</label>
@@ -8481,6 +8486,11 @@ function renderAnyBikeDealCommercialSetup(deal){
       <div class="anybike-commercial-field">
         <label>AnyBike Sale Price</label>
         <input id="deal-commercial-sale-${id}" type="number" min="0" step="0.01" value="${sale===null || sale===undefined ? "" : Number(sale).toFixed(2)}" placeholder="Not agreed" oninput="updateDealCommercialPreview(${id})"${priceLockAttribute}>
+      </div>
+
+      <div class="anybike-commercial-field">
+        <label>AnyBike Buyer Fee</label>
+        <input id="deal-commercial-buyer-fee-${id}" type="number" min="0" step="0.01" value="${buyerFee.toFixed(2)}" oninput="updateDealCommercialPreview(${id})"${priceLockAttribute}>
       </div>
 
       <div class="anybike-commercial-field">
@@ -8535,7 +8545,7 @@ function renderAnyBikeDealCommercialSetup(deal){
     </div>
 
     <div style="padding:10px 16px;border-top:1px solid #2a2a2a;background:#0d0d0d;color:#888;font-size:10px">
-      Projected profit includes the separate customer delivery charge and all internal costs below. It is not the simple difference between motorcycle sale price and seller purchase price.
+      Projected profit includes the AnyBike Buyer Fee, customer delivery charge and all internal costs below.
     </div>
 
     <div class="anybike-commercial-metrics">
