@@ -8407,9 +8407,10 @@ function updateDealCommercialPreview(dealMotorcycleId){
   }
 }
 
-async function saveDealCommercialSetup(dealMotorcycleId){
+async function saveDealCommercialSetup(dealMotorcycleId,options){
+  options=options||{};
   const id=Number(dealMotorcycleId);
-  if(!Number.isFinite(id) || dealCommercialSaveBusy.has(String(id))){ return; }
+  if(!Number.isFinite(id) || dealCommercialSaveBusy.has(String(id))){ return false; }
 
   const statusEl=document.getElementById("deal-commercial-status-"+id);
   const notesEl=document.getElementById("deal-commercial-notes-"+id);
@@ -8427,7 +8428,7 @@ async function saveDealCommercialSetup(dealMotorcycleId){
     other=anyBikeCommercialInputNumber("deal-commercial-other-"+id);
   }catch(error){
     alert(error.message || "Check the Commercial Setup values.");
-    return;
+    return false;
   }
 
   const commercialStatus=String((statusEl && statusEl.value) || "Estimate");
@@ -8435,10 +8436,10 @@ async function saveDealCommercialSetup(dealMotorcycleId){
 
   if(commercialStatus==="Ready for Offer" && (sale<=0 || seller<=0)){
     alert("Ready for Offer requires both a Motorcycle Sale Price and an Agreed Seller Purchase Price.");
-    return;
+    return false;
   }
 
-  const confirmed=window.confirm(
+  const confirmed=options.skipConfirm ? true : window.confirm(
     "Save Commercial Setup?\n\n" +
     "Motorcycle Sale Price: " + (sale>0 ? anyBikeDealMoney(sale) : "Not agreed") + "\n" +
     "AnyBike Sourcing Fee: " + anyBikeDealMoney(buyerFee) + "\n" +
@@ -8448,7 +8449,7 @@ async function saveDealCommercialSetup(dealMotorcycleId){
     "This is internal planning only. It will NOT send an offer, take payment or secure the motorcycle."
   );
 
-  if(!confirmed){ return; }
+  if(!confirmed){ return false; }
 
   dealCommercialSaveBusy.add(String(id));
   renderAdminDealQueue();
@@ -8472,16 +8473,19 @@ async function saveDealCommercialSetup(dealMotorcycleId){
     if(result.error){ throw result.error; }
 
     const payload=result.data || {};
-    alert(
-      "Commercial Setup saved.\n\n" +
-      "Customer total: " + (payload.customer_total_gbp===null ? "Not agreed" : anyBikeDealMoney(payload.customer_total_gbp)) + "\n" +
-      "Total internal cost: " + (payload.total_internal_cost_gbp===null ? "Not confirmed" : anyBikeDealMoney(payload.total_internal_cost_gbp)) + "\n" +
-      "Projected profit: " + (payload.projected_profit_gbp===null ? "Not calculated" : anyBikeDealMoney(payload.projected_profit_gbp)) + "\n" +
-      "Margin: " + (payload.projected_margin_percent===null ? "—" : Number(payload.projected_margin_percent).toFixed(1)+"%") + "\n\n" +
-      "Customer visible: NO\n" +
-      "Offer sent: NO\n" +
-      "Motorcycle secured: " + (payload.motorcycle_secured ? "YES" : "NO")
-    );
+
+    if(!options.skipSuccessAlert){
+      alert(
+        "Commercial Setup saved.\n\n" +
+        "Customer total: " + (payload.customer_total_gbp===null ? "Not agreed" : anyBikeDealMoney(payload.customer_total_gbp)) + "\n" +
+        "Total internal cost: " + (payload.total_internal_cost_gbp===null ? "Not confirmed" : anyBikeDealMoney(payload.total_internal_cost_gbp)) + "\n" +
+        "Projected profit: " + (payload.projected_profit_gbp===null ? "Not calculated" : anyBikeDealMoney(payload.projected_profit_gbp)) + "\n" +
+        "Margin: " + (payload.projected_margin_percent===null ? "—" : Number(payload.projected_margin_percent).toFixed(1)+"%") + "\n\n" +
+        "Customer visible: NO\n" +
+        "Offer sent: NO\n" +
+        "Motorcycle secured: " + (payload.motorcycle_secured ? "YES" : "NO")
+      );
+    }
 
     await loadAdminDealQueue();
 
@@ -8489,17 +8493,56 @@ async function saveDealCommercialSetup(dealMotorcycleId){
     if(row){
       row.classList.add("open");
       openAnyBikeDealId=String(payload.deal_id || "");
-      row.scrollIntoView({behavior:"smooth",block:"center"});
+      if(!options.continueToOffer){
+        row.scrollIntoView({behavior:"smooth",block:"center"});
+      }
     }
+
+    if(options.continueToOffer){
+      setTimeout(function(){ openDealOfferModal(id); },100);
+    }
+
+    return true;
 
   }catch(error){
     console.error("Commercial Setup could not be saved:",error);
     alert("Commercial Setup could not be saved.\n\n"+(error && error.message ? error.message : "Unknown error"));
+    return false;
   }finally{
     dealCommercialSaveBusy.delete(String(id));
     renderAdminDealQueue();
   }
 }
+
+async function proceedDealCommercialSetup(dealMotorcycleId){
+  const id=Number(dealMotorcycleId);
+  if(!Number.isFinite(id)) return;
+
+  const sale=Number(document.getElementById("deal-commercial-sale-"+id)?.value||0);
+  const seller=Number(document.getElementById("deal-commercial-seller-"+id)?.value||0);
+
+  if(sale<=0){
+    alert("Your next action: enter the Motorcycle Sale Price.");
+    document.getElementById("deal-commercial-sale-"+id)?.focus();
+    return;
+  }
+
+  if(seller<=0){
+    alert("Your next action: confirm the Agreed Seller Purchase Price.");
+    document.getElementById("deal-commercial-seller-"+id)?.focus();
+    return;
+  }
+
+  const status=document.getElementById("deal-commercial-status-"+id);
+  if(status){ status.value="Ready for Offer"; }
+
+  await saveDealCommercialSetup(id,{
+    skipConfirm:true,
+    skipSuccessAlert:true,
+    continueToOffer:true
+  });
+}
+
 
 function anyBikeDealAdvertisedReferencePrice(deal){
   const dealId=String((deal && deal.deal_id) || "");
@@ -8550,7 +8593,7 @@ function renderAnyBikeDealCommercialSetup(deal){
 
   const profitClass=profit===null || profit===undefined ? "" : (Number(profit)<0 ? "loss" : "profit");
 
-  return `<div class="anybike-commercial-panel">
+  return `<div class="anybike-commercial-panel" id="deal-commercial-panel-${id}">
     <div class="anybike-commercial-head">
       <div>
         <span>Commercial Setup</span>
@@ -8558,6 +8601,10 @@ function renderAnyBikeDealCommercialSetup(deal){
       </div>
       <div class="anybike-commercial-status">${escapeAdminHtml(status)}</div>
     </div>
+
+    ${status==="Ready for Offer"
+      ? '<div class="deal-section-next-action complete"><div><div class="eyebrow">Complete</div><strong>Commercial Setup ready for Formal Offer</strong><span>The customer price, AnyBike Sourcing Fee, UK Collection & Delivery Charge and internal commercial position are saved.</span></div>'+(acceptedLocked?'':'<button type="button" onclick="openDealOfferModal('+id+');return false;">OPEN FORMAL OFFER →</button>')+'</div>'
+      : '<div class="deal-section-next-action"><div><div class="eyebrow">Your next action</div><strong>Review these figures, then continue</strong><span>Check the Motorcycle Sale Price, automatic Sourcing Fee, UK Collection & Delivery Charge, Agreed Seller Purchase Price and any genuine internal costs. If the figures are right, PROCEED will save this as Ready for Offer and open the Formal Offer.</span></div><button type="button" onclick="proceedDealCommercialSetup('+id+');return false;">PROCEED →</button></div>'}
 
     ${sentPriceLocked ? '<div class="anybike-commercial-lock"><strong>'+(acceptedLocked?'✓ Accepted customer terms — locked':'Formal Offer sent — customer price locked')+'</strong><span>'+(acceptedLocked?'The customer-facing Motorcycle Sale Price, AnyBike Sourcing Fee and UK Collection & Delivery Charge are frozen to the accepted Formal Offer.':'The customer-facing Motorcycle Sale Price, AnyBike Sourcing Fee and UK Collection & Delivery Charge are frozen while the sent Formal Offer is active. Internal cost assumptions can still be reviewed.')+'</span></div>' : ''}
     <div class="anybike-commercial-grid">
