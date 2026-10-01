@@ -8184,6 +8184,28 @@ function anyBikeCommercialNumber(value){
   return Number.isFinite(number) ? number : 0;
 }
 
+function anyBikeSourcingFeeFromSalePrice(price){
+  const motorcyclePrice=Number(price);
+  if(!Number.isFinite(motorcyclePrice) || motorcyclePrice<=0){ return 0; }
+  const roundedToFive=Math.round((motorcyclePrice*0.08)/5)*5;
+  return Math.max(395,roundedToFive);
+}
+
+function syncDealCommercialSourcingFee(dealMotorcycleId,force){
+  const id=Number(dealMotorcycleId);
+  const saleEl=document.getElementById("deal-commercial-sale-"+id);
+  const feeEl=document.getElementById("deal-commercial-buyer-fee-"+id);
+  if(!saleEl || !feeEl){ return; }
+  if(!force && feeEl.dataset.feeOverride==="true"){ return; }
+  feeEl.value=anyBikeSourcingFeeFromSalePrice(saleEl.value).toFixed(2);
+  feeEl.dataset.feeOverride="false";
+}
+
+function resetDealCommercialSourcingFee(dealMotorcycleId){
+  syncDealCommercialSourcingFee(dealMotorcycleId,true);
+  updateDealCommercialPreview(dealMotorcycleId);
+}
+
 function anyBikeCommercialNullableMoney(value,label){
   if(value===null || value===undefined || value===""){ return label; }
   const number=Number(value);
@@ -8445,6 +8467,8 @@ function renderAnyBikeDealCommercialSetup(deal){
 
   const sale=row.anybike_sale_price_gbp;
   const buyerFee=anyBikeCommercialNumber(row.anybike_buyer_fee_gbp);
+  const autoBuyerFee=anyBikeSourcingFeeFromSalePrice(sale);
+  const buyerFeeOverride=sale>0 && Math.abs(buyerFee-autoBuyerFee)>0.009;
   const deliveryCharge=anyBikeCommercialNumber(row.delivery_charge_gbp);
   const seller=row.seller_purchase_price_gbp;
   const prep=anyBikeCommercialNumber(row.prep_cost_gbp);
@@ -8485,12 +8509,13 @@ function renderAnyBikeDealCommercialSetup(deal){
 
       <div class="anybike-commercial-field">
         <label>Motorcycle Sale Price</label>
-        <input id="deal-commercial-sale-${id}" type="number" min="0" step="0.01" value="${sale===null || sale===undefined ? "" : Number(sale).toFixed(2)}" placeholder="Not agreed" oninput="updateDealCommercialPreview(${id})"${priceLockAttribute}>
+        <input id="deal-commercial-sale-${id}" type="number" min="0" step="0.01" value="${sale===null || sale===undefined ? "" : Number(sale).toFixed(2)}" placeholder="Not agreed" oninput="syncDealCommercialSourcingFee(${id},false);updateDealCommercialPreview(${id})"${priceLockAttribute}>
       </div>
 
       <div class="anybike-commercial-field">
         <label>AnyBike Sourcing Fee</label>
-        <input id="deal-commercial-buyer-fee-${id}" type="number" min="0" step="0.01" value="${buyerFee.toFixed(2)}" oninput="updateDealCommercialPreview(${id})"${priceLockAttribute}>
+        <input id="deal-commercial-buyer-fee-${id}" type="number" min="0" step="0.01" value="${buyerFee.toFixed(2)}" data-fee-override="${buyerFeeOverride ? "true" : "false"}" oninput="this.dataset.feeOverride='true';updateDealCommercialPreview(${id})"${priceLockAttribute}>
+        <small style="display:block;margin-top:5px;color:#888;font-size:10px">Automatic: 8% of Motorcycle Sale Price, rounded to the nearest £5, minimum £395. UK collection/delivery is separate.${sentPriceLocked?'':' <button type="button" style="margin:4px 0 0;padding:3px 8px;font-size:10px" onclick="resetDealCommercialSourcingFee('+id+');return false;">Use automatic fee</button>'}</small>
       </div>
 
       <div class="anybike-commercial-field">
@@ -8592,6 +8617,25 @@ function dealOfferNumber(id){
   const el=document.getElementById(id);
   const n=Number(el?.value || 0);
   return Number.isFinite(n) ? n : 0;
+}
+
+function syncDealOfferSourcingFee(force){
+  const priceEl=document.getElementById("dealOfferMotorcyclePrice");
+  const feeEl=document.getElementById("dealOfferAnyBikeFee");
+  if(!priceEl || !feeEl){ return; }
+  if(!force && feeEl.dataset.feeOverride==="true"){ return; }
+  feeEl.value=anyBikeSourcingFeeFromSalePrice(priceEl.value).toFixed(2);
+  feeEl.dataset.feeOverride="false";
+  calculateDealOfferPreview();
+}
+
+function setDealOfferFeeOverrideState(){
+  const priceEl=document.getElementById("dealOfferMotorcyclePrice");
+  const feeEl=document.getElementById("dealOfferAnyBikeFee");
+  if(!priceEl || !feeEl){ return; }
+  const automatic=anyBikeSourcingFeeFromSalePrice(priceEl.value);
+  const current=Number(feeEl.value || 0);
+  feeEl.dataset.feeOverride=Math.abs(current-automatic)>0.009 ? "true" : "false";
 }
 
 function dealOfferDateTimeLocal(value){
@@ -8893,7 +8937,8 @@ async function openDealOfferModal(dealMotorcycleId){
   document.getElementById("dealOfferVin").textContent=String(motorcycle.vin || "Not recorded");
 
   document.getElementById("dealOfferMotorcyclePrice").value=Number(row.anybike_sale_price_gbp || 0).toFixed(2);
-  document.getElementById("dealOfferAnyBikeFee").value=Number(row.anybike_buyer_fee_gbp || 0).toFixed(2);
+  document.getElementById("dealOfferAnyBikeFee").value=Number(row.anybike_buyer_fee_gbp || anyBikeSourcingFeeFromSalePrice(row.anybike_sale_price_gbp)).toFixed(2);
+  setDealOfferFeeOverrideState();
   document.getElementById("dealOfferDeliveryCharge").value=Number(row.delivery_charge_gbp || 0).toFixed(2);
 
   document.getElementById("dealOfferSaleBasis").value="Trade / Export Sale";
@@ -8935,7 +8980,8 @@ async function openDealOfferModal(dealMotorcycleId){
       activeDealOfferId=Number(offer.id);
 
       document.getElementById("dealOfferMotorcyclePrice").value=Number(offer.base_motorcycle_price_gbp ?? offer.motorcycle_price_gbp ?? 0).toFixed(2);
-      document.getElementById("dealOfferAnyBikeFee").value=Number(offer.anybike_fee_gbp || 0).toFixed(2);
+      document.getElementById("dealOfferAnyBikeFee").value=Number(offer.anybike_fee_gbp ?? anyBikeSourcingFeeFromSalePrice(offer.base_motorcycle_price_gbp ?? offer.motorcycle_price_gbp)).toFixed(2);
+      setDealOfferFeeOverrideState();
       document.getElementById("dealOfferDeliveryCharge").value=Number(offer.delivery_charge_gbp || 0).toFixed(2);
       document.getElementById("dealOfferSaleBasis").value=offer.sale_basis || "Trade / Export Sale";
       document.getElementById("dealOfferTerms").value=String(offer.offer_terms_text || "").trim() || defaultDealOfferTerms();
@@ -18778,13 +18824,13 @@ document.querySelector(".admin-page-content .wrap")?.classList.add("sales-view-a
         <div class="deal-offer-grid deal-offer-price-grid">
           <label>
             <span>Motorcycle Price (£)</span>
-            <input id="dealOfferMotorcyclePrice" type="number" min="0" step="0.01" oninput="calculateDealOfferPreview()">
+            <input id="dealOfferMotorcyclePrice" type="number" min="0" step="0.01" oninput="syncDealOfferSourcingFee(false);calculateDealOfferPreview()">
           </label>
 
           <label>
             <span>AnyBike Sourcing Fee (£)</span>
-            <input id="dealOfferAnyBikeFee" type="number" min="0" step="0.01" oninput="calculateDealOfferPreview()">
-            <small style="display:block;color:#888;margin-top:5px">AnyBike&apos;s fee for sourcing, arranging and managing this motorcycle purchase.</small>
+            <input id="dealOfferAnyBikeFee" type="number" min="0" step="0.01" data-fee-override="false" oninput="this.dataset.feeOverride='true';calculateDealOfferPreview()">
+            <small style="display:block;color:#888;margin-top:5px">Automatically calculated at 8% of the Motorcycle Sale Price, rounded to the nearest £5, minimum £395. UK collection/delivery is separate. <button type="button" style="margin:4px 0 0;padding:3px 8px;font-size:10px" onclick="syncDealOfferSourcingFee(true);return false;">Use automatic fee</button></small>
           </label>
 
           <label>
