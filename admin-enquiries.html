@@ -12624,7 +12624,16 @@ function renderAnyBikeDealSellerCheckPanel(deal){
               return Number(bike.deal_motorcycle_id || bike.id) === dealMotorcycleId;
             })?.seller_price_gbp || 0
           );
-    const availability = c?.availability_status || "Unknown";
+    const candidateAvailabilityLive = Boolean(
+      selectedCandidate &&
+      selectedCandidate.availability_status === "Confirmed Available" &&
+      selectedCandidate.availability_confirmed_at &&
+      (
+        !selectedCandidate.availability_valid_until ||
+        new Date(selectedCandidate.availability_valid_until).getTime() > Date.now()
+      )
+    );
+    const availability = c?.availability_status || (candidateAvailabilityLive ? "Available" : "Unknown");
     const availabilityComplete = ["Available","Reserved"].includes(availability);
     const priceComplete = Number(sellerPrice || 0) > 0;
     const holdStatus = c?.hold_confirmed ? "Yes" : "No";
@@ -12664,7 +12673,7 @@ function renderAnyBikeDealSellerCheckPanel(deal){
 
         <div class="anybike-seller-summary">
           <div><span class="anybike-seller-label">Seller Price</span><strong>${sellerPrice ? anyBikeDealMoney(sellerPrice) : "Not Reconfirmed"}</strong></div>
-          <div><span class="anybike-seller-label">Availability</span><strong class="${["Unavailable","Sold","Withdrawn"].includes(availability) ? "anybike-seller-danger" : ""}">${escapeAdminHtml(availability)}</strong></div>
+          <div><span class="anybike-seller-label">Availability</span><strong class="${availabilityComplete ? "anybike-seller-good" : (["Unavailable","Sold","Withdrawn"].includes(availability) ? "anybike-seller-danger" : "")}">${escapeAdminHtml(availability)}</strong>${candidateAvailabilityLive && !c ? '<small style="display:block;color:#888;margin-top:3px">Auto-filled from active seller availability check</small>' : ''}</div>
           <div><span class="anybike-seller-label">Hold / Reservation</span><strong>${escapeAdminHtml(holdStatus)}</strong></div>
           <div><span class="anybike-seller-label">Seller Deposit</span><strong class="${sellerDepositRequired && sellerDepositOutstanding > 0 ? "anybike-seller-warning" : sellerDepositRequired ? "anybike-seller-good" : ""}">${escapeAdminHtml(sellerDeposit)}</strong></div>
           <div><span class="anybike-seller-label">Purchase Status</span><strong class="${secured ? "anybike-seller-good" : "anybike-seller-warning"}">${secured ? "PURCHASED / SECURED" : "NOT YET PURCHASED"}</strong></div>
@@ -12747,7 +12756,7 @@ function renderAnyBikeDealSellerCheckPanel(deal){
           <div class="anybike-seller-form">
             <div class="anybike-seller-field">
               <label for="deal-seller-valid-until-${dealMotorcycleId}">Confirmation Valid Until</label>
-              <input id="deal-seller-valid-until-${dealMotorcycleId}" type="datetime-local" value="${escapeAdminHtml(anyBikeSellerLocalDateTime(c?.valid_until))}">
+              <input id="deal-seller-valid-until-${dealMotorcycleId}" type="datetime-local" value="${escapeAdminHtml(anyBikeSellerLocalDateTime(c?.valid_until || (candidateAvailabilityLive ? selectedCandidate.availability_valid_until : null)))}">
             </div>
             <div class="anybike-seller-field">
               <label for="deal-seller-contact-method-${dealMotorcycleId}">Contact Method</label>
