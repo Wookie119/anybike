@@ -338,3 +338,12 @@ Resume from **Bike Details motorcycle-description translation**. Do not move on 
 - Added dynamic `/vmoto-model.html?model=<slug>` pages. A published model automatically receives a model page showing its versions, battery details, colours, known stock status and approved general + model-specific FAQs.
 - Clicking a model/version enquiry carries the chosen model/version into the VMoto retail enquiry form, which creates the existing `NEW_RETAIL_B2C` Deal 360 flow.
 - Added **VMoto HQ** to the shared admin navigation and admin search routing.
+
+
+### Public website wording rule — 1 October 2026
+
+- Every public AnyBike page must read as a finished customer-facing service, not as a development diary, roadmap or internal project note.
+- Do not expose internal terms such as Deal 360, admin workflows, launch controls, API plans, media-pack status, placeholder/development language, internal route names or statements about what AnyBike may build later.
+- Where data is not yet available, use useful customer wording such as **Contact AnyBike for current availability**, **Enquiries welcome**, **No current models to show**, or a relevant call to action.
+- Public pages should explain what the customer can do now, what AnyBike currently provides, what information AnyBike will confirm for the transaction and any genuine limitations that matter to the customer.
+- Future product ideas, development status, platform architecture and internal implementation details belong only in admin/project documentation.
