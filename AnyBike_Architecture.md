@@ -294,3 +294,18 @@ Resume from **Bike Details motorcycle-description translation**. Do not move on 
 - A `NEW_RETAIL_B2C` Deal shows the retail journey foundation instead of presenting export-only freight-forwarder/port steps as if they applied to a consumer order.
 - Retail journey foundation: Customer Order → Stock Confirmation → Customer Payment → Order VMoto → VMoto PDI → Move Collection → Home Delivery.
 - Retail checkout/actions remain intentionally controlled until VMoto pricing, warranty/aftersales, B2C servicing and retail terms are confirmed.
+
+
+### 1 October 2026 — VMoto retail enquiry and Deal 360 order workspace
+
+- Added API-ready VMoto catalogue tables for Models → Variants/Battery → Colours → Stock Availability. No live model records were fabricated; official VMoto media/model/price data is still required before catalogue publication.
+- Added `anybike_retail_orders` as the route-specific retail order record behind `NEW_RETAIL_B2C` Deals.
+- VMoto public enquiry flow now creates a genuine Deal 360 retail Deal automatically rather than relying on staff to switch a used/export Deal manually.
+- The enquiry captures: VMoto model, version/specification, battery choice, colour choice, customer name/email/phone, home/place-of-work handover choice, postcode/town/address and notes.
+- VMoto enquiry creation also creates the Deal motorcycle row, Deal origin, Message Centre thread/message and admin notification, all linked to the retail Deal.
+- Retail motorcycle VAT defaults to **Full VAT / 20%** for the new-machine route, while final supplier invoice treatment still requires confirmation.
+- Retail pricing is componentised: motorcycle price, First Registration Fee, road tax and delivery remain separate lines; FRF and road tax have their own VAT-treatment fields instead of being forced into the motorcycle VAT line.
+- Delivery proposition remains **Nationwide Delivery from £99** with **Full handover at your home or place of work**. The actual delivery charge is confirmed per customer/location and then included in the final customer total.
+- Deal 360 retail workspace now allows staff to manage retail stage, VMoto stock status/location, VMoto order reference, motorcycle price, FRF, road tax, delivery charge, delivery postcode and internal notes.
+- Retail Deal 360 queue uses retail-specific next actions rather than the used/export seller-check next-action engine.
+- Current retail stages: Customer Order → Stock Confirmation → Customer Payment → Order VMoto → VMoto PDI → Move Collection → Home Delivery → Completed.
