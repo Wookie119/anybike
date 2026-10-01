@@ -2042,7 +2042,7 @@ body.customer-offer-modal-open{overflow:hidden}
       <div class="panel-head">
         <div>
           <h2>🛒 My Purchases</h2>
-          <p>Motorcycles where you have accepted a formal AnyBike offer. Track your purchase, deposit and motorcycle security status here.</p>
+          <p>Motorcycles where you have accepted a formal AnyBike offer. Track payment, the UK handover route and when AnyBike has actually purchased / secured the motorcycle from the seller.</p>
         </div>
         <a class="panel-link" href="accounts-documents.html">Accounts &amp; Documents →</a>
       </div>
@@ -2136,13 +2136,13 @@ body.customer-offer-modal-open{overflow:hidden}
   <div class="panel-head">
     <div>
       <h2>🚢 Saved Shipping Preferences</h2>
-      <p>Keep more than one UK handover / freight-forwarder option. You can choose the right shipper for each AnyBike purchase.</p>
+      <p>Keep more than one shipping plan. Your freight forwarder and the UK company receiving the motorcycle can be different businesses, so save both plus the exact UK delivery address.</p>
     </div>
   </div>
 
   <div class="shipping-guidance">
-    <h3>Set up your shipping before you buy</h3>
-    <p>Spending a few minutes saving the freight forwarders you may use can save time later when you accept an AnyBike offer. We recommend contacting the shipper directly to discuss your motorcycle, destination and requirements, then saving the name, telephone number, extension and email address of the person handling your enquiry. You can also record useful details such as sailing days, container loading deadlines and special instructions.</p>
+    <h3>Set up the UK handover route before AnyBike buys the motorcycle</h3>
+    <p>Save your freight forwarder and, where different, the UK shipping / receiving company that will physically receive the motorcycle from Move Motorcycles. AnyBike also needs the exact UK delivery address and postcode before paying the seller. You can keep several plans and choose the right one for each purchase.</p>
     <div class="shipping-guidance-actions">
       <a class="mini-btn primary" href="/freight-forwarders.html" target="_blank" rel="noopener">Research Freight Forwarders ↗</a>
       <a class="mini-btn" href="#shipping-directory-options">Choose From Directory</a>
@@ -4904,7 +4904,7 @@ async function loadBuyerSetupBanner(){
   try{
     const {data,error}=await sb
       .from("customer_buyer_onboarding")
-      .select("approval_status,identity_status,address_status,shipper_status,test_payment_status,account_status,account_stop_reason")
+      .select("approval_status,identity_status,address_status,shipper_status,test_payment_status,account_status,account_stop_reason,first_order_grace_started_at,first_order_grace_due_at,first_order_grace_status,first_order_consolidation_started_at,first_order_consolidation_due_at,first_order_consolidation_status")
       .eq("customer_id",currentUser.id)
       .maybeSingle();
     if(!error) onboarding=data||null;
@@ -4914,6 +4914,13 @@ async function loadBuyerSetupBanner(){
   const accountStatus=String(buyerAccountState.account_status||"Active");
   const stopReason=String(buyerAccountState.account_stop_reason||"").trim();
   const approved=onboarding && ["Approved","Approved with Exceptions"].includes(String(onboarding.approval_status||"")) && accountStatus==="Active";
+  const firstOrderGraceDue=onboarding?.first_order_grace_due_at ? new Date(onboarding.first_order_grace_due_at) : null;
+  const firstOrderGraceActive=Boolean(
+    String(onboarding?.first_order_grace_status||"")==="Active" &&
+    firstOrderGraceDue && !Number.isNaN(firstOrderGraceDue.getTime()) &&
+    firstOrderGraceDue.getTime()>=Date.now() &&
+    accountStatus==="Active"
+  );
 
   const buyerType=String(currentProfile?.buyer_type||"").trim();
   const setup={
@@ -4990,7 +4997,7 @@ async function loadBuyerSetupBanner(){
   compactComplete?.style.setProperty("display","none");
   if(title) title.style.removeProperty("display");
   if(textEl) textEl.style.removeProperty("display");
-  if(progressText) progressText.textContent=done+" of "+keys.length+" required sections complete";
+  if(progressText) progressText.textContent=done+" of "+keys.length+" required sections complete"+(firstOrderGraceActive ? " · First-order setup due "+firstOrderGraceDue.toLocaleDateString("en-GB") : "");
   if(progressFill) progressFill.style.width=((done/keys.length)*100)+"%";
   document.querySelectorAll("[data-dashboard-setup]").forEach(el=>{
     el.classList.toggle("complete",Boolean(setup[el.dataset.dashboardSetup]));
@@ -5001,7 +5008,9 @@ async function loadBuyerSetupBanner(){
   let href="customer-profile.html#buyer-onboarding";
   let actionText="Continue Buyer Setup →";
   let nextHeading="Your next action: Complete Buyer Setup";
-  let nextCopy="Complete the next required section shown below.";
+  let nextCopy=firstOrderGraceActive
+    ? "Your first-order setup period runs until "+firstOrderGraceDue.toLocaleString("en-GB")+". You can complete the remaining Buyer Verification and export identity details during this period."
+    : "Complete the next required section shown below.";
 
   if(!setup.contact){
     href="customer-profile.html#section-contact";
