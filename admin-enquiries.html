@@ -12275,11 +12275,6 @@ async function recordDealSellerPayment(dealMotorcycleId){
   renderAdminDealQueue();
 
   try{
-    const hasBuyerMatch =
-      paymentRow &&
-      paymentRow.buyer_match_id !== null &&
-      paymentRow.buyer_match_id !== undefined &&
-      Number(paymentRow.buyer_match_id) > 0;
 
     const bankArgs={
       p_payment_purpose:purpose,
@@ -12296,14 +12291,11 @@ async function recordDealSellerPayment(dealMotorcycleId){
       p_bank_sort_code:bankSortCode||null,
       p_bank_international_notes:bankInternationalNotes||null
     };
-
-    const result = hasBuyerMatch
-      ? await sb.rpc("admin_record_seller_payment_with_bank_v1",Object.assign({
-          p_match_id:Number(paymentRow.buyer_match_id)
-        },bankArgs))
-      : await sb.rpc("admin_record_deal_seller_payment_with_bank_v1",Object.assign({
-          p_deal_motorcycle_id:id
-        },bankArgs));
+    // Deal 360 supplier payments must stay on the Deal-native ledger path.
+    // A promoted motorcycle may still carry a legacy buyer_match_id.
+    const result = await sb.rpc("admin_record_deal_seller_payment_with_bank_v1",Object.assign({
+      p_deal_motorcycle_id:id
+    },bankArgs));
 
     if(result.error){ throw result.error; }
 
