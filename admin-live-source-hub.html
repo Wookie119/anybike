@@ -429,9 +429,45 @@ async function createBatch(){
   const st=document.getElementById("batchStatus");
   if(!bid){st.className="status bad";st.textContent="Choose a buyer.";return}
   if(!selected.size){st.className="status bad";st.textContent="Select at least one live motorcycle.";return}
-  st.className="status";st.textContent="Preparing "+selected.size+" motorcycles…";
-  const {data,error}=await sb().rpc("admin_create_scan_batch_from_live_source_v1",{p_buyer_id:bid,p_request_item_id:rid,p_item_ids:[...selected],p_delivery_allowance_gbp:Number(document.getElementById("delivery").value)||250});
+
+  const ids=[...selected];
+  let cleaned=0,needsAttention=0;
+
+  for(let i=0;i<ids.length;i++){
+    const id=Number(ids[i]);
+    const item=items.find(x=>Number(x.id)===id);
+    const hasRealBmwPhoto=(item?.source_image_urls||[]).some(u=>/\/api\/Image\/GetImg\?imgId=/i.test(String(u)));
+
+    if(!hasRealBmwPhoto){
+      needsAttention++;
+      continue;
+    }
+
+    st.className="status";
+    st.textContent="Preparing clean buyer-safe images… "+(i+1)+" / "+ids.length;
+    try{
+      const {data,error}=await sb().functions.invoke("prepare-live-source-buyer-safe-images",{
+        body:{live_source_item_id:id}
+      });
+      if(error || data?.error){needsAttention++;continue}
+      if(Number(data?.safe_count||0)>0)cleaned++;
+      else needsAttention++;
+    }catch{
+      needsAttention++;
+    }
+  }
+
+  st.className="status";
+  st.textContent="Creating sourcing batch… "+cleaned+" clean image"+(cleaned===1?"":"s")+" ready"+(needsAttention?" · "+needsAttention+" need image attention":"");
+
+  const {data,error}=await sb().rpc("admin_create_scan_batch_from_live_source_v1",{
+    p_buyer_id:bid,
+    p_request_item_id:rid,
+    p_item_ids:ids,
+    p_delivery_allowance_gbp:Number(document.getElementById("delivery").value)||250
+  });
   if(error){st.className="status bad";st.textContent=error.message;return}
+
   location.href="admin-used-bike-scanner.html?batch="+data+(sourcingParams.get("deal")?"&deal="+encodeURIComponent(sourcingParams.get("deal")):"");
 }
 
