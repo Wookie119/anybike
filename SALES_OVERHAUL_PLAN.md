@@ -598,3 +598,5 @@ Frontend alignment completed:
 - A `NEW_RETAIL_B2C` Deal shows the retail journey foundation instead of presenting export-only freight-forwarder/port steps as if they applied to a consumer order.
 - Retail journey foundation: Customer Order → Stock Confirmation → Customer Payment → Order VMoto → VMoto PDI → Move Collection → Home Delivery.
 - Retail checkout/actions remain intentionally controlled until VMoto pricing, warranty/aftersales, B2C servicing and retail terms are confirmed.
+- VMoto retail delivery proposition: **Nationwide Delivery from £99** with a **Full handover at your home or place of work**.
+- Retail delivery remains a separate charge in Deal 360 so the final amount can vary by customer location/postcode rather than assuming a flat nationwide £99.
