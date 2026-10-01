@@ -7650,6 +7650,17 @@ function anyBikeBuyerOnboardingApproved(deal){
   return !!row && ["Approved","Approved with Exceptions"].includes(String(row.approval_status||""));
 }
 
+function anyBikeFirstOrderGraceActive(deal){
+  const row=anyBikeBuyerOnboardingForDeal(deal);
+  if(!row || String(row.first_order_grace_status||"")!=="Active" || !row.first_order_grace_due_at){ return false; }
+  const due=new Date(row.first_order_grace_due_at);
+  return !Number.isNaN(due.getTime()) && due.getTime()>=Date.now() && !["On Hold","Stopped"].includes(String(row.account_status||"Active"));
+}
+
+function anyBikePurchaseClearanceAllowed(deal){
+  return anyBikeBuyerOnboardingApproved(deal) || anyBikeFirstOrderGraceActive(deal);
+}
+
 async function loadAdminBuyerOnboarding(){
   adminCustomerOnboarding=new Map();
   const customerIds=Array.from(new Set(
@@ -7702,6 +7713,9 @@ function renderAnyBikeBuyerOnboardingPanel(deal){
   const approval=String(row.approval_status||"Not Reviewed");
   const accountStatus=String(row.account_status||"Active");
   const approved=["Approved","Approved with Exceptions"].includes(approval) && accountStatus!=="Stopped";
+  const graceActive=anyBikeFirstOrderGraceActive(deal);
+  const graceDue=row.first_order_grace_due_at ? new Date(row.first_order_grace_due_at) : null;
+  const graceDueText=graceDue && !Number.isNaN(graceDue.getTime()) ? graceDue.toLocaleString("en-GB") : "";
   const statusFor=function(key){ return String(row[key]||anyBikeBuyerOnboardingSuggestedStatus(profile,key)); };
   const shipper=[profile.preferred_shipping_company,profile.shipping_contact_name,profile.shipping_contact_email,profile.shipping_contact_phone].filter(Boolean).join(" · ");
   const route=[profile.preferred_uk_collection_point,profile.preferred_destination_port,profile.preferred_shipping_method,profile.typical_bikes_per_shipment].filter(Boolean).join(" · ");
@@ -7709,10 +7723,12 @@ function renderAnyBikeBuyerOnboardingPanel(deal){
   return '<section class="anybike-commercial-panel" style="margin-top:14px" id="buyer-onboarding-panel-'+escapeAdminHtml(customerId)+'">'+
     '<div class="anybike-commercial-head"><div><span>Buyer Purchase Clearance</span><h4>Reusable business verification &amp; purchase approval</h4></div>'+
     '<div class="anybike-commercial-status">'+escapeAdminHtml(approval)+'</div></div>'+
-    '<div style="padding:12px 16px;background:'+(approved?'rgba(42,159,89,.08)':'rgba(237,28,36,.06)')+';border-bottom:1px solid rgba(255,255,255,.08);font-size:12px;line-height:1.5;color:#bbb">'+
+    '<div style="padding:12px 16px;background:'+(approved||graceActive?'rgba(42,159,89,.08)':'rgba(237,28,36,.06)')+';border-bottom:1px solid rgba(255,255,255,.08);font-size:12px;line-height:1.5;color:#bbb">'+
       (approved
-        ? '✓ Purchase clearance approved. “Approved with Exceptions” is a valid controlled override when a check is genuinely not relevant or has been reviewed and accepted by AnyBike.'
-        : 'The buyer has accepted the Formal Offer. Complete purchase clearance before AnyBike commits funds, pays the supplier or secures the motorcycle. Use “Approved with Exceptions” where a requirement is genuinely not applicable or has been reviewed and accepted by AnyBike. “Blocked” prevents purchase.')+
+        ? '✓ Buyer Verification approved for ongoing purchases.'
+        : graceActive
+          ? '✓ FIRST ORDER GRACE ACTIVE — this buyer may complete Buyer Verification and Export & Tax Identity by '+escapeAdminHtml(graceDueText)+'. Customer funds and the complete UK handover route are still required before AnyBike pays the seller.'
+          : 'Buyer Verification is not approved. Outside the first-order grace period this blocks AnyBike from paying the supplier. “Approved with Exceptions” remains available for a genuine reviewed exception.')+
     '</div>'+
     '<div class="anybike-commercial-grid">'+
       '<div class="anybike-commercial-field"><label>Buyer Account Status</label><select id="buyer-onboarding-account-status-'+customerId+'"><option value="Active"'+(accountStatus==="Active"?' selected':'')+'>Active</option><option value="On Hold"'+(accountStatus==="On Hold"?' selected':'')+'>On Hold</option><option value="Stopped"'+(accountStatus==="Stopped"?' selected':'')+'>Stopped</option></select><small style="display:block;color:#888;margin-top:5px">Stopped blocks offer acceptance and purchase progression until staff reactivates the account.</small></div>'+
@@ -7904,7 +7920,7 @@ async function loadAdminCustomerHandoverData(){
     try{
       const {data,error}=await sb
         .from("customer_handover_plans")
-        .select("id,customer_id,plan_name,destination_country,uk_handover_point,freight_forwarder_name,provider_website,source_type,contact_name,contact_email,contact_phone,contact_extension,forwarder_reference,shipping_notes,customer_notes,is_default,is_active,created_at,updated_at")
+        .select("id,customer_id,plan_name,destination_country,uk_handover_point,freight_forwarder_name,provider_website,source_type,contact_name,contact_email,contact_phone,contact_extension,forwarder_reference,shipping_company_name,shipping_company_contact_name,shipping_company_contact_email,shipping_company_contact_phone,uk_handover_address_1,uk_handover_address_2,uk_handover_city,uk_handover_county,uk_handover_postcode,uk_handover_country,shipping_notes,customer_notes,is_default,is_active,created_at,updated_at")
         .in("customer_id",customerIds)
         .eq("is_active",true)
         .order("is_default",{ascending:false})
@@ -7943,6 +7959,26 @@ async function loadAdminCustomerHandoverData(){
   }
 }
 
+function anyBikeCustomerHandoverAddress(plan){
+  return [
+    plan?.uk_handover_address_1,
+    plan?.uk_handover_address_2,
+    plan?.uk_handover_city,
+    plan?.uk_handover_county,
+    plan?.uk_handover_postcode,
+    plan?.uk_handover_country || "United Kingdom"
+  ].filter(Boolean).join(", ");
+}
+
+function anyBikeCustomerHandoverPlanComplete(plan){
+  return Boolean(
+    String(plan?.freight_forwarder_name || "").trim() &&
+    String(plan?.shipping_company_name || "").trim() &&
+    String(plan?.uk_handover_address_1 || "").trim() &&
+    String(plan?.uk_handover_postcode || "").trim()
+  );
+}
+
 function renderAnyBikeCustomerShippingPreferences(deal){
   const dealId=Number(deal && deal.deal_id);
   if(!Number.isFinite(dealId)){ return ""; }
@@ -7969,7 +8005,7 @@ function renderAnyBikeCustomerShippingPreferences(deal){
         <div>
           <strong style="font-size:15px">${escapeAdminHtml(anyBikeCustomerHandoverPlanLabel(plan))}</strong>
           <div style="color:#aaa;font-size:12px;margin-top:4px">
-            ${escapeAdminHtml(plan.uk_handover_point || "UK handover point not supplied")} · ${escapeAdminHtml(plan.freight_forwarder_name || "Shipper not supplied")}
+            ${escapeAdminHtml(plan.uk_handover_point || "UK handover point not supplied")} · ${escapeAdminHtml(plan.freight_forwarder_name || "Freight forwarder not supplied")}
           </div>
         </div>
         <div style="display:flex;gap:7px;flex-wrap:wrap">
@@ -7979,13 +8015,15 @@ function renderAnyBikeCustomerShippingPreferences(deal){
       </div>
 
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px;margin-top:10px">
-        <div style="background:#0d0d0d;border-radius:9px;padding:9px"><span style="display:block;color:#888;font-size:10px;font-weight:900;margin-bottom:3px">CONTACT</span>${escapeAdminHtml(contact || "Not supplied")}</div>
+        <div style="background:#0d0d0d;border-radius:9px;padding:9px"><span style="display:block;color:#888;font-size:10px;font-weight:900;margin-bottom:3px">FREIGHT FORWARDER CONTACT</span>${escapeAdminHtml(contact || "Not supplied")}</div>
+        <div style="background:#0d0d0d;border-radius:9px;padding:9px"><span style="display:block;color:#888;font-size:10px;font-weight:900;margin-bottom:3px">UK SHIPPING / RECEIVING COMPANY</span>${escapeAdminHtml(plan.shipping_company_name || "Not supplied")}</div>
+        <div style="background:#0d0d0d;border-radius:9px;padding:9px"><span style="display:block;color:#888;font-size:10px;font-weight:900;margin-bottom:3px">EXACT UK DELIVERY ADDRESS</span>${escapeAdminHtml(anyBikeCustomerHandoverAddress(plan) || "Not supplied")}</div>
         <div style="background:#0d0d0d;border-radius:9px;padding:9px"><span style="display:block;color:#888;font-size:10px;font-weight:900;margin-bottom:3px">REFERENCE</span>${escapeAdminHtml(reference || "Not supplied")}</div>
         ${notes ? `<div style="background:#0d0d0d;border-radius:9px;padding:9px;grid-column:1/-1"><span style="display:block;color:#888;font-size:10px;font-weight:900;margin-bottom:3px">CUSTOMER SHIPPING NOTES</span>${escapeAdminHtml(notes)}</div>` : ""}
       </div>
 
       <div style="display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-top:10px">
-        <button type="button" style="margin:0" onclick="useCustomerHandoverPlan(${dealId},${Number(plan.id)});return false;">Use in UK Handover Plan</button>
+        <button type="button" style="margin:0" ${anyBikeCustomerHandoverPlanComplete(plan) ? "" : "disabled"} onclick="useCustomerHandoverPlan(${dealId},${Number(plan.id)});return false;">${anyBikeCustomerHandoverPlanComplete(plan) ? "Use in UK Handover Plan" : "Complete UK Receiving Details First"}</button>
         ${selected && selection && selection.selected_at ? `<span style="color:#8cffb1;font-size:12px;font-weight:900">Selected by customer ${escapeAdminHtml(new Date(selection.selected_at).toLocaleString())}</span>` : ""}
       </div>
     </article>`;
@@ -8052,6 +8090,19 @@ function useCustomerHandoverPlan(dealId,planId){
 
   setField("deal-shipping-contact",contactParts.join(" · "),true);
   setField("deal-shipping-reference",plan.forwarder_reference || "",true);
+  setField("deal-shipping-company",plan.shipping_company_name || "",true);
+
+  const receiverContact=[
+    plan.shipping_company_contact_name,
+    plan.shipping_company_contact_phone,
+    plan.shipping_company_contact_email
+  ].filter(Boolean).join(" · ");
+  setField("deal-shipping-company-contact",receiverContact,true);
+  setField("deal-shipping-address1",plan.uk_handover_address_1 || "",true);
+  setField("deal-shipping-address2",plan.uk_handover_address_2 || "",true);
+  setField("deal-shipping-city",plan.uk_handover_city || "",true);
+  setField("deal-shipping-county",plan.uk_handover_county || "",true);
+  setField("deal-shipping-postcode",plan.uk_handover_postcode || "",true);
 
   const notesParts=[];
   if(plan.shipping_notes){
@@ -10546,6 +10597,23 @@ function normalizeAnyBikeShippingRoute(row){
       source.booking_reference ||
       "",
 
+    shipping_company_name:
+      source.shipping_company_name ||
+      source.uk_shipping_company_name ||
+      "",
+
+    shipping_company_contact:
+      source.shipping_company_contact ||
+      source.uk_shipping_company_contact ||
+      "",
+
+    uk_handover_address_1: source.uk_handover_address_1 || "",
+    uk_handover_address_2: source.uk_handover_address_2 || "",
+    uk_handover_city: source.uk_handover_city || "",
+    uk_handover_county: source.uk_handover_county || "",
+    uk_handover_postcode: source.uk_handover_postcode || "",
+    uk_handover_country: source.uk_handover_country || "United Kingdom",
+
     shipping_route_notes:
       source.shipping_route_notes ||
       source.internal_notes ||
@@ -11212,8 +11280,14 @@ function renderAnyBikeDealShippingRoutePanel(deal){
             </div>
 
             <div class="anybike-commercial-field">
-              <label>Freight Forwarder / Shipper</label>
-              <input id="deal-shipping-forwarder-${dealId}" type="text" value="${escapeAdminHtml(route.freight_forwarder_name || "")}" placeholder="Company name" ${busy ? "disabled" : ""}>
+              <label>Buyer Freight Forwarder</label>
+              <input id="deal-shipping-forwarder-${dealId}" type="text" value="${escapeAdminHtml(route.freight_forwarder_name || "")}" placeholder="Buyer's freight forwarder" ${busy ? "disabled" : ""}>
+            </div>
+
+            <div class="anybike-commercial-field">
+              <label>UK Shipping / Receiving Company</label>
+              <input id="deal-shipping-company-${dealId}" type="text" value="${escapeAdminHtml(route.shipping_company_name || "")}" placeholder="Company receiving the motorcycle in the UK" ${busy ? "disabled" : ""}>
+              <small style="display:block;color:#888;margin-top:5px">May be different from the buyer's freight forwarder.</small>
             </div>
 
             <div class="anybike-commercial-field" style="grid-column:span 2">
@@ -11222,8 +11296,38 @@ function renderAnyBikeDealShippingRoutePanel(deal){
             </div>
 
             <div class="anybike-commercial-field" style="grid-column:span 2">
+              <label>UK Receiver Contact Details</label>
+              <input id="deal-shipping-company-contact-${dealId}" type="text" value="${escapeAdminHtml(route.shipping_company_contact || "")}" placeholder="Name, telephone and email" ${busy ? "disabled" : ""}>
+            </div>
+
+            <div class="anybike-commercial-field" style="grid-column:span 2">
               <label>Booking / Forwarder Reference</label>
               <input id="deal-shipping-reference-${dealId}" type="text" value="${escapeAdminHtml(route.freight_forwarder_reference || "")}" placeholder="Optional reference" ${busy ? "disabled" : ""}>
+            </div>
+
+            <div class="anybike-commercial-field" style="grid-column:span 2">
+              <label>Exact UK Delivery / Handover Address</label>
+              <input id="deal-shipping-address1-${dealId}" type="text" value="${escapeAdminHtml(route.uk_handover_address_1 || "")}" placeholder="Building / depot / street" ${busy ? "disabled" : ""}>
+            </div>
+            <div class="anybike-commercial-field" style="grid-column:span 2">
+              <label>Address Line 2</label>
+              <input id="deal-shipping-address2-${dealId}" type="text" value="${escapeAdminHtml(route.uk_handover_address_2 || "")}" placeholder="Optional" ${busy ? "disabled" : ""}>
+            </div>
+            <div class="anybike-commercial-field">
+              <label>Town / City</label>
+              <input id="deal-shipping-city-${dealId}" type="text" value="${escapeAdminHtml(route.uk_handover_city || "")}" placeholder="Town / City" ${busy ? "disabled" : ""}>
+            </div>
+            <div class="anybike-commercial-field">
+              <label>County</label>
+              <input id="deal-shipping-county-${dealId}" type="text" value="${escapeAdminHtml(route.uk_handover_county || "")}" placeholder="Optional" ${busy ? "disabled" : ""}>
+            </div>
+            <div class="anybike-commercial-field">
+              <label>UK Postcode</label>
+              <input id="deal-shipping-postcode-${dealId}" type="text" value="${escapeAdminHtml(route.uk_handover_postcode || "")}" placeholder="Postcode" ${busy ? "disabled" : ""}>
+            </div>
+            <div class="anybike-commercial-field">
+              <label>Handover Country</label>
+              <input type="text" value="United Kingdom" readonly>
             </div>
 
             <div class="anybike-commercial-field" style="grid-column:1 / -1">
@@ -11240,7 +11344,7 @@ function renderAnyBikeDealShippingRoutePanel(deal){
           </div>
 
           <div style="margin-top:12px;color:#888;font-size:12px;line-height:1.45">
-            Setting status to Confirmed requires a destination country, UK port/handover point and freight forwarder. Confirmation records the staff user and time automatically.
+            Setting status to Confirmed requires the buyer's freight forwarder, the UK shipping / receiving company, and the exact UK delivery address with postcode. The port / handover-point label is useful context but the exact receiving address is what Move needs for delivery.
           </div>
         </div>`;
 }
@@ -11299,10 +11403,17 @@ async function saveDealShippingRoute(dealId){
   const forwarder=value("deal-shipping-forwarder");
   const contact=value("deal-shipping-contact");
   const reference=value("deal-shipping-reference");
+  const shippingCompany=value("deal-shipping-company");
+  const shippingCompanyContact=value("deal-shipping-company-contact");
+  const address1=value("deal-shipping-address1");
+  const address2=value("deal-shipping-address2");
+  const city=value("deal-shipping-city");
+  const county=value("deal-shipping-county");
+  const postcode=value("deal-shipping-postcode").toUpperCase();
   const notes=value("deal-shipping-notes");
 
-  if(status==="Confirmed" && (!country || !port || !forwarder)){
-    alert("To confirm the shipping route, enter the destination country, UK port / handover point and freight forwarder / shipper.");
+  if(status==="Confirmed" && (!country || !forwarder || !shippingCompany || !address1 || !postcode)){
+    alert("To confirm the UK handover route, enter the destination country, buyer freight forwarder, UK shipping / receiving company, exact UK delivery address and postcode.");
     return;
   }
 
@@ -11317,7 +11428,7 @@ async function saveDealShippingRoute(dealId){
   renderAdminDealQueue();
 
   try{
-    const result=await sb.rpc("admin_save_deal_shipping_route_v1",{
+    const result=await sb.rpc("admin_save_deal_shipping_route_v2",{
       p_deal_id:id,
       p_shipping_route_status:status,
       p_destination_country:country || null,
@@ -11325,6 +11436,14 @@ async function saveDealShippingRoute(dealId){
       p_freight_forwarder_name:forwarder || null,
       p_freight_forwarder_contact:contact || null,
       p_freight_forwarder_reference:reference || null,
+      p_shipping_company_name:shippingCompany || null,
+      p_shipping_company_contact:shippingCompanyContact || null,
+      p_uk_handover_address_1:address1 || null,
+      p_uk_handover_address_2:address2 || null,
+      p_uk_handover_city:city || null,
+      p_uk_handover_county:county || null,
+      p_uk_handover_postcode:postcode || null,
+      p_uk_handover_country:"United Kingdom",
       p_shipping_route_notes:notes || null
     });
     if(result.error){ throw result.error; }
@@ -11343,6 +11462,14 @@ async function saveDealShippingRoute(dealId){
       freight_forwarder_name:forwarder,
       freight_forwarder_contact:contact,
       freight_forwarder_reference:reference,
+      shipping_company_name:shippingCompany,
+      shipping_company_contact:shippingCompanyContact,
+      uk_handover_address_1:address1,
+      uk_handover_address_2:address2,
+      uk_handover_city:city,
+      uk_handover_county:county,
+      uk_handover_postcode:postcode,
+      uk_handover_country:"United Kingdom",
       shipping_route_notes:notes,
       shipping_route_confirmed_at:
         status==="Confirmed"
@@ -12142,18 +12269,7 @@ function anyBikeDealSellerConfirmationForMotorcycle(dealMotorcycleId){
   return adminDealSellerConfirmations.get(String(dealMotorcycleId || "")) || null;
 }
 
-function anyBikeSellerSecuredChanged(dealMotorcycleId){
-  const id=Number(dealMotorcycleId);
-  const secured=document.getElementById("deal-seller-secured-"+id);
-  const availability=document.getElementById("deal-seller-availability-"+id);
-
-  if(secured && secured.checked && availability){
-    const current=String(availability.value || "Unknown");
-    if(current==="Unknown"){
-      availability.value="Available";
-    }
-  }
-}
+function anyBikeSellerSecuredChanged(){ /* Purchase status is payment-driven. */ }
 
 function updateDealSellerCheckFormState(dealMotorcycleId){
   const id = Number(dealMotorcycleId);
@@ -12163,7 +12279,6 @@ function updateDealSellerCheckFormState(dealMotorcycleId){
   const depReq = document.getElementById("deal-seller-deposit-required-" + id);
   const depAmount = document.getElementById("deal-seller-deposit-amount-" + id);
   const depDue = document.getElementById("deal-seller-deposit-due-" + id);
-  const secured = document.getElementById("deal-seller-secured-" + id);
   const status = document.getElementById("deal-seller-status-" + id);
 
   if(holdRef){ holdRef.disabled = !(hold && hold.checked); }
@@ -12182,23 +12297,16 @@ function updateDealSellerCheckFormState(dealMotorcycleId){
   const sellerDepositPaid = sellerPayment ? !!sellerPayment.seller_deposit_fully_paid : false;
   const customerDepositOutstanding = customerPayment ? Number(customerPayment.deposit_outstanding_gbp || 0) : 0;
 
-  if(secured){
-    const blockForCustomer = customerDepositOutstanding > 0;
-    const blockForSellerDeposit = required && (!sellerDepositPaid || sellerDepositOutstanding > 0);
-    secured.disabled = blockForCustomer || blockForSellerDeposit;
-    if(secured.disabled){ secured.checked = false; }
-  }
-
   if(status){
     if(customerDepositOutstanding > 0){
       status.className = "anybike-seller-statusline error";
-      status.textContent = "Customer deposit is still outstanding. The motorcycle cannot be marked Secured yet.";
+      status.textContent = "Customer deposit is still outstanding. Save seller availability/price if needed, but AnyBike will not purchase the motorcycle yet.";
     }else if(required && (!sellerDepositPaid || sellerDepositOutstanding > 0)){
       status.className = "anybike-seller-statusline";
-      status.textContent = "A seller deposit is required. Save the Final Seller Check, record the seller payment, then mark the motorcycle Secured.";
+      status.textContent = "A seller deposit is noted. Any seller payment remains blocked until the buyer has paid AnyBike in full and the UK handover route is confirmed.";
     }else{
       status.className = "anybike-seller-statusline";
-      status.textContent = "Customer deposit requirement is satisfied. Complete the seller-side check before marking the motorcycle Secured.";
+      status.textContent = "Save the seller availability, agreed purchase price and any temporary hold. This does not purchase or secure the motorcycle.";
     }
   }
 }
@@ -12274,18 +12382,24 @@ function renderAnyBikeSellerPaymentLedger(dealMotorcycleId, c){
   const badgeLabel = supplierBalance <= 0 && sellerPrice > 0 ? "SUPPLIER PAID" : "SUPPLIER BALANCE " + anyBikeDealMoney(supplierBalance);
   const dealId=String(row.deal_id||"");
   const deal=bikeSalesDealById(dealId)||{};
-  const onboardingApproved=anyBikeBuyerOnboardingApproved(deal);
+  const purchaseClearanceAllowed=anyBikePurchaseClearanceAllowed(deal);
+  const route=anyBikeShippingRouteForDeal(dealId);
+  const handoverReady=String(route.shipping_route_status||"")==="Confirmed" &&
+    String(route.freight_forwarder_name||"").trim() &&
+    String(route.shipping_company_name||"").trim() &&
+    String(route.uk_handover_address_1||"").trim() &&
+    String(route.uk_handover_postcode||"").trim();
   const customerAccount=adminDealCustomerAccounts.get(dealId)||{};
   const customerDealValue=anyBikeAccountNumber(customerAccount,["deal_value_gbp"],deal.buyer_value_gbp);
   const customerBalance=anyBikeAccountNumber(customerAccount,["customer_balance_due_gbp"],customerDealValue);
-  const fullSupplierPaymentUnlocked=onboardingApproved && customerDealValue>0 && customerBalance<=0.009;
-  const sellerDepositUnlocked=onboardingApproved && depositRequired && depositOutstanding>0;
-  const sellerPaymentUnlocked=(purpose==="Seller Deposit") ? sellerDepositUnlocked : fullSupplierPaymentUnlocked;
-  const sellerPaymentLockReason=!onboardingApproved
-    ? "Approve Buyer Onboarding / Purchase Clearance before AnyBike pays the supplier."
-    : (purpose!=="Seller Deposit" && customerBalance>0.009
-        ? "Customer balance "+anyBikeDealMoney(customerBalance)+" is still outstanding. Clear customer funds before paying the supplier in full."
-        : "Supplier payment is not ready yet.");
+  const sellerPaymentUnlocked=purchaseClearanceAllowed && handoverReady && customerDealValue>0 && customerBalance<=0.009;
+  const sellerPaymentLockReason=!purchaseClearanceAllowed
+    ? "Complete Buyer Verification / Export & Tax Identity, or use the active first-order grace period."
+    : (!handoverReady
+        ? "Confirm the buyer freight forwarder, UK shipping / receiving company and exact UK handover address before AnyBike pays the seller."
+        : (customerBalance>0.009
+            ? "Customer balance "+anyBikeDealMoney(customerBalance)+" is still outstanding. AnyBike only pays the seller after the buyer has paid in full."
+            : "Supplier payment is not ready yet."));
 
   const bankAccountName = String(c?.seller_bank_account_name || "").trim();
   const bankAccountNumber = String(c?.seller_bank_account_number || "").trim();
@@ -12540,8 +12654,8 @@ function renderAnyBikeDealSellerCheckPanel(deal){
       <div class="anybike-seller-panel ${secured ? "is-secured" : "is-incomplete"}" id="deal-seller-panel-${dealMotorcycleId}">
         <div class="anybike-seller-head">
           <div>
-            <span>Seller Security</span>
-            <h4>Final Seller Check · ${escapeAdminHtml(title)}</h4>
+            <span>Seller Position</span>
+            <h4>Availability, Hold &amp; Agreed Purchase Price · ${escapeAdminHtml(title)}</h4>
           </div>
           <div class="anybike-seller-state ${state.className}">${escapeAdminHtml(state.label)}</div>
         </div>
@@ -12551,7 +12665,7 @@ function renderAnyBikeDealSellerCheckPanel(deal){
           <div><span class="anybike-seller-label">Availability</span><strong class="${["Unavailable","Sold","Withdrawn"].includes(availability) ? "anybike-seller-danger" : ""}">${escapeAdminHtml(availability)}</strong></div>
           <div><span class="anybike-seller-label">Hold / Reservation</span><strong>${escapeAdminHtml(holdStatus)}</strong></div>
           <div><span class="anybike-seller-label">Seller Deposit</span><strong class="${sellerDepositRequired && sellerDepositOutstanding > 0 ? "anybike-seller-warning" : sellerDepositRequired ? "anybike-seller-good" : ""}">${escapeAdminHtml(sellerDeposit)}</strong></div>
-          <div><span class="anybike-seller-label">Motorcycle</span><strong class="${secured ? "anybike-seller-good" : "anybike-seller-danger"}">${secured ? "SECURED" : "NOT YET SECURED"}</strong></div>
+          <div><span class="anybike-seller-label">Purchase Status</span><strong class="${secured ? "anybike-seller-good" : "anybike-seller-warning"}">${secured ? "PURCHASED / SECURED" : "NOT YET PURCHASED"}</strong></div>
         </div>
 
         <div class="anybike-seller-bike-details">
@@ -12580,10 +12694,10 @@ function renderAnyBikeDealSellerCheckPanel(deal){
             <input id="deal-seller-price-${dealMotorcycleId}" type="number" min="0" step="0.01" value="${sellerPrice ? Number(sellerPrice).toFixed(2) : ""}" placeholder="e.g. 5200.00">
           </div>
 
-          <label class="anybike-seller-secure-box ${secured ? "is-complete" : "is-incomplete"}">
-            <input id="deal-seller-secured-${dealMotorcycleId}" type="checkbox" ${secured ? "checked" : ""} ${securityBlocked && !secured ? "disabled" : ""} onchange="anyBikeSellerSecuredChanged(${dealMotorcycleId})">
-            Motorcycle genuinely secured with seller
-          </label>
+          <div class="anybike-seller-state-box ${secured ? "is-complete" : "is-incomplete"}" style="padding:12px;border-radius:10px">
+            <strong style="display:block">${secured ? "✓ Purchased / secured by AnyBike" : "Not yet purchased by AnyBike"}</strong>
+            <span style="display:block;color:#aaa;font-size:11px;margin-top:5px">${secured ? "Supplier payment has secured the motorcycle." : "Availability or a temporary seller hold does not mean AnyBike owns the motorcycle. Purchase happens only after customer funds and the UK handover route are ready."}</span>
+          </div>
         </div>
 
         <div class="anybike-seller-po-fields">
@@ -12988,7 +13102,6 @@ async function saveDealFinalSellerCheck(dealMotorcycleId){
   const depReqEl = document.getElementById("deal-seller-deposit-required-" + id);
   const depAmountEl = document.getElementById("deal-seller-deposit-amount-" + id);
   const depDueEl = document.getElementById("deal-seller-deposit-due-" + id);
-  const securedEl = document.getElementById("deal-seller-secured-" + id);
   const statusEl = document.getElementById("deal-seller-status-" + id);
 
   let availability = availabilityEl ? String(availabilityEl.value || "Unknown") : "Unknown";
@@ -12996,7 +13109,10 @@ async function saveDealFinalSellerCheck(dealMotorcycleId){
   const holdConfirmed = !!(holdEl && holdEl.checked);
   const sellerDepositRequired = !!(depReqEl && depReqEl.checked);
   const sellerDepositAmount = anyBikeSellerMoneyNumber(depAmountEl ? depAmountEl.value : "");
-  const bikeSecured = !!(securedEl && securedEl.checked);
+  const bikeSecured = !!(
+    anyBikeDealSellerConfirmationForMotorcycle(id)?.bike_secured ||
+    paymentRow.motorcycle_secured
+  );
 
   // If staff explicitly confirms the motorcycle is secured, an untouched
   // "Unknown" availability field is contradictory. Treat that as Available
@@ -13057,18 +13173,16 @@ async function saveDealFinalSellerCheck(dealMotorcycleId){
     "Confirmed seller price: " + (sellerPrice !== null ? anyBikeDealMoney(sellerPrice) : "Not entered") + "\n" +
     "Hold / reservation: " + (holdConfirmed ? "YES" : "NO") + "\n" +
     "Seller deposit required: " + (sellerDepositRequired ? "YES" : "NO") + "\n" +
-    "Motorcycle secured: " + (bikeSecured ? "YES" : "NO");
+    "AnyBike purchase status: " + (bikeSecured ? "PURCHASED / SECURED" : "NOT YET PURCHASED");
 
   if(sellerDepositRequired){
     message += "\nSeller deposit amount: " + anyBikeDealMoney(sellerDepositAmount);
   }
 
   if(bikeSecured){
-    message += "\n\nIMPORTANT: This will explicitly mark the motorcycle SECURED in the seller record and Deal 360. The next required action will become Balance Due.";
-  }else if(sellerDepositRequired && (!sellerDepositFullyPaid || sellerDepositOutstanding > 0)){
-    message += "\n\nThe seller deposit requirement will be saved. Record the actual outgoing seller payment next. The motorcycle will remain NOT YET SECURED.";
+    message += "\n\nThis motorcycle is already recorded as purchased / secured. Saving this form updates the seller position only.";
   }else{
-    message += "\n\nThe motorcycle will remain NOT YET SECURED.";
+    message += "\n\nThis only records the seller position. AnyBike will purchase / secure the motorcycle later, after the buyer is fully paid and the UK handover route is confirmed.";
   }
 
   if(!window.confirm(message)){ return; }
@@ -14912,6 +15026,8 @@ function bikeSalesFlagsForDeal(deal,action){
     vatDone:!!action?.vat_ok,
     shippingDone:!!action?.shipping_ok,
     onboardingApproved:anyBikeBuyerOnboardingApproved(deal),
+    firstOrderGraceActive:anyBikeFirstOrderGraceActive(deal),
+    purchaseClearanceAllowed:anyBikePurchaseClearanceAllowed(deal),
     accountStopped:accountStatus==="Stopped",
     accountOnHold:accountStatus==="On Hold",
     depositRequired:Number(action?.deposit_required_gbp||0),
@@ -14940,10 +15056,10 @@ function bikeSalesEffectivePrimary(action,flags,deal){
   if(!flags.offerAccepted && flags.offerSent) return "Waiting for Formal Offer Response";
   if(!flags.offerAccepted) return "Send Formal Offer";
   if(flags.depositRequired>0 && flags.depositOutstanding>0.009) return "Deposit Due";
-  if(!flags.onboardingApproved) return "Review Buyer Onboarding";
-  if(!flags.shippingDone && backendPrimary.includes("Shipping")) return "Confirm UK Handover Plan";
-  if(!flags.secured) return "Ready to Purchase";
+  if(!flags.purchaseClearanceAllowed) return "Review Buyer Onboarding";
   if(!flags.customerPaid) return "Customer Balance Due";
+  if(!flags.shippingDone) return "Confirm UK Handover Plan";
+  if(!flags.secured) return "Ready to Purchase";
   if(!flags.collected) return "Start Purchase & Collection";
   if(flags.collected && !flags.complete) return "Complete Delivery / Handover";
   if(flags.complete && !flags.finalInvoiceIssued) return "Issue Final Invoice";
@@ -14962,7 +15078,7 @@ function bikeSalesJourneyStage(action,deal,flags){
   // Buyer purchase clearance is a post-acceptance/payment gate. Do not
   // visually send a completed seller check backwards just because onboarding
   // still needs admin approval.
-  if(!flags.onboardingApproved) return "payment";
+  if(!flags.purchaseClearanceAllowed) return "payment";
   if(!flags.secured) return "seller";
   if(!flags.customerPaid) return "payment";
   return "collection";
