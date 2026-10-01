@@ -514,3 +514,38 @@ Automation:
 
 Backend helper:
 - `public.anybike_sourcing_fee_gbp(price)` is the canonical database calculation for the automatic default.
+
+
+## 1 October 2026 — First-order purchase, UK handover and consolidation redesign
+
+Business rule clarified during AB-000026 testing:
+- Seller availability / a temporary seller hold is not the same as AnyBike purchasing the motorcycle.
+- The misleading early “Motorcycle genuinely secured with seller” control has been removed from the Deal 360 Seller Position panel.
+- Deal 360 now records seller availability, agreed seller purchase price and hold details separately.
+- A Formal Offer has its own customer expiry. Seller availability is rechecked again immediately before supplier payment.
+- AnyBike only pays the seller after the customer has paid AnyBike in full.
+- Full supplier payment automatically changes the motorcycle to Purchased / Secured; staff no longer uses an availability-stage checkbox to create that state.
+
+Export purchase gate:
+- buyer freight forwarder is separate from the UK shipping / receiving company;
+- UK receiver can be a different business nominated by the overseas freight forwarder;
+- exact UK delivery / handover address and postcode are required;
+- port / terminal remains useful route context;
+- Deal 360 and the customer dashboard now store and display these separately;
+- supplier payment is database-blocked until the export handover route is confirmed.
+
+First-order onboarding:
+- first accepted Formal Offer starts one seven-day Buyer Verification / Export & Tax Identity grace period;
+- additional motorcycles in the same first order do not reset that verification deadline;
+- account On Hold / Stopped still blocks progression;
+- customer funds and the shipping route remain hard purchase requirements.
+
+First-order consolidation:
+- the first motorcycle entering depot storage starts a seven-day free consolidation window;
+- a genuinely accepted additional motorcycle during the active window can extend the consolidation deadline;
+- an intention to buy another bike does not stop storage;
+- after the free consolidation period, normal storage charges apply;
+- live standard rate aligned to the published Services & Fees rate of £6.95 per motorcycle/day inc. VAT;
+- paid motorcycles should move to the nominated UK receiver promptly unless the buyer is actively consolidating a first multi-bike order.
+
+No freight carrier, container size or destination-specific shipping method has been hard-coded. The platform records the actual nominated route for each Deal.
