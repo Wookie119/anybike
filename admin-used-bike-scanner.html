@@ -30,7 +30,7 @@ textarea{min-height:120px;resize:vertical;white-space:pre-wrap;overflow-wrap:any
 .actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.status{color:#bbb;font-size:13px}.status.good{color:var(--green)}.status.bad{color:#ff7777}
 .scan-list{display:grid;gap:14px}.scan-card{background:#151515;border:1px solid var(--line);border-radius:16px;padding:15px}.scan-head{display:flex;gap:14px;align-items:flex-start}.thumb{width:150px;height:105px;object-fit:cover;background:#222;border-radius:10px}.scan-title{font-size:20px;font-weight:900}.tag{display:inline-block;border:1px solid #333;border-radius:999px;padding:5px 9px;font-size:12px;color:#bbb;margin:4px 5px 0 0}.tag.ready{color:#8df0ad;border-color:#315e40}.tag.fail{color:#ff8b8b;border-color:#6a3030}
 .cols{display:grid;grid-template-columns:1.15fr 1fr 1fr;gap:12px;margin-top:14px}.box{background:#0d0d0d;border:1px solid #282828;border-radius:12px;padding:12px}.box h3{font-size:13px;margin:0 0 10px;color:#ddd;text-transform:uppercase;letter-spacing:.08em}
-.mini{display:grid;grid-template-columns:1fr 1fr;gap:8px}.money{font-size:18px;font-weight:900}.secret{border-left:3px solid var(--red)}
+.mini{display:grid;grid-template-columns:1fr 1fr;gap:8px}.complete-box{border-color:#2f8d52!important;box-shadow:0 0 0 1px rgba(67,209,122,.16)}.attention-box{border-color:#6a3030!important}.money{font-size:18px;font-weight:900}.secret{border-left:3px solid var(--red)}
 .check{display:flex;gap:8px;align-items:flex-start;margin-top:8px;font-size:13px;color:#ccc}.check input{width:auto;margin-top:2px}
 .note{font-size:12px;color:#999;line-height:1.45}.source-link{color:#ff7378;text-decoration:underline;word-break:break-all}.sharebar{position:relative;background:#0d0d0d;border:1px solid #333;border-radius:16px;padding:14px;z-index:1;margin-top:18px}.sharebar.collapsed .share-body{display:none}.sharebar .share-toggle{display:flex;justify-content:space-between;align-items:center;gap:12px;cursor:pointer}.sharebar .share-body{margin-top:12px}
 @media(max-width:1000px){.grid{grid-template-columns:1fr 1fr}.cols{grid-template-columns:1fr}.scan-head{flex-direction:column}.thumb{width:100%;height:200px}}
@@ -172,9 +172,45 @@ async function scanUrls(){
   finally{btn.disabled=false}
 }
 
+function cleanBuyerColour(v){
+  let x=String(v||"").trim();
+  if(!x)return "";
+  x=x.replace(/\bUNI\/M\b/gi,"").replace(/\bMETALLIC\b/gi,"Metallic").replace(/\s+/g," ").trim();
+  x=x.toLowerCase().replace(/\b\w/g,m=>m.toUpperCase());
+  return x;
+}
+function cleanVariantText(v){
+  return String(v||"")
+    .replace(/\s*,\s*/g,", ")
+    .replace(/\bVGC\b/gi,"Very good condition")
+    .replace(/\s+/g," ")
+    .trim();
+}
+function buildBuyerDescription(s){
+  const year=s.year?String(s.year)+" ":"";
+  const make=String(s.make||"").trim();
+  const model=String(s.model||"").trim();
+  const variant=cleanVariantText(s.variant||"");
+  const mileage=Number(s.mileage);
+  const colour=cleanBuyerColour(s.colour||"");
+  const parts=[];
+  let lead=[year+make,model,variant].filter(Boolean).join(" ").replace(/\s+/g," ").trim();
+  if(lead)parts.push(lead);
+  if(Number.isFinite(mileage)&&mileage>0)parts.push(mileage.toLocaleString("en-GB")+" miles");
+  if(colour)parts.push(colour);
+  return parts.join(" · ");
+}
+function isUsableRawBikeImage(url){
+  const u=String(url||"");
+  if(!u)return false;
+  if(/pageloader|BMW_Head|tipArrow|facebook|twitter|icon|logo|placeholder|coming.?soon/i.test(u))return false;
+  return /\/api\/Image\/GetImg\?imgId=/i.test(u);
+}
+
 function cardHtml(s,saved){
   const id=saved?s.id:s._key;
-  const rawFirst=(Array.isArray(s.source_image_urls)?s.source_image_urls:[])[0]||"";
+  const sourceUrls=Array.isArray(s.source_image_urls)?s.source_image_urls:[];
+  const rawFirst=sourceUrls.find(isUsableRawBikeImage)||"";
   const safeFirst=(Array.isArray(s.buyer_image_urls)?s.buyer_image_urls:[])[0]||"";
   const isLiveSource=!!(s.extraction&&s.extraction.live_source_item_id);
   const first=isLiveSource?(safeFirst||"/anybike-logo-new.jpg"):(safeFirst||rawFirst||"/anybike-logo-new.jpg");
@@ -182,10 +218,15 @@ function cardHtml(s,saved){
   const fail=s.scan_status==="failed";
   return '<article class="scan-card" data-scan="'+id+'">'+
     '<div class="scan-head"><div><img class="thumb" src="'+esc(first)+'" onerror="this.src=\'/anybike-logo-new.jpg\'">'+
-      (isLiveSource&&!safeFirst?'<div class="status bad" style="margin-top:5px;font-weight:800">Clean image not ready</div>':'')+
-    '</div><div style="flex:1"><div class="scan-title">'+esc([s.year,s.make,s.model,s.variant].filter(Boolean).join(" ")||"Advert needs review")+'</div>'+
+      (isLiveSource
+        ?(safeFirst
+          ?'<div class="status good" style="margin-top:5px;font-weight:900">✓ Buyer-safe image ready</div>'
+          :'<div class="status bad" style="margin-top:5px;font-weight:800">Clean image not ready</div>')
+        :'')+
+    '</div><div style="flex:1"><div class="scan-title">'+esc([s.year,s.make,s.model,cleanVariantText(s.variant)].filter(Boolean).join(" ")||"Advert needs review")+'</div>'+
     '<span class="tag '+(fail?"fail":"ready")+'">'+esc(s.scan_status||"review")+'</span><span class="tag">'+esc(s.source_domain||"source")+'</span>'+
-    (s.source_url?'<div style="margin-top:7px"><a class="source-link" href="'+esc(s.source_url)+'" target="_blank">Open original advert ↗</a></div>':'')+    (!fail?'<div style="margin-top:8px"><button type="button" class="btn green" onclick="addToLiveSource('+id+')">Save to Live Source Hub</button></div>':'')+
+    (s.source_url?'<div style="margin-top:7px"><a class="source-link" href="'+esc(s.source_url)+'" target="_blank">Open original advert ↗</a></div>':'')+
+    (!fail&&!isLiveSource?'<div style="margin-top:8px"><button type="button" class="btn green" onclick="addToLiveSource('+id+')">Save to Live Source Hub</button></div>':'')+
     (s.error?'<div class="status bad" style="margin-top:7px">'+esc(s.error)+'</div>':'')+'</div></div>'+
     '<div class="cols">'+
       '<div class="box secret"><h3>Internal seller/source — never shown to buyer</h3><div class="mini">'+
@@ -193,11 +234,13 @@ function cardHtml(s,saved){
         field(id,"seller_phone","Telephone",s.seller_phone,saved)+field(id,"seller_email","Email",s.seller_email,saved)+
         field(id,"seller_address","Seller location",s.seller_address,saved)+field(id,"registration","Registration",s.registration,saved)+
         sourceRetailPriceField(id,s.source_advertised_price_gbp,saved,s.extraction)+
-        (rawFirst?'<div class="field full"><label>Raw source photo — internal only</label><img src="'+esc(rawFirst)+'" style="width:100%;max-width:260px;height:170px;object-fit:cover;border-radius:10px;border:1px solid #333" onerror="this.style.display=\'none\'"></div>':'')+
+        (rawFirst
+          ?'<div class="field full"><label>Raw source photo — internal only</label><img src="'+esc(rawFirst)+'" style="width:100%;max-width:260px;height:170px;object-fit:cover;border-radius:10px;border:1px solid #333" onerror="this.style.display=\'none\'"></div>'
+          :'<div class="field full"><label>Raw source photo — internal only</label><div class="status bad">No usable motorcycle source photo loaded</div></div>')+
       '</div></div>'+
-      '<div class="box"><h3>Buyer-safe motorcycle</h3><div class="mini">'+
-        field(id,"make","Make",s.make,saved)+field(id,"model","Model",s.model,saved)+field(id,"variant","Variant",s.variant,saved)+field(id,"year","Year",s.year,saved)+field(id,"mileage","Mileage",s.mileage,saved)+field(id,"colour","Colour",s.colour,saved)+
-      '</div><div class="field" style="margin-top:8px"><label>Buyer description</label><textarea data-k="'+id+'" data-f="buyer_description">'+esc(s.buyer_description||"")+'</textarea></div>'+
+      '<div class="box '+(safeFirst?'complete-box':'attention-box')+'"><h3>Buyer-safe motorcycle</h3><div class="mini">'+
+        field(id,"make","Make",s.make,saved)+field(id,"model","Model",s.model,saved)+field(id,"variant","Variant",cleanVariantText(s.variant),saved)+field(id,"year","Year",s.year,saved)+field(id,"mileage","Mileage",s.mileage,saved)+field(id,"colour","Colour",cleanBuyerColour(s.colour),saved)+
+      '</div><div class="field" style="margin-top:8px"><label>Buyer description</label><textarea data-k="'+id+'" data-f="buyer_description">'+esc(s.buyer_description||buildBuyerDescription(s))+'</textarea></div>'+
       (s.extraction&&s.extraction.live_source_item_id
         ?'<div style="margin-top:10px;padding:10px;border:1px solid #333;border-radius:10px;background:#0b0b0b">'+
           '<div style="font-weight:900">Buyer-safe images</div>'+
@@ -210,7 +253,7 @@ function cardHtml(s,saved){
         '</div>'
         :'<div class="note" style="margin-top:10px">Use only images AnyBike is permitted to present to the buyer.</div>')+
       '</div>'+
-      '<div class="box"><h3>Price check</h3>'+
+      '<div class="box '+((s.price_checked&&s.selected_for_buyer)?'complete-box':'attention-box')+'"><h3>Price check</h3>'+
         (Number(s.source_advertised_price_gbp)>0?"":'<div class="status bad" style="margin-bottom:9px">Source retail price is missing. Return to the source record and correct it before presenting this motorcycle.</div>')+
         '<div class="field" style="margin-bottom:7px"><label>1. Source retail price — fixed</label><input type="text" value="'+(Number(s.source_advertised_price_gbp)>0?gbp(s.source_advertised_price_gbp):"Missing")+'" readonly></div>'+
         priceField(id,"delivery_allowance_gbp","2. Add UK delivery allowance",s.delivery_allowance_gbp)+
@@ -356,6 +399,9 @@ async function saveScan(id){
   if(btn){btn.disabled=true;btn.textContent="Saving…";}
   if(st){st.className="status";st.textContent="";}
 
+  s.variant=cleanVariantText(s.variant);
+  s.colour=cleanBuyerColour(s.colour);
+  if(!String(s.buyer_description||"").trim())s.buyer_description=buildBuyerDescription(s);
   const patch={source_advertised_price_gbp:s.source_advertised_price_gbp,delivery_allowance_gbp:s.delivery_allowance_gbp,make:s.make,model:s.model,variant:s.variant,year:s.year,mileage:s.mileage,colour:s.colour,registration:s.registration,buyer_description:s.buyer_description,seller_name:s.seller_name,seller_phone:s.seller_phone,seller_email:s.seller_email,seller_address:s.seller_address,source_stock_id:s.source_stock_id,buyer_image_urls:s.buyer_image_urls,price_checked:s.price_checked,selected_for_buyer:s.selected_for_buyer};
   const {data,error}=await sb().rpc("admin_update_used_bike_scan_v1",{p_scan_id:Number(id),p_patch:patch});
 
