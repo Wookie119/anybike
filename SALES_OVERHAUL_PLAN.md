@@ -323,3 +323,16 @@ Implemented on main:
 
 Guardrail:
 - A stored `deal_stage` is a summary label, not the sole workflow truth. Stronger transactional facts (accepted terms, active allocations, purchase clearance, motorcycle security, PO, operations state) must drive the next action and self-clear completed tasks.
+
+
+## 1 October 2026 — Dashboard action engine continuation
+
+Further live changes:
+- Added a database trigger guard on Deal-linked outgoing supplier payments. Buyer Onboarding / Purchase Clearance must be Approved or Approved with Exceptions; On Hold / Stopped accounts are blocked. Full supplier payments are rejected while the authoritative accepted customer balance is still outstanding.
+- Deal 360 supplier payments now always use the Deal-native supplier ledger path even where a promoted motorcycle still carries a legacy buyer_match_id.
+- Dashboard Message actions now require a live Deal or genuine buyer request. Casual browsing/watch/unlinked chat remains in Message Centre but does not create staff work. Serious message cards deep-link to the exact Message Centre thread.
+- Added authoritative Deal 360 Dashboard actions for Complete Final Seller Check, Secure Motorcycle / Raise PO, Request Customer Balance, Complete Collection Readiness, and Book Collection / Send to Move.
+- Zero-motorcycle Deals do not generate transactional Deal 360 work from this action layer.
+- Pending Payment Advice suppresses downstream Deal payment actions until verification/posting is resolved.
+- Removed duplicate customer-level deposit/balance cards; payment work is owned by the Deal-specific ledger/action engine.
+- Buyer purchase-clearance waiting now stays visually in the Payment/clearance phase rather than highlighting a completed Seller Check again.
