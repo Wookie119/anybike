@@ -490,3 +490,27 @@ Implemented:
 - Cleaned buyer-safe output syncs back into anybike_live_source_buyer_safe_images so Live Source / Scanner / Deal 360 gates continue to use only approved clean images.
 - Raw BMW photos remain internal and are labelled as source photos in the admin UI.
 - Buyer/public use still requires a real approved clean image; source placeholders and branded/raw images are not eligible.
+
+
+## 1 October 2026 — Smooth automated AnyBike Sourcing Fee
+
+The old stepped Buyer Fee bands have been replaced with one consistent sourcing-fee rule:
+
+- AnyBike Sourcing Fee = 8% of the Motorcycle Sale Price.
+- Fee is rounded to the nearest £5.
+- Minimum Sourcing Fee is £395.
+- UK collection / delivery is charged separately and does not change the Sourcing Fee calculation.
+- The stepped-price cliff has therefore been removed: £14,999 and £15,000 both calculate to £1,200.
+- Existing sent / accepted Formal Offers are not rewritten.
+
+Automation:
+- Commercial Setup recalculates the Sourcing Fee automatically when Motorcycle Sale Price changes.
+- Staff can deliberately override the automatic fee for an exceptional deal and can reset it back to the calculated fee.
+- Deal 360 Formal Offer inherits the Commercial Setup fee and recalculates when the motorcycle price changes unless staff has deliberately overridden it.
+- Database fallback applies the automatic fee when Commercial Setup or Formal Offer is submitted with no fee.
+- Used Bike Scanner / Live Source indicative pricing uses the same 8% / nearest £5 / £395 minimum rule.
+- AI commercial viability and the Global Buyer offer workspace use the same rule.
+- Public Services & Fees has been changed from bands to the same proportional calculation.
+
+Backend helper:
+- `public.anybike_sourcing_fee_gbp(price)` is the canonical database calculation for the automatic default.
