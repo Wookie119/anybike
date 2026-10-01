@@ -10429,6 +10429,7 @@ let adminCompanyExportIdentity = {
 };
 const dealShippingRouteSaveBusy = new Set();
 const dealExportTaxSaveBusy = new Set();
+const dealExportVatClearanceSaveBusy = new Set();
 
 function normalizeAnyBikeShippingRoute(row){
   const source=row || {};
@@ -10642,6 +10643,211 @@ function renderAnyBikeDealExportTaxIdentity(deal){
         ${confirmed ? '<span style="color:#8cffb1;font-weight:900">✓ Export & tax identity confirmed</span>' : '<span style="color:#ffb36b;font-weight:900">Export / tax identity not yet confirmed</span>'}
       </div>
     </section>`;
+}
+
+function anyBikeExportVatClearanceBadgeClass(status){
+  if(status==="Zero Rate Confirmed") return "badge-green";
+  if(status==="Evidence Received") return "badge-green";
+  if(status==="Pending Export" || status==="Awaiting Evidence") return "badge-orange";
+  return "badge-red";
+}
+
+function anyBikeExportVatNextInstruction(route){
+  const status=String(route.export_vat_clearance_status || "Not Assessed");
+  if(status==="Not Assessed") return "Start the clearance if this motorcycle is intended to be zero-rated as an export.";
+  if(status==="Pending Export") return "Complete the physical export. Once the motorcycle has left the UK, record the departure date and move to Awaiting Evidence.";
+  if(status==="Awaiting Evidence") return "Obtain and record the customs/export reference plus transport evidence linking this motorcycle to the overseas destination.";
+  if(status==="Evidence Received") return "Review the evidence. If it satisfactorily proves the export, move the gate to Zero Rate Confirmed.";
+  if(status==="Zero Rate Confirmed") return "Clearance complete. Deal 360 may now verify Zero Rated VAT and issue a zero-rated Final Invoice.";
+  return "Review export evidence.";
+}
+
+function renderAnyBikeDealExportVatClearance(deal){
+  const dealId=Number(deal && deal.deal_id);
+  if(!Number.isFinite(dealId)) return "";
+
+  const route=anyBikeShippingRouteForDeal(dealId);
+  const busy=dealExportVatClearanceSaveBusy.has(String(dealId));
+  const status=String(route.export_vat_clearance_status || "Not Assessed");
+  const intended=route.export_vat_zero_rate_intended===true || String(route.export_vat_zero_rate_intended).toLowerCase()==="true";
+  const method=String(route.export_vat_export_method || "");
+  const exportedAt=route.export_vat_exported_at ? anyBikeSellerLocalDateTime(route.export_vat_exported_at) : "";
+  const dueDate=String(route.export_vat_evidence_due_date || "").slice(0,10);
+  const customsRef=String(route.export_vat_customs_reference || "");
+  const transportRef=String(route.export_vat_transport_reference || "");
+  const proofExport=route.export_vat_proof_of_export===true || String(route.export_vat_proof_of_export).toLowerCase()==="true";
+  const proofDestination=route.export_vat_proof_of_destination===true || String(route.export_vat_proof_of_destination).toLowerCase()==="true";
+  const v5cNotified=route.export_vat_v5c_export_notified===true || String(route.export_vat_v5c_export_notified).toLowerCase()==="true";
+  const notes=String(route.export_vat_evidence_notes || "");
+  const confirmed=status==="Zero Rate Confirmed";
+
+  return `
+    <section class="anybike-commercial-panel" style="margin-top:14px" id="deal-export-vat-panel-${dealId}">
+      <div class="anybike-commercial-head">
+        <div>
+          <span>Export VAT Clearance</span>
+          <h4>Zero-rating evidence gate</h4>
+        </div>
+        <div class="anybike-commercial-status ${anyBikeExportVatClearanceBadgeClass(status)}">${escapeAdminHtml(status)}</div>
+      </div>
+
+      <div style="padding:13px 16px;background:${confirmed?"rgba(42,159,89,.08)":"rgba(237,28,36,.06)"};border-bottom:1px solid rgba(255,255,255,.08);font-size:12px;line-height:1.55;color:#bbb">
+        <strong style="color:#fff">Your next action:</strong> ${escapeAdminHtml(anyBikeExportVatNextInstruction(route))}
+        <br><span style="color:#888">Zero Rated VAT cannot be Verified and a zero-rated Final Invoice cannot be issued until this gate reaches <strong>Zero Rate Confirmed</strong>.</span>
+      </div>
+
+      <div class="anybike-commercial-grid">
+        <label class="anybike-financial-check" style="grid-column:1/-1">
+          <input id="deal-export-vat-intended-${dealId}" type="checkbox" ${intended?"checked":""} ${busy?"disabled":""}>
+          Sale is intended to qualify for UK export zero-rating
+        </label>
+
+        <div class="anybike-commercial-field">
+          <label>Clearance Status</label>
+          <select id="deal-export-vat-status-${dealId}" ${busy?"disabled":""}>
+            ${["Not Assessed","Pending Export","Awaiting Evidence","Evidence Received","Zero Rate Confirmed"].map(function(v){
+              return '<option value="'+escapeAdminHtml(v)+'"'+(status===v?' selected':'')+'>'+escapeAdminHtml(v)+'</option>';
+            }).join("")}
+          </select>
+        </div>
+
+        <div class="anybike-commercial-field">
+          <label>Export Method</label>
+          <select id="deal-export-vat-method-${dealId}" ${busy?"disabled":""}>
+            <option value="">Select</option>
+            <option value="Direct Export"${method==="Direct Export"?" selected":""}>Direct Export — AnyBike / its agent controls export</option>
+            <option value="Indirect Export"${method==="Indirect Export"?" selected":""}>Indirect Export — buyer / buyer's agent arranges export</option>
+          </select>
+        </div>
+
+        <div class="anybike-commercial-field">
+          <label>Evidence Due Date</label>
+          <input id="deal-export-vat-due-${dealId}" type="date" value="${escapeAdminHtml(dueDate)}" ${busy?"disabled":""}>
+        </div>
+
+        <div class="anybike-commercial-field">
+          <label>Actual UK Export / Departure</label>
+          <input id="deal-export-vat-exported-${dealId}" type="datetime-local" value="${escapeAdminHtml(exportedAt)}" ${busy?"disabled":""}>
+        </div>
+
+        <div class="anybike-commercial-field">
+          <label>Customs / Export Declaration Reference</label>
+          <input id="deal-export-vat-customs-${dealId}" type="text" value="${escapeAdminHtml(customsRef)}" placeholder="MRN / customs declaration / export reference" ${busy?"disabled":""}>
+        </div>
+
+        <div class="anybike-commercial-field">
+          <label>Transport / Shipping Evidence Reference</label>
+          <input id="deal-export-vat-transport-${dealId}" type="text" value="${escapeAdminHtml(transportRef)}" placeholder="CMR / bill of lading / forwarder reference" ${busy?"disabled":""}>
+        </div>
+
+        <label class="anybike-financial-check">
+          <input id="deal-export-vat-proof-export-${dealId}" type="checkbox" ${proofExport?"checked":""} ${busy?"disabled":""}>
+          Evidence proves motorcycle left the UK
+        </label>
+
+        <label class="anybike-financial-check">
+          <input id="deal-export-vat-proof-destination-${dealId}" type="checkbox" ${proofDestination?"checked":""} ${busy?"disabled":""}>
+          Evidence links export to overseas destination
+        </label>
+
+        <label class="anybike-financial-check">
+          <input id="deal-export-vat-v5c-${dealId}" type="checkbox" ${v5cNotified?"checked":""} ${busy?"disabled":""}>
+          V5C permanent export notification dealt with
+        </label>
+
+        <div class="anybike-commercial-field" style="grid-column:1/-1">
+          <label>Evidence / Audit Notes</label>
+          <textarea id="deal-export-vat-notes-${dealId}" placeholder="Forwarder, port, document references, evidence received, exceptions" ${busy?"disabled":""}>${escapeAdminHtml(notes)}</textarea>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:14px 16px;border-top:1px solid #2a2a2a;background:#0d0d0d">
+        <button type="button" onclick="saveDealExportVatClearance(${dealId});return false;" ${busy?"disabled":""}>
+          ${busy?"Saving...":"Save Export VAT Clearance"}
+        </button>
+        ${confirmed?'<span style="color:#8cffb1;font-weight:900">✓ UK export zero-rating cleared</span>':'<span style="color:#ffb36b;font-weight:900">Zero-rating not yet cleared</span>'}
+      </div>
+    </section>
+  `;
+}
+
+async function saveDealExportVatClearance(dealId){
+  const id=Number(dealId);
+  if(!Number.isFinite(id) || dealExportVatClearanceSaveBusy.has(String(id))) return;
+
+  const value=function(prefix){ return String(document.getElementById(prefix+"-"+id)?.value || "").trim(); };
+  const checked=function(prefix){ return !!document.getElementById(prefix+"-"+id)?.checked; };
+  const status=value("deal-export-vat-status");
+  const intended=checked("deal-export-vat-intended");
+  const method=value("deal-export-vat-method");
+  const due=value("deal-export-vat-due") || null;
+  const exportedRaw=value("deal-export-vat-exported");
+  const exportedAt=exportedRaw ? new Date(exportedRaw).toISOString() : null;
+  const customs=value("deal-export-vat-customs");
+  const transport=value("deal-export-vat-transport");
+  const proofExport=checked("deal-export-vat-proof-export");
+  const proofDestination=checked("deal-export-vat-proof-destination");
+  const v5c=checked("deal-export-vat-v5c");
+  const notes=value("deal-export-vat-notes");
+
+  if(status!=="Not Assessed" && !intended){
+    alert("Tick that this sale is intended for UK export zero-rating before progressing the clearance.");
+    return;
+  }
+  if(status!=="Not Assessed" && !method){
+    alert("Choose whether this is a Direct Export or Indirect Export.");
+    return;
+  }
+  if(["Awaiting Evidence","Evidence Received","Zero Rate Confirmed"].includes(status) && !exportedAt){
+    alert("Enter the actual UK export / departure date before moving beyond Pending Export.");
+    return;
+  }
+  if(["Evidence Received","Zero Rate Confirmed"].includes(status) && (!customs || !transport || !proofExport || !proofDestination)){
+    alert("Before evidence can be accepted, record the customs reference and transport reference and confirm both proof-of-export boxes.");
+    return;
+  }
+  if(status==="Zero Rate Confirmed" && !confirm("Confirm UK export zero-rating for this Deal?\n\nOnly continue if the evidence satisfactorily proves the motorcycle left the UK and is linked to the overseas destination.")) return;
+
+  dealExportVatClearanceSaveBusy.add(String(id));
+  renderAdminDealQueue();
+
+  try{
+    const result=await sb.rpc("admin_save_deal_export_vat_clearance_v1",{
+      p_deal_id:id,
+      p_status:status,
+      p_zero_rate_intended:intended,
+      p_export_method:method||null,
+      p_evidence_due_date:due,
+      p_exported_at:exportedAt,
+      p_customs_reference:customs||null,
+      p_transport_reference:transport||null,
+      p_proof_of_export:proofExport,
+      p_proof_of_destination:proofDestination,
+      p_v5c_export_notified:v5c,
+      p_notes:notes||null
+    });
+    if(result.error) throw result.error;
+
+    await loadDealShippingRoutes();
+    await loadAdminDealQueue();
+    renderAdminDealQueue();
+
+    const row=document.getElementById("anybike-deal-"+id);
+    if(row){
+      row.classList.add("open");
+      openAnyBikeDealId=String(id);
+      bikeSalesJourneyTab(String(id),"seller",false);
+      setTimeout(function(){
+        scrollBikeSalesTargetIntoView(document.getElementById("deal-export-vat-panel-"+id) || row);
+      },50);
+    }
+  }catch(error){
+    console.error("Export VAT Clearance could not be saved:",error);
+    alert("Export VAT Clearance could not be saved.\n\n"+(error?.message||"Unknown error"));
+  }finally{
+    dealExportVatClearanceSaveBusy.delete(String(id));
+    renderAdminDealQueue();
+  }
 }
 
 function updateDealExportTaxBuyerType(dealId){
@@ -13837,6 +14043,14 @@ async function saveDealVatTreatment(dealMotorcycleId){
   if(treatment.value==="Full VAT") inputRecoverable=!!recover.checked;
   const vatRate=Number(rate.value);
   if(!Number.isFinite(vatRate)||vatRate<0||vatRate>100){alert("Enter a valid VAT rate between 0 and 100.");return;}
+  if(treatment.value==="Zero Rated" && vatStatus==="Verified"){
+    const bike=(adminDealMotorcycles||[]).find(function(row){ return Number(row.deal_motorcycle_id)===id; }) || {};
+    const route=anyBikeShippingRouteForDeal(bike.deal_id);
+    if(String(route.export_vat_clearance_status||"Not Assessed")!=="Zero Rate Confirmed"){
+      alert("Zero Rated VAT cannot be Verified yet. Complete Export VAT Clearance and reach Zero Rate Confirmed first.");
+      return;
+    }
+  }
   if(!confirm("Save VAT treatment for this motorcycle?\n\nTreatment: "+treatment.value+"\nStatus: "+vatStatus+"\nVAT rate: "+vatRate+"%")) return;
   dealVatSaveBusy.add(String(id)); renderAdminDealQueue();
   try{
@@ -15507,7 +15721,7 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
         '<span>These tools keep this sale and buyer context while you source.</span></div>'+
         '<div class="anybike-deal-bike-list">'+bikeRows+'</div>'+renderAnyBikeDealCandidatePanel(deal);
     })())+
-    panel("seller",renderAnyBikeBuyerOnboardingPanel(deal)+renderAnyBikeDealCommercialSetup(deal)+renderAnyBikeDealExportTaxIdentity(deal)+renderAnyBikeDealSellerCheckPanel(deal)+renderAnyBikeDealFinancialPanel(deal))+
+    panel("seller",renderAnyBikeBuyerOnboardingPanel(deal)+renderAnyBikeDealCommercialSetup(deal)+renderAnyBikeDealExportTaxIdentity(deal)+renderAnyBikeDealExportVatClearance(deal)+renderAnyBikeDealSellerCheckPanel(deal)+renderAnyBikeDealFinancialPanel(deal))+
     panel("offer",renderDealOfferWorkspace(deal,bikes)+(!offerAccepted?'<div class="sales-what-next"><strong>What happens next?</strong><span>When the formal offer is sent, the buyer reviews the price and terms. Their response returns to AnyBike through the Message Centre and bell.</span></div>':'')+'<details class="sales-payment-advanced"><summary>Stage override / exceptional use only</summary>'+stageControl+'</details>')+
     panel("payment",(function(){
       const depositComplete=depositRequired<=0 || depositOutstanding<=0.009;
