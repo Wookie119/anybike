@@ -323,3 +323,18 @@ Resume from **Bike Details motorcycle-description translation**. Do not move on 
 - The public FAQ starts empty until Cameron/VMoto UK provides approved questions and answers; no VMoto product answers should be fabricated just to populate the section.
 
 - VMoto FAQ scoping rule: the main VMoto hub shows only general approved FAQs. Individual model pages show the general approved FAQs plus FAQs specifically assigned to that model. Model-specific answers must never leak onto unrelated model pages.
+
+
+### 1 October 2026 — VMoto Admin HQ and generated model pages
+
+- Added **VMoto HQ** as the staff workspace for new motorcycle retail catalogue management.
+- VMoto HQ manages Models, Versions/Batteries, Colours, Stock Availability and FAQ/Customer Questions in one admin page.
+- Model records remain Draft/hidden until staff deliberately mark them Active/Public. This prevents incomplete Cameron/VMoto data from appearing publicly.
+- Model fields include model name, public slug, vehicle type, description, base retail price, hero image and sort order.
+- Variant fields include version name, battery description/capacity, quoted range, charging information, retail price, first-registration fee and road tax/ VED.
+- Colour records sit under a specific model variant rather than creating duplicate model cards.
+- VMoto stock supports variant, colour, stock location, source stock ID, quantity, status, expected date and source method. It remains manual/import-ready while VMoto API access is still to be confirmed.
+- Public `/vmoto.html` now reads the managed catalogue automatically. Until models are entered, it retains a safe media-pack-awaiting placeholder rather than inventing products.
+- Added dynamic `/vmoto-model.html?model=<slug>` pages. A published model automatically receives a model page showing its versions, battery details, colours, known stock status and approved general + model-specific FAQs.
+- Clicking a model/version enquiry carries the chosen model/version into the VMoto retail enquiry form, which creates the existing `NEW_RETAIL_B2C` Deal 360 flow.
+- Added **VMoto HQ** to the shared admin navigation and admin search routing.
