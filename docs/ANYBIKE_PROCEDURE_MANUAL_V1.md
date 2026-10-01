@@ -1086,3 +1086,15 @@ The AI Matching viability and Global Buyer offer tools must follow the same rule
 - Deal 360 retail workspace now allows staff to manage retail stage, VMoto stock status/location, VMoto order reference, motorcycle price, FRF, road tax, delivery charge, delivery postcode and internal notes.
 - Retail Deal 360 queue uses retail-specific next actions rather than the used/export seller-check next-action engine.
 - Current retail stages: Customer Order → Stock Confirmation → Customer Payment → Order VMoto → VMoto PDI → Move Collection → Home Delivery → Completed.
+
+
+### 1 October 2026 — VMoto approved FAQ knowledge base
+
+- Added a dynamic VMoto FAQ knowledge base to the VMoto World page.
+- Public FAQ answers are database-driven and only records marked **Approved** are shown publicly.
+- Product, warranty, servicing, registration, charging, licence, battery, insurance and ownership answers should come from confirmed VMoto UK guidance rather than AnyBike guessing or generating unsupported claims.
+- FAQ records can be general or later scoped to a specific VMoto model or territory.
+- Customers can submit unanswered VMoto questions directly from the FAQ area. Each submitted question creates an admin notification and enters the VMoto FAQ question queue.
+- Repeated real customer questions should be sent to VMoto UK for an approved answer, then converted into the public FAQ so the knowledge base improves over time.
+- Source name/reference is stored internally with each FAQ answer so AnyBike can retain where the approved wording came from.
+- The public FAQ starts empty until Cameron/VMoto UK provides approved questions and answers; no VMoto product answers should be fabricated just to populate the section.
