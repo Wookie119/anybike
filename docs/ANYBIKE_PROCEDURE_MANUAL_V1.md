@@ -327,7 +327,7 @@ Check that AnyBike can realistically buy and sell the motorcycle at an acceptabl
 Review:
 - seller price;
 - negotiated purchase price;
-- AnyBike fee;
+- AnyBike Sourcing Fee (8% of Motorcycle Sale Price, rounded to nearest £5, minimum £395 unless deliberately overridden);
 - delivery allowance;
 - customer selling price;
 - projected margin;
@@ -360,8 +360,8 @@ Customer acceptance must never be inferred from unrelated events.
 2. Prepare Formal Offer.
 3. Confirm motorcycle details.
 4. Confirm the motorcycle price.
-5. Add the AnyBike Sourcing Fee separately where applicable, so staff and the buyer can see what is motorcycle price versus AnyBike's fee.
-6. Add the UK Collection from seller & Delivery to Port charge separately when AnyBike is collecting the motorcycle and delivering it to the buyer's UK port / handover point.
+5. The AnyBike Sourcing Fee is calculated automatically at 8% of the Motorcycle Sale Price, rounded to the nearest £5, with a minimum fee of £395. Keep it separate from the motorcycle price. Staff may deliberately override the automatic fee for an exceptional commercial reason.
+6. Add the UK Collection & Delivery Charge separately where applicable. Delivery does not increase or change the Sourcing Fee calculation.
 7. Confirm the UK delivery / handover destination. Use the Deal or saved customer shipping preference first; otherwise choose from the maintained UK port list or enter the agreed UK address.
 8. Confirm the motorcycle registration and/or VIN where known. Vehicle identity shown on a sent Formal Offer should be snapshotted so later edits do not silently change what the buyer accepted.
 9. Confirm the resulting Customer Total.
