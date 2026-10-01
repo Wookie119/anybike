@@ -10422,6 +10422,7 @@ async function selectCandidateForDeal(candidateId){
    realtime messaging, notifications or existing payment logic.
    ========================================================= */
 let adminDealShippingRoutes = new Map();
+let adminDealExportVatDocuments = new Map();
 let adminCompanyExportIdentity = {
   legal_name:"Giffords Empire Ltd",
   trading_name:"AnyBike",
@@ -10645,6 +10646,126 @@ function renderAnyBikeDealExportTaxIdentity(deal){
     </section>`;
 }
 
+function anyBikeExportVatSafeFileName(name){
+  return String(name||"file")
+    .replace(/[^A-Za-z0-9._()-]+/g,"_")
+    .replace(/_+/g,"_")
+    .replace(/^_+|_+$/g,"") || "file";
+}
+
+function anyBikeExportVatDocsForDeal(dealId){
+  return adminDealExportVatDocuments.get(String(dealId||"")) || [];
+}
+
+function renderAnyBikeExportVatDocumentRows(dealId){
+  const docs=anyBikeExportVatDocsForDeal(dealId);
+  if(!docs.length){
+    return '<div style="color:#888;padding:10px 0">No export evidence documents uploaded yet.</div>';
+  }
+  return docs.map(function(doc){
+    return '<div style="display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 0;border-top:1px solid #242424">'+
+      '<div style="min-width:0"><strong style="display:block;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escapeAdminHtml(doc.original_file_name||"Document")+'</strong>'+
+      '<span style="color:#888;font-size:11px">'+escapeAdminHtml(doc.document_type||"Export evidence")+(doc.evidence_reference?' · '+escapeAdminHtml(doc.evidence_reference):'')+'</span></div>'+
+      '<div style="display:flex;gap:8px;flex-shrink:0">'+
+        '<button type="button" onclick="viewExportVatDocument('+Number(doc.id)+');return false;">View</button>'+
+        '<button type="button" onclick="deleteExportVatDocument('+Number(doc.id)+');return false;">Delete</button>'+
+      '</div>'+
+    '</div>';
+  }).join("");
+}
+
+async function uploadExportVatEvidenceFiles(dealId,fileList){
+  const id=Number(dealId);
+  const files=Array.from(fileList||[]);
+  if(!Number.isFinite(id) || !files.length) return;
+
+  const typeEl=document.getElementById("deal-export-vat-doc-type-"+id);
+  const refEl=document.getElementById("deal-export-vat-doc-ref-"+id);
+  const docType=String(typeEl?.value||"Other");
+  const evidenceRef=String(refEl?.value||"").trim()||null;
+
+  for(const file of files){
+    if(file.size>50*1024*1024){
+      alert(file.name+" is larger than the 50 MB limit.");
+      continue;
+    }
+    const storagePath="deals/"+id+"/export-vat/"+Date.now()+"-"+Math.random().toString(36).slice(2,8)+"-"+anyBikeExportVatSafeFileName(file.name);
+    const upload=await sb.storage.from("deal-files").upload(storagePath,file,{upsert:false,contentType:file.type||undefined});
+    if(upload.error){
+      alert("Upload failed for "+file.name+"\n\n"+upload.error.message);
+      continue;
+    }
+    const reg=await sb.rpc("admin_register_export_vat_document_v1",{
+      p_deal_id:id,
+      p_storage_path:storagePath,
+      p_original_file_name:file.name,
+      p_document_type:docType,
+      p_mime_type:file.type||null,
+      p_file_size:Number(file.size||0),
+      p_evidence_reference:evidenceRef,
+      p_notes:null
+    });
+    if(reg.error){
+      await sb.storage.from("deal-files").remove([storagePath]);
+      alert("The file uploaded but could not be registered, so it was rolled back.\n\n"+reg.error.message);
+      continue;
+    }
+  }
+
+  const input=document.getElementById("deal-export-vat-file-"+id);
+  if(input) input.value="";
+  await loadDealExportVatDocuments();
+  renderAdminDealQueue();
+  const row=document.getElementById("anybike-deal-"+id);
+  if(row){row.classList.add("open");openAnyBikeDealId=String(id);bikeSalesJourneyTab(String(id),"seller",false);}
+}
+
+function exportVatDropOver(event){
+  event.preventDefault();
+  event.currentTarget.style.borderColor="#ed1c24";
+  event.currentTarget.style.background="rgba(237,28,36,.08)";
+}
+
+function exportVatDropLeave(event){
+  event.preventDefault();
+  event.currentTarget.style.borderColor="#444";
+  event.currentTarget.style.background="#0b0b0b";
+}
+
+function exportVatDropFiles(event,dealId){
+  event.preventDefault();
+  exportVatDropLeave(event);
+  uploadExportVatEvidenceFiles(dealId,event.dataTransfer?.files||[]);
+}
+
+async function viewExportVatDocument(documentId){
+  let doc=null;
+  adminDealExportVatDocuments.forEach(function(rows){
+    if(!doc) doc=rows.find(function(row){return Number(row.id)===Number(documentId);})||null;
+  });
+  if(!doc){alert("Document record not found.");return;}
+  const result=await sb.storage.from(doc.storage_bucket||"deal-files").createSignedUrl(doc.storage_path,300);
+  if(result.error || !result.data?.signedUrl){alert("Could not open document.\n\n"+(result.error?.message||"No secure link returned."));return;}
+  window.open(result.data.signedUrl,"_blank","noopener");
+}
+
+async function deleteExportVatDocument(documentId){
+  let doc=null;
+  adminDealExportVatDocuments.forEach(function(rows){
+    if(!doc) doc=rows.find(function(row){return Number(row.id)===Number(documentId);})||null;
+  });
+  if(!doc) return;
+  if(!confirm("Delete this export evidence document?")) return;
+
+  const storageDelete=await sb.storage.from(doc.storage_bucket||"deal-files").remove([doc.storage_path]);
+  if(storageDelete.error){alert("The private file could not be removed.\n\n"+storageDelete.error.message);return;}
+
+  const regDelete=await sb.rpc("admin_delete_export_vat_document_v1",{p_document_id:Number(documentId)});
+  if(regDelete.error){alert("The file was removed but its audit record could not be updated.\n\n"+regDelete.error.message);}
+  await loadDealExportVatDocuments();
+  renderAdminDealQueue();
+}
+
 function anyBikeExportVatClearanceBadgeClass(status){
   if(status==="Zero Rate Confirmed") return "badge-green";
   if(status==="Evidence Received") return "badge-green";
@@ -10680,6 +10801,7 @@ function renderAnyBikeDealExportVatClearance(deal){
   const v5cNotified=route.export_vat_v5c_export_notified===true || String(route.export_vat_v5c_export_notified).toLowerCase()==="true";
   const notes=String(route.export_vat_evidence_notes || "");
   const confirmed=status==="Zero Rate Confirmed";
+  const evidenceDocs=anyBikeExportVatDocsForDeal(dealId);
 
   return `
     <section class="anybike-commercial-panel" style="margin-top:14px" id="deal-export-vat-panel-${dealId}">
@@ -10755,6 +10877,41 @@ function renderAnyBikeDealExportVatClearance(deal){
           V5C permanent export notification dealt with
         </label>
 
+        <div style="grid-column:1/-1;border:1px solid #2d2d2d;border-radius:14px;padding:14px;background:#0b0b0b">
+          <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:10px">
+            <div>
+              <strong style="display:block;color:#fff;font-size:13px">Export Evidence Documents</strong>
+              <span style="color:#888;font-size:11px">Customs declaration / MRN, CMR, bill of lading, freight-forwarder confirmation, port evidence or V5C export evidence.</span>
+            </div>
+            <span style="font-weight:900;color:${evidenceDocs.length?"#8cffb1":"#ff9c64"}">${evidenceDocs.length} file${evidenceDocs.length===1?"":"s"}</span>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:10px;margin-bottom:10px">
+            <select id="deal-export-vat-doc-type-${dealId}">
+              <option>Customs Declaration / MRN</option>
+              <option>CMR / Road Consignment</option>
+              <option>Bill of Lading</option>
+              <option>Freight Forwarder Confirmation</option>
+              <option>Port / Ferry Evidence</option>
+              <option>V5C Export Evidence</option>
+              <option>Other</option>
+            </select>
+            <input id="deal-export-vat-doc-ref-${dealId}" type="text" placeholder="Optional evidence reference">
+          </div>
+
+          <div onclick="document.getElementById('deal-export-vat-file-${dealId}').click()"
+               ondragover="exportVatDropOver(event)"
+               ondragleave="exportVatDropLeave(event)"
+               ondrop="exportVatDropFiles(event,${dealId})"
+               style="border:2px dashed #444;border-radius:14px;padding:24px;text-align:center;cursor:pointer;background:#0b0b0b">
+            <strong style="display:block;color:#fff;margin-bottom:6px">Drop export evidence here or click to choose files</strong>
+            <span style="color:#777;font-size:11px">PDF, images, Word, Excel and other business documents · maximum 50 MB each</span>
+            <input id="deal-export-vat-file-${dealId}" type="file" multiple style="display:none" onchange="uploadExportVatEvidenceFiles(${dealId},this.files)">
+          </div>
+
+          <div style="margin-top:10px">${renderAnyBikeExportVatDocumentRows(dealId)}</div>
+        </div>
+
         <div class="anybike-commercial-field" style="grid-column:1/-1">
           <label>Evidence / Audit Notes</label>
           <textarea id="deal-export-vat-notes-${dealId}" placeholder="Forwarder, port, document references, evidence received, exceptions" ${busy?"disabled":""}>${escapeAdminHtml(notes)}</textarea>
@@ -10800,6 +10957,10 @@ async function saveDealExportVatClearance(dealId){
   }
   if(["Awaiting Evidence","Evidence Received","Zero Rate Confirmed"].includes(status) && !exportedAt){
     alert("Enter the actual UK export / departure date before moving beyond Pending Export.");
+    return;
+  }
+  if(["Evidence Received","Zero Rate Confirmed"].includes(status) && anyBikeExportVatDocsForDeal(id).length===0){
+    alert("Upload at least one Export Evidence document before moving to "+status+".");
     return;
   }
   if(["Evidence Received","Zero Rate Confirmed"].includes(status) && (!customs || !transport || !proofExport || !proofDestination)){
@@ -11022,6 +11183,21 @@ async function loadCompanyExportIdentity(){
   }
 }
 
+async function loadDealExportVatDocuments(){
+  adminDealExportVatDocuments=new Map();
+  try{
+    const result=await sb.rpc("admin_get_export_vat_documents_v1",{p_deal_id:null});
+    if(result.error) throw result.error;
+    (result.data||[]).forEach(function(doc){
+      const key=String(doc.deal_id||"");
+      if(!adminDealExportVatDocuments.has(key)) adminDealExportVatDocuments.set(key,[]);
+      adminDealExportVatDocuments.get(key).push(doc);
+    });
+  }catch(error){
+    console.warn("Export VAT evidence documents could not be loaded:",error);
+  }
+}
+
 async function loadDealShippingRoutes(){
   adminDealShippingRoutes = new Map();
   try{
@@ -11136,6 +11312,7 @@ async function loadAdminDealQueue(){
     if(result.error){ throw result.error; }
     adminDealQueue = result.data || [];
     await loadDealShippingRoutes();
+    await loadDealExportVatDocuments();
     await loadCompanyExportIdentity();
     await loadAdminDealCustomerProfiles();
     await loadAdminBuyerOnboarding();
