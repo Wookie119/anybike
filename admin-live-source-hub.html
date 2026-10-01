@@ -75,6 +75,7 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
         </div>
         <div class="toolbar">
           <span id="poolStatus" class="status">Loading source pool…</span>
+          <button class="btn green" id="loadPhotosBtn" onclick="loadBmwPhotos()">Load BMW photos</button>
           <button class="btn" onclick="selectVisible()">Select visible</button>
           <button class="btn" onclick="clearSelected()">Clear</button>
         </div>
@@ -118,7 +119,11 @@ function syncSourcingNav(){
 function esc(v){return String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;")}
 function gbp(v){const n=Number(v);return Number.isFinite(n)?new Intl.NumberFormat("en-GB",{style:"currency",currency:"GBP",maximumFractionDigits:0}).format(n):"—"}
 function date(v){if(!v)return"Never";try{return new Date(v).toLocaleString("en-GB")}catch{return v}}
-function firstImg(i){return Array.isArray(i.source_image_urls)&&i.source_image_urls[0]?i.source_image_urls[0]:"/anybike-logo-new.jpg"}
+function firstImg(i){
+  const urls=Array.isArray(i.source_image_urls)?i.source_image_urls:[];
+  const real=urls.find(u=>/\/api\/Image\/GetImg\?imgId=/i.test(String(u)));
+  return real||"/anybike-logo-new.jpg";
+}
 
 async function addSource(){
   const name=document.getElementById("newSourceName").value.trim();
@@ -294,6 +299,32 @@ async function refreshSource(id,event,button){
     if(btn){btn.disabled=false;btn.textContent="Refresh Source";}
   }
 }
+async function loadBmwPhotos(){
+  const cid=document.getElementById("connectorFilter").value?Number(document.getElementById("connectorFilter").value):null;
+  const make=document.getElementById("makeFilter").value||null;
+  const model=document.getElementById("modelFilter").value||null;
+  const st=document.getElementById("poolStatus");
+  const btn=document.getElementById("loadPhotosBtn");
+  if(!cid){st.className="status bad";st.textContent="Choose BMW Approved Used first.";return}
+  if(btn){btn.disabled=true;btn.textContent="Loading photos…";}
+  st.className="status";st.textContent="Loading BMW catalogue photos for "+([make,model].filter(Boolean).join(" ")||"visible source")+"…";
+  try{
+    const {data,error}=await sb().functions.invoke("refresh-bmw-live-source-images",{
+      body:{connector_id:cid,make:make,model:model}
+    });
+    if(error)throw error;
+    if(data?.error)throw new Error(data.error);
+    st.className="status good";
+    st.textContent=data?.message||"BMW photos loaded.";
+    await loadItems();
+  }catch(e){
+    st.className="status bad";
+    st.textContent=e?.context?.body?.error||e?.message||"Could not load BMW photos.";
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent="Load BMW photos";}
+  }
+}
+
 async function loadItems(){
   const st=document.getElementById("poolStatus");st.textContent="Loading…";
   const cid=document.getElementById("connectorFilter").value?Number(document.getElementById("connectorFilter").value):null;
