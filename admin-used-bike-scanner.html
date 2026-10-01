@@ -32,7 +32,7 @@ textarea{min-height:120px;resize:vertical;white-space:pre-wrap;overflow-wrap:any
 .cols{display:grid;grid-template-columns:1.15fr 1fr 1fr;gap:12px;margin-top:14px}.box{background:#0d0d0d;border:1px solid #282828;border-radius:12px;padding:12px}.box h3{font-size:13px;margin:0 0 10px;color:#ddd;text-transform:uppercase;letter-spacing:.08em}
 .mini{display:grid;grid-template-columns:1fr 1fr;gap:8px}.money{font-size:18px;font-weight:900}.secret{border-left:3px solid var(--red)}
 .check{display:flex;gap:8px;align-items:flex-start;margin-top:8px;font-size:13px;color:#ccc}.check input{width:auto;margin-top:2px}
-.note{font-size:12px;color:#999;line-height:1.45}.source-link{color:#ff7378;text-decoration:underline;word-break:break-all}.sharebar{position:sticky;bottom:10px;background:#0d0d0df2;border:1px solid #333;border-radius:16px;padding:14px;z-index:3}
+.note{font-size:12px;color:#999;line-height:1.45}.source-link{color:#ff7378;text-decoration:underline;word-break:break-all}.sharebar{position:relative;background:#0d0d0d;border:1px solid #333;border-radius:16px;padding:14px;z-index:1;margin-top:18px}.sharebar.collapsed .share-body{display:none}.sharebar .share-toggle{display:flex;justify-content:space-between;align-items:center;gap:12px;cursor:pointer}.sharebar .share-body{margin-top:12px}
 @media(max-width:1000px){.grid{grid-template-columns:1fr 1fr}.cols{grid-template-columns:1fr}.scan-head{flex-direction:column}.thumb{width:100%;height:200px}}
 @media(max-width:650px){.content{padding:12px}.grid{grid-template-columns:1fr}}
 </style>
@@ -75,14 +75,23 @@ textarea{min-height:120px;resize:vertical;white-space:pre-wrap;overflow-wrap:any
       <section class="panel" id="batchSummary" style="display:none"></section>
       <section class="scan-list" id="scanList"></section>
 
-      <section class="panel sharebar" id="sharePanel" style="display:none">
-        <div class="field">
-          <label>One message to the buyer</label>
-          <textarea id="shareMessage" style="min-height:100px"></textarea>
+      <section class="panel sharebar collapsed" id="sharePanel" style="display:none">
+        <div class="share-toggle" onclick="toggleSharePanel()">
+          <div>
+            <div class="eyebrow">Buyer message</div>
+            <strong>Review message & share selected motorcycles</strong>
+          </div>
+          <button type="button" class="btn" id="shareToggleBtn" onclick="event.stopPropagation();toggleSharePanel()">Open</button>
         </div>
-        <div class="actions" style="margin-top:10px">
-          <button class="btn red" onclick="shareBatch()">Share selected motorcycles</button>
-          <span id="shareStatus" class="status"></span>
+        <div class="share-body">
+          <div class="field">
+            <label>One message to the buyer</label>
+            <textarea id="shareMessage" style="min-height:130px"></textarea>
+          </div>
+          <div class="actions" style="margin-top:10px">
+            <button class="btn red" onclick="shareBatch()">Share selected motorcycles</button>
+            <span id="shareStatus" class="status"></span>
+          </div>
         </div>
       </section>
     </main>
@@ -165,11 +174,16 @@ async function scanUrls(){
 
 function cardHtml(s,saved){
   const id=saved?s.id:s._key;
-  const first=(Array.isArray(s.source_image_urls)?s.source_image_urls:[])[0]||"/anybike-logo-new.jpg";
+  const rawFirst=(Array.isArray(s.source_image_urls)?s.source_image_urls:[])[0]||"";
+  const safeFirst=(Array.isArray(s.buyer_image_urls)?s.buyer_image_urls:[])[0]||"";
+  const isLiveSource=!!(s.extraction&&s.extraction.live_source_item_id);
+  const first=isLiveSource?(safeFirst||"/anybike-logo-new.jpg"):(safeFirst||rawFirst||"/anybike-logo-new.jpg");
   const anyPrice=(Number(s.source_advertised_price_gbp)||0)+(Number(s.delivery_allowance_gbp)||0)+(Number(s.fee_allowance_gbp)||0);
   const fail=s.scan_status==="failed";
   return '<article class="scan-card" data-scan="'+id+'">'+
-    '<div class="scan-head"><img class="thumb" src="'+esc(first)+'" onerror="this.src=\'/anybike-logo-new.jpg\'"><div style="flex:1"><div class="scan-title">'+esc([s.year,s.make,s.model,s.variant].filter(Boolean).join(" ")||"Advert needs review")+'</div>'+
+    '<div class="scan-head"><div><img class="thumb" src="'+esc(first)+'" onerror="this.src=\'/anybike-logo-new.jpg\'">'+
+      (isLiveSource&&!safeFirst?'<div class="status bad" style="margin-top:5px;font-weight:800">Clean image not ready</div>':'')+
+    '</div><div style="flex:1"><div class="scan-title">'+esc([s.year,s.make,s.model,s.variant].filter(Boolean).join(" ")||"Advert needs review")+'</div>'+
     '<span class="tag '+(fail?"fail":"ready")+'">'+esc(s.scan_status||"review")+'</span><span class="tag">'+esc(s.source_domain||"source")+'</span>'+
     (s.source_url?'<div style="margin-top:7px"><a class="source-link" href="'+esc(s.source_url)+'" target="_blank">Open original advert ↗</a></div>':'')+    (!fail?'<div style="margin-top:8px"><button type="button" class="btn green" onclick="addToLiveSource('+id+')">Save to Live Source Hub</button></div>':'')+
     (s.error?'<div class="status bad" style="margin-top:7px">'+esc(s.error)+'</div>':'')+'</div></div>'+
@@ -179,6 +193,7 @@ function cardHtml(s,saved){
         field(id,"seller_phone","Telephone",s.seller_phone,saved)+field(id,"seller_email","Email",s.seller_email,saved)+
         field(id,"seller_address","Seller location",s.seller_address,saved)+field(id,"registration","Registration",s.registration,saved)+
         sourceRetailPriceField(id,s.source_advertised_price_gbp,saved,s.extraction)+
+        (rawFirst?'<div class="field full"><label>Raw source photo — internal only</label><img src="'+esc(rawFirst)+'" style="width:100%;max-width:260px;height:170px;object-fit:cover;border-radius:10px;border:1px solid #333" onerror="this.style.display=\'none\'"></div>':'')+
       '</div></div>'+
       '<div class="box"><h3>Buyer-safe motorcycle</h3><div class="mini">'+
         field(id,"make","Make",s.make,saved)+field(id,"model","Model",s.model,saved)+field(id,"variant","Variant",s.variant,saved)+field(id,"year","Year",s.year,saved)+field(id,"mileage","Mileage",s.mileage,saved)+field(id,"colour","Colour",s.colour,saved)+
@@ -227,6 +242,14 @@ function anybikeFeeFromPrice(price){
   return 1695;
 }
 function priceField(k,f,label,v){return '<div class="field" style="margin-bottom:7px"><label>'+label+' (£)</label><input type="number" min="0" step="1" data-k="'+k+'" data-f="'+f+'" value="'+esc(v??0)+'" oninput="recalc('+k+')"></div>'}
+function toggleSharePanel(){
+  const panel=document.getElementById("sharePanel");
+  const btn=document.getElementById("shareToggleBtn");
+  if(!panel)return;
+  const collapsed=panel.classList.toggle("collapsed");
+  if(btn)btn.textContent=collapsed?"Open":"Close";
+}
+
 function renderScans(saved){
   document.getElementById("scanList").innerHTML=(scanned||[]).map(s=>cardHtml(s,saved)).join("");
   if(saved){document.getElementById("sharePanel").style.display="block";buildMessage()}
