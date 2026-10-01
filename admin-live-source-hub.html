@@ -96,12 +96,12 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
       </section>
 
       <section class="batch-panel">
-        <div class="batch-grid">
+        <div class="batch-grid" style="grid-template-columns:1fr 1fr auto">
           <div class="field"><label>Buyer</label><select id="buyerSelect"><option value="">Choose buyer…</option></select></div>
           <div class="field"><label>Buyer request</label><select id="requestSelect"><option value="">Select buyer first</option></select></div>
-          <div class="field"><label>UK delivery (£)</label><input id="delivery" type="number" value="250" min="0"></div>
           <button class="btn red" onclick="createBatch()">Prepare selected bikes</button>
         </div>
+        <div class="small" style="margin-top:8px">UK delivery is set per motorcycle above because collection cost can vary by dealer/location.</div>
         <div class="status" id="batchStatus" style="margin-top:8px"></div>
       </section>
     </main>
@@ -109,7 +109,7 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
 </div>
 <script>
 const sb=()=>getAdminSupabaseClient();
-let hub=null,items=[],buyers=[],selected=new Set(),sourceFacets={makes:[],models:[]},buyerRequests=[],selectedDealers=new Set(),sourceRefreshInProgress=false;
+let hub=null,items=[],buyers=[],selected=new Set(),sourceFacets={makes:[],models:[]},buyerRequests=[],selectedDealers=new Set(),sourceRefreshInProgress=false,deliveryAllowances=new Map();
 const sourcingParams=new URLSearchParams(location.search);
 function sourcingContextQuery(extra){
   const p=new URLSearchParams();
@@ -569,7 +569,8 @@ function renderItems(){
         :'<div class="status" style="margin-top:5px">Raw source image</div>')+
     '</div>'+
     '<div><div class="bike-title">'+esc([i.year,i.make,i.model,i.variant].filter(Boolean).join(" "))+'</div><div class="small">'+esc([i.mileage!=null?Number(i.mileage).toLocaleString("en-GB")+" miles":"",i.colour].filter(Boolean).join(" · "))+'</div></div>'+
-    '<div class="optional"><div class="small">Source price</div><div class="money">'+gbp(i.source_price_gbp)+'</div></div>'+
+    '<div class="optional"><div class="small">Source price</div><div class="money">'+gbp(i.source_price_gbp)+'</div>'+
+      '<div class="field" style="margin-top:8px"><label>UK delivery (£)</label><input type="number" min="0" step="1" value="'+esc(deliveryAllowances.has(Number(i.id))?deliveryAllowances.get(Number(i.id)):250)+'" onchange="setDeliveryAllowance('+i.id+',this.value)"></div></div>'+
     '<div class="optional"><div class="small secret">Internal source</div><div>'+esc(i.seller_name||i.source_domain||"")+'</div><div class="small">'+esc(i.source_stock_id||"")+'</div></div>'+
     '<div class="optional"><div class="small">Last seen</div><div>'+esc(date(i.last_seen_at))+'</div></div>'+
     '<div><span class="pill '+(i.source_status==="live"?"live":i.source_status==="ended"?"end":"review")+'">'+esc(i.source_status)+'</span><br><a class="small secret" href="'+esc(i.source_url)+'" target="_blank">source ↗</a>'+
@@ -598,6 +599,10 @@ async function excludeLiveSourceItem(id,on){
   renderItems();
   st.className="status good";
   st.textContent=items.length+" motorcycles shown · "+selected.size+" selected";
+}
+function setDeliveryAllowance(id,value){
+  const n=Number(value);
+  deliveryAllowances.set(Number(id),Number.isFinite(n)&&n>=0?n:250);
 }
 function toggle(id,on){if(on&&selected.size>=20){alert("Maximum 20 motorcycles per buyer batch.");renderItems();return}on?selected.add(id):selected.delete(id);document.getElementById("poolStatus").textContent=items.length+" motorcycles shown · "+selected.size+" selected"}
 function syncSelectAllVisibleState(){
@@ -723,11 +728,17 @@ async function createBatch(){
   st.className="status";
   st.textContent="Creating sourcing batch… "+cleaned+" clean image"+(cleaned===1?"":"s")+" ready"+(needsAttention?" · "+needsAttention+" need image attention":"");
 
-  const {data,error}=await sb().rpc("admin_create_scan_batch_from_live_source_v1",{
+  const deliveryMap={};
+  ids.forEach(id=>{
+    deliveryMap[String(id)]=deliveryAllowances.has(Number(id))?Number(deliveryAllowances.get(Number(id))):250;
+  });
+
+  const {data,error}=await sb().rpc("admin_create_scan_batch_from_live_source_v2",{
     p_buyer_id:bid,
     p_request_item_id:rid,
     p_item_ids:ids,
-    p_delivery_allowance_gbp:Number(document.getElementById("delivery").value)||250
+    p_delivery_allowances:deliveryMap,
+    p_default_delivery_allowance_gbp:250
   });
   if(error){st.className="status bad";st.textContent=error.message;return}
 
