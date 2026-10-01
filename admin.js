@@ -416,6 +416,11 @@ if(q.includes("underwrite") || q.includes("seller")){
   return;
 }
 
+if(q.includes("vmoto") || q.includes("electric retail") || q.includes("new motorcycle")){
+  location.href = "admin-vmoto.html";
+  return;
+}
+
 if(q.includes("stock") || q.includes("bike") || q.includes("motorcycle")){
   location.href = "admin-stock.html";
   return;
