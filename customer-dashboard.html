@@ -2349,7 +2349,7 @@ body.customer-offer-modal-open{overflow:hidden}
     </div>
 
     <div class="shipping-pref-field">
-      <label for="shippingPrefCompany">Freight Forwarder / Shipper</label>
+      <label for="shippingPrefCompany">Buyer Freight Forwarder</label>
       <select id="shippingPrefCompany" onchange="updateCustomerShippingCustomFields()">
         <option value="">Choose freight forwarder…</option>
         <option value="__other__">Other / not listed…</option>
@@ -2378,8 +2378,59 @@ body.customer-offer-modal-open{overflow:hidden}
     </div>
 
     <div class="shipping-pref-field">
-      <label for="shippingPrefReference">Account / Quote / Booking Reference</label>
+      <label for="shippingPrefReference">Forwarder Account / Quote / Booking Reference</label>
       <input id="shippingPrefReference" type="text" placeholder="Optional reference">
+    </div>
+
+    <div class="shipping-pref-field">
+      <label for="shippingCompanyName">UK Shipping / Receiving Company</label>
+      <input id="shippingCompanyName" type="text" placeholder="Company receiving the motorcycle in the UK">
+      <small style="display:block;color:#888;margin-top:5px">This may be different from your freight forwarder.</small>
+    </div>
+
+    <div class="shipping-pref-field">
+      <label for="shippingCompanyContactName">UK Receiver Contact Name</label>
+      <input id="shippingCompanyContactName" type="text" placeholder="Contact name">
+    </div>
+
+    <div class="shipping-pref-field">
+      <label for="shippingCompanyPhone">UK Receiver Telephone</label>
+      <input id="shippingCompanyPhone" type="tel" placeholder="Telephone number">
+    </div>
+
+    <div class="shipping-pref-field">
+      <label for="shippingCompanyEmail">UK Receiver Email</label>
+      <input id="shippingCompanyEmail" type="email" placeholder="name@company.com">
+    </div>
+
+    <div class="shipping-pref-field full">
+      <label for="shippingAddress1">Exact UK Delivery / Handover Address</label>
+      <input id="shippingAddress1" type="text" placeholder="Building / depot / street address">
+    </div>
+
+    <div class="shipping-pref-field full">
+      <label for="shippingAddress2">Address Line 2</label>
+      <input id="shippingAddress2" type="text" placeholder="Optional">
+    </div>
+
+    <div class="shipping-pref-field">
+      <label for="shippingCity">Town / City</label>
+      <input id="shippingCity" type="text" placeholder="Town / City">
+    </div>
+
+    <div class="shipping-pref-field">
+      <label for="shippingCounty">County</label>
+      <input id="shippingCounty" type="text" placeholder="Optional">
+    </div>
+
+    <div class="shipping-pref-field">
+      <label for="shippingPostcode">UK Postcode</label>
+      <input id="shippingPostcode" type="text" placeholder="Postcode">
+    </div>
+
+    <div class="shipping-pref-field">
+      <label for="shippingCountry">Handover Country</label>
+      <input id="shippingCountry" type="text" value="United Kingdom" readonly>
     </div>
 
     <div class="shipping-pref-field full">
@@ -2401,7 +2452,7 @@ body.customer-offer-modal-open{overflow:hidden}
   </div>
 
   <p class="shipping-pref-note">
-    Saved Shipping Preferences are reusable contact details only. Choosing one for a purchase does not confirm a booking or authorise AnyBike to buy the motorcycle; AnyBike must confirm the Shipping Preference for that purchase first.
+    Saved Shipping Preferences keep your freight-forwarder details and the exact UK receiving location together. Your freight forwarder and the UK shipping / receiving company may be different businesses. Choosing a plan does not confirm a booking or authorise AnyBike to buy the motorcycle; AnyBike must verify the UK handover route first.
   </p>
 </section>
 
@@ -5089,7 +5140,7 @@ setProfileEditMode(false);
 
 function clearShippingPreferenceForm(){
   editingShippingPreferenceId=null;
-  ["shippingPlanName","shippingPrefContactName","shippingPrefPhone","shippingPrefExtension","shippingPrefEmail","shippingPrefReference","shippingPrefNotes","shippingPrefUkPointOther","shippingPrefCompanyOther"]
+  ["shippingPlanName","shippingPrefContactName","shippingPrefPhone","shippingPrefExtension","shippingPrefEmail","shippingPrefReference","shippingPrefNotes","shippingPrefUkPointOther","shippingPrefCompanyOther","shippingCompanyName","shippingCompanyContactName","shippingCompanyPhone","shippingCompanyEmail","shippingAddress1","shippingAddress2","shippingCity","shippingCounty","shippingPostcode"]
     .forEach(function(id){
       const el=document.getElementById(id);
       if(el) el.value="";
@@ -5258,7 +5309,16 @@ function editShippingPreference(planId){
     shippingPrefExtension:plan.contact_extension || "",
     shippingPrefEmail:plan.contact_email || "",
     shippingPrefReference:plan.forwarder_reference || "",
-    shippingPrefNotes:plan.shipping_notes || ""
+    shippingPrefNotes:plan.shipping_notes || "",
+    shippingCompanyName:plan.shipping_company_name || "",
+    shippingCompanyContactName:plan.shipping_company_contact_name || "",
+    shippingCompanyPhone:plan.shipping_company_contact_phone || "",
+    shippingCompanyEmail:plan.shipping_company_contact_email || "",
+    shippingAddress1:plan.uk_handover_address_1 || "",
+    shippingAddress2:plan.uk_handover_address_2 || "",
+    shippingCity:plan.uk_handover_city || "",
+    shippingCounty:plan.uk_handover_county || "",
+    shippingPostcode:plan.uk_handover_postcode || ""
   };
 
   Object.entries(values).forEach(function([id,value]){
@@ -5291,33 +5351,58 @@ function shippingPlanLabel(plan){
   ).trim();
 }
 
+function shippingPlanComplete(plan){
+  return Boolean(
+    String(plan?.freight_forwarder_name || "").trim() &&
+    String(plan?.shipping_company_name || "").trim() &&
+    String(plan?.uk_handover_address_1 || "").trim() &&
+    String(plan?.uk_handover_postcode || "").trim()
+  );
+}
+
+function shippingPlanAddress(plan){
+  return [
+    plan?.uk_handover_address_1,
+    plan?.uk_handover_address_2,
+    plan?.uk_handover_city,
+    plan?.uk_handover_county,
+    plan?.uk_handover_postcode,
+    plan?.uk_handover_country || "United Kingdom"
+  ].filter(Boolean).join(", ");
+}
+
 function renderSavedShippingPreferences(){
   const box=document.getElementById("savedShippersList");
   if(!box) return;
 
   if(!savedHandoverPlans.length){
-    box.innerHTML='<div class="buyer-match-empty">No saved shipping preferences yet. Add your first shipper below.</div>';
+    box.innerHTML='<div class="buyer-match-empty">No saved shipping preferences yet. Add your first shipping plan below.</div>';
     return;
   }
 
   box.innerHTML=savedHandoverPlans.map(function(plan){
+    const complete=shippingPlanComplete(plan);
     return `
-      <article class="saved-shipper-card ${!plan.uk_handover_point ? "incomplete" : ""}">
+      <article class="saved-shipper-card ${complete ? "" : "incomplete"}">
         <div class="saved-shipper-head">
           <div>
             <h3>${safe(shippingPlanLabel(plan))}</h3>
-            <p>${safe(plan.uk_handover_point || "UK handover point not set")} · ${safe(plan.freight_forwarder_name || "Shipper not set")}</p>
+            <p>${safe(plan.uk_handover_point || "UK handover point not set")} · ${safe(plan.freight_forwarder_name || "Freight forwarder not set")}</p>
           </div>
           <div class="saved-shipper-badges">
             ${plan.is_default ? '<span class="saved-shipper-badge default">Default</span>' : ''}
-            ${!plan.uk_handover_point ? '<span class="saved-shipper-badge incomplete">Complete details</span>' : ''}
+            ${complete ? '<span class="saved-shipper-badge default">UK route ready for review</span>' : '<span class="saved-shipper-badge incomplete">Complete UK receiving details</span>'}
           </div>
         </div>
         <div class="saved-shipper-meta">
-          <div><span>Contact</span>${safe(plan.contact_name || "-")}</div>
-          <div><span>Telephone</span>${safe(plan.contact_phone || "-")}${plan.contact_extension ? " · "+safe(plan.contact_extension) : ""}</div>
-          <div><span>Email</span>${safe(plan.contact_email || "-")}</div>
-          <div><span>UK Handover</span>${safe(plan.uk_handover_point || "-")}</div>
+          <div><span>Buyer Freight Forwarder</span>${safe(plan.freight_forwarder_name || "-")}</div>
+          <div><span>Forwarder Contact</span>${safe(plan.contact_name || "-")}</div>
+          <div><span>Forwarder Telephone</span>${safe(plan.contact_phone || "-")}${plan.contact_extension ? " · "+safe(plan.contact_extension) : ""}</div>
+          <div><span>Forwarder Email</span>${safe(plan.contact_email || "-")}</div>
+          <div><span>UK Shipping / Receiving Company</span>${safe(plan.shipping_company_name || "-")}</div>
+          <div><span>UK Receiver Contact</span>${safe(plan.shipping_company_contact_name || "-")}</div>
+          <div><span>UK Handover Point / Port</span>${safe(plan.uk_handover_point || "-")}</div>
+          <div><span>Exact UK Delivery Address</span>${safe(shippingPlanAddress(plan) || "-")}</div>
           ${plan.forwarder_reference ? `<div><span>Reference</span>${safe(plan.forwarder_reference)}</div>` : ""}
           ${plan.shipping_notes ? `<div style="grid-column:1/-1"><span>Shipping Notes</span>${safe(plan.shipping_notes)}</div>` : ""}
         </div>
@@ -5389,6 +5474,16 @@ async function saveShippingPreference(){
     contact_extension:document.getElementById("shippingPrefExtension")?.value.trim() || null,
     contact_email:document.getElementById("shippingPrefEmail")?.value.trim() || null,
     forwarder_reference:document.getElementById("shippingPrefReference")?.value.trim() || null,
+    shipping_company_name:document.getElementById("shippingCompanyName")?.value.trim() || null,
+    shipping_company_contact_name:document.getElementById("shippingCompanyContactName")?.value.trim() || null,
+    shipping_company_contact_phone:document.getElementById("shippingCompanyPhone")?.value.trim() || null,
+    shipping_company_contact_email:document.getElementById("shippingCompanyEmail")?.value.trim() || null,
+    uk_handover_address_1:document.getElementById("shippingAddress1")?.value.trim() || null,
+    uk_handover_address_2:document.getElementById("shippingAddress2")?.value.trim() || null,
+    uk_handover_city:document.getElementById("shippingCity")?.value.trim() || null,
+    uk_handover_county:document.getElementById("shippingCounty")?.value.trim() || null,
+    uk_handover_postcode:document.getElementById("shippingPostcode")?.value.trim().toUpperCase() || null,
+    uk_handover_country:"United Kingdom",
     shipping_notes:document.getElementById("shippingPrefNotes")?.value.trim() || null,
     is_default:Boolean(document.getElementById("shippingPrefDefault")?.checked),
     is_active:true
@@ -5396,7 +5491,7 @@ async function saveShippingPreference(){
 
   if(!payload.freight_forwarder_name){
     if(status){
-      status.textContent="Enter the freight forwarder / shipper.";
+      status.textContent="Enter the buyer's freight forwarder.";
       status.className="shipping-pref-status bad";
     }
     return;
@@ -5512,7 +5607,8 @@ function customerDealShipperChoiceHtml(match,purchase=null){
       ? [
           selectedPlan.uk_handover_point,
           selectedPlan.freight_forwarder_name,
-          selectedPlan.contact_name
+          selectedPlan.shipping_company_name,
+          shippingPlanAddress(selectedPlan)
         ].filter(Boolean).join(" · ")
       : "";
 
@@ -5561,24 +5657,24 @@ function customerDealShipperChoiceHtml(match,purchase=null){
       <div class="shipper-choice-list">
         ${savedHandoverPlans.map(function(plan){
           const checked=Number(plan.id)===selectedId ? "checked" : "";
-          const complete=Boolean(String(plan.uk_handover_point || "").trim());
+          const complete=shippingPlanComplete(plan);
           return `
             <label class="shipper-choice-option" style="${complete ? "" : "opacity:.58"}">
               <input type="radio" name="deal-shipper-${safe(dealId)}" value="${Number(plan.id)}" ${checked} ${complete ? "" : "disabled"}>
               <span>
                 <strong>${safe(shippingPlanLabel(plan))}${plan.is_default ? " · Default" : ""}</strong>
-                <small>${complete ? safe(plan.uk_handover_point) : "Complete UK handover point before using this preference"} · ${safe(plan.freight_forwarder_name || "-")}${plan.contact_name ? " · "+safe(plan.contact_name) : ""}</small>
+                <small>${complete ? safe(plan.uk_handover_point || "UK handover") + " · " + safe(plan.shipping_company_name) + " · " + safe(shippingPlanAddress(plan)) : "Add the UK receiving company, exact delivery address and postcode before using this plan"} · ${safe(plan.freight_forwarder_name || "-")}</small>
               </span>
             </label>
           `;
         }).join("")}
       </div>
       <div class="saved-shipper-actions">
-        <button class="mini-btn primary" type="button" onclick="saveDealHandoverSelection(${Number(match._deal_id)})">Use Selected Shipper</button>
-        <a class="mini-btn" href="#shipping-preferences">Add Another Shipper</a>
+        <button class="mini-btn primary" type="button" onclick="saveDealHandoverSelection(${Number(match._deal_id)})">Use Selected Shipping Plan</button>
+        <a class="mini-btn" href="#shipping-preferences">Add Another Shipping Plan</a>
       </div>
       <div id="deal-shipper-status-${safe(dealId)}" class="shipper-choice-status">
-        ${current ? "Selected for this Deal · awaiting AnyBike verification." : "No shipper selected for this Deal yet."}
+        ${current ? "Selected for this Deal · awaiting AnyBike verification." : "No shipping plan selected for this Deal yet."}
       </div>
     </div>
   `;
@@ -5591,7 +5687,7 @@ async function saveDealHandoverSelection(dealId){
   const status=document.getElementById(`deal-shipper-status-${dealId}`);
 
   if(!selected){
-    if(status) status.textContent="Choose a saved shipper first.";
+    if(status) status.textContent="Choose a complete saved shipping plan first.";
     return;
   }
 
