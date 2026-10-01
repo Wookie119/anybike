@@ -2695,18 +2695,32 @@ function buyerMatchResponseSummary(match){
 }
 
 function buyerMatchPriceHtml(match){
-  const confirmed=buyerMatchMoney(match?.confirmed_customer_price_gbp);
+  const confirmedMotorcycle=Number(match?.confirmed_customer_price_gbp || 0);
+  const provisionalMotorcycle=Number(match?.provisional_customer_price_gbp || 0);
+  const anybikeFee=Number(match?.offer_anybike_fee_gbp || 0);
+  const deliveryCharge=Number(match?.offer_delivery_charge_gbp || 0);
+  const motorcyclePrice=confirmedMotorcycle>0 ? confirmedMotorcycle : provisionalMotorcycle;
+  const deliveredToPortTotal=motorcyclePrice+anybikeFee+deliveryCharge;
   const advertised=buyerMatchMoney(match?.listed_price_snapshot_gbp);
 
-  if(confirmed){
-    return `<div class="buyer-match-price"><strong>${safe(confirmed)}</strong><span>Confirmed AnyBike offer price</span></div>`;
+  if(deliveredToPortTotal>0 && (anybikeFee>0 || deliveryCharge>0)){
+    return `
+      <div class="buyer-match-price">
+        <strong>${safe(buyerMatchMoney(deliveredToPortTotal) || "-")}</strong>
+        <span><b>AnyBike Delivered to Any UK Port Price</b> · Motorcycle ${safe(buyerMatchMoney(motorcyclePrice) || "-")} + AnyBike Sourcing Fee ${safe(buyerMatchMoney(anybikeFee) || "£0.00")} + UK Collection &amp; Delivery ${safe(buyerMatchMoney(deliveryCharge) || "£0.00")}</span>
+      </div>
+    `;
+  }
+
+  if(confirmedMotorcycle>0){
+    return `<div class="buyer-match-price"><strong>${safe(buyerMatchMoney(confirmedMotorcycle))}</strong><span>Confirmed AnyBike motorcycle price</span></div>`;
   }
 
   if(advertised){
-    return `<div class="buyer-match-price"><strong>${safe(advertised)}</strong><span>Advertised price — seller availability and AnyBike commercial terms still need to be confirmed</span></div>`;
+    return `<div class="buyer-match-price"><strong>${safe(advertised)}</strong><span>Advertised source price — AnyBike is preparing your complete Delivered to Any UK Port Price before you proceed.</span></div>`;
   }
 
-  return `<div class="buyer-match-price"><strong>Price being prepared</strong><span>No advertised price is currently available. You can still register interest or ask us a question.</span></div>`;
+  return `<div class="buyer-match-price"><strong>Price being prepared</strong><span>AnyBike is preparing the complete Delivered to Any UK Port Price for this motorcycle.</span></div>`;
 }
 
 function myDealForMatch(matchId){
