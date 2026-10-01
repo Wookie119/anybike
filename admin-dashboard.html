@@ -2687,7 +2687,7 @@ function buildDashboardDealActions(
       }));
     }
 
-    if(leadStatus === "Payment / Deposit" && days >= 2){
+    if(!isConvertedDeal && leadStatus === "Payment / Deposit" && days >= 2){
       actions.push(createDashboardAction({
         group:"accounts",priority:"high",icon:"💷",type:"Payment follow-up",
         title:"Payment or deposit needs attention",customer:customer,bike:bike,country:country,
@@ -3151,6 +3151,60 @@ setText("kpiPrivateSellers", countSourceType([
       actions.push(action);
     });
 
+    /*
+      Accounts actions come from the authoritative Payment Advice workflow.
+      Posted advice creates no work. Submitted advice points straight to bank
+      verification; verified advice points straight to ledger posting.
+    */
+    try{
+      const paymentAdviceResult=await sb.rpc("admin_get_payment_advices",{p_status:null});
+      if(paymentAdviceResult.error){ throw paymentAdviceResult.error; }
+
+      const paymentAdviceMap=new Map();
+      (paymentAdviceResult.data || []).forEach(function(row){
+        const id=Number(row.payment_advice_id || 0);
+        if(!id){ return; }
+        if(!paymentAdviceMap.has(id)){
+          paymentAdviceMap.set(id,{
+            id:id,
+            adviceNumber:row.advice_number || ("Payment Advice #"+id),
+            customer:row.customer_name || row.customer_email || "Customer",
+            amount:Number(row.reported_amount_gbp || row.verified_amount_gbp || 0),
+            adviceStatus:String(row.advice_status || ""),
+            ledgerStatus:String(row.ledger_status || ""),
+            submittedAt:row.submitted_at || row.reported_payment_date || null,
+            dealNumber:row.deal_number || "",
+            purpose:row.allocation_purpose || "Customer payment"
+          });
+        }
+      });
+
+      paymentAdviceMap.forEach(function(item){
+        if(item.ledgerStatus==="Posted" || ["Rejected","Cancelled"].includes(item.adviceStatus)){ return; }
+
+        const readyToPost=item.adviceStatus==="Verified" && item.ledgerStatus==="Ready to Post";
+        actions.push(createDashboardAction({
+          group:"accounts",
+          priority:"urgent",
+          icon:"",
+          type:item.purpose,
+          title:readyToPost ? "Post verified payment" : "Match / Verify Payment",
+          customer:item.customer,
+          bike:item.dealNumber || item.adviceNumber,
+          country:"",
+          assigned:"Accounts",
+          preview:(readyToPost ? "Bank verification is complete. Post " : "Customer reported ")+
+            money(item.amount)+" against "+(item.dealNumber || item.adviceNumber)+".",
+          age:timeAgo(item.submittedAt),
+          createdAt:item.submittedAt,
+          url:"admin-accounts.html?payment_advice="+encodeURIComponent(item.id),
+          openLabel:readyToPost ? "Post payment →" : "Verify payment →"
+        }));
+      });
+    }catch(paymentAdviceError){
+      console.warn("Authoritative payment actions could not be added to Dashboard:",paymentAdviceError);
+    }
+
     try{
       const [customerAttentionResult,customerProfileResult] = await Promise.all([
         sb.rpc("admin_get_customer_needs_attention_v3"),
@@ -3183,7 +3237,9 @@ setText("kpiPrivateSellers", countSourceType([
           return;
         }
 
-        if(Number(item.deposit_outstanding_gbp || 0)>0){
+        const purchaseClearanceApproved=["approved","approved_with_exception"].includes(approval);
+
+        if(purchaseClearanceApproved && Number(item.deposit_outstanding_gbp || 0)>0){
           actions.push(createDashboardAction({
             group:"accounts",priority:"high",icon:"💷",type:"Deposit",
             title:"Deposit outstanding",customer:customer,bike:"Customer account",country:country,assigned:"Accounts",
@@ -3191,7 +3247,7 @@ setText("kpiPrivateSellers", countSourceType([
           }));
         }
 
-        if(Number(item.balance_outstanding_gbp || 0)>0){
+        if(purchaseClearanceApproved && Number(item.balance_outstanding_gbp || 0)>0){
           actions.push(createDashboardAction({
             group:"accounts",priority:"high",icon:"💷",type:"Balance",
             title:"Full payment outstanding",customer:customer,bike:"Customer account",country:country,assigned:"Accounts",
