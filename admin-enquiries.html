@@ -6374,6 +6374,8 @@ let adminDealHandoverSelections = new Map();
 let adminPaymentAdviceNumbers = new Map();
 let adminDealMessageThreads = new Map();
 let adminDealCommercialSetup = [];
+let adminRetailOrders = new Map();
+const retailOrderSaveBusy = new Set();
 const dealCommercialSaveBusy = new Set();
 let activeDealOfferMotorcycleId = null;
 let activeDealOfferId = null;
@@ -11661,6 +11663,18 @@ async function loadAdminDealQueue(){
     adminDealCommercialSetup = [];
   }
 
+  adminRetailOrders = new Map();
+  try{
+    const retailResult = await sb.rpc("admin_get_retail_orders_v1",{p_deal_id:null});
+    if(retailResult.error){ throw retailResult.error; }
+    (retailResult.data || []).forEach(function(row){
+      adminRetailOrders.set(String(row.deal_id||""),row);
+    });
+  }catch(error){
+    console.warn("Retail Deal orders could not be loaded:",error);
+    adminRetailOrders = new Map();
+  }
+
   try{
     const result = await sb.rpc("admin_get_deal_motorcycles");
     if(result.error){ throw result.error; }
@@ -16353,25 +16367,120 @@ async function setAnyBikeDealSaleRoute(dealId,route){
   }
 }
 
+function anyBikeRetailMoneyInputValue(value){
+  const n=Number(value);
+  return Number.isFinite(n) && n>=0 ? n.toFixed(2) : "";
+}
+
+function anyBikeRetailVatOptions(selected){
+  const values=["Check Required","Full VAT","Zero Rated","Outside Scope","Exempt"];
+  return values.map(function(value){
+    return '<option value="'+escapeAdminHtml(value)+'" '+(String(selected||"Check Required")===value?"selected":"")+'>'+escapeAdminHtml(value)+'</option>';
+  }).join("");
+}
+
+async function saveAnyBikeRetailOrder(dealId){
+  const id=String(dealId||"");
+  const order=adminRetailOrders.get(id);
+  if(!order){ alert("Retail order details are not available for this Deal."); return; }
+  if(retailOrderSaveBusy.has(id)) return;
+
+  retailOrderSaveBusy.add(id);
+  renderAdminDealQueue();
+  try{
+    const payload={
+      p_retail_order_id:Number(order.id),
+      p_retail_stage:document.getElementById("retail-stage-"+id)?.value || order.retail_stage,
+      p_stock_status:document.getElementById("retail-stock-"+id)?.value || order.stock_status,
+      p_stock_location:document.getElementById("retail-stock-location-"+id)?.value || null,
+      p_vmoto_order_reference:document.getElementById("retail-order-ref-"+id)?.value || null,
+      p_motorcycle_price_gbp:document.getElementById("retail-bike-price-"+id)?.value === "" ? null : Number(document.getElementById("retail-bike-price-"+id)?.value),
+      p_first_registration_fee_gbp:document.getElementById("retail-frf-"+id)?.value === "" ? null : Number(document.getElementById("retail-frf-"+id)?.value),
+      p_first_registration_fee_vat_treatment:document.getElementById("retail-frf-vat-"+id)?.value || "Check Required",
+      p_road_tax_gbp:document.getElementById("retail-tax-"+id)?.value === "" ? null : Number(document.getElementById("retail-tax-"+id)?.value),
+      p_road_tax_vat_treatment:document.getElementById("retail-tax-vat-"+id)?.value || "Check Required",
+      p_delivery_charge_gbp:document.getElementById("retail-delivery-"+id)?.value === "" ? null : Number(document.getElementById("retail-delivery-"+id)?.value),
+      p_delivery_postcode:document.getElementById("retail-postcode-"+id)?.value || null,
+      p_internal_notes:document.getElementById("retail-notes-"+id)?.value || null
+    };
+    const result=await sb.rpc("admin_save_retail_order_v1",payload);
+    if(result.error) throw result.error;
+    await loadAdminDealQueue();
+    const row=document.getElementById("anybike-deal-"+id);
+    if(row){ row.classList.add("open"); openAnyBikeDealId=id; }
+  }catch(error){
+    console.error("Retail order could not be saved:",error);
+    alert("Retail order could not be saved.\n\n"+(error?.message||error));
+  }finally{
+    retailOrderSaveBusy.delete(id);
+  }
+}
+
 function renderAnyBikeRetailGuidedJourney(deal,bikes){
   const route=String(deal?.sale_route||"");
   if(route!=="NEW_RETAIL_B2C"){ return ""; }
+  const dealId=String(deal?.deal_id||"");
+  const order=adminRetailOrders.get(dealId) || null;
   const bikeName=(bikes||[]).length
     ? [bikes[0].make,bikes[0].model,bikes[0].variant].filter(Boolean).join(" ")
-    : "New motorcycle";
-  const steps=[
-    ["01","Customer Order","Model / version / colour"],
-    ["02","Stock Confirmation","VMoto availability"],
-    ["03","Customer Payment","Retail payment stage"],
-    ["04","Order VMoto","Sold unit ordered"],
-    ["05","VMoto PDI","Preparation / registration"],
-    ["06","Move Collection","Collect prepared unit"],
-    ["07","Home Delivery","Deliver to customer"]
-  ];
+    : (order ? ["VMoto",order.model_name,order.variant_name].filter(Boolean).join(" ") : "New motorcycle");
+  const currentStage=String(order?.retail_stage||"Customer Order");
+  const stages=["Customer Order","Stock Confirmation","Customer Payment","Order VMoto","VMoto PDI","Move Collection","Home Delivery"];
+  const stageIndex=Math.max(0,stages.indexOf(currentStage));
+  const steps=stages.map(function(name,index){
+    const copy={
+      "Customer Order":"Model / version / colour",
+      "Stock Confirmation":"VMoto availability",
+      "Customer Payment":"Retail payment stage",
+      "Order VMoto":"Sold unit ordered",
+      "VMoto PDI":"Preparation / registration",
+      "Move Collection":"Collect prepared unit",
+      "Home Delivery":"Full handover at home or work"
+    }[name];
+    const state=index<stageIndex?"✓ Complete":index===stageIndex?"Current":"Waiting";
+    return [String(index+1).padStart(2,"0"),name,copy,state];
+  });
+
+  const busy=retailOrderSaveBusy.has(dealId);
+  const total=Number(order?.customer_total_gbp||0);
+  const deliveryFrom=Number(order?.delivery_from_gbp||99);
+
+  const details=order ? '<div class="anybike-commercial-panel" style="margin:0 14px 14px">'+
+    '<div class="anybike-commercial-grid">'+
+      '<label>Model<strong>'+escapeAdminHtml(order.model_name||"")+'</strong></label>'+
+      '<label>Version / battery<strong>'+escapeAdminHtml([order.variant_name,order.battery_choice].filter(Boolean).join(" · ")||"To be confirmed")+'</strong></label>'+
+      '<label>Colour<strong>'+escapeAdminHtml(order.colour_choice||"To be confirmed")+'</strong></label>'+
+      '<label>Customer<strong>'+escapeAdminHtml(order.customer_name||"")+'<small>'+escapeAdminHtml(order.customer_email||"")+' · '+escapeAdminHtml(order.customer_phone||"")+'</small></strong></label>'+
+      '<label>Handover<strong>'+escapeAdminHtml(order.delivery_location_type||"Home")+' · '+escapeAdminHtml(order.delivery_postcode||"")+'</strong></label>'+
+      '<label>Delivery proposition<strong>Nationwide delivery from '+anyBikeDealMoney(deliveryFrom)+'</strong></label>'+
+    '</div>'+
+    '<div class="anybike-commercial-grid" style="margin-top:12px">'+
+      '<label>Retail Stage<select id="retail-stage-'+dealId+'">'+
+        ['Customer Order','Stock Confirmation','Customer Payment','Order VMoto','VMoto PDI','Move Collection','Home Delivery','Completed','Cancelled'].map(function(v){return '<option '+(v===currentStage?'selected':'')+'>'+v+'</option>';}).join("")+
+      '</select></label>'+
+      '<label>Stock Status<select id="retail-stock-'+dealId+'">'+
+        ['To Be Confirmed','In Stock','Incoming','Reserved','Ordered','Prepared','Collected','Delivered','Unavailable'].map(function(v){return '<option '+(v===String(order.stock_status||"To Be Confirmed")?'selected':'')+'>'+v+'</option>';}).join("")+
+      '</select></label>'+
+      '<label>Stock Location<input id="retail-stock-location-'+dealId+'" value="'+escapeAdminHtml(order.stock_location||"")+'" placeholder="Halewood / Sywell / Maidenhead / other"></label>'+
+      '<label>VMoto Order Ref<input id="retail-order-ref-'+dealId+'" value="'+escapeAdminHtml(order.vmoto_order_reference||"")+'" placeholder="When ordered"></label>'+
+      '<label>Delivery Postcode<input id="retail-postcode-'+dealId+'" value="'+escapeAdminHtml(order.delivery_postcode||"")+'"></label>'+
+      '<label>Motorcycle Price inc VAT (£)<input id="retail-bike-price-'+dealId+'" type="number" min="0" step="0.01" value="'+anyBikeRetailMoneyInputValue(order.motorcycle_price_gbp)+'"></label>'+
+      '<label>First Registration Fee (£)<input id="retail-frf-'+dealId+'" type="number" min="0" step="0.01" value="'+anyBikeRetailMoneyInputValue(order.first_registration_fee_gbp)+'"></label>'+
+      '<label>FRF VAT Treatment<select id="retail-frf-vat-'+dealId+'">'+anyBikeRetailVatOptions(order.first_registration_fee_vat_treatment)+'</select></label>'+
+      '<label>Road Tax (£)<input id="retail-tax-'+dealId+'" type="number" min="0" step="0.01" value="'+anyBikeRetailMoneyInputValue(order.road_tax_gbp)+'"></label>'+
+      '<label>Road Tax VAT Treatment<select id="retail-tax-vat-'+dealId+'">'+anyBikeRetailVatOptions(order.road_tax_vat_treatment)+'</select></label>'+
+      '<label>Delivery Charge (£)<input id="retail-delivery-'+dealId+'" type="number" min="0" step="0.01" value="'+anyBikeRetailMoneyInputValue(order.delivery_charge_gbp)+'" placeholder="From 99.00"></label>'+
+      '<label>Current Customer Total<strong>'+(total>0?anyBikeDealMoney(total):"Not priced yet")+'</strong></label>'+
+    '</div>'+
+    '<label style="display:block;margin-top:12px">Internal Retail Notes<textarea id="retail-notes-'+dealId+'" style="width:100%;min-height:70px">'+escapeAdminHtml(order.internal_notes||"")+'</textarea></label>'+
+    '<div style="display:flex;justify-content:flex-end;margin-top:12px"><button type="button" class="btn" '+(busy?'disabled':'')+' onclick="saveAnyBikeRetailOrder(\''+dealId+'\')">'+(busy?'Saving…':'Save Retail Deal')+'</button></div>'+
+  '</div>' : '<div class="anybike-retail-launch-note"><strong>Retail order record not found.</strong> This Deal may have been manually switched to B2C rather than created through the VMoto retail enquiry flow.</div>';
+
   return '<section class="anybike-retail-journey">'+
     '<div class="anybike-retail-journey-head"><div class="anybike-real-label">NEW MOTORCYCLE RETAIL · B2C</div><h3>'+escapeAdminHtml(deal.deal_number||"Deal")+' · Retail Journey</h3><p>'+escapeAdminHtml(bikeName)+' · Delivered to Your Door</p></div>'+
-    '<div class="anybike-retail-steps">'+steps.map(function(step){return '<div class="anybike-retail-step"><b>'+step[0]+'</b><strong>'+escapeAdminHtml(step[1])+'</strong><span>'+escapeAdminHtml(step[2])+'</span></div>';}).join("")+'</div>'+
-    '<div class="anybike-retail-launch-note"><strong>Retail route foundation active.</strong> Existing export-only verification, freight-forwarder and port gates must not be used as B2C retail requirements. Live consumer checkout remains controlled until VMoto pricing, warranty/aftersales, servicing and retail terms are confirmed.</div>'+
+    '<div class="anybike-retail-steps">'+steps.map(function(step){return '<div class="anybike-retail-step"><b>'+step[0]+' · '+escapeAdminHtml(step[3])+'</b><strong>'+escapeAdminHtml(step[1])+'</strong><span>'+escapeAdminHtml(step[2])+'</span></div>';}).join("")+'</div>'+
+    details+
+    '<div class="anybike-retail-launch-note"><strong>Retail VAT structure:</strong> motorcycle defaults to Full VAT. FRF and road tax remain separately classified so Accounts can use the correct treatment rather than forcing them into the motorcycle VAT line. Delivery stays separate and is quoted from £99 based on the customer location.</div>'+
   '</section>';
 }
 
