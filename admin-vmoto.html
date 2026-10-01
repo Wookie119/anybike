@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>VMoto HQ | AnyBike Admin</title>
+<meta name="robots" content="noindex,nofollow">
+<script>document.documentElement.classList.add("admin-auth-pending");</script>
+<style>html.admin-auth-pending body{visibility:hidden}</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="admin.js?v=12000"></script>
+<link rel="stylesheet" href="admin-shell.css?v=12000">
+<style>
+:root{--red:#ed1c24;--line:rgba(255,255,255,.12);--muted:#aaa;--green:#33cc66}
+*{box-sizing:border-box}body{margin:0;background:#080808;color:#fff;font-family:Arial,Helvetica,sans-serif}
+.page{display:flex;min-height:100vh}.main{flex:1;min-width:0}.content{width:100%;padding:18px 20px 36px}
+.hero,.panel{background:#111;border:1px solid var(--line);border-radius:18px;padding:18px;margin-bottom:14px}
+.eyebrow{color:var(--red);font-size:12px;font-weight:900;letter-spacing:.12em;text-transform:uppercase}
+h1{margin:5px 0 7px;font-size:32px}h2{margin:0 0 12px}.muted{color:var(--muted);line-height:1.5}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.tab{border:1px solid var(--line);background:#181818;color:#fff;border-radius:999px;padding:9px 13px;font-weight:900;cursor:pointer}.tab.active{background:var(--red);border-color:var(--red)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}.card{border:1px solid var(--line);border-radius:15px;background:#151515;padding:14px}.card h3{margin:0 0 8px}
+.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.field{display:grid;gap:5px}.field.full{grid-column:1/-1}.field label{font-size:11px;font-weight:900;color:#bbb;text-transform:uppercase}.field input,.field textarea,.field select{width:100%;background:#090909;color:#fff;border:1px solid #333;border-radius:10px;padding:10px;font:inherit}.field textarea{min-height:90px;resize:vertical}
+.btn{border:0;border-radius:999px;padding:10px 14px;font-weight:900;cursor:pointer;background:var(--red);color:#fff}.btn.dark{background:#222;border:1px solid var(--line)}.btn.green{background:#168a48}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.list{display:grid;gap:10px}.row{border:1px solid var(--line);border-radius:14px;background:#151515;padding:13px}.row-head{display:flex;justify-content:space-between;gap:12px}.pill{display:inline-block;padding:5px 8px;border-radius:999px;background:#222;font-size:10px;font-weight:900}.pill.live{background:#175d34}.pill.draft{background:#6b5513}.small{font-size:12px;color:#999}.hidden{display:none!important}.status{font-size:13px;font-weight:800;margin-top:10px}.status.good{color:#7ff0a8}.status.bad{color:#ff7378}
+.two{display:grid;grid-template-columns:minmax(320px,.8fr) minmax(0,1.2fr);gap:14px}.sticky{position:sticky;top:12px;align-self:start}
+.question{border:1px solid var(--line);border-radius:13px;padding:12px;background:#141414}.question strong{display:block;margin-bottom:6px}
+@media(max-width:900px){.two,.form-grid{grid-template-columns:1fr}.field.full{grid-column:1}.sticky{position:static}}
+</style>
+</head>
+<body>
+<div class="page">
+  <div id="adminSidebar"></div>
+  <div class="main">
+    <div id="adminTopbar"></div>
+    <main class="content">
+      <section class="hero">
+        <div class="eyebrow">New Motorcycle Retail</div>
+        <h1>⚡ VMoto HQ</h1>
+        <p class="muted">Manage the VMoto catalogue, model variants, colours, stock availability and approved FAQ answers from one place.</p>
+        <div class="tabs">
+          <button class="tab active" data-tab="models">Models</button>
+          <button class="tab" data-tab="variants">Versions / Batteries</button>
+          <button class="tab" data-tab="colours">Colours</button>
+          <button class="tab" data-tab="stock">Stock</button>
+          <button class="tab" data-tab="faq">FAQ & Questions</button>
+        </div>
+      </section>
+
+      <section id="tab-models" class="tab-panel">
+        <div class="two">
+          <div class="panel sticky">
+            <h2 id="modelFormTitle">Add VMoto model</h2>
+            <div class="form-grid">
+              <div class="field"><label>Model name</label><input id="modelName"></div>
+              <div class="field"><label>Slug</label><input id="modelSlug" placeholder="auto-from-model-name"></div>
+              <div class="field"><label>Type</label><input id="modelType" placeholder="Motorcycle / Scooter"></div>
+              <div class="field"><label>Base retail price (£)</label><input id="modelPrice" type="number" min="0" step="0.01"></div>
+              <div class="field full"><label>Short description</label><textarea id="modelDescription"></textarea></div>
+              <div class="field full"><label>Hero image URL</label><input id="modelImage"></div>
+              <div class="field"><label>Sort order</label><input id="modelSort" type="number" value="0"></div>
+              <div class="field"><label>Public</label><select id="modelActive"><option value="false">Draft / hidden</option><option value="true">Active / public</option></select></div>
+            </div>
+            <div class="actions"><button class="btn" onclick="saveModel()">Save Model</button><button class="btn dark" onclick="resetModelForm()">Clear</button></div>
+            <div id="modelStatus" class="status"></div>
+          </div>
+          <div class="panel"><h2>VMoto models</h2><div id="modelList" class="list"></div></div>
+        </div>
+      </section>
+
+      <section id="tab-variants" class="tab-panel hidden">
+        <div class="two">
+          <div class="panel sticky">
+            <h2>Version / battery</h2>
+            <div class="form-grid">
+              <div class="field full"><label>Model</label><select id="variantModel"></select></div>
+              <div class="field full"><label>Version name</label><input id="variantName"></div>
+              <div class="field"><label>Battery description</label><input id="variantBatteryDesc"></div>
+              <div class="field"><label>Battery capacity</label><input id="variantBatteryCapacity"></div>
+              <div class="field"><label>Quoted range</label><input id="variantRange"></div>
+              <div class="field"><label>Retail price (£)</label><input id="variantPrice" type="number" min="0" step="0.01"></div>
+              <div class="field full"><label>Charging information</label><textarea id="variantCharging"></textarea></div>
+              <div class="field"><label>First registration fee (£)</label><input id="variantFrf" type="number" min="0" step="0.01"></div>
+              <div class="field"><label>Road tax / VED (£)</label><input id="variantTax" type="number" min="0" step="0.01"></div>
+              <div class="field"><label>Sort order</label><input id="variantSort" type="number" value="0"></div>
+              <div class="field"><label>Active</label><select id="variantActive"><option value="true">Active</option><option value="false">Hidden</option></select></div>
+            </div>
+            <div class="actions"><button class="btn" onclick="saveVariant()">Save Version</button><button class="btn dark" onclick="resetVariantForm()">Clear</button></div>
+          </div>
+          <div class="panel"><h2>Versions / batteries</h2><div id="variantList" class="list"></div></div>
+        </div>
+      </section>
+
+      <section id="tab-colours" class="tab-panel hidden">
+        <div class="two">
+          <div class="panel sticky">
+            <h2>Colour</h2>
+            <div class="form-grid">
+              <div class="field full"><label>Version / battery</label><select id="colourVariant"></select></div>
+              <div class="field"><label>Colour name</label><input id="colourName"></div>
+              <div class="field"><label>Colour code</label><input id="colourCode"></div>
+              <div class="field full"><label>Image URL</label><input id="colourImage"></div>
+              <div class="field"><label>Sort order</label><input id="colourSort" type="number" value="0"></div>
+              <div class="field"><label>Active</label><select id="colourActive"><option value="true">Active</option><option value="false">Hidden</option></select></div>
+            </div>
+            <div class="actions"><button class="btn" onclick="saveColour()">Save Colour</button><button class="btn dark" onclick="resetColourForm()">Clear</button></div>
+          </div>
+          <div class="panel"><h2>Colours</h2><div id="colourList" class="list"></div></div>
+        </div>
+      </section>
+
+      <section id="tab-stock" class="tab-panel hidden">
+        <div class="two">
+          <div class="panel sticky">
+            <h2>Stock availability</h2>
+            <div class="form-grid">
+              <div class="field full"><label>Version / battery</label><select id="stockVariant" onchange="refreshStockColourOptions()"></select></div>
+              <div class="field full"><label>Colour</label><select id="stockColour"></select></div>
+              <div class="field"><label>Stock location</label><input id="stockLocation" placeholder="Halewood / Sywell / Maidenhead"></div>
+              <div class="field"><label>Source stock ID</label><input id="stockSourceId"></div>
+              <div class="field"><label>Quantity</label><input id="stockQty" type="number" min="0"></div>
+              <div class="field"><label>Status</label><select id="stockStatus"><option>Unknown</option><option>In Stock</option><option>Low Stock</option><option>Incoming</option><option>Out of Stock</option></select></div>
+              <div class="field"><label>Expected date</label><input id="stockExpected" type="date"></div>
+              <div class="field"><label>Source method</label><input id="stockMethod" value="Manual"></div>
+            </div>
+            <div class="actions"><button class="btn" onclick="saveStock()">Save Stock</button><button class="btn dark" onclick="resetStockForm()">Clear</button></div>
+          </div>
+          <div class="panel"><h2>VMoto stock</h2><div id="stockList" class="list"></div></div>
+        </div>
+      </section>
+
+      <section id="tab-faq" class="tab-panel hidden">
+        <div class="two">
+          <div class="panel sticky">
+            <h2>Approved FAQ answer</h2>
+            <div class="form-grid">
+              <div class="field"><label>Category</label><input id="faqCategory" value="General"></div>
+              <div class="field"><label>Model</label><select id="faqModel"><option value="">General — all VMoto</option></select></div>
+              <div class="field full"><label>Question</label><textarea id="faqQuestion"></textarea></div>
+              <div class="field full"><label>Approved answer</label><textarea id="faqAnswer"></textarea></div>
+              <div class="field"><label>Source</label><input id="faqSource" placeholder="Cameron Pyne / VMoto UK"></div>
+              <div class="field"><label>Source reference</label><input id="faqReference" placeholder="Email/date/document"></div>
+              <div class="field"><label>Status</label><select id="faqApproval"><option>Draft</option><option>Approved</option><option>Retired</option></select></div>
+              <div class="field"><label>Featured</label><select id="faqFeatured"><option value="false">No</option><option value="true">Yes</option></select></div>
+              <div class="field"><label>Sort order</label><input id="faqSort" type="number" value="0"></div>
+            </div>
+            <div class="actions"><button class="btn" onclick="saveFaq()">Save FAQ</button><button class="btn dark" onclick="resetFaqForm()">Clear</button></div>
+          </div>
+          <div>
+            <div class="panel"><h2>FAQ library</h2><div id="faqList" class="list"></div></div>
+            <div class="panel" id="questions"><h2>Customer questions</h2><div id="questionList" class="list"></div></div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<script>
+const client=getAdminSupabaseClient();
+let state={models:[],variants:[],colours:[],stock:[],faqs:[],questions:[]};
+let edit={model:null,variant:null,colour:null,stock:null,faq:null};
+
+function esc(v){return String(v??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));}
+function n(v){return v===""||v==null?null:Number(v)}
+function byId(list,id){return list.find(x=>String(x.id)===String(id))||null}
+function money(v){const x=Number(v);return Number.isFinite(x)?x.toLocaleString("en-GB",{style:"currency",currency:"GBP"}):"—"}
+function setTab(name){document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b.dataset.tab===name));document.querySelectorAll(".tab-panel").forEach(p=>p.classList.add("hidden"));document.getElementById("tab-"+name).classList.remove("hidden")}
+document.querySelectorAll(".tab").forEach(b=>b.addEventListener("click",()=>setTab(b.dataset.tab)));
+
+async function loadAll(){
+  const [hq,faq]=await Promise.all([
+    client.rpc("admin_get_vmoto_hq_v1"),
+    client.rpc("admin_get_vmoto_faq_hq_v1")
+  ]);
+  if(hq.error) throw hq.error;if(faq.error) throw faq.error;
+  const d=hq.data||{};state.models=d.models||[];state.variants=d.variants||[];state.colours=d.colours||[];state.stock=d.stock||[];
+  state.faqs=faq.data?.faqs||[];state.questions=faq.data?.questions||[];
+  refreshSelects();renderAll();
+}
+function refreshSelects(){
+  const modelOpts=state.models.map(m=>'<option value="'+m.id+'">'+esc(m.model_name)+'</option>').join("");
+  document.getElementById("variantModel").innerHTML=modelOpts;
+  document.getElementById("faqModel").innerHTML='<option value="">General — all VMoto</option>'+state.models.map(m=>'<option value="'+esc(m.slug)+'">'+esc(m.model_name)+'</option>').join("");
+  const variantOpts=state.variants.map(v=>{const m=byId(state.models,v.model_id);return '<option value="'+v.id+'">'+esc(m?.model_name||"Model")+' — '+esc(v.variant_name)+'</option>';}).join("");
+  document.getElementById("colourVariant").innerHTML=variantOpts;
+  document.getElementById("stockVariant").innerHTML=variantOpts;
+  refreshStockColourOptions();
+}
+function refreshStockColourOptions(){
+  const vid=document.getElementById("stockVariant").value;
+  document.getElementById("stockColour").innerHTML='<option value="">Any / not specified</option>'+state.colours.filter(c=>String(c.variant_id)===String(vid)).map(c=>'<option value="'+c.id+'">'+esc(c.colour_name)+'</option>').join("");
+}
+function renderAll(){renderModels();renderVariants();renderColours();renderStock();renderFaqs();renderQuestions()}
+function renderModels(){
+  document.getElementById("modelList").innerHTML=state.models.length?state.models.map(m=>'<div class="row"><div class="row-head"><div><strong>'+esc(m.model_name)+'</strong><div class="small">'+esc(m.model_type||"")+" · "+esc(m.slug)+'</div></div><span class="pill '+(m.is_active?"live":"draft")+'">'+(m.is_active?"PUBLIC":"DRAFT")+'</span></div><div class="small" style="margin-top:7px">'+esc(m.short_description||"No description yet")+'</div><div class="small" style="margin-top:7px">Base price: '+money(m.base_retail_price_gbp)+'</div><div class="actions"><button class="btn dark" onclick="editModel('+m.id+')">Edit</button>'+(m.is_active?'<a class="btn green" href="/vmoto-model.html?model='+encodeURIComponent(m.slug)+'" target="_blank">View Public Page</a>':"")+'</div></div>').join(""):'<div class="small">No VMoto models have been entered yet.</div>';
+}
+function renderVariants(){document.getElementById("variantList").innerHTML=state.variants.length?state.variants.map(v=>{const m=byId(state.models,v.model_id);return '<div class="row"><strong>'+esc(m?.model_name||"Model")+' — '+esc(v.variant_name)+'</strong><div class="small">'+esc(v.battery_capacity||v.battery_description||"Battery details TBC")+' · Range '+esc(v.quoted_range||"TBC")+'</div><div class="small">Retail '+money(v.retail_price_gbp)+'</div><div class="actions"><button class="btn dark" onclick="editVariant('+v.id+')">Edit</button></div></div>'}).join(""):'<div class="small">No versions yet.</div>'}
+function renderColours(){document.getElementById("colourList").innerHTML=state.colours.length?state.colours.map(c=>{const v=byId(state.variants,c.variant_id);const m=byId(state.models,v?.model_id);return '<div class="row"><strong>'+esc(c.colour_name)+'</strong><div class="small">'+esc(m?.model_name||"")+' — '+esc(v?.variant_name||"")+'</div><div class="actions"><button class="btn dark" onclick="editColour('+c.id+')">Edit</button></div></div>'}).join(""):'<div class="small">No colours yet.</div>'}
+function renderStock(){document.getElementById("stockList").innerHTML=state.stock.length?state.stock.map(s=>{const v=byId(state.variants,s.variant_id);const m=byId(state.models,v?.model_id);const col=byId(state.colours,s.colour_id);return '<div class="row"><strong>'+esc(m?.model_name||"")+' — '+esc(v?.variant_name||"")+'</strong><div class="small">'+esc(col?.colour_name||"Any colour")+' · '+esc(s.stock_location||"Location TBC")+' · '+esc(s.availability_status)+'</div><div class="small">Qty: '+esc(s.quantity_available??"—")+' · '+esc(s.source_method||"Manual")+'</div><div class="actions"><button class="btn dark" onclick="editStock('+s.id+')">Edit</button></div></div>'}).join(""):'<div class="small">No stock entries yet.</div>'}
+function renderFaqs(){document.getElementById("faqList").innerHTML=state.faqs.length?state.faqs.map(f=>{const m=state.models.find(x=>x.slug===f.model_slug);return '<div class="row"><div class="row-head"><strong>'+esc(f.question)+'</strong><span class="pill '+(f.approval_status==="Approved"?"live":"draft")+'">'+esc(f.approval_status)+'</span></div><div class="small">'+esc(m?.model_name||"General VMoto")+' · '+esc(f.category||"General")+'</div><div class="small" style="margin-top:6px">'+esc(f.answer).slice(0,240)+'</div><div class="actions"><button class="btn dark" onclick="editFaq('+f.id+')">Edit</button></div></div>'}).join(""):'<div class="small">No FAQs yet.</div>'}
+function renderQuestions(){document.getElementById("questionList").innerHTML=state.questions.length?state.questions.map(q=>'<div class="question"><strong>'+esc(q.question)+'</strong><div class="small">'+esc(q.customer_name||"Guest")+' · '+esc(q.customer_email||"No email")+' · '+esc(q.status)+'</div><div class="actions"><button class="btn dark" onclick="updateQuestion('+q.id+',\'Sent to VMoto\')">Sent to VMoto</button><button class="btn dark" onclick="updateQuestion('+q.id+',\'Answered\')">Answered</button><button class="btn dark" onclick="updateQuestion('+q.id+',\'Closed\')">Close</button></div></div>').join(""):'<div class="small">No customer FAQ questions yet.</div>'}
+
+function resetModelForm(){edit.model=null;["modelName","modelSlug","modelType","modelPrice","modelDescription","modelImage"].forEach(id=>document.getElementById(id).value="");document.getElementById("modelSort").value=0;document.getElementById("modelActive").value="false"}
+function editModel(id){const m=byId(state.models,id);if(!m)return;edit.model=id;document.getElementById("modelName").value=m.model_name||"";document.getElementById("modelSlug").value=m.slug||"";document.getElementById("modelType").value=m.model_type||"";document.getElementById("modelPrice").value=m.base_retail_price_gbp??"";document.getElementById("modelDescription").value=m.short_description||"";document.getElementById("modelImage").value=m.hero_image_url||"";document.getElementById("modelSort").value=m.sort_order||0;document.getElementById("modelActive").value=String(!!m.is_active);window.scrollTo({top:0,behavior:"smooth"})}
+async function saveModel(){const r=await client.rpc("admin_save_vmoto_model_v1",{p_id:edit.model,p_slug:document.getElementById("modelSlug").value,p_model_name:document.getElementById("modelName").value,p_model_type:document.getElementById("modelType").value,p_short_description:document.getElementById("modelDescription").value,p_hero_image_url:document.getElementById("modelImage").value,p_base_retail_price_gbp:n(document.getElementById("modelPrice").value),p_is_active:document.getElementById("modelActive").value==="true",p_sort_order:Number(document.getElementById("modelSort").value||0)});if(r.error)return alert(r.error.message);resetModelForm();await loadAll()}
+
+function resetVariantForm(){edit.variant=null;["variantName","variantBatteryDesc","variantBatteryCapacity","variantRange","variantPrice","variantCharging","variantFrf","variantTax"].forEach(id=>document.getElementById(id).value="");document.getElementById("variantSort").value=0;document.getElementById("variantActive").value="true"}
+function editVariant(id){const v=byId(state.variants,id);if(!v)return;edit.variant=id;document.getElementById("variantModel").value=v.model_id;document.getElementById("variantName").value=v.variant_name||"";document.getElementById("variantBatteryDesc").value=v.battery_description||"";document.getElementById("variantBatteryCapacity").value=v.battery_capacity||"";document.getElementById("variantRange").value=v.quoted_range||"";document.getElementById("variantPrice").value=v.retail_price_gbp??"";document.getElementById("variantCharging").value=v.charging_information||"";document.getElementById("variantFrf").value=v.first_registration_fee_gbp??"";document.getElementById("variantTax").value=v.road_tax_gbp??"";document.getElementById("variantSort").value=v.sort_order||0;document.getElementById("variantActive").value=String(!!v.is_active)}
+async function saveVariant(){const r=await client.rpc("admin_save_vmoto_variant_v1",{p_id:edit.variant,p_model_id:Number(document.getElementById("variantModel").value),p_variant_name:document.getElementById("variantName").value,p_battery_description:document.getElementById("variantBatteryDesc").value,p_battery_capacity:document.getElementById("variantBatteryCapacity").value,p_quoted_range:document.getElementById("variantRange").value,p_charging_information:document.getElementById("variantCharging").value,p_retail_price_gbp:n(document.getElementById("variantPrice").value),p_first_registration_fee_gbp:n(document.getElementById("variantFrf").value),p_road_tax_gbp:n(document.getElementById("variantTax").value),p_is_active:document.getElementById("variantActive").value==="true",p_sort_order:Number(document.getElementById("variantSort").value||0)});if(r.error)return alert(r.error.message);resetVariantForm();await loadAll()}
+
+function resetColourForm(){edit.colour=null;["colourName","colourCode","colourImage"].forEach(id=>document.getElementById(id).value="");document.getElementById("colourSort").value=0;document.getElementById("colourActive").value="true"}
+function editColour(id){const x=byId(state.colours,id);if(!x)return;edit.colour=id;document.getElementById("colourVariant").value=x.variant_id;document.getElementById("colourName").value=x.colour_name||"";document.getElementById("colourCode").value=x.colour_code||"";document.getElementById("colourImage").value=x.image_url||"";document.getElementById("colourSort").value=x.sort_order||0;document.getElementById("colourActive").value=String(!!x.is_active)}
+async function saveColour(){const r=await client.rpc("admin_save_vmoto_colour_v1",{p_id:edit.colour,p_variant_id:Number(document.getElementById("colourVariant").value),p_colour_name:document.getElementById("colourName").value,p_colour_code:document.getElementById("colourCode").value,p_image_url:document.getElementById("colourImage").value,p_is_active:document.getElementById("colourActive").value==="true",p_sort_order:Number(document.getElementById("colourSort").value||0)});if(r.error)return alert(r.error.message);resetColourForm();await loadAll()}
+
+function resetStockForm(){edit.stock=null;["stockLocation","stockSourceId","stockQty","stockExpected"].forEach(id=>document.getElementById(id).value="");document.getElementById("stockStatus").value="Unknown";document.getElementById("stockMethod").value="Manual";refreshStockColourOptions()}
+function editStock(id){const s=byId(state.stock,id);if(!s)return;edit.stock=id;document.getElementById("stockVariant").value=s.variant_id;refreshStockColourOptions();document.getElementById("stockColour").value=s.colour_id||"";document.getElementById("stockLocation").value=s.stock_location||"";document.getElementById("stockSourceId").value=s.source_stock_id||"";document.getElementById("stockQty").value=s.quantity_available??"";document.getElementById("stockStatus").value=s.availability_status||"Unknown";document.getElementById("stockExpected").value=s.expected_date||"";document.getElementById("stockMethod").value=s.source_method||"Manual"}
+async function saveStock(){const r=await client.rpc("admin_save_vmoto_stock_v1",{p_id:edit.stock,p_variant_id:Number(document.getElementById("stockVariant").value),p_colour_id:document.getElementById("stockColour").value?Number(document.getElementById("stockColour").value):null,p_stock_location:document.getElementById("stockLocation").value,p_source_stock_id:document.getElementById("stockSourceId").value,p_quantity_available:document.getElementById("stockQty").value===""?null:Number(document.getElementById("stockQty").value),p_availability_status:document.getElementById("stockStatus").value,p_expected_date:document.getElementById("stockExpected").value||null,p_source_method:document.getElementById("stockMethod").value||"Manual"});if(r.error)return alert(r.error.message);resetStockForm();await loadAll()}
+
+function resetFaqForm(){edit.faq=null;document.getElementById("faqCategory").value="General";document.getElementById("faqModel").value="";document.getElementById("faqQuestion").value="";document.getElementById("faqAnswer").value="";document.getElementById("faqSource").value="";document.getElementById("faqReference").value="";document.getElementById("faqApproval").value="Draft";document.getElementById("faqFeatured").value="false";document.getElementById("faqSort").value=0}
+function editFaq(id){const f=byId(state.faqs,id);if(!f)return;edit.faq=id;document.getElementById("faqCategory").value=f.category||"General";document.getElementById("faqModel").value=f.model_slug||"";document.getElementById("faqQuestion").value=f.question||"";document.getElementById("faqAnswer").value=f.answer||"";document.getElementById("faqSource").value=f.source_name||"";document.getElementById("faqReference").value=f.source_reference||"";document.getElementById("faqApproval").value=f.approval_status||"Draft";document.getElementById("faqFeatured").value=String(!!f.is_featured);document.getElementById("faqSort").value=f.sort_order||0}
+async function saveFaq(){const r=await client.rpc("admin_save_vmoto_faq_v1",{p_id:edit.faq,p_category:document.getElementById("faqCategory").value,p_question:document.getElementById("faqQuestion").value,p_answer:document.getElementById("faqAnswer").value,p_model_slug:document.getElementById("faqModel").value||null,p_territory_slug:null,p_source_name:document.getElementById("faqSource").value,p_source_reference:document.getElementById("faqReference").value,p_approval_status:document.getElementById("faqApproval").value,p_is_featured:document.getElementById("faqFeatured").value==="true",p_sort_order:Number(document.getElementById("faqSort").value||0)});if(r.error)return alert(r.error.message);resetFaqForm();await loadAll()}
+async function updateQuestion(id,status){const r=await client.rpc("admin_update_vmoto_faq_question_v1",{p_question_id:id,p_status:status,p_linked_faq_id:null});if(r.error)return alert(r.error.message);await loadAll()}
+
+(async function(){const allowed=await requireAdminSession();if(!allowed)return;document.documentElement.classList.remove("admin-auth-pending");try{await loadAll()}catch(error){console.error(error);alert("VMoto HQ could not be loaded.\n\n"+(error?.message||error))}})();
+</script>
+</body>
+</html>
