@@ -549,3 +549,23 @@ First-order consolidation:
 - paid motorcycles should move to the nominated UK receiver promptly unless the buyer is actively consolidating a first multi-bike order.
 
 No freight carrier, container size or destination-specific shipping method has been hard-coded. The platform records the actual nominated route for each Deal.
+
+
+## 1 October 2026 — Delivery separated from motorcycle commercial margin
+
+Commercial rule confirmed during AB-000026 testing:
+- UK Collection & Delivery remains a customer-facing charge and remains inside Customer Total.
+- The transport line is accounted for separately and is not assumed to be VAT-free.
+- Motorcycle commercial revenue is Motorcycle Sale Price + AnyBike Sourcing Fee.
+- Motorcycle / Deal Cost Basis is Agreed Seller Purchase Price plus genuine motorcycle/deal-specific costs such as prep/rectification, export documentation, deal administration and other genuine deal costs.
+- Do not create an artificial Move Motorcycles internal transport cost where no genuine supplier/accounting cost exists.
+- UK Collection & Delivery does not increase motorcycle commercial profit or motorcycle commercial margin.
+- Motorcycle VAT estimates exclude delivery; the final invoice VAT review remains authoritative for the transport line.
+
+Frontend alignment completed:
+- Deal 360 Commercial Setup no longer asks staff for an invented internal collection/delivery cost and explicitly describes the transport charge as separate from motorcycle margin.
+- Deal 360 Commercial Setup, Formal Offer and pre-sale summaries use “Motorcycle / Deal Cost Basis”, “Motorcycle Commercial Profit” and “Motorcycle Commercial Margin”.
+- Formal Offer preview calculates Customer Total including delivery, while profit/margin use only motorcycle price + sourcing fee against the motorcycle/deal cost basis.
+- The saved-offer fallback display was corrected so delivery cannot re-enter displayed commercial profit.
+- Global Buyer Deal Viability / AnyBike Offer uses the same separate transport treatment and clearer labels.
+- AI Matching Deal Viability keeps delivery out of the staff cost-entry workflow, saves delivery cost as zero and now explains that transport is handled separately.
