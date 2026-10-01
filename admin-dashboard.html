@@ -3091,6 +3091,7 @@ setText("kpiPrivateSellers", countSourceType([
 
     const actions = [];
     const seenReplies = new Set();
+    const pendingPaymentDealIds = new Set();
 
     (actionThreads || []).forEach(function(thread){
       if(!String(thread.last_sender || "").toLowerCase().includes("customer")){ return; }
@@ -3195,6 +3196,13 @@ setText("kpiPrivateSellers", countSourceType([
             purpose:row.allocation_purpose || "Customer payment"
           });
         }
+        if(row.deal_id){
+          const adviceStatus=String(row.advice_status || "");
+          const ledgerStatus=String(row.ledger_status || "");
+          if(ledgerStatus!=="Posted" && !["Rejected","Cancelled"].includes(adviceStatus)){
+            pendingPaymentDealIds.add(String(row.deal_id));
+          }
+        }
       });
 
       paymentAdviceMap.forEach(function(item){
@@ -3221,6 +3229,157 @@ setText("kpiPrivateSellers", countSourceType([
       });
     }catch(paymentAdviceError){
       console.warn("Authoritative payment actions could not be added to Dashboard:",paymentAdviceError);
+    }
+
+    /*
+      Deal 360 work actions are derived from transactional facts, not the stored
+      stage label. Empty/zero-bike Deals do not create work here.
+    */
+    try{
+      const [dealQueueResult,nextActionResult] = await Promise.all([
+        sb.rpc("admin_get_deal_queue"),
+        sb.rpc("admin_get_deal_next_actions_secure_v1")
+      ]);
+      if(dealQueueResult.error){ throw dealQueueResult.error; }
+      if(nextActionResult.error){ throw nextActionResult.error; }
+
+      const dealRows=Array.isArray(dealQueueResult.data)?dealQueueResult.data:[];
+      const nextByDeal=new Map();
+      (nextActionResult.data || []).forEach(function(row){
+        const key=String(row.deal_id || "");
+        if(key && !nextByDeal.has(key)){ nextByDeal.set(key,row); }
+      });
+
+      const actionableDeals=dealRows.filter(function(deal){
+        const status=String(deal.deal_status || "").toLowerCase();
+        return Number(deal.motorcycle_count || 0)>0 &&
+          !["completed","closed","lost","cancelled"].includes(status);
+      });
+
+      const customerIds=Array.from(new Set(actionableDeals.map(function(deal){
+        return String(deal.customer_id || "").trim();
+      }).filter(Boolean)));
+
+      const onboardingByCustomer=new Map();
+      if(customerIds.length){
+        const onboardingResult=await sb
+          .from("customer_buyer_onboarding")
+          .select("customer_id,approval_status,account_status")
+          .in("customer_id",customerIds);
+        if(!onboardingResult.error){
+          (onboardingResult.data || []).forEach(function(row){
+            onboardingByCustomer.set(String(row.customer_id),row);
+          });
+        }
+      }
+
+      const accountPairs=await Promise.all(actionableDeals.map(async function(deal){
+        const dealId=Number(deal.deal_id);
+        const result=await sb.rpc("admin_get_deal_customer_account",{p_deal_id:dealId});
+        if(result.error){ return [String(dealId),null]; }
+        const payload=Array.isArray(result.data)&&result.data.length===1?result.data[0]:result.data;
+        return [String(dealId),payload||null];
+      }));
+      const accountByDeal=new Map(accountPairs);
+
+      for(const deal of actionableDeals){
+        const dealId=String(deal.deal_id);
+        const next=nextByDeal.get(dealId)||{};
+        const onboarding=onboardingByCustomer.get(String(deal.customer_id||""))||{};
+        const approval=String(onboarding.approval_status||"");
+        const accountStatus=String(onboarding.account_status||"Active");
+        const purchaseApproved=["Approved","Approved with Exceptions"].includes(approval) &&
+          !["On Hold","Stopped"].includes(accountStatus);
+        const account=accountByDeal.get(dealId)||{};
+        const dealValue=Number(account.deal_value_gbp || deal.buyer_value_gbp || 0);
+        const customerBalance=Number(account.customer_balance_due_gbp ?? dealValue);
+        const customerReceived=Number(account.customer_money_received_gbp || 0);
+        const depositOutstanding=Number(next.deposit_outstanding_gbp || 0);
+        const bike=next.motorcycle || deal.deal_title || "Motorcycle";
+        const customer=deal.buyer_business_name || deal.buyer_contact_name || deal.buyer_email || "Buyer";
+        const country=deal.buyer_country || "";
+        const baseUrl="admin-enquiries.html?deal="+encodeURIComponent(deal.deal_id);
+        const secured=next.bike_secured===true || Number(deal.secured_count||0)>0;
+
+        // Purchase clearance has priority over committing AnyBike money.
+        if(!purchaseApproved){ continue; }
+
+        if(pendingPaymentDealIds.has(dealId)){ continue; }
+
+        if(depositOutstanding>0.009){
+          // Deposit has already been requested by the accepted-offer workflow.
+          // Waiting for the buyer is not an admin task until money is reported.
+          continue;
+        }
+
+        if(!secured && String(next.primary_action||"")==="Final Seller Check"){
+          actions.push(createDashboardAction({
+            group:"sales",priority:"urgent",icon:"",type:"Seller check",
+            title:"Complete Final Seller Check",customer:customer,bike:bike,country:country,assigned:"Bike Sales",
+            preview:"Deposit/payment gate is clear. Reconfirm the seller, price and motorcycle before AnyBike commits to purchase.",
+            createdAt:deal.updated_at || deal.latest_activity_at,
+            age:timeAgo(deal.updated_at || deal.latest_activity_at),
+            url:baseUrl+"&tab=seller",openLabel:"Complete seller check →"
+          }));
+          continue;
+        }
+
+        if(!secured && (next.purchase_ready===true || String(next.primary_action||"")==="Ready to Purchase")){
+          actions.push(createDashboardAction({
+            group:"sales",priority:"urgent",icon:"",type:"Purchase",
+            title:"Secure Motorcycle / Raise PO",customer:customer,bike:bike,country:country,assigned:"Bike Sales",
+            preview:"Commercial, seller, VAT, shipping and customer deposit gates are clear. Complete the purchase security step.",
+            createdAt:deal.updated_at || deal.latest_activity_at,
+            age:timeAgo(deal.updated_at || deal.latest_activity_at),
+            url:baseUrl+"&tab=seller",openLabel:"Secure motorcycle →"
+          }));
+          continue;
+        }
+
+        if(secured && dealValue>0 && customerBalance>0.009){
+          actions.push(createDashboardAction({
+            group:"accounts",priority:"high",icon:"",type:"Customer balance",
+            title:"Request Customer Balance",customer:customer,bike:bike,country:country,assigned:"Accounts",
+            preview:"Customer has paid "+money(customerReceived)+". Remaining accepted balance: "+money(customerBalance)+".",
+            createdAt:deal.updated_at || deal.latest_activity_at,
+            age:timeAgo(deal.updated_at || deal.latest_activity_at),
+            url:baseUrl+"&tab=payment",openLabel:"Request balance →"
+          }));
+          continue;
+        }
+
+        if(secured && dealValue>0 && customerBalance<=0.009){
+          const operationsResult=await sb.rpc("admin_get_deal_operations_v4",{p_deal_id:Number(deal.deal_id)});
+          if(!operationsResult.error){
+            const operationsRows=Array.isArray(operationsResult.data)?operationsResult.data:[];
+            const op=operationsRows[0]||null;
+            if(op && op.operations_complete!==true && String(op.collection_status||"").toLowerCase()!=="collected"){
+              if(op.collection_ready_for_move===true && !op.move_shipment_id){
+                actions.push(createDashboardAction({
+                  group:"operations",priority:"operations",icon:"",type:"Collection",
+                  title:"Book Collection / Send to Move",customer:customer,bike:bike,country:country,assigned:"Operations",
+                  preview:"Customer funds are clear and collection details are ready for Move Motorcycles.",
+                  createdAt:deal.updated_at || deal.latest_activity_at,
+                  age:timeAgo(deal.updated_at || deal.latest_activity_at),
+                  url:baseUrl+"&tab=collection",openLabel:"Book collection →"
+                }));
+              }else if(op.collection_ready_for_move!==true){
+                const missing=Array.isArray(op.collection_missing_fields)?op.collection_missing_fields:[];
+                actions.push(createDashboardAction({
+                  group:"operations",priority:"operations",icon:"",type:"Collection readiness",
+                  title:"Complete Collection Readiness",customer:customer,bike:bike,country:country,assigned:"Operations",
+                  preview:missing.length ? "Missing: "+missing.join(", ") : "Complete the seller and collection details before booking Move.",
+                  createdAt:deal.updated_at || deal.latest_activity_at,
+                  age:timeAgo(deal.updated_at || deal.latest_activity_at),
+                  url:baseUrl+"&tab=collection",openLabel:"Complete collection details →"
+                }));
+              }
+            }
+          }
+        }
+      }
+    }catch(dealActionError){
+      console.warn("Authoritative Deal 360 actions could not be added to Dashboard:",dealActionError);
     }
 
     try{
