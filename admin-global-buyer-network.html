@@ -339,11 +339,12 @@
         <div class="seller-grid">
           <div class="seller-field">
             <label for="aboCustomerPrice">Motorcycle Price (£)</label>
-            <input id="aboCustomerPrice" type="text" inputmode="decimal" placeholder="£0.00" onfocus="focusAnyBikeOfferMoney(this)" oninput="calculateAnyBikeOffer()" onblur="formatAnyBikeOfferMoney(this)">
+            <input id="aboCustomerPrice" type="text" inputmode="decimal" placeholder="£0.00" onfocus="focusAnyBikeOfferMoney(this)" oninput="syncAnyBikeOfferSourcingFee(false);calculateAnyBikeOffer()" onblur="formatAnyBikeOfferMoney(this)">
           </div>
           <div class="seller-field">
-            <label for="aboAnyBikeFee">AnyBike Service Fee (£)</label>
-            <input id="aboAnyBikeFee" type="text" inputmode="decimal" placeholder="£0.00" onfocus="focusAnyBikeOfferMoney(this)" oninput="calculateAnyBikeOffer()" onblur="formatAnyBikeOfferMoney(this)">
+            <label for="aboAnyBikeFee">AnyBike Sourcing Fee (£)</label>
+            <input id="aboAnyBikeFee" type="text" inputmode="decimal" placeholder="£0.00" data-fee-override="false" onfocus="focusAnyBikeOfferMoney(this)" oninput="this.dataset.feeOverride='true';calculateAnyBikeOffer()" onblur="formatAnyBikeOfferMoney(this)">
+            <small style="display:block;margin-top:5px;color:#888">Automatic: 8% of Motorcycle Price, rounded to nearest £5, minimum £395. <button type="button" style="margin:4px 0 0;padding:3px 8px;font-size:10px" onclick="syncAnyBikeOfferSourcingFee(true);return false;">Use automatic fee</button></small>
           </div>
           <div class="seller-field"><label>Customer Offer Total</label><div id="aboCustomerTotal" class="seller-review-value">-</div></div>
           <div class="seller-field"><label>Projected AnyBike Profit</label><div id="aboProjectedProfit" class="seller-review-value">-</div></div>
@@ -3293,6 +3294,22 @@ function anybikeOfferNumber(id){
   return Number.isFinite(n) && n>=0 ? n : 0;
 }
 
+function anybikeSourcingFeeFromPrice(price){
+  const n=Number(price);
+  if(!Number.isFinite(n) || n<=0) return 0;
+  return Math.max(395,Math.round((n*0.08)/5)*5);
+}
+
+function syncAnyBikeOfferSourcingFee(force){
+  const price=anybikeOfferNumber("aboCustomerPrice");
+  const feeEl=document.getElementById("aboAnyBikeFee");
+  if(!feeEl) return;
+  if(!force && feeEl.dataset.feeOverride==="true") return;
+  feeEl.value="£"+anybikeSourcingFeeFromPrice(price).toFixed(2);
+  feeEl.dataset.feeOverride="false";
+  calculateAnyBikeOffer();
+}
+
 function focusAnyBikeOfferMoney(el){
   if(!el) return;
   const n=anybikeOfferNumber(el.id);
@@ -3462,8 +3479,10 @@ async function openAnyBikeOffer(matchId){
 
   document.getElementById("aboCustomerPrice").value="£"+Number(startingPrice || 0).toFixed(2);
   const savedOfferFee=Number(match.offer_anybike_fee_gbp || 0);
-  const viabilityFee=Number(viability.anybike_fee_gbp || 0);
-  document.getElementById("aboAnyBikeFee").value="£"+Number(savedOfferFee>0 ? savedOfferFee : viabilityFee).toFixed(2);
+  const automaticFee=anybikeSourcingFeeFromPrice(startingPrice);
+  const feeEl=document.getElementById("aboAnyBikeFee");
+  feeEl.value="£"+Number(savedOfferFee>0 ? savedOfferFee : automaticFee).toFixed(2);
+  feeEl.dataset.feeOverride=savedOfferFee>0 && Math.abs(savedOfferFee-automaticFee)>0.009 ? "true" : "false";
   document.getElementById("aboSaleBasis").value=match.offer_sale_basis || "Trade / Export Sale";
   document.getElementById("aboOfferTerms").value=match.offer_terms_text || "";
   document.getElementById("aboDeliveryType").value=match.offer_delivery_type || "Buyer Arranged / Collection";
@@ -3790,7 +3809,7 @@ async function sendAnyBikeOffer(){
   const confirmed=window.confirm(
     "Send this Deal 360 Formal Offer to the customer now?\n\n"+
     "Motorcycle: "+money(motorcyclePrice)+"\n"+
-    "AnyBike service fee: "+money(anybikeFee)+"\n"+
+    "AnyBike sourcing fee: "+money(anybikeFee)+"\n"+
     "Delivery: "+money(deliveryCharge)+"\n"+
     "Customer total: "+money(customerTotal)+"\n"+
     "Deposit due on acceptance: "+money(depositAmount)+"\n"+
