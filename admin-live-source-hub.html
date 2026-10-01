@@ -232,22 +232,43 @@ async function refreshSource(id,event,button){
   const st=document.getElementById("refresh-"+id);
   const btn=button||document.querySelector('[data-refresh-source="'+id+'"]');
   if(btn){btn.disabled=true;btn.textContent="Refreshing…";}
-  st.className="status";st.textContent="Refreshing source…";
+  st.className="status";st.textContent="Starting full source refresh…";
+
   try{
-    const {data,error}=await sb().functions.invoke("refresh-live-source",{body:{connector_id:Number(id),chunk_size:20}});
-    if(error) throw error;
-    if(data?.error){st.className="status bad";st.textContent=data.error;return}
-    st.className=data?.synced_count>0?"status good":"status";
-    st.textContent=data?.message||("Discovered "+(data?.discovered_count||0)+" · synced "+(data?.synced_count||0));
+    let finalData=null;
+    for(let pass=0;pass<100;pass++){
+      const {data,error}=await sb().functions.invoke("refresh-live-source",{body:{connector_id:Number(id),chunk_size:20}});
+      if(error) throw error;
+      if(data?.error){throw new Error(data.error);}
+      finalData=data||{};
+      const cursor=Number(finalData.cursor||0);
+      const total=Number(finalData.total||finalData.discovered_count||0);
+      st.className="status";
+      st.textContent=finalData.completed
+        ? (finalData.message||"Source refresh completed.")
+        : ("Refreshing BMW source… "+cursor.toLocaleString("en-GB")+" / "+total.toLocaleString("en-GB")+" motorcycles processed");
+      if(finalData.completed) break;
+      await new Promise(resolve=>setTimeout(resolve,150));
+    }
+
+    if(finalData && !finalData.completed){
+      throw new Error("BMW source refresh did not complete within the safety limit. It can be resumed by pressing Refresh Source again.");
+    }
+
+    st.className="status good";
+    st.textContent=(finalData?.message||"BMW source refresh completed.")+
+      (finalData?.discovered_count!=null?" · "+Number(finalData.discovered_count).toLocaleString("en-GB")+" discovered":"");
+
     await loadHub();
     const current=document.getElementById("connectorFilter").value;
     if(Number(current)===Number(id)){
-      document.getElementById("makeFilter").value="";
       await loadSourceFacets();
-      document.getElementById("makeFilter").value="";
-      refreshModelOptions("");
-      document.getElementById("modelFilter").value="";
-      await loadItems();
+      const requestId=Number(document.getElementById("requestSelect")?.value||0);
+      if(requestId){
+        await applySelectedBuyerRequest();
+      }else{
+        await loadItems();
+      }
     }
   }catch(e){
     st.className="status bad";
