@@ -95,7 +95,7 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
 </div>
 <script>
 const sb=()=>getAdminSupabaseClient();
-let hub=null,items=[],buyers=[],selected=new Set(),sourceFacets={makes:[],models:[]};
+let hub=null,items=[],buyers=[],selected=new Set(),sourceFacets={makes:[],models:[]},buyerRequests=[];
 const sourcingParams=new URLSearchParams(location.search);
 function sourcingContextQuery(extra){
   const p=new URLSearchParams();
@@ -166,13 +166,20 @@ async function loadSourceFacets(){
   if(previousMake && makes.includes(previousMake)) makeEl.value=previousMake;
   refreshModelOptions(previousModel);
 }
+function normaliseModelName(value){
+  return String(value||"").toUpperCase().replace(/[^A-Z0-9]/g,"");
+}
 function refreshModelOptions(previousModel){
   const make=document.getElementById("makeFilter").value;
   const modelEl=document.getElementById("modelFilter");
   const rows=(sourceFacets.models||[]).filter(x=>!make||x.make===make);
   const models=[...new Set(rows.map(x=>x.model))].sort((a,b)=>String(a).localeCompare(String(b)));
   modelEl.innerHTML='<option value="">All models</option>'+models.map(m=>'<option value="'+esc(m)+'">'+esc(m)+'</option>').join("");
-  if(previousModel && models.includes(previousModel)) modelEl.value=previousModel;
+  if(previousModel){
+    const exact=models.find(m=>m===previousModel);
+    const equivalent=models.find(m=>normaliseModelName(m)===normaliseModelName(previousModel));
+    if(exact||equivalent) modelEl.value=exact||equivalent;
+  }
   if(!rows.length&&make)modelEl.innerHTML='<option value="">No live models for this make</option>';
 }
 async function loadHub(){
@@ -257,7 +264,30 @@ async function loadItems(){
   const status=document.getElementById("statusFilter").value||null;
   const {data,error}=await sb().rpc("admin_get_live_source_items_v1",{p_connector_id:cid,p_make:make,p_model:model,p_status:status,p_limit:2000});
   if(error){st.className="status bad";st.textContent=error.message;return}
-  items=data||[];renderItems();st.className="status";st.textContent=items.length+" motorcycles shown · "+selected.size+" selected";
+  let rows=data||[];
+
+  const requestId=Number(document.getElementById("requestSelect")?.value||0);
+  const request=buyerRequests.find(r=>Number(r.id)===requestId)||null;
+  if(request){
+    const reqModel=normaliseModelName(request.model);
+    rows=rows.filter(function(i){
+      if(request.make && String(i.make||"").toLowerCase()!==String(request.make).toLowerCase()) return false;
+      if(reqModel && normaliseModelName(i.model)!==reqModel && !normaliseModelName(i.model).includes(reqModel) && !reqModel.includes(normaliseModelName(i.model))) return false;
+      if(request.year_from && Number(i.year||0)<Number(request.year_from)) return false;
+      if(request.year_to && Number(i.year||0)>Number(request.year_to)) return false;
+      if(request.mileage_max && Number(i.mileage||0)>Number(request.mileage_max)) return false;
+      if(request.max_price_gbp && Number(i.source_price_gbp||0)>Number(request.max_price_gbp)) return false;
+      return true;
+    });
+  }
+
+  items=rows;
+  [...selected].forEach(function(id){
+    if(!items.some(i=>Number(i.id)===Number(id))) selected.delete(id);
+  });
+  renderItems();
+  st.className="status";
+  st.textContent=items.length+" motorcycles shown"+(request?" for this buyer request":"")+" · "+selected.size+" selected";
 }
 function renderItems(){
   const el=document.getElementById("bikes");
@@ -283,13 +313,47 @@ async function loadBuyers(){
 }
 async function loadRequests(){
   const bid=document.getElementById("buyerSelect").value;const el=document.getElementById("requestSelect");
+  buyerRequests=[];
   if(!bid){el.innerHTML='<option value="">Select buyer first</option>';return []}
-  const {data}=await sb().from("global_buyer_request_items").select("id,make,model,year_from,year_to,max_price_gbp").eq("buyer_id",bid).order("id",{ascending:false});
-  const rows=data||[];
-  el.innerHTML='<option value="">General sourcing</option>'+rows.map(r=>'<option value="'+r.id+'">'+esc([r.make,r.model,r.year_from&&("from "+r.year_from)].filter(Boolean).join(" · "))+'</option>').join("");
-  return rows;
+  const {data,error}=await sb().from("global_buyer_request_items")
+    .select("id,make,model,year_from,year_to,mileage_max,max_price_gbp,condition_preference,notes")
+    .eq("buyer_id",bid).order("id",{ascending:false});
+  if(error){el.innerHTML='<option value="">Could not load requests</option>';return []}
+  buyerRequests=data||[];
+  el.innerHTML='<option value="">General sourcing</option>'+buyerRequests.map(r=>'<option value="'+r.id+'">'+esc([
+    r.make,r.model,
+    r.year_from&&("from "+r.year_from),
+    r.mileage_max&&(Number(r.mileage_max).toLocaleString("en-GB")+" miles max")
+  ].filter(Boolean).join(" · "))+'</option>').join("");
+  return buyerRequests;
 }
-document.getElementById("buyerSelect").addEventListener("change",loadRequests);
+
+async function applySelectedBuyerRequest(){
+  selected.clear();
+  const id=Number(document.getElementById("requestSelect").value||0);
+  const req=buyerRequests.find(r=>Number(r.id)===id)||null;
+  if(!req){await loadItems();return;}
+
+  if(req.make){
+    const makeOption=[...document.getElementById("makeFilter").options]
+      .find(o=>String(o.value).toLowerCase()===String(req.make).toLowerCase());
+    if(makeOption) document.getElementById("makeFilter").value=makeOption.value;
+  }
+  refreshModelOptions(req.model||"");
+  if(req.model){
+    const modelOption=[...document.getElementById("modelFilter").options]
+      .find(o=>normaliseModelName(o.value)===normaliseModelName(req.model));
+    if(modelOption) document.getElementById("modelFilter").value=modelOption.value;
+  }
+  document.getElementById("statusFilter").value="live";
+  await loadItems();
+}
+
+document.getElementById("buyerSelect").addEventListener("change",async function(){
+  await loadRequests();
+  selected.clear();
+});
+document.getElementById("requestSelect").addEventListener("change",applySelectedBuyerRequest);
 
 async function createBatch(){
   const bid=Number(document.getElementById("buyerSelect").value),rid=document.getElementById("requestSelect").value?Number(document.getElementById("requestSelect").value):null;
