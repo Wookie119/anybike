@@ -3172,79 +3172,31 @@ setText("kpiPrivateSellers", countSourceType([
 
     /*
       Sourced-bike buyer interest must appear as a motorcycle-specific Sales
-      action. These are Deal 360 records created when a buyer ticks Interested.
+      action. Read it through the admin RPC so dashboard visibility is not
+      dependent on browser table policies.
     */
     const sourcedInterestCustomerIds=new Set();
     try{
-      const candidateResult=await sb
-        .from("anybike_deal_candidates")
-        .select("id,deal_id,make,model,variant,year,candidate_status,availability_status,created_at")
-        .eq("candidate_status","Interested");
+      const sourcedInterestResult=await sb.rpc("admin_get_sourced_interest_actions_v1");
+      if(sourcedInterestResult.error){ throw sourcedInterestResult.error; }
 
-      if(candidateResult.error){ throw candidateResult.error; }
-
-      const candidates=(candidateResult.data || []).filter(function(candidate){
-        return String(candidate.availability_status || "Not Checked")!=="Confirmed Available";
-      });
-
-      const dealIds=[...new Set(candidates.map(function(candidate){
-        return Number(candidate.deal_id || 0);
-      }).filter(Boolean))];
-
-      let dealMap=new Map();
-      let buyerMap=new Map();
-
-      if(dealIds.length){
-        const dealsResult=await sb
-          .from("anybike_deals")
-          .select("id,buyer_id,customer_id,title,updated_at")
-          .in("id",dealIds);
-
-        if(dealsResult.error){ throw dealsResult.error; }
-
-        (dealsResult.data || []).forEach(function(deal){
-          dealMap.set(String(deal.id),deal);
-          if(deal.customer_id) sourcedInterestCustomerIds.add(String(deal.customer_id));
-        });
-
-        const buyerIds=[...new Set((dealsResult.data || []).map(function(deal){
-          return Number(deal.buyer_id || 0);
-        }).filter(Boolean))];
-
-        if(buyerIds.length){
-          const buyersResult=await sb
-            .from("global_buyer_network")
-            .select("id,business_name,contact_name,email,country")
-            .in("id",buyerIds);
-
-          if(!buyersResult.error){
-            (buyersResult.data || []).forEach(function(buyer){
-              buyerMap.set(String(buyer.id),buyer);
-            });
-          }
-        }
-      }
-
-      candidates.forEach(function(candidate){
-        const deal=dealMap.get(String(candidate.deal_id)) || {};
-        const buyer=buyerMap.get(String(deal.buyer_id || "")) || {};
-        const customer=buyer.contact_name || buyer.business_name || buyer.email || "Buyer";
-        const bike=[candidate.year,candidate.make,candidate.model,candidate.variant].filter(Boolean).join(" ") || deal.title || "Motorcycle";
+      (sourcedInterestResult.data || []).forEach(function(item){
+        if(item.customer_id) sourcedInterestCustomerIds.add(String(item.customer_id));
 
         actions.push(createDashboardAction({
           group:"sales",
           priority:"urgent",
           icon:"🏍",
           type:"Buyer interested",
-          title:"Buyer interested in "+bike,
-          customer:customer,
-          bike:bike,
-          country:buyer.country || "",
+          title:"Buyer interested in "+(item.motorcycle_title || "motorcycle"),
+          customer:item.buyer_name || item.buyer_business_name || item.buyer_email || "Buyer",
+          bike:item.motorcycle_title || "Motorcycle",
+          country:item.buyer_country || "",
           assigned:"Bike Sales",
           preview:"Buyer selected this motorcycle. Check the seller and confirm current availability and purchase terms.",
-          age:timeAgo(candidate.created_at || deal.updated_at),
-          createdAt:candidate.created_at || deal.updated_at,
-          url:"admin-enquiries.html?deal="+encodeURIComponent(candidate.deal_id)+"&candidate="+encodeURIComponent(candidate.id),
+          age:timeAgo(item.created_at),
+          createdAt:item.created_at,
+          url:"admin-enquiries.html?deal="+encodeURIComponent(item.deal_id)+"&candidate="+encodeURIComponent(item.candidate_id),
           openLabel:"Check seller availability →"
         }));
       });
