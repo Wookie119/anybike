@@ -1314,14 +1314,113 @@ loadLiveStock();
 
 <script>
 (function(){
+  let homeNextActionState=null;
+
+  const HOME_NEXT_I18N={
+    en:{
+      kicker:"Your next action",waiting:"Waiting for: ",also:"Also needs your attention",alsoMore:n=>"Also needs your attention · "+n+" more",
+      depositTitle:"Pay the required deposit",depositText:"Your motorcycle purchase is waiting for the outstanding deposit. Open Accounts & Documents to complete the next payment step.",depositBtn:"PAY DEPOSIT →",depositShort:"Pay deposit",
+      offerTitle:n=>n===1?"Review your AnyBike offer":"Review your AnyBike offers",offerText:n=>n===1?"A formal AnyBike offer is waiting for your decision. Review the motorcycle, price and terms before responding.":n+" formal AnyBike offers are waiting for your decision.",offerBtn:n=>"REVIEW OFFER"+(n===1?"":"S")+" →",offerShort:n=>"Review offer"+(n===1?"":"s"),
+      matchesTitle:"Review your motorcycle matches",matchesText:n=>"AnyBike has "+n+" motorcycle"+(n===1?"":"s")+" waiting for your decision. Mark the bikes you want us to check and save your choices.",matchesBtn:"REVIEW MATCHES →",matchesShort:"Review matches",
+      checkingTitle:n=>"AnyBike is checking "+n+" motorcycle"+(n===1?"":"s")+" for you",checkingText:"Your choices are saved. AnyBike is checking seller availability and current purchase terms. There is nothing you need to do right now; open My AnyBike to follow progress.",checkingBtn:"VIEW PROGRESS →",checkingShort:"View sourcing progress",
+      purchaseTitle:"Track your motorcycle purchase",purchaseText:"Your AnyBike purchase is in progress. Open My AnyBike to see the latest payment, collection and shipping status.",purchaseBtn:"VIEW PURCHASE →",purchaseShort:"Track purchase",
+      openTitle:"Open My AnyBike",openText:"Your dashboard brings your motorcycle requests, matches, offers, purchases, messages and account setup into one place.",openBtn:"OPEN MY ANYBIKE →"
+    },
+    fr:{
+      kicker:"Votre prochaine action",waiting:"En attente de : ",also:"Autres éléments à traiter",alsoMore:n=>"Autres éléments à traiter · "+n+" de plus",
+      depositTitle:"Payer l’acompte requis",depositText:"Votre achat de moto est en attente de l’acompte restant dû. Ouvrez Comptes et documents pour effectuer la prochaine étape de paiement.",depositBtn:"PAYER L’ACOMPTE →",depositShort:"Payer l’acompte",
+      offerTitle:n=>n===1?"Consulter votre offre AnyBike":"Consulter vos offres AnyBike",offerText:n=>n===1?"Une offre officielle AnyBike attend votre décision. Vérifiez la moto, le prix et les conditions avant de répondre.":n+" offres officielles AnyBike attendent votre décision.",offerBtn:n=>"CONSULTER "+(n===1?"L’OFFRE":"LES OFFRES")+" →",offerShort:n=>n===1?"Consulter l’offre":"Consulter les offres",
+      matchesTitle:"Examiner vos motos proposées",matchesText:n=>"AnyBike a "+n+" moto"+(n===1?"":"s")+" en attente de votre décision. Cochez celles que vous souhaitez que nous vérifiions, puis enregistrez vos choix.",matchesBtn:"EXAMINER LES MOTOS →",matchesShort:"Examiner les motos",
+      checkingTitle:n=>"AnyBike vérifie "+n+" moto"+(n===1?"":"s")+" pour vous",checkingText:"Vos choix sont enregistrés. AnyBike vérifie la disponibilité auprès du vendeur et les conditions d’achat actuelles. Vous n’avez rien à faire pour le moment ; ouvrez Mon AnyBike pour suivre l’avancement.",checkingBtn:"VOIR L’AVANCEMENT →",checkingShort:"Voir l’avancement",
+      purchaseTitle:"Suivre votre achat de moto",purchaseText:"Votre achat AnyBike est en cours. Ouvrez Mon AnyBike pour voir l’état du paiement, de la collecte et de l’expédition.",purchaseBtn:"SUIVRE L’ACHAT →",purchaseShort:"Suivre l’achat",
+      openTitle:"Ouvrir Mon AnyBike",openText:"Votre tableau de bord regroupe vos demandes de motos, sélections, offres, achats, messages et la configuration de votre compte.",openBtn:"OUVRIR MON ANYBIKE →"
+    },
+    de:{
+      kicker:"Ihr nächster Schritt",waiting:"Warten auf: ",also:"Benötigt ebenfalls Ihre Aufmerksamkeit",alsoMore:n=>"Benötigt ebenfalls Ihre Aufmerksamkeit · "+n+" weitere",
+      depositTitle:"Erforderliche Anzahlung zahlen",depositText:"Für Ihren Motorradkauf ist noch die Anzahlung fällig. Öffnen Sie Konten & Dokumente, um den nächsten Zahlungsschritt abzuschließen.",depositBtn:"ANZAHLUNG ZAHLEN →",depositShort:"Anzahlung zahlen",
+      offerTitle:n=>n===1?"Ihr AnyBike-Angebot prüfen":"Ihre AnyBike-Angebote prüfen",offerText:n=>n===1?"Ein formelles AnyBike-Angebot wartet auf Ihre Entscheidung. Prüfen Sie Motorrad, Preis und Bedingungen.":n+" formelle AnyBike-Angebote warten auf Ihre Entscheidung.",offerBtn:n=>"ANGEBOT"+(n===1?"":"E")+" PRÜFEN →",offerShort:n=>n===1?"Angebot prüfen":"Angebote prüfen",
+      matchesTitle:"Ihre Motorrad-Vorschläge prüfen",matchesText:n=>"AnyBike hat "+n+" Motorrad"+(n===1?"":"e")+" zur Prüfung für Sie. Markieren Sie die Motorräder, die wir prüfen sollen, und speichern Sie Ihre Auswahl.",matchesBtn:"VORSCHLÄGE PRÜFEN →",matchesShort:"Vorschläge prüfen",
+      checkingTitle:n=>"AnyBike prüft "+n+" Motorrad"+(n===1?"":"e")+" für Sie",checkingText:"Ihre Auswahl ist gespeichert. AnyBike prüft Verfügbarkeit und aktuelle Kaufbedingungen beim Verkäufer. Im Moment müssen Sie nichts tun; öffnen Sie Mein AnyBike, um den Fortschritt zu sehen.",checkingBtn:"FORTSCHRITT ANSEHEN →",checkingShort:"Fortschritt ansehen",
+      purchaseTitle:"Motorradkauf verfolgen",purchaseText:"Ihr AnyBike-Kauf läuft. Öffnen Sie Mein AnyBike, um den aktuellen Zahlungs-, Abhol- und Versandstatus zu sehen.",purchaseBtn:"KAUF ANSEHEN →",purchaseShort:"Kauf verfolgen",
+      openTitle:"Mein AnyBike öffnen",openText:"Ihr Dashboard bündelt Motorrad-Anfragen, Vorschläge, Angebote, Käufe, Nachrichten und Kontoeinrichtung.",openBtn:"MEIN ANYBIKE ÖFFNEN →"
+    },
+    es:{
+      kicker:"Tu siguiente acción",waiting:"Esperando a: ",also:"También requiere tu atención",alsoMore:n=>"También requiere tu atención · "+n+" más",
+      depositTitle:"Paga el depósito requerido",depositText:"La compra de tu motocicleta está esperando el depósito pendiente. Abre Cuentas y documentos para completar el siguiente paso del pago.",depositBtn:"PAGAR DEPÓSITO →",depositShort:"Pagar depósito",
+      offerTitle:n=>n===1?"Revisa tu oferta de AnyBike":"Revisa tus ofertas de AnyBike",offerText:n=>n===1?"Hay una oferta formal de AnyBike esperando tu decisión. Revisa la moto, el precio y las condiciones antes de responder.":n+" ofertas formales de AnyBike esperan tu decisión.",offerBtn:n=>"REVISAR "+(n===1?"OFERTA":"OFERTAS")+" →",offerShort:n=>n===1?"Revisar oferta":"Revisar ofertas",
+      matchesTitle:"Revisa tus motos propuestas",matchesText:n=>"AnyBike tiene "+n+" motocicleta"+(n===1?"":"s")+" esperando tu decisión. Marca las que quieras que comprobemos y guarda tus elecciones.",matchesBtn:"REVISAR MOTOS →",matchesShort:"Revisar motos",
+      checkingTitle:n=>"AnyBike está comprobando "+n+" motocicleta"+(n===1?"":"s")+" para ti",checkingText:"Tus elecciones están guardadas. AnyBike está comprobando la disponibilidad con el vendedor y las condiciones actuales de compra. No necesitas hacer nada ahora; abre Mi AnyBike para seguir el progreso.",checkingBtn:"VER PROGRESO →",checkingShort:"Ver progreso",
+      purchaseTitle:"Sigue la compra de tu motocicleta",purchaseText:"Tu compra de AnyBike está en curso. Abre Mi AnyBike para ver el estado del pago, recogida y envío.",purchaseBtn:"VER COMPRA →",purchaseShort:"Seguir compra",
+      openTitle:"Abrir Mi AnyBike",openText:"Tu panel reúne tus solicitudes de motocicletas, selecciones, ofertas, compras, mensajes y configuración de cuenta.",openBtn:"ABRIR MI ANYBIKE →"
+    },
+    ar:{
+      kicker:"إجراءك التالي",waiting:"في انتظار: ",also:"يحتاج أيضاً إلى انتباهك",alsoMore:n=>"يحتاج أيضاً إلى انتباهك · "+n+" إضافية",
+      depositTitle:"ادفع العربون المطلوب",depositText:"شراء دراجتك النارية بانتظار العربون المستحق. افتح الحسابات والمستندات لإكمال خطوة الدفع التالية.",depositBtn:"ادفع العربون →",depositShort:"دفع العربون",
+      offerTitle:n=>n===1?"راجع عرض AnyBike":"راجع عروض AnyBike",offerText:n=>n===1?"هناك عرض رسمي من AnyBike بانتظار قرارك. راجع الدراجة والسعر والشروط قبل الرد.":n+" عروض رسمية من AnyBike بانتظار قرارك.",offerBtn:n=>"راجع "+(n===1?"العرض":"العروض")+" →",offerShort:n=>n===1?"مراجعة العرض":"مراجعة العروض",
+      matchesTitle:"راجع الدراجات المقترحة لك",matchesText:n=>"لدى AnyBike عدد "+n+" من الدراجات بانتظار قرارك. حدد الدراجات التي تريد منا التحقق منها ثم احفظ اختياراتك.",matchesBtn:"راجع الدراجات →",matchesShort:"مراجعة الدراجات",
+      checkingTitle:n=>"AnyBike تتحقق من "+n+" دراجة لك",checkingText:"تم حفظ اختياراتك. تتحقق AnyBike من توفر الدراجة لدى البائع وشروط الشراء الحالية. لا يلزمك إجراء الآن؛ افتح AnyBike الخاص بي لمتابعة التقدم.",checkingBtn:"عرض التقدم →",checkingShort:"عرض تقدم البحث",
+      purchaseTitle:"تابع شراء دراجتك",purchaseText:"عملية الشراء عبر AnyBike قيد التنفيذ. افتح AnyBike الخاص بي لعرض حالة الدفع والاستلام والشحن.",purchaseBtn:"عرض الشراء →",purchaseShort:"متابعة الشراء",
+      openTitle:"افتح AnyBike الخاص بي",openText:"تجمع لوحة التحكم طلبات الدراجات والمقترحات والعروض والمشتريات والرسائل وإعداد الحساب في مكان واحد.",openBtn:"افتح ANYBIKE الخاص بي →"
+    },
+    id:{
+      kicker:"Tindakan Anda berikutnya",waiting:"Menunggu: ",also:"Juga perlu perhatian Anda",alsoMore:n=>"Juga perlu perhatian Anda · "+n+" lainnya",
+      depositTitle:"Bayar deposit yang diperlukan",depositText:"Pembelian sepeda motor Anda menunggu deposit yang belum dibayar. Buka Akun & Dokumen untuk menyelesaikan langkah pembayaran berikutnya.",depositBtn:"BAYAR DEPOSIT →",depositShort:"Bayar deposit",
+      offerTitle:n=>n===1?"Tinjau penawaran AnyBike Anda":"Tinjau penawaran AnyBike Anda",offerText:n=>n===1?"Penawaran resmi AnyBike menunggu keputusan Anda. Tinjau motor, harga, dan ketentuannya sebelum merespons.":n+" penawaran resmi AnyBike menunggu keputusan Anda.",offerBtn:n=>"TINJAU PENAWARAN →",offerShort:n=>"Tinjau penawaran",
+      matchesTitle:"Tinjau kecocokan sepeda motor Anda",matchesText:n=>"AnyBike memiliki "+n+" sepeda motor yang menunggu keputusan Anda. Tandai motor yang ingin kami periksa lalu simpan pilihan Anda.",matchesBtn:"TINJAU MOTOR →",matchesShort:"Tinjau motor",
+      checkingTitle:n=>"AnyBike sedang memeriksa "+n+" sepeda motor untuk Anda",checkingText:"Pilihan Anda sudah disimpan. AnyBike sedang memeriksa ketersediaan penjual dan ketentuan pembelian terkini. Anda tidak perlu melakukan apa pun sekarang; buka My AnyBike untuk melihat progres.",checkingBtn:"LIHAT PROGRES →",checkingShort:"Lihat progres pencarian",
+      purchaseTitle:"Lacak pembelian sepeda motor Anda",purchaseText:"Pembelian AnyBike Anda sedang berjalan. Buka My AnyBike untuk melihat status pembayaran, pengambilan, dan pengiriman.",purchaseBtn:"LIHAT PEMBELIAN →",purchaseShort:"Lacak pembelian",
+      openTitle:"Buka My AnyBike",openText:"Dasbor Anda menyatukan permintaan motor, kecocokan, penawaran, pembelian, pesan, dan pengaturan akun.",openBtn:"BUKA MY ANYBIKE →"
+    },
+    ms:{
+      kicker:"Tindakan anda seterusnya",waiting:"Menunggu: ",also:"Turut memerlukan perhatian anda",alsoMore:n=>"Turut memerlukan perhatian anda · "+n+" lagi",
+      depositTitle:"Bayar deposit yang diperlukan",depositText:"Pembelian motosikal anda sedang menunggu deposit tertunggak. Buka Akaun & Dokumen untuk melengkapkan langkah pembayaran seterusnya.",depositBtn:"BAYAR DEPOSIT →",depositShort:"Bayar deposit",
+      offerTitle:n=>n===1?"Semak tawaran AnyBike anda":"Semak tawaran AnyBike anda",offerText:n=>n===1?"Tawaran rasmi AnyBike sedang menunggu keputusan anda. Semak motosikal, harga dan terma sebelum memberi respons.":n+" tawaran rasmi AnyBike sedang menunggu keputusan anda.",offerBtn:n=>"SEMAK TAWARAN →",offerShort:n=>"Semak tawaran",
+      matchesTitle:"Semak motosikal padanan anda",matchesText:n=>"AnyBike mempunyai "+n+" motosikal yang menunggu keputusan anda. Tandakan motosikal yang anda mahu kami periksa dan simpan pilihan anda.",matchesBtn:"SEMAK MOTOSIKAL →",matchesShort:"Semak motosikal",
+      checkingTitle:n=>"AnyBike sedang memeriksa "+n+" motosikal untuk anda",checkingText:"Pilihan anda telah disimpan. AnyBike sedang memeriksa ketersediaan penjual dan terma pembelian semasa. Anda tidak perlu berbuat apa-apa sekarang; buka My AnyBike untuk melihat kemajuan.",checkingBtn:"LIHAT KEMAJUAN →",checkingShort:"Lihat kemajuan carian",
+      purchaseTitle:"Jejak pembelian motosikal anda",purchaseText:"Pembelian AnyBike anda sedang berjalan. Buka My AnyBike untuk melihat status pembayaran, kutipan dan penghantaran.",purchaseBtn:"LIHAT PEMBELIAN →",purchaseShort:"Jejak pembelian",
+      openTitle:"Buka My AnyBike",openText:"Papan pemuka anda menggabungkan permintaan motosikal, padanan, tawaran, pembelian, mesej dan persediaan akaun.",openBtn:"BUKA MY ANYBIKE →"
+    },
+    zh:{
+      kicker:"您的下一步",waiting:"等待：",also:"还有事项需要您处理",alsoMore:n=>"还有事项需要您处理 · 另有 "+n+" 项",
+      depositTitle:"支付所需订金",depositText:"您的摩托车购买正在等待未付订金。请打开“账户与文件”完成下一步付款。",depositBtn:"支付订金 →",depositShort:"支付订金",
+      offerTitle:n=>n===1?"查看您的 AnyBike 报价":"查看您的 AnyBike 报价",offerText:n=>n===1?"一份正式的 AnyBike 报价正在等待您的决定。请在回复前查看摩托车、价格和条款。":n+" 份正式的 AnyBike 报价正在等待您的决定。",offerBtn:n=>"查看报价 →",offerShort:n=>"查看报价",
+      matchesTitle:"查看为您匹配的摩托车",matchesText:n=>"AnyBike 有 "+n+" 辆摩托车正在等待您的决定。请选择您希望我们核实的车辆，然后保存您的选择。",matchesBtn:"查看匹配车辆 →",matchesShort:"查看匹配车辆",
+      checkingTitle:n=>"AnyBike 正在为您核实 "+n+" 辆摩托车",checkingText:"您的选择已保存。AnyBike 正在向卖家确认库存和当前购买条件。您现在无需操作；打开“我的 AnyBike”即可查看进度。",checkingBtn:"查看进度 →",checkingShort:"查看采购进度",
+      purchaseTitle:"跟踪您的摩托车购买",purchaseText:"您的 AnyBike 购买正在进行中。打开“我的 AnyBike”查看付款、收车和运输状态。",purchaseBtn:"查看购买 →",purchaseShort:"跟踪购买",
+      openTitle:"打开我的 AnyBike",openText:"您的控制面板集中显示摩托车需求、匹配、报价、购买、消息和账户设置。",openBtn:"打开我的 ANYBIKE →"
+    }
+  };
+
+  function homeLang(){
+    return String(window.anybikeLanguage||localStorage.getItem("anybikeLanguage")||"en").toLowerCase();
+  }
+  function taskTranslation(task,language){
+    const t=HOME_NEXT_I18N[language]||HOME_NEXT_I18N.en;
+    const n=Number(task.count||1);
+    if(task.kind==="deposit")return {title:t.depositTitle,text:t.depositText,label:t.depositBtn,shortLabel:t.depositShort};
+    if(task.kind==="offer")return {title:t.offerTitle(n),text:t.offerText(n),label:t.offerBtn(n),shortLabel:t.offerShort(n)};
+    if(task.kind==="matches")return {title:t.matchesTitle,text:t.matchesText(n),label:t.matchesBtn,shortLabel:t.matchesShort};
+    if(task.kind==="checking")return {title:t.checkingTitle(n),text:t.checkingText,label:t.checkingBtn,shortLabel:t.checkingShort};
+    if(task.kind==="purchase")return {title:t.purchaseTitle,text:t.purchaseText,label:t.purchaseBtn,shortLabel:t.purchaseShort};
+    return {title:t.openTitle,text:t.openText,label:t.openBtn,shortLabel:t.openBtn};
+  }
+
   function setHomeNextAction(cfg){
+    homeNextActionState=cfg||{};
     const panel=document.getElementById("homeNextAction");
     if(!panel)return;
-    document.getElementById("homeNextActionTitle").textContent=cfg.title||"Open My AnyBike";
-    document.getElementById("homeNextActionText").textContent=cfg.text||"Your dashboard brings your current motorcycles, offers, payments and messages together.";
-    document.getElementById("homeNextActionWaiting").textContent="Waiting for: "+(cfg.waitingFor||"You");
+
+    const language=homeLang();
+    const t=HOME_NEXT_I18N[language]||HOME_NEXT_I18N.en;
+    const translated=taskTranslation(cfg,language);
+
+    const kicker=panel.querySelector(".eyebrow");
+    if(kicker)kicker.textContent=t.kicker;
+    document.getElementById("homeNextActionTitle").textContent=translated.title;
+    document.getElementById("homeNextActionText").textContent=translated.text;
+    document.getElementById("homeNextActionWaiting").textContent=t.waiting+(cfg.waitingFor==="AnyBike"?"AnyBike":(language==="fr"?"Vous":language==="de"?"Sie":language==="es"?"Usted":language==="ar"?"أنت":language==="id"?"Anda":language==="ms"?"Anda":language==="zh"?"您":"You"));
     const btn=document.getElementById("homeNextActionButton");
-    btn.textContent=cfg.label||"OPEN MY ANYBIKE →";
+    btn.textContent=translated.label;
     btn.href=cfg.href||"/customer-dashboard.html";
 
     const extras=Array.isArray(cfg.extraTasks)?cfg.extraTasks:[];
@@ -1330,12 +1429,13 @@ loadLiveStock();
     const title=document.getElementById("homeNextMoreTitle");
     if(more&&list){
       if(extras.length){
-        title.textContent=extras.length===1?"Also needs your attention":"Also needs your attention · "+extras.length+" more";
-        list.innerHTML=extras.slice(0,5).map(t=>
-          '<a class="home-next-task" href="'+String(t.href||"/customer-dashboard.html").replaceAll('"',"&quot;")+'">'+
-          (t.count?'<span class="home-next-count">'+Number(t.count)+'</span>':'')+
-          '<span>'+String(t.label||"Open").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")+'</span></a>'
-        ).join("");
+        title.textContent=extras.length===1?t.also:t.alsoMore(extras.length);
+        list.innerHTML=extras.slice(0,5).map(task=>{
+          const tt=taskTranslation(task,language);
+          return '<a class="home-next-task" href="'+String(task.href||"/customer-dashboard.html").replaceAll('"',"&quot;")+'">'+
+          (task.count?'<span class="home-next-count">'+Number(task.count)+'</span>':'')+
+          '<span>'+String(tt.shortLabel||"Open").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")+'</span></a>';
+        }).join("");
         more.style.display="block";
       }else{
         list.innerHTML="";
@@ -1344,7 +1444,6 @@ loadLiveStock();
     }
     panel.style.display="block";
   }
-
   async function loadHomeNextAction(user){
     if(!user || typeof sb==="undefined")return;
     try{
@@ -1363,6 +1462,7 @@ loadLiveStock();
       if(deposit){
         tasks.push({
           priority:1,
+          kind:"deposit",
           title:"Pay the required deposit",
           text:"Your motorcycle purchase is waiting for the outstanding deposit. Open Accounts & Documents to complete the next payment step.",
           waitingFor:"You",
@@ -1380,6 +1480,8 @@ loadLiveStock();
         const offer=activeOffers[0];
         tasks.push({
           priority:2,
+          kind:"offer",
+          count:activeOffers.length,
           title:activeOffers.length===1?"Review your AnyBike offer":"Review your AnyBike offers",
           text:activeOffers.length===1
             ?"A formal AnyBike offer is waiting for your decision. Review the motorcycle, price and terms before responding."
@@ -1387,7 +1489,6 @@ loadLiveStock();
           waitingFor:"You",
           label:"REVIEW OFFER"+(activeOffers.length===1?"":"S")+" →",
           shortLabel:"Review offer"+(activeOffers.length===1?"":"s"),
-          count:activeOffers.length,
           href:"/customer-dashboard.html?deal_offer="+encodeURIComponent(offer.offer_id)+"#my-offers"
         });
       }
@@ -1405,12 +1506,13 @@ loadLiveStock();
       if(unreviewed.length){
         tasks.push({
           priority:3,
+          kind:"matches",
+          count:outstandingMatches,
           title:"Review your motorcycle matches",
           text:"AnyBike has "+outstandingMatches+" motorcycle"+(outstandingMatches===1?"":"s")+" waiting for your decision. Mark the bikes you want us to check and save your choices.",
           waitingFor:"You",
           label:"REVIEW MATCHES →",
           shortLabel:"Review matches",
-          count:outstandingMatches,
           href:"/customer-sourced-matches.html?batch="+encodeURIComponent(unreviewed[0].id)
         });
       }
@@ -1419,12 +1521,13 @@ loadLiveStock();
       if(checkingCount){
         tasks.push({
           priority:20,
+          kind:"checking",
+          count:checkingCount,
           title:"AnyBike is checking "+checkingCount+" motorcycle"+(checkingCount===1?"":"s")+" for you",
           text:"Your choices are saved. AnyBike is checking seller availability and current purchase terms. There is nothing you need to do right now; open My AnyBike to follow progress.",
           waitingFor:"AnyBike",
           label:"VIEW PROGRESS →",
           shortLabel:"View sourcing progress",
-          count:checkingCount,
           href:"/customer-dashboard.html#hand-picked",
           waiting:true
         });
@@ -1434,12 +1537,13 @@ loadLiveStock();
       if(activePurchases.length){
         tasks.push({
           priority:25,
+          kind:"purchase",
+          count:activePurchases.length,
           title:"Track your motorcycle purchase",
           text:"Your AnyBike purchase is in progress. Open My AnyBike to see the latest payment, collection and shipping status.",
           waitingFor:"AnyBike",
           label:"VIEW PURCHASE →",
           shortLabel:"Track purchase",
-          count:activePurchases.length,
           href:"/customer-dashboard.html#my-purchases",
           waiting:true
         });
@@ -1449,6 +1553,7 @@ loadLiveStock();
 
       if(!tasks.length){
         setHomeNextAction({
+          kind:"open",
           title:"Open My AnyBike",
           text:"Your dashboard brings your motorcycle requests, matches, offers, purchases, messages and account setup into one place.",
           waitingFor:"You",
@@ -1464,6 +1569,7 @@ loadLiveStock();
     }catch(error){
       console.warn("Homepage next action unavailable",error);
       setHomeNextAction({
+        kind:"open",
         title:"Open My AnyBike",
         text:"Go straight to your dashboard to see your current motorcycle requests, matches, offers and purchases.",
         waitingFor:"You",
@@ -1472,6 +1578,10 @@ loadLiveStock();
       });
     }
   }
+
+  window.addEventListener("anybikeLanguageChanged",function(){
+    if(homeNextActionState)setHomeNextAction(homeNextActionState);
+  });
 
   window.addEventListener("anybikePublicHeaderReady",function(event){
     const user=event?.detail?.user||null;
