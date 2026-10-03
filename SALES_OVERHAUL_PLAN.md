@@ -675,3 +675,16 @@ Frontend alignment completed:
 - Where data is not yet available, use useful customer wording such as **Contact AnyBike for current availability**, **Enquiries welcome**, **No current models to show**, or a relevant call to action.
 - Public pages should explain what the customer can do now, what AnyBike currently provides, what information AnyBike will confirm for the transaction and any genuine limitations that matter to the customer.
 - Future product ideas, development status, platform architecture and internal implementation details belong only in admin/project documentation.
+
+
+### 3 October 2026 — Customer sourced-match filtering
+- Customer sourced-match selections are no longer intentionally limited to a small shortlist solely for ease of review.
+- Where a larger set of motorcycles genuinely matches the buyer requirement, AnyBike may send the full qualifying selection.
+- `customer-sourced-matches.html` now lets the buyer filter by:
+  - maximum AnyBike price;
+  - minimum year;
+  - maximum mileage;
+  - colour.
+- Buyers can sort by lowest/highest price, newest/oldest and lowest/highest mileage.
+- Filtering only changes the visible cards. On **Save my choices**, every live motorcycle in the full selection that is not ticked **Interested — Check Availability** is recorded as **Not Interested**.
+- The page-specific **Your next action** updates as the buyer selects motorcycles and clearly explains that unticked motorcycles in the full selection will be treated as Not Interested.
