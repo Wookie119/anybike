@@ -561,6 +561,40 @@ document.addEventListener(
 );
 
 
+
+function enableAdminNotificationHover(){
+  var bell=document.querySelector(".admin-bell");
+  var panel=document.getElementById("adminNotificationPanel");
+  if(!bell || !panel || bell.dataset.hoverNotifications==="1") return;
+
+  bell.dataset.hoverNotifications="1";
+  var closeTimer=null;
+
+  function cancelClose(){
+    if(closeTimer){
+      clearTimeout(closeTimer);
+      closeTimer=null;
+    }
+  }
+
+  function openPanel(){
+    cancelClose();
+    panel.classList.add("open");
+  }
+
+  function scheduleClose(){
+    cancelClose();
+    closeTimer=setTimeout(function(){
+      panel.classList.remove("open");
+    },220);
+  }
+
+  bell.addEventListener("mouseenter",openPanel);
+  bell.addEventListener("mouseleave",scheduleClose);
+  panel.addEventListener("mouseenter",cancelClose);
+  panel.addEventListener("mouseleave",scheduleClose);
+}
+
 document.addEventListener(
   "DOMContentLoaded",
   function(){
@@ -573,6 +607,7 @@ document.addEventListener(
 
     setTimeout(function(){
       loadSharedAdminNotifications();
+      enableAdminNotificationHover();
     },500);
 
     if(anybikeAdminNotificationRefreshTimer){
