@@ -1051,20 +1051,36 @@
     }
 
     function scrollToProfileHash(){
+      const params=new URLSearchParams(window.location.search);
+      const requestedAction=String(params.get("action")||"").toLowerCase();
       const raw=String(window.location.hash||"").replace(/^#/,"");
-      if(!raw) return;
       let id="";
-      try{id=decodeURIComponent(raw);}catch(_){id=raw;}
-      const target=document.getElementById(id);
-      if(!target) return;
+      if(raw){
+        try{id=decodeURIComponent(raw);}catch(_){id=raw;}
+      }
+      if(requestedAction==="confirm-shipping") id="section-shipping";
+      if(!id) return;
 
-      requestAnimationFrame(()=>{
-        requestAnimationFrame(()=>{
-          target.scrollIntoView({behavior:"smooth",block:"start"});
-          // Leave room for the fixed AnyBike header so the section title is visible.
-          window.setTimeout(()=>window.scrollBy({top:-120,left:0,behavior:"smooth"}),80);
-        });
-      });
+      const focusTarget=function(){
+        const target=document.getElementById(id);
+        if(!target || target.offsetParent===null) return;
+
+        document.querySelectorAll(".setup-target").forEach(el=>el.classList.remove("focused"));
+        target.classList.add("focused");
+
+        const top=Math.max(0,window.scrollY+target.getBoundingClientRect().top-120);
+        window.scrollTo({top:top,left:0,behavior:"auto"});
+
+        if(id==="section-shipping"){
+          const field=document.getElementById("shippingDirectorySelect");
+          if(field)window.setTimeout(()=>field.focus({preventScroll:true}),80);
+        }
+      };
+
+      requestAnimationFrame(()=>requestAnimationFrame(focusTarget));
+      window.setTimeout(focusTarget,250);
+      window.setTimeout(focusTarget,700);
+      window.setTimeout(focusTarget,1400);
     }
 
     window.addEventListener("hashchange",scrollToProfileHash);
