@@ -620,6 +620,19 @@ async function setupPublicHeader(){
     publicAccount?.classList.remove("menu-open");
   });
 
+  notificationButton?.addEventListener("mouseenter",function(){
+    if(window.matchMedia && window.matchMedia("(hover:hover) and (pointer:fine)").matches){
+      notificationPopover?.classList.add("open");
+      publicAccount?.classList.remove("menu-open");
+    }
+  });
+
+  notificationPopover?.addEventListener("mouseleave",function(){
+    if(window.matchMedia && window.matchMedia("(hover:hover) and (pointer:fine)").matches){
+      notificationPopover?.classList.remove("open");
+    }
+  });
+
   notificationCloseButton?.addEventListener("click",function(event){
     event.preventDefault();
     notificationPopover?.classList.remove("open");
@@ -1388,31 +1401,21 @@ function renderNotificationList(items){
   }).join("");
 
   list.querySelectorAll("[data-notification-id]").forEach(function(item){
-    item.addEventListener("click",async function(event){
-      event.preventDefault();
-
+    item.addEventListener("click",function(){
       const notificationId = item.getAttribute("data-notification-id");
-      const link =
-        item.getAttribute("data-notification-link") ||
-        "/customer-messages.html";
 
       if(notificationId && anybikeHeaderUser){
-        try{
-          const {error} = await sb
-            .from("customer_notifications")
-            .update({is_read:true})
-            .eq("id",notificationId)
-            .eq("customer_id",anybikeHeaderUser.id);
-
-          if(error){
-            throw error;
-          }
-        }catch(error){
-          console.warn("Notification could not be marked read",error);
-        }
+        sb
+          .from("customer_notifications")
+          .update({is_read:true})
+          .eq("id",notificationId)
+          .eq("customer_id",anybikeHeaderUser.id)
+          .then(function(){})
+          .catch(function(error){
+            console.warn("Notification could not be marked read",error);
+          });
       }
-
-      window.location.href = link;
+      // Allow the browser to follow the href immediately.
     });
   });
 }
