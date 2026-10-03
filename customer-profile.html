@@ -1346,6 +1346,59 @@
       return base;
     }
 
+    async function syncProfileShippingPreference(payload){
+      if(!currentUser || !payload) return;
+      const complete=Boolean(
+        payload.preferred_shipping_company &&
+        payload.shipping_contact_name &&
+        payload.shipping_contact_email &&
+        payload.shipping_contact_phone &&
+        payload.shipping_address_line1 &&
+        payload.shipping_city
+      );
+      if(!complete) return;
+
+      const plan={
+        customer_id:currentUser.id,
+        plan_name:"My Profile shipping preference",
+        uk_handover_point:payload.preferred_uk_collection_point || payload.shipping_city || null,
+        freight_forwarder_name:payload.preferred_shipping_company || null,
+        contact_name:payload.shipping_contact_name || null,
+        contact_phone:payload.shipping_contact_phone || null,
+        contact_email:payload.shipping_contact_email || null,
+        shipping_company_name:payload.preferred_shipping_company || null,
+        shipping_company_contact_name:payload.shipping_contact_name || null,
+        shipping_company_contact_phone:payload.shipping_contact_phone || null,
+        shipping_company_contact_email:payload.shipping_contact_email || null,
+        uk_handover_address_1:payload.shipping_address_line1 || null,
+        uk_handover_address_2:payload.shipping_address_line2 || null,
+        uk_handover_city:payload.shipping_city || null,
+        uk_handover_county:payload.shipping_region || null,
+        uk_handover_postcode:payload.shipping_postcode || null,
+        uk_handover_country:payload.shipping_country || "United Kingdom",
+        is_active:true
+      };
+
+      const {data:existing,error:findError}=await sb
+        .from("customer_handover_plans")
+        .select("id")
+        .eq("customer_id",currentUser.id)
+        .eq("plan_name","My Profile shipping preference")
+        .limit(1);
+      if(findError) throw findError;
+
+      if(existing?.length){
+        const {error}=await sb.from("customer_handover_plans")
+          .update(plan)
+          .eq("id",Number(existing[0].id))
+          .eq("customer_id",currentUser.id);
+        if(error) throw error;
+      }else{
+        const {error}=await sb.from("customer_handover_plans").insert({...plan,is_default:true});
+        if(error) throw error;
+      }
+    }
+
     async function saveSection(section,button){
       if(!currentUser) return;
       const msg=document.getElementById("msg-"+section);
@@ -1370,6 +1423,7 @@
         if(error) throw error;
 
         if(section==="preferences") syncHeaderPreferences(payload.preferred_currency,payload.preferred_language);
+        if(section==="shipping") await syncProfileShippingPreference(payload);
 
         if(section==="buyer"){
           if(payload.identity_document_path) setDocumentState("identityDocumentState",payload.identity_document_path);
@@ -1503,6 +1557,7 @@
       document.getElementById("addressDocument").value="";
       document.getElementById("licenceDocument").value="";
       await loadBuyerOnboardingStatus();
+      await syncProfileShippingPreference(profile);
       await suggestCustomShipperIfNeeded(profile);
       profileDirty=false;
       setAutosaveStatus("saved","All changes saved");
@@ -1633,6 +1688,7 @@
         const {error}=await sb.from("customer_profiles").upsert(profile,{onConflict:"id"});
         if(error) throw error;
         syncHeaderPreferences(profile.preferred_currency,profile.preferred_language);
+        await syncProfileShippingPreference(profile);
         await suggestCustomShipperIfNeeded(profile);
         profileDirty=false;
         setAutosaveStatus("saved","All changes saved");
