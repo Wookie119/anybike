@@ -1027,28 +1027,38 @@ async function loadCustomerHeaderActivity(user){
         return !type.includes("message");
       })
       .map(function(notification){
+        const type=String(notification.type || "").toLowerCase();
+        const directSourcing=
+          type==="sourcing_matches" ||
+          /motorcycle match(?:es)? ready/i.test(String(notification.title || "")) ||
+          /hand-picked selection/i.test(String(notification.message || ""));
+
         return {
           id:notification.id,
           title:notification.title || "Notification",
           message:notification.message || "",
           link:notification.link || "/customer-messages.html",
-          icon:"🔔",
-          date:notification.created_at
+          icon:directSourcing ? "🏍" : "🔔",
+          date:notification.created_at,
+          directSourcing:directSourcing
         };
       });
 
     /*
       CUSTOMER BELL
       -------------
-      The bell represents all current unread customer activity.
-      Message conversations are counted from the real conversation state,
-      while non-message alerts continue to come from customer_notifications.
-      This does not alter message delivery, realtime, or read-state storage.
+      Specific action notifications must come before the generic Messages item.
+      A hand-picked sourcing notification already tells the buyer exactly what
+      to do, so do not make them open Message Centre first and search for it.
     */
-    const bellItems = notifications.slice();
+    const bellItems = notifications
+      .slice()
+      .sort(function(a,b){
+        return Number(!!b.directSourcing)-Number(!!a.directSourcing);
+      });
 
     if(unreadMessageCount > 0){
-      bellItems.unshift({
+      bellItems.push({
         id:"",
         title:unreadMessageCount === 1
           ? "1 unread message from AnyBike"
