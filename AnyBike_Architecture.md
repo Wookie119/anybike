@@ -107,7 +107,7 @@ Every message must keep links to the correct customer, bike, enquiry, request, d
   4. that AnyBike's collection/condition check is visual only and is not a mechanical or engineering inspection, and that any required independent mechanical inspection must be requested before purchase and paid for by the buyer unless otherwise agreed.
 - These transaction acceptances must ultimately be stored as a permanent audit record with user ID, offer/deal ID, acceptance timestamp and policy/version identifiers.
 - Future Formal Offer acceptance must fail closed if the required legal acceptance record cannot be created.
-- Current policy version introduced 20 September 2026.
+- Current policy version: 3 October 2026. This supersedes the 20 September 2026 version for new Formal Offer acceptances.
 
 
 ### Buyer change-of-mind / resale-on-behalf policy
