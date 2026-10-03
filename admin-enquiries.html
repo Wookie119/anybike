@@ -8590,6 +8590,7 @@ function renderAnyBikeDealCommercialSetup(deal){
   const id=Number(row.deal_motorcycle_id);
   const busy=dealCommercialSaveBusy.has(String(id));
   const title=[row.make,row.model,row.variant].filter(Boolean).join(" ") || "Motorcycle";
+  const quoteSnapshotLocked=/Customer-facing price components (?:carried|restored) from sourced match snapshot/i.test(String(row.commercial_notes||""));
 
   const sale=row.anybike_sale_price_gbp;
   const buyerFee=anyBikeCommercialNumber(row.anybike_buyer_fee_gbp);
@@ -8627,9 +8628,10 @@ function renderAnyBikeDealCommercialSetup(deal){
 
     ${status==="Ready for Offer"
       ? '<div class="deal-section-next-action complete"><div><div class="eyebrow">Complete</div><strong>Commercial Setup ready for Formal Offer</strong><span>The customer price, AnyBike Sourcing Fee, UK Collection & Delivery Charge and any genuine deal-specific internal costs are saved.</span></div>'+(acceptedLocked?'':'<button type="button" onclick="openDealOfferModal('+id+');return false;">OPEN FORMAL OFFER →</button>')+'</div>'
-      : '<div class="deal-section-next-action"><div><div class="eyebrow">Your next action</div><strong>Review these figures, then continue</strong><span>Check the Motorcycle Sale Price, automatic Sourcing Fee, UK Collection & Delivery Charge, Agreed Seller Purchase Price and any genuine internal costs. If the figures are right, PROCEED will save this as Ready for Offer and open the Formal Offer.</span></div><button type="button" onclick="proceedDealCommercialSetup('+id+');return false;">PROCEED →</button></div>'}
+      : '<div class="deal-section-next-action"><div><div class="eyebrow">Your next action</div><strong>Review the seller price and genuine internal costs, then continue</strong><span>'+(quoteSnapshotLocked?'The customer-facing sourced-match price is already fixed from what the buyer saw. The Motorcycle Price, AnyBike Sourcing Fee and UK Collection & Delivery components are carried across automatically and cannot be added again here. ':'')+'Confirm the Agreed Seller Purchase Price and any genuine deal-specific internal costs. If the figures are right, PROCEED will save this as Ready for Offer and open the Formal Offer.</span></div><button type="button" onclick="proceedDealCommercialSetup('+id+');return false;">PROCEED</button></div>'}
 
     ${sentPriceLocked ? '<div class="anybike-commercial-lock"><strong>'+(acceptedLocked?'✓ Accepted customer terms — locked':'Formal Offer sent — customer price locked')+'</strong><span>'+(acceptedLocked?'The customer-facing Motorcycle Sale Price, AnyBike Sourcing Fee and UK Collection & Delivery Charge are frozen to the accepted Formal Offer.':'The customer-facing Motorcycle Sale Price, AnyBike Sourcing Fee and UK Collection & Delivery Charge are frozen while the sent Formal Offer is active. Internal cost assumptions can still be reviewed.')+'</span></div>' : ''}
+    ${quoteSnapshotLocked && !sentPriceLocked ? '<div class="anybike-commercial-lock"><strong>Buyer quote snapshot — protected</strong><span>These customer-facing amounts came from the motorcycle match already shown to the buyer. They are carried into Deal 360 automatically so Commercial Setup cannot accidentally charge the sourcing fee or UK collection/delivery twice.</span></div>' : ''}
     <div class="anybike-commercial-grid">
       <div class="anybike-commercial-field">
         <label>Original Advertised Price</label>
@@ -8639,19 +8641,19 @@ function renderAnyBikeDealCommercialSetup(deal){
 
       <div class="anybike-commercial-field">
         <label>Motorcycle Sale Price</label>
-        <input id="deal-commercial-sale-${id}" type="number" min="0" step="0.01" value="${sale===null || sale===undefined ? "" : Number(sale).toFixed(2)}" placeholder="Not agreed" oninput="syncDealCommercialSourcingFee(${id},false);updateDealCommercialPreview(${id})"${priceLockAttribute}>
+        <input id="deal-commercial-sale-${id}" type="number" min="0" step="0.01" value="${sale===null || sale===undefined ? "" : Number(sale).toFixed(2)}" placeholder="Not agreed" oninput="syncDealCommercialSourcingFee(${id},false);updateDealCommercialPreview(${id})"${priceLockAttribute}${quoteSnapshotLocked && !sentPriceLocked ? " readonly" : ""}>
       </div>
 
       <div class="anybike-commercial-field">
         <label>AnyBike Sourcing Fee</label>
-        <input id="deal-commercial-buyer-fee-${id}" type="number" min="0" step="0.01" value="${buyerFee.toFixed(2)}" data-fee-override="${buyerFeeOverride ? "true" : "false"}" oninput="this.dataset.feeOverride='true';updateDealCommercialPreview(${id})"${priceLockAttribute}>
-        <small style="display:block;margin-top:5px;color:#888;font-size:10px">Automatic: 8% of Motorcycle Sale Price, rounded to the nearest £5, minimum £395. UK collection/delivery is separate.${sentPriceLocked?'':' <button type="button" style="margin:4px 0 0;padding:3px 8px;font-size:10px" onclick="resetDealCommercialSourcingFee('+id+');return false;">Use automatic fee</button>'}</small>
+        <input id="deal-commercial-buyer-fee-${id}" type="number" min="0" step="0.01" value="${buyerFee.toFixed(2)}" data-fee-override="${buyerFeeOverride ? "true" : "false"}" oninput="this.dataset.feeOverride='true';updateDealCommercialPreview(${id})"${priceLockAttribute}${quoteSnapshotLocked && !sentPriceLocked ? " readonly" : ""}>
+        <small style="display:block;margin-top:5px;color:#888;font-size:10px">${quoteSnapshotLocked?'Carried automatically from the buyer-visible sourced-match price. Future sourced matches use the current automatic fee rule; an already-shown quote is preserved exactly.':'Automatic: 8% of Motorcycle Sale Price, rounded to the nearest £5, minimum £395. UK collection/delivery is separate.'}${sentPriceLocked||quoteSnapshotLocked?'':' <button type="button" style="margin:4px 0 0;padding:3px 8px;font-size:10px" onclick="resetDealCommercialSourcingFee('+id+');return false;">Use automatic fee</button>'}</small>
       </div>
 
       <div class="anybike-commercial-field">
         <label>UK Collection &amp; Delivery Charge</label>
-        <input id="deal-commercial-delivery-charge-${id}" type="number" min="0" step="0.01" value="${deliveryCharge.toFixed(2)}" oninput="updateDealCommercialPreview(${id})"${priceLockAttribute}>
-        <small style="display:block;margin-top:5px;color:#888;font-size:10px">Customer transport charge. Kept separate from motorcycle margin. VAT on this transport line is accounted for separately.</small>
+        <input id="deal-commercial-delivery-charge-${id}" type="number" min="0" step="0.01" value="${deliveryCharge.toFixed(2)}" oninput="updateDealCommercialPreview(${id})"${priceLockAttribute}${quoteSnapshotLocked && !sentPriceLocked ? " readonly" : ""}>
+        <small style="display:block;margin-top:5px;color:#888;font-size:10px">${quoteSnapshotLocked?'Already included in the AnyBike price shown to this buyer. Carried across automatically — do not add it again.':'Customer transport charge. Kept separate from motorcycle margin. VAT on this transport line is accounted for separately.'}</small>
       </div>
 
       <div class="anybike-commercial-field">
