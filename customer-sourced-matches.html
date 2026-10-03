@@ -746,60 +746,85 @@ async function saveChoices(){
     btn.disabled=false;
   }
 }
-function findRequestMake(make){
-  return (motorcycleRequestOptions||[]).find(x=>String(x.make||"").toLowerCase()===String(make||"").toLowerCase()) || null;
-}
-function findRequestModel(make,model){
-  const makeRow=findRequestMake(make);
-  return (makeRow?.models||[]).find(x=>String(x.model||"").toLowerCase()===String(model||"").toLowerCase()) || null;
-}
-function populateRequestMakes(selectedMake){
+async function populateRequestMakes(){
   const el=document.getElementById("requestMakeSelect");
-  const rows=motorcycleRequestOptions||[];
-  el.innerHTML='<option value="">Choose make…</option>'+rows.map(x=>'<option value="'+esc(x.make)+'">'+esc(x.make)+'</option>').join("");
-  if(selectedMake && rows.some(x=>String(x.make).toLowerCase()===String(selectedMake).toLowerCase())){
-    el.value=rows.find(x=>String(x.make).toLowerCase()===String(selectedMake).toLowerCase()).make;
-  }
+  const model=document.getElementById("requestModelSelect");
+  const variant=document.getElementById("requestVariantSelect");
+  const from=document.getElementById("requestYearFrom");
+  const to=document.getElementById("requestYearTo");
+  el.innerHTML='<option value="">Loading makes…</option>';
+  model.innerHTML='<option value="">Choose model…</option>';
+  variant.innerHTML='<option value="">Any variant</option>';
+  from.innerHTML='<option value="">Any year</option>';
+  to.innerHTML='<option value="">Any year</option>';
+
+  const {data,error}=await sb.rpc("customer_get_motorcycle_makes_v1");
+  if(error) throw error;
+  const makes=Array.isArray(data)?data:[];
+  el.innerHTML='<option value="">Choose make…</option>'+makes.map(x=>'<option value="'+esc(x)+'">'+esc(x)+'</option>').join("");
 }
-function updateRequestModels(selectedModel){
+async function updateRequestModels(){
   const make=document.getElementById("requestMakeSelect").value;
   const el=document.getElementById("requestModelSelect");
-  const rows=findRequestMake(make)?.models||[];
-  el.innerHTML='<option value="">Choose model…</option>'+rows.map(x=>'<option value="'+esc(x.model)+'">'+esc(x.model)+'</option>').join("");
-  if(selectedModel && rows.some(x=>String(x.model).toLowerCase()===String(selectedModel).toLowerCase())){
-    el.value=rows.find(x=>String(x.model).toLowerCase()===String(selectedModel).toLowerCase()).model;
+  const variant=document.getElementById("requestVariantSelect");
+  const from=document.getElementById("requestYearFrom");
+  const to=document.getElementById("requestYearTo");
+
+  el.innerHTML='<option value="">Choose model…</option>';
+  variant.innerHTML='<option value="">Any variant</option>';
+  from.innerHTML='<option value="">Any year</option>';
+  to.innerHTML='<option value="">Any year</option>';
+  document.getElementById("preferredColourSelect").innerHTML='<option value="">Choose a model first</option>';
+  document.getElementById("avoidColourSelect").innerHTML='<option value="">Choose a model first</option>';
+  if(!make) return;
+
+  el.innerHTML='<option value="">Loading models…</option>';
+  const {data,error}=await sb.rpc("customer_get_motorcycle_models_v1",{p_make:make});
+  if(error){
+    el.innerHTML='<option value="">Could not load models</option>';
+    throw error;
   }
-  updateRequestVariants();
+  const models=Array.isArray(data)?data:[];
+  el.innerHTML='<option value="">Choose model…</option>'+models.map(x=>'<option value="'+esc(x)+'">'+esc(x)+'</option>').join("");
 }
-function updateRequestVariants(selectedVariant){
+async function updateRequestVariants(){
   const make=document.getElementById("requestMakeSelect").value;
   const model=document.getElementById("requestModelSelect").value;
   const el=document.getElementById("requestVariantSelect");
-  const variants=findRequestModel(make,model)?.variants||[];
-  el.innerHTML='<option value="">Any variant</option>'+variants.map(v=>'<option value="'+esc(v)+'">'+esc(v)+'</option>').join("");
-  if(selectedVariant && variants.some(v=>String(v).toLowerCase()===String(selectedVariant).toLowerCase())){
-    el.value=variants.find(v=>String(v).toLowerCase()===String(selectedVariant).toLowerCase());
+  el.innerHTML='<option value="">Any variant</option>';
+  if(!make||!model){
+    await updateRequestYearsAndColours();
+    return;
   }
-  updateRequestYearsAndColours();
+
+  el.innerHTML='<option value="">Loading variants…</option>';
+  const {data,error}=await sb.rpc("customer_get_motorcycle_variants_v1",{p_make:make,p_model:model});
+  if(error){
+    el.innerHTML='<option value="">Any variant</option>';
+    throw error;
+  }
+  const variants=Array.isArray(data)?data:[];
+  el.innerHTML='<option value="">Any variant</option>'+variants.map(x=>'<option value="'+esc(x)+'">'+esc(x)+'</option>').join("");
+  await updateRequestYearsAndColours();
 }
-function updateRequestYears(){
+async function updateRequestYears(){
   const make=document.getElementById("requestMakeSelect").value;
   const model=document.getElementById("requestModelSelect").value;
-  const row=findRequestModel(make,model);
+  const variant=document.getElementById("requestVariantSelect").value||null;
   const from=document.getElementById("requestYearFrom");
   const to=document.getElementById("requestYearTo");
-  const oldFrom=from.value;
-  const oldTo=to.value;
-  const currentYear=new Date().getFullYear()+1;
-  const min=Math.max(1950,Number(row?.min_year)||2000);
-  const max=Math.min(currentYear,Math.max(min,Number(row?.max_year)||currentYear));
-  const years=[];
-  for(let y=max;y>=min;y--)years.push(y);
-  const html='<option value="">Any year</option>'+years.map(y=>'<option value="'+y+'">'+y+'</option>').join("");
+  from.innerHTML='<option value="">Any year</option>';
+  to.innerHTML='<option value="">Any year</option>';
+  if(!make||!model) return;
+
+  const {data,error}=await sb.rpc("customer_get_motorcycle_years_v1",{
+    p_make:make,p_model:model,p_variant:variant
+  });
+  if(error) throw error;
+  const years=(Array.isArray(data)?data:[]).filter(y=>Number.isFinite(Number(y)));
+  const html='<option value="">Any year</option>'+years.map(y=>'<option value="'+Number(y)+'">'+Number(y)+'</option>').join("");
   from.innerHTML=html;
   to.innerHTML=html;
-  if(years.includes(Number(oldFrom)))from.value=oldFrom;
-  if(years.includes(Number(oldTo)))to.value=oldTo;
 }
 async function loadRequestColours(){
   const make=document.getElementById("requestMakeSelect").value;
@@ -807,26 +832,26 @@ async function loadRequestColours(){
   const variant=document.getElementById("requestVariantSelect").value||null;
   const pref=document.getElementById("preferredColourSelect");
   const avoid=document.getElementById("avoidColourSelect");
-  pref.innerHTML='<option value="">Loading colours…</option>';
-  avoid.innerHTML='<option value="">Loading colours…</option>';
   if(!make||!model){
     pref.innerHTML='<option value="">Choose a model first</option>';
     avoid.innerHTML='<option value="">Choose a model first</option>';
     return;
   }
+  pref.innerHTML='<option value="">Loading colours…</option>';
+  avoid.innerHTML='<option value="">Loading colours…</option>';
   const {data,error}=await sb.rpc("customer_get_motorcycle_request_colours_v1",{
     p_make:make,p_model:model,p_variant:variant
   });
-  const colours=error?[]:(data||[]);
+  if(error) throw error;
+  const colours=Array.isArray(data)?data:[];
   const html=colours.length
     ? colours.map(x=>'<option value="'+esc(x)+'">'+esc(x)+'</option>').join("")
     : '<option value="">No colour choices currently listed</option>';
   pref.innerHTML=html;
   avoid.innerHTML=html;
 }
-function updateRequestYearsAndColours(){
-  updateRequestYears();
-  loadRequestColours();
+async function updateRequestYearsAndColours(){
+  await Promise.all([updateRequestYears(),loadRequestColours()]);
 }
 async function openMoreMatches(){
   const status=document.getElementById("moreMatchesStatus");
@@ -834,26 +859,17 @@ async function openMoreMatches(){
   status.textContent="";
   document.getElementById("moreMatchesModal").classList.add("open");
 
-  if(!motorcycleRequestOptions){
-    const makeEl=document.getElementById("requestMakeSelect");
-    makeEl.innerHTML='<option value="">Loading motorcycle list…</option>';
-    const {data,error}=await sb.rpc("customer_get_motorcycle_request_options_v1");
-    if(error){
-      status.style.display="block";
-      status.className="status bad";
-      status.textContent="We could not load the motorcycle list. Please try again.";
-      return;
-    }
-    motorcycleRequestOptions=Array.isArray(data)?data:[];
+  try{
+    await populateRequestMakes();
+    document.getElementById("preferredColourSelect").innerHTML='<option value="">Choose a model first</option>';
+    document.getElementById("avoidColourSelect").innerHTML='<option value="">Choose a model first</option>';
+  }catch(error){
+    console.error("Could not load motorcycle request makes",error);
+    document.getElementById("requestMakeSelect").innerHTML='<option value="">Could not load makes</option>';
+    status.style.display="block";
+    status.className="status bad";
+    status.textContent="We could not load the motorcycle list. Please close this window and try again.";
   }
-
-  populateRequestMakes("");
-  updateRequestModels("");
-  updateRequestVariants("");
-  document.getElementById("requestYearFrom").value="";
-  document.getElementById("requestYearTo").value="";
-  document.getElementById("preferredColourSelect").innerHTML='<option value="">Choose a model first</option>';
-  document.getElementById("avoidColourSelect").innerHTML='<option value="">Choose a model first</option>';
 }
 function closeMoreMatches(){
   document.getElementById("moreMatchesModal").classList.remove("open");
