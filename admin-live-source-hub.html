@@ -963,14 +963,30 @@ async function loadItems(preserveDealerOptions=false){
   }
 
   if(isBmwConnector() && rows.length){
-    const missingPhotoIds=rows
+    let photoCandidates=[...rows];
+    if(request){
+      const preferredColours=String(request.preferred_colour||"")
+        .split(",").map(x=>x.trim().toLowerCase()).filter(Boolean);
+      if(preferredColours.length){
+        const preferredRows=photoCandidates.filter(i=>{
+          const colour=String(i.colour||"").toLowerCase();
+          return preferredColours.some(x=>colour.includes(x));
+        });
+        if(preferredRows.length) photoCandidates=preferredRows;
+      }
+      if(request.max_price_gbp){
+        photoCandidates=photoCandidates.filter(i=>Number(i.source_price_gbp||0)<=Number(request.max_price_gbp));
+      }
+    }
+
+    const missingPhotoIds=photoCandidates
       .filter(i=>{
         if(i.buyer_safe_url)return false;
         const hasReal=(Array.isArray(i.source_image_urls)?i.source_image_urls:[])
           .some(u=>/\/api\/Image\/GetImg\?imgId=/i.test(String(u)));
         return !hasReal && !autoBmwPhotoRequested.has(Number(i.id));
       })
-      .slice(0,80)
+      .slice(0,20)
       .map(i=>Number(i.id));
 
     if(missingPhotoIds.length){
