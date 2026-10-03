@@ -109,6 +109,17 @@ button{font:inherit}
   box-shadow:none;
 }
 
+/* SIGNED-IN HOME NEXT ACTION */
+.home-next-action{display:none;background:#080808;border-bottom:1px solid var(--line);padding:18px 0}
+.home-next-action-card{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:22px;align-items:center;padding:19px 22px;border:2px solid var(--red);border-radius:20px;background:linear-gradient(135deg,rgba(237,28,36,.16),#111 58%);box-shadow:var(--shadow)}
+.home-next-action .eyebrow{margin:0 0 5px}
+.home-next-action h2{margin:0 0 6px;font-size:clamp(24px,3vw,36px);line-height:1.05}
+.home-next-action p{margin:0;color:#ccc;font-size:15px;line-height:1.5;max-width:930px}
+.home-next-meta{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-top:10px}
+.home-next-waiting{display:inline-flex;padding:6px 10px;border:1px solid rgba(255,255,255,.17);border-radius:999px;background:#080808;font-size:12px;font-weight:900}
+.home-next-action .btn{white-space:nowrap}
+@media(max-width:760px){.home-next-action-card{grid-template-columns:1fr}.home-next-action .btn{width:100%}}
+
 /* HERO */
 .hero{
   position:relative;
@@ -791,6 +802,20 @@ footer{
 
 <div id="publicHeader"></div>
 
+<section class="home-next-action" id="homeNextAction" data-anybike-next-action="true">
+  <div class="wrap">
+    <div class="home-next-action-card">
+      <div>
+        <div class="eyebrow">Your next action</div>
+        <h2 id="homeNextActionTitle">Checking your AnyBike account…</h2>
+        <p id="homeNextActionText">We are checking what needs your attention.</p>
+        <div class="home-next-meta"><span class="home-next-waiting" id="homeNextActionWaiting">Checking…</span></div>
+      </div>
+      <a class="btn" id="homeNextActionButton" href="/customer-dashboard.html">OPEN MY ANYBIKE →</a>
+    </div>
+  </div>
+</section>
+
 <main>
 
   <section class="hero hero-split" aria-label="Choose your AnyBike route">
@@ -1275,6 +1300,132 @@ window.addEventListener("anybikeCurrencyChanged",function(event){
 });
 
 loadLiveStock();
+</script>
+
+<script>
+(function(){
+  function setHomeNextAction(cfg){
+    const panel=document.getElementById("homeNextAction");
+    if(!panel)return;
+    document.getElementById("homeNextActionTitle").textContent=cfg.title||"Open My AnyBike";
+    document.getElementById("homeNextActionText").textContent=cfg.text||"Your dashboard brings your current motorcycles, offers, payments and messages together.";
+    document.getElementById("homeNextActionWaiting").textContent="Waiting for: "+(cfg.waitingFor||"You");
+    const btn=document.getElementById("homeNextActionButton");
+    btn.textContent=cfg.label||"OPEN MY ANYBIKE →";
+    btn.href=cfg.href||"/customer-dashboard.html";
+    panel.style.display="block";
+  }
+
+  async function loadHomeNextAction(user){
+    if(!user || typeof sb==="undefined")return;
+    try{
+      const [batchRes,offerRes,purchaseRes]=await Promise.all([
+        sb.rpc("customer_get_sourced_match_batches_v1"),
+        sb.rpc("get_my_deal_offers_v4"),
+        sb.rpc("get_my_purchases_v7")
+      ]);
+
+      const batches=batchRes.error?[]:(batchRes.data||[]);
+      const offers=offerRes.error?[]:(offerRes.data||[]);
+      const purchases=purchaseRes.error?[]:(purchaseRes.data||[]);
+
+      const deposit=purchases.find(p=>Number(p.deposit_outstanding_gbp||0)>0);
+      if(deposit){
+        setHomeNextAction({
+          title:"Pay the required deposit",
+          text:"Your motorcycle purchase is waiting for the outstanding deposit. Open Accounts & Documents to complete the next payment step.",
+          waitingFor:"You",
+          label:"PAY DEPOSIT →",
+          href:"/accounts-documents.html"
+        });
+        return;
+      }
+
+      const offer=offers.find(o=>{
+        const status=String(o.offer_status||"").toLowerCase();
+        return !o.customer_decision && ["sent","open","issued","awaiting customer"].some(x=>status.includes(x));
+      });
+      if(offer){
+        setHomeNextAction({
+          title:"Review your AnyBike offer",
+          text:"A formal AnyBike offer is waiting for your decision. Review the motorcycle, price and terms before responding.",
+          waitingFor:"You",
+          label:"REVIEW OFFER →",
+          href:"/customer-dashboard.html?deal_offer="+encodeURIComponent(offer.offer_id)+"#my-offers"
+        });
+        return;
+      }
+
+      const unreviewed=batches.find(b=>{
+        const total=Number(b.total_matches||0);
+        const responded=Number(b.interested_count||0)+Number(b.watching_count||0)+Number(b.declined_count||0);
+        return total>responded;
+      });
+      if(unreviewed){
+        const remaining=Math.max(0,Number(unreviewed.total_matches||0)-Number(unreviewed.interested_count||0)-Number(unreviewed.watching_count||0)-Number(unreviewed.declined_count||0));
+        setHomeNextAction({
+          title:"Review your motorcycle matches",
+          text:"AnyBike has "+remaining+" motorcycle"+(remaining===1?"":"s")+" waiting for your decision. Mark the bikes you want us to check and save your choices.",
+          waitingFor:"You",
+          label:"REVIEW MATCHES →",
+          href:"/customer-sourced-matches.html?batch="+encodeURIComponent(unreviewed.id)
+        });
+        return;
+      }
+
+      const checking=batches.find(b=>Number(b.interested_count||0)>0);
+      if(checking){
+        const n=Number(checking.interested_count||0);
+        setHomeNextAction({
+          title:"AnyBike is checking "+n+" motorcycle"+(n===1?"":"s")+" for you",
+          text:"Your choices are saved. AnyBike is checking seller availability and current purchase terms. There is nothing you need to do right now; open My AnyBike to follow progress.",
+          waitingFor:"AnyBike",
+          label:"VIEW PROGRESS →",
+          href:"/customer-dashboard.html#hand-picked"
+        });
+        return;
+      }
+
+      const activePurchase=purchases.find(p=>!p.operations_complete);
+      if(activePurchase){
+        setHomeNextAction({
+          title:"Track your motorcycle purchase",
+          text:"Your AnyBike purchase is in progress. Open My AnyBike to see the latest payment, collection and shipping status.",
+          waitingFor:"AnyBike",
+          label:"VIEW PURCHASE →",
+          href:"/customer-dashboard.html#my-purchases"
+        });
+        return;
+      }
+
+      setHomeNextAction({
+        title:"Open My AnyBike",
+        text:"Your dashboard brings your motorcycle requests, matches, offers, purchases, messages and account setup into one place.",
+        waitingFor:"You",
+        label:"OPEN MY ANYBIKE →",
+        href:"/customer-dashboard.html"
+      });
+    }catch(error){
+      console.warn("Homepage next action unavailable",error);
+      setHomeNextAction({
+        title:"Open My AnyBike",
+        text:"Go straight to your dashboard to see your current motorcycle requests, matches, offers and purchases.",
+        waitingFor:"You",
+        label:"OPEN MY ANYBIKE →",
+        href:"/customer-dashboard.html"
+      });
+    }
+  }
+
+  window.addEventListener("anybikePublicHeaderReady",function(event){
+    const user=event?.detail?.user||null;
+    if(user)loadHomeNextAction(user);
+    else{
+      const panel=document.getElementById("homeNextAction");
+      if(panel)panel.style.display="none";
+    }
+  });
+})();
 </script>
 
 <script src="/public-header.js?v=12005"></script>
