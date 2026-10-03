@@ -107,18 +107,41 @@ main{width:min(1660px,96vw);margin:28px auto 70px}
   font-size:10px;
   font-weight:500;
 }
-.payment-select input[type="number"]{
+.payment-amount-wrap{
   grid-area:amount;
+  position:relative;
+  width:100%;
+}
+.payment-amount-wrap::before{
+  content:"£";
+  position:absolute;
+  left:12px;
+  top:50%;
+  transform:translateY(-50%);
+  color:#111;
+  font-size:17px;
+  font-weight:900;
+  pointer-events:none;
+  z-index:2;
+}
+.payment-select input[type="number"]{
   width:100%;
   height:42px;
   background:#fff;
   color:#111;
   border:0;
   border-radius:9px;
-  padding:0 12px;
+  padding:0 12px 0 30px;
   font-size:17px;
   font-weight:900;
   text-align:right;
+  appearance:textfield;
+  -moz-appearance:textfield;
+}
+.payment-select input[type="number"]::-webkit-outer-spin-button,
+.payment-select input[type="number"]::-webkit-inner-spin-button{
+  -webkit-appearance:none;
+  margin:0;
 }
 
 .report-panel{display:none;border:1px solid rgba(237,28,36,.4);border-top:3px solid var(--red);border-radius:14px;background:#0c0c0c;padding:16px;margin-top:16px}.report-panel.open{display:block}.report-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.field label{display:block;color:#aaa;font-size:11px;font-weight:900;margin-bottom:5px}.field input,.field textarea{width:100%;border:1px solid rgba(255,255,255,.14);border-radius:9px;background:#fff;color:#111;padding:10px}.field textarea{min-height:80px;resize:vertical}.field.full{grid-column:1/-1}.report-total{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-top:12px;padding:12px;border-radius:10px;background:#161616;border:1px solid var(--line)}.report-total strong{font-size:20px}.report-note{margin-top:10px;color:#aaa;font-size:12px;line-height:1.5}.report-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
@@ -135,7 +158,7 @@ main{width:min(1660px,96vw);margin:28px auto 70px}
 .document-meta div{border:1px solid rgba(255,255,255,.08);border-radius:9px;background:#111;padding:9px}
 .document-meta span{display:block;color:#777;font-size:9px;font-weight:900;text-transform:uppercase;margin-bottom:4px}
 .document-meta strong{font-size:12px;color:#ddd;word-break:break-word}
-.document-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.invoice-doc-action{display:inline-flex;align-items:center;justify-content:center;margin-top:12px;padding:10px 13px;border-radius:9px;background:#ed1c24;color:#fff;text-decoration:none;font-size:12px;font-weight:900}.invoice-doc-action.secondary{background:#171717;border:1px solid rgba(255,255,255,.14)}
+.document-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.invoice-doc-action{display:inline-flex;align-items:center;justify-content:center;margin-top:12px;padding:11px 16px;border-radius:9px;background:#ed1c24;color:#fff;text-decoration:none;font-size:13px;font-weight:900;border:1px solid #ed1c24;box-shadow:0 0 0 1px rgba(237,28,36,.18),0 8px 20px rgba(237,28,36,.18)}.invoice-doc-action:hover{background:#ff3038;border-color:#ff3038}.invoice-doc-action.secondary{background:#171717;border:1px solid rgba(255,255,255,.14);box-shadow:none}
 .document-desc{color:#aaa;font-size:12px;line-height:1.45;margin-top:8px}
 .section-anchor{scroll-margin-top:120px}
 
@@ -185,7 +208,7 @@ main{width:min(1660px,96vw);margin:28px auto 70px}
 }
 
 @media(max-width:1000px){.document-grid{grid-template-columns:1fr}.summary-grid{grid-template-columns:repeat(2,1fr)}.invoice-grid{grid-template-columns:1fr}.payment-select{grid-template-columns:auto minmax(180px,1fr) 135px}}
-@media(max-width:700px){main{width:min(96vw,1660px)}.hero h1{font-size:30px}.summary-grid{grid-template-columns:1fr}.panel-head{flex-direction:column}.invoice-summary,.invoice-meta,.report-grid{grid-template-columns:1fr}.payment-select{grid-template-columns:auto 1fr;grid-template-areas:"check label" "amount amount" "auto auto"}.payment-select input[type="number"]{width:100%;text-align:left}.report-total{align-items:flex-start;flex-direction:column}}
+@media(max-width:700px){main{width:min(96vw,1660px)}.hero h1{font-size:30px}.summary-grid{grid-template-columns:1fr}.panel-head{flex-direction:column}.invoice-summary,.invoice-meta,.report-grid{grid-template-columns:1fr}.payment-select{grid-template-columns:auto 1fr;grid-template-areas:"check label" "amount amount" "auto auto"}.payment-amount-wrap{width:100%}.payment-select input[type="number"]{width:100%;text-align:left}.report-total{align-items:flex-start;flex-direction:column}}
 </style>
 </head>
 <body>
@@ -375,7 +398,7 @@ function invoiceCard(invoice){
   const paymentBlock=canPay?`<div class="payment-select">
     <input class="pay-select" id="pay-select-${Number(invoice.invoice_id)}" data-invoice-id="${Number(invoice.invoice_id)}" type="checkbox">
     <label for="pay-select-${Number(invoice.invoice_id)}">Allocate this bank transfer here<small>Remaining purchase balance ${money(invoice.balance_due_gbp)}</small></label>
-    <input class="pay-amount" id="pay-amount-${Number(invoice.invoice_id)}" data-invoice-id="${Number(invoice.invoice_id)}" type="number" min="0.01" step="0.01" max="${Number(invoice.balance_due_gbp||0).toFixed(2)}" value="${Number(invoice.balance_due_gbp||0).toFixed(2)}">
+    <div class="payment-amount-wrap"><input class="pay-amount" id="pay-amount-${Number(invoice.invoice_id)}" data-invoice-id="${Number(invoice.invoice_id)}" type="number" inputmode="decimal" min="0.01" step="0.01" max="${Number(invoice.balance_due_gbp||0).toFixed(2)}" value="${Number(invoice.balance_due_gbp||0).toFixed(2)}" aria-label="Payment amount in pounds sterling"></div>
     <div class="payment-choice-note">You can pay the minimum amount requested, enter a larger amount, or pay the full remaining purchase balance.</div>
     <div class="payment-quick">
       <button type="button" onclick="useRequestedPaymentAmount(${Number(invoice.invoice_id)})">Use requested amount</button>
@@ -405,7 +428,7 @@ function invoiceCard(invoice){
       ${String(invoice.invoice_type||"")==="Proforma"?'<div class="proforma-warning"><strong>PROFORMA INVOICE — NOT A VAT INVOICE</strong><span>This is used for the payment stage. Keep the Final Invoice separately when AnyBike issues it after the transaction is completed.</span></div>':""}
       ${String(invoice.invoice_type||"")==="Final Invoice"?'<div class="final-invoice-warning"><strong>FINAL INVOICE</strong><span>This is the final accounting document for the completed AnyBike transaction. Keep it with your purchase and export records.</span></div>':""}
       <div class="invoice-lines">${lineHtml}</div>
-      ${String(invoice.invoice_type||"")==="Proforma"&&String(invoice.invoice_status||"")==="Issued"?'<a class="invoice-doc-action secondary" href="/proforma.html?invoice='+Number(invoice.invoice_id)+'" target="_blank" rel="noopener">Open Proforma →</a>':""}
+      ${String(invoice.invoice_type||"")==="Proforma"&&String(invoice.invoice_status||"")==="Issued"?'<a class="invoice-doc-action" href="/proforma.html?invoice='+Number(invoice.invoice_id)+'" target="_blank" rel="noopener">OPEN PROFORMA</a>':""}
       ${String(invoice.invoice_type||"")==="Final Invoice"&&String(invoice.invoice_status||"")==="Issued"?'<a class="invoice-doc-action" href="/final-invoice.html?invoice='+Number(invoice.invoice_id)+'" target="_blank" rel="noopener">Open Final Invoice →</a>':""}
       ${paymentBlock}
     </div>
