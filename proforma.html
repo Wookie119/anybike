@@ -14,6 +14,9 @@
 body{margin:0;background:#ececec;color:#111;font-family:Arial,Helvetica,sans-serif}
 .toolbar{position:sticky;top:0;z-index:5;display:flex;justify-content:center;gap:10px;padding:12px;background:#080808;border-bottom:3px solid #ed1c24}
 .toolbar button,.toolbar a{border:0;border-radius:9px;padding:10px 16px;background:#ed1c24;color:#fff;font-weight:900;text-decoration:none;cursor:pointer}
+.toolbar .toolbar-secondary{background:#222;border:1px solid rgba(255,255,255,.22)}
+.toolbar .toolbar-status{min-width:190px}
+.toolbar button:disabled{opacity:.65;cursor:wait}
 .page{width:min(920px,calc(100% - 28px));margin:28px auto;background:#fff;box-shadow:0 16px 48px rgba(0,0,0,.2);padding:44px;min-height:120px}
 .head{display:grid;grid-template-columns:1fr 1fr;gap:30px;border-bottom:3px solid #ed1c24;padding-bottom:22px}
 .brand{background:#fff;padding:0;width:300px;max-width:100%;border-radius:0}.brand img{width:100%;height:auto;display:block;object-fit:contain}
@@ -47,7 +50,7 @@ body{margin:0;background:#ececec;color:#111;font-family:Arial,Helvetica,sans-ser
 </style>
 </head>
 <body>
-<div class="toolbar"><button type="button" onclick="window.print()">Print / Save PDF</button><a href="accounts-documents.html">Payments & Invoices</a></div>
+<div class="toolbar"><button type="button" onclick="window.print()">Print / Save PDF</button><button id="refreshProforma" class="toolbar-status" type="button">Refresh Payment Status</button><a href="accounts-documents.html">Payments & Invoices</a><button id="closeProforma" class="toolbar-secondary" type="button">Close Page</button></div>
 <main class="page" id="document"><div class="loading"><strong>Loading Proforma…</strong><span>Retrieving your issued AnyBike document.</span></div></main>
 <script>
 (function(){
@@ -242,6 +245,32 @@ body{margin:0;background:#ececec;color:#111;font-family:Arial,Helvetica,sans-ser
       if(error&&error.name==="AbortError") showError("The Proforma request timed out. Please try again.");
       else showError(error&&error.message?error.message:"Unknown error");
     }
+  }
+
+  const refreshButton=document.getElementById("refreshProforma");
+  const closeButton=document.getElementById("closeProforma");
+
+  if(refreshButton){
+    refreshButton.addEventListener("click",async()=>{
+      const original=refreshButton.textContent;
+      refreshButton.disabled=true;
+      refreshButton.textContent="Refreshing…";
+      await refreshLiveStatus();
+      refreshButton.textContent="Status Refreshed ✓";
+      window.setTimeout(()=>{
+        refreshButton.textContent=original;
+        refreshButton.disabled=false;
+      },1400);
+    });
+  }
+
+  if(closeButton){
+    closeButton.addEventListener("click",()=>{
+      window.close();
+      window.setTimeout(()=>{
+        if(!window.closed) window.location.href="/accounts-documents.html";
+      },150);
+    });
   }
 
   load();
