@@ -771,3 +771,30 @@ Frontend alignment completed:
 - Duty estimate uses converted AnyBike price + shipping as the calculation base; import tax is estimated after duty. The UI clearly states that customs valuation rules vary by country and the tool is a buyer commercial estimate, not an AnyBike customs/tax calculation.
 - Buyers may save calculator defaults to their customer profile so future match calculators auto-fill them.
 - Customer profile now includes optional **Margin Calculator Defaults** covering currency conversion rate, duty, import tax, target margin and normal local costs.
+
+
+### 3 October 2026 — Explicit commercial-target sharing and pricing guardrail
+- Buyer margin-calculator values are **not exposed to AnyBike sales staff merely because the buyer types them into a calculator**.
+- Each match calculator now has a deliberate **Share my buying target with AnyBike** action.
+- Before sharing, the buyer is told exactly what will be sent and that sharing:
+  - helps AnyBike prioritise motorcycles that fit the buyer's commercial requirements;
+  - does not change the AnyBike price;
+  - does not commit the buyer to purchase.
+- Shared commercial targets snapshot the buyer's chosen:
+  - currency and GBP conversion rate
+  - freight/shipping cost
+  - duty and import/local-tax rates
+  - destination-port collection
+  - preparation/workshop cost
+  - warranty provision
+  - other costs
+  - target gross margin
+  - expected local retail price, when supplied
+- When both expected retail price and target margin are supplied, AnyBike calculates:
+  - maximum viable AnyBike price in GBP under the buyer's assumptions;
+  - commercial headroom versus the current AnyBike price.
+- Customer 360 → Motorcycle Interests now contains **Buyer Commercial Intelligence** showing only deliberately shared targets plus descriptive Interested / Not Interested price history.
+- Permanent pricing guardrail:
+  - use shared commercial intelligence to understand fit and avoid unnecessary discounting;
+  - do **not** increase a buyer's price merely because their shared/private economics indicate extra headroom;
+  - unshared calculator defaults are not shown in Customer 360 sales intelligence.
