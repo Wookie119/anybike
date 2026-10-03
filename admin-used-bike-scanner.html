@@ -113,6 +113,7 @@ let currentBatchId=null;
 let currentBatch=null;
 let buyers=[];
 let sourceConnectorId=null;
+let sourceCommercialHistory=new Map();
 const sourcingParams=new URLSearchParams(location.search);
 function sourcingContextQuery(extra){
   const p=new URLSearchParams();
@@ -237,6 +238,61 @@ function isUsableRawBikeImage(url){
   return /\/api\/Image\/GetImg\?imgId=/i.test(u);
 }
 
+function fmtDateTime(v){
+  if(!v)return "Not supplied";
+  try{return new Date(v).toLocaleString("en-GB",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"})}catch{return String(v)}
+}
+function daysSince(v){
+  if(!v)return null;
+  const t=new Date(v).getTime();
+  if(!Number.isFinite(t))return null;
+  return Math.max(0,Math.floor((Date.now()-t)/86400000));
+}
+function sourceCommercialHistoryHtml(s){
+  const liveId=Number(s?.extraction?.live_source_item_id||0);
+  if(!liveId)return '<div class="note" style="margin-top:10px">Listing age and price-history tracking starts when this advert is saved into Live Source Hub.</div>';
+  const h=sourceCommercialHistory.get(liveId);
+  if(!h)return '<div class="note" style="margin-top:10px">Loading listing and price history…</div>';
+
+  const anchor=h.source_listed_at||h.first_seen_at;
+  const age=daysSince(anchor);
+  const rows=Array.isArray(h.price_history)?h.price_history:[];
+  const changes=rows.filter(x=>x.old_price_gbp!=null && Number(x.old_price_gbp)!==Number(x.new_price_gbp));
+  const firstSeenLabel=h.source_listed_at
+    ? 'Source listing date'
+    : 'First seen by AnyBike';
+  const firstSeenValue=fmtDateTime(h.source_listed_at||h.first_seen_at);
+  const ageText=age==null?'':(' · '+age+' day'+(age===1?'':'s')+' visible');
+  const priceRows=changes.length
+    ? changes.slice(0,5).map(x=>{
+        const oldPrice=Number(x.old_price_gbp);
+        const newPrice=Number(x.new_price_gbp);
+        const diff=newPrice-oldPrice;
+        return '<div style="display:flex;justify-content:space-between;gap:12px;margin-top:5px"><span>'+esc(fmtDateTime(x.observed_at))+'</span><strong>'+gbp(oldPrice)+' → '+gbp(newPrice)+' ('+(diff>0?'+':'')+gbp(diff)+')</strong></div>';
+      }).join("")
+    : '<div class="note" style="margin-top:5px">No price changes recorded since AnyBike began tracking this advert.</div>';
+
+  return '<div style="margin-top:12px;padding:10px;border:1px solid #3b3b3b;border-radius:10px;background:#0a0a0a">'+
+    '<div style="font-weight:900;margin-bottom:7px">Listing & price history · internal negotiating information</div>'+
+    '<div class="note"><strong>'+firstSeenLabel+':</strong> '+esc(firstSeenValue)+esc(ageText)+'</div>'+
+    (h.source_listed_at?'<div class="note" style="margin-top:4px"><strong>First seen by AnyBike:</strong> '+esc(fmtDateTime(h.first_seen_at))+'</div>':'<div class="note" style="margin-top:4px">The original listing date is not supplied by this source, so AnyBike shows when we first detected the advert.</div>')+
+    '<div class="note" style="margin-top:4px"><strong>Last confirmed live:</strong> '+esc(fmtDateTime(h.last_seen_at))+'</div>'+
+    '<div style="margin-top:9px"><strong>Recorded price movement</strong>'+priceRows+'</div>'+
+  '</div>';
+}
+async function loadSourceCommercialHistory(){
+  sourceCommercialHistory=new Map();
+  const ids=[...new Set((scanned||[]).map(s=>Number(s?.extraction?.live_source_item_id||0)).filter(Boolean))];
+  if(!ids.length)return;
+  await Promise.all(ids.map(async id=>{
+    try{
+      const {data,error}=await sb().rpc("admin_get_live_source_commercial_history_v1",{p_item_id:id});
+      if(!error&&data)sourceCommercialHistory.set(id,data);
+    }catch(e){
+      console.warn("Could not load source commercial history",id,e);
+    }
+  }));
+}
 function cardHtml(s,saved){
   const id=saved?s.id:s._key;
   const sourceUrls=Array.isArray(s.source_image_urls)?s.source_image_urls:[];
@@ -269,7 +325,7 @@ function cardHtml(s,saved){
         (rawFirst
           ?'<div class="field full"><label>Raw source photo — internal only</label><img src="'+esc(rawFirst)+'" style="width:100%;max-width:260px;height:170px;object-fit:cover;border-radius:10px;border:1px solid #333" onerror="this.style.display=\'none\'"></div>'
           :'<div class="field full"><label>Raw source photo — internal only</label><div class="status bad">No usable motorcycle source photo loaded</div></div>')+
-      '</div></div>'+
+      '</div>'+sourceCommercialHistoryHtml(s)+'</div>'+
       '<div class="box '+(safeFirst?'complete-box':'attention-box')+'"><h3>Buyer-safe motorcycle</h3><div class="mini">'+
         field(id,"make","Make",s.make,saved)+field(id,"model","Model",s.model,saved)+field(id,"variant","Variant",cleanVariantText(s.variant),saved)+field(id,"year","Year",s.year,saved)+field(id,"mileage","Mileage",s.mileage,saved)+field(id,"colour","Colour",cleanBuyerColour(s.colour),saved)+
       '</div><div class="field" style="margin-top:8px"><label>Buyer description — check before sending</label><textarea data-k="'+id+'" data-f="buyer_description">'+esc(buyerDescriptionForDisplay(s))+'</textarea><div class="status" style="margin-top:6px">Source advert wording is cleaned automatically. Review this buyer-safe description before ticking Price checked.</div></div>'+
@@ -405,6 +461,7 @@ async function loadBatch(id){
   const {data,error}=await sb().rpc("admin_get_used_bike_scan_batch_v1",{p_batch_id:Number(id)});
   if(error){document.getElementById("scanStatus").className="status bad";document.getElementById("scanStatus").textContent=error.message;return}
   currentBatch=data;currentBatchId=Number(id);scanned=data.scans||[];
+  await loadSourceCommercialHistory();
   document.getElementById("newBatchPanel").style.display="none";
   document.getElementById("batchSummary").style.display="block";
   document.getElementById("batchSummary").innerHTML='<div class="eyebrow">Saved sourcing batch #'+id+'</div><h2 style="margin:5px 0">'+esc(buyerName(data.buyer||{}))+'</h2><div class="muted">'+esc(data.request_item?[data.request_item.make,data.request_item.model].filter(Boolean).join(" "):"General sourcing")+' · '+scanned.length+' scanned adverts</div><div class="actions" style="margin-top:12px"><a class="btn" href="admin-used-bike-scanner.html">+ New batch</a><a class="btn" href="/services-and-fees.html" target="_blank">View AnyBike Fees ↗</a></div>';
