@@ -707,6 +707,13 @@ button,input,select,textarea{font:inherit}
     radial-gradient(circle at 96% 0%,rgba(237,28,36,.10),transparent 30%),
     rgba(16,16,16,.97);
 }
+.shipping-pref-panel.action-focus{border-color:var(--red);box-shadow:0 0 0 2px rgba(237,28,36,.16)}
+.shipping-direct-action{display:none;margin:0 0 16px;padding:15px 16px;border:1px solid var(--red);border-left:6px solid var(--red);border-radius:13px;background:rgba(237,28,36,.08)}
+.shipping-direct-action.show{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.shipping-direct-action .eyebrow{margin-bottom:4px}
+.shipping-direct-action strong{display:block;font-size:18px}
+.shipping-direct-action p{margin:5px 0 0;color:#ddd;font-size:12px;line-height:1.45}
+
 .shipping-pref-grid{
   display:grid;
   grid-template-columns:repeat(2,minmax(0,1fr));
@@ -2164,6 +2171,14 @@ body.customer-offer-modal-open{overflow:hidden}
 
 
 <section class="panel shipping-pref-panel" id="shipping-preferences">
+  <div id="shippingDirectAction" class="shipping-direct-action">
+    <div>
+      <div class="eyebrow">Your next action</div>
+      <strong id="shippingDirectActionTitle">Confirm your shipper / freight forwarder</strong>
+      <p id="shippingDirectActionText">Confirm the UK handover point and shipper details for this AnyBike Deal.</p>
+    </div>
+    <a class="mini-btn primary" id="shippingDirectActionButton" href="/customer-profile.html#section-shipping">CONFIRM SHIPPING DETAILS →</a>
+  </div>
   <div class="panel-head">
     <div>
       <h2>🚢 Shipping Preferences</h2>
@@ -3873,6 +3888,45 @@ function buildPurchaseCustomerAction(purchase){
   return null;
 }
 
+function getRequestedShippingAction(){
+  const params=new URLSearchParams(window.location.search);
+  if(String(params.get("action")||"").toLowerCase()!=="confirm-shipping") return null;
+  const deal=String(params.get("deal")||"").trim();
+  return {
+    priority:2,
+    deal:deal,
+    title:"Confirm shipper / freight forwarder"+(deal?" · Deal "+deal:""),
+    text:"Confirm the UK handover point and shipper / freight-forwarder details AnyBike needs for this purchase.",
+    href:"#shipping-preferences",
+    cta:"Confirm Shipping Details →"
+  };
+}
+
+function focusRequestedShippingAction(){
+  const requested=getRequestedShippingAction();
+  if(!requested)return;
+
+  const panel=document.getElementById("shipping-preferences");
+  const actionBox=document.getElementById("shippingDirectAction");
+  const title=document.getElementById("shippingDirectActionTitle");
+  const text=document.getElementById("shippingDirectActionText");
+  const button=document.getElementById("shippingDirectActionButton");
+
+  if(panel)panel.classList.add("action-focus");
+  if(actionBox)actionBox.classList.add("show");
+  if(title)title.textContent=requested.deal
+    ? "Confirm shipper / freight forwarder · Deal "+requested.deal
+    : "Confirm your shipper / freight forwarder";
+  if(text)text.textContent="AnyBike is waiting for you to confirm the UK handover point and shipper / freight-forwarder details for this purchase.";
+  if(button){
+    button.href="/customer-profile.html?deal="+encodeURIComponent(requested.deal||"")+"#section-shipping";
+  }
+
+  setTimeout(function(){
+    panel?.scrollIntoView({behavior:"smooth",block:"start"});
+  },150);
+}
+
 function renderCustomerNextActions(){
   const panel=document.getElementById("customerNextActionsPanel");
   const list=document.getElementById("customerNextActionsList");
@@ -3880,6 +3934,8 @@ function renderCustomerNextActions(){
   if(!panel||!list) return;
 
   const actions=[];
+  const requestedShippingAction=getRequestedShippingAction();
+  if(requestedShippingAction)actions.push(requestedShippingAction);
 
   (latestCustomerOfferRows||[]).forEach(function(match){
     if(String(match?.match_status||"")!=="Confirmed Offer Sent" || String(match?.customer_offer_decision||"").trim()) return;
@@ -7260,6 +7316,7 @@ async function initialiseCustomerNotifications(){
 
     openRequestedCustomerOffer();
     await initialiseCustomerNotifications();
+    focusRequestedShippingAction();
   }catch(error){
     console.error("My AnyBike failed to initialise",error);
 
