@@ -514,8 +514,35 @@ async function loadBatch(id){
   await loadSourceCommercialHistory();
   document.getElementById("newBatchPanel").style.display="none";
   document.getElementById("batchSummary").style.display="block";
-  document.getElementById("batchSummary").innerHTML='<div class="eyebrow">Saved sourcing batch #'+id+'</div><h2 style="margin:5px 0">'+esc(buyerName(data.buyer||{}))+'</h2><div class="muted">'+esc(data.request_item?[data.request_item.make,data.request_item.model].filter(Boolean).join(" "):"General sourcing")+' · '+scanned.length+' scanned adverts</div><div class="actions" style="margin-top:12px"><button class="btn green" id="prepareAllImagesBtn" type="button" onclick="prepareAllBuyerSafeImages()">Prepare buyer-safe photos for all matches</button><span id="prepareAllImagesStatus" class="status"></span><a class="btn" href="admin-used-bike-scanner.html">+ New batch</a><a class="btn" href="/services-and-fees.html" target="_blank">View AnyBike Fees ↗</a></div>';
+  document.getElementById("batchSummary").innerHTML='<div class="eyebrow">Saved sourcing batch #'+id+'</div><h2 style="margin:5px 0">'+esc(buyerName(data.buyer||{}))+'</h2><div class="muted">'+esc(data.request_item?[data.request_item.make,data.request_item.model].filter(Boolean).join(" "):"General sourcing")+' · '+scanned.length+' scanned adverts</div><div class="actions" style="margin-top:12px"><button class="btn green" id="prepareAllImagesBtn" type="button" onclick="prepareAllBuyerSafeImages()">Prepare / retry buyer-safe photos</button><span id="prepareAllImagesStatus" class="status"></span><a class="btn" href="admin-used-bike-scanner.html">+ New batch</a><a class="btn" href="/services-and-fees.html" target="_blank">View AnyBike Fees ↗</a></div>';
   renderScans(true);
+  queueAutomaticBuyerSafePreparation();
+}
+async function queueAutomaticBuyerSafePreparation(){
+  if(!currentBatchId)return;
+  const rows=(scanned||[]).filter(s=>s.extraction&&s.extraction.live_source_item_id);
+  const needs=rows.filter(s=>!Array.isArray(s.buyer_image_urls)||s.buyer_image_urls.length<6);
+  if(!needs.length)return;
+
+  const key="anybike-auto-buyer-safe-batch-"+currentBatchId;
+  if(sessionStorage.getItem(key)==="running")return;
+  sessionStorage.setItem(key,"running");
+
+  const status=document.getElementById("prepareAllImagesStatus");
+  if(status){
+    status.className="status";
+    status.textContent="Preparing buyer-safe galleries automatically…";
+  }
+
+  setTimeout(async()=>{
+    try{
+      await prepareAllBuyerSafeImages({automatic:true});
+      sessionStorage.setItem(key,"done");
+    }catch(e){
+      console.warn("Automatic buyer-safe preparation could not complete",e);
+      sessionStorage.removeItem(key);
+    }
+  },350);
 }
 async function resolveLiveSourceConnector(s){
   if(sourceConnectorId)return sourceConnectorId;
@@ -536,12 +563,13 @@ async function addToLiveSource(k){
   if(error){alert(error.message);return}
   alert("Saved to Live Source Hub.");
 }
-async function prepareAllBuyerSafeImages(){
+async function prepareAllBuyerSafeImages(options={}){
+  const automatic=!!options.automatic;
   const btn=document.getElementById("prepareAllImagesBtn");
   const status=document.getElementById("prepareAllImagesStatus");
   const rows=(scanned||[]).filter(s=>s.extraction&&s.extraction.live_source_item_id);
   if(!rows.length){if(status)status.textContent="No Live Source matches in this batch.";return}
-  if(btn){btn.disabled=true;btn.textContent="Preparing galleries…";}
+  if(btn){btn.disabled=true;btn.textContent=automatic?"Preparing automatically…":"Preparing galleries…";}
   let completed=0,failed=0;
   for(const s of rows){
     const current=Array.isArray(s.buyer_image_urls)?s.buyer_image_urls.length:0;
