@@ -4778,10 +4778,17 @@ input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-in
   border-radius:14px;
   background:#101010;
 }
-.deal-offer-section h3{
-  margin:0 0 12px;
-  font-size:14px;
-}
+.deal-offer-section h3{margin:0;font-size:14px}
+.deal-offer-section{position:relative;transition:border-color .18s ease,background .18s ease,box-shadow .18s ease}
+.deal-offer-section.offer-complete{border-color:rgba(51,204,102,.65);background:rgba(51,204,102,.06)}
+.deal-offer-section.offer-current{border-color:#ed1c24;background:rgba(237,28,36,.07);box-shadow:0 0 0 2px rgba(237,28,36,.10)}
+.deal-offer-section.offer-waiting{border-color:#383838}
+.deal-offer-step-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.deal-offer-step-state{display:inline-flex;align-items:center;justify-content:center;min-width:112px;padding:5px 9px;border-radius:999px;font-size:10px;font-weight:950;text-transform:uppercase;letter-spacing:.05em;background:#222;border:1px solid #444;color:#aaa}
+.deal-offer-section.offer-complete .deal-offer-step-state{background:rgba(51,204,102,.16);border-color:#45985e;color:#9af0b2}
+.deal-offer-section.offer-current .deal-offer-step-state{background:#ed1c24;border-color:#ed1c24;color:#fff}
+.deal-offer-next-copy{display:none;margin:0 0 12px;padding:9px 11px;border-radius:9px;background:rgba(237,28,36,.10);border-left:4px solid #ed1c24;color:#ffb8bb;font-size:11px;font-weight:900;line-height:1.4}
+.deal-offer-section.offer-current .deal-offer-next-copy{display:block}
 .deal-offer-grid{
   display:grid;
   grid-template-columns:1fr 1fr;
@@ -6406,6 +6413,8 @@ let activeDealOfferMotorcycleId = null;
 let activeDealOfferId = null;
 let activeDealOfferInternalCost = 0;
 let activeDealOfferDealId = null;
+let dealOfferStepState = {};
+let dealOfferGuideReady = false;
 
 const dealStageSaveBusy = new Set();
 let adminDealFinancialStatus = [];
@@ -9059,6 +9068,54 @@ function anyBikeMinimumDeposit(customerTotal){
   return Math.max(500,rounded);
 }
 
+function dealOfferConfirmedShippingState(){
+  const deal=(adminDealQueue||[]).find(item=>Number(item.deal_id)===Number(activeDealOfferDealId))||{};
+  const selection=anyBikeCustomerHandoverSelectionForDeal(deal?.deal_id);
+  const plan=dealOfferSavedShipperForDeal(deal);
+  return {deal,selection,plan,confirmed:!!selection&&!!plan&&Number(selection.handover_plan_id||0)===Number(plan.id||0)&&String(selection.status||"").toLowerCase().includes("customer selected")};
+}
+function dealOfferStepChecks(){
+  const shipping=dealOfferConfirmedShippingState();
+  const expiryRaw=String(document.getElementById("dealOfferExpiresAt")?.value||"").trim();
+  const expiry=expiryRaw?new Date(expiryRaw):null;
+  const candidate=dealCandidateForMotorcycle(activeDealOfferMotorcycleId);
+  const sellerUntil=candidate?.availability_valid_until?new Date(candidate.availability_valid_until):null;
+  const expiryValid=!!expiry&&!Number.isNaN(expiry.getTime())&&expiry.getTime()>Date.now()&&(!sellerUntil||Number.isNaN(sellerUntil.getTime())||expiry.getTime()<=sellerUntil.getTime());
+  const deliveryType=String(document.getElementById("dealOfferDeliveryType")?.value||"").trim();
+  const destination=getDealOfferDestinationValue();
+  return [
+    {id:1,complete:dealOfferNumber("dealOfferMotorcyclePrice")>0&&dealOfferNumber("dealOfferAnyBikeFee")>=0&&dealOfferNumber("dealOfferDeliveryCharge")>=0,next:"Check the customer price, AnyBike fee and UK collection / delivery charge."},
+    {id:2,complete:!!String(document.getElementById("dealOfferSaleBasis")?.value||"").trim()&&!!String(document.getElementById("dealOfferTerms")?.value||"").trim(),next:"Confirm the sale basis and customer-facing offer terms."},
+    {id:3,complete:shipping.confirmed||(!!deliveryType&&(deliveryType==="Buyer Arranged / Collection"||!!destination)),next:"Confirm the delivery / collection arrangement for this Deal."},
+    {id:4,complete:shipping.confirmed,next:"The buyer must confirm the shipper / freight forwarder for this Deal."},
+    {id:5,complete:dealOfferNumber("dealOfferDepositAmount")>0&&!!String(document.getElementById("dealOfferPaymentTerms")?.value||"").trim(),next:"Check the minimum deposit and payment terms."},
+    {id:6,complete:expiryValid,next:"Check the live Offer Valid Until time from Seller Check."}
+  ];
+}
+function refreshDealOfferGuide(allowScroll){
+  const checks=dealOfferStepChecks();
+  const first=checks.find(r=>!r.complete)||null;
+  let newlyCompleted=false;
+  checks.forEach(row=>{
+    const section=document.getElementById("dealOfferStep"+row.id); if(!section)return;
+    const state=section.querySelector(".deal-offer-step-state");
+    const copy=section.querySelector(".deal-offer-next-copy");
+    const was=dealOfferStepState[row.id]===true;
+    section.classList.toggle("offer-complete",row.complete);
+    section.classList.toggle("offer-current",!!first&&first.id===row.id);
+    section.classList.toggle("offer-waiting",!row.complete&&(!first||first.id!==row.id));
+    if(state)state.textContent=row.complete?"✓ Complete":(first&&first.id===row.id?"Your next action":"Waiting");
+    if(copy)copy.textContent=row.next;
+    if(row.complete&&!was)newlyCompleted=true;
+    dealOfferStepState[row.id]=row.complete;
+  });
+  const send=document.getElementById("dealOfferSendButton");
+  if(send){send.disabled=!!first;send.textContent=first?"Complete red section first":"Send AnyBike Offer";}
+  if(allowScroll&&dealOfferGuideReady&&newlyCompleted&&first){
+    setTimeout(()=>document.getElementById("dealOfferStep"+first.id)?.scrollIntoView({behavior:"smooth",block:"start"}),120);
+  }
+  return !first;
+}
 function calculateDealOfferPreview(){
   const motorcyclePrice=dealOfferNumber("dealOfferMotorcyclePrice");
   const anybikeFee=dealOfferNumber("dealOfferAnyBikeFee");
@@ -9088,6 +9145,7 @@ function calculateDealOfferPreview(){
   }
   if(marginEl) marginEl.textContent=margin.toFixed(1)+"%";
   if(balanceEl) balanceEl.textContent=dealOfferMoney(balance);
+  refreshDealOfferGuide(false);
 }
 
 
@@ -9431,8 +9489,12 @@ async function openDealOfferModal(dealMotorcycleId){
   configureDealOfferExpiryLimit(id);
   calculateDealOfferPreview();
 
+  dealOfferStepState={};
+  dealOfferGuideReady=false;
   document.getElementById("dealOfferModal").classList.add("open");
   document.body.style.overflow="hidden";
+  refreshDealOfferGuide(false);
+  setTimeout(()=>{dealOfferGuideReady=true;refreshDealOfferGuide(false);},250);
 }
 
 async function saveDealOffer(){
@@ -9545,6 +9607,10 @@ async function saveDealOffer(){
 }
 
 async function sendDealOffer(){
+  if(!refreshDealOfferGuide(false)){
+    document.querySelector("#dealOfferModal .deal-offer-section.offer-current")?.scrollIntoView({behavior:"smooth",block:"start"});
+    return;
+  }
   const manualCandidateGuard=candidateOfferGuardMessage(activeDealOfferMotorcycleId);
   if(manualCandidateGuard){
     const guardStatus=document.getElementById("dealOfferStatus");
@@ -19695,8 +19761,8 @@ document.querySelector(".admin-page-content .wrap")?.classList.add("sales-view-a
         <div><span>VIN / Chassis</span><strong id="dealOfferVin">-</strong></div>
       </div>
 
-      <section class="deal-offer-section">
-        <h3>1. Customer Price</h3>
+      <section class="deal-offer-section" id="dealOfferStep1" data-offer-step="1">
+        <div class="deal-offer-step-head"><h3>1. Customer Price</h3><span class="deal-offer-step-state">Checking…</span></div><div class="deal-offer-next-copy"></div>
         <div class="deal-offer-grid deal-offer-price-grid">
           <label>
             <span>Motorcycle Price (£)</span>
@@ -19727,8 +19793,8 @@ document.querySelector(".admin-page-content .wrap")?.classList.add("sales-view-a
         </div>
       </section>
 
-      <section class="deal-offer-section">
-        <h3>2. Sale Basis & Terms</h3>
+      <section class="deal-offer-section" id="dealOfferStep2" data-offer-step="2">
+        <div class="deal-offer-step-head"><h3>2. Sale Basis &amp; Terms</h3><span class="deal-offer-step-state">Checking…</span></div><div class="deal-offer-next-copy"></div>
         <div class="deal-offer-grid">
           <label>
             <span>Sale Basis</span>
@@ -19748,8 +19814,8 @@ document.querySelector(".admin-page-content .wrap")?.classList.add("sales-view-a
         </div>
       </section>
 
-      <section class="deal-offer-section">
-        <h3 id="dealOfferDeliveryHeading">3. Delivery / Collection</h3>
+      <section class="deal-offer-section" id="dealOfferStep3" data-offer-step="3">
+        <div class="deal-offer-step-head"><h3 id="dealOfferDeliveryHeading">3. Delivery / Collection</h3><span class="deal-offer-step-state">Checking…</span></div><div class="deal-offer-next-copy"></div>
         <div id="dealOfferConfirmedDelivery" style="display:none;padding:14px;border:1px solid rgba(51,204,102,.38);border-radius:12px;background:rgba(51,204,102,.06);color:#ddd;line-height:1.5"></div>
         <div id="dealOfferDeliveryEditable" class="deal-offer-grid">
           <label>
@@ -19814,8 +19880,8 @@ document.querySelector(".admin-page-content .wrap")?.classList.add("sales-view-a
         </div>
       </section>
 
-      <section class="deal-offer-section">
-        <h3>4. Shipper / Freight Forwarder</h3>
+      <section class="deal-offer-section" id="dealOfferStep4" data-offer-step="4">
+        <div class="deal-offer-step-head"><h3>4. Shipper / Freight Forwarder</h3><span class="deal-offer-step-state">Checking…</span></div><div class="deal-offer-next-copy"></div>
         <div id="dealOfferShipperSummary" style="padding:14px;border:1px solid rgba(255,255,255,.10);border-radius:12px;background:#0d0d0d;color:#bbb;line-height:1.5">
           Loading saved customer shipping details…
         </div>
@@ -19825,8 +19891,8 @@ document.querySelector(".admin-page-content .wrap")?.classList.add("sales-view-a
         </div>
       </section>
 
-      <section class="deal-offer-section">
-        <h3>5. Deposit & Payment Terms</h3>
+      <section class="deal-offer-section" id="dealOfferStep5" data-offer-step="5">
+        <div class="deal-offer-step-head"><h3>5. Deposit &amp; Payment Terms</h3><span class="deal-offer-step-state">Checking…</span></div><div class="deal-offer-next-copy"></div>
         <div class="deal-offer-grid deal-offer-payment-grid">
           <input id="dealOfferDepositRequired" type="checkbox" checked hidden>
 
@@ -19848,8 +19914,8 @@ document.querySelector(".admin-page-content .wrap")?.classList.add("sales-view-a
         </div>
       </section>
 
-      <section class="deal-offer-section">
-        <h3>6. Offer Timing · From Seller Check</h3>
+      <section class="deal-offer-section" id="dealOfferStep6" data-offer-step="6">
+        <div class="deal-offer-step-head"><h3>6. Offer Timing · From Seller Check</h3><span class="deal-offer-step-state">Checking…</span></div><div class="deal-offer-next-copy"></div>
         <div class="deal-offer-grid">
           <label>
             <span>Offer Valid Until</span>
@@ -19881,6 +19947,10 @@ document.querySelector(".admin-page-content .wrap")?.classList.add("sales-view-a
     </div>
   </div>
 </div>
+<script>
+document.getElementById("dealOfferModal")?.addEventListener("input",e=>{if(e.target.closest(".deal-offer-section"))refreshDealOfferGuide(true);});
+document.getElementById("dealOfferModal")?.addEventListener("change",e=>{if(e.target.closest(".deal-offer-section"))refreshDealOfferGuide(true);});
+</script>
 <script src="admin-operations.js?v=112"></script>
 </body>
 </html>
