@@ -8363,18 +8363,21 @@ function anyBikeDealProjectedCommercialTotals(deal){
     }
   });
 
-  const motorcycleRevenue=rows.reduce(function(sum,row){
-    return sum+Number(row.anybike_sale_price_gbp||0)+Number(row.anybike_buyer_fee_gbp||0);
+  const dealRevenue=rows.reduce(function(sum,row){
+    return sum+
+      Number(row.anybike_sale_price_gbp||0)+
+      Number(row.anybike_buyer_fee_gbp||0)+
+      Number(row.delivery_charge_gbp||0);
   },0);
 
   const projectedProfit=
     hasSale && hasSeller && allComplete
-      ? motorcycleRevenue-totalInternalCost
+      ? dealRevenue-totalInternalCost
       : null;
 
   const projectedMargin=
-    projectedProfit!==null && motorcycleRevenue>0
-      ? (projectedProfit/motorcycleRevenue)*100
+    projectedProfit!==null && dealRevenue>0
+      ? (projectedProfit/dealRevenue)*100
       : null;
 
   return {
@@ -8460,10 +8463,10 @@ function updateDealCommercialPreview(dealMotorcycleId){
     const other=anyBikeCommercialInputNumber("deal-commercial-other-"+id);
 
     const customerTotal=sale>0 ? sale+buyerFee+deliveryCharge : null;
-    const motorcycleRevenue=sale>0 ? sale+buyerFee : null;
+    const dealRevenue=customerTotal;
     const totalInternal=seller>0 ? seller+prep+docs+admin+other : null;
-    const profit=motorcycleRevenue!==null && totalInternal!==null ? motorcycleRevenue-totalInternal : null;
-    const margin=profit!==null && motorcycleRevenue>0 ? (profit/motorcycleRevenue)*100 : null;
+    const profit=dealRevenue!==null && totalInternal!==null ? dealRevenue-totalInternal : null;
+    const margin=profit!==null && dealRevenue>0 ? (profit/dealRevenue)*100 : null;
 
     const customerEl=document.getElementById("deal-commercial-customer-total-"+id);
     const costEl=document.getElementById("deal-commercial-total-cost-"+id);
@@ -8556,8 +8559,8 @@ async function saveDealCommercialSetup(dealMotorcycleId,options){
         "Commercial Setup saved.\n\n" +
         "Customer total: " + (payload.customer_total_gbp===null ? "Not agreed" : anyBikeDealMoney(payload.customer_total_gbp)) + "\n" +
         "Motorcycle / deal cost basis: " + (payload.total_internal_cost_gbp===null ? "Not confirmed" : anyBikeDealMoney(payload.total_internal_cost_gbp)) + "\n" +
-        "Motorcycle commercial profit: " + (payload.projected_profit_gbp===null ? "Not calculated" : anyBikeDealMoney(payload.projected_profit_gbp)) + "\n" +
-        "Motorcycle commercial margin: " + (payload.projected_margin_percent===null ? "—" : Number(payload.projected_margin_percent).toFixed(1)+"%") + "\n\n" +
+        "Deal gross profit: " + (payload.projected_profit_gbp===null ? "Not calculated" : anyBikeDealMoney(payload.projected_profit_gbp)) + "\n" +
+        "Deal gross margin: " + (payload.projected_margin_percent===null ? "—" : Number(payload.projected_margin_percent).toFixed(1)+"%") + "\n\n" +
         "Customer visible: NO\n" +
         "Offer sent: NO\n" +
         "Motorcycle secured: " + (payload.motorcycle_secured ? "YES" : "NO")
