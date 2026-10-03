@@ -811,3 +811,12 @@ Frontend alignment completed:
 - Formal offers now treat the deposit as a **minimum deposit**. Current default: **10% of the customer offer total, rounded to the nearest £50, minimum £500**, capped at the offer total. Staff can still review the saved offer deposit.
 - Buyers may pay the minimum deposit, a larger amount, or the full remaining purchase balance. Any remaining balance must be received in cleared funds before collection from the seller.
 - A seller-side negotiated saving does not automatically reduce the buyer-facing AnyBike price; buyer price changes remain an explicit AnyBike commercial decision.
+
+
+### 3 October 2026 — Seller availability handoff and sourced-price protection
+- After a seller availability check is saved, Deal 360 now shows a local **Your next action** telling staff to select the confirmed motorcycle for the Deal.
+- **Select for Deal** is a single action: no extra confirmation click. After selection it opens the motorcycle's Commercial Setup directly.
+- When a candidate originated from a customer-visible sourced match, Deal 360 now carries the original buyer-facing price components into the Deal motorcycle: motorcycle price, AnyBike sourcing fee and UK collection/delivery allowance.
+- Those buyer-facing sourced-match components are treated as a protected quote snapshot in Commercial Setup so staff cannot accidentally add the sourcing fee or UK collection/delivery a second time.
+- Already-shown legacy sourced-match prices are preserved exactly even if the fee rule has since changed. New sourced matches continue to use the current automatic sourcing-fee rule upstream.
+- Current test Deal AB-000029 was repaired to its original sourced-match breakdown: £15,990 motorcycle + £1,295 sourced-match fee + £250 UK collection/delivery = £17,535 customer price; seller purchase price remains £15,000.
