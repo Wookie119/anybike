@@ -1265,3 +1265,12 @@ When a buyer reviews a sourced-motorcycle batch:
 10. Storage charges can apply if the buyer's onward shipping or handover is delayed. Direct the buyer to My Messages to discuss delays and storage implications.
 11. The full sourcing-process explanation can be acknowledged once and hidden on future sourced-match pages. The buyer must always be able to reopen it.
 12. Hiding the general sourcing-process explanation does not replace acceptance of motorcycle-specific Formal Offer terms, legal declarations, price, or payment obligations.
+
+
+## 3.1G Seller availability to Commercial Setup
+1. When an Interested sourced motorcycle is checked with the seller, record availability, confirmed seller purchase price and any genuine hold period.
+2. Once availability is confirmed, the next admin action is **Select for Deal**. This should be a single action and should open Commercial Setup directly.
+3. If the motorcycle came from a customer-visible sourced match, do not rebuild the customer price in Commercial Setup. Carry the exact price components already shown to the buyer into Deal 360.
+4. The sourced-match motorcycle price, AnyBike sourcing fee and UK collection/delivery component are a protected buyer quote snapshot. Do not add the sourcing fee or UK collection/delivery again.
+5. If an older batch used a legacy fee snapshot, preserve the exact amount already shown to the buyer. The current automatic fee rule applies to new sourced matches, not retroactively to a price already presented.
+6. Commercial Setup is then used to review the confirmed seller purchase price and genuine deal-specific internal costs before proceeding to the Formal Offer.
