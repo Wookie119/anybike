@@ -28,6 +28,7 @@ h1{font-size:34px;margin:6px 0 10px}.intro{white-space:pre-line;line-height:1.6;
 .match-timer{margin-top:2px;padding:10px 11px;border:1px solid #4c3b16;border-left:5px solid #d3a92d;border-radius:9px;background:#1b160b;color:#ffd66b;font-size:12px;font-weight:950}
 .match-timer.ending{border-color:#ed1c24;border-left-color:#ed1c24;background:rgba(237,28,36,.09);color:#ffb1b5}
 .match-timer.expired{border-color:#5d2023;border-left-color:#ed1c24;background:#1b0c0d;color:#ff8a90}
+.match-recheck{display:inline-flex;margin-top:8px;padding:9px 11px;border:1px solid #ed1c24;border-radius:9px;background:#ed1c24;color:#fff;font-size:11px;font-weight:950;cursor:pointer}
 .match-urgency-banner{display:none;margin:0 0 18px;padding:14px 16px;border:1px solid #8b6a19;border-left:5px solid #d3a92d;border-radius:14px;background:#19140a}
 .match-urgency-banner.show{display:block}
 .match-urgency-banner.ending{border-color:#ed1c24;background:rgba(237,28,36,.08)}
@@ -272,9 +273,32 @@ function matchTimerHtml(s){
     : ms<=21600000
       ? "ENDING SOON"
       : timing.label.toUpperCase();
-  return '<div class="match-timer '+cls+'" id="match-timer-'+Number(s.id)+'" data-expires="'+esc(timing.expiresAt.toISOString())+'" data-label="'+esc(timing.label)+'">'+
+  return '<div class="match-timer '+cls+'" id="match-timer-'+Number(s.id)+'" data-expires="'+esc(timing.expiresAt.toISOString())+'" data-label="'+esc(timing.label)+'" data-scan-id="'+Number(s.id)+'">'+
     esc(prefix)+': '+esc(formatMatchCountdown(ms))+
+    (ms<=0?'<button type="button" class="match-recheck" onclick="event.preventDefault();event.stopPropagation();requestSourcedMatchRecheck('+Number(s.id)+',this)">I STILL WANT THIS BIKE →</button>':'')+
   '</div>';
+}
+
+async function requestSourcedMatchRecheck(scanId,button){
+  if(button){
+    button.disabled=true;
+    button.textContent="Sending…";
+  }
+  try{
+    const result=await sb.rpc("customer_request_sourced_availability_recheck_v1",{p_scan_id:Number(scanId)});
+    if(result.error)throw result.error;
+    if(button){
+      button.textContent="REQUEST SENT ✓";
+      button.disabled=true;
+    }
+  }catch(error){
+    console.error("Availability re-check request failed",error);
+    if(button){
+      button.disabled=false;
+      button.textContent="I STILL WANT THIS BIKE →";
+    }
+    alert(error?.message||"We could not send your request. Please try again.");
+  }
 }
 
 function refreshMatchTimers(){
@@ -287,7 +311,21 @@ function refreshMatchTimers(){
     el.classList.toggle("expired",ms<=0);
     el.classList.toggle("ending",ms>0 && ms<=21600000);
     const prefix=ms<=0?"AVAILABILITY WINDOW ENDED":ms<=21600000?"ENDING SOON":label.toUpperCase();
-    el.textContent=prefix+": "+formatMatchCountdown(ms);
+    if(ms<=0){
+      const scanId=Number(el.dataset.scanId||0);
+      const existing=el.querySelector(".match-recheck");
+      el.firstChild ? el.firstChild.nodeValue=prefix+": "+formatMatchCountdown(ms)+" " : null;
+      if(!existing && scanId){
+        const button=document.createElement("button");
+        button.type="button";
+        button.className="match-recheck";
+        button.textContent="I STILL WANT THIS BIKE →";
+        button.onclick=function(event){event.preventDefault();event.stopPropagation();requestSourcedMatchRecheck(scanId,button);};
+        el.appendChild(button);
+      }
+    }else{
+      el.textContent=prefix+": "+formatMatchCountdown(ms);
+    }
     if(ms>0 && (!earliest || ms<earliest.ms))earliest={ms:ms,label:label};
   });
 
