@@ -140,6 +140,7 @@ main{width:min(1660px,96vw);margin:28px auto 70px}
 .section-anchor{scroll-margin-top:120px}
 
 
+.payment-choice-note{grid-column:1/-1;color:#aaa;font-size:11px;line-height:1.45}.payment-quick{grid-column:1/-1;display:flex;gap:8px;flex-wrap:wrap}.payment-quick button{border:1px solid rgba(255,255,255,.14);background:#161616;color:#fff;border-radius:999px;padding:8px 11px;font-size:11px;font-weight:900;cursor:pointer}.payment-quick button:hover{background:#222}
 .auto-allocation-label{
   grid-area:auto;
   min-height:38px;
@@ -375,6 +376,11 @@ function invoiceCard(invoice){
     <input class="pay-select" id="pay-select-${Number(invoice.invoice_id)}" data-invoice-id="${Number(invoice.invoice_id)}" type="checkbox">
     <label for="pay-select-${Number(invoice.invoice_id)}">Allocate this bank transfer here<small>Remaining purchase balance ${money(invoice.balance_due_gbp)}</small></label>
     <input class="pay-amount" id="pay-amount-${Number(invoice.invoice_id)}" data-invoice-id="${Number(invoice.invoice_id)}" type="number" min="0.01" step="0.01" max="${Number(invoice.balance_due_gbp||0).toFixed(2)}" value="${Number(invoice.balance_due_gbp||0).toFixed(2)}">
+    <div class="payment-choice-note">You can pay the minimum amount requested, enter a larger amount, or pay the full remaining purchase balance.</div>
+    <div class="payment-quick">
+      <button type="button" onclick="useRequestedPaymentAmount(${Number(invoice.invoice_id)})">Use requested amount</button>
+      <button type="button" onclick="payInvoiceInFull(${Number(invoice.invoice_id)})">Pay full remaining balance</button>
+    </div>
     <div class="auto-allocation-label">
       <div class="auto-allocation-icon">✓</div>
       <div class="auto-allocation-copy">
@@ -481,6 +487,30 @@ function applyRequestedPaymentJourney(){
   }
   updatePaymentSelection();
   requestAnimationFrame(()=>setTimeout(()=>{const target=document.getElementById("reportPanel");if(target){const top=target.getBoundingClientRect().top+window.pageYOffset-24;window.scrollTo({top:Math.max(0,top),behavior:"smooth"});}},180));
+}
+
+function useRequestedPaymentAmount(invoiceId){
+  const request=requestedPaymentJourney();
+  const invoice=accountInvoices.find(row=>Number(row.invoice_id)===Number(invoiceId));
+  const input=document.getElementById("pay-amount-"+Number(invoiceId));
+  const box=document.getElementById("pay-select-"+Number(invoiceId));
+  if(!invoice||!input)return;
+  const balance=Number(invoice.balance_due_gbp||0);
+  const requested=request&&(!request.invoiceId || Number(request.invoiceId)===Number(invoiceId))
+    ? Math.min(Number(request.amount||0),balance)
+    : Math.min(balance,Number(input.value||0));
+  if(box)box.checked=true;
+  input.value=Math.max(0.01,requested||balance).toFixed(2);
+  updatePaymentSelection();
+}
+function payInvoiceInFull(invoiceId){
+  const invoice=accountInvoices.find(row=>Number(row.invoice_id)===Number(invoiceId));
+  const input=document.getElementById("pay-amount-"+Number(invoiceId));
+  const box=document.getElementById("pay-select-"+Number(invoiceId));
+  if(!invoice||!input)return;
+  if(box)box.checked=true;
+  input.value=Number(invoice.balance_due_gbp||0).toFixed(2);
+  updatePaymentSelection();
 }
 
 function selectedAllocations(){
