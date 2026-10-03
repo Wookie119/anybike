@@ -29,7 +29,7 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
 .sourcing-context a{padding:0;border:0;color:#fff;text-decoration:underline}
 .next-action-panel{margin:16px 0;padding:18px 20px;border:2px solid var(--red);border-radius:16px;background:linear-gradient(135deg,rgba(237,28,36,.16),#111 55%);box-shadow:0 0 0 1px rgba(237,28,36,.08)}
 .next-action-panel h2{margin:4px 0 6px;font-size:24px}.next-action-panel p{margin:0;color:#ddd;line-height:1.5}.next-action-panel .actions{margin-top:12px}
-.batch-panel{position:static;background:#0d0d0d;border:1px solid #333;border-radius:16px;padding:14px;margin:16px 0;z-index:auto}.sourcing-plan{display:none;background:#0d0d0d;border:1px solid #333;border-radius:16px;padding:14px;margin:0 0 16px}.sourcing-plan-grid{display:grid;gap:8px;margin-top:10px}.sourcing-plan-row{display:grid;grid-template-columns:1.4fr .8fr auto;gap:10px;align-items:center;padding:10px 12px;border:1px solid #2c2c2c;border-radius:11px;background:#111}.sourcing-plan-row.current{border-color:#ed1c24}.sourcing-plan-status{font-size:12px;font-weight:900}.sourcing-plan-status.not-started{color:#ff858a}.sourcing-plan-status.prepared{color:#ffd27a}.sourcing-plan-status.sent{color:#8dbdff}.sourcing-plan-status.responded{color:#67dc91}
+.batch-panel{position:static;background:#0d0d0d;border:1px solid #333;border-radius:16px;padding:14px;margin:16px 0;z-index:auto}.sourcing-plan{display:none;background:#0d0d0d;border:1px solid #333;border-radius:16px;padding:14px;margin:0 0 16px}.sourcing-plan-grid{display:grid;gap:8px;margin-top:10px}.sourcing-plan-row{display:grid;grid-template-columns:1.4fr .8fr auto;gap:10px;align-items:center;padding:10px 12px;border:1px solid #2c2c2c;border-radius:11px;background:#111}.sourcing-plan-row.current{border-color:#ed1c24}.sourcing-plan-status{font-size:12px;font-weight:900}.sourcing-plan-status.not-started{color:#ff858a}.sourcing-plan-status.prepared{color:#ffd27a}.sourcing-plan-status.sent{color:#8dbdff}.sourcing-plan-status.responded{color:#67dc91}.message-mentions{display:none;margin-top:14px;padding-top:12px;border-top:1px solid #2b2b2b}.message-mention-row{display:grid;grid-template-columns:1.4fr .9fr auto;gap:10px;align-items:center;padding:9px 0;border-top:1px solid #222}.message-mention-row:first-child{border-top:0}.message-mention-badge{font-size:12px;font-weight:900;color:#ffd27a}.message-mention-copy{font-size:12px;color:#aaa;line-height:1.45}
 .batch-grid{display:grid;grid-template-columns:1.2fr 1.2fr .7fr auto;gap:10px;align-items:end}
 @media(max-width:1100px){.sources{grid-template-columns:1fr}.filters,.batch-grid{grid-template-columns:1fr 1fr}.bike{grid-template-columns:30px 90px 1fr 1fr}.bike .optional{display:none}.bike img{width:90px;height:68px}}
 @media(max-width:650px){.content{padding:12px}.filters,.batch-grid{grid-template-columns:1fr}.bike{grid-template-columns:30px 1fr}.bike img{display:none}}
@@ -80,6 +80,12 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
         <h2 style="margin:5px 0 4px">All active motorcycle requirements</h2>
         <div class="small" id="buyerSourcingPlanSummary">Choose a buyer to see every motorcycle request together.</div>
         <div class="sourcing-plan-grid" id="buyerSourcingPlanGrid"></div>
+        <div class="message-mentions" id="buyerMessageMentions">
+          <div class="eyebrow" style="margin-bottom:5px">Message Centre clues</div>
+          <strong>Models the buyer has mentioned</strong>
+          <div class="message-mention-copy" style="margin-top:4px">These are suggestions only. They are not added to the buyer's sourcing plan unless a staff member chooses to add them.</div>
+          <div id="buyerMessageMentionsList" style="margin-top:8px"></div>
+        </div>
       </section>
 
       <section class="panel">
@@ -134,7 +140,7 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
 </div>
 <script>
 const sb=()=>getAdminSupabaseClient();
-let hub=null,items=[],buyers=[],selected=new Set(),sourceFacets={makes:[],models:[]},buyerRequests=[],buyerSourcingPlan=null,selectedDealers=new Set(),sourceRefreshInProgress=false,deliveryAllowances=new Map();
+let hub=null,items=[],buyers=[],selected=new Set(),sourceFacets={makes:[],models:[]},buyerRequests=[],buyerSourcingPlan=null,buyerMessageMentions=[],selectedDealers=new Set(),sourceRefreshInProgress=false,deliveryAllowances=new Map();
 const sourcingParams=new URLSearchParams(location.search);
 function sourcingContextQuery(extra){
   const p=new URLSearchParams();
@@ -151,6 +157,58 @@ function sourcingStatusClass(status){
 }
 function sourcingRequestLabel(r){
   return [r.make,r.model,r.year_from?("from "+r.year_from):"",r.mileage_max?(Number(r.mileage_max).toLocaleString("en-GB")+" miles max"):""].filter(Boolean).join(" · ");
+}
+async function loadBuyerMessageMentions(){
+  const bid=Number(document.getElementById("buyerSelect")?.value||0);
+  const wrap=document.getElementById("buyerMessageMentions");
+  const list=document.getElementById("buyerMessageMentionsList");
+  buyerMessageMentions=[];
+  if(!bid){if(wrap)wrap.style.display="none";return []}
+  const {data,error}=await sb().rpc("admin_get_buyer_message_model_mentions_v1",{p_buyer_id:bid});
+  if(error){
+    if(wrap)wrap.style.display="none";
+    return [];
+  }
+  buyerMessageMentions=(data?.mentions||[]).filter(x=>!x.already_in_sourcing_plan);
+  if(!buyerMessageMentions.length){
+    if(wrap)wrap.style.display="none";
+    if(list)list.innerHTML="";
+    return [];
+  }
+  if(wrap)wrap.style.display="block";
+  if(list)list.innerHTML=buyerMessageMentions.map((m,i)=>{
+    const label=[m.make,m.model].filter(Boolean).join(" ")||m.model||"Mentioned model";
+    const evidence=m.customer_message_confirmed
+      ?"Buyer mentioned this in a Message Centre message"
+      :"This model is attached to one of the buyer's Message Centre conversations";
+    return '<div class="message-mention-row">'+
+      '<div><strong>'+esc(label)+'</strong><div class="message-mention-copy">'+esc(evidence)+'</div></div>'+
+      '<div class="message-mention-badge">Discussed · not yet in sourcing plan</div>'+
+      '<button class="btn" type="button" onclick="addMessageMentionToPlan('+i+')">Add to sourcing plan →</button>'+
+    '</div>';
+  }).join("");
+  return buyerMessageMentions;
+}
+async function addMessageMentionToPlan(index){
+  const m=buyerMessageMentions[index];
+  const bid=Number(document.getElementById("buyerSelect")?.value||0);
+  if(!m||!bid)return;
+  const label=[m.make,m.model].filter(Boolean).join(" ")||m.model;
+  if(!confirm("Add "+label+" to this buyer's sourcing plan?\n\nThis was mentioned in Message Centre and will become a staff sourcing requirement."))return;
+  const {data,error}=await sb().rpc("admin_add_message_mention_to_sourcing_plan_v1",{
+    p_buyer_id:bid,
+    p_make:m.make||null,
+    p_model:m.model,
+    p_thread_ids:Array.isArray(m.thread_ids)?m.thread_ids.map(Number):null
+  });
+  if(error){alert(error.message);return}
+  await loadRequests();
+  await loadBuyerSourcingPlan();
+  await loadBuyerMessageMentions();
+  const req=document.getElementById("requestSelect");
+  if(req&&[...req.options].some(o=>o.value===String(data)))req.value=String(data);
+  renderBuyerSourcingPlan();
+  updateLiveSourceNextAction();
 }
 async function loadBuyerSourcingPlan(){
   const bid=Number(document.getElementById("buyerSelect")?.value||0);
@@ -172,6 +230,7 @@ async function loadBuyerSourcingPlan(){
   }
   buyerSourcingPlan=data||{requests:[]};
   renderBuyerSourcingPlan();
+  await loadBuyerMessageMentions();
   updateLiveSourceNextAction();
   return buyerSourcingPlan;
 }
@@ -234,7 +293,9 @@ function updateLiveSourceNextAction(){
     title.textContent=notStarted.length?"Continue the buyer's outstanding sourcing":"Choose the buyer request";
     textEl.textContent=notStarted.length
       ?notStarted.length+" motorcycle request"+(notStarted.length===1?" is":"s are")+" not yet sourced. Choose one below; completing another brand/model does not clear these requirements."
-      :"Select the motorcycle request you are working on so the Live Source Hub can filter the source pool to the buyer's requirements.";
+      :(buyerMessageMentions.length
+        ?buyerMessageMentions.length+" additional model"+(buyerMessageMentions.length===1?" was":"s were")+" mentioned in Message Centre. Review the clues below and add any genuine requirement to the sourcing plan."
+        :"Select the motorcycle request you are working on so the Live Source Hub can filter the source pool to the buyer's requirements.");
     btn.textContent="PROCEED →";
     return;
   }
