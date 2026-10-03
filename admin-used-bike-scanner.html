@@ -430,18 +430,18 @@ function updateNextAction(){
   panel.style.display="block";
   if(missingImage){
     nextActionMode="image";
-    title.textContent="Prepare the buyer-safe image";
-    textEl.textContent="At least one motorcycle still needs an approved buyer-safe image. Prepare that first before completing the price check and buyer selection.";
-    btn.textContent="PROCEED →";
+    title.textContent="Prepare buyer-safe photo galleries";
+    textEl.textContent="At least one motorcycle still needs buyer-safe photos. Prepare the galleries for the batch before completing the price check and previewing each match.";
+    btn.textContent="PREPARE GALLERIES →";
   }else if(thinGallery){
     nextActionMode="image";
     title.textContent="Prepare more buyer-safe photos";
     textEl.textContent="At least one motorcycle has fewer than 3 buyer-safe photos. Prepare more images where the source advert provides them, then preview the match as the buyer will see it.";
-    btn.textContent="PROCEED →";
+    btn.textContent="PREPARE MORE PHOTOS →";
   }else if(needsReview){
     nextActionMode="review";
     title.textContent="Review each motorcycle for the buyer";
-    textEl.textContent="Check the buyer description, final AnyBike price and internal listing/price history. Tick Price checked and Include in buyer selection for the motorcycles you want to send, then click Save motorcycle.";
+    textEl.textContent="Check the buyer description, final AnyBike price, listing/price history and buyer-safe gallery. Use Preview as buyer on each match before ticking Price checked and Include in buyer selection, then click Save motorcycle.";
     btn.textContent="PROCEED →";
   }else{
     nextActionMode="share";
@@ -451,6 +451,10 @@ function updateNextAction(){
   }
 }
 function runNextAction(){
+  if(nextActionMode==="image"){
+    prepareAllBuyerSafeImages();
+    return;
+  }
   if(nextActionMode==="share"){
     const panel=document.getElementById("sharePanel");
     if(panel){
@@ -510,7 +514,7 @@ async function loadBatch(id){
   await loadSourceCommercialHistory();
   document.getElementById("newBatchPanel").style.display="none";
   document.getElementById("batchSummary").style.display="block";
-  document.getElementById("batchSummary").innerHTML='<div class="eyebrow">Saved sourcing batch #'+id+'</div><h2 style="margin:5px 0">'+esc(buyerName(data.buyer||{}))+'</h2><div class="muted">'+esc(data.request_item?[data.request_item.make,data.request_item.model].filter(Boolean).join(" "):"General sourcing")+' · '+scanned.length+' scanned adverts</div><div class="actions" style="margin-top:12px"><a class="btn" href="admin-used-bike-scanner.html">+ New batch</a><a class="btn" href="/services-and-fees.html" target="_blank">View AnyBike Fees ↗</a></div>';
+  document.getElementById("batchSummary").innerHTML='<div class="eyebrow">Saved sourcing batch #'+id+'</div><h2 style="margin:5px 0">'+esc(buyerName(data.buyer||{}))+'</h2><div class="muted">'+esc(data.request_item?[data.request_item.make,data.request_item.model].filter(Boolean).join(" "):"General sourcing")+' · '+scanned.length+' scanned adverts</div><div class="actions" style="margin-top:12px"><button class="btn green" id="prepareAllImagesBtn" type="button" onclick="prepareAllBuyerSafeImages()">Prepare buyer-safe photos for all matches</button><span id="prepareAllImagesStatus" class="status"></span><a class="btn" href="admin-used-bike-scanner.html">+ New batch</a><a class="btn" href="/services-and-fees.html" target="_blank">View AnyBike Fees ↗</a></div>';
   renderScans(true);
 }
 async function resolveLiveSourceConnector(s){
@@ -531,6 +535,39 @@ async function addToLiveSource(k){
   const {data,error}=await sb().rpc("admin_upsert_live_source_item_v1",{p_connector_id:Number(connectorId),p_item:s});
   if(error){alert(error.message);return}
   alert("Saved to Live Source Hub.");
+}
+async function prepareAllBuyerSafeImages(){
+  const btn=document.getElementById("prepareAllImagesBtn");
+  const status=document.getElementById("prepareAllImagesStatus");
+  const rows=(scanned||[]).filter(s=>s.extraction&&s.extraction.live_source_item_id);
+  if(!rows.length){if(status)status.textContent="No Live Source matches in this batch.";return}
+  if(btn){btn.disabled=true;btn.textContent="Preparing galleries…";}
+  let completed=0,failed=0;
+  for(const s of rows){
+    const current=Array.isArray(s.buyer_image_urls)?s.buyer_image_urls.length:0;
+    if(current>=6){completed++;continue}
+    if(status)status.textContent="Preparing "+(completed+failed+1)+" of "+rows.length+"…";
+    try{
+      const {data,error}=await sb().functions.invoke("prepare-live-source-buyer-safe-images",{
+        body:{live_source_item_id:Number(s.extraction.live_source_item_id),target_safe_count:6}
+      });
+      if(error)throw error;
+      if(data?.error)throw new Error(data.error);
+      const refreshed=await sb().rpc("admin_refresh_scan_buyer_safe_images_v1",{p_scan_id:Number(s.id)});
+      if(refreshed.error)throw refreshed.error;
+      s.buyer_image_urls=refreshed.data?.buyer_image_urls||[];
+      completed++;
+    }catch(e){
+      console.warn("Could not prepare full buyer-safe gallery for scan",s.id,e);
+      failed++;
+    }
+  }
+  renderScans(true);
+  if(status){
+    status.className=failed?"status bad":"status good";
+    status.textContent=completed+" match"+(completed===1?"":"es")+" prepared"+(failed?" · "+failed+" need attention":"");
+  }
+  if(btn){btn.disabled=false;btn.textContent="Prepare buyer-safe photos for all matches";}
 }
 async function prepareBuyerSafeImages(scanId,liveSourceItemId){
   const st=document.getElementById("buyer-safe-status-"+scanId);
