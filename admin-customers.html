@@ -420,6 +420,7 @@ textarea{width:100%;min-height:120px}
 .intel-card{background:#181818;border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:13px}
 .intel-card span{display:block;color:#999;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px}
 .intel-card strong{font-size:18px}
+.commercial-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin:10px 0}.commercial-card{background:#171717;border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:12px}.commercial-card span{display:block;color:#999;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px}.commercial-card strong{font-size:17px}.commercial-target{border:1px solid rgba(54,211,126,.28);border-left:4px solid #36d37e;border-radius:13px;background:#121712;padding:14px;margin-top:10px}.commercial-headroom.pos{color:#78e5a0}.commercial-headroom.neg{color:#ff8b90}.commercial-policy{border:1px solid rgba(255,204,51,.25);background:rgba(255,204,51,.06);border-radius:12px;padding:12px;color:#d7c98a;font-size:12px;line-height:1.5;margin-bottom:12px}
 .intel-tags{display:flex;flex-wrap:wrap;gap:8px}
 .intel-tag{display:inline-flex;align-items:center;gap:6px;padding:7px 10px;border:1px solid rgba(255,255,255,.12);border-radius:999px;background:#141414;font-size:12px;font-weight:900}
 .intel-tag b{color:var(--red)}
@@ -990,6 +991,50 @@ function groupTimelineEvents(events){
   return out;
 }
 
+function localMoney(v,currency){
+  const n=Number(v);
+  if(!Number.isFinite(n))return "-";
+  try{return new Intl.NumberFormat(undefined,{style:"currency",currency:currency||"GBP",maximumFractionDigits:0}).format(n)}
+  catch{return String(currency||"")+" "+n.toLocaleString(undefined,{maximumFractionDigits:0})}
+}
+function renderBuyerCommercialIntelligence(ci){
+  const targets=Array.isArray(ci?.shared_targets)?ci.shared_targets:[];
+  const h=ci?.response_history||{};
+  const historyCards=[
+    '<div class="commercial-card"><span>Interested matches</span><strong>'+Number(h.interested_count||0)+'</strong></div>',
+    '<div class="commercial-card"><span>Not interested</span><strong>'+Number(h.not_interested_count||0)+'</strong></div>',
+    '<div class="commercial-card"><span>Interested price range</span><strong>'+(h.interested_min_price_gbp!=null&&h.interested_max_price_gbp!=null?money(h.interested_min_price_gbp)+'–'+money(h.interested_max_price_gbp):'-')+'</strong></div>',
+    '<div class="commercial-card"><span>Average interested price</span><strong>'+(h.interested_avg_price_gbp!=null?money(h.interested_avg_price_gbp):'-')+'</strong></div>'
+  ].join("");
+
+  const targetHtml=targets.length?targets.map(t=>{
+    const cur=t.currency||"GBP";
+    const head=Number(t.commercial_headroom_gbp);
+    const headKnown=Number.isFinite(head);
+    const headClass=headKnown?(head>=0?"pos":"neg"):"";
+    const bike=safe([t.year,t.make,t.model,t.variant].filter(Boolean).join(" "));
+    return '<div class="commercial-target">'+
+      '<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap">'+
+        '<div><strong>'+bike+'</strong><div class="small">Buyer deliberately shared this target '+fmtDate(t.shared_at)+'</div></div>'+
+        '<div><strong>'+money(t.anybike_price_gbp)+'</strong><div class="small">Current shared AnyBike price</div></div>'+
+      '</div>'+
+      '<div class="commercial-grid">'+
+        '<div class="commercial-card"><span>Expected retail</span><strong>'+localMoney(t.expected_retail_price,cur)+'</strong></div>'+
+        '<div class="commercial-card"><span>Target gross margin</span><strong>'+(t.target_margin_pct!=null?Number(t.target_margin_pct).toFixed(1)+'%':'-')+'</strong></div>'+
+        '<div class="commercial-card"><span>Estimated landed cost</span><strong>'+localMoney(t.estimated_landed_cost,cur)+'</strong></div>'+
+        '<div class="commercial-card"><span>Expected profit</span><strong>'+localMoney(t.estimated_profit,cur)+'</strong></div>'+
+        '<div class="commercial-card"><span>Maximum viable AnyBike price</span><strong>'+(t.maximum_viable_anybike_price_gbp!=null?money(t.maximum_viable_anybike_price_gbp):'Retail price not supplied')+'</strong></div>'+
+        '<div class="commercial-card"><span>Commercial headroom</span><strong class="commercial-headroom '+headClass+'">'+(headKnown?money(head):'-')+'</strong></div>'+
+      '</div>'+
+      '<div class="small">Buyer assumptions: 1 GBP = '+safe(t.fx_rate)+' '+safe(cur)+' · shipping '+localMoney(t.shipping_cost,cur)+' · duty '+safe(t.duty_rate_pct)+'% · import tax '+safe(t.import_tax_rate_pct)+'% · port '+localMoney(t.local_port_collection_cost,cur)+' · prep '+localMoney(t.preparation_cost,cur)+' · warranty '+localMoney(t.warranty_cost,cur)+' · other '+localMoney(t.other_cost,cur)+'</div>'+
+    '</div>';
+  }).join(""):'<div class="note-box">No commercial targets have been deliberately shared by this buyer.</div>';
+
+  return '<div class="commercial-policy"><strong>Pricing guardrail:</strong> use shared targets to understand commercial fit and avoid unnecessary discounting. Do not increase a buyer price simply because their private economics show additional headroom. Calculator defaults that the buyer has not explicitly shared are not shown here.</div>'+
+    '<div class="commercial-grid">'+historyCards+'</div>'+
+    '<h3 class="section-title">Shared Commercial Targets</h3>'+targetHtml;
+}
+
 function renderCustomerWorkspace(customer){
   const w=customerWorkspaceMap[String(customer.customerId)] || {};
   customer.workspace=w;
@@ -1068,8 +1113,10 @@ function renderCustomerWorkspace(customer){
     '</div>';
   }).join("")+'</div>' : '<div class="note-box">No recently viewed motorcycles.</div>';
 
+  const commercialHtml=renderBuyerCommercialIntelligence(w.commercial_intelligence||{});
   setPanel("interests",
     '<h3>Motorcycle Interests</h3>'+
+    '<h3 class="section-title">💷 Buyer Commercial Intelligence</h3>'+commercialHtml+
     '<h3 class="section-title">🔎 Saved Searches / Buying Requirements</h3>'+searchHtml+
     '<h3 class="section-title">❤️ Watchlist</h3>'+watchHtml+
     '<h3 class="section-title">👀 Recently Viewed</h3>'+recentHtml
@@ -1207,13 +1254,16 @@ async function ensureCustomerWorkspace(id,force){
       });
     }
 
-    const [workspaceResult,intelligenceResult]=await Promise.all([
+    const [workspaceResult,intelligenceResult,commercialResult]=await Promise.all([
       sb.rpc("admin_get_customer_360_workspace_v1",{
         p_customer_id:customer.customerId
       }),
       sb.rpc("admin_get_customer_intelligence_v1",{
         p_customer_id:customer.customerId,
         p_days:90
+      }),
+      sb.rpc("admin_get_customer_commercial_intelligence_v1",{
+        p_customer_id:customer.customerId
       })
     ]);
 
@@ -1222,6 +1272,9 @@ async function ensureCustomerWorkspace(id,force){
 
     if(intelligenceResult.error){
       console.warn("Customer intelligence could not be loaded",intelligenceResult.error);
+    }
+    if(commercialResult.error){
+      console.warn("Customer commercial intelligence could not be loaded",commercialResult.error);
     }
 
     if(error){
@@ -1238,7 +1291,8 @@ async function ensureCustomerWorkspace(id,force){
 
     customerWorkspaceMap[key]={
       ...(data||{}),
-      intelligence:intelligenceResult?.data||{}
+      intelligence:intelligenceResult?.data||{},
+      commercial_intelligence:commercialResult?.data||{}
     };
     renderCustomerWorkspace(customer);
   })();
