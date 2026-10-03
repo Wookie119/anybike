@@ -28,6 +28,8 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.grid{displ
 input,select,textarea{width:100%;background:#090909;color:#fff;border:1px solid #333;border-radius:10px;padding:11px;font:inherit}
 textarea{min-height:120px;resize:vertical;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-all;overflow-x:hidden}.btn{border:1px solid #333;background:#181818;color:#fff;border-radius:10px;padding:11px 15px;font-weight:900;cursor:pointer}.btn.red{background:var(--red);border-color:var(--red)}.btn.green{background:#123c25;border-color:#236b40}.btn:disabled{opacity:.45;cursor:not-allowed}
 .actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.status{color:#bbb;font-size:13px}.status.good{color:var(--green)}.status.bad{color:#ff7777}
+.next-action-panel{display:none;margin:0 0 16px;padding:18px 20px;border:2px solid var(--red);border-radius:16px;background:linear-gradient(135deg,rgba(237,28,36,.16),#111 55%);box-shadow:0 0 0 1px rgba(237,28,36,.08)}
+.next-action-panel h2{margin:4px 0 6px;font-size:24px}.next-action-panel p{margin:0;color:#ddd;line-height:1.5}.next-action-panel .actions{margin-top:12px}
 .scan-list{display:grid;gap:14px}.scan-card{background:#151515;border:1px solid var(--line);border-radius:16px;padding:15px}.scan-head{display:flex;gap:14px;align-items:flex-start}.thumb{width:150px;height:105px;object-fit:cover;background:#222;border-radius:10px}.scan-title{font-size:20px;font-weight:900}.tag{display:inline-block;border:1px solid #333;border-radius:999px;padding:5px 9px;font-size:12px;color:#bbb;margin:4px 5px 0 0}.tag.ready{color:#8df0ad;border-color:#315e40}.tag.fail{color:#ff8b8b;border-color:#6a3030}
 .cols{display:grid;grid-template-columns:1.15fr 1fr 1fr;gap:12px;margin-top:14px}.box{background:#0d0d0d;border:1px solid #282828;border-radius:12px;padding:12px}.box h3{font-size:13px;margin:0 0 10px;color:#ddd;text-transform:uppercase;letter-spacing:.08em}
 .mini{display:grid;grid-template-columns:1fr 1fr;gap:8px}.complete-box{border-color:#2f8d52!important;box-shadow:0 0 0 1px rgba(67,209,122,.16)}.attention-box{border-color:#6a3030!important}.money{font-size:18px;font-weight:900}.secret{border-left:3px solid var(--red)}
@@ -73,6 +75,12 @@ textarea{min-height:120px;resize:vertical;white-space:pre-wrap;overflow-wrap:any
       </section>
 
       <section class="panel" id="batchSummary" style="display:none"></section>
+      <section class="next-action-panel" id="nextActionPanel">
+        <div class="eyebrow">Your next action</div>
+        <h2 id="nextActionTitle">Review this sourcing batch</h2>
+        <p id="nextActionText"></p>
+        <div class="actions"><button type="button" class="btn red" id="nextActionBtn" onclick="runNextAction()">PROCEED →</button></div>
+      </section>
       <section class="scan-list" id="scanList"></section>
 
       <section class="panel sharebar collapsed" id="sharePanel" style="display:none">
@@ -309,9 +317,56 @@ function toggleSharePanel(){
   if(btn)btn.textContent=collapsed?"Open":"Close";
 }
 
+let nextActionMode="review";
+function updateNextAction(){
+  const panel=document.getElementById("nextActionPanel");
+  const title=document.getElementById("nextActionTitle");
+  const textEl=document.getElementById("nextActionText");
+  const btn=document.getElementById("nextActionBtn");
+  if(!panel||!currentBatchId){if(panel)panel.style.display="none";return}
+
+  const rows=scanned||[];
+  const missingImage=rows.find(s=>s.extraction&&s.extraction.live_source_item_id&&!(Array.isArray(s.buyer_image_urls)&&s.buyer_image_urls.length));
+  const needsReview=rows.find(s=>!s.price_checked || !s.selected_for_buyer);
+
+  panel.style.display="block";
+  if(missingImage){
+    nextActionMode="image";
+    title.textContent="Prepare the buyer-safe image";
+    textEl.textContent="At least one motorcycle still needs an approved buyer-safe image. Prepare that first before completing the price check and buyer selection.";
+    btn.textContent="PROCEED →";
+  }else if(needsReview){
+    nextActionMode="review";
+    title.textContent="Review each motorcycle for the buyer";
+    textEl.textContent="Check the buyer description and final AnyBike price. Tick Price checked and Include in buyer selection for the motorcycles you want to send, then click Save motorcycle.";
+    btn.textContent="PROCEED →";
+  }else{
+    nextActionMode="share";
+    title.textContent="Review the buyer message and send the selection";
+    textEl.textContent="The motorcycles are prepared. Open the buyer message, check the wording, then share the selected motorcycles.";
+    btn.textContent="PROCEED TO SHARE →";
+  }
+}
+function runNextAction(){
+  if(nextActionMode==="share"){
+    const panel=document.getElementById("sharePanel");
+    if(panel){
+      panel.classList.remove("collapsed");
+      const toggle=document.getElementById("shareToggleBtn");if(toggle)toggle.textContent="Close";
+      panel.scrollIntoView({behavior:"smooth",block:"center"});
+    }
+    return;
+  }
+  const target=(scanned||[]).find(s=>{
+    if(nextActionMode==="image") return s.extraction&&s.extraction.live_source_item_id&&!(Array.isArray(s.buyer_image_urls)&&s.buyer_image_urls.length);
+    return !s.price_checked || !s.selected_for_buyer;
+  });
+  if(target) document.querySelector('[data-scan="'+target.id+'"]')?.scrollIntoView({behavior:"smooth",block:"start"});
+}
 function renderScans(saved){
   document.getElementById("scanList").innerHTML=(scanned||[]).map(s=>cardHtml(s,saved)).join("");
   if(saved){document.getElementById("sharePanel").style.display="block";buildMessage()}
+  updateNextAction();
 }
 function collectCard(k){
   const s=scanned.find(x=>String(x.id??x._key)===String(k)); if(!s)return null;
@@ -376,14 +431,20 @@ async function addToLiveSource(k){
 async function prepareBuyerSafeImages(scanId,liveSourceItemId){
   const st=document.getElementById("buyer-safe-status-"+scanId);
   const topSt=document.getElementById("buyer-safe-top-status-"+scanId);
-  if(st){st.className="status";st.textContent="Checking source photos…";}
-  if(topSt){topSt.className="status";topSt.textContent="Cleaning…";}
+  const scan=scanned.find(x=>Number(x.id)===Number(scanId));
+  const alreadyReady=!!(scan && Array.isArray(scan.buyer_image_urls) && scan.buyer_image_urls.length);
+
+  if(st){st.className="status";st.textContent=alreadyReady?"Refreshing approved image…":"Checking source photos…";}
+  if(topSt){topSt.className="status";topSt.textContent=alreadyReady?"Refreshing…":"Cleaning…";}
+
   try{
-    const {data,error}=await sb().functions.invoke("prepare-live-source-buyer-safe-images",{
-      body:{live_source_item_id:Number(liveSourceItemId)}
-    });
-    if(error)throw error;
-    if(data?.error)throw new Error(data.error);
+    if(!alreadyReady){
+      const {data,error}=await sb().functions.invoke("prepare-live-source-buyer-safe-images",{
+        body:{live_source_item_id:Number(liveSourceItemId)}
+      });
+      if(error)throw error;
+      if(data?.error)throw new Error(data.error);
+    }
 
     const refreshed=await sb().rpc("admin_refresh_scan_buyer_safe_images_v1",{p_scan_id:Number(scanId)});
     if(refreshed.error)throw refreshed.error;
@@ -396,21 +457,20 @@ async function prepareBuyerSafeImages(scanId,liveSourceItemId){
       });
     }
 
-    const safe=Number(data?.safe_count||0);
-    const blocked=Number(data?.blocked_branding_count||0);
+    const safe=Number(refreshed.data?.buyer_safe_image_count||0);
     if(st){
       st.className=safe>0?"status good":"status bad";
-      st.textContent=safe+" clean · "+blocked+" dealer-branded blocked";
+      st.textContent=safe>0?(safe+" approved buyer-safe image"+(safe===1?"":"s")+" ready"):"No approved buyer-safe image found";
     }
     if(topSt){
       topSt.className=safe>0?"status good":"status bad";
-      topSt.textContent=safe>0?"Clean image ready":"No clean image approved";
+      topSt.textContent=safe>0?"Buyer-safe image ready":"No clean image approved";
     }
     renderScans(true);
   }catch(e){
     if(st){st.className="status bad";st.textContent=e?.message||"Image check failed";}
-    if(topSt){topSt.className="status bad";topSt.textContent="Image clean failed";}
-    alert("Buyer-safe image preparation could not complete.\n\n"+(e?.message||e));
+    if(topSt){topSt.className="status bad";topSt.textContent="Image check failed";}
+    alert("Buyer-safe image check could not complete.\n\n"+(e?.message||e));
   }
 }
 
@@ -439,6 +499,7 @@ async function saveScan(id){
   recalc(id);
   buildMessage();
   if(st){st.className="status good";st.textContent="Saved ✓";}
+  updateNextAction();
   return true;
 }
 function buildMessage(){
@@ -446,7 +507,7 @@ function buildMessage(){
   const name=(currentBatch?.buyer?.contact_name||"there").split(" ")[0];
   const req=currentBatch?.request_item; const model=req?[req.make,req.model].filter(Boolean).join(" "):"motorcycles";
   const noun=/motorcycle/i.test(model)?model:(model+" motorcycle");
-  document.getElementById("shareMessage").value="Dear "+name+",\n\nGood news — we have found a hand-picked selection of "+noun+"s that we think could suit your requirements.\n\nPlease review each motorcycle and choose Interested — Check Availability only when you would seriously consider buying it. This creates an action for the AnyBike sales team: a salesperson will contact the seller, confirm availability and current purchase terms, and where possible try to obtain a short hold while you consider our personalised AnyBike quote.\n\nIf you are not yet ready for us to contact the seller, use Watch / Save for Later instead.\n\nIf the motorcycle is available, we will come back to you with a personalised AnyBike quote based on your agreed UK handover / freight-forwarder details. If you accept our formal offer, we will ask for the required deposit and move quickly to secure the motorcycle.";
+  document.getElementById("shareMessage").value="Dear "+name+",\n\nGood news — we have found a hand-picked selection of "+noun+"s that we think could suit your requirements.\n\nPlease tick Interested — Check Availability on each motorcycle you would seriously consider buying, then save your choices. Any motorcycle you leave unticked will be recorded as Not Interested.\n\nFor the motorcycles you select, AnyBike will contact the seller, confirm availability and current purchase terms and, where possible, try to obtain a short hold while you consider our personalised quote.\n\nIf a motorcycle is available, we will come back to you with a personalised AnyBike quote based on your agreed UK handover / freight-forwarder details. If you accept our formal offer, we will ask for the required deposit and move quickly to secure the motorcycle.";
 }
 async function shareBatch(){
   for(const s of scanned){collectCard(s.id);await saveScan(s.id)}
