@@ -322,6 +322,121 @@ let anybikeHeaderRefreshTimer = null;
 let anybikeHeaderRealtimeChannel = null;
 let anybikeHeaderClockTimer = null;
 
+/*
+  ANYBIKE CUSTOMER NEXT ACTION STANDARD
+  -------------------------------------
+  Every signed-in customer workflow page should make the next required step
+  obvious. Pages with their own authoritative workflow card keep it. Pages
+  without one receive a shared fallback automatically.
+
+  Page-specific code can call window.AnyBikeCustomerNextAction.set(...) to
+  replace the fallback with live workflow state and identify who is waiting.
+*/
+const ANYBIKE_CUSTOMER_NEXT_ACTION_PAGES={
+  "/customer-dashboard.html":{title:"Continue your AnyBike journey",text:"Complete the item currently shown as needing your attention.",waitingFor:"You",label:"CONTINUE →"},
+  "/customer-profile.html":{title:"Complete your buyer setup",text:"Finish the next incomplete profile or shipping section so AnyBike has what it needs to act for you.",waitingFor:"You",label:"CONTINUE SETUP →"},
+  "/customer-messages.html":{title:"Read or reply to your latest message",text:"Open the conversation that needs your attention. If AnyBike is waiting for information, reply in the same thread.",waitingFor:"You",label:"OPEN MESSAGES →"},
+  "/customer-sourced-matches.html":{title:"Choose the motorcycles you want us to check",text:"Tick Interested on the motorcycles you would seriously consider buying, then save your choices.",waitingFor:"You",label:"REVIEW MOTORCYCLES →"},
+  "/customer-offer.html":{title:"Review your AnyBike offer",text:"Check the motorcycle, price and terms, then make the decision shown on this page.",waitingFor:"You",label:"REVIEW OFFER →"},
+  "/my-purchases.html":{title:"Complete the next purchase step",text:"Open the motorcycle that needs payment, documents or another purchase action from you.",waitingFor:"You",label:"OPEN PURCHASE →"},
+  "/accounts-documents.html":{title:"Complete the next accounts or document step",text:"Review anything outstanding for payment, documents or shipping information.",waitingFor:"You",label:"REVIEW ACCOUNTS →"},
+  "/my-watchlist.html":{title:"Choose what you want to do next",text:"Open a saved motorcycle to review it, or start a sourcing request if you want AnyBike to find alternatives.",waitingFor:"You",label:"REVIEW WATCHLIST →"},
+  "/my-searches.html":{title:"Continue a saved search",text:"Open one of your saved searches to see current motorcycles or refine what you are looking for.",waitingFor:"You",label:"OPEN SAVED SEARCHES →"},
+  "/my-dealership-stock.html":{title:"Review your dealership stock",text:"Open the stock item that needs the next update, response or action.",waitingFor:"You",label:"OPEN STOCK →"}
+};
+
+function anybikeCustomerOperationalPage(){
+  const path=String(location.pathname||"").replace(/\/{2,}/g,"/").toLowerCase();
+  return ANYBIKE_CUSTOMER_NEXT_ACTION_PAGES[path] ? path : "";
+}
+
+function anybikeCustomerHasOwnNextAction(){
+  if(document.querySelector("#nextActionPanel,[data-anybike-next-action],.next-action,#purchaseNextActionsPanel,#buyerSetupNextAction")) return true;
+  return [...document.querySelectorAll("h1,h2,h3,strong,.eyebrow")]
+    .some(el=>/your next action/i.test(String(el.textContent||"")));
+}
+
+function anybikeInstallCustomerNextActionStyles(){
+  if(document.getElementById("anybike-customer-next-action-style")) return;
+  const style=document.createElement("style");
+  style.id="anybike-customer-next-action-style";
+  style.textContent=`
+    .anybike-customer-next-action{max-width:1400px;margin:18px auto;padding:18px 20px;border:2px solid #ed1c24;border-radius:16px;background:linear-gradient(135deg,rgba(237,28,36,.14),#111 58%);color:#fff;box-shadow:0 0 0 1px rgba(237,28,36,.08)}
+    .anybike-customer-next-action .abna-kicker{color:#ed1c24;font-size:12px;font-weight:950;letter-spacing:.12em;text-transform:uppercase}
+    .anybike-customer-next-action h2{margin:4px 0 6px;font-size:clamp(20px,2vw,26px);line-height:1.15}
+    .anybike-customer-next-action p{margin:0;color:#d6d6d6;line-height:1.5}
+    .anybike-customer-next-action .abna-bottom{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-top:12px}
+    .anybike-customer-next-action .abna-waiting{display:inline-flex;align-items:center;gap:7px;border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:7px 10px;background:#0b0b0b;font-size:12px;font-weight:900}
+    .anybike-customer-next-action .abna-btn{border:1px solid #ed1c24;border-radius:10px;background:#ed1c24;color:#fff;padding:10px 14px;font-weight:950;cursor:pointer;text-decoration:none}
+  `;
+  document.head.appendChild(style);
+}
+
+function anybikeCustomerMainContainer(){
+  return document.querySelector("main") || document.body;
+}
+
+function anybikeRenderCustomerNextAction(config){
+  const path=anybikeCustomerOperationalPage();
+  if(!path) return null;
+  const defaults=ANYBIKE_CUSTOMER_NEXT_ACTION_PAGES[path];
+  const cfg=Object.assign({},defaults,config||{});
+  const container=anybikeCustomerMainContainer();
+  if(!container) return null;
+
+  anybikeInstallCustomerNextActionStyles();
+
+  let card=document.getElementById("anybikeCustomerSharedNextAction");
+  if(!card){
+    card=document.createElement("section");
+    card.id="anybikeCustomerSharedNextAction";
+    card.className="anybike-customer-next-action";
+    card.dataset.anybikeNextAction="shared";
+    container.insertBefore(card,container.firstElementChild || null);
+  }
+
+  const safe=function(v){
+    return String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
+  };
+
+  card.innerHTML=
+    '<div class="abna-kicker">Your next action</div>'+
+    '<h2>'+safe(cfg.title||"Continue")+'</h2>'+
+    '<p>'+safe(cfg.text||"")+'</p>'+
+    '<div class="abna-bottom">'+
+      '<span class="abna-waiting">Waiting for: '+safe(cfg.waitingFor||"You")+'</span>'+
+      '<button type="button" class="abna-btn" id="anybikeCustomerNextActionButton">'+safe(cfg.label||"CONTINUE →")+'</button>'+
+    '</div>';
+
+  const button=document.getElementById("anybikeCustomerNextActionButton");
+  if(button){
+    button.onclick=function(){
+      if(typeof cfg.onClick==="function"){cfg.onClick();return;}
+      if(cfg.href){location.href=cfg.href;return;}
+      if(cfg.selector){
+        const target=document.querySelector(cfg.selector);
+        if(target){target.scrollIntoView({behavior:"smooth",block:"center"});target.focus?.();return;}
+      }
+      const target=[...container.querySelectorAll("button:not(:disabled),a.btn,input:not([type=hidden]),select,textarea")]
+        .find(el=>!card.contains(el));
+      if(target){target.scrollIntoView({behavior:"smooth",block:"center"});target.focus?.();}
+    };
+  }
+  return card;
+}
+
+function anybikeEnsureCustomerNextAction(){
+  if(!anybikeCustomerOperationalPage()) return;
+  if(anybikeCustomerHasOwnNextAction()) return;
+  anybikeRenderCustomerNextAction();
+}
+
+window.AnyBikeCustomerNextAction={
+  set:function(config){return anybikeRenderCustomerNextAction(config||{});},
+  ensure:anybikeEnsureCustomerNextAction,
+  hide:function(){document.getElementById("anybikeCustomerSharedNextAction")?.remove();}
+};
+
 async function loadPublicHeader(){
   const holder = document.getElementById("publicHeader");
 
@@ -340,6 +455,7 @@ async function loadPublicHeader(){
 
     holder.innerHTML = await headerRes.text();
     await setupPublicHeader();
+    setTimeout(anybikeEnsureCustomerNextAction,100);
 
   }catch(error){
     console.error("Public header could not be loaded",error);
