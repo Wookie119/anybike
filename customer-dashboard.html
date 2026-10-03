@@ -382,6 +382,7 @@ button,input,select,textarea{font:inherit}
 .handpicked-timer{margin:9px 0 0;padding:9px 10px;border:1px solid #7c6019;border-left:4px solid #d3a92d;border-radius:9px;background:#1a150a;color:#ffd66b;font-size:11px;font-weight:950}
 .handpicked-timer.ending{border-color:#ed1c24;border-left-color:#ed1c24;background:rgba(237,28,36,.09);color:#ffb1b5}
 .handpicked-timer.expired{border-color:#68262a;border-left-color:#ed1c24;background:#1b0c0d;color:#ff8a90}
+.handpicked-recheck{display:inline-flex;margin-top:8px;padding:9px 11px;border:1px solid #ed1c24;border-radius:9px;background:#ed1c24;color:#fff;font-size:11px;font-weight:950;cursor:pointer;text-decoration:none}
 .handpicked-urgency{display:none;margin:0 0 14px;padding:12px 14px;border:1px solid #7c6019;border-left:5px solid #d3a92d;border-radius:12px;background:#19140a}
 .handpicked-urgency.show{display:block}
 .handpicked-urgency.ending{border-color:#ed1c24;background:rgba(237,28,36,.08)}
@@ -4130,9 +4131,32 @@ function handPickedTimerHtml(row){
   const ms=timing.expiresAt.getTime()-Date.now();
   const cls=ms<=0?"expired":ms<=21600000?"ending":"";
   const prefix=ms<=0?"AVAILABILITY WINDOW ENDED":ms<=21600000?"ENDING SOON":timing.label.toUpperCase();
-  return '<div class="handpicked-timer '+cls+'" data-handpicked-expires="'+safe(timing.expiresAt.toISOString())+'" data-handpicked-label="'+safe(timing.label)+'">'+
+  return '<div class="handpicked-timer '+cls+'" data-handpicked-expires="'+safe(timing.expiresAt.toISOString())+'" data-handpicked-label="'+safe(timing.label)+'" data-handpicked-scan="'+Number(row.scan_id)+'">'+
     safe(prefix)+': '+safe(handPickedCountdownText(ms))+
+    (ms<=0?'<button type="button" class="handpicked-recheck" onclick="event.preventDefault();event.stopPropagation();requestHandPickedRecheck('+Number(row.scan_id)+',this)">I STILL WANT THIS BIKE →</button>':'')+
   '</div>';
+}
+
+async function requestHandPickedRecheck(scanId,button){
+  if(button){
+    button.disabled=true;
+    button.textContent="Sending…";
+  }
+  try{
+    const result=await sb.rpc("customer_request_sourced_availability_recheck_v1",{p_scan_id:Number(scanId)});
+    if(result.error)throw result.error;
+    if(button){
+      button.textContent="REQUEST SENT ✓";
+      button.disabled=true;
+    }
+  }catch(error){
+    console.error("Availability re-check request failed",error);
+    if(button){
+      button.disabled=false;
+      button.textContent="I STILL WANT THIS BIKE →";
+    }
+    alert(error?.message||"We could not send your request. Please try again.");
+  }
 }
 
 function refreshHandPickedDashboardTimers(){
@@ -4145,7 +4169,21 @@ function refreshHandPickedDashboardTimers(){
     el.classList.toggle("expired",ms<=0);
     el.classList.toggle("ending",ms>0 && ms<=21600000);
     const prefix=ms<=0?"AVAILABILITY WINDOW ENDED":ms<=21600000?"ENDING SOON":label.toUpperCase();
-    el.textContent=prefix+": "+handPickedCountdownText(ms);
+    if(ms<=0){
+      const scanId=Number(el.dataset.handpickedScan||0);
+      const existing=el.querySelector(".handpicked-recheck");
+      el.firstChild ? el.firstChild.nodeValue=prefix+": "+handPickedCountdownText(ms)+" " : null;
+      if(!existing && scanId){
+        const button=document.createElement("button");
+        button.type="button";
+        button.className="handpicked-recheck";
+        button.textContent="I STILL WANT THIS BIKE →";
+        button.onclick=function(event){event.preventDefault();event.stopPropagation();requestHandPickedRecheck(scanId,button);};
+        el.appendChild(button);
+      }
+    }else{
+      el.textContent=prefix+": "+handPickedCountdownText(ms);
+    }
     if(ms>0 && (!earliest || ms<earliest.ms))earliest={ms:ms,label:label};
   });
 
