@@ -29,7 +29,8 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
 .sourcing-context a{padding:0;border:0;color:#fff;text-decoration:underline}
 .next-action-panel{margin:16px 0;padding:18px 20px;border:2px solid var(--red);border-radius:16px;background:linear-gradient(135deg,rgba(237,28,36,.16),#111 55%);box-shadow:0 0 0 1px rgba(237,28,36,.08)}
 .next-action-panel h2{margin:4px 0 6px;font-size:24px}.next-action-panel p{margin:0;color:#ddd;line-height:1.5}.next-action-panel .actions{margin-top:12px}
-.batch-panel{position:static;background:#0d0d0d;border:1px solid #333;border-radius:16px;padding:14px;margin:16px 0;z-index:auto}.batch-grid{display:grid;grid-template-columns:1.2fr 1.2fr .7fr auto;gap:10px;align-items:end}
+.batch-panel{position:static;background:#0d0d0d;border:1px solid #333;border-radius:16px;padding:14px;margin:16px 0;z-index:auto}.sourcing-plan{display:none;background:#0d0d0d;border:1px solid #333;border-radius:16px;padding:14px;margin:0 0 16px}.sourcing-plan-grid{display:grid;gap:8px;margin-top:10px}.sourcing-plan-row{display:grid;grid-template-columns:1.4fr .8fr auto;gap:10px;align-items:center;padding:10px 12px;border:1px solid #2c2c2c;border-radius:11px;background:#111}.sourcing-plan-row.current{border-color:#ed1c24}.sourcing-plan-status{font-size:12px;font-weight:900}.sourcing-plan-status.not-started{color:#ff858a}.sourcing-plan-status.prepared{color:#ffd27a}.sourcing-plan-status.sent{color:#8dbdff}.sourcing-plan-status.responded{color:#67dc91}
+.batch-grid{display:grid;grid-template-columns:1.2fr 1.2fr .7fr auto;gap:10px;align-items:end}
 @media(max-width:1100px){.sources{grid-template-columns:1fr}.filters,.batch-grid{grid-template-columns:1fr 1fr}.bike{grid-template-columns:30px 90px 1fr 1fr}.bike .optional{display:none}.bike img{width:90px;height:68px}}
 @media(max-width:650px){.content{padding:12px}.filters,.batch-grid{grid-template-columns:1fr}.bike{grid-template-columns:30px 1fr}.bike img{display:none}}
 </style>
@@ -72,6 +73,13 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
         </div>
         <div class="small" style="margin-top:8px">UK delivery is set per motorcycle below because collection cost can vary by dealer/location.</div>
         <div class="status" id="batchStatus" style="margin-top:8px"></div>
+      </section>
+
+      <section class="sourcing-plan" id="buyerSourcingPlan">
+        <div class="eyebrow">Buyer sourcing plan</div>
+        <h2 style="margin:5px 0 4px">All active motorcycle requirements</h2>
+        <div class="small" id="buyerSourcingPlanSummary">Choose a buyer to see every motorcycle request together.</div>
+        <div class="sourcing-plan-grid" id="buyerSourcingPlanGrid"></div>
       </section>
 
       <section class="panel">
@@ -126,13 +134,76 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
 </div>
 <script>
 const sb=()=>getAdminSupabaseClient();
-let hub=null,items=[],buyers=[],selected=new Set(),sourceFacets={makes:[],models:[]},buyerRequests=[],selectedDealers=new Set(),sourceRefreshInProgress=false,deliveryAllowances=new Map();
+let hub=null,items=[],buyers=[],selected=new Set(),sourceFacets={makes:[],models:[]},buyerRequests=[],buyerSourcingPlan=null,selectedDealers=new Set(),sourceRefreshInProgress=false,deliveryAllowances=new Map();
 const sourcingParams=new URLSearchParams(location.search);
 function sourcingContextQuery(extra){
   const p=new URLSearchParams();
   ["deal","buyer","request"].forEach(k=>{const v=sourcingParams.get(k);if(v)p.set(k,v)});
   if(extra) Object.entries(extra).forEach(([k,v])=>{if(v!==null&&v!==undefined&&v!=="")p.set(k,String(v))});
   const s=p.toString();return s?"?"+s:"";
+}
+function sourcingStatusClass(status){
+  const s=String(status||"").toLowerCase();
+  if(s.includes("respond"))return "responded";
+  if(s.includes("sent"))return "sent";
+  if(s.includes("prepared"))return "prepared";
+  return "not-started";
+}
+function sourcingRequestLabel(r){
+  return [r.make,r.model,r.year_from?("from "+r.year_from):"",r.mileage_max?(Number(r.mileage_max).toLocaleString("en-GB")+" miles max"):""].filter(Boolean).join(" · ");
+}
+async function loadBuyerSourcingPlan(){
+  const bid=Number(document.getElementById("buyerSelect")?.value||0);
+  const panel=document.getElementById("buyerSourcingPlan");
+  const grid=document.getElementById("buyerSourcingPlanGrid");
+  const summary=document.getElementById("buyerSourcingPlanSummary");
+  buyerSourcingPlan=null;
+  if(!bid){
+    if(panel)panel.style.display="none";
+    return null;
+  }
+  if(panel)panel.style.display="block";
+  if(summary)summary.textContent="Checking all requests for this buyer…";
+  if(grid)grid.innerHTML="";
+  const {data,error}=await sb().rpc("admin_get_buyer_sourcing_plan_v1",{p_buyer_id:bid});
+  if(error){
+    if(summary)summary.textContent="Could not load the complete sourcing plan.";
+    return null;
+  }
+  buyerSourcingPlan=data||{requests:[]};
+  renderBuyerSourcingPlan();
+  updateLiveSourceNextAction();
+  return buyerSourcingPlan;
+}
+function renderBuyerSourcingPlan(){
+  const panel=document.getElementById("buyerSourcingPlan");
+  const grid=document.getElementById("buyerSourcingPlanGrid");
+  const summary=document.getElementById("buyerSourcingPlanSummary");
+  if(!panel||!grid||!summary||!buyerSourcingPlan)return;
+  const reqs=buyerSourcingPlan.requests||[];
+  const currentId=Number(document.getElementById("requestSelect")?.value||0);
+  const outstanding=reqs.filter(r=>r.sourcing_status==="Not Started");
+  summary.textContent=reqs.length+" motorcycle request"+(reqs.length===1?"":"s")+" · "+outstanding.length+" not yet sourced. Completing one brand/model does not close the buyer's other requests.";
+  grid.innerHTML=reqs.map(r=>{
+    const cls=sourcingStatusClass(r.sourcing_status);
+    const action=r.sourcing_status==="Not Started"
+      ?'<button class="btn red" type="button" onclick="sourceRequestFromPlan('+Number(r.request_id)+')">Source this request →</button>'
+      :(r.latest_batch_id?'<a class="btn" href="admin-used-bike-scanner.html?batch='+Number(r.latest_batch_id)+'">Open batch</a>':'');
+    return '<div class="sourcing-plan-row '+(Number(r.request_id)===currentId?"current":"")+'">'+
+      '<div><strong>'+esc(sourcingRequestLabel(r)||("Request #"+r.request_id))+'</strong><div class="small">Request #'+Number(r.request_id)+'</div></div>'+
+      '<div class="sourcing-plan-status '+cls+'">'+esc(r.sourcing_status||"Not Started")+'</div>'+
+      '<div>'+action+'</div>'+
+    '</div>';
+  }).join("")||'<div class="small">No saved motorcycle requests for this buyer.</div>';
+}
+async function sourceRequestFromPlan(requestId){
+  const el=document.getElementById("requestSelect");
+  if(!el)return;
+  el.value=String(requestId);
+  await applySelectedBuyerRequest();
+  renderBuyerSourcingPlan();
+  updateLiveSourceNextAction();
+  el.scrollIntoView({behavior:"smooth",block:"center"});
 }
 let liveSourceNextActionMode="buyer";
 function updateLiveSourceNextAction(){
@@ -146,6 +217,9 @@ function updateLiveSourceNextAction(){
   const buyerId=buyerEl.value;
   const requestId=requestEl.value;
   const selectedCount=selected.size;
+  const planRequests=buyerSourcingPlan?.requests||[];
+  const notStarted=planRequests.filter(r=>r.sourcing_status==="Not Started");
+  const currentRequest=planRequests.find(r=>String(r.request_id)===String(requestId));
 
   if(!buyerId){
     liveSourceNextActionMode="buyer";
@@ -157,8 +231,10 @@ function updateLiveSourceNextAction(){
 
   if(!requestId){
     liveSourceNextActionMode="request";
-    title.textContent="Choose the buyer request";
-    textEl.textContent="Select the motorcycle request you are working on so the Live Source Hub can filter the source pool to the buyer's requirements.";
+    title.textContent=notStarted.length?"Continue the buyer's outstanding sourcing":"Choose the buyer request";
+    textEl.textContent=notStarted.length
+      ?notStarted.length+" motorcycle request"+(notStarted.length===1?" is":"s are")+" not yet sourced. Choose one below; completing another brand/model does not clear these requirements."
+      :"Select the motorcycle request you are working on so the Live Source Hub can filter the source pool to the buyer's requirements.";
     btn.textContent="PROCEED →";
     return;
   }
@@ -166,7 +242,7 @@ function updateLiveSourceNextAction(){
   if(!selectedCount){
     liveSourceNextActionMode="select";
     title.textContent="Select motorcycles for this buyer";
-    textEl.textContent="Review the matching live motorcycles below and tick the bikes you want to prepare for the buyer. Aim for a useful shortlist rather than selecting everything.";
+    textEl.textContent="Review the matching live motorcycles below and tick every suitable bike you want to prepare. This request is only one part of the buyer's complete sourcing plan.";
     btn.textContent="PROCEED →";
     return;
   }
@@ -801,13 +877,14 @@ async function applySelectedBuyerRequest(){
 
 document.getElementById("buyerSelect").addEventListener("change",async function(){
   await loadRequests();
+  await loadBuyerSourcingPlan();
   updateLiveSourceNextAction();
   // Keep the motorcycles already selected while choosing/changing the buyer.
   // The buyer choice must not silently clear a prepared shortlist.
   renderItems();
   document.getElementById("poolStatus").textContent=items.length+" motorcycles shown · "+selected.size+" selected";
 });
-document.getElementById("requestSelect").addEventListener("change",async function(){await applySelectedBuyerRequest();updateLiveSourceNextAction();});
+document.getElementById("requestSelect").addEventListener("change",async function(){await applySelectedBuyerRequest();renderBuyerSourcingPlan();updateLiveSourceNextAction();});
 
 function syncSelectedFromVisibleCheckboxes(){
   const checked=[...document.querySelectorAll('.bike-select-checkbox:checked')]
