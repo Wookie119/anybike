@@ -71,6 +71,7 @@ h1{font-size:34px;margin:6px 0 10px}.intro{white-space:pre-line;line-height:1.6;
   <section class="save-success" id="saveSuccess">
     <h3>Sent successfully to AnyBike</h3>
     <p id="saveSuccessText">Your choices have been saved. You do not need to do anything else right now. AnyBike will check the selected motorcycle(s) with the seller, ask any questions you entered and update you through My AnyBike.</p>
+    <div style="margin-top:14px"><a class="btn red" href="/customer-dashboard.html" style="display:inline-block;text-decoration:none">RETURN TO MY ANYBIKE</a></div>
   </section>
   <section class="grid" id="matchGrid" style="display:none"></section>
   <section class="trade-tool-callout" id="marginToolCallout" style="display:none">
@@ -421,6 +422,48 @@ function clearMatchFilters(){
   document.getElementById("sortMatches").value="price-asc";
   applyMatchFilters();
 }
+function applySubmittedWaitingState(){
+  const scans=(payload?.scans||[]).filter(s=>s.source_status!=="ended");
+  const allResponded=scans.length>0 && scans.every(s=>["Interested","Not Interested"].includes(String(s.response||"")));
+  if(!allResponded || choicesDirty)return;
+
+  const selectionBar=document.getElementById("selectionBar");
+  if(selectionBar)selectionBar.style.display="none";
+
+  scans.forEach(s=>{
+    const box=document.querySelector('.interest-check[data-scan-id="'+s.id+'"]');
+    if(box)box.disabled=true;
+
+    const questionWrap=document.getElementById("question-wrap-"+s.id);
+    if(questionWrap)questionWrap.style.display="none";
+
+    const choice=document.getElementById("choice-"+s.id);
+    if(choice){
+      choice.style.cursor="default";
+      const strong=choice.querySelector(".choice-copy strong");
+      const small=choice.querySelector(".choice-copy span");
+      if(s.response==="Interested"){
+        if(strong)strong.textContent="Availability check requested";
+        if(small)small.textContent="AnyBike is checking this motorcycle with the seller.";
+      }else{
+        if(strong)strong.textContent="Not Interested at this time";
+        if(small)small.textContent="Your response has been saved.";
+      }
+    }
+  });
+
+  const success=document.getElementById("saveSuccess");
+  const successText=document.getElementById("saveSuccessText");
+  const savedInterested=scans.filter(s=>s.response==="Interested").length;
+  if(success){
+    success.classList.add("show");
+    if(successText){
+      successText.textContent=savedInterested
+        ?("Availability check requested for "+savedInterested+" motorcycle"+(savedInterested===1?"":"s")+". You do not need to do anything else right now. AnyBike will check with the seller and update you through My AnyBike.")
+        :"Your choices have been saved. You do not need to do anything else right now.";
+    }
+  }
+}
 function updateCustomerNextAction(){
   const scans=(payload?.scans||[]).filter(s=>s.source_status!=="ended");
   const selected=document.querySelectorAll(".interest-check:checked").length;
@@ -441,6 +484,7 @@ function updateCustomerNextAction(){
       :"Your response has been saved. You can return to My AnyBike or request more matches if you would like another selection.";
     waiting.textContent=savedInterested?"Waiting for: AnyBike":"Waiting for: You";
     btn.textContent="GO TO MY ANYBIKE";
+    applySubmittedWaitingState();
     return;
   }
 
@@ -647,6 +691,7 @@ async function saveChoices(){
       success.scrollIntoView({behavior:"smooth",block:"center"});
     }
     updateCustomerNextAction();
+    applySubmittedWaitingState();
   }catch(error){
     console.error("Could not save motorcycle choices",error);
     status.className="selection-status bad";
