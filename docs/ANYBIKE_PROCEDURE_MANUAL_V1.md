@@ -1196,3 +1196,19 @@ When working a buyer's sourcing plan, staff must also review motorcycle models t
 - The resulting request must retain an audit note showing that it came from Message Centre discussion.
 - If matches are later sent for that request, customer-facing wording should say **“You did mention that you may also be interested in…”** so the context is accurate and does not overstate buyer intent.
 - A discussed model must not be sourced/sent automatically without staff confirmation.
+
+
+## 3.1D Adding and operating sourcing channels
+
+A saved sourcing website is not considered an automated Live Source until its source-specific adapter has been built and verified.
+
+- Where a source card says **Set up channel →**, staff should open the source and confirm that the saved URL reaches the current used-motorcycle search/results area.
+- Until the adapter is ready, staff must use **Scanner** for individual live adverts rather than waiting for automation.
+- **Your Next Action** must guide staff through the channel setup state whenever an unadapted source is selected.
+- Automatic refresh must not be enabled merely because a source URL exists. The adapter must prove that it can identify genuine motorcycle detail records and safely extract the fields AnyBike needs.
+- A refresh adapter must reject incomplete/placeholder records rather than overwriting valid Live Source data.
+
+### BMW refresh data-quality rule
+For BMW Motorrad Approved Used, an item may be refreshed into **Live** only when the detail record passes the BMW validation gate, including a valid BMW make/model, positive realistic motorcycle price, BMW Bike ID/detail URL and no known placeholder/test seller record.
+
+BMW items that fail this gate must remain outside the live buyer-sourcing pool as **Review** work until a later valid refresh repairs them. They must not be silently deleted.
