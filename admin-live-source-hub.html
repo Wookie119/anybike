@@ -35,6 +35,7 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
 .next-action-panel h2{margin:4px 0 6px;font-size:24px}.next-action-panel p{margin:0;color:#ddd;line-height:1.5}.next-action-panel .actions{margin-top:12px}
 .next-action-secondary .eyebrow{color:#f1b94d}
 @media(max-width:800px){.next-action-split{grid-template-columns:1fr}.next-action-secondary{border-left:0;border-top:1px solid #3a3a3a}}
+.channel-chooser{background:#0d0d0d;border:1px solid #333;border-radius:16px;padding:14px;margin:0 0 16px}.channel-chooser-grid{display:grid;grid-template-columns:1.5fr auto;gap:10px;align-items:end}.channel-chooser .field{min-width:0}@media(max-width:700px){.channel-chooser-grid{grid-template-columns:1fr}}
 .buyer-waiting-queue{background:#0d0d0d;border:1px solid #333;border-radius:16px;padding:14px;margin:0 0 16px}.buyer-waiting-grid{display:grid;gap:8px;margin-top:10px}.buyer-waiting-row{display:grid;grid-template-columns:1.2fr 1.5fr auto;gap:10px;align-items:center;padding:10px 12px;border:1px solid #2d2d2d;border-radius:11px;background:#111}.buyer-waiting-count{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:900;color:#ff8c90}.buyer-waiting-reqs{font-size:12px;color:#bbb;line-height:1.5}@media(max-width:800px){.buyer-waiting-row{grid-template-columns:1fr}}
 .batch-panel{position:static;background:#0d0d0d;border:1px solid #333;border-radius:16px;padding:14px;margin:16px 0;z-index:auto}.sourcing-plan{display:none;background:#0d0d0d;border:1px solid #333;border-radius:16px;padding:14px;margin:0 0 16px}.sourcing-plan-grid{display:grid;gap:8px;margin-top:10px}.sourcing-plan-row{display:grid;grid-template-columns:1.4fr .8fr auto;gap:10px;align-items:center;padding:10px 12px;border:1px solid #2c2c2c;border-radius:11px;background:#111}.sourcing-plan-row.current{border-color:#ed1c24}.sourcing-plan-status{font-size:12px;font-weight:900}.sourcing-plan-status.not-started{color:#ff858a}.sourcing-plan-status.prepared{color:#ffd27a}.sourcing-plan-status.sent{color:#8dbdff}.sourcing-plan-status.responded{color:#67dc91}.source-setup-guide{display:none;background:#0d0d0d;border:2px solid #f1b94d;border-radius:16px;padding:16px;margin:0 0 16px}.source-setup-steps{display:grid;gap:8px;margin-top:10px}.source-setup-step{display:grid;grid-template-columns:34px 1fr;gap:10px;align-items:start;padding:10px;border:1px solid #303030;border-radius:10px;background:#111}.source-setup-step strong{display:block}.source-step-num{width:28px;height:28px;border-radius:999px;background:#2a2a2a;display:flex;align-items:center;justify-content:center;font-weight:900}
 .message-mentions{display:none;margin-top:14px;padding-top:12px;border-top:1px solid #2b2b2b}.message-mention-row{display:grid;grid-template-columns:1.4fr .9fr auto;gap:10px;align-items:center;padding:9px 0;border-top:1px solid #222}.message-mention-row:first-child{border-top:0}.message-mention-badge{font-size:12px;font-weight:900;color:#ffd27a}.message-mention-copy{font-size:12px;color:#aaa;line-height:1.45}
@@ -85,6 +86,20 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
             </div>
           </div>
         </div>
+      </section>
+
+      <section class="channel-chooser" id="channelChooserPanel">
+        <div class="eyebrow">Step 1 · Sourcing channel</div>
+        <div class="channel-chooser-grid">
+          <div class="field">
+            <label>Which source do you want to search?</label>
+            <select id="channelChooserSelect">
+              <option value="">Choose sourcing channel…</option>
+            </select>
+          </div>
+          <button class="btn red" id="channelChooserBtn" type="button" onclick="chooseChannelFromGuide()">USE THIS CHANNEL →</button>
+        </div>
+        <div class="small" id="channelChooserHelp" style="margin-top:8px">Choose the website or approved-used network first. AnyBike will then guide you to the buyer and their request.</div>
       </section>
 
       <section class="buyer-waiting-queue" id="buyerWaitingQueue">
@@ -320,6 +335,32 @@ function renderSourceSetupGuide(connector){
     '<a class="btn" href="'+esc(url)+'" target="_blank">Open source ↗</a>'+
     '<a class="btn green" href="admin-used-bike-scanner.html'+sourcingContextQuery({source:connector.id})+'">Use Scanner now →</a>';
 }
+function populateChannelChooser(){
+  const el=document.getElementById("channelChooserSelect");
+  if(!el)return;
+  const current=String(document.getElementById("connectorFilter")?.value||"");
+  const connectors=(hub?.connectors||[]).filter(c=>c.enabled!==false);
+  el.innerHTML='<option value="">Choose sourcing channel…</option>'+connectors.map(c=>{
+    const suffix=c.status==="adapter_ready"?" · Live adapter":" · Scanner / setup required";
+    return '<option value="'+Number(c.id)+'">'+esc(c.name+suffix)+'</option>';
+  }).join("");
+  if(current && [...el.options].some(o=>o.value===current))el.value=current;
+}
+async function chooseChannelFromGuide(){
+  const el=document.getElementById("channelChooserSelect");
+  const id=Number(el?.value||0);
+  if(!id){
+    document.getElementById("channelChooserHelp").textContent="Choose a sourcing channel first.";
+    el?.focus();
+    return;
+  }
+  await selectSourceChannel(id);
+  const connector=currentConnector();
+  document.getElementById("channelChooserHelp").textContent=connector
+    ?connector.name+" selected. Next: choose the buyer."
+    :"Channel selected.";
+  document.getElementById("buyerSelect")?.scrollIntoView({behavior:"smooth",block:"center"});
+}
 let liveSourceNextActionMode="buyer";
 function updateLiveSourceNextAction(){
   const buyerEl=document.getElementById("buyerSelect");
@@ -341,7 +382,7 @@ function updateLiveSourceNextAction(){
   if(!connector){
     liveSourceNextActionMode="channel";
     title.textContent="Choose the sourcing channel";
-    textEl.textContent="Start by choosing the website or source you want to search. Click a source card below — for example BMW Motorrad Approved Used UK — then AnyBike will move you to the buyer and request.";
+    textEl.textContent="Start by choosing the website or approved-used source you want to search. Use the channel selector directly below, then AnyBike will move you to the buyer and request.";
     btn.textContent="CHOOSE CHANNEL →";
     return;
   }
@@ -389,7 +430,9 @@ function updateLiveSourceNextAction(){
 }
 function runLiveSourceNextAction(){
   if(liveSourceNextActionMode==="channel"){
-    document.getElementById("sources")?.scrollIntoView({behavior:"smooth",block:"start"});
+    const panel=document.getElementById("channelChooserPanel");
+    panel?.scrollIntoView({behavior:"smooth",block:"center"});
+    setTimeout(()=>document.getElementById("channelChooserSelect")?.focus(),350);
     return;
   }
   if(liveSourceNextActionMode==="channel-setup"){
@@ -520,6 +563,7 @@ async function loadHub(){
   if(error){document.getElementById("sources").innerHTML='<div class="status bad">'+esc(error.message)+'</div>';return}
   hub=data||{connectors:[]};
   const cs=hub.connectors||[];
+  populateChannelChooser();
   const selectedId=Number(document.getElementById("connectorFilter").value||0);
   document.getElementById("sources").innerHTML=cs.map(c=>'<article class="source-card '+(selectedId===Number(c.id)?"active":"")+'" onclick="selectSourceChannel('+c.id+')">'+
     '<div class="eyebrow">'+esc(c.source_type||"website")+'</div><h3>'+esc(c.name)+'</h3>'+
@@ -548,6 +592,8 @@ async function selectSourceChannel(id){
   document.getElementById("statusFilter").value="live";
 
   const connector=(hub?.connectors||[]).find(c=>Number(c.id)===Number(id));
+  const guideSelect=document.getElementById("channelChooserSelect");
+  if(guideSelect)guideSelect.value=String(id);
   sourceSetupConnectorId=(connector && connector.status!=="adapter_ready")?Number(id):null;
   document.getElementById("activeSourceLabel").textContent=connector?.name||"Selected channel";
   renderSourceSetupGuide(connector);
