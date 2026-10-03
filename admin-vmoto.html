@@ -23,7 +23,7 @@ h1{margin:5px 0 7px;font-size:32px}h2{margin:0 0 12px}.muted{color:var(--muted);
 .btn{border:0;border-radius:999px;padding:10px 14px;font-weight:900;cursor:pointer;background:var(--red);color:#fff}.btn.dark{background:#222;border:1px solid var(--line)}.btn.green{background:#168a48}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 .list{display:grid;gap:10px}.row{border:1px solid var(--line);border-radius:14px;background:#151515;padding:13px}.row-head{display:flex;justify-content:space-between;gap:12px}.pill{display:inline-block;padding:5px 8px;border-radius:999px;background:#222;font-size:10px;font-weight:900}.pill.live{background:#175d34}.pill.draft{background:#6b5513}.small{font-size:12px;color:#999}.hidden{display:none!important}.status{font-size:13px;font-weight:800;margin-top:10px}.status.good{color:#7ff0a8}.status.bad{color:#ff7378}
 .two{display:grid;grid-template-columns:minmax(320px,.8fr) minmax(0,1.2fr);gap:14px}.sticky{position:sticky;top:12px;align-self:start}
-.question{border:1px solid var(--line);border-radius:13px;padding:12px;background:#141414}.question strong{display:block;margin-bottom:6px}
+.question{border:1px solid var(--line);border-radius:13px;padding:12px;background:#141414}.question strong{display:block;margin-bottom:6px}.question.focused{border-color:var(--red);box-shadow:0 0 0 2px rgba(237,28,36,.18)}
 @media(max-width:900px){.two,.form-grid{grid-template-columns:1fr}.field.full{grid-column:1}.sticky{position:static}}
 </style>
 </head>
@@ -178,6 +178,18 @@ async function loadAll(){
   const d=hq.data||{};state.models=d.models||[];state.variants=d.variants||[];state.colours=d.colours||[];state.stock=d.stock||[];
   state.faqs=faq.data?.faqs||[];state.questions=faq.data?.questions||[];
   refreshSelects();renderAll();
+  applyVmotoDeepLink();
+}
+function applyVmotoDeepLink(){
+  const params=new URLSearchParams(window.location.search);
+  const questionId=params.get("question");
+  if(window.location.hash==="#questions"||questionId){
+    setTab("faq");
+    requestAnimationFrame(()=>setTimeout(()=>{
+      const target=questionId?document.getElementById("question-"+questionId):document.getElementById("questions");
+      if(target){target.classList?.add("focused");target.scrollIntoView({behavior:"smooth",block:"center"});}
+    },60));
+  }
 }
 function refreshSelects(){
   const modelOpts=state.models.map(m=>'<option value="'+m.id+'">'+esc(m.model_name)+'</option>').join("");
@@ -200,7 +212,7 @@ function renderVariants(){document.getElementById("variantList").innerHTML=state
 function renderColours(){document.getElementById("colourList").innerHTML=state.colours.length?state.colours.map(c=>{const v=byId(state.variants,c.variant_id);const m=byId(state.models,v?.model_id);return '<div class="row"><strong>'+esc(c.colour_name)+'</strong><div class="small">'+esc(m?.model_name||"")+' — '+esc(v?.variant_name||"")+'</div><div class="actions"><button class="btn dark" onclick="editColour('+c.id+')">Edit</button></div></div>'}).join(""):'<div class="small">No colours yet.</div>'}
 function renderStock(){document.getElementById("stockList").innerHTML=state.stock.length?state.stock.map(s=>{const v=byId(state.variants,s.variant_id);const m=byId(state.models,v?.model_id);const col=byId(state.colours,s.colour_id);return '<div class="row"><strong>'+esc(m?.model_name||"")+' — '+esc(v?.variant_name||"")+'</strong><div class="small">'+esc(col?.colour_name||"Any colour")+' · '+esc(s.stock_location||"Location TBC")+' · '+esc(s.availability_status)+'</div><div class="small">Qty: '+esc(s.quantity_available??"—")+' · '+esc(s.source_method||"Manual")+'</div><div class="actions"><button class="btn dark" onclick="editStock('+s.id+')">Edit</button></div></div>'}).join(""):'<div class="small">No stock entries yet.</div>'}
 function renderFaqs(){document.getElementById("faqList").innerHTML=state.faqs.length?state.faqs.map(f=>{const m=state.models.find(x=>x.slug===f.model_slug);return '<div class="row"><div class="row-head"><strong>'+esc(f.question)+'</strong><span class="pill '+(f.approval_status==="Approved"?"live":"draft")+'">'+esc(f.approval_status)+'</span></div><div class="small">'+esc(m?.model_name||"General VMoto")+' · '+esc(f.category||"General")+'</div><div class="small" style="margin-top:6px">'+esc(f.answer).slice(0,240)+'</div><div class="actions"><button class="btn dark" onclick="editFaq('+f.id+')">Edit</button></div></div>'}).join(""):'<div class="small">No FAQs yet.</div>'}
-function renderQuestions(){document.getElementById("questionList").innerHTML=state.questions.length?state.questions.map(q=>'<div class="question"><strong>'+esc(q.question)+'</strong><div class="small">'+esc(q.customer_name||"Guest")+' · '+esc(q.customer_email||"No email")+' · '+esc(q.status)+'</div><div class="actions"><button class="btn dark" onclick="updateQuestion('+q.id+',\'Sent to VMoto\')">Sent to VMoto</button><button class="btn dark" onclick="updateQuestion('+q.id+',\'Answered\')">Answered</button><button class="btn dark" onclick="updateQuestion('+q.id+',\'Closed\')">Close</button></div></div>').join(""):'<div class="small">No customer FAQ questions yet.</div>'}
+function renderQuestions(){document.getElementById("questionList").innerHTML=state.questions.length?state.questions.map(q=>'<div class="question" id="question-'+q.id+'"><strong>'+esc(q.question)+'</strong><div class="small">'+esc(q.customer_name||"Guest")+' · '+esc(q.customer_email||"No email")+' · '+esc(q.status)+'</div><div class="actions"><button class="btn dark" onclick="updateQuestion('+q.id+',\'Sent to VMoto\')">Sent to VMoto</button><button class="btn dark" onclick="updateQuestion('+q.id+',\'Answered\')">Answered</button><button class="btn dark" onclick="updateQuestion('+q.id+',\'Closed\')">Close</button></div></div>').join(""):'<div class="small">No customer FAQ questions yet.</div>'}
 
 function resetModelForm(){edit.model=null;["modelName","modelSlug","modelType","modelPrice","modelDescription","modelImage"].forEach(id=>document.getElementById(id).value="");document.getElementById("modelSort").value=0;document.getElementById("modelActive").value="false"}
 function editModel(id){const m=byId(state.models,id);if(!m)return;edit.model=id;document.getElementById("modelName").value=m.model_name||"";document.getElementById("modelSlug").value=m.slug||"";document.getElementById("modelType").value=m.model_type||"";document.getElementById("modelPrice").value=m.base_retail_price_gbp??"";document.getElementById("modelDescription").value=m.short_description||"";document.getElementById("modelImage").value=m.hero_image_url||"";document.getElementById("modelSort").value=m.sort_order||0;document.getElementById("modelActive").value=String(!!m.is_active);window.scrollTo({top:0,behavior:"smooth"})}
