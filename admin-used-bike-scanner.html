@@ -34,7 +34,10 @@ textarea{min-height:120px;resize:vertical;white-space:pre-wrap;overflow-wrap:any
 .cols{display:grid;grid-template-columns:1.15fr 1fr 1fr;gap:12px;margin-top:14px}.box{background:#0d0d0d;border:1px solid #282828;border-radius:12px;padding:12px}.box h3{font-size:13px;margin:0 0 10px;color:#ddd;text-transform:uppercase;letter-spacing:.08em}
 .mini{display:grid;grid-template-columns:1fr 1fr;gap:8px}.complete-box{border-color:#2f8d52!important;box-shadow:0 0 0 1px rgba(67,209,122,.16)}.attention-box{border-color:#6a3030!important}.money{font-size:18px;font-weight:900}.secret{border-left:3px solid var(--red)}
 .check{display:flex;gap:8px;align-items:flex-start;margin-top:8px;font-size:13px;color:#ccc}.check input{width:auto;margin-top:2px}
-.note{font-size:12px;color:#999;line-height:1.45}.source-link{color:#ff7378;text-decoration:underline;word-break:break-all}.sharebar{position:relative;background:#0d0d0d;border:1px solid #333;border-radius:16px;padding:14px;z-index:1;margin-top:18px}.sharebar.collapsed .share-body{display:none}.sharebar .share-toggle{display:flex;justify-content:space-between;align-items:center;gap:12px;cursor:pointer}.sharebar .share-body{margin-top:12px}
+.note{font-size:12px;color:#999;line-height:1.45}.source-link{color:#ff7378;text-decoration:underline;word-break:break-all}
+.preview-thumbs{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}.preview-thumbs img{width:72px;height:54px;object-fit:cover;border-radius:8px;border:1px solid #333;background:#050505}
+.preview-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:2000;align-items:center;justify-content:center;padding:18px}.preview-backdrop.open{display:flex}.preview-modal{width:min(980px,100%);max-height:92vh;overflow:auto;background:#111;border:1px solid #3a3a3a;border-radius:18px;padding:20px}.preview-close{float:right}.buyer-preview-card{background:#171717;border:1px solid #2b2b2b;border-radius:16px;overflow:hidden}.buyer-preview-main{width:100%;max-height:520px;object-fit:contain;background:#050505}.buyer-preview-body{padding:18px}.buyer-preview-title{font-size:26px;font-weight:950}.buyer-preview-gallery{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.buyer-preview-gallery img{width:120px;height:90px;object-fit:cover;border:1px solid #333;border-radius:9px;cursor:pointer}
+.sharebar{position:relative;background:#0d0d0d;border:1px solid #333;border-radius:16px;padding:14px;z-index:1;margin-top:18px}.sharebar.collapsed .share-body{display:none}.sharebar .share-toggle{display:flex;justify-content:space-between;align-items:center;gap:12px;cursor:pointer}.sharebar .share-body{margin-top:12px}
 @media(max-width:1000px){.grid{grid-template-columns:1fr 1fr}.cols{grid-template-columns:1fr}.scan-head{flex-direction:column}.thumb{width:100%;height:200px}}
 @media(max-width:650px){.content{padding:12px}.grid{grid-template-columns:1fr}}
 </style>
@@ -104,6 +107,14 @@ textarea{min-height:120px;resize:vertical;white-space:pre-wrap;overflow-wrap:any
         </div>
       </section>
     </main>
+  </div>
+</div>
+<div class="preview-backdrop" id="buyerPreviewModal" onclick="if(event.target===this)closeBuyerPreview()">
+  <div class="preview-modal">
+    <button class="btn preview-close" type="button" onclick="closeBuyerPreview()">Close</button>
+    <div class="eyebrow">Buyer preview</div>
+    <h2 style="margin:5px 0 14px">Exactly what the buyer will see</h2>
+    <div id="buyerPreviewContent"></div>
   </div>
 </div>
 <script>
@@ -293,6 +304,32 @@ async function loadSourceCommercialHistory(){
     }
   }));
 }
+function previewThumbsHtml(urls){
+  const arr=(Array.isArray(urls)?urls:[]).filter(Boolean);
+  if(!arr.length)return "";
+  return '<div class="preview-thumbs">'+arr.slice(0,8).map(u=>'<img src="'+esc(u)+'" onerror="this.style.display=\'none\'">').join("")+'</div>';
+}
+function closeBuyerPreview(){document.getElementById("buyerPreviewModal")?.classList.remove("open")}
+function previewBuyerMatch(scanId){
+  const s=(scanned||[]).find(x=>Number(x.id)===Number(scanId));
+  if(!s)return;
+  collectCard(scanId);
+  const urls=(Array.isArray(s.buyer_image_urls)?s.buyer_image_urls:[]).filter(Boolean);
+  const first=urls[0]||"/anybike-logo-new.jpg";
+  const ttl=[s.year,s.make,s.model,cleanVariantText(s.variant)].filter(Boolean).join(" ")||"Motorcycle match";
+  const facts=[s.mileage!=null?Number(s.mileage).toLocaleString("en-GB")+" miles":"",cleanBuyerColour(s.colour)||"",s.engine_cc?Number(s.engine_cc).toLocaleString("en-GB")+" cc":""].filter(Boolean);
+  const price=Number(s.anybike_price_gbp)>0?gbp(s.anybike_price_gbp):"Price on request";
+  document.getElementById("buyerPreviewContent").innerHTML='<article class="buyer-preview-card">'+
+    '<img id="buyerPreviewMain" class="buyer-preview-main" src="'+esc(first)+'" onerror="this.src=\'/anybike-logo-new.jpg\'">'+
+    '<div class="buyer-preview-body"><div class="buyer-preview-title">'+esc(ttl)+'</div>'+
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">'+facts.map(x=>'<span class="tag">'+esc(x)+'</span>').join("")+'</div>'+
+    '<div class="money" style="margin-top:12px">'+price+'</div>'+
+    '<div style="margin-top:12px;color:#ccc;line-height:1.55">'+esc(buyerDescriptionForDisplay(s)||"Selected by AnyBike for your requirements.")+'</div>'+
+    '<div class="buyer-preview-gallery">'+urls.map((u,i)=>'<img src="'+esc(u)+'" alt="Buyer-safe photo '+(i+1)+'" onclick="document.getElementById(\'buyerPreviewMain\').src=this.src">').join("")+'</div>'+
+    '<div class="status" style="margin-top:12px">'+urls.length+' buyer-safe photo'+(urls.length===1?"":"s")+' will be available to the buyer.</div>'+
+    '</div></article>';
+  document.getElementById("buyerPreviewModal")?.classList.add("open");
+}
 function cardHtml(s,saved){
   const id=saved?s.id:s._key;
   const sourceUrls=Array.isArray(s.source_image_urls)?s.source_image_urls:[];
@@ -333,11 +370,14 @@ function cardHtml(s,saved){
         ?'<div style="margin-top:10px;padding:10px;border:1px solid #333;border-radius:10px;background:#0b0b0b">'+
           '<div style="font-weight:900">Buyer-safe images</div>'+
           '<div class="note" style="margin-top:4px">'+(((s.buyer_image_urls||[]).length)
-            ?((s.buyer_image_urls||[]).length+' approved clean image'+((s.buyer_image_urls||[]).length===1?'':'s')+' ready')
+            ?((s.buyer_image_urls||[]).length+' approved clean image'+((s.buyer_image_urls||[]).length===1?'':'s')+' ready · target up to 6 where source photos allow')
             :'No approved buyer-safe image yet. Raw dealer images are internal only.')+'</div>'+
-          '<button type="button" class="btn green" style="margin-top:8px" onclick="prepareBuyerSafeImages('+id+','+Number(s.extraction.live_source_item_id)+')">'+
-            (((s.buyer_image_urls||[]).length)?'Re-check buyer-safe images':'Prepare buyer-safe images')+
-          '</button> <span id="buyer-safe-status-'+id+'" class="status"></span>'+
+          previewThumbsHtml(s.buyer_image_urls)+
+          '<div style="margin-top:8px"><button type="button" class="btn green" onclick="prepareBuyerSafeImages('+id+','+Number(s.extraction.live_source_item_id)+')">'+
+            (((s.buyer_image_urls||[]).length)>=6?'Re-check buyer-safe images':'Prepare more buyer-safe images')+
+          '</button> '+
+          ((s.buyer_image_urls||[]).length?'<button type="button" class="btn" onclick="previewBuyerMatch('+id+')">Preview as buyer</button> ':'')+
+          '<span id="buyer-safe-status-'+id+'" class="status"></span></div>'+
         '</div>'
         :'<div class="note" style="margin-top:10px">Use only images AnyBike is permitted to present to the buyer.</div>')+
       '</div>'+
@@ -384,6 +424,7 @@ function updateNextAction(){
 
   const rows=scanned||[];
   const missingImage=rows.find(s=>s.extraction&&s.extraction.live_source_item_id&&!(Array.isArray(s.buyer_image_urls)&&s.buyer_image_urls.length));
+  const thinGallery=rows.find(s=>s.extraction&&s.extraction.live_source_item_id&&Array.isArray(s.buyer_image_urls)&&s.buyer_image_urls.length>0&&s.buyer_image_urls.length<3);
   const needsReview=rows.find(s=>!s.price_checked || !s.selected_for_buyer);
 
   panel.style.display="block";
@@ -391,6 +432,11 @@ function updateNextAction(){
     nextActionMode="image";
     title.textContent="Prepare the buyer-safe image";
     textEl.textContent="At least one motorcycle still needs an approved buyer-safe image. Prepare that first before completing the price check and buyer selection.";
+    btn.textContent="PROCEED →";
+  }else if(thinGallery){
+    nextActionMode="image";
+    title.textContent="Prepare more buyer-safe photos";
+    textEl.textContent="At least one motorcycle has fewer than 3 buyer-safe photos. Prepare more images where the source advert provides them, then preview the match as the buyer will see it.";
     btn.textContent="PROCEED →";
   }else if(needsReview){
     nextActionMode="review";
@@ -415,7 +461,7 @@ function runNextAction(){
     return;
   }
   const target=(scanned||[]).find(s=>{
-    if(nextActionMode==="image") return s.extraction&&s.extraction.live_source_item_id&&!(Array.isArray(s.buyer_image_urls)&&s.buyer_image_urls.length);
+    if(nextActionMode==="image") return s.extraction&&s.extraction.live_source_item_id&&(!Array.isArray(s.buyer_image_urls)||s.buyer_image_urls.length<3);
     return !s.price_checked || !s.selected_for_buyer;
   });
   if(target) document.querySelector('[data-scan="'+target.id+'"]')?.scrollIntoView({behavior:"smooth",block:"start"});
@@ -490,15 +536,16 @@ async function prepareBuyerSafeImages(scanId,liveSourceItemId){
   const st=document.getElementById("buyer-safe-status-"+scanId);
   const topSt=document.getElementById("buyer-safe-top-status-"+scanId);
   const scan=scanned.find(x=>Number(x.id)===Number(scanId));
-  const alreadyReady=!!(scan && Array.isArray(scan.buyer_image_urls) && scan.buyer_image_urls.length);
+  const currentCount=(scan && Array.isArray(scan.buyer_image_urls))?scan.buyer_image_urls.length:0;
+  const targetCount=6;
 
-  if(st){st.className="status";st.textContent=alreadyReady?"Refreshing approved image…":"Checking source photos…";}
-  if(topSt){topSt.className="status";topSt.textContent=alreadyReady?"Refreshing…":"Cleaning…";}
+  if(st){st.className="status";st.textContent=currentCount?"Preparing more approved images…":"Checking source photos…";}
+  if(topSt){topSt.className="status";topSt.textContent="Preparing images…";}
 
   try{
-    if(!alreadyReady){
+    if(currentCount<targetCount){
       const {data,error}=await sb().functions.invoke("prepare-live-source-buyer-safe-images",{
-        body:{live_source_item_id:Number(liveSourceItemId)}
+        body:{live_source_item_id:Number(liveSourceItemId),target_safe_count:targetCount}
       });
       if(error)throw error;
       if(data?.error)throw new Error(data.error);
@@ -522,7 +569,7 @@ async function prepareBuyerSafeImages(scanId,liveSourceItemId){
     }
     if(topSt){
       topSt.className=safe>0?"status good":"status bad";
-      topSt.textContent=safe>0?"Buyer-safe image ready":"No clean image approved";
+      topSt.textContent=safe>0?(safe+" buyer-safe photo"+(safe===1?"":"s")+" ready"):"No clean image approved";
     }
     renderScans(true);
   }catch(e){
