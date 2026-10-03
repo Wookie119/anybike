@@ -1165,3 +1165,20 @@ Price history is internal commercial information. It is intended to help staff u
 If the source does not provide the original listing date, the screen must say **First seen by AnyBike** rather than implying that AnyBike knows the true date the seller first advertised the motorcycle.
 
 Routine source refreshes must preserve approved buyer-safe images. Source data refresh and buyer-safe image preparation are separate processes.
+
+
+## 3.1B Multi-request buyer sourcing rule
+
+A buyer may ask AnyBike to source more than one motorcycle make/model at the same time. Staff must treat those requirements as one **Buyer Sourcing Plan**, while each motorcycle request remains a separate sourcing work item.
+
+**Mandatory operating rule:**
+- Never assume the buyer is fully sourced because matches have been prepared or sent for one brand/model.
+- Before finishing work on a sourcing batch, check the buyer's other active motorcycle requests.
+- Each request must show one of the operational statuses **Not Started**, **Matches Prepared**, **Sent to Buyer**, or **Buyer Responded**.
+- If any request is **Not Started**, the sourcing workflow must continue to remind staff that another requirement still needs sourcing.
+- The Live Source Hub is the primary place to choose the next unsourced request.
+- The Used Bike Scanner must continue showing the buyer's other requirements while a batch is prepared or sent.
+- **Your Next Action** must never imply that the buyer's sourcing is complete while another request remains unsourced.
+- A request may only stop appearing as outstanding when it has been worked or deliberately closed/resolved through an approved workflow; staff must not silently ignore it because another request was successful.
+
+**Staff test:** before leaving a buyer sourcing workflow, ask: *“Have we dealt with every motorcycle this buyer asked us to source, not just the one on this screen?”*
