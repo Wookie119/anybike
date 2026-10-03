@@ -580,7 +580,7 @@ Commercial rule confirmed during AB-000026 testing:
 - The transport line is accounted for separately and is not assumed to be VAT-free.
 - Motorcycle commercial revenue is Motorcycle Sale Price + AnyBike Sourcing Fee.
 - Motorcycle / Deal Cost Basis is Agreed Seller Purchase Price plus genuine motorcycle/deal-specific costs such as prep/rectification, export documentation, deal administration and other genuine deal costs.
-- Do not create an artificial Move Motorcycles internal transport cost where no genuine supplier/accounting cost exists.
+- AnyBike and Move Motorcycles are trading styles of Giffords Empire Ltd. Move Motorcycles does not invoice AnyBike for its jobs, so do not create a Move supplier invoice, supplier payable, intercompany charge or artificial internal transport cost in Deal 360.
 - UK Collection & Delivery does not increase motorcycle commercial profit or motorcycle commercial margin.
 - Motorcycle VAT estimates exclude delivery; the final invoice VAT review remains authoritative for the transport line.
 
@@ -820,3 +820,12 @@ Frontend alignment completed:
 - Those buyer-facing sourced-match components are treated as a protected quote snapshot in Commercial Setup so staff cannot accidentally add the sourcing fee or UK collection/delivery a second time.
 - Already-shown legacy sourced-match prices are preserved exactly even if the fee rule has since changed. New sourced matches continue to use the current automatic sourcing-fee rule upstream.
 - Current test Deal AB-000029 was repaired to its original sourced-match breakdown: £15,990 motorcycle + £1,295 sourced-match fee + £250 UK collection/delivery = £17,535 customer price; seller purchase price remains £15,000.
+
+
+## 3 October 2026 — Giffords Empire trading-style accounting rule
+- Legal entity: **Giffords Empire Ltd**.
+- Trading styles: **AnyBike** and **Move Motorcycles**.
+- Move Motorcycles is the internal specialist transport operation used by AnyBike, not a separate supplier entity.
+- No Move Motorcycles invoice is raised to AnyBike for AnyBike jobs.
+- The buyer's UK Collection & Delivery Charge remains part of the AnyBike customer deal and must not generate a matching Move supplier payable.
+- Internal transport performance/cost reporting may be tracked operationally, but it must not be represented as an invoice between AnyBike and Move Motorcycles.
