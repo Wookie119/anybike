@@ -118,6 +118,12 @@ button{font:inherit}
 .home-next-meta{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-top:10px}
 .home-next-waiting{display:inline-flex;padding:6px 10px;border:1px solid rgba(255,255,255,.17);border-radius:999px;background:#080808;font-size:12px;font-weight:900}
 .home-next-action .btn{white-space:nowrap}
+.home-next-more{display:none;margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,.10)}
+.home-next-more-title{color:#aaa;font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}
+.home-next-task-list{display:flex;gap:8px;flex-wrap:wrap}
+.home-next-task{display:inline-flex;align-items:center;gap:7px;padding:8px 11px;border:1px solid rgba(255,255,255,.16);border-radius:10px;background:#151515;color:#fff;font-size:12px;font-weight:900;text-decoration:none}
+.home-next-task:hover{border-color:rgba(237,28,36,.6)}
+.home-next-count{display:inline-flex;align-items:center;justify-content:center;min-width:21px;height:21px;padding:0 6px;border-radius:999px;background:#ed1c24;color:#fff;font-size:11px}
 @media(max-width:760px){.home-next-action-card{grid-template-columns:1fr}.home-next-action .btn{width:100%}}
 
 /* HERO */
@@ -810,6 +816,10 @@ footer{
         <h2 id="homeNextActionTitle">Checking your AnyBike account…</h2>
         <p id="homeNextActionText">We are checking what needs your attention.</p>
         <div class="home-next-meta"><span class="home-next-waiting" id="homeNextActionWaiting">Checking…</span></div>
+        <div class="home-next-more" id="homeNextMore">
+          <div class="home-next-more-title" id="homeNextMoreTitle">Also needs your attention</div>
+          <div class="home-next-task-list" id="homeNextTaskList"></div>
+        </div>
       </div>
       <a class="btn" id="homeNextActionButton" href="/customer-dashboard.html">OPEN MY ANYBIKE →</a>
     </div>
@@ -1313,6 +1323,25 @@ loadLiveStock();
     const btn=document.getElementById("homeNextActionButton");
     btn.textContent=cfg.label||"OPEN MY ANYBIKE →";
     btn.href=cfg.href||"/customer-dashboard.html";
+
+    const extras=Array.isArray(cfg.extraTasks)?cfg.extraTasks:[];
+    const more=document.getElementById("homeNextMore");
+    const list=document.getElementById("homeNextTaskList");
+    const title=document.getElementById("homeNextMoreTitle");
+    if(more&&list){
+      if(extras.length){
+        title.textContent=extras.length===1?"Also needs your attention":"Also needs your attention · "+extras.length+" more";
+        list.innerHTML=extras.slice(0,5).map(t=>
+          '<a class="home-next-task" href="'+String(t.href||"/customer-dashboard.html").replaceAll('"',"&quot;")+'">'+
+          (t.count?'<span class="home-next-count">'+Number(t.count)+'</span>':'')+
+          '<span>'+String(t.label||"Open").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")+'</span></a>'
+        ).join("");
+        more.style.display="block";
+      }else{
+        list.innerHTML="";
+        more.style.display="none";
+      }
+    }
     panel.style.display="block";
   }
 
@@ -1328,83 +1357,110 @@ loadLiveStock();
       const batches=batchRes.error?[]:(batchRes.data||[]);
       const offers=offerRes.error?[]:(offerRes.data||[]);
       const purchases=purchaseRes.error?[]:(purchaseRes.data||[]);
+      const tasks=[];
 
       const deposit=purchases.find(p=>Number(p.deposit_outstanding_gbp||0)>0);
       if(deposit){
-        setHomeNextAction({
+        tasks.push({
+          priority:1,
           title:"Pay the required deposit",
           text:"Your motorcycle purchase is waiting for the outstanding deposit. Open Accounts & Documents to complete the next payment step.",
           waitingFor:"You",
           label:"PAY DEPOSIT →",
+          shortLabel:"Pay deposit",
           href:"/accounts-documents.html"
         });
-        return;
       }
 
-      const offer=offers.find(o=>{
+      const activeOffers=offers.filter(o=>{
         const status=String(o.offer_status||"").toLowerCase();
         return !o.customer_decision && ["sent","open","issued","awaiting customer"].some(x=>status.includes(x));
       });
-      if(offer){
-        setHomeNextAction({
-          title:"Review your AnyBike offer",
-          text:"A formal AnyBike offer is waiting for your decision. Review the motorcycle, price and terms before responding.",
+      if(activeOffers.length){
+        const offer=activeOffers[0];
+        tasks.push({
+          priority:2,
+          title:activeOffers.length===1?"Review your AnyBike offer":"Review your AnyBike offers",
+          text:activeOffers.length===1
+            ?"A formal AnyBike offer is waiting for your decision. Review the motorcycle, price and terms before responding."
+            :activeOffers.length+" formal AnyBike offers are waiting for your decision.",
           waitingFor:"You",
-          label:"REVIEW OFFER →",
+          label:"REVIEW OFFER"+(activeOffers.length===1?"":"S")+" →",
+          shortLabel:"Review offer"+(activeOffers.length===1?"":"s"),
+          count:activeOffers.length,
           href:"/customer-dashboard.html?deal_offer="+encodeURIComponent(offer.offer_id)+"#my-offers"
         });
-        return;
       }
 
-      const unreviewed=batches.find(b=>{
+      const unreviewed=batches.filter(b=>{
         const total=Number(b.total_matches||0);
         const responded=Number(b.interested_count||0)+Number(b.watching_count||0)+Number(b.declined_count||0);
         return total>responded;
       });
-      if(unreviewed){
-        const remaining=Math.max(0,Number(unreviewed.total_matches||0)-Number(unreviewed.interested_count||0)-Number(unreviewed.watching_count||0)-Number(unreviewed.declined_count||0));
-        setHomeNextAction({
+      const outstandingMatches=unreviewed.reduce((sum,b)=>{
+        const total=Number(b.total_matches||0);
+        const responded=Number(b.interested_count||0)+Number(b.watching_count||0)+Number(b.declined_count||0);
+        return sum+Math.max(0,total-responded);
+      },0);
+      if(unreviewed.length){
+        tasks.push({
+          priority:3,
           title:"Review your motorcycle matches",
-          text:"AnyBike has "+remaining+" motorcycle"+(remaining===1?"":"s")+" waiting for your decision. Mark the bikes you want us to check and save your choices.",
+          text:"AnyBike has "+outstandingMatches+" motorcycle"+(outstandingMatches===1?"":"s")+" waiting for your decision. Mark the bikes you want us to check and save your choices.",
           waitingFor:"You",
           label:"REVIEW MATCHES →",
-          href:"/customer-sourced-matches.html?batch="+encodeURIComponent(unreviewed.id)
+          shortLabel:"Review matches",
+          count:outstandingMatches,
+          href:"/customer-sourced-matches.html?batch="+encodeURIComponent(unreviewed[0].id)
         });
-        return;
       }
 
-      const checking=batches.find(b=>Number(b.interested_count||0)>0);
-      if(checking){
-        const n=Number(checking.interested_count||0);
-        setHomeNextAction({
-          title:"AnyBike is checking "+n+" motorcycle"+(n===1?"":"s")+" for you",
+      const checkingCount=batches.reduce((sum,b)=>sum+Number(b.interested_count||0),0);
+      if(checkingCount){
+        tasks.push({
+          priority:20,
+          title:"AnyBike is checking "+checkingCount+" motorcycle"+(checkingCount===1?"":"s")+" for you",
           text:"Your choices are saved. AnyBike is checking seller availability and current purchase terms. There is nothing you need to do right now; open My AnyBike to follow progress.",
           waitingFor:"AnyBike",
           label:"VIEW PROGRESS →",
-          href:"/customer-dashboard.html#hand-picked"
+          shortLabel:"View sourcing progress",
+          count:checkingCount,
+          href:"/customer-dashboard.html#hand-picked",
+          waiting:true
         });
-        return;
       }
 
-      const activePurchase=purchases.find(p=>!p.operations_complete);
-      if(activePurchase){
-        setHomeNextAction({
+      const activePurchases=purchases.filter(p=>!p.operations_complete && Number(p.deposit_outstanding_gbp||0)<=0);
+      if(activePurchases.length){
+        tasks.push({
+          priority:25,
           title:"Track your motorcycle purchase",
           text:"Your AnyBike purchase is in progress. Open My AnyBike to see the latest payment, collection and shipping status.",
           waitingFor:"AnyBike",
           label:"VIEW PURCHASE →",
-          href:"/customer-dashboard.html#my-purchases"
+          shortLabel:"Track purchase",
+          count:activePurchases.length,
+          href:"/customer-dashboard.html#my-purchases",
+          waiting:true
+        });
+      }
+
+      tasks.sort((a,b)=>a.priority-b.priority);
+
+      if(!tasks.length){
+        setHomeNextAction({
+          title:"Open My AnyBike",
+          text:"Your dashboard brings your motorcycle requests, matches, offers, purchases, messages and account setup into one place.",
+          waitingFor:"You",
+          label:"OPEN MY ANYBIKE →",
+          href:"/customer-dashboard.html"
         });
         return;
       }
 
-      setHomeNextAction({
-        title:"Open My AnyBike",
-        text:"Your dashboard brings your motorcycle requests, matches, offers, purchases, messages and account setup into one place.",
-        waitingFor:"You",
-        label:"OPEN MY ANYBIKE →",
-        href:"/customer-dashboard.html"
-      });
+      const primary=tasks[0];
+      const extras=tasks.slice(1).filter(t=>!t.waiting || primary.waiting);
+      setHomeNextAction({...primary,extraTasks:extras});
     }catch(error){
       console.warn("Homepage next action unavailable",error);
       setHomeNextAction({
