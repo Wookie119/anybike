@@ -182,9 +182,30 @@ function cleanBuyerColour(v){
 function cleanVariantText(v){
   return String(v||"")
     .replace(/\s*,\s*/g,", ")
-    .replace(/\bVGC\b/gi,"Very good condition")
-    .replace(/\s+/g," ")
+    .replace(/\bVGC\b/gi,"")
+    .replace(/\b(?:2|two)\s*(?:year|yr)\s+(?:BMW\s+)?warranty\b/gi,"")
+    .replace(/\bBMW['’]?s\s+Ultimate\s+Superbike\b/gi,"")
+    .replace(/\bLow\s+Mileage\b/gi,"")
+    .replace(/\bGreat\s+Condition\b/gi,"")
+    .replace(/\s*[-–—]\s*$/g,"")
+    .replace(/^\s*[-–—]\s*/g,"")
+    .replace(/\s{2,}/g," ")
     .trim();
+}
+function cleanBuyerDescriptionText(v){
+  return String(v||"")
+    .replace(/\b(?:2|two)\s*(?:year|yr)\s+(?:BMW\s+)?warranty\b/gi,"")
+    .replace(/\bBMW['’]?s\s+Ultimate\s+Superbike\b/gi,"")
+    .replace(/\bLow\s+Mileage\b/gi,"")
+    .replace(/\bGreat\s+Condition\b/gi,"")
+    .replace(/\s*[-–—]\s*(?=with\b|·|,|$)/gi," ")
+    .replace(/\s{2,}/g," ")
+    .replace(/\s+([,.;:])/g,"$1")
+    .trim();
+}
+function buyerDescriptionForDisplay(s){
+  const cleaned=cleanBuyerDescriptionText(s.buyer_description||"");
+  return cleaned||buildBuyerDescription(s);
 }
 function buildBuyerDescription(s){
   const year=s.year?String(s.year)+" ":"";
@@ -242,7 +263,7 @@ function cardHtml(s,saved){
       '</div></div>'+
       '<div class="box '+(safeFirst?'complete-box':'attention-box')+'"><h3>Buyer-safe motorcycle</h3><div class="mini">'+
         field(id,"make","Make",s.make,saved)+field(id,"model","Model",s.model,saved)+field(id,"variant","Variant",cleanVariantText(s.variant),saved)+field(id,"year","Year",s.year,saved)+field(id,"mileage","Mileage",s.mileage,saved)+field(id,"colour","Colour",cleanBuyerColour(s.colour),saved)+
-      '</div><div class="field" style="margin-top:8px"><label>Buyer description</label><textarea data-k="'+id+'" data-f="buyer_description">'+esc(s.buyer_description||buildBuyerDescription(s))+'</textarea></div>'+
+      '</div><div class="field" style="margin-top:8px"><label>Buyer description — check before sending</label><textarea data-k="'+id+'" data-f="buyer_description">'+esc(buyerDescriptionForDisplay(s))+'</textarea><div class="status" style="margin-top:6px">Source advert wording is cleaned automatically. Review this buyer-safe description before ticking Price checked.</div></div>'+
       (s.extraction&&s.extraction.live_source_item_id
         ?'<div style="margin-top:10px;padding:10px;border:1px solid #333;border-radius:10px;background:#0b0b0b">'+
           '<div style="font-weight:900">Buyer-safe images</div>'+
