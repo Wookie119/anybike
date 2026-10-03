@@ -335,12 +335,138 @@ Promise.all([
 
   setTimeout(function(){
     anybikeRefreshAdminBellV2();
+    anybikeEnsureAdminNextAction();
   },300);
 })
 .catch(function(error){
   console.log("Admin shell load failed",error);
 });
 }
+
+/*
+  ANYBIKE NEXT ACTION STANDARD
+  ----------------------------
+  Every operational admin page must show one clear next action near the top.
+  Page-specific workflows can call window.AnyBikeNextAction.set(...) to replace
+  the shared fallback with authoritative workflow state.
+
+  The shared fallback means a newly-created admin page does not silently ship
+  without guidance.
+*/
+const ANYBIKE_ADMIN_NEXT_ACTION_DEFAULTS={
+  "admin-dashboard.html":{title:"Work the highest-priority item",text:"Start with the first genuine item in Your Next Actions. Completing the real task should remove it automatically.",waitingFor:"AnyBike",label:"OPEN NEXT ACTION →",href:"admin-dashboard.html#next-actions"},
+  "admin-enquiries.html":{title:"Open the sale that needs attention",text:"Continue the Deal 360 item whose current stage is waiting for an AnyBike action.",waitingFor:"AnyBike",label:"GO TO SALES WORK →"},
+  "admin-message-centre.html":{title:"Reply to the next message that needs attention",text:"Open the oldest genuine customer or supplier conversation that is waiting for a response.",waitingFor:"AnyBike",label:"OPEN MESSAGES →"},
+  "admin-customers.html":{title:"Review the customer who needs attention",text:"Open the customer with the most urgent genuine setup, request or purchase action.",waitingFor:"AnyBike",label:"OPEN CUSTOMER WORK →"},
+  "admin-ai-matching.html":{title:"Review buyer responses",text:"Progress motorcycles the buyer has selected and remove any options AnyBike does not want to pursue.",waitingFor:"AnyBike",label:"OPEN BUYER RESPONSES →",href:"admin-ai-matching.html#interested-matches-queue"},
+  "admin-global-buyer-network.html":{title:"Review the active buyer request",text:"Open an active buyer requirement and progress the sourcing work that is waiting.",waitingFor:"AnyBike",label:"OPEN BUYER REQUESTS →"},
+  "admin-operations.html":{title:"Complete the next operations action",text:"Work the collection, custody, storage or handover item that is currently waiting for AnyBike.",waitingFor:"AnyBike",label:"OPEN OPERATIONS WORK →"},
+  "admin-logistics.html":{title:"Complete the next logistics action",text:"Progress the collection, delivery or shipper action that is currently waiting.",waitingFor:"AnyBike",label:"OPEN LOGISTICS WORK →"},
+  "admin-accounts.html":{title:"Complete the next finance action",text:"Review payments, balances and documents that require verification or allocation.",waitingFor:"AnyBike",label:"OPEN FINANCE WORK →"},
+  "admin-vmoto.html":{title:"Review the next VMoto action",text:"Check new VMoto enquiries and any retail stock or fulfilment action waiting for AnyBike.",waitingFor:"AnyBike",label:"OPEN VMOTO WORK →"},
+  "admin-stock.html":{title:"Review stock needing attention",text:"Open the motorcycle record that needs the next stock, pricing or status action.",waitingFor:"AnyBike",label:"OPEN STOCK WORK →"},
+  "admin-market-intelligence.html":{title:"Review genuine buyer demand",text:"Use current market activity to identify the next sourcing or market action worth taking.",waitingFor:"AnyBike",label:"REVIEW MARKET ACTIVITY →"},
+  "admin-motorcycle-requests.html":{title:"Review the next motorcycle request",text:"Open an unfulfilled buyer request and continue sourcing or customer follow-up.",waitingFor:"AnyBike",label:"OPEN REQUESTS →"},
+  "admin-motorcycle-360.html":{title:"Review this motorcycle record",text:"Complete the next missing stock, custody, document or commercial action for this motorcycle.",waitingFor:"AnyBike",label:"CONTINUE →"},
+  "admin-live-visitors.html":{title:"Review visitors showing genuine intent",text:"Focus on visitors whose activity creates a real customer or sourcing follow-up.",waitingFor:"AnyBike",label:"REVIEW VISITORS →"},
+  "admin-tasks.html":{title:"Complete the next open task",text:"Work the oldest or highest-priority genuine task before creating more work.",waitingFor:"AnyBike",label:"OPEN TASKS →"},
+  "admin-project-plan.html":{title:"Review the next project item",text:"Continue the highest-priority open platform task and keep its status current.",waitingFor:"AnyBike",label:"OPEN PROJECT WORK →"},
+  "admin-process-hq.html":{title:"Review the next process item",text:"Check process exceptions, learning points and outstanding operating decisions.",waitingFor:"AnyBike",label:"OPEN PROCESS WORK →"}
+};
+
+function anybikeAdminHasOwnNextAction(){
+  if(document.querySelector("#nextActionPanel,[data-anybike-next-action],.next-action,#purchaseNextActionsPanel,#customerNeedsAttention")) return true;
+  return [...document.querySelectorAll("h1,h2,h3,strong,.eyebrow")]
+    .some(el=>/your next action/i.test(String(el.textContent||"")));
+}
+
+function anybikeAdminNextActionContainer(){
+  return document.querySelector(".admin-page-content,.content,main") || null;
+}
+
+function anybikeInstallAdminNextActionStyles(){
+  if(document.getElementById("anybike-next-action-shared-style")) return;
+  const style=document.createElement("style");
+  style.id="anybike-next-action-shared-style";
+  style.textContent=`
+    .anybike-shared-next-action{margin:0 0 18px;padding:18px 20px;border:2px solid #ed1c24;border-radius:16px;background:linear-gradient(135deg,rgba(237,28,36,.16),#111 58%);color:#fff;box-shadow:0 0 0 1px rgba(237,28,36,.08)}
+    .anybike-shared-next-action .abna-kicker{color:#ed1c24;font-size:12px;font-weight:950;letter-spacing:.12em;text-transform:uppercase}
+    .anybike-shared-next-action h2{margin:4px 0 6px;font-size:24px;line-height:1.15}
+    .anybike-shared-next-action p{margin:0;color:#d6d6d6;line-height:1.5}
+    .anybike-shared-next-action .abna-bottom{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-top:12px}
+    .anybike-shared-next-action .abna-waiting{display:inline-flex;align-items:center;gap:7px;border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:7px 10px;background:#0b0b0b;font-size:12px;font-weight:900}
+    .anybike-shared-next-action .abna-btn{border:1px solid #ed1c24;border-radius:10px;background:#ed1c24;color:#fff;padding:10px 14px;font-weight:950;cursor:pointer;text-decoration:none}
+  `;
+  document.head.appendChild(style);
+}
+
+function anybikeAdminDefaultNextAction(){
+  const page=String(location.pathname.split("/").pop()||"admin-dashboard.html").toLowerCase();
+  return ANYBIKE_ADMIN_NEXT_ACTION_DEFAULTS[page] || {
+    title:"Complete the next outstanding action",
+    text:"Review this workspace and complete the next genuine task before moving on.",
+    waitingFor:"AnyBike",
+    label:"START HERE →"
+  };
+}
+
+function anybikeRenderAdminNextAction(config){
+  const container=anybikeAdminNextActionContainer();
+  if(!container) return null;
+  anybikeInstallAdminNextActionStyles();
+
+  let card=document.getElementById("anybikeSharedNextAction");
+  if(!card){
+    card=document.createElement("section");
+    card.id="anybikeSharedNextAction";
+    card.className="anybike-shared-next-action";
+    card.dataset.anybikeNextAction="shared";
+    const first=container.firstElementChild;
+    if(first && (first.id==="adminTopbar" || first.id==="adminSidebar")){
+      first.insertAdjacentElement("afterend",card);
+    }else{
+      container.insertBefore(card,first || null);
+    }
+  }
+
+  const cfg=Object.assign({},anybikeAdminDefaultNextAction(),config||{});
+  card.innerHTML=
+    '<div class="abna-kicker">Your next action</div>'+
+    '<h2>'+escapeNotificationHtml(cfg.title||"Continue")+'</h2>'+
+    '<p>'+escapeNotificationHtml(cfg.text||"")+'</p>'+
+    '<div class="abna-bottom">'+
+      '<span class="abna-waiting">Waiting for: '+escapeNotificationHtml(cfg.waitingFor||"AnyBike")+'</span>'+
+      '<button type="button" class="abna-btn" id="anybikeSharedNextActionButton">'+escapeNotificationHtml(cfg.label||"PROCEED →")+'</button>'+
+    '</div>';
+
+  const button=document.getElementById("anybikeSharedNextActionButton");
+  if(button){
+    button.onclick=function(){
+      if(typeof cfg.onClick==="function"){cfg.onClick();return;}
+      if(cfg.href){location.href=cfg.href;return;}
+      if(cfg.selector){
+        const target=document.querySelector(cfg.selector);
+        if(target){target.scrollIntoView({behavior:"smooth",block:"center"});target.focus?.();return;}
+      }
+      const target=[...container.querySelectorAll("button:not(:disabled),a.btn,input:not([type=hidden]),select,textarea")]
+        .find(el=>!card.contains(el));
+      if(target){target.scrollIntoView({behavior:"smooth",block:"center"});target.focus?.();}
+    };
+  }
+  return card;
+}
+
+function anybikeEnsureAdminNextAction(){
+  if(/admin-login\.html$/i.test(location.pathname)) return;
+  if(anybikeAdminHasOwnNextAction()) return;
+  anybikeRenderAdminNextAction();
+}
+
+window.AnyBikeNextAction={
+  set:function(config){return anybikeRenderAdminNextAction(config||{});},
+  ensure:anybikeEnsureAdminNextAction,
+  hide:function(){document.getElementById("anybikeSharedNextAction")?.remove();}
+};
 
 function setupAdminFolders(){
 document.querySelectorAll(".menu-folder").forEach(function(button){
