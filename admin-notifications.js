@@ -229,11 +229,14 @@ async function loadSharedAdminNotifications(){
               .toLocaleString("en-GB")
           : "";
 
-      var link =
-        adminNotificationUrl(n);
-
       var id =
         String(n.id || "");
+
+      var link =
+        appendAdminNotificationReadId(
+          adminNotificationUrl(n),
+          id
+        );
 
       return '' +
 
@@ -318,6 +321,51 @@ function updateSharedAdminNotificationBadge(count){
 }
 
 
+function appendAdminNotificationReadId(url,id){
+  if(!url || !id) return url || "admin-dashboard.html";
+  try{
+    var parsed=new URL(url,window.location.origin);
+    parsed.searchParams.set("notification_read",String(id));
+    return parsed.pathname+parsed.search+parsed.hash;
+  }catch(error){
+    var join=String(url).includes("?")?"&":"?";
+    return String(url)+join+"notification_read="+encodeURIComponent(id);
+  }
+}
+
+async function consumeAdminNotificationReadParam(){
+  try{
+    var params=new URLSearchParams(window.location.search);
+    var id=params.get("notification_read");
+    if(!id)return;
+
+    var client=getSharedAdminNotificationClient();
+    if(!client)return;
+
+    client
+      .from("admin_notifications")
+      .update({is_read:true})
+      .eq("id",id)
+      .then(function(result){
+        if(result && result.error){
+          console.warn("Notification read update failed:",result.error);
+          return;
+        }
+
+        params.delete("notification_read");
+        var clean=window.location.pathname+
+          (params.toString()?"?"+params.toString():"")+
+          window.location.hash;
+        window.history.replaceState(null,"",clean);
+      })
+      .catch(function(error){
+        console.warn("Notification read update failed:",error);
+      });
+  }catch(error){
+    console.warn("Notification read parameter could not be handled:",error);
+  }
+}
+
 function adminNotificationUrl(n){
 
   /*
@@ -359,54 +407,16 @@ function adminNotificationUrl(n){
 }
 
 
-async function markSharedAdminNotificationRead(
+function markSharedAdminNotificationRead(
   event,
   id
 ){
-
-  if(event){
-    event.preventDefault();
-  }
-
-  var client = getSharedAdminNotificationClient();
-
-  if(!client || !id){
-    return;
-  }
-
-  var target =
-    event &&
-    event.currentTarget &&
-    event.currentTarget.getAttribute
-      ? event.currentTarget.getAttribute(
-          "href"
-        )
-      : "";
-
-  try{
-
-    var result = await client
-      .from("admin_notifications")
-      .update({
-        is_read:true
-      })
-      .eq("id",id);
-
-    if(result.error){
-      throw result.error;
-    }
-
-  }catch(error){
-
-    console.warn(
-      "Notification read update failed:",
-      error
-    );
-  }
-
-  if(target){
-    window.location.href = target;
-  }
+  /*
+    Navigation must be immediate. The destination page consumes
+    ?notification_read=<id> and clears the alert there, so opening a
+    notification never waits on a database round-trip first.
+  */
+  return true;
 }
 
 
@@ -559,6 +569,8 @@ document.addEventListener(
       admin.js owns loading the shared sidebar/topbar.
       This file owns the notification data only.
     */
+    consumeAdminNotificationReadParam();
+
     setTimeout(function(){
       loadSharedAdminNotifications();
     },500);
