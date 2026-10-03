@@ -67,8 +67,9 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
         <div class="next-action-split">
           <div class="next-action-primary">
             <div class="eyebrow">Your next action</div>
-            <h2 id="nextActionTitle">Choose the buyer</h2>
-            <p id="nextActionText">Select the buyer you are sourcing for. AnyBike will then show their saved motorcycle request and matching live motorcycles.</p>
+            <div class="small" id="sourcingWorkflowSteps" style="margin:4px 0 7px;font-weight:900;color:#bbb">1 Choose channel → 2 Choose buyer → 3 Choose request → 4 Select bikes → 5 Prepare</div>
+            <h2 id="nextActionTitle">Choose sourcing channel</h2>
+            <p id="nextActionText">Choose the website or sourcing channel you want to search first. AnyBike will then guide you through buyer, request, motorcycle selection and preparation.</p>
             <div class="small" id="nextActionWaiting" style="margin-top:10px;font-weight:900">Waiting for: AnyBike</div>
             <div class="actions">
               <button type="button" class="btn red" id="nextActionBtn" onclick="runLiveSourceNextAction()">PROCEED →</button>
@@ -331,12 +332,21 @@ function updateLiveSourceNextAction(){
   const buyerId=buyerEl.value;
   const requestId=requestEl.value;
   const selectedCount=selected.size;
+  const connector=currentConnector();
   const planRequests=buyerSourcingPlan?.requests||[];
   const notStarted=planRequests.filter(r=>r.sourcing_status==="Not Started");
   const currentRequest=planRequests.find(r=>String(r.request_id)===String(requestId));
   const setupConnector=(hub?.connectors||[]).find(c=>Number(c.id)===Number(sourceSetupConnectorId));
 
-  if(setupConnector && setupConnector.status!=="adapter_ready" && !buyerId){
+  if(!connector){
+    liveSourceNextActionMode="channel";
+    title.textContent="Choose the sourcing channel";
+    textEl.textContent="Start by choosing the website or source you want to search. Click a source card below — for example BMW Motorrad Approved Used UK — then AnyBike will move you to the buyer and request.";
+    btn.textContent="CHOOSE CHANNEL →";
+    return;
+  }
+
+  if(setupConnector && setupConnector.status!=="adapter_ready"){
     liveSourceNextActionMode="channel-setup";
     title.textContent="Set up "+setupConnector.name+" as a live sourcing channel";
     textEl.textContent="This source is saved but its automatic adapter has not been built yet. Check the source link, use Scanner for live adverts now, and keep this channel in the adapter setup queue.";
@@ -347,8 +357,8 @@ function updateLiveSourceNextAction(){
   if(!buyerId){
     liveSourceNextActionMode="buyer";
     title.textContent="Choose the buyer";
-    textEl.textContent="Select the buyer you are sourcing for. AnyBike will then show their saved motorcycle requests.";
-    btn.textContent="PROCEED →";
+    textEl.textContent="Channel selected: "+connector.name+". Now choose the buyer you are sourcing for. AnyBike will then show every saved motorcycle request for that buyer.";
+    btn.textContent="CHOOSE BUYER →";
     return;
   }
 
@@ -360,15 +370,15 @@ function updateLiveSourceNextAction(){
       :(buyerMessageMentions.length
         ?buyerMessageMentions.length+" additional model"+(buyerMessageMentions.length===1?" was":"s were")+" mentioned in Message Centre. Review the clues below and add any genuine requirement to the sourcing plan."
         :"Select the motorcycle request you are working on so the Live Source Hub can filter the source pool to the buyer's requirements.");
-    btn.textContent="PROCEED →";
+    btn.textContent="CHOOSE REQUEST →";
     return;
   }
 
   if(!selectedCount){
     liveSourceNextActionMode="select";
-    title.textContent="Select motorcycles for this buyer";
-    textEl.textContent="Review the matching live motorcycles below and tick every suitable bike you want to prepare. This request is only one part of the buyer's complete sourcing plan.";
-    btn.textContent="PROCEED →";
+    title.textContent="Select motorcycles from "+connector.name;
+    textEl.textContent="The buyer and request are set. Review the matching live motorcycles below, tick every suitable bike, then AnyBike will move you to preparation and buyer-safe review.";
+    btn.textContent="VIEW MATCHES →";
     return;
   }
 
@@ -378,6 +388,10 @@ function updateLiveSourceNextAction(){
   btn.textContent="PREPARE SELECTED BIKES →";
 }
 function runLiveSourceNextAction(){
+  if(liveSourceNextActionMode==="channel"){
+    document.getElementById("sources")?.scrollIntoView({behavior:"smooth",block:"start"});
+    return;
+  }
   if(liveSourceNextActionMode==="channel-setup"){
     document.getElementById("sourceSetupGuide")?.scrollIntoView({behavior:"smooth",block:"center"});
     return;
@@ -515,13 +529,10 @@ async function loadHub(){
     '</article>').join("");
 
   if(!selectedId){
-    const preferred=cs.find(c=>c.adapter_key==="bmw-approved-used-uk"&&c.status==="adapter_ready") || cs[0];
-    if(preferred){
-      document.getElementById("connectorFilter").value=String(preferred.id);
-      document.getElementById("activeSourceLabel").textContent=preferred.name;
-      syncSourceSpecificControls();
-      await loadSourceFacets();
-    }
+    document.getElementById("activeSourceLabel").textContent="Choose a channel";
+    renderSourceSetupGuide(null);
+    syncSourceSpecificControls();
+    updateLiveSourceNextAction();
   }else{
     const current=cs.find(c=>Number(c.id)===selectedId);
     document.getElementById("activeSourceLabel").textContent=current?.name||"Selected channel";
@@ -798,6 +809,15 @@ async function cleanSelectedImages(){
 async function loadItems(preserveDealerOptions=false){
   const st=document.getElementById("poolStatus");st.textContent="Loading…";
   const cid=document.getElementById("connectorFilter").value?Number(document.getElementById("connectorFilter").value):null;
+  if(!cid){
+    items=[];
+    selected.clear();
+    document.getElementById("bikes").innerHTML='<div class="empty">Choose a sourcing channel above or from the source cards below to begin.</div>';
+    st.className="status";
+    st.textContent="Choose a sourcing channel to view motorcycles.";
+    updateLiveSourceNextAction();
+    return;
+  }
   const make=document.getElementById("makeFilter").value||null;
   const model=document.getElementById("modelFilter").value||null;
   const status=document.getElementById("statusFilter").value||null;
@@ -1146,11 +1166,6 @@ async function createBatch(){
   const requestedSource=sourcingParams.get("source");
   if(requestedSource && (hub?.connectors||[]).some(x=>String(x.id)===String(requestedSource))){
     await selectSourceChannel(Number(requestedSource));
-  }else{
-    const bmw=(hub?.connectors||[]).find(x=>x.adapter_key==="bmw-approved-used-uk"&&x.status==="adapter_ready");
-    if(bmw && Number(document.getElementById("connectorFilter").value)!==Number(bmw.id)){
-      await selectSourceChannel(Number(bmw.id));
-    }
   }
   const requestedBuyer=sourcingParams.get("buyer");
   const requestedRequest=sourcingParams.get("request");
