@@ -35,6 +35,7 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
 .next-action-panel h2{margin:4px 0 6px;font-size:24px}.next-action-panel p{margin:0;color:#ddd;line-height:1.5}.next-action-panel .actions{margin-top:12px}
 .next-action-secondary .eyebrow{color:#f1b94d}
 @media(max-width:800px){.next-action-split{grid-template-columns:1fr}.next-action-secondary{border-left:0;border-top:1px solid #3a3a3a}}
+.buyer-waiting-queue{background:#0d0d0d;border:1px solid #333;border-radius:16px;padding:14px;margin:0 0 16px}.buyer-waiting-grid{display:grid;gap:8px;margin-top:10px}.buyer-waiting-row{display:grid;grid-template-columns:1.2fr 1.5fr auto;gap:10px;align-items:center;padding:10px 12px;border:1px solid #2d2d2d;border-radius:11px;background:#111}.buyer-waiting-count{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:900;color:#ff8c90}.buyer-waiting-reqs{font-size:12px;color:#bbb;line-height:1.5}@media(max-width:800px){.buyer-waiting-row{grid-template-columns:1fr}}
 .batch-panel{position:static;background:#0d0d0d;border:1px solid #333;border-radius:16px;padding:14px;margin:16px 0;z-index:auto}.sourcing-plan{display:none;background:#0d0d0d;border:1px solid #333;border-radius:16px;padding:14px;margin:0 0 16px}.sourcing-plan-grid{display:grid;gap:8px;margin-top:10px}.sourcing-plan-row{display:grid;grid-template-columns:1.4fr .8fr auto;gap:10px;align-items:center;padding:10px 12px;border:1px solid #2c2c2c;border-radius:11px;background:#111}.sourcing-plan-row.current{border-color:#ed1c24}.sourcing-plan-status{font-size:12px;font-weight:900}.sourcing-plan-status.not-started{color:#ff858a}.sourcing-plan-status.prepared{color:#ffd27a}.sourcing-plan-status.sent{color:#8dbdff}.sourcing-plan-status.responded{color:#67dc91}.source-setup-guide{display:none;background:#0d0d0d;border:2px solid #f1b94d;border-radius:16px;padding:16px;margin:0 0 16px}.source-setup-steps{display:grid;gap:8px;margin-top:10px}.source-setup-step{display:grid;grid-template-columns:34px 1fr;gap:10px;align-items:start;padding:10px;border:1px solid #303030;border-radius:10px;background:#111}.source-setup-step strong{display:block}.source-step-num{width:28px;height:28px;border-radius:999px;background:#2a2a2a;display:flex;align-items:center;justify-content:center;font-weight:900}
 .message-mentions{display:none;margin-top:14px;padding-top:12px;border-top:1px solid #2b2b2b}.message-mention-row{display:grid;grid-template-columns:1.4fr .9fr auto;gap:10px;align-items:center;padding:9px 0;border-top:1px solid #222}.message-mention-row:first-child{border-top:0}.message-mention-badge{font-size:12px;font-weight:900;color:#ffd27a}.message-mention-copy{font-size:12px;color:#aaa;line-height:1.45}
 .batch-grid{display:grid;grid-template-columns:1.2fr 1.2fr .7fr auto;gap:10px;align-items:end}
@@ -83,6 +84,13 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
             </div>
           </div>
         </div>
+      </section>
+
+      <section class="buyer-waiting-queue" id="buyerWaitingQueue">
+        <div class="eyebrow">Sourcing queue</div>
+        <h2 style="margin:5px 0 4px">Buyers waiting for matches</h2>
+        <div class="small" id="buyerWaitingSummary">Checking open buyer requests…</div>
+        <div class="buyer-waiting-grid" id="buyerWaitingGrid"></div>
       </section>
 
       <section class="batch-panel">
@@ -172,7 +180,7 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
 </div>
 <script>
 const sb=()=>getAdminSupabaseClient();
-let hub=null,items=[],buyers=[],selected=new Set(),sourceFacets={makes:[],models:[]},buyerRequests=[],buyerSourcingPlan=null,buyerMessageMentions=[],selectedDealers=new Set(),sourceRefreshInProgress=false,deliveryAllowances=new Map(),sourceSetupConnectorId=null;
+let hub=null,items=[],buyers=[],buyerSourcingQueue=[],selected=new Set(),sourceFacets={makes:[],models:[]},buyerRequests=[],buyerSourcingPlan=null,buyerMessageMentions=[],selectedDealers=new Set(),sourceRefreshInProgress=false,deliveryAllowances=new Map(),sourceSetupConnectorId=null;
 const sourcingParams=new URLSearchParams(location.search);
 function sourcingContextQuery(extra){
   const p=new URLSearchParams();
@@ -962,10 +970,63 @@ function clearSelected(){
   syncSelectAllVisibleState();
 }
 
+function buyerDisplayName(b){
+  return (b.business_name?b.business_name+" — ":"")+(b.contact_name||b.email||"Buyer");
+}
+async function loadBuyerSourcingQueue(){
+  const {data,error}=await sb().rpc("admin_get_buyer_sourcing_queue_v1");
+  buyerSourcingQueue=error?[]:(data||[]);
+  renderBuyerSourcingQueue();
+  return buyerSourcingQueue;
+}
+function renderBuyerSourcingQueue(){
+  const grid=document.getElementById("buyerWaitingGrid");
+  const summary=document.getElementById("buyerWaitingSummary");
+  if(!grid||!summary)return;
+  const waiting=buyerSourcingQueue.filter(b=>Number(b.waiting_for_matches_count||0)>0);
+  summary.textContent=waiting.length
+    ?waiting.length+" buyer"+(waiting.length===1?" is":"s are")+" waiting for motorcycle matches. Oldest outstanding requests are shown first."
+    :"No buyers are currently waiting for first matches.";
+  grid.innerHTML=waiting.map(b=>{
+    const reqs=(b.waiting_requests||[]).map(r=>[r.make,r.model].filter(Boolean).join(" ")).filter(Boolean);
+    return '<div class="buyer-waiting-row">'+
+      '<div><strong>'+esc(buyerDisplayName(b))+'</strong><div class="buyer-waiting-count">'+Number(b.waiting_for_matches_count||0)+' request'+(Number(b.waiting_for_matches_count||0)===1?"":"s")+' waiting for matches</div></div>'+
+      '<div class="buyer-waiting-reqs">'+esc(reqs.join(" · ")||"Open motorcycle request")+'</div>'+
+      '<button class="btn red" type="button" onclick="workBuyerFromQueue('+Number(b.buyer_id)+')">SOURCE MATCHES →</button>'+
+    '</div>';
+  }).join("")||'<div class="small">Nothing waiting for first matches.</div>';
+}
+async function workBuyerFromQueue(buyerId){
+  const buyerEl=document.getElementById("buyerSelect");
+  if(!buyerEl)return;
+  buyerEl.value=String(buyerId);
+  await loadRequests();
+  await loadBuyerSourcingPlan();
+  const waiting=(buyerSourcingQueue.find(b=>Number(b.buyer_id)===Number(buyerId))?.waiting_requests||[]);
+  if(waiting.length){
+    const requestEl=document.getElementById("requestSelect");
+    requestEl.value=String(waiting[0].request_id);
+    await applySelectedBuyerRequest();
+    renderBuyerSourcingPlan();
+  }
+  updateLiveSourceNextAction();
+  document.getElementById("buyerSelect")?.scrollIntoView({behavior:"smooth",block:"center"});
+}
 async function loadBuyers(){
   const {data}=await sb().from("global_buyer_network").select("id,business_name,contact_name,email,archived_at").is("archived_at",null).order("created_at",{ascending:false}).limit(200);
   buyers=data||[];
-  document.getElementById("buyerSelect").innerHTML='<option value="">Choose buyer…</option>'+buyers.map(b=>'<option value="'+b.id+'">'+esc((b.business_name?b.business_name+" — ":"")+(b.contact_name||b.email||"Buyer"))+'</option>').join("");
+  const queueByBuyer=new Map((buyerSourcingQueue||[]).map(x=>[Number(x.buyer_id),x]));
+  buyers.sort((a,b)=>{
+    const aw=Number(queueByBuyer.get(Number(a.id))?.waiting_for_matches_count||0);
+    const bw=Number(queueByBuyer.get(Number(b.id))?.waiting_for_matches_count||0);
+    if(aw!==bw)return bw-aw;
+    return Number(b.id)-Number(a.id);
+  });
+  document.getElementById("buyerSelect").innerHTML='<option value="">Choose buyer…</option>'+buyers.map(b=>{
+    const waiting=Number(queueByBuyer.get(Number(b.id))?.waiting_for_matches_count||0);
+    const suffix=waiting?(" — ⚠ "+waiting+" waiting for matches"):"";
+    return '<option value="'+b.id+'">'+esc(buyerDisplayName(b)+suffix)+'</option>';
+  }).join("");
 }
 async function loadRequests(){
   const bid=document.getElementById("buyerSelect").value;const el=document.getElementById("requestSelect");
@@ -1080,6 +1141,7 @@ async function createBatch(){
 (async()=>{
   const allowed=await requireAdminSession();if(!allowed)return;
   syncSourcingNav();
+  await loadBuyerSourcingQueue();
   await Promise.all([loadHub(),loadBuyers()]);
   const requestedSource=sourcingParams.get("source");
   if(requestedSource && (hub?.connectors||[]).some(x=>String(x.id)===String(requestedSource))){
