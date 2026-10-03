@@ -27,6 +27,14 @@ body{margin:0;background:#ececec;color:#111;font-family:Arial,Helvetica,sans-ser
 .pay-deposit-box strong{display:block;font-size:20px;margin-bottom:5px}
 .pay-deposit-box span{display:block;color:#555;font-size:13px;line-height:1.45}
 .pay-deposit-cta{display:inline-flex;align-items:center;justify-content:center;margin-top:12px;padding:12px 18px;border-radius:9px;background:#111;color:#fff;text-decoration:none;font-weight:900}
+.payment-received-box{margin-top:18px;padding:18px;border:2px solid #198754;border-radius:10px;background:#f2fff7}
+.payment-received-box strong{display:block;font-size:20px;color:#146c43;margin-bottom:6px}
+.payment-received-box span{display:block;color:#3f5f4b;font-size:13px;line-height:1.5}
+.payment-received-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.payment-received-grid div{padding:12px;border:1px solid #b7dec6;border-radius:8px;background:#fff}
+.payment-received-grid small{display:block;color:#557362;font-size:11px;font-weight:900;text-transform:uppercase;margin-bottom:4px}
+.payment-received-grid b{font-size:18px;color:#111}
+@media(max-width:640px){.payment-received-grid{grid-template-columns:1fr}}
 
 .foot{margin-top:32px;padding-top:16px;border-top:1px solid #ddd;color:#555;font-size:12px;line-height:1.5}
 .loading{padding:10px 0}.loading strong{display:block;margin-bottom:5px}.loading span{color:#666;font-size:13px}
@@ -150,8 +158,14 @@ body{margin:0;background:#ececec;color:#111;font-family:Arial,Helvetica,sans-ser
       const value=Number(line?.metadata?.deposit_due_gbp||0);
       return Number.isFinite(value)&&value>0 ? value : 0;
     },0);
-    const paymentHref=(!previewMode && depositDue>0 && d.deal_number)
+    const allocated=Number(d.allocated_gbp||0);
+    const balanceDue=Number(d.balance_due_gbp||0);
+    const hasReceivedPayment=!previewMode && Number.isFinite(allocated) && allocated>0.009;
+    const paymentHref=(!previewMode && !hasReceivedPayment && depositDue>0 && d.deal_number)
       ? "/accounts-documents.html?deal="+encodeURIComponent(d.deal_number)+"&invoice="+encodeURIComponent(d.invoice_id)+"&payment=deposit&amount="+encodeURIComponent(depositDue.toFixed(2))+"&ref="+encodeURIComponent(ref)+"#bank-transfer"
+      : "";
+    const livePaymentStatus=hasReceivedPayment
+      ? '<div class="payment-received-box"><strong>PAYMENT RECEIVED</strong><span>Your payment has been verified and allocated to this purchase. The original Proforma values remain unchanged; this live status reflects payments posted to the Deal.</span><div class="payment-received-grid"><div><small>Received & allocated</small><b>'+money(allocated)+'</b></div><div><small>Remaining purchase balance</small><b>'+money(balanceDue)+'</b></div></div></div>'
       : "";
     const docRef=d.invoice_number || (previewMode ? ("Draft Proforma v"+Number(d.version_number||1)) : "Proforma");
     document.title=(previewMode ? "Preview — " : "")+docRef+" | AnyBike";
@@ -172,6 +186,7 @@ body{margin:0;background:#ececec;color:#111;font-family:Arial,Helvetica,sans-ser
       <section class="summary"><div class="metric"><span>Subtotal</span><strong>${money(d.subtotal_gbp)}</strong></div><div class="metric"><span>Delivery</span><strong>${money(d.delivery_total_gbp)}</strong></div><div class="metric"><span>Total Due</span><strong>${money(d.total_gbp)}</strong></div></section>
       <div class="warning"><strong>PROFORMA INVOICE — ${esc(warning)}</strong><span>No VAT breakdown is shown on this Proforma. VAT treatment remains subject to the final invoice stage.</span></div>
       <section class="payment"><h2>Bank Transfer</h2><div class="payment-grid"><div><p><strong>Account name</strong><br>${esc(bank.account_name||"")}</p><p><strong>Sort code</strong><br>${esc(bank.sort_code||"")}</p><p><strong>Account number</strong><br>${esc(bank.account_number||"")}</p></div><div><p><strong>IBAN</strong><br>${esc(bank.iban||"")}</p><p><strong>BIC / SWIFT</strong><br>${esc(bank.bic||"")}</p><div class="payment-ref">Payment reference: ${esc(ref)}</div></div></div>
+      ${livePaymentStatus}
       ${paymentHref?'<div class="pay-deposit-box"><strong>Deposit due now: '+money(depositDue)+'</strong><span>Make the bank transfer using the Deal reference above. Then tell AnyBike the payment has been made so it can be verified and posted to your Deal.</span><a class="pay-deposit-cta" href="'+paymentHref+'">Pay / Report Deposit →</a></div>':""}
       </section>
       <footer class="foot">Please use the Deal reference exactly when making payment. Reporting a payment to AnyBike does not itself confirm that funds have arrived, and payment does not by itself secure a motorcycle.</footer>`;
