@@ -4788,7 +4788,7 @@ input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-in
   gap:12px;
 }
 .deal-offer-price-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
-.deal-offer-payment-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+.deal-offer-payment-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 .deal-offer-grid label{
   display:grid;
   gap:6px;
@@ -9032,11 +9032,24 @@ function updateDealOfferDepositState(){
   calculateDealOfferPreview();
 }
 
+function anyBikeMinimumDeposit(customerTotal){
+  const total=Number(customerTotal || 0);
+  if(!Number.isFinite(total) || total<=0) return 500;
+  const tenPercent=total*0.10;
+  const rounded=Math.round(tenPercent/50)*50;
+  return Math.max(500,rounded);
+}
+
 function calculateDealOfferPreview(){
   const motorcyclePrice=dealOfferNumber("dealOfferMotorcyclePrice");
   const anybikeFee=dealOfferNumber("dealOfferAnyBikeFee");
   const deliveryCharge=dealOfferNumber("dealOfferDeliveryCharge");
   const customerTotal=motorcyclePrice+anybikeFee+deliveryCharge;
+
+  const depositInput=document.getElementById("dealOfferDepositAmount");
+  if(depositInput && depositInput.dataset.depositOverride!=="true"){
+    depositInput.value=anyBikeMinimumDeposit(customerTotal).toFixed(2);
+  }
   const motorcycleRevenue=motorcyclePrice+anybikeFee;
   const profit=motorcycleRevenue-Number(activeDealOfferInternalCost || 0);
   const margin=motorcycleRevenue>0 ? (profit/motorcycleRevenue)*100 : 0;
@@ -9246,7 +9259,15 @@ async function openDealOfferModal(dealMotorcycleId){
       document.getElementById("dealOfferDeliveryType").value=offer.delivery_type || "Buyer Arranged / Collection";
       setDealOfferDestinationValue(offer.delivery_destination || "");
       document.getElementById("dealOfferDepositRequired").checked=!!offer.deposit_required_at_acceptance;
-      document.getElementById("dealOfferDepositAmount").value=Number(offer.deposit_amount_gbp || 0).toFixed(2);
+      const savedDeposit=Number(offer.deposit_amount_gbp || 0);
+      const savedCustomerTotal=
+        Number(offer.base_motorcycle_price_gbp ?? offer.motorcycle_price_gbp ?? 0)+
+        Number(offer.anybike_fee_gbp || 0)+
+        Number(offer.delivery_charge_gbp || 0);
+      const standardDeposit=anyBikeMinimumDeposit(savedCustomerTotal);
+      document.getElementById("dealOfferDepositAmount").value=(savedDeposit>0 ? savedDeposit : standardDeposit).toFixed(2);
+      document.getElementById("dealOfferDepositAmount").dataset.depositOverride=
+        savedDeposit>0 && Math.abs(savedDeposit-standardDeposit)>0.009 ? "true" : "false";
       document.getElementById("dealOfferPaymentTerms").value=offer.payment_terms_text || "";
       document.getElementById("dealOfferInternalNotes").value=offer.internal_notes || "";
 
@@ -19671,18 +19692,16 @@ document.querySelector(".admin-page-content .wrap")?.classList.add("sales-view-a
       <section class="deal-offer-section">
         <h3>5. Deposit & Payment Terms</h3>
         <div class="deal-offer-grid deal-offer-payment-grid">
-          <label class="deal-offer-check">
-            <input id="dealOfferDepositRequired" type="checkbox" checked onchange="updateDealOfferDepositState()">
-            <span>Deposit required immediately on acceptance</span>
-          </label>
+          <input id="dealOfferDepositRequired" type="checkbox" checked hidden>
 
           <label>
-            <span>Deposit Amount (£)</span>
-            <input id="dealOfferDepositAmount" type="number" min="0" step="0.01" oninput="calculateDealOfferPreview()">
+            <span>Minimum Deposit (£)</span>
+            <input id="dealOfferDepositAmount" type="number" min="0" step="0.01" oninput="this.dataset.depositOverride='true';calculateDealOfferPreview()">
+            <small style="display:block;color:#888;margin-top:5px">Automatically calculated as 10% of the full AnyBike customer total, rounded to the nearest £50, minimum £500. Staff can override where genuinely required.</small>
           </label>
 
           <div class="deal-offer-readout">
-            <span>Balance After Deposit</span>
+            <span>Balance After Minimum Deposit</span>
             <strong id="dealOfferBalanceAfterDeposit">-</strong>
           </div>
 
