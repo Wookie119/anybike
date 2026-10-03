@@ -4547,6 +4547,16 @@ input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-in
   min-height:74px;
   resize:vertical;
 }
+.anybike-commercial-field.cost-review{border:1px solid #8b2b31;border-radius:10px;padding:9px;background:rgba(237,28,36,.06)}
+.anybike-commercial-field.cost-review.reviewed{border-color:#2f8d52;background:rgba(54,211,126,.07)}
+.anybike-commercial-field.cost-review input[type="number"]{border-color:#b43a41}
+.anybike-commercial-field.cost-review.reviewed input[type="number"]{border-color:#3c9a5d}
+.anybike-cost-check{display:flex !important;align-items:center;gap:7px;margin-top:8px !important;color:#ddd !important;text-transform:none !important;letter-spacing:0 !important;cursor:pointer}
+.anybike-cost-check input{width:16px !important;height:16px;min-width:16px;margin:0;accent-color:#35c76f}
+.anybike-cost-check span{font-size:10px;line-height:1.3}
+.anybike-cost-review-state{display:block;margin-top:6px;font-size:10px;font-weight:900}
+.anybike-commercial-field.cost-review:not(.reviewed) .anybike-cost-review-state{color:#ff747a}
+.anybike-commercial-field.cost-review.reviewed .anybike-cost-review-state{color:#62e89a}
 .anybike-commercial-metrics{
   display:grid;
   grid-template-columns:repeat(4,minmax(0,1fr));
@@ -8391,6 +8401,50 @@ function anyBikeCommercialInputNumber(id){
   return value;
 }
 
+function commercialCostFieldId(key,id){
+  return key==="prep" ? "deal-commercial-prep-"+id
+    : key==="docs" ? "deal-commercial-docs-"+id
+    : key==="admin" ? "deal-commercial-admin-"+id
+    : "deal-commercial-other-"+id;
+}
+
+function syncCommercialCostReviewUI(id,key){
+  const field=document.getElementById(commercialCostFieldId(key,id));
+  const box=document.getElementById("deal-cost-review-"+key+"-"+id);
+  const check=document.getElementById("deal-cost-none-"+key+"-"+id);
+  if(!field||!box)return;
+  const value=Number(field.value||0);
+  const reviewed=value>0 || !!check?.checked;
+  box.classList.toggle("reviewed",reviewed);
+  const state=box.querySelector(".anybike-cost-review-state");
+  if(state)state.textContent=reviewed?"✓ Reviewed":"Needs review";
+}
+
+async function setCommercialCostReviewed(id,key,reviewed){
+  const field=document.getElementById(commercialCostFieldId(key,id));
+  if(reviewed && Number(field?.value||0)>0 && field){
+    field.value="0.00";
+    updateDealCommercialPreview(id);
+  }
+  syncCommercialCostReviewUI(id,key);
+  try{
+    const result=await sb.rpc("admin_set_deal_commercial_cost_review_v1",{
+      p_deal_motorcycle_id:Number(id),
+      p_cost_key:String(key),
+      p_reviewed:!!reviewed
+    });
+    if(result.error)throw result.error;
+    await loadAdminDealQueue();
+    renderAdminDealQueue();
+    requestAnimationFrame(function(){
+      document.getElementById("deal-commercial-panel-"+Number(id))?.scrollIntoView({behavior:"smooth",block:"center"});
+    });
+  }catch(error){
+    console.error("Commercial cost review could not be saved:",error);
+    alert("Could not save this cost review. Please try again.");
+  }
+}
+
 function updateDealCommercialPreview(dealMotorcycleId){
   const id=Number(dealMotorcycleId);
   if(!Number.isFinite(id)){ return; }
@@ -8556,6 +8610,19 @@ async function proceedDealCommercialSetup(dealMotorcycleId){
     return;
   }
 
+  const reviewKeys=["prep","docs","admin","other"];
+  const missing=reviewKeys.filter(function(key){
+    const value=Number(document.getElementById(commercialCostFieldId(key,id))?.value||0);
+    const checked=!!document.getElementById("deal-cost-none-"+key+"-"+id)?.checked;
+    return !(value>0 || checked);
+  });
+
+  if(missing.length){
+    alert("Your next action: review the red commercial cost boxes. Enter a genuine cost or tick No extra cost for this deal.");
+    document.getElementById("deal-cost-review-"+missing[0]+"-"+id)?.scrollIntoView({behavior:"smooth",block:"center"});
+    return;
+  }
+
   const status=document.getElementById("deal-commercial-status-"+id);
   if(status){ status.value="Ready for Offer"; }
 
@@ -8603,6 +8670,12 @@ function renderAnyBikeDealCommercialSetup(deal){
   const docs=anyBikeCommercialNumber(row.export_docs_cost_gbp);
   const admin=anyBikeCommercialNumber(row.admin_cost_gbp);
   const other=anyBikeCommercialNumber(row.other_cost_gbp);
+  const costReview=row.commercial_cost_review && typeof row.commercial_cost_review==="object" ? row.commercial_cost_review : {};
+  const prepReviewed=prep>0 || costReview.prep===true;
+  const docsReviewed=docs>0 || costReview.docs===true;
+  const adminReviewed=admin>0 || costReview.admin===true;
+  const otherReviewed=other>0 || costReview.other===true;
+  const costsReviewed=prepReviewed && docsReviewed && adminReviewed && otherReviewed;
 
   const customerTotal=row.customer_total_gbp;
   const totalInternal=row.total_internal_cost_gbp;
@@ -8627,8 +8700,8 @@ function renderAnyBikeDealCommercialSetup(deal){
     </div>
 
     ${status==="Ready for Offer"
-      ? '<div class="deal-section-next-action complete"><div><div class="eyebrow">Complete</div><strong>Commercial Setup ready for Formal Offer</strong><span>The customer price, AnyBike Sourcing Fee, UK Collection & Delivery Charge and any genuine deal-specific internal costs are saved.</span></div>'+(acceptedLocked?'':'<button type="button" onclick="openDealOfferModal('+id+');return false;">OPEN FORMAL OFFER →</button>')+'</div>'
-      : '<div class="deal-section-next-action"><div><div class="eyebrow">Your next action</div><strong>Review the seller price and genuine internal costs, then continue</strong><span>'+(quoteSnapshotLocked?'The customer-facing sourced-match price is already fixed from what the buyer saw. The Motorcycle Price, AnyBike Sourcing Fee and UK Collection & Delivery components are carried across automatically and cannot be added again here. ':'')+'Confirm the Agreed Seller Purchase Price and any genuine deal-specific internal costs. If the figures are right, PROCEED will save this as Ready for Offer and open the Formal Offer.</span></div><button type="button" onclick="proceedDealCommercialSetup('+id+');return false;">PROCEED</button></div>'}
+      ? '<div class="deal-section-next-action complete"><div><div class="eyebrow">Your next action</div><strong>Prepare the Formal Offer</strong><span>Commercial Setup is complete. Review the Formal Offer before sending anything to the buyer.</span></div>'+(acceptedLocked?'':'<button type="button" onclick="openDealOfferModal('+id+');return false;">PREPARE FORMAL OFFER →</button>')+'</div>'
+      : '<div class="deal-section-next-action"><div><div class="eyebrow">Your next action</div><strong>'+(costsReviewed?'Prepare the Formal Offer':'Complete the commercial cost checks')+'</strong><span>'+(quoteSnapshotLocked?'The customer-facing sourced-match price is already fixed from what the buyer saw. The Motorcycle Price, AnyBike Sourcing Fee and UK Collection & Delivery components are carried across automatically and cannot be added again here. ':'')+(costsReviewed?'Seller price and cost checks are complete. Continue to prepare the Formal Offer.':'Review each red cost box. Enter a genuine cost where one applies, or tick No extra cost for this deal. When all four are reviewed they will turn green.')+'</span></div><button type="button" onclick="proceedDealCommercialSetup('+id+');return false;">'+(costsReviewed?'PREPARE FORMAL OFFER →':'REVIEW COSTS')+'</button></div>'}
 
     ${sentPriceLocked ? '<div class="anybike-commercial-lock"><strong>'+(acceptedLocked?'✓ Accepted customer terms — locked':'Formal Offer sent — customer price locked')+'</strong><span>'+(acceptedLocked?'The customer-facing Motorcycle Sale Price, AnyBike Sourcing Fee and UK Collection & Delivery Charge are frozen to the accepted Formal Offer.':'The customer-facing Motorcycle Sale Price, AnyBike Sourcing Fee and UK Collection & Delivery Charge are frozen while the sent Formal Offer is active. Internal cost assumptions can still be reviewed.')+'</span></div>' : ''}
     ${quoteSnapshotLocked && !sentPriceLocked ? '<div class="anybike-commercial-lock"><strong>Buyer quote snapshot — protected</strong><span>These customer-facing amounts came from the motorcycle match already shown to the buyer. They are carried into Deal 360 automatically so Commercial Setup cannot accidentally charge the sourcing fee or UK collection/delivery twice.</span></div>' : ''}
@@ -8671,28 +8744,36 @@ function renderAnyBikeDealCommercialSetup(deal){
         </select>
       </div>
 
-      <div class="anybike-commercial-field">
+      <div class="anybike-commercial-field cost-review ${prepReviewed?"reviewed":""}" id="deal-cost-review-prep-${id}">
         <label>Prep / Rectification Cost</label>
-        <input id="deal-commercial-prep-${id}" type="number" min="0" step="0.01" value="${prep.toFixed(2)}" oninput="updateDealCommercialPreview(${id})">
-        <small style="display:block;margin-top:5px;color:#888;font-size:10px">Actual deal-specific cost to prepare, repair or rectify the motorcycle before onward delivery. Leave at £0 if none.</small>
+        <input id="deal-commercial-prep-${id}" type="number" min="0" step="0.01" value="${prep.toFixed(2)}" oninput="updateDealCommercialPreview(${id});syncCommercialCostReviewUI(${id},'prep')">
+        <small style="display:block;margin-top:5px;color:#888;font-size:10px">Actual deal-specific cost to prepare, repair or rectify the motorcycle before onward delivery.</small>
+        <label class="anybike-cost-check"><input id="deal-cost-none-prep-${id}" type="checkbox" ${costReview.prep===true?"checked":""} onchange="setCommercialCostReviewed(${id},'prep',this.checked)"><span>No extra prep / rectification cost for this deal</span></label>
+        <span class="anybike-cost-review-state">${prepReviewed?"✓ Reviewed":"Needs review"}</span>
       </div>
 
-      <div class="anybike-commercial-field">
+      <div class="anybike-commercial-field cost-review ${docsReviewed?"reviewed":""}" id="deal-cost-review-docs-${id}">
         <label>Export Documentation Cost</label>
-        <input id="deal-commercial-docs-${id}" type="number" min="0" step="0.01" value="${docs.toFixed(2)}" oninput="updateDealCommercialPreview(${id})">
-        <small style="display:block;margin-top:5px;color:#888;font-size:10px">Only enter a real third-party or deal-specific document/export cost. Leave at £0 if covered within the normal AnyBike service.</small>
+        <input id="deal-commercial-docs-${id}" type="number" min="0" step="0.01" value="${docs.toFixed(2)}" oninput="updateDealCommercialPreview(${id});syncCommercialCostReviewUI(${id},'docs')">
+        <small style="display:block;margin-top:5px;color:#888;font-size:10px">Only enter a real third-party or deal-specific document/export cost.</small>
+        <label class="anybike-cost-check"><input id="deal-cost-none-docs-${id}" type="checkbox" ${costReview.docs===true?"checked":""} onchange="setCommercialCostReviewed(${id},'docs',this.checked)"><span>No extra export-document cost for this deal</span></label>
+        <span class="anybike-cost-review-state">${docsReviewed?"✓ Reviewed":"Needs review"}</span>
       </div>
 
-      <div class="anybike-commercial-field">
+      <div class="anybike-commercial-field cost-review ${adminReviewed?"reviewed":""}" id="deal-cost-review-admin-${id}">
         <label>Additional Deal Admin Cost</label>
-        <input id="deal-commercial-admin-${id}" type="number" min="0" step="0.01" value="${admin.toFixed(2)}" oninput="updateDealCommercialPreview(${id})">
-        <small style="display:block;margin-top:5px;color:#888;font-size:10px">Only use for a genuine extra cost specific to this Deal. Do not add normal AnyBike staff/admin time — that is covered by the Sourcing Fee.</small>
+        <input id="deal-commercial-admin-${id}" type="number" min="0" step="0.01" value="${admin.toFixed(2)}" oninput="updateDealCommercialPreview(${id});syncCommercialCostReviewUI(${id},'admin')">
+        <small style="display:block;margin-top:5px;color:#888;font-size:10px">Only use for a genuine extra cost specific to this Deal. Normal AnyBike admin is covered by the Sourcing Fee.</small>
+        <label class="anybike-cost-check"><input id="deal-cost-none-admin-${id}" type="checkbox" ${costReview.admin===true?"checked":""} onchange="setCommercialCostReviewed(${id},'admin',this.checked)"><span>No extra deal-admin cost for this deal</span></label>
+        <span class="anybike-cost-review-state">${adminReviewed?"✓ Reviewed":"Needs review"}</span>
       </div>
 
-      <div class="anybike-commercial-field">
+      <div class="anybike-commercial-field cost-review ${otherReviewed?"reviewed":""}" id="deal-cost-review-other-${id}">
         <label>Other Deal Cost</label>
-        <input id="deal-commercial-other-${id}" type="number" min="0" step="0.01" value="${other.toFixed(2)}" oninput="updateDealCommercialPreview(${id})">
-        <small style="display:block;margin-top:5px;color:#888;font-size:10px">Any other genuine cost not covered by the fields above. Add an explanation in Internal Commercial Notes.</small>
+        <input id="deal-commercial-other-${id}" type="number" min="0" step="0.01" value="${other.toFixed(2)}" oninput="updateDealCommercialPreview(${id});syncCommercialCostReviewUI(${id},'other')">
+        <small style="display:block;margin-top:5px;color:#888;font-size:10px">Any other genuine cost not covered above. Explain it in Internal Commercial Notes.</small>
+        <label class="anybike-cost-check"><input id="deal-cost-none-other-${id}" type="checkbox" ${costReview.other===true?"checked":""} onchange="setCommercialCostReviewed(${id},'other',this.checked)"><span>No other extra cost for this deal</span></label>
+        <span class="anybike-cost-review-state">${otherReviewed?"✓ Reviewed":"Needs review"}</span>
       </div>
 
       <div class="anybike-commercial-field" style="grid-column:span 4">
@@ -8702,7 +8783,7 @@ function renderAnyBikeDealCommercialSetup(deal){
     </div>
 
     <div style="padding:10px 16px;border-top:1px solid #2a2a2a;background:#0d0d0d;color:#888;font-size:10px">
-      Motorcycle commercial profit includes the Motorcycle Sale Price and AnyBike Sourcing Fee, less genuine motorcycle/deal costs. UK collection &amp; delivery is kept separate and does not change this margin.
+      AnyBike gross profit here is the motorcycle selling margin plus the AnyBike Sourcing Fee, less genuine motorcycle/deal costs. It is before VAT/tax and business overheads. UK collection &amp; delivery is shown separately because the transport cost/profit is accounted for separately.
     </div>
 
     <div class="anybike-commercial-metrics">
@@ -8715,7 +8796,7 @@ function renderAnyBikeDealCommercialSetup(deal){
         <strong id="deal-commercial-total-cost-${id}">${totalInternal===null || totalInternal===undefined ? "—" : anyBikeDealMoney(totalInternal)}</strong>
       </div>
       <div class="anybike-commercial-metric ${profitClass}">
-        <span>Motorcycle Commercial Profit</span>
+        <span>AnyBike Gross Profit — Motorcycle + Sourcing</span>
         <strong id="deal-commercial-profit-${id}">${profit===null || profit===undefined ? "—" : anyBikeDealMoney(profit)}</strong>
       </div>
       <div class="anybike-commercial-metric">
