@@ -81,6 +81,27 @@ At any point in a Deal, there should be one obvious next action for the person r
 
 The system should not force staff or customers to understand the whole process before they can continue.
 
+## 3.1A Your Next Action is a platform rule
+
+Every operational screen used by staff or a signed-in customer must make the next step obvious.
+
+A **Your next action** panel should appear near the top of the working area and answer three things:
+
+1. **What happens next?**
+2. **Who is expected to act now / who are we waiting for?**
+3. **What single button or link moves the process forward?**
+
+Examples of ownership:
+- **Waiting for: AnyBike** — a staff action is required.
+- **Waiting for: You** — the signed-in customer or staff member must act.
+- **Waiting for: Buyer** — AnyBike has done its part and is waiting for the buyer.
+- **Waiting for: Seller** — seller confirmation, availability or documents are outstanding.
+- **Waiting for: Shipper** — handover or shipping confirmation is outstanding.
+
+The shared admin and customer shells provide a fallback next-action panel automatically. Where the page has authoritative workflow state, that page must replace the fallback with the real next action.
+
+Do not make staff or customers infer the next step from several buttons. There may be secondary controls, but there should be one clearly identified primary action.
+
 ## 3.2 Customer money and supplier money are separate
 Customer receipts do not automatically mean a motorcycle is secured.
 
