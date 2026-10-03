@@ -4611,6 +4611,15 @@ input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-in
   opacity:.55;
   cursor:wait;
 }
+.anybike-commercial-autosave{
+  color:#8f8f8f;
+  font-size:11px;
+  font-weight:900;
+  white-space:nowrap;
+}
+.anybike-commercial-autosave.saving{color:#ffcf66}
+.anybike-commercial-autosave.saved{color:#62e89a}
+.anybike-commercial-autosave.error{color:#ff747a}
 @media(max-width:1100px){
   .anybike-commercial-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .anybike-commercial-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -8437,11 +8446,7 @@ async function setCommercialCostReviewed(id,key,reviewed){
       p_reviewed:!!reviewed
     });
     if(result.error)throw result.error;
-    await loadAdminDealQueue();
-    renderAdminDealQueue();
-    requestAnimationFrame(function(){
-      document.getElementById("deal-commercial-panel-"+Number(id))?.scrollIntoView({behavior:"smooth",block:"center"});
-    });
+    setDealCommercialAutosaveState(id,"saved","Saved ✓");
   }catch(error){
     console.error("Commercial cost review could not be saved:",error);
     alert("Could not save this cost review. Please try again.");
@@ -8485,6 +8490,36 @@ function updateDealCommercialPreview(dealMotorcycleId){
   }catch(error){
     console.warn("Commercial preview could not be calculated:",error);
   }
+}
+
+const dealCommercialAutosaveTimers=new Map();
+
+function setDealCommercialAutosaveState(id,state,message){
+  const el=document.getElementById("deal-commercial-autosave-"+Number(id));
+  if(!el)return;
+  el.className="anybike-commercial-autosave "+String(state||"");
+  el.textContent=message||"";
+}
+
+function scheduleDealCommercialAutosave(id){
+  const key=String(Number(id));
+  if(dealCommercialAutosaveTimers.has(key)){
+    clearTimeout(dealCommercialAutosaveTimers.get(key));
+  }
+  setDealCommercialAutosaveState(id,"saving","Saving…");
+  dealCommercialAutosaveTimers.set(key,setTimeout(async function(){
+    dealCommercialAutosaveTimers.delete(key);
+    const ok=await saveDealCommercialSetup(Number(id),{
+      skipConfirm:true,
+      skipSuccessAlert:true,
+      preserveView:true
+    });
+    if(ok){
+      setDealCommercialAutosaveState(id,"saved","Saved ✓");
+    }else{
+      setDealCommercialAutosaveState(id,"error","Save failed");
+    }
+  },300));
 }
 
 async function saveDealCommercialSetup(dealMotorcycleId,options){
@@ -8532,7 +8567,11 @@ async function saveDealCommercialSetup(dealMotorcycleId,options){
   if(!confirmed){ return false; }
 
   dealCommercialSaveBusy.add(String(id));
-  renderAdminDealQueue();
+  if(!options.preserveView){
+    renderAdminDealQueue();
+  }else{
+    setDealCommercialAutosaveState(id,"saving","Saving…");
+  }
 
   try{
     const result=await sb.rpc("admin_save_deal_commercial_setup_v1",{
@@ -8567,14 +8606,16 @@ async function saveDealCommercialSetup(dealMotorcycleId,options){
       );
     }
 
-    await loadAdminDealQueue();
+    if(!options.preserveView){
+      await loadAdminDealQueue();
 
-    const row=document.getElementById("anybike-deal-"+String(payload.deal_id || ""));
-    if(row){
-      row.classList.add("open");
-      openAnyBikeDealId=String(payload.deal_id || "");
-      if(!options.continueToOffer){
-        row.scrollIntoView({behavior:"smooth",block:"center"});
+      const row=document.getElementById("anybike-deal-"+String(payload.deal_id || ""));
+      if(row){
+        row.classList.add("open");
+        openAnyBikeDealId=String(payload.deal_id || "");
+        if(!options.continueToOffer){
+          row.scrollIntoView({behavior:"smooth",block:"center"});
+        }
       }
     }
 
@@ -8590,7 +8631,9 @@ async function saveDealCommercialSetup(dealMotorcycleId,options){
     return false;
   }finally{
     dealCommercialSaveBusy.delete(String(id));
-    renderAdminDealQueue();
+    if(!options.preserveView){
+      renderAdminDealQueue();
+    }
   }
 }
 
@@ -8728,18 +8771,18 @@ function renderAnyBikeDealCommercialSetup(deal){
 
       <div class="anybike-commercial-field">
         <label>UK Collection &amp; Delivery Charge</label>
-        <input id="deal-commercial-delivery-charge-${id}" type="number" min="0" step="0.01" value="${deliveryCharge.toFixed(2)}" oninput="updateDealCommercialPreview(${id})"${priceLockAttribute}${quoteSnapshotLocked && !sentPriceLocked ? " readonly" : ""}>
+        <input id="deal-commercial-delivery-charge-${id}" type="number" min="0" step="0.01" value="${deliveryCharge.toFixed(2)}" oninput="updateDealCommercialPreview(${id})" onblur="scheduleDealCommercialAutosave(${id})"${priceLockAttribute}${quoteSnapshotLocked && !sentPriceLocked ? " readonly" : ""}>
         <small style="display:block;margin-top:5px;color:${quoteSnapshotLocked && Math.abs(deliveryCharge-250)>0.009?'#ffcf66':'#888'};font-size:10px;font-weight:${quoteSnapshotLocked && Math.abs(deliveryCharge-250)>0.009?'900':'400'}">${quoteSnapshotLocked?(Math.abs(deliveryCharge-250)>0.009?('Adjusted before matching — '+anyBikeDealMoney(deliveryCharge)+' instead of the £250 default. This exact buyer-visible delivery amount has been carried into Deal 360 automatically.'):('Buyer-visible delivery amount carried from the original match. Default £250 was used. Do not add it again.')):'Customer transport charge. Kept separate from motorcycle margin. VAT on this transport line is accounted for separately.'}</small>
       </div>
 
       <div class="anybike-commercial-field">
         <label>Agreed Seller Purchase Price</label>
-        <input id="deal-commercial-seller-${id}" type="number" min="0" step="0.01" value="${seller===null || seller===undefined ? "" : Number(seller).toFixed(2)}" placeholder="Not confirmed" oninput="updateDealCommercialPreview(${id})">
+        <input id="deal-commercial-seller-${id}" type="number" min="0" step="0.01" value="${seller===null || seller===undefined ? "" : Number(seller).toFixed(2)}" placeholder="Not confirmed" oninput="updateDealCommercialPreview(${id})" onblur="scheduleDealCommercialAutosave(${id})">
       </div>
 
       <div class="anybike-commercial-field">
         <label>Commercial Status</label>
-        <select id="deal-commercial-status-${id}">
+        <select id="deal-commercial-status-${id}" onchange="scheduleDealCommercialAutosave(${id})">
           <option${status==="Estimate" ? " selected" : ""}>Estimate</option>
           <option${status==="Seller Price Requested" ? " selected" : ""}>Seller Price Requested</option>
           <option${status==="Seller Price Confirmed" ? " selected" : ""}>Seller Price Confirmed</option>
@@ -8749,7 +8792,7 @@ function renderAnyBikeDealCommercialSetup(deal){
 
       <div class="anybike-commercial-field cost-review ${prepReviewed?"reviewed":""}" id="deal-cost-review-prep-${id}">
         <label>Prep / Rectification Cost</label>
-        <input id="deal-commercial-prep-${id}" type="number" min="0" step="0.01" value="${prep.toFixed(2)}" oninput="updateDealCommercialPreview(${id});syncCommercialCostReviewUI(${id},'prep')">
+        <input id="deal-commercial-prep-${id}" type="number" min="0" step="0.01" value="${prep.toFixed(2)}" oninput="updateDealCommercialPreview(${id});syncCommercialCostReviewUI(${id},'prep')" onblur="scheduleDealCommercialAutosave(${id})">
         <small style="display:block;margin-top:5px;color:#888;font-size:10px">Actual deal-specific cost to prepare, repair or rectify the motorcycle before onward delivery.</small>
         <label class="anybike-cost-check"><input id="deal-cost-none-prep-${id}" type="checkbox" ${costReview.prep===true?"checked":""} onchange="setCommercialCostReviewed(${id},'prep',this.checked)"><span>No extra prep / rectification cost for this deal</span></label>
         <span class="anybike-cost-review-state">${prepReviewed?"✓ Reviewed":"Needs review"}</span>
@@ -8757,7 +8800,7 @@ function renderAnyBikeDealCommercialSetup(deal){
 
       <div class="anybike-commercial-field cost-review ${docsReviewed?"reviewed":""}" id="deal-cost-review-docs-${id}">
         <label>Export Documentation Cost</label>
-        <input id="deal-commercial-docs-${id}" type="number" min="0" step="0.01" value="${docs.toFixed(2)}" oninput="updateDealCommercialPreview(${id});syncCommercialCostReviewUI(${id},'docs')">
+        <input id="deal-commercial-docs-${id}" type="number" min="0" step="0.01" value="${docs.toFixed(2)}" oninput="updateDealCommercialPreview(${id});syncCommercialCostReviewUI(${id},'docs')" onblur="scheduleDealCommercialAutosave(${id})">
         <small style="display:block;margin-top:5px;color:#888;font-size:10px">Only enter a real third-party or deal-specific document/export cost.</small>
         <label class="anybike-cost-check"><input id="deal-cost-none-docs-${id}" type="checkbox" ${costReview.docs===true?"checked":""} onchange="setCommercialCostReviewed(${id},'docs',this.checked)"><span>No extra export-document cost for this deal</span></label>
         <span class="anybike-cost-review-state">${docsReviewed?"✓ Reviewed":"Needs review"}</span>
@@ -8765,7 +8808,7 @@ function renderAnyBikeDealCommercialSetup(deal){
 
       <div class="anybike-commercial-field cost-review ${adminReviewed?"reviewed":""}" id="deal-cost-review-admin-${id}">
         <label>Additional Deal Admin Cost</label>
-        <input id="deal-commercial-admin-${id}" type="number" min="0" step="0.01" value="${admin.toFixed(2)}" oninput="updateDealCommercialPreview(${id});syncCommercialCostReviewUI(${id},'admin')">
+        <input id="deal-commercial-admin-${id}" type="number" min="0" step="0.01" value="${admin.toFixed(2)}" oninput="updateDealCommercialPreview(${id});syncCommercialCostReviewUI(${id},'admin')" onblur="scheduleDealCommercialAutosave(${id})">
         <small style="display:block;margin-top:5px;color:#888;font-size:10px">Only use for a genuine extra cost specific to this Deal. Normal AnyBike admin is covered by the Sourcing Fee.</small>
         <label class="anybike-cost-check"><input id="deal-cost-none-admin-${id}" type="checkbox" ${costReview.admin===true?"checked":""} onchange="setCommercialCostReviewed(${id},'admin',this.checked)"><span>No extra deal-admin cost for this deal</span></label>
         <span class="anybike-cost-review-state">${adminReviewed?"✓ Reviewed":"Needs review"}</span>
@@ -8773,7 +8816,7 @@ function renderAnyBikeDealCommercialSetup(deal){
 
       <div class="anybike-commercial-field cost-review ${otherReviewed?"reviewed":""}" id="deal-cost-review-other-${id}">
         <label>Other Deal Cost</label>
-        <input id="deal-commercial-other-${id}" type="number" min="0" step="0.01" value="${other.toFixed(2)}" oninput="updateDealCommercialPreview(${id});syncCommercialCostReviewUI(${id},'other')">
+        <input id="deal-commercial-other-${id}" type="number" min="0" step="0.01" value="${other.toFixed(2)}" oninput="updateDealCommercialPreview(${id});syncCommercialCostReviewUI(${id},'other')" onblur="scheduleDealCommercialAutosave(${id})">
         <small style="display:block;margin-top:5px;color:#888;font-size:10px">Any other genuine cost not covered above. Explain it in Internal Commercial Notes.</small>
         <label class="anybike-cost-check"><input id="deal-cost-none-other-${id}" type="checkbox" ${costReview.other===true?"checked":""} onchange="setCommercialCostReviewed(${id},'other',this.checked)"><span>No other extra cost for this deal</span></label>
         <span class="anybike-cost-review-state">${otherReviewed?"✓ Reviewed":"Needs review"}</span>
@@ -8781,7 +8824,7 @@ function renderAnyBikeDealCommercialSetup(deal){
 
       <div class="anybike-commercial-field" style="grid-column:span 4">
         <label>Internal Commercial Notes</label>
-        <textarea id="deal-commercial-notes-${id}" placeholder="Seller price source, assumptions, prep notes or other internal commercial detail">${escapeAdminHtml(notes)}</textarea>
+        <textarea id="deal-commercial-notes-${id}" placeholder="Seller price source, assumptions, prep notes or other internal commercial detail" onblur="scheduleDealCommercialAutosave(${id})">${escapeAdminHtml(notes)}</textarea>
       </div>
     </div>
 
@@ -8810,9 +8853,9 @@ function renderAnyBikeDealCommercialSetup(deal){
 
     <div class="anybike-commercial-actions">
       <p>Commercial Setup remains internal. Prepare Formal Offer copies the customer-facing commercial position into the formal offer. Nothing is sent until Send AnyBike Offer is confirmed.</p>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
-        <button class="anybike-commercial-save" type="button" ${busy || acceptedLocked ? "disabled" : ""} onclick="saveDealCommercialSetup(${id});return false;">${acceptedLocked ? "Accepted Terms Locked" : busy ? "Saving..." : "Save Commercial Setup"}</button>
-        ${acceptedLocked ? '' : '<button class="anybike-formal-offer-button" type="button" onclick="openDealOfferModal('+id+');return false;">'+(sentPriceLocked?'Review Sent Formal Offer':'Prepare Formal Offer')+'</button>'}
+      <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;align-items:center">
+        <span id="deal-commercial-autosave-${id}" class="anybike-commercial-autosave saved">Saved ✓</span>
+        ${acceptedLocked ? '<span class="anybike-commercial-autosave saved">Accepted terms locked</span>' : '<button class="anybike-formal-offer-button" type="button" onclick="proceedDealCommercialSetup('+id+');return false;">'+(sentPriceLocked?'Review Sent Formal Offer':'Prepare Formal Offer')+'</button>'}
       </div>
     </div>
   </div>`;
