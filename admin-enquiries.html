@@ -8923,9 +8923,6 @@ function configureDealOfferExpiryLimit(dealMotorcycleId){
   const help=document.getElementById("dealOfferExpiryHelp");
   if(!input) return;
 
-  // Seller availability / a temporary hold is evidence that the bike was live
-  // when AnyBike prepared the offer. It is not the customer-offer clock.
-  // The seller is rechecked again immediately before AnyBike purchases the bike.
   input.removeAttribute("max");
 
   if(dealMotorcycleIsSecured(dealMotorcycleId)){
@@ -8938,17 +8935,26 @@ function configureDealOfferExpiryLimit(dealMotorcycleId){
 
   const candidate=dealCandidateForMotorcycle(dealMotorcycleId);
   const until=candidate?.availability_valid_until ? new Date(candidate.availability_valid_until) : null;
+
   if(!until || Number.isNaN(until.getTime())){
     if(help){
-      help.textContent="Choose a sensible customer-offer expiry. AnyBike will recheck seller availability again before paying the seller.";
-      help.style.color="#888";
+      help.textContent="No seller hold expiry is recorded. Re-check the seller or enter the agreed availability window before sending the Formal Offer.";
+      help.style.color="#ff9da1";
     }
     return;
   }
 
+  const sellerLimit=dealOfferDateTimeLocal(until);
+  input.max=sellerLimit;
+
+  const current=input.value ? new Date(input.value) : null;
+  if(!current || Number.isNaN(current.getTime()) || current.getTime()>until.getTime()){
+    input.value=sellerLimit;
+  }
+
   if(help){
-    help.textContent="Seller availability / hold currently runs to "+until.toLocaleString("en-GB")+
-      ". This does not secure the motorcycle for the whole customer-offer period. AnyBike must recheck the seller immediately before purchase.";
+    help.textContent="Synced to seller availability / hold until "+until.toLocaleString("en-GB")+
+      ". The customer offer cannot remain valid beyond this time. If it expires, the buyer can ask AnyBike to try to buy the motorcycle and we will re-check the seller before issuing a fresh offer.";
     help.style.color="#ffd27c";
   }
 }
@@ -9440,6 +9446,15 @@ async function sendDealOffer(){
   if(!expiry || Number.isNaN(expiry.getTime()) || expiry.getTime()<=Date.now()){
     setError("Choose a future Offer Valid Until date and time.");
     return;
+  }
+
+  const candidate=dealCandidateForMotorcycle(activeDealOfferMotorcycleId);
+  if(candidate?.availability_valid_until){
+    const sellerUntil=new Date(candidate.availability_valid_until);
+    if(!Number.isNaN(sellerUntil.getTime()) && expiry.getTime()>sellerUntil.getTime()){
+      setError("Offer expiry cannot be later than the seller availability / hold time of "+sellerUntil.toLocaleString("en-GB")+".");
+      return;
+    }
   }
 
   const saved=await saveDealOffer();
