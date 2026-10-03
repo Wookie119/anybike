@@ -127,9 +127,9 @@ function marginCalculatorHtml(s){
   const cur=marginDefaults.preferred_currency||"GBP";
   const fx=Number(marginDefaults.fx_rate_gbp_to_preferred||0) || (cur==="GBP"?1:0);
   return '<details class="margin-calc" id="margin-calc-'+id+'">'+
-    '<summary><span>Buyer margin calculator</span><span style="color:#aaa;font-size:12px;font-weight:700">Private estimate · AnyBike price stays fixed</span></summary>'+
+    '<summary><span>Buyer margin calculator</span><span style="color:#aaa;font-size:12px;font-weight:700">Not shared with AnyBike sales unless you choose to share · AnyBike price stays fixed</span></summary>'+
     '<div class="margin-calc-body">'+
-      '<div class="margin-note">Estimate your landed cost and resale margin. AnyBike price is fixed in GBP. Local shipping, duty, tax and business costs are your own assumptions and can be changed for this motorcycle.</div>'+
+      '<div class="margin-note">Estimate your landed cost and resale margin. AnyBike price is fixed in GBP. Your calculator figures are not used by AnyBike sales staff unless you deliberately choose <strong>Share my buying target with AnyBike</strong>.</div>'+
       '<div class="margin-grid">'+
         '<label>AnyBike price (fixed GBP)<input value="'+Number(s.price_gbp||0).toFixed(0)+'" disabled></label>'+
         '<label>Your currency<select id="mc-cur-'+id+'" onchange="calculateMargin('+id+')">'+currencyOptions(cur)+'</select></label>'+
@@ -153,7 +153,7 @@ function marginCalculatorHtml(s){
         '<div class="margin-result"><span>Expected profit / margin</span><strong id="mc-profit-'+id+'">Enter retail price</strong></div>'+
       '</div>'+
       '<div class="margin-note" style="margin-top:10px;margin-bottom:0">Calculation assumes duty is applied to converted AnyBike price plus shipping, and import tax is applied after duty. Customs valuation rules differ by country, so use this as a commercial estimate and adjust the rates/costs to your circumstances.</div>'+
-      '<div class="margin-actions"><button class="btn dark" type="button" onclick="saveMarginDefaults('+id+')">Save these as my defaults</button><a class="btn dark" href="/customer-profile.html#section-margin-calculator">Edit defaults in My Profile</a></div>'+
+      '<div class="margin-actions"><button class="btn dark" type="button" onclick="saveMarginDefaults('+id+')">Save these as my defaults</button><button class="btn red" type="button" onclick="shareCommercialTarget('+id+')">Share my buying target with AnyBike</button><a class="btn dark" href="/customer-profile.html#section-margin-calculator">Edit defaults in My Profile</a></div>'+
       '<div class="margin-status" id="mc-status-'+id+'"></div>'+
     '</div></details>';
 }
@@ -211,6 +211,48 @@ async function saveMarginDefaults(id){
   marginDefaults={...marginDefaults,...patch};
   if(status){status.className="margin-status good";status.textContent="Saved to your profile. New match calculators will use these defaults."}
 }
+async function shareCommercialTarget(id){
+  const s=(payload?.scans||[]).find(x=>Number(x.id)===Number(id));
+  const status=document.getElementById("mc-status-"+id);
+  if(!s)return;
+  const retail=nvalCalc("mc-retail-"+id);
+  const margin=nvalCalc("mc-margin-"+id);
+  const cur=document.getElementById("mc-cur-"+id)?.value||"GBP";
+  if(!margin){
+    if(status){status.className="margin-status bad";status.textContent="Enter the minimum gross margin you want AnyBike to work towards before sharing."}
+    return;
+  }
+  const details=retail
+    ?"This will share your target margin, expected retail price and the cost assumptions shown above with AnyBike so our sourcing team can prioritise motorcycles that work commercially for you."
+    :"This will share your target margin and the cost assumptions shown above with AnyBike. Add an expected retail price as well if you want us to calculate your maximum viable AnyBike buying price.";
+  if(!confirm(details+"\n\nYour calculator remains your estimate. Sharing does not change the AnyBike price or commit you to buy."))return;
+
+  if(status){status.className="margin-status";status.textContent="Sharing your commercial target…"}
+  const {data,error}=await sb.rpc("customer_share_buyer_commercial_target_v1",{
+    p_scan_id:Number(id),
+    p_currency:cur,
+    p_fx_rate:nvalCalc("mc-fx-"+id)||(cur==="GBP"?1:null),
+    p_shipping_cost:nvalCalc("mc-ship-"+id),
+    p_duty_rate_pct:nvalCalc("mc-duty-"+id),
+    p_import_tax_rate_pct:nvalCalc("mc-tax-"+id),
+    p_local_port_collection_cost:nvalCalc("mc-port-"+id),
+    p_preparation_cost:nvalCalc("mc-prep-"+id),
+    p_warranty_cost:nvalCalc("mc-warranty-"+id),
+    p_other_cost:nvalCalc("mc-other-"+id),
+    p_target_margin_pct:margin,
+    p_expected_retail_price:retail||null
+  });
+  if(error){
+    if(status){status.className="margin-status bad";status.textContent="Could not share target: "+error.message}
+    return;
+  }
+  let msg="Shared with AnyBike. We can now use this target to prioritise motorcycles that fit your commercial requirements.";
+  if(data?.maximum_viable_anybike_price_gbp!=null){
+    msg+=" Maximum viable AnyBike price from your assumptions: "+gbp(data.maximum_viable_anybike_price_gbp)+".";
+  }
+  if(status){status.className="margin-status good";status.textContent=msg}
+}
+
 async function loadMarginDefaults(userId){
   const {data,error}=await sb.from("customer_profiles")
     .select("preferred_currency,fx_rate_gbp_to_preferred,import_duty_rate_pct,import_tax_rate_pct,margin_min_pct,default_shipping_cost,default_local_port_collection_cost,default_preparation_cost,default_warranty_cost,default_other_landed_cost")
