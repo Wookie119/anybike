@@ -377,13 +377,32 @@ function runCustomerNextAction(){
   const target=selected?document.getElementById("selectionBar"):document.getElementById("filterPanel");
   target?.scrollIntoView({behavior:"smooth",block:"start"});
 }
+function buyerSelectionIntro(b,first){
+  const legacy=String(b?.message_text||"").trim();
+  const replacement=
+    "Dear "+first+",\n\n"+
+    "Good news — we have found a hand-picked selection of motorcycles that could suit your requirements.\n\n"+
+    "Tick Interested on each motorcycle you would like AnyBike to check with the seller. We will then confirm current availability and purchase terms for the motorcycles you selected. Any motorcycle you leave unticked will be recorded as Not Interested at this time.\n\n"+
+    "The AnyBike price shown includes the motorcycle, AnyBike's sourcing fee, and the agreed UK collection & delivery to your chosen UK port or approved UK handover point.";
+
+  if(!legacy)return replacement;
+
+  const isOldTemplate=
+    /mark each one Interested or Not Interested/i.test(legacy) ||
+    /If you are interested, we will check it is still available/i.test(legacy) ||
+    /send you an official AnyBike offer/i.test(legacy);
+
+  if(isOldTemplate)return replacement;
+  return legacy.replace(/motorcycles motorcycles/gi,"motorcycles");
+}
+
 function render(){
   const b=payload.batch||{},buyer=payload.buyer||{},scans=payload.scans||[];
   const first=(buyer.contact_name||"").split(" ")[0]||"there";
   const request=payload.request||{};
   const reqName=[request.make,request.model].filter(Boolean).join(" ");
   document.getElementById("hero").innerHTML='<div class="eyebrow">Your AnyBike selection</div><h1>'+esc(reqName?("Your "+reqName+" matches"):"Your motorcycle matches")+'</h1>'+
-    '<div class="intro">'+esc(String(b.message_text||("Dear "+first+",\n\nGood news — we have found a hand-picked selection of motorcycles that could suit your requirements.\n\nTick Interested on each motorcycle you would like AnyBike to check with the seller. We will then confirm current availability and purchase terms for the motorcycles you selected. Any motorcycle you leave unticked will simply be recorded as Not Interested at this time.\n\nThe AnyBike price shown includes the motorcycle, AnyBike's sourcing fee, and the agreed UK collection & delivery to your chosen UK port or approved UK handover point.")).replace(/motorcycles motorcycles/gi,"motorcycles"))+'</div>'+
+    '<div class="intro">'+esc(buyerSelectionIntro(b,first))+'</div>'+
     '<div class="price-guidance"><strong>The AnyBike price shown on each motorcycle includes:</strong> the motorcycle, AnyBike sourcing fee, and agreed UK collection &amp; delivery to your chosen UK port / handover point.</div>';
   document.getElementById("status").style.display="none";
   document.getElementById("selectionBar").style.display="flex";
