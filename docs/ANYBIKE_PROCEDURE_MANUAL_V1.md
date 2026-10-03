@@ -1212,3 +1212,17 @@ A saved sourcing website is not considered an automated Live Source until its so
 For BMW Motorrad Approved Used, an item may be refreshed into **Live** only when the detail record passes the BMW validation gate, including a valid BMW make/model, positive realistic motorcycle price, BMW Bike ID/detail URL and no known placeholder/test seller record.
 
 BMW items that fail this gate must remain outside the live buyer-sourcing pool as **Review** work until a later valid refresh repairs them. They must not be silently deleted.
+
+
+## 3.1E Buyer landed-cost and margin calculator
+
+Customer sourced-match cards provide an optional commercial calculator so a trade buyer can assess a motorcycle against their own import and resale economics without changing the AnyBike selling price.
+
+**Rules:**
+- AnyBike price remains fixed in GBP.
+- Buyer-entered shipping, duty, tax, local collection, preparation, warranty, other costs and retail assumptions are commercial estimates only.
+- The buyer may choose a preferred currency and enter the GBP conversion rate they wish to use.
+- Saved defaults are stored against the customer's own profile and are reused on future sourced-match calculations.
+- A buyer can either enter a minimum gross margin target or an expected local retail price. The calculator should show the minimum retail price for the target margin and, when retail is entered, the expected gross profit and gross margin.
+- The calculator must not imply that AnyBike is determining customs duty, VAT or local taxes for the buyer. Customs rules vary by jurisdiction; the estimate assumptions must remain visible.
+- Calculator use must not alter Interested / Not Interested response semantics or the fixed AnyBike offer/sale price.
