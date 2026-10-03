@@ -600,20 +600,36 @@ async function saveChoices(){
   status.textContent="Saving…";
 
   try{
-    for(const s of changed){
-      const response=interestedIds.has(Number(s.id))?"Interested":"Not Interested";
+    changed.forEach(s=>{
       const el=document.getElementById("resp-"+s.id);
       if(el){el.className="response";el.textContent="Saving…";}
+    });
+
+    const choices=changed.map(s=>{
+      const response=interestedIds.has(Number(s.id))?"Interested":"Not Interested";
       const question=response==="Interested"?String(document.getElementById("buyer-question-"+s.id)?.value||"").trim():null;
-      const {data,error}=await sb.rpc("customer_respond_used_bike_scan_v1",{p_scan_id:Number(s.id),p_response:response,p_reason:question||null});
-      if(error)throw error;
-      s.response=data?.response||response;
-      s.response_reason=response==="Interested"?(data?.reason||question||null):null;
+      return {scan_id:Number(s.id),response,reason:question||null};
+    });
+
+    const {data,error}=await sb.rpc("customer_save_used_bike_scan_batch_choices_v1",{
+      p_batch_id:batchId,
+      p_choices:choices
+    });
+    if(error)throw error;
+
+    const savedRows=Array.isArray(data?.scans)?data.scans:[];
+    for(const s of changed){
+      const saved=savedRows.find(x=>Number(x.id)===Number(s.id));
+      const response=saved?.response || (interestedIds.has(Number(s.id))?"Interested":"Not Interested");
+      s.response=response;
+      s.response_reason=response==="Interested"?(saved?.reason||null):null;
+      const el=document.getElementById("resp-"+s.id);
       if(el){
         el.textContent=response==="Interested"?"Availability check requested":"Not Interested";
         el.className="response "+(response==="Interested"?"good":"no");
       }
     }
+
     status.className="selection-status good";
     status.textContent="Sent successfully.";
     choicesDirty=false;
@@ -634,7 +650,10 @@ async function saveChoices(){
   }catch(error){
     console.error("Could not save motorcycle choices",error);
     status.className="selection-status bad";
-    status.textContent="Could not save all choices. Please try again.";
+    const message=String(error?.message||"");
+    status.textContent=message.includes("buyer-safe image")
+      ?"This motorcycle is still being prepared for buyer review. Please try again shortly."
+      :"Nothing was sent. Please try again.";
   }finally{
     btn.disabled=false;
   }
