@@ -68,7 +68,7 @@ textarea{min-height:120px;resize:vertical;white-space:pre-wrap;overflow-wrap:any
         <div class="grid">
           <div class="field"><label>Buyer</label><select id="buyerSelect"><option value="">Loading buyers…</option></select></div>
           <div class="field"><label>Buyer request</label><select id="requestSelect"><option value="">Select buyer first</option></select></div>
-          <div class="field"><label>1. UK delivery allowance (£)</label><input id="deliveryAllowance" type="number" min="0" step="1" value="250"><div class="note">Added to every bike in this batch.</div></div>
+          <div class="field"><label>1. UK delivery allowance (£)</label><input id="deliveryAllowance" type="number" min="0" step="1" value="250"><div class="note">Default £250. This starts every bike in the batch at £250, but you can change the delivery allowance on an individual motorcycle before sending the matches. The saved per-bike amount is carried into Deal 360 automatically.</div></div>
           <div class="field"><label>AnyBike Sourcing Fee</label><div class="box" style="padding:11px"><strong>Calculated per motorcycle from its selling price</strong><div class="note" style="margin-top:5px">The sourcing fee is calculated automatically at 8% of the motorcycle price, rounded to the nearest £5, minimum £395.</div><a class="source-link" href="/services-and-fees.html" target="_blank">View AnyBike Fees ↗</a></div></div>
           <div class="field full"><label>Advert URLs — maximum 20</label><textarea id="urlInput" wrap="soft" spellcheck="false" placeholder="Paste each advert URL here. Long URLs will wrap onto several visible lines automatically.&#10;&#10;https://dealer.example/bike-1&#10;https://www.autotrader.co.uk/...&#10;https://www.ebay.co.uk/..."></textarea><div class="note">You do not need to see the whole URL on one line — long links wrap automatically. Put each new advert on a new paragraph/line.</div></div>
         </div>
@@ -415,7 +415,15 @@ function anybikeFeeFromPrice(price){
   if(!Number.isFinite(n)||n<=0)return 0;
   return Math.max(395,Math.round((n*0.08)/5)*5);
 }
-function priceField(k,f,label,v){return '<div class="field" style="margin-bottom:7px"><label>'+label+' (£)</label><input type="number" min="0" step="1" data-k="'+k+'" data-f="'+f+'" value="'+esc(v??0)+'" oninput="recalc('+k+')"></div>'}
+function priceField(k,f,label,v){
+  const n=Number(v||0);
+  const adjusted=f==="delivery_allowance_gbp" && Math.abs(n-250)>0.009;
+  return '<div class="field" style="margin-bottom:7px"><label>'+label+' (£)</label><input type="number" min="0" step="1" data-k="'+k+'" data-f="'+f+'" value="'+esc(v??0)+'" oninput="recalc('+k+')">'+
+    (f==="delivery_allowance_gbp"
+      ?'<div class="note" id="delivery-note-'+k+'" style="'+(adjusted?'color:#ffcf66;font-weight:900':'')+'">'+(adjusted?('Adjusted before matching — '+gbp(n)+' instead of the £250 default. This exact amount will follow the motorcycle into Deal 360.'):'Default £250. Change this for this motorcycle if its collection location or expected transport cost needs a different allowance.')+'</div>'
+      :'')+
+    '</div>';
+}
 function toggleSharePanel(){
   const panel=document.getElementById("sharePanel");
   const btn=document.getElementById("shareToggleBtn");
@@ -514,6 +522,16 @@ function recalc(k){
   const feeEl=document.getElementById("fee-"+k);
   if(feeEl)feeEl.value=Number(s.source_advertised_price_gbp)>0?gbp(s.fee_allowance_gbp):"Enter motorcycle price";
   document.getElementById("price-"+k).textContent=Number(s.source_advertised_price_gbp)>0?gbp(s.anybike_price_gbp):"Enter motorcycle price";
+  const deliveryNote=document.getElementById("delivery-note-"+k);
+  if(deliveryNote){
+    const delivery=Number(s.delivery_allowance_gbp||0);
+    const adjusted=Math.abs(delivery-250)>0.009;
+    deliveryNote.style.color=adjusted?"#ffcf66":"";
+    deliveryNote.style.fontWeight=adjusted?"900":"";
+    deliveryNote.textContent=adjusted
+      ?("Adjusted before matching — "+gbp(delivery)+" instead of the £250 default. This exact amount will follow the motorcycle into Deal 360.")
+      :"Default £250. Change this for this motorcycle if its collection location or expected transport cost needs a different allowance.";
+  }
 }
 
 async function saveNewBatch(){
