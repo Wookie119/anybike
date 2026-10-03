@@ -438,17 +438,26 @@ function updateNextAction(){
   const needsReview=rows.find(s=>!s.price_checked || !s.selected_for_buyer);
 
   panel.style.display="block";
-  if(missingImage){
-    nextActionMode="image";
-    title.textContent="Prepare buyer-safe photo galleries";
-    textEl.textContent="At least one motorcycle still needs buyer-safe photos. Prepare the galleries for the batch before completing the price check and previewing each match.";
-    btn.textContent="PREPARE GALLERIES →";
-  }else if(thinGallery){
-    nextActionMode="image";
-    title.textContent="Prepare more buyer-safe photos";
-    textEl.textContent="At least one motorcycle has fewer than 3 buyer-safe photos. Prepare more images where the source advert provides them, then preview the match as the buyer will see it.";
-    btn.textContent="PREPARE MORE PHOTOS →";
+  if(buyerSafePreparationRunning){
+    nextActionMode="wait-images";
+    title.textContent="Buyer-safe photos are preparing automatically";
+    textEl.textContent="AnyBike is loading and cleaning the available source photos now. No staff action is required. When this finishes, the next action will move to reviewing the motorcycles.";
+    btn.textContent="PROCESSING…";
+    btn.disabled=true;
+  }else if(missingImage){
+    nextActionMode="image-attention";
+    title.textContent="Image attention required";
+    textEl.textContent="Automatic processing finished, but at least one motorcycle still has no approved buyer-safe image. Retry only the affected match or remove it from the buyer selection.";
+    btn.textContent="VIEW FIRST PROBLEM →";
+    btn.disabled=false;
   }else if(needsReview){
+    nextActionMode="review";
+    const thinNote=thinGallery?" Some adverts provided fewer than 3 usable source photos; those matches can still proceed because at least one approved buyer-safe image is present.":"";
+    title.textContent="Review each motorcycle for the buyer";
+    textEl.textContent="Check the buyer description, final AnyBike price, listing/price history and buyer-safe gallery. Use Preview as buyer on each match before ticking Price checked and Include in buyer selection, then click Save motorcycle."+thinNote;
+    btn.textContent="PROCEED →";
+    btn.disabled=false;
+  }else{
     nextActionMode="review";
     title.textContent="Review each motorcycle for the buyer";
     textEl.textContent="Check the buyer description, final AnyBike price, listing/price history and buyer-safe gallery. Use Preview as buyer on each match before ticking Price checked and Include in buyer selection, then click Save motorcycle.";
@@ -458,11 +467,14 @@ function updateNextAction(){
     title.textContent="Review the buyer message and send the selection";
     textEl.textContent="The motorcycles are prepared. Open the buyer message, check the wording, then share the selected motorcycles.";
     btn.textContent="PROCEED TO SHARE →";
+    btn.disabled=false;
   }
 }
 function runNextAction(){
-  if(nextActionMode==="image"){
-    prepareAllBuyerSafeImages();
+  if(nextActionMode==="wait-images")return;
+  if(nextActionMode==="image-attention"){
+    const target=(scanned||[]).find(s=>s.extraction&&s.extraction.live_source_item_id&&!(Array.isArray(s.buyer_image_urls)&&s.buyer_image_urls.length));
+    if(target)document.querySelector('[data-scan="'+target.id+'"]')?.scrollIntoView({behavior:"smooth",block:"start"});
     return;
   }
   if(nextActionMode==="share"){
@@ -475,7 +487,6 @@ function runNextAction(){
     return;
   }
   const target=(scanned||[]).find(s=>{
-    if(nextActionMode==="image") return s.extraction&&s.extraction.live_source_item_id&&(!Array.isArray(s.buyer_image_urls)||s.buyer_image_urls.length<3);
     return !s.price_checked || !s.selected_for_buyer;
   });
   if(target) document.querySelector('[data-scan="'+target.id+'"]')?.scrollIntoView({behavior:"smooth",block:"start"});
@@ -552,15 +563,15 @@ async function loadBatch(id){
   await loadSourceCommercialHistory();
   document.getElementById("newBatchPanel").style.display="none";
   document.getElementById("batchSummary").style.display="block";
-  document.getElementById("batchSummary").innerHTML='<div class="eyebrow">Saved sourcing batch #'+id+'</div><h2 style="margin:5px 0">'+esc(buyerName(data.buyer||{}))+'</h2><div class="muted">'+esc(data.request_item?[data.request_item.make,data.request_item.model].filter(Boolean).join(" "):"General sourcing")+' · '+scanned.length+' scanned adverts</div><div class="image-progress" id="imageSafetyProgress"><div class="image-progress-head"><span id="imageSafetyProgressText">Checking buyer-safe photo status…</span><span id="imageSafetyProgressPct">0%</span></div><div class="image-progress-track"><div class="image-progress-bar" id="imageSafetyProgressBar"></div></div><div class="note" id="imageSafetyProgressNote" style="margin-top:7px">Matches cannot be shared while buyer-safe image processing is running, and every Live Source match must have at least one approved buyer-safe image before sharing.</div></div><div class="actions" style="margin-top:12px"><button class="btn green" id="prepareAllImagesBtn" type="button" onclick="prepareAllBuyerSafeImages()">Prepare / retry buyer-safe photos</button><span id="prepareAllImagesStatus" class="status"></span><a class="btn" href="admin-used-bike-scanner.html">+ New batch</a><a class="btn" href="/services-and-fees.html" target="_blank">View AnyBike Fees ↗</a></div>';
+  document.getElementById("batchSummary").innerHTML='<div class="eyebrow">Saved sourcing batch #'+id+'</div><h2 style="margin:5px 0">'+esc(buyerName(data.buyer||{}))+'</h2><div class="muted">'+esc(data.request_item?[data.request_item.make,data.request_item.model].filter(Boolean).join(" "):"General sourcing")+' · '+scanned.length+' scanned adverts</div><div class="image-progress" id="imageSafetyProgress"><div class="image-progress-head"><span id="imageSafetyProgressText">Checking buyer-safe photo status…</span><span id="imageSafetyProgressPct">0%</span></div><div class="image-progress-track"><div class="image-progress-bar" id="imageSafetyProgressBar"></div></div><div class="note" id="imageSafetyProgressNote" style="margin-top:7px">Matches cannot be shared while buyer-safe image processing is running, and every Live Source match must have at least one approved buyer-safe image before sharing.</div></div><div class="actions" style="margin-top:12px"><button class="btn green" id="prepareAllImagesBtn" type="button" onclick="prepareAllBuyerSafeImages()">Retry image preparation</button><span id="prepareAllImagesStatus" class="status"></span><a class="btn" href="admin-used-bike-scanner.html">+ New batch</a><a class="btn" href="/services-and-fees.html" target="_blank">View AnyBike Fees ↗</a></div>';
   await loadOtherBuyerRequests();
   renderScans(true);
   queueAutomaticBuyerSafePreparation();
 }
 async function queueAutomaticBuyerSafePreparation(){
-  if(!currentBatchId)return;
+  if(!currentBatchId||buyerSafePreparationRunning)return;
   const rows=(scanned||[]).filter(s=>s.extraction&&s.extraction.live_source_item_id);
-  const needs=rows.filter(s=>!Array.isArray(s.buyer_image_urls)||s.buyer_image_urls.length<6);
+  const needs=rows.filter(s=>!Array.isArray(s.buyer_image_urls)||s.buyer_image_urls.length<3);
   if(!needs.length)return;
 
   const key="anybike-auto-buyer-safe-batch-"+currentBatchId;
@@ -570,18 +581,29 @@ async function queueAutomaticBuyerSafePreparation(){
   const status=document.getElementById("prepareAllImagesStatus");
   if(status){
     status.className="status";
-    status.textContent="Preparing buyer-safe galleries automatically…";
+    status.textContent="Buyer-safe galleries are being prepared automatically…";
   }
 
   setTimeout(async()=>{
     try{
+      const itemIds=needs.map(s=>Number(s.extraction.live_source_item_id)).filter(Boolean);
+      const allBmw=needs.every(s=>String(s.source_domain||"").toLowerCase().includes("approvedused.bmw-motorrad.co.uk"));
+      if(allBmw && itemIds.length){
+        setBuyerSafeProgress(0,needs.length,"Loading all available BMW source photos…",false);
+        const photoLoad=await sb().functions.invoke("refresh-bmw-live-source-images",{
+          body:{connector_id:1,item_ids:itemIds}
+        });
+        if(photoLoad.error||photoLoad.data?.error){
+          console.warn("BMW source gallery loading did not fully complete",photoLoad.error||photoLoad.data?.error);
+        }
+      }
       await prepareAllBuyerSafeImages({automatic:true});
-      sessionStorage.setItem(key,"done");
     }catch(e){
       console.warn("Automatic buyer-safe preparation could not complete",e);
+    }finally{
       sessionStorage.removeItem(key);
     }
-  },350);
+  },250);
 }
 async function resolveLiveSourceConnector(s){
   if(sourceConnectorId)return sourceConnectorId;
@@ -639,7 +661,7 @@ async function prepareAllBuyerSafeImages(options={}){
   setBuyerSafeProgress(0,rows.length,"Preparing buyer-safe photo galleries…",false);
   for(const s of rows){
     const current=Array.isArray(s.buyer_image_urls)?s.buyer_image_urls.length:0;
-    if(current>=6){completed++;setBuyerSafeProgress(completed+failed,rows.length,"Checking match "+(completed+failed)+" of "+rows.length+"…",false);continue}
+    if(current>=3){completed++;setBuyerSafeProgress(completed+failed,rows.length,"Checking match "+(completed+failed)+" of "+rows.length+"…",false);continue}
     if(status)status.textContent="Preparing "+(completed+failed+1)+" of "+rows.length+"…";
     setBuyerSafeProgress(completed+failed,rows.length,"Processing match "+(completed+failed+1)+" of "+rows.length+"…",false);
     try{
@@ -666,9 +688,17 @@ async function prepareAllBuyerSafeImages(options={}){
   }
   buyerSafePreparationRunning=false;
   const missingAfter=(scanned||[]).filter(s=>s.extraction&&s.extraction.live_source_item_id&&!(Array.isArray(s.buyer_image_urls)&&s.buyer_image_urls.length));
-  setBuyerSafeProgress(rows.length,rows.length,missingAfter.length?("Image processing finished · "+missingAfter.length+" match"+(missingAfter.length===1?"":"es")+" still need attention"):"All matches have approved buyer-safe images",missingAfter.length===0);
+  const thinAfter=(scanned||[]).filter(s=>s.extraction&&s.extraction.live_source_item_id&&Array.isArray(s.buyer_image_urls)&&s.buyer_image_urls.length>0&&s.buyer_image_urls.length<3);
+  const readyCount=rows.length-missingAfter.length-thinAfter.length;
+  if(missingAfter.length){
+    setBuyerSafeProgress(rows.length,rows.length,"Automatic image preparation finished · "+missingAfter.length+" match"+(missingAfter.length===1?"":"es")+" need image attention",false);
+  }else if(thinAfter.length){
+    setBuyerSafeProgress(rows.length,rows.length,readyCount+" of "+rows.length+" galleries ready · "+thinAfter.length+" source advert"+(thinAfter.length===1?" has":"s have")+" fewer than 3 usable photos",true);
+  }else{
+    setBuyerSafeProgress(rows.length,rows.length,"All match galleries are buyer-safe and ready",true);
+  }
   setShareGate();
-  if(btn){btn.disabled=false;btn.textContent="Prepare / retry buyer-safe photos";}
+  if(btn){btn.disabled=false;btn.textContent="Retry image preparation";}
 }
 async function prepareBuyerSafeImages(scanId,liveSourceItemId){
   const st=document.getElementById("buyer-safe-status-"+scanId);
