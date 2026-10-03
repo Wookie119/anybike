@@ -3171,6 +3171,88 @@ setText("kpiPrivateSellers", countSourceType([
     });
 
     /*
+      Sourced-bike buyer interest must appear as a motorcycle-specific Sales
+      action. These are Deal 360 records created when a buyer ticks Interested.
+    */
+    const sourcedInterestCustomerIds=new Set();
+    try{
+      const candidateResult=await sb
+        .from("anybike_deal_candidates")
+        .select("id,deal_id,make,model,variant,year,candidate_status,availability_status,created_at")
+        .eq("candidate_status","Interested");
+
+      if(candidateResult.error){ throw candidateResult.error; }
+
+      const candidates=(candidateResult.data || []).filter(function(candidate){
+        return String(candidate.availability_status || "Not Checked")!=="Confirmed Available";
+      });
+
+      const dealIds=[...new Set(candidates.map(function(candidate){
+        return Number(candidate.deal_id || 0);
+      }).filter(Boolean))];
+
+      let dealMap=new Map();
+      let buyerMap=new Map();
+
+      if(dealIds.length){
+        const dealsResult=await sb
+          .from("anybike_deals")
+          .select("id,buyer_id,customer_id,title,updated_at")
+          .in("id",dealIds);
+
+        if(dealsResult.error){ throw dealsResult.error; }
+
+        (dealsResult.data || []).forEach(function(deal){
+          dealMap.set(String(deal.id),deal);
+          if(deal.customer_id) sourcedInterestCustomerIds.add(String(deal.customer_id));
+        });
+
+        const buyerIds=[...new Set((dealsResult.data || []).map(function(deal){
+          return Number(deal.buyer_id || 0);
+        }).filter(Boolean))];
+
+        if(buyerIds.length){
+          const buyersResult=await sb
+            .from("global_buyer_network")
+            .select("id,business_name,contact_name,email,country")
+            .in("id",buyerIds);
+
+          if(!buyersResult.error){
+            (buyersResult.data || []).forEach(function(buyer){
+              buyerMap.set(String(buyer.id),buyer);
+            });
+          }
+        }
+      }
+
+      candidates.forEach(function(candidate){
+        const deal=dealMap.get(String(candidate.deal_id)) || {};
+        const buyer=buyerMap.get(String(deal.buyer_id || "")) || {};
+        const customer=buyer.contact_name || buyer.business_name || buyer.email || "Buyer";
+        const bike=[candidate.year,candidate.make,candidate.model,candidate.variant].filter(Boolean).join(" ") || deal.title || "Motorcycle";
+
+        actions.push(createDashboardAction({
+          group:"sales",
+          priority:"urgent",
+          icon:"🏍",
+          type:"Buyer interested",
+          title:"Buyer interested in "+bike,
+          customer:customer,
+          bike:bike,
+          country:buyer.country || "",
+          assigned:"Bike Sales",
+          preview:"Buyer selected this motorcycle. Check the seller and confirm current availability and purchase terms.",
+          age:timeAgo(candidate.created_at || deal.updated_at),
+          createdAt:candidate.created_at || deal.updated_at,
+          url:"admin-enquiries.html?deal="+encodeURIComponent(candidate.deal_id)+"&candidate="+encodeURIComponent(candidate.id),
+          openLabel:"Check seller availability →"
+        }));
+      });
+    }catch(sourcedInterestError){
+      console.warn("Sourced buyer-interest actions could not be added to Dashboard:",sourcedInterestError);
+    }
+
+    /*
       Accounts actions come from the authoritative Payment Advice workflow.
       Posted advice creates no work. Submitted advice points straight to bank
       verification; verified advice points straight to ledger posting.
@@ -3449,7 +3531,7 @@ setText("kpiPrivateSellers", countSourceType([
         // Deal-specific deposit/balance work is generated above from the
         // authoritative Deal 360 ledger. Customer 360 does not duplicate it.
 
-        if(Number(item.availability_requests || 0)>0){
+        if(Number(item.availability_requests || 0)>0 && !sourcedInterestCustomerIds.has(String(item.customer_id))){
           actions.push(createDashboardAction({
             group:"sales",priority:"urgent",icon:"🏍",type:"Seller availability",
             title:"Buyer asked us to check availability",customer:customer,bike:"Buyer request",country:country,assigned:"Bike Sales",
