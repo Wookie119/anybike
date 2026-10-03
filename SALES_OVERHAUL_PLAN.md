@@ -747,3 +747,27 @@ Frontend alignment completed:
 - BMW full-source refresh now has a strict quality gate: a scanned record is only allowed back into the Live pool when it is a ready BMW detail record with a valid model, positive realistic price, valid BMW Bike ID/detail URL and no known placeholder/test seller data.
 - Invalid BMW refresh results are counted as failed/review work rather than overwriting good Live Source data.
 - Existing BMW live rows with zero price, blank model or test placeholder seller were moved from **Live** to **Review**; they are not deleted and may return to Live after a later valid refresh.
+
+
+### 3 October 2026 — Buyer landed-cost and margin calculator
+- Customer sourced-match cards now include a collapsible **Buyer margin calculator**.
+- The AnyBike motorcycle price remains fixed in GBP and cannot be edited by the buyer.
+- Buyers can model their own downstream commercial costs in their preferred currency, including:
+  - exchange rate from GBP to preferred currency
+  - international shipping / freight
+  - import duty %
+  - import VAT / local tax %
+  - collection from local destination port
+  - preparation / workshop cost
+  - warranty provision
+  - other local landed costs
+- The calculator shows:
+  - converted AnyBike price
+  - estimated duty
+  - estimated import tax
+  - estimated landed cost
+  - minimum retail price required for the buyer's target gross margin
+  - expected gross profit and gross margin when the buyer enters an expected retail price
+- Duty estimate uses converted AnyBike price + shipping as the calculation base; import tax is estimated after duty. The UI clearly states that customs valuation rules vary by country and the tool is a buyer commercial estimate, not an AnyBike customs/tax calculation.
+- Buyers may save calculator defaults to their customer profile so future match calculators auto-fill them.
+- Customer profile now includes optional **Margin Calculator Defaults** covering currency conversion rate, duty, import tax, target margin and normal local costs.
