@@ -30,6 +30,7 @@ textarea{min-height:120px;resize:vertical;white-space:pre-wrap;overflow-wrap:any
 .actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.status{color:#bbb;font-size:13px}.status.good{color:var(--green)}.status.bad{color:#ff7777}
 .next-action-panel{display:none;margin:0 0 16px;padding:18px 20px;border:2px solid var(--red);border-radius:16px;background:linear-gradient(135deg,rgba(237,28,36,.16),#111 55%);box-shadow:0 0 0 1px rgba(237,28,36,.08)}
 .next-action-panel h2{margin:4px 0 6px;font-size:24px}.next-action-panel p{margin:0;color:#ddd;line-height:1.5}.next-action-panel .actions{margin-top:12px}
+.image-progress{margin-top:12px;padding:12px;border:1px solid #333;border-radius:12px;background:#0b0b0b}.image-progress-head{display:flex;justify-content:space-between;gap:10px;align-items:center;font-size:13px;font-weight:900}.image-progress-track{height:12px;background:#242424;border-radius:999px;overflow:hidden;margin-top:8px}.image-progress-bar{height:100%;width:0%;background:linear-gradient(90deg,#ed1c24,#ff6a70);transition:width .25s ease}.image-progress.good .image-progress-bar{background:linear-gradient(90deg,#2f8d52,#58d585)}
 .scan-list{display:grid;gap:14px}.scan-card{background:#151515;border:1px solid var(--line);border-radius:16px;padding:15px}.scan-head{display:flex;gap:14px;align-items:flex-start}.thumb{width:150px;height:105px;object-fit:cover;background:#222;border-radius:10px}.scan-title{font-size:20px;font-weight:900}.tag{display:inline-block;border:1px solid #333;border-radius:999px;padding:5px 9px;font-size:12px;color:#bbb;margin:4px 5px 0 0}.tag.ready{color:#8df0ad;border-color:#315e40}.tag.fail{color:#ff8b8b;border-color:#6a3030}
 .cols{display:grid;grid-template-columns:1.15fr 1fr 1fr;gap:12px;margin-top:14px}.box{background:#0d0d0d;border:1px solid #282828;border-radius:12px;padding:12px}.box h3{font-size:13px;margin:0 0 10px;color:#ddd;text-transform:uppercase;letter-spacing:.08em}
 .mini{display:grid;grid-template-columns:1fr 1fr;gap:8px}.complete-box{border-color:#2f8d52!important;box-shadow:0 0 0 1px rgba(67,209,122,.16)}.attention-box{border-color:#6a3030!important}.money{font-size:18px;font-weight:900}.secret{border-left:3px solid var(--red)}
@@ -101,7 +102,7 @@ textarea{min-height:120px;resize:vertical;white-space:pre-wrap;overflow-wrap:any
             <textarea id="shareMessage" style="min-height:130px"></textarea>
           </div>
           <div class="actions" style="margin-top:10px">
-            <button class="btn red" onclick="shareBatch()">Share selected motorcycles</button>
+            <button class="btn red" id="shareBatchBtn" onclick="shareBatch()">Share selected motorcycles</button>
             <span id="shareStatus" class="status"></span>
           </div>
         </div>
@@ -125,6 +126,7 @@ let currentBatch=null;
 let buyers=[];
 let sourceConnectorId=null;
 let sourceCommercialHistory=new Map();
+let buyerSafePreparationRunning=false;
 const sourcingParams=new URLSearchParams(location.search);
 function sourcingContextQuery(extra){
   const p=new URLSearchParams();
@@ -474,6 +476,7 @@ function renderScans(saved){
   document.getElementById("scanList").innerHTML=(scanned||[]).map(s=>cardHtml(s,saved)).join("");
   if(saved){document.getElementById("sharePanel").style.display="block";buildMessage()}
   updateNextAction();
+  setShareGate();
 }
 function collectCard(k){
   const s=scanned.find(x=>String(x.id??x._key)===String(k)); if(!s)return null;
@@ -514,7 +517,7 @@ async function loadBatch(id){
   await loadSourceCommercialHistory();
   document.getElementById("newBatchPanel").style.display="none";
   document.getElementById("batchSummary").style.display="block";
-  document.getElementById("batchSummary").innerHTML='<div class="eyebrow">Saved sourcing batch #'+id+'</div><h2 style="margin:5px 0">'+esc(buyerName(data.buyer||{}))+'</h2><div class="muted">'+esc(data.request_item?[data.request_item.make,data.request_item.model].filter(Boolean).join(" "):"General sourcing")+' · '+scanned.length+' scanned adverts</div><div class="actions" style="margin-top:12px"><button class="btn green" id="prepareAllImagesBtn" type="button" onclick="prepareAllBuyerSafeImages()">Prepare / retry buyer-safe photos</button><span id="prepareAllImagesStatus" class="status"></span><a class="btn" href="admin-used-bike-scanner.html">+ New batch</a><a class="btn" href="/services-and-fees.html" target="_blank">View AnyBike Fees ↗</a></div>';
+  document.getElementById("batchSummary").innerHTML='<div class="eyebrow">Saved sourcing batch #'+id+'</div><h2 style="margin:5px 0">'+esc(buyerName(data.buyer||{}))+'</h2><div class="muted">'+esc(data.request_item?[data.request_item.make,data.request_item.model].filter(Boolean).join(" "):"General sourcing")+' · '+scanned.length+' scanned adverts</div><div class="image-progress" id="imageSafetyProgress"><div class="image-progress-head"><span id="imageSafetyProgressText">Checking buyer-safe photo status…</span><span id="imageSafetyProgressPct">0%</span></div><div class="image-progress-track"><div class="image-progress-bar" id="imageSafetyProgressBar"></div></div><div class="note" id="imageSafetyProgressNote" style="margin-top:7px">Matches cannot be shared while buyer-safe image processing is running, and every Live Source match must have at least one approved buyer-safe image before sharing.</div></div><div class="actions" style="margin-top:12px"><button class="btn green" id="prepareAllImagesBtn" type="button" onclick="prepareAllBuyerSafeImages()">Prepare / retry buyer-safe photos</button><span id="prepareAllImagesStatus" class="status"></span><a class="btn" href="admin-used-bike-scanner.html">+ New batch</a><a class="btn" href="/services-and-fees.html" target="_blank">View AnyBike Fees ↗</a></div>';
   renderScans(true);
   queueAutomaticBuyerSafePreparation();
 }
@@ -563,18 +566,46 @@ async function addToLiveSource(k){
   if(error){alert(error.message);return}
   alert("Saved to Live Source Hub.");
 }
+function setBuyerSafeProgress(done,total,label,complete=false){
+  const pct=total?Math.max(0,Math.min(100,Math.round((done/total)*100))):100;
+  const wrap=document.getElementById("imageSafetyProgress");
+  const bar=document.getElementById("imageSafetyProgressBar");
+  const textEl=document.getElementById("imageSafetyProgressText");
+  const pctEl=document.getElementById("imageSafetyProgressPct");
+  if(bar)bar.style.width=pct+"%";
+  if(textEl)textEl.textContent=label||"Buyer-safe image processing";
+  if(pctEl)pctEl.textContent=pct+"%";
+  if(wrap)wrap.classList.toggle("good",!!complete);
+}
+function setShareGate(){
+  const btn=document.getElementById("shareBatchBtn");
+  if(!btn)return;
+  const selected=(scanned||[]).filter(s=>s.selected_for_buyer);
+  const missing=selected.filter(s=>s.extraction&&s.extraction.live_source_item_id&&!(Array.isArray(s.buyer_image_urls)&&s.buyer_image_urls.length));
+  const blocked=buyerSafePreparationRunning||missing.length>0;
+  btn.disabled=blocked;
+  btn.title=buyerSafePreparationRunning
+    ?"Buyer-safe image processing is still running."
+    :missing.length
+      ?missing.length+" selected match"+(missing.length===1?"":"es")+" still need an approved buyer-safe image."
+      :"";
+}
 async function prepareAllBuyerSafeImages(options={}){
   const automatic=!!options.automatic;
   const btn=document.getElementById("prepareAllImagesBtn");
   const status=document.getElementById("prepareAllImagesStatus");
   const rows=(scanned||[]).filter(s=>s.extraction&&s.extraction.live_source_item_id);
   if(!rows.length){if(status)status.textContent="No Live Source matches in this batch.";return}
+  buyerSafePreparationRunning=true;
+  setShareGate();
   if(btn){btn.disabled=true;btn.textContent=automatic?"Preparing automatically…":"Preparing galleries…";}
   let completed=0,failed=0;
+  setBuyerSafeProgress(0,rows.length,"Preparing buyer-safe photo galleries…",false);
   for(const s of rows){
     const current=Array.isArray(s.buyer_image_urls)?s.buyer_image_urls.length:0;
-    if(current>=6){completed++;continue}
+    if(current>=6){completed++;setBuyerSafeProgress(completed+failed,rows.length,"Checking match "+(completed+failed)+" of "+rows.length+"…",false);continue}
     if(status)status.textContent="Preparing "+(completed+failed+1)+" of "+rows.length+"…";
+    setBuyerSafeProgress(completed+failed,rows.length,"Processing match "+(completed+failed+1)+" of "+rows.length+"…",false);
     try{
       const {data,error}=await sb().functions.invoke("prepare-live-source-buyer-safe-images",{
         body:{live_source_item_id:Number(s.extraction.live_source_item_id),target_safe_count:6}
@@ -585,9 +616,11 @@ async function prepareAllBuyerSafeImages(options={}){
       if(refreshed.error)throw refreshed.error;
       s.buyer_image_urls=refreshed.data?.buyer_image_urls||[];
       completed++;
+      setBuyerSafeProgress(completed+failed,rows.length,"Processed "+(completed+failed)+" of "+rows.length+" matches…",false);
     }catch(e){
       console.warn("Could not prepare full buyer-safe gallery for scan",s.id,e);
       failed++;
+      setBuyerSafeProgress(completed+failed,rows.length,"Processed "+(completed+failed)+" of "+rows.length+" matches…",false);
     }
   }
   renderScans(true);
@@ -595,7 +628,11 @@ async function prepareAllBuyerSafeImages(options={}){
     status.className=failed?"status bad":"status good";
     status.textContent=completed+" match"+(completed===1?"":"es")+" prepared"+(failed?" · "+failed+" need attention":"");
   }
-  if(btn){btn.disabled=false;btn.textContent="Prepare buyer-safe photos for all matches";}
+  buyerSafePreparationRunning=false;
+  const missingAfter=(scanned||[]).filter(s=>s.extraction&&s.extraction.live_source_item_id&&!(Array.isArray(s.buyer_image_urls)&&s.buyer_image_urls.length));
+  setBuyerSafeProgress(rows.length,rows.length,missingAfter.length?("Image processing finished · "+missingAfter.length+" match"+(missingAfter.length===1?"":"es")+" still need attention"):"All matches have approved buyer-safe images",missingAfter.length===0);
+  setShareGate();
+  if(btn){btn.disabled=false;btn.textContent="Prepare / retry buyer-safe photos";}
 }
 async function prepareBuyerSafeImages(scanId,liveSourceItemId){
   const st=document.getElementById("buyer-safe-status-"+scanId);
@@ -670,6 +707,7 @@ async function saveScan(id){
   buildMessage();
   if(st){st.className="status good";st.textContent="Saved ✓";}
   updateNextAction();
+  setShareGate();
   return true;
 }
 function buildMessage(){
@@ -680,13 +718,17 @@ function buildMessage(){
   document.getElementById("shareMessage").value="Dear "+name+",\n\nGood news — we have found a hand-picked selection of "+noun+"s that we think could suit your requirements.\n\nPlease tick Interested — Check Availability on each motorcycle you would seriously consider buying, then save your choices. Any motorcycle you leave unticked will be recorded as Not Interested.\n\nFor the motorcycles you select, AnyBike will contact the seller, confirm availability and current purchase terms and, where possible, try to obtain a short hold while you consider our personalised quote.\n\nIf a motorcycle is available, we will come back to you with a personalised AnyBike quote based on your agreed UK handover / freight-forwarder details. If you accept our formal offer, we will ask for the required deposit and move quickly to secure the motorcycle.";
 }
 async function shareBatch(){
+  if(buyerSafePreparationRunning){
+    alert("Buyer-safe image processing is still running. Please wait for the progress bar to finish before sharing this selection.");
+    return;
+  }
   for(const s of scanned){collectCard(s.id);await saveScan(s.id)}
   const selectedRows=scanned.filter(s=>s.selected_for_buyer);
   const ids=selectedRows.map(s=>Number(s.id));
   if(!ids.length){alert("Select at least one motorcycle.");return}
   const missingSafe=selectedRows.filter(s=>s.extraction&&s.extraction.live_source_item_id&&!(Array.isArray(s.buyer_image_urls)&&s.buyer_image_urls.length));
   if(missingSafe.length){
-    alert("Every Live Source motorcycle needs at least one approved buyer-safe image before it can be shared.\n\nUse Prepare buyer-safe images on the highlighted motorcycles first.");
+    alert("Every selected Live Source motorcycle needs at least one approved buyer-safe image before it can be shared.\n\nWait for image processing to finish, then retry any matches still needing attention.");
     return;
   }
   const st=document.getElementById("shareStatus");st.className="status";st.textContent="Sharing selection…";
