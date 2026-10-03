@@ -9833,7 +9833,7 @@ function anyBikeDealCandidatesFor(dealId){
 function candidateStatusClass(row){
   const availability=String(row.availability_status || "");
   const status=String(row.candidate_status || "");
-  if(status==="Sold / No Longer Available" || availability==="Sold / No Longer Available"){ return "bad"; }
+  if(status==="Sold / No Longer Available" || status==="AnyBike Not Pursuing" || availability==="Sold / No Longer Available"){ return "bad"; }
   if(status==="Selected" || availability==="Confirmed Available"){ return "good"; }
   if(status==="Availability Check" || status==="Interested"){ return "warn"; }
   return "";
@@ -9887,6 +9887,7 @@ function renderAnyBikeDealCandidatePanel(deal){
     const badgeClass=candidateStatusClass(row);
     const sourceUrl=candidateSafeUrl(row.source_url);
     const selected=String(status)==="Selected" || !!row.selected_deal_motorcycle_id;
+    const notPursuing=status==="AnyBike Not Pursuing";
     const sold=status==="Sold / No Longer Available" || availability==="Sold / No Longer Available";
     const images=Array.isArray(row.image_urls) ? row.image_urls.filter(Boolean).slice(0,10) : [];
     const confirmedAt=row.availability_confirmed_at
@@ -9897,7 +9898,7 @@ function renderAnyBikeDealCandidatePanel(deal){
       : "No hold expiry recorded";
     const sellerPrice=Number(row.confirmed_seller_price_gbp || row.seller_asking_price_gbp || 0);
 
-    return `<article id="anybike-candidate-${row.id}" class="anybike-candidate-card ${selected ? "selected" : ""} ${sold ? "sold" : ""}">
+    return `<article id="anybike-candidate-${row.id}" class="anybike-candidate-card ${selected ? "selected" : ""} ${sold || notPursuing ? "sold" : ""}">
       <div class="anybike-candidate-top">
         <div class="anybike-candidate-title">
           <strong>${escapeAdminHtml(title)}</strong>
@@ -9941,14 +9942,15 @@ function renderAnyBikeDealCandidatePanel(deal){
       ${row.internal_notes ? `<div class="anybike-candidate-notes"><strong>Internal note:</strong> ${escapeAdminHtml(row.internal_notes)}</div>` : ""}
 
       <div class="anybike-candidate-actions">
-        <button type="button" class="secondary" onclick="openEditCandidateModal(${row.id});return false;">Edit Candidate</button>
+        <button type="button" class="secondary" onclick="openEditCandidateModal(${row.id});return false;" ${notPursuing ? "disabled" : ""}>Edit Candidate</button>
         ${sourceUrl ? `<a class="secondary" href="${escapeAdminHtml(sourceUrl)}" target="_blank" rel="noopener">Source Advert · Internal Only</a>` : ""}
-        <button type="button" class="secondary" onclick="sendCandidateToBuyer(${row.id});return false;" ${sold || selected ? "disabled" : ""}>${status==="Sent to Buyer" ? "Send Again" : "Send to Buyer"}</button>
-        <button type="button" class="secondary" onclick="setCandidateStatus(${row.id},'Interested');return false;" ${sold || selected ? "disabled" : ""}>Buyer Interested</button>
-        <button type="button" class="secondary" onclick="setCandidateStatus(${row.id},'Declined');return false;" ${sold || selected ? "disabled" : ""}>Buyer Declined</button>
-        <button type="button" onclick="openCandidateAvailabilityModal(${row.id});return false;" ${selected ? "disabled" : ""}>Check Availability</button>
-        <button type="button" class="good" onclick="selectCandidateForDeal(${row.id});return false;" ${candidateCanSelect(row) ? "" : "disabled"}>Select for Deal</button>
-        <button type="button" class="danger" onclick="markCandidateSold(${row.id});return false;" ${selected || sold ? "disabled" : ""}>Sold / Unavailable</button>
+        <button type="button" class="secondary" onclick="sendCandidateToBuyer(${row.id});return false;" ${sold || selected || notPursuing ? "disabled" : ""}>${status==="Sent to Buyer" ? "Send Again" : "Send to Buyer"}</button>
+        <button type="button" class="secondary" onclick="setCandidateStatus(${row.id},'Interested');return false;" ${sold || selected || notPursuing ? "disabled" : ""}>Buyer Interested</button>
+        <button type="button" class="secondary" onclick="setCandidateStatus(${row.id},'Declined');return false;" ${sold || selected || notPursuing ? "disabled" : ""}>Buyer Declined</button>
+        <button type="button" onclick="openCandidateAvailabilityModal(${row.id});return false;" ${selected || notPursuing ? "disabled" : ""}>Check Availability</button>
+        <button type="button" class="good" onclick="selectCandidateForDeal(${row.id});return false;" ${candidateCanSelect(row) && !notPursuing ? "" : "disabled"}>Select for Deal</button>
+        <button type="button" class="danger" onclick="markCandidateSold(${row.id});return false;" ${selected || sold || notPursuing ? "disabled" : ""}>Sold / Unavailable</button>
+        <button type="button" class="danger" onclick="doNotPursueCandidate(${row.id},${dealId});return false;" ${selected || sold || notPursuing ? "disabled" : ""}>${notPursuing ? "Not Pursuing" : "Do Not Pursue"}</button>
       </div>
     </article>`;
   }).join("");
@@ -10352,6 +10354,61 @@ async function setCandidateStatus(candidateId,nextStatus){
   }catch(error){
     console.error("Candidate status could not be updated:",error);
     alert("Candidate status could not be updated.\n\n"+(error?.message || error));
+  }
+}
+
+async function doNotPursueCandidate(candidateId,dealId){
+  const id=Number(candidateId);
+  const dealNumber=Number(dealId);
+  if(!Number.isFinite(id) || !Number.isFinite(dealNumber)){ return; }
+
+  const row=(adminDealCandidates || []).find(function(item){
+    return Number(item.id)===id;
+  }) || {};
+  const title=[row.year,row.make,row.model,row.variant].filter(Boolean).join(" ") || "this motorcycle";
+
+  const confirmed=window.confirm(
+    "Do not pursue this motorcycle?\n\n"+
+    title+"\n\n"+
+    "This keeps the buyer's original Interested response for audit, removes the motorcycle from their active sourced selection, and prevents AnyBike progressing it to seller check or Formal Offer.\n\n"+
+    "Use this when AnyBike prefers to progress another suitable motorcycle."
+  );
+  if(!confirmed){ return; }
+
+  const reason=window.prompt(
+    "Internal reason for not pursuing this motorcycle:",
+    "Stronger commercial alternative available"
+  );
+  if(reason===null){ return; }
+
+  try{
+    const result=await sb.rpc("admin_do_not_pursue_sourced_candidate_v1",{
+      p_candidate_id:id,
+      p_reason:String(reason||"").trim() || null
+    });
+    if(result.error){ throw result.error; }
+
+    const payload=Array.isArray(result.data) ? (result.data[0] || {}) : (result.data || {});
+
+    if(Number(payload.remaining_active_candidates || 0)===0){
+      const closeResult=await sb.rpc("admin_update_deal_stage_v1",{
+        p_deal_id:dealNumber,
+        p_deal_stage:"Closed"
+      });
+      if(closeResult.error){
+        console.warn("Candidate removed but Deal could not be closed automatically:",closeResult.error);
+      }
+    }
+
+    await loadEnquiries();
+    alert(
+      "Motorcycle removed from active pursuit.\n\n"+
+      "The buyer's Interested response has been retained internally.\n"+
+      "The motorcycle will no longer be progressed or shown in their active sourced selection."
+    );
+  }catch(error){
+    console.error("Candidate could not be removed from pursuit:",error);
+    alert("Could not remove this motorcycle from active pursuit.\n\n"+(error?.message || error));
   }
 }
 
