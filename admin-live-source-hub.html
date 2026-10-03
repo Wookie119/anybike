@@ -901,7 +901,8 @@ async function loadItems(preserveDealerOptions=false){
     return;
   }
   const make=document.getElementById("makeFilter").value||null;
-  const model=document.getElementById("modelFilter").value||null;
+  const modelRaw=document.getElementById("modelFilter").value||null;
+  const model=modelRaw==="__request_family__"?null:modelRaw;
   const status=document.getElementById("statusFilter").value||null;
   const {data,error}=await sb().rpc("admin_get_live_source_items_v1",{p_connector_id:cid,p_make:make,p_model:model,p_status:status,p_limit:2000});
   if(error){st.className="status bad";st.textContent=error.message;return}
@@ -1158,9 +1159,26 @@ async function applySelectedBuyerRequest(){
   }
   refreshModelOptions(req.model||"");
   if(req.model){
-    const modelOption=[...document.getElementById("modelFilter").options]
-      .find(o=>normaliseModelName(o.value)===normaliseModelName(req.model));
-    if(modelOption) document.getElementById("modelFilter").value=modelOption.value;
+    const modelEl=document.getElementById("modelFilter");
+    const reqNorm=normaliseModelName(req.model);
+    const modelOption=[...modelEl.options]
+      .find(o=>normaliseModelName(o.value)===reqNorm);
+    if(modelOption){
+      modelEl.value=modelOption.value;
+    }else{
+      const familyMatches=[...modelEl.options].filter(o=>{
+        const v=normaliseModelName(o.value);
+        return v && (v.includes(reqNorm) || reqNorm.includes(v));
+      });
+      if(familyMatches.length){
+        const familyOption=document.createElement("option");
+        familyOption.value="__request_family__";
+        familyOption.textContent=req.model+" · all variants";
+        familyOption.dataset.requestFamily="true";
+        modelEl.insertBefore(familyOption,modelEl.options[1]||null);
+        modelEl.value="__request_family__";
+      }
+    }
   }
   document.getElementById("statusFilter").value="live";
   await loadItems();
