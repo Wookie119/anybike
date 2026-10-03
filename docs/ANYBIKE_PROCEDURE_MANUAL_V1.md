@@ -1182,3 +1182,17 @@ A buyer may ask AnyBike to source more than one motorcycle make/model at the sam
 - A request may only stop appearing as outstanding when it has been worked or deliberately closed/resolved through an approved workflow; staff must not silently ignore it because another request was successful.
 
 **Staff test:** before leaving a buyer sourcing workflow, ask: *“Have we dealt with every motorcycle this buyer asked us to source, not just the one on this screen?”*
+
+
+## 3.1C Message Centre interest clues
+
+When working a buyer's sourcing plan, staff must also review motorcycle models the buyer has discussed in Message Centre.
+
+- A Message Centre mention is an **interest clue**, not a confirmed requirement.
+- The system may surface a model when it is linked structurally to the conversation or when the buyer's own message clearly mentions a known make/model.
+- Never treat an AnyBike staff suggestion alone as proof that the buyer wants that model.
+- If the model is not already in the buyer's sourcing plan, show **Discussed · not yet in sourcing plan**.
+- Staff may deliberately add the model to the sourcing plan after reviewing the conversation.
+- The resulting request must retain an audit note showing that it came from Message Centre discussion.
+- If matches are later sent for that request, customer-facing wording should say **“You did mention that you may also be interested in…”** so the context is accurate and does not overstate buyer intent.
+- A discussed model must not be sourced/sent automatically without staff confirmation.
