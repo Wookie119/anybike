@@ -21,6 +21,8 @@ main{max-width:1280px;margin:0 auto;padding:28px 18px 60px}.hero,.card,.how{back
 h1{font-size:34px;margin:6px 0 10px}.intro{white-space:pre-line;line-height:1.6;color:#ddd}.fee-link{display:inline-block;margin-top:12px;color:#ff545b;font-weight:800}
 .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.card{overflow:hidden;display:flex;flex-direction:column;background:var(--panel2)}
 .photo{width:100%;height:250px;object-fit:cover;background:#090909;border-bottom:1px solid #242424}.body{padding:16px;display:flex;flex-direction:column;gap:10px;flex:1}.title{font-size:21px;font-weight:900}.facts{display:flex;gap:8px;flex-wrap:wrap}.pill{background:#242424;border:1px solid #333;border-radius:999px;padding:6px 9px;font-size:12px;font-weight:800}.price{font-size:27px;font-weight:950;color:#fff}.desc{color:#c9c9c9;line-height:1.5}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto}.btn{border:1px solid #444;background:#1c1c1c;color:#fff;border-radius:10px;padding:10px 13px;font-weight:900;cursor:pointer}.btn.red{background:var(--red);border-color:var(--red);color:#fff}.btn.dark{background:#090909;border-color:#444;color:#fff}.response{font-weight:900;margin-top:4px}.response.good{color:#58d585}.response.no{color:#aaa}
+.photo-wrap{position:relative}.photo-count{position:absolute;right:10px;bottom:10px;background:rgba(0,0,0,.78);border:1px solid #444;border-radius:999px;padding:6px 9px;font-size:12px;font-weight:900}.view-photos{margin-top:-2px}
+.gallery-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.86);z-index:1500;align-items:center;justify-content:center;padding:18px}.gallery-backdrop.open{display:flex}.gallery-modal{width:min(980px,100%);max-height:92vh;overflow:auto;background:#111;border:1px solid #333;border-radius:18px;padding:18px}.gallery-main{width:100%;max-height:620px;object-fit:contain;background:#050505;border-radius:12px}.gallery-thumbs{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.gallery-thumbs img{width:110px;height:82px;object-fit:cover;border:1px solid #333;border-radius:9px;cursor:pointer}
 .choice{display:flex;align-items:center;gap:10px;margin-top:auto;padding:12px;border:1px solid #3a3a3a;border-radius:10px;background:#0d0d0d;font-weight:900;cursor:pointer}.choice input{width:20px;height:20px;accent-color:var(--red);cursor:pointer}.choice.selected{border-color:#2f8d52;background:#102217}.selection-bar{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;background:#111;border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin:0 0 18px}.selection-bar strong{display:block;margin-bottom:4px}.selection-bar span{color:#aaa;font-size:13px;line-height:1.4}.selection-status{font-size:13px;font-weight:900}.selection-status.good{color:#58d585}.selection-status.bad{color:#ff7378}
 .next-action{background:linear-gradient(135deg,rgba(237,28,36,.16),#111 58%);border:2px solid var(--red);border-radius:16px;padding:18px 20px;margin:0 0 18px}.next-action h2{margin:4px 0 6px}.next-action p{margin:0;color:#ddd;line-height:1.5}.next-action-row{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:12px}.waiting-pill{border:1px solid #3a3a3a;border-radius:999px;background:#090909;padding:7px 10px;font-size:12px;font-weight:900}
 .filter-panel{background:#111;border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin:0 0 18px}.filter-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}.filter-head h2{margin:3px 0 4px;font-size:20px}.filter-head p{margin:0;color:#aaa;font-size:13px;line-height:1.45}.filters{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-top:12px}.filter-field{display:grid;gap:6px}.filter-field label{font-size:12px;color:#aaa;font-weight:900}.filter-field input,.filter-field select{width:100%;background:#090909;color:#fff;border:1px solid #3b3b3b;border-radius:10px;padding:10px 11px;min-height:42px}.filter-summary{font-size:13px;color:#bbb;font-weight:800}.card.filtered-out{display:none}
@@ -71,6 +73,13 @@ h1{font-size:34px;margin:6px 0 10px}.intro{white-space:pre-line;line-height:1.6;
     <a class="fee-link" href="/services-and-fees.html" target="_blank">View AnyBike Services &amp; Fees ↗</a>
   </section>
 </main>
+<div class="gallery-backdrop" id="photoGalleryModal" onclick="if(event.target===this)closePhotoGallery()">
+  <div class="gallery-modal">
+    <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:12px"><div><div class="eyebrow">Motorcycle photos</div><h2 id="photoGalleryTitle" style="margin:4px 0 0"></h2></div><button class="btn" type="button" onclick="closePhotoGallery()">Close</button></div>
+    <img id="photoGalleryMain" class="gallery-main" src="/anybike-logo-new.jpg">
+    <div id="photoGalleryThumbs" class="gallery-thumbs"></div>
+  </div>
+</div>
 <div class="more-backdrop" id="moreMatchesModal" onclick="if(event.target===this)closeMoreMatches()">
   <div class="more-modal">
     <div class="eyebrow">More potential matches</div>
@@ -98,6 +107,18 @@ function esc(v){return String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt
 function gbp(v){const n=Number(v);return Number.isFinite(n)?new Intl.NumberFormat("en-GB",{style:"currency",currency:"GBP",maximumFractionDigits:0}).format(n):"Price on request"}
 function title(s){return [s.year,s.make,s.model,s.variant].filter(Boolean).join(" ")||"Motorcycle match"}
 function imageUrl(s){return Array.isArray(s.image_urls)&&s.image_urls[0]?s.image_urls[0]:"/anybike-logo-new.jpg"}
+function imageUrls(s){return (Array.isArray(s.image_urls)?s.image_urls:[]).filter(Boolean)}
+function openPhotoGallery(scanId){
+  const s=(payload?.scans||[]).find(x=>Number(x.id)===Number(scanId));
+  if(!s)return;
+  const urls=imageUrls(s);
+  if(!urls.length)return;
+  document.getElementById("photoGalleryTitle").textContent=title(s);
+  document.getElementById("photoGalleryMain").src=urls[0];
+  document.getElementById("photoGalleryThumbs").innerHTML=urls.map((u,i)=>'<img src="'+esc(u)+'" alt="Motorcycle photo '+(i+1)+'" onclick="document.getElementById(\'photoGalleryMain\').src=this.src">').join("");
+  document.getElementById("photoGalleryModal").classList.add("open");
+}
+function closePhotoGallery(){document.getElementById("photoGalleryModal").classList.remove("open")}
 function facts(s){return [s.mileage!=null?Number(s.mileage).toLocaleString("en-GB")+" miles":"",s.colour||"",s.engine_cc?Number(s.engine_cc).toLocaleString("en-GB")+" cc":""].filter(Boolean)}
 function populateMatchFilters(){
   const scans=(payload?.scans||[]).filter(s=>s.source_status!=="ended");
@@ -185,11 +206,13 @@ function render(){
   document.getElementById("selectionBar").style.display="flex";
   const grid=document.getElementById("matchGrid");grid.style.display="grid";
   grid.innerHTML=scans.map(s=>'<article class="card" id="card-'+s.id+'">'+
-    '<img class="photo" src="'+esc(imageUrl(s))+'" onerror="this.src=\'/anybike-logo-new.jpg\'">'+
+    '<div class="photo-wrap"><img class="photo" src="'+esc(imageUrl(s))+'" onerror="this.src=\'/anybike-logo-new.jpg\'">'+
+    (imageUrls(s).length>1?'<div class="photo-count">'+imageUrls(s).length+' photos</div>':'')+'</div>'+
     '<div class="body"><div class="title">'+esc(title(s))+'</div>'+
     '<div class="facts">'+facts(s).map(f=>'<span class="pill">'+esc(f)+'</span>').join("")+'</div>'+
     '<div class="price">'+gbp(s.price_gbp)+'</div>'+
     '<div class="desc">'+esc(s.description||"Selected by AnyBike for your requirements.")+'</div>'+
+    (imageUrls(s).length>1?'<button class="btn dark view-photos" type="button" onclick="openPhotoGallery('+s.id+')">View all '+imageUrls(s).length+' photos</button>':'')+
     '<div class="response '+(s.response==="Interested"?"good":s.response==="Not Interested"?"no":"")+'" id="resp-'+s.id+'">'+esc((s.source_status==="ended"?"No Longer Available":(s.response==="Interested"?"Availability check requested":(s.response||""))))+'</div>'+
     (s.source_status==="ended"
       ?'<div class="actions"><button class="btn red" onclick="openMoreMatches()">Request More '+esc(reqName||[s.make,s.model].filter(Boolean).join(" "))+' Matches</button></div>'
