@@ -81,8 +81,8 @@ main{width:min(1660px,96vw);margin:28px auto 70px}
   background:linear-gradient(180deg,rgba(255,191,71,.055),rgba(255,191,71,.025));
   border-radius:12px;
   display:grid;
-  grid-template-columns:minmax(0,1fr) 210px;
-  gap:10px 14px;
+  grid-template-columns:1fr;
+  gap:10px;
   align-items:center;
 }
 .payment-select input[type="checkbox"]{
@@ -119,7 +119,6 @@ main{width:min(1660px,96vw);margin:28px auto 70px}
   content:"✓ ";
 }
 .payment-amount-wrap{
-  grid-column:2;
   position:relative;
   width:100%;
 }
@@ -225,6 +224,8 @@ main{width:min(1660px,96vw);margin:28px auto 70px}
 .auto-allocation-copy small{display:block;color:#aaa;font-size:10px;line-height:1.4;margin-top:3px}
 
 @media(max-width:700px){
+  .invoice-action-row{align-items:stretch;flex-direction:column}
+  .invoice-payment-amount{width:100%;flex-basis:auto}
   .payment-select{grid-template-columns:1fr}
   .payment-select .payment-select-action,
   .payment-amount-wrap,
@@ -251,7 +252,7 @@ main{width:min(1660px,96vw);margin:28px auto 70px}
 .document-meta div{border:1px solid rgba(255,255,255,.08);border-radius:9px;background:#111;padding:9px}
 .document-meta span{display:block;color:#777;font-size:9px;font-weight:900;text-transform:uppercase;margin-bottom:4px}
 .document-meta strong{font-size:12px;color:#ddd;word-break:break-word}
-.document-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.invoice-doc-action{display:inline-flex;align-items:center;justify-content:center;margin-top:12px;padding:11px 16px;border-radius:9px;background:#ed1c24;color:#fff;text-decoration:none;font-size:13px;font-weight:900;border:1px solid #ed1c24;box-shadow:0 0 0 1px rgba(237,28,36,.18),0 8px 20px rgba(237,28,36,.18)}.invoice-doc-action:hover{background:#ff3038;border-color:#ff3038}.invoice-doc-action.secondary{background:#171717;border:1px solid rgba(255,255,255,.14);box-shadow:none}
+.document-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.invoice-action-row{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-top:12px}.invoice-action-left{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.invoice-doc-action{display:inline-flex;align-items:center;justify-content:center;margin-top:0;padding:11px 16px;border-radius:9px;background:#ed1c24;color:#fff;text-decoration:none;font-size:13px;font-weight:900;border:1px solid #ed1c24;box-shadow:0 0 0 1px rgba(237,28,36,.18),0 8px 20px rgba(237,28,36,.18)}.invoice-doc-action:hover{background:#ff3038;border-color:#ff3038}.invoice-doc-action.secondary{background:#171717;border:1px solid rgba(255,255,255,.14);box-shadow:none}.invoice-payment-amount{width:210px;flex:0 0 210px}.invoice-payment-amount>span{display:block;margin:0 0 5px;color:#888;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.05em}
 .document-desc{color:#aaa;font-size:12px;line-height:1.45;margin-top:8px}
 .section-anchor{scroll-margin-top:120px}
 
@@ -497,7 +498,6 @@ function invoiceCard(invoice){
   const paymentBlock=canPay?`<div class="payment-select">
     <input class="pay-select" id="pay-select-${Number(invoice.invoice_id)}" data-invoice-id="${Number(invoice.invoice_id)}" type="checkbox">
     <label class="payment-select-action" for="pay-select-${Number(invoice.invoice_id)}">MAKE A PAYMENT TOWARDS THIS PURCHASE</label><small><strong>Remaining purchase balance: ${money(invoice.balance_due_gbp)}</strong> · Select this Proforma and enter the amount to allocate.</small>
-    <div class="payment-amount-wrap"><input class="pay-amount" id="pay-amount-${Number(invoice.invoice_id)}" data-invoice-id="${Number(invoice.invoice_id)}" type="number" inputmode="decimal" min="0.01" step="0.01" max="${Number(invoice.balance_due_gbp||0).toFixed(2)}" value="${requestMatches?Math.min(Number(paymentRequest.amount||0),Number(invoice.balance_due_gbp||0)).toFixed(2):""}" placeholder="0.00" aria-label="Payment amount in pounds sterling"></div>
     <div class="payment-choice-note"><strong>Select this Proforma, then enter the amount you have transferred.</strong> You can make a part payment, pay extra, pay the requested amount, or clear the balance. You can also select other open Proformas and split one bank transfer between them.</div>
     <div class="payment-quick">
       ${requestMatches?'<button type="button" onclick="useRequestedPaymentAmount('+Number(invoice.invoice_id)+')">Use requested amount</button>':""}
@@ -527,8 +527,13 @@ function invoiceCard(invoice){
       ${String(invoice.invoice_type||"")==="Proforma"?'<div class="proforma-warning"><strong>PROFORMA INVOICE — NOT A VAT INVOICE</strong><span>This is used for the payment stage. Keep the Final Invoice separately when AnyBike issues it after the transaction is completed.</span></div>':""}
       ${String(invoice.invoice_type||"")==="Final Invoice"?'<div class="final-invoice-warning"><strong>FINAL INVOICE</strong><span>This is the final accounting document for the completed AnyBike transaction. Keep it with your purchase and export records.</span></div>':""}
       <div class="invoice-lines">${lineHtml}</div>
-      ${String(invoice.invoice_type||"")==="Proforma"&&String(invoice.invoice_status||"")==="Issued"?'<a class="invoice-doc-action" href="/proforma.html?invoice='+Number(invoice.invoice_id)+'" target="_blank" rel="noopener">OPEN PROFORMA</a>':""}
-      ${String(invoice.invoice_type||"")==="Final Invoice"&&String(invoice.invoice_status||"")==="Issued"?'<a class="invoice-doc-action" href="/final-invoice.html?invoice='+Number(invoice.invoice_id)+'" target="_blank" rel="noopener">Open Final Invoice →</a>':""}
+      <div class="invoice-action-row">
+        <div class="invoice-action-left">
+          ${String(invoice.invoice_type||"")==="Proforma"&&String(invoice.invoice_status||"")==="Issued"?'<a class="invoice-doc-action" href="/proforma.html?invoice='+Number(invoice.invoice_id)+'" target="_blank" rel="noopener">OPEN PROFORMA</a>':""}
+          ${String(invoice.invoice_type||"")==="Final Invoice"&&String(invoice.invoice_status||"")==="Issued"?'<a class="invoice-doc-action" href="/final-invoice.html?invoice='+Number(invoice.invoice_id)+'" target="_blank" rel="noopener">Open Final Invoice →</a>':""}
+        </div>
+        ${canPay?'<div class="invoice-payment-amount"><span>Payment amount</span><div class="payment-amount-wrap"><input class="pay-amount" id="pay-amount-'+Number(invoice.invoice_id)+'" data-invoice-id="'+Number(invoice.invoice_id)+'" type="number" inputmode="decimal" min="0.01" step="0.01" max="'+Number(invoice.balance_due_gbp||0).toFixed(2)+'" value="'+(requestMatches?Math.min(Number(paymentRequest.amount||0),Number(invoice.balance_due_gbp||0)).toFixed(2):"")+'" placeholder="0.00" aria-label="Payment amount in pounds sterling"></div></div>':""}
+      </div>
       ${paymentBlock}
     </div>
   </article>`;
