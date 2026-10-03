@@ -9879,6 +9879,15 @@ function renderAnyBikeDealCandidatePanel(deal){
   if(!Number.isFinite(dealId)){ return ""; }
 
   const candidates=anyBikeDealCandidatesFor(dealId);
+  const readyCandidate=candidates.find(function(row){ return candidateCanSelect(row); }) || null;
+  const selectedCandidate=candidates.find(function(row){
+    return String(row.candidate_status||"")==="Selected" || !!row.selected_deal_motorcycle_id;
+  }) || null;
+  const localNextAction=readyCandidate
+    ? '<div class="deal-section-next-action" style="margin:0 0 14px"><div><div class="eyebrow">Your next action</div><strong>Select this confirmed motorcycle for the Deal</strong><span>Seller availability and price are confirmed. Selecting it carries across the buyer-facing sourced-match price, including its sourcing fee and UK collection/delivery component.</span></div><button type="button" onclick="selectCandidateForDeal('+Number(readyCandidate.id)+');return false;">SELECT FOR DEAL</button></div>'
+    : (selectedCandidate && selectedCandidate.selected_deal_motorcycle_id
+        ? '<div class="deal-section-next-action complete" style="margin:0 0 14px"><div><div class="eyebrow">Complete</div><strong>Motorcycle selected for the Deal</strong><span>Continue to Commercial Setup. Review the seller price and genuine internal costs; the buyer-facing sourced-match price is preserved.</span></div><button type="button" onclick="openSelectedCandidateCommercialSetup('+dealId+','+Number(selectedCandidate.selected_deal_motorcycle_id)+');return false;">OPEN COMMERCIAL SETUP</button></div>'
+        : '');
 
   const cards=candidates.map(function(row){
     const title=[row.year,row.make,row.model,row.variant].filter(Boolean).join(" ") || "Candidate motorcycle";
@@ -9964,6 +9973,7 @@ function renderAnyBikeDealCandidatePanel(deal){
       </div>
       <button type="button" onclick="openAddCandidateModal(${dealId});return false;">+ Add Candidate Motorcycle</button>
     </div>
+    ${localNextAction}
     ${
       cards
         ? `<div class="anybike-candidate-list">${cards}</div>`
