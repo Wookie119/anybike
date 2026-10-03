@@ -8924,6 +8924,8 @@ function configureDealOfferExpiryLimit(dealMotorcycleId){
   if(!input) return;
 
   input.removeAttribute("max");
+  input.readOnly=false;
+  input.disabled=false;
 
   if(dealMotorcycleIsSecured(dealMotorcycleId)){
     if(help){
@@ -8937,28 +8939,26 @@ function configureDealOfferExpiryLimit(dealMotorcycleId){
   const until=candidate?.availability_valid_until ? new Date(candidate.availability_valid_until) : null;
 
   if(!until || Number.isNaN(until.getTime())){
+    input.value="";
+    input.disabled=true;
     if(help){
-      help.textContent="No seller hold expiry is recorded. Re-check the seller or enter the agreed availability window before sending the Formal Offer.";
+      help.textContent="No seller availability / hold time is recorded. Complete the seller availability check before sending the Formal Offer.";
       help.style.color="#ff9da1";
     }
     return;
   }
 
   const sellerLimit=dealOfferDateTimeLocal(until);
+  input.value=sellerLimit;
   input.max=sellerLimit;
-
-  const current=input.value ? new Date(input.value) : null;
-  if(!current || Number.isNaN(current.getTime()) || current.getTime()>until.getTime()){
-    input.value=sellerLimit;
-  }
+  input.readOnly=true;
 
   if(help){
-    help.textContent="Synced to seller availability / hold until "+until.toLocaleString("en-GB")+
-      ". The customer offer cannot remain valid beyond this time. If it expires, the buyer can ask AnyBike to try to buy the motorcycle and we will re-check the seller before issuing a fresh offer.";
+    help.textContent="Taken directly from Seller Check: seller availability confirmed until "+until.toLocaleString("en-GB")+
+      ". The customer offer expires at this same time. If it expires, the buyer can ask AnyBike to try to buy the motorcycle and we will re-check the seller before issuing a fresh offer.";
     help.style.color="#ffd27c";
   }
 }
-
 function closeDealOfferModal(){
   const modal=document.getElementById("dealOfferModal");
   if(modal) modal.classList.remove("open");
@@ -19728,7 +19728,7 @@ document.querySelector(".admin-page-content .wrap")?.classList.add("sales-view-a
       </section>
 
       <section class="deal-offer-section">
-        <h3>6. Offer Timing</h3>
+        <h3>6. Offer Timing · From Seller Check</h3>
         <div class="deal-offer-grid">
           <label>
             <span>Offer Valid Until</span>
