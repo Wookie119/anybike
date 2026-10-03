@@ -8855,8 +8855,10 @@ function renderAnyBikeDealCommercialSetup(deal){
       <p>Commercial Setup remains internal. Prepare Formal Offer copies the customer-facing commercial position into the formal offer. Nothing is sent until Send AnyBike Offer is confirmed.</p>
       <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;align-items:center">
         <span id="deal-commercial-autosave-${id}" class="anybike-commercial-autosave saved">Saved ✓</span>
+        <button type="button" class="secondary" onclick="requestBuyerShippingDetailsForDeal(${Number(row.deal_id || 0)},this);return false;">Request shipper details</button>
         ${acceptedLocked ? '<span class="anybike-commercial-autosave saved">Accepted terms locked</span>' : '<button class="anybike-formal-offer-button" type="button" onclick="proceedDealCommercialSetup('+id+');return false;">'+(sentPriceLocked?'Review Sent Formal Offer':'Prepare Formal Offer')+'</button>'}
       </div>
+      <div id="deal-commercial-shipping-request-${Number(row.deal_id || 0)}" style="margin-top:7px;color:#888;font-size:11px"></div>
     </div>
   </div>`;
 }
@@ -9132,6 +9134,32 @@ function renderDealOfferShipperSummary(deal){
       '<div style="padding:9px;background:#151515;border-radius:9px"><span style="display:block;color:#888;font-size:10px;font-weight:900">EMAIL</span>'+escapeAdminHtml(contactEmail || "Not supplied")+'</div>'+
       '<div style="padding:9px;background:#151515;border-radius:9px"><span style="display:block;color:#888;font-size:10px;font-weight:900">REFERENCE</span>'+escapeAdminHtml(ref || "Not supplied")+'</div>'+
     '</div>';
+}
+
+async function requestBuyerShippingDetailsForDeal(dealId,button){
+  const id=Number(dealId||0);
+  const status=document.getElementById("deal-commercial-shipping-request-"+id);
+  if(!id)return;
+  const original=button?.textContent||"Request shipper details";
+  if(button){button.disabled=true;button.textContent="Sending…";}
+  if(status){status.textContent="";}
+  try{
+    const {data,error}=await sb.rpc("admin_request_buyer_shipping_details_v1",{p_deal_id:id});
+    if(error)throw error;
+    if(status){
+      status.textContent="✓ Customer notified. Bell opens their shipping next action for this Deal.";
+      status.style.color="#9bf0b8";
+    }
+  }catch(error){
+    if(status){
+      status.textContent="Could not send shipper request: "+(error?.message||error);
+      status.style.color="#ff9da1";
+    }else{
+      alert("Could not send shipper request: "+(error?.message||error));
+    }
+  }finally{
+    if(button){button.disabled=false;button.textContent=original;}
+  }
 }
 
 async function requestBuyerShippingDetailsFromOffer(){
