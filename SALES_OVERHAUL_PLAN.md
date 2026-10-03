@@ -700,3 +700,11 @@ Frontend alignment completed:
 - Customer sourced-match cards show a photo count and **View all photos** gallery when more than one approved buyer-safe image is available.
 - Only approved buyer-safe images are exposed to the customer; source/dealer originals remain internal.
 - Current automated image-cleaning bridge is proven on BMW Approved Used. The customer gallery and preview UI are source-neutral, and additional source adapters must feed their source images through the same buyer-safe approval pipeline before customer display.
+
+
+### 3 October 2026 — Buyer-safe image processing gate
+- Saved sourcing batches now show a visible buyer-safe image processing progress bar.
+- While automatic buyer-safe image preparation is running, **Share selected motorcycles** is disabled.
+- Sharing is also blocked if any selected Live Source motorcycle has no approved buyer-safe image.
+- If processing finishes with a match still needing attention, the progress panel identifies that manual retry/review is required.
+- The gate is based on approved buyer-safe images only; raw supplier/dealer images never satisfy the customer-share requirement.
