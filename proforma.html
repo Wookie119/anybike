@@ -23,6 +23,11 @@ body{margin:0;background:#ececec;color:#111;font-family:Arial,Helvetica,sans-ser
 .lines{width:100%;border-collapse:collapse;margin-top:24px}.lines th,.lines td{padding:12px;border-bottom:1px solid #ddd;text-align:left}.lines th:last-child,.lines td:last-child{text-align:right}
 .warning{margin:26px 0;padding:16px;border:2px solid #ed1c24;background:#fff5f5;border-radius:8px}.warning strong{display:block;color:#ed1c24;font-size:18px}.warning span{display:block;margin-top:5px}
 .payment{margin-top:24px;border-top:2px solid #111;padding-top:20px}.payment-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.payment-ref{padding:14px;background:#f4f4f4;border-radius:8px;font-size:18px;font-weight:900}
+.pay-deposit-box{margin-top:18px;padding:18px;border:2px solid #111;border-radius:10px;background:#f8f8f8}
+.pay-deposit-box strong{display:block;font-size:20px;margin-bottom:5px}
+.pay-deposit-box span{display:block;color:#555;font-size:13px;line-height:1.45}
+.pay-deposit-cta{display:inline-flex;align-items:center;justify-content:center;margin-top:12px;padding:12px 18px;border-radius:9px;background:#111;color:#fff;text-decoration:none;font-weight:900}
+
 .foot{margin-top:32px;padding-top:16px;border-top:1px solid #ddd;color:#555;font-size:12px;line-height:1.5}
 .loading{padding:10px 0}.loading strong{display:block;margin-bottom:5px}.loading span{color:#666;font-size:13px}
 .error{padding:24px;border:1px solid #ed1c24;background:#fff5f5;border-radius:8px;line-height:1.5}
@@ -140,6 +145,14 @@ body{margin:0;background:#ececec;color:#111;font-family:Arial,Helvetica,sans-ser
           (forwarderReference?'<p>Shipping reference: '+esc(forwarderReference)+'</p>':'')+
           '</div></section>'
       : '';
+    const depositDue=(Array.isArray(d.lines)?d.lines:[]).reduce(function(found,line){
+      if(found>0)return found;
+      const value=Number(line?.metadata?.deposit_due_gbp||0);
+      return Number.isFinite(value)&&value>0 ? value : 0;
+    },0);
+    const paymentHref=(!previewMode && depositDue>0 && d.deal_number)
+      ? "/accounts-documents.html?deal="+encodeURIComponent(d.deal_number)+"&invoice="+encodeURIComponent(d.invoice_id)+"&payment=deposit&amount="+encodeURIComponent(depositDue.toFixed(2))+"&ref="+encodeURIComponent(ref)+"#bank-transfer"
+      : "";
     const docRef=d.invoice_number || (previewMode ? ("Draft Proforma v"+Number(d.version_number||1)) : "Proforma");
     document.title=(previewMode ? "Preview — " : "")+docRef+" | AnyBike";
     box.innerHTML=`${previewMode ? '<div class="preview-watermark">DRAFT PREVIEW</div><div class="preview-banner">DRAFT PREVIEW — NOT ISSUED · NOT VISIBLE TO CUSTOMER</div>' : ''}
@@ -158,7 +171,9 @@ body{margin:0;background:#ececec;color:#111;font-family:Arial,Helvetica,sans-ser
       <table class="lines"><thead><tr><th>Description</th><th>Qty</th><th>Amount</th></tr></thead><tbody>${linesHtml(d.lines,combined)}</tbody></table>
       <section class="summary"><div class="metric"><span>Subtotal</span><strong>${money(d.subtotal_gbp)}</strong></div><div class="metric"><span>Delivery</span><strong>${money(d.delivery_total_gbp)}</strong></div><div class="metric"><span>Total Due</span><strong>${money(d.total_gbp)}</strong></div></section>
       <div class="warning"><strong>PROFORMA INVOICE — ${esc(warning)}</strong><span>No VAT breakdown is shown on this Proforma. VAT treatment remains subject to the final invoice stage.</span></div>
-      <section class="payment"><h2>Bank Transfer</h2><div class="payment-grid"><div><p><strong>Account name</strong><br>${esc(bank.account_name||"")}</p><p><strong>Sort code</strong><br>${esc(bank.sort_code||"")}</p><p><strong>Account number</strong><br>${esc(bank.account_number||"")}</p></div><div><p><strong>IBAN</strong><br>${esc(bank.iban||"")}</p><p><strong>BIC / SWIFT</strong><br>${esc(bank.bic||"")}</p><div class="payment-ref">Payment reference: ${esc(ref)}</div></div></div></section>
+      <section class="payment"><h2>Bank Transfer</h2><div class="payment-grid"><div><p><strong>Account name</strong><br>${esc(bank.account_name||"")}</p><p><strong>Sort code</strong><br>${esc(bank.sort_code||"")}</p><p><strong>Account number</strong><br>${esc(bank.account_number||"")}</p></div><div><p><strong>IBAN</strong><br>${esc(bank.iban||"")}</p><p><strong>BIC / SWIFT</strong><br>${esc(bank.bic||"")}</p><div class="payment-ref">Payment reference: ${esc(ref)}</div></div></div>
+      ${paymentHref?'<div class="pay-deposit-box"><strong>Deposit due now: '+money(depositDue)+'</strong><span>Make the bank transfer using the Deal reference above. Then tell AnyBike the payment has been made so it can be verified and posted to your Deal.</span><a class="pay-deposit-cta" href="'+paymentHref+'">Pay / Report Deposit →</a></div>':""}
+      </section>
       <footer class="foot">Please use the Deal reference exactly when making payment. Reporting a payment to AnyBike does not itself confirm that funds have arrived, and payment does not by itself secure a motorcycle.</footer>`;
   }
 
