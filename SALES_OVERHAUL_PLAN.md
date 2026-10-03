@@ -708,3 +708,18 @@ Frontend alignment completed:
 - Sharing is also blocked if any selected Live Source motorcycle has no approved buyer-safe image.
 - If processing finishes with a match still needing attention, the progress panel identifies that manual retry/review is required.
 - The gate is based on approved buyer-safe images only; raw supplier/dealer images never satisfy the customer-share requirement.
+
+
+### 3 October 2026 — Multi-request buyer sourcing rule
+- A buyer may have multiple active motorcycle request items across different makes/models/brands.
+- Completing, preparing or sending matches for one request **must never imply that the buyer's other requests are complete**.
+- Every sourcing workspace must treat the buyer's full request set as a **Buyer Sourcing Plan**.
+- Staff must be shown all saved motorcycle requests for the buyer with a clear per-request status:
+  - **Not Started**
+  - **Matches Prepared**
+  - **Sent to Buyer**
+  - **Buyer Responded**
+- Live Source Hub now shows the full Buyer Sourcing Plan when a buyer is selected and gives a direct **Source this request →** action for each Not Started requirement.
+- Used Bike Scanner now reminds staff about the buyer's other motorcycle requirements while reviewing/sending a batch and links directly to the next unsourced request.
+- A batch for one brand/model is only completion of that request, not completion of the buyer.
+- **Your Next Action** must continue to point staff to remaining Not Started requests until every request has been worked, explicitly closed, or otherwise resolved.
