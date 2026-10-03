@@ -582,6 +582,16 @@ async function loadItems(preserveDealerOptions=false){
   st.className="status";
   st.textContent=items.length+" motorcycles shown"+(request?" for this buyer request":"")+" · "+selected.size+" selected";
 }
+function cleanLiveTitle(v){
+  return String(v||"")
+    .replace(/\b(?:2|two)\s*(?:year|yr)\s+(?:BMW\s+)?warranty\b/gi,"")
+    .replace(/\bBMW['’]?s\s+Ultimate\s+Superbike\b/gi,"")
+    .replace(/\bLow\s+Mileage\b/gi,"")
+    .replace(/\bGreat\s+Condition\b/gi,"")
+    .replace(/\s*[-–—]\s*$/g,"")
+    .replace(/\s{2,}/g," ")
+    .trim();
+}
 function renderItems(){
   const el=document.getElementById("bikes");
   if(!items.length){el.innerHTML='<div class="empty">No motorcycles in this source pool yet. Use the Scanner to add tested adverts while the source adapter is being expanded.</div>';return}
@@ -594,7 +604,7 @@ function renderItems(){
           ?'<div class="status good" style="margin-top:5px;font-weight:800">✓ Buyer-safe image</div>'
           :'<div class="status" style="margin-top:5px">Raw source image</div>')+
     '</div>'+
-    '<div><div class="bike-title">'+esc([i.year,i.make,i.model,i.variant].filter(Boolean).join(" "))+'</div><div class="small">'+esc([i.mileage!=null?Number(i.mileage).toLocaleString("en-GB")+" miles":"",i.colour].filter(Boolean).join(" · "))+'</div></div>'+
+    '<div><div class="bike-title">'+esc(cleanLiveTitle([i.year,i.make,i.model,i.variant].filter(Boolean).join(" ")))+'</div><div class="small">'+esc([i.mileage!=null?Number(i.mileage).toLocaleString("en-GB")+" miles":"",i.colour].filter(Boolean).join(" · "))+'</div></div>'+
     '<div class="optional"><div class="small">Source price</div><div class="money">'+gbp(i.source_price_gbp)+'</div>'+
       '<div class="field" style="margin-top:8px"><label>UK delivery</label><input type="text" inputmode="decimal" value="'+esc(formatDeliveryAllowance(deliveryAllowances.has(Number(i.id))?deliveryAllowances.get(Number(i.id)):250))+'" onfocus="deliveryInputFocus(this)" onblur="deliveryInputBlur('+i.id+',this)"></div></div>'+
     '<div class="optional"><div class="small secret">Internal source</div><div>'+esc(i.seller_name||i.source_domain||"")+'</div><div class="small">'+esc(i.source_stock_id||"")+'</div></div>'+
