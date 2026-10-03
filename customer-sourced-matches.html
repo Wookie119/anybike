@@ -104,6 +104,7 @@ const SUPABASE_ANON_KEY="sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 const batchId=Number(new URLSearchParams(location.search).get("batch"));
 let payload=null;
+let choicesDirty=false;
 let marginDefaults={preferred_currency:"GBP",fx_rate_gbp_to_preferred:1,import_duty_rate_pct:0,import_tax_rate_pct:0,margin_min_pct:0,default_shipping_cost:0,default_local_port_collection_cost:0,default_preparation_cost:0,default_warranty_cost:0,default_other_landed_cost:0};
 function esc(v){return String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;")}
 function gbp(v){const n=Number(v);return Number.isFinite(n)?new Intl.NumberFormat("en-GB",{style:"currency",currency:"GBP",maximumFractionDigits:0}).format(n):"Price on request"}
@@ -127,7 +128,7 @@ function marginCalculatorHtml(s){
   const cur=marginDefaults.preferred_currency||"GBP";
   const fx=Number(marginDefaults.fx_rate_gbp_to_preferred||0) || (cur==="GBP"?1:0);
   return '<details class="margin-calc" id="margin-calc-'+id+'">'+
-    '<summary><span>Buyer margin calculator</span><span style="color:#aaa;font-size:12px;font-weight:700">Not shared with AnyBike sales unless you choose to share · AnyBike price stays fixed</span></summary>'+
+    '<summary><span>Check my landed cost &amp; margin</span><span style="color:#aaa;font-size:12px;font-weight:700">Optional calculator · AnyBike price stays fixed</span></summary>'+
     '<div class="margin-calc-body">'+
       '<div class="margin-note">Estimate your landed cost and resale margin. AnyBike price is fixed in GBP. Your calculator figures are not used by AnyBike sales staff unless you deliberately choose <strong>Share my buying target with AnyBike</strong>.</div>'+
       '<div class="margin-grid">'+
@@ -333,9 +334,28 @@ function clearMatchFilters(){
 function updateCustomerNextAction(){
   const scans=(payload?.scans||[]).filter(s=>s.source_status!=="ended");
   const selected=document.querySelectorAll(".interest-check:checked").length;
+  const allResponded=scans.length>0 && scans.every(s=>["Interested","Not Interested"].includes(String(s.response||"")));
+  const savedInterested=scans.filter(s=>s.response==="Interested").length;
   const titleEl=document.getElementById("customerNextActionTitle");
   const textEl=document.getElementById("customerNextActionText");
-  if(!titleEl||!textEl)return;
+  const waiting=document.getElementById("customerNextActionWaiting");
+  const btn=document.querySelector("#customerNextAction .next-action-row .btn");
+  if(!titleEl||!textEl||!waiting||!btn)return;
+
+  if(allResponded && !choicesDirty){
+    titleEl.textContent=savedInterested
+      ?("AnyBike is checking "+savedInterested+" motorcycle"+(savedInterested===1?"":"s")+" for you")
+      :"Your choices are saved";
+    textEl.textContent=savedInterested
+      ?"You do not need to do anything else now. AnyBike will contact the seller, confirm availability and current purchase terms, then update you in My AnyBike. You can still open the landed-cost calculator on any motorcycle while you wait."
+      :"Your response has been saved. You can return to My AnyBike or request more matches if you would like another selection.";
+    waiting.textContent=savedInterested?"Waiting for: AnyBike":"Waiting for: You";
+    btn.textContent="GO TO MY ANYBIKE →";
+    return;
+  }
+
+  waiting.textContent="Waiting for: You";
+  btn.textContent="REVIEW MATCHES →";
   if(selected){
     titleEl.textContent="Save your "+selected+" interested motorcycle"+(selected===1?"":"s");
     textEl.textContent="Review your ticks, then save your choices. Every motorcycle you have not ticked Interested in the full selection will be recorded as Not Interested.";
@@ -345,6 +365,12 @@ function updateCustomerNextAction(){
   }
 }
 function runCustomerNextAction(){
+  const scans=(payload?.scans||[]).filter(s=>s.source_status!=="ended");
+  const allResponded=scans.length>0 && scans.every(s=>["Interested","Not Interested"].includes(String(s.response||"")));
+  if(allResponded && !choicesDirty){
+    window.location.href="/customer-dashboard.html";
+    return;
+  }
   const selected=document.querySelectorAll(".interest-check:checked").length;
   const target=selected?document.getElementById("selectionBar"):document.getElementById("filterPanel");
   target?.scrollIntoView({behavior:"smooth",block:"start"});
@@ -379,12 +405,28 @@ function render(){
   document.getElementById("how").style.display="block";
   populateMatchFilters();
   applyMatchFilters();
-  scans.forEach(s=>calculateMargin(Number(s.id)));
+  scans.forEach(s=>{
+    calculateMargin(Number(s.id));
+    if(s.response==="Interested"){
+      const calc=document.getElementById("margin-calc-"+s.id);
+      if(calc)calc.open=true;
+    }
+  });
 }
 function updateChoiceStyle(id,checked){
   document.getElementById("choice-"+id)?.classList.toggle("selected",!!checked);
+  const s=(payload?.scans||[]).find(x=>Number(x.id)===Number(id));
+  choicesDirty=(payload?.scans||[]).filter(x=>x.source_status!=="ended").some(x=>{
+    const box=document.querySelector('.interest-check[data-scan-id="'+x.id+'"]');
+    if(!box)return false;
+    return (x.response==="Interested")!==box.checked;
+  });
   const el=document.getElementById("resp-"+id);
   if(el){el.className="response";el.textContent=checked?"Selected — save your choices to continue":"";}
+  if(checked){
+    const calc=document.getElementById("margin-calc-"+id);
+    if(calc)calc.open=true;
+  }
   applyMatchFilters();
 }
 async function saveChoices(){
@@ -403,6 +445,9 @@ async function saveChoices(){
     const status=document.getElementById("selectionStatus");
     status.className="selection-status good";
     status.textContent="Your choices are already saved.";
+    choicesDirty=false;
+    updateCustomerNextAction();
+    document.getElementById("customerNextAction")?.scrollIntoView({behavior:"smooth",block:"start"});
     return;
   }
 
@@ -426,8 +471,12 @@ async function saveChoices(){
       }
     }
     status.className="selection-status good";
-    status.textContent="Choices saved.";
+    status.textContent=interestedIds.size
+      ?("Choices saved. AnyBike is now checking "+interestedIds.size+" motorcycle"+(interestedIds.size===1?"":"s")+".")
+      :"Choices saved.";
+    choicesDirty=false;
     applyMatchFilters();
+    document.getElementById("customerNextAction")?.scrollIntoView({behavior:"smooth",block:"start"});
   }catch(error){
     console.error("Could not save motorcycle choices",error);
     status.className="selection-status bad";
