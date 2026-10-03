@@ -9015,6 +9015,11 @@ function updateDealOfferDestinationState(){
 }
 
 function updateDealOfferDeliveryState(){
+  const deal=(adminDealQueue || []).find(function(item){
+    return Number(item.deal_id)===Number(activeDealOfferDealId);
+  }) || {};
+  if(dealOfferLockConfirmedShipping(deal)) return;
+
   const type=document.getElementById("dealOfferDeliveryType")?.value || "";
   const destination=document.getElementById("dealOfferDeliveryDestination");
   const custom=document.getElementById("dealOfferDeliveryCustomDestination");
@@ -9101,6 +9106,47 @@ function dealOfferSavedShipperForDeal(deal){
     || plans.find(function(plan){ return !!plan.is_default; })
     || plans[0]
     || null;
+}
+
+function dealOfferLockConfirmedShipping(deal){
+  const selection=anyBikeCustomerHandoverSelectionForDeal(deal?.deal_id);
+  const plan=dealOfferSavedShipperForDeal(deal);
+  const locked=!!selection && !!plan &&
+    Number(selection.handover_plan_id||0)===Number(plan.id||0) &&
+    String(selection.status||"").toLowerCase().includes("customer selected");
+
+  const type=document.getElementById("dealOfferDeliveryType");
+  const destination=document.getElementById("dealOfferDeliveryDestination");
+  const custom=document.getElementById("dealOfferDeliveryCustomDestination");
+
+  if(!locked){
+    if(type)type.disabled=false;
+    if(destination)destination.disabled=false;
+    if(custom)custom.readOnly=false;
+    return false;
+  }
+
+  const ukPoint=String(plan.uk_handover_point||"").trim();
+  if(type){
+    type.value=ukPoint ? "Delivery to UK Port" : "Buyer Arranged / Collection";
+    type.disabled=true;
+    type.title="Locked to the customer's confirmed Deal shipping choice.";
+  }
+  if(destination){
+    destination.disabled=true;
+    destination.title="Locked to the customer's confirmed Deal shipping choice.";
+  }
+  if(custom){
+    custom.readOnly=true;
+    custom.title="Locked to the customer's confirmed Deal shipping choice.";
+  }
+
+  const status=document.getElementById("dealOfferShippingRequestStatus");
+  if(status){
+    status.textContent="✓ Shipping route locked to the customer's confirmed Deal selection. Change it through the Deal shipping workflow, not in the Formal Offer.";
+    status.style.color="#9bf0b8";
+  }
+  return true;
 }
 
 function renderDealOfferShipperSummary(deal){
@@ -9264,8 +9310,9 @@ async function openDealOfferModal(dealMotorcycleId){
   document.getElementById("dealOfferInternalNotes").value=row.commercial_notes || "";
   document.getElementById("dealOfferState").textContent="Prepared internally — not sent";
   renderDealOfferShipperSummary(deal);
+  const shippingLocked=dealOfferLockConfirmedShipping(deal);
   const shippingRequestStatus=document.getElementById("dealOfferShippingRequestStatus");
-  if(shippingRequestStatus){shippingRequestStatus.textContent="";shippingRequestStatus.style.color="#888";}
+  if(shippingRequestStatus && !shippingLocked){shippingRequestStatus.textContent="";shippingRequestStatus.style.color="#888";}
 
   const status=document.getElementById("dealOfferStatus");
   if(status){
@@ -9290,8 +9337,10 @@ async function openDealOfferModal(dealMotorcycleId){
       document.getElementById("dealOfferDeliveryCharge").value=Number(offer.delivery_charge_gbp || 0).toFixed(2);
       document.getElementById("dealOfferSaleBasis").value=offer.sale_basis || "Trade / Export Sale";
       document.getElementById("dealOfferTerms").value=String(offer.offer_terms_text || "").trim() || defaultDealOfferTerms();
-      document.getElementById("dealOfferDeliveryType").value=offer.delivery_type || "Buyer Arranged / Collection";
-      setDealOfferDestinationValue(offer.delivery_destination || "");
+      if(!shippingLocked){
+        document.getElementById("dealOfferDeliveryType").value=offer.delivery_type || "Buyer Arranged / Collection";
+        setDealOfferDestinationValue(offer.delivery_destination || "");
+      }
       document.getElementById("dealOfferDepositRequired").checked=!!offer.deposit_required_at_acceptance;
       const savedDeposit=Number(offer.deposit_amount_gbp || 0);
       const savedCustomerTotal=
