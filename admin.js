@@ -683,7 +683,11 @@ async function anybikeRefreshAdminBellV2(){
       const created=n.created_at
         ? escapeNotificationHtml(new Date(n.created_at).toLocaleString("en-GB"))
         : "";
-      const link=escapeNotificationHtml(n.link || "admin-dashboard.html");
+      const rawLink=String(n.link || "admin-dashboard.html");
+      const link=escapeNotificationHtml(rawLink);
+      const actionLabel=/admin-enquiries\.html\?deal=/i.test(rawLink)
+        ? "OPEN DEAL 360 →"
+        : (/admin-accounts\.html/i.test(rawLink) ? "OPEN ACCOUNTS →" : "OPEN NEXT ACTION →");
 
       return (
         '<div class="admin-notification-item" ' +
@@ -695,6 +699,9 @@ async function anybikeRefreshAdminBellV2(){
               '<strong>' + title + '</strong><br>' +
               '<small>' + message + '</small><br>' +
               '<small>' + created + '</small>' +
+              (rawLink && rawLink!=="admin-dashboard.html"
+                ? '<div style="margin-top:10px"><span style="display:inline-block;background:#ed1c24;color:#fff;padding:8px 12px;border-radius:9px;font-weight:900;font-size:12px">' + actionLabel + '</span></div>'
+                : '') +
             '</div>' +
           '</a>' +
           '<button type="button" class="notify-clear" ' +
