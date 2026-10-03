@@ -1226,3 +1226,24 @@ Customer sourced-match cards provide an optional commercial calculator so a trad
 - A buyer can either enter a minimum gross margin target or an expected local retail price. The calculator should show the minimum retail price for the target margin and, when retail is entered, the expected gross profit and gross margin.
 - The calculator must not imply that AnyBike is determining customs duty, VAT or local taxes for the buyer. Customs rules vary by jurisdiction; the estimate assumptions must remain visible.
 - Calculator use must not alter Interested / Not Interested response semantics or the fixed AnyBike offer/sale price.
+
+
+## 3.1F Shared buyer commercial targets
+
+The buyer margin calculator supports an explicit sharing workflow so AnyBike can understand a trade buyer's commercial requirements without treating unshared calculator entries as sales intelligence.
+
+**Buyer control**
+- Calculator entries remain outside Customer 360 sales intelligence unless the buyer deliberately presses **Share my buying target with AnyBike**.
+- The share confirmation must explain what is being shared, why AnyBike may use it, and that sharing does not change the AnyBike price or create a commitment to buy.
+- A buyer may share a target margin without an expected retail price, but a maximum viable AnyBike price can only be calculated when enough commercial inputs are supplied.
+
+**Customer 360**
+- The Motorcycle Interests tab may show deliberately shared commercial targets.
+- It may also show descriptive response history such as Interested / Not Interested counts and the price range of motorcycles previously marked Interested.
+- Staff must distinguish observed history from a prediction of willingness to pay.
+
+**Pricing guardrail**
+- Shared targets are to help staff determine whether a motorcycle is commercially suitable for the buyer and whether further discounting is actually necessary.
+- Staff must not raise the selling price simply because a buyer appears to have additional margin or headroom.
+- AnyBike pricing remains based on the motorcycle, approved fees/charges, operational costs, commercial risk and any legitimate negotiation.
+- Unshared calculator defaults or unfinished calculator entries must not be presented to sales staff as buyer willingness-to-pay intelligence.
