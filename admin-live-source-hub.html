@@ -27,6 +27,8 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
 .sourcing-nav a.active{background:var(--red);border-color:var(--red);color:#fff}
 .sourcing-context{margin-left:auto;color:#aaa;font-size:12px;font-weight:800}
 .sourcing-context a{padding:0;border:0;color:#fff;text-decoration:underline}
+.next-action-panel{margin:16px 0;padding:18px 20px;border:2px solid var(--red);border-radius:16px;background:linear-gradient(135deg,rgba(237,28,36,.16),#111 55%);box-shadow:0 0 0 1px rgba(237,28,36,.08)}
+.next-action-panel h2{margin:4px 0 6px;font-size:24px}.next-action-panel p{margin:0;color:#ddd;line-height:1.5}.next-action-panel .actions{margin-top:12px}
 .batch-panel{position:static;background:#0d0d0d;border:1px solid #333;border-radius:16px;padding:14px;margin:16px 0;z-index:auto}.batch-grid{display:grid;grid-template-columns:1.2fr 1.2fr .7fr auto;gap:10px;align-items:end}
 @media(max-width:1100px){.sources{grid-template-columns:1fr}.filters,.batch-grid{grid-template-columns:1fr 1fr}.bike{grid-template-columns:30px 90px 1fr 1fr}.bike .optional{display:none}.bike img{width:90px;height:68px}}
 @media(max-width:650px){.content{padding:12px}.filters,.batch-grid{grid-template-columns:1fr}.bike{grid-template-columns:30px 1fr}.bike img{display:none}}
@@ -50,6 +52,15 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
         <div class="eyebrow">Sourcing · Internal only</div>
         <h1>Live Source Hub</h1>
         <p class="muted">Saved external motorcycle sources feed one internal sourcing pool. A motorcycle disappearing from a source is <strong>not deleted</strong>: it is marked No Longer Listed, kept for history, and excluded from new buyer batches.</p>
+      </section>
+
+      <section class="next-action-panel" id="nextActionPanel">
+        <div class="eyebrow">Your next action</div>
+        <h2 id="nextActionTitle">Choose the buyer</h2>
+        <p id="nextActionText">Select the buyer you are sourcing for. AnyBike will then show their saved motorcycle request and matching live motorcycles.</p>
+        <div class="actions">
+          <button type="button" class="btn red" id="nextActionBtn" onclick="runLiveSourceNextAction()">PROCEED →</button>
+        </div>
       </section>
 
       <section class="batch-panel">
@@ -121,6 +132,65 @@ function sourcingContextQuery(extra){
   ["deal","buyer","request"].forEach(k=>{const v=sourcingParams.get(k);if(v)p.set(k,v)});
   if(extra) Object.entries(extra).forEach(([k,v])=>{if(v!==null&&v!==undefined&&v!=="")p.set(k,String(v))});
   const s=p.toString();return s?"?"+s:"";
+}
+let liveSourceNextActionMode="buyer";
+function updateLiveSourceNextAction(){
+  const buyerEl=document.getElementById("buyerSelect");
+  const requestEl=document.getElementById("requestSelect");
+  const title=document.getElementById("nextActionTitle");
+  const textEl=document.getElementById("nextActionText");
+  const btn=document.getElementById("nextActionBtn");
+  if(!buyerEl||!requestEl||!title||!textEl||!btn)return;
+
+  const buyerId=buyerEl.value;
+  const requestId=requestEl.value;
+  const selectedCount=selected.size;
+
+  if(!buyerId){
+    liveSourceNextActionMode="buyer";
+    title.textContent="Choose the buyer";
+    textEl.textContent="Select the buyer you are sourcing for. AnyBike will then show their saved motorcycle requests.";
+    btn.textContent="PROCEED →";
+    return;
+  }
+
+  if(!requestId){
+    liveSourceNextActionMode="request";
+    title.textContent="Choose the buyer request";
+    textEl.textContent="Select the motorcycle request you are working on so the Live Source Hub can filter the source pool to the buyer's requirements.";
+    btn.textContent="PROCEED →";
+    return;
+  }
+
+  if(!selectedCount){
+    liveSourceNextActionMode="select";
+    title.textContent="Select motorcycles for this buyer";
+    textEl.textContent="Review the matching live motorcycles below and tick the bikes you want to prepare for the buyer. Aim for a useful shortlist rather than selecting everything.";
+    btn.textContent="PROCEED →";
+    return;
+  }
+
+  liveSourceNextActionMode="prepare";
+  title.textContent="Prepare the selected motorcycles";
+  textEl.textContent=selectedCount+" motorcycle"+(selectedCount===1?" is":"s are")+" selected. Check the UK delivery allowance for each one, then prepare the selected bikes for buyer-safe review.";
+  btn.textContent="PREPARE SELECTED BIKES →";
+}
+function runLiveSourceNextAction(){
+  if(liveSourceNextActionMode==="buyer"){
+    const el=document.getElementById("buyerSelect");
+    el?.scrollIntoView({behavior:"smooth",block:"center"});el?.focus();return;
+  }
+  if(liveSourceNextActionMode==="request"){
+    const el=document.getElementById("requestSelect");
+    el?.scrollIntoView({behavior:"smooth",block:"center"});el?.focus();return;
+  }
+  if(liveSourceNextActionMode==="select"){
+    const el=document.getElementById("bikes");
+    el?.scrollIntoView({behavior:"smooth",block:"start"});return;
+  }
+  if(liveSourceNextActionMode==="prepare"){
+    createBatch();
+  }
 }
 function syncSourcingNav(){
   document.getElementById("srcRecommended").href="admin-ai-matching.html"+sourcingContextQuery();
@@ -581,6 +651,7 @@ async function loadItems(preserveDealerOptions=false){
   renderItems();
   st.className="status";
   st.textContent=items.length+" motorcycles shown"+(request?" for this buyer request":"")+" · "+selected.size+" selected";
+  updateLiveSourceNextAction();
 }
 function cleanLiveTitle(v){
   return String(v||"")
@@ -613,6 +684,7 @@ function renderItems(){
       '<label class="small" style="display:flex;gap:6px;align-items:center;margin-top:10px;color:#ff8a8a"><input type="checkbox" style="width:auto" onchange="excludeLiveSourceItem('+i.id+',this.checked)"> Remove</label></div>'+
     '</article>').join("");
   syncSelectAllVisibleState();
+  updateLiveSourceNextAction();
 }
 async function excludeLiveSourceItem(id,on){
   if(!on)return;
@@ -655,7 +727,7 @@ function deliveryInputBlur(id,input){
   deliveryAllowances.set(Number(id),value);
   input.value=formatDeliveryAllowance(value);
 }
-function toggle(id,on){if(on&&selected.size>=20){alert("Maximum 20 motorcycles per buyer batch.");renderItems();return}on?selected.add(id):selected.delete(id);document.getElementById("poolStatus").textContent=items.length+" motorcycles shown · "+selected.size+" selected"}
+function toggle(id,on){if(on&&selected.size>=20){alert("Maximum 20 motorcycles per buyer batch.");renderItems();return}on?selected.add(id):selected.delete(id);document.getElementById("poolStatus").textContent=items.length+" motorcycles shown · "+selected.size+" selected";updateLiveSourceNextAction()}
 function syncSelectAllVisibleState(){
   const cb=document.getElementById("selectAllVisibleCheck");
   if(!cb)return;
@@ -728,12 +800,13 @@ async function applySelectedBuyerRequest(){
 
 document.getElementById("buyerSelect").addEventListener("change",async function(){
   await loadRequests();
+  updateLiveSourceNextAction();
   // Keep the motorcycles already selected while choosing/changing the buyer.
   // The buyer choice must not silently clear a prepared shortlist.
   renderItems();
   document.getElementById("poolStatus").textContent=items.length+" motorcycles shown · "+selected.size+" selected";
 });
-document.getElementById("requestSelect").addEventListener("change",applySelectedBuyerRequest);
+document.getElementById("requestSelect").addEventListener("change",async function(){await applySelectedBuyerRequest();updateLiveSourceNextAction();});
 
 function syncSelectedFromVisibleCheckboxes(){
   const checked=[...document.querySelectorAll('.bike-select-checkbox:checked')]
