@@ -762,6 +762,7 @@
     let autosaveInFlight = false;
     let profileDirty = false;
     let initialLoadComplete = false;
+    let dealShippingConfirmationSent = false;
 
     function value(id){
       return document.getElementById(id).value.trim();
@@ -1415,6 +1416,24 @@
       }
     }
 
+    async function notifyAdminDealShippingConfirmed(){
+      if(dealShippingConfirmationSent || !currentUser) return;
+      const params=new URLSearchParams(window.location.search);
+      if(String(params.get("action")||"").toLowerCase()!=="confirm-shipping") return;
+      const dealId=Number(params.get("deal")||0);
+      if(!Number.isFinite(dealId) || dealId<=0) return;
+
+      const {data,error}=await sb.rpc("customer_confirm_deal_shipping_v1",{p_deal_id:dealId});
+      if(error) throw error;
+      dealShippingConfirmationSent=true;
+
+      const msg=document.getElementById("msg");
+      if(msg){
+        msg.textContent="✓ Shipping details confirmed for this AnyBike Deal. AnyBike has been notified.";
+        msg.className="msg ok";
+      }
+    }
+
     async function saveSection(section,button){
       if(!currentUser) return;
       const msg=document.getElementById("msg-"+section);
@@ -1439,7 +1458,10 @@
         if(error) throw error;
 
         if(section==="preferences") syncHeaderPreferences(payload.preferred_currency,payload.preferred_language);
-        if(section==="shipping") await syncProfileShippingPreference(payload);
+        if(section==="shipping"){
+          await syncProfileShippingPreference(payload);
+          await notifyAdminDealShippingConfirmed();
+        }
 
         if(section==="buyer"){
           if(payload.identity_document_path) setDocumentState("identityDocumentState",payload.identity_document_path);
@@ -1706,6 +1728,7 @@
         syncHeaderPreferences(profile.preferred_currency,profile.preferred_language);
         await syncProfileShippingPreference(profile);
         await suggestCustomShipperIfNeeded(profile);
+        await notifyAdminDealShippingConfirmed();
         profileDirty=false;
         setAutosaveStatus("saved","All changes saved");
         updateSetupReminder();
