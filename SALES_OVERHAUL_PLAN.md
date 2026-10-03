@@ -798,3 +798,16 @@ Frontend alignment completed:
   - use shared commercial intelligence to understand fit and avoid unnecessary discounting;
   - do **not** increase a buyer's price merely because their shared/private economics indicate extra headroom;
   - unshared calculator defaults are not shown in Customer 360 sales intelligence.
+
+
+### 3 October 2026 — Buyer questions, sourcing-process explanation and deposit flexibility
+- Sourced-match selection now keeps the buyer workflow simple: the buyer ticks only the motorcycles they want AnyBike to check. Unticked motorcycles are recorded as **Not Interested at this time**.
+- Each Interested motorcycle now exposes one optional free-text field: **Anything you’d like us to ask the seller?** There is no suggested checklist, so the UI does not encourage buyers to create unnecessary inspection work.
+- Buyer questions are stored with the sourced-bike response and carried into the automatically created Deal 360 candidate / seller-check context. They are answered as part of the existing seller availability check rather than creating a separate workflow.
+- The customer sourced-match page now explains the full journey: seller availability and questions → Formal AnyBike Offer → minimum deposit → motorcycle secured → remaining balance cleared before seller collection → Move Motorcycles collection → collection photographs → secure custody → UK port / freight-forwarder handover.
+- Storage wording is customer-facing: storage charges can apply where onward shipping / handover is delayed; buyers are directed to My Messages to discuss delays.
+- Buyers can acknowledge the sourcing-process explanation and choose not to see the full explanation on future sourcing selections; it remains reopenable.
+- The trade landed-cost / margin calculator is now promoted as a visible buyer tool on the sourced-match page rather than being easy to miss inside a motorcycle card.
+- Formal offers now treat the deposit as a **minimum deposit**. Current default: **10% of the customer offer total, rounded to the nearest £50, minimum £500**, capped at the offer total. Staff can still review the saved offer deposit.
+- Buyers may pay the minimum deposit, a larger amount, or the full remaining purchase balance. Any remaining balance must be received in cleared funds before collection from the seller.
+- A seller-side negotiated saving does not automatically reduce the buyer-facing AnyBike price; buyer price changes remain an explicit AnyBike commercial decision.
