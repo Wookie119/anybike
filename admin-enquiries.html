@@ -9124,32 +9124,63 @@ function dealOfferLockConfirmedShipping(deal){
   const type=document.getElementById("dealOfferDeliveryType");
   const destination=document.getElementById("dealOfferDeliveryDestination");
   const custom=document.getElementById("dealOfferDeliveryCustomDestination");
+  const editable=document.getElementById("dealOfferDeliveryEditable");
+  const confirmed=document.getElementById("dealOfferConfirmedDelivery");
+  const heading=document.getElementById("dealOfferDeliveryHeading");
 
   if(!locked){
     if(type)type.disabled=false;
     if(destination)destination.disabled=false;
     if(custom)custom.readOnly=false;
+    if(editable)editable.style.display="";
+    if(confirmed)confirmed.style.display="none";
+    if(heading)heading.textContent="3. Delivery / Collection";
     return false;
   }
 
   const ukPoint=String(plan.uk_handover_point||"").trim();
+  const shipper=String(plan.freight_forwarder_name||plan.shipping_company_name||"").trim();
+  const address=[
+    plan.uk_handover_address_1,
+    plan.uk_handover_address_2,
+    plan.uk_handover_city,
+    plan.uk_handover_county,
+    plan.uk_handover_postcode,
+    plan.uk_handover_country
+  ].filter(Boolean).join(", ");
+  const contact=[
+    plan.contact_name,
+    plan.contact_phone,
+    plan.contact_email
+  ].filter(Boolean).join(" · ");
+
   if(type){
     type.value=ukPoint ? "Delivery to UK Port" : "Buyer Arranged / Collection";
     type.disabled=true;
-    type.title="Locked to the customer's confirmed Deal shipping choice.";
   }
-  if(destination){
-    destination.disabled=true;
-    destination.title="Locked to the customer's confirmed Deal shipping choice.";
-  }
-  if(custom){
-    custom.readOnly=true;
-    custom.title="Locked to the customer's confirmed Deal shipping choice.";
+  setDealOfferDestinationValue(ukPoint);
+  if(destination)destination.disabled=true;
+  if(custom)custom.readOnly=true;
+
+  if(editable)editable.style.display="none";
+  if(heading)heading.textContent="3. Confirmed Delivery / Handover";
+  if(confirmed){
+    confirmed.style.display="block";
+    confirmed.innerHTML=
+      '<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap">'+
+        '<div><span style="display:block;color:#8cffb1;font-size:10px;font-weight:950;letter-spacing:.06em;text-transform:uppercase;margin-bottom:5px">Customer confirmed for this Deal</span>'+
+        '<strong style="display:block;color:#fff;font-size:18px">'+escapeAdminHtml(ukPoint||"UK handover point confirmed")+'</strong>'+
+        '<span style="display:block;margin-top:4px">'+escapeAdminHtml(shipper||"Confirmed freight forwarder")+'</span></div>'+
+        '<span class="panel-badge badge-green">LOCKED TO DEAL</span>'+
+      '</div>'+
+      (address?'<div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.08)"><span style="display:block;color:#888;font-size:10px;font-weight:900">UK HANDOVER / DELIVERY ADDRESS</span><strong style="display:block;color:#fff;margin-top:3px">'+escapeAdminHtml(address)+'</strong></div>':'')+
+      (contact?'<div style="margin-top:8px"><span style="display:block;color:#888;font-size:10px;font-weight:900">SHIPPER CONTACT</span><span style="display:block;margin-top:3px">'+escapeAdminHtml(contact)+'</span></div>':'')+
+      '<div style="margin-top:10px;color:#9bf0b8;font-size:11px;font-weight:900">To change this arrangement, update the Deal shipping selection and have the customer reconfirm it.</div>';
   }
 
   const status=document.getElementById("dealOfferShippingRequestStatus");
   if(status){
-    status.textContent="✓ Shipping route locked to the customer's confirmed Deal selection. Change it through the Deal shipping workflow, not in the Formal Offer.";
+    status.textContent="✓ Shipping route locked to the customer's confirmed Deal selection.";
     status.style.color="#9bf0b8";
   }
   return true;
@@ -19712,8 +19743,9 @@ document.querySelector(".admin-page-content .wrap")?.classList.add("sales-view-a
       </section>
 
       <section class="deal-offer-section">
-        <h3>3. Delivery / Collection</h3>
-        <div class="deal-offer-grid">
+        <h3 id="dealOfferDeliveryHeading">3. Delivery / Collection</h3>
+        <div id="dealOfferConfirmedDelivery" style="display:none;padding:14px;border:1px solid rgba(51,204,102,.38);border-radius:12px;background:rgba(51,204,102,.06);color:#ddd;line-height:1.5"></div>
+        <div id="dealOfferDeliveryEditable" class="deal-offer-grid">
           <label>
             <span>Delivery Option</span>
             <select id="dealOfferDeliveryType" onchange="updateDealOfferDeliveryState()">
