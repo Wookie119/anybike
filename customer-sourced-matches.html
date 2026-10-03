@@ -31,7 +31,7 @@ h1{font-size:34px;margin:6px 0 10px}.intro{white-space:pre-line;line-height:1.6;
 .filter-panel{background:#111;border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin:0 0 18px}.filter-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}.filter-head h2{margin:3px 0 4px;font-size:20px}.filter-head p{margin:0;color:#aaa;font-size:13px;line-height:1.45}.filters{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-top:12px}.filter-field{display:grid;gap:6px}.filter-field label{font-size:12px;color:#aaa;font-weight:900}.filter-field input,.filter-field select{width:100%;background:#090909;color:#fff;border:1px solid #3b3b3b;border-radius:10px;padding:10px 11px;min-height:42px}.filter-summary{font-size:13px;color:#bbb;font-weight:800}.card.filtered-out{display:none}
 @media(max-width:900px){.filters{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:620px){.filters{grid-template-columns:1fr}}
-.more-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:1000;align-items:center;justify-content:center;padding:20px}.more-backdrop.open{display:flex}.more-modal{width:min(720px,100%);background:#111;border:1px solid #333;border-radius:16px;padding:20px}.more-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.more-grid label{display:grid;gap:6px;font-weight:900}.more-grid select{min-height:170px;background:#090909;color:#fff;border:1px solid #444;border-radius:10px;padding:8px}.more-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:16px}.more-note{color:#aaa;line-height:1.5;margin-top:8px}.price-guidance{margin-top:18px;padding:13px 15px;border:1px solid rgba(255,255,255,.14);border-left:4px solid #ed1c24;border-radius:12px;background:#111;color:#ccc;line-height:1.55}.price-guidance strong{color:#fff}
+.more-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:1000;align-items:center;justify-content:center;padding:20px}.more-backdrop.open{display:flex}.more-modal{width:min(820px,100%);max-height:92vh;overflow:auto;background:#111;border:1px solid #333;border-radius:16px;padding:20px}.more-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.more-grid label{display:grid;gap:6px;font-weight:900}.more-grid select,.more-grid input{width:100%;background:#090909;color:#fff;border:1px solid #444;border-radius:10px;padding:10px;min-height:42px}.more-grid select[multiple]{min-height:150px}.more-grid .full{grid-column:1/-1}.more-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:16px}.more-note{color:#aaa;line-height:1.5;margin-top:8px}.more-section-title{grid-column:1/-1;margin-top:4px;padding-top:12px;border-top:1px solid #292929;color:#fff;font-weight:900}.price-guidance{margin-top:18px;padding:13px 15px;border:1px solid rgba(255,255,255,.14);border-left:4px solid #ed1c24;border-radius:12px;background:#111;color:#ccc;line-height:1.55}.price-guidance strong{color:#fff}
 .how{padding:20px;margin-top:18px}.how h2{margin-top:0}.how p{color:#ccc;line-height:1.55}.status{background:#111;border:1px solid var(--line);border-radius:14px;padding:18px;color:#ddd}
 @media(max-width:900px){.grid{grid-template-columns:1fr 1fr}}@media(max-width:620px){.grid{grid-template-columns:1fr}h1{font-size:28px}.photo{height:250px}}
 </style>
@@ -122,17 +122,39 @@ h1{font-size:34px;margin:6px 0 10px}.intro{white-space:pre-line;line-height:1.6;
 </div>
 <div class="more-backdrop" id="moreMatchesModal" onclick="if(event.target===this)closeMoreMatches()">
   <div class="more-modal">
-    <div class="eyebrow">More potential matches</div>
-    <h2 id="moreMatchesTitle" style="margin:6px 0 8px">Request more motorcycles</h2>
-    <div class="more-note">Tell AnyBike which colours you prefer and which you would rather avoid. Hold Ctrl/Cmd to choose more than one colour.</div>
+    <div class="eyebrow">New sourcing request</div>
+    <h2 id="moreMatchesTitle" style="margin:6px 0 8px">Request another motorcycle</h2>
+    <div class="more-note">Choose the motorcycle from AnyBike's controlled Make → Model → Variant list. Your current motorcycle is preselected as a starting point, but you can change it completely.</div>
     <div class="more-grid" style="margin-top:14px">
-      <label>Preferred colours<select id="preferredColourSelect" multiple></select></label>
-      <label>Colours to avoid<select id="avoidColourSelect" multiple></select></label>
+      <label>Make *
+        <select id="requestMakeSelect" onchange="updateRequestModels()"></select>
+      </label>
+      <label>Model *
+        <select id="requestModelSelect" onchange="updateRequestVariants()"></select>
+      </label>
+      <label>Variant
+        <select id="requestVariantSelect" onchange="updateRequestYearsAndColours()"></select>
+      </label>
+      <label>Year from
+        <select id="requestYearFrom"></select>
+      </label>
+      <label>Year to
+        <select id="requestYearTo"></select>
+      </label>
+      <div></div>
+      <div class="more-section-title">Colour preferences</div>
+      <label>Preferred colours
+        <select id="preferredColourSelect" multiple></select>
+      </label>
+      <label>Colours to avoid
+        <select id="avoidColourSelect" multiple></select>
+      </label>
     </div>
+    <div class="more-note">Colour choices are optional. Hold Ctrl/Cmd to choose more than one.</div>
     <div id="moreMatchesStatus" class="status" style="margin-top:12px;display:none"></div>
     <div class="more-actions">
       <button class="btn" onclick="closeMoreMatches()">Cancel</button>
-      <button class="btn red" onclick="submitMoreMatches()">Request more matches</button>
+      <button class="btn red" id="submitMoreMatchesBtn" onclick="submitMoreMatches()">SEND NEW REQUEST</button>
     </div>
   </div>
 </div>
@@ -146,6 +168,7 @@ let payload=null;
 let choicesDirty=false;
 let currentUserId=null;
 let sourcingProcessPrefs={acknowledged:false,hide:false};
+let motorcycleRequestOptions=null;
 let marginDefaults={preferred_currency:"GBP",fx_rate_gbp_to_preferred:1,import_duty_rate_pct:0,import_tax_rate_pct:0,margin_min_pct:0,default_shipping_cost:0,default_local_port_collection_cost:0,default_preparation_cost:0,default_warranty_cost:0,default_other_landed_cost:0};
 function esc(v){return String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;")}
 function gbp(v){const n=Number(v);return Number.isFinite(n)?new Intl.NumberFormat("en-GB",{style:"currency",currency:"GBP",maximumFractionDigits:0}).format(n):"Price on request"}
@@ -723,21 +746,116 @@ async function saveChoices(){
     btn.disabled=false;
   }
 }
-async function openMoreMatches(){
-  const req=payload?.request||{};
-  document.getElementById("moreMatchesTitle").textContent="Request More "+([req.make,req.model].filter(Boolean).join(" ")||"Motorcycle")+" Matches";
+function findRequestMake(make){
+  return (motorcycleRequestOptions||[]).find(x=>String(x.make||"").toLowerCase()===String(make||"").toLowerCase()) || null;
+}
+function findRequestModel(make,model){
+  const makeRow=findRequestMake(make);
+  return (makeRow?.models||[]).find(x=>String(x.model||"").toLowerCase()===String(model||"").toLowerCase()) || null;
+}
+function populateRequestMakes(selectedMake){
+  const el=document.getElementById("requestMakeSelect");
+  const rows=motorcycleRequestOptions||[];
+  el.innerHTML='<option value="">Choose make…</option>'+rows.map(x=>'<option value="'+esc(x.make)+'">'+esc(x.make)+'</option>').join("");
+  if(selectedMake && rows.some(x=>String(x.make).toLowerCase()===String(selectedMake).toLowerCase())){
+    el.value=rows.find(x=>String(x.make).toLowerCase()===String(selectedMake).toLowerCase()).make;
+  }
+}
+function updateRequestModels(selectedModel){
+  const make=document.getElementById("requestMakeSelect").value;
+  const el=document.getElementById("requestModelSelect");
+  const rows=findRequestMake(make)?.models||[];
+  el.innerHTML='<option value="">Choose model…</option>'+rows.map(x=>'<option value="'+esc(x.model)+'">'+esc(x.model)+'</option>').join("");
+  if(selectedModel && rows.some(x=>String(x.model).toLowerCase()===String(selectedModel).toLowerCase())){
+    el.value=rows.find(x=>String(x.model).toLowerCase()===String(selectedModel).toLowerCase()).model;
+  }
+  updateRequestVariants();
+}
+function updateRequestVariants(selectedVariant){
+  const make=document.getElementById("requestMakeSelect").value;
+  const model=document.getElementById("requestModelSelect").value;
+  const el=document.getElementById("requestVariantSelect");
+  const variants=findRequestModel(make,model)?.variants||[];
+  el.innerHTML='<option value="">Any variant</option>'+variants.map(v=>'<option value="'+esc(v)+'">'+esc(v)+'</option>').join("");
+  if(selectedVariant && variants.some(v=>String(v).toLowerCase()===String(selectedVariant).toLowerCase())){
+    el.value=variants.find(v=>String(v).toLowerCase()===String(selectedVariant).toLowerCase());
+  }
+  updateRequestYearsAndColours();
+}
+function updateRequestYears(){
+  const make=document.getElementById("requestMakeSelect").value;
+  const model=document.getElementById("requestModelSelect").value;
+  const row=findRequestModel(make,model);
+  const from=document.getElementById("requestYearFrom");
+  const to=document.getElementById("requestYearTo");
+  const oldFrom=from.value;
+  const oldTo=to.value;
+  const currentYear=new Date().getFullYear()+1;
+  const min=Math.max(1950,Number(row?.min_year)||2000);
+  const max=Math.min(currentYear,Math.max(min,Number(row?.max_year)||currentYear));
+  const years=[];
+  for(let y=max;y>=min;y--)years.push(y);
+  const html='<option value="">Any year</option>'+years.map(y=>'<option value="'+y+'">'+y+'</option>').join("");
+  from.innerHTML=html;
+  to.innerHTML=html;
+  if(years.includes(Number(oldFrom)))from.value=oldFrom;
+  if(years.includes(Number(oldTo)))to.value=oldTo;
+}
+async function loadRequestColours(){
+  const make=document.getElementById("requestMakeSelect").value;
+  const model=document.getElementById("requestModelSelect").value;
+  const variant=document.getElementById("requestVariantSelect").value||null;
   const pref=document.getElementById("preferredColourSelect");
   const avoid=document.getElementById("avoidColourSelect");
-  pref.innerHTML='<option>Loading colours…</option>';
-  avoid.innerHTML='<option>Loading colours…</option>';
-  document.getElementById("moreMatchesModal").classList.add("open");
-  const {data,error}=await sb.rpc("customer_get_sourced_colour_options_v1",{p_batch_id:batchId});
+  pref.innerHTML='<option value="">Loading colours…</option>';
+  avoid.innerHTML='<option value="">Loading colours…</option>';
+  if(!make||!model){
+    pref.innerHTML='<option value="">Choose a model first</option>';
+    avoid.innerHTML='<option value="">Choose a model first</option>';
+    return;
+  }
+  const {data,error}=await sb.rpc("customer_get_motorcycle_request_colours_v1",{
+    p_make:make,p_model:model,p_variant:variant
+  });
   const colours=error?[]:(data||[]);
   const html=colours.length
     ? colours.map(x=>'<option value="'+esc(x)+'">'+esc(x)+'</option>').join("")
-    : '<option value="">No live colour options found</option>';
+    : '<option value="">No colour choices currently listed</option>';
   pref.innerHTML=html;
   avoid.innerHTML=html;
+}
+function updateRequestYearsAndColours(){
+  updateRequestYears();
+  loadRequestColours();
+}
+async function openMoreMatches(){
+  const req=payload?.request||{};
+  const status=document.getElementById("moreMatchesStatus");
+  status.style.display="none";
+  status.textContent="";
+  document.getElementById("moreMatchesModal").classList.add("open");
+
+  if(!motorcycleRequestOptions){
+    const makeEl=document.getElementById("requestMakeSelect");
+    makeEl.innerHTML='<option value="">Loading motorcycle list…</option>';
+    const {data,error}=await sb.rpc("customer_get_motorcycle_request_options_v1");
+    if(error){
+      status.style.display="block";
+      status.className="status bad";
+      status.textContent="We could not load the motorcycle list. Please try again.";
+      return;
+    }
+    motorcycleRequestOptions=Array.isArray(data)?data:[];
+  }
+
+  populateRequestMakes(req.make||"");
+  updateRequestModels(req.model||"");
+  updateRequestVariants(req.variant||"");
+
+  const from=document.getElementById("requestYearFrom");
+  const to=document.getElementById("requestYearTo");
+  if(req.year_from && [...from.options].some(o=>Number(o.value)===Number(req.year_from)))from.value=String(req.year_from);
+  if(req.year_to && [...to.options].some(o=>Number(o.value)===Number(req.year_to)))to.value=String(req.year_to);
 }
 function closeMoreMatches(){
   document.getElementById("moreMatchesModal").classList.remove("open");
@@ -746,25 +864,53 @@ function selectedValues(id){
   return [...document.getElementById(id).selectedOptions].map(o=>o.value).filter(Boolean);
 }
 async function submitMoreMatches(){
+  const make=document.getElementById("requestMakeSelect").value;
+  const model=document.getElementById("requestModelSelect").value;
+  const variant=document.getElementById("requestVariantSelect").value||null;
+  const yearFrom=Number(document.getElementById("requestYearFrom").value)||null;
+  const yearTo=Number(document.getElementById("requestYearTo").value)||null;
   const preferred=selectedValues("preferredColourSelect");
   const avoid=selectedValues("avoidColourSelect");
   const status=document.getElementById("moreMatchesStatus");
+  const btn=document.getElementById("submitMoreMatchesBtn");
+
   status.style.display="block";
   status.className="status";
-  status.textContent="Sending your request to AnyBike…";
-  const {data,error}=await sb.rpc("customer_request_more_sourced_matches_v1",{
-    p_batch_id:batchId,
-    p_preferred_colours:preferred,
-    p_avoid_colours:avoid
-  });
-  if(error){
+
+  if(!make||!model){
     status.className="status bad";
-    status.textContent=error.message;
+    status.textContent="Please choose a make and model.";
     return;
   }
-  status.className="status good";
-  status.textContent="Request sent. AnyBike will prepare more potential matches for you.";
-  setTimeout(closeMoreMatches,1200);
+  if(yearFrom&&yearTo&&yearFrom>yearTo){
+    status.className="status bad";
+    status.textContent="Year from cannot be later than year to.";
+    return;
+  }
+
+  btn.disabled=true;
+  status.textContent="Sending your new motorcycle request to AnyBike…";
+  try{
+    const {data,error}=await sb.rpc("customer_request_more_sourced_matches_v2",{
+      p_batch_id:batchId,
+      p_make:make,
+      p_model:model,
+      p_variant:variant,
+      p_year_from:yearFrom,
+      p_year_to:yearTo,
+      p_preferred_colours:preferred,
+      p_avoid_colours:avoid
+    });
+    if(error)throw error;
+    status.className="status good";
+    status.textContent="Request sent for "+[make,model,variant].filter(Boolean).join(" ")+". AnyBike will prepare suitable motorcycles and notify you when they are ready.";
+    setTimeout(closeMoreMatches,1800);
+  }catch(error){
+    status.className="status bad";
+    status.textContent=error?.message||"Your request could not be sent. Please try again.";
+  }finally{
+    btn.disabled=false;
+  }
 }
 
 async function getCustomerSessionSafely(){
