@@ -393,6 +393,17 @@ button,input,select,textarea{font:inherit}
 .latest-item strong{display:block;margin-bottom:4px}
 .latest-item p{margin:0;color:var(--muted);font-size:13px;line-height:1.4}
 .latest-tag{color:var(--red);font-size:11px;font-weight:900;margin-bottom:5px}
+.dashboard-jump-nav{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin:16px 0 18px}
+.dashboard-jump-nav a{display:flex;align-items:center;gap:9px;min-height:54px;padding:11px 13px;border:1px solid #333;border-radius:13px;background:#121212;color:#fff;text-decoration:none;font-weight:900}
+.dashboard-jump-nav a:hover{border-color:var(--red);background:#181111}
+.dashboard-jump-nav a span{font-size:20px}
+@media(max-width:900px){.dashboard-jump-nav{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:520px){.dashboard-jump-nav{grid-template-columns:1fr}}
+.shipping-complete-summary{display:none;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;padding:14px 16px;margin:0 0 14px;border:1px solid rgba(54,211,126,.28);border-radius:13px;background:rgba(54,211,126,.06)}
+.shipping-complete-summary.show{display:flex}
+.shipping-complete-summary strong{display:block;color:#9fffc3;margin-bottom:4px}
+.shipping-complete-summary span{color:#bbb;font-size:12px;line-height:1.4}
+.shipping-body-hidden{display:none}
 .quick-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .quick-action{
   min-height:92px;border:1px solid var(--line);border-radius:14px;
@@ -1943,11 +1954,11 @@ body.customer-offer-modal-open{overflow:hidden}
           </div>
         </a>
 
-        <a class="hero-stat" href="#buyer-potential-matches">
-          <div class="hero-stat-icon">🏍️</div>
+        <a class="hero-stat" href="#hand-picked">
+          <div class="hero-stat-icon">🔎</div>
           <div>
-            <strong id="potentialMatchCount">0</strong>
-            <span>Potential<br>Matches</span>
+            <strong id="handPickedCount">0</strong>
+            <span>Hand-picked<br>for You</span>
           </div>
         </a>
 
@@ -2025,6 +2036,13 @@ body.customer-offer-modal-open{overflow:hidden}
     <div id="customerNextActionsList" style="display:grid;gap:10px"></div>
   </section>
 
+  <nav class="dashboard-jump-nav" aria-label="My AnyBike quick links">
+    <a href="#my-purchases"><span>🛒</span>My Purchases</a>
+    <a href="#accounts-documents"><span>📄</span>Accounts &amp; Documents</a>
+    <a href="#hand-picked"><span>🔎</span>Hand-picked for You</a>
+    <a href="#shipping-preferences"><span>🚢</span>Shipping Preferences</a>
+    <a href="/customer-messages.html"><span>💬</span>Messages</a>
+  </nav>
 
     <section class="panel my-offers-panel" id="my-offers">
       <div class="panel-head">
@@ -2111,7 +2129,7 @@ body.customer-offer-modal-open{overflow:hidden}
   <div class="dashboard-grid">
 
     <div class="dashboard-row equal">
-      <section class="panel" style="grid-column:1/-1">
+      <section class="panel" id="recommended-for-you" style="grid-column:1/-1">
         <div class="panel-head">
           <div>
             <h2>⭐ Recommended For You</h2>
@@ -2136,10 +2154,17 @@ body.customer-offer-modal-open{overflow:hidden}
   <div class="panel-head">
     <div>
       <h2>🚢 Saved Shipping Preferences</h2>
-      <p>Keep more than one shipping plan. Your freight forwarder and the UK company receiving the motorcycle can be different businesses, so save both plus the exact UK delivery address.</p>
+      <p id="shippingPreferenceIntro">Complete your UK handover route so AnyBike knows exactly where to deliver your motorcycle.</p>
     </div>
+    <button class="mini-btn" id="shippingPreferenceToggle" type="button" onclick="toggleShippingPreferences()" style="display:none">Edit / view shipping</button>
   </div>
 
+  <div class="shipping-complete-summary" id="shippingCompleteSummary">
+    <div><strong>✓ Shipping preference saved</strong><span id="shippingCompleteSummaryText">Your saved UK handover route is ready to use.</span></div>
+    <button class="mini-btn" type="button" onclick="toggleShippingPreferences(true)">VIEW / EDIT SHIPPING</button>
+  </div>
+
+  <div id="shippingPreferencesBody">
   <div class="shipping-guidance">
     <h3>Set up the UK handover route before AnyBike buys the motorcycle</h3>
     <p>Save your freight forwarder and, where different, the UK shipping / receiving company that will physically receive the motorcycle from Move Motorcycles. AnyBike also needs the exact UK delivery address and postcode before paying the seller. You can keep several plans and choose the right one for each purchase.</p>
@@ -2454,6 +2479,7 @@ body.customer-offer-modal-open{overflow:hidden}
   <p class="shipping-pref-note">
     Saved Shipping Preferences keep your freight-forwarder details and the exact UK receiving location together. Your freight forwarder and the UK shipping / receiving company may be different businesses. Choosing a plan does not confirm a booking or authorise AnyBike to buy the motorcycle; AnyBike must verify the UK handover route first.
   </p>
+  </div>
 </section>
 
 
@@ -4394,6 +4420,8 @@ async function loadHandPickedForYou(){
     if(error) throw error;
 
     const rows=data||[];
+    const handPickedCount=document.getElementById("handPickedCount");
+    if(handPickedCount) handPickedCount.textContent=rows.length.toLocaleString("en-GB");
     if(!rows.length){
       box.innerHTML='<div class="buyer-match-empty">No hand-picked motorcycles are waiting for you at the moment.</div>';
       return;
@@ -5366,6 +5394,17 @@ function editShippingPreference(planId){
   document.getElementById("shippingPlanName")?.scrollIntoView({behavior:"smooth",block:"center"});
 }
 
+function toggleShippingPreferences(forceOpen){
+  const body=document.getElementById("shippingPreferencesBody");
+  if(!body) return;
+  const open=forceOpen===true || body.classList.contains("shipping-body-hidden");
+  body.classList.toggle("shipping-body-hidden",!open);
+  sessionStorage.setItem("anybikeShippingExpanded",open?"1":"0");
+  if(open){
+    setTimeout(()=>document.getElementById("shipping-preferences")?.scrollIntoView({behavior:"smooth",block:"start"}),20);
+  }
+}
+
 function shippingPlanLabel(plan){
   return String(
     plan?.plan_name ||
@@ -5398,8 +5437,29 @@ function renderSavedShippingPreferences(){
   const box=document.getElementById("savedShippersList");
   if(!box) return;
 
+  const body=document.getElementById("shippingPreferencesBody");
+  const summary=document.getElementById("shippingCompleteSummary");
+  const summaryText=document.getElementById("shippingCompleteSummaryText");
+  const toggle=document.getElementById("shippingPreferenceToggle");
+  const intro=document.getElementById("shippingPreferenceIntro");
+  const completePlans=savedHandoverPlans.filter(shippingPlanComplete);
+  const hasComplete=completePlans.length>0;
+  const expanded=sessionStorage.getItem("anybikeShippingExpanded")==="1";
+
+  if(summary) summary.classList.toggle("show",hasComplete);
+  if(toggle) toggle.style.display=hasComplete ? "" : "none";
+  if(body) body.classList.toggle("shipping-body-hidden",hasComplete && !expanded);
+  if(intro) intro.textContent=hasComplete
+    ? "Your UK handover route is saved. You can reopen it whenever you need to make a change."
+    : "Complete your UK handover route so AnyBike knows exactly where to deliver your motorcycle.";
+  if(summaryText && hasComplete){
+    const plan=completePlans.find(p=>p.is_default) || completePlans[0];
+    summaryText.textContent=[shippingPlanLabel(plan),plan.uk_handover_point,plan.shipping_company_name].filter(Boolean).join(" · ");
+  }
+
   if(!savedHandoverPlans.length){
     box.innerHTML='<div class="buyer-match-empty">No saved shipping preferences yet. Add your first shipping plan below.</div>';
+    if(body) body.classList.remove("shipping-body-hidden");
     return;
   }
 
@@ -5550,6 +5610,7 @@ async function saveShippingPreference(){
   }
 
   clearShippingPreferenceForm();
+  sessionStorage.setItem("anybikeShippingExpanded","0");
   await loadSavedShippingPreferences();
 
   if(status){
@@ -6767,10 +6828,13 @@ async function loadRecommendations(){
   const searches=savedSearches || [];
 
   if(!searches.length){
-    box.innerHTML=
-      '<p class="section-empty">Save a motorcycle search and matching recommendations will appear here.</p>';
+    const panel=document.getElementById("recommended-for-you");
+    if(panel) panel.style.display="none";
+    box.innerHTML="";
     return;
   }
+  const panel=document.getElementById("recommended-for-you");
+  if(panel) panel.style.display="block";
 
   const buckets=[];
 
