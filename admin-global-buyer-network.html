@@ -443,12 +443,12 @@
         <h3>4. Deposit & Payment Terms</h3>
         <div class="seller-grid">
           <div class="seller-field">
-            <label for="aboDepositAmount">Deposit Due Immediately on Acceptance (£)</label>
+            <label for="aboDepositAmount">Minimum Deposit Due on Acceptance (£)</label>
             <input id="aboDepositAmount" type="text" inputmode="decimal" placeholder="£0.00" onfocus="focusAnyBikeOfferMoney(this)" onblur="formatAnyBikeOfferMoney(this)">
           </div>
           <div class="seller-field full">
             <label for="aboPaymentTerms">Payment Terms</label>
-            <textarea id="aboPaymentTerms">Deposit payable immediately on acceptance. The remaining balance must be received in cleared funds before collection of the motorcycle from the seller.</textarea>
+            <textarea id="aboPaymentTerms">The minimum deposit is payable immediately on acceptance. The buyer may pay more than the minimum deposit, including the full amount. Any remaining balance must be received in cleared funds before collection of the motorcycle from the seller.</textarea>
           </div>
         </div>
         <div class="seller-review-note" style="margin-top:10px">Established buyers may later pay or allocate funds from their AnyBike Account Balance. The account-balance/ledger system will be connected at the payment stage.</div>
@@ -3488,10 +3488,12 @@ async function openAnyBikeOffer(matchId){
   document.getElementById("aboDeliveryType").value=match.offer_delivery_type || "Buyer Arranged / Collection";
   document.getElementById("aboDeliveryDestination").value=match.offer_delivery_destination || "";
   document.getElementById("aboDeliveryCharge").value="£"+Number(match.offer_delivery_charge_gbp || 0).toFixed(2);
-  document.getElementById("aboDepositAmount").value=match.offer_deposit_amount_gbp!==null && match.offer_deposit_amount_gbp!==undefined
+  const customerOfferTotal=Number(startingPrice||0)+Number(feeEl.value.replace(/[^0-9.-]/g,"")||0)+Number(match.offer_delivery_charge_gbp||0);
+  const calculatedMinimumDeposit=Math.min(customerOfferTotal,Math.max(500,Math.round((customerOfferTotal*0.10)/50)*50));
+  document.getElementById("aboDepositAmount").value=match.offer_deposit_amount_gbp!==null && match.offer_deposit_amount_gbp!==undefined && Number(match.offer_deposit_amount_gbp)>0
     ? "£"+Number(match.offer_deposit_amount_gbp || 0).toFixed(2)
-    : "";
-  document.getElementById("aboPaymentTerms").value=match.offer_payment_terms_text || "Deposit payable immediately on acceptance. The remaining balance must be received in cleared funds before collection of the motorcycle from the seller.";
+    : "£"+Number(calculatedMinimumDeposit || 0).toFixed(2);
+  document.getElementById("aboPaymentTerms").value=match.offer_payment_terms_text || "The minimum deposit is payable immediately on acceptance. The buyer may pay more than the minimum deposit, including the full amount. Any remaining balance must be received in cleared funds before collection of the motorcycle from the seller.";
   document.getElementById("aboNotes").value=match.commercial_notes || "";
 
   const expiresInput=document.getElementById("aboOfferExpiresAt");
@@ -3555,7 +3557,7 @@ async function saveAnyBikeOffer(options={}){
 
   if(motorcyclePrice<=0){ setError("Enter a valid motorcycle price."); return; }
   if(!saleBasis){ setError("Select a sale basis."); return; }
-  if(depositAmount<=0){ setError("Enter the deposit that will be due immediately on acceptance."); return; }
+  if(depositAmount<=0){ setError("Enter the minimum deposit that will be due immediately on acceptance."); return; }
   if(depositAmount>customerTotal){ setError("The deposit cannot be greater than the customer offer total."); return; }
   if(deliveryType!=="Buyer Arranged / Collection" && !deliveryDestination){ setError("Enter the agreed delivery destination."); return; }
   if(!paymentTerms){ setError("Enter the payment terms the customer will accept."); return; }
