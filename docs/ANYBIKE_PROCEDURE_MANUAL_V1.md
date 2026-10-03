@@ -1022,7 +1022,7 @@ Include only genuine motorcycle/deal-specific costs:
 - genuine additional deal administration cost;
 - genuine other deal-specific costs.
 
-Do **not** invent an internal Move Motorcycles collection/delivery cost simply because AnyBike charges the buyer for transport. If a genuine accounted transport supplier cost or invoice exists in a future transaction, it must be handled according to the accounting design in force at that time rather than inserted as an assumed figure.
+AnyBike and Move Motorcycles are both trading styles of **Giffords Empire Ltd**. Move Motorcycles does **not** invoice AnyBike for collection or delivery jobs because there is no separate supplier/customer relationship between those two trading styles. Do not create an intercompany-style Move invoice, supplier balance or artificial internal transport cost in Deal 360. The customer-facing UK Collection & Delivery Charge remains a real charge on the AnyBike customer transaction, while any internal management accounting for the transport operation is handled within Giffords Empire Ltd rather than as a Move-to-AnyBike invoice.
 
 ## Motorcycle commercial profit and margin
 Calculate:
@@ -1274,3 +1274,14 @@ When a buyer reviews a sourced-motorcycle batch:
 4. The sourced-match motorcycle price, AnyBike sourcing fee and UK collection/delivery component are a protected buyer quote snapshot. Do not add the sourcing fee or UK collection/delivery again.
 5. If an older batch used a legacy fee snapshot, preserve the exact amount already shown to the buyer. The current automatic fee rule applies to new sourced matches, not retroactively to a price already presented.
 6. Commercial Setup is then used to review the confirmed seller purchase price and genuine deal-specific internal costs before proceeding to the Formal Offer.
+
+
+## 3 October 2026 — Legal entity / trading-style rule
+- **Giffords Empire Ltd** is the legal company.
+- **AnyBike** is a trading style of Giffords Empire Ltd.
+- **Move Motorcycles** is also a trading style of Giffords Empire Ltd.
+- Move Motorcycles is not an external transport supplier to AnyBike.
+- Move Motorcycles must not raise an invoice to AnyBike for AnyBike collection/delivery jobs.
+- Deal 360 must not create a Move supplier payable, supplier invoice, intercompany transport charge or artificial Move cost for those jobs.
+- Customer-facing AnyBike documents may show the agreed UK Collection & Delivery charge as part of the customer transaction.
+- Operationally, Move Motorcycles can still be named as the specialist transport operation carrying out the collection/delivery.
