@@ -265,6 +265,9 @@ async function loadSharedAdminNotifications(){
               '<small>' +
                 escapeSharedAdminHtml(created) +
               '</small>' +
+              (link && link!=="admin-dashboard.html"
+                ? '<div style="margin-top:10px"><span style="display:inline-block;background:#ed1c24;color:#fff;padding:8px 12px;border-radius:9px;font-weight:900;font-size:12px">OPEN NEXT ACTION →</span></div>'
+                : '') +
             '</div>' +
 
           '</a>' +
