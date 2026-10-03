@@ -510,6 +510,68 @@
           </div>
         </section>
 
+        <section class="card setup-target" id="section-margin-calculator">
+          <div class="section-head">
+            <div>
+              <h2>Margin Calculator Defaults</h2>
+              <p class="card-intro">Save the normal import costs and margin you use when assessing AnyBike matches. These values are optional and can be changed on each motorcycle. They are for your own commercial estimate and do not change the fixed AnyBike price.</p>
+            </div>
+            <span class="section-state optional">Optional</span>
+          </div>
+
+          <div class="grid">
+            <div>
+              <label for="fxRate">Exchange rate — 1 GBP equals</label>
+              <input id="fxRate" type="number" min="0.000001" step="0.0001" inputmode="decimal" placeholder="e.g. 1.15">
+              <div style="margin-top:7px;color:#9aa0a6;font-size:12px;line-height:1.45">Used to convert the fixed AnyBike GBP price into your preferred currency. Update this whenever you want to use a newer rate.</div>
+            </div>
+
+            <div>
+              <label for="dutyRate">Import duty rate %</label>
+              <input id="dutyRate" type="number" min="0" max="100" step="0.1" inputmode="decimal" placeholder="0">
+            </div>
+
+            <div>
+              <label for="importTaxRate">Import VAT / local tax rate %</label>
+              <input id="importTaxRate" type="number" min="0" max="100" step="0.1" inputmode="decimal" placeholder="0">
+            </div>
+
+            <div>
+              <label for="minimumMargin">Minimum gross margin %</label>
+              <input id="minimumMargin" type="number" min="0" max="99.99" step="0.1" inputmode="decimal" placeholder="e.g. 15">
+            </div>
+
+            <div>
+              <label for="defaultShippingCost">Typical shipping / freight cost</label>
+              <input id="defaultShippingCost" type="number" min="0" step="1" inputmode="decimal" placeholder="0">
+            </div>
+
+            <div>
+              <label for="defaultPortCollectionCost">Collection from your local port</label>
+              <input id="defaultPortCollectionCost" type="number" min="0" step="1" inputmode="decimal" placeholder="0">
+            </div>
+
+            <div>
+              <label for="defaultPreparationCost">Preparation / workshop cost</label>
+              <input id="defaultPreparationCost" type="number" min="0" step="1" inputmode="decimal" placeholder="0">
+            </div>
+
+            <div>
+              <label for="defaultWarrantyCost">Warranty provision / cost</label>
+              <input id="defaultWarrantyCost" type="number" min="0" step="1" inputmode="decimal" placeholder="0">
+            </div>
+
+            <div>
+              <label for="defaultOtherCost">Other local landed costs</label>
+              <input id="defaultOtherCost" type="number" min="0" step="1" inputmode="decimal" placeholder="0">
+            </div>
+
+            <div class="full" style="color:#9aa0a6;font-size:12px;line-height:1.5">
+              Local cost defaults are stored in your preferred currency. Duty and tax treatment varies by country, so the calculator is an estimate for your own purchasing decision rather than a customs or tax calculation supplied by AnyBike.
+            </div>
+          </div>
+        </section>
+
         <section class="card setup-target" id="buyer-onboarding">
           <div class="section-head"><div><h2>Buyer & Export Details</h2><p class="card-intro">Tell us how you normally buy and export motorcycles. AnyBike's transport responsibility ends at the agreed UK delivery point unless a Formal Offer expressly states otherwise.</p></div><span class="section-state" id="state-buyer">Needs attention</span></div>
 
@@ -933,6 +995,15 @@
       setValue("bankSortCode", profile?.bank_sort_code);
       setValue("bankInternationalNotes", profile?.bank_international_notes);
       setValue("currency", profile?.preferred_currency || "GBP");
+      setValue("fxRate", profile?.fx_rate_gbp_to_preferred);
+      setValue("dutyRate", profile?.import_duty_rate_pct);
+      setValue("importTaxRate", profile?.import_tax_rate_pct);
+      setValue("minimumMargin", profile?.margin_min_pct);
+      setValue("defaultShippingCost", profile?.default_shipping_cost);
+      setValue("defaultPortCollectionCost", profile?.default_local_port_collection_cost);
+      setValue("defaultPreparationCost", profile?.default_preparation_cost);
+      setValue("defaultWarrantyCost", profile?.default_warranty_cost);
+      setValue("defaultOtherCost", profile?.default_other_landed_cost);
       populateLanguageSelect(profile?.preferred_language || "en");
       populateShippingCountries(profile?.shipping_country || profile?.country || "");
       await loadFreightForwarderDirectory();
@@ -1243,7 +1314,19 @@
         business_country:value("businessCountry")||null,
         business_address:[value("businessAddress1"),value("businessAddress2"),value("businessCity"),value("businessRegion"),value("businessPostcode"),value("businessCountry")].filter(Boolean).join(", ")||null};
       if(section==="bank") return {...base,bank_account_name:value("bankAccountName")||null,bank_account_number:value("bankAccountNumber")||null,bank_sort_code:value("bankSortCode")||null,bank_international_notes:value("bankInternationalNotes")||null};
-      if(section==="preferences") return {...base,preferred_currency:document.getElementById("currency").value||"GBP",preferred_language:document.getElementById("language").value||"en"};
+      if(section==="preferences") return {...base,
+        preferred_currency:document.getElementById("currency").value||"GBP",
+        preferred_language:document.getElementById("language").value||"en",
+        fx_rate_gbp_to_preferred:value("fxRate")?Number(value("fxRate")):null,
+        import_duty_rate_pct:value("dutyRate")?Number(value("dutyRate")):null,
+        import_tax_rate_pct:value("importTaxRate")?Number(value("importTaxRate")):null,
+        margin_min_pct:value("minimumMargin")?Number(value("minimumMargin")):null,
+        default_shipping_cost:value("defaultShippingCost")?Number(value("defaultShippingCost")):null,
+        default_local_port_collection_cost:value("defaultPortCollectionCost")?Number(value("defaultPortCollectionCost")):null,
+        default_preparation_cost:value("defaultPreparationCost")?Number(value("defaultPreparationCost")):null,
+        default_warranty_cost:value("defaultWarrantyCost")?Number(value("defaultWarrantyCost")):null,
+        default_other_landed_cost:value("defaultOtherCost")?Number(value("defaultOtherCost")):null
+      };
       if(section==="buyer") return {...base,buyer_eori_number:value("buyerEori")||null,preferred_destination_port:selectedDestinationPort()||null,preferred_shipping_method:document.getElementById("shippingMethod").value||null,typical_bikes_per_shipment:document.getElementById("typicalQuantity").value||null};
       if(section==="shipping") return {...base,
         shipping_directory_forwarder_id:document.getElementById("shippingDirectorySelect").value && document.getElementById("shippingDirectorySelect").value!=="custom" ? Number(document.getElementById("shippingDirectorySelect").value) : null,
@@ -1352,6 +1435,15 @@
         bank_international_notes: value("bankInternationalNotes") || null,
         preferred_currency: document.getElementById("currency").value || "GBP",
         preferred_language: document.getElementById("language").value || "en",
+        fx_rate_gbp_to_preferred: value("fxRate") ? Number(value("fxRate")) : null,
+        import_duty_rate_pct: value("dutyRate") ? Number(value("dutyRate")) : null,
+        import_tax_rate_pct: value("importTaxRate") ? Number(value("importTaxRate")) : null,
+        margin_min_pct: value("minimumMargin") ? Number(value("minimumMargin")) : null,
+        default_shipping_cost: value("defaultShippingCost") ? Number(value("defaultShippingCost")) : null,
+        default_local_port_collection_cost: value("defaultPortCollectionCost") ? Number(value("defaultPortCollectionCost")) : null,
+        default_preparation_cost: value("defaultPreparationCost") ? Number(value("defaultPreparationCost")) : null,
+        default_warranty_cost: value("defaultWarrantyCost") ? Number(value("defaultWarrantyCost")) : null,
+        default_other_landed_cost: value("defaultOtherCost") ? Number(value("defaultOtherCost")) : null,
         shipping_directory_forwarder_id: document.getElementById("shippingDirectorySelect").value && document.getElementById("shippingDirectorySelect").value!=="custom" ? Number(document.getElementById("shippingDirectorySelect").value) : null,
         preferred_shipping_company: value("shippingCompany") || null,
         shipping_contact_name: value("shippingContactName") || null,
@@ -1544,7 +1636,7 @@
       }
     }
 
-    const autosaveFields=["fullName","phone","whatsapp","contactAddress1","contactAddress2","contactPostcode","country","city","region","buyerType","businessName","businessTradingName","businessRegistrationNumber","businessTaxNumber","businessEmail","businessPhone","businessWebsite","businessAddress1","businessAddress2","businessCity","businessRegion","businessPostcode","businessCountry","bankAccountName","bankAccountNumber","bankSortCode","bankInternationalNotes","currency","language","buyerEori","destinationPort","destinationPortOther","shippingMethod","typicalQuantity","identityDocument","addressDocument","licenceDocument","shippingCompany","shippingCountry","shippingContactName","shippingContactRole","shippingContactEmail","shippingContactPhone","shippingWebsite","shippingAddress1","shippingAddress2","shippingCity","shippingRegion","shippingPostcode","collectionPoint"];
+    const autosaveFields=["fullName","phone","whatsapp","contactAddress1","contactAddress2","contactPostcode","country","city","region","buyerType","businessName","businessTradingName","businessRegistrationNumber","businessTaxNumber","businessEmail","businessPhone","businessWebsite","businessAddress1","businessAddress2","businessCity","businessRegion","businessPostcode","businessCountry","bankAccountName","bankAccountNumber","bankSortCode","bankInternationalNotes","currency","language","fxRate","dutyRate","importTaxRate","minimumMargin","defaultShippingCost","defaultPortCollectionCost","defaultPreparationCost","defaultWarrantyCost","defaultOtherCost","buyerEori","destinationPort","destinationPortOther","shippingMethod","typicalQuantity","identityDocument","addressDocument","licenceDocument","shippingCompany","shippingCountry","shippingContactName","shippingContactRole","shippingContactEmail","shippingContactPhone","shippingWebsite","shippingAddress1","shippingAddress2","shippingCity","shippingRegion","shippingPostcode","collectionPoint"];
     autosaveFields.forEach(id=>{
       const el=document.getElementById(id);
       if(!el) return;
