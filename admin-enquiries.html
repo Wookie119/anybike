@@ -10618,6 +10618,28 @@ async function markCandidateSold(candidateId){
   }
 }
 
+function openSelectedCandidateCommercialSetup(dealId,dealMotorcycleId){
+  const id=String(dealId||"");
+  setBikeSalesView("active",document.querySelector('#salesHqViewTabs [data-sales-view="active"]'));
+  const rowEl=document.getElementById("anybike-deal-"+id);
+  if(rowEl){
+    document.querySelectorAll(".anybike-deal-record.open").forEach(function(item){
+      if(item!==rowEl)item.classList.remove("open");
+    });
+    rowEl.classList.add("open");
+    openAnyBikeDealId=id;
+    bikeSalesJourneyTab(id,"seller",false);
+  }
+  const panel=document.getElementById("deal-commercial-panel-"+Number(dealMotorcycleId));
+  if(panel){
+    panel.scrollIntoView({behavior:"smooth",block:"start"});
+  }else if(rowEl){
+    rowEl.scrollIntoView({behavior:"smooth",block:"start"});
+  }
+}
+
+const candidateSelectBusy=new Set();
+
 async function selectCandidateForDeal(candidateId){
   const row=(adminDealCandidates || []).find(function(item){
     return Number(item.id)===Number(candidateId);
@@ -10630,16 +10652,8 @@ async function selectCandidateForDeal(candidateId){
     return;
   }
 
-  const title=[row.year,row.make,row.model,row.variant].filter(Boolean).join(" ") || "this motorcycle";
-
-  if(!window.confirm(
-    "Select this candidate for the Deal?\n\n"+
-    title+"\n\n"+
-    "This creates the Deal motorcycle with no public stock record. "+
-    "It does NOT take a deposit, send an offer, pay the seller or secure the motorcycle."
-  )){
-    return;
-  }
+  if(candidateSelectBusy.has(String(candidateId))) return;
+  candidateSelectBusy.add(String(candidateId));
 
   try{
     const {data,error}=await sb.rpc(
@@ -10650,38 +10664,29 @@ async function selectCandidateForDeal(candidateId){
     if(error){ throw error; }
 
     const payload=data || {};
-
     await loadAdminDealQueue();
     renderAdminDealQueue();
 
     if(payload.deal_id){
       const dealId=String(payload.deal_id);
+      const motorcycleId=Number(payload.deal_motorcycle_id||0);
       const url=new URL(window.location.href);
       url.searchParams.set("deal",dealId);
       url.searchParams.set("tab","seller");
       history.replaceState(null,"",url.pathname+"?"+url.searchParams.toString()+url.hash);
 
-      setTimeout(function(){
-        setBikeSalesView("active",document.querySelector('#salesHqViewTabs [data-sales-view="active"]'));
-        const rowEl=document.getElementById("anybike-deal-"+dealId);
-        if(rowEl){
-          document.querySelectorAll(".anybike-deal-record.open").forEach(function(item){
-            if(item!==rowEl)item.classList.remove("open");
-          });
-          rowEl.classList.add("open");
-          openAnyBikeDealId=dealId;
-          bikeSalesJourneyTab(dealId,"seller",false);
-          rowEl.scrollIntoView({behavior:"smooth",block:"start"});
-        }
-      },50);
+      requestAnimationFrame(function(){
+        openSelectedCandidateCommercialSetup(dealId,motorcycleId);
+      });
     }
 
   }catch(error){
     console.error("Candidate could not be selected:",error);
     alert("Candidate could not be selected.\n\n"+(error?.message || error));
+  }finally{
+    candidateSelectBusy.delete(String(candidateId));
   }
 }
-
 
 
 /* =========================================================
