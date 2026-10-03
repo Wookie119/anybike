@@ -1247,3 +1247,21 @@ The buyer margin calculator supports an explicit sharing workflow so AnyBike can
 - Staff must not raise the selling price simply because a buyer appears to have additional margin or headroom.
 - AnyBike pricing remains based on the motorcycle, approved fees/charges, operational costs, commercial risk and any legitimate negotiation.
 - Unshared calculator defaults or unfinished calculator entries must not be presented to sales staff as buyer willingness-to-pay intelligence.
+
+
+## 3.1F Buyer questions and sourcing-process acknowledgement
+
+When a buyer reviews a sourced-motorcycle batch:
+
+1. The buyer ticks **Interested — Check Availability** only on motorcycles they want AnyBike to check with the seller.
+2. Any motorcycle left unticked is recorded as **Not Interested at this time** when the buyer saves.
+3. An Interested motorcycle may include one optional free-text buyer question. Do not present a checklist of suggested checks. The question is handled during the normal seller availability / seller check.
+4. If the buyer asks for a discount or price reduction, staff must not promise a customer price reduction. Confirm availability and seller terms first. Any seller-side saving belongs to AnyBike unless an authorised commercial decision is made to change the buyer-facing Formal Offer.
+5. The Formal AnyBike Offer confirms the buyer-facing price and the agreed UK port / freight-forwarder / handover point. The customer price includes the motorcycle, AnyBike sourcing fee, and agreed UK collection & delivery.
+6. The offer deposit is the **minimum deposit**. Current default is 10% of the customer offer total, rounded to the nearest £50, minimum £500, capped at the offer total. The saved offer remains reviewable by staff before sending.
+7. The buyer may pay the minimum deposit, a larger amount, or the full amount. Any remaining balance must be in cleared funds before collection from the seller.
+8. Once verified funds allow AnyBike to secure the motorcycle, the buyer is kept informed through My AnyBike.
+9. Move Motorcycles carries out collection. Collection photographs are added to the portal after collection. The motorcycle then moves into secure AnyBike / Move custody before onward UK handover.
+10. Storage charges can apply if the buyer's onward shipping or handover is delayed. Direct the buyer to My Messages to discuss delays and storage implications.
+11. The full sourcing-process explanation can be acknowledged once and hidden on future sourced-match pages. The buyer must always be able to reopen it.
+12. Hiding the general sourcing-process explanation does not replace acceptance of motorcycle-specific Formal Offer terms, legal declarations, price, or payment obligations.
