@@ -672,15 +672,55 @@ function groupAdviceRows(rows){
 }
 
 function renderHistory(){
-  const groups=groupAdviceRows(paymentAdviceRows);
-  document.getElementById("historyCount").textContent=groups.length+" Advice"+(groups.length===1?"":"s");
   const box=document.getElementById("history");
-  if(!groups.length){box.innerHTML='<div class="empty">You have not reported any bank transfers yet.</div>';return;}
-  box.innerHTML=`<div class="history-list">${groups.map(group=>{
-    const canCancel=String(group.advice_status||"")==="Awaiting Verification";
-    const allocations=group.allocations.map(row=>`<div class="history-alloc"><span>${safe(row.deal_number||("Purchase #"+row.deal_id))} · ${safe(row.invoice_number||row.invoice_type||"Invoice")} · ${safe(row.allocation_purpose||"Payment")}</span><strong>${money(row.proposed_amount_gbp)}</strong></div>`).join("");
-    return `<article class="history-card"><div class="history-head"><div><strong>${safe(group.advice_number||("Payment Advice #"+group.payment_advice_id))} · ${money(group.reported_amount_gbp)}</strong><small>Reported ${safe(group.reported_payment_date||"")} · ${safe(group.customer_bank_reference||"No bank reference supplied")}</small></div><div class="status-pill ${statusClass(group.ledger_status==="Posted"?"Posted":group.advice_status)}">${safe(group.ledger_status==="Posted"?"Posted":group.advice_status)}</div></div><div class="history-body">${allocations}<div class="history-message">${group.ledger_status==="Posted"?"AnyBike has verified and posted this payment to the authoritative purchase ledger.":group.advice_status==="Verified"?"AnyBike has verified the bank receipt. Posting to your purchase is pending.":group.advice_status==="Awaiting Verification"?"AnyBike is checking that this transfer has arrived. Your purchase balance has not changed yet.":"This payment advice is no longer active."}</div>${canCancel?`<button class="action-btn" type="button" onclick="cancelAdvice(${Number(group.payment_advice_id)})">Cancel Payment Advice</button>`:""}</div></article>`;
-  }).join("")}</div>`;
+  const count=document.getElementById("historyCount");
+  try{
+    const groups=groupAdviceRows(Array.isArray(paymentAdviceRows)?paymentAdviceRows:[]);
+    if(count)count.textContent=groups.length+" Advice"+(groups.length===1?"":"s");
+
+    if(!groups.length){
+      if(box)box.innerHTML='<div class="empty">You have not reported any bank transfers yet.</div>';
+      return;
+    }
+
+    let html='<div class="history-list">';
+    groups.forEach(group=>{
+      const status=group.ledger_status==="Posted"?"Posted":String(group.advice_status||"");
+      const canCancel=status!=="Posted" && String(group.advice_status||"")==="Awaiting Verification";
+      let allocations="";
+
+      (Array.isArray(group.allocations)?group.allocations:[]).forEach(row=>{
+        allocations+='<div class="history-alloc"><span>'+
+          safe(row.deal_number||("Purchase #"+row.deal_id))+' · '+
+          safe(row.invoice_number||row.invoice_type||"Invoice")+' · '+
+          safe(row.allocation_purpose||"Payment")+
+          '</span><strong>'+money(row.proposed_amount_gbp)+'</strong></div>';
+      });
+
+      let message="This payment advice is no longer active.";
+      if(status==="Posted") message="AnyBike has verified and posted this payment to your purchase.";
+      else if(group.advice_status==="Verified") message="AnyBike has verified the bank receipt. Posting to your purchase is pending.";
+      else if(group.advice_status==="Awaiting Verification") message="AnyBike is checking that this transfer has arrived. Your purchase balance has not changed yet.";
+
+      html+='<article class="history-card">'+
+        '<div class="history-head">'+
+          '<div><strong>'+safe(group.advice_number||("Payment Advice #"+group.payment_advice_id))+' · '+money(group.reported_amount_gbp)+'</strong>'+
+          '<small>Reported '+safe(group.reported_payment_date||"")+' · '+safe(group.customer_bank_reference||"No bank reference supplied")+'</small></div>'+
+          '<div class="status-pill '+statusClass(status)+'">'+safe(status)+'</div>'+
+        '</div>'+
+        '<div class="history-body">'+allocations+
+          '<div class="history-message">'+safe(message)+'</div>'+
+          (canCancel?'<button class="action-btn" type="button" onclick="cancelAdvice('+Number(group.payment_advice_id)+')">Cancel Payment Advice</button>':"")+
+        '</div>'+
+      '</article>';
+    });
+    html+='</div>';
+    if(box)box.innerHTML=html;
+  }catch(error){
+    console.error("Payment history render failed:",error);
+    if(count)count.textContent="Unavailable";
+    if(box)box.innerHTML='<div class="empty">Payment history could not be displayed. Please refresh the page.</div>';
+  }
 }
 
 async function cancelAdvice(id){
