@@ -196,7 +196,7 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
 </div>
 <script>
 const sb=()=>getAdminSupabaseClient();
-let hub=null,items=[],buyers=[],buyerSourcingQueue=[],selected=new Set(),sourceFacets={makes:[],models:[]},buyerRequests=[],buyerSourcingPlan=null,buyerMessageMentions=[],selectedDealers=new Set(),sourceRefreshInProgress=false,deliveryAllowances=new Map(),sourceSetupConnectorId=null;
+let hub=null,items=[],buyers=[],buyerSourcingQueue=[],selected=new Set(),sourceFacets={makes:[],models:[]},buyerRequests=[],buyerSourcingPlan=null,buyerMessageMentions=[],selectedDealers=new Set(),sourceRefreshInProgress=false,deliveryAllowances=new Map(),sourceSetupConnectorId=null,autoBmwPhotoRequested=new Set();
 const sourcingParams=new URLSearchParams(location.search);
 function sourcingContextQuery(extra){
   const p=new URLSearchParams();
@@ -960,6 +960,36 @@ async function loadItems(preserveDealerOptions=false){
 
   if(document.getElementById("buyerSafeOnlyCheck")?.checked){
     rows=rows.filter(i=>!!i.buyer_safe_url);
+  }
+
+  if(isBmwConnector() && rows.length){
+    const missingPhotoIds=rows
+      .filter(i=>{
+        if(i.buyer_safe_url)return false;
+        const hasReal=(Array.isArray(i.source_image_urls)?i.source_image_urls:[])
+          .some(u=>/\/api\/Image\/GetImg\?imgId=/i.test(String(u)));
+        return !hasReal && !autoBmwPhotoRequested.has(Number(i.id));
+      })
+      .slice(0,80)
+      .map(i=>Number(i.id));
+
+    if(missingPhotoIds.length){
+      missingPhotoIds.forEach(id=>autoBmwPhotoRequested.add(id));
+      st.className="status";
+      st.textContent="Loading BMW motorcycle photos for "+missingPhotoIds.length+" matching bike"+(missingPhotoIds.length===1?"":"s")+"…";
+      try{
+        const {data:photoData,error:photoError}=await sb().functions.invoke("refresh-bmw-live-source-images",{
+          body:{connector_id:cid,item_ids:missingPhotoIds}
+        });
+        if(!photoError && !photoData?.error){
+          await loadItems(true);
+          return;
+        }
+        console.warn("Automatic BMW photo loading paused",photoData?.error||photoError);
+      }catch(photoLoadError){
+        console.warn("Automatic BMW photo loading failed",photoLoadError);
+      }
+    }
   }
 
   items=rows;
