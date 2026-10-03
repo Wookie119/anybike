@@ -688,3 +688,15 @@ Frontend alignment completed:
 - Buyers can sort by lowest/highest price, newest/oldest and lowest/highest mileage.
 - Filtering only changes the visible cards. On **Save my choices**, every live motorcycle in the full selection that is not ticked **Interested — Check Availability** is recorded as **Not Interested**.
 - The page-specific **Your next action** updates as the buyer selects motorcycles and clearly explains that unticked motorcycles in the full selection will be treated as Not Interested.
+
+
+### 3 October 2026 — Multi-photo buyer-safe galleries and staff preview
+- Sourced-match cards should not be limited to one photograph when the source provides additional usable images.
+- Buyer-safe image preparation now targets up to **6 approved buyer-safe photos per sourced motorcycle** where the source advert provides enough suitable images.
+- Existing approved buyer-safe images are preserved; preparation fills the gallery rather than replacing clean images unnecessarily.
+- Admin Used Bike Scanner now shows buyer-safe image thumbnails and provides **Preview as buyer** for each match before it is sent.
+- The sourcing **Your next action** now prioritises preparing galleries where a match has no buyer-safe image or fewer than 3 approved images, then tells staff to preview each match as the buyer will see it.
+- A batch-level **Prepare buyer-safe photos for all matches** control prepares the galleries across the sourcing batch.
+- Customer sourced-match cards show a photo count and **View all photos** gallery when more than one approved buyer-safe image is available.
+- Only approved buyer-safe images are exposed to the customer; source/dealer originals remain internal.
+- Current automated image-cleaning bridge is proven on BMW Approved Used. The customer gallery and preview UI are source-neutral, and additional source adapters must feed their source images through the same buyer-safe approval pipeline before customer display.
