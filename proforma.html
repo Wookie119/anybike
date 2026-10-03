@@ -32,8 +32,8 @@ body{margin:0;background:#ececec;color:#111;font-family:Arial,Helvetica,sans-ser
 .payment-received-box span{display:block;color:#3f5f4b;font-size:13px;line-height:1.5}
 .payment-received-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
 .payment-received-grid div{padding:12px;border:1px solid #b7dec6;border-radius:8px;background:#fff}
-.payment-received-grid small{display:block;color:#557362;font-size:11px;font-weight:900;text-transform:uppercase;margin-bottom:4px}
-.payment-received-grid b{font-size:18px;color:#111}
+.payment-received-grid small{display:block;color:#557362;font-size:11px;font-weight:900;text-transform:uppercase;margin-bottom:6px}
+.payment-received-grid b{display:block;font-size:20px;color:#111;line-height:1.2}
 @media(max-width:640px){.payment-received-grid{grid-template-columns:1fr}}
 
 .foot{margin-top:32px;padding-top:16px;border-top:1px solid #ddd;color:#555;font-size:12px;line-height:1.5}
@@ -192,6 +192,37 @@ body{margin:0;background:#ececec;color:#111;font-family:Arial,Helvetica,sans-ser
       <footer class="foot">Please use the Deal reference exactly when making payment. Reporting a payment to AnyBike does not itself confirm that funds have arrived, and payment does not by itself secure a motorcycle.</footer>`;
   }
 
+  let liveStatusKey="";
+  let liveRefreshBusy=false;
+
+  function paymentStatusKey(data){
+    return [
+      Number(data?.allocated_gbp||0).toFixed(2),
+      Number(data?.balance_due_gbp||0).toFixed(2),
+      String(data?.invoice_status||"")
+    ].join("|");
+  }
+
+  async function refreshLiveStatus(){
+    if(previewMode || liveRefreshBusy || document.hidden)return;
+    liveRefreshBusy=true;
+    try{
+      const token=getStoredAccessToken();
+      if(!token)return;
+      const data=await rpcGetInvoice(token);
+      if(!data||typeof data!=="object"||Number(data.invoice_id)!==invoiceId)return;
+      const nextKey=paymentStatusKey(data);
+      if(nextKey!==liveStatusKey){
+        liveStatusKey=nextKey;
+        render(data);
+      }
+    }catch(error){
+      console.warn("Live Proforma payment status refresh failed:",error);
+    }finally{
+      liveRefreshBusy=false;
+    }
+  }
+
   async function load(){
     try{
       if(!Number.isFinite(invoiceId)||invoiceId<=0){ showError("No valid invoice was selected."); return; }
@@ -204,6 +235,7 @@ body{margin:0;background:#ececec;color:#111;font-family:Arial,Helvetica,sans-ser
       const data=await rpcGetInvoice(token);
       if(!data||typeof data!=="object"){ throw new Error("The Proforma returned no document data."); }
       if(Number(data.invoice_id)!==invoiceId){ throw new Error("The wrong Proforma was returned. Requested invoice #"+invoiceId+", received #"+String(data.invoice_id||"unknown")+"."); }
+      liveStatusKey=paymentStatusKey(data);
       render(data);
     }catch(error){
       console.error("Proforma could not be loaded:",error);
@@ -213,6 +245,11 @@ body{margin:0;background:#ececec;color:#111;font-family:Arial,Helvetica,sans-ser
   }
 
   load();
+  if(!previewMode){
+    window.setInterval(refreshLiveStatus,5000);
+    window.addEventListener("focus",refreshLiveStatus);
+    document.addEventListener("visibilitychange",()=>{ if(!document.hidden) refreshLiveStatus(); });
+  }
 })();
 </script>
 <script src="/visitor-tracker.js?v=1"></script>\n</body>
