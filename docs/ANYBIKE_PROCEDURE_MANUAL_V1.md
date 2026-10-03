@@ -1145,3 +1145,23 @@ The AI Matching viability and Global Buyer offer tools must follow the same rule
 - Where data is not yet available, use useful customer wording such as **Contact AnyBike for current availability**, **Enquiries welcome**, **No current models to show**, or a relevant call to action.
 - Public pages should explain what the customer can do now, what AnyBike currently provides, what information AnyBike will confirm for the transaction and any genuine limitations that matter to the customer.
 - Future product ideas, development status, platform architecture and internal implementation details belong only in admin/project documentation.
+
+
+## Source advert age and price history — staff negotiation aid
+
+When AnyBike is considering a sourced motorcycle, staff should use the internal **Listing & price history** information before negotiating with the seller.
+
+The system should show:
+- the source-provided listing date where available;
+- otherwise, the date AnyBike first detected the advert;
+- the last time the advert was confirmed live;
+- the current source price;
+- any price changes recorded while AnyBike has been tracking the advert.
+
+This applies to every supported source, not only BMW Approved Used.
+
+Price history is internal commercial information. It is intended to help staff understand how long a motorcycle may have been advertised and whether the seller has already reduced or increased the price. It must not be presented to a buyer as proof of the seller's motives or willingness to discount.
+
+If the source does not provide the original listing date, the screen must say **First seen by AnyBike** rather than implying that AnyBike knows the true date the seller first advertised the motorcycle.
+
+Routine source refreshes must preserve approved buyer-safe images. Source data refresh and buyer-safe image preparation are separate processes.
