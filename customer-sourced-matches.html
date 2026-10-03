@@ -72,6 +72,17 @@ h1{font-size:34px;margin:6px 0 10px}.intro{white-space:pre-line;line-height:1.6;
     <h3>Sent successfully to AnyBike</h3>
     <p id="saveSuccessText">Your choices have been saved. You do not need to do anything else right now. AnyBike will check the selected motorcycle(s) with the seller, ask any questions you entered and update you through My AnyBike.</p>
   </section>
+  <section class="selection-bar" id="waitingOptions" style="display:none">
+    <div>
+      <strong>While AnyBike checks the seller</strong>
+      <span>You can keep looking, see what happens next, or check My AnyBike for any other tasks waiting for you.</span>
+    </div>
+    <div class="actions">
+      <button class="btn red" type="button" onclick="openMoreMatches()">REQUEST MORE MOTORCYCLES</button>
+      <button class="btn" type="button" onclick="document.getElementById('how')?.scrollIntoView({behavior:'smooth',block:'start'})">SEE WHAT HAPPENS NEXT</button>
+      <a class="btn dark" href="/customer-dashboard.html" style="text-decoration:none">CHECK MY ANYBIKE</a>
+    </div>
+  </section>
   <section class="grid" id="matchGrid" style="display:none"></section>
   <section class="trade-tool-callout" id="marginToolCallout" style="display:none">
     <div><strong>Trade buyer tool — landed cost &amp; margin calculator</strong><span>Use the optional calculator on any motorcycle to model freight, import costs and your expected resale margin. Your AnyBike price stays fixed.</span></div>
@@ -429,6 +440,12 @@ function applySubmittedWaitingState(){
   const selectionBar=document.getElementById("selectionBar");
   if(selectionBar)selectionBar.style.display="none";
 
+  const filterPanel=document.getElementById("filterPanel");
+  if(filterPanel)filterPanel.style.display="none";
+
+  const waitingOptions=document.getElementById("waitingOptions");
+  if(waitingOptions)waitingOptions.style.display="flex";
+
   scans.forEach(s=>{
     const box=document.querySelector('.interest-check[data-scan-id="'+s.id+'"]');
     if(box)box.disabled=true;
@@ -455,11 +472,11 @@ function applySubmittedWaitingState(){
   const successText=document.getElementById("saveSuccessText");
   const savedInterested=scans.filter(s=>s.response==="Interested").length;
   if(success){
-    success.classList.add("show");
+    success.classList.remove("show");
     if(successText){
       successText.textContent=savedInterested
-        ?("Availability check requested for "+savedInterested+" motorcycle"+(savedInterested===1?"":"s")+". You do not need to do anything else right now. AnyBike will check with the seller and update you through My AnyBike.")
-        :"Your choices have been saved. You do not need to do anything else right now.";
+        ?("Availability check requested for "+savedInterested+" motorcycle"+(savedInterested===1?"":"s")+".")
+        :"Your choices have been saved.";
     }
   }
 }
@@ -472,11 +489,13 @@ function updateCustomerNextAction(){
   const textEl=document.getElementById("customerNextActionText");
   const waiting=document.getElementById("customerNextActionWaiting");
   const btn=document.querySelector("#customerNextAction .next-action-row .btn");
+  const eyebrow=document.querySelector("#customerNextAction .eyebrow");
   if(!titleEl||!textEl||!waiting||!btn)return;
 
   if(allResponded && !choicesDirty){
+    if(eyebrow)eyebrow.textContent="Current status";
     titleEl.textContent=savedInterested
-      ?("No action required — AnyBike is checking "+savedInterested+" motorcycle"+(savedInterested===1?"":"s")+" for you")
+      ?("AnyBike is checking "+savedInterested+" motorcycle"+(savedInterested===1?"":"s")+" for you")
       :"Your choices are saved";
     textEl.textContent=savedInterested
       ?"Your request has been sent successfully. AnyBike will contact the seller, confirm availability and current purchase terms, then update you here and through My AnyBike. You do not need to do anything else right now."
@@ -487,6 +506,7 @@ function updateCustomerNextAction(){
     return;
   }
 
+  if(eyebrow)eyebrow.textContent="Your next action";
   waiting.textContent="Waiting for: You";
   btn.style.display="";
   btn.textContent="REVIEW MATCHES";
