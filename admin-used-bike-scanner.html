@@ -587,8 +587,16 @@ async function loadBatch(id){
 async function queueAutomaticBuyerSafePreparation(){
   if(!currentBatchId||buyerSafePreparationRunning)return;
   const rows=(scanned||[]).filter(s=>s.extraction&&s.extraction.live_source_item_id);
-  const needs=rows.filter(s=>!Array.isArray(s.buyer_image_urls)||s.buyer_image_urls.length<3);
-  if(!needs.length)return;
+  const needs=rows.filter(s=>!Array.isArray(s.buyer_image_urls)||s.buyer_image_urls.length===0);
+  if(!needs.length){
+    setBuyerSafeProgress(rows.length,rows.length,"All 5 selected motorcycles have an approved buyer-safe image",true);
+    const retryBtn=document.getElementById("prepareAllImagesBtn");
+    const status=document.getElementById("prepareAllImagesStatus");
+    if(retryBtn)retryBtn.style.display="none";
+    if(status){status.className="status good";status.textContent=rows.length+" of "+rows.length+" matches buyer-safe and ready to review";}
+    setShareGate();
+    return;
+  }
 
   const key="anybike-auto-buyer-safe-batch-"+currentBatchId;
   if(sessionStorage.getItem(key)==="running")return;
@@ -677,7 +685,7 @@ async function prepareAllBuyerSafeImages(options={}){
   setBuyerSafeProgress(0,rows.length,"Preparing buyer-safe photo galleries…",false);
   for(const s of rows){
     const current=Array.isArray(s.buyer_image_urls)?s.buyer_image_urls.length:0;
-    if(current>=3){completed++;setBuyerSafeProgress(completed+failed,rows.length,"Checking match "+(completed+failed)+" of "+rows.length+"…",false);continue}
+    if(current>=1){completed++;setBuyerSafeProgress(completed+failed,rows.length,"Checking match "+(completed+failed)+" of "+rows.length+"…",false);continue}
     if(status)status.textContent="Preparing "+(completed+failed+1)+" of "+rows.length+"…";
     setBuyerSafeProgress(completed+failed,rows.length,"Processing match "+(completed+failed+1)+" of "+rows.length+"…",false);
     try{
@@ -709,14 +717,10 @@ async function prepareAllBuyerSafeImages(options={}){
   }
   buyerSafePreparationRunning=false;
   const missingAfter=(scanned||[]).filter(s=>s.extraction&&s.extraction.live_source_item_id&&!(Array.isArray(s.buyer_image_urls)&&s.buyer_image_urls.length));
-  const thinAfter=(scanned||[]).filter(s=>s.extraction&&s.extraction.live_source_item_id&&Array.isArray(s.buyer_image_urls)&&s.buyer_image_urls.length>0&&s.buyer_image_urls.length<3);
-  const readyCount=rows.length-missingAfter.length-thinAfter.length;
   if(missingAfter.length){
     setBuyerSafeProgress(rows.length,rows.length,"Automatic image preparation finished · "+missingAfter.length+" match"+(missingAfter.length===1?"":"es")+" need image attention",false);
-  }else if(thinAfter.length){
-    setBuyerSafeProgress(rows.length,rows.length,readyCount+" of "+rows.length+" galleries ready · "+thinAfter.length+" source advert"+(thinAfter.length===1?" has":"s have")+" fewer than 3 usable photos",true);
   }else{
-    setBuyerSafeProgress(rows.length,rows.length,"All match galleries are buyer-safe and ready",true);
+    setBuyerSafeProgress(rows.length,rows.length,"All selected motorcycles have an approved buyer-safe image",true);
   }
   setShareGate();
   if(btn){
