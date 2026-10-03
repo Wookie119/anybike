@@ -347,3 +347,18 @@ Resume from **Bike Details motorcycle-description translation**. Do not move on 
 - Where data is not yet available, use useful customer wording such as **Contact AnyBike for current availability**, **Enquiries welcome**, **No current models to show**, or a relevant call to action.
 - Public pages should explain what the customer can do now, what AnyBike currently provides, what information AnyBike will confirm for the transaction and any genuine limitations that matter to the customer.
 - Future product ideas, development status, platform architecture and internal implementation details belong only in admin/project documentation.
+
+
+## 3 October 2026 — Universal source listing age and price-history intelligence
+
+- Live Source Hub now treats advert age and price movement as commercial intelligence for **all source connectors**, not only BMW Approved Used.
+- `live_source_items` supports:
+  - source-provided listing date where the source exposes one;
+  - AnyBike first-seen timestamp as the fallback when the true listing date is unavailable;
+  - last-seen timestamp;
+  - current source price.
+- `live_source_price_history` records the initial AnyBike-observed price and every subsequent source-price change.
+- The advert scanner now attempts to capture structured source dates such as `datePosted`, `datePublished` and `validFrom`; source-specific adapters may add stronger source dates later.
+- Admin Used Bike Scanner displays an internal **Listing & price history** panel for sourced motorcycles so staff can see advert age and recorded price movement before negotiating with a seller.
+- Buyer-safe images are stored separately and are not replaced by ordinary source-data refreshes.
+- Historical limitation: AnyBike can only reconstruct price movement from the point tracking began. Older price changes that occurred before AnyBike first saw the advert cannot be claimed unless the source itself supplies that history.
