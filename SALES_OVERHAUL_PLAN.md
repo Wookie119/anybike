@@ -180,6 +180,28 @@ Selecting it means the buyer is asking AnyBike to contact the seller and investi
 
 Casual interest belongs in Watch / Save for Later and must not create unnecessary staff work.
 
+### Platform-wide Your Next Action standard
+**Baked-in rule:** every operational admin page and every signed-in customer workflow page must show a clear **Your next action** near the top of the working area.
+
+The component must answer:
+- what needs to happen next;
+- who is currently expected to act / who the process is waiting for;
+- one primary action to continue.
+
+Shared fallbacks are now provided by `admin.js` for admin pages and `public-header.js` for customer workflow pages, so a new page cannot silently ship without guidance. Page-specific workflows should override the fallback with authoritative live state where available.
+
+Use clear ownership wording such as:
+- Waiting for: AnyBike
+- Waiting for: You
+- Waiting for: Buyer
+- Waiting for: Seller
+- Waiting for: Shipper
+- Waiting for: Payment confirmation
+
+Do not show multiple competing primary actions. Secondary controls may still exist below, but the next-action component should identify the one action that moves the workflow forward.
+
+Pages that already have a workflow-specific Your Next Action keep their specialist logic rather than receiving a duplicate shared card.
+
 ### Admin Dashboard — Your Next Actions
 The main Admin Dashboard is the central action surface. Do not create another separate action-centre page.
 
