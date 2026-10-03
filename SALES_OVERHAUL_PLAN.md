@@ -734,3 +734,16 @@ Frontend alignment completed:
 - Adding a Message Centre mention creates a normal buyer request with an audit note linking it back to the relevant Message Centre thread(s).
 - A batch created from such a request uses customer wording along the lines of: **“You did mention that you may also be interested in this model…”** rather than implying the customer formally requested it.
 - Do not automatically source or send a model merely because it was mentioned in conversation; staff confirmation is required.
+
+
+### 3 October 2026 — Source channel setup guidance and BMW refresh quality gate
+- Live Source Hub source cards with no working adapter now use **Set up channel →** rather than a passive “Adapter needed” label.
+- Selecting an unadapted source changes **Your Next Action** to **Set up [source] as a live sourcing channel** and opens an on-page setup guide.
+- Staff guidance is:
+  1. open/check the saved source and confirm live used-bike stock is visible;
+  2. use Scanner immediately for individual adverts while the automated adapter is pending;
+  3. build/verify a source-specific adapter before enabling automatic catalogue refresh.
+- This allows staff to continue sourcing a buyer even when the requested brand/channel is not yet automated.
+- BMW full-source refresh now has a strict quality gate: a scanned record is only allowed back into the Live pool when it is a ready BMW detail record with a valid model, positive realistic price, valid BMW Bike ID/detail URL and no known placeholder/test seller data.
+- Invalid BMW refresh results are counted as failed/review work rather than overwriting good Live Source data.
+- Existing BMW live rows with zero price, blank model or test placeholder seller were moved from **Live** to **Review**; they are not deleted and may return to Live after a later valid refresh.
