@@ -311,14 +311,50 @@ function renderBuyerSourcingPlan(){
     '</div>';
   }).join("")||'<div class="small">No saved motorcycle requests for this buyer.</div>';
 }
-async function sourceRequestFromPlan(requestId){
-  const el=document.getElementById("requestSelect");
-  if(!el)return;
-  el.value=String(requestId);
+function bestConnectorForRequest(req){
+  if(!req)return null;
+  const make=String(req.make||"").trim().toLowerCase();
+  const connectors=(hub?.connectors||[]).filter(c=>c.enabled!==false);
+  if(make==="bmw"){
+    return connectors.find(c=>c.adapter_key==="bmw-approved-used-uk")||null;
+  }
+  return connectors.find(c=>{
+    const name=String(c.name||"").toLowerCase();
+    return make && (name.startsWith(make+" ") || name.includes(make+" approved") || name===make);
+  })||null;
+}
+function rememberSourcingContext(buyerId,requestId,sourceId){
+  if(buyerId)sourcingParams.set("buyer",String(buyerId));
+  if(requestId)sourcingParams.set("request",String(requestId));
+  if(sourceId)sourcingParams.set("source",String(sourceId));
+  const qs=sourcingParams.toString();
+  history.replaceState(null,"",location.pathname+(qs?"?"+qs:""));
+  syncSourcingNav();
+}
+async function openRequestForSourcing(requestId){
+  const requestEl=document.getElementById("requestSelect");
+  const buyerEl=document.getElementById("buyerSelect");
+  if(!requestEl||!buyerEl)return;
+
+  requestEl.value=String(requestId);
+  const req=buyerRequests.find(r=>Number(r.id)===Number(requestId))||null;
+  const connector=bestConnectorForRequest(req);
+
+  if(connector){
+    await selectSourceChannel(Number(connector.id));
+  }
+
+  requestEl.value=String(requestId);
   await applySelectedBuyerRequest();
   renderBuyerSourcingPlan();
   updateLiveSourceNextAction();
-  el.scrollIntoView({behavior:"smooth",block:"center"});
+  rememberSourcingContext(buyerEl.value,requestId,connector?.id||null);
+
+  const bikes=document.getElementById("bikes");
+  (bikes||document.getElementById("activeSourceLabel")||requestEl).scrollIntoView({behavior:"smooth",block:"start"});
+}
+async function sourceRequestFromPlan(requestId){
+  await openRequestForSourcing(requestId);
 }
 function renderSourceSetupGuide(connector){
   const panel=document.getElementById("sourceSetupGuide");
@@ -1070,10 +1106,8 @@ async function workBuyerFromQueue(buyerId){
   await loadBuyerSourcingPlan();
   const waiting=(buyerSourcingQueue.find(b=>Number(b.buyer_id)===Number(buyerId))?.waiting_requests||[]);
   if(waiting.length){
-    const requestEl=document.getElementById("requestSelect");
-    requestEl.value=String(waiting[0].request_id);
-    await applySelectedBuyerRequest();
-    renderBuyerSourcingPlan();
+    await openRequestForSourcing(Number(waiting[0].request_id));
+    return;
   }
   updateLiveSourceNextAction();
   document.getElementById("buyerSelect")?.scrollIntoView({behavior:"smooth",block:"center"});
