@@ -723,3 +723,14 @@ Frontend alignment completed:
 - Used Bike Scanner now reminds staff about the buyer's other motorcycle requirements while reviewing/sending a batch and links directly to the next unsourced request.
 - A batch for one brand/model is only completion of that request, not completion of the buyer.
 - **Your Next Action** must continue to point staff to remaining Not Started requests until every request has been worked, explicitly closed, or otherwise resolved.
+
+
+### 3 October 2026 — Message Centre interest clues
+- The Buyer Sourcing Plan must also check the buyer's linked Message Centre history for motorcycle models they have discussed.
+- Message Centre mentions are **suggestions, not confirmed sourcing requests**.
+- The system should use structured Message Centre motorcycle context and customer-authored message text to identify known make/model mentions.
+- A discussed model already present in the sourcing plan must not be duplicated.
+- Staff see **Discussed · not yet in sourcing plan** and may deliberately choose **Add to sourcing plan →**.
+- Adding a Message Centre mention creates a normal buyer request with an audit note linking it back to the relevant Message Centre thread(s).
+- A batch created from such a request uses customer wording along the lines of: **“You did mention that you may also be interested in this model…”** rather than implying the customer formally requested it.
+- Do not automatically source or send a model merely because it was mentioned in conversation; staff confirmation is required.
