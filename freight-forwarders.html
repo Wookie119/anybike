@@ -847,7 +847,9 @@ function approvedForwarderCard(r){
     '</div>'+
     '<div class="provider-actions">'+
       (website?'<a class="btn small" href="'+ffSafe(website)+'" target="_blank" rel="noopener noreferrer nofollow">Visit Website</a>':'')+
-      '<a class="btn small secondary" href="/customer-messages.html?new=1&subject='+encodeURIComponent("Shipping or Export")+'&title='+encodeURIComponent(String(r.company_name||"")+" shipping")+'&message='+encodeURIComponent("I would like help with "+String(r.company_name||"")+" for my motorcycle shipment.")+'">Ask AnyBike</a>'+
+      (r.contact_available
+        ? '<a class="btn small secondary contact-shipper" data-shipper-id="'+Number(r.id)+'" href="/customer-contact-shipper.html?shipper='+Number(r.id)+'">Contact Shipper</a>'
+        : '<a class="btn small secondary" href="/customer-messages.html?new=1&subject='+encodeURIComponent("Shipping or Export")+'&title='+encodeURIComponent(String(r.company_name||"")+" shipping")+'&message='+encodeURIComponent("I would like help with "+String(r.company_name||"")+" for my motorcycle shipment.")+'">Ask AnyBike</a>')+
     '</div>'+
   '</article>';
 }
@@ -895,6 +897,29 @@ function applyLiveCoverageToCard(card,r){
       (termsText?'<br><b>Broader coverage:</b> '+ffSafe(termsText):'')+
       (portText?'<br><b>Named ports / destinations:</b> '+ffSafe(portText):'')+
     '</span>';
+
+  const actions=card.querySelector(".provider-actions");
+  if(actions){
+    const oldHelp=Array.from(actions.querySelectorAll("a")).find(function(a){
+      return /ask anybike|contact shipper/i.test(a.textContent||"");
+    });
+    if(oldHelp) oldHelp.remove();
+
+    const a=document.createElement("a");
+    a.className="btn small secondary";
+    if(r.contact_available){
+      a.classList.add("contact-shipper");
+      a.dataset.shipperId=String(r.id);
+      a.href="/customer-contact-shipper.html?shipper="+encodeURIComponent(r.id);
+      a.textContent="Contact Shipper";
+    }else{
+      a.href="/customer-messages.html?new=1&subject="+encodeURIComponent("Shipping or Export")+
+        "&title="+encodeURIComponent(String(r.company_name||"")+" shipping")+
+        "&message="+encodeURIComponent("I would like help with "+String(r.company_name||"")+" for my motorcycle shipment.");
+      a.textContent="Ask AnyBike";
+    }
+    actions.appendChild(a);
+  }
 }
 
 async function loadApprovedForwarders(){
@@ -946,6 +971,10 @@ function filterProviders(){
   const method = methodSelect.value;
   const country = countrySelect.value;
   const selectedCountry=countrySelect.options[countrySelect.selectedIndex]?.text || "";
+  document.querySelectorAll(".contact-shipper").forEach(function(link){
+    const id=link.dataset.shipperId||"";
+    link.href="/customer-contact-shipper.html?shipper="+encodeURIComponent(id)+(selectedCountry?"&country="+encodeURIComponent(selectedCountry):"");
+  });
   let visible = 0;
 
   cards.forEach(function(card){
