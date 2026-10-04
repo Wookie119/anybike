@@ -378,6 +378,21 @@ button,input,select,textarea{font:inherit}
   line-height:1.5;
 }
 .referral-benefit-note strong{color:#9fffc3}
+.referral-list{display:grid;gap:9px;margin-top:14px}
+.referral-row{
+  display:grid;
+  grid-template-columns:minmax(0,1.5fr) minmax(140px,.8fr) minmax(120px,.7fr);
+  gap:12px;
+  align-items:center;
+  padding:12px 14px;
+  border:1px solid rgba(255,255,255,.11);
+  border-radius:12px;
+  background:#0c0c0c;
+}
+.referral-row strong{display:block;font-size:14px}
+.referral-row span{color:#aaa;font-size:12px}
+.referral-status{display:inline-flex;justify-content:center;align-items:center;padding:6px 9px;border-radius:999px;border:1px solid rgba(54,211,126,.35);background:rgba(54,211,126,.07);color:#9fffc3!important;font-weight:900}
+@media(max-width:760px){.referral-row{grid-template-columns:1fr}.referral-status{justify-self:start}}
 .bike-grid{
   display:grid;
   grid-template-columns:repeat(3,minmax(0,1fr));
@@ -2104,6 +2119,10 @@ body.customer-offer-modal-open{overflow:hidden}
       </div>
     </div>
     <div id="buyerReferralStatus" style="margin-top:10px;color:#999;font-size:13px;line-height:1.5">Preparing your referral link…</div>
+    <div id="buyerReferralListWrap" style="display:none;margin-top:16px">
+      <div class="eyebrow" style="margin-bottom:8px">My referrals</div>
+      <div id="buyerReferralList" class="referral-list"></div>
+    </div>
   </section>
 
   <section class="panel" id="earlyShippingPanel" style="border-color:rgba(237,28,36,.28)">
@@ -5937,6 +5956,30 @@ async function loadBuyerReferralSummary(){
     if(email){
       email.href="mailto:?subject="+encodeURIComponent("AnyBike — UK motorcycle sourcing")+
         "&body="+encodeURIComponent(shareText);
+    }
+
+    const listWrap=document.getElementById("buyerReferralListWrap");
+    const list=document.getElementById("buyerReferralList");
+    const {data:referrals,error:referralError}=await sb.rpc("customer_get_buyer_referrals_v1");
+    if(referralError){
+      console.warn("Buyer referral list could not be loaded",referralError);
+    }else if(listWrap && list){
+      const rows=Array.isArray(referrals)?referrals:[];
+      if(rows.length){
+        listWrap.style.display="";
+        list.innerHTML=rows.map(r=>{
+          const country=String(r.referred_country||"").trim() || "Country not yet added";
+          const joined=r.referred_at ? new Date(r.referred_at).toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"}) : "";
+          return '<div class="referral-row">'+
+            '<div><strong>'+safe(r.referred_name||"New AnyBike trade buyer")+'</strong><span>'+safe(country)+'</span></div>'+
+            '<span>'+(joined ? "Joined "+safe(joined) : "Joined AnyBike")+'</span>'+
+            '<span class="referral-status">Referred ✓</span>'+
+          '</div>';
+        }).join("");
+      }else{
+        listWrap.style.display="";
+        list.innerHTML='<div style="color:#888;font-size:13px;padding:4px 0">No referred dealers have signed up yet.</div>';
+      }
     }
   }catch(error){
     console.warn("Buyer referral summary could not be loaded",error);
