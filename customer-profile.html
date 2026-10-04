@@ -690,9 +690,12 @@
           <div class="grid">
             <div>
               <label for="destinationPort">Usual destination port in your country <span style="color:#999;font-weight:normal">(optional)</span></label>
-              <input id="destinationPort" placeholder="e.g. Port Louis, Jebel Ali, Durban, New York">
+              <select id="destinationPort">
+                <option value="">Select your usual arrival port</option>
+              </select>
+              <input id="destinationPortOther" class="hidden" style="margin-top:8px" placeholder="Enter your usual arrival port / city">
               <div id="destinationPortHelp" style="margin-top:7px;color:#9aa0a6;font-size:12px;line-height:1.45">
-                Enter the overseas port you normally use. This is your onward destination port and is completely separate from AnyBike's UK handover point.
+                Choose the overseas port you normally use. This is your onward destination port and is completely separate from AnyBike's UK handover point. If your port is not listed, choose “Other / request a port”.
               </div>
             </div>
 
@@ -947,8 +950,55 @@
     };
 
 
+    function buyerDestinationCountry(){
+      return String(value("businessCountry")||value("country")||"").trim();
+    }
+
+    function populateDestinationPorts(selected=""){
+      const select=document.getElementById("destinationPort");
+      const other=document.getElementById("destinationPortOther");
+      if(!select||!other) return;
+
+      const country=buyerDestinationCountry();
+      const ports=DESTINATION_PORTS_BY_COUNTRY[country]||[];
+      const saved=String(selected||"").trim();
+      const known=saved && ports.includes(saved);
+
+      select.innerHTML='<option value="">Select your usual arrival port</option>'+
+        ports.map(p=>'<option value="'+p.replace(/"/g,'&quot;')+'">'+p+'</option>').join("")+
+        '<option value="__other__">Other / request a port</option>';
+
+      if(known){
+        select.value=saved;
+        other.value="";
+        other.classList.add("hidden");
+      }else if(saved){
+        select.value="__other__";
+        other.value=saved;
+        other.classList.remove("hidden");
+      }else{
+        select.value="";
+        other.value="";
+        other.classList.add("hidden");
+      }
+
+      const help=document.getElementById("destinationPortHelp");
+      if(help){
+        if(country && ports.length){
+          help.textContent="Choose your usual arrival port in "+country+". This is your onward destination port and is completely separate from AnyBike's UK handover point. If your port is not listed, choose “Other / request a port”.";
+        }else if(country){
+          help.textContent="We do not yet have a standard arrival-port list for "+country+". Choose “Other / request a port” and enter the port you normally use. This remains completely separate from AnyBike's UK handover point.";
+        }else{
+          help.textContent="Select your business country first, then choose your usual overseas arrival port. This is completely separate from AnyBike's UK handover point.";
+        }
+      }
+    }
+
     function selectedDestinationPort(){
-      return String(document.getElementById("destinationPort")?.value||"").trim();
+      const select=document.getElementById("destinationPort");
+      if(!select) return "";
+      if(select.value==="__other__") return String(document.getElementById("destinationPortOther")?.value||"").trim();
+      return String(select.value||"").trim();
     }
 
     async function loadFreightForwarderDirectory(){
@@ -1143,7 +1193,7 @@
         document.getElementById("customShipperNote")?.classList.toggle("hidden",shipSelect.value!=="custom");
       }
       setValue("buyerEori", profile?.buyer_eori_number);
-      setValue("destinationPort", profile?.preferred_destination_port);
+      populateDestinationPorts(profile?.preferred_destination_port);
       setValue("shippingMethod", profile?.preferred_shipping_method);
       setValue("typicalQuantity", profile?.typical_bikes_per_shipment);
 
@@ -1221,9 +1271,22 @@
     });
     document.getElementById("country")?.addEventListener("change",()=>{
       updateBuyerTypeFields();
+      populateDestinationPorts(selectedDestinationPort());
       markDirtyAndAutosave();
     });
-    document.getElementById("destinationPort")?.addEventListener("input",markDirtyAndAutosave);
+    document.getElementById("businessCountry")?.addEventListener("change",()=>{
+      populateDestinationPorts(selectedDestinationPort());
+      markDirtyAndAutosave();
+    });
+    document.getElementById("destinationPort")?.addEventListener("change",e=>{
+      const other=document.getElementById("destinationPortOther");
+      if(other){
+        other.classList.toggle("hidden",e.target.value!=="__other__");
+        if(e.target.value==="__other__") setTimeout(()=>other.focus(),0);
+      }
+      markDirtyAndAutosave();
+    });
+    document.getElementById("destinationPortOther")?.addEventListener("input",markDirtyAndAutosave);
 
     function setDocumentState(id,path){
       const el=document.getElementById(id);
@@ -1969,7 +2032,7 @@
       }
     }
 
-    const autosaveFields=["fullName","phone","whatsapp","contactAddress1","contactAddress2","contactPostcode","country","city","region","buyerType","businessName","businessTradingName","businessRegistrationNumber","businessTaxNumber","businessEmail","businessPhone","businessWebsite","businessAddress1","businessAddress2","businessCity","businessRegion","businessPostcode","businessCountry","bankAccountName","bankAccountNumber","bankSortCode","bankInternationalNotes","currency","language","fxRate","dutyRate","importTaxRate","minimumMargin","defaultShippingCost","defaultPortCollectionCost","defaultPreparationCost","defaultWarrantyCost","defaultOtherCost","buyerEori","destinationPort","shippingMethod","typicalQuantity","identityDocument","addressDocument","licenceDocument","shippingCompany","shippingCountry","shippingContactName","shippingContactRole","shippingContactEmail","shippingContactPhone","shippingWebsite","shippingAddress1","shippingAddress2","shippingCity","shippingRegion","shippingPostcode","collectionPoint"];
+    const autosaveFields=["fullName","phone","whatsapp","contactAddress1","contactAddress2","contactPostcode","country","city","region","buyerType","businessName","businessTradingName","businessRegistrationNumber","businessTaxNumber","businessEmail","businessPhone","businessWebsite","businessAddress1","businessAddress2","businessCity","businessRegion","businessPostcode","businessCountry","bankAccountName","bankAccountNumber","bankSortCode","bankInternationalNotes","currency","language","fxRate","dutyRate","importTaxRate","minimumMargin","defaultShippingCost","defaultPortCollectionCost","defaultPreparationCost","defaultWarrantyCost","defaultOtherCost","buyerEori","destinationPort","destinationPortOther","shippingMethod","typicalQuantity","identityDocument","addressDocument","licenceDocument","shippingCompany","shippingCountry","shippingContactName","shippingContactRole","shippingContactEmail","shippingContactPhone","shippingWebsite","shippingAddress1","shippingAddress2","shippingCity","shippingRegion","shippingPostcode","collectionPoint"];
     autosaveFields.forEach(id=>{
       const el=document.getElementById(id);
       if(!el) return;
