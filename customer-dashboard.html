@@ -5575,14 +5575,35 @@ function customerDealShipperChoiceHtml(match,purchase=null){
     `;
   }
 
+  if(current && selectedId && handoverStatus.includes("declined")){
+    const planName=selectedPlan ? shippingPlanLabel(selectedPlan) : "Selected Shipping Preference";
+    return `
+      <div class="shipper-choice">
+        <div class="shipper-choice-title">Shipping Preferences</div>
+        <div class="shipper-choice-status bad">
+          <strong>This shipping option cannot be used for this purchase.</strong><br>
+          ${safe(planName)}
+          ${current.admin_decision_reason ? `<br>Reason: ${safe(current.admin_decision_reason)}` : ""}
+        </div>
+        <div class="saved-shipper-actions" style="margin-top:10px">
+          <a class="mini-btn primary" href="#shipping-preferences">Choose / update another shipping option</a>
+        </div>
+      </div>
+    `;
+  }
+
   if(current && selectedId){
     const planName=selectedPlan ? shippingPlanLabel(selectedPlan) : "Selected Shipping Preference";
+    const contactConfirmed=Boolean(current.buyer_contacted_shipper);
+    const shipperAgreed=Boolean(current.shipper_agreed_to_handle);
     return `
       <div class="shipper-choice">
         <div class="shipper-choice-title">Shipping Preferences</div>
         <div class="shipper-choice-status">
           <strong>Shipping Preference selected · awaiting AnyBike confirmation</strong><br>
-          ${safe(planName)}
+          ${safe(planName)}<br>
+          ${contactConfirmed ? "✓ You confirmed you contacted the shipper." : "Contact with shipper still needs confirming."}<br>
+          ${shipperAgreed ? "✓ You confirmed the shipper agreed to handle this motorcycle / shipment." : "Shipper acceptance still needs confirming."}
         </div>
       </div>
     `;
@@ -5621,8 +5642,19 @@ function customerDealShipperChoiceHtml(match,purchase=null){
           `;
         }).join("")}
       </div>
+      <div class="shipper-choice" style="margin-top:10px;background:#101010">
+        <div class="shipper-choice-title">Before sending this option to AnyBike</div>
+        <label class="shipper-choice-option">
+          <input type="checkbox" id="deal-shipper-contacted-${safe(dealId)}">
+          <span><strong>I have contacted this shipper / freight forwarder.</strong><small>I have spoken to or corresponded with them about my shipment.</small></span>
+        </label>
+        <label class="shipper-choice-option">
+          <input type="checkbox" id="deal-shipper-agreed-${safe(dealId)}">
+          <span><strong>The shipper has agreed to handle my motorcycle / shipment.</strong><small>I have confirmed they will work with me and can receive the motorcycle through the proposed handover route.</small></span>
+        </label>
+      </div>
       <div class="saved-shipper-actions">
-        <button class="mini-btn primary" type="button" onclick="saveDealHandoverSelection(${Number(match._deal_id)})">Use Selected Shipping Plan</button>
+        <button class="mini-btn primary" type="button" onclick="saveDealHandoverSelection(${Number(match._deal_id)})">Send Shipping Option to AnyBike</button>
         <a class="mini-btn" href="#shipping-preferences">Add Another Shipping Plan</a>
       </div>
       <div id="deal-shipper-status-${safe(dealId)}" class="shipper-choice-status">
@@ -5643,13 +5675,32 @@ async function saveDealHandoverSelection(dealId){
     return;
   }
 
+  const contacted=document.getElementById(`deal-shipper-contacted-${dealId}`);
+  const agreed=document.getElementById(`deal-shipper-agreed-${dealId}`);
+
+  if(!contacted?.checked || !agreed?.checked){
+    if(status){
+      status.textContent="Please confirm that you have contacted the shipper and that they have agreed to handle your motorcycle / shipment.";
+      status.className="shipper-choice-status bad";
+    }
+    return;
+  }
+
   const planId=Number(selected.value);
   const payload={
     customer_id:currentUser.id,
     deal_id:Number(dealId),
     handover_plan_id:planId,
     status:"Customer Selected",
-    selected_at:new Date().toISOString()
+    selected_at:new Date().toISOString(),
+    buyer_contacted_shipper:true,
+    shipper_agreed_to_handle:true,
+    buyer_shipper_confirmed_at:new Date().toISOString(),
+    verified_at:null,
+    verified_by:null,
+    admin_decision_reason:null,
+    admin_decided_at:null,
+    admin_decided_by:null
   };
 
   const {error}=await sb
