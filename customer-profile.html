@@ -207,6 +207,7 @@
     .file-state.good{color:var(--green)}
     .risk-note{margin-top:14px;padding:13px 14px;border-radius:12px;background:rgba(237,28,36,.07);border:1px solid rgba(237,28,36,.24);color:#d5d5d5;line-height:1.5;font-size:13px}
     .setup-summary{border-color:rgba(237,28,36,.58);background:radial-gradient(circle at 95% 0%,rgba(237,28,36,.13),transparent 32%),#111}
+    .setup-summary.setup-complete{border-color:rgba(54,211,126,.55);background:radial-gradient(circle at 95% 0%,rgba(54,211,126,.10),transparent 32%),#111}
     .setup-summary-head,.section-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}
     .setup-progress{height:10px;border-radius:999px;background:#252525;overflow:hidden;margin:16px 0;border:1px solid rgba(255,255,255,.08)}
     .setup-progress>div{height:100%;width:0;background:var(--green);transition:width .2s ease}
@@ -215,14 +216,24 @@
     .setup-step strong{display:block;color:#fff;font-size:13px;margin-bottom:3px}
     .setup-step.complete{border-color:rgba(54,211,126,.5);background:rgba(54,211,126,.07)}
     .setup-step.complete strong{color:#7af0a8}
+    .setup-step.current{border-color:rgba(237,28,36,.72);background:rgba(237,28,36,.10);box-shadow:0 0 0 1px rgba(237,28,36,.08)}
+    .setup-step.current strong{color:#fff}
+    .setup-step.current span{color:#ff8d92}
     .next-action{display:flex;align-items:center;justify-content:space-between;gap:16px;border:1px solid rgba(237,28,36,.6);border-left:5px solid var(--red);border-radius:13px;padding:15px 17px;background:#151515}
+    .next-action.complete{border-color:rgba(54,211,126,.62);border-left-color:var(--green);background:rgba(54,211,126,.07)}
+    .next-action.complete strong{color:#fff}
+    .next-action.complete button{background:#1d7d49}
     .next-action strong{display:block;font-size:18px;margin-bottom:4px}
     .next-action span{color:#bbb;font-size:13px;line-height:1.45}
     .next-action button,.section-save{border:0;border-radius:999px;background:var(--red);color:#fff;font-weight:900;cursor:pointer}
     .next-action button{padding:12px 17px;white-space:nowrap}
     .section-save{padding:11px 16px;margin:0}
     .section-save[disabled]{opacity:.55;cursor:wait}
-    .section-save-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:18px;padding-top:16px;border-top:1px solid rgba(255,255,255,.08)}
+    .section-save-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:18px;padding:15px 17px;border:1px solid rgba(237,28,36,.58);border-left:5px solid var(--red);border-radius:13px;background:#151515}
+    .section-save-row::before{content:"YOUR NEXT ACTION";width:100%;color:#ff6268;font-size:11px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;margin-bottom:-3px}
+    .section-save-row.complete{border-color:rgba(54,211,126,.55);border-left-color:var(--green);background:rgba(54,211,126,.07)}
+    .section-save-row.complete::before{content:"COMPLETED";color:#7af0a8}
+    .section-save-row.complete .section-save{background:#1d7d49}
     .section-save-row .section-msg{margin:0;flex:1;min-width:220px}
     .section-state{display:inline-flex;align-items:center;border:1px solid rgba(237,28,36,.45);border-radius:999px;padding:6px 10px;color:#ff9a9e;font-weight:900;font-size:12px;white-space:nowrap}
     .section-state.complete{border-color:rgba(54,211,126,.5);background:rgba(54,211,126,.07);color:#7af0a8}
@@ -237,7 +248,11 @@
     .autosave-line.saved .autosave-dot{background:var(--green)}
     .autosave-line.error .autosave-dot{background:var(--red)}
     .custom-shipper-note{margin-top:12px;padding:13px 14px;border:1px solid rgba(244,185,66,.34);background:rgba(244,185,66,.08);border-radius:12px;color:#ffe2a1;font-size:13px;line-height:1.45}
-    .profile-final-actions{margin:4px 0 0;padding:18px 0 0}
+    .profile-final-actions{margin:4px 0 0;padding:16px 18px;border:1px solid rgba(237,28,36,.58);border-left:5px solid var(--red);border-radius:13px;background:#151515;align-items:center}
+    .profile-final-actions::before{content:"YOUR NEXT ACTION";margin-right:auto;color:#ff6268;font-size:11px;font-weight:900;letter-spacing:.12em;text-transform:uppercase}
+    .profile-final-actions.complete{border-color:rgba(54,211,126,.62);border-left-color:var(--green);background:rgba(54,211,126,.07)}
+    .profile-final-actions.complete::before{content:"SUCCESSFUL";color:#7af0a8}
+    .profile-final-actions.complete .save-btn{background:#1d7d49}
     .profile-final-message{margin:10px 0 0}
     .hidden{display:none!important}
 
@@ -1443,10 +1458,23 @@
       const progressText=document.getElementById("setupProgressText");
       if(progressText) progressText.textContent=done+" of "+requiredKeys.length+" required sections complete";
 
+      const progressOrder=["contact","business","preferences","buyer","shipping","bank","margin"];
+      const firstIncompleteRequired=["contact","business","preferences","buyer","shipping"].find(k=>!s[k]);
+      const currentProgress=firstIncompleteRequired || (!s.bank?"bank":(!s.margin?"margin":""));
       document.querySelectorAll("[data-setup]").forEach(function(el){
         const key=el.dataset.setup;
         el.classList.toggle("complete",Boolean(s[key]));
+        el.classList.toggle("current",key===currentProgress && !s[key]);
       });
+      document.querySelectorAll(".section-save-row").forEach(function(row){
+        const btn=row.querySelector("[data-save-section]");
+        if(!btn) return;
+        const key=btn.dataset.saveSection;
+        row.classList.toggle("complete",Boolean(s[key]));
+      });
+      const summary=document.getElementById("buyer-setup-summary");
+      summary?.classList.toggle("setup-complete",done===requiredKeys.length);
+      summary?.querySelector(".next-action")?.classList.toggle("complete",done===requiredKeys.length);
 
       const setState=(id,complete,optionalLabel)=>{
         const el=document.getElementById(id);
@@ -1764,14 +1792,17 @@
         setAutosaveStatus("saved","All changes saved");
         updateSetupReminder();
 
+        const saveRow=button.closest(".section-save-row");
+        if(saveRow) saveRow.classList.add("complete");
+        button.textContent="Saved ✓";
         if(["contact","business","preferences","buyer","shipping"].includes(section)){
-          setTimeout(moveToNextRequiredSection,450);
+          setTimeout(moveToNextRequiredSection,650);
         }
       }catch(err){
         if(msg){msg.textContent="Could not save this section: "+err.message;msg.className="section-msg bad";}
       }finally{
         button.disabled=false;
-        button.textContent=original;
+        if(!button.closest(".section-save-row")?.classList.contains("complete")) button.textContent=original;
       }
     }
 
@@ -1891,8 +1922,18 @@
       await suggestCustomShipperIfNeeded(profile);
       profileDirty=false;
       setAutosaveStatus("saved","All changes saved");
-      showMsg("Everything entered so far has been saved. You can return later for any incomplete Buyer Setup sections.");
       updateSetupReminder();
+      const completion=buyerSetupCompletion();
+      const requiredComplete=["contact","business","preferences","buyer","shipping"].every(k=>completion[k]);
+      const finalActions=document.querySelector(".profile-final-actions");
+      if(requiredComplete){
+        finalActions?.classList.add("complete");
+        saveBtn.textContent="Successful ✓";
+        showMsg("Successful — your AnyBike buyer profile is complete and saved. Taking you back to My AnyBike.");
+        setTimeout(()=>window.location.href="/customer-dashboard.html",1800);
+      }else{
+        showMsg("Everything entered so far has been saved. You can return later for any incomplete Buyer Setup sections.");
+      }
     }
 
     function setAutosaveStatus(state,text){
