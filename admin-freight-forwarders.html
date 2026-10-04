@@ -469,7 +469,7 @@ body.admin-freight-page .top-actions{display:flex;gap:10px;flex-wrap:wrap;justif
         The Supabase table is not available yet. This page is using temporary browser storage until the database setup is added.
       </div>
 
-      <section class="suggestion-panel">
+      <section class="suggestion-panel" id="profileUpdatesPanel">
         <div class="suggestion-head">
           <div>
             <h2>Profile updates awaiting review</h2>
@@ -482,7 +482,7 @@ body.admin-freight-page .top-actions{display:flex;gap:10px;flex-wrap:wrap;justif
         </div>
       </section>
 
-      <section class="suggestion-panel">
+      <section class="suggestion-panel" id="suggestedShippersPanel">
         <div class="suggestion-head">
           <div>
             <h2>Suggested shippers & offices</h2>
@@ -742,6 +742,95 @@ function dateDisplay(value){
   return Number.isNaN(d.getTime()) ? value : d.toLocaleDateString("en-GB");
 }
 
+function scrollFreightTarget(selector){
+  const el=document.querySelector(selector);
+  if(el) el.scrollIntoView({behavior:"smooth",block:"start"});
+}
+
+function updateFreightNextAction(){
+  if(!window.AnyBikeNextAction?.set) return;
+
+  const active=records.filter(r=>r.is_active!==false);
+  const pendingProfiles=profileSubmissions.filter(x=>x.status==="Pending").length;
+  const pendingSuggestions=customerSuggestions.length;
+  const missingEmail=active.filter(r=>!String(r.email||"").trim()).length;
+  const notInvited=active.filter(r=>String(r.email||"").trim() && (!r.profile_invite_status || r.profile_invite_status==="Not Invited")).length;
+  const unverified=active.filter(r=>(r.verification_status||"Unverified")!=="Verified").length;
+
+  if(pendingProfiles){
+    window.AnyBikeNextAction.set({
+      title:"Review "+pendingProfiles+" shipper profile update"+(pendingProfiles===1?"":"s"),
+      text:"A shipping company has submitted profile changes. Approve the update before the public directory changes.",
+      waitingFor:"AnyBike",
+      label:"REVIEW PROFILE UPDATES →",
+      onClick:()=>scrollFreightTarget("#profileUpdatesPanel")
+    });
+    return;
+  }
+  if(pendingSuggestions){
+    window.AnyBikeNextAction.set({
+      title:"Review "+pendingSuggestions+" suggested shipper"+(pendingSuggestions===1?"":"s")+" / office"+(pendingSuggestions===1?"":"s"),
+      text:"Check the pending shipper or branch referral before adding it to the live directory.",
+      waitingFor:"AnyBike",
+      label:"REVIEW SUGGESTIONS →",
+      onClick:()=>scrollFreightTarget("#suggestedShippersPanel")
+    });
+    return;
+  }
+  if(missingEmail){
+    window.AnyBikeNextAction.set({
+      title:"Add missing shipper email addresses",
+      text:missingEmail+" active shipper record"+(missingEmail===1?" has":"s have")+" no primary email, so profile invitations cannot be managed properly.",
+      waitingFor:"AnyBike",
+      label:"SHOW MISSING EMAILS →",
+      onClick:()=>{
+        document.getElementById("activeFilter").value="active";
+        document.getElementById("profileInviteFilter").value="Missing Email";
+        renderDirectory();
+        scrollFreightTarget(".toolbar");
+      }
+    });
+    return;
+  }
+  if(notInvited){
+    window.AnyBikeNextAction.set({
+      title:"Invite "+notInvited+" shipper"+(notInvited===1?"":"s")+" to check their profile",
+      text:"These active shippers have an email address but have not yet received their secure profile update invitation.",
+      waitingFor:"AnyBike",
+      label:"SHOW NOT INVITED →",
+      onClick:()=>{
+        document.getElementById("activeFilter").value="active";
+        document.getElementById("profileInviteFilter").value="Not Invited";
+        renderDirectory();
+        scrollFreightTarget(".toolbar");
+      }
+    });
+    return;
+  }
+  if(unverified){
+    window.AnyBikeNextAction.set({
+      title:"Verify "+unverified+" shipper record"+(unverified===1?"":"s"),
+      text:"These active directory records still need an AnyBike verification check.",
+      waitingFor:"AnyBike",
+      label:"SHOW UNVERIFIED →",
+      onClick:()=>{
+        document.getElementById("activeFilter").value="active";
+        document.getElementById("verificationFilter").value="Unverified";
+        renderDirectory();
+        scrollFreightTarget(".toolbar");
+      }
+    });
+    return;
+  }
+  window.AnyBikeNextAction.set({
+    title:"Freight forwarder directory up to date",
+    text:"There are no profile approvals, shipper suggestions, missing primary emails, uninvited active shippers or unverified records waiting for action.",
+    waitingFor:"No action needed",
+    label:"VIEW DIRECTORY →",
+    onClick:()=>scrollFreightTarget(".toolbar")
+  });
+}
+
 async function loadProfileSubmissions(){
   const host=document.getElementById("profileUpdateList");
   const count=document.getElementById("profileUpdateCount");
@@ -757,6 +846,7 @@ async function loadProfileSubmissions(){
 
   profileSubmissions=(data||[]).filter(x=>x.status==="Pending");
   count.textContent=String(profileSubmissions.length);
+  updateFreightNextAction();
 
   if(!profileSubmissions.length){
     host.innerHTML='<div class="suggestion-empty">No shipper profile updates are waiting for review.</div>';
@@ -807,7 +897,10 @@ async function inviteShipperProfile(id){
     alert("Add an email address for "+(record.company_name||"this shipper")+" before sending a profile invitation.");
     return;
   }
-  if(!confirm("Send a free AnyBike profile update invitation to "+record.company_name+" at "+record.email+"?")) return;
+  const recipients=[record.profile_contact_email,record.email,record.email_2,record.email_3,record.profile_cc_email]
+    .map(v=>String(v||"").trim()).filter(Boolean)
+    .filter((v,i,a)=>a.findIndex(x=>x.toLowerCase()===v.toLowerCase())===i);
+  if(!confirm("Send the shared AnyBike profile update invitation to "+record.company_name+"?\n\nRecipients:\n"+recipients.join("\n"))) return;
 
   const {data,error}=await sb.functions.invoke("send-forwarder-profile-invite",{body:{forwarder_id:Number(id),force:true}});
   if(error||data?.error){
@@ -856,6 +949,7 @@ async function loadCustomerSuggestions(){
 
   customerSuggestions=data||[];
   count.textContent=String(customerSuggestions.length);
+  updateFreightNextAction();
 
   if(!customerSuggestions.length){
     host.innerHTML='<div class="suggestion-empty">No new customer-suggested shippers are waiting for review.</div>';
@@ -954,6 +1048,7 @@ async function loadForwarders(){
 
   refreshDirectoryFilters();
   renderDirectory();
+  updateFreightNextAction();
 }
 
 function setFilterOptions(id,placeholder,items,labelMap={}){
