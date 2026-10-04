@@ -30,7 +30,30 @@
 <div class="full"><label>Services</label><div class="checks" id="services"></div></div>
 </div>
 <div class="actions"><button class="btn" type="submit">Submit Updated Profile →</button><button class="btn secondary" type="button" id="decline">I do not want to update this profile</button></div><div id="status" class="status"></div>
-</form></section></div>
+</form></section>
+<section class="card" id="officeReferralCard">
+  <div class="ey" style="color:#ed1c24">Grow the AnyBike shipper network</div>
+  <h2 style="margin:8px 0 10px">Recommend another office / branch</h2>
+  <p class="intro" style="margin-top:0">If another office in your company handles motorcycles, you can introduce them to AnyBike. We will review the office before adding it to the directory.</p>
+  <div class="grid">
+    <div><label>Office / branch name *</label><input id="officeCompany" placeholder="e.g. LV Logistics Felixstowe"></div>
+    <div><label>City / area</label><input id="officeCity" placeholder="Felixstowe"></div>
+    <div><label>Country</label><input id="officeCountry" value="United Kingdom"></div>
+    <div><label>Contact email *</label><input id="officeEmail" type="email"></div>
+    <div><label>Contact name</label><input id="officeContact"></div>
+    <div><label>Role / department</label><input id="officeRole"></div>
+    <div><label>Phone</label><input id="officePhone"></div>
+    <div><label>Website</label><input id="officeWebsite" type="url"></div>
+    <div class="full"><label>Address</label><input id="officeAddress1" placeholder="Depot / office address"></div>
+    <div><label>Region / county</label><input id="officeRegion"></div>
+    <div><label>Postcode</label><input id="officePostcode"></div>
+    <div><label>Main port / handover point</label><input id="officePort"></div>
+    <div><label>Motorcycle specialist</label><div class="check"><input id="officeMotorcycle" type="checkbox"><span>This office handles motorcycles / motorbikes</span></div></div>
+    <div class="full"><label>Anything AnyBike should know?</label><textarea id="officeNotes" placeholder="Useful contact or service information"></textarea></div>
+  </div>
+  <div class="actions"><button class="btn" type="button" id="submitOfficeReferral">Recommend This Office →</button></div>
+  <div id="officeReferralStatus" class="status"></div>
+</section></div>
 <script>
 const token=new URLSearchParams(location.search).get("token")||"";
 const endpoint="https://tuehtnezhdnkqbbhttgp.supabase.co/functions/v1/forwarder-profile-update";
@@ -50,4 +73,44 @@ if(p.referral_code){
 company.value=p.company_name||"";country.value=p.country||"";city.value=p.city||"";address.value=p.uk_address||"";contact.value=p.contact_name||"";role.value=p.contact_role||"";email.value=p.email||"";phone.value=p.phone||"";profileContactEmail.value=p.profile_contact_email||p.email||"";profileCcEmail.value=p.profile_cc_email||"";website.value=p.website||"";countries.value=(p.countries_covered||[]).join(", ");ports.value=(p.ports_served||[]).join(", ");mainPort.value=p.destination_port||"";motorcycle.checked=!!p.motorcycle_specialist;const selected=new Set(p.services||[]);services.innerHTML=serviceList.map(s=>'<label class="check"><input type="checkbox" value="'+s.replace(/"/g,"&quot;")+'" '+(selected.has(s)?"checked":"")+'> <span>'+s+'</span></label>').join("")})();
 form.onsubmit=async e=>{e.preventDefault();const payload={company_name:company.value.trim(),country:country.value.trim(),city:city.value.trim(),uk_address:address.value.trim(),contact_name:contact.value.trim(),contact_role:role.value.trim(),email:email.value.trim(),phone:phone.value.trim(),profile_contact_email:profileContactEmail.value.trim(),profile_cc_email:profileCcEmail.value.trim(),website:website.value.trim(),destination_port:mainPort.value.trim(),countries_covered:arr(countries.value),ports_served:arr(ports.value),services:Array.from(services.querySelectorAll("input:checked")).map(x=>x.value),motorcycle_specialist:motorcycle.checked};setStatus("Submitting…");const d=await call({action:"submit",profile:payload});if(d.error){setStatus(d.error,true);return}form.querySelectorAll("input,textarea,button").forEach(x=>x.disabled=true);setStatus("Thank you. Your updated profile has been sent to AnyBike for review.")};
 decline.onclick=async()=>{if(!confirm("Confirm that you do not want to update this AnyBike profile?"))return;const d=await call({action:"decline"});if(d.error){setStatus(d.error,true);return}form.querySelectorAll("input,textarea,button").forEach(x=>x.disabled=true);setStatus("Thank you. AnyBike has recorded your response.")};
+submitOfficeReferral.onclick=async()=>{
+  officeReferralStatus.textContent="";
+  officeReferralStatus.className="status";
+  const office={
+    company_name:officeCompany.value.trim(),
+    city:officeCity.value.trim(),
+    country:officeCountry.value.trim()||"United Kingdom",
+    email:officeEmail.value.trim(),
+    contact_name:officeContact.value.trim(),
+    contact_role:officeRole.value.trim(),
+    phone:officePhone.value.trim(),
+    website:officeWebsite.value.trim(),
+    address_line1:officeAddress1.value.trim(),
+    region:officeRegion.value.trim(),
+    postcode:officePostcode.value.trim(),
+    destination_port:officePort.value.trim(),
+    motorcycle_specialist:officeMotorcycle.checked,
+    notes:officeNotes.value.trim()
+  };
+  if(!office.company_name || !office.email){
+    officeReferralStatus.textContent="Please add the office / branch name and contact email.";
+    officeReferralStatus.className="status bad";
+    return;
+  }
+  submitOfficeReferral.disabled=true;
+  submitOfficeReferral.textContent="Sending…";
+  const d=await call({action:"suggest_office",office});
+  submitOfficeReferral.disabled=false;
+  submitOfficeReferral.textContent="Recommend This Office →";
+  if(d.error){
+    officeReferralStatus.textContent=d.error;
+    officeReferralStatus.className="status bad";
+    return;
+  }
+  officeReferralStatus.textContent="Thank you. AnyBike will review this office before adding it to the directory.";
+  officeReferralStatus.className="status good";
+  ["officeCompany","officeCity","officeEmail","officeContact","officeRole","officePhone","officeWebsite","officeAddress1","officeRegion","officePostcode","officePort","officeNotes"].forEach(id=>{const el=document.getElementById(id);if(el)el.value=""});
+  officeCountry.value="United Kingdom";
+  officeMotorcycle.checked=false;
+};
 </script></body></html>
