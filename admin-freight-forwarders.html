@@ -1127,6 +1127,7 @@ function recordHtml(r){
       <div class="details">
         <div style="display:flex;justify-content:flex-end;gap:10px;margin:0 0 12px;flex-wrap:wrap">
           <button class="btn btn-primary" type="button" onclick="event.stopPropagation();editRecord('${escapeHtml(r.id)}')">✎ Edit Shipper Details</button>
+          <button class="btn ${r.partner_status==="Preferred" ? "btn-dark" : "btn-primary"}" type="button" onclick="event.stopPropagation();togglePreferredShipper('${escapeHtml(r.id)}')">${r.partner_status==="Preferred" ? "★ Preferred — Remove" : "☆ Mark Preferred"}</button>
           ${r.email ? `<button class="btn btn-dark" type="button" onclick="event.stopPropagation();inviteShipperProfile('${escapeHtml(r.id)}')">${r.profile_invite_status && r.profile_invite_status !== "Not Invited" ? "Resend Profile Invite" : "Send Profile Invite"}</button>` : ""}
         </div>
         <div class="details-grid">
@@ -1330,6 +1331,27 @@ document.getElementById("forwarderForm").addEventListener("submit", async e => {
     saveBtn.disabled = false;
   }
 });
+
+async function togglePreferredShipper(id){
+  const record=records.find(r=>String(r.id)===String(id));
+  if(!record) return;
+
+  const next=record.partner_status==="Preferred" ? "Standard" : "Preferred";
+  const question=next==="Preferred"
+    ? "Mark "+(record.company_name||"this shipper")+" as a Preferred AnyBike shipper?"
+    : "Remove Preferred status from "+(record.company_name||"this shipper")+"?";
+  if(!confirm(question)) return;
+
+  const {error}=await sb.rpc("admin_set_freight_forwarder_partner_status_v1",{
+    p_id:Number(id),
+    p_status:next
+  });
+  if(error){
+    alert("Could not update Preferred status: "+error.message);
+    return;
+  }
+  await loadForwarders();
+}
 
 async function deleteRecord(id){
   const record = records.find(r => String(r.id) === String(id));
