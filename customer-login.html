@@ -67,11 +67,17 @@ function getShipperReferralCode(){
   const params=new URLSearchParams(window.location.search);
   return (params.get("ref")||"").trim();
 }
+function getBuyerReferralCode(){
+  const params=new URLSearchParams(window.location.search);
+  return (params.get("bref")||"").trim();
+}
 function buildPageUrl(page){
   const params=new URLSearchParams();
   params.set("return",getSafeReturnUrl());
   const ref=getShipperReferralCode();
+  const bref=getBuyerReferralCode();
   if(ref) params.set("ref",ref);
+  if(bref) params.set("bref",bref);
   return page+"?"+params.toString();
 }
 
@@ -130,6 +136,12 @@ async function loginCustomer(){
     if(referralCode){
       const {error:referralError}=await sb.rpc("customer_claim_shipper_referral_v1",{p_ref:referralCode});
       if(referralError) console.error("Shipper referral could not be recorded:",referralError);
+    }
+
+    const buyerReferralCode=data.user.user_metadata?.buyer_referral_source_code || "";
+    if(buyerReferralCode){
+      const {error:buyerReferralError}=await sb.rpc("customer_claim_buyer_referral_v1",{p_ref:buyerReferralCode});
+      if(buyerReferralError) console.error("Dealer referral could not be recorded:",buyerReferralError);
     }
 
     showMsg("Logged in successfully. Opening My AnyBike...");
