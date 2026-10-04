@@ -171,6 +171,51 @@ textarea{min-height:90px;resize:vertical}
   background:#123721;
   border-color:#258a52;
 }
+.profile-progress{
+  display:grid;
+  grid-template-columns:repeat(8,minmax(0,1fr));
+  gap:8px;
+  margin:0 0 16px;
+}
+.profile-progress-step{
+  min-height:72px;
+  padding:11px 10px;
+  border:1px solid #333;
+  border-radius:13px;
+  background:#101010;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  gap:4px;
+  transition:.18s ease;
+}
+.profile-progress-step b{
+  font-size:12px;
+  line-height:1.25;
+  color:#eee;
+}
+.profile-progress-step span{
+  font-size:10px;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+  color:#777;
+}
+.profile-progress-step.current{
+  border-color:var(--r);
+  background:#1b0b0d;
+  box-shadow:0 0 0 1px rgba(237,28,36,.12);
+}
+.profile-progress-step.current span{color:#ff6268}
+.profile-progress-step.done{
+  border-color:#258a52;
+  background:#0b1a12;
+  box-shadow:0 0 0 1px rgba(53,201,120,.08);
+}
+.profile-progress-step.done span{color:#61dfa0}
+.profile-progress-step.done b{color:#fff}
+@media(max-width:1100px){.profile-progress{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:700px){.profile-progress{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
 /* Override old inline pale panels so the entire secure profile stays on-brand */
 #shareAnyBike,
@@ -219,6 +264,16 @@ hr{border-color:#303030 !important}
   <h1>Check and update your listing</h1>
   <p style="color:#ccc;line-height:1.6;margin:0">Keep your company details, routes and services accurate so international motorcycle buyers can contact the right team.</p>
 </section>
+<div class="profile-progress" id="profileProgress" aria-label="Profile progress">
+  <div class="profile-progress-step" data-progress-step="company"><span>1 · Profile</span><b>Company & contacts</b></div>
+  <div class="profile-progress-step" data-progress-step="countries"><span>2 · Coverage</span><b>Countries served</b></div>
+  <div class="profile-progress-step" data-progress-step="ports"><span>3 · UK handover</span><b>UK ports</b></div>
+  <div class="profile-progress-step" data-progress-step="handling"><span>4 · Motorcycles</span><b>Handling & crating</b></div>
+  <div class="profile-progress-step" data-progress-step="services"><span>5 · Listing</span><b>Services</b></div>
+  <div class="profile-progress-step" data-progress-step="office"><span>6 · Optional</span><b>Office / branch</b></div>
+  <div class="profile-progress-step" data-progress-step="partner"><span>7 · Optional</span><b>Overseas partner</b></div>
+  <div class="profile-progress-step" data-progress-step="final"><span>8 · Finish</span><b>Final update</b></div>
+</div>
 <section class="card"><div class="note"><strong>Free standard listing.</strong> There is no charge to review or maintain your standard AnyBike directory profile. Changes are reviewed by AnyBike before publication.</div>
 <div id="loading">Loading profile…</div>
 <div id="draftMeta" class="draftmeta"></div>
@@ -572,7 +627,7 @@ async function call(body){const r=await fetch(endpoint,{method:"POST",headers:{"
 function setStatus(t,bad=false){status.textContent=t;status.className="status "+(bad?"bad":"good")}
 let draftVersion=0;
 const completedProfileSteps=new Set();
-function applyCompletedSteps(){
+function applyCompletedSteps(finalComplete=false){
   document.querySelectorAll(".save-profile-step").forEach(btn=>{
     const step=btn.dataset.step||"";
     const box=btn.closest(".next-action");
@@ -582,6 +637,31 @@ function applyCompletedSteps(){
     if(kicker) kicker.textContent=done?"Completed":"Your next action";
     if(done) btn.textContent="Saved ✓";
   });
+
+  const order=["company","countries","ports","handling","services","office","partner","final"];
+  let currentFound=false;
+  document.querySelectorAll(".profile-progress-step").forEach(el=>{
+    const step=el.dataset.progressStep||"";
+    const done=finalComplete || (step!=="final" && completedProfileSteps.has(step));
+    el.classList.toggle("done",done);
+    el.classList.remove("current");
+  });
+
+  if(!finalComplete){
+    for(const step of order){
+      const done=step!=="final" && completedProfileSteps.has(step);
+      if(!done){
+        const el=document.querySelector('.profile-progress-step[data-progress-step="'+step+'"]');
+        if(el) el.classList.add("current");
+        currentFound=true;
+        break;
+      }
+    }
+    if(!currentFound){
+      const finalEl=document.querySelector('.profile-progress-step[data-progress-step="final"]');
+      if(finalEl) finalEl.classList.add("current");
+    }
+  }
 }
 function profileFromForm(){return {company_name:company.value.trim(),country:country.value.trim(),city:city.value.trim(),uk_address:address.value.trim(),contact_name:contact.value.trim(),contact_role:role.value.trim(),secondary_contact_name:secondaryContact.value.trim(),secondary_contact_role:secondaryRole.value.trim(),secondary_contact_phone:secondaryPhone.value.trim(),email:email.value.trim(),email_2:email2.value.trim(),email_3:email3.value.trim(),phone:phone.value.trim(),profile_contact_email:profileContactEmail.value.trim(),profile_cc_email:profileCcEmail.value.trim(),website:website.value.trim(),destination_port:mainPort.value.trim(),countries_covered:selectedCountries(),ports_served:selectedPorts(),services:Array.from(services.querySelectorAll("input:checked")).map(x=>x.value),motorcycle_specialist:motorcycle.checked,
 ships_motorcycles_rolling:shipsRolling.value===""?null:shipsRolling.value==="true",
@@ -757,6 +837,7 @@ form.onsubmit=async e=>{
   }
   draftVersion=Number(d.draft_version||draftVersion);
   finalProfileAction.classList.add("completed");
+  applyCompletedSteps(true);
   finalProfileAction.querySelector(".next-action-kicker").textContent="Successful";
   finalProfileAction.querySelector("strong").textContent="Profile updated successfully";
   finalProfileAction.querySelector("span").textContent="Thank you. Your updated shipper profile has been sent to AnyBike for review. Taking you to the Freight Forwarders directory…";
