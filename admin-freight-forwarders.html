@@ -635,8 +635,13 @@ body.admin-freight-page .top-actions{display:flex;gap:10px;flex-wrap:wrap;justif
           </div>
 
           <div class="field full">
-            <label>Countries Where Motorcycles Can Be Delivered</label>
-            <input id="countriesCovered" placeholder="Singapore, Malaysia, Indonesia">
+            <label>Countries Served — where can motorcycles be delivered?</label>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+              <input id="adminCountrySearch" type="search" placeholder="Search countries or regions" style="flex:1;min-width:220px">
+              <button class="btn btn-dark" type="button" id="adminClearCountries">Clear ticks</button>
+            </div>
+            <div id="adminCountryList" style="max-height:360px;overflow:auto;border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:10px;background:#0b0b0b"></div>
+            <small id="adminCountryCount" style="color:#8f8f8f;margin-top:6px;display:block">0 countries selected</small>
           </div>
 
           <div class="field full">
@@ -1406,6 +1411,8 @@ function openEditor(record=null){
   document.getElementById("editorTitle").textContent = record ? "Edit Freight Forwarder" : "Add Freight Forwarder";
   document.getElementById("editorStatus").textContent = "";
   document.getElementById("customServices").value = "";
+  adminSelectedCountries.clear();
+  renderAdminCountryTicks([]);
 
   if(record){
     document.getElementById("companyName").value = record.company_name || "";
@@ -1424,7 +1431,7 @@ function openEditor(record=null){
     document.getElementById("phone").value = record.phone || "";
     document.getElementById("website").value = record.website || "";
     document.getElementById("destinationPort").value = record.destination_port || "";
-    document.getElementById("countriesCovered").value = arrayValue(record.countries_covered).join(", ");
+    renderAdminCountryTicks(arrayValue(record.countries_covered));
     document.getElementById("portsServed").value = arrayValue(record.ports_served).join(", ");
     document.getElementById("documentsRequired").value = record.documents_required || "";
     document.getElementById("sourceCustomer").value = record.source_customer || "";
@@ -1477,7 +1484,7 @@ function payloadFromForm(){
     phone:document.getElementById("phone").value.trim() || null,
     website:document.getElementById("website").value.trim() || null,
     destination_port:document.getElementById("destinationPort").value.trim() || null,
-    countries_covered:arrayValue(document.getElementById("countriesCovered").value),
+    countries_covered:adminSelectedCountryValues(),
     ports_served:arrayValue(document.getElementById("portsServed").value),
     services:[...new Set([
       ...Array.from(document.querySelectorAll('input[name="service"]:checked')).map(cb => cb.value),
@@ -1618,6 +1625,9 @@ async function restoreRecord(id){
 ["searchInput","verificationFilter","profileInviteFilter","scopeFilter","serviceFilter","countryFilter","referralFilter","activeFilter"].forEach(id => {
   document.getElementById(id).addEventListener(id === "searchInput" ? "input" : "change", renderDirectory);
 });
+
+document.getElementById("adminCountrySearch")?.addEventListener("input",()=>renderAdminCountryTicks());
+document.getElementById("adminClearCountries")?.addEventListener("click",()=>{adminSelectedCountries.clear();renderAdminCountryTicks()});
 
 document.getElementById("editorModal").addEventListener("click", e => {
   if(e.target.id === "editorModal") closeEditor();
