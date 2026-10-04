@@ -3,7 +3,7 @@
 </style></head><body><div class="admin-shell"><div id="adminSidebar"></div><div class="admin-main"><div id="adminTopbar"></div><main class="admin-page-content"><div class="wrap">
 <section class="hero"><h1>Shipping Conversations</h1><p>Buyer ↔ Shipper ↔ AnyBike. Review every shipper introduction and step in as AnyBike when useful.</p></section>
 <div class="toolbar"><input id="search" placeholder="Search buyer, shipper or destination"><select id="statusFilter"><option value="">All statuses</option><option>Sent</option><option>Replied</option><option>AnyBike Following Up</option><option>Closed</option><option>Send Failed</option></select><button class="btn" id="refresh">Refresh</button></div>
-<div class="layout"><div class="card"><div id="list"></div></div><div class="card"><h2 id="title">Select a shipping conversation</h2><div class="detail" id="detail"></div><div class="messages" id="messages"></div><div class="composer"><textarea id="reply" placeholder="Reply as AnyBike…"></textarea><button class="btn" id="send">Send as AnyBike</button></div><div style="margin-top:12px"><select id="conversationStatus" style="background:#080808;color:#fff;border:1px solid #333;border-radius:10px;padding:10px"><option>Sent</option><option>Replied</option><option>AnyBike Following Up</option><option>Closed</option></select> <button class="btn" id="saveStatus">Save Status</button></div><div class="status" id="msg"></div></div></div>
+<div class="layout"><div class="card"><div id="list"></div></div><div class="card"><h2 id="title">Select a shipping conversation</h2><div class="detail" id="detail"></div><div id="linkedPurchases" style="display:none;margin:0 0 12px;padding:12px;border:1px solid #333;border-radius:10px;background:#0b0b0b"></div><div class="messages" id="messages"></div><div class="composer"><textarea id="reply" placeholder="Reply as AnyBike…"></textarea><button class="btn" id="send">Send as AnyBike</button></div><div style="margin-top:12px"><select id="conversationStatus" style="background:#080808;color:#fff;border:1px solid #333;border-radius:10px;padding:10px"><option>Sent</option><option>Replied</option><option>AnyBike Following Up</option><option>Closed</option></select> <button class="btn" id="saveStatus">Save Status</button></div><div class="status" id="msg"></div></div></div>
 </div></main></div></div><script src="/admin.js?v=20261004"></script><script>
 const sb=getAdminSupabaseClient();let rows=[],current=null;
 function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
@@ -58,6 +58,10 @@ async function open(id){
     '<div><strong>Destination</strong>'+esc(destination)+'</div>'+
     '<div><strong>Port</strong>'+esc(x.destination_port||"Not set")+'</div>'+
     '<div><strong>Status</strong>'+esc(x.status||"")+'</div>';
+  if(Array.isArray(x.linked_purchases)&&x.linked_purchases.length){
+    linkedPurchases.style.display="block";
+    linkedPurchases.innerHTML='<strong style="display:block;margin-bottom:6px;color:#999;text-transform:uppercase;font-size:11px">Linked AnyBike purchases</strong>'+x.linked_purchases.map(p=>'<div style="margin-top:5px"><strong>'+esc(p.deal_number)+'</strong> — '+esc(p.motorcycle)+' — Reg: '+esc(p.registration||"not recorded")+'</div>').join("");
+  }else{linkedPurchases.style.display="none";linkedPurchases.innerHTML="";}
 
   conversationStatus.value=["Sent","Replied","AnyBike Following Up","Closed"].includes(x.status)?x.status:"Sent";
   messages.innerHTML='<p style="color:#999">Loading conversation…</p>';
