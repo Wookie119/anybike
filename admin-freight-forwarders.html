@@ -338,14 +338,17 @@ body.admin-freight-page .top-actions{display:flex;gap:10px;flex-wrap:wrap;justif
   z-index:1000;
   background:rgba(0,0,0,.76);
   padding:24px;
-  align-items:center;
+  align-items:flex-start;
   justify-content:center;
+  overflow-y:auto;
+  overflow-x:hidden;
+  overscroll-behavior:contain;
 }
 .modal.show{display:flex}
 .modal-box{
   width:min(1400px,96vw);
-  max-height:92vh;
-  overflow:auto;
+  margin:auto 0;
+  overflow:visible;
   background:#111;
   border:1px solid rgba(255,255,255,.16);
   border-radius:22px;
@@ -415,7 +418,7 @@ body.admin-freight-page .top-actions{display:flex;gap:10px;flex-wrap:wrap;justif
 .status-text{margin-right:auto;color:#aaa;align-self:center}
 
 @media(max-width:1180px){
-  #adminCountryList{grid-template-columns:repeat(3,minmax(0,1fr)) !important}
+  .admin-country-grid{grid-template-columns:repeat(3,minmax(0,1fr)) !important}
 
   .kpis{grid-template-columns:repeat(3,1fr)}
   .toolbar{grid-template-columns:repeat(2,1fr)}
@@ -429,7 +432,7 @@ body.admin-freight-page .top-actions{display:flex;gap:10px;flex-wrap:wrap;justif
   .details-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media(max-width:760px){
-  #adminCountryList{grid-template-columns:1fr !important}
+  .admin-country-grid{grid-template-columns:1fr !important}
 
   body.admin-freight-page .topbar{position:relative;display:block}
   .top-actions{margin-top:12px}
@@ -644,7 +647,7 @@ body.admin-freight-page .top-actions{display:flex;gap:10px;flex-wrap:wrap;justif
               <input id="adminCountrySearch" type="search" placeholder="Search countries or regions" style="flex:1;min-width:220px">
               <button class="btn btn-dark" type="button" id="adminClearCountries">Clear ticks</button>
             </div>
-            <div id="adminCountryList" style="border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:12px;background:#0b0b0b;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0 18px"></div>
+            <div id="adminCountryList" style="border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:12px;background:#0b0b0b"></div>
             <small id="adminCountryCount" style="color:#8f8f8f;margin-top:6px;display:block">0 countries selected</small>
           </div>
 
@@ -848,19 +851,24 @@ function renderAdminCountryTicks(selected=null){
     const selectedInRegion=allRegionCountries.filter(m=>adminSelectedCountries.has(m.name)).length;
     const checked=selectedInRegion===allRegionCountries.length && allRegionCountries.length>0;
 
-    return '<div style="grid-column:1/-1;margin:14px 0 4px;padding:9px 10px;border-radius:10px;background:#151515;border:1px solid rgba(255,255,255,.08)">'+
-      '<label style="display:flex;align-items:center;gap:9px;font-size:12px;font-weight:900;color:#ddd;text-transform:uppercase;letter-spacing:.08em">'+
-        '<input class="continent-toggle" data-region="'+escapeHtml(region)+'" type="checkbox" '+(checked?"checked":"")+' style="width:auto">'+
-        '<span>'+escapeHtml(region)+' — select all '+allRegionCountries.length+' countries</span>'+
-      '</label>'+
-    '</div>'+
-    groups[region].map(m=>
-      '<label style="display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:9px;align-items:center;padding:8px 6px;border-bottom:1px solid rgba(255,255,255,.07)">'+
-        '<input class="country-toggle" type="checkbox" value="'+escapeHtml(m.name)+'" '+(adminSelectedCountries.has(m.name)?"checked":"")+' style="width:auto">'+
-        '<span>'+escapeHtml(m.name)+'</span>'+
-        '<a href="'+escapeHtml(m.url)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="font-size:12px;color:#ff6a70;font-weight:800;white-space:nowrap">View AnyBike page ↗</a>'+
-      '</label>'
-    ).join("");
+    return '<section class="admin-continent-block" style="margin:0 0 18px">'+
+      '<div style="padding:10px 12px;border-radius:10px 10px 0 0;background:#171717;border:1px solid rgba(255,255,255,.09)">'+
+        '<label style="display:flex;align-items:center;gap:10px;margin:0;font-size:13px;font-weight:950;color:#fff;text-transform:uppercase;letter-spacing:.08em">'+
+          '<input class="continent-toggle" data-region="'+escapeHtml(region)+'" type="checkbox" '+(checked?"checked":"")+' style="width:auto">'+
+          '<span>'+escapeHtml(region)+'</span>'+
+          '<small style="margin-left:auto;color:#888;text-transform:none;letter-spacing:0">'+selectedInRegion+' / '+allRegionCountries.length+' selected</small>'+
+        '</label>'+
+      '</div>'+
+      '<div class="admin-country-grid" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0 16px;padding:8px 10px 10px;border:1px solid rgba(255,255,255,.09);border-top:0;border-radius:0 0 10px 10px;background:#0d0d0d">'+
+        groups[region].map(m=>
+          '<label style="display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:center;padding:8px 4px;border-bottom:1px solid rgba(255,255,255,.06)">'+
+            '<input class="country-toggle" type="checkbox" value="'+escapeHtml(m.name)+'" '+(adminSelectedCountries.has(m.name)?"checked":"")+' style="width:auto">'+
+            '<span>'+escapeHtml(m.name)+'</span>'+
+            '<a href="'+escapeHtml(m.url)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="font-size:11px;color:#ff6a70;font-weight:800;white-space:nowrap">View ↗</a>'+
+          '</label>'
+        ).join("")+
+      '</div>'+
+    '</section>';
   }).join("");
 
   host.querySelectorAll('.country-toggle').forEach(cb=>{
@@ -1503,6 +1511,7 @@ function toggleRecord(id){
 }
 
 function openEditor(record=null){
+  document.documentElement.style.overflow="hidden";
   document.body.style.overflow="hidden";
   document.getElementById("forwarderForm").reset();
   document.querySelectorAll('input[name="service"]').forEach(cb => cb.checked = false);
@@ -1562,6 +1571,7 @@ function openEditor(record=null){
 
 function closeEditor(){
   document.getElementById("editorModal").classList.remove("show");
+  document.documentElement.style.overflow="";
   document.body.style.overflow="";
 }
 
