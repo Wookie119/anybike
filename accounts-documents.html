@@ -1876,7 +1876,25 @@ document.getElementById("savePaymentSelection").addEventListener("click",functio
   if(title)title.textContent="Payment allocation saved";
   if(text)text.textContent="Your selected allocation is ready. Continue below and confirm the bank transfer details.";
   this.textContent="Saved ✓";
-  setTimeout(()=>scrollToAccountsSection("bank-transfer"),220);
+
+  const bankReference=document.getElementById("bankReference");
+  if(bankReference && !bankReference.value.trim()){
+    const selectedInvoices=allocations
+      .map(row=>accountInvoices.find(invoice=>Number(invoice.invoice_id)===Number(row.invoice_id)))
+      .filter(Boolean);
+    const refs=[...new Set(selectedInvoices.map(invoice=>String(invoice.deal_number||"").trim()).filter(Boolean))];
+    if(refs.length) bankReference.value=refs.join(" / ");
+  }
+
+  const reportPanel=document.getElementById("reportPanel");
+  if(reportPanel){
+    reportPanel.classList.add("open");
+    setTimeout(()=>{
+      const top=reportPanel.getBoundingClientRect().top+window.pageYOffset-110;
+      window.scrollTo({top:Math.max(0,top),behavior:"smooth"});
+      document.getElementById("paymentDate")?.focus({preventScroll:true});
+    },220);
+  }
 });
 document.getElementById("finishAccountsReview").addEventListener("click",function(){
   setAccountsStepDone("finish");
