@@ -959,10 +959,19 @@
       const optionLabel=function(r){
         const countries=Array.isArray(r.countries_covered)?r.countries_covered.filter(Boolean):[];
         const location=[r.city,r.uk_country].filter(Boolean).join(", ");
+        const ready=Boolean(
+          r.company_name &&
+          r.contact_name &&
+          r.email &&
+          r.phone &&
+          (r.uk_address_line1 || r.uk_address) &&
+          r.city &&
+          r.uk_postcode
+        );
         const suffix=countries.length
           ? " · serves "+countries.join(", ")
           : (location ? " · "+location : "");
-        return (r.company_name||"Unnamed shipper")+suffix;
+        return (r.company_name||"Unnamed shipper")+suffix+(ready?"":" · details incomplete");
       };
 
       select.innerHTML='<option value="">Select a shipper</option>'+
@@ -1001,7 +1010,26 @@
       const handover=String(r.destination_port || (Array.isArray(r.ports_served)&&r.ports_served[0]) || "").trim();
       setValue("collectionPoint",handover || r.uk_address || "");
 
-      document.getElementById("customShipperNote")?.classList.add("hidden");
+      const ready=Boolean(
+        r.company_name &&
+        r.contact_name &&
+        r.email &&
+        r.phone &&
+        (r.uk_address_line1 || r.uk_address) &&
+        r.city &&
+        (postcode || r.uk_postcode)
+      );
+
+      const note=document.getElementById("customShipperNote");
+      if(note){
+        if(ready){
+          note.classList.add("hidden");
+        }else{
+          note.classList.remove("hidden");
+          note.textContent="AnyBike has only partial details for this shipper. We have filled everything currently held in the directory. Please complete any blank contact or UK receiving fields before saving this shipping preference.";
+        }
+      }
+
       updateSetupReminder();
       markDirtyAndAutosave();
     }
