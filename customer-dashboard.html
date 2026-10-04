@@ -3923,13 +3923,21 @@ let latestCustomerPurchaseRows=[];
 let latestCustomerNotificationRows=[];
 let latestCustomerOfferRows=[];
 
+function cleanDashboardMotorcycleVariant(value){
+  return String(value||"")
+    .replace(/\b\d+\s*(?:yr|year|years)\s+(?:bmw\s+)?warranty\b/ig,"")
+    .replace(/\b(?:bmw\s+)?warranty\b/ig,"")
+    .replace(/\s{2,}/g," ")
+    .replace(/[\s·,;\-]+$/g,"")
+    .trim();
+}
+
 function customerActionCardHtml(action){
   const waiting=action.waiting===true;
   return '<div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;align-items:center;padding:15px 16px;border:1px solid '+(waiting?'rgba(255,179,107,.34)':'rgba(237,28,36,.48)')+';border-radius:14px;background:'+(waiting?'rgba(255,159,28,.05)':'rgba(237,28,36,.055)')+'">'+
     '<div>'+
       '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:5px">'+
         '<strong style="font-size:16px">'+safe(action.title)+'</strong>'+
-        (action.deal?'<span style="font-size:10px;font-weight:900;color:#bbb;border:1px solid rgba(255,255,255,.14);border-radius:999px;padding:4px 7px">'+safe(action.deal)+'</span>':'')+
       '</div>'+
       '<div style="color:#bbb;font-size:13px;line-height:1.45">'+safe(action.text)+'</div>'+
     '</div>'+
@@ -3944,7 +3952,8 @@ function buildPurchaseCustomerAction(purchase){
   if(!state) return null;
 
   const deal=String(purchase.deal_number||"").trim();
-  const bike=[purchase.make,purchase.model,purchase.variant].filter(Boolean).join(" ")||"Motorcycle";
+  const cleanVariant=cleanDashboardMotorcycleVariant(purchase.variant);
+  const bike=[purchase.make,purchase.model,cleanVariant].filter(Boolean).join(" ")||"Motorcycle";
   const balance=Number(state.balance||0);
   const depositOutstanding=Number(state.depositOutstanding||state.depositDue||0);
 
@@ -3953,8 +3962,8 @@ function buildPurchaseCustomerAction(purchase){
       priority:30,
       waiting:true,
       deal:deal,
-      title:"Deposit reported · awaiting verification",
-      text:(buyerMatchMoney(state.pendingDepositAdviceAmount)||"Your deposit")+" for "+bike+" has been reported. You do not need to report it again while AnyBike checks the bank receipt.",
+      title:bike+" · payment reported",
+      text:(buyerMatchMoney(state.pendingDepositAdviceAmount)||"Your deposit")+" has been reported. You do not need to report it again while AnyBike checks the bank receipt.",
       href:deal?"/accounts-documents.html?deal="+encodeURIComponent(deal):"",
       cta:"View payment status →"
     };
@@ -3964,10 +3973,10 @@ function buildPurchaseCustomerAction(purchase){
     return {
       priority:5,
       deal:deal,
-      title:"Pay the required "+(buyerMatchMoney(depositOutstanding)||"")+" Deposit now",
-      text:"We need your deposit to move this purchase forward with the seller. Until it is paid, the motorcycle may still be sold to another buyer.",
+      title:bike+" · "+(buyerMatchMoney(depositOutstanding)||"")+" deposit required",
+      text:"Pay or report this deposit so AnyBike can move the purchase forward with the seller. Until it is received, the motorcycle may still be sold to another buyer.",
       href:deal?"/accounts-documents.html?deal="+encodeURIComponent(deal)+"&payment=deposit&amount="+encodeURIComponent(depositOutstanding.toFixed(2))+"&ref="+encodeURIComponent(deal):"/accounts-documents.html",
-      cta:"Pay the required "+(buyerMatchMoney(depositOutstanding)||"")+" Deposit now →"
+      cta:"Pay / Report Deposit →"
     };
   }
 
@@ -3976,8 +3985,8 @@ function buildPurchaseCustomerAction(purchase){
       priority:35,
       waiting:true,
       deal:deal,
-      title:"AnyBike is completing the seller check",
-      text:"Your deposit is complete for "+bike+". No action is required from you while AnyBike confirms and secures the motorcycle.",
+      title:bike+" · seller check in progress",
+      text:"Your deposit is complete. No action is required from you while AnyBike confirms and secures the motorcycle.",
       href:deal?"/my-purchases.html?deal="+encodeURIComponent(purchase.deal_id):"/my-purchases.html",
       cta:"View purchase →"
     };
@@ -3987,10 +3996,10 @@ function buildPurchaseCustomerAction(purchase){
     return {
       priority:10,
       deal:deal,
-      title:"Pay remaining balance · "+(buyerMatchMoney(balance)||""),
-      text:bike+" is secured. Your next action is to pay the remaining balance. Any document request will be shown separately if one is needed.",
+      title:bike+" · "+(buyerMatchMoney(balance)||"")+" remaining to pay",
+      text:"Your motorcycle is secured. Pay the remaining balance to continue. Any separate document request will be shown as its own action.",
       href:deal?"/accounts-documents.html?deal="+encodeURIComponent(deal)+"&payment=balance&amount="+encodeURIComponent(balance.toFixed(2))+"&ref="+encodeURIComponent(deal):"/accounts-documents.html",
-      cta:"Pay Remaining Balance →"
+      cta:"Continue Payment →"
     };
   }
 
@@ -4002,8 +4011,8 @@ function buildPurchaseCustomerAction(purchase){
       priority:40,
       waiting:true,
       deal:deal,
-      title:"AnyBike is arranging collection",
-      text:"Payment is complete for "+bike+". No action is required from you while collection is arranged.",
+      title:bike+" · collection being arranged",
+      text:"Payment is complete. No action is required from you while AnyBike arranges collection.",
       href:"/my-purchases.html?deal="+encodeURIComponent(purchase.deal_id||""),
       cta:"View purchase →"
     };
@@ -4014,8 +4023,8 @@ function buildPurchaseCustomerAction(purchase){
       priority:45,
       waiting:true,
       deal:deal,
-      title:"Collection / UK handover in progress",
-      text:bike+" is progressing through collection, custody or UK handover. We will show you here if anything is needed from you.",
+      title:bike+" · UK handover in progress",
+      text:"Your motorcycle is progressing through collection, custody or UK handover. We will show you here if anything is needed from you.",
       href:"/my-purchases.html?deal="+encodeURIComponent(purchase.deal_id||""),
       cta:"View progress →"
     };
@@ -4031,7 +4040,7 @@ function getRequestedShippingAction(){
   return {
     priority:2,
     deal:deal,
-    title:"Confirm shipper / freight forwarder"+(deal?" · Deal "+deal:""),
+    title:"Confirm your shipper / freight forwarder",
     text:"Confirm the UK handover point and shipper / freight-forwarder details AnyBike needs for this purchase.",
     href:"#shipping-preferences",
     cta:"Confirm Shipping Details →"
@@ -4050,9 +4059,7 @@ function focusRequestedShippingAction(){
 
   if(panel)panel.classList.add("action-focus");
   if(actionBox)actionBox.classList.add("show");
-  if(title)title.textContent=requested.deal
-    ? "Confirm shipper / freight forwarder · Deal "+requested.deal
-    : "Confirm your shipper / freight forwarder";
+  if(title)title.textContent="Confirm your shipper / freight forwarder";
   if(text)text.textContent="AnyBike is waiting for you to confirm the UK handover point and shipper / freight-forwarder details for this purchase.";
   if(button){
     button.href="/customer-profile.html?action=confirm-shipping&deal="+encodeURIComponent(requested.deal||"")+"#section-shipping";
