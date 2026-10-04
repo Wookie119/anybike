@@ -510,6 +510,83 @@ main{width:min(1660px,96vw);margin:28px auto 70px}
 .accounts-next-copy span{display:block;color:#aaa;font-size:12px;line-height:1.45}
 .accounts-next-action .action-btn{white-space:nowrap}
 
+.mini-proforma{
+  margin:0 0 16px;
+  border:1px solid rgba(255,255,255,.14);
+  border-top:4px solid var(--red);
+  border-radius:14px;
+  background:#0d0d0d;
+  overflow:hidden;
+}
+.mini-proforma-head{
+  display:flex;
+  justify-content:space-between;
+  gap:16px;
+  align-items:flex-start;
+  padding:16px 18px;
+  background:linear-gradient(90deg,#181818,#0d0d0d);
+}
+.mini-proforma-head span{
+  display:block;
+  color:#888;
+  font-size:10px;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+  margin-bottom:4px;
+}
+.mini-proforma-head h3{
+  margin:0;
+  font-size:22px;
+  line-height:1.15;
+}
+.mini-proforma-balance{
+  text-align:right;
+  min-width:170px;
+}
+.mini-proforma-balance strong{
+  display:block;
+  font-size:26px;
+  color:#fff;
+}
+.mini-proforma-body{
+  padding:16px 18px;
+}
+.mini-proforma-lines{
+  display:grid;
+  gap:8px;
+  margin-bottom:14px;
+}
+.mini-proforma-line{
+  display:flex;
+  justify-content:space-between;
+  gap:18px;
+  padding:9px 0;
+  border-bottom:1px solid rgba(255,255,255,.07);
+  color:#ccc;
+}
+.mini-proforma-line:last-child{border-bottom:0}
+.mini-proforma-ref{
+  margin-top:8px;
+  color:#777;
+  font-size:10px;
+  line-height:1.4;
+}
+.mini-proforma-actions{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  flex-wrap:wrap;
+  margin-top:12px;
+}
+.mini-proforma .payment-select{
+  margin-top:0;
+}
+@media(max-width:700px){
+  .mini-proforma-head{flex-direction:column}
+  .mini-proforma-balance{text-align:left}
+}
+
 .history-card.superseded{
   opacity:.72;
   border-color:rgba(255,255,255,.08);
@@ -794,6 +871,15 @@ function accountMotorcycleIdentityForDeal(dealNumber){
   )||null;
 }
 
+function cleanCustomerMotorcycleDescription(value){
+  return String(value||"")
+    .replace(/\b\d+\s*(?:yr|year|years)\s+(?:bmw\s+)?warranty\b/ig,"")
+    .replace(/\b(?:bmw\s+)?warranty\b/ig,"")
+    .replace(/\s{2,}/g," ")
+    .replace(/\s+\(/g," (")
+    .trim();
+}
+
 function cleanCustomerMotorcycleVariant(value){
   let text=String(value||"").trim();
   text=text
@@ -1009,8 +1095,11 @@ function invoiceCard(invoice){
     (!paymentRequest.invoiceId && String(paymentRequest.deal||"").trim()===String(invoice.deal_number||"").trim())
   );
   const label=invoice.invoice_number || (invoice.invoice_type+" v"+Number(invoice.version_number||1));
+  const identity=accountMotorcycleIdentityForDeal(invoice.deal_number);
+  const cleanVariant=cleanCustomerMotorcycleVariant(identity?.variant);
+  const customerBike=[identity?.make,identity?.model,cleanVariant].filter(Boolean).join(" ").trim() || cleanCustomerMotorcycleDescription(invoice.motorcycle_summary||"Motorcycle");
   const lines=Array.isArray(invoice.lines)?invoice.lines:[];
-  const lineHtml=lines.length?lines.map(line=>`<div class="invoice-line"><div><strong>${safe(line.description||line.line_type||"Line")}</strong><small>${safe(line.line_type||"")}</small></div><strong>${money(line.line_total_gbp)}</strong></div>`).join(""):'<div class="invoice-line"><span>Invoice lines unavailable</span></div>';
+  const lineHtml=lines.length?lines.map(line=>`<div class="invoice-line"><div><strong>${safe(cleanCustomerMotorcycleDescription(line.description||line.line_type||"Line"))}</strong><small>${safe(line.line_type||"")}</small></div><strong>${money(line.line_total_gbp)}</strong></div>`).join(""):'<div class="invoice-line"><span>Invoice lines unavailable</span></div>';
   const paymentBlock=canPay?`<div class="payment-select">
     <input class="pay-select" id="pay-select-${Number(invoice.invoice_id)}" data-invoice-id="${Number(invoice.invoice_id)}" type="checkbox">
     <label class="payment-select-action" for="pay-select-${Number(invoice.invoice_id)}">MAKE A PAYMENT TOWARDS THIS PURCHASE</label><small><strong>Remaining purchase balance: ${money(invoice.balance_due_gbp)}</strong> · Select this Proforma and enter the amount to allocate.</small>
@@ -1028,30 +1117,57 @@ function invoiceCard(invoice){
     </div>
   </div>`:`<div class="notice-box" style="margin:12px 0 0">${Number(invoice.balance_due_gbp||0)<=0?"This document has no customer balance remaining.":"This document is not currently open for payment advice."}</div>`;
   return `<article class="invoice-card" data-invoice-id="${Number(invoice.invoice_id)}" data-deal-number="${safe(invoice.deal_number||"")}">
-    <div class="invoice-head"><div><span>${safe(invoice.invoice_type||"Document")}</span><strong>${safe(label)}</strong></div><div class="status-pill ${statusClass(invoice.invoice_status)}">${safe(invoice.invoice_status||"")}</div></div>
-    <div class="invoice-body">
-      <div class="invoice-summary">
-        <div class="metric"><span>Total</span><strong>${money(invoice.total_gbp)}</strong></div>
-        <div class="metric good"><span>Allocated</span><strong>${money(invoice.allocated_to_deal_gbp)}</strong></div>
-        <div class="metric ${Number(invoice.balance_due_gbp||0)>0?"due":"good"}"><span>Remaining Purchase Balance</span><strong>${money(invoice.balance_due_gbp)}</strong></div>
-      </div>
-      <div class="invoice-meta">
-        <div class="meta"><span>Deal</span><strong>${safe(invoice.deal_number||("Purchase #"+invoice.deal_id))}</strong></div>
-        <div class="meta"><span>Issued</span><strong>${safe(niceDate(invoice.issued_at))}</strong></div>
-        <div class="meta" style="grid-column:1/-1"><span>Motorcycle</span><strong>${safe(String(invoice.motorcycle_summary||"Motorcycle purchase").replace(/\b\d+\s*(?:yr|year|years)\s+(?:BMW\s+)?WARRANTY\b/ig,"").replace(/\s{2,}/g," ").trim())}</strong></div>
-      </div>
-      ${String(invoice.invoice_type||"")==="Proforma"?'<div class="proforma-warning"><strong>PROFORMA INVOICE — NOT A VAT INVOICE</strong><span>This is used for the payment stage. Keep the Final Invoice separately when AnyBike issues it after the transaction is completed.</span></div>':""}
-      ${String(invoice.invoice_type||"")==="Final Invoice"?'<div class="final-invoice-warning"><strong>FINAL INVOICE</strong><span>This is the final accounting document for the completed AnyBike transaction. Keep it with your purchase and export records.</span></div>':""}
-      <div class="invoice-lines">${lineHtml}</div>
-      <div class="invoice-action-row">
-        <div class="invoice-action-left">
-          ${String(invoice.invoice_type||"")==="Proforma"&&String(invoice.invoice_status||"")==="Issued"?'<a class="invoice-doc-action" href="/proforma.html?invoice='+Number(invoice.invoice_id)+'" target="_blank" rel="noopener">OPEN PROFORMA</a>':""}
-          ${String(invoice.invoice_type||"")==="Final Invoice"&&String(invoice.invoice_status||"")==="Issued"?'<a class="invoice-doc-action" href="/final-invoice.html?invoice='+Number(invoice.invoice_id)+'" target="_blank" rel="noopener">Open Final Invoice →</a>':""}
+    ${canPay?`
+      <div class="mini-proforma">
+        <div class="mini-proforma-head">
+          <div>
+            <span>Payment for</span>
+            <h3>${safe(customerBike)}</h3>
+          </div>
+          <div class="mini-proforma-balance">
+            <span>Remaining to pay</span>
+            <strong>${money(invoice.balance_due_gbp)}</strong>
+          </div>
         </div>
-        ${canPay?'<div class="invoice-payment-amount"><span>Payment amount</span><div class="payment-amount-wrap"><input class="pay-amount" id="pay-amount-'+Number(invoice.invoice_id)+'" data-invoice-id="'+Number(invoice.invoice_id)+'" type="number" inputmode="decimal" min="0.01" step="0.01" max="'+Number(invoice.balance_due_gbp||0).toFixed(2)+'" value="'+(requestMatches?Math.min(Number(paymentRequest.amount||0),Number(invoice.balance_due_gbp||0)).toFixed(2):"")+'" placeholder="0.00" aria-label="Payment amount in pounds sterling"></div></div>':""}
+        <div class="mini-proforma-body">
+          <div class="mini-proforma-lines">
+            ${lineHtml}
+          </div>
+          <div class="mini-proforma-ref">${safe(label)}${invoice.deal_number?" · Purchase "+safe(invoice.deal_number):""}</div>
+          <div class="mini-proforma-actions">
+            ${String(invoice.invoice_type||"")==="Proforma"&&String(invoice.invoice_status||"")==="Issued"?'<a class="invoice-doc-action" href="/proforma.html?invoice='+Number(invoice.invoice_id)+'" target="_blank" rel="noopener">Open full Proforma →</a>':""}
+          </div>
+          <div class="invoice-action-row">
+            <div class="invoice-action-left"></div>
+            <div class="invoice-payment-amount"><span>How much would you like to pay today?</span><div class="payment-amount-wrap"><input class="pay-amount" id="pay-amount-${Number(invoice.invoice_id)}" data-invoice-id="${Number(invoice.invoice_id)}" type="number" inputmode="decimal" min="0.01" step="0.01" max="${Number(invoice.balance_due_gbp||0).toFixed(2)}" value="${requestMatches?Math.min(Number(paymentRequest.amount||0),Number(invoice.balance_due_gbp||0)).toFixed(2):""}" placeholder="0.00" aria-label="Payment amount in pounds sterling"></div></div>
+          </div>
+          ${paymentBlock}
+        </div>
       </div>
-      ${paymentBlock}
-    </div>
+    `:`
+      <div class="invoice-head"><div><span>${safe(invoice.invoice_type||"Document")}</span><strong>${safe(label)}</strong></div><div class="status-pill ${statusClass(invoice.invoice_status)}">${safe(invoice.invoice_status||"")}</div></div>
+      <div class="invoice-body">
+        <div class="invoice-summary">
+          <div class="metric"><span>Total</span><strong>${money(invoice.total_gbp)}</strong></div>
+          <div class="metric good"><span>Allocated</span><strong>${money(invoice.allocated_to_deal_gbp)}</strong></div>
+          <div class="metric ${Number(invoice.balance_due_gbp||0)>0?"due":"good"}"><span>Remaining Purchase Balance</span><strong>${money(invoice.balance_due_gbp)}</strong></div>
+        </div>
+        <div class="invoice-meta">
+          <div class="meta"><span>Issued</span><strong>${safe(niceDate(invoice.issued_at))}</strong></div>
+          <div class="meta" style="grid-column:1/-1"><span>Motorcycle</span><strong>${safe(customerBike)}</strong></div>
+        </div>
+        ${String(invoice.invoice_type||"")==="Proforma"?'<div class="proforma-warning"><strong>PROFORMA INVOICE — NOT A VAT INVOICE</strong><span>This is used for the payment stage. Keep the Final Invoice separately when AnyBike issues it after the transaction is completed.</span></div>':""}
+        ${String(invoice.invoice_type||"")==="Final Invoice"?'<div class="final-invoice-warning"><strong>FINAL INVOICE</strong><span>This is the final accounting document for the completed AnyBike transaction. Keep it with your purchase and export records.</span></div>':""}
+        <div class="invoice-lines">${lineHtml}</div>
+        <div class="invoice-action-row">
+          <div class="invoice-action-left">
+            ${String(invoice.invoice_type||"")==="Proforma"&&String(invoice.invoice_status||"")==="Issued"?'<a class="invoice-doc-action" href="/proforma.html?invoice='+Number(invoice.invoice_id)+'" target="_blank" rel="noopener">OPEN PROFORMA</a>':""}
+            ${String(invoice.invoice_type||"")==="Final Invoice"&&String(invoice.invoice_status||"")==="Issued"?'<a class="invoice-doc-action" href="/final-invoice.html?invoice='+Number(invoice.invoice_id)+'" target="_blank" rel="noopener">Open Final Invoice →</a>':""}
+          </div>
+        </div>
+        ${paymentBlock}
+      </div>
+    `}
   </article>`;
 }
 
