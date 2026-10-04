@@ -4480,44 +4480,108 @@ function scrollDashboardHashAfterRender(targetId){
   window.setTimeout(landOnTarget,360);
 }
 
-function renderSourcingProgress(rows){
+function renderSourcingProgress(rows,totalFromBatches){
   const panel=document.getElementById("sourcing-progress");
   const list=document.getElementById("sourcingProgressList");
   const summary=document.getElementById("sourcingProgressSummary");
   if(!panel||!list)return;
 
   const interested=(Array.isArray(rows)?rows:[]).filter(function(row){
-    return String(row?.buyer_response||"").toLowerCase()==="interested";
+    return String(row?.buyer_response||row?.response||"").toLowerCase()==="interested";
   });
+  const expectedTotal=Math.max(Number(totalFromBatches||0),interested.length);
 
-  if(!interested.length){
+  if(!expectedTotal){
     panel.style.display="none";
     list.innerHTML="";
     return;
   }
 
   panel.style.display="";
-  scrollDashboardHashAfterRender("sourcing-progress");
   if(summary){
-    summary.textContent=interested.length===1
+    summary.textContent=expectedTotal===1
       ? "You have asked AnyBike to check 1 motorcycle. We are confirming seller availability and current purchase terms."
-      : "You have asked AnyBike to check "+interested.length+" motorcycles. We are confirming seller availability and current purchase terms.";
+      : "You have asked AnyBike to check "+expectedTotal+" motorcycles. We are confirming seller availability and current purchase terms.";
   }
 
-  list.innerHTML=interested.map(function(row){
-    const title=[row.year,row.make,row.model,row.variant].filter(Boolean).join(" ")||"Motorcycle";
-    const facts=[
-      row.mileage!==null&&row.mileage!==undefined ? Number(row.mileage).toLocaleString("en-GB")+" miles" : "",
-      row.colour||""
-    ].filter(Boolean).join(" · ");
-    const batchId=Number(row.batch_id||0);
-    return '<div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:center;padding:11px 13px;border:1px solid rgba(255,255,255,.11);border-radius:12px;background:#0c0c0c">'+
-      '<div><strong style="display:block;font-size:15px">'+safe(title)+'</strong>'+
-      (facts?'<span style="display:block;margin-top:3px;color:#aaa;font-size:12px">'+safe(facts)+'</span>':'')+
-      '<span style="display:block;margin-top:4px;color:#ffd27c;font-size:12px;font-weight:900">AnyBike is checking seller availability and current purchase terms</span></div>'+
-      (batchId?'<a class="panel-link" href="/customer-sourced-matches.html?batch='+encodeURIComponent(batchId)+'">View selection →</a>':'')+
-    '</div>';
-  }).join("");
+  if(interested.length){
+    list.innerHTML=interested.map(function(row){
+      const title=[row.year,row.make,row.model,row.variant].filter(Boolean).join(" ")||"Motorcycle";
+      const facts=[
+        row.mileage!==null&&row.mileage!==undefined ? Number(row.mileage).toLocaleString("en-GB")+" miles" : "",
+        row.colour||""
+      ].filter(Boolean).join(" · ");
+      const batchId=Number(row.batch_id||0);
+      return '<div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:center;padding:11px 13px;border:1px solid rgba(255,255,255,.11);border-radius:12px;background:#0c0c0c">'+
+        '<div><strong style="display:block;font-size:15px">'+safe(title)+'</strong>'+
+        (facts?'<span style="display:block;margin-top:3px;color:#aaa;font-size:12px">'+safe(facts)+'</span>':'')+
+        '<span style="display:block;margin-top:4px;color:#ffd27c;font-size:12px;font-weight:900">AnyBike is checking seller availability and current purchase terms</span></div>'+
+        (batchId?'<a class="panel-link" href="/customer-sourced-matches.html?batch='+encodeURIComponent(batchId)+'">View selection →</a>':'')+
+      '</div>';
+    }).join("");
+  }else{
+    list.innerHTML='<div class="buyer-match-empty">AnyBike is checking your '+expectedTotal+' selected motorcycle'+(expectedTotal===1?'':'s')+'. Detailed motorcycle progress is loading.</div>';
+  }
+
+  scrollDashboardHashAfterRender("sourcing-progress");
+}
+
+async function loadSourcingProgress(){
+  const panel=document.getElementById("sourcing-progress");
+  const list=document.getElementById("sourcingProgressList");
+  if(!panel||!list||!currentUser)return;
+
+  const requested=String(window.location.hash||"").replace(/^#/,"")==="sourcing-progress";
+  if(requested){
+    panel.style.display="";
+    list.innerHTML='<div class="buyer-match-empty">Loading your sourcing progress…</div>';
+  }
+
+  try{
+    const batchResult=await sb.rpc("customer_get_sourced_match_batches_v1");
+    if(batchResult.error) throw batchResult.error;
+
+    const batches=Array.isArray(batchResult.data)?batchResult.data:[];
+    const activeBatches=batches.filter(function(batch){
+      return Number(batch.interested_count||0)>0;
+    });
+    const total=activeBatches.reduce(function(sum,batch){
+      return sum+Number(batch.interested_count||0);
+    },0);
+
+    if(!total){
+      renderSourcingProgress([],0);
+      return;
+    }
+
+    panel.style.display="";
+    scrollDashboardHashAfterRender("sourcing-progress");
+
+    const detailResults=await Promise.allSettled(activeBatches.map(async function(batch){
+      const detail=await sb.rpc("customer_get_used_bike_scan_batch_v1",{p_batch_id:Number(batch.id)});
+      if(detail.error) throw detail.error;
+      const scans=Array.isArray(detail.data?.scans)?detail.data.scans:[];
+      return scans
+        .filter(function(scan){return String(scan?.response||"").toLowerCase()==="interested";})
+        .map(function(scan){return {...scan,batch_id:Number(batch.id)};});
+    }));
+
+    const rows=[];
+    detailResults.forEach(function(result){
+      if(result.status==="fulfilled" && Array.isArray(result.value)){
+        rows.push(...result.value);
+      }
+    });
+
+    renderSourcingProgress(rows,total);
+  }catch(error){
+    console.error("Sourcing Progress could not be loaded",error);
+    if(requested){
+      panel.style.display="";
+      list.innerHTML='<div class="buyer-match-empty"><span class="bad">Sourcing progress could not be loaded. Please refresh My AnyBike.</span></div>';
+      scrollDashboardHashAfterRender("sourcing-progress");
+    }
+  }
 }
 
 async function loadHandPickedForYou(){
@@ -4529,7 +4593,6 @@ async function loadHandPickedForYou(){
     if(error) throw error;
 
     const rows=data||[];
-    renderSourcingProgress(rows);
     const handPickedCount=document.getElementById("handPickedCount");
     if(handPickedCount) handPickedCount.textContent=rows.length.toLocaleString("en-GB");
     if(!rows.length){
@@ -7754,6 +7817,7 @@ async function initialiseCustomerNotifications(){
       loadRecentlyViewed(),
       loadDashboardConversationCount(),
       loadRecommendations(),
+      loadSourcingProgress(),
       loadHandPickedForYou(),
       loadBuyerPotentialMatches(),
       loadBuyerMatchNotificationPreference(),
