@@ -1291,7 +1291,22 @@ function renderInvoices(){
     return;
   }
   box.innerHTML=`<div class="invoice-grid ${accountInvoices.length===1?"single-invoice":""}">${accountInvoices.map(invoiceCard).join("")}</div>`;
-  document.querySelectorAll(".pay-select,.pay-amount").forEach(el=>el.addEventListener("change",updatePaymentSelection));
+  document.querySelectorAll(".pay-amount").forEach(el=>el.addEventListener("change",updatePaymentSelection));
+  document.querySelectorAll(".pay-select").forEach(el=>{
+    el.addEventListener("change",function(){
+      updatePaymentSelection();
+      if(!this.checked) return;
+
+      const panel=document.getElementById("reportPanel");
+      if(!panel) return;
+
+      panel.classList.add("open");
+      window.setTimeout(()=>{
+        const top=panel.getBoundingClientRect().top+window.pageYOffset-110;
+        window.scrollTo({top:Math.max(0,top),behavior:"smooth"});
+      },120);
+    });
+  });
   applyRequestedPaymentJourney();
 }
 
@@ -1315,7 +1330,7 @@ function invoiceCard(invoice){
 
   const paymentBlock=canPay?`<div class="payment-select">
     <input class="pay-select" id="pay-select-${Number(invoice.invoice_id)}" data-invoice-id="${Number(invoice.invoice_id)}" type="checkbox">
-    <label class="payment-select-action" for="pay-select-${Number(invoice.invoice_id)}">INCLUDE THIS PURCHASE IN MY BANK TRANSFER</label>
+    <label class="payment-select-action" for="pay-select-${Number(invoice.invoice_id)}">I'VE MADE A PAYMENT TOWARDS THIS MOTORCYCLE</label>
     <small><strong>Remaining purchase balance: ${money(invoice.balance_due_gbp)}</strong> · Select this Proforma and enter the amount to allocate.</small>
     <div class="payment-choice-note"><strong>Select this Proforma, then enter the amount you have transferred.</strong> You can make a part payment, pay the requested amount, clear the balance, or split one bank transfer across other open Proformas.</div>
     <div class="payment-quick">
