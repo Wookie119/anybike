@@ -961,11 +961,12 @@ function purchaseState(purchase){
   const allocated=Number(purchase.customer_allocated_motorcycle_gbp||0);
   const balance=Number(purchase.customer_balance_motorcycle_gbp||0);
   const secured=!!purchase.motorcycle_secured;
+  const pendingDepositAdviceAmount=Number(purchase.pending_payment_advice_amount_gbp||0);
   const pendingDepositAdvice=
+    depositOutstanding>0 &&
     String(purchase.pending_payment_advice_purpose||"").toLowerCase()==="deposit" &&
     ["awaiting verification","submitted","pending"].includes(String(purchase.pending_payment_advice_status||"").toLowerCase()) &&
-    Number(purchase.pending_payment_advice_amount_gbp||0)>0;
-  const pendingDepositAdviceAmount=Number(purchase.pending_payment_advice_amount_gbp||0);
+    pendingDepositAdviceAmount>0;
   const collected=String(purchase.collection_status||"").toLowerCase()==="collected" ||
     String(purchase.deal_status||"").toLowerCase()==="collected";
   const storageStatus=String(purchase.storage_status||"").toLowerCase();
@@ -1014,11 +1015,10 @@ function purchaseState(purchase){
     message="Your offer is accepted and AnyBike is completing the purchase arrangements.";
   }
 
-  let paymentStatus=String(purchase.customer_payment_status||"").trim();
+  let paymentStatus="Balance Due";
   if(fullyPaid) paymentStatus="Paid in Full";
-  else if(!depositSatisfied) paymentStatus="Deposit Due";
-  else if(allocated>0) paymentStatus="Part Paid";
-  else paymentStatus="Balance Due";
+  else if(!depositSatisfied) paymentStatus=pendingDepositAdvice?"Deposit Reported":"Deposit Due";
+  else if(allocated>0 || moneyReceived>0) paymentStatus="Part Paid";
 
   return {
     depositRequired,depositDue,depositAllocated,depositOutstanding,depositSatisfied,
@@ -1351,7 +1351,7 @@ function purchaseCard(purchase){
 
         ${journeyHtml(purchase,state)}
 
-        ${state.pendingDepositAdvice ? `
+        ${!state.depositSatisfied && state.pendingDepositAdvice ? `
           <div class="collection-card" style="border-color:rgba(255,190,0,.35)">
             <div class="collection-card-head">
               <div>
