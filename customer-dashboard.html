@@ -5671,7 +5671,10 @@ async function saveDealHandoverSelection(dealId){
   const status=document.getElementById(`deal-shipper-status-${dealId}`);
 
   if(!selected){
-    if(status) status.textContent="Choose a complete saved shipping plan first.";
+    if(status){
+      status.textContent="Choose a complete saved shipping plan first.";
+      status.className="shipper-choice-status bad";
+    }
     return;
   }
 
@@ -5680,36 +5683,29 @@ async function saveDealHandoverSelection(dealId){
 
   if(!contacted?.checked || !agreed?.checked){
     if(status){
-      status.textContent="Please confirm that you have contacted the shipper and that they have agreed to handle your motorcycle / shipment.";
+      status.textContent="Please tick both confirmations before sending this shipper to AnyBike.";
       status.className="shipper-choice-status bad";
     }
     return;
   }
 
   const planId=Number(selected.value);
-  const payload={
-    customer_id:currentUser.id,
-    deal_id:Number(dealId),
-    handover_plan_id:planId,
-    status:"Customer Selected",
-    selected_at:new Date().toISOString(),
-    buyer_contacted_shipper:true,
-    shipper_agreed_to_handle:true,
-    buyer_shipper_confirmed_at:new Date().toISOString(),
-    verified_at:null,
-    verified_by:null,
-    admin_decision_reason:null,
-    admin_decided_at:null,
-    admin_decided_by:null
-  };
 
-  const {error}=await sb
-    .from("deal_customer_handover_selections")
-    .upsert(payload,{onConflict:"customer_id,deal_id"});
+  if(status){
+    status.textContent="Sending shipper to AnyBike…";
+    status.className="shipper-choice-status";
+  }
 
-  if(error){
+  const result=await sb.rpc("customer_submit_deal_shipper_for_approval_v2",{
+    p_deal_id:Number(dealId),
+    p_handover_plan_id:planId,
+    p_buyer_contacted_shipper:true,
+    p_shipper_agreed_to_handle:true
+  });
+
+  if(result.error){
     if(status){
-      status.textContent="Could not save your shipper choice: "+error.message;
+      status.textContent="Could not submit your shipper choice: "+result.error.message;
       status.className="shipper-choice-status bad";
     }
     return;
@@ -5718,8 +5714,12 @@ async function saveDealHandoverSelection(dealId){
   await loadDealHandoverSelections();
 
   if(status){
-    status.textContent="Selected for this Deal · awaiting AnyBike verification.";
+    status.textContent="Sent to AnyBike for approval. You confirmed that you contacted this shipper and that they agreed to handle your motorcycle / shipment.";
     status.className="shipper-choice-status ok";
+  }
+
+  if(currentBuyerMatchRows.length){
+    renderMyPurchases(currentBuyerMatchRows);
   }
 }
 
