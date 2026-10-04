@@ -1252,7 +1252,7 @@ function purchaseCard(purchase){
 
   const state=purchaseState(purchase);
   const title=[purchase.make,purchase.model].filter(Boolean).join(" ")||"Motorcycle";
-  const variant=String(purchase.variant||"").trim();
+  const variant=cleanPurchaseMotorcycleVariant(purchase.variant);
   const image=String(purchase.image_url||purchase.snapshot_primary_image_url||purchase.stock_image_url||"").trim();
   const motorcyclePrice=Number(purchase.motorcycle_price_gbp||0);
   const deliveryCharge=Number(purchase.delivery_charge_gbp||0);
@@ -1314,10 +1314,6 @@ function purchaseCard(purchase){
           <div class="overview-box">
             <span>Motorcycle</span>
             <strong class="${state.secured?"good":""}">${state.secured?"Secured":"In progress"}</strong>
-          </div>
-          <div class="overview-box">
-            <span>Deal reference</span>
-            <strong>${safe(purchase.deal_number||"AnyBike Purchase")}</strong>
           </div>
         </div>
 
@@ -1408,9 +1404,9 @@ function purchaseCard(purchase){
                 <span>Offer Accepted</span>
                 ${acceptedAt?safe(new Date(acceptedAt).toLocaleString("en-GB")):"-"}
               </div>
-              <div class="detail">
-                <span>Deal Reference</span>
-                ${safe(purchase.deal_number||"AnyBike Purchase")}
+              <div class="detail" style="opacity:.62">
+                <span>AnyBike reference</span>
+                ${safe(purchase.deal_number||"—")}
               </div>
             </div>
           </div>
@@ -1686,10 +1682,20 @@ async function authoriseShipper(dealMotorcycleId,dealId){
 window.focusShipperAuthorisation=focusShipperAuthorisation;
 window.authoriseShipper=authoriseShipper;
 
+function cleanPurchaseMotorcycleVariant(value){
+  return String(value||"")
+    .replace(/\b\d+\s*(?:yr|year|years)\s+(?:bmw\s+)?warranty\b/ig,"")
+    .replace(/\b(?:bmw\s+)?warranty\b/ig,"")
+    .replace(/\s{2,}/g," ")
+    .replace(/[\s·,;\-]+$/g,"")
+    .trim();
+}
+
 function purchaseNextAction(purchase){
   const state=purchaseState(purchase);
   const deal=String(purchase.deal_number||"").trim();
-  const bike=[purchase.make,purchase.model,purchase.variant].filter(Boolean).join(" ")||"Motorcycle";
+  const cleanVariant=cleanPurchaseMotorcycleVariant(purchase.variant);
+  const bike=[purchase.make,purchase.model,cleanVariant].filter(Boolean).join(" ")||"Motorcycle";
   const balance=Number(state.balance||0);
   const depositOutstanding=Number(state.depositOutstanding||state.depositDue||0);
 
@@ -1705,10 +1711,10 @@ function purchaseNextAction(purchase){
   if(!state.depositSatisfied){
     return {
       priority:5,waiting:false,deal:deal,
-      title:"Pay the required "+money(depositOutstanding)+" Deposit now",
-      text:"We need your deposit to move this purchase forward with the seller. Until it is paid, the motorcycle may still be sold to another buyer.",
+      title:bike+" · "+money(depositOutstanding)+" deposit required",
+      text:"We need your deposit to move this purchase forward with the seller. Until it is received, the motorcycle may still be sold to another buyer.",
       href:deal?"/accounts-documents.html?deal="+encodeURIComponent(deal)+"&payment=deposit&amount="+encodeURIComponent(depositOutstanding.toFixed(2))+"&ref="+encodeURIComponent(deal):"/accounts-documents.html",
-      cta:"Pay the required "+money(depositOutstanding)+" Deposit now →"
+      cta:"Pay / Report Deposit →"
     };
   }
   if(!state.secured){
@@ -1723,10 +1729,10 @@ function purchaseNextAction(purchase){
   if(!state.fullyPaid && balance>0){
     return {
       priority:10,waiting:false,deal:deal,
-      title:"Pay remaining balance · "+money(balance),
-      text:bike+" is secured. Complete the remaining balance and any required documents before collection.",
+      title:bike+" · "+money(balance)+" remaining to pay",
+      text:"Your motorcycle is secured. Complete the remaining balance before collection. Any document request will be shown separately.",
       href:deal?"/accounts-documents.html?deal="+encodeURIComponent(deal)+"&payment=balance&amount="+encodeURIComponent(balance.toFixed(2))+"&ref="+encodeURIComponent(deal):"/accounts-documents.html",
-      cta:"Pay Balance / Documents →"
+      cta:"Continue Payment →"
     };
   }
 
@@ -1777,7 +1783,7 @@ function renderPurchaseNextActions(purchases){
       : "You have "+customerActions.length+" actions that need your attention across your purchases.";
     list.innerHTML=customerActions.map(function(action){
       return '<div class="purchase-action-row action">'+
-        '<div><div class="purchase-action-title"><strong>'+safe(action.title)+'</strong>'+(action.deal?'<span>'+safe(action.deal)+'</span>':'')+'</div>'+
+        '<div><div class="purchase-action-title"><strong>'+safe(action.title)+'</strong></div>'+
         '<p>'+safe(action.text)+'</p></div>'+
         '<a href="'+safe(action.href)+'">'+safe(action.cta)+'</a>'+
       '</div>';
@@ -1975,10 +1981,14 @@ async function loadPurchases(){
 
   purchasesBox.innerHTML=Array.from(purchaseGroups.values()).map(function(group){
     const first=group[0]||{};
-    const dealNumber=first.deal_number||"AnyBike Purchase";
+    const dealNumber=first.deal_number||"";
     const count=group.length;
+    const firstVariant=cleanPurchaseMotorcycleVariant(first.variant);
+    const purchaseHeading=count===1
+      ? ([first.make,first.model,firstVariant].filter(Boolean).join(" ")||"AnyBike purchase")
+      : (count+" motorcycle purchase");
     return '<section class="purchase-group '+(count>1?'multi':'single')+'">'+
-      '<div class="purchase-group-head"><div><span>AnyBike purchase</span><h2>'+safe(dealNumber)+'</h2>'+
+      '<div class="purchase-group-head"><div><span>AnyBike purchase</span><h2>'+safe(purchaseHeading)+'</h2>'+
       '<p>'+count+' motorcycle'+(count===1?'':'s')+' in this purchase. Each motorcycle follows its own journey and can progress independently.</p></div>'+
       '<a href="/buy-motorcycles.html" style="display:inline-flex;align-items:center;justify-content:center;padding:9px 12px;border-radius:9px;background:#171717;border:1px solid rgba(255,255,255,.12);color:#fff;font-weight:900;font-size:12px;text-decoration:none">Looking for another motorcycle? →</a></div>'+
       '<div class="purchase-group-grid">'+group.map(purchaseCard).join("")+'</div>'+
