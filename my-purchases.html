@@ -955,10 +955,10 @@ function purchaseState(purchase){
 
   const depositRequired=!!purchase.deposit_required;
   const depositDue=Number(purchase.deposit_due_gbp||0);
-  const depositAllocated=Number(purchase.deposit_allocated_gbp||0);
-  const depositOutstanding=Number(purchase.deposit_outstanding_gbp||0);
   const moneyReceived=Number(purchase.customer_money_received_deal_gbp||0);
   const allocated=Number(purchase.customer_allocated_motorcycle_gbp||0);
+  const depositAllocated=Math.min(Math.max(allocated,Number(purchase.deposit_allocated_gbp||0)),Math.max(depositDue,0));
+  const depositOutstanding=Math.max(depositDue-depositAllocated,0);
   const balance=Number(purchase.customer_balance_motorcycle_gbp||0);
   const secured=!!purchase.motorcycle_secured;
   const pendingDepositAdviceAmount=Number(purchase.pending_payment_advice_amount_gbp||0);
@@ -977,8 +977,8 @@ function purchaseState(purchase){
   const completed=String(purchase.deal_status||"").toLowerCase()==="completed" ||
     String(purchase.deal_stage||"").toLowerCase()==="completed" ||
     !!purchase.operations_complete;
-  const depositSatisfied=!depositRequired || depositDue<=0 || depositOutstanding<=0;
-  const fullyPaid=depositSatisfied && balance<=0;
+  const depositSatisfied=!depositRequired || depositDue<=0 || allocated>=depositDue || balance<=0 || depositOutstanding<=0;
+  const fullyPaid=balance<=0 && allocated>0;
 
   let heading="Purchase in Progress";
   let message="Your AnyBike purchase is progressing.";
