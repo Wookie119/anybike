@@ -8007,7 +8007,7 @@ async function loadAdminCustomerHandoverData(){
     try{
       const {data,error}=await sb
         .from("deal_customer_handover_selections")
-        .select("id,customer_id,deal_id,handover_plan_id,status,selected_at,verified_at,verified_by,created_at,updated_at")
+        .select("id,customer_id,deal_id,handover_plan_id,status,selected_at,verified_at,verified_by,buyer_contacted_shipper,shipper_agreed_to_handle,buyer_shipper_confirmed_at,admin_decision_reason,admin_decided_at,admin_decided_by,created_at,updated_at")
         .in("deal_id",dealIds);
 
       if(error){ throw error; }
@@ -8084,10 +8084,33 @@ function renderAnyBikeCustomerShippingPreferences(deal){
         ${notes ? `<div style="background:#0d0d0d;border-radius:9px;padding:9px;grid-column:1/-1"><span style="display:block;color:#888;font-size:10px;font-weight:900;margin-bottom:3px">CUSTOMER SHIPPING NOTES</span>${escapeAdminHtml(notes)}</div>` : ""}
       </div>
 
+      ${selected && selection ? `
+        <div style="display:grid;gap:7px;margin-top:10px;padding:11px;border:1px solid rgba(255,255,255,.09);border-radius:10px;background:#101010">
+          <div style="font-size:12px;font-weight:900;color:#fff">Buyer confirmation</div>
+          <div style="font-size:12px;color:${selection.buyer_contacted_shipper ? "#9bf0b8" : "#ff9da1"}">${selection.buyer_contacted_shipper ? "✓" : "✕"} Buyer has contacted the shipper / freight forwarder</div>
+          <div style="font-size:12px;color:${selection.shipper_agreed_to_handle ? "#9bf0b8" : "#ff9da1"}">${selection.shipper_agreed_to_handle ? "✓" : "✕"} Shipper has agreed to handle this motorcycle / shipment</div>
+          ${selection.buyer_shipper_confirmed_at ? `<div style="font-size:10px;color:#777">Confirmed by buyer ${escapeAdminHtml(new Date(selection.buyer_shipper_confirmed_at).toLocaleString())}</div>` : ""}
+        </div>
+        ${String(selection.status||"").toLowerCase().includes("declined") && selection.admin_decision_reason ? `
+          <div style="margin-top:9px;padding:10px;border:1px solid rgba(237,28,36,.35);border-radius:10px;background:rgba(237,28,36,.07);color:#ffb2b6;font-size:12px">
+            <strong>Declined by AnyBike</strong><br>${escapeAdminHtml(selection.admin_decision_reason)}
+          </div>` : ""}
+      ` : ""}
       <div style="display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-top:10px">
-        <button type="button" style="margin:0" ${anyBikeCustomerHandoverPlanComplete(plan) ? "" : "disabled"} onclick="useCustomerHandoverPlan(${dealId},${Number(plan.id)},this);return false;">${anyBikeCustomerHandoverPlanComplete(plan) ? "Use in UK Handover Plan" : "Complete UK Receiving Details First"}</button>
+        <button type="button" style="margin:0" ${anyBikeCustomerHandoverPlanComplete(plan) && selected && selection?.buyer_contacted_shipper && selection?.shipper_agreed_to_handle ? "" : "disabled"} onclick="useCustomerHandoverPlan(${dealId},${Number(plan.id)},this);return false;">${anyBikeCustomerHandoverPlanComplete(plan) ? "Agree to use this Shipper" : "Complete UK Receiving Details First"}</button>
+        ${selected ? `<button type="button" class="secondary" style="margin:0" onclick="toggleDeclineShipperReason(${dealId},${Number(plan.id)});return false;">Decline Shipper</button>` : ""}
         ${selected && selection && selection.selected_at ? `<span style="color:#8cffb1;font-size:12px;font-weight:900">Selected by customer ${escapeAdminHtml(new Date(selection.selected_at).toLocaleString())}</span>` : ""}
       </div>
+      ${selected ? `
+        <div id="decline-shipper-box-${dealId}-${Number(plan.id)}" style="display:none;margin-top:9px;padding:11px;border:1px solid rgba(237,28,36,.35);border-radius:10px;background:#101010">
+          <label style="display:block;color:#fff;font-size:12px;font-weight:900;margin-bottom:6px">Reason for declining this shipper</label>
+          <textarea id="decline-shipper-reason-${dealId}-${Number(plan.id)}" rows="3" style="width:100%;resize:vertical" placeholder="e.g. Shipper is not a suitable UK handover point, is located outside mainland UK, or has not agreed to receive the motorcycle."></textarea>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+            <button type="button" style="margin:0" onclick="declineCustomerHandoverPlan(${dealId},${Number(plan.id)},this);return false;">Confirm Decline</button>
+            <button type="button" class="secondary" style="margin:0" onclick="toggleDeclineShipperReason(${dealId},${Number(plan.id)},false);return false;">Cancel</button>
+          </div>
+        </div>
+      ` : ""}
     </article>`;
   }).join("");
 
@@ -8103,6 +8126,54 @@ function renderAnyBikeCustomerShippingPreferences(deal){
     </div>
     <div style="display:grid;gap:9px">${cards}</div>
   </div>`;
+}
+
+function toggleDeclineShipperReason(dealId,planId,forceOpen){
+  const box=document.getElementById("decline-shipper-box-"+dealId+"-"+planId);
+  if(!box) return;
+  const open=forceOpen===true || (forceOpen!==false && box.style.display==="none");
+  box.style.display=open ? "block" : "none";
+  if(open){
+    setTimeout(function(){ document.getElementById("decline-shipper-reason-"+dealId+"-"+planId)?.focus(); },20);
+  }
+}
+
+async function declineCustomerHandoverPlan(dealId,planId,button){
+  const reasonEl=document.getElementById("decline-shipper-reason-"+dealId+"-"+planId);
+  const reason=String(reasonEl?.value || "").trim();
+  if(!reason){
+    alert("Please enter the reason this shipper cannot be used.");
+    reasonEl?.focus();
+    return;
+  }
+
+  const original=button?.textContent || "Confirm Decline";
+  if(button){ button.disabled=true; button.textContent="Declining…"; }
+
+  try{
+    const result=await sb.rpc("admin_decide_customer_handover_plan_v1",{
+      p_deal_id:Number(dealId),
+      p_handover_plan_id:Number(planId),
+      p_decision:"Declined by AnyBike",
+      p_reason:reason
+    });
+    if(result.error) throw result.error;
+
+    await loadAdminDealQueue();
+    renderAdminDealQueue();
+
+    const row=document.getElementById("anybike-deal-"+dealId);
+    if(row){
+      row.classList.add("open");
+      openAnyBikeDealId=String(dealId);
+      row.scrollIntoView({behavior:"smooth",block:"center"});
+    }
+  }catch(error){
+    console.error("Shipper decline could not be saved:",error);
+    alert("Shipper could not be declined.\n\n"+(error?.message || error));
+  }finally{
+    if(button && document.body.contains(button)){ button.disabled=false; button.textContent=original; }
+  }
 }
 
 async function useCustomerHandoverPlan(dealId,planId,button){
@@ -8208,6 +8279,14 @@ async function useCustomerHandoverPlan(dealId,planId,button){
       statusEl.value="Confirmed";
       statusEl.dispatchEvent(new Event("change",{bubbles:true}));
     }
+
+    const decision=await sb.rpc("admin_decide_customer_handover_plan_v1",{
+      p_deal_id:Number(dealId),
+      p_handover_plan_id:Number(planId),
+      p_decision:"Approved by AnyBike",
+      p_reason:null
+    });
+    if(decision.error){ throw decision.error; }
 
     const saved=await saveDealShippingRoute(dealId,{
       skipConfirm:true,
