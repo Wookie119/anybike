@@ -767,13 +767,6 @@ main{width:min(1660px,96vw);margin:28px auto 70px}
   grid-column:1/-1 !important;
   margin-top:2px;
 }
-#invoiceNextAction{
-  align-items:center;
-}
-#savePaymentSelection{
-  min-width:230px;
-  min-height:46px;
-}
 @media(max-width:700px){
   .mini-proforma .invoice-action-row{
     grid-template-columns:1fr;
@@ -791,10 +784,6 @@ main{width:min(1660px,96vw);margin:28px auto 70px}
   .mini-proforma .payment-choice-note,
   .mini-proforma .auto-allocation-label{
     grid-column:1 !important;
-  }
-  #savePaymentSelection{
-    width:100%;
-    min-width:0;
   }
 }
 </style>
@@ -839,15 +828,6 @@ main{width:min(1660px,96vw);margin:28px auto 70px}
     <div class="notice-box"><strong>Important:</strong> reporting a payment tells AnyBike what you have sent and how you want it allocated. It does not mark the money as received until AnyBike verifies the transfer in its bank account.</div>
     <div class="scroll-payment-note">After selecting the Proforma(s) and entering the amount(s), scroll down to record your bank transfer.<span>Complete the “I’ve Made a Bank Transfer” section below so AnyBike can verify and post your payment.</span></div>
     <div id="invoices"><div class="empty loading">Loading your invoices...</div></div>
-
-    <div class="accounts-next-action" id="invoiceNextAction">
-      <div class="accounts-next-copy">
-        <div class="accounts-next-kicker">Your next action</div>
-        <strong id="invoiceNextTitle">Choose what this bank transfer is for</strong>
-        <span id="invoiceNextText">Select one or more open Proformas and enter the amount you have transferred.</span>
-      </div>
-      <button class="action-btn primary" id="savePaymentSelection" type="button">Save Selection &amp; Continue ↓</button>
-    </div>
 
     <div id="reportPanel" class="report-panel section-anchor">
       <div id="paymentJourneyNotice"></div>
@@ -1335,7 +1315,7 @@ function invoiceCard(invoice){
 
   const paymentBlock=canPay?`<div class="payment-select">
     <input class="pay-select" id="pay-select-${Number(invoice.invoice_id)}" data-invoice-id="${Number(invoice.invoice_id)}" type="checkbox">
-    <label class="payment-select-action" for="pay-select-${Number(invoice.invoice_id)}">MAKE A PAYMENT TOWARDS THIS PURCHASE</label>
+    <label class="payment-select-action" for="pay-select-${Number(invoice.invoice_id)}">INCLUDE THIS PURCHASE IN MY BANK TRANSFER</label>
     <small><strong>Remaining purchase balance: ${money(invoice.balance_due_gbp)}</strong> · Select this Proforma and enter the amount to allocate.</small>
     <div class="payment-choice-note"><strong>Select this Proforma, then enter the amount you have transferred.</strong> You can make a part payment, pay the requested amount, clear the balance, or split one bank transfer across other open Proformas.</div>
     <div class="payment-quick">
@@ -1547,6 +1527,17 @@ function updatePaymentSelection(){
     !!document.getElementById("scInspection")?.checked
   );
   document.getElementById("submitAdvice").disabled=allocations.length===0 || total<=0 || submitBusy || !secondChanceReady;
+
+  if(allocations.length>0 && total>0){
+    const bankReference=document.getElementById("bankReference");
+    if(bankReference && !bankReference.value.trim()){
+      const selectedInvoices=allocations
+        .map(row=>accountInvoices.find(invoice=>Number(invoice.invoice_id)===Number(row.invoice_id)))
+        .filter(Boolean);
+      const refs=[...new Set(selectedInvoices.map(invoice=>String(invoice.deal_number||"").trim()).filter(Boolean))];
+      if(refs.length) bankReference.value=refs.join(" / ");
+    }
+  }
 }
 
 async function submitPaymentAdvice(){
@@ -1857,45 +1848,6 @@ function renderSummary(){
 }
 
 document.getElementById("paymentDate").value=todayLocal();
-document.getElementById("savePaymentSelection").addEventListener("click",function(){
-  const allocations=selectedAllocations();
-  const box=document.getElementById("invoiceNextAction");
-  const title=document.getElementById("invoiceNextTitle");
-  const text=document.getElementById("invoiceNextText");
-  if(!allocations.length){
-    box?.classList.remove("complete");
-    if(title)title.textContent="Select at least one Proforma first";
-    if(text)text.textContent="Tick MAKE A PAYMENT TOWARDS THIS PURCHASE and enter the amount you transferred before continuing.";
-    document.querySelector(".payment-select")?.scrollIntoView({behavior:"smooth",block:"center"});
-    return;
-  }
-  setAccountsStepDone("review");
-  setAccountsStepDone("payment");
-  box?.classList.add("complete");
-  if(box?.querySelector(".accounts-next-kicker"))box.querySelector(".accounts-next-kicker").textContent="Completed";
-  if(title)title.textContent="Payment allocation saved";
-  if(text)text.textContent="Your selected allocation is ready. Continue below and confirm the bank transfer details.";
-  this.textContent="Saved ✓";
-
-  const bankReference=document.getElementById("bankReference");
-  if(bankReference && !bankReference.value.trim()){
-    const selectedInvoices=allocations
-      .map(row=>accountInvoices.find(invoice=>Number(invoice.invoice_id)===Number(row.invoice_id)))
-      .filter(Boolean);
-    const refs=[...new Set(selectedInvoices.map(invoice=>String(invoice.deal_number||"").trim()).filter(Boolean))];
-    if(refs.length) bankReference.value=refs.join(" / ");
-  }
-
-  const reportPanel=document.getElementById("reportPanel");
-  if(reportPanel){
-    reportPanel.classList.add("open");
-    setTimeout(()=>{
-      const top=reportPanel.getBoundingClientRect().top+window.pageYOffset-110;
-      window.scrollTo({top:Math.max(0,top),behavior:"smooth"});
-      document.getElementById("paymentDate")?.focus({preventScroll:true});
-    },220);
-  }
-});
 document.getElementById("finishAccountsReview").addEventListener("click",function(){
   setAccountsStepDone("finish");
   const box=document.getElementById("finalAccountsAction");
