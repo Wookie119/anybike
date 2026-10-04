@@ -39,6 +39,17 @@
 <div id="countryList" class="country-list"></div>
 <div id="countryCount" class="country-count">0 countries selected</div>
 <div style="font-size:12px;color:#777;margin-top:5px">Tick every country where your company can arrange motorcycle delivery. Use the AnyBike link beside a country to view our live market page.</div>
+
+<div style="margin-top:16px;padding:14px;border:1px dashed #bbb;border-radius:12px;background:#fff">
+  <strong style="display:block;margin-bottom:5px">Can’t find a country or territory?</strong>
+  <div style="font-size:12px;color:#666;margin-bottom:10px">Request it here. AnyBike will review it before adding it to the country list and market pages.</div>
+  <div class="grid">
+    <div><label>Country / territory to request</label><input id="requestedCountry" placeholder="Enter country or territory"></div>
+    <div><label>Notes (optional)</label><input id="requestedCountryNotes" placeholder="e.g. route available via partner office"></div>
+  </div>
+  <div class="actions" style="margin-top:10px"><button class="btn secondary" type="button" id="requestCountryBtn">Request Country →</button></div>
+  <div id="requestCountryStatus" class="status"></div>
+</div>
 </div>
 <div class="full"><label>Ports / destinations served</label><input id="ports" placeholder="Jebel Ali, Durban, Sydney"></div>
 <div><label>Main destination / port</label><input id="mainPort"></div>
@@ -272,6 +283,43 @@ preparationMethods.querySelectorAll('input[type="checkbox"]').forEach(cb=>cb.che
 const selected=new Set(p.services||[]);services.innerHTML=serviceList.map(s=>'<label class="check"><input type="checkbox" value="'+s.replace(/"/g,"&quot;")+'" '+(selected.has(s)?"checked":"")+'> <span>'+s+'</span></label>').join("")})();
 countrySearch.addEventListener("input",()=>renderCountryTicks());
 clearCountries.addEventListener("click",()=>{selectedCountryNames.clear();renderCountryTicks()});
+
+requestCountryBtn.addEventListener("click",async()=>{
+  requestCountryStatus.textContent="";
+  requestCountryStatus.className="status";
+  const requested=requestedCountry.value.trim();
+  if(!requested){
+    requestCountryStatus.textContent="Please enter the country or territory.";
+    requestCountryStatus.className="status bad";
+    return;
+  }
+  const existing=marketCountries.find(m=>m.name.toLowerCase()===requested.toLowerCase());
+  if(existing){
+    requestCountryStatus.innerHTML='That country is already available. Search for <strong>'+existing.name+'</strong> above and tick it.';
+    requestCountryStatus.className="status bad";
+    return;
+  }
+  requestCountryBtn.disabled=true;
+  requestCountryBtn.textContent="Sending…";
+  const d=await call({
+    action:"submit_country_request",
+    requested_country:requested,
+    notes:requestedCountryNotes.value.trim(),
+    editor_name:editorName.value.trim(),
+    editor_email:editorEmail.value.trim()
+  });
+  requestCountryBtn.disabled=false;
+  requestCountryBtn.textContent="Request Country →";
+  if(d.error){
+    requestCountryStatus.textContent=d.error;
+    requestCountryStatus.className="status bad";
+    return;
+  }
+  requestCountryStatus.textContent="Thank you. AnyBike has been notified and will review this country / territory before adding it.";
+  requestCountryStatus.className="status good";
+  requestedCountry.value="";
+  requestedCountryNotes.value="";
+});
 
 saveDraft.onclick=async()=>{
   const payload=profileFromForm();
