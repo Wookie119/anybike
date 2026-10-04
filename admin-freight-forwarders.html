@@ -169,7 +169,7 @@ body.admin-freight-page .top-actions{display:flex;gap:10px;flex-wrap:wrap;justif
 
 .toolbar{
   display:grid;
-  grid-template-columns:minmax(300px,1.8fr) repeat(6,minmax(135px,1fr));
+  grid-template-columns:minmax(280px,1.7fr) repeat(7,minmax(125px,1fr));
   gap:10px;
   padding:14px;
   margin-bottom:16px;
@@ -514,6 +514,11 @@ body.admin-freight-page .top-actions{display:flex;gap:10px;flex-wrap:wrap;justif
           <option value="">All countries served</option>
         </select>
         <select id="referralFilter"><option value="">All referral activity</option></select>
+        <select id="activeFilter">
+          <option value="active" selected>Active shippers only</option>
+          <option value="all">Show active + inactive</option>
+          <option value="inactive">Inactive / historical only</option>
+        </select>
       </section>
 
       <section class="list-shell">
@@ -1024,8 +1029,12 @@ function filteredRecords(){
   const service = document.getElementById("serviceFilter").value;
   const country = document.getElementById("countryFilter").value;
   const referral = document.getElementById("referralFilter").value;
+  const activeMode = document.getElementById("activeFilter").value;
 
   return records.filter(r => {
+    if(activeMode==="active" && r.is_active===false) return false;
+    if(activeMode==="inactive" && r.is_active!==false) return false;
+
     const haystack = [
       r.company_name,r.country,r.city,r.contact_name,r.email,r.email_2,r.email_3,r.phone,
       r.destination_port,r.ports_served,r.services,r.countries_covered,
@@ -1417,7 +1426,7 @@ async function restoreRecord(id){
   }
 }
 
-["searchInput","verificationFilter","profileInviteFilter","scopeFilter","serviceFilter","countryFilter","referralFilter"].forEach(id => {
+["searchInput","verificationFilter","profileInviteFilter","scopeFilter","serviceFilter","countryFilter","referralFilter","activeFilter"].forEach(id => {
   document.getElementById(id).addEventListener(id === "searchInput" ? "input" : "change", renderDirectory);
 });
 
