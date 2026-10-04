@@ -742,6 +742,23 @@ body.admin-freight-page .top-actions{display:flex;gap:10px;flex-wrap:wrap;justif
             <textarea id="cratingNotes" placeholder="e.g. From £350 depending on motorcycle size"></textarea>
           </div>
 
+          <div class="field full">
+            <label>Motorcycle Preparation / Securing Methods</label>
+            <div class="checks" id="adminPreparationMethods">
+              <label class="check"><input type="checkbox" value="Rolling on wheels" name="prepMethod"> Rolling on wheels</label>
+              <label class="check"><input type="checkbox" value="Strapped to pallet" name="prepMethod"> Strapped to a pallet</label>
+              <label class="check"><input type="checkbox" value="Crated" name="prepMethod"> Crated</label>
+              <label class="check"><input type="checkbox" value="Container tie-down" name="prepMethod"> Tied down directly in a container</label>
+              <label class="check"><input type="checkbox" value="Protective blankets and straps" name="prepMethod"> Protective blankets / covers and straps</label>
+              <label class="check"><input type="checkbox" value="Skid or frame" name="prepMethod"> Secured to a skid / frame</label>
+            </div>
+          </div>
+
+          <div class="field full">
+            <label>Other Motorcycle Preparation / Securing Method</label>
+            <textarea id="preparationOther" placeholder="Describe any other method used to prepare or secure motorcycles for shipping"></textarea>
+          </div>
+
           <div class="field">
             <label>Partner Status</label>
             <select id="partnerStatus">
@@ -1353,6 +1370,8 @@ function recordHtml(r){
               <div><dt>Own crating facility</dt><dd>${r.has_crating_facility===true ? "Yes" : r.has_crating_facility===false ? "No" : "Not confirmed"}</dd></div>
               <div><dt>Approx. crating price</dt><dd>${r.crating_approx_price!==null && r.crating_approx_price!==undefined ? escapeHtml((r.crating_price_currency||"GBP")+" "+Number(r.crating_approx_price).toFixed(2)) : "-"}</dd></div>
               <div><dt>Crating notes</dt><dd>${escapeHtml(r.crating_notes || "-")}</dd></div>
+              <div><dt>Preparation methods</dt><dd>${escapeHtml(arrayValue(r.motorcycle_preparation_methods).join(", ") || "-")}</dd></div>
+              <div><dt>Other preparation</dt><dd>${escapeHtml(r.motorcycle_preparation_other || "-")}</dd></div>
               <div><dt>Partner status</dt><dd>${escapeHtml(r.partner_status || "Standard")}</dd></div>
               <div><dt>Last used</dt><dd>${escapeHtml(dateDisplay(r.last_used_at))}</dd></div>
               <div><dt>Source</dt><dd>${escapeHtml(r.source_customer || "-")}</dd></div>
@@ -1407,6 +1426,7 @@ function toggleRecord(id){
 function openEditor(record=null){
   document.getElementById("forwarderForm").reset();
   document.querySelectorAll('input[name="service"]').forEach(cb => cb.checked = false);
+  document.querySelectorAll('input[name="prepMethod"]').forEach(cb => cb.checked = false);
   document.getElementById("recordId").value = record?.id || "";
   document.getElementById("editorTitle").textContent = record ? "Edit Freight Forwarder" : "Add Freight Forwarder";
   document.getElementById("editorStatus").textContent = "";
@@ -1443,6 +1463,9 @@ function openEditor(record=null){
     document.getElementById("cratingPrice").value = record.crating_approx_price ?? "";
     document.getElementById("cratingCurrency").value = record.crating_price_currency || "GBP";
     document.getElementById("cratingNotes").value = record.crating_notes || "";
+    const prepSelected = new Set(arrayValue(record.motorcycle_preparation_methods));
+    document.querySelectorAll('input[name="prepMethod"]').forEach(cb => cb.checked = prepSelected.has(cb.value));
+    document.getElementById("preparationOther").value = record.motorcycle_preparation_other || "";
     document.getElementById("partnerStatus").value = record.partner_status || "Standard";
     document.getElementById("isActive").value = record.is_active === false ? "false" : "true";
     document.getElementById("lastUsedAt").value = record.last_used_at ? String(record.last_used_at).slice(0,10) : "";
@@ -1500,6 +1523,8 @@ function payloadFromForm(){
     crating_approx_price:document.getElementById("cratingPrice").value===""?null:Number(document.getElementById("cratingPrice").value),
     crating_price_currency:document.getElementById("cratingCurrency").value || "GBP",
     crating_notes:document.getElementById("cratingNotes").value.trim() || null,
+    motorcycle_preparation_methods:Array.from(document.querySelectorAll('input[name="prepMethod"]:checked')).map(cb=>cb.value),
+    motorcycle_preparation_other:document.getElementById("preparationOther").value.trim() || null,
     partner_status:document.getElementById("partnerStatus").value,
     is_active:document.getElementById("isActive").value === "true",
     last_used_at:document.getElementById("lastUsedAt").value || null,
