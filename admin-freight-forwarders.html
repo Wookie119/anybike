@@ -485,8 +485,8 @@ body.admin-freight-page .top-actions{display:flex;gap:10px;flex-wrap:wrap;justif
       <section class="suggestion-panel">
         <div class="suggestion-head">
           <div>
-            <h2>Customer-suggested shippers</h2>
-            <p>New shipping companies entered by buyers appear here for AnyBike review before being added to the reusable directory.</p>
+            <h2>Suggested shippers & offices</h2>
+            <p>New shipping companies entered by buyers, plus offices/branches recommended by existing shippers, appear here for AnyBike review.</p>
           </div>
           <span class="suggestion-count" id="suggestionCount">0</span>
         </div>
@@ -848,16 +848,18 @@ async function loadCustomerSuggestions(){
     return '<article class="suggestion-card">'+
       '<div class="suggestion-grid">'+
         '<div><strong>'+escapeHtml(s.company_name||"Unnamed shipper")+'</strong>'+
-          '<small>Suggested by '+escapeHtml(s.customer_name||s.customer_email||"customer")+
-          (s.customer_country?' · Buyer country: '+escapeHtml(s.customer_country):'')+'</small></div>'+
+          '<small>'+(s.suggestion_source==="Shipper Office"
+            ? 'Suggested by '+escapeHtml(s.source_forwarder_name||"another shipper office")+' · Branch / office referral'
+            : 'Suggested by '+escapeHtml(s.customer_name||s.customer_email||"customer")+(s.customer_country?' · Buyer country: '+escapeHtml(s.customer_country):''))+'</small></div>'+
         '<div class="suggestion-meta">'+
           '<div><b>Contact:</b> '+escapeHtml(s.contact_name||"-")+'</div>'+
           '<div><b>Email:</b> '+escapeHtml(s.email||"-")+'</div>'+
           '<div><b>Phone:</b> '+escapeHtml(s.phone||"-")+'</div>'+
           '<div><b>Address:</b> '+escapeHtml(address||"-")+'</div>'+
+          (s.suggestion_source==="Shipper Office" ? '<div><b>Motorcycle office:</b> '+(s.motorcycle_specialist?"Yes":"Not confirmed")+'</div>' : '')+
         '</div>'+
         '<div class="suggestion-actions">'+
-          '<button class="btn btn-primary" type="button" onclick="addSuggestionToDirectory('+Number(s.id)+')">Add to Directory</button>'+
+          '<button class="btn btn-primary" type="button" onclick="addSuggestionToDirectory('+Number(s.id)+')">'+(s.suggestion_source==="Shipper Office"?"Add & Invite Office":"Add to Directory")+'</button>'+
           '<button class="btn btn-dark" type="button" onclick="declineSuggestion('+Number(s.id)+')">Not now</button>'+
         '</div>'+
       '</div>'+
@@ -868,15 +870,30 @@ async function loadCustomerSuggestions(){
 async function addSuggestionToDirectory(id){
   const s=customerSuggestions.find(x=>Number(x.id)===Number(id));
   if(!s) return;
-  if(!confirm("Add "+(s.company_name||"this shipper")+" to the AnyBike freight-forwarder directory?")) return;
+  const isOffice=s.suggestion_source==="Shipper Office";
+  const promptText=isOffice
+    ? "Add "+(s.company_name||"this office")+" to the AnyBike directory and send its profile invitation?"
+    : "Add "+(s.company_name||"this shipper")+" to the AnyBike freight-forwarder directory?";
+  if(!confirm(promptText)) return;
 
-  const {error}=await sb.rpc("admin_review_freight_forwarder_suggestion_v1",{
+  const {data,error}=await sb.rpc("admin_review_freight_forwarder_suggestion_v1",{
     p_suggestion_id:id,
     p_action:"Add"
   });
   if(error){
     alert("Could not add shipper: "+error.message);
     return;
+  }
+
+  if(isOffice && data?.freight_forwarder_id){
+    const {data:inviteData,error:inviteError}=await sb.functions.invoke("send-forwarder-profile-invite",{
+      body:{forwarder_id:Number(data.freight_forwarder_id),force:true}
+    });
+    if(inviteError||inviteData?.error){
+      alert("Office was added, but the profile invitation could not be sent: "+(inviteData?.error||inviteError.message));
+    }else{
+      alert((s.company_name||"Office")+" was added and its AnyBike profile invitation was sent.");
+    }
   }
 
   await Promise.all([loadCustomerSuggestions(),loadForwarders()]);
