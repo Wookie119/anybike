@@ -2204,6 +2204,14 @@ body.customer-offer-modal-open{overflow:hidden}
         <p id="sourcingProgressSummary">Motorcycles you have marked Interested are being checked with sellers.</p>
       </div>
     </div>
+    <div id="sourcingProgressNextAction" style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:18px;align-items:center;margin:0 0 12px;padding:12px 14px;border:1px solid rgba(237,28,36,.42);border-radius:12px;background:linear-gradient(135deg,rgba(237,28,36,.10),#111 64%)">
+      <div>
+        <div class="eyebrow" style="margin:0 0 4px">Your next action</div>
+        <strong id="sourcingProgressNextTitle" style="display:block;font-size:17px">Checking what happens next…</strong>
+        <span id="sourcingProgressNextText" style="display:block;margin-top:3px;color:#bbb;font-size:13px;line-height:1.4">AnyBike is checking your selected motorcycles.</span>
+      </div>
+      <a id="sourcingProgressNextButton" class="panel-link" href="#my-offers" style="display:none;white-space:nowrap">Review offer →</a>
+    </div>
     <div id="sourcingProgressList" style="display:grid;gap:9px"></div>
   </section>
 
@@ -4489,6 +4497,9 @@ function renderSourcingProgress(rows,totalFromBatches){
   const panel=document.getElementById("sourcing-progress");
   const list=document.getElementById("sourcingProgressList");
   const summary=document.getElementById("sourcingProgressSummary");
+  const nextTitle=document.getElementById("sourcingProgressNextTitle");
+  const nextText=document.getElementById("sourcingProgressNextText");
+  const nextButton=document.getElementById("sourcingProgressNextButton");
   if(!panel||!list)return;
 
   const interested=(Array.isArray(rows)?rows:[]).filter(function(row){
@@ -4507,6 +4518,27 @@ function renderSourcingProgress(rows,totalFromBatches){
     summary.textContent=expectedTotal===1
       ? "You have asked AnyBike to check 1 motorcycle. We are confirming seller availability and current purchase terms."
       : "You have asked AnyBike to check "+expectedTotal+" motorcycles. We are confirming seller availability and current purchase terms.";
+  }
+
+  const hasCustomerOffer=interested.some(function(row){
+    const status=String(row?.offer_status||"").trim().toLowerCase();
+    return ["sent","open","issued","awaiting customer","awaiting_customer"].some(function(value){
+      return status===value || status.includes(value);
+    });
+  });
+
+  if(hasCustomerOffer){
+    if(nextTitle) nextTitle.textContent="Review your AnyBike offer";
+    if(nextText) nextText.textContent="AnyBike has completed the seller check for at least one motorcycle and a formal offer is ready for your decision.";
+    if(nextButton){
+      nextButton.textContent="REVIEW OFFER →";
+      nextButton.href="#my-offers";
+      nextButton.style.display="inline-flex";
+    }
+  }else{
+    if(nextTitle) nextTitle.textContent="No action required right now";
+    if(nextText) nextText.textContent="AnyBike is checking "+expectedTotal+" motorcycle"+(expectedTotal===1?"":"s")+" with the sellers. We will notify you when availability is confirmed or when we need a decision from you.";
+    if(nextButton) nextButton.style.display="none";
   }
 
   if(interested.length){
@@ -4539,6 +4571,12 @@ async function loadSourcingProgress(){
   const requested=dashboardViewRequested("sourcing-progress");
   if(requested){
     panel.style.display="";
+    const nextTitle=document.getElementById("sourcingProgressNextTitle");
+    const nextText=document.getElementById("sourcingProgressNextText");
+    const nextButton=document.getElementById("sourcingProgressNextButton");
+    if(nextTitle) nextTitle.textContent="Checking your next action…";
+    if(nextText) nextText.textContent="Loading the latest seller checks and offer status.";
+    if(nextButton) nextButton.style.display="none";
     list.innerHTML='<div class="buyer-match-empty">Loading your sourcing progress…</div>';
   }
 
