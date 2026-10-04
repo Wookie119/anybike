@@ -678,6 +678,7 @@ const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 let accountInvoices=[];
 let paymentAdviceRows=[];
 let centralDocumentData={account_documents:[],customer_documents:[],motorcycle_documents:[],counts:{}};
+let accountMotorcycleIdentities=[];
 let submitBusy=false;
 const ANYBIKE_TERMS_VERSION="2026-10-03";
 const ANYBIKE_TRADE_POLICY_VERSION="2026-10-03";
@@ -787,6 +788,20 @@ async function requireSession(){
   return true;
 }
 
+function accountMotorcycleIdentityForDeal(dealNumber){
+  return accountMotorcycleIdentities.find(row=>
+    String(row.deal_number||"").trim()===String(dealNumber||"").trim()
+  )||null;
+}
+
+function accountMotorcycleLabel(dealNumber,fallback){
+  const identity=accountMotorcycleIdentityForDeal(dealNumber);
+  if(!identity)return String(fallback||"Motorcycle").trim();
+  const bike=[identity.make,identity.model,identity.variant].filter(Boolean).join(" ").trim();
+  const reg=String(identity.registration||"").trim();
+  return bike+(reg?" · Reg "+reg:"");
+}
+
 function updateAccountsHeaderNextAction(){
   if(!window.AnyBikeCustomerNextAction?.set)return;
 
@@ -810,12 +825,13 @@ function updateAccountsHeaderNextAction(){
   if(invoice){
     const deal=String(invoice.deal_number||"this purchase");
     const label=String(invoice.invoice_number||invoice.invoice_type||"Proforma");
+    const bike=accountMotorcycleLabel(deal,invoice.motorcycle_summary);
     const balance=Number(invoice.balance_due_gbp||0);
     const id=Number(invoice.invoice_id);
     window.AnyBikeCustomerNextAction.set({
       kicker:"Your next action",
       title:"Make a payment towards "+deal,
-      text:money(balance)+" remains on "+label+". Select this Proforma, enter the amount you have transferred, then continue to the bank transfer details.",
+      text:bike+". "+money(balance)+" remains on "+label+". Select this Proforma, enter the amount you have transferred, then continue to the bank transfer details.",
       waitingFor:"You",
       label:"START PAYMENT →",
       selector:'.invoice-card[data-invoice-id="'+id+'"] .payment-select'
@@ -829,10 +845,11 @@ function updateAccountsHeaderNextAction(){
   if(pending.length){
     const first=pending[0];
     const deal=String(first.deal_number||first.allocations?.[0]?.deal_number||"your purchase");
+    const bike=accountMotorcycleLabel(deal,"Motorcycle");
     window.AnyBikeCustomerNextAction.set({
       kicker:"No action needed",
       title:"AnyBike is verifying your reported payment",
-      text:(first.advice_number?first.advice_number+" · ":"")+money(first.reported_amount_gbp||0)+" has been reported for "+deal+". You do not need to report it again while AnyBike checks the bank receipt.",
+      text:bike+". "+(first.advice_number?first.advice_number+" · ":"")+money(first.reported_amount_gbp||0)+" has been reported for "+deal+". You do not need to report it again while AnyBike checks the bank receipt.",
       waitingFor:"AnyBike",
       label:"VIEW PAYMENT STATUS →",
       selector:"#history"
@@ -879,7 +896,12 @@ function updateAccountsHeaderNextAction(){
 
 async function loadAccounts(){
   const ok=await requireSession();if(!ok)return;
-  const centralResult=await sb.rpc("customer_get_accounts_documents_v1");
+  const [centralResult,identityResult]=await Promise.all([
+    sb.rpc("customer_get_accounts_documents_v1"),
+    sb.rpc("customer_get_accounts_motorcycle_identity_v1")
+  ]);
+  accountMotorcycleIdentities=identityResult.error?[]:(Array.isArray(identityResult.data)?identityResult.data:[]);
+  if(identityResult.error)console.warn("Accounts motorcycle identity could not be loaded:",identityResult.error);
   if(centralResult.error){
     console.error("Central Accounts & Documents could not be loaded:",centralResult.error);
     centralDocumentData={account_documents:[],customer_documents:[],motorcycle_documents:[],counts:{}};
