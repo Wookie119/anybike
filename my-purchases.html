@@ -1849,7 +1849,9 @@ function purchaseIdentityLine(purchase){
   const cleanVariant=cleanPurchaseMotorcycleVariant(purchase?.variant);
   const bike=[purchase?.make,purchase?.model,cleanVariant].filter(Boolean).join(" ")||"Motorcycle";
   const colour=String(purchase?.colour||purchase?.color||"").trim();
-  return bike+" · "+(colour||"Colour not yet recorded")+" · "+purchaseRegistrationLabel(purchase);
+  const purchaseNumber=Number(purchase?._customer_purchase_number||0);
+  return (purchaseNumber ? "Purchase "+purchaseNumber+" · " : "")+
+    bike+" · "+(colour||"Colour not yet recorded")+" · "+purchaseRegistrationLabel(purchase);
 }
 
 
@@ -1883,7 +1885,7 @@ function purchaseNextAction(purchase){
     return {
       priority:35,waiting:true,deal:deal,identity:bike,
       title:"AnyBike is completing the seller check",
-      text:"Your deposit is complete for "+bike+". No action is required from you while AnyBike confirms and secures the motorcycle.",
+      text:"Your deposit is complete. No action is required from you while AnyBike confirms and secures the motorcycle.",
       href:"/my-purchases.html?deal="+encodeURIComponent(purchase.deal_id||""),
       cta:"View purchase →"
     };
@@ -1906,7 +1908,7 @@ function purchaseNextAction(purchase){
     return {
       priority:40,waiting:true,deal:deal,identity:bike,
       title:"AnyBike is arranging collection",
-      text:"Payment is complete for "+bike+". No action is required from you while collection is arranged.",
+      text:"Payment is complete. No action is required from you while collection is arranged.",
       href:"/my-purchases.html?deal="+encodeURIComponent(purchase.deal_id||""),
       cta:"View purchase →"
     };
@@ -1915,7 +1917,7 @@ function purchaseNextAction(purchase){
     return {
       priority:45,waiting:true,deal:deal,identity:bike,
       title:"Collection / UK handover in progress",
-      text:bike+" is progressing through collection, custody or handover. We will show you here if anything is needed from you.",
+      text:"This motorcycle is progressing through collection, custody or handover. We will show you here if anything is needed from you.",
       href:"/my-purchases.html?deal="+encodeURIComponent(purchase.deal_id||""),
       cta:"View progress →"
     };
@@ -2106,6 +2108,26 @@ async function loadPurchases(){
 
   }
 
+  const acceptedOrder=[...purchases].sort(function(a,b){
+    const at=new Date(a.offer_accepted_at||0).getTime()||0;
+    const bt=new Date(b.offer_accepted_at||0).getTime()||0;
+    if(at!==bt)return at-bt;
+    return Number(a.deal_id||0)-Number(b.deal_id||0);
+  });
+  const purchaseNumberByDeal=new Map();
+  let purchaseCounter=0;
+  acceptedOrder.forEach(function(purchase){
+    const key=String(purchase.deal_id||purchase.deal_number||purchase.deal_motorcycle_id||"");
+    if(!purchaseNumberByDeal.has(key)){
+      purchaseCounter+=1;
+      purchaseNumberByDeal.set(key,purchaseCounter);
+    }
+  });
+  purchases.forEach(function(purchase){
+    const key=String(purchase.deal_id||purchase.deal_number||purchase.deal_motorcycle_id||"");
+    purchase._customer_purchase_number=purchaseNumberByDeal.get(key)||0;
+  });
+
   renderPurchaseNextActions(purchases);
 
   const purchaseParams =
@@ -2169,8 +2191,8 @@ async function loadPurchases(){
     const count=group.length;
     const firstVariant=cleanPurchaseMotorcycleVariant(first.variant);
     const purchaseHeading=count===1
-      ? (([first.make,first.model,firstVariant].filter(Boolean).join(" ")||"AnyBike purchase")+" · "+purchaseRegistrationLabel(first))
-      : (count+" motorcycle purchase");
+      ? ((Number(first._customer_purchase_number||0) ? "Purchase "+Number(first._customer_purchase_number)+" · " : "")+([first.make,first.model,firstVariant].filter(Boolean).join(" ")||"AnyBike purchase")+" · "+purchaseRegistrationLabel(first))
+      : ("Purchase "+(Number(first._customer_purchase_number||0)||"")+" · "+count+" motorcycle purchase");
     return '<section class="purchase-group '+(count>1?'multi':'single')+'">'+
       '<div class="purchase-group-head"><div><span>AnyBike purchase</span><h2>'+safe(purchaseHeading)+'</h2>'+
       '<p>'+count+' motorcycle'+(count===1?'':'s')+' in this purchase. Each motorcycle follows its own journey and can progress independently.</p></div>'+
