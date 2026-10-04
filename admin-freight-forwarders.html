@@ -149,7 +149,7 @@ a{color:inherit;text-decoration:none}
 
 .kpis{
   display:grid;
-  grid-template-columns:repeat(5,minmax(0,1fr));
+  grid-template-columns:repeat(6,minmax(0,1fr));
   gap:14px;
   margin-bottom:18px;
 }
@@ -253,6 +253,16 @@ a{color:inherit;text-decoration:none}
 .badge.unverified{background:rgba(244,185,66,.12);border-color:rgba(244,185,66,.35);color:#ffd87a}
 .badge.preferred{background:rgba(77,163,255,.12);border-color:rgba(77,163,255,.35);color:#8bc3ff}
 .badge.inactive{color:#999}
+.badge.email-needed{
+  background:rgba(237,28,36,.14);
+  border-color:rgba(237,28,36,.5);
+  color:#ff8e93;
+}
+.email-needed-kpi{
+  border-color:rgba(237,28,36,.42);
+  background:rgba(237,28,36,.07);
+}
+.email-needed-kpi strong{color:#ff7378}
 .row-actions{
   display:flex;
   flex-direction:row;
@@ -476,6 +486,7 @@ a{color:inherit;text-decoration:none}
         <div class="kpi"><span>Unverified</span><strong id="kpiUnverified">0</strong><small>Awaiting review</small></div>
         <div class="kpi"><span>Preferred</span><strong id="kpiPreferred">0</strong><small>Trusted partners</small></div>
         <div class="kpi"><span>Countries Covered</span><strong id="kpiCountries">0</strong><small>Unique destinations</small></div>
+        <div class="kpi email-needed-kpi"><span>Email Needed</span><strong id="kpiEmailNeeded">0</strong><small>Cannot receive profile invite</small></div>
       </section>
 
       <section class="toolbar">
@@ -495,6 +506,7 @@ a{color:inherit;text-decoration:none}
           <option value="Declined">Declined</option>
           <option value="No Email">No Email</option>
           <option value="Needs Follow-up">Needs Follow-up</option>
+          <option value="Missing Email">Missing Email</option>
         </select>
         <select id="scopeFilter">
           <option value="">All locations</option>
@@ -803,7 +815,7 @@ async function inviteShipperProfile(id){
 async function inviteAllShippers(){
   const eligible=records.filter(r=>r.is_active!==false && r.profile_invite_status!=="Updated");
   if(!eligible.length){
-    alert("There are no active shippers with email addresses waiting for an invitation.");
+    alert("There are no active shippers waiting for an invitation.");
     return;
   }
   if(!confirm("Send free profile update invitations to "+eligible.length+" shippers?\n\nThis will email each company individually from AnyBike.")) return;
@@ -950,7 +962,8 @@ function filteredRecords(){
 
     if(q && !haystack.includes(q)) return false;
     if(verification && r.verification_status !== verification) return false;
-    if(profileInvite && (r.profile_invite_status || "Not Invited") !== profileInvite) return false;
+    if(profileInvite === "Missing Email" && String(r.email||"").trim()) return false;
+    if(profileInvite && profileInvite !== "Missing Email" && (r.profile_invite_status || "Not Invited") !== profileInvite) return false;
     if(scope && r.scope !== scope) return false;
     if(service && !arrayValue(r.services).includes(service)) return false;
     if(country){
@@ -1013,6 +1026,7 @@ function recordHtml(r){
         <div class="cell optional">
           <div class="badges">
             <span class="badge ${r.verification_status === "Verified" ? "verified" : "unverified"}">${escapeHtml(r.verification_status || "Unverified")}</span>
+            ${!String(r.email||"").trim() ? '<span class="badge email-needed">EMAIL NEEDED</span>' : ""}
             ${r.partner_status === "Preferred" ? '<span class="badge preferred">Preferred</span>' : ""}
             ${r.is_active === false ? '<span class="badge inactive">Inactive</span>' : ""}
           </div>
@@ -1035,7 +1049,7 @@ function recordHtml(r){
             <dl>
               <div><dt>Name</dt><dd>${escapeHtml(r.contact_name || "-")}</dd></div>
               <div><dt>Role</dt><dd>${escapeHtml(r.contact_role || "-")}</dd></div>
-              <div><dt>Email</dt><dd>${escapeHtml(r.email || "-")}</dd></div>
+              <div><dt>Email</dt><dd>${r.email ? escapeHtml(r.email) : '<span style="color:#ff8e93;font-weight:900">EMAIL NEEDED — required before profile invite</span>'}</dd></div>
               <div><dt>Phone / WhatsApp</dt><dd>${escapeHtml(r.phone || "-")}</dd></div>
               <div><dt>Website</dt><dd>${escapeHtml(r.website || "-")}</dd></div>
             </dl>
@@ -1099,6 +1113,8 @@ function updateKpis(){
   document.getElementById("kpiPreferred").textContent = records.filter(r => r.partner_status === "Preferred").length;
   document.getElementById("kpiCountries").textContent =
     new Set(records.flatMap(r => [r.country,...arrayValue(r.countries_covered)]).filter(Boolean)).size;
+  document.getElementById("kpiEmailNeeded").textContent =
+    records.filter(r => r.is_active !== false && !String(r.email||"").trim()).length;
 }
 
 function toggleRecord(id){
