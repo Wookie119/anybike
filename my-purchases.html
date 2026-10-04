@@ -1031,25 +1031,40 @@ function purchaseState(purchase){
   };
 }
 
-function buyerProgressHtml(purchase,state){
-  const complete=String(purchase?.deal_stage||"").toLowerCase()==="completed" || String(purchase?.deal_status||"").toLowerCase()==="completed" || state.completed;
-  const sellerCheckDone=state.secured || state.collected || state.delivered || complete;
-  const stages=[
-    true,
-    state.depositSatisfied,
-    sellerCheckDone,
-    state.secured,
-    state.fullyPaid,
-    state.collected,
-    state.inStorage||state.delivered||complete,
-    state.delivered||complete,
-    complete,
-    complete
+function purchaseJourneyState(purchase,state){
+  const steps=[
+    ["offer","Offer Accepted"],
+    ["deposit","Deposit / Proforma"],
+    ["seller","Seller Check"],
+    ["secured","Motorcycle Secured"],
+    ["balance","Balance & Documents"],
+    ["collection","Collection"],
+    ["storage","UK Custody / Storage"],
+    ["delivery","Delivery / Handover"],
+    ["invoice","Final Invoice"],
+    ["complete","Complete"]
   ];
-  const done=stages.filter(Boolean).length;
-  const total=stages.length;
+
+  let currentIndex=1;
+
+  if(state.completed) currentIndex=9;
+  else if(state.delivered) currentIndex=8;
+  else if(state.collected) currentIndex=state.inStorage?6:7;
+  else if(state.secured && state.fullyPaid) currentIndex=5;
+  else if(state.secured) currentIndex=4;
+  else if(state.depositSatisfied) currentIndex=2;
+  else currentIndex=1;
+
+  const completedCount=state.completed ? steps.length : currentIndex;
+  return {steps,currentIndex,completedCount};
+}
+
+function buyerProgressHtml(purchase,state){
+  const journey=purchaseJourneyState(purchase,state);
+  const done=journey.completedCount;
+  const total=journey.steps.length;
   const percent=Math.max(0,Math.min(100,Math.round((done/total)*100)));
-  return '<div class="buyer-progress-meter '+(complete?'complete':'')+'"><span>Purchase progress</span><div class="buyer-progress-track"><div class="buyer-progress-fill" style="width:'+percent+'%"></div></div><strong>'+done+' / '+total+' stages</strong></div>';
+  return '<div class="buyer-progress-meter '+(state.completed?'complete':'')+'"><span>Purchase progress</span><div class="buyer-progress-track"><div class="buyer-progress-fill" style="width:'+percent+'%"></div></div><strong>'+done+' / '+total+' stages</strong></div>';
 }
 
 function journeyHtml(purchase,state){
@@ -1113,23 +1128,11 @@ function journeyHtml(purchase,state){
     nextText="This motorcycle purchase and UK handover are complete. No further action is required.";
   }
 
-  const sellerCheckDone=state.secured||state.collected||state.delivered||state.completed;
-  const steps=[
-    ["offer","Offer Accepted",true],
-    ["deposit","Deposit / Proforma",state.depositSatisfied],
-    ["seller","Seller Check",sellerCheckDone],
-    ["secured","Motorcycle Secured",state.secured],
-    ["balance","Balance & Documents",state.fullyPaid],
-    ["collection","Collection",state.collected],
-    ["storage","UK Custody / Storage",state.inStorage||state.delivered||state.completed],
-    ["delivery","Delivery / Handover",state.delivered||state.completed],
-    ["invoice","Final Invoice",state.completed],
-    ["complete","Complete",state.completed]
-  ];
-
-  const stepHtml=steps.map(function(step){
-    const key=step[0],label=step[1],done=step[2];
-    const isCurrent=key===current && !done;
+  const journeyState=purchaseJourneyState(purchase,state);
+  const stepHtml=journeyState.steps.map(function(step,index){
+    const key=step[0],label=step[1];
+    const done=state.completed || index<journeyState.currentIndex;
+    const isCurrent=!state.completed && index===journeyState.currentIndex;
     return '<span class="step '+(done?"done":isCurrent?"current":"todo")+'">'+safe(label)+'</span>';
   }).join("");
 
@@ -1350,30 +1353,6 @@ function purchaseCard(purchase){
         `:""}
 
         ${journeyHtml(purchase,state)}
-
-        ${!state.depositSatisfied && state.pendingDepositAdvice ? `
-          <div class="collection-card" style="border-color:rgba(255,190,0,.35)">
-            <div class="collection-card-head">
-              <div>
-                <strong>Deposit reported · ${money(state.pendingDepositAdviceAmount)} · Awaiting Verification</strong>
-                <span>Payment advice ${safe(state.pendingDepositAdviceNumber||"")} has been submitted to AnyBike. Your balance will update after the bank receipt is verified.</span>
-              </div>
-              <span style="display:inline-flex;align-items:center;justify-content:center;padding:11px 15px;border-radius:10px;background:#2a2410;color:#ffd86b;border:1px solid rgba(255,190,0,.35);font-weight:900">Awaiting AnyBike</span>
-            </div>
-          </div>
-        `:""}
-
-        ${!state.depositSatisfied && !state.pendingDepositAdvice && state.depositOutstanding>0 && purchase.deal_number ? `
-          <div class="collection-card" style="border-color:rgba(255,190,0,.35)">
-            <div class="collection-card-head">
-              <div>
-                <strong>Pay the required ${money(state.depositOutstanding)} Deposit now</strong>
-                <span>We need your deposit to move this purchase forward with the seller. Until it is paid, the motorcycle may still be sold to another buyer.</span>
-              </div>
-              <a href="/accounts-documents.html?deal=${encodeURIComponent(purchase.deal_number)}&payment=deposit&amount=${encodeURIComponent(Number(state.depositOutstanding).toFixed(2))}&ref=${encodeURIComponent(purchase.deal_number)}" style="display:inline-flex;align-items:center;justify-content:center;padding:11px 15px;border-radius:10px;background:#fff;color:#111;text-decoration:none;font-weight:900">Pay the required ${money(state.depositOutstanding)} Deposit now →</a>
-            </div>
-          </div>
-        `:""}
 
         ${state.collected?`
           <div class="collection-card">
