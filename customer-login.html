@@ -63,8 +63,16 @@ function getSafeReturnUrl(){
   if(requested && requested.startsWith("/") && !requested.startsWith("//") && !requested.toLowerCase().includes("admin-")) return requested;
   return "/customer-dashboard.html";
 }
+function getShipperReferralCode(){
+  const params=new URLSearchParams(window.location.search);
+  return (params.get("ref")||"").trim();
+}
 function buildPageUrl(page){
-  return page+"?return="+encodeURIComponent(getSafeReturnUrl());
+  const params=new URLSearchParams();
+  params.set("return",getSafeReturnUrl());
+  const ref=getShipperReferralCode();
+  if(ref) params.set("ref",ref);
+  return page+"?"+params.toString();
 }
 
 function setBusy(v){
@@ -117,6 +125,13 @@ async function loginCustomer(){
 
     const profileError=await createCustomerProfileIfMissing(data.user);
     if(profileError) console.error("Missing profile could not be created:",profileError);
+
+    const referralCode=getShipperReferralCode() || data.user.user_metadata?.shipper_referral_code || "";
+    if(referralCode){
+      const {error:referralError}=await sb.rpc("customer_claim_shipper_referral_v1",{p_ref:referralCode});
+      if(referralError) console.error("Shipper referral could not be recorded:",referralError);
+    }
+
     showMsg("Logged in successfully. Opening My AnyBike...");
     window.location.replace(getSafeReturnUrl());
   }catch(error){
