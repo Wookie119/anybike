@@ -8105,7 +8105,7 @@ function renderAnyBikeCustomerShippingPreferences(deal){
   </div>`;
 }
 
-function useCustomerHandoverPlan(dealId,planId){
+async function useCustomerHandoverPlan(dealId,planId){
   const deal=(adminDealQueue || []).find(function(row){
     return Number(row && row.deal_id)===Number(dealId);
   });
@@ -8116,10 +8116,16 @@ function useCustomerHandoverPlan(dealId,planId){
   });
   if(!plan){ return; }
 
+  const button=event?.currentTarget || null;
+  const originalButtonText=button?.textContent || "Use in UK Handover Plan";
+  if(button){
+    button.disabled=true;
+    button.textContent="Saving handover plan…";
+  }
+
   const setField=function(fieldPrefix,value,allowBlank){
     const el=document.getElementById(fieldPrefix+"-"+dealId);
     if(!el){ return false; }
-
     const hasValue=value!==undefined && value!==null && String(value).trim()!=="";
     if(hasValue || allowBlank){
       el.value=hasValue ? String(value) : "";
@@ -8130,105 +8136,110 @@ function useCustomerHandoverPlan(dealId,planId){
     return false;
   };
 
-  const route=anyBikeShippingRouteForDeal(dealId) || {};
+  try{
+    const route=anyBikeShippingRouteForDeal(dealId) || {};
 
-  // Preserve the already-resolved Deal destination unless the saved preference
-  // explicitly contains its own destination country.
-  if(String(plan.destination_country || "").trim()){
-    setField("deal-shipping-country",plan.destination_country,false);
-  }
-
-  setField("deal-shipping-port",plan.uk_handover_point,true);
-  setField("deal-shipping-forwarder",plan.freight_forwarder_name,true);
-
-  const contactParts=[];
-  if(plan.contact_name){ contactParts.push(plan.contact_name); }
-  if(plan.contact_phone){
-    contactParts.push(
-      plan.contact_phone + (plan.contact_extension ? " · Ext "+plan.contact_extension : "")
-    );
-  }
-  if(plan.contact_email){ contactParts.push(plan.contact_email); }
-
-  setField("deal-shipping-contact",contactParts.join(" · "),true);
-  setField("deal-shipping-reference",plan.forwarder_reference || "",true);
-  setField("deal-shipping-company",plan.shipping_company_name || "",true);
-
-  const receiverContact=[
-    plan.shipping_company_contact_name,
-    plan.shipping_company_contact_phone,
-    plan.shipping_company_contact_email
-  ].filter(Boolean).join(" · ");
-  setField("deal-shipping-company-contact",receiverContact,true);
-  setField("deal-shipping-address1",plan.uk_handover_address_1 || "",true);
-  setField("deal-shipping-address2",plan.uk_handover_address_2 || "",true);
-  setField("deal-shipping-city",plan.uk_handover_city || "",true);
-  setField("deal-shipping-county",plan.uk_handover_county || "",true);
-  setField("deal-shipping-postcode",plan.uk_handover_postcode || "",true);
-
-  const notesParts=[];
-  if(plan.shipping_notes){
-    notesParts.push("Customer shipping notes: "+String(plan.shipping_notes).trim());
-  }
-  if(plan.customer_notes){
-    notesParts.push("Customer notes: "+String(plan.customer_notes).trim());
-  }
-
-  const existingNotesEl=document.getElementById("deal-shipping-notes-"+dealId);
-  const existingNotes=String(existingNotesEl?.value || route.internal_notes || "").trim();
-  const customerNotes=notesParts.join("\n");
-
-  let combinedNotes=existingNotes;
-  if(customerNotes){
-    if(!existingNotes){
-      combinedNotes=customerNotes;
-    }else if(!existingNotes.includes(customerNotes)){
-      combinedNotes=existingNotes+"\n\n"+customerNotes;
-    }
-  }
-  setField("deal-shipping-notes",combinedNotes,true);
-
-  const statusEl=document.getElementById("deal-shipping-status-"+dealId);
-  if(statusEl && String(statusEl.value || "")!=="Confirmed"){
-    statusEl.value="Details Provided";
-    statusEl.dispatchEvent(new Event("change",{bubbles:true}));
-  }
-
-  // Update the in-memory route cache too so a re-render during this session
-  // does not immediately revert the visible fields before Save is clicked.
-  const cachedRoute=anyBikeShippingRouteForDeal(dealId);
-  if(cachedRoute){
     if(String(plan.destination_country || "").trim()){
-      cachedRoute.destination_country=String(plan.destination_country).trim();
+      setField("deal-shipping-country",plan.destination_country,false);
     }
-    cachedRoute.uk_handover_port=String(plan.uk_handover_point || "").trim();
-    cachedRoute.freight_forwarder_name=String(plan.freight_forwarder_name || "").trim();
-    cachedRoute.freight_forwarder_contact=contactParts.join(" · ");
-    cachedRoute.freight_forwarder_reference=String(plan.forwarder_reference || "").trim();
-    cachedRoute.shipping_route_notes=combinedNotes;
-    if(String(cachedRoute.shipping_route_status || "")!=="Confirmed"){
-      cachedRoute.shipping_route_status="Details Provided";
+
+    setField("deal-shipping-port",plan.uk_handover_point,true);
+    setField("deal-shipping-forwarder",plan.freight_forwarder_name,true);
+
+    const contactParts=[];
+    if(plan.contact_name){ contactParts.push(plan.contact_name); }
+    if(plan.contact_phone){
+      contactParts.push(plan.contact_phone + (plan.contact_extension ? " · Ext "+plan.contact_extension : ""));
+    }
+    if(plan.contact_email){ contactParts.push(plan.contact_email); }
+
+    setField("deal-shipping-contact",contactParts.join(" · "),true);
+    setField("deal-shipping-reference",plan.forwarder_reference || "",true);
+    setField("deal-shipping-company",plan.shipping_company_name || "",true);
+
+    const receiverContact=[
+      plan.shipping_company_contact_name,
+      plan.shipping_company_contact_phone,
+      plan.shipping_company_contact_email
+    ].filter(Boolean).join(" · ");
+    setField("deal-shipping-company-contact",receiverContact,true);
+    setField("deal-shipping-address1",plan.uk_handover_address_1 || "",true);
+    setField("deal-shipping-address2",plan.uk_handover_address_2 || "",true);
+    setField("deal-shipping-city",plan.uk_handover_city || "",true);
+    setField("deal-shipping-county",plan.uk_handover_county || "",true);
+    setField("deal-shipping-postcode",plan.uk_handover_postcode || "",true);
+
+    const notesParts=[];
+    if(plan.shipping_notes){ notesParts.push("Customer shipping notes: "+String(plan.shipping_notes).trim()); }
+    if(plan.customer_notes){ notesParts.push("Customer notes: "+String(plan.customer_notes).trim()); }
+
+    const existingNotesEl=document.getElementById("deal-shipping-notes-"+dealId);
+    const existingNotes=String(existingNotesEl?.value || route.internal_notes || "").trim();
+    const customerNotes=notesParts.join("\n");
+    let combinedNotes=existingNotes;
+    if(customerNotes){
+      if(!existingNotes){ combinedNotes=customerNotes; }
+      else if(!existingNotes.includes(customerNotes)){ combinedNotes=existingNotes+"\n\n"+customerNotes; }
+    }
+    setField("deal-shipping-notes",combinedNotes,true);
+
+    const missing=[];
+    if(!String(plan.destination_country || deal.destination_country || "").trim()){ missing.push("destination country"); }
+    if(!String(plan.freight_forwarder_name || "").trim()){ missing.push("freight forwarder / shipper"); }
+    if(!String(plan.shipping_company_name || "").trim()){ missing.push("UK shipping / receiving company"); }
+    if(!String(plan.uk_handover_address_1 || "").trim()){ missing.push("exact UK delivery address"); }
+    if(!String(plan.uk_handover_postcode || "").trim()){ missing.push("postcode"); }
+
+    if(missing.length){
+      const statusEl=document.getElementById("deal-shipping-status-"+dealId);
+      if(statusEl){
+        statusEl.value="Details Provided";
+        statusEl.dispatchEvent(new Event("change",{bubbles:true}));
+      }
+      alert(
+        "Customer shipping preference loaded into the UK Handover Plan.\n\n"+
+        "Still required: "+missing.join(", ")+".\n\n"+
+        "Complete these details, then save the UK Handover Plan."
+      );
+      return;
+    }
+
+    const statusEl=document.getElementById("deal-shipping-status-"+dealId);
+    if(statusEl){
+      statusEl.value="Confirmed";
+      statusEl.dispatchEvent(new Event("change",{bubbles:true}));
+    }
+
+    const saved=await saveDealShippingRoute(dealId,{
+      skipConfirm:true,
+      skipSuccessAlert:true
+    });
+    if(!saved){ return; }
+
+    await loadAdminDealQueue();
+    renderAdminDealQueue();
+
+    const row=document.getElementById("anybike-deal-"+dealId);
+    if(row){
+      row.classList.add("open");
+      openAnyBikeDealId=String(dealId);
+      const next=row.querySelector(".sales-next-action");
+      if(next){
+        next.scrollIntoView({behavior:"smooth",block:"center"});
+        setTimeout(function(){ openBikeSalesNextTask(String(dealId)); },180);
+      }else{
+        row.scrollIntoView({behavior:"smooth",block:"center"});
+      }
+    }
+  }catch(error){
+    console.error("Customer shipping preference could not be applied:",error);
+    alert("Customer shipping preference could not be applied.\n\n"+(error?.message || error));
+  }finally{
+    if(button && document.body.contains(button)){
+      button.disabled=false;
+      button.textContent=originalButtonText;
     }
   }
-
-  const missing=[];
-  if(!String(plan.uk_handover_point || "").trim()){ missing.push("UK handover point"); }
-  if(!String(plan.freight_forwarder_name || "").trim()){ missing.push("freight forwarder / shipper"); }
-
-  if(missing.length){
-    alert(
-      "Customer shipping preference loaded into the UK Handover Plan.\n\n"+
-      "Still required: "+missing.join(", ")+".\n\n"+
-      "Review the fields and complete the missing details before saving."
-    );
-    return;
-  }
-
-  alert(
-    "Customer shipping preference loaded into the UK Handover Plan.\n\n"+
-    "The port, shipper, contact details, reference and notes have been filled in. "+
-    "Review them, then click Save UK Handover Plan."
-  );
 }
 function anyBikeDealBuyerName(deal){
   const enquiry=anyBikeDealSourceEnquiry(deal);
@@ -11889,7 +11900,7 @@ async function loadDealShippingRoutes(){
   }
 }
 
-async function saveDealShippingRoute(dealId){
+async function saveDealShippingRoute(dealId,options={}){
   const id = Number(dealId);
   if(!Number.isFinite(id) || dealShippingRouteSaveBusy.has(String(id))){ return; }
 
@@ -11918,11 +11929,11 @@ async function saveDealShippingRoute(dealId){
     return;
   }
 
-  if(status==="Confirmed" && !window.confirm(
+  if(status==="Confirmed" && !options.skipConfirm && !window.confirm(
     "Confirm this shipping / handover route?\n\n"+
     "Once confirmed, the database purchase gate can allow AnyBike to secure the motorcycle or make seller payments, subject to the other existing Deal 360 checks."
   )){
-    return;
+    return false;
   }
 
   dealShippingRouteSaveBusy.add(String(id));
@@ -11991,14 +12002,18 @@ async function saveDealShippingRoute(dealId){
     }
 
     const payload=result.data || {};
-    alert(
-      "Shipping / Handover saved.\n\n"+
-      "Status: "+(payload.shipping_route_status || status)+"\n"+
-      "Purchase gate: "+((payload.shipping_route_status==="Confirmed" && payload.shipping_route_confirmed_at) ? "OPEN" : (payload.shipping_route_status==="Not Required" ? "NOT REQUIRED" : "BLOCKED"))
-    );
+    if(!options.skipSuccessAlert){
+      alert(
+        "Shipping / Handover saved.\n\n"+
+        "Status: "+(payload.shipping_route_status || status)+"\n"+
+        "Purchase gate: "+((payload.shipping_route_status==="Confirmed" && payload.shipping_route_confirmed_at) ? "OPEN" : (payload.shipping_route_status==="Not Required" ? "NOT REQUIRED" : "BLOCKED"))
+      );
+    }
+    return true;
   }catch(error){
     console.error("Shipping / Handover could not be saved:",error);
     alert("Shipping / Handover could not be saved.\n\n"+(error?.message || error));
+    return false;
   }finally{
     dealShippingRouteSaveBusy.delete(String(id));
     renderAdminDealQueue();
