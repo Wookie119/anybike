@@ -1695,20 +1695,25 @@ function purchaseRegistrationLabel(purchase){
   const reg=String(purchase?.registration||purchase?.registration_number||purchase?.reg||"").trim();
   return reg ? "Reg "+reg : "Reg not yet recorded";
 }
+function purchaseIdentityLine(purchase){
+  const cleanVariant=cleanPurchaseMotorcycleVariant(purchase?.variant);
+  const bike=[purchase?.make,purchase?.model,cleanVariant].filter(Boolean).join(" ")||"Motorcycle";
+  const colour=String(purchase?.colour||purchase?.color||"").trim();
+  return bike+" · "+(colour||"Colour not yet recorded")+" · "+purchaseRegistrationLabel(purchase);
+}
+
 
 
 function purchaseNextAction(purchase){
   const state=purchaseState(purchase);
   const deal=String(purchase.deal_number||"").trim();
-  const cleanVariant=cleanPurchaseMotorcycleVariant(purchase.variant);
-  const bikeBase=[purchase.make,purchase.model,cleanVariant].filter(Boolean).join(" ")||"Motorcycle";
-  const bike=bikeBase+" · "+purchaseRegistrationLabel(purchase);
+  const bike=purchaseIdentityLine(purchase);
   const balance=Number(state.balance||0);
   const depositOutstanding=Number(state.depositOutstanding||state.depositDue||0);
 
   if(!state.depositSatisfied && state.pendingDepositAdvice){
     return {
-      priority:30,waiting:true,deal:deal,
+      priority:30,waiting:true,deal:deal,identity:bike,
       title:"Deposit reported · awaiting verification",
       text:money(state.pendingDepositAdviceAmount)+" has been reported for "+bike+". You do not need to report the payment again while AnyBike verifies the bank receipt.",
       href:deal?"/accounts-documents.html?deal="+encodeURIComponent(deal):"/accounts-documents.html",
@@ -1717,7 +1722,7 @@ function purchaseNextAction(purchase){
   }
   if(!state.depositSatisfied){
     return {
-      priority:5,waiting:false,deal:deal,
+      priority:5,waiting:false,deal:deal,identity:bike,
       title:bike+" · "+money(depositOutstanding)+" deposit required",
       text:"We need your deposit to move this purchase forward with the seller. Until it is received, the motorcycle may still be sold to another buyer.",
       href:deal?"/accounts-documents.html?deal="+encodeURIComponent(deal)+"&payment=deposit&amount="+encodeURIComponent(depositOutstanding.toFixed(2))+"&ref="+encodeURIComponent(deal):"/accounts-documents.html",
@@ -1726,7 +1731,7 @@ function purchaseNextAction(purchase){
   }
   if(!state.secured){
     return {
-      priority:35,waiting:true,deal:deal,
+      priority:35,waiting:true,deal:deal,identity:bike,
       title:"AnyBike is completing the seller check",
       text:"Your deposit is complete for "+bike+". No action is required from you while AnyBike confirms and secures the motorcycle.",
       href:"/my-purchases.html?deal="+encodeURIComponent(purchase.deal_id||""),
@@ -1735,7 +1740,7 @@ function purchaseNextAction(purchase){
   }
   if(!state.fullyPaid && balance>0){
     return {
-      priority:10,waiting:false,deal:deal,
+      priority:10,waiting:false,deal:deal,identity:bike,
       title:bike+" · "+money(balance)+" remaining to pay",
       text:"Your motorcycle is secured. Complete the remaining balance before collection. Any document request will be shown separately.",
       href:deal?"/accounts-documents.html?deal="+encodeURIComponent(deal)+"&payment=balance&amount="+encodeURIComponent(balance.toFixed(2))+"&ref="+encodeURIComponent(deal):"/accounts-documents.html",
@@ -1749,7 +1754,7 @@ function purchaseNextAction(purchase){
 
   if(!collected && !delivered){
     return {
-      priority:40,waiting:true,deal:deal,
+      priority:40,waiting:true,deal:deal,identity:bike,
       title:"AnyBike is arranging collection",
       text:"Payment is complete for "+bike+". No action is required from you while collection is arranged.",
       href:"/my-purchases.html?deal="+encodeURIComponent(purchase.deal_id||""),
@@ -1758,7 +1763,7 @@ function purchaseNextAction(purchase){
   }
   if(!delivered){
     return {
-      priority:45,waiting:true,deal:deal,
+      priority:45,waiting:true,deal:deal,identity:bike,
       title:"Collection / UK handover in progress",
       text:bike+" is progressing through collection, custody or handover. We will show you here if anything is needed from you.",
       href:"/my-purchases.html?deal="+encodeURIComponent(purchase.deal_id||""),
@@ -1791,6 +1796,7 @@ function renderPurchaseNextActions(purchases){
     list.innerHTML=customerActions.map(function(action){
       return '<div class="purchase-action-row action">'+
         '<div><div class="purchase-action-title"><strong>'+safe(action.title)+'</strong></div>'+
+        (action.identity?'<div style="margin-top:4px;color:#fff;font-size:13px;font-weight:850">'+safe(action.identity)+'</div>':'')+
         '<p>'+safe(action.text)+'</p></div>'+
         '<a href="'+safe(action.href)+'">'+safe(action.cta)+'</a>'+
       '</div>';
@@ -1804,7 +1810,8 @@ function renderPurchaseNextActions(purchases){
   if(waitingActions.length){
     waitingList.innerHTML=waitingActions.map(function(action){
       return '<div class="purchase-action-row waiting">'+
-        '<div><div class="purchase-action-title"><strong>'+safe(action.title)+'</strong>'+(action.deal?'<span>'+safe(action.deal)+'</span>':'')+'</div>'+
+        '<div><div class="purchase-action-title"><strong>'+safe(action.title)+'</strong></div>'+
+        (action.identity?'<div style="margin-top:4px;color:#fff;font-size:13px;font-weight:850">'+safe(action.identity)+'</div>':'')+
         '<p>'+safe(action.text)+'</p></div>'+
         '<a href="'+safe(action.href)+'">'+safe(action.cta)+'</a>'+
       '</div>';
@@ -1848,9 +1855,10 @@ async function loadPurchases(){
 
   }
 
-  const [purchaseResult,collectionJobsResult]=await Promise.all([
+  const [purchaseResult,collectionJobsResult,identityResult]=await Promise.all([
     sb.rpc("get_my_purchases_v7"),
-    sb.rpc("get_my_collection_jobs_v1")
+    sb.rpc("get_my_collection_jobs_v1"),
+    sb.rpc("customer_get_purchase_identity_details_v1")
   ]);
   const data=purchaseResult.data;
   const error=purchaseResult.error;
@@ -1888,6 +1896,25 @@ async function loadPurchases(){
             ? [data]
             : []
         );
+
+  const identityByMotorcycle={};
+  if(!identityResult.error){
+    (identityResult.data||[]).forEach(function(row){
+      identityByMotorcycle[String(row.deal_motorcycle_id)]=row;
+    });
+    purchases.forEach(function(purchase){
+      const identity=identityByMotorcycle[String(purchase.deal_motorcycle_id)];
+      if(identity){
+        purchase.make=identity.make||purchase.make;
+        purchase.model=identity.model||purchase.model;
+        purchase.variant=identity.variant||purchase.variant;
+        purchase.colour=identity.colour||"";
+        purchase.registration=identity.registration||"";
+      }
+    });
+  }else{
+    console.warn("Purchase motorcycle identity could not be loaded:",identityResult.error.message);
+  }
 
   const collectionJobsByMotorcycle={};
   if(!collectionJobsResult.error){
