@@ -262,6 +262,9 @@ section{padding:78px 0}
   font-size:13px;
 }
 .provider-meta strong{color:#111}
+.live-coverage{margin:0 0 17px;padding:13px 14px;border-radius:12px;background:#f8f8f8;border:1px solid #e2e2e2}
+.live-coverage strong{display:block;margin-bottom:6px;color:#111;font-size:13px}
+.live-coverage span{display:block;color:#555;font-size:13px;line-height:1.5}
 .provider-meta span{color:#555}
 .tags{display:flex;flex-wrap:wrap;gap:7px;margin-top:auto;margin-bottom:18px}
 .tag{
@@ -765,8 +768,22 @@ function ffMethodTokens(services){
   if(text.includes("road")||text.includes("collection")||text.includes("motorcycle freight"))tokens.push("road");
   return tokens.join(" ");
 }
+function ffCanonicalCountry(value){
+  const raw=String(value||"").trim();
+  const key=raw.toLowerCase();
+  const aliases={
+    "usa":"United States",
+    "u.s.a.":"United States",
+    "united states of america":"United States",
+    "uae":"United Arab Emirates",
+    "dubai":"United Arab Emirates"
+  };
+  return aliases[key] || raw;
+}
 function refreshCountryFilter(records){
-  const countries=[...new Set(records.flatMap(function(r){return ffArray(r.countries_covered);}).map(function(v){return String(v).trim();}).filter(Boolean))].sort(function(a,b){return a.localeCompare(b);});
+  const countries=[...new Set(records.flatMap(function(r){
+    return ffArray(r.countries_covered).map(ffCanonicalCountry);
+  }).filter(Boolean))].sort(function(a,b){return a.localeCompare(b);});
   countrySelect.innerHTML='<option value="">All destination countries</option>'+countries.map(function(country){
     return '<option value="'+ffSafe(country.toLowerCase())+'">'+ffSafe(country)+'</option>';
   }).join("");
@@ -801,21 +818,67 @@ function approvedForwarderCard(r){
     '</div>'+
   '</article>';
 }
+function applyLiveCoverageToCard(card,r){
+  const countries=ffArray(r.countries_covered).map(ffCanonicalCountry);
+  const uniqueCountries=[...new Set(countries.filter(Boolean))];
+  const ports=ffArray(r.ports_served);
+  const services=ffArray(r.services);
+
+  card.dataset.countries=uniqueCountries.map(function(x){return x.toLowerCase();}).join("|");
+  card.dataset.method=ffMethodTokens(services) || card.dataset.method || "";
+  card.dataset.keywords=[
+    card.dataset.keywords||"",
+    uniqueCountries.join(" "),
+    ports.join(" "),
+    services.join(" ")
+  ].join(" ").toLowerCase();
+
+  let coverage=card.querySelector(".live-coverage");
+  if(!coverage){
+    coverage=document.createElement("div");
+    coverage.className="live-coverage";
+    const actions=card.querySelector(".provider-actions");
+    if(actions) card.insertBefore(coverage,actions);
+    else card.appendChild(coverage);
+  }
+
+  const countryText=uniqueCountries.length
+    ? uniqueCountries.join(", ")
+    : "Worldwide / route dependent — confirm current availability with the provider";
+  const portText=ports.length ? ports.join(", ") : "";
+
+  coverage.innerHTML=
+    '<strong>Countries / destinations served</strong>'+
+    '<span>'+ffSafe(countryText)+(portText?'<br><b>Named ports / destinations:</b> '+ffSafe(portText):'')+'</span>';
+}
+
 async function loadApprovedForwarders(){
   try{
     const result=await sb.rpc("public_get_verified_freight_forwarders_v1");
     if(result.error) throw result.error;
     const records=Array.isArray(result.data)?result.data:[];
-    const staticNames=new Set(Array.from(providerGrid.querySelectorAll(".provider-card")).map(function(card){
-      return String(card.dataset.name||"").trim().toLowerCase();
+
+    const existingCards=Array.from(providerGrid.querySelectorAll(".provider-card"));
+    const byName=new Map(existingCards.map(function(card){
+      return [String(card.dataset.name||"").trim().toLowerCase(),card];
     }));
-    const add=records.filter(function(r){
+
+    const add=[];
+    records.forEach(function(r){
       const name=String(r.company_name||"").trim().toLowerCase();
-      return name && !staticNames.has(name);
+      if(!name) return;
+      const existing=byName.get(name);
+      if(existing){
+        applyLiveCoverageToCard(existing,r);
+      }else{
+        add.push(r);
+      }
     });
+
     if(add.length){
       providerGrid.insertAdjacentHTML("beforeend",add.map(approvedForwarderCard).join(""));
     }
+
     refreshCountryFilter(records);
     cards=Array.from(document.querySelectorAll(".provider-card"));
     filterProviders();
