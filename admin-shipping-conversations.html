@@ -7,7 +7,23 @@
 </div></main></div></div><script src="/admin.js?v=20261004"></script><script>
 const sb=getAdminSupabaseClient();let rows=[],current=null;
 function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
-function renderList(){const q=search.value.trim().toLowerCase(),sf=statusFilter.value;const filtered=rows.filter(x=>(!sf||x.status===sf)&&(!q||[x.shipper_name,x.buyer_name,x.business_name,x.destination_country,x.destination_port].join(" ").toLowerCase().includes(q)));list.innerHTML=filtered.map(x=>'<div class="conversation '+(current===x.id?"active":"")+'" data-id="'+x.id+'"><b>'+esc(x.shipper_name)+'</b><small>'+esc(x.business_name||x.buyer_name||"Buyer")+' → '+esc(x.destination_country)+'</small><small>'+esc(x.status)+' · '+new Date(x.last_message_at||x.created_at).toLocaleString()+'</small></div>').join("")||'<p>No shipping conversations found.</p>';list.querySelectorAll(".conversation").forEach(el=>el.onclick=()=>open(Number(el.dataset.id)))}
+function renderList(){
+  const q=search.value.trim().toLowerCase(),sf=statusFilter.value;
+  const filtered=rows.filter(x=>(!sf||x.status===sf)&&(!q||[
+    x.shipper_name,x.shipper_country,x.buyer_name,x.business_name,x.business_country,x.destination_country,x.destination_port
+  ].join(" ").toLowerCase().includes(q)));
+  list.innerHTML=filtered.map(x=>{
+    const buyerLabel=(x.business_name||x.buyer_name||"Buyer").trim()||"Buyer";
+    const buyerCountry=(x.business_country||"Country not supplied").trim();
+    const shipperCountry=(x.shipper_country||"Country not supplied").trim();
+    return '<div class="conversation '+(current===x.id?"active":"")+'" data-id="'+x.id+'">'+
+      '<b>'+esc(buyerLabel)+' ↔ '+esc(x.shipper_name)+'</b>'+
+      '<small>Buyer: '+esc(buyerCountry)+' · Shipper: '+esc(shipperCountry)+'</small>'+
+      '<small>Destination: '+esc(x.destination_country||"Not set")+' · '+esc(x.status)+' · '+new Date(x.last_message_at||x.created_at).toLocaleString()+'</small>'+
+    '</div>';
+  }).join("")||'<p>No shipping conversations found.</p>';
+  list.querySelectorAll(".conversation").forEach(el=>el.onclick=()=>open(Number(el.dataset.id)));
+}
 async function load(){
   const {data,error}=await sb.rpc("admin_get_shipping_conversations_v1");
   if(error){list.innerHTML='<p>'+esc(error.message)+'</p>';return}
@@ -31,12 +47,14 @@ async function open(id){
 
   const buyer=String(x.business_name||x.buyer_name||"Buyer").trim()||"Buyer";
   const destination=String(x.destination_country||"").trim()||"Not set";
-  title.textContent=x.shipper_name+" ↔ "+buyer;
+  title.textContent=buyer+" ↔ "+x.shipper_name;
   detail.innerHTML=
-    '<div><strong>Business</strong>'+esc(x.business_name||"Not supplied")+'</div>'+
-    '<div><strong>Contact</strong>'+esc(x.buyer_name||"Not supplied")+'</div>'+
-    '<div><strong>Country</strong>'+esc(x.business_country||"Not supplied")+'</div>'+
-    '<div><strong>Email</strong>'+esc(x.buyer_email||"Not supplied")+'</div>'+
+    '<div><strong>Buyer business</strong>'+esc(x.business_name||"Not supplied")+'</div>'+
+    '<div><strong>Buyer contact</strong>'+esc(x.buyer_name||"Not supplied")+'</div>'+
+    '<div><strong>Buyer country</strong>'+esc(x.business_country||"Not supplied")+'</div>'+
+    '<div><strong>Buyer email</strong>'+esc(x.buyer_email||"Not supplied")+'</div>'+
+    '<div><strong>Shipper</strong>'+esc(x.shipper_name||"Not supplied")+'</div>'+
+    '<div><strong>Shipper country</strong>'+esc(x.shipper_country||"Not supplied")+'</div>'+
     '<div><strong>Destination</strong>'+esc(destination)+'</div>'+
     '<div><strong>Port</strong>'+esc(x.destination_port||"Not set")+'</div>'+
     '<div><strong>Status</strong>'+esc(x.status||"")+'</div>';
