@@ -638,6 +638,12 @@ body.admin-freight-page .top-actions{display:flex;gap:10px;flex-wrap:wrap;justif
           </div>
 
           <div class="field full">
+            <label>Other Services / Add Your Own</label>
+            <input id="customServices" placeholder="e.g. Motorcycle packing, dangerous goods, export documentation">
+            <small style="color:#8f8f8f;margin-top:6px;display:block">Separate multiple services with commas. These are saved alongside the standard service tags above.</small>
+          </div>
+
+          <div class="field full">
             <label>Documents Required / Requested</label>
             <textarea id="documentsRequired" placeholder="Commercial invoice, V5C, bill of sale, packing list, certificate of origin..."></textarea>
           </div>
@@ -1219,6 +1225,7 @@ function openEditor(record=null){
   document.getElementById("recordId").value = record?.id || "";
   document.getElementById("editorTitle").textContent = record ? "Edit Freight Forwarder" : "Add Freight Forwarder";
   document.getElementById("editorStatus").textContent = "";
+  document.getElementById("customServices").value = "";
 
   if(record){
     document.getElementById("companyName").value = record.company_name || "";
@@ -1246,7 +1253,9 @@ function openEditor(record=null){
     document.getElementById("internalNotes").value = record.internal_notes || "";
 
     const selected = new Set(arrayValue(record.services));
+    const standardServices = new Set(Array.from(document.querySelectorAll('input[name="service"]')).map(cb => cb.value));
     document.querySelectorAll('input[name="service"]').forEach(cb => cb.checked = selected.has(cb.value));
+    document.getElementById("customServices").value = arrayValue(record.services).filter(s => !standardServices.has(s)).join(", ");
   }
 
   document.getElementById("editorModal").classList.add("show");
@@ -1278,7 +1287,10 @@ function payloadFromForm(){
     destination_port:document.getElementById("destinationPort").value.trim() || null,
     countries_covered:arrayValue(document.getElementById("countriesCovered").value),
     ports_served:arrayValue(document.getElementById("portsServed").value),
-    services:Array.from(document.querySelectorAll('input[name="service"]:checked')).map(cb => cb.value),
+    services:[...new Set([
+      ...Array.from(document.querySelectorAll('input[name="service"]:checked')).map(cb => cb.value),
+      ...arrayValue(document.getElementById("customServices").value)
+    ])],
     documents_required:document.getElementById("documentsRequired").value.trim() || null,
     source_customer:document.getElementById("sourceCustomer").value.trim() || null,
     verification_status:document.getElementById("verificationStatus").value,
