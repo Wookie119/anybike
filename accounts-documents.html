@@ -431,6 +431,97 @@ main{width:min(1660px,96vw);margin:28px auto 70px}
     width:100% !important;
   }
 }
+
+.accounts-progress{
+  display:grid;
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:8px;
+  margin:0 0 18px;
+}
+.accounts-progress-step{
+  min-height:70px;
+  padding:11px 12px;
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:13px;
+  background:#101010;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  gap:4px;
+}
+.accounts-progress-step span{
+  color:#777;
+  font-size:10px;
+  font-weight:900;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+.accounts-progress-step strong{
+  color:#eee;
+  font-size:12px;
+  line-height:1.25;
+}
+.accounts-progress-step.current{
+  border-color:rgba(237,28,36,.72);
+  background:rgba(237,28,36,.08);
+}
+.accounts-progress-step.current span{color:#ff6b70}
+.accounts-progress-step.done{
+  border-color:rgba(54,211,126,.52);
+  background:rgba(54,211,126,.07);
+}
+.accounts-progress-step.done span{color:#7af0a8}
+
+.accounts-next-action{
+  margin-top:16px;
+  padding:15px 17px;
+  border:1px solid rgba(237,28,36,.6);
+  border-left:5px solid var(--red);
+  border-radius:13px;
+  background:#151515;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  flex-wrap:wrap;
+}
+.accounts-next-action.complete{
+  border-color:rgba(54,211,126,.55);
+  border-left-color:var(--green);
+  background:rgba(54,211,126,.07);
+}
+.accounts-next-action.waiting{
+  border-color:rgba(54,211,126,.38);
+  border-left-color:var(--green);
+  background:rgba(54,211,126,.045);
+}
+.accounts-next-copy{min-width:230px;flex:1}
+.accounts-next-kicker{
+  color:#ff6268;
+  font-size:11px;
+  font-weight:900;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  margin-bottom:4px;
+}
+.accounts-next-action.complete .accounts-next-kicker,
+.accounts-next-action.waiting .accounts-next-kicker{color:#7af0a8}
+.accounts-next-copy strong{display:block;color:#fff;font-size:16px;margin-bottom:3px}
+.accounts-next-copy span{display:block;color:#aaa;font-size:12px;line-height:1.45}
+.accounts-next-action .action-btn{white-space:nowrap}
+
+.history-card.superseded{
+  opacity:.72;
+  border-color:rgba(255,255,255,.08);
+}
+.status-pill.superseded{
+  border-color:rgba(255,255,255,.16);
+  background:#171717;
+  color:#aaa;
+}
+@media(max-width:850px){
+  .accounts-progress{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
 </style>
 </head>
 <body>
@@ -446,6 +537,14 @@ main{width:min(1660px,96vw);margin:28px auto 70px}
       <a class="btn" href="#motorcycle-documents" onclick="scrollToAccountsSection('motorcycle-documents');return false;">Motorcycle Documents</a>
     </div>
   </section>
+
+  <div class="accounts-progress" id="accountsProgress" aria-label="Accounts and documents progress">
+    <div class="accounts-progress-step" data-account-step="review"><span>1 · Review</span><strong>Proformas &amp; balances</strong></div>
+    <div class="accounts-progress-step" data-account-step="payment"><span>2 · Payment</span><strong>Record bank transfer</strong></div>
+    <div class="accounts-progress-step" data-account-step="verification"><span>3 · Verification</span><strong>AnyBike bank check</strong></div>
+    <div class="accounts-progress-step" data-account-step="documents"><span>4 · Documents</span><strong>Motorcycle documents</strong></div>
+    <div class="accounts-progress-step" data-account-step="finish"><span>5 · Finish</span><strong>Return to purchase</strong></div>
+  </div>
 
   <div id="summary" class="summary-grid">
     <div class="summary-card"><span>Issued Documents</span><strong>—</strong></div>
@@ -465,6 +564,15 @@ main{width:min(1660px,96vw);margin:28px auto 70px}
     <div class="notice-box"><strong>Important:</strong> reporting a payment tells AnyBike what you have sent and how you want it allocated. It does not mark the money as received until AnyBike verifies the transfer in its bank account.</div>
     <div class="scroll-payment-note">After selecting the Proforma(s) and entering the amount(s), scroll down to record your bank transfer.<span>Complete the “I’ve Made a Bank Transfer” section below so AnyBike can verify and post your payment.</span></div>
     <div id="invoices"><div class="empty loading">Loading your invoices...</div></div>
+
+    <div class="accounts-next-action" id="invoiceNextAction">
+      <div class="accounts-next-copy">
+        <div class="accounts-next-kicker">Your next action</div>
+        <strong id="invoiceNextTitle">Choose what this bank transfer is for</strong>
+        <span id="invoiceNextText">Select one or more open Proformas and enter the amount you have transferred.</span>
+      </div>
+      <button class="action-btn primary" id="savePaymentSelection" type="button">Save Selection &amp; Continue ↓</button>
+    </div>
 
     <div id="reportPanel" class="report-panel section-anchor">
       <div id="paymentJourneyNotice"></div>
@@ -492,9 +600,16 @@ main{width:min(1660px,96vw);margin:28px auto 70px}
       </div>
       <div class="report-total"><span>Total you are reporting</span><strong id="reportedTotal">£0.00</strong></div>
       <div class="report-note">The selected allocations must add up exactly to the bank transfer you made. AnyBike will verify the actual bank receipt before your purchase balance is updated.</div>
-      <div class="report-actions">
-        <button id="submitAdvice" class="action-btn primary" type="button">Submit Payment Advice</button>
-        <button id="closeReport" class="action-btn" type="button">Cancel</button>
+      <div class="accounts-next-action" id="reportNextAction">
+        <div class="accounts-next-copy">
+          <div class="accounts-next-kicker">Your next action</div>
+          <strong>Confirm the bank transfer you made</strong>
+          <span>Submit the transfer details so AnyBike can verify the money in its bank account.</span>
+        </div>
+        <div class="report-actions" style="margin:0">
+          <button id="submitAdvice" class="action-btn primary" type="button">Submit Payment Advice &amp; Continue →</button>
+          <button id="closeReport" class="action-btn" type="button">Cancel</button>
+        </div>
       </div>
     </div>
   </section>
@@ -505,6 +620,14 @@ main{width:min(1660px,96vw);margin:28px auto 70px}
       <div id="historyCount" class="count-badge">Loading</div>
     </div>
     <div id="history"><div class="empty loading">Loading payment history...</div></div>
+    <div class="accounts-next-action waiting" id="historyNextAction">
+      <div class="accounts-next-copy">
+        <div class="accounts-next-kicker">Your next action</div>
+        <strong id="historyNextTitle">Continue to your motorcycle documents</strong>
+        <span id="historyNextText">Your payment history is saved automatically. Continue to the documents AnyBike has shared with you.</span>
+      </div>
+      <button class="action-btn primary" type="button" onclick="scrollToAccountsSection('motorcycle-documents')">Continue to Motorcycle Documents ↓</button>
+    </div>
   </section>
 
   <section class="panel section-anchor" id="motorcycle-documents">
@@ -516,6 +639,14 @@ main{width:min(1660px,96vw);margin:28px auto 70px}
       <div id="motorcycleDocumentCount" class="count-badge">Loading</div>
     </div>
     <div id="motorcycleDocuments"><div class="empty loading">Loading motorcycle documents...</div></div>
+    <div class="accounts-next-action" id="motorcycleDocsNextAction">
+      <div class="accounts-next-copy">
+        <div class="accounts-next-kicker">Your next action</div>
+        <strong>Continue to your other account documents</strong>
+        <span>Any motorcycle documents shared with you remain available here. Continue to the final account document section.</span>
+      </div>
+      <button class="action-btn primary" type="button" onclick="markAccountsSectionComplete('documents','customer-documents',this)">Continue ↓</button>
+    </div>
   </section>
 
   <section class="panel section-anchor" id="customer-documents">
@@ -527,6 +658,14 @@ main{width:min(1660px,96vw);margin:28px auto 70px}
       <div id="customerDocumentCount" class="count-badge">Loading</div>
     </div>
     <div id="customerDocuments"><div class="empty loading">Loading documents...</div></div>
+    <div class="accounts-next-action" id="finalAccountsAction">
+      <div class="accounts-next-copy">
+        <div class="accounts-next-kicker">Your next action</div>
+        <strong>Finish your accounts &amp; documents review</strong>
+        <span>Everything on this page is saved. Return to My Purchases to continue with the motorcycle journey.</span>
+      </div>
+      <button class="action-btn primary" id="finishAccountsReview" type="button">Review Complete &amp; Return to My Purchases →</button>
+    </div>
   </section>
 
 </main>
@@ -549,8 +688,97 @@ const money=value=>{
   return "£"+(Number.isFinite(n)?n:0).toFixed(2);
 };
 function niceDate(value){if(!value)return "—";const d=new Date(value);return Number.isNaN(d.getTime())?"—":d.toLocaleString("en-GB",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"});}
-function statusClass(value){const v=String(value||"").toLowerCase();if(v.includes("await"))return "awaiting";if(v.includes("verified"))return "verified";if(v.includes("posted"))return "posted";if(v.includes("cancel"))return "cancelled";if(v.includes("reject"))return "rejected";if(v==="issued")return "issued";return "";}
+function statusClass(value){const v=String(value||"").toLowerCase();if(v.includes("supersed"))return "superseded";if(v.includes("await"))return "awaiting";if(v.includes("verified"))return "verified";if(v.includes("posted"))return "posted";if(v.includes("cancel"))return "cancelled";if(v.includes("reject"))return "rejected";if(v==="issued")return "issued";return "";}
 function todayLocal(){const d=new Date();const local=new Date(d.getTime()-d.getTimezoneOffset()*60000);return local.toISOString().slice(0,10);}
+
+const accountsCompletedSteps=new Set();
+function setAccountsStepDone(step){
+  accountsCompletedSteps.add(step);
+  updateAccountsWorkflow();
+}
+function markAccountsSectionComplete(step,nextId,button){
+  setAccountsStepDone(step);
+  const box=button?.closest(".accounts-next-action");
+  if(box){
+    box.classList.add("complete");
+    const kicker=box.querySelector(".accounts-next-kicker");
+    if(kicker)kicker.textContent="Completed";
+    button.textContent="Completed ✓";
+  }
+  if(nextId)setTimeout(()=>scrollToAccountsSection(nextId),220);
+}
+function updateAccountsWorkflow(){
+  const groups=effectiveAdviceGroups(paymentAdviceRows);
+  const outstanding=accountInvoices
+    .filter(row=>row.invoice_status==="Issued")
+    .reduce((sum,row)=>sum+Number(row.balance_due_gbp||0),0);
+  const pending=groups.filter(row=>row._effective_status==="Awaiting Verification").length;
+
+  const order=["review","payment","verification","documents","finish"];
+  let current="review";
+
+  if(accountInvoices.length){
+    if(outstanding>0){
+      current=pending>0?"verification":"payment";
+    }else{
+      current="documents";
+    }
+  }
+
+  if(accountsCompletedSteps.has("documents")) current="finish";
+
+  document.querySelectorAll(".accounts-progress-step").forEach(el=>{
+    const step=el.dataset.accountStep;
+    const idx=order.indexOf(step);
+    const cur=order.indexOf(current);
+    const done=accountsCompletedSteps.has(step) || idx<cur || (step==="review" && accountInvoices.length>0);
+    el.classList.toggle("done",done);
+    el.classList.toggle("current",!done && step===current);
+  });
+
+  const historyBox=document.getElementById("historyNextAction");
+  const historyTitle=document.getElementById("historyNextTitle");
+  const historyText=document.getElementById("historyNextText");
+  if(historyBox&&historyTitle&&historyText){
+    if(pending>0){
+      historyBox.classList.add("waiting");
+      historyTitle.textContent="AnyBike is verifying "+pending+" reported payment"+(pending===1?"":"s");
+      historyText.textContent="No further payment action is needed for those transfers while AnyBike checks the bank receipt. You can continue to your documents.";
+    }else{
+      historyBox.classList.add("complete");
+      historyTitle.textContent="Payment advice review complete";
+      historyText.textContent="There are no active payment advices waiting for bank verification. Continue to your documents.";
+    }
+  }
+}
+
+function adviceAllocationSignature(group){
+  const rows=(Array.isArray(group.allocations)?group.allocations:[])
+    .map(row=>[
+      String(row.deal_number||row.deal_id||""),
+      String(row.allocation_purpose||"").toLowerCase(),
+      Number(row.proposed_amount_gbp||0).toFixed(2)
+    ].join("|"))
+    .sort();
+  return rows.join("~");
+}
+function effectiveAdviceGroups(rows){
+  const groups=groupAdviceRows(Array.isArray(rows)?rows:[]);
+  const posted=groups.filter(g=>g.ledger_status==="Posted");
+  groups.forEach(group=>{
+    let effective=group.ledger_status==="Posted"?"Posted":String(group.advice_status||"");
+    if(effective==="Awaiting Verification"){
+      const sig=adviceAllocationSignature(group);
+      const newerPosted=posted.some(other=>
+        Number(other.payment_advice_id||0)>Number(group.payment_advice_id||0) &&
+        adviceAllocationSignature(other)===sig
+      );
+      if(newerPosted) effective="Superseded";
+    }
+    group._effective_status=effective;
+  });
+  return groups;
+}
 
 async function requireSession(){
   const {data:{session},error}=await sb.auth.getSession();
@@ -591,6 +819,7 @@ async function loadAccounts(){
     renderHistory();
   }
   renderSummary();
+  updateAccountsWorkflow();
   restoreRequestedAccountsSection();
 }
 
@@ -902,15 +1131,20 @@ async function submitPaymentAdvice(){
         });
     if(result.error)throw result.error;
     const payload=result.data||{};
-    alert("Payment reported successfully.\n\nReference: "+(payload.advice_number||"Payment Advice")+"\nAmount: "+money(payload.reported_amount_gbp||total)+"\nStatus: "+(payload.advice_status||"Awaiting Verification")+"\n\nYour purchase balance will not change until AnyBike verifies the bank receipt.");
     document.getElementById("bankReference").value="";
     document.getElementById("customerNotes").value="";
+    setAccountsStepDone("payment");
+    const reportAction=document.getElementById("reportNextAction");
+    reportAction?.classList.add("complete");
+    if(reportAction?.querySelector(".accounts-next-kicker"))reportAction.querySelector(".accounts-next-kicker").textContent="Successful";
+    if(reportAction?.querySelector(".accounts-next-copy strong"))reportAction.querySelector(".accounts-next-copy strong").textContent="Payment advice submitted successfully";
+    if(reportAction?.querySelector(".accounts-next-copy span"))reportAction.querySelector(".accounts-next-copy span").textContent=(payload.advice_number||"Payment Advice")+" · "+money(payload.reported_amount_gbp||total)+" · "+(payload.advice_status||"Awaiting Verification")+". AnyBike will verify the bank receipt before your balance changes.";
+    document.getElementById("submitAdvice").textContent="Successful ✓";
     const completedJourney=requestedPaymentJourney();
-    if(completedJourney){
-      location.href="my-purchases.html";
-      return;
-    }
-    await loadAccounts();
+    setTimeout(()=>{
+      location.href=completedJourney?"/my-purchases.html":"/accounts-documents.html#motorcycle-documents";
+    },1600);
+    return;
   }catch(error){
     console.error(error);
     alert("Payment advice could not be submitted.\n\n"+(error?.message||"Unknown error"));
@@ -933,7 +1167,7 @@ function renderHistory(){
   const box=document.getElementById("history");
   const count=document.getElementById("historyCount");
   try{
-    const groups=groupAdviceRows(Array.isArray(paymentAdviceRows)?paymentAdviceRows:[]);
+    const groups=effectiveAdviceGroups(paymentAdviceRows);
     if(count)count.textContent=groups.length+" Advice"+(groups.length===1?"":"s");
 
     if(!groups.length){
@@ -943,8 +1177,8 @@ function renderHistory(){
 
     let html='<div class="history-list">';
     groups.forEach(group=>{
-      const status=group.ledger_status==="Posted"?"Posted":String(group.advice_status||"");
-      const canCancel=status!=="Posted" && String(group.advice_status||"")==="Awaiting Verification";
+      const status=group._effective_status || (group.ledger_status==="Posted"?"Posted":String(group.advice_status||""));
+      const canCancel=status==="Awaiting Verification";
       let allocations="";
 
       (Array.isArray(group.allocations)?group.allocations:[]).forEach(row=>{
@@ -957,10 +1191,11 @@ function renderHistory(){
 
       let message="This payment advice is no longer active.";
       if(status==="Posted") message="AnyBike has verified and posted this payment to your purchase.";
+      else if(status==="Superseded") message="A later matching payment advice has already been posted. This older advice is kept here for your records and no longer needs verification.";
       else if(group.advice_status==="Verified") message="AnyBike has verified the bank receipt. Posting to your purchase is pending.";
-      else if(group.advice_status==="Awaiting Verification") message="AnyBike is checking that this transfer has arrived. Your purchase balance has not changed yet.";
+      else if(status==="Awaiting Verification") message="AnyBike is checking that this transfer has arrived. Your purchase balance has not changed yet.";
 
-      html+='<article class="history-card">'+
+      html+='<article class="history-card '+(status==="Superseded"?"superseded":"")+'">'+
         '<div class="history-head">'+
           '<div><strong>'+safe(group.advice_number||("Payment Advice #"+group.payment_advice_id))+' · '+money(group.reported_amount_gbp)+'</strong>'+
           '<small>Reported '+safe(group.reported_payment_date||"")+' · '+safe(group.customer_bank_reference||"No bank reference supplied")+'</small></div>'+
@@ -1120,10 +1355,10 @@ function renderCentralDocuments(){
 }
 
 function renderSummary(){
-  const groups=groupAdviceRows(paymentAdviceRows);
+  const groups=effectiveAdviceGroups(paymentAdviceRows);
   const issued=accountInvoices.filter(row=>row.invoice_status==="Issued").length;
   const outstanding=accountInvoices.filter(row=>row.invoice_status==="Issued").reduce((sum,row)=>sum+Number(row.balance_due_gbp||0),0);
-  const pending=groups.filter(row=>row.advice_status==="Awaiting Verification").length;
+  const pending=groups.filter(row=>row._effective_status==="Awaiting Verification").length;
   const confirmed=groups.filter(row=>row.advice_status==="Verified"||row.ledger_status==="Posted").length;
   document.getElementById("summary").innerHTML=`
     <div class="summary-card"><span>Issued Documents</span><strong>${issued}</strong></div>
@@ -1133,6 +1368,35 @@ function renderSummary(){
 }
 
 document.getElementById("paymentDate").value=todayLocal();
+document.getElementById("savePaymentSelection").addEventListener("click",function(){
+  const allocations=selectedAllocations();
+  const box=document.getElementById("invoiceNextAction");
+  const title=document.getElementById("invoiceNextTitle");
+  const text=document.getElementById("invoiceNextText");
+  if(!allocations.length){
+    box?.classList.remove("complete");
+    if(title)title.textContent="Select at least one Proforma first";
+    if(text)text.textContent="Tick MAKE A PAYMENT TOWARDS THIS PURCHASE and enter the amount you transferred before continuing.";
+    document.querySelector(".payment-select")?.scrollIntoView({behavior:"smooth",block:"center"});
+    return;
+  }
+  setAccountsStepDone("review");
+  setAccountsStepDone("payment");
+  box?.classList.add("complete");
+  if(box?.querySelector(".accounts-next-kicker"))box.querySelector(".accounts-next-kicker").textContent="Completed";
+  if(title)title.textContent="Payment allocation saved";
+  if(text)text.textContent="Your selected allocation is ready. Continue below and confirm the bank transfer details.";
+  this.textContent="Saved ✓";
+  setTimeout(()=>scrollToAccountsSection("bank-transfer"),220);
+});
+document.getElementById("finishAccountsReview").addEventListener("click",function(){
+  setAccountsStepDone("finish");
+  const box=document.getElementById("finalAccountsAction");
+  box?.classList.add("complete");
+  if(box?.querySelector(".accounts-next-kicker"))box.querySelector(".accounts-next-kicker").textContent="Successful";
+  this.textContent="Successful ✓";
+  setTimeout(()=>location.href="/my-purchases.html",900);
+});
 document.getElementById("submitAdvice").addEventListener("click",submitPaymentAdvice);
 document.getElementById("closeReport").addEventListener("click",()=>{
   document.querySelectorAll(".pay-select").forEach(el=>el.checked=false);
