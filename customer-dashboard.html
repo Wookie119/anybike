@@ -2046,6 +2046,32 @@ body.customer-offer-modal-open{overflow:hidden}
     </div>
   </section>
 
+  <section class="panel" id="buyerReferralPanel" style="border-color:rgba(237,28,36,.28)">
+    <div class="panel-head" style="align-items:flex-start">
+      <div style="max-width:760px">
+        <div class="eyebrow" style="margin-bottom:5px">Grow the AnyBike dealer network</div>
+        <h2>🌍 Share AnyBike with another dealer</h2>
+        <p>If you know another motorcycle dealer or trade buyer anywhere in the world who wants to buy from the UK, send them your AnyBike referral link.</p>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="panel-link" id="copyBuyerReferralBtn" type="button" style="cursor:pointer;border:0">Copy Link</button>
+        <a class="panel-link" id="whatsappBuyerReferralBtn" href="#" target="_blank" rel="noopener">WhatsApp →</a>
+        <a class="panel-link" id="emailBuyerReferralBtn" href="#">Email →</a>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:14px">
+      <div style="padding:12px 14px;border:1px solid rgba(255,255,255,.12);border-radius:12px;background:#0c0c0c">
+        <span style="display:block;color:#888;font-size:11px;text-transform:uppercase;font-weight:900">Referral link visits</span>
+        <strong id="buyerReferralVisits" style="display:block;font-size:24px;margin-top:4px">0</strong>
+      </div>
+      <div style="padding:12px 14px;border:1px solid rgba(255,255,255,.12);border-radius:12px;background:#0c0c0c">
+        <span style="display:block;color:#888;font-size:11px;text-transform:uppercase;font-weight:900">New dealer sign-ups</span>
+        <strong id="buyerReferralSignups" style="display:block;font-size:24px;margin-top:4px">0</strong>
+      </div>
+    </div>
+    <div id="buyerReferralStatus" style="margin-top:10px;color:#999;font-size:13px;line-height:1.5">Preparing your referral link…</div>
+  </section>
+
   <section class="panel" id="earlyShippingPanel" style="border-color:rgba(237,28,36,.28)">
     <div class="panel-head" style="align-items:flex-start">
       <div>
@@ -5825,6 +5851,57 @@ async function loadRecentlyViewed(){
 }
 
 
+async function loadBuyerReferralSummary(){
+  if(!currentUser) return;
+
+  const status=document.getElementById("buyerReferralStatus");
+  const visits=document.getElementById("buyerReferralVisits");
+  const signups=document.getElementById("buyerReferralSignups");
+  const copyBtn=document.getElementById("copyBuyerReferralBtn");
+  const whatsapp=document.getElementById("whatsappBuyerReferralBtn");
+  const email=document.getElementById("emailBuyerReferralBtn");
+
+  try{
+    const {data,error}=await sb.rpc("customer_get_buyer_referral_summary_v1");
+    if(error) throw error;
+
+    const row=Array.isArray(data) ? data[0] : data;
+    if(!row?.referral_code) throw new Error("Referral code was not created.");
+
+    const shareUrl=window.location.origin+"/share-anybike-dealer.html?bref="+encodeURIComponent(row.referral_code);
+    const shareText="I recommend AnyBike if you are a motorcycle dealer or trade buyer looking to source motorcycles from the UK. "+shareUrl;
+
+    if(visits) visits.textContent=Number(row.referral_visits||0).toLocaleString("en-GB");
+    if(signups) signups.textContent=Number(row.referral_signups||0).toLocaleString("en-GB");
+    if(status) status.textContent="Your link is ready. We count visits and new dealer registrations attributed to your referral.";
+
+    if(copyBtn){
+      copyBtn.onclick=async function(){
+        try{
+          await navigator.clipboard.writeText(shareUrl);
+          copyBtn.textContent="Copied ✓";
+          setTimeout(()=>copyBtn.textContent="Copy Link",1600);
+        }catch(error){
+          window.prompt("Copy your AnyBike referral link:",shareUrl);
+        }
+      };
+    }
+
+    if(whatsapp){
+      whatsapp.href="https://wa.me/?text="+encodeURIComponent(shareText);
+    }
+
+    if(email){
+      email.href="mailto:?subject="+encodeURIComponent("AnyBike — UK motorcycle sourcing")+
+        "&body="+encodeURIComponent(shareText);
+    }
+  }catch(error){
+    console.warn("Buyer referral summary could not be loaded",error);
+    if(status) status.textContent="Your referral link could not be loaded right now.";
+  }
+}
+
+
 async function loadDashboardConversationCount(){
   if(!currentUser) return;
 
@@ -7413,7 +7490,8 @@ async function initialiseCustomerNotifications(){
       loadRecommendations(),
       loadHandPickedForYou(),
       loadBuyerPotentialMatches(),
-      loadBuyerMatchNotificationPreference()
+      loadBuyerMatchNotificationPreference(),
+      loadBuyerReferralSummary()
     ]);
 
     dashboardLoads.forEach((result,index)=>{
