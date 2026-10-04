@@ -4821,19 +4821,24 @@ function setUserAreaHtml(html){
 
 async function getDashboardCustomerUser(){
   try{
-    let sessionResult=await sb.auth.getSession();
-    let user=sessionResult?.data?.session?.user || null;
+    const readUser=async()=>{
+      const sessionResult=await sb.auth.getSession();
+      let user=sessionResult?.data?.session?.user || null;
+      if(user) return user;
+
+      const userResult=await sb.auth.getUser();
+      return userResult?.data?.user || null;
+    };
+
+    let user=await readUser();
     if(user) return user;
 
-    const userResult=await sb.auth.getUser();
-    user=userResult?.data?.user || null;
-    if(user) return user;
-
-    // Give Supabase a brief restore window before deciding the customer
-    // is genuinely signed out. This mirrors the older dashboard's more
-    // tolerant auth-state approach without restoring the old page.
+    // After navigation Supabase can need a moment to hydrate its persisted
+    // browser session. Do not treat that brief gap as a real sign-out.
     user=await new Promise(resolve=>{
       let settled=false;
+      let subscription=null;
+
       const finish=value=>{
         if(settled) return;
         settled=true;
@@ -4841,20 +4846,36 @@ async function getDashboardCustomerUser(){
         resolve(value || null);
       };
 
-      const {data:{subscription}}=sb.auth.onAuthStateChange((event,session)=>{
+      const authListener=sb.auth.onAuthStateChange((event,session)=>{
         const restored=session?.user || null;
-        if(restored){
-          finish(restored);
-        }
+        if(restored) finish(restored);
       });
+      subscription=authListener?.data?.subscription || null;
 
-      setTimeout(()=>finish(null),1600);
+      let attempts=0;
+      const retry=async()=>{
+        if(settled) return;
+        attempts+=1;
+        try{
+          const restored=await readUser();
+          if(restored){
+            finish(restored);
+            return;
+          }
+        }catch(error){
+          console.warn("Dashboard session restore retry failed",error);
+        }
+        if(attempts>=8){
+          finish(null);
+          return;
+        }
+        setTimeout(retry,500);
+      };
+
+      setTimeout(retry,250);
     });
 
-    if(user) return user;
-
-    sessionResult=await sb.auth.getSession();
-    return sessionResult?.data?.session?.user || null;
+    return user || null;
   }catch(error){
     console.error("Dashboard login restore failed",error);
     return null;
