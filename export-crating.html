@@ -34,7 +34,7 @@ section.content{padding:54px 20px}
 .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
 .card{background:rgba(17,17,17,.95);border:1px solid var(--line);border-radius:18px;padding:22px}
 .card h3{margin:0 0 8px;font-size:21px}
-.card p{margin:0;color:#c4c4c4;line-height:1.55}
+.card p{margin:0;color:#c4c4c4;line-height:1.55}.provider-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.provider-card{background:#111;border:1px solid var(--line);border-radius:18px;padding:20px}.provider-card h3{margin:0 0 6px}.provider-meta{color:#999;font-size:13px;margin-bottom:12px}.provider-facts{display:grid;gap:7px;margin:12px 0}.provider-fact{padding:8px 10px;border:1px solid rgba(255,255,255,.09);border-radius:10px;background:#0b0b0b;color:#d6d6d6;font-size:14px}.provider-price{font-size:24px;font-weight:900;color:#fff;margin:10px 0 4px}.provider-note{color:#aaa;font-size:13px;line-height:1.5}.provider-link{display:inline-flex;margin-top:13px;color:#fff;font-weight:900;text-decoration:underline;text-decoration-color:var(--red);text-underline-offset:3px}.provider-empty{padding:20px;border:1px dashed var(--line);border-radius:14px;color:#aaa}
 .process{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
 .step{border:1px solid var(--line);border-radius:17px;background:#111;padding:20px}
 .step-no{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--red);font-weight:900;margin-bottom:13px}
@@ -52,12 +52,12 @@ section.content{padding:54px 20px}
 footer{padding:30px 20px;border-top:1px solid var(--line);text-align:center;color:#888}
 @media(max-width:1000px){
   .hero-inner{grid-template-columns:1fr}
-  .grid{grid-template-columns:1fr 1fr}
+  .grid,.provider-grid{grid-template-columns:1fr 1fr}
   .process{grid-template-columns:1fr 1fr}
 }
 @media(max-width:650px){
   .hero{padding-top:48px}
-  .grid,.process{grid-template-columns:1fr}
+  .grid,.process,.provider-grid{grid-template-columns:1fr}
   .lead{font-size:18px}
 }
 </style>
@@ -97,6 +97,21 @@ footer{padding:30px 20px;border-top:1px solid var(--line);text-align:center;colo
   </div>
 </section>
 
+
+<section class="content" style="padding-top:0" id="cratingProviders">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow">Verified shipper information</div>
+      <h2>Freight forwarders with motorcycle crating capability.</h2>
+      <p>These details come from active, verified AnyBike shipper profiles. A provider may accept motorcycles already crated, offer its own crating facility, or both.</p>
+    </div>
+    <div id="cratingProviderList" class="provider-grid">
+      <div class="provider-empty">Loading current crating information…</div>
+    </div>
+    <div class="notice"><strong>Pricing:</strong> any crating price shown is an approximate figure supplied by the shipping company and is not an AnyBike quote. Final cost can vary by motorcycle size, crate specification, timber treatment, collection, destination and shipping requirements. Confirm the current price before proceeding.</div>
+  </div>
+</section>
+
 <section class="content" style="padding-top:0">
   <div class="wrap">
     <div class="section-head">
@@ -126,6 +141,57 @@ footer{padding:30px 20px;border-top:1px solid var(--line);text-align:center;colo
 
 <footer>© <span id="year"></span> AnyBike.co.uk · UK Motorcycle Export Specialists</footer>
 <script src="/public-header.js?v=12006"></script>
-<script>document.getElementById("year").textContent=new Date().getFullYear();</script>
+<script>
+document.getElementById("year").textContent=new Date().getFullYear();
+const cratingSb=supabase.createClient("https://tuehtnezhdnkqbbhttgp.supabase.co","sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK");
+function cratingSafe(v){return String(v??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]))}
+function moneySymbol(currency){return currency==="GBP"?"£":currency==="EUR"?"€":currency==="USD"?"$":currency+" "}
+async function loadCratingProviders(){
+  const host=document.getElementById("cratingProviderList");
+  const {data,error}=await cratingSb.from("freight_forwarder_crating_public")
+    .select("id,company_name,city,country,website,countries_covered,ports_served,ships_motorcycles_rolling,ships_motorcycles_crated,has_crating_facility,crating_approx_price,crating_price_currency,crating_notes")
+    .order("company_name",{ascending:true});
+  if(error){
+    console.warn("Could not load crating providers",error);
+    host.innerHTML='<div class="provider-empty">Current crating provider information is temporarily unavailable. AnyBike can still help you arrange a suitable packing route.</div>';
+    return;
+  }
+  const rows=data||[];
+  if(!rows.length){
+    host.innerHTML='<div class="provider-empty">No verified shipper crating facilities are currently published. Contact AnyBike and we can help arrange a suitable specialist packing route.</div>';
+    return;
+  }
+  host.innerHTML=rows.map(r=>{
+    const countries=Array.isArray(r.countries_covered)?r.countries_covered:[];
+    const ports=Array.isArray(r.ports_served)?r.ports_served:[];
+    const location=[r.city,r.country].filter(Boolean).join(", ");
+    const price=r.crating_approx_price!==null && r.crating_approx_price!==undefined
+      ? '<div class="provider-price">Approx. '+cratingSafe(moneySymbol(r.crating_price_currency||"GBP"))+Number(r.crating_approx_price).toFixed(2)+'</div>'
+      : '';
+    let website='';
+    if(r.website){
+      try{
+        const u=new URL(r.website);
+        if(u.protocol==="http:"||u.protocol==="https:") website='<a class="provider-link" href="'+cratingSafe(u.href)+'" target="_blank" rel="noopener nofollow">Visit provider website ↗</a>';
+      }catch(e){}
+    }
+    return '<article class="provider-card">'+
+      '<h3>'+cratingSafe(r.company_name)+'</h3>'+
+      '<div class="provider-meta">'+cratingSafe(location||"United Kingdom")+'</div>'+
+      '<div class="provider-facts">'+
+        '<div class="provider-fact">Rolling motorcycles: <strong>'+(r.ships_motorcycles_rolling===true?"Yes":r.ships_motorcycles_rolling===false?"No":"Not confirmed")+'</strong></div>'+
+        '<div class="provider-fact">Accepts crated motorcycles: <strong>'+(r.ships_motorcycles_crated===true?"Yes":"No")+'</strong></div>'+
+        '<div class="provider-fact">Own crating facility: <strong>'+(r.has_crating_facility===true?"Yes":"No")+'</strong></div>'+
+        (countries.length?'<div class="provider-fact">Countries served: '+cratingSafe(countries.slice(0,8).join(", "))+(countries.length>8?" +"+(countries.length-8)+" more":"")+'</div>':'')+
+        (ports.length?'<div class="provider-fact">Ports: '+cratingSafe(ports.slice(0,5).join(", "))+(ports.length>5?" +"+(ports.length-5)+" more":"")+'</div>':'')+
+      '</div>'+
+      price+
+      (r.crating_notes?'<div class="provider-note">'+cratingSafe(r.crating_notes)+'</div>':'')+
+      website+
+    '</article>';
+  }).join("");
+}
+loadCratingProviders();
+</script>
 </body>
 </html>
