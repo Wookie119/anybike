@@ -445,6 +445,17 @@ a{color:inherit;text-decoration:none}
           <option value="Verified">Verified</option>
           <option value="Unverified">Unverified</option>
         </select>
+        <select id="profileInviteFilter">
+          <option value="">All profile update states</option>
+          <option value="Not Invited">Not Invited</option>
+          <option value="Invited">Invited</option>
+          <option value="Opened">Opened</option>
+          <option value="Submitted">Submitted</option>
+          <option value="Updated">Updated</option>
+          <option value="Declined">Declined</option>
+          <option value="No Email">No Email</option>
+          <option value="Needs Follow-up">Needs Follow-up</option>
+        </select>
         <select id="scopeFilter">
           <option value="">All locations</option>
           <option value="UK">UK freight forwarder</option>
@@ -750,7 +761,7 @@ async function inviteShipperProfile(id){
 }
 
 async function inviteAllShippers(){
-  const eligible=records.filter(r=>r.is_active!==false && r.email && r.profile_invite_status!=="Updated");
+  const eligible=records.filter(r=>r.is_active!==false && r.profile_invite_status!=="Updated");
   if(!eligible.length){
     alert("There are no active shippers with email addresses waiting for an invitation.");
     return;
@@ -764,7 +775,8 @@ async function inviteAllShippers(){
   }
   const sent=(data.results||[]).filter(x=>x.status==="Invited").length;
   const failed=(data.results||[]).filter(x=>x.status==="Send Failed").length;
-  alert("Invitations sent: "+sent+(failed ? "\nSend failures: "+failed : ""));
+  const noEmail=(data.results||[]).filter(x=>x.status==="No Email").length;
+  alert("Invitations sent: "+sent+(noEmail ? "\nNo email address: "+noEmail : "")+(failed ? "\nSend failures: "+failed : ""));
   await loadForwarders();
 }
 
@@ -884,6 +896,7 @@ function refreshCountryFilter(){
 function filteredRecords(){
   const q = document.getElementById("searchInput").value.trim().toLowerCase();
   const verification = document.getElementById("verificationFilter").value;
+  const profileInvite = document.getElementById("profileInviteFilter").value;
   const scope = document.getElementById("scopeFilter").value;
   const service = document.getElementById("serviceFilter").value;
   const country = document.getElementById("countryFilter").value;
@@ -897,6 +910,7 @@ function filteredRecords(){
 
     if(q && !haystack.includes(q)) return false;
     if(verification && r.verification_status !== verification) return false;
+    if(profileInvite && (r.profile_invite_status || "Not Invited") !== profileInvite) return false;
     if(scope && r.scope !== scope) return false;
     if(service && !arrayValue(r.services).includes(service)) return false;
     if(country){
@@ -1215,7 +1229,7 @@ async function restoreRecord(id){
   }
 }
 
-["searchInput","verificationFilter","scopeFilter","serviceFilter","countryFilter"].forEach(id => {
+["searchInput","verificationFilter","profileInviteFilter","scopeFilter","serviceFilter","countryFilter"].forEach(id => {
   document.getElementById(id).addEventListener(id === "searchInput" ? "input" : "change", renderDirectory);
 });
 
