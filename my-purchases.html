@@ -771,17 +771,6 @@ main{
   background:rgba(54,211,126,.06);
 }
 .storage-card.waived .storage-charge b{color:#a7ffc7}
-.step.current-shipping{
-  border-color:rgba(255,159,28,.72);
-  background:rgba(255,159,28,.14);
-  color:#ffc46e;
-}
-.step.current-shipping::before{
-  content:"●";
-  display:inline-block;
-  margin-right:5px;
-  font-size:9px;
-}
 @media(max-width:820px){
   .purchase-overview{grid-template-columns:1fr 1fr}
   .purchase-overview .overview-box.total{grid-row:auto;grid-column:1/-1}
@@ -818,6 +807,32 @@ main{
 .buyer-progress-track{height:7px;border-radius:999px;background:#242424;overflow:hidden}
 .buyer-progress-fill{height:100%;border-radius:inherit;background:linear-gradient(90deg,#ed1c24,#ff5158)}
 .buyer-progress-meter>strong{font-size:11px;color:#fff;white-space:nowrap}
+.buyer-progress-meter.complete{border-color:rgba(54,211,126,.5);background:rgba(54,211,126,.06)}
+.buyer-progress-meter.complete .buyer-progress-fill{background:#36d37e}
+
+.purchase-action-panel{border-color:rgba(237,28,36,.58)!important;border-left:5px solid var(--red)!important}
+.purchase-waiting-panel{border-color:rgba(54,211,126,.38)!important;border-left:5px solid var(--green)!important;background:rgba(54,211,126,.025)}
+.purchase-action-list{display:grid;gap:10px}
+.purchase-action-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:center;padding:14px 15px;border-radius:12px}
+.purchase-action-row.action{border:1px solid rgba(237,28,36,.48);background:rgba(237,28,36,.055)}
+.purchase-action-row.waiting{border:1px solid rgba(54,211,126,.32);background:rgba(54,211,126,.045)}
+.purchase-action-title{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.purchase-action-title strong{color:#fff}
+.purchase-action-title span{font-size:10px;color:#bbb;border:1px solid rgba(255,255,255,.14);border-radius:999px;padding:3px 7px}
+.purchase-action-row p{margin:5px 0 0;color:#aaa;font-size:12px;line-height:1.45}
+.purchase-action-row>a{display:inline-flex;align-items:center;justify-content:center;padding:10px 13px;border-radius:9px;color:#fff;text-decoration:none;font-weight:900;font-size:12px;white-space:nowrap}
+.purchase-action-row.action>a{background:var(--red);border:1px solid var(--red)}
+.purchase-action-row.waiting>a{background:#171717;border:1px solid #444}
+
+.journey-next.action{border-color:rgba(237,28,36,.62);border-left:5px solid var(--red);background:rgba(237,28,36,.055)}
+.journey-next.waiting{border-color:rgba(54,211,126,.40);border-left:5px solid var(--green);background:rgba(54,211,126,.045)}
+.journey-next.complete{border-color:rgba(54,211,126,.58);border-left:5px solid var(--green);background:rgba(54,211,126,.08)}
+.journey-next.action>span{color:#ff6268}
+.journey-next.waiting>span,.journey-next.complete>span{color:#7af0a8}
+.journey-next-btn{display:inline-flex;align-items:center;justify-content:center;margin-top:10px;padding:10px 13px;border-radius:999px;background:var(--red);color:#fff!important;text-decoration:none;font-weight:900;font-size:12px}
+.step.current{border-color:rgba(237,28,36,.72);background:rgba(237,28,36,.13);color:#ff8d92}
+.step.current::before{content:"●";display:inline-block;margin-right:5px;font-size:9px}
+@media(max-width:720px){.purchase-action-row{grid-template-columns:1fr}.purchase-action-row>a{justify-self:start;white-space:normal}}
 </style>
 </head>
 
@@ -850,13 +865,22 @@ main{
 
 </section>
 
-<section class="panel" id="purchaseNextActionsPanel" style="display:none;border-color:rgba(237,28,36,.55)">
+<section class="panel purchase-action-panel" id="purchaseNextActionsPanel" style="display:none">
   <div style="margin-bottom:12px">
     <div class="eyebrow">YOUR NEXT ACTION</div>
     <h2 style="margin:4px 0 5px">What needs your attention</h2>
     <p id="purchaseNextActionsSummary" style="margin:0;color:#aaa">We will show each motorcycle that needs something from you.</p>
   </div>
-  <div id="purchaseNextActionsList" style="display:grid;gap:10px"></div>
+  <div id="purchaseNextActionsList" class="purchase-action-list"></div>
+</section>
+
+<section class="panel purchase-waiting-panel" id="purchaseWaitingPanel" style="display:none">
+  <div style="margin-bottom:12px">
+    <div class="eyebrow" style="color:#7af0a8">ANYBIKE IS PROGRESSING</div>
+    <h2 style="margin:4px 0 5px">No action needed from you</h2>
+    <p style="margin:0;color:#aaa">These motorcycles are currently waiting for AnyBike, the seller or collection team.</p>
+  </div>
+  <div id="purchaseWaitingList" class="purchase-action-list"></div>
 </section>
 
 <section class="panel">
@@ -953,7 +977,7 @@ function purchaseState(purchase){
     String(purchase.deal_stage||"").toLowerCase()==="completed" ||
     !!purchase.operations_complete;
   const depositSatisfied=!depositRequired || depositDue<=0 || depositOutstanding<=0;
-  const fullyPaid=balance<=0;
+  const fullyPaid=depositSatisfied && balance<=0;
 
   let heading="Purchase in Progress";
   let message="Your AnyBike purchase is progressing.";
@@ -1008,21 +1032,24 @@ function purchaseState(purchase){
 }
 
 function buyerProgressHtml(purchase,state){
-  const complete=String(purchase?.deal_stage||"").toLowerCase()==="completed" || String(purchase?.deal_status||"").toLowerCase()==="completed";
+  const complete=String(purchase?.deal_stage||"").toLowerCase()==="completed" || String(purchase?.deal_status||"").toLowerCase()==="completed" || state.completed;
+  const sellerCheckDone=state.secured || state.collected || state.delivered || complete;
   const stages=[
     true,
     state.depositSatisfied,
+    sellerCheckDone,
     state.secured,
     state.fullyPaid,
     state.collected,
     state.inStorage||state.delivered||complete,
     state.delivered||complete,
+    complete,
     complete
   ];
   const done=stages.filter(Boolean).length;
   const total=stages.length;
   const percent=Math.max(0,Math.min(100,Math.round((done/total)*100)));
-  return '<div class="buyer-progress-meter"><span>Purchase progress</span><div class="buyer-progress-track"><div class="buyer-progress-fill" style="width:'+percent+'%"></div></div><strong>'+done+' / '+total+' stages</strong></div>';
+  return '<div class="buyer-progress-meter '+(complete?'complete':'')+'"><span>Purchase progress</span><div class="buyer-progress-track"><div class="buyer-progress-fill" style="width:'+percent+'%"></div></div><strong>'+done+' / '+total+' stages</strong></div>';
 }
 
 function journeyHtml(purchase,state){
@@ -1030,47 +1057,67 @@ function journeyHtml(purchase,state){
   let current="deposit";
   let nextTitle="Pay / report your deposit";
   let nextText="Open Accounts & Documents to view your Proforma and report the bank transfer.";
+  let customerAction=true;
+  let actionHref="";
+  let actionLabel="";
 
   if(!state.depositSatisfied && state.pendingDepositAdvice){
     current="deposit";
+    customerAction=false;
     nextTitle="Deposit reported · awaiting AnyBike verification";
-    nextText=money(state.pendingDepositAdviceAmount)+" has been reported. Your purchase balance will update after AnyBike verifies the bank receipt.";
+    nextText=money(state.pendingDepositAdviceAmount)+" has been reported. You do not need to report it again while AnyBike verifies the bank receipt.";
   }else if(!state.depositSatisfied){
     current="deposit";
+    customerAction=true;
     nextTitle="Pay / report your "+(money(state.depositOutstanding || state.depositDue))+" deposit";
     nextText="Open Accounts & Documents to view your Proforma and report the bank transfer.";
+    if(purchase.deal_number){
+      actionHref="/accounts-documents.html?deal="+encodeURIComponent(purchase.deal_number)+"&payment=deposit&amount="+encodeURIComponent(Number(state.depositOutstanding||state.depositDue).toFixed(2))+"&ref="+encodeURIComponent(purchase.deal_number);
+      actionLabel="Pay / Report Deposit →";
+    }
   }else if(!state.secured){
     current="seller";
+    customerAction=false;
     nextTitle="AnyBike completes the final seller check";
     nextText="No action is required from you. AnyBike will reconfirm the motorcycle and seller position before securing it.";
   }else if(state.secured && !state.fullyPaid){
     current="balance";
+    customerAction=true;
     nextTitle="Complete the remaining balance / documents";
-    nextText="AnyBike will show the amount and documents required before collection can proceed.";
+    nextText="Open Accounts & Documents to see the remaining balance and any documents required before collection.";
+    if(purchase.deal_number){
+      actionHref="/accounts-documents.html?deal="+encodeURIComponent(purchase.deal_number)+"&payment=balance&amount="+encodeURIComponent(Number(state.balance||0).toFixed(2))+"&ref="+encodeURIComponent(purchase.deal_number);
+      actionLabel="Balance & Documents →";
+    }
   }else if(state.secured && state.fullyPaid && !state.collected){
     current="collection";
+    customerAction=false;
     nextTitle="AnyBike arranges collection";
-    nextText="Move Motorcycles will collect the motorcycle and the collection progress will appear here.";
+    nextText="No action is required from you. Move Motorcycles will collect the motorcycle and the collection progress will appear here.";
   }else if(state.collected && !state.delivered && !state.completed){
     current=state.inStorage?"storage":"delivery";
-    nextTitle=state.inStorage?"Secure UK custody / storage":"Arrange the UK handover";
+    customerAction=false;
+    nextTitle=state.inStorage?"Secure UK custody / storage":"AnyBike arranges the UK handover";
     nextText=state.inStorage
       ?"Your motorcycle is secure in the UK while AnyBike and Move arrange the confirmed handover to your shipper."
       :"Your motorcycle has been collected. AnyBike and Move will now complete the agreed UK handover.";
   }else if(state.delivered && !state.completed){
     current="invoice";
-    nextTitle="Final invoice";
-    nextText="The UK handover is complete. AnyBike will now finalise the transaction charges and issue the Final Invoice.";
+    customerAction=false;
+    nextTitle="AnyBike prepares the final invoice";
+    nextText="The UK handover is complete. AnyBike will finalise the transaction and issue the Final Invoice.";
   }else if(state.completed){
     current="complete";
+    customerAction=false;
     nextTitle="Purchase complete";
-    nextText="No further action is required for this motorcycle.";
+    nextText="This motorcycle purchase and UK handover are complete. No further action is required.";
   }
 
+  const sellerCheckDone=state.secured||state.collected||state.delivered||state.completed;
   const steps=[
     ["offer","Offer Accepted",true],
     ["deposit","Deposit / Proforma",state.depositSatisfied],
-    ["seller","Seller Check",state.secured],
+    ["seller","Seller Check",sellerCheckDone],
     ["secured","Motorcycle Secured",state.secured],
     ["balance","Balance & Documents",state.fullyPaid],
     ["collection","Collection",state.collected],
@@ -1083,17 +1130,21 @@ function journeyHtml(purchase,state){
   const stepHtml=steps.map(function(step){
     const key=step[0],label=step[1],done=step[2];
     const isCurrent=key===current && !done;
-    return '<span class="step '+(done?"done":isCurrent?"current-shipping":"todo")+'">'+safe(label)+'</span>';
+    return '<span class="step '+(done?"done":isCurrent?"current":"todo")+'">'+safe(label)+'</span>';
   }).join("");
+
+  const panelClass=state.completed?"complete":(customerAction?"action":"waiting");
+  const kicker=state.completed?"SUCCESSFUL":(customerAction?"YOUR NEXT ACTION":"AWAITING ANYBIKE");
 
   return `
     <div class="journey">
       <div class="journey-title">Your motorcycle journey</div>
       <div class="steps">${stepHtml}</div>
-      <div class="journey-next">
-        <span>What happens next?</span>
+      <div class="journey-next ${panelClass}">
+        <span>${kicker}</span>
         <strong>${safe(nextTitle)}</strong>
         <p>${safe(nextText)}</p>
+        ${actionHref?'<a class="journey-next-btn" href="'+safe(actionHref)+'">'+safe(actionLabel)+'</a>':""}
       </div>
     </div>
   `;
@@ -1729,35 +1780,48 @@ function renderPurchaseNextActions(purchases){
   const panel=document.getElementById("purchaseNextActionsPanel");
   const list=document.getElementById("purchaseNextActionsList");
   const summary=document.getElementById("purchaseNextActionsSummary");
-  if(!panel||!list)return;
+  const waitingPanel=document.getElementById("purchaseWaitingPanel");
+  const waitingList=document.getElementById("purchaseWaitingList");
+  if(!panel||!list||!waitingPanel||!waitingList)return;
 
   const actions=(purchases||[])
     .map(purchaseNextAction)
     .filter(Boolean)
     .sort((a,b)=>a.priority-b.priority);
 
-  if(!actions.length){
+  const customerActions=actions.filter(a=>!a.waiting);
+  const waitingActions=actions.filter(a=>a.waiting);
+
+  if(customerActions.length){
+    summary.textContent=customerActions.length===1
+      ? "You have 1 action that needs your attention."
+      : "You have "+customerActions.length+" actions that need your attention across your purchases.";
+    list.innerHTML=customerActions.map(function(action){
+      return '<div class="purchase-action-row action">'+
+        '<div><div class="purchase-action-title"><strong>'+safe(action.title)+'</strong>'+(action.deal?'<span>'+safe(action.deal)+'</span>':'')+'</div>'+
+        '<p>'+safe(action.text)+'</p></div>'+
+        '<a href="'+safe(action.href)+'">'+safe(action.cta)+'</a>'+
+      '</div>';
+    }).join("");
+    panel.style.display="";
+  }else{
     panel.style.display="none";
     list.innerHTML="";
-    return;
   }
 
-  const customerTasks=actions.filter(a=>!a.waiting).length;
-  summary.textContent=customerTasks
-    ? (customerTasks===1
-        ? "You have 1 action that needs your attention. Other motorcycles may be waiting for AnyBike."
-        : "You have "+customerTasks+" actions that need your attention across your purchases.")
-    : "Nothing needs you to act right now. These are the stages AnyBike is currently progressing for you.";
-
-  list.innerHTML=actions.map(function(action){
-    return '<div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:center;padding:14px 15px;border:1px solid '+(action.waiting?'rgba(255,179,107,.34)':'rgba(237,28,36,.48)')+';border-radius:12px;background:'+(action.waiting?'rgba(255,159,28,.05)':'rgba(237,28,36,.055)')+'">'+
-      '<div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><strong>'+safe(action.title)+'</strong>'+(action.deal?'<span style="font-size:10px;color:#bbb;border:1px solid rgba(255,255,255,.14);border-radius:999px;padding:3px 7px">'+safe(action.deal)+'</span>':'')+'</div>'+
-      '<div style="margin-top:5px;color:#aaa;font-size:12px;line-height:1.45">'+safe(action.text)+'</div></div>'+
-      '<a href="'+safe(action.href)+'" style="display:inline-flex;align-items:center;justify-content:center;padding:10px 13px;border-radius:9px;background:'+(action.waiting?'#171717':'#ed1c24')+';border:1px solid '+(action.waiting?'#444':'#ed1c24')+';color:#fff;text-decoration:none;font-weight:900;font-size:12px;white-space:nowrap">'+safe(action.cta)+'</a>'+
-    '</div>';
-  }).join("");
-
-  panel.style.display="";
+  if(waitingActions.length){
+    waitingList.innerHTML=waitingActions.map(function(action){
+      return '<div class="purchase-action-row waiting">'+
+        '<div><div class="purchase-action-title"><strong>'+safe(action.title)+'</strong>'+(action.deal?'<span>'+safe(action.deal)+'</span>':'')+'</div>'+
+        '<p>'+safe(action.text)+'</p></div>'+
+        '<a href="'+safe(action.href)+'">'+safe(action.cta)+'</a>'+
+      '</div>';
+    }).join("");
+    waitingPanel.style.display="";
+  }else{
+    waitingPanel.style.display="none";
+    waitingList.innerHTML="";
+  }
 }
 
 async function loadPurchases(){
