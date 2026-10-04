@@ -531,7 +531,18 @@ function getShipperReferralCode(){
 }
 function getBuyerReferralCode(){
   const params=new URLSearchParams(window.location.search);
-  return (params.get("bref")||"").trim();
+  const direct=(params.get("bref")||"").trim();
+  if(direct) return direct;
+
+  try{
+    const saved=JSON.parse(localStorage.getItem("anybike_buyer_referral")||"null");
+    const maxAge=30*24*60*60*1000;
+    if(saved?.code && saved?.saved_at && (Date.now()-Number(saved.saved_at))<=maxAge){
+      return String(saved.code).trim();
+    }
+    if(saved) localStorage.removeItem("anybike_buyer_referral");
+  }catch(error){}
+  return "";
 }
 
 function buildPageUrl(page){
