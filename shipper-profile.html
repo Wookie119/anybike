@@ -362,6 +362,10 @@ hr{border-color:#303030 !important}
   </div>
   <div class="actions"><button class="btn" type="button" id="submitOfficeReferral">Recommend This Office →</button></div>
   <div id="officeReferralStatus" class="status"></div>
+  <div class="next-action">
+    <div class="next-action-copy"><div class="next-action-kicker">Your next action</div><strong>Continue to your overseas partner network</strong><span>Recommending another office is optional. Save your profile and continue whenever you are ready.</span></div>
+    <button class="btn save-profile-step" type="button" data-next="internationalPartnerCard">Save Profile &amp; Continue ↓</button>
+  </div>
 </section>
 
 <section class="card" id="internationalPartnerCard">
@@ -396,7 +400,10 @@ hr{border-color:#303030 !important}
   </div>
   <div class="actions"><button class="btn" type="button" id="submitPartner">Introduce Overseas Partner →</button></div>
   <div id="partnerStatus" class="status"></div>
-
+  <div class="next-action">
+    <div class="next-action-copy"><div class="next-action-kicker">Your next action</div><strong>Continue to recommending AnyBike</strong><span>Introducing an overseas partner is optional. Save your profile and continue to the final section.</span></div>
+    <button class="btn save-profile-step" type="button" data-next="shareAnyBike">Save Profile &amp; Continue ↓</button>
+  </div>
 
 </section>
 <div id="shareAnyBike" style="display:none;margin:0 0 18px;padding:18px;border:1px solid #d8c06a;border-radius:12px;background:#fffaf0">
@@ -413,6 +420,13 @@ hr{border-color:#303030 !important}
     <button class="btn" type="button" id="copyShare">Copy AnyBike Customer Link</button>
     <a class="btn secondary" id="whatsappShare" target="_blank" rel="noopener">Share AnyBike by WhatsApp</a>
     <a class="btn secondary" id="emailShare">Share AnyBike by Email</a>
+  </div>
+  <div class="next-action" id="finalProfileAction" style="margin-top:22px">
+    <div class="next-action-copy"><div class="next-action-kicker">Your next action</div><strong>Save and update your AnyBike shipper profile</strong><span>Save your latest changes, or submit the completed profile to AnyBike for review and publication.</span></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn secondary" type="button" id="bottomSaveProfile">Save Profile</button>
+      <button class="btn" type="button" id="bottomSubmitProfile">Save &amp; Update Profile →</button>
+    </div>
   </div>
 </div>
 
@@ -679,6 +693,11 @@ async function saveProfileDraft(button=null,nextId=""){
 saveDraft.onclick=()=>saveProfileDraft(saveDraft);
 document.querySelectorAll(".save-profile-step").forEach(btn=>{
   btn.addEventListener("click",()=>saveProfileDraft(btn,btn.dataset.next||""));
+});
+bottomSaveProfile.addEventListener("click",()=>saveProfileDraft(bottomSaveProfile));
+bottomSubmitProfile.addEventListener("click",async()=>{
+  const saved=await saveProfileDraft(bottomSubmitProfile);
+  if(saved) form.requestSubmit();
 });
 form.onsubmit=async e=>{e.preventDefault();const payload=profileFromForm();if(payload.ships_motorcycles_rolling===null||payload.ships_motorcycles_crated===null||payload.has_crating_facility===null){setStatus("Please answer all three motorcycle shipping and crating questions.",true);return}setStatus("Submitting…");const d=await call({action:"submit",profile:payload,draft_version:draftVersion,editor_name:editorName.value.trim(),editor_email:editorEmail.value.trim()});if(d.error){setStatus(d.error,true);return}draftVersion=Number(d.draft_version||draftVersion);form.querySelectorAll("input,textarea,select,button").forEach(x=>x.disabled=true);setStatus("Thank you. Your updated profile has been sent to AnyBike for review.")};
 decline.onclick=async()=>{if(!confirm("Confirm that you do not want to update this AnyBike profile?"))return;const d=await call({action:"decline"});if(d.error){setStatus(d.error,true);return}form.querySelectorAll("input,textarea,select,button").forEach(x=>x.disabled=true);setStatus("Thank you. AnyBike has recorded your response.")};
