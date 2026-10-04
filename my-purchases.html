@@ -1458,9 +1458,11 @@ function journeyHtml(purchase,state){
     current="seller";
     customerAction=false;
     nextTitle="AnyBike completes the final seller check";
-    nextText=state.pendingPaymentAdvice && !state.pendingDepositAdvice
-      ? "Your "+money(state.pendingPaymentAdviceAmount)+" payment has been reported and is awaiting AnyBike verification. No further action is required while AnyBike reconfirms the motorcycle and seller position before securing it."
-      : "No action is required from you. AnyBike will reconfirm the motorcycle and seller position before securing it.";
+    nextText=state.fullyPaid
+      ? "We have received your full payment of "+money(state.allocated)+". No further action is required while AnyBike reconfirms the motorcycle and seller position before securing it."
+      : (state.pendingPaymentAdvice && !state.pendingDepositAdvice
+          ? "Your "+money(state.pendingPaymentAdviceAmount)+" payment has been reported and is awaiting AnyBike verification. No further action is required while AnyBike reconfirms the motorcycle and seller position before securing it."
+          : "No action is required from you. AnyBike will reconfirm the motorcycle and seller position before securing it.");
   }else if(state.secured && !state.fullyPaid){
     current="balance";
     customerAction=true;
@@ -2132,13 +2134,16 @@ function purchaseNextAction(purchase){
     };
   }
   if(!state.secured){
-    const paymentWaiting=state.pendingPaymentAdvice && !state.pendingDepositAdvice
+    const paidText=state.fullyPaid
+      ? "We have received your full payment of "+money(state.allocated)+"."
+      : "Your deposit is complete.";
+    const paymentWaiting=!state.fullyPaid && state.pendingPaymentAdvice && !state.pendingDepositAdvice
       ? " Your "+money(state.pendingPaymentAdviceAmount)+" payment has also been reported and is awaiting AnyBike verification."
       : "";
     return {
       priority:35,waiting:true,deal:deal,identity:bike,
       title:"AnyBike is completing the final seller check",
-      text:"Your deposit is complete."+paymentWaiting+" No further action is required while AnyBike confirms and secures the motorcycle.",
+      text:paidText+paymentWaiting+" No further action is required while AnyBike confirms and secures the motorcycle.",
       href:"/my-purchases.html?deal="+encodeURIComponent(purchase.deal_id||"")+"#purchase-deal-"+encodeURIComponent(purchase.deal_id||""),
       cta:"View purchase →"
     };
