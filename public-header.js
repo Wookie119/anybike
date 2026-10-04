@@ -361,17 +361,18 @@ function anybikeInstallCustomerNextActionStyles(){
   const style=document.createElement("style");
   style.id="anybike-customer-next-action-style";
   style.textContent=`
-    .anybike-customer-next-action{width:min(1640px,calc(100% - 32px));max-width:none;margin:14px auto;padding:12px 16px;border:2px solid #ed1c24;border-radius:14px;background:linear-gradient(135deg,rgba(237,28,36,.14),#111 58%);color:#fff;box-shadow:0 0 0 1px rgba(237,28,36,.08)}
-    .anybike-customer-next-action .abna-kicker{color:#ed1c24;font-size:11px;font-weight:950;letter-spacing:.12em;text-transform:uppercase}
-    .anybike-customer-next-action h2{margin:2px 0 4px;font-size:clamp(20px,1.7vw,25px);line-height:1.08}
-    .anybike-customer-next-action p{margin:0;color:#d6d6d6;line-height:1.35;font-size:14px;max-width:none}
-    .anybike-customer-next-action .abna-bottom{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:nowrap;margin-top:8px}
-    .anybike-customer-next-action .abna-waiting{display:inline-flex;align-items:center;gap:7px;border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:5px 9px;background:#0b0b0b;font-size:11px;font-weight:900;white-space:nowrap}
-    .anybike-customer-next-action .abna-btn{border:1px solid #ed1c24;border-radius:9px;background:#ed1c24;color:#fff;padding:9px 15px;font-weight:950;cursor:pointer;text-decoration:none;white-space:nowrap;margin-left:auto}
+    .anybike-customer-next-action{width:min(1640px,calc(100% - 32px));max-width:none;margin:12px auto;padding:10px 14px;border:2px solid #ed1c24;border-radius:14px;background:linear-gradient(135deg,rgba(237,28,36,.14),#111 58%);color:#fff;box-shadow:0 0 0 1px rgba(237,28,36,.08)}
+    .anybike-customer-next-action .abna-kicker{color:#ed1c24;font-size:10px;font-weight:950;letter-spacing:.12em;text-transform:uppercase;margin-bottom:2px}
+    .anybike-customer-next-action .abna-main{display:flex;align-items:center;gap:16px;justify-content:space-between}
+    .anybike-customer-next-action .abna-copy{min-width:0;flex:1}
+    .anybike-customer-next-action h2{margin:0;font-size:clamp(20px,1.7vw,25px);line-height:1.08}
+    .anybike-customer-next-action p{margin:4px 0 0;color:#d6d6d6;line-height:1.3;font-size:13px;max-width:none}
+    .anybike-customer-next-action .abna-status{margin-top:4px;color:#aaa;font-size:11px;font-weight:800}
+    .anybike-customer-next-action .abna-btn{border:1px solid #ed1c24;border-radius:9px;background:#ed1c24;color:#fff;padding:9px 15px;font-weight:950;cursor:pointer;text-decoration:none;white-space:nowrap;flex:0 0 auto}
     @media(max-width:760px){
-      .anybike-customer-next-action{width:calc(100% - 20px);padding:12px}
-      .anybike-customer-next-action .abna-bottom{flex-wrap:wrap}
-      .anybike-customer-next-action .abna-btn{width:100%;margin-left:0}
+      .anybike-customer-next-action{width:calc(100% - 20px);padding:11px}
+      .anybike-customer-next-action .abna-main{align-items:stretch;flex-direction:column;gap:9px}
+      .anybike-customer-next-action .abna-btn{width:100%}
     }
   `;
   document.head.appendChild(style);
@@ -404,12 +405,19 @@ function anybikeRenderCustomerNextAction(config){
     return String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
   };
 
+  const waitingFor=String(cfg.waitingFor||"You");
+  const statusHtml=waitingFor && waitingFor!=="You"
+    ? '<div class="abna-status">Waiting for: '+safe(waitingFor)+'</div>'
+    : '';
+
   card.innerHTML=
     '<div class="abna-kicker">'+safe(cfg.kicker||"Your next action")+'</div>'+
-    '<h2>'+safe(cfg.title||"Continue")+'</h2>'+
-    '<p>'+safe(cfg.text||"")+'</p>'+
-    '<div class="abna-bottom">'+
-      '<span class="abna-waiting">Waiting for: '+safe(cfg.waitingFor||"You")+'</span>'+
+    '<div class="abna-main">'+
+      '<div class="abna-copy">'+
+        '<h2>'+safe(cfg.title||"Continue")+'</h2>'+
+        '<p>'+safe(cfg.text||"")+'</p>'+
+        statusHtml+
+      '</div>'+
       '<button type="button" class="abna-btn" id="anybikeCustomerNextActionButton">'+safe(cfg.label||"CONTINUE →")+'</button>'+
     '</div>';
 
