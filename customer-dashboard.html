@@ -2049,7 +2049,7 @@ body.customer-offer-modal-open{overflow:hidden}
       </div>
 
       <div class="hero-stats" aria-label="My AnyBike summary">
-        <a class="hero-stat" href="my-watchlist.html">
+        <a class="hero-stat" href="/my-watchlist.html">
           <div class="hero-stat-icon">❤️</div>
           <div>
             <strong id="watchCount">0</strong>
@@ -2057,7 +2057,7 @@ body.customer-offer-modal-open{overflow:hidden}
           </div>
         </a>
 
-        <a class="hero-stat" href="my-searches.html">
+        <a class="hero-stat" href="/my-searches.html">
           <div class="hero-stat-icon">🔎</div>
           <div>
             <strong id="searchCount">0</strong>
@@ -2065,7 +2065,7 @@ body.customer-offer-modal-open{overflow:hidden}
           </div>
         </a>
 
-        <a class="hero-stat" href="available-stock.html">
+        <a class="hero-stat" href="/available-stock.html">
           <div class="hero-stat-icon">🏍️</div>
           <div>
             <strong id="stockCount">0</strong>
@@ -2073,7 +2073,7 @@ body.customer-offer-modal-open{overflow:hidden}
           </div>
         </a>
 
-        <a class="hero-stat" href="#hand-picked">
+        <a class="hero-stat" href="/customer-dashboard.html#hand-picked">
           <div class="hero-stat-icon">🔎</div>
           <div>
             <strong id="handPickedCount">0</strong>
@@ -2081,7 +2081,7 @@ body.customer-offer-modal-open{overflow:hidden}
           </div>
         </a>
 
-        <a class="hero-stat" href="#my-offers">
+        <a class="hero-stat" href="/customer-dashboard.html#my-offers">
           <div class="hero-stat-icon">🤝</div>
           <div>
             <strong id="pendingOfferCount">0</strong>
@@ -7701,13 +7701,14 @@ function getCustomerNotificationHeaderElements(){
   };
 }
 
-function setCustomerNotificationBadges(total){
+function setCustomerNotificationBadges(total,messageTotal){
   const elements=getCustomerNotificationHeaderElements();
   const count=Number(total)||0;
+  const messageCount=Number(messageTotal)||0;
 
   const dashboardNewMessages=document.getElementById("newMessagesCount");
   if(dashboardNewMessages){
-    dashboardNewMessages.textContent=count.toLocaleString("en-GB");
+    dashboardNewMessages.textContent=messageCount.toLocaleString("en-GB");
   }
 
   [elements.messageCount,elements.bellCount].forEach(function(badge){
@@ -7759,7 +7760,7 @@ function renderCustomerNotifications(rows){
 
 async function loadCustomerNotifications(){
   if(!currentUser){
-    setCustomerNotificationBadges(0);
+    setCustomerNotificationBadges(0,0);
     renderCustomerNotifications([]);
     return;
   }
@@ -7779,7 +7780,12 @@ async function loadCustomerNotifications(){
   const rows=data || [];
   latestCustomerNotificationRows=rows;
 
-  setCustomerNotificationBadges(rows.length);
+  const unreadMessageCount=rows.filter(function(row){
+    const type=String(row?.type||"").toLowerCase();
+    return type.includes("message");
+  }).length;
+
+  setCustomerNotificationBadges(rows.length,unreadMessageCount);
   renderCustomerNotifications(rows);
   renderCustomerNextActions();
 }
