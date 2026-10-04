@@ -3500,24 +3500,32 @@ function customerDashboardPurchaseState(purchase){
 
   const depositRequired=Boolean(purchase.deposit_required);
   const depositDue=Number(purchase.deposit_due_gbp || 0);
-  const depositAllocated=Number(purchase.deposit_allocated_gbp || 0);
-  const depositOutstanding=Number(purchase.deposit_outstanding_gbp || 0);
   const moneyReceived=Number(purchase.customer_money_received_deal_gbp || 0);
   const allocated=Number(purchase.customer_allocated_motorcycle_gbp || 0);
+  const depositAllocated=Math.min(Math.max(allocated,Number(purchase.deposit_allocated_gbp||0)),Math.max(depositDue,0));
+  const depositOutstanding=Math.max(depositDue-depositAllocated,0);
   const balance=Number(purchase.customer_balance_motorcycle_gbp || 0);
   const secured=Boolean(purchase.motorcycle_secured);
-  const pendingDepositAdvice=
-    String(purchase.pending_payment_advice_purpose||"").toLowerCase()==="deposit" &&
+  const pendingPaymentAdviceAmount=Number(purchase.pending_payment_advice_amount_gbp||0);
+  const pendingPaymentAdvicePurpose=String(purchase.pending_payment_advice_purpose||"").toLowerCase();
+  const pendingPaymentAdvice=
+    balance>0.009 &&
     ["awaiting verification","submitted","pending"].includes(String(purchase.pending_payment_advice_status||"").toLowerCase()) &&
-    Number(purchase.pending_payment_advice_amount_gbp||0)>0;
-  const pendingDepositAdviceAmount=Number(purchase.pending_payment_advice_amount_gbp||0);
+    pendingPaymentAdviceAmount>0;
+  const pendingDepositAdvice=
+    pendingPaymentAdvice &&
+    depositOutstanding>0 &&
+    pendingPaymentAdvicePurpose==="deposit";
+  const pendingDepositAdviceAmount=pendingPaymentAdviceAmount;
 
   const depositSatisfied=
     !depositRequired ||
     depositDue<=0 ||
+    allocated>=depositDue ||
+    balance<=0 ||
     depositOutstanding<=0;
 
-  const fullyPaid=balance<=0;
+  const fullyPaid=balance<=0 && allocated>0;
 
   let heading="Purchase in Progress";
   let message="Your AnyBike purchase is progressing.";
@@ -3596,6 +3604,9 @@ function customerDashboardPurchaseState(purchase){
     depositAllocated,
     depositOutstanding,
     depositSatisfied,
+    pendingPaymentAdvice,
+    pendingPaymentAdviceAmount,
+    pendingPaymentAdvicePurpose,
     pendingDepositAdvice,
     pendingDepositAdviceAmount,
     pendingDepositAdviceNumber:String(purchase.pending_payment_advice_number||""),
@@ -3933,6 +3944,20 @@ function cleanDashboardMotorcycleVariant(value){
     .trim();
 }
 
+function dashboardPurchaseRegistrationLabel(purchase){
+  const reg=String(purchase?.registration||purchase?.registration_number||purchase?.reg||"").trim();
+  return reg ? "Reg "+reg : "Reg not yet recorded";
+}
+
+function dashboardPurchaseIdentityLine(purchase){
+  const variant=cleanDashboardMotorcycleVariant(purchase?.variant);
+  const bike=[purchase?.make,purchase?.model,variant].filter(Boolean).join(" ")||"Motorcycle";
+  const colour=String(purchase?.colour||purchase?.color||"").trim();
+  const purchaseNumber=Number(purchase?._customer_purchase_number||0);
+  return (purchaseNumber ? "Purchase "+purchaseNumber+" · " : "")+
+    bike+" · "+(colour||"Colour not yet recorded")+" · "+dashboardPurchaseRegistrationLabel(purchase);
+}
+
 function customerActionCardHtml(action){
   const waiting=action.waiting===true;
   return '<div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;align-items:center;padding:15px 16px;border:1px solid '+(waiting?'rgba(255,179,107,.34)':'rgba(237,28,36,.48)')+';border-radius:14px;background:'+(waiting?'rgba(255,159,28,.05)':'rgba(237,28,36,.055)')+'">'+
@@ -3940,6 +3965,7 @@ function customerActionCardHtml(action){
       '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:5px">'+
         '<strong style="font-size:16px">'+safe(action.title)+'</strong>'+
       '</div>'+
+      (action.identity?'<div style="margin:3px 0 5px;color:#fff;font-size:13px;font-weight:850">'+safe(action.identity)+'</div>':'')+
       '<div style="color:#bbb;font-size:13px;line-height:1.45">'+safe(action.text)+'</div>'+
     '</div>'+
     (action.href
@@ -3953,8 +3979,7 @@ function buildPurchaseCustomerAction(purchase){
   if(!state) return null;
 
   const deal=String(purchase.deal_number||"").trim();
-  const cleanVariant=cleanDashboardMotorcycleVariant(purchase.variant);
-  const bike=[purchase.make,purchase.model,cleanVariant].filter(Boolean).join(" ")||"Motorcycle";
+  const bike=dashboardPurchaseIdentityLine(purchase);
   const balance=Number(state.balance||0);
   const depositOutstanding=Number(state.depositOutstanding||state.depositDue||0);
 
@@ -3974,7 +3999,8 @@ function buildPurchaseCustomerAction(purchase){
     return {
       priority:5,
       deal:deal,
-      title:bike+" · "+(buyerMatchMoney(depositOutstanding)||"")+" deposit required",
+      title:(buyerMatchMoney(depositOutstanding)||"")+" deposit required",
+      identity:bike,
       text:"Pay or report this deposit so AnyBike can move the purchase forward with the seller. Until it is received, the motorcycle may still be sold to another buyer.",
       href:deal?"/accounts-documents.html?deal="+encodeURIComponent(deal)+"&payment=deposit&amount="+encodeURIComponent(depositOutstanding.toFixed(2))+"&ref="+encodeURIComponent(deal):"/accounts-documents.html",
       cta:"Pay / Report Deposit →"
@@ -3982,13 +4008,20 @@ function buildPurchaseCustomerAction(purchase){
   }
 
   if(!state.secured){
+    const paidText=state.fullyPaid
+      ? "We have received your full payment of "+(buyerMatchMoney(state.allocated)||"")+"."
+      : "Your deposit is complete.";
+    const paymentWaiting=!state.fullyPaid && state.pendingPaymentAdvice && !state.pendingDepositAdvice
+      ? " Your "+(buyerMatchMoney(state.pendingPaymentAdviceAmount)||"payment")+" has also been reported and is awaiting AnyBike verification."
+      : "";
     return {
       priority:35,
       waiting:true,
       deal:deal,
-      title:bike+" · seller check in progress",
-      text:"Your deposit is complete. No action is required from you while AnyBike confirms and secures the motorcycle.",
-      href:deal?"/my-purchases.html?deal="+encodeURIComponent(purchase.deal_id):"/my-purchases.html",
+      title:"AnyBike is completing the final seller check",
+      identity:bike,
+      text:paidText+paymentWaiting+" No further action is required while AnyBike confirms and secures the motorcycle.",
+      href:"/my-purchases.html?deal="+encodeURIComponent(purchase.deal_id||"")+"#purchase-deal-"+encodeURIComponent(purchase.deal_id||""),
       cta:"View purchase →"
     };
   }
@@ -3997,7 +4030,8 @@ function buildPurchaseCustomerAction(purchase){
     return {
       priority:10,
       deal:deal,
-      title:bike+" · "+(buyerMatchMoney(balance)||"")+" remaining to pay",
+      title:(buyerMatchMoney(balance)||"")+" remaining to pay",
+      identity:bike,
       text:"Your motorcycle is secured. Pay the remaining balance to continue. Any separate document request will be shown as its own action.",
       href:deal?"/accounts-documents.html?deal="+encodeURIComponent(deal)+"&payment=balance&amount="+encodeURIComponent(balance.toFixed(2))+"&ref="+encodeURIComponent(deal):"/accounts-documents.html",
       cta:"Continue Payment →"
@@ -4012,9 +4046,10 @@ function buildPurchaseCustomerAction(purchase){
       priority:40,
       waiting:true,
       deal:deal,
-      title:bike+" · collection being arranged",
-      text:"Payment is complete. No action is required from you while AnyBike arranges collection.",
-      href:"/my-purchases.html?deal="+encodeURIComponent(purchase.deal_id||""),
+      title:"AnyBike is arranging collection",
+      identity:bike,
+      text:"We have received your full payment of "+(buyerMatchMoney(state.allocated)||"")+". No action is required while AnyBike arranges collection.",
+      href:"/my-purchases.html?deal="+encodeURIComponent(purchase.deal_id||"")+"#purchase-deal-"+encodeURIComponent(purchase.deal_id||""),
       cta:"View purchase →"
     };
   }
@@ -4024,9 +4059,10 @@ function buildPurchaseCustomerAction(purchase){
       priority:45,
       waiting:true,
       deal:deal,
-      title:bike+" · UK handover in progress",
-      text:"Your motorcycle is progressing through collection, custody or UK handover. We will show you here if anything is needed from you.",
-      href:"/my-purchases.html?deal="+encodeURIComponent(purchase.deal_id||""),
+      title:"Collection / UK handover in progress",
+      identity:bike,
+      text:"This motorcycle is progressing through collection, custody or UK handover. We will show you here if anything is needed from you.",
+      href:"/my-purchases.html?deal="+encodeURIComponent(purchase.deal_id||"")+"#purchase-deal-"+encodeURIComponent(purchase.deal_id||""),
       cta:"View progress →"
     };
   }
@@ -4519,13 +4555,14 @@ async function loadBuyerPotentialMatches(){
     loadDealHandoverSelections()
   ]);
 
-  const [poolRes,matchRes,dealRes,dealOfferRes,purchaseRes,collectionJobsRes]=await Promise.all([
+  const [poolRes,matchRes,dealRes,dealOfferRes,purchaseRes,collectionJobsRes,identityRes]=await Promise.all([
     sb.rpc("get_my_buyer_match_pools"),
     sb.rpc("get_my_buyer_match_dashboard_v4"),
     sb.rpc("get_my_deal_motorcycles"),
     sb.rpc("get_my_deal_offers_v4"),
     sb.rpc("get_my_purchases_v7"),
-    sb.rpc("get_my_collection_jobs_v1")
+    sb.rpc("get_my_collection_jobs_v1"),
+    sb.rpc("customer_get_purchase_identity_details_v1")
   ]);
 
   if(poolRes.error){
@@ -4574,11 +4611,51 @@ async function loadBuyerPotentialMatches(){
     });
   }
 
+  const purchaseRows=purchaseRes.error ? [] : (purchaseRes.data || []);
+  const identityByMotorcycle={};
+  if(!identityRes.error){
+    (identityRes.data||[]).forEach(function(row){
+      identityByMotorcycle[String(row.deal_motorcycle_id)]=row;
+    });
+    purchaseRows.forEach(function(purchase){
+      const identity=identityByMotorcycle[String(purchase.deal_motorcycle_id)];
+      if(identity){
+        purchase.make=identity.make||purchase.make;
+        purchase.model=identity.model||purchase.model;
+        purchase.variant=identity.variant||purchase.variant;
+        purchase.colour=identity.colour||"";
+        purchase.registration=identity.registration||"";
+      }
+    });
+  }else{
+    console.warn("Purchase motorcycle identity could not be loaded",identityRes.error.message);
+  }
+
+  const acceptedPurchaseOrder=[...purchaseRows].sort(function(a,b){
+    const at=new Date(a.offer_accepted_at||0).getTime()||0;
+    const bt=new Date(b.offer_accepted_at||0).getTime()||0;
+    if(at!==bt)return at-bt;
+    return Number(a.deal_id||0)-Number(b.deal_id||0);
+  });
+  const purchaseNumberByDeal=new Map();
+  let purchaseCounter=0;
+  acceptedPurchaseOrder.forEach(function(purchase){
+    const key=String(purchase.deal_id||purchase.deal_number||purchase.deal_motorcycle_id||"");
+    if(!purchaseNumberByDeal.has(key)){
+      purchaseCounter+=1;
+      purchaseNumberByDeal.set(key,purchaseCounter);
+    }
+  });
+  purchaseRows.forEach(function(purchase){
+    const key=String(purchase.deal_id||purchase.deal_number||purchase.deal_motorcycle_id||"");
+    purchase._customer_purchase_number=purchaseNumberByDeal.get(key)||0;
+  });
+
   myPurchaseByDeal={};
   if(purchaseRes.error){
     console.warn("Current purchase progress could not be loaded",purchaseRes.error.message);
   }else{
-    (purchaseRes.data || []).forEach(purchase=>{
+    purchaseRows.forEach(purchase=>{
       const job=collectionJobByMotorcycle[String(purchase.deal_motorcycle_id)];
       if(job){
         purchase.collection_job_id=job.move_job_id;
@@ -4598,7 +4675,7 @@ async function loadBuyerPotentialMatches(){
   const allCustomerOfferRows=[...buyerMatchRows,...deal360OfferRows];
   currentBuyerMatchRows=allCustomerOfferRows;
   latestCustomerOfferRows=allCustomerOfferRows;
-  latestCustomerPurchaseRows=purchaseRes.error ? [] : (purchaseRes.data || []);
+  latestCustomerPurchaseRows=purchaseRows;
 
   renderMyOffers(allCustomerOfferRows);
   renderMyPurchases(allCustomerOfferRows);
