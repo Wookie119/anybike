@@ -8,8 +8,52 @@
 const sb=getAdminSupabaseClient();let rows=[],current=null;
 function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function renderList(){const q=search.value.trim().toLowerCase(),sf=statusFilter.value;const filtered=rows.filter(x=>(!sf||x.status===sf)&&(!q||[x.shipper_name,x.buyer_name,x.business_name,x.destination_country,x.destination_port].join(" ").toLowerCase().includes(q)));list.innerHTML=filtered.map(x=>'<div class="conversation '+(current===x.id?"active":"")+'" data-id="'+x.id+'"><b>'+esc(x.shipper_name)+'</b><small>'+esc(x.business_name||x.buyer_name||"Buyer")+' → '+esc(x.destination_country)+'</small><small>'+esc(x.status)+' · '+new Date(x.last_message_at||x.created_at).toLocaleString()+'</small></div>').join("")||'<p>No shipping conversations found.</p>';list.querySelectorAll(".conversation").forEach(el=>el.onclick=()=>open(Number(el.dataset.id)))}
-async function load(){const {data,error}=await sb.rpc("admin_get_shipping_conversations_v1");if(error){list.innerHTML='<p>'+esc(error.message)+'</p>';return}rows=data||[];renderList()}
-async function open(id){current=id;renderList();const x=rows.find(r=>Number(r.id)===id);if(!x)return;title.textContent=x.shipper_name+" ↔ "+(x.business_name||x.buyer_name||"Buyer");detail.innerHTML='<div><strong>Buyer</strong>'+esc(x.business_name||x.buyer_name||"")+'</div><div><strong>Destination</strong>'+esc(x.destination_country||"")+'</div><div><strong>Port</strong>'+esc(x.destination_port||"Not set")+'</div><div><strong>Status</strong>'+esc(x.status)+'</div>';conversationStatus.value=["Sent","Replied","AnyBike Following Up","Closed"].includes(x.status)?x.status:"Sent";const {data,error}=await sb.rpc("admin_get_shipping_messages_v1",{p_enquiry_id:id});if(error){messages.innerHTML='<p>'+esc(error.message)+'</p>';return}messages.innerHTML=(data||[]).map(m=>'<div class="msg '+m.sender_type+'"><b>'+esc(m.sender_name||m.sender_type)+'</b>'+esc(m.message)+'<small>'+new Date(m.created_at).toLocaleString()+'</small></div>').join("");messages.scrollTop=messages.scrollHeight}
+async function load(){
+  const {data,error}=await sb.rpc("admin_get_shipping_conversations_v1");
+  if(error){list.innerHTML='<p>'+esc(error.message)+'</p>';return}
+  rows=data||[];
+  renderList();
+  if(current && rows.some(r=>Number(r.id)===Number(current))){
+    await open(Number(current));
+  }else if(rows.length){
+    await open(Number(rows[0].id));
+  }else{
+    title.textContent="Select a shipping conversation";
+    detail.innerHTML="";
+    messages.innerHTML='<p style="color:#999">No shipping conversations found.</p>';
+  }
+}
+async function open(id){
+  current=id;
+  renderList();
+  const x=rows.find(r=>Number(r.id)===Number(id));
+  if(!x)return;
+
+  const buyer=String(x.business_name||x.buyer_name||"Buyer").trim()||"Buyer";
+  const destination=String(x.destination_country||"").trim()||"Not set";
+  title.textContent=x.shipper_name+" ↔ "+buyer;
+  detail.innerHTML=
+    '<div><strong>Buyer</strong>'+esc(buyer)+'</div>'+
+    '<div><strong>Destination</strong>'+esc(destination)+'</div>'+
+    '<div><strong>Port</strong>'+esc(x.destination_port||"Not set")+'</div>'+
+    '<div><strong>Status</strong>'+esc(x.status||"")+'</div>';
+
+  conversationStatus.value=["Sent","Replied","AnyBike Following Up","Closed"].includes(x.status)?x.status:"Sent";
+  messages.innerHTML='<p style="color:#999">Loading conversation…</p>';
+  msg.textContent="";
+
+  const {data,error}=await sb.rpc("admin_get_shipping_messages_v1",{p_enquiry_id:Number(id)});
+  if(error){
+    messages.innerHTML='<p style="color:#ff8a8f">Conversation could not be loaded.</p>';
+    msg.textContent=error.message||"Conversation could not be loaded.";
+    return;
+  }
+
+  messages.innerHTML=(data||[]).length
+    ? (data||[]).map(m=>'<div class="msg '+m.sender_type+'"><b>'+esc(m.sender_name||m.sender_type)+'</b>'+esc(m.message)+'<small>'+new Date(m.created_at).toLocaleString()+'</small></div>').join("")
+    : '<p style="color:#999">No messages have been added yet.</p>';
+  messages.scrollTop=messages.scrollHeight;
+}
 send.onclick=async()=>{if(!current||!reply.value.trim())return;send.disabled=true;const {data,error}=await sb.functions.invoke("send-shipping-conversation-message",{body:{enquiry_id:current,message:reply.value.trim(),mode:"admin"}});send.disabled=false;if(error||data?.error){msg.textContent=data?.error||error.message;return}reply.value="";msg.textContent="Sent as AnyBike.";await load();await open(current)}
 saveStatus.onclick=async()=>{if(!current)return;const {error}=await sb.rpc("admin_update_shipper_enquiry_v1",{p_enquiry_id:current,p_status:conversationStatus.value,p_admin_notes:null});msg.textContent=error?error.message:"Status saved.";await load();await open(current)}
 search.oninput=renderList;statusFilter.onchange=renderList;refresh.onclick=load;(async()=>{const ok=await requireAdminSession();if(!ok)return;loadAdminShell();await load()})();</script></body></html>
