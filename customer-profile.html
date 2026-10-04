@@ -824,8 +824,11 @@
           <div id="msg" class="msg"></div>
         
           <div class="section-save-row">
-            <button type="button" class="section-save" data-save-section="shipping" onclick="saveSection('shipping',this)">Save Shipping Preferences & Continue →</button>
+            <button type="button" class="section-save" data-save-section="shipping" onclick="saveSection('shipping',this)">Save Shipping Preferences & Finish →</button>
             <div id="msg-shipping" class="section-msg"></div>
+          </div>
+          <div style="margin-top:12px;color:#9aa0a6;font-size:12px;line-height:1.5">
+            Optional extras: <a href="#section-bank" style="color:#ddd">Bank Details</a> · <a href="#section-margin-calculator" style="color:#ddd">Margin Calculator Defaults</a>. These do not block Buyer Setup.
           </div>
 </section>
 
@@ -1556,20 +1559,25 @@
         button="Complete Shipping Preferences →"; heading="Your next action: Shipping Preferences";
         copy="Complete the shipper contact and UK receiving details. These details are used when AnyBike prepares the handover for a purchase.";
       }else if(done===requiredKeys.length){
-        target="section-bank"; field="bankAccountName";
-        button="Review Optional Details →"; heading="✓ Required profile setup complete";
-        copy="All required profile sections are complete. Bank Details are optional. Margin Calculator Defaults are recommended because they can affect which potential motorcycles AnyBike sends you.";
+        target="customer-dashboard.html"; field="";
+        button="Finish & Return to My AnyBike →"; heading="✓ Required Buyer Setup complete";
+        copy="Everything AnyBike needs for your required Buyer Setup is complete. Bank Details are optional and Margin Calculator Defaults are recommended extras — neither is required to finish.";
       }
 
       title.textContent=heading;
       desc.textContent=copy;
       btn.textContent=button;
       btn.onclick=()=>{
+        if(target==="customer-dashboard.html"){
+          btn.textContent="Successful ✓";
+          setTimeout(()=>{window.location.href="/customer-dashboard.html";},450);
+          return;
+        }
         document.querySelectorAll(".setup-target").forEach(el=>el.classList.remove("focused"));
         const section=document.getElementById(target);
         section?.classList.add("focused");
         section?.scrollIntoView({behavior:"smooth",block:"start"});
-        setTimeout(()=>document.getElementById(field)?.focus({preventScroll:true}),350);
+        if(field) setTimeout(()=>document.getElementById(field)?.focus({preventScroll:true}),350);
       };
     }
 
@@ -1804,7 +1812,17 @@
       const next=sequence.find(function(row){ return !s[row[0]]; });
       updateSetupReminder();
       if(!next){
-        document.getElementById("buyer-setup-summary")?.scrollIntoView({behavior:"smooth",block:"start"});
+        const shippingSection=document.getElementById("section-shipping");
+        const shippingRow=shippingSection?.querySelector(".section-save-row");
+        shippingRow?.classList.add("complete");
+        shippingSection?.classList.remove("focused");
+        const shippingMsg=document.getElementById("msg-shipping");
+        if(shippingMsg){
+          shippingMsg.textContent="✓ Required Buyer Setup complete. You can return to My AnyBike, or review the optional sections below whenever you want.";
+          shippingMsg.className="section-msg ok";
+        }
+        const shippingBtn=shippingRow?.querySelector("[data-save-section='shipping']");
+        if(shippingBtn) shippingBtn.textContent="Successful ✓";
         return;
       }
       const section=document.getElementById(next[1]);
@@ -1872,7 +1890,9 @@
             ? "✓ Optional bank details saved."
             : section==="margin"
               ? "✓ Margin Calculator Defaults saved."
-              : "✓ Saved and complete. Moving you to the next action…";
+              : section==="shipping"
+                ? "✓ Shipping Preferences saved. Required Buyer Setup is complete."
+                : "✓ Saved and complete. Moving you to the next required section…";
           msg.className="section-msg ok";
         }
         profileDirty=false;
