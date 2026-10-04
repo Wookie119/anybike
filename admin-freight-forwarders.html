@@ -843,22 +843,45 @@ function renderAdminCountryTicks(selected=null){
     (groups[m.region] ||= []).push(m);
   });
 
-  host.innerHTML=Object.keys(groups).map(region=>
-    '<div style="margin:10px 0 5px;font-size:12px;font-weight:900;color:#888;text-transform:uppercase;letter-spacing:.08em">'+escapeHtml(region)+'</div>'+
+  host.innerHTML=Object.keys(groups).map(region=>{
+    const allRegionCountries=adminMarketCountries.filter(m=>m.region===region);
+    const selectedInRegion=allRegionCountries.filter(m=>adminSelectedCountries.has(m.name)).length;
+    const checked=selectedInRegion===allRegionCountries.length && allRegionCountries.length>0;
+
+    return '<div style="grid-column:1/-1;margin:14px 0 4px;padding:9px 10px;border-radius:10px;background:#151515;border:1px solid rgba(255,255,255,.08)">'+
+      '<label style="display:flex;align-items:center;gap:9px;font-size:12px;font-weight:900;color:#ddd;text-transform:uppercase;letter-spacing:.08em">'+
+        '<input class="continent-toggle" data-region="'+escapeHtml(region)+'" type="checkbox" '+(checked?"checked":"")+' style="width:auto">'+
+        '<span>'+escapeHtml(region)+' — select all '+allRegionCountries.length+' countries</span>'+
+      '</label>'+
+    '</div>'+
     groups[region].map(m=>
       '<label style="display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:9px;align-items:center;padding:8px 6px;border-bottom:1px solid rgba(255,255,255,.07)">'+
-        '<input type="checkbox" value="'+escapeHtml(m.name)+'" '+(adminSelectedCountries.has(m.name)?"checked":"")+' style="width:auto">'+
+        '<input class="country-toggle" type="checkbox" value="'+escapeHtml(m.name)+'" '+(adminSelectedCountries.has(m.name)?"checked":"")+' style="width:auto">'+
         '<span>'+escapeHtml(m.name)+'</span>'+
         '<a href="'+escapeHtml(m.url)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="font-size:12px;color:#ff6a70;font-weight:800;white-space:nowrap">View AnyBike page ↗</a>'+
       '</label>'
-    ).join("")
-  ).join("");
+    ).join("");
+  }).join("");
 
-  host.querySelectorAll('input[type="checkbox"]').forEach(cb=>{
+  host.querySelectorAll('.country-toggle').forEach(cb=>{
     cb.addEventListener("change",()=>{
       if(cb.checked) adminSelectedCountries.add(cb.value);
       else adminSelectedCountries.delete(cb.value);
-      updateAdminCountryCount();
+      renderAdminCountryTicks();
+    });
+  });
+
+  host.querySelectorAll('.continent-toggle').forEach(cb=>{
+    const region=cb.dataset.region;
+    const allRegionCountries=adminMarketCountries.filter(m=>m.region===region);
+    const selectedInRegion=allRegionCountries.filter(m=>adminSelectedCountries.has(m.name)).length;
+    cb.indeterminate=selectedInRegion>0 && selectedInRegion<allRegionCountries.length;
+    cb.addEventListener("change",()=>{
+      allRegionCountries.forEach(m=>{
+        if(cb.checked) adminSelectedCountries.add(m.name);
+        else adminSelectedCountries.delete(m.name);
+      });
+      renderAdminCountryTicks();
     });
   });
 
