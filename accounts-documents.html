@@ -787,6 +787,96 @@ async function requireSession(){
   return true;
 }
 
+function updateAccountsHeaderNextAction(){
+  if(!window.AnyBikeCustomerNextAction?.set)return;
+
+  const openInvoices=accountInvoices.filter(row=>
+    !!row.can_report_payment &&
+    String(row.invoice_status||"")==="Issued" &&
+    Number(row.balance_due_gbp||0)>0
+  );
+
+  const request=requestedPaymentJourney();
+  let invoice=null;
+
+  if(request){
+    invoice=openInvoices.find(row=>
+      (request.invoiceId && Number(row.invoice_id)===Number(request.invoiceId)) ||
+      (!request.invoiceId && String(row.deal_number||"").trim()===String(request.deal||"").trim())
+    )||null;
+  }
+  if(!invoice)invoice=openInvoices[0]||null;
+
+  if(invoice){
+    const deal=String(invoice.deal_number||"this purchase");
+    const label=String(invoice.invoice_number||invoice.invoice_type||"Proforma");
+    const balance=Number(invoice.balance_due_gbp||0);
+    const id=Number(invoice.invoice_id);
+    window.AnyBikeCustomerNextAction.set({
+      kicker:"Your next action",
+      title:"Make a payment towards "+deal,
+      text:money(balance)+" remains on "+label+". Select this Proforma, enter the amount you have transferred, then continue to the bank transfer details.",
+      waitingFor:"You",
+      label:"START PAYMENT →",
+      selector:'.invoice-card[data-invoice-id="'+id+'"] .payment-select'
+    });
+    return;
+  }
+
+  const groups=effectiveAdviceGroups(paymentAdviceRows);
+  const pending=groups.filter(row=>row._effective_status==="Awaiting Verification");
+
+  if(pending.length){
+    const first=pending[0];
+    const deal=String(first.deal_number||first.allocations?.[0]?.deal_number||"your purchase");
+    window.AnyBikeCustomerNextAction.set({
+      kicker:"No action needed",
+      title:"AnyBike is verifying your reported payment",
+      text:(first.advice_number?first.advice_number+" · ":"")+money(first.reported_amount_gbp||0)+" has been reported for "+deal+". You do not need to report it again while AnyBike checks the bank receipt.",
+      waitingFor:"AnyBike",
+      label:"VIEW PAYMENT STATUS →",
+      selector:"#history"
+    });
+    return;
+  }
+
+  const motorcycleDocs=Array.isArray(centralDocumentData.motorcycle_documents)?centralDocumentData.motorcycle_documents:[];
+  const customerDocs=Array.isArray(centralDocumentData.customer_documents)?centralDocumentData.customer_documents:[];
+
+  if(motorcycleDocs.length){
+    window.AnyBikeCustomerNextAction.set({
+      kicker:"Your next action",
+      title:"Review your motorcycle documents",
+      text:"AnyBike has shared "+motorcycleDocs.length+" motorcycle document"+(motorcycleDocs.length===1?"":"s")+" with you. Open the documents you need for your purchase or export records.",
+      waitingFor:"You",
+      label:"OPEN MOTORCYCLE DOCUMENTS →",
+      selector:"#motorcycle-documents"
+    });
+    return;
+  }
+
+  if(customerDocs.length){
+    window.AnyBikeCustomerNextAction.set({
+      kicker:"Your next action",
+      title:"Review your account documents",
+      text:"You have "+customerDocs.length+" account document"+(customerDocs.length===1?"":"s")+" available in My AnyBike.",
+      waitingFor:"You",
+      label:"OPEN MY DOCUMENTS →",
+      selector:"#customer-documents"
+    });
+    return;
+  }
+
+  window.AnyBikeCustomerNextAction.set({
+    kicker:"No action needed",
+    title:"Your accounts are up to date",
+    text:"There is no payment or document action waiting for you on this page. Return to My Purchases to see the current motorcycle journey.",
+    waitingFor:"AnyBike",
+    label:"RETURN TO MY PURCHASES →",
+    href:"/my-purchases.html"
+  });
+}
+
 async function loadAccounts(){
   const ok=await requireSession();if(!ok)return;
   const centralResult=await sb.rpc("customer_get_accounts_documents_v1");
@@ -820,6 +910,7 @@ async function loadAccounts(){
   }
   renderSummary();
   updateAccountsWorkflow();
+  updateAccountsHeaderNextAction();
   restoreRequestedAccountsSection();
 }
 
@@ -902,7 +993,7 @@ function invoiceCard(invoice){
       </div>
     </div>
   </div>`:`<div class="notice-box" style="margin:12px 0 0">${Number(invoice.balance_due_gbp||0)<=0?"This document has no customer balance remaining.":"This document is not currently open for payment advice."}</div>`;
-  return `<article class="invoice-card">
+  return `<article class="invoice-card" data-invoice-id="${Number(invoice.invoice_id)}" data-deal-number="${safe(invoice.deal_number||"")}">
     <div class="invoice-head"><div><span>${safe(invoice.invoice_type||"Document")}</span><strong>${safe(label)}</strong></div><div class="status-pill ${statusClass(invoice.invoice_status)}">${safe(invoice.invoice_status||"")}</div></div>
     <div class="invoice-body">
       <div class="invoice-summary">
