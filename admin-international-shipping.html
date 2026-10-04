@@ -91,6 +91,15 @@ textarea{min-height:84px;resize:vertical}
         </section>
 
         <section class="panel" id="panel-shippers">
+          <div class="card" id="partner-review" style="margin-bottom:16px">
+            <h2>Partner submissions awaiting review</h2>
+            <p>International partners and CSV lists submitted by UK freight forwarders. Nothing is added to the directory until AnyBike approves it.</p>
+            <div class="note"><strong>Review rule:</strong> check contact details, motorcycle capability, countries served and any duplicate record before approving.</div>
+            <h3 style="margin:18px 0 10px">Individual partner referrals <span class="badge" id="partnerPendingCount">0</span></h3>
+            <div class="list" id="partnerSubmissionList"></div>
+            <h3 style="margin:24px 0 10px">CSV partner lists <span class="badge" id="partnerCsvPendingCount">0</span></h3>
+            <div class="list" id="partnerCsvSubmissionList"></div>
+          </div>
           <div class="grid">
             <div class="card">
               <h2>Add / Edit International Shipper</h2>
@@ -101,15 +110,26 @@ textarea{min-height:84px;resize:vertical}
                 <div class="full"><label>Company name *</label><input id="shipperName"></div>
                 <div><label>Base country</label><input id="shipperCountry"></div>
                 <div><label>City / Area</label><input id="shipperCity"></div>
-                <div><label>Contact name</label><input id="shipperContact"></div>
-                <div><label>Phone / WhatsApp</label><input id="shipperPhone"></div>
-                <div class="full"><label>Email</label><input id="shipperEmail" type="email"></div>
-                <div class="full"><label>Website</label><input id="shipperWebsite" placeholder="https://"></div>
-                <div class="full"><label>Countries served</label><input id="shipperCountries" placeholder="Mauritius, Réunion, South Africa"></div>
+                <div><label>Primary contact name</label><input id="shipperContact"></div>
+                <div><label>Primary contact role</label><input id="shipperContactRole"></div>
+                <div><label>Primary email</label><input id="shipperEmail" type="email"></div>
+                <div><label>Primary phone</label><input id="shipperPhone"></div>
+                <div><label>WhatsApp</label><input id="shipperWhatsapp"></div>
+                <div><label>Website</label><input id="shipperWebsite" placeholder="https://"></div>
+                <div><label>Secondary contact name</label><input id="shipperSecondaryContact"></div>
+                <div><label>Secondary contact role</label><input id="shipperSecondaryRole"></div>
+                <div><label>Secondary email</label><input id="shipperSecondaryEmail" type="email"></div>
+                <div><label>Secondary phone</label><input id="shipperSecondaryPhone"></div>
+                <div class="full"><label>Address line 1</label><input id="shipperAddress1"></div>
+                <div class="full"><label>Address line 2</label><input id="shipperAddress2"></div>
+                <div><label>Region / State</label><input id="shipperRegion"></div>
+                <div><label>Postcode / ZIP</label><input id="shipperPostcode"></div>
+                <div class="full"><label>Countries where motorcycles can be delivered</label><input id="shipperCountries" placeholder="Mauritius, Réunion, South Africa"></div>
                 <div class="full"><label>Ports served</label><input id="shipperPorts" placeholder="Port Louis, Port Réunion, Durban"></div>
                 <div class="full"><label>Services</label><input id="shipperServices" placeholder="Sea Freight, Container, RoRo, Customs Clearance"></div>
-                <div class="full"><label>Notes</label><textarea id="shipperNotes"></textarea></div>
+                <div><label>Motorcycle specialist</label><select id="shipperMotorcycle"><option value="true">Yes</option><option value="false">No / not confirmed</option></select></div>
                 <div><label>Status</label><select id="shipperActive"><option value="true">Active</option><option value="false">Inactive</option></select></div>
+                <div class="full"><label>Notes</label><textarea id="shipperNotes"></textarea></div>
               </div>
               <div class="actions"><button class="btn red" id="saveShipper">Save Shipper</button><button class="btn dark" id="clearShipper">Clear</button></div>
               <div class="status" id="shipperStatus"></div>
@@ -133,7 +153,7 @@ textarea{min-height:84px;resize:vertical}
 <script src="/admin.js?v=20261004"></script>
 <script>
 const sb=getAdminSupabaseClient();
-let ports=[],shippers=[];
+let ports=[],shippers=[],partnerSubmissions=[],partnerCsvSubmissions=[];
 
 function safe(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
 function csv(v){return String(v||"").split(",").map(x=>x.trim()).filter(Boolean);}
@@ -188,6 +208,69 @@ async function savePort(){
   setStatus("portStatus","Port saved.");clearPort();await loadPorts();
 }
 
+
+async function loadPartnerSubmissions(){
+  const [{data:partners,error:pe},{data:csvs,error:ce}]=await Promise.all([
+    sb.rpc("admin_get_international_shipper_partner_submissions_v1"),
+    sb.rpc("admin_get_international_shipper_partner_csv_v1")
+  ]);
+  if(pe||ce){
+    partnerSubmissionList.innerHTML='<div class="empty">'+safe((pe||ce).message)+'</div>';
+    partnerCsvSubmissionList.innerHTML='';
+    return;
+  }
+  partnerSubmissions=partners||[];partnerCsvSubmissions=csvs||[];
+  partnerPendingCount.textContent=String(partnerSubmissions.length);
+  partnerCsvPendingCount.textContent=String(partnerCsvSubmissions.length);
+  partnerSubmissionList.innerHTML=partnerSubmissions.length?partnerSubmissions.map(x=>`
+    <div class="row" style="grid-template-columns:1.35fr 1.2fr 1.2fr auto">
+      <div><strong>${safe(x.company_name)}</strong><small>Suggested by ${safe(x.source_forwarder_name||"shipper")} · ${safe(new Date(x.submitted_at).toLocaleString("en-GB"))}</small><small>${safe([x.city,x.base_country].filter(Boolean).join(", "))}</small></div>
+      <div>
+        <small><b>Primary:</b> ${safe(x.primary_contact_name||"-")} ${safe(x.primary_contact_role||"")}</small>
+        <small>${safe(x.primary_email||"")} ${safe(x.primary_phone||"")}</small>
+        <small><b>Secondary:</b> ${safe(x.secondary_contact_name||"-")} ${safe(x.secondary_contact_role||"")}</small>
+        <small>${safe(x.secondary_email||"")} ${safe(x.secondary_phone||"")}</small>
+        <small><b>Website:</b> ${safe(x.website||"-")}</small>
+      </div>
+      <div>
+        <small><b>Motorcycle specialist:</b> ${x.motorcycle_specialist?"Yes":"Not confirmed"}</small>
+        <small><b>Countries:</b> ${safe((x.countries_served||[]).join(", ")||"-")}</small>
+        <small><b>Ports:</b> ${safe((x.ports_served||[]).join(", ")||"-")}</small>
+        <small><b>Services:</b> ${safe((x.services||[]).join(", ")||"-")}</small>
+        <small><b>Address:</b> ${safe([x.address_line1,x.address_line2,x.region,x.postcode].filter(Boolean).join(", ")||"-")}</small>
+      </div>
+      <div class="actions" style="margin-top:0">
+        <button class="btn red" onclick="reviewPartner(${Number(x.id)},'Approve')">Approve</button>
+        <button class="btn dark" onclick="reviewPartner(${Number(x.id)},'Decline')">Decline</button>
+      </div>
+    </div>`).join(""):'<div class="empty">No partner referrals waiting for review.</div>';
+
+  partnerCsvSubmissionList.innerHTML=partnerCsvSubmissions.length?partnerCsvSubmissions.map(x=>`
+    <div class="row">
+      <div><strong>${safe(x.file_name)}</strong><small>Uploaded by ${safe(x.source_forwarder_name||"shipper")} · approx. ${Number(x.approximate_rows||0)} data rows</small></div>
+      <div><small>${safe(x.notes||"No notes supplied")}</small></div>
+      <div><button class="btn dark" onclick="downloadPartnerCsv(${Number(x.id)})">Download CSV</button></div>
+      <div class="actions" style="margin-top:0"><button class="btn red" onclick="reviewPartnerCsv(${Number(x.id)},'Mark Reviewed')">Mark Reviewed</button><button class="btn dark" onclick="reviewPartnerCsv(${Number(x.id)},'Decline')">Decline</button></div>
+    </div>`).join(""):'<div class="empty">No partner CSV files waiting for review.</div>';
+}
+function downloadPartnerCsv(id){
+  const x=partnerCsvSubmissions.find(r=>Number(r.id)===Number(id));if(!x)return;
+  const blob=new Blob([x.csv_text||""],{type:"text/csv;charset=utf-8"});
+  const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=x.file_name||("partner-list-"+id+".csv");a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+async function reviewPartner(id,action){
+  const notes=action==="Decline"?(prompt("Reason / internal note:")||""):"";
+  const {error}=await sb.rpc("admin_review_international_shipper_partner_v1",{p_submission_id:id,p_action:action,p_notes:notes||null});
+  if(error){alert(error.message);return}
+  await Promise.all([loadPartnerSubmissions(),loadShippers()]);
+}
+async function reviewPartnerCsv(id,action){
+  const notes=prompt(action==="Mark Reviewed"?"Optional import/configuration note:":"Reason / internal note:")||"";
+  const {error}=await sb.rpc("admin_review_international_shipper_partner_csv_v1",{p_submission_id:id,p_action:action,p_notes:notes||null});
+  if(error){alert(error.message);return}
+  await loadPartnerSubmissions();
+}
+
 async function loadShippers(){
   const {data,error}=await sb.rpc("admin_get_international_shippers_v1");
   if(error){document.getElementById("shippersList").innerHTML='<div class="empty">'+safe(error.message)+'</div>';return;}
@@ -219,21 +302,26 @@ function renderShippers(){
 function editShipper(id){
   const x=shippers.find(r=>Number(r.id)===Number(id));if(!x)return;
   shipperId.value=x.id;shipperName.value=x.company_name||"";shipperCountry.value=x.base_country||"";shipperCity.value=x.city||"";
-  shipperContact.value=x.contact_name||"";shipperEmail.value=x.email||"";shipperPhone.value=x.phone||"";shipperWebsite.value=x.website||"";
+  shipperContact.value=x.contact_name||"";shipperContactRole.value=x.contact_role||"";shipperEmail.value=x.email||"";shipperPhone.value=x.phone||"";shipperWhatsapp.value=x.whatsapp||"";shipperWebsite.value=x.website||"";
+  shipperSecondaryContact.value=x.secondary_contact_name||"";shipperSecondaryRole.value=x.secondary_contact_role||"";shipperSecondaryEmail.value=x.secondary_email||"";shipperSecondaryPhone.value=x.secondary_phone||"";
+  shipperAddress1.value=x.address_line1||"";shipperAddress2.value=x.address_line2||"";shipperRegion.value=x.region||"";shipperPostcode.value=x.postcode||"";
   shipperCountries.value=(x.countries_served||[]).join(", ");shipperPorts.value=(x.ports_served||[]).join(", ");shipperServices.value=(x.services||[]).join(", ");
-  shipperNotes.value=x.notes||"";shipperActive.value=String(Boolean(x.is_active));window.scrollTo({top:0,behavior:"smooth"});
+  shipperNotes.value=x.notes||"";shipperMotorcycle.value=String(Boolean(x.motorcycle_specialist));shipperActive.value=String(Boolean(x.is_active));window.scrollTo({top:0,behavior:"smooth"});
 }
 function clearShipper(){
-  ["shipperId","shipperName","shipperCountry","shipperCity","shipperContact","shipperEmail","shipperPhone","shipperWebsite","shipperCountries","shipperPorts","shipperServices","shipperNotes"].forEach(id=>document.getElementById(id).value="");
-  shipperActive.value="true";setStatus("shipperStatus","");
+  ["shipperId","shipperName","shipperCountry","shipperCity","shipperContact","shipperContactRole","shipperEmail","shipperPhone","shipperWhatsapp","shipperWebsite","shipperSecondaryContact","shipperSecondaryRole","shipperSecondaryEmail","shipperSecondaryPhone","shipperAddress1","shipperAddress2","shipperRegion","shipperPostcode","shipperCountries","shipperPorts","shipperServices","shipperNotes"].forEach(id=>document.getElementById(id).value="");
+  shipperMotorcycle.value="false";shipperActive.value="true";setStatus("shipperStatus","");
 }
 async function saveShipper(){
   setStatus("shipperStatus","Saving...");
-  const {error}=await sb.rpc("admin_save_international_shipper_v1",{
+  const {error}=await sb.rpc("admin_save_international_shipper_v2",{
     p_id:shipperId.value?Number(shipperId.value):null,p_company_name:shipperName.value,p_base_country:shipperCountry.value||null,p_city:shipperCity.value||null,
-    p_contact_name:shipperContact.value||null,p_email:shipperEmail.value||null,p_phone:shipperPhone.value||null,p_website:shipperWebsite.value||null,
+    p_contact_name:shipperContact.value||null,p_contact_role:shipperContactRole.value||null,p_email:shipperEmail.value||null,p_phone:shipperPhone.value||null,
+    p_whatsapp:shipperWhatsapp.value||null,p_secondary_contact_name:shipperSecondaryContact.value||null,p_secondary_contact_role:shipperSecondaryRole.value||null,
+    p_secondary_email:shipperSecondaryEmail.value||null,p_secondary_phone:shipperSecondaryPhone.value||null,p_website:shipperWebsite.value||null,
+    p_address_line1:shipperAddress1.value||null,p_address_line2:shipperAddress2.value||null,p_region:shipperRegion.value||null,p_postcode:shipperPostcode.value||null,
     p_countries_served:csv(shipperCountries.value),p_ports_served:csv(shipperPorts.value),p_services:csv(shipperServices.value),
-    p_notes:shipperNotes.value||null,p_is_active:shipperActive.value==="true"
+    p_motorcycle_specialist:shipperMotorcycle.value==="true",p_notes:shipperNotes.value||null,p_is_active:shipperActive.value==="true"
   });
   if(error){setStatus("shipperStatus",error.message,false);return;}
   setStatus("shipperStatus","Shipper saved.");clearShipper();await loadShippers();
@@ -249,7 +337,8 @@ saveShipper.addEventListener("click",saveShipper);clearShipper.addEventListener(
 (async function init(){
   const ok=await requireAdminSession();if(!ok)return;
   loadAdminShell();
-  await Promise.all([loadPorts(),loadShippers()]);
+  await Promise.all([loadPorts(),loadShippers(),loadPartnerSubmissions()]);
+  if(location.hash==="#partner-review"){document.querySelector('[data-tab="shippers"]')?.click();setTimeout(()=>document.getElementById("partner-review")?.scrollIntoView({behavior:"smooth",block:"start"}),150);}
 })();
 </script>
 </body>
