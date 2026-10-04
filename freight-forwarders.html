@@ -180,7 +180,7 @@ section{padding:78px 0}
 .directory-section .section-title p{color:#555}
 .directory-toolbar{
   display:grid;
-  grid-template-columns:minmax(240px,1fr) 240px 240px auto;
+  grid-template-columns:minmax(240px,1fr) 190px 190px 220px auto;
   gap:10px;
   margin-bottom:24px;
   padding:16px;
@@ -509,6 +509,9 @@ footer{
         <option value="air">Air freight</option>
         <option value="road">Road transport</option>
       </select>
+      <select id="providerCountry" aria-label="Filter by destination country">
+        <option value="">All destination countries</option>
+      </select>
       <button class="btn small" type="button" id="clearFilters">Clear</button>
     </div>
 
@@ -733,15 +736,101 @@ document.getElementById("year").textContent = new Date().getFullYear();
 const searchInput = document.getElementById("providerSearch");
 const typeSelect = document.getElementById("providerType");
 const methodSelect = document.getElementById("providerMethod");
+const countrySelect = document.getElementById("providerCountry");
 const clearButton = document.getElementById("clearFilters");
-const cards = Array.from(document.querySelectorAll(".provider-card"));
+let cards = Array.from(document.querySelectorAll(".provider-card"));
 const countNode = document.getElementById("directoryCount");
 const noResults = document.getElementById("noResults");
+const providerGrid = document.getElementById("providerGrid");
+
+function ffSafe(value){
+  return String(value ?? "").replace(/[&<>"']/g,function(ch){
+    return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch];
+  });
+}
+function ffArray(value){
+  if(Array.isArray(value)) return value.filter(Boolean);
+  return [];
+}
+function ffInitials(name){
+  return String(name||"FF").split(/\s+/).filter(Boolean).slice(0,2).map(function(x){return x[0]?.toUpperCase()||"";}).join("") || "FF";
+}
+function ffMethodTokens(services){
+  const text=ffArray(services).join(" ").toLowerCase();
+  const tokens=[];
+  if(text.includes("sea"))tokens.push("sea");
+  if(text.includes("container"))tokens.push("container");
+  if(text.includes("roro"))tokens.push("roro");
+  if(text.includes("air"))tokens.push("air");
+  if(text.includes("road")||text.includes("collection")||text.includes("motorcycle freight"))tokens.push("road");
+  return tokens.join(" ");
+}
+function refreshCountryFilter(records){
+  const countries=[...new Set(records.flatMap(function(r){return ffArray(r.countries_covered);}).map(function(v){return String(v).trim();}).filter(Boolean))].sort(function(a,b){return a.localeCompare(b);});
+  countrySelect.innerHTML='<option value="">All destination countries</option>'+countries.map(function(country){
+    return '<option value="'+ffSafe(country.toLowerCase())+'">'+ffSafe(country)+'</option>';
+  }).join("");
+}
+function approvedForwarderCard(r){
+  const countries=ffArray(r.countries_covered);
+  const ports=ffArray(r.ports_served);
+  const services=ffArray(r.services);
+  const location=[r.city,r.country].filter(Boolean).join(", ");
+  const address=String(r.uk_address||"").trim();
+  const website=String(r.website||"").trim();
+  const countryText=countries.length ? countries.join(", ") : "Ask provider";
+  const serviceText=services.length ? services.join(", ") : "Motorcycle freight / handover";
+  const keywordText=[countryText,ports.join(" "),serviceText,address,location].join(" ");
+  return '<article class="provider-card" data-approved-directory="true" data-name="'+ffSafe(r.company_name)+'" data-type="freight motorcycle" data-method="'+ffSafe(ffMethodTokens(services))+'" data-countries="'+ffSafe(countries.join("|").toLowerCase())+'" data-keywords="'+ffSafe(keywordText.toLowerCase())+'">'+
+    '<div class="provider-top"><div class="provider-mark">'+ffSafe(ffInitials(r.company_name))+'</div><div class="provider-type">AnyBike approved shipper</div></div>'+
+    '<h3>'+ffSafe(r.company_name)+'</h3>'+
+    '<p>This company has been approved by AnyBike for at least one customer handover after the buyer confirmed direct contact and that the shipper agreed to handle the shipment.</p>'+
+    '<div class="provider-meta">'+
+      '<div><strong>UK location</strong><span>'+ffSafe(address||location||"UK handover details held by AnyBike")+'</span></div>'+
+      '<div><strong>Countries served</strong><span>'+ffSafe(countryText)+'</span></div>'+
+      '<div><strong>UK handover</strong><span>'+ffSafe(ports.length?ports.join(", "):(r.destination_port||"Confirmed per booking"))+'</span></div>'+
+      '<div><strong>Services</strong><span>'+ffSafe(serviceText)+'</span></div>'+
+    '</div>'+
+    '<div class="tags">'+
+      countries.slice(0,5).map(function(x){return '<span class="tag">'+ffSafe(x)+'</span>';}).join("")+
+      services.slice(0,4).map(function(x){return '<span class="tag">'+ffSafe(x)+'</span>';}).join("")+
+    '</div>'+
+    '<div class="provider-actions">'+
+      (website?'<a class="btn small" href="'+ffSafe(website)+'" target="_blank" rel="noopener noreferrer nofollow">Visit Website</a>':'')+
+      '<a class="btn small secondary" href="/contact-us.html?subject='+encodeURIComponent(String(r.company_name||"")+" shipping")+'">Ask AnyBike</a>'+
+    '</div>'+
+  '</article>';
+}
+async function loadApprovedForwarders(){
+  try{
+    const result=await sb.rpc("public_get_verified_freight_forwarders_v1");
+    if(result.error) throw result.error;
+    const records=Array.isArray(result.data)?result.data:[];
+    const staticNames=new Set(Array.from(providerGrid.querySelectorAll(".provider-card")).map(function(card){
+      return String(card.dataset.name||"").trim().toLowerCase();
+    }));
+    const add=records.filter(function(r){
+      const name=String(r.company_name||"").trim().toLowerCase();
+      return name && !staticNames.has(name);
+    });
+    if(add.length){
+      providerGrid.insertAdjacentHTML("beforeend",add.map(approvedForwarderCard).join(""));
+    }
+    refreshCountryFilter(records);
+    cards=Array.from(document.querySelectorAll(".provider-card"));
+    filterProviders();
+  }catch(error){
+    console.warn("Approved freight forwarders could not be loaded:",error);
+    cards=Array.from(document.querySelectorAll(".provider-card"));
+    filterProviders();
+  }
+}
 
 function filterProviders(){
   const query = searchInput.value.trim().toLowerCase();
   const type = typeSelect.value;
   const method = methodSelect.value;
+  const country = countrySelect.value;
   let visible = 0;
 
   cards.forEach(function(card){
@@ -749,6 +838,7 @@ function filterProviders(){
       card.dataset.name || "",
       card.dataset.type || "",
       card.dataset.method || "",
+      card.dataset.countries || "",
       card.dataset.keywords || "",
       card.textContent || ""
     ].join(" ").toLowerCase();
@@ -756,7 +846,8 @@ function filterProviders(){
     const matchesQuery = !query || searchable.includes(query);
     const matchesType = !type || (card.dataset.type || "").split(" ").includes(type);
     const matchesMethod = !method || (card.dataset.method || "").split(" ").includes(method);
-    const show = matchesQuery && matchesType && matchesMethod;
+    const matchesCountry = !country || (card.dataset.countries || "").split("|").includes(country);
+    const show = matchesQuery && matchesType && matchesMethod && matchesCountry;
 
     card.style.display = show ? "" : "none";
     if(show) visible++;
@@ -769,13 +860,17 @@ function filterProviders(){
 searchInput.addEventListener("input",filterProviders);
 typeSelect.addEventListener("change",filterProviders);
 methodSelect.addEventListener("change",filterProviders);
+countrySelect.addEventListener("change",filterProviders);
 clearButton.addEventListener("click",function(){
   searchInput.value = "";
   typeSelect.value = "";
   methodSelect.value = "";
+  countrySelect.value = "";
   filterProviders();
   searchInput.focus();
 });
+
+loadApprovedForwarders();
 
 window.addEventListener("anybikeCurrencyChanged",function(event){
   const currency=event.detail?.currency || "GBP";
