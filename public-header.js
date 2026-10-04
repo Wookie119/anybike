@@ -994,6 +994,100 @@ function startCustomerHeaderRealtime(user){
 }
 
 
+async function anybikeFilterCompletedActionNotifications(notifications){
+  const rows=Array.isArray(notifications)?notifications:[];
+  if(!rows.length || typeof sb==="undefined") return rows;
+
+  const needsPurchaseState=rows.some(function(row){
+    return String(row?.type||"").toLowerCase()==="payment_due";
+  });
+  const needsOfferState=rows.some(function(row){
+    return String(row?.type||"").toLowerCase()==="deal_formal_offer";
+  });
+
+  let purchases=[];
+  let offers=[];
+
+  const queries=[];
+  queries.push(needsPurchaseState ? sb.rpc("get_my_purchases_v7") : Promise.resolve({data:[],error:null}));
+  queries.push(needsOfferState ? sb.rpc("get_my_deal_offers_v4") : Promise.resolve({data:[],error:null}));
+
+  try{
+    const results=await Promise.all(queries);
+    if(!results[0]?.error) purchases=Array.isArray(results[0]?.data)?results[0].data:[];
+    if(!results[1]?.error) offers=Array.isArray(results[1]?.data)?results[1].data:[];
+
+    const staleIds=[];
+
+    const active=rows.filter(function(row){
+      const type=String(row?.type||"").toLowerCase();
+      const link=String(row?.link||"");
+      let stale=false;
+
+      if(type==="payment_due"){
+        try{
+          const url=new URL(link,window.location.origin);
+          const deal=String(url.searchParams.get("deal")||"").trim();
+          const payment=String(url.searchParams.get("payment")||"").toLowerCase();
+          const purchase=purchases.find(function(p){
+            return String(p?.deal_number||"").trim()===deal;
+          });
+
+          if(purchase){
+            const balance=Number(purchase.customer_balance_motorcycle_gbp||0);
+            const allocated=Number(purchase.customer_allocated_motorcycle_gbp||0);
+            const depositDue=Number(purchase.deposit_due_gbp||0);
+            const depositOutstanding=Number(purchase.deposit_outstanding_gbp||0);
+
+            if(payment==="deposit"){
+              stale=
+                balance<=0.009 ||
+                allocated+0.009>=depositDue ||
+                depositOutstanding<=0.009;
+            }else if(payment==="balance"){
+              stale=balance<=0.009;
+            }
+          }
+        }catch(_ignore){}
+      }
+
+      if(type==="deal_formal_offer"){
+        try{
+          const url=new URL(link,window.location.origin);
+          const offerId=Number(url.searchParams.get("deal_offer")||url.searchParams.get("offer")||0);
+          const offer=offers.find(function(o){return Number(o?.offer_id||0)===offerId;});
+          if(offer){
+            const status=String(offer.offer_status||"").toLowerCase();
+            const decision=String(offer.customer_decision||"").toLowerCase();
+            stale=
+              ["accepted","declined","expired"].includes(status) ||
+              ["accepted","declined"].includes(decision);
+          }
+        }catch(_ignore){}
+      }
+
+      if(stale && row?.id) staleIds.push(row.id);
+      return !stale;
+    });
+
+    if(staleIds.length){
+      const result=await sb
+        .from("customer_notifications")
+        .update({is_read:true})
+        .in("id",staleIds);
+
+      if(result.error){
+        console.warn("Completed customer notifications could not be cleared",result.error);
+      }
+    }
+
+    return active;
+  }catch(error){
+    console.warn("Completed notification state could not be checked",error);
+    return rows;
+  }
+}
+
 async function loadCustomerHeaderActivity(user){
   if(typeof sb === "undefined" || !user){
     setMessageCount(0);
@@ -1034,11 +1128,14 @@ async function loadCustomerHeaderActivity(user){
       throw error;
     }
 
-    const notifications = (data || [])
-      .filter(function(notification){
+    const activeNotificationRows = await anybikeFilterCompletedActionNotifications(
+      (data || []).filter(function(notification){
         const type = String(notification.type || "").toLowerCase();
         return !type.includes("message");
       })
+    );
+
+    const notifications = activeNotificationRows
       .map(function(notification){
         const type=String(notification.type || "").toLowerCase();
         const directSourcing=
