@@ -181,26 +181,58 @@ const selectedCountryNames=new Set();
 function selectedCountries(){return Array.from(selectedCountryNames)}
 function updateCountryCount(){const n=selectedCountryNames.size;countryCount.textContent=n+" countr"+(n===1?"y":"ies")+" selected"}
 function renderCountryTicks(selected=null){
-  if(Array.isArray(selected)){selectedCountryNames.clear();selected.forEach(x=>selectedCountryNames.add(String(x)))}
-  const selectedSet=selectedCountryNames;
+  if(Array.isArray(selected)){
+    selectedCountryNames.clear();
+    selected.forEach(x=>selectedCountryNames.add(String(x)));
+  }
+
   const q=String(countrySearch?.value||"").trim().toLowerCase();
   const groups={};
+
   marketCountries.forEach(m=>{
     if(q && !(m.name+" "+m.region).toLowerCase().includes(q)) return;
     (groups[m.region] ||= []).push(m);
   });
-  countryList.innerHTML=Object.keys(groups).map(region=>
-    '<div class="country-region">'+region+'</div>'+
+
+  countryList.innerHTML=Object.keys(groups).map(region=>{
+    const allRegionCountries=marketCountries.filter(m=>m.region===region);
+    const selectedInRegion=allRegionCountries.filter(m=>selectedCountryNames.has(m.name)).length;
+    const checked=selectedInRegion===allRegionCountries.length && allRegionCountries.length>0;
+
+    return '<div class="country-region" style="grid-column:1/-1">'+
+      '<label style="display:flex;align-items:center;gap:9px;cursor:pointer">'+
+        '<input class="continent-toggle" data-region="'+region.replace(/"/g,"&quot;")+'" type="checkbox" '+(checked?"checked":"")+'>'+
+        '<span>'+region+' — select all '+allRegionCountries.length+' countries</span>'+
+      '</label>'+
+    '</div>'+
     groups[region].map(m=>
-      '<label class="country-row"><input type="checkbox" value="'+m.name.replace(/"/g,"&quot;")+'" '+(selectedSet.has(m.name)?"checked":"")+'><span>'+m.name+'</span><a href="'+m.url+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">View AnyBike page ↗</a></label>'
-    ).join("")
-  ).join("");
-  countryList.querySelectorAll('input[type="checkbox"]').forEach(cb=>cb.addEventListener("change",()=>{
-    if(cb.checked) selectedCountryNames.add(cb.value); else selectedCountryNames.delete(cb.value);
-    updateCountryCount();
+      '<label class="country-row"><input class="country-toggle" type="checkbox" value="'+m.name.replace(/"/g,"&quot;")+'" '+(selectedCountryNames.has(m.name)?"checked":"")+'><span>'+m.name+'</span><a href="'+m.url+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">View AnyBike page ↗</a></label>'
+    ).join("");
+  }).join("");
+
+  countryList.querySelectorAll('.country-toggle').forEach(cb=>cb.addEventListener("change",()=>{
+    if(cb.checked) selectedCountryNames.add(cb.value);
+    else selectedCountryNames.delete(cb.value);
+    renderCountryTicks();
   }));
+
+  countryList.querySelectorAll('.continent-toggle').forEach(cb=>{
+    const region=cb.dataset.region;
+    const allRegionCountries=marketCountries.filter(m=>m.region===region);
+    const selectedInRegion=allRegionCountries.filter(m=>selectedCountryNames.has(m.name)).length;
+    cb.indeterminate=selectedInRegion>0 && selectedInRegion<allRegionCountries.length;
+    cb.addEventListener("change",()=>{
+      allRegionCountries.forEach(m=>{
+        if(cb.checked) selectedCountryNames.add(m.name);
+        else selectedCountryNames.delete(m.name);
+      });
+      renderCountryTicks();
+    });
+  });
+
   updateCountryCount();
 }
+
 async function call(body){const r=await fetch(endpoint,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...body,token})});return r.json()}
 function setStatus(t,bad=false){status.textContent=t;status.className="status "+(bad?"bad":"good")}
 let draftVersion=0;
