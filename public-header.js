@@ -1989,7 +1989,7 @@ document.addEventListener("visibilitychange",function(){
   }
 
   const corrections=document.createElement("script");
-  corrections.src="/market-page-corrections.js?v=7";
+  corrections.src="/market-page-corrections.js?v=8";
   corrections.defer=true;
   corrections.dataset.anybikeMarketCorrections="1";
   corrections.addEventListener("load",function(){
