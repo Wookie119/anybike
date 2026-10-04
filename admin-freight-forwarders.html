@@ -64,8 +64,8 @@ body.admin-freight-page #adminSidebar{
   width:100% !important;
   min-width:0 !important;
   min-height:0 !important;
-  position:sticky !important;
-  top:0 !important;
+  position:relative !important;
+  top:auto !important;
   z-index:100 !important;
   background:#050505 !important;
   border-right:0 !important;
@@ -169,7 +169,7 @@ body.admin-freight-page .top-actions{display:flex;gap:10px;flex-wrap:wrap;justif
 
 .toolbar{
   display:grid;
-  grid-template-columns:minmax(320px,2fr) repeat(4,minmax(150px,1fr));
+  grid-template-columns:minmax(300px,1.8fr) repeat(6,minmax(135px,1fr));
   gap:10px;
   padding:14px;
   margin-bottom:16px;
@@ -197,10 +197,10 @@ body.admin-freight-page .top-actions{display:flex;gap:10px;flex-wrap:wrap;justif
 }
 .list-head,.row-summary{
   display:grid;
-  grid-template-columns:42px minmax(250px,1.5fr) minmax(150px,.75fr) minmax(230px,1.1fr) minmax(190px,.9fr) minmax(210px,1fr) 138px;
+  grid-template-columns:42px minmax(240px,1.45fr) minmax(145px,.72fr) minmax(210px,1fr) minmax(180px,.85fr) minmax(185px,.9fr) minmax(170px,.8fr) 138px;
   gap:14px;
   align-items:center;
-  min-width:1250px;
+  min-width:1390px;
 }
 .list-head{
   padding:12px 16px;
@@ -223,7 +223,9 @@ body.admin-freight-page .top-actions{display:flex;gap:10px;flex-wrap:wrap;justif
   border:0;
   text-align:left;
 }
+.row-summary{cursor:pointer}
 .row-summary:hover{background:#151515}
+.row-summary:focus-visible{outline:2px solid var(--red);outline-offset:-2px}
 .chev{
   width:30px;height:30px;
   display:flex;align-items:center;justify-content:center;
@@ -262,6 +264,17 @@ body.admin-freight-page .top-actions{display:flex;gap:10px;flex-wrap:wrap;justif
   border-color:rgba(237,28,36,.5);
   color:#ff8e93;
 }
+.badge.referral-active{
+  background:rgba(53,200,111,.12);
+  border-color:rgba(53,200,111,.38);
+  color:#78e6a4;
+}
+.badge.referral-shared{
+  background:rgba(77,163,255,.12);
+  border-color:rgba(77,163,255,.38);
+  color:#8bc3ff;
+}
+.badge.referral-none{color:#888}
 .email-needed-kpi{
   border-color:rgba(237,28,36,.42);
   background:rgba(237,28,36,.07);
@@ -526,7 +539,13 @@ body.admin-freight-page .top-actions{display:flex;gap:10px;flex-wrap:wrap;justif
           <option value="Door to Door">Door to Door</option>
         </select>
         <select id="countryFilter">
-          <option value="">All countries</option>
+          <option value="">All countries served</option>
+        </select>
+        <select id="referralFilter">
+          <option value="">All referral activity</option>
+          <option value="recommending">Recommending AnyBike</option>
+          <option value="shared">Share link used</option>
+          <option value="none">No referral activity</option>
         </select>
       </section>
 
@@ -538,6 +557,7 @@ body.admin-freight-page .top-actions{display:flex;gap:10px;flex-wrap:wrap;justif
           <div>Services</div>
           <div>Ports</div>
           <div>Status</div>
+          <div>AnyBike referrals</div>
           <div>Actions</div>
         </div>
         <div id="directoryList"></div>
@@ -940,7 +960,7 @@ function refreshCountryFilter(){
     ...arrayValue(r.countries_covered)
   ]).filter(Boolean))].sort();
 
-  select.innerHTML = '<option value="">All countries</option>' +
+  select.innerHTML = '<option value="">All countries served</option>' +
     countries.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("");
 
   select.value = current;
@@ -953,6 +973,7 @@ function filteredRecords(){
   const scope = document.getElementById("scopeFilter").value;
   const service = document.getElementById("serviceFilter").value;
   const country = document.getElementById("countryFilter").value;
+  const referral = document.getElementById("referralFilter").value;
 
   return records.filter(r => {
     const haystack = [
@@ -971,6 +992,11 @@ function filteredRecords(){
       const countries = [r.country,...arrayValue(r.countries_covered)];
       if(!countries.includes(country)) return false;
     }
+    const visits=Number(r.referral_visits||0);
+    const signups=Number(r.referral_signups||0);
+    if(referral==="recommending" && signups<1) return false;
+    if(referral==="shared" && visits<1) return false;
+    if(referral==="none" && (visits>0 || signups>0)) return false;
     return true;
   });
 }
@@ -1000,7 +1026,7 @@ function recordHtml(r){
 
   return `
     <article class="record" id="record-${escapeHtml(r.id)}">
-      <button class="row-summary" type="button" onclick="toggleRecord('${escapeHtml(r.id)}')">
+      <div class="row-summary" role="button" tabindex="0" onclick="toggleRecord('${escapeHtml(r.id)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleRecord('${escapeHtml(r.id)}')}">
         <div class="chev">›</div>
 
         <div class="company">
@@ -1033,6 +1059,17 @@ function recordHtml(r){
           </div>
         </div>
 
+                <div class="cell optional">
+          <div class="badges">
+            ${Number(r.referral_signups||0)>0
+              ? '<span class="badge referral-active">Recommending us</span>'
+              : Number(r.referral_visits||0)>0
+                ? '<span class="badge referral-shared">Share link used</span>'
+                : '<span class="badge referral-none">No referrals yet</span>'}
+          </div>
+          <small>${Number(r.referral_visits||0)} visits · ${Number(r.referral_signups||0)} sign-ups</small>
+        </div>
+
         <div class="row-actions" onclick="event.stopPropagation()">
           <button class="icon-btn" type="button" title="Edit shipper" onclick="editRecord('${escapeHtml(r.id)}')">✎</button>
           ${r.email ? `<button class="icon-btn" type="button" title="${r.profile_invite_status && r.profile_invite_status !== "Not Invited" ? "Resend profile update invitation" : "Invite shipper to update profile"}" onclick="inviteShipperProfile('${escapeHtml(r.id)}')">✉</button>` : ""}
@@ -1041,7 +1078,7 @@ function recordHtml(r){
             : `<button class="icon-btn" type="button" title="Remove from buyer dropdown" onclick="deleteRecord('${escapeHtml(r.id)}')">⊘</button>`}
 
         </div>
-      </button>
+      </div>
 
       <div class="details">
         <div class="details-grid">
@@ -1075,6 +1112,7 @@ function recordHtml(r){
               <div><dt>Partner status</dt><dd>${escapeHtml(r.partner_status || "Standard")}</dd></div>
               <div><dt>Last used</dt><dd>${escapeHtml(dateDisplay(r.last_used_at))}</dd></div>
               <div><dt>Source</dt><dd>${escapeHtml(r.source_customer || "-")}</dd></div>
+              <div><dt>Recommending AnyBike?</dt><dd>${Number(r.referral_signups||0)>0 ? "Yes — referred buyer sign-up recorded" : Number(r.referral_visits||0)>0 ? "Share link has been used" : "No referral activity yet"}</dd></div>
               <div><dt>Referral visits</dt><dd>${Number(r.referral_visits||0)}</dd></div>
               <div><dt>Buyer sign-ups</dt><dd>${Number(r.referral_signups||0)}</dd></div>
               <div><dt>Share AnyBike code</dt><dd>${escapeHtml(r.referral_code || "-")}</dd></div>
@@ -1289,7 +1327,7 @@ async function restoreRecord(id){
   }
 }
 
-["searchInput","verificationFilter","profileInviteFilter","scopeFilter","serviceFilter","countryFilter"].forEach(id => {
+["searchInput","verificationFilter","profileInviteFilter","scopeFilter","serviceFilter","countryFilter","referralFilter"].forEach(id => {
   document.getElementById(id).addEventListener(id === "searchInput" ? "input" : "change", renderDirectory);
 });
 
