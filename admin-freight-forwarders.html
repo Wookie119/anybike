@@ -389,12 +389,12 @@ a{color:inherit;text-decoration:none}
 
     <header class="topbar">
       <div>
-        <h1>Freight Forwarders</h1>
-        <p>Build and verify AnyBike’s reusable freight, customs, port and crating partner directory.</p>
+        <h1>UK Freight Forwarders</h1>
+        <p>This is the master shipper list used by buyer Shipping Preferences. Add a shipper here and it appears automatically in future buyer dropdowns. Remove it here and it disappears from future dropdowns without deleting old Deal history.</p>
       </div>
       <div class="top-actions">
         <button class="btn btn-dark" type="button" onclick="loadForwarders()">Refresh</button>
-        <button class="btn btn-primary" type="button" onclick="openEditor()">+ Add Freight Forwarder</button>
+        <button class="btn btn-primary" type="button" onclick="openEditor()">+ Add New Shipper</button>
       </div>
     </header>
 
@@ -878,8 +878,11 @@ function recordHtml(r){
         </div>
 
         <div class="row-actions" onclick="event.stopPropagation()">
-          <button class="icon-btn" type="button" title="Edit" onclick="editRecord('${escapeHtml(r.id)}')">✎</button>
-          <button class="icon-btn" type="button" title="Delete" onclick="deleteRecord('${escapeHtml(r.id)}')">🗑</button>
+          <button class="icon-btn" type="button" title="Edit shipper" onclick="editRecord('${escapeHtml(r.id)}')">✎</button>
+          ${r.is_active === false
+            ? `<button class="icon-btn" type="button" title="Restore to buyer dropdown" onclick="restoreRecord('${escapeHtml(r.id)}')">↺</button>`
+            : `<button class="icon-btn" type="button" title="Remove from buyer dropdown" onclick="deleteRecord('${escapeHtml(r.id)}')">⊘</button>`}
+
         </div>
       </button>
 
@@ -1073,22 +1076,50 @@ document.getElementById("forwarderForm").addEventListener("submit", async e => {
 async function deleteRecord(id){
   const record = records.find(r => String(r.id) === String(id));
   if(!record) return;
-  if(!confirm("Delete " + (record.company_name || "this freight forwarder") + "?")) return;
+  if(!confirm(
+    "Remove " + (record.company_name || "this freight forwarder") + " from future buyer dropdowns?\n\n"+
+    "The record will be kept for existing Deals and history."
+  )) return;
 
   try{
     if(usingLocalFallback){
-      records = records.filter(r => String(r.id) !== String(id));
+      records = records.map(r => String(r.id) === String(id) ? {...r,is_active:false,updated_at:new Date().toISOString()} : r);
       localStorage.setItem(LOCAL_KEY, JSON.stringify(records));
       renderDirectory();
       refreshCountryFilter();
       return;
     }
 
-    const {error} = await sb.from(TABLE_NAME).delete().eq("id",id);
+    const {error} = await sb.from(TABLE_NAME)
+      .update({is_active:false,updated_at:new Date().toISOString()})
+      .eq("id",id);
     if(error) throw error;
     await loadForwarders();
   }catch(error){
-    alert("Delete failed: " + error.message);
+    alert("Could not remove shipper from buyer dropdown: " + error.message);
+  }
+}
+
+async function restoreRecord(id){
+  const record = records.find(r => String(r.id) === String(id));
+  if(!record) return;
+
+  try{
+    if(usingLocalFallback){
+      records = records.map(r => String(r.id) === String(id) ? {...r,is_active:true,updated_at:new Date().toISOString()} : r);
+      localStorage.setItem(LOCAL_KEY, JSON.stringify(records));
+      renderDirectory();
+      refreshCountryFilter();
+      return;
+    }
+
+    const {error} = await sb.from(TABLE_NAME)
+      .update({is_active:true,updated_at:new Date().toISOString()})
+      .eq("id",id);
+    if(error) throw error;
+    await loadForwarders();
+  }catch(error){
+    alert("Could not restore shipper: " + error.message);
   }
 }
 
