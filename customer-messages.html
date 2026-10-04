@@ -3489,6 +3489,28 @@ function getNewMessageContext(){
   };
 }
 
+function applyMessagePrefillFromUrl(){
+  const params=new URLSearchParams(window.location.search);
+  if(params.get("new")!=="1") return false;
+
+  const subject=params.get("subject") || "Shipping or Export";
+  const title=params.get("title") || "";
+  const message=params.get("message") || "";
+
+  const subjectEl=document.getElementById("newMessageSubject");
+  const titleEl=document.getElementById("newMessageCustomSubject");
+  const bodyEl=document.getElementById("newMessageBody");
+
+  if(subjectEl && Array.from(subjectEl.options).some(function(option){return option.value===subject;})){
+    subjectEl.value=subject;
+  }
+  if(titleEl) titleEl.value=title;
+  if(bodyEl) bodyEl.value=message;
+
+  openNewMessageModal();
+  return true;
+}
+
 function openNewMessageModal(){
   if(!currentUser){
     location.href="customer-register.html";
@@ -3930,6 +3952,7 @@ function startCustomerMessageRealtime(){
     await claimRequestedMessageThread();
 
     document.documentElement.classList.remove("customer-auth-pending");
+    applyMessagePrefillFromUrl();
 
     try{
       await loadCustomerEnquiries();
