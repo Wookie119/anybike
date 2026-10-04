@@ -642,7 +642,7 @@
         </section>
 
         <section class="card setup-target" id="section-shipping" data-profile-section="shipping">
-          <div class="section-head"><div><h2>5. Shipping Preferences</h2><p class="card-intro">Choose a shipper already known to AnyBike, or select “My shipper is not listed” and add the full details. These preferences can be reused for future purchases.</p></div><span class="section-state" id="state-shipping">Needs attention</span></div>
+          <div class="section-head"><div><h2>5. Shipping Preferences</h2><p class="card-intro">Choose a shipper already known to AnyBike and the contact and UK receiving details will be filled in automatically. If your shipper is not listed, add the full details once so AnyBike can review it for reuse by future buyers.</p></div><span class="section-state" id="state-shipping">Needs attention</span></div>
 
           <div class="grid">
             <div>
@@ -939,36 +939,63 @@
     async function loadFreightForwarderDirectory(){
       const select=document.getElementById("shippingDirectorySelect");
       if(!select) return;
-      const {data,error}=await sb.from("freight_forwarders").select("id,company_name,country,city,uk_address,contact_name,contact_role,email,phone,website,destination_port,countries_covered,is_active,verification_status").eq("is_active",true).order("company_name",{ascending:true});
+
+      const {data,error}=await sb.rpc("customer_get_freight_forwarder_directory_v1");
       if(error){
         console.warn("Could not load freight forwarder directory",error);
         return;
       }
-      freightForwarderDirectory=data||[];
+
+      freightForwarderDirectory=Array.isArray(data)?data:[];
       const current=select.value;
+
+      const optionLabel=function(r){
+        const countries=Array.isArray(r.countries_covered)?r.countries_covered.filter(Boolean):[];
+        const location=[r.city,r.uk_country].filter(Boolean).join(", ");
+        const suffix=countries.length
+          ? " · serves "+countries.join(", ")
+          : (location ? " · "+location : "");
+        return (r.company_name||"Unnamed shipper")+suffix;
+      };
+
       select.innerHTML='<option value="">Select a shipper</option>'+
-        freightForwarderDirectory.map(r=>'<option value="'+r.id+'">'+(r.company_name||"Unnamed shipper")+(r.country?' — '+r.country:'')+'</option>').join("")+
+        freightForwarderDirectory.map(r=>'<option value="'+r.id+'">'+optionLabel(r)+'</option>').join("")+
         '<option value="custom">My shipper is not listed — enter a new one</option>';
-      if(current) select.value=current;
+
+      if(current && Array.from(select.options).some(o=>o.value===String(current))){
+        select.value=String(current);
+      }
     }
 
     function fillShipperFromDirectory(id){
       const r=freightForwarderDirectory.find(x=>String(x.id)===String(id));
       if(!r) return;
+
       setValue("shippingCompany",r.company_name);
-      populateShippingCountries(r.country||"");
+      populateShippingCountries(r.uk_country || "United Kingdom");
       setValue("shippingContactName",r.contact_name);
       setValue("shippingContactRole",r.contact_role);
       setValue("shippingContactEmail",r.email);
       setValue("shippingContactPhone",r.phone);
       setValue("shippingWebsite",r.website);
-      setValue("shippingAddress1",r.uk_address);
-      setValue("shippingAddress2","");
-      setValue("shippingCity",r.city);
-      setValue("shippingRegion","");
-      setValue("shippingPostcode","");
-      setValue("collectionPoint",r.uk_address);
+
+      setValue("shippingAddress1",r.uk_address_line1 || r.uk_address || "");
+      setValue("shippingAddress2",r.uk_address_line2 || "");
+      setValue("shippingCity",r.city || "");
+      setValue("shippingRegion",r.uk_region || "");
+
+      let postcode=String(r.uk_postcode||"").trim();
+      if(!postcode && r.uk_address){
+        const match=String(r.uk_address).match(/([A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2})\b/i);
+        if(match) postcode=match[1].toUpperCase();
+      }
+      setValue("shippingPostcode",postcode);
+
+      const handover=String(r.destination_port || (Array.isArray(r.ports_served)&&r.ports_served[0]) || "").trim();
+      setValue("collectionPoint",handover || r.uk_address || "");
+
       document.getElementById("customShipperNote")?.classList.add("hidden");
+      updateSetupReminder();
       markDirtyAndAutosave();
     }
 
@@ -1056,8 +1083,20 @@
       const shipSelect=document.getElementById("shippingDirectorySelect");
       if(shipSelect){
         const directoryId=profile?.shipping_directory_forwarder_id;
-        const known=directoryId && freightForwarderDirectory.some(x=>String(x.id)===String(directoryId));
-        shipSelect.value=known?String(directoryId):(profile?.preferred_shipping_company?"custom":"");
+        const knownById=directoryId && freightForwarderDirectory.some(x=>String(x.id)===String(directoryId));
+        const savedName=String(profile?.preferred_shipping_company||"").trim().toLowerCase();
+        const knownByName=savedName
+          ? freightForwarderDirectory.find(x=>String(x.company_name||"").trim().toLowerCase()===savedName)
+          : null;
+
+        if(knownById){
+          shipSelect.value=String(directoryId);
+        }else if(knownByName){
+          shipSelect.value=String(knownByName.id);
+        }else{
+          shipSelect.value=profile?.preferred_shipping_company?"custom":"";
+        }
+
         document.getElementById("customShipperNote")?.classList.toggle("hidden",shipSelect.value!=="custom");
       }
       setValue("buyerEori", profile?.buyer_eori_number);
