@@ -790,7 +790,7 @@ async function inviteShipperProfile(id){
   }
   if(!confirm("Send a free AnyBike profile update invitation to "+record.company_name+" at "+record.email+"?")) return;
 
-  const {data,error}=await sb.functions.invoke("send-forwarder-profile-invite",{body:{forwarder_id:Number(id)}});
+  const {data,error}=await sb.functions.invoke("send-forwarder-profile-invite",{body:{forwarder_id:Number(id),force:true}});
   if(error||data?.error){
     alert("Profile invitation failed: "+(data?.error||error.message));
     return;
@@ -801,7 +801,7 @@ async function inviteShipperProfile(id){
 }
 
 async function inviteAllShippers(){
-  const eligible=records.filter(r=>r.is_active!==false && r.profile_invite_status!=="Updated");
+  const eligible=records.filter(r=>r.is_active!==false && !["Submitted","Updated","Declined"].includes(String(r.profile_invite_status||"")));
   if(!eligible.length){
     alert("There are no active shippers waiting for an invitation.");
     return;
@@ -816,7 +816,8 @@ async function inviteAllShippers(){
   const sent=(data.results||[]).filter(x=>x.status==="Invited").length;
   const failed=(data.results||[]).filter(x=>x.status==="Send Failed").length;
   const noEmail=(data.results||[]).filter(x=>x.status==="No Email").length;
-  alert("Invitations sent: "+sent+(noEmail ? "\nNo email address: "+noEmail : "")+(failed ? "\nSend failures: "+failed : ""));
+  const skipped=(data.results||[]).filter(x=>x.status==="Skipped Responded").length;
+  alert("Invitations sent: "+sent+(skipped ? "\nAlready responded — skipped: "+skipped : "")+(noEmail ? "\nNo email address: "+noEmail : "")+(failed ? "\nSend failures: "+failed : ""));
   await loadForwarders();
 }
 
@@ -1106,6 +1107,8 @@ function recordHtml(r){
               <div><dt>Name</dt><dd>${escapeHtml(r.contact_name || "-")}</dd></div>
               <div><dt>Role</dt><dd>${escapeHtml(r.contact_role || "-")}</dd></div>
               <div><dt>Email</dt><dd>${r.email ? escapeHtml(r.email) : '<span style="color:#ff8e93;font-weight:900">EMAIL NEEDED — required before profile invite</span>'}</dd></div>
+              <div><dt>Profile contact email</dt><dd>${escapeHtml(r.profile_contact_email || r.email || "-")}</dd></div>
+              <div><dt>Profile CC email</dt><dd>${escapeHtml(r.profile_cc_email || "-")}</dd></div>
               <div><dt>Phone / WhatsApp</dt><dd>${escapeHtml(r.phone || "-")}</dd></div>
               <div><dt>Website</dt><dd>${escapeHtml(r.website || "-")}</dd></div>
             </dl>
