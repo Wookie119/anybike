@@ -1074,7 +1074,14 @@ footer{
 }
 
 /* BUYER POTENTIAL MATCHES */
-#buyer-potential-matches{scroll-margin-top:130px}
+#buyer-potential-matches,
+#sourcing-progress,
+#my-offers,
+#my-purchases,
+#accounts-documents,
+#hand-picked,
+#recommended-for-you,
+#recently-viewed{scroll-margin-top:130px}
 .buyer-match-panel{
   border-color:rgba(237,28,36,.36);
   background:
@@ -2214,6 +2221,15 @@ body.customer-offer-modal-open{overflow:hidden}
     </div>
     <div id="sourcingProgressList" style="display:grid;gap:9px"></div>
   </section>
+
+  <div id="dashboardJourneyNext" style="display:none;grid-template-columns:minmax(0,1fr) auto;gap:18px;align-items:center;margin:14px 0 16px;padding:12px 14px;border:1px solid rgba(237,28,36,.42);border-radius:12px;background:#111">
+    <div>
+      <div class="eyebrow" style="margin:0 0 4px">Your next action</div>
+      <strong id="dashboardJourneyTitle" style="display:block;font-size:17px"></strong>
+      <span id="dashboardJourneyText" style="display:block;margin-top:3px;color:#bbb;font-size:13px;line-height:1.4"></span>
+    </div>
+    <a id="dashboardJourneyButton" class="panel-link" href="#buyer-potential-matches" style="white-space:nowrap">CONTINUE →</a>
+  </div>
 
   <nav class="dashboard-jump-nav" aria-label="My AnyBike quick links">
     <a href="#my-purchases"><span>🛒</span>My Purchases</a>
@@ -4087,6 +4103,40 @@ function focusRequestedShippingAction(){
   window.location.replace(requested.href);
 }
 
+function setDashboardJourneyNext(title,text,target,label){
+  const box=document.getElementById("dashboardJourneyNext");
+  const titleEl=document.getElementById("dashboardJourneyTitle");
+  const textEl=document.getElementById("dashboardJourneyText");
+  const button=document.getElementById("dashboardJourneyButton");
+  if(!box||!titleEl||!textEl||!button)return;
+
+  titleEl.textContent=title||"";
+  textEl.textContent=text||"";
+  button.href=target||"#buyer-potential-matches";
+  button.textContent=label||"CONTINUE →";
+  box.style.display="grid";
+}
+
+function setDefaultDashboardJourney(){
+  const hasSourcing=document.getElementById("sourcing-progress")?.offsetParent!==null;
+  if(hasSourcing){
+    setDashboardJourneyNext(
+      "Review your sourcing progress",
+      "See the motorcycles AnyBike is currently checking, then continue to your Potential Matches.",
+      "#sourcing-progress",
+      "VIEW SOURCING PROGRESS →"
+    );
+    return;
+  }
+
+  setDashboardJourneyNext(
+    "Review your Potential Matches",
+    "See motorcycles AnyBike has matched to your buying requirements and choose any you want us to check.",
+    "#buyer-potential-matches",
+    "VIEW POTENTIAL MATCHES →"
+  );
+}
+
 function renderCustomerNextActions(){
   const panel=document.getElementById("customerNextActionsPanel");
   const list=document.getElementById("customerNextActionsList");
@@ -4144,10 +4194,13 @@ function renderCustomerNextActions(){
   if(!actions.length){
     panel.style.display="none";
     list.innerHTML="";
+    setDefaultDashboardJourney();
     return;
   }
 
   panel.style.display="";
+  const journey=document.getElementById("dashboardJourneyNext");
+  if(journey)journey.style.display="none";
   const customerTasks=actions.filter(a=>!a.waiting).length;
   if(summary){
     summary.textContent=customerTasks
