@@ -339,7 +339,7 @@ const ANYBIKE_CUSTOMER_NEXT_ACTION_PAGES={
   "/customer-sourced-matches.html":{title:"Choose the motorcycles you want us to check",text:"Tick Interested on the motorcycles you would seriously consider buying, then save your choices.",waitingFor:"You",label:"REVIEW MOTORCYCLES →"},
   "/customer-offer.html":{title:"Review your AnyBike offer",text:"Check the motorcycle, price and terms, then make the decision shown on this page.",waitingFor:"You",label:"REVIEW OFFER →"},
   "/my-purchases.html":{title:"Complete the next purchase step",text:"Open the motorcycle that needs payment, documents or another purchase action from you.",waitingFor:"You",label:"OPEN PURCHASE →"},
-  "/accounts-documents.html":{title:"Complete the next accounts or document step",text:"Review anything outstanding for payment, documents or shipping information.",waitingFor:"You",label:"REVIEW ACCOUNTS →"},
+  "/accounts-documents.html":{title:"Review your accounts and documents",text:"AnyBike will show the specific payment, document or account step that needs attention when this page finishes loading.",waitingFor:"You",label:"CONTINUE →"},
   "/my-watchlist.html":{title:"Choose what you want to do next",text:"Open a saved motorcycle to review it, or start a sourcing request if you want AnyBike to find alternatives.",waitingFor:"You",label:"REVIEW WATCHLIST →"},
   "/my-searches.html":{title:"Continue a saved search",text:"Open one of your saved searches to see current motorcycles or refine what you are looking for.",waitingFor:"You",label:"OPEN SAVED SEARCHES →"},
   "/my-dealership-stock.html":{title:"Review your dealership stock",text:"Open the stock item that needs the next update, response or action.",waitingFor:"You",label:"OPEN STOCK →"}
@@ -400,7 +400,7 @@ function anybikeRenderCustomerNextAction(config){
   };
 
   card.innerHTML=
-    '<div class="abna-kicker">Your next action</div>'+
+    '<div class="abna-kicker">'+safe(cfg.kicker||"Your next action")+'</div>'+
     '<h2>'+safe(cfg.title||"Continue")+'</h2>'+
     '<p>'+safe(cfg.text||"")+'</p>'+
     '<div class="abna-bottom">'+
