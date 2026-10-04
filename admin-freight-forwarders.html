@@ -185,7 +185,8 @@ body.admin-freight-page .top-actions{display:flex;gap:10px;flex-wrap:wrap;justif
   background:#090909;
   color:#fff;
 }
-.toolbar option{color:#111}
+.toolbar option{color:#111;background:#fff}
+.toolbar select option{color:#111 !important;background:#fff !important}
 
 .list-shell{
   border:1px solid var(--line);
@@ -505,48 +506,14 @@ body.admin-freight-page .top-actions{display:flex;gap:10px;flex-wrap:wrap;justif
 
       <section class="toolbar">
         <input id="searchInput" placeholder="Search company, country, port, contact or service">
-        <select id="verificationFilter">
-          <option value="">All verification states</option>
-          <option value="Verified">Verified</option>
-          <option value="Unverified">Unverified</option>
-        </select>
-        <select id="profileInviteFilter">
-          <option value="">All profile update states</option>
-          <option value="Not Invited">Not Invited</option>
-          <option value="Invited">Invited</option>
-          <option value="Opened">Opened</option>
-          <option value="Submitted">Submitted</option>
-          <option value="Updated">Updated</option>
-          <option value="Declined">Declined</option>
-          <option value="No Email">No Email</option>
-          <option value="Needs Follow-up">Needs Follow-up</option>
-          <option value="Missing Email">Missing Email</option>
-        </select>
-        <select id="scopeFilter">
-          <option value="">All locations</option>
-          <option value="UK">UK freight forwarder</option>
-          <option value="Destination">Destination-country forwarder</option>
-          <option value="Both">Works at both ends</option>
-        </select>
-        <select id="serviceFilter">
-          <option value="">All services</option>
-          <option value="Sea Freight">Sea Freight</option>
-          <option value="Air Freight">Air Freight</option>
-          <option value="RoRo">RoRo</option>
-          <option value="Container">Container</option>
-          <option value="Crating">Crating</option>
-          <option value="Customs Clearance">Customs Clearance</option>
-          <option value="Door to Door">Door to Door</option>
-        </select>
+        <select id="verificationFilter"><option value="">All verification states</option></select>
+        <select id="profileInviteFilter"><option value="">All profile update states</option></select>
+        <select id="scopeFilter"><option value="">All locations</option></select>
+        <select id="serviceFilter"><option value="">All services</option></select>
         <select id="countryFilter">
           <option value="">All countries served</option>
         </select>
-        <select id="referralFilter">
-          <option value="">All referral activity</option>
-          <option value="recommending">Recommending AnyBike</option>
-          <option value="shared">Share link used</option>
-          <option value="none">No referral activity</option>
-        </select>
+        <select id="referralFilter"><option value="">All referral activity</option></select>
       </section>
 
       <section class="list-shell">
@@ -948,22 +915,73 @@ async function loadForwarders(){
     records = JSON.parse(localStorage.getItem(LOCAL_KEY) || "[]");
   }
 
-  refreshCountryFilter();
+  refreshDirectoryFilters();
   renderDirectory();
 }
 
-function refreshCountryFilter(){
-  const select = document.getElementById("countryFilter");
-  const current = select.value;
-  const countries = [...new Set(records.flatMap(r => [
-    r.country,
-    ...arrayValue(r.countries_covered)
-  ]).filter(Boolean))].sort();
+function setFilterOptions(id,placeholder,items,labelMap={}){
+  const select=document.getElementById(id);
+  if(!select) return;
+  const current=select.value;
+  const clean=[...new Set((items||[]).filter(v=>v!==null&&v!==undefined&&String(v).trim()!=="").map(v=>String(v).trim()))]
+    .sort((a,b)=>a.localeCompare(b));
+  select.innerHTML='<option value="">'+escapeHtml(placeholder)+'</option>'+
+    clean.map(v=>'<option value="'+escapeHtml(v)+'">'+escapeHtml(labelMap[v]||v)+'</option>').join("");
+  if(clean.includes(current)) select.value=current;
+}
 
-  select.innerHTML = '<option value="">All countries served</option>' +
-    countries.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("");
+function refreshDirectoryFilters(){
+  setFilterOptions(
+    "verificationFilter",
+    "All verification states",
+    records.map(r=>r.verification_status||"Unverified")
+  );
 
-  select.value = current;
+  const profileStates=records.map(r=>r.profile_invite_status||"Not Invited");
+  profileStates.push("Missing Email");
+  setFilterOptions(
+    "profileInviteFilter",
+    "All profile update states",
+    profileStates,
+    {"Missing Email":"Missing Email"}
+  );
+
+  const scopeLabels={
+    "UK":"UK freight forwarder",
+    "Destination":"Destination-country forwarder",
+    "Both":"Works at both ends"
+  };
+  setFilterOptions(
+    "scopeFilter",
+    "All locations",
+    records.map(r=>r.scope).filter(Boolean),
+    scopeLabels
+  );
+
+  setFilterOptions(
+    "serviceFilter",
+    "All services",
+    records.flatMap(r=>arrayValue(r.services))
+  );
+
+  setFilterOptions(
+    "countryFilter",
+    "All countries served",
+    records.flatMap(r=>[r.country,...arrayValue(r.countries_covered)]).filter(Boolean)
+  );
+
+  const referralSelect=document.getElementById("referralFilter");
+  if(referralSelect){
+    const current=referralSelect.value;
+    const hasVisits=records.some(r=>Number(r.referral_visits||0)>0);
+    const hasSignups=records.some(r=>Number(r.referral_signups||0)>0);
+    const hasNone=records.some(r=>Number(r.referral_visits||0)===0&&Number(r.referral_signups||0)===0);
+    referralSelect.innerHTML='<option value="">All referral activity</option>'+
+      (hasSignups?'<option value="recommending">Recommending AnyBike</option>':'')+
+      (hasVisits?'<option value="shared">Share link used</option>':'')+
+      (hasNone?'<option value="none">No referral activity</option>':'');
+    if([...referralSelect.options].some(o=>o.value===current)) referralSelect.value=current;
+  }
 }
 
 function filteredRecords(){
