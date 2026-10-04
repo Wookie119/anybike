@@ -862,7 +862,8 @@ main{
 }
 
 
-.purchase-group{margin:0 0 18px;border:1px solid rgba(255,255,255,.10);border-radius:16px;background:#090909;overflow:hidden}
+.purchase-group{margin:0 0 18px;border:1px solid rgba(255,255,255,.10);border-radius:16px;background:#090909;overflow:hidden;scroll-margin-top:120px;transition:border-color .2s ease,box-shadow .2s ease}
+.purchase-group.purchase-focus{border-color:rgba(237,28,36,.85);box-shadow:0 0 0 3px rgba(237,28,36,.12)}
 .purchase-group-head{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.09);background:#101010}
 .purchase-group-head span{display:block;color:#888;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.08em}
 .purchase-group-head h2{margin:3px 0 0;font-size:18px}
@@ -2069,7 +2070,7 @@ function purchaseNextAction(purchase){
       priority:35,waiting:true,deal:deal,identity:bike,
       title:"AnyBike is completing the seller check",
       text:"Your deposit is complete. No action is required from you while AnyBike confirms and secures the motorcycle.",
-      href:"/my-purchases.html?deal="+encodeURIComponent(purchase.deal_id||""),
+      href:"/my-purchases.html?deal="+encodeURIComponent(purchase.deal_id||"")+"#purchase-deal-"+encodeURIComponent(purchase.deal_id||""),
       cta:"View purchase →"
     };
   }
@@ -2092,7 +2093,7 @@ function purchaseNextAction(purchase){
       priority:40,waiting:true,deal:deal,identity:bike,
       title:"AnyBike is arranging collection",
       text:"Payment is complete. No action is required from you while collection is arranged.",
-      href:"/my-purchases.html?deal="+encodeURIComponent(purchase.deal_id||""),
+      href:"/my-purchases.html?deal="+encodeURIComponent(purchase.deal_id||"")+"#purchase-deal-"+encodeURIComponent(purchase.deal_id||""),
       cta:"View purchase →"
     };
   }
@@ -2101,7 +2102,7 @@ function purchaseNextAction(purchase){
       priority:45,waiting:true,deal:deal,identity:bike,
       title:"Collection / UK handover in progress",
       text:"This motorcycle is progressing through collection, custody or handover. We will show you here if anything is needed from you.",
-      href:"/my-purchases.html?deal="+encodeURIComponent(purchase.deal_id||""),
+      href:"/my-purchases.html?deal="+encodeURIComponent(purchase.deal_id||"")+"#purchase-deal-"+encodeURIComponent(purchase.deal_id||""),
       cta:"View progress →"
     };
   }
@@ -2376,13 +2377,26 @@ async function loadPurchases(){
     const purchaseHeading=count===1
       ? ((Number(first._customer_purchase_number||0) ? "Purchase "+Number(first._customer_purchase_number)+" · " : "")+([first.make,first.model,firstVariant].filter(Boolean).join(" ")||"AnyBike purchase")+" · "+purchaseRegistrationLabel(first))
       : ("Purchase "+(Number(first._customer_purchase_number||0)||"")+" · "+count+" motorcycle purchase");
-    return '<section class="purchase-group '+(count>1?'multi':'single')+'">'+
+    return '<section id="purchase-deal-'+safe(first.deal_id||"")+'" class="purchase-group '+(count>1?'multi':'single')+'">'+
       '<div class="purchase-group-head"><div><span>AnyBike purchase</span><h2>'+safe(purchaseHeading)+'</h2>'+
       '<p>'+count+' motorcycle'+(count===1?'':'s')+' in this purchase. Each motorcycle follows its own journey and can progress independently.</p></div>'+
       '<a href="/buy-motorcycles.html" style="display:inline-flex;align-items:center;justify-content:center;padding:9px 12px;border-radius:9px;background:#171717;border:1px solid rgba(255,255,255,.12);color:#fff;font-weight:900;font-size:12px;text-decoration:none">Looking for another motorcycle? →</a></div>'+
       '<div class="purchase-group-grid">'+group.map(purchaseCard).join("")+'</div>'+
     '</section>';
   }).join("");
+
+  if(requestedDeal){
+    window.setTimeout(function(){
+      const target=document.getElementById("purchase-deal-"+String(requestedDeal));
+      if(target){
+        target.classList.add("purchase-focus");
+        target.scrollIntoView({behavior:"smooth",block:"start"});
+        window.setTimeout(function(){
+          target.classList.remove("purchase-focus");
+        },2200);
+      }
+    },120);
+  }
 
   shipperPurchaseLookup.clear();
   orderedPurchases.forEach(function(purchase){
