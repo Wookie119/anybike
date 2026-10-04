@@ -821,19 +821,19 @@ main{width:min(1660px,96vw);margin:28px auto 70px}
     <div class="panel-head">
       <div>
         <h2>Proformas &amp; Invoices</h2>
-        <p>Select one or more outstanding issued documents below if you have made a bank transfer.</p>
+        <p>Select the motorcycle purchase you have paid and enter the amount of that bank transfer.</p>
       </div>
       <div id="invoiceCount" class="count-badge">Loading</div>
     </div>
-    <div class="notice-box"><strong>Important:</strong> reporting a payment tells AnyBike what you have sent and how you want it allocated. It does not mark the money as received until AnyBike verifies the transfer in its bank account.</div>
-    <div class="scroll-payment-note">After selecting the Proforma(s) and entering the amount(s), scroll down to record your bank transfer.<span>Complete the “I’ve Made a Bank Transfer” section below so AnyBike can verify and post your payment.</span></div>
+    <div class="notice-box"><strong>Important:</strong> each reported bank transfer must relate to one motorcycle purchase only. Reporting a payment does not mark the money as received until AnyBike verifies the transfer in its bank account.</div>
+    <div class="scroll-payment-note">Enter the amount you paid, then select that motorcycle purchase.<span>You will be taken straight to “I’ve Made a Bank Transfer” so AnyBike can verify and post the payment.</span></div>
     <div id="invoices"><div class="empty loading">Loading your invoices...</div></div>
 
     <div id="reportPanel" class="report-panel section-anchor">
       <div id="paymentJourneyNotice"></div>
       <div id="secondChanceLegalBox"></div>
       <div class="panel-head" style="margin-bottom:12px">
-        <div><h2 style="font-size:20px">I’ve Made a Bank Transfer</h2><p>Confirm the transfer details and the split you selected above.</p></div>
+        <div><h2 style="font-size:20px">I’ve Made a Bank Transfer</h2><p>Confirm the transfer details for the motorcycle purchase you selected above.</p></div>
       </div>
       <div class="report-grid">
         <div class="field">
@@ -854,7 +854,7 @@ main{width:min(1660px,96vw);margin:28px auto 70px}
         </div>
       </div>
       <div class="report-total"><span>Total you are reporting</span><strong id="reportedTotal">£0.00</strong></div>
-      <div class="report-note">The selected allocations must add up exactly to the bank transfer you made. AnyBike will verify the actual bank receipt before your purchase balance is updated.</div>
+      <div class="report-note">This bank transfer will be applied only to the motorcycle purchase selected above. AnyBike will verify the actual bank receipt before your purchase balance is updated.</div>
       <div class="accounts-next-action" id="reportNextAction">
         <div class="accounts-next-copy">
           <div class="accounts-next-kicker">Your next action</div>
@@ -927,6 +927,7 @@ main{width:min(1660px,96vw);margin:28px auto 70px}
 
 <script src="/public-header.js?v=12006"></script>
 <script>
+// Accounts build 2026-10-04 one-transfer-one-purchase
 const SUPABASE_URL="https://tuehtnezhdnkqbbhttgp.supabase.co";
 const SUPABASE_ANON_KEY="sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
@@ -1294,8 +1295,24 @@ function renderInvoices(){
   document.querySelectorAll(".pay-amount").forEach(el=>el.addEventListener("change",updatePaymentSelection));
   document.querySelectorAll(".pay-select").forEach(el=>{
     el.addEventListener("change",function(){
+      if(this.checked){
+        document.querySelectorAll(".pay-select").forEach(other=>{
+          if(other!==this) other.checked=false;
+        });
+      }
+
       updatePaymentSelection();
       if(!this.checked) return;
+
+      const invoiceId=Number(this.dataset.invoiceId||0);
+      const amount=Number(document.getElementById("pay-amount-"+invoiceId)?.value||0);
+      if(!Number.isFinite(amount)||amount<=0){
+        this.checked=false;
+        updatePaymentSelection();
+        alert("Enter the amount you transferred for this motorcycle before selecting it.");
+        document.getElementById("pay-amount-"+invoiceId)?.focus();
+        return;
+      }
 
       const panel=document.getElementById("reportPanel");
       if(!panel) return;
@@ -1331,8 +1348,8 @@ function invoiceCard(invoice){
   const paymentBlock=canPay?`<div class="payment-select">
     <input class="pay-select" id="pay-select-${Number(invoice.invoice_id)}" data-invoice-id="${Number(invoice.invoice_id)}" type="checkbox">
     <label class="payment-select-action" for="pay-select-${Number(invoice.invoice_id)}">I'VE MADE A PAYMENT TOWARDS THIS MOTORCYCLE</label>
-    <small><strong>Remaining purchase balance: ${money(invoice.balance_due_gbp)}</strong> · Select this Proforma and enter the amount to allocate.</small>
-    <div class="payment-choice-note"><strong>Select this Proforma, then enter the amount you have transferred.</strong> You can make a part payment, pay the requested amount, clear the balance, or split one bank transfer across other open Proformas.</div>
+    <small><strong>Remaining purchase balance: ${money(invoice.balance_due_gbp)}</strong> · Enter the amount of the bank transfer for this motorcycle.</small>
+    <div class="payment-choice-note"><strong>One bank transfer = one motorcycle purchase.</strong> You can make a part payment, pay the requested amount or clear the remaining balance.</div>
     <div class="payment-quick">
       ${requestMatches?'<button type="button" onclick="useRequestedPaymentAmount('+Number(invoice.invoice_id)+')">Use requested amount</button>':""}
       <button class="pay-full-btn" type="button" onclick="payInvoiceInFull(${Number(invoice.invoice_id)})">PAY FULL REMAINING BALANCE</button>
@@ -1340,8 +1357,8 @@ function invoiceCard(invoice){
     <div class="auto-allocation-label">
       <div class="auto-allocation-icon">✓</div>
       <div class="auto-allocation-copy">
-        <strong>Automatic allocation</strong>
-        <small>AnyBike will apply each amount to the selected purchase after the bank transfer has been verified and posted.</small>
+        <strong>Applied to this motorcycle</strong>
+        <small>After verification, AnyBike will apply this bank transfer only to this selected purchase.</small>
       </div>
     </div>
   </div>`:"";
@@ -1558,7 +1575,8 @@ function updatePaymentSelection(){
 async function submitPaymentAdvice(){
   if(submitBusy)return;
   const allocations=selectedAllocations();
-  if(!allocations.length){alert("Select at least one issued Proforma or invoice.");return;}
+  if(!allocations.length){alert("Select the motorcycle purchase this bank transfer relates to.");return;}
+  if(allocations.length>1){alert("Please report one motorcycle purchase per bank transfer.");return;}
   for(const allocation of allocations){
     const invoice=accountInvoices.find(row=>Number(row.invoice_id)===Number(allocation.invoice_id));
     if(!Number.isFinite(allocation.amount_gbp)||allocation.amount_gbp<=0){alert("Enter a valid allocation amount for each selected document.");return;}
@@ -1604,26 +1622,13 @@ async function submitPaymentAdvice(){
       });
       if(legalAcceptance.error) throw legalAcceptance.error;
     }
-    const selectedInvoice=allocations.length===1
-      ? accountInvoices.find(row=>Number(row.invoice_id)===Number(allocations[0].invoice_id))
-      : null;
-    const combinedSelected=!!selectedInvoice && String(selectedInvoice.deal_number||"").includes(" + ");
-
-    const result=combinedSelected
-      ? await sb.rpc("customer_submit_combined_payment_advice_v1",{
-          p_invoice_id:Number(selectedInvoice.invoice_id),
-          p_reported_amount_gbp:total,
-          p_reported_payment_date:paymentDate,
-          p_customer_bank_reference:bankReference||null,
-          p_customer_notes:notes||null
-        })
-      : await sb.rpc("customer_submit_payment_advice",{
-          p_reported_amount_gbp:total,
-          p_reported_payment_date:paymentDate,
-          p_customer_bank_reference:bankReference||null,
-          p_customer_notes:notes||null,
-          p_allocations:allocations
-        });
+    const result=await sb.rpc("customer_submit_payment_advice",{
+      p_reported_amount_gbp:total,
+      p_reported_payment_date:paymentDate,
+      p_customer_bank_reference:bankReference||null,
+      p_customer_notes:notes||null,
+      p_allocations:allocations
+    });
     if(result.error)throw result.error;
     const payload=result.data||{};
     document.getElementById("bankReference").value="";
