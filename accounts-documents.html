@@ -577,6 +577,7 @@ async function loadAccounts(){
     document.getElementById("invoiceCount").textContent="Unavailable";
   }else{
     accountInvoices=Array.isArray(invoiceResult.data)?invoiceResult.data:[];
+    sortAccountInvoicesForPayment();
     await loadInvoiceLines();
     renderInvoices();
   }
@@ -591,6 +592,39 @@ async function loadAccounts(){
   }
   renderSummary();
   restoreRequestedAccountsSection();
+}
+
+function sortAccountInvoicesForPayment(){
+  const request=requestedPaymentJourney();
+  const requestedMatch=invoice=>!!request && (
+    (request.invoiceId && Number(request.invoiceId)===Number(invoice.invoice_id)) ||
+    (!request.invoiceId && String(request.deal||"").trim()===String(invoice.deal_number||"").trim())
+  );
+  const issuedTime=invoice=>{
+    const value=invoice.issued_at || invoice.updated_at || "";
+    const time=Date.parse(value);
+    return Number.isFinite(time)?time:0;
+  };
+
+  accountInvoices.sort((a,b)=>{
+    const aRequested=requestedMatch(a);
+    const bRequested=requestedMatch(b);
+    if(aRequested!==bRequested)return aRequested?-1:1;
+
+    const aOpen=!!a.can_report_payment;
+    const bOpen=!!b.can_report_payment;
+    if(aOpen!==bOpen)return aOpen?-1:1;
+
+    if(aOpen && bOpen){
+      const age=issuedTime(a)-issuedTime(b);
+      if(age!==0)return age;
+      return Number(a.invoice_id||0)-Number(b.invoice_id||0);
+    }
+
+    const recent=issuedTime(b)-issuedTime(a);
+    if(recent!==0)return recent;
+    return Number(b.invoice_id||0)-Number(a.invoice_id||0);
+  });
 }
 
 async function loadInvoiceLines(){
