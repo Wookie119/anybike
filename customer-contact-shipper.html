@@ -4,7 +4,13 @@
 <section class="card"><div class="ey">AnyBike shipper introduction</div><h1>Contact Shipper</h1><p>Send your enquiry through AnyBike. The shipper, you and AnyBike will share one shipping conversation so we can step in if needed.</p></section>
 <section class="card"><h2 id="shipperName">Loading shipper…</h2><p id="shipperInfo"></p></section>
 <section class="card"><div class="note"><strong>AnyBike introduction:</strong> “AnyBike has recommended your company to support one of our clients with an international motorcycle shipment.”</div>
-<div class="grid"><div><label>Destination country *</label><input id="country"></div><div><label>Destination port</label><input id="port"></div><div class="full"><label>Motorcycle details</label><input id="bike" placeholder="e.g. 2024 BMW S1000RR"></div><div class="full"><label>Your message *</label><textarea id="message" placeholder="Tell the shipper what you need..."></textarea></div></div>
+<div id="purchaseWrap" class="full" style="display:none;margin-bottom:16px">
+  <label>AnyBike purchases linked to this shipping enquiry</label>
+  <div class="note" style="margin-bottom:10px">If you have committed AnyBike purchases, select the motorcycle or motorcycles you are discussing with this shipper.</div>
+  <label class="consent" style="margin:0 0 8px"><input type="checkbox" id="selectAllPurchases"><span><strong>Select all purchases</strong></span></label>
+  <div id="purchaseList" style="display:grid;gap:8px"></div>
+</div>
+<div class="grid"><div><label>Destination country *</label><input id="country"></div><div><label>Destination port</label><input id="port"></div><div class="full"><label>Motorcycle details <span style="color:#999;font-weight:normal">(optional if an AB purchase is selected)</span></label><input id="bike" placeholder="e.g. 2024 BMW S1000RR"></div><div class="full"><label>Your message *</label><textarea id="message" placeholder="Tell the shipper what you need..."></textarea></div></div>
 <label class="consent"><input type="checkbox" id="consent"><span>I agree that AnyBike may share my profile contact/business details with this shipper for this shipping enquiry.</span></label>
 <div class="actions"><button class="btn" id="send">Start Shipping Conversation →</button><a class="btn" style="background:#222;border-color:#333" href="/freight-forwarders.html">Back to Shippers</a></div><div class="status" id="status"></div></section>
 </main><script src="/public-header.js?v=12006"></script><script>
@@ -13,8 +19,18 @@ const params=new URLSearchParams(location.search),id=Number(params.get("shipper"
 (async()=>{const {data:{user}}=await sb.auth.getUser();if(!user){location.href="/customer-login.html?return="+encodeURIComponent(location.pathname+location.search);return}
 const {data}=await sb.rpc("public_get_verified_freight_forwarders_v1");const r=(data||[]).find(x=>Number(x.id)===id);if(!r){shipperName.textContent="Shipper not found";send.disabled=true;return}
 shipperName.textContent=r.company_name;shipperInfo.textContent=[r.city,r.country].filter(Boolean).join(", ");
-country.value=params.get("country")||"";const {data:p}=await sb.from("customer_profiles").select("preferred_destination_port,business_country").eq("id",user.id).maybeSingle();if(!country.value)country.value=p?.business_country||"";port.value=p?.preferred_destination_port||"";})();
+country.value=params.get("country")||"";const {data:p}=await sb.from("customer_profiles").select("preferred_destination_port,business_country").eq("id",user.id).maybeSingle();if(!country.value)country.value=p?.business_country||"";port.value=p?.preferred_destination_port||"";
+const {data:deals,error:dealError}=await sb.rpc("customer_get_shipping_eligible_deals_v1");
+if(!dealError && Array.isArray(deals) && deals.length){
+  purchaseWrap.style.display="block";
+  purchaseList.innerHTML=deals.map(d=>'<label class="consent" style="margin:0;padding:10px;border:1px solid var(--line);border-radius:10px;background:#0b0b0b"><input class="purchase-check" type="checkbox" value="'+Number(d.deal_id)+'"><span><strong>'+safe(d.deal_number)+'</strong> — '+safe(d.motorcycle_details)+' — Reg: '+safe(d.registration||"not recorded")+'</span></label>').join("");
+  const checks=()=>Array.from(document.querySelectorAll(".purchase-check"));
+  selectAllPurchases.onchange=()=>checks().forEach(x=>x.checked=selectAllPurchases.checked);
+  purchaseList.addEventListener("change",()=>{const all=checks();selectAllPurchases.checked=all.length>0&&all.every(x=>x.checked)});
+}
+})();
+function safe(v){return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]))}
 send.onclick=async()=>{status.className="status";status.textContent="";if(!consent.checked){status.textContent="Please confirm that AnyBike may share your contact details.";status.className="status bad";return}if(!country.value.trim()||!message.value.trim()){status.textContent="Destination country and message are required.";status.className="status bad";return}
-send.disabled=true;send.textContent="Sending…";const {data,error}=await sb.functions.invoke("send-shipper-enquiry",{body:{forwarder_id:id,destination_country:country.value.trim(),destination_port:port.value.trim()||null,motorcycle_details:bike.value.trim()||null,message:message.value.trim()}});
+send.disabled=true;send.textContent="Sending…";const dealIds=Array.from(document.querySelectorAll(".purchase-check:checked")).map(x=>Number(x.value)).filter(Number.isFinite);const {data,error}=await sb.functions.invoke("send-shipper-enquiry",{body:{forwarder_id:id,destination_country:country.value.trim(),destination_port:port.value.trim()||null,motorcycle_details:bike.value.trim()||null,message:message.value.trim(),deal_ids:dealIds}});
 if(error||data?.error){status.textContent=data?.error||error.message;status.className="status bad";send.disabled=false;send.textContent="Start Shipping Conversation →";return}
 status.textContent="Conversation started. The shipper has been emailed by AnyBike.";status.className="status good";setTimeout(()=>location.href="/customer-shipping-conversations.html?conversation="+data.enquiry_id,700)};</script></body></html>
