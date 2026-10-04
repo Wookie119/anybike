@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>International Shippers & Ports | AnyBike Admin</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="/admin-shell.css?v=202609261125">
+<style>
+:root{--red:#ed1c24;--line:rgba(255,255,255,.12);--muted:#9b9b9b;--green:#36d37e}
+*{box-sizing:border-box}
+body{margin:0;background:#070707;color:#fff;font-family:Arial,Helvetica,sans-serif}
+.admin-page-content{padding:26px}
+.wrap{max-width:1500px;margin:auto}
+.hero{padding:22px;border:1px solid var(--line);border-radius:18px;background:#111;margin-bottom:18px}
+.hero .eyebrow{color:var(--red);font-size:12px;font-weight:900;letter-spacing:.12em;text-transform:uppercase}
+.hero h1{margin:7px 0 8px;font-size:34px}
+.hero p{margin:0;color:#bbb;line-height:1.5}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.tab{border:1px solid var(--line);background:#161616;color:#fff;padding:10px 14px;border-radius:999px;font-weight:900;cursor:pointer}
+.tab.active{background:var(--red);border-color:var(--red)}
+.panel{display:none}.panel.active{display:block}
+.grid{display:grid;grid-template-columns:minmax(320px,.85fr) minmax(0,1.6fr);gap:16px}
+.card{background:#111;border:1px solid var(--line);border-radius:16px;padding:18px}
+.card h2{margin:0 0 6px;font-size:21px}
+.card p{margin:0 0 15px;color:#999;line-height:1.45}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.full{grid-column:1/-1}
+label{display:block;font-size:12px;font-weight:900;margin-bottom:5px}
+input,textarea,select{width:100%;padding:11px;border-radius:10px;border:1px solid var(--line);background:#080808;color:#fff}
+textarea{min-height:84px;resize:vertical}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.btn{border:0;border-radius:999px;padding:10px 14px;font-weight:900;cursor:pointer}
+.btn.red{background:var(--red);color:#fff}.btn.dark{background:#222;color:#fff;border:1px solid var(--line)}
+.toolbar{display:grid;grid-template-columns:1fr 220px auto;gap:8px;margin-bottom:12px}
+.list{display:grid;gap:10px}
+.row{padding:13px;border:1px solid var(--line);border-radius:12px;background:#0d0d0d;display:grid;grid-template-columns:1.2fr 1fr 1fr auto;gap:10px;align-items:start}
+.row strong{display:block}.row small{display:block;color:#888;margin-top:4px;line-height:1.4}
+.badge{display:inline-block;padding:4px 7px;border-radius:999px;border:1px solid var(--line);font-size:11px;font-weight:900}
+.badge.good{color:#8df0b3;border-color:rgba(54,211,126,.4);background:rgba(54,211,126,.08)}
+.empty{padding:24px;text-align:center;color:#888;border:1px dashed var(--line);border-radius:12px}
+.status{min-height:20px;margin-top:8px;color:#aaa}.status.bad{color:#ff8a8f}.status.good{color:#8df0b3}
+.note{padding:11px;border-radius:10px;background:rgba(237,28,36,.07);border:1px solid rgba(237,28,36,.25);color:#ccc;margin-bottom:14px;font-size:13px;line-height:1.45}
+@media(max-width:900px){.grid{grid-template-columns:1fr}.toolbar{grid-template-columns:1fr}.form-grid{grid-template-columns:1fr}.full{grid-column:auto}.row{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="admin-shell">
+  <div id="adminSidebar"></div>
+  <div class="admin-main">
+    <div id="adminTopbar"></div>
+    <main class="admin-page-content">
+      <div class="wrap">
+        <section class="hero">
+          <div class="eyebrow">Operations · Private admin data</div>
+          <h1>International Shippers & Ports</h1>
+          <p>Maintain overseas destination ports and international shipping companies by country. This page is admin-only and is not exposed on the public website.</p>
+        </section>
+
+        <div class="tabs">
+          <button class="tab active" data-tab="ports">International Ports</button>
+          <button class="tab" data-tab="shippers">International Shippers</button>
+        </div>
+
+        <section class="panel active" id="panel-ports">
+          <div class="grid">
+            <div class="card">
+              <h2>Add / Edit Port</h2>
+              <p>Store destination ports by country for future buyer research and routing.</p>
+              <input type="hidden" id="portId">
+              <div class="form-grid">
+                <div><label>Country *</label><input id="portCountry" placeholder="e.g. Mauritius"></div>
+                <div><label>Port name *</label><input id="portName" placeholder="e.g. Port Louis"></div>
+                <div class="full"><label>City / Region</label><input id="portRegion" placeholder="Optional location detail"></div>
+                <div class="full"><label>Notes</label><textarea id="portNotes" placeholder="Handling notes, terminal information, useful contacts..."></textarea></div>
+                <div><label>Status</label><select id="portActive"><option value="true">Active</option><option value="false">Inactive</option></select></div>
+              </div>
+              <div class="actions"><button class="btn red" id="savePort">Save Port</button><button class="btn dark" id="clearPort">Clear</button></div>
+              <div class="status" id="portStatus"></div>
+            </div>
+            <div class="card">
+              <h2>Ports Directory</h2>
+              <div class="toolbar">
+                <input id="portSearch" placeholder="Search country or port">
+                <select id="portCountryFilter"><option value="">All countries</option></select>
+                <button class="btn dark" id="refreshPorts">Refresh</button>
+              </div>
+              <div class="list" id="portsList"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel" id="panel-shippers">
+          <div class="grid">
+            <div class="card">
+              <h2>Add / Edit International Shipper</h2>
+              <p>Record overseas freight companies and the countries or ports they serve.</p>
+              <div class="note">This is separate from the UK handover freight-forwarder directory used in buyer profiles.</div>
+              <input type="hidden" id="shipperId">
+              <div class="form-grid">
+                <div class="full"><label>Company name *</label><input id="shipperName"></div>
+                <div><label>Base country</label><input id="shipperCountry"></div>
+                <div><label>City / Area</label><input id="shipperCity"></div>
+                <div><label>Contact name</label><input id="shipperContact"></div>
+                <div><label>Phone / WhatsApp</label><input id="shipperPhone"></div>
+                <div class="full"><label>Email</label><input id="shipperEmail" type="email"></div>
+                <div class="full"><label>Website</label><input id="shipperWebsite" placeholder="https://"></div>
+                <div class="full"><label>Countries served</label><input id="shipperCountries" placeholder="Mauritius, Réunion, South Africa"></div>
+                <div class="full"><label>Ports served</label><input id="shipperPorts" placeholder="Port Louis, Port Réunion, Durban"></div>
+                <div class="full"><label>Services</label><input id="shipperServices" placeholder="Sea Freight, Container, RoRo, Customs Clearance"></div>
+                <div class="full"><label>Notes</label><textarea id="shipperNotes"></textarea></div>
+                <div><label>Status</label><select id="shipperActive"><option value="true">Active</option><option value="false">Inactive</option></select></div>
+              </div>
+              <div class="actions"><button class="btn red" id="saveShipper">Save Shipper</button><button class="btn dark" id="clearShipper">Clear</button></div>
+              <div class="status" id="shipperStatus"></div>
+            </div>
+            <div class="card">
+              <h2>International Shippers Directory</h2>
+              <div class="toolbar">
+                <input id="shipperSearch" placeholder="Search company, country or port">
+                <select id="shipperCountryFilter"><option value="">All served countries</option></select>
+                <button class="btn dark" id="refreshShippers">Refresh</button>
+              </div>
+              <div class="list" id="shippersList"></div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="/admin.js?v=20261004"></script>
+<script>
+const sb=getAdminSupabaseClient();
+let ports=[],shippers=[];
+
+function safe(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function csv(v){return String(v||"").split(",").map(x=>x.trim()).filter(Boolean);}
+function setStatus(id,msg,ok=true){const el=document.getElementById(id);el.textContent=msg||"";el.className="status "+(msg?(ok?"good":"bad"):"");}
+
+document.querySelectorAll(".tab").forEach(btn=>btn.addEventListener("click",()=>{
+  document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+  document.querySelectorAll(".panel").forEach(x=>x.classList.remove("active"));
+  btn.classList.add("active");
+  document.getElementById("panel-"+btn.dataset.tab).classList.add("active");
+}));
+
+async function loadPorts(){
+  const {data,error}=await sb.rpc("admin_get_international_ports_v1");
+  if(error){document.getElementById("portsList").innerHTML='<div class="empty">'+safe(error.message)+'</div>';return;}
+  ports=data||[];
+  fillPortCountries();
+  renderPorts();
+}
+function fillPortCountries(){
+  const sel=document.getElementById("portCountryFilter"),cur=sel.value;
+  const countries=[...new Set(ports.map(x=>x.country).filter(Boolean))].sort();
+  sel.innerHTML='<option value="">All countries</option>'+countries.map(x=>'<option>'+safe(x)+'</option>').join("");
+  if(countries.includes(cur))sel.value=cur;
+}
+function renderPorts(){
+  const q=document.getElementById("portSearch").value.trim().toLowerCase();
+  const country=document.getElementById("portCountryFilter").value;
+  const rows=ports.filter(x=>(!country||x.country===country)&&(!q||[x.country,x.port_name,x.city_region,x.notes].join(" ").toLowerCase().includes(q)));
+  document.getElementById("portsList").innerHTML=rows.length?rows.map(x=>`
+    <div class="row">
+      <div><strong>${safe(x.port_name)}</strong><small>${safe(x.country)}</small></div>
+      <div><span class="badge ${x.is_active?"good":""}">${x.is_active?"Active":"Inactive"}</span></div>
+      <div><small>${safe(x.city_region||"")}</small><small>${safe(x.notes||"")}</small></div>
+      <div><button class="btn dark" onclick="editPort(${Number(x.id)})">Edit</button></div>
+    </div>`).join(""):'<div class="empty">No ports found.</div>';
+}
+function editPort(id){
+  const x=ports.find(r=>Number(r.id)===Number(id));if(!x)return;
+  portId.value=x.id;portCountry.value=x.country||"";portName.value=x.port_name||"";portRegion.value=x.city_region||"";portNotes.value=x.notes||"";portActive.value=String(Boolean(x.is_active));
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+function clearPort(){portId.value="";portCountry.value="";portName.value="";portRegion.value="";portNotes.value="";portActive.value="true";setStatus("portStatus","");}
+
+async function savePort(){
+  setStatus("portStatus","Saving...");
+  const {error}=await sb.rpc("admin_save_international_port_v1",{
+    p_id:portId.value?Number(portId.value):null,p_country:portCountry.value,p_port_name:portName.value,
+    p_city_region:portRegion.value||null,p_notes:portNotes.value||null,p_is_active:portActive.value==="true"
+  });
+  if(error){setStatus("portStatus",error.message,false);return;}
+  setStatus("portStatus","Port saved.");clearPort();await loadPorts();
+}
+
+async function loadShippers(){
+  const {data,error}=await sb.rpc("admin_get_international_shippers_v1");
+  if(error){document.getElementById("shippersList").innerHTML='<div class="empty">'+safe(error.message)+'</div>';return;}
+  shippers=data||[];
+  fillShipperCountries();
+  renderShippers();
+}
+function fillShipperCountries(){
+  const sel=document.getElementById("shipperCountryFilter"),cur=sel.value;
+  const countries=[...new Set(shippers.flatMap(x=>Array.isArray(x.countries_served)?x.countries_served:[]).filter(Boolean))].sort();
+  sel.innerHTML='<option value="">All served countries</option>'+countries.map(x=>'<option>'+safe(x)+'</option>').join("");
+  if(countries.includes(cur))sel.value=cur;
+}
+function renderShippers(){
+  const q=document.getElementById("shipperSearch").value.trim().toLowerCase();
+  const country=document.getElementById("shipperCountryFilter").value;
+  const rows=shippers.filter(x=>{
+    const cs=Array.isArray(x.countries_served)?x.countries_served:[];
+    return (!country||cs.includes(country))&&(!q||[x.company_name,x.base_country,x.city,x.contact_name,x.email,x.phone,cs.join(" "),Array.isArray(x.ports_served)?x.ports_served.join(" "):"",x.notes].join(" ").toLowerCase().includes(q));
+  });
+  document.getElementById("shippersList").innerHTML=rows.length?rows.map(x=>`
+    <div class="row">
+      <div><strong>${safe(x.company_name)}</strong><small>${safe([x.city,x.base_country].filter(Boolean).join(", "))}</small></div>
+      <div><small><b>Countries:</b> ${safe((x.countries_served||[]).join(", ")||"Not set")}</small></div>
+      <div><small><b>Ports:</b> ${safe((x.ports_served||[]).join(", ")||"Not set")}</small><small>${safe(x.phone||x.email||"")}</small></div>
+      <div><button class="btn dark" onclick="editShipper(${Number(x.id)})">Edit</button></div>
+    </div>`).join(""):'<div class="empty">No international shippers found.</div>';
+}
+function editShipper(id){
+  const x=shippers.find(r=>Number(r.id)===Number(id));if(!x)return;
+  shipperId.value=x.id;shipperName.value=x.company_name||"";shipperCountry.value=x.base_country||"";shipperCity.value=x.city||"";
+  shipperContact.value=x.contact_name||"";shipperEmail.value=x.email||"";shipperPhone.value=x.phone||"";shipperWebsite.value=x.website||"";
+  shipperCountries.value=(x.countries_served||[]).join(", ");shipperPorts.value=(x.ports_served||[]).join(", ");shipperServices.value=(x.services||[]).join(", ");
+  shipperNotes.value=x.notes||"";shipperActive.value=String(Boolean(x.is_active));window.scrollTo({top:0,behavior:"smooth"});
+}
+function clearShipper(){
+  ["shipperId","shipperName","shipperCountry","shipperCity","shipperContact","shipperEmail","shipperPhone","shipperWebsite","shipperCountries","shipperPorts","shipperServices","shipperNotes"].forEach(id=>document.getElementById(id).value="");
+  shipperActive.value="true";setStatus("shipperStatus","");
+}
+async function saveShipper(){
+  setStatus("shipperStatus","Saving...");
+  const {error}=await sb.rpc("admin_save_international_shipper_v1",{
+    p_id:shipperId.value?Number(shipperId.value):null,p_company_name:shipperName.value,p_base_country:shipperCountry.value||null,p_city:shipperCity.value||null,
+    p_contact_name:shipperContact.value||null,p_email:shipperEmail.value||null,p_phone:shipperPhone.value||null,p_website:shipperWebsite.value||null,
+    p_countries_served:csv(shipperCountries.value),p_ports_served:csv(shipperPorts.value),p_services:csv(shipperServices.value),
+    p_notes:shipperNotes.value||null,p_is_active:shipperActive.value==="true"
+  });
+  if(error){setStatus("shipperStatus",error.message,false);return;}
+  setStatus("shipperStatus","Shipper saved.");clearShipper();await loadShippers();
+}
+
+["portSearch"].forEach(id=>document.getElementById(id).addEventListener("input",renderPorts));
+portCountryFilter.addEventListener("change",renderPorts);
+shipperSearch.addEventListener("input",renderShippers);
+shipperCountryFilter.addEventListener("change",renderShippers);
+savePort.addEventListener("click",savePort);clearPort.addEventListener("click",clearPort);refreshPorts.addEventListener("click",loadPorts);
+saveShipper.addEventListener("click",saveShipper);clearShipper.addEventListener("click",clearShipper);refreshShippers.addEventListener("click",loadShippers);
+
+(async function init(){
+  const ok=await requireAdminSession();if(!ok)return;
+  loadAdminShell();
+  await Promise.all([loadPorts(),loadShippers()]);
+})();
+</script>
+</body>
+</html>
