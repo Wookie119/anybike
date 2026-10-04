@@ -1285,6 +1285,7 @@ function purchaseCard(purchase){
           <div>
             <h2>${safe(title)}</h2>
             ${variant?`<div class="variant">${safe(variant)}</div>`:""}
+            <div class="variant" style="margin-top:3px;color:#aaa">${safe(purchaseRegistrationLabel(purchase))}</div>
           </div>
           <div class="badges">
             <span class="badge">Offer Accepted</span>
@@ -1690,12 +1691,18 @@ function cleanPurchaseMotorcycleVariant(value){
     .replace(/[\s·,;\-]+$/g,"")
     .trim();
 }
+function purchaseRegistrationLabel(purchase){
+  const reg=String(purchase?.registration||purchase?.registration_number||purchase?.reg||"").trim();
+  return reg ? "Reg "+reg : "Reg not yet recorded";
+}
+
 
 function purchaseNextAction(purchase){
   const state=purchaseState(purchase);
   const deal=String(purchase.deal_number||"").trim();
   const cleanVariant=cleanPurchaseMotorcycleVariant(purchase.variant);
-  const bike=[purchase.make,purchase.model,cleanVariant].filter(Boolean).join(" ")||"Motorcycle";
+  const bikeBase=[purchase.make,purchase.model,cleanVariant].filter(Boolean).join(" ")||"Motorcycle";
+  const bike=bikeBase+" · "+purchaseRegistrationLabel(purchase);
   const balance=Number(state.balance||0);
   const depositOutstanding=Number(state.depositOutstanding||state.depositDue||0);
 
@@ -1985,7 +1992,7 @@ async function loadPurchases(){
     const count=group.length;
     const firstVariant=cleanPurchaseMotorcycleVariant(first.variant);
     const purchaseHeading=count===1
-      ? ([first.make,first.model,firstVariant].filter(Boolean).join(" ")||"AnyBike purchase")
+      ? (([first.make,first.model,firstVariant].filter(Boolean).join(" ")||"AnyBike purchase")+" · "+purchaseRegistrationLabel(first))
       : (count+" motorcycle purchase");
     return '<section class="purchase-group '+(count>1?'multi':'single')+'">'+
       '<div class="purchase-group-head"><div><span>AnyBike purchase</span><h2>'+safe(purchaseHeading)+'</h2>'+
