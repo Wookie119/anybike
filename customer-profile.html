@@ -711,7 +711,17 @@
 
           <div class="grid">
             <div>
-              <label for="destinationPort">Usual destination port in your country <span style="color:#999;font-weight:normal">(optional)</span></label>
+              <label for="destinationCountry">Destination country <span style="color:#999;font-weight:normal">(optional)</span></label>
+              <select id="destinationCountry">
+                <option value="">Select destination country</option>
+              </select>
+              <div style="margin-top:7px;color:#9aa0a6;font-size:12px;line-height:1.45">
+                This can be different from your business country. Choose where you normally import or receive motorcycles.
+              </div>
+            </div>
+
+            <div>
+              <label for="destinationPort">Usual destination port <span style="color:#999;font-weight:normal">(optional)</span></label>
               <select id="destinationPort">
                 <option value="">Select your usual arrival port</option>
               </select>
@@ -973,7 +983,7 @@
 
 
     function buyerDestinationCountry(){
-      return String(value("businessCountry")||value("country")||"").trim();
+      return String(value("destinationCountry")||"").trim();
     }
 
     function populateDestinationPorts(selected=""){
@@ -1011,7 +1021,7 @@
         }else if(country){
           help.textContent="We do not yet have a standard arrival-port list for "+country+". Choose “Other / request a port” and enter the port you normally use. This remains completely separate from AnyBike's UK handover point.";
         }else{
-          help.textContent="Select your business country first, then choose your usual overseas arrival port. This is completely separate from AnyBike's UK handover point.";
+          help.textContent="Select a destination country first, then choose your usual arrival port. This is completely separate from AnyBike's UK handover point.";
         }
       }
     }
@@ -1166,6 +1176,7 @@
       setValue("businessRegion", profile?.business_region);
       setValue("businessPostcode", profile?.business_postcode);
       populateCountrySelect("businessCountry", profile?.business_country || profile?.country);
+      populateCountrySelect("destinationCountry", profile?.preferred_destination_country || "");
       setValue("bankAccountName", profile?.bank_account_name);
       setValue("bankAccountNumber", profile?.bank_account_number);
       setValue("bankSortCode", profile?.bank_sort_code);
@@ -1293,10 +1304,12 @@
     });
     document.getElementById("country")?.addEventListener("change",()=>{
       updateBuyerTypeFields();
-      if(!value("businessCountry")) populateDestinationPorts("");
       markDirtyAndAutosave();
     });
     document.getElementById("businessCountry")?.addEventListener("change",()=>{
+      markDirtyAndAutosave();
+    });
+    document.getElementById("destinationCountry")?.addEventListener("change",()=>{
       populateDestinationPorts("");
       markDirtyAndAutosave();
     });
@@ -1603,8 +1616,10 @@
         default_warranty_cost:value("defaultWarrantyCost")?Number(value("defaultWarrantyCost")):null,
         default_other_landed_cost:value("defaultOtherCost")?Number(value("defaultOtherCost")):null
       };
-      if(section==="buyer") return {...base,buyer_eori_number:value("buyerEori")||null,preferred_destination_port:selectedDestinationPort()||null,preferred_shipping_method:document.getElementById("shippingMethod").value||null,typical_bikes_per_shipment:document.getElementById("typicalQuantity").value||null};
+      if(section==="buyer") return {...base,buyer_eori_number:value("buyerEori")||null,preferred_shipping_method:document.getElementById("shippingMethod").value||null,typical_bikes_per_shipment:document.getElementById("typicalQuantity").value||null};
       if(section==="shipping") return {...base,
+        preferred_destination_country:value("destinationCountry")||null,
+        preferred_destination_port:selectedDestinationPort()||null,
         shipping_directory_forwarder_id:document.getElementById("shippingDirectorySelect").value && document.getElementById("shippingDirectorySelect").value!=="custom" ? Number(document.getElementById("shippingDirectorySelect").value) : null,
         preferred_shipping_company:value("shippingCompany")||null,
         shipping_contact_name:value("shippingContactName")||null,
