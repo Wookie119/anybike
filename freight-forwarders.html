@@ -789,17 +789,21 @@ function refreshCountryFilter(records){
   }).join("");
 }
 function approvedForwarderCard(r){
-  const countries=ffArray(r.countries_covered);
+  const countries=ffArray(r.countries_covered).map(ffCanonicalCountry);
   const ports=ffArray(r.ports_served);
   const services=ffArray(r.services);
+  const coverageTerms=ffArray(r.coverage_terms);
+  const isMotorcycleSpecialist=Boolean(r.motorcycle_specialist);
   const location=[r.city,r.country].filter(Boolean).join(", ");
   const address=String(r.uk_address||"").trim();
   const website=String(r.website||"").trim();
   const countryText=countries.length ? countries.join(", ") : "Ask provider";
   const serviceText=services.length ? services.join(", ") : "Motorcycle freight / handover";
-  const keywordText=[countryText,ports.join(" "),serviceText,address,location].join(" ");
-  return '<article class="provider-card" data-approved-directory="true" data-name="'+ffSafe(r.company_name)+'" data-type="freight motorcycle" data-method="'+ffSafe(ffMethodTokens(services))+'" data-countries="'+ffSafe(countries.join("|").toLowerCase())+'" data-keywords="'+ffSafe(keywordText.toLowerCase())+'">'+
-    '<div class="provider-top"><div class="provider-mark">'+ffSafe(ffInitials(r.company_name))+'</div><div class="provider-type">AnyBike approved shipper</div></div>'+
+  const keywordText=[countryText,ports.join(" "),coverageTerms.join(" "),serviceText,address,location].join(" ");
+  const typeTokens=["freight"];
+  if(isMotorcycleSpecialist) typeTokens.push("motorcycle");
+  return '<article class="provider-card" data-approved-directory="true" data-name="'+ffSafe(r.company_name)+'" data-type="'+ffSafe(typeTokens.join(" "))+'" data-method="'+ffSafe(ffMethodTokens(services))+'" data-countries="'+ffSafe(countries.join("|").toLowerCase())+'" data-keywords="'+ffSafe(keywordText.toLowerCase())+'">'+
+    '<div class="provider-top"><div class="provider-mark">'+ffSafe(ffInitials(r.company_name))+'</div><div class="provider-type">'+(isMotorcycleSpecialist?'Motorcycle specialist':'Freight forwarder')+'</div></div>'+
     '<h3>'+ffSafe(r.company_name)+'</h3>'+
     '<p>This company has been approved by AnyBike for at least one customer handover after the buyer confirmed direct contact and that the shipper agreed to handle the shipment.</p>'+
     '<div class="provider-meta">'+
@@ -809,7 +813,9 @@ function approvedForwarderCard(r){
       '<div><strong>Services</strong><span>'+ffSafe(serviceText)+'</span></div>'+
     '</div>'+
     '<div class="tags">'+
+      (isMotorcycleSpecialist?'<span class="tag">Motorcycle specialist</span>':'')+
       countries.slice(0,5).map(function(x){return '<span class="tag">'+ffSafe(x)+'</span>';}).join("")+
+      coverageTerms.slice(0,3).map(function(x){return '<span class="tag">'+ffSafe(x)+'</span>';}).join("")+
       services.slice(0,4).map(function(x){return '<span class="tag">'+ffSafe(x)+'</span>';}).join("")+
     '</div>'+
     '<div class="provider-actions">'+
@@ -823,14 +829,21 @@ function applyLiveCoverageToCard(card,r){
   const uniqueCountries=[...new Set(countries.filter(Boolean))];
   const ports=ffArray(r.ports_served);
   const services=ffArray(r.services);
+  const coverageTerms=ffArray(r.coverage_terms);
+  const isMotorcycleSpecialist=Boolean(r.motorcycle_specialist);
 
   card.dataset.countries=uniqueCountries.map(function(x){return x.toLowerCase();}).join("|");
   card.dataset.method=ffMethodTokens(services) || card.dataset.method || "";
+  const currentTypes=(card.dataset.type||"").split(" ").filter(Boolean).filter(function(x){return x!=="motorcycle";});
+  if(isMotorcycleSpecialist) currentTypes.push("motorcycle");
+  card.dataset.type=[...new Set(currentTypes)].join(" ");
   card.dataset.keywords=[
     card.dataset.keywords||"",
     uniqueCountries.join(" "),
     ports.join(" "),
-    services.join(" ")
+    coverageTerms.join(" "),
+    services.join(" "),
+    isMotorcycleSpecialist ? "motorcycle motorbike bike motorcycle specialist" : ""
   ].join(" ").toLowerCase();
 
   let coverage=card.querySelector(".live-coverage");
@@ -847,9 +860,14 @@ function applyLiveCoverageToCard(card,r){
     : "Worldwide / route dependent — confirm current availability with the provider";
   const portText=ports.length ? ports.join(", ") : "";
 
+  const termsText=coverageTerms.length ? coverageTerms.join(", ") : "";
   coverage.innerHTML=
+    (isMotorcycleSpecialist?'<strong>✓ Motorcycle specialist</strong>':'')+
     '<strong>Countries / destinations served</strong>'+
-    '<span>'+ffSafe(countryText)+(portText?'<br><b>Named ports / destinations:</b> '+ffSafe(portText):'')+'</span>';
+    '<span>'+ffSafe(countryText)+
+      (termsText?'<br><b>Broader coverage:</b> '+ffSafe(termsText):'')+
+      (portText?'<br><b>Named ports / destinations:</b> '+ffSafe(portText):'')+
+    '</span>';
 }
 
 async function loadApprovedForwarders(){
