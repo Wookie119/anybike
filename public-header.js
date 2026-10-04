@@ -361,13 +361,18 @@ function anybikeInstallCustomerNextActionStyles(){
   const style=document.createElement("style");
   style.id="anybike-customer-next-action-style";
   style.textContent=`
-    .anybike-customer-next-action{max-width:1400px;margin:18px auto;padding:18px 20px;border:2px solid #ed1c24;border-radius:16px;background:linear-gradient(135deg,rgba(237,28,36,.14),#111 58%);color:#fff;box-shadow:0 0 0 1px rgba(237,28,36,.08)}
-    .anybike-customer-next-action .abna-kicker{color:#ed1c24;font-size:12px;font-weight:950;letter-spacing:.12em;text-transform:uppercase}
-    .anybike-customer-next-action h2{margin:4px 0 6px;font-size:clamp(20px,2vw,26px);line-height:1.15}
-    .anybike-customer-next-action p{margin:0;color:#d6d6d6;line-height:1.5}
-    .anybike-customer-next-action .abna-bottom{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-top:12px}
-    .anybike-customer-next-action .abna-waiting{display:inline-flex;align-items:center;gap:7px;border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:7px 10px;background:#0b0b0b;font-size:12px;font-weight:900}
-    .anybike-customer-next-action .abna-btn{border:1px solid #ed1c24;border-radius:10px;background:#ed1c24;color:#fff;padding:10px 14px;font-weight:950;cursor:pointer;text-decoration:none}
+    .anybike-customer-next-action{width:min(1640px,calc(100% - 32px));max-width:none;margin:14px auto;padding:12px 16px;border:2px solid #ed1c24;border-radius:14px;background:linear-gradient(135deg,rgba(237,28,36,.14),#111 58%);color:#fff;box-shadow:0 0 0 1px rgba(237,28,36,.08)}
+    .anybike-customer-next-action .abna-kicker{color:#ed1c24;font-size:11px;font-weight:950;letter-spacing:.12em;text-transform:uppercase}
+    .anybike-customer-next-action h2{margin:2px 0 4px;font-size:clamp(20px,1.7vw,25px);line-height:1.08}
+    .anybike-customer-next-action p{margin:0;color:#d6d6d6;line-height:1.35;font-size:14px;max-width:none}
+    .anybike-customer-next-action .abna-bottom{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:nowrap;margin-top:8px}
+    .anybike-customer-next-action .abna-waiting{display:inline-flex;align-items:center;gap:7px;border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:5px 9px;background:#0b0b0b;font-size:11px;font-weight:900;white-space:nowrap}
+    .anybike-customer-next-action .abna-btn{border:1px solid #ed1c24;border-radius:9px;background:#ed1c24;color:#fff;padding:9px 15px;font-weight:950;cursor:pointer;text-decoration:none;white-space:nowrap;margin-left:auto}
+    @media(max-width:760px){
+      .anybike-customer-next-action{width:calc(100% - 20px);padding:12px}
+      .anybike-customer-next-action .abna-bottom{flex-wrap:wrap}
+      .anybike-customer-next-action .abna-btn{width:100%;margin-left:0}
+    }
   `;
   document.head.appendChild(style);
 }
