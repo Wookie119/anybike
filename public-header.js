@@ -1392,6 +1392,31 @@ function renderNotificationList(items){
 
   list.innerHTML = items.slice(0,12).map(function(item){
     const link = item.link || "/customer-messages.html";
+    const lowerLink=String(link).toLowerCase();
+    const lowerTitle=String(item.title||"").toLowerCase();
+    let actionLabel="Open →";
+
+    if(lowerLink.includes("accounts") || lowerTitle.includes("proforma") || lowerTitle.includes("payment")){
+      actionLabel="View payment details →";
+    }else if(lowerTitle.includes("offer") || lowerLink.includes("offer")){
+      actionLabel="Review offer →";
+    }else if(lowerLink.includes("sourced") || lowerTitle.includes("hand-picked") || lowerTitle.includes("match")){
+      actionLabel="View motorcycles →";
+    }else if(lowerLink.includes("message")){
+      actionLabel="Open messages →";
+    }else if(lowerLink.includes("purchase")){
+      actionLabel="View purchase →";
+    }
+
+    let dateLabel="";
+    if(item.date){
+      try{
+        const d=new Date(item.date);
+        if(!Number.isNaN(d.getTime())){
+          dateLabel=d.toLocaleString("en-GB",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"});
+        }
+      }catch(error){}
+    }
 
     return `
       <a
@@ -1400,11 +1425,15 @@ function renderNotificationList(items){
         data-notification-id="${escapeHtml(item.id)}"
         data-notification-link="${escapeHtml(link)}"
       >
-        <span class="notification-icon">${escapeHtml(item.icon || "🔔")}</span>
+        <span class="notification-icon" aria-hidden="true">${escapeHtml(item.icon || "🔔")}</span>
 
         <span class="notification-copy">
-          <strong>${escapeHtml(item.title || translations.notifications)}</strong>
+          <span class="notification-title-row">
+            <strong>${escapeHtml(item.title || translations.notifications)}</strong>
+            ${dateLabel ? `<time>${escapeHtml(dateLabel)}</time>` : ""}
+          </span>
           <small>${escapeHtml(item.message || "")}</small>
+          <span class="notification-action">${escapeHtml(actionLabel)}</span>
         </span>
       </a>
     `;
