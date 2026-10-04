@@ -3,28 +3,84 @@
 */
 (function(){
   const MARKET_COUNTRIES={"antigua-and-barbuda":["Antigua and Barbuda","ag"],"argentina":["Argentina","ar"],"australia":["Australia","au"],"austria":["Austria","at"],"bahamas":["Bahamas","bs"],"bahrain":["Bahrain","bh"],"barbados":["Barbados","bb"],"belgium":["Belgium","be"],"belize":["Belize","bz"],"bolivia":["Bolivia","bo"],"brazil":["Brazil","br"],"canada":["Canada","ca"],"chile":["Chile","cl"],"colombia":["Colombia","co"],"costa-rica":["Costa Rica","cr"],"cuba":["Cuba","cu"],"denmark":["Denmark","dk"],"dominica":["Dominica","dm"],"dominican-republic":["Dominican Republic","do"],"ecuador":["Ecuador","ec"],"egypt":["Egypt","eg"],"el-salvador":["El Salvador","sv"],"finland":["Finland","fi"],"france":["France","fr"],"germany":["Germany","de"],"grenada":["Grenada","gd"],"guatemala":["Guatemala","gt"],"guyana":["Guyana","gy"],"haiti":["Haiti","ht"],"honduras":["Honduras","hn"],"india":["India","in"],"indonesia":["Indonesia","id"],"ireland":["Ireland","ie"],"italy":["Italy","it"],"jamaica":["Jamaica","jm"],"japan":["Japan","jp"],"jordan":["Jordan","jo"],"kenya":["Kenya","ke"],"kuwait":["Kuwait","kw"],"malaysia":["Malaysia","my"],"mexico":["Mexico","mx"],"morocco":["Morocco","ma"],"netherlands":["Netherlands","nl"],"new-zealand":["New Zealand","nz"],"nicaragua":["Nicaragua","ni"],"nigeria":["Nigeria","ng"],"norway":["Norway","no"],"oman":["Oman","om"],"panama":["Panama","pa"],"paraguay":["Paraguay","py"],"peru":["Peru","pe"],"philippines":["Philippines","ph"],"portugal":["Portugal","pt"],"puerto-rico":["Puerto Rico","pr"],"qatar":["Qatar","qa"],"reunion":["Réunion Island","re"],"saint-kitts-and-nevis":["Saint Kitts and Nevis","kn"],"saint-lucia":["Saint Lucia","lc"],"saint-vincent-and-the-grenadines":["Saint Vincent and the Grenadines","vc"],"saudi-arabia":["Saudi Arabia","sa"],"singapore":["Singapore","sg"],"south-africa":["South Africa","za"],"south-korea":["South Korea","kr"],"spain":["Spain","es"],"sweden":["Sweden","se"],"switzerland":["Switzerland","ch"],"taiwan":["Taiwan","tw"],"thailand":["Thailand","th"],"trinidad-and-tobago":["Trinidad and Tobago","tt"],"turkiye":["Türkiye","tr"],"uae":["UAE","ae"],"uruguay":["Uruguay","uy"],"usa":["USA","us"]};
-  const UK_PORTS=["Bristol","Dover","Felixstowe","Harwich","Hull","Immingham","London Gateway","Plymouth","Poole","Portbury","Portsmouth","Purfleet","Sheerness","Southampton","Thamesport","Tilbury"];
+  const UK_PORTS=[
+    "Aberdeen","Avonmouth","Barrow-in-Furness","Barry","Berwick-upon-Tweed","Blyth","Boston","Bridgwater",
+    "Bristol / Portbury","Cardiff","Cairnryan","Chatham","Dover","Dundee","Falmouth","Felixstowe","Fishguard",
+    "Folkestone","Fowey","Fraserburgh","Glasgow / Clyde","Goole","Grangemouth","Great Yarmouth","Greenock",
+    "Grimsby","Hartlepool","Harwich","Heysham","Hull","Immingham","Inverness","Ipswich","Killingholme",
+    "King's Lynn","Leith","Liverpool","London Gateway","Lowestoft","Manchester Docks / Ship Canal",
+    "Middlesbrough","Milford Haven","Montrose","Neath","Newcastle / Port of Tyne","Newhaven","Newport",
+    "Nigg","Pembroke Dock","Peterhead","Plymouth","Poole","Port Talbot","Portland","Portsmouth","Purfleet",
+    "Ramsgate","Redcar","Ridham","Rosyth","Scrabster","Sheerness","Shoreham","Southampton","Sunderland",
+    "Sutton Bridge","Swansea","Teesport","Thamesport","Tilbury","Ullapool","Wick","Wisbech","Workington"
+  ];
+
+  const DESTINATION_PORTS_BY_COUNTRY={
+    "Australia":["Brisbane","Fremantle","Melbourne","Sydney"],
+    "Bahrain":["Khalifa Bin Salman Port"],
+    "Belgium":["Antwerp","Zeebrugge"],
+    "Canada":["Halifax","Montreal","Vancouver"],
+    "Chile":["San Antonio","Valparaíso"],
+    "Egypt":["Alexandria","Port Said","Damietta"],
+    "France":["Le Havre","Marseille-Fos","Dunkirk"],
+    "Germany":["Hamburg","Bremerhaven"],
+    "Ghana":["Tema","Takoradi"],
+    "Hong Kong":["Hong Kong"],
+    "India":["Chennai","Cochin","Mundra","Nhava Sheva / Mumbai"],
+    "Indonesia":["Belawan","Jakarta / Tanjung Priok","Surabaya / Tanjung Perak"],
+    "Ireland":["Cork","Dublin","Rosslare"],
+    "Italy":["Genoa","Livorno","Naples"],
+    "Japan":["Kobe","Nagoya","Osaka","Yokohama"],
+    "Jordan":["Aqaba"],
+    "Kenya":["Mombasa"],
+    "Kuwait":["Shuwaikh","Shuaiba"],
+    "Malaysia":["Port Klang","Penang","Tanjung Pelepas"],
+    "Netherlands":["Rotterdam"],
+    "New Zealand":["Auckland","Lyttelton / Christchurch","Tauranga","Wellington"],
+    "Nigeria":["Apapa / Lagos","Tin Can Island / Lagos","Onne"],
+    "Oman":["Salalah","Sohar","Port Sultan Qaboos / Muscat"],
+    "Philippines":["Cebu","Manila","Subic"],
+    "Portugal":["Leixões","Lisbon","Sines"],
+    "Qatar":["Hamad Port"],
+    "Réunion Island":["Port Réunion / Le Port"],
+    "Réunion":["Port Réunion / Le Port"],
+    "Saudi Arabia":["Dammam / King Abdulaziz Port","Jeddah Islamic Port"],
+    "Singapore":["Port of Singapore"],
+    "South Africa":["Cape Town","Durban","Port Elizabeth / Gqeberha"],
+    "South Korea":["Busan","Incheon"],
+    "Spain":["Algeciras","Barcelona","Valencia"],
+    "Taiwan":["Kaohsiung","Keelung"],
+    "Tanzania":["Dar es Salaam","Zanzibar"],
+    "Thailand":["Bangkok","Laem Chabang"],
+    "UAE":["Jebel Ali","Khalifa Port"],
+    "United Arab Emirates":["Jebel Ali","Khalifa Port"],
+    "United States":["Baltimore","Charleston","Houston","Jacksonville","Los Angeles / Long Beach","Miami","New York / New Jersey","Savannah"],
+    "USA":["Baltimore","Charleston","Houston","Jacksonville","Los Angeles / Long Beach","Miami","New York / New Jersey","Savannah"],
+    "Vietnam":["Hai Phong","Ho Chi Minh City / Cat Lai"]
+  };
 
   function ukPortMapUrl(port){
     const queries={
-      "Bristol":"Port of Bristol, Avonmouth, United Kingdom",
-      "Dover":"Port of Dover, United Kingdom",
-      "Felixstowe":"Port of Felixstowe, United Kingdom",
+      "Avonmouth":"Port of Bristol, Avonmouth, United Kingdom",
+      "Bristol / Portbury":"Royal Portbury Dock, Bristol, United Kingdom",
+      "Cairnryan":"Cairnryan Port, Scotland, United Kingdom",
+      "Glasgow / Clyde":"Clydeport, Glasgow, United Kingdom",
       "Harwich":"Harwich International Port, United Kingdom",
-      "Hull":"Port of Hull, United Kingdom",
-      "Immingham":"Port of Immingham, United Kingdom",
       "London Gateway":"DP World London Gateway, United Kingdom",
-      "Plymouth":"Port of Plymouth, United Kingdom",
-      "Poole":"Port of Poole, United Kingdom",
-      "Portbury":"Royal Portbury Dock, United Kingdom",
-      "Portsmouth":"Portsmouth International Port, United Kingdom",
+      "Manchester Docks / Ship Canal":"Manchester Ship Canal, United Kingdom",
+      "Newcastle / Port of Tyne":"Port of Tyne, United Kingdom",
       "Purfleet":"Purfleet Thames Terminal, United Kingdom",
-      "Sheerness":"Port of Sheerness, United Kingdom",
-      "Southampton":"Port of Southampton, United Kingdom",
-      "Thamesport":"Thamesport, Isle of Grain, United Kingdom",
-      "Tilbury":"Port of Tilbury, United Kingdom"
+      "Thamesport":"Thamesport, Isle of Grain, United Kingdom"
     };
     return "https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(queries[port]||("Port of "+port+", United Kingdom"));
+  }
+
+  function destinationPortMapUrl(port,country){
+    return "https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(port+", "+country);
+  }
+
+  function destinationPortLink(port,country){
+    return '<a href="'+destinationPortMapUrl(port,country)+'" target="_blank" rel="noopener noreferrer" title="View '+esc(port)+' on a map" aria-label="View '+esc(port)+' on a map" style="display:inline-flex;align-items:center;padding:7px 10px;border:1px solid rgba(255,255,255,.12);border-radius:999px;background:#181818;color:inherit;text-decoration:none;font-weight:850">'+esc(port)+' ↗</a>';
   }
 
   function ukPortLink(port){
@@ -43,12 +99,18 @@
     if(!m)return null;
     const slug=m[1].toLowerCase();
     const row=MARKET_COUNTRIES[slug];
-    return row?{slug:slug,name:row[0],code:row[1]}:null;
+    if(row)return {slug:slug,name:row[0],code:row[1]};
+
+    const displayed=String(document.querySelector(".country-line strong")?.textContent||"").trim();
+    const imgSrc=String(document.querySelector(".country-flag img")?.getAttribute("src")||"");
+    const codeMatch=imgSrc.match(/flagcdn\.com\/w\d+\/([a-z]{2})\.png/i);
+    const fallbackName=displayed || slug.split("-").map(function(x){return x.charAt(0).toUpperCase()+x.slice(1)}).join(" ");
+    return {slug:slug,name:fallbackName,code:codeMatch?codeMatch[1].toLowerCase():""};
   }
 
   function fixFlag(market){
     const flag=document.querySelector(".country-flag");
-    if(!flag)return;
+    if(!flag || !market.code)return;
     flag.setAttribute("aria-label",market.name+" flag");
     flag.innerHTML='<img src="https://flagcdn.com/w160/'+encodeURIComponent(market.code)+'.png" '+
       'srcset="https://flagcdn.com/w320/'+encodeURIComponent(market.code)+'.png 2x" '+
@@ -276,33 +338,53 @@
   }
 
   function replaceShipping(market){
-    const grid=document.querySelector(".port-grid");
-    if(!grid)return;
-    const section=grid.closest("section");
-    if(!section)return;
+    let grid=document.querySelector(".port-grid, .shipping-grid");
+    let section=grid?.closest("section")||null;
+
+    if(!section){
+      const heads=Array.from(document.querySelectorAll("section .section-head h2, section h2"));
+      const h=heads.find(function(el){
+        return /UK handover and shipping arrangements|Transport and handover/i.test(String(el.textContent||""));
+      });
+      section=h?.closest("section")||null;
+      const wrap=section?.querySelector(".wrap")||section;
+      if(section && wrap){
+        grid=document.createElement("div");
+        grid.className="port-grid shipping-grid";
+        grid.style.cssText="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px";
+        wrap.appendChild(grid);
+      }
+    }
+
+    if(!grid || !section)return;
 
     const head=section.querySelector(".section-head");
     if(head){
       head.innerHTML='<div class="eyebrow">Motorcycle transport to '+esc(market.name)+'</div>'+
-        '<h2>UK handover and shipping arrangements for '+esc(market.name)+'.</h2>'+
-        '<p>AnyBike arranges the UK-side motorcycle collection and handover. You can nominate your own freight forwarder, shipping agent, warehouse or port handling facility. Your freight provider is responsible for the onward international shipment to '+esc(market.name)+'.</p>';
+        '<h2>UK handover and destination ports for '+esc(market.name)+'.</h2>'+
+        '<p>AnyBike arranges the UK-side motorcycle collection and handover. You can nominate your own freight forwarder, shipping agent, warehouse or port handling facility. The international route and destination handling should be agreed with your chosen freight provider before purchase.</p>';
     }
 
-    const chips=UK_PORTS.map(function(p){return ukPortLink(p);}).join("");
+    const ukChips=UK_PORTS.map(function(p){return ukPortLink(p);}).join("");
+    const destinationPorts=DESTINATION_PORTS_BY_COUNTRY[market.name]||[];
+    const destinationChips=destinationPorts.map(function(p){return destinationPortLink(p,market.name);}).join("");
 
     grid.innerHTML=
-      '<article class="port-card"><h3>AnyBike UK handover ports</h3>'+
-      '<p>Use the map links to compare where each UK handover port is located. The final handover point should be agreed with your freight forwarder before purchase.</p>'+
-      '<div class="area-list">'+chips+'</div></article>'+
-      '<article class="port-card"><h3>Your freight forwarder to '+esc(market.name)+'</h3>'+
-      '<p>Before purchase, confirm the destination, international route, receiving agent and final delivery arrangements with your chosen freight provider. AnyBike coordinates the UK handover using the agreed reference and collection instructions.</p>'+
+      '<article class="port-card card"><h3>UK handover ports</h3>'+
+      '<p>AnyBike can arrange delivery to the agreed UK handover point used by your freight provider. Every port below opens on a map so you can compare locations.</p>'+
+      '<div class="area-list" style="display:flex;flex-wrap:wrap;gap:8px">'+ukChips+'</div></article>'+
+      '<article class="port-card card"><h3>Destination ports in '+esc(market.name)+'</h3>'+
+      (destinationPorts.length
+        ? '<p>These are destination ports currently known to AnyBike for '+esc(market.name)+'. Your freight forwarder should confirm the correct route, receiving agent and destination charges before purchase.</p>'+
+          '<div class="area-list" style="display:flex;flex-wrap:wrap;gap:8px">'+destinationChips+'</div>'
+        : '<p>AnyBike does not yet have a standard destination-port list for '+esc(market.name)+'. Your freight forwarder can confirm the most suitable arrival port or inland destination for your shipment.</p>')+
+      '</article>'+
+      '<article class="port-card card"><h3>Your freight forwarder</h3>'+
+      '<p>You may use your own freight forwarder or shipping agent. AnyBike coordinates the agreed UK collection and handover using the shipper instructions and freight reference supplied for the purchase.</p>'+
       '<div class="area-list"><span>Buyer-nominated shipper</span><span>UK handover agreed before collection</span><span>Shipping reference recorded</span></div></article>'+
-      '<article class="port-card"><h3>Import and registration in '+esc(market.name)+'</h3>'+
-      '<p>Import approval, customs duty, taxes, technical compliance, inspection and registration rules are determined by the relevant authorities in '+esc(market.name)+'. Check these requirements before committing to a motorcycle.</p>'+
-      '<div class="area-list"><span>Import rules</span><span>Customs</span><span>Taxes &amp; fees</span><span>Registration</span></div></article>'+
-      '<article class="port-card"><h3>Documents and UK collection</h3>'+
-      '<p>AnyBike confirms the motorcycle documents available for the transaction and arranges the agreed UK collection. The motorcycle is then handed to the nominated freight provider for onward transport to '+esc(market.name)+'.</p>'+
-      '<div class="area-list"><span>UK collection</span><span>Condition evidence</span><span>Available documents</span><span>Freight handover</span></div></article>';
+      '<article class="port-card card"><h3>Import and registration in '+esc(market.name)+'</h3>'+
+      '<p>Import approval, customs duty, taxes, technical compliance, inspection and registration requirements are determined by the relevant authorities in '+esc(market.name)+'. Check them before committing to a motorcycle.</p>'+
+      '<div class="area-list"><span>Import rules</span><span>Customs</span><span>Taxes &amp; fees</span><span>Registration</span></div></article>';
 
     const faq=document.querySelector(".faq");
     if(faq){
