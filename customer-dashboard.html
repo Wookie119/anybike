@@ -2196,6 +2196,17 @@ body.customer-offer-modal-open{overflow:hidden}
     <div id="customerNextActionsList" style="display:grid;gap:10px"></div>
   </section>
 
+  <section class="panel" id="sourcing-progress" style="display:none;border-color:rgba(255,210,124,.42)">
+    <div class="panel-head">
+      <div>
+        <div class="eyebrow" style="margin-bottom:5px">AnyBike is checking</div>
+        <h2>🔎 Sourcing Progress</h2>
+        <p id="sourcingProgressSummary">Motorcycles you have marked Interested are being checked with sellers.</p>
+      </div>
+    </div>
+    <div id="sourcingProgressList" style="display:grid;gap:9px"></div>
+  </section>
+
   <nav class="dashboard-jump-nav" aria-label="My AnyBike quick links">
     <a href="#my-purchases"><span>🛒</span>My Purchases</a>
     <a href="#accounts-documents"><span>📄</span>Accounts &amp; Documents</a>
@@ -4448,6 +4459,46 @@ async function openHandPickedMatch(scanId,batchId){
   window.location.href="/customer-sourced-matches.html?batch="+encodeURIComponent(batchId);
 }
 
+
+function renderSourcingProgress(rows){
+  const panel=document.getElementById("sourcing-progress");
+  const list=document.getElementById("sourcingProgressList");
+  const summary=document.getElementById("sourcingProgressSummary");
+  if(!panel||!list)return;
+
+  const interested=(Array.isArray(rows)?rows:[]).filter(function(row){
+    return String(row?.buyer_response||"").toLowerCase()==="interested";
+  });
+
+  if(!interested.length){
+    panel.style.display="none";
+    list.innerHTML="";
+    return;
+  }
+
+  panel.style.display="";
+  if(summary){
+    summary.textContent=interested.length===1
+      ? "You have asked AnyBike to check 1 motorcycle. We are confirming seller availability and current purchase terms."
+      : "You have asked AnyBike to check "+interested.length+" motorcycles. We are confirming seller availability and current purchase terms.";
+  }
+
+  list.innerHTML=interested.map(function(row){
+    const title=[row.year,row.make,row.model,row.variant].filter(Boolean).join(" ")||"Motorcycle";
+    const facts=[
+      row.mileage!==null&&row.mileage!==undefined ? Number(row.mileage).toLocaleString("en-GB")+" miles" : "",
+      row.colour||""
+    ].filter(Boolean).join(" · ");
+    const batchId=Number(row.batch_id||0);
+    return '<div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:center;padding:11px 13px;border:1px solid rgba(255,255,255,.11);border-radius:12px;background:#0c0c0c">'+
+      '<div><strong style="display:block;font-size:15px">'+safe(title)+'</strong>'+
+      (facts?'<span style="display:block;margin-top:3px;color:#aaa;font-size:12px">'+safe(facts)+'</span>':'')+
+      '<span style="display:block;margin-top:4px;color:#ffd27c;font-size:12px;font-weight:900">AnyBike is checking seller availability and current purchase terms</span></div>'+
+      (batchId?'<a class="panel-link" href="/customer-sourced-matches.html?batch='+encodeURIComponent(batchId)+'">View selection →</a>':'')+
+    '</div>';
+  }).join("");
+}
+
 async function loadHandPickedForYou(){
   const box=document.getElementById("handPickedForYouBox");
   if(!box||!currentUser)return;
@@ -4457,6 +4508,7 @@ async function loadHandPickedForYou(){
     if(error) throw error;
 
     const rows=data||[];
+    renderSourcingProgress(rows);
     const handPickedCount=document.getElementById("handPickedCount");
     if(handPickedCount) handPickedCount.textContent=rows.length.toLocaleString("en-GB");
     if(!rows.length){
