@@ -1320,12 +1320,15 @@ function purchaseState(purchase){
   const depositOutstanding=Math.max(depositDue-depositAllocated,0);
   const balance=Number(purchase.customer_balance_motorcycle_gbp||0);
   const secured=!!purchase.motorcycle_secured;
-  const pendingDepositAdviceAmount=Number(purchase.pending_payment_advice_amount_gbp||0);
-  const pendingDepositAdvice=
-    depositOutstanding>0 &&
-    String(purchase.pending_payment_advice_purpose||"").toLowerCase()==="deposit" &&
+  const pendingPaymentAdviceAmount=Number(purchase.pending_payment_advice_amount_gbp||0);
+  const pendingPaymentAdvicePurpose=String(purchase.pending_payment_advice_purpose||"").toLowerCase();
+  const pendingPaymentAdvice=
     ["awaiting verification","submitted","pending"].includes(String(purchase.pending_payment_advice_status||"").toLowerCase()) &&
-    pendingDepositAdviceAmount>0;
+    pendingPaymentAdviceAmount>0;
+  const pendingDepositAdvice=
+    pendingPaymentAdvice &&
+    depositOutstanding>0 &&
+    pendingPaymentAdvicePurpose==="deposit";
   const collected=String(purchase.collection_status||"").toLowerCase()==="collected" ||
     String(purchase.deal_status||"").toLowerCase()==="collected";
   const storageStatus=String(purchase.storage_status||"").toLowerCase();
@@ -1381,7 +1384,8 @@ function purchaseState(purchase){
 
   return {
     depositRequired,depositDue,depositAllocated,depositOutstanding,depositSatisfied,
-    pendingDepositAdvice,pendingDepositAdviceAmount,
+    pendingPaymentAdvice,pendingPaymentAdviceAmount,pendingPaymentAdvicePurpose,
+    pendingDepositAdvice,pendingDepositAdviceAmount:pendingPaymentAdviceAmount,
     pendingDepositAdviceNumber:String(purchase.pending_payment_advice_number||""),
     pendingDepositAdviceStatus:String(purchase.pending_payment_advice_status||""),
     pendingDepositAdviceSubmittedAt:purchase.pending_payment_advice_submitted_at||null,
@@ -1453,7 +1457,9 @@ function journeyHtml(purchase,state){
     current="seller";
     customerAction=false;
     nextTitle="AnyBike completes the final seller check";
-    nextText="No action is required from you. AnyBike will reconfirm the motorcycle and seller position before securing it.";
+    nextText=state.pendingPaymentAdvice && !state.pendingDepositAdvice
+      ? "Your "+money(state.pendingPaymentAdviceAmount)+" payment has been reported and is awaiting AnyBike verification. No further action is required while AnyBike reconfirms the motorcycle and seller position before securing it."
+      : "No action is required from you. AnyBike will reconfirm the motorcycle and seller position before securing it.";
   }else if(state.secured && !state.fullyPaid){
     current="balance";
     customerAction=true;
@@ -2125,10 +2131,13 @@ function purchaseNextAction(purchase){
     };
   }
   if(!state.secured){
+    const paymentWaiting=state.pendingPaymentAdvice && !state.pendingDepositAdvice
+      ? " Your "+money(state.pendingPaymentAdviceAmount)+" payment has also been reported and is awaiting AnyBike verification."
+      : "";
     return {
       priority:35,waiting:true,deal:deal,identity:bike,
-      title:"AnyBike is completing the seller check",
-      text:"Your deposit is complete. No action is required from you while AnyBike confirms and secures the motorcycle.",
+      title:"AnyBike is completing the final seller check",
+      text:"Your deposit is complete."+paymentWaiting+" No further action is required while AnyBike confirms and secures the motorcycle.",
       href:"/my-purchases.html?deal="+encodeURIComponent(purchase.deal_id||"")+"#purchase-deal-"+encodeURIComponent(purchase.deal_id||""),
       cta:"View purchase →"
     };
