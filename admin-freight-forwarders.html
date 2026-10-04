@@ -407,6 +407,19 @@ a{color:inherit;text-decoration:none}
       <section class="suggestion-panel">
         <div class="suggestion-head">
           <div>
+            <h2>Profile updates awaiting review</h2>
+            <p>Shipping companies that used their secure AnyBike link to update their own free directory profile.</p>
+          </div>
+          <span class="suggestion-count" id="profileUpdateCount">0</span>
+        </div>
+        <div id="profileUpdateList" class="suggestion-list">
+          <div class="suggestion-empty">Loading shipper profile updates…</div>
+        </div>
+      </section>
+
+      <section class="suggestion-panel">
+        <div class="suggestion-head">
+          <div>
             <h2>Customer-suggested shippers</h2>
             <p>New shipping companies entered by buyers appear here for AnyBike review before being added to the reusable directory.</p>
           </div>
@@ -659,6 +672,102 @@ function dateDisplay(value){
   return Number.isNaN(d.getTime()) ? value : d.toLocaleDateString("en-GB");
 }
 
+async function loadProfileSubmissions(){
+  const host=document.getElementById("profileUpdateList");
+  const count=document.getElementById("profileUpdateCount");
+  if(!host||!count) return;
+
+  const {data,error}=await sb.rpc("admin_get_freight_forwarder_profile_submissions_v1");
+  if(error){
+    console.warn("Could not load shipper profile submissions",error);
+    host.innerHTML='<div class="suggestion-empty">Profile updates could not be loaded.</div>';
+    count.textContent="0";
+    return;
+  }
+
+  profileSubmissions=(data||[]).filter(x=>x.status==="Pending");
+  count.textContent=String(profileSubmissions.length);
+
+  if(!profileSubmissions.length){
+    host.innerHTML='<div class="suggestion-empty">No shipper profile updates are waiting for review.</div>';
+    return;
+  }
+
+  host.innerHTML=profileSubmissions.map(s=>{
+    const p=s.payload||{};
+    const countries=arrayValue(p.countries_covered).join(", ")||"-";
+    const services=arrayValue(p.services).join(", ")||"-";
+    return '<article class="suggestion-card">'+
+      '<div class="suggestion-grid">'+
+        '<div><strong>'+escapeHtml(s.company_name||"Shipper")+'</strong>'+
+          '<small>Submitted '+dateDisplay(s.submitted_at)+' · '+escapeHtml(s.submitted_email||"No email")+'</small></div>'+
+        '<div class="suggestion-meta">'+
+          '<div><b>Contact:</b> '+escapeHtml(p.contact_name||"-")+'</div>'+
+          '<div><b>Phone:</b> '+escapeHtml(p.phone||"-")+'</div>'+
+          '<div><b>Countries:</b> '+escapeHtml(countries)+'</div>'+
+          '<div><b>Services:</b> '+escapeHtml(services)+'</div>'+
+        '</div>'+
+        '<div class="suggestion-actions">'+
+          '<button class="btn btn-primary" type="button" onclick="reviewProfileSubmission('+Number(s.id)+',\'Approve\')">Approve Update</button>'+
+          '<button class="btn btn-dark" type="button" onclick="reviewProfileSubmission('+Number(s.id)+',\'Decline\')">Decline</button>'+
+        '</div>'+
+      '</div>'+
+    '</article>';
+  }).join("");
+}
+
+async function reviewProfileSubmission(id,action){
+  const notes=action==="Decline" ? (prompt("Optional reason / internal note:")||"") : "";
+  const {error}=await sb.rpc("admin_review_freight_forwarder_profile_submission_v1",{
+    p_submission_id:id,
+    p_action:action,
+    p_notes:notes||null
+  });
+  if(error){
+    alert("Could not "+action.toLowerCase()+" profile update: "+error.message);
+    return;
+  }
+  await Promise.all([loadProfileSubmissions(),loadForwarders()]);
+}
+
+async function inviteShipperProfile(id){
+  const record=records.find(r=>Number(r.id)===Number(id));
+  if(!record) return;
+  if(!record.email){
+    alert("Add an email address for "+(record.company_name||"this shipper")+" before sending a profile invitation.");
+    return;
+  }
+  if(!confirm("Send a free AnyBike profile update invitation to "+record.company_name+" at "+record.email+"?")) return;
+
+  const {data,error}=await sb.functions.invoke("send-forwarder-profile-invite",{body:{forwarder_id:Number(id)}});
+  if(error||data?.error){
+    alert("Profile invitation failed: "+(data?.error||error.message));
+    return;
+  }
+  const result=(data.results||[])[0];
+  alert(result?.status==="Invited" ? "Profile invitation sent to "+record.company_name+"." : "Invitation status: "+(result?.status||"Unknown"));
+  await loadForwarders();
+}
+
+async function inviteAllShippers(){
+  const eligible=records.filter(r=>r.is_active!==false && r.email && r.profile_invite_status!=="Updated");
+  if(!eligible.length){
+    alert("There are no active shippers with email addresses waiting for an invitation.");
+    return;
+  }
+  if(!confirm("Send free profile update invitations to "+eligible.length+" shippers?\n\nThis will email each company individually from AnyBike.")) return;
+
+  const {data,error}=await sb.functions.invoke("send-forwarder-profile-invite",{body:{forwarder_ids:eligible.map(r=>Number(r.id))}});
+  if(error||data?.error){
+    alert("Bulk invitations failed: "+(data?.error||error.message));
+    return;
+  }
+  const sent=(data.results||[]).filter(x=>x.status==="Invited").length;
+  const failed=(data.results||[]).filter(x=>x.status==="Send Failed").length;
+  alert("Invitations sent: "+sent+(failed ? "\nSend failures: "+failed : ""));
+  await loadForwarders();
+}
+
 async function loadCustomerSuggestions(){
   const host=document.getElementById("suggestionList");
   const count=document.getElementById("suggestionCount");
@@ -857,6 +966,7 @@ function recordHtml(r){
 
         <div class="row-actions" onclick="event.stopPropagation()">
           <button class="icon-btn" type="button" title="Edit shipper" onclick="editRecord('${escapeHtml(r.id)}')">✎</button>
+          ${r.email ? `<button class="icon-btn" type="button" title="${r.profile_invite_status && r.profile_invite_status !== "Not Invited" ? "Resend profile update invitation" : "Invite shipper to update profile"}" onclick="inviteShipperProfile('${escapeHtml(r.id)}')">✉</button>` : ""}
           ${r.is_active === false
             ? `<button class="icon-btn" type="button" title="Restore to buyer dropdown" onclick="restoreRecord('${escapeHtml(r.id)}')">↺</button>`
             : `<button class="icon-btn" type="button" title="Remove from buyer dropdown" onclick="deleteRecord('${escapeHtml(r.id)}')">⊘</button>`}
@@ -896,6 +1006,8 @@ function recordHtml(r){
               <div><dt>Partner status</dt><dd>${escapeHtml(r.partner_status || "Standard")}</dd></div>
               <div><dt>Last used</dt><dd>${escapeHtml(dateDisplay(r.last_used_at))}</dd></div>
               <div><dt>Source</dt><dd>${escapeHtml(r.source_customer || "-")}</dd></div>
+              <div><dt>Profile update</dt><dd>${escapeHtml(r.profile_invite_status || "Not Invited")}${r.profile_invited_at ? " · invited "+escapeHtml(dateDisplay(r.profile_invited_at)) : ""}</dd></div>
+              <div><dt>Listing tier</dt><dd>${escapeHtml(r.listing_tier || "Free")}</dd></div>
             </dl>
           </div>
 
@@ -1125,6 +1237,7 @@ window.addEventListener("load", function(){
       window.anybikeFreightForwardersLoaded = true;
       loadForwarders();
       loadCustomerSuggestions();
+      loadProfileSubmissions();
     }
   };
 
