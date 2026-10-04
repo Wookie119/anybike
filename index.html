@@ -110,12 +110,13 @@ button{font:inherit}
 }
 
 /* SIGNED-IN HOME NEXT ACTION */
-.home-next-action{display:none;background:#080808;border-bottom:1px solid var(--line);padding:18px 0}
-.home-next-action-card{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:22px;align-items:center;padding:19px 22px;border:2px solid var(--red);border-radius:20px;background:linear-gradient(135deg,rgba(237,28,36,.16),#111 58%);box-shadow:var(--shadow)}
-.home-next-action .eyebrow{margin:0 0 5px}
-.home-next-action h2{margin:0 0 6px;font-size:clamp(24px,3vw,36px);line-height:1.05}
-.home-next-action p{margin:0;color:#ccc;font-size:15px;line-height:1.5;max-width:930px}
-.home-next-meta{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-top:10px}
+.home-next-action{display:none;background:#080808;border-bottom:1px solid var(--line);padding:10px 0}
+.home-next-action .wrap{width:min(1640px,calc(100% - 32px))}
+.home-next-action-card{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:24px;align-items:center;padding:13px 18px;border:2px solid var(--red);border-radius:16px;background:linear-gradient(135deg,rgba(237,28,36,.16),#111 58%);box-shadow:var(--shadow)}
+.home-next-action .eyebrow{margin:0 0 3px}
+.home-next-action h2{margin:0 0 3px;font-size:clamp(22px,2.2vw,30px);line-height:1.05}
+.home-next-action p{margin:0;color:#ccc;font-size:14px;line-height:1.35;max-width:none}
+.home-next-meta{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-top:7px}
 .home-next-waiting{display:inline-flex;padding:6px 10px;border:1px solid rgba(255,255,255,.17);border-radius:999px;background:#080808;font-size:12px;font-weight:900}
 .home-next-action .btn{white-space:nowrap}
 .home-next-more{display:none;margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,.10)}
@@ -1574,6 +1575,25 @@ loadLiveStock();
     }
     panel.style.display="block";
   }
+  function homePurchaseState(purchase){
+    const depositRequired=Boolean(purchase?.deposit_required);
+    const depositDue=Number(purchase?.deposit_due_gbp||0);
+    const allocated=Number(purchase?.customer_allocated_motorcycle_gbp||0);
+    const depositAllocated=Math.min(
+      Math.max(allocated,Number(purchase?.deposit_allocated_gbp||0)),
+      Math.max(depositDue,0)
+    );
+    const depositOutstanding=Math.max(depositDue-depositAllocated,0);
+    const balance=Number(purchase?.customer_balance_motorcycle_gbp||0);
+    const depositSatisfied=
+      !depositRequired ||
+      depositDue<=0 ||
+      allocated>=depositDue ||
+      balance<=0.009 ||
+      depositOutstanding<=0.009;
+    return {depositRequired,depositDue,allocated,depositAllocated,depositOutstanding,balance,depositSatisfied};
+  }
+
   async function loadHomeNextAction(user){
     if(!user || typeof sb==="undefined")return;
     try{
@@ -1588,8 +1608,12 @@ loadLiveStock();
       const purchases=purchaseRes.error?[]:(purchaseRes.data||[]);
       const tasks=[];
 
-      const deposit=purchases.find(p=>Number(p.deposit_outstanding_gbp||0)>0);
+      const deposit=purchases.find(function(purchase){
+        const state=homePurchaseState(purchase);
+        return !state.depositSatisfied && state.depositOutstanding>0.009;
+      });
       if(deposit){
+        const state=homePurchaseState(deposit);
         tasks.push({
           priority:1,
           kind:"deposit",
@@ -1598,7 +1622,9 @@ loadLiveStock();
           waitingFor:"You",
           label:"PAY DEPOSIT →",
           shortLabel:"Pay deposit",
-          href:"/accounts-documents.html"
+          href:"/accounts-documents.html?deal="+encodeURIComponent(deposit.deal_number||"")+
+            "&payment=deposit&amount="+encodeURIComponent(state.depositOutstanding.toFixed(2))+
+            "&ref="+encodeURIComponent(deposit.deal_number||"")
         });
       }
 
@@ -1663,7 +1689,9 @@ loadLiveStock();
         });
       }
 
-      const activePurchases=purchases.filter(p=>!p.operations_complete && Number(p.deposit_outstanding_gbp||0)<=0);
+      const activePurchases=purchases.filter(function(purchase){
+        return !purchase.operations_complete && homePurchaseState(purchase).depositSatisfied;
+      });
       if(activePurchases.length){
         tasks.push({
           priority:25,
