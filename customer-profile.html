@@ -162,6 +162,13 @@
       border-color:rgba(237,28,36,.85);
       box-shadow:0 0 0 3px rgba(237,28,36,.12);
     }
+    .wrap input.field-missing,
+    .wrap select.field-missing,
+    .wrap textarea.field-missing{
+      border-color:#ff454d !important;
+      box-shadow:0 0 0 3px rgba(237,28,36,.16) !important;
+      background:#241012 !important;
+    }
 
     .wrap input[readonly]{
       opacity:.72;
@@ -1693,20 +1700,80 @@
       return true;
     }
 
-    function sectionMissingMessage(section){
-      if(section==="contact") return "Complete all required Contact Details before saving this section.";
-      if(section==="business") return "Complete all required Buyer Type & Business Details before saving this section.";
-      if(section==="preferences") return "Choose both your preferred currency and preferred language before saving this section.";
+    function missingFieldsForSection(section){
+      const groups={
+        contact:[
+          ["fullName","Full name"],
+          ["phone","Main phone"],
+          ["contactAddress1","Address line 1"],
+          ["city","Town / City"],
+          ["region","Region / State / County"],
+          ["contactPostcode","Postcode / ZIP"],
+          ["country","Country"]
+        ],
+        business:[
+          ["buyerType","Buyer type"],
+          ["businessName","Legal business name"],
+          ["businessEmail","Business email"],
+          ["businessPhone","Business phone / WhatsApp"],
+          ["businessAddress1","Business address line 1"],
+          ["businessCity","Town / City"],
+          ["businessRegion","Region / State / County"],
+          ["businessPostcode","Postcode / ZIP"],
+          ["businessCountry","Business country"]
+        ],
+        preferences:[
+          ["currency","Preferred currency"],
+          ["language","Preferred language"]
+        ],
+        buyer:[
+          ["shippingMethod","Usual shipping method"],
+          ["typicalQuantity","Typical motorcycles per shipment"]
+        ],
+        shipping:[
+          ["shippingCompany","Shipping company"],
+          ["shippingContactName","Contact name"],
+          ["shippingContactEmail","Contact email"],
+          ["shippingContactPhone","Contact phone / WhatsApp"],
+          ["shippingCountry","Shipper country"],
+          ["shippingAddress1","UK receiving address"],
+          ["shippingCity","Town / City"],
+          ["shippingPostcode","Postcode"]
+        ]
+      };
+      const missing=(groups[section]||[]).filter(([id])=>!String(document.getElementById(id)?.value||"").trim());
       if(section==="buyer"){
-        const s=buyerSetupCompletion();
-        if(!document.getElementById("shippingMethod")?.value) return "Choose your usual shipping method.";
-        if(!document.getElementById("typicalQuantity")?.value) return "Choose your typical motorcycles per shipment.";
-        if(!s.identity) return "Upload your passport / photo ID before saving this section.";
-        if(!s.address) return "Upload your proof of address before saving this section.";
-        return "Complete the required Buyer & Export Details before saving this section.";
+        if(!documentOnFile("identityDocumentState","identityDocument")) missing.push(["identityDocument","Passport / photo ID"]);
+        if(!documentOnFile("addressDocumentState","addressDocument")) missing.push(["addressDocument","Proof of address"]);
       }
-      if(section==="shipping") return "Complete the required shipper contact and UK receiving details before saving this section.";
-      return "Complete the required fields before saving.";
+      return missing;
+    }
+
+    function clearMissingFieldHighlights(section){
+      const root=document.querySelector('[data-profile-section="'+section+'"]') || (section==="buyer"?document.getElementById("buyer-onboarding"):null);
+      root?.querySelectorAll(".field-missing").forEach(el=>el.classList.remove("field-missing"));
+    }
+
+    function highlightMissingFields(section){
+      clearMissingFieldHighlights(section);
+      const missing=missingFieldsForSection(section);
+      missing.forEach(([id])=>document.getElementById(id)?.classList.add("field-missing"));
+      const first=missing[0];
+      if(first){
+        const el=document.getElementById(first[0]);
+        el?.scrollIntoView({behavior:"smooth",block:"center"});
+        setTimeout(()=>el?.focus({preventScroll:true}),350);
+      }
+      return missing;
+    }
+
+    function sectionMissingMessage(section){
+      const missing=missingFieldsForSection(section);
+      if(!missing.length) return "Complete the required fields before saving.";
+      const names=missing.map(x=>x[1]);
+      if(names.length===1) return "Please complete: "+names[0]+".";
+      if(names.length===2) return "Please complete: "+names.join(" and ")+".";
+      return "Please complete: "+names.slice(0,-1).join(", ")+" and "+names[names.length-1]+".";
     }
 
     function moveToNextRequiredSection(){
@@ -1736,13 +1803,17 @@
       const msg=document.getElementById("msg-"+section);
 
       if(["contact","business","preferences","buyer","shipping"].includes(section) && !sectionRequiredComplete(section)){
+        const missing=highlightMissingFields(section);
         if(msg){
           msg.textContent=sectionMissingMessage(section);
           msg.className="section-msg bad";
         }
+        const row=button.closest(".section-save-row");
+        row?.classList.remove("complete");
         updateSetupReminder();
         return;
       }
+      clearMissingFieldHighlights(section);
 
       const original=button.textContent;
       button.disabled=true;
