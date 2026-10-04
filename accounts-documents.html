@@ -794,10 +794,22 @@ function accountMotorcycleIdentityForDeal(dealNumber){
   )||null;
 }
 
+function cleanCustomerMotorcycleVariant(value){
+  let text=String(value||"").trim();
+  text=text
+    .replace(/\b\d+\s*(?:yr|year|years)\s+(?:bmw\s+)?warranty\b/ig,"")
+    .replace(/\b(?:bmw\s+)?warranty\b/ig,"")
+    .replace(/\s{2,}/g," ")
+    .replace(/[\s·,;\-]+$/g,"")
+    .trim();
+  return text;
+}
+
 function accountMotorcycleLabel(dealNumber,fallback){
   const identity=accountMotorcycleIdentityForDeal(dealNumber);
   if(!identity)return String(fallback||"Motorcycle").trim();
-  const bike=[identity.make,identity.model,identity.variant].filter(Boolean).join(" ").trim();
+  const variant=cleanCustomerMotorcycleVariant(identity.variant);
+  const bike=[identity.make,identity.model,variant].filter(Boolean).join(" ").trim();
   const reg=String(identity.registration||"").trim();
   return bike+(reg?" · Reg "+reg:"");
 }
@@ -1026,7 +1038,7 @@ function invoiceCard(invoice){
       <div class="invoice-meta">
         <div class="meta"><span>Deal</span><strong>${safe(invoice.deal_number||("Purchase #"+invoice.deal_id))}</strong></div>
         <div class="meta"><span>Issued</span><strong>${safe(niceDate(invoice.issued_at))}</strong></div>
-        <div class="meta" style="grid-column:1/-1"><span>Motorcycle</span><strong>${safe(invoice.motorcycle_summary||"Motorcycle purchase")}</strong></div>
+        <div class="meta" style="grid-column:1/-1"><span>Motorcycle</span><strong>${safe(String(invoice.motorcycle_summary||"Motorcycle purchase").replace(/\b\d+\s*(?:yr|year|years)\s+(?:BMW\s+)?WARRANTY\b/ig,"").replace(/\s{2,}/g," ").trim())}</strong></div>
       </div>
       ${String(invoice.invoice_type||"")==="Proforma"?'<div class="proforma-warning"><strong>PROFORMA INVOICE — NOT A VAT INVOICE</strong><span>This is used for the payment stage. Keep the Final Invoice separately when AnyBike issues it after the transaction is completed.</span></div>':""}
       ${String(invoice.invoice_type||"")==="Final Invoice"?'<div class="final-invoice-warning"><strong>FINAL INVOICE</strong><span>This is the final accounting document for the completed AnyBike transaction. Keep it with your purchase and export records.</span></div>':""}
