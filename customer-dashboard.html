@@ -4069,7 +4069,7 @@ function customerOfferModalHtml(match){
   const colour=String(customerOfferValue(match,"stock_colour","colour") || "-");
   const vat=String(customerOfferValue(match,"stock_vat_status","vat_status") || "Unknown / Check Required");
   const year=customerOfferValue(match,"stock_year","year") || "-";
-  const stockRef=customerOfferValue(match,"stock_reference","stock_id","id") || "-";
+  const anyBikeRef=String(match?._deal_number || "").trim() || String(customerOfferValue(match,"stock_registration") || "").trim() || "-";
   const deliveryLabel=customerOfferDeliveryLabel(match);
   const expiryText=expiresAt ? new Date(expiresAt).toLocaleString("en-GB") : "-";
 
@@ -4098,7 +4098,7 @@ function customerOfferModalHtml(match){
                 ${String(match.stock_vin||"").trim() ? `<div class="customer-offer-spec"><span>VIN / Chassis</span><strong>${safe(match.stock_vin)}</strong></div>` : ""}
                 ${advertisedPrice>0 ? `<div class="customer-offer-spec"><span>Advertised motorcycle price</span><strong>${safe(buyerMatchMoney(advertisedPrice))}</strong></div>` : ""}
                 ${anybikeFee>0 ? `<div class="customer-offer-spec"><span>AnyBike sourcing fee</span><strong>${safe(buyerMatchMoney(anybikeFee))}</strong></div>` : ""}
-                <div class="customer-offer-spec"><span>Stock reference</span><strong>${safe(stockRef)}</strong></div>
+                <div class="customer-offer-spec"><span>AnyBike reference</span><strong>${safe(anyBikeRef)}</strong></div>
               </div>
             </div>
           </div>
@@ -5520,15 +5520,32 @@ function refreshHandPickedDashboardTimers(){
   text.textContent="Earliest live window: "+handPickedCountdownText(earliest.ms)+" remaining.";
 }
 
-async function openHandPickedMatch(scanId,batchId,offerId){
+async function openHandPickedMatch(scanId,batchId,offerId,dealId,offerStatus){
   try{
     await sb.rpc("customer_mark_sourced_match_viewed_v1",{p_scan_id:Number(scanId)});
   }catch(error){
     console.warn("Could not save hand-picked viewed state",error);
   }
 
-  if(Number(offerId)>0){
-    window.location.href="/customer-dashboard.html?offer="+encodeURIComponent(Number(offerId))+"#my-offers";
+  let resolvedOfferId=Number(offerId||0);
+  const hasFormalOffer=["Sent","Accepted","Declined","Expired"].includes(String(offerStatus||""));
+
+  if(!resolvedOfferId && hasFormalOffer && Number(dealId)>0){
+    try{
+      const {data,error}=await sb.rpc("get_my_deal_offers_v4");
+      if(!error){
+        const row=(data||[]).find(function(item){
+          return Number(item.deal_id)===Number(dealId);
+        });
+        resolvedOfferId=Number(row?.offer_id||0);
+      }
+    }catch(error){
+      console.warn("Could not resolve Formal Offer from hand-picked card",error);
+    }
+  }
+
+  if(resolvedOfferId>0){
+    window.location.href="/customer-dashboard.html?offer="+encodeURIComponent(resolvedOfferId)+"#my-offers";
     return;
   }
 
@@ -5736,7 +5753,9 @@ async function loadHandPickedForYou(){
           handPickedTimerHtml(r) +
           '<div class="bike-card-foot">' +
             '<strong>'+safe(price)+'</strong>' +
-            '<a href="'+(Number(r.offer_id)>0?('/customer-dashboard.html?offer='+encodeURIComponent(Number(r.offer_id))+'#my-offers'):('/customer-sourced-matches.html?batch='+encodeURIComponent(r.batch_id)))+'" onclick="event.preventDefault();openHandPickedMatch('+Number(r.scan_id)+','+Number(r.batch_id)+','+Number(r.offer_id||0)+')">'+(Number(r.offer_id)>0?'Review Formal Offer →':'Review &amp; respond →')+'</a>' +
+            '<a href="'+(["Sent","Accepted","Declined","Expired"].includes(String(r.offer_status||""))
+              ?(Number(r.offer_id)>0?('/customer-dashboard.html?offer='+encodeURIComponent(Number(r.offer_id))+'#my-offers'):'/customer-dashboard.html#my-offers')
+              :('/customer-sourced-matches.html?batch='+encodeURIComponent(r.batch_id)))+'" onclick="event.preventDefault();openHandPickedMatch('+Number(r.scan_id)+','+Number(r.batch_id)+','+Number(r.offer_id||0)+','+Number(r.deal_id||0)+','+JSON.stringify(String(r.offer_status||""))+')">'+(["Sent","Accepted","Declined","Expired"].includes(String(r.offer_status||""))?'Review Formal Offer →':'Review &amp; respond →')+'</a>' +
           '</div>' +
         '</div>' +
       '</article>';
