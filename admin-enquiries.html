@@ -8062,23 +8062,20 @@ async function saveBuyerOnboarding(customerId){
     }
   }
 
+  const currentDeal=String(openAnyBikeDealId||"").trim();
   await loadAdminBuyerOnboarding();
-  renderAdminDealQueue();
 
-  if(["Approved","Approved with Exceptions"].includes(approval) && openAnyBikeDealId){
-    const currentDeal=String(openAnyBikeDealId);
-    const row=document.getElementById("anybike-deal-"+currentDeal);
-    if(row){
-      row.classList.add("open");
-      bikeSalesJourneyTab(currentDeal,"seller",false);
-      setTimeout(function(){
-        const sellerPanel=row.querySelector(".anybike-seller-panel");
-        if(sellerPanel){
-          scrollBikeSalesTargetIntoView(sellerPanel);
-        }
-      },160);
-    }
+  if(["Approved","Approved with Exceptions"].includes(approval) && currentDeal){
+    // Saving reusable buyer clearance must continue the current Deal, not dump
+    // staff back into the sales list. Use the canonical Deal deep-link so any
+    // presentation filters are cleared and the exact Seller Check is opened.
+    window.location.assign(
+      "admin-enquiries.html?deal="+encodeURIComponent(currentDeal)+"&tab=seller&focus=seller-check"
+    );
+    return;
   }
+
+  renderAdminDealQueue();
 }
 
 function anyBikeDealCustomerId(deal){
