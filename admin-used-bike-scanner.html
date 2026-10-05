@@ -190,6 +190,7 @@ function edgeErrorMessage(error,data){
   return raw||"Image preparation could not complete.";
 }
 function gbp(v){const n=Number(v);return Number.isFinite(n)?new Intl.NumberFormat("en-GB",{style:"currency",currency:"GBP"}).format(n):"—"}
+function currentBatchIsShared(){return String(currentBatch?.batch?.status||"").toLowerCase()==="shared"||!!currentBatch?.batch?.shared_at}
 function nval(id,def=0){const n=Number(document.getElementById(id)?.value);return Number.isFinite(n)?n:def}
 function urlLines(){return [...new Set(document.getElementById("urlInput").value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean))]}
 function buyerName(b){return b.business_name?b.business_name+" — "+(b.contact_name||b.email||""):b.contact_name||b.email||("Buyer "+b.id)}
@@ -448,9 +449,12 @@ function cardHtml(s,saved){
         '<div class="field" style="margin-bottom:7px"><label>3. AnyBike Sourcing Fee — 8% of motorcycle price</label><input type="text" id="fee-'+id+'" value="'+gbp(s.fee_allowance_gbp||0)+'" readonly></div>'+
         '<div class="note"><a class="source-link" href="/services-and-fees.html" target="_blank">View AnyBike Fees ↗</a></div>'+
         '<div style="margin-top:9px;font-weight:900">= Buyer-facing AnyBike price</div><div class="money" id="price-'+id+'">'+(Number(s.source_advertised_price_gbp)>0?gbp(s.anybike_price_gbp??anyPrice):"Enter motorcycle price")+'</div><div class="note">Buyer sees this final AnyBike price only. Seller/source details and the internal price calculation are not shown.</div>'+
-        '<label class="check"><input type="checkbox" data-k="'+id+'" data-f="price_checked" '+(s.price_checked?"checked":"")+'><span>Price checked — happy to present this price</span></label>'+
-        '<label class="check"><input type="checkbox" data-k="'+id+'" data-f="selected_for_buyer" '+(s.selected_for_buyer?"checked":"")+'><span>Include in buyer selection</span></label>'+
-        (saved?'<button id="save-scan-'+id+'" class="btn green" style="margin-top:10px" onclick="saveScan('+id+')">Save motorcycle</button><span id="save-scan-status-'+id+'" class="status" style="margin-left:10px"></span>':'')+
+        (currentBatchIsShared()
+          ?'<label class="check"><input type="checkbox" '+(s.price_checked?"checked":"")+' disabled><span>'+(s.price_checked?'Price checked before sharing':'Price was not marked checked')+'</span></label>'+
+           '<label class="check"><input type="checkbox" '+(s.selected_for_buyer?"checked":"")+' disabled><span>'+(s.selected_for_buyer?'Sent to buyer in this batch':'Not sent to buyer in this batch')+'</span></label>'
+          :'<label class="check"><input type="checkbox" data-k="'+id+'" data-f="price_checked" '+(s.price_checked?"checked":"")+'><span>Price checked — happy to present this price</span></label>'+
+           '<label class="check"><input type="checkbox" data-k="'+id+'" data-f="selected_for_buyer" '+(s.selected_for_buyer?"checked":"")+'><span>Include in buyer selection</span></label>')+
+        (saved&&!currentBatchIsShared()?'<button id="save-scan-'+id+'" class="btn green" style="margin-top:10px" onclick="saveScan('+id+')">Save motorcycle</button><span id="save-scan-status-'+id+'" class="status" style="margin-left:10px"></span>':'')+
       '</div>'+
     '</div></article>';
 }
@@ -497,11 +501,13 @@ function updateNextAction(){
 
   panel.style.display="block";
 
-  const batchShared=String(currentBatch?.batch?.status||"").toLowerCase()==="shared" || !!currentBatch?.batch?.shared_at;
+  const waiting=document.getElementById("nextActionWaiting"); if(waiting)waiting.textContent="Waiting for: AnyBike";
+  const batchShared=currentBatchIsShared();
   if(batchShared){
     nextActionMode="shared";
     title.textContent="Selection shared successfully";
     textEl.textContent=chosen.length+" motorcycle"+(chosen.length===1?" was":"s were")+" sent to the buyer. No further share action is required for this batch.";
+    if(waiting)waiting.textContent="Waiting for: Buyer";
     btn.textContent="SHARED ✓";
     btn.disabled=true;
   }else if(!chosen.length){
@@ -641,14 +647,19 @@ async function loadBatch(id){
   await loadSourceCommercialHistory();
   document.getElementById("newBatchPanel").style.display="none";
   document.getElementById("batchSummary").style.display="block";
-  document.getElementById("batchSummary").innerHTML='<div class="eyebrow">Saved sourcing batch #'+id+'</div><h2 style="margin:5px 0">'+esc(buyerName(data.buyer||{}))+'</h2><div class="muted">'+esc(data.request_item?[data.request_item.make,data.request_item.model].filter(Boolean).join(" "):"General sourcing")+' · '+scanned.length+' scanned adverts</div><div class="image-progress" id="imageSafetyProgress"><div class="image-progress-head"><span id="imageSafetyProgressText">Checking buyer-safe photo status…</span><span id="imageSafetyProgressPct">0%</span></div><div class="image-progress-track"><div class="image-progress-bar" id="imageSafetyProgressBar"></div></div><div class="note" id="imageSafetyProgressNote" style="margin-top:7px">Only motorcycles ticked Include in buyer selection need to be buyer-safe before sharing. Unselected motorcycles do not block the batch.</div></div><div class="actions" style="margin-top:12px"><button class="btn green" id="prepareAllImagesBtn" type="button" onclick="prepareAllBuyerSafeImages()">Retry image preparation</button><span id="prepareAllImagesStatus" class="status"></span><a class="btn" href="admin-used-bike-scanner.html">+ New batch</a><a class="btn" href="/services-and-fees.html" target="_blank">View AnyBike Fees ↗</a></div>';
+  const batchShared=currentBatchIsShared();
+  const sentCount=(scanned||[]).filter(s=>s.selected_for_buyer).length;
+  const progressHtml=batchShared
+    ?'<div class="image-progress good" id="imageSafetyProgress"><div class="image-progress-head"><span id="imageSafetyProgressText">Shared batch — buyer-safe snapshot preserved</span><span id="imageSafetyProgressPct">100%</span></div><div class="image-progress-track"><div class="image-progress-bar" id="imageSafetyProgressBar" style="width:100%"></div></div><div class="note" id="imageSafetyProgressNote" style="margin-top:7px">'+sentCount+' motorcycle'+(sentCount===1?' was':'s were')+' sent to the buyer. This shared batch is review-only; image preparation will not restart.</div></div>'
+    :'<div class="image-progress" id="imageSafetyProgress"><div class="image-progress-head"><span id="imageSafetyProgressText">Checking buyer-safe photo status…</span><span id="imageSafetyProgressPct">0%</span></div><div class="image-progress-track"><div class="image-progress-bar" id="imageSafetyProgressBar"></div></div><div class="note" id="imageSafetyProgressNote" style="margin-top:7px">Only motorcycles ticked Include in buyer selection need to be buyer-safe before sharing. Unselected motorcycles do not block the batch.</div></div>';
+  document.getElementById("batchSummary").innerHTML='<div class="eyebrow">Saved sourcing batch #'+id+'</div><h2 style="margin:5px 0">'+esc(buyerName(data.buyer||{}))+'</h2><div class="muted">'+esc(data.request_item?[data.request_item.make,data.request_item.model].filter(Boolean).join(" "):"General sourcing")+' · '+scanned.length+' scanned adverts'+(batchShared?' · '+sentCount+' sent to buyer':'')+'</div>'+progressHtml+'<div class="actions" style="margin-top:12px">'+(batchShared?'':'<button class="btn green" id="prepareAllImagesBtn" type="button" onclick="prepareAllBuyerSafeImages()">Retry image preparation</button>')+'<span id="prepareAllImagesStatus" class="status"></span><a class="btn" href="admin-used-bike-scanner.html">+ New batch</a><a class="btn" href="/services-and-fees.html" target="_blank">View AnyBike Fees ↗</a></div>';
   await loadOtherBuyerRequests();
   renderScans(true);
   queueAutomaticBuyerSafePreparation();
 }
 async function queueAutomaticBuyerSafePreparation(){
   if(!currentBatchId||buyerSafePreparationRunning)return;
-  if(String(currentBatch?.batch?.status||"").toLowerCase()==="shared" || currentBatch?.batch?.shared_at)return;
+  if(currentBatchIsShared())return;
   const rows=(scanned||[]).filter(s=>s.selected_for_buyer&&s.extraction&&s.extraction.live_source_item_id);
   if(!rows.length){
     setBuyerSafeProgress(0,0,"Choose motorcycles to present before preparing galleries",true);
