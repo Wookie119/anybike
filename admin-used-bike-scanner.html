@@ -12,6 +12,10 @@
 .sourcing-nav a.active{background:var(--red);border-color:var(--red);color:#fff}
 .sourcing-context{margin-left:auto;color:#aaa;font-size:12px;font-weight:800}
 .sourcing-context a{padding:0;border:0;color:#fff;text-decoration:underline}
+
+.share-success-toast{position:fixed;right:22px;top:90px;z-index:9999;max-width:420px;padding:16px 18px;border-radius:14px;border:1px solid rgba(54,211,126,.55);background:#102719;color:#eaffef;box-shadow:0 16px 40px rgba(0,0,0,.45);font-weight:850;display:none}
+.share-success-toast.show{display:block}
+.share-success-toast strong{display:block;font-size:16px;margin-bottom:4px;color:#9ef0b5}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="admin.js?v=12000"></script>
@@ -950,28 +954,49 @@ function buildMessage(){
     :("Good news — we have found a hand-picked selection of "+noun+"s that we think could suit your requirements.");
   document.getElementById("shareMessage").value="Dear "+name+",\n\n"+opening+"\n\nTick Interested on each motorcycle you would like AnyBike to check with the seller. We will then confirm current availability and purchase terms for the motorcycles you selected. Any motorcycle you leave unticked will be recorded as Not Interested at this time.\n\nIf you have a specific question about a motorcycle, you can add it underneath that motorcycle and we will raise it with the seller as part of our availability check.\n\nThe AnyBike price shown includes the motorcycle, AnyBike's sourcing fee, and the agreed UK collection & delivery to your chosen UK port or approved UK freight forwarder / handover point.";
 }
+function showShareSuccessToast(title,message){
+  const el=document.getElementById("shareSuccessToast");
+  if(!el)return;
+  el.innerHTML="<strong>"+esc(title)+"</strong>"+esc(message);
+  el.classList.add("show");
+  setTimeout(()=>el.classList.remove("show"),5500);
+}
+
 async function shareBatch(){
   if(buyerSafePreparationRunning){
     alert("Buyer-safe image processing is still running. Please wait for the progress bar to finish before sharing this selection.");
     return;
   }
-  for(const s of scanned){collectCard(s.id);await saveScan(s.id)}
-  const selectedRows=scanned.filter(s=>s.selected_for_buyer);
-  const ids=selectedRows.map(s=>Number(s.id));
-  if(!ids.length){alert("Select at least one motorcycle.");return}
-  const missingSafe=selectedRows.filter(s=>s.extraction&&s.extraction.live_source_item_id&&!(Array.isArray(s.buyer_image_urls)&&s.buyer_image_urls.length));
-  if(missingSafe.length){
-    alert("Every selected Live Source motorcycle needs at least one approved buyer-safe image before it can be shared.\n\nWait for image processing to finish, then retry any matches still needing attention.");
-    return;
+  const shareBtn=document.getElementById("shareBatchBtn");
+  if(shareBtn?.disabled)return;
+  if(shareBtn){shareBtn.disabled=true;shareBtn.textContent="Sharing…";}
+  try{
+    for(const s of scanned){collectCard(s.id);await saveScan(s.id)}
+    const selectedRows=scanned.filter(s=>s.selected_for_buyer);
+    const ids=selectedRows.map(s=>Number(s.id));
+    if(!ids.length){alert("Select at least one motorcycle.");return}
+    const missingSafe=selectedRows.filter(s=>s.extraction&&s.extraction.live_source_item_id&&!(Array.isArray(s.buyer_image_urls)&&s.buyer_image_urls.length));
+    if(missingSafe.length){
+      alert("Every selected Live Source motorcycle needs at least one approved buyer-safe image before it can be shared.\n\nWait for image processing to finish, then retry any matches still needing attention.");
+      return;
+    }
+    const st=document.getElementById("shareStatus");st.className="status";st.textContent="Sharing selection…";
+    const {data,error}=await sb().rpc("admin_share_used_bike_scan_batch_v1",{p_batch_id:currentBatchId,p_scan_ids:ids,p_message_text:document.getElementById("shareMessage").value});
+    if(error){st.className="status bad";st.textContent=error.message;return}
+    const remaining=(currentBuyerSourcingPlan?.requests||[]).filter(r=>r.sourcing_status==="Not Started"&&Number(r.request_id)!==Number(currentBatch?.request_item?.id||0));
+    st.className="status good";
+    st.innerHTML=(data?.already_shared?"Already shared successfully. ":"Shared "+data.shared_count+" motorcycles successfully. ")+"Buyer page: <a class='source-link' target='_blank' href='"+esc(data.customer_url)+"'>open ↗</a>"+
+      (remaining.length?"<br><strong>Next:</strong> "+remaining.length+" other buyer request"+(remaining.length===1?" still needs":"s still need")+" sourcing.":"");
+    showShareSuccessToast(
+      data?.already_shared?"Selection already shared":"Selection shared successfully",
+      (data?.shared_count||ids.length)+" motorcycle"+((data?.shared_count||ids.length)===1?"":"s")+" sent to the buyer."
+    );
+    await loadOtherBuyerRequests();
+    updateNextAction();
+  }finally{
+    if(shareBtn){shareBtn.disabled=false;shareBtn.textContent="Share selected motorcycles";}
+    setShareGate();
   }
-  const st=document.getElementById("shareStatus");st.className="status";st.textContent="Sharing selection…";
-  const {data,error}=await sb().rpc("admin_share_used_bike_scan_batch_v1",{p_batch_id:currentBatchId,p_scan_ids:ids,p_message_text:document.getElementById("shareMessage").value});
-  if(error){st.className="status bad";st.textContent=error.message;return}
-  const remaining=(currentBuyerSourcingPlan?.requests||[]).filter(r=>r.sourcing_status==="Not Started"&&Number(r.request_id)!==Number(currentBatch?.request_item?.id||0));
-  st.className="status good";st.innerHTML="Shared "+data.shared_count+" motorcycles in one message. Buyer page: <a class='source-link' target='_blank' href='"+esc(data.customer_url)+"'>open ↗</a>"+
-    (remaining.length?"<br><strong>Next:</strong> "+remaining.length+" other buyer request"+(remaining.length===1?" still needs":"s still need")+" sourcing.":"");
-  await loadOtherBuyerRequests();
-  updateNextAction();
 }
 
 (async()=>{
@@ -983,5 +1008,6 @@ async function shareBatch(){
   if(q.get("batch")) await loadBatch(q.get("batch"));
 })();
 </script>
+<div id="shareSuccessToast" class="share-success-toast" role="status" aria-live="polite"></div>
 </body>
 </html>
