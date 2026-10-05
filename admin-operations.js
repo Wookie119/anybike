@@ -217,6 +217,7 @@
     const driverWorkflow=paymentRequested || sellerConfirmedPaid || photosConfirmed || collected;
     const collectionReady=!!row.collection_ready_for_move;
     const collectionMissing=Array.isArray(row.collection_missing_fields)?row.collection_missing_fields.filter(Boolean):[];
+    const booked=!!row.move_shipment_id || ["booked","driver_assigned","collected"].includes(String(row.collection_status||""));
 
     if(collected){
       return `
@@ -372,12 +373,41 @@
       }).join("");
 
       let operationsNext="Review the motorcycle operations record.";
-      if(!confirmed) operationsNext="Contact the seller, confirm AnyBike is proceeding and obtain the Ready Date.";
-      else if(!booked) operationsNext="Complete the collection details and book Move Motorcycles.";
-      else if(!collected) operationsNext="Track the Move collection and complete the driver handover workflow.";
-      else if(!atDepot) operationsNext="Motorcycle collected. Confirm depot arrival / custody and storage status.";
-      else if(!delivered) operationsNext="Motorcycle is in UK custody. Complete the final handover / delivery to the buyer's shipper.";
-      else operationsNext="Operations complete. Finalise the invoice and close the sale when all commercial records are complete.";
+      let nextActionTitle="Review Purchase & Collection";
+      let nextActionCopy="Review the current operations position for this motorcycle.";
+      let nextActionButton='<button type="button" class="ab-ops-button" onclick="document.getElementById(\'ab-ops-ready-${id}\')?.scrollIntoView({behavior:\'smooth\',block:\'center\'});return false;">REVIEW OPERATIONS →</button>';
+
+      if(!confirmed){
+        operationsNext="Contact the seller, confirm AnyBike is proceeding and obtain the Ready Date.";
+        nextActionTitle="Confirm the seller and Ready Date";
+        nextActionCopy="Record the genuine seller-side commitment and the earliest date the motorcycle can be collected.";
+        nextActionButton='<button type="button" class="ab-ops-button" onclick="document.getElementById(\'ab-ops-ready-${id}\')?.scrollIntoView({behavior:\'smooth\',block:\'center\'});return false;">CONFIRM SELLER →</button>';
+      }else if(!booked){
+        operationsNext="Complete the collection details and book Move Motorcycles.";
+        nextActionTitle="Book the motorcycle with Move Motorcycles";
+        nextActionCopy="Seller commitment is confirmed. Complete any remaining Move booking fields and create the live collection booking.";
+        nextActionButton='<button type="button" class="ab-ops-button" onclick="continueAnyBikeMoveBooking(${id});return false;">CONTINUE MOVE BOOKING →</button>';
+      }else if(!collected){
+        operationsNext="Track the Move collection and complete the driver handover workflow.";
+        nextActionTitle="Follow the live Move collection";
+        nextActionCopy="Driver ETA, arrival, visual check, custody, photos and seller-payment confirmation should flow back automatically from the Move collection workflow.";
+        nextActionButton='<a class="ab-ops-button" href="admin-logistics.html?motorcycle=${id}#pay-on-site" style="text-decoration:none">OPEN COLLECTION WORKFLOW →</a>';
+      }else if(!atDepot){
+        operationsNext="Motorcycle collected. Confirm depot arrival / custody and storage status.";
+        nextActionTitle="Confirm depot custody";
+        nextActionCopy="The motorcycle is collected. Continue in Logistics HQ to confirm depot arrival, custody and storage.";
+        nextActionButton='<a class="ab-ops-button" href="admin-logistics.html?motorcycle=${id}#custody-storage" style="text-decoration:none">OPEN CUSTODY & STORAGE →</a>';
+      }else if(!delivered){
+        operationsNext="Motorcycle is in UK custody. Complete the final handover / delivery to the buyer's shipper.";
+        nextActionTitle="Complete shipper handover";
+        nextActionCopy="The motorcycle is in UK custody. Continue to the final delivery and handover controls.";
+        nextActionButton='<a class="ab-ops-button" href="admin-logistics.html?motorcycle=${id}#custody-storage" style="text-decoration:none">OPEN HANDOVER CONTROLS →</a>';
+      }else{
+        operationsNext="Operations complete. Finalise the invoice and close the sale when all commercial records are complete.";
+        nextActionTitle="Finalise the commercial records";
+        nextActionCopy="Operations are complete. Continue to Accounts & Documents for the remaining invoice and close-out controls.";
+        nextActionButton='<a class="ab-ops-button" href="admin-accounts.html?deal=${Number(dealId)}" style="text-decoration:none">OPEN ACCOUNTS & DOCUMENTS →</a>';
+      }
 
       return `
         <section class="ab-ops-bike">
@@ -393,7 +423,7 @@
             <div class="ab-ops-progress-head"><span>Operations Progress</span><strong>${completedStages} / ${operationsStages.length} stages · ${operationsPercent}%</strong></div>
             <div class="ab-ops-progress-track"><div class="ab-ops-progress-fill" style="width:${operationsPercent}%"></div></div>
             <div class="ab-ops-progress-steps">${operationsStepsHtml}</div>
-            <div class="ab-ops-next-action"><strong>Next:</strong> ${esc(operationsNext)}</div>
+            <div class="ab-ops-next-action"><strong>Current stage:</strong> ${esc(operationsNext)}</div>
           </div>
 
           <div class="ab-ops-grid">
@@ -426,6 +456,14 @@
             ? `<div class="ab-move-booked"><strong>Move Motorcycles:</strong> ${esc(collected ? ("Collected"+(row.collection_actual_at?" · "+niceDateTime(row.collection_actual_at):"")) : (row.move_tracking_no ? "Booked · Tracking "+row.move_tracking_no : "Booked"))}</div>`
             : `<div id="ab-move-booking-${id}" class="ab-move"><div class="ab-ops-loading">Loading Move booking details…</div></div>`) : ""}
           ${confirmed ? collectionPanel(row,dealId) : ""}
+          <div class="deal-section-next-action" style="margin:0;border-radius:0">
+            <div>
+              <div class="eyebrow">Your next action</div>
+              <strong>${esc(nextActionTitle)}</strong>
+              <span>${esc(nextActionCopy)}</span>
+            </div>
+            ${nextActionButton}
+          </div>
           <div class="ab-ops-next">
             <span><strong>Current operations status:</strong> ${esc(delivered ? "Delivered / handover complete" : atDepot ? "At depot / storage" : collected ? "Collected" : booked ? "Booked with Move" : confirmed ? "Seller confirmed" : "Seller confirmation required")}</span>
             <span class="ab-ops-private">${phone ? "Seller contact held internally" : "Seller details remain internal"}</span>
