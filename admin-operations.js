@@ -642,7 +642,8 @@
         <div class="ab-move-field"><label>County / State</label><input id="ab-move-sender-state-${id}" value="${esc(sender.state||"")}"></div>
         <div class="ab-move-field"><label>Postcode *</label><input id="ab-move-sender-postcode-${id}" value="${esc(sender.postcode||"")}"></div>
         <div class="ab-move-field"><label>Country *</label><input id="ab-move-sender-country-${id}" value="${esc(sender.country||"United Kingdom")}"></div>
-        <div class="ab-move-field"><label>Seller Contact Phone *</label><input id="ab-move-sender-phone-${id}" value="${esc(sender.contact_phone||"")}"></div>
+        <div class="ab-move-field"><label>Seller Mobile *</label><input id="ab-move-sender-phone-${id}" value="${esc(sender.contact_mobile||"")}" placeholder="Mobile number required by Move"></div>
+        <div class="ab-move-field"><label>Seller Landline</label><input value="${esc(sender.landline||"")}" readonly></div>
         <div class="ab-move-field"><label>Seller Email</label><input id="ab-move-sender-email-${id}" type="email" value="${esc(sender.email||"")}"></div>
 
         <div class="ab-move-section" id="ab-move-section-receiver-${id}">Deliver to buyer's shipper / freight forwarder</div>
@@ -688,7 +689,7 @@
       <div id="ab-move-readiness-${id}" class="ab-move-warning"></div>
       <div class="ab-move-warning"><strong>SMS note:</strong> AnyBike saves this preference now. The supplied Move shipment API documentation does not expose the exact SMS/mobile field, so the booking integration will not guess one or overwrite seller/shipper contact details.</div>
       <div class="ab-move-actions">
-        <small>Required fields must be complete before a live Move booking is created. Seller identity remains internal to AnyBike/Move.</small>
+        <small>Seller collection details saved here are also retained against the dealer for future purchases. Move requires a mobile number; landlines are kept for reference only.</small>
         <div>
           <button type="button" class="ab-ops-button ab-move-secondary" onclick="saveAnyBikeMoveDraft(${id});return false;">Save Draft</button>
           <button type="button" class="ab-ops-button" id="ab-move-book-${id}" onclick="bookAnyBikeMoveShipment(${id});return false;">Book with Move</button>
