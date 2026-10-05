@@ -7920,7 +7920,7 @@ function renderAnyBikeBuyerOnboardingPanel(deal){
   const shipper=[profile.preferred_shipping_company,profile.shipping_contact_name,profile.shipping_contact_email,profile.shipping_contact_phone].filter(Boolean).join(" · ");
   const route=[profile.preferred_uk_collection_point,profile.preferred_destination_port,profile.preferred_shipping_method,profile.typical_bikes_per_shipment].filter(Boolean).join(" · ");
 
-  return '<section class="anybike-commercial-panel" style="margin-top:14px" id="buyer-onboarding-panel-'+escapeAdminHtml(customerId)+'">'+
+  return '<section class="anybike-commercial-panel" style="margin-top:14px;'+(approved?'border-color:rgba(42,159,89,.75);box-shadow:0 0 0 1px rgba(42,159,89,.16) inset;':'')+'" id="buyer-onboarding-panel-'+escapeAdminHtml(customerId)+'">'+
     '<div class="anybike-commercial-head"><div><span>Buyer Purchase Clearance</span><h4>Reusable business verification &amp; purchase approval</h4></div>'+
     '<div class="anybike-commercial-status">'+escapeAdminHtml(approval)+'</div></div>'+
     '<div style="padding:12px 16px;background:'+(approved||graceActive?'rgba(42,159,89,.08)':'rgba(237,28,36,.06)')+';border-bottom:1px solid rgba(255,255,255,.08);font-size:12px;line-height:1.5;color:#bbb">'+
@@ -8064,6 +8064,21 @@ async function saveBuyerOnboarding(customerId){
 
   await loadAdminBuyerOnboarding();
   renderAdminDealQueue();
+
+  if(["Approved","Approved with Exceptions"].includes(approval) && openAnyBikeDealId){
+    const currentDeal=String(openAnyBikeDealId);
+    const row=document.getElementById("anybike-deal-"+currentDeal);
+    if(row){
+      row.classList.add("open");
+      bikeSalesJourneyTab(currentDeal,"seller",false);
+      setTimeout(function(){
+        const sellerPanel=row.querySelector(".anybike-seller-panel");
+        if(sellerPanel){
+          scrollBikeSalesTargetIntoView(sellerPanel);
+        }
+      },160);
+    }
+  }
 }
 
 function anyBikeDealCustomerId(deal){
@@ -15777,6 +15792,7 @@ function openAnyBikeDealFromUrl(){
   openAnyBikeDealId=dealId;
 
   const requestedTab=String(params.get("tab")||"").trim();
+  const requestedFocus=String(params.get("focus")||"").trim().toLowerCase();
   if(requestedTab){
     bikeSalesJourneyTab(dealId,requestedTab,false);
   }
@@ -15825,13 +15841,21 @@ function openAnyBikeDealFromUrl(){
   }
 
   setTimeout(function(){
+    if(requestedFocus==="seller-check"){
+      const sellerPanel=row.querySelector(".anybike-seller-panel");
+      if(sellerPanel){
+        scrollBikeSalesTargetIntoView(sellerPanel);
+        return;
+      }
+    }
+
     if(requestedTab){
       const target=row.querySelector('.sales-tab-panel[data-tab="'+requestedTab+'"]');
       scrollBikeSalesTargetIntoView(target || row);
     }else{
       scrollBikeSalesTargetIntoView(row);
     }
-  },60);
+  },90);
 }
 
 function bikeSalesDealById(dealId){
