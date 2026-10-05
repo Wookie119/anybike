@@ -790,6 +790,126 @@ function returnToBuyerSetupReview(cardId){
   }
 }
 
+async function adminOpenStoredDocument(bucket,path,name){
+  if(!bucket || !path){
+    alert("This document does not have a stored file to open.");
+    return;
+  }
+  const result=await sb.storage.from(String(bucket)).createSignedUrl(String(path),300);
+  if(result.error){
+    alert("Document could not be opened: "+result.error.message);
+    return;
+  }
+  window.open(result.data.signedUrl,"_blank","noopener");
+}
+
+function buyerReviewShippingHtml(customer,routeHtml){
+  const s=cleanId(customer.customerId);
+  const field=function(id,label,value){
+    return '<label style="display:grid;gap:5px"><span class="small">'+label+'</span><input id="'+id+'-'+s+'" value="'+escapeHtml(value||"")+'" style="width:100%;background:#080808;color:#fff;border:1px solid #444;border-radius:9px;padding:10px"></label>';
+  };
+
+  return '<div style="display:grid;gap:12px">'+
+    '<div class="detail-grid">'+
+      field("reviewShipCompany","Shipping company / forwarder",customer.shippingCompany)+
+      field("reviewShipContact","Contact name",customer.shippingContactName)+
+      field("reviewShipEmail","Contact email",customer.shippingContactEmail)+
+      field("reviewShipPhone","Contact phone",customer.shippingContactPhone)+
+      field("reviewShipAddress1","Address line 1",customer.shippingAddress1)+
+      field("reviewShipAddress2","Address line 2",customer.shippingAddress2)+
+      field("reviewShipCity","Town / City",customer.shippingCity)+
+      field("reviewShipRegion","County / Region",customer.shippingRegion)+
+      field("reviewShipPostcode","Postcode",customer.shippingPostcode)+
+      field("reviewShipCountry","Country",customer.shippingCountry||"United Kingdom")+
+      field("reviewShipCollection","UK handover / collection point",customer.shippingCollectionPoint)+
+    '</div>'+
+    '<div style="display:flex;gap:10px;flex-wrap:wrap">'+
+      '<button type="button" class="btn" style="background:#ed1c24" onclick="saveBuyerShippingReview(\''+customer.customerId+'\',\''+customer.id+'\',false)">Save & combine shipping preference</button>'+
+      '<button type="button" class="btn" style="background:#181818;border:1px solid #ff646b" onclick="saveBuyerShippingReview(\''+customer.customerId+'\',\''+customer.id+'\',true)">Reject shipping details</button>'+
+    '</div>'+
+    '<div class="small">Saving combines the edited details into the customer’s single My Profile shipping preference. Existing Deal 360 routes remain as deal records below.</div>'+
+    (routeHtml?'<div style="margin-top:4px"><h4 style="margin:0 0 8px">Current Deal shipping routes</h4>'+routeHtml+'</div>':"")+
+  '</div>';
+}
+
+function buyerReviewDocumentsHtml(customer,w){
+  const review=w.review_documents||{};
+  const customerDocs=Array.isArray(review.customer_documents)?review.customer_documents:[];
+  const bikeDocs=Array.isArray(review.motorcycle_documents)?review.motorcycle_documents:[];
+  const invoices=Array.isArray(w.documents?.invoices)?w.documents.invoices:[];
+
+  const docCard=function(d,label){
+    const title=d.document_title||d.original_file_name||d.document_type||label;
+    const status=d.verification_status||d.document_status||"Available";
+    const canOpen=!!(d.storage_bucket&&d.storage_path);
+    return '<div class="deal-card" style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap">'+
+      '<div><strong>'+safe(title)+'</strong><div class="small">'+safe(label)+' · '+safe(status)+' · '+fmtDate(d.created_at)+'</div></div>'+
+      (canOpen?'<button type="button" class="btn" onclick=\'adminOpenStoredDocument('+JSON.stringify(String(d.storage_bucket))+','+JSON.stringify(String(d.storage_path))+','+JSON.stringify(String(d.original_file_name||title))+')\'>Open / View →</button>':'<span class="small">No stored file</span>')+
+    '</div>';
+  };
+
+  let html="";
+  if(customerDocs.length){
+    html+='<h4 style="margin:4px 0 8px">Customer documents</h4>'+customerDocs.map(d=>docCard(d,"Customer document")).join("");
+  }
+  if(bikeDocs.length){
+    html+='<h4 style="margin:14px 0 8px">Motorcycle documents</h4>'+bikeDocs.map(d=>docCard(d,"Motorcycle document")).join("");
+  }
+  if(invoices.length){
+    html+='<h4 style="margin:14px 0 8px">Invoices / Proformas</h4>'+invoices.map(i=>
+      '<div class="deal-card" style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap">'+
+      '<div><strong>'+safe(i.invoice_number||i.invoice_type)+'</strong><div class="small">'+safe(i.invoice_status)+' · '+money(i.gross_amount_gbp??i.total_gbp)+' · '+fmtDate(i.issued_at||i.created_at)+'</div></div>'+
+      '<a class="btn" href="admin-accounts.html?invoice='+encodeURIComponent(i.id)+'">Open in Accounts →</a></div>'
+    ).join("");
+  }
+  return html||'<div class="note-box">No documents or proformas recorded for this customer.</div>';
+}
+
+async function saveBuyerShippingReview(customerId,cardId,reject){
+  const s=cleanId(customerId);
+  let note=null;
+  if(reject){
+    note=prompt("Why are these shipping details being rejected?","");
+    if(note===null)return;
+    if(!String(note).trim()){
+      alert("Add a reason before rejecting the shipping details.");
+      return;
+    }
+  }
+
+  const val=id=>String(document.getElementById(id+"-"+s)?.value||"").trim();
+  const result=await sb.rpc("admin_save_customer_shipping_review_v1",{
+    p_customer_id:customerId,
+    p_company:val("reviewShipCompany"),
+    p_contact_name:val("reviewShipContact"),
+    p_contact_email:val("reviewShipEmail"),
+    p_contact_phone:val("reviewShipPhone"),
+    p_address_1:val("reviewShipAddress1"),
+    p_address_2:val("reviewShipAddress2"),
+    p_city:val("reviewShipCity"),
+    p_region:val("reviewShipRegion"),
+    p_postcode:val("reviewShipPostcode"),
+    p_country:val("reviewShipCountry"),
+    p_collection_point:val("reviewShipCollection"),
+    p_reject:!!reject,
+    p_review_note:note
+  });
+
+  if(result.error){
+    alert("Shipping review could not be saved: "+result.error.message);
+    return;
+  }
+
+  if(reject){
+    alert("Shipping details marked Review Required.");
+  }else{
+    alert("Shipping preference saved and combined successfully.");
+  }
+
+  await loadCustomers();
+  openCustomerFromMap(customerId);
+}
+
 function buyerSetupReviewHtml(c){
   const a=customerAttentionMap[String(c.customerId)]||{};
   const count=Number(a.setup_complete_count||0);
@@ -1318,7 +1438,7 @@ function renderCustomerWorkspace(customer){
   setPanel("shipping",'<h3>Shipping</h3>'+(shippingHtml||'<div class="note-box">No shipping or shipper records yet.</div>'));
   const embeddedShipping=root.querySelector("[data-buyer-review-shipping]");
   if(embeddedShipping){
-    embeddedShipping.innerHTML=shippingHtml||'<div class="note-box">No shipping or shipper records yet.</div>';
+    embeddedShipping.innerHTML=buyerReviewShippingHtml(customer,shippingHtml);
   }
 
   const docs=w.documents||{};
@@ -1334,7 +1454,7 @@ function renderCustomerWorkspace(customer){
   setPanel("documents",'<h3>Documents</h3>'+(docsHtml||'<div class="note-box">No documents or invoices recorded yet.</div>'));
   const embeddedDocuments=root.querySelector("[data-buyer-review-documents]");
   if(embeddedDocuments){
-    embeddedDocuments.innerHTML=docsHtml||'<div class="note-box">No documents or invoices recorded yet.</div>';
+    embeddedDocuments.innerHTML=buyerReviewDocumentsHtml(customer,w);
   }
 
   const notes=Array.isArray(w.notes)?w.notes:[];
@@ -1411,7 +1531,7 @@ async function ensureCustomerWorkspace(id,force){
       });
     }
 
-    const [workspaceResult,intelligenceResult,commercialResult]=await Promise.all([
+    const [workspaceResult,intelligenceResult,commercialResult,reviewDocumentsResult]=await Promise.all([
       sb.rpc("admin_get_customer_360_workspace_v1",{
         p_customer_id:customer.customerId
       }),
@@ -1420,6 +1540,9 @@ async function ensureCustomerWorkspace(id,force){
         p_days:90
       }),
       sb.rpc("admin_get_customer_commercial_intelligence_v1",{
+        p_customer_id:customer.customerId
+      }),
+      sb.rpc("admin_get_customer_review_documents_v1",{
         p_customer_id:customer.customerId
       })
     ]);
@@ -1449,7 +1572,8 @@ async function ensureCustomerWorkspace(id,force){
     customerWorkspaceMap[key]={
       ...(data||{}),
       intelligence:intelligenceResult?.data||{},
-      commercial_intelligence:commercialResult?.data||{}
+      commercial_intelligence:commercialResult?.data||{},
+      review_documents:reviewDocumentsResult?.data||{}
     };
     renderCustomerWorkspace(customer);
   })();
