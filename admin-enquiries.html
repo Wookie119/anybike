@@ -8973,6 +8973,10 @@ function renderAnyBikeDealCommercialSetup(deal){
   const notes=row.commercial_notes || "";
   const acceptedLocked=!!row.accepted_at || String(row.negotiation_status||"").toLowerCase()==="accepted";
   const sentPriceLocked=acceptedLocked || String(deal?.deal_stage||"")==="Proposal Sent" || String(row.negotiation_status||"").toLowerCase()==="negotiating";
+  const buyerProfile=anyBikeDealCustomerProfile(deal) || {};
+  const profileShipper=String(buyerProfile.preferred_shipping_company || "").trim();
+  const profileHandover=String(buyerProfile.preferred_uk_collection_point || buyerProfile.preferred_destination_port || "").trim();
+  const hasSavedProfileShipper=!!profileShipper;
   const priceLockAttribute=sentPriceLocked ? " readonly" : "";
   const acceptedDisableAttribute=acceptedLocked ? " disabled" : "";
 
@@ -9100,7 +9104,9 @@ function renderAnyBikeDealCommercialSetup(deal){
       <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;align-items:center">
         <span id="deal-commercial-autosave-${id}" class="anybike-commercial-autosave saved">Saved ✓</span>
         <button type="button" class="secondary" onclick="saveDealCommercialSetup(${id},{skipConfirm:true,skipSuccessAlert:false,preserveView:true});return false;">Save changes</button>
-        <button type="button" class="secondary" onclick="requestBuyerShippingDetailsForDeal(${Number(row.deal_id || 0)},this);return false;">Request shipper details</button>
+        ${hasSavedProfileShipper
+          ? '<span class="anybike-commercial-autosave saved">Saved shipper: '+escapeAdminHtml(profileShipper)+(profileHandover?' · '+escapeAdminHtml(profileHandover):'')+'</span>'
+          : '<button type="button" class="secondary" onclick="requestBuyerShippingDetailsForDeal('+Number(row.deal_id || 0)+',this);return false;">Request shipper details</button>'}
         ${acceptedLocked ? '<span class="anybike-commercial-autosave saved">Accepted terms locked</span>' : '<button class="anybike-formal-offer-button" type="button" onclick="proceedDealCommercialSetup('+id+');return false;">'+(sentPriceLocked?'Review Sent Formal Offer':'Prepare Formal Offer')+'</button>'}
       </div>
       <div id="deal-commercial-shipping-request-${Number(row.deal_id || 0)}" style="margin-top:7px;color:#888;font-size:11px"></div>
