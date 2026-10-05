@@ -375,38 +375,38 @@
       let operationsNext="Review the motorcycle operations record.";
       let nextActionTitle="Review Purchase & Collection";
       let nextActionCopy="Review the current operations position for this motorcycle.";
-      let nextActionButton='<button type="button" class="ab-ops-button" onclick="document.getElementById(\'ab-ops-ready-${id}\')?.scrollIntoView({behavior:\'smooth\',block:\'center\'});return false;">REVIEW OPERATIONS →</button>';
+      let nextActionButton=`<button type="button" class="ab-ops-button" onclick="document.getElementById('ab-ops-ready-${id}')?.scrollIntoView({behavior:'smooth',block:'center'});return false;">REVIEW OPERATIONS →</button>`;
 
       if(!confirmed){
         operationsNext="Contact the seller, confirm AnyBike is proceeding and obtain the Ready Date.";
         nextActionTitle="Confirm the seller and Ready Date";
         nextActionCopy="Record the genuine seller-side commitment and the earliest date the motorcycle can be collected.";
-        nextActionButton='<button type="button" class="ab-ops-button" onclick="document.getElementById(\'ab-ops-ready-${id}\')?.scrollIntoView({behavior:\'smooth\',block:\'center\'});return false;">CONFIRM SELLER →</button>';
+        nextActionButton=`<button type="button" class="ab-ops-button" onclick="document.getElementById('ab-ops-ready-${id}')?.scrollIntoView({behavior:'smooth',block:'center'});return false;">CONFIRM SELLER →</button>`;
       }else if(!booked){
         operationsNext="Complete the collection details and book Move Motorcycles.";
         nextActionTitle="Book the motorcycle with Move Motorcycles";
         nextActionCopy="Seller commitment is confirmed. Complete any remaining Move booking fields and create the live collection booking.";
-        nextActionButton='<button type="button" class="ab-ops-button" onclick="continueAnyBikeMoveBooking(${id});return false;">CONTINUE MOVE BOOKING →</button>';
+        nextActionButton=`<button type="button" class="ab-ops-button" onclick="continueAnyBikeMoveBooking(${id});return false;">CONTINUE MOVE BOOKING →</button>`;
       }else if(!collected){
         operationsNext="Track the Move collection and complete the driver handover workflow.";
         nextActionTitle="Follow the live Move collection";
         nextActionCopy="Driver ETA, arrival, visual check, custody, photos and seller-payment confirmation should flow back automatically from the Move collection workflow.";
-        nextActionButton='<a class="ab-ops-button" href="admin-logistics.html?motorcycle=${id}#pay-on-site" style="text-decoration:none">OPEN COLLECTION WORKFLOW →</a>';
+        nextActionButton=`<a class="ab-ops-button" href="admin-logistics.html?motorcycle=${id}#pay-on-site" style="text-decoration:none">OPEN COLLECTION WORKFLOW →</a>`;
       }else if(!atDepot){
         operationsNext="Motorcycle collected. Confirm depot arrival / custody and storage status.";
         nextActionTitle="Confirm depot custody";
         nextActionCopy="The motorcycle is collected. Continue in Logistics HQ to confirm depot arrival, custody and storage.";
-        nextActionButton='<a class="ab-ops-button" href="admin-logistics.html?motorcycle=${id}#custody-storage" style="text-decoration:none">OPEN CUSTODY & STORAGE →</a>';
+        nextActionButton=`<a class="ab-ops-button" href="admin-logistics.html?motorcycle=${id}#custody-storage" style="text-decoration:none">OPEN CUSTODY & STORAGE →</a>`;
       }else if(!delivered){
         operationsNext="Motorcycle is in UK custody. Complete the final handover / delivery to the buyer's shipper.";
         nextActionTitle="Complete shipper handover";
         nextActionCopy="The motorcycle is in UK custody. Continue to the final delivery and handover controls.";
-        nextActionButton='<a class="ab-ops-button" href="admin-logistics.html?motorcycle=${id}#custody-storage" style="text-decoration:none">OPEN HANDOVER CONTROLS →</a>';
+        nextActionButton=`<a class="ab-ops-button" href="admin-logistics.html?motorcycle=${id}#custody-storage" style="text-decoration:none">OPEN HANDOVER CONTROLS →</a>`;
       }else{
         operationsNext="Operations complete. Finalise the invoice and close the sale when all commercial records are complete.";
         nextActionTitle="Finalise the commercial records";
         nextActionCopy="Operations are complete. Continue to Accounts & Documents for the remaining invoice and close-out controls.";
-        nextActionButton='<a class="ab-ops-button" href="admin-accounts.html?deal=${Number(dealId)}" style="text-decoration:none">OPEN ACCOUNTS & DOCUMENTS →</a>';
+        nextActionButton=`<a class="ab-ops-button" href="admin-accounts.html?deal=${Number(dealId)}" style="text-decoration:none">OPEN ACCOUNTS & DOCUMENTS →</a>`;
       }
 
       return `
