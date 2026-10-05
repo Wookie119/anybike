@@ -749,7 +749,6 @@ function openBuyerSetupReviewSection(cardId,tabName){
   if(!card)return;
 
   const review=card.querySelector("[data-buyer-setup-review]");
-  if(review) review.style.display="none";
 
   switchTab(cardId,tabName);
 
@@ -834,6 +833,7 @@ function buyerReviewShippingHtml(customer,routeHtml){
 
 function buyerReviewDocumentsHtml(customer,w){
   const review=w.review_documents||{};
+  const onboardingDocs=Array.isArray(review.onboarding_documents)?review.onboarding_documents:[];
   const customerDocs=Array.isArray(review.customer_documents)?review.customer_documents:[];
   const bikeDocs=Array.isArray(review.motorcycle_documents)?review.motorcycle_documents:[];
   const invoices=Array.isArray(w.documents?.invoices)?w.documents.invoices:[];
@@ -849,6 +849,19 @@ function buyerReviewDocumentsHtml(customer,w){
   };
 
   let html="";
+  if(onboardingDocs.length){
+    html+='<h4 style="margin:4px 0 8px">Buyer identity & onboarding documents</h4>'+
+      onboardingDocs.map(function(d){
+        const path=String(d.storage_path||"");
+        const available=!!path;
+        return '<div class="deal-card" style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap">'+
+          '<div><strong>'+safe(d.document_title||d.document_type)+'</strong><div class="small">'+
+            (available?'On file':'Not supplied')+' · '+safe(d.verification_status||"Not Reviewed")+
+          '</div></div>'+
+          (available?'<button type="button" class="btn" onclick=\'adminOpenStoredDocument("deal-files",'+JSON.stringify(path)+','+JSON.stringify(String(d.document_title||d.document_type||"Onboarding document"))+')\'>Open / View →</button>':'<span class="small">No file uploaded</span>')+
+        '</div>';
+      }).join("");
+  }
   if(customerDocs.length){
     html+='<h4 style="margin:4px 0 8px">Customer documents</h4>'+customerDocs.map(d=>docCard(d,"Customer document")).join("");
   }
