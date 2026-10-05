@@ -1070,23 +1070,41 @@ async function submitMoreMatches(){
   }
 }
 
-async function getCustomerSessionSafely(){
+function withTimeout(promise,ms,label){
+  return Promise.race([
+    promise,
+    new Promise((_,reject)=>setTimeout(()=>reject(new Error((label||"Request")+" timed out")),ms))
+  ]);
+}
+
+async function getCustomerUserSafely(){
+  /*
+    The shared header already resolves the logged-in AnyBike customer.
+    Reuse that result rather than starting a second simultaneous auth restore,
+    which can leave this page waiting on the browser auth lock.
+  */
+  if(window.anybikeHeaderUser?.id){
+    return window.anybikeHeaderUser;
+  }
+
+  const headerUser=await new Promise(resolve=>{
+    let settled=false;
+    const finish=user=>{
+      if(settled)return;
+      settled=true;
+      window.removeEventListener("anybikePublicHeaderReady",onReady);
+      resolve(user||null);
+    };
+    const onReady=event=>finish(event?.detail?.user||null);
+    window.addEventListener("anybikePublicHeaderReady",onReady,{once:true});
+    setTimeout(()=>finish(window.anybikeHeaderUser||null),2500);
+  });
+
+  if(headerUser?.id) return headerUser;
+
   try{
-    let result=await sb.auth.getSession();
-    if(result?.data?.session) return result.data.session;
-
-    // If the access token has expired, getUser gives Supabase a chance to
-    // refresh the persisted session instead of immediately sending the customer
-    // back to login.
-    await sb.auth.getUser().catch(()=>({data:{user:null}}));
-    result=await sb.auth.getSession();
-    if(result?.data?.session) return result.data.session;
-
-    // Allow a short browser/session restore window when navigating directly
-    // from another AnyBike page.
-    await new Promise(resolve=>setTimeout(resolve,500));
-    result=await sb.auth.getSession();
-    return result?.data?.session || null;
+    const result=await withTimeout(sb.auth.getSession(),5000,"Customer session check");
+    return result?.data?.session?.user || null;
   }catch(error){
     console.warn("Customer session restore failed",error);
     return null;
@@ -1094,23 +1112,69 @@ async function getCustomerSessionSafely(){
 }
 
 async function init(){
-  if(!batchId){document.getElementById("status").textContent="This selection link is incomplete.";return}
-  const session=await getCustomerSessionSafely();
-  if(!session){
+  const status=document.getElementById("status");
+  if(!batchId){
+    if(status)status.textContent="This selection link is incomplete.";
+    return;
+  }
+
+  if(status)status.textContent="Opening your secure AnyBike selection…";
+
+  const user=await getCustomerUserSafely();
+  if(!user){
     const ret=location.pathname+location.search;
     location.replace("/customer-login.html?return="+encodeURIComponent(ret));
     return;
   }
-  currentUserId=session.user.id;
-  await loadMarginDefaults(session.user.id);
-  const {data:processProfile}=await sb.from("customer_profiles").select("sourcing_process_acknowledged_at,hide_sourcing_process_explainer").eq("id",session.user.id).maybeSingle();
-  sourcingProcessPrefs={
-    acknowledged:!!processProfile?.sourcing_process_acknowledged_at,
-    hide:!!processProfile?.hide_sourcing_process_explainer
-  };
-  const {data,error}=await sb.rpc("customer_get_used_bike_scan_batch_v1",{p_batch_id:batchId});
-  if(error){document.getElementById("status").textContent="We could not open this selection. Please make sure you are signed into the AnyBike account it was sent to.";return}
-  payload=data;render();
+
+  currentUserId=user.id;
+
+  /*
+    These preferences improve the page but must never block the motorcycle
+    selection itself. Load them alongside the batch and tolerate either
+    preference request being slow or unavailable.
+  */
+  const marginPromise=withTimeout(loadMarginDefaults(user.id),5000,"Margin preferences")
+    .catch(error=>console.warn("Margin defaults unavailable",error));
+
+  const processPromise=withTimeout(
+    sb.from("customer_profiles")
+      .select("sourcing_process_acknowledged_at,hide_sourcing_process_explainer")
+      .eq("id",user.id)
+      .maybeSingle(),
+    5000,
+    "Sourcing preferences"
+  ).then(result=>{
+    const processProfile=result?.data||null;
+    sourcingProcessPrefs={
+      acknowledged:!!processProfile?.sourcing_process_acknowledged_at,
+      hide:!!processProfile?.hide_sourcing_process_explainer
+    };
+  }).catch(error=>console.warn("Sourcing preferences unavailable",error));
+
+  try{
+    if(status)status.textContent="Loading your motorcycle matches…";
+    const result=await withTimeout(
+      sb.rpc("customer_get_used_bike_scan_batch_v1",{p_batch_id:batchId}),
+      15000,
+      "Motorcycle selection"
+    );
+
+    if(result?.error) throw result.error;
+
+    payload=result?.data||null;
+    render();
+
+    Promise.allSettled([marginPromise,processPromise]).then(()=>{
+      try{ updateCustomerNextAction(); }catch(error){}
+    });
+  }catch(error){
+    console.error("Motorcycle selection could not be loaded",error);
+    if(status){
+      status.textContent="We could not open this selection. Please refresh the page. If it still does not open, return to My AnyBike and open the selection again.";
+      status.classList.add("bad");
+    }
+  }
 }
 init();
 </script>
