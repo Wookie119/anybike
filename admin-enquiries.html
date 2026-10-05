@@ -10493,6 +10493,28 @@ function candidateCleanSellerLocation(value){
     .trim();
 }
 
+function candidateMoneyInputValue(value){
+  const n=Number(value);
+  return Number.isFinite(n) && n>0
+    ? "£"+n.toLocaleString("en-GB",{minimumFractionDigits:2,maximumFractionDigits:2})
+    : "";
+}
+function candidateParseMoneyInput(value){
+  const raw=String(value||"").replace(/[^0-9.-]/g,"");
+  const n=Number(raw);
+  return Number.isFinite(n) ? n : null;
+}
+function candidateFormatMoneyField(el){
+  if(!el)return;
+  const n=candidateParseMoneyInput(el.value);
+  el.value=n!==null && n>=0 ? candidateMoneyInputValue(n) : "";
+}
+function candidateUnformatMoneyField(el){
+  if(!el)return;
+  const n=candidateParseMoneyInput(el.value);
+  el.value=n!==null && n>=0 ? String(n) : "";
+}
+
 function candidateAvailabilityLabel(row){
   const availability=String(row.availability_status || "").trim();
   if(availability){ return availability; }
@@ -10556,12 +10578,9 @@ function renderAnyBikeDealCandidatePanel(deal){
           </small>
         </div>
         <div class="anybike-candidate-badges">
-          <span class="anybike-candidate-badge ${badgeClass}">${escapeAdminHtml(status)}</span>
-          <span class="anybike-candidate-badge ${
-            availability==="Confirmed Available"
-              ? "good"
-              : (availability==="Sold / No Longer Available" ? "bad" : "warn")
-          }">${escapeAdminHtml(availability)}</span>
+          ${availability==="Confirmed Available"
+            ? '<span class="anybike-candidate-badge good">Availability Confirmed</span>'
+            : '<span class="anybike-candidate-badge '+badgeClass+'">'+escapeAdminHtml(status)+'</span><span class="anybike-candidate-badge '+(availability==="Sold / No Longer Available"?"bad":"warn")+'">'+escapeAdminHtml(availability)+'</span>'}
         </div>
       </div>
 
@@ -10592,9 +10611,10 @@ function renderAnyBikeDealCandidatePanel(deal){
         <button type="button" class="secondary" onclick="openEditCandidateModal(${row.id});return false;" ${notPursuing ? "disabled" : ""}>Edit Candidate</button>
         ${sourceUrl ? `<a class="secondary" href="${escapeAdminHtml(sourceUrl)}" target="_blank" rel="noopener">Source Advert · Internal Only</a>` : ""}
         <button type="button" class="secondary" onclick="sendCandidateToBuyer(${row.id});return false;" ${sold || selected || notPursuing ? "disabled" : ""}>${status==="Sent to Buyer" ? "Send Again" : "Send to Buyer"}</button>
-        <button type="button" class="secondary" onclick="setCandidateStatus(${row.id},'Interested');return false;" ${sold || selected || notPursuing ? "disabled" : ""}>Buyer Interested</button>
-        <button type="button" class="secondary" onclick="setCandidateStatus(${row.id},'Declined');return false;" ${sold || selected || notPursuing ? "disabled" : ""}>Buyer Declined</button>
-        <button type="button" onclick="openCandidateAvailabilityModal(${row.id});return false;" ${selected || notPursuing ? "disabled" : ""}>Check Availability</button>
+        ${String(row.internal_notes||"").includes("Created automatically from buyer Interested response")
+          ? '<span class="anybike-candidate-badge good">Buyer Interested</span>'
+          : '<button type="button" class="secondary" onclick="setCandidateStatus('+row.id+',\'Interested\');return false;" '+(sold || selected || notPursuing ? "disabled" : "")+'>Buyer Interested</button><button type="button" class="secondary" onclick="setCandidateStatus('+row.id+',\'Declined\');return false;" '+(sold || selected || notPursuing ? "disabled" : "")+'>Buyer Declined</button>'}
+        <button type="button" onclick="openCandidateAvailabilityModal(${row.id});return false;" ${selected || notPursuing || availability==="Confirmed Available" ? "disabled" : ""}>${availability==="Confirmed Available" ? "Availability Confirmed" : "Check Availability"}</button>
         <button type="button" class="good" onclick="selectCandidateForDeal(${row.id});return false;" ${candidateCanSelect(row) && !notPursuing ? "" : "disabled"}>Select for Deal</button>
         <button type="button" class="danger" onclick="markCandidateSold(${row.id});return false;" ${selected || sold || notPursuing ? "disabled" : ""}>Sold / Unavailable</button>
         <button type="button" class="danger" onclick="doNotPursueCandidate(${row.id},${dealId});return false;" ${selected || sold || notPursuing ? "disabled" : ""}>${notPursuing ? "Not Pursuing" : "Do Not Pursue"}</button>
@@ -11108,7 +11128,7 @@ function openCandidateAvailabilityModal(candidateId){
       : "Confirmed Available";
 
   document.getElementById("candidateConfirmedSellerPrice").value=
-    row.confirmed_seller_price_gbp ?? row.seller_asking_price_gbp ?? "";
+    candidateMoneyInputValue(row.confirmed_seller_price_gbp ?? row.seller_asking_price_gbp ?? "");
 
   document.getElementById("candidateAvailabilityNotes").value=
     row.availability_notes || "";
@@ -11145,6 +11165,7 @@ async function saveCandidateAvailability(){
 
   const availability=String(document.getElementById("candidateAvailabilityStatus")?.value || "");
   const priceRaw=String(document.getElementById("candidateConfirmedSellerPrice")?.value || "").trim();
+  const parsedSellerPrice=candidateParseMoneyInput(priceRaw);
   const validRaw=String(document.getElementById("candidateAvailabilityValidUntil")?.value || "").trim();
   const notes=String(document.getElementById("candidateAvailabilityNotes")?.value || "").trim();
   const status=document.getElementById("candidateAvailabilityModalStatus");
@@ -11158,7 +11179,7 @@ async function saveCandidateAvailability(){
     const {data,error}=await sb.rpc("admin_confirm_deal_candidate_availability_v1",{
       p_candidate_id:Number(activeCandidateId),
       p_availability_status:availability,
-      p_confirmed_seller_price_gbp:priceRaw ? Number(priceRaw) : null,
+      p_confirmed_seller_price_gbp:parsedSellerPrice,
       p_valid_until:validRaw ? new Date(validRaw).toISOString() : null,
       p_notes:notes || null
     });
@@ -11169,7 +11190,7 @@ async function saveCandidateAvailability(){
     const savedCandidateId=Number(activeCandidateId);
     const beforeSave=(adminDealCandidates || []).find(function(row){ return Number(row.id)===savedCandidateId; });
     const savedDealId=Number(payload.deal_id || beforeSave?.deal_id || 0);
-    const savedConfirmedPrice=priceRaw ? Number(priceRaw) : null;
+    const savedConfirmedPrice=parsedSellerPrice;
     const savedValidUntil=validRaw ? new Date(validRaw).toISOString() : null;
 
     if(status){
@@ -11196,6 +11217,16 @@ async function saveCandidateAvailability(){
     if(savedDealId){
       renderAdminDealQueue();
 
+      if(availability==="Confirmed Available"){
+        const refreshedCandidate=(adminDealCandidates||[]).find(function(row){
+          return Number(row.id)===savedCandidateId;
+        });
+        if(refreshedCandidate && String(refreshedCandidate.candidate_status||"")==="Interested"){
+          await selectCandidateForDeal(savedCandidateId);
+          return;
+        }
+      }
+
       const dealId=String(savedDealId);
       const url=new URL(window.location.href);
       url.searchParams.set("deal",dealId);
@@ -11204,18 +11235,14 @@ async function saveCandidateAvailability(){
 
       setTimeout(function(){
         setBikeSalesView("active",document.querySelector('#salesHqViewTabs [data-sales-view="active"]'));
-
         const rowEl=document.getElementById("anybike-deal-"+dealId);
         if(!rowEl){ return; }
-
         document.querySelectorAll(".anybike-deal-record.open").forEach(function(item){
           if(item!==rowEl){ item.classList.remove("open"); }
         });
-
         rowEl.classList.add("open");
         openAnyBikeDealId=dealId;
         bikeSalesJourneyTab(dealId,"sourcing",false);
-
         const candidateEl=document.getElementById("anybike-candidate-"+savedCandidateId);
         scrollBikeSalesTargetIntoView(candidateEl || rowEl);
       },80);
@@ -20335,7 +20362,7 @@ document.querySelector(".admin-page-content .wrap")?.classList.add("sales-view-a
 
         <label>
           <span>Agreed Seller Purchase Price (£)</span>
-          <input id="candidateConfirmedSellerPrice" type="number" min="0" step="0.01">
+          <input id="candidateConfirmedSellerPrice" type="text" inputmode="decimal" autocomplete="off" onfocus="candidateUnformatMoneyField(this)" onblur="candidateFormatMoneyField(this)">
         </label>
 
         <label class="span2">
