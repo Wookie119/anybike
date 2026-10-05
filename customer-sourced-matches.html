@@ -621,6 +621,8 @@ function applySubmittedWaitingState(){
   if(waitingOptions)waitingOptions.style.display="flex";
 
   scans.forEach(s=>{
+    if(String(s.offer_status||"")==="Sent") return;
+
     const box=document.querySelector('.interest-check[data-scan-id="'+s.id+'"]');
     if(box)box.disabled=false;
 
@@ -644,7 +646,8 @@ function applySubmittedWaitingState(){
 
   const success=document.getElementById("saveSuccess");
   const successText=document.getElementById("saveSuccessText");
-  const savedInterested=scans.filter(s=>s.response==="Interested").length;
+  const savedInterested=scans.filter(s=>s.response==="Interested" && String(s.offer_status||"")!=="Sent").length;
+  const sentOffers=scans.filter(s=>String(s.offer_status||"")==="Sent").length;
   if(success){
     success.classList.remove("show");
     if(successText){
@@ -668,13 +671,17 @@ function updateCustomerNextAction(){
 
   if(allResponded && !choicesDirty){
     if(eyebrow)eyebrow.textContent="Current status";
-    titleEl.textContent=savedInterested
-      ?("AnyBike is checking "+savedInterested+" motorcycle"+(savedInterested===1?"":"s")+" for you")
-      :"Your choices are saved";
-    textEl.textContent=savedInterested
-      ?"Your request has been sent successfully. AnyBike will contact the seller, confirm availability and current purchase terms, then update you here and through My AnyBike. You do not need to do anything else right now."
-      :"Your response has been saved. You do not need to do anything else right now.";
-    waiting.textContent=savedInterested?"Waiting for: AnyBike":"Saved";
+    titleEl.textContent=sentOffers
+      ?(sentOffers+" Formal Offer"+(sentOffers===1?" is":"s are")+" ready to review")
+      :(savedInterested
+        ?("AnyBike is checking "+savedInterested+" motorcycle"+(savedInterested===1?"":"s")+" for you")
+        :"Your choices are saved");
+    textEl.textContent=sentOffers
+      ?"AnyBike has completed the seller check and sent you a Formal Offer. Open the motorcycle with the offer and review it before the offer expires."
+      :(savedInterested
+        ?"Your request has been sent successfully. AnyBike will contact the seller, confirm availability and current purchase terms, then update you here and through My AnyBike. You do not need to do anything else right now."
+        :"Your response has been saved. You do not need to do anything else right now.");
+    waiting.textContent=sentOffers?"Waiting for: You":(savedInterested?"Waiting for: AnyBike":"Saved");
     btn.style.display="none";
     applySubmittedWaitingState();
     return;
@@ -711,6 +718,9 @@ function buyerSelectionIntro(b,first){
 }
 
 function matchResponseText(s){
+  if(String(s?.offer_status||"")==="Sent") return "Formal AnyBike Offer ready";
+  if(String(s?.offer_status||"")==="Prepared") return "Formal Offer being prepared";
+  if(String(s?.offer_status||"")==="Expired") return "Formal Offer expired";
   if(s?.source_status==="ended") return "No Longer Available";
   if(s?.response==="Interested") return "Availability check requested";
   if(s?.response==="Not Interested") return "Not interested for now";
@@ -740,9 +750,11 @@ function render(){
     '<div class="desc">'+esc(s.description||"Selected by AnyBike for your requirements.")+'</div>'+
     (imageUrls(s).length>1?'<button class="btn dark view-photos" type="button" onclick="openPhotoGallery('+s.id+')">View all '+imageUrls(s).length+' photos</button>':'')+
     '<div class="response '+(s.response==="Interested"?"good":s.response==="Not Interested"?"no":"")+'" id="resp-'+s.id+'">'+esc(matchResponseText(s))+'</div>'+
-    (s.source_status==="ended"
-      ?'<div class="actions"><button class="btn red" onclick="openMoreMatches()">Request More '+esc(reqName||[s.make,s.model].filter(Boolean).join(" "))+' Matches</button></div>'
-      :'<label class="choice '+(s.response==="Interested"?"selected":"")+'" id="choice-'+s.id+'"><input type="checkbox" class="interest-check" data-scan-id="'+s.id+'" '+(s.response==="Interested"?"checked":"")+' onchange="updateChoiceStyle('+s.id+',this.checked)"><span class="choice-copy"><strong>'+(s.response==="Interested"?"Interested — AnyBike will check this motorcycle":"I’m interested in this motorcycle")+'</strong><span>'+(s.response==="Interested"?"Availability check requested":"Tick to ask AnyBike to confirm availability and seller terms")+'</span></span></label>'+buyerQuestionHtml(s))+
+    (String(s.offer_status||"")==="Sent" && Number(s.offer_id)>0
+      ?'<div class="actions"><a class="btn red" href="/customer-dashboard.html?offer='+encodeURIComponent(Number(s.offer_id))+'#my-offers">Review Formal Offer →</a></div>'
+      :(s.source_status==="ended"
+        ?'<div class="actions"><button class="btn red" onclick="openMoreMatches()">Request More '+esc(reqName||[s.make,s.model].filter(Boolean).join(" "))+' Matches</button></div>'
+        :'<label class="choice '+(s.response==="Interested"?"selected":"")+'" id="choice-'+s.id+'"><input type="checkbox" class="interest-check" data-scan-id="'+s.id+'" '+(s.response==="Interested"?"checked":"")+' onchange="updateChoiceStyle('+s.id+',this.checked)"><span class="choice-copy"><strong>'+(s.response==="Interested"?"Interested — AnyBike will check this motorcycle":"I’m interested in this motorcycle")+'</strong><span>'+(s.response==="Interested"?"Availability check requested":"Tick to ask AnyBike to confirm availability and seller terms")+'</span></span></label>'+buyerQuestionHtml(s)))+
     marginCalculatorHtml(s)+
     '</div></article>').join("");
   document.getElementById("customerNextAction").style.display="block";
