@@ -9390,14 +9390,14 @@ function dealOfferStepChecks(){
     {id:1,complete:dealOfferNumber("dealOfferMotorcyclePrice")>0&&dealOfferNumber("dealOfferAnyBikeFee")>=0&&dealOfferNumber("dealOfferDeliveryCharge")>=0,next:"Check the customer price, AnyBike fee and UK collection / delivery charge."},
     {id:2,complete:!!String(document.getElementById("dealOfferSaleBasis")?.value||"").trim()&&!!String(document.getElementById("dealOfferTerms")?.value||"").trim(),next:"Confirm the sale basis and customer-facing offer terms."},
     {id:3,complete:shipping.confirmed||(!!deliveryType&&(deliveryType==="Buyer Arranged / Collection"||!!destination)),next:"Confirm the delivery / collection arrangement for this Deal."},
-    {id:4,complete:shipping.confirmed,next:"The buyer must confirm the shipper / freight forwarder for this Deal."},
+    {id:4,complete:!!shipping.plan,blocking:false,next:shipping.plan?"Saved shipper preference loaded. It does not need to be reconfirmed before the Formal Offer is sent. AnyBike can confirm the exact handover before committing to purchase.":"No shipper is saved yet. This does not block the Formal Offer; confirm the exact shipper / handover before AnyBike commits to purchase."},
     {id:5,complete:dealOfferNumber("dealOfferDepositAmount")>0&&!!String(document.getElementById("dealOfferPaymentTerms")?.value||"").trim(),next:"Check the minimum deposit and payment terms."},
     {id:6,complete:expiryValid,next:"Check the live Offer Valid Until time from Seller Check."}
   ];
 }
 function refreshDealOfferGuide(allowScroll){
   const checks=dealOfferStepChecks();
-  const first=checks.find(r=>!r.complete)||null;
+  const first=checks.find(r=>r.blocking!==false&&!r.complete)||null;
   let newlyCompleted=false;
   checks.forEach(row=>{
     const section=document.getElementById("dealOfferStep"+row.id); if(!section)return;
@@ -9407,7 +9407,7 @@ function refreshDealOfferGuide(allowScroll){
     section.classList.toggle("offer-complete",row.complete);
     section.classList.toggle("offer-current",!!first&&first.id===row.id);
     section.classList.toggle("offer-waiting",!row.complete&&(!first||first.id!==row.id));
-    if(state)state.textContent=row.complete?"✓ Complete":(first&&first.id===row.id?"Your next action":"Waiting");
+    if(state)state.textContent=row.complete?"✓ Complete":(row.blocking===false?"Before purchase":(first&&first.id===row.id?"Your next action":"Waiting"));
     if(copy)copy.textContent=row.next;
     if(row.complete&&!was)newlyCompleted=true;
     dealOfferStepState[row.id]=row.complete;
@@ -9497,9 +9497,13 @@ function dealOfferLockConfirmedShipping(deal){
     if(confirmed)confirmed.style.display="none";
     if(heading)heading.textContent="3. Delivery / Collection";
     const requestButton=document.getElementById("dealOfferRequestShippingButton");
-    if(requestButton)requestButton.style.display="";
+    const savedPlan=dealOfferSavedShipperForDeal(deal);
+    if(requestButton)requestButton.style.display=savedPlan?"none":"";
     const status=document.getElementById("dealOfferShippingRequestStatus");
-    if(status){status.textContent="";status.style.color="#888";}
+    if(status){
+      status.textContent=savedPlan?"Saved shipper preference loaded. Exact Deal confirmation can be completed before purchase.":"";
+      status.style.color=savedPlan?"#9bf0b8":"#888";
+    }
     return false;
   }
 
@@ -9631,7 +9635,7 @@ async function requestBuyerShippingDetailsFromOffer(){
       status.style.color="#ff9da1";
     }
   }finally{
-    if(button){button.disabled=false;button.textContent="Request buyer to confirm / update shipping details";}
+    if(button){button.disabled=false;button.textContent="Ask buyer to add / update shipping details";}
   }
 }
 
@@ -9684,17 +9688,26 @@ async function openDealOfferModal(dealMotorcycleId){
   }) || {};
 
   const bikeName=[row.year,row.make,row.model,row.variant].filter(Boolean).join(" ") || "Motorcycle";
+  const sourcedQuoteLocked=/Customer-facing price components (?:carried|restored) from sourced match snapshot/i.test(String(row.commercial_notes||""));
 
   document.getElementById("dealOfferBike").textContent=bikeName;
   document.getElementById("dealOfferDealNumber").textContent=deal.deal_number || ("Deal #"+String(row.deal_id || ""));
   document.getElementById("dealOfferInternalCost").textContent=dealOfferMoney(activeDealOfferInternalCost);
-  document.getElementById("dealOfferRegistration").textContent=String(motorcycle.registration || "Not recorded");
-  document.getElementById("dealOfferVin").textContent=String(motorcycle.vin || "Not recorded");
+  const sourceCandidate=dealCandidateForMotorcycle(id) || {};
+  document.getElementById("dealOfferRegistration").textContent=String(motorcycle.registration || sourceCandidate.registration || "Not recorded");
+  document.getElementById("dealOfferVin").textContent=String(motorcycle.vin || sourceCandidate.vin || "Not recorded");
 
   document.getElementById("dealOfferMotorcyclePrice").value=Number(row.anybike_sale_price_gbp || 0).toFixed(2);
   document.getElementById("dealOfferAnyBikeFee").value=Number(row.anybike_buyer_fee_gbp || anyBikeSourcingFeeFromSalePrice(row.anybike_sale_price_gbp)).toFixed(2);
   setDealOfferFeeOverrideState();
   document.getElementById("dealOfferDeliveryCharge").value=Number(row.delivery_charge_gbp || 0).toFixed(2);
+
+  ["dealOfferMotorcyclePrice","dealOfferAnyBikeFee","dealOfferDeliveryCharge"].forEach(function(fieldId){
+    const el=document.getElementById(fieldId);
+    if(el)el.readOnly=!!sourcedQuoteLocked;
+  });
+  const automaticFeeButton=document.querySelector('#dealOfferStep1 button[onclick*="syncDealOfferSourcingFee"]');
+  if(automaticFeeButton)automaticFeeButton.style.display=sourcedQuoteLocked?"none":"";
 
   document.getElementById("dealOfferSaleBasis").value="Trade / Export Sale";
   document.getElementById("dealOfferTerms").value=defaultDealOfferTerms();
@@ -9735,10 +9748,12 @@ async function openDealOfferModal(dealMotorcycleId){
     if(offer){
       activeDealOfferId=Number(offer.id);
 
-      document.getElementById("dealOfferMotorcyclePrice").value=Number(offer.base_motorcycle_price_gbp ?? offer.motorcycle_price_gbp ?? 0).toFixed(2);
-      document.getElementById("dealOfferAnyBikeFee").value=Number(offer.anybike_fee_gbp ?? anyBikeSourcingFeeFromSalePrice(offer.base_motorcycle_price_gbp ?? offer.motorcycle_price_gbp)).toFixed(2);
-      setDealOfferFeeOverrideState();
-      document.getElementById("dealOfferDeliveryCharge").value=Number(offer.delivery_charge_gbp || 0).toFixed(2);
+      if(!sourcedQuoteLocked){
+        document.getElementById("dealOfferMotorcyclePrice").value=Number(offer.base_motorcycle_price_gbp ?? offer.motorcycle_price_gbp ?? 0).toFixed(2);
+        document.getElementById("dealOfferAnyBikeFee").value=Number(offer.anybike_fee_gbp ?? anyBikeSourcingFeeFromSalePrice(offer.base_motorcycle_price_gbp ?? offer.motorcycle_price_gbp)).toFixed(2);
+        setDealOfferFeeOverrideState();
+        document.getElementById("dealOfferDeliveryCharge").value=Number(offer.delivery_charge_gbp || 0).toFixed(2);
+      }
       document.getElementById("dealOfferSaleBasis").value=offer.sale_basis || "Trade / Export Sale";
       document.getElementById("dealOfferTerms").value=String(offer.offer_terms_text || "").trim() || defaultDealOfferTerms();
       if(!shippingLocked){
