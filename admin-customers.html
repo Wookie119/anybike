@@ -726,6 +726,85 @@ function customerAttention(c){
   return {kind:"clear",label:String(a.buyer_stage||"Registered / Browsing"),title:"No staff action required",detail:"Keep this customer in Customer 360 for intelligence and future matching. Do not chase Buyer Setup yet."};
 }
 
+function buyerSetupReviewHtml(c){
+  const a=customerAttentionMap[String(c.customerId)]||{};
+  const count=Number(a.setup_complete_count||0);
+  const missing=new Set((a.setup_missing_sections||[]).map(String));
+  const sections=[
+    "Contact Details",
+    "Buyer Type & Business",
+    "Buyer & Export",
+    "Photo ID",
+    "Proof of Address",
+    "Bank Details",
+    "Shipping Preferences"
+  ];
+
+  const checklist=sections.map(function(label){
+    const complete=!missing.has(label);
+    return '<div class="panel" style="display:flex;align-items:center;justify-content:space-between;gap:12px">'+
+      '<div><span>'+safe(label)+'</span><strong>'+(complete?"Complete":"Needs attention")+'</strong></div>'+
+      '<strong style="color:'+(complete?"#65e9a0":"#ff8d99")+'">'+(complete?"✓":"✕")+'</strong>'+
+    '</div>';
+  }).join("");
+
+  return '<div class="buyer-setup-review" data-buyer-setup-review style="margin:0 0 16px;padding:16px;border:1px solid rgba(237,28,36,.7);border-radius:16px;background:#101010">'+
+    '<div class="eyebrow">Buyer Setup Admin Review</div>'+
+    '<h3 style="margin:5px 0 6px">Review '+safe(c.name)+' before approving</h3>'+
+    '<div class="small" style="line-height:1.5;margin-bottom:12px">Check the seven completed sections below. Verify the business/contact information, identity and address documents, bank details and shipping preference. Then record your decision and save it. Saving an approval clears this Customer action from Admin HQ.</div>'+
+    '<div class="detail-grid" style="margin-bottom:14px">'+checklist+'</div>'+
+    '<div class="detail-grid">'+
+      '<div class="panel"><span>Setup completeness</span><strong>'+count+'/7 complete</strong></div>'+
+      '<div class="panel"><span>Current review status</span><strong>'+safe(a.approval_status||"Not reviewed")+'</strong></div>'+
+    '</div>'+
+    '<div style="display:grid;grid-template-columns:minmax(220px,.45fr) minmax(280px,1fr);gap:10px;margin-top:14px">'+
+      '<div><label class="small" for="buyerReviewDecision-'+cleanId(c.customerId)+'">Admin decision</label>'+
+        '<select id="buyerReviewDecision-'+cleanId(c.customerId)+'" style="width:100%;margin-top:5px;background:#080808;color:#fff;border:1px solid #444;border-radius:10px;padding:11px">'+
+          '<option value="approved">Approve Buyer</option>'+
+          '<option value="approved_with_exception">Approve with Exception</option>'+
+          '<option value="more_information_required">More Information Required</option>'+
+        '</select></div>'+
+      '<div><label class="small" for="buyerReviewNotes-'+cleanId(c.customerId)+'">Review note / exception</label>'+
+        '<input id="buyerReviewNotes-'+cleanId(c.customerId)+'" placeholder="Optional for approval; required for an exception or more information request" style="width:100%;margin-top:5px;background:#080808;color:#fff;border:1px solid #444;border-radius:10px;padding:11px"></div>'+
+    '</div>'+
+    '<div style="display:flex;justify-content:flex-end;gap:10px;margin-top:14px">'+
+      '<button type="button" class="btn" onclick="switchTab(\''+c.id+'\',\'documents\')">Review Documents</button>'+
+      '<button type="button" class="btn" onclick="switchTab(\''+c.id+'\',\'shipping\')">Review Shipping</button>'+
+      '<button type="button" class="btn" style="background:#ed1c24" onclick="saveBuyerSetupReview(\''+c.customerId+'\',\''+c.id+'\')">Save Review →</button>'+
+    '</div>'+
+  '</div>';
+}
+
+async function saveBuyerSetupReview(customerId,cardId){
+  const suffix=cleanId(customerId);
+  const decision=document.getElementById("buyerReviewDecision-"+suffix)?.value||"";
+  const notes=String(document.getElementById("buyerReviewNotes-"+suffix)?.value||"").trim();
+
+  if(["approved_with_exception","more_information_required"].includes(decision) && !notes){
+    alert("Please add a review note explaining the exception or what information is required.");
+    return;
+  }
+
+  const {data,error}=await sb.rpc("admin_save_customer_buyer_review_v1",{
+    p_customer_id:customerId,
+    p_approval_status:decision,
+    p_notes:notes||null
+  });
+
+  if(error){
+    alert("Buyer review could not be saved: "+error.message);
+    return;
+  }
+
+  if(decision==="approved" || decision==="approved_with_exception"){
+    window.location.href="admin-dashboard.html?category=customers";
+    return;
+  }
+
+  await loadCustomers();
+  openCustomerFromMap(customerId);
+}
+
 function showNeedsAttention(){
   const f=document.getElementById("attentionFilter");
   if(f)f.value="needs";
@@ -1896,10 +1975,14 @@ function openCustomerFromMap(customerId){
     card.style.border = "2px solid #ed1c24";
     card.style.boxShadow = "0 0 24px rgba(237,28,36,.55)";
 
-    card.scrollIntoView({
-      behavior:"smooth",
-      block:"center"
-    });
+    const action=new URLSearchParams(window.location.search).get("action");
+    const reviewPanel=card.querySelector("[data-buyer-setup-review]");
+
+    if(action==="review-setup" && reviewPanel){
+      reviewPanel.scrollIntoView({behavior:"smooth",block:"start"});
+    }else{
+      card.scrollIntoView({behavior:"smooth",block:"center"});
+    }
 
     setTimeout(()=>{
       card.style.border = "";
@@ -2157,6 +2240,8 @@ function renderCustomers(){
             </div>
             <span class="badge ${attention.kind==="clear"?"badge-green":"badge-red"}">${safe(attention.label)}</span>
           </div>
+
+          ${attention.label==="Ready for Review" ? buyerSetupReviewHtml(c) : ""}
 
   <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
     <button
