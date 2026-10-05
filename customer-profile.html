@@ -308,9 +308,9 @@
         <section class="card setup-summary" id="buyer-setup-summary">
           <div class="setup-summary-head">
             <div>
-              <div class="eyebrow">Buyer Setup</div>
-              <h2>Complete your profile from top to bottom</h2>
-              <p class="card-intro" style="margin-bottom:0">Work through each required section in order. Your entries save as you work. A section turns green when all required information in that section is complete, and Your next action always takes you to the next item that needs attention.</p>
+              <div class="eyebrow">Buyer Approval</div>
+              <h2>Complete Buyer Setup to become approved to buy</h2>
+              <p class="card-intro" style="margin-bottom:0">AnyBike export purchasing is for trade / business buyers. Work through the required sections in order. When they are complete, your Buyer Setup is submitted to AnyBike for review. We will approve your account or contact you if anything else is needed before we commit to buy a motorcycle for you.</p>
               <div class="autosave-line" id="autosaveStatus"><span class="autosave-dot"></span><span>Ready</span></div>
             </div>
             <div id="setupProgressText" style="font-weight:900">Checking setup…</div>
@@ -1560,8 +1560,8 @@
         copy="Complete the shipper contact and UK receiving details. These details are used when AnyBike prepares the handover for a purchase.";
       }else if(done===requiredKeys.length){
         target="customer-dashboard.html"; field="";
-        button="Finish & Return to My AnyBike →"; heading="✓ Required Buyer Setup complete";
-        copy="Everything AnyBike needs for your required Buyer Setup is complete. Bank Details are optional and Margin Calculator Defaults are recommended extras — neither is required to finish.";
+        button="Return to My AnyBike →"; heading="✓ Buyer Setup complete — ready for AnyBike Review";
+        copy="Your required Buyer Setup is complete. AnyBike will now review your trade buyer account. Bank Details are optional and Margin Calculator Defaults are recommended extras — neither blocks submission.";
       }
 
       title.textContent=heading;
@@ -1818,7 +1818,7 @@
         shippingSection?.classList.remove("focused");
         const shippingMsg=document.getElementById("msg-shipping");
         if(shippingMsg){
-          shippingMsg.textContent="✓ Required Buyer Setup complete. You can return to My AnyBike, or review the optional sections below whenever you want.";
+          shippingMsg.textContent="✓ Buyer Setup complete and ready for AnyBike Review. You can return to My AnyBike now; we will contact you if anything else is needed.";
           shippingMsg.className="section-msg ok";
         }
         const shippingBtn=shippingRow?.querySelector("[data-save-section='shipping']");
@@ -1891,13 +1891,22 @@
             : section==="margin"
               ? "✓ Margin Calculator Defaults saved."
               : section==="shipping"
-                ? "✓ Shipping Preferences saved. Required Buyer Setup is complete."
+                ? "✓ Shipping Preferences saved. Buyer Setup is being submitted for AnyBike Review."
                 : "✓ Saved and complete. Moving you to the next required section…";
           msg.className="section-msg ok";
         }
         profileDirty=false;
         setAutosaveStatus("saved","All changes saved");
         updateSetupReminder();
+
+        const completedNow=buyerSetupCompletion();
+        const requiredNow=["contact","business","preferences","buyer","shipping"].every(function(key){return Boolean(completedNow[key]);});
+        if(requiredNow){
+          const submittedAt=new Date().toISOString();
+          await sb.from("customer_profiles")
+            .update({onboarding_submitted_at:submittedAt})
+            .eq("id",currentUser.id);
+        }
 
         const saveRow=button.closest(".section-save-row");
         if(saveRow) saveRow.classList.add("complete");
@@ -2040,7 +2049,7 @@
       if(requiredComplete){
         finalActions?.classList.add("complete");
         saveBtn.textContent="Successful ✓";
-        showMsg("Successful — your AnyBike buyer profile is complete and saved. Taking you back to My AnyBike.");
+        showMsg("Buyer Setup complete — your details have been submitted for AnyBike Review. Taking you back to My AnyBike.");
         setTimeout(()=>window.location.href="/customer-dashboard.html",1800);
       }else{
         showMsg("Everything entered so far has been saved. You can return later for any incomplete Buyer Setup sections.");
