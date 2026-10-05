@@ -538,6 +538,10 @@ function openPhotoGallery(scanId){
 }
 function closePhotoGallery(){document.getElementById("photoGalleryModal").classList.remove("open")}
 function facts(s){return [s.mileage!=null?Number(s.mileage).toLocaleString("en-GB")+" miles":"",s.colour||"",s.engine_cc?Number(s.engine_cc).toLocaleString("en-GB")+" cc":""].filter(Boolean)}
+function vqBadgeHtml(s){
+  if(!s?.vat_qualifying)return "";
+  return '<div class="vq-customer-row"><span class="vq-customer-badge">VQ</span><span class="vq-customer-copy"><strong>VAT Qualifying</strong><span>Dealer-confirmed VAT status</span></span></div>';
+}
 function populateMatchFilters(){
   const scans=(payload?.scans||[]).filter(s=>s.source_status!=="ended");
   const years=[...new Set(scans.map(s=>Number(s.year)).filter(Number.isFinite))].sort((a,b)=>b-a);
@@ -727,17 +731,18 @@ function render(){
   const first=(buyer.contact_name||"").split(" ")[0]||"there";
   const request=payload.request||{};
   const reqName=[request.make,request.model].filter(Boolean).join(" ");
+  const vqCount=scans.filter(s=>s.vat_qualifying===true).length;
   document.getElementById("hero").innerHTML='<div class="eyebrow">Your AnyBike selection</div><h1>'+esc(reqName?("Your "+reqName+" matches"):"Your motorcycle matches")+'</h1>'+
     '<div id="matchUrgencyBanner" class="match-urgency-banner"><strong id="matchUrgencyTitle"></strong><span id="matchUrgencyCopy"></span></div>'+
     '<div class="intro">'+esc(buyerSelectionIntro(b,first))+'</div>'+
-    '';
+    (vqCount?'<div class="vq-batch-note">'+vqCount+' motorcycle'+(vqCount===1?'':'s')+' in this selection '+(vqCount===1?'is':'are')+' VAT Qualifying. Look for the gold VQ badge on each qualifying motorcycle.</div>':'');
   document.getElementById("status").style.display="none";
   document.getElementById("selectionBar").style.display="flex";
   const grid=document.getElementById("matchGrid");grid.style.display="grid";
   grid.innerHTML=scans.map(s=>'<article class="card" id="card-'+s.id+'" onclick="markSourcedMatchViewed('+s.id+')">'+
     '<div class="photo-wrap"><span class="match-view-badge '+(s.viewed_at?"viewed":"new")+'" id="match-view-badge-'+s.id+'">'+(s.viewed_at? "VIEWED" : "NOT VIEWED")+'</span><img class="photo" src="'+esc(imageUrl(s))+'" onerror="this.src=\'/anybike-logo-new.jpg\'">'+
     (imageUrls(s).length>1?'<div class="photo-count">'+imageUrls(s).length+' photos</div>':'')+'</div>'+
-    '<div class="body"><div class="title">'+esc(title(s))+'</div>'+
+    '<div class="body"><div class="title">'+esc(title(s))+'</div>'+vqBadgeHtml(s)+
     '<div class="facts">'+facts(s).map(f=>'<span class="pill">'+esc(f)+'</span>').join("")+'</div>'+
     '<div class="price">'+gbp(s.price_gbp)+'</div>'+
     matchTimerHtml(s)+
