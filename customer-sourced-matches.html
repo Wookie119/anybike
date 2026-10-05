@@ -715,6 +715,13 @@ function buyerSelectionIntro(b,first){
   return legacy.replace(/motorcycles motorcycles/gi,"motorcycles");
 }
 
+function matchResponseText(s){
+  if(s?.source_status==="ended") return "No Longer Available";
+  if(s?.response==="Interested") return "Availability check requested";
+  if(s?.response==="Not Interested") return "Not interested for now";
+  return String(s?.response||"");
+}
+
 function render(){
   const b=payload.batch||{},buyer=payload.buyer||{},scans=payload.scans||[];
   const first=(buyer.contact_name||"").split(" ")[0]||"there";
@@ -736,7 +743,7 @@ function render(){
     matchTimerHtml(s)+
     '<div class="desc">'+esc(s.description||"Selected by AnyBike for your requirements.")+'</div>'+
     (imageUrls(s).length>1?'<button class="btn dark view-photos" type="button" onclick="openPhotoGallery('+s.id+')">View all '+imageUrls(s).length+' photos</button>':'')+
-    '<div class="response '+(s.response==="Interested"?"good":s.response==="Not Interested"?"no":"")+'" id="resp-'+s.id+'">'+esc((s.source_status==="ended"?"No Longer Available":(s.response==="Interested"?"Availability check requested":(s.response==="Not Interested"?"Not interested for now":(s.response||""))))))+'</div>'+
+    '<div class="response '+(s.response==="Interested"?"good":s.response==="Not Interested"?"no":"")+'" id="resp-'+s.id+'">'+esc(matchResponseText(s))+'</div>'+
     (s.source_status==="ended"
       ?'<div class="actions"><button class="btn red" onclick="openMoreMatches()">Request More '+esc(reqName||[s.make,s.model].filter(Boolean).join(" "))+' Matches</button></div>'
       :'<label class="choice '+(s.response==="Interested"?"selected":"")+'" id="choice-'+s.id+'"><input type="checkbox" class="interest-check" data-scan-id="'+s.id+'" '+(s.response==="Interested"?"checked":"")+' onchange="updateChoiceStyle('+s.id+',this.checked)"><span class="choice-copy"><strong>'+(s.response==="Interested"?"Interested — AnyBike will check this motorcycle":"I’m interested in this motorcycle")+'</strong><span>'+(s.response==="Interested"?"Availability check requested":"Tick to ask AnyBike to confirm availability and seller terms")+'</span></span></label>'+buyerQuestionHtml(s))+
