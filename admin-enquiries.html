@@ -8225,8 +8225,9 @@ function renderAnyBikeCustomerShippingPreferences(deal){
       ${selected && selection ? `
         <div style="display:grid;gap:7px;margin-top:10px;padding:11px;border:1px solid rgba(255,255,255,.09);border-radius:10px;background:#101010">
           <div style="font-size:12px;font-weight:900;color:#fff">Buyer confirmation</div>
-          <div style="font-size:12px;color:${selection.buyer_contacted_shipper ? "#9bf0b8" : "#ff9da1"}">${selection.buyer_contacted_shipper ? "✓" : "✕"} Buyer has contacted the shipper / freight forwarder</div>
-          <div style="font-size:12px;color:${selection.shipper_agreed_to_handle ? "#9bf0b8" : "#ff9da1"}">${selection.shipper_agreed_to_handle ? "✓" : "✕"} Shipper has agreed to handle this motorcycle / shipment</div>
+          <div style="font-size:12px;color:${selection.buyer_contacted_shipper ? "#9bf0b8" : "#ffd18a"}">${selection.buyer_contacted_shipper ? "✓" : "⚠"} Buyer has contacted the shipper / freight forwarder${selection.buyer_contacted_shipper ? "" : " — not yet confirmed by buyer"}</div>
+          <div style="font-size:12px;color:${selection.shipper_agreed_to_handle ? "#9bf0b8" : "#ffd18a"}">${selection.shipper_agreed_to_handle ? "✓" : "⚠"} Shipper has agreed to handle this motorcycle / shipment${selection.shipper_agreed_to_handle ? "" : " — not yet confirmed by buyer"}</div>
+          ${(!selection.buyer_contacted_shipper || !selection.shipper_agreed_to_handle) ? '<div style="font-size:11px;color:#bbb;line-height:1.45">These are review warnings only. AnyBike can still approve the selected shipper after checking the handover details.</div>' : ""}
           ${selection.buyer_shipper_confirmed_at ? `<div style="font-size:10px;color:#777">Confirmed by buyer ${escapeAdminHtml(new Date(selection.buyer_shipper_confirmed_at).toLocaleString())}</div>` : ""}
         </div>
         ${String(selection.status||"").toLowerCase().includes("declined") && selection.admin_decision_reason ? `
@@ -8235,7 +8236,7 @@ function renderAnyBikeCustomerShippingPreferences(deal){
           </div>` : ""}
       ` : ""}
       <div style="display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-top:10px">
-        <button type="button" style="margin:0" ${anyBikeCustomerHandoverPlanComplete(plan) && selected && selection?.buyer_contacted_shipper && selection?.shipper_agreed_to_handle ? "" : "disabled"} onclick="useCustomerHandoverPlan(${dealId},${Number(plan.id)},this);return false;">${anyBikeCustomerHandoverPlanComplete(plan) ? "Agree to use this Shipper" : "Complete UK Receiving Details First"}</button>
+        <button type="button" style="margin:0" ${anyBikeCustomerHandoverPlanComplete(plan) && selected ? "" : "disabled"} onclick="useCustomerHandoverPlan(${dealId},${Number(plan.id)},this);return false;">${anyBikeCustomerHandoverPlanComplete(plan) ? "Agree to use this Shipper" : "Complete UK Receiving Details First"}</button>
         ${selected ? `<button type="button" class="secondary" style="margin:0" onclick="toggleDeclineShipperReason(${dealId},${Number(plan.id)});return false;">Decline Shipper</button>` : ""}
         ${selected && selection && selection.selected_at ? `<span style="color:#8cffb1;font-size:12px;font-weight:900">Selected by customer ${escapeAdminHtml(new Date(selection.selected_at).toLocaleString())}</span>` : ""}
       </div>
@@ -8418,6 +8419,12 @@ async function useCustomerHandoverPlan(dealId,planId,button){
       statusEl.dispatchEvent(new Event("change",{bubbles:true}));
     }
 
+    const saved=await saveDealShippingRoute(dealId,{
+      skipConfirm:true,
+      skipSuccessAlert:true
+    });
+    if(!saved){ return; }
+
     const decision=await sb.rpc("admin_decide_customer_handover_plan_v1",{
       p_deal_id:Number(dealId),
       p_handover_plan_id:Number(planId),
@@ -8426,27 +8433,7 @@ async function useCustomerHandoverPlan(dealId,planId,button){
     });
     if(decision.error){ throw decision.error; }
 
-    const saved=await saveDealShippingRoute(dealId,{
-      skipConfirm:true,
-      skipSuccessAlert:true
-    });
-    if(!saved){ return; }
-
-    await loadAdminDealQueue();
-    renderAdminDealQueue();
-
-    const row=document.getElementById("anybike-deal-"+dealId);
-    if(row){
-      row.classList.add("open");
-      openAnyBikeDealId=String(dealId);
-      const next=row.querySelector(".sales-next-action");
-      if(next){
-        next.scrollIntoView({behavior:"smooth",block:"center"});
-        setTimeout(function(){ openBikeSalesNextTask(String(dealId)); },180);
-      }else{
-        row.scrollIntoView({behavior:"smooth",block:"center"});
-      }
-    }
+    window.location.href="admin-dashboard.html?category=operations";
   }catch(error){
     console.error("Customer shipping preference could not be applied:",error);
     alert("Customer shipping preference could not be applied.\n\n"+(error?.message || error));
