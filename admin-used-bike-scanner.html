@@ -434,11 +434,16 @@ function cardHtml(s,saved){
             ?'<div class="status bad" style="margin-top:6px">'+esc(s.extraction?.buyer_safe_image_error||"Needs image attention")+'</div>'
             :'')+
           previewThumbsHtml(s.buyer_image_urls)+
-          '<div style="margin-top:8px"><button type="button" class="btn green" onclick="prepareBuyerSafeImages('+id+','+Number(s.extraction.live_source_item_id)+')">'+
-            (((s.buyer_image_urls||[]).length)>=4?'Re-check buyer-safe images':'Prepare to 4 buyer-safe images')+
-          '</button> '+
-          ((s.buyer_image_urls||[]).length?'<button type="button" class="btn" onclick="previewBuyerMatch('+id+')">Preview as buyer</button> ':'')+
-          '<span id="buyer-safe-status-'+id+'" class="status"></span></div>'+
+          '<div style="margin-top:8px">'+
+          (currentBatchIsShared()
+            ?(((s.buyer_image_urls||[]).length?'<button type="button" class="btn" onclick="previewBuyerMatch('+id+')">Preview buyer-safe view</button> ':'')+
+              '<span class="status good" style="margin-left:8px">Shared snapshot</span>')
+            :('<button type="button" class="btn green" onclick="prepareBuyerSafeImages('+id+','+Number(s.extraction.live_source_item_id)+')">'+
+              (((s.buyer_image_urls||[]).length)>=4?'Re-check buyer-safe images':'Prepare to 4 buyer-safe images')+
+              '</button> '+
+              ((s.buyer_image_urls||[]).length?'<button type="button" class="btn" onclick="previewBuyerMatch('+id+')">Preview as buyer</button> ':'')+
+              '<span id="buyer-safe-status-'+id+'" class="status"></span>'))+
+          '</div>'+
         '</div>'
         :'<div class="note" style="margin-top:10px">Use only images AnyBike is permitted to present to the buyer.</div>')+
       '</div>'+
@@ -563,10 +568,34 @@ function runNextAction(){
 }
 function renderScans(saved){
   document.getElementById("scanList").innerHTML=(scanned||[]).map(s=>cardHtml(s,saved)).join("");
-  if(saved){document.getElementById("sharePanel").style.display="block";buildMessage()}
+  const sharePanel=document.getElementById("sharePanel");
+  if(saved){
+    sharePanel.style.display="block";
+    buildMessage();
+    if(currentBatchIsShared()){
+      sharePanel.classList.remove("collapsed");
+      const eyebrow=sharePanel.querySelector(".share-toggle .eyebrow");
+      const heading=sharePanel.querySelector(".share-toggle strong");
+      const toggle=document.getElementById("shareToggleBtn");
+      const textarea=document.getElementById("shareMessage");
+      const button=document.getElementById("shareBatchBtn");
+      const status=document.getElementById("shareStatus");
+      if(eyebrow)eyebrow.textContent="Buyer message sent";
+      if(heading)heading.textContent="Message sent with this shared selection";
+      if(toggle)toggle.style.display="none";
+      if(textarea){
+        textarea.readOnly=true;
+        textarea.value=textarea.value
+          .replace(/motorcycless/gi,"motorcycles")
+          .replace(/motorcycles motorcycles/gi,"motorcycles");
+      }
+      if(button)button.style.display="none";
+      if(status){status.className="status good";status.textContent="Selection already shared successfully.";}
+    }
+  }
   const retryBtn=document.getElementById("prepareAllImagesBtn");
   const missing=(scanned||[]).filter(s=>s.selected_for_buyer&&s.extraction&&s.extraction.live_source_item_id&&!(Array.isArray(s.buyer_image_urls)&&s.buyer_image_urls.length));
-  if(retryBtn)retryBtn.style.display=missing.length?"inline-block":"none";
+  if(retryBtn)retryBtn.style.display=!currentBatchIsShared()&&missing.length?"inline-block":"none";
   updateNextAction();
   setShareGate();
 }
@@ -974,7 +1003,7 @@ function buildMessage(){
   const mentionedInMessages=/Added by AnyBike staff from a model discussed in Message Centre/i.test(String(req?.notes||""));
   const opening=mentionedInMessages
     ?("You did mention that you may also be interested in "+noun+"s, so we have included a selection of suitable examples for you to consider.")
-    :("Good news — we have found a hand-picked selection of "+noun+"s that we think could suit your requirements.");
+    :("Good news — we have found a hand-picked selection of "+(noun.toLowerCase()==="motorcycles"?"motorcycles":noun+"s")+" that we think could suit your requirements.");
   document.getElementById("shareMessage").value="Dear "+name+",\n\n"+opening+"\n\nTick Interested on each motorcycle you would like AnyBike to check with the seller. We will then confirm current availability and purchase terms for the motorcycles you selected. Any motorcycle you leave unticked will be recorded as Not Interested at this time.\n\nIf you have a specific question about a motorcycle, you can add it underneath that motorcycle and we will raise it with the seller as part of our availability check.\n\nThe AnyBike price shown includes the motorcycle, AnyBike's sourcing fee, and the agreed UK collection & delivery to your chosen UK port or approved UK freight forwarder / handover point.";
 }
 function showShareSuccessToast(title,message){
