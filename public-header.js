@@ -2155,154 +2155,119 @@ document.addEventListener("visibilitychange",function(){
 
 
 /* =========================================================
-   ANYBIKE GBP INPUT DISPLAY
-   Standard rule: every GBP money field displays as £1,234.56
-   while preserving raw numeric values for existing calculations.
+   ANYBIKE MONEY INPUT DISPLAY — CUSTOMER/PUBLIC
+   Base values remain GBP internally. Display follows the selected
+   customer currency and converts back to GBP for existing page logic.
    ========================================================= */
-(function anyBikeStartGbpInputDisplay(){
-  if(window.__anybikeGbpInputDisplayStarted) return;
-  window.__anybikeGbpInputDisplayStarted=true;
+(function anyBikeStartCurrencyAwareMoneyInputs(){
+  if(window.__anybikeCurrencyMoneyInputsStarted) return;
+  window.__anybikeCurrencyMoneyInputsStarted=true;
 
   const nativeValue=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value");
   if(!nativeValue || !nativeValue.get || !nativeValue.set) return;
 
-  function normaliseMoney(value){
-    const cleaned=String(value??"").replace(/[^0-9.-]/g,"");
-    if(cleaned==="" || cleaned==="-" || cleaned===".") return "";
-    const n=Number(cleaned);
-    return Number.isFinite(n) ? String(n) : "";
+  function currencyCode(){
+    return String(window.anybikeCurrency || localStorage.getItem("anybikeCurrency") || "GBP").toUpperCase();
   }
-
-  function formatMoney(value){
-    const raw=normaliseMoney(value);
-    if(raw==="") return "";
+  function rate(){
+    const code=currencyCode();
+    return Number(window.AnyBikeCurrency?.rates?.[code] || 1) || 1;
+  }
+  function clean(value){
+    const raw=String(value??"").replace(/[^0-9.-]/g,"");
+    if(raw===""||raw==="-"||raw===".") return "";
     const n=Number(raw);
-    return n.toLocaleString("en-GB",{
+    return Number.isFinite(n)?String(n):"";
+  }
+  function formatFromGbp(gbp){
+    const raw=clean(gbp);
+    if(raw==="") return "";
+    const code=currencyCode();
+    const converted=Number(raw)*rate();
+    return converted.toLocaleString(code==="USD"?"en-US":"en-GB",{
       style:"currency",
-      currency:"GBP",
+      currency:code,
+      currencyDisplay:"symbol",
       minimumFractionDigits:2,
       maximumFractionDigits:2
     });
   }
-
+  function displayNumberFromGbp(gbp){
+    const raw=clean(gbp);
+    if(raw==="") return "";
+    return (Number(raw)*rate()).toFixed(2);
+  }
+  function gbpFromDisplay(value){
+    const raw=clean(value);
+    if(raw==="") return "";
+    return String(Number(raw)/rate());
+  }
   function moneyContext(input){
     const label=input.closest("label");
-    const labelledBy=String(input.getAttribute("aria-labelledby")||"")
-      .split(/\s+/)
-      .filter(Boolean)
-      .map(id=>document.getElementById(id)?.textContent||"")
-      .join(" ");
     const nearby=[
-      input.id,
-      input.name,
-      input.placeholder,
-      input.getAttribute("aria-label"),
-      labelledBy,
-      label?.textContent||"",
-      input.previousElementSibling?.textContent||""
+      input.id,input.name,input.placeholder,input.getAttribute("aria-label"),
+      label?.textContent||"",input.previousElementSibling?.textContent||""
     ].filter(Boolean).join(" ").toLowerCase();
-
-    if(input.dataset.currency==="GBP" || input.dataset.currency==="gbp") return true;
+    if(input.dataset.currency==="GBP"||input.dataset.currency==="gbp") return true;
     if(/[£]|\bgbp\b/.test(nearby)) return true;
-
-    const moneyWord=/(price|fee|cost|amount|deposit|balance|charge|payment|customer total|quote|offer value|sale value)/.test(nearby);
+    const money=/(price|fee|cost|amount|deposit|balance|charge|payment|customer total|quote|offer value|sale value)/.test(nearby);
     const nonMoney=/(percent|percentage|mileage|miles|max miles|year|quantity|qty|engine|cc|phone|mobile|postcode)/.test(nearby);
-    return moneyWord && !nonMoney;
+    return money&&!nonMoney;
   }
-
   function enhance(input){
     if(!(input instanceof HTMLInputElement)) return;
-    if(input.dataset.anybikeGbpEnhanced==="1" || input.dataset.anybikeNoGbp==="1") return;
-    if(input.type==="hidden" || input.type==="checkbox" || input.type==="radio" || input.type==="date" || input.type==="datetime-local") return;
+    if(input.dataset.anybikeCurrencyEnhanced==="1"||input.dataset.anybikeNoCurrency==="1") return;
+    if(["hidden","checkbox","radio","date","datetime-local"].includes(input.type)) return;
     if(!moneyContext(input)) return;
 
     const initial=nativeValue.get.call(input);
-    input.dataset.anybikeGbpEnhanced="1";
-    input.dataset.anybikeOriginalType=input.type||"text";
-    input.dataset.anybikeGbpRaw=normaliseMoney(initial);
+    input.dataset.anybikeCurrencyEnhanced="1";
+    input.dataset.anybikeBaseGbp=clean(initial);
     if(input.type==="number") input.type="text";
     input.inputMode="decimal";
-    input.autocomplete=input.autocomplete||"off";
 
     Object.defineProperty(input,"value",{
       configurable:true,
-      get:function(){
-        if(document.activeElement===this){
-          return normaliseMoney(nativeValue.get.call(this));
-        }
-        return this.dataset.anybikeGbpRaw ?? normaliseMoney(nativeValue.get.call(this));
-      },
+      get:function(){ return this.dataset.anybikeBaseGbp ?? ""; },
       set:function(value){
-        const raw=normaliseMoney(value);
-        this.dataset.anybikeGbpRaw=raw;
-        nativeValue.set.call(this,document.activeElement===this ? raw : formatMoney(raw));
+        this.dataset.anybikeBaseGbp=clean(value);
+        nativeValue.set.call(this,document.activeElement===this?displayNumberFromGbp(this.dataset.anybikeBaseGbp):formatFromGbp(this.dataset.anybikeBaseGbp));
       }
     });
 
-    nativeValue.set.call(input,formatMoney(input.dataset.anybikeGbpRaw));
+    nativeValue.set.call(input,formatFromGbp(input.dataset.anybikeBaseGbp));
 
     input.addEventListener("focus",function(){
-      const raw=this.dataset.anybikeGbpRaw ?? normaliseMoney(nativeValue.get.call(this));
-      nativeValue.set.call(this,raw);
-      try{ this.select(); }catch(_error){}
+      nativeValue.set.call(this,displayNumberFromGbp(this.dataset.anybikeBaseGbp));
+      try{this.select();}catch(_error){}
     });
-
     input.addEventListener("input",function(){
-      this.dataset.anybikeGbpRaw=normaliseMoney(nativeValue.get.call(this));
+      this.dataset.anybikeBaseGbp=gbpFromDisplay(nativeValue.get.call(this));
     });
-
     input.addEventListener("blur",function(){
-      const raw=normaliseMoney(nativeValue.get.call(this));
-      this.dataset.anybikeGbpRaw=raw;
-      nativeValue.set.call(this,formatMoney(raw));
-    });
-
-    input.addEventListener("change",function(){
-      this.dataset.anybikeGbpRaw=normaliseMoney(nativeValue.get.call(this));
-      if(document.activeElement!==this){
-        nativeValue.set.call(this,formatMoney(this.dataset.anybikeGbpRaw));
-      }
+      this.dataset.anybikeBaseGbp=gbpFromDisplay(nativeValue.get.call(this));
+      nativeValue.set.call(this,formatFromGbp(this.dataset.anybikeBaseGbp));
     });
   }
-
   function scan(root){
     if(root instanceof HTMLInputElement) enhance(root);
     root?.querySelectorAll?.("input").forEach(enhance);
   }
-
-  function rawForSubmission(form){
-    const fields=Array.from((form||document).querySelectorAll?.('input[data-anybike-gbp-enhanced="1"]')||[]);
-    const restore=[];
-    fields.forEach(function(input){
-      restore.push([input,nativeValue.get.call(input)]);
-      nativeValue.set.call(input,input.dataset.anybikeGbpRaw||"");
-    });
-    requestAnimationFrame(function(){
-      restore.forEach(function(pair){
-        const input=pair[0];
-        if(document.activeElement!==input){
-          nativeValue.set.call(input,formatMoney(input.dataset.anybikeGbpRaw||""));
-        }
-      });
+  function refresh(){
+    document.querySelectorAll('input[data-anybike-currency-enhanced="1"]').forEach(function(input){
+      if(document.activeElement!==input){
+        nativeValue.set.call(input,formatFromGbp(input.dataset.anybikeBaseGbp));
+      }
     });
   }
 
-  document.addEventListener("submit",function(event){
-    rawForSubmission(event.target);
-  },true);
-
   const start=function(){
     scan(document);
-    const observer=new MutationObserver(function(records){
-      records.forEach(function(record){
-        record.addedNodes.forEach(function(node){
-          if(node.nodeType===1) scan(node);
-        });
-      });
-    });
-    observer.observe(document.documentElement,{childList:true,subtree:true});
+    new MutationObserver(function(records){
+      records.forEach(r=>r.addedNodes.forEach(node=>{if(node.nodeType===1)scan(node);}));
+    }).observe(document.documentElement,{childList:true,subtree:true});
+    window.addEventListener("anybikeCurrencyChanged",refresh);
   };
-
-  if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",start,{once:true});
+  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",start,{once:true});
   else start();
 })();

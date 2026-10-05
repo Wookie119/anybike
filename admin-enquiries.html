@@ -8646,7 +8646,8 @@ function anyBikeCommercialInputNumber(id){
   const raw=String((el && el.value) || "").trim();
   if(raw===""){ return 0; }
 
-  const value=Number(raw);
+  const cleaned=raw.replace(/[^0-9.-]/g,"");
+  const value=Number(cleaned);
   if(!Number.isFinite(value) || value<0){
     throw new Error("Commercial values must be valid positive numbers or zero.");
   }
@@ -8665,7 +8666,7 @@ function syncCommercialCostReviewUI(id,key){
   const box=document.getElementById("deal-cost-review-"+key+"-"+id);
   const check=document.getElementById("deal-cost-none-"+key+"-"+id);
   if(!field||!box)return;
-  const value=Number(field.value||0);
+  const value=Number(String(field.value||"").replace(/[^0-9.-]/g,""))||0;
   const reviewed=value>0 || !!check?.checked;
   box.classList.toggle("reviewed",reviewed);
   const state=box.querySelector(".anybike-cost-review-state");
@@ -8674,7 +8675,7 @@ function syncCommercialCostReviewUI(id,key){
 
 async function setCommercialCostReviewed(id,key,reviewed){
   const field=document.getElementById(commercialCostFieldId(key,id));
-  if(reviewed && Number(field?.value||0)>0 && field){
+  if(reviewed && (Number(String(field?.value||"").replace(/[^0-9.-]/g,""))||0)>0 && field){
     field.value="0.00";
     updateDealCommercialPreview(id);
   }
@@ -8847,6 +8848,19 @@ async function saveDealCommercialSetup(dealMotorcycleId,options){
 
     const payload=result.data || {};
 
+    setDealCommercialAutosaveState(id,"saved","Saved ✓");
+
+    const saveButton=document.querySelector('[onclick*="saveDealCommercialSetup('+id+'"]');
+    if(saveButton){
+      const originalSaveLabel=saveButton.textContent;
+      saveButton.textContent="Saved ✓";
+      saveButton.disabled=true;
+      setTimeout(function(){
+        saveButton.textContent=originalSaveLabel || "Save changes";
+        saveButton.disabled=false;
+      },1400);
+    }
+
     if(!options.skipSuccessAlert){
       alert(
         "Commercial Setup saved.\n\n" +
@@ -8912,7 +8926,7 @@ async function proceedDealCommercialSetup(dealMotorcycleId){
 
   const reviewKeys=["prep","docs","admin","other"];
   const missing=reviewKeys.filter(function(key){
-    const value=Number(document.getElementById(commercialCostFieldId(key,id))?.value||0);
+    const value=Number(String(document.getElementById(commercialCostFieldId(key,id))?.value||"").replace(/[^0-9.-]/g,""))||0;
     const checked=!!document.getElementById("deal-cost-none-"+key+"-"+id)?.checked;
     return !(value>0 || checked);
   });
