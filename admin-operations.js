@@ -608,6 +608,41 @@
       book.title=state.ready?"Ready to create the Move booking":"Complete the red booking fields first";
       book.textContent=state.ready ? "Book with Move" : "Complete red fields first";
     }
+
+    const nextTitle=document.getElementById("ab-move-next-title-"+id);
+    const nextCopy=document.getElementById("ab-move-next-copy-"+id);
+    const nextButton=document.getElementById("ab-move-next-button-"+id);
+    const dataRow=data||moveBookingCache.get(String(id))||{};
+    const booked=!!(dataRow.move && (dataRow.move.move_shipment_id || dataRow.move.tracking_no || dataRow.move.booked_at));
+
+    if(booked){
+      if(nextTitle) nextTitle.textContent="Prepare the Move driver collection";
+      if(nextCopy) nextCopy.textContent="The Move booking is live. Continue to the driver-on-site collection controls and driver collection form.";
+      if(nextButton){
+        nextButton.textContent="OPEN DRIVER COLLECTION →";
+        nextButton.onclick=function(){
+          const target=document.getElementById("ab-ops-collection-controls-"+id) ||
+            document.querySelector('[data-deal-motorcycle-id="'+id+'"] .ab-ops-collection');
+          if(target) target.scrollIntoView({behavior:"smooth",block:"start"});
+          else window.scrollBy({top:650,behavior:"smooth"});
+          return false;
+        };
+      }
+    }else if(state.ready){
+      if(nextTitle) nextTitle.textContent="Book with Move Motorcycles";
+      if(nextCopy) nextCopy.textContent="Every required field is complete. Create the live Move booking now.";
+      if(nextButton){
+        nextButton.textContent="BOOK WITH MOVE →";
+        nextButton.onclick=function(){ bookMoveShipment(id); return false; };
+      }
+    }else{
+      if(nextTitle) nextTitle.textContent="Complete the Move booking";
+      if(nextCopy) nextCopy.textContent="Finish the remaining red booking fields above.";
+      if(nextButton){
+        nextButton.textContent="CONTINUE →";
+        nextButton.onclick=function(){ continueMoveBooking(id); return false; };
+      }
+    }
     return state;
   }
 
@@ -806,13 +841,13 @@
           <button type="button" class="ab-ops-button" id="ab-move-book-${id}" onclick="bookAnyBikeMoveShipment(${id});return false;">Book with Move</button>
         </div>
       </div>
-      <div class="deal-section-next-action" style="margin:14px 0 0">
+      <div class="deal-section-next-action" id="ab-move-next-action-${id}" style="margin:14px 0 0">
         <div>
           <div class="eyebrow">Your next action</div>
-          <strong>Complete the Move booking</strong>
-          <span>Finish any missing seller collection details above, then book the motorcycle with Move Motorcycles.</span>
+          <strong id="ab-move-next-title-${id}">Complete the Move booking</strong>
+          <span id="ab-move-next-copy-${id}">Finish any missing seller collection details above, then book the motorcycle with Move Motorcycles.</span>
         </div>
-        <button type="button" onclick="continueAnyBikeMoveBooking(${id});return false;">CONTINUE →</button>
+        <button type="button" id="ab-move-next-button-${id}" onclick="continueAnyBikeMoveBooking(${id});return false;">CONTINUE →</button>
       </div>
     `;
     [
@@ -1001,6 +1036,21 @@
       }
 
       alert("Move booking created.\n\nTracking: "+(payload.tracking_no||"Not returned")+"\nReference: "+(payload.reference_no||"")+"\n\nThe motorcycle is now marked Booked with Move."+inboundMessage);
+
+      const bookedData=moveBookingCache.get(String(id))||{};
+      const bookedDealId=Number(bookedData.deal_id||0);
+      if(bookedDealId){
+        operationsCache.delete(String(bookedDealId));
+        await loadDeal(bookedDealId,true);
+      }else{
+        await loadMoveBooking(id,true);
+      }
+
+      setTimeout(function(){
+        const driverSection=document.getElementById("ab-ops-collection-controls-"+id) ||
+          document.querySelector('[data-deal-motorcycle-id="'+id+'"] .ab-ops-collection');
+        if(driverSection) driverSection.scrollIntoView({behavior:"smooth",block:"start"});
+      },260);
     }catch(error){
       console.error("Move booking failed:",error);
       alert("Move booking was not created.\n\n"+(error.message||error));
