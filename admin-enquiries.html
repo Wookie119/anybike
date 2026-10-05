@@ -15798,9 +15798,28 @@ function openAnyBikeDealFromUrl(){
   const requestedAction=String(params.get("action") || "").trim().toLowerCase();
 
   if(requestedCandidate>0 && requestedAction==="availability"){
-    setTimeout(function(){
-      openCandidateAvailabilityModal(requestedCandidate);
-    },120);
+    bikeSalesJourneyTab(dealId,"sourcing",false);
+
+    const openRequestedAvailability=function(attempt){
+      const candidate=(adminDealCandidates||[]).find(function(item){
+        return Number(item.id)===requestedCandidate;
+      });
+
+      if(candidate){
+        const candidateEl=document.getElementById("anybike-candidate-"+requestedCandidate);
+        if(candidateEl)scrollBikeSalesTargetIntoView(candidateEl);
+        openCandidateAvailabilityModal(requestedCandidate);
+        return;
+      }
+
+      if(attempt<24){
+        setTimeout(function(){ openRequestedAvailability(attempt+1); },100);
+      }else{
+        console.warn("Requested candidate availability record was not ready:",requestedCandidate);
+      }
+    };
+
+    setTimeout(function(){ openRequestedAvailability(0); },80);
   }
 
   if(requestedAction==="shipping-approval"){
@@ -16309,6 +16328,20 @@ function openBikeSalesNextTask(dealId){
   const flags=bikeSalesFlagsForDeal(deal,action);
   const effectiveAction=Object.assign({},action,{primary_action:bikeSalesEffectivePrimary(action,flags,deal)});
   const primary=String(effectiveAction.primary_action||"");
+
+  if(primary==="Check Seller Availability"){
+    const candidateState=bikeSalesCandidateStateForDeal(id);
+    const candidate=candidateState.interested || candidateState.confirmed || null;
+    if(candidate && Number(candidate.id)>0){
+      bikeSalesJourneyTab(id,"sourcing",false);
+      setTimeout(function(){
+        const candidateEl=document.getElementById("anybike-candidate-"+Number(candidate.id));
+        if(candidateEl)scrollBikeSalesTargetIntoView(candidateEl);
+        openCandidateAvailabilityModal(Number(candidate.id));
+      },60);
+      return;
+    }
+  }
 
   if(primary==="Send Formal Offer"){
     const motorcycle=(adminDealMotorcycles||[]).find(function(row){
