@@ -105,8 +105,8 @@ const ANYBIKE_HEADER_TRANSLATIONS = {
     signIn:"Sign In",
     createAccount:"Create Free Account",
     dashboard:"Dashboard",
-    handPicked:"🔎 Hand-picked for You",
-    potentialMatches:"🏍️ Your AnyBike Potential Matches",
+    handPicked:"Hand-picked for You",
+    potentialMatches:"Potential Matches",
     offers:"My Offers",
     purchases:"My Purchases",
     accountsDocuments:"Accounts & Documents",
@@ -135,8 +135,8 @@ const ANYBIKE_HEADER_TRANSLATIONS = {
     signIn:"Anmelden",
     createAccount:"Kostenloses Konto",
     dashboard:"Übersicht",
-    handPicked:"🔎 Für Sie ausgewählt",
-    potentialMatches:"🏍️ Ihre AnyBike potenziellen Treffer",
+    handPicked:"Für Sie ausgewählt",
+    potentialMatches:"Potenzielle Treffer",
     offers:"Meine Angebote",
     purchases:"Meine Käufe",
     accountsDocuments:"Konten & Dokumente",
@@ -165,8 +165,8 @@ const ANYBIKE_HEADER_TRANSLATIONS = {
     signIn:"Se connecter",
     createAccount:"Créer un compte gratuit",
     dashboard:"Tableau de bord",
-    handPicked:"🔎 Sélectionnées pour vous",
-    potentialMatches:"🏍️ Vos correspondances potentielles AnyBike",
+    handPicked:"Sélectionnées pour vous",
+    potentialMatches:"Correspondances potentielles",
     offers:"Mes offres",
     purchases:"Mes achats",
     accountsDocuments:"Comptes & documents",
@@ -195,8 +195,8 @@ const ANYBIKE_HEADER_TRANSLATIONS = {
     signIn:"Iniciar sesión",
     createAccount:"Crear cuenta gratuita",
     dashboard:"Panel",
-    handPicked:"🔎 Sélectionnées pour vous",
-    potentialMatches:"🏍️ Vos correspondances potentielles AnyBike",
+    handPicked:"Sélectionnées pour vous",
+    potentialMatches:"Correspondances potentielles",
     offers:"Mis ofertas",
     purchases:"Mis compras",
     accountsDocuments:"Cuentas y documentos",
@@ -225,8 +225,8 @@ const ANYBIKE_HEADER_TRANSLATIONS = {
     signIn:"تسجيل الدخول",
     createAccount:"إنشاء حساب مجاني",
     dashboard:"لوحة التحكم",
-    handPicked:"🔎 مختارة لك",
-    potentialMatches:"🏍️ تطابقات AnyBike المحتملة",
+    handPicked:"مختارة لك",
+    potentialMatches:"التطابقات المحتملة",
     offers:"عروضي",
     purchases:"مشترياتي",
     accountsDocuments:"الحسابات والمستندات",
@@ -255,8 +255,8 @@ const ANYBIKE_HEADER_TRANSLATIONS = {
     signIn:"Masuk",
     createAccount:"Buat Akun Gratis",
     dashboard:"Dasbor",
-    handPicked:"🔎 Pilihan untuk Anda",
-    potentialMatches:"🏍️ Potensi Kecocokan AnyBike Anda",
+    handPicked:"Pilihan untuk Anda",
+    potentialMatches:"Potensi Kecocokan",
     offers:"Penawaran Saya",
     purchases:"Pembelian Saya",
     accountsDocuments:"Akaun & Dokumen",
@@ -287,8 +287,8 @@ const ANYBIKE_HEADER_TRANSLATIONS = {
     signIn:"Log Masuk",
     createAccount:"Buat Akaun Percuma",
     dashboard:"Papan Pemuka",
-    handPicked:"🔎 Dipilih untuk Anda",
-    potentialMatches:"🏍️ Padanan Berpotensi AnyBike Anda",
+    handPicked:"Dipilih untuk Anda",
+    potentialMatches:"Padanan Berpotensi",
     offers:"Tawaran Saya",
     purchases:"Pembelian Saya",
     profile:"Profil Saya",
@@ -315,8 +315,8 @@ const ANYBIKE_HEADER_TRANSLATIONS = {
     signIn:"登录",
     createAccount:"免费创建账户",
     dashboard:"控制面板",
-    handPicked:"🔎 为您精选",
-    potentialMatches:"🏍️ 您的 AnyBike 潜在匹配",
+    handPicked:"为您精选",
+    potentialMatches:"潜在匹配",
     offers:"我的报价",
     purchases:"我的购买",
     accountsDocuments:"账户与文件",
@@ -540,10 +540,9 @@ async function addMyDealershipMenuIfEligible(user){
         '[data-dealer-menu-link="true"]'
       )
     ){
-      desktopMenu.insertAdjacentHTML(
-        "afterbegin",
-        linkHtml
-      );
+      const anchor=desktopMenu.querySelector('[data-dealer-menu-anchor="true"]');
+      if(anchor)anchor.insertAdjacentHTML("afterend",linkHtml);
+      else desktopMenu.insertAdjacentHTML("beforeend",linkHtml);
     }
 
     if(
@@ -552,10 +551,9 @@ async function addMyDealershipMenuIfEligible(user){
         '[data-dealer-menu-link="true"]'
       )
     ){
-      mobileMenu.insertAdjacentHTML(
-        "afterbegin",
-        linkHtml
-      );
+      const anchor=mobileMenu.querySelector('[data-dealer-menu-anchor="true"]');
+      if(anchor)anchor.insertAdjacentHTML("afterend",linkHtml);
+      else mobileMenu.insertAdjacentHTML("beforeend",linkHtml);
     }
 
   }catch(error){
