@@ -2172,12 +2172,13 @@ body.customer-offer-modal-open{overflow:hidden}
     </div>
   </section>
 
-  <section id="customerNextActionsPanel" class="panel" style="display:none;border-color:rgba(237,28,36,.55)">
+  <section id="customerNextActionsPanel" class="panel" style="border-color:rgba(237,28,36,.55);scroll-margin-top:120px">
+    <span id="customer-next-actions" style="display:block;position:relative;top:-1px"></span>
     <div class="panel-head" style="align-items:flex-start">
       <div>
-        <div class="eyebrow" style="margin-bottom:5px">Your next action</div>
+        <div class="eyebrow" style="margin-bottom:5px">My AnyBike action hub</div>
         <h2>What needs your attention</h2>
-        <p id="customerNextActionsSummary">We will show each purchase or offer that needs something from you.</p>
+        <p id="customerNextActionsSummary">Urgent actions appear first. You can also choose what you want to review next.</p>
       </div>
     </div>
     <div id="customerNextActionsList" style="display:grid;gap:10px"></div>
@@ -2196,24 +2197,15 @@ body.customer-offer-modal-open{overflow:hidden}
       <strong style="font-size:14px">Motorcycles AnyBike is checking</strong>
     </div>
     <div id="sourcingProgressList" style="display:grid;gap:6px"></div>
-    <div id="sourcingProgressNextAction" style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:center;margin:10px 0 0;padding:10px 12px;border:1px solid rgba(237,28,36,.42);border-radius:10px;background:linear-gradient(135deg,rgba(237,28,36,.10),#111 64%)">
+    <div class="dashboard-section-next dashboard-return-to-actions">
       <div>
-        <div class="eyebrow" style="margin:0 0 4px">Your next action</div>
-        <strong id="sourcingProgressNextTitle" style="display:block;font-size:17px">Checking what happens next…</strong>
-        <span id="sourcingProgressNextText" style="display:block;margin-top:3px;color:#bbb;font-size:13px;line-height:1.4">AnyBike is checking your selected motorcycles.</span>
+        <div class="eyebrow">What next?</div>
+        <strong>See what else needs your attention</strong>
+        <span>Return to your My AnyBike action hub and choose what you want to do next.</span>
       </div>
-      <a id="sourcingProgressNextButton" class="panel-link" href="#my-offers" style="display:none;white-space:nowrap">Review offer →</a>
+      <a class="panel-link" href="#customer-next-actions">SEE WHAT ELSE NEEDS YOUR ATTENTION →</a>
     </div>
   </section>
-
-  <div id="dashboardJourneyNext" style="display:none;grid-template-columns:minmax(0,1fr) auto;gap:18px;align-items:center;margin:14px 0 16px;padding:12px 14px;border:1px solid rgba(237,28,36,.42);border-radius:12px;background:#111">
-    <div>
-      <div class="eyebrow" style="margin:0 0 4px">Your next action</div>
-      <strong id="dashboardJourneyTitle" style="display:block;font-size:17px"></strong>
-      <span id="dashboardJourneyText" style="display:block;margin-top:3px;color:#bbb;font-size:13px;line-height:1.4"></span>
-    </div>
-    <a id="dashboardJourneyButton" class="panel-link" href="#buyer-potential-matches" style="white-space:nowrap">CONTINUE →</a>
-  </div>
 
   <nav class="dashboard-jump-nav" aria-label="My AnyBike quick links">
     <a href="#my-purchases"><span>🛒</span>My Purchases</a>
@@ -4163,24 +4155,23 @@ function focusRequestedShippingAction(){
   window.location.replace(requested.href);
 }
 
-function setDashboardJourneyNext(title,text,target,label){
-  const box=document.getElementById("dashboardJourneyNext");
-  const titleEl=document.getElementById("dashboardJourneyTitle");
-  const textEl=document.getElementById("dashboardJourneyText");
-  const button=document.getElementById("dashboardJourneyButton");
-  if(!box||!titleEl||!textEl||!button)return;
-
-  titleEl.textContent=title||"";
-  textEl.textContent=text||"";
-  button.href=target||"#buyer-potential-matches";
-  button.textContent=label||"CONTINUE →";
-  box.style.display="grid";
+function normalizeDashboardSectionReturns(){
+  document.querySelectorAll(".dashboard-section-next").forEach(function(box){
+    if(box.classList.contains("dashboard-return-to-actions")) return;
+    box.classList.add("dashboard-return-to-actions");
+    box.innerHTML=
+      '<div>'+
+        '<div class="eyebrow">What next?</div>'+
+        '<strong>See what else needs your attention</strong>'+
+        '<span>Return to your My AnyBike action hub and choose what you want to do next.</span>'+
+      '</div>'+
+      '<a class="panel-link" href="#customer-next-actions">SEE WHAT ELSE NEEDS YOUR ATTENTION →</a>';
+  });
 }
 
-function setDefaultDashboardJourney(){
-  const box=document.getElementById("dashboardJourneyNext");
-  if(box) box.style.display="none";
-}
+function setDashboardJourneyNext(){}
+
+function setDefaultDashboardJourney(){}
 
 function renderCustomerNextActions(){
   const panel=document.getElementById("customerNextActionsPanel");
@@ -4235,24 +4226,97 @@ function renderCustomerNextActions(){
   }
 
   actions.sort((a,b)=>a.priority-b.priority);
+  const urgentCount=actions.length;
 
-  if(!actions.length){
-    panel.style.display="none";
-    list.innerHTML="";
-    setDefaultDashboardJourney();
-    return;
+  const choices=[];
+  if(document.getElementById("sourcing-progress")?.offsetParent!==null){
+    choices.push({
+      title:"Sourcing Progress",
+      text:"See the motorcycles AnyBike is currently checking with sellers.",
+      href:"#sourcing-progress",
+      cta:"View Sourcing Progress →"
+    });
   }
+
+  const handPickedCount=Number(String(document.getElementById("handPickedCount")?.textContent||"0").replace(/,/g,""))||0;
+  if(handPickedCount>0){
+    choices.push({
+      title:"Hand-picked for You",
+      text:"Review motorcycles AnyBike has specifically selected for your buying requirements.",
+      href:"#hand-picked",
+      cta:"View Hand-picked →"
+    });
+  }
+
+  choices.push({
+    title:"Potential Matches",
+    text:"Browse the wider pool matching your requirements and choose any additional motorcycles you want AnyBike to check.",
+    href:"#buyer-potential-matches",
+    cta:"View Potential Matches →"
+  });
+
+  if((latestCustomerPurchaseRows||[]).length){
+    choices.push({
+      title:"My Purchases",
+      text:"Check payment, seller-check, motorcycle security and UK handover progress.",
+      href:"#my-purchases",
+      cta:"Check My Purchases →"
+    });
+  }
+
+  choices.push(
+    {
+      title:"Accounts & Documents",
+      text:"Open Proformas, invoices, payments and motorcycle documents.",
+      href:"#accounts-documents",
+      cta:"View Accounts & Documents →"
+    },
+    {
+      title:"Recommended For You",
+      text:"Browse motorcycles suggested from your saved searches and buying activity.",
+      href:"#recommended-for-you",
+      cta:"View Recommendations →"
+    },
+    {
+      title:"Recently Viewed",
+      text:"Continue from motorcycles you viewed recently.",
+      href:"#recently-viewed",
+      cta:"View Recently Viewed →"
+    },
+    {
+      title:"Arrange Shipping Early",
+      text:"Review your freight-forwarder and UK handover preferences.",
+      href:"/customer-profile.html#section-shipping",
+      cta:"View Shipping Preferences →"
+    }
+  );
 
   panel.style.display="";
-  const journey=document.getElementById("dashboardJourneyNext");
-  if(journey)journey.style.display="none";
-  const customerTasks=actions.length;
   if(summary){
-    summary.textContent=customerTasks===1
-      ? "You have 1 action that needs your attention."
-      : "You have "+customerTasks+" actions that need your attention.";
+    summary.textContent=urgentCount
+      ? (urgentCount===1
+          ? "You have 1 action that needs your attention. Urgent actions are shown first; choose what you want to do next below."
+          : "You have "+urgentCount+" actions that need your attention. Urgent actions are shown first; choose what you want to do next below.")
+      : "Nothing urgent needs you right now. Choose what you want to review next.";
   }
-  list.innerHTML=actions.slice(0,8).map(customerActionCardHtml).join("");
+
+  const urgentHtml=urgentCount
+    ? '<div class="eyebrow" style="margin:0 0 8px">Needs your attention now</div>'+actions.slice(0,8).map(customerActionCardHtml).join("")
+    : "";
+
+  const choiceHtml=
+    '<div style="margin-top:'+(urgentCount?'14':'0')+'px;padding-top:'+(urgentCount?'14':'0')+'px;border-top:'+(urgentCount?'1px solid rgba(255,255,255,.10)':'0')+'">'+
+      '<div class="eyebrow" style="margin:0 0 8px">Choose what to do next</div>'+
+      '<div style="display:grid;gap:8px">'+choices.map(function(choice){
+        return '<div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:center;padding:10px 12px;border:1px solid rgba(255,255,255,.11);border-radius:11px;background:#0c0c0c">'+
+          '<div><strong style="display:block;font-size:14px">'+safe(choice.title)+'</strong><span style="display:block;margin-top:3px;color:#aaa;font-size:12px;line-height:1.4">'+safe(choice.text)+'</span></div>'+
+          '<a class="panel-link" style="white-space:nowrap" href="'+safe(choice.href)+'">'+safe(choice.cta)+'</a>'+
+        '</div>';
+      }).join("")+'</div>'+
+    '</div>';
+
+  list.innerHTML=urgentHtml+choiceHtml;
+  normalizeDashboardSectionReturns();
 }
 
 function customerPurchaseUrgency(match){
@@ -4555,9 +4619,6 @@ function renderSourcingProgress(rows,totalFromBatches){
   const panel=document.getElementById("sourcing-progress");
   const list=document.getElementById("sourcingProgressList");
   const summary=document.getElementById("sourcingProgressSummary");
-  const nextTitle=document.getElementById("sourcingProgressNextTitle");
-  const nextText=document.getElementById("sourcingProgressNextText");
-  const nextButton=document.getElementById("sourcingProgressNextButton");
   if(!panel||!list)return;
 
   const interested=(Array.isArray(rows)?rows:[]).filter(function(row){
@@ -4576,31 +4637,6 @@ function renderSourcingProgress(rows,totalFromBatches){
     summary.textContent=expectedTotal===1
       ? "You have asked AnyBike to check 1 motorcycle. We are confirming seller availability and current purchase terms."
       : "You have asked AnyBike to check "+expectedTotal+" motorcycles. We are confirming seller availability and current purchase terms.";
-  }
-
-  const hasCustomerOffer=interested.some(function(row){
-    const status=String(row?.offer_status||"").trim().toLowerCase();
-    return ["sent","open","issued","awaiting customer","awaiting_customer"].some(function(value){
-      return status===value || status.includes(value);
-    });
-  });
-
-  if(hasCustomerOffer){
-    if(nextTitle) nextTitle.textContent="Review your AnyBike offer";
-    if(nextText) nextText.textContent="AnyBike has completed the seller check for at least one motorcycle and a formal offer is ready for your decision.";
-    if(nextButton){
-      nextButton.textContent="REVIEW OFFER →";
-      nextButton.href="#my-offers";
-      nextButton.style.display="inline-flex";
-    }
-  }else{
-    if(nextTitle) nextTitle.textContent="Review your Hand-picked motorcycles";
-    if(nextText) nextText.textContent="While AnyBike checks these "+expectedTotal+" motorcycle"+(expectedTotal===1?"":"s")+", review the motorcycles we have specifically selected for you. If you want more choice after that, you can browse your wider Potential Matches.";
-    if(nextButton){
-      nextButton.textContent="🔎 VIEW HAND-PICKED FOR YOU →";
-      nextButton.href="#hand-picked";
-      nextButton.style.display="inline-flex";
-    }
   }
 
   if(interested.length){
@@ -4637,12 +4673,6 @@ async function loadSourcingProgress(){
       generalActions.parentNode.insertBefore(panel,generalActions);
     }
     panel.style.display="";
-    const nextTitle=document.getElementById("sourcingProgressNextTitle");
-    const nextText=document.getElementById("sourcingProgressNextText");
-    const nextButton=document.getElementById("sourcingProgressNextButton");
-    if(nextTitle) nextTitle.textContent="Checking your next action…";
-    if(nextText) nextText.textContent="Loading the latest seller checks and offer status.";
-    if(nextButton) nextButton.style.display="none";
     list.innerHTML='<div class="buyer-match-empty">Loading your sourcing progress…</div>';
   }
 
