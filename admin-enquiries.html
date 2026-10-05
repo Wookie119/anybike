@@ -8988,37 +8988,37 @@ function renderAnyBikeDealCommercialSetup(deal){
   let acceptedNextTitle="Continue this Deal";
   let acceptedNextCopy="The Formal Offer has already been accepted. Continue to the current live Deal 360 action.";
   let acceptedNextButton="CONTINUE DEAL →";
-  let acceptedNextTarget="admin-enquiries.html?deal="+encodeURIComponent(dealId);
+  let acceptedNextTab="timeline";
 
   if(livePrimaryAction==="Operations"){
     acceptedNextTitle="Complete seller collection details";
     acceptedNextCopy="The motorcycle is purchased / secured. Add the seller pickup address, contact, Ready From date and handover instructions so Operations can book collection.";
     acceptedNextButton="OPEN COLLECTION DETAILS →";
-    acceptedNextTarget="admin-enquiries.html?deal="+encodeURIComponent(dealId)+"&tab=collection";
+    acceptedNextTab="collection";
   }else if(livePrimaryAction==="Final Seller Check"){
     acceptedNextTitle="Complete the Final Seller Check";
     acceptedNextCopy="Reconfirm the seller, motorcycle and purchase position before AnyBike proceeds.";
     acceptedNextButton="OPEN SELLER CHECK →";
-    acceptedNextTarget="admin-enquiries.html?deal="+encodeURIComponent(dealId)+"&tab=seller";
+    acceptedNextTab="seller";
   }else if(livePrimaryAction==="Ready to Purchase"){
     acceptedNextTitle="Purchase and secure the motorcycle";
     acceptedNextCopy="Customer funds and Deal checks are clear. Continue to the seller purchase / payment step.";
     acceptedNextButton="OPEN PURCHASE STEP →";
-    acceptedNextTarget="admin-enquiries.html?deal="+encodeURIComponent(dealId)+"&tab=seller";
+    acceptedNextTab="seller";
   }else if(livePrimaryAction==="Confirm Shipping / UK Handover"){
     acceptedNextTitle="Confirm the UK handover";
     acceptedNextCopy="Use the buyer's saved shipping preference where available and confirm the exact handover for this Deal.";
     acceptedNextButton="OPEN SHIPPING →";
-    acceptedNextTarget="admin-enquiries.html?deal="+encodeURIComponent(dealId)+"&tab=delivery";
+    acceptedNextTab="delivery";
   }else if(livePrimaryAction==="Deposit Due"){
     acceptedNextTitle="Complete the customer payment step";
     acceptedNextCopy="The accepted Deal is waiting for the required customer payment.";
     acceptedNextButton="OPEN ACCOUNTS →";
-    acceptedNextTarget="admin-accounts.html?deal="+encodeURIComponent(dealId);
+    acceptedNextTab="payment";
   }
 
   const commercialNextActionHtml=acceptedLocked
-    ? '<div class="deal-section-next-action"><div><div class="eyebrow">Your next action</div><strong>'+escapeAdminHtml(acceptedNextTitle)+'</strong><span>'+escapeAdminHtml(acceptedNextCopy)+'</span></div><button type="button" onclick="openBikeSalesNextTask('+dealId+');return false;">'+escapeAdminHtml(acceptedNextButton)+'</button></div>'
+    ? '<div class="deal-section-next-action"><div><div class="eyebrow">Your next action</div><strong>'+escapeAdminHtml(acceptedNextTitle)+'</strong><span>'+escapeAdminHtml(acceptedNextCopy)+'</span></div><button type="button" onclick="openBikeSalesAction('+dealId+',\''+acceptedNextTab+'\');return false;">'+escapeAdminHtml(acceptedNextButton)+'</button></div>'
     : status==="Ready for Offer"
       ? '<div class="deal-section-next-action complete"><div><div class="eyebrow">Your next action</div><strong>Prepare the Formal Offer</strong><span>Commercial Setup is complete. Review the Formal Offer before sending anything to the buyer.</span></div><button type="button" onclick="openDealOfferModal('+id+');return false;">PREPARE FORMAL OFFER →</button></div>'
       : '<div class="deal-section-next-action"><div><div class="eyebrow">Your next action</div><strong>'+(costsReviewed?'Prepare the Formal Offer':'Complete the commercial cost checks')+'</strong><span>'+(quoteSnapshotLocked?'The customer-facing sourced-match price is already fixed from what the buyer saw. The Motorcycle Price, AnyBike Sourcing Fee and UK Collection & Delivery components are carried across automatically and cannot be added again here. ':'')+(costsReviewed?'Seller price and cost checks are complete. Continue to prepare the Formal Offer.':'Review each red cost box. Enter a genuine cost where one applies, or tick No extra cost for this deal. When all four are reviewed they will turn green.')+'</span></div><button type="button" onclick="proceedDealCommercialSetup('+id+');return false;">'+(costsReviewed?'PREPARE FORMAL OFFER →':'REVIEW COSTS')+'</button></div>';
@@ -15720,8 +15720,13 @@ function openAnyBikeDealFromUrl(){
   }
 
   setTimeout(function(){
-    scrollBikeSalesTargetIntoView(row);
-  },0);
+    if(requestedTab){
+      const target=row.querySelector('.sales-tab-panel[data-tab="'+requestedTab+'"]');
+      scrollBikeSalesTargetIntoView(target || row);
+    }else{
+      scrollBikeSalesTargetIntoView(row);
+    }
+  },60);
 }
 
 function bikeSalesDealById(dealId){
@@ -16054,10 +16059,11 @@ function bikeSalesEffectivePrimary(action,flags,deal){
     return "Find Potential Matches";
   }
 
-  // Once the customer has accepted, never send the Deal backwards into
-  // pre-sale Commercial Setup / Formal Offer work. From that point onward,
-  // only genuine post-acceptance blockers and operational stages may be primary.
-  if(flags.offerAccepted){
+  // Once the customer has accepted OR the motorcycle is already secured,
+  // never send the Deal backwards into pre-sale Commercial Setup / Formal Offer.
+  // Secured is itself proof that this Deal has passed the pre-sale stages.
+  const postAcceptance=flags.offerAccepted || flags.secured;
+  if(postAcceptance){
     if(flags.depositRequired>0 && flags.depositOutstanding>0.009) return "Deposit Due";
     if(!flags.purchaseClearanceAllowed) return "Review Buyer Onboarding";
     if(!flags.customerPaid) return "Customer Balance Due";
