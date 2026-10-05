@@ -3430,6 +3430,73 @@ setText("kpiPrivateSellers", countSourceType([
         if(key){ routeByDeal.set(key,row); }
       });
 
+      /*
+        Customer shipping choices are real admin work.
+        Keep them in Your Next Actions until AnyBike explicitly approves or
+        declines the Deal-specific handover selection. Reading the bell
+        notification must not clear this task.
+      */
+      try{
+        const pendingHandoverResult=await sb
+          .from("deal_customer_handover_selections")
+          .select("id,customer_id,deal_id,handover_plan_id,status,selected_at,updated_at,buyer_contacted_shipper,shipper_agreed_to_handle")
+          .eq("status","Customer Selected")
+          .order("selected_at",{ascending:true});
+
+        if(pendingHandoverResult.error){ throw pendingHandoverResult.error; }
+
+        const pendingRows=pendingHandoverResult.data || [];
+        const pendingPlanIds=Array.from(new Set(pendingRows.map(function(row){
+          return Number(row.handover_plan_id||0);
+        }).filter(Boolean)));
+        const planById=new Map();
+
+        if(pendingPlanIds.length){
+          const planResult=await sb
+            .from("customer_handover_plans")
+            .select("id,plan_name,uk_handover_point,freight_forwarder_name,shipping_company_name,uk_handover_city,uk_handover_postcode")
+            .in("id",pendingPlanIds);
+          if(!planResult.error){
+            (planResult.data || []).forEach(function(plan){
+              planById.set(String(plan.id),plan);
+            });
+          }
+        }
+
+        pendingRows.forEach(function(selection){
+          const deal=dealRows.find(function(row){
+            return String(row.deal_id||"")===String(selection.deal_id||"");
+          }) || {};
+          const plan=planById.get(String(selection.handover_plan_id||"")) || {};
+          const shipper=plan.freight_forwarder_name || plan.shipping_company_name || plan.plan_name || "Customer shipper";
+          const handover=[plan.uk_handover_point,plan.uk_handover_city,plan.uk_handover_postcode].filter(Boolean).join(" · ");
+          const customer=deal.buyer_business_name || deal.buyer_contact_name || deal.buyer_email || "Buyer";
+          const bike=deal.deal_title || deal.motorcycle_title || deal.deal_number || ("Deal "+selection.deal_id);
+          const confirmed=selection.buyer_contacted_shipper && selection.shipper_agreed_to_handle;
+
+          actions.push(createDashboardAction({
+            group:"operations",
+            priority:"urgent",
+            icon:"🚢",
+            type:"Shipping approval",
+            title:"Approve customer shipping choice",
+            customer:customer,
+            bike:bike,
+            country:deal.buyer_country || "",
+            assigned:"Bike Sales / Operations",
+            preview:(deal.deal_number ? deal.deal_number+" · " : "")+
+              shipper+(handover ? " · "+handover : "")+
+              (confirmed ? " · Buyer has confirmed contact and shipper acceptance." : " · Customer shipping confirmation needs review."),
+            age:timeAgo(selection.selected_at || selection.updated_at),
+            createdAt:selection.selected_at || selection.updated_at,
+            url:"admin-enquiries.html?deal="+encodeURIComponent(selection.deal_id)+"&tab=offer&action=shipping-approval",
+            openLabel:"Review shipping choice →"
+          }));
+        });
+      }catch(handoverActionError){
+        console.warn("Pending customer shipping actions could not be added to Dashboard:",handoverActionError);
+      }
+
       const actionableDeals=dealRows.filter(function(deal){
         const status=String(deal.deal_status || "").toLowerCase();
         return Number(deal.motorcycle_count || 0)>0 &&
