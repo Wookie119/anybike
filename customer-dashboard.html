@@ -460,6 +460,13 @@ button,input,select,textarea{font:inherit}
 .handpicked-vq{display:flex;align-items:center;gap:6px;margin:0}
 .handpicked-vq-badge{width:28px;height:32px;clip-path:polygon(50% 0,94% 15%,88% 72%,50% 100%,12% 72%,6% 15%);background:linear-gradient(145deg,#f6df7a,#b98615);color:#191304;display:flex;align-items:center;justify-content:center;font-weight:950;font-size:10px;box-shadow:0 2px 8px rgba(0,0,0,.35)}
 .handpicked-vq strong{color:#e8cc6e;font-size:11px}
+.customer-vq{display:inline-flex;align-items:center;gap:8px;margin:8px 0 4px}
+.customer-vq.compact{margin:6px 0 2px}
+.customer-vq-shield{width:30px;height:34px;clip-path:polygon(50% 0,94% 15%,88% 72%,50% 100%,12% 72%,6% 15%);background:linear-gradient(145deg,#f6df7a,#b98615);color:#191304;display:inline-flex;align-items:center;justify-content:center;font-weight:950;font-size:10px;box-shadow:0 2px 8px rgba(0,0,0,.35);flex:0 0 auto}
+.customer-vq strong{display:block;color:#e8cc6e;font-size:12px;line-height:1.1}
+.customer-vq small{display:block;color:#c9c9c9;font-size:9px;line-height:1.2;margin-top:2px}
+.customer-offer-modal-head-copy .customer-vq{margin-top:8px}
+
 .handpicked-view-badge{position:absolute;top:9px;left:9px;z-index:3;padding:6px 9px;border-radius:999px;font-size:10px;font-weight:950;letter-spacing:.06em;text-transform:uppercase;border:1px solid rgba(255,255,255,.18)}
 .handpicked-view-badge.new{background:#ed1c24;color:#fff;border-color:#ed1c24}
 .handpicked-view-badge.viewed{background:#1d2c22;color:#9bf0b8;border-color:#2f8d52}
@@ -3430,6 +3437,7 @@ body.customer-offer-modal-open{overflow:hidden}
         <div>
           <div class="eyebrow">My AnyBike Offer</div>
           <h2 id="customerOfferModalTitle">AnyBike Offer</h2>
+          <div id="customerOfferModalVq"></div>
         </div>
       </div>
       <span class="customer-offer-modal-badge" id="customerOfferModalBadge">AnyBike Offer</span>
@@ -3707,6 +3715,7 @@ function buyerMatchCardHtml(match){
           <div>
             <h3><a class="my-offer-title-link" href="bike-details.html?id=${encodeURIComponent(match.stock_id)}">${safe(title)}</a></h3>
             ${variant ? `<div class="buyer-match-variant">${safe(variant)}</div>` : ""}
+            ${customerVqBadgeHtml(vat,true)}
             <a class="my-offer-view-link" href="bike-details.html?id=${encodeURIComponent(match.stock_id)}">View Motorcycle Details →</a>
           </div>
           <span class="buyer-match-status">${safe(buyerMatchStatusLabel(match))}</span>
@@ -3836,6 +3845,16 @@ async function chooseBuyerMatchCount(requestItemId,count,button){
 }
 
 
+
+function customerVatQualifying(value){
+  const text=String(value||"").trim().toLowerCase();
+  return text==="vat qualifying" || text==="full vat" || text.includes("vat qualifying");
+}
+function customerVqBadgeHtml(value,compact=false){
+  if(!customerVatQualifying(value)) return "";
+  return '<div class="customer-vq '+(compact?'compact':'')+'"><span class="customer-vq-shield">VQ</span><div><strong>VAT Qualifying</strong><small>Dealer-confirmed VAT status</small></div></div>';
+}
+
 function normaliseDeal360OfferForDashboard(offer){
   const offerId=Number(offer?.offer_id || 0);
   const syntheticId=900000000000 + offerId;
@@ -3954,6 +3973,7 @@ function customerOfferCardHtml(match){
           <div>
             <h3><a class="my-offer-title-link" href="#" onclick="event.preventDefault();openCustomerOfferModal(${Number(match.id)})">${safe(title)}</a></h3>
             ${variant ? `<div class="buyer-match-variant">${safe(variant)}</div>` : ""}
+            ${customerVqBadgeHtml(match.stock_vat_status,true)}
             <a class="my-offer-view-link" href="#" onclick="event.preventDefault();openCustomerOfferModal(${Number(match.id)})">Review Formal Offer →</a>
           </div>
           <span class="my-offer-badge">${expired ? "Expired Offer" : (match?._offer_source==="deal360" ? "Formal Offer" : "AnyBike Offer")}</span>
@@ -4089,6 +4109,7 @@ function customerOfferModalHtml(match){
             <div class="customer-offer-bike-info">
               <h3>${safe(title)}</h3>
               ${variant ? `<div class="customer-offer-variant">${safe(variant)}</div>` : ""}
+              ${customerVqBadgeHtml(vat)}
               <div class="customer-offer-spec-grid">
                 <div class="customer-offer-spec"><span>Year</span><strong>${safe(year)}</strong></div>
                 <div class="customer-offer-spec"><span>Mileage</span><strong>${safe(customerOfferMileage(match))}</strong></div>
@@ -4240,6 +4261,8 @@ function openCustomerOfferModal(matchId){
   openCustomerOfferMatchId=Number(matchId);
   const title=[match.stock_make,match.stock_model].filter(Boolean).join(" ") || "Motorcycle";
   if(titleEl) titleEl.textContent=title;
+  const modalVq=document.getElementById("customerOfferModalVq");
+  if(modalVq) modalVq.innerHTML=customerVqBadgeHtml(match.stock_vat_status,true);
 
   const expiresAt=match.confirmed_offer_expires_at || null;
   const expired=expiresAt ? new Date(expiresAt).getTime()<=Date.now() : false;
@@ -4834,6 +4857,7 @@ function customerPurchaseCardHtml(match){
           <div>
             <h3>${safe(title)}</h3>
             ${variant ? `<div class="buyer-match-variant">${safe(variant)}</div>` : ""}
+            ${customerVqBadgeHtml(purchase?.vat_status || match.stock_vat_status,true)}
           </div>
           <span class="my-purchase-badge">Offer Accepted</span>
         </div>
