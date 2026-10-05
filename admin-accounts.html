@@ -694,6 +694,10 @@ function paymentStatusBadge(item){
     return '<span class="status ready">Posted</span>';
   }
   if(item.advice_status==="Verified" && item.ledger_status==="Ready to Post"){
+    const preview=paymentPostingPreviews.get(Number(item.payment_advice_id))||{};
+    if(preview.ready_to_post===false){
+      return '<span class="status ready">Bank Verified</span><span class="status bad">Posting Exception</span>';
+    }
     return '<span class="status ready">Bank Verified</span><span class="status review">Ready to Post</span>';
   }
   if(item.advice_status==="Rejected"){
@@ -768,11 +772,11 @@ function postingBox(item){
     ${
       preview.ready_to_post
       ? '<div class="preview-ready"><strong>Ready to Post.</strong> This will write the verified bank receipt to the authoritative Deal 360 customer payment ledger.</div>'
-      : `<div class="preview-issues"><strong>Cannot post yet:</strong><br>${issues.length?issues.map(esc).join("<br>"):"Posting preview is not ready."}</div>`
+      : `<div class="preview-issues"><strong>Posting exception — do not post this payment to the Deal as currently allocated.</strong><br>${issues.length?issues.map(esc).join("<br>"):"The current allocation would not produce a valid Deal 360 ledger entry."}<br><br><strong>What this means:</strong> the bank receipt is verified, but the Deal no longer has enough customer balance remaining for this allocation. Review whether the payment should be reallocated, held as customer credit, or refunded.</div>`
     }
 
     <div class="verify-actions">
-      <button class="primary" type="button" ${preview.ready_to_post?"":"disabled"} onclick="postPaymentAdvice(${id})">Post to Deal 360</button>
+      <button class="primary" type="button" ${preview.ready_to_post?"":"disabled"} onclick="postPaymentAdvice(${id})">${preview.ready_to_post?"Post to Deal 360":"Posting blocked"}</button>
       <button type="button" onclick="refreshPaymentPreview(${id})">Refresh Preview</button>
     </div>
   </div>`;
@@ -791,12 +795,20 @@ function renderPaymentQueue(){
   });
 
   const awaiting=all.filter(x=>x.advice_status==="Awaiting Verification").length;
-  const ready=all.filter(x=>x.advice_status==="Verified" && x.ledger_status==="Ready to Post").length;
+  const ready=all.filter(x=>{
+    if(!(x.advice_status==="Verified" && x.ledger_status==="Ready to Post"))return false;
+    return paymentPostingPreviews.get(Number(x.payment_advice_id))?.ready_to_post!==false;
+  }).length;
+  const exceptions=all.filter(x=>
+    x.advice_status==="Verified" &&
+    x.ledger_status==="Ready to Post" &&
+    paymentPostingPreviews.get(Number(x.payment_advice_id))?.ready_to_post===false
+  ).length;
   const posted=all.filter(x=>x.ledger_status==="Posted").length;
   const awaitingAmount=all
     .filter(x=>x.advice_status==="Awaiting Verification")
     .reduce((sum,x)=>sum+Number(x.reported_amount_gbp||0),0);
-  const attention=all.filter(x=>x.advice_status==="Rejected").length;
+  const attention=all.filter(x=>x.advice_status==="Rejected").length+exceptions;
 
   document.getElementById("paymentKpis").innerHTML=`
     <div class="kpi warn"><span>Awaiting Verification</span><strong>${awaiting}</strong></div>
