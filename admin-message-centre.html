@@ -465,9 +465,20 @@ function safeSourceHref(v){
 }
 function money(v){const n=Number(v);return v&&Number.isFinite(n)?"£"+n.toFixed(2):"—"}
 function adminWorkflowMessageHtml(value){
-  const text=String(value||"");
+  let text=String(value||"");
   const actions=[];
   const seen=new Set();
+
+  // Make shared sourcing selections behave like actions, not raw URLs.
+  const sourcingMatches=text.match(/\/customer-sourced-matches\.html\?[^\s<]+/ig)||[];
+  sourcingMatches.forEach(function(url){
+    if(seen.has(url))return;
+    seen.add(url);
+    actions.push({url:url,label:"View Hand-picked Selection →",kind:"sourcing"});
+    text=text.replace("View your private selection: "+url,"");
+    text=text.replace(url,"");
+  });
+
   const patterns=[
     {re:/\/admin-accounts\.html\?payment_advice=\d+/ig,label:"Verify Payment →"},
     {re:/\/admin-enquiries\.html\?deal=\d+(?:&tab=[A-Za-z0-9_-]+)?/ig,label:"Open Sale →"},
@@ -481,11 +492,21 @@ function adminWorkflowMessageHtml(value){
       actions.push({url:url,label:item.label});
     });
   });
+
+  // Presentation cleanup only; stored audit messages remain untouched.
+  text=text
+    .replace(/motorcycless/gi,"motorcycles")
+    .replace(/motorcycles motorcycles/gi,"motorcycles")
+    .replace(/\n{3,}/g,"\n\n")
+    .trim();
+
   const body=safe(text);
   if(!actions.length)return body;
-  return body+'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">'+
+  return body+'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">'+
     actions.map(function(a){
-      return '<a href="'+safe(a.url)+'" style="display:inline-flex;align-items:center;justify-content:center;padding:9px 12px;border-radius:9px;background:#ed1c24;color:#fff;text-decoration:none;font-weight:900;font-size:12px">'+safe(a.label)+'</a>';
+      const background=a.kind==="sourcing"?"#fff":"#ed1c24";
+      const colour=a.kind==="sourcing"?"#111":"#fff";
+      return '<a href="'+safe(a.url)+'" style="display:inline-flex;align-items:center;justify-content:center;padding:11px 16px;border-radius:999px;background:'+background+';color:'+colour+';text-decoration:none;font-weight:950;font-size:12px">'+safe(a.label)+'</a>';
     }).join("")+
     '</div>';
 }
