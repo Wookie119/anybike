@@ -592,6 +592,36 @@ panel.classList.toggle("open");
 }
 }
 
+let anybikeAdminBellHoverCloseTimer=null;
+function anybikeOpenAdminBellFromHover(){
+  const panel=document.getElementById("adminNotificationPanel");
+  if(anybikeAdminBellHoverCloseTimer){
+    clearTimeout(anybikeAdminBellHoverCloseTimer);
+    anybikeAdminBellHoverCloseTimer=null;
+  }
+  if(panel)panel.classList.add("open");
+}
+function anybikeScheduleAdminBellHoverClose(){
+  if(anybikeAdminBellHoverCloseTimer)clearTimeout(anybikeAdminBellHoverCloseTimer);
+  anybikeAdminBellHoverCloseTimer=setTimeout(function(){
+    const panel=document.getElementById("adminNotificationPanel");
+    if(panel)panel.classList.remove("open");
+  },260);
+}
+document.addEventListener("mouseover",function(event){
+  const bell=event.target.closest?.(".admin-bell");
+  const panel=event.target.closest?.("#adminNotificationPanel");
+  if(bell||panel)anybikeOpenAdminBellFromHover();
+});
+document.addEventListener("mouseout",function(event){
+  const fromBell=event.target.closest?.(".admin-bell");
+  const fromPanel=event.target.closest?.("#adminNotificationPanel");
+  if(!fromBell&&!fromPanel)return;
+  const next=event.relatedTarget;
+  if(next?.closest?.(".admin-bell")||next?.closest?.("#adminNotificationPanel"))return;
+  anybikeScheduleAdminBellHoverClose();
+});
+
 document.addEventListener("click", function(e){
 var panel = document.getElementById("adminNotificationPanel");
 var bell = document.querySelector(".admin-bell");
@@ -693,7 +723,16 @@ async function anybikeRefreshAdminBellV2(){
       const created=n.created_at
         ? escapeNotificationHtml(new Date(n.created_at).toLocaleString("en-GB"))
         : "";
-      const rawLink=String(n.link || "admin-dashboard.html");
+      let rawLink=String(n.link || "admin-dashboard.html");
+      if(/Buyer interested/i.test(String(n.title||"")) && /admin-enquiries\.html\?deal=\d+/i.test(rawLink)){
+        try{
+          const parsed=new URL(rawLink,window.location.origin);
+          if(parsed.searchParams.get("candidate") && !parsed.searchParams.get("action")){
+            parsed.searchParams.set("action","availability");
+          }
+          rawLink=parsed.pathname+parsed.search;
+        }catch(_error){}
+      }
       const link=escapeNotificationHtml(rawLink);
       const actionLabel=/admin-enquiries\.html\?deal=/i.test(rawLink)
         ? "OPEN DEAL 360 →"
@@ -732,24 +771,25 @@ async function anybikeRefreshAdminBellV2(){
 }
 
 
-async function anybikeOpenAdminNotificationV2(event,id,target){
+function anybikeOpenAdminNotificationV2(event,id,target){
   event?.preventDefault?.();
 
   const client=getAdminSupabaseClient();
-
   if(client && id){
-    try{
-      await client
-        .from("admin_notifications")
-        .update({is_read:true})
-        .eq("id",id);
-    }catch(error){
-      console.warn("Admin notification read update failed",error);
-    }
+    client
+      .from("admin_notifications")
+      .update({is_read:true})
+      .eq("id",id)
+      .then(function(result){
+        if(result?.error)console.warn("Admin notification read update failed",result.error);
+      })
+      .catch(function(error){
+        console.warn("Admin notification read update failed",error);
+      });
   }
 
   if(target){
-    window.location.href=target;
+    window.location.assign(target);
   }
 
   return false;
