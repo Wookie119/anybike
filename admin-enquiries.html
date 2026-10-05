@@ -8895,8 +8895,8 @@ async function proceedDealCommercialSetup(dealMotorcycleId){
   const id=Number(dealMotorcycleId);
   if(!Number.isFinite(id)) return;
 
-  const sale=Number(document.getElementById("deal-commercial-sale-"+id)?.value||0);
-  const seller=Number(document.getElementById("deal-commercial-seller-"+id)?.value||0);
+  const sale=Number(String(document.getElementById("deal-commercial-sale-"+id)?.value||"").replace(/[^0-9.-]/g,""))||0;
+  const seller=Number(String(document.getElementById("deal-commercial-seller-"+id)?.value||"").replace(/[^0-9.-]/g,""))||0;
 
   if(sale<=0){
     alert("Your next action: enter the Motorcycle Sale Price.");
@@ -8926,11 +8926,15 @@ async function proceedDealCommercialSetup(dealMotorcycleId){
   const status=document.getElementById("deal-commercial-status-"+id);
   if(status){ status.value="Ready for Offer"; }
 
-  await saveDealCommercialSetup(id,{
+  const saved=await saveDealCommercialSetup(id,{
     skipConfirm:true,
     skipSuccessAlert:true,
-    continueToOffer:true
+    preserveView:false
   });
+
+  if(saved){
+    openDealOfferModal(id);
+  }
 }
 
 
@@ -8942,6 +8946,15 @@ function anyBikeDealAdvertisedReferencePrice(deal){
 
   const snapshot=Number(bike.advertised_price_snapshot_gbp || 0);
   if(snapshot>0){ return snapshot; }
+
+  const sourceCandidateId=Number(bike.source_candidate_id || 0);
+  if(sourceCandidateId>0){
+    const candidate=(adminDealCandidates||[]).find(function(row){
+      return Number(row.id)===sourceCandidateId;
+    }) || {};
+    const candidateAdvertised=Number(candidate.seller_asking_price_gbp || 0);
+    if(candidateAdvertised>0){ return candidateAdvertised; }
+  }
 
   const enquiry=anyBikeDealSourceEnquiry(deal);
   const livePrice=Number(enquiry && enquiry.available_stock && enquiry.available_stock.price_gbp || 0);
@@ -9050,14 +9063,16 @@ function renderAnyBikeDealCommercialSetup(deal){
     ${quoteSnapshotLocked && !sentPriceLocked ? '<div class="anybike-commercial-lock"><strong>Buyer quote snapshot — protected</strong><span>These customer-facing amounts came from the motorcycle match already shown to the buyer. They are carried into Deal 360 automatically so Commercial Setup cannot accidentally charge the sourcing fee or UK collection/delivery twice.</span></div>' : ''}
     <div class="anybike-commercial-grid">
       <div class="anybike-commercial-field">
-        <label>Original Advertised Price</label>
+        <label>Seller Advertised Price</label>
         <input type="text" value="${anyBikeDealAdvertisedReferencePrice(deal) ? anyBikeDealMoney(anyBikeDealAdvertisedReferencePrice(deal)) : "Not available"}" readonly>
-        <small style="display:block;margin-top:5px;color:#777;font-size:10px">Reference only — not the AnyBike customer price</small>
+        <small style="display:block;margin-top:5px;color:#777;font-size:10px">Original seller asking price when AnyBike sourced the motorcycle</small>
       </div>
 
       <div class="anybike-commercial-field">
-        <label>Motorcycle Sale Price</label>
-        <input id="deal-commercial-sale-${id}" type="number" min="0" step="0.01" value="${sale===null || sale===undefined ? "" : Number(sale).toFixed(2)}" placeholder="Not agreed" oninput="syncDealCommercialSourcingFee(${id},false);updateDealCommercialPreview(${id})"${priceLockAttribute}${quoteSnapshotLocked && !sentPriceLocked ? " readonly" : ""}>
+        <label>Customer Motorcycle Price</label>
+        ${quoteSnapshotLocked
+          ? '<input id="deal-commercial-sale-'+id+'" type="text" value="'+(sale===null||sale===undefined?"":anyBikeDealMoney(sale))+'" readonly>'
+          : '<input id="deal-commercial-sale-'+id+'" type="number" min="0" step="0.01" value="'+(sale===null||sale===undefined?"":Number(sale).toFixed(2))+'" placeholder="Not agreed" oninput="syncDealCommercialSourcingFee('+id+',false);updateDealCommercialPreview('+id+')"'+priceLockAttribute+'>'}
       </div>
 
       <div class="anybike-commercial-field">
@@ -9073,8 +9088,10 @@ function renderAnyBikeDealCommercialSetup(deal){
       </div>
 
       <div class="anybike-commercial-field">
-        <label>Agreed Seller Purchase Price</label>
-        <input id="deal-commercial-seller-${id}" type="number" min="0" step="0.01" value="${seller===null || seller===undefined ? "" : Number(seller).toFixed(2)}" placeholder="Not confirmed" oninput="updateDealCommercialPreview(${id})" onblur="scheduleDealCommercialAutosave(${id})"${acceptedDisableAttribute}>
+        <label>AnyBike Cost Price</label>
+        ${quoteSnapshotLocked
+          ? '<input id="deal-commercial-seller-'+id+'" type="text" value="'+(seller===null||seller===undefined?"":anyBikeDealMoney(seller))+'" readonly>'
+          : '<input id="deal-commercial-seller-'+id+'" type="number" min="0" step="0.01" value="'+(seller===null||seller===undefined?"":Number(seller).toFixed(2))+'" placeholder="Not confirmed" oninput="updateDealCommercialPreview('+id+')" onblur="scheduleDealCommercialAutosave('+id+')"'+acceptedDisableAttribute+'>'}
       </div>
 
       <div class="anybike-commercial-field">
@@ -9157,7 +9174,6 @@ function renderAnyBikeDealCommercialSetup(deal){
         ${hasSavedProfileShipper
           ? '<span class="anybike-commercial-autosave saved">Saved shipper: '+escapeAdminHtml(profileShipper)+(profileHandover?' · '+escapeAdminHtml(profileHandover):'')+'</span>'
           : (!acceptedLocked ? '<button type="button" class="secondary" onclick="requestBuyerShippingDetailsForDeal('+dealId+',this);return false;">Request shipper details</button>' : '')}
-        ${acceptedLocked ? '' : '<button class="anybike-formal-offer-button" type="button" onclick="proceedDealCommercialSetup('+id+');return false;">'+(sentPriceLocked?'Review Sent Formal Offer':'Prepare Formal Offer')+'</button>'}
       </div>
       <div id="deal-commercial-shipping-request-${dealId}" style="margin-top:7px;color:#888;font-size:11px"></div>
     </div>
@@ -11306,15 +11322,33 @@ function openSelectedCandidateCommercialSetup(dealId,dealMotorcycleId){
 const candidateSelectBusy=new Set();
 
 async function selectCandidateForDeal(candidateId){
-  const row=(adminDealCandidates || []).find(function(item){
+  let row=(adminDealCandidates || []).find(function(item){
     return Number(item.id)===Number(candidateId);
   });
 
   if(!row){ return; }
 
   if(!candidateCanSelect(row)){
-    alert("Live seller availability must be confirmed before this motorcycle can be selected for the Deal.");
-    return;
+    try{
+      const latest=await sb
+        .from("anybike_deal_candidates")
+        .select("*")
+        .eq("id",Number(candidateId))
+        .maybeSingle();
+
+      if(!latest.error && latest.data){
+        row=latest.data;
+        const index=(adminDealCandidates||[]).findIndex(function(item){
+          return Number(item.id)===Number(candidateId);
+        });
+        if(index>=0){ adminDealCandidates[index]=Object.assign({},adminDealCandidates[index],latest.data); }
+      }
+    }catch(_error){}
+
+    if(!candidateCanSelect(row)){
+      alert("Live seller availability must be confirmed before this motorcycle can be selected for the Deal.");
+      return;
+    }
   }
 
   if(candidateSelectBusy.has(String(candidateId))) return;
