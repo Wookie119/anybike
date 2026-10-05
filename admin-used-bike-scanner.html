@@ -39,6 +39,9 @@ textarea{min-height:120px;resize:vertical;white-space:pre-wrap;overflow-wrap:any
 .note{font-size:12px;color:#999;line-height:1.45}.source-link{color:#ff7378;text-decoration:underline;word-break:break-all}
 .preview-thumbs{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}.preview-thumbs img{width:72px;height:54px;object-fit:cover;border-radius:8px;border:1px solid #333;background:#050505}
 .preview-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:2000;align-items:center;justify-content:center;padding:18px}.preview-backdrop.open{display:flex}.preview-modal{width:min(980px,100%);max-height:92vh;overflow:auto;background:#111;border:1px solid #3a3a3a;border-radius:18px;padding:20px}.preview-close{float:right}.buyer-preview-card{background:#171717;border:1px solid #2b2b2b;border-radius:16px;overflow:hidden}.buyer-preview-main{width:100%;max-height:520px;object-fit:contain;background:#050505}.buyer-preview-body{padding:18px}.buyer-preview-title{font-size:26px;font-weight:950}.buyer-preview-gallery{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.buyer-preview-gallery img{width:120px;height:90px;object-fit:cover;border:1px solid #333;border-radius:9px;cursor:pointer}
+.vq-wrap{display:inline-flex;align-items:center;gap:8px;margin-top:8px}
+.vq-shield{width:38px;height:44px;clip-path:polygon(50% 0,94% 15%,88% 72%,50% 100%,12% 72%,6% 15%);background:linear-gradient(145deg,#f6df7a,#b98615);color:#191304;display:flex;align-items:center;justify-content:center;font-weight:950;font-size:13px;letter-spacing:.03em}
+.vq-copy{display:grid;gap:1px}.vq-copy strong{color:#e8cc6e;font-size:12px}.vq-copy span{font-size:10px;color:#aaa}
 .sharebar{position:relative;background:#0d0d0d;border:1px solid #333;border-radius:16px;padding:14px;z-index:1;margin-top:18px}.sharebar.collapsed .share-body{display:none}.sharebar .share-toggle{display:flex;justify-content:space-between;align-items:center;gap:12px;cursor:pointer}.sharebar .share-body{margin-top:12px}
 @media(max-width:1000px){.grid{grid-template-columns:1fr 1fr}.cols{grid-template-columns:1fr}.scan-head{flex-direction:column}.thumb{width:100%;height:200px}}
 @media(max-width:650px){.content{padding:12px}.grid{grid-template-columns:1fr}}
@@ -135,6 +138,7 @@ let sourceConnectorId=null;
 let sourceCommercialHistory=new Map();
 let currentBuyerSourcingPlan=null;
 let buyerSafePreparationRunning=false;
+let liveSourceVatFlags=new Map();
 const sourcingParams=new URLSearchParams(location.search);
 function sourcingContextQuery(extra){
   const p=new URLSearchParams();
@@ -155,6 +159,21 @@ function syncSourcingNav(){
   document.getElementById("sourcingContext").innerHTML=bits.join(" · ");
 }
 
+
+function vatBadgeForScan(s){
+  const liveId=Number(s?.extraction?.live_source_item_id||0);
+  const v=liveSourceVatFlags.get(liveId);
+  if(!v?.vat_qualifying)return "";
+  return '<div class="vq-wrap" title="Supplying dealer identifies this motorcycle as VAT Qualifying"><span class="vq-shield">VQ</span><span class="vq-copy"><strong>VAT Qualifying</strong><span>Dealer-confirmed VAT status</span></span></div>';
+}
+async function loadLiveSourceVatFlags(){
+  const ids=[...new Set((scanned||[]).map(s=>Number(s?.extraction?.live_source_item_id||0)).filter(Boolean))];
+  liveSourceVatFlags=new Map();
+  if(!ids.length)return;
+  const {data,error}=await sb().rpc("admin_get_live_source_vat_flags_v1",{p_item_ids:ids});
+  if(error)return;
+  (data||[]).forEach(x=>liveSourceVatFlags.set(Number(x.id),x));
+}
 function esc(v){return String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;")}
 function gbp(v){const n=Number(v);return Number.isFinite(n)?new Intl.NumberFormat("en-GB",{style:"currency",currency:"GBP"}).format(n):"—"}
 function nval(id,def=0){const n=Number(document.getElementById(id)?.value);return Number.isFinite(n)?n:def}
@@ -341,7 +360,7 @@ function previewBuyerMatch(scanId){
   const price=Number(s.anybike_price_gbp)>0?gbp(s.anybike_price_gbp):"Price on request";
   document.getElementById("buyerPreviewContent").innerHTML='<article class="buyer-preview-card">'+
     '<img id="buyerPreviewMain" class="buyer-preview-main" src="'+esc(first)+'" onerror="this.src=\'/anybike-logo-new.jpg\'">'+
-    '<div class="buyer-preview-body"><div class="buyer-preview-title">'+esc(ttl)+'</div>'+
+    '<div class="buyer-preview-body"><div class="buyer-preview-title">'+esc(ttl)+'</div>'+vatBadgeForScan(s)+
     '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">'+facts.map(x=>'<span class="tag">'+esc(x)+'</span>').join("")+'</div>'+
     '<div class="money" style="margin-top:12px">'+price+'</div>'+
     '<div style="margin-top:12px;color:#ccc;line-height:1.55">'+esc(buyerDescriptionForDisplay(s)||"Selected by AnyBike for your requirements.")+'</div>'+
@@ -368,7 +387,7 @@ function cardHtml(s,saved){
             '<button type="button" class="btn green" style="margin-top:7px" onclick="prepareBuyerSafeImages('+id+','+Number(s.extraction.live_source_item_id)+')">Prepare clean image</button>'+
             '<span id="buyer-safe-top-status-'+id+'" class="status" style="margin-left:8px"></span></div>')
         :'')+
-    '</div><div style="flex:1"><div class="scan-title">'+esc([s.year,s.make,s.model,cleanVariantText(s.variant)].filter(Boolean).join(" ")||"Advert needs review")+'</div>'+
+    '</div><div style="flex:1"><div class="scan-title">'+esc([s.year,s.make,s.model,cleanVariantText(s.variant)].filter(Boolean).join(" ")||"Advert needs review")+'</div>'+vatBadgeForScan(s)+
     '<span class="tag '+(fail?"fail":"ready")+'">'+esc(s.scan_status||"review")+'</span><span class="tag">'+esc(s.source_domain||"source")+'</span>'+
     (s.source_url?'<div style="margin-top:7px"><a class="source-link" href="'+esc(s.source_url)+'" target="_blank">Open original advert ↗</a></div>':'')+
     (!fail&&!isLiveSource?'<div style="margin-top:8px"><button type="button" class="btn green" onclick="addToLiveSource('+id+')">Save to Live Source Hub</button></div>':'')+
@@ -586,6 +605,7 @@ async function loadBatch(id){
   const {data,error}=await sb().rpc("admin_get_used_bike_scan_batch_v1",{p_batch_id:Number(id)});
   if(error){document.getElementById("scanStatus").className="status bad";document.getElementById("scanStatus").textContent=error.message;return}
   currentBatch=data;currentBatchId=Number(id);scanned=data.scans||[];
+  await loadLiveSourceVatFlags();
   await loadSourceCommercialHistory();
   document.getElementById("newBatchPanel").style.display="none";
   document.getElementById("batchSummary").style.display="block";
