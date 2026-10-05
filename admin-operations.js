@@ -143,6 +143,10 @@
       .ab-move-warning{margin:0 14px 12px;padding:10px 11px;border:1px solid rgba(255,181,71,.3);border-radius:8px;background:#211707;color:#ffd18a;font-size:11px;line-height:1.4}
       .ab-move-warning.ab-move-ready{border-color:rgba(47,141,85,.5);background:#102719;color:#9cf0b5}
       .ab-move-booked{margin:0 16px 14px;padding:12px 14px;border:1px solid rgba(47,141,85,.4);border-radius:10px;background:#102719;color:#9cf0b5}
+      .ab-collect-items{grid-column:1/-1;display:grid;gap:8px}
+      .ab-collect-item-row{display:grid;grid-template-columns:86px 150px minmax(220px,1fr) auto;gap:8px;align-items:center;padding:8px;border:1px solid rgba(255,255,255,.09);border-radius:9px;background:#0b0b0b}
+      .ab-collect-item-row input,.ab-collect-item-row select{width:100%;box-sizing:border-box;border:1px solid #353535;border-radius:7px;background:#070707;color:#fff;padding:8px}
+      .ab-collect-item-empty{padding:10px;border:1px dashed rgba(255,255,255,.15);border-radius:8px;color:#999}
       .ab-ops-progress{margin:0 16px 14px;padding:12px 14px;border:1px solid rgba(255,255,255,.09);border-radius:10px;background:#0d0d0d}
       .ab-ops-progress-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:9px}
       .ab-ops-progress-head span{color:#888;font-size:10px;font-weight:950;text-transform:uppercase;letter-spacing:.06em}
@@ -607,6 +611,107 @@
     return state;
   }
 
+  function moveCollectionItemsText(items){
+    const rows=Array.isArray(items)?items.filter(function(item){
+      return String(item?.custody_status||"")!=="not_applicable" && String(item?.description||"").trim();
+    }):[];
+    if(!rows.length) return "";
+    return rows.map(function(item){
+      const qty=Math.max(1,Number(item.expected_quantity||1));
+      return "- "+qty+" x "+String(item.description||"").trim();
+    }).join("\n");
+  }
+
+  function mergeMoveCollectionInstructions(existing,items){
+    const start="[COLLECTION ITEMS]";
+    const end="[/COLLECTION ITEMS]";
+    let manual=String(existing||"");
+    const s=manual.indexOf(start);
+    const e=manual.indexOf(end);
+    if(s>=0 && e>=s){
+      manual=(manual.slice(0,s)+manual.slice(e+end.length)).trim();
+    }
+    const itemText=moveCollectionItemsText(items);
+    const block=itemText ? start+"\n"+itemText+"\n"+end : "";
+    return [block,manual].filter(Boolean).join("\n\n");
+  }
+
+  function renderMoveCollectionItems(id,items){
+    const rows=Array.isArray(items)?items:[];
+    const itemTypes=[
+      ["key","Keys"],
+      ["v5c","V5C / registration document"],
+      ["service_history","Service history"],
+      ["manual","Owner manual / handbook"],
+      ["mot_document","MOT document"],
+      ["accessory","Accessory / spare item"],
+      ["other","Other"]
+    ];
+    const existing=rows.length ? rows.map(function(item){
+      return '<div class="ab-collect-item-row">'+
+        '<input id="ab-collect-item-qty-'+item.id+'" type="number" min="1" step="1" value="'+Math.max(1,Number(item.expected_quantity||1))+'" aria-label="Quantity">'+
+        '<select id="ab-collect-item-type-'+item.id+'">'+itemTypes.map(function(t){return '<option value="'+t[0]+'" '+(String(item.item_type||"")==t[0]?'selected':'')+'>'+t[1]+'</option>';}).join("")+'</select>'+
+        '<input id="ab-collect-item-desc-'+item.id+'" value="'+esc(item.description||"")+'" aria-label="Collection item description">'+
+        '<div style="display:flex;gap:6px">'+
+          '<button type="button" class="ab-ops-button ab-move-secondary" onclick="saveAnyBikeCollectionItem('+id+','+item.id+');return false;">Save</button>'+
+          '<button type="button" class="ab-ops-button ab-move-secondary" onclick="removeAnyBikeCollectionItem('+id+','+item.id+');return false;">Remove</button>'+
+        '</div>'+
+      '</div>';
+    }).join("") : '<div class="ab-collect-item-empty">No collection items recorded yet. Add everything Move must collect with the motorcycle.</div>';
+
+    return existing+
+      '<div class="ab-collect-item-row">'+
+        '<input id="ab-collect-item-new-qty-'+id+'" type="number" min="1" step="1" value="1" aria-label="New item quantity">'+
+        '<select id="ab-collect-item-new-type-'+id+'">'+itemTypes.map(function(t){return '<option value="'+t[0]+'">'+t[1]+'</option>';}).join("")+'</select>'+
+        '<input id="ab-collect-item-new-desc-'+id+'" placeholder="e.g. COC, spare tyre, top box, 2nd key..." aria-label="New collection item description">'+
+        '<button type="button" class="ab-ops-button" onclick="saveAnyBikeCollectionItem('+id+',null);return false;">Add Item</button>'+
+      '</div>';
+  }
+
+  async function saveCollectionItem(dealMotorcycleId,itemId){
+    const id=Number(dealMotorcycleId);
+    const suffix=itemId==null ? "new-"+id : String(itemId);
+    const qtyEl=document.getElementById("ab-collect-item-"+suffix+"-qty") || document.getElementById("ab-collect-item-new-qty-"+id);
+    const typeEl=document.getElementById("ab-collect-item-"+suffix+"-type") || document.getElementById("ab-collect-item-new-type-"+id);
+    const descEl=document.getElementById("ab-collect-item-"+suffix+"-desc") || document.getElementById("ab-collect-item-new-desc-"+id);
+    const description=String(descEl&&descEl.value||"").trim();
+    if(!description){
+      alert("Enter the item Move needs to collect.");
+      if(descEl) descEl.focus();
+      return;
+    }
+    try{
+      const result=await client().rpc("admin_save_collection_item_v1",{
+        p_deal_motorcycle_id:id,
+        p_item_type:String(typeEl&&typeEl.value||"other"),
+        p_description:description,
+        p_expected_quantity:Math.max(1,Number(qtyEl&&qtyEl.value||1)),
+        p_item_id:itemId==null?null:Number(itemId)
+      });
+      if(result.error) throw result.error;
+      moveBookingCache.delete(String(id));
+      await loadMoveBooking(id,true);
+      setTimeout(function(){
+        const section=document.getElementById("ab-move-collection-items-"+id);
+        if(section) section.scrollIntoView({behavior:"smooth",block:"center"});
+      },120);
+    }catch(error){
+      alert("Collection item could not be saved.\n\n"+(error.message||error));
+    }
+  }
+
+  async function removeCollectionItem(dealMotorcycleId,itemId){
+    if(!window.confirm("Remove this item from the Move collection checklist?")) return;
+    try{
+      const result=await client().rpc("admin_remove_collection_item_v1",{p_item_id:Number(itemId)});
+      if(result.error) throw result.error;
+      moveBookingCache.delete(String(dealMotorcycleId));
+      await loadMoveBooking(dealMotorcycleId,true);
+    }catch(error){
+      alert("Collection item could not be removed.\n\n"+(error.message||error));
+    }
+  }
+
   function renderMoveBooking(id,data){
     const host=document.getElementById("ab-move-booking-"+id);
     if(!host) return;
@@ -619,7 +724,8 @@
     const smsMobile=data.sms_mobile || (smsType==="customer"?customerMobile:"+447949574299");
     const movePrice=data.move_price_agreed_gbp == null ? "" : String(data.move_price_agreed_gbp);
     const salesPrice=motorcycle.sales_price_gbp == null ? "" : String(motorcycle.sales_price_gbp);
-    const moveInstructions=data.move_special_instructions||"";
+    const collectionItems=Array.isArray(data.collection_items)?data.collection_items:[];
+    const moveInstructions=mergeMoveCollectionInstructions(data.move_special_instructions||"",collectionItems);
     const moveContactAt=data.move_contact_at_name||sender.contact_name||"";
 
     host.innerHTML=`
@@ -661,6 +767,11 @@
         <div class="ab-move-field"><label>Account Name</label><input value="AnyBike" readonly></div>
         <div class="ab-move-field"><label>Account Number</label><input value="13882" readonly></div>
 
+        <div class="ab-move-section" id="ab-move-collection-items-${id}">Items Move must collect with the motorcycle</div>
+        <div class="ab-collect-items">
+          ${renderMoveCollectionItems(id,collectionItems)}
+        </div>
+
         <div class="ab-move-section" id="ab-move-section-mandatory-${id}">Mandatory Move shipment fields</div>
         <div class="ab-move-field"><label>Vehicle Ready Date *</label><input value="${esc(data.ready_date||"")}" readonly></div>
         <div class="ab-move-field"><label>Shipping Mode *</label><input value="Up to 7 Working days from ready date" readonly></div>
@@ -672,7 +783,7 @@
         <div class="ab-move-field"><label>Buyer needs to pay for the bike — call</label><input value="Anybike 07949574299" readonly></div>
         <div class="ab-move-field"><label>Complete V5 required from seller</label><input value="Yes — buyer is trade" readonly></div>
         <div class="ab-move-field"><label>Contact at name Dealer? *</label><input id="ab-move-contact-at-${id}" value="${esc(moveContactAt)}"></div>
-        <div class="ab-move-field" style="grid-column:1/-1"><label>Special Instructions *</label><textarea id="ab-move-instructions-${id}" placeholder="Special Instructions">${esc(moveInstructions)}</textarea></div>
+        <div class="ab-move-field" style="grid-column:1/-1"><label>Special Instructions *</label><textarea id="ab-move-instructions-${id}" placeholder="Collection items are inserted automatically. Add any other instructions below.">${esc(moveInstructions)}</textarea><div style="margin-top:5px;color:#8f9bab;font-size:10px">The collection-item list above is automatically carried into these Move instructions and into the driver custody checklist.</div></div>
         <div class="ab-move-field"><label>Move Customer Reference</label><input value="${esc(data.deal_number||"")}" readonly></div>
 
         <div class="ab-move-section">Move booking notification preference</div>
@@ -1185,6 +1296,8 @@
   window.updateAnyBikeMoveSmsPreview=updateSmsPreview;
   window.updateAnyBikeMoveCollectionReadiness=updateMoveCollectionReadiness;
   window.continueAnyBikeMoveBooking=continueMoveBooking;
+  window.saveAnyBikeCollectionItem=saveCollectionItem;
+  window.removeAnyBikeCollectionItem=removeCollectionItem;
   window.saveAnyBikeMoveDraft=saveMoveDraft;
   window.bookAnyBikeMoveShipment=bookMoveShipment;
   window.updateAnyBikeCollectionStep=updateCollectionStep;
