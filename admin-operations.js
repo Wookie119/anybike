@@ -127,6 +127,15 @@
       .ab-move-field label{display:block;margin-bottom:5px;color:#9aa3ae;font-size:10px;font-weight:900;text-transform:uppercase}
       .ab-move-field input,.ab-move-field select,.ab-move-field textarea{width:100%;box-sizing:border-box;border:1px solid #353535;border-radius:8px;background:#090909;color:#fff;padding:9px 10px;font:inherit}
       .ab-move-field textarea{min-height:76px;resize:vertical}
+      .ab-move-field.required-state{padding:8px;border:1px solid transparent;border-radius:10px;transition:border-color .15s ease,background .15s ease}
+      .ab-move-field.required-state.needs-attention{border-color:rgba(237,28,36,.8);background:rgba(237,28,36,.075)}
+      .ab-move-field.required-state.needs-attention label{color:#ff8a8f}
+      .ab-move-field.required-state.needs-attention input,.ab-move-field.required-state.needs-attention textarea,.ab-move-field.required-state.needs-attention select{border-color:#ed1c24}
+      .ab-move-field.required-state.complete{border-color:rgba(47,141,85,.6);background:rgba(47,141,85,.08)}
+      .ab-move-field.required-state.complete label{color:#8ff0b0}
+      .ab-move-field.required-state.complete input,.ab-move-field.required-state.complete textarea,.ab-move-field.required-state.complete select{border-color:#2f8d55}
+      .ab-move-section.section-needs-attention{color:#ff8a8f;border-bottom-color:rgba(237,28,36,.55)}
+      .ab-move-section.section-complete{color:#8ff0b0;border-bottom-color:rgba(47,141,85,.5)}
       .ab-move-actions{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border-top:1px solid rgba(255,255,255,.08);background:#0c0c0c}
       .ab-move-actions small{color:#999;line-height:1.4}
       .ab-move-actions div{display:flex;gap:8px}
@@ -530,39 +539,69 @@
     if(out) out.value=mobile;
   }
 
-  function moveCollectionReadinessFromForm(id,data){
-    const missing=[];
+  function moveBookingChecklist(id,data){
     const purchaseStatus=String(data?.purchase_status||"");
     const readyDate=String(data?.ready_date||"").trim();
-    const checks=[
-      ["Seller / sender name",fieldValue("ab-move-sender-name-"+id)],
-      ["Collection street address",fieldValue("ab-move-sender-street-"+id)],
-      ["Collection town / city",fieldValue("ab-move-sender-city-"+id)],
-      ["Collection postcode",fieldValue("ab-move-sender-postcode-"+id)],
-      ["Collection country",fieldValue("ab-move-sender-country-"+id)],
-      ["Collection contact name",fieldValue("ab-move-sender-contact-"+id)],
-      ["Collection contact phone",fieldValue("ab-move-sender-phone-"+id)],
-      ["Access / handover instructions",fieldValue("ab-move-instructions-"+id)]
+    return [
+      {label:"Seller proceeding confirmation",group:"seller",value:purchaseStatus==="proceeding_confirmed",selector:null},
+      {label:"Ready From date",group:"seller",value:!!readyDate,selector:null},
+      {label:"Seller / sender name",group:"seller",value:fieldValue("ab-move-sender-name-"+id),selector:"ab-move-sender-name-"},
+      {label:"Collection street address",group:"seller",value:fieldValue("ab-move-sender-street-"+id),selector:"ab-move-sender-street-"},
+      {label:"Collection town / city",group:"seller",value:fieldValue("ab-move-sender-city-"+id),selector:"ab-move-sender-city-"},
+      {label:"Collection postcode",group:"seller",value:fieldValue("ab-move-sender-postcode-"+id),selector:"ab-move-sender-postcode-"},
+      {label:"Collection country",group:"seller",value:fieldValue("ab-move-sender-country-"+id),selector:"ab-move-sender-country-"},
+      {label:"Collection contact name",group:"seller",value:fieldValue("ab-move-sender-contact-"+id),selector:"ab-move-sender-contact-"},
+      {label:"Collection contact phone",group:"seller",value:fieldValue("ab-move-sender-phone-"+id),selector:"ab-move-sender-phone-"},
+      {label:"Shipper / receiver name",group:"receiver",value:fieldValue("ab-move-receiver-name-"+id),selector:"ab-move-receiver-name-"},
+      {label:"Receiver street address",group:"receiver",value:fieldValue("ab-move-receiver-street-"+id),selector:"ab-move-receiver-street-"},
+      {label:"Receiver town / city",group:"receiver",value:fieldValue("ab-move-receiver-city-"+id),selector:"ab-move-receiver-city-"},
+      {label:"Receiver postcode",group:"receiver",value:fieldValue("ab-move-receiver-postcode-"+id),selector:"ab-move-receiver-postcode-"},
+      {label:"Sales price",group:"mandatory",value:fieldValue("ab-move-sales-price-"+id),selector:"ab-move-sales-price-"},
+      {label:"Price agreed with Move Motorcycles",group:"mandatory",value:fieldValue("ab-move-price-"+id),selector:"ab-move-price-"},
+      {label:"Contact at dealer",group:"mandatory",value:fieldValue("ab-move-contact-at-"+id),selector:"ab-move-contact-at-"},
+      {label:"Access / handover instructions",group:"mandatory",value:fieldValue("ab-move-instructions-"+id),selector:"ab-move-instructions-"}
     ];
-    if(purchaseStatus!=="proceeding_confirmed") missing.push("Seller proceeding confirmation");
-    if(!readyDate) missing.push("Ready From date");
-    checks.forEach(function(item){ if(!item[1]) missing.push(item[0]); });
-    return {ready:missing.length===0,missing:missing};
+  }
+
+  function updateMoveBookingFieldStates(id,data){
+    const checklist=moveBookingChecklist(id,data||moveBookingCache.get(String(id))||{});
+    checklist.forEach(function(item){
+      if(!item.selector) return;
+      const input=document.getElementById(item.selector+id);
+      const wrap=input&&input.closest(".ab-move-field");
+      if(!wrap) return;
+      const complete=!!String(item.value||"").trim();
+      wrap.classList.add("required-state");
+      wrap.classList.toggle("complete",complete);
+      wrap.classList.toggle("needs-attention",!complete);
+    });
+
+    ["seller","receiver","mandatory"].forEach(function(group){
+      const section=document.getElementById("ab-move-section-"+group+"-"+id);
+      if(!section) return;
+      const groupItems=checklist.filter(function(item){return item.group===group;});
+      const done=groupItems.every(function(item){return !!item.value;});
+      section.classList.toggle("section-complete",done);
+      section.classList.toggle("section-needs-attention",!done);
+    });
+    return checklist;
   }
 
   function updateMoveCollectionReadiness(id,data){
-    const state=moveCollectionReadinessFromForm(id,data||moveBookingCache.get(String(id))||{});
+    const checklist=updateMoveBookingFieldStates(id,data||moveBookingCache.get(String(id))||{});
+    const missing=checklist.filter(function(item){return !item.value;});
+    const state={ready:missing.length===0,missing:missing.map(function(item){return item.label;}),items:checklist};
     const box=document.getElementById("ab-move-readiness-"+id);
     const book=document.getElementById("ab-move-book-"+id);
     if(box){
       box.className="ab-move-warning"+(state.ready?" ab-move-ready":"");
       box.innerHTML=state.ready
-        ? "<strong>Ready for Move:</strong> seller collection details, contact information, Ready From date and access / handover instructions are complete."
-        : "<strong>Not ready for Move:</strong> "+esc(state.missing.join(", "));
+        ? "<strong>Ready for Move:</strong> every required booking field is complete."
+        : "<strong>Move booking incomplete:</strong> "+esc(state.missing.join(", "));
     }
     if(book){
       book.disabled=!state.ready;
-      book.title=state.ready?"":"Complete the collection-readiness items first";
+      book.title=state.ready?"":"Complete the red booking fields first";
     }
     return state;
   }
@@ -594,18 +633,18 @@
         <div class="ab-move-field"><label>Registration *</label><input value="${esc(motorcycle.registration||"")}" readonly></div>
         <div class="ab-move-field"><label>Variant</label><input value="${esc(motorcycle.variant||"")}" readonly></div>
 
-        <div class="ab-move-section">Collection from seller — internal operational information</div>
+        <div class="ab-move-section" id="ab-move-section-seller-${id}">Collection from seller — internal operational information</div>
         <div class="ab-move-field"><label>Seller / Sender Name *</label><input id="ab-move-sender-name-${id}" value="${esc(sender.name||"")}"></div>
-        <div class="ab-move-field"><label>Contact Name</label><input id="ab-move-sender-contact-${id}" value="${esc(sender.contact_name||"")}"></div>
+        <div class="ab-move-field"><label>Contact Name *</label><input id="ab-move-sender-contact-${id}" value="${esc(sender.contact_name||"")}"></div>
         <div class="ab-move-field"><label>Street Address *</label><input id="ab-move-sender-street-${id}" value="${esc(sender.street_address||"")}" placeholder="${esc(sender.location_hint||"")}"></div>
         <div class="ab-move-field"><label>City *</label><input id="ab-move-sender-city-${id}" value="${esc(sender.city||"")}"></div>
         <div class="ab-move-field"><label>County / State</label><input id="ab-move-sender-state-${id}" value="${esc(sender.state||"")}"></div>
         <div class="ab-move-field"><label>Postcode *</label><input id="ab-move-sender-postcode-${id}" value="${esc(sender.postcode||"")}"></div>
-        <div class="ab-move-field"><label>Country</label><input id="ab-move-sender-country-${id}" value="${esc(sender.country||"United Kingdom")}"></div>
-        <div class="ab-move-field"><label>Seller Contact Phone</label><input id="ab-move-sender-phone-${id}" value="${esc(sender.contact_phone||"")}"></div>
+        <div class="ab-move-field"><label>Country *</label><input id="ab-move-sender-country-${id}" value="${esc(sender.country||"United Kingdom")}"></div>
+        <div class="ab-move-field"><label>Seller Contact Phone *</label><input id="ab-move-sender-phone-${id}" value="${esc(sender.contact_phone||"")}"></div>
         <div class="ab-move-field"><label>Seller Email</label><input id="ab-move-sender-email-${id}" type="email" value="${esc(sender.email||"")}"></div>
 
-        <div class="ab-move-section">Deliver to buyer's shipper / freight forwarder</div>
+        <div class="ab-move-section" id="ab-move-section-receiver-${id}">Deliver to buyer's shipper / freight forwarder</div>
         <div class="ab-move-field"><label>Shipper / Receiver Name *</label><input id="ab-move-receiver-name-${id}" value="${esc(receiver.name||"")}"></div>
         <div class="ab-move-field"><label>Contact Name</label><input id="ab-move-receiver-contact-${id}" value="${esc(receiver.contact_name||"")}"></div>
         <div class="ab-move-field"><label>Street Address *</label><input id="ab-move-receiver-street-${id}" value="${esc(receiver.street_address||"")}" placeholder="${esc(receiver.handover_point||"")}"></div>
@@ -620,7 +659,7 @@
         <div class="ab-move-field"><label>Account Name</label><input value="AnyBike" readonly></div>
         <div class="ab-move-field"><label>Account Number</label><input value="13882" readonly></div>
 
-        <div class="ab-move-section">Mandatory Move shipment fields</div>
+        <div class="ab-move-section" id="ab-move-section-mandatory-${id}">Mandatory Move shipment fields</div>
         <div class="ab-move-field"><label>Vehicle Ready Date *</label><input value="${esc(data.ready_date||"")}" readonly></div>
         <div class="ab-move-field"><label>Shipping Mode *</label><input value="Up to 7 Working days from ready date" readonly></div>
         <div class="ab-move-field"><label>Vehicle Type *</label><input value="Motorcycle or Scooter" readonly></div>
@@ -666,7 +705,9 @@
     [
       "ab-move-sender-name-","ab-move-sender-street-","ab-move-sender-city-",
       "ab-move-sender-postcode-","ab-move-sender-country-","ab-move-sender-contact-",
-      "ab-move-sender-phone-","ab-move-instructions-"
+      "ab-move-sender-phone-","ab-move-receiver-name-","ab-move-receiver-street-",
+      "ab-move-receiver-city-","ab-move-receiver-postcode-","ab-move-price-",
+      "ab-move-contact-at-","ab-move-instructions-"
     ].forEach(function(prefix){
       const el=document.getElementById(prefix+id);
       if(el) el.addEventListener("input",function(){ updateMoveCollectionReadiness(id,data); });
@@ -679,30 +720,26 @@
     const data=moveBookingCache.get(String(numericId))||{};
     const state=updateMoveCollectionReadiness(numericId,data);
 
-    if(state.ready){
-      const book=document.getElementById("ab-move-book-"+numericId);
-      if(book){
-        book.scrollIntoView({behavior:"smooth",block:"center"});
-        setTimeout(function(){ book.focus(); },180);
-      }
+    const firstMissing=(state.items||[]).find(function(item){return !item.value && item.selector;});
+    if(firstMissing){
+      const target=document.getElementById(firstMissing.selector+numericId);
+      const wrap=target&&target.closest(".ab-move-field");
+      if(wrap) wrap.scrollIntoView({behavior:"smooth",block:"center"});
+      else if(target) target.scrollIntoView({behavior:"smooth",block:"center"});
+      setTimeout(function(){ if(target&&typeof target.focus==="function") target.focus(); },220);
       return;
     }
 
-    const fieldByLabel={
-      "Seller / sender name":"ab-move-sender-name-",
-      "Collection street address":"ab-move-sender-street-",
-      "Collection town / city":"ab-move-sender-city-",
-      "Collection postcode":"ab-move-sender-postcode-",
-      "Collection country":"ab-move-sender-country-",
-      "Collection contact name":"ab-move-sender-contact-",
-      "Collection contact phone":"ab-move-sender-phone-",
-      "Access / handover instructions":"ab-move-instructions-"
-    };
-    const first=state.missing.find(function(item){ return fieldByLabel[item]; });
-    const target=first ? document.getElementById(fieldByLabel[first]+numericId) : document.getElementById("ab-move-booking-"+numericId);
-    if(target){
-      target.scrollIntoView({behavior:"smooth",block:"center"});
-      setTimeout(function(){ if(typeof target.focus==="function") target.focus(); },180);
+    if(!state.ready){
+      const panel=document.getElementById("ab-move-booking-"+numericId);
+      if(panel) panel.scrollIntoView({behavior:"smooth",block:"start"});
+      return;
+    }
+
+    const book=document.getElementById("ab-move-book-"+numericId);
+    if(book){
+      book.scrollIntoView({behavior:"smooth",block:"center"});
+      setTimeout(function(){ book.focus(); },220);
     }
   }
 
@@ -792,26 +829,8 @@
   async function bookMoveShipment(id){
     const readiness=updateMoveCollectionReadiness(id);
     if(!readiness.ready){
-      alert("This collection cannot be sent to Move yet.\n\nComplete:\n"+readiness.missing.join("\n"));
-      return;
-    }
-    const required=[
-      ["Seller / Sender Name",fieldValue("ab-move-sender-name-"+id)],
-      ["Seller Street Address",fieldValue("ab-move-sender-street-"+id)],
-      ["Seller City",fieldValue("ab-move-sender-city-"+id)],
-      ["Seller Postcode",fieldValue("ab-move-sender-postcode-"+id)],
-      ["Shipper / Receiver Name",fieldValue("ab-move-receiver-name-"+id)],
-      ["Receiver Street Address",fieldValue("ab-move-receiver-street-"+id)],
-      ["Receiver City",fieldValue("ab-move-receiver-city-"+id)],
-      ["Receiver Postcode",fieldValue("ab-move-receiver-postcode-"+id)],
-      ["Sales Price",fieldValue("ab-move-sales-price-"+id)],
-      ["Price Agreed with Move Motorcycles",fieldValue("ab-move-price-"+id)],
-      ["Contact at name Dealer?",fieldValue("ab-move-contact-at-"+id)],
-      ["Special Instructions",fieldValue("ab-move-instructions-"+id)]
-    ];
-    const missing=required.filter(function(item){ return !item[1]; }).map(function(item){ return item[0]; });
-    if(missing.length){
-      alert("Complete these Move booking fields first:\n\n"+missing.join("\n"));
+      alert("This Move booking is not ready yet.\n\nComplete the red fields:\n"+readiness.missing.join("\n"));
+      continueMoveBooking(id);
       return;
     }
     if(!window.confirm("Create the live Move Motorcycles booking now?\n\nThis sends the collection and receiver details to Move and should return a Move shipment/tracking number. It does NOT pay the seller.")) return;
