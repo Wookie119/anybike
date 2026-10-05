@@ -8674,7 +8674,21 @@ async function setCommercialCostReviewed(id,key,reviewed){
       p_reviewed:!!reviewed
     });
     if(result.error)throw result.error;
+    const commercialRow=(adminDealCommercialSetup||[]).find(function(row){
+      return Number(row.deal_motorcycle_id)===Number(id);
+    });
+    if(commercialRow){
+      commercialRow.commercial_cost_review=Object.assign({},commercialRow.commercial_cost_review||{});
+      commercialRow.commercial_cost_review[String(key)]=!!reviewed;
+    }
     setDealCommercialAutosaveState(id,"saved","Saved ✓");
+    renderAdminDealQueue();
+    const dealId=commercialRow ? String(commercialRow.deal_id||"") : "";
+    const dealRow=dealId ? document.getElementById("anybike-deal-"+dealId) : null;
+    if(dealRow){
+      dealRow.classList.add("open");
+      openAnyBikeDealId=dealId;
+    }
   }catch(error){
     console.error("Commercial cost review could not be saved:",error);
     alert("Could not save this cost review. Please try again.");
@@ -8973,9 +8987,11 @@ function renderAnyBikeDealCommercialSetup(deal){
       <div class="anybike-commercial-status">${escapeAdminHtml(status)}</div>
     </div>
 
-    ${status==="Ready for Offer"
-      ? '<div class="deal-section-next-action complete"><div><div class="eyebrow">Your next action</div><strong>Prepare the Formal Offer</strong><span>Commercial Setup is complete. Review the Formal Offer before sending anything to the buyer.</span></div>'+(acceptedLocked?'':'<button type="button" onclick="openDealOfferModal('+id+');return false;">PREPARE FORMAL OFFER →</button>')+'</div>'
-      : '<div class="deal-section-next-action"><div><div class="eyebrow">Your next action</div><strong>'+(costsReviewed?'Prepare the Formal Offer':'Complete the commercial cost checks')+'</strong><span>'+(quoteSnapshotLocked?'The customer-facing sourced-match price is already fixed from what the buyer saw. The Motorcycle Price, AnyBike Sourcing Fee and UK Collection & Delivery components are carried across automatically and cannot be added again here. ':'')+(costsReviewed?'Seller price and cost checks are complete. Continue to prepare the Formal Offer.':'Review each red cost box. Enter a genuine cost where one applies, or tick No extra cost for this deal. When all four are reviewed they will turn green.')+'</span></div><button type="button" onclick="proceedDealCommercialSetup('+id+');return false;">'+(costsReviewed?'PREPARE FORMAL OFFER →':'REVIEW COSTS')+'</button></div>'}
+    ${acceptedLocked
+      ? '<div class="deal-section-next-action complete"><div><div class="eyebrow">Commercial setup</div><strong>Commercial setup complete</strong><span>The customer has already accepted the Formal Offer, so this section must not send you backwards. Internal costs can still be reviewed and saved here. Use the main Deal 360 next action to continue the live deal.</span></div></div>'
+      : status==="Ready for Offer"
+        ? '<div class="deal-section-next-action complete"><div><div class="eyebrow">Your next action</div><strong>Prepare the Formal Offer</strong><span>Commercial Setup is complete. Review the Formal Offer before sending anything to the buyer.</span></div><button type="button" onclick="openDealOfferModal('+id+');return false;">PREPARE FORMAL OFFER →</button></div>'
+        : '<div class="deal-section-next-action"><div><div class="eyebrow">Your next action</div><strong>'+(costsReviewed?'Prepare the Formal Offer':'Complete the commercial cost checks')+'</strong><span>'+(quoteSnapshotLocked?'The customer-facing sourced-match price is already fixed from what the buyer saw. The Motorcycle Price, AnyBike Sourcing Fee and UK Collection & Delivery components are carried across automatically and cannot be added again here. ':'')+(costsReviewed?'Seller price and cost checks are complete. Continue to prepare the Formal Offer.':'Review each red cost box. Enter a genuine cost where one applies, or tick No extra cost for this deal. When all four are reviewed they will turn green.')+'</span></div><button type="button" onclick="proceedDealCommercialSetup('+id+');return false;">'+(costsReviewed?'PREPARE FORMAL OFFER →':'REVIEW COSTS')+'</button></div>'}
 
     ${sentPriceLocked ? '<div class="anybike-commercial-lock"><strong>'+(acceptedLocked?'✓ Accepted customer terms — locked':'Formal Offer sent — customer price locked')+'</strong><span>'+(acceptedLocked?'The customer-facing Motorcycle Sale Price, AnyBike Sourcing Fee and UK Collection & Delivery Charge are frozen to the accepted Formal Offer.':'The customer-facing Motorcycle Sale Price, AnyBike Sourcing Fee and UK Collection & Delivery Charge are frozen while the sent Formal Offer is active. Internal cost assumptions can still be reviewed.')+'</span></div>' : ''}
     ${quoteSnapshotLocked && !sentPriceLocked ? '<div class="anybike-commercial-lock"><strong>Buyer quote snapshot — protected</strong><span>These customer-facing amounts came from the motorcycle match already shown to the buyer. They are carried into Deal 360 automatically so Commercial Setup cannot accidentally charge the sourcing fee or UK collection/delivery twice.</span></div>' : ''}
@@ -9083,6 +9099,7 @@ function renderAnyBikeDealCommercialSetup(deal){
       <p>Commercial Setup remains internal. Prepare Formal Offer copies the customer-facing commercial position into the formal offer. Nothing is sent until Send AnyBike Offer is confirmed.</p>
       <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;align-items:center">
         <span id="deal-commercial-autosave-${id}" class="anybike-commercial-autosave saved">Saved ✓</span>
+        <button type="button" class="secondary" onclick="saveDealCommercialSetup(${id},{skipConfirm:true,skipSuccessAlert:false,preserveView:true});return false;">Save changes</button>
         <button type="button" class="secondary" onclick="requestBuyerShippingDetailsForDeal(${Number(row.deal_id || 0)},this);return false;">Request shipper details</button>
         ${acceptedLocked ? '<span class="anybike-commercial-autosave saved">Accepted terms locked</span>' : '<button class="anybike-formal-offer-button" type="button" onclick="proceedDealCommercialSetup('+id+');return false;">'+(sentPriceLocked?'Review Sent Formal Offer':'Prepare Formal Offer')+'</button>'}
       </div>
