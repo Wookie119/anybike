@@ -729,19 +729,15 @@ function customerAttention(c){
 function shouldShowBuyerSetupReview(c){
   const a=customerAttentionMap[String(c.customerId)]||{};
   const count=Number(a.setup_complete_count||0);
-  const approval=String(a.approval_status||"not_reviewed").toLowerCase();
-  const requestedCustomer=new URLSearchParams(window.location.search).get("customer");
-  const requestedAction=new URLSearchParams(window.location.search).get("action");
-
-  if(count!==7 || ["approved","approved_with_exception"].includes(approval)){
-    return false;
-  }
+  const params=new URLSearchParams(window.location.search);
+  const requestedCustomer=params.get("customer");
+  const requestedAction=params.get("action");
 
   if(requestedAction==="review-setup" && String(requestedCustomer||"")===String(c.customerId)){
     return true;
   }
 
-  return true;
+  return count===7;
 }
 
 function openBuyerSetupReviewSection(cardId,tabName){
@@ -934,6 +930,9 @@ async function saveBuyerShippingReview(customerId,cardId,reject){
 function buyerSetupReviewHtml(c){
   const a=customerAttentionMap[String(c.customerId)]||{};
   const count=Number(a.setup_complete_count||0);
+  const approvalText=String(a.approval_status||"Not Reviewed");
+  const approvalKey=approvalText.toLowerCase();
+  const reviewComplete=["approved","approved with exceptions","approved_with_exception"].includes(approvalKey);
   const missing=new Set((a.setup_missing_sections||[]).map(String));
   const sections=[
     "Contact Details",
@@ -953,10 +952,14 @@ function buyerSetupReviewHtml(c){
     '</div>';
   }).join("");
 
-  return '<div class="buyer-setup-review" data-buyer-setup-review style="scroll-margin-top:230px;margin:0 0 18px;padding:18px;border:2px solid #ed1c24;border-radius:16px;background:linear-gradient(135deg,rgba(237,28,36,.18),#101010);box-shadow:0 0 0 1px rgba(237,28,36,.18) inset">'+
-    '<div class="eyebrow" style="font-size:12px;color:#ff4b52">ACTION REQUIRED · BUYER SETUP REVIEW</div>'+
-    '<h2 style="margin:6px 0 8px;font-size:24px">Review '+safe(c.name)+' and record a decision</h2>'+
-    '<div style="font-size:14px;line-height:1.55;margin-bottom:14px;color:#ddd"><strong>What you need to do:</strong> check the 7 setup sections, review the Shipping and Documents information shown inside this panel, choose your decision, then click <strong>Save Review →</strong>. An approval will clear this Customer action from Admin HQ.</div>'+
+  return '<div class="buyer-setup-review" data-buyer-setup-review style="scroll-margin-top:230px;margin:0 0 18px;padding:18px;border:2px solid '+(reviewComplete?'#2aa866':'#ed1c24')+';border-radius:16px;background:'+(reviewComplete?'linear-gradient(135deg,rgba(42,168,102,.16),#101010)':'linear-gradient(135deg,rgba(237,28,36,.18),#101010)')+';box-shadow:0 0 0 1px '+(reviewComplete?'rgba(42,168,102,.18)':'rgba(237,28,36,.18)')+' inset">'+
+    '<div class="eyebrow" style="font-size:12px;color:'+(reviewComplete?'#65e9a0':'#ff4b52')+'">'+(reviewComplete?'BUYER SETUP REVIEW · COMPLETED':'ACTION REQUIRED · BUYER SETUP REVIEW')+'</div>'+
+    '<h2 style="margin:6px 0 8px;font-size:24px">'+(reviewComplete?'Buyer Setup review for ':'Review ')+safe(c.name)+(reviewComplete?'':' and record a decision')+'</h2>'+
+    '<div style="font-size:14px;line-height:1.55;margin-bottom:14px;color:#ddd">'+
+      (reviewComplete
+        ? '<strong>This buyer has already been approved.</strong> The review remains available here as the customer’s ongoing audit record. You can still inspect shipping, documents and change the decision if required.'
+        : '<strong>What you need to do:</strong> check the 7 setup sections, review the Shipping and Documents information shown inside this panel, choose your decision, then click <strong>Save Review →</strong>. An approval will clear this Customer action from Admin HQ.')+
+    '</div>'+
     '<div class="detail-grid" style="margin-bottom:14px">'+checklist+'</div>'+
     '<div class="detail-grid">'+
       '<div class="panel"><span>Setup completeness</span><strong>'+count+'/7 complete</strong></div>'+
@@ -981,6 +984,7 @@ function buyerSetupReviewHtml(c){
         '<input id="buyerReviewNotes-'+cleanId(c.customerId)+'" placeholder="Optional for approval; required for an exception or more information request" style="width:100%;margin-top:5px;background:#080808;color:#fff;border:1px solid #444;border-radius:10px;padding:11px"></div>'+
     '</div>'+
     '<div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px">'+
+      '<a class="btn" href="admin-dashboard.html?category=customers" style="background:#181818;border:1px solid #555;text-decoration:none">Return to Admin HQ</a>'+
       '<button type="button" class="btn" style="background:#ed1c24;min-width:190px" onclick="saveBuyerSetupReview(\''+c.customerId+'\',\''+c.id+'\')">Save Review →</button>'+
     '</div>'+
   '</div>';
@@ -1007,13 +1011,37 @@ async function saveBuyerSetupReview(customerId,cardId){
     return;
   }
 
-  if(decision==="approved" || decision==="approved_with_exception"){
-    window.location.href="admin-dashboard.html?category=customers";
-    return;
+  const card=document.getElementById("customer-"+cardId);
+  const review=card?.querySelector("[data-buyer-setup-review]");
+  const status=review?.querySelector(".buyer-review-status-value");
+  if(status){
+    status.textContent=decision==="approved"
+      ? "Approved"
+      : (decision==="approved_with_exception" ? "Approved with Exceptions" : "Review Required");
   }
 
-  await loadCustomers();
-  openCustomerFromMap(customerId);
+  let saved=review?.querySelector("[data-buyer-review-saved]");
+  if(!saved && review){
+    saved=document.createElement("div");
+    saved.setAttribute("data-buyer-review-saved","1");
+    saved.className="note-box";
+    saved.style.cssText="margin-top:14px;border-color:#2aa866;color:#8ef0b3";
+    review.appendChild(saved);
+  }
+  if(saved){
+    saved.innerHTML=(decision==="approved" || decision==="approved_with_exception")
+      ? "<strong>Buyer review saved.</strong> This customer is approved and the Admin HQ Customer action is now cleared. The review remains available here."
+      : "<strong>Buyer review saved.</strong> More information is required before approval.";
+    saved.scrollIntoView({behavior:"smooth",block:"nearest"});
+  }
+
+  if(decision==="approved" || decision==="approved_with_exception"){
+    const heading=review?.querySelector(".eyebrow");
+    if(heading){
+      heading.textContent="BUYER SETUP REVIEW · COMPLETED";
+      heading.style.color="#65e9a0";
+    }
+  }
 }
 
 function showNeedsAttention(){
