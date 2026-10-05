@@ -1,3 +1,11 @@
+## Deal 360 next-action UX invariant
+
+- Every Deal 360 working section must place its **Your next action** panel at the **bottom of that section**, after the user has reviewed the section contents.
+- A next-action button must take the user directly to the exact control, section, or page needed to continue. It must not land at the top of a long page or require the user to hunt for the next step.
+- Cross-page next actions must stay on the AnyBike origin and reuse the existing authenticated browser session. Never route an already signed-in admin/customer through login again just because the workflow continues on another AnyBike page.
+- Completed historic sections must never send the user backwards in the Deal journey. They may show completion state, but the live action must point to the next genuine incomplete step.
+- Do not present multiple competing primary next actions inside one section.
+
 # AnyBike Bike Sales Overhaul — Protected Implementation Plan
 
 Checkpoint: 26 September 2026
