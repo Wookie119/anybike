@@ -823,10 +823,11 @@ function buyerReviewShippingHtml(customer,routeHtml){
       field("reviewShipCollection","UK handover / collection point",customer.shippingCollectionPoint)+
     '</div>'+
     '<div style="display:flex;gap:10px;flex-wrap:wrap">'+
-      '<button type="button" class="btn" style="background:#ed1c24" onclick="saveBuyerShippingReview(\''+customer.customerId+'\',\''+customer.id+'\',false)">Save & combine shipping preference</button>'+
+      '<button type="button" class="btn" style="background:#ed1c24" onclick="saveBuyerShippingReview(\''+customer.customerId+'\',\''+customer.id+'\',false)">Save shipping preference</button>'+
       '<button type="button" class="btn" style="background:#181818;border:1px solid #ff646b" onclick="saveBuyerShippingReview(\''+customer.customerId+'\',\''+customer.id+'\',true)">Reject shipping details</button>'+
     '</div>'+
-    '<div class="small">Saving combines the edited details into the customer’s single My Profile shipping preference. Existing Deal 360 routes remain as deal records below.</div>'+
+    '<div id="buyerShippingReviewStatus-'+s+'" class="note-box" style="display:none;margin-top:2px"></div>'+
+    '<div class="small">Saving updates the customer’s single active My Profile shipping preference. Existing Deal 360 routes remain separate deal records below.</div>'+
     (routeHtml?'<div style="margin-top:4px"><h4 style="margin:0 0 8px">Current Deal shipping routes</h4>'+routeHtml+'</div>':"")+
   '</div>';
 }
@@ -913,14 +914,21 @@ async function saveBuyerShippingReview(customerId,cardId,reject){
     return;
   }
 
-  if(reject){
-    alert("Shipping details marked Review Required.");
-  }else{
-    alert("Shipping preference saved and combined successfully.");
+  const status=document.getElementById("buyerShippingReviewStatus-"+s);
+  if(status){
+    status.style.display="";
+    status.style.borderColor=reject?"#ff646b":"#2aa866";
+    status.style.color=reject?"#ffb2b5":"#8ef0b3";
+    status.innerHTML=reject
+      ? "<strong>Shipping review rejected.</strong> Status is now Review Required. The reason has been recorded."
+      : "<strong>Shipping preference saved & verified.</strong> The edited details are now the customer’s active My Profile shipping preference.";
+    status.scrollIntoView({behavior:"smooth",block:"nearest"});
   }
 
-  await loadCustomers();
-  openCustomerFromMap(customerId);
+  const reviewStatus=document.querySelector('#customer-'+cardId+' [data-buyer-setup-review] .buyer-review-status-value');
+  if(reviewStatus && !reject){
+    reviewStatus.textContent="Shipping verified · Buyer review still pending";
+  }
 }
 
 function buyerSetupReviewHtml(c){
@@ -952,7 +960,7 @@ function buyerSetupReviewHtml(c){
     '<div class="detail-grid" style="margin-bottom:14px">'+checklist+'</div>'+
     '<div class="detail-grid">'+
       '<div class="panel"><span>Setup completeness</span><strong>'+count+'/7 complete</strong></div>'+
-      '<div class="panel"><span>Current review status</span><strong>'+safe(a.approval_status||"Not reviewed")+'</strong></div>'+
+      '<div class="panel"><span>Current review status</span><strong class="buyer-review-status-value">'+safe(a.approval_status||"Not reviewed")+'</strong></div>'+
     '</div>'+
     '<details open style="margin-top:16px;border:1px solid rgba(255,255,255,.14);border-radius:14px;background:#111;overflow:hidden">'+
       '<summary style="cursor:pointer;padding:13px 15px;font-weight:950;font-size:16px">🚢 Shipping Review</summary>'+
