@@ -4713,26 +4713,37 @@ async function loadSourcingProgress(){
       return;
     }
 
-    panel.style.display="";
+    /*
+      Render the useful sourcing state as soon as the lightweight batch
+      summary returns. Do not make the customer wait for every motorcycle
+      detail call before they can see the count and next action.
+    */
+    renderSourcingProgress([],total);
     scrollDashboardHashAfterRender("sourcing-progress");
 
-    const detailResults=await Promise.allSettled(activeBatches.map(async function(batch){
+    /*
+      Individual motorcycle details are secondary. Load them in the
+      background and enrich the panel when ready. This also keeps the rest
+      of My AnyBike from waiting on several per-batch RPC calls.
+    */
+    Promise.allSettled(activeBatches.map(async function(batch){
       const detail=await sb.rpc("customer_get_used_bike_scan_batch_v1",{p_batch_id:Number(batch.id)});
       if(detail.error) throw detail.error;
       const scans=Array.isArray(detail.data?.scans)?detail.data.scans:[];
       return scans
         .filter(function(scan){return String(scan?.response||"").toLowerCase()==="interested";})
         .map(function(scan){return {...scan,batch_id:Number(batch.id)};});
-    }));
-
-    const rows=[];
-    detailResults.forEach(function(result){
-      if(result.status==="fulfilled" && Array.isArray(result.value)){
-        rows.push(...result.value);
-      }
+    })).then(function(detailResults){
+      const rows=[];
+      detailResults.forEach(function(result){
+        if(result.status==="fulfilled" && Array.isArray(result.value)){
+          rows.push(...result.value);
+        }
+      });
+      renderSourcingProgress(rows,total);
+    }).catch(function(detailError){
+      console.warn("Detailed Sourcing Progress could not be loaded",detailError);
     });
-
-    renderSourcingProgress(rows,total);
   }catch(error){
     console.error("Sourcing Progress could not be loaded",error);
     if(requested){
