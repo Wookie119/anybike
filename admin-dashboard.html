@@ -3195,6 +3195,14 @@ setText("kpiPrivateSellers", countSourceType([
     (actionThreads || []).forEach(function(thread){
       if(!String(thread.last_sender || "").toLowerCase().includes("customer")){ return; }
 
+      const lastMessage=String(thread.last_message || "").trim();
+      const workflowOnlyMessage=
+        /\bmarked\b.*\bas (?:Not Interested|Interested)\.?$/i.test(lastMessage) ||
+        /^Customer reported a bank transfer of /i.test(lastMessage) ||
+        /Payment Advice .* awaiting bank verification/i.test(lastMessage);
+
+      if(workflowOnlyMessage){ return; }
+
       const enquiryId = thread.related_enquiry_id;
       const relatedDealId = Number(thread.related_deal_id || 0);
       const linkedEnquiry = enquiryId
