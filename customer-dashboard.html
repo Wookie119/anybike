@@ -2973,11 +2973,18 @@ body.customer-offer-modal-open{overflow:hidden}
         <h2 id="buyerSetupTitle">🛡️ Buyer Setup</h2>
         <p id="buyerSetupText">Complete your reusable buyer and shipping details so future purchases can move quickly.</p>
 
+        <div id="buyerApprovalJourney" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:14px 0 16px">
+          <div data-buyer-journey="registered" style="padding:10px 12px;border:1px solid #333;border-radius:10px;background:#111"><span class="small">1</span><strong style="display:block;margin-top:2px">Registered</strong></div>
+          <div data-buyer-journey="setup" style="padding:10px 12px;border:1px solid #333;border-radius:10px;background:#111"><span class="small">2</span><strong style="display:block;margin-top:2px">Complete Buyer Setup</strong></div>
+          <div data-buyer-journey="review" style="padding:10px 12px;border:1px solid #333;border-radius:10px;background:#111"><span class="small">3</span><strong style="display:block;margin-top:2px">AnyBike Review</strong></div>
+          <div data-buyer-journey="approved" style="padding:10px 12px;border:1px solid #333;border-radius:10px;background:#111"><span class="small">4</span><strong style="display:block;margin-top:2px">Approved to Buy</strong></div>
+        </div>
+
         <div id="buyerSetupCompleteCompact" style="display:none">
           <div class="buyer-setup-complete-row">
             <div>
-              <h2>✓ Buyer Setup complete</h2>
-              <p style="margin:6px 0 0;color:#aaa">Your required Buyer Setup information has been completed.</p>
+              <h2 id="buyerSetupCompleteHeading">✓ Approved to Buy</h2>
+              <p id="buyerSetupCompleteText" style="margin:6px 0 0;color:#aaa">Your AnyBike buyer account has been approved.</p>
             </div>
             <button class="buyer-setup-hide-btn" id="hideBuyerSetupCompleteBtn" type="button">Hide this</button>
           </div>
@@ -6267,8 +6274,25 @@ async function loadBuyerSetupBanner(){
   const dismissKey="anybikeBuyerSetupCompleteHidden:"+currentUser.id;
   const dismissed=localStorage.getItem(dismissKey)==="1";
 
-  // Account stop/hold messages always take priority and must remain visible.
-  if(complete && accountStatus==="Active"){
+  const journey=document.getElementById("buyerApprovalJourney");
+  const journeySteps=[...document.querySelectorAll("[data-buyer-journey]")];
+  const setJourneyStage=function(stage){
+    const order=["registered","setup","review","approved"];
+    const activeIndex=order.indexOf(stage);
+    journeySteps.forEach(function(el){
+      const idx=order.indexOf(el.dataset.buyerJourney);
+      const doneStep=idx<activeIndex || (stage==="approved" && idx===activeIndex);
+      const activeStep=idx===activeIndex && stage!=="approved";
+      el.style.borderColor=doneStep?"rgba(54,211,126,.65)":(activeStep?"rgba(255,179,107,.75)":"#333");
+      el.style.background=doneStep?"rgba(54,211,126,.10)":(activeStep?"rgba(255,179,107,.10)":"#111");
+      const label=el.querySelector("strong");
+      if(label) label.style.color=doneStep?"#65e9a0":(activeStep?"#ffd27c":"#fff");
+    });
+  };
+
+  // Only a genuinely approved account may collapse to the compact completed state.
+  if(approved && accountStatus==="Active"){
+    setJourneyStage("approved");
     if(dismissed){
       banner.style.display="none";
       return;
@@ -6279,7 +6303,13 @@ async function loadBuyerSetupBanner(){
     compactComplete?.style.setProperty("display","block");
     if(title) title.style.display="none";
     if(textEl) textEl.style.display="none";
-    banner.style.borderColor=approved?"rgba(54,211,126,.45)":"rgba(255,179,107,.45)";
+    if(journey) journey.style.display="grid";
+    banner.style.borderColor="rgba(54,211,126,.45)";
+
+    const compactHeading=document.getElementById("buyerSetupCompleteHeading");
+    const compactText=document.getElementById("buyerSetupCompleteText");
+    if(compactHeading) compactHeading.textContent="✓ Approved to Buy";
+    if(compactText) compactText.textContent="Your trade buyer account is approved. You can now progress purchases through AnyBike.";
 
     const hideBtn=document.getElementById("hideBuyerSetupCompleteBtn");
     if(hideBtn && !hideBtn.dataset.bound){
@@ -6298,6 +6328,8 @@ async function loadBuyerSetupBanner(){
   compactComplete?.style.setProperty("display","none");
   if(title) title.style.removeProperty("display");
   if(textEl) textEl.style.removeProperty("display");
+  if(journey) journey.style.display="grid";
+  setJourneyStage(complete ? "review" : "setup");
   if(progressText) progressText.textContent=done+" of "+keys.length+" required sections complete"+(firstOrderGraceActive ? " · First-order setup due "+firstOrderGraceDue.toLocaleDateString("en-GB") : "");
   if(progressFill) progressFill.style.width=((done/keys.length)*100)+"%";
   document.querySelectorAll("[data-dashboard-setup]").forEach(el=>{
@@ -6307,8 +6339,8 @@ async function loadBuyerSetupBanner(){
   });
 
   let href="customer-profile.html#buyer-onboarding";
-  let actionText="Continue Buyer Setup →";
-  let nextHeading="Your next action: Complete Buyer Setup";
+  let actionText=done===0?"Start Buyer Setup →":"Continue Buyer Setup →";
+  let nextHeading=done===0?"Your next action: Start Buyer Setup":"Your next action: Continue Buyer Setup";
   let nextCopy=firstOrderGraceActive
     ? "Your first-order setup period runs until "+firstOrderGraceDue.toLocaleString("en-GB")+". You can complete the remaining Buyer Verification and export identity details during this period."
     : "Complete the next required section shown below.";
@@ -6350,9 +6382,9 @@ async function loadBuyerSetupBanner(){
     nextCopy="Choose a shipper from the directory or add your own shipper's contact and address details.";
   }else if(complete && !approved){
     href="customer-profile.html#buyer-setup-summary";
-    actionText="Review Your Details →";
-    nextHeading="✓ Buyer Setup complete";
-    nextCopy="All 7 required sections are complete. AnyBike will review these details before committing to buy a motorcycle for you.";
+    actionText="Review Submitted Details →";
+    nextHeading="No action needed — AnyBike is reviewing your account";
+    nextCopy="Your Buyer Setup is complete and has moved to AnyBike Review. We will approve the account or contact you if anything else is needed before we commit to buy a motorcycle for you.";
   }else if(approved){
     href="customer-profile.html#buyer-setup-summary";
     actionText="Review Buyer Details →";
@@ -6379,16 +6411,16 @@ async function loadBuyerSetupBanner(){
     if(nextText) nextText.textContent=stopReason || "Check the Buyer Setup details AnyBike still needs.";
     banner.style.borderColor="rgba(255,179,107,.55)";
   }else if(approved){
-    title.textContent="✓ Buyer Setup Approved";
-    textEl.textContent="All required Buyer Setup details have been completed and approved.";
+    title.textContent="✓ Approved to Buy";
+    textEl.textContent="Your trade buyer account is approved for AnyBike purchases.";
     banner.style.borderColor="rgba(54,211,126,.45)";
   }else if(complete){
-    title.textContent="🛡️ Buyer Setup Complete";
-    textEl.textContent="All 7 required Buyer Setup sections are complete. AnyBike will review these details before committing to buy a motorcycle for you.";
-    banner.style.borderColor="rgba(255,179,107,.45)";
+    title.textContent="⏳ Buyer Setup submitted for AnyBike Review";
+    textEl.textContent="You have completed all 7 required sections. There is nothing else you need to do unless AnyBike contacts you for clarification.";
+    banner.style.borderColor="rgba(255,179,107,.55)";
   }else{
-    title.textContent="🛡️ Complete Buyer Setup";
-    textEl.textContent=done+" of 7 required sections are complete. Finish the outstanding sections so AnyBike has the information needed to progress your purchases.";
+    title.textContent="🏍️ Planning to buy motorcycles through AnyBike?";
+    textEl.textContent="Complete Buyer Setup to become an approved trade buyer. AnyBike export purchasing is for trade / business buyers, and we need these details before we commit to buy a motorcycle for you.";
     banner.style.borderColor="rgba(237,28,36,.55)";
   }
 }
