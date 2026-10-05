@@ -68,8 +68,10 @@ textarea{width:100%;min-height:90px;border:1px solid rgba(160,140,88,.45);border
       <div class="body">
         <div class="notice"><strong>Before loading the motorcycle:</strong> confirm you are at the correct collection address and check the motorcycle against the registration.</div>
         <div class="actions">
+          <button id="etaBtn" class="btn secondary" onclick="recordDriverEta()">On My Way / Send ETA ✓</button>
           <button id="arrivedBtn" class="btn" onclick="doAction('arrived')">I Have Arrived</button>
         </div>
+        <p class="status" id="etaStatus"></p>
         <textarea id="visualNotes" placeholder="Describe any damage, mismatch or other discrepancy..."></textarea>
         <div id="discrepancyHelp" class="status warn hidden" style="margin-top:8px">Describe the discrepancy above, then save it.</div>
         <div class="actions">
@@ -444,6 +446,21 @@ async function saveHandoverNotes(){
     }
   }finally{
     button.disabled=false;
+  }
+}
+
+async function recordDriverEta(){
+  const btn=document.getElementById("etaBtn");
+  const status=document.getElementById("etaStatus");
+  if(btn){btn.disabled=true;btn.textContent="Sending…";}
+  try{
+    const r=await sb.rpc("move_driver_record_eta_v1",{p_token:token});
+    if(r.error)throw r.error;
+    if(status){status.textContent="ETA / on-my-way status sent to AnyBike ✓";status.className="status good";}
+    if(btn){btn.textContent="ETA Sent ✓";}
+  }catch(e){
+    if(status){status.textContent=e.message||String(e);status.className="status warn";}
+    if(btn){btn.disabled=false;btn.textContent="On My Way / Send ETA ✓";}
   }
 }
 
