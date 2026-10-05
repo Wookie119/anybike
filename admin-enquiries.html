@@ -13315,6 +13315,102 @@ function anyBikeSellerPackedDetails(address,townCity,postcode,phone,email){
   ].filter(Boolean).join("\n");
 }
 
+function anyBikeSellerCollectionItemTypeOptions(selected){
+  return [
+    ["key","Keys"],
+    ["v5c","V5C / registration document"],
+    ["service_history","Service history"],
+    ["manual","Owner manual / handbook"],
+    ["mot_document","MOT document"],
+    ["accessory","Accessory / spare item"],
+    ["other","Other"]
+  ].map(function(row){
+    return '<option value="'+row[0]+'" '+(String(selected||"")===row[0]?'selected':'')+'>'+row[1]+'</option>';
+  }).join("");
+}
+
+function renderAnyBikeSellerCollectionItems(dealMotorcycleId){
+  const id=Number(dealMotorcycleId);
+  setTimeout(function(){ loadAnyBikeSellerCollectionItems(id); },0);
+  return '<div id="deal-seller-collection-items-'+id+'" style="margin:14px 0;padding:14px;border:1px solid rgba(255,255,255,.10);border-radius:12px;background:#0d0d0d">'+
+    '<div style="color:#aaa">Loading seller-supplied collection items…</div>'+
+  '</div>';
+}
+
+async function loadAnyBikeSellerCollectionItems(dealMotorcycleId){
+  const id=Number(dealMotorcycleId);
+  const host=document.getElementById("deal-seller-collection-items-"+id);
+  if(!host) return;
+  try{
+    const result=await sb.rpc("admin_get_collection_items_v1",{p_deal_motorcycle_id:id});
+    if(result.error) throw result.error;
+    const items=Array.isArray(result.data)?result.data:[];
+
+    const rows=items.map(function(item){
+      return '<div style="display:grid;grid-template-columns:80px 155px minmax(220px,1fr) auto;gap:8px;align-items:center;margin-top:8px">'+
+        '<input id="seller-item-qty-'+item.id+'" type="number" min="1" step="1" value="'+Math.max(1,Number(item.expected_quantity||1))+'" style="width:100%;box-sizing:border-box">'+
+        '<select id="seller-item-type-'+item.id+'" style="width:100%">'+anyBikeSellerCollectionItemTypeOptions(item.item_type)+'</select>'+
+        '<input id="seller-item-desc-'+item.id+'" value="'+escapeAdminHtml(item.description||"")+'" style="width:100%;box-sizing:border-box">'+
+        '<div style="display:flex;gap:6px"><button type="button" onclick="saveAnyBikeSellerCollectionItem('+id+','+item.id+');return false;">Save</button><button type="button" class="secondary" onclick="removeAnyBikeSellerCollectionItem('+id+','+item.id+');return false;">Remove</button></div>'+
+      '</div>';
+    }).join("");
+
+    host.innerHTML=
+      '<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap">'+
+        '<div><div style="color:#ed1c24;font-size:11px;font-weight:950;text-transform:uppercase;letter-spacing:.06em">Seller-supplied items for collection</div>'+
+        '<strong style="display:block;color:#fff;font-size:15px;margin-top:4px">Confirm what must leave the seller with this motorcycle</strong>'+
+        '<span style="display:block;color:#999;font-size:11px;margin-top:4px">Record exactly what the seller confirms is included. This same list is carried into the Move booking, Special Instructions and the Move driver collection checklist.</span></div>'+
+      '</div>'+
+      (rows || '<div style="margin-top:10px;color:#888">No seller-supplied items recorded yet.</div>')+
+      '<div style="display:grid;grid-template-columns:80px 155px minmax(220px,1fr) auto;gap:8px;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.08)">'+
+        '<input id="seller-item-new-qty-'+id+'" type="number" min="1" step="1" value="1" style="width:100%;box-sizing:border-box">'+
+        '<select id="seller-item-new-type-'+id+'" style="width:100%">'+anyBikeSellerCollectionItemTypeOptions("other")+'</select>'+
+        '<input id="seller-item-new-desc-'+id+'" placeholder="e.g. COC, second key, service book, spare tyre, panniers…" style="width:100%;box-sizing:border-box">'+
+        '<button type="button" onclick="saveAnyBikeSellerCollectionItem('+id+',null);return false;">Add Item</button>'+
+      '</div>';
+  }catch(error){
+    host.innerHTML='<div style="color:#ff8f94">Collection items could not be loaded: '+escapeAdminHtml(error.message||error)+'</div>';
+  }
+}
+
+async function saveAnyBikeSellerCollectionItem(dealMotorcycleId,itemId){
+  const id=Number(dealMotorcycleId);
+  const isNew=itemId===null || itemId===undefined;
+  const qty=document.getElementById(isNew?"seller-item-new-qty-"+id:"seller-item-qty-"+itemId);
+  const type=document.getElementById(isNew?"seller-item-new-type-"+id:"seller-item-type-"+itemId);
+  const desc=document.getElementById(isNew?"seller-item-new-desc-"+id:"seller-item-desc-"+itemId);
+  const description=String(desc?.value||"").trim();
+  if(!description){
+    alert("Enter the item the seller confirms is supplied with the motorcycle.");
+    desc?.focus();
+    return;
+  }
+  try{
+    const result=await sb.rpc("admin_save_collection_item_v1",{
+      p_deal_motorcycle_id:id,
+      p_item_type:String(type?.value||"other"),
+      p_description:description,
+      p_expected_quantity:Math.max(1,Number(qty?.value||1)),
+      p_item_id:isNew?null:Number(itemId)
+    });
+    if(result.error) throw result.error;
+    await loadAnyBikeSellerCollectionItems(id);
+  }catch(error){
+    alert("Collection item could not be saved.\n\n"+(error.message||error));
+  }
+}
+
+async function removeAnyBikeSellerCollectionItem(dealMotorcycleId,itemId){
+  if(!window.confirm("Remove this item from the seller / Move collection checklist?")) return;
+  try{
+    const result=await sb.rpc("admin_remove_collection_item_v1",{p_item_id:Number(itemId)});
+    if(result.error) throw result.error;
+    await loadAnyBikeSellerCollectionItems(Number(dealMotorcycleId));
+  }catch(error){
+    alert("Collection item could not be removed.\n\n"+(error.message||error));
+  }
+}
+
 function renderAnyBikeDealSellerCheckPanel(deal){
   const dealId = String(deal.deal_id || "");
   const rows = adminDealPaymentStatus.filter(function(row){
@@ -13568,6 +13664,8 @@ function renderAnyBikeDealSellerCheckPanel(deal){
             <textarea id="deal-seller-notes-${dealMotorcycleId}" placeholder="Optional — anything important agreed with the seller">${escapeAdminHtml(c?.notes || "")}</textarea>
           </div>
         </div>
+
+        ${renderAnyBikeSellerCollectionItems(dealMotorcycleId)}
 
         <details class="anybike-seller-optional">
           <summary>Seller confirmation timing / contact method — optional</summary>
