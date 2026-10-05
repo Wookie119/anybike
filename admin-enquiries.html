@@ -9018,7 +9018,7 @@ function renderAnyBikeDealCommercialSetup(deal){
   }
 
   const commercialNextActionHtml=acceptedLocked
-    ? '<div class="deal-section-next-action"><div><div class="eyebrow">Your next action</div><strong>'+escapeAdminHtml(acceptedNextTitle)+'</strong><span>'+escapeAdminHtml(acceptedNextCopy)+'</span></div><button type="button" onclick="navigateDealWorkflow(\''+acceptedNextTarget+'\');return false;">'+escapeAdminHtml(acceptedNextButton)+'</button></div>'
+    ? '<div class="deal-section-next-action"><div><div class="eyebrow">Your next action</div><strong>'+escapeAdminHtml(acceptedNextTitle)+'</strong><span>'+escapeAdminHtml(acceptedNextCopy)+'</span></div><button type="button" onclick="openBikeSalesNextTask('+dealId+');return false;">'+escapeAdminHtml(acceptedNextButton)+'</button></div>'
     : status==="Ready for Offer"
       ? '<div class="deal-section-next-action complete"><div><div class="eyebrow">Your next action</div><strong>Prepare the Formal Offer</strong><span>Commercial Setup is complete. Review the Formal Offer before sending anything to the buyer.</span></div><button type="button" onclick="openDealOfferModal('+id+');return false;">PREPARE FORMAL OFFER →</button></div>'
       : '<div class="deal-section-next-action"><div><div class="eyebrow">Your next action</div><strong>'+(costsReviewed?'Prepare the Formal Offer':'Complete the commercial cost checks')+'</strong><span>'+(quoteSnapshotLocked?'The customer-facing sourced-match price is already fixed from what the buyer saw. The Motorcycle Price, AnyBike Sourcing Fee and UK Collection & Delivery components are carried across automatically and cannot be added again here. ':'')+(costsReviewed?'Seller price and cost checks are complete. Continue to prepare the Formal Offer.':'Review each red cost box. Enter a genuine cost where one applies, or tick No extra cost for this deal. When all four are reviewed they will turn green.')+'</span></div><button type="button" onclick="proceedDealCommercialSetup('+id+');return false;">'+(costsReviewed?'PREPARE FORMAL OFFER →':'REVIEW COSTS')+'</button></div>';
@@ -16054,17 +16054,28 @@ function bikeSalesEffectivePrimary(action,flags,deal){
     return "Find Potential Matches";
   }
 
+  // Once the customer has accepted, never send the Deal backwards into
+  // pre-sale Commercial Setup / Formal Offer work. From that point onward,
+  // only genuine post-acceptance blockers and operational stages may be primary.
+  if(flags.offerAccepted){
+    if(flags.depositRequired>0 && flags.depositOutstanding>0.009) return "Deposit Due";
+    if(!flags.purchaseClearanceAllowed) return "Review Buyer Onboarding";
+    if(!flags.customerPaid) return "Customer Balance Due";
+    if(!flags.shippingDone) return "Confirm UK Handover Plan";
+    if(!flags.vatDone && !flags.secured) return "Verify VAT Treatment";
+    if(!flags.secured) return "Ready to Purchase";
+    if(!flags.collected) return backendPrimary==="Operations" ? "Operations" : "Start Purchase & Collection";
+    if(flags.collected && !flags.complete) return "Complete Delivery / Handover";
+    if(flags.complete && !flags.finalInvoiceIssued) return "Issue Final Invoice";
+    if(flags.complete && flags.finalInvoiceIssued) return "Sale Complete";
+    return backendPrimary || "Review Sale";
+  }
+
   if(!flags.sellerDone) return "Seller Position";
   if(!flags.commercialReady) return "Commercial Setup";
   if(!flags.vatDone) return "Verify VAT Treatment";
-  if(!flags.offerAccepted && flags.offerSent) return "Waiting for Formal Offer Response";
-  if(!flags.offerAccepted) return "Send Formal Offer";
-  if(flags.depositRequired>0 && flags.depositOutstanding>0.009) return "Deposit Due";
-  if(!flags.purchaseClearanceAllowed) return "Review Buyer Onboarding";
-  if(!flags.customerPaid) return "Customer Balance Due";
-  if(!flags.shippingDone) return "Confirm UK Handover Plan";
-  if(!flags.secured) return "Ready to Purchase";
-  if(!flags.collected) return "Start Purchase & Collection";
+  if(flags.offerSent) return "Waiting for Formal Offer Response";
+  return "Send Formal Offer";
   if(flags.collected && !flags.complete) return "Complete Delivery / Handover";
   if(flags.complete && !flags.finalInvoiceIssued) return "Issue Final Invoice";
   if(flags.complete && flags.finalInvoiceIssued) return "Sale Complete";
@@ -16076,6 +16087,14 @@ function bikeSalesJourneyStage(action,deal,flags){
   if(flags.collected) return "delivery";
   if(!flags.hasMotorcycle) return "sourcing";
   if(flags.accountStopped || flags.accountOnHold) return "seller";
+  if(flags.offerAccepted){
+    if(flags.depositRequired>0 && flags.depositOutstanding>0.009) return "payment";
+    if(!flags.purchaseClearanceAllowed) return "payment";
+    if(!flags.customerPaid) return "payment";
+    if(!flags.shippingDone) return "delivery";
+    if(!flags.secured) return "seller";
+    return "collection";
+  }
   if(!flags.sellerDone || !flags.commercialReady || !flags.vatDone) return "seller";
   if(!flags.offerAccepted) return "offer";
   if(flags.depositRequired>0 && flags.depositOutstanding>0.009) return "payment";
