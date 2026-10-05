@@ -17500,6 +17500,17 @@ function renderAdminDealQueue(){
       Number(deal.vat_check_required_count || 0) ? Number(deal.vat_check_required_count || 0) + " Check Required" : ""
     ].filter(Boolean).join(" · ") || "VAT status not yet recorded";
 
+    const primaryDealBike = bikes[0] || {};
+    const primaryDealMakeModel = [primaryDealBike.make, primaryDealBike.model].filter(Boolean).join(" ");
+    const primaryDealColour = primaryDealBike.colour || primaryDealBike.color || "";
+    const primaryDealReg = primaryDealBike.registration || primaryDealBike.reg || primaryDealBike.registration_number || "";
+    const primaryDealIdentity = [
+      primaryDealMakeModel,
+      primaryDealColour,
+      primaryDealReg
+    ].filter(Boolean).join(" · ");
+    const dealDisplayTitle = [dealNumber, primaryDealIdentity, buyerName].filter(Boolean).join(" · ");
+
     return `
       <div class="anybike-deal-record" id="anybike-deal-${dealId}" data-deal-id="${dealId}">
         <div class="anybike-deal-row" onclick="toggleAnyBikeDeal('${dealId}')">
@@ -17511,7 +17522,7 @@ function renderAdminDealQueue(){
               ${selectedCombinedProformaDeals.has(dealId) ? "checked" : ""}
               onchange="toggleCombinedProformaDeal('${dealId}',this);return false;">
           </div>
-          <div class="anybike-deal-number"><strong>${dealNumber}</strong><small>${String(deal.sale_route||"USED_EXPORT_B2B")==="NEW_RETAIL_B2C" ? "RETAIL B2C" : "EXPORT B2B"} · ${motorcycleCount} bike${motorcycleCount===1?"":"s"}</small></div>
+          <div class="anybike-deal-number"><strong>${dealNumber}</strong><small>${escapeAdminHtml(primaryDealIdentity || (String(deal.sale_route||"USED_EXPORT_B2B")==="NEW_RETAIL_B2C" ? "RETAIL B2C" : "EXPORT B2B"))}</small></div>
           <div><strong>${buyerName}</strong><small>${contactName && contactName !== buyerName ? contactName : email}</small></div>
           <div><strong>${escapeAdminHtml(sellerSummary)}</strong><small>${sellerNames.length ? "Seller / supplier" : (preSale ? "Seller check not started" : "Final Seller Check")}</small></div>
           <div><strong>${escapeAdminHtml(motorcycleSummary)}</strong><small>${escapeAdminHtml(firstBikeYear || (motorcycleCount + " motorcycle" + (motorcycleCount===1?"":"s")))}</small></div>
@@ -17527,7 +17538,7 @@ function renderAdminDealQueue(){
         <div class="anybike-deal-detail">
           <div class="anybike-deal-detail-head">
             <div>
-              <h3>${dealNumber} · ${buyerName}</h3>
+              <h3>${escapeAdminHtml(dealDisplayTitle)}</h3>
               <p>${motorcycleCount} motorcycle${motorcycleCount === 1 ? "" : "s"} · ${acceptedCount} accepted · ${securedCount} secured · ${escapeAdminHtml(vatSummary)}</p>
               <div class="anybike-sale-route-wrap">
                 <span class="anybike-sale-route-badge ${String(deal.sale_route||"")==="NEW_RETAIL_B2C" ? "retail" : ""}">${escapeAdminHtml(deal.sale_route_label || anyBikeSaleRouteLabel(deal.sale_route))}</span>
