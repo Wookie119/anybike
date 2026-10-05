@@ -319,8 +319,8 @@
               :(booked
                 ?"Move booking / incoming collection job is live. Driver progress will update this section automatically."
                 :(collectionReady
-                  ?"Collection details are complete. This motorcycle is ready to send to Move Motorcycles."
-                  :"Collection is NOT ready for Move yet. Missing: "+esc(collectionMissing.join(", ")||"required collection details")+"."))}</div>${collected?"":'<div class="ab-collect-actions" style="margin-top:8px">'+(booked?'':'<button type="button" class="ab-ops-button" '+(collectionReady?'':'disabled title="Complete the collection-readiness items first"')+' onclick="sendAnyBikeCollectionToMove('+id+','+Number(dealId)+');return false;">'+(collectionReady?'Send to Incoming Collection Jobs':'Waiting for Collection Details')+'</button>')+'<a class="ab-ops-button ab-move-secondary" href="admin-logistics.html#pay-on-site" style="text-decoration:none">Open Logistics HQ</a></div>'}</div>
+                  ?"Collection details are complete. Complete the Move booking above; the linked Logistics HQ job is created automatically."
+                  :"Collection is NOT ready for Move yet. Missing: "+esc(collectionMissing.join(", ")||"required collection details")+"."))}</div>${collected?"":'<div class="ab-collect-actions" style="margin-top:8px"><a class="ab-ops-button ab-move-secondary" href="admin-logistics.html#pay-on-site" style="text-decoration:none">Open Logistics HQ</a></div>'}</div>
             ${collected?`<div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.09)">
               <h6>Driver Collection Report</h6>
               <div class="ab-collect-actions">
@@ -636,30 +636,35 @@
   }
 
   function updateMoveCollectionReadiness(id,data){
-    const checklist=updateMoveBookingFieldStates(id,data||moveBookingCache.get(String(id))||{});
+    const dataRow=data||moveBookingCache.get(String(id))||{};
+    const checklist=updateMoveBookingFieldStates(id,dataRow);
     const missing=checklist.filter(function(item){return !item.value;});
     const state={ready:missing.length===0,missing:missing.map(function(item){return item.label;}),items:checklist};
+    const externalBooked=!!(dataRow.move && (dataRow.move.move_shipment_id || dataRow.move.tracking_no || dataRow.move.booked_at));
+    const operationalBooked=externalBooked || ["booked","driver_assigned","collected"].includes(String(dataRow.collection_status||""));
     const box=document.getElementById("ab-move-readiness-"+id);
     const book=document.getElementById("ab-move-book-"+id);
     if(box){
       box.className="ab-move-warning"+(state.ready?" ab-move-ready":"");
-      box.innerHTML=state.ready
-        ? "<strong>Ready for Move:</strong> every required booking field is complete."
-        : "<strong>Move booking incomplete:</strong> "+esc(state.missing.join(", "));
+      box.innerHTML=operationalBooked
+        ? "<strong>Move collection job created:</strong> Logistics HQ can continue the collection workflow."
+        :(state.ready
+          ? "<strong>Ready for Move:</strong> every required booking field is complete."
+          : "<strong>Move booking incomplete:</strong> "+esc(state.missing.join(", ")));
     }
     if(book){
-      book.disabled=!state.ready;
-      book.title=state.ready?"Ready to create the Move booking":"Complete the red booking fields first";
-      book.textContent=state.ready ? "Book with Move" : "Complete red fields first";
+      book.disabled=operationalBooked || !state.ready;
+      book.title=operationalBooked
+        ?"The collection job is already in Logistics HQ"
+        :(state.ready?"Ready to create the Move booking":"Complete the red booking fields first");
+      book.textContent=operationalBooked ? "Collection Job Created" : (state.ready ? "Book with Move" : "Complete red fields first");
     }
 
     const nextTitle=document.getElementById("ab-move-next-title-"+id);
     const nextCopy=document.getElementById("ab-move-next-copy-"+id);
     const nextButton=document.getElementById("ab-move-next-button-"+id);
-    const dataRow=data||moveBookingCache.get(String(id))||{};
-    const booked=!!(dataRow.move && (dataRow.move.move_shipment_id || dataRow.move.tracking_no || dataRow.move.booked_at));
 
-    if(booked){
+    if(operationalBooked){
       if(nextTitle) nextTitle.textContent="Prepare the Move driver collection";
       if(nextCopy) nextCopy.textContent="The Move booking is live. Continue to the driver-on-site collection controls and driver collection form.";
       if(nextButton){
@@ -1053,6 +1058,23 @@
         throw new Error(detailedMessage||result.error.message||"Move Edge Function failed.");
       }
       const payload=result.data||{};
+      if(payload.error && payload.code==="MOVE_API_KEY_MISSING"){
+        const inbound=await client().rpc("admin_send_anybike_collection_to_move_v1",{p_deal_motorcycle_id:Number(id)});
+        if(inbound.error) throw inbound.error;
+
+        moveBookingCache.delete(String(id));
+        operationsCache.clear();
+        await loadMoveBooking(id,true);
+        const internalData=moveBookingCache.get(String(id))||{};
+        const internalDealId=Number(internalData.deal_id||0);
+        if(internalDealId){
+          operationsCache.delete(String(internalDealId));
+          await loadDeal(internalDealId,true);
+        }
+
+        alert("Move API key is not configured yet.\n\nThe external Move API booking has been left pending, but the linked Incoming Collection Job has been created in Logistics HQ so the AnyBike operations workflow can continue.\n\nJob: "+(inbound.data?.job_number||"created")+"\n\nNo external Move tracking number will exist until the API key is added.");
+        return;
+      }
       if(payload.error){
         let extra="";
         if(payload.stage) extra+="\n\nStage: "+payload.stage;
