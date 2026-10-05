@@ -8,6 +8,7 @@
 <script>document.documentElement.classList.add("admin-auth-pending");</script>
 <style>html.admin-auth-pending body{visibility:hidden}</style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="admin.js?v=12000"></script>
 <link rel="stylesheet" href="admin-shell.css?v=12000">
 <style>
@@ -39,6 +40,16 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
 .buyer-waiting-queue{background:#0d0d0d;border:1px solid #333;border-radius:16px;padding:14px;margin:0 0 16px}.buyer-waiting-grid{display:grid;gap:8px;margin-top:10px}.buyer-waiting-row{display:grid;grid-template-columns:1.2fr 1.5fr auto;gap:10px;align-items:center;padding:10px 12px;border:1px solid #2d2d2d;border-radius:11px;background:#111}.buyer-waiting-count{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:900;color:#ff8c90}.buyer-waiting-reqs{font-size:12px;color:#bbb;line-height:1.5}@media(max-width:800px){.buyer-waiting-row{grid-template-columns:1fr}}
 .batch-panel{position:static;background:#0d0d0d;border:1px solid #333;border-radius:16px;padding:14px;margin:16px 0;z-index:auto}.sourcing-plan{display:none;background:#0d0d0d;border:1px solid #333;border-radius:16px;padding:14px;margin:0 0 16px}.sourcing-plan-grid{display:grid;gap:8px;margin-top:10px}.sourcing-plan-row{display:grid;grid-template-columns:1.4fr .8fr auto;gap:10px;align-items:center;padding:10px 12px;border:1px solid #2c2c2c;border-radius:11px;background:#111}.sourcing-plan-row.current{border-color:#ed1c24}.sourcing-plan-status{font-size:12px;font-weight:900}.sourcing-plan-status.not-started{color:#ff858a}.sourcing-plan-status.prepared{color:#ffd27a}.sourcing-plan-status.sent{color:#8dbdff}.sourcing-plan-status.responded{color:#67dc91}.source-setup-guide{display:none;background:#0d0d0d;border:2px solid #f1b94d;border-radius:16px;padding:16px;margin:0 0 16px}.source-setup-steps{display:grid;gap:8px;margin-top:10px}.source-setup-step{display:grid;grid-template-columns:34px 1fr;gap:10px;align-items:start;padding:10px;border:1px solid #303030;border-radius:10px;background:#111}.source-setup-step strong{display:block}.source-step-num{width:28px;height:28px;border-radius:999px;background:#2a2a2a;display:flex;align-items:center;justify-content:center;font-weight:900}
 .message-mentions{display:none;margin-top:14px;padding-top:12px;border-top:1px solid #2b2b2b}.message-mention-row{display:grid;grid-template-columns:1.4fr .9fr auto;gap:10px;align-items:center;padding:9px 0;border-top:1px solid #222}.message-mention-row:first-child{border-top:0}.message-mention-badge{font-size:12px;font-weight:900;color:#ffd27a}.message-mention-copy{font-size:12px;color:#aaa;line-height:1.45}
+.dealer-import{background:linear-gradient(135deg,rgba(212,175,55,.10),#111 55%);border-color:rgba(212,175,55,.45)}
+.dealer-import-grid{display:grid;grid-template-columns:1.2fr 1fr 1fr auto;gap:10px;align-items:end;margin-top:12px}
+.dealer-import-preview{display:none;margin-top:12px;padding:12px;border:1px solid #3a3421;border-radius:12px;background:#0b0b0b}
+.dealer-import-stats{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.dealer-import-stat{border:1px solid #544822;border-radius:10px;padding:8px 10px;background:#151206}
+.dealer-import-stat strong{display:block;color:#e6c65c;font-size:18px}
+.vq-wrap{display:inline-flex;align-items:center;gap:8px;margin-top:7px}
+.vq-shield{width:38px;height:44px;clip-path:polygon(50% 0,94% 15%,88% 72%,50% 100%,12% 72%,6% 15%);background:linear-gradient(145deg,#f6df7a,#b98615);color:#191304;display:flex;align-items:center;justify-content:center;font-weight:950;font-size:13px;letter-spacing:.03em;box-shadow:0 3px 10px rgba(0,0,0,.35)}
+.vq-copy{display:grid;gap:1px}.vq-copy strong{color:#e8cc6e;font-size:12px}.vq-copy span{font-size:10px;color:#aaa}
+@media(max-width:900px){.dealer-import-grid{grid-template-columns:1fr 1fr}}
 .batch-grid{display:grid;grid-template-columns:1.2fr 1.2fr .7fr auto;gap:10px;align-items:end}
 @media(max-width:1100px){.sources{grid-template-columns:1fr}.filters,.batch-grid{grid-template-columns:1fr 1fr}.bike{grid-template-columns:30px 90px 1fr 1fr}.bike .optional{display:none}.bike img{width:90px;height:68px}}
 @media(max-width:650px){.content{padding:12px}.filters,.batch-grid{grid-template-columns:1fr}.bike{grid-template-columns:30px 1fr}.bike img{display:none}}
@@ -62,6 +73,27 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
         <div class="eyebrow">Sourcing · Internal only</div>
         <h1>Live Source Hub</h1>
         <p class="muted">Saved external motorcycle sources feed one internal sourcing pool. A motorcycle disappearing from a source is <strong>not deleted</strong>: it is marked No Longer Listed, kept for history, and excluded from new buyer batches.</p>
+      </section>
+
+      <section class="panel dealer-import" id="dealerStockImportPanel">
+        <div class="eyebrow" style="color:#e6c65c">Dealer stock imports</div>
+        <h2 style="margin:5px 0 6px">Import VAT Qualifying dealer stock</h2>
+        <p class="muted" style="margin:0">Upload the latest dealer CSV or Excel stocklist. AnyBike uses the dealer sheet as the authority for VAT status, matches registrations to BMW Approved Used adverts and marks matching adverts with a gold <strong>VQ · VAT Qualifying</strong> badge.</p>
+        <div class="dealer-import-grid">
+          <div class="field"><label>Supplier</label><input id="dealerImportSupplier" value="Vines BMW Motorrad Guildford"></div>
+          <div class="field"><label>Supplier code</label><input id="dealerImportSlug" value="vines-guildford"></div>
+          <div class="field"><label>Weekly stocklist</label><input id="dealerImportFile" type="file" accept=".csv,.xlsx,.xls" onchange="previewDealerStockFile(this.files&&this.files[0])"></div>
+          <button class="btn" type="button" onclick="document.getElementById('dealerImportFile').click()">Choose file</button>
+        </div>
+        <div class="small" style="margin-top:8px">Vines mapping remembered: Model · Miles · Description · O · Reg Date · Reg No · Chassis · VAT. <strong>VAT = VQ</strong> is imported as VAT Qualifying. Trade/dealer pricing is not published by this importer.</div>
+        <div class="dealer-import-preview" id="dealerImportPreview">
+          <div class="dealer-import-stats" id="dealerImportStats"></div>
+          <div class="small" id="dealerImportPreviewText"></div>
+          <div class="toolbar" style="margin-bottom:0">
+            <button class="btn red" id="dealerImportBtn" type="button" onclick="importDealerStock()" disabled>IMPORT STOCKLIST →</button>
+            <span class="status" id="dealerImportStatus"></span>
+          </div>
+        </div>
       </section>
 
       <section class="next-action-panel" id="nextActionPanel">
@@ -144,12 +176,13 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
       </section>
 
       <section class="panel">
-        <div class="filters" style="grid-template-columns:1.1fr 1fr 1fr 1fr auto">
+        <div class="filters" style="grid-template-columns:1.1fr 1fr 1fr 1fr 1fr auto">
           <input type="hidden" id="connectorFilter" value="">
           <div class="field"><label>Selected channel</label><div id="activeSourceLabel" class="btn" style="cursor:default;text-align:left">Choose a channel above</div></div>
           <div class="field"><label>Make</label><select id="makeFilter" onchange="refreshModelOptions()"><option value="">All makes</option></select></div>
           <div class="field"><label>Model</label><select id="modelFilter"><option value="">All models</option></select></div>
           <div class="field"><label>Status</label><select id="statusFilter"><option value="live">Live only</option><option value="">All</option><option value="ended">No longer listed</option><option value="review">Needs review</option></select></div>
+          <div class="field"><label>VAT status</label><select id="vatFilter"><option value="">All VAT statuses</option><option value="vq">VAT Qualifying only</option><option value="non_vq">Not marked VQ</option></select></div>
           <button class="btn red" onclick="loadItems()">Search</button>
         </div>
         <div class="dealer-filter-wrap">
@@ -196,13 +229,116 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
 </div>
 <script>
 const sb=()=>getAdminSupabaseClient();
-let hub=null,items=[],buyers=[],buyerSourcingQueue=[],selected=new Set(),sourceFacets={makes:[],models:[]},buyerRequests=[],buyerSourcingPlan=null,buyerMessageMentions=[],selectedDealers=new Set(),sourceRefreshInProgress=false,deliveryAllowances=new Map(),sourceSetupConnectorId=null,autoBmwPhotoRequested=new Set();
+let hub=null,items=[],buyers=[],buyerSourcingQueue=[],selected=new Set(),sourceFacets={makes:[],models:[]},buyerRequests=[],buyerSourcingPlan=null,buyerMessageMentions=[],selectedDealers=new Set(),sourceRefreshInProgress=false,deliveryAllowances=new Map(),sourceSetupConnectorId=null,autoBmwPhotoRequested=new Set(),dealerImportRows=[],dealerImportFilename="";
 const sourcingParams=new URLSearchParams(location.search);
 function sourcingContextQuery(extra){
   const p=new URLSearchParams();
   ["deal","buyer","request"].forEach(k=>{const v=sourcingParams.get(k);if(v)p.set(k,v)});
   if(extra) Object.entries(extra).forEach(([k,v])=>{if(v!==null&&v!==undefined&&v!=="")p.set(k,String(v))});
   const s=p.toString();return s?"?"+s:"";
+}
+
+function excelSerialToIso(value){
+  if(value===null||value===undefined||value==="")return null;
+  if(typeof value==="number" && window.XLSX?.SSF?.parse_date_code){
+    const d=XLSX.SSF.parse_date_code(value);
+    if(d?.y)return String(d.y).padStart(4,"0")+"-"+String(d.m).padStart(2,"0")+"-"+String(d.d).padStart(2,"0");
+  }
+  const dt=new Date(value);
+  if(!Number.isNaN(dt.getTime()))return dt.toISOString().slice(0,10);
+  return null;
+}
+function normaliseDealerHeader(v){return String(v??"").trim().toLowerCase().replace(/[^a-z0-9]+/g," ");}
+function cleanDealerModelTitle(v){
+  return String(v||"")
+    .replace(/^\s*\(1\)\s*/i,"")
+    .replace(/\*+/g,"")
+    .replace(/\s*\((?:NO\s*BT|BT|LRH|CRAIG|STATIC\s*DEMO)\)\s*/gi," ")
+    .replace(/\s{2,}/g," ")
+    .trim();
+}
+async function previewDealerStockFile(file){
+  const box=document.getElementById("dealerImportPreview");
+  const stats=document.getElementById("dealerImportStats");
+  const textEl=document.getElementById("dealerImportPreviewText");
+  const btn=document.getElementById("dealerImportBtn");
+  const status=document.getElementById("dealerImportStatus");
+  dealerImportRows=[]; dealerImportFilename=file?.name||"";
+  if(!file){box.style.display="none";return}
+  box.style.display="block";
+  status.className="status";status.textContent="Reading "+file.name+"…";
+  btn.disabled=true;
+  try{
+    const bytes=await file.arrayBuffer();
+    const book=XLSX.read(bytes,{type:"array",cellDates:false});
+    const sheet=book.Sheets[book.SheetNames[0]];
+    const matrix=XLSX.utils.sheet_to_json(sheet,{header:1,raw:true,defval:null});
+    let headerIndex=-1;
+    for(let i=0;i<Math.min(matrix.length,12);i++){
+      const h=(matrix[i]||[]).map(normaliseDealerHeader);
+      if(h.includes("model") && h.includes("miles") && h.some(x=>x==="reg no"||x==="reg") && h.includes("vat")){headerIndex=i;break}
+    }
+    if(headerIndex<0)throw new Error("Could not find the expected Model / Miles / Reg No / VAT header row.");
+    const headers=(matrix[headerIndex]||[]).map(normaliseDealerHeader);
+    const idx=(...names)=>headers.findIndex(h=>names.includes(h));
+    const col={
+      model:idx("model"), mileage:idx("miles","mileage"), description:idx("description"),
+      internal_o:idx("o"), registration_date:idx("reg date","registration date"),
+      registration:idx("reg no","reg","registration"), chassis:idx("chassis","vin"), vat_code:idx("vat")
+    };
+    dealerImportRows=matrix.slice(headerIndex+1).filter(r=>r&&r.some(v=>v!==null&&String(v).trim()!=="")).map(r=>({
+      model:String(r[col.model]??"").trim(),
+      mileage:r[col.mileage]===null||r[col.mileage]===undefined||r[col.mileage]===""?null:Math.round(Number(r[col.mileage])||0),
+      description:String(r[col.description]??"").trim(),
+      internal_o:String(r[col.internal_o]??"").trim(),
+      registration_date:excelSerialToIso(r[col.registration_date]),
+      registration:String(r[col.registration]??"").trim().toUpperCase().replace(/\s+/g,""),
+      chassis:String(r[col.chassis]??"").trim().toUpperCase(),
+      vat_code:String(r[col.vat_code]??"").trim().toUpperCase()
+    })).filter(r=>r.model||r.registration||r.chassis);
+    const vq=dealerImportRows.filter(r=>r.vat_code==="VQ").length;
+    stats.innerHTML='<div class="dealer-import-stat"><span class="small">Rows found</span><strong>'+dealerImportRows.length+'</strong></div>'+
+      '<div class="dealer-import-stat"><span class="small">VAT Qualifying</span><strong>'+vq+'</strong></div>'+
+      '<div class="dealer-import-stat"><span class="small">Other rows</span><strong>'+(dealerImportRows.length-vq)+'</strong></div>';
+    const sample=dealerImportRows.filter(r=>r.vat_code==="VQ").slice(0,4).map(r=>cleanDealerModelTitle(r.model)+(r.registration?" · "+r.registration:"")).join(" | ");
+    textEl.innerHTML='<strong>Ready to preview/import.</strong> Column VAT = VQ will become the gold VAT Qualifying flag. '+(sample?'<br>VQ sample: '+esc(sample):'');
+    status.className="status good";status.textContent="File read successfully. Nothing has been imported yet.";
+    btn.disabled=!dealerImportRows.length;
+  }catch(e){
+    status.className="status bad";status.textContent=e.message||String(e);
+    stats.innerHTML="";textEl.textContent="";
+  }
+}
+async function importDealerStock(){
+  if(!dealerImportRows.length)return;
+  const supplier=document.getElementById("dealerImportSupplier").value.trim();
+  const slug=document.getElementById("dealerImportSlug").value.trim();
+  const btn=document.getElementById("dealerImportBtn");
+  const status=document.getElementById("dealerImportStatus");
+  if(!supplier||!slug){status.className="status bad";status.textContent="Supplier and supplier code are required.";return}
+  btn.disabled=true;status.className="status";status.textContent="Importing and matching registrations to BMW Approved Used…";
+  try{
+    const {data,error}=await sb().rpc("admin_import_dealer_stock_v1",{
+      p_supplier_name:supplier,p_supplier_slug:slug,p_filename:dealerImportFilename,p_rows:dealerImportRows
+    });
+    if(error)throw error;
+    const d=data||{};
+    status.className=d.unmatched_rows?"status":"status good";
+    status.textContent=(d.total_rows||0)+" rows imported · "+(d.vat_qualifying_rows||0)+" VQ · "+(d.matched_rows||0)+" matched to BMW adverts · "+(d.unmatched_rows||0)+" unmatched.";
+    const bmw=(hub?.connectors||[]).find(x=>x.adapter_key==="bmw-approved-used-uk");
+    if(bmw){
+      document.getElementById("connectorFilter").value=String(bmw.id);
+      document.getElementById("activeSourceLabel").textContent=bmw.name;
+      const chooser=document.getElementById("channelChooserSelect");if(chooser)chooser.value=String(bmw.id);
+      await loadItems(true);
+    }
+  }catch(e){
+    status.className="status bad";status.textContent=e.message||String(e);
+  }finally{btn.disabled=false}
+}
+function vatBadgeHtml(i){
+  if(!i?.vat_qualifying)return "";
+  return '<div class="vq-wrap" title="Supplying dealer identifies this motorcycle as VAT Qualifying"><span class="vq-shield">VQ</span><span class="vq-copy"><strong>VAT Qualifying</strong><span>Dealer-confirmed VAT status</span></span></div>';
 }
 function sourcingStatusClass(status){
   const s=String(status||"").toLowerCase();
@@ -904,6 +1040,7 @@ async function loadItems(preserveDealerOptions=false){
   const modelRaw=document.getElementById("modelFilter").value||null;
   const model=modelRaw==="__request_family__"?null:modelRaw;
   const status=document.getElementById("statusFilter").value||null;
+  const vatFilter=document.getElementById("vatFilter")?.value||"";
   const {data,error}=await sb().rpc("admin_get_live_source_items_v1",{p_connector_id:cid,p_make:make,p_model:model,p_status:status,p_limit:2000});
   if(error){st.className="status bad";st.textContent=error.message;return}
   let rows=data||[];
@@ -920,6 +1057,9 @@ async function loadItems(preserveDealerOptions=false){
       rows=rows.map(r=>({...r,buyer_safe_url:safeMap.get(Number(r.id))||null}));
     }
   }
+
+  if(vatFilter==="vq") rows=rows.filter(i=>i.vat_qualifying===true);
+  else if(vatFilter==="non_vq") rows=rows.filter(i=>i.vat_qualifying!==true);
 
   const dealerSourceRows=[...rows];
 
@@ -1045,7 +1185,7 @@ function renderItems(){
           ?'<div class="status good" style="margin-top:5px;font-weight:800">✓ Buyer-safe image</div>'
           :'<div class="status" style="margin-top:5px">Raw source image</div>')+
     '</div>'+
-    '<div><div class="bike-title">'+esc(cleanLiveTitle([i.year,i.make,i.model,i.variant].filter(Boolean).join(" ")))+'</div><div class="small">'+esc([i.mileage!=null?Number(i.mileage).toLocaleString("en-GB")+" miles":"",i.colour].filter(Boolean).join(" · "))+'</div></div>'+
+    '<div><div class="bike-title">'+esc(cleanLiveTitle([i.year,i.make,i.model,i.variant].filter(Boolean).join(" ")))+'</div><div class="small">'+esc([i.mileage!=null?Number(i.mileage).toLocaleString("en-GB")+" miles":"",i.colour].filter(Boolean).join(" · "))+'</div>'+vatBadgeHtml(i)+'</div>'+
     '<div class="optional"><div class="small">Source price</div><div class="money">'+gbp(i.source_price_gbp)+'</div>'+
       '<div class="field" style="margin-top:8px"><label>UK delivery</label><input type="text" inputmode="decimal" value="'+esc(formatDeliveryAllowance(deliveryAllowances.has(Number(i.id))?deliveryAllowances.get(Number(i.id)):250))+'" onfocus="deliveryInputFocus(this)" onblur="deliveryInputBlur('+i.id+',this)"></div></div>'+
     '<div class="optional"><div class="small secret">Internal source</div><div>'+esc(i.seller_name||i.source_domain||"")+'</div><div class="small">'+esc(i.source_stock_id||"")+'</div></div>'+
