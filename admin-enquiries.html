@@ -8848,15 +8848,19 @@ async function saveDealCommercialSetup(dealMotorcycleId,options){
 
     const payload=result.data || {};
 
-    setDealCommercialAutosaveState(id,"saved","Saved ✓");
+    const saveState=document.getElementById("deal-commercial-autosave-"+id);
+    if(saveState){
+      saveState.className="anybike-commercial-autosave saved";
+      saveState.textContent="Saved ✓";
+    }
 
-    const saveButton=document.querySelector('[onclick*="saveDealCommercialSetup('+id+'"]');
+    const saveButton=document.getElementById("deal-commercial-save-button-"+id);
     if(saveButton){
-      const originalSaveLabel=saveButton.textContent;
       saveButton.textContent="Saved ✓";
       saveButton.disabled=true;
       setTimeout(function(){
-        saveButton.textContent=originalSaveLabel || "Save changes";
+        if(!document.body.contains(saveButton))return;
+        saveButton.textContent="Save changes";
         saveButton.disabled=false;
       },1400);
     }
@@ -8891,10 +8895,16 @@ async function saveDealCommercialSetup(dealMotorcycleId,options){
       setTimeout(function(){ openDealOfferModal(id); },100);
     }
 
+    if(options.preserveView){
+      setDealCommercialAutosaveState(id,"saved","Saved ✓");
+    }
     return true;
 
   }catch(error){
     console.error("Commercial Setup could not be saved:",error);
+    if(options.preserveView){
+      setDealCommercialAutosaveState(id,"error","Save failed");
+    }
     alert("Commercial Setup could not be saved.\n\n"+(error && error.message ? error.message : "Unknown error"));
     return false;
   }finally{
@@ -9184,7 +9194,7 @@ function renderAnyBikeDealCommercialSetup(deal){
       <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;align-items:center">
         ${acceptedLocked
           ? '<span class="anybike-commercial-autosave saved">Accepted terms locked</span>'
-          : '<span id="deal-commercial-autosave-'+id+'" class="anybike-commercial-autosave saved">Saved ✓</span><button type="button" class="secondary" onclick="saveDealCommercialSetup('+id+',{skipConfirm:true,skipSuccessAlert:false,preserveView:true});return false;">Save changes</button>'}
+          : '<span id="deal-commercial-autosave-'+id+'" class="anybike-commercial-autosave saved">Saved ✓</span><button id="deal-commercial-save-button-'+id+'" type="button" class="secondary" onclick="saveDealCommercialSetup('+id+',{skipConfirm:true,skipSuccessAlert:true,preserveView:true});return false;">Save changes</button>'}
         ${hasSavedProfileShipper
           ? '<span class="anybike-commercial-autosave saved">Saved shipper: '+escapeAdminHtml(profileShipper)+(profileHandover?' · '+escapeAdminHtml(profileHandover):'')+'</span>'
           : (!acceptedLocked ? '<button type="button" class="secondary" onclick="requestBuyerShippingDetailsForDeal('+dealId+',this);return false;">Request shipper details</button>' : '')}
