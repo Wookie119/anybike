@@ -261,17 +261,17 @@
         </div>
         <div class="ab-collect-body">
           <div class="ab-collect-card">
-            <h6>Driver arrival & visual check</h6>
-            <div class="ab-collect-actions">
-              <button type="button" class="ab-ops-button ab-move-secondary" ${eta||collected?"disabled":""} onclick="updateAnyBikeCollectionStep(${id},${Number(dealId)},'eta_received');return false;">Record Driver ETA</button>
-              <button type="button" class="ab-ops-button ab-move-secondary" ${arrived||collected?"disabled":""} onclick="updateAnyBikeCollectionStep(${id},${Number(dealId)},'driver_arrived');return false;">Driver Arrived</button>
+            <h6>Move driver progress</h6>
+            <div class="ab-collect-status ${arrived||passed||discrepancy?"good":"warn"}">
+              These statuses are updated automatically from the Move driver collection form. Admin should not duplicate the driver's arrival or visual-check actions here.
             </div>
-            <textarea id="ab-collect-notes-${id}" class="ab-collect-note" placeholder="Visual check or discrepancy notes…">${esc(row.visual_check_notes||"")}</textarea>
-            <div class="ab-collect-actions">
-              <button type="button" class="ab-ops-button" ${arrived&&!collected?"":"disabled"} onclick="updateAnyBikeCollectionStep(${id},${Number(dealId)},'visual_passed');return false;">Visual Check Passed</button>
-              <button type="button" class="ab-ops-button ab-move-secondary" ${arrived&&!collected?"":"disabled"} onclick="updateAnyBikeCollectionStep(${id},${Number(dealId)},'visual_discrepancy');return false;">Record Discrepancy</button>
+            <div class="ab-collect-money" style="margin-top:10px">
+              <div class="ab-ops-metric"><span>ETA / On My Way</span><strong>${esc(eta?niceDateTime(row.driver_eta_received_at):"Waiting")}</strong></div>
+              <div class="ab-ops-metric"><span>Driver Arrived</span><strong>${esc(arrived?niceDateTime(row.driver_arrived_at):"Waiting")}</strong></div>
+              <div class="ab-ops-metric"><span>Visual Check</span><strong>${esc(passed?"Passed":(discrepancy?"Discrepancy":"Pending"))}</strong></div>
             </div>
-            ${discrepancy?'<div class="ab-collect-status warn">Supplier payment is blocked until the discrepancy is resolved and the visual check is passed.</div>':""}
+            ${row.visual_check_notes?'<div class="ab-collect-status">Driver notes: '+esc(row.visual_check_notes)+'</div>':""}
+            ${discrepancy?'<div class="ab-collect-status warn">Supplier payment remains blocked until the discrepancy is resolved on the driver workflow.</div>':""}
           </div>
 
           <div class="ab-collect-card">
@@ -313,7 +313,13 @@
               ?"Motorcycle collected "+esc(niceDateTime(row.collection_actual_at))+" and secured to AnyBike."
               :(driverWorkflow
                 ?"Driver workflow controls final collection after handover, condition photos and seller payment confirmation."
-                :"Requires driver arrival, passed visual check, payment authorisation and a zero supplier balance.")}</div><div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.09)"><h6>Incoming Collection Job</h6><div class="ab-collect-status ${collected||collectionReady?"good":"warn"}">${collected?"Collection is complete and linked back to this AnyBike purchase.":(collectionReady?"Collection details are complete. This motorcycle is ready to send to Move Motorcycles.":"Collection is NOT ready for Move yet. Missing: "+esc(collectionMissing.join(", ")||"required collection details")+".")}</div>${collected?"":'<div class="ab-collect-actions" style="margin-top:8px"><button type="button" class="ab-ops-button" '+(collectionReady?'':'disabled title="Complete the collection-readiness items first"')+' onclick="sendAnyBikeCollectionToMove('+id+','+Number(dealId)+');return false;">'+(collectionReady?'Send to Incoming Collection Jobs':'Waiting for Collection Details')+'</button><a class="ab-ops-button ab-move-secondary" href="admin-logistics.html#pay-on-site" style="text-decoration:none">Open Logistics HQ</a></div>'}</div>
+                :"Requires driver arrival, passed visual check, payment authorisation and a zero supplier balance.")}</div><div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.09)"><h6>Incoming Collection Job</h6><div class="ab-collect-status ${collected||booked||collectionReady?"good":"warn"}">${collected
+              ?"Collection is complete and linked back to this AnyBike purchase."
+              :(booked
+                ?"Move booking / incoming collection job is live. Driver progress will update this section automatically."
+                :(collectionReady
+                  ?"Collection details are complete. This motorcycle is ready to send to Move Motorcycles."
+                  :"Collection is NOT ready for Move yet. Missing: "+esc(collectionMissing.join(", ")||"required collection details")+"."))}</div>${collected?"":'<div class="ab-collect-actions" style="margin-top:8px">'+(booked?'':'<button type="button" class="ab-ops-button" '+(collectionReady?'':'disabled title="Complete the collection-readiness items first"')+' onclick="sendAnyBikeCollectionToMove('+id+','+Number(dealId)+');return false;">'+(collectionReady?'Send to Incoming Collection Jobs':'Waiting for Collection Details')+'</button>')+'<a class="ab-ops-button ab-move-secondary" href="admin-logistics.html#pay-on-site" style="text-decoration:none">Open Logistics HQ</a></div>'}</div>
             ${collected?`<div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.09)">
               <h6>Driver Collection Report</h6>
               <div class="ab-collect-actions">
