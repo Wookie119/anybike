@@ -183,3 +183,66 @@ end;
 $$;
 revoke all on function public.admin_get_live_source_vat_flags_v1(bigint[]) from public;
 grant execute on function public.admin_get_live_source_vat_flags_v1(bigint[]) to authenticated;
+
+
+create or replace function public.admin_get_live_source_items_v1(
+  p_connector_id bigint default null,
+  p_make text default null,
+  p_model text default null,
+  p_status text default 'live',
+  p_limit integer default 2000
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path to 'public','pg_temp'
+as $function$
+declare v_result jsonb;
+begin
+  if auth.uid() is null or not public.anybike_is_admin() then
+    raise exception 'Admin access required';
+  end if;
+  select coalesce(jsonb_agg(to_jsonb(x) order by x.last_seen_at desc,x.id desc),'[]'::jsonb)
+  into v_result
+  from (
+    select
+      i.id,i.connector_id,i.source_key,i.source_url,i.source_stock_id,i.source_domain,
+      i.seller_name,i.seller_phone,i.seller_email,i.seller_address,
+      i.make,i.model,i.variant,i.year,i.mileage,i.colour,i.registration,i.engine_cc,
+      i.source_price_gbp,i.description_original,i.source_image_urls,
+      i.first_seen_at,i.last_seen_at,i.ended_at,i.source_status,i.last_changed_at,
+      i.vat_qualifying,i.vat_qualifying_source,i.vat_qualifying_verified_at,i.dealer_stock_supplier,
+      exists(select 1 from public.anybike_live_source_buyer_safe_images bi
+        where bi.live_source_item_id=i.id and bi.safe_status='safe'
+          and bi.approved_for_buyer_display=true and nullif(bi.buyer_safe_url,'') is not null) as has_buyer_safe_image,
+      exists(select 1 from public.used_bike_scans s
+        where coalesce(s.extraction->>'live_source_item_id','') ~ '^\\d+$'
+          and (s.extraction->>'live_source_item_id')::bigint=i.id
+          and coalesce(s.price_checked,false)=true) as has_prepared_price,
+      case
+        when exists(select 1 from public.anybike_live_source_buyer_safe_images bi
+          where bi.live_source_item_id=i.id and bi.safe_status='safe'
+            and bi.approved_for_buyer_display=true and nullif(bi.buyer_safe_url,'') is not null)
+          and exists(select 1 from public.used_bike_scans s
+            where coalesce(s.extraction->>'live_source_item_id','') ~ '^\\d+$'
+              and (s.extraction->>'live_source_item_id')::bigint=i.id
+              and coalesce(s.price_checked,false)=true)
+          then 'Buyer Ready'
+        when exists(select 1 from public.anybike_live_source_buyer_safe_images bi
+          where bi.live_source_item_id=i.id and bi.safe_status='safe'
+            and bi.approved_for_buyer_display=true and nullif(bi.buyer_safe_url,'') is not null)
+          then 'Image Ready'
+        else 'Needs Preparation'
+      end as preparation_status
+    from public.live_source_items i
+    where coalesce(i.excluded_from_sourcing,false)=false
+      and (p_connector_id is null or i.connector_id=p_connector_id)
+      and (p_make is null or p_make='' or i.make ilike p_make)
+      and (p_model is null or p_model='' or i.model ilike '%'||p_model||'%')
+      and (p_status is null or p_status='' or i.source_status=p_status)
+    order by i.last_seen_at desc,i.id desc
+    limit greatest(1,least(coalesce(p_limit,2000),5000))
+  ) x;
+  return v_result;
+end;
+$function$;
