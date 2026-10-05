@@ -647,7 +647,9 @@ function currentConnector(){
   return (hub?.connectors||[]).find(x=>Number(x.id)===id)||null;
 }
 function isBmwConnector(){
-  return currentConnector()?.adapter_key==="bmw-approved-used-uk";
+  const id=Number(document.getElementById("connectorFilter")?.value||0);
+  const connector=currentConnector();
+  return id===1 || connector?.adapter_key==="bmw-approved-used-uk" || /BMW Motorrad Approved Used/i.test(String(connector?.name||document.getElementById("activeSourceLabel")?.textContent||""));
 }
 function syncSourceSpecificControls(){
   const bmw=isBmwConnector();
@@ -1393,7 +1395,14 @@ function syncSelectedFromVisibleCheckboxes(){
 async function createBatch(){
   const bid=Number(document.getElementById("buyerSelect").value),rid=document.getElementById("requestSelect").value?Number(document.getElementById("requestSelect").value):null;
   const st=document.getElementById("batchStatus");
-  if(!bid){st.className="status bad";st.textContent="Choose a buyer.";return}
+  if(!bid){
+    st.className="status bad";
+    st.textContent="Choose a buyer above before preparing a buyer batch. If you only want to clean these BMW images, use Clean selected images.";
+    const pool=document.getElementById("poolStatus");
+    if(pool){pool.className="status bad";pool.textContent="Choose a buyer before Prepare selected bikes — or click Clean selected images to clean these photos only.";}
+    document.getElementById("buyerSelect")?.scrollIntoView({behavior:"smooth",block:"center"});
+    return
+  }
 
   const ids=syncSelectedFromVisibleCheckboxes();
   if(!ids.length){st.className="status bad";st.textContent="Select at least one live motorcycle.";return}
