@@ -8953,11 +8953,11 @@ async function proceedDealCommercialSetup(dealMotorcycleId){
   const saved=await saveDealCommercialSetup(id,{
     skipConfirm:true,
     skipSuccessAlert:true,
-    preserveView:false
+    preserveView:true
   });
 
   if(saved){
-    openDealOfferModal(id);
+    await openDealOfferModal(id);
   }
 }
 
@@ -9262,6 +9262,21 @@ function defaultDealOfferTerms(){
     "Any independent mechanical inspection must be requested before purchase unless otherwise agreed.";
 }
 
+function dealOfferSaleBasisFromBuyer(deal,profile){
+  const buyerType=String(profile?.buyer_type || "").toLowerCase();
+  const businessCountry=String(profile?.business_country || profile?.country || "").trim().toLowerCase();
+  const destinationCountry=String(profile?.preferred_destination_country || "").trim().toLowerCase();
+
+  const ukNames=["united kingdom","uk","great britain","gb","england","scotland","wales","northern ireland"];
+  const isTrade=/dealer|trader|trade|business/.test(buyerType);
+  const destinationIsExport=!!destinationCountry && !ukNames.includes(destinationCountry);
+  const businessIsOverseas=!!businessCountry && !ukNames.includes(businessCountry);
+
+  if(isTrade && (destinationIsExport || businessIsOverseas)) return "Trade / Export Sale";
+  if(isTrade) return "Trade Sale";
+  return destinationIsExport || businessIsOverseas ? "Trade / Export Sale" : "Trade Sale";
+}
+
 function configureDealOfferExpiryLimit(dealMotorcycleId){
   const input=document.getElementById("dealOfferExpiresAt");
   const help=document.getElementById("dealOfferExpiryHelp");
@@ -9502,7 +9517,8 @@ function dealOfferSavedShipperForDeal(deal){
 function dealOfferLockConfirmedShipping(deal){
   const selection=anyBikeCustomerHandoverSelectionForDeal(deal?.deal_id);
   const plan=dealOfferSavedShipperForDeal(deal);
-  const locked=!!selection && !!plan &&
+  const locked=!!plan;
+  const customerSelected=!!selection && !!plan &&
     Number(selection.handover_plan_id||0)===Number(plan.id||0) &&
     String(selection.status||"").toLowerCase().includes("customer selected");
 
@@ -9561,21 +9577,23 @@ function dealOfferLockConfirmedShipping(deal){
     confirmed.style.display="block";
     confirmed.innerHTML=
       '<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap">'+
-        '<div><span style="display:block;color:#8cffb1;font-size:10px;font-weight:950;letter-spacing:.06em;text-transform:uppercase;margin-bottom:5px">Customer confirmed for this Deal</span>'+
-        '<strong style="display:block;color:#fff;font-size:18px">'+escapeAdminHtml(ukPoint||"UK handover point confirmed")+'</strong>'+
-        '<span style="display:block;margin-top:4px">'+escapeAdminHtml(shipper||"Confirmed freight forwarder")+'</span></div>'+
-        '<span class="panel-badge badge-green">LOCKED TO DEAL</span>'+
+        '<div><span style="display:block;color:#8cffb1;font-size:10px;font-weight:950;letter-spacing:.06em;text-transform:uppercase;margin-bottom:5px">'+(customerSelected?'Customer confirmed for this Deal':'Saved customer shipping preference')+'</span>'+
+        '<strong style="display:block;color:#fff;font-size:18px">'+escapeAdminHtml(ukPoint||"UK handover point saved")+'</strong>'+
+        '<span style="display:block;margin-top:4px">'+escapeAdminHtml(shipper||"Saved freight forwarder")+'</span></div>'+
+        '<span class="panel-badge badge-green">LOCKED FOR OFFER</span>'+
       '</div>'+
       (address?'<div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.08)"><span style="display:block;color:#888;font-size:10px;font-weight:900">UK HANDOVER / DELIVERY ADDRESS</span><strong style="display:block;color:#fff;margin-top:3px">'+escapeAdminHtml(address)+'</strong></div>':'')+
       (contact?'<div style="margin-top:8px"><span style="display:block;color:#888;font-size:10px;font-weight:900">SHIPPER CONTACT</span><span style="display:block;margin-top:3px">'+escapeAdminHtml(contact)+'</span></div>':'')+
-      '<div style="margin-top:10px;color:#9bf0b8;font-size:11px;font-weight:900">To change this arrangement, update the Deal shipping selection and have the customer reconfirm it.</div>';
+      '<div style="margin-top:10px;color:#9bf0b8;font-size:11px;font-weight:900">This saved shipping arrangement is locked in the Formal Offer. Change it from the customer / Deal shipping record, not here.</div>';
   }
 
   const requestButton=document.getElementById("dealOfferRequestShippingButton");
   if(requestButton)requestButton.style.display="none";
   const status=document.getElementById("dealOfferShippingRequestStatus");
   if(status){
-    status.textContent="✓ Buyer confirmed shipper / handover details for this Deal.";
+    status.textContent=customerSelected
+      ?"✓ Buyer confirmed shipper / handover details for this Deal."
+      :"✓ Saved customer shipper / handover loaded and locked for this Formal Offer.";
     status.style.color="#9bf0b8";
   }
   return true;
@@ -9733,7 +9751,11 @@ async function openDealOfferModal(dealMotorcycleId){
   const automaticFeeButton=document.querySelector('#dealOfferStep1 button[onclick*="syncDealOfferSourcingFee"]');
   if(automaticFeeButton)automaticFeeButton.style.display=sourcedQuoteLocked?"none":"";
 
-  document.getElementById("dealOfferSaleBasis").value="Trade / Export Sale";
+  const saleBasisFromProfile=dealOfferSaleBasisFromBuyer(deal,profile);
+  const saleBasisEl=document.getElementById("dealOfferSaleBasis");
+  saleBasisEl.value=saleBasisFromProfile;
+  saleBasisEl.disabled=true;
+  saleBasisEl.title="Set automatically from the buyer's trade type and destination profile.";
   document.getElementById("dealOfferTerms").value=defaultDealOfferTerms();
   const savedShipperPlan=dealOfferSavedShipperForDeal(deal);
   const preferredUkHandover=String(
@@ -9778,7 +9800,7 @@ async function openDealOfferModal(dealMotorcycleId){
         setDealOfferFeeOverrideState();
         document.getElementById("dealOfferDeliveryCharge").value=Number(offer.delivery_charge_gbp || 0).toFixed(2);
       }
-      document.getElementById("dealOfferSaleBasis").value=offer.sale_basis || "Trade / Export Sale";
+      document.getElementById("dealOfferSaleBasis").value=saleBasisFromProfile;
       document.getElementById("dealOfferTerms").value=String(offer.offer_terms_text || "").trim() || defaultDealOfferTerms();
       if(!shippingLocked){
         document.getElementById("dealOfferDeliveryType").value=offer.delivery_type || "Buyer Arranged / Collection";
@@ -20647,7 +20669,7 @@ document.querySelector(".admin-page-content .wrap")?.classList.add("sales-view-a
       </section>
 
       <section class="deal-offer-section" id="dealOfferStep6" data-offer-step="6">
-        <div class="deal-offer-step-head"><h3>6. Offer Timing · From Seller Check</h3><span class="deal-offer-step-state">Checking…</span></div><div class="deal-offer-next-copy"></div>
+        <div class="deal-offer-step-head"><h3>6. Offer Validity · Tied to Seller Hold</h3><span class="deal-offer-step-state">Checking…</span></div><div class="deal-offer-next-copy"></div>
         <div class="deal-offer-grid">
           <label>
             <span>Offer Valid Until</span>
