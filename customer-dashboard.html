@@ -6998,17 +6998,23 @@ async function saveDealHandoverSelection(dealId){
 async function loadCounts(){
   if(!currentUser)return;
 
-  const watch = await sb.from("customer_watchlist").select("id",{count:"exact",head:true}).eq("customer_id",currentUser.id);
-  const searches = await sb.from("saved_searches").select("id",{count:"exact",head:true}).eq("customer_id",currentUser.id);
-const stock = await sb
-  .from("public_available_stock")
-  .select("id",{count:"exact"})
-  .not("make","is",null)
-  .not("model","is",null)
-  .range(0,0);
-  document.getElementById("watchCount").textContent=(watch.count || 0).toLocaleString("en-GB");
-  document.getElementById("searchCount").textContent=(searches.count || 0).toLocaleString("en-GB");
-  document.getElementById("stockCount").textContent=(stock.count || 0).toLocaleString("en-GB");
+  const [watch,searches,stock]=await Promise.all([
+    sb.from("customer_watchlist").select("id",{count:"exact",head:true}).eq("customer_id",currentUser.id),
+    sb.from("saved_searches").select("id",{count:"exact",head:true}).eq("customer_id",currentUser.id),
+    sb
+      .from("public_available_stock")
+      .select("id",{count:"exact"})
+      .not("make","is",null)
+      .not("model","is",null)
+      .range(0,0)
+  ]);
+
+  const watchEl=document.getElementById("watchCount");
+  const searchEl=document.getElementById("searchCount");
+  const stockEl=document.getElementById("stockCount");
+  if(watchEl) watchEl.textContent=(watch.count || 0).toLocaleString("en-GB");
+  if(searchEl) searchEl.textContent=(searches.count || 0).toLocaleString("en-GB");
+  if(stockEl) stockEl.textContent=(stock.count || 0).toLocaleString("en-GB");
 }
 
 function recentBikeImageUrl(value){
@@ -8757,27 +8763,71 @@ async function initialiseCustomerNotifications(){
 
     document.documentElement.classList.remove("customer-auth-pending");
 
-    const dashboardLoads=await Promise.allSettled([
+    /*
+      Fast dashboard boot:
+      load only the information needed for the workspace header, action hub,
+      sourcing status and live purchase/offer state first. Heavy browse-style
+      sections are loaded when the customer gets near them.
+    */
+    const coreLoads=await Promise.allSettled([
       loadCounts(),
-      loadRecentlyViewed(),
-      loadDashboardConversationCount(),
-      loadRecommendations(),
       loadSourcingProgress(),
-      loadHandPickedForYou(),
       loadBuyerPotentialMatches(),
       loadBuyerMatchNotificationPreference(),
-      loadBuyerReferralSummary()
+      initialiseCustomerNotifications()
     ]);
 
-    dashboardLoads.forEach((result,index)=>{
+    coreLoads.forEach((result,index)=>{
       if(result.status==="rejected"){
-        console.error("Dashboard section failed",index,result.reason);
+        console.error("Dashboard core section failed",index,result.reason);
       }
     });
 
     openRequestedCustomerOffer();
-    await initialiseCustomerNotifications();
     focusRequestedShippingAction();
+
+    const lazyDashboardSection=function(elementId,loader,rootMargin){
+      const element=document.getElementById(elementId);
+      if(!element || typeof loader!=="function") return;
+
+      let started=false;
+      const run=function(){
+        if(started) return;
+        started=true;
+        Promise.resolve()
+          .then(loader)
+          .catch(function(error){
+            console.error("Deferred dashboard section failed:",elementId,error);
+          });
+      };
+
+      if(!("IntersectionObserver" in window)){
+        setTimeout(run,250);
+        return;
+      }
+
+      const observer=new IntersectionObserver(function(entries){
+        if(entries.some(function(entry){ return entry.isIntersecting; })){
+          observer.disconnect();
+          run();
+        }
+      },{rootMargin:rootMargin || "500px 0px"});
+
+      observer.observe(element);
+    };
+
+    /* Near-top content gets a generous preload margin; lower browse content waits. */
+    lazyDashboardSection("hand-picked",loadHandPickedForYou,"900px 0px");
+    lazyDashboardSection("recommended-for-you",loadRecommendations,"700px 0px");
+    lazyDashboardSection("recently-viewed",loadRecentlyViewed,"700px 0px");
+    lazyDashboardSection("buyerReferralPanel",loadBuyerReferralSummary,"500px 0px");
+
+    /* Conversation total is non-critical; run after first paint/network burst. */
+    setTimeout(function(){
+      loadDashboardConversationCount().catch(function(error){
+        console.warn("Deferred conversation count failed",error);
+      });
+    },350);
   }catch(error){
     console.error("My AnyBike failed to initialise",error);
 
