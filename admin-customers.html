@@ -726,6 +726,24 @@ function customerAttention(c){
   return {kind:"clear",label:String(a.buyer_stage||"Registered / Browsing"),title:"No staff action required",detail:"Keep this customer in Customer 360 for intelligence and future matching. Do not chase Buyer Setup yet."};
 }
 
+function shouldShowBuyerSetupReview(c){
+  const a=customerAttentionMap[String(c.customerId)]||{};
+  const count=Number(a.setup_complete_count||0);
+  const approval=String(a.approval_status||"not_reviewed").toLowerCase();
+  const requestedCustomer=new URLSearchParams(window.location.search).get("customer");
+  const requestedAction=new URLSearchParams(window.location.search).get("action");
+
+  if(count!==7 || ["approved","approved_with_exception"].includes(approval)){
+    return false;
+  }
+
+  if(requestedAction==="review-setup" && String(requestedCustomer||"")===String(c.customerId)){
+    return true;
+  }
+
+  return true;
+}
+
 function buyerSetupReviewHtml(c){
   const a=customerAttentionMap[String(c.customerId)]||{};
   const count=Number(a.setup_complete_count||0);
@@ -2247,7 +2265,10 @@ function renderCustomers(){
               <strong>${safe(attention.title)}</strong>
               <span>${safe(attention.detail)}</span>
             </div>
-            <span class="badge ${attention.kind==="clear"?"badge-green":"badge-red"}">${safe(attention.label)}</span>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+              <span class="badge ${attention.kind==="clear"?"badge-green":"badge-red"}">${safe(attention.label)}</span>
+              ${shouldShowBuyerSetupReview(c) ? '<button type="button" class="btn" style="background:#ed1c24" onclick="document.querySelector(\'#customer-'+c.id+' [data-buyer-setup-review]\')?.scrollIntoView({behavior:\'smooth\',block:\'start\'})">Review setup now →</button>' : ""}
+            </div>
           </div>
 
   <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
@@ -2307,7 +2328,7 @@ function renderCustomers(){
                 <button class="tab-btn" data-tab="timeline" onclick="switchTab('${c.id}','timeline')">Timeline</button>
               </div>
 
-              ${attention.label==="Ready for Review" ? buyerSetupReviewHtml(c) : ""}
+              ${shouldShowBuyerSetupReview(c) ? buyerSetupReviewHtml(c) : ""}
 
               <div class="tab-panel active" data-panel="profile">
                 <h3>Profile Overview</h3>
