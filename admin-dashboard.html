@@ -3386,28 +3386,45 @@ setText("kpiPrivateSellers", countSourceType([
         }
       });
 
-      paymentAdviceMap.forEach(function(item){
-        if(item.ledgerStatus==="Posted" || ["Rejected","Cancelled"].includes(item.adviceStatus)){ return; }
+      for(const item of paymentAdviceMap.values()){
+        if(item.ledgerStatus==="Posted" || ["Rejected","Cancelled"].includes(item.adviceStatus)){ continue; }
 
         const readyToPost=item.adviceStatus==="Verified" && item.ledgerStatus==="Ready to Post";
+        let postingPreview=null;
+
+        if(readyToPost){
+          try{
+            const previewResult=await sb.rpc("admin_get_payment_advice_posting_preview",{
+              p_payment_advice_id:Number(item.id)
+            });
+            if(!previewResult.error){
+              postingPreview=previewResult.data||{};
+            }
+          }catch(_error){}
+        }
+
+        const blocked=readyToPost && postingPreview && postingPreview.ready_to_post===false;
+        const issues=blocked && Array.isArray(postingPreview.issues)?postingPreview.issues:[];
+
         actions.push(createDashboardAction({
           group:"accounts",
           priority:"urgent",
           icon:"",
-          type:item.purpose,
-          title:readyToPost ? "Post verified payment" : "Match / Verify Payment",
+          type:blocked ? "Payment exception" : item.purpose,
+          title:blocked ? "Resolve verified payment exception" : (readyToPost ? "Post verified payment" : "Match / Verify Payment"),
           customer:item.customer,
           bike:item.dealNumber || item.adviceNumber,
           country:"",
           assigned:"Accounts",
-          preview:(readyToPost ? "Bank verification is complete. Post " : "Customer reported ")+
-            money(item.amount)+" against "+(item.dealNumber || item.adviceNumber)+".",
+          preview:blocked
+            ? "Bank verification is complete, but this payment cannot be posted as allocated. "+(issues[0]||"Review the allocation before posting.")
+            : ((readyToPost ? "Bank verification is complete. Post " : "Customer reported ")+money(item.amount)+" against "+(item.dealNumber || item.adviceNumber)+"."),
           age:timeAgo(item.submittedAt),
           createdAt:item.submittedAt,
           url:"admin-accounts.html?payment_advice="+encodeURIComponent(item.id),
-          openLabel:readyToPost ? "Post payment →" : "Verify payment →"
+          openLabel:blocked ? "Review exception →" : (readyToPost ? "Post payment →" : "Verify payment →")
         }));
-      });
+      }
     }catch(paymentAdviceError){
       console.warn("Authoritative payment actions could not be added to Dashboard:",paymentAdviceError);
     }
