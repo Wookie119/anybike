@@ -5797,6 +5797,94 @@ input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-in
 }
 </style>
 
+
+<style id="bike-sales-attention-hub-v3">
+/* Bike Sales: Needs Attention is the single action hub. */
+.sales-hq-view-tabs{position:static!important;top:auto!important}
+.sales-journey-head{position:relative!important;top:auto!important}
+
+.bike-sales-header{
+  padding:10px 14px!important;
+  margin-bottom:7px!important;
+  border-radius:13px!important;
+}
+.bike-sales-heading .dept-eyebrow{margin-bottom:3px!important;font-size:9px!important}
+.bike-sales-heading h1{margin:0 0 2px!important;font-size:24px!important}
+.bike-sales-heading p{margin:0!important;font-size:12px!important;line-height:1.3!important;max-width:none!important}
+
+.sales-hq-view-tabs{margin:6px 0 7px!important;padding:4px!important}
+.deal-queue-heading{padding:8px 10px!important;margin:0 0 7px!important}
+
+.bike-sales-action-queue{margin:0 0 10px!important}
+.bike-sales-action-head{padding:4px 2px 6px!important;margin:0!important}
+.bike-sales-action-total{
+  border:0!important;
+  cursor:pointer!important;
+  box-shadow:none!important;
+}
+.bike-sales-action-total:hover{filter:brightness(1.12)}
+
+.bike-sales-next-job{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:14px;
+  align-items:center;
+  margin:0 0 8px;
+  padding:10px 12px;
+  border:1px solid rgba(237,28,36,.55);
+  border-radius:12px;
+  background:linear-gradient(135deg,rgba(237,28,36,.12),#111 64%);
+}
+.bike-sales-next-job .eyebrow{
+  margin:0 0 3px;
+  color:#ed1c24;
+  font-size:10px;
+  font-weight:950;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+}
+.bike-sales-next-job strong{display:block;font-size:16px;line-height:1.2}
+.bike-sales-next-job span{display:block;margin-top:3px;color:#aaa;font-size:11px;line-height:1.35}
+.bike-sales-next-job-actions{display:flex;gap:7px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.bike-sales-next-job-actions button{
+  margin:0!important;
+  min-height:36px!important;
+  padding:8px 12px!important;
+  border-radius:9px!important;
+  font-size:11px!important;
+  font-weight:950!important;
+}
+.bike-sales-next-job-actions .skip{
+  background:#181818!important;
+  color:#fff!important;
+  border:1px solid rgba(255,255,255,.15)!important;
+}
+
+.bike-sales-action-list{
+  display:grid!important;
+  grid-template-columns:1fr!important;
+  gap:5px!important;
+}
+.bike-sales-action-card{
+  min-height:0!important;
+  padding:8px 10px!important;
+  border-radius:10px!important;
+  grid-template-columns:30px minmax(0,1fr) auto!important;
+  gap:9px!important;
+}
+.bike-sales-action-icon{width:28px!important;height:28px!important;font-size:14px!important}
+.bike-sales-action-title{font-size:13px!important;margin-bottom:1px!important}
+.bike-sales-action-customer{margin:1px 5px 1px 0!important;padding:2px 6px!important;font-size:10px!important}
+.bike-sales-action-meta{display:inline!important;font-size:11px!important}
+.bike-sales-action-blockers{margin-top:2px!important;font-size:11px!important;line-height:1.3!important}
+.bike-sales-action-open{font-size:11px!important}
+
+@media(max-width:760px){
+  .bike-sales-next-job{grid-template-columns:1fr}
+  .bike-sales-next-job-actions{justify-content:flex-start}
+}
+</style>
+
 </head>
 
 <body>
@@ -5865,6 +5953,7 @@ input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-in
 </div>
 
     <div class="admin-page-content">
+      <span data-anybike-next-action="bike-sales-hub" style="display:none"></span>
 
       <div class="wrap">
 
@@ -15559,7 +15648,8 @@ function buildBikeSalesActions(){
         icon:"💬",
         cls:"reply",
         blockers:String(thread.last_message||"Open the conversation and reply."),
-        priority:1
+        priority:1,
+        attentionAt:thread.last_message_at || thread.updated_at || deal.latest_activity_at || deal.updated_at || deal.created_at || ""
       });
     }
 
@@ -15602,11 +15692,47 @@ function buildBikeSalesActions(){
       icon:icon,
       cls:cls,
       blockers:bikeSalesJourneyInstruction({primary_action:primary},flags),
-      priority:priority
+      priority:priority,
+      attentionAt:action.action_created_at || action.created_at || action.updated_at || deal.latest_activity_at || deal.updated_at || deal.created_at || ""
     });
   });
 
-  return items.sort(function(a,b){ return Number(a.priority)-Number(b.priority); });
+  return items.sort(function(a,b){
+    const at=new Date(a.attentionAt||0).getTime();
+    const bt=new Date(b.attentionAt||0).getTime();
+    const av=Number.isFinite(at)&&at>0;
+    const bv=Number.isFinite(bt)&&bt>0;
+    if(av && bv && at!==bt) return at-bt;
+    if(av!==bv) return av ? -1 : 1;
+    return Number(a.priority)-Number(b.priority);
+  });
+}
+
+let bikeSalesHubIndex=0;
+
+function bikeSalesActionTab(item){
+  return ({reply:"request",sourcing:"sourcing",seller:"seller",offer:"offer",deposit:"payment",onboarding:"seller",shipping:"delivery",ready:"seller",balance:"payment",operations:"collection",delivery:"delivery",invoice:"invoice"})[item?.cls]||"timeline";
+}
+
+function bikeSalesHubOpen(index){
+  const actions=buildBikeSalesActions();
+  if(!actions.length) return;
+  const pos=Math.max(0,Math.min(Number(index)||0,actions.length-1));
+  const item=actions[pos];
+  bikeSalesHubIndex=pos;
+  openBikeSalesAction(item.dealId,bikeSalesActionTab(item));
+}
+
+function bikeSalesHubSkip(){
+  const actions=buildBikeSalesActions();
+  if(!actions.length) return;
+  bikeSalesHubIndex=(bikeSalesHubIndex+1)%actions.length;
+  renderAdminDealQueue();
+}
+
+function scrollToBikeSalesAttention(){
+  const target=document.querySelector("#needs-attention .bike-sales-action-list") || document.getElementById("needs-attention");
+  if(target) scrollBikeSalesTargetIntoView(target);
 }
 
 function setBikeSalesView(view,button){
@@ -15618,11 +15744,11 @@ function setBikeSalesView(view,button){
     btn.classList.toggle("active",btn===button || btn.dataset.salesView===view);
   });
   if(view==="attention"){
-    document.querySelector(".bike-sales-action-queue")?.scrollIntoView({behavior:"smooth",block:"start"});
+    document.querySelector(".bike-sales-action-queue")?.scrollIntoView({behavior:"auto",block:"start"});
   }else if(view==="active"){
-    document.querySelector(".anybike-real-deals")?.scrollIntoView({behavior:"smooth",block:"start"});
+    document.querySelector(".anybike-real-deals")?.scrollIntoView({behavior:"auto",block:"start"});
   }else if(view==="enquiries"){
-    document.querySelector(".legacy-enquiries-heading")?.scrollIntoView({behavior:"smooth",block:"start"});
+    document.querySelector(".legacy-enquiries-heading")?.scrollIntoView({behavior:"auto",block:"start"});
   }
 }
 
@@ -16101,8 +16227,25 @@ function renderBikeSalesActionQueue(){
   const counts={reply:0,sourcing:0,seller:0,offer:0,deposit:0,onboarding:0,shipping:0,ready:0,balance:0,operations:0,delivery:0,invoice:0};
   actions.forEach(function(item){ if(counts[item.cls]!==undefined){ counts[item.cls]++; } });
 
-  const cards=actions.length ? actions.map(function(item){
-    const tab=({reply:"request",sourcing:"sourcing",seller:"seller",offer:"offer",deposit:"payment",onboarding:"seller",shipping:"delivery",ready:"seller",balance:"payment",operations:"collection",delivery:"delivery",invoice:"invoice"})[item.cls]||"timeline";
+  if(bikeSalesHubIndex>=actions.length) bikeSalesHubIndex=0;
+  const next=actions[bikeSalesHubIndex] || null;
+
+  const nextJob=next
+    ? `<div class="bike-sales-next-job">
+        <div>
+          <div class="eyebrow">Your next action</div>
+          <strong>${escapeAdminHtml(next.type)} · ${escapeAdminHtml(next.dealNumber)} — ${escapeAdminHtml(next.title)}</strong>
+          <span>${escapeAdminHtml(next.customer||"Buyer")} · ${escapeAdminHtml(next.motorcycle)} · ${escapeAdminHtml(next.blockers)}</span>
+        </div>
+        <div class="bike-sales-next-job-actions">
+          <button type="button" class="skip" onclick="bikeSalesHubSkip();return false;">SKIP →</button>
+          <button type="button" onclick="bikeSalesHubOpen(${bikeSalesHubIndex});return false;">OPEN NEXT JOB →</button>
+        </div>
+      </div>`
+    : `<div class="bike-sales-action-empty"><strong>No Bike Sales actions waiting.</strong><div style="margin-top:5px">There is nothing requiring your action right now.</div></div>`;
+
+  const cards=actions.length ? actions.map(function(item,index){
+    const tab=bikeSalesActionTab(item);
     return `<article class="bike-sales-action-card ${escapeAdminHtml(item.cls)}" onclick="openBikeSalesAction('${escapeAdminHtml(item.dealId)}','${escapeAdminHtml(tab)}');return false;">
       <div class="bike-sales-action-icon">${item.icon}</div>
       <div>
@@ -16113,13 +16256,14 @@ function renderBikeSalesActionQueue(){
       </div>
       <div class="bike-sales-action-open">Open Sale →</div>
     </article>`;
-  }).join("") : `<div class="bike-sales-action-empty"><strong>No Bike Sales actions waiting.</strong><div style="margin-top:5px">There is nothing requiring your action right now.</div></div>`;
+  }).join("") : "";
 
   return `<section class="bike-sales-action-queue" id="needs-attention">
     <div class="bike-sales-action-head">
-      <div><h3>Needs Attention</h3><p>Only sales where you have something to do now. Open one and follow its next action.</p></div>
-      <span class="bike-sales-action-total">${actions.length}</span>
+      <div><h3>Needs Attention</h3><p>Your work hub. Oldest unresolved action first; open it, skip it, or choose another job from the list.</p></div>
+      <button type="button" class="bike-sales-action-total" onclick="scrollToBikeSalesAttention();return false;" title="Show all jobs needing attention">${actions.length}</button>
     </div>
+    ${nextJob}
     <div class="bike-sales-action-summary">
       <div><span>Needs Reply</span><strong>${counts.reply}</strong></div>
       <div><span>Needs Sourcing</span><strong>${counts.sourcing}</strong></div>
@@ -16137,7 +16281,6 @@ function renderBikeSalesActionQueue(){
     <div class="bike-sales-action-list">${cards}</div>
   </section>`;
 }
-
 
 function anyBikeDealActionsFor(dealId){
   return (adminDealNextActions || [])
