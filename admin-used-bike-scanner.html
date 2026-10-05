@@ -497,7 +497,14 @@ function updateNextAction(){
 
   panel.style.display="block";
 
-  if(!chosen.length){
+  const batchShared=String(currentBatch?.batch?.status||"").toLowerCase()==="shared" || !!currentBatch?.batch?.shared_at;
+  if(batchShared){
+    nextActionMode="shared";
+    title.textContent="Selection shared successfully";
+    textEl.textContent=chosen.length+" motorcycle"+(chosen.length===1?" was":"s were")+" sent to the buyer. No further share action is required for this batch.";
+    btn.textContent="SHARED ✓";
+    btn.disabled=true;
+  }else if(!chosen.length){
     nextActionMode="review";
     title.textContent="Choose the motorcycles to present";
     textEl.textContent="Tick Include in buyer selection on the motorcycles you want to send. Unselected motorcycles do not block sharing.";
@@ -530,7 +537,7 @@ function updateNextAction(){
   }
 }
 function runNextAction(){
-  if(nextActionMode==="wait-images")return;
+  if(nextActionMode==="wait-images"||nextActionMode==="shared")return;
   if(nextActionMode==="image-attention"){
     const target=(scanned||[]).find(s=>s.selected_for_buyer&&s.extraction&&s.extraction.live_source_item_id&&!(Array.isArray(s.buyer_image_urls)&&s.buyer_image_urls.length));
     if(target)document.querySelector('[data-scan="'+target.id+'"]')?.scrollIntoView({behavior:"smooth",block:"start"});
@@ -641,6 +648,7 @@ async function loadBatch(id){
 }
 async function queueAutomaticBuyerSafePreparation(){
   if(!currentBatchId||buyerSafePreparationRunning)return;
+  if(String(currentBatch?.batch?.status||"").toLowerCase()==="shared" || currentBatch?.batch?.shared_at)return;
   const rows=(scanned||[]).filter(s=>s.selected_for_buyer&&s.extraction&&s.extraction.live_source_item_id);
   if(!rows.length){
     setBuyerSafeProgress(0,0,"Choose motorcycles to present before preparing galleries",true);
@@ -731,10 +739,14 @@ function setShareGate(){
   const chosen=(scanned||[]).filter(s=>s.selected_for_buyer);
   const missing=chosen.filter(s=>s.extraction&&s.extraction.live_source_item_id&&!(Array.isArray(s.buyer_image_urls)&&s.buyer_image_urls.length));
   const uncheckedPrice=chosen.filter(s=>!s.price_checked);
-  const blocked=buyerSafePreparationRunning||!chosen.length||missing.length>0||uncheckedPrice.length>0;
+  const batchShared=String(currentBatch?.batch?.status||"").toLowerCase()==="shared" || !!currentBatch?.batch?.shared_at;
+  const blocked=batchShared||buyerSafePreparationRunning||!chosen.length||missing.length>0||uncheckedPrice.length>0;
   btn.disabled=blocked;
 
-  if(buyerSafePreparationRunning){
+  if(batchShared){
+    btn.title="This batch has already been shared successfully.";
+    if(st){st.className="status good";st.textContent="Shared successfully with the buyer.";}
+  }else if(buyerSafePreparationRunning){
     btn.title="Buyer-safe images are still being prepared for the selected motorcycles.";
     if(st){st.className="status";st.textContent="Preparing images for the selected motorcycles…";}
   }else if(!chosen.length){
@@ -991,6 +1003,9 @@ async function shareBatch(){
       data?.already_shared?"Selection already shared":"Selection shared successfully",
       (data?.shared_count||ids.length)+" motorcycle"+((data?.shared_count||ids.length)===1?"":"s")+" sent to the buyer."
     );
+    currentBatch.batch=currentBatch.batch||{};
+    currentBatch.batch.status="shared";
+    currentBatch.batch.shared_at=new Date().toISOString();
     await loadOtherBuyerRequests();
     updateNextAction();
   }finally{
