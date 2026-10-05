@@ -459,6 +459,7 @@ function anybikeRenderAdminNextAction(config){
 
 function anybikeEnsureAdminNextAction(){
   if(/admin-login\.html$/i.test(location.pathname)) return;
+  if(/admin-message-centre\.html$/i.test(location.pathname)) return;
   if(anybikeAdminHasOwnNextAction()) return;
   anybikeRenderAdminNextAction();
 }
