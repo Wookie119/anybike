@@ -435,6 +435,7 @@
     }
 
     host.innerHTML='<div class="ab-ops">'+rows.map(function(row,index){
+      const id=Number(row.deal_motorcycle_id);
       const collected=String(row.collection_status||"")==="collected";
       const atDepot=!!row.depot_arrived_at || ["at_depot","in_storage","stored"].includes(String(row.depot_status||"").toLowerCase()) || ["free","chargeable","paused","stopped"].includes(String(row.storage_status||"").toLowerCase());
       const delivered=!!row.delivered_to_shipper_at || ["delivered","completed","handed_over"].includes(String(row.delivery_status||"").toLowerCase()) || !!row.operations_complete;
