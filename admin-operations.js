@@ -887,7 +887,6 @@
         <small>Seller collection details saved here are also retained against the dealer for future purchases. Move requires a mobile number; landlines are kept for reference only.</small>
         <div>
           <button type="button" class="ab-ops-button ab-move-secondary" onclick="saveAnyBikeMoveDraft(${id});return false;">Save Draft</button>
-          <button type="button" class="ab-ops-button" id="ab-move-book-${id}" onclick="bookAnyBikeMoveShipment(${id});return false;">Book with Move</button>
         </div>
       </div>
       <div class="deal-section-next-action" id="ab-move-next-action-${id}" style="margin:14px 0 0">
