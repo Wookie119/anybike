@@ -175,6 +175,14 @@ async function loadLiveSourceVatFlags(){
   (data||[]).forEach(x=>liveSourceVatFlags.set(Number(x.id),x));
 }
 function esc(v){return String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;")}
+function edgeErrorMessage(error,data){
+  const raw=String(data?.error||error?.context?.body?.error||error?.message||"");
+  const status=Number(error?.context?.status||error?.status||0);
+  if(status===409 || /409|conflict|non-2xx/i.test(raw)){
+    return "This motorcycle could not produce another approved buyer-safe image. It has been marked for image attention.";
+  }
+  return raw||"Image preparation could not complete.";
+}
 function gbp(v){const n=Number(v);return Number.isFinite(n)?new Intl.NumberFormat("en-GB",{style:"currency",currency:"GBP"}).format(n):"—"}
 function nval(id,def=0){const n=Number(document.getElementById(id)?.value);return Number.isFinite(n)?n:def}
 function urlLines(){return [...new Set(document.getElementById("urlInput").value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean))]}
@@ -411,6 +419,9 @@ function cardHtml(s,saved){
           '<div class="note" style="margin-top:4px">'+(((s.buyer_image_urls||[]).length)
             ?((s.buyer_image_urls||[]).length+' approved clean image'+((s.buyer_image_urls||[]).length===1?'':'s')+' ready · target 4 where source photos allow')
             :'No approved buyer-safe image yet. Raw dealer images are internal only.')+'</div>'+
+          (s.extraction?.buyer_safe_image_status==="attention"
+            ?'<div class="status bad" style="margin-top:6px">'+esc(s.extraction?.buyer_safe_image_error||"Needs image attention")+'</div>'
+            :'')+
           previewThumbsHtml(s.buyer_image_urls)+
           '<div style="margin-top:8px"><button type="button" class="btn green" onclick="prepareBuyerSafeImages('+id+','+Number(s.extraction.live_source_item_id)+')">'+
             (((s.buyer_image_urls||[]).length)>=4?'Re-check buyer-safe images':'Prepare to 4 buyer-safe images')+
@@ -762,6 +773,11 @@ async function prepareAllBuyerSafeImages(options={}){
       setBuyerSafeProgress(completed+failed,rows.length,"Processed "+(completed+failed)+" of "+rows.length+" matches…",false);
     }catch(e){
       console.warn("Could not prepare full buyer-safe gallery for scan",s.id,e);
+      const msg=edgeErrorMessage(e,null);
+      s.extraction=Object.assign({},s.extraction||{},{
+        buyer_safe_image_status:current>0?"ready":"attention",
+        buyer_safe_image_error:msg
+      });
       if(current>0){
         completed++;
       }else{
@@ -794,6 +810,10 @@ async function prepareAllBuyerSafeImages(options={}){
           if(!refreshed.error)s.buyer_image_urls=refreshed.data?.buyer_image_urls||[];
         }catch(e){
           console.warn("Final buyer-safe retry failed for scan",s.id,e);
+          s.extraction=Object.assign({},s.extraction||{},{
+            buyer_safe_image_status:"attention",
+            buyer_safe_image_error:edgeErrorMessage(e,null)
+          });
         }
       }
     }catch(e){
@@ -862,9 +882,19 @@ async function prepareBuyerSafeImages(scanId,liveSourceItemId){
     }
     renderScans(true);
   }catch(e){
-    if(st){st.className="status bad";st.textContent=e?.message||"Image check failed";}
-    if(topSt){topSt.className="status bad";topSt.textContent="Image check failed";}
-    alert("Buyer-safe image check could not complete.\n\n"+(e?.message||e));
+    const msg=edgeErrorMessage(e,null);
+    if(st){st.className="status bad";st.textContent=msg;}
+    if(topSt){topSt.className="status bad";topSt.textContent="Needs image attention";}
+    const s=scanned.find(x=>Number(x.id)===Number(scanId));
+    if(s){
+      s.extraction=Object.assign({},s.extraction||{},{
+        buyer_safe_image_status:"attention",
+        buyer_safe_image_error:msg
+      });
+    }
+    buyerSafePreparationRunning=false;
+    renderScans(true);
+    setShareGate();
   }
 }
 
