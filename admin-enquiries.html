@@ -14414,9 +14414,16 @@ function renderAnyBikePurchaseActionGuide(deal){
     0
   );
 
-  const sellerCheckComplete=!!action.seller_check_ok;
-  const purchaseReady=!!action.purchase_ready;
-  const secured=!!action.bike_secured;
+  const secured=!!action.bike_secured ||
+    Number(deal?.secured_count||0)>0 ||
+    (adminDealMotorcycles||[]).some(function(row){
+      return String(row.deal_id||"")===dealId && !!row.bike_secured;
+    });
+  // Secured is a stronger state than a live seller recheck. Once AnyBike genuinely
+  // controls the motorcycle, an expired historic availability check must not reopen
+  // this purchase step or show the purchase as blocked.
+  const sellerCheckComplete=secured || !!action.seller_check_ok;
+  const purchaseReady=secured || !!action.purchase_ready;
 
   const sellerPriceText=sellerPrice>0
     ? anyBikeDealMoney(sellerPrice)
@@ -14450,7 +14457,7 @@ function renderAnyBikePurchaseActionGuide(deal){
         <h4 style="margin:5px 0 5px;color:#fff;font-size:19px">Secure the motorcycle with the seller</h4>
         <p style="margin:0;color:#aaa;font-size:12px;line-height:1.5">The deposit, VAT and UK handover gates are already handled above. This step is only about the seller-side commitment.</p>
       </div>
-      <span class="panel-badge ${purchaseReady?"badge-green":"badge-red"}">${purchaseReady?"PURCHASE GATES PASSED":"PURCHASE BLOCKED"}</span>
+      <span class="panel-badge ${purchaseReady?"badge-green":"badge-red"}">${secured?"MOTORCYCLE SECURED":purchaseReady?"PURCHASE GATES PASSED":"PURCHASE BLOCKED"}</span>
     </div>
 
     ${step(
@@ -15966,10 +15973,19 @@ function bikeSalesCommercialSetupReady(dealId){
   if(!rows.length) return false;
 
   return rows.every(function(row){
-    return String(row.commercial_price_status||"")==="Ready for Offer" &&
+    const status=String(row.commercial_price_status||"");
+    const review=row.commercial_cost_review||{};
+    const costsReviewed=["prep","docs","admin","other"].every(function(key){ return review[key]===true; });
+    const pricesComplete=
       Number(row.anybike_sale_price_gbp||0)>0 &&
       Number(row.seller_purchase_price_gbp||0)>0 &&
       Number(row.customer_total_gbp||0)>0;
+
+    // "Seller Price Confirmed" + all four cost checks is commercially complete.
+    // Older accepted deals may never have had their status promoted to "Ready for Offer",
+    // and must not show Seller / Commercial as incomplete after the offer is accepted.
+    return pricesComplete &&
+      (status==="Ready for Offer" || (status==="Seller Price Confirmed" && costsReviewed));
   });
 }
 
