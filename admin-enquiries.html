@@ -15623,19 +15623,34 @@ function openAnyBikeDealFromUrl(){
   if(requestedAction==="shipping-approval"){
     bikeSalesJourneyTab(dealId,"delivery",false);
 
-    setTimeout(function(){
+    const focusShippingApproval=function(attempt){
       const target=document.getElementById("customer-shipping-preferences-"+dealId);
-      if(target){
-        target.scrollIntoView({behavior:"smooth",block:"start"});
+      const deliveryPanel=row.querySelector('.sales-tab-panel[data-tab="delivery"]');
+
+      if(target && target.offsetParent!==null){
+        const fixedHeaderOffset=150;
+        const targetTop=target.getBoundingClientRect().top + window.scrollY;
+        const viewportRoom=Math.max(0,(window.innerHeight-target.offsetHeight)/2);
+        const desiredTop=Math.max(0,targetTop-Math.min(viewportRoom,220)-fixedHeaderOffset);
+
+        window.scrollTo({top:desiredTop,behavior:"smooth"});
         target.classList.add("customer-shipping-approval-focus");
+
         setTimeout(function(){
           target.classList.remove("customer-shipping-approval-focus");
         },2200);
-      }else{
-        const deliveryPanel=row.querySelector('.sales-tab-panel[data-tab="delivery"]');
-        scrollBikeSalesTargetIntoView(deliveryPanel || row);
+        return;
       }
-    },80);
+
+      if(attempt<6){
+        setTimeout(function(){ focusShippingApproval(attempt+1); },140);
+        return;
+      }
+
+      scrollBikeSalesTargetIntoView(deliveryPanel || row);
+    };
+
+    setTimeout(function(){ focusShippingApproval(0); },220);
     return;
   }
 
