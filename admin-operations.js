@@ -1058,6 +1058,27 @@
         throw new Error(detailedMessage||result.error.message||"Move Edge Function failed.");
       }
       const payload=result.data||{};
+      if(payload.code==="MOVE_EMAIL_FALLBACK_SENT" || payload.code==="MOVE_EMAIL_FALLBACK_ALREADY_SENT"){
+        moveBookingCache.delete(String(id));
+        operationsCache.clear();
+
+        const job=payload.incoming_job||{};
+        const wasSent=payload.code==="MOVE_EMAIL_FALLBACK_SENT";
+        alert(
+          wasSent
+            ? "Move booking request emailed to quotes@movemotorcycles.co.uk.\n\nThe linked Incoming Collection Job has been created in Logistics HQ.\n\nJob: "+(job.job_number||"created")+"\n\nThe same booking email cannot be sent twice."
+            : "This Move booking request has already been emailed to quotes@movemotorcycles.co.uk.\n\nNo second email was sent.\n\nIncoming Collection Job: "+(job.job_number||"already created")
+        );
+
+        await loadMoveBooking(id,true);
+        const fallbackData=moveBookingCache.get(String(id))||{};
+        const fallbackDealId=Number(fallbackData.deal_id||0);
+        if(fallbackDealId){
+          operationsCache.delete(String(fallbackDealId));
+          await loadDeal(fallbackDealId,true);
+        }
+        return;
+      }
       if(payload.error && payload.code==="MOVE_API_KEY_MISSING"){
         const inbound=await client().rpc("admin_send_anybike_collection_to_move_v1",{p_deal_motorcycle_id:Number(id)});
         if(inbound.error) throw inbound.error;
