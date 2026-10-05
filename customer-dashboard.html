@@ -5520,12 +5520,18 @@ function refreshHandPickedDashboardTimers(){
   text.textContent="Earliest live window: "+handPickedCountdownText(earliest.ms)+" remaining.";
 }
 
-async function openHandPickedMatch(scanId,batchId){
+async function openHandPickedMatch(scanId,batchId,offerId){
   try{
     await sb.rpc("customer_mark_sourced_match_viewed_v1",{p_scan_id:Number(scanId)});
   }catch(error){
     console.warn("Could not save hand-picked viewed state",error);
   }
+
+  if(Number(offerId)>0){
+    window.location.href="/customer-dashboard.html?offer="+encodeURIComponent(Number(offerId))+"#my-offers";
+    return;
+  }
+
   window.location.href="/customer-sourced-matches.html?batch="+encodeURIComponent(batchId);
 }
 
@@ -5730,7 +5736,7 @@ async function loadHandPickedForYou(){
           handPickedTimerHtml(r) +
           '<div class="bike-card-foot">' +
             '<strong>'+safe(price)+'</strong>' +
-            '<a href="/customer-sourced-matches.html?batch='+encodeURIComponent(r.batch_id)+'" onclick="event.preventDefault();openHandPickedMatch('+Number(r.scan_id)+','+Number(r.batch_id)+')">Review &amp; respond →</a>' +
+            '<a href="'+(Number(r.offer_id)>0?('/customer-dashboard.html?offer='+encodeURIComponent(Number(r.offer_id))+'#my-offers'):('/customer-sourced-matches.html?batch='+encodeURIComponent(r.batch_id)))+'" onclick="event.preventDefault();openHandPickedMatch('+Number(r.scan_id)+','+Number(r.batch_id)+','+Number(r.offer_id||0)+')">'+(Number(r.offer_id)>0?'Review Formal Offer →':'Review &amp; respond →')+'</a>' +
           '</div>' +
         '</div>' +
       '</article>';
