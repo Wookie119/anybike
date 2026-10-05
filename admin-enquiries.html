@@ -8979,6 +8979,49 @@ function renderAnyBikeDealCommercialSetup(deal){
   const hasSavedProfileShipper=!!profileShipper;
   const priceLockAttribute=sentPriceLocked ? " readonly" : "";
   const acceptedDisableAttribute=acceptedLocked ? " disabled" : "";
+  const dealId=Number(row.deal_id || deal?.deal_id || 0);
+  const liveNext=(adminDealNextActions||[]).find(function(item){
+    return Number(item.deal_id)===dealId && (!item.deal_motorcycle_id || Number(item.deal_motorcycle_id)===id);
+  }) || {};
+  const livePrimaryAction=String(liveNext.primary_action || "").trim();
+
+  let acceptedNextTitle="Continue this Deal";
+  let acceptedNextCopy="The Formal Offer has already been accepted. Continue to the current live Deal 360 action.";
+  let acceptedNextButton="CONTINUE DEAL →";
+  let acceptedNextTarget="admin-enquiries.html?deal="+encodeURIComponent(dealId);
+
+  if(livePrimaryAction==="Operations"){
+    acceptedNextTitle="Complete seller collection details";
+    acceptedNextCopy="The motorcycle is purchased / secured. Add the seller pickup address, contact, Ready From date and handover instructions so Operations can book collection.";
+    acceptedNextButton="OPEN COLLECTION DETAILS →";
+    acceptedNextTarget="admin-enquiries.html?deal="+encodeURIComponent(dealId)+"&tab=collection";
+  }else if(livePrimaryAction==="Final Seller Check"){
+    acceptedNextTitle="Complete the Final Seller Check";
+    acceptedNextCopy="Reconfirm the seller, motorcycle and purchase position before AnyBike proceeds.";
+    acceptedNextButton="OPEN SELLER CHECK →";
+    acceptedNextTarget="admin-enquiries.html?deal="+encodeURIComponent(dealId)+"&tab=seller";
+  }else if(livePrimaryAction==="Ready to Purchase"){
+    acceptedNextTitle="Purchase and secure the motorcycle";
+    acceptedNextCopy="Customer funds and Deal checks are clear. Continue to the seller purchase / payment step.";
+    acceptedNextButton="OPEN PURCHASE STEP →";
+    acceptedNextTarget="admin-enquiries.html?deal="+encodeURIComponent(dealId)+"&tab=seller";
+  }else if(livePrimaryAction==="Confirm Shipping / UK Handover"){
+    acceptedNextTitle="Confirm the UK handover";
+    acceptedNextCopy="Use the buyer's saved shipping preference where available and confirm the exact handover for this Deal.";
+    acceptedNextButton="OPEN SHIPPING →";
+    acceptedNextTarget="admin-enquiries.html?deal="+encodeURIComponent(dealId)+"&tab=delivery";
+  }else if(livePrimaryAction==="Deposit Due"){
+    acceptedNextTitle="Complete the customer payment step";
+    acceptedNextCopy="The accepted Deal is waiting for the required customer payment.";
+    acceptedNextButton="OPEN ACCOUNTS →";
+    acceptedNextTarget="admin-accounts.html?deal="+encodeURIComponent(dealId);
+  }
+
+  const commercialNextActionHtml=acceptedLocked
+    ? '<div class="deal-section-next-action"><div><div class="eyebrow">Your next action</div><strong>'+escapeAdminHtml(acceptedNextTitle)+'</strong><span>'+escapeAdminHtml(acceptedNextCopy)+'</span></div><button type="button" onclick="navigateDealWorkflow(\''+acceptedNextTarget+'\');return false;">'+escapeAdminHtml(acceptedNextButton)+'</button></div>'
+    : status==="Ready for Offer"
+      ? '<div class="deal-section-next-action complete"><div><div class="eyebrow">Your next action</div><strong>Prepare the Formal Offer</strong><span>Commercial Setup is complete. Review the Formal Offer before sending anything to the buyer.</span></div><button type="button" onclick="openDealOfferModal('+id+');return false;">PREPARE FORMAL OFFER →</button></div>'
+      : '<div class="deal-section-next-action"><div><div class="eyebrow">Your next action</div><strong>'+(costsReviewed?'Prepare the Formal Offer':'Complete the commercial cost checks')+'</strong><span>'+(quoteSnapshotLocked?'The customer-facing sourced-match price is already fixed from what the buyer saw. The Motorcycle Price, AnyBike Sourcing Fee and UK Collection & Delivery components are carried across automatically and cannot be added again here. ':'')+(costsReviewed?'Seller price and cost checks are complete. Continue to prepare the Formal Offer.':'Review each red cost box. Enter a genuine cost where one applies, or tick No extra cost for this deal. When all four are reviewed they will turn green.')+'</span></div><button type="button" onclick="proceedDealCommercialSetup('+id+');return false;">'+(costsReviewed?'PREPARE FORMAL OFFER →':'REVIEW COSTS')+'</button></div>';
 
   const profitClass=profit===null || profit===undefined ? "" : (Number(profit)<0 ? "loss" : "profit");
 
@@ -8990,12 +9033,6 @@ function renderAnyBikeDealCommercialSetup(deal){
       </div>
       <div class="anybike-commercial-status">${escapeAdminHtml(status)}</div>
     </div>
-
-    ${acceptedLocked
-      ? '<div class="deal-section-next-action complete"><div><div class="eyebrow">Commercial setup</div><strong>Commercial setup complete</strong><span>The customer has already accepted the Formal Offer, so this section must not send you backwards. Internal costs can still be reviewed and saved here. Use the main Deal 360 next action to continue the live deal.</span></div></div>'
-      : status==="Ready for Offer"
-        ? '<div class="deal-section-next-action complete"><div><div class="eyebrow">Your next action</div><strong>Prepare the Formal Offer</strong><span>Commercial Setup is complete. Review the Formal Offer before sending anything to the buyer.</span></div><button type="button" onclick="openDealOfferModal('+id+');return false;">PREPARE FORMAL OFFER →</button></div>'
-        : '<div class="deal-section-next-action"><div><div class="eyebrow">Your next action</div><strong>'+(costsReviewed?'Prepare the Formal Offer':'Complete the commercial cost checks')+'</strong><span>'+(quoteSnapshotLocked?'The customer-facing sourced-match price is already fixed from what the buyer saw. The Motorcycle Price, AnyBike Sourcing Fee and UK Collection & Delivery components are carried across automatically and cannot be added again here. ':'')+(costsReviewed?'Seller price and cost checks are complete. Continue to prepare the Formal Offer.':'Review each red cost box. Enter a genuine cost where one applies, or tick No extra cost for this deal. When all four are reviewed they will turn green.')+'</span></div><button type="button" onclick="proceedDealCommercialSetup('+id+');return false;">'+(costsReviewed?'PREPARE FORMAL OFFER →':'REVIEW COSTS')+'</button></div>'}
 
     ${sentPriceLocked ? '<div class="anybike-commercial-lock"><strong>'+(acceptedLocked?'✓ Accepted customer terms — locked':'Formal Offer sent — customer price locked')+'</strong><span>'+(acceptedLocked?'The customer-facing Motorcycle Sale Price, AnyBike Sourcing Fee and UK Collection & Delivery Charge are frozen to the accepted Formal Offer.':'The customer-facing Motorcycle Sale Price, AnyBike Sourcing Fee and UK Collection & Delivery Charge are frozen while the sent Formal Offer is active. Internal cost assumptions can still be reviewed.')+'</span></div>' : ''}
     ${quoteSnapshotLocked && !sentPriceLocked ? '<div class="anybike-commercial-lock"><strong>Buyer quote snapshot — protected</strong><span>These customer-facing amounts came from the motorcycle match already shown to the buyer. They are carried into Deal 360 automatically so Commercial Setup cannot accidentally charge the sourcing fee or UK collection/delivery twice.</span></div>' : ''}
@@ -9025,12 +9062,12 @@ function renderAnyBikeDealCommercialSetup(deal){
 
       <div class="anybike-commercial-field">
         <label>Agreed Seller Purchase Price</label>
-        <input id="deal-commercial-seller-${id}" type="number" min="0" step="0.01" value="${seller===null || seller===undefined ? "" : Number(seller).toFixed(2)}" placeholder="Not confirmed" oninput="updateDealCommercialPreview(${id})" onblur="scheduleDealCommercialAutosave(${id})">
+        <input id="deal-commercial-seller-${id}" type="number" min="0" step="0.01" value="${seller===null || seller===undefined ? "" : Number(seller).toFixed(2)}" placeholder="Not confirmed" oninput="updateDealCommercialPreview(${id})" onblur="scheduleDealCommercialAutosave(${id})"${acceptedDisableAttribute}>
       </div>
 
       <div class="anybike-commercial-field">
         <label>Commercial Status</label>
-        <select id="deal-commercial-status-${id}" onchange="scheduleDealCommercialAutosave(${id})">
+        <select id="deal-commercial-status-${id}" onchange="scheduleDealCommercialAutosave(${id})"${acceptedDisableAttribute}>
           <option${status==="Estimate" ? " selected" : ""}>Estimate</option>
           <option${status==="Seller Price Requested" ? " selected" : ""}>Seller Price Requested</option>
           <option${status==="Seller Price Confirmed" ? " selected" : ""}>Seller Price Confirmed</option>
@@ -9040,39 +9077,39 @@ function renderAnyBikeDealCommercialSetup(deal){
 
       <div class="anybike-commercial-field cost-review ${prepReviewed?"reviewed":""}" id="deal-cost-review-prep-${id}">
         <label>Prep / Rectification Cost</label>
-        <input id="deal-commercial-prep-${id}" type="number" min="0" step="0.01" value="${prep.toFixed(2)}" oninput="updateDealCommercialPreview(${id});syncCommercialCostReviewUI(${id},'prep')" onblur="scheduleDealCommercialAutosave(${id})">
+        <input id="deal-commercial-prep-${id}" type="number" min="0" step="0.01" value="${prep.toFixed(2)}" oninput="updateDealCommercialPreview(${id});syncCommercialCostReviewUI(${id},'prep')" onblur="scheduleDealCommercialAutosave(${id})"${acceptedDisableAttribute}>
         <small style="display:block;margin-top:5px;color:#888;font-size:10px">Actual deal-specific cost to prepare, repair or rectify the motorcycle before onward delivery.</small>
-        <label class="anybike-cost-check"><input id="deal-cost-none-prep-${id}" type="checkbox" ${costReview.prep===true?"checked":""} onchange="setCommercialCostReviewed(${id},'prep',this.checked)"><span>No extra prep / rectification cost for this deal</span></label>
+        <label class="anybike-cost-check"><input id="deal-cost-none-prep-${id}" type="checkbox"${acceptedDisableAttribute} ${costReview.prep===true?"checked":""} onchange="setCommercialCostReviewed(${id},'prep',this.checked)"><span>No extra prep / rectification cost for this deal</span></label>
         <span class="anybike-cost-review-state">${prepReviewed?"✓ Reviewed":"Needs review"}</span>
       </div>
 
       <div class="anybike-commercial-field cost-review ${docsReviewed?"reviewed":""}" id="deal-cost-review-docs-${id}">
         <label>Export Documentation Cost</label>
-        <input id="deal-commercial-docs-${id}" type="number" min="0" step="0.01" value="${docs.toFixed(2)}" oninput="updateDealCommercialPreview(${id});syncCommercialCostReviewUI(${id},'docs')" onblur="scheduleDealCommercialAutosave(${id})">
+        <input id="deal-commercial-docs-${id}" type="number" min="0" step="0.01" value="${docs.toFixed(2)}" oninput="updateDealCommercialPreview(${id});syncCommercialCostReviewUI(${id},'docs')" onblur="scheduleDealCommercialAutosave(${id})"${acceptedDisableAttribute}>
         <small style="display:block;margin-top:5px;color:#888;font-size:10px">Only enter a real third-party or deal-specific document/export cost.</small>
-        <label class="anybike-cost-check"><input id="deal-cost-none-docs-${id}" type="checkbox" ${costReview.docs===true?"checked":""} onchange="setCommercialCostReviewed(${id},'docs',this.checked)"><span>No extra export-document cost for this deal</span></label>
+        <label class="anybike-cost-check"><input id="deal-cost-none-docs-${id}" type="checkbox"${acceptedDisableAttribute} ${costReview.docs===true?"checked":""} onchange="setCommercialCostReviewed(${id},'docs',this.checked)"><span>No extra export-document cost for this deal</span></label>
         <span class="anybike-cost-review-state">${docsReviewed?"✓ Reviewed":"Needs review"}</span>
       </div>
 
       <div class="anybike-commercial-field cost-review ${adminReviewed?"reviewed":""}" id="deal-cost-review-admin-${id}">
         <label>Additional Deal Admin Cost</label>
-        <input id="deal-commercial-admin-${id}" type="number" min="0" step="0.01" value="${admin.toFixed(2)}" oninput="updateDealCommercialPreview(${id});syncCommercialCostReviewUI(${id},'admin')" onblur="scheduleDealCommercialAutosave(${id})">
+        <input id="deal-commercial-admin-${id}" type="number" min="0" step="0.01" value="${admin.toFixed(2)}" oninput="updateDealCommercialPreview(${id});syncCommercialCostReviewUI(${id},'admin')" onblur="scheduleDealCommercialAutosave(${id})"${acceptedDisableAttribute}>
         <small style="display:block;margin-top:5px;color:#888;font-size:10px">Only use for a genuine extra cost specific to this Deal. Normal AnyBike admin is covered by the Sourcing Fee.</small>
-        <label class="anybike-cost-check"><input id="deal-cost-none-admin-${id}" type="checkbox" ${costReview.admin===true?"checked":""} onchange="setCommercialCostReviewed(${id},'admin',this.checked)"><span>No extra deal-admin cost for this deal</span></label>
+        <label class="anybike-cost-check"><input id="deal-cost-none-admin-${id}" type="checkbox"${acceptedDisableAttribute} ${costReview.admin===true?"checked":""} onchange="setCommercialCostReviewed(${id},'admin',this.checked)"><span>No extra deal-admin cost for this deal</span></label>
         <span class="anybike-cost-review-state">${adminReviewed?"✓ Reviewed":"Needs review"}</span>
       </div>
 
       <div class="anybike-commercial-field cost-review ${otherReviewed?"reviewed":""}" id="deal-cost-review-other-${id}">
         <label>Other Deal Cost</label>
-        <input id="deal-commercial-other-${id}" type="number" min="0" step="0.01" value="${other.toFixed(2)}" oninput="updateDealCommercialPreview(${id});syncCommercialCostReviewUI(${id},'other')" onblur="scheduleDealCommercialAutosave(${id})">
+        <input id="deal-commercial-other-${id}" type="number" min="0" step="0.01" value="${other.toFixed(2)}" oninput="updateDealCommercialPreview(${id});syncCommercialCostReviewUI(${id},'other')" onblur="scheduleDealCommercialAutosave(${id})"${acceptedDisableAttribute}>
         <small style="display:block;margin-top:5px;color:#888;font-size:10px">Any other genuine cost not covered above. Explain it in Internal Commercial Notes.</small>
-        <label class="anybike-cost-check"><input id="deal-cost-none-other-${id}" type="checkbox" ${costReview.other===true?"checked":""} onchange="setCommercialCostReviewed(${id},'other',this.checked)"><span>No other extra cost for this deal</span></label>
+        <label class="anybike-cost-check"><input id="deal-cost-none-other-${id}" type="checkbox"${acceptedDisableAttribute} ${costReview.other===true?"checked":""} onchange="setCommercialCostReviewed(${id},'other',this.checked)"><span>No other extra cost for this deal</span></label>
         <span class="anybike-cost-review-state">${otherReviewed?"✓ Reviewed":"Needs review"}</span>
       </div>
 
       <div class="anybike-commercial-field" style="grid-column:span 4">
         <label>Internal Commercial Notes</label>
-        <textarea id="deal-commercial-notes-${id}" placeholder="Seller price source, assumptions, prep notes or other internal commercial detail" onblur="scheduleDealCommercialAutosave(${id})">${escapeAdminHtml(notes)}</textarea>
+        <textarea id="deal-commercial-notes-${id}" placeholder="Seller price source, assumptions, prep notes or other internal commercial detail" onblur="scheduleDealCommercialAutosave(${id})"${acceptedDisableAttribute}>${escapeAdminHtml(notes)}</textarea>
       </div>
     </div>
 
@@ -9100,17 +9137,19 @@ function renderAnyBikeDealCommercialSetup(deal){
     </div>
 
     <div class="anybike-commercial-actions">
-      <p>Commercial Setup remains internal. Prepare Formal Offer copies the customer-facing commercial position into the formal offer. Nothing is sent until Send AnyBike Offer is confirmed.</p>
+      <p>${acceptedLocked ? "Commercial Setup is locked because the customer has already accepted the Formal Offer. No further save is required here." : "Commercial Setup remains internal. Prepare Formal Offer copies the customer-facing commercial position into the formal offer. Nothing is sent until Send AnyBike Offer is confirmed."}</p>
       <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;align-items:center">
-        <span id="deal-commercial-autosave-${id}" class="anybike-commercial-autosave saved">Saved ✓</span>
-        <button type="button" class="secondary" onclick="saveDealCommercialSetup(${id},{skipConfirm:true,skipSuccessAlert:false,preserveView:true});return false;">Save changes</button>
+        ${acceptedLocked
+          ? '<span class="anybike-commercial-autosave saved">Accepted terms locked</span>'
+          : '<span id="deal-commercial-autosave-'+id+'" class="anybike-commercial-autosave saved">Saved ✓</span><button type="button" class="secondary" onclick="saveDealCommercialSetup('+id+',{skipConfirm:true,skipSuccessAlert:false,preserveView:true});return false;">Save changes</button>'}
         ${hasSavedProfileShipper
           ? '<span class="anybike-commercial-autosave saved">Saved shipper: '+escapeAdminHtml(profileShipper)+(profileHandover?' · '+escapeAdminHtml(profileHandover):'')+'</span>'
-          : '<button type="button" class="secondary" onclick="requestBuyerShippingDetailsForDeal('+Number(row.deal_id || 0)+',this);return false;">Request shipper details</button>'}
-        ${acceptedLocked ? '<span class="anybike-commercial-autosave saved">Accepted terms locked</span>' : '<button class="anybike-formal-offer-button" type="button" onclick="proceedDealCommercialSetup('+id+');return false;">'+(sentPriceLocked?'Review Sent Formal Offer':'Prepare Formal Offer')+'</button>'}
+          : (!acceptedLocked ? '<button type="button" class="secondary" onclick="requestBuyerShippingDetailsForDeal('+dealId+',this);return false;">Request shipper details</button>' : '')}
+        ${acceptedLocked ? '' : '<button class="anybike-formal-offer-button" type="button" onclick="proceedDealCommercialSetup('+id+');return false;">'+(sentPriceLocked?'Review Sent Formal Offer':'Prepare Formal Offer')+'</button>'}
       </div>
-      <div id="deal-commercial-shipping-request-${Number(row.deal_id || 0)}" style="margin-top:7px;color:#888;font-size:11px"></div>
+      <div id="deal-commercial-shipping-request-${dealId}" style="margin-top:7px;color:#888;font-size:11px"></div>
     </div>
+    ${commercialNextActionHtml}
   </div>`;
 }
 
