@@ -654,6 +654,14 @@
           <button type="button" class="ab-ops-button" id="ab-move-book-${id}" onclick="bookAnyBikeMoveShipment(${id});return false;">Book with Move</button>
         </div>
       </div>
+      <div class="deal-section-next-action" style="margin:14px 0 0">
+        <div>
+          <div class="eyebrow">Your next action</div>
+          <strong>Complete the Move booking</strong>
+          <span>Finish any missing seller collection details above, then book the motorcycle with Move Motorcycles.</span>
+        </div>
+        <button type="button" onclick="continueAnyBikeMoveBooking(${id});return false;">CONTINUE →</button>
+      </div>
     `;
     [
       "ab-move-sender-name-","ab-move-sender-street-","ab-move-sender-city-",
@@ -664,6 +672,38 @@
       if(el) el.addEventListener("input",function(){ updateMoveCollectionReadiness(id,data); });
     });
     updateMoveCollectionReadiness(id,data);
+  }
+
+  function continueMoveBooking(id){
+    const numericId=Number(id);
+    const data=moveBookingCache.get(String(numericId))||{};
+    const state=updateMoveCollectionReadiness(numericId,data);
+
+    if(state.ready){
+      const book=document.getElementById("ab-move-book-"+numericId);
+      if(book){
+        book.scrollIntoView({behavior:"smooth",block:"center"});
+        setTimeout(function(){ book.focus(); },180);
+      }
+      return;
+    }
+
+    const fieldByLabel={
+      "Seller / sender name":"ab-move-sender-name-",
+      "Collection street address":"ab-move-sender-street-",
+      "Collection town / city":"ab-move-sender-city-",
+      "Collection postcode":"ab-move-sender-postcode-",
+      "Collection country":"ab-move-sender-country-",
+      "Collection contact name":"ab-move-sender-contact-",
+      "Collection contact phone":"ab-move-sender-phone-",
+      "Access / handover instructions":"ab-move-instructions-"
+    };
+    const first=state.missing.find(function(item){ return fieldByLabel[item]; });
+    const target=first ? document.getElementById(fieldByLabel[first]+numericId) : document.getElementById("ab-move-booking-"+numericId);
+    if(target){
+      target.scrollIntoView({behavior:"smooth",block:"center"});
+      setTimeout(function(){ if(typeof target.focus==="function") target.focus(); },180);
+    }
   }
 
   async function loadMoveBooking(dealMotorcycleId,force){
@@ -909,7 +949,13 @@
       operationsCache.delete(String(dealId));
       await loadDeal(dealId,true);
 
-      alert("Seller proceeding confirmed and Ready Date saved.\n\nNext: Book collection with Move Motorcycles.");
+      alert("Seller proceeding confirmed and Ready Date saved.\n\nNext: Complete the Move booking.");
+      setTimeout(function(){
+        const movePanel=document.getElementById("ab-move-booking-"+motorcycleId);
+        if(movePanel){
+          movePanel.scrollIntoView({behavior:"smooth",block:"start"});
+        }
+      },260);
     }catch(error){
       console.error("Seller Ready Date could not be saved:",error);
       alert("Seller Ready Date could not be saved.\n\n"+(error.message||error));
@@ -1117,6 +1163,7 @@
   window.setAnyBikeReadyDate=setReadyDate;
   window.updateAnyBikeMoveSmsPreview=updateSmsPreview;
   window.updateAnyBikeMoveCollectionReadiness=updateMoveCollectionReadiness;
+  window.continueAnyBikeMoveBooking=continueMoveBooking;
   window.saveAnyBikeMoveDraft=saveMoveDraft;
   window.bookAnyBikeMoveShipment=bookMoveShipment;
   window.updateAnyBikeCollectionStep=updateCollectionStep;
