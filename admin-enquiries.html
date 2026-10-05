@@ -15116,14 +15116,22 @@ function renderAnyBikeDealFinancialPanel(deal){
         <div class="anybike-financial-metric net"><span>Net Margin After VAT</span><strong>${vatAvailable ? anyBikeNullableMoney(row.net_margin_after_vat_gbp) : "—"}</strong></div>
       </div>
       <div class="anybike-financial-controls">
-        <div class="anybike-financial-field"><label>VAT Treatment</label><select id="deal-vat-treatment-${dmId}" onchange="updateDealVatFormState(${dmId})"><option${treatment==="Check Required"?" selected":""}>Check Required</option><option${treatment==="Margin Scheme"?" selected":""}>Margin Scheme</option><option${treatment==="Full VAT"?" selected":""}>Full VAT</option><option${treatment==="Zero Rated"?" selected":""}>Zero Rated</option><option${treatment==="Outside Scope"?" selected":""}>Outside Scope</option><option${treatment==="Exempt"?" selected":""}>Exempt</option></select></div>
+        <div class="anybike-financial-field"><label>VAT Treatment</label><select id="deal-vat-treatment-${dmId}" onchange="updateDealVatFormState(${dmId})">
+          <option value="" ${treatment==="Check Required"?"selected":""} disabled>Select VAT treatment</option>
+          <option value="Margin Scheme" ${treatment==="Margin Scheme"?"selected":""}>Margin Scheme</option>
+          <option value="Full VAT" ${treatment==="Full VAT" && String(deal.sale_route||"")!=="NEW_RETAIL_B2C"?"selected":""}>VAT Qualifying — 20% VAT</option>
+          <option value="NEW_BIKE_FULL_VAT" ${treatment==="Full VAT" && String(deal.sale_route||"")==="NEW_RETAIL_B2C"?"selected":""}>New Bike — 20% VAT</option>
+          <option value="Outside Scope" ${treatment==="Outside Scope"?"selected":""}>Outside Scope</option>
+          <option value="Zero Rated" ${treatment==="Zero Rated"?"selected":""}>Zero Rated</option>
+          <option value="Exempt" ${treatment==="Exempt"?"selected":""}>Exempt</option>
+        </select></div>
         <div class="anybike-financial-field"><label>Status</label><select id="deal-vat-status-${dmId}" ${statusDisabled?"disabled":""}><option${status==="Check Required"?" selected":""}>Check Required</option><option${status==="Estimated"?" selected":""}>Estimated</option><option${status==="Verified"?" selected":""}>Verified</option></select></div>
         <div class="anybike-financial-field"><label>VAT Rate %</label><input id="deal-vat-rate-${dmId}" type="number" min="0" max="100" step="0.001" value="${escapeAdminHtml(rate.toFixed(3))}"></div>
         <label id="deal-vat-input-wrap-${dmId}" class="anybike-financial-check ${isFullVat?"":"is-hidden"}"><input id="deal-vat-input-recoverable-${dmId}" type="checkbox" ${recoverable===true?"checked":""} ${recoverableDisabled?"disabled":""}> Purchase input VAT recoverable</label>
         <div class="anybike-financial-field"><label>Internal VAT Note</label><input id="deal-vat-notes-${dmId}" type="text" placeholder="Reason, evidence or check required"></div>
         <button class="anybike-financial-save" type="button" ${busy?"disabled":""} onclick="saveDealVatTreatment(${dmId});return false;">${busy?"Saving...":"Save VAT"}</button>
       </div>
-      <div class="anybike-financial-note">VAT figures are internal estimates until Verified. Only mark VAT as Verified when the transaction records support the treatment and, for Full VAT, the input VAT recovery position.</div>
+      <div class="anybike-financial-note">Choose the correct VAT treatment and save it. VAT Qualifying and New Bike use 20% VAT; Margin Scheme, Outside Scope, Zero Rated and Exempt do not use the standard 20% motorcycle VAT calculation.</div>
       ${warning?`<div class="anybike-financial-warning">${escapeAdminHtml(warning)}</div>`:""}
     </div>`;
   }).join("");
@@ -15143,12 +15151,12 @@ function updateDealVatFormState(dealMotorcycleId){
     recover.disabled=true;
   }else if(treatment.value==="Margin Scheme"){
     status.disabled=false;
-    if(status.value==="Check Required") status.value="Estimated";
+    status.value="Verified";
     recover.checked=false;
     recover.disabled=true;
-  }else if(treatment.value==="Full VAT"){
+  }else if(treatment.value==="Full VAT" || treatment.value==="NEW_BIKE_FULL_VAT"){
     status.disabled=false;
-    if(status.value==="Check Required") status.value="Estimated";
+    status.value="Verified";
     recover.disabled=false;
   }else{
     status.disabled=false;
@@ -15158,7 +15166,7 @@ function updateDealVatFormState(dealMotorcycleId){
   }
 
   if(recoverWrap){
-    const showRecoverable = treatment.value === "Full VAT";
+    const showRecoverable = treatment.value === "Full VAT" || treatment.value === "NEW_BIKE_FULL_VAT";
     recoverWrap.classList.toggle("is-hidden", !showRecoverable);
     recoverWrap.classList.toggle("is-disabled", showRecoverable && recover.disabled);
   }
@@ -15170,10 +15178,13 @@ async function saveDealVatTreatment(dealMotorcycleId){
   let vatStatus=status.value; let inputRecoverable=null;
   if(treatment.value==="Check Required") vatStatus="Check Required";
   if(treatment.value==="Margin Scheme") inputRecoverable=false;
-  if(treatment.value==="Full VAT") inputRecoverable=!!recover.checked;
+  if(treatment.value==="Full VAT" || treatment.value==="NEW_BIKE_FULL_VAT") inputRecoverable=!!recover.checked;
+  const savedTreatment=treatment.value==="NEW_BIKE_FULL_VAT" ? "Full VAT" : treatment.value;
+  if(savedTreatment==="Full VAT"){ rate.value="20"; }
+  if(savedTreatment==="Margin Scheme" || savedTreatment==="Outside Scope" || savedTreatment==="Zero Rated" || savedTreatment==="Exempt"){ rate.value="0"; }
   const vatRate=Number(rate.value);
   if(!Number.isFinite(vatRate)||vatRate<0||vatRate>100){alert("Enter a valid VAT rate between 0 and 100.");return;}
-  if(treatment.value==="Zero Rated" && vatStatus==="Verified"){
+  if(savedTreatment==="Zero Rated" && vatStatus==="Verified"){
     const bike=(adminDealMotorcycles||[]).find(function(row){ return Number(row.deal_motorcycle_id)===id; }) || {};
     const route=anyBikeShippingRouteForDeal(bike.deal_id);
     if(String(route.export_vat_clearance_status||"Not Assessed")!=="Zero Rate Confirmed"){
@@ -15181,10 +15192,11 @@ async function saveDealVatTreatment(dealMotorcycleId){
       return;
     }
   }
-  if(!confirm("Save VAT treatment for this motorcycle?\n\nTreatment: "+treatment.value+"\nStatus: "+vatStatus+"\nVAT rate: "+vatRate+"%")) return;
+  const displayTreatment=treatment.options[treatment.selectedIndex]?.text || savedTreatment;
+  if(!confirm("Save VAT treatment for this motorcycle?\n\nTreatment: "+displayTreatment+"\nStatus: "+vatStatus+"\nVAT rate: "+vatRate+"%")) return;
   dealVatSaveBusy.add(String(id)); renderAdminDealQueue();
   try{
-    const result=await sb.rpc("admin_set_deal_motorcycle_vat_treatment",{p_deal_motorcycle_id:id,p_vat_treatment:treatment.value,p_vat_treatment_status:vatStatus,p_vat_rate_percent:vatRate,p_purchase_input_vat_recoverable:inputRecoverable,p_notes:notes.value.trim()||null});
+    const result=await sb.rpc("admin_set_deal_motorcycle_vat_treatment",{p_deal_motorcycle_id:id,p_vat_treatment:savedTreatment,p_vat_treatment_status:vatStatus,p_vat_rate_percent:vatRate,p_purchase_input_vat_recoverable:inputRecoverable,p_notes:notes.value.trim()||null});
     if(result.error) throw result.error;
     await loadAdminDealQueue();
     alert("VAT treatment saved. Deal 360 financial figures have been recalculated.");
