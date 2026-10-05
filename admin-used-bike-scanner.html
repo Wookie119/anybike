@@ -39,6 +39,8 @@ textarea{min-height:120px;resize:vertical;white-space:pre-wrap;overflow-wrap:any
 .note{font-size:12px;color:#999;line-height:1.45}.source-link{color:#ff7378;text-decoration:underline;word-break:break-all}
 .preview-thumbs{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}.preview-thumbs img{width:72px;height:54px;object-fit:cover;border-radius:8px;border:1px solid #333;background:#050505}
 .preview-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:2000;align-items:center;justify-content:center;padding:18px}.preview-backdrop.open{display:flex}.preview-modal{width:min(980px,100%);max-height:92vh;overflow:auto;background:#111;border:1px solid #3a3a3a;border-radius:18px;padding:20px}.preview-close{float:right}.buyer-preview-card{background:#171717;border:1px solid #2b2b2b;border-radius:16px;overflow:hidden}.buyer-preview-main{width:100%;max-height:520px;object-fit:contain;background:#050505}.buyer-preview-body{padding:18px}.buyer-preview-title{font-size:26px;font-weight:950}.buyer-preview-gallery{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.buyer-preview-gallery img{width:120px;height:90px;object-fit:cover;border:1px solid #333;border-radius:9px;cursor:pointer}
+.image-placeholder{width:200px;height:140px;border:1px dashed #555;border-radius:12px;background:linear-gradient(145deg,#151515,#0b0b0b);display:flex;align-items:center;justify-content:center;text-align:center;color:#999;font-weight:800;font-size:13px;line-height:1.35;padding:14px;box-sizing:border-box}
+.image-placeholder strong{display:block;color:#ddd;font-size:15px;margin-bottom:3px}
 .vq-wrap{display:inline-flex;align-items:center;gap:8px;margin-top:8px}
 .vq-shield{width:38px;height:44px;clip-path:polygon(50% 0,94% 15%,88% 72%,50% 100%,12% 72%,6% 15%);background:linear-gradient(145deg,#f6df7a,#b98615);color:#191304;display:flex;align-items:center;justify-content:center;font-weight:950;font-size:13px;letter-spacing:.03em;box-shadow:0 3px 10px rgba(0,0,0,.35)}
 .vq-copy{display:grid;gap:1px}.vq-copy strong{color:#e8cc6e;font-size:12px}.vq-copy span{font-size:10px;color:#aaa}
@@ -362,12 +364,14 @@ function previewBuyerMatch(scanId){
   if(!s)return;
   collectCard(scanId);
   const urls=(Array.isArray(s.buyer_image_urls)?s.buyer_image_urls:[]).filter(Boolean);
-  const first=urls[0]||"/anybike-logo-new.jpg";
+  const first=urls[0]||"";
   const ttl=[s.year,s.make,s.model,cleanVariantText(s.variant)].filter(Boolean).join(" ")||"Motorcycle match";
   const facts=[s.mileage!=null?Number(s.mileage).toLocaleString("en-GB")+" miles":"",cleanBuyerColour(s.colour)||"",s.engine_cc?Number(s.engine_cc).toLocaleString("en-GB")+" cc":""].filter(Boolean);
   const price=Number(s.anybike_price_gbp)>0?gbp(s.anybike_price_gbp):"Price on request";
   document.getElementById("buyerPreviewContent").innerHTML='<article class="buyer-preview-card">'+
-    '<img id="buyerPreviewMain" class="buyer-preview-main" src="'+esc(first)+'" onerror="this.src=\'/anybike-logo-new.jpg\'">'+
+    (first
+      ?'<img id="buyerPreviewMain" class="buyer-preview-main" src="'+esc(first)+'" onerror="this.style.display=\'none\'">'
+      :'<div class="image-placeholder" style="width:100%;height:280px"><div><strong>No buyer-safe image available</strong>This motorcycle cannot be shown to the buyer yet.</div></div>')+
     '<div class="buyer-preview-body"><div class="buyer-preview-title">'+esc(ttl)+'</div>'+vatBadgeForScan(s)+
     '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">'+facts.map(x=>'<span class="tag">'+esc(x)+'</span>').join("")+'</div>'+
     '<div class="money" style="margin-top:12px">'+price+'</div>'+
@@ -383,11 +387,13 @@ function cardHtml(s,saved){
   const rawFirst=sourceUrls.find(isUsableRawBikeImage)||"";
   const safeFirst=(Array.isArray(s.buyer_image_urls)?s.buyer_image_urls:[])[0]||"";
   const isLiveSource=!!(s.extraction&&s.extraction.live_source_item_id);
-  const first=isLiveSource?(safeFirst||"/anybike-logo-new.jpg"):(safeFirst||rawFirst||"/anybike-logo-new.jpg");
+  const first=isLiveSource?safeFirst:(safeFirst||rawFirst||"");
   const anyPrice=(Number(s.source_advertised_price_gbp)||0)+(Number(s.delivery_allowance_gbp)||0)+(Number(s.fee_allowance_gbp)||0);
   const fail=s.scan_status==="failed";
   return '<article class="scan-card" data-scan="'+id+'">'+
-    '<div class="scan-head"><div><img class="thumb" src="'+esc(first)+'" onerror="this.src=\'/anybike-logo-new.jpg\'">'+
+    '<div class="scan-head"><div>'+(first
+      ?'<img class="thumb" src="'+esc(first)+'" onerror="this.style.display=\'none\'">'
+      :'<div class="image-placeholder"><div><strong>No buyer-safe image</strong>Image preparation required</div></div>')+
       (isLiveSource
         ?(safeFirst
           ?'<div class="status good" style="margin-top:5px;font-weight:900">✓ Buyer-safe image ready</div>'
