@@ -601,7 +601,8 @@
     }
     if(book){
       book.disabled=!state.ready;
-      book.title=state.ready?"":"Complete the red booking fields first";
+      book.title=state.ready?"Ready to create the Move booking":"Complete the red booking fields first";
+      book.textContent=state.ready ? "Book with Move" : "Complete red fields first";
     }
     return state;
   }
