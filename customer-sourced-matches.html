@@ -110,8 +110,8 @@ h1{font-size:34px;margin:6px 0 10px}.intro{white-space:pre-line;line-height:1.6;
   </section>
 
   <section class="process-collapsed" id="processCollapsed">
-    <div><strong>AnyBike sourcing process understood</strong><div style="color:#999;font-size:12px;margin-top:4px">You previously chose to hide the full explanation.</div></div>
-    <button class="btn" type="button" onclick="showSourcingProcess()">VIEW PROCESS</button>
+    <div><strong>How the AnyBike buying process works</strong><div style="color:#999;font-size:12px;margin-top:4px">Open this if you want the full sourcing, offer, payment, collection and UK handover process.</div></div>
+    <button class="btn" type="button" onclick="showSourcingProcess()">HOW IT WORKS</button>
   </section>
 
   <section class="how" id="how" style="display:none">
@@ -702,28 +702,10 @@ function runCustomerNextAction(){
   target?.scrollIntoView({behavior:"smooth",block:"start"});
 }
 function buyerSelectionIntro(b,first){
-  const legacy=String(b?.message_text||"").trim();
-  const replacement=
-    "Dear "+first+",\n\n"+
+  return "Dear "+first+",\n\n"+
     "Good news — we have found a hand-picked selection of motorcycles that could suit your requirements.\n\n"+
-    "Tick Interested on each motorcycle you would like AnyBike to check with the seller. We will confirm current availability and purchase terms for the motorcycles you select. Anything you leave unticked will be recorded as Not interested for now.\n\n"+
-    "If you have a specific question about a motorcycle, add it underneath that motorcycle and we will ask the seller as part of the same availability check.\n\n"+
-    "If the motorcycle is available, AnyBike will send you a Formal Offer confirming the motorcycle, the answers to your questions, the AnyBike price and your agreed UK port, freight forwarder or handover point.\n\n"+
-    "The AnyBike price includes the motorcycle, AnyBike's sourcing fee, and the agreed UK collection & delivery to your chosen UK port or approved UK freight forwarder / handover point.\n\n"+
-    "If you accept the Formal Offer, you will be asked to pay the minimum deposit shown in the offer. You can pay more than the minimum deposit, or pay the full amount, if you prefer. Once your payment has been received and verified, AnyBike will secure the motorcycle with the seller and keep you updated through My AnyBike.\n\n"+
-    "Any remaining balance must be received in cleared funds before the motorcycle is collected from the seller. Collection is arranged through Move Motorcycles, our specialist motorcycle transport operation. Collection photographs will be added to your portal as soon as the motorcycle has been collected, and the motorcycle will then travel to our secure facility on a gated business park with 24-hour CCTV and no external motorcycle-storage signage before onward UK handover.\n\n"+
-    "Storage charges can apply if onward shipping or handover is delayed while the motorcycle remains in AnyBike / Move Motorcycles custody. If you expect a delay, please message us through My Messages so we can discuss the timing and any storage implications with you.";
-
-  if(!legacy)return replacement;
-
-  const isOldTemplate=
-    /mark each one Interested or Not Interested/i.test(legacy) ||
-    /If you are interested, we will check it is still available/i.test(legacy) ||
-    /send you an official AnyBike offer/i.test(legacy) ||
-    /Tick Interested on each motorcycle you would like AnyBike to check with the seller/i.test(legacy);
-
-  if(isOldTemplate)return replacement;
-  return legacy.replace(/motorcycles motorcycles/gi,"motorcycles");
+    "Tick Interested on each motorcycle you would like AnyBike to check with the seller. We will confirm availability, current purchase terms and any questions you ask. Anything left unticked will be recorded as Not interested for now.\n\n"+
+    "If a motorcycle is available, we will send you a Formal AnyBike Offer before you decide whether to proceed.";
 }
 
 function matchResponseText(s){
@@ -742,7 +724,7 @@ function render(){
   document.getElementById("hero").innerHTML='<div class="eyebrow">Your AnyBike selection</div><h1>'+esc(reqName?("Your "+reqName+" matches"):"Your motorcycle matches")+'</h1>'+
     '<div id="matchUrgencyBanner" class="match-urgency-banner"><strong id="matchUrgencyTitle"></strong><span id="matchUrgencyCopy"></span></div>'+
     '<div class="intro">'+esc(buyerSelectionIntro(b,first))+'</div>'+
-    (vqCount?'<div class="vq-batch-note">'+vqCount+' motorcycle'+(vqCount===1?'':'s')+' in this selection '+(vqCount===1?'is':'are')+' VAT Qualifying. Look for the gold VQ badge on each qualifying motorcycle.</div>':'');
+    (vqCount?'<div class="vq-batch-note"><strong>VAT Qualifying:</strong> '+vqCount+' motorcycle'+(vqCount===1?'':'s')+' in this selection '+(vqCount===1?'has':'have')+' been confirmed by the supplying dealer as VAT Qualifying and '+(vqCount===1?'is':'are')+' marked with the gold VQ badge. VQ status relates to the motorcycle itself; final VAT treatment will be confirmed in the Formal Offer.</div>':'');
   document.getElementById("status").style.display="none";
   document.getElementById("selectionBar").style.display="flex";
   const grid=document.getElementById("matchGrid");grid.style.display="grid";
@@ -764,15 +746,16 @@ function render(){
   document.getElementById("customerNextAction").style.display="block";
   document.getElementById("filterPanel").style.display="block";
   document.getElementById("marginToolCallout").style.display="flex";
-  if(sourcingProcessPrefs.hide){
-    document.getElementById("how").style.display="none";
-    document.getElementById("processCollapsed").style.display="flex";
-  }else{
-    document.getElementById("how").style.display="block";
-    document.getElementById("processCollapsed").style.display="none";
-    const ack=document.getElementById("processAckCheck");
-    if(ack)ack.checked=!!sourcingProcessPrefs.acknowledged;
-  }
+  document.getElementById("how").style.display="none";
+  document.getElementById("processCollapsed").style.display="flex";
+  const processTitle=document.querySelector("#processCollapsed strong");
+  const processCopy=document.querySelector("#processCollapsed div > div");
+  if(processTitle)processTitle.textContent="How the AnyBike buying process works";
+  if(processCopy)processCopy.textContent=sourcingProcessPrefs.hide
+    ?"You chose to keep the full explanation hidden. You can reopen it at any time."
+    :"Open this if you want the full sourcing, offer, payment, collection and UK handover process.";
+  const ack=document.getElementById("processAckCheck");
+  if(ack)ack.checked=!!sourcingProcessPrefs.acknowledged;
   populateMatchFilters();
   applyMatchFilters();
   scans.forEach(s=>{
