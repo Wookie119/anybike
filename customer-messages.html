@@ -1381,6 +1381,22 @@ function candidateMessageIdFromText(value){
 function candidateMessageHtml(value){
   const text=String(value||"");
 
+  const persistedOfferMatch=text.match(/\/?customer-dashboard\.html\?offer=(\d+)#my-offers/i);
+  if(persistedOfferMatch){
+    const offerId=Number(persistedOfferMatch[1]);
+    const cleaned=text
+      .replace(/Open your offer:\s*\/?customer-dashboard\.html\?offer=\d+#my-offers/ig,"")
+      .replace(/\/?customer-dashboard\.html\?offer=\d+#my-offers/ig,"")
+      .replace(/\n{3,}/g,"\n\n")
+      .trim();
+    return safe(cleaned) +
+      '<div style="margin-top:12px">' +
+        '<a href="/customer-dashboard.html?offer='+encodeURIComponent(offerId)+'#my-offers" style="display:inline-flex;align-items:center;justify-content:center;padding:11px 16px;border-radius:999px;background:#fff;color:#111;font-weight:950;text-decoration:none">' +
+          'Review Formal Offer →' +
+        '</a>' +
+      '</div>';
+  }
+
   const deal360OfferMatch=text.match(/Deal 360 Offer ref\s+(\d+)/i);
   if(deal360OfferMatch){
     const offerId=Number(deal360OfferMatch[1]);
@@ -1866,8 +1882,12 @@ async function loadCustomerEnquiries(){
   source.includes("press") ||
   source.includes("website support") ||
   source.includes("general enquiry") ||
+  source.includes("deal360") ||
   department.includes("global buyer") ||
-  subject.includes("global buyer");
+  department.includes("sales") ||
+  subject.includes("global buyer") ||
+  subject.includes("formal offer") ||
+  subject.includes("shipping details");
   
       })
       .map(thread=>({
@@ -2059,8 +2079,10 @@ function globalBuyerConversationHtml(thread){
   const title=anybikeCustomerThreadTitle(thread);
   const preview=String(thread.last_message||"").trim();
   const source=String(thread.source_type||"").toLowerCase();
+  const subject=String(thread.subject||"").toLowerCase();
   const isGlobal=source.includes("global buyer") || String(thread.department||"").toLowerCase().includes("global buyer");
-  const typeLabel=isGlobal ? "🌍 Global Buyer Network" : "💬 AnyBike Message";
+  const isFormalOffer=source.includes("deal360") && subject.includes("formal offer");
+  const typeLabel=isGlobal ? "🌍 Global Buyer Network" : (isFormalOffer ? "AnyBike Formal Offer" : "💬 AnyBike Message");
 
   return `
     <div class="customer-enquiry" id="customer-enquiry-${key}">
