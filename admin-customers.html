@@ -815,12 +815,20 @@ function buyerSetupReviewHtml(c){
   return '<div class="buyer-setup-review" data-buyer-setup-review style="scroll-margin-top:230px;margin:0 0 18px;padding:18px;border:2px solid #ed1c24;border-radius:16px;background:linear-gradient(135deg,rgba(237,28,36,.18),#101010);box-shadow:0 0 0 1px rgba(237,28,36,.18) inset">'+
     '<div class="eyebrow" style="font-size:12px;color:#ff4b52">ACTION REQUIRED · BUYER SETUP REVIEW</div>'+
     '<h2 style="margin:6px 0 8px;font-size:24px">Review '+safe(c.name)+' and record a decision</h2>'+
-    '<div style="font-size:14px;line-height:1.55;margin-bottom:14px;color:#ddd"><strong>What you need to do:</strong> check the 7 sections below, use <strong>Review Documents</strong> and <strong>Review Shipping</strong> where needed, choose your decision, then click the red <strong>Save Review →</strong> button. An approval will clear this Customer action from Admin HQ.</div>'+
+    '<div style="font-size:14px;line-height:1.55;margin-bottom:14px;color:#ddd"><strong>What you need to do:</strong> check the 7 setup sections, review the Shipping and Documents information shown inside this panel, choose your decision, then click <strong>Save Review →</strong>. An approval will clear this Customer action from Admin HQ.</div>'+
     '<div class="detail-grid" style="margin-bottom:14px">'+checklist+'</div>'+
     '<div class="detail-grid">'+
       '<div class="panel"><span>Setup completeness</span><strong>'+count+'/7 complete</strong></div>'+
       '<div class="panel"><span>Current review status</span><strong>'+safe(a.approval_status||"Not reviewed")+'</strong></div>'+
     '</div>'+
+    '<details open style="margin-top:16px;border:1px solid rgba(255,255,255,.14);border-radius:14px;background:#111;overflow:hidden">'+
+      '<summary style="cursor:pointer;padding:13px 15px;font-weight:950;font-size:16px">🚢 Shipping Review</summary>'+
+      '<div data-buyer-review-shipping style="padding:0 15px 15px"><div class="note-box">Loading shipping information…</div></div>'+
+    '</details>'+
+    '<details open style="margin-top:12px;border:1px solid rgba(255,255,255,.14);border-radius:14px;background:#111;overflow:hidden">'+
+      '<summary style="cursor:pointer;padding:13px 15px;font-weight:950;font-size:16px">📄 Documents & Proformas Review</summary>'+
+      '<div data-buyer-review-documents style="padding:0 15px 15px"><div class="note-box">Loading documents…</div></div>'+
+    '</details>'+
     '<div style="display:grid;grid-template-columns:minmax(220px,.45fr) minmax(280px,1fr);gap:10px;margin-top:14px">'+
       '<div><label class="small" for="buyerReviewDecision-'+cleanId(c.customerId)+'">Admin decision</label>'+
         '<select id="buyerReviewDecision-'+cleanId(c.customerId)+'" style="width:100%;margin-top:5px;background:#080808;color:#fff;border:1px solid #444;border-radius:10px;padding:11px">'+
@@ -831,10 +839,8 @@ function buyerSetupReviewHtml(c){
       '<div><label class="small" for="buyerReviewNotes-'+cleanId(c.customerId)+'">Review note / exception</label>'+
         '<input id="buyerReviewNotes-'+cleanId(c.customerId)+'" placeholder="Optional for approval; required for an exception or more information request" style="width:100%;margin-top:5px;background:#080808;color:#fff;border:1px solid #444;border-radius:10px;padding:11px"></div>'+
     '</div>'+
-    '<div style="display:flex;justify-content:flex-end;gap:10px;margin-top:14px">'+
-      '<button type="button" class="btn" onclick="openBuyerSetupReviewSection(\''+c.id+'\',\'documents\')">Review Documents</button>'+
-      '<button type="button" class="btn" onclick="openBuyerSetupReviewSection(\''+c.id+'\',\'shipping\')">Review Shipping</button>'+
-      '<button type="button" class="btn" style="background:#ed1c24" onclick="saveBuyerSetupReview(\''+c.customerId+'\',\''+c.id+'\')">Save Review →</button>'+
+    '<div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px">'+
+      '<button type="button" class="btn" style="background:#ed1c24;min-width:190px" onclick="saveBuyerSetupReview(\''+c.customerId+'\',\''+c.id+'\')">Save Review →</button>'+
     '</div>'+
   '</div>';
 }
@@ -1310,6 +1316,10 @@ function renderCustomerWorkspace(customer){
       auths.map(a=>`<div class="deal-card"><strong>${safe(a.shipper_name)}</strong><div class="small">Status: ${safe(a.status)} · Handover: ${safe(a.uk_handover_point)}</div><div class="small">${safe(a.shipper_email)} ${a.forwarder_reference?" · Ref "+safe(a.forwarder_reference):""}</div></div>`).join("");
   }
   setPanel("shipping",'<h3>Shipping</h3>'+(shippingHtml||'<div class="note-box">No shipping or shipper records yet.</div>'));
+  const embeddedShipping=root.querySelector("[data-buyer-review-shipping]");
+  if(embeddedShipping){
+    embeddedShipping.innerHTML=shippingHtml||'<div class="note-box">No shipping or shipper records yet.</div>';
+  }
 
   const docs=w.documents||{};
   const cd=Array.isArray(docs.customer_documents)?docs.customer_documents:[];
@@ -1322,6 +1332,10 @@ function renderCustomerWorkspace(customer){
   if(md.length) docsHtml+='<h3 class="section-title">Motorcycle Documents</h3>'+md.map(d=>`<div class="deal-card"><strong>${safe(d.document_title || d.original_file_name || d.document_type)}</strong><div class="small">${d.buyer_visible?"Buyer visible":"Internal"} · ${fmtDate(d.created_at)}</div></div>`).join("");
   if(sd.length) docsHtml+='<h3 class="section-title">Shipper Documents</h3>'+sd.map(d=>`<div class="deal-card"><strong>${safe(d.file_name)}</strong><div class="small">${safe(d.mime_type)} · ${fmtDate(d.created_at)}</div></div>`).join("");
   setPanel("documents",'<h3>Documents</h3>'+(docsHtml||'<div class="note-box">No documents or invoices recorded yet.</div>'));
+  const embeddedDocuments=root.querySelector("[data-buyer-review-documents]");
+  if(embeddedDocuments){
+    embeddedDocuments.innerHTML=docsHtml||'<div class="note-box">No documents or invoices recorded yet.</div>';
+  }
 
   const notes=Array.isArray(w.notes)?w.notes:[];
   setPanel("notes",`
