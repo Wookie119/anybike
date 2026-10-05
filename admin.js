@@ -478,6 +478,12 @@ e.stopPropagation();
 toggleAdminFolder(button.getAttribute("data-target"));
 };
 });
+
+document.querySelectorAll(".submenu a").forEach(function(link){
+link.addEventListener("click",function(){
+document.querySelectorAll(".submenu").forEach(function(item){ item.classList.remove("open"); });
+});
+});
 }
 
 function toggleAdminFolder(id){
@@ -590,12 +596,14 @@ document.addEventListener("click", function(e){
 var panel = document.getElementById("adminNotificationPanel");
 var bell = document.querySelector(".admin-bell");
 
-if(!panel || !bell){
-return;
+if(panel && bell && !panel.contains(e.target) && !bell.contains(e.target)){
+panel.classList.remove("open");
 }
 
-if(!panel.contains(e.target) && !bell.contains(e.target)){
-panel.classList.remove("open");
+if(!e.target.closest(".menu-group")){
+document.querySelectorAll(".submenu").forEach(function(item){
+item.classList.remove("open");
+});
 }
 });
 
