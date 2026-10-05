@@ -12626,7 +12626,7 @@ function anyBikeProcessKeyForNextAction(primary){
   if(action==="Deposit Due") return "customer-deposit";
   if(action.includes("Buyer Account")) return "account-control";
   if(action==="Review Buyer Onboarding") return "buyer-purchase-clearance";
-  if(action==="Confirm UK Handover Plan") return "shipping-handover";
+  if(action==="Approve customer shipping choice" || action==="Confirm UK Handover Plan") return "shipping-handover";
   if(action==="Ready to Purchase") return "secure-motorcycle";
   if(action==="Customer Balance Due") return "customer-balance";
   if(action==="Start Purchase & Collection") return "collection";
@@ -15960,12 +15960,26 @@ function bikeSalesFlagsForDeal(deal,action){
   };
 }
 
+function bikeSalesPendingCustomerShippingApproval(deal){
+  const dealId=String(deal?.deal_id || "");
+  if(!dealId) return false;
+
+  const selection=anyBikeCustomerHandoverSelectionForDeal(dealId);
+  if(!selection) return false;
+
+  return String(selection.status || "").trim().toLowerCase()==="customer selected";
+}
+
 function bikeSalesEffectivePrimary(action,flags,deal){
   const backendPrimary=String(action?.primary_action||"");
   const dealId=String(deal?.deal_id||action?.deal_id||"");
 
   if(flags.accountStopped) return "Buyer Account Stopped";
   if(flags.accountOnHold) return "Buyer Account On Hold";
+
+  if(bikeSalesPendingCustomerShippingApproval(deal)){
+    return "Approve customer shipping choice";
+  }
 
   if(!flags.hasMotorcycle){
     const candidateState=bikeSalesCandidateStateForDeal(dealId);
@@ -16012,6 +16026,12 @@ function bikeSalesNextActionTarget(action,deal,flags){
   const primary=String(action?.primary_action || "");
   const dealId=String(deal?.deal_id || "");
 
+  if(primary==="Approve customer shipping choice"){
+    return {
+      tab:"delivery",
+      selector:"#customer-shipping-preferences-"+dealId
+    };
+  }
   if(!flags.hasMotorcycle){
     return {tab:"sourcing",selector:"#anybike-deal-"+dealId+" .sales-tab-panel[data-tab=\"sourcing\"]"};
   }
@@ -16100,6 +16120,7 @@ function bikeSalesJourneyInstruction(action,flags){
     "Buyer Account Stopped":"Do not progress the purchase. Review the stop reason, tell the customer what is required and reactivate only when resolved.",
     "Buyer Account On Hold":"Resolve the outstanding buyer-account item before committing AnyBike money to the motorcycle.",
     "Review Buyer Onboarding":"Review the reusable buyer setup. Approve normally or use Approved with Exceptions with a recorded reason where safe.",
+    "Approve customer shipping choice":"Review the customer's selected shipper and UK handover details for this Deal. Approve the shipper if suitable, or decline it with a reason.",
     "Confirm UK Handover Plan":"Confirm the customer's destination, UK handover point and freight forwarder so AnyBike knows exactly where the motorcycle can be delivered.",
     "Ready to Purchase":"Reconfirm the motorcycle and price with the seller, then secure it only when AnyBike genuinely controls the purchase.",
     "Customer Balance Due":"Issue the correct Proforma / balance request, then verify and allocate the cleared customer funds.",
