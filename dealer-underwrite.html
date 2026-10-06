@@ -2,7 +2,12 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<meta name="theme-color" content="#070707">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="AnyBike Underwrite">
+<link rel="manifest" href="/underwrite-manifest.webmanifest">
 <title>Request Underwrite | AnyBike</title>
 <meta name="robots" content="noindex,nofollow">
 <link rel="icon" href="/anybike-logo-new.jpg">
@@ -34,6 +39,12 @@ textarea{min-height:90px;resize:vertical}
 .photo-count{margin-top:12px;color:#fff;font-weight:900}
 @media(max-width:700px){.photo-preview-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .btn{width:100%;border:0;border-radius:12px;background:var(--red);color:#fff;padding:14px;font-weight:900;font-size:16px;cursor:pointer}
+@media(max-width:700px){
+  .wrap{width:min(100% - 20px,1180px);padding:16px 0 90px}
+  .hero{padding:18px}
+  .card{padding:14px}
+  #underwriteForm > .btn[type="submit"]{position:sticky;bottom:12px;z-index:20;box-shadow:0 10px 28px rgba(0,0,0,.45)}
+}
 .btn:disabled{opacity:.5;cursor:not-allowed}
 .msg{margin-bottom:14px;padding:12px;border-radius:12px;display:none}
 .msg.good{display:block;border:1px solid rgba(66,209,123,.45);background:rgba(66,209,123,.07)}
@@ -56,6 +67,7 @@ textarea{min-height:90px;resize:vertical}
 
   <section class="card">
     <div id="msg" class="msg"></div>
+    <a id="submitAnother" class="btn" href="/underwrite.html" style="display:none;margin:0 0 14px;text-align:center;text-decoration:none">Submit Another Motorcycle →</a>
 
     <form id="underwriteForm">
       <div class="field">
@@ -194,7 +206,7 @@ photoDropzone.addEventListener("drop",e=>addPhotoFiles(e.dataTransfer?.files));
 (async function init(){
   const {data}=await sb.auth.getSession();
   if(!data?.session){
-    location.replace("/customer-register.html?return="+encodeURIComponent(location.pathname));
+    location.replace("/customer-register.html?return="+encodeURIComponent("/underwrite.html"));
     return;
   }
   const {data:dealer,error}=await sb.rpc("dealer_get_my_dealership");
@@ -244,6 +256,12 @@ document.getElementById("underwriteForm").addEventListener("submit",async functi
       (Number(result.photos_received||0)?" Photos are being safety checked.":""),
       true
     );
+
+    const repeat=document.getElementById("submitAnother");
+    if(repeat){
+      repeat.style.display="block";
+      repeat.href="/underwrite.html";
+    }
   }catch(error){
     showMsg(messageText(error,"Underwrite request could not be sent."),false);
   }finally{
