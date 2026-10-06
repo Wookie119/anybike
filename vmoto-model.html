@@ -201,6 +201,17 @@ document.querySelector(".vmoto-lightbox-close")?.addEventListener("click",closeV
 document.querySelector(".vmoto-lightbox-prev")?.addEventListener("click",()=>stepVmotoLightbox(-1));
 document.querySelector(".vmoto-lightbox-next")?.addEventListener("click",()=>stepVmotoLightbox(1));
 
+function updateVmotoEnquiryLinks(){
+  const selectedColour=document.querySelector(".colour.active")?.dataset.colourName||sessionStorage.getItem("vmotoSelectedColour")||"";
+  document.querySelectorAll("[data-vmoto-enquire]").forEach(link=>{
+    const url=new URL("/vmoto.html",window.location.origin);
+    if(link.dataset.model)url.searchParams.set("model",link.dataset.model);
+    if(link.dataset.variant)url.searchParams.set("variant",link.dataset.variant);
+    if(selectedColour)url.searchParams.set("colour",selectedColour);
+    url.hash="vmoto-enquiry";
+    link.href=url.pathname+url.search+url.hash;
+  });
+}
 function setVmotoHeroImage(url,label,button){
   const hero=document.getElementById("vmotoHeroImage");
   const gallery=document.getElementById("vmotoGalleryMainImage");
@@ -211,6 +222,7 @@ function setVmotoHeroImage(url,label,button){
     document.querySelectorAll(".colour").forEach(x=>x.classList.remove("active"));
     button.classList.add("active");
     if(button.dataset.colourName)sessionStorage.setItem("vmotoSelectedColour",button.dataset.colourName);
+    updateVmotoEnquiryLinks();
   }
 }
 function vmotoGalleryHtml(model){
@@ -288,17 +300,18 @@ async function load(){
           : '<span class="colour unavailable"><span class="colour-swatch" style="--swatch:'+esc(colour.colour_code||"#ddd")+'"></span>'+esc(colour.colour_name)+'</span>';
       }).join(""):'<span class="colour unavailable">Colours to be confirmed</span>')+'</div>'+
       '<div class="stock '+(liveStock.length?'':'unknown')+'">'+esc(status)+'</div>'+
-      '<div class="cta"><a class="btn" href="/vmoto.html#vmoto-enquiry" onclick="sessionStorage.setItem(\'vmotoSelectedModel\','+JSON.stringify(m.model_name)+');sessionStorage.setItem(\'vmotoSelectedVariant\','+JSON.stringify(v.variant_name)+')">Enquire About This Version</a></div></article>'
+      '<div class="cta"><a class="btn" data-vmoto-enquire data-model="'+esc(m.model_name)+'" data-variant="'+esc(v.variant_name)+'" href="/vmoto.html#vmoto-enquiry" onclick="sessionStorage.setItem(\'vmotoSelectedModel\',this.dataset.model);sessionStorage.setItem(\'vmotoSelectedVariant\',this.dataset.variant)">Enquire About This Version</a></div></article>'
   }).join(""):'<div class="empty">Ask AnyBike about the available versions, battery specification and colours for this model.</div>';
   const faqHtml=faqs.length?faqs.map(f=>'<details class="faq"><summary>'+esc(f.question)+'</summary><div class="answer">'+esc(f.answer)+'</div></details>').join(""):'<div class="empty">Have a question about this model? Start an enquiry and AnyBike will help.</div>';
   document.getElementById("page").innerHTML=
-    '<section class="hero"><div class="wrap hero-grid"><div><div class="kicker">VMOTO • UK RETAIL</div><h1>'+esc(m.model_name)+'</h1><p class="lead">'+esc(m.short_description||"Contact AnyBike for current specification, availability and pricing.")+'</p><div class="price">'+money(m.base_retail_price_gbp)+'<small>Recommended retail price. Final on-the-road and delivery total confirmed before order.</small></div><div class="cta"><a class="btn" href="/vmoto.html#vmoto-enquiry" onclick="sessionStorage.setItem(\'vmotoSelectedModel\','+JSON.stringify(m.model_name)+')">Start an Enquiry</a><a class="btn alt" href="/vmoto.html">Back to VMoto World</a></div></div><div class="hero-img">'+img+'</div></div></section>'+
+    '<section class="hero"><div class="wrap hero-grid"><div><div class="kicker">VMOTO • UK RETAIL</div><h1>'+esc(m.model_name)+'</h1><p class="lead">'+esc(m.short_description||"Contact AnyBike for current specification, availability and pricing.")+'</p><div class="price">'+money(m.base_retail_price_gbp)+'<small>Recommended retail price. Final on-the-road and delivery total confirmed before order.</small></div><div class="cta"><a class="btn" data-vmoto-enquire data-model="'+esc(m.model_name)+'" href="/vmoto.html#vmoto-enquiry" onclick="sessionStorage.setItem(\'vmotoSelectedModel\',this.dataset.model)">Start an Enquiry</a><a class="btn alt" href="/vmoto.html">Back to VMoto World</a></div></div><div class="hero-img">'+img+'</div></div></section>'+
     vmotoGalleryHtml(m)+
     (lifestyleImages[slug]?'<section class="lifestyle"><div class="wrap"><div class="lifestyle-card"><img src="'+esc(lifestyleImages[slug])+'" alt="'+esc(m.model_name)+' lifestyle image" loading="lazy"><div class="lifestyle-copy"><h2>'+esc(m.model_name)+' in the real world.</h2><p>Explore the design, detail and everyday character of this VMoto model, then ask AnyBike to confirm current UK availability and your delivered-to-door price.</p></div></div></div></section>':'')+
     '<section class="section"><div class="wrap"><h2>Technical specification.</h2><p class="intro">Current UK specification compiled from VMoto and current UK dealer information. Specification can vary by production batch and homologation, so AnyBike confirms the exact bike before order.</p><div class="tech-grid">'+Object.entries(technicalSpecs[slug]||{}).map(([k,v])=>'<div class="tech-item"><span>'+esc(k)+'</span><strong>'+esc(v)+'</strong></div>').join("")+'</div><div class="tech-note">'+esc(technicalNote(slug))+'</div></div></section>'+
     '<section class="section light"><div class="wrap"><h2>Battery options & colours.</h2><p class="intro">See the current UK battery configuration, charging information and colour range for this model. Availability of individual colours can change, and AnyBike confirms the exact specification before you proceed.</p><div class="variant-grid">'+variantHtml+'</div></div></section>'+
     '<section class="section"><div class="wrap"><h2>'+esc(m.model_name)+' FAQs.</h2><p class="intro">General VMoto answers plus model-specific answers approved for this model.</p><div class="faq-list">'+faqHtml+'</div></div></section>';
   wireVmotoGallery(m.model_name);
+  updateVmotoEnquiryLinks();
 }
 load().catch(error=>{console.error(error);document.getElementById("page").innerHTML='<section class="hero"><div class="wrap"><div class="empty">The VMoto model page could not be loaded right now.</div></div></section>'});
 </script>
