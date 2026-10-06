@@ -89,6 +89,24 @@ function anybikeHidePublicStockSurfaces(){
       else link.style.setProperty("display","none","important");
     });
   }
+
+  if(path.includes("/markets/")){
+    document.querySelectorAll(".stock-grid,.ab-stock-grid").forEach(function(grid){
+      const section=grid.closest("section");
+      if(section)section.style.setProperty("display","none","important");
+      else grid.style.setProperty("display","none","important");
+    });
+  }
+
+  if(path==="/"||path.endsWith("/index.html")||path.endsWith("/buy-motorcycles.html")){
+    document.querySelectorAll(".stock-grid").forEach(function(grid){
+      const hasPublicBikeLinks=!!grid.querySelector('a[href^="/bike-details.html?id="]');
+      if(!hasPublicBikeLinks)return;
+      const section=grid.closest("section");
+      if(section)section.style.setProperty("display","none","important");
+      else grid.style.setProperty("display","none","important");
+    });
+  }
 }
 
 async function anybikeApplyPublicStockVisibility(){
