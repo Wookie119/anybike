@@ -69,8 +69,36 @@ const esc=v=>String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&
 const money=v=>v===null||v===undefined?"—":"£"+Number(v).toLocaleString("en-GB",{maximumFractionDigits:0});
 async function load(){
  const {data,error}=await sb.rpc("admin_get_trade_underwrite_queue_v2");const host=document.getElementById("grid");
- if(error){host.innerHTML='<div class="empty">'+esc(error.message)+'</div>';return;}rows=data||[];
- if(!rows.length){host.innerHTML='<div class="empty">No trade underwrites yet.</div>';return;}
+ if(error){
+   host.innerHTML='<div class="empty">'+esc(error.message)+'</div>';
+   window.AnyBikeNextAction?.set({
+     title:"Review the seller underwrite queue",
+     text:"The Trade Underwrite Desk could not load. Open the intake queue to review eligible submissions and prepare the next opportunity.",
+     waitingFor:"AnyBike",
+     label:"OPEN SELLER & UNDERWRITE QUEUE →",
+     href:"/admin-seller-underwrites.html"
+   });
+   return;
+ }
+ rows=data||[];
+ if(!rows.length){
+   host.innerHTML='<div class="empty">No live trade underwrites yet. Eligible dealer submissions are prepared in Seller & Underwrite Queue first.</div>';
+   window.AnyBikeNextAction?.set({
+     title:"Prepare the next underwrite opportunity",
+     text:"There are no live opportunities on this desk yet. Open Seller & Underwrite Queue and start one of the waiting dealer underwrites.",
+     waitingFor:"AnyBike",
+     label:"OPEN SELLER & UNDERWRITE QUEUE →",
+     href:"/admin-seller-underwrites.html"
+   });
+   return;
+ }
+ window.AnyBikeNextAction?.set({
+   title:"Review the next live underwrite",
+   text:"Review the first live opportunity below for bids, confirmations or seller-offer action.",
+   waitingFor:"AnyBike",
+   label:"REVIEW LIVE UNDERWRITE →",
+   selector:"#grid .card"
+ });
  host.innerHTML=rows.map(r=>'<article class="card"><div class="top"><div><div class="ref">'+esc(r.reference)+'</div><div class="meta">'+esc(r.submission_reference)+' · '+esc(r.opportunity_status)+'</div></div><strong>'+esc(r.live_bid_count)+' live bid'+(Number(r.live_bid_count)===1?'':'s')+'</strong></div>'+
  '<div class="bike">'+esc([r.make,r.model,r.variant].filter(Boolean).join(" "))+'</div><div class="meta">'+esc(r.registration||"")+(r.bike_year?' · '+r.bike_year:'')+(r.mileage!==null?' · '+Number(r.mileage).toLocaleString("en-GB")+' miles':'')+'</div>'+
  '<div class="data"><div class="box"><span>Seller wants</span><strong>'+money(r.seller_price_wanted_gbp)+'</strong></div><div class="box"><span>Invited</span><strong>'+r.invited_trade_count+'</strong></div><div class="box"><span>Bid range</span><strong>'+money(r.lowest_live_bid_gbp)+' – '+money(r.highest_live_bid_gbp)+'</strong></div><div class="box"><span>Average</span><strong>'+money(r.average_live_bid_gbp)+'</strong></div></div>'+
