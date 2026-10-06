@@ -59,12 +59,12 @@ async function anybikeGetPublicStockVisibility(){
       body:"{}",
       cache:"no-store"
     });
-    if(!response.ok) return true;
+    if(!response.ok) return false;
     const data=await response.json();
     return data?.enabled!==false;
   }catch(error){
     console.warn("Public stock visibility setting unavailable",error);
-    return true;
+    return false;
   }
 }
 
