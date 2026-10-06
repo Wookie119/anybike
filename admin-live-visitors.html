@@ -863,6 +863,7 @@ let latestVisitors = [];
 let visitorJourneys = [];
 let topVisitors = [];
 let unusualActivityAlerts = [];
+let trustedVisitors = new Map();
 let showFlaggedJourneysOnly = false;
 let selectedVisitorId = "";
 
@@ -876,6 +877,70 @@ function escapeHtml(value){
       "'":"&#39;"
     }[char];
   });
+}
+
+
+function isTrustedVisitor(visitorId){
+  return trustedVisitors.has(String(visitorId||""));
+}
+
+function trustedVisitorBadge(visitorId){
+  if(!isTrustedVisitor(visitorId))return "";
+  const row=trustedVisitors.get(String(visitorId));
+  return '<span class="journey-badge returning" style="margin-left:6px">✓ '+escapeHtml(row?.label||"Trusted / AnyBike Staff")+'</span>';
+}
+
+async function loadTrustedVisitors(){
+  try{
+    const {data,error}=await sb.rpc("admin_get_trusted_website_visitors_v1");
+    if(error)throw error;
+    trustedVisitors=new Map((data||[]).map(function(row){
+      return [String(row.visitor_id),row];
+    }));
+  }catch(error){
+    console.error("Trusted visitor list could not be loaded",error);
+    trustedVisitors=new Map();
+  }
+}
+
+async function setTrustedVisitor(visitorId,trusted){
+  if(!visitorId)return;
+  const {error}=await sb.rpc("admin_set_trusted_website_visitor_v1",{
+    p_visitor_id:String(visitorId),
+    p_trusted:!!trusted,
+    p_label:trusted ? "AnyBike Staff / Trusted" : ""
+  });
+  if(error){
+    alert("Could not update trusted visitor: "+error.message);
+    return;
+  }
+
+  await Promise.all([
+    loadTrustedVisitors(),
+    loadUnusualActivity()
+  ]);
+
+  renderVisitors(latestVisitors);
+  renderVisitorJourneys();
+  loadVisitorHistory();
+
+  if(selectedVisitorId===String(visitorId)){
+    reloadSelectedVisitorDetail();
+  }
+
+  if(typeof anybikeRefreshAdminBellV2==="function"){
+    anybikeRefreshAdminBellV2();
+  }
+}
+
+async function toggleSelectedVisitorTrusted(){
+  if(!selectedVisitorId)return;
+  const trusted=isTrustedVisitor(selectedVisitorId);
+  const question=trusted
+    ? "Remove this visitor from Trusted / AnyBike Staff?"
+    : "Mark this visitor as Trusted / My Device?\n\nFuture unusual-activity alerts from this visitor will be ignored and existing website-activity alerts for this visitor will be cleared.";
+  if(!confirm(question))return;
+  await setTrustedVisitor(selectedVisitorId,!trusted);
 }
 
 function formatDuration(startedAt){
@@ -1206,7 +1271,7 @@ function renderVisitors(visitors){
     return `
       <div class="visitor-card" data-visitor-id="${visitorId}">
         <div class="visitor-top">
-          <div class="visitor-title">${escapeHtml(displayTitle(visitor))}</div>
+          <div class="visitor-title">${escapeHtml(displayTitle(visitor))}${trustedVisitorBadge(visitor.visitor_id)}</div>
           <div class="live-pill"><span class="live-dot"></span>LIVE</div>
         </div>
 
@@ -1317,7 +1382,7 @@ function renderVisitorHistory(visitors){
         </div>
 
         <div class="history-cell history-user">
-          <strong>${linkedUser}</strong>
+          <strong>${linkedUser}</strong>${trustedVisitorBadge(visitor.visitor_id)}
         </div>
 
         <div class="history-cell history-device">
@@ -1405,9 +1470,12 @@ function renderVisitorDetail(data){
   const person=visitorDetailPerson(data||{});
 
   title.textContent=person;
-  subtitle.textContent=data?.customer_email
-    ? data.customer_email
-    : "Visitor "+String(data?.visitor_id||"").slice(0,8)+"…";
+  subtitle.innerHTML=(data?.customer_email
+    ? escapeHtml(data.customer_email)
+    : "Visitor "+escapeHtml(String(data?.visitor_id||"").slice(0,8))+"…")+trustedVisitorBadge(data?.visitor_id);
+
+  const trusted=isTrustedVisitor(data?.visitor_id);
+  const trustAction='<button type="button" class="start-chat-btn" style="background:'+(trusted?'#222':'#174d2c')+';margin-left:8px" onclick="toggleSelectedVisitorTrusted()">'+(trusted?'Remove Trusted':'Mark as Trusted / My Device')+'</button>';
 
   const liveAction=data?.is_live
     ? (
@@ -1422,7 +1490,7 @@ function renderVisitorDetail(data){
       '<div><strong style="font-size:18px">'+(data?.is_live?'● LIVE NOW':'Visitor timeline')+'</strong>'+
       (data?.is_live?'<div class="subtitle">Currently on '+escapeHtml(data.current_page_title||data.current_path||"AnyBike")+'</div>':'')+
       '</div>'+
-      '<div>'+liveAction+'</div>'+
+      '<div>'+liveAction+trustAction+'</div>'+
     '</div>'+
     '<div class="kpi-grid" style="margin:14px 0 18px">'+
       '<div class="card kpi-card"><div class="kpi-label">Total visits</div><div class="kpi-value">'+Number(data?.total_visits||0)+'</div></div>'+
@@ -1599,9 +1667,10 @@ function renderVisitorJourneys(){
     const person=journeyPerson(row);
     const location=[row.city,row.region,row.country].filter(Boolean).join(", ") || "Location unavailable";
     const pages=Array.isArray(row.pages) ? row.pages : [];
-    const badge=row.is_returning
+    const badge=(row.is_returning
       ? '<span class="journey-badge returning">Returning · Visit #'+Number(row.visit_number||1)+'</span>'
-      : '<span class="journey-badge">First recorded visit</span>';
+      : '<span class="journey-badge">First recorded visit</span>')+
+      trustedVisitorBadge(row.visitor_id);
 
     const pageHtml=pages.length
       ? pages.map(function(page,pageIndex){
@@ -1910,6 +1979,8 @@ async function startLiveVisitors(){
   }
 
   initMap();
+  await loadTrustedVisitors();
+
   await Promise.all([
     loadLiveVisitors(),
     loadVisitorJourneys(),
