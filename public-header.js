@@ -29,6 +29,81 @@ Changes
 */
 
 document.addEventListener("DOMContentLoaded", loadPublicHeader);
+document.addEventListener("DOMContentLoaded", anybikeApplyPublicStockVisibility);
+
+async function anybikeGetPublicStockVisibility(){
+  try{
+    const response=await fetch("https://tuehtnezhdnkqbbhttgp.supabase.co/rest/v1/rpc/public_get_public_stock_visibility_v1",{
+      method:"POST",
+      headers:{
+        "apikey":"sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK",
+        "Content-Type":"application/json"
+      },
+      body:"{}",
+      cache:"no-store"
+    });
+    if(!response.ok) return true;
+    const data=await response.json();
+    return data?.enabled!==false;
+  }catch(error){
+    console.warn("Public stock visibility setting unavailable",error);
+    return true;
+  }
+}
+
+function anybikeHidePublicStockSurfaces(){
+  document.documentElement.dataset.publicStockVisible="false";
+
+  let style=document.getElementById("anybikePublicStockVisibilityStyles");
+  if(!style){
+    style=document.createElement("style");
+    style.id="anybikePublicStockVisibilityStyles";
+    style.textContent=[
+      'a[href="/available-stock.html"],a[href^="/available-stock.html?"],a[href^="available-stock.html"],a[href^="/bike-details.html?id="]{display:none!important}',
+      '.market-selection,#countryBuyerInterestSection,.ab-stock-grid,.ab-stock-label,.ab-stock-card{display:none!important}'
+    ].join("");
+    document.head.appendChild(style);
+  }
+
+  const path=window.location.pathname.toLowerCase();
+  if(path.endsWith("/available-stock.html")||path.endsWith("/bike-details.html")){
+    window.location.replace("/buy-motorcycles.html");
+    return;
+  }
+
+  if(
+    path.endsWith("/motorcycle-brand.html")||
+    path.endsWith("/motorcycle-model.html")||
+    path.endsWith("/motorcycle-variant.html")
+  ){
+    const stock=document.getElementById("stock");
+    const section=stock?.closest("section");
+    if(section)section.style.setProperty("display","none","important");
+    else if(stock)stock.style.setProperty("display","none","important");
+  }
+
+  if(path==="/"||path.endsWith("/index.html")||path.endsWith("/buy-motorcycles.html")||path.includes("/markets/")){
+    document.querySelectorAll('a[href^="/bike-details.html?id="]').forEach(function(link){
+      const card=link.closest(".stock-card,.ab-stock-card,.bike,.card");
+      if(card)card.style.setProperty("display","none","important");
+      else link.style.setProperty("display","none","important");
+    });
+  }
+}
+
+async function anybikeApplyPublicStockVisibility(){
+  const enabled=await anybikeGetPublicStockVisibility();
+  window.AnyBikePublicStockVisible=enabled;
+  window.dispatchEvent(new CustomEvent("anybikePublicStockVisibilityChanged",{detail:{enabled:enabled}}));
+  if(enabled)return;
+
+  anybikeHidePublicStockSurfaces();
+  const observer=new MutationObserver(function(){
+    if(window.AnyBikePublicStockVisible===false)anybikeHidePublicStockSurfaces();
+  });
+  observer.observe(document.documentElement,{childList:true,subtree:true});
+  window.AnyBikePublicStockVisibilityObserver=observer;
+}
 
 function loadAnyBikePublicPageLanguageController(){
   if(window.AnyBikePageLanguage){
