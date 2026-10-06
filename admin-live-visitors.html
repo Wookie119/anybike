@@ -1178,6 +1178,20 @@ function chatLinkHtml(visitor){
 }
 
 
+function trustedActionHtml(visitor){
+  const trusted=isTrustedVisitor(visitor.visitor_id);
+  return `
+    <div class="chat-action-row" style="margin-top:8px">
+      <button
+        type="button"
+        class="start-chat-btn"
+        data-toggle-trusted="${escapeHtml(visitor.visitor_id)}"
+        style="background:${trusted ? "#222" : "#174d2c"}"
+      >${trusted ? "✓ My Device / Trusted" : "Mark as My Device"}</button>
+    </div>
+  `;
+}
+
 function chatActionHtml(visitor){
   if(visitor.message_thread_id){
     const threadId=Number(visitor.message_thread_id);
@@ -1288,6 +1302,7 @@ function renderVisitors(visitors){
 
         <div class="chat-link-status">💬 ${chatLinkHtml(visitor)}</div>
         ${chatActionHtml(visitor)}
+        ${trustedActionHtml(visitor)}
       </div>
     `;
   }).join("");
@@ -1303,6 +1318,23 @@ function renderVisitors(visitors){
       event.preventDefault();
       event.stopPropagation();
       startVisitorChat(button.getAttribute("data-start-chat"),button);
+    });
+  });
+
+  list.querySelectorAll("[data-toggle-trusted]").forEach(function(button){
+    button.addEventListener("click",async function(event){
+      event.preventDefault();
+      event.stopPropagation();
+
+      const visitorId=button.getAttribute("data-toggle-trusted");
+      const trusted=isTrustedVisitor(visitorId);
+
+      if(!trusted){
+        const ok=confirm("Mark this visitor as My Device / Trusted?\n\nFuture unusual-activity alerts from this visitor will be ignored and existing website-activity alerts for this visitor will be cleared.");
+        if(!ok)return;
+      }
+
+      await setTrustedVisitor(visitorId,!trusted);
     });
   });
 
