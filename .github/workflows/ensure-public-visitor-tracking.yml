@@ -1,0 +1,109 @@
+name: Ensure public visitor tracking
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '**/*.html'
+      - '.github/workflows/ensure-public-visitor-tracking.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  ensure-tracking:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Add visitor tracking to new public pages
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import os
+          import subprocess
+          from pathlib import Path
+
+          before = os.environ.get("BEFORE", "")
+          after = os.environ.get("AFTER", "HEAD")
+
+          if before and before != "0000000000000000000000000000000000000000":
+              cmd = ["git", "diff", "--diff-filter=A", "--name-only", before, after, "--", "*.html", "**/*.html"]
+          else:
+              cmd = ["git", "diff", "--diff-filter=A", "--name-only", "HEAD~1", "HEAD", "--", "*.html", "**/*.html"]
+
+          result = subprocess.run(cmd, text=True, capture_output=True, check=True)
+          files = [Path(x.strip()) for x in result.stdout.splitlines() if x.strip()]
+
+          excluded_names = {
+              "public-header.html",
+              "admin-header.html",
+              "admin-sidebar.html",
+              "admin-topbar.html",
+              "google86e22a37d10b84db.html",
+              "junction-box.html",
+          }
+          excluded_prefixes = (
+              "admin-",
+              "move-driver-",
+              "move-collection-",
+          )
+
+          changed = []
+
+          for path in files:
+              if not path.exists() or path.suffix.lower() != ".html":
+                  continue
+
+              name = path.name.lower()
+
+              if name in excluded_names or name.startswith(excluded_prefixes):
+                  continue
+
+              text = path.read_text(encoding="utf-8", errors="ignore")
+
+              # Pages using the shared public header inherit tracking automatically.
+              if "public-header.js" in text or "visitor-tracker.js" in text:
+                  continue
+
+              if "</body>" not in text.lower():
+                  print(f"WARNING: {path} has no </body>; tracking was not auto-inserted.")
+                  continue
+
+              tracker = '<script src="/visitor-tracker.js?v=auto"></script>\n'
+              lower = text.lower()
+              index = lower.rfind("</body>")
+              text = text[:index] + tracker + text[index:]
+              path.write_text(text, encoding="utf-8")
+              changed.append(str(path))
+
+          if changed:
+              print("Added visitor tracking to:")
+              for path in changed:
+                  print(" -", path)
+          else:
+              print("No new public pages required visitor tracking changes.")
+          PY
+        env:
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+
+      - name: Commit automatic tracking additions
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo "No tracking changes to commit."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add '*.html' '**/*.html' 2>/dev/null || true
+          git commit -m "Automatically add visitor tracking to new public pages"
+          git push
