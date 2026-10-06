@@ -766,6 +766,7 @@ body{
           </select>
         </div>
       </div>
+      <div id="topVisitorsStatus" class="history-count" style="margin-bottom:10px">Loading…</div>
       <div id="topVisitorsList"><div class="empty-state">Loading top visitors…</div></div>
     </section>
 
@@ -1664,14 +1665,27 @@ function renderTopVisitors(){
 
 async function loadTopVisitors(){
   const box=document.getElementById("topVisitorsList");
+  const status=document.getElementById("topVisitorsStatus");
   const days=Number(document.getElementById("topVisitorsDays")?.value||30);
+  const periodLabel=days===1?"Today":"Last "+days+" days";
+
+  if(status)status.textContent="Refreshing "+periodLabel.toLowerCase()+"…";
+  if(box)box.innerHTML='<div class="empty-state">Refreshing top visitors…</div>';
+
   try{
     const {data,error}=await sb.rpc("admin_get_top_visitors_v1",{p_days:days,p_limit:20});
     if(error)throw error;
     topVisitors=data||[];
     renderTopVisitors();
+
+    if(status){
+      status.textContent=(topVisitors.length===1?"1 visitor":"Top "+topVisitors.length+" visitors")+
+        " · "+periodLabel+
+        " · updated "+new Date().toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+    }
   }catch(error){
     console.error("Top visitors could not be loaded",error);
+    if(status)status.textContent="Unavailable";
     box.innerHTML='<div class="error-state">Top visitors could not be loaded.<br><br>'+escapeHtml(error?.message||String(error))+'</div>';
   }
 }
@@ -2035,6 +2049,7 @@ async function startLiveVisitors(){
 
   setInterval(loadLiveVisitors,10000);
   setInterval(loadUnusualActivity,30000);
+  setInterval(loadTopVisitors,30000);
 
   const requestedSession=new URLSearchParams(location.search).get("session");
   const requestedVisitor=new URLSearchParams(location.search).get("visitor");
@@ -2049,6 +2064,7 @@ async function startLiveVisitors(){
     if(document.visibilityState === "visible"){
       loadLiveVisitors();
       loadUnusualActivity();
+      loadTopVisitors();
     }
   });
 }
