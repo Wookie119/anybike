@@ -326,6 +326,46 @@
   .setup-next-action{grid-template-columns:1fr!important}
   .setup-next-action .section-save{width:100%!important}
 }
+
+/* COMPACT GUIDED ACTION STRIP */
+.setup-next-action{
+  grid-template-columns:minmax(0,1fr) auto!important;
+  padding:12px 14px!important;
+  min-height:0!important;
+  background:#141414!important;
+}
+.setup-next-action::before{display:none!important}
+.setup-next-copy .setup-next-eyebrow{margin-bottom:2px!important}
+.setup-next-copy strong{font-size:15px!important}
+.setup-next-copy > span:last-child{font-size:12px!important;margin-top:3px!important}
+.setup-next-action .section-save{
+  width:auto!important;
+  min-width:170px;
+  min-height:40px!important;
+  padding:10px 16px!important;
+  justify-self:end;
+}
+.setup-next-action .section-msg{
+  grid-column:1/-1;
+  min-height:0!important;
+  margin-top:2px!important;
+}
+.setup-next-action.complete{
+  border-color:rgba(54,211,126,.45)!important;
+  border-left-color:#36d37e!important;
+  background:rgba(54,211,126,.05)!important;
+}
+.setup-next-action.complete .setup-next-eyebrow{
+  color:#7af0a8!important;
+}
+.setup-next-action.complete .section-save{
+  background:#2b7a49!important;
+}
+@media(max-width:760px){
+  .setup-next-action{grid-template-columns:1fr!important}
+  .setup-next-action .section-save{width:100%!important;justify-self:stretch}
+}
+
 </style>
     </head>
 
@@ -1917,6 +1957,16 @@
       if(field)setTimeout(()=>document.getElementById(field)?.focus({preventScroll:true}),350);
     }
 
+    function nextSectionAfter(section){
+      const sequence={
+        contact:["section-business","buyerType"],
+        business:["section-preferences","currency"],
+        preferences:["buyer-onboarding","shippingMethod"],
+        buyer:["section-shipping","shippingDirectorySelect"]
+      };
+      return sequence[section]||null;
+    }
+
     function moveToNextRequiredSection(){
       const s=buyerSetupCompletion();
       const sequence=[
@@ -2005,7 +2055,7 @@
               ? "✓ Margin Calculator Defaults saved."
               : section==="shipping"
                 ? "✓ Shipping Preferences saved. Buyer Setup is being submitted for AnyBike Review."
-                : "✓ Saved and complete. Moving you to the next required section…";
+                : "✓ Saved. Taking you to the next section…";
           msg.className="section-msg ok";
         }
         profileDirty=false;
@@ -2026,11 +2076,14 @@
         if(saveRow) saveRow.classList.add("complete");
         button.textContent="Saved ✓";
         if(["contact","business","preferences","buyer"].includes(section)){
-          setTimeout(moveToNextRequiredSection,650);
+          const next=nextSectionAfter(section);
+          if(next){
+            setTimeout(()=>focusProfileSection(next[0],next[1],true),350);
+          }
         }else if(section==="shipping"){
           setTimeout(()=>{
             window.location.href="/customer-dashboard.html";
-          },1200);
+          },900);
         }
       }catch(err){
         if(msg){msg.textContent="Could not save this section: "+err.message;msg.className="section-msg bad";}
