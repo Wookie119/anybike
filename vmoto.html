@@ -197,12 +197,11 @@ footer{padding:26px 20px;border-top:1px solid var(--line);color:#999;text-align:
           <select id="vmotoVariant" name="variant"><option value="">Any current version</option></select>
         </div>
         <div class="retail-field">
-          <label for="vmotoBattery">Battery choice</label>
-          <select id="vmotoBattery" name="battery">
-            <option value="">Not sure yet</option>
-            <option>Standard battery</option>
-            <option>Higher-capacity battery</option>
+          <label for="vmotoBattery">Battery configuration</label>
+          <select id="vmotoBattery" name="battery" disabled>
+            <option value="">Choose a model first</option>
           </select>
+          <div id="vmotoBatteryHelp" class="retail-small">Only battery configurations confirmed for the selected VMoto are shown.</div>
         </div>
         <div class="retail-field">
           <label for="vmotoColour">Preferred colour</label>
@@ -293,9 +292,55 @@ function populateVmotoEnquiryOptions(models){
   if(rememberedModel && models.some(m=>m.model_name===rememberedModel)){
     modelEl.value=rememberedModel;
   }
-  populateVmotoVariantAndColours(rememberedVariant||"");
+  populateVmotoVariantAndColours(rememberedVariant||"",rememberedColour||"",rememberedBattery||"");
 }
-function populateVmotoVariantAndColours(preferredVariant){
+const vmotoBatteryOptions={
+  "stash":["Fixed ATL battery — 74V / 97Ah (7.1 kWh)"],
+  "tc-max":["72V / 45Ah removable battery"],
+  "ts-street-hunter-pro":["Dual battery — 2 × 60V / 32Ah"],
+  "tc-wanderer-pro":["Dual battery — 2 × 60V / 32Ah"],
+  "tc":["Current UK dual-battery specification — 2 × 60V / 30Ah"],
+  "tsx":["Current UK dual-battery specification — 2 × 60V / 30Ah"],
+  "cux-pro":["60V / 43Ah battery"],
+  "cpx":["Current specification — 2 × 74V / 30Ah"],
+  "cpx-pro":["Dual battery — 2 × 60V / 45Ah"],
+  "cpx-explorer":["Dual battery — 2 × 74V / 45Ah"],
+  "vs1":["Fleet battery configuration — 60V / 45Ah per battery; exact pack count confirmed with order"],
+  "vs2-citi":["1 × 74V / 30Ah","2 × 74V / 30Ah dual-battery configuration"],
+  "vs3":["60V / 90Ah battery configuration"],
+  "cpx-fleet":["1 × 60V / 45Ah","2 × 60V / 45Ah dual-battery configuration"]
+};
+function populateVmotoBatteryOptions(model,preferredBattery){
+  const batteryEl=document.getElementById("vmotoBattery");
+  const help=document.getElementById("vmotoBatteryHelp");
+  if(!batteryEl)return;
+  if(!model){
+    batteryEl.disabled=true;
+    batteryEl.innerHTML='<option value="">Choose a model first</option>';
+    if(help)help.textContent="Only battery configurations confirmed for the selected VMoto are shown.";
+    return;
+  }
+  const configured=vmotoBatteryOptions[model.slug]||[];
+  const variants=Array.isArray(model.variants)?model.variants:[];
+  const selectedVariant=document.getElementById("vmotoVariant")?.value||"";
+  const variant=variants.find(v=>v.variant_name===selectedVariant)||variants[0];
+  const fallback=variant?.battery_capacity
+    ? [((variant.battery_description?variant.battery_description+" — ":"")+variant.battery_capacity)]
+    : [];
+  const options=configured.length?configured:fallback;
+  batteryEl.disabled=!options.length;
+  if(!options.length){
+    batteryEl.innerHTML='<option value="">Battery specification confirmed with enquiry</option>';
+    if(help)help.textContent="AnyBike will confirm the exact battery specification before you proceed.";
+    return;
+  }
+  batteryEl.innerHTML=options.map(x=>'<option value="'+vmotoEsc(x)+'">'+vmotoEsc(x)+'</option>').join("");
+  if(preferredBattery&&options.includes(preferredBattery))batteryEl.value=preferredBattery;
+  if(help)help.textContent=options.length>1
+    ?"Choose only from the battery configurations VMoto lists for this model."
+    :"This is the confirmed battery configuration for the selected model.";
+}
+function populateVmotoVariantAndColours(preferredVariant,preferredColour,preferredBattery){
   const modelName=document.getElementById("vmotoModel")?.value||"";
   const model=(window.vmotoPublicModels||[]).find(m=>m.model_name===modelName);
   const variants=Array.isArray(model?.variants)?model.variants:[];
@@ -304,11 +349,16 @@ function populateVmotoVariantAndColours(preferredVariant){
   if(variantEl){
     variantEl.innerHTML='<option value="">Any current version</option>'+variants.map(v=>'<option value="'+vmotoEsc(v.variant_name)+'">'+vmotoEsc(v.variant_name)+'</option>').join("");
     if(preferredVariant && variants.some(v=>v.variant_name===preferredVariant))variantEl.value=preferredVariant;
+    else if(variants.length===1)variantEl.value=variants[0].variant_name;
   }
   if(colourEl){
-    const colours=[...new Set(variants.flatMap(v=>(Array.isArray(v.colours)?v.colours:[]).map(c=>c.colour_name)).filter(Boolean))];
+    const selectedVariant=variants.find(v=>v.variant_name===variantEl?.value);
+    const colourSource=selectedVariant?[selectedVariant]:variants;
+    const colours=[...new Set(colourSource.flatMap(v=>(Array.isArray(v.colours)?v.colours:[]).map(c=>c.colour_name)).filter(Boolean))];
     colourEl.innerHTML='<option value="">No colour preference</option>'+colours.map(x=>'<option value="'+vmotoEsc(x)+'">'+vmotoEsc(x)+'</option>').join("");
+    if(preferredColour&&colours.includes(preferredColour))colourEl.value=preferredColour;
   }
+  populateVmotoBatteryOptions(model,preferredBattery||"");
 }
 async function loadVmotoCatalogue(){
   const grid=document.getElementById("vmotoModelGrid");
@@ -392,10 +442,15 @@ document.getElementById("vmotoFaqSubmit")?.addEventListener("click",async functi
 
 const rememberedModel=sessionStorage.getItem("vmotoSelectedModel");
 const rememberedVariant=sessionStorage.getItem("vmotoSelectedVariant");
-document.getElementById("vmotoModel")?.addEventListener("change",()=>populateVmotoVariantAndColours(""));
+const rememberedColour=sessionStorage.getItem("vmotoSelectedColour");
+const rememberedBattery=sessionStorage.getItem("vmotoSelectedBattery");
+document.getElementById("vmotoModel")?.addEventListener("change",()=>populateVmotoVariantAndColours("","",""));
+document.getElementById("vmotoVariant")?.addEventListener("change",()=>populateVmotoVariantAndColours(document.getElementById("vmotoVariant")?.value||"",document.getElementById("vmotoColour")?.value||"",document.getElementById("vmotoBattery")?.value||""));
 loadVmotoCatalogue().finally(()=>{
   if(rememberedModel)sessionStorage.removeItem("vmotoSelectedModel");
   if(rememberedVariant)sessionStorage.removeItem("vmotoSelectedVariant");
+  if(rememberedColour)sessionStorage.removeItem("vmotoSelectedColour");
+  if(rememberedBattery)sessionStorage.removeItem("vmotoSelectedBattery");
 });
 loadVmotoFaqs();
 
