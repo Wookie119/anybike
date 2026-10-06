@@ -799,6 +799,26 @@ body{
       </div>
     </section>
 
+    <section class="card" id="visitorDetailPanel" style="display:none;margin-bottom:18px">
+      <div class="journey-toolbar">
+        <div>
+          <h2 id="visitorDetailTitle" style="margin:0 0 5px">Visitor Detail</h2>
+          <div class="subtitle" id="visitorDetailSubtitle">Select a visitor to review their full history.</div>
+        </div>
+        <div class="journey-controls">
+          <select id="visitorDetailDays" onchange="reloadSelectedVisitorDetail()">
+            <option value="30">Last 30 days</option>
+            <option value="90">Last 90 days</option>
+            <option value="180">Last 6 months</option>
+            <option value="365" selected>Last 12 months</option>
+            <option value="730">Last 2 years</option>
+          </select>
+          <button type="button" class="start-chat-btn" onclick="closeVisitorDetail()">Close</button>
+        </div>
+      </div>
+      <div id="visitorDetailContent"><div class="empty-state">Select a visitor below.</div></div>
+    </section>
+
     <section class="card history-card">
       <div class="history-toolbar">
         <div>
@@ -844,6 +864,7 @@ let visitorJourneys = [];
 let topVisitors = [];
 let unusualActivityAlerts = [];
 let showFlaggedJourneysOnly = false;
+let selectedVisitorId = "";
 
 function escapeHtml(value){
   return String(value ?? "").replace(/[&<>"']/g,function(char){
@@ -1285,7 +1306,7 @@ function renderVisitorHistory(visitors){
       : "—";
 
     return `
-      <div class="history-row">
+      <div class="history-row" data-history-visitor="${escapeHtml(visitor.visitor_id || "")}" style="cursor:pointer" onclick="openVisitorDetail('${escapeHtml(visitor.visitor_id || "")}')">
         <div class="history-cell history-time">
           <strong>${escapeHtml(formatClockTime(visitor.last_seen_at))}</strong><br>
           ${liveLabel}
@@ -1308,7 +1329,7 @@ function renderVisitorHistory(visitors){
           <button
             type="button"
             class="history-journey-btn"
-            onclick="openVisitorJourney('${escapeHtml(visitor.session_id || "")}','${escapeHtml(visitor.visitor_id || "")}')"
+            onclick="event.stopPropagation();openVisitorJourney('${escapeHtml(visitor.session_id || "")}','${escapeHtml(visitor.visitor_id || "")}')"
           >
             ${Number(visitor.accurate_pageviews ?? visitor.pageviews) || 0} pages
             <span>View journey</span>
@@ -1332,6 +1353,91 @@ function renderVisitorHistory(visitors){
   }).join("");
 
   box.innerHTML = header + body;
+}
+
+
+function visitorDetailPerson(data){
+  return data.customer_name || data.customer_email || "Guest visitor";
+}
+
+function renderVisitorDetail(data){
+  const panel=document.getElementById("visitorDetailPanel");
+  const content=document.getElementById("visitorDetailContent");
+  const title=document.getElementById("visitorDetailTitle");
+  const subtitle=document.getElementById("visitorDetailSubtitle");
+  const sessions=Array.isArray(data?.sessions)?data.sessions:[];
+  const person=visitorDetailPerson(data||{});
+
+  title.textContent=person;
+  subtitle.textContent=data?.customer_email
+    ? data.customer_email
+    : "Visitor "+String(data?.visitor_id||"").slice(0,8)+"…";
+
+  const summary=
+    '<div class="kpi-grid" style="margin:14px 0 18px">'+
+      '<div class="card kpi-card"><div class="kpi-label">Total visits</div><div class="kpi-value">'+Number(data?.total_visits||0)+'</div></div>'+
+      '<div class="card kpi-card"><div class="kpi-label">Total pages</div><div class="kpi-value">'+Number(data?.total_pages||0)+'</div></div>'+
+      '<div class="card kpi-card"><div class="kpi-label">Active time</div><div class="kpi-value" style="font-size:28px">'+escapeHtml(formatSeconds(data?.total_active_seconds||0))+'</div></div>'+
+    '</div>'+
+    '<div class="history-row" style="grid-template-columns:1fr 1fr 1fr">'+
+      '<div><strong>First seen</strong><br>'+escapeHtml(data?.first_seen_at?new Date(data.first_seen_at).toLocaleString("en-GB"):"—")+'</div>'+
+      '<div><strong>Last seen</strong><br>'+escapeHtml(data?.last_seen_at?new Date(data.last_seen_at).toLocaleString("en-GB"):"—")+'</div>'+
+      '<div><strong>Visitor ID</strong><br>'+escapeHtml(String(data?.visitor_id||""))+'</div>'+
+    '</div>';
+
+  const sessionHtml=sessions.length?sessions.map(function(s,index){
+    const pages=Array.isArray(s.pages)?s.pages:[];
+    const loc=[s.city,s.region,s.country].filter(Boolean).join(", ")||"Location unavailable";
+    const pageRows=pages.length?pages.map(function(p,i){
+      return '<div class="journey-page">'+
+        '<div class="journey-page-number">'+(i+1)+'</div>'+
+        '<div class="journey-page-time">'+escapeHtml(formatClockTime(p.entered_at))+'</div>'+
+        '<div class="journey-page-main"><strong>'+escapeHtml(p.title||p.path||"Page")+'</strong><span>'+escapeHtml(p.path||"/")+'</span></div>'+
+        '<div class="journey-page-duration">'+escapeHtml(formatSeconds(p.active_seconds||0))+'</div>'+
+      '</div>';
+    }).join(""):'<div class="empty-state">No page-level history recorded for this visit.</div>';
+
+    return '<div class="journey-session open">'+
+      '<button type="button" class="journey-summary" onclick="this.parentElement.classList.toggle(\'open\')">'+
+        '<div class="journey-person"><strong>Visit '+(sessions.length-index)+'</strong><span>'+escapeHtml(new Date(s.started_at).toLocaleString("en-GB"))+'</span></div>'+
+        '<div class="journey-stat"><strong>'+Number(s.page_count||0)+'</strong><span>Pages</span></div>'+
+        '<div class="journey-stat"><strong>'+escapeHtml(formatSeconds(s.active_seconds||0))+'</strong><span>Active time</span></div>'+
+        '<div class="journey-meta"><strong>'+escapeHtml(loc)+'</strong><span>'+escapeHtml(displayDeviceType(s.device_type)+" · "+(s.browser||"—"))+'</span><span>Landing: '+escapeHtml(s.landing_path||"/")+'</span></div>'+
+      '</button>'+
+      '<div class="journey-pages">'+pageRows+'</div>'+
+    '</div>';
+  }).join(""):'<div class="empty-state">No detailed visits are recorded in this period.</div>';
+
+  content.innerHTML=summary+'<div style="margin-top:18px"><h3 style="margin:0 0 10px">Visit history</h3>'+sessionHtml+'</div>';
+  panel.style.display="block";
+  panel.scrollIntoView({behavior:"smooth",block:"start"});
+}
+
+async function openVisitorDetail(visitorId){
+  if(!visitorId)return;
+  selectedVisitorId=String(visitorId);
+  const panel=document.getElementById("visitorDetailPanel");
+  const content=document.getElementById("visitorDetailContent");
+  panel.style.display="block";
+  content.innerHTML='<div class="empty-state">Loading full visitor history…</div>';
+  panel.scrollIntoView({behavior:"smooth",block:"start"});
+  const days=Number(document.getElementById("visitorDetailDays")?.value||365);
+  const {data,error}=await sb.rpc("admin_get_visitor_detail_v1",{p_visitor_id:selectedVisitorId,p_days:days});
+  if(error){
+    content.innerHTML='<div class="error-state">Visitor detail could not be loaded.<br><br>'+escapeHtml(error.message)+'</div>';
+    return;
+  }
+  renderVisitorDetail(data||{});
+}
+
+function reloadSelectedVisitorDetail(){
+  if(selectedVisitorId)openVisitorDetail(selectedVisitorId);
+}
+
+function closeVisitorDetail(){
+  selectedVisitorId="";
+  const panel=document.getElementById("visitorDetailPanel");
+  if(panel)panel.style.display="none";
 }
 
 function formatSeconds(total){
