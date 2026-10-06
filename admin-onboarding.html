@@ -60,19 +60,14 @@ table{width:100%;border-collapse:collapse}th,td{padding:12px 10px;text-align:lef
         </select>
         <select id="typeFilter">
           <option value="">All customer types</option>
-          <option value="uk_private">UK Private Customer</option>
-          <option value="uk_dealer">UK Motorcycle Dealer / Trader</option>
-          <option value="uk_distributor">UK Distributor / Importer</option>
-          <option value="uk_manufacturer">UK Manufacturer / Brand Owner</option>
-          <option value="uk_partner">UK Partner / Service Provider</option>
-          <option value="eu_dealer">European Motorcycle Dealer / Trader</option>
-          <option value="eu_distributor">European Distributor / Importer</option>
-          <option value="intl_dealer">International Motorcycle Dealer / Trader</option>
-          <option value="intl_distributor">International Distributor / Importer</option>
-          <option value="global_manufacturer">Global Manufacturer / Brand Owner</option>
-          <option value="freight_partner">Freight Forwarder / Shipping Partner</option>
-          <option value="fleet_corporate">Fleet / Corporate Buyer</option>
-          <option value="other_business">Other Business / Professional</option>
+          <option value="uk_private">UK Based Private User</option>
+          <option value="uk_dealer">UK Based Motorcycle Dealer</option>
+          <option value="uk_distributor">UK Motorcycle Distributor</option>
+          <option value="uk_manufacturer">UK Motorcycle Manufacturer</option>
+          <option value="uk_partner">UK Partner</option>
+          <option value="eu_dealer">European Motorcycle Dealer</option>
+          <option value="intl_dealer">International Motorcycle Dealer</option>
+          <option value="global_manufacturer">Global Manufacturer</option>
         </select>
         <select id="intentFilter">
           <option value="">All intents</option>
@@ -106,19 +101,19 @@ let rows=[];
 
 function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]))}
 function customerTypeLabel(v){return ({
-  uk_private:"UK Private Customer",
-  uk_dealer:"UK Motorcycle Dealer / Trader",
-  uk_distributor:"UK Distributor / Importer",
-  uk_manufacturer:"UK Manufacturer / Brand Owner",
-  uk_partner:"UK Partner / Service Provider",
-  eu_dealer:"European Motorcycle Dealer / Trader",
-  eu_distributor:"European Distributor / Importer",
-  intl_dealer:"International Motorcycle Dealer / Trader",
-  intl_distributor:"International Distributor / Importer",
-  global_manufacturer:"Global Manufacturer / Brand Owner",
-  freight_partner:"Freight Forwarder / Shipping Partner",
-  fleet_corporate:"Fleet / Corporate Buyer",
-  other_business:"Other Business / Professional"
+  uk_private:"UK Based Private User",
+  uk_dealer:"UK Based Motorcycle Dealer",
+  uk_distributor:"UK Motorcycle Distributor",
+  uk_manufacturer:"UK Motorcycle Manufacturer",
+  uk_partner:"UK Partner",
+  eu_dealer:"European Motorcycle Dealer",
+  intl_dealer:"International Motorcycle Dealer",
+  global_manufacturer:"Global Manufacturer",
+  eu_distributor:"European Distributor / Importer (legacy)",
+  intl_distributor:"International Distributor / Importer (legacy)",
+  freight_partner:"Freight Forwarder / Shipping Partner (legacy)",
+  fleet_corporate:"Fleet / Corporate Buyer (legacy)",
+  other_business:"Other Business / Professional (legacy)"
 })[v]||"Not classified"}
 function intentLabel(v){return ({
   buy:"Buy motorcycles",
@@ -142,7 +137,9 @@ function isInternal(r){
 }
 function needsAttention(r){
   return !r.is_test_account && (
-    !r.email_confirmed_at || !r.has_profile || Number(r.sections_complete||0)<5 ||
+    !r.email_confirmed_at || !r.has_profile ||
+    !r.customer_type || !r.customer_intent || String(r.customer_intent)==="unclear" ||
+    (String(r.route)==="buyer_export" && Number(r.sections_complete||0)<5) ||
     String(r.route)==="needs_clarification"
   );
 }
@@ -166,7 +163,7 @@ function renderKpis(){
   kTotal.textContent=prospect.length;
   kUnconfirmed.textContent=prospect.filter(r=>!r.email_confirmed_at).length;
   kNoProfile.textContent=prospect.filter(r=>r.email_confirmed_at&&!r.has_profile).length;
-  kIncomplete.textContent=prospect.filter(r=>r.has_profile&&Number(r.sections_complete||0)<5).length;
+  kIncomplete.textContent=prospect.filter(r=>r.has_profile&&String(r.route)==="buyer_export"&&Number(r.sections_complete||0)<5).length;
   kClarify.textContent=prospect.filter(r=>r.route==="needs_clarification").length;
   kReview.textContent=prospect.filter(r=>String(r.onboarding_stage).includes("Ready for AnyBike Review")||String(r.onboarding_stage).includes("Approved")).length;
 }
@@ -186,7 +183,7 @@ function render(){
     const cls=priority?"priority-row":(r.is_test_account?"test-row":(isInternal(r)?"internal-row":""));
     const dots=[r.contact_complete,r.business_complete,r.preferences_complete,r.buyer_export_complete,r.shipping_complete].map(x=>'<span class="dot '+(x?"on":"")+'"></span>').join("");
     const reminder=r.last_reminder_at?new Date(r.last_reminder_at).toLocaleString("en-GB")+' · '+Number(r.reminder_count||0)+' sent':"Never";
-    const canRemind=r.has_profile&&r.email_confirmed_at&&!r.is_test_account&&r.route==="buyer_export";
+    const canRemind=r.has_profile&&r.email_confirmed_at&&!r.is_test_account&&needsAttention(r);
     const canClarify=r.has_profile&&r.email_confirmed_at&&!r.is_test_account&&r.route==="needs_clarification";
     const activity=[
       Number(r.request_count||0)?r.request_count+" request":"",Number(r.scan_batch_count||0)?r.scan_batch_count+" source batch":"",Number(r.deal_count||0)?r.deal_count+" deal":""
@@ -197,7 +194,7 @@ function render(){
       '<td><strong>'+Number(r.sections_complete||0)+' / 5</strong><div class="progress">'+dots+'</div></td>'+
       '<td><select class="route-select" onchange="setClassification(\''+r.user_id+'\',this.value,null)">'+
         '<option value="">Not classified</option>'+
-        ['uk_private','uk_dealer','uk_distributor','uk_manufacturer','uk_partner','eu_dealer','eu_distributor','intl_dealer','intl_distributor','global_manufacturer','freight_partner','fleet_corporate','other_business'].map(v=>'<option value="'+v+'" '+(r.customer_type===v?'selected':'')+'>'+customerTypeLabel(v)+'</option>').join("")+
+        ['uk_private','uk_dealer','uk_distributor','uk_manufacturer','uk_partner','eu_dealer','intl_dealer','global_manufacturer'].map(v=>'<option value="'+v+'" '+(r.customer_type===v?'selected':'')+'>'+customerTypeLabel(v)+'</option>').join("")+
       '</select></td>'+
       '<td><select class="route-select" onchange="setClassification(\''+r.user_id+'\',null,this.value)">'+
         ['unclear','buy','supply','buy_supply','vmoto_retail','partnership','freight_logistics'].map(v=>'<option value="'+v+'" '+((r.customer_intent||"unclear")===v?'selected':'')+'>'+intentLabel(v)+'</option>').join("")+
@@ -210,7 +207,7 @@ function render(){
         (r.next_link?'<a class="btn dark" href="'+esc(r.next_link)+'" target="_blank">Open customer step</a>':'')+
         (canClarify?'<button class="btn dark" onclick="askRoute(\''+r.user_id+'\',this)">Ask what they want to do</button>':'')+
         '<button class="btn" '+(canRemind?'':'disabled')+' onclick="sendReminder(\''+r.user_id+'\',this)">Send setup reminder</button>'+
-      '</div><div class="status-line" id="action-'+r.user_id+'">'+(canRemind||canClarify?"":"Choose Buyer / Export before sending buyer setup reminders")+'</div></td>'+
+      '</div><div class="status-line" id="action-'+r.user_id+'">'+(canRemind||canClarify?"":"No onboarding reminder is currently required")+'</div></td>'+
     '</tr>';
   }).join("")+'</tbody></table>';
 }
