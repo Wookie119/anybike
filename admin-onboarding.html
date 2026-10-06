@@ -58,12 +58,31 @@ table{width:100%;border-collapse:collapse}th,td{padding:12px 10px;text-align:lef
           <option value="no-profile">Confirmed, no profile</option>
           <option value="review">Ready for review / approved</option>
         </select>
-        <select id="routeFilter">
-          <option value="">All routes</option>
-          <option value="needs_clarification">Needs clarification</option>
-          <option value="buyer_export">Buyer / Export</option>
-          <option value="dealer_supplier">Dealer / Supplier</option>
-          <option value="vmoto_retail">VMoto Retail</option>
+        <select id="typeFilter">
+          <option value="">All customer types</option>
+          <option value="uk_private">UK Private Customer</option>
+          <option value="uk_dealer">UK Motorcycle Dealer / Trader</option>
+          <option value="uk_distributor">UK Distributor / Importer</option>
+          <option value="uk_manufacturer">UK Manufacturer / Brand Owner</option>
+          <option value="uk_partner">UK Partner / Service Provider</option>
+          <option value="eu_dealer">European Motorcycle Dealer / Trader</option>
+          <option value="eu_distributor">European Distributor / Importer</option>
+          <option value="intl_dealer">International Motorcycle Dealer / Trader</option>
+          <option value="intl_distributor">International Distributor / Importer</option>
+          <option value="global_manufacturer">Global Manufacturer / Brand Owner</option>
+          <option value="freight_partner">Freight Forwarder / Shipping Partner</option>
+          <option value="fleet_corporate">Fleet / Corporate Buyer</option>
+          <option value="other_business">Other Business / Professional</option>
+        </select>
+        <select id="intentFilter">
+          <option value="">All intents</option>
+          <option value="buy">Buy motorcycles</option>
+          <option value="supply">Sell / supply motorcycles</option>
+          <option value="buy_supply">Buy and supply</option>
+          <option value="vmoto_retail">VMoto retail</option>
+          <option value="partnership">Partnership / integration</option>
+          <option value="freight_logistics">Freight / logistics</option>
+          <option value="unclear">Not yet clear</option>
         </select>
         <label class="small" style="display:flex;align-items:center;gap:6px"><input id="showInternal" type="checkbox"> Show internal/test</label>
       </div>
@@ -86,7 +105,30 @@ const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 let rows=[];
 
 function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]))}
-function routeLabel(v){return ({needs_clarification:"Needs clarification",buyer_export:"Buyer / Export",dealer_supplier:"Dealer / Supplier",vmoto_retail:"VMoto Retail"})[v]||"Needs clarification"}
+function customerTypeLabel(v){return ({
+  uk_private:"UK Private Customer",
+  uk_dealer:"UK Motorcycle Dealer / Trader",
+  uk_distributor:"UK Distributor / Importer",
+  uk_manufacturer:"UK Manufacturer / Brand Owner",
+  uk_partner:"UK Partner / Service Provider",
+  eu_dealer:"European Motorcycle Dealer / Trader",
+  eu_distributor:"European Distributor / Importer",
+  intl_dealer:"International Motorcycle Dealer / Trader",
+  intl_distributor:"International Distributor / Importer",
+  global_manufacturer:"Global Manufacturer / Brand Owner",
+  freight_partner:"Freight Forwarder / Shipping Partner",
+  fleet_corporate:"Fleet / Corporate Buyer",
+  other_business:"Other Business / Professional"
+})[v]||"Not classified"}
+function intentLabel(v){return ({
+  buy:"Buy motorcycles",
+  supply:"Sell / supply motorcycles",
+  buy_supply:"Buy and supply",
+  vmoto_retail:"VMoto retail",
+  partnership:"Partnership / integration",
+  freight_logistics:"Freight / logistics",
+  unclear:"Not yet clear"
+})[v]||"Not yet clear"}
 function stageClass(stage){
   const s=String(stage||"").toLowerCase();
   if(s.includes("ready")||s.includes("approved"))return "green";
@@ -108,8 +150,10 @@ function rowMatches(r){
   if(!document.getElementById("showInternal").checked && isInternal(r))return false;
   const q=document.getElementById("searchBox").value.trim().toLowerCase();
   if(q && ![r.full_name,r.email,r.business_name,r.country,r.onboarding_stage].join(" ").toLowerCase().includes(q))return false;
-  const route=document.getElementById("routeFilter").value;
-  if(route && r.route!==route)return false;
+  const type=document.getElementById("typeFilter").value;
+  if(type && r.customer_type!==type)return false;
+  const intent=document.getElementById("intentFilter").value;
+  if(intent && (r.customer_intent||"unclear")!==intent)return false;
   const f=document.getElementById("stageFilter").value;
   if(f==="attention"&&!needsAttention(r))return false;
   if(f==="unconfirmed"&&r.email_confirmed_at)return false;
@@ -136,7 +180,7 @@ function render(){
     return new Date(b.auth_created_at)-new Date(a.auth_created_at);
   });
   if(!data.length){tableWrap.innerHTML='<div class="empty">No onboarding records match this view.</div>';return;}
-  tableWrap.innerHTML='<table><thead><tr><th>Person / business</th><th>Stage</th><th>Setup</th><th>Route</th><th>Activity</th><th>Last reminder</th><th>Admin notes</th><th>Actions</th></tr></thead><tbody>'+
+  tableWrap.innerHTML='<table><thead><tr><th>Person / business</th><th>Stage</th><th>Setup</th><th>Customer type</th><th>Intent</th><th>Activity</th><th>Last reminder</th><th>Admin notes</th><th>Actions</th></tr></thead><tbody>'+
   data.map(r=>{
     const priority=Number(r.request_count||0)>0||Number(r.scan_batch_count||0)>0;
     const cls=priority?"priority-row":(r.is_test_account?"test-row":(isInternal(r)?"internal-row":""));
@@ -151,8 +195,12 @@ function render(){
       '<td><div class="name">'+esc(r.full_name||r.business_name||"Registration only")+(priority?' <span class="badge red">PRIORITY</span>':'')+'</div><div class="email">'+esc(r.email||"")+'</div><div class="status-line">'+esc(r.business_name||"")+(r.country?' · '+esc(r.country):'')+'</div></td>'+
       '<td><span class="badge '+stageClass(r.onboarding_stage)+'">'+esc(r.onboarding_stage)+'</span><div class="status-line">'+(r.email_confirmed_at?"Email confirmed":"Email not confirmed")+(r.has_profile?" · Profile created":" · No profile")+'</div></td>'+
       '<td><strong>'+Number(r.sections_complete||0)+' / 5</strong><div class="progress">'+dots+'</div></td>'+
-      '<td><select class="route-select" onchange="setRoute(\''+r.user_id+'\',this.value)">'+
-        ['needs_clarification','buyer_export','dealer_supplier','vmoto_retail'].map(v=>'<option value="'+v+'" '+(r.route===v?'selected':'')+'>'+routeLabel(v)+'</option>').join("")+
+      '<td><select class="route-select" onchange="setClassification(\''+r.user_id+'\',this.value,null)">'+
+        '<option value="">Not classified</option>'+
+        ['uk_private','uk_dealer','uk_distributor','uk_manufacturer','uk_partner','eu_dealer','eu_distributor','intl_dealer','intl_distributor','global_manufacturer','freight_partner','fleet_corporate','other_business'].map(v=>'<option value="'+v+'" '+(r.customer_type===v?'selected':'')+'>'+customerTypeLabel(v)+'</option>').join("")+
+      '</select></td>'+
+      '<td><select class="route-select" onchange="setClassification(\''+r.user_id+'\',null,this.value)">'+
+        ['unclear','buy','supply','buy_supply','vmoto_retail','partnership','freight_logistics'].map(v=>'<option value="'+v+'" '+((r.customer_intent||"unclear")===v?'selected':'')+'>'+intentLabel(v)+'</option>').join("")+
       '</select></td>'+
       '<td>'+esc(activity)+'</td>'+
       '<td>'+esc(reminder)+'</td>'+
@@ -173,10 +221,23 @@ async function loadOnboarding(){
   rows=Array.isArray(data)?data:[];
   renderKpis();render();
 }
-async function setRoute(userId,route){
-  const {error}=await sb.rpc("admin_set_onboarding_route_v1",{p_user_id:userId,p_route:route,p_notes:null});
-  if(error){alert("Could not update route: "+error.message);await loadOnboarding();return;}
-  const r=rows.find(x=>x.user_id===userId);if(r)r.route=route;renderKpis();render();
+async function setClassification(userId,type,intent){
+  const r=rows.find(x=>x.user_id===userId);if(!r)return;
+  const nextType=type===null?r.customer_type:(type||null);
+  const nextIntent=intent===null?(r.customer_intent||"unclear"):(intent||"unclear");
+  const {error}=await sb.rpc("admin_set_onboarding_classification_v1",{
+    p_user_id:userId,
+    p_customer_type:nextType,
+    p_customer_intent:nextIntent
+  });
+  if(error){alert("Could not update classification: "+error.message);await loadOnboarding();return;}
+  r.customer_type=nextType;
+  r.customer_intent=nextIntent;
+  if(["buy","buy_supply"].includes(nextIntent)) r.route="buyer_export";
+  else if(nextIntent==="supply") r.route="dealer_supplier";
+  else if(nextIntent==="vmoto_retail") r.route="vmoto_retail";
+  else r.route="needs_clarification";
+  renderKpis();render();
 }
 async function saveNote(userId){
   const r=rows.find(x=>x.user_id===userId);if(!r)return;
@@ -202,7 +263,7 @@ async function sendReminder(userId,btn){
   document.getElementById("action-"+userId).innerHTML='✓ Reminder sent'+(item?.thread_id?' · <a href="admin-message-centre.html?thread='+Number(item.thread_id)+'" style="color:#fff;text-decoration:underline">Open conversation</a>':'');
   setTimeout(loadOnboarding,700);
 }
-["searchBox","stageFilter","routeFilter","showInternal"].forEach(id=>document.getElementById(id)?.addEventListener(id==="searchBox"?"input":"change",render));
+["searchBox","stageFilter","typeFilter","intentFilter","showInternal"].forEach(id=>document.getElementById(id)?.addEventListener(id==="searchBox"?"input":"change",render));
 
 (async function(){
   const allowed=await requireAdminSession();
