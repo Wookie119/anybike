@@ -72,8 +72,9 @@ table{width:100%;border-collapse:collapse}th,td{padding:12px 10px;text-align:lef
         <select id="intentFilter">
           <option value="">All intents</option>
           <option value="buy">Buy motorcycles</option>
-          <option value="supply">Sell / supply motorcycles</option>
-          <option value="buy_supply">Buy and supply</option>
+          <option value="dealer_trade_supply">Trade / sell motorcycles</option>
+          <option value="buy_supply">Buy and trade / sell</option>
+          <option value="dealer_underwrite">Part-exchange underwrite</option>
           <option value="vmoto_retail">VMoto retail</option>
           <option value="partnership">Partnership / integration</option>
           <option value="freight_logistics">Freight / logistics</option>
@@ -117,8 +118,10 @@ function customerTypeLabel(v){return ({
 })[v]||"Not classified"}
 function intentLabel(v){return ({
   buy:"Buy motorcycles",
-  supply:"Sell / supply motorcycles",
-  buy_supply:"Buy and supply",
+  supply:"Sell / supply motorcycles (legacy)",
+  dealer_trade_supply:"Trade / sell motorcycles",
+  buy_supply:"Buy and trade / sell",
+  dealer_underwrite:"Part-exchange underwrite",
   vmoto_retail:"VMoto retail",
   partnership:"Partnership / integration",
   freight_logistics:"Freight / logistics",
@@ -203,7 +206,7 @@ function render(){
         ['uk_private','uk_dealer','uk_distributor','uk_manufacturer','uk_partner','eu_dealer','intl_dealer','global_manufacturer'].map(v=>'<option value="'+v+'" '+(r.customer_type===v?'selected':'')+'>'+customerTypeLabel(v)+'</option>').join("")+
       '</select></td>'+
       '<td><select class="route-select" onchange="setClassification(\''+r.user_id+'\',null,this.value)">'+
-        ['unclear','buy','supply','buy_supply','vmoto_retail','partnership','freight_logistics'].map(v=>'<option value="'+v+'" '+((r.customer_intent||"unclear")===v?'selected':'')+'>'+intentLabel(v)+'</option>').join("")+
+        ['unclear','buy','dealer_trade_supply','buy_supply','dealer_underwrite','vmoto_retail','partnership','freight_logistics'].map(v=>'<option value="'+v+'" '+((r.customer_intent||"unclear")===v?'selected':'')+'>'+intentLabel(v)+'</option>').join("")+
       '</select></td>'+
       '<td>'+esc(activity)+'</td>'+
       '<td>'+esc(reminder)+'</td>'+
@@ -237,7 +240,8 @@ async function setClassification(userId,type,intent){
   r.customer_type=nextType;
   r.customer_intent=nextIntent;
   if(["buy","buy_supply"].includes(nextIntent)) r.route="buyer_export";
-  else if(nextIntent==="supply") r.route="dealer_supplier";
+  else if(nextIntent==="supply" || nextIntent==="dealer_trade_supply") r.route="dealer_supplier";
+  else if(nextIntent==="dealer_underwrite") r.route="dealer_underwrite";
   else if(nextIntent==="vmoto_retail") r.route="vmoto_retail";
   else r.route="needs_clarification";
   renderKpis();render();
