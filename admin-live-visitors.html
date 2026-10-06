@@ -686,6 +686,28 @@ body{
       </div>
     </section>
 
+    <section class="card" id="unusualActivityPanel" style="margin-bottom:18px;border:1px solid rgba(237,28,36,.35);background:linear-gradient(135deg,rgba(237,28,36,.10),#111 60%)">
+      <div class="journey-toolbar">
+        <div>
+          <h2 style="margin:0 0 5px">⚠ Unusual Activity</h2>
+          <div class="subtitle">Guest sessions that crossed the website activity monitoring thresholds.</div>
+        </div>
+        <div class="journey-controls">
+          <select id="unusualActivityDays" onchange="loadUnusualActivity()">
+            <option value="1">Today</option>
+            <option value="7" selected>Last 7 days</option>
+            <option value="30">Last 30 days</option>
+            <option value="90">Last 90 days</option>
+          </select>
+          <button type="button" class="start-chat-btn" id="unusualOnlyBtn" onclick="toggleUnusualOnly()">Show flagged journeys only</button>
+        </div>
+      </div>
+      <div id="unusualActivityCount" class="history-count" style="margin-bottom:10px">Loading…</div>
+      <div id="unusualActivityList">
+        <div class="empty-state">Loading unusual activity…</div>
+      </div>
+    </section>
+
     <section class="live-layout">
 
       <div class="card">
@@ -810,6 +832,8 @@ let visitorMarkers = new Map();
 let latestVisitors = [];
 let visitorJourneys = [];
 let topVisitors = [];
+let unusualActivityAlerts = [];
+let showFlaggedJourneysOnly = false;
 
 function escapeHtml(value){
   return String(value ?? "").replace(/[&<>"']/g,function(char){
@@ -1369,6 +1393,8 @@ async function loadTopVisitors(){
 }
 
 function renderVisitorJourneys(){
+  const flaggedSessions=new Set(unusualActivityAlerts.map(a=>String(a.session_id)));
+
   const box=document.getElementById("visitorJourneys");
   const count=document.getElementById("journeyCount");
   const filter=document.getElementById("journeyType")?.value || "";
@@ -1444,6 +1470,80 @@ function openVisitorJourney(sessionId,visitorId){
   }
 
   alert("Detailed page-by-page history is not available for this visit. Journey tracking was added recently, so older visits only have the summary.");
+}
+
+
+function unusualActivityLabel(type){
+  if(type==="rapid_browsing")return "Rapid browsing";
+  if(type==="high_volume_browsing")return "High-volume browsing";
+  if(type==="deep_session")return "Deep session";
+  return "Unusual activity";
+}
+
+function unusualLocation(alert){
+  return [alert.city,alert.region,alert.country].filter(Boolean).join(", ") || "Location unavailable";
+}
+
+function renderUnusualActivity(){
+  const box=document.getElementById("unusualActivityList");
+  const count=document.getElementById("unusualActivityCount");
+  if(!box||!count)return;
+
+  count.textContent=unusualActivityAlerts.length===1
+    ? "1 flagged session"
+    : unusualActivityAlerts.length+" flagged sessions";
+
+  if(!unusualActivityAlerts.length){
+    box.innerHTML='<div class="empty-state">No unusual browsing sessions in this period.</div>';
+    return;
+  }
+
+  box.innerHTML=unusualActivityAlerts.map(function(a){
+    const mins=Math.max(0,Math.round(Number(a.active_seconds||0)/60));
+    return '<div class="history-row" style="grid-template-columns:1.2fr 1.2fr .8fr .8fr 1fr auto;align-items:center">'+
+      '<div><strong>'+escapeHtml(unusualActivityLabel(a.alert_type))+'</strong><div class="muted">'+escapeHtml(new Date(a.created_at).toLocaleString("en-GB"))+'</div></div>'+
+      '<div>'+escapeHtml(unusualLocation(a))+'</div>'+
+      '<div><strong>'+Number(a.page_count||0)+'</strong> pages</div>'+
+      '<div><strong>'+mins+'</strong> min</div>'+
+      '<div class="muted">'+escapeHtml(String(a.session_id||"").slice(0,8))+'…</div>'+
+      '<div><button type="button" class="start-chat-btn" onclick="openFlaggedJourney(\''+escapeHtml(a.session_id)+'\',\''+escapeHtml(a.visitor_id)+'\')">Review journey</button></div>'+
+    '</div>';
+  }).join("");
+}
+
+async function loadUnusualActivity(){
+  const days=Number(document.getElementById("unusualActivityDays")?.value||7);
+  const count=document.getElementById("unusualActivityCount");
+  const box=document.getElementById("unusualActivityList");
+  try{
+    const {data,error}=await sb.rpc("admin_get_website_activity_alerts_v1",{p_days:days,p_limit:100});
+    if(error)throw error;
+    unusualActivityAlerts=data||[];
+    renderUnusualActivity();
+    if(showFlaggedJourneysOnly)renderVisitorJourneys();
+  }catch(error){
+    console.error("Unusual activity could not be loaded",error);
+    if(count)count.textContent="Unavailable";
+    if(box)box.innerHTML='<div class="error-state">Unusual activity could not be loaded.<br><br>'+escapeHtml(error?.message||String(error))+'</div>';
+  }
+}
+
+function toggleUnusualOnly(){
+  showFlaggedJourneysOnly=!showFlaggedJourneysOnly;
+  const btn=document.getElementById("unusualOnlyBtn");
+  if(btn)btn.textContent=showFlaggedJourneysOnly?"Show all journeys":"Show flagged journeys only";
+  renderVisitorJourneys();
+}
+
+function openFlaggedJourney(sessionId,visitorId){
+  showFlaggedJourneysOnly=false;
+  const btn=document.getElementById("unusualOnlyBtn");
+  if(btn)btn.textContent="Show flagged journeys only";
+  const days=document.getElementById("journeyDays");
+  if(days&&Number(days.value)<7)days.value="7";
+  loadVisitorJourneys().then(function(){
+    openVisitorJourney(sessionId,visitorId);
+  });
 }
 
 async function loadVisitorJourneys(){
@@ -1619,7 +1719,8 @@ async function startLiveVisitors(){
   await Promise.all([
     loadLiveVisitors(),
     loadVisitorJourneys(),
-    loadTopVisitors()
+    loadTopVisitors(),
+    loadUnusualActivity()
   ]);
 
   setInterval(loadLiveVisitors,10000);
