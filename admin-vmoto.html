@@ -110,6 +110,20 @@ h1{margin:5px 0 7px;font-size:32px}h2{margin:0 0 12px}.muted{color:var(--muted);
       </section>
 
       <section id="tab-stock" class="tab-panel hidden">
+        <div class="panel">
+          <h2>Import VMoto stock list</h2>
+          <p class="muted">Use Cameron's latest CSV stock list to update current colour availability. This does not remove catalogue colours; it only marks confirmed stock on the public VMoto pages.</p>
+          <div class="form-grid">
+            <div class="field full"><label>CSV file</label><input id="vmotoStockFile" type="file" accept=".csv,text/csv"></div>
+            <div class="field full"><label>Or paste CSV</label><textarea id="vmotoStockImportText" placeholder="Model,Colour,Quantity,Status,Location,Stock ID,Expected Date&#10;Stash,Black,3,In Stock,Halewood,ST-001,"></textarea></div>
+          </div>
+          <div class="actions">
+            <button class="btn dark" type="button" onclick="previewVmotoStockImport()">Preview Stock List</button>
+            <button class="btn green" id="vmotoStockImportBtn" type="button" onclick="importVmotoStockList()" disabled>Import Stock List</button>
+          </div>
+          <div id="vmotoStockImportStatus" class="status"></div>
+          <div id="vmotoStockImportPreview" class="list" style="margin-top:12px"></div>
+        </div>
         <div class="two">
           <div class="panel sticky">
             <h2>Stock availability</h2>
@@ -225,6 +239,86 @@ async function saveVariant(){const r=await client.rpc("admin_save_vmoto_variant_
 function resetColourForm(){edit.colour=null;["colourName","colourCode","colourImage"].forEach(id=>document.getElementById(id).value="");document.getElementById("colourSort").value=0;document.getElementById("colourActive").value="true"}
 function editColour(id){const x=byId(state.colours,id);if(!x)return;edit.colour=id;document.getElementById("colourVariant").value=x.variant_id;document.getElementById("colourName").value=x.colour_name||"";document.getElementById("colourCode").value=x.colour_code||"";document.getElementById("colourImage").value=x.image_url||"";document.getElementById("colourSort").value=x.sort_order||0;document.getElementById("colourActive").value=String(!!x.is_active)}
 async function saveColour(){const r=await client.rpc("admin_save_vmoto_colour_v1",{p_id:edit.colour,p_variant_id:Number(document.getElementById("colourVariant").value),p_colour_name:document.getElementById("colourName").value,p_colour_code:document.getElementById("colourCode").value,p_image_url:document.getElementById("colourImage").value,p_is_active:document.getElementById("colourActive").value==="true",p_sort_order:Number(document.getElementById("colourSort").value||0)});if(r.error)return alert(r.error.message);resetColourForm();await loadAll()}
+
+let vmotoStockImportRows=[];
+
+function parseVmotoCsv(text){
+  const rows=[];let row=[],cell="",quoted=false;
+  for(let i=0;i<text.length;i++){
+    const ch=text[i],next=text[i+1];
+    if(ch==='"'&&quoted&&next==='"'){cell+='"';i++;continue}
+    if(ch==='"'){quoted=!quoted;continue}
+    if(ch===','&&!quoted){row.push(cell.trim());cell="";continue}
+    if((ch==='\n'||ch==='\r')&&!quoted){
+      if(ch==='\r'&&next==='\n')i++;
+      row.push(cell.trim());cell="";
+      if(row.some(v=>v!==""))rows.push(row);
+      row=[];continue
+    }
+    cell+=ch;
+  }
+  row.push(cell.trim());if(row.some(v=>v!==""))rows.push(row);
+  return rows;
+}
+function normaliseVmotoStockHeader(v){return String(v||"").toLowerCase().replace(/[^a-z0-9]+/g,"")}
+function vmotoStockValue(obj,names){for(const n of names){if(obj[n]!=null&&String(obj[n]).trim()!=="")return String(obj[n]).trim()}return ""}
+async function readVmotoStockImportSource(){
+  const file=document.getElementById("vmotoStockFile")?.files?.[0];
+  const pasted=document.getElementById("vmotoStockImportText")?.value||"";
+  if(file)return await file.text();
+  return pasted;
+}
+async function previewVmotoStockImport(){
+  const status=document.getElementById("vmotoStockImportStatus");
+  const preview=document.getElementById("vmotoStockImportPreview");
+  const btn=document.getElementById("vmotoStockImportBtn");
+  status.className="status";status.textContent="";preview.innerHTML="";btn.disabled=true;vmotoStockImportRows=[];
+  try{
+    const text=(await readVmotoStockImportSource()).trim();
+    if(!text)throw new Error("Choose a CSV file or paste the stock list first.");
+    const parsed=parseVmotoCsv(text);
+    if(parsed.length<2)throw new Error("The stock list needs a header row and at least one stock row.");
+    const headers=parsed[0].map(normaliseVmotoStockHeader);
+    const objects=parsed.slice(1).map(cols=>Object.fromEntries(headers.map((h,i)=>[h,cols[i]??""])));
+    vmotoStockImportRows=objects.map(o=>{
+      const model=vmotoStockValue(o,["model","modelname"]);
+      const colour=vmotoStockValue(o,["colour","color","colourname","colorname"]);
+      const quantity=vmotoStockValue(o,["quantity","qty","stock","quantityavailable"]);
+      let stockStatus=vmotoStockValue(o,["status","availability","availabilitystatus"]);
+      if(!stockStatus)stockStatus=Number(quantity||0)>0?"In Stock":"Out of Stock";
+      return {
+        model,colour,quantity:quantity===""?null:Number(quantity),
+        status:stockStatus,
+        location:vmotoStockValue(o,["location","stocklocation","warehouse"]),
+        stock_id:vmotoStockValue(o,["stockid","sourcestockid","id","stocknumber"]),
+        expected_date:vmotoStockValue(o,["expecteddate","eta","expected"])
+      };
+    });
+    const errors=[];
+    vmotoStockImportRows.forEach((r,i)=>{
+      if(!r.model)errors.push("Row "+(i+2)+": model is missing");
+      if(!r.colour)errors.push("Row "+(i+2)+": colour is missing");
+      if(r.quantity!=null&&!Number.isFinite(r.quantity))errors.push("Row "+(i+2)+": quantity is not a number");
+    });
+    if(errors.length)throw new Error(errors.slice(0,8).join("\n"));
+    preview.innerHTML=vmotoStockImportRows.map(r=>'<div class="row"><strong>'+esc(r.model)+' — '+esc(r.colour)+'</strong><div class="small">'+esc(r.status)+(r.quantity!=null?' · Qty '+esc(r.quantity):'')+(r.location?' · '+esc(r.location):'')+'</div></div>').join("");
+    status.className="status good";status.textContent=vmotoStockImportRows.length+" rows ready to import.";
+    btn.disabled=false;
+  }catch(error){
+    status.className="status bad";status.textContent=error?.message||String(error);
+  }
+}
+async function importVmotoStockList(){
+  const status=document.getElementById("vmotoStockImportStatus");
+  const btn=document.getElementById("vmotoStockImportBtn");
+  if(!vmotoStockImportRows.length)return;
+  btn.disabled=true;status.className="status";status.textContent="Importing stock list…";
+  const r=await client.rpc("admin_import_vmoto_stock_v1",{p_rows:vmotoStockImportRows});
+  if(r.error){status.className="status bad";status.textContent=r.error.message;btn.disabled=false;return}
+  status.className="status good";status.textContent=(r.data?.imported||vmotoStockImportRows.length)+" stock rows imported. Public VMoto colour availability has been updated.";
+  await loadAll();
+}
+document.getElementById("vmotoStockFile")?.addEventListener("change",previewVmotoStockImport);
 
 function resetStockForm(){edit.stock=null;["stockLocation","stockSourceId","stockQty","stockExpected"].forEach(id=>document.getElementById(id).value="");document.getElementById("stockStatus").value="Unknown";document.getElementById("stockMethod").value="Manual";refreshStockColourOptions()}
 function editStock(id){const s=byId(state.stock,id);if(!s)return;edit.stock=id;document.getElementById("stockVariant").value=s.variant_id;refreshStockColourOptions();document.getElementById("stockColour").value=s.colour_id||"";document.getElementById("stockLocation").value=s.stock_location||"";document.getElementById("stockSourceId").value=s.source_stock_id||"";document.getElementById("stockQty").value=s.quantity_available??"";document.getElementById("stockStatus").value=s.availability_status||"Unknown";document.getElementById("stockExpected").value=s.expected_date||"";document.getElementById("stockMethod").value=s.source_method||"Manual"}
