@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Onboarding | AnyBike Admin</title>
+<meta name="robots" content="noindex,nofollow">
+<script>document.documentElement.classList.add("admin-auth-pending");</script>
+<style>html.admin-auth-pending body{visibility:hidden}</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="admin.js?v=12000"></script>
+<link rel="stylesheet" href="admin-shell.css?v=12001">
+<style>
+:root{--red:#ed1c24;--line:rgba(255,255,255,.12);--muted:#aaa;--green:#33cc66;--amber:#ffcc33;--blue:#4da3ff}
+*{box-sizing:border-box}body{margin:0;background:#090909;color:#fff;font-family:Arial,Helvetica,sans-serif}.admin-page-content{padding:24px}
+.hero{background:radial-gradient(circle at top right,rgba(237,28,36,.22),transparent 34%),#111;border:1px solid var(--line);border-radius:22px;padding:26px;margin-bottom:16px}
+.eyebrow{color:var(--red);font-weight:950;font-size:12px;letter-spacing:.14em;text-transform:uppercase}.hero h1{margin:6px 0 8px;font-size:36px}.hero p{margin:0;color:#bbb;max-width:1050px;line-height:1.5}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:10px;margin:0 0 16px}.kpi{background:#111;border:1px solid var(--line);border-radius:16px;padding:14px}.kpi strong{display:block;font-size:28px;color:var(--red)}.kpi span{color:#aaa;font-size:12px;font-weight:800}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 14px}.toolbar input,.toolbar select,.route-select,.notes{background:#111;color:#fff;border:1px solid #333;border-radius:10px;padding:10px 12px}.toolbar input{min-width:260px;flex:1}
+.panel{background:#111;border:1px solid var(--line);border-radius:18px;overflow:hidden}.panel-head{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:15px 16px;border-bottom:1px solid var(--line)}.panel-head h2{margin:0;font-size:20px}.small{color:#aaa;font-size:12px}
+table{width:100%;border-collapse:collapse}th,td{padding:12px 10px;text-align:left;border-bottom:1px solid rgba(255,255,255,.08);vertical-align:top}th{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#aaa;background:#0d0d0d;position:sticky;top:0}td{font-size:13px}.name{font-weight:900;font-size:14px}.email{color:#aaa;margin-top:3px;word-break:break-word}
+.badge{display:inline-flex;align-items:center;padding:5px 8px;border-radius:999px;background:#222;border:1px solid #333;font-size:11px;font-weight:900}.badge.red{background:rgba(237,28,36,.12);border-color:rgba(237,28,36,.5);color:#ff8f94}.badge.green{background:rgba(51,204,102,.10);border-color:rgba(51,204,102,.45);color:#7af0a8}.badge.amber{background:rgba(255,204,51,.08);border-color:rgba(255,204,51,.4);color:#ffe27a}.badge.blue{background:rgba(77,163,255,.10);border-color:rgba(77,163,255,.45);color:#8dc3ff}
+.progress{display:flex;gap:4px;margin-top:6px}.dot{width:14px;height:6px;border-radius:999px;background:#333}.dot.on{background:var(--green)}
+.actions{display:flex;gap:6px;flex-wrap:wrap}.btn{border:0;border-radius:999px;padding:8px 10px;background:var(--red);color:#fff;font-weight:900;font-size:11px;cursor:pointer;text-decoration:none;display:inline-flex}.btn.dark{background:#222;border:1px solid #333}.btn[disabled]{opacity:.45;cursor:not-allowed}
+.priority-row{background:rgba(237,28,36,.045)}.internal-row{opacity:.58}.test-row{opacity:.75}
+.notes{width:220px;min-height:62px;resize:vertical;font-size:12px}.route-select{font-size:12px;min-width:155px}
+.status-line{margin-top:5px;color:#aaa;font-size:11px}.empty{padding:28px;text-align:center;color:#aaa}
+@media(max-width:1100px){.admin-page-content{padding:16px}.panel{overflow:auto}table{min-width:1180px}}
+</style>
+</head>
+<body>
+<div class="admin-shell">
+  <div id="adminSidebar"></div>
+  <div class="admin-main">
+    <div id="adminTopbar"></div>
+    <main class="admin-page-content">
+      <section class="hero">
+        <div class="eyebrow">Sales · Customer Onboarding</div>
+        <h1>Onboarding</h1>
+        <p>See every signup from email confirmation through Buyer Setup and approval. Clarify whether each prospect wants to buy/export, sell/supply motorcycles to AnyBike, or buy VMoto — then move them forward from one place.</p>
+      </section>
+
+      <section class="kpis">
+        <div class="kpi"><strong id="kTotal">0</strong><span>Potential customers / prospects</span></div>
+        <div class="kpi"><strong id="kUnconfirmed">0</strong><span>Email confirmation required</span></div>
+        <div class="kpi"><strong id="kNoProfile">0</strong><span>Confirmed, no profile</span></div>
+        <div class="kpi"><strong id="kIncomplete">0</strong><span>Setup incomplete</span></div>
+        <div class="kpi"><strong id="kClarify">0</strong><span>Route clarification</span></div>
+        <div class="kpi"><strong id="kReview">0</strong><span>Ready for review</span></div>
+      </section>
+
+      <div class="toolbar">
+        <input id="searchBox" placeholder="Search name, email, business or country">
+        <select id="stageFilter">
+          <option value="">All stages</option>
+          <option value="attention">Needs attention</option>
+          <option value="unconfirmed">Email unconfirmed</option>
+          <option value="no-profile">Confirmed, no profile</option>
+          <option value="review">Ready for review / approved</option>
+        </select>
+        <select id="routeFilter">
+          <option value="">All routes</option>
+          <option value="needs_clarification">Needs clarification</option>
+          <option value="buyer_export">Buyer / Export</option>
+          <option value="dealer_supplier">Dealer / Supplier</option>
+          <option value="vmoto_retail">VMoto Retail</option>
+        </select>
+        <label class="small" style="display:flex;align-items:center;gap:6px"><input id="showInternal" type="checkbox"> Show internal/test</label>
+      </div>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div><h2>Potential buyers &amp; partners</h2><div class="small">Existing buying intent and incomplete onboarding are ranked first.</div></div>
+          <button class="btn dark" onclick="loadOnboarding()">Refresh</button>
+        </div>
+        <div id="tableWrap"></div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL="https://tuehtnezhdnkqbbhttgp.supabase.co";
+const SUPABASE_ANON_KEY="sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+let rows=[];
+
+function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]))}
+function routeLabel(v){return ({needs_clarification:"Needs clarification",buyer_export:"Buyer / Export",dealer_supplier:"Dealer / Supplier",vmoto_retail:"VMoto Retail"})[v]||"Needs clarification"}
+function stageClass(stage){
+  const s=String(stage||"").toLowerCase();
+  if(s.includes("ready")||s.includes("approved"))return "green";
+  if(s.includes("confirmation")||s.includes("recovery"))return "amber";
+  if(s.includes("dealer")||s.includes("vmoto"))return "blue";
+  return "red";
+}
+function isInternal(r){
+  const e=String(r.email||"").toLowerCase();
+  return r.is_test_account||e.endsWith("@anybike.co.uk")||e.endsWith("@movemotorcycles.co.uk");
+}
+function needsAttention(r){
+  return !r.is_test_account && (
+    !r.email_confirmed_at || !r.has_profile || Number(r.sections_complete||0)<5 ||
+    String(r.route)==="needs_clarification"
+  );
+}
+function rowMatches(r){
+  if(!document.getElementById("showInternal").checked && isInternal(r))return false;
+  const q=document.getElementById("searchBox").value.trim().toLowerCase();
+  if(q && ![r.full_name,r.email,r.business_name,r.country,r.onboarding_stage].join(" ").toLowerCase().includes(q))return false;
+  const route=document.getElementById("routeFilter").value;
+  if(route && r.route!==route)return false;
+  const f=document.getElementById("stageFilter").value;
+  if(f==="attention"&&!needsAttention(r))return false;
+  if(f==="unconfirmed"&&r.email_confirmed_at)return false;
+  if(f==="no-profile"&&!(r.email_confirmed_at&&!r.has_profile))return false;
+  if(f==="review"&&!(String(r.onboarding_stage).includes("Ready for AnyBike Review")||String(r.onboarding_stage).includes("Approved")))return false;
+  return true;
+}
+function renderKpis(){
+  const prospect=rows.filter(r=>!isInternal(r));
+  kTotal.textContent=prospect.length;
+  kUnconfirmed.textContent=prospect.filter(r=>!r.email_confirmed_at).length;
+  kNoProfile.textContent=prospect.filter(r=>r.email_confirmed_at&&!r.has_profile).length;
+  kIncomplete.textContent=prospect.filter(r=>r.has_profile&&Number(r.sections_complete||0)<5).length;
+  kClarify.textContent=prospect.filter(r=>r.route==="needs_clarification").length;
+  kReview.textContent=prospect.filter(r=>String(r.onboarding_stage).includes("Ready for AnyBike Review")||String(r.onboarding_stage).includes("Approved")).length;
+}
+function render(){
+  const data=rows.filter(rowMatches).sort((a,b)=>{
+    const ap=(Number(a.request_count||0)>0||Number(a.scan_batch_count||0)>0)?0:1;
+    const bp=(Number(b.request_count||0)>0||Number(b.scan_batch_count||0)>0)?0:1;
+    if(ap!==bp)return ap-bp;
+    const aa=needsAttention(a)?0:1, ba=needsAttention(b)?0:1;
+    if(aa!==ba)return aa-ba;
+    return new Date(b.auth_created_at)-new Date(a.auth_created_at);
+  });
+  if(!data.length){tableWrap.innerHTML='<div class="empty">No onboarding records match this view.</div>';return;}
+  tableWrap.innerHTML='<table><thead><tr><th>Person / business</th><th>Stage</th><th>Setup</th><th>Route</th><th>Activity</th><th>Last reminder</th><th>Admin notes</th><th>Actions</th></tr></thead><tbody>'+
+  data.map(r=>{
+    const priority=Number(r.request_count||0)>0||Number(r.scan_batch_count||0)>0;
+    const cls=priority?"priority-row":(r.is_test_account?"test-row":(isInternal(r)?"internal-row":""));
+    const dots=[r.contact_complete,r.business_complete,r.preferences_complete,r.buyer_export_complete,r.shipping_complete].map(x=>'<span class="dot '+(x?"on":"")+'"></span>').join("");
+    const reminder=r.last_reminder_at?new Date(r.last_reminder_at).toLocaleString("en-GB")+' · '+Number(r.reminder_count||0)+' sent':"Never";
+    const canRemind=r.has_profile&&r.email_confirmed_at&&!r.is_test_account&&r.route!=="dealer_supplier"&&r.route!=="vmoto_retail";
+    const activity=[
+      Number(r.request_count||0)?r.request_count+" request":"",Number(r.scan_batch_count||0)?r.scan_batch_count+" source batch":"",Number(r.deal_count||0)?r.deal_count+" deal":""
+    ].filter(Boolean).join(" · ")||"No buying activity yet";
+    return '<tr class="'+cls+'">'+
+      '<td><div class="name">'+esc(r.full_name||r.business_name||"Registration only")+(priority?' <span class="badge red">PRIORITY</span>':'')+'</div><div class="email">'+esc(r.email||"")+'</div><div class="status-line">'+esc(r.business_name||"")+(r.country?' · '+esc(r.country):'')+'</div></td>'+
+      '<td><span class="badge '+stageClass(r.onboarding_stage)+'">'+esc(r.onboarding_stage)+'</span><div class="status-line">'+(r.email_confirmed_at?"Email confirmed":"Email not confirmed")+(r.has_profile?" · Profile created":" · No profile")+'</div></td>'+
+      '<td><strong>'+Number(r.sections_complete||0)+' / 5</strong><div class="progress">'+dots+'</div></td>'+
+      '<td><select class="route-select" onchange="setRoute(\''+r.user_id+'\',this.value)">'+
+        ['needs_clarification','buyer_export','dealer_supplier','vmoto_retail'].map(v=>'<option value="'+v+'" '+(r.route===v?'selected':'')+'>'+routeLabel(v)+'</option>').join("")+
+      '</select></td>'+
+      '<td>'+esc(activity)+'</td>'+
+      '<td>'+esc(reminder)+'</td>'+
+      '<td><textarea class="notes" id="note-'+r.user_id+'" placeholder="Internal onboarding note">'+esc(r.admin_notes||"")+'</textarea><button class="btn dark" style="margin-top:6px" onclick="saveNote(\''+r.user_id+'\')">Save note</button></td>'+
+      '<td><div class="actions">'+
+        (r.has_profile?'<a class="btn dark" href="admin-customers.html?customer='+encodeURIComponent(r.user_id)+'">Customer 360</a>':'')+
+        (r.next_link?'<a class="btn dark" href="'+esc(r.next_link)+'" target="_blank">Open customer step</a>':'')+
+        '<button class="btn" '+(canRemind?'':'disabled')+' onclick="sendReminder(\''+r.user_id+'\',this)">Send setup reminder</button>'+
+      '</div><div class="status-line" id="action-'+r.user_id+'">'+(canRemind?"":"Reminder available after confirmed profile / buyer route")+'</div></td>'+
+    '</tr>';
+  }).join("")+'</tbody></table>';
+}
+async function loadOnboarding(){
+  tableWrap.innerHTML='<div class="empty">Loading onboarding…</div>';
+  const {data,error}=await sb.rpc("admin_get_onboarding_pipeline_v1");
+  if(error){tableWrap.innerHTML='<div class="empty">Could not load onboarding: '+esc(error.message)+'</div>';return;}
+  rows=Array.isArray(data)?data:[];
+  renderKpis();render();
+}
+async function setRoute(userId,route){
+  const {error}=await sb.rpc("admin_set_onboarding_route_v1",{p_user_id:userId,p_route:route,p_notes:null});
+  if(error){alert("Could not update route: "+error.message);await loadOnboarding();return;}
+  const r=rows.find(x=>x.user_id===userId);if(r)r.route=route;renderKpis();render();
+}
+async function saveNote(userId){
+  const r=rows.find(x=>x.user_id===userId);if(!r)return;
+  const note=document.getElementById("note-"+userId)?.value||"";
+  const {error}=await sb.rpc("admin_set_onboarding_route_v1",{p_user_id:userId,p_route:r.route||"needs_clarification",p_notes:note});
+  if(error){alert("Could not save note: "+error.message);return;}
+  r.admin_notes=note;document.getElementById("action-"+userId).textContent="✓ Note saved";
+}
+async function sendReminder(userId,btn){
+  btn.disabled=true;btn.textContent="Sending…";
+  const {data,error}=await sb.rpc("admin_send_onboarding_reminder_v1",{p_user_id:userId});
+  if(error){alert("Could not send reminder: "+error.message);btn.disabled=false;btn.textContent="Send setup reminder";return;}
+  const item=Array.isArray(data)?data[0]:data;
+  document.getElementById("action-"+userId).innerHTML='✓ Reminder sent'+(item?.thread_id?' · <a href="admin-message-centre.html?thread='+Number(item.thread_id)+'" style="color:#fff;text-decoration:underline">Open conversation</a>':'');
+  setTimeout(loadOnboarding,700);
+}
+["searchBox","stageFilter","routeFilter","showInternal"].forEach(id=>document.getElementById(id)?.addEventListener(id==="searchBox"?"input":"change",render));
+
+(async function(){
+  const allowed=await requireAdminSession();
+  if(!allowed)return;
+  document.documentElement.classList.remove("admin-auth-pending");
+  await loadOnboarding();
+})();
+</script>
+</body>
+</html>
