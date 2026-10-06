@@ -3560,7 +3560,12 @@ function safe(v){
 }
 
 function getCustomerDisplayName(){
-  const fullName = String(currentProfile?.full_name || "").trim();
+  const fullName=String(currentProfile?.full_name || "").trim();
+  const testLabel=String(currentProfile?.test_account_label || "").trim();
+
+  if(currentProfile?.is_test_account && (testLabel || fullName)){
+    return testLabel || fullName;
+  }
 
   if(fullName){
     return fullName.split(/\s+/)[0];
@@ -5167,6 +5172,23 @@ function renderCustomerNextActions(){
   if(!panel||!list) return;
 
   const actions=[];
+
+  const localProfileUpdateRequired=
+    !String(currentProfile?.customer_type||"").trim() ||
+    !String(currentProfile?.customer_intent||"").trim() ||
+    String(currentProfile?.customer_intent||"").trim()==="unclear" ||
+    Number(currentProfile?.profile_schema_version||1)<2;
+
+  if(localProfileUpdateRequired){
+    actions.push({
+      priority:0,
+      title:"Select your customer type",
+      text:"Your AnyBike profile needs one quick update so we can put you on the correct customer journey.",
+      href:"/customer-profile.html#section-profile-update",
+      cta:"Update My Profile →"
+    });
+  }
+
   const requestedShippingAction=getRequestedShippingAction();
   if(requestedShippingAction)actions.push(requestedShippingAction);
 
@@ -6354,6 +6376,39 @@ async function loadBuyerSetupBanner(){
 
   // Profile requirements sit above the buyer journey. This lets AnyBike introduce
   // a new required profile question later without losing existing customers.
+  // Detect the current v2 requirement directly from the profile first so a
+  // temporary RPC/cache problem can never hide the customer's next action.
+  const localProfileUpdateRequired=
+    !String(currentProfile?.customer_type||"").trim() ||
+    !String(currentProfile?.customer_intent||"").trim() ||
+    String(currentProfile?.customer_intent||"").trim()==="unclear" ||
+    Number(currentProfile?.profile_schema_version||1)<2;
+
+  if(localProfileUpdateRequired){
+    banner.style.display="";
+    banner.id="buyer-setup";
+    tracker?.style.setProperty("display","block");
+    compactComplete?.style.setProperty("display","none");
+    if(title){
+      title.style.display="";
+      title.textContent="📝 Profile Update Required";
+    }
+    if(textEl){
+      textEl.style.display="";
+      textEl.textContent="Please tell us which customer type best describes you and what you would like to do with AnyBike.";
+    }
+    if(progressText) progressText.textContent="Your profile needs a quick update before you continue";
+    if(progressFill) progressFill.style.width="0%";
+    if(nextTitle) nextTitle.textContent="Your next action: Select your customer type";
+    if(nextText) nextText.textContent="Choose your customer type and how you want to use AnyBike. We will then return you to the correct journey.";
+    if(action){
+      action.textContent="UPDATE MY PROFILE →";
+      action.href="/customer-profile.html#section-profile-update";
+    }
+    banner.style.borderColor="rgba(237,28,36,.65)";
+    return;
+  }
+
   try{
     const {data:profileUpdateData,error:profileUpdateError}=await sb.rpc("customer_get_profile_update_status_v1");
     const profileUpdate=Array.isArray(profileUpdateData)?profileUpdateData[0]:profileUpdateData;
