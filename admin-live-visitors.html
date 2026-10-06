@@ -690,6 +690,23 @@ body{
       </div>
     </section>
 
+    <section class="card" style="margin-bottom:18px">
+      <div class="journey-toolbar" style="margin-bottom:0">
+        <div>
+          <h2 style="margin:0 0 5px">Visitor Analytics Range</h2>
+          <div class="subtitle">Controls Unusual Activity, Top Visitors and Visitor Journeys.</div>
+        </div>
+        <div class="journey-controls">
+          <select id="visitorAnalyticsDays" onchange="loadVisitorAnalyticsRange()">
+            <option value="1">Today</option>
+            <option value="7">Last 7 days</option>
+            <option value="30" selected>Last 30 days</option>
+            <option value="90">Last 90 days</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
     <section class="card" id="unusualActivityPanel" style="margin-bottom:18px;border:1px solid rgba(237,28,36,.35);background:linear-gradient(135deg,rgba(237,28,36,.10),#111 60%)">
       <div class="journey-toolbar">
         <div>
@@ -697,12 +714,6 @@ body{
           <div class="subtitle">Guest sessions that crossed the website activity monitoring thresholds. Trusted / My Device visitors are excluded.</div>
         </div>
         <div class="journey-controls">
-          <select id="unusualActivityDays" onchange="loadUnusualActivity()">
-            <option value="1">Today</option>
-            <option value="7" selected>Last 7 days</option>
-            <option value="30">Last 30 days</option>
-            <option value="90">Last 90 days</option>
-          </select>
           <button type="button" class="start-chat-btn" id="unusualOnlyBtn" onclick="toggleUnusualOnly()">Show flagged journeys only</button>
         </div>
       </div>
@@ -758,12 +769,6 @@ body{
           <div class="subtitle">Ranked by active browsing time, then real page views and return visits. Trusted / My Device visitors are excluded.</div>
         </div>
         <div class="journey-controls">
-          <select id="topVisitorsDays" onchange="loadTopVisitors()">
-            <option value="1">Today</option>
-            <option value="7">Last 7 days</option>
-            <option value="30" selected>Last 30 days</option>
-            <option value="90">Last 90 days</option>
-          </select>
         </div>
       </div>
       <div id="topVisitorsStatus" class="history-count" style="margin-bottom:10px">Loading…</div>
@@ -779,12 +784,6 @@ body{
           </div>
         </div>
         <div class="journey-controls">
-          <select id="journeyDays" onchange="loadVisitorJourneys()">
-            <option value="1">Today</option>
-            <option value="7">Last 7 days</option>
-            <option value="30" selected>Last 30 days</option>
-            <option value="90">Last 90 days</option>
-          </select>
           <select id="journeyType" onchange="renderVisitorJourneys()">
             <option value="">All visitors</option>
             <option value="loggedin">Logged-in customers</option>
@@ -1666,7 +1665,7 @@ function renderTopVisitors(){
 async function loadTopVisitors(){
   const box=document.getElementById("topVisitorsList");
   const status=document.getElementById("topVisitorsStatus");
-  const days=Number(document.getElementById("topVisitorsDays")?.value||30);
+  const days=visitorAnalyticsDaysValue();
   const periodLabel=days===1?"Today":"Last "+days+" days";
 
   if(status)status.textContent="Refreshing "+periodLabel.toLowerCase()+"…";
@@ -1782,6 +1781,16 @@ function openVisitorJourney(sessionId,visitorId){
 }
 
 
+function visitorAnalyticsDaysValue(){
+  return Number(document.getElementById("visitorAnalyticsDays")?.value||30);
+}
+
+function loadVisitorAnalyticsRange(){
+  loadUnusualActivity();
+  loadTopVisitors();
+  loadVisitorJourneys();
+}
+
 function unusualActivityLabel(type){
   if(type==="rapid_browsing")return "Rapid browsing";
   if(type==="high_volume_browsing")return "High-volume browsing";
@@ -1821,7 +1830,7 @@ function renderUnusualActivity(){
 }
 
 async function loadUnusualActivity(){
-  const days=Number(document.getElementById("unusualActivityDays")?.value||7);
+  const days=visitorAnalyticsDaysValue();
   const count=document.getElementById("unusualActivityCount");
   const box=document.getElementById("unusualActivityList");
   if(count)count.textContent="Refreshing…";
@@ -1850,7 +1859,7 @@ function openFlaggedJourney(sessionId,visitorId){
   showFlaggedJourneysOnly=false;
   const btn=document.getElementById("unusualOnlyBtn");
   if(btn)btn.textContent="Show flagged journeys only";
-  const days=document.getElementById("journeyDays");
+  const days=document.getElementById("visitorAnalyticsDays");
   if(days&&Number(days.value)<7)days.value="7";
   loadVisitorJourneys().then(function(){
     openVisitorJourney(sessionId,visitorId);
@@ -1860,7 +1869,7 @@ function openFlaggedJourney(sessionId,visitorId){
 async function loadVisitorJourneys(){
   const box=document.getElementById("visitorJourneys");
   const count=document.getElementById("journeyCount");
-  const days=Number(document.getElementById("journeyDays")?.value || 30);
+  const days=visitorAnalyticsDaysValue();
 
   try{
     const {data,error}=await sb.rpc("admin_get_visitor_journeys_v1",{
