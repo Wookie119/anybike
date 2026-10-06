@@ -52,11 +52,17 @@ textarea{min-height:90px;resize:vertical}
 .msg.bad{display:block;border:1px solid rgba(237,28,36,.45);background:rgba(237,28,36,.07)}
 .small{font-size:12px;color:#888;margin-top:7px}
 .back{display:inline-block;color:#fff;text-decoration:none;margin:0 0 14px;font-weight:800}
+.underwrite-logo{display:flex;justify-content:center;align-items:center;margin:0 0 18px}
+.underwrite-logo img{width:170px;max-width:55vw;height:auto;display:block;border-radius:12px}
+.auth-pending #underwriteForm{opacity:.45;pointer-events:none}
+.auth-check{display:none;margin-bottom:14px;padding:12px 14px;border:1px solid #333;border-radius:12px;background:#0d0d0d;color:#bbb}
+.auth-pending .auth-check{display:block}
 </style>
 </head>
 <body>
 <div id="publicHeader"></div>
-<main class="wrap">
+<main class="wrap auth-pending" id="underwriteMain">
+  <div class="underwrite-logo"><a href="/" aria-label="AnyBike home"><img src="/anybike-logo-new.jpg" alt="AnyBike"></a></div>
   <a class="back" href="/my-dealership-stock.html">← My Dealership</a>
 
   <section class="hero">
@@ -66,6 +72,7 @@ textarea{min-height:90px;resize:vertical}
   </section>
 
   <section class="card">
+    <div id="authCheck" class="auth-check">Checking your AnyBike sign-in…</div>
     <div id="msg" class="msg"></div>
     <a id="submitAnother" class="btn" href="/underwrite.html" style="display:none;margin:0 0 14px;text-align:center;text-decoration:none">Submit Another Motorcycle →</a>
 
@@ -211,12 +218,54 @@ photoDropzone.addEventListener("keydown",e=>{
 }));
 photoDropzone.addEventListener("drop",e=>addPhotoFiles(e.dataTransfer?.files));
 
+const UNDERWRITE_DRAFT_KEY="anybike-underwrite-draft-v1";
+
+function saveUnderwriteDraft(){
+  try{
+    const draft={
+      registration:document.getElementById("registration")?.value||"",
+      mileage:document.getElementById("mileage")?.value||"",
+      price_wanted_gbp:document.getElementById("price_wanted_gbp")?.value||"",
+      notes:document.getElementById("notes")?.value||"",
+      hpi_clear:Boolean(document.getElementById("hpi_clear")?.checked)
+    };
+    localStorage.setItem(UNDERWRITE_DRAFT_KEY,JSON.stringify(draft));
+  }catch(e){}
+}
+function restoreUnderwriteDraft(){
+  try{
+    const raw=localStorage.getItem(UNDERWRITE_DRAFT_KEY);
+    if(!raw)return;
+    const draft=JSON.parse(raw);
+    if(draft.registration)document.getElementById("registration").value=draft.registration;
+    if(draft.mileage)document.getElementById("mileage").value=draft.mileage;
+    if(draft.price_wanted_gbp)document.getElementById("price_wanted_gbp").value=draft.price_wanted_gbp;
+    if(draft.notes)document.getElementById("notes").value=draft.notes;
+    if(document.getElementById("hpi_clear"))document.getElementById("hpi_clear").checked=Boolean(draft.hpi_clear);
+  }catch(e){}
+}
+function clearUnderwriteDraft(){
+  try{localStorage.removeItem(UNDERWRITE_DRAFT_KEY);}catch(e){}
+}
+["registration","mileage","price_wanted_gbp","notes","hpi_clear"].forEach(id=>{
+  document.getElementById(id)?.addEventListener(id==="hpi_clear"?"change":"input",saveUnderwriteDraft);
+});
+
 (async function init(){
-  const {data}=await sb.auth.getSession();
-  if(!data?.session){
-    location.replace("/customer-register.html?return="+encodeURIComponent("/underwrite.html"));
+  const main=document.getElementById("underwriteMain");
+  const authCheck=document.getElementById("authCheck");
+
+  const {data:userData,error:userError}=await sb.auth.getUser();
+  if(userError || !userData?.user){
+    saveUnderwriteDraft();
+    location.replace("/customer-login.html?return="+encodeURIComponent("/underwrite.html"));
     return;
   }
+
+  restoreUnderwriteDraft();
+  main?.classList.remove("auth-pending");
+  if(authCheck)authCheck.style.display="none";
+
   const {data:dealer,error}=await sb.rpc("dealer_get_my_dealership");
   if(error||!(Array.isArray(dealer)?dealer[0]:dealer)){
     const msg=document.getElementById("msg");
@@ -231,9 +280,20 @@ document.getElementById("underwriteForm").addEventListener("submit",async functi
   const files=Array.from(document.getElementById("photos").files||[]);
   if(files.length>12){showMsg("Please choose no more than 12 photos.",false);return;}
 
+  saveUnderwriteDraft();
+
+  const {data:userData}=await sb.auth.getUser();
+  if(!userData?.user){
+    location.replace("/customer-login.html?return="+encodeURIComponent("/underwrite.html"));
+    return;
+  }
+
   const {data:sessionData}=await sb.auth.getSession();
   const token=sessionData?.session?.access_token||"";
-  if(!token){location.reload();return;}
+  if(!token){
+    location.replace("/customer-login.html?return="+encodeURIComponent("/underwrite.html"));
+    return;
+  }
 
   btn.disabled=true;
   btn.textContent="Sending…";
@@ -255,6 +315,7 @@ document.getElementById("underwriteForm").addEventListener("submit",async functi
     }
 
     this.reset();
+    clearUnderwriteDraft();
     selectedPhotoFiles=[];
     syncPhotoInput();
     renderPhotoPreviews();
