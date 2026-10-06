@@ -182,6 +182,12 @@ function render(){
     const priority=Number(r.request_count||0)>0||Number(r.scan_batch_count||0)>0;
     const cls=priority?"priority-row":(r.is_test_account?"test-row":(isInternal(r)?"internal-row":""));
     const dots=[r.contact_complete,r.business_complete,r.preferences_complete,r.buyer_export_complete,r.shipping_complete].map(x=>'<span class="dot '+(x?"on":"")+'"></span>').join("");
+    const isExportRoute=String(r.route||"")==="buyer_export";
+    const setupHtml=isExportRoute
+      ? '<strong>'+Number(r.sections_complete||0)+' / 5</strong><div class="progress">'+dots+'</div>'
+      : '<span class="badge '+(r.customer_type&&r.customer_intent&&r.customer_intent!=="unclear"?"blue":"amber")+'">'+
+          (r.customer_type&&r.customer_intent&&r.customer_intent!=="unclear"?"Route set":"Classification needed")+
+        '</span>';
     const reminder=r.last_reminder_at?new Date(r.last_reminder_at).toLocaleString("en-GB")+' · '+Number(r.reminder_count||0)+' sent':"Never";
     const canRemind=r.has_profile&&r.email_confirmed_at&&!r.is_test_account&&needsAttention(r);
     const canClarify=r.has_profile&&r.email_confirmed_at&&!r.is_test_account&&r.route==="needs_clarification";
@@ -191,7 +197,7 @@ function render(){
     return '<tr class="'+cls+'">'+
       '<td><div class="name">'+esc(r.full_name||r.business_name||"Registration only")+(priority?' <span class="badge red">PRIORITY</span>':'')+'</div><div class="email">'+esc(r.email||"")+'</div><div class="status-line">'+esc(r.business_name||"")+(r.country?' · '+esc(r.country):'')+'</div></td>'+
       '<td><span class="badge '+stageClass(r.onboarding_stage)+'">'+esc(r.onboarding_stage)+'</span><div class="status-line">'+(r.email_confirmed_at?"Email confirmed":"Email not confirmed")+(r.has_profile?" · Profile created":" · No profile")+'</div></td>'+
-      '<td><strong>'+Number(r.sections_complete||0)+' / 5</strong><div class="progress">'+dots+'</div></td>'+
+      '<td>'+setupHtml+'</td>'+
       '<td><select class="route-select" onchange="setClassification(\''+r.user_id+'\',this.value,null)">'+
         '<option value="">Not classified</option>'+
         ['uk_private','uk_dealer','uk_distributor','uk_manufacturer','uk_partner','eu_dealer','intl_dealer','global_manufacturer'].map(v=>'<option value="'+v+'" '+(r.customer_type===v?'selected':'')+'>'+customerTypeLabel(v)+'</option>').join("")+
