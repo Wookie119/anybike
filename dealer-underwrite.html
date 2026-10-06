@@ -108,10 +108,23 @@ const SUPABASE_URL="https://tuehtnezhdnkqbbhttgp.supabase.co";
 const SUPABASE_ANON_KEY="sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 
+function messageText(value,fallback){
+  if(typeof value==="string" && value.trim()) return value.trim();
+  if(value && typeof value==="object"){
+    if(typeof value.message==="string" && value.message.trim()) return value.message.trim();
+    if(typeof value.error==="string" && value.error.trim()) return value.error.trim();
+    try{
+      const json=JSON.stringify(value);
+      if(json && json!=="{}") return json;
+    }catch(e){}
+  }
+  return fallback||"Something went wrong.";
+}
+
 function showMsg(text,good){
   const el=document.getElementById("msg");
   el.className="msg "+(good?"good":"bad");
-  el.textContent=text;
+  el.textContent=messageText(text,good?"Request sent.":"Underwrite request could not be sent.");
 }
 let selectedPhotoFiles=[];
 
@@ -217,7 +230,9 @@ document.getElementById("underwriteForm").addEventListener("submit",async functi
       body:fd
     });
     const result=await response.json().catch(()=>null);
-    if(!response.ok||!result?.success)throw new Error(result?.error||"Underwrite request could not be sent.");
+    if(!response.ok||!result?.success){
+      throw new Error(messageText(result?.error||result,"Underwrite request could not be sent."));
+    }
 
     this.reset();
     selectedPhotoFiles=[];
@@ -230,7 +245,7 @@ document.getElementById("underwriteForm").addEventListener("submit",async functi
       true
     );
   }catch(error){
-    showMsg(error.message||"Underwrite request could not be sent.",false);
+    showMsg(messageText(error,"Underwrite request could not be sent."),false);
   }finally{
     btn.disabled=false;
     btn.textContent="Request Underwrite";
