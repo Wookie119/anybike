@@ -1,4 +1,6 @@
 let marketDays=30;
+let marketSort="engaged";
+let marketPerformanceRows=[];
 let marketPersonalisationFilter="all";
 let marketPersonalisationRows=[];
 
@@ -21,6 +23,68 @@ function miEngagement(seconds,views,visitors){
   if(active>=30 || (active>=18 && repeat>=2)) return {label:"Engaged",cls:"engaged"};
   if(active>=10) return {label:"Light",cls:"light"};
   return {label:"Brief",cls:"brief"};
+}
+
+function miSortMarkets(rows){
+  const list=[...(rows||[])];
+  const n=v=>Number(v||0);
+  const alpha=(a,b)=>miMarketName(a.market_slug).localeCompare(miMarketName(b.market_slug),"en",{sensitivity:"base"});
+
+  if(marketSort==="views"){
+    return list.sort((a,b)=>n(b.page_views)-n(a.page_views) || n(b.unique_visitors)-n(a.unique_visitors) || alpha(a,b));
+  }
+  if(marketSort==="enquiries"){
+    return list.sort((a,b)=>n(b.enquiries)-n(a.enquiries) || n(b.linked_deals)-n(a.linked_deals) || n(b.unique_visitors)-n(a.unique_visitors) || alpha(a,b));
+  }
+  if(marketSort==="deals"){
+    return list.sort((a,b)=>n(b.linked_deals)-n(a.linked_deals) || n(b.enquiries)-n(a.enquiries) || n(b.unique_visitors)-n(a.unique_visitors) || alpha(a,b));
+  }
+  if(marketSort==="alpha"){
+    return list.sort(alpha);
+  }
+
+  // Default: commercially useful engagement first, then depth of genuine traffic.
+  return list.sort((a,b)=>
+    n(b.linked_deals)-n(a.linked_deals) ||
+    n(b.enquiries)-n(a.enquiries) ||
+    n(b.known_users)-n(a.known_users) ||
+    n(b.avg_active_seconds)-n(a.avg_active_seconds) ||
+    n(b.unique_visitors)-n(a.unique_visitors) ||
+    n(b.page_views)-n(a.page_views) ||
+    alpha(a,b)
+  );
+}
+
+function renderMarketPerformance(){
+  const body=document.getElementById("marketRows");
+  if(!body)return;
+  const rows=miSortMarkets(marketPerformanceRows);
+
+  body.innerHTML=rows.length?rows.map(r=>{
+    const views=Number(r.page_views||0);
+    const leads=Number(r.enquiries||0);
+    const deals=Number(r.linked_deals||0);
+    const visitors=Number(r.unique_visitors||0);
+    const rate=views>0?(leads/views*100):0;
+    const engagement=miEngagement(r.avg_active_seconds,views,visitors);
+    const viewsPerVisitor=visitors>0?(views/visitors):0;
+    return '<tr>'+
+      '<td data-label="Market"><div class="market-name">'+miEsc(miMarketName(r.market_slug))+'</div><div class="market-title" title="'+miEsc(r.page_title||"")+'">'+miEsc(r.page_title||"")+'</div></td>'+
+      '<td data-label="Views" class="num">'+miNum(views)+'</td>'+
+      '<td data-label="Visitors" class="num">'+miNum(r.unique_visitors)+'</td>'+
+      '<td data-label="Known users" class="num">'+miNum(r.known_users)+'</td>'+
+      '<td data-label="Engagement"><span class="engagement '+engagement.cls+'">'+engagement.label+'</span><span class="engagement-detail">'+miSeconds(r.avg_active_seconds)+' avg · '+viewsPerVisitor.toFixed(1)+' views/visitor</span></td>'+
+      '<td data-label="Enquiries" class="num '+(leads?"good":"zero")+'">'+miNum(leads)+'</td>'+
+      '<td data-label="Deals" class="num '+(deals?"good":"zero")+'">'+miNum(deals)+'</td>'+
+      '<td data-label="Lead rate"><strong>'+rate.toFixed(1)+'%</strong><div class="bar"><span style="width:'+Math.min(100,rate*10)+'%"></span></div></td>'+
+      '<td data-label="Page"><a href="/markets/'+miEsc(miMarketSlug(r.market_slug))+'.html" target="_blank" rel="noopener" style="color:#ed1c24;font-weight:900">Open ↗</a></td>'+
+    '</tr>';
+  }).join(""):'<tr><td colspan="9" class="empty">No market activity recorded in this period.</td></tr>';
+}
+
+function setMarketSort(value){
+  marketSort=String(value||"engaged");
+  renderMarketPerformance();
 }
 
 async function loadMarketIntelligence(){
@@ -57,26 +121,8 @@ async function loadMarketIntelligence(){
     const coverage=Number(data?.attribution?.coverage_percent);
     document.getElementById("kpiCoverage").textContent=Number.isFinite(coverage)?coverage.toFixed(1)+"%":"—";
 
-    body.innerHTML=rows.length?rows.map(r=>{
-      const views=Number(r.page_views||0);
-      const leads=Number(r.enquiries||0);
-      const deals=Number(r.linked_deals||0);
-      const visitors=Number(r.unique_visitors||0);
-      const rate=views>0?(leads/views*100):0;
-      const engagement=miEngagement(r.avg_active_seconds,views,visitors);
-      const viewsPerVisitor=visitors>0?(views/visitors):0;
-      return '<tr>'+
-        '<td data-label="Market"><div class="market-name">'+miEsc(miMarketName(r.market_slug))+'</div><div class="market-title" title="'+miEsc(r.page_title||"")+'">'+miEsc(r.page_title||"")+'</div></td>'+
-        '<td data-label="Views" class="num">'+miNum(views)+'</td>'+
-        '<td data-label="Visitors" class="num">'+miNum(r.unique_visitors)+'</td>'+
-        '<td data-label="Known users" class="num">'+miNum(r.known_users)+'</td>'+
-        '<td data-label="Engagement"><span class="engagement '+engagement.cls+'">'+engagement.label+'</span><span class="engagement-detail">'+miSeconds(r.avg_active_seconds)+' avg · '+viewsPerVisitor.toFixed(1)+' views/visitor</span></td>'+
-        '<td data-label="Enquiries" class="num '+(leads?"good":"zero")+'">'+miNum(leads)+'</td>'+
-        '<td data-label="Deals" class="num '+(deals?"good":"zero")+'">'+miNum(deals)+'</td>'+
-        '<td data-label="Lead rate"><strong>'+rate.toFixed(1)+'%</strong><div class="bar"><span style="width:'+Math.min(100,rate*10)+'%"></span></div></td>'+
-        '<td data-label="Page"><a href="/markets/'+miEsc(miMarketSlug(r.market_slug))+'.html" target="_blank" rel="noopener" style="color:#ed1c24;font-weight:900">Open ↗</a></td>'+
-      '</tr>';
-    }).join(""):'<tr><td colspan="9" class="empty">No market activity recorded in this period.</td></tr>';
+    marketPerformanceRows=rows;
+    renderMarketPerformance();
 
     const d=Array.isArray(data.discovery)?data.discovery:[];
     if(discovery){
