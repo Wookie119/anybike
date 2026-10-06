@@ -5180,13 +5180,9 @@ function renderCustomerNextActions(){
     Number(currentProfile?.profile_schema_version||1)<2;
 
   if(localProfileUpdateRequired){
-    actions.push({
-      priority:0,
-      title:"Select your customer type",
-      text:"Your AnyBike profile needs one quick update so we can put you on the correct customer journey.",
-      href:"/customer-profile.html#section-profile-update",
-      cta:"Update My Profile →"
-    });
+    panel.style.display="none";
+    list.innerHTML="";
+    return;
   }
 
   const requestedShippingAction=getRequestedShippingAction();
@@ -6387,8 +6383,19 @@ async function loadBuyerSetupBanner(){
   if(localProfileUpdateRequired){
     banner.style.display="";
     banner.id="buyer-setup";
-    tracker?.style.setProperty("display","block");
     compactComplete?.style.setProperty("display","none");
+
+    const journey=document.getElementById("buyerApprovalJourney");
+    if(journey) journey.style.display="none";
+
+    if(tracker){
+      tracker.style.display="block";
+      tracker.querySelector(".buyer-setup-progress-line")?.style.setProperty("display","none");
+      tracker.querySelector(".buyer-setup-progress-track")?.style.setProperty("display","none");
+      tracker.querySelector(".buyer-setup-steps")?.style.setProperty("display","none");
+      tracker.querySelector(".buyer-setup-next")?.style.setProperty("display","flex");
+    }
+
     if(title){
       title.style.display="";
       title.textContent="📝 Profile Update Required";
@@ -6397,14 +6404,32 @@ async function loadBuyerSetupBanner(){
       textEl.style.display="";
       textEl.textContent="Please tell us which customer type best describes you and what you would like to do with AnyBike.";
     }
-    if(progressText) progressText.textContent="Your profile needs a quick update before you continue";
-    if(progressFill) progressFill.style.width="0%";
     if(nextTitle) nextTitle.textContent="Your next action: Select your customer type";
-    if(nextText) nextText.textContent="Choose your customer type and how you want to use AnyBike. We will then return you to the correct journey.";
+    if(nextText) nextText.textContent="Choose your customer type and how you want to use AnyBike. We will then show the correct AnyBike journey for you.";
     if(action){
       action.textContent="UPDATE MY PROFILE →";
       action.href="/customer-profile.html#section-profile-update";
     }
+
+    // Until the account route is known, do not show export-buyer tools that may
+    // be irrelevant to a private VMoto customer, supplier, manufacturer or partner.
+    [
+      "#customerNextActionsPanel",
+      "#sourcing-progress",
+      "#hand-picked",
+      "#buyer-potential-matches",
+      "#my-offers",
+      "#my-purchases",
+      "#accounts-documents",
+      "#recommended-for-you",
+      "#recently-viewed",
+      "#earlyShippingPanel",
+      "#buyerReferralPanel"
+    ].forEach(function(selector){
+      const el=document.querySelector(selector);
+      if(el) el.style.display="none";
+    });
+
     banner.style.borderColor="rgba(237,28,36,.65)";
     return;
   }
