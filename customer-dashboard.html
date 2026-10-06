@@ -6385,6 +6385,19 @@ async function loadBuyerSetupBanner(){
     console.error("Could not check profile update status",profileUpdateError);
   }
 
+  const effectiveCustomerType=String(currentProfile?.customer_type||"").trim();
+  const effectiveCustomerIntent=String(currentProfile?.customer_intent||"").trim();
+  const isExportBuyerRoute=
+    effectiveCustomerType!=="uk_private" &&
+    ["buy","buy_supply"].includes(effectiveCustomerIntent);
+
+  // Buyer Verification is only the export/trade buying journey. Other account
+  // types keep their normal dashboard and are not forced through export setup.
+  if(!isExportBuyerRoute){
+    banner.style.display="none";
+    return;
+  }
+
   let onboarding=null;
   try{
     const {data,error}=await sb
@@ -6547,11 +6560,6 @@ async function loadBuyerSetupBanner(){
     actionText="Upload Proof of Address →";
     nextHeading="Your next action: Upload Proof of Address";
     nextCopy="Upload a current document that confirms your address.";
-  }else if(!setup.bank){
-    href="customer-profile.html#section-bank";
-    actionText="Complete Bank Details →";
-    nextHeading="Your next action: Complete Bank Details";
-    nextCopy="Add the account name and either UK account details or international IBAN / SWIFT details.";
   }else if(!setup.shipping){
     href="customer-profile.html#section-shipping";
     actionText="Complete Shipping Preferences →";
