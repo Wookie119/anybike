@@ -734,8 +734,9 @@
             </div>
 
             <div>
-              <label for="shippingMethodSummary">Shipping route</label>
-              <input id="shippingMethodSummary" readonly value="Uses your Buyer & Export shipping method" style="opacity:.75">
+              <label for="shippingMethodSummary">Usual shipping method</label>
+              <input id="shippingMethodSummary" readonly value="Not selected yet" style="opacity:.75">
+              <div style="margin-top:7px;color:#9aa0a6;font-size:12px;line-height:1.45">Taken from your Buyer &amp; Export details. You can change it there at any time.</div>
             </div>
 
             <div class="full">
@@ -744,6 +745,7 @@
                 <option value="">Select a shipper</option>
                 <option value="custom">My shipper is not listed — enter a new one</option>
               </select>
+              <div id="shippingDirectoryHelp" style="margin-top:7px;color:#9aa0a6;font-size:12px;line-height:1.45">Choose a shipper to see its UK receiving details and the destinations it normally serves.</div>
             </div>
 
             <div>
@@ -1053,21 +1055,8 @@
       const current=select.value;
 
       const optionLabel=function(r){
-        const countries=Array.isArray(r.countries_covered)?r.countries_covered.filter(Boolean):[];
         const location=[r.city,r.uk_country].filter(Boolean).join(", ");
-        const ready=Boolean(
-          r.company_name &&
-          r.contact_name &&
-          r.email &&
-          r.phone &&
-          (r.uk_address_line1 || r.uk_address) &&
-          r.city &&
-          r.uk_postcode
-        );
-        const suffix=countries.length
-          ? " · serves "+countries.join(", ")
-          : (location ? " · "+location : "");
-        return (r.company_name||"Unnamed shipper")+suffix+(ready?"":" · details incomplete");
+        return (r.company_name||"Unnamed shipper")+(location ? " · "+location : "");
       };
 
       select.innerHTML='<option value="">Select a shipper</option>'+
@@ -1115,6 +1104,15 @@
         r.city &&
         (postcode || r.uk_postcode)
       );
+
+      const help=document.getElementById("shippingDirectoryHelp");
+      if(help){
+        const countries=Array.isArray(r.countries_covered)?r.countries_covered.filter(Boolean):[];
+        const coverage=countries.length
+          ? "Normally serves: "+countries.slice(0,8).join(", ")+(countries.length>8?" +"+(countries.length-8)+" more":"")
+          : "Destination coverage not yet recorded.";
+        help.textContent=coverage+(ready?"":" · Some shipper details are incomplete; please check the blank fields below.");
+      }
 
       const note=document.getElementById("customShipperNote");
       if(note){
@@ -1192,6 +1190,7 @@
       setValue("dutyRate", profile?.import_duty_rate_pct);
       setValue("importTaxRate", profile?.import_tax_rate_pct);
       setValue("minimumMargin", profile?.margin_min_pct);
+      setValue("shippingMethodSummary", profile?.preferred_shipping_method || "Not selected yet");
       setValue("defaultShippingCost", profile?.default_shipping_cost);
       setValue("defaultPortCollectionCost", profile?.default_local_port_collection_cost);
       setValue("defaultPreparationCost", profile?.default_preparation_cost);
