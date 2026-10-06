@@ -275,8 +275,8 @@ button,
 <div class="card-heading">
   <h1>Register Free</h1>
   <p class="intro">
-    Create your AnyBike account to save motorcycles, build a watchlist,
-    manage enquiries and receive matching stock alerts.
+    Create your AnyBike account and tell us how you would like to work with AnyBike.
+    We will use your answers to put you on the right journey from the start.
   </p>
 </div>
 
@@ -421,6 +421,46 @@ button,
 
 </div>
 
+<div class="form-field full-width">
+  <label for="customerType">Who are you?</label>
+  <select id="customerType">
+    <option value="">Select customer type</option>
+    <option value="uk_private">UK Private Customer</option>
+    <option value="uk_dealer">UK Motorcycle Dealer / Trader</option>
+    <option value="uk_distributor">UK Motorcycle Distributor / Importer</option>
+    <option value="uk_manufacturer">UK Motorcycle Manufacturer / Brand Owner</option>
+    <option value="uk_partner">UK Partner / Service Provider</option>
+    <option value="eu_dealer">European Motorcycle Dealer / Trader</option>
+    <option value="eu_distributor">European Distributor / Importer</option>
+    <option value="intl_dealer">International Motorcycle Dealer / Trader</option>
+    <option value="intl_distributor">International Distributor / Importer</option>
+    <option value="global_manufacturer">Global Manufacturer / Brand Owner</option>
+    <option value="freight_partner">Freight Forwarder / Shipping Partner</option>
+    <option value="fleet_corporate">Fleet / Corporate Buyer</option>
+    <option value="other_business">Other Business / Professional</option>
+  </select>
+  <div style="margin-top:7px;color:#999;font-size:12px;line-height:1.45">
+    Choose the description that best fits you or your organisation.
+  </div>
+</div>
+
+<div class="form-field full-width">
+  <label for="customerIntent">What would you like to do with AnyBike?</label>
+  <select id="customerIntent">
+    <option value="">Select what you would like to do</option>
+    <option value="buy">Buy motorcycles from AnyBike for trade / export</option>
+    <option value="supply">Sell / supply motorcycles to AnyBike</option>
+    <option value="buy_supply">Buy motorcycles and supply motorcycles to AnyBike</option>
+    <option value="vmoto_retail">Buy a new VMoto motorcycle in the UK</option>
+    <option value="partnership">Discuss a partnership / integration</option>
+    <option value="freight_logistics">Freight / shipping / logistics partnership</option>
+    <option value="unclear">I’m not sure yet</option>
+  </select>
+  <div style="margin-top:7px;color:#999;font-size:12px;line-height:1.45">
+    This controls which setup journey AnyBike gives you. You can change or clarify it with us later.
+  </div>
+</div>
+
 <div class="form-field">
 <label for="currency">Preferred currency</label>
 
@@ -451,7 +491,7 @@ button,
 
 <label class="legal-agreement">
   <input id="accountTermsAccepted" type="checkbox">
-  <span>I agree to AnyBike's <a href="/terms-and-conditions.html" target="_blank" rel="noopener">Terms &amp; Conditions</a> and <a href="/privacy-policy.html" target="_blank" rel="noopener">Privacy Policy</a>. I understand that creating an account does not itself make me a trade buyer; trade-purchase declarations are confirmed separately when I accept a motorcycle Formal Offer.</span>
+  <span>I agree to AnyBike's <a href="/terms-and-conditions.html" target="_blank" rel="noopener">Terms &amp; Conditions</a> and <a href="/privacy-policy.html" target="_blank" rel="noopener">Privacy Policy</a>. I understand that AnyBike will use my selected customer type and intended use to provide the appropriate account journey. Trade-purchase declarations are confirmed separately where required.</span>
 </label>
 
 <div class="button-area">
@@ -476,7 +516,7 @@ Already registered? Login
 <div id="msg" class="msg"></div>
 
 <p class="small-print">
-Account registration records your acceptance of the account Terms &amp; Conditions. A separate trade/business declaration and Trade &amp; Export Sale Policy acceptance are required before a motorcycle Formal Offer can be accepted.
+Account registration records your acceptance of the account Terms &amp; Conditions and the customer type / intended use you selected. Additional trade, supplier, export or retail checks may apply depending on how you use AnyBike.
 </p>
 
 </section>
@@ -585,7 +625,13 @@ function getFormValues(){
       document.getElementById("currency").value,
 
     preferred_language:
-      document.getElementById("language").value
+      document.getElementById("language").value,
+
+    customer_type:
+      document.getElementById("customerType").value,
+
+    customer_intent:
+      document.getElementById("customerIntent").value
   };
 }
 
@@ -627,6 +673,14 @@ async function createCustomerProfileIfMissing(user,values){
       values.preferred_language||
       user.user_metadata?.preferred_language||
       "en",
+    customer_type:
+      values.customer_type||
+      user.user_metadata?.customer_type||
+      null,
+    customer_intent:
+      values.customer_intent||
+      user.user_metadata?.customer_intent||
+      "unclear",
     business_name:values.email==="mocp@hotmail.co.uk" ? "AnyBike Test Dealer" : null,
     business_trading_name:values.email==="mocp@hotmail.co.uk" ? "AnyBike Test Dealer" : null,
     is_test_account:values.email==="mocp@hotmail.co.uk",
@@ -678,6 +732,16 @@ async function registerCustomer(){
     return;
   }
 
+  if(!values.customer_type){
+    showMsg("Please tell us which customer type best describes you.",false);
+    return;
+  }
+
+  if(!values.customer_intent){
+    showMsg("Please tell us what you would like to do with AnyBike.",false);
+    return;
+  }
+
   const accountTermsAccepted=
     !!document.getElementById("accountTermsAccepted")?.checked;
 
@@ -710,6 +774,8 @@ async function registerCustomer(){
           country:values.country,
           preferred_currency:values.preferred_currency,
           preferred_language:values.preferred_language,
+          customer_type:values.customer_type,
+          customer_intent:values.customer_intent,
           shipper_referral_code:getShipperReferralCode()||null,
           buyer_referral_source_code:getBuyerReferralCode()||null,
           account_terms_version:"2026-09-20",
@@ -786,11 +852,15 @@ if(testRegistration){
   const country=document.getElementById("country");
   const currency=document.getElementById("currency");
   const language=document.getElementById("language");
+  const customerType=document.getElementById("customerType");
+  const customerIntent=document.getElementById("customerIntent");
   if(fullName)fullName.value="AnyBike Test Customer";
   if(email)email.value="mocp@hotmail.co.uk";
   if(country)country.value="United Kingdom";
   if(currency)currency.value="GBP";
   if(language)language.value="en";
+  if(customerType)customerType.value="uk_dealer";
+  if(customerIntent)customerIntent.value="buy";
 }
 
 document.getElementById("loginLink").href=
