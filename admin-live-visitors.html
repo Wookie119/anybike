@@ -868,6 +868,7 @@ let visitorJourneys = [];
 let topVisitors = [];
 let unusualActivityAlerts = [];
 let trustedVisitors = new Map();
+let visitorLabels = new Map();
 let showFlaggedJourneysOnly = false;
 let selectedVisitorId = "";
 
@@ -892,6 +893,25 @@ function trustedVisitorBadge(visitorId){
   if(!isTrustedVisitor(visitorId))return "";
   const row=trustedVisitors.get(String(visitorId));
   return '<span class="journey-badge returning" style="margin-left:6px">✓ '+escapeHtml(row?.label||"Trusted / AnyBike Staff")+'</span>';
+}
+
+function visitorIdentityBadge(visitorId){
+  const row=visitorLabels.get(String(visitorId||""));
+  if(!row?.label)return "";
+  return '<span class="journey-badge" style="margin-left:6px;background:#1f3b46;border-color:#4da6bf;color:#dff8ff">🏷 '+escapeHtml(row.label)+'</span>';
+}
+
+async function loadVisitorLabels(){
+  try{
+    const {data,error}=await sb.rpc("admin_get_website_visitor_labels_v1");
+    if(error)throw error;
+    visitorLabels=new Map((data||[]).map(function(row){
+      return [String(row.visitor_id),row];
+    }));
+  }catch(error){
+    console.error("Visitor labels could not be loaded",error);
+    visitorLabels=new Map();
+  }
 }
 
 async function loadTrustedVisitors(){
@@ -1042,7 +1062,7 @@ function visitorWasRecentlyOnline(visitor){
     return false;
   }
 
-  return (Date.now() - lastSeen) <= 90000;
+  return (Date.now() - lastSeen) <= 300000;
 }
 
 function locationText(visitor){
@@ -1272,8 +1292,8 @@ function renderVisitors(visitors){
 
   subtitle.textContent =
     visitors.length === 1
-      ? "1 visitor active in the last 90 seconds."
-      : visitors.length + " visitors active in the last 90 seconds.";
+      ? "1 visitor active in the last 5 minutes."
+      : visitors.length + " visitors active in the last 5 minutes.";
 
   if(!visitors.length){
     list.innerHTML =
@@ -1290,7 +1310,7 @@ function renderVisitors(visitors){
     return `
       <div class="visitor-card" data-visitor-id="${visitorId}">
         <div class="visitor-top">
-          <div class="visitor-title">${escapeHtml(displayTitle(visitor))}${trustedVisitorBadge(visitor.visitor_id)}</div>
+          <div class="visitor-title">${escapeHtml(displayTitle(visitor))}${visitorIdentityBadge(visitor.visitor_id)}${trustedVisitorBadge(visitor.visitor_id)}</div>
           <div class="live-pill"><span class="live-dot"></span>LIVE</div>
         </div>
 
@@ -1720,7 +1740,7 @@ function renderVisitorJourneys(){
     const badge=(row.is_returning
       ? '<span class="journey-badge returning">Returning · Visit #'+Number(row.visit_number||1)+'</span>'
       : '<span class="journey-badge">First recorded visit</span>')+
-      trustedVisitorBadge(row.visitor_id);
+      visitorIdentityBadge(row.visitor_id)+trustedVisitorBadge(row.visitor_id);
 
     const pageHtml=pages.length
       ? pages.map(function(page,pageIndex){
@@ -2047,7 +2067,7 @@ async function startLiveVisitors(){
   }
 
   initMap();
-  await loadTrustedVisitors();
+  await Promise.all([loadTrustedVisitors(),loadVisitorLabels()]);
 
   await Promise.all([
     loadLiveVisitors(),
