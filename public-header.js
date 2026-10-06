@@ -1,3 +1,20 @@
+(function ensureAnyBikeVisitorTracker(){
+  try{
+    if(window.__anybikeVisitorTrackerLoaderAdded)return;
+    window.__anybikeVisitorTrackerLoaderAdded=true;
+
+    if(document.querySelector('script[src*="visitor-tracker.js"]'))return;
+
+    const script=document.createElement("script");
+    script.src="/visitor-tracker.js?v=202610061325";
+    script.defer=true;
+    script.dataset.anybikeVisitorTracker="shared";
+    (document.head||document.documentElement).appendChild(script);
+  }catch(error){
+    console.warn("AnyBike visitor tracker could not be loaded",error);
+  }
+})();
+
 
 (function ensureAnyBikeFavicon(){
   try{
