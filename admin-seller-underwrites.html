@@ -121,6 +121,73 @@ async function loadQueue(){
   if(error){document.getElementById("queue").innerHTML='<div class="empty">'+esc(error.message)+'</div>';return;}
   rows=data||[];
   render();
+  updateNextAction();
+}
+
+function updateNextAction(){
+  if(!rows.length){
+    window.AnyBikeNextAction?.set({
+      title:"No seller underwrites waiting",
+      text:"There are currently no seller or dealer submissions requiring work.",
+      waitingFor:"AnyBike",
+      label:"REFRESH QUEUE →",
+      onClick:()=>loadQueue()
+    });
+    return;
+  }
+
+  const dealerUnderwrites=rows.filter(r=>r.source_channel==="dealer_underwrite" && r.underwrite_status!=="live");
+  const needsDetails=dealerUnderwrites.find(r=>!r.make||!r.model);
+
+  if(needsDetails){
+    window.AnyBikeNextAction?.set({
+      title:(dealerUnderwrites.length===1?"1 dealer underwrite waiting":dealerUnderwrites.length+" dealer underwrites waiting"),
+      text:(needsDetails.reference||"This submission")+" needs motorcycle make and model before it can be opened to trade underwriters.",
+      waitingFor:"AnyBike",
+      label:"COMPLETE NEXT UNDERWRITE →",
+      onClick:()=>{
+        const card=[...document.querySelectorAll("#queue .card")].find(el=>el.textContent.includes(needsDetails.reference||""));
+        card?.scrollIntoView({behavior:"smooth",block:"center"});
+        editVehicle(Number(needsDetails.submission_id));
+      }
+    });
+    return;
+  }
+
+  if(dealerUnderwrites.length){
+    const next=dealerUnderwrites[0];
+    window.AnyBikeNextAction?.set({
+      title:(dealerUnderwrites.length===1?"1 dealer underwrite ready":dealerUnderwrites.length+" dealer underwrites ready"),
+      text:"Review the next eligible submission and start its trade-underwrite window when the motorcycle details are complete.",
+      waitingFor:"AnyBike",
+      label:"START NEXT UNDERWRITE →",
+      onClick:()=>{
+        const card=[...document.querySelectorAll("#queue .card")].find(el=>el.textContent.includes(next.reference||""));
+        card?.scrollIntoView({behavior:"smooth",block:"center"});
+      }
+    });
+    return;
+  }
+
+  const live=rows.find(r=>r.underwrite_status==="live");
+  if(live){
+    window.AnyBikeNextAction?.set({
+      title:"Review live trade underwrites",
+      text:"At least one underwrite is already live and waiting for trade bids or follow-up.",
+      waitingFor:"Trade Buyers",
+      label:"OPEN TRADE UNDERWRITE DESK →",
+      href:"/admin-trade-underwrites.html"
+    });
+    return;
+  }
+
+  window.AnyBikeNextAction?.set({
+    title:"Review the seller queue",
+    text:"Open the next seller submission and complete the genuine outstanding action.",
+    waitingFor:"AnyBike",
+    label:"REVIEW QUEUE →",
+    selector:"#queue .card"
+  });
 }
 
 function render(){
