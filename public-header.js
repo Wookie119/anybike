@@ -488,11 +488,11 @@ function anybikeInstallCustomerNextActionStyles(){
     .anybike-customer-next-action h2{margin:0;font-size:clamp(20px,1.7vw,25px);line-height:1.08}
     .anybike-customer-next-action p{margin:4px 0 0;color:#d6d6d6;line-height:1.3;font-size:13px;max-width:none}
     .anybike-customer-next-action .abna-status{margin-top:4px;color:#aaa;font-size:11px;font-weight:800}
-    .anybike-customer-next-action .abna-btn{border:1px solid #ed1c24;border-radius:9px;background:#ed1c24;color:#fff;padding:9px 15px;font-weight:950;cursor:pointer;text-decoration:none;white-space:nowrap;flex:0 0 auto}
+    .anybike-customer-next-action .abna-btn{width:auto!important;border:1px solid #ed1c24;border-radius:9px;background:#ed1c24;color:#fff;padding:9px 15px;font-weight:950;cursor:pointer;text-decoration:none;white-space:nowrap;flex:0 0 auto}
     @media(max-width:760px){
       .anybike-customer-next-action{width:calc(100% - 20px);padding:11px}
       .anybike-customer-next-action .abna-main{align-items:stretch;flex-direction:column;gap:9px}
-      .anybike-customer-next-action .abna-btn{width:100%}
+      .anybike-customer-next-action .abna-btn{width:100%!important}
     }
   `;
   document.head.appendChild(style);
