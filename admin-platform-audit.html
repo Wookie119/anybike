@@ -541,8 +541,13 @@ td:last-child{
     <div>
       <strong id="overallHealth">Checking...</strong>
       <div class="small">Overall platform health based on live pages and broken links.</div>
+      <div class="small" id="scanStatus" style="margin-top:8px;font-weight:900;color:#fff">Preparing scan…</div>
+      <div class="small" id="scanFinishedAt" style="margin-top:4px;color:#aaa"></div>
     </div>
-    <div class="progress"><span id="healthBar"></span></div>
+    <div style="min-width:320px;max-width:100%">
+      <div class="progress"><span id="healthBar"></span></div>
+      <div class="progress" style="margin-top:10px"><span id="scanBar" style="background:var(--blue)"></span></div>
+    </div>
   </div>
 
   <section class="health-grid">
@@ -904,12 +909,33 @@ async function checkPages(){
   let live = 0;
   let broken = 0;
   let planned = 0;
+  let checked = 0;
+
+  const totalPages = pages.length;
+  const scanStatus = document.getElementById("scanStatus");
+  const scanFinishedAt = document.getElementById("scanFinishedAt");
+  const scanBar = document.getElementById("scanBar");
+
+  if(scanStatus) scanStatus.textContent = "Scanning pages… 0 / " + totalPages + " checked";
+  if(scanFinishedAt) scanFinishedAt.textContent = "";
+  if(scanBar) scanBar.style.width = "0%";
 
   async function auditPage(p){
     let status="planned";
     if(p.expected){
       status=(await pageExists(p.fileUrl)) ? "live" : "broken";
     }
+
+    checked++;
+
+    if(scanStatus){
+      scanStatus.textContent = "Scanning pages… " + checked + " / " + totalPages + " checked";
+    }
+
+    if(scanBar){
+      scanBar.style.width = Math.round((checked / totalPages) * 100) + "%";
+    }
+
     return {p:p,status:status,row:pageRow(p,status)};
   }
 
@@ -954,6 +980,25 @@ async function checkPages(){
   const bar = document.getElementById("healthBar");
   bar.style.width = health + "%";
   bar.style.background = broken ? "var(--amber)" : "var(--green)";
+
+  const finished = new Date();
+
+  if(scanStatus){
+    scanStatus.textContent = "✓ Scan complete — " + totalPages + " pages checked";
+  }
+
+  if(scanFinishedAt){
+    scanFinishedAt.textContent =
+      "Finished " +
+      finished.toLocaleDateString("en-GB") +
+      " at " +
+      finished.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+  }
+
+  if(scanBar){
+    scanBar.style.width = "100%";
+    scanBar.style.background = broken ? "var(--amber)" : "var(--green)";
+  }
 
   if(btn){
     btn.disabled=false;
