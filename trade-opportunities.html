@@ -48,7 +48,7 @@ async function load(){
   const {data:session}=await sb.auth.getSession();
   if(!session?.session){location.replace("/customer-register.html?return="+encodeURIComponent(location.pathname));return;}
   const [{data,error},{data:confirmations,error:confirmationError}]=await Promise.all([
-    sb.rpc("trade_get_my_underwrite_opportunities_v2"),
+    sb.rpc("trade_get_my_underwrite_opportunities_v3"),
     sb.rpc("trade_get_my_bid_confirmations_v1")
   ]);
   renderConfirmations(confirmations||[],confirmationError);
@@ -62,6 +62,7 @@ async function load(){
       '<div class="meta">'+esc(r.reference)+' · closes in '+esc(countdown(r.closes_at))+'</div>'+
       '<div class="bike">'+esc([r.make,r.model,r.variant].filter(Boolean).join(" "))+'</div>'+
       '<div class="data"><div class="box"><span>Year</span><strong>'+esc(r.bike_year||"—")+'</strong></div><div class="box"><span>Mileage</span><strong>'+(r.mileage===null?"—":Number(r.mileage).toLocaleString("en-GB"))+'</strong></div></div>'+
+      '<div class="notice" style="margin:10px 0 0"><strong>HPI:</strong> '+esc(r.hpi_clear===true?"Dealer confirms HPI clear":"Not confirmed by seller")+'</div>'+
       (r.notes?'<p>'+esc(r.notes)+'</p>':'')+
       '<label>Your confidential bid (£)<input id="bid-'+r.opportunity_id+'" type="number" min="1" step="1" value="'+esc(r.my_bid_gbp??"")+'" placeholder="Enter amount"></label>'+
       '<label style="display:block;margin-top:10px">Notes to AnyBike only<textarea id="note-'+r.opportunity_id+'" placeholder="Optional conditions or notes"></textarea></label>'+
