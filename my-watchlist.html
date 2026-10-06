@@ -195,17 +195,46 @@ async function loadWatchlist(){
   render();
 }
 
+function updateWatchlistNextAction(hasRows){
+  const apply=function(){
+    if(!window.AnyBikeCustomerNextAction?.set)return;
+    if(!hasRows){
+      window.AnyBikeCustomerNextAction.set({
+        title:"Request motorcycle matches",
+        text:"Tell AnyBike what motorcycle you are looking for and we can source suitable options for you to review.",
+        waitingFor:"You",
+        label:"REQUEST MATCHES →",
+        href:"/bulk-buying-request.html"
+      });
+      return;
+    }
+    window.AnyBikeCustomerNextAction.set({
+      title:"Review your saved motorcycles",
+      text:"Open one of your saved motorcycles, or send AnyBike a new sourcing request if you want more options.",
+      waitingFor:"You",
+      label:"REQUEST MORE MATCHES →",
+      href:"/bulk-buying-request.html"
+    });
+  };
+  apply();
+  setTimeout(apply,180);
+}
+
 function render(){
   const validRows = watchlistRows.filter(row => row.available_stock);
   if(!validRows.length){
-    document.getElementById("statusBox").innerHTML =
-      `You have no bikes in your watchlist yet. <a href="available-stock.html" style="color:#ed1c24;font-weight:900">Browse Available Stock</a>`;
+    const stockVisible=window.AnyBikePublicStockVisible!==false;
+    document.getElementById("statusBox").innerHTML = stockVisible
+      ? `You have no bikes in your watchlist yet. <a href="available-stock.html" style="color:#ed1c24;font-weight:900">Browse Available Stock</a> or <a href="/bulk-buying-request.html" style="color:#ed1c24;font-weight:900">request motorcycle matches</a>.`
+      : `You have no bikes in your watchlist yet. <a href="/bulk-buying-request.html" style="color:#ed1c24;font-weight:900">Request motorcycle matches from AnyBike</a>.`;
     document.getElementById("grid").innerHTML = "";
+    updateWatchlistNextAction(false);
     return;
   }
 
   document.getElementById("statusBox").textContent = `${validRows.length} bike${validRows.length===1 ? "" : "s"} saved in your watchlist.`;
   document.getElementById("grid").innerHTML = validRows.map(row => cardHTML(row)).join("");
+  updateWatchlistNextAction(true);
 }
 
 function imageHTML(b){
@@ -291,6 +320,8 @@ async function removeWatch(rowId){
   watchlistRows = watchlistRows.filter(row => String(row.id) !== String(decodedRowId));
   render();
 }
+
+window.addEventListener("anybikePublicStockVisibilityChanged",function(){render();});
 
 (async function init(){
   setupCurrency();
