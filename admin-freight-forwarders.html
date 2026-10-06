@@ -169,7 +169,7 @@ body.admin-freight-page .top-actions{display:flex;gap:10px;flex-wrap:wrap;justif
 
 .toolbar{
   display:grid;
-  grid-template-columns:minmax(280px,1.7fr) repeat(7,minmax(125px,1fr));
+  grid-template-columns:minmax(280px,1.7fr) repeat(8,minmax(125px,1fr));
   gap:10px;
   padding:14px;
   margin-bottom:16px;
@@ -533,6 +533,26 @@ body.admin-freight-page .top-actions{display:flex;gap:10px;flex-wrap:wrap;justif
         </div>
       </section>
 
+      <section class="suggestion-panel" id="shipperEngagementPanel" style="border-color:rgba(77,163,255,.38);background:rgba(77,163,255,.06)">
+        <div class="suggestion-head">
+          <div>
+            <h2>Shipper profile engagement</h2>
+            <p>See which shipping companies have opened, started or submitted their AnyBike profile update, and when.</p>
+          </div>
+          <select id="engagementPanelFilter" onchange="renderShipperEngagement()" style="min-width:190px;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.14);background:#0b0b0b;color:#fff">
+            <option value="all">All active shippers</option>
+            <option value="submitted">Submitted / updated</option>
+            <option value="started">Opened / started</option>
+            <option value="no-response">Invited — no response</option>
+            <option value="not-invited">Not invited</option>
+          </select>
+        </div>
+        <div id="shipperEngagementSummary" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;padding:14px 18px;border-bottom:1px solid rgba(255,255,255,.08)"></div>
+        <div id="shipperEngagementList" class="suggestion-list">
+          <div class="suggestion-empty">Loading shipper engagement…</div>
+        </div>
+      </section>
+
       <section class="kpis">
         <div class="kpi"><span>Total Directory</span><strong id="kpiTotal">0</strong><small>All active records</small></div>
         <div class="kpi"><span>Verified</span><strong id="kpiVerified">0</strong><small>Checked by AnyBike</small></div>
@@ -552,6 +572,13 @@ body.admin-freight-page .top-actions{display:flex;gap:10px;flex-wrap:wrap;justif
           <option value="">All countries served</option>
         </select>
         <select id="referralFilter"><option value="">All referral activity</option></select>
+        <select id="engagementFilter">
+          <option value="">All engagement</option>
+          <option value="submitted">Submitted / updated</option>
+          <option value="started">Opened / started</option>
+          <option value="no-response">Invited — no response</option>
+          <option value="not-invited">Not invited</option>
+        </select>
         <select id="activeFilter">
           <option value="active" selected>Active shippers only</option>
           <option value="all">Show active + inactive</option>
@@ -852,6 +879,7 @@ let records = [];
 let usingLocalFallback = false;
 let customerSuggestions = [];
 let profileSubmissions = [];
+let allProfileSubmissions = [];
 let countryRequests = [];
 
 const adminMarketCountries=[{"name":"Albania","region":"Europe","url":"/markets/albania.html"},{"name":"Andorra","region":"Europe","url":"/markets/andorra.html"},{"name":"Austria","region":"Europe","url":"/markets/austria.html"},{"name":"Belarus","region":"Europe","url":"/markets/belarus.html"},{"name":"Belgium","region":"Europe","url":"/markets/belgium.html"},{"name":"Bosnia & Herzegovina","region":"Europe","url":"/markets/bosnia-and-herzegovina.html"},{"name":"Bulgaria","region":"Europe","url":"/markets/bulgaria.html"},{"name":"Croatia","region":"Europe","url":"/markets/croatia.html"},{"name":"Cyprus","region":"Europe","url":"/markets/cyprus.html"},{"name":"Czech Republic","region":"Europe","url":"/markets/czech-republic.html"},{"name":"Denmark","region":"Europe","url":"/markets/denmark.html"},{"name":"Estonia","region":"Europe","url":"/markets/estonia.html"},{"name":"Finland","region":"Europe","url":"/markets/finland.html"},{"name":"France","region":"Europe","url":"/markets/france.html"},{"name":"Germany","region":"Europe","url":"/markets/germany.html"},{"name":"Greece","region":"Europe","url":"/markets/greece.html"},{"name":"Hungary","region":"Europe","url":"/markets/hungary.html"},{"name":"Iceland","region":"Europe","url":"/markets/iceland.html"},{"name":"Ireland","region":"Europe","url":"/markets/ireland.html"},{"name":"Italy","region":"Europe","url":"/markets/italy.html"},{"name":"Kosovo","region":"Europe","url":"/markets/kosovo.html"},{"name":"Latvia","region":"Europe","url":"/markets/latvia.html"},{"name":"Liechtenstein","region":"Europe","url":"/markets/liechtenstein.html"},{"name":"Lithuania","region":"Europe","url":"/markets/lithuania.html"},{"name":"Luxembourg","region":"Europe","url":"/markets/luxembourg.html"},{"name":"Malta","region":"Europe","url":"/markets/malta.html"},{"name":"Moldova","region":"Europe","url":"/markets/moldova.html"},{"name":"Monaco","region":"Europe","url":"/markets/monaco.html"},{"name":"Montenegro","region":"Europe","url":"/markets/montenegro.html"},{"name":"Netherlands","region":"Europe","url":"/markets/netherlands.html"},{"name":"North Macedonia","region":"Europe","url":"/markets/north-macedonia.html"},{"name":"Norway","region":"Europe","url":"/markets/norway.html"},{"name":"Poland","region":"Europe","url":"/markets/poland.html"},{"name":"Portugal","region":"Europe","url":"/markets/portugal.html"},{"name":"Romania","region":"Europe","url":"/markets/romania.html"},{"name":"San Marino","region":"Europe","url":"/markets/san-marino.html"},{"name":"Serbia","region":"Europe","url":"/markets/serbia.html"},{"name":"Slovakia","region":"Europe","url":"/markets/slovakia.html"},{"name":"Slovenia","region":"Europe","url":"/markets/slovenia.html"},{"name":"Spain","region":"Europe","url":"/markets/spain.html"},{"name":"Sweden","region":"Europe","url":"/markets/sweden.html"},{"name":"Switzerland","region":"Europe","url":"/markets/switzerland.html"},{"name":"Ukraine","region":"Europe","url":"/markets/ukraine.html"},{"name":"United Kingdom","region":"Europe","url":"/markets/united-kingdom.html"},{"name":"Canada","region":"North America","url":"/markets/canada.html"},{"name":"Mexico","region":"North America","url":"/markets/mexico.html"},{"name":"United States","region":"North America","url":"/markets/usa.html"},{"name":"Bermuda","region":"North America","url":"/markets/bermuda.html"},{"name":"Greenland","region":"North America","url":"/markets/greenland.html"},{"name":"Belize","region":"Central America","url":"/markets/belize.html"},{"name":"Costa Rica","region":"Central America","url":"/markets/costa-rica.html"},{"name":"El Salvador","region":"Central America","url":"/markets/el-salvador.html"},{"name":"Guatemala","region":"Central America","url":"/markets/guatemala.html"},{"name":"Honduras","region":"Central America","url":"/markets/honduras.html"},{"name":"Nicaragua","region":"Central America","url":"/markets/nicaragua.html"},{"name":"Panama","region":"Central America","url":"/markets/panama.html"},{"name":"Anguilla","region":"Caribbean","url":"/markets/anguilla.html"},{"name":"Antigua & Barbuda","region":"Caribbean","url":"/markets/antigua-and-barbuda.html"},{"name":"Aruba","region":"Caribbean","url":"/markets/aruba.html"},{"name":"Bahamas","region":"Caribbean","url":"/markets/bahamas.html"},{"name":"Barbados","region":"Caribbean","url":"/markets/barbados.html"},{"name":"British Virgin Islands","region":"Caribbean","url":"/markets/british-virgin-islands.html"},{"name":"Cayman Islands","region":"Caribbean","url":"/markets/cayman-islands.html"},{"name":"Cuba","region":"Caribbean","url":"/markets/cuba.html"},{"name":"Curaçao","region":"Caribbean","url":"/markets/curacao.html"},{"name":"Dominica","region":"Caribbean","url":"/markets/dominica.html"},{"name":"Dominican Republic","region":"Caribbean","url":"/markets/dominican-republic.html"},{"name":"Grenada","region":"Caribbean","url":"/markets/grenada.html"},{"name":"Guadeloupe","region":"Caribbean","url":"/markets/guadeloupe.html"},{"name":"Haiti","region":"Caribbean","url":"/markets/haiti.html"},{"name":"Jamaica","region":"Caribbean","url":"/markets/jamaica.html"},{"name":"Martinique","region":"Caribbean","url":"/markets/martinique.html"},{"name":"Montserrat","region":"Caribbean","url":"/markets/montserrat.html"},{"name":"Puerto Rico","region":"Caribbean","url":"/markets/puerto-rico.html"},{"name":"Saint Barthélemy","region":"Caribbean","url":"/markets/saint-barthelemy.html"},{"name":"Saint Kitts & Nevis","region":"Caribbean","url":"/markets/saint-kitts-and-nevis.html"},{"name":"Saint Lucia","region":"Caribbean","url":"/markets/saint-lucia.html"},{"name":"Saint Martin","region":"Caribbean","url":"/markets/saint-martin.html"},{"name":"Saint Vincent & the Grenadines","region":"Caribbean","url":"/markets/saint-vincent-and-the-grenadines.html"},{"name":"Sint Maarten","region":"Caribbean","url":"/markets/sint-maarten.html"},{"name":"Trinidad & Tobago","region":"Caribbean","url":"/markets/trinidad-and-tobago.html"},{"name":"Turks & Caicos Islands","region":"Caribbean","url":"/markets/turks-and-caicos-islands.html"},{"name":"US Virgin Islands","region":"Caribbean","url":"/markets/us-virgin-islands.html"},{"name":"Argentina","region":"South America","url":"/markets/argentina.html"},{"name":"Bolivia","region":"South America","url":"/markets/bolivia.html"},{"name":"Brazil","region":"South America","url":"/markets/brazil.html"},{"name":"Chile","region":"South America","url":"/markets/chile.html"},{"name":"Colombia","region":"South America","url":"/markets/colombia.html"},{"name":"Ecuador","region":"South America","url":"/markets/ecuador.html"},{"name":"Falkland Islands","region":"South America","url":"/markets/falkland-islands.html"},{"name":"French Guiana","region":"South America","url":"/markets/french-guiana.html"},{"name":"Guyana","region":"South America","url":"/markets/guyana.html"},{"name":"Paraguay","region":"South America","url":"/markets/paraguay.html"},{"name":"Peru","region":"South America","url":"/markets/peru.html"},{"name":"Suriname","region":"South America","url":"/markets/suriname.html"},{"name":"Uruguay","region":"South America","url":"/markets/uruguay.html"},{"name":"Venezuela","region":"South America","url":"/markets/venezuela.html"},{"name":"Algeria","region":"Africa","url":"/markets/algeria.html"},{"name":"Angola","region":"Africa","url":"/markets/angola.html"},{"name":"Benin","region":"Africa","url":"/markets/benin.html"},{"name":"Botswana","region":"Africa","url":"/markets/botswana.html"},{"name":"Burkina Faso","region":"Africa","url":"/markets/burkina-faso.html"},{"name":"Burundi","region":"Africa","url":"/markets/burundi.html"},{"name":"Cabo Verde","region":"Africa","url":"/markets/cabo-verde.html"},{"name":"Cameroon","region":"Africa","url":"/markets/cameroon.html"},{"name":"Central African Republic","region":"Africa","url":"/markets/central-african-republic.html"},{"name":"Chad","region":"Africa","url":"/markets/chad.html"},{"name":"Comoros","region":"Africa","url":"/markets/comoros.html"},{"name":"Democratic Republic of the Congo","region":"Africa","url":"/markets/democratic-republic-of-the-congo.html"},{"name":"Djibouti","region":"Africa","url":"/markets/djibouti.html"},{"name":"Egypt","region":"Africa","url":"/markets/egypt.html"},{"name":"Equatorial Guinea","region":"Africa","url":"/markets/equatorial-guinea.html"},{"name":"Eritrea","region":"Africa","url":"/markets/eritrea.html"},{"name":"Eswatini","region":"Africa","url":"/markets/eswatini.html"},{"name":"Ethiopia","region":"Africa","url":"/markets/ethiopia.html"},{"name":"Gabon","region":"Africa","url":"/markets/gabon.html"},{"name":"Gambia","region":"Africa","url":"/markets/gambia.html"},{"name":"Ghana","region":"Africa","url":"/markets/ghana.html"},{"name":"Guinea","region":"Africa","url":"/markets/guinea.html"},{"name":"Guinea-Bissau","region":"Africa","url":"/markets/guinea-bissau.html"},{"name":"Ivory Coast","region":"Africa","url":"/markets/ivory-coast.html"},{"name":"Kenya","region":"Africa","url":"/markets/kenya.html"},{"name":"Lesotho","region":"Africa","url":"/markets/lesotho.html"},{"name":"Liberia","region":"Africa","url":"/markets/liberia.html"},{"name":"Libya","region":"Africa","url":"/markets/libya.html"},{"name":"Madagascar","region":"Africa","url":"/markets/madagascar.html"},{"name":"Malawi","region":"Africa","url":"/markets/malawi.html"},{"name":"Mali","region":"Africa","url":"/markets/mali.html"},{"name":"Mauritania","region":"Africa","url":"/markets/mauritania.html"},{"name":"Mauritius","region":"Africa","url":"/markets/mauritius.html"},{"name":"Morocco","region":"Africa","url":"/markets/morocco.html"},{"name":"Mozambique","region":"Africa","url":"/markets/mozambique.html"},{"name":"Namibia","region":"Africa","url":"/markets/namibia.html"},{"name":"Niger","region":"Africa","url":"/markets/niger.html"},{"name":"Nigeria","region":"Africa","url":"/markets/nigeria.html"},{"name":"Republic of the Congo","region":"Africa","url":"/markets/republic-of-the-congo.html"},{"name":"Réunion Island","region":"Africa","url":"/markets/reunion.html"},{"name":"Rwanda","region":"Africa","url":"/markets/rwanda.html"},{"name":"São Tomé & Príncipe","region":"Africa","url":"/markets/sao-tome-and-principe.html"},{"name":"Senegal","region":"Africa","url":"/markets/senegal.html"},{"name":"Seychelles","region":"Africa","url":"/markets/seychelles.html"},{"name":"Sierra Leone","region":"Africa","url":"/markets/sierra-leone.html"},{"name":"Somalia","region":"Africa","url":"/markets/somalia.html"},{"name":"South Africa","region":"Africa","url":"/markets/south-africa.html"},{"name":"South Sudan","region":"Africa","url":"/markets/south-sudan.html"},{"name":"Sudan","region":"Africa","url":"/markets/sudan.html"},{"name":"Tanzania","region":"Africa","url":"/markets/tanzania.html"},{"name":"Togo","region":"Africa","url":"/markets/togo.html"},{"name":"Tunisia","region":"Africa","url":"/markets/tunisia.html"},{"name":"Uganda","region":"Africa","url":"/markets/uganda.html"},{"name":"Zambia","region":"Africa","url":"/markets/zambia.html"},{"name":"Zimbabwe","region":"Africa","url":"/markets/zimbabwe.html"},{"name":"Bahrain","region":"Middle East","url":"/markets/bahrain.html"},{"name":"Iran","region":"Middle East","url":"/markets/iran.html"},{"name":"Iraq","region":"Middle East","url":"/markets/iraq.html"},{"name":"Israel","region":"Middle East","url":"/markets/israel.html"},{"name":"Jordan","region":"Middle East","url":"/markets/jordan.html"},{"name":"Kuwait","region":"Middle East","url":"/markets/kuwait.html"},{"name":"Lebanon","region":"Middle East","url":"/markets/lebanon.html"},{"name":"Oman","region":"Middle East","url":"/markets/oman.html"},{"name":"Palestine","region":"Middle East","url":"/markets/palestine.html"},{"name":"Qatar","region":"Middle East","url":"/markets/qatar.html"},{"name":"Saudi Arabia","region":"Middle East","url":"/markets/saudi-arabia.html"},{"name":"Syria","region":"Middle East","url":"/markets/syria.html"},{"name":"Turkey","region":"Middle East","url":"/markets/turkiye.html"},{"name":"United Arab Emirates","region":"Middle East","url":"/markets/uae.html"},{"name":"Yemen","region":"Middle East","url":"/markets/yemen.html"},{"name":"Afghanistan","region":"Asia","url":"/markets/afghanistan.html"},{"name":"Bangladesh","region":"Asia","url":"/markets/bangladesh.html"},{"name":"Bhutan","region":"Asia","url":"/markets/bhutan.html"},{"name":"Brunei","region":"Asia","url":"/markets/brunei.html"},{"name":"Cambodia","region":"Asia","url":"/markets/cambodia.html"},{"name":"China","region":"Asia","url":"/markets/china.html"},{"name":"Hong Kong","region":"Asia","url":"/markets/hong-kong.html"},{"name":"India","region":"Asia","url":"/markets/india.html"},{"name":"Indonesia","region":"Asia","url":"/markets/indonesia.html"},{"name":"Japan","region":"Asia","url":"/markets/japan.html"},{"name":"Kazakhstan","region":"Asia","url":"/markets/kazakhstan.html"},{"name":"Kyrgyzstan","region":"Asia","url":"/markets/kyrgyzstan.html"},{"name":"Laos","region":"Asia","url":"/markets/laos.html"},{"name":"Macau","region":"Asia","url":"/markets/macau.html"},{"name":"Malaysia","region":"Asia","url":"/markets/malaysia.html"},{"name":"Maldives","region":"Asia","url":"/markets/maldives.html"},{"name":"Mongolia","region":"Asia","url":"/markets/mongolia.html"},{"name":"Myanmar","region":"Asia","url":"/markets/myanmar.html"},{"name":"Nepal","region":"Asia","url":"/markets/nepal.html"},{"name":"North Korea","region":"Asia","url":"/markets/north-korea.html"},{"name":"Pakistan","region":"Asia","url":"/markets/pakistan.html"},{"name":"Philippines","region":"Asia","url":"/markets/philippines.html"},{"name":"Singapore","region":"Asia","url":"/markets/singapore.html"},{"name":"South Korea","region":"Asia","url":"/markets/south-korea.html"},{"name":"Sri Lanka","region":"Asia","url":"/markets/sri-lanka.html"},{"name":"Taiwan","region":"Asia","url":"/markets/taiwan.html"},{"name":"Tajikistan","region":"Asia","url":"/markets/tajikistan.html"},{"name":"Thailand","region":"Asia","url":"/markets/thailand.html"},{"name":"Timor-Leste","region":"Asia","url":"/markets/timor-leste.html"},{"name":"Turkmenistan","region":"Asia","url":"/markets/turkmenistan.html"},{"name":"Uzbekistan","region":"Asia","url":"/markets/uzbekistan.html"},{"name":"Vietnam","region":"Asia","url":"/markets/vietnam.html"},{"name":"Australia","region":"Oceania","url":"/markets/australia.html"},{"name":"Fiji","region":"Oceania","url":"/markets/fiji.html"},{"name":"French Polynesia","region":"Oceania","url":"/markets/french-polynesia.html"},{"name":"Guam","region":"Oceania","url":"/markets/guam.html"},{"name":"Kiribati","region":"Oceania","url":"/markets/kiribati.html"},{"name":"Marshall Islands","region":"Oceania","url":"/markets/marshall-islands.html"},{"name":"Micronesia","region":"Oceania","url":"/markets/micronesia.html"},{"name":"Nauru","region":"Oceania","url":"/markets/nauru.html"},{"name":"New Caledonia","region":"Oceania","url":"/markets/new-caledonia.html"},{"name":"New Zealand","region":"Oceania","url":"/markets/new-zealand.html"},{"name":"Northern Mariana Islands","region":"Oceania","url":"/markets/northern-mariana-islands.html"},{"name":"Palau","region":"Oceania","url":"/markets/palau.html"},{"name":"Papua New Guinea","region":"Oceania","url":"/markets/papua-new-guinea.html"},{"name":"Samoa","region":"Oceania","url":"/markets/samoa.html"},{"name":"Solomon Islands","region":"Oceania","url":"/markets/solomon-islands.html"},{"name":"Tonga","region":"Oceania","url":"/markets/tonga.html"},{"name":"Tuvalu","region":"Oceania","url":"/markets/tuvalu.html"},{"name":"Vanuatu","region":"Oceania","url":"/markets/vanuatu.html"}];
@@ -1014,6 +1042,110 @@ function dateDisplay(value){
   return Number.isNaN(d.getTime()) ? value : d.toLocaleDateString("en-GB");
 }
 
+
+function dateTimeDisplay(value){
+  if(!value) return "Never";
+  const d=new Date(value);
+  return Number.isNaN(d.getTime()) ? value : d.toLocaleString("en-GB",{dateStyle:"medium",timeStyle:"short"});
+}
+
+function latestSubmissionFor(record){
+  return allProfileSubmissions
+    .filter(function(s){ return Number(s.freight_forwarder_id)===Number(record.id); })
+    .sort(function(a,b){ return new Date(b.submitted_at||0)-new Date(a.submitted_at||0); })[0] || null;
+}
+
+function shipperEngagementState(record){
+  const latest=latestSubmissionFor(record);
+  if(record.profile_submitted_at || latest){
+    return {key:"submitted",label:"Updated profile",tone:"verified",when:record.profile_submitted_at || latest.submitted_at};
+  }
+  if(record.profile_draft_started_at){
+    return {key:"started",label:"Started profile",tone:"preferred",when:record.profile_draft_started_at};
+  }
+  if(record.profile_invite_opened_at){
+    return {key:"started",label:"Opened invite",tone:"preferred",when:record.profile_invite_opened_at};
+  }
+  if(record.profile_invited_at){
+    return {key:"no-response",label:"Invited — no response",tone:"unverified",when:record.profile_invited_at};
+  }
+  return {key:"not-invited",label:"Not invited",tone:"inactive",when:null};
+}
+
+function renderShipperEngagement(){
+  const host=document.getElementById("shipperEngagementList");
+  const summary=document.getElementById("shipperEngagementSummary");
+  if(!host||!summary)return;
+
+  const active=records.filter(function(r){return r.is_active!==false;});
+  const states=active.map(function(r){return {record:r,state:shipperEngagementState(r)};});
+  const submitted=states.filter(function(x){return x.state.key==="submitted";}).length;
+  const started=states.filter(function(x){return x.state.key==="started";}).length;
+  const noResponse=states.filter(function(x){return x.state.key==="no-response";}).length;
+  const notInvited=states.filter(function(x){return x.state.key==="not-invited";}).length;
+
+  summary.innerHTML=[
+    ["Updated profile",submitted],
+    ["Opened / started",started],
+    ["Invited — no response",noResponse],
+    ["Not invited",notInvited]
+  ].map(function(x){
+    return '<div class="kpi" style="padding:13px"><span>'+escapeHtml(x[0])+'</span><strong style="font-size:24px">'+x[1]+'</strong></div>';
+  }).join("");
+
+  const filter=document.getElementById("engagementPanelFilter")?.value || "all";
+  let rows=states;
+  if(filter!=="all")rows=rows.filter(function(x){return x.state.key===filter;});
+
+  rows.sort(function(a,b){
+    const order={submitted:0,started:1,"no-response":2,"not-invited":3};
+    if(order[a.state.key]!==order[b.state.key])return order[a.state.key]-order[b.state.key];
+    return new Date(b.state.when||0)-new Date(a.state.when||0) ||
+      String(a.record.company_name||"").localeCompare(String(b.record.company_name||""));
+  });
+
+  if(!rows.length){
+    host.innerHTML='<div class="suggestion-empty">No shippers match this engagement filter.</div>';
+    return;
+  }
+
+  host.innerHTML=rows.map(function(item){
+    const r=item.record;
+    const state=item.state;
+    const latest=latestSubmissionFor(r);
+    const when=state.when ? dateTimeDisplay(state.when) : "—";
+    let detail="";
+    if(state.key==="submitted"){
+      detail="Last submitted "+when+(latest?.status ? " · "+escapeHtml(latest.status) : "");
+    }else if(state.key==="started"){
+      detail=state.label+" "+when+" · profile not yet submitted";
+    }else if(state.key==="no-response"){
+      detail="Invited "+when+(r.profile_invite_count ? " · "+Number(r.profile_invite_count)+" invitation"+(Number(r.profile_invite_count)===1?"":"s") : "");
+    }else{
+      detail="No profile invitation has been sent";
+    }
+
+    return '<article class="suggestion-card">'+
+      '<div class="suggestion-grid">'+
+        '<div><strong>'+escapeHtml(r.company_name||"Shipper")+'</strong>'+
+          '<small>'+escapeHtml([r.city,r.country].filter(Boolean).join(", ")||"Location not set")+'</small></div>'+
+        '<div class="suggestion-meta">'+
+          '<div><span class="badge '+state.tone+'">'+escapeHtml(state.label)+'</span></div>'+
+          '<div style="margin-top:6px">'+detail+'</div>'+
+          (r.profile_invite_opened_at?'<div><b>Invite opened:</b> '+escapeHtml(dateTimeDisplay(r.profile_invite_opened_at))+'</div>':'')+
+          (r.profile_draft_started_at?'<div><b>Draft started:</b> '+escapeHtml(dateTimeDisplay(r.profile_draft_started_at))+'</div>':'')+
+          (r.profile_submitted_at?'<div><b>Last profile submission:</b> '+escapeHtml(dateTimeDisplay(r.profile_submitted_at))+'</div>':'')+
+          (r.profile_last_reminded_at?'<div><b>Last reminder:</b> '+escapeHtml(dateTimeDisplay(r.profile_last_reminded_at))+'</div>':'')+
+        '</div>'+
+        '<div class="suggestion-actions">'+
+          '<button class="btn btn-dark" type="button" onclick="editRecord('+Number(r.id)+')">Open profile</button>'+
+          (r.email && state.key!=="submitted" ? '<button class="btn btn-primary" type="button" onclick="inviteShipperProfile('+Number(r.id)+')">Send / resend invite</button>' : '')+
+        '</div>'+
+      '</div>'+
+    '</article>';
+  }).join("");
+}
+
 function scrollFreightTarget(selector){
   const el=document.querySelector(selector);
   if(el) el.scrollIntoView({behavior:"smooth",block:"start"});
@@ -1170,8 +1302,10 @@ async function loadProfileSubmissions(){
     return;
   }
 
-  profileSubmissions=(data||[]).filter(x=>x.status==="Pending");
+  allProfileSubmissions=data||[];
+  profileSubmissions=allProfileSubmissions.filter(x=>x.status==="Pending");
   count.textContent=String(profileSubmissions.length);
+  renderShipperEngagement();
   updateFreightNextAction();
 
   if(!profileSubmissions.length){
@@ -1379,6 +1513,7 @@ async function loadForwarders(){
 
   refreshDirectoryFilters();
   renderDirectory();
+  renderShipperEngagement();
   updateFreightNextAction();
 }
 
@@ -1455,6 +1590,7 @@ function filteredRecords(){
   const service = document.getElementById("serviceFilter").value;
   const country = document.getElementById("countryFilter").value;
   const referral = document.getElementById("referralFilter").value;
+  const engagement = document.getElementById("engagementFilter").value;
   const activeMode = document.getElementById("activeFilter").value;
 
   return records.filter(r => {
@@ -1482,6 +1618,7 @@ function filteredRecords(){
     if(referral==="recommending" && signups<1) return false;
     if(referral==="shared" && visits<1) return false;
     if(referral==="none" && (visits>0 || signups>0)) return false;
+    if(engagement && shipperEngagementState(r).key!==engagement) return false;
     return true;
   });
 }
@@ -1539,6 +1676,7 @@ function recordHtml(r){
           <div class="badges">
             <span class="badge ${r.verification_status === "Verified" ? "verified" : "unverified"}">${escapeHtml(r.verification_status || "Unverified")}</span>
             ${r.profile_invite_status ? '<span class="badge">'+escapeHtml(r.profile_invite_status)+'</span>' : ""}
+            ${(()=>{const e=shipperEngagementState(r);return '<span class="badge '+e.tone+'" title="'+escapeHtml(e.when?dateTimeDisplay(e.when):"No activity recorded")+'">'+escapeHtml(e.label)+'</span>'})()}
             ${!String(r.email||"").trim() ? '<span class="badge email-needed">EMAIL NEEDED</span>' : ""}
             ${r.partner_status === "Preferred" ? '<span class="badge preferred">Preferred</span>' : ""}
             ${r.is_active === false ? '<span class="badge inactive">Inactive</span>' : ""}
@@ -1898,7 +2036,7 @@ async function restoreRecord(id){
   }
 }
 
-["searchInput","verificationFilter","profileInviteFilter","scopeFilter","serviceFilter","countryFilter","referralFilter","activeFilter"].forEach(id => {
+["searchInput","verificationFilter","profileInviteFilter","scopeFilter","serviceFilter","countryFilter","referralFilter","engagementFilter","activeFilter"].forEach(id => {
   document.getElementById(id).addEventListener(id === "searchInput" ? "input" : "change", renderDirectory);
 });
 
