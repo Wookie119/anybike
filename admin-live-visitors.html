@@ -1401,6 +1401,10 @@ function renderVisitorJourneys(){
 
   let rows=[...visitorJourneys];
 
+  if(showFlaggedJourneysOnly){
+    rows=rows.filter(r=>flaggedSessions.has(String(r.session_id)));
+  }
+
   if(filter==="loggedin")rows=rows.filter(r=>!!r.user_id);
   if(filter==="guest")rows=rows.filter(r=>!r.user_id);
   if(filter==="returning")rows=rows.filter(r=>r.is_returning===true);
@@ -1724,10 +1728,21 @@ async function startLiveVisitors(){
   ]);
 
   setInterval(loadLiveVisitors,10000);
+  setInterval(loadUnusualActivity,30000);
+
+  const requestedSession=new URLSearchParams(location.search).get("session");
+  const requestedVisitor=new URLSearchParams(location.search).get("visitor");
+  if(requestedSession||requestedVisitor){
+    setTimeout(function(){
+      document.getElementById("unusualActivityPanel")?.scrollIntoView({behavior:"smooth",block:"start"});
+      openFlaggedJourney(requestedSession||"",requestedVisitor||"");
+    },350);
+  }
 
   document.addEventListener("visibilitychange",function(){
     if(document.visibilityState === "visible"){
       loadLiveVisitors();
+      loadUnusualActivity();
     }
   });
 }
