@@ -6352,6 +6352,39 @@ async function loadBuyerSetupBanner(){
   const nextText=document.getElementById("buyerSetupNextText");
   if(!banner || !currentUser) return;
 
+  // Profile requirements sit above the buyer journey. This lets AnyBike introduce
+  // a new required profile question later without losing existing customers.
+  try{
+    const {data:profileUpdateData,error:profileUpdateError}=await sb.rpc("customer_get_profile_update_status_v1");
+    const profileUpdate=Array.isArray(profileUpdateData)?profileUpdateData[0]:profileUpdateData;
+    if(!profileUpdateError && profileUpdate?.update_required){
+      banner.style.display="";
+      banner.id="buyer-setup";
+      tracker?.style.setProperty("display","block");
+      compactComplete?.style.setProperty("display","none");
+      if(title){
+        title.style.display="";
+        title.textContent="📝 Profile Update Required";
+      }
+      if(textEl){
+        textEl.style.display="";
+        textEl.textContent=profileUpdate.next_text || "Please review the latest information required for your AnyBike profile.";
+      }
+      if(progressText) progressText.textContent="Your profile needs a quick update before you continue";
+      if(progressFill) progressFill.style.width="0%";
+      if(nextTitle) nextTitle.textContent="Your next action: "+(profileUpdate.next_title || "Update your profile");
+      if(nextText) nextText.textContent=profileUpdate.next_text || "Complete the requested profile update and we will return you to your AnyBike journey.";
+      if(action){
+        action.textContent="UPDATE MY PROFILE →";
+        action.href="/customer-profile.html"+(profileUpdate.next_anchor || "#section-profile-update");
+      }
+      banner.style.borderColor="rgba(237,28,36,.65)";
+      return;
+    }
+  }catch(profileUpdateError){
+    console.error("Could not check profile update status",profileUpdateError);
+  }
+
   let onboarding=null;
   try{
     const {data,error}=await sb
