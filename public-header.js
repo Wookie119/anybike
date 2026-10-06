@@ -51,6 +51,62 @@ async function anybikeGetPublicStockVisibility(){
   }
 }
 
+function anybikeMarkHiddenByStockToggle(element){
+  if(!element)return;
+  element.dataset.anybikeHiddenByStockToggle="true";
+  element.style.setProperty("display","none","important");
+}
+
+function anybikeRestorePublicStockSurfaces(){
+  document.documentElement.dataset.publicStockVisible="true";
+
+  document.getElementById("anybikePublicStockVisibilityStyles")?.remove();
+
+  document.querySelectorAll('[data-anybike-hidden-by-stock-toggle="true"]').forEach(function(element){
+    element.style.removeProperty("display");
+    delete element.dataset.anybikeHiddenByStockToggle;
+  });
+
+  const path=window.location.pathname.toLowerCase();
+
+  if(path==="/"||path.endsWith("/index.html")){
+    document.querySelectorAll("section.hero,.vmoto-feature,#stock.stock-section").forEach(function(element){
+      element.style.removeProperty("display");
+    });
+  }
+
+  if(
+    path.endsWith("/motorcycle-brand.html")||
+    path.endsWith("/motorcycle-model.html")||
+    path.endsWith("/motorcycle-variant.html")
+  ){
+    const stock=document.getElementById("stock");
+    const section=stock?.closest("section");
+    if(section)section.style.removeProperty("display");
+    if(stock)stock.style.removeProperty("display");
+  }
+
+  if(path.includes("/markets/")){
+    document.querySelectorAll(".market-selection,#countryBuyerInterestSection,.stock-grid,.ab-stock-grid").forEach(function(element){
+      element.style.removeProperty("display");
+      const section=element.closest?.("section");
+      if(section)section.style.removeProperty("display");
+    });
+  }
+
+  document.querySelectorAll(".stock-card,.ab-stock-card,.bike,.card").forEach(function(element){
+    if(element.dataset.anybikeHiddenByStockToggle==="true"){
+      element.style.removeProperty("display");
+      delete element.dataset.anybikeHiddenByStockToggle;
+    }
+  });
+
+  if(window.AnyBikePublicStockVisibilityObserver){
+    window.AnyBikePublicStockVisibilityObserver.disconnect();
+    window.AnyBikePublicStockVisibilityObserver=null;
+  }
+}
+
 function anybikeHidePublicStockSurfaces(){
   document.documentElement.dataset.publicStockVisible="false";
 
@@ -78,23 +134,23 @@ function anybikeHidePublicStockSurfaces(){
   ){
     const stock=document.getElementById("stock");
     const section=stock?.closest("section");
-    if(section)section.style.setProperty("display","none","important");
-    else if(stock)stock.style.setProperty("display","none","important");
+    if(section)anybikeMarkHiddenByStockToggle(section);
+    else if(stock)anybikeMarkHiddenByStockToggle(stock);
   }
 
   if(path==="/"||path.endsWith("/index.html")||path.endsWith("/buy-motorcycles.html")||path.includes("/markets/")){
     document.querySelectorAll('a[href^="/bike-details.html?id="]').forEach(function(link){
       const card=link.closest(".stock-card,.ab-stock-card,.bike,.card");
-      if(card)card.style.setProperty("display","none","important");
-      else link.style.setProperty("display","none","important");
+      if(card)anybikeMarkHiddenByStockToggle(card);
+      else anybikeMarkHiddenByStockToggle(link);
     });
   }
 
   if(path.includes("/markets/")){
     document.querySelectorAll(".stock-grid,.ab-stock-grid").forEach(function(grid){
       const section=grid.closest("section");
-      if(section)section.style.setProperty("display","none","important");
-      else grid.style.setProperty("display","none","important");
+      if(section)anybikeMarkHiddenByStockToggle(section);
+      else anybikeMarkHiddenByStockToggle(grid);
     });
   }
 
@@ -103,18 +159,18 @@ function anybikeHidePublicStockSurfaces(){
       const hasPublicBikeLinks=!!grid.querySelector('a[href^="/bike-details.html?id="]');
       if(!hasPublicBikeLinks)return;
       const section=grid.closest("section");
-      if(section)section.style.setProperty("display","none","important");
-      else grid.style.setProperty("display","none","important");
+      if(section)anybikeMarkHiddenByStockToggle(section);
+      else anybikeMarkHiddenByStockToggle(grid);
     });
 
     if(path==="/"||path.endsWith("/index.html")){
       document.querySelectorAll('.hero-route[href="/available-stock.html"],.hero-route[href^="/available-stock.html?"]').forEach(function(route){
         const hero=route.closest("section.hero");
-        if(hero)hero.style.setProperty("display","none","important");
+        if(hero)anybikeMarkHiddenByStockToggle(hero);
       });
       const homeStock=document.getElementById("stock");
       if(homeStock?.classList.contains("stock-section")){
-        homeStock.style.setProperty("display","none","important");
+        anybikeMarkHiddenByStockToggle(homeStock);
       }
     }
   }
@@ -124,7 +180,10 @@ async function anybikeApplyPublicStockVisibility(){
   const enabled=await anybikeGetPublicStockVisibility();
   window.AnyBikePublicStockVisible=enabled;
   window.dispatchEvent(new CustomEvent("anybikePublicStockVisibilityChanged",{detail:{enabled:enabled}}));
-  if(enabled)return;
+  if(enabled){
+    anybikeRestorePublicStockSurfaces();
+    return;
+  }
 
   anybikeHidePublicStockSurfaces();
   const observer=new MutationObserver(function(){
