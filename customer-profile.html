@@ -672,8 +672,16 @@
             </div>
           </div>
         
-          <div class="section-save-row">
-            <button type="button" class="section-save" data-save-section="bank" onclick="saveSection('bank',this)">Save Optional Bank Details</button>
+          <div class="section-save-row setup-next-action">
+            <div class="setup-next-copy">
+              <span class="setup-next-eyebrow">YOUR NEXT ACTION</span>
+              <strong>Bank details are optional</strong>
+              <span>Save them if they are useful to you, or skip this section for now. You can add or change bank details later in My Profile.</span>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+              <button type="button" class="section-save" data-save-section="bank" style="background:#222;border-color:#3a3a3a" onclick="saveSection('bank',this)">Save Bank Details</button>
+              <button type="button" class="section-save" style="background:#222;border-color:#555;color:#fff" onclick="skipBankDetails(this)">Skip for Now →</button>
+            </div>
             <div id="msg-bank" class="section-msg"></div>
           </div>
 </section>
@@ -2137,6 +2145,40 @@
         return;
       }
       focusProfileSection(next[1],next[2],true);
+    }
+
+    function skipBankDetails(button){
+      if(!currentUser)return;
+      const msg=document.getElementById("msg-bank");
+      if(msg){
+        msg.textContent="✓ Skipped for now. Bank details are optional and can be added later.";
+        msg.className="section-msg ok";
+      }
+      const row=button.closest(".section-save-row");
+      row?.classList.add("complete");
+      const original=button.textContent;
+      button.textContent="Skipped ✓";
+      button.disabled=true;
+
+      const s=buyerSetupCompletion();
+      const sequence=[
+        ["contact","section-contact","fullName"],
+        ["business","section-business","buyerType"],
+        ["preferences","section-preferences","currency"],
+        ["buyer","buyer-onboarding","shippingMethod"],
+        ["shipping","section-shipping","shippingDirectorySelect"]
+      ];
+      const next=sequence.find(item=>!s[item[0]]);
+      if(next){
+        setTimeout(()=>focusProfileSection(next[1],next[2],true),350);
+      }else{
+        setTimeout(()=>window.location.href="/customer-dashboard.html",650);
+      }
+
+      setTimeout(()=>{
+        button.disabled=false;
+        if(!row?.classList.contains("complete")) button.textContent=original;
+      },900);
     }
 
     async function saveSection(section,button){
