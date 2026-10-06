@@ -1574,11 +1574,7 @@
           setTimeout(()=>{window.location.href="/customer-dashboard.html";},450);
           return;
         }
-        document.querySelectorAll(".setup-target").forEach(el=>el.classList.remove("focused"));
-        const section=document.getElementById(target);
-        section?.classList.add("focused");
-        section?.scrollIntoView({behavior:"smooth",block:"start"});
-        if(field) setTimeout(()=>document.getElementById(field)?.focus({preventScroll:true}),350);
+        focusProfileSection(target,field,true);
       };
     }
 
@@ -1801,6 +1797,22 @@
       return "Please complete: "+names.slice(0,-1).join(", ")+" and "+names[names.length-1]+".";
     }
 
+    function focusProfileSection(id,field="",smooth=true){
+      const section=document.getElementById(id);
+      if(!section)return;
+
+      try{
+        const url=new URL(window.location.href);
+        url.hash=id;
+        window.history.replaceState({}, "", url.pathname+url.search+url.hash);
+      }catch(_){}
+
+      document.querySelectorAll(".setup-target").forEach(el=>el.classList.remove("focused"));
+      section.classList.add("focused");
+      section.scrollIntoView({behavior:smooth?"smooth":"auto",block:"start"});
+      if(field)setTimeout(()=>document.getElementById(field)?.focus({preventScroll:true}),350);
+    }
+
     function moveToNextRequiredSection(){
       const s=buyerSetupCompletion();
       const sequence=[
@@ -1826,11 +1838,7 @@
         if(shippingBtn) shippingBtn.textContent="Successful ✓";
         return;
       }
-      const section=document.getElementById(next[1]);
-      document.querySelectorAll(".setup-target").forEach(el=>el.classList.remove("focused"));
-      section?.classList.add("focused");
-      section?.scrollIntoView({behavior:"smooth",block:"start"});
-      setTimeout(()=>document.getElementById(next[2])?.focus({preventScroll:true}),350);
+      focusProfileSection(next[1],next[2],true);
     }
 
     async function saveSection(section,button){
