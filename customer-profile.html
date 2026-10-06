@@ -282,7 +282,51 @@
       .section-save{width:100%;min-height:48px}
       .section-save-row .section-msg{min-width:0}
     }
-    </style>
+    
+/* BUYER SETUP NEXT ACTION PANELS */
+.setup-next-action{
+  margin-top:22px!important;
+  padding:14px 16px!important;
+  border:1px solid rgba(237,28,36,.55)!important;
+  border-left:5px solid #ed1c24!important;
+  border-radius:13px!important;
+  background:linear-gradient(135deg,rgba(237,28,36,.08),#111 68%)!important;
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) auto!important;
+  gap:14px!important;
+  align-items:center!important;
+}
+.setup-next-copy{min-width:0}
+.setup-next-copy .setup-next-eyebrow{
+  display:block;
+  margin-bottom:4px;
+  color:#ed1c24;
+  font-size:10px;
+  font-weight:900;
+  letter-spacing:.13em;
+}
+.setup-next-copy strong{
+  display:block;
+  color:#fff;
+  font-size:16px;
+  line-height:1.2;
+}
+.setup-next-copy > span:last-child{
+  display:block;
+  margin-top:4px;
+  color:#aaa;
+  font-size:12px;
+  line-height:1.4;
+}
+.setup-next-action .section-msg{
+  grid-column:1/-1;
+  margin-top:0!important;
+}
+@media(max-width:760px){
+  .setup-next-action{grid-template-columns:1fr!important}
+  .setup-next-action .section-save{width:100%!important}
+}
+</style>
     </head>
 
     <body>
@@ -392,8 +436,13 @@
             </div>
           </div>
         
-          <div class="section-save-row">
-            <button type="button" class="section-save" data-save-section="contact" onclick="saveSection('contact',this)">Save Contact Details & Continue →</button>
+          <div class="section-save-row setup-next-action">
+            <div class="setup-next-copy">
+              <span class="setup-next-eyebrow">YOUR NEXT ACTION</span>
+              <strong>Save Contact Details &amp; continue</strong>
+              <span>We’ll save this section first, then take you straight to Buyer Type &amp; Business Details.</span>
+            </div>
+            <button type="button" class="section-save" data-save-section="contact" onclick="saveSection('contact',this)">Save &amp; Continue →</button>
             <div id="msg-contact" class="section-msg"></div>
           </div>
 </section>
@@ -491,8 +540,13 @@
             </div>
           </div>
         
-          <div class="section-save-row">
-            <button type="button" class="section-save" data-save-section="business" onclick="saveSection('business',this)">Save Business Details & Continue →</button>
+          <div class="section-save-row setup-next-action">
+            <div class="setup-next-copy">
+              <span class="setup-next-eyebrow">YOUR NEXT ACTION</span>
+              <strong>Save Business Details &amp; continue</strong>
+              <span>We’ll save this section first, then move you to Display Preferences.</span>
+            </div>
+            <button type="button" class="section-save" data-save-section="business" onclick="saveSection('business',this)">Save &amp; Continue →</button>
             <div id="msg-business" class="section-msg"></div>
           </div>
 </section>
@@ -553,8 +607,13 @@
             </div>
           </div>
         
-          <div class="section-save-row">
-            <button type="button" class="section-save" data-save-section="preferences" onclick="saveSection('preferences',this)">Save Display Preferences & Continue →</button>
+          <div class="section-save-row setup-next-action">
+            <div class="setup-next-copy">
+              <span class="setup-next-eyebrow">YOUR NEXT ACTION</span>
+              <strong>Save Display Preferences &amp; continue</strong>
+              <span>We’ll save your currency and language, then move you to Buyer &amp; Export Details.</span>
+            </div>
+            <button type="button" class="section-save" data-save-section="preferences" onclick="saveSection('preferences',this)">Save &amp; Continue →</button>
             <div id="msg-preferences" class="section-msg"></div>
           </div>
 </section>
@@ -692,8 +751,13 @@
             AnyBike may also ask for a small test bank payment before the first purchase. This helps us verify the paying account. We will never ask you to send a large payment simply to complete onboarding.
           </div>
         
-          <div class="section-save-row">
-            <button type="button" class="section-save" data-save-section="buyer" onclick="saveSection('buyer',this)">Save Buyer & Export Details & Continue →</button>
+          <div class="section-save-row setup-next-action">
+            <div class="setup-next-copy">
+              <span class="setup-next-eyebrow">YOUR NEXT ACTION</span>
+              <strong>Save Buyer &amp; Export Details &amp; continue</strong>
+              <span>We’ll save your export details and documents, then move you to Shipping Preferences.</span>
+            </div>
+            <button type="button" class="section-save" data-save-section="buyer" onclick="saveSection('buyer',this)">Save &amp; Continue →</button>
             <div id="msg-buyer" class="section-msg"></div>
           </div>
 </section>
@@ -827,8 +891,13 @@
 
           <div id="msg" class="msg"></div>
         
-          <div class="section-save-row">
-            <button type="button" class="section-save" data-save-section="shipping" onclick="saveSection('shipping',this)">Save Shipping Preferences & Finish →</button>
+          <div class="section-save-row setup-next-action">
+            <div class="setup-next-copy">
+              <span class="setup-next-eyebrow">YOUR NEXT ACTION</span>
+              <strong>Save Shipping Preferences &amp; submit Buyer Setup</strong>
+              <span>We’ll save your shipper / UK handover details and submit your completed Buyer Setup for AnyBike Review.</span>
+            </div>
+            <button type="button" class="section-save" data-save-section="shipping" onclick="saveSection('shipping',this)">Save &amp; Finish →</button>
             <div id="msg-shipping" class="section-msg"></div>
           </div>
           <div style="margin-top:12px;color:#9aa0a6;font-size:12px;line-height:1.5">
@@ -1249,9 +1318,25 @@
       initialLoadComplete=true;
       setAutosaveStatus("saved","All changes saved");
 
+      bindWorkingSectionMemory();
+
+      // Honour an explicit URL section first. If there is no explicit section, return
+      // the customer to the section they were last actively working in.
+      const requestedAction=String(new URLSearchParams(window.location.search).get("action")||"").toLowerCase();
+      if(!window.location.hash && !requestedAction){
+        try{
+          const remembered=localStorage.getItem("anybikeBuyerSetupWorkingSection:"+currentUser.id);
+          if(remembered && document.getElementById(remembered)){
+            const url=new URL(window.location.href);
+            url.hash=remembered;
+            window.history.replaceState({}, "", url.pathname+url.search+url.hash);
+          }
+        }catch(_){}
+      }
+
       // The profile content is hidden while the customer's data loads, so the browser
       // cannot reliably honour a URL fragment such as #section-shipping on first load.
-      // Re-apply the requested section after the page has been revealed.
+      // Re-apply the requested / remembered section after the page has been revealed.
       scrollToProfileHash();
     }
 
@@ -1797,15 +1882,34 @@
       return "Please complete: "+names.slice(0,-1).join(", ")+" and "+names[names.length-1]+".";
     }
 
+    function rememberWorkingSection(section){
+      if(!section || !section.id || !currentUser) return;
+      try{
+        const key="anybikeBuyerSetupWorkingSection:"+currentUser.id;
+        localStorage.setItem(key,section.id);
+        const url=new URL(window.location.href);
+        url.hash=section.id;
+        window.history.replaceState({}, "", url.pathname+url.search+url.hash);
+      }catch(_){}
+    }
+
+    function bindWorkingSectionMemory(){
+      document.querySelectorAll(".setup-target").forEach(function(section){
+        if(section.dataset.workingMemoryBound==="1") return;
+        section.dataset.workingMemoryBound="1";
+        const remember=function(){ rememberWorkingSection(section); };
+        section.addEventListener("focusin",remember);
+        section.addEventListener("input",remember);
+        section.addEventListener("change",remember);
+        section.addEventListener("pointerdown",remember);
+      });
+    }
+
     function focusProfileSection(id,field="",smooth=true){
       const section=document.getElementById(id);
       if(!section)return;
 
-      try{
-        const url=new URL(window.location.href);
-        url.hash=id;
-        window.history.replaceState({}, "", url.pathname+url.search+url.hash);
-      }catch(_){}
+      rememberWorkingSection(section);
 
       document.querySelectorAll(".setup-target").forEach(el=>el.classList.remove("focused"));
       section.classList.add("focused");
@@ -1915,6 +2019,7 @@
           await sb.from("customer_profiles")
             .update({onboarding_submitted_at:submittedAt})
             .eq("id",currentUser.id);
+          try{ localStorage.removeItem("anybikeBuyerSetupWorkingSection:"+currentUser.id); }catch(_){};
         }
 
         const saveRow=button.closest(".section-save-row");
