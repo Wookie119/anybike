@@ -415,6 +415,62 @@
           </div>
         </section>
 
+        <section class="card setup-target" id="section-profile-update" data-profile-section="profile-update">
+          <div class="section-head">
+            <div>
+              <div class="eyebrow">Profile Update</div>
+              <h2>How do you use AnyBike?</h2>
+              <p class="card-intro">Tell us what best describes you and what you want to do with AnyBike. This keeps your account on the correct journey as AnyBike develops.</p>
+            </div>
+            <span class="section-state" id="state-profile-update">Needs attention</span>
+          </div>
+
+          <div class="grid">
+            <div class="full">
+              <label for="profileCustomerType">Who are you?</label>
+              <select id="profileCustomerType">
+                <option value="">Select customer type</option>
+                <option value="uk_private">UK Private Customer</option>
+                <option value="uk_dealer">UK Motorcycle Dealer / Trader</option>
+                <option value="uk_distributor">UK Motorcycle Distributor / Importer</option>
+                <option value="uk_manufacturer">UK Motorcycle Manufacturer / Brand Owner</option>
+                <option value="uk_partner">UK Partner / Service Provider</option>
+                <option value="eu_dealer">European Motorcycle Dealer / Trader</option>
+                <option value="eu_distributor">European Distributor / Importer</option>
+                <option value="intl_dealer">International Motorcycle Dealer / Trader</option>
+                <option value="intl_distributor">International Distributor / Importer</option>
+                <option value="global_manufacturer">Global Manufacturer / Brand Owner</option>
+                <option value="freight_partner">Freight Forwarder / Shipping Partner</option>
+                <option value="fleet_corporate">Fleet / Corporate Buyer</option>
+                <option value="other_business">Other Business / Professional</option>
+              </select>
+            </div>
+            <div class="full">
+              <label for="profileCustomerIntent">What would you like to do with AnyBike?</label>
+              <select id="profileCustomerIntent">
+                <option value="">Select what you would like to do</option>
+                <option value="buy">Buy motorcycles from AnyBike for trade / export</option>
+                <option value="supply">Sell / supply motorcycles to AnyBike</option>
+                <option value="buy_supply">Buy motorcycles and supply motorcycles to AnyBike</option>
+                <option value="vmoto_retail">Buy a new VMoto motorcycle in the UK</option>
+                <option value="partnership">Discuss a partnership / integration</option>
+                <option value="freight_logistics">Freight / shipping / logistics partnership</option>
+                <option value="unclear">I’m not sure yet</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="section-save-row setup-next-action">
+            <div class="setup-next-copy">
+              <span class="setup-next-eyebrow">YOUR NEXT ACTION</span>
+              <strong>Save how you use AnyBike</strong>
+              <span>We’ll save this update first, then return you smoothly to the next part of your profile or Buyer Setup.</span>
+            </div>
+            <button type="button" class="section-save" id="saveProfileClassificationButton" onclick="saveProfileClassification(this)">Save &amp; Continue →</button>
+            <div id="msg-profile-update" class="section-msg"></div>
+          </div>
+        </section>
+
         <section class="card setup-target" id="section-contact" data-profile-section="contact">
           <div class="section-head">
             <div>
@@ -1275,6 +1331,8 @@
       populateCountrySelect("country", profile?.country);
       setValue("city", profile?.city);
       setValue("region", profile?.region);
+      setValue("profileCustomerType", profile?.customer_type);
+      setValue("profileCustomerIntent", profile?.customer_intent && profile?.customer_intent!=="unclear" ? profile.customer_intent : "");
       setValue("buyerType", profile?.buyer_type);
       setValue("businessName", profile?.business_name);
       setValue("businessTradingName", profile?.business_trading_name);
@@ -1349,6 +1407,7 @@
       setDocumentState("licenceDocumentState", profile?.driving_licence_document_path);
 
       await loadBuyerOnboardingStatus();
+      await loadProfileUpdateStatus();
 
       document.getElementById("loadingBox").classList.add("hidden");
       document.getElementById("profilePage").classList.remove("hidden");
@@ -1363,6 +1422,13 @@
       // Honour an explicit URL section first. If there is no explicit section, return
       // the customer to the section they were last actively working in.
       const requestedAction=String(new URLSearchParams(window.location.search).get("action")||"").toLowerCase();
+      if(!window.location.hash && !requestedAction && profileUpdateRequired){
+        try{
+          const url=new URL(window.location.href);
+          url.hash="section-profile-update";
+          window.history.replaceState({}, "", url.pathname+url.search+url.hash);
+        }catch(_){}
+      }
       if(!window.location.hash && !requestedAction){
         try{
           const remembered=localStorage.getItem("anybikeBuyerSetupWorkingSection:"+currentUser.id);
@@ -1530,6 +1596,80 @@
       return Boolean(state?.classList.contains("good") || input?.files?.length);
     }
 
+    async function loadProfileUpdateStatus(){
+      if(!currentUser) return;
+      const {data,error}=await sb.rpc("customer_get_profile_update_status_v1");
+      if(error){
+        console.error("Profile update status unavailable",error);
+        profileUpdateRequired=false;
+        profileUpdateStatus=null;
+        return;
+      }
+      profileUpdateStatus=Array.isArray(data)?data[0]:data;
+      profileUpdateRequired=Boolean(profileUpdateStatus?.update_required);
+      const state=document.getElementById("state-profile-update");
+      if(state){
+        state.textContent=profileUpdateRequired?"Needs attention":"✓ Complete";
+        state.classList.toggle("complete",!profileUpdateRequired);
+      }
+    }
+
+    async function saveProfileClassification(button){
+      if(!currentUser)return;
+      const customerType=document.getElementById("profileCustomerType")?.value||"";
+      const customerIntent=document.getElementById("profileCustomerIntent")?.value||"";
+      const msg=document.getElementById("msg-profile-update");
+
+      if(!customerType){
+        msg.textContent="Please choose the customer type that best describes you.";
+        msg.className="section-msg bad";
+        document.getElementById("profileCustomerType")?.focus();
+        return;
+      }
+      if(!customerIntent){
+        msg.textContent="Please tell us what you would like to do with AnyBike.";
+        msg.className="section-msg bad";
+        document.getElementById("profileCustomerIntent")?.focus();
+        return;
+      }
+
+      const original=button.textContent;
+      button.disabled=true;
+      button.textContent="Saving…";
+      if(msg){msg.textContent="Saving your profile update…";msg.className="section-msg";}
+
+      const {error}=await sb.rpc("customer_save_profile_classification_v1",{
+        p_customer_type:customerType,
+        p_customer_intent:customerIntent
+      });
+
+      if(error){
+        if(msg){msg.textContent="Could not save this update: "+error.message;msg.className="section-msg bad";}
+        button.disabled=false;
+        button.textContent=original;
+        return;
+      }
+
+      await loadProfileUpdateStatus();
+      if(msg){msg.textContent="✓ Saved. Taking you to your next action…";msg.className="section-msg ok";}
+      button.textContent="Saved ✓";
+      button.closest(".section-save-row")?.classList.add("complete");
+      updateSetupReminder();
+
+      const setup=buyerSetupCompletion();
+      let next=["section-contact","fullName"];
+      if(setup.contact&&!setup.business)next=["section-business","buyerType"];
+      else if(setup.contact&&setup.business&&!setup.preferences)next=["section-preferences","currency"];
+      else if(setup.contact&&setup.business&&setup.preferences&&!setup.buyer)next=["buyer-onboarding","shippingMethod"];
+      else if(setup.contact&&setup.business&&setup.preferences&&setup.buyer&&!setup.shipping)next=["section-shipping","shippingDirectorySelect"];
+      else if(setup.contact&&setup.business&&setup.preferences&&setup.buyer&&setup.shipping){
+        setTimeout(()=>window.location.href="/customer-dashboard.html",650);
+        return;
+      }
+      setTimeout(()=>focusProfileSection(next[0],next[1],true),350);
+      button.disabled=false;
+    }
+
     function buyerSetupCompletion(){
       const buyerType=value("buyerType");
       const preferences=Boolean(
@@ -1664,7 +1804,11 @@
       let heading="Your next action: Complete Contact Details";
       let copy="Start at the top. Complete every required contact field so AnyBike knows who it is dealing with and how to contact you.";
 
-      if(s.contact && !s.business){
+      if(profileUpdateRequired){
+        target="section-profile-update"; field="profileCustomerType";
+        button="Update My Profile →"; heading="Your next action: Tell us how you use AnyBike";
+        copy="Choose your customer type and what you want to do with AnyBike so we can keep you on the correct journey.";
+      }else if(s.contact && !s.business){
         target="section-business"; field="buyerType";
         button="Complete Business Details →"; heading="Your next action: Buyer Type & Business Details";
         copy="Complete the required legal business, contact and address details for the business buying motorcycles from AnyBike.";
