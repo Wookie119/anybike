@@ -802,12 +802,22 @@ body{
     <section class="card history-card">
       <div class="history-toolbar">
         <div>
-          <h2 style="margin:0 0 5px;font-size:21px;">Visitors Today</h2>
+          <h2 style="margin:0 0 5px;font-size:21px;">Visitor History</h2>
           <div class="subtitle">
-            Visitors seen today, including people who are no longer online.
+            Look back through recent AnyBike visitors, including people who are no longer online.
           </div>
         </div>
-        <div class="history-count" id="historyCount">Loading…</div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <select id="visitorHistoryDays" onchange="loadVisitorHistory()">
+            <option value="1">Today</option>
+            <option value="7">Last 7 days</option>
+            <option value="30" selected>Last 30 days</option>
+            <option value="90">Last 90 days</option>
+            <option value="180">Last 6 months</option>
+            <option value="365">Last 12 months</option>
+          </select>
+          <div class="history-count" id="historyCount">Loading…</div>
+        </div>
       </div>
 
       <div class="history-list" id="visitorHistory">
@@ -1243,7 +1253,7 @@ function renderVisitorHistory(visitors){
 
   if(!rows.length){
     box.innerHTML =
-      '<div class="empty-state">No visitor history recorded today.</div>';
+      '<div class="empty-state">No visitor history recorded in this period.</div>';
     return;
   }
 
@@ -1576,17 +1586,28 @@ async function loadVisitorJourneys(){
 async function loadVisitorHistory(){
   const box = document.getElementById("visitorHistory");
   const count = document.getElementById("historyCount");
+  const days = Number(document.getElementById("visitorHistoryDays")?.value || 30);
 
   try{
-    const {data,error} = await sb.rpc("admin_get_visitors_today_v3");
+    const {data,error} = await sb.rpc("admin_get_visitor_history_v1",{
+      p_days:days,
+      p_limit:2000
+    });
 
     if(error){
       throw error;
     }
 
-    const todayVisitors = data || [];
-    renderVisitorHistory(todayVisitors);
-    renderMap(todayVisitors,latestVisitors);
+    const historyVisitors = data || [];
+    renderVisitorHistory(historyVisitors);
+
+    const mapVisitors = days===1
+      ? historyVisitors
+      : historyVisitors.filter(function(visitor){
+          return visitorWasRecentlyOnline(visitor);
+        });
+
+    renderMap(mapVisitors,latestVisitors);
 
   }catch(error){
     console.error("Visitor history could not be loaded",error);
