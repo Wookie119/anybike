@@ -184,6 +184,16 @@ a{
       </div>
 
       <div class="cards">
+        <div class="card" id="publicStockVisibilityCard">
+          <h3>🏍 Public Available Stock</h3>
+          <p id="publicStockVisibilityBadge" class="badge blue">Loading…</p>
+          <p>Controls whether public third-party motorcycle stock and its related public galleries are visible on AnyBike. Internal sourcing and Live Source Hub are not affected.</p>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
+            <button id="publicStockOnBtn" class="btn" type="button" onclick="setPublicStockVisibility(true)">Turn ON</button>
+            <button id="publicStockOffBtn" class="btn" type="button" onclick="setPublicStockVisibility(false)">Turn OFF</button>
+          </div>
+          <p id="publicStockVisibilityStatus" style="margin:10px 0 0;color:#aaa;font-size:13px"></p>
+        </div>
         <div class="card">
           <h3>👤 Staff</h3>
           <p class="badge blue">Planned</p>
@@ -210,6 +220,34 @@ a{
 </div>
 
 <script>
+const settingsClient=getAdminSupabaseClient();
+
+async function loadPublicStockVisibility(){
+  const badge=document.getElementById("publicStockVisibilityBadge");
+  const status=document.getElementById("publicStockVisibilityStatus");
+  const r=await settingsClient.rpc("admin_get_public_stock_visibility_v1");
+  if(r.error){
+    badge.textContent="Unavailable";
+    status.textContent=r.error.message;
+    return;
+  }
+  const enabled=!!r.data?.enabled;
+  badge.textContent=enabled?"ON — public stock visible":"OFF — public stock hidden";
+  badge.style.background=enabled?"rgba(51,204,102,.16)":"rgba(237,28,36,.16)";
+  badge.style.border="1px solid "+(enabled?"rgba(51,204,102,.38)":"rgba(237,28,36,.38)");
+  badge.style.color=enabled?"#7ff0a8":"#ff8b90";
+  status.textContent=enabled
+    ?"Available Stock, public stock links and related public galleries are visible."
+    :"Available Stock, public stock links and related public galleries are hidden. Internal sourcing remains available.";
+}
+async function setPublicStockVisibility(enabled){
+  const status=document.getElementById("publicStockVisibilityStatus");
+  status.textContent=enabled?"Turning public stock on…":"Turning public stock off…";
+  const r=await settingsClient.rpc("admin_set_public_stock_visibility_v1",{p_enabled:enabled});
+  if(r.error){status.textContent=r.error.message;return}
+  await loadPublicStockVisibility();
+}
+
 (async function startAdministrationHQ(){
   const allowed = await requireAdminSession();
 
@@ -218,6 +256,7 @@ a{
   }
 
   document.documentElement.classList.remove("admin-auth-pending");
+  await loadPublicStockVisibility();
 })();
 </script>
 
