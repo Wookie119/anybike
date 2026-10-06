@@ -106,6 +106,17 @@ function anybikeHidePublicStockSurfaces(){
       if(section)section.style.setProperty("display","none","important");
       else grid.style.setProperty("display","none","important");
     });
+
+    if(path==="/"||path.endsWith("/index.html")){
+      document.querySelectorAll('.hero-route[href="/available-stock.html"],.hero-route[href^="/available-stock.html?"]').forEach(function(route){
+        const hero=route.closest("section.hero");
+        if(hero)hero.style.setProperty("display","none","important");
+      });
+      const homeStock=document.getElementById("stock");
+      if(homeStock?.classList.contains("stock-section")){
+        homeStock.style.setProperty("display","none","important");
+      }
+    }
   }
 }
 
