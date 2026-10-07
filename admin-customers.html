@@ -688,6 +688,68 @@ function escapeAdminHtml(value){
 
 </script>
 
+
+<div id="editCustomerModal" class="admin-customer-modal" aria-hidden="true">
+  <div class="admin-customer-modal-box" role="dialog" aria-modal="true" aria-labelledby="editCustomerTitle">
+    <div class="eyebrow">Customer 360</div>
+    <h2 id="editCustomerTitle" style="margin:5px 0 14px">Edit customer</h2>
+    <div class="admin-customer-form">
+      <label>Full name<input id="editFullName" autocomplete="name"></label>
+      <label>Business name<input id="editBusinessName" autocomplete="organization"></label>
+      <label>Phone / WhatsApp<input id="editPhone" autocomplete="tel"></label>
+      <label>Country<input id="editCountry" autocomplete="country-name"></label>
+      <label>City<input id="editCity" autocomplete="address-level2"></label>
+      <label>Region<input id="editRegion" autocomplete="address-level1"></label>
+      <label>Customer type
+        <select id="editCustomerType">
+          <option value="">Not classified</option>
+          <option value="uk_private">UK Based Private User</option>
+          <option value="uk_dealer">UK Based Motorcycle Dealer</option>
+          <option value="uk_distributor">UK Motorcycle Distributor</option>
+          <option value="uk_manufacturer">UK Motorcycle Manufacturer</option>
+          <option value="uk_partner">UK Partner</option>
+          <option value="eu_dealer">European Motorcycle Dealer</option>
+          <option value="intl_dealer">International Motorcycle Dealer</option>
+          <option value="global_manufacturer">Global Manufacturer</option>
+        </select>
+      </label>
+      <label>What they want to do
+        <select id="editCustomerIntent">
+          <option value="unclear">Not yet clear</option>
+          <option value="buy">Buy motorcycles</option>
+          <option value="dealer_trade_supply">Trade / sell motorcycles</option>
+          <option value="buy_supply">Buy and trade / sell</option>
+          <option value="dealer_underwrite">Part-exchange underwrite</option>
+          <option value="trade_underwriter">Trade opportunity underwriter</option>
+          <option value="vmoto_retail">VMoto retail</option>
+          <option value="new_uk_retail">New UK retail interest</option>
+          <option value="partnership">Partnership / integration</option>
+          <option value="freight_logistics">Freight / logistics</option>
+        </select>
+      </label>
+    </div>
+    <div class="modal-row-actions">
+      <button type="button" class="btn dark" onclick="closeEditCustomer()">Cancel</button>
+      <button type="button" class="btn" onclick="saveEditedCustomer()">Save customer</button>
+    </div>
+  </div>
+</div>
+
+<div id="confirmationLinkModal" class="admin-customer-modal" aria-hidden="true">
+  <div class="admin-customer-modal-box" role="dialog" aria-modal="true" aria-labelledby="confirmationLinkTitle">
+    <div class="eyebrow">Email Confirmation</div>
+    <h2 id="confirmationLinkTitle" style="margin:5px 0 6px">Confirmation text</h2>
+    <p class="small" style="margin:0 0 12px">Copy this into SMS or WhatsApp. The secure link lets the customer confirm/open their AnyBike account.</p>
+    <textarea id="confirmationMessage" class="confirmation-output" readonly></textarea>
+    <div id="confirmationLinkStatus" class="small" style="margin-top:8px"></div>
+    <div class="modal-row-actions">
+      <button type="button" class="btn dark" onclick="closeConfirmationLink()">Close</button>
+      <button type="button" class="btn dark" onclick="copyConfirmationLinkOnly()">Copy link only</button>
+      <button type="button" class="btn" onclick="copyConfirmationMessage()">Copy text</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const SUPABASE_URL = "https://tuehtnezhdnkqbbhttgp.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
@@ -732,8 +794,9 @@ function badgeClass(s){if(s==="VIP")return"badge-red";if(s==="Completed")return"
 
 
 function openEditCustomer(userId){
-  const c=allCustomers.find(x=>String(x.customerId)===String(userId));
-  if(!c)return;
+  const customer=allCustomers.find(x=>String(x.customerId)===String(userId));
+  if(!customer){alert("Customer record could not be found. Refresh Customer 360 and try again.");return;}
+  const c=customer;
   const onboarding=customerOnboardingMap[String(userId)]||{};
   editingCustomerId=String(userId);
   document.getElementById("editCustomerTitle").textContent="Edit customer · "+(c.name||c.email||"Customer");
@@ -745,10 +808,15 @@ function openEditCustomer(userId){
   document.getElementById("editRegion").value=c.region||"";
   document.getElementById("editCustomerType").value=onboarding.customer_type||"";
   document.getElementById("editCustomerIntent").value=onboarding.customer_intent||"unclear";
-  document.getElementById("editCustomerModal").classList.add("open");
+  const modal=document.getElementById("editCustomerModal");
+  if(!modal){alert("Edit Customer window is not available. Refresh the page and try again.");return;}
+  modal.classList.add("open");
+  modal.setAttribute("aria-hidden","false");
 }
 function closeEditCustomer(){
-  document.getElementById("editCustomerModal").classList.remove("open");
+  const modal=document.getElementById("editCustomerModal");
+  modal?.classList.remove("open");
+  modal?.setAttribute("aria-hidden","true");
   editingCustomerId=null;
 }
 async function saveEditedCustomer(){
@@ -771,24 +839,44 @@ async function saveEditedCustomer(){
   openCustomerFromMap(keepId);
 }
 async function generateConfirmationText(userId){
+  const modal=document.getElementById("confirmationLinkModal");
+  const output=document.getElementById("confirmationMessage");
+  const status=document.getElementById("confirmationLinkStatus");
+  if(!modal||!output){
+    alert("Confirmation text window is not available. Refresh the page and try again.");
+    return;
+  }
+
+  generatedConfirmationLink="";
+  output.value="Generating secure confirmation link…";
+  if(status)status.textContent="";
+  modal.classList.add("open");
+  modal.setAttribute("aria-hidden","false");
+
   const {data,error}=await sb.functions.invoke("admin-generate-customer-confirmation-link",{
     body:{user_id:String(userId)}
   });
+
   if(error){
-    alert("Could not generate confirmation link: "+(error.message||"Unknown error"));
+    output.value="";
+    if(status)status.textContent="Could not generate confirmation link: "+(error.message||"Unknown error");
     return;
   }
   if(data?.error){
-    alert(data.error);
+    output.value="";
+    if(status)status.textContent=String(data.error);
     return;
   }
+
   generatedConfirmationLink=String(data?.action_link||"");
   document.getElementById("confirmationLinkTitle").textContent="Confirmation text · "+String(data?.email||"Customer");
-  document.getElementById("confirmationMessage").value=String(data?.message||"");
-  document.getElementById("confirmationLinkModal").classList.add("open");
+  output.value=String(data?.message||"");
+  if(status)status.textContent="Ready to copy and send.";
 }
 function closeConfirmationLink(){
-  document.getElementById("confirmationLinkModal").classList.remove("open");
+  const modal=document.getElementById("confirmationLinkModal");
+  modal?.classList.remove("open");
+  modal?.setAttribute("aria-hidden","true");
   generatedConfirmationLink="";
 }
 async function copyConfirmationMessage(){
