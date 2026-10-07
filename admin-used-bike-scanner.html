@@ -36,7 +36,7 @@ textarea{min-height:120px;resize:vertical;white-space:pre-wrap;overflow-wrap:any
 .other-requests{display:none;margin:0 0 16px;padding:15px;border:1px solid #3a3a3a;border-radius:14px;background:#0d0d0d}.other-request-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 0;border-top:1px solid #262626}.other-request-row:first-child{border-top:0}.other-request-status{font-size:12px;font-weight:900;color:#ff858a}
 .next-action-panel h2{margin:4px 0 6px;font-size:24px}.next-action-panel p{margin:0;color:#ddd;line-height:1.5}.next-action-panel .actions{margin-top:12px}
 .image-progress{margin-top:12px;padding:12px;border:1px solid #333;border-radius:12px;background:#0b0b0b}.image-progress-head{display:flex;justify-content:space-between;gap:10px;align-items:center;font-size:13px;font-weight:900}.image-progress-track{height:12px;background:#242424;border-radius:999px;overflow:hidden;margin-top:8px}.image-progress-bar{height:100%;width:0%;background:linear-gradient(90deg,#ed1c24,#ff6a70);transition:width .25s ease}.image-progress.good .image-progress-bar{background:linear-gradient(90deg,#2f8d52,#58d585)}
-.scan-list{display:grid;gap:14px}.scan-card{background:#151515;border:1px solid var(--line);border-radius:16px;padding:15px}.scan-head{display:flex;gap:14px;align-items:flex-start}.thumb{width:150px;height:105px;object-fit:cover;background:#222;border-radius:10px}.scan-title{font-size:20px;font-weight:900}.tag{display:inline-block;border:1px solid #333;border-radius:999px;padding:5px 9px;font-size:12px;color:#bbb;margin:4px 5px 0 0}.tag.ready{color:#8df0ad;border-color:#315e40}.tag.fail{color:#ff8b8b;border-color:#6a3030}
+.scan-list{display:grid;gap:14px}.scan-card{background:#151515;border:1px solid var(--line);border-radius:16px;padding:15px}.scan-head{display:flex;gap:14px;align-items:flex-start}.scan-head-gallery{display:grid;grid-template-columns:repeat(2,72px);grid-auto-rows:50px;gap:6px;flex:0 0 auto}.scan-head-gallery.single{grid-template-columns:150px;grid-auto-rows:105px}.scan-head-gallery img{width:72px;height:50px;object-fit:cover;background:#222;border-radius:8px;border:1px solid #333}.scan-head-gallery.single img{width:150px;height:105px;border-radius:10px}.scan-title{font-size:20px;font-weight:900}.tag{display:inline-block;border:1px solid #333;border-radius:999px;padding:5px 9px;font-size:12px;color:#bbb;margin:4px 5px 0 0}.tag.ready{color:#8df0ad;border-color:#315e40}.tag.fail{color:#ff8b8b;border-color:#6a3030}
 .cols{display:grid;grid-template-columns:1.15fr 1fr 1fr;gap:12px;margin-top:14px}.box{background:#0d0d0d;border:1px solid #282828;border-radius:12px;padding:12px}.box h3{font-size:13px;margin:0 0 10px;color:#ddd;text-transform:uppercase;letter-spacing:.08em}
 .mini{display:grid;grid-template-columns:1fr 1fr;gap:8px}.complete-box{border-color:#2f8d52!important;box-shadow:0 0 0 1px rgba(67,209,122,.16)}.attention-box{border-color:#6a3030!important}.money{font-size:18px;font-weight:900}.secret{border-left:3px solid var(--red)}
 .check{display:flex;gap:8px;align-items:flex-start;margin-top:8px;font-size:13px;color:#ccc}.check input{width:auto;margin-top:2px}
@@ -390,15 +390,19 @@ function cardHtml(s,saved){
   const id=saved?s.id:s._key;
   const sourceUrls=Array.isArray(s.source_image_urls)?s.source_image_urls:[];
   const rawFirst=sourceUrls.find(isUsableRawBikeImage)||"";
-  const safeFirst=(Array.isArray(s.buyer_image_urls)?s.buyer_image_urls:[])[0]||"";
+  const safeUrls=(Array.isArray(s.buyer_image_urls)?s.buyer_image_urls:[]).filter(Boolean);
+  const safeFirst=safeUrls[0]||"";
   const isLiveSource=!!(s.extraction&&s.extraction.live_source_item_id);
   const first=isLiveSource?safeFirst:(safeFirst||rawFirst||"");
   const anyPrice=(Number(s.source_advertised_price_gbp)||0)+(Number(s.delivery_allowance_gbp)||0)+(Number(s.fee_allowance_gbp)||0);
   const fail=s.scan_status==="failed";
+  const topGallery=isLiveSource
+    ?(safeUrls.length
+      ?'<div class="scan-head-gallery '+(safeUrls.length===1?'single':'')+'">'+safeUrls.slice(0,4).map((u,i)=>'<img src="'+esc(u)+'" alt="Buyer-safe photo '+(i+1)+'" onerror="this.style.display=\'none\'">').join("")+'</div>'
+      :'<div class="image-placeholder"><div><strong>No buyer-safe image</strong>Image preparation required</div></div>')
+    :(first?'<div class="scan-head-gallery single"><img src="'+esc(first)+'" onerror="this.style.display=\'none\'"></div>':'<div class="image-placeholder"><div><strong>No image</strong>Image preparation required</div></div>');
   return '<article class="scan-card" data-scan="'+id+'">'+
-    '<div class="scan-head"><div>'+(first
-      ?'<img class="thumb" src="'+esc(first)+'" onerror="this.style.display=\'none\'">'
-      :'<div class="image-placeholder"><div><strong>No buyer-safe image</strong>Image preparation required</div></div>')+
+    '<div class="scan-head"><div>'+topGallery+
       (isLiveSource
         ?(safeFirst
           ?'<div class="status good" style="margin-top:5px;font-weight:900">✓ Buyer-safe image ready</div>'
@@ -926,6 +930,11 @@ async function prepareBuyerSafeImages(scanId,liveSourceItemId){
       });
       if(error)throw error;
       if(data?.error)throw new Error(data.error);
+      if(st && Number(data?.safe_count||0)<targetCount){
+        const sourceCount=Number(data?.source_image_count||0);
+        st.className="status";
+        st.textContent=(Number(data?.safe_count||0)||currentCount)+" buyer-safe image"+((Number(data?.safe_count||0)||currentCount)===1?"":"s")+" ready"+(sourceCount?(" · "+sourceCount+" BMW source photo"+(sourceCount===1?"":"s")+" found"):"");
+      }
     }
 
     const refreshed=await sb().rpc("admin_refresh_scan_buyer_safe_images_v1",{p_scan_id:Number(scanId)});
