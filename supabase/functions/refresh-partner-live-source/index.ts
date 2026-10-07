@@ -163,24 +163,146 @@ async function finalise(connector:any,items:any[]){
   await admin.from("live_source_connectors").update({last_refresh_completed_at:now,last_refresh_status:"success",last_live_count:items.length,updated_at:now}).eq("id",Number(connector.id));
   return {completed:true,discovered_count:items.length,added,message:"Source refresh completed."};
 }
-async function refreshSykes(connector:any){
-  const out:any[]=[];const seen=new Set<string>();let total=0;
-  for(let page=1;page<=12;page++){
-    const u=new URL(connector.results_url||"https://sykeshd.com/inventory");u.searchParams.set("page",String(page));
-    let md="";
-    try{md=await fetchReader(u.toString());}
-    catch{
-      const direct=await fetch(u.toString(),{headers:{"User-Agent":"Mozilla/5.0 (compatible; AnyBike Live Source Hub/3.0)","Accept":"text/html,*/*"}});
-      if(!direct.ok)throw new Error("Sykes source HTTP "+direct.status);
-      md=await direct.text();
-    }
-    const tm=md.match(/Showing\s+\d+\s*-\s*\d+\s+of\s+(\d+)\s+results/i);if(tm)total=Number(tm[1]||0);
-    const rows=parseSykes(md,u.toString());let n=0;
-    for(const r of rows){if(!seen.has(r.source_stock_id)){seen.add(r.source_stock_id);out.push(r);n++;}}
-    if(!n||total&&out.length>=total)break;
+
+function decodeHtml(v:string){
+  return String(v||"")
+    .replace(/&nbsp;/gi," ")
+    .replace(/&amp;/gi,"&")
+    .replace(/&quot;/gi,'"')
+    .replace(/&#39;|&apos;/gi,"'")
+    .replace(/&pound;/gi,"£")
+    .replace(/&#(\d+);/g,(_m,n)=>{try{return String.fromCharCode(Number(n))}catch{return " "}});
+}
+function htmlText(html:string){
+  return clean(decodeHtml(String(html||"")
+    .replace(/<script[\s\S]*?<\/script>/gi," ")
+    .replace(/<style[\s\S]*?<\/style>/gi," ")
+    .replace(/<\/(?:h1|h2|h3|h4|p|div|li|tr|section|article)>/gi,"\n")
+    .replace(/<br\s*\/?>/gi,"\n")
+    .replace(/<[^>]+>/g," ")
+    .replace(/[ \t]+\n/g,"\n")
+    .replace(/\n[ \t]+/g,"\n")));
+}
+function attrImages(html:string,base:string){
+  const out:string[]=[];
+  for(const m of String(html||"").matchAll(/(?:src|data-src|data-lazy-src)=["']([^"']+\.(?:jpg|jpeg|png|webp)(?:\?[^"']*)?)["']/gi)){
+    try{
+      const u=new URL(decodeHtml(m[1]),base).toString();
+      if(!out.includes(u))out.push(u);
+    }catch{}
   }
-  if(!out.length)throw new Error("Sykes inventory loaded but no motorcycle records could be parsed from the current page format.");
-  return finalise(connector,out);
+  return out.filter(x=>!/logo|icon|sprite|avatar|cookie/i.test(x)).slice(0,12);
+}
+function sykesDetailUrls(html:string,base:string){
+  const out:string[]=[];
+  for(const m of String(html||"").matchAll(/href=["']([^"']*\/inventory\/\d+\/[^"'?#]+[^"']*)["']/gi)){
+    try{
+      const u=new URL(decodeHtml(m[1]),base).toString();
+      if(!out.includes(u))out.push(u);
+    }catch{}
+  }
+  return out;
+}
+function parseSykesDetailHtml(html:string,url:string){
+  const text=htmlText(html);
+  const title=
+    decodeHtml((html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i)||[])[1]||"").replace(/<[^>]+>/g," ").trim() ||
+    decodeHtml((html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)||[])[1]||"").replace(/\|.*$/,"").trim();
+  const priceMatch=text.match(/(?:Price:\s*)?£\s*([\d,]+(?:\.\d+)?)/i);
+  const stockCandidates=[...text.matchAll(/\b(\d{4,7})\b/g)].map(m=>m[1]);
+  const yearMatch=text.match(/\b(20\d{2})\b/);
+  const conditionMatch=text.match(/\b(New|Pre-owned|Used)\b/i);
+  const mileageMatch=text.match(/\b([\d,]+)\s*(?:mi|miles)\b/i);
+  const vinMatch=text.match(/\b([A-HJ-NPR-Z0-9]{17})\b/);
+  const stock=stockCandidates.find(x=>x!==yearMatch?.[1] && x!==mileageMatch?.[1]?.replace(/,/g,""))||"";
+  const make="Harley-Davidson";
+  const mv=sykesModel(title);
+  if(!priceMatch||!stock||!mv.model)return null;
+
+  let colour:any=null;
+  const colourMatch=text.match(/Harley-Davidson®?\s+(?:Cruiser|Touring|Adventure Touring|Sport|CVO|Softail|Sportster)?\s*(?:New|Pre-owned|Used)\s+20\d{2}\s+([^£\n]{3,80}?)(?:Book test ride|Reserve This Bike|Finance|Request details|01825)/i);
+  if(colourMatch)colour=clean(colourMatch[1]);
+
+  return {
+    source_stock_id:stock,
+    source_key:stock,
+    source_url:url,
+    source_domain:"sykeshd.com",
+    seller_name:"Sykes Harley-Davidson",
+    seller_phone:"01825 872003",
+    seller_address:"Holmes Hill, Nr Lewes, BN8 6JA",
+    make,
+    model:mv.model,
+    variant:mv.variant,
+    year:yearMatch?Number(yearMatch[1]):null,
+    mileage:mileageMatch?Number(mileageMatch[1].replace(/,/g,"")):(conditionMatch&&/^New$/i.test(conditionMatch[1])?0:null),
+    colour:colour||null,
+    registration:null,
+    source_advertised_price_gbp:Number(priceMatch[1].replace(/,/g,"")),
+    description_original:text.slice(0,2500),
+    specification:{condition:conditionMatch?.[1]||null,vin:vinMatch?.[1]||null,source:"Sykes Harley-Davidson"},
+    source_image_urls:attrImages(html,url),
+    raw_data:{title,condition:conditionMatch?.[1]||null,vin:vinMatch?.[1]||null}
+  };
+}
+async function fetchDirect(url:string){
+  const r=await fetch(url,{redirect:"follow",headers:{
+    "User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/154 Safari/537.36",
+    "Accept":"text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language":"en-GB,en;q=0.9"
+  }});
+  if(!r.ok)throw new Error("Source HTTP "+r.status);
+  return await r.text();
+}
+
+async function refreshSykes(connector:any){
+  const inventoryUrl=connector.results_url||"https://sykeshd.com/inventory";
+  let indexHtml="";
+  try{indexHtml=await fetchDirect(inventoryUrl);}catch{}
+  let urls=indexHtml?sykesDetailUrls(indexHtml,inventoryUrl):[];
+
+  if(!urls.length){
+    try{
+      const md=await fetchReader(inventoryUrl);
+      for(const m of md.matchAll(/\[[^\]]+\]\((https?:\/\/sykeshd\.com\/inventory\/\d+\/[^)\s]+)\)/g)){
+        if(!urls.includes(m[1]))urls.push(m[1]);
+      }
+    }catch{}
+  }
+
+  // If the first inventory page exposes pagination, collect detail links from subsequent pages.
+  for(let page=2;page<=10 && urls.length<100;page++){
+    try{
+      const u=new URL(inventoryUrl);u.searchParams.set("page",String(page));
+      const html=await fetchDirect(u.toString());
+      const pageUrls=sykesDetailUrls(html,u.toString());
+      let added=0;
+      for(const x of pageUrls){if(!urls.includes(x)){urls.push(x);added++;}}
+      if(!added)break;
+    }catch{break;}
+  }
+
+  urls=[...new Set(urls)].slice(0,100);
+  const out:any[]=[];
+  for(const url of urls){
+    try{
+      const html=await fetchDirect(url);
+      const item=parseSykesDetailHtml(html,url);
+      if(item)out.push(item);
+    }catch{}
+  }
+
+  if(!out.length){
+    // Final fallback: parse the public inventory text directly.
+    try{
+      const md=await fetchReader(inventoryUrl);
+      out.push(...parseSykes(md,inventoryUrl));
+    }catch{}
+  }
+
+  const unique=[...new Map(out.map((x:any)=>[String(x.source_stock_id),x])).values()];
+  if(!unique.length)throw new Error("Sykes source is reachable but no complete motorcycle records could be extracted.");
+  return finalise(connector,unique);
 }
 async function refreshVmoto(connector:any){
   const home=await fetchReader(connector.results_url||"https://vmoto.co.uk/");
