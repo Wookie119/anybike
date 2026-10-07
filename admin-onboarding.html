@@ -256,7 +256,11 @@ function render(){
       '<td><div class="actions">'+
         (r.has_profile?'<a class="btn dark" href="admin-customers.html?v=20261007-3&customer='+encodeURIComponent(r.user_id)+'&from=onboarding">Customer 360</a>':'')+
         '<button class="btn" '+(canHelp?'':'disabled')+' onclick="openSetupHelp(\''+r.user_id+'\')">Send setup help</button>'+
-      '</div><div class="status-line" id="action-'+r.user_id+'">'+(canHelp?"":"Waiting for customer to confirm email before in-app setup help can be sent")+'</div></td>'+
+      '</div><div class="status-line" id="action-'+r.user_id+'">'+
+        (r.last_reminder_at
+          ? 'Last setup request sent: '+esc(new Date(r.last_reminder_at).toLocaleString("en-GB"))+' · '+Number(r.reminder_count||0)+' sent'
+          : (canHelp?'No setup request sent yet':'Waiting for customer to confirm email before setup help can be sent'))+
+      '</div></td>'+
     '</tr>';
   }).join("")+'</tbody></table>';
 
@@ -405,7 +409,7 @@ async function sendSetupHelp(){
   closeSetupHelp();
   const status=document.getElementById("action-"+userId);
   if(status){
-    status.innerHTML=(emailSent?'✓ Email + My AnyBike sent':'✓ My AnyBike message sent'+(emailError?' · Email failed: '+esc(emailError):''))+
+    status.innerHTML=(emailSent?'✓ Email + My AnyBike sent just now':'✓ My AnyBike message sent just now'+(emailError?' · Email failed: '+esc(emailError):''))+
       (item?.thread_id?' · <a href="admin-message-centre.html?thread='+Number(item.thread_id)+'" style="color:#fff;text-decoration:underline">Open conversation</a>':'');
   }
   btn.disabled=false;btn.textContent="Send by Email + My AnyBike";
