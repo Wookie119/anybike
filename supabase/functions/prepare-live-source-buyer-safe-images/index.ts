@@ -44,8 +44,21 @@ export default {
     const publicKeyResolved=publicKey;
     const targetSafeCount=Math.max(1,Math.min(8,Number(body.target_safe_count||6)));
 
-    let realImages=(Array.isArray(item.source_image_urls)?item.source_image_urls:[])
-      .filter((u:any)=>/\/api\/Image\/GetImg\?imgId=/i.test(String(u)));
+    const uniqueByBmwImageId=(values:any[])=>{
+      const out:string[]=[];const seen=new Set<string>();
+      for(const raw of values||[]){
+        try{
+          const u=new URL(String(raw||""),"https://approvedused.bmw-motorrad.co.uk");
+          const id=u.searchParams.get("imgId");
+          if(!id||seen.has(id))continue;
+          seen.add(id);
+          out.push(new URL("/api/Image/GetImg?imgId="+encodeURIComponent(id),u.origin).toString());
+        }catch{}
+      }
+      return out;
+    };
+    let realImages=uniqueByBmwImageId((Array.isArray(item.source_image_urls)?item.source_image_urls:[])
+      .filter((u:any)=>/\/api\/Image\/GetImg\?imgId=/i.test(String(u))));
 
     if(realImages.length<targetSafeCount && Number(item.connector_id)===1 && supabaseUrl && publicKeyResolved){
       try{
@@ -63,8 +76,8 @@ export default {
           .select("id,connector_id,source_stock_id,source_status,source_image_urls")
           .eq("id",itemId).maybeSingle();
         if(!refreshed.error&&refreshed.data)item=refreshed.data;
-        realImages=(Array.isArray(item.source_image_urls)?item.source_image_urls:[])
-          .filter((u:any)=>/\/api\/Image\/GetImg\?imgId=/i.test(String(u)));
+        realImages=uniqueByBmwImageId((Array.isArray(item.source_image_urls)?item.source_image_urls:[])
+          .filter((u:any)=>/\/api\/Image\/GetImg\?imgId=/i.test(String(u))));
       }catch{}
     }
 
