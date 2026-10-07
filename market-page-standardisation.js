@@ -102,9 +102,26 @@ function fixFlag(iso,name){
 }
 function fixHeroAlt(name){const img=document.querySelector(".hero-bike,.hero-media img");if(img)img.alt="Motorcycle sourcing and export support for buyers in "+name;}
 function hasRealLocalBlock(){
-  const spans=[...document.querySelectorAll(".port-grid .area-list span")].map(x=>x.textContent.trim()).filter(Boolean);
-  if(!spans.length)return false;
-  return spans.filter(s=>!GENERIC_TOKENS.has(s.toLowerCase())).length>=3;
+  const cards=[...document.querySelectorAll(".port-grid .port-card,.port-grid article")];
+  let real=0;
+  cards.forEach(function(card){
+    const heading=(card.querySelector("h3")?.textContent||"").trim().toLowerCase();
+    const body=(card.textContent||"").toLowerCase();
+    const ukHandover=
+      heading.includes("uk handover") ||
+      heading.includes("uk collection") ||
+      heading.includes("shipping / delivery options") ||
+      (body.includes("southampton") && body.includes("tilbury") && body.includes("bristol"));
+    if(ukHandover)return;
+
+    const local=[...card.querySelectorAll(".area-list span,.area-list a")]
+      .map(x=>x.textContent.replace(/↗/g,"").trim())
+      .filter(Boolean)
+      .filter(s=>!GENERIC_TOKENS.has(s.toLowerCase()));
+
+    real+=local.length;
+  });
+  return real>=3;
 }
 function localSection(meta,name){
   const cities=(meta.cities||[]).slice(0,8);
@@ -132,11 +149,28 @@ function localSection(meta,name){
 }
 function installLocalSection(meta,name){
   if(!meta||hasRealLocalBlock())return;
-  const existingGrid=document.querySelector(".port-grid");
-  if(existingGrid){
-    const section=existingGrid.closest(".section");
+  if(document.querySelector(".anybike-market-local-standard"))return;
+
+  const grids=[...document.querySelectorAll(".port-grid")];
+  const destinationGrid=grids.find(function(grid){
+    const text=(grid.textContent||"").toLowerCase();
+    return !(text.includes("southampton") && text.includes("tilbury") && text.includes("bristol"));
+  });
+
+  if(destinationGrid){
+    const section=destinationGrid.closest(".section");
     if(section){section.outerHTML=localSection(meta,name);return;}
   }
+
+  const handoverSection=[...document.querySelectorAll(".section")].find(function(section){
+    const text=(section.textContent||"").toLowerCase();
+    return text.includes("uk handover") || (text.includes("southampton") && text.includes("tilbury") && text.includes("bristol"));
+  });
+  if(handoverSection){
+    handoverSection.insertAdjacentHTML("beforebegin",localSection(meta,name));
+    return;
+  }
+
   const faq=document.querySelector(".faq");
   const faqSection=faq?.closest(".section");
   if(faqSection){faqSection.insertAdjacentHTML("beforebegin",localSection(meta,name));return;}
