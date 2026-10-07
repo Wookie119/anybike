@@ -127,8 +127,9 @@ function localSection(meta,name){
   const cities=(meta.cities||[]).slice(0,8);
   const regions=(meta.regions||[]).filter(x=>!cities.includes(x)).slice(0,6);
   const ports=(meta.ports||[]).slice(0,3);
-  const chips=arr=>arr.map(x=>'<span>'+esc(x)+'</span>').join("");
-  const portChips=ports.map(x=>'<a href="/freight-forwarders.html?port='+encodeURIComponent(x)+'" style="display:inline-flex;padding:7px 10px;border:1px solid rgba(255,255,255,.10);border-radius:999px;background:#1a1a1a;color:#ddd;font-size:12px;font-weight:850;text-decoration:none">'+esc(x)+'</a>').join("");
+  const mapChip=(label,query)=>'<a href="https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(query)+'" target="_blank" rel="noopener noreferrer" title="View '+esc(label)+' on a map">'+esc(label)+' ↗</a>';
+  const chips=arr=>arr.map(x=>mapChip(x,x+', '+name)).join("");
+  const portChips=ports.map(x=>'<a href="/freight-forwarders.html?port='+encodeURIComponent(x)+'" title="Find shipping information for '+esc(x)+'">'+esc(x)+' →</a>').join("");
   const gatewayText=meta.landlocked
     ? esc(name)+' is landlocked, so international motorcycle freight normally continues overland from a port or freight gateway in a neighbouring country. Your freight forwarder should confirm the exact sea/road route, customs transit and final delivery point before purchase.'
     : ports.length
@@ -144,7 +145,12 @@ function localSection(meta,name){
       '<article class="port-card"><h3>Key cities &amp; buyer areas</h3><p>Useful destination context for sourcing, freight planning and onward delivery.</p><div class="area-list">'+(chips(cities)||'<span>'+esc(name)+'</span>')+'</div></article>'+
       (regions.length?'<article class="port-card"><h3>Regions &amp; surrounding areas</h3><p>Regional context can help the freight forwarder plan onward delivery beyond the principal cities.</p><div class="area-list">'+chips(regions)+'</div></article>':'')+
       '<article class="port-card"><h3>'+(meta.landlocked?'Landlocked freight route':'Ports &amp; freight gateways')+'</h3><p>'+gatewayText+'</p><div class="area-list anybike-gateway-list">'+gatewayChips+'</div></article>'+
-      '<article class="port-card"><h3>UK Port Delivery</h3><p>AnyBike can arrange Delivery to the agreed UK port, freight forwarder or approved shipping point for your deal.</p><div class="area-list"><span>UK port delivery</span><span>Freight forwarder</span><span>Approved shipping point</span><span>Deal documents</span></div></article>'+
+      '<article class="port-card"><h3>UK Port Delivery</h3><p>AnyBike can arrange delivery to the agreed UK port, freight forwarder or approved shipping point for your deal.</p><div class="area-list">'+
+        '<a href="/export-services.html">UK Port Delivery →</a>'+
+        '<a href="/freight-forwarders.html">Freight Forwarder →</a>'+
+        '<a href="/freight-forwarders.html">Approved Shipping Point →</a>'+
+        '<a href="/export-services.html">Deal Documents →</a>'+
+      '</div></article>'+
     '</div></div></section>';
 }
 function installLocalSection(meta,name){
@@ -181,7 +187,7 @@ function styleEnhancements(){
   if(document.getElementById("anybike-market-standard-css"))return;
   const s=document.createElement("style");
   s.id="anybike-market-standard-css";
-  s.textContent='.anybike-market-local-standard .port-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.anybike-market-local-standard .port-card{min-height:0}.anybike-market-local-standard .anybike-gateway-list{display:flex;flex-wrap:wrap;gap:7px}@media(min-width:1450px){.anybike-market-local-standard .port-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}@media(max-width:760px){.anybike-market-local-standard .port-grid{grid-template-columns:1fr}}';
+  s.textContent='.anybike-market-local-standard .port-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.anybike-market-local-standard .port-card{min-height:0}.anybike-market-local-standard .anybike-gateway-list{display:flex;flex-wrap:wrap;gap:7px}.anybike-market-local-standard .area-list a{display:inline-flex;align-items:center;padding:7px 10px;border:1px solid rgba(255,255,255,.10);border-radius:999px;background:#1a1a1a;color:#ddd;font-size:12px;font-weight:850;text-decoration:none;transition:.16s ease}.anybike-market-local-standard .area-list a:hover{border-color:#ed1c24;transform:translateY(-1px)}@media(min-width:1450px){.anybike-market-local-standard .port-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}@media(max-width:760px){.anybike-market-local-standard .port-grid{grid-template-columns:1fr}}';
   document.head.appendChild(s);
 }
 function run(){
