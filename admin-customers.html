@@ -454,6 +454,15 @@ textarea{width:100%;min-height:120px}
 .admin-customer-form input,.admin-customer-form select,.admin-customer-form textarea{width:100%;background:#090909;color:#fff;border:1px solid #333;border-radius:10px;padding:10px}
 .confirmation-output{width:100%;min-height:150px;resize:vertical;background:#090909;color:#fff;border:1px solid #333;border-radius:10px;padding:11px;line-height:1.45}
 .modal-row-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:14px}
+.profile-required-action{border:2px solid #ed1c24;border-radius:14px;background:linear-gradient(135deg,rgba(237,28,36,.10),#111 70%);padding:12px 14px;margin:0 0 14px}
+.profile-required-action h3{margin:3px 0 4px;font-size:18px}.profile-required-action p{margin:0;color:#aaa;font-size:12px}
+.required-field-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-top:10px}
+.required-field{display:flex;align-items:center;justify-content:space-between;gap:8px;border:1px solid #333;border-radius:9px;background:#0d0d0d;padding:8px 9px;font-size:11px}
+.required-field strong{font-size:11px}.required-field.ok{border-color:rgba(54,211,126,.4)}.required-field.missing{border-color:rgba(237,28,36,.55);background:rgba(237,28,36,.06)}
+.required-field .state-ok{color:#65e9a0}.required-field .state-missing{color:#ff8d99}
+.profile-required-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}.profile-required-actions button,.profile-required-actions a{display:inline-flex;align-items:center;justify-content:center;min-height:36px;padding:0 12px;border-radius:9px;border:1px solid #444;background:#222;color:#fff;text-decoration:none;font-weight:900;font-size:11px;cursor:pointer}.profile-required-actions .primary{background:#ed1c24;border-color:#ed1c24}
+@media(max-width:900px){.required-field-list{grid-template-columns:1fr 1fr}}
+@media(max-width:620px){.required-field-list{grid-template-columns:1fr}}
 @media(max-width:1100px){.intel-columns{grid-template-columns:1fr}}
 @media(max-width:900px){.intel-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:620px){.intel-summary-grid{grid-template-columns:1fr}}
@@ -791,12 +800,69 @@ async function copyConfirmationLinkOnly(){
   try{await navigator.clipboard.writeText(generatedConfirmationLink);}catch{}
 }
 
+
+function customerTypeDisplay(value){
+  const labels={
+    uk_private:"UK Based Private User",
+    uk_dealer:"UK Based Motorcycle Dealer",
+    uk_distributor:"UK Motorcycle Distributor",
+    uk_manufacturer:"UK Motorcycle Manufacturer",
+    uk_partner:"UK Partner",
+    eu_dealer:"European Motorcycle Dealer",
+    intl_dealer:"International Motorcycle Dealer",
+    global_manufacturer:"Global Manufacturer"
+  };
+  return labels[String(value||"")]||"Not classified";
+}
+function customerIntentDisplay(value){
+  const labels={
+    buy:"Buy motorcycles",
+    dealer_trade_supply:"Trade / sell motorcycles",
+    buy_supply:"Buy and trade / sell",
+    dealer_underwrite:"Part-exchange underwrite",
+    trade_underwriter:"Trade opportunity underwriter",
+    vmoto_retail:"VMoto retail",
+    new_uk_retail:"New UK retail interest",
+    partnership:"Partnership / integration",
+    freight_logistics:"Freight / logistics"
+  };
+  return labels[String(value||"")]||"Not yet clear";
+}
+function customerRequiredActionHtml(c){
+  const onboarding=customerOnboardingMap[String(c.customerId)]||{};
+  const confirmed=Boolean(onboarding.email_confirmed_at);
+  const checks=[
+    ["Name",Boolean(String(c.name||"").trim() && c.name!=="Unknown Customer")],
+    ["Email confirmation",confirmed],
+    ["Phone / WhatsApp",Boolean(String(c.phone||"").trim())],
+    ["Country",Boolean(String(c.country||"").trim())],
+    ["Customer type",Boolean(String(onboarding.customer_type||"").trim())],
+    ["What they want to do",Boolean(String(onboarding.customer_intent||"").trim() && onboarding.customer_intent!=="unclear")]
+  ];
+  const missing=checks.filter(x=>!x[1]).map(x=>x[0]);
+  const cards=checks.map(x=>
+    '<div class="required-field '+(x[1]?"ok":"missing")+'"><strong>'+safe(x[0])+'</strong><span class="'+(x[1]?"state-ok":"state-missing")+'">'+(x[1]?"✓ Complete":"Required")+'</span></div>'
+  ).join("");
+  const actions=[
+    '<button type="button" onclick="openEditCustomer(\''+c.customerId+'\')">Edit customer</button>',
+    !confirmed ? '<button type="button" class="primary" onclick="generateConfirmationText(\''+c.customerId+'\')">Generate confirmation text</button>' : '',
+    '<a href="admin-onboarding.html?customer='+encodeURIComponent(c.customerId)+'">Open Onboarding →</a>'
+  ].join("");
+  return '<div class="profile-required-action">'+
+    '<div class="eyebrow">Your next action</div>'+
+    '<h3>'+(missing.length ? 'Complete '+missing.join(", ") : 'Core customer details complete')+'</h3>'+
+    '<p>'+(missing.length ? 'These are the minimum customer details AnyBike still needs before this account can move forward.' : 'The core customer record is complete. Continue with the appropriate onboarding route.')+'</p>'+
+    '<div class="required-field-list">'+cards+'</div>'+
+    '<div class="profile-required-actions">'+actions+'</div>'+
+  '</div>';
+}
+
 function customerAttention(c){
   const onboarding=customerOnboardingMap[String(c.customerId)]||null;
   if(onboarding){
     const stage=String(onboarding.onboarding_stage||"");
     if(onboarding.email_confirmed_at===null){
-      return {kind:"setup",label:"Email confirmation required",title:"Waiting for email confirmation",detail:"This customer has registered but has not confirmed their email. Do not send in-app setup help yet. Check their account from Onboarding and wait for confirmation.",onboarding:true};
+      return {kind:"setup",label:"Email confirmation required",title:"Send this customer an email-confirmation link",detail:"Their email is not confirmed. Generate a confirmation text and send it by SMS or WhatsApp, then complete any other required profile fields.",onboarding:true};
     }
     if(!onboarding.has_profile){
       return {kind:"setup",label:"Profile recovery required",title:"Customer profile needs recovering",detail:"The email is confirmed but no usable customer profile exists yet. Open Onboarding to resolve the profile before progressing them.",onboarding:true};
@@ -2737,6 +2803,7 @@ function renderCustomers(){
               ${shouldShowBuyerSetupReview(c) ? buyerSetupReviewHtml(c) : ""}
 
               <div class="tab-panel active" data-panel="profile">
+                ${customerRequiredActionHtml(c)}
                 <h3>Profile Overview</h3>
                 <div class="detail-grid">
                   <div class="panel"><span>Name</span><strong>${safe(c.name)}</strong></div>
@@ -2746,8 +2813,10 @@ function renderCustomers(){
                   <div class="panel"><span>City / Region</span><strong>${safe(c.city)} ${safe(c.region)}</strong></div>
                   <div class="panel"><span>First Seen</span><strong>${c.firstSeen?new Date(c.firstSeen).toLocaleString("en-GB"):"-"}</strong></div>
                   <div class="panel"><span>Latest Bike Interest</span><strong>${safe(b.make)} ${safe(b.model)}</strong></div>
-                  <div class="panel"><span>Customer Type</span><strong>${type}</strong></div>
+                  <div class="panel"><span>Customer Type</span><strong>${customerTypeDisplay(customerOnboardingMap[String(c.customerId)]?.customer_type)}</strong></div>
+                  <div class="panel"><span>Intent</span><strong>${customerIntentDisplay(customerOnboardingMap[String(c.customerId)]?.customer_intent)}</strong></div>
                 </div>
+              </div>
 
               <div class="tab-panel" data-panel="intelligence">
                 <div class="note-box">Open this customer to load source, market and browsing intelligence.</div>
