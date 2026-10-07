@@ -143,7 +143,7 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
 
       <section class="batch-panel">
         <div class="batch-grid" style="grid-template-columns:1fr 1fr">
-          <div class="field"><label>Buyer</label><select id="buyerSelect"><option value="">Choose buyer…</option></select></div>
+          <div class="field"><label>Buyer</label><select id="buyerSelect"><option value="">Choose buyer…</option></select><div class="small" style="margin-top:6px">Only customers ticked <strong>Show in Live Source Hub</strong> in Customer 360 appear here.</div></div>
           <div class="field"><label>Buyer request</label><select id="requestSelect"><option value="">Select buyer first</option></select></div>
         </div>
         <div class="small" style="margin-top:8px">UK delivery is set per motorcycle below because collection cost can vary by dealer/location.</div>
@@ -1308,7 +1308,13 @@ async function workBuyerFromQueue(buyerId){
   document.getElementById("buyerSelect")?.scrollIntoView({behavior:"smooth",block:"center"});
 }
 async function loadBuyers(){
-  const {data}=await sb().from("global_buyer_network").select("id,business_name,contact_name,email,archived_at").is("archived_at",null).order("created_at",{ascending:false}).limit(200);
+  const {data,error}=await sb().rpc("admin_get_live_source_buyers_v1");
+  if(error){
+    buyers=[];
+    document.getElementById("buyerSelect").innerHTML='<option value="">Could not load enabled buyers</option>';
+    console.error("Live Source Hub buyers could not be loaded",error);
+    return;
+  }
   buyers=data||[];
   const queueByBuyer=new Map((buyerSourcingQueue||[]).map(x=>[Number(x.buyer_id),x]));
   buyers.sort((a,b)=>{
