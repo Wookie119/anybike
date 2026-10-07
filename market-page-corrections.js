@@ -338,6 +338,7 @@
   }
 
   function replaceShipping(market){
+    if(document.querySelector(".anybike-market-local-standard") || window.AnyBikeMarketStandardisation) return;
     let grid=document.querySelector(".port-grid, .shipping-grid");
     let section=grid?.closest("section")||null;
 
