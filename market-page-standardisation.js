@@ -138,6 +138,71 @@ for(const [iso,override] of Object.entries(MARKET_GAPS)){
   if(override.routeNote) MARKET_DATA[iso].routeNote=override.routeNote;
 }
 
+const LOCALITY_FIXES={
+  AD:["Andorra la Vella","Escaldes-Engordany","Encamp","La Massana"],
+  AG:["St John's","All Saints","Liberta","English Harbour"],
+  AW:["Oranjestad","San Nicolas","Noord"],
+  AT:["Vienna","Graz","Linz","Salzburg","Innsbruck"],
+  BH:["Manama","Riffa","Muharraq","Hamad Town"],
+  BY:["Minsk","Gomel","Brest","Grodno","Vitebsk"],
+  BM:["Hamilton","St George's","Somerset Village"],
+  BT:["Thimphu","Phuntsholing","Paro","Punakha"],
+  BI:["Bujumbura","Gitega","Ngozi","Rumonge"],
+  KY:["George Town","West Bay","Bodden Town"],
+  CW:["Willemstad","Barber","Westpunt"],
+  DJ:["Djibouti City","Ali Sabieh","Tadjoura"],
+  SV:["San Salvador","Santa Ana","San Miguel"],
+  FK:["Stanley","Goose Green","Port Howard"],
+  PF:["Papeete","Faaa","Punaauia","Mahina"],
+  GD:["St George's","Gouyave","Grenville"],
+  GU:["Hagåtña","Dededo","Tamuning"],
+  GW:["Bissau","Bafatá","Gabú"],
+  HK:["Hong Kong Island","Kowloon","Sha Tin","Tuen Mun"],
+  HU:["Budapest","Debrecen","Szeged","Miskolc","Pécs","Győr"],
+  JM:["Kingston","Montego Bay","Spanish Town","Mandeville"],
+  JO:["Amman","Zarqa","Irbid","Aqaba"],
+  KI:["South Tarawa","Betio","Bikenibeu"],
+  KG:["Bishkek","Osh","Jalal-Abad","Karakol"],
+  LA:["Vientiane","Pakse","Savannakhet","Luang Prabang"],
+  LV:["Riga","Daugavpils","Liepāja","Jelgava"],
+  LB:["Beirut","Tripoli","Sidon","Zahle"],
+  LS:["Maseru","Teyateyaneng","Mafeteng","Hlotse"],
+  LI:["Vaduz","Schaan","Triesen","Balzers"],
+  LU:["Luxembourg City","Esch-sur-Alzette","Differdange","Dudelange"],
+  MO:["Macau Peninsula","Taipa","Coloane"],
+  MV:["Malé","Addu City","Fuvahmulah"],
+  MT:["Valletta","Birkirkara","Sliema","St Julian's"],
+  MH:["Majuro","Ebeye","Jaluit"],
+  MU:["Port Louis","Beau Bassin-Rose Hill","Vacoas-Phoenix","Curepipe"],
+  MD:["Chișinău","Bălți","Cahul","Orhei"],
+  MC:["Monaco-Ville","Monte Carlo","La Condamine","Fontvieille"],
+  ME:["Podgorica","Nikšić","Budva","Bar"],
+  NP:["Kathmandu","Pokhara","Lalitpur","Biratnagar"],
+  NI:["Managua","León","Granada","Masaya"],
+  MK:["Skopje","Bitola","Kumanovo","Ohrid"],
+  PW:["Koror","Ngerulmud","Airai"],
+  PS:["Ramallah","Bethlehem","Nablus","Hebron"],
+  RW:["Kigali","Huye","Musanze","Rubavu"],
+  KN:["Basseterre","Sandy Point Town","Charlestown"],
+  LC:["Castries","Gros Islet","Vieux Fort"],
+  VC:["Kingstown","Georgetown","Barrouallie"],
+  WS:["Apia","Vaitele","Faleula"],
+  SM:["City of San Marino","Serravalle","Borgo Maggiore"],
+  ST:["São Tomé","Santo António","Neves"],
+  SC:["Victoria","Beau Vallon","Anse Royale"],
+  SG:["Central Singapore","Jurong","Woodlands","Tampines"],
+  SK:["Bratislava","Košice","Prešov","Žilina","Nitra"],
+  TJ:["Dushanbe","Khujand","Kulob","Bokhtar"],
+  TO:["Nuku'alofa","Neiafu","Pangai"],
+  TC:["Providenciales","Cockburn Town","Blue Hills"],
+  TV:["Vaiaku","Savave","Tanrake"]
+};
+
+for(const [iso,cities] of Object.entries(LOCALITY_FIXES)){
+  if(!MARKET_DATA[iso])MARKET_DATA[iso]={country:"",cities:[],regions:[],ports:[],landlocked:false};
+  MARKET_DATA[iso].cities=cities;
+}
+
 const SLUG_TO_ISO={"usa":"US","uae":"AE","turkiye":"TR","ivory-coast":"CI","democratic-republic-of-the-congo":"CD","republic-of-the-congo":"CG","south-korea":"KR","north-korea":"KP","laos":"LA","taiwan":"TW","palestine":"PS","reunion":"RE","curacao":"CW","saint-barthelemy":"BL","saint-martin":"MF","sint-maarten":"SX","us-virgin-islands":"VI","british-virgin-islands":"VG","turks-and-caicos-islands":"TC","falkland-islands":"FK","french-guiana":"GF","french-polynesia":"PF","northern-mariana-islands":"MP","cabo-verde":"CV","hong-kong":"HK","macau":"MO","puerto-rico":"PR","guam":"GU","bermuda":"BM","cayman-islands":"KY","new-caledonia":"NC","kosovo":"XK","uganda":"UG","italy":"IT","aland":"AX","vatican":"VA","france":"RE","antarctica":"AQ","zambia":"ZM","namibia":"NA","japan":"JP","serbia":"RS","bosnia-and-herzegovina":"BA","isle-of-man":"IM","san-marino":"SM","aruba":"AW","liechtenstein":"LI","gibraltar":"GI","eswatini":"SZ","united-kingdom":"GB","svalbard-and-jan-mayen-islands":"SJ","luxembourg":"LU","georgia":"GE","portugal":"PT","sudan":"SD","federated-states-of-micronesia":"FM","marshall-islands":"MH","tuvalu":"TV","palau":"PW","western-sahara":"EH","monaco":"MC","kiribati":"KI","comoros":"KM","macau-s-a-r":"MO","andorra":"AD","united-states-of-america":"US","pakistan":"PK","nigeria":"NG","china":"CN","india":"IN","uruguay":"UY","venezuela":"VE","trinidad-and-tobago":"TT","togo":"TG","tunisia":"TN","yemen":"YE","ukraine":"UA","turkmenistan":"TM","uzbekistan":"UZ","vietnam":"VN","zimbabwe":"ZW","cameroon":"CM","turkey":"TR","rwanda":"RW","suriname":"SR","spain":"ES","niger":"NE","romania":"RO","sweden":"SE","thailand":"TH","peru":"PE","paraguay":"PY","senegal":"SN","saudi-arabia":"SA","south-sudan":"SS","netherlands":"NL","norway":"NO","slovenia":"SI","slovakia":"SK","qatar":"QA","south-africa":"ZA","mozambique":"MZ","papua-new-guinea":"PG","panama":"PA","morocco":"MA","montenegro":"ME","russia":"RU","sri-lanka":"LK","philippines":"PH","mexico":"MX","poland":"PL","mongolia":"MN","tanzania":"TZ","switzerland":"CH","indonesia":"ID","kenya":"KE","malaysia":"MY","madagascar":"MG","ecuador":"EC","costa-rica":"CR","cuba":"CU","dominican-republic":"DO","colombia":"CO","dominica":"DM","congo-kinshasa":"CD","chad":"TD","egypt":"EG","eritrea":"ER","djibouti":"DJ","germany":"DE","malawi":"MW","guatemala":"GT","the-gambia":"GM","congo-brazzaville":"CG","gabon":"GA","mali":"ML","chile":"CL","greenland":"GL","mauritania":"MR","north-macedonia":"MK","libya":"LY","iraq":"IQ","ethiopia":"ET","finland":"FI","kazakhstan":"KZ","iran":"IR","guinea":"GN","brazil":"BR","canada":"CA","central-african-republic":"CF","argentina":"AR","bolivia":"BO","afghanistan":"AF","cambodia":"KH","angola":"AO","barbados":"BB","algeria":"DZ","benin":"BJ","belarus":"BY","bangladesh":"BD","botswana":"BW","australia":"AU","burkina-faso":"BF","myanmar":"MM","burundi":"BI","american-samoa":"AS","saint-vincent-and-the-grenadines":"VC","saint-lucia":"LC","saint-kitts-and-nevis":"KN","mauritius":"MU","grenada":"GD","bahrain":"BH","the-bahamas":"BS","antigua-and-barbuda":"AG","new-zealand":"NZ","united-arab-emirates":"AE","east-timor":"TL","vanuatu":"VU","honduras":"HN","guyana":"GY","iceland":"IS","haiti":"HT","tajikistan":"TJ","nicaragua":"NI","sierra-leone":"SL","nepal":"NP","solomon-islands":"SB","moldova":"MD","somalia":"SO","oman":"OM","guinea-bissau":"GW","jordan":"JO","lithuania":"LT","latvia":"LV","kyrgyzstan":"KG","lesotho":"LS","el-salvador":"SV","jamaica":"JM","equatorial-guinea":"GQ","croatia":"HR","estonia":"EE","fiji":"FJ","greece":"GR","lebanon":"LB","brunei":"BN","belize":"BZ","albania":"AL","armenia":"AM","azerbaijan":"AZ","bulgaria":"BG","bhutan":"BT","tonga":"TO","seychelles":"SC","sao-tome-and-principe":"ST","samoa":"WS","malta":"MT","maldives":"MV","israel":"IL","cape-verde":"CV","cyprus":"CY","hungary":"HU","syria":"SY","ireland":"IE","liberia":"LR","czechia":"CZ","kuwait":"KW","ghana":"GH","denmark":"DK","belgium":"BE","austria":"AT","singapore":"SG","hong-kong-s-a-r":"HK"};
 Object.assign(SLUG_TO_ISO,{
   "anguilla":"AI","bahamas":"BS","czech-republic":"CZ","gambia":"GM","guadeloupe":"GP",
