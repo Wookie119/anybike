@@ -150,7 +150,10 @@ const GENERIC_TOKENS=new Set(["freight forwarder","shipping company","uk port","
 
 function esc(v){return String(v??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));}
 function currentSlug(){const m=location.pathname.match(/\/markets\/([^/]+)\.html/i);return m?m[1].toLowerCase():"";}
-function countryName(){return (document.querySelector(".country-line strong")?.textContent||"").trim()||currentSlug().replace(/-/g," ").replace(/\b\w/g,m=>m.toUpperCase());}
+function countryName(){
+  return (document.querySelector(".country-line strong,.country strong")?.textContent||"").trim() ||
+    currentSlug().replace(/-/g," ").replace(/\b\w/g,m=>m.toUpperCase());
+}
 function isoForPage(){
   const slug=currentSlug();
   if(SLUG_TO_ISO[slug])return SLUG_TO_ISO[slug];
@@ -162,20 +165,26 @@ function buyerPhrase(iso,name){const d=DEMONYM[iso];return d?d+" buyers":"buyers
 function regexEscape(s){return String(s).replace(/[.*+?^$()|[\]\\{}]/g,"\\$&");}
 function replaceEnglishBuyerCopy(iso,name){
   const phrase=buyerPhrase(iso,name), escaped=regexEscape(name);
-  document.querySelectorAll(".eyebrow,h1,h2,h3,p,small,span").forEach(el=>{
-    if(el.closest("script,style"))return;
-    let html=el.innerHTML;
-    const before=html;
-    html=html.replace(new RegExp("UK motorcycle sourcing for "+escaped+" buyers","gi"),"UK motorcycle sourcing for "+phrase);
-    html=html.replace(new RegExp("Why "+escaped+" buyers choose AnyBike","gi"),"Why "+phrase+" choose AnyBike");
-    html=html.replace(new RegExp(escaped+" buyers","gi"),phrase);
-    if(html!==before)el.innerHTML=html;
+  const walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);
+  const nodes=[];
+  let node;
+  while((node=walker.nextNode())){
+    const parent=node.parentElement;
+    if(!parent||/^(SCRIPT|STYLE|TEXTAREA|OPTION)$/i.test(parent.tagName))continue;
+    if(node.nodeValue && new RegExp(escaped+" buyers","i").test(node.nodeValue))nodes.push(node);
+  }
+  nodes.forEach(function(textNode){
+    textNode.nodeValue=textNode.nodeValue
+      .replace(new RegExp("UK motorcycle sourcing for "+escaped+" buyers","gi"),"UK motorcycle sourcing for "+phrase)
+      .replace(new RegExp("Why "+escaped+" buyers choose AnyBike","gi"),"Why "+phrase+" choose AnyBike")
+      .replace(new RegExp(escaped+" buyers","gi"),phrase);
   });
 }
 function fixFlag(iso,name){
   if(!iso)return;
-  const host=document.querySelector(".country-flag");
+  const host=document.querySelector(".country-flag,.flag");
   if(!host)return;
+  host.classList.add("country-flag");
   host.innerHTML='<img src="https://flagcdn.com/w160/'+iso.toLowerCase()+'.png" srcset="https://flagcdn.com/w320/'+iso.toLowerCase()+'.png 2x" alt="'+esc(name)+' flag" style="width:100%;height:100%;object-fit:cover;display:block">';
   host.setAttribute("aria-label",name+" flag");
   host.dataset.anybikeFlagReady="true";
@@ -272,8 +281,26 @@ function installLocalSection(meta,name){
   const faqSection=faq?.closest(".section");
   if(faqSection){faqSection.insertAdjacentHTML("beforebegin",localSection(meta,name));return;}
   const footer=document.querySelector("footer");
-  if(footer)footer.insertAdjacentHTML("beforebegin",localSection(meta,name));
+  if(footer){footer.insertAdjacentHTML("beforebegin",localSection(meta,name));return;}
+  const main=document.querySelector("main");
+  if(main){
+    const last=main.querySelector(":scope > section:last-of-type");
+    if(last)last.insertAdjacentHTML("beforebegin",localSection(meta,name));
+    else main.insertAdjacentHTML("beforeend",localSection(meta,name));
+  }
 }
+function removeLegacyShippingSections(){
+  if(!document.querySelector(".anybike-market-local-standard"))return;
+  const sections=[...document.querySelectorAll("section")];
+  sections.forEach(function(section){
+    if(section.classList.contains("anybike-market-local-standard"))return;
+    const headings=[...section.querySelectorAll("h2,h3")].map(x=>(x.textContent||"").trim());
+    if(headings.some(x=>/shipping \/ delivery options/i.test(x))){
+      section.remove();
+    }
+  });
+}
+
 function enhanceExistingLocalLinks(name,meta){
   document.querySelectorAll(".port-grid .port-card,.port-grid article").forEach(function(card){
     if(card.closest(".anybike-market-local-standard"))return;
@@ -307,6 +334,7 @@ function run(){
   fixFlag(iso,name);
   fixHeroAlt(name);
   installLocalSection(meta,name);
+  removeLegacyShippingSections();
   enhanceExistingLocalLinks(name,meta);
 }
 window.AnyBikeMarketStandardisation={run:run};
