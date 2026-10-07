@@ -185,7 +185,7 @@ function edgeErrorMessage(error,data){
   const raw=String(data?.error||error?.context?.body?.error||error?.message||"");
   const status=Number(error?.context?.status||error?.status||0);
   if(status===409 || /409|conflict|non-2xx/i.test(raw)){
-    return "This motorcycle could not produce another approved buyer-safe image. It has been marked for image attention.";
+    return "No additional approved buyer-safe image could be produced from the available source photos.";
   }
   return raw||"Image preparation could not complete.";
 }
@@ -716,8 +716,18 @@ async function queueAutomaticBuyerSafePreparation(){
   }
 
   const key="anybike-auto-buyer-safe-batch-"+currentBatchId;
-  if(sessionStorage.getItem(key)==="running")return;
-  sessionStorage.setItem(key,"running");
+  // Use a short-lived timestamp lock. A page refresh previously left the
+  // literal value "running" behind, which could strand this batch at 0%.
+  const previousLock=Number(sessionStorage.getItem(key)||0);
+  const lockAge=previousLock?Date.now()-previousLock:Infinity;
+  if(previousLock && lockAge<120000){
+    const alreadyReady=rows.filter(s=>Array.isArray(s.buyer_image_urls)&&s.buyer_image_urls.length>0).length;
+    setBuyerSafeProgress(alreadyReady,rows.length,
+      alreadyReady+" of "+rows.length+" selected motorcycles already have buyer-safe images · preparation still running…",
+      false);
+    return;
+  }
+  sessionStorage.setItem(key,String(Date.now()));
 
   const status=document.getElementById("prepareAllImagesStatus");
   if(status){
@@ -960,14 +970,27 @@ async function prepareBuyerSafeImages(scanId,liveSourceItemId){
     renderScans(true);
   }catch(e){
     const msg=edgeErrorMessage(e,null);
-    if(st){st.className="status bad";st.textContent=msg;}
-    if(topSt){topSt.className="status bad";topSt.textContent="Needs image attention";}
     const s=scanned.find(x=>Number(x.id)===Number(scanId));
-    if(s){
-      s.extraction=Object.assign({},s.extraction||{},{
-        buyer_safe_image_status:"attention",
-        buyer_safe_image_error:msg
-      });
+    const existingSafe=(s&&Array.isArray(s.buyer_image_urls))?s.buyer_image_urls.length:currentCount;
+    if(existingSafe>0){
+      const keepMsg=existingSafe+" approved buyer-safe image"+(existingSafe===1?"":"s")+" ready · no additional approved source photos found";
+      if(st){st.className="status good";st.textContent=keepMsg;}
+      if(topSt){topSt.className="status good";topSt.textContent=existingSafe+" buyer-safe photo"+(existingSafe===1?"":"s")+" ready";}
+      if(s){
+        s.extraction=Object.assign({},s.extraction||{},{
+          buyer_safe_image_status:"ready",
+          buyer_safe_image_error:null
+        });
+      }
+    }else{
+      if(st){st.className="status bad";st.textContent=msg;}
+      if(topSt){topSt.className="status bad";topSt.textContent="Needs image attention";}
+      if(s){
+        s.extraction=Object.assign({},s.extraction||{},{
+          buyer_safe_image_status:"attention",
+          buyer_safe_image_error:msg
+        });
+      }
     }
     buyerSafePreparationRunning=false;
     renderScans(true);
