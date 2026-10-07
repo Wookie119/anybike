@@ -1011,12 +1011,17 @@ async function refreshAssetCertified(connector:any,sourceLabel:string){
       const make=normaliseMake(namedMake||portalMake||attr(a,"Make")||sourceLabel.split(" ")[0]);
 
       let model="";
-      if(assetName){
-        model=assetName.replace(/^\s*(?:19\d{2}|20\d{2})\s+/,"");
-        if(make)model=model.replace(new RegExp("^"+String(make).replace(/[- ]/g,"[- ]?")+"\\s*","i"),"").trim();
+      const attrModel=clean(attr(a,"Model")||"");
+      if(/yamaha/i.test(sourceLabel) && attrModel){
+        model=normaliseYamahaModel(attrModel);
+      }else{
+        if(assetName){
+          model=assetName.replace(/^\s*(?:19\d{2}|20\d{2})\s+/,"");
+          if(make)model=model.replace(new RegExp("^"+String(make).replace(/[- ]/g,"[- ]?")+"\\s*","i"),"").trim();
+        }
+        if(!model)model=attrModel;
+        if(/yamaha/i.test(sourceLabel))model=normaliseYamahaModel(model);
       }
-      if(!model)model=clean(attr(a,"Model")||"");
-      if(/yamaha/i.test(sourceLabel))model=normaliseYamahaModel(model);
 
       const nameYear=assetName.match(/^\s*(19\d{2}|20\d{2})\b/);
       const attrYear=Number(attr(a,"Year")||0);
