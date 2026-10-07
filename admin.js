@@ -680,6 +680,12 @@ async function anybikeRefreshAdminBellV2(){
   }
 
   try{
+    try{
+      await client.rpc("admin_cleanup_orphaned_deal_notifications_v1");
+    }catch(cleanupError){
+      console.warn("Orphaned deal notification cleanup failed",cleanupError);
+    }
+
     const {data,error}=await client
       .from("admin_notifications")
       .select("id,title,message,type,link,is_read,created_at")
