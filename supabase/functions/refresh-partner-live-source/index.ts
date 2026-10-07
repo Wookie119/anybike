@@ -1345,6 +1345,105 @@ async function refreshMotoGbNew(connector:any){
   return finalise(connector,collected);
 }
 
+function parseBigMotoListing(md:string,base:string){
+  const lines=String(md||"").replace(/\r/g,"").split("\n");
+  const out:any[]=[];
+  for(let i=0;i<lines.length;i++){
+    const raw=clean(lines[i]).replace(/^#{1,6}\s*/,"");
+    if(!raw)continue;
+    const make=normaliseMake(knownMakeFromText(raw)||"");
+    if(!make)continue;
+    if(!new RegExp("^"+String(make).replace(/[- ]/g,"[- ]?")+"\\b","i").test(raw))continue;
+
+    const body=lines.slice(i+1,Math.min(lines.length,i+28)).join("\n");
+    const year=(body.match(/(?:^|\n)\s*[*-]?\s*(20[0-3]\d)\s*(?:\n|$)/m)||[])[1];
+    const mileage=(body.match(/(?:^|\n)\s*[*-]?\s*([\d,]+)\s*miles?\b/im)||[])[1];
+    const engine=(body.match(/(?:^|\n)\s*[*-]?\s*([\d,]+)\s*cc\b/im)||[])[1];
+    const price=(body.match(/(?:^|\n)\s*£\s*([\d,]+(?:\.\d{2})?)\s*(?:\n|$)/m)||[])[1];
+    if(!year||!mileage||!price)continue;
+
+    const linkMatch=body.match(/(?:View bike details|View details)\]?\(([^)]+)\)/i);
+    let sourceUrl=base;
+    if(linkMatch?.[1]){try{sourceUrl=new URL(linkMatch[1],base).toString();}catch{}}
+    if(sourceUrl===base){
+      const all=allLinks(body,base).find(u=>/^https?:\/\/(?:www\.)?bigmoto\.co\.uk\/used-[^?#]+-\d+(?:\?.*)?$/i.test(u));
+      if(all)sourceUrl=all;
+    }
+    if(sourceUrl===base)continue;
+
+    const id=(sourceUrl.match(/-(\d+)(?:\?|$)/)||[])[1]||sourceUrl;
+    const model=clean(raw.replace(new RegExp("^"+String(make).replace(/[- ]/g,"[- ]?")+"\\s*","i"),""));
+    if(!model)continue;
+
+    const bodyLines=body.split("\n").map(x=>clean(x.replace(/^[*-]\s*/,""))).filter(Boolean);
+    let colour:string|null=null;
+    const engineIdx=bodyLines.findIndex(x=>/\bcc\b/i.test(x));
+    if(engineIdx>=0){
+      for(let k=engineIdx+1;k<Math.min(bodyLines.length,engineIdx+5);k++){
+        const x=bodyLines[k];
+        if(/^(manual|automatic|semi-automatic)$/i.test(x))continue;
+        if(/^(petrol|electric|diesel)$/i.test(x))continue;
+        if(/east anglia|cheshire|west midlands|delivery available/i.test(x))continue;
+        if(/^£/.test(x))continue;
+        if(x.length<=40){colour=x;break;}
+      }
+    }
+
+    out.push({
+      source_stock_id:String(id),source_key:String(id),source_url:sourceUrl,source_domain:"bigmoto.co.uk",
+      seller_name:"BigMoto",seller_address:"Unit 17-18 Bessemer Way, Great Yarmouth, Norfolk, NR31 0LX",
+      make,model,variant:null,year:Number(year),
+      mileage:Number(String(mileage).replace(/,/g,""))||0,
+      engine_cc:engine?Number(String(engine).replace(/,/g,""))||null:null,
+      colour,registration:null,
+      source_advertised_price_gbp:Number(String(price).replace(/,/g,"")),
+      description_original:raw,
+      specification:{source:"BigMoto",condition:"Used",trade_source:true},
+      source_image_urls:images(body),
+      raw_data:{title:raw}
+    });
+  }
+  return [...new Map(out.map((x:any)=>[String(x.source_key),x])).values()];
+}
+
+async function refreshBigMoto(connector:any){
+  const home="https://www.bigmoto.co.uk/";
+  const rawHome=await fetchReader(home);
+  const makePages=allLinks(rawHome,home)
+    .filter(u=>/^https?:\/\/(?:www\.)?bigmoto\.co\.uk\/used\/bikes\/[a-z0-9-]+\/?$/i.test(u))
+    .filter((u,i,a)=>a.indexOf(u)===i);
+
+  if(!makePages.length)throw new Error("BigMoto loaded but no used-bike make pages were found.");
+
+  const pageUrls:string[]=[];
+  for(const makeUrl of makePages){
+    const first=await fetchReader(makeUrl);
+    pageUrls.push(makeUrl);
+    const pages=allLinks(first,makeUrl)
+      .filter(u=>/bigmoto\.co\.uk\/search_page\.php/i.test(u)&&/[?&]location_path=used(?:&|$)/i.test(u)&&/[?&]p=\d+/i.test(u));
+    for(const p of pages)if(!pageUrls.includes(p))pageUrls.push(p);
+  }
+
+  const collected:any[]=[]; const seen=new Set<string>();
+  const concurrency=6;
+  for(let i=0;i<pageUrls.length;i+=concurrency){
+    const rows=await Promise.all(pageUrls.slice(i,i+concurrency).map(async(url)=>{
+      const md=await fetchReader(url);
+      return parseBigMotoListing(md,url);
+    }));
+    for(const list of rows){
+      for(const item of list){
+        const key=String(item.source_key||item.source_url);
+        if(seen.has(key))continue;
+        seen.add(key);collected.push(item);
+      }
+    }
+  }
+
+  if(!collected.length)throw new Error("BigMoto used-bike pages loaded but no complete motorcycle records could be extracted.");
+  return finalise(connector,collected);
+}
+
 async function refreshGenericPartner(connector:any){
   const start=connector.results_url||connector.base_url;
   const host=siteHost(start);
@@ -1409,6 +1508,7 @@ Deno.serve(async(req)=>{
     else if(q.data.adapter_key==="lind-used-uk")result=await refreshLindUsed(q.data);
     else if(q.data.adapter_key==="motogb-used-uk")result=await refreshMotoGbUsed(q.data);
     else if(q.data.adapter_key==="motogb-new-uk")result=await refreshMotoGbNew(q.data);
+    else if(q.data.adapter_key==="bigmoto-used-uk")result=await refreshBigMoto(q.data);
     else if(q.data.adapter_key==="manchester-hd-uk")result=await refreshManchesterHd(q.data);
     else if(q.data.adapter_key==="motodealers-uk")result=await refreshMotoDealers(q.data);
     else if(String(q.data.adapter_key||"").startsWith("generic-"))result=await refreshGenericPartner(q.data);
