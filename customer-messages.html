@@ -1419,12 +1419,15 @@ function candidateMessageHtml(value){
       '</div>';
   }
 
+  const sourcedToken=text.match(/\/?customer-sourced-matches\.html\?selection=([0-9a-f-]{36})/i);
   const sourcedMatch=text.match(/\/?customer-sourced-matches\.html\?batch=(\d+)(?:&thread=(\d+))?/i);
-  if(sourcedMatch){
-    const batchId=Number(sourcedMatch[1]);
-    const threadId=sourcedMatch[2]?Number(sourcedMatch[2]):null;
-    const selectionUrl="/customer-sourced-matches.html?batch="+encodeURIComponent(batchId)+(threadId?"&thread="+encodeURIComponent(threadId):"");
+  if(sourcedToken || sourcedMatch){
+    const selectionUrl=sourcedToken
+      ?"/customer-sourced-matches.html?selection="+encodeURIComponent(sourcedToken[1])
+      :"/customer-sourced-matches.html?batch="+encodeURIComponent(Number(sourcedMatch[1]))+(sourcedMatch[2]?"&thread="+encodeURIComponent(Number(sourcedMatch[2])):"");
     const cleaned=text
+      .replace(/View your private selection:\s*\/?customer-sourced-matches\.html\?selection=[0-9a-f-]{36}/ig,"")
+      .replace(/\/?customer-sourced-matches\.html\?selection=[0-9a-f-]{36}/ig,"")
       .replace(/View your private selection:\s*\/?customer-sourced-matches\.html\?batch=\d+(?:&thread=\d+)?/ig,"")
       .replace(/\/?customer-sourced-matches\.html\?batch=\d+(?:&thread=\d+)?/ig,"")
       .replace(/\n{3,}/g,"\n\n")
