@@ -34,14 +34,14 @@ table{width:100%;border-collapse:collapse;table-layout:fixed}th,td{padding:7px 7
 .priority-row td{padding-top:8px;padding-bottom:8px}
 td:nth-child(6),td:nth-child(7){font-size:11px}
 td:last-child .status-line{line-height:1.25}
-.onboarding-table col:nth-child(1){width:12%}.onboarding-table col:nth-child(2){width:10%}.onboarding-table col:nth-child(3){width:9%}.onboarding-table col:nth-child(4){width:17%}.onboarding-table col:nth-child(5){width:16%}.onboarding-table col:nth-child(6){width:7%}.onboarding-table col:nth-child(7){width:7%}.onboarding-table col:nth-child(8){width:13%}.onboarding-table col:nth-child(9){width:9%}
+.onboarding-table col:nth-child(1){width:11%}.onboarding-table col:nth-child(2){width:9%}.onboarding-table col:nth-child(3){width:7%}.onboarding-table col:nth-child(4){width:12%}.onboarding-table col:nth-child(5){width:14%}.onboarding-table col:nth-child(6){width:14%}.onboarding-table col:nth-child(7){width:7%}.onboarding-table col:nth-child(8){width:7%}.onboarding-table col:nth-child(9){width:12%}.onboarding-table col:nth-child(10){width:7%}
 .status-line{margin-top:3px;color:#aaa;font-size:10px}.empty{padding:24px;text-align:center;color:#aaa}
 .onboarding-modal{position:fixed;inset:0;background:rgba(0,0,0,.78);display:none;align-items:flex-start;justify-content:center;padding:24px;z-index:9999;overflow-y:auto}.onboarding-modal.open{display:flex}
 .onboarding-modal-box{width:min(1120px,96vw);background:#111;border:1px solid #444;border-radius:18px;padding:22px;margin:auto 0}
 .message-choice{display:block;width:100%;text-align:left;background:#0b0b0b;border:1px solid #303030;border-radius:12px;padding:13px 14px;margin:8px 0;color:#fff;cursor:pointer}.message-choice:hover,.message-choice.selected{border-color:var(--red);background:rgba(237,28,36,.08)}
 .message-choice strong{display:block;font-size:14px}.message-choice span{display:block;color:#aaa;font-size:12px;line-height:1.4;margin-top:4px}.message-choice .actual-copy{margin-top:8px;padding:9px 10px;border:1px solid rgba(255,255,255,.08);border-radius:9px;background:#111;color:#ddd;font-size:12px;line-height:1.45}.delivery-note{margin:12px 0 0;padding:10px 12px;border:1px solid rgba(77,163,255,.35);border-radius:10px;background:rgba(77,163,255,.07);color:#cfe6ff;font-size:12px;line-height:1.45}
 .modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
-@media(max-width:1250px){.admin-page-content{padding:16px}.onboarding-table col:nth-child(3){width:7%}.onboarding-table col:nth-child(4){width:18%}.onboarding-table col:nth-child(5){width:17%}.onboarding-table col:nth-child(8){width:12%}.onboarding-table col:nth-child(9){width:10%}}
+@media(max-width:1250px){.admin-page-content{padding:16px}.onboarding-table{min-width:1500px}.onboarding-table col:nth-child(3){width:7%}.onboarding-table col:nth-child(4){width:13%}.onboarding-table col:nth-child(5){width:15%}.onboarding-table col:nth-child(6){width:15%}.onboarding-table col:nth-child(9){width:12%}.onboarding-table col:nth-child(10){width:8%}}
 @media(max-width:950px){.panel{overflow:auto}.onboarding-table{min-width:1050px}}
 </style>
 </head>
@@ -217,7 +217,7 @@ function render(){
     return new Date(b.auth_created_at)-new Date(a.auth_created_at);
   });
   if(!data.length){tableWrap.innerHTML='<div class="empty">No onboarding records match this view.</div>';return;}
-  tableWrap.innerHTML='<table class="onboarding-table"><colgroup><col><col><col><col><col><col><col><col><col></colgroup><thead><tr><th>Person / business</th><th>Stage</th><th>Setup</th><th>Customer type</th><th>Intent</th><th>Activity</th><th>Last reminder</th><th>Admin notes</th><th>Actions</th></tr></thead><tbody>'+
+  tableWrap.innerHTML='<table class="onboarding-table"><colgroup><col><col><col><col><col><col><col><col><col><col></colgroup><thead><tr><th>Person / business</th><th>Stage</th><th>Setup</th><th>Enquiry / Origin</th><th>Customer type</th><th>Intent</th><th>Activity</th><th>Last reminder</th><th>Admin notes</th><th>Actions</th></tr></thead><tbody>'+
   data.map(r=>{
     const priority=Number(r.request_count||0)>0||Number(r.scan_batch_count||0)>0;
     const cls=priority?"priority-row":(r.is_test_account?"test-row":(isInternal(r)?"internal-row":""));
@@ -239,6 +239,10 @@ function render(){
       '<td><div class="name">'+esc(r.full_name||r.business_name||"Registration only")+(priority?' <span class="badge red">PRIORITY</span>':'')+'</div><div class="email">'+esc(r.email||"")+'</div><div class="status-line">'+esc(r.business_name||"")+(r.country?' · '+esc(r.country):'')+'</div></td>'+
       '<td><span class="badge '+stageClass(r.onboarding_stage)+'">'+esc(r.onboarding_stage)+'</span><div class="status-line">'+(r.email_confirmed_at?"Email confirmed":"Email not confirmed")+(r.has_profile?" · Profile created":" · No profile")+'</div></td>'+
       '<td>'+setupHtml+'</td>'+
+      '<td><div class="name">'+esc(r.origin_label||"Direct registration")+'</div>'+
+        (r.origin_detail?'<div class="status-line">'+esc(r.origin_detail)+'</div>':'')+
+        (r.origin_page?'<div class="status-line">'+esc(r.origin_page)+'</div>':'')+
+      '</td>'+
       '<td><select class="route-select" onchange="setClassification(\''+r.user_id+'\',this.value,null)">'+
         '<option value="">Not classified</option>'+
         ['uk_private','uk_dealer','uk_distributor','uk_manufacturer','uk_partner','eu_dealer','intl_dealer','global_manufacturer'].map(v=>'<option value="'+v+'" '+(r.customer_type===v?'selected':'')+'>'+customerTypeLabel(v)+'</option>').join("")+
@@ -269,9 +273,19 @@ function render(){
 }
 async function loadOnboarding(){
   tableWrap.innerHTML='<div class="empty">Loading onboarding…</div>';
-  const {data,error}=await sb.rpc("admin_get_onboarding_pipeline_v1");
-  if(error){tableWrap.innerHTML='<div class="empty">Could not load onboarding: '+esc(error.message)+'</div>';return;}
-  rows=Array.isArray(data)?data:[];
+  const [pipelineResult,originResult]=await Promise.all([
+    sb.rpc("admin_get_onboarding_pipeline_v1"),
+    sb.rpc("admin_get_onboarding_origins_v1")
+  ]);
+  if(pipelineResult.error){tableWrap.innerHTML='<div class="empty">Could not load onboarding: '+esc(pipelineResult.error.message)+'</div>';return;}
+  const originMap={};
+  if(!originResult.error){
+    (originResult.data||[]).forEach(o=>{originMap[String(o.user_id)]=o;});
+  }
+  rows=(Array.isArray(pipelineResult.data)?pipelineResult.data:[]).map(r=>({
+    ...r,
+    ...(originMap[String(r.user_id)]||{})
+  }));
   renderKpis();render();updateNextAction();
 }
 async function setClassification(userId,type,intent){
