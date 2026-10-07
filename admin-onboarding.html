@@ -521,7 +521,7 @@ function render(){
       '<td><div class="actions">'+
         (r.has_profile?'<a class="btn dark" href="admin-customers.html?v=20261007-3&customer='+encodeURIComponent(r.user_id)+'&from=onboarding">Customer 360</a>':'')+
         (canHelp
-          ? '<button class="btn dark" onclick="copySetupLink(\''+r.user_id+'\')">Generate setup link</button>'
+          ? '<button class="btn dark" onclick="copySetupLink(\''+r.user_id+'\')">Generate customer setup link</button>'
           : '')+
         (canHelp
           ? '<button class="btn" onclick="openSetupHelp(\''+r.user_id+'\')">Send setup help</button>'
@@ -556,10 +556,17 @@ async function loadOnboarding(){
   if(!originResult.error){
     (originResult.data||[]).forEach(o=>{originMap[String(o.user_id)]=o;});
   }
-  rows=(Array.isArray(pipelineResult.data)?pipelineResult.data:[]).map(r=>({
-    ...r,
-    ...(originMap[String(r.user_id)]||{})
-  }));
+  rows=(Array.isArray(pipelineResult.data)?pipelineResult.data:[]).map(r=>{
+    const immutableUserId=String(r.user_id||"");
+    const origin=originMap[immutableUserId]||{};
+    return {
+      ...r,
+      origin_label:origin.origin_label??r.origin_label??null,
+      origin_detail:origin.origin_detail??r.origin_detail??null,
+      origin_page:origin.origin_page??r.origin_page??null,
+      user_id:immutableUserId
+    };
+  });
   renderKpis();render();updateNextAction();
 }
 async function setClassification(userId,type,intent){
@@ -608,13 +615,16 @@ function setupLinkForCustomer(r){
 async function copySetupLink(userId){
   const r=rows.find(x=>x.user_id===userId);if(!r)return;
   const path=setupLinkForCustomer(r);
-  const url=new URL(path,"https://www.anybike.co.uk").href;
+  const params=new URLSearchParams();
+  params.set("return",path);
+  if(r.email)params.set("email",String(r.email).trim().toLowerCase());
+  const url="https://www.anybike.co.uk/customer-login.html?"+params.toString();
   try{
     await navigator.clipboard.writeText(url);
     const status=document.getElementById("action-"+userId);
-    if(status)status.innerHTML="✓ Setup link copied — paste it into WhatsApp";
+    if(status)status.innerHTML="✓ Customer setup link copied — opens "+esc(r.email||"the customer")+" then returns to their profile";
   }catch(e){
-    prompt("Copy this setup link:",url);
+    prompt("Copy this customer setup link:",url);
   }
 }
 
