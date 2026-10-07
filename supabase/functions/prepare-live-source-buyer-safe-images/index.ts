@@ -158,6 +158,7 @@ export default {
       live_source_item_id:itemId,
       junction_stock_id:Number(junction.id),
       safe_count:safe.length,
+      source_image_count:realImages.length,
       blocked_branding_count:blocked,
       failed_count:failed,
       buyer_safe_urls:safe.map((x:any)=>x.buyer_safe_url),
