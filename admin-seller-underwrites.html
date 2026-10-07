@@ -15,7 +15,15 @@
 body{margin:0;background:#070707;color:#fff;font-family:Arial,Helvetica,sans-serif}
 .admin-page-content{padding:24px;max-width:none;margin:0}
 .hero,.card{background:#111;border:1px solid var(--line);border-radius:20px}
-.hero{padding:26px;margin-bottom:16px;background:radial-gradient(circle at top right,rgba(237,28,36,.22),transparent 36%),#111}
+.hero{padding:16px 20px;margin-bottom:14px;background:radial-gradient(circle at top right,rgba(237,28,36,.18),transparent 36%),#111}
+.hero h1{font-size:30px;margin:4px 0 5px}.hero p{margin:0;line-height:1.4}
+#anybikeSharedNextAction.anybike-shared-next-action{padding:12px 16px!important;margin:0 0 14px!important;border-radius:14px!important}
+#anybikeSharedNextAction .abna-kicker{font-size:10px!important}
+#anybikeSharedNextAction h2{font-size:21px!important;margin:3px 0 4px!important}
+#anybikeSharedNextAction p{font-size:14px!important;line-height:1.35!important;max-width:1050px}
+#anybikeSharedNextAction .abna-bottom{margin-top:8px!important}
+#anybikeSharedNextAction .abna-waiting{padding:5px 9px!important;font-size:11px!important}
+#anybikeSharedNextAction .abna-btn{padding:9px 12px!important;font-size:12px!important}
 .eyebrow{color:var(--red);font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.12em}
 h1{margin:6px 0 8px;font-size:36px} p{color:#bbb;line-height:1.5}
 .toolbar{display:grid;grid-template-columns:minmax(260px,2fr) repeat(5,minmax(145px,1fr)) auto;gap:10px;margin-bottom:16px}
@@ -191,14 +199,15 @@ function updateNextAction(){
 
   if(needsDetails){
     window.AnyBikeNextAction?.set({
-      title:(dealerUnderwrites.length===1?"1 dealer underwrite waiting":dealerUnderwrites.length+" dealer underwrites waiting"),
-      text:(needsDetails.reference||"This submission")+" needs motorcycle make and model before it can be opened to trade underwriters.",
-      waitingFor:"AnyBike",
-      label:"COMPLETE NEXT UNDERWRITE →",
+      title:(needsDetails.reference||"Legacy underwrite")+" needs missing motorcycle details",
+      text:"This is an older submission created before Make and Model became mandatory on the dealer form. Complete the missing details once so it can enter the normal underwrite flow. New dealer submissions now require these details from the dealer.",
+      waitingFor:"AnyBike correction",
+      label:"COMPLETE "+(needsDetails.reference||"DETAILS")+" →",
       onClick:()=>{
-        const card=[...document.querySelectorAll("#queue .submission-row")].find(el=>el.textContent.includes(needsDetails.reference||""));
-        card?.scrollIntoView({behavior:"smooth",block:"center"});
-        editVehicle(Number(needsDetails.submission_id));
+        const id=Number(needsDetails.submission_id);
+        const row=document.getElementById("submission-row-"+id);
+        row?.scrollIntoView({behavior:"smooth",block:"center"});
+        editVehicle(id);
       }
     });
     return;
@@ -206,14 +215,28 @@ function updateNextAction(){
 
   if(dealerUnderwrites.length){
     const next=dealerUnderwrites[0];
+    const bike=[next.make,next.model,next.variant].filter(Boolean).join(" ")||next.registration||"motorcycle";
     window.AnyBikeNextAction?.set({
-      title:(dealerUnderwrites.length===1?"1 dealer underwrite ready":dealerUnderwrites.length+" dealer underwrites ready"),
-      text:"Review the next eligible submission and start its trade-underwrite window when the motorcycle details are complete.",
-      waitingFor:"AnyBike",
-      label:"START NEXT UNDERWRITE →",
+      title:(next.reference||"Next underwrite")+" · "+bike,
+      text:(dealerUnderwrites.length===1
+        ?"This dealer underwrite is ready for your review. Open the row, check the dealer-supplied details and images, then start the 48-hour underwrite when you are satisfied."
+        :dealerUnderwrites.length+" dealer underwrites are ready. Review "+(next.reference||"the next submission")+" first, check the dealer-supplied details and images, then start its 48-hour underwrite."),
+      waitingFor:"AnyBike review",
+      label:"REVIEW "+(next.reference||"NEXT UNDERWRITE")+" →",
       onClick:()=>{
-        const card=[...document.querySelectorAll("#queue .submission-row")].find(el=>el.textContent.includes(next.reference||""));
-        card?.scrollIntoView({behavior:"smooth",block:"center"});
+        const id=Number(next.submission_id);
+        const row=document.getElementById("submission-row-"+id);
+        const detail=document.getElementById("submission-detail-"+id);
+        if(detail && !detail.classList.contains("open")) toggleSubmission(id);
+        setTimeout(()=>{
+          (detail||row)?.scrollIntoView({behavior:"smooth",block:"center"});
+          const startButton=detail?.querySelector("button.red");
+          if(startButton){
+            startButton.focus({preventScroll:true});
+            startButton.style.boxShadow="0 0 0 3px rgba(237,28,36,.28)";
+            setTimeout(()=>{startButton.style.boxShadow="";},1800);
+          }
+        },80);
       }
     });
     return;
