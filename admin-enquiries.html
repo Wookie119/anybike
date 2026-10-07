@@ -15857,7 +15857,8 @@ function renderAnyBikeDealMessageBridge(deal){
     </div>`;
 }
 
-function openAnyBikeDealFromUrl(){
+function openAnyBikeDealFromUrl(attempt){
+  attempt=Number(attempt||0);
   const params=new URLSearchParams(window.location.search);
   const dealId=String(params.get("deal") || "").trim();
   if(!dealId){ return; }
@@ -15899,7 +15900,19 @@ function openAnyBikeDealFromUrl(){
   }
 
   if(!row){
-    console.warn("Deal 360 row not found for URL:",dealId);
+    /*
+      Notification/deep-link navigation can arrive before the asynchronous
+      Deal Queue has finished loading. Retry briefly instead of abandoning
+      the requested Deal and leaving staff at the generic Bike Sales HQ.
+    */
+    if(attempt<30){
+      setTimeout(function(){
+        openAnyBikeDealFromUrl(attempt+1);
+      },150);
+      return;
+    }
+
+    console.warn("Deal 360 row not found for URL after waiting for Deal Queue:",dealId);
     return;
   }
 
