@@ -949,6 +949,7 @@ function normaliseYamahaModel(value:string){
   if(/(^|[^0-9])R3([^0-9]|$)/.test(u))return "R3";
   if(/(^|[^0-9])R7([^0-9]|$)/.test(u))return "R7";
   if(/YZF[ -]?R9|(^|[^0-9])R9([^0-9]|$)/.test(u))return "R9";
+  if(/VMAX/.test(u))return "VMAX";
   if(/RAYZR/.test(u))return "RAYZR";
   if(/TENERE 700 WORLD RAID/.test(u))return "TENERE 700 WORLD RAID";
   if(/TENERE 700 RALLY/.test(u))return "TENERE 700 RALLY";
@@ -1012,16 +1013,12 @@ async function refreshAssetCertified(connector:any,sourceLabel:string){
 
       let model="";
       const attrModel=clean(attr(a,"Model")||"");
-      if(/yamaha/i.test(sourceLabel) && attrModel){
-        model=normaliseYamahaModel(attrModel);
-      }else{
-        if(assetName){
-          model=assetName.replace(/^\s*(?:19\d{2}|20\d{2})\s+/,"");
-          if(make)model=model.replace(new RegExp("^"+String(make).replace(/[- ]/g,"[- ]?")+"\\s*","i"),"").trim();
-        }
-        if(!model)model=attrModel;
-        if(/yamaha/i.test(sourceLabel))model=normaliseYamahaModel(model);
+      if(assetName){
+        model=assetName.replace(/^\s*(?:19\d{2}|20\d{2})\s+/,"");
+        if(make)model=model.replace(new RegExp("^"+String(make).replace(/[- ]/g,"[- ]?")+"\\s*","i"),"").trim();
       }
+      if(!model)model=attrModel;
+      if(/yamaha/i.test(sourceLabel))model=normaliseYamahaModel(model);
 
       const nameYear=assetName.match(/^\s*(19\d{2}|20\d{2})\b/);
       const attrYear=Number(attr(a,"Year")||0);
