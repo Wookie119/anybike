@@ -25,12 +25,13 @@
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:8px;margin:0 0 12px}.kpi{background:#111;border:1px solid var(--line);border-radius:14px;padding:9px 11px}.kpi strong{display:block;font-size:23px;color:var(--red)}.kpi span{color:#aaa;font-size:11px;font-weight:800}
 .toolbar{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 14px}.toolbar input,.toolbar select,.route-select,.notes{background:#111;color:#fff;border:1px solid #333;border-radius:10px;padding:10px 12px}.toolbar input{min-width:260px;flex:1}
 .panel{background:#111;border:1px solid var(--line);border-radius:18px;overflow:hidden}.panel-head{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:15px 16px;border-bottom:1px solid var(--line)}.panel-head h2{margin:0;font-size:20px}.small{color:#aaa;font-size:12px}
-table{width:100%;border-collapse:collapse}th,td{padding:7px 8px;text-align:left;border-bottom:1px solid rgba(255,255,255,.08);vertical-align:top}th{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#aaa;background:#0d0d0d;position:sticky;top:0}td{font-size:12px}.name{font-weight:900;font-size:13px}.email{color:#aaa;margin-top:2px;word-break:break-word}
+table{width:100%;border-collapse:collapse}th,td{padding:7px 8px;text-align:left;border-bottom:1px solid rgba(255,255,255,.08);vertical-align:middle}th{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#aaa;background:#0d0d0d;position:sticky;top:0}td{font-size:12px}.name{font-weight:900;font-size:13px}.email{color:#aaa;margin-top:2px;word-break:break-word}
 .badge{display:inline-flex;align-items:center;padding:5px 8px;border-radius:999px;background:#222;border:1px solid #333;font-size:11px;font-weight:900}.badge.red{background:rgba(237,28,36,.12);border-color:rgba(237,28,36,.5);color:#ff8f94}.badge.green{background:rgba(51,204,102,.10);border-color:rgba(51,204,102,.45);color:#7af0a8}.badge.amber{background:rgba(255,204,51,.08);border-color:rgba(255,204,51,.4);color:#ffe27a}.badge.blue{background:rgba(77,163,255,.10);border-color:rgba(77,163,255,.45);color:#8dc3ff}
 .progress{display:flex;gap:4px;margin-top:6px}.dot{width:14px;height:6px;border-radius:999px;background:#333}.dot.on{background:var(--green)}
-.actions{display:flex;gap:6px;flex-wrap:wrap}.btn{border:0;border-radius:999px;padding:8px 10px;background:var(--red);color:#fff;font-weight:900;font-size:11px;cursor:pointer;text-decoration:none;display:inline-flex}.btn.dark{background:#222;border:1px solid #333}.btn[disabled]{opacity:.45;cursor:not-allowed}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:6px;min-width:210px}.btn{border:0;border-radius:9px;padding:7px 9px;background:var(--red);color:#fff;font-weight:900;font-size:10px;line-height:1.2;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;text-align:center;min-height:34px}.btn.dark{background:#222;border:1px solid #333}.btn[disabled]{opacity:.45;cursor:not-allowed}
 .priority-row{background:rgba(237,28,36,.045)}.internal-row{opacity:.58}.test-row{opacity:.75}
-.notes{width:190px;min-height:36px;height:36px;resize:vertical;font-size:11px;padding:8px 9px}.route-select{font-size:11px;min-width:145px;padding:8px 9px}
+.notes{width:190px;min-height:34px;height:34px;resize:vertical;font-size:11px;padding:7px 9px}.route-select{font-size:11px;min-width:145px;padding:8px 9px}
+th:nth-last-child(2),td:nth-last-child(2){min-width:205px}th:last-child,td:last-child{min-width:220px}.priority-row td{padding-top:8px;padding-bottom:8px}
 .status-line{margin-top:3px;color:#aaa;font-size:10px}.empty{padding:24px;text-align:center;color:#aaa}
 .onboarding-modal{position:fixed;inset:0;background:rgba(0,0,0,.78);display:none;align-items:center;justify-content:center;padding:20px;z-index:9999}.onboarding-modal.open{display:flex}
 .onboarding-modal-box{width:min(760px,100%);max-height:88vh;overflow:auto;background:#111;border:1px solid #444;border-radius:18px;padding:18px}
@@ -228,7 +229,7 @@ function render(){
     const activity=[
       Number(r.request_count||0)?r.request_count+" request":"",Number(r.scan_batch_count||0)?r.scan_batch_count+" source batch":"",Number(r.deal_count||0)?r.deal_count+" deal":""
     ].filter(Boolean).join(" · ")||"No buying activity yet";
-    return '<tr class="'+cls+'">'+
+    return '<tr class="'+cls+'" data-user-id="'+esc(r.user_id)+'">'+
       '<td><div class="name">'+esc(r.full_name||r.business_name||"Registration only")+(priority?' <span class="badge red">PRIORITY</span>':'')+'</div><div class="email">'+esc(r.email||"")+'</div><div class="status-line">'+esc(r.business_name||"")+(r.country?' · '+esc(r.country):'')+'</div></td>'+
       '<td><span class="badge '+stageClass(r.onboarding_stage)+'">'+esc(r.onboarding_stage)+'</span><div class="status-line">'+(r.email_confirmed_at?"Email confirmed":"Email not confirmed")+(r.has_profile?" · Profile created":" · No profile")+'</div></td>'+
       '<td>'+setupHtml+'</td>'+
@@ -243,12 +244,22 @@ function render(){
       '<td>'+esc(reminder)+'</td>'+
       '<td><textarea class="notes" id="note-'+r.user_id+'" placeholder="Internal onboarding note">'+esc(r.admin_notes||"")+'</textarea><button class="btn dark" style="margin-top:6px" onclick="saveNote(\''+r.user_id+'\')">Save note</button></td>'+
       '<td><div class="actions">'+
-        (r.has_profile?'<a class="btn dark" href="admin-customers.html?customer='+encodeURIComponent(r.user_id)+'">Customer 360</a>':'')+
-        (r.next_link?'<a class="btn dark" href="'+esc(r.next_link)+'" target="_blank">Open customer step</a>':'')+
+        (r.has_profile?'<a class="btn dark" href="admin-customers.html?customer='+encodeURIComponent(r.user_id)+'&from=onboarding">Customer 360</a>':'')+
         '<button class="btn" '+(canHelp?'':'disabled')+' onclick="openSetupHelp(\''+r.user_id+'\')">Send setup help</button>'+
-      '</div><div class="status-line" id="action-'+r.user_id+'">'+(canHelp?"":"Email confirmation is required before in-app setup help can be sent")+'</div></td>'+
+      '</div><div class="status-line" id="action-'+r.user_id+'">'+(canHelp?"":"Waiting for customer to confirm email before in-app setup help can be sent")+'</div></td>'+
     '</tr>';
   }).join("")+'</tbody></table>';
+
+  const requested=new URLSearchParams(location.search).get("customer");
+  if(requested){
+    const target=tableWrap.querySelector('tr[data-user-id="'+CSS.escape(requested)+'"]');
+    if(target){
+      target.style.outline="2px solid #ed1c24";
+      target.style.outlineOffset="-2px";
+      setTimeout(()=>target.scrollIntoView({behavior:"smooth",block:"center"}),120);
+      setTimeout(()=>{target.style.outline="";target.style.outlineOffset="";},3500);
+    }
+  }
 }
 async function loadOnboarding(){
   tableWrap.innerHTML='<div class="empty">Loading onboarding…</div>';
