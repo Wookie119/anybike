@@ -10,13 +10,13 @@ const slugs = fs.readdirSync(marketDir)
   .sort();
 
 const browser = await chromium.launch({ headless: true });
-const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
-const results = [];
+const results = new Array(slugs.length);
+let nextIndex = 0;
+const workerCount = Number(process.env.AUDIT_WORKERS || 6);
 
-for (let i = 0; i < slugs.length; i++) {
-  const slug = slugs[i];
-  const url = `${base}/markets/${slug}.html?healthAudit=${Date.now()}`;
-  console.log(`[${i + 1}/${slugs.length}] ${slug}`);
+async function auditSlug(page, slug, index) {
+  const url = `${base}/markets/${slug}.html?healthAudit=${Date.now()}-${index}`;
+  console.log(`[${index + 1}/${slugs.length}] ${slug}`);
 
   let result = {
     slug,
@@ -107,9 +107,20 @@ for (let i = 0; i < slugs.length; i++) {
     page.off("pageerror", onPageError);
   }
 
-  results.push(result);
+  return result;
 }
 
+async function worker() {
+  const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+  while (true) {
+    const index = nextIndex++;
+    if (index >= slugs.length) break;
+    results[index] = await auditSlug(page, slugs[index], index);
+  }
+  await page.close();
+}
+
+await Promise.all(Array.from({ length: workerCount }, () => worker()));
 await browser.close();
 
 const summary = {
