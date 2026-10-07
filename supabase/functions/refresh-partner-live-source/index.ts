@@ -827,10 +827,11 @@ function normaliseMake(v:any){
   const k=s.toLowerCase().trim();
   const canonical:any={
     "aprilia":"Aprilia","benelli":"Benelli","beta":"Beta","bmw":"BMW","ducati":"Ducati",
-    "honda":"Honda","indian":"Indian","kawasaki":"Kawasaki","ktm":"KTM","lambretta":"Lambretta",
+    "fb mondial":"FB Mondial","honda":"Honda","husqvarna":"Husqvarna","indian":"Indian",
+    "kawasaki":"Kawasaki","ktm":"KTM","lambretta":"Lambretta","lexmoto":"Lexmoto",
     "mgb":"MGB","moto guzzi":"Moto Guzzi","piaggio":"Piaggio","qjmotor":"QJMotor",
-    "royal enfield":"Royal Enfield","suzuki":"Suzuki","triumph":"Triumph","voge":"Voge",
-    "yamaha":"Yamaha","vmoto":"VMoto","norton":"Norton","husqvarna":"Husqvarna",
+    "royal enfield":"Royal Enfield","suzuki":"Suzuki","sym":"SYM","triumph":"Triumph",
+    "voge":"Voge","yamaha":"Yamaha","vmoto":"VMoto","norton":"Norton",
     "mv agusta":"MV Agusta","cfmoto":"CFMOTO"
   };
   if(/harley/i.test(s))return "Harley-Davidson";
