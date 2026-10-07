@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Market Page Health | AnyBike Admin</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="stylesheet" href="admin-shell.css?v=202610071420">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="admin.js?v=202610071420"></script>
+<style>
+:root{--red:#ed1c24;--line:rgba(255,255,255,.12);--muted:#aaa;--green:#35d276;--amber:#ffc857}
+*{box-sizing:border-box}body{margin:0;background:#070707;color:#fff;font-family:Arial,Helvetica,sans-serif}
+.admin-page-content{padding:22px}.page-head{display:flex;justify-content:space-between;gap:18px;align-items:flex-start}
+h1{margin:0 0 6px;font-size:36px}.subtitle{color:#aaa;max-width:980px;line-height:1.5}
+.actions{display:flex;gap:10px}.btn{border:1px solid #444;border-radius:999px;background:#181818;color:#fff;padding:11px 16px;font-weight:900;cursor:pointer}.btn.primary{background:var(--red);border-color:var(--red)}
+.kpis{display:grid;grid-template-columns:repeat(5,minmax(130px,1fr));gap:10px;margin:18px 0}.kpi{background:#111;border:1px solid var(--line);border-radius:14px;padding:14px}.kpi small{display:block;color:#888;font-weight:900;text-transform:uppercase}.kpi strong{display:block;font-size:30px;margin-top:6px}
+.panel{background:#111;border:1px solid var(--line);border-radius:16px;padding:14px}.progress{height:10px;background:#222;border-radius:999px;overflow:hidden;margin:10px 0 16px}.progress span{display:block;height:100%;width:0;background:var(--green)}
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}.filter{border:1px solid #333;background:#171717;color:#ddd;border-radius:999px;padding:7px 11px;cursor:pointer}.filter.active{border-color:var(--red);color:#fff}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:10px;border-bottom:1px solid rgba(255,255,255,.08);text-align:left;vertical-align:top}th{color:#aaa;position:sticky;top:0;background:#111}
+.status{font-weight:950}.pass{color:var(--green)}.warn{color:var(--amber)}.fail{color:#ff666b}.muted{color:#888}.issues{color:#bbb;line-height:1.4}
+.table-wrap{max-height:62vh;overflow:auto}.open-link{color:#fff;text-decoration:underline;text-decoration-color:var(--red)}
+#auditFrame{position:fixed;left:-10000px;top:-10000px;width:1440px;height:1000px;border:0;visibility:hidden}
+@media(max-width:900px){.kpis{grid-template-columns:repeat(2,1fr)}.page-head{display:block}.actions{margin-top:12px}}
+</style>
+</head>
+<body>
+<div class="admin-shell">
+  <aside id="adminSidebar" class="admin-sidebar"></aside>
+  <div class="admin-main">
+    <div id="adminTopbar"></div>
+    <main class="admin-page-content">
+      <div class="page-head">
+        <div>
+          <h1>Market Page Health</h1>
+          <div class="subtitle">Rendered audit of all 217 international market pages. Each page is opened after scripts load and checked for its final flag, local towns/cities, destination gateway treatment, clickable locality links, stale buyer wording and duplicate/legacy shipping content.</div>
+        </div>
+        <div class="actions"><button class="btn primary" id="runAudit">Run full audit</button><button class="btn" id="stopAudit" disabled>Stop</button></div>
+      </div>
+
+      <div class="kpis">
+        <div class="kpi"><small>Total pages</small><strong id="total">217</strong></div>
+        <div class="kpi"><small>Checked</small><strong id="checked">0</strong></div>
+        <div class="kpi"><small>Pass</small><strong id="passed">0</strong></div>
+        <div class="kpi"><small>Warnings</small><strong id="warned">0</strong></div>
+        <div class="kpi"><small>Failures</small><strong id="failed">0</strong></div>
+      </div>
+
+      <div class="panel">
+        <div id="auditStatus" class="muted">Ready to audit.</div>
+        <div class="progress"><span id="progressBar"></span></div>
+        <div class="filters">
+          <button class="filter active" data-filter="all">All</button>
+          <button class="filter" data-filter="pass">Pass</button>
+          <button class="filter" data-filter="warn">Warnings</button>
+          <button class="filter" data-filter="fail">Failures</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Market</th><th>Status</th><th>Flag</th><th>Local places</th><th>Gateway</th><th>Links</th><th>Issues</th></tr></thead>
+            <tbody id="resultsBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+<iframe id="auditFrame" title="Market page audit"></iframe>
+<script>
+const MARKET_SLUGS=["afghanistan","albania","algeria","andorra","angola","anguilla","antigua-and-barbuda","argentina","aruba","australia","austria","bahamas","bahrain","bangladesh","barbados","belarus","belgium","belize","benin","bermuda","bhutan","bolivia","bosnia-and-herzegovina","botswana","brazil","british-virgin-islands","brunei","bulgaria","burkina-faso","burundi","cabo-verde","cambodia","cameroon","canada","cayman-islands","central-african-republic","chad","chile","china","colombia","comoros","costa-rica","croatia","cuba","curacao","cyprus","czech-republic","democratic-republic-of-the-congo","denmark","djibouti","dominica","dominican-republic","ecuador","egypt","el-salvador","equatorial-guinea","eritrea","estonia","eswatini","ethiopia","falkland-islands","fiji","finland","france","french-guiana","french-polynesia","gabon","gambia","germany","ghana","greece","greenland","grenada","guadeloupe","guam","guatemala","guinea","guinea-bissau","guyana","haiti","honduras","hong-kong","hungary","iceland","india","indonesia","iran","iraq","ireland","israel","italy","ivory-coast","jamaica","japan","jordan","kazakhstan","kenya","kiribati","kosovo","kuwait","kyrgyzstan","laos","latvia","lebanon","lesotho","liberia","libya","liechtenstein","lithuania","luxembourg","macau","madagascar","malawi","malaysia","maldives","mali","malta","marshall-islands","martinique","mauritania","mauritius","mexico","micronesia","moldova","monaco","mongolia","montenegro","montserrat","morocco","mozambique","myanmar","namibia","nauru","nepal","netherlands","new-caledonia","new-zealand","nicaragua","niger","nigeria","north-korea","north-macedonia","northern-mariana-islands","norway","oman","pakistan","palau","palestine","panama","papua-new-guinea","paraguay","peru","philippines","poland","portugal","puerto-rico","qatar","republic-of-the-congo","reunion","romania","rwanda","saint-barthelemy","saint-kitts-and-nevis","saint-lucia","saint-martin","saint-vincent-and-the-grenadines","samoa","san-marino","sao-tome-and-principe","saudi-arabia","senegal","serbia","seychelles","sierra-leone","singapore","sint-maarten","slovakia","slovenia","solomon-islands","somalia","south-africa","south-korea","south-sudan","spain","sri-lanka","sudan","suriname","sweden","switzerland","syria","taiwan","tajikistan","tanzania","thailand","timor-leste","togo","tonga","trinidad-and-tobago","tunisia","turkiye","turkmenistan","turks-and-caicos-islands","tuvalu","uae","uganda","ukraine","united-kingdom","uruguay","us-virgin-islands","usa","uzbekistan","vanuatu","venezuela","vietnam","yemen","zambia","zimbabwe"];
+let running=false,stopRequested=false,results=[],activeFilter="all";
+const $=id=>document.getElementById(id);
+function titleCase(slug){return slug.split("-").map(x=>x.charAt(0).toUpperCase()+x.slice(1)).join(" ")}
+function finalBuyerGrammarBad(doc,name){
+  const text=(doc.body?.innerText||"");
+  const escaped=name.replace(/[.*+?^$()|[\]\\{}]/g,"\\$&");
+  return new RegExp("\\b"+escaped+" buyers\\b","i").test(text);
+}
+function auditDocument(doc,slug){
+  const issues=[];
+  const country=(doc.querySelector(".country-line strong")?.textContent||titleCase(slug)).trim();
+  const flag=doc.querySelector(".country-flag img");
+  const flagOk=!!flag && /flagcdn\.com\/w\d+\/[a-z]{2}\.png/i.test(flag.getAttribute("src")||"") && getComputedStyle(flag.closest(".country-flag")).visibility!=="hidden";
+  if(!flagOk)issues.push("Flag missing or not finalised");
+
+  const local=doc.querySelector(".anybike-market-local-standard");
+  const placeLinks=[...(local?.querySelectorAll(".area-list a")||[])];
+  const placeLabels=placeLinks.map(a=>a.textContent.replace(/[→↗]/g,"").trim()).filter(Boolean);
+  const generic=/^(UK Port Delivery|Freight Forwarder|Approved Shipping Point|Deal Documents|Route & compliance review|Destination gateway to confirm)$/i;
+  const localPlaces=placeLabels.filter(x=>!generic.test(x));
+  if(localPlaces.length<3)issues.push("Fewer than 3 local towns/cities/regions");
+
+  const gatewayCard=[...(local?.querySelectorAll(".port-card")||[])].find(card=>/gateway|port|landlocked|route & compliance/i.test(card.querySelector("h3")?.textContent||""));
+  const gatewayOk=!!gatewayCard;
+  if(!gatewayOk)issues.push("No destination gateway/landlocked route card");
+
+  const clickable=placeLinks.length>=3;
+  if(!clickable)issues.push("Locality/gateway pills are not sufficiently clickable");
+
+  if(finalBuyerGrammarBad(doc,country))issues.push("Stale '[country] buyers' wording remains");
+
+  const oldShipping=[...doc.querySelectorAll("h2,h3")].filter(el=>/shipping \/ delivery options/i.test(el.textContent||""));
+  if(oldShipping.length)issues.push("Legacy shipping/delivery card wording remains");
+
+  const status=issues.some(x=>/Flag missing|No destination|Stale|Legacy/.test(x))?"fail":issues.length?"warn":"pass";
+  return {slug,country,status,flagOk,localCount:localPlaces.length,gatewayOk,linkCount:placeLinks.length,issues};
+}
+function updateKpis(){
+  $("checked").textContent=results.length;
+  $("passed").textContent=results.filter(r=>r.status==="pass").length;
+  $("warned").textContent=results.filter(r=>r.status==="warn").length;
+  $("failed").textContent=results.filter(r=>r.status==="fail").length;
+  $("progressBar").style.width=(results.length/MARKET_SLUGS.length*100).toFixed(1)+"%";
+}
+function render(){
+  const rows=activeFilter==="all"?results:results.filter(r=>r.status===activeFilter);
+  $("resultsBody").innerHTML=rows.map(r=>'<tr data-status="'+r.status+'">'+
+    '<td><a class="open-link" target="_blank" href="/markets/'+encodeURIComponent(r.slug)+'.html">'+r.country+'</a></td>'+
+    '<td class="status '+r.status+'">'+r.status.toUpperCase()+'</td>'+
+    '<td>'+(r.flagOk?"Pass":"Fail")+'</td>'+
+    '<td>'+r.localCount+'</td><td>'+(r.gatewayOk?"Pass":"Fail")+'</td><td>'+r.linkCount+'</td>'+
+    '<td class="issues">'+(r.issues.length?r.issues.join("; "):"—")+'</td></tr>').join("");
+}
+function loadOne(slug){
+  return new Promise(resolve=>{
+    const frame=$("auditFrame");
+    const timeout=setTimeout(()=>resolve({slug,country:titleCase(slug),status:"fail",flagOk:false,localCount:0,gatewayOk:false,linkCount:0,issues:["Timed out while rendering"]}),7000);
+    frame.onload=()=>{
+      setTimeout(()=>{
+        clearTimeout(timeout);
+        try{resolve(auditDocument(frame.contentDocument,slug))}
+        catch(err){resolve({slug,country:titleCase(slug),status:"fail",flagOk:false,localCount:0,gatewayOk:false,linkCount:0,issues:["Audit error: "+err.message]})}
+      },1300);
+    };
+    frame.src="/markets/"+slug+".html?healthAudit="+Date.now();
+  });
+}
+async function runAudit(){
+  if(running)return;
+  running=true;stopRequested=false;results=[];
+  $("runAudit").disabled=true;$("stopAudit").disabled=false;
+  render();updateKpis();
+  for(let i=0;i<MARKET_SLUGS.length;i++){
+    if(stopRequested)break;
+    const slug=MARKET_SLUGS[i];
+    $("auditStatus").textContent="Checking "+(i+1)+" of "+MARKET_SLUGS.length+": "+titleCase(slug)+"…";
+    results.push(await loadOne(slug));
+    updateKpis();render();
+  }
+  running=false;$("runAudit").disabled=false;$("stopAudit").disabled=true;
+  $("auditStatus").textContent=stopRequested?"Audit stopped after "+results.length+" pages.":"Audit complete: "+$("passed").textContent+" pass, "+$("warned").textContent+" warnings, "+$("failed").textContent+" failures.";
+}
+$("runAudit").addEventListener("click",runAudit);
+$("stopAudit").addEventListener("click",()=>{stopRequested=true});
+document.querySelectorAll(".filter").forEach(btn=>btn.addEventListener("click",()=>{
+  document.querySelectorAll(".filter").forEach(x=>x.classList.remove("active"));btn.classList.add("active");activeFilter=btn.dataset.filter;render();
+}));
+</script>
+</body>
+</html>
