@@ -1083,67 +1083,117 @@ function parseListBlockSource(md:string,sourceName:string,forcedMake:string|null
   return [...new Map(out.map((x:any)=>[String(x.source_key),x])).values()];
 }
 async function refreshTriumphApproved(connector:any){
-  const url="https://www.triumphapproved.co.uk/approved-preowned";
-  const md=await fetchReader(url);
-  const rows=parseListBlockSource(md,"Triumph Approved Used","Triumph",url);
-  if(!rows.length)throw new Error("Triumph Approved source is reachable but no genuine motorcycle records could be extracted.");
-  return finalise(connector,rows);
+  const start="https://www.triumphapproved.co.uk/approved-preowned";
+  const raw=await fetchSourceText(start);
+  if(!raw)throw new Error("Triumph Approved source could not be loaded.");
+
+  const links=allLinks(raw,start)
+    .filter(u=>/^https?:\/\/(?:www\.)?triumphapproved\.co\.uk\/approved-preowned\/triumph\/[^/?#]+\/\d+\.htm(?:\?.*)?$/i.test(u))
+    .filter((u,i,a)=>a.indexOf(u)===i);
+
+  if(!links.length)throw new Error("Triumph Approved page loaded but no motorcycle detail links were found.");
+
+  const collected:any[]=[]; const seen=new Set<string>();
+  const concurrency=8;
+  for(let i=0;i<links.length;i+=concurrency){
+    const rows=await Promise.all(links.slice(i,i+concurrency).map(async(url)=>{
+      const detail=await fetchSourceText(url);
+      if(!detail)return null;
+      const item=parseGenericBike(detail,url,{...connector,name:"Triumph Approved Used"});
+      if(!item)return null;
+      item.make="Triumph";
+      item.seller_name=item.seller_name||"Triumph Approved Used";
+      item.specification={...(item.specification||{}),approved_used:true,source:"Triumph Approved Used"};
+      const id=(url.match(/\/(\d+)\.htm(?:\?|$)/i)||[])[1];
+      if(id){item.source_stock_id=id;item.source_key=id;}
+      return item;
+    }));
+    for(const item of rows){
+      if(!item||!item.source_advertised_price_gbp)continue;
+      const key=String(item.source_key||item.source_url);
+      if(seen.has(key))continue;
+      seen.add(key);collected.push(item);
+    }
+  }
+  if(!collected.length)throw new Error("Triumph Approved detail pages loaded but no complete motorcycle records could be extracted.");
+  return finalise(connector,collected);
 }
 async function refreshLindUsed(connector:any){
-  const url="https://www.lind.co.uk/used?search_advert_type=used";
-  const md=await fetchReader(url);
-  const rows=parseListBlockSource(md,"LIND Used",null,url);
-  if(!rows.length)throw new Error("LIND used-bike page is reachable but no genuine motorcycle records could be extracted.");
-  return finalise(connector,rows);
-}
-function parseMotoGbUsed(md:string){
-  const lines=String(md||"").replace(/\r/g,"").split("\n");
-  const out:any[]=[];
-  for(let i=0;i<lines.length;i++){
-    const h=clean(lines[i]);
-    const hm=h.match(/^#{2,5}\s+(.{4,160})$/);
-    if(!hm)continue;
-    const title=clean(hm[1]);
-    if(/Find Your Dealer|Select Brand|Engine Sizes|Bike Types|Approved Used Motorcycles/i.test(title))continue;
-    const make=normaliseMake(knownMakeFromText(title)||"");
-    if(!make)continue;
-    const body=lines.slice(i+1,Math.min(lines.length,i+18)).join("\n");
-    const spec=body.match(/([\d,]+)\s*cc\s*\|\s*([^|\n]+)\|\s*([\d,]+)\s*miles?/i);
-    const pm=body.match(/£\s*([\d,]+(?:\.\d{2})?)/i);
-    if(!pm||!/Details/i.test(body))continue;
-    const price=Number(pm[1].replace(/,/g,""));
-    if(!price||price<500)continue;
+  const start="https://www.lind.co.uk/used?search_advert_type=used";
+  const raw=await fetchSourceText(start);
+  if(!raw)throw new Error("LIND used-bike source could not be loaded.");
 
-    let detail="";
-    const lm=body.match(/Details\]?\(([^)]+)\)/i);
-    if(lm)detail=lm[1];
-    const base="https://www.motogb.co.uk/used-bikes/brands/all-brands";
-    let url=base;try{if(detail)url=new URL(detail,base).toString();}catch{}
-    const dealer=clean((body.match(/\n\s*([^,\n]+,\s*[^,\n]+,\s*[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2})\s*$/im)||[])[1]||"MotoGB");
-    let model=title.replace(new RegExp("^"+String(make).replace(/[- ]/g,"[- ]?")+"\\s*","i"),"").trim();
-    const id=(url.match(/-(\d+)(?:\/)?(?:\?|$)/)||[])[1]||[title,price,spec?.[3]||"",dealer].join("|").toLowerCase().replace(/\s+/g,"-").slice(0,240);
+  const links=allLinks(raw,start)
+    .filter(u=>/^https?:\/\/(?:www\.)?lind\.co\.uk\/used\/[^?#]+\/\d+\.htm(?:\?.*)?$/i.test(u))
+    .filter((u,i,a)=>a.indexOf(u)===i);
 
-    out.push({
-      source_stock_id:String(id),source_key:String(id),source_url:url,source_domain:"motogb.co.uk",
-      seller_name:dealer,seller_address:dealer==="MotoGB"?null:dealer,
-      make,model,variant:spec?clean(spec[2]):null,year:null,
-      mileage:spec?Number(spec[3].replace(/,/g,"")):null,
-      engine_cc:spec?Number(spec[1].replace(/,/g,"")):null,
-      colour:null,registration:null,source_advertised_price_gbp:price,
-      description_original:title,
-      specification:{source:"MotoGB Used",generic_adapter:false},
-      source_image_urls:[],
-      raw_data:{title,dealer}
-    });
+  if(!links.length)throw new Error("LIND used-bike page loaded but no motorcycle detail links were found.");
+
+  const collected:any[]=[]; const seen=new Set<string>();
+  const concurrency=8;
+  for(let i=0;i<links.length;i+=concurrency){
+    const rows=await Promise.all(links.slice(i,i+concurrency).map(async(url)=>{
+      const detail=await fetchSourceText(url);
+      if(!detail)return null;
+      const item=parseGenericBike(detail,url,{...connector,name:"LIND Used"});
+      if(!item)return null;
+      const id=(url.match(/\/(\d+)\.htm(?:\?|$)/i)||[])[1];
+      if(id){item.source_stock_id=id;item.source_key=id;}
+      const loc=htmlText(detail).match(/Bike location:\s*([^\n\r]+)/i);
+      if(loc?.[1]){item.seller_name=clean(loc[1]);item.seller_address=clean(loc[1]);}
+      item.specification={...(item.specification||{}),source:"LIND Used"};
+      return item;
+    }));
+    for(const item of rows){
+      if(!item||!item.source_advertised_price_gbp)continue;
+      const key=String(item.source_key||item.source_url);
+      if(seen.has(key))continue;
+      seen.add(key);collected.push(item);
+    }
   }
-  return [...new Map(out.map((x:any)=>[String(x.source_key),x])).values()];
+  if(!collected.length)throw new Error("LIND detail pages loaded but no complete motorcycle records could be extracted.");
+  return finalise(connector,collected);
 }
 async function refreshMotoGbUsed(connector:any){
-  const url="https://www.motogb.co.uk/used-bikes/brands/all-brands";
-  const md=await fetchReader(url);
-  const rows=parseMotoGbUsed(md);
-  if(!rows.length)throw new Error("MotoGB used-bike page is reachable but no genuine motorcycle records could be extracted.");
-  return finalise(connector,rows);
+  const start="https://www.motogb.co.uk/used-bikes/brands/all-brands";
+  const raw=await fetchSourceText(start);
+  if(!raw)throw new Error("MotoGB used-bike source could not be loaded.");
+
+  const links=allLinks(raw,start)
+    .filter(u=>{
+      try{
+        const x=new URL(u);
+        if(!/^(?:www\.)?motogb\.co\.uk$/i.test(x.hostname))return false;
+        const p=x.pathname.toLowerCase();
+        return /^\/used-bikes\/.+-\d+\/?$/.test(p) && !/\/brands\//.test(p);
+      }catch{return false;}
+    })
+    .filter((u,i,a)=>a.indexOf(u)===i);
+
+  if(!links.length)throw new Error("MotoGB used-bike page loaded but no motorcycle detail links were found.");
+
+  const collected:any[]=[]; const seen=new Set<string>();
+  const concurrency=8;
+  for(let i=0;i<links.length;i+=concurrency){
+    const rows=await Promise.all(links.slice(i,i+concurrency).map(async(url)=>{
+      const detail=await fetchSourceText(url);
+      if(!detail)return null;
+      const item=parseGenericBike(detail,url,{...connector,name:"MotoGB Used"});
+      if(!item)return null;
+      const id=(url.match(/-(\d+)\/?(?:\?|$)/)||[])[1];
+      if(id){item.source_stock_id=id;item.source_key=id;}
+      item.specification={...(item.specification||{}),source:"MotoGB Used"};
+      return item;
+    }));
+    for(const item of rows){
+      if(!item||!item.source_advertised_price_gbp||Number(item.source_advertised_price_gbp)<500)continue;
+      const key=String(item.source_key||item.source_url);
+      if(seen.has(key))continue;
+      seen.add(key);collected.push(item);
+    }
+  }
+  if(!collected.length)throw new Error("MotoGB detail pages loaded but no complete motorcycle records could be extracted.");
+  return finalise(connector,collected);
 }
 async function refreshGenericPartner(connector:any){
   const start=connector.results_url||connector.base_url;
