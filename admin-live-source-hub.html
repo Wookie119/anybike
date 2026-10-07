@@ -812,13 +812,10 @@ async function refreshSource(id,event,button){
         throw (result.error || new Error(result.data?.error||"Refresh request failed"));
       }
       finalData=result.data||{};
-      if(!finalData.completed){
-        throw new Error(finalData.message||"Source refresh did not complete.");
-      }
+      if(!finalData.completed)throw new Error(finalData.message||"Source refresh did not complete.");
     }else{
       for(let pass=0;pass<100;pass++){
-        let data=null;
-        let lastError=null;
+        let data=null,lastError=null;
         for(let attempt=1;attempt<=4;attempt++){
           const result=await sb().functions.invoke("refresh-live-source",{body:{connector_id:Number(id),chunk_size:20}});
           if(!result.error && !result.data?.error){data=result.data;lastError=null;break;}
@@ -829,8 +826,7 @@ async function refreshSource(id,event,button){
         }
         if(lastError)throw lastError;
         finalData=data||{};
-        const cursor=Number(finalData.cursor||0);
-        const total=Number(finalData.total||finalData.discovered_count||0);
+        const cursor=Number(finalData.cursor||0),total=Number(finalData.total||finalData.discovered_count||0);
         st.className="status";
         st.textContent=finalData.completed
           ?(finalData.message||"Source refresh completed.")
@@ -858,19 +854,471 @@ async function refreshSource(id,event,button){
       document.getElementById("makeFilter").value=savedFilters.make;
     }
     refreshModelOptions(savedFilters.model);
-    if(savedFilters.model && [...document.getElementById("modelFilter").options].some(o=>o.value===savedFilters.model)){
-      document.getElementById("modelFilter").value=savedFilters.model;
+    if(savedFilters.model){
+      const modelOption=[...document.getElementById("modelFilter").options]
+        .find(o=>normaliseModelName(o.value)===normaliseModelName(savedFilters.model));
+      if(modelOption)document.getElementById("modelFilter").value=modelOption.value;
     }
     document.getElementById("statusFilter").value=savedFilters.status;
     selectedDealers=new Set(savedFilters.dealers||[]);
-    await loadItems(true);
+
+    const requestId=Number(document.getElementById("requestSelect")?.value||0);
+    if(requestId)await applySelectedBuyerRequest();
+    else await loadItems();
   }catch(e){
     st.className="status bad";
-    st.textContent="Refresh failed: "+(e?.message||String(e));
+    st.textContent="Refresh failed: "+(e?.context?.body?.error||e?.message||String(e));
   }finally{
     sourceRefreshInProgress=false;
     if(btn){btn.disabled=false;btn.textContent="Refresh Source";}
   }
+}
+async function loadBmwPhotos(){
+  const cid=document.getElementById("connectorFilter").value?Number(document.getElementById("connectorFilter").value):null;
+  const make=document.getElementById("makeFilter").value||null;
+  const model=document.getElementById("modelFilter").value||null;
+  const st=document.getElementById("poolStatus");
+  const btn=document.getElementById("loadPhotosBtn");
+  if(!cid||!isBmwConnector()){st.className="status bad";st.textContent="BMW photo loading is only available on BMW Motorrad Approved Used UK.";return}
+  if(btn){btn.disabled=true;btn.textContent="Loading photos…";}
+  st.className="status";st.textContent="Loading internal BMW source photos for "+([make,model].filter(Boolean).join(" ")||"visible source")+"…";
+  try{
+    const {data,error}=await sb().functions.invoke("refresh-bmw-live-source-images",{
+      body:{connector_id:cid,make:make,model:model}
+    });
+    if(error)throw error;
+    if(data?.error)throw new Error(data.error);
+    st.className="status good";
+    st.textContent=data?.message||"BMW photos loaded.";
+    await loadItems();
+  }catch(e){
+    st.className="status bad";
+    st.textContent=e?.context?.body?.error||e?.message||"Could not load BMW photos.";
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent="Load BMW source photos (internal)";}
+  }
+}
+
+function renderDealerFilters(rows){
+  const el=document.getElementById("dealerFilterChecks");
+  if(!el)return;
+  const dealers=[...new Set((rows||[]).map(i=>String(i.seller_name||"").trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+  if(!dealers.length){
+    el.innerHTML='<span class="small">No internal source names found.</span>';
+    return;
+  }
+  selectedDealers=new Set([...selectedDealers].filter(d=>dealers.includes(d)));
+  el.innerHTML=dealers.map(d=>'<label><input type="checkbox" value="'+esc(d)+'" '+(selectedDealers.has(d)?'checked':'')+' onchange="toggleDealerFilter(this.value,this.checked)"><span>'+esc(d)+'</span></label>').join("");
+}
+function toggleDealerFilter(name,on){
+  if(on)selectedDealers.add(name);else selectedDealers.delete(name);
+  applyDealerFilter();
+}
+function selectAllDealerFilters(){
+  document.querySelectorAll('#dealerFilterChecks input[type="checkbox"]').forEach(cb=>{cb.checked=true;selectedDealers.add(cb.value)});
+  applyDealerFilter();
+}
+function clearDealerFilters(){
+  selectedDealers.clear();
+  document.querySelectorAll('#dealerFilterChecks input[type="checkbox"]').forEach(cb=>cb.checked=false);
+  applyDealerFilter();
+}
+function applyDealerFilter(){
+  loadItems(true);
+}
+
+async function cleanSelectedImages(){
+  const st=document.getElementById("poolStatus");
+  const btn=document.getElementById("cleanSelectedBtn");
+  const ids=[...selected].map(Number);
+  if(!isBmwConnector()){
+    st.className="status bad";
+    st.textContent="Buyer-safe BMW image cleaning is only available on BMW Motorrad Approved Used UK.";
+    return;
+  }
+  if(!ids.length){
+    st.className="status bad";
+    st.textContent="Select at least one motorcycle to clean.";
+    return;
+  }
+
+  if(btn){btn.disabled=true;btn.textContent="Cleaning…";}
+  let ready=0,attention=0;
+  let lastError="";
+
+  try{
+    const missingIds=ids.filter(id=>{
+      const item=items.find(x=>Number(x.id)===id);
+      return !(item?.source_image_urls||[]).some(u=>/\/api\/Image\/GetImg\?imgId=/i.test(String(u)));
+    });
+
+    if(missingIds.length){
+      st.className="status";
+      st.textContent="Loading missing BMW source photos… "+missingIds.length+" bike"+(missingIds.length===1?"":"s");
+      const cid=document.getElementById("connectorFilter").value?Number(document.getElementById("connectorFilter").value):1;
+      const {data:photoData,error:photoError}=await sb().functions.invoke("refresh-bmw-live-source-images",{
+        body:{connector_id:cid,item_ids:missingIds}
+      });
+      if(photoError||photoData?.error){
+        lastError=String(photoData?.error||photoError?.message||"Could not load missing BMW photos.");
+      }
+
+      const {data:freshRows,error:freshError}=await sb()
+        .from("live_source_items")
+        .select("id,source_image_urls")
+        .in("id",ids);
+
+      if(!freshError){
+        const freshMap=new Map((freshRows||[]).map(r=>[Number(r.id),r.source_image_urls||[]]));
+        items=items.map(item=>freshMap.has(Number(item.id))
+          ? {...item,source_image_urls:freshMap.get(Number(item.id))}
+          : item);
+      }
+    }
+
+    for(let i=0;i<ids.length;i++){
+      const id=ids[i];
+      const item=items.find(x=>Number(x.id)===id);
+      const hasReal=(item?.source_image_urls||[]).some(u=>/\/api\/Image\/GetImg\?imgId=/i.test(String(u)));
+
+      if(!hasReal){
+        attention++;
+        lastError="A selected BMW advert has no real motorcycle photo available from the source.";
+        continue;
+      }
+
+      st.className="status";
+      st.textContent="Cleaning buyer-safe image… "+(i+1)+" / "+ids.length;
+
+      try{
+        const {data,error}=await sb().functions.invoke("prepare-live-source-buyer-safe-images",{
+          body:{live_source_item_id:id,target_safe_count:4}
+        });
+
+        if(error||data?.error){
+          attention++;
+          lastError=String(data?.error||error?.message||"Image cleaning failed");
+          continue;
+        }
+
+        if(Number(data?.safe_count||0)>0) ready++;
+        else{
+          attention++;
+          lastError=String(data?.message||data?.process?.error||"No clean image was approved.");
+        }
+      }catch(e){
+        attention++;
+        lastError=String(e?.message||e||"Image cleaning failed");
+      }
+    }
+
+    await loadItems(true);
+
+    st.className=attention===0?"status good":(ready>0?"status good":"status bad");
+    st.textContent=ready+" clean image"+(ready===1?"":"s")+" ready"+
+      (attention?" · "+attention+" need attention":"")+
+      (lastError?" — "+lastError:"");
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent="Clean selected images";}
+  }
+}
+
+async function loadItems(preserveDealerOptions=false){
+  const st=document.getElementById("poolStatus");st.textContent="Loading…";
+  const cid=document.getElementById("connectorFilter").value?Number(document.getElementById("connectorFilter").value):null;
+  if(!cid){
+    items=[];
+    selected.clear();
+    document.getElementById("bikes").innerHTML='<div class="empty">Choose a sourcing channel above or from the source cards below to begin.</div>';
+    st.className="status";
+    st.textContent="Choose a sourcing channel to view motorcycles.";
+    updateLiveSourceNextAction();
+    return;
+  }
+  const make=document.getElementById("makeFilter").value||null;
+  const modelRaw=document.getElementById("modelFilter").value||null;
+  const model=modelRaw==="__request_family__"?null:modelRaw;
+  const status=document.getElementById("statusFilter").value||null;
+  const vatFilter=document.getElementById("vatFilter")?.value||"";
+  const {data,error}=await sb().rpc("admin_get_live_source_items_v1",{p_connector_id:cid,p_make:make,p_model:model,p_status:status,p_limit:2000});
+  if(error){st.className="status bad";st.textContent=error.message;return}
+  let rows=data||[];
+
+  if(rows.length){
+    const {data:safeRows,error:safeError}=await sb().rpc("admin_get_live_source_buyer_safe_images_v1",{
+      p_item_ids:rows.map(r=>Number(r.id))
+    });
+    if(!safeError){
+      const safeMap=new Map();
+      (safeRows||[]).forEach(x=>{
+        if(!safeMap.has(Number(x.live_source_item_id))) safeMap.set(Number(x.live_source_item_id),x.buyer_safe_url);
+      });
+      rows=rows.map(r=>({...r,buyer_safe_url:safeMap.get(Number(r.id))||null}));
+    }
+  }
+
+  if(vatFilter==="vq") rows=rows.filter(i=>i.vat_qualifying===true);
+  else if(vatFilter==="non_vq") rows=rows.filter(i=>i.vat_qualifying!==true);
+
+  const dealerSourceRows=[...rows];
+
+  const requestId=Number(document.getElementById("requestSelect")?.value||0);
+  const request=buyerRequests.find(r=>Number(r.id)===requestId)||null;
+  if(request){
+    const reqModel=normaliseModelName(request.model);
+    rows=rows.filter(function(i){
+      if(request.make && String(i.make||"").toLowerCase()!==String(request.make).toLowerCase()) return false;
+      if(reqModel && normaliseModelName(i.model)!==reqModel && !normaliseModelName(i.model).includes(reqModel) && !reqModel.includes(normaliseModelName(i.model))) return false;
+      if(request.year_from && Number(i.year||0)<Number(request.year_from)) return false;
+      if(request.year_to && Number(i.year||0)>Number(request.year_to)) return false;
+      if(request.mileage_max && Number(i.mileage||0)>Number(request.mileage_max)) return false;
+      if(request.max_price_gbp && Number(i.source_price_gbp||0)>Number(request.max_price_gbp)) return false;
+      const colour=String(i.colour||"").toLowerCase();
+      const avoid=Array.isArray(request.avoid_colours)?request.avoid_colours:[];
+      if(avoid.some(x=>colour.includes(String(x||"").toLowerCase()))) return false;
+      return true;
+    });
+
+    const preferred=String(request.preferred_colour||"")
+      .split(",").map(x=>x.trim().toLowerCase()).filter(Boolean);
+    if(preferred.length){
+      rows.sort((a,b)=>{
+        const ac=String(a.colour||"").toLowerCase();
+        const bc=String(b.colour||"").toLowerCase();
+        const ap=preferred.some(x=>ac.includes(x))?0:1;
+        const bp=preferred.some(x=>bc.includes(x))?0:1;
+        return ap-bp;
+      });
+    }
+  }
+
+  if(!preserveDealerOptions)renderDealerFilters(dealerSourceRows);
+  if(selectedDealers.size){
+    rows=rows.filter(i=>selectedDealers.has(String(i.seller_name||"").trim()));
+  }
+
+  if(document.getElementById("buyerSafeOnlyCheck")?.checked){
+    rows=rows.filter(i=>!!i.buyer_safe_url);
+  }else{
+    rows.sort((a,b)=>{
+      const ar=a.buyer_safe_url?0:1;
+      const br=b.buyer_safe_url?0:1;
+      return ar-br;
+    });
+  }
+
+  if(isBmwConnector() && rows.length){
+    let photoCandidates=[...rows];
+    if(request){
+      const preferredColours=String(request.preferred_colour||"")
+        .split(",").map(x=>x.trim().toLowerCase()).filter(Boolean);
+      if(preferredColours.length){
+        const preferredRows=photoCandidates.filter(i=>{
+          const colour=String(i.colour||"").toLowerCase();
+          return preferredColours.some(x=>colour.includes(x));
+        });
+        if(preferredRows.length) photoCandidates=preferredRows;
+      }
+      if(request.max_price_gbp){
+        photoCandidates=photoCandidates.filter(i=>Number(i.source_price_gbp||0)<=Number(request.max_price_gbp));
+      }
+    }
+
+    const missingPhotoIds=photoCandidates
+      .filter(i=>{
+        if(i.buyer_safe_url)return false;
+        const hasReal=(Array.isArray(i.source_image_urls)?i.source_image_urls:[])
+          .some(u=>/\/api\/Image\/GetImg\?imgId=/i.test(String(u)));
+        return !hasReal && !autoBmwPhotoRequested.has(Number(i.id));
+      })
+      .slice(0,20)
+      .map(i=>Number(i.id));
+
+    if(missingPhotoIds.length){
+      missingPhotoIds.forEach(id=>autoBmwPhotoRequested.add(id));
+      st.className="status";
+      st.textContent="Loading BMW motorcycle photos for "+missingPhotoIds.length+" matching bike"+(missingPhotoIds.length===1?"":"s")+"…";
+      try{
+        const {data:photoData,error:photoError}=await sb().functions.invoke("refresh-bmw-live-source-images",{
+          body:{connector_id:cid,item_ids:missingPhotoIds}
+        });
+        if(!photoError && !photoData?.error){
+          await loadItems(true);
+          return;
+        }
+        console.warn("Automatic BMW photo loading paused",photoData?.error||photoError);
+      }catch(photoLoadError){
+        console.warn("Automatic BMW photo loading failed",photoLoadError);
+      }
+    }
+  }
+
+  items=rows;
+  [...selected].forEach(function(id){
+    if(!items.some(i=>Number(i.id)===Number(id))) selected.delete(id);
+  });
+  renderItems();
+  st.className="status";
+  st.textContent=items.length+" motorcycles shown"+(request?" for this buyer request":"")+" · "+selected.size+" selected";
+  updateLiveSourceNextAction();
+}
+function cleanLiveTitle(v){
+  return String(v||"")
+    .replace(/\b(?:2|two)\s*(?:year|yr)\s+(?:BMW\s+)?warranty\b/gi,"")
+    .replace(/\bBMW['’]?s\s+Ultimate\s+Superbike\b/gi,"")
+    .replace(/\bLow\s+Mileage\b/gi,"")
+    .replace(/\bGreat\s+Condition\b/gi,"")
+    .replace(/\s*[-–—]\s*$/g,"")
+    .replace(/\s{2,}/g," ")
+    .trim();
+}
+function renderItems(){
+  const el=document.getElementById("bikes");
+  if(!items.length){el.innerHTML='<div class="empty">No motorcycles in this source pool yet. Use the Scanner to add tested adverts while the source adapter is being expanded.</div>';return}
+  el.innerHTML=items.map(i=>'<article class="bike">'+
+    '<input type="checkbox" class="bike-select-checkbox" data-bike-id="'+i.id+'" '+(selected.has(i.id)?"checked":"")+' '+(i.source_status!=="live"?"disabled":"")+' onchange="toggle('+i.id+',this.checked)">'+
+    '<div><img src="'+esc(firstImg(i))+'" onerror="this.src=\'/anybike-logo-new.jpg\'">'+
+      (i.preparation_status==="Buyer Ready"
+        ?'<div class="status good" style="margin-top:5px;font-weight:900">✓ Buyer Ready</div>'
+        :i.buyer_safe_url
+          ?'<div class="status good" style="margin-top:5px;font-weight:800">✓ Buyer-safe image</div>'
+          :'<div class="status" style="margin-top:5px">Raw source image</div>')+
+    '</div>'+
+    '<div><div class="bike-title">'+esc(cleanLiveTitle([i.year,i.make,i.model,i.variant].filter(Boolean).join(" ")))+'</div><div class="small">'+esc([i.mileage!=null?Number(i.mileage).toLocaleString("en-GB")+" miles":"",i.colour].filter(Boolean).join(" · "))+'</div>'+vatBadgeHtml(i)+'</div>'+
+    '<div class="optional"><div class="small">Source price</div><div class="money">'+gbp(i.source_price_gbp)+'</div>'+
+      '<div class="field" style="margin-top:8px"><label>UK delivery</label><input type="text" inputmode="decimal" value="'+esc(formatDeliveryAllowance(deliveryAllowances.has(Number(i.id))?deliveryAllowances.get(Number(i.id)):250))+'" onfocus="deliveryInputFocus(this)" onblur="deliveryInputBlur('+i.id+',this)"></div></div>'+
+    '<div class="optional"><div class="small secret">Internal source</div><div>'+esc(i.seller_name||i.source_domain||"")+'</div><div class="small">'+esc(i.source_stock_id||"")+'</div></div>'+
+    '<div class="optional"><div class="small">Last seen</div><div>'+esc(date(i.last_seen_at))+'</div></div>'+
+    '<div><span class="pill '+(i.source_status==="live"?"live":i.source_status==="ended"?"end":"review")+'">'+esc(i.source_status)+'</span><br><a class="small secret" href="'+esc(i.source_url)+'" target="_blank">source ↗</a>'+
+      '<label class="small" style="display:flex;gap:6px;align-items:center;margin-top:10px;color:#ff8a8a"><input type="checkbox" style="width:auto" onchange="excludeLiveSourceItem('+i.id+',this.checked)"> Remove</label></div>'+
+    '</article>').join("");
+  syncSelectAllVisibleState();
+  updateLiveSourceNextAction();
+}
+async function excludeLiveSourceItem(id,on){
+  if(!on)return;
+  const item=items.find(x=>Number(x.id)===Number(id));
+  const title=[item?.year,item?.make,item?.model,item?.variant].filter(Boolean).join(" ")||"this motorcycle";
+  const ok=confirm("Remove "+title+" from the sourcing pool?\n\nThis will hide it from Live Source but will not delete the source record.");
+  if(!ok){renderItems();return}
+  const st=document.getElementById("poolStatus");
+  st.className="status";
+  st.textContent="Removing motorcycle from sourcing pool…";
+  const {data,error}=await sb().rpc("admin_set_live_source_excluded_v1",{p_item_id:Number(id),p_excluded:true});
+  if(error||data?.error){
+    st.className="status bad";
+    st.textContent=data?.error||error?.message||"Could not remove motorcycle.";
+    renderItems();
+    return;
+  }
+  selected.delete(Number(id));
+  items=items.filter(x=>Number(x.id)!==Number(id));
+  renderItems();
+  st.className="status good";
+  st.textContent=items.length+" motorcycles shown · "+selected.size+" selected";
+}
+function normaliseDeliveryValue(value){
+  const n=Number(String(value??"").replace(/[^0-9.-]/g,""));
+  return Number.isFinite(n)&&n>=0?n:250;
+}
+function formatDeliveryAllowance(value){
+  return "£"+normaliseDeliveryValue(value).toFixed(2);
+}
+function setDeliveryAllowance(id,value){
+  deliveryAllowances.set(Number(id),normaliseDeliveryValue(value));
+}
+function deliveryInputFocus(input){
+  input.value=normaliseDeliveryValue(input.value).toFixed(2);
+  try{input.select()}catch{}
+}
+function deliveryInputBlur(id,input){
+  const value=normaliseDeliveryValue(input.value);
+  deliveryAllowances.set(Number(id),value);
+  input.value=formatDeliveryAllowance(value);
+}
+function toggle(id,on){if(on&&selected.size>=20){alert("Maximum 20 motorcycles per buyer batch.");renderItems();return}on?selected.add(id):selected.delete(id);document.getElementById("poolStatus").textContent=items.length+" motorcycles shown · "+selected.size+" selected";updateLiveSourceNextAction()}
+function syncSelectAllVisibleState(){
+  const cb=document.getElementById("selectAllVisibleCheck");
+  if(!cb)return;
+  const visibleLive=items.filter(i=>i.source_status==="live");
+  cb.checked=visibleLive.length>0 && visibleLive.every(i=>selected.has(i.id));
+  cb.indeterminate=!cb.checked && visibleLive.some(i=>selected.has(i.id));
+}
+function toggleSelectAllVisible(on){
+  if(on){
+    for(const i of items){
+      if(i.source_status==="live"&&selected.size<20)selected.add(i.id);
+    }
+  }else{
+    for(const i of items)selected.delete(i.id);
+  }
+  renderItems();
+  document.getElementById("poolStatus").textContent=items.length+" motorcycles shown · "+selected.size+" selected";
+  syncSelectAllVisibleState();
+}
+function selectVisible(){toggleSelectAllVisible(true)}
+function clearSelected(){
+  selected.clear();
+  renderItems();
+  document.getElementById("poolStatus").textContent=items.length+" motorcycles shown · 0 selected";
+  syncSelectAllVisibleState();
+}
+
+function buyerDisplayName(b){
+  return (b.business_name?b.business_name+" — ":"")+(b.contact_name||b.email||"Buyer");
+}
+function buyerTypeLabel(value){
+  return ({
+    uk_private:"UK private",
+    uk_dealer:"UK dealer",
+    uk_distributor:"UK distributor",
+    uk_manufacturer:"UK manufacturer",
+    uk_partner:"UK partner",
+    eu_dealer:"European dealer",
+    intl_dealer:"International dealer",
+    global_manufacturer:"Global manufacturer"
+  })[String(value||"")]||"";
+}
+function buyerDropdownLabel(b,waiting){
+  const detail=[b.country,buyerTypeLabel(b.customer_type)].filter(Boolean).join(" · ");
+  return buyerDisplayName(b)+(detail?" · "+detail:"")+(waiting?" · "+waiting+" waiting for matches":"");
+}
+async function loadBuyerSourcingQueue(){
+  const {data,error}=await sb().rpc("admin_get_buyer_sourcing_queue_v1");
+  buyerSourcingQueue=error?[]:(data||[]);
+  renderBuyerSourcingQueue();
+  return buyerSourcingQueue;
+}
+function renderBuyerSourcingQueue(){
+  const grid=document.getElementById("buyerWaitingGrid");
+  const summary=document.getElementById("buyerWaitingSummary");
+  if(!grid||!summary)return;
+  const waiting=buyerSourcingQueue.filter(b=>Number(b.waiting_for_matches_count||0)>0);
+  summary.textContent=waiting.length
+    ?waiting.length+" buyer"+(waiting.length===1?" is":"s are")+" waiting for motorcycle matches. Oldest outstanding requests are shown first."
+    :"No buyers are currently waiting for first matches.";
+  grid.innerHTML=waiting.map(b=>{
+    const reqs=(b.waiting_requests||[]).map(r=>[r.make,r.model].filter(Boolean).join(" ")).filter(Boolean);
+    return '<div class="buyer-waiting-row">'+
+      '<div><strong>'+esc(buyerDisplayName(b))+'</strong><div class="buyer-waiting-count">'+Number(b.waiting_for_matches_count||0)+' request'+(Number(b.waiting_for_matches_count||0)===1?"":"s")+' waiting for matches</div></div>'+
+      '<div class="buyer-waiting-reqs">'+esc(reqs.join(" · ")||"Open motorcycle request")+'</div>'+
+      '<button class="btn red" type="button" onclick="workBuyerFromQueue('+Number(b.buyer_id)+')">SOURCE MATCHES →</button>'+
+    '</div>';
+  }).join("")||'<div class="small">Nothing waiting for first matches.</div>';
+}
+async function workBuyerFromQueue(buyerId){
+  const buyerEl=document.getElementById("buyerSelect");
+  if(!buyerEl)return;
+  buyerEl.value=String(buyerId);
+  await loadRequests();
+  await loadBuyerSourcingPlan();
+  const waiting=(buyerSourcingQueue.find(b=>Number(b.buyer_id)===Number(buyerId))?.waiting_requests||[]);
+  if(waiting.length){
+    await openRequestForSourcing(Number(waiting[0].request_id));
+    return;
+  }
+  updateLiveSourceNextAction();
+  document.getElementById("buyerSelect")?.scrollIntoView({behavior:"smooth",block:"center"});
 }
 async function loadBuyers(){
   const {data,error}=await sb().rpc("admin_get_live_source_buyers_v1");
