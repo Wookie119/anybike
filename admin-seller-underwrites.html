@@ -40,10 +40,15 @@ button.red,.btn.red{background:var(--red)}
 .empty{padding:30px;text-align:center;color:#888;border:1px dashed #333;border-radius:15px}
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.75);display:none;align-items:center;justify-content:center;padding:20px;z-index:999}
 .modal.open{display:flex}.modal-box{width:min(650px,100%);background:#111;border:1px solid #444;border-radius:18px;padding:20px}
+.modal-intro{margin:0 0 16px;color:#d7d7d7}
+.modal-context{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:0 0 18px}
+.modal-context .box{background:#090909;border-color:#292929}
+.card.ready-underwrite{border-color:rgba(237,28,36,.65);box-shadow:0 0 0 1px rgba(237,28,36,.18)}
+.card.ready-underwrite .underwrite-ready-note{color:#ffb0b3;font-weight:900}
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.full{grid-column:1/-1}
 label{display:block;color:#bbb;font-size:12px;font-weight:800}input{width:100%;margin-top:6px;background:#090909;color:#fff;border:1px solid #333;border-radius:10px;padding:11px}
 @media(max-width:1100px){.grid{grid-template-columns:1fr 1fr}}
-@media(max-width:720px){.grid,.form-grid{grid-template-columns:1fr}.full{grid-column:auto}.admin-page-content{padding:14px}}
+@media(max-width:720px){.grid,.form-grid,.modal-context{grid-template-columns:1fr}.full{grid-column:auto}.admin-page-content{padding:14px}}
 </style>
 </head>
 <body>
@@ -92,7 +97,15 @@ label{display:block;color:#bbb;font-size:12px;font-weight:800}input{width:100%;m
 
 <div id="modal" class="modal">
   <div class="modal-box">
-    <h3 style="margin-top:0">Update Motorcycle Details</h3>
+    <div class="eyebrow">Dealer Underwrite Setup</div>
+    <h3 id="vehicleModalTitle" style="margin:5px 0 8px">Complete motorcycle details before underwriting</h3>
+    <p id="vehicleModalReason" class="modal-intro">AnyBike needs the Make and Model before this motorcycle can be sent to trade underwriters.</p>
+    <div class="modal-context">
+      <div class="box"><span>Submission</span><strong id="vehicleModalRef">—</strong></div>
+      <div class="box"><span>Registration</span><strong id="vehicleModalReg">—</strong></div>
+      <div class="box"><span>Current mileage</span><strong id="vehicleModalMileage">—</strong></div>
+      <div class="box"><span>HPI</span><strong id="vehicleModalHpi">—</strong></div>
+    </div>
     <div class="form-grid">
       <label>Make<input id="mMake"></label>
       <label>Model<input id="mModel"></label>
@@ -237,9 +250,14 @@ function render(){
           :'<div class="sub">No comparable snapshot captured yet.</div>')+
       '</div>'+
       (r.notes?'<p>'+esc(r.notes)+'</p>':"")+
+      (dealer && r.underwrite_status!=="live" && r.make && r.model?'<div class="underwrite-ready-note">Ready to start the 48-hour trade underwrite.</div>':'')+
       '<div class="actions">'+
-        '<button class="red" onclick="captureComps('+Number(r.submission_id)+')">Capture Comparables</button>'+
-        (r.underwrite_status!=="live"?'<button onclick="startUnderwrite('+Number(r.submission_id)+')">Start 48h Underwrite</button>':'<a class="btn" href="/admin-trade-underwrites.html">Open Underwrite Desk</a>')+
+        '<button onclick="captureComps('+Number(r.submission_id)+')">Capture Comparables</button>'+
+        (r.underwrite_status!=="live"
+          ?(r.make&&r.model
+            ?'<button class="red" onclick="startUnderwrite('+Number(r.submission_id)+')">Start 48h Underwrite</button>'
+            :'<button class="red" onclick="editVehicle('+Number(r.submission_id)+')">Complete Bike Details</button>')
+          :'<a class="btn" href="/admin-trade-underwrites.html">Open Underwrite Desk</a>')+
         '<button onclick="refreshDemand('+Number(r.submission_id)+')">Refresh Buyer Match</button>'+
         (Number(r.unique_buyer_match_count||0)>0?'<button onclick="viewDemand('+Number(r.submission_id)+')">View '+Number(r.unique_buyer_match_count)+' Buyer Match'+(Number(r.unique_buyer_match_count)===1?'':'es')+'</button>':'')+
         '<button onclick="editVehicle('+Number(r.submission_id)+')">Edit Bike Details</button>'+
@@ -320,6 +338,15 @@ function editVehicle(id){
   editId=Number(id);
   const r=rows.find(x=>Number(x.submission_id)===editId);
   if(!r)return;
+  const missingRequired=!r.make||!r.model;
+  document.getElementById("vehicleModalTitle").textContent=missingRequired?"Complete motorcycle details before underwriting":"Update motorcycle details";
+  document.getElementById("vehicleModalReason").textContent=missingRequired
+    ?"AnyBike needs the Make and Model before this motorcycle can be sent to trade underwriters."
+    :"Check or update the motorcycle details stored against this submission.";
+  document.getElementById("vehicleModalRef").textContent=r.reference||"—";
+  document.getElementById("vehicleModalReg").textContent=r.registration||"Not provided";
+  document.getElementById("vehicleModalMileage").textContent=r.mileage===null||r.mileage===undefined?"Not provided":Number(r.mileage).toLocaleString("en-GB")+" miles";
+  document.getElementById("vehicleModalHpi").textContent=r.hpi_clear===true?"Clear":"Not provided";
   document.getElementById("mMake").value=r.make||"";
   document.getElementById("mModel").value=r.model||"";
   document.getElementById("mVariant").value=r.variant||"";
@@ -341,8 +368,15 @@ async function saveVehicle(){
   };
   const {error}=await sb.rpc("admin_update_seller_submission_vehicle_v1",args);
   if(error){alert(error.message);return;}
+  const savedId=editId;
   closeModal();
   await loadQueue();
+  const saved=rows.find(x=>Number(x.submission_id)===Number(savedId));
+  const card=[...document.querySelectorAll("#queue .card")].find(el=>el.textContent.includes(saved?.reference||""));
+  if(card){
+    if(saved?.make&&saved?.model&&saved?.underwrite_status!=="live")card.classList.add("ready-underwrite");
+    card.scrollIntoView({behavior:"smooth",block:"center"});
+  }
 }
 
 (async function init(){
