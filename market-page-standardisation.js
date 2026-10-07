@@ -66,7 +66,81 @@ for(const [iso,override] of Object.entries(CURATED_MARKETS)){
   if(override.ports) MARKET_DATA[iso].ports=override.ports;
 }
 
+const MARKET_GAPS={
+  AI:{cities:["The Valley","Sandy Ground","Blowing Point"],regions:["Anguilla"],ports:["Road Bay"],country:"Anguilla"},
+  BS:{cities:["Nassau","Freeport","Marsh Harbour"],regions:["New Providence","Grand Bahama","Abaco"],ports:["Nassau","Freeport"],country:"The Bahamas"},
+  CZ:{cities:["Prague","Brno","Ostrava","Plzeň"],regions:["Prague","South Moravia","Moravian-Silesian Region"],ports:[],landlocked:true,country:"Czech Republic"},
+  GM:{cities:["Banjul","Serekunda","Brikama"],regions:["Greater Banjul Area","West Coast Region"],ports:["Banjul"],country:"The Gambia"},
+  GP:{cities:["Les Abymes","Pointe-à-Pitre","Basse-Terre"],regions:["Grande-Terre","Basse-Terre"],ports:["Jarry / Guadeloupe Port Caraïbes"],country:"Guadeloupe"},
+  MQ:{cities:["Fort-de-France","Le Lamentin","Le Robert"],regions:["Central Martinique","North Martinique","South Martinique"],ports:["Fort-de-France"],country:"Martinique"},
+  FM:{cities:["Palikir","Kolonia","Weno"],regions:["Pohnpei","Chuuk","Yap","Kosrae"],ports:["Pohnpei","Weno / Chuuk"],country:"Micronesia"},
+  MS:{cities:["Brades","Little Bay","Salem"],regions:["Northern Montserrat"],ports:["Little Bay"],country:"Montserrat"},
+  NR:{cities:["Yaren","Aiwo","Denigomodu"],regions:["Nauru"],ports:["Aiwo"],country:"Nauru"},
+  TL:{cities:["Dili","Baucau","Maliana"],regions:["Dili","Baucau","Bobonaro"],ports:["Dili"],country:"Timor-Leste"},
+  VG:{cities:["Road Town","Spanish Town"],regions:["Tortola","Virgin Gorda"],ports:["Port Purcell / Road Town"],country:"British Virgin Islands"},
+  XK:{cities:["Pristina","Prizren","Peja","Gjakova"],regions:["Pristina District","Prizren District"],ports:[],landlocked:true,country:"Kosovo"},
+  MP:{cities:["Saipan","Garapan","Tinian"],regions:["Saipan","Tinian","Rota"],ports:["Saipan"],country:"Northern Mariana Islands"},
+  BL:{cities:["Gustavia","Saint-Jean"],regions:["Saint Barthélemy"],ports:["Gustavia"],country:"Saint Barthélemy"},
+  MF:{cities:["Marigot","Grand Case"],regions:["French Saint-Martin"],ports:["Galisbay / Marigot"],country:"Saint Martin"},
+  SX:{cities:["Philipsburg","Simpson Bay"],regions:["Sint Maarten"],ports:["Port St Maarten / Philipsburg"],country:"Sint Maarten"},
+  VI:{cities:["Charlotte Amalie","Christiansted","Frederiksted"],regions:["St Thomas","St Croix","St John"],ports:["Crown Bay / Charlotte Amalie","Frederiksted"],country:"U.S. Virgin Islands"},
+
+  AL:{ports:["Durrës","Vlorë"]},
+  AG:{ports:["St John's"]},
+  BM:{ports:["Hamilton"]},
+  BA:{ports:["Ploče (Croatia) – regional overland gateway"]},
+  BN:{ports:["Muara"]},
+  KY:{ports:["George Town"]},
+  KM:{ports:["Moroni","Mutsamudu"]},
+  HR:{ports:["Rijeka","Ploče","Split"]},
+  CW:{ports:["Willemstad"]},
+  DM:{ports:["Roseau","Portsmouth"]},
+  EE:{ports:["Muuga / Port of Tallinn","Paldiski"]},
+  FK:{ports:["Stanley"]},
+  GF:{ports:["Dégrad des Cannes"]},
+  GL:{ports:["Nuuk"]},
+  GD:{ports:["St George's"]},
+  GY:{ports:["Georgetown"]},
+  IS:{ports:["Reykjavík"]},
+  IQ:{ports:["Umm Qasr"]},
+  KI:{ports:["Betio / Tarawa"]},
+  LT:{ports:["Klaipėda"]},
+  MO:{ports:["Macau / regional freight gateway"]},
+  MV:{ports:["Malé"]},
+  MH:{ports:["Majuro"]},
+  MC:{ports:["Nice (France) – regional freight gateway"]},
+  ME:{ports:["Bar"]},
+  MM:{ports:["Yangon / Thilawa"]},
+  PW:{ports:["Malakal / Koror"]},
+  QA:{ports:["Hamad Port"]},
+  KN:{ports:["Basseterre"]},
+  LC:{ports:["Castries","Vieux Fort"]},
+  VC:{ports:["Kingstown"]},
+  WS:{ports:["Apia"]},
+  ST:{ports:["São Tomé"]},
+  SB:{ports:["Honiara"]},
+  SD:{ports:["Port Sudan"]},
+  TO:{ports:["Nuku'alofa"]},
+  TC:{ports:["South Dock / Providenciales"]},
+  VU:{ports:["Port Vila","Luganville"]}
+};
+
+for(const [iso,override] of Object.entries(MARKET_GAPS)){
+  if(!MARKET_DATA[iso]) MARKET_DATA[iso]={country:override.country||"",cities:[],regions:[],ports:[],landlocked:false};
+  if(override.country) MARKET_DATA[iso].country=override.country;
+  if(override.cities) MARKET_DATA[iso].cities=override.cities;
+  if(override.regions) MARKET_DATA[iso].regions=override.regions;
+  if(override.ports) MARKET_DATA[iso].ports=override.ports;
+  if(override.landlocked) MARKET_DATA[iso].landlocked=true;
+}
+
 const SLUG_TO_ISO={"usa":"US","uae":"AE","turkiye":"TR","ivory-coast":"CI","democratic-republic-of-the-congo":"CD","republic-of-the-congo":"CG","south-korea":"KR","north-korea":"KP","laos":"LA","taiwan":"TW","palestine":"PS","reunion":"RE","curacao":"CW","saint-barthelemy":"BL","saint-martin":"MF","sint-maarten":"SX","us-virgin-islands":"VI","british-virgin-islands":"VG","turks-and-caicos-islands":"TC","falkland-islands":"FK","french-guiana":"GF","french-polynesia":"PF","northern-mariana-islands":"MP","cabo-verde":"CV","hong-kong":"HK","macau":"MO","puerto-rico":"PR","guam":"GU","bermuda":"BM","cayman-islands":"KY","new-caledonia":"NC","kosovo":"XK","uganda":"UG","italy":"IT","aland":"AX","vatican":"VA","france":"RE","antarctica":"AQ","zambia":"ZM","namibia":"NA","japan":"JP","serbia":"RS","bosnia-and-herzegovina":"BA","isle-of-man":"IM","san-marino":"SM","aruba":"AW","liechtenstein":"LI","gibraltar":"GI","eswatini":"SZ","united-kingdom":"GB","svalbard-and-jan-mayen-islands":"SJ","luxembourg":"LU","georgia":"GE","portugal":"PT","sudan":"SD","federated-states-of-micronesia":"FM","marshall-islands":"MH","tuvalu":"TV","palau":"PW","western-sahara":"EH","monaco":"MC","kiribati":"KI","comoros":"KM","macau-s-a-r":"MO","andorra":"AD","united-states-of-america":"US","pakistan":"PK","nigeria":"NG","china":"CN","india":"IN","uruguay":"UY","venezuela":"VE","trinidad-and-tobago":"TT","togo":"TG","tunisia":"TN","yemen":"YE","ukraine":"UA","turkmenistan":"TM","uzbekistan":"UZ","vietnam":"VN","zimbabwe":"ZW","cameroon":"CM","turkey":"TR","rwanda":"RW","suriname":"SR","spain":"ES","niger":"NE","romania":"RO","sweden":"SE","thailand":"TH","peru":"PE","paraguay":"PY","senegal":"SN","saudi-arabia":"SA","south-sudan":"SS","netherlands":"NL","norway":"NO","slovenia":"SI","slovakia":"SK","qatar":"QA","south-africa":"ZA","mozambique":"MZ","papua-new-guinea":"PG","panama":"PA","morocco":"MA","montenegro":"ME","russia":"RU","sri-lanka":"LK","philippines":"PH","mexico":"MX","poland":"PL","mongolia":"MN","tanzania":"TZ","switzerland":"CH","indonesia":"ID","kenya":"KE","malaysia":"MY","madagascar":"MG","ecuador":"EC","costa-rica":"CR","cuba":"CU","dominican-republic":"DO","colombia":"CO","dominica":"DM","congo-kinshasa":"CD","chad":"TD","egypt":"EG","eritrea":"ER","djibouti":"DJ","germany":"DE","malawi":"MW","guatemala":"GT","the-gambia":"GM","congo-brazzaville":"CG","gabon":"GA","mali":"ML","chile":"CL","greenland":"GL","mauritania":"MR","north-macedonia":"MK","libya":"LY","iraq":"IQ","ethiopia":"ET","finland":"FI","kazakhstan":"KZ","iran":"IR","guinea":"GN","brazil":"BR","canada":"CA","central-african-republic":"CF","argentina":"AR","bolivia":"BO","afghanistan":"AF","cambodia":"KH","angola":"AO","barbados":"BB","algeria":"DZ","benin":"BJ","belarus":"BY","bangladesh":"BD","botswana":"BW","australia":"AU","burkina-faso":"BF","myanmar":"MM","burundi":"BI","american-samoa":"AS","saint-vincent-and-the-grenadines":"VC","saint-lucia":"LC","saint-kitts-and-nevis":"KN","mauritius":"MU","grenada":"GD","bahrain":"BH","the-bahamas":"BS","antigua-and-barbuda":"AG","new-zealand":"NZ","united-arab-emirates":"AE","east-timor":"TL","vanuatu":"VU","honduras":"HN","guyana":"GY","iceland":"IS","haiti":"HT","tajikistan":"TJ","nicaragua":"NI","sierra-leone":"SL","nepal":"NP","solomon-islands":"SB","moldova":"MD","somalia":"SO","oman":"OM","guinea-bissau":"GW","jordan":"JO","lithuania":"LT","latvia":"LV","kyrgyzstan":"KG","lesotho":"LS","el-salvador":"SV","jamaica":"JM","equatorial-guinea":"GQ","croatia":"HR","estonia":"EE","fiji":"FJ","greece":"GR","lebanon":"LB","brunei":"BN","belize":"BZ","albania":"AL","armenia":"AM","azerbaijan":"AZ","bulgaria":"BG","bhutan":"BT","tonga":"TO","seychelles":"SC","sao-tome-and-principe":"ST","samoa":"WS","malta":"MT","maldives":"MV","israel":"IL","cape-verde":"CV","cyprus":"CY","hungary":"HU","syria":"SY","ireland":"IE","liberia":"LR","czechia":"CZ","kuwait":"KW","ghana":"GH","denmark":"DK","belgium":"BE","austria":"AT","singapore":"SG","hong-kong-s-a-r":"HK"};
+Object.assign(SLUG_TO_ISO,{
+  "anguilla":"AI","bahamas":"BS","czech-republic":"CZ","gambia":"GM","guadeloupe":"GP",
+  "martinique":"MQ","micronesia":"FM","montserrat":"MS","nauru":"NR","timor-leste":"TL",
+  "british-virgin-islands":"VG","kosovo":"XK","northern-mariana-islands":"MP",
+  "saint-barthelemy":"BL","saint-martin":"MF","sint-maarten":"SX","us-virgin-islands":"VI"
+});
 const DEMONYM={"SE":"Swedish","DE":"German","FR":"French","ES":"Spanish","IT":"Italian","IE":"Irish","NL":"Dutch","BE":"Belgian","DK":"Danish","NO":"Norwegian","FI":"Finnish","PT":"Portuguese","AT":"Austrian","CH":"Swiss","PL":"Polish","CZ":"Czech","SK":"Slovak","HU":"Hungarian","RO":"Romanian","BG":"Bulgarian","HR":"Croatian","SI":"Slovenian","GR":"Greek","CY":"Cypriot","MT":"Maltese","US":"American","CA":"Canadian","AU":"Australian","NZ":"New Zealand","AE":"Emirati","SA":"Saudi","QA":"Qatari","KW":"Kuwaiti","OM":"Omani","BH":"Bahraini","ZA":"South African","KE":"Kenyan","NG":"Nigerian","MA":"Moroccan","EG":"Egyptian","IN":"Indian","PK":"Pakistani","BD":"Bangladeshi","JP":"Japanese","KR":"South Korean","SG":"Singaporean","MY":"Malaysian","ID":"Indonesian","TH":"Thai","PH":"Filipino","VN":"Vietnamese","CN":"Chinese","HK":"Hong Kong","TW":"Taiwanese","BR":"Brazilian","AR":"Argentinian","CL":"Chilean","CO":"Colombian","MX":"Mexican","PE":"Peruvian","UY":"Uruguayan","PR":"Puerto Rican","RE":"Réunion"};
 const GENERIC_TOKENS=new Set(["freight forwarder","shipping company","uk port","warehouse / depot","destination port","customs clearance","import requirements","onward delivery","uk collection","secure transport","handover","available documents"]);
 
@@ -97,8 +171,10 @@ function fixFlag(iso,name){
   if(!iso)return;
   const host=document.querySelector(".country-flag");
   if(!host)return;
-  host.innerHTML='<img src="https://flagcdn.com/w160/'+iso.toLowerCase()+'.png" srcset="https://flagcdn.com/w320/'+iso.toLowerCase()+'.png 2x" alt="'+esc(name)+' flag" style="width:100%;height:100%;object-fit:cover">';
+  host.innerHTML='<img src="https://flagcdn.com/w160/'+iso.toLowerCase()+'.png" srcset="https://flagcdn.com/w320/'+iso.toLowerCase()+'.png 2x" alt="'+esc(name)+' flag" style="width:100%;height:100%;object-fit:cover;display:block">';
   host.setAttribute("aria-label",name+" flag");
+  host.dataset.anybikeFlagReady="true";
+  host.style.visibility="visible";
 }
 function fixHeroAlt(name){const img=document.querySelector(".hero-bike,.hero-media img");if(img)img.alt="Motorcycle sourcing and export support for buyers in "+name;}
 function hasRealLocalBlock(){
@@ -154,8 +230,14 @@ function localSection(meta,name){
     '</div></div></section>';
 }
 function installLocalSection(meta,name){
-  if(!meta||hasRealLocalBlock())return;
-  if(document.querySelector(".anybike-market-local-standard"))return;
+  if(!meta)return;
+  const authoritative=document.querySelector(".anybike-market-local-standard");
+  if(authoritative){
+    const expected=localSection(meta,name);
+    if(authoritative.outerHTML!==expected) authoritative.outerHTML=expected;
+    return;
+  }
+  if(hasRealLocalBlock())return;
 
   const grids=[...document.querySelectorAll(".port-grid")];
   const destinationGrid=grids.find(function(grid){
@@ -183,6 +265,24 @@ function installLocalSection(meta,name){
   const footer=document.querySelector("footer");
   if(footer)footer.insertAdjacentHTML("beforebegin",localSection(meta,name));
 }
+function enhanceExistingLocalLinks(name,meta){
+  document.querySelectorAll(".port-grid .port-card,.port-grid article").forEach(function(card){
+    if(card.closest(".anybike-market-local-standard"))return;
+    const heading=(card.querySelector("h3")?.textContent||"").toLowerCase();
+    const isPortCard=heading.includes("port")||heading.includes("gateway")||heading.includes("shipping");
+    card.querySelectorAll(".area-list span").forEach(function(span){
+      const label=span.textContent.trim();
+      if(!label||GENERIC_TOKENS.has(label.toLowerCase()))return;
+      const a=document.createElement("a");
+      a.textContent=label+(isPortCard?" →":" ↗");
+      a.title=isPortCard?"View shipping information for "+label:"View "+label+" on a map";
+      a.href=isPortCard?"/freight-forwarders.html?port="+encodeURIComponent(label):"https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(label+", "+name);
+      if(!isPortCard){a.target="_blank";a.rel="noopener noreferrer";}
+      span.replaceWith(a);
+    });
+  });
+}
+
 function styleEnhancements(){
   if(document.getElementById("anybike-market-standard-css"))return;
   const s=document.createElement("style");
@@ -198,6 +298,7 @@ function run(){
   fixFlag(iso,name);
   fixHeroAlt(name);
   installLocalSection(meta,name);
+  enhanceExistingLocalLinks(name,meta);
 }
 window.AnyBikeMarketStandardisation={run:run};
 
