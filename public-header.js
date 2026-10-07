@@ -1,3 +1,15 @@
+(function ensureFreshPublicHeaderCss(){
+  try{
+    const links=[...document.querySelectorAll('link[rel="stylesheet"]')];
+    links.forEach(function(link){
+      const href=String(link.getAttribute("href")||"");
+      if(href.includes("public-header.css")){
+        link.setAttribute("href","/public-header.css?v=202610071148");
+      }
+    });
+  }catch(e){}
+})();
+
 (function ensureAnyBikeVisitorTracker(){
   try{
     if(window.__anybikeVisitorTrackerLoaderAdded)return;
