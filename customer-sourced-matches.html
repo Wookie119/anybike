@@ -180,7 +180,9 @@ h1{font-size:30px;margin:3px 0 6px}.intro{white-space:pre-line;line-height:1.45;
 const SUPABASE_URL="https://tuehtnezhdnkqbbhttgp.supabase.co";
 const SUPABASE_ANON_KEY="sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
-const batchId=Number(new URLSearchParams(location.search).get("batch"));
+const selectionParams=new URLSearchParams(location.search);
+const selectionRef=String(selectionParams.get("selection")||"").trim();
+let batchId=Number(selectionParams.get("batch"))||0;
 let payload=null;
 let choicesDirty=false;
 let currentUserId=null;
@@ -1132,7 +1134,7 @@ async function getCustomerUserSafely(){
 
 async function init(){
   const status=document.getElementById("status");
-  if(!batchId){
+  if(!selectionRef && !batchId){
     if(status)status.textContent="This selection link is incomplete.";
     return;
   }
@@ -1174,7 +1176,9 @@ async function init(){
   try{
     if(status)status.textContent="Loading your motorcycle matches…";
     const result=await withTimeout(
-      sb.rpc("customer_get_used_bike_scan_batch_v1",{p_batch_id:batchId}),
+      selectionRef
+        ? sb.rpc("customer_get_used_bike_scan_batch_by_token_v1",{p_selection:selectionRef})
+        : sb.rpc("customer_get_used_bike_scan_batch_v1",{p_batch_id:batchId}),
       15000,
       "Motorcycle selection"
     );
@@ -1182,6 +1186,8 @@ async function init(){
     if(result?.error) throw result.error;
 
     payload=result?.data||null;
+    if(selectionRef) batchId=Number(payload?.batch?.id||0);
+    if(!batchId) throw new Error("Selection not found");
     render();
 
     Promise.allSettled([marginPromise,processPromise]).then(()=>{
