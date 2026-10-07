@@ -30,11 +30,11 @@ table{width:100%;border-collapse:collapse;table-layout:fixed}th,td{padding:7px 7
 .progress{display:flex;gap:4px;margin-top:6px}.dot{width:14px;height:6px;border-radius:999px;background:#333}.dot.on{background:var(--green)}
 .actions{display:grid;grid-template-columns:1fr;gap:7px;min-width:150px;align-items:stretch}.actions .btn{width:100%;white-space:normal}.btn{border:0;border-radius:9px;padding:8px 10px;background:var(--red);color:#fff;font-weight:900;font-size:10px;line-height:1.2;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;text-align:center;min-height:36px}.btn.dark{background:#222;border:1px solid #333}.btn[disabled]{opacity:.45;cursor:not-allowed}
 .priority-row{background:rgba(237,28,36,.045)}.internal-row{opacity:.58}.test-row{opacity:.75}
-.notes{width:100%;min-width:0;min-height:54px;height:54px;resize:vertical;font-size:10px;padding:8px}.route-select{width:100%;min-width:0;font-size:10px;padding:8px}
+.notes{width:100%;min-width:0;min-height:58px;height:58px;resize:vertical;font-size:10px;padding:8px}.route-select{width:100%;min-width:0;font-size:10px;padding:8px}.classification-stack{display:grid;gap:7px}.classification-stack label{display:grid;gap:4px;color:#aaa;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.04em}.stage-setup{display:grid;gap:8px}.stage-setup .setup-summary{padding-top:2px}.actions{min-width:0}.actions .btn{font-size:10px;min-height:38px}
 .priority-row td{padding-top:8px;padding-bottom:8px}
-td:nth-child(6),td:nth-child(7){font-size:11px}
+td:nth-child(5),td:nth-child(6){font-size:11px}
 td:last-child{vertical-align:top;background:rgba(255,255,255,.025);border-left:1px solid rgba(255,255,255,.08)}td:last-child .status-line{line-height:1.35;margin-top:8px}.name{line-height:1.25}.email{line-height:1.25}.priority-row td{vertical-align:top}
-.onboarding-table col:nth-child(1){width:12%}.onboarding-table col:nth-child(2){width:10%}.onboarding-table col:nth-child(3){width:6%}.onboarding-table col:nth-child(4){width:11%}.onboarding-table col:nth-child(5){width:12%}.onboarding-table col:nth-child(6){width:12%}.onboarding-table col:nth-child(7){width:8%}.onboarding-table col:nth-child(8){width:8%}.onboarding-table col:nth-child(9){width:10%}.onboarding-table col:nth-child(10){width:11%}
+.onboarding-table col:nth-child(1){width:17%}.onboarding-table col:nth-child(2){width:17%}.onboarding-table col:nth-child(3){width:13%}.onboarding-table col:nth-child(4){width:18%}.onboarding-table col:nth-child(5){width:11%}.onboarding-table col:nth-child(6){width:10%}.onboarding-table col:nth-child(7){width:14%}
 .status-line{margin-top:3px;color:#aaa;font-size:10px}.empty{padding:24px;text-align:center;color:#aaa}
 .onboarding-modal{position:fixed;inset:0;background:rgba(0,0,0,.78);display:none;align-items:flex-start;justify-content:center;padding:24px;z-index:9999;overflow-y:auto}.onboarding-modal.open{display:flex}
 .onboarding-modal-box{width:min(1120px,96vw);background:#111;border:1px solid #444;border-radius:18px;padding:22px;margin:auto 0}
@@ -471,7 +471,7 @@ function render(){
     return new Date(b.auth_created_at)-new Date(a.auth_created_at);
   });
   if(!data.length){tableWrap.innerHTML='<div class="empty">No onboarding records match this view.</div>';return;}
-  tableWrap.innerHTML='<table class="onboarding-table"><colgroup><col><col><col><col><col><col><col><col><col><col></colgroup><thead><tr><th>Person / business</th><th>Stage</th><th>Setup</th><th>Enquiry / Origin</th><th>Customer type</th><th>Intent</th><th>Activity</th><th>Last reminder</th><th>Admin notes</th><th>Actions</th></tr></thead><tbody>'+
+  tableWrap.innerHTML='<table class="onboarding-table"><colgroup><col><col><col><col><col><col><col></colgroup><thead><tr><th>Person / business</th><th>Stage & setup</th><th>Enquiry / origin</th><th>Classification</th><th>Activity</th><th>Admin notes</th><th>Actions</th></tr></thead><tbody>'+
   data.map(r=>{
     const priority=Number(r.request_count||0)>0||Number(r.scan_batch_count||0)>0;
     const cls=priority?"priority-row":(r.is_test_account?"test-row":(isInternal(r)?"internal-row":""));
@@ -502,21 +502,18 @@ function render(){
     ].filter(Boolean).join(" · ")||"No buying activity yet";
     return '<tr class="'+cls+'" data-user-id="'+esc(r.user_id)+'">'+
       '<td><div class="name">'+esc(displayPersonName(r.full_name)||r.business_name||"Registration only")+(priority?' <span class="badge red">PRIORITY</span>':'')+'</div><div class="email">'+esc(r.email||"")+'</div><div class="status-line">'+esc(r.business_name||"")+(r.country?' · '+esc(r.country):'')+'</div></td>'+
-      '<td><span class="badge '+stageClass(r.onboarding_stage)+'">'+esc(r.onboarding_stage)+'</span><div class="status-line">'+(r.email_confirmed_at?"Email confirmed":"Email not confirmed")+(r.has_profile?" · Profile created":" · No profile")+'</div></td>'+
-      '<td>'+setupHtml+'</td>'+
+      '<td><div class="stage-setup"><div><span class="badge '+stageClass(r.onboarding_stage)+'">'+esc(r.onboarding_stage)+'</span><div class="status-line">'+(r.email_confirmed_at?"Email confirmed":"Email not confirmed")+(r.has_profile?" · Profile created":" · No profile")+'</div></div><div class="setup-summary">'+setupHtml+'</div></div></td>'+
       '<td><div class="name">'+esc(r.origin_label||"Direct registration")+'</div>'+
         (r.origin_detail?'<div class="status-line">'+esc(r.origin_detail)+'</div>':'')+
         (r.origin_page?'<div class="status-line">'+esc(r.origin_page)+'</div>':'')+
       '</td>'+
-      '<td><select class="route-select" onchange="setClassification(\''+r.user_id+'\',this.value,null)">'+
+      '<td><div class="classification-stack"><label>Customer type<select class="route-select" onchange="setClassification(\''+r.user_id+'\',this.value,null)">'+
         '<option value="">Not classified</option>'+
         ['uk_private','uk_dealer','uk_distributor','uk_manufacturer','uk_partner','eu_dealer','intl_dealer','global_manufacturer'].map(v=>'<option value="'+v+'" '+(r.customer_type===v?'selected':'')+'>'+customerTypeLabel(v)+'</option>').join("")+
-      '</select></td>'+
-      '<td><select class="route-select" onchange="setClassification(\''+r.user_id+'\',null,this.value)">'+
+      '</select></label><label>Intent<select class="route-select" onchange="setClassification(\''+r.user_id+'\',null,this.value)">'+
         ['unclear','buy','dealer_trade_supply','buy_supply','dealer_underwrite','trade_underwriter','vmoto_retail','new_uk_retail','partnership','freight_logistics'].map(v=>'<option value="'+v+'" '+((r.customer_intent||"unclear")===v?'selected':'')+'>'+intentLabel(v)+'</option>').join("")+
-      '</select></td>'+
-      '<td>'+esc(activity)+'</td>'+
-      '<td>'+esc(reminder)+'</td>'+
+      '</select></label></div></td>'+
+      '<td><div class="name">'+esc(activity)+'</div><div class="status-line">Last setup request: '+esc(reminder)+'</div></td>'+
       '<td><textarea class="notes" id="note-'+r.user_id+'" placeholder="Internal onboarding note">'+esc(r.admin_notes||"")+'</textarea><button class="btn dark" style="margin-top:6px" onclick="saveNote(\''+r.user_id+'\')">Save note</button></td>'+
       '<td><div class="actions">'+
         (r.has_profile?'<a class="btn dark" href="admin-customers.html?v=20261007-3&customer='+encodeURIComponent(r.user_id)+'&from=onboarding">Customer 360</a>':'')+
