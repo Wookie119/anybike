@@ -83,12 +83,14 @@ function buyerPhrase(iso,name){const d=DEMONYM[iso];return d?d+" buyers":"buyers
 function regexEscape(s){return String(s).replace(/[.*+?^$()|[\]\\{}]/g,"\\$&");}
 function replaceEnglishBuyerCopy(iso,name){
   const phrase=buyerPhrase(iso,name), escaped=regexEscape(name);
-  document.querySelectorAll(".eyebrow,h1,h2,h3,p,small").forEach(el=>{
+  document.querySelectorAll(".eyebrow,h1,h2,h3,p,small,span").forEach(el=>{
     if(el.closest("script,style"))return;
     let html=el.innerHTML;
+    const before=html;
     html=html.replace(new RegExp("UK motorcycle sourcing for "+escaped+" buyers","gi"),"UK motorcycle sourcing for "+phrase);
     html=html.replace(new RegExp("Why "+escaped+" buyers choose AnyBike","gi"),"Why "+phrase+" choose AnyBike");
-    el.innerHTML=html;
+    html=html.replace(new RegExp(escaped+" buyers","gi"),phrase);
+    if(html!==before)el.innerHTML=html;
   });
 }
 function fixFlag(iso,name){
@@ -151,7 +153,30 @@ function styleEnhancements(){
 function run(){
   if(!location.pathname.toLowerCase().includes("/markets/"))return;
   const name=countryName(),iso=isoForPage(),meta=MARKET_DATA[iso]||{cities:[],regions:[],ports:[],landlocked:false};
-  styleEnhancements();replaceEnglishBuyerCopy(iso,name);fixFlag(iso,name);fixHeroAlt(name);installLocalSection(meta,name);
+  styleEnhancements();
+  replaceEnglishBuyerCopy(iso,name);
+  fixFlag(iso,name);
+  fixHeroAlt(name);
+  installLocalSection(meta,name);
+}
+window.AnyBikeMarketStandardisation={run:run};
+
+let rerunTimer=null;
+function scheduleRerun(){
+  clearTimeout(rerunTimer);
+  rerunTimer=setTimeout(run,30);
 }
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",run);else run();
+
+const observer=new MutationObserver(function(mutations){
+  const relevant=mutations.some(function(m){
+    const el=m.target?.nodeType===1?m.target:m.target?.parentElement;
+    return el && !el.closest("script,style") && (el.closest(".hero,.section,.country-line") || el.matches?.(".eyebrow,h1,h2,h3,p,small,span"));
+  });
+  if(relevant)scheduleRerun();
+});
+if(document.body)observer.observe(document.body,{subtree:true,childList:true,characterData:true});
+else document.addEventListener("DOMContentLoaded",function(){
+  observer.observe(document.body,{subtree:true,childList:true,characterData:true});
+});
 })();
