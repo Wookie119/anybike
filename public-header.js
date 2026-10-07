@@ -3,7 +3,7 @@
     if(!window.location.pathname.toLowerCase().includes("/markets/"))return;
     if(document.querySelector('script[data-anybike-market-standard="true"]'))return;
     const s=document.createElement("script");
-    s.src="/market-page-standardisation.js?v=202610071432";
+    s.src="/market-page-standardisation.js?v=202610071510";
     s.defer=true;
     s.dataset.anybikeMarketStandard="true";
     document.head.appendChild(s);
