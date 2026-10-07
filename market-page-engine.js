@@ -482,3 +482,23 @@
   if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",run,{once:true});
   else run();
 })();
+/* Final market-page compatibility bridge */
+(function(){
+  function applyLatest(){
+    try{
+      if(window.AnyBikeMarketStandardisation?.run){
+        window.AnyBikeMarketStandardisation.run();
+        return;
+      }
+      if(document.querySelector('script[data-anybike-market-engine-standard="true"]'))return;
+      const s=document.createElement("script");
+      s.src="/market-page-standardisation.js?v=202610071455";
+      s.defer=true;
+      s.dataset.anybikeMarketEngineStandard="true";
+      s.addEventListener("load",function(){window.AnyBikeMarketStandardisation?.run?.();},{once:true});
+      document.head.appendChild(s);
+    }catch(e){}
+  }
+  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",function(){setTimeout(applyLatest,0);},{once:true});
+  else setTimeout(applyLatest,0);
+})();
