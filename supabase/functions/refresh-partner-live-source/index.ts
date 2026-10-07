@@ -1102,6 +1102,17 @@ function parseListBlockSource(md:string,sourceName:string,forcedMake:string|null
   }
   return [...new Map(out.map((x:any)=>[String(x.source_key),x])).values()];
 }
+function sensibleMotorcyclePriceFromText(raw:any){
+  const text=htmlText(String(raw||""));
+  const values:number[]=[];
+  for(const m of text.matchAll(/(?:£|GBP)\s*([\d,]+(?:\.\d+)?)/gi)){
+    const n=Number(String(m[1]).replace(/,/g,""));
+    if(Number.isFinite(n)&&n>=1000&&n<=75000)values.push(n);
+  }
+  if(!values.length)return null;
+  return Math.min(...values);
+}
+
 async function refreshTriumphApproved(connector:any){
   const start="https://www.triumphapproved.co.uk/approved-preowned";
   const raw=await fetchSourceText(start);
@@ -1122,6 +1133,9 @@ async function refreshTriumphApproved(connector:any){
       const item=parseGenericBike(detail,url,{...connector,name:"Triumph Approved Used"});
       if(!item)return null;
       item.model=cleanPartnerModelTitle(item.model,item.make);
+      if(!item.source_advertised_price_gbp || Number(item.source_advertised_price_gbp)<1000){
+        item.source_advertised_price_gbp=sensibleMotorcyclePriceFromText(detail);
+      }
       item.make="Triumph";
       item.seller_name=item.seller_name||"Triumph Approved Used";
       item.specification={...(item.specification||{}),approved_used:true,source:"Triumph Approved Used"};
@@ -1130,7 +1144,7 @@ async function refreshTriumphApproved(connector:any){
       return item;
     }));
     for(const item of rows){
-      if(!item||!item.source_advertised_price_gbp)continue;
+      if(!item||!item.source_advertised_price_gbp||Number(item.source_advertised_price_gbp)<1000||Number(item.source_advertised_price_gbp)>75000)continue;
       const key=String(item.source_key||item.source_url);
       if(seen.has(key))continue;
       seen.add(key);collected.push(item);
