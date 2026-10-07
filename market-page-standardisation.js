@@ -144,7 +144,7 @@ function localSection(meta,name){
       '<article class="port-card"><h3>Key cities &amp; buyer areas</h3><p>Useful destination context for sourcing, freight planning and onward delivery.</p><div class="area-list">'+(chips(cities)||'<span>'+esc(name)+'</span>')+'</div></article>'+
       (regions.length?'<article class="port-card"><h3>Regions &amp; surrounding areas</h3><p>Regional context can help the freight forwarder plan onward delivery beyond the principal cities.</p><div class="area-list">'+chips(regions)+'</div></article>':'')+
       '<article class="port-card"><h3>'+(meta.landlocked?'Landlocked freight route':'Ports &amp; freight gateways')+'</h3><p>'+gatewayText+'</p><div class="area-list anybike-gateway-list">'+gatewayChips+'</div></article>'+
-      '<article class="port-card"><h3>UK collection &amp; delivery to port</h3><p>AnyBike can arrange UK collection and delivery to the agreed UK port, freight forwarder or approved shipping point for your deal.</p><div class="area-list"><span>UK collection</span><span>Freight forwarder</span><span>Delivery to port</span><span>Deal documents</span></div></article>'+
+      '<article class="port-card"><h3>UK Port Delivery</h3><p>AnyBike can arrange Delivery to the agreed UK port, freight forwarder or approved shipping point for your deal.</p><div class="area-list"><span>UK port delivery</span><span>Freight forwarder</span><span>Approved shipping point</span><span>Deal documents</span></div></article>'+
     '</div></div></section>';
 }
 function installLocalSection(meta,name){
