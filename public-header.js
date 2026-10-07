@@ -1,3 +1,11 @@
+(function markInternationalMarketPage(){
+  try{
+    if(window.location.pathname.toLowerCase().includes("/markets/")){
+      document.documentElement.classList.add("anybike-market-page");
+    }
+  }catch(e){}
+})();
+
 (function ensureFreshPublicHeaderCss(){
   try{
     const links=[...document.querySelectorAll('link[rel="stylesheet"]')];
