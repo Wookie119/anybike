@@ -967,6 +967,49 @@ async function refreshAssetCertified(connector:any,sourceLabel:string){
   if(!collected.length)throw new Error(sourceLabel+" source is reachable but no structured motorcycle records could be extracted.");
   return finalise(connector,collected);
 }
+function escapeReSimple(v:string){return String(v||"").replace(/[.*+?^()|[\]\\]/g,"\\$&");}
+function parseDealerWebsListing(md:string,baseDomain:string,pathPrefix:string,sourceName:string,forcedMake:string|null=null){
+  const out:any[]=[];
+  const text=String(md||"");
+  const domainRe=escapeReSimple(baseDomain);
+  const pathRe=escapeReSimple(pathPrefix);
+  const re=new RegExp("\\[([^\\]]{4,180})\\]\\((https?:\\/\\/(?:www\\.)?"+domainRe+pathRe+"[^)\\s]+\\/(\\d+)\\.htm)\\)([\\s\\S]{0,1200}?)(?=\\[[^\\]]{4,180}\\]\\(https?:\\/\\/(?:www\\.)?"+domainRe+pathRe+"|$)","gi");
+  let m:RegExpExecArray|null;
+  while((m=re.exec(text))!==null){
+    const title=clean(m[1]);
+    const url=m[2], id=m[3], body=m[4];
+    const make=normaliseMake(forcedMake||knownMakeFromText(title)||"");
+    if(!make)continue;
+    let model=title.replace(new RegExp("^"+String(make).replace(/[- ]/g,"[- ]?")+"\\s*","i"),"").trim();
+    const yearMatch=body.match(/\b(19\d{2}|20\d{2})\b/);
+    const mileageMatch=body.match(/\b([\d,]+)\s*Miles?\b/i);
+    const prices=[...body.matchAll(/(?:Now\s+)?£\s*([\d,]{4,})(?!\.\d{2}\s*(?:p\/m|a month))/gi)].map(x=>Number(x[1].replace(/,/g,"")));
+    const price=prices.length?prices[prices.length-1]:null;
+    const dealerMatch=body.match(/\n\s*([^\n]+?)\s*-\s*(?:\[)?see all their bikes(?:\])?/i);
+    const dealer=clean(dealerMatch?.[1]||sourceName);
+    if(!model||!price)continue;
+    out.push({
+      source_stock_id:id,source_key:id,source_url:url,source_domain:baseDomain,
+      seller_name:dealer||sourceName,seller_address:null,
+      make,model,variant:null,year:yearMatch?Number(yearMatch[1]):null,
+      mileage:mileageMatch?Number(mileageMatch[1].replace(/,/g,"")):null,
+      colour:null,registration:null,source_advertised_price_gbp:price,
+      description_original:title,
+      specification:{source:sourceName,approved_used:/approved/i.test(sourceName),generic_adapter:false},
+      source_image_urls:[],
+      raw_data:{title,dealer}
+    });
+  }
+  return [...new Map(out.map((x:any)=>[x.source_stock_id,x])).values()];
+}
+async function refreshTriumphApproved(connector:any){
+  const url="https://www.triumphapproved.co.uk/approved-preowned";
+  const md=await fetchReader(url);
+  const rows=parseDealerWebsListing(md,"triumphapproved.co.uk","/approved-preowned/triumph/","Triumph Approved Used","Triumph");
+  if(!rows.length)throw new Error("Triumph Approved source is reachable but no genuine motorcycle records could be extracted.");
+  return finalise(connector,rows);
+}
+
 function parseLindListing(md:string){
   const out:any[]=[];
   const text=String(md||"");
@@ -1102,6 +1145,7 @@ Deno.serve(async(req)=>{
     else if(q.data.adapter_key==="yamaha-certified-uk")result=await refreshAssetCertified(q.data,"Yamaha Approved Used");
     else if(q.data.adapter_key==="kawasaki-validated-uk")result=await refreshAssetCertified(q.data,"Kawasaki Approved Used");
     else if(q.data.adapter_key==="vmoto-uk-catalogue")result=await refreshVmoto(q.data);
+    else if(q.data.adapter_key==="triumph-approved-uk")result=await refreshTriumphApproved(q.data);
     else if(q.data.adapter_key==="lind-used-uk")result=await refreshLindUsed(q.data);
     else if(q.data.adapter_key==="motogb-used-uk")result=await refreshMotoGbUsed(q.data);
     else if(String(q.data.adapter_key||"").startsWith("generic-"))result=await refreshGenericPartner(q.data);
