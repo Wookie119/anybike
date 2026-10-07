@@ -13,13 +13,26 @@
 :root{--red:#ed1c24;--line:rgba(255,255,255,.12);--muted:#aaa}
 *{box-sizing:border-box}
 body{margin:0;background:#070707;color:#fff;font-family:Arial,Helvetica,sans-serif}
-.admin-page-content{padding:24px;max-width:1800px;margin:auto}
+.admin-page-content{padding:24px;max-width:none;margin:0}
 .hero,.card{background:#111;border:1px solid var(--line);border-radius:20px}
 .hero{padding:26px;margin-bottom:16px;background:radial-gradient(circle at top right,rgba(237,28,36,.22),transparent 36%),#111}
 .eyebrow{color:var(--red);font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.12em}
 h1{margin:6px 0 8px;font-size:36px} p{color:#bbb;line-height:1.5}
-.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
-.toolbar input,.toolbar select{background:#111;color:#fff;border:1px solid #333;border-radius:10px;padding:11px}
+.toolbar{display:grid;grid-template-columns:minmax(260px,2fr) repeat(5,minmax(145px,1fr)) auto;gap:10px;margin-bottom:16px}
+.toolbar input,.toolbar select{width:100%;background:#111;color:#fff;border:1px solid #333;border-radius:10px;padding:11px}
+.queue-list{border:1px solid var(--line);border-radius:16px;overflow:hidden;background:#0d0d0d}
+.queue-head,.submission-row{display:grid;grid-template-columns:92px 130px minmax(240px,2fr) 120px 110px 140px 140px 105px 120px 42px;gap:12px;align-items:center}
+.queue-head{padding:10px 14px;background:#171717;color:#888;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.05em}
+.submission-row{padding:10px 14px;border-top:1px solid rgba(255,255,255,.07);cursor:pointer;transition:.15s}
+.submission-row:hover{background:#151515}.submission-row.open{background:#161616}
+.row-image{width:76px;height:56px;border-radius:9px;overflow:hidden;background:#090909;border:1px solid #2b2b2b;display:flex;align-items:center;justify-content:center;color:#666;font-size:10px;text-align:center}
+.row-image img{width:100%;height:100%;object-fit:cover;display:block}
+.row-main strong{display:block;font-size:15px}.row-main small,.row-cell small{display:block;color:#888;margin-top:3px}
+.row-cell{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.chev{font-size:20px;color:#777;text-align:right}
+.submission-detail{display:none;padding:0 14px 14px;background:#0f0f0f;border-top:1px solid rgba(255,255,255,.05)}
+.submission-detail.open{display:block}.submission-detail .card{margin-top:14px}
+.filter-label{display:block;color:#777;font-size:9px;font-weight:900;text-transform:uppercase;margin:0 0 5px}
 button,.btn{border:0;border-radius:10px;padding:10px 13px;background:#292929;color:#fff;font-weight:900;cursor:pointer;text-decoration:none;display:inline-block}
 button.red,.btn.red{background:var(--red)}
 .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
@@ -47,8 +60,8 @@ button.red,.btn.red{background:var(--red)}
 .card.ready-underwrite .underwrite-ready-note{color:#ffb0b3;font-weight:900}
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.full{grid-column:1/-1}
 label{display:block;color:#bbb;font-size:12px;font-weight:800}input{width:100%;margin-top:6px;background:#090909;color:#fff;border:1px solid #333;border-radius:10px;padding:11px}
-@media(max-width:1100px){.grid{grid-template-columns:1fr 1fr}}
-@media(max-width:720px){.grid,.form-grid,.modal-context{grid-template-columns:1fr}.full{grid-column:auto}.admin-page-content{padding:14px}}
+@media(max-width:1350px){.toolbar{grid-template-columns:repeat(4,minmax(0,1fr))}.toolbar #search{grid-column:1/-1}.queue-head,.submission-row{grid-template-columns:76px 110px minmax(210px,2fr) 100px 100px 120px 100px 42px}.hide-mid{display:none}}
+@media(max-width:760px){.toolbar{grid-template-columns:1fr 1fr}.toolbar #search{grid-column:1/-1}.queue-head{display:none}.submission-row{grid-template-columns:74px 1fr 36px;gap:10px}.submission-row .mobile-hide{display:none}.submission-detail{padding:0 8px 10px}.form-grid,.modal-context{grid-template-columns:1fr}.full{grid-column:auto}.admin-page-content{padding:14px}}
 </style>
 </head>
 <body>
@@ -64,19 +77,38 @@ label{display:block;color:#bbb;font-size:12px;font-weight:800}input{width:100%;m
       </section>
 
       <div class="toolbar">
-        <input id="search" placeholder="Search reg, make, model, seller…" oninput="render()">
-        <select id="filter" onchange="render()">
-          <option value="">All submissions</option>
-          <option value="sell_your_bike">Sell Your Bike</option>
+        <input id="search" placeholder="Search reference, reg, make, model, dealer, seller…" oninput="render()">
+        <select id="sourceFilter" onchange="render()">
+          <option value="">All sources</option>
           <option value="dealer_underwrite">Dealer Underwrite</option>
-          <option value="needs_vehicle">Needs vehicle details</option>
-          <option value="image_review">Image review</option>
-          <option value="buyer_matches">International buyer matches</option>
+          <option value="sell_your_bike">Sell Your Bike</option>
+        </select>
+        <select id="underwriteFilter" onchange="render()">
+          <option value="">All underwrite states</option>
+          <option value="eligible">Eligible</option>
+          <option value="live">Live</option>
+          <option value="not_started">Not started</option>
+        </select>
+        <select id="imageFilter" onchange="render()">
+          <option value="">All image states</option>
+          <option value="approved">Approved images</option>
+          <option value="review">Needs image review</option>
+          <option value="none">No images</option>
+        </select>
+        <select id="hpiFilter" onchange="render()">
+          <option value="">All HPI states</option>
+          <option value="clear">HPI Clear</option>
+          <option value="not_provided">Not provided</option>
+        </select>
+        <select id="buyerFilter" onchange="render()">
+          <option value="">All buyer demand</option>
+          <option value="matched">Buyer matches</option>
+          <option value="none">No buyer matches</option>
         </select>
         <button onclick="loadQueue()">Refresh</button>
       </div>
 
-      <div id="queue" class="grid"><div class="empty">Loading…</div></div>
+      <div id="queue" class="queue-list"><div class="empty">Loading…</div></div>
     </main>
   </div>
 </div>
@@ -130,7 +162,7 @@ const esc=v=>String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&
 const money=v=>v===null||v===undefined||v===""?"—":"£"+Number(v).toLocaleString("en-GB",{maximumFractionDigits:0});
 
 async function loadQueue(){
-  const {data,error}=await sb.rpc("admin_get_seller_submission_queue_v4",{p_limit:150});
+  const {data,error}=await sb.rpc("admin_get_seller_submission_queue_v5",{p_limit:150});
   if(error){document.getElementById("queue").innerHTML='<div class="empty">'+esc(error.message)+'</div>';return;}
   rows=data||[];
   render();
@@ -159,7 +191,7 @@ function updateNextAction(){
       waitingFor:"AnyBike",
       label:"COMPLETE NEXT UNDERWRITE →",
       onClick:()=>{
-        const card=[...document.querySelectorAll("#queue .card")].find(el=>el.textContent.includes(needsDetails.reference||""));
+        const card=[...document.querySelectorAll("#queue .submission-row")].find(el=>el.textContent.includes(needsDetails.reference||""));
         card?.scrollIntoView({behavior:"smooth",block:"center"});
         editVehicle(Number(needsDetails.submission_id));
       }
@@ -175,7 +207,7 @@ function updateNextAction(){
       waitingFor:"AnyBike",
       label:"START NEXT UNDERWRITE →",
       onClick:()=>{
-        const card=[...document.querySelectorAll("#queue .card")].find(el=>el.textContent.includes(next.reference||""));
+        const card=[...document.querySelectorAll("#queue .submission-row")].find(el=>el.textContent.includes(next.reference||""));
         card?.scrollIntoView({behavior:"smooth",block:"center"});
       }
     });
@@ -205,68 +237,113 @@ function updateNextAction(){
 
 function render(){
   const q=String(document.getElementById("search").value||"").trim().toLowerCase();
-  const filter=document.getElementById("filter").value;
-  let list=rows.filter(r=>[r.reference,r.registration,r.make,r.model,r.seller_name,r.dealer_name].join(" ").toLowerCase().includes(q));
-  if(filter==="sell_your_bike")list=list.filter(r=>r.source_channel==="sell_your_bike");
-  if(filter==="dealer_underwrite")list=list.filter(r=>r.source_channel==="dealer_underwrite");
-  if(filter==="needs_vehicle")list=list.filter(r=>!r.make||!r.model);
-  if(filter==="image_review")list=list.filter(r=>Number(r.image_review||0)>0);
-  if(filter==="buyer_matches")list=list.filter(r=>Number(r.unique_buyer_match_count||0)>0);
+  const source=document.getElementById("sourceFilter").value;
+  const uw=document.getElementById("underwriteFilter").value;
+  const images=document.getElementById("imageFilter").value;
+  const hpi=document.getElementById("hpiFilter").value;
+  const buyer=document.getElementById("buyerFilter").value;
+
+  let list=rows.filter(r=>[
+    r.reference,r.registration,r.make,r.model,r.variant,r.seller_name,r.dealer_name,r.seller_email
+  ].join(" ").toLowerCase().includes(q));
+
+  if(source)list=list.filter(r=>r.source_channel===source);
+  if(uw)list=list.filter(r=>String(r.underwrite_status||"")===uw);
+  if(images==="approved")list=list.filter(r=>Number(r.image_approved||0)>0);
+  if(images==="review")list=list.filter(r=>Number(r.image_review||0)>0);
+  if(images==="none")list=list.filter(r=>Number(r.image_total||0)===0);
+  if(hpi==="clear")list=list.filter(r=>r.hpi_clear===true);
+  if(hpi==="not_provided")list=list.filter(r=>r.hpi_clear!==true);
+  if(buyer==="matched")list=list.filter(r=>Number(r.unique_buyer_match_count||0)>0);
+  if(buyer==="none")list=list.filter(r=>Number(r.unique_buyer_match_count||0)===0);
 
   const host=document.getElementById("queue");
-  if(!list.length){host.innerHTML='<div class="empty">No submissions match this view.</div>';return;}
+  if(!list.length){host.innerHTML='<div class="empty">No submissions match these filters.</div>';return;}
 
-  host.innerHTML=list.map(r=>{
+  const head='<div class="queue-head">'+
+    '<div>Image</div><div>Reference</div><div>Motorcycle</div><div>Reg</div><div>Year</div>'+
+    '<div>Dealer / Seller</div><div class="hide-mid">Seller needs</div><div class="hide-mid">HPI</div><div>Underwrite</div><div></div>'+
+  '</div>';
+
+  host.innerHTML=head+list.map(r=>{
     const dealer=r.source_channel==="dealer_underwrite";
     const imageText=Number(r.image_total||0)===0
-      ?"AnyBike Awaiting Image — no photos supplied"
+      ?"No photos"
       : Number(r.image_approved||0)>0
-        ?Number(r.image_approved)+" approved image"+(Number(r.image_approved)===1?"":"s")
+        ?Number(r.image_approved)+" approved"
         : Number(r.image_review||0)>0
-          ?Number(r.image_review)+" image"+(Number(r.image_review)===1?" needs":"s need")+" review — Awaiting Image remains"
-          : Number(r.image_rejected||0)>=Number(r.image_total||0)
-            ?"No usable seller images — AnyBike Awaiting Image"
-            :"Images being safety checked — AnyBike Awaiting Image";
-
+          ?Number(r.image_review)+" review"
+          :"Processing";
+    const image=r.primary_display_image_url
+      ?'<img src="'+esc(r.primary_display_image_url)+'" alt="'+esc([r.make,r.model].filter(Boolean).join(" ")||r.registration||"Motorcycle")+'">'
+      :'<span>'+esc(imageText)+'</span>';
+    const bike=[r.make,r.model,r.variant].filter(Boolean).join(" ")||"Motorcycle details needed";
+    const seller=r.dealer_name||r.seller_name||"—";
     const hasComps=r.latest_snapshot_at!==null;
-    return '<article class="card">'+
-      '<div class="top"><div><div class="ref">'+esc(r.reference)+'</div><div class="meta">'+new Date(r.created_at).toLocaleString("en-GB")+'</div></div><span class="badge '+(dealer?"dealer":"")+'">'+esc(dealer?"Dealer Underwrite":"Sell Your Bike")+'</span></div>'+
-      '<div class="bike">'+esc([r.make,r.model,r.variant].filter(Boolean).join(" ")||r.registration||"Motorcycle details needed")+'</div>'+
-      '<div class="sub">'+esc(r.registration||"No registration")+(r.bike_year?" · "+esc(r.bike_year):"")+(r.mileage!==null?" · "+Number(r.mileage).toLocaleString("en-GB")+" miles":"")+'</div>'+
-      '<div class="data">'+
-        '<div class="box"><span>Seller needs</span><strong>'+money(r.price_wanted_gbp)+'</strong></div>'+
-        '<div class="box"><span>Seller</span><strong>'+esc(r.dealer_name||r.seller_name||"—")+'</strong></div>'+
-        '<div class="box"><span>Underwrite</span><strong>'+esc(String(r.underwrite_status||"").replaceAll("_"," "))+'</strong></div>'+
-        '<div class="box"><span>HPI</span><strong>'+esc(r.hpi_clear===true?"Clear":"Not provided")+'</strong></div>'+
-        '<div class="box"><span>International buyers</span><strong>'+Number(r.unique_buyer_match_count||0)+'</strong></div>'+
-      '</div>'+
-      '<div class="image-state">'+esc(imageText)+'</div>'+
-      (Number(r.unique_buyer_match_count||0)>0
-        ?'<div class="image-state"><strong>'+Number(r.unique_buyer_match_count)+' international buyer'+(Number(r.unique_buyer_match_count)===1?'':'s')+' match</strong> across '+Number(r.match_country_count||0)+' countr'+(Number(r.match_country_count)===1?'y':'ies')+'. '+Number(r.demand_match_count||0)+' underlying demand record'+(Number(r.demand_match_count)===1?'':'s')+'.</div>'
-        :'<div class="image-state">No current factual international buyer match found.</div>')+
-      '<div class="comps">'+
+
+    const detail='<div id="submission-detail-'+Number(r.submission_id)+'" class="submission-detail">'+
+      '<article class="card">'+
+        '<div class="top"><div><div class="ref">'+esc(r.reference)+'</div><div class="meta">'+new Date(r.created_at).toLocaleString("en-GB")+'</div></div><span class="badge '+(dealer?"dealer":"")+'">'+esc(dealer?"Dealer Underwrite":"Sell Your Bike")+'</span></div>'+
+        '<div class="bike">'+esc(bike)+'</div>'+
+        '<div class="sub">'+esc(r.registration||"No registration")+(r.bike_year?" · "+esc(r.bike_year):"")+(r.mileage!==null?" · "+Number(r.mileage).toLocaleString("en-GB")+" miles":"")+'</div>'+
+        '<div class="data">'+
+          '<div class="box"><span>Seller needs</span><strong>'+money(r.price_wanted_gbp)+'</strong></div>'+
+          '<div class="box"><span>Seller</span><strong>'+esc(seller)+'</strong></div>'+
+          '<div class="box"><span>Underwrite</span><strong>'+esc(String(r.underwrite_status||"").replaceAll("_"," "))+'</strong></div>'+
+          '<div class="box"><span>HPI</span><strong>'+esc(r.hpi_clear===true?"Clear":"Not provided")+'</strong></div>'+
+          '<div class="box"><span>Images</span><strong>'+esc(imageText)+'</strong></div>'+
+          '<div class="box"><span>International buyers</span><strong>'+Number(r.unique_buyer_match_count||0)+'</strong></div>'+
+        '</div>'+
         (hasComps
           ?'<div class="data"><div class="box"><span>Comparable count</span><strong>'+Number(r.latest_comparable_count||0)+'</strong></div><div class="box"><span>Median ask</span><strong>'+money(r.latest_median_ask_gbp)+'</strong></div><div class="box"><span>Range</span><strong>'+money(r.latest_lowest_ask_gbp)+' – '+money(r.latest_highest_ask_gbp)+'</strong></div><div class="box"><span>Average</span><strong>'+money(r.latest_average_ask_gbp)+'</strong></div></div>'
           :'<div class="sub">No comparable snapshot captured yet.</div>')+
+        (r.notes?'<p>'+esc(r.notes)+'</p>':"")+
+        (dealer && r.underwrite_status!=="live" && r.make && r.model?'<div class="underwrite-ready-note">Ready to start the 48-hour trade underwrite.</div>':'')+
+        '<div class="actions">'+
+          '<button onclick="event.stopPropagation();captureComps('+Number(r.submission_id)+')">Capture Comparables</button>'+
+          (r.underwrite_status!=="live"
+            ?(r.make&&r.model
+              ?'<button class="red" onclick="event.stopPropagation();startUnderwrite('+Number(r.submission_id)+')">Start 48h Underwrite</button>'
+              :'<button class="red" onclick="event.stopPropagation();editVehicle('+Number(r.submission_id)+')">Complete Bike Details</button>')
+            :'<a class="btn" href="/admin-trade-underwrites.html" onclick="event.stopPropagation()">Open Underwrite Desk</a>')+
+          '<button onclick="event.stopPropagation();refreshDemand('+Number(r.submission_id)+')">Refresh Buyer Match</button>'+
+          (Number(r.unique_buyer_match_count||0)>0?'<button onclick="event.stopPropagation();viewDemand('+Number(r.submission_id)+')">View '+Number(r.unique_buyer_match_count)+' Buyer Match'+(Number(r.unique_buyer_match_count)===1?'':'es')+'</button>':'')+
+          '<button onclick="event.stopPropagation();editVehicle('+Number(r.submission_id)+')">Edit Bike Details</button>'+
+          (r.message_thread_id?'<a class="btn" href="/admin-message-centre.html?thread='+Number(r.message_thread_id)+'" onclick="event.stopPropagation()">Open Message</a>':"")+
+        '</div>'+
+      '</article>'+
+    '</div>';
+
+    return '<div class="submission-wrap">'+
+      '<div class="submission-row" id="submission-row-'+Number(r.submission_id)+'" onclick="toggleSubmission('+Number(r.submission_id)+')">'+
+        '<div class="row-image">'+image+'</div>'+
+        '<div class="row-cell mobile-hide"><strong>'+esc(r.reference)+'</strong><small>'+esc(dealer?"Dealer Underwrite":"Sell Your Bike")+'</small></div>'+
+        '<div class="row-main"><strong>'+esc(bike)+'</strong><small>'+Number(r.mileage||0).toLocaleString("en-GB")+' miles · '+esc(imageText)+'</small></div>'+
+        '<div class="row-cell mobile-hide">'+esc(r.registration||"—")+'</div>'+
+        '<div class="row-cell mobile-hide">'+esc(r.bike_year||"—")+'</div>'+
+        '<div class="row-cell mobile-hide">'+esc(seller)+'</div>'+
+        '<div class="row-cell hide-mid">'+money(r.price_wanted_gbp)+'</div>'+
+        '<div class="row-cell hide-mid">'+esc(r.hpi_clear===true?"Clear":"Not provided")+'</div>'+
+        '<div class="row-cell mobile-hide"><strong>'+esc(String(r.underwrite_status||"").replaceAll("_"," "))+'</strong><small>'+Number(r.unique_buyer_match_count||0)+' buyer match'+(Number(r.unique_buyer_match_count||0)===1?"":"es")+'</small></div>'+
+        '<div class="chev">›</div>'+
       '</div>'+
-      (r.notes?'<p>'+esc(r.notes)+'</p>':"")+
-      (dealer && r.underwrite_status!=="live" && r.make && r.model?'<div class="underwrite-ready-note">Ready to start the 48-hour trade underwrite.</div>':'')+
-      '<div class="actions">'+
-        '<button onclick="captureComps('+Number(r.submission_id)+')">Capture Comparables</button>'+
-        (r.underwrite_status!=="live"
-          ?(r.make&&r.model
-            ?'<button class="red" onclick="startUnderwrite('+Number(r.submission_id)+')">Start 48h Underwrite</button>'
-            :'<button class="red" onclick="editVehicle('+Number(r.submission_id)+')">Complete Bike Details</button>')
-          :'<a class="btn" href="/admin-trade-underwrites.html">Open Underwrite Desk</a>')+
-        '<button onclick="refreshDemand('+Number(r.submission_id)+')">Refresh Buyer Match</button>'+
-        (Number(r.unique_buyer_match_count||0)>0?'<button onclick="viewDemand('+Number(r.submission_id)+')">View '+Number(r.unique_buyer_match_count)+' Buyer Match'+(Number(r.unique_buyer_match_count)===1?'':'es')+'</button>':'')+
-        '<button onclick="editVehicle('+Number(r.submission_id)+')">Edit Bike Details</button>'+
-        (r.message_thread_id?'<a class="btn" href="/admin-message-centre.html?thread='+Number(r.message_thread_id)+'">Open Message</a>':"")+
-      '</div>'+
-    '</article>';
+      detail+
+    '</div>';
   }).join("");
 }
 
+function toggleSubmission(id){
+  const detail=document.getElementById("submission-detail-"+Number(id));
+  const row=document.getElementById("submission-row-"+Number(id));
+  if(!detail||!row)return;
+  const open=!detail.classList.contains("open");
+  document.querySelectorAll(".submission-detail.open").forEach(el=>el.classList.remove("open"));
+  document.querySelectorAll(".submission-row.open").forEach(el=>el.classList.remove("open"));
+  if(open){
+    detail.classList.add("open");
+    row.classList.add("open");
+  }
+}
 
 async function startUnderwrite(id){
   if(!confirm("Open this motorcycle to verified trade members for 48 hours? Seller identity and bid values will remain private."))return;
@@ -372,7 +449,7 @@ async function saveVehicle(){
   closeModal();
   await loadQueue();
   const saved=rows.find(x=>Number(x.submission_id)===Number(savedId));
-  const card=[...document.querySelectorAll("#queue .card")].find(el=>el.textContent.includes(saved?.reference||""));
+  const card=[...document.querySelectorAll("#queue .submission-row")].find(el=>el.textContent.includes(saved?.reference||""));
   if(card){
     if(saved?.make&&saved?.model&&saved?.underwrite_status!=="live")card.classList.add("ready-underwrite");
     card.scrollIntoView({behavior:"smooth",block:"center"});
