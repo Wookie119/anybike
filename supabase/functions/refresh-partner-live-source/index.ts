@@ -108,77 +108,109 @@ function parseSykes(md:string,base:string){
   }
   return out;
 }
+function stripReaderMarkup(v:string){
+  return clean(String(v||"")
+    .replace(/cite[^†]+†/g," ")
+    .replace(/cite[^]*/g," ")
+    .replace(/[]/g," ")
+    .replace(/\[[^\]]+\]\(([^)]+)\)/g,(m)=>m.replace(/\]\([^)]+\)/,"").replace(/^\[/,""))
+    .replace(/^[*#\-\s]+/," "));
+}
 function parseSykesLoose(md:string,base:string){
   const text=String(md||"").replace(/\r/g,"");
   const lines=text.split("\n");
   const starts:number[]=[];
+
   for(let i=0;i<lines.length;i++){
-    const x=clean(lines[i]).replace(/^[*#\-\s]+/,"");
-    if(/(?:NEW\s+)?20\d{2}\s+Harley-Davidson\b/i.test(x) || /^Harley-Davidson\b/i.test(x)){
-      const nearby=lines.slice(i,i+12).join("\n");
-      if(/£\s*[\d,]+/.test(nearby) && /\b(?:New|Pre-owned|Used)\b/i.test(nearby)) starts.push(i);
+    const x=stripReaderMarkup(lines[i]);
+    if(/\b(?:NEW\s+)?20\d{2}\s+Harley-Davidson\b/i.test(x)){
+      const nearby=lines.slice(i,i+14).map(stripReaderMarkup).join("\n");
+      if(/£\s*[\d,]+/.test(nearby) && /\b(?:New|Pre-owned|Used)\b/i.test(nearby)){
+        starts.push(i);
+      }
     }
   }
 
   const out:any[]=[];
   for(let s=0;s<starts.length;s++){
     const i=starts[s];
-    const next=starts[s+1]??Math.min(lines.length,i+40);
+    const next=starts[s+1]??Math.min(lines.length,i+45);
     const blockLines=lines.slice(i,next);
-    const block=blockLines.join("\n");
-    const title=clean(blockLines[0]).replace(/^[*#\-\s]+/,"");
+    const cleanedLines=blockLines.map(stripReaderMarkup).filter(Boolean);
+    const block=cleanedLines.join("\n");
+
+    const titleLine=cleanedLines.find(x=>/\b(?:NEW\s+)?20\d{2}\s+Harley-Davidson\b/i.test(x))||"";
+    const titleMatch=titleLine.match(/((?:NEW\s+)?20\d{2}\s+Harley-Davidson.*)$/i);
+    const title=clean(titleMatch?.[1]||titleLine);
+
     const priceMatch=block.match(/£\s*([\d,]+(?:\.\d+)?)/);
-    const yearMatch=block.match(/\b(20\d{2})\b/);
-    const conditionMatch=block.match(/(?:^|\n)\s*(New|Pre-owned|Used)\s*(?:\n|$)/i);
-    const mileageMatch=block.match(/\b([\d,]+)\s*(?:mi|miles)\b/i);
+    const yearMatch=title.match(/\b(20\d{2})\b/)||block.match(/\b(20\d{2})\b/);
+    const conditionMatch=block.match(/(?:^|\n)(New|Pre-owned|Used)(?:\n|$)/i);
+    const mileageMatch=block.match(/(?:^|\n)([\d,]+)\s*(?:mi|miles)(?:\n|$)/i);
 
     let stock="";
-    for(const lm of block.matchAll(/(?:^|\n)\s*(\d{4,7})\s*(?=\n|$)/g)){
-      const candidate=lm[1];
+    for(const line of cleanedLines){
+      const m=line.match(/^(\d{4,7})$/);
+      if(!m) continue;
+      const candidate=m[1];
       if(candidate!==yearMatch?.[1] && candidate!==mileageMatch?.[1]?.replace(/,/g,"")){
-        stock=candidate;break;
+        stock=candidate;
+        break;
       }
     }
-    if(!priceMatch||!stock) continue;
+
+    if(!priceMatch||!stock||!title) continue;
 
     const mv=sykesModel(title);
     if(!mv.model) continue;
 
     let colour:any=null;
-    const hdLine=blockLines.findIndex(x=>/^Harley-Davidson®?\s*$/i.test(clean(x)));
+    const hdLine=cleanedLines.findIndex(x=>/^Harley-Davidson®?$/i.test(x));
     if(hdLine>=0){
-      for(let k=hdLine+1;k<Math.min(blockLines.length,hdLine+4);k++){
-        const v=clean(blockLines[k]);
-        if(v && !/^(New|Pre-owned|Used|20\d{2}|\d{4,7})$/i.test(v)){colour=v;break;}
+      for(let k=hdLine+1;k<Math.min(cleanedLines.length,hdLine+4);k++){
+        const v=cleanedLines[k];
+        if(v && !/^(New|Pre-owned|Used|20\d{2}|\d{4,7}|[\d,]+\s*(?:mi|miles))$/i.test(v)){
+          colour=v;break;
+        }
       }
     }
 
     let detailUrl=base;
-    const link=block.match(/\((https?:\/\/sykeshd\.com\/inventory\/\d+\/[^)\s]+)\)/i);
-    if(link) detailUrl=link[1];
+    const urlMatch=blockLines.join("\n").match(/https?:\/\/sykeshd\.com\/inventory\/\d+\/[^)\s]+/i);
+    if(urlMatch)detailUrl=urlMatch[0];
 
     let desc="";
-    for(const raw of blockLines){
-      const x=clean(raw).replace(/^[*#\-\s]+/,"");
+    for(const x of cleanedLines){
       if(!x||x===title)continue;
-      if(/^£/.test(x)||/^(New|Pre-owned|Used|20\d{2}|\d{4,7}|Harley-Davidson®?)$/i.test(x))continue;
+      if(/^£/.test(x)||/^(New|Pre-owned|Used|20\d{2}|\d{4,7}|Harley-Davidson®?|[\d,]+\s*(?:mi|miles))$/i.test(x))continue;
       if(/Find out more|Book test ride|Request details/i.test(x))continue;
       if(x.length>45){desc=x;break;}
     }
 
     out.push({
-      source_stock_id:stock,source_key:stock,source_url:detailUrl,source_domain:"sykeshd.com",
-      seller_name:"Sykes Harley-Davidson",seller_phone:"01825 872003",seller_address:"Holmes Hill, Nr Lewes, BN8 6JA",
-      make:"Harley-Davidson",model:mv.model,variant:mv.variant,year:yearMatch?Number(yearMatch[1]):null,
+      source_stock_id:stock,
+      source_key:stock,
+      source_url:detailUrl,
+      source_domain:"sykeshd.com",
+      seller_name:"Sykes Harley-Davidson",
+      seller_phone:"01825 872003",
+      seller_address:"Holmes Hill, Nr Lewes, BN8 6JA",
+      make:"Harley-Davidson",
+      model:mv.model,
+      variant:mv.variant,
+      year:yearMatch?Number(yearMatch[1]):null,
       mileage:mileageMatch?Number(mileageMatch[1].replace(/,/g,"")):(conditionMatch&&/^New$/i.test(conditionMatch[1])?0:null),
-      colour:colour||null,source_advertised_price_gbp:Number(priceMatch[1].replace(/,/g,"")),
-      description_original:desc||title,specification:{condition:conditionMatch?.[1]||null,source:"Sykes Harley-Davidson"},
-      source_image_urls:images(block),raw_data:{title,condition:conditionMatch?.[1]||null}
+      colour:colour||null,
+      source_advertised_price_gbp:Number(priceMatch[1].replace(/,/g,"")),
+      description_original:desc||title,
+      specification:{condition:conditionMatch?.[1]||null,source:"Sykes Harley-Davidson"},
+      source_image_urls:images(blockLines.join("\n")),
+      raw_data:{title,condition:conditionMatch?.[1]||null}
     });
   }
+
   return [...new Map(out.map((x:any)=>[String(x.source_stock_id),x])).values()];
 }
-
 function parseVmoto(md:string,url:string){
   const tm=md.match(/^#\s+(.+)$/m); const model=clean(tm?.[1]||""); if(!model)return null;
   const pm=md.match(/Starting\s+from\s+£\s*([\d,]+(?:\.\d+)?)/i);
@@ -326,61 +358,132 @@ async function fetchDirect(url:string){
   return await r.text();
 }
 
+function parseSykesSequence(md:string,base:string){
+  const raw=String(md||"").replace(/\r/g,"");
+  const cleaned=raw
+    .replace(/cite\d+†/g,"")
+    .replace(/cite[^]*/g,"")
+    .replace(/[]/g,"");
+
+  const out:any[]=[];
+  const re=/(?:^|\n)[^\n]{0,120}?((?:NEW\s+)?(20\d{2})\s+Harley-Davidson[^\n]{5,180})\n[\s\S]{0,260}?£\s*([\d,]+(?:\.\d+)?)\s*\n[\s\S]{0,120}?\b(\d{4,7})\b\s*\n[\s\S]{0,80}?\b(New|Pre-owned|Used)\b\s*\n[\s\S]{0,80}?\b(20\d{2})\b([\s\S]{0,420}?)(?=(?:\n[^\n]{0,120}?(?:NEW\s+)?20\d{2}\s+Harley-Davidson)|$)/gi;
+
+  let m:RegExpExecArray|null;
+  while((m=re.exec(cleaned))!==null){
+    const title=clean(m[1]||"")
+      .replace(/^[*#\-\s]+/,"")
+      .replace(/\[([^\]]+)\]\([^)]+\)/g,"$1");
+    const year=Number(m[2]||m[6]||0)||null;
+    const price=Number(String(m[3]||"").replace(/,/g,""));
+    const stock=String(m[4]||"");
+    const condition=clean(m[5]||"");
+    const tail=String(m[7]||"");
+
+    const mileageMatch=tail.match(/(?:^|\n)\s*([\d,]+)\s*(?:mi|miles)\b/i);
+    const mileage=mileageMatch?Number(mileageMatch[1].replace(/,/g,"")):(/^New$/i.test(condition)?0:null);
+
+    const tailLines=tail.split("\n").map(x=>clean(x).replace(/^[*#\-\s]+/,"")).filter(Boolean);
+    let colour:any=null;
+    const hdIndex=tailLines.findIndex(x=>/^Harley-Davidson®?$/i.test(x));
+    if(hdIndex>=0 && tailLines[hdIndex+1]) colour=tailLines[hdIndex+1];
+    if(!colour){
+      colour=tailLines.find(x=>x && !/^(Harley-Davidson®?|Find out more|Book test ride|Request details)$/i.test(x) && !/^\d/.test(x) && x.length<90) || null;
+    }
+
+    let sourceUrl=base;
+    const nearby=raw.slice(Math.max(0,m.index-250),Math.min(raw.length,m.index+500));
+    const link=nearby.match(/\[[^\]]*Harley-Davidson[^\]]*\]\((https?:\/\/[^)\s]+)\)/i);
+    if(link) sourceUrl=link[1];
+
+    const mv=sykesModel(title);
+    if(!mv.model || !stock || !price) continue;
+
+    out.push({
+      source_stock_id:stock,
+      source_key:stock,
+      source_url:sourceUrl,
+      source_domain:"sykeshd.com",
+      seller_name:"Sykes Harley-Davidson",
+      seller_phone:"01825 872003",
+      seller_address:"Holmes Hill, Nr Lewes, BN8 6JA",
+      make:"Harley-Davidson",
+      model:mv.model,
+      variant:mv.variant,
+      year,
+      mileage,
+      colour:colour||null,
+      source_advertised_price_gbp:price,
+      description_original:title,
+      specification:{condition,source:"Sykes Harley-Davidson"},
+      source_image_urls:images(tail),
+      raw_data:{title,condition}
+    });
+  }
+  return [...new Map(out.map((x:any)=>[String(x.source_stock_id),x])).values()];
+}
+
 async function refreshSykes(connector:any){
   const inventoryUrl=connector.results_url||"https://sykeshd.com/inventory";
-  let indexHtml="";
-  try{indexHtml=await fetchDirect(inventoryUrl);}catch{}
-  let urls=indexHtml?sykesDetailUrls(indexHtml,inventoryUrl):[];
-  let readerMd="";
-  try{readerMd=await fetchReader(inventoryUrl);}catch{}
-  const looseFirst=readerMd?parseSykesLoose(readerMd,inventoryUrl):[];
-  if(looseFirst.length){
-    return finalise(connector,looseFirst);
+  const collected:any[]=[];
+  const seen=new Set<string>();
+
+  for(let page=1;page<=10;page++){
+    const u=new URL(inventoryUrl);
+    if(page>1) u.searchParams.set("page",String(page));
+
+    let md="";
+    try{md=await fetchReader(u.toString());}
+    catch{
+      try{
+        const html=await fetchDirect(u.toString());
+        md=htmlText(html);
+      }catch{}
+    }
+
+    if(!md) break;
+
+    let rows=parseSykesSequence(md,u.toString());
+    if(!rows.length) rows=parseSykesLoose(md,u.toString());
+    if(!rows.length) rows=parseSykes(md,u.toString());
+
+    let added=0;
+    for(const row of rows){
+      const key=String(row.source_stock_id||"");
+      if(!key||seen.has(key)) continue;
+      seen.add(key);
+      collected.push(row);
+      added++;
+    }
+
+    const totalMatch=md.match(/Showing\s+\d+\s*-\s*\d+\s+of\s+(\d+)\s+results/i);
+    const total=Number(totalMatch?.[1]||0);
+    if(total && collected.length>=total) break;
+    if(!added) break;
   }
 
-  if(!urls.length){
+  if(!collected.length){
+    throw new Error("Sykes source is reachable but no complete motorcycle records could be extracted.");
+  }
+
+  // Enrich records from detail pages where a usable detail URL was exposed.
+  for(let i=0;i<collected.length;i++){
+    const item=collected[i];
+    if(!/\/inventory\/\d+\//i.test(String(item.source_url||""))) continue;
     try{
-      const md=await fetchReader(inventoryUrl);
-      for(const m of md.matchAll(/\[[^\]]+\]\((https?:\/\/sykeshd\.com\/inventory\/\d+\/[^)\s]+)\)/g)){
-        if(!urls.includes(m[1]))urls.push(m[1]);
+      const html=await fetchDirect(item.source_url);
+      const detail=parseSykesDetailHtml(html,item.source_url);
+      if(detail){
+        collected[i]={
+          ...item,
+          ...detail,
+          source_stock_id:item.source_stock_id,
+          source_key:item.source_key
+        };
       }
     }catch{}
   }
 
-  // If the first inventory page exposes pagination, collect detail links from subsequent pages.
-  for(let page=2;page<=10 && urls.length<100;page++){
-    try{
-      const u=new URL(inventoryUrl);u.searchParams.set("page",String(page));
-      const html=await fetchDirect(u.toString());
-      const pageUrls=sykesDetailUrls(html,u.toString());
-      let added=0;
-      for(const x of pageUrls){if(!urls.includes(x)){urls.push(x);added++;}}
-      if(!added)break;
-    }catch{break;}
-  }
-
-  urls=[...new Set(urls)].slice(0,100);
-  const out:any[]=[];
-  for(const url of urls){
-    try{
-      const html=await fetchDirect(url);
-      const item=parseSykesDetailHtml(html,url);
-      if(item)out.push(item);
-    }catch{}
-  }
-
-  if(!out.length){
-    // Final fallback: parse the public inventory text directly.
-    try{
-      const md=await fetchReader(inventoryUrl);
-      const parsedLoose=parseSykesLoose(md,inventoryUrl);
-      out.push(...(parsedLoose.length?parsedLoose:parseSykes(md,inventoryUrl)));
-    }catch{}
-  }
-
-  const unique=[...new Map(out.map((x:any)=>[String(x.source_stock_id),x])).values()];
-  if(!unique.length)throw new Error("Sykes source is reachable but no complete motorcycle records could be extracted.");
-  return finalise(connector,unique);
+  return finalise(connector,collected);
 }
 async function refreshVmoto(connector:any){
   const home=await fetchReader(connector.results_url||"https://vmoto.co.uk/");
