@@ -145,6 +145,7 @@ let sourceCommercialHistory=new Map();
 let currentBuyerSourcingPlan=null;
 let buyerSafePreparationRunning=false;
 let liveSourceVatFlags=new Map();
+let buyerSafeImageRows=new Map();
 const sourcingParams=new URLSearchParams(location.search);
 function sourcingContextQuery(extra){
   const p=new URLSearchParams();
@@ -179,6 +180,44 @@ async function loadLiveSourceVatFlags(){
   const {data,error}=await sb().rpc("admin_get_live_source_vat_flags_v1",{p_item_ids:ids});
   if(error)return;
   (data||[]).forEach(x=>liveSourceVatFlags.set(Number(x.id),x));
+}
+async function loadBuyerSafeImageRows(){
+  buyerSafeImageRows=new Map();
+  if(!currentBatchId)return;
+  const {data,error}=await sb().rpc("admin_get_scan_buyer_safe_images_v1",{p_batch_id:Number(currentBatchId)});
+  if(error){console.warn("Could not load buyer-safe image controls",error);return}
+  (data||[]).forEach(row=>{
+    const key=Number(row.scan_id);
+    if(!buyerSafeImageRows.has(key))buyerSafeImageRows.set(key,[]);
+    buyerSafeImageRows.get(key).push(row);
+  });
+}
+async function setBuyerSafeImageIncluded(scanId,imageId,included){
+  if(currentBatchIsShared())return;
+  const {data,error}=await sb().rpc("admin_set_scan_buyer_safe_image_included_v1",{
+    p_scan_id:Number(scanId),
+    p_image_id:Number(imageId),
+    p_included:!!included
+  });
+  if(error){alert(error.message);return}
+  const s=(scanned||[]).find(x=>Number(x.id)===Number(scanId));
+  if(s)s.buyer_image_urls=data?.buyer_image_urls||[];
+  await loadBuyerSafeImageRows();
+  renderScans(true);
+  setShareGate();
+  updateNextAction();
+}
+function buyerSafeImageSelectorHtml(scanId){
+  const rows=buyerSafeImageRows.get(Number(scanId))||[];
+  if(!rows.length)return "";
+  return '<div class="preview-thumbs">'+rows.map(row=>
+    '<label style="display:flex;flex-direction:column;gap:5px;align-items:center;cursor:pointer;opacity:'+(row.included?'1':'0.45')+'">'+
+      '<img src="'+esc(row.buyer_safe_url)+'" onerror="this.style.display=\'none\'">'+
+      '<span class="check" style="margin:0"><input type="checkbox" '+(row.included?'checked':'')+' '+(currentBatchIsShared()?'disabled':'')+
+      ' onchange="setBuyerSafeImageIncluded('+Number(scanId)+','+Number(row.image_id)+',this.checked)"><span>Send</span></span>'+
+    '</label>'
+  ).join("")+'</div>'+
+  '<div class="note" style="margin-top:6px">Untick any photo you do not want the buyer to receive. The original remains stored internally.</div>';
 }
 function esc(v){return String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;")}
 function edgeErrorMessage(error,data){
@@ -437,7 +476,7 @@ function cardHtml(s,saved){
           (s.extraction?.buyer_safe_image_status==="attention"
             ?'<div class="status bad" style="margin-top:6px">'+esc(s.extraction?.buyer_safe_image_error||"Needs image attention")+'</div>'
             :'')+
-          previewThumbsHtml(s.buyer_image_urls)+
+          (buyerSafeImageRows.has(Number(id))?buyerSafeImageSelectorHtml(id):previewThumbsHtml(s.buyer_image_urls))+
           '<div style="margin-top:8px">'+
           (currentBatchIsShared()
             ?(((s.buyer_image_urls||[]).length?'<button type="button" class="btn" onclick="previewBuyerMatch('+id+')">Preview buyer-safe view</button> ':'')+
@@ -678,6 +717,7 @@ async function loadBatch(id){
   currentBatch=data;currentBatchId=Number(id);scanned=data.scans||[];
   await loadLiveSourceVatFlags();
   await loadSourceCommercialHistory();
+  await loadBuyerSafeImageRows();
   document.getElementById("newBatchPanel").style.display="none";
   document.getElementById("batchSummary").style.display="block";
   const batchShared=currentBatchIsShared();
