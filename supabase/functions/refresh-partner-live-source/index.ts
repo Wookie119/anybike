@@ -48,20 +48,24 @@ function sykesModel(title:string){
 function parseSykes(md:string,base:string){
   const out:any[]=[];
   const text=String(md||"");
-  const re=/##\s+\[([^\]]*Harley-Davidson[^\]]*)\]\(([^)]+)\)([\s\S]*?)(?=(?:\n\s*(?:\*\s*)*##\s+\[)|$)/gi;
+  const re=/##\s+(?:\[)?([^\n\]]*Harley-Davidson[^\n\]]*)(?:\]\(([^)]+)\))?([\s\S]*?)(?=\n\s*(?:\*\s*)*##\s+|$)/gi;
   let m:RegExpExecArray|null;
   while((m=re.exec(text))!==null){
     const title=clean(m[1]||"");
-    let sourceUrl="";
-    try{sourceUrl=new URL(m[2]||"",base).toString();}catch{}
+    let sourceUrl=base;
+    if(m[2]){
+      try{sourceUrl=new URL(m[2],base).toString();}catch{}
+    }
     const block=String(m[3]||"");
-    if(sourceUrl && !/\/inventory\//i.test(sourceUrl)) continue;
 
     const priceMatch=block.match(/£\s*([\d,]+(?:\.\d+)?)/);
     const stockMatch=block.match(/(?:^|\n)\s*(\d{4,7})\s*(?:\n|$)/);
-    const conditionMatch=block.match(/(?:^|\n)\s*(New|Pre-owned)\s*(?:\n|$)/i);
+    const conditionMatch=block.match(/(?:^|\n)\s*(New|Pre-owned|Used)\s*(?:\n|$)/i);
     const yearMatch=block.match(/(?:^|\n)\s*(20\d{2})\s*(?:\n|$)/);
     const mileageMatch=block.match(/(?:^|\n)\s*([\d,]+)\s*mi\s*(?:\n|$)/i);
+
+    if(!priceMatch||!stockMatch) continue;
+
     const makePos=block.search(/Harley-Davidson®?/i);
     let colour:any=null;
     if(makePos>=0){
@@ -69,13 +73,14 @@ function parseSykes(md:string,base:string){
       const idx=tail.findIndex(x=>/^Harley-Davidson®?$/i.test(x));
       if(idx>=0 && tail[idx+1]) colour=tail[idx+1];
     }
+
     const mv=sykesModel(title);
-    if(!priceMatch||!stockMatch||!mv.model) continue;
+    if(!mv.model) continue;
 
     const plain=block.split(/\r?\n/).map(x=>clean(x)).filter(Boolean);
     let desc="";
     for(const x of plain){
-      if(/^(£|New$|Pre-owned$|20\d{2}$|[\d,]+\s*mi$|\d{4,7}$|Harley-Davidson®?$)/i.test(x)) continue;
+      if(/^(£|New$|Pre-owned$|Used$|20\d{2}$|[\d,]+\s*mi$|\d{4,7}$|Harley-Davidson®?$)/i.test(x)) continue;
       if(/Find out more|Book test ride|Request details/i.test(x)) continue;
       if(x.length>45){desc=x;break;}
     }
@@ -83,7 +88,7 @@ function parseSykes(md:string,base:string){
     out.push({
       source_stock_id:stockMatch[1],
       source_key:stockMatch[1],
-      source_url:sourceUrl||base,
+      source_url:sourceUrl,
       source_domain:"sykeshd.com",
       seller_name:"Sykes Harley-Davidson",
       seller_phone:"01825 872003",
@@ -193,9 +198,11 @@ Deno.serve(async(req)=>{
   if(req.method==="OPTIONS")return json({});
   if(req.method!=="POST")return json({error:"POST required"},405);
   if(!(await requireAdmin(req)))return json({error:"Admin access required"},403);
+  let connectorId=0;
   try{
     const body=await req.json().catch(()=>({}));
     const id=Number(body.connector_id||0);
+    connectorId=id;
     const q=await admin.from("live_source_connectors").select("*").eq("id",id).eq("enabled",true).maybeSingle();
     if(q.error)throw q.error;if(!q.data)return json({error:"Source connector not found"},404);
     await admin.from("live_source_connectors").update({last_refresh_started_at:new Date().toISOString(),last_refresh_status:"running"}).eq("id",id);
@@ -207,14 +214,13 @@ Deno.serve(async(req)=>{
   }catch(e){
     const message=clean(e instanceof Error?e.message:e);
     try{
-      const body=await req.clone().json().catch(()=>({}));
-      const id=Number(body.connector_id||0);
-      if(id) await admin.from("live_source_connectors").update({
+      if(connectorId) await admin.from("live_source_connectors").update({
         last_refresh_completed_at:new Date().toISOString(),
         last_refresh_status:"failed",
         updated_at:new Date().toISOString()
-      }).eq("id",id);
+      }).eq("id",connectorId);
     }catch{}
+    console.error("refresh-partner-live-source",connectorId,message);
     return json({error:message},500);
   }
 });
