@@ -28,7 +28,7 @@
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:8px;margin:0 0 12px}.kpi{appearance:none;width:100%;background:#111;border:1px solid var(--line);border-radius:14px;padding:9px 11px;text-align:left;color:#fff;font:inherit;cursor:pointer;transition:border-color .15s ease,transform .15s ease,background .15s ease}.kpi:hover{border-color:#666;background:#151515;transform:translateY(-1px)}.kpi:focus-visible{outline:2px solid var(--red);outline-offset:2px}.kpi.active{border-color:var(--red);background:rgba(237,28,36,.06);box-shadow:0 0 0 1px rgba(237,28,36,.25)}.kpi strong{display:block;font-size:23px;color:var(--red)}.kpi span{display:block;color:#aaa;font-size:11px;font-weight:800}
 .toolbar{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 14px}.toolbar input,.toolbar select,.route-select,.notes{background:#111;color:#fff;border:1px solid #333;border-radius:10px;padding:10px 12px}.toolbar input{min-width:260px;flex:1}
 .panel{background:#111;border:1px solid var(--line);border-radius:18px;overflow:hidden}.panel-head{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:15px 16px;border-bottom:1px solid var(--line)}.panel-head h2{margin:0;font-size:20px}.small{color:#aaa;font-size:12px}
-table{width:100%;border-collapse:collapse;table-layout:fixed}th,td{padding:7px 7px;text-align:left;border-bottom:1px solid rgba(255,255,255,.08);vertical-align:middle;min-width:0;overflow-wrap:anywhere}th{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#aaa;background:#0d0d0d;position:sticky;top:0}td{font-size:12px}.name{font-weight:900;font-size:13px}.email{color:#aaa;margin-top:2px;word-break:break-word}.country-line{margin-top:4px;font-size:12px;font-weight:850;color:#ddd}.country-sort{appearance:none;border:0;background:transparent;color:#aaa;font:inherit;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.06em;cursor:pointer;padding:0}.country-sort:hover,.country-sort.active{color:#fff}.country-flag{font-size:15px;margin-right:5px}
+table{width:100%;border-collapse:collapse;table-layout:fixed}th,td{padding:7px 7px;text-align:left;border-bottom:1px solid rgba(255,255,255,.08);vertical-align:middle;min-width:0;overflow-wrap:anywhere}th{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#aaa;background:#0d0d0d;position:sticky;top:0}td{font-size:12px}.name{font-weight:900;font-size:13px}.email{color:#aaa;margin-top:2px;word-break:break-word}.country-line{margin-top:5px;font-size:12px;font-weight:850;color:#ddd;display:flex;align-items:center;gap:7px}.country-sort{appearance:none;border:0;background:transparent;color:#aaa;font:inherit;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.06em;cursor:pointer;padding:0}.country-sort:hover,.country-sort.active{color:#fff}.country-flag-img{width:24px;height:16px;object-fit:cover;border-radius:3px;box-shadow:0 0 0 1px rgba(255,255,255,.2);flex:0 0 auto}.country-globe{font-size:15px;width:24px;text-align:center;flex:0 0 24px}
 .badge{display:inline-flex;align-items:center;padding:5px 8px;border-radius:999px;background:#222;border:1px solid #333;font-size:11px;font-weight:900}.badge.red{background:rgba(237,28,36,.12);border-color:rgba(237,28,36,.5);color:#ff8f94}.badge.green{background:rgba(51,204,102,.10);border-color:rgba(51,204,102,.45);color:#7af0a8}.badge.amber{background:rgba(255,204,51,.08);border-color:rgba(255,204,51,.4);color:#ffe27a}.badge.blue{background:rgba(77,163,255,.10);border-color:rgba(77,163,255,.45);color:#8dc3ff}
 .progress{display:flex;gap:4px;margin-top:6px}.dot{width:14px;height:6px;border-radius:999px;background:#333}.dot.on{background:var(--green)}
 .actions{display:grid;grid-template-columns:1fr;gap:7px;min-width:150px;align-items:stretch}.actions .btn{width:100%;white-space:normal}.btn{border:0;border-radius:9px;padding:8px 10px;background:var(--red);color:#fff;font-weight:900;font-size:10px;line-height:1.2;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;text-align:center;min-height:36px}.btn.dark{background:#222;border:1px solid #333}.btn[disabled]{opacity:.45;cursor:not-allowed}
@@ -263,6 +263,11 @@ function countryCode(country){
 function countryFlag(country){
   const code=countryCode(country);
   return code?String.fromCodePoint(...[...code].map(ch=>127397+ch.charCodeAt(0))):"🌐";
+}
+function countryFlagHtml(country){
+  const code=countryCode(country);
+  if(!code)return '<span class="country-globe">🌐</span>';
+  return '<img class="country-flag-img" src="https://flagcdn.com/48x36/'+code.toLowerCase()+'.png" alt="'+esc(country||code)+' flag" loading="lazy">';
 }
 function toggleCountrySort(){
   countrySortDirection=countrySortDirection===1?-1:1;
@@ -583,7 +588,7 @@ function render(){
     ].filter(Boolean).join(" · ")||"No buying activity yet";
     return '<tr class="customer-main-row '+cls+'" data-user-id="'+esc(r.user_id)+'" onclick="selectCustomerCard(\''+r.user_id+'\')">'+
       '<td><div class="name">'+esc(displayPersonName(r.full_name)||r.business_name||"Registration only")+(priority?' <span class="badge red">PRIORITY</span>':'')+'</div>'+
-        '<div class="country-line"><span class="country-flag">'+countryFlag(r.country)+'</span>'+esc(r.country||"Country not recorded")+'</div>'+
+        '<div class="country-line">'+countryFlagHtml(r.country)+'<span>'+esc(r.country||"Country not recorded")+'</span></div>'+
         '<div class="email">'+esc(r.email||"")+'</div>'+
         (r.business_name?'<div class="status-line">'+esc(r.business_name)+'</div>':'')+
       '</td>'+
