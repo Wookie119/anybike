@@ -411,6 +411,28 @@
     loadCountryBuyerInterest(market);
   }
 
-  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",run,{once:true});
-  else run();
+  function ensureLatestMarketStandardisation(){
+    try{
+      if(window.AnyBikeMarketStandardisation?.run){
+        setTimeout(function(){ window.AnyBikeMarketStandardisation.run(); },0);
+        return;
+      }
+      if(document.querySelector('script[data-anybike-market-standard-bridge="true"]'))return;
+      const s=document.createElement("script");
+      s.src="/market-page-standardisation.js?v=202610071455";
+      s.defer=true;
+      s.dataset.anybikeMarketStandardBridge="true";
+      s.addEventListener("load",function(){
+        setTimeout(function(){ window.AnyBikeMarketStandardisation?.run?.(); },0);
+      },{once:true});
+      document.head.appendChild(s);
+    }catch(e){}
+  }
+
+  if(document.readyState==="loading"){
+    document.addEventListener("DOMContentLoaded",function(){run();ensureLatestMarketStandardisation();},{once:true});
+  }else{
+    run();
+    ensureLatestMarketStandardisation();
+  }
 })();
