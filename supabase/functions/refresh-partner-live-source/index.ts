@@ -1415,43 +1415,51 @@ function parseBigMotoListing(md:string,base:string){
 }
 
 async function refreshBigMoto(connector:any){
-  const home="https://www.bigmoto.co.uk/";
-  const rawHome=await fetchReader(home);
-  const makePages=allLinks(rawHome,home)
-    .filter(u=>/^https?:\/\/(?:www\.)?bigmoto\.co\.uk\/used\/bikes\/[a-z0-9-]+\/?$/i.test(u))
-    .filter((u,i,a)=>a.indexOf(u)===i);
-
-  if(!makePages.length)throw new Error("BigMoto loaded but no used-bike make pages were found.");
-
-  const pageUrls:string[]=[];
-  for(const makeUrl of makePages){
-    const first=await fetchReader(makeUrl);
-    pageUrls.push(makeUrl);
-    const pages=allLinks(first,makeUrl)
-      .filter(u=>/bigmoto\.co\.uk\/search_page\.php/i.test(u)&&/[?&]location_path=used(?:&|$)/i.test(u)&&/[?&]p=\d+/i.test(u));
-    for(const p of pages)if(!pageUrls.includes(p))pageUrls.push(p);
-  }
-
+  const start="https://www.bigmoto.co.uk/used-bikes";
   const collected:any[]=[]; const seen=new Set<string>();
-  const concurrency=6;
-  for(let i=0;i<pageUrls.length;i+=concurrency){
-    const rows=await Promise.all(pageUrls.slice(i,i+concurrency).map(async(url)=>{
-      const md=await fetchReader(url);
-      return parseBigMotoListing(md,url);
-    }));
-    for(const list of rows){
-      for(const item of list){
-        const key=String(item.source_key||item.source_url);
-        if(seen.has(key))continue;
-        seen.add(key);collected.push(item);
-      }
+  let emptyPages=0;
+
+  for(let page=1;page<=50;page++){
+    const url=page===1?start:(start+"/"+page);
+    const md=await fetchReader(url);
+    if(!md){
+      emptyPages++;
+      if(emptyPages>=2)break;
+      continue;
+    }
+
+    const rows=parseBigMotoListing(md,url);
+    let added=0;
+    for(const item of rows){
+      const key=String(item.source_key||item.source_url);
+      if(seen.has(key))continue;
+      seen.add(key);
+      collected.push(item);
+      added++;
+    }
+
+    if(!rows.length || !added){
+      emptyPages++;
+      if(emptyPages>=2)break;
+    }else{
+      emptyPages=0;
+    }
+
+    // Current BigMoto pages expose numbered pagination. Once the next numbered
+    // page is no longer linked and this page added stock, stop rather than
+    // inventing further pages indefinitely.
+    if(page>1){
+      const nextUrl=start+"/"+(page+1);
+      const hasNext=allLinks(md,url).some(u=>u.replace(/\/$/,"")===nextUrl);
+      if(!hasNext)break;
     }
   }
 
-  if(!collected.length)throw new Error("BigMoto used-bike pages loaded but no complete motorcycle records could be extracted.");
+  if(!collected.length){
+    throw new Error("BigMoto used-bike pages loaded but no complete motorcycle records could be extracted.");
+  }
   return finalise(connector,collected);
 }
-
 async function refreshGenericPartner(connector:any){
   const start=connector.results_url||connector.base_url;
   const host=siteHost(start);
