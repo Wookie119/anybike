@@ -67,7 +67,6 @@ Deno.serve(async(req:Request)=>{
 
     const {data:target,error:targetError}=await supabase.auth.admin.getUserById(userId);
     if(targetError||!target?.user)return json(req,{success:false,error:"Customer account not found"},404);
-    if(!target.user.email_confirmed_at)return json(req,{success:false,error:"Customer email is not confirmed"},409);
 
     const {data:thread,error:threadError}=await supabase.from("message_centre_threads")
       .select("id,customer_id,customer_name,customer_email,last_message")
