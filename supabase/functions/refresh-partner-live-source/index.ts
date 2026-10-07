@@ -823,10 +823,18 @@ function knownMakeFromText(v:string){
 }
 function normaliseMake(v:any){
   const s=clean(v||"");
+  if(!s)return null;
+  const k=s.toLowerCase().trim();
+  const canonical:any={
+    "aprilia":"Aprilia","benelli":"Benelli","beta":"Beta","bmw":"BMW","ducati":"Ducati",
+    "honda":"Honda","indian":"Indian","kawasaki":"Kawasaki","ktm":"KTM","lambretta":"Lambretta",
+    "mgb":"MGB","moto guzzi":"Moto Guzzi","piaggio":"Piaggio","qjmotor":"QJMotor",
+    "royal enfield":"Royal Enfield","suzuki":"Suzuki","triumph":"Triumph","voge":"Voge",
+    "yamaha":"Yamaha","vmoto":"VMoto","norton":"Norton","husqvarna":"Husqvarna",
+    "mv agusta":"MV Agusta","cfmoto":"CFMOTO"
+  };
   if(/harley/i.test(s))return "Harley-Davidson";
-  if(/^bmw$/i.test(s))return "BMW";
-  if(/^vmoto$/i.test(s))return "VMoto";
-  return s||null;
+  return canonical[k]||s;
 }
 function parseGenericBike(raw:string,url:string,connector:any){
   const html=String(raw||"");
