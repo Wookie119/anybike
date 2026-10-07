@@ -910,6 +910,51 @@ async function fetchSourceText(url:string){
   try{return await fetchReader(url);}catch{}
   return "";
 }
+function normaliseYamahaModel(value:string){
+  const x=clean(String(value||"").replace(/\bYAMAHA\b/gi,"").replace(/\s+/g," "));
+  const u=x.toUpperCase();
+  if(/MT[- ]?125|MT125/.test(u))return "MT-125";
+  if(/MT[- ]?07|MT07/.test(u))return /Y-AMT/.test(u)?"MT-07 Y-AMT":"MT-07";
+  if(/MT[- ]?09|MT09/.test(u)){
+    if(/\bSP\b/.test(u))return "MT-09 SP";
+    if(/Y-AMT|YAMT/.test(u))return "MT-09 Y-AMT";
+    return "MT-09";
+  }
+  if(/MT[- ]?10|MT10/.test(u))return "MT-10";
+  if(/N-?MAX[ -]?125/.test(u))return "NMAX 125";
+  if(/N-?MAX[ -]?155/.test(u))return "NMAX 155";
+  if(/YZF[- ]?R1M|R1M/.test(u))return "YZF-R1M";
+  if(/(^|[^0-9])R1([^0-9]|$)/.test(u))return "R1";
+  if(/YZF[ -]?R125|R125/.test(u))return "R125";
+  if(/(^|[^0-9])R3([^0-9]|$)/.test(u))return "R3";
+  if(/(^|[^0-9])R7([^0-9]|$)/.test(u))return "R7";
+  if(/YZF[ -]?R9|(^|[^0-9])R9([^0-9]|$)/.test(u))return "R9";
+  if(/RAYZR/.test(u))return "RAYZR";
+  if(/TENERE 700 WORLD RAID/.test(u))return "TENERE 700 WORLD RAID";
+  if(/TENERE 700 RALLY/.test(u))return "TENERE 700 RALLY";
+  if(/TENERE 700/.test(u))return "TENERE 700";
+  if(/TMAX/.test(u))return /TECH MAX/.test(u)?"TMAX TECH MAX":"TMAX";
+  if(/TRACER[ -]?7|TRACER 700/.test(u)){
+    if(/GT/.test(u)&&/Y-AMT/.test(u))return "TRACER 7 GT Y-AMT";
+    if(/GT/.test(u))return "TRACER 7 GT";
+    return "TRACER 7";
+  }
+  if(/TRACER 9|TRACER 900/.test(u)){
+    if(/GT\+/.test(u))return "TRACER 9 GT+";
+    if(/GT/.test(u)&&/Y-AMT/.test(u))return "TRACER 9 GT Y-AMT";
+    if(/GT/.test(u))return "TRACER 9 GT";
+    return "TRACER 9";
+  }
+  if(/TRICITY 300/.test(u))return "TRICITY 300";
+  if(/TRICITY/.test(u)&&/125/.test(u))return "TRICITY 125";
+  if(/WR125R/.test(u))return "WR125R";
+  if(/XMAX 125/.test(u))return "XMAX 125";
+  if(/XMAX 300/.test(u))return /TECH MAX/.test(u)?"XMAX 300 TECH MAX":"XMAX 300";
+  if(/XSR[ -]?125/.test(u))return "XSR125";
+  if(/XSR[ -]?700/.test(u))return "XSR700";
+  if(/XSR[ -]?900/.test(u))return /GP/.test(u)?"XSR900 GP":"XSR900";
+  return x.replace(/[,;-].*$/,"").trim();
+}
 async function refreshAssetCertified(connector:any,sourceLabel:string){
   const base=connector.results_url||connector.base_url;
   const collected:any[]=[]; const seen=new Set<string>();
@@ -951,6 +996,7 @@ async function refreshAssetCertified(connector:any,sourceLabel:string){
         if(make)model=model.replace(new RegExp("^"+String(make).replace(/[- ]/g,"[- ]?")+"\\s*","i"),"").trim();
       }
       if(!model)model=clean(attr(a,"Model")||"");
+      if(/yamaha/i.test(sourceLabel))model=normaliseYamahaModel(model);
 
       const nameYear=assetName.match(/^\s*(19\d{2}|20\d{2})\b/);
       const attrYear=Number(attr(a,"Year")||0);
