@@ -231,12 +231,21 @@ export default {
       const loc=rowMap[stockId];
       if(loc){
         try{
-          const ds=structuredClone(returnedState);
-          ds.ResOverviewData=Object.assign({},pageStateMap[loc.page]||ds.ResOverviewData||{},{
+          // BMW's detail endpoint uses server-side page context. Re-open the
+          // exact catalogue page immediately before asking for its row detail,
+          // otherwise a row number from another page can return the wrong bike.
+          const ps=structuredClone(returnedState);
+          ps.ResOverviewData=Object.assign({},pageStateMap[loc.page]||ps.ResOverviewData||{},{
             selectedPage:loc.page,
             currResultCountToShow:50,
             pagingSize:50
           });
+          ps.currRequest=1;
+          await fetch(new URL("/api/ResultOverview/ShowResults",connector.results_url).toString(),{
+            method:"POST",headers:h,body:JSON.stringify(ps)
+          });
+
+          const ds=structuredClone(ps);
           ds.DetailData={RowNumber:loc.row};
           ds.currRequest=2;
           ds.AngebotsNo=stockId;
@@ -248,8 +257,13 @@ export default {
           });
           if(detailApiRes.ok){
             const detailJson=await detailApiRes.json().catch(()=>null);
-            detailUrls=extractUrlsDeep(detailJson?.sliderImageLinks,connector.results_url);
-            if(detailUrls.length<12)extractUrlsDeep(detailJson?.sliderThumbnailLinks,connector.results_url,detailUrls);
+            const returnedOffer=clean(detailJson?.angebotsNr||detailJson?.AngebotsNo||detailJson?.offerNo||"");
+            // Never attach a gallery unless BMW confirms it belongs to the exact
+            // source stock/Bike ID we requested.
+            if(returnedOffer===stockId){
+              detailUrls=extractUrlsDeep(detailJson?.sliderImageLinks,connector.results_url);
+              if(detailUrls.length<12)extractUrlsDeep(detailJson?.sliderThumbnailLinks,connector.results_url,detailUrls);
+            }
           }
         }catch{}
       }
