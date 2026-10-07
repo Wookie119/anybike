@@ -48,6 +48,7 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let formBusy = false;
 const loginParams=new URLSearchParams(window.location.search);
 const expectedEmail=(loginParams.get("email")||"").trim().toLowerCase();
+const setupToken=(loginParams.get("setup")||"").trim();
 
 function showMsg(text, ok=true){
   const el=document.getElementById("msg");
@@ -89,6 +90,22 @@ function setBusy(v){
   b.disabled=v;
   b.textContent=v?"Logging In...":"Login";
 }
+async function setupTokenMatchesCurrentUser(){
+  if(!setupToken)return true;
+  const {data,error}=await sb.rpc("customer_setup_token_matches_current_user_v1",{p_token:setupToken});
+  return !error && data===true;
+}
+async function protectSetupLinkSession(){
+  if(!setupToken)return;
+  const {data:{user}}=await sb.auth.getUser();
+  if(!user)return;
+  const matches=await setupTokenMatchesCurrentUser();
+  if(!matches){
+    await sb.auth.signOut({scope:"local"});
+    return;
+  }
+  window.location.replace(getSafeReturnUrl());
+}
 async function createCustomerProfileIfMissing(user){
   const {data:existingProfile,error:readError}=await sb.from("customer_profiles").select("id").eq("id",user.id).maybeSingle();
   if(readError) return readError;
@@ -115,6 +132,15 @@ async function loginCustomer(){
     const {data,error}=await sb.auth.signInWithPassword({email,password});
     if(error){showMsg(error.message,false);return;}
     if(!data.user || !data.session){showMsg("Login could not be completed. Please try again.",false);return;}
+
+    if(setupToken){
+      const matches=await setupTokenMatchesCurrentUser();
+      if(!matches){
+        await sb.auth.signOut({scope:"local"});
+        showMsg("This setup link belongs to a different AnyBike account or has expired. Please use the account the link was sent to, or ask AnyBike for a new link.",false);
+        return;
+      }
+    }
 
     // Confirm the browser has persisted the customer session before leaving
     // the login page. This avoids the protected dashboard racing the auth write.
@@ -161,5 +187,6 @@ if(expectedEmail){
     emailInput.title="This setup link is for "+expectedEmail;
   }
 }
+protectSetupLinkSession();
 document.addEventListener("keydown",e=>{if(e.key==="Enter"&&!formBusy) loginCustomer();});
 </script><script src="/visitor-tracker.js?v=1"></script>\n</body></html>
