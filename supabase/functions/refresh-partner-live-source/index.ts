@@ -37,7 +37,7 @@ function titleLink(line:string,base:string){
   const m=line.match(/\[([^\]]+)\]\(([^)]+)\)/);
   let url="";
   try{url=new URL(m?.[2]||"",base).toString();}catch{}
-  return {title:clean(m?.[1]||line.replace(/^#{1,6}\s+/,"")),url};
+  return {title:clean(m?.[1]||line.replace(/^.*?##\s+/,"")),url};
 }
 function sykesModel(title:string){
   let x=clean(title).replace(/^NEW\s+/i,"").replace(/^20\d{2}\s+/,"").replace(/^Harley-Davidson(?:®)?\s+/i,"").replace(/\s+in\s+.+$/i,"");
@@ -49,12 +49,12 @@ function parseSykes(md:string,base:string){
   const lines=md.split(/\r?\n/); const out:any[]=[];
   for(let i=0;i<lines.length;i++){
     const l=clean(lines[i]);
-    if(!/^#{1,6}\s+/.test(l)||!/Harley-Davidson/i.test(l))continue;
+    if(!/##\s+/.test(l)||!/Harley-Davidson/i.test(l))continue;
     const tl=titleLink(lines[i],base);
-    if(!/\/inventory\//i.test(tl.url))continue;
+    if(tl.url && !/\/inventory\//i.test(tl.url))continue;
     const block:string[]=[];
     for(let j=i+1;j<lines.length&&block.length<45;j++){
-      if(/^#{1,6}\s+/.test(clean(lines[j]))&&/Harley-Davidson/i.test(clean(lines[j])))break;
+      if(/##\s+/.test(clean(lines[j]))&&/Harley-Davidson/i.test(clean(lines[j])))break;
       block.push(lines[j]);
     }
     const c=block.map(clean).filter(Boolean);
@@ -74,7 +74,7 @@ function parseSykes(md:string,base:string){
     }
     const mv=sykesModel(tl.title);
     out.push({
-      source_stock_id:stock,source_key:stock,source_url:tl.url,source_domain:"sykeshd.com",
+      source_stock_id:stock,source_key:stock,source_url:tl.url||base,source_domain:"sykeshd.com",
       seller_name:"Sykes Harley-Davidson",seller_phone:"01825 872003",seller_address:"Holmes Hill, Nr Lewes, BN8 6JA",
       make:"Harley-Davidson",model:mv.model,variant:mv.variant,year:yr?Number(yr):null,
       mileage:mm?Number(mm[1].replace(/,/g,"")):(/new/i.test(condition)?0:null),
@@ -144,7 +144,13 @@ async function refreshSykes(connector:any){
   const out:any[]=[];const seen=new Set<string>();let total=0;
   for(let page=1;page<=12;page++){
     const u=new URL(connector.results_url||"https://sykeshd.com/all-inventory");u.searchParams.set("page",String(page));
-    const md=await fetchReader(u.toString());
+    let md="";
+    try{md=await fetchReader(u.toString());}
+    catch{
+      const direct=await fetch(u.toString(),{headers:{"User-Agent":"Mozilla/5.0 (compatible; AnyBike Live Source Hub/3.0)","Accept":"text/html,*/*"}});
+      if(!direct.ok)throw new Error("Sykes source HTTP "+direct.status);
+      md=await direct.text();
+    }
     const tm=md.match(/Showing\s+\d+\s*-\s*\d+\s+of\s+(\d+)\s+results/i);if(tm)total=Number(tm[1]||0);
     const rows=parseSykes(md,u.toString());let n=0;
     for(const r of rows){if(!seen.has(r.source_stock_id)){seen.add(r.source_stock_id);out.push(r);n++;}}
