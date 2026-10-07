@@ -644,16 +644,29 @@ function setupLinkForCustomer(r){
 async function copySetupLink(userId){
   const r=rows.find(x=>x.user_id===userId);if(!r)return;
   const path=setupLinkForCustomer(r);
+  const {data,error}=await sb.rpc("admin_create_customer_setup_link_v1",{
+    p_user_id:userId,
+    p_return_path:path
+  });
+  if(error){
+    alert("Could not generate customer setup link: "+error.message);
+    return;
+  }
+  const item=Array.isArray(data)?data[0]:data;
+  if(!item?.token){
+    alert("Could not generate customer setup link.");
+    return;
+  }
   const params=new URLSearchParams();
-  params.set("return",path);
-  if(r.email)params.set("email",String(r.email).trim().toLowerCase());
+  params.set("setup",item.token);
+  params.set("return",item.return_path||path);
   const url="https://www.anybike.co.uk/customer-login.html?"+params.toString();
   try{
     await navigator.clipboard.writeText(url);
     const status=document.getElementById("action-"+userId);
-    if(status)status.innerHTML="✓ Customer setup link copied — opens "+esc(r.email||"the customer")+" then returns to their profile";
+    if(status)status.textContent="✓ Protected customer setup link copied";
   }catch(e){
-    prompt("Copy this customer setup link:",url);
+    prompt("Copy this protected customer setup link:",url);
   }
 }
 
