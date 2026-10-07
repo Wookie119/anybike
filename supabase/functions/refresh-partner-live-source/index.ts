@@ -108,6 +108,77 @@ function parseSykes(md:string,base:string){
   }
   return out;
 }
+function parseSykesLoose(md:string,base:string){
+  const text=String(md||"").replace(/\r/g,"");
+  const lines=text.split("\n");
+  const starts:number[]=[];
+  for(let i=0;i<lines.length;i++){
+    const x=clean(lines[i]).replace(/^[*#\-\s]+/,"");
+    if(/(?:NEW\s+)?20\d{2}\s+Harley-Davidson\b/i.test(x) || /^Harley-Davidson\b/i.test(x)){
+      const nearby=lines.slice(i,i+12).join("\n");
+      if(/£\s*[\d,]+/.test(nearby) && /\b(?:New|Pre-owned|Used)\b/i.test(nearby)) starts.push(i);
+    }
+  }
+
+  const out:any[]=[];
+  for(let s=0;s<starts.length;s++){
+    const i=starts[s];
+    const next=starts[s+1]??Math.min(lines.length,i+40);
+    const blockLines=lines.slice(i,next);
+    const block=blockLines.join("\n");
+    const title=clean(blockLines[0]).replace(/^[*#\-\s]+/,"");
+    const priceMatch=block.match(/£\s*([\d,]+(?:\.\d+)?)/);
+    const yearMatch=block.match(/\b(20\d{2})\b/);
+    const conditionMatch=block.match(/(?:^|\n)\s*(New|Pre-owned|Used)\s*(?:\n|$)/i);
+    const mileageMatch=block.match(/\b([\d,]+)\s*(?:mi|miles)\b/i);
+
+    let stock="";
+    for(const lm of block.matchAll(/(?:^|\n)\s*(\d{4,7})\s*(?=\n|$)/g)){
+      const candidate=lm[1];
+      if(candidate!==yearMatch?.[1] && candidate!==mileageMatch?.[1]?.replace(/,/g,"")){
+        stock=candidate;break;
+      }
+    }
+    if(!priceMatch||!stock) continue;
+
+    const mv=sykesModel(title);
+    if(!mv.model) continue;
+
+    let colour:any=null;
+    const hdLine=blockLines.findIndex(x=>/^Harley-Davidson®?\s*$/i.test(clean(x)));
+    if(hdLine>=0){
+      for(let k=hdLine+1;k<Math.min(blockLines.length,hdLine+4);k++){
+        const v=clean(blockLines[k]);
+        if(v && !/^(New|Pre-owned|Used|20\d{2}|\d{4,7})$/i.test(v)){colour=v;break;}
+      }
+    }
+
+    let detailUrl=base;
+    const link=block.match(/\((https?:\/\/sykeshd\.com\/inventory\/\d+\/[^)\s]+)\)/i);
+    if(link) detailUrl=link[1];
+
+    let desc="";
+    for(const raw of blockLines){
+      const x=clean(raw).replace(/^[*#\-\s]+/,"");
+      if(!x||x===title)continue;
+      if(/^£/.test(x)||/^(New|Pre-owned|Used|20\d{2}|\d{4,7}|Harley-Davidson®?)$/i.test(x))continue;
+      if(/Find out more|Book test ride|Request details/i.test(x))continue;
+      if(x.length>45){desc=x;break;}
+    }
+
+    out.push({
+      source_stock_id:stock,source_key:stock,source_url:detailUrl,source_domain:"sykeshd.com",
+      seller_name:"Sykes Harley-Davidson",seller_phone:"01825 872003",seller_address:"Holmes Hill, Nr Lewes, BN8 6JA",
+      make:"Harley-Davidson",model:mv.model,variant:mv.variant,year:yearMatch?Number(yearMatch[1]):null,
+      mileage:mileageMatch?Number(mileageMatch[1].replace(/,/g,"")):(conditionMatch&&/^New$/i.test(conditionMatch[1])?0:null),
+      colour:colour||null,source_advertised_price_gbp:Number(priceMatch[1].replace(/,/g,"")),
+      description_original:desc||title,specification:{condition:conditionMatch?.[1]||null,source:"Sykes Harley-Davidson"},
+      source_image_urls:images(block),raw_data:{title,condition:conditionMatch?.[1]||null}
+    });
+  }
+  return [...new Map(out.map((x:any)=>[String(x.source_stock_id),x])).values()];
+}
+
 function parseVmoto(md:string,url:string){
   const tm=md.match(/^#\s+(.+)$/m); const model=clean(tm?.[1]||""); if(!model)return null;
   const pm=md.match(/Starting\s+from\s+£\s*([\d,]+(?:\.\d+)?)/i);
@@ -260,6 +331,12 @@ async function refreshSykes(connector:any){
   let indexHtml="";
   try{indexHtml=await fetchDirect(inventoryUrl);}catch{}
   let urls=indexHtml?sykesDetailUrls(indexHtml,inventoryUrl):[];
+  let readerMd="";
+  try{readerMd=await fetchReader(inventoryUrl);}catch{}
+  const looseFirst=readerMd?parseSykesLoose(readerMd,inventoryUrl):[];
+  if(looseFirst.length){
+    return finalise(connector,looseFirst);
+  }
 
   if(!urls.length){
     try{
@@ -296,7 +373,8 @@ async function refreshSykes(connector:any){
     // Final fallback: parse the public inventory text directly.
     try{
       const md=await fetchReader(inventoryUrl);
-      out.push(...parseSykes(md,inventoryUrl));
+      const parsedLoose=parseSykesLoose(md,inventoryUrl);
+      out.push(...(parsedLoose.length?parsedLoose:parseSykes(md,inventoryUrl)));
     }catch{}
   }
 
@@ -343,6 +421,6 @@ Deno.serve(async(req)=>{
       }).eq("id",connectorId);
     }catch{}
     console.error("refresh-partner-live-source",connectorId,message);
-    return json({error:message},500);
+    return json({error:message,failed:true},200);
   }
 });
