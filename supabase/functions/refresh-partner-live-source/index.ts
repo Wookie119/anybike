@@ -46,41 +46,59 @@ function sykesModel(title:string){
   return {model:clean(p.join(" "))||x,variant};
 }
 function parseSykes(md:string,base:string){
-  const lines=md.split(/\r?\n/); const out:any[]=[];
-  for(let i=0;i<lines.length;i++){
-    const l=clean(lines[i]);
-    if(!/##\s+/.test(l)||!/Harley-Davidson/i.test(l))continue;
-    const tl=titleLink(lines[i],base);
-    if(tl.url && !/\/inventory\//i.test(tl.url))continue;
-    const block:string[]=[];
-    for(let j=i+1;j<lines.length&&block.length<45;j++){
-      if(/##\s+/.test(clean(lines[j]))&&/Harley-Davidson/i.test(clean(lines[j])))break;
-      block.push(lines[j]);
+  const out:any[]=[];
+  const text=String(md||"");
+  const re=/##\s+\[([^\]]*Harley-Davidson[^\]]*)\]\(([^)]+)\)([\s\S]*?)(?=(?:\n\s*(?:\*\s*)*##\s+\[)|$)/gi;
+  let m:RegExpExecArray|null;
+  while((m=re.exec(text))!==null){
+    const title=clean(m[1]||"");
+    let sourceUrl="";
+    try{sourceUrl=new URL(m[2]||"",base).toString();}catch{}
+    const block=String(m[3]||"");
+    if(sourceUrl && !/\/inventory\//i.test(sourceUrl)) continue;
+
+    const priceMatch=block.match(/£\s*([\d,]+(?:\.\d+)?)/);
+    const stockMatch=block.match(/(?:^|\n)\s*(\d{4,7})\s*(?:\n|$)/);
+    const conditionMatch=block.match(/(?:^|\n)\s*(New|Pre-owned)\s*(?:\n|$)/i);
+    const yearMatch=block.match(/(?:^|\n)\s*(20\d{2})\s*(?:\n|$)/);
+    const mileageMatch=block.match(/(?:^|\n)\s*([\d,]+)\s*mi\s*(?:\n|$)/i);
+    const makePos=block.search(/Harley-Davidson®?/i);
+    let colour:any=null;
+    if(makePos>=0){
+      const tail=block.slice(makePos).split(/\r?\n/).map(x=>clean(x)).filter(Boolean);
+      const idx=tail.findIndex(x=>/^Harley-Davidson®?$/i.test(x));
+      if(idx>=0 && tail[idx+1]) colour=tail[idx+1];
     }
-    const c=block.map(clean).filter(Boolean);
-    const pl=c.find(x=>/^£/.test(x))||"";
-    const price=money(pl); if(!price)continue;
-    const yr=c.find(x=>/^20\d{2}$/.test(x))||tl.title.match(/\b20\d{2}\b/)?.[0]||"";
-    const condition=c.find(x=>/^(New|Pre-owned)$/i.test(x))||"";
-    const mileLine=c.find(x=>/^[\d,]+\s*mi$/i.test(x))||"";
-    const mm=mileLine.match(/([\d,]+)/);
-    const stock=c.find(x=>/^\d{4,7}$/.test(x)&&x!==yr)||"";
-    if(!stock)continue;
-    const makeIdx=c.findIndex(x=>/^Harley-Davidson(?:®)?$/i.test(x));
-    const colour=makeIdx>=0?clean(c[makeIdx+1]||""):"";
+    const mv=sykesModel(title);
+    if(!priceMatch||!stockMatch||!mv.model) continue;
+
+    const plain=block.split(/\r?\n/).map(x=>clean(x)).filter(Boolean);
     let desc="";
-    for(let k=Math.max(0,makeIdx+2);k<c.length;k++){
-      if(!/Find out more|Book test ride|Request details/i.test(c[k])&&c[k].length>35){desc=c[k];break;}
+    for(const x of plain){
+      if(/^(£|New$|Pre-owned$|20\d{2}$|[\d,]+\s*mi$|\d{4,7}$|Harley-Davidson®?$)/i.test(x)) continue;
+      if(/Find out more|Book test ride|Request details/i.test(x)) continue;
+      if(x.length>45){desc=x;break;}
     }
-    const mv=sykesModel(tl.title);
+
     out.push({
-      source_stock_id:stock,source_key:stock,source_url:tl.url||base,source_domain:"sykeshd.com",
-      seller_name:"Sykes Harley-Davidson",seller_phone:"01825 872003",seller_address:"Holmes Hill, Nr Lewes, BN8 6JA",
-      make:"Harley-Davidson",model:mv.model,variant:mv.variant,year:yr?Number(yr):null,
-      mileage:mm?Number(mm[1].replace(/,/g,"")):(/new/i.test(condition)?0:null),
-      colour:colour||null,source_advertised_price_gbp:price,description_original:desc||tl.title,
-      specification:{condition:condition||null,source:"Sykes Harley-Davidson"},
-      source_image_urls:images(block.join("\n")),raw_data:{title:tl.title,condition}
+      source_stock_id:stockMatch[1],
+      source_key:stockMatch[1],
+      source_url:sourceUrl||base,
+      source_domain:"sykeshd.com",
+      seller_name:"Sykes Harley-Davidson",
+      seller_phone:"01825 872003",
+      seller_address:"Holmes Hill, Nr Lewes, BN8 6JA",
+      make:"Harley-Davidson",
+      model:mv.model,
+      variant:mv.variant,
+      year:yearMatch?Number(yearMatch[1]):null,
+      mileage:mileageMatch?Number(mileageMatch[1].replace(/,/g,"")):(conditionMatch&&/^New$/i.test(conditionMatch[1])?0:null),
+      colour:colour||null,
+      source_advertised_price_gbp:Number(priceMatch[1].replace(/,/g,"")),
+      description_original:desc||title,
+      specification:{condition:conditionMatch?.[1]||null,source:"Sykes Harley-Davidson"},
+      source_image_urls:images(block),
+      raw_data:{title,condition:conditionMatch?.[1]||null}
     });
   }
   return out;
@@ -143,7 +161,7 @@ async function finalise(connector:any,items:any[]){
 async function refreshSykes(connector:any){
   const out:any[]=[];const seen=new Set<string>();let total=0;
   for(let page=1;page<=12;page++){
-    const u=new URL(connector.results_url||"https://sykeshd.com/all-inventory");u.searchParams.set("page",String(page));
+    const u=new URL(connector.results_url||"https://sykeshd.com/inventory");u.searchParams.set("page",String(page));
     let md="";
     try{md=await fetchReader(u.toString());}
     catch{
@@ -156,7 +174,7 @@ async function refreshSykes(connector:any){
     for(const r of rows){if(!seen.has(r.source_stock_id)){seen.add(r.source_stock_id);out.push(r);n++;}}
     if(!n||total&&out.length>=total)break;
   }
-  if(!out.length)throw new Error("Sykes inventory parser found no motorcycles.");
+  if(!out.length)throw new Error("Sykes inventory loaded but no motorcycle records could be parsed from the current page format.");
   return finalise(connector,out);
 }
 async function refreshVmoto(connector:any){
@@ -187,6 +205,16 @@ Deno.serve(async(req)=>{
     else return json({error:"Unsupported partner source adapter"},400);
     return json(result);
   }catch(e){
-    return json({error:clean(e instanceof Error?e.message:e)},500);
+    const message=clean(e instanceof Error?e.message:e);
+    try{
+      const body=await req.clone().json().catch(()=>({}));
+      const id=Number(body.connector_id||0);
+      if(id) await admin.from("live_source_connectors").update({
+        last_refresh_completed_at:new Date().toISOString(),
+        last_refresh_status:"failed",
+        updated_at:new Date().toISOString()
+      }).eq("id",id);
+    }catch{}
+    return json({error:message},500);
   }
 });
