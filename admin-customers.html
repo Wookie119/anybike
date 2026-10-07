@@ -745,7 +745,8 @@ function escapeAdminHtml(value){
     <div class="modal-row-actions">
       <button type="button" class="btn dark" onclick="closeConfirmationLink()">Close</button>
       <button type="button" class="btn dark" onclick="copyConfirmationLinkOnly()">Copy link only</button>
-      <button type="button" class="btn" onclick="copyConfirmationMessage()">Copy text</button>
+      <button type="button" class="btn dark" onclick="copyConfirmationMessage()">Copy text</button>
+      <button type="button" class="btn" id="quickSendConfirmationBtn" onclick="quickSendConfirmationSms()">Quick Send SMS</button>
     </div>
   </div>
 </div>
@@ -768,6 +769,7 @@ let customerAttentionMap = {};
 let customerOnboardingMap = {};
 let editingCustomerId=null;
 let generatedConfirmationLink="";
+let generatedConfirmationUserId="";
 
 const countryCoords = {
   "United Kingdom":[48,38],"UK":[48,38],"Ireland":[45,37],
@@ -848,6 +850,7 @@ async function generateConfirmationText(userId){
   }
 
   generatedConfirmationLink="";
+  generatedConfirmationUserId=String(userId);
   output.value="Generating secure confirmation link…";
   if(status)status.textContent="";
   modal.classList.add("open");
@@ -873,11 +876,39 @@ async function generateConfirmationText(userId){
   output.value=String(data?.message||"");
   if(status)status.textContent="Ready to copy and send.";
 }
+
+async function quickSendConfirmationSms(){
+  const status=document.getElementById("confirmationLinkStatus");
+  const button=document.getElementById("quickSendConfirmationBtn");
+  if(!generatedConfirmationUserId){
+    if(status)status.textContent="Generate the confirmation text first.";
+    return;
+  }
+  if(button){button.disabled=true;button.textContent="Sending…";}
+  if(status)status.textContent="Sending confirmation link by SMS…";
+
+  try{
+    const {data,error}=await sb.functions.invoke("admin-send-customer-confirmation-sms",{
+      body:{user_id:generatedConfirmationUserId}
+    });
+    if(error)throw error;
+    if(data?.error)throw new Error(data.error);
+    if(status)status.textContent="SMS sent successfully ✓";
+    if(button)button.textContent="Send Again";
+  }catch(e){
+    if(status)status.textContent=e?.message||String(e);
+    if(button)button.textContent="Quick Send SMS";
+  }finally{
+    if(button)button.disabled=false;
+  }
+}
+
 function closeConfirmationLink(){
   const modal=document.getElementById("confirmationLinkModal");
   modal?.classList.remove("open");
   modal?.setAttribute("aria-hidden","true");
   generatedConfirmationLink="";
+  generatedConfirmationUserId="";
 }
 async function copyConfirmationMessage(){
   const text=document.getElementById("confirmationMessage").value;
