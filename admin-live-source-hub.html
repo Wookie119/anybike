@@ -1427,6 +1427,26 @@ async function createBatch(){
 
   const ids=syncSelectedFromVisibleCheckboxes();
   if(!ids.length){st.className="status bad";st.textContent="Select at least one live motorcycle.";return}
+
+  // Enrich selected BMW bikes with their full unique source galleries before
+  // buyer-safe cleaning starts. This keeps the source pool lightweight while
+  // making prepared buyer batches photo-rich from the beginning.
+  const currentConnector=(hub?.connectors||[]).find(x=>Number(x.id)===Number(document.getElementById("connectorFilter").value||0));
+  if(currentConnector?.adapter_key==="bmw-approved-used-uk"){
+    st.className="status";
+    st.textContent="Loading full BMW photo galleries for "+ids.length+" selected motorcycle"+(ids.length===1?"":"s")+"…";
+    try{
+      const photoLoad=await sb().functions.invoke("refresh-bmw-live-source-images",{
+        body:{connector_id:Number(currentConnector.id),item_ids:ids}
+      });
+      if(photoLoad.error||photoLoad.data?.error){
+        console.warn("BMW gallery enrichment did not fully complete",photoLoad.error||photoLoad.data?.error);
+      }
+    }catch(e){
+      console.warn("BMW gallery enrichment could not complete",e);
+    }
+  }
+
   let cleaned=0,needsAttention=0;
 
   for(let i=0;i<ids.length;i++){
