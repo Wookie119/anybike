@@ -46,6 +46,36 @@ function extractImageMap(html:string,base:string){
   }
   return map;
 }
+function extractResultRows(html:string){
+  const map:Record<string,number>={};
+  for(const m of String(html||"").matchAll(/ShowResOvDetail\('([0-9]{4,12})'\s*,\s*([0-9]+)\)/g)){
+    const id=m[1], row=Number(m[2]);
+    if(Number.isFinite(row) && map[id]===undefined) map[id]=row;
+  }
+  return map;
+}
+function extractUrlsDeep(value:any,base:string,out:string[]=[]){
+  if(out.length>=12)return out;
+  if(typeof value==="string"){
+    const normalised=value.replace(/&amp;/gi,"&").replace(/\\u0026/gi,"&").replace(/\\\//g,"/");
+    for(const m of normalised.matchAll(/((?:https?:)?\/\/[^"'<>\s)]*\/api\/Image\/GetImg\?imgId=[^"'<>\s)]+|\/api\/Image\/GetImg\?imgId=[^"'<>\s)]+)/gi)){
+      try{
+        const u=new URL(m[1],base).toString();
+        if(!out.includes(u))out.push(u);
+      }catch{}
+      if(out.length>=12)break;
+    }
+    return out;
+  }
+  if(Array.isArray(value)){
+    for(const v of value){extractUrlsDeep(v,base,out);if(out.length>=12)break;}
+    return out;
+  }
+  if(value && typeof value==="object"){
+    for(const v of Object.values(value)){extractUrlsDeep(v,base,out);if(out.length>=12)break;}
+  }
+  return out;
+}
 function extractDetailImages(html:string,base:string){
   const out:string[]=[];
   const normalised=String(html||"")
@@ -164,6 +194,8 @@ export default {
 
     const h=bmwHeaders(connector.results_url,sid,pageRes.headers.get("set-cookie")||bootstrapCookie);
     const imageMap:Record<string,string>={};
+    const rowMap:Record<string,{page:number,row:number}>={};
+    const pageStateMap:Record<number,any>={};
     const total=Number(returnedState.ResOverviewData.totalItemCount||1050);
     const totalPages=Math.min(120,Math.max(1,Math.ceil(total/50)));
 
@@ -181,7 +213,12 @@ export default {
       const table=String(payload?.ResTable||"");
       if(!table)break;
       Object.assign(imageMap,extractImageMap(table,connector.results_url));
-      const allFound=[...wanted.keys()].every(id=>!!imageMap[id]);
+      const rowsOnPage=extractResultRows(table);
+      for(const [stockId,rowNo] of Object.entries(rowsOnPage)){
+        if(wanted.has(stockId) && !rowMap[stockId]) rowMap[stockId]={page,row:Number(rowNo)};
+      }
+      pageStateMap[page]=payload?.ResOverviewData||s.ResOverviewData;
+      const allFound=[...wanted.keys()].every(id=>!!imageMap[id] && !!rowMap[id]);
       if(allFound)break;
     }
 
@@ -191,24 +228,54 @@ export default {
       const existing=Array.isArray(row.source_image_urls)?row.source_image_urls:[];
       const cleanExisting=existing.filter((u:any)=>/\/api\/Image\/GetImg\?imgId=/i.test(String(u)));
       let detailUrls:string[]=[];
-      try{
-        const detailUrl=row.source_url || (new URL("/UK/detail.cshtml?on="+encodeURIComponent(stockId),connector.results_url).toString());
-        const detailRes=await fetch(detailUrl,{
-          headers:{
-            "User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/154 Safari/537.36",
-            "Accept":"text/html,application/xhtml+xml",
-            "Cookie":cookieHeader(pageRes.headers.get("set-cookie")||bootstrapCookie),
-            "GMB-SID":sid||"",
-            "X-Requested-With":"XMLHttpRequest",
-            "Referer":connector.results_url
-          },
-          redirect:"follow"
-        });
-        if(detailRes.ok){
-          const detailHtml=(await detailRes.text()).slice(0,6000000);
-          detailUrls=extractDetailImages(detailHtml,detailUrl);
-        }
-      }catch{}
+      const loc=rowMap[stockId];
+      if(loc){
+        try{
+          const ds=structuredClone(returnedState);
+          ds.ResOverviewData=Object.assign({},pageStateMap[loc.page]||ds.ResOverviewData||{},{
+            selectedPage:loc.page,
+            currResultCountToShow:50,
+            pagingSize:50
+          });
+          ds.DetailData={RowNumber:loc.row};
+          ds.currRequest=2;
+          ds.AngebotsNo=stockId;
+          ds.DetailAngebotsNo=stockId;
+          const detailApiRes=await fetch(new URL("/api/Detail/GetDetailDataByRowNumber",connector.results_url).toString(),{
+            method:"POST",
+            headers:h,
+            body:JSON.stringify(ds)
+          });
+          if(detailApiRes.ok){
+            const detailJson=await detailApiRes.json().catch(()=>null);
+            detailUrls=extractUrlsDeep(detailJson?.sliderImageLinks,connector.results_url);
+            if(detailUrls.length<12)extractUrlsDeep(detailJson?.sliderThumbnailLinks,connector.results_url,detailUrls);
+          }
+        }catch{}
+      }
+
+      // Fallback for any BMW advert whose detail API does not expose the slider.
+      if(detailUrls.length<2){
+        try{
+          const detailUrl=row.source_url || (new URL("/UK/detail.cshtml?on="+encodeURIComponent(stockId),connector.results_url).toString());
+          const detailRes=await fetch(detailUrl,{
+            headers:{
+              "User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/154 Safari/537.36",
+              "Accept":"text/html,application/xhtml+xml",
+              "Cookie":cookieHeader(pageRes.headers.get("set-cookie")||bootstrapCookie),
+              "GMB-SID":sid||"",
+              "X-Requested-With":"XMLHttpRequest",
+              "Referer":connector.results_url
+            },
+            redirect:"follow"
+          });
+          if(detailRes.ok){
+            const detailHtml=(await detailRes.text()).slice(0,6000000);
+            const htmlUrls=extractDetailImages(detailHtml,detailUrl);
+            for(const u of htmlUrls)if(!detailUrls.includes(u))detailUrls.push(u);
+          }
+        }catch{}
+      }
 
       const urls=[catalogueUrl,...detailUrls,...cleanExisting]
         .filter(Boolean)
