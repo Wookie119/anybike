@@ -563,7 +563,7 @@ function render(){
       '<td><div class="actions">'+
         (r.has_profile?'<a class="btn dark" href="admin-customers.html?v=20261007-3&customer='+encodeURIComponent(r.user_id)+'&from=onboarding">Customer 360</a>':'')+
         (canGenerateSetupLink
-          ? '<button class="btn dark" onclick="copySetupLink(\''+r.user_id+'\')">Generate customer setup link</button>'
+          ? '<button class="btn dark" onclick="copySetupLink(\''+r.user_id+'\',this)">Generate customer setup link</button>'
           : '')+
         (canHelp
           ? '<button class="btn" onclick="openSetupHelp(\''+r.user_id+'\')">Send setup help</button>'
@@ -658,19 +658,23 @@ function setupLinkForCustomer(r){
   if(intent==="freight_logistics")return "/freight-forwarders.html";
   return "/customer-dashboard.html";
 }
-async function copySetupLink(userId){
+async function copySetupLink(userId,btn){
   const r=rows.find(x=>x.user_id===userId);if(!r)return;
+  const originalText=btn?.textContent||"Generate customer setup link";
+  if(btn){btn.disabled=true;btn.textContent="Generating…";}
   const path=setupLinkForCustomer(r);
   const {data,error}=await sb.rpc("admin_create_customer_setup_link_v1",{
     p_user_id:userId,
     p_return_path:path
   });
   if(error){
+    if(btn){btn.disabled=false;btn.textContent=originalText;}
     alert("Could not generate customer setup link: "+error.message);
     return;
   }
   const item=Array.isArray(data)?data[0]:data;
   if(!item?.token){
+    if(btn){btn.disabled=false;btn.textContent=originalText;}
     alert("Could not generate customer setup link.");
     return;
   }
@@ -681,8 +685,13 @@ async function copySetupLink(userId){
   try{
     await navigator.clipboard.writeText(url);
     const status=document.getElementById("action-"+userId);
-    if(status)status.textContent="✓ Protected customer setup link copied";
+    if(status)status.textContent="✓ Link copied to clipboard";
+    if(btn){
+      btn.textContent="✓ Copied";
+      setTimeout(()=>{btn.disabled=false;btn.textContent=originalText;},2200);
+    }
   }catch(e){
+    if(btn){btn.disabled=false;btn.textContent=originalText;}
     prompt("Copy this protected customer setup link:",url);
   }
 }
