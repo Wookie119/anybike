@@ -152,10 +152,11 @@ function esc(v){return String(v??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&
 function currentSlug(){const m=location.pathname.match(/\/markets\/([^/]+)\.html/i);return m?m[1].toLowerCase():"";}
 function countryName(){return (document.querySelector(".country-line strong")?.textContent||"").trim()||currentSlug().replace(/-/g," ").replace(/\b\w/g,m=>m.toUpperCase());}
 function isoForPage(){
+  const slug=currentSlug();
+  if(SLUG_TO_ISO[slug])return SLUG_TO_ISO[slug];
   const flag=document.querySelector('.country-flag img[src*="flagcdn.com"]');
   const fm=flag?.getAttribute("src")?.match(/\/([a-z]{2})\.png/i);
-  if(fm)return fm[1].toUpperCase();
-  return SLUG_TO_ISO[currentSlug()]||"";
+  return fm?fm[1].toUpperCase():"";
 }
 function buyerPhrase(iso,name){const d=DEMONYM[iso];return d?d+" buyers":"buyers in "+name;}
 function regexEscape(s){return String(s).replace(/[.*+?^$()|[\]\\{}]/g,"\\$&");}
