@@ -485,6 +485,162 @@ async function refreshSykes(connector:any){
 
   return finalise(connector,collected);
 }
+function extractHarleyAssets(raw:string){
+  const text=String(raw||"");
+  const out:any[]=[];
+  const seen=new Set<string>();
+
+  // Preferred path: locate JSON objects shaped like {"Asset":{...}} exposed in the stock page.
+  const startNeedle='{"Asset":{';
+  let pos=0;
+  while(true){
+    const start=text.indexOf(startNeedle,pos);
+    if(start<0)break;
+    let depth=0,inString=false,escaped=false,end=-1;
+    for(let i=start;i<text.length;i++){
+      const ch=text[i];
+      if(inString){
+        if(escaped){escaped=false;continue;}
+        if(ch==="\\"){escaped=true;continue;}
+        if(ch==='"'){inString=false;}
+        continue;
+      }
+      if(ch==='"'){inString=true;continue;}
+      if(ch==='{')depth++;
+      else if(ch==='}'){
+        depth--;
+        if(depth===0){end=i+1;break;}
+      }
+    }
+    if(end<0)break;
+    try{
+      const parsed=JSON.parse(text.slice(start,end));
+      const a=parsed?.Asset;
+      if(a?.AssetID && !seen.has(String(a.AssetID))){
+        seen.add(String(a.AssetID));
+        out.push(a);
+      }
+    }catch{}
+    pos=Math.max(end,start+startNeedle.length);
+  }
+
+  // Fallback: some renders expose the whole array as valid JSON.
+  if(!out.length){
+    try{
+      const arr=JSON.parse(text);
+      if(Array.isArray(arr)){
+        for(const row of arr){
+          const a=row?.Asset;
+          if(a?.AssetID&&!seen.has(String(a.AssetID))){
+            seen.add(String(a.AssetID));out.push(a);
+          }
+        }
+      }
+    }catch{}
+  }
+  return out;
+}
+function harleyCertifiedItem(a:any){
+  const assetId=String(a?.AssetID||"");
+  if(!assetId)return null;
+  const assetName=clean(a?.AssetName||"");
+  const make=clean(a?.Make||"Harley-Davidson")
+    .replace(/^HARLEY-DAVIDSON$/i,"Harley-Davidson");
+  const model=clean(a?.Model||assetName.replace(/^\d{4}\s+/,"").replace(/^HARLEY-DAVIDSON\s+/i,""));
+  const year=Number(a?.Year||0)||null;
+  const mileage=Number.isFinite(Number(a?.Mileage))?Number(a.Mileage):null;
+  const price=Number.isFinite(Number(a?.DefaultPrice))?Number(a.DefaultPrice):null;
+  const registration=clean(a?.Registration||"")||null;
+  const colour=clean(a?.Colour||"")||null;
+  const dealer=clean(a?.DealerName||"")||null;
+  const postcode=clean(a?.PostCode||"");
+  const location=clean(a?.Location||"");
+  const category=clean(a?.Category||"");
+  const slug=assetName
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g,"-")
+    .replace(/^-+|-+$/g,"");
+  const detailUrl="https://www.h-dcertified.co.uk/gb/bikes/view/"+assetId+"/"+slug;
+  const imageId=String(a?.MainImage||"");
+  const imageUrls=imageId?[
+    "https://www.h-dcertified.co.uk/gb/image/"+imageId
+  ]:[];
+
+  return {
+    source_stock_id:assetId,
+    source_key:assetId,
+    source_url:detailUrl,
+    source_domain:"h-dcertified.co.uk",
+    seller_name:dealer,
+    seller_address:[location,postcode].filter(Boolean).join(", ")||null,
+    make,
+    model,
+    variant:category||null,
+    year,
+    mileage,
+    colour,
+    registration,
+    source_advertised_price_gbp:price,
+    description_original:assetName,
+    specification:{
+      category:category||null,
+      certified:true,
+      monthly_repayment:Number(a?.MonthlyRepayment||0)||null,
+      owner_id:a?.OwnerID??null,
+      locator_id:a?.LocatorID??null
+    },
+    source_image_urls:imageUrls,
+    raw_data:a
+  };
+}
+async function refreshHarleyCertified(connector:any){
+  const collected:any[]=[];
+  const seen=new Set<string>();
+  let expected=0;
+
+  for(let page=1;page<=40;page++){
+    const url="https://www.h-dcertified.co.uk/gb/bikes/page/"+page;
+    let raw="";
+    try{
+      const direct=await fetch(url,{redirect:"follow",headers:{
+        "User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/154 Safari/537.36",
+        "Accept":"text/html,application/json,*/*",
+        "Accept-Language":"en-GB,en;q=0.9"
+      }});
+      if(direct.ok)raw=await direct.text();
+    }catch{}
+
+    if(!raw){
+      try{raw=await fetchReader(url);}catch{}
+    }
+    if(!raw)break;
+
+    const countMatch=raw.match(/of\s+([\d,]+)\s+(?:results|bikes|vehicles)/i);
+    if(countMatch) expected=Number(countMatch[1].replace(/,/g,""))||expected;
+
+    const assets=extractHarleyAssets(raw);
+    let added=0;
+    for(const a of assets){
+      const item=harleyCertifiedItem(a);
+      if(!item)continue;
+      const key=String(item.source_stock_id);
+      if(seen.has(key))continue;
+      seen.add(key);
+      collected.push(item);
+      added++;
+    }
+
+    if(expected && collected.length>=expected)break;
+    if(!added)break;
+  }
+
+  if(!collected.length){
+    throw new Error("Harley-Davidson Approved Used source is reachable but no structured motorcycle records could be extracted.");
+  }
+
+  return finalise(connector,collected);
+}
+
 async function refreshVmoto(connector:any){
   const home=await fetchReader(connector.results_url||"https://vmoto.co.uk/");
   const urls:string[]=[];
@@ -511,6 +667,7 @@ Deno.serve(async(req)=>{
     await admin.from("live_source_connectors").update({last_refresh_started_at:new Date().toISOString(),last_refresh_status:"running"}).eq("id",id);
     let result:any;
     if(q.data.adapter_key==="sykes-hd-uk")result=await refreshSykes(q.data);
+    else if(q.data.adapter_key==="harley-certified-uk")result=await refreshHarleyCertified(q.data);
     else if(q.data.adapter_key==="vmoto-uk-catalogue")result=await refreshVmoto(q.data);
     else return json({error:"Unsupported partner source adapter"},400);
     return json(result);
