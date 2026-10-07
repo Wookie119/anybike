@@ -100,11 +100,12 @@ td:last-child{vertical-align:top;background:rgba(255,255,255,.025)}td:last-child
       </section>
 
       <section class="kpis">
-        <button type="button" class="kpi active" data-kpi-filter="all" onclick="applyKpiFilter('all',this)"><strong id="kTotal">0</strong><span>Potential customers / prospects</span></button>
+        <button type="button" class="kpi active" data-kpi-filter="all" onclick="applyKpiFilter('all',this)"><strong id="kTotal">0</strong><span>Setup help not sent</span></button>
         <button type="button" class="kpi" data-kpi-filter="unconfirmed" onclick="applyKpiFilter('unconfirmed',this)"><strong id="kUnconfirmed">0</strong><span>Email confirmation required</span></button>
         <button type="button" class="kpi" data-kpi-filter="no-profile" onclick="applyKpiFilter('no-profile',this)"><strong id="kNoProfile">0</strong><span>Confirmed, no profile</span></button>
         <button type="button" class="kpi" data-kpi-filter="incomplete" onclick="applyKpiFilter('incomplete',this)"><strong id="kIncomplete">0</strong><span>Setup incomplete</span></button>
         <button type="button" class="kpi" data-kpi-filter="clarify" onclick="applyKpiFilter('clarify',this)"><strong id="kClarify">0</strong><span>Route clarification</span></button>
+        <button type="button" class="kpi" data-kpi-filter="sent" onclick="applyKpiFilter('sent',this)"><strong id="kSent">0</strong><span>Setup help sent</span></button>
         <button type="button" class="kpi" data-kpi-filter="review" onclick="applyKpiFilter('review',this)"><strong id="kReview">0</strong><span>Ready for review</span></button>
       </section>
 
@@ -491,6 +492,8 @@ function rowMatches(r){
   if(activeKpiFilter==="no-profile" && !(r.email_confirmed_at&&!r.has_profile))return false;
   if(activeKpiFilter==="incomplete" && !(r.has_profile&&String(r.route)==="buyer_export"&&Number(r.sections_complete||0)<6))return false;
   if(activeKpiFilter==="clarify" && r.route!=="needs_clarification")return false;
+  if(activeKpiFilter==="sent" && Number(r.reminder_count||0)<1)return false;
+  if(activeKpiFilter==="all" && Number(r.reminder_count||0)>0)return false;
   if(activeKpiFilter==="review" && !(String(r.onboarding_stage).includes("Ready for AnyBike Review")||String(r.onboarding_stage).includes("Approved")))return false;
   const q=document.getElementById("searchBox").value.trim().toLowerCase();
   if(q && ![r.full_name,r.email,r.business_name,r.country,r.onboarding_stage].join(" ").toLowerCase().includes(q))return false;
@@ -507,11 +510,14 @@ function rowMatches(r){
 }
 function renderKpis(){
   const prospect=rows.filter(r=>!isInternal(r));
-  kTotal.textContent=prospect.length;
+  const unsent=prospect.filter(r=>Number(r.reminder_count||0)<1);
+  const sent=prospect.filter(r=>Number(r.reminder_count||0)>0);
+  kTotal.textContent=unsent.length;
   kUnconfirmed.textContent=prospect.filter(r=>!r.email_confirmed_at).length;
   kNoProfile.textContent=prospect.filter(r=>r.email_confirmed_at&&!r.has_profile).length;
   kIncomplete.textContent=prospect.filter(r=>r.has_profile&&String(r.route)==="buyer_export"&&Number(r.sections_complete||0)<6).length;
   kClarify.textContent=prospect.filter(r=>r.route==="needs_clarification").length;
+  kSent.textContent=sent.length;
   kReview.textContent=prospect.filter(r=>String(r.onboarding_stage).includes("Ready for AnyBike Review")||String(r.onboarding_stage).includes("Approved")).length;
 }
 function render(){
