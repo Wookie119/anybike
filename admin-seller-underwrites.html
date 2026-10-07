@@ -56,6 +56,11 @@ button.red,.btn.red{background:var(--red)}
 .box span{display:block;color:#777;font-size:9px;text-transform:uppercase;font-weight:900}
 .box strong{display:block;margin-top:3px}
 .image-state{padding:10px;border-radius:10px;background:#0b0b0b;font-size:12px;color:#bbb;margin:10px 0}
+.review-flow{margin:14px 0 12px;border:1px solid #2b2b2b;border-radius:14px;background:#0a0a0a;padding:12px}
+.review-flow h4{margin:0 0 9px;font-size:15px}.review-steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.review-step{border:1px solid #292929;border-radius:10px;padding:9px;background:#101010}.review-step strong{display:block;font-size:12px}.review-step span{display:block;color:#8d8d8d;font-size:10px;line-height:1.35;margin-top:4px}.review-step.done{border-color:rgba(51,204,102,.38)}.review-step.next{border-color:rgba(237,28,36,.6);background:rgba(237,28,36,.07)}
+.submission-gallery{margin:13px 0}.submission-gallery-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}.submission-gallery-head strong{font-size:14px}.submission-gallery-grid{display:grid;grid-template-columns:repeat(6,minmax(110px,1fr));gap:8px}.submission-photo{aspect-ratio:4/3;border:1px solid #2d2d2d;border-radius:10px;overflow:hidden;background:#080808;cursor:pointer;position:relative}.submission-photo img{width:100%;height:100%;object-fit:cover;display:block}.submission-photo span{position:absolute;left:6px;bottom:6px;background:rgba(0,0,0,.78);padding:3px 5px;border-radius:6px;font-size:9px;font-weight:900}.submission-photo.placeholder{display:flex;align-items:center;justify-content:center;color:#888;font-size:10px;text-align:center;padding:8px;cursor:default}
+.image-lightbox{position:fixed;inset:0;background:rgba(0,0,0,.92);display:none;align-items:center;justify-content:center;padding:24px;z-index:10000}.image-lightbox.open{display:flex}.image-lightbox img{max-width:94vw;max-height:90vh;object-fit:contain;border-radius:12px}.image-lightbox button{position:absolute;top:18px;right:18px;background:#222;border:1px solid #555}
 .comps{border-top:1px solid var(--line);padding-top:12px;margin-top:12px}
 .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 .empty{padding:30px;text-align:center;color:#888;border:1px dashed #333;border-radius:15px}
@@ -69,7 +74,8 @@ button.red,.btn.red{background:var(--red)}
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.full{grid-column:1/-1}
 label{display:block;color:#bbb;font-size:12px;font-weight:800}input{width:100%;margin-top:6px;background:#090909;color:#fff;border:1px solid #333;border-radius:10px;padding:11px}
 @media(max-width:1350px){.toolbar{grid-template-columns:repeat(4,minmax(0,1fr))}.toolbar #search{grid-column:1/-1}.queue-head,.submission-row{grid-template-columns:76px 110px minmax(210px,2fr) 100px 100px 120px 100px 42px}.hide-mid{display:none}}
-@media(max-width:760px){.toolbar{grid-template-columns:1fr 1fr}.toolbar #search{grid-column:1/-1}.queue-head{display:none}.submission-row{grid-template-columns:74px 1fr 36px;gap:10px}.submission-row .mobile-hide{display:none}.submission-detail{padding:0 8px 10px}.form-grid,.modal-context{grid-template-columns:1fr}.full{grid-column:auto}.admin-page-content{padding:14px}}
+@media(max-width:1100px){.submission-gallery-grid{grid-template-columns:repeat(4,minmax(100px,1fr))}.review-steps{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:760px){.toolbar{grid-template-columns:1fr 1fr}.toolbar #search{grid-column:1/-1}.queue-head{display:none}.submission-row{grid-template-columns:74px 1fr 36px;gap:10px}.submission-row .mobile-hide{display:none}.submission-detail{padding:0 8px 10px}.form-grid,.modal-context{grid-template-columns:1fr}.full{grid-column:auto}.admin-page-content{padding:14px}.submission-gallery-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.review-steps{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -126,6 +132,11 @@ label{display:block;color:#bbb;font-size:12px;font-weight:800}input{width:100%;m
   </div>
 </div>
 
+<div id="imageLightbox" class="image-lightbox" onclick="closeImageLightbox()">
+  <button type="button" onclick="closeImageLightbox();event.stopPropagation()">Close</button>
+  <img id="imageLightboxImg" alt="Motorcycle photo" onclick="event.stopPropagation()">
+</div>
+
 <div id="demandModal" class="modal">
   <div class="modal-box" style="width:min(820px,100%)">
     <div class="top">
@@ -171,6 +182,7 @@ const SUPABASE_ANON_KEY="sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 let rows=[];
 let editId=null;
+const submissionImages=new Map();
 const esc=v=>String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
 const money=v=>v===null||v===undefined||v===""?"—":"£"+Number(v).toLocaleString("en-GB",{maximumFractionDigits:0});
 
@@ -324,6 +336,19 @@ function render(){
           '<div class="box"><span>Images</span><strong>'+esc(imageText)+'</strong></div>'+
           '<div class="box"><span>International buyers</span><strong>'+Number(r.unique_buyer_match_count||0)+'</strong></div>'+
         '</div>'+
+        '<div class="review-flow">'+
+          '<h4>What to do now</h4>'+
+          '<div class="review-steps">'+
+            '<div class="review-step next"><strong>1 · Review all photos</strong><span>Open each dealer photo and make sure the motorcycle is represented properly.</span></div>'+
+            '<div class="review-step '+(hasComps?"done":"")+'"><strong>2 · Check comparables</strong><span>'+(hasComps?"Comparable snapshot captured.":"Capture current authorised stock evidence.")+'</span></div>'+
+            '<div class="review-step '+(String(r.international_match_status||"")==="checked"?"done":"")+'"><strong>3 · Check buyer demand</strong><span>Refresh AnyBike demand to see whether an existing buyer already matches it.</span></div>'+
+            '<div class="review-step"><strong>4 · Start 48h underwrite</strong><span>When you are happy with the bike and evidence, open it to eligible trade underwriters.</span></div>'+
+          '</div>'+
+        '</div>'+
+        '<div class="submission-gallery" id="submission-gallery-'+Number(r.submission_id)+'">'+
+          '<div class="submission-gallery-head"><strong>Motorcycle photos · '+Number(r.image_total||0)+'</strong><span class="sub">Loading all images…</span></div>'+
+          '<div class="submission-gallery-grid"><div class="submission-photo placeholder">Loading photos…</div></div>'+
+        '</div>'+
         (hasComps
           ?'<div class="data"><div class="box"><span>Comparable count</span><strong>'+Number(r.latest_comparable_count||0)+'</strong></div><div class="box"><span>Median ask</span><strong>'+money(r.latest_median_ask_gbp)+'</strong></div><div class="box"><span>Range</span><strong>'+money(r.latest_lowest_ask_gbp)+' – '+money(r.latest_highest_ask_gbp)+'</strong></div><div class="box"><span>Average</span><strong>'+money(r.latest_average_ask_gbp)+'</strong></div></div>'
           :'<div class="sub">No comparable snapshot captured yet.</div>')+
@@ -362,6 +387,53 @@ function render(){
   }).join("");
 }
 
+async function loadSubmissionImages(id){
+  id=Number(id);
+  const gallery=document.getElementById("submission-gallery-"+id);
+  if(!gallery)return;
+  const grid=gallery.querySelector(".submission-gallery-grid");
+  const status=gallery.querySelector(".submission-gallery-head .sub");
+
+  let images=submissionImages.get(id);
+  if(!images){
+    const {data,error}=await sb.rpc("admin_get_seller_submission_images_v1",{p_submission_id:id});
+    if(error){
+      grid.innerHTML='<div class="submission-photo placeholder">Could not load images</div>';
+      status.textContent=error.message;
+      return;
+    }
+    images=Array.isArray(data)?data:[];
+    submissionImages.set(id,images);
+  }
+
+  if(!images.length){
+    grid.innerHTML='<div class="submission-photo placeholder">No photos supplied</div>';
+    status.textContent="No images";
+    return;
+  }
+
+  grid.innerHTML=images.map(img=>{
+    const approved=String(img.final_status||"")==="approved" && img.buyer_safe_url;
+    if(!approved){
+      return '<div class="submission-photo placeholder">'+esc("Photo "+img.image_position+" · "+String(img.final_status||"processing").replaceAll("_"," "))+'</div>';
+    }
+    return '<button type="button" class="submission-photo" onclick="openImageLightbox(\''+esc(img.buyer_safe_url)+'\')">'+
+      '<img src="'+esc(img.buyer_safe_url)+'" alt="Motorcycle photo '+Number(img.image_position||0)+'">'+
+      '<span>Photo '+Number(img.image_position||0)+'</span>'+
+    '</button>';
+  }).join("");
+  status.textContent=images.filter(img=>img.final_status==="approved").length+" approved · click any photo to enlarge";
+}
+
+function openImageLightbox(url){
+  document.getElementById("imageLightboxImg").src=url;
+  document.getElementById("imageLightbox").classList.add("open");
+}
+function closeImageLightbox(){
+  document.getElementById("imageLightbox").classList.remove("open");
+  document.getElementById("imageLightboxImg").src="";
+}
+
 function toggleSubmission(id){
   const detail=document.getElementById("submission-detail-"+Number(id));
   const row=document.getElementById("submission-row-"+Number(id));
@@ -372,6 +444,7 @@ function toggleSubmission(id){
   if(open){
     detail.classList.add("open");
     row.classList.add("open");
+    loadSubmissionImages(id);
   }
 }
 
