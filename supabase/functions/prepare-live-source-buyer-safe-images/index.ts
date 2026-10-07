@@ -43,6 +43,7 @@ export default {
       "";
     const publicKeyResolved=publicKey;
     const targetSafeCount=Math.max(1,Math.min(8,Number(body.target_safe_count||6)));
+    const forceRecheck=body.force_recheck===true;
 
     const uniqueByBmwImageId=(values:any[])=>{
       const out:string[]=[];const seen=new Set<string>();
@@ -115,6 +116,24 @@ export default {
       .maybeSingle();
     if(junctionError||!junction){
       return json({error:junctionError?.message||"BMW image bridge did not create Junction Stock"},500);
+    }
+
+    if(forceRecheck){
+      const resetAt=new Date().toISOString();
+      const {error:resetError}=await ctx.supabaseAdmin
+        .from("junction_stock_images")
+        .update({
+          buyer_safe_status:"waiting",
+          buyer_safe_storage_path:null,
+          buyer_safe_url:null,
+          buyer_safe_error:null,
+          buyer_safe_processed_at:null,
+          buyer_safe_updated_at:resetAt,
+          approved_for_buyer_display:false
+        })
+        .eq("junction_stock_id",Number(junction.id))
+        .eq("buyer_safe_status","safe");
+      if(resetError)return json({error:"Could not reset existing buyer-safe images for re-check: "+resetError.message},500);
     }
 
     const processResults:any[]=[];
