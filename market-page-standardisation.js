@@ -299,7 +299,7 @@ function localSection(meta,name){
       : (portChips||'<a href="/freight-forwarders.html">Destination gateway to confirm →</a>');
 
   return '<section class="section anybike-market-local-standard"><div class="wrap">'+
-    '<div class="section-head"><div class="eyebrow">Local destination planning</div><h2>Cities, regions and freight gateways for '+esc(name)+'.</h2><p>Tell AnyBike the final city or region for your motorcycle. We coordinate the UK collection and delivery to port; your appointed freight provider confirms the international route, destination handling and local import requirements.</p></div>'+
+    '<div class="section-head"><div class="eyebrow">Local destination planning</div><h2>Cities, regions and freight gateways for '+esc(name)+'.</h2><p>Tell AnyBike the final city or region for your motorcycle. AnyBike delivers to the agreed UK port, freight forwarder or approved shipping point; your appointed freight provider confirms the international route, destination handling and local import requirements.</p></div>'+
     '<div class="port-grid">'+
       '<article class="port-card"><h3>Key cities &amp; buyer areas</h3><p>Useful destination context for sourcing, freight planning and onward delivery.</p><div class="area-list">'+(chips(cities)||'<span>'+esc(name)+'</span>')+'</div></article>'+
       (regions.length?'<article class="port-card"><h3>Regions &amp; surrounding areas</h3><p>Regional context can help the freight forwarder plan onward delivery beyond the principal cities.</p><div class="area-list">'+chips(regions)+'</div></article>':'')+
