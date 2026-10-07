@@ -499,6 +499,9 @@ function render(){
       '<td><textarea class="notes" id="note-'+r.user_id+'" placeholder="Internal onboarding note">'+esc(r.admin_notes||"")+'</textarea><button class="btn dark" style="margin-top:6px" onclick="saveNote(\''+r.user_id+'\')">Save note</button></td>'+
       '<td><div class="actions">'+
         (r.has_profile?'<a class="btn dark" href="admin-customers.html?v=20261007-3&customer='+encodeURIComponent(r.user_id)+'&from=onboarding">Customer 360</a>':'')+
+        (canHelp&&r.next_link
+          ? '<button class="btn dark" onclick="copySetupLink(\''+r.user_id+'\')">Copy setup link</button>'
+          : '')+
         (canHelp
           ? '<button class="btn" onclick="openSetupHelp(\''+r.user_id+'\')">Send setup help</button>'
           : '<div class="btn dark" style="cursor:default;opacity:.9">Confirm email first</div>')+
@@ -566,6 +569,18 @@ async function saveNote(userId){
   if(error){alert("Could not save note: "+error.message);return;}
   r.admin_notes=note;document.getElementById("action-"+userId).textContent="✓ Note saved";
 }
+async function copySetupLink(userId){
+  const r=rows.find(x=>x.user_id===userId);if(!r||!r.next_link)return;
+  const url=new URL(r.next_link,"https://www.anybike.co.uk").href;
+  try{
+    await navigator.clipboard.writeText(url);
+    const status=document.getElementById("action-"+userId);
+    if(status)status.textContent="✓ Setup link copied — ready to paste into WhatsApp";
+  }catch(e){
+    prompt("Copy this setup link:",url);
+  }
+}
+
 
 function recommendedTemplate(r){
   const intent=String(r?.customer_intent||"unclear");
