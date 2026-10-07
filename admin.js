@@ -262,7 +262,7 @@ function ensureFreshAdminShellCss(){
   var link=document.createElement("link");
   link.id="anybike-admin-shell-refresh";
   link.rel="stylesheet";
-  link.href="admin-shell.css?v=202609261125";
+  link.href="admin-shell.css?v=202610071152";
   document.head.appendChild(link);
 }
 
@@ -271,8 +271,8 @@ function loadAdminShell(){
 ensureFreshAdminShellCss();
 
 Promise.all([
-  fetch("admin-sidebar.html?v=202609262235").then(function(res){ return res.text(); }),
-  fetch("admin-topbar.html?v=202609261140").then(function(res){ return res.text(); })
+  fetch("admin-sidebar.html?v=202610071152",{cache:"no-store"}).then(function(res){ return res.text(); }),
+  fetch("admin-topbar.html?v=202610071152",{cache:"no-store"}).then(function(res){ return res.text(); })
 ])
 .then(function(parts){
   var sidebarHtml=parts[0];
