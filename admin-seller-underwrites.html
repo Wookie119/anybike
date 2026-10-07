@@ -321,11 +321,12 @@ function render(){
       :'<span>'+esc(imageText)+'</span>';
     const bike=[r.make,r.model,r.variant].filter(Boolean).join(" ")||"Motorcycle details needed";
     const seller=r.dealer_name||r.seller_name||"—";
-    const hasComps=r.latest_snapshot_at!==null;
+    const hasComps=r.latest_snapshot_at!==null && Number(r.latest_comparable_count||0)>0;
+    const hasComparableSnapshot=r.latest_snapshot_at!==null;
 
     const detail='<div id="submission-detail-'+Number(r.submission_id)+'" class="submission-detail">'+
       '<article class="card">'+
-        '<div class="top"><div><div class="ref">'+esc(r.reference)+'</div><div class="meta">'+new Date(r.created_at).toLocaleString("en-GB")+'</div></div><span class="badge '+(dealer?"dealer":"")+'">'+esc(dealer?"Dealer Underwrite":"Sell Your Bike")+'</span></div>'+
+        '<div class="top"><div><div class="ref">'+esc(r.reference)+'</div><div class="meta">'+new Date(r.created_at).toLocaleString("en-GB")+'</div></div><div style="display:flex;gap:8px;align-items:center"><span class="badge '+(dealer?"dealer":"")+'">'+esc(dealer?"Dealer Underwrite":"Sell Your Bike")+'</span><button type="button" class="btn" data-action="collapse" data-id="'+Number(r.submission_id)+'">▲ Collapse</button></div></div>'+
         '<div class="bike">'+esc(bike)+'</div>'+
         '<div class="sub">'+esc(r.registration||"No registration")+(r.bike_year?" · "+esc(r.bike_year):"")+(r.mileage!==null?" · "+Number(r.mileage).toLocaleString("en-GB")+" miles":"")+'</div>'+
         '<div class="data">'+
@@ -340,7 +341,7 @@ function render(){
           '<h4>What to do now</h4>'+
           '<div class="review-steps">'+
             '<div class="review-step next"><strong>1 · Review all photos</strong><span>Open each dealer photo and make sure the motorcycle is represented properly.</span></div>'+
-            '<div class="review-step '+(hasComps?"done":"")+'"><strong>2 · Check comparables</strong><span>'+(hasComps?"Comparable snapshot captured.":"Capture current authorised stock evidence.")+'</span></div>'+
+            '<div class="review-step '+(hasComps?"done":(!hasComps&&hasComparableSnapshot?"next":""))+'"><strong>2 · Check market evidence</strong><span>'+(hasComps?"Connected-stock evidence found.":(hasComparableSnapshot?"No connected-stock matches found. Market valuation is still required.":"Check available market evidence before setting a buy price."))+'</span></div>'+
             '<div class="review-step '+(String(r.international_match_status||"")==="checked"?"done":"")+'"><strong>3 · Check buyer demand</strong><span>Refresh AnyBike demand to see whether an existing buyer already matches it.</span></div>'+
             '<div class="review-step"><strong>4 · Start 48h underwrite</strong><span>When you are happy with the bike and evidence, open it to eligible trade underwriters.</span></div>'+
           '</div>'+
@@ -355,17 +356,19 @@ function render(){
         (r.notes?'<p>'+esc(r.notes)+'</p>':"")+
         (dealer && r.underwrite_status!=="live" && r.make && r.model?'<div class="underwrite-ready-note">Ready to start the 48-hour trade underwrite.</div>':'')+
         '<div class="actions">'+
-          '<button onclick="event.stopPropagation();captureComps('+Number(r.submission_id)+')">Capture Comparables</button>'+
+          '<button type="button" data-action="comparables" data-id="'+Number(r.submission_id)+'">Check Connected Stock</button>'+
           (r.underwrite_status!=="live"
             ?(r.make&&r.model
-              ?'<button class="red" onclick="event.stopPropagation();startUnderwrite('+Number(r.submission_id)+')">Start 48h Underwrite</button>'
-              :'<button class="red" onclick="event.stopPropagation();editVehicle('+Number(r.submission_id)+')">Complete Bike Details</button>')
-            :'<a class="btn" href="/admin-trade-underwrites.html" onclick="event.stopPropagation()">Open Underwrite Desk</a>')+
-          '<button onclick="event.stopPropagation();refreshDemand('+Number(r.submission_id)+')">Refresh Buyer Match</button>'+
-          (Number(r.unique_buyer_match_count||0)>0?'<button onclick="event.stopPropagation();viewDemand('+Number(r.submission_id)+')">View '+Number(r.unique_buyer_match_count)+' Buyer Match'+(Number(r.unique_buyer_match_count)===1?'':'es')+'</button>':'')+
-          '<button onclick="event.stopPropagation();editVehicle('+Number(r.submission_id)+')">Edit Bike Details</button>'+
-          (r.message_thread_id?'<a class="btn" href="/admin-message-centre.html?thread='+Number(r.message_thread_id)+'" onclick="event.stopPropagation()">Open Message</a>':"")+
+              ?'<button type="button" class="red" data-action="start-underwrite" data-id="'+Number(r.submission_id)+'">Start 48h Underwrite</button>'
+              :'<button type="button" class="red" data-action="edit-bike" data-id="'+Number(r.submission_id)+'">Complete Bike Details</button>')
+            :'<a class="btn" href="/admin-trade-underwrites.html">Open Underwrite Desk</a>')+
+          '<button type="button" data-action="refresh-demand" data-id="'+Number(r.submission_id)+'">Refresh Buyer Match</button>'+
+          (Number(r.unique_buyer_match_count||0)>0?'<button type="button" data-action="view-demand" data-id="'+Number(r.submission_id)+'">View '+Number(r.unique_buyer_match_count)+' Buyer Match'+(Number(r.unique_buyer_match_count)===1?'':'es')+'</button>':'')+
+          '<button type="button" data-action="edit-bike" data-id="'+Number(r.submission_id)+'">Edit Bike Details</button>'+
+          (r.message_thread_id?'<a class="btn" href="/admin-message-centre.html?thread='+Number(r.message_thread_id)+'">Open Message</a>':"")+
+          '<button type="button" data-action="collapse" data-id="'+Number(r.submission_id)+'">▲ Collapse submission</button>'+
         '</div>'+
+        '<div id="action-status-'+Number(r.submission_id)+'" class="sub" style="margin-top:8px;min-height:16px"></div>'+
       '</article>'+
     '</div>';
 
@@ -448,6 +451,32 @@ function toggleSubmission(id){
   }
 }
 
+document.getElementById("queue").addEventListener("click",function(e){
+  const actionEl=e.target.closest("[data-action]");
+  if(!actionEl)return;
+
+  e.preventDefault();
+  e.stopPropagation();
+
+  const id=Number(actionEl.dataset.id);
+  const action=actionEl.dataset.action;
+
+  if(action==="collapse"){
+    const detail=document.getElementById("submission-detail-"+id);
+    const row=document.getElementById("submission-row-"+id);
+    detail?.classList.remove("open");
+    row?.classList.remove("open");
+    row?.scrollIntoView({behavior:"smooth",block:"center"});
+    return;
+  }
+
+  if(action==="comparables"){captureComps(id);return;}
+  if(action==="start-underwrite"){startUnderwrite(id);return;}
+  if(action==="refresh-demand"){refreshDemand(id);return;}
+  if(action==="view-demand"){viewDemand(id);return;}
+  if(action==="edit-bike"){editVehicle(id);return;}
+},true);
+
 async function startUnderwrite(id){
   if(!confirm("Open this motorcycle to verified trade members for 48 hours? Seller identity and bid values will remain private."))return;
   const {data,error}=await sb.rpc("admin_create_trade_underwrite_v1",{
@@ -460,11 +489,38 @@ async function startUnderwrite(id){
   await loadQueue();
 }
 async function captureComps(id){
-  const {data,error}=await sb.rpc("admin_capture_seller_submission_comparables_v1",{p_submission_id:Number(id)});
-  if(error){alert(error.message);return;}
-  if(!data?.success){alert(data?.message||"Comparable snapshot could not be captured.");return;}
-  alert("Snapshot captured: "+Number(data.comparable_count||0)+" connected-stock comparables.");
+  id=Number(id);
+  const status=document.getElementById("action-status-"+id);
+  if(status)status.textContent="Checking connected stock…";
+
+  const {data,error}=await sb.rpc("admin_capture_seller_submission_comparables_v1",{p_submission_id:id});
+  if(error){
+    if(status)status.textContent="Could not check connected stock: "+error.message;
+    return;
+  }
+  if(!data?.success){
+    if(status)status.textContent=data?.message||"Connected-stock check could not be completed.";
+    return;
+  }
+
+  const count=Number(data.comparable_count||0);
+  if(status){
+    status.textContent=count
+      ?count+" connected-stock comparable"+(count===1?"":"s")+" found."
+      :"No connected-stock matches found. This is not a valuation — market evidence is still required.";
+  }
+
   await loadQueue();
+  setTimeout(()=>{
+    const detail=document.getElementById("submission-detail-"+id);
+    const row=document.getElementById("submission-row-"+id);
+    if(detail&&!detail.classList.contains("open")){
+      detail.classList.add("open");
+      row?.classList.add("open");
+      loadSubmissionImages(id);
+    }
+    detail?.scrollIntoView({behavior:"smooth",block:"nearest"});
+  },80);
 }
 
 
