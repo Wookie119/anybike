@@ -806,7 +806,11 @@ async function refreshSource(id,event,button){
       let lastError=null;
 
       for(let attempt=1;attempt<=4;attempt++){
-        const result=await sb().functions.invoke("refresh-live-source",{body:{connector_id:Number(id),chunk_size:20}});
+        const connector=(hub?.connectors||[]).find(c=>Number(c.id)===Number(id));
+        const refreshFunction=["sykes-hd-uk","vmoto-uk-catalogue"].includes(String(connector?.adapter_key||""))
+          ?"refresh-partner-live-source"
+          :"refresh-live-source";
+        const result=await sb().functions.invoke(refreshFunction,{body:{connector_id:Number(id),chunk_size:20}});
         if(!result.error && !result.data?.error){
           data=result.data;
           lastError=null;
@@ -815,7 +819,7 @@ async function refreshSource(id,event,button){
 
         lastError=result.error || new Error(result.data?.error||"Refresh request failed");
         st.className="status";
-        st.textContent="BMW refresh is still saved. Temporary request problem — retrying "+attempt+" / 4…";
+        st.textContent="Source refresh is still saved. Temporary request problem — retrying "+attempt+" / 4…";
         await new Promise(resolve=>setTimeout(resolve,1000*attempt));
       }
 
@@ -827,17 +831,17 @@ async function refreshSource(id,event,button){
       st.className="status";
       st.textContent=finalData.completed
         ? (finalData.message||"Source refresh completed.")
-        : ("Refreshing BMW source… "+cursor.toLocaleString("en-GB")+" / "+total.toLocaleString("en-GB")+" motorcycles processed");
+        : ("Refreshing source… "+cursor.toLocaleString("en-GB")+" / "+total.toLocaleString("en-GB")+" motorcycles processed");
       if(finalData.completed) break;
       await new Promise(resolve=>setTimeout(resolve,250));
     }
 
     if(finalData && !finalData.completed){
-      throw new Error("BMW source refresh did not complete within the safety limit. It can be resumed by pressing Refresh Source again.");
+      throw new Error("Source refresh did not complete within the safety limit. It can be resumed by pressing Refresh Source again.");
     }
 
     st.className="status good";
-    st.textContent=(finalData?.message||"BMW source refresh completed.")+
+    st.textContent=(finalData?.message||"Source refresh completed.")+
       (finalData?.discovered_count!=null?" · "+Number(finalData.discovered_count).toLocaleString("en-GB")+" discovered":"");
 
     await loadHub();
