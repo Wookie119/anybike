@@ -1,0 +1,52 @@
+name: Market Page Health
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/market-page-health.yml"
+      - "scripts/market-page-health-audit.mjs"
+      - "markets/**"
+      - "market-page-standardisation.js"
+      - "market-page-corrections.js"
+      - "market-page-engine.js"
+      - "public-header.js"
+      - "public-header.css"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rendered-market-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out AnyBike
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install Playwright
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+
+      - name: Wait for GitHub Pages
+        run: sleep 75
+
+      - name: Audit all rendered market pages
+        env:
+          AUDIT_BASE_URL: https://www.anybike.co.uk
+        run: node scripts/market-page-health-audit.mjs
+
+      - name: Upload market health report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: market-page-health
+          path: audit-output/
+          retention-days: 14
