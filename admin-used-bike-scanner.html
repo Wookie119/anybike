@@ -1178,7 +1178,12 @@ async function shareBatch(){
     }
     const st=document.getElementById("shareStatus");st.className="status";st.textContent="Sharing selection…";
     const {data,error}=await sb().rpc("admin_share_used_bike_scan_batch_v1",{p_batch_id:currentBatchId,p_scan_ids:ids,p_message_text:document.getElementById("shareMessage").value});
-    if(error){st.className="status bad";st.textContent=error.message;return}
+    if(error){
+      st.className="status bad";
+      st.textContent="NOT SENT — "+(error.message||"Share failed");
+      alert("The selection was NOT sent.\n\n"+(error.message||"Please try again."));
+      return;
+    }
     const remaining=(currentBuyerSourcingPlan?.requests||[]).filter(r=>r.sourcing_status==="Not Started"&&Number(r.request_id)!==Number(currentBatch?.request_item?.id||0));
     st.className="status good";
     st.innerHTML=(data?.already_shared?"Already shared successfully. ":"Shared "+data.shared_count+" motorcycles successfully. ")+"Buyer page: <a class='source-link' target='_blank' href='"+esc(data.customer_url)+"'>open ↗</a>"+
