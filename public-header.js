@@ -672,6 +672,95 @@ async function loadPublicHeader(){
 }
 
 
+function anybikeSortElementsByLabel(elements,getLabel){
+  return [...elements].sort(function(a,b){
+    return String(getLabel(a)||"").trim().localeCompare(
+      String(getLabel(b)||"").trim(),
+      "en",
+      {sensitivity:"base"}
+    );
+  });
+}
+
+function anybikePublicNavLabel(node){
+  if(node.classList?.contains("public-markets-menu")) return "Markets";
+  if(node.classList?.contains("public-export-menu")) return "Export Services";
+  if(node.classList?.contains("public-account")) return "My AnyBike";
+  return node.textContent.trim();
+}
+
+function anybikeSortPublicNavigationAlphabetically(){
+  const nav=document.querySelector(".public-nav");
+  if(nav){
+    const account=nav.querySelector(":scope > .public-account");
+    const items=[...nav.children].filter(function(node){return node!==account;});
+    anybikeSortElementsByLabel(items,anybikePublicNavLabel).forEach(function(node){
+      nav.insertBefore(node,account||null);
+    });
+    if(account)nav.appendChild(account);
+  }
+
+  const mobileNav=document.querySelector(".mobile-nav");
+  if(mobileNav){
+    const items=[...mobileNav.children];
+    anybikeSortElementsByLabel(items,function(node){
+      const summary=node.querySelector?.(":scope > summary");
+      return summary ? summary.textContent : node.textContent;
+    }).forEach(function(node){mobileNav.appendChild(node);});
+  }
+
+  document.querySelectorAll(".export-dropdown-links").forEach(function(host){
+    anybikeSortElementsByLabel(host.children,function(node){
+      return node.querySelector("strong")?.textContent || node.textContent;
+    }).forEach(function(node){host.appendChild(node);});
+  });
+
+  document.querySelectorAll(".mobile-export-links").forEach(function(host){
+    anybikeSortElementsByLabel(host.querySelectorAll(":scope > a"),function(node){
+      return node.textContent;
+    }).forEach(function(node){host.appendChild(node);});
+  });
+
+  const marketsGrid=document.querySelector(".markets-dropdown-grid");
+  if(marketsGrid){
+    const groups=anybikeSortElementsByLabel(
+      marketsGrid.querySelectorAll(":scope > .markets-dropdown-group"),
+      function(group){return group.querySelector(":scope > strong")?.textContent || "";}
+    );
+    groups.forEach(function(group){
+      anybikeSortElementsByLabel(group.querySelectorAll(":scope > a"),function(a){
+        return a.textContent;
+      }).forEach(function(a){group.appendChild(a);});
+      marketsGrid.appendChild(group);
+    });
+  }
+
+  document.querySelectorAll(".mobile-markets-links").forEach(function(host){
+    const all=[...host.children];
+    const leading=all.filter(function(n){return n.tagName==="A" && !n.previousElementSibling;});
+    const regions=[];
+    let current=null;
+    all.forEach(function(node){
+      if(node.classList?.contains("mobile-markets-region")){
+        current={label:node.textContent.trim(),heading:node,links:[]};
+        regions.push(current);
+      }else if(current && node.tagName==="A"){
+        current.links.push(node);
+      }
+    });
+    if(!regions.length)return;
+    host.innerHTML="";
+    leading.forEach(function(node){host.appendChild(node);});
+    regions.sort(function(a,b){return a.label.localeCompare(b.label,"en",{sensitivity:"base"});});
+    regions.forEach(function(region){
+      host.appendChild(region.heading);
+      region.links.sort(function(a,b){
+        return a.textContent.trim().localeCompare(b.textContent.trim(),"en",{sensitivity:"base"});
+      }).forEach(function(a){host.appendChild(a);});
+    });
+  });
+}
+
 function anybikeSortAccountMenuAlphabetically(menu){
   if(!menu)return;
   const logout=menu.querySelector('a[id="phLogout"],a[id="phMobileLogout"]');
@@ -791,6 +880,7 @@ async function setupPublicHeader(){
   const logoutLink = document.getElementById("phLogout");
   const mobileLogoutLink = document.getElementById("phMobileLogout");
 
+  anybikeSortPublicNavigationAlphabetically();
   anybikeSortMyAnyBikeMenus();
 
   const languageSelect = document.getElementById("phLanguage");
