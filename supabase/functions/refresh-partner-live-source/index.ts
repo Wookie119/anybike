@@ -1271,6 +1271,80 @@ async function refreshMotoDealers(connector:any){
   return finalise(connector,collected);
 }
 
+async function refreshMotoGbNew(connector:any){
+  const start="https://www.motogb.co.uk/make/all-brands";
+  const raw=await fetchSourceText(start);
+  if(!raw)throw new Error("MotoGB new-bike catalogue could not be loaded.");
+
+  const links=allLinks(raw,start)
+    .filter(u=>/^https?:\/\/(?:www\.)?motogb\.co\.uk\/model\/[^?#]+-\d+(?:\?.*)?$/i.test(u))
+    .filter((u,i,a)=>a.indexOf(u)===i);
+
+  if(!links.length)throw new Error("MotoGB new-bike catalogue loaded but no model detail links were found.");
+
+  const collected:any[]=[]; const seen=new Set<string>();
+  const concurrency=8;
+  for(let i=0;i<links.length;i+=concurrency){
+    const rows=await Promise.all(links.slice(i,i+concurrency).map(async(url)=>{
+      const detail=await fetchSourceText(url);
+      if(!detail)return null;
+
+      const text=htmlText(detail);
+      const h1=clean(
+        (String(detail).match(/<h1[^>]*>([\s\S]*?)<\/h1>/i)||[])[1]
+          ?.replace(/<[^>]+>/g," ") ||
+        (String(detail).match(/^#\s+(.+)$/m)||[])[1] ||
+        ""
+      );
+      const title=clean(h1||"");
+      if(!title)return null;
+
+      const make=normaliseMake(knownMakeFromText(title)||"");
+      if(!make)return null;
+
+      let model=title.replace(new RegExp("^"+String(make).replace(/[- ]/g,"[- ]?")+"\\s*","i"),"").trim();
+      const yearMatch=text.match(/\b(20[0-3]\d)\s+Model\b/i) || title.match(/^\s*(20[0-3]\d)\b/);
+      const cashMatch=text.match(/Cash Price\s*£\s*([\d,]+(?:\.\d+)?)/i);
+      const generalPrices=[...text.matchAll(/£\s*([\d,]{4,})(?:\.\d{2})?/g)]
+        .map(m=>Number(m[1].replace(/,/g,"")))
+        .filter(n=>n>=1000&&n<100000);
+      const price=cashMatch?Number(cashMatch[1].replace(/,/g,"")):(generalPrices.length?generalPrices[0]:null);
+      if(!price)return null;
+
+      const engine=(text.match(/\b(\d{2,4})\s*cc\b/i)||[])[1];
+      const id=(url.match(/-(\d+)(?:\?|$)/)||[])[1]||url.split("/").pop()||url;
+
+      const imgs:string[]=[];
+      for(const m of String(detail).matchAll(/!\[[^\]]*\]\((https?:\/\/[^)\s]+)\)/g)){
+        const u=m[1];
+        if(!/logo|icon|sprite|cookie|favicon/i.test(u)&&!imgs.includes(u))imgs.push(u);
+        if(imgs.length>=12)break;
+      }
+
+      return {
+        source_stock_id:String(id),source_key:String(id),source_url:url,source_domain:"motogb.co.uk",
+        seller_name:"MotoGB",seller_address:null,
+        make,model,variant:null,year:yearMatch?Number(yearMatch[1]):null,
+        mileage:0,engine_cc:engine?Number(engine):null,
+        colour:null,registration:null,source_advertised_price_gbp:price,
+        description_original:title,
+        specification:{source:"MotoGB New Bikes",condition:"New",manufacturer_catalogue:true},
+        source_image_urls:imgs,
+        raw_data:{title}
+      };
+    }));
+    for(const item of rows){
+      if(!item)continue;
+      const key=String(item.source_key||item.source_url);
+      if(seen.has(key))continue;
+      seen.add(key);collected.push(item);
+    }
+  }
+
+  if(!collected.length)throw new Error("MotoGB model pages loaded but no complete new-bike records could be extracted.");
+  return finalise(connector,collected);
+}
+
 async function refreshGenericPartner(connector:any){
   const start=connector.results_url||connector.base_url;
   const host=siteHost(start);
@@ -1334,6 +1408,7 @@ Deno.serve(async(req)=>{
     else if(q.data.adapter_key==="triumph-approved-uk")result=await refreshTriumphApproved(q.data);
     else if(q.data.adapter_key==="lind-used-uk")result=await refreshLindUsed(q.data);
     else if(q.data.adapter_key==="motogb-used-uk")result=await refreshMotoGbUsed(q.data);
+    else if(q.data.adapter_key==="motogb-new-uk")result=await refreshMotoGbNew(q.data);
     else if(q.data.adapter_key==="manchester-hd-uk")result=await refreshManchesterHd(q.data);
     else if(q.data.adapter_key==="motodealers-uk")result=await refreshMotoDealers(q.data);
     else if(String(q.data.adapter_key||"").startsWith("generic-"))result=await refreshGenericPartner(q.data);
