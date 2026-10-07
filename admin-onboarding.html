@@ -41,6 +41,10 @@ td:last-child .status-line{line-height:1.25}
 .message-choice{display:block;width:100%;text-align:left;background:#0b0b0b;border:1px solid #303030;border-radius:12px;padding:13px 14px;margin:8px 0;color:#fff;cursor:pointer}.message-choice:hover,.message-choice.selected{border-color:var(--red);background:rgba(237,28,36,.08)}
 .message-choice strong{display:block;font-size:14px}.message-choice span{display:block;color:#aaa;font-size:12px;line-height:1.4;margin-top:4px}.message-choice .actual-copy{margin-top:8px;padding:9px 10px;border:1px solid rgba(255,255,255,.08);border-radius:9px;background:#111;color:#ddd;font-size:12px;line-height:1.45}.delivery-note{margin:12px 0 0;padding:10px 12px;border:1px solid rgba(77,163,255,.35);border-radius:10px;background:rgba(77,163,255,.07);color:#cfe6ff;font-size:12px;line-height:1.45}
 .modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
+.invite-panel{margin-bottom:14px}.invite-tools{display:flex;gap:8px;flex-wrap:wrap}
+.invite-list{display:grid;gap:8px;padding:12px 14px}.invite-card{border:1px solid rgba(255,255,255,.1);border-radius:12px;background:#0d0d0d;padding:11px 12px}.invite-card-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.invite-card h3{margin:0 0 3px;font-size:15px}.invite-meta{color:#999;font-size:11px;line-height:1.4}.invite-contacts{display:grid;gap:6px;margin-top:9px}.invite-contact{display:grid;grid-template-columns:minmax(170px,1fr) minmax(220px,1.3fr) minmax(110px,.65fr) auto;gap:8px;align-items:center;border-top:1px solid rgba(255,255,255,.07);padding-top:7px}.invite-contact strong{font-size:12px}.invite-contact .email{font-size:11px}.invite-state{font-size:10px;font-weight:900;color:#aaa}.invite-state.registered{color:#75e7a2}.invite-state.invited{color:#8dc3ff}
+.invite-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.invite-form-grid label{display:grid;gap:5px;color:#aaa;font-size:11px;font-weight:800}.invite-form-grid input,.invite-form-grid select,.invite-form-grid textarea{width:100%;background:#090909;color:#fff;border:1px solid #333;border-radius:9px;padding:9px}.invite-form-grid .full{grid-column:1/-1}.invite-contact-edit-row{display:grid;grid-template-columns:1fr .8fr 1.2fr .9fr auto;gap:7px;align-items:end;margin-top:7px}.invite-contact-edit-row label{display:grid;gap:4px;color:#999;font-size:10px}.invite-contact-edit-row input{width:100%;background:#090909;color:#fff;border:1px solid #333;border-radius:8px;padding:8px}.csv-help{border:1px solid rgba(77,163,255,.35);background:rgba(77,163,255,.06);border-radius:10px;padding:10px 12px;color:#cfe6ff;font-size:11px;line-height:1.45;margin-top:10px}
+@media(max-width:900px){.invite-contact{grid-template-columns:1fr}.invite-contact-edit-row{grid-template-columns:1fr 1fr}.invite-contact-edit-row .remove-contact{grid-column:1/-1}.invite-form-grid{grid-template-columns:1fr}}
 @media(max-width:1250px){.admin-page-content{padding:16px}.onboarding-table{min-width:1500px}.onboarding-table col:nth-child(3){width:7%}.onboarding-table col:nth-child(4){width:13%}.onboarding-table col:nth-child(5){width:15%}.onboarding-table col:nth-child(6){width:15%}.onboarding-table col:nth-child(9){width:12%}.onboarding-table col:nth-child(10){width:8%}}
 @media(max-width:950px){.panel{overflow:auto}.onboarding-table{min-width:1050px}}
 </style>
@@ -64,6 +68,21 @@ td:last-child .status-line{line-height:1.25}
         <div class="kpi"><strong id="kIncomplete">0</strong><span>Setup incomplete</span></div>
         <div class="kpi"><strong id="kClarify">0</strong><span>Route clarification</span></div>
         <div class="kpi"><strong id="kReview">0</strong><span>Ready for review</span></div>
+      </section>
+
+      <section class="panel invite-panel">
+        <div class="panel-head">
+          <div>
+            <h2>Dealer / user invitations</h2>
+            <div class="small">Add businesses and multiple contacts before they register. AnyBike links invited email addresses back to the correct prospect when they join.</div>
+          </div>
+          <div class="invite-tools">
+            <button class="btn dark" type="button" onclick="document.getElementById('inviteCsvFile').click()">Import CSV</button>
+            <input id="inviteCsvFile" type="file" accept=".csv,text/csv" style="display:none" onchange="importInviteCsv(this)">
+            <button class="btn" type="button" onclick="openInviteProspect()">Add dealer / user</button>
+          </div>
+        </div>
+        <div id="inviteProspectsList" class="invite-list"><div class="small">Loading invited prospects…</div></div>
       </section>
 
       <div class="toolbar">
@@ -113,6 +132,56 @@ td:last-child .status-line{line-height:1.25}
   </div>
 </div>
 
+<div id="inviteProspectModal" class="onboarding-modal" aria-hidden="true">
+  <div class="onboarding-modal-box">
+    <div class="eyebrow">Invites & Prospects</div>
+    <h2 id="inviteProspectTitle" style="margin:5px 0 12px">Add dealer / user</h2>
+    <div class="invite-form-grid">
+      <label>Dealer / business name *<input id="inviteBusinessName"></label>
+      <label>Website<input id="inviteWebsite" placeholder="https://"></label>
+      <label>Country<input id="inviteCountry"></label>
+      <label>Town / city<input id="inviteTownCity"></label>
+      <label>Customer type
+        <select id="inviteCustomerType">
+          <option value="">Not yet classified</option>
+          <option value="uk_dealer">UK Based Motorcycle Dealer</option>
+          <option value="uk_distributor">UK Motorcycle Distributor</option>
+          <option value="uk_manufacturer">UK Motorcycle Manufacturer</option>
+          <option value="uk_partner">UK Partner</option>
+          <option value="eu_dealer">European Motorcycle Dealer</option>
+          <option value="intl_dealer">International Motorcycle Dealer</option>
+          <option value="global_manufacturer">Global Manufacturer</option>
+        </select>
+      </label>
+      <label>Invite them to
+        <select id="inviteCustomerIntent">
+          <option value="">General AnyBike invitation</option>
+          <option value="buy">Buy motorcycles</option>
+          <option value="dealer_trade_supply">Trade / sell motorcycles</option>
+          <option value="buy_supply">Buy and trade / sell</option>
+          <option value="dealer_underwrite">Dealer underwrite</option>
+          <option value="trade_underwriter">Trade opportunities</option>
+          <option value="partnership">Partnership / integration</option>
+          <option value="freight_logistics">Freight / logistics</option>
+        </select>
+      </label>
+      <label class="full">Internal notes<textarea id="inviteNotes" rows="2"></textarea></label>
+      <div class="full">
+        <div style="display:flex;justify-content:space-between;gap:10px;align-items:center">
+          <strong>Contacts / email addresses</strong>
+          <button class="btn dark" type="button" onclick="addInviteContactRow()">+ Add another email</button>
+        </div>
+        <div id="inviteContactRows"></div>
+      </div>
+    </div>
+    <div class="csv-help"><strong>CSV import columns:</strong> business_name, country, town_city, website, customer_type, customer_intent, contact_name, role, email, phone, notes. Put the same business on multiple rows to add several email contacts to one dealer.</div>
+    <div class="modal-actions">
+      <button class="btn dark" type="button" onclick="closeInviteProspect()">Cancel</button>
+      <button class="btn" id="saveInviteProspectBtn" type="button" onclick="saveInviteProspect()">Save prospect</button>
+    </div>
+  </div>
+</div>
+
 <div id="setupHelpModal" class="onboarding-modal" aria-hidden="true">
   <div class="onboarding-modal-box">
     <div class="eyebrow">Customer Onboarding</div>
@@ -132,10 +201,167 @@ const SUPABASE_URL="https://tuehtnezhdnkqbbhttgp.supabase.co";
 const SUPABASE_ANON_KEY="sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 let rows=[];
+let inviteProspects=[];
+let editingInviteProspectId=null;
 let setupHelpUserId=null;
 let setupHelpTemplate=null;
 
 function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]))}
+
+function inviteStatusLabel(c){
+  if(c.registered_user_id||c.invite_status==="registered")return "Registered";
+  if(c.invite_status==="invited")return c.invite_sent_at?"Invited "+new Date(c.invite_sent_at).toLocaleDateString("en-GB"):"Invited";
+  return "Not invited";
+}
+async function loadInviteProspects(){
+  const host=document.getElementById("inviteProspectsList");
+  if(!host)return;
+  const {data,error}=await sb.rpc("admin_list_invite_prospects_v1");
+  if(error){host.innerHTML='<div class="small">Could not load invited prospects: '+esc(error.message)+'</div>';return;}
+  inviteProspects=Array.isArray(data)?data:[];
+  renderInviteProspects();
+}
+function renderInviteProspects(){
+  const host=document.getElementById("inviteProspectsList");if(!host)return;
+  if(!inviteProspects.length){
+    host.innerHTML='<div class="small">No dealer or user invitations added yet. Use <strong>Add dealer / user</strong> or import a CSV.</div>';
+    return;
+  }
+  host.innerHTML=inviteProspects.map(p=>{
+    const contacts=Array.isArray(p.contacts)?p.contacts:[];
+    return '<div class="invite-card">'+
+      '<div class="invite-card-head"><div><h3>'+esc(p.business_name)+'</h3><div class="invite-meta">'+
+        [p.town_city,p.country,customerTypeLabel(p.customer_type),intentLabel(p.customer_intent)].filter(Boolean).map(esc).join(' · ')+
+      '</div></div><button class="btn dark" type="button" onclick="openInviteProspect('+Number(p.id)+')">Edit</button></div>'+
+      '<div class="invite-contacts">'+(contacts.length?contacts.map(ct=>
+        '<div class="invite-contact">'+
+          '<div><strong>'+esc(ct.contact_name||"Contact")+'</strong><div class="invite-meta">'+esc(ct.role||"")+'</div></div>'+
+          '<div class="email">'+esc(ct.email)+'</div>'+
+          '<div class="invite-state '+esc(ct.invite_status||"")+'">'+esc(inviteStatusLabel(ct))+'</div>'+
+          (ct.registered_user_id
+            ? '<a class="btn dark" href="admin-customers.html?customer='+encodeURIComponent(ct.registered_user_id)+'">Customer 360</a>'
+            : '<button class="btn" type="button" onclick="sendAnyBikeInvite('+Number(ct.id)+',this)">'+(ct.invite_count?"Send Again":"Send Invite")+'</button>')+
+        '</div>'
+      ).join(""):'<div class="small">No email contacts added yet.</div>')+'</div>'+
+    '</div>';
+  }).join("");
+}
+function addInviteContactRow(data={}){
+  const host=document.getElementById("inviteContactRows");if(!host)return;
+  const row=document.createElement("div");
+  row.className="invite-contact-edit-row";
+  row.innerHTML=
+    '<label>Name<input data-field="contact_name" value="'+esc(data.contact_name||"")+'"></label>'+
+    '<label>Role<input data-field="role" value="'+esc(data.role||"")+'"></label>'+
+    '<label>Email *<input data-field="email" type="email" value="'+esc(data.email||"")+'"></label>'+
+    '<label>Phone<input data-field="phone" value="'+esc(data.phone||"")+'"></label>'+
+    '<button class="btn dark remove-contact" type="button" onclick="this.closest(\'.invite-contact-edit-row\').remove()">Remove</button>';
+  host.appendChild(row);
+}
+function openInviteProspect(id=null){
+  const p=id?inviteProspects.find(x=>Number(x.id)===Number(id)):null;
+  editingInviteProspectId=p?Number(p.id):null;
+  document.getElementById("inviteProspectTitle").textContent=p?"Edit prospect · "+p.business_name:"Add dealer / user";
+  document.getElementById("inviteBusinessName").value=p?.business_name||"";
+  document.getElementById("inviteWebsite").value=p?.website||"";
+  document.getElementById("inviteCountry").value=p?.country||"";
+  document.getElementById("inviteTownCity").value=p?.town_city||"";
+  document.getElementById("inviteCustomerType").value=p?.customer_type||"";
+  document.getElementById("inviteCustomerIntent").value=p?.customer_intent||"";
+  document.getElementById("inviteNotes").value=p?.notes||"";
+  const host=document.getElementById("inviteContactRows");host.innerHTML="";
+  const contacts=Array.isArray(p?.contacts)?p.contacts:[];
+  if(contacts.length)contacts.forEach(addInviteContactRow);else addInviteContactRow();
+  const modal=document.getElementById("inviteProspectModal");
+  modal.classList.add("open");modal.setAttribute("aria-hidden","false");
+}
+function closeInviteProspect(){
+  const modal=document.getElementById("inviteProspectModal");
+  modal.classList.remove("open");modal.setAttribute("aria-hidden","true");
+  editingInviteProspectId=null;
+}
+function collectInviteContacts(){
+  return [...document.querySelectorAll("#inviteContactRows .invite-contact-edit-row")].map((row,i)=>({
+    contact_name:row.querySelector('[data-field="contact_name"]')?.value.trim()||"",
+    role:row.querySelector('[data-field="role"]')?.value.trim()||"",
+    email:row.querySelector('[data-field="email"]')?.value.trim().toLowerCase()||"",
+    phone:row.querySelector('[data-field="phone"]')?.value.trim()||"",
+    is_primary:i===0
+  })).filter(x=>x.email);
+}
+async function saveInviteProspect(){
+  const business=document.getElementById("inviteBusinessName").value.trim();
+  const contacts=collectInviteContacts();
+  if(!business){alert("Enter the dealer / business name.");return;}
+  if(!contacts.length){alert("Add at least one contact email address.");return;}
+  const btn=document.getElementById("saveInviteProspectBtn");btn.disabled=true;btn.textContent="Saving…";
+  const {error}=await sb.rpc("admin_save_invite_prospect_v1",{
+    p_id:editingInviteProspectId,
+    p_business_name:business,
+    p_country:document.getElementById("inviteCountry").value.trim()||null,
+    p_town_city:document.getElementById("inviteTownCity").value.trim()||null,
+    p_website:document.getElementById("inviteWebsite").value.trim()||null,
+    p_customer_type:document.getElementById("inviteCustomerType").value||null,
+    p_customer_intent:document.getElementById("inviteCustomerIntent").value||null,
+    p_notes:document.getElementById("inviteNotes").value.trim()||null,
+    p_contacts:contacts
+  });
+  btn.disabled=false;btn.textContent="Save prospect";
+  if(error){alert("Could not save prospect: "+error.message);return;}
+  closeInviteProspect();
+  await loadInviteProspects();
+}
+async function sendAnyBikeInvite(contactId,btn){
+  if(btn){btn.disabled=true;btn.textContent="Sending…";}
+  const {data,error}=await sb.functions.invoke("admin-send-anybike-invite",{body:{contact_id:Number(contactId)}});
+  if(error||data?.error){
+    alert("Invite could not be sent: "+(data?.error||error?.message||"Unknown error"));
+    if(btn){btn.disabled=false;btn.textContent="Send Invite";}
+    return;
+  }
+  await loadInviteProspects();
+}
+function parseCsvLine(line){
+  const out=[];let cur="";let quoted=false;
+  for(let i=0;i<line.length;i++){
+    const ch=line[i];
+    if(ch==='"'){
+      if(quoted&&line[i+1]==='"'){cur+='"';i++;}else quoted=!quoted;
+    }else if(ch===','&&!quoted){out.push(cur);cur="";}else cur+=ch;
+  }
+  out.push(cur);return out.map(v=>v.trim());
+}
+async function importInviteCsv(input){
+  const file=input.files?.[0];input.value="";if(!file)return;
+  const text=await file.text();
+  const lines=text.split(/\r?\n/).filter(x=>x.trim());
+  if(lines.length<2){alert("CSV has no data rows.");return;}
+  const headers=parseCsvLine(lines[0]).map(x=>x.toLowerCase().replace(/\s+/g,"_"));
+  const grouped=new Map();
+  for(const line of lines.slice(1)){
+    const vals=parseCsvLine(line);const row={};headers.forEach((h,i)=>row[h]=vals[i]||"");
+    const business=String(row.business_name||row.dealer||row.business||"").trim();
+    const email=String(row.email||"").trim().toLowerCase();
+    if(!business||!email)continue;
+    const key=(business+"|"+String(row.country||"")).toLowerCase();
+    if(!grouped.has(key))grouped.set(key,{
+      business_name:business,country:row.country||"",town_city:row.town_city||row.city||"",
+      website:row.website||"",customer_type:row.customer_type||"",customer_intent:row.customer_intent||"",
+      notes:row.notes||"",contacts:[]
+    });
+    grouped.get(key).contacts.push({
+      contact_name:row.contact_name||row.name||"",role:row.role||row.job_title||"",
+      email,phone:row.phone||"",is_primary:grouped.get(key).contacts.length===0
+    });
+  }
+  const payload=[...grouped.values()];
+  if(!payload.length){alert("No valid rows found. Each row needs business_name and email.");return;}
+  const {data,error}=await sb.rpc("admin_import_invite_prospects_v1",{p_rows:payload});
+  if(error){alert("CSV import failed: "+error.message);return;}
+  alert((data?.imported||payload.length)+" business prospect"+((data?.imported||payload.length)===1?"":"s")+" imported.");
+  await loadInviteProspects();
+}
+
 function customerTypeLabel(v){return ({
   uk_private:"UK Based Private User",
   uk_dealer:"UK Based Motorcycle Dealer",
@@ -469,7 +695,7 @@ function updateNextAction(){
   const allowed=await requireAdminSession();
   if(!allowed)return;
   document.documentElement.classList.remove("admin-auth-pending");
-  await loadOnboarding();
+  await Promise.all([loadOnboarding(),loadInviteProspects()]);
 })();
 </script>
 </body>
