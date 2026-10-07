@@ -5612,7 +5612,10 @@ async function openHandPickedMatch(scanId,batchId,offerId,dealId,offerStatus){
     return;
   }
 
-  window.location.href="/customer-sourced-matches.html?batch="+encodeURIComponent(batchId);
+  const row=(window.currentSourcedMatchBatches||[]).find(r=>Number(r.id)===Number(batchId));
+  window.location.href=row?.selection_ref
+    ?"/customer-sourced-matches.html?selection="+encodeURIComponent(row.selection_ref)
+    :"/customer-sourced-matches.html?batch="+encodeURIComponent(batchId);
 }
 
 
@@ -5856,7 +5859,10 @@ async function loadSourcedMatchBatches(){
         r.declined_count? r.declined_count+" declined":""
       ].filter(Boolean).join(" · ");
 
-      return '<div class="buyer-match-pool-card"><div><strong>'+safe(title)+'</strong><div class="buyer-match-card-meta">'+safe(meta)+'</div></div><a class="mini-btn" href="/customer-sourced-matches.html?batch='+encodeURIComponent(r.id)+'">Open selection</a></div>';
+      const selectionUrl=r.selection_ref
+        ?"/customer-sourced-matches.html?selection="+encodeURIComponent(r.selection_ref)
+        :"/customer-sourced-matches.html?batch="+encodeURIComponent(r.id);
+      return '<div class="buyer-match-pool-card"><div><strong>'+safe(title)+'</strong><div class="buyer-match-card-meta">'+safe(meta)+'</div></div><a class="mini-btn" href="'+selectionUrl+'">Open selection</a></div>';
     }).join("");
   }catch(error){
     console.error("Hand-picked selections could not be loaded",error);
