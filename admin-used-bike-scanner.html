@@ -119,6 +119,7 @@ textarea{min-height:120px;resize:vertical;white-space:pre-wrap;overflow-wrap:any
             <textarea id="shareMessage" style="min-height:130px"></textarea>
           </div>
           <div class="actions" style="margin-top:10px">
+            <button class="btn" type="button" onclick="buildMessage(true)">Use updated suggested message</button>
             <button class="btn red" id="shareBatchBtn" onclick="shareBatch()">Share selected motorcycles</button>
             <span id="shareStatus" class="status"></span>
           </div>
@@ -1101,28 +1102,53 @@ async function saveScan(id){
   setShareGate();
   return true;
 }
-function buildMessage(){
-  if(document.getElementById("shareMessage").value.trim())return;
-  const name=(currentBatch?.buyer?.contact_name||"there").split(" ")[0];
-  const req=currentBatch?.request_item; const model=req?[req.make,req.model].filter(Boolean).join(" "):"motorcycles";
-  const noun=/motorcycle/i.test(model)?model:(model+" motorcycle");
-  const mentionedInMessages=/Added by AnyBike staff from a model discussed in Message Centre/i.test(String(req?.notes||""));
-  const opening=mentionedInMessages
-    ?("You did mention that you may also be interested in "+noun+"s, so we have included a selection of suitable examples for you to consider.")
-    :("Good news — we have found a hand-picked selection of "+(noun.toLowerCase()==="motorcycles"?"motorcycles":noun+"s")+" that we think could suit your requirements.");
-  const firstName=String(name||"").trim().split(/\s+/).filter(Boolean).slice(-1)[0]||name;
+function buildMessage(force=false){
+  const box=document.getElementById("shareMessage");
+  if(!box)return;
+  const existing=box.value.trim();
+  const legacyAutoMessage=
+    /Good news — we have found a hand-picked selection/i.test(existing) ||
+    /Any motorcycle you leave unticked will be recorded as Not Interested/i.test(existing) ||
+    /approved UK freight forwarder \/ handover point/i.test(existing);
+  if(existing && !force && !legacyAutoMessage)return;
+
+  const rawName=String(currentBatch?.buyer?.contact_name||"there").trim();
+  const nameParts=rawName.split(/\s+/).filter(Boolean);
+  let firstName=nameParts[0]||"there";
+  if(nameParts.length>1 && nameParts[0]===nameParts[0].toUpperCase() && nameParts[1]!==nameParts[1].toUpperCase()){
+    firstName=nameParts[1];
+  }
+
+  const req=currentBatch?.request_item;
+  const model=[req?.make,req?.model].filter(Boolean).join(" ")||"motorcycles";
   const selectedCount=(scanned||[]).filter(s=>s.selected_for_buyer).length;
-  document.getElementById("shareMessage").value=
+  const customerId=String(currentBatch?.batch?.customer_id||"");
+  const buyerId=Number(currentBatch?.buyer?.id||currentBatch?.batch?.buyer_id||0);
+  const isQuentin=customerId==="16b0ef8f-fba9-4e4f-8805-1f8af919b7be" || buyerId===19;
+
+  if(isQuentin){
+    box.value=
+      "Hi Quentin,\n\n"+
+      "Good news — I’ve pulled together "+selectedCount+" BMW S 1000 RR options that I think are worth looking at.\n\n"+
+      "I know you’re not necessarily ready to buy immediately, so there’s no pressure from our side. The useful thing at this stage is to give you a feel for the stock we can find in the UK, the pricing available, and which bikes might work best for your market.\n\n"+
+      "We can source these bikes in good numbers, so when you are ready to start buying — whether that is one bike at a time initially or larger numbers later on — we should have plenty of options to work with.\n\n"+
+      "All of the motorcycles in this selection are from BMW main dealers and have been prepared to a high standard. I know that should give you some extra confidence in the condition and presentation of the bikes, particularly for your first few purchases.\n\n"+
+      "Have a look through the selection and tick Interested on any motorcycles you’d like me to investigate further. I’ll then contact the seller to confirm current availability, the purchase position and anything else you’d like checked.\n\n"+
+      "If you have a question about a particular bike — service history, condition, damage, next service, specification or anything else — add it underneath that motorcycle and I’ll raise it with the seller for you.\n\n"+
+      "The AnyBike price shown includes the motorcycle, our sourcing fee, and UK collection and delivery to your chosen UK-based freight forwarder.\n\n"+
+      "There’s no commitment just from reviewing the bikes or ticking Interested — it simply helps me understand which examples are most relevant to you.\n\n"+
+      "Andy\nAnyBike";
+    return;
+  }
+
+  box.value=
     "Hi "+firstName+",\n\n"+
-    "Good news — I’ve pulled together "+selectedCount+" BMW S 1000 RR options that I think are worth looking at.\n\n"+
-    "I know you’re not necessarily ready to buy immediately, so there’s no pressure from our side. The useful thing at this stage is to give you a feel for the stock we can find in the UK, the pricing available, and which bikes might work best for your market.\n\n"+
-    "We can source these bikes in good numbers, so when you are ready to start buying — whether that is one bike at a time initially or larger numbers later on — we should have plenty of options to work with.\n\n"+
-    "All of the motorcycles in this selection are from BMW main dealers and have been prepared to a high standard. I know that should give you some extra confidence in the condition and presentation of the bikes, particularly for your first few purchases.\n\n"+
-    "Have a look through the selection and tick Interested on any motorcycles you’d like me to investigate further. I’ll then contact the seller to confirm current availability, the purchase position and anything else you’d like checked.\n\n"+
-    "If you have a question about a particular bike — service history, condition, damage, next service, specification or anything else — add it underneath that motorcycle and I’ll raise it with the seller for you.\n\n"+
-    "The AnyBike price shown includes the motorcycle, our sourcing fee, and UK collection and delivery to your chosen UK-based freight forwarder.\n\n"+
-    "There’s no commitment just from reviewing the bikes or ticking Interested — it simply helps me understand which examples are most relevant to you.\n\n"+
-    "Andy\nAnyBike";
+    "Good news — we’ve put together "+selectedCount+" "+model+" option"+(selectedCount===1?"":"s")+" for you to review.\n\n"+
+    "Have a look through the selection and tick Interested on any motorcycles you’d like AnyBike to investigate further. We’ll then contact the seller to confirm current availability, the purchase position and anything else you’d like checked.\n\n"+
+    "If you have a question about a particular motorcycle, add it underneath that motorcycle and we’ll raise it with the seller for you.\n\n"+
+    "The AnyBike price shown includes the motorcycle, our sourcing fee, and the agreed UK collection and delivery.\n\n"+
+    "There’s no commitment just from reviewing the motorcycles or ticking Interested.\n\n"+
+    "AnyBike";
 }
 function showShareSuccessToast(title,message){
   const el=document.getElementById("shareSuccessToast");
