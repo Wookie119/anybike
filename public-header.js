@@ -672,6 +672,28 @@ async function loadPublicHeader(){
 }
 
 
+function anybikeSortAccountMenuAlphabetically(menu){
+  if(!menu)return;
+  const logout=menu.querySelector('a[id="phLogout"],a[id="phMobileLogout"]');
+  const hr=menu.querySelector("hr");
+  const anchors=[...menu.querySelectorAll(":scope > a")].filter(function(a){return a!==logout;});
+  anchors.sort(function(a,b){
+    return a.textContent.trim().localeCompare(b.textContent.trim(),"en",{sensitivity:"base"});
+  });
+  anchors.forEach(function(a){menu.insertBefore(a,hr||logout||null);});
+  if(hr && logout){
+    menu.appendChild(hr);
+    menu.appendChild(logout);
+  }else if(logout){
+    menu.appendChild(logout);
+  }
+}
+
+function anybikeSortMyAnyBikeMenus(){
+  anybikeSortAccountMenuAlphabetically(document.getElementById("loggedInMenu"));
+  anybikeSortAccountMenuAlphabetically(document.getElementById("mobileLoggedInMenu"));
+}
+
 async function addMyDealershipMenuIfEligible(user){
 
   if(!user || typeof sb === "undefined"){
@@ -736,6 +758,8 @@ async function addMyDealershipMenuIfEligible(user){
       else mobileMenu.insertAdjacentHTML("beforeend",linkHtml);
     }
 
+    anybikeSortMyAnyBikeMenus();
+
   }catch(error){
 
     console.warn(
@@ -766,6 +790,8 @@ async function setupPublicHeader(){
 
   const logoutLink = document.getElementById("phLogout");
   const mobileLogoutLink = document.getElementById("phMobileLogout");
+
+  anybikeSortMyAnyBikeMenus();
 
   const languageSelect = document.getElementById("phLanguage");
   const currencySelect = document.getElementById("phCurrency");
