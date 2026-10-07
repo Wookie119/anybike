@@ -178,7 +178,7 @@ function needsAttention(r){
   return !r.is_test_account && (
     !r.email_confirmed_at || !r.has_profile ||
     !r.customer_type || !r.customer_intent || String(r.customer_intent)==="unclear" ||
-    (String(r.route)==="buyer_export" && Number(r.sections_complete||0)<5) ||
+    (String(r.route)==="buyer_export" && Number(r.sections_complete||0)<6) ||
     String(r.route)==="needs_clarification"
   );
 }
@@ -202,7 +202,7 @@ function renderKpis(){
   kTotal.textContent=prospect.length;
   kUnconfirmed.textContent=prospect.filter(r=>!r.email_confirmed_at).length;
   kNoProfile.textContent=prospect.filter(r=>r.email_confirmed_at&&!r.has_profile).length;
-  kIncomplete.textContent=prospect.filter(r=>r.has_profile&&String(r.route)==="buyer_export"&&Number(r.sections_complete||0)<5).length;
+  kIncomplete.textContent=prospect.filter(r=>r.has_profile&&String(r.route)==="buyer_export"&&Number(r.sections_complete||0)<6).length;
   kClarify.textContent=prospect.filter(r=>r.route==="needs_clarification").length;
   kReview.textContent=prospect.filter(r=>String(r.onboarding_stage).includes("Ready for AnyBike Review")||String(r.onboarding_stage).includes("Approved")).length;
 }
@@ -220,10 +220,11 @@ function render(){
   data.map(r=>{
     const priority=Number(r.request_count||0)>0||Number(r.scan_batch_count||0)>0;
     const cls=priority?"priority-row":(r.is_test_account?"test-row":(isInternal(r)?"internal-row":""));
-    const dots=[r.contact_complete,r.business_complete,r.preferences_complete,r.buyer_export_complete,r.shipping_complete].map(x=>'<span class="dot '+(x?"on":"")+'"></span>').join("");
+    const completeCount=Math.max(0,Math.min(6,Number(r.sections_complete||0)));
+    const dots=Array.from({length:6},(_,i)=>'<span class="dot '+(i<completeCount?"on":"")+'"></span>').join("");
     const isExportRoute=String(r.route||"")==="buyer_export";
     const setupHtml=isExportRoute
-      ? '<strong>'+Number(r.sections_complete||0)+' / 5</strong><div class="progress">'+dots+'</div>'
+      ? '<strong>'+Number(r.sections_complete||0)+' / 6</strong><div class="progress">'+dots+'</div>'
       : '<span class="badge '+(r.customer_type&&r.customer_intent&&r.customer_intent!=="unclear"?"blue":"amber")+'">'+
           (r.customer_type&&r.customer_intent&&r.customer_intent!=="unclear"?"Route set":"Classification needed")+
         '</span>';
