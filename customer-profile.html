@@ -406,7 +406,6 @@
             <div class="setup-step" data-setup="preferences"><strong>3. Display Preferences</strong><span>Required</span></div>
             <div class="setup-step" data-setup="buyer"><strong>4. Buyer &amp; Export</strong><span>Required</span></div>
             <div class="setup-step" data-setup="shipping"><strong>5. Shipping Preferences</strong><span>Required</span></div>
-            <div class="setup-step" data-setup="bank"><strong>Bank Details</strong><span>Optional</span></div>
             <div class="setup-step" data-setup="margin"><strong>Margin Calculator Defaults</strong><span>Recommended</span></div>
           </div>
           <div class="next-action">
@@ -641,45 +640,6 @@
             </div>
             <button type="button" class="section-save" data-save-section="business" onclick="saveSection('business',this)">Save &amp; Continue →</button>
             <div id="msg-business" class="section-msg"></div>
-          </div>
-</section>
-
-        <section class="card setup-target" id="section-bank" data-profile-section="bank">
-          <div class="section-head"><div><h2>Optional: Bank Details</h2><p class="card-intro">Optional. You can save your own bank reference information here if it is useful to you. It is not required to complete Buyer Setup and it does not block a purchase.</p><div class="risk-note"><strong>Privacy:</strong> Bank details are optional and are not displayed to AnyBike staff in the normal customer, sales or sourcing screens. They are not used when deciding which motorcycles to send you. Do not enter them unless you want them saved with your account.</div></div><span class="section-state optional" id="state-bank">Optional</span></div>
-
-          <div class="grid">
-            <div>
-              <label for="bankAccountName">Account name</label>
-              <input id="bankAccountName" autocomplete="off">
-            </div>
-
-            <div>
-              <label for="bankAccountNumber">Account number</label>
-              <input id="bankAccountNumber" inputmode="numeric" autocomplete="off" placeholder="e.g. 12345678">
-            </div>
-
-            <div>
-              <label for="bankSortCode">Sort code</label>
-              <input id="bankSortCode" inputmode="numeric" autocomplete="off" placeholder="e.g. 12-34-56">
-            </div>
-
-            <div class="full">
-              <label for="bankInternationalNotes">IBAN / SWIFT / International bank notes</label>
-              <textarea id="bankInternationalNotes" autocomplete="off" placeholder="IBAN, SWIFT / BIC, bank name or any international payment instructions"></textarea>
-            </div>
-          </div>
-        
-          <div class="section-save-row setup-next-action">
-            <div class="setup-next-copy">
-              <span class="setup-next-eyebrow">YOUR NEXT ACTION</span>
-              <strong>Bank details are optional</strong>
-              <span>Save them if they are useful to you, or skip this section for now. You can add or change bank details later in My Profile.</span>
-            </div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
-              <button type="button" class="section-save" data-save-section="bank" style="background:#222;border-color:#3a3a3a" onclick="saveSection('bank',this)">Save Bank Details</button>
-              <button type="button" class="section-save" style="background:#222;border-color:#555;color:#fff" onclick="skipBankDetails(this)">Skip for Now →</button>
-            </div>
-            <div id="msg-bank" class="section-msg"></div>
           </div>
 </section>
 
@@ -1002,7 +962,7 @@
             <div id="msg-shipping" class="section-msg"></div>
           </div>
           <div style="margin-top:12px;color:#9aa0a6;font-size:12px;line-height:1.5">
-            Optional extras: <a href="#section-bank" style="color:#ddd">Bank Details</a> · <a href="#section-margin-calculator" style="color:#ddd">Margin Calculator Defaults</a>. These do not block Buyer Setup.
+            Optional extra: <a href="#section-margin-calculator" style="color:#ddd">Margin Calculator Defaults</a>. This does not block Buyer Setup.
           </div>
 </section>
 
@@ -1033,7 +993,6 @@
         "section-preferences",
         "buyer-onboarding",
         "section-shipping",
-        "section-bank",
         "section-margin-calculator"
       ];
       order.forEach(function(id){
@@ -1353,10 +1312,6 @@
       setValue("businessPostcode", profile?.business_postcode);
       populateCountrySelect("businessCountry", profile?.business_country || profile?.country);
       populateCountrySelect("destinationCountry", profile?.preferred_destination_country || "");
-      setValue("bankAccountName", profile?.bank_account_name);
-      setValue("bankAccountNumber", profile?.bank_account_number);
-      setValue("bankSortCode", profile?.bank_sort_code);
-      setValue("bankInternationalNotes", profile?.bank_international_notes);
       setValue("currency", profile?.preferred_currency || "GBP");
       setValue("fxRate", profile?.fx_rate_gbp_to_preferred);
       setValue("dutyRate", profile?.import_duty_rate_pct);
@@ -1727,8 +1682,6 @@
         value("shippingCity") &&
         value("shippingPostcode")
       );
-      const bankUk=Boolean(value("bankAccountName") && value("bankAccountNumber") && value("bankSortCode"));
-      const bankInternational=Boolean(value("bankAccountName") && value("bankInternationalNotes"));
       const margin=Boolean(
         value("fxRate") &&
         value("dutyRate") &&
@@ -1767,7 +1720,6 @@
         identity:documentOnFile("identityDocumentState","identityDocument"),
         address:documentOnFile("addressDocumentState","addressDocument"),
         shipping,
-        bank:Boolean(bankUk || bankInternational),
         margin
       };
     }
@@ -1781,9 +1733,9 @@
       const progressText=document.getElementById("setupProgressText");
       if(progressText) progressText.textContent=done+" of "+requiredKeys.length+" required sections complete";
 
-      const progressOrder=["contact","business","preferences","buyer","shipping","bank","margin"];
+      const progressOrder=["contact","business","preferences","buyer","shipping","margin"];
       const firstIncompleteRequired=["contact","business","preferences","buyer","shipping"].find(k=>!s[k]);
-      const currentProgress=firstIncompleteRequired || (!s.bank?"bank":(!s.margin?"margin":""));
+      const currentProgress=firstIncompleteRequired || (!s.margin?"margin":"");
       document.querySelectorAll("[data-setup]").forEach(function(el){
         const key=el.dataset.setup;
         el.classList.toggle("complete",Boolean(s[key]));
@@ -1818,7 +1770,6 @@
       setState("state-preferences",s.preferences);
       setState("state-buyer",s.buyer);
       setState("state-shipping",s.shipping);
-      setState("state-bank",s.bank,"Optional");
       const marginState=document.querySelector("#section-margin-calculator .section-state");
       if(marginState){
         marginState.textContent=s.margin?"✓ Defaults complete":"Recommended";
@@ -1864,7 +1815,7 @@
       }else if(done===requiredKeys.length){
         target="customer-dashboard.html"; field="";
         button="Return to My AnyBike →"; heading="✓ Buyer Setup complete — ready for AnyBike Review";
-        copy="Your required Buyer Setup is complete. AnyBike will now review your trade buyer account. Bank Details are optional and Margin Calculator Defaults are recommended extras — neither blocks submission.";
+        copy="Your required Buyer Setup is complete. AnyBike will now review your trade buyer account. Margin Calculator Defaults are recommended but do not block submission.";
       }
 
       title.textContent=heading;
@@ -1908,7 +1859,6 @@
         business_postcode:value("businessPostcode")||null,
         business_country:value("businessCountry")||null,
         business_address:[value("businessAddress1"),value("businessAddress2"),value("businessCity"),value("businessRegion"),value("businessPostcode"),value("businessCountry")].filter(Boolean).join(", ")||null};
-      if(section==="bank") return {...base,bank_account_name:value("bankAccountName")||null,bank_account_number:value("bankAccountNumber")||null,bank_sort_code:value("bankSortCode")||null,bank_international_notes:value("bankInternationalNotes")||null};
       if(section==="preferences") return {...base,
         preferred_currency:document.getElementById("currency").value||"GBP",
         preferred_language:document.getElementById("language").value||"en"
@@ -2342,10 +2292,6 @@
         business_postcode: value("businessPostcode") || null,
         business_country: value("businessCountry") || null,
         business_address: [value("businessAddress1"),value("businessAddress2"),value("businessCity"),value("businessRegion"),value("businessPostcode"),value("businessCountry")].filter(Boolean).join(", ") || null,
-        bank_account_name: value("bankAccountName") || null,
-        bank_account_number: value("bankAccountNumber") || null,
-        bank_sort_code: value("bankSortCode") || null,
-        bank_international_notes: value("bankInternationalNotes") || null,
         preferred_currency: document.getElementById("currency").value || "GBP",
         preferred_language: document.getElementById("language").value || "en",
         fx_rate_gbp_to_preferred: value("fxRate") ? Number(value("fxRate")) : null,
@@ -2525,10 +2471,6 @@
           business_postcode:value("businessPostcode")||null,
           business_country:value("businessCountry")||null,
           business_address:[value("businessAddress1"),value("businessAddress2"),value("businessCity"),value("businessRegion"),value("businessPostcode"),value("businessCountry")].filter(Boolean).join(", ")||null,
-          bank_account_name:value("bankAccountName")||null,
-          bank_account_number:value("bankAccountNumber")||null,
-          bank_sort_code:value("bankSortCode")||null,
-          bank_international_notes:value("bankInternationalNotes")||null,
           preferred_currency:document.getElementById("currency").value||"GBP",
           preferred_language:document.getElementById("language").value||"en",
           fx_rate_gbp_to_preferred:value("fxRate")?Number(value("fxRate")):null,
@@ -2571,7 +2513,7 @@
       }
     }
 
-    const autosaveFields=["fullName","phone","whatsapp","contactAddress1","contactAddress2","contactPostcode","country","city","region","buyerType","businessName","businessTradingName","businessRegistrationNumber","businessTaxNumber","businessEmail","businessPhone","businessWebsite","businessAddress1","businessAddress2","businessCity","businessRegion","businessPostcode","businessCountry","bankAccountName","bankAccountNumber","bankSortCode","bankInternationalNotes","currency","language","fxRate","dutyRate","importTaxRate","minimumMargin","defaultShippingCost","defaultPortCollectionCost","defaultPreparationCost","defaultWarrantyCost","defaultOtherCost","buyerEori","destinationPort","destinationPortOther","shippingMethod","typicalQuantity","identityDocument","addressDocument","licenceDocument","shippingCompany","shippingCountry","shippingContactName","shippingContactRole","shippingContactEmail","shippingContactPhone","shippingWebsite","shippingAddress1","shippingAddress2","shippingCity","shippingRegion","shippingPostcode","collectionPoint"];
+    const autosaveFields=["fullName","phone","whatsapp","contactAddress1","contactAddress2","contactPostcode","country","city","region","buyerType","businessName","businessTradingName","businessRegistrationNumber","businessTaxNumber","businessEmail","businessPhone","businessWebsite","businessAddress1","businessAddress2","businessCity","businessRegion","businessPostcode","businessCountry","currency","language","fxRate","dutyRate","importTaxRate","minimumMargin","defaultShippingCost","defaultPortCollectionCost","defaultPreparationCost","defaultWarrantyCost","defaultOtherCost","buyerEori","destinationPort","destinationPortOther","shippingMethod","typicalQuantity","identityDocument","addressDocument","licenceDocument","shippingCompany","shippingCountry","shippingContactName","shippingContactRole","shippingContactEmail","shippingContactPhone","shippingWebsite","shippingAddress1","shippingAddress2","shippingCity","shippingRegion","shippingPostcode","collectionPoint"];
     autosaveFields.forEach(id=>{
       const el=document.getElementById(id);
       if(!el) return;
