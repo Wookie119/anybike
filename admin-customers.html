@@ -1761,6 +1761,29 @@ function renderCustomerWorkspace(customer){
     '<h3 class="section-title">👀 Recently Viewed</h3>'+recentHtml
   );
 
+  const sentSelections=Array.isArray(w.sent_selections)?w.sent_selections:[];
+  setPanel("selections",
+    '<h3>Sent Selections</h3>'+
+    '<div class="note-box">Every hand-picked sourcing selection sent to this customer is listed here. These are internal records; the customer sees a private selection link without the internal batch number.</div>'+
+    (sentSelections.length
+      ? sentSelections.map(s=>{
+          const label=[s.make,s.model].filter(Boolean).join(" ")||s.title||"Hand-picked selection";
+          const meta=[
+            Number(s.total_matches||0)+" motorcycle"+(Number(s.total_matches||0)===1?"":"s"),
+            Number(s.interested_count||0)?Number(s.interested_count||0)+" interested":"",
+            Number(s.declined_count||0)?Number(s.declined_count||0)+" not interested":"",
+            Number(s.unanswered_count||0)?Number(s.unanswered_count||0)+" awaiting response":""
+          ].filter(Boolean).join(" · ");
+          return '<div class="deal-card">'+
+            '<strong>'+safe(label)+'</strong>'+
+            '<div class="small">Sent: '+fmtDate(s.shared_at)+'</div>'+
+            '<div class="small">'+safe(meta)+'</div>'+
+            '<div style="margin-top:10px"><a class="btn" href="admin-used-bike-scanner.html?batch='+encodeURIComponent(s.id)+'">Open sourcing batch</a></div>'+
+          '</div>';
+        }).join("")
+      : '<div class="note-box">No hand-picked sourcing selections have been sent to this customer yet.</div>')
+  );
+
   const deals=Array.isArray(w.deals)?w.deals:[];
   setPanel("deals",
     '<h3>Deals</h3>'+
@@ -1895,13 +1918,13 @@ async function ensureCustomerWorkspace(id,force){
   customerWorkspaceLoading[key]=(async()=>{
     const root=document.getElementById("customer-"+customer.id);
     if(root){
-      ["intelligence","messages","enquiries","interests","deals","shipping","documents","notes","timeline"].forEach(name=>{
+      ["intelligence","messages","enquiries","interests","selections","deals","shipping","documents","notes","timeline"].forEach(name=>{
         const panel=root.querySelector('[data-panel="'+name+'"]');
         if(panel && !customerWorkspaceMap[key])panel.innerHTML='<div class="note-box">Loading customer data…</div>';
       });
     }
 
-    const [workspaceResult,intelligenceResult,commercialResult,reviewDocumentsResult]=await Promise.all([
+    const [workspaceResult,intelligenceResult,commercialResult,reviewDocumentsResult,selectionsResult]=await Promise.all([
       sb.rpc("admin_get_customer_360_workspace_v1",{
         p_customer_id:customer.customerId
       }),
@@ -1913,6 +1936,9 @@ async function ensureCustomerWorkspace(id,force){
         p_customer_id:customer.customerId
       }),
       sb.rpc("admin_get_customer_review_documents_v1",{
+        p_customer_id:customer.customerId
+      }),
+      sb.rpc("admin_get_customer_sourced_match_batches_v1",{
         p_customer_id:customer.customerId
       })
     ]);
@@ -1943,7 +1969,8 @@ async function ensureCustomerWorkspace(id,force){
       ...(data||{}),
       intelligence:intelligenceResult?.data||{},
       commercial_intelligence:commercialResult?.data||{},
-      review_documents:reviewDocumentsResult?.data||{}
+      review_documents:reviewDocumentsResult?.data||{},
+      sent_selections:selectionsResult?.error?[]:(selectionsResult?.data||[])
     };
     renderCustomerWorkspace(customer);
   })();
@@ -2930,6 +2957,7 @@ function renderCustomers(){
                 <button class="tab-btn" data-tab="messages" onclick="switchTab('${c.id}','messages')">Messages</button>
                 <button class="tab-btn" data-tab="enquiries" onclick="switchTab('${c.id}','enquiries')">Enquiries</button>
                 <button class="tab-btn" data-tab="interests" onclick="switchTab('${c.id}','interests')">Motorcycle Interests</button>
+                <button class="tab-btn" data-tab="selections" onclick="switchTab('${c.id}','selections')">Sent Selections</button>
                 <button class="tab-btn" data-tab="deals" onclick="switchTab('${c.id}','deals')">Deals</button>
                 <button class="tab-btn" data-tab="shipping" onclick="switchTab('${c.id}','shipping')">Shipping</button>
                 <button class="tab-btn" data-tab="documents" onclick="switchTab('${c.id}','documents')">Documents</button>
@@ -3102,6 +3130,10 @@ function renderCustomers(){
         }).join("")
       : `<div class="note-box">No recently viewed motorcycles recorded for this customer.</div>`
   }
+</div>
+
+<div class="tab-panel" data-panel="selections">
+  <div class="note-box">Open this customer to load sent sourcing selections.</div>
 </div>
 
 <div class="tab-panel" data-panel="deals">
