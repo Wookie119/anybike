@@ -5612,10 +5612,21 @@ async function openHandPickedMatch(scanId,batchId,offerId,dealId,offerStatus){
     return;
   }
 
-  const row=(window.currentSourcedMatchBatches||[]).find(r=>Number(r.id)===Number(batchId));
+  let row=(window.currentSourcedMatchBatches||[]).find(r=>Number(r.id)===Number(batchId));
+  if(!row?.selection_ref){
+    try{
+      const result=await sb.rpc("customer_get_sourced_match_batches_v1");
+      if(!result.error){
+        window.currentSourcedMatchBatches=result.data||[];
+        row=(window.currentSourcedMatchBatches||[]).find(r=>Number(r.id)===Number(batchId));
+      }
+    }catch(error){
+      console.warn("Could not resolve private selection reference",error);
+    }
+  }
   window.location.href=row?.selection_ref
     ?"/customer-sourced-matches.html?selection="+encodeURIComponent(row.selection_ref)
-    :"/customer-sourced-matches.html?batch="+encodeURIComponent(batchId);
+    :"/customer-dashboard.html?view=sourcing-progress#hand-picked";
 }
 
 
@@ -5683,7 +5694,7 @@ function renderSourcingProgress(rows,totalFromBatches){
         '<div style="min-width:0"><strong style="display:inline;font-size:13px">'+safe(title)+'</strong>'+
         (facts?'<span style="margin-left:8px;color:#aaa;font-size:11px">'+safe(facts)+'</span>':'')+
         '<span style="display:block;margin-top:2px;color:#ffd27c;font-size:10px;font-weight:900">Checking seller availability and current purchase terms</span></div>'+
-        (batchId?'<a class="panel-link" style="font-size:11px" href="/customer-sourced-matches.html?batch='+encodeURIComponent(batchId)+'">View selection →</a>':'')+
+        (row.selection_ref?'<a class="panel-link" style="font-size:11px" href="/customer-sourced-matches.html?selection='+encodeURIComponent(row.selection_ref)+'">View selection →</a>':'')+
       '</div>';
     }).join("");
   }else{
@@ -5739,13 +5750,16 @@ async function loadSourcingProgress(){
       background and enrich the panel when ready. This also keeps the rest
       of My AnyBike from waiting on several per-batch RPC calls.
     */
+    window.currentSourcedMatchBatches=batches;
     Promise.allSettled(activeBatches.map(async function(batch){
-      const detail=await sb.rpc("customer_get_used_bike_scan_batch_v1",{p_batch_id:Number(batch.id)});
+      const detail=batch.selection_ref
+        ?await sb.rpc("customer_get_used_bike_scan_batch_by_token_v1",{p_selection:batch.selection_ref})
+        :await sb.rpc("customer_get_used_bike_scan_batch_v1",{p_batch_id:Number(batch.id)});
       if(detail.error) throw detail.error;
       const scans=Array.isArray(detail.data?.scans)?detail.data.scans:[];
       return scans
         .filter(function(scan){return String(scan?.response||"").toLowerCase()==="interested";})
-        .map(function(scan){return {...scan,batch_id:Number(batch.id)};});
+        .map(function(scan){return {...scan,batch_id:Number(batch.id),selection_ref:batch.selection_ref||""};});
     })).then(function(detailResults){
       const rows=[];
       detailResults.forEach(function(result){
@@ -5821,7 +5835,7 @@ async function loadHandPickedForYou(){
             '<strong>'+safe(price)+'</strong>' +
             '<a href="'+(["Sent","Accepted","Declined","Expired"].includes(String(r.offer_status||""))
               ?(Number(r.offer_id)>0?('/customer-dashboard.html?offer='+encodeURIComponent(Number(r.offer_id))+'#my-offers'):'/customer-dashboard.html#my-offers')
-              :('/customer-sourced-matches.html?batch='+encodeURIComponent(r.batch_id)))+'" onclick="event.preventDefault();openHandPickedMatch('+Number(r.scan_id)+','+Number(r.batch_id)+','+Number(r.offer_id||0)+','+Number(r.deal_id||0)+','+JSON.stringify(String(r.offer_status||""))+')">'+(["Sent","Accepted","Declined","Expired"].includes(String(r.offer_status||""))?'Review Formal Offer →':'Review &amp; respond →')+'</a>' +
+              :('/customer-dashboard.html?view=sourcing-progress#hand-picked'))+'" onclick="event.preventDefault();openHandPickedMatch('+Number(r.scan_id)+','+Number(r.batch_id)+','+Number(r.offer_id||0)+','+Number(r.deal_id||0)+','+JSON.stringify(String(r.offer_status||""))+')">'+(["Sent","Accepted","Declined","Expired"].includes(String(r.offer_status||""))?'Review Formal Offer →':'Review &amp; respond →')+'</a>' +
           '</div>' +
         '</div>' +
       '</article>';
@@ -5862,7 +5876,7 @@ async function loadSourcedMatchBatches(){
 
       const selectionUrl=r.selection_ref
         ?"/customer-sourced-matches.html?selection="+encodeURIComponent(r.selection_ref)
-        :"/customer-sourced-matches.html?batch="+encodeURIComponent(r.id);
+        :"/customer-dashboard.html?view=sourcing-progress#hand-picked";
       return '<div class="buyer-match-pool-card"><div><strong>'+safe(title)+'</strong><div class="buyer-match-card-meta">'+safe(meta)+'</div></div><a class="mini-btn" href="'+selectionUrl+'">Open selection</a></div>';
     }).join("");
   }catch(error){
