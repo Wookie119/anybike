@@ -122,7 +122,9 @@ const MARKET_GAPS={
   SD:{ports:["Port Sudan"]},
   TO:{ports:["Nuku'alofa"]},
   TC:{ports:["South Dock / Providenciales"]},
-  VU:{ports:["Port Vila","Luganville"]}
+  VU:{ports:["Port Vila","Luganville"]},
+  KP:{routeOnly:true,routeNote:"Any proposed export route to North Korea requires specific legal, sanctions and carrier-compliance review before AnyBike can proceed."},
+  PS:{routeOnly:true,routeNote:"Destination freight routing for Palestine must be confirmed case-by-case with the appointed freight forwarder because available receiving routes and border procedures can change."}
 };
 
 for(const [iso,override] of Object.entries(MARKET_GAPS)){
@@ -132,6 +134,8 @@ for(const [iso,override] of Object.entries(MARKET_GAPS)){
   if(override.regions) MARKET_DATA[iso].regions=override.regions;
   if(override.ports) MARKET_DATA[iso].ports=override.ports;
   if(override.landlocked) MARKET_DATA[iso].landlocked=true;
+  if(override.routeOnly) MARKET_DATA[iso].routeOnly=true;
+  if(override.routeNote) MARKET_DATA[iso].routeNote=override.routeNote;
 }
 
 const SLUG_TO_ISO={"usa":"US","uae":"AE","turkiye":"TR","ivory-coast":"CI","democratic-republic-of-the-congo":"CD","republic-of-the-congo":"CG","south-korea":"KR","north-korea":"KP","laos":"LA","taiwan":"TW","palestine":"PS","reunion":"RE","curacao":"CW","saint-barthelemy":"BL","saint-martin":"MF","sint-maarten":"SX","us-virgin-islands":"VI","british-virgin-islands":"VG","turks-and-caicos-islands":"TC","falkland-islands":"FK","french-guiana":"GF","french-polynesia":"PF","northern-mariana-islands":"MP","cabo-verde":"CV","hong-kong":"HK","macau":"MO","puerto-rico":"PR","guam":"GU","bermuda":"BM","cayman-islands":"KY","new-caledonia":"NC","kosovo":"XK","uganda":"UG","italy":"IT","aland":"AX","vatican":"VA","france":"RE","antarctica":"AQ","zambia":"ZM","namibia":"NA","japan":"JP","serbia":"RS","bosnia-and-herzegovina":"BA","isle-of-man":"IM","san-marino":"SM","aruba":"AW","liechtenstein":"LI","gibraltar":"GI","eswatini":"SZ","united-kingdom":"GB","svalbard-and-jan-mayen-islands":"SJ","luxembourg":"LU","georgia":"GE","portugal":"PT","sudan":"SD","federated-states-of-micronesia":"FM","marshall-islands":"MH","tuvalu":"TV","palau":"PW","western-sahara":"EH","monaco":"MC","kiribati":"KI","comoros":"KM","macau-s-a-r":"MO","andorra":"AD","united-states-of-america":"US","pakistan":"PK","nigeria":"NG","china":"CN","india":"IN","uruguay":"UY","venezuela":"VE","trinidad-and-tobago":"TT","togo":"TG","tunisia":"TN","yemen":"YE","ukraine":"UA","turkmenistan":"TM","uzbekistan":"UZ","vietnam":"VN","zimbabwe":"ZW","cameroon":"CM","turkey":"TR","rwanda":"RW","suriname":"SR","spain":"ES","niger":"NE","romania":"RO","sweden":"SE","thailand":"TH","peru":"PE","paraguay":"PY","senegal":"SN","saudi-arabia":"SA","south-sudan":"SS","netherlands":"NL","norway":"NO","slovenia":"SI","slovakia":"SK","qatar":"QA","south-africa":"ZA","mozambique":"MZ","papua-new-guinea":"PG","panama":"PA","morocco":"MA","montenegro":"ME","russia":"RU","sri-lanka":"LK","philippines":"PH","mexico":"MX","poland":"PL","mongolia":"MN","tanzania":"TZ","switzerland":"CH","indonesia":"ID","kenya":"KE","malaysia":"MY","madagascar":"MG","ecuador":"EC","costa-rica":"CR","cuba":"CU","dominican-republic":"DO","colombia":"CO","dominica":"DM","congo-kinshasa":"CD","chad":"TD","egypt":"EG","eritrea":"ER","djibouti":"DJ","germany":"DE","malawi":"MW","guatemala":"GT","the-gambia":"GM","congo-brazzaville":"CG","gabon":"GA","mali":"ML","chile":"CL","greenland":"GL","mauritania":"MR","north-macedonia":"MK","libya":"LY","iraq":"IQ","ethiopia":"ET","finland":"FI","kazakhstan":"KZ","iran":"IR","guinea":"GN","brazil":"BR","canada":"CA","central-african-republic":"CF","argentina":"AR","bolivia":"BO","afghanistan":"AF","cambodia":"KH","angola":"AO","barbados":"BB","algeria":"DZ","benin":"BJ","belarus":"BY","bangladesh":"BD","botswana":"BW","australia":"AU","burkina-faso":"BF","myanmar":"MM","burundi":"BI","american-samoa":"AS","saint-vincent-and-the-grenadines":"VC","saint-lucia":"LC","saint-kitts-and-nevis":"KN","mauritius":"MU","grenada":"GD","bahrain":"BH","the-bahamas":"BS","antigua-and-barbuda":"AG","new-zealand":"NZ","united-arab-emirates":"AE","east-timor":"TL","vanuatu":"VU","honduras":"HN","guyana":"GY","iceland":"IS","haiti":"HT","tajikistan":"TJ","nicaragua":"NI","sierra-leone":"SL","nepal":"NP","solomon-islands":"SB","moldova":"MD","somalia":"SO","oman":"OM","guinea-bissau":"GW","jordan":"JO","lithuania":"LT","latvia":"LV","kyrgyzstan":"KG","lesotho":"LS","el-salvador":"SV","jamaica":"JM","equatorial-guinea":"GQ","croatia":"HR","estonia":"EE","fiji":"FJ","greece":"GR","lebanon":"LB","brunei":"BN","belize":"BZ","albania":"AL","armenia":"AM","azerbaijan":"AZ","bulgaria":"BG","bhutan":"BT","tonga":"TO","seychelles":"SC","sao-tome-and-principe":"ST","samoa":"WS","malta":"MT","maldives":"MV","israel":"IL","cape-verde":"CV","cyprus":"CY","hungary":"HU","syria":"SY","ireland":"IE","liberia":"LR","czechia":"CZ","kuwait":"KW","ghana":"GH","denmark":"DK","belgium":"BE","austria":"AT","singapore":"SG","hong-kong-s-a-r":"HK"};
@@ -206,21 +210,25 @@ function localSection(meta,name){
   const mapChip=(label,query)=>'<a href="https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(query)+'" target="_blank" rel="noopener noreferrer" title="View '+esc(label)+' on a map">'+esc(label)+' ↗</a>';
   const chips=arr=>arr.map(x=>mapChip(x,x+', '+name)).join("");
   const portChips=ports.map(x=>'<a href="/freight-forwarders.html?port='+encodeURIComponent(x)+'" title="Find shipping information for '+esc(x)+'">'+esc(x)+' →</a>').join("");
-  const gatewayText=meta.landlocked
-    ? esc(name)+' is landlocked, so international motorcycle freight normally continues overland from a port or freight gateway in a neighbouring country. Your freight forwarder should confirm the exact sea/road route, customs transit and final delivery point before purchase.'
-    : ports.length
-      ? 'These are established freight gateways for '+esc(name)+'. Motorcycle acceptance, sailing schedules, RoRo/container availability and final customs arrangements must still be confirmed with your appointed freight provider.'
-      : 'Your appointed freight forwarder should confirm the most suitable destination port, RoRo terminal or freight gateway for '+esc(name)+', together with current vehicle acceptance and customs requirements.';
-  const gatewayChips=meta.landlocked
-    ? '<span>Overland freight</span><span>Customs transit</span><span>Neighbouring-country gateway</span>'
-    : (portChips||'<span>Destination gateway to confirm</span>');
+  const gatewayText=meta.routeOnly
+    ? esc(meta.routeNote||('The destination freight route for '+name+' must be confirmed case-by-case before purchase.'))
+    : meta.landlocked
+      ? esc(name)+' is landlocked, so international motorcycle freight normally continues overland from a port or freight gateway in a neighbouring country. Your freight forwarder should confirm the exact sea/road route, customs transit and final delivery point before purchase.'
+      : ports.length
+        ? 'These are established freight gateways for '+esc(name)+'. Motorcycle acceptance, sailing schedules, RoRo/container availability and final customs arrangements must still be confirmed with your appointed freight provider.'
+        : 'Your appointed freight forwarder should confirm the most suitable destination port, RoRo terminal or freight gateway for '+esc(name)+', together with current vehicle acceptance and customs requirements.';
+  const gatewayChips=meta.routeOnly
+    ? '<a href="/freight-forwarders.html">Route &amp; compliance review →</a>'
+    : meta.landlocked
+      ? '<span>Overland freight</span><span>Customs transit</span><span>Neighbouring-country gateway</span>'
+      : (portChips||'<a href="/freight-forwarders.html">Destination gateway to confirm →</a>');
 
   return '<section class="section anybike-market-local-standard"><div class="wrap">'+
     '<div class="section-head"><div class="eyebrow">Local destination planning</div><h2>Cities, regions and freight gateways for '+esc(name)+'.</h2><p>Tell AnyBike the final city or region for your motorcycle. We coordinate the UK collection and delivery to port; your appointed freight provider confirms the international route, destination handling and local import requirements.</p></div>'+
     '<div class="port-grid">'+
       '<article class="port-card"><h3>Key cities &amp; buyer areas</h3><p>Useful destination context for sourcing, freight planning and onward delivery.</p><div class="area-list">'+(chips(cities)||'<span>'+esc(name)+'</span>')+'</div></article>'+
       (regions.length?'<article class="port-card"><h3>Regions &amp; surrounding areas</h3><p>Regional context can help the freight forwarder plan onward delivery beyond the principal cities.</p><div class="area-list">'+chips(regions)+'</div></article>':'')+
-      '<article class="port-card"><h3>'+(meta.landlocked?'Landlocked freight route':'Ports &amp; freight gateways')+'</h3><p>'+gatewayText+'</p><div class="area-list anybike-gateway-list">'+gatewayChips+'</div></article>'+
+      '<article class="port-card"><h3>'+(meta.routeOnly?'Route &amp; compliance review':meta.landlocked?'Landlocked freight route':'Ports &amp; freight gateways')+'</h3><p>'+gatewayText+'</p><div class="area-list anybike-gateway-list">'+gatewayChips+'</div></article>'+
       '<article class="port-card"><h3>UK Port Delivery</h3><p>AnyBike can arrange delivery to the agreed UK port, freight forwarder or approved shipping point for your deal.</p><div class="area-list">'+
         '<a href="/export-services.html">UK Port Delivery →</a>'+
         '<a href="/freight-forwarders.html">Freight Forwarder →</a>'+
