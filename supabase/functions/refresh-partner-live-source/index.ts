@@ -914,11 +914,7 @@ async function refreshAssetCertified(connector:any,sourceLabel:string){
   const base=connector.results_url||connector.base_url;
   const collected:any[]=[]; const seen=new Set<string>();
   const prefix=base.replace(/\/(?:home|page\/1)?\/?$/i,"");
-  const candidates=[
-    base,
-    prefix+"/gb/bikes/page/1",
-    prefix+"/gb/home"
-  ];
+  const candidates=[base,prefix+"/gb/bikes/page/1",prefix+"/gb/home"];
   let pageBase=candidates[0];
 
   for(const c of candidates){
@@ -927,37 +923,61 @@ async function refreshAssetCertified(connector:any,sourceLabel:string){
     if(assets.length){pageBase=c;break;}
   }
 
+  const attr=(a:any,name:string)=>{
+    const row=(Array.isArray(a?.Attributes)?a.Attributes:[]).find((x:any)=>String(x?.Name||"").toLowerCase()===name.toLowerCase());
+    return clean(row?.DefaultValue??row?.Value??"")||null;
+  };
+
   for(let page=1;page<=40;page++){
     let url=pageBase;
     if(/\/page\/\d+/i.test(pageBase))url=pageBase.replace(/\/page\/\d+/i,"/page/"+page);
-    else if(page>1) {
-      const u=new URL(pageBase);u.searchParams.set("page",String(page));url=u.toString();
-    }
+    else if(page>1){const u=new URL(pageBase);u.searchParams.set("page",String(page));url=u.toString();}
     const raw=await fetchSourceText(url);
     if(!raw)break;
     const assets=extractHarleyAssets(raw);
     let added=0;
+
     for(const a of assets){
-      const id=String(a?.AssetID||"");if(!id||seen.has(id))continue;
+      const id=String(a?.AssetID||""); if(!id||seen.has(id))continue;
       seen.add(id);
-      const assetName=clean(a?.AssetName||"");
-      const make=normaliseMake(a?.Make||knownMakeFromText(assetName)||sourceLabel.split(" ")[0]);
-      let model=clean(a?.Model||assetName.replace(/^\d{4}\s+/,""));
-      if(make)model=model.replace(new RegExp("^"+String(make).replace(/[- ]/g,"[- ]?")+"\\s*","i"),"").trim();
-      const slug=assetName.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"");
+      const assetName=clean(a?.Name||a?.AssetName||"");
+      const portalMake=/yamaha/i.test(sourceLabel)?"Yamaha":(/kawasaki/i.test(sourceLabel)?"Kawasaki":null);
+      const namedMake=normaliseMake(knownMakeFromText(assetName)||"");
+      const make=normaliseMake(namedMake||portalMake||attr(a,"Make")||sourceLabel.split(" ")[0]);
+
+      let model="";
+      if(assetName){
+        model=assetName.replace(/^\s*(?:19\d{2}|20\d{2})\s+/,"");
+        if(make)model=model.replace(new RegExp("^"+String(make).replace(/[- ]/g,"[- ]?")+"\\s*","i"),"").trim();
+      }
+      if(!model)model=clean(attr(a,"Model")||"");
+
+      const nameYear=assetName.match(/^\s*(19\d{2}|20\d{2})\b/);
+      const attrYear=Number(attr(a,"Year")||0);
+      const year=nameYear?Number(nameYear[1]):(attrYear>=1900&&attrYear<=2100?attrYear:null);
+      const mileageRaw=attr(a,"Mileage");
+      const colour=attr(a,"Colour");
+      const registration=attr(a,"Registration");
+      const location=attr(a,"Location");
+      const variant=attr(a,"Variant");
+      const engineRaw=attr(a,"Engine Size");
+      const price=Number(a?.DefaultPrice||attr(a,"Price")||0)||null;
       const root=new URL(url).origin;
+
       collected.push({
         source_stock_id:id,source_key:id,
-        source_url:root+"/gb/bikes/view/"+id+"/"+slug,
-        source_domain:siteHost(root),seller_name:clean(a?.DealerName||"")||null,
-        seller_address:[clean(a?.Location||""),clean(a?.PostCode||"")].filter(Boolean).join(", ")||null,
-        make,model,variant:clean(a?.Category||"")||null,
-        year:Number(a?.Year||0)||null,mileage:Number.isFinite(Number(a?.Mileage))?Number(a.Mileage):null,
-        colour:clean(a?.Colour||"")||null,registration:clean(a?.Registration||"")||null,
-        source_advertised_price_gbp:Number.isFinite(Number(a?.DefaultPrice))?Number(a.DefaultPrice):null,
-        description_original:assetName,
-        specification:{approved_used:true,source:sourceLabel},
-        source_image_urls:a?.MainImage?[root+"/gb/image/"+String(a.MainImage)]:[],
+        source_url:root+"/gb/bikes/view/"+id+"/",
+        source_domain:siteHost(root),
+        seller_name:null,seller_address:location||null,
+        make,model:model||null,variant:variant||null,
+        year,
+        mileage:mileageRaw?Number(String(mileageRaw).replace(/,/g,""))||null:null,
+        colour:colour||null,registration:registration||null,
+        engine_cc:engineRaw?Number(String(engineRaw).replace(/[^\d.]/g,""))||null:null,
+        source_advertised_price_gbp:price,
+        description_original:assetName||model,
+        specification:{approved_used:true,source:sourceLabel,condition:attr(a,"Condition"),type:attr(a,"Type"),series:attr(a,"Series")},
+        source_image_urls:Array.isArray(a?.Images)?a.Images.map((x:any)=>typeof x==="string"?x:(x?.Url||x?.URL||x?.url||"")).filter(Boolean).slice(0,12):[],
         raw_data:a
       });
       added++;
@@ -967,30 +987,44 @@ async function refreshAssetCertified(connector:any,sourceLabel:string){
   if(!collected.length)throw new Error(sourceLabel+" source is reachable but no structured motorcycle records could be extracted.");
   return finalise(connector,collected);
 }
-function escapeReSimple(v:string){return String(v||"").replace(/[.*+?^()|[\]\\]/g,"\\$&");}
-function parseDealerWebsListing(md:string,baseDomain:string,pathPrefix:string,sourceName:string,forcedMake:string|null=null){
+function parseListBlockSource(md:string,sourceName:string,forcedMake:string|null=null,baseUrl:string=""){
+  const lines=String(md||"").replace(/\r/g,"").split("\n");
   const out:any[]=[];
-  const text=String(md||"");
-  const domainRe=escapeReSimple(baseDomain);
-  const pathRe=escapeReSimple(pathPrefix);
-  const re=new RegExp("\\[([^\\]]{4,180})\\]\\((https?:\\/\\/(?:www\\.)?"+domainRe+pathRe+"[^)\\s]+\\/(\\d+)\\.htm)\\)([\\s\\S]{0,1200}?)(?=\\[[^\\]]{4,180}\\]\\(https?:\\/\\/(?:www\\.)?"+domainRe+pathRe+"|$)","gi");
-  let m:RegExpExecArray|null;
-  while((m=re.exec(text))!==null){
-    const title=clean(m[1]);
-    const url=m[2], id=m[3], body=m[4];
+  const titleRe=/^(?:#{1,5}\s*)?(?:\[)?((?:BMW|Ducati|Triumph|Yamaha|Kawasaki|Honda|Suzuki|Harley-Davidson|KTM|Aprilia|Moto Guzzi|Indian|Royal Enfield|Husqvarna|MV Agusta|Benelli|CFMOTO|Norton)\b[^\]\n]{2,170})(?:\]\(([^)]+)\))?\s*$/i;
+  for(let i=0;i<lines.length;i++){
+    const line=clean(lines[i]).replace(/^\*+\s*/,"");
+    const tm=line.match(titleRe);
+    if(!tm)continue;
+    const title=clean(tm[1]);
+    const body=lines.slice(i+1,Math.min(lines.length,i+30)).join("\n");
+    if(!/\b(19\d{2}|20\d{2})\b/.test(body))continue;
+    if(!/View bike/i.test(body))continue;
+
     const make=normaliseMake(forcedMake||knownMakeFromText(title)||"");
     if(!make)continue;
     let model=title.replace(new RegExp("^"+String(make).replace(/[- ]/g,"[- ]?")+"\\s*","i"),"").trim();
     const yearMatch=body.match(/\b(19\d{2}|20\d{2})\b/);
     const mileageMatch=body.match(/\b([\d,]+)\s*Miles?\b/i);
-    const prices=[...body.matchAll(/(?:Now\s+)?£\s*([\d,]{4,})(?!\.\d{2}\s*(?:p\/m|a month))/gi)].map(x=>Number(x[1].replace(/,/g,"")));
-    const price=prices.length?prices[prices.length-1]:null;
-    const dealerMatch=body.match(/\n\s*([^\n]+?)\s*-\s*(?:\[)?see all their bikes(?:\])?/i);
-    const dealer=clean(dealerMatch?.[1]||sourceName);
-    if(!model||!price)continue;
+    const priceMatches=[...body.matchAll(/(?:Now\s+)?£\s*([\d,]{3,})(?:\.\d{2})?/gi)]
+      .map(x=>Number(x[1].replace(/,/g,""))).filter(n=>n>=500);
+    const price=priceMatches.length?priceMatches[priceMatches.length-1]:null;
+    if(!price)continue;
+
+    let link=tm[2]||"";
+    if(!link){
+      const lm=body.match(/(?:View bike|Details)\]?\(([^)]+)\)/i);
+      if(lm)link=lm[1];
+    }
+    let sourceUrl=baseUrl;
+    try{if(link)sourceUrl=new URL(link,baseUrl).toString();}catch{}
+    const idMatch=sourceUrl.match(/\/(\d+)\.htm(?:\?|$)/i);
+    const dealer=clean((body.match(/Bike location:\s*([^\n]+)/i)||[])[1]||
+                       (body.match(/\n\s*([^\n]+?)\s*-\s*(?:\[)?see all their bikes/i)||[])[1]||sourceName);
+    const stable=idMatch?.[1]||[make,model,yearMatch?.[1]||"",mileageMatch?.[1]||"",price,dealer].join("|").toLowerCase().replace(/\s+/g,"-").slice(0,240);
+
     out.push({
-      source_stock_id:id,source_key:id,source_url:url,source_domain:baseDomain,
-      seller_name:dealer||sourceName,seller_address:null,
+      source_stock_id:stable,source_key:stable,source_url:sourceUrl||baseUrl,
+      source_domain:siteHost(baseUrl),seller_name:dealer||sourceName,seller_address:dealer||null,
       make,model,variant:null,year:yearMatch?Number(yearMatch[1]):null,
       mileage:mileageMatch?Number(mileageMatch[1].replace(/,/g,"")):null,
       colour:null,registration:null,source_advertised_price_gbp:price,
@@ -1000,82 +1034,63 @@ function parseDealerWebsListing(md:string,baseDomain:string,pathPrefix:string,so
       raw_data:{title,dealer}
     });
   }
-  return [...new Map(out.map((x:any)=>[x.source_stock_id,x])).values()];
+  return [...new Map(out.map((x:any)=>[String(x.source_key),x])).values()];
 }
 async function refreshTriumphApproved(connector:any){
   const url="https://www.triumphapproved.co.uk/approved-preowned";
   const md=await fetchReader(url);
-  const rows=parseDealerWebsListing(md,"triumphapproved.co.uk","/approved-preowned/triumph/","Triumph Approved Used","Triumph");
+  const rows=parseListBlockSource(md,"Triumph Approved Used","Triumph",url);
   if(!rows.length)throw new Error("Triumph Approved source is reachable but no genuine motorcycle records could be extracted.");
   return finalise(connector,rows);
-}
-
-function parseLindListing(md:string){
-  const out:any[]=[];
-  const text=String(md||"");
-  const re=/\[([^\]]{4,180})\]\((https?:\/\/(?:www\.)?lind\.co\.uk\/used\/[^)\s]+\/(\d+)\.htm)\)([\s\S]{0,1200}?)(?=\[[^\]]{4,180}\]\(https?:\/\/(?:www\.)?lind\.co\.uk\/used\/|$)/gi;
-  let m:RegExpExecArray|null;
-  while((m=re.exec(text))!==null){
-    const title=clean(m[1]);
-    const url=m[2], id=m[3], body=m[4];
-    const make=normaliseMake(knownMakeFromText(title)||"");
-    if(!make)continue;
-    let model=title.replace(new RegExp("^"+String(make).replace(/[- ]/g,"[- ]?")+"\\s*","i"),"").trim();
-    const yearMatch=body.match(/\b(19\d{2}|20\d{2})\b/);
-    const mileageMatch=body.match(/\b([\d,]+)\s*Miles?\b/i);
-    const prices=[...body.matchAll(/(?:\bor\s+|^|\s)£\s*([\d,]{4,})(?!\.\d{2}\s*(?:p\/m|a month))/gi)].map(x=>Number(x[1].replace(/,/g,"")));
-    const price=prices.length?prices[prices.length-1]:null;
-    const loc=(body.match(/Bike location:\s*([^\n\r]+)/i)||[])[1]||null;
-    if(!model||!price)continue;
-    out.push({
-      source_stock_id:id,source_key:id,source_url:url,source_domain:"lind.co.uk",
-      seller_name:clean(loc||"LIND")||"LIND",seller_address:clean(loc||"")||null,
-      make,model,variant:null,year:yearMatch?Number(yearMatch[1]):null,
-      mileage:mileageMatch?Number(mileageMatch[1].replace(/,/g,"")):null,
-      colour:null,registration:null,source_advertised_price_gbp:price,
-      description_original:title,
-      specification:{source:"LIND Used",generic_adapter:false},
-      source_image_urls:[],
-      raw_data:{title,location:loc||null}
-    });
-  }
-  return [...new Map(out.map((x:any)=>[x.source_stock_id,x])).values()];
 }
 async function refreshLindUsed(connector:any){
   const url="https://www.lind.co.uk/used?search_advert_type=used";
   const md=await fetchReader(url);
-  const rows=parseLindListing(md);
+  const rows=parseListBlockSource(md,"LIND Used",null,url);
   if(!rows.length)throw new Error("LIND used-bike page is reachable but no genuine motorcycle records could be extracted.");
   return finalise(connector,rows);
 }
 function parseMotoGbUsed(md:string){
+  const lines=String(md||"").replace(/\r/g,"").split("\n");
   const out:any[]=[];
-  const text=String(md||"");
-  const re=/###\s+([A-Za-z0-9&+.'’\- ]{4,160})\s*\n+([\s\S]{0,500}?)\n+£\s*([\d,]+(?:\.\d{2})?)[\s\S]{0,180}?\[Details\]\((https?:\/\/(?:www\.)?motogb\.co\.uk\/used-bikes\/[^)\s]+)\)([\s\S]{0,220}?)(?=###\s+|$)/gi;
-  let m:RegExpExecArray|null;
-  while((m=re.exec(text))!==null){
-    const title=clean(m[1]);
-    const specs=m[2], price=Number(m[3].replace(/,/g,"")), url=m[4], tail=m[5];
+  for(let i=0;i<lines.length;i++){
+    const h=clean(lines[i]);
+    const hm=h.match(/^#{2,5}\s+(.{4,160})$/);
+    if(!hm)continue;
+    const title=clean(hm[1]);
+    if(/Find Your Dealer|Select Brand|Engine Sizes|Bike Types|Approved Used Motorcycles/i.test(title))continue;
     const make=normaliseMake(knownMakeFromText(title)||"");
-    if(!make||!price)continue;
+    if(!make)continue;
+    const body=lines.slice(i+1,Math.min(lines.length,i+18)).join("\n");
+    const spec=body.match(/([\d,]+)\s*cc\s*\|\s*([^|\n]+)\|\s*([\d,]+)\s*miles?/i);
+    const pm=body.match(/£\s*([\d,]+(?:\.\d{2})?)/i);
+    if(!pm||!/Details/i.test(body))continue;
+    const price=Number(pm[1].replace(/,/g,""));
+    if(!price||price<500)continue;
+
+    let detail="";
+    const lm=body.match(/Details\]?\(([^)]+)\)/i);
+    if(lm)detail=lm[1];
+    const base="https://www.motogb.co.uk/used-bikes/brands/all-brands";
+    let url=base;try{if(detail)url=new URL(detail,base).toString();}catch{}
+    const dealer=clean((body.match(/\n\s*([^,\n]+,\s*[^,\n]+,\s*[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2})\s*$/im)||[])[1]||"MotoGB");
     let model=title.replace(new RegExp("^"+String(make).replace(/[- ]/g,"[- ]?")+"\\s*","i"),"").trim();
-    const mileage=(specs.match(/([\d,]+)\s*miles\b/i)||[])[1];
-    const dealerLine=clean((tail.match(/^\s*([^\n,]+(?:,\s*[^,\n]+){1,3})\s*$/m)||[])[1]||"");
-    const id=(url.match(/-(\d+)(?:\/)?$/)||[])[1]||url.split("/").pop()||url;
-    if(!model)continue;
+    const id=(url.match(/-(\d+)(?:\/)?(?:\?|$)/)||[])[1]||[title,price,spec?.[3]||"",dealer].join("|").toLowerCase().replace(/\s+/g,"-").slice(0,240);
+
     out.push({
       source_stock_id:String(id),source_key:String(id),source_url:url,source_domain:"motogb.co.uk",
-      seller_name:dealerLine||"MotoGB",seller_address:dealerLine||null,
-      make,model,variant:null,year:null,
-      mileage:mileage?Number(mileage.replace(/,/g,"")):null,
+      seller_name:dealer,seller_address:dealer==="MotoGB"?null:dealer,
+      make,model,variant:spec?clean(spec[2]):null,year:null,
+      mileage:spec?Number(spec[3].replace(/,/g,"")):null,
+      engine_cc:spec?Number(spec[1].replace(/,/g,"")):null,
       colour:null,registration:null,source_advertised_price_gbp:price,
       description_original:title,
-      specification:{source:"MotoGB Used",generic_adapter:false,specs:clean(specs)},
+      specification:{source:"MotoGB Used",generic_adapter:false},
       source_image_urls:[],
-      raw_data:{title,dealer:dealerLine||null}
+      raw_data:{title,dealer}
     });
   }
-  return [...new Map(out.map((x:any)=>[x.source_stock_id,x])).values()];
+  return [...new Map(out.map((x:any)=>[String(x.source_key),x])).values()];
 }
 async function refreshMotoGbUsed(connector:any){
   const url="https://www.motogb.co.uk/used-bikes/brands/all-brands";
@@ -1084,7 +1099,6 @@ async function refreshMotoGbUsed(connector:any){
   if(!rows.length)throw new Error("MotoGB used-bike page is reachable but no genuine motorcycle records could be extracted.");
   return finalise(connector,rows);
 }
-
 async function refreshGenericPartner(connector:any){
   const start=connector.results_url||connector.base_url;
   const host=siteHost(start);
