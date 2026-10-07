@@ -447,6 +447,13 @@ textarea{width:100%;min-height:120px}
   display:inline-flex;align-items:center;justify-content:center;min-height:36px;padding:0 12px;
   border-radius:999px;background:#ed1c24;color:#fff;text-decoration:none;font-weight:950;white-space:nowrap;
 }
+.customer-next-action button{min-height:36px;padding:0 12px;border-radius:999px;border:1px solid #444;background:#222;color:#fff;font-weight:950;cursor:pointer}
+.admin-customer-modal{position:fixed;inset:0;background:rgba(0,0,0,.8);display:none;align-items:center;justify-content:center;padding:20px;z-index:10000}.admin-customer-modal.open{display:flex}
+.admin-customer-modal-box{width:min(780px,100%);max-height:90vh;overflow:auto;background:#111;border:1px solid #444;border-radius:18px;padding:18px}
+.admin-customer-form{display:grid;grid-template-columns:1fr 1fr;gap:12px}.admin-customer-form .full{grid-column:1/-1}.admin-customer-form label{display:grid;gap:5px;color:#aaa;font-size:12px;font-weight:800}
+.admin-customer-form input,.admin-customer-form select,.admin-customer-form textarea{width:100%;background:#090909;color:#fff;border:1px solid #333;border-radius:10px;padding:10px}
+.confirmation-output{width:100%;min-height:150px;resize:vertical;background:#090909;color:#fff;border:1px solid #333;border-radius:10px;padding:11px;line-height:1.45}
+.modal-row-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:14px}
 @media(max-width:1100px){.intel-columns{grid-template-columns:1fr}}
 @media(max-width:900px){.intel-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:620px){.intel-summary-grid{grid-template-columns:1fr}}
@@ -688,6 +695,8 @@ let customerWorkspaceMap = {};
 let customerWorkspaceLoading = {};
 let customerAttentionMap = {};
 let customerOnboardingMap = {};
+let editingCustomerId=null;
+let generatedConfirmationLink="";
 
 const countryCoords = {
   "United Kingdom":[48,38],"UK":[48,38],"Ireland":[45,37],
@@ -711,6 +720,76 @@ function toggleCustomer(id){
 }
 function customerStatus(c){if(c.deals.length>=3)return"VIP";if(c.deals.some(d=>d.status==="Completed"))return"Completed";if(c.deals.length>0)return"Active";return"New"}
 function badgeClass(s){if(s==="VIP")return"badge-red";if(s==="Completed")return"badge-green";if(s==="Active")return"badge-amber";return""}
+
+
+function openEditCustomer(userId){
+  const c=allCustomers.find(x=>String(x.customerId)===String(userId));
+  if(!c)return;
+  const onboarding=customerOnboardingMap[String(userId)]||{};
+  editingCustomerId=String(userId);
+  document.getElementById("editCustomerTitle").textContent="Edit customer · "+(c.name||c.email||"Customer");
+  document.getElementById("editFullName").value=c.name==="Unknown Customer"?"":(c.name||"");
+  document.getElementById("editBusinessName").value=c.businessName||"";
+  document.getElementById("editPhone").value=c.phone||"";
+  document.getElementById("editCountry").value=c.country||"";
+  document.getElementById("editCity").value=c.city||"";
+  document.getElementById("editRegion").value=c.region||"";
+  document.getElementById("editCustomerType").value=onboarding.customer_type||"";
+  document.getElementById("editCustomerIntent").value=onboarding.customer_intent||"unclear";
+  document.getElementById("editCustomerModal").classList.add("open");
+}
+function closeEditCustomer(){
+  document.getElementById("editCustomerModal").classList.remove("open");
+  editingCustomerId=null;
+}
+async function saveEditedCustomer(){
+  if(!editingCustomerId)return;
+  const {error}=await sb.rpc("admin_update_customer_profile_v1",{
+    p_user_id:editingCustomerId,
+    p_full_name:document.getElementById("editFullName").value,
+    p_phone:document.getElementById("editPhone").value,
+    p_country:document.getElementById("editCountry").value,
+    p_city:document.getElementById("editCity").value,
+    p_region:document.getElementById("editRegion").value,
+    p_business_name:document.getElementById("editBusinessName").value,
+    p_customer_type:document.getElementById("editCustomerType").value,
+    p_customer_intent:document.getElementById("editCustomerIntent").value
+  });
+  if(error){alert("Could not save customer: "+error.message);return;}
+  const keepId=editingCustomerId;
+  closeEditCustomer();
+  await loadCustomers();
+  openCustomerFromMap(keepId);
+}
+async function generateConfirmationText(userId){
+  const {data,error}=await sb.functions.invoke("admin-generate-customer-confirmation-link",{
+    body:{user_id:String(userId)}
+  });
+  if(error){
+    alert("Could not generate confirmation link: "+(error.message||"Unknown error"));
+    return;
+  }
+  if(data?.error){
+    alert(data.error);
+    return;
+  }
+  generatedConfirmationLink=String(data?.action_link||"");
+  document.getElementById("confirmationLinkTitle").textContent="Confirmation text · "+String(data?.email||"Customer");
+  document.getElementById("confirmationMessage").value=String(data?.message||"");
+  document.getElementById("confirmationLinkModal").classList.add("open");
+}
+function closeConfirmationLink(){
+  document.getElementById("confirmationLinkModal").classList.remove("open");
+  generatedConfirmationLink="";
+}
+async function copyConfirmationMessage(){
+  const text=document.getElementById("confirmationMessage").value;
+  try{await navigator.clipboard.writeText(text);}catch{document.getElementById("confirmationMessage").select();document.execCommand("copy");}
+}
+async function copyConfirmationLinkOnly(){
+  if(!generatedConfirmationLink)return;
+  try{await navigator.clipboard.writeText(generatedConfirmationLink);}catch{}
+}
 
 function customerAttention(c){
   const onboarding=customerOnboardingMap[String(c.customerId)]||null;
@@ -2612,6 +2691,8 @@ function renderCustomers(){
             </div>
             <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
               <span class="badge ${attention.kind==="clear"?"badge-green":"badge-red"}">${safe(attention.label)}</span>
+              <button type="button" onclick="openEditCustomer('${c.customerId}')">Edit customer</button>
+              ${customerOnboardingMap[String(c.customerId)]?.email_confirmed_at===null ? '<button type="button" style="background:#ed1c24;border-color:#ed1c24" onclick="generateConfirmationText(\''+c.customerId+'\')">Generate confirmation text</button>' : ""}
               ${attention.onboarding ? '<a class="btn" style="background:#ed1c24;text-decoration:none" href="admin-onboarding.html?customer='+encodeURIComponent(c.customerId)+'">Open Onboarding →</a>' : (shouldShowBuyerSetupReview(c) ? '<button type="button" class="btn" style="background:#ed1c24" onclick="document.querySelector(\'#customer-'+c.id+' [data-buyer-setup-review]\')?.scrollIntoView({behavior:\'smooth\',block:\'start\'})">Review setup now →</button>' : "")}
             </div>
           </div>
