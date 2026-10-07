@@ -1195,6 +1195,82 @@ async function refreshMotoGbUsed(connector:any){
   if(!collected.length)throw new Error("MotoGB detail pages loaded but no complete motorcycle records could be extracted.");
   return finalise(connector,collected);
 }
+async function refreshManchesterHd(connector:any){
+  const start="https://www.manchester-hd.co.uk/bikes-in-stock/harley-davidson";
+  const raw=await fetchSourceText(start);
+  if(!raw)throw new Error("Manchester Harley-Davidson stock page could not be loaded.");
+
+  const links=allLinks(raw,start)
+    .filter(u=>/^https?:\/\/(?:www\.)?manchester-hd\.co\.uk\/bikes-in-stock\/harley-davidson\/[^?#]+\/\d+\.htm(?:\?.*)?$/i.test(u))
+    .filter((u,i,a)=>a.indexOf(u)===i);
+
+  if(!links.length)throw new Error("Manchester Harley-Davidson loaded but no motorcycle detail links were found.");
+
+  const collected:any[]=[]; const seen=new Set<string>();
+  const concurrency=8;
+  for(let i=0;i<links.length;i+=concurrency){
+    const rows=await Promise.all(links.slice(i,i+concurrency).map(async(url)=>{
+      const detail=await fetchSourceText(url);
+      if(!detail)return null;
+      const item=parseGenericBike(detail,url,{...connector,name:"Manchester Harley-Davidson"});
+      if(!item)return null;
+      item.make="Harley-Davidson";
+      item.seller_name="Manchester Harley-Davidson";
+      item.seller_address="820 Chester Road, Stretford, Manchester, M32 0QL";
+      const id=(url.match(/\/(\d+)\.htm(?:\?|$)/)||[])[1];
+      const text=htmlText(detail);
+      const stock=(text.match(/Stock\s*#:\s*([A-Z0-9-]+)/i)||[])[1];
+      if(id){item.source_stock_id=id;item.source_key=id;}
+      if(stock)item.specification={...(item.specification||{}),dealer_stock_number:stock,source:"Manchester Harley-Davidson"};
+      else item.specification={...(item.specification||{}),source:"Manchester Harley-Davidson"};
+      return item;
+    }));
+    for(const item of rows){
+      if(!item||!item.source_advertised_price_gbp||Number(item.source_advertised_price_gbp)<500)continue;
+      const key=String(item.source_key||item.source_url);
+      if(seen.has(key))continue;
+      seen.add(key);collected.push(item);
+    }
+  }
+  if(!collected.length)throw new Error("Manchester Harley-Davidson detail pages loaded but no complete motorcycle records could be extracted.");
+  return finalise(connector,collected);
+}
+
+async function refreshMotoDealers(connector:any){
+  const start="https://motodealers.co.uk/bikes/used";
+  const raw=await fetchSourceText(start);
+  if(!raw)throw new Error("Moto Dealers used-bike page could not be loaded.");
+
+  const links=allLinks(raw,start)
+    .filter(u=>/^https?:\/\/(?:www\.)?motodealers\.co\.uk\/bikes\/[^/]+\/[^/]+\/\d+(?:\?.*)?$/i.test(u))
+    .filter((u,i,a)=>a.indexOf(u)===i);
+
+  if(!links.length)throw new Error("Moto Dealers loaded but no motorcycle advert links were found.");
+
+  const collected:any[]=[]; const seen=new Set<string>();
+  const concurrency=8;
+  for(let i=0;i<links.length;i+=concurrency){
+    const rows=await Promise.all(links.slice(i,i+concurrency).map(async(url)=>{
+      const detail=await fetchSourceText(url);
+      if(!detail)return null;
+      const item=parseGenericBike(detail,url,{...connector,name:"Moto Dealers"});
+      if(!item)return null;
+      const id=(url.match(/\/(\d+)(?:\?|$)/)||[])[1];
+      if(id){item.source_stock_id=id;item.source_key=id;}
+      item.specification={...(item.specification||{}),source:"Moto Dealers"};
+      return item;
+    }));
+    for(const item of rows){
+      if(!item||!item.source_advertised_price_gbp||Number(item.source_advertised_price_gbp)<500)continue;
+      const key=String(item.source_key||item.source_url);
+      if(seen.has(key))continue;
+      seen.add(key);collected.push(item);
+    }
+  }
+  if(!collected.length)throw new Error("Moto Dealers advert pages loaded but no complete motorcycle records could be extracted.");
+  return finalise(connector,collected);
+}
+
 async function refreshGenericPartner(connector:any){
   const start=connector.results_url||connector.base_url;
   const host=siteHost(start);
@@ -1258,6 +1334,8 @@ Deno.serve(async(req)=>{
     else if(q.data.adapter_key==="triumph-approved-uk")result=await refreshTriumphApproved(q.data);
     else if(q.data.adapter_key==="lind-used-uk")result=await refreshLindUsed(q.data);
     else if(q.data.adapter_key==="motogb-used-uk")result=await refreshMotoGbUsed(q.data);
+    else if(q.data.adapter_key==="manchester-hd-uk")result=await refreshManchesterHd(q.data);
+    else if(q.data.adapter_key==="motodealers-uk")result=await refreshMotoDealers(q.data);
     else if(String(q.data.adapter_key||"").startsWith("generic-"))result=await refreshGenericPartner(q.data);
     else return json({error:"Unsupported partner source adapter"},400);
     return json(result);
