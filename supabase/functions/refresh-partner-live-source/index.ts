@@ -641,6 +641,124 @@ async function refreshHarleyCertified(connector:any){
   return finalise(connector,collected);
 }
 
+function ducatiDetailLinks(raw:string,base:string){
+  const out:string[]=[];
+  const text=String(raw||"");
+  for(const m of text.matchAll(/(?:https?:\/\/preowned\.ducati\.com)?\/models\/gb\/en\/detail\?vid=([A-Za-z0-9_-]+)/g)){
+    const u="https://preowned.ducati.com/models/gb/en/detail?vid="+m[1];
+    if(!out.includes(u))out.push(u);
+  }
+  for(const m of text.matchAll(/\[[^\]]+\]\((https?:\/\/preowned\.ducati\.com\/models\/gb\/en\/detail\?vid=[^)]+)\)/g)){
+    if(!out.includes(m[1]))out.push(m[1]);
+  }
+  return out;
+}
+function parseDucatiDetail(raw:string,url:string){
+  const text=String(raw||"")
+    .replace(/\r/g,"")
+    .replace(/&pound;/gi,"£")
+    .replace(/&nbsp;/gi," ")
+    .replace(/<[^>]+>/g,"\n")
+    .replace(/\n{2,}/g,"\n");
+  const cleanLines=text.split("\n").map(x=>clean(x)).filter(Boolean);
+
+  let title="";
+  for(const x of cleanLines){
+    if(/^(?:Ducati\s+)?(?:Panigale|Multistrada|Monster|Diavel|Hypermotard|Scrambler|Streetfighter|SuperSport|DesertX|XDiavel|959|899|1299|1199|848|1098|749|999)/i.test(x)){
+      title=x;break;
+    }
+  }
+  if(!title){
+    const tm=text.match(/(?:<title[^>]*>)?([^<\n]{3,120})\s*-\s*Pre-owned bikes/i);
+    if(tm)title=clean(tm[1]);
+  }
+  title=title.replace(/^Ducati\s+/i,"").trim();
+  if(!title)return null;
+
+  const priceMatch=text.match(/(?:£|GBP)\s*([\d,]+(?:\.\d+)?)/i);
+  const mileageMatch=text.match(/([\d,]+)\s*(?:mi|miles)\b/i);
+  const regMatch=text.match(/(?:First Registration|FIRST REGISTRATION|prima immatricolazione)[:\s]*([0-9]{1,2}[\/.-][0-9]{1,2}[\/.-][0-9]{2,4}|[A-Za-z]{3,9}\s+20\d{2}|20\d{2})/i);
+  const yearMatch=(regMatch?.[1]||text).match(/\b(20\d{2})\b/);
+  const dealerIndex=cleanLines.findIndex(x=>/^dealer$/i.test(x));
+  let dealer:any=null;
+  if(dealerIndex>=0 && cleanLines[dealerIndex+1]) dealer=cleanLines[dealerIndex+1];
+  if(!dealer){
+    const dm=text.match(/Dealer[:\s]+([^\n]{3,100})/i);
+    if(dm)dealer=clean(dm[1]);
+  }
+  let city:any=null;
+  const cityIndex=cleanLines.findIndex(x=>/^city$/i.test(x));
+  if(cityIndex>=0 && cleanLines[cityIndex+1]) city=cleanLines[cityIndex+1];
+
+  const vid=(new URL(url)).searchParams.get("vid")||url;
+  const imgs:string[]=[];
+  for(const m of String(raw||"").matchAll(/https?:\/\/[^"'()\s]+\.(?:jpg|jpeg|png|webp)(?:\?[^"'()\s]*)?/gi)){
+    const u=m[0];
+    if(!/logo|icon|sprite|cookie/i.test(u)&&!imgs.includes(u))imgs.push(u);
+    if(imgs.length>=12)break;
+  }
+
+  return {
+    source_stock_id:vid,
+    source_key:vid,
+    source_url:url,
+    source_domain:"preowned.ducati.com",
+    seller_name:dealer,
+    seller_address:city||null,
+    make:"Ducati",
+    model:title,
+    variant:null,
+    year:yearMatch?Number(yearMatch[1]):null,
+    mileage:mileageMatch?Number(mileageMatch[1].replace(/,/g,"")):null,
+    colour:null,
+    registration:null,
+    source_advertised_price_gbp:priceMatch?Number(priceMatch[1].replace(/,/g,"")):null,
+    description_original:title,
+    specification:{approved_used:true,source:"Ducati Approved",first_registration:regMatch?.[1]||null,city:city||null},
+    source_image_urls:imgs,
+    raw_data:{title,dealer,city,first_registration:regMatch?.[1]||null}
+  };
+}
+async function refreshDucatiApproved(connector:any){
+  const home=connector.results_url||"https://preowned.ducati.com/models/gb/en/home";
+  let raw="";
+  try{raw=await fetchReader(home);}catch{}
+  if(!raw){
+    try{raw=await fetchDirect(home);}catch{}
+  }
+  if(!raw)throw new Error("Ducati Approved source could not be loaded.");
+
+  let links=ducatiDetailLinks(raw,home);
+
+  // Some portal renders expose the result links only after an initial shell. Try a few common result/pagination URLs.
+  if(!links.length){
+    for(const candidate of [
+      "https://preowned.ducati.com/models/gb/en/home",
+      "https://preowned.ducati.com/pob/gb/en"
+    ]){
+      try{
+        const txt=await fetchReader(candidate);
+        links=[...new Set([...links,...ducatiDetailLinks(txt,candidate)])];
+      }catch{}
+    }
+  }
+
+  const out:any[]=[];
+  for(const url of links.slice(0,250)){
+    try{
+      let detail=await fetchReader(url);
+      if(!detail)detail=await fetchDirect(url);
+      const item=parseDucatiDetail(detail,url);
+      if(item)out.push(item);
+    }catch{}
+  }
+
+  if(!out.length){
+    throw new Error("Ducati Approved source is reachable but no UK motorcycle records could be extracted.");
+  }
+  return finalise(connector,[...new Map(out.map((x:any)=>[String(x.source_stock_id),x])).values()]);
+}
+
 async function refreshVmoto(connector:any){
   const home=await fetchReader(connector.results_url||"https://vmoto.co.uk/");
   const urls:string[]=[];
@@ -651,6 +769,243 @@ async function refreshVmoto(connector:any){
   for(const url of targets){try{const md=await fetchReader(url);const item=parseVmoto(md,url);if(item)out.push(item);}catch{}}
   if(!out.length)throw new Error("VMoto model parser found no current models.");
   return finalise(connector,out);
+}
+
+function siteHost(url:string){
+  try{return new URL(url).hostname.replace(/^www\./,"").toLowerCase();}catch{return "";}
+}
+function allLinks(raw:string,base:string){
+  const out:string[]=[];
+  for(const m of String(raw||"").matchAll(/(?:href=["']([^"']+)["']|\[[^\]]+\]\(([^)]+)\))/gi)){
+    const v=m[1]||m[2]; if(!v)continue;
+    try{
+      const u=new URL(decodeHtml(v),base).toString().split("#")[0];
+      if(!out.includes(u))out.push(u);
+    }catch{}
+  }
+  return out;
+}
+function likelyBikeLink(url:string,baseHost:string){
+  try{
+    const u=new URL(url);
+    const h=u.hostname.replace(/^www\./,"").toLowerCase();
+    if(baseHost && h!==baseHost && !h.endsWith("."+baseHost))return false;
+    const p=(u.pathname+u.search).toLowerCase();
+    if(/\.(jpg|jpeg|png|webp|svg|pdf|css|js)(\?|$)/.test(p))return false;
+    return /(bike|bikes|motorcycle|used|stock|vehicle|approved|preowned|pre-owned|detail|view|inventory|showroom)/.test(p);
+  }catch{return false;}
+}
+function jsonLdObjects(raw:string){
+  const out:any[]=[];
+  for(const m of String(raw||"").matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)){
+    try{
+      const j=JSON.parse(m[1]);
+      if(Array.isArray(j))out.push(...j); else out.push(j);
+    }catch{}
+  }
+  return out;
+}
+function flattenJsonLd(v:any,out:any[]=[]){
+  if(!v)return out;
+  if(Array.isArray(v)){for(const x of v)flattenJsonLd(x,out);return out;}
+  if(typeof v==="object"){
+    if(v["@type"]||v.name||v.offers)out.push(v);
+    if(v["@graph"])flattenJsonLd(v["@graph"],out);
+    if(v.itemListElement)flattenJsonLd(v.itemListElement,out);
+    if(v.item)flattenJsonLd(v.item,out);
+  }
+  return out;
+}
+function knownMakeFromText(v:string){
+  const s=String(v||"");
+  const makes=["BMW","Ducati","Triumph","Yamaha","Kawasaki","Honda","Suzuki","Harley-Davidson","Harley Davidson","KTM","Aprilia","Moto Guzzi","Indian","Royal Enfield","Husqvarna","MV Agusta","Benelli","CFMOTO","Vmoto","Norton"];
+  return makes.find(x=>new RegExp("\\b"+x.replace(/[- ]/g,"[- ]?")+"\\b","i").test(s))||null;
+}
+function normaliseMake(v:any){
+  const s=clean(v||"");
+  if(/harley/i.test(s))return "Harley-Davidson";
+  if(/^bmw$/i.test(s))return "BMW";
+  if(/^vmoto$/i.test(s))return "VMoto";
+  return s||null;
+}
+function parseGenericBike(raw:string,url:string,connector:any){
+  const html=String(raw||"");
+  const text=htmlText(html);
+  const ld=flattenJsonLd(jsonLdObjects(html));
+  const product=ld.find((x:any)=>{
+    const t=String(x?.["@type"]||"").toLowerCase();
+    return /product|vehicle|motorcycle|car/.test(t) || (x?.name&&x?.offers);
+  })||null;
+
+  const h1=decodeHtml((html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i)||[])[1]||"").replace(/<[^>]+>/g," ").trim();
+  const mdHeading=(html.match(/^#\s+(.+)$/m)||[])[1]||"";
+  let title=clean(product?.name||h1||mdHeading||"");
+  if(!title){
+    const tm=html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+    title=clean(decodeHtml(tm?.[1]||"").replace(/\|.*$/,""));
+  }
+  if(!title)return null;
+
+  const offers=Array.isArray(product?.offers)?product.offers[0]:product?.offers;
+  let price=Number(offers?.price||offers?.lowPrice||0)||null;
+  if(!price){
+    const pm=text.match(/(?:£|GBP)\s*([\d,]+(?:\.\d+)?)/i);
+    if(pm)price=Number(pm[1].replace(/,/g,""));
+  }
+  const yearMatch=text.match(/\b(20[0-3]\d|19[89]\d)\b/);
+  const mileageMatch=text.match(/\b([\d,]{1,7})\s*(?:mi|miles)\b/i);
+  const regMatch=text.match(/\b([A-Z]{2}\d{2}\s?[A-Z]{3}|[A-Z]\d{1,3}\s?[A-Z]{3})\b/i);
+  const stockMatch=text.match(/(?:stock|ref(?:erence)?|vehicle|bike)\s*(?:no|number|#|id)?[:\s-]*([A-Z0-9-]{4,30})/i);
+  const make=normaliseMake(product?.brand?.name||product?.brand||knownMakeFromText(title)||knownMakeFromText(text)||connector?.name?.split(" ")[0]);
+  let model=title;
+  if(make){
+    model=model.replace(new RegExp("^"+String(make).replace(/[- ]/g,"[- ]?")+"\\s*","i"),"").trim();
+  }
+  model=model.replace(/^\d{4}\s+/,"").trim();
+  if(!model||model.length>140)return null;
+
+  const imgs:string[]=[];
+  const addImg=(v:any)=>{
+    if(!v)return;
+    const arr=Array.isArray(v)?v:[v];
+    for(const x0 of arr){
+      const x=typeof x0==="string"?x0:(x0?.url||x0?.contentUrl||"");
+      if(!x)continue;
+      try{
+        const u=new URL(x,url).toString();
+        if(!/logo|icon|sprite|cookie|favicon/i.test(u)&&!imgs.includes(u))imgs.push(u);
+      }catch{}
+      if(imgs.length>=12)break;
+    }
+  };
+  addImg(product?.image);
+  addImg(attrImages(html,url));
+  addImg(images(html));
+
+  const seller=clean(product?.seller?.name||product?.offers?.seller?.name||"")||null;
+  const sourceKey=stockMatch?.[1]||new URL(url).pathname.replace(/\/$/,"").split("/").pop()||url;
+  return {
+    source_stock_id:String(sourceKey),
+    source_key:String(sourceKey),
+    source_url:url,
+    source_domain:siteHost(url),
+    seller_name:seller||connector?.name||null,
+    seller_address:null,
+    make:make||null,
+    model,
+    variant:null,
+    year:yearMatch?Number(yearMatch[1]):null,
+    mileage:mileageMatch?Number(mileageMatch[1].replace(/,/g,"")):null,
+    colour:null,
+    registration:regMatch?regMatch[1].toUpperCase().replace(/\s+/g,""):null,
+    source_advertised_price_gbp:price,
+    description_original:title,
+    specification:{generic_adapter:true,source:connector?.name||null},
+    source_image_urls:imgs.slice(0,12),
+    raw_data:{title}
+  };
+}
+async function fetchSourceText(url:string){
+  try{return await fetchDirect(url);}catch{}
+  try{return await fetchReader(url);}catch{}
+  return "";
+}
+async function refreshAssetCertified(connector:any,sourceLabel:string){
+  const base=connector.results_url||connector.base_url;
+  const collected:any[]=[]; const seen=new Set<string>();
+  const prefix=base.replace(/\/(?:home|page\/1)?\/?$/i,"");
+  const candidates=[
+    base,
+    prefix+"/gb/bikes/page/1",
+    prefix+"/gb/home"
+  ];
+  let pageBase=candidates[0];
+
+  for(const c of candidates){
+    const raw=await fetchSourceText(c);
+    const assets=extractHarleyAssets(raw);
+    if(assets.length){pageBase=c;break;}
+  }
+
+  for(let page=1;page<=40;page++){
+    let url=pageBase;
+    if(/\/page\/\d+/i.test(pageBase))url=pageBase.replace(/\/page\/\d+/i,"/page/"+page);
+    else if(page>1) {
+      const u=new URL(pageBase);u.searchParams.set("page",String(page));url=u.toString();
+    }
+    const raw=await fetchSourceText(url);
+    if(!raw)break;
+    const assets=extractHarleyAssets(raw);
+    let added=0;
+    for(const a of assets){
+      const id=String(a?.AssetID||"");if(!id||seen.has(id))continue;
+      seen.add(id);
+      const assetName=clean(a?.AssetName||"");
+      const make=normaliseMake(a?.Make||knownMakeFromText(assetName)||sourceLabel.split(" ")[0]);
+      let model=clean(a?.Model||assetName.replace(/^\d{4}\s+/,""));
+      if(make)model=model.replace(new RegExp("^"+String(make).replace(/[- ]/g,"[- ]?")+"\\s*","i"),"").trim();
+      const slug=assetName.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"");
+      const root=new URL(url).origin;
+      collected.push({
+        source_stock_id:id,source_key:id,
+        source_url:root+"/gb/bikes/view/"+id+"/"+slug,
+        source_domain:siteHost(root),seller_name:clean(a?.DealerName||"")||null,
+        seller_address:[clean(a?.Location||""),clean(a?.PostCode||"")].filter(Boolean).join(", ")||null,
+        make,model,variant:clean(a?.Category||"")||null,
+        year:Number(a?.Year||0)||null,mileage:Number.isFinite(Number(a?.Mileage))?Number(a.Mileage):null,
+        colour:clean(a?.Colour||"")||null,registration:clean(a?.Registration||"")||null,
+        source_advertised_price_gbp:Number.isFinite(Number(a?.DefaultPrice))?Number(a.DefaultPrice):null,
+        description_original:assetName,
+        specification:{approved_used:true,source:sourceLabel},
+        source_image_urls:a?.MainImage?[root+"/gb/image/"+String(a.MainImage)]:[],
+        raw_data:a
+      });
+      added++;
+    }
+    if(!added)break;
+  }
+  if(!collected.length)throw new Error(sourceLabel+" source is reachable but no structured motorcycle records could be extracted.");
+  return finalise(connector,collected);
+}
+async function refreshGenericPartner(connector:any){
+  const start=connector.results_url||connector.base_url;
+  const host=siteHost(start);
+  const firstRaw=await fetchSourceText(start);
+  if(!firstRaw)throw new Error((connector.name||"Source")+" could not be loaded.");
+
+  let links=allLinks(firstRaw,start).filter(x=>likelyBikeLink(x,host));
+  links=links.filter((x,i,a)=>a.indexOf(x)===i).slice(0,120);
+
+  const collected:any[]=[]; const seen=new Set<string>();
+
+  // Parse cards/details from the landing page itself where possible.
+  const landingItem=parseGenericBike(firstRaw,start,connector);
+  if(landingItem && landingItem.source_advertised_price_gbp) {
+    seen.add(String(landingItem.source_key));collected.push(landingItem);
+  }
+
+  const concurrency=8;
+  for(let i=0;i<links.length;i+=concurrency){
+    const batch=links.slice(i,i+concurrency);
+    const rows=await Promise.all(batch.map(async(url)=>{
+      const raw=await fetchSourceText(url);
+      if(!raw)return null;
+      return parseGenericBike(raw,url,connector);
+    }));
+    for(const item of rows){
+      if(!item)continue;
+      const key=String(item.source_key||item.source_url);
+      if(seen.has(key))continue;
+      // Require enough motorcycle-like data to avoid navigation/category pages.
+      if(!item.source_advertised_price_gbp && !item.mileage && !item.registration)continue;
+      seen.add(key);collected.push(item);
+    }
+  }
+
+  if(!collected.length){
+    throw new Error((connector.name||"Source")+" is reachable but no complete motorcycle records could be extracted.");
+  }
+  return finalise(connector,collected);
 }
 
 Deno.serve(async(req)=>{
@@ -668,7 +1023,11 @@ Deno.serve(async(req)=>{
     let result:any;
     if(q.data.adapter_key==="sykes-hd-uk")result=await refreshSykes(q.data);
     else if(q.data.adapter_key==="harley-certified-uk")result=await refreshHarleyCertified(q.data);
+    else if(q.data.adapter_key==="ducati-approved-uk")result=await refreshDucatiApproved(q.data);
+    else if(q.data.adapter_key==="yamaha-certified-uk")result=await refreshAssetCertified(q.data,"Yamaha Approved Used");
+    else if(q.data.adapter_key==="kawasaki-validated-uk")result=await refreshAssetCertified(q.data,"Kawasaki Approved Used");
     else if(q.data.adapter_key==="vmoto-uk-catalogue")result=await refreshVmoto(q.data);
+    else if(String(q.data.adapter_key||"").startsWith("generic-"))result=await refreshGenericPartner(q.data);
     else return json({error:"Unsupported partner source adapter"},400);
     return json(result);
   }catch(e){
