@@ -231,10 +231,9 @@ export default {
       const loc=rowMap[stockId];
       if(loc){
         try{
-          // Mirror BMW's own ShowResOvDetail flow exactly:
-          // 1) POST the selected offer + row to detail.cshtml
-          // 2) read the returned detail-page state/session
-          // 3) call GetDetailDataByRowNumber from that state.
+          // BMW uses GetDetailDataInitFilter for the first opening of a bike.
+          // GetDetailDataByRowNumber is only for next/previous navigation after
+          // a detail page is already established.
           const ds=structuredClone(returnedState);
           ds.ResOverviewData=Object.assign({},pageStateMap[loc.page]||ds.ResOverviewData||{},{
             selectedPage:loc.page,
@@ -242,85 +241,32 @@ export default {
             pagingSize:50
           });
           ds.DetailAngebotsNo=stockId;
+          ds.AngebotsNo=stockId;
           ds.DetailData={RowNumber:loc.row};
           ds.currRequest=2;
+          ds.InitFilter=true;
+          ds.IsFirstCall=true;
 
-          const form=new URLSearchParams();
-          form.set("ViewData",btoa(JSON.stringify(ds)));
-          form.set("hfSID",sid||"");
-          form.set("hfMarktId",String(markt));
-          form.set("hfcultName",culture);
-
-          const detailPageUrl=new URL("/UK/detail.cshtml",connector.results_url).toString();
-          const detailPageRes=await fetch(detailPageUrl,{
+          const detailApiRes=await fetch(new URL("/api/Detail/GetDetailDataInitFilter",connector.results_url).toString(),{
             method:"POST",
-            redirect:"follow",
-            headers:{
-              "Content-Type":"application/x-www-form-urlencoded",
-              "User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/154 Safari/537.36",
-              "Cookie":cookieHeader(pageRes.headers.get("set-cookie")||bootstrapCookie),
-              "Referer":connector.results_url
-            },
-            body:form.toString()
+            headers:h,
+            body:JSON.stringify(ds)
           });
 
-          if(detailPageRes.ok){
-            const detailPageHtml=(await detailPageRes.text()).slice(0,6000000);
-            const detailSid=hidden(detailPageHtml,"hfSID")||sid;
-            let detailState:any=ds;
-            const detailViewData=hidden(detailPageHtml,"ViewData");
-            if(detailViewData){
-              try{detailState=JSON.parse(atob(detailViewData));}catch{}
-            }
-            detailState.DetailAngebotsNo=stockId;
-            detailState.DetailData={RowNumber:loc.row};
-            detailState.currRequest=2;
-
-            const detailHeaders=bmwHeaders(
-              connector.results_url,
-              detailSid,
-              detailPageRes.headers.get("set-cookie")||pageRes.headers.get("set-cookie")||bootstrapCookie
-            );
-            const detailApiRes=await fetch(new URL("/api/Detail/GetDetailDataByRowNumber",connector.results_url).toString(),{
-              method:"POST",
-              headers:detailHeaders,
-              body:JSON.stringify(detailState)
-            });
-
-            if(detailApiRes.ok){
-              const detailJson=await detailApiRes.json().catch(()=>null);
-              const returnedOffer=clean(detailJson?.angebotsNr||detailJson?.AngebotsNo||detailJson?.offerNo||"");
-              if(returnedOffer===stockId){
-                detailUrls=extractUrlsDeep(detailJson?.sliderImageLinks,connector.results_url);
-                if(detailUrls.length<12)extractUrlsDeep(detailJson?.sliderThumbnailLinks,connector.results_url,detailUrls);
-              }
+          if(detailApiRes.ok){
+            const detailJson=await detailApiRes.json().catch(()=>null);
+            const returnedOffer=clean(detailJson?.angebotsNr||detailJson?.AngebotsNo||detailJson?.offerNo||"");
+            if(returnedOffer===stockId){
+              detailUrls=extractUrlsDeep(detailJson?.sliderImageLinks,connector.results_url);
+              if(detailUrls.length<12)extractUrlsDeep(detailJson?.sliderThumbnailLinks,connector.results_url,detailUrls);
             }
           }
         }catch{}
       }
 
-      // Fallback for any BMW advert whose detail API does not expose the slider.
-      if(detailUrls.length<2){
-        try{
-          const detailUrl=row.source_url || (new URL("/UK/detail.cshtml?on="+encodeURIComponent(stockId),connector.results_url).toString());
-          const detailRes=await fetch(detailUrl,{
-            headers:{
-              "User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/154 Safari/537.36",
-              "Accept":"text/html,application/xhtml+xml",
-              "Cookie":cookieHeader(pageRes.headers.get("set-cookie")||bootstrapCookie),
-              "GMB-SID":sid||"",
-              "X-Requested-With":"XMLHttpRequest",
-              "Referer":connector.results_url
-            },
-            redirect:"follow"
-          });
-          if(detailRes.ok){
-            const detailHtml=(await detailRes.text()).slice(0,6000000);
-            const htmlUrls=extractDetailImages(detailHtml,detailUrl);
-            for(const u of htmlUrls)if(!detailUrls.includes(u))detailUrls.push(u);
-          }
-        }catch{}
-      }
+      // No generic detail-page scraping fallback here. If BMW cannot prove the
+      // gallery belongs to this exact Bike ID, keep only the known catalogue
+      // image rather than risk attaching another motorcycle's photos.
 
       const urls=[catalogueUrl,...detailUrls,...cleanExisting]
         .filter(Boolean)
