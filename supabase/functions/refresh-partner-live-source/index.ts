@@ -821,6 +821,17 @@ function knownMakeFromText(v:string){
   const makes=["BMW","Ducati","Triumph","Yamaha","Kawasaki","Honda","Suzuki","Harley-Davidson","Harley Davidson","KTM","Aprilia","Moto Guzzi","Indian","Royal Enfield","Husqvarna","MV Agusta","Benelli","CFMOTO","Vmoto","Norton"];
   return makes.find(x=>new RegExp("\\b"+x.replace(/[- ]/g,"[- ]?")+"\\b","i").test(s))||null;
 }
+function cleanPartnerModelTitle(value:any,make:any){
+  let x=clean(value||"");
+  const m=clean(make||"");
+  x=x.replace(/^(?:Used|Ex[ -]?Demo)\\s+/i,"");
+  if(m){
+    const esc=m.replace(/[.*+?^$()|[\\]\\\\]/g,"\\\\$&");
+    x=x.replace(new RegExp("^"+esc+"\\\\s+","i"),"");
+  }
+  x=x.replace(/\\s+for\\s+sale\\s+in\\s+.+$/i,"").trim();
+  return x;
+}
 function normaliseMake(v:any){
   const s=clean(v||"");
   if(!s)return null;
@@ -1110,6 +1121,7 @@ async function refreshTriumphApproved(connector:any){
       if(!detail)return null;
       const item=parseGenericBike(detail,url,{...connector,name:"Triumph Approved Used"});
       if(!item)return null;
+      item.model=cleanPartnerModelTitle(item.model,item.make);
       item.make="Triumph";
       item.seller_name=item.seller_name||"Triumph Approved Used";
       item.specification={...(item.specification||{}),approved_used:true,source:"Triumph Approved Used"};
@@ -1146,6 +1158,7 @@ async function refreshLindUsed(connector:any){
       if(!detail)return null;
       const item=parseGenericBike(detail,url,{...connector,name:"LIND Used"});
       if(!item)return null;
+      item.model=cleanPartnerModelTitle(item.model,item.make);
       const id=(url.match(/\/(\d+)\.htm(?:\?|$)/i)||[])[1];
       if(id){item.source_stock_id=id;item.source_key=id;}
       const loc=htmlText(detail).match(/Bike location:\s*([^\n\r]+)/i);
@@ -1223,6 +1236,7 @@ async function refreshManchesterHd(connector:any){
       if(!detail)return null;
       const item=parseGenericBike(detail,url,{...connector,name:"Manchester Harley-Davidson"});
       if(!item)return null;
+      item.model=cleanPartnerModelTitle(item.model,item.make);
       item.make="Harley-Davidson";
       item.seller_name="Manchester Harley-Davidson";
       item.seller_address="820 Chester Road, Stretford, Manchester, M32 0QL";
