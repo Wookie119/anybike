@@ -746,12 +746,22 @@ async function queueAutomaticBuyerSafePreparation(){
   }
   const needs=rows.filter(s=>!Array.isArray(s.buyer_image_urls)||s.buyer_image_urls.length<4);
   if(!needs.length){
-    setBuyerSafeProgress(rows.length,rows.length,"All selected motorcycles have 4 buyer-safe images",true);
+    buyerSafePreparationRunning=false;
+    setBuyerSafeProgress(
+      rows.length,
+      rows.length,
+      "Image preparation complete · "+rows.length+" of "+rows.length+" buyer-safe · ready for review",
+      true
+    );
     const retryBtn=document.getElementById("prepareAllImagesBtn");
     const status=document.getElementById("prepareAllImagesStatus");
     if(retryBtn)retryBtn.style.display="none";
-    if(status){status.className="status good";status.textContent=rows.length+" of "+rows.length+" matches have 4 buyer-safe images and are ready to review";}
+    if(status){
+      status.className="status good";
+      status.textContent=rows.length+" of "+rows.length+" matches buyer-safe · ready to review";
+    }
     setShareGate();
+    updateNextAction();
     return;
   }
 
@@ -806,6 +816,7 @@ async function queueAutomaticBuyerSafePreparation(){
           : "Automatic image preparation could not complete.";
       }
       setShareGate();
+      updateNextAction();
     }
   },250);
 }
@@ -887,6 +898,7 @@ async function prepareAllBuyerSafeImages(options={}){
   if(!rows.length){if(status)status.textContent="Select at least one motorcycle for the buyer first.";return}
   buyerSafePreparationRunning=true;
   setShareGate();
+  updateNextAction();
   if(btn){btn.disabled=true;btn.textContent=automatic?"Preparing automatically…":"Preparing galleries…";}
   let completed=0,failed=0;
   setBuyerSafeProgress(0,rows.length,"Preparing buyer-safe photo galleries…",false);
