@@ -1270,6 +1270,22 @@ function clearSelected(){
 function buyerDisplayName(b){
   return (b.business_name?b.business_name+" — ":"")+(b.contact_name||b.email||"Buyer");
 }
+function buyerTypeLabel(value){
+  return ({
+    uk_private:"UK private",
+    uk_dealer:"UK dealer",
+    uk_distributor:"UK distributor",
+    uk_manufacturer:"UK manufacturer",
+    uk_partner:"UK partner",
+    eu_dealer:"European dealer",
+    intl_dealer:"International dealer",
+    global_manufacturer:"Global manufacturer"
+  })[String(value||"")]||"";
+}
+function buyerDropdownLabel(b,waiting){
+  const detail=[b.country,buyerTypeLabel(b.customer_type)].filter(Boolean).join(" · ");
+  return buyerDisplayName(b)+(detail?" · "+detail:"")+(waiting?" · "+waiting+" waiting for matches":"");
+}
 async function loadBuyerSourcingQueue(){
   const {data,error}=await sb().rpc("admin_get_buyer_sourcing_queue_v1");
   buyerSourcingQueue=error?[]:(data||[]);
@@ -1325,8 +1341,7 @@ async function loadBuyers(){
   });
   document.getElementById("buyerSelect").innerHTML='<option value="">Choose buyer…</option>'+buyers.map(b=>{
     const waiting=Number(queueByBuyer.get(Number(b.id))?.waiting_for_matches_count||0);
-    const suffix=waiting?(" — ⚠ "+waiting+" waiting for matches"):"";
-    return '<option value="'+b.id+'">'+esc(buyerDisplayName(b)+suffix)+'</option>';
+    return '<option value="'+b.id+'">'+esc(buyerDropdownLabel(b,waiting))+'</option>';
   }).join("");
 }
 async function loadRequests(){
