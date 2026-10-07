@@ -54,6 +54,30 @@ function extractResultRows(html:string){
   }
   return map;
 }
+function bmwImageId(raw:any){
+  try{return new URL(String(raw||""),"https://approvedused.bmw-motorrad.co.uk").searchParams.get("imgId")||"";}catch{return "";}
+}
+function canonicalBmwImageUrl(raw:any,base:string){
+  try{
+    const u=new URL(String(raw||""),base);
+    const id=u.searchParams.get("imgId");
+    if(!id)return "";
+    return new URL("/api/Image/GetImg?imgId="+encodeURIComponent(id),base).toString();
+  }catch{return "";}
+}
+function uniqueBmwImages(values:any[],base:string,limit=12){
+  const out:string[]=[];
+  const seen=new Set<string>();
+  for(const raw of values||[]){
+    const id=bmwImageId(raw);
+    if(!id||seen.has(id))continue;
+    const u=canonicalBmwImageUrl(raw,base);
+    if(!u)continue;
+    seen.add(id);out.push(u);
+    if(out.length>=limit)break;
+  }
+  return out;
+}
 function extractUrlsDeep(value:any,base:string,out:string[]=[]){
   if(out.length>=12)return out;
   if(typeof value==="string"){
@@ -268,10 +292,7 @@ export default {
       // gallery belongs to this exact Bike ID, keep only the known catalogue
       // image rather than risk attaching another motorcycle's photos.
 
-      const urls=[catalogueUrl,...detailUrls,...cleanExisting]
-        .filter(Boolean)
-        .filter((u:any,i:number,a:any[])=>a.indexOf(u)===i)
-        .slice(0,12);
+      const urls=uniqueBmwImages([catalogueUrl,...detailUrls,...cleanExisting],connector.results_url,12);
 
       if(!urls.length){missing++;continue;}
       if(urls.length>1)galleries++;
