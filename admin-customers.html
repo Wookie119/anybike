@@ -727,6 +727,12 @@ function escapeAdminHtml(value){
           <option value="freight_logistics">Freight / logistics</option>
         </select>
       </label>
+      <label style="grid-column:1/-1">
+        <span style="display:flex;align-items:center;gap:10px;background:#151515;border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:12px 14px;cursor:pointer">
+          <input id="editLiveSourceEnabled" type="checkbox" style="width:auto;margin:0">
+          <span><strong style="display:block">Show in Live Source Hub</strong><span class="small">Only tick this for customers AnyBike actively sources motorcycles for. Unticked customers will not appear in the Live Source Hub buyer dropdown.</span></span>
+        </span>
+      </label>
     </div>
     <div class="modal-row-actions">
       <button type="button" class="btn dark" onclick="closeEditCustomer()">Cancel</button>
@@ -810,6 +816,7 @@ function openEditCustomer(userId){
   document.getElementById("editRegion").value=c.region||"";
   document.getElementById("editCustomerType").value=onboarding.customer_type||"";
   document.getElementById("editCustomerIntent").value=onboarding.customer_intent||"unclear";
+  document.getElementById("editLiveSourceEnabled").checked=Boolean(c.liveSourceEnabled);
   const modal=document.getElementById("editCustomerModal");
   if(!modal){alert("Edit Customer window is not available. Refresh the page and try again.");return;}
   modal.classList.add("open");
@@ -823,6 +830,7 @@ function closeEditCustomer(){
 }
 async function saveEditedCustomer(){
   if(!editingCustomerId)return;
+  const liveSourceEnabled=Boolean(document.getElementById("editLiveSourceEnabled")?.checked);
   const {error}=await sb.rpc("admin_update_customer_profile_v1",{
     p_user_id:editingCustomerId,
     p_full_name:document.getElementById("editFullName").value,
@@ -835,6 +843,13 @@ async function saveEditedCustomer(){
     p_customer_intent:document.getElementById("editCustomerIntent").value
   });
   if(error){alert("Could not save customer: "+error.message);return;}
+
+  const {error:liveSourceError}=await sb.rpc("admin_set_live_source_buyer_v1",{
+    p_user_id:editingCustomerId,
+    p_enabled:liveSourceEnabled
+  });
+  if(liveSourceError){alert("Customer details were saved, but Live Source Hub access could not be updated: "+liveSourceError.message);return;}
+
   const keepId=editingCustomerId;
   closeEditCustomer();
   await loadCustomers();
@@ -2128,6 +2143,7 @@ async function loadCustomers(){
       shipping_region,
       shipping_postcode,
       shipping_country,
+      live_source_enabled,
       created_at
     `)
     .order("created_at",{ascending:false});
@@ -2389,6 +2405,9 @@ const firstSeen =
       businessName:
         profile.business_name ||
         "",
+
+      liveSourceEnabled:
+        Boolean(profile.live_source_enabled),
 
       preferredCurrency:
         profile.preferred_currency ||
