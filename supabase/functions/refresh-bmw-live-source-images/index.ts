@@ -198,6 +198,8 @@ export default {
             "User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/154 Safari/537.36",
             "Accept":"text/html,application/xhtml+xml",
             "Cookie":cookieHeader(pageRes.headers.get("set-cookie")||bootstrapCookie),
+            "GMB-SID":sid||"",
+            "X-Requested-With":"XMLHttpRequest",
             "Referer":connector.results_url
           },
           redirect:"follow"
