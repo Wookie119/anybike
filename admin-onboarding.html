@@ -540,7 +540,9 @@ function render(){
       : '<span class="badge '+(r.customer_type&&r.customer_intent&&r.customer_intent!=="unclear"?"blue":"amber")+'">'+
           (r.customer_type&&r.customer_intent&&r.customer_intent!=="unclear"?"Route set":"Classification needed")+
         '</span>';
-    const reminder=r.last_reminder_at?new Date(r.last_reminder_at).toLocaleString("en-GB")+' · '+Number(r.reminder_count||0)+' sent':"Never";
+    const sentCount=Number(r.reminder_count||0);
+    const reminder=r.last_reminder_at?new Date(r.last_reminder_at).toLocaleString("en-GB")+' · '+sentCount+' sent':"Never";
+    const helpAlreadySent=sentCount>0;
     const canGenerateSetupLink=Boolean(r.has_profile);
     const canHelp=Boolean(r.email);
     const canClarify=r.has_profile&&r.email_confirmed_at&&!r.is_test_account&&r.route==="needs_clarification";
@@ -567,12 +569,14 @@ function render(){
           ? '<button class="btn dark" onclick="copySetupLink(\''+r.user_id+'\',this)">Generate customer setup link</button>'
           : '<button class="btn dark" type="button" disabled>Generate customer setup link</button>')+
         (canHelp
-          ? '<button class="btn" onclick="openSetupHelp(\''+r.user_id+'\')">Send setup help</button>'
+          ? (helpAlreadySent
+              ? '<button class="btn dark" onclick="openSetupHelp(\''+r.user_id+'\',true)">Resend setup help</button>'
+              : '<button class="btn" onclick="openSetupHelp(\''+r.user_id+'\')">Send setup help</button>')
           : '<button class="btn dark" type="button" disabled>Send setup help · no email</button>')+
       '</div><div class="status-line" id="action-'+r.user_id+'">'+
-        (!r.last_reminder_at
-          ? (canHelp?'No setup request sent yet':'Customer email is missing')
-          : '')+
+        (helpAlreadySent
+          ? '<span class="badge green">✓ Setup help sent</span><div style="margin-top:5px">'+esc(new Date(r.last_reminder_at).toLocaleString("en-GB"))+' · '+sentCount+' sent</div>'
+          : (canHelp?'No setup request sent yet':'Customer email is missing'))+
       '</div></td>'+
     '</tr>'+
     '<tr class="note-row '+cls+'" data-note-user-id="'+esc(r.user_id)+'" onclick="selectCustomerCard(\''+r.user_id+'\')"><td colspan="6"><div class="note-strip"><div class="note-strip-label">Admin note</div><textarea class="notes" id="note-'+r.user_id+'" placeholder="Internal onboarding note">'+esc(r.admin_notes||"")+'</textarea><button class="btn dark" onclick="saveNote(\''+r.user_id+'\')">Save note</button></div></td></tr>';
@@ -723,8 +727,13 @@ const setupHelpTemplates=[
   ["freight_logistics","Freight / logistics setup","For freight forwarders and logistics partners.","Thanks for registering with AnyBike. Please complete your company and contact details so we can review your freight or logistics services and connect them to the correct AnyBike workflow."],
   ["clarify_use","Ask what they want to do","Ask them to choose how they want to use AnyBike.","Thanks for registering with AnyBike. Please tell us what you would like to do: buy motorcycles, sell or supply motorcycles, request dealer underwrites, bid on trade opportunities, buy a new VMoto, or work with AnyBike as a partner. Reply here and we will put you on the correct route."]
 ]
-function openSetupHelp(userId){
+function openSetupHelp(userId,isResend=false){
   const r=rows.find(x=>x.user_id===userId);if(!r)return;
+  if(isResend){
+    const count=Number(r.reminder_count||0);
+    const when=r.last_reminder_at?new Date(r.last_reminder_at).toLocaleString("en-GB"):"previously";
+    if(!confirm("Setup help has already been sent to this customer "+count+" time"+(count===1?"":"s")+" (last sent "+when+").\n\nSend it again?"))return;
+  }
   setupHelpUserId=userId;
   setupHelpTemplate=recommendedTemplate(r);
   document.getElementById("setupHelpTitle").textContent="Send setup help · "+(r.full_name||r.business_name||r.email||"Customer");
