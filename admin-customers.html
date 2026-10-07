@@ -686,7 +686,7 @@ let messageMap = {};
 let visitActivityMap = {};
 let customerWorkspaceMap = {};
 let customerWorkspaceLoading = {};
-let customerAttentionMap = {};
+let customerAttentionMap = {};\nlet customerOnboardingMap = {};
 
 const countryCoords = {
   "United Kingdom":[48,38],"UK":[48,38],"Ireland":[45,37],
@@ -712,6 +712,26 @@ function customerStatus(c){if(c.deals.length>=3)return"VIP";if(c.deals.some(d=>d
 function badgeClass(s){if(s==="VIP")return"badge-red";if(s==="Completed")return"badge-green";if(s==="Active")return"badge-amber";return""}
 
 function customerAttention(c){
+  const onboarding=customerOnboardingMap[String(c.customerId)]||null;
+  if(onboarding){
+    const stage=String(onboarding.onboarding_stage||"");
+    if(onboarding.email_confirmed_at===null){
+      return {kind:"setup",label:"Email confirmation required",title:"Waiting for email confirmation",detail:"This customer has registered but has not confirmed their email. Do not send in-app setup help yet. Check their account from Onboarding and wait for confirmation.",onboarding:true};
+    }
+    if(!onboarding.has_profile){
+      return {kind:"setup",label:"Profile recovery required",title:"Customer profile needs recovering",detail:"The email is confirmed but no usable customer profile exists yet. Open Onboarding to resolve the profile before progressing them.",onboarding:true};
+    }
+    if(!onboarding.customer_type || !onboarding.customer_intent || String(onboarding.customer_intent)==="unclear" || String(onboarding.route)==="needs_clarification"){
+      return {kind:"setup",label:"Classification required",title:"Clarify how this customer wants to use AnyBike",detail:"Choose the correct customer type and intent, then send the appropriate setup help message from Onboarding.",onboarding:true};
+    }
+    if(String(onboarding.route)==="buyer_export" && Number(onboarding.sections_complete||0)<5){
+      return {kind:"setup",label:"Buyer Setup "+Number(onboarding.sections_complete||0)+"/5",title:"Help this buyer complete setup",detail:"Buyer Setup is incomplete. Open Onboarding to send the correct setup help and track the remaining sections.",onboarding:true};
+    }
+    if(stage.includes("Ready for AnyBike Review")){
+      return {kind:"review",label:"Ready for review",title:"Review completed onboarding",detail:"This customer has completed the required setup and is ready for an AnyBike review.",onboarding:true};
+    }
+  }
+
   const a=customerAttentionMap[String(c.customerId)]||{};
   const count=Number(a.setup_complete_count||0);
   const approval=String(a.approval_status||"not_reviewed").toLowerCase();
@@ -1797,16 +1817,26 @@ async function loadCustomers(){
   customerWorkspaceMap={};
   customerWorkspaceLoading={};
   customerAttentionMap={};
-  const [, , attentionResult] = await Promise.all([
+  customerOnboardingMap={};
+  const [, , attentionResult, onboardingResult] = await Promise.all([
     loadMessagesForIntel(),
     loadVisitActivityForIntel(),
-    sb.rpc("admin_get_customer_needs_attention_v3")
+    sb.rpc("admin_get_customer_needs_attention_v3"),
+    sb.rpc("admin_get_onboarding_pipeline_v1")
   ]);
   if(attentionResult?.error){
     console.warn("Customer Needs Attention could not be loaded",attentionResult.error);
   }else{
     (attentionResult?.data||[]).forEach(row=>{
       if(row.customer_id) customerAttentionMap[String(row.customer_id)]=row;
+    });
+  }
+
+  if(onboardingResult?.error){
+    console.warn("Customer onboarding state could not be loaded",onboardingResult.error);
+  }else{
+    (onboardingResult?.data||[]).forEach(row=>{
+      if(row.user_id) customerOnboardingMap[String(row.user_id)]=row;
     });
   }
 
@@ -2311,6 +2341,20 @@ function openCustomerFromMap(customerId){
       card.scrollIntoView({behavior:"smooth",block:"center"});
     }
 
+    const requestedAttention=customerAttention(customer);
+    const bannerTitle=document.getElementById("customerNeedsAttentionTitle");
+    const bannerText=document.getElementById("customerNeedsAttentionText");
+    const bannerLink=document.querySelector("#customerNeedsAttentionBanner a");
+    if(bannerTitle&&bannerText&&bannerLink){
+      bannerTitle.textContent=(customer.name||"Customer")+" · "+requestedAttention.title;
+      bannerText.textContent=requestedAttention.detail;
+      if(requestedAttention.onboarding){
+        bannerLink.textContent="Open Onboarding →";
+        bannerLink.href="admin-onboarding.html?customer="+encodeURIComponent(customer.customerId);
+        bannerLink.onclick=null;
+      }
+    }
+
     setTimeout(()=>{
       card.style.border = "";
       card.style.boxShadow = "";
@@ -2567,7 +2611,7 @@ function renderCustomers(){
             </div>
             <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
               <span class="badge ${attention.kind==="clear"?"badge-green":"badge-red"}">${safe(attention.label)}</span>
-              ${shouldShowBuyerSetupReview(c) ? '<button type="button" class="btn" style="background:#ed1c24" onclick="document.querySelector(\'#customer-'+c.id+' [data-buyer-setup-review]\')?.scrollIntoView({behavior:\'smooth\',block:\'start\'})">Review setup now →</button>' : ""}
+              ${attention.onboarding ? '<a class="btn" style="background:#ed1c24;text-decoration:none" href="admin-onboarding.html?customer='+encodeURIComponent(c.customerId)+'">Open Onboarding →</a>' : (shouldShowBuyerSetupReview(c) ? '<button type="button" class="btn" style="background:#ed1c24" onclick="document.querySelector(\'#customer-'+c.id+' [data-buyer-setup-review]\')?.scrollIntoView({behavior:\'smooth\',block:\'start\'})">Review setup now →</button>' : "")}
             </div>
           </div>
 
