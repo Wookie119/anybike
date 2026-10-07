@@ -97,12 +97,12 @@ td:last-child{vertical-align:top;background:rgba(255,255,255,.025)}td:last-child
       </section>
 
       <section class="kpis">
-        <div class="kpi"><strong id="kTotal">0</strong><span>Potential customers / prospects</span></div>
-        <div class="kpi"><strong id="kUnconfirmed">0</strong><span>Email confirmation required</span></div>
-        <div class="kpi"><strong id="kNoProfile">0</strong><span>Confirmed, no profile</span></div>
-        <div class="kpi"><strong id="kIncomplete">0</strong><span>Setup incomplete</span></div>
-        <div class="kpi"><strong id="kClarify">0</strong><span>Route clarification</span></div>
-        <div class="kpi"><strong id="kReview">0</strong><span>Ready for review</span></div>
+        <div class="kpi" data-kpi-filter="all" onclick="applyKpiFilter('all',this)"><strong id="kTotal">0</strong><span>Potential customers / prospects</span></div>
+        <div class="kpi" data-kpi-filter="unconfirmed" onclick="applyKpiFilter('unconfirmed',this)"><strong id="kUnconfirmed">0</strong><span>Email confirmation required</span></div>
+        <div class="kpi" data-kpi-filter="no-profile" onclick="applyKpiFilter('no-profile',this)"><strong id="kNoProfile">0</strong><span>Confirmed, no profile</span></div>
+        <div class="kpi" data-kpi-filter="incomplete" onclick="applyKpiFilter('incomplete',this)"><strong id="kIncomplete">0</strong><span>Setup incomplete</span></div>
+        <div class="kpi" data-kpi-filter="clarify" onclick="applyKpiFilter('clarify',this)"><strong id="kClarify">0</strong><span>Route clarification</span></div>
+        <div class="kpi" data-kpi-filter="review" onclick="applyKpiFilter('review',this)"><strong id="kReview">0</strong><span>Ready for review</span></div>
       </section>
 
       <section class="panel invite-panel">
@@ -472,8 +472,22 @@ function needsAttention(r){
     String(r.route)==="needs_clarification"
   );
 }
+let activeKpiFilter="all";
+function applyKpiFilter(filter,el){
+  activeKpiFilter=filter||"all";
+  document.querySelectorAll(".kpi").forEach(k=>k.classList.toggle("active",k===el));
+  const stage=document.getElementById("stageFilter");
+  if(stage)stage.value="";
+  render();
+  document.querySelector(".panel #tableWrap")?.scrollIntoView({behavior:"smooth",block:"start"});
+}
 function rowMatches(r){
   if(!document.getElementById("showInternal").checked && isInternal(r))return false;
+  if(activeKpiFilter==="unconfirmed" && r.email_confirmed_at)return false;
+  if(activeKpiFilter==="no-profile" && !(r.email_confirmed_at&&!r.has_profile))return false;
+  if(activeKpiFilter==="incomplete" && !(r.has_profile&&String(r.route)==="buyer_export"&&Number(r.sections_complete||0)<6))return false;
+  if(activeKpiFilter==="clarify" && r.route!=="needs_clarification")return false;
+  if(activeKpiFilter==="review" && !(String(r.onboarding_stage).includes("Ready for AnyBike Review")||String(r.onboarding_stage).includes("Approved")))return false;
   const q=document.getElementById("searchBox").value.trim().toLowerCase();
   if(q && ![r.full_name,r.email,r.business_name,r.country,r.onboarding_stage].join(" ").toLowerCase().includes(q))return false;
   const type=document.getElementById("typeFilter").value;
