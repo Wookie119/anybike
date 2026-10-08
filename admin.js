@@ -355,7 +355,7 @@ Promise.all([
 */
 const ANYBIKE_ADMIN_NEXT_ACTION_DEFAULTS={
   "admin-dashboard.html":{title:"Work the highest-priority item",text:"Start with the first genuine item in Your Next Actions. Completing the real task should remove it automatically.",waitingFor:"AnyBike",label:"OPEN NEXT ACTION →",href:"admin-dashboard.html#next-actions"},
-  "admin-enquiries.html":{title:"Open the sale that needs attention",text:"Continue the Deal 360 item whose current stage is waiting for an AnyBike action.",waitingFor:"AnyBike",label:"GO TO SALES WORK →"},
+  "admin-enquiries.html":{title:"Open the sale that needs attention",text:"Continue the Motorcycle Sales transaction whose current stage is waiting for an AnyBike action.",waitingFor:"AnyBike",label:"GO TO SALES WORK →"},
   "admin-message-centre.html":{title:"Reply to the next message that needs attention",text:"Open the oldest genuine customer or supplier conversation that is waiting for a response.",waitingFor:"AnyBike",label:"OPEN MESSAGES →"},
   "admin-customers.html":{title:"Review the customer who needs attention",text:"Open the customer with the most urgent genuine setup, request or purchase action.",waitingFor:"AnyBike",label:"OPEN CUSTOMER WORK →"},
   "admin-ai-matching.html":{title:"Review buyer responses",text:"Progress motorcycles the buyer has selected and remove any options AnyBike does not want to pursue.",waitingFor:"AnyBike",label:"OPEN BUYER RESPONSES →",href:"admin-ai-matching.html#interested-matches-queue"},
