@@ -299,6 +299,16 @@ function render(){
   if(buyer==="matched")list=list.filter(r=>Number(r.unique_buyer_match_count||0)>0);
   if(buyer==="none")list=list.filter(r=>Number(r.unique_buyer_match_count||0)===0);
 
+  const financeLabel=r=>{
+    const notes=String(r.notes||"");
+    if(notes.includes("[FINANCE DECLARATION] Seller declares finance outstanding")){
+      const amount=notes.match(/Estimated settlement: £([0-9.]+)/);
+      return "Finance declared"+(amount?" · £"+Number(amount[1]).toLocaleString("en-GB",{maximumFractionDigits:2}):"")+" · verify before completion";
+    }
+    if(notes.includes("[FINANCE DECLARATION] Seller declares no outstanding finance"))return "Seller declares no finance · unverified";
+    if(notes.includes("[FINANCE DECLARATION] Seller unsure"))return "Finance status unknown · check required";
+    return "Not declared · check required";
+  };
   const host=document.getElementById("queue");
   if(!list.length){host.innerHTML='<div class="empty">No submissions match these filters.</div>';return;}
 
@@ -333,7 +343,7 @@ function render(){
           '<div class="box"><span>Seller needs</span><strong>'+money(r.price_wanted_gbp)+'</strong></div>'+
           '<div class="box"><span>Seller</span><strong>'+esc(seller)+'</strong></div>'+
           '<div class="box"><span>Underwrite</span><strong>'+esc(String(r.underwrite_status||"").replaceAll("_"," "))+'</strong></div>'+
-          '<div class="box"><span>HPI</span><strong>'+esc(r.hpi_clear===true?"Clear":"Not provided")+'</strong></div>'+
+          '<div class="box"><span>History check</span><strong>'+esc(r.hpi_clear===true?"Seller HPI clear indicated":"Not verified")+'</strong></div>'+
           '<div class="box"><span>Images</span><strong>'+esc(imageText)+'</strong></div>'+
           '<div class="box"><span>International buyers</span><strong>'+Number(r.unique_buyer_match_count||0)+'</strong></div>'+
         '</div>'+
