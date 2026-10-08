@@ -184,7 +184,9 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
           <div class="field"><label>Status</label><select id="statusFilter"><option value="live">Live only</option><option value="">All</option><option value="ended">No longer listed</option><option value="review">Needs review</option></select></div>
           <div class="field"><label>VAT status</label><select id="vatFilter"><option value="">All VAT statuses</option><option value="vq">VAT Qualifying only</option><option value="non_vq">Not marked VQ</option></select></div>
           <button class="btn red" onclick="loadItems()">Search</button>
+          <button type="button" class="btn" id="yamahaPhotoLoader" style="display:none;white-space:nowrap" onclick="loadYamahaPhotos(Number(document.getElementById('connectorFilter').value),this)">Load Yamaha photos</button>
         </div>
+        <div id="yamahaPhotoStatus" class="status" style="display:none;margin-top:10px" role="status" aria-live="polite"></div>
         <div class="dealer-filter-wrap">
           <div class="dealer-filter-head">
             <strong>Internal source filter</strong>
@@ -772,14 +774,11 @@ async function selectSourceChannel(id){
   document.getElementById("activeSourceLabel").textContent=connector?.name||"Selected channel";
   renderSourceSetupGuide(connector);
   syncSourceSpecificControls();
-  let yamahaBtn=document.getElementById("yamahaPhotoLoader");
-  if(!yamahaBtn){
-    yamahaBtn=document.createElement("button");yamahaBtn.id="yamahaPhotoLoader";yamahaBtn.className="btn";yamahaBtn.textContent="Load Yamaha photos";
-    yamahaBtn.style.margin="10px 0";
-    document.getElementById("activeSourceLabel")?.parentElement?.appendChild(yamahaBtn);
-  }
-  yamahaBtn.style.display=String(connector?.adapter_key||"")==="yamaha-certified-uk"?"":"none";
-  yamahaBtn.onclick=()=>loadYamahaPhotos(Number(id),yamahaBtn);
+  const yamahaBtn=document.getElementById("yamahaPhotoLoader");
+  const isYamaha=String(connector?.adapter_key||"")==="yamaha-certified-uk";
+  if(yamahaBtn)yamahaBtn.style.display=isYamaha?"":"none";
+  const yamahaStatus=document.getElementById("yamahaPhotoStatus");
+  if(yamahaStatus){yamahaStatus.style.display=isYamaha?"":"none";yamahaStatus.textContent=isYamaha?"Order: 1. Choose filters and press Search (optional). 2. Press Load Yamaha photos once. It checks all Yamaha stock and refreshes the results automatically.":"";}
   updateLiveSourceNextAction();
 
   await loadSourceFacets();
@@ -795,7 +794,8 @@ async function selectSourceChannel(id){
 async function loadYamahaPhotos(id,button){
   if(sourceRefreshInProgress)return;
   sourceRefreshInProgress=true;
-  const st=document.getElementById("refresh-"+id);
+  const st=document.getElementById("yamahaPhotoStatus");
+  if(st){st.style.display="block";st.className="status";st.textContent="Starting Yamaha photograph check — please wait. Press only once."}
   if(button){button.disabled=true;button.textContent="Loading Yamaha photos…";}
   let offset=0,found=0;
   try{
