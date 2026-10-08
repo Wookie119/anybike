@@ -17690,6 +17690,7 @@ function navigateDealWorkflow(target){
 }
 
 function renderAdminDealQueue(){
+  try {
   const box = document.getElementById("anybikeDeals");
   if(!box){ return; }
 
@@ -18137,6 +18138,27 @@ function renderAdminDealQueue(){
       ${rows || '<div class="anybike-deal-empty">No sales match the current filters.</div>'}
     </section>`;
   normalizeDealSectionNextActions(box);
+  } catch(renderError) {
+    console.error("Bike Sales HQ render failed:",renderError);
+    const host=document.getElementById("anybikeDeals");
+    if(host){
+      const safeText=value=>String(value??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
+      const active=(adminDealQueue||[]).filter(function(deal){
+        if(!deal)return false;
+        const stage=String(deal.deal_stage||"");
+        if(currentFilter==="all"||!currentFilter||currentFilter==="needsAttention")return true;
+        return true;
+      });
+      host.innerHTML='<section class="anybike-real-deals" style="margin:14px 0"><div class="anybike-real-deals-head"><div><h3>Bike Sales — Deals</h3><p>The detailed layout could not display. Your deals are still accessible below while the issue is investigated.</p></div><strong>'+active.length+' Deals</strong></div>'+
+      '<div style="padding:12px 0;display:grid;gap:10px">'+active.map(function(deal){
+        const id=Number(deal.deal_id);
+        const number=safeText(deal.deal_number||("Deal #"+id));
+        const bike=(adminDealMotorcycles||[]).filter(b=>Number(b.deal_id)===id).map(b=>[b.make,b.model,b.variant].filter(Boolean).join(" ")).join(", ")||safeText(deal.deal_title)||"Motorcycle";
+        return '<div style="padding:13px;border:1px solid #333;border-radius:10px;background:#111;display:flex;gap:12px;align-items:center;flex-wrap:wrap"><div style="flex:1;min-width:240px"><strong>'+number+'</strong> · '+safeText(bike)+'<div style="color:#aaa;font-size:12px;margin-top:5px">'+safeText(deal.deal_stage||deal.deal_status||"In progress")+'</div></div><button type="button" onclick="openConvertedEnquiryDeal('+id+')">Open Deal 360 →</button></div>';
+      }).join("")+'</div></section>';
+    }
+  }
+
 }
 
 /* ======================================================
