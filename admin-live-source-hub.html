@@ -772,6 +772,14 @@ async function selectSourceChannel(id){
   document.getElementById("activeSourceLabel").textContent=connector?.name||"Selected channel";
   renderSourceSetupGuide(connector);
   syncSourceSpecificControls();
+  let yamahaBtn=document.getElementById("yamahaPhotoLoader");
+  if(!yamahaBtn){
+    yamahaBtn=document.createElement("button");yamahaBtn.id="yamahaPhotoLoader";yamahaBtn.className="btn";yamahaBtn.textContent="Load Yamaha photos";
+    yamahaBtn.style.margin="10px 0";
+    document.getElementById("activeSourceLabel")?.parentElement?.appendChild(yamahaBtn);
+  }
+  yamahaBtn.style.display=String(connector?.adapter_key||"")==="yamaha-certified-uk"?"":"none";
+  yamahaBtn.onclick=()=>loadYamahaPhotos(Number(id),yamahaBtn);
   updateLiveSourceNextAction();
 
   await loadSourceFacets();
@@ -784,6 +792,26 @@ async function selectSourceChannel(id){
   await loadHub();
 }
 
+async function loadYamahaPhotos(id,button){
+  if(sourceRefreshInProgress)return;
+  sourceRefreshInProgress=true;
+  const st=document.getElementById("refresh-"+id);
+  if(button){button.disabled=true;button.textContent="Loading Yamaha photos…";}
+  let offset=0,found=0;
+  try{
+    for(let batch=0;batch<50;batch++){
+      const {data,error}=await sb().functions.invoke("refresh-partner-live-source",{body:{connector_id:Number(id),photos_only:true,offset}});
+      if(error||data?.error)throw new Error(data?.error||error?.message||"Image batch failed");
+      found+=Number(data.with_photos||0);
+      offset=Number(data.next_offset||offset);
+      if(st){st.className="status";st.textContent="Yamaha photos checked: "+offset+" · with photographs: "+found;}
+      if(data.completed||Number(data.checked||0)===0)break;
+    }
+    await loadItems();
+    if(st){st.className="status good";st.textContent="Yamaha photograph check complete. "+found+" listings have photographs in this run."}
+  }catch(e){if(st){st.className="status error";st.textContent="Yamaha photo loading paused at "+offset+": "+String(e?.message||e)};}
+  finally{sourceRefreshInProgress=false;if(button){button.disabled=false;button.textContent="Load Yamaha photos";}}
+}
 async function refreshSource(id,event,button){
   if(event){event.preventDefault();event.stopPropagation();}
   const st=document.getElementById("refresh-"+id);
