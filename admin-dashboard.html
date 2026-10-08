@@ -3786,6 +3786,45 @@ setText("kpiPrivateSellers", countSourceType([
       console.warn("Second chance offer requests could not be added to Dashboard:",secondChanceError);
     }
 
+    // Live Seller / Underwrite work belongs in the same admin action queue.
+    // Keep this isolated: an unavailable RPC must not hide the other departments.
+    try{
+      const underwriteResult=await sb.rpc("admin_get_seller_submission_queue_v5",{p_limit:150});
+      if(underwriteResult.error)throw underwriteResult.error;
+      const underwrites=Array.isArray(underwriteResult.data)?underwriteResult.data:[];
+      const review=underwrites.filter(function(item){
+        const state=String(item.underwrite_status||"").toLowerCase();
+        const submission=String(item.status||"").toLowerCase();
+        return state!=="live" && !["closed","completed","rejected","cancelled","withdrawn"].includes(submission)
+          && ["not started","not_started","eligible","pending","ready",""].includes(state);
+      });
+      if(review.length){
+        const first=review[0];
+        actions.push(createDashboardAction({
+          group:"sales",priority:"high",type:"Seller / Underwrite",
+          title:review.length+" motorcycle"+(review.length===1?"":"s")+" awaiting underwriting review",
+          bike:[first.make,first.model].filter(Boolean).join(" ")||"Motorcycle details needed",
+          customer:first.dealer_name||first.seller_name||"Seller",
+          assigned:"Buying Team",
+          preview:"Review submission "+(first.reference||"")+" and the buyer-safe photographs, then decide whether to invite trade offers.",
+          createdAt:first.created_at,age:first.created_at?timeAgo(first.created_at):"",
+          url:"admin-seller-underwrites.html",openLabel:"Review underwrites →"
+        }));
+      }
+      const live=underwrites.filter(function(item){return String(item.underwrite_status||"").toLowerCase()==="live";});
+      if(live.length){
+        actions.push(createDashboardAction({
+          group:"sales",priority:"medium",type:"Live Trade Underwrites",
+          title:live.length+" live trade underwrite"+(live.length===1?"":"s")+" to monitor",
+          bike:"Trade dealer offers",assigned:"Buying Team",
+          preview:"Review incoming offers and seller availability before any buyer selection.",
+          url:"admin-trade-underwrites.html",openLabel:"Review offers →"
+        }));
+      }
+    }catch(underwriteDashboardError){
+      console.warn("Seller underwriting dashboard actions unavailable:",underwriteDashboardError);
+    }
+
     renderDashboardActionQueue(actions);
 
   } catch(err){
