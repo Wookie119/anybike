@@ -29,9 +29,11 @@ h1{margin:6px 0 8px;font-size:36px} p{color:#bbb;line-height:1.5}
 .toolbar{display:grid;grid-template-columns:minmax(260px,2fr) repeat(5,minmax(145px,1fr)) auto;gap:10px;margin-bottom:16px}
 .toolbar input,.toolbar select{width:100%;background:#111;color:#fff;border:1px solid #333;border-radius:10px;padding:11px}
 .queue-list{border:1px solid var(--line);border-radius:16px;overflow:hidden;background:#0d0d0d}
-.queue-head,.submission-row{display:grid;grid-template-columns:92px 130px minmax(240px,2fr) 120px 110px 140px 140px 105px 120px 42px;gap:12px;align-items:center}
+.queue-head,.submission-row{display:grid;grid-template-columns:76px 125px minmax(200px,2fr) 110px 70px minmax(120px,1fr) 105px minmax(170px,1fr);gap:12px;align-items:center}
 .queue-head{padding:10px 14px;background:#171717;color:#888;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.05em}
 .submission-row{padding:10px 14px;border-top:1px solid rgba(255,255,255,.07);cursor:pointer;transition:.15s}
+.submission-row .row-next{border:1px solid #68272b;background:#210f11;color:#fff;border-radius:9px;padding:8px 10px;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap}
+.submission-row .row-next:hover{background:#ed1c24;border-color:#ed1c24}
 .submission-row:hover{background:#151515}.submission-row.open{background:#161616}
 .row-image{width:76px;height:56px;border-radius:9px;overflow:hidden;background:#090909;border:1px solid #2b2b2b;display:flex;align-items:center;justify-content:center;color:#666;font-size:10px;text-align:center}
 .row-image img{width:100%;height:100%;object-fit:cover;display:block}
@@ -378,7 +380,7 @@ function render(){
           (r.message_thread_id?'<a class="btn" href="/admin-message-centre.html?thread='+Number(r.message_thread_id)+'">Open Message</a>':"")+
           '<button type="button" data-action="collapse" data-id="'+Number(r.submission_id)+'">▲ Collapse submission</button>'+
         '</div>'+
-        '<div style="margin-top:12px;padding:10px 12px;border:1px solid #5a2b2d;border-radius:10px;background:#1b1010"><strong>Your Next Action →</strong><p style="margin:5px 0 9px;font-size:13px">'+(r.underwrite_status==="live"?"The trade bidding is live. Review bids in the Trade Underwrite Desk, then complete Seller Confirmation / HPI Check before selecting a buyer.":"Review photos, motorcycle details and finance status. Choose the bidding duration and start the trade opportunity when ready.")+'</p>'+(r.underwrite_status==="live"?'<a class="btn" href="/admin-trade-underwrites.html">OPEN TRADE UNDERWRITE DESK →</a>':'<button type="button" data-action="start-underwrite" data-id="'+Number(r.submission_id)+'">START TRADE BIDDING →</button>')+'</div>'+ 
+        '<div style="margin-top:12px;padding:10px 12px;border:1px solid #5a2b2d;border-radius:10px;background:#1b1010"><strong>Your Next Action →</strong><p style="margin:5px 0 9px;font-size:13px">'+(r.underwrite_status==="live"?"The trade bidding is live. Review bids in the Trade Underwrite Desk, then complete Seller Confirmation / HPI Check before selecting a buyer.":"Review photos, motorcycle details and finance status. Choose the bidding duration and start the trade opportunity when ready.")+'</p>'+(r.underwrite_status==="live"?'<a class="btn" href="/admin-trade-underwrites.html">OPEN TRADE UNDERWRITE DESK →</a>':(!r.make||!r.model?'<button type="button" data-action="edit-bike" data-id="'+Number(r.submission_id)+'">COMPLETE MOTORCYCLE DETAILS →</button>':'<button type="button" data-action="comparables" data-id="'+Number(r.submission_id)+'">CHECK MARKET EVIDENCE →</button>'))+'</div>'+ 
         '<div id="action-status-'+Number(r.submission_id)+'" class="sub" style="margin-top:8px;min-height:16px"></div>'+
       '</article>'+
     '</div>';
@@ -391,10 +393,8 @@ function render(){
         '<div class="row-cell mobile-hide">'+esc(r.registration||"—")+'</div>'+
         '<div class="row-cell mobile-hide">'+esc(r.bike_year||"—")+'</div>'+
         '<div class="row-cell mobile-hide">'+esc(seller)+'</div>'+
-        '<div class="row-cell hide-mid">'+money(r.price_wanted_gbp)+'</div>'+
-        '<div class="row-cell hide-mid">'+esc(r.hpi_clear===true?"Clear":"Not provided")+'</div>'+
         '<div class="row-cell mobile-hide"><strong>'+esc(String(r.underwrite_status||"").replaceAll("_"," "))+'</strong><small>'+Number(r.unique_buyer_match_count||0)+' buyer match'+(Number(r.unique_buyer_match_count||0)===1?"":"es")+'</small></div>'+
-        '<div class="chev">›</div>'+
+        '<button type="button" class="row-next" data-action="review-submission" data-id="'+Number(r.submission_id)+'">YOUR NEXT ACTION →<small style="display:block;font-weight:500;margin-top:3px">'+esc(r.underwrite_status==="live"?"Review live bids":!r.make||!r.model?"Complete bike details":"Review & prepare")+'</small></button>'+
       '</div>'+
       detail+
     '</div>';
@@ -472,6 +472,12 @@ document.getElementById("queue").addEventListener("click",function(e){
   const id=Number(actionEl.dataset.id);
   const action=actionEl.dataset.action;
 
+  if(action==="review-submission"){
+    const detail=document.getElementById("submission-detail-"+id);
+    if(detail&&!detail.classList.contains("open"))toggleSubmission(id);
+    document.getElementById("submission-row-"+id)?.scrollIntoView({behavior:"smooth",block:"start"});
+    return;
+  }
   if(action==="collapse"){
     const detail=document.getElementById("submission-detail-"+id);
     const row=document.getElementById("submission-row-"+id);
