@@ -843,12 +843,31 @@ async function openThread(id){
     getThreadLeadStatus(t)
   );
 
-  const photos =
-    Array.isArray(lead?.image_urls) && lead.image_urls.length
-      ? lead.image_urls.map(function(url){
-          return `<a href="${url}" target="_blank"><img src="${url}"></a>`;
-        }).join("")
-      : "";
+  // Seller intake photos are stored securely in seller_submission_images,
+  // not in the legacy lead.image_urls field.
+  let sellerPhotoUrls = [];
+  let sellerPhotoError = "";
+  if(String(t.source_type||"").toLowerCase().includes("sell your bike") || t.related_lead_id){
+    const {data:images,error:imageError}=await sb.rpc("admin_get_seller_thread_images_v1",{p_thread_id:Number(t.id)});
+    if(imageError){
+      sellerPhotoError="Could not load submitted photos: "+imageError.message;
+    }else if(Array.isArray(images)&&images.length){
+      const signed=await Promise.all(images.map(async function(photo){
+        const result=await sb.storage.from("seller-intake").createSignedUrl(photo.storage_path,3600);
+        if(result.error || !result.data?.signedUrl)return null;
+        return {url:result.data.signedUrl,name:photo.original_file_name||"Motorcycle photo"};
+      }));
+      sellerPhotoUrls=signed.filter(Boolean);
+      if(sellerPhotoUrls.length!==images.length)sellerPhotoError="Some photos could not be opened. Please reload the thread.";
+    }
+  }
+  const photoItems=sellerPhotoUrls.length?sellerPhotoUrls:
+    (Array.isArray(lead?.image_urls)?lead.image_urls.map(url=>({url,name:"Motorcycle photo"})):[]);
+  const photos=photoItems.map(function(photo){
+    const url=safe(photo.url);
+    return `<a href="${url}" target="_blank" rel="noopener noreferrer" title="Open full-size photo"><img src="${url}" alt="${safe(photo.name)}" loading="lazy"></a>`;
+  }).join("");
+
 
   workspace.innerHTML = `
     <div class="workspace-title">
@@ -937,6 +956,7 @@ async function openThread(id){
       <h3>Motorcycle</h3>
 
       ${photos ? `<div class="photos">${photos}</div>` : ""}
+      ${sellerPhotoError ? `<p style="color:#ffb4b7">${safe(sellerPhotoError)}</p>` : ""}
 
       <div class="grid">
         <div class="field"><span>Bike</span><strong>${safe(bike)}</strong></div>
