@@ -982,25 +982,25 @@ function normaliseYamahaModel(value:string){
     const html=await fetchDirect(url);
     const candidates:string[]=[];
     const add=(raw:string)=>{
-      let value=decodeHtml(String(raw||"").replace(/\\\\\\//g,"/"));
+      let value=decodeHtml(String(raw||"").split(String.raw`\\/`).join("/"));
       if(value.startsWith("//"))value="https:"+value;
       try{
         const resolved=new URL(value,url);
         if(!/^https?:$/.test(resolved.protocol))return;
-        if(!/\\.(?:jpe?g|png|webp)(?:$|[?#])/i.test(resolved.href) && !/\\/(?:image|images|media|uploads|assets)\\//i.test(resolved.pathname))return;
+        if(!/\.(?:jpe?g|png|webp)(?:$|[?#])/i.test(resolved.href) && !/\/(?:image|images|media|uploads|assets)\//i.test(resolved.pathname))return;
         if(/logo|sprite|icon|banner|warranty|certified|about-yamaha|placeholder|payment|finance|dealer-logo/i.test(resolved.href))return;
         if(!candidates.includes(resolved.href))candidates.push(resolved.href);
       }catch{}
     };
-    for(const m of html.matchAll(/<(?:img|source)\\b[^>]*>/gi)){
+    for(const m of html.matchAll(/<(?:img|source)\b[^>]*>/gi)){
       const tag=m[0];
       if(!/yamaha|bike|gallery|vehicle|product|asset|slider|stock/i.test(tag))continue;
-      for(const a of tag.matchAll(/(?:src|data-src|data-original|data-full|data-image|content|srcset)\\s*=\\s*["']([^"']+)["']/gi)){
-        for(const part of a[1].split(","))add(part.trim().split(/\\s+/)[0]);
+      for(const a of tag.matchAll(/(?:src|data-src|data-original|data-full|data-image|content|srcset)\s*=\s*["']([^"']+)["']/gi)){
+        for(const part of a[1].split(","))add(part.trim().split(/\s+/)[0]);
       }
     }
     // Gallery URLs may be embedded in JSON rather than standard image tags.
-    for(const m of html.matchAll(/["']((?:https?:)?\\/\\/[^"'\\s<>]+\\.(?:jpg|jpeg|png|webp)(?:\\?[^"'\\s<>]*)?)["']/gi)){
+    for(const m of html.matchAll(/["']((?:https?:)?\/\/[^"'\s<>]+\.(?:jpg|jpeg|png|webp)(?:\?[^"'\s<>]*)?)["']/gi)){
       if(/gallery|slider|bike|vehicle|stock|image/i.test(html.slice(Math.max(0,m.index-180),m.index)))add(m[1]);
     }
     return candidates.slice(0,12);
