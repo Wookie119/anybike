@@ -364,12 +364,12 @@ function render(){
           ?'<div class="data"><div class="box"><span>Comparable count</span><strong>'+Number(r.latest_comparable_count||0)+'</strong></div><div class="box"><span>Median ask</span><strong>'+money(r.latest_median_ask_gbp)+'</strong></div><div class="box"><span>Range</span><strong>'+money(r.latest_lowest_ask_gbp)+' – '+money(r.latest_highest_ask_gbp)+'</strong></div><div class="box"><span>Average</span><strong>'+money(r.latest_average_ask_gbp)+'</strong></div></div>'
           :'<div class="sub">No comparable snapshot captured yet.</div>')+
         (r.notes?'<p>'+esc(r.notes)+'</p>':"")+
-        (dealer && r.underwrite_status!=="live" && r.make && r.model?'<div class="underwrite-ready-note">Ready to start the 48-hour trade underwrite.</div>':'')+
+        (dealer && r.underwrite_status!=="live" && r.make && r.model?'<div class="underwrite-ready-note">Ready for trade bidding. Choose the deadline below.</div>':'')+
         '<div class="actions">'+
           '<button type="button" data-action="comparables" data-id="'+Number(r.submission_id)+'">Check Connected Stock</button>'+
           (r.underwrite_status!=="live"
             ?(r.make&&r.model
-              ?'<button type="button" class="red" data-action="start-underwrite" data-id="'+Number(r.submission_id)+'">Start 48h Underwrite</button>'
+              ?'<select id="underwrite-hours-'+Number(r.submission_id)+'" aria-label="Bidding time" style="max-width:185px"><option value="12" '+(String(r.notes||"").includes("Urgency: urgent")?"selected":"")+'>Urgent · 12 hours</option><option value="24">24 hours</option><option value="48" '+(!String(r.notes||"").includes("Urgency: urgent")&&!String(r.notes||"").includes("Urgency: flexible")?"selected":"")+'>Standard · 48 hours</option><option value="72">72 hours</option><option value="96" '+(String(r.notes||"").includes("Urgency: flexible")?"selected":"")+'>Flexible · 96 hours</option></select><button type="button" class="red" data-action="start-underwrite" data-id="'+Number(r.submission_id)+'">Start Trade Bidding</button>'
               :'<button type="button" class="red" data-action="edit-bike" data-id="'+Number(r.submission_id)+'">Complete Bike Details</button>')
             :'<a class="btn" href="/admin-trade-underwrites.html">Open Underwrite Desk</a>')+
           '<button type="button" data-action="refresh-demand" data-id="'+Number(r.submission_id)+'">Refresh Buyer Match</button>'+
@@ -488,10 +488,11 @@ document.getElementById("queue").addEventListener("click",function(e){
 },true);
 
 async function startUnderwrite(id){
-  if(!confirm("Open this motorcycle to verified trade members for 48 hours? Seller identity and bid values will remain private."))return;
+  const hours=Number(document.getElementById("underwrite-hours-"+id)?.value||48);
+  if(!confirm("Open this motorcycle to verified UK trade members for "+hours+" hours? Seller identity and confidential price expectations stay private."))return;
   const {data,error}=await sb.rpc("admin_create_trade_underwrite_v1",{
     p_submission_id:Number(id),
-    p_duration_hours:48,
+    p_duration_hours:hours,
     p_invitation_mode:"all_verified_trade"
   });
   if(error){alert(error.message);return;}
