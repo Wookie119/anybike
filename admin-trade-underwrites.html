@@ -120,6 +120,7 @@ async function load(){
  '<div class="meta">Seller-visible genuine bid count: '+r.seller_visible_bid_count+' only. Bid amounts remain internal.</div>'+
  '<div class="actions"><button onclick="viewBids('+r.opportunity_id+')">View Confidential Bids</button>'+
  (r.opportunity_status==="completed"?'<button class="red" onclick="openUnderwriteDeal('+r.opportunity_id+')">Create / Open Deal 360</button>':'')+
+ (r.opportunity_status==='live'?'<button onclick="adjustUnderwriteDeadline('+r.opportunity_id+')">Adjust Countdown</button>':'')+
  (r.opportunity_status==='live'?'<button onclick="closeUnderwrite('+r.opportunity_id+')">Close Underwrite</button>':'')+
  '<button class="red" onclick="openOffer('+r.opportunity_id+','+(r.highest_live_bid_gbp??"null")+')">Make AnyBike Offer</button>'+
  (r.latest_offer_amount_gbp?'<span class="btn">Latest seller offer '+money(r.latest_offer_amount_gbp)+' · '+esc(r.latest_offer_status)+(r.seller_counter_gbp?' · counter '+money(r.seller_counter_gbp):'')+'</span>':'')+
@@ -127,6 +128,17 @@ async function load(){
    ?'<button onclick="recordSellerResponse('+Number(r.latest_offer_id)+',\'accepted\')">Seller Accepted</button><button onclick="recordSellerResponse('+Number(r.latest_offer_id)+',\'declined\')">Seller Declined</button><button onclick="recordSellerCounter('+Number(r.latest_offer_id)+')">Seller Countered</button>'
    :'')+
  '</div><div class="next-step"><strong>Your Next Action →</strong><p>'+((r.latest_offer_status==="accepted")?"Complete Seller Confirmation / HPI Check, then select the buyer.":"Review confidential bids, reconfirm seller availability and agree AnyBike purchase price before selecting a buyer.")+'</p><button class="red" onclick="openFinalCheck('+r.opportunity_id+')">Seller Confirmation / HPI Check →</button> <button onclick="viewBids('+r.opportunity_id+')">Review Bids →</button></div></article>').join("");
+}
+async function adjustUnderwriteDeadline(id){
+ const h=prompt("Set bidding to close in how many hours from now? Choose 12, 24, 48, 72 or 96.","48");
+ if(h===null)return;
+ const hours=Number(h);
+ if(![12,24,48,72,96].includes(hours)){alert("Choose 12, 24, 48, 72 or 96 hours.");return;}
+ if(!confirm("Update the countdown on this live underwriting opportunity to "+hours+" hours from now? Existing bids will remain recorded."))return;
+ const {data,error}=await sb.rpc("admin_adjust_trade_underwrite_deadline_v1",{p_opportunity_id:Number(id),p_hours:hours});
+ if(error){alert(error.message);return;}
+ await load();
+ alert("Countdown updated. Bidding closes "+new Date(data.closes_at).toLocaleString("en-GB")+".");
 }
 let finalCheckId=null;
 const finalCheckFields=["available","price_agreed","history_checked","finance_plan_checked","condition_checked","margin_checked"];
