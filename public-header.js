@@ -709,6 +709,7 @@ async function loadPublicHeader(){
 
     holder.innerHTML = await headerRes.text();
     await setupPublicHeader();
+    if(typeof window.AnyBikePublicStockVisible==="boolean") anybikeUpdatePublicStockMenu(window.AnyBikePublicStockVisible);
     setTimeout(anybikeEnsureCustomerNextAction,100);
 
   }catch(error){
