@@ -1535,11 +1535,36 @@ document.getElementById("bulkRequestForm").addEventListener("submit",e=>{
 
 addRequestMotorcycleBlock();
 
+// Manufacturer/model pages feed the existing buyer request funnel.
+// URL values only prefill fields; submission still uses normal validation, storage and notifications.
+function prefillManufacturerRequest(){
+  const params=new URLSearchParams(location.search);
+  const requestedMake=String(params.get("make")||"").trim().slice(0,90);
+  const requestedModel=String(params.get("model")||"").trim().slice(0,120);
+  if(!requestedMake)return;
+  const make=document.getElementById("request-make-1");
+  const model=document.getElementById("request-model-1");
+  if(!make||!model)return;
+  if(![...make.options].some(o=>o.value.toLowerCase()===requestedMake.toLowerCase())){
+    make.add(new Option(requestedMake,requestedMake));
+  }
+  make.value=[...make.options].find(o=>o.value.toLowerCase()===requestedMake.toLowerCase())?.value||requestedMake;
+  updateRequestModels(1);
+  if(requestedModel){
+    if(![...model.options].some(o=>o.value.toLowerCase()===requestedModel.toLowerCase()))model.add(new Option(requestedModel,requestedModel));
+    model.value=[...model.options].find(o=>o.value.toLowerCase()===requestedModel.toLowerCase())?.value||requestedModel;
+  }
+  const years=String(params.get("years")||"").split(",").map(y=>y.trim());
+  document.querySelectorAll(".request-year-1").forEach(box=>{
+    if(years.includes(box.value))box.checked=true;
+  });
+}
+
 Promise.allSettled([
   loadCurrentUser(),
   loadMakesFromStock(),
   detectCountry()
-]);
+]).then(prefillManufacturerRequest);
 </script>
 
 <script src="/public-header.js?v=12001"></script>
