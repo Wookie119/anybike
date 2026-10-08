@@ -837,3 +837,18 @@ Frontend alignment completed:
 - No Move Motorcycles invoice is raised to AnyBike for AnyBike jobs.
 - The buyer's UK Collection & Delivery Charge remains part of the AnyBike customer deal and must not generate a matching Move supplier payable.
 - Internal transport performance/cost reporting may be tracked operationally, but it must not be represented as an invoice between AnyBike and Move Motorcycles.
+
+
+## 8 October 2026 — Deferred: Shipper Matching in Operations HQ / Deal 360
+
+**Status: Planned; do not implement until the user asks to resume.**
+
+1. Suggest suitable freight forwarders for a deal using destination countries, UK delivery ports/handover points, shipping methods, and motorcycle-handling capability.
+2. Prioritise Preferred AnyBike Partners without hiding other suitable shippers. Keep Preferred Partner and Motorcycle Specialist as separate statuses.
+3. Display rolling/crated motorcycle capabilities, crating facilities and indicative prices such as "Motorcycle Crating from £350.00"; do not represent estimates as confirmed quotes.
+4. Let AnyBike staff request quotations from selected shippers using the established shipper communication workflow.
+5. Record quotations against the correct Deal 360 transaction (route, amount/currency, validity, terms and lead time), visible to authorised staff in Operations HQ.
+6. Present buyer-safe shipping options for buyer approval while keeping internal staff notes private.
+7. Record the buyer's chosen shipper, AnyBike operational approval and confirmed handover arrangements in Deal 360 / Operations HQ.
+
+**Safeguards:** Customers can bring their own freight forwarder. Never automatically appoint or commit to a shipper. Preserve existing authorisation, communications, audit trails, permissions and transaction records.
