@@ -569,6 +569,21 @@ footer{
               </div>
             </div>
 
+            <div class="field full" style="padding:14px 16px;border:1px solid #444;border-radius:10px;">
+              <label for="finance_status" style="font-weight:800;">Is there outstanding finance on this motorcycle? (required)</label>
+              <select id="finance_status" required>
+                <option value="">Please select</option>
+                <option value="none">No — owned outright</option>
+                <option value="outstanding">Yes — finance outstanding</option>
+                <option value="unknown">Not sure</option>
+              </select>
+              <div id="finance_details" style="display:none;margin-top:12px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;">
+                <div class="field"><label for="finance_lender">Finance company</label><input id="finance_lender" placeholder="e.g. Black Horse"></div>
+                <div class="field"><label for="finance_amount">Estimated settlement (£)</label><input id="finance_amount" type="number" min="0" step="0.01" placeholder="e.g. 4900"></div>
+              </div>
+              <div style="font-size:12px;color:#aaa;margin-top:8px;">Finance is allowed. If you accept an AnyBike offer, we can arrange to settle the verified balance directly with the lender and pay you the remainder.</div>
+            </div>
+
             <div class="field full">
               <label for="notes">Anything we should know? <span style="font-weight:400">(optional)</span></label>
               <textarea id="notes" name="notes" placeholder="Damage, finance, modifications, extras, service history or anything important."></textarea>
@@ -766,6 +781,10 @@ document.getElementById("seller_type").addEventListener("change",function(){
   document.getElementById("dealerNameWrap").style.display=this.value==="dealer"?"":"none";
 });
 
+document.getElementById("finance_status").addEventListener("change",function(){
+  document.getElementById("finance_details").style.display=this.value==="outstanding"?"grid":"none";
+});
+
 document.getElementById("sellBikeForm").addEventListener("submit",async function(e){
   e.preventDefault();
   const form=e.currentTarget;
@@ -800,6 +819,13 @@ document.getElementById("sellBikeForm").addEventListener("submit",async function
 
   try{
     const fd=new FormData(form);
+    const financeStatus=document.getElementById("finance_status").value;
+    const lender=document.getElementById("finance_lender").value.trim();
+    const settlement=document.getElementById("finance_amount").value.trim();
+    const financeDescription=financeStatus==="none"?"Seller declares no outstanding finance"
+      :financeStatus==="outstanding"?"Seller declares finance outstanding"+(lender?" | Lender: "+lender:"")+(settlement?" | Estimated settlement: £"+Number(settlement).toFixed(2):"")
+      :"Seller unsure about finance status";
+    fd.set("notes","[FINANCE DECLARATION] "+financeDescription+"\n"+String(fd.get("notes")||"").trim());
     fd.set("source_channel","sell_your_bike");
     fd.set("submission_purpose","sell_to_anybike");
     fd.set("source_url",location.href);
@@ -821,6 +847,7 @@ document.getElementById("sellBikeForm").addEventListener("submit",async function
     }
 
     form.reset();
+    document.getElementById("finance_details").style.display="none";
     document.getElementById("photoCount").textContent="";
     document.getElementById("dealerNameWrap").style.display="none";
 
