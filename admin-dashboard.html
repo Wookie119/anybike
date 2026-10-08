@@ -2080,9 +2080,9 @@ color:#ed1c24;
     <div style="padding:0 18px 18px;"><section class="grid admin-kpi-grid">
 <div class="card" onclick="location.href='admin-message-centre.html'" style="cursor:pointer;">
   <div class="kpi-icon">🏢</div>
-  <h3>Trade Buyer Enquiries</h3>
+  <h3>Legacy Buyer Enquiries</h3>
   <div class="big-number" id="kpiPrivateBuyers">0</div>
-  <div class="small">Current AnyBike buyer enquiries</div>
+  <div class="small">Bike enquiry records, not all active Deal 360 deals</div>
 </div>
 
 <div class="card" onclick="location.href='admin-message-centre.html?source=DealerTrader'" style="cursor:pointer;">
@@ -2101,23 +2101,23 @@ color:#ed1c24;
 
 <div class="card" onclick="location.href='admin-message-centre.html?source=Private%20Seller'" style="cursor:pointer;">
   <div class="kpi-icon">🚲</div>
-  <h3>Private Sellers</h3>
+  <h3>Private Seller Submissions</h3>
   <div class="big-number" id="kpiPrivateSellers">0</div>
-  <div class="small">Stock acquisition leads</div>
+  <div class="small">Direct Sell Your Bike submissions in the seller intake</div>
 </div>
 
 <div class="card" onclick="location.href='admin-enquiries.html'" style="cursor:pointer;">
   <div class="kpi-icon">💷</div>
   <h3>Committed Sales</h3>
   <div class="big-number" id="pipelineValue">£0</div>
-  <div class="small">Deposit received or completed sales</div>
+  <div class="small">Legacy enquiry records only — excludes Deal 360</div>
 </div>
 
 <div class="card" onclick="location.href='admin-reports.html?report=expected-profit'" style="cursor:pointer;">
   <div class="kpi-icon">📈</div>
   <h3>Projected Profit</h3>
   <div class="big-number" id="expectedProfit">£0</div>
-  <div class="small">Projected profit on committed sales</div>
+  <div class="small">Legacy enquiry estimates only — excludes Deal 360</div>
 </div>
 </section></div>
   </details>
@@ -3181,9 +3181,7 @@ setText("kpiImporters", countSourceType([
   "Motorcycle Importer"
 ]));
 
-setText("kpiPrivateSellers", countSourceType([
-  "Private Seller"
-]));
+setText("kpiPrivateSellers", "—"); // Actual seller intake count loaded independently below.
 
 
     const { data: actionThreads } = await sb
@@ -3795,6 +3793,7 @@ setText("kpiPrivateSellers", countSourceType([
       const underwriteResult=await sb.rpc("admin_get_seller_submission_queue_v5",{p_limit:150});
       if(underwriteResult.error)throw underwriteResult.error;
       const underwrites=Array.isArray(underwriteResult.data)?underwriteResult.data:[];
+      setText("kpiPrivateSellers",underwrites.filter(function(item){return item.source_channel!=="dealer_underwrite";}).length);
       const review=underwrites.filter(function(item){
         const state=String(item.underwrite_status||"").toLowerCase();
         const submission=String(item.status||"").toLowerCase();
@@ -3826,6 +3825,7 @@ setText("kpiPrivateSellers", countSourceType([
       }
     }catch(underwriteDashboardError){
       console.warn("Seller underwriting dashboard actions unavailable:",underwriteDashboardError);
+      setText("kpiPrivateSellers","Unavailable");
     }
 
     renderDashboardActionQueue(actions);
