@@ -526,9 +526,9 @@ function setupAdminSearch(){
  ];
  const hide=()=>{results.style.display="none";};
  const draw=(items,message)=>{
-  found=items;
+  found=items.map(x=>({result_type:x.result_type,result_title:x.result_title,result_detail:x.result_detail,url:x.url||x.result_url||""})).filter(x=>typeof x.url==="string" && x.url.trim() && x.url!=="undefined");
   results.style.display="block";
-  results.innerHTML=items.length?items.map((x,i)=>'<a role="option" href="'+esc(x.url)+'" style="display:block;padding:11px;border-radius:8px;color:white;text-decoration:none;border-bottom:1px solid #292929"><span style="font-size:11px;color:#ff6268;font-weight:900">'+esc(x.result_type)+'</span><strong style="display:block;margin-top:3px">'+esc(x.result_title)+'</strong><span style="font-size:12px;color:#aaa">'+esc(x.result_detail)+'</span></a>').join(""):'<div style="padding:12px;color:#aaa">'+esc(message||"No results found")+'</div>';
+  results.innerHTML=found.length?found.map((x,i)=>'<a role="option" href="'+esc(x.url)+'" style="display:block;padding:11px;border-radius:8px;color:white;text-decoration:none;border-bottom:1px solid #292929"><span style="font-size:11px;color:#ff6268;font-weight:900">'+esc(x.result_type)+'</span><strong style="display:block;margin-top:3px">'+esc(x.result_title)+'</strong><span style="font-size:12px;color:#aaa">'+esc(x.result_detail)+'</span></a>').join(""):'<div style="padding:12px;color:#aaa">'+esc(message||"No results found")+'</div>';
  };
  const run=async()=>{
   const query=input.value.trim(),seq=++token;
@@ -549,7 +549,7 @@ function setupAdminSearch(){
  input.addEventListener("input",()=>{clearTimeout(timer);if(input.value.trim().length<2){++token;hide();return;}timer=setTimeout(run,220);});
  input.addEventListener("keydown",e=>{
   if(e.key==="Escape"){hide();return;}
-  if(e.key==="Enter"){e.preventDefault();if(found[0])window.location.href=found[0].url;else run();}
+  if(e.key==="Enter"){e.preventDefault();if(found[0]&&found[0].url)window.location.href=found[0].url;else run();}
  });
  input.addEventListener("focus",()=>{if(input.value.trim().length>=2)run();});
  document.addEventListener("click",e=>{if(!wrap.contains(e.target))hide();});
