@@ -1666,6 +1666,35 @@ function renderDirectory(){
   list.innerHTML = filtered.map(recordHtml).join("");
 }
 
+function shipperProfileQuality(r){
+  const latest=latestSubmissionFor(r);
+  if(profileSubmissions.some(s=>Number(s.forwarder_id||s.freight_forwarder_id)===Number(r.id)&&s.status==="Pending"))
+    return {label:"Awaiting Approval",tone:"preferred",missing:[],action:"Review submitted update"};
+  const missing=[];
+  if(!String(r.email||r.profile_contact_email||"").trim())missing.push("Email");
+  if(!String(r.phone||"").trim())missing.push("Phone");
+  if(!String(r.website||"").trim())missing.push("Website");
+  if(!String(r.uk_address||r.city||"").trim())missing.push("Office / address");
+  if(!arrayValue(r.services).length)missing.push("Services");
+  if(!arrayValue(r.countries_covered).length)missing.push("Destinations");
+  if(!arrayValue(r.ports_served).length)missing.push("Ports served");
+  if(r.ships_motorcycles_rolling==null)missing.push("Rolling motorcycle service");
+  if(r.ships_motorcycles_crated==null)missing.push("Crated motorcycle service");
+  if(r.has_crating_facility==null)missing.push("Crating facility confirmation");
+  if(r.has_crating_facility===true && !(Number(r.crating_approx_price)>0))missing.push("Indicative crating price (optional)");
+  if(missing.length===0)return {label:"Profile Complete",tone:"verified",missing,action:"Open profile"};
+  if(r.profile_invited_at && !r.profile_submitted_at && !latest)return {label:"Awaiting Shipper",tone:"unverified",missing,action:"Resend profile invite"};
+  return {label:"Needs Information",tone:"inactive",missing,action:"Edit missing details"};
+}
+function openShipperQualityAction(id){
+  const r=records.find(x=>Number(x.id)===Number(id));
+  if(!r)return;
+  const q=shipperProfileQuality(r);
+  if(q.label==="Awaiting Approval"){scrollFreightTarget("#profileUpdatesPanel");return;}
+  if(q.label==="Awaiting Shipper"){inviteShipperProfile(id);return;}
+  editRecord(id);
+}
+
 function recordHtml(r){
   const services = arrayValue(r.services);
   const ports = arrayValue(r.ports_served);
@@ -1679,6 +1708,7 @@ function recordHtml(r){
         <div class="company">
           <strong>${escapeHtml(r.company_name || "Unnamed company")}</strong>
           <small>${escapeHtml(r.contact_name || r.email || "No primary contact")}</small>
+          ${(()=>{const q=shipperProfileQuality(r);return '<small style="margin-top:5px"><span class="badge '+q.tone+'">'+escapeHtml(q.label)+'</span></small>'})()}
         </div>
 
         <div class="cell optional">
@@ -1736,6 +1766,7 @@ function recordHtml(r){
           <button class="btn ${r.partner_status==="Preferred" ? "btn-dark" : "btn-primary"}" type="button" onclick="event.stopPropagation();togglePreferredShipper('${escapeHtml(r.id)}')">${r.partner_status==="Preferred" ? "★ Preferred — Remove" : "☆ Mark Preferred"}</button>
           ${r.email ? `<button class="btn btn-dark" type="button" onclick="event.stopPropagation();inviteShipperProfile('${escapeHtml(r.id)}')">${r.profile_invite_status && r.profile_invite_status !== "Not Invited" ? "Resend Profile Invite" : "Send Profile Invite"}</button>` : ""}
         </div>
+        ${(()=>{const q=shipperProfileQuality(r);return '<div class="detail-card" style="margin-bottom:14px;border-color:rgba(255,255,255,.2)"><h4>Profile Quality Check</h4><div style="margin:8px 0"><span class="badge '+q.tone+'">'+escapeHtml(q.label)+'</span></div><p style="font-size:13px;color:#ccc">'+(q.missing.length?'Details to confirm: '+escapeHtml(q.missing.join(", ")):'No outstanding profile fields identified.')+'</p><button class="btn btn-dark" type="button" onclick="openShipperQualityAction('+Number(r.id)+')">'+escapeHtml(q.action)+'</button></div>'})()}
         <div class="details-grid">
           <div class="detail-card">
             <h4>Contact</h4>
