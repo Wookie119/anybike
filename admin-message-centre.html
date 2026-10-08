@@ -448,10 +448,11 @@
 <style>
 .photos .seller-photo-thumb{border:0;background:transparent;padding:0;cursor:pointer}.photos .seller-photo-thumb img{display:block}.seller-photo-toolbar{display:flex;align-items:center;gap:12px;margin:12px 0}.seller-photo-toolbar button,.seller-photo-overlay button{cursor:pointer;border:1px solid #777;background:#292929;color:#fff;border-radius:10px;padding:10px 18px;font-weight:bold}.seller-photo-toolbar button:hover,.seller-photo-overlay button:hover{background:#ed1c24}.seller-photo-count{color:#bbb}.photos .seller-photo-thumb.seller-photo-selected{outline:3px solid #ed1c24;border-radius:9px}.seller-photo-overlay{display:none;position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.94);align-items:center;justify-content:center;padding:65px 90px}.seller-photo-overlay.open{display:flex}.seller-photo-overlay img{max-width:100%;max-height:85vh;object-fit:contain}.seller-photo-overlay .close{position:absolute;right:20px;top:15px}.seller-photo-overlay .prev{position:absolute;left:10px;top:50%}.seller-photo-overlay .next{position:absolute;right:10px;top:50%}.seller-photo-overlay .count{position:absolute;bottom:15px;color:white}
 .seller-photo-overlay .zoom{position:absolute;top:15px;left:18px;z-index:2}
-.seller-photo-overlay .photo-viewport{max-width:100%;max-height:calc(100vh - 120px);overflow:auto;display:flex;align-items:flex-start;justify-content:center}
-.seller-photo-overlay img{cursor:zoom-in;transform-origin:top center}
-.seller-photo-overlay.zoomed img{max-width:none;max-height:none;width:auto;height:auto;cursor:zoom-out}
-.seller-photo-overlay.zoomed .photo-viewport{justify-content:flex-start}
+.seller-photo-overlay .photo-viewport{width:100%;height:calc(100dvh - 130px);overflow:hidden;display:flex;align-items:center;justify-content:center;touch-action:none;cursor:default}
+.seller-photo-overlay .photo-viewport img{max-width:100%;max-height:100%;object-fit:contain;transform:translate(0px,0px) scale(1);transform-origin:center center;user-select:none;-webkit-user-drag:none;cursor:zoom-in;touch-action:none}
+.seller-photo-overlay.zoomed .photo-viewport img{max-width:100%;max-height:100%;cursor:grab}
+.seller-photo-overlay.dragging .photo-viewport img{cursor:grabbing}
+.seller-photo-overlay.open{overscroll-behavior:contain}
 @media(max-width:650px){.seller-photo-overlay{padding:65px 45px}.seller-photo-overlay button{padding:7px}.seller-photo-overlay .prev{left:2px}.seller-photo-overlay .next{right:2px}}
 </style>
 <script src="admin.js?v=202610071152"></script>
@@ -2117,21 +2118,41 @@ function startMessageCentreRealtime(){
     });
 }
 
-let sellerPhotoIndex=0;
+let sellerPhotoIndex=0, sellerPhotoScale=1, sellerPhotoX=0, sellerPhotoY=0, sellerDrag=null, sellerDragMoved=false;
+let sellerGalleryPreviousOverflow="";
 function sellerPhotoLinks(){return Array.from(document.querySelectorAll("#workspace .photos .seller-photo-thumb"));}
-function resetSellerPhotoZoom(){
+function renderSellerPhotoTransform(){
+ const img=document.getElementById("sellerPhotoLarge");
+ const viewport=document.querySelector("#sellerPhotoOverlay .photo-viewport");
+ if(!img||!viewport)return;
+ const maxX=Math.max(0,(img.clientWidth*sellerPhotoScale-viewport.clientWidth)/2);
+ const maxY=Math.max(0,(img.clientHeight*sellerPhotoScale-viewport.clientHeight)/2);
+ sellerPhotoX=Math.max(-maxX,Math.min(maxX,sellerPhotoX));
+ sellerPhotoY=Math.max(-maxY,Math.min(maxY,sellerPhotoY));
+ img.style.transform="translate("+sellerPhotoX+"px,"+sellerPhotoY+"px) scale("+sellerPhotoScale+")";
  const overlay=document.getElementById("sellerPhotoOverlay");
- overlay?.classList.remove("zoomed");
- const btn=document.getElementById("sellerPhotoZoom");
- if(btn)btn.textContent="Zoom in +";
+ overlay.classList.toggle("zoomed",sellerPhotoScale>1);
+ document.getElementById("sellerPhotoZoom").textContent=sellerPhotoScale>1?"Zoom out −":"Zoom in +";
+}
+function resetSellerPhotoZoom(){
+ sellerPhotoScale=1;sellerPhotoX=0;sellerPhotoY=0;sellerDrag=null;sellerDragMoved=false;
+ document.getElementById("sellerPhotoOverlay")?.classList.remove("dragging");
+ renderSellerPhotoTransform();
 }
 function toggleSellerPhotoZoom(){
+ if(!document.getElementById("sellerPhotoOverlay")?.classList.contains("open"))return;
+ sellerPhotoScale=sellerPhotoScale>1?1:2.5;
+ sellerPhotoX=0;sellerPhotoY=0;
+ renderSellerPhotoTransform();
+}
+function closeSellerGallery(){
  const overlay=document.getElementById("sellerPhotoOverlay");
  if(!overlay?.classList.contains("open"))return;
- const zoomed=overlay.classList.toggle("zoomed");
- document.getElementById("sellerPhotoZoom").textContent=zoomed?"Zoom out −":"Zoom in +";
+ overlay.classList.remove("open");
+ document.body.style.overflow=sellerGalleryPreviousOverflow;
+ resetSellerPhotoZoom();
+ document.getElementById("sellerPhotoLarge").removeAttribute("src");
 }
-function closeSellerGallery(){resetSellerPhotoZoom();document.getElementById("sellerPhotoOverlay")?.classList.remove("open");}
 function showSellerPhoto(index,large){
  const links=sellerPhotoLinks();if(!links.length)return;
  if(sellerPhotoIndex!==((index+links.length)%links.length))resetSellerPhotoZoom();
@@ -2140,7 +2161,11 @@ function showSellerPhoto(index,large){
  const count=(sellerPhotoIndex+1)+" / "+links.length;
  const counter=document.querySelector("#workspace .seller-photo-count");if(counter)counter.textContent=count;
  const overlay=document.getElementById("sellerPhotoOverlay");
- if(large)overlay.classList.add("open");
+ if(large&&!overlay.classList.contains("open")){
+   sellerGalleryPreviousOverflow=document.body.style.overflow;
+   document.body.style.overflow="hidden";
+   overlay.classList.add("open");
+ }
  if(overlay.classList.contains("open")){
    const image=document.getElementById("sellerPhotoLarge");
    image.src=links[sellerPhotoIndex].dataset.photoUrl;
@@ -2151,11 +2176,40 @@ function showSellerPhoto(index,large){
 document.addEventListener("click",function(e){
  const nav=e.target.closest("[data-photo-nav]");
  if(nav){e.preventDefault();showSellerPhoto(sellerPhotoIndex+Number(nav.dataset.photoNav),!!nav.closest("#sellerPhotoOverlay"));return;}
- const link=e.target.closest("#workspace .photos .seller-photo-thumb");
- if(link){e.preventDefault();showSellerPhoto(sellerPhotoLinks().indexOf(link),true);return;}
- if(e.target.id==="sellerPhotoZoom"||e.target.id==="sellerPhotoLarge"){toggleSellerPhotoZoom();return;}
+ const thumb=e.target.closest("#workspace .photos .seller-photo-thumb");
+ if(thumb){e.preventDefault();showSellerPhoto(sellerPhotoLinks().indexOf(thumb),true);return;}
+ if(e.target.id==="sellerPhotoZoom"){toggleSellerPhotoZoom();return;}
+ if(e.target.id==="sellerPhotoLarge"){
+   if(sellerDragMoved){sellerDragMoved=false;return;}
+   toggleSellerPhotoZoom();return;
+ }
  if(e.target.id==="sellerPhotoOverlay"||e.target.id==="sellerPhotoClose")closeSellerGallery();
 });
+const sellerPhotoImage=document.getElementById("sellerPhotoLarge");
+sellerPhotoImage.addEventListener("dragstart",e=>e.preventDefault());
+sellerPhotoImage.addEventListener("pointerdown",function(e){
+ if(sellerPhotoScale<=1||e.button!==0)return;
+ sellerDrag={id:e.pointerId,x:e.clientX,y:e.clientY,startX:sellerPhotoX,startY:sellerPhotoY};
+ sellerDragMoved=false;
+ sellerPhotoImage.setPointerCapture(e.pointerId);
+ document.getElementById("sellerPhotoOverlay").classList.add("dragging");
+ e.preventDefault();
+});
+sellerPhotoImage.addEventListener("pointermove",function(e){
+ if(!sellerDrag||sellerDrag.id!==e.pointerId)return;
+ const dx=e.clientX-sellerDrag.x,dy=e.clientY-sellerDrag.y;
+ if(Math.abs(dx)+Math.abs(dy)>4)sellerDragMoved=true;
+ sellerPhotoX=sellerDrag.startX+dx;sellerPhotoY=sellerDrag.startY+dy;
+ renderSellerPhotoTransform();
+});
+function stopSellerPhotoDrag(e){
+ if(!sellerDrag||sellerDrag.id!==e.pointerId)return;
+ sellerDrag=null;
+ document.getElementById("sellerPhotoOverlay").classList.remove("dragging");
+ if(sellerDragMoved)setTimeout(()=>sellerDragMoved=false,0);
+}
+sellerPhotoImage.addEventListener("pointerup",stopSellerPhotoDrag);
+sellerPhotoImage.addEventListener("pointercancel",stopSellerPhotoDrag);
 document.addEventListener("keydown",function(e){
  if(!document.getElementById("sellerPhotoOverlay")?.classList.contains("open"))return;
  if(e.key==="Escape")closeSellerGallery();
