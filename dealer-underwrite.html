@@ -113,6 +113,22 @@ textarea{min-height:90px;resize:vertical}
       </div>
 
       <div class="field">
+        <label for="sale_urgency">How quickly do you need an offer?</label>
+        <select id="sale_urgency"><option value="standard">Standard — no rush</option><option value="urgent">Urgent — as soon as possible</option><option value="flexible">Flexible — happy to wait</option></select>
+      </div>
+      <div class="field">
+        <label for="price_expectation">Your price expectation</label>
+        <select id="price_expectation"><option value="asking">Asking price — open to offers</option><option value="reserve">Minimum price — reserve</option><option value="offers_over">Offers over</option><option value="unsure">Unsure — please value it</option></select>
+      </div>
+      <div class="field">
+        <label for="finance_status">Outstanding finance?</label>
+        <select id="finance_status" required><option value="">Please select</option><option value="none">No — owned outright</option><option value="outstanding">Yes — outstanding finance</option><option value="unknown">Not sure</option></select>
+      </div>
+      <div class="field" id="finance_detail_wrap" style="display:none">
+        <label for="finance_amount">Estimated settlement (£)</label><input id="finance_amount" type="number" min="0" step="0.01" placeholder="4900">
+        <label for="finance_lender">Finance company (optional)</label><input id="finance_lender" placeholder="Finance company">
+      </div>
+      <div class="field">
         <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
           <input id="hpi_clear" name="hpi_clear" type="checkbox" value="true" style="width:auto;margin:0">
           <span>HPI Clear <span style="font-weight:400">(optional)</span></span>
@@ -302,6 +318,9 @@ function clearUnderwriteDraft(){
   }
 })();
 
+document.getElementById("finance_status").addEventListener("change",function(){
+ document.getElementById("finance_detail_wrap").style.display=this.value==="outstanding"?"block":"none";
+});
 document.getElementById("underwriteForm").addEventListener("submit",async function(e){
   e.preventDefault();
   const btn=this.querySelector("button[type='submit']");
@@ -328,6 +347,13 @@ document.getElementById("underwriteForm").addEventListener("submit",async functi
 
   try{
     const fd=new FormData(this);
+    const urgency=document.getElementById("sale_urgency").value;
+    const priceType=document.getElementById("price_expectation").value;
+    const finance=document.getElementById("finance_status").value;
+    const amount=document.getElementById("finance_amount").value.trim();
+    const lender=document.getElementById("finance_lender").value.trim();
+    const financeDetail=finance==="outstanding"?"Seller declares finance outstanding"+(lender?" | Lender: "+lender:"")+(amount?" | Estimated settlement: £"+Number(amount).toFixed(2):""):finance==="none"?"Seller declares no outstanding finance":"Seller unsure about finance status";
+    fd.set("notes","[SELLER PREFERENCE] Urgency: "+urgency+" | Price basis: "+priceType+"\n[FINANCE DECLARATION] "+financeDetail+"\n"+String(fd.get("notes")||"").trim());
     fd.set("legal_owner_confirmed","true");
     fd.set("source_url",location.href);
     fd.set("country","United Kingdom");
@@ -343,6 +369,7 @@ document.getElementById("underwriteForm").addEventListener("submit",async functi
     }
 
     this.reset();
+    document.getElementById("finance_detail_wrap").style.display="none";
     clearUnderwriteDraft();
     selectedPhotoFiles=[];
     syncPhotoInput();
