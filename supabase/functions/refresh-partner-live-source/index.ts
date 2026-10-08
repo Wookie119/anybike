@@ -974,10 +974,11 @@ function normaliseYamahaModel(value:string){
   if(/XSR[ -]?125/.test(u))return "XSR125";
   if(/XSR[ -]?700/.test(u))return "XSR700";
   if(/XSR[ -]?900/.test(u))return /GP/.test(u)?"XSR900 GP":"XSR900";
-  // Never promote unknown advert copy or another manufacturer\'s model into Yamaha filters.\n  // Preserve the source text in raw_data for later manual review.\n  return "";\n}\nasync function yamahaListingImages(assetId:string){
+  // Never promote unknown advert copy or another manufacturer\'s model into Yamaha filters.\n  // Preserve the source text in raw_data for later manual review.\n  return "";\n}\nasync function yamahaListingImages(assetId:string,assetName:string=""){
   // The Yamaha stock JSON regularly contains Images: [], even though the public
   // detail page has a real gallery. Fetch by stable AssetID, not advert title.
-  const url="https://cpo.yamaha-motor.co.uk/gb/bikes/view/"+encodeURIComponent(assetId)+"/";
+  const slug=clean(assetName).toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
+  const url="https://cpo.yamaha-motor.co.uk/gb/bikes/view/"+encodeURIComponent(assetId)+"/"+slug;
   try{
     const html=await fetchDirect(url);
     const candidates:string[]=[];
@@ -987,14 +988,14 @@ function normaliseYamahaModel(value:string){
       try{
         const resolved=new URL(value,url);
         if(!/^https?:$/.test(resolved.protocol))return;
-        if(!/\.(?:jpe?g|png|webp)(?:$|[?#])/i.test(resolved.href) && !/\/(?:image|images|media|uploads|assets)\//i.test(resolved.pathname))return;
+        if(!/\.(?:jpe?g|png|webp)(?:$|[?#])/i.test(resolved.href) && !/\/(?:image|images|media|uploads|assets|stock)\//i.test(resolved.pathname))return;
         if(/logo|sprite|icon|banner|warranty|certified|about-yamaha|placeholder|payment|finance|dealer-logo/i.test(resolved.href))return;
         if(!candidates.includes(resolved.href))candidates.push(resolved.href);
       }catch{}
     };
     for(const m of html.matchAll(/<(?:img|source)\b[^>]*>/gi)){
       const tag=m[0];
-      if(!/yamaha|bike|gallery|vehicle|product|asset|slider|stock/i.test(tag))continue;
+      if(/logo|icon|social|certified|finance|warranty/i.test(tag))continue;
       for(const a of tag.matchAll(/(?:src|data-src|data-original|data-full|data-image|content|srcset)\s*=\s*["']([^"']+)["']/gi)){
         for(const part of a[1].split(","))add(part.trim().split(/\s+/)[0]);
       }
@@ -1090,7 +1091,7 @@ async function refreshAssetCertified(connector:any,sourceLabel:string){
     const missing=collected.filter(x=>!x.source_image_urls?.length);
     for(let offset=0;offset<missing.length;offset+=8){
       await Promise.all(missing.slice(offset,offset+8).map(async item=>{
-        item.source_image_urls=await yamahaListingImages(String(item.source_stock_id));
+        item.source_image_urls=await yamahaListingImages(String(item.source_stock_id),String(item.description_original||""));
       }));
     }
   }
