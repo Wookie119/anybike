@@ -323,7 +323,7 @@ hr{border-color:#303030 !important}
 </div>
 </div>
 <div class="full" id="portSection">
-<label>UK Ports Served — which ports can you work from?</label>
+<label>UK handover locations — where can motorcycles be delivered to your UK operation?</label><p style="font-size:13px;margin:5px 0 12px">Choose UK ports only. Tick a location only if your company can arrange to receive a motorcycle there. Overseas destinations belong in the countries served section. Please give your exact UK receiving address above.</p><div id="legacyPortWarning" style="display:none;background:#fff1de;border:1px solid #d5a451;border-radius:8px;padding:10px;margin-bottom:10px;color:#6b4200"></div>
 <div class="country-tools">
   <input id="portSearch" type="search" placeholder="Search ports, counties or nations">
   <button class="btn secondary" type="button" id="clearPorts">Clear ticks</button>
@@ -512,7 +512,7 @@ function arr(v){return String(v||"").split(",").map(x=>x.trim()).filter(Boolean)
 const selectedCountryNames=new Set();
 function selectedCountries(){return Array.from(selectedCountryNames)}
 function updateCountryCount(){const n=selectedCountryNames.size;countryCount.textContent=n+" countr"+(n===1?"y":"ies")+" selected"}
-function selectedPorts(){return Array.from(selectedPortNames)}
+function selectedPorts(){return Array.from(selectedPortNames).filter(x=>ukFreightPorts.some(p=>p.name===x))}
 function updatePortCount(){
   const n=selectedPortNames.size;
   portCount.textContent=n+" port"+(n===1?"":"s")+" selected";
@@ -520,7 +520,9 @@ function updatePortCount(){
 function renderPortTicks(selected=null){
   if(Array.isArray(selected)){
     selectedPortNames.clear();
-    selected.forEach(x=>selectedPortNames.add(String(x)));
+    selected.forEach(x=>{if(ukFreightPorts.some(p=>p.name===String(x)))selectedPortNames.add(String(x))});
+    const invalid=selected.filter(x=>!ukFreightPorts.some(p=>p.name===String(x)));
+    const warning=document.getElementById("legacyPortWarning");if(warning){warning.style.display=invalid.length?"block":"none";warning.textContent=invalid.length?"Previous overseas or unrecognised ports excluded from UK handover: "+invalid.join(", ")+". Please confirm the UK locations below.":"";}
   }
   const q=String(portSearch?.value||"").trim().toLowerCase();
   const groups={};
