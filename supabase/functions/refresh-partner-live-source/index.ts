@@ -974,9 +974,7 @@ function normaliseYamahaModel(value:string){
   if(/XSR[ -]?125/.test(u))return "XSR125";
   if(/XSR[ -]?700/.test(u))return "XSR700";
   if(/XSR[ -]?900/.test(u))return /GP/.test(u)?"XSR900 GP":"XSR900";
-  return x.replace(/[,;-].*$/,"").trim();
-}
-async function refreshAssetCertified(connector:any,sourceLabel:string){
+  // Never promote unknown advert copy or another manufacturer\'s model into Yamaha filters.\n  // Preserve the source text in raw_data for later manual review.\n  return "";\n}\nasync function refreshAssetCertified(connector:any,sourceLabel:string){
   const base=connector.results_url||connector.base_url;
   const collected:any[]=[]; const seen=new Set<string>();
   const prefix=base.replace(/\/(?:home|page\/1)?\/?$/i,"");
@@ -1009,7 +1007,7 @@ async function refreshAssetCertified(connector:any,sourceLabel:string){
       const assetName=clean(a?.Name||a?.AssetName||"");
       const portalMake=/yamaha/i.test(sourceLabel)?"Yamaha":(/kawasaki/i.test(sourceLabel)?"Kawasaki":null);
       const namedMake=normaliseMake(knownMakeFromText(assetName)||"");
-      const make=normaliseMake(namedMake||portalMake||attr(a,"Make")||sourceLabel.split(" ")[0]);
+      // Structured manufacturer feeds take precedence over stray makes embedded in advert titles.\n      const make=normaliseMake(portalMake||namedMake||attr(a,"Make")||sourceLabel.split(" ")[0]);
 
       let model="";
       const attrModel=clean(attr(a,"Model")||"");
@@ -1043,7 +1041,7 @@ async function refreshAssetCertified(connector:any,sourceLabel:string){
         colour:colour||null,registration:registration||null,
         engine_cc:engineRaw?Number(String(engineRaw).replace(/[^\d.]/g,""))||null:null,
         source_advertised_price_gbp:price,
-        description_original:assetName||model,
+        description_original:portalMake==="Yamaha" && model ? [year,"Yamaha",model].filter(Boolean).join(" ") : (assetName||model),
         specification:{approved_used:true,source:sourceLabel,condition:attr(a,"Condition"),type:attr(a,"Type"),series:attr(a,"Series")},
         source_image_urls:Array.isArray(a?.Images)?a.Images.map((x:any)=>typeof x==="string"?x:(x?.Url||x?.URL||x?.url||"")).filter(Boolean).slice(0,12):[],
         raw_data:a
