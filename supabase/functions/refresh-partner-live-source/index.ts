@@ -1063,7 +1063,7 @@ async function refreshAssetCertified(connector:any,sourceLabel:string){
       const root=new URL(url).origin;
 
       const feedImages=Array.isArray(a?.Images)?a.Images.map((x:any)=>typeof x==="string"?x:(x?.Url||x?.URL||x?.url||"")).filter(Boolean).slice(0,12):[];
-      const bikeImages=feedImages.length?feedImages:(portalMake==="Yamaha"?await yamahaListingImages(id):[]);
+      const bikeImages=feedImages;
       collected.push({
         source_stock_id:id,source_key:id,
         source_url:root+"/gb/bikes/view/"+id+"/",
@@ -1085,6 +1085,15 @@ async function refreshAssetCertified(connector:any,sourceLabel:string){
     if(!added)break;
   }
   if(!collected.length)throw new Error(sourceLabel+" source is reachable but no structured motorcycle records could be extracted.");
+  if(/yamaha/i.test(sourceLabel)){
+    // Fetch in small concurrent batches rather than hundreds of sequential requests.
+    const missing=collected.filter(x=>!x.source_image_urls?.length);
+    for(let offset=0;offset<missing.length;offset+=8){
+      await Promise.all(missing.slice(offset,offset+8).map(async item=>{
+        item.source_image_urls=await yamahaListingImages(String(item.source_stock_id));
+      }));
+    }
+  }
   return finalise(connector,collected);
 }
 function parseListBlockSource(md:string,sourceName:string,forcedMake:string|null=null,baseUrl:string=""){
