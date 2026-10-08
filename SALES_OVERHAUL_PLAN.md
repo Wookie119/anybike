@@ -867,3 +867,10 @@ Frontend alignment completed:
 - The main manufacturer/model pages are stable and indexable; country-specific popular search links may refresh dynamically from genuine visitor/search activity.
 - Prominent **Source [Manufacturer/Model] from the UK** uses existing sourcing registration, customer 360, Live Source Hub, notifications and Deal 360, with brand/model/variant/source page/destination country prefilled or captured. Do not create a separate enquiry system.
 - Buyer messaging must distinguish *available to source* from a *currently advertised UK listing* and *seller-confirmed availability*.
+
+## 8 October 2026 — Manufacturer/model logos and international sourcing calls to action
+
+- Use official manufacturer logos and official model logos/badges where applicable and permitted; preserve authentic proportions/colours. Never invent a model logo when none exists. Keep manufacturer marks distinct from AnyBike branding.
+- Manufacturer primary CTA: **Request a Motorcycle from the UK**. Model page primary CTA: **Request This Motorcycle from the UK**. Preselect the brand/model/generation and use the existing AnyBike sourcing enquiry funnel.
+- Supporting copy: **Source motorcycles from UK sellers through AnyBike. UK collection and delivery to your chosen UK port or approved handover point. Shipping and crating options can be arranged or quoted where available.**
+- Do not imply international shipping or crating is automatically included in the motorcycle offer, guaranteed everywhere, or necessarily undertaken directly by AnyBike. State availability, quote, and third-party arrangements accurately.
