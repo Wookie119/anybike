@@ -679,42 +679,6 @@ window.AnyBikeCustomerNextAction={
 };
 
 
-function anybikeSetupManufacturersDropdown(){
-  const menu=document.querySelector("#publicHeader .public-manufacturers-menu");
-  const popup=menu?.querySelector(".manufacturers-dropdown");
-  if(!menu||!popup)return;
-  const styleId="anybikeManufacturerNavigationFixed";
-  if(!document.getElementById(styleId)){
-    const style=document.createElement("style");
-    style.id=styleId;
-    style.textContent=`
-      .public-nav>.public-manufacturers-menu{position:relative!important;display:flex!important;align-items:center!important;align-self:stretch!important;flex:0 0 auto!important}
-      .public-nav>.public-manufacturers-menu>.manufacturers-dropdown{position:absolute!important;top:100%!important;left:50%!important;width:min(680px,calc(100vw - 32px))!important;max-height:70vh!important;overflow-y:auto!important;box-sizing:border-box!important;transform:translateX(-50%)!important;z-index:9999!important;padding:20px!important;border:1px solid #ffffff36!important;border-top:3px solid #ed1c24!important;border-radius:0 0 12px 12px!important;background:#111!important;box-shadow:0 18px 40px #000b!important}
-      .public-nav .manufacturers-list{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:6px!important;margin:12px 0!important}
-      .public-nav .manufacturers-list>a{display:block!important;white-space:normal!important;padding:9px!important;color:#fff!important;font-size:13px!important}
-      .public-nav .manufacturers-dropdown>p{margin:8px 0!important;font-size:13px!important}
-      .public-nav .manufacturers-dropdown>small{display:block!important;font-size:11px!important}
-      @media(max-width:1100px){.public-nav>.public-manufacturers-menu{display:none!important}}
-    `;
-    document.head.appendChild(style);
-  }
-  let open=false;
-  const setOpen=value=>{
-    if(open===value)return;
-    open=value;
-    popup.style.setProperty("display",value?"block":"none","important");
-    popup.setAttribute("aria-hidden",String(!value));
-  };
-  menu.addEventListener("mouseenter",()=>setOpen(true));
-  menu.addEventListener("mouseleave",()=>setOpen(false));
-  menu.addEventListener("focusin",()=>setOpen(true));
-  menu.addEventListener("focusout",event=>{
-    if(!menu.contains(event.relatedTarget))setOpen(false);
-  });
-  document.addEventListener("keydown",event=>{if(event.key==="Escape")setOpen(false)});
-  setOpen(false);
-}
-
 async function loadPublicHeader(){
   const holder = document.getElementById("publicHeader");
 
@@ -732,7 +696,6 @@ async function loadPublicHeader(){
     }
 
     holder.innerHTML = await headerRes.text();
-    anybikeSetupManufacturersDropdown();
     await setupPublicHeader();
     setTimeout(anybikeEnsureCustomerNextAction,100);
 
