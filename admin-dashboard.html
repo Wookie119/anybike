@@ -2077,7 +2077,17 @@ color:#ed1c24;
 <section style="margin-top:18px;">
   <details class="card" style="padding:0;">
     <summary style="cursor:pointer;padding:16px 18px;font-weight:900;">Business Snapshot</summary>
-    <div style="padding:0 18px 18px;"><section class="grid admin-kpi-grid">
+    <div style="padding:0 18px 18px;">
+  <h3 style="margin:8px 0 12px">Deal 360 — live business</h3>
+  <div class="grid admin-kpi-grid">
+    <div class="card"><h3>Active Deals</h3><div class="big-number" id="snapshotActiveDeals">—</div><div class="small">Current Deal 360 motorcycles in active deals</div></div>
+    <div class="card"><h3>Customer Money Received</h3><div class="big-number" id="snapshotReceived">—</div><div class="small">Verified paid customer receipts across Deal 360</div></div>
+    <div class="card"><h3>Customer Balance Outstanding</h3><div class="big-number" id="snapshotOutstanding">—</div><div class="small">Balances remaining on accepted Deal 360 terms</div></div>
+    <div class="card"><h3>Operations in Progress</h3><div class="big-number" id="snapshotOperations">—</div><div class="small">Active deals currently at operations or shipping stage</div></div>
+  </div>
+  <p id="snapshotDealStatus" class="small" style="margin:0 0 20px">Loading Deal 360 figures…</p>
+  <h3 style="margin:8px 0 12px">Other activity and legacy records</h3>
+  <section class="grid admin-kpi-grid">
 <div class="card" onclick="location.href='admin-message-centre.html'" style="cursor:pointer;">
   <div class="kpi-icon">🏢</div>
   <h3>Legacy Buyer Enquiries</h3>
@@ -3555,6 +3565,26 @@ setText("kpiPrivateSellers", "—"); // Actual seller intake count loaded indepe
         return [String(dealId),payload||null];
       }));
       const accountByDeal=new Map(accountPairs);
+      // Use the same verified Deal 360 customer-account RPC as the action queue.
+      // Never present estimated profit or legacy enquiry totals as Deal 360 money.
+      const accountFailures=accountPairs.filter(function(pair){return !pair[1];}).length;
+      const accountRows=accountPairs.map(function(pair){return pair[1];}).filter(Boolean);
+      setText("snapshotActiveDeals",actionableDeals.length);
+      if(accountFailures){
+        setText("snapshotReceived","Unavailable");
+        setText("snapshotOutstanding","Unavailable");
+        setText("snapshotDealStatus",accountFailures+" Deal 360 account records could not be read; financial totals are withheld to avoid understating them.");
+      }else{
+        setText("snapshotReceived",money(accountRows.reduce(function(sum,a){return sum+Number(a.customer_money_received_gbp||0);},0)));
+        setText("snapshotOutstanding",money(accountRows.reduce(function(sum,a){return sum+Number(a.customer_balance_due_gbp||0);},0)));
+        setText("snapshotDealStatus","Active Deal 360 deals only. Closed/completed deals and unallocated credits are not included in these totals.");
+      }
+      const activeOperations=actionableDeals.filter(function(deal){
+        const stage=String(deal.deal_status||"").toLowerCase();
+        return /operations|shipping|collection|delivery|handover|storage/.test(stage);
+      }).length;
+      setText("snapshotOperations",activeOperations);
+
 
       for(const deal of actionableDeals){
         const dealId=String(deal.deal_id);
