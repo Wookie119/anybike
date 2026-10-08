@@ -874,3 +874,13 @@ Frontend alignment completed:
 - Manufacturer primary CTA: **Request a Motorcycle from the UK**. Model page primary CTA: **Request This Motorcycle from the UK**. Preselect the brand/model/generation and use the existing AnyBike sourcing enquiry funnel.
 - Supporting copy: **Source motorcycles from UK sellers through AnyBike. UK collection and delivery to your chosen UK port or approved handover point. Shipping and crating options can be arranged or quoted where available.**
 - Do not imply international shipping or crating is automatically included in the motorcycle offer, guaranteed everywhere, or necessarily undertaken directly by AnyBike. State availability, quote, and third-party arrangements accurately.
+
+## 8 October 2026 — Manufacturer enquiry continuity and seamless onboarding (mandatory before launch)
+
+- Never lose a visitor's motorcycle requirements when crossing registration, login, email confirmation or customer onboarding. Preserve the request securely before authentication where feasible and attach it exactly once to the authenticated customer record when identity is established; use an expiry-controlled server-side draft/claim mechanism or equivalent secure persistence, not only a volatile page form.
+- One canonical Customer 360 profile. Reuse existing signed-in profile values; prompt only for missing required details, allow buyers to return to incomplete onboarding, and keep previous enquiries intact.
+- Record trade eligibility (international export buyers must be trade/dealer), one-off vs occasional vs regular purchasing, and approximate monthly purchasing volume. Make these editable customer preferences rather than overwriting historical enquiries.
+- Preserve motorcycle maker, model, variant, requested year range, mileage, engine capacity, transmission, specification, preferred UK handover port, destination country, buyer notes and origin page throughout onboarding. Avoid duplicate account/enquiry creation across retries and sessions; use stable identifiers and idempotent submission.
+- Enquiry flows to the existing sourcing funnel, Customer 360, notifications, Live Source Hub and Deal 360; never create a parallel manufacturer enquiry system.
+- Show a visible saved/received confirmation and the buyer's next action. Admin should see buyer qualification and enquiry-source context and receive an actionable notification.
+- Before launch, test the full sequence with new visitor, registered incomplete user, approved buyer, interrupted/returning onboarding and retry/duplicate submission, including row-level access controls and protection of unclaimed drafts.
