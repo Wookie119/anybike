@@ -1585,6 +1585,24 @@ Deno.serve(async(req)=>{
     connectorId=id;
     const q=await admin.from("live_source_connectors").select("*").eq("id",id).eq("enabled",true).maybeSingle();
     if(q.error)throw q.error;if(!q.data)return json({error:"Source connector not found"},404);
+    if(body.photos_only===true){
+      if(q.data.adapter_key!=="yamaha-certified-uk")return json({error:"Photo-only loading is supported for Yamaha Approved Used"},400);
+      const offset=Math.max(0,Math.floor(Number(body.offset)||0));
+      const pageSize=8;
+      const page=await admin.from("live_source_items").select("id,source_stock_id,description_original,source_image_urls")
+        .eq("connector_id",id).eq("source_status","live").order("id",{ascending:true}).range(offset,offset+pageSize-1);
+      if(page.error)throw page.error;
+      const rows=page.data||[];
+      const results=await Promise.all(rows.map(async(item:any)=>{
+        if(Array.isArray(item.source_image_urls)&&item.source_image_urls.length)return {done:true,photo:true};
+        const images=await yamahaListingImages(String(item.source_stock_id||""),String(item.description_original||""));
+        if(!images.length)return {done:true,photo:false};
+        const saved=await admin.from("live_source_items").update({source_image_urls:images,updated_at:new Date().toISOString()}).eq("id",item.id);
+        if(saved.error)throw saved.error;
+        return {done:true,photo:true};
+      }));
+      return json({completed:rows.length<pageSize,next_offset:offset+rows.length,checked:rows.length,with_photos:results.filter(x=>x.photo).length});
+    }
     await admin.from("live_source_connectors").update({last_refresh_started_at:new Date().toISOString(),last_refresh_status:"running"}).eq("id",id);
     let result:any;
     if(q.data.adapter_key==="sykes-hd-uk")result=await refreshSykes(q.data);
