@@ -720,6 +720,7 @@ function refreshCountryFilter(records){
     countrySelect.value=current;
   }
 }
+const UK_HANDOVER_PORTS=new Set(["aberdeen","avonmouth","barrow-in-furness","barry","berwick-upon-tweed","blyth","boston","bridgwater","bristol / portbury","cardiff","cairnryan","chatham","dover","dundee","falmouth","felixstowe","fishguard","folkestone","fowey","fraserburgh","glasgow / clyde","goole","grangemouth","great yarmouth","greenock","grimsby","hartlepool","harwich","heysham","hull","immingham","inverness","ipswich","killingholme","king\u0027s lynn","leith","liverpool","london gateway","lowestoft","manchester docks / ship canal","middlesbrough","milford haven","montrose","neath","newcastle / port of tyne","newhaven","newport","nigg","pembroke dock","peterhead","plymouth","poole","port talbot","portland","portsmouth","purfleet","ramsgate","redcar","ridham","rosyth","scrabster","sheerness","shoreham","southampton","sunderland","sutton bridge","swansea","teesport","thamesport","tilbury","ullapool","wick","wisbech","workington"]);
 function approvedForwarderCard(r){
   const countries=ffArray(r.countries_covered).map(ffCanonicalCountry);
   const ports=ffArray(r.ports_served);
@@ -731,7 +732,11 @@ function approvedForwarderCard(r){
   const website=String(r.website||"").trim();
   const countryText=countries.length ? countries.join(", ") : "Ask provider";
   const serviceText=services.length ? services.join(", ") : "Motorcycle freight / handover";
-  const keywordText=[countryText,ports.join(" "),coverageTerms.join(" "),serviceText,address,location].join(" ");
+  const keywordText=[countryText,ports.join(" "),coverageTerms.join(" "),serviceText,address,location,r.crating_notes||""].join(" ");
+  const handling=[r.ships_motorcycles_rolling===true?"Rolling motorcycles":null,r.ships_motorcycles_crated===true?"Crated motorcycles":null,r.has_crating_facility===true?"In-house crating":null].filter(Boolean);
+  const preparation=ffArray(r.motorcycle_preparation_methods);
+  const cratingCost=Number(r.crating_approx_price)>0?(String(r.crating_price_currency||"GBP")==="GBP"?"£":String(r.crating_price_currency||"GBP")+" ")+Number(r.crating_approx_price).toLocaleString("en-GB",{minimumFractionDigits:0,maximumFractionDigits:2}):"";
+  const validUkPorts=ports.filter(p=>UK_HANDOVER_PORTS.has(String(p).trim().toLowerCase()));
   const typeTokens=["freight"];
   if(isMotorcycleSpecialist) typeTokens.push("motorcycle");
   return '<article class="provider-card" data-approved-directory="true" data-name="'+ffSafe(r.company_name)+'" data-type="'+ffSafe(typeTokens.join(" "))+'" data-method="'+ffSafe(ffMethodTokens(services))+'" data-countries="'+ffSafe(countries.join("|").toLowerCase())+'" data-keywords="'+ffSafe(keywordText.toLowerCase())+'">'+
@@ -741,7 +746,7 @@ function approvedForwarderCard(r){
     '<div class="provider-meta">'+
       '<div><strong>UK location</strong><span>'+ffSafe(address||location||"UK handover details held by AnyBike")+'</span></div>'+
       '<div><strong>Countries served</strong><span>'+ffSafe(countryText)+'</span></div>'+
-      '<div><strong>UK handover</strong><span>'+ffSafe(ports.length?ports.join(", "):(r.destination_port||"Confirmed per booking"))+'</span></div>'+
+      '<div><strong>UK handover</strong><span>'+ffSafe(validUkPorts.length?validUkPorts.join(", "):"Confirm UK receiving location with shipper")+'</span></div>'+
       '<div><strong>Services</strong><span>'+ffSafe(serviceText)+'</span></div>'+
     '</div>'+
     '<div class="tags">'+
@@ -845,7 +850,7 @@ function applyLiveCoverageToCard(card,r){
 
 async function loadApprovedForwarders(){
   try{
-    const result=await sb.rpc("public_get_verified_freight_forwarders_v1");
+    const result=await sb.rpc("public_get_freight_forwarder_directory_v2");
     if(result.error) throw result.error;
     const records=(Array.isArray(result.data)?result.data:[]).filter(r=>r && r.id && r.company_name);
 
