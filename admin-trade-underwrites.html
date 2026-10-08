@@ -18,6 +18,7 @@ button,.btn{border:0;border-radius:10px;padding:10px 13px;background:#292929;col
 table{width:100%;border-collapse:collapse;margin-top:12px}th,td{padding:9px;border-bottom:1px solid var(--line);text-align:left;font-size:13px}th{font-size:10px;color:#888;text-transform:uppercase}
 input{background:#090909;color:#fff;border:1px solid #333;border-radius:10px;padding:10px}.empty{padding:25px;text-align:center;color:#888;border:1px dashed #333;border-radius:14px}
 @media(max-width:950px){.grid{grid-template-columns:1fr}.data{grid-template-columns:1fr 1fr}}@media(max-width:600px){.admin-page-content{padding:14px}}
+.next-step{margin-top:12px;padding:12px;border:1px solid #5c2527;border-radius:10px;background:#1b1010}.next-step strong{display:block;margin-bottom:5px}.next-step p{margin:5px 0 9px;font-size:13px}.final-check{padding:12px;margin:10px 0;background:#0b0b0b;border:1px solid #333;border-radius:10px}.final-check label{display:flex;align-items:center;gap:8px;margin:7px 0;font-size:13px}.final-check input[type=checkbox]{width:18px;height:18px}.final-check textarea{width:100%;min-height:55px;background:#080808;color:white;border:1px solid #444;border-radius:8px;padding:8px}
 </style></head>
 <body>
 <div class="admin-shell"><div id="adminSidebar"></div><div class="admin-main"><div id="adminTopbar"></div>
@@ -27,6 +28,20 @@ input{background:#090909;color:#fff;border:1px solid #333;border-radius:10px;pad
 <div id="grid" class="grid"><div class="empty">Loading…</div></div>
 </main></div></div>
 
+<div id="finalCheckModal" class="modal"><div class="modal-box" style="width:min(680px,100%)">
+<div class="top"><h3 id="finalCheckTitle">Seller Confirmation / HPI Check</h3><button onclick="closeFinalCheck()">Close</button></div>
+<p>Complete after bidding closes. No winner can be selected until the seller and commercial checks are confirmed. Outstanding finance must be cleared before release.</p>
+<div class="final-check" id="finalCheckFields">
+<label><input type="checkbox" id="fc-available"> Seller confirms motorcycle is still available</label>
+<label><input type="checkbox" id="fc-price_agreed"> Seller agrees AnyBike purchase price</label>
+<label><input type="checkbox" id="fc-history_checked"> Vehicle history / HPI checked</label>
+<label><input type="checkbox" id="fc-finance_plan_checked"> Finance status checked and settlement plan confirmed where required</label>
+<label><input type="checkbox" id="fc-condition_checked"> Ownership, mileage and condition reviewed</label>
+<label><input type="checkbox" id="fc-margin_checked"> AnyBike margin and collection costs checked</label>
+<label for="fc-notes" style="display:block;margin-top:10px">Internal notes</label><textarea id="fc-notes" placeholder="HPI result, finance settlement reference, availability call, agreed seller price…"></textarea>
+</div>
+<div class="actions"><button class="red" onclick="saveFinalCheck()">Save Checks &amp; Continue →</button><button onclick="closeFinalCheck()">Cancel</button></div><div id="fc-status" class="meta"></div>
+</div></div>
 <div id="bidModal" class="modal"><div class="modal-box"><div class="top"><div><div class="eyebrow">Confidential Trade Bids</div><h3 id="bidTitle" style="margin:5px 0">Bids</h3></div><button onclick="closeBids()">Close</button></div><div id="bidList"></div></div></div>
 
 <div id="confirmModal" class="modal"><div class="modal-box" style="width:min(620px,100%)">
@@ -111,7 +126,31 @@ async function load(){
  (r.latest_offer_id&&["sent","countered"].includes(r.latest_offer_status)
    ?'<button onclick="recordSellerResponse('+Number(r.latest_offer_id)+',\'accepted\')">Seller Accepted</button><button onclick="recordSellerResponse('+Number(r.latest_offer_id)+',\'declined\')">Seller Declined</button><button onclick="recordSellerCounter('+Number(r.latest_offer_id)+')">Seller Countered</button>'
    :'')+
- '</div></article>').join("");
+ '</div><div class="next-step"><strong>Your Next Action →</strong><p>'+((r.latest_offer_status==="accepted")?"Complete Seller Confirmation / HPI Check, then select the buyer.":"Review confidential bids, reconfirm seller availability and agree AnyBike purchase price before selecting a buyer.")+'</p><button class="red" onclick="openFinalCheck('+r.opportunity_id+')">Seller Confirmation / HPI Check →</button> <button onclick="viewBids('+r.opportunity_id+')">Review Bids →</button></div></article>').join("");
+}
+let finalCheckId=null;
+const finalCheckFields=["available","price_agreed","history_checked","finance_plan_checked","condition_checked","margin_checked"];
+async function openFinalCheck(id){
+ finalCheckId=Number(id);
+ document.getElementById("finalCheckModal").classList.add("open");
+ document.getElementById("finalCheckTitle").textContent="Seller Confirmation / HPI Check · "+(rows.find(r=>Number(r.opportunity_id)===finalCheckId)?.reference||"");
+ document.getElementById("fc-status").textContent="Loading saved checks…";
+ const {data,error}=await sb.rpc("admin_underwrite_final_check_v1",{p_opportunity_id:finalCheckId});
+ if(error){document.getElementById("fc-status").textContent=error.message;return;}
+ finalCheckFields.forEach(f=>document.getElementById("fc-"+f).checked=!!data?.[f]);
+ document.getElementById("fc-notes").value=data?.notes||"";
+ document.getElementById("fc-status").textContent=data?.approved?"✓ Checks approved. You can return to the bids and select a confirmed dealer.":"Complete all checks before selecting a winner.";
+}
+function closeFinalCheck(){document.getElementById("finalCheckModal").classList.remove("open");}
+async function saveFinalCheck(){
+ if(!finalCheckId)return;
+ const args={p_opportunity_id:finalCheckId,p_notes:document.getElementById("fc-notes").value};
+ finalCheckFields.forEach(f=>args["p_"+f]=document.getElementById("fc-"+f).checked);
+ const {data,error}=await sb.rpc("admin_underwrite_final_check_v1",args);
+ const el=document.getElementById("fc-status");
+ if(error){el.textContent=error.message;return;}
+ el.textContent=data?.approved?"✓ Approved. Next: review bids and select confirmed buyer.":"Saved as incomplete. Finish the remaining checks before announcing any winner.";
+ if(data?.approved){const id=finalCheckId;closeFinalCheck();await load();viewBids(id);}
 }
 async function viewBids(id){
  const r=rows.find(x=>Number(x.opportunity_id)===Number(id));
@@ -216,7 +255,7 @@ async function sendConfirmation(){
   closeConfirmModal();closeBids();await load();
 }
 async function selectConfirmed(confirmationId){
-  if(!confirm("Mark this confirmed dealer as selected for the transaction? This will close the other reserve bids."))return;
+  if(!confirm("Final seller and HPI checks must be approved. Select this confirmed dealer and close other reserve bids?"))return;
   const {data,error}=await sb.rpc("admin_select_confirmed_trade_buyer_v1",{p_confirmation_id:Number(confirmationId)});
   if(error){alert(error.message);return;}
   alert("Trade buyer selected. Delivery details have been retained for AnyBike / Move operations.");
