@@ -284,13 +284,28 @@ function updateNextAction(){
   });
 }
 
+let summaryGroup="all";
+function focusUnderwriteGroup(group){
+ summaryGroup=group;
+ document.getElementById("sourceFilter").value=group==="dealer"?"dealer_underwrite":group==="private"?"sell_your_bike":"";
+ document.getElementById("underwriteFilter").value=group==="live"?"live":"";
+ document.getElementById("search").value="";
+ render();
+ document.getElementById("queue").scrollIntoView({behavior:"smooth",block:"start"});
+}
 function renderUnderwriteSummary(){
  const host=document.getElementById("underwriteSummary");if(!host)return;
+ const dealer=rows.filter(r=>r.source_channel==="dealer_underwrite").length;
+ const privateBikes=rows.filter(r=>r.source_channel!=="dealer_underwrite").length;
  const live=rows.filter(r=>String(r.underwrite_status||"")==="live").length;
  const waiting=rows.filter(r=>!["live","completed","closed","cancelled"].includes(String(r.underwrite_status||""))).length;
  const bids=Array.from(tradeOpportunityBySubmission.values()).reduce((sum,o)=>sum+Number(o.live_bid_count||0),0);
- host.innerHTML='<strong>Underwriting overview</strong> · '+rows.length+' submissions · '+waiting+' to review · '+live+' live · '+bids+' current trade offers'
-   +' <a href="/admin-trade-underwrites.html" style="margin-left:15px;color:#ff5258;font-weight:800">OPEN TRADE UNDERWRITE DESK →</a>';
+ const tiles=[["All submissions",rows.length,"all"],["Dealer part-exchanges",dealer,"dealer"],["Private motorcycles",privateBikes,"private"],["Awaiting review",waiting,"waiting"],["Open for trade offers",live,"live"]];
+ host.innerHTML='<div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:10px"><strong>Underwriting overview</strong><span style="color:#aaa;font-size:12px">'+bids+' current confidential trade offers · Offer details are internal</span></div>'+
+ '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px">'+tiles.map(t=>
+ '<button type="button" data-overview="'+t[2]+'" style="text-align:left;background:#171717;color:#fff;border:1px solid #393939;border-radius:9px;padding:10px 12px;cursor:pointer"><span style="font-size:12px;color:#aaa;display:block">'+t[0]+'</span><strong style="font-size:23px">'+t[1]+'</strong></button>'
+ ).join("")+'</div>';
+ host.querySelectorAll("[data-overview]").forEach(btn=>btn.addEventListener("click",()=>focusUnderwriteGroup(btn.dataset.overview)));
 }
 function render(){
   const q=String(document.getElementById("search").value||"").trim().toLowerCase();
@@ -306,6 +321,7 @@ function render(){
   ].join(" ").toLowerCase().includes(q));
 
   if(source)list=list.filter(r=>r.source_channel===source);
+  if(summaryGroup==="waiting")list=list.filter(r=>!["live","completed","closed","cancelled"].includes(String(r.underwrite_status||"")));
   if(status)list=list.filter(r=>String(r.status||"")===status);
   if(uw)list=list.filter(r=>String(r.underwrite_status||"")===uw);
   if(images==="approved")list=list.filter(r=>Number(r.image_approved||0)>0);
