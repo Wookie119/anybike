@@ -113,6 +113,23 @@ textarea{min-height:90px;resize:vertical}
       </div>
 
       <div class="field">
+        <label for="motorcycle_position">Where is the motorcycle?</label>
+        <select id="motorcycle_position">
+          <option value="onsite">At our dealership — onsite now</option>
+          <option value="expected_px">Expected part-exchange — not yet onsite</option>
+          <option value="with_customer">Still with customer — not yet agreed</option>
+        </select>
+      </div>
+      <div class="field" id="expectedArrivalWrap" style="display:none">
+        <label for="expected_arrival_date">Expected arrival date</label>
+        <input id="expected_arrival_date" type="date">
+      </div>
+      <div class="field">
+        <label for="paid_collected_by">We'd like it collected and paid for by (optional)</label>
+        <input id="paid_collected_by" type="date">
+        <div class="small">A requested completion deadline, not a guarantee. AnyBike will check availability and confirm arrangements.</div>
+      </div>
+      <div class="field">
         <label for="sale_urgency">How quickly do you need an offer?</label>
         <select id="sale_urgency"><option value="standard">Standard — no rush</option><option value="urgent">Urgent — as soon as possible</option><option value="flexible">Flexible — happy to wait</option></select>
       </div>
@@ -318,6 +335,9 @@ function clearUnderwriteDraft(){
   }
 })();
 
+document.getElementById("motorcycle_position").addEventListener("change",function(){
+ document.getElementById("expectedArrivalWrap").style.display=this.value==="onsite"?"none":"block";
+});
 document.getElementById("finance_status").addEventListener("change",function(){
  document.getElementById("finance_detail_wrap").style.display=this.value==="outstanding"?"block":"none";
 });
@@ -353,7 +373,14 @@ document.getElementById("underwriteForm").addEventListener("submit",async functi
     const amount=document.getElementById("finance_amount").value.trim();
     const lender=document.getElementById("finance_lender").value.trim();
     const financeDetail=finance==="outstanding"?"Seller declares finance outstanding"+(lender?" | Lender: "+lender:"")+(amount?" | Estimated settlement: £"+Number(amount).toFixed(2):""):finance==="none"?"Seller declares no outstanding finance":"Seller unsure about finance status";
-    fd.set("notes","[SELLER PREFERENCE] Urgency: "+urgency+" | Price basis: "+priceType+"\n[FINANCE DECLARATION] "+financeDetail+"\n"+String(fd.get("notes")||"").trim());
+    const position=document.getElementById("motorcycle_position").value;
+    const arrival=document.getElementById("expected_arrival_date").value;
+    const paidBy=document.getElementById("paid_collected_by").value;
+    if(paidBy&&arrival&&paidBy<arrival){
+      showMsg("The paid-and-collected deadline cannot be before the expected arrival date.",false);
+      btn.disabled=false;btn.textContent="Request Underwrite";return;
+    }
+    fd.set("notes","[DEALER TIMING] Position: "+position+(position!=="onsite"&&arrival?" | Expected arrival: "+arrival:"")+(paidBy?" | Collection and payment requested by: "+paidBy:"")+"\n[SELLER PREFERENCE] Urgency: "+urgency+" | Price basis: "+priceType+"\n[FINANCE DECLARATION] "+financeDetail+"\n"+String(fd.get("notes")||"").trim());
     fd.set("legal_owner_confirmed","true");
     fd.set("source_url",location.href);
     fd.set("country","United Kingdom");
@@ -370,6 +397,7 @@ document.getElementById("underwriteForm").addEventListener("submit",async functi
 
     this.reset();
     document.getElementById("finance_detail_wrap").style.display="none";
+    document.getElementById("expectedArrivalWrap").style.display="none";
     clearUnderwriteDraft();
     selectedPhotoFiles=[];
     syncPhotoInput();
