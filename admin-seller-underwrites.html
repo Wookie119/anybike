@@ -129,6 +129,7 @@ label{display:block;color:#bbb;font-size:12px;font-weight:800}input{width:100%;m
         <button onclick="loadQueue()">Refresh</button>
       </div>
 
+      <div id="underwriteSummary" class="sub" style="margin:12px 0;padding:12px 15px;border:1px solid #333;border-radius:12px">Loading underwriting overview…</div>
       <div id="queue" class="queue-list"><div class="empty">Loading…</div></div>
     </main>
   </div>
@@ -183,6 +184,7 @@ const SUPABASE_URL="https://tuehtnezhdnkqbbhttgp.supabase.co";
 const SUPABASE_ANON_KEY="sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 let rows=[];
+let tradeOpportunityBySubmission=new Map();
 let editId=null;
 const submissionImages=new Map();
 const esc=v=>String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
@@ -192,6 +194,11 @@ async function loadQueue(){
   const {data,error}=await sb.rpc("admin_get_seller_submission_queue_v5",{p_limit:150});
   if(error){document.getElementById("queue").innerHTML='<div class="empty">'+esc(error.message)+'</div>';return;}
   rows=data||[];
+  tradeOpportunityBySubmission=new Map();
+  try{
+    const opportunities=await sb.rpc("admin_get_trade_underwrite_queue_v2");
+    if(!opportunities.error)(opportunities.data||[]).forEach(function(o){tradeOpportunityBySubmission.set(Number(o.submission_id),o);});
+  }catch(err){console.warn("Trade offers summary unavailable",err);}
   render();
   updateNextAction();
 }
@@ -277,6 +284,14 @@ function updateNextAction(){
   });
 }
 
+function renderUnderwriteSummary(){
+ const host=document.getElementById("underwriteSummary");if(!host)return;
+ const live=rows.filter(r=>String(r.underwrite_status||"")==="live").length;
+ const waiting=rows.filter(r=>!["live","completed","closed","cancelled"].includes(String(r.underwrite_status||""))).length;
+ const bids=Array.from(tradeOpportunityBySubmission.values()).reduce((sum,o)=>sum+Number(o.live_bid_count||0),0);
+ host.innerHTML='<strong>Underwriting overview</strong> · '+rows.length+' submissions · '+waiting+' to review · '+live+' live · '+bids+' current trade offers'
+   +' <a href="/admin-trade-underwrites.html" style="margin-left:15px;color:#ff5258;font-weight:800">OPEN TRADE UNDERWRITE DESK →</a>';
+}
 function render(){
   const q=String(document.getElementById("search").value||"").trim().toLowerCase();
   const source=document.getElementById("sourceFilter").value;
@@ -319,6 +334,7 @@ function render(){
     '<div>Dealer / Seller</div><div class="hide-mid">Seller needs</div><div class="hide-mid">HPI</div><div>Underwrite</div><div></div>'+
   '</div>';
 
+  renderUnderwriteSummary();
   host.innerHTML=head+list.map(r=>{
     const dealer=r.source_channel==="dealer_underwrite";
     const imageText=Number(r.image_total||0)===0
@@ -343,9 +359,10 @@ function render(){
         '<div class="sub">'+esc(r.registration||"No registration")+(r.bike_year?" · "+esc(r.bike_year):"")+(r.mileage!==null?" · "+Number(r.mileage).toLocaleString("en-GB")+" miles":"")+'</div>'+
         '<div class="data">'+
           '<div class="box"><span>Seller price expectation</span><strong>'+(r.price_wanted_gbp===null||r.price_wanted_gbp===undefined?"Not provided":money(r.price_wanted_gbp))+'</strong></div>'+
-          '<div class="box"><span>Seller</span><strong>'+esc(seller)+'</strong></div>'+
+          '<div class="box"><span>Seller</span><strong>'+esc(seller)+'</strong><div style="margin-top:7px;font-size:12px">'+(r.seller_email?'<a style="color:#ff696e" href="mailto:'+encodeURIComponent(r.seller_email)+'">Email seller</a> ':'')+(r.seller_phone?'<a style="color:#ff696e;margin-left:10px" href="tel:'+esc(r.seller_phone)+'">Call seller</a> ':'')+(r.message_thread_id?'<a style="color:#ff696e;margin-left:10px" href="/admin-message-centre.html?thread='+Number(r.message_thread_id)+'">Conversation →</a>':'')+'</div></div>'+
 
           '<div class="box"><span>History check</span><strong>'+esc(r.hpi_clear===true?"Seller HPI clear indicated":"Not verified")+'</strong></div>'+
+          '<div class="box"><span>Trade offers</span><strong>'+(tradeOpportunityBySubmission.has(Number(r.submission_id))?Number(tradeOpportunityBySubmission.get(Number(r.submission_id)).live_bid_count||0)+' current offers':'Not open for bidding')+'</strong><div style="margin-top:7px;font-size:12px">'+(tradeOpportunityBySubmission.has(Number(r.submission_id))?'Highest current bid: '+money(tradeOpportunityBySubmission.get(Number(r.submission_id)).highest_live_bid_gbp):'Trade bids will appear after publication')+'</div><a href="/admin-trade-underwrites.html" style="color:#ff696e;font-size:12px">Open Trade Underwrite Desk →</a></div>'+
 
 
         '</div>'+
