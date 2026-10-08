@@ -2,15 +2,678 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Motorcycle Buying | AnyBike</title>
 <meta name="robots" content="noindex,nofollow">
-<script>
-  // Preserve the current underwriting workflow and any existing deep links.
-  window.location.replace("/admin-seller-underwrites.html"+window.location.search+window.location.hash);
-</script>
+<script>document.documentElement.classList.add("admin-auth-pending");</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/admin.js?v=12001"></script>
+<link rel="stylesheet" href="/admin-shell.css?v=12001">
+<style>
+:root{--red:#ed1c24;--line:rgba(255,255,255,.12);--muted:#aaa}
+*{box-sizing:border-box}
+body{margin:0;background:#070707;color:#fff;font-family:Arial,Helvetica,sans-serif}
+.admin-page-content{padding:24px;max-width:none;margin:0}
+.hero,.card{background:#111;border:1px solid var(--line);border-radius:20px}
+.hero{padding:16px 20px;margin-bottom:14px;background:radial-gradient(circle at top right,rgba(237,28,36,.18),transparent 36%),#111}
+.hero h1{font-size:30px;margin:4px 0 5px}.hero p{margin:0;line-height:1.4}
+#anybikeSharedNextAction.anybike-shared-next-action{padding:12px 16px!important;margin:0 0 14px!important;border-radius:14px!important}
+#anybikeSharedNextAction .abna-kicker{font-size:10px!important}
+#anybikeSharedNextAction h2{font-size:21px!important;margin:3px 0 4px!important}
+#anybikeSharedNextAction p{font-size:14px!important;line-height:1.35!important;max-width:1050px}
+#anybikeSharedNextAction .abna-bottom{margin-top:8px!important}
+#anybikeSharedNextAction .abna-waiting{padding:5px 9px!important;font-size:11px!important}
+#anybikeSharedNextAction .abna-btn{padding:9px 12px!important;font-size:12px!important}
+.eyebrow{color:var(--red);font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.12em}
+h1{margin:6px 0 8px;font-size:36px} p{color:#bbb;line-height:1.5}
+.toolbar{display:grid;grid-template-columns:minmax(260px,2fr) repeat(5,minmax(145px,1fr)) auto;gap:10px;margin-bottom:16px}
+.toolbar input,.toolbar select{width:100%;background:#111;color:#fff;border:1px solid #333;border-radius:10px;padding:11px}
+.queue-list{border:1px solid var(--line);border-radius:16px;overflow:hidden;background:#0d0d0d}
+.queue-head,.submission-row{display:grid;grid-template-columns:76px 125px minmax(200px,2fr) 110px 70px minmax(120px,1fr) 105px minmax(170px,1fr);gap:12px;align-items:center}
+.queue-head{padding:10px 14px;background:#171717;color:#888;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.05em}
+.submission-row{padding:10px 14px;border-top:1px solid rgba(255,255,255,.07);cursor:pointer;transition:.15s}
+.submission-row .row-next{border:1px solid #68272b;background:#210f11;color:#fff;border-radius:9px;padding:8px 10px;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap}
+.submission-row .row-next:hover{background:#ed1c24;border-color:#ed1c24}
+.submission-row:hover{background:#151515}.submission-row.open{background:#161616}
+.row-image{width:76px;height:56px;border-radius:9px;overflow:hidden;background:#090909;border:1px solid #2b2b2b;display:flex;align-items:center;justify-content:center;color:#666;font-size:10px;text-align:center}
+.row-image img{width:100%;height:100%;object-fit:cover;display:block}
+.row-main strong{display:block;font-size:15px}.row-main small,.row-cell small{display:block;color:#888;margin-top:3px}
+.row-cell{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.chev{font-size:20px;color:#777;text-align:right}
+.submission-detail{display:none;padding:0 14px 14px;background:#0f0f0f;border-top:1px solid rgba(255,255,255,.05)}
+.submission-detail.open{display:block}.submission-detail .card{margin-top:14px}
+.filter-label{display:block;color:#777;font-size:9px;font-weight:900;text-transform:uppercase;margin:0 0 5px}
+button,.btn{border:0;border-radius:10px;padding:10px 13px;background:#292929;color:#fff;font-weight:900;cursor:pointer;text-decoration:none;display:inline-block}
+button.red,.btn.red{background:var(--red)}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.card{padding:17px}
+.top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.ref{font-weight:900;font-size:18px}.meta{color:#888;font-size:12px;margin-top:4px}
+.badge{display:inline-block;border:1px solid #444;border-radius:999px;padding:5px 8px;font-size:10px;font-weight:900;text-transform:uppercase}
+.badge.dealer{border-color:rgba(237,28,36,.45);color:#ff9da1}
+.bike{font-size:22px;font-weight:900;margin:14px 0 4px}
+.sub{color:#aaa;font-size:13px}
+.data{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:13px 0}
+.box{background:#0b0b0b;border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:9px}
+.box span{display:block;color:#777;font-size:9px;text-transform:uppercase;font-weight:900}
+.box strong{display:block;margin-top:3px}
+.image-state{padding:10px;border-radius:10px;background:#0b0b0b;font-size:12px;color:#bbb;margin:10px 0}
+.review-flow{margin:14px 0 12px;border:1px solid #2b2b2b;border-radius:14px;background:#0a0a0a;padding:12px}
+.review-flow h4{margin:0 0 9px;font-size:15px}.review-steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.review-step{border:1px solid #292929;border-radius:10px;padding:9px;background:#101010}.review-step strong{display:block;font-size:12px}.review-step span{display:block;color:#8d8d8d;font-size:10px;line-height:1.35;margin-top:4px}.review-step.done{border-color:rgba(51,204,102,.38)}.review-step.next{border-color:rgba(237,28,36,.6);background:rgba(237,28,36,.07)}
+.submission-gallery{margin:13px 0}.submission-gallery-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}.submission-gallery-head strong{font-size:14px}.submission-gallery-grid{display:grid;grid-template-columns:repeat(6,minmax(110px,1fr));gap:8px}.submission-photo{aspect-ratio:4/3;border:1px solid #2d2d2d;border-radius:10px;overflow:hidden;background:#080808;cursor:pointer;position:relative}.submission-photo img{width:100%;height:100%;object-fit:cover;display:block}.submission-photo span{position:absolute;left:6px;bottom:6px;background:rgba(0,0,0,.78);padding:3px 5px;border-radius:6px;font-size:9px;font-weight:900}.submission-photo.placeholder{display:flex;align-items:center;justify-content:center;color:#888;font-size:10px;text-align:center;padding:8px;cursor:default}
+.image-lightbox{position:fixed;inset:0;background:rgba(0,0,0,.92);display:none;align-items:center;justify-content:center;padding:24px;z-index:10000}.image-lightbox.open{display:flex}.image-lightbox img{max-width:94vw;max-height:90vh;object-fit:contain;border-radius:12px}.image-lightbox button{position:absolute;top:18px;right:18px;background:#222;border:1px solid #555}
+.comps{border-top:1px solid var(--line);padding-top:12px;margin-top:12px}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.empty{padding:30px;text-align:center;color:#888;border:1px dashed #333;border-radius:15px}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.75);display:none;align-items:center;justify-content:center;padding:20px;z-index:999}
+.modal.open{display:flex}.modal-box{width:min(650px,100%);background:#111;border:1px solid #444;border-radius:18px;padding:20px}
+.modal-intro{margin:0 0 16px;color:#d7d7d7}
+.modal-context{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:0 0 18px}
+.modal-context .box{background:#090909;border-color:#292929}
+.card.ready-underwrite{border-color:rgba(237,28,36,.65);box-shadow:0 0 0 1px rgba(237,28,36,.18)}
+.card.ready-underwrite .underwrite-ready-note{color:#ffb0b3;font-weight:900}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.full{grid-column:1/-1}
+label{display:block;color:#bbb;font-size:12px;font-weight:800}input{width:100%;margin-top:6px;background:#090909;color:#fff;border:1px solid #333;border-radius:10px;padding:11px}
+@media(max-width:1350px){.toolbar{grid-template-columns:repeat(4,minmax(0,1fr))}.toolbar #search{grid-column:1/-1}.queue-head,.submission-row{grid-template-columns:76px 110px minmax(210px,2fr) 100px 100px 120px 100px 42px}.hide-mid{display:none}}
+@media(max-width:1100px){.submission-gallery-grid{grid-template-columns:repeat(4,minmax(100px,1fr))}.review-steps{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:760px){.toolbar{grid-template-columns:1fr 1fr}.toolbar #search{grid-column:1/-1}.queue-head{display:none}.submission-row{grid-template-columns:74px 1fr 36px;gap:10px}.submission-row .mobile-hide{display:none}.submission-detail{padding:0 8px 10px}.form-grid,.modal-context{grid-template-columns:1fr}.full{grid-column:auto}.admin-page-content{padding:14px}.submission-gallery-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.review-steps{grid-template-columns:1fr}}
+</style>
 </head>
-<body style="background:#090909;color:#fff;font-family:Arial,sans-serif;padding:30px">
-<p>Opening Motorcycle Buying… <a style="color:#ff4d54" href="/admin-seller-underwrites.html">Continue to Motorcycle Buying</a></p>
+<body>
+<div class="admin-shell">
+  <div id="adminSidebar"></div>
+  <div class="admin-main">
+    <div id="adminTopbar"></div>
+    <main class="admin-page-content">
+      <section class="hero">
+        <div class="eyebrow">AnyBike Buying Team</div>
+        <h1>Motorcycle Buying</h1>
+        <p>Private seller enquiries and dealer underwrites now arrive through the same motorcycle intake. Verified UK trade-dealer bids establish the current trade offer level. Stock comparisons are optional; seller identity and bid values remain internal.</p>
+      </section>
+
+      <div class="toolbar">
+        <input id="search" placeholder="Search reference, reg, make, model, dealer, seller…" oninput="render()">
+        <select id="sourceFilter" onchange="render()">
+          <option value="">All sources</option>
+          <option value="dealer_underwrite">Dealer Underwrite</option>
+          <option value="sell_your_bike">Sell Your Bike</option>
+        </select>
+        <select id="statusFilter" onchange="render()">
+          <option value="">All submission states</option>
+          <option value="new">New</option>
+          <option value="underwrite">Underwrite</option>
+        </select>
+        <select id="underwriteFilter" onchange="render()">
+          <option value="">All underwrite states</option>
+          <option value="eligible">Eligible</option>
+          <option value="live">Live</option>
+          <option value="not_started">Not started</option>
+        </select>
+        <select id="imageFilter" onchange="render()">
+          <option value="">All image states</option>
+          <option value="approved">Approved images</option>
+          <option value="review">Needs image review</option>
+          <option value="none">No images</option>
+        </select>
+        <select id="hpiFilter" onchange="render()">
+          <option value="">All HPI states</option>
+          <option value="clear">HPI Clear</option>
+          <option value="not_provided">Not provided</option>
+        </select>
+        <select id="buyerFilter" onchange="render()">
+          <option value="">All buyer demand</option>
+          <option value="matched">Buyer matches</option>
+          <option value="none">No buyer matches</option>
+        </select>
+        <button onclick="loadQueue()">Refresh</button>
+      </div>
+
+      <div id="underwriteSummary" class="sub" style="margin:12px 0;padding:12px 15px;border:1px solid #333;border-radius:12px">Loading underwriting overview…</div>
+      <div id="queue" class="queue-list"><div class="empty">Loading…</div></div>
+    </main>
+  </div>
+</div>
+
+<div id="imageLightbox" class="image-lightbox" onclick="closeImageLightbox()">
+  <button type="button" onclick="closeImageLightbox();event.stopPropagation()">Close</button>
+  <img id="imageLightboxImg" alt="Motorcycle photo" onclick="event.stopPropagation()">
+</div>
+
+<div id="demandModal" class="modal">
+  <div class="modal-box" style="width:min(820px,100%)">
+    <div class="top">
+      <div>
+        <div class="eyebrow">Factual Demand Evidence</div>
+        <h3 id="demandTitle" style="margin:5px 0 0">International Buyer Matches</h3>
+      </div>
+      <button onclick="closeDemandModal()">Close</button>
+    </div>
+    <p>These are matches against explicit buyer requirements. Buyer budgets are shown as a separate commercial check because the seller's target price is not the AnyBike customer selling price.</p>
+    <div id="demandList"></div>
+  </div>
+</div>
+
+<div id="modal" class="modal">
+  <div class="modal-box">
+    <div class="eyebrow">Dealer Underwrite Setup</div>
+    <h3 id="vehicleModalTitle" style="margin:5px 0 8px">Complete motorcycle details before underwriting</h3>
+    <p id="vehicleModalReason" class="modal-intro">AnyBike needs the Make and Model before this motorcycle can be sent to trade underwriters.</p>
+    <div class="modal-context">
+      <div class="box"><span>Submission</span><strong id="vehicleModalRef">—</strong></div>
+      <div class="box"><span>Registration</span><strong id="vehicleModalReg">—</strong></div>
+      <div class="box"><span>Current mileage</span><strong id="vehicleModalMileage">—</strong></div>
+      <div class="box"><span>HPI</span><strong id="vehicleModalHpi">—</strong></div>
+    </div>
+    <div class="form-grid">
+      <label>Make<input id="mMake"></label>
+      <label>Model<input id="mModel"></label>
+      <label>Variant<input id="mVariant"></label>
+      <label>Year<input id="mYear" type="number"></label>
+      <label>Mileage<input id="mMileage" type="number"></label>
+      <div class="full actions">
+        <button class="red" onclick="saveVehicle()">Save</button>
+        <button onclick="closeModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL="https://tuehtnezhdnkqbbhttgp.supabase.co";
+const SUPABASE_ANON_KEY="sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+let rows=[];
+let tradeOpportunityBySubmission=new Map();
+let editId=null;
+const submissionImages=new Map();
+const esc=v=>String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+const money=v=>v===null||v===undefined||v===""?"—":"£"+Number(v).toLocaleString("en-GB",{maximumFractionDigits:0});
+
+async function loadQueue(){
+  const {data,error}=await sb.rpc("admin_get_seller_submission_queue_v5",{p_limit:150});
+  if(error){document.getElementById("queue").innerHTML='<div class="empty">'+esc(error.message)+'</div>';return;}
+  rows=data||[];
+  tradeOpportunityBySubmission=new Map();
+  try{
+    const opportunities=await sb.rpc("admin_get_trade_underwrite_queue_v2");
+    if(!opportunities.error)(opportunities.data||[]).forEach(function(o){tradeOpportunityBySubmission.set(Number(o.submission_id),o);});
+  }catch(err){console.warn("Trade offers summary unavailable",err);}
+  render();
+  updateNextAction();
+  const requestedSubmission=Number(new URLSearchParams(location.search).get("submission"));
+  if(requestedSubmission&&rows.some(x=>Number(x.submission_id)===requestedSubmission)){
+    const el=document.getElementById("submission-detail-"+requestedSubmission);
+    if(el&&!el.classList.contains("open"))toggleSubmission(requestedSubmission);
+    document.getElementById("submission-row-"+requestedSubmission)?.scrollIntoView({block:"center"});
+  }
+}
+
+function updateNextAction(){
+  if(!rows.length){
+    window.AnyBikeNextAction?.set({
+      title:"No seller underwrites waiting",
+      text:"There are currently no seller or dealer submissions requiring work.",
+      waitingFor:"AnyBike",
+      label:"REFRESH QUEUE →",
+      onClick:()=>loadQueue()
+    });
+    return;
+  }
+
+  const dealerUnderwrites=rows.filter(r=>r.source_channel==="dealer_underwrite" && r.underwrite_status!=="live");
+  const needsDetails=dealerUnderwrites.find(r=>!r.make||!r.model);
+
+  if(needsDetails){
+    window.AnyBikeNextAction?.set({
+      title:(needsDetails.reference||"Legacy underwrite")+" needs missing motorcycle details",
+      text:"This is an older submission created before Make and Model became mandatory on the dealer form. Complete the missing details once so it can enter the normal underwrite flow. New dealer submissions now require these details from the dealer.",
+      waitingFor:"AnyBike correction",
+      label:"COMPLETE "+(needsDetails.reference||"DETAILS")+" →",
+      onClick:()=>{
+        const id=Number(needsDetails.submission_id);
+        const row=document.getElementById("submission-row-"+id);
+        row?.scrollIntoView({behavior:"smooth",block:"center"});
+        editVehicle(id);
+      }
+    });
+    return;
+  }
+
+  if(dealerUnderwrites.length){
+    const next=dealerUnderwrites[0];
+    const bike=[next.make,next.model,next.variant].filter(Boolean).join(" ")||next.registration||"motorcycle";
+    window.AnyBikeNextAction?.set({
+      title:(next.reference||"Next underwrite")+" · "+bike,
+      text:(dealerUnderwrites.length===1
+        ?"This dealer underwrite is ready for your review. Open the row, check the dealer-supplied details and images, then start the 48-hour underwrite when you are satisfied."
+        :dealerUnderwrites.length+" dealer underwrites are ready. Review "+(next.reference||"the next submission")+" first, check the dealer-supplied details and images, then choose a bidding duration and invite trade offers."),
+      waitingFor:"AnyBike review",
+      label:"REVIEW "+(next.reference||"NEXT UNDERWRITE")+" →",
+      onClick:()=>{
+        const id=Number(next.submission_id);
+        const row=document.getElementById("submission-row-"+id);
+        const detail=document.getElementById("submission-detail-"+id);
+        if(detail && !detail.classList.contains("open")) toggleSubmission(id);
+        setTimeout(()=>{
+          (detail||row)?.scrollIntoView({behavior:"smooth",block:"center"});
+          const startButton=detail?.querySelector("button.red");
+          if(startButton){
+            startButton.focus({preventScroll:true});
+            startButton.style.boxShadow="0 0 0 3px rgba(237,28,36,.28)";
+            setTimeout(()=>{startButton.style.boxShadow="";},1800);
+          }
+        },80);
+      }
+    });
+    return;
+  }
+
+  const live=rows.find(r=>r.underwrite_status==="live");
+  if(live){
+    window.AnyBikeNextAction?.set({
+      title:"Review live trade underwrites",
+      text:"At least one underwrite is already live and waiting for trade bids or follow-up.",
+      waitingFor:"Trade Buyers",
+      label:"OPEN TRADE UNDERWRITE DESK →",
+      href:"/admin-trade-underwrites.html"
+    });
+    return;
+  }
+
+  window.AnyBikeNextAction?.set({
+    title:"Review the seller queue",
+    text:"Open the next seller submission and complete the genuine outstanding action.",
+    waitingFor:"AnyBike",
+    label:"REVIEW QUEUE →",
+    selector:"#queue .card"
+  });
+}
+
+let summaryGroup="all";
+function focusUnderwriteGroup(group){
+ summaryGroup=group;
+ document.getElementById("sourceFilter").value=group==="dealer"?"dealer_underwrite":group==="private"?"sell_your_bike":"";
+ document.getElementById("underwriteFilter").value=group==="live"?"live":"";
+ document.getElementById("search").value="";
+ render();
+ document.getElementById("queue").scrollIntoView({behavior:"smooth",block:"start"});
+}
+function renderUnderwriteSummary(){
+ const host=document.getElementById("underwriteSummary");if(!host)return;
+ const dealer=rows.filter(r=>r.source_channel==="dealer_underwrite").length;
+ const privateBikes=rows.filter(r=>r.source_channel!=="dealer_underwrite").length;
+ const live=rows.filter(r=>String(r.underwrite_status||"")==="live").length;
+ const waiting=rows.filter(r=>!["live","completed","closed","cancelled"].includes(String(r.underwrite_status||""))).length;
+ const bids=Array.from(tradeOpportunityBySubmission.values()).reduce((sum,o)=>sum+Number(o.live_bid_count||0),0);
+ const tiles=[["All submissions",rows.length,"all"],["Dealer part-exchanges",dealer,"dealer"],["Private motorcycles",privateBikes,"private"],["Awaiting review",waiting,"waiting"],["Open for trade offers",live,"live"]];
+ host.innerHTML='<div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:10px"><strong>Underwriting overview</strong><span style="color:#aaa;font-size:12px">'+bids+' current confidential trade offers · Offer details are internal</span></div>'+
+ '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px">'+tiles.map(t=>
+ '<button type="button" data-overview="'+t[2]+'" style="text-align:left;background:#171717;color:#fff;border:1px solid #393939;border-radius:9px;padding:10px 12px;cursor:pointer"><span style="font-size:12px;color:#aaa;display:block">'+t[0]+'</span><strong style="font-size:23px">'+t[1]+'</strong></button>'
+ ).join("")+'</div>';
+ host.querySelectorAll("[data-overview]").forEach(btn=>btn.addEventListener("click",()=>focusUnderwriteGroup(btn.dataset.overview)));
+}
+function render(){
+  const q=String(document.getElementById("search").value||"").trim().toLowerCase();
+  const source=document.getElementById("sourceFilter").value;
+  const status=document.getElementById("statusFilter").value;
+  const uw=document.getElementById("underwriteFilter").value;
+  const images=document.getElementById("imageFilter").value;
+  const hpi=document.getElementById("hpiFilter").value;
+  const buyer=document.getElementById("buyerFilter").value;
+
+  let list=rows.filter(r=>[
+    r.reference,r.registration,r.make,r.model,r.variant,r.seller_name,r.dealer_name,r.seller_email
+  ].join(" ").toLowerCase().includes(q));
+
+  if(source)list=list.filter(r=>r.source_channel===source);
+  if(summaryGroup==="waiting")list=list.filter(r=>!["live","completed","closed","cancelled"].includes(String(r.underwrite_status||"")));
+  if(status)list=list.filter(r=>String(r.status||"")===status);
+  if(uw)list=list.filter(r=>String(r.underwrite_status||"")===uw);
+  if(images==="approved")list=list.filter(r=>Number(r.image_approved||0)>0);
+  if(images==="review")list=list.filter(r=>Number(r.image_review||0)>0);
+  if(images==="none")list=list.filter(r=>Number(r.image_total||0)===0);
+  if(hpi==="clear")list=list.filter(r=>r.hpi_clear===true);
+  if(hpi==="not_provided")list=list.filter(r=>r.hpi_clear!==true);
+  if(buyer==="matched")list=list.filter(r=>Number(r.unique_buyer_match_count||0)>0);
+  if(buyer==="none")list=list.filter(r=>Number(r.unique_buyer_match_count||0)===0);
+
+  const financeLabel=r=>{
+    const notes=String(r.notes||"");
+    if(notes.includes("[FINANCE DECLARATION] Seller declares finance outstanding")){
+      const amount=notes.match(/Estimated settlement: £([0-9.]+)/);
+      return "Finance declared"+(amount?" · £"+Number(amount[1]).toLocaleString("en-GB",{maximumFractionDigits:2}):"")+" · verify before completion";
+    }
+    if(notes.includes("[FINANCE DECLARATION] Seller declares no outstanding finance"))return "Seller declares no finance · unverified";
+    if(notes.includes("[FINANCE DECLARATION] Seller unsure"))return "Finance status unknown · check required";
+    return "Not declared · check required";
+  };
+  const host=document.getElementById("queue");
+  if(!list.length){host.innerHTML='<div class="empty">No submissions match these filters.</div>';return;}
+
+  const head='<div class="queue-head">'+
+    '<div>Image</div><div>Reference</div><div>Motorcycle</div><div>Reg</div><div>Year</div>'+
+    '<div>Dealer / Seller</div><div class="hide-mid">Seller needs</div><div class="hide-mid">HPI</div><div>Underwrite</div><div></div>'+
+  '</div>';
+
+  renderUnderwriteSummary();
+  host.innerHTML=head+list.map(r=>{
+    const dealer=r.source_channel==="dealer_underwrite";
+    const imageText=Number(r.image_total||0)===0
+      ?"No photos"
+      : Number(r.image_approved||0)>0
+        ?Number(r.image_approved)+" approved"
+        : Number(r.image_review||0)>0
+          ?Number(r.image_review)+" review"
+          :"Processing";
+    const image=r.primary_display_image_url
+      ?'<img src="'+esc(r.primary_display_image_url)+'" alt="'+esc([r.make,r.model].filter(Boolean).join(" ")||r.registration||"Motorcycle")+'">'
+      :'<span>'+esc(imageText)+'</span>';
+    const bike=[r.make,r.model,r.variant].filter(Boolean).join(" ")||"Motorcycle details needed";
+    const seller=r.dealer_name||r.seller_name||"—";
+    const hasComps=r.latest_snapshot_at!==null && Number(r.latest_comparable_count||0)>0;
+    const hasComparableSnapshot=r.latest_snapshot_at!==null;
+
+    const detail='<div id="submission-detail-'+Number(r.submission_id)+'" class="submission-detail">'+
+      '<article class="card">'+
+        '<div class="top"><div><div class="ref">'+esc(r.reference)+'</div><div class="meta">'+new Date(r.created_at).toLocaleString("en-GB")+'</div></div><div style="display:flex;gap:8px;align-items:center"><span class="badge '+(dealer?"dealer":"")+'">'+esc(dealer?"Dealer Underwrite":"Sell Your Bike")+'</span><button type="button" class="btn" data-action="collapse" data-id="'+Number(r.submission_id)+'">▲ Collapse</button></div></div>'+
+        '<div class="bike">'+esc(bike)+'</div>'+
+        '<div class="sub">'+esc(r.registration||"No registration")+(r.bike_year?" · "+esc(r.bike_year):"")+(r.mileage!==null?" · "+Number(r.mileage).toLocaleString("en-GB")+" miles":"")+'</div>'+
+        '<div class="data">'+
+          '<div class="box"><span>Seller price expectation</span><strong>'+(r.price_wanted_gbp===null||r.price_wanted_gbp===undefined?"Not provided":money(r.price_wanted_gbp))+'</strong></div>'+
+          '<div class="box"><span>Seller</span><strong>'+esc(seller)+'</strong><div style="margin-top:7px;font-size:12px">'+(r.seller_email?'<a style="color:#ff696e" href="mailto:'+encodeURIComponent(r.seller_email)+'">Email seller</a> ':'')+(r.seller_phone?'<a style="color:#ff696e;margin-left:10px" href="tel:'+esc(r.seller_phone)+'">Call seller</a> ':'')+(r.message_thread_id?'<a style="color:#ff696e;margin-left:10px" href="/admin-message-centre.html?thread='+Number(r.message_thread_id)+'">Conversation →</a>':'')+'</div></div>'+
+
+          '<div class="box"><span>History check</span><strong>'+esc(r.hpi_clear===true?"Seller HPI clear indicated":"Not verified")+'</strong></div>'+
+          '<div class="box"><span>Trade offers</span><strong>'+(tradeOpportunityBySubmission.has(Number(r.submission_id))?Number(tradeOpportunityBySubmission.get(Number(r.submission_id)).live_bid_count||0)+' current offers':'Not open for bidding')+'</strong><div style="margin-top:7px;font-size:12px">'+(tradeOpportunityBySubmission.has(Number(r.submission_id))?'Highest current bid: '+money(tradeOpportunityBySubmission.get(Number(r.submission_id)).highest_live_bid_gbp):'Trade bids will appear after publication')+'</div><a href="/admin-trade-underwrites.html" style="color:#ff696e;font-size:12px">Open Trade Underwrite Desk →</a></div>'+
+
+
+        '</div>'+
+        '<div class="submission-gallery" id="submission-gallery-'+Number(r.submission_id)+'">'+
+          '<div class="submission-gallery-head"><strong>Motorcycle photos · '+Number(r.image_total||0)+'</strong><span class="sub">Loading all images…</span></div>'+
+          '<div class="submission-gallery-grid"><div class="submission-photo placeholder">Loading photos…</div></div>'+
+        '</div>'+
+        (hasComps
+          ?'<div class="data"><div class="box"><span>Comparable count</span><strong>'+Number(r.latest_comparable_count||0)+'</strong></div><div class="box"><span>Median ask</span><strong>'+money(r.latest_median_ask_gbp)+'</strong></div><div class="box"><span>Range</span><strong>'+money(r.latest_lowest_ask_gbp)+' – '+money(r.latest_highest_ask_gbp)+'</strong></div><div class="box"><span>Average</span><strong>'+money(r.latest_average_ask_gbp)+'</strong></div></div>'
+          :'<div class="sub">Trade price will be established from confidential UK dealer bids. No stock comparison is required.</div>')+
+        (r.notes?'<p>'+esc(r.notes)+'</p>':"")+
+        (dealer && r.underwrite_status!=="live" && r.make && r.model?'<div class="underwrite-ready-note">Ready to invite trade offers. The current system still applies an initial bidding deadline; reserve-triggered timing is under development.</div>':'')+
+        '<div class="actions">'+
+          '<button type="button" data-action="comparables" data-id="'+Number(r.submission_id)+'">Optional Stock Comparison</button>'+
+          (r.underwrite_status!=="live"
+            ?(r.make&&r.model
+              ?'<select id="underwrite-hours-'+Number(r.submission_id)+'" aria-label="Bidding time" style="max-width:185px"><option value="12" '+(String(r.notes||"").includes("Urgency: urgent")?"selected":"")+'>Urgent · 12 hours</option><option value="24">24 hours</option><option value="48" '+(!String(r.notes||"").includes("Urgency: urgent")&&!String(r.notes||"").includes("Urgency: flexible")?"selected":"")+'>Standard · 48 hours</option><option value="72">72 hours</option><option value="96" '+(String(r.notes||"").includes("Urgency: flexible")?"selected":"")+'>Flexible · 96 hours</option></select><button type="button" class="red" data-action="start-underwrite" data-id="'+Number(r.submission_id)+'">Start Trade Bidding</button>'
+              :'<button type="button" class="red" data-action="edit-bike" data-id="'+Number(r.submission_id)+'">Complete Bike Details</button>')
+            :'<a class="btn" href="/admin-trade-underwrites.html">Open Underwrite Desk</a>')+
+          '<button type="button" data-action="refresh-demand" data-id="'+Number(r.submission_id)+'">Refresh Buyer Match</button>'+
+          (Number(r.unique_buyer_match_count||0)>0?'<button type="button" data-action="view-demand" data-id="'+Number(r.submission_id)+'">View '+Number(r.unique_buyer_match_count)+' Buyer Match'+(Number(r.unique_buyer_match_count)===1?'':'es')+'</button>':'')+
+          '<button type="button" data-action="edit-bike" data-id="'+Number(r.submission_id)+'">Edit Bike Details</button>'+
+          (r.message_thread_id?'<a class="btn" href="/admin-message-centre.html?thread='+Number(r.message_thread_id)+'">Open Message</a>':"")+
+          '<button type="button" data-action="collapse" data-id="'+Number(r.submission_id)+'">▲ Collapse submission</button>'+
+        '</div>'+
+        '<div style="margin-top:12px;padding:10px 12px;border:1px solid #5a2b2d;border-radius:10px;background:#1b1010"><strong>Your Next Action →</strong><p style="margin:5px 0 9px;font-size:13px">'+(r.underwrite_status==="live"?"The trade bidding is live. Review bids in the Trade Underwrite Desk, then complete Seller Confirmation / HPI Check before selecting a buyer.":"Review the bike and its buyer-safe photos. Choose a bidding duration and invite verified UK dealers to offer. Stock comparisons are not required.")+'</p>'+(r.underwrite_status==="live"?'<a class="btn" href="/admin-trade-underwrites.html">OPEN TRADE UNDERWRITE DESK →</a>':(!r.make||!r.model?'<button type="button" data-action="edit-bike" data-id="'+Number(r.submission_id)+'">COMPLETE MOTORCYCLE DETAILS →</button>' :'<button type="button" data-action="start-underwrite" data-id="'+Number(r.submission_id)+'">START TRADE BIDDING →</button>'))+'</div>'+ 
+        '<div id="action-status-'+Number(r.submission_id)+'" class="sub" style="margin-top:8px;min-height:16px"></div>'+
+      '</article>'+
+    '</div>';
+
+    return '<div class="submission-wrap">'+
+      '<div class="submission-row" id="submission-row-'+Number(r.submission_id)+'" onclick="toggleSubmission('+Number(r.submission_id)+')">'+
+        '<div class="row-image">'+image+'</div>'+
+        '<div class="row-cell mobile-hide"><strong>'+esc(r.reference)+'</strong><small>'+esc(dealer?"Dealer Underwrite":"Sell Your Bike")+'</small></div>'+
+        '<div class="row-main"><strong>'+esc(bike)+'</strong><small>'+Number(r.mileage||0).toLocaleString("en-GB")+' miles · '+esc(imageText)+'</small></div>'+
+        '<div class="row-cell mobile-hide">'+esc(r.registration||"—")+'</div>'+
+        '<div class="row-cell mobile-hide">'+esc(r.bike_year||"—")+'</div>'+
+        '<div class="row-cell mobile-hide">'+esc(seller)+'</div>'+
+        '<div class="row-cell mobile-hide"><strong>'+esc(String(r.underwrite_status||"").replaceAll("_"," "))+'</strong><small>'+Number(r.unique_buyer_match_count||0)+' buyer match'+(Number(r.unique_buyer_match_count||0)===1?"":"es")+'</small></div>'+
+        '<button type="button" class="row-next" data-action="review-submission" data-id="'+Number(r.submission_id)+'">YOUR NEXT ACTION →<small style="display:block;font-weight:500;margin-top:3px">'+esc(r.underwrite_status==="live"?"Review live bids":!r.make||!r.model?"Complete bike details":"Review & prepare")+'</small></button>'+
+      '</div>'+
+      detail+
+    '</div>';
+  }).join("");
+}
+
+async function loadSubmissionImages(id){
+  id=Number(id);
+  const gallery=document.getElementById("submission-gallery-"+id);
+  if(!gallery)return;
+  const grid=gallery.querySelector(".submission-gallery-grid");
+  const status=gallery.querySelector(".submission-gallery-head .sub");
+
+  let images=submissionImages.get(id);
+  if(!images){
+    const {data,error}=await sb.rpc("admin_get_seller_submission_images_v1",{p_submission_id:id});
+    if(error){
+      grid.innerHTML='<div class="submission-photo placeholder">Could not load images</div>';
+      status.textContent=error.message;
+      return;
+    }
+    images=Array.isArray(data)?data:[];
+    submissionImages.set(id,images);
+  }
+
+  if(!images.length){
+    grid.innerHTML='<div class="submission-photo placeholder">No photos supplied</div>';
+    status.textContent="No images";
+    return;
+  }
+
+  grid.innerHTML=images.map(img=>{
+    const approved=String(img.final_status||"")==="approved" && img.buyer_safe_url;
+    if(!approved){
+      return '<div class="submission-photo placeholder">'+esc("Photo "+img.image_position+" · "+String(img.final_status||"processing").replaceAll("_"," "))+'</div>';
+    }
+    return '<button type="button" class="submission-photo" onclick="openImageLightbox(\''+esc(img.buyer_safe_url)+'\')">'+
+      '<img src="'+esc(img.buyer_safe_url)+'" alt="Motorcycle photo '+Number(img.image_position||0)+'">'+
+      '<span>Photo '+Number(img.image_position||0)+'</span>'+
+    '</button>';
+  }).join("");
+  status.textContent=images.filter(img=>img.final_status==="approved").length+" approved · click any photo to enlarge";
+}
+
+function openImageLightbox(url){
+  document.getElementById("imageLightboxImg").src=url;
+  document.getElementById("imageLightbox").classList.add("open");
+}
+function closeImageLightbox(){
+  document.getElementById("imageLightbox").classList.remove("open");
+  document.getElementById("imageLightboxImg").src="";
+}
+
+function toggleSubmission(id){
+  const detail=document.getElementById("submission-detail-"+Number(id));
+  const row=document.getElementById("submission-row-"+Number(id));
+  if(!detail||!row)return;
+  const open=!detail.classList.contains("open");
+  document.querySelectorAll(".submission-detail.open").forEach(el=>el.classList.remove("open"));
+  document.querySelectorAll(".submission-row.open").forEach(el=>el.classList.remove("open"));
+  if(open){
+    detail.classList.add("open");
+    row.classList.add("open");
+    loadSubmissionImages(id);
+  }
+}
+
+document.getElementById("queue").addEventListener("click",function(e){
+  const actionEl=e.target.closest("[data-action]");
+  if(!actionEl)return;
+
+  e.preventDefault();
+  e.stopPropagation();
+
+  const id=Number(actionEl.dataset.id);
+  const action=actionEl.dataset.action;
+
+  if(action==="review-submission"){
+    const detail=document.getElementById("submission-detail-"+id);
+    if(detail&&!detail.classList.contains("open"))toggleSubmission(id);
+    document.getElementById("submission-row-"+id)?.scrollIntoView({behavior:"smooth",block:"start"});
+    return;
+  }
+  if(action==="collapse"){
+    const detail=document.getElementById("submission-detail-"+id);
+    const row=document.getElementById("submission-row-"+id);
+    detail?.classList.remove("open");
+    row?.classList.remove("open");
+    row?.scrollIntoView({behavior:"smooth",block:"center"});
+    return;
+  }
+
+  if(action==="comparables"){captureComps(id);return;}
+  if(action==="start-underwrite"){startUnderwrite(id);return;}
+  if(action==="refresh-demand"){refreshDemand(id);return;}
+  if(action==="view-demand"){viewDemand(id);return;}
+  if(action==="edit-bike"){editVehicle(id);return;}
+},true);
+
+async function startUnderwrite(id){
+  const hours=Number(document.getElementById("underwrite-hours-"+id)?.value||48);
+  if(!confirm("Open this motorcycle to verified UK trade members for "+hours+" hours? Seller identity and confidential price expectations stay private."))return;
+  const {data,error}=await sb.rpc("admin_create_trade_underwrite_v1",{
+    p_submission_id:Number(id),
+    p_duration_hours:hours,
+    p_invitation_mode:"all_verified_trade"
+  });
+  if(error){alert(error.message);return;}
+  alert("Underwrite "+data.reference+" opened. "+Number(data.invited_count||0)+" verified trade dealer"+(Number(data.invited_count||0)===1?" was":"s were")+" invited.");
+  await loadQueue();
+}
+async function captureComps(id){
+  id=Number(id);
+  const status=document.getElementById("action-status-"+id);
+  if(status)status.textContent="Checking connected stock…";
+
+  const {data,error}=await sb.rpc("admin_capture_seller_submission_comparables_v1",{p_submission_id:id});
+  if(error){
+    if(status)status.textContent="Could not check connected stock: "+error.message;
+    return;
+  }
+  if(!data?.success){
+    if(status)status.textContent=data?.message||"Connected-stock check could not be completed.";
+    return;
+  }
+
+  const count=Number(data.comparable_count||0);
+  if(status){
+    status.textContent=count
+      ?count+" connected-stock comparable"+(count===1?"":"s")+" found."
+      :"No connected-stock matches. Proceed with UK trade bidding to establish market offers.";
+  }
+
+  await loadQueue();
+  setTimeout(()=>{
+    const detail=document.getElementById("submission-detail-"+id);
+    const row=document.getElementById("submission-row-"+id);
+    if(detail&&!detail.classList.contains("open")){
+      detail.classList.add("open");
+      row?.classList.add("open");
+      loadSubmissionImages(id);
+    }
+    detail?.scrollIntoView({behavior:"smooth",block:"nearest"});
+  },80);
+}
+
+
+async function refreshDemand(id){
+  const {data,error}=await sb.rpc("admin_refresh_seller_submission_demand_v1",{p_submission_id:Number(id)});
+  if(error){alert(error.message);return;}
+  alert(
+    Number(data?.match_count||0)+" factual demand record"+
+    (Number(data?.match_count||0)===1?"":"s")+" found."
+  );
+  await loadQueue();
+}
+
+async function viewDemand(id){
+  const row=rows.find(x=>Number(x.submission_id)===Number(id));
+  document.getElementById("demandTitle").textContent=(row?.reference||"Submission")+" · International Buyer Matches";
+  document.getElementById("demandList").innerHTML='<div class="empty">Loading…</div>';
+  document.getElementById("demandModal").classList.add("open");
+
+  const {data,error}=await sb.rpc("admin_get_seller_submission_demand_matches_v1",{p_submission_id:Number(id)});
+  if(error){
+    document.getElementById("demandList").innerHTML='<div class="empty">'+esc(error.message)+'</div>';
+    return;
+  }
+  const matches=data||[];
+  if(!matches.length){
+    document.getElementById("demandList").innerHTML='<div class="empty">No current international demand matches.</div>';
+    return;
+  }
+
+  document.getElementById("demandList").innerHTML=matches.map(m=>{
+    const source=m.source_type==="saved_search"?"Saved Search":m.source_type==="sourcing_deal"?"Active Sourcing Deal":"Global Buyer Request";
+    const buyer=m.buyer_business_name||m.customer_name||m.customer_email||"Buyer identity held internally";
+    const year=[m.year_from,m.year_to].filter(v=>v!==null&&v!==undefined).join(" – ")||"Any";
+    const budget=m.budget_max_gbp!==null&&m.budget_max_gbp!==undefined?money(m.budget_max_gbp):"Not specified";
+    return '<div class="card" style="margin-top:10px">'+
+      '<div class="top"><div><strong>'+esc(source)+'</strong><div class="meta">'+esc(buyer)+'</div></div><span class="badge">'+esc(m.destination_country||"International")+'</span></div>'+
+      '<div class="data">'+
+        '<div class="box"><span>Requirement</span><strong>'+esc([m.make,m.model,m.variant].filter(Boolean).join(" "))+'</strong></div>'+
+        '<div class="box"><span>Year</span><strong>'+esc(year)+'</strong></div>'+
+        '<div class="box"><span>Max mileage</span><strong>'+(m.mileage_max===null||m.mileage_max===undefined?"Any":Number(m.mileage_max).toLocaleString("en-GB"))+'</strong></div>'+
+        '<div class="box"><span>Buyer budget</span><strong>'+budget+'</strong></div>'+
+      '</div>'+
+      (m.commercial_price_check_required?'<div class="sub">Budget exists — commercial price check required before presenting this motorcycle.</div>':'<div class="sub">No buyer budget recorded on this requirement.</div>')+
+    '</div>';
+  }).join("");
+}
+function closeDemandModal(){document.getElementById("demandModal").classList.remove("open");}
+
+function editVehicle(id){
+  editId=Number(id);
+  const r=rows.find(x=>Number(x.submission_id)===editId);
+  if(!r)return;
+  const missingRequired=!r.make||!r.model;
+  document.getElementById("vehicleModalTitle").textContent=missingRequired?"Complete motorcycle details before underwriting":"Update motorcycle details";
+  document.getElementById("vehicleModalReason").textContent=missingRequired
+    ?"AnyBike needs the Make and Model before this motorcycle can be sent to trade underwriters."
+    :"Check or update the motorcycle details stored against this submission.";
+  document.getElementById("vehicleModalRef").textContent=r.reference||"—";
+  document.getElementById("vehicleModalReg").textContent=r.registration||"Not provided";
+  document.getElementById("vehicleModalMileage").textContent=r.mileage===null||r.mileage===undefined?"Not provided":Number(r.mileage).toLocaleString("en-GB")+" miles";
+  document.getElementById("vehicleModalHpi").textContent=r.hpi_clear===true?"Clear":"Not provided";
+  document.getElementById("mMake").value=r.make||"";
+  document.getElementById("mModel").value=r.model||"";
+  document.getElementById("mVariant").value=r.variant||"";
+  document.getElementById("mYear").value=r.bike_year||"";
+  document.getElementById("mMileage").value=r.mileage??"";
+  document.getElementById("modal").classList.add("open");
+}
+function closeModal(){document.getElementById("modal").classList.remove("open");editId=null;}
+
+async function saveVehicle(){
+  if(!editId)return;
+  const args={
+    p_submission_id:editId,
+    p_make:document.getElementById("mMake").value.trim(),
+    p_model:document.getElementById("mModel").value.trim(),
+    p_variant:document.getElementById("mVariant").value.trim()||null,
+    p_bike_year:Number(document.getElementById("mYear").value)||null,
+    p_mileage:Number(document.getElementById("mMileage").value)||null
+  };
+  const {error}=await sb.rpc("admin_update_seller_submission_vehicle_v1",args);
+  if(error){alert(error.message);return;}
+  const savedId=editId;
+  closeModal();
+  await loadQueue();
+  const saved=rows.find(x=>Number(x.submission_id)===Number(savedId));
+  const card=[...document.querySelectorAll("#queue .submission-row")].find(el=>el.textContent.includes(saved?.reference||""));
+  if(card){
+    if(saved?.make&&saved?.model&&saved?.underwrite_status!=="live")card.classList.add("ready-underwrite");
+    card.scrollIntoView({behavior:"smooth",block:"center"});
+  }
+}
+
+(async function init(){
+  try{
+    const allowed=await requireAdminSession();
+    if(!allowed)return;
+    document.documentElement.classList.remove("admin-auth-pending");
+    await loadQueue();
+  }catch(e){
+    document.documentElement.classList.remove("admin-auth-pending");
+    document.getElementById("queue").innerHTML='<div class="empty">'+esc(e.message||e)+'</div>';
+  }
+})();
+</script>
 </body>
 </html>
