@@ -1809,8 +1809,13 @@ function recordHtml(r){
           </div>
 
           <div class="detail-card full">
-            <h4>Internal notes</h4>
-            <div>${escapeHtml(r.internal_notes || "No internal notes.")}</div>
+            <h4>🔒 Private AnyBike Staff Notes</h4>
+            <p style="font-size:12px;color:#aaa;margin:4px 0 12px">For AnyBike staff only. Not shown on the public directory or shipper profile update page.</p>
+            <textarea id="shipperStaffNotes-${Number(r.id)}" rows="5" maxlength="20000" style="width:100%;box-sizing:border-box;padding:12px;background:#101010;color:#fff;border:1px solid #555;border-radius:10px;resize:vertical" placeholder="Internal conversations, service quality, negotiated rates, cautions, follow-up actions...">${escapeHtml(r.internal_notes || "")}</textarea>
+            <div style="display:flex;align-items:center;gap:12px;margin-top:10px;flex-wrap:wrap">
+              <button type="button" class="btn btn-primary" onclick="event.stopPropagation();saveShipperStaffNotes(${Number(r.id)},this)">Save Private Notes</button>
+              <span id="shipperNotesStatus-${Number(r.id)}" role="status" style="color:#aaa;font-size:12px"></span>
+            </div>
           </div>
         </div>
       </div>
@@ -1826,6 +1831,25 @@ function updateKpis(){
     new Set(records.flatMap(r => [r.country,...arrayValue(r.countries_covered)]).filter(Boolean)).size;
   document.getElementById("kpiEmailNeeded").textContent =
     records.filter(r => r.is_active !== false && !String(r.email||"").trim()).length;
+}
+
+async function saveShipperStaffNotes(id,button){
+  const field=document.getElementById("shipperStaffNotes-"+id);
+  const status=document.getElementById("shipperNotesStatus-"+id);
+  if(!field||!status)return;
+  const notes=field.value;
+  if(button)button.disabled=true;
+  status.textContent="Saving...";
+  try{
+    const {data,error}=await sb.rpc("admin_save_freight_forwarder_private_notes_v1",{p_id:Number(id),p_notes:notes});
+    if(error)throw error;
+    if(data!==true)throw new Error("Shipper record not found");
+    const row=records.find(x=>Number(x.id)===Number(id));
+    if(row)row.internal_notes=notes;
+    status.textContent="✓ Saved — visible to AnyBike staff only";
+  }catch(error){
+    status.textContent="Save failed: "+String(error?.message||error);
+  }finally{if(button)button.disabled=false;}
 }
 
 function toggleRecord(id){
