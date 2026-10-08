@@ -1355,6 +1355,20 @@ async function reviewProfileSubmission(id,action){
   await Promise.all([loadProfileSubmissions(),loadForwarders()]);
 }
 
+async function copyShipperProfileLink(id,button){
+  if(button){button.disabled=true;button.textContent="Generating…";}
+  try{
+    const {data,error}=await sb.functions.invoke("send-forwarder-profile-invite",{body:{forwarder_id:Number(id),link_only:true}});
+    if(error||data?.error)throw new Error(data?.error||error?.message||"Could not generate secure link");
+    const link=data?.results?.[0]?.link;
+    if(!link)throw new Error("No link was returned");
+    await navigator.clipboard.writeText(link);
+    if(button)button.textContent="Copied ✓";
+    alert("Secure profile link copied. Paste it into an email or message to the company. Generating another link replaces the previous invitation link.");
+  }catch(err){alert("Could not copy profile link: "+String(err?.message||err));}
+  finally{if(button){button.disabled=false;setTimeout(()=>button.textContent="Copy profile link",2500);}}
+}
+
 async function inviteShipperProfile(id){
   const record=records.find(r=>Number(r.id)===Number(id));
   if(!record) return;
@@ -1695,6 +1709,7 @@ function recordHtml(r){
         </div>
 
         <div class="row-actions" onclick="event.stopPropagation()">
+          <button type="button" class="btn" style="white-space:nowrap;font-size:11px;padding:7px" onclick="copyShipperProfileLink('\u0024{escapeHtml(r.id)}',this)" title="Generate a secure company profile editing link">Copy profile link</button>
           <button class="icon-btn" type="button" title="Edit shipper" onclick="editRecord('${escapeHtml(r.id)}')">✎</button>
           ${r.email ? `<button class="icon-btn" type="button" title="${r.profile_invite_status && r.profile_invite_status !== "Not Invited" ? "Resend profile update invitation" : "Invite shipper to update profile"}" onclick="inviteShipperProfile('${escapeHtml(r.id)}')">✉</button>` : ""}
           ${r.is_active === false
