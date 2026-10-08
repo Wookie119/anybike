@@ -271,7 +271,7 @@ function loadAdminShell(){
 ensureFreshAdminShellCss();
 
 Promise.all([
-  fetch("admin-sidebar.html?v=202610071152",{cache:"no-store"}).then(function(res){ return res.text(); }),
+  fetch("admin-sidebar.html?v=202610082300",{cache:"no-store"}).then(function(res){ return res.text(); }),
   fetch("admin-topbar.html?v=202610071152",{cache:"no-store"}).then(function(res){ return res.text(); })
 ])
 .then(function(parts){
