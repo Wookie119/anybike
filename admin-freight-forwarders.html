@@ -870,9 +870,10 @@ body.admin-freight-page .top-actions{display:flex;gap:10px;flex-wrap:wrap;justif
       </div>
 
       <div class="modal-actions">
-        <span id="editorStatus" class="status-text"></span>
+        <span id="editorStatus" class="status-text" role="status" aria-live="polite"></span>
+        <button type="button" class="btn btn-danger" id="deleteEditorBtn" onclick="deleteEditorRecord()" style="display:none;margin-right:auto">Delete Shipper</button>
         <button type="button" class="btn btn-dark" onclick="closeEditor()">Cancel</button>
-        <button type="submit" class="btn btn-primary" id="saveBtn">Save Record</button>
+        <button type="submit" class="btn btn-primary" id="saveBtn">Save Changes</button>
       </div>
     </form>
   </div>
@@ -1897,6 +1898,8 @@ function openEditor(record=null){
   document.getElementById("recordId").value = record?.id || "";
   document.getElementById("editorTitle").textContent = record ? "Edit Freight Forwarder" : "Add Freight Forwarder";
   document.getElementById("editorStatus").textContent = "";
+  document.getElementById("deleteEditorBtn").style.display = record && record.is_active!==false ? "" : "none";
+  document.getElementById("saveBtn").textContent = record ? "Save Changes" : "Add Shipper";
   document.getElementById("customServices").value = "";
   adminSelectedCountries.clear();
   renderAdminCountryTicks([]);
@@ -1953,6 +1956,32 @@ function closeEditor(){
   document.getElementById("editorModal").classList.remove("show");
   document.documentElement.style.overflow="";
   document.body.style.overflow="";
+}
+
+async function deleteEditorRecord(){
+  const id=document.getElementById("recordId").value;
+  if(!id)return;
+  const record=records.find(r=>String(r.id)===String(id));
+  if(!record)return;
+  const btn=document.getElementById("deleteEditorBtn");
+  const status=document.getElementById("editorStatus");
+  if(!confirm("Delete "+(record.company_name||"this shipper")+" from the active directory?\n\nThis removes the shipper from future buyer choices but retains the record for existing deals and audit history. Unsaved edits will be discarded."))return;
+  btn.disabled=true;
+  status.textContent="Removing shipper...";
+  try{
+    if(usingLocalFallback){
+      records=records.map(r=>String(r.id)===String(id)?{...r,is_active:false,updated_at:new Date().toISOString()}:r);
+      localStorage.setItem(LOCAL_KEY,JSON.stringify(records));
+    }else{
+      const {data,error}=await sb.rpc("admin_set_freight_forwarder_active_v1",{p_id:Number(id),p_active:false});
+      if(error)throw error;
+      if(data===false)throw new Error("The shipper was not updated.");
+    }
+    closeEditor();
+    await loadForwarders();
+  }catch(error){
+    status.textContent="Delete failed: "+String(error?.message||error);
+  }finally{btn.disabled=false;}
 }
 
 function editRecord(id){
@@ -2028,11 +2057,12 @@ document.getElementById("forwarderForm").addEventListener("submit", async e => {
       }
       localStorage.setItem(LOCAL_KEY, JSON.stringify(records));
     }else{
-      const {error} = await sb.rpc("admin_save_freight_forwarder_v1",{
+      const {data,error} = await sb.rpc("admin_save_freight_forwarder_v1",{
         p_id:id ? Number(id) : null,
         p_payload:payload
       });
       if(error) throw error;
+      if(data===false || data===null) throw new Error("The database did not confirm the save.");
     }
 
     closeEditor();
