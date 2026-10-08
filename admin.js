@@ -503,86 +503,56 @@ menu.classList.toggle("open");
 }
 
 function setupAdminSearch(){
-var search = document.getElementById("adminGlobalSearch");
-
-if(!search){
-return;
-}
-
-search.addEventListener("keydown", function(e){
-if(e.key !== "Enter"){
-return;
-}
-
-var q = String(search.value || "").trim().toLowerCase();
-
-if(!q){
-  return;
-}
-
-if(q.includes("message") || q.includes("inbox") || q.includes("reply")){
-  location.href = "admin-message-centre.html";
-  return;
-}
-
-if(q.includes("match") || q.includes("recommended") || q.includes("potential")){
-  location.href = "admin-ai-matching.html";
-  return;
-}
-
-if(q.includes("advert") || q.includes("scanner") || q.includes("scan")){
-  location.href = "admin-used-bike-scanner.html";
-  return;
-}
-
-if(q.includes("source") || q.includes("sourcing")){
-  location.href = "admin-live-source-hub.html";
-  return;
-}
-
-if(q.includes("buyer") || q.includes("bulk") || q.includes("global")){
-  location.href = "admin-global-buyer-network.html";
-  return;
-}
-
-if(q.includes("underwrite") || q.includes("seller")){
-  location.href = "admin-seller-underwrites.html";
-  return;
-}
-
-if(q.includes("vmoto") || q.includes("electric retail") || q.includes("new motorcycle")){
-  location.href = "admin-vmoto.html";
-  return;
-}
-
-if(q.includes("stock") || q.includes("bike") || q.includes("motorcycle")){
-  location.href = "admin-stock.html";
-  return;
-}
-
-if(q.includes("customer") || q.includes("member") || q.includes("profile")){
-  location.href = "admin-customers.html";
-  return;
-}
-
-if(q.includes("ship") || q.includes("logistic") || q.includes("container")){
-  location.href = "admin-logistics.html";
-  return;
-}
-
-if(q.includes("market") || q.includes("intelligence") || q.includes("country")){
-  location.href = "admin-market-intelligence.html";
-  return;
-}
-
-if(q.includes("process") || q.includes("procedure") || q.includes("manual") || q.includes("continuity")){
-  location.href = "admin-process-hq.html";
-  return;
-}
-
-// Treat unrecognised text as a customer/person search, not a page shortcut.
-location.href = "admin-customers.html?search=" + encodeURIComponent(String(search.value || "").trim());
-});
+ const input=document.getElementById("adminGlobalSearch");
+ if(!input||input.dataset.globalResultsReady)return;
+ input.dataset.globalResultsReady="1";
+ const wrap=input.closest(".admin-search");
+ if(!wrap)return;
+ wrap.style.position="relative";
+ const results=document.createElement("div");
+ results.id="anybikeAdminSearchResults";
+ results.setAttribute("role","listbox");
+ results.style.cssText="display:none;position:absolute;top:calc(100% + 8px);left:0;width:min(680px,95vw);max-height:440px;overflow:auto;background:#121212;border:1px solid #444;border-radius:13px;z-index:9999;box-shadow:0 20px 60px #000;padding:8px";
+ wrap.appendChild(results);
+ const esc=v=>String(v||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+ let timer=0,token=0,found=[];
+ const pages=[
+  ["Motorcycle Buying","admin-motorcycle-buying.html"],["Motorcycle Sales","admin-motorcycle-sales.html"],
+  ["Available Stock","admin-stock.html"],["Motorcycle 360","admin-motorcycle-360.html"],
+  ["Customer 360","admin-customers.html"],["Message Centre","admin-message-centre.html"],
+  ["Operations","admin-logistics.html"],["Accounts HQ","admin-accounts.html"],
+  ["Trade Underwrite Desk","admin-trade-underwrites.html"],["Live Source Hub","admin-live-source-hub.html"],
+  ["Onboarding","admin-onboarding.html"],["Market Intelligence","admin-market-intelligence.html"]
+ ];
+ const hide=()=>{results.style.display="none";};
+ const draw=(items,message)=>{
+  found=items;
+  results.style.display="block";
+  results.innerHTML=items.length?items.map((x,i)=>'<a role="option" href="'+esc(x.url)+'" style="display:block;padding:11px;border-radius:8px;color:white;text-decoration:none;border-bottom:1px solid #292929"><span style="font-size:11px;color:#ff6268;font-weight:900">'+esc(x.result_type)+'</span><strong style="display:block;margin-top:3px">'+esc(x.result_title)+'</strong><span style="font-size:12px;color:#aaa">'+esc(x.result_detail)+'</span></a>').join(""):'<div style="padding:12px;color:#aaa">'+esc(message||"No results found")+'</div>';
+ };
+ const run=async()=>{
+  const query=input.value.trim(),seq=++token;
+  if(query.length<2){hide();return;}
+  draw([],"Searching AnyBike…");
+  const quick=pages.filter(p=>p[0].toLowerCase().includes(query.toLowerCase())).map(p=>({result_type:"Admin page",result_title:p[0],result_detail:"Open workspace",url:p[1]}));
+  try{
+   const client=getAdminSupabaseClient();
+   if(!client)throw Error("Sign in to search");
+   const {data,error}=await client.rpc("admin_global_search_v1",{p_query:query});
+   if(seq!==token)return;
+   if(error)throw error;
+   draw([...(data||[]),...quick], "No matching records or pages");
+  }catch(e){
+   if(seq===token)draw(quick,"Search unavailable. Please try again.");
+  }
+ };
+ input.addEventListener("input",()=>{clearTimeout(timer);if(input.value.trim().length<2){++token;hide();return;}timer=setTimeout(run,220);});
+ input.addEventListener("keydown",e=>{
+  if(e.key==="Escape"){hide();return;}
+  if(e.key==="Enter"){e.preventDefault();if(found[0])window.location.href=found[0].url;else run();}
+ });
+ input.addEventListener("focus",()=>{if(input.value.trim().length>=2)run();});
+ document.addEventListener("click",e=>{if(!wrap.contains(e.target))hide();});
 }
 
 function toggleAdminNotifications(){
