@@ -580,7 +580,8 @@ if(q.includes("process") || q.includes("procedure") || q.includes("manual") || q
   return;
 }
 
-location.href = "admin-enquiries.html";
+// Treat unrecognised text as a customer/person search, not a page shortcut.
+location.href = "admin-customers.html?search=" + encodeURIComponent(String(search.value || "").trim());
 });
 }
 
