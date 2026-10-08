@@ -852,3 +852,18 @@ Frontend alignment completed:
 7. Record the buyer's chosen shipper, AnyBike operational approval and confirmed handover arrangements in Deal 360 / Operations HQ.
 
 **Safeguards:** Customers can bring their own freight forwarder. Never automatically appoint or commit to a shipper. Preserve existing authorisation, communications, audit trails, permissions and transaction records.
+
+
+## 8 October 2026 — International manufacturer and model pages: design and SEO requirements
+
+**Status: Planned.** Purpose: help international trade/dealer buyers discover motorcycles and submit sourcing enquiries for UK motorcycles using the **existing AnyBike funnel**, without building another enquiry configurator.
+
+- Build initial major-manufacturer pages (BMW, Honda, Yamaha, Kawasaki, Suzuki, Ducati, Triumph, Harley-Davidson, KTM and other selected established brands), followed by historical and current model pages; every model is always *available to request for sourcing* even when no live UK listing has been found.
+- **Wide layouts on desktop**: use available screen width (approximately 1,700–1,800px maximum), small but comfortable side margins, compact vertical spacing, restrained card padding and responsive layouts on mobile. Avoid tall empty hero sections, excessive white space and narrow text columns.
+- **Image-rich, genuine content**: manufacturer history, historic motorcycles, models, factory/manufacturing sites and production partnerships, plus applicable UK marketplace imagery. Only use images with suitable rights and accurate attribution as required; use responsive images, compression and lazy loading below the fold for performance.
+- **Image SEO**: descriptive, truthful and specific file names, descriptive HTML alt text, clear visible captions where helpful, and structured image context. Keep descriptive information in accessible HTML, not hidden keyword blocks or deceptive hidden text. No keyword stuffing. Each image must actually depict what its description says.
+- Every page has distinct editorial content, accurate metadata, canonical URLs and internal links; don't create thin near-duplicate manufacturer/country permutations.
+- Cross-link relevant models, motorcycle categories (adventure, learner-legal, sports etc), engine capacities (cc), manual/automatic/DCT, generation/model production start and end dates, related brands and genuine country-specific buyer interest.
+- The main manufacturer/model pages are stable and indexable; country-specific popular search links may refresh dynamically from genuine visitor/search activity.
+- Prominent **Source [Manufacturer/Model] from the UK** uses existing sourcing registration, customer 360, Live Source Hub, notifications and Deal 360, with brand/model/variant/source page/destination country prefilled or captured. Do not create a separate enquiry system.
+- Buyer messaging must distinguish *available to source* from a *currently advertised UK listing* and *seller-confirmed availability*.
