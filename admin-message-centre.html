@@ -445,6 +445,10 @@
 </head>
 <body>
 <div class="admin-shell"><div id="adminSidebar"></div><div class="admin-main"><div id="adminTopbar"></div><main class="admin-page-content message-page"><div class="page-head"><div><h1>Message Centre</h1><p>One communications hub for Bike Sales, Buying Team, Transport, Stock Preparation, Finance and Logistics.</p></div><button class="refresh-btn" onclick="loadThreads()">Refresh</button></div><section class="stats-grid"><div class="stat-card"><strong id="totalCount">0</strong><span>Active Messages</span></div><div class="stat-card"><strong id="newCount">0</strong><span>New</span></div><div class="stat-card"><strong id="replyCount">0</strong><span>Needs Reply</span></div><div class="stat-card"><strong id="buyingCount">0</strong><span>Buying Team</span></div></section><section class="mc-layout"><div class="panel"><div class="panel-head"><h2>Inbox</h2><div class="filters"><button class="active" onclick="setFilter('all', this)">All</button><button onclick="setFilter('New', this)">New</button><button onclick="setFilter('Needs Reply', this)">Needs Reply</button><button onclick="setFilter('Bike Enquiry', this)">Bike Sales</button><button onclick="setFilter('Global Buyer', this)">Global Buyers</button><button onclick="setFilter('VMoto Retail Enquiry', this)">VMoto</button><button onclick="setFilter('Sell Your Bike', this)">Buying Team</button><button onclick="setFilter('Finance', this)">Finance</button><button onclick="setFilter('Operations', this)">Operations</button><button onclick="setFilter('General', this)">General</button><button onclick="setFilter('Archived', this)">Archived</button><button onclick="setFilter('Deleted', this)">Deleted</button></div><div class="search-box"><input id="searchInput" placeholder="Search name, email, bike, country, message..." oninput="renderThreads()"></div></div><div class="toolbar"><button onclick="selectAllThreads()">Select All</button><button onclick="clearSelection()">Clear</button><button onclick="archiveSelectedThreads()">Archive</button><button class="danger" onclick="deleteSelectedThreads()">Delete</button></div><div id="threadList" class="thread-list"><div class="empty">Loading messages...</div></div></div><div class="panel"><div id="workspace" class="empty">Select a message to view the conversation.</div></div></section></main></div></div>
+<style>
+.seller-photo-toolbar{display:flex;align-items:center;gap:12px;margin:12px 0}.seller-photo-toolbar button,.seller-photo-overlay button{cursor:pointer;border:1px solid #777;background:#292929;color:#fff;border-radius:10px;padding:10px 18px;font-weight:bold}.seller-photo-toolbar button:hover,.seller-photo-overlay button:hover{background:#ed1c24}.seller-photo-count{color:#bbb}.photos a.seller-photo-selected{outline:3px solid #ed1c24;border-radius:9px}.seller-photo-overlay{display:none;position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.94);align-items:center;justify-content:center;padding:65px 90px}.seller-photo-overlay.open{display:flex}.seller-photo-overlay img{max-width:100%;max-height:85vh;object-fit:contain}.seller-photo-overlay .close{position:absolute;right:20px;top:15px}.seller-photo-overlay .prev{position:absolute;left:10px;top:50%}.seller-photo-overlay .next{position:absolute;right:10px;top:50%}.seller-photo-overlay .count{position:absolute;bottom:15px;color:white}
+@media(max-width:650px){.seller-photo-overlay{padding:65px 45px}.seller-photo-overlay button{padding:7px}.seller-photo-overlay .prev{left:2px}.seller-photo-overlay .next{right:2px}}
+</style>
 <script src="admin.js?v=202610071152"></script>
 <script>
 const SUPABASE_URL="https://tuehtnezhdnkqbbhttgp.supabase.co";
@@ -869,6 +873,8 @@ async function openThread(id){
   }).join("");
 
 
+  sellerPhotoIndex=0;
+  closeSellerGallery();
   workspace.innerHTML = `
     <div class="workspace-title">
       <div>
@@ -955,7 +961,7 @@ async function openThread(id){
     <div class="section">
       <h3>Motorcycle</h3>
 
-      ${photos ? `<div class="photos">${photos}</div>` : ""}
+      ${photos ? `<div class="seller-photo-toolbar"><button type="button" data-photo-nav="-1">‹ Prev</button><span class="seller-photo-count">1 / ${photoItems.length}</span><button type="button" data-photo-nav="1">Next ›</button></div><div class="photos">${photos}</div>` : ""}
       ${sellerPhotoError ? `<p style="color:#ffb4b7">${safe(sellerPhotoError)}</p>` : ""}
 
       <div class="grid">
@@ -2106,6 +2112,37 @@ function startMessageCentreRealtime(){
     });
 }
 
+let sellerPhotoIndex=0;
+function sellerPhotoLinks(){return Array.from(document.querySelectorAll("#workspace .photos a"));}
+function closeSellerGallery(){document.getElementById("sellerPhotoOverlay")?.classList.remove("open");}
+function showSellerPhoto(index,large){
+ const links=sellerPhotoLinks();if(!links.length)return;
+ sellerPhotoIndex=(index+links.length)%links.length;
+ links.forEach((a,i)=>a.classList.toggle("seller-photo-selected",i===sellerPhotoIndex));
+ const count=(sellerPhotoIndex+1)+" / "+links.length;
+ const counter=document.querySelector("#workspace .seller-photo-count");if(counter)counter.textContent=count;
+ const overlay=document.getElementById("sellerPhotoOverlay");
+ if(large)overlay.classList.add("open");
+ if(overlay.classList.contains("open")){
+   const image=document.getElementById("sellerPhotoLarge");
+   image.src=links[sellerPhotoIndex].href;
+   image.alt=links[sellerPhotoIndex].querySelector("img")?.alt||"Motorcycle photo";
+   document.getElementById("sellerPhotoLargeCount").textContent=count;
+ }else links[sellerPhotoIndex].scrollIntoView({behavior:"smooth",block:"nearest",inline:"nearest"});
+}
+document.addEventListener("click",function(e){
+ const nav=e.target.closest("[data-photo-nav]");
+ if(nav){e.preventDefault();showSellerPhoto(sellerPhotoIndex+Number(nav.dataset.photoNav),!!nav.closest("#sellerPhotoOverlay"));return;}
+ const link=e.target.closest("#workspace .photos a");
+ if(link){e.preventDefault();showSellerPhoto(sellerPhotoLinks().indexOf(link),true);return;}
+ if(e.target.id==="sellerPhotoOverlay"||e.target.id==="sellerPhotoClose")closeSellerGallery();
+});
+document.addEventListener("keydown",function(e){
+ if(!document.getElementById("sellerPhotoOverlay")?.classList.contains("open"))return;
+ if(e.key==="Escape")closeSellerGallery();
+ if(e.key==="ArrowLeft")showSellerPhoto(sellerPhotoIndex-1,true);
+ if(e.key==="ArrowRight")showSellerPhoto(sellerPhotoIndex+1,true);
+});
 document.addEventListener("DOMContentLoaded", async function(){
   const allowed = await requireAdminSession();
 
@@ -2122,5 +2159,12 @@ startMessageCentreRealtime();
   },3000);
 });
 </script>
+<div id="sellerPhotoOverlay" class="seller-photo-overlay" role="dialog" aria-modal="true" aria-label="Motorcycle photo viewer">
+ <button id="sellerPhotoClose" class="close" type="button">Close ✕</button>
+ <button class="prev" type="button" data-photo-nav="-1">‹ Prev</button>
+ <img id="sellerPhotoLarge" alt="Motorcycle photo">
+ <button class="next" type="button" data-photo-nav="1">Next ›</button>
+ <span id="sellerPhotoLargeCount" class="count"></span>
+</div>
 </body>
 </html>
