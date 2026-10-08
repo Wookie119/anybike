@@ -1,0 +1,3203 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+<link
+  rel="stylesheet"
+  href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+/>
+
+<script
+  src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
+</script>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Customer Database | AnyBike Admin</title>
+<meta name="robots" content="noindex,nofollow">
+
+<script>
+document.documentElement.classList.add("admin-auth-pending");
+</script>
+
+<style>
+html.admin-auth-pending body{
+  visibility:hidden;
+}
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="admin.js?v=202610071152"></script>
+
+<style>
+
+:root{
+  --red:#ed1c24;
+  --line:rgba(255,255,255,.12);
+  --muted:#aaa;
+  --green:#33cc66;
+  --amber:#ffcc33;
+  --blue:#4da3ff;
+  --panel:#111;
+  --panel2:#181818;
+}
+*{box-sizing:border-box}
+html,body{min-height:100%}
+body{
+  margin:0;
+  font-family:Arial,Helvetica,sans-serif;
+  background:
+    radial-gradient(circle at top left,rgba(237,28,36,.22),transparent 34%),
+    linear-gradient(120deg,#050505,#101010 60%,#050505);
+  color:#fff;
+}
+a{text-decoration:none;color:inherit}
+
+/* ADMIN SHELL */
+.admin-shell{
+  display:grid;
+  grid-template-columns:240px minmax(0,1fr);
+  min-height:100vh;
+}
+.admin-sidebar{
+  background:#090909;
+  border-right:1px solid var(--line);
+  padding:12px;
+  position:sticky;
+  top:0;
+  height:100vh;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+}
+.admin-logo{
+  max-width:140px;
+  margin:0 auto 14px;
+  background:#fff;
+  border-radius:16px;
+  padding:8px;
+}
+.admin-logo img{
+  width:100%;
+  height:auto;
+  display:block;
+}
+.admin-menu{
+  display:grid;
+  gap:5px;
+}
+.admin-menu a,
+.menu-folder{
+  width:100%;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  color:#fff;
+  background:transparent;
+  border:1px solid transparent;
+  text-decoration:none;
+  text-align:left;
+  padding:8px 9px;
+  border-radius:14px;
+  font-weight:900;
+  font-family:Arial,Helvetica,sans-serif;
+  font-size:14px;
+  cursor:pointer;
+  margin:0;
+}
+.admin-menu a:hover,
+.admin-menu a.active,
+.menu-folder:hover,
+.menu-folder.active-folder{
+  background:rgba(237,28,36,.16);
+  border-color:rgba(237,28,36,.45);
+}
+.admin-menu > a.active{
+  background:var(--red);
+  border-color:var(--red);
+}
+.menu-icon{
+  font-size:15px;
+  width:22px;
+  text-align:center;
+  flex:0 0 22px;
+}
+.menu-text{flex:1}
+.menu-arrow{
+  margin-left:auto;
+  color:#aaa;
+}
+.submenu{
+  display:none;
+  padding:2px 0 5px 34px;
+}
+.submenu.open{
+  display:grid;
+  gap:3px;
+}
+.submenu a{
+  display:block;
+  color:#ddd;
+  text-decoration:none;
+  font-size:13px;
+  font-weight:850;
+  padding:6px 8px;
+  border-radius:10px;
+}
+.submenu a:hover,
+.submenu a.active{
+  background:rgba(237,28,36,.16);
+  color:#fff;
+}
+.admin-main{
+  min-width:0;
+}
+.admin-topbar{
+  position:sticky;
+  top:0;
+  z-index:20;
+  background:rgba(5,5,5,.9);
+  backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--line);
+  padding:14px 22px;
+  display:grid;
+  grid-template-columns:1fr auto;
+  gap:16px;
+  align-items:center;
+}
+.admin-search{
+  max-width:760px;
+  display:grid;
+  grid-template-columns:42px 1fr;
+  align-items:center;
+  background:#111;
+  border:1px solid var(--line);
+  border-radius:999px;
+  overflow:hidden;
+}
+.admin-search span{text-align:center}
+.admin-search input{
+  width:100%;
+  background:transparent;
+  color:#fff;
+  border:0;
+  outline:0;
+  padding:13px 16px 13px 0;
+  font:inherit;
+  font-weight:800;
+}
+.admin-actions{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+.admin-profile{
+  background:#111;
+  border:1px solid var(--line);
+  border-radius:999px;
+  padding:7px 11px;
+  font-weight:900;
+}
+.admin-notification-panel{
+  position:absolute;
+  top:64px;
+  right:22px;
+  width:min(420px,calc(100vw - 30px));
+  background:#111;
+  border:1px solid var(--line);
+  border-radius:18px;
+  box-shadow:0 24px 70px rgba(0,0,0,.55);
+  display:none;
+  overflow:hidden;
+  z-index:100;
+}
+.admin-notification-panel.open{
+  display:block;
+}
+.admin-notification-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:14px;
+  border-bottom:1px solid var(--line);
+}
+.admin-notification-list{
+  max-height:420px;
+  overflow:auto;
+}
+.admin-notification-item{
+  display:block;
+  color:#fff;
+  text-decoration:none;
+  padding:13px 14px;
+  border-bottom:1px solid var(--line);
+}
+.admin-notification-item:hover{
+  background:rgba(237,28,36,.12);
+}
+.admin-notification-item strong{
+  display:block;
+  margin-bottom:4px;
+}
+.admin-notification-item small{
+  color:#aaa;
+  line-height:1.35;
+}
+.admin-page-content{
+  padding:24px;
+}
+
+/* CUSTOMER 360 CONTENT */
+h1{margin:0;font-size:34px}
+.subtitle,.small{color:var(--muted);font-size:13px}
+.btn{background:var(--red);color:#fff;border:0;border-radius:999px;padding:11px 16px;font-weight:900;cursor:pointer;text-decoration:none;display:inline-block}
+.btn.dark{background:#222;border:1px solid var(--line)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:18px}
+.card{background:rgba(17,17,17,.94);border:1px solid var(--line);border-radius:18px;padding:14px;box-shadow:0 18px 42px rgba(0,0,0,.22)}
+.card h2,.card h3{margin:0 0 8px}
+.big-number{font-size:30px;font-weight:900;color:var(--red);line-height:1}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+input,select,textarea{padding:12px;border-radius:10px;border:1px solid #333;background:#111;color:#fff;font-size:15px}
+.search{flex:1;min-width:280px}
+
+.department-hero{
+  display:block;
+  background:
+    radial-gradient(circle at top right,rgba(237,28,36,.18),transparent 36%),
+    #111;
+  border:1px solid var(--line);
+  border-radius:18px;
+  padding:16px 20px;
+  margin:0 0 12px;
+}
+.dept-eyebrow{
+  color:#ed1c24;
+  text-transform:uppercase;
+  letter-spacing:.14em;
+  font-size:10px;
+  font-weight:950;
+  margin-bottom:5px;
+}
+.department-hero h1{
+  margin:0 0 5px;
+  color:#fff;
+  font-size:29px;
+  letter-spacing:-.035em;
+  max-width:920px;
+}
+.department-hero p{
+  margin:0;
+  color:#bbb;
+  max-width:1200px;
+  font-size:14px;
+  line-height:1.35;
+}
+.dept-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:7px;
+  justify-content:flex-start;
+  margin-top:10px;
+}
+.dept-actions a{
+  background:#181818;
+  border:1px solid rgba(255,255,255,.12);
+  color:#fff;
+  border-radius:999px;
+  padding:10px 14px;
+  font-weight:900;
+  text-decoration:none;
+  white-space:nowrap;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+}
+.dept-actions a:hover{border-color:#ed1c24}
+.department-cards{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+  gap:12px;
+  margin:0 0 16px;
+}
+.dept-card{
+  background:#111;
+  border:1px solid var(--line);
+  border-radius:18px;
+  padding:16px;
+}
+.dept-card span{font-size:24px}
+.dept-card strong{
+  display:block;
+  font-size:32px;
+  color:#ed1c24;
+  line-height:1;
+  margin:8px 0 5px;
+}
+.dept-card small{
+  color:#aaa;
+  font-weight:900;
+}
+
+.control-grid{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:14px;
+  margin-bottom:18px;
+}
+.map-card{min-height:370px}
+.map-wrap{position:relative;height:285px;border-radius:16px;border:1px solid var(--line);overflow:hidden;background:#070707}
+.map-wrap svg{width:100%;height:100%;display:block}
+.map-point{position:absolute;transform:translate(-50%,-50%);background:var(--red);color:#fff;border:2px solid #fff;border-radius:999px;min-width:30px;height:30px;padding:0 8px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;cursor:pointer;box-shadow:0 0 18px rgba(237,28,36,.7)}
+.map-point:hover{scale:1.15}
+.country-list{display:grid;gap:8px;max-height:285px;overflow:auto}
+.country-row{display:flex;justify-content:space-between;align-items:center;padding:11px;border-radius:12px;background:#181818;border:1px solid var(--line);color:#fff;text-decoration:none;font-weight:900}
+.country-row:hover{border-color:var(--red)}
+.country-count{color:var(--red);font-size:20px}
+
+.customer-card{background:#111;border:1px solid var(--line);border-radius:20px;margin-bottom:14px;overflow:hidden}
+.customer-summary{display:grid;grid-template-columns:78px 1.35fr 1fr .72fr .86fr .86fr 130px;gap:14px;align-items:center;padding:16px;cursor:pointer}
+.customer-summary:hover{background:#181818}
+.avatar{width:58px;height:58px;border-radius:999px;background:linear-gradient(135deg,var(--red),#5a0000);display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:900}
+.customer-name{font-size:18px;font-weight:900}
+.stat-mini strong{font-size:20px;color:#fff}
+.badge{display:inline-block;padding:7px 10px;border-radius:999px;background:#222;font-weight:900;text-align:center}
+.badge-red{background:var(--red)}
+.badge-green{background:#1d7a3a}
+.badge-amber{background:#6a4a00;color:#fff}
+
+.customer-workspace{display:none;border-top:1px solid var(--line);background:#0c0c0c;padding:16px}
+.customer-card.open .customer-workspace{display:block}
+.workspace-layout{display:grid;grid-template-columns:320px 1fr;gap:16px}
+.profile-side{background:#111;border:1px solid var(--line);border-radius:18px;padding:16px}
+.profile-avatar{width:76px;height:76px;border-radius:999px;background:linear-gradient(135deg,var(--red),#5a0000);display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:900;margin-bottom:12px}
+.profile-side h2{margin:0 0 6px}
+.profile-row{border-top:1px solid rgba(255,255,255,.08);padding:11px 0}
+.profile-row span{display:block;color:#999;font-size:12px;margin-bottom:4px}
+.profile-row strong{font-size:15px}
+
+.comm-panel{margin-top:14px;padding:12px;border-radius:14px;background:#171111;border:1px solid rgba(237,28,36,.35)}
+.comm-panel h3{margin:0 0 8px;font-size:16px}
+.comm-compact{display:grid;gap:7px}
+.comm-compact strong{font-size:15px}
+.comm-compact .small{line-height:1.35}
+.comm-score{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.comm-box{background:#111;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:10px}
+.comm-box span{display:block;color:#999;font-size:12px;margin-bottom:4px}
+.comm-box strong{color:#fff;font-size:16px}
+.recommendation{margin-top:10px;color:#ddd;font-size:13px;line-height:1.4}
+
+.interest-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px}
+.interest-card{display:grid;grid-template-columns:92px minmax(0,1fr);gap:12px;background:#181818;border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:10px}
+.interest-card img{width:92px;height:72px;object-fit:cover;border-radius:10px;background:#0b0b0b}
+.interest-card a{color:#fff;text-decoration:none;font-weight:900}
+.interest-card a:hover{color:var(--red)}
+.interest-meta{color:#aaa;font-size:12px;line-height:1.45}
+.interest-count{display:inline-flex;padding:4px 7px;border-radius:999px;background:rgba(237,28,36,.12);color:#ff6d72;font-size:11px;font-weight:900;margin-top:5px}
+
+.timeline-group{background:#181818;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:12px}
+.timeline-group strong{display:block;margin-bottom:4px}
+.timeline-group-pages{color:#aaa;font-size:12px;line-height:1.45}
+
+.workspace-main{background:#111;border:1px solid var(--line);border-radius:18px;padding:16px}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.tab-btn{background:#181818;color:#fff;border:1px solid var(--line);border-radius:999px;padding:10px 14px;font-weight:900;cursor:pointer}
+.tab-btn.active{background:var(--red);border-color:var(--red)}
+.tab-panel{display:none}
+.tab-panel.active{display:block}
+.detail-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:14px}
+.panel,.deal-card,.timeline-item,.note-box{background:#181818;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:12px}
+.panel span{display:block;color:#999;font-size:12px;margin-bottom:5px}
+.panel strong{color:#fff}
+.deal-card{margin-bottom:8px}
+.timeline{display:grid;gap:8px;margin-top:10px}
+.section-title{margin:16px 0 10px}
+textarea{width:100%;min-height:120px}
+.spark{height:8px;background:#222;border-radius:999px;overflow:hidden;margin-top:8px}
+.spark div{height:100%;background:var(--red);width:45%}
+.intel-summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:14px}
+.intel-card{background:#181818;border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:13px}
+.intel-card span{display:block;color:#999;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px}
+.intel-card strong{font-size:18px}
+.commercial-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin:10px 0}.commercial-card{background:#171717;border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:12px}.commercial-card span{display:block;color:#999;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px}.commercial-card strong{font-size:17px}.commercial-target{border:1px solid rgba(54,211,126,.28);border-left:4px solid #36d37e;border-radius:13px;background:#121712;padding:14px;margin-top:10px}.commercial-headroom.pos{color:#78e5a0}.commercial-headroom.neg{color:#ff8b90}.commercial-policy{border:1px solid rgba(255,204,51,.25);background:rgba(255,204,51,.06);border-radius:12px;padding:12px;color:#d7c98a;font-size:12px;line-height:1.5;margin-bottom:12px}
+.intel-tags{display:flex;flex-wrap:wrap;gap:8px}
+.intel-tag{display:inline-flex;align-items:center;gap:6px;padding:7px 10px;border:1px solid rgba(255,255,255,.12);border-radius:999px;background:#141414;font-size:12px;font-weight:900}
+.intel-tag b{color:var(--red)}
+.intel-columns{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(280px,.8fr);gap:14px}
+.intel-source{border-left:3px solid var(--red);padding:16px}
+.intel-source-title{font-size:18px;font-weight:900;margin-bottom:4px}
+.intel-source-url{color:#aaa;font-size:12px;overflow-wrap:anywhere}
+.intel-meta{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
+.intel-meta span{display:inline-flex;align-items:center;padding:6px 9px;border:1px solid rgba(255,255,255,.1);border-radius:999px;background:#141414;color:#ccc;font-size:11px;font-weight:850}
+.intel-section-card{background:#131313;border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:14px}
+.intel-journey{display:grid;gap:8px}
+.intel-journey .timeline-item{margin:0}
+.intel-journey-path{color:#aaa;font-size:12px;overflow-wrap:anywhere}
+.intel-discovery{min-height:100%}
+.customer-next-action{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  margin:10px 0 12px;padding:10px 13px;border:1px solid rgba(237,28,36,.55);
+  border-radius:14px;background:linear-gradient(135deg,rgba(237,28,36,.08),#111);
+}
+.customer-next-action .eyebrow{color:#ff4b52;font-size:11px;font-weight:950;text-transform:uppercase;letter-spacing:.08em}
+.customer-next-action strong{display:block;margin-top:3px;font-size:16px}
+.customer-next-action span{display:block;margin-top:3px;color:#aaa;font-size:12px;line-height:1.3}
+.customer-next-action a{
+  display:inline-flex;align-items:center;justify-content:center;min-height:36px;padding:0 12px;
+  border-radius:999px;background:#ed1c24;color:#fff;text-decoration:none;font-weight:950;white-space:nowrap;
+}
+.customer-next-action button{min-height:36px;padding:0 12px;border-radius:999px;border:1px solid #444;background:#222;color:#fff;font-weight:950;cursor:pointer}
+.admin-customer-modal{position:fixed;inset:0;background:rgba(0,0,0,.8);display:none;align-items:center;justify-content:center;padding:20px;z-index:10000}.admin-customer-modal.open{display:flex}
+.admin-customer-modal-box{width:min(780px,100%);max-height:90vh;overflow:auto;background:#111;border:1px solid #444;border-radius:18px;padding:18px}
+.admin-customer-form{display:grid;grid-template-columns:1fr 1fr;gap:12px}.admin-customer-form .full{grid-column:1/-1}.admin-customer-form label{display:grid;gap:5px;color:#aaa;font-size:12px;font-weight:800}
+.admin-customer-form input,.admin-customer-form select,.admin-customer-form textarea{width:100%;background:#090909;color:#fff;border:1px solid #333;border-radius:10px;padding:10px}
+.confirmation-output{width:100%;min-height:150px;resize:vertical;background:#090909;color:#fff;border:1px solid #333;border-radius:10px;padding:11px;line-height:1.45}
+.modal-row-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:14px}
+.profile-required-action{border:2px solid #ed1c24;border-radius:14px;background:linear-gradient(135deg,rgba(237,28,36,.10),#111 70%);padding:12px 14px;margin:0 0 14px}
+.profile-required-action h3{margin:3px 0 4px;font-size:18px}.profile-required-action p{margin:0;color:#aaa;font-size:12px}
+.required-field-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-top:10px}
+.required-field{display:flex;align-items:center;justify-content:space-between;gap:8px;border:1px solid #333;border-radius:9px;background:#0d0d0d;padding:8px 9px;font-size:11px}
+.required-field strong{font-size:11px}.required-field.ok{border-color:rgba(54,211,126,.4)}.required-field.missing{border-color:rgba(237,28,36,.55);background:rgba(237,28,36,.06)}
+.required-field .state-ok{color:#65e9a0}.required-field .state-missing{color:#ff8d99}
+.profile-required-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}.profile-required-actions button,.profile-required-actions a{display:inline-flex;align-items:center;justify-content:center;min-height:36px;padding:0 12px;border-radius:9px;border:1px solid #444;background:#222;color:#fff;text-decoration:none;font-weight:900;font-size:11px;cursor:pointer}.profile-required-actions .primary{background:#ed1c24;border-color:#ed1c24}
+@media(max-width:900px){.required-field-list{grid-template-columns:1fr 1fr}}
+@media(max-width:620px){.required-field-list{grid-template-columns:1fr}}
+@media(max-width:1100px){.intel-columns{grid-template-columns:1fr}}
+@media(max-width:900px){.intel-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:620px){.intel-summary-grid{grid-template-columns:1fr}}
+
+@media(max-width:1200px){
+  .control-grid{grid-template-columns:1fr}
+  .workspace-layout{grid-template-columns:1fr}
+}
+@media(max-width:1000px){
+  .admin-shell{grid-template-columns:1fr}
+  .admin-sidebar{position:relative;height:auto;overflow:visible}
+  .admin-topbar{grid-template-columns:1fr}
+  .customer-summary{grid-template-columns:1fr}
+  .admin-page-content{padding:18px}
+}
+
+</style>
+<link rel="stylesheet" href="admin-shell.css?v=12001">
+</head>
+
+<body>
+
+<div class="admin-shell">
+
+<div id="adminSidebar"></div>
+
+<div class="admin-main">
+
+<div id="adminTopbar"></div>
+
+<main class="admin-page-content">
+
+<div class="department-hero">
+  <div>
+    <div class="dept-eyebrow">AnyBike Department</div>
+    <h1>👥 Customer Database</h1>
+    <p>Customer profile, buying history, communication intelligence, enquiries, deals, shipping, documents, membership status and activity timeline.</p>
+  </div>
+
+  <div class="dept-actions">
+    <a href="admin-dashboard.html">🏠 Admin HQ</a>
+    <a href="admin-platform-audit.html">🧪 Mission Control</a>
+    <a href="admin-enquiries.html">🏍 Bike Sales</a>
+    <a href="admin-global-buyer-network.html">🌍 Global Buyers</a>
+  </div>
+</div>
+
+<div class="customer-next-action" id="customerNeedsAttentionBanner">
+  <div>
+    <div class="eyebrow">Your next action</div>
+    <strong id="customerNeedsAttentionTitle">Review customers that need attention</strong>
+    <span id="customerNeedsAttentionText">Loading customer actions…</span>
+  </div>
+  <a href="#customers" onclick="showNeedsAttention();return false;">Open Needs Attention →</a>
+</div>
+
+<div class="department-cards">
+  <div class="dept-card"><span>👥</span><strong id="deptTotalCustomers">0</strong><small>Total Customers</small></div>
+  <div class="dept-card"><span>⭐</span><strong id="deptVipCustomers">0</strong><small>VIP / High Activity</small></div>
+  <div class="dept-card"><span>💷</span><strong id="deptPipeline">£0</strong><small>Committed Sales</small></div>
+  <div class="dept-card"><span>📈</span><strong id="deptProfit">£0</strong><small>Projected Profit (Committed)</small></div>
+</div>
+
+<section class="grid">
+  <div class="card"><h3>Total Customers</h3><div class="big-number" id="totalCustomers">—</div><div class="small">Grouped by email / phone / customer ID</div></div>
+  <div class="card"><h3>VIP Customers</h3><div class="big-number" id="vipCustomers">—</div><div class="small">3+ enquiries / deals</div></div>
+  <div class="card"><h3>Committed Sales</h3><div class="big-number" id="totalPipeline">—</div><div class="small">Only sales with a deposit received or completed sale</div></div>
+  <div class="card"><h3>Projected Profit (Committed)</h3><div class="big-number" id="totalProfit">—</div><div class="small">Projected profit only on committed sales</div></div>
+</section>
+
+<section class="control-grid">
+  <div class="card map-card">
+    <h2>🌍 Customer & Logistics Map</h2>
+ <div id="customerMap" style="
+  width:100%;
+  height:430px;
+  border-radius:14px;
+  overflow:hidden;
+  background:#0b0b0b;
+  border:1px solid #2b2b2b;
+"></div>
+
+<div class="small" style="margin-top:8px;">
+  Interactive AnyBike customer map. Customer locations are shown only where reliable location data is available.
+</div>
+
+  <div class="card">
+    <h2>Top Countries</h2>
+    <div id="countryList" class="country-list"><div class="small">Loading countries...</div></div>
+  </div>
+</section>
+
+<div class="toolbar">
+  <input class="search" id="searchBox" placeholder="Search name, email, phone, country..." oninput="renderCustomers()">
+  <select id="countryFilter" onchange="renderCustomers()"><option value="">All Countries</option></select>
+  <select id="attentionFilter" onchange="renderCustomers()">
+    <option value="">All Attention Statuses</option>
+    <option value="needs">Needs Attention</option>
+    <option value="availability">Check Seller Availability</option>
+    <option value="setup">Serious Buyer — Setup Incomplete</option>
+    <option value="review">Ready for Admin Review</option>
+    <option value="deposit">Deposit Outstanding</option>
+    <option value="balance">Balance Outstanding</option>
+    <option value="clear">No Immediate Action</option>
+  </select>
+  <select id="statusFilter" onchange="renderCustomers()">
+    <option value="">All Buyer Stages</option>
+    <option value="Registered / Browsing">Registered / Browsing</option>
+    <option value="Potential Buyer">Potential Buyer</option>
+    <option value="Buyer Request">Buyer Request</option>
+    <option value="Active Purchase">Active Purchase</option>
+    <option value="Ready for Review">Ready for Review</option>
+    <option value="Approved Buyer">Approved Buyer</option>
+    <option value="On Hold">On Hold</option>
+    <option value="Stopped">Stopped</option>
+  </select>
+</div>
+
+<div id="customers">Loading customers...</div>
+
+</main>
+
+</div>
+
+</div>
+
+<script>
+
+function toggleAdminNotifications(){
+  var panel = document.getElementById("adminNotificationPanel");
+  if(panel){
+    panel.classList.toggle("open");
+  }
+}
+
+document.addEventListener("click", function(e){
+  var folderButton = e.target.closest(".menu-folder");
+
+  if(folderButton){
+    var id = folderButton.getAttribute("data-target");
+    var menu = document.getElementById(id);
+
+    if(!menu){
+      return;
+    }
+
+    document.querySelectorAll(".submenu").forEach(function(item){
+      if(item.id !== id){
+        item.classList.remove("open");
+      }
+    });
+
+    document.querySelectorAll(".menu-folder").forEach(function(btn){
+      if(btn !== folderButton){
+        btn.classList.remove("active-folder");
+      }
+    });
+
+    menu.classList.toggle("open");
+    folderButton.classList.toggle("active-folder", menu.classList.contains("open"));
+    return;
+  }
+
+  var panel = document.getElementById("adminNotificationPanel");
+  var bell = document.querySelector(".admin-bell");
+
+  if(panel && bell && !panel.contains(e.target) && !bell.contains(e.target)){
+    panel.classList.remove("open");
+  }
+});
+
+var search = document.getElementById("adminGlobalSearch");
+
+if(search){
+  search.addEventListener("keydown", function(e){
+    if(e.key !== "Enter"){
+      return;
+    }
+
+    var q = String(search.value || "").trim().toLowerCase();
+
+    if(!q){
+      return;
+    }
+
+    if(q.includes("buyer") || q.includes("bulk") || q.includes("global")){
+      location.href = "admin-global-buyer-network.html";
+      return;
+    }
+
+    if(q.includes("stock") || q.includes("bike") || q.includes("motorcycle")){
+      location.href = "admin-stock.html";
+      return;
+    }
+
+    if(q.includes("customer") || q.includes("member") || q.includes("profile")){
+      location.href = "admin-customer-database.html";
+      return;
+    }
+
+    if(q.includes("ship") || q.includes("logistic") || q.includes("container")){
+      location.href = "admin-logistics.html";
+      return;
+    }
+
+    if(q.includes("market") || q.includes("intelligence") || q.includes("country")){
+      location.href = "admin-market-intelligence.html";
+      return;
+    }
+
+    location.href = "admin-enquiries.html";
+  });
+}
+
+function escapeAdminHtml(value){
+  return String(value || "")
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+}
+
+</script>
+
+
+<div id="editCustomerModal" class="admin-customer-modal" aria-hidden="true">
+  <div class="admin-customer-modal-box" role="dialog" aria-modal="true" aria-labelledby="editCustomerTitle">
+    <div class="eyebrow">Customer 360</div>
+    <h2 id="editCustomerTitle" style="margin:5px 0 14px">Edit customer</h2>
+    <div class="admin-customer-form">
+      <label>Full name<input id="editFullName" autocomplete="name"></label>
+      <label>Business name<input id="editBusinessName" autocomplete="organization"></label>
+      <label>Phone / WhatsApp<input id="editPhone" autocomplete="tel"></label>
+      <label>Country<input id="editCountry" autocomplete="country-name"></label>
+      <label>City<input id="editCity" autocomplete="address-level2"></label>
+      <label>Region<input id="editRegion" autocomplete="address-level1"></label>
+      <label>Customer type
+        <select id="editCustomerType">
+          <option value="">Not classified</option>
+          <option value="uk_private">UK Based Private User</option>
+          <option value="uk_dealer">UK Based Motorcycle Dealer</option>
+          <option value="uk_distributor">UK Motorcycle Distributor</option>
+          <option value="uk_manufacturer">UK Motorcycle Manufacturer</option>
+          <option value="uk_partner">UK Partner</option>
+          <option value="eu_dealer">European Motorcycle Dealer</option>
+          <option value="intl_dealer">International Motorcycle Dealer</option>
+          <option value="global_manufacturer">Global Manufacturer</option>
+        </select>
+      </label>
+      <label>What they want to do
+        <select id="editCustomerIntent">
+          <option value="unclear">Not yet clear</option>
+          <option value="buy">Buy motorcycles</option>
+          <option value="dealer_trade_supply">Trade / sell motorcycles</option>
+          <option value="buy_supply">Buy and trade / sell</option>
+          <option value="dealer_underwrite">Part-exchange underwrite</option>
+          <option value="trade_underwriter">Trade opportunity underwriter</option>
+          <option value="vmoto_retail">VMoto retail</option>
+          <option value="new_uk_retail">New UK retail interest</option>
+          <option value="partnership">Partnership / integration</option>
+          <option value="freight_logistics">Freight / logistics</option>
+        </select>
+      </label>
+      <label style="grid-column:1/-1">
+        <span style="display:flex;align-items:center;gap:10px;background:#151515;border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:12px 14px;cursor:pointer">
+          <input id="editLiveSourceEnabled" type="checkbox" style="width:auto;margin:0">
+          <span><strong style="display:block">Show in Live Source Hub</strong><span class="small">Only tick this for customers AnyBike actively sources motorcycles for. Unticked customers will not appear in the Live Source Hub buyer dropdown.</span></span>
+        </span>
+      </label>
+    </div>
+    <div class="modal-row-actions">
+      <button type="button" class="btn dark" onclick="closeEditCustomer()">Cancel</button>
+      <button type="button" class="btn" onclick="saveEditedCustomer()">Save customer</button>
+    </div>
+  </div>
+</div>
+
+<div id="confirmationLinkModal" class="admin-customer-modal" aria-hidden="true">
+  <div class="admin-customer-modal-box" role="dialog" aria-modal="true" aria-labelledby="confirmationLinkTitle">
+    <div class="eyebrow">Email Confirmation</div>
+    <h2 id="confirmationLinkTitle" style="margin:5px 0 6px">Confirmation text</h2>
+    <p class="small" style="margin:0 0 12px">Copy this into SMS or WhatsApp. The secure link lets the customer confirm/open their AnyBike account.</p>
+    <textarea id="confirmationMessage" class="confirmation-output" readonly></textarea>
+    <div id="confirmationLinkStatus" class="small" style="margin-top:8px"></div>
+    <div class="modal-row-actions">
+      <button type="button" class="btn dark" onclick="closeConfirmationLink()">Close</button>
+      <button type="button" class="btn dark" onclick="copyConfirmationLinkOnly()">Copy link only</button>
+      <button type="button" class="btn dark" onclick="copyConfirmationMessage()">Copy text</button>
+      <button type="button" class="btn" id="quickSendConfirmationBtn" onclick="quickSendConfirmationSms()">Quick Send SMS</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = "https://tuehtnezhdnkqbbhttgp.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+
+
+
+
+let allCustomers = [];
+let messageMap = {};
+let visitActivityMap = {};
+let customerWorkspaceMap = {};
+let customerWorkspaceLoading = {};
+let customerAttentionMap = {};
+let customerOnboardingMap = {};
+let editingCustomerId=null;
+let generatedConfirmationLink="";
+let generatedConfirmationUserId="";
+
+const countryCoords = {
+  "United Kingdom":[48,38],"UK":[48,38],"Ireland":[45,37],
+  "Germany":[52,36],"France":[49,39],"Spain":[47,45],"Italy":[53,44],"Netherlands":[50,36],"Poland":[56,36],
+  "Romania":[58,41],"UAE":[63,50],"United Arab Emirates":[63,50],"Saudi Arabia":[60,53],"Qatar":[63,52],
+  "USA":[22,40],"United States":[22,40],"Canada":[21,28],"Mexico":[20,52],
+  "Brazil":[35,70],"South Africa":[56,78],"India":[69,55],"Pakistan":[66,52],
+  "China":[76,43],"Japan":[88,43],"Thailand":[75,59],"Malaysia":[76,64],"Singapore":[77,66],
+  "Australia":[84,76],"New Zealand":[93,82]
+};
+
+function safe(v){return v===undefined||v===null||v===""?"-":String(v)}
+function money(v){const n=Number(v||0);return "£"+(Number.isFinite(n)?n:0).toFixed(2)}
+function cleanId(v){return String(v||"customer").replace(/[^a-zA-Z0-9]/g,"")}
+function initials(name){return String(name||"?").split(" ").map(x=>x[0]).join("").slice(0,2).toUpperCase()}
+function toggleCustomer(id){
+  const el=document.getElementById("customer-"+id);
+  if(!el)return;
+  el.classList.toggle("open");
+  if(el.classList.contains("open"))ensureCustomerWorkspace(id);
+}
+function customerStatus(c){if(c.deals.length>=3)return"VIP";if(c.deals.some(d=>d.status==="Completed"))return"Completed";if(c.deals.length>0)return"Active";return"New"}
+function badgeClass(s){if(s==="VIP")return"badge-red";if(s==="Completed")return"badge-green";if(s==="Active")return"badge-amber";return""}
+
+
+function openEditCustomer(userId){
+  const customer=allCustomers.find(x=>String(x.customerId)===String(userId));
+  if(!customer){alert("Customer record could not be found. Refresh Customer 360 and try again.");return;}
+  const c=customer;
+  const onboarding=customerOnboardingMap[String(userId)]||{};
+  editingCustomerId=String(userId);
+  document.getElementById("editCustomerTitle").textContent="Edit customer · "+(c.name||c.email||"Customer");
+  document.getElementById("editFullName").value=c.name==="Unknown Customer"?"":(c.name||"");
+  document.getElementById("editBusinessName").value=c.businessName||"";
+  document.getElementById("editPhone").value=c.phone||"";
+  document.getElementById("editCountry").value=c.country||"";
+  document.getElementById("editCity").value=c.city||"";
+  document.getElementById("editRegion").value=c.region||"";
+  document.getElementById("editCustomerType").value=onboarding.customer_type||"";
+  document.getElementById("editCustomerIntent").value=onboarding.customer_intent||"unclear";
+  document.getElementById("editLiveSourceEnabled").checked=Boolean(c.liveSourceEnabled);
+  const modal=document.getElementById("editCustomerModal");
+  if(!modal){alert("Edit Customer window is not available. Refresh the page and try again.");return;}
+  modal.classList.add("open");
+  modal.setAttribute("aria-hidden","false");
+}
+function closeEditCustomer(){
+  const modal=document.getElementById("editCustomerModal");
+  modal?.classList.remove("open");
+  modal?.setAttribute("aria-hidden","true");
+  editingCustomerId=null;
+}
+async function saveEditedCustomer(){
+  if(!editingCustomerId)return;
+  const liveSourceEnabled=Boolean(document.getElementById("editLiveSourceEnabled")?.checked);
+  const {error}=await sb.rpc("admin_update_customer_profile_v1",{
+    p_user_id:editingCustomerId,
+    p_full_name:document.getElementById("editFullName").value,
+    p_phone:document.getElementById("editPhone").value,
+    p_country:document.getElementById("editCountry").value,
+    p_city:document.getElementById("editCity").value,
+    p_region:document.getElementById("editRegion").value,
+    p_business_name:document.getElementById("editBusinessName").value,
+    p_customer_type:document.getElementById("editCustomerType").value,
+    p_customer_intent:document.getElementById("editCustomerIntent").value
+  });
+  if(error){alert("Could not save customer: "+error.message);return;}
+
+  const {error:liveSourceError}=await sb.rpc("admin_set_live_source_buyer_v1",{
+    p_user_id:editingCustomerId,
+    p_enabled:liveSourceEnabled
+  });
+  if(liveSourceError){alert("Customer details were saved, but Live Source Hub access could not be updated: "+liveSourceError.message);return;}
+
+  const keepId=editingCustomerId;
+  closeEditCustomer();
+  await loadCustomers();
+  openCustomerFromMap(keepId);
+}
+async function generateConfirmationText(userId){
+  const modal=document.getElementById("confirmationLinkModal");
+  const output=document.getElementById("confirmationMessage");
+  const status=document.getElementById("confirmationLinkStatus");
+  if(!modal||!output){
+    alert("Confirmation text window is not available. Refresh the page and try again.");
+    return;
+  }
+
+  generatedConfirmationLink="";
+  generatedConfirmationUserId=String(userId);
+  output.value="Generating secure confirmation link…";
+  if(status)status.textContent="";
+  modal.classList.add("open");
+  modal.setAttribute("aria-hidden","false");
+
+  const {data,error}=await sb.functions.invoke("admin-generate-customer-confirmation-link",{
+    body:{user_id:String(userId)}
+  });
+
+  if(error){
+    output.value="";
+    if(status)status.textContent="Could not generate confirmation link: "+(error.message||"Unknown error");
+    return;
+  }
+  if(data?.error){
+    output.value="";
+    if(status)status.textContent=String(data.error);
+    return;
+  }
+
+  generatedConfirmationLink=String(data?.action_link||"");
+  document.getElementById("confirmationLinkTitle").textContent="Confirmation text · "+String(data?.email||"Customer");
+  output.value=String(data?.message||"");
+  if(status)status.textContent="Ready to copy and send.";
+}
+
+async function quickSendConfirmationSms(){
+  const status=document.getElementById("confirmationLinkStatus");
+  const button=document.getElementById("quickSendConfirmationBtn");
+  if(!generatedConfirmationUserId){
+    if(status)status.textContent="Generate the confirmation text first.";
+    return;
+  }
+  if(button){button.disabled=true;button.textContent="Sending…";}
+  if(status)status.textContent="Sending confirmation link by SMS…";
+
+  try{
+    const {data,error}=await sb.functions.invoke("admin-send-customer-confirmation-sms",{
+      body:{user_id:generatedConfirmationUserId}
+    });
+    if(error)throw error;
+    if(data?.error)throw new Error(data.error);
+    if(status)status.textContent="SMS sent successfully ✓";
+    if(button)button.textContent="Send Again";
+  }catch(e){
+    if(status)status.textContent=e?.message||String(e);
+    if(button)button.textContent="Quick Send SMS";
+  }finally{
+    if(button)button.disabled=false;
+  }
+}
+
+function closeConfirmationLink(){
+  const modal=document.getElementById("confirmationLinkModal");
+  modal?.classList.remove("open");
+  modal?.setAttribute("aria-hidden","true");
+  generatedConfirmationLink="";
+  generatedConfirmationUserId="";
+}
+async function copyConfirmationMessage(){
+  const text=document.getElementById("confirmationMessage").value;
+  try{await navigator.clipboard.writeText(text);}catch{document.getElementById("confirmationMessage").select();document.execCommand("copy");}
+}
+async function copyConfirmationLinkOnly(){
+  if(!generatedConfirmationLink)return;
+  try{await navigator.clipboard.writeText(generatedConfirmationLink);}catch{}
+}
+
+
+function customerTypeDisplay(value){
+  const labels={
+    uk_private:"UK Based Private User",
+    uk_dealer:"UK Based Motorcycle Dealer",
+    uk_distributor:"UK Motorcycle Distributor",
+    uk_manufacturer:"UK Motorcycle Manufacturer",
+    uk_partner:"UK Partner",
+    eu_dealer:"European Motorcycle Dealer",
+    intl_dealer:"International Motorcycle Dealer",
+    global_manufacturer:"Global Manufacturer"
+  };
+  return labels[String(value||"")]||"Not classified";
+}
+function customerIntentDisplay(value){
+  const labels={
+    buy:"Buy motorcycles",
+    dealer_trade_supply:"Trade / sell motorcycles",
+    buy_supply:"Buy and trade / sell",
+    dealer_underwrite:"Part-exchange underwrite",
+    trade_underwriter:"Trade opportunity underwriter",
+    vmoto_retail:"VMoto retail",
+    new_uk_retail:"New UK retail interest",
+    partnership:"Partnership / integration",
+    freight_logistics:"Freight / logistics"
+  };
+  return labels[String(value||"")]||"Not yet clear";
+}
+function customerRequiredActionHtml(c){
+  const onboarding=customerOnboardingMap[String(c.customerId)]||{};
+  const confirmed=Boolean(onboarding.email_confirmed_at);
+  const checks=[
+    ["Name",Boolean(String(c.name||"").trim() && c.name!=="Unknown Customer")],
+    ["Email confirmation",confirmed],
+    ["Phone / WhatsApp",Boolean(String(c.phone||"").trim())],
+    ["Country",Boolean(String(c.country||"").trim())],
+    ["Customer type",Boolean(String(onboarding.customer_type||"").trim())],
+    ["What they want to do",Boolean(String(onboarding.customer_intent||"").trim() && onboarding.customer_intent!=="unclear")]
+  ];
+  const missing=checks.filter(x=>!x[1]).map(x=>x[0]);
+  const cards=checks.map(x=>
+    '<div class="required-field '+(x[1]?"ok":"missing")+'"><strong>'+safe(x[0])+'</strong><span class="'+(x[1]?"state-ok":"state-missing")+'">'+(x[1]?"✓ Complete":"Required")+'</span></div>'
+  ).join("");
+  const actions=[
+    '<button type="button" onclick="openEditCustomer(\''+c.customerId+'\')">Edit customer</button>',
+    !confirmed ? '<button type="button" class="primary" onclick="generateConfirmationText(\''+c.customerId+'\')">Generate confirmation text</button>' : '',
+    '<a href="admin-onboarding.html?customer='+encodeURIComponent(c.customerId)+'">Open Onboarding →</a>'
+  ].join("");
+  return '<div class="profile-required-action">'+
+    '<div class="eyebrow">Your next action</div>'+
+    '<h3>'+(missing.length ? 'Complete '+missing.join(", ") : 'Core customer details complete')+'</h3>'+
+    '<p>'+(missing.length ? 'These are the minimum customer details AnyBike still needs before this account can move forward.' : 'The core customer record is complete. Continue with the appropriate onboarding route.')+'</p>'+
+    '<div class="required-field-list">'+cards+'</div>'+
+    '<div class="profile-required-actions">'+actions+'</div>'+
+  '</div>';
+}
+
+function customerAttention(c){
+  const onboarding=customerOnboardingMap[String(c.customerId)]||null;
+  if(onboarding){
+    const stage=String(onboarding.onboarding_stage||"");
+    if(onboarding.email_confirmed_at===null){
+      return {kind:"setup",label:"Email confirmation required",title:"Send this customer an email-confirmation link",detail:"Their email is not confirmed. Generate a confirmation text and send it by SMS or WhatsApp, then complete any other required profile fields.",onboarding:true};
+    }
+    if(!onboarding.has_profile){
+      return {kind:"setup",label:"Profile recovery required",title:"Customer profile needs recovering",detail:"The email is confirmed but no usable customer profile exists yet. Open Onboarding to resolve the profile before progressing them.",onboarding:true};
+    }
+    if(!onboarding.customer_type || !onboarding.customer_intent || String(onboarding.customer_intent)==="unclear" || String(onboarding.route)==="needs_clarification"){
+      return {kind:"setup",label:"Classification required",title:"Clarify how this customer wants to use AnyBike",detail:"Choose the correct customer type and intent, then send the appropriate setup help message from Onboarding.",onboarding:true};
+    }
+    if(String(onboarding.route)==="buyer_export" && Number(onboarding.sections_complete||0)<6){
+      return {kind:"setup",label:"Buyer Setup "+Number(onboarding.sections_complete||0)+"/6",title:"Help this buyer complete setup",detail:"Buyer Setup is incomplete. Open Onboarding to send the correct setup help and track the remaining sections.",onboarding:true};
+    }
+    if(stage.includes("Ready for AnyBike Review")){
+      return {kind:"review",label:"Ready for review",title:"Review completed onboarding",detail:"This customer has completed the required setup and is ready for an AnyBike review.",onboarding:true};
+    }
+  }
+
+  const a=customerAttentionMap[String(c.customerId)]||{};
+  const count=Number(a.setup_complete_count||0);
+  const approval=String(a.approval_status||"not_reviewed").toLowerCase();
+  const account=String(a.account_status||"active").toLowerCase();
+  const serious=a.serious_intent===true;
+  if(account==="stopped"||account==="on_hold") return {kind:"review",label:account==="stopped"?"Stopped":"On Hold",title:"Review account status",detail:"This buyer account needs admin review."};
+  if(Number(a.deposit_outstanding_gbp||0)>0) return {kind:"deposit",label:"Deposit Due",title:"Chase deposit",detail:"Outstanding deposit: "+money(a.deposit_outstanding_gbp)};
+  if(Number(a.balance_outstanding_gbp||0)>0) return {kind:"balance",label:"Balance Due",title:"Chase full payment",detail:"Outstanding balance: "+money(a.balance_outstanding_gbp)};
+  if(Number(a.availability_requests||0)>0) return {kind:"availability",label:"Buyer Request",title:"Check seller availability",detail:Number(a.availability_requests)+" motorcycle"+(Number(a.availability_requests)===1?"":"s")+" waiting for an availability check."};
+  if(count===6 && !["approved","approved_with_exception"].includes(approval)) return {kind:"review",label:"Ready for Review",title:"Review completed Buyer Setup",detail:"6 of 6 sections complete and awaiting an AnyBike decision."};
+  if(serious && count<6) return {kind:"setup",label:"Buyer Setup "+count+"/6",title:"Remind serious buyer to complete setup",detail:(a.setup_missing_sections||[]).join(", ")||"Buyer Setup is incomplete."};
+  return {kind:"clear",label:String(a.buyer_stage||"Registered / Browsing"),title:"No staff action required",detail:"Keep this customer in Customer 360 for intelligence and future matching. Do not chase Buyer Setup yet."};
+}
+
+function shouldShowBuyerSetupReview(c){
+  const a=customerAttentionMap[String(c.customerId)]||{};
+  const count=Number(a.setup_complete_count||0);
+  const params=new URLSearchParams(window.location.search);
+  const requestedCustomer=params.get("customer");
+  const requestedAction=params.get("action");
+
+  if(requestedAction==="review-setup" && String(requestedCustomer||"")===String(c.customerId)){
+    return true;
+  }
+
+  return count===6;
+}
+
+function openBuyerSetupReviewSection(cardId,tabName){
+  const card=document.getElementById("customer-"+cardId);
+  if(!card)return;
+
+  const review=card.querySelector("[data-buyer-setup-review]");
+
+  switchTab(cardId,tabName);
+
+  setTimeout(function(){
+    const panel=card.querySelector('.tab-panel[data-panel="'+tabName+'"]');
+    if(!panel)return;
+
+    let back=card.querySelector("[data-return-buyer-review]");
+    if(back) back.remove();
+
+    back=document.createElement("div");
+    back.setAttribute("data-return-buyer-review","1");
+    back.style.cssText="display:flex;justify-content:flex-start;margin:0 0 12px";
+    back.innerHTML='<button type="button" class="btn" style="background:#181818;border:1px solid #555" onclick="returnToBuyerSetupReview(\''+cardId+'\')">← Back to Buyer Setup Review</button>';
+    panel.insertBefore(back,panel.firstChild);
+
+    panel.scrollIntoView({behavior:"smooth",block:"start"});
+    panel.style.outline="2px solid #ed1c24";
+    panel.style.outlineOffset="3px";
+    setTimeout(function(){
+      panel.style.outline="";
+      panel.style.outlineOffset="";
+    },2200);
+  },120);
+}
+
+function returnToBuyerSetupReview(cardId){
+  const card=document.getElementById("customer-"+cardId);
+  if(!card)return;
+
+  const back=card.querySelector("[data-return-buyer-review]");
+  if(back) back.remove();
+
+  const review=card.querySelector("[data-buyer-setup-review]");
+  if(review){
+    review.style.display="";
+    review.scrollIntoView({behavior:"smooth",block:"start"});
+  }
+}
+
+async function adminOpenStoredDocument(bucket,path,name){
+  if(!bucket || !path){
+    alert("This document does not have a stored file to open.");
+    return;
+  }
+  const result=await sb.storage.from(String(bucket)).createSignedUrl(String(path),300);
+  if(result.error){
+    alert("Document could not be opened: "+result.error.message);
+    return;
+  }
+  window.open(result.data.signedUrl,"_blank","noopener");
+}
+
+function buyerReviewShippingHtml(customer,routeHtml){
+  const s=cleanId(customer.customerId);
+  const field=function(id,label,value){
+    return '<label style="display:grid;gap:5px"><span class="small">'+label+'</span><input id="'+id+'-'+s+'" value="'+escapeHtml(value||"")+'" style="width:100%;background:#080808;color:#fff;border:1px solid #444;border-radius:9px;padding:10px"></label>';
+  };
+
+  return '<div style="display:grid;gap:12px">'+
+    '<div class="detail-grid">'+
+      field("reviewShipCompany","Shipping company / forwarder",customer.shippingCompany)+
+      field("reviewShipContact","Contact name",customer.shippingContactName)+
+      field("reviewShipEmail","Contact email",customer.shippingContactEmail)+
+      field("reviewShipPhone","Contact phone",customer.shippingContactPhone)+
+      field("reviewShipAddress1","Address line 1",customer.shippingAddress1)+
+      field("reviewShipAddress2","Address line 2",customer.shippingAddress2)+
+      field("reviewShipCity","Town / City",customer.shippingCity)+
+      field("reviewShipRegion","County / Region",customer.shippingRegion)+
+      field("reviewShipPostcode","Postcode",customer.shippingPostcode)+
+      field("reviewShipCountry","Country",customer.shippingCountry||"United Kingdom")+
+      field("reviewShipCollection","UK handover / collection point",customer.shippingCollectionPoint)+
+    '</div>'+
+    '<div style="display:flex;gap:10px;flex-wrap:wrap">'+
+      '<button type="button" class="btn" style="background:#ed1c24" onclick="saveBuyerShippingReview(\''+customer.customerId+'\',\''+customer.id+'\',false)">Save shipping preference</button>'+
+      '<button type="button" class="btn" style="background:#181818;border:1px solid #ff646b" onclick="saveBuyerShippingReview(\''+customer.customerId+'\',\''+customer.id+'\',true)">Reject shipping details</button>'+
+    '</div>'+
+    '<div id="buyerShippingReviewStatus-'+s+'" class="note-box" style="display:none;margin-top:2px"></div>'+
+    '<div class="small">This saves the customer’s active My Profile shipping preference. Deal 360 shipping routes are managed separately inside each deal.</div>'+
+    (routeHtml?'<details style="margin-top:10px;border:1px solid rgba(255,255,255,.12);border-radius:12px;background:#0d0d0d"><summary style="cursor:pointer;padding:12px 14px;font-weight:900">Confirmed Deal 360 shipping routes · no action required</summary><div style="padding:0 12px 12px">'+routeHtml+'</div></details>':"")+
+  '</div>';
+}
+
+function buyerReviewDocumentsHtml(customer,w){
+  const review=w.review_documents||{};
+  const onboardingDocs=Array.isArray(review.onboarding_documents)?review.onboarding_documents:[];
+  const customerDocs=Array.isArray(review.customer_documents)?review.customer_documents:[];
+  const bikeDocs=Array.isArray(review.motorcycle_documents)?review.motorcycle_documents:[];
+  const invoices=Array.isArray(w.documents?.invoices)?w.documents.invoices:[];
+
+  const docCard=function(d,label){
+    const title=d.document_title||d.original_file_name||d.document_type||label;
+    const status=d.verification_status||d.document_status||"Available";
+    const canOpen=!!(d.storage_bucket&&d.storage_path);
+    return '<div class="deal-card" style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap">'+
+      '<div><strong>'+safe(title)+'</strong><div class="small">'+safe(label)+' · '+safe(status)+' · '+fmtDate(d.created_at)+'</div></div>'+
+      (canOpen?'<button type="button" class="btn" onclick=\'adminOpenStoredDocument('+JSON.stringify(String(d.storage_bucket))+','+JSON.stringify(String(d.storage_path))+','+JSON.stringify(String(d.original_file_name||title))+')\'>Open / View →</button>':'<span class="small">No stored file</span>')+
+    '</div>';
+  };
+
+  let html="";
+  if(onboardingDocs.length){
+    html+='<h4 style="margin:4px 0 8px">Buyer identity & onboarding documents</h4>'+
+      onboardingDocs.map(function(d){
+        const path=String(d.storage_path||"");
+        const available=!!path;
+        return '<div class="deal-card" style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap">'+
+          '<div><strong>'+safe(d.document_title||d.document_type)+'</strong><div class="small">'+
+            (available?'On file':'Not supplied')+' · '+safe(d.verification_status||"Not Reviewed")+
+          '</div></div>'+
+          (available?'<button type="button" class="btn" onclick=\'adminOpenStoredDocument("deal-files",'+JSON.stringify(path)+','+JSON.stringify(String(d.document_title||d.document_type||"Onboarding document"))+')\'>Open / View →</button>':'<span class="small">No file uploaded</span>')+
+        '</div>';
+      }).join("");
+  }
+  if(customerDocs.length){
+    html+='<h4 style="margin:4px 0 8px">Customer documents</h4>'+customerDocs.map(d=>docCard(d,"Customer document")).join("");
+  }
+  if(bikeDocs.length){
+    html+='<h4 style="margin:14px 0 8px">Motorcycle documents</h4>'+bikeDocs.map(d=>docCard(d,"Motorcycle document")).join("");
+  }
+  if(invoices.length){
+    html+='<h4 style="margin:14px 0 8px">Invoices / Proformas</h4>'+invoices.map(i=>
+      '<div class="deal-card" style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap">'+
+      '<div><strong>'+safe(i.invoice_number||i.invoice_type)+'</strong><div class="small">'+safe(i.invoice_status)+' · '+money(i.gross_amount_gbp??i.total_gbp)+' · '+fmtDate(i.issued_at||i.created_at)+'</div></div>'+
+      '<a class="btn" href="admin-accounts.html?invoice='+encodeURIComponent(i.id)+'">Open in Accounts →</a></div>'
+    ).join("");
+  }
+  return html||'<div class="note-box">No documents or proformas recorded for this customer.</div>';
+}
+
+async function saveBuyerShippingReview(customerId,cardId,reject){
+  const s=cleanId(customerId);
+  let note=null;
+  if(reject){
+    note=prompt("Why are these shipping details being rejected?","");
+    if(note===null)return;
+    if(!String(note).trim()){
+      alert("Add a reason before rejecting the shipping details.");
+      return;
+    }
+  }
+
+  const val=id=>String(document.getElementById(id+"-"+s)?.value||"").trim();
+  const result=await sb.rpc("admin_save_customer_shipping_review_v1",{
+    p_customer_id:customerId,
+    p_company:val("reviewShipCompany"),
+    p_contact_name:val("reviewShipContact"),
+    p_contact_email:val("reviewShipEmail"),
+    p_contact_phone:val("reviewShipPhone"),
+    p_address_1:val("reviewShipAddress1"),
+    p_address_2:val("reviewShipAddress2"),
+    p_city:val("reviewShipCity"),
+    p_region:val("reviewShipRegion"),
+    p_postcode:val("reviewShipPostcode"),
+    p_country:val("reviewShipCountry"),
+    p_collection_point:val("reviewShipCollection"),
+    p_reject:!!reject,
+    p_review_note:note
+  });
+
+  if(result.error){
+    alert("Shipping review could not be saved: "+result.error.message);
+    return;
+  }
+
+  const status=document.getElementById("buyerShippingReviewStatus-"+s);
+  if(status){
+    status.style.display="";
+    status.style.borderColor=reject?"#ff646b":"#2aa866";
+    status.style.color=reject?"#ffb2b5":"#8ef0b3";
+    status.innerHTML=reject
+      ? "<strong>Shipping review rejected.</strong> Status is now Review Required. The reason has been recorded."
+      : "<strong>Shipping preference saved & verified.</strong> The edited details are now the customer’s active My Profile shipping preference.";
+    status.scrollIntoView({behavior:"smooth",block:"nearest"});
+  }
+
+  const reviewStatus=document.querySelector('#customer-'+cardId+' [data-buyer-setup-review] .buyer-review-status-value');
+  if(reviewStatus && !reject){
+    reviewStatus.textContent="Shipping verified · Buyer review still pending";
+  }
+}
+
+function buyerSetupReviewHtml(c){
+  const a=customerAttentionMap[String(c.customerId)]||{};
+  const count=Number(a.setup_complete_count||0);
+  const approvalText=String(a.approval_status||"Not Reviewed");
+  const approvalKey=approvalText.toLowerCase();
+  const reviewComplete=["approved","approved with exceptions","approved_with_exception"].includes(approvalKey);
+  const missing=new Set((a.setup_missing_sections||[]).map(String));
+  const sections=[
+    "Contact Details",
+    "Buyer Type & Business",
+    "Buyer & Export",
+    "Photo ID",
+    "Proof of Address",
+    "Shipping Preferences"
+  ];
+
+  const checklist=sections.map(function(label){
+    const complete=!missing.has(label);
+    return '<div class="panel" style="display:flex;align-items:center;justify-content:space-between;gap:12px">'+
+      '<div><span>'+safe(label)+'</span><strong>'+(complete?"Complete":"Needs attention")+'</strong></div>'+
+      '<strong style="color:'+(complete?"#65e9a0":"#ff8d99")+'">'+(complete?"✓":"✕")+'</strong>'+
+    '</div>';
+  }).join("");
+
+  return '<div class="buyer-setup-review" data-buyer-setup-review style="scroll-margin-top:230px;margin:0 0 18px;padding:18px;border:2px solid '+(reviewComplete?'#2aa866':'#ed1c24')+';border-radius:16px;background:'+(reviewComplete?'linear-gradient(135deg,rgba(42,168,102,.16),#101010)':'linear-gradient(135deg,rgba(237,28,36,.18),#101010)')+';box-shadow:0 0 0 1px '+(reviewComplete?'rgba(42,168,102,.18)':'rgba(237,28,36,.18)')+' inset">'+
+    '<div class="eyebrow" style="font-size:12px;color:'+(reviewComplete?'#65e9a0':'#ff4b52')+'">'+(reviewComplete?'BUYER SETUP REVIEW · COMPLETED':'ACTION REQUIRED · BUYER SETUP REVIEW')+'</div>'+
+    '<h2 style="margin:6px 0 8px;font-size:24px">'+(reviewComplete?'Buyer Setup review for ':'Review ')+safe(c.name)+(reviewComplete?'':' and record a decision')+'</h2>'+
+    '<div style="font-size:14px;line-height:1.55;margin-bottom:14px;color:#ddd">'+
+      (reviewComplete
+        ? '<strong>This buyer has already been approved.</strong> The review remains available here as the customer’s ongoing audit record. You can still inspect shipping, documents and change the decision if required.'
+        : '<strong>What you need to do:</strong> check the 6 setup sections, review the Shipping and Documents information shown inside this panel, choose your decision, then click <strong>Save Review →</strong>. An approval will clear this Customer action from Admin HQ.')+
+    '</div>'+
+    '<div class="detail-grid" style="margin-bottom:14px">'+checklist+'</div>'+
+    '<div class="detail-grid">'+
+      '<div class="panel"><span>Setup completeness</span><strong>'+count+'/6 complete</strong></div>'+
+      '<div class="panel"><span>Current review status</span><strong class="buyer-review-status-value">'+safe(a.approval_status||"Not reviewed")+'</strong></div>'+
+    '</div>'+
+    '<details '+(reviewComplete?'':'open')+' style="margin-top:16px;border:1px solid rgba(255,255,255,.14);border-radius:14px;background:#111;overflow:hidden">'+
+      '<summary style="cursor:pointer;padding:13px 15px;font-weight:950;font-size:16px">🚢 Shipping Review</summary>'+
+      '<div data-buyer-review-shipping style="padding:0 15px 15px"><div class="note-box">Loading shipping information…</div></div>'+
+    '</details>'+
+    '<details '+(reviewComplete?'':'open')+' style="margin-top:12px;border:1px solid rgba(255,255,255,.14);border-radius:14px;background:#111;overflow:hidden">'+
+      '<summary style="cursor:pointer;padding:13px 15px;font-weight:950;font-size:16px">📄 Documents & Proformas Review</summary>'+
+      '<div data-buyer-review-documents style="padding:0 15px 15px"><div class="note-box">Loading documents…</div></div>'+
+    '</details>'+
+    '<div style="display:grid;grid-template-columns:minmax(220px,.45fr) minmax(280px,1fr);gap:10px;margin-top:14px">'+
+      '<div><label class="small" for="buyerReviewDecision-'+cleanId(c.customerId)+'">Admin decision</label>'+
+        '<select id="buyerReviewDecision-'+cleanId(c.customerId)+'" style="width:100%;margin-top:5px;background:#080808;color:#fff;border:1px solid #444;border-radius:10px;padding:11px">'+
+          '<option value="approved">Approve Buyer</option>'+
+          '<option value="approved_with_exception">Approve with Exception</option>'+
+          '<option value="more_information_required">More Information Required</option>'+
+        '</select></div>'+
+      '<div><label class="small" for="buyerReviewNotes-'+cleanId(c.customerId)+'">Review note / exception</label>'+
+        '<input id="buyerReviewNotes-'+cleanId(c.customerId)+'" placeholder="Optional for approval; required for an exception or more information request" style="width:100%;margin-top:5px;background:#080808;color:#fff;border:1px solid #444;border-radius:10px;padding:11px"></div>'+
+    '</div>'+
+    '<div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px">'+
+      '<a class="btn" href="admin-dashboard.html?category=customers" style="background:#181818;border:1px solid #555;text-decoration:none">Return to Admin HQ</a>'+
+      '<button type="button" class="btn" style="background:#ed1c24;min-width:190px" onclick="saveBuyerSetupReview(\''+c.customerId+'\',\''+c.id+'\')">Save Review →</button>'+
+    '</div>'+
+  '</div>';
+}
+
+async function saveBuyerSetupReview(customerId,cardId){
+  const suffix=cleanId(customerId);
+  const decision=document.getElementById("buyerReviewDecision-"+suffix)?.value||"";
+  const notes=String(document.getElementById("buyerReviewNotes-"+suffix)?.value||"").trim();
+
+  if(["approved_with_exception","more_information_required"].includes(decision) && !notes){
+    alert("Please add a review note explaining the exception or what information is required.");
+    return;
+  }
+
+  const {data,error}=await sb.rpc("admin_save_customer_buyer_review_v1",{
+    p_customer_id:customerId,
+    p_approval_status:decision,
+    p_notes:notes||null
+  });
+
+  if(error){
+    alert("Buyer review could not be saved: "+error.message);
+    return;
+  }
+
+  const card=document.getElementById("customer-"+cardId);
+  const review=card?.querySelector("[data-buyer-setup-review]");
+  const status=review?.querySelector(".buyer-review-status-value");
+  if(status){
+    status.textContent=decision==="approved"
+      ? "Approved"
+      : (decision==="approved_with_exception" ? "Approved with Exceptions" : "Review Required");
+  }
+
+  let saved=review?.querySelector("[data-buyer-review-saved]");
+  if(!saved && review){
+    saved=document.createElement("div");
+    saved.setAttribute("data-buyer-review-saved","1");
+    saved.className="note-box";
+    saved.style.cssText="margin-top:14px;border-color:#2aa866;color:#8ef0b3";
+    review.appendChild(saved);
+  }
+  if(saved){
+    saved.innerHTML=(decision==="approved" || decision==="approved_with_exception")
+      ? "<strong>Buyer review saved.</strong> This customer is approved and the Admin HQ Customer action is now cleared. The review remains available here."
+      : "<strong>Buyer review saved.</strong> More information is required before approval.";
+    saved.scrollIntoView({behavior:"smooth",block:"nearest"});
+  }
+
+  if(decision==="approved" || decision==="approved_with_exception"){
+    const heading=review?.querySelector(".eyebrow");
+    if(heading){
+      heading.textContent="BUYER SETUP REVIEW · COMPLETED";
+      heading.style.color="#65e9a0";
+    }
+  }
+}
+
+function showNeedsAttention(){
+  const f=document.getElementById("attentionFilter");
+  if(f)f.value="needs";
+  renderCustomers();
+  document.getElementById("customers")?.scrollIntoView({behavior:"smooth",block:"start"});
+}
+
+function updateNeedsAttentionBanner(){
+  const actions=allCustomers.map(customerAttention);
+  const needs=actions.filter(a=>a.kind!=="clear");
+  const counts={availability:0,setup:0,review:0,deposit:0,balance:0};
+  needs.forEach(a=>{if(counts[a.kind]!==undefined)counts[a.kind]++;});
+  const title=document.getElementById("customerNeedsAttentionTitle");
+  const note=document.getElementById("customerNeedsAttentionText");
+  if(title) title.textContent=needs.length?needs.length+" customer"+(needs.length===1?"":"s")+" need attention":"No customers need immediate attention";
+  if(note) note.textContent=needs.length?[
+    counts.availability?counts.availability+" seller check"+(counts.availability===1?"":"s"):"",
+    counts.setup?counts.setup+" serious buyer setup incomplete":"",
+    counts.review?counts.review+" ready for review":"",
+    counts.deposit?counts.deposit+" deposit outstanding":"",
+    counts.balance?counts.balance+" balance outstanding":""
+  ].filter(Boolean).join(" · "):"Buyer Setup and current payment actions are clear.";
+}
+
+function countryFlag(country){
+  const c=String(country||"").toLowerCase();
+  if(c.includes("germany"))return"🇩🇪"; if(c.includes("france"))return"🇫🇷"; if(c.includes("spain"))return"🇪🇸";
+  if(c.includes("italy"))return"🇮🇹"; if(c.includes("netherlands"))return"🇳🇱"; if(c.includes("poland"))return"🇵🇱";
+  if(c.includes("usa")||c.includes("united states"))return"🇺🇸"; if(c.includes("uae")||c.includes("emirates"))return"🇦🇪";
+  if(c.includes("japan"))return"🇯🇵"; if(c.includes("australia"))return"🇦🇺"; if(c.includes("canada"))return"🇨🇦";
+  if(c.includes("india"))return"🇮🇳"; if(c.includes("south africa"))return"🇿🇦"; if(c.includes("united kingdom")||c==="uk")return"🇬🇧";
+  return"🌍";
+}
+
+function openBuyerSetupReview(customerId){
+  const customer=findCustomerRecord(customerId);
+  if(!customer)return;
+
+  const card=document.getElementById("customer-"+customer.id);
+  if(!card)return;
+
+  const review=card.querySelector("[data-buyer-setup-review]");
+  if(!review){
+    alert("Buyer Setup review is not available for this customer yet.");
+    return;
+  }
+
+  review.scrollIntoView({behavior:"smooth",block:"start"});
+  review.style.outline="3px solid #ed1c24";
+  review.style.outlineOffset="3px";
+  setTimeout(function(){
+    review.style.outline="";
+    review.style.outlineOffset="";
+  },2200);
+}
+
+function switchTab(customerId, tabName){
+  document.querySelectorAll(`#customer-${customerId} .tab-btn`).forEach(b=>b.classList.remove("active"));
+  document.querySelectorAll(`#customer-${customerId} .tab-panel`).forEach(p=>p.classList.remove("active"));
+  const btn=document.querySelector(`#customer-${customerId} .tab-btn[data-tab="${tabName}"]`);
+  const panel=document.querySelector(`#customer-${customerId} .tab-panel[data-panel="${tabName}"]`);
+  if(btn)btn.classList.add("active");
+  if(panel)panel.classList.add("active");
+  ensureCustomerWorkspace(customerId);
+}
+
+function findCustomerRecord(id){
+  return allCustomers.find(c=>
+    String(c.id)===String(id) ||
+    String(c.customerId)===String(id)
+  ) || null;
+}
+
+function fmtDate(value){
+  if(!value)return "-";
+  const d=new Date(value);
+  return Number.isFinite(d.getTime()) ? d.toLocaleString("en-GB") : "-";
+}
+
+function fmtSeconds(value){
+  const n=Math.max(0,Number(value)||0);
+  if(n<60)return Math.round(n)+" sec";
+  const m=Math.floor(n/60);
+  if(m<60)return m+" min";
+  return Math.floor(m/60)+"h "+(m%60)+"m";
+}
+
+function renderWorkspaceMessageThread(thread){
+  const messages=Array.isArray(thread.messages)?thread.messages:[];
+  const rows=messages.length ? messages.map(m=>{
+    const internal=m.is_internal_note===true;
+    const who=internal ? "Internal note" : (m.sender_name || m.sender_type || "Message");
+    return `
+      <div class="timeline-item" style="${internal?"border-left-color:#d4a017":""}">
+        <strong>${safe(who)} · ${fmtDate(m.created_at)}</strong>
+        <div class="small" style="white-space:pre-wrap;margin-top:4px">${safe(m.message)}</div>
+      </div>`;
+  }).join("") : '<div class="small">No messages recorded in this thread.</div>';
+
+  return `
+    <div class="deal-card">
+      <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap">
+        <div>
+          <strong>${safe(thread.subject || "Message Centre conversation")}</strong>
+          <div class="small">${safe(thread.department)} · ${safe(thread.status)} · ${fmtDate(thread.updated_at || thread.created_at)}</div>
+        </div>
+        <a class="btn" href="admin-message-centre.html?thread=${encodeURIComponent(thread.id)}">Open Thread</a>
+      </div>
+      <div style="margin-top:12px">${rows}</div>
+    </div>`;
+}
+
+function friendlyIntelPageName(value){
+  const raw=String(value||"").trim();
+  if(!raw)return "Unknown";
+  const clean=raw.split("?")[0].split("#")[0];
+  const file=clean.split("/").filter(Boolean).pop()||clean;
+  const map={
+    "anybike-connect.html":"AnyBike Connect",
+    "available-stock.html":"Available Stock",
+    "bike-details.html":"Bike Details",
+    "customer-messages.html":"My Messages",
+    "customer-dashboard.html":"My AnyBike",
+    "international-markets.html":"International Markets",
+    "motorcycle-inspection.html":"Motorcycle Inspection",
+    "motorcycle-collection.html":"UK Motorcycle Collection",
+    "export-crating.html":"Export Crating",
+    "shipping-advice.html":"Shipping Advice",
+    "freight-forwarders.html":"Freight Forwarders",
+    "services-and-fees.html":"Services & Fees"
+  };
+  if(map[file])return map[file];
+  if(file.endsWith(".html")){
+    return file.replace(/\.html$/i,"").split("-").map(x=>x.charAt(0).toUpperCase()+x.slice(1)).join(" ");
+  }
+  return raw;
+}
+
+function renderCustomerIntelligence(customer,w){
+  const intel=w?.intelligence||{};
+  const summary=intel.summary||{};
+  const first=intel.first_session||{};
+  const origin=intel.first_attributed_origin||{};
+  const brands=Array.isArray(intel.top_brands)?intel.top_brands:[];
+  const models=Array.isArray(intel.top_models)?intel.top_models:[];
+  const pages=Array.isArray(intel.recent_pages)?intel.recent_pages:[];
+  const discovery=Array.isArray(intel.discovery_responses)?intel.discovery_responses:[];
+
+  const rawSource=origin.origin_page_url||first.landing_path||"";
+  const sourceTitle=friendlyIntelPageName(origin.origin_page_title||origin.origin_page_url||first.landing_title||first.landing_path||"Unknown");
+  const sourceUrl=origin.origin_page_url||first.landing_path||"";
+  const market=origin.origin_market_slug||first.country||customer.country||customer.destinationCountry||"Unknown";
+
+  const brandHtml=brands.length
+    ? '<div class="intel-tags">'+brands.map(b=>
+        '<span class="intel-tag">'+safe(b.make)+' <b>'+Number(b.page_views||0)+' views</b></span>'
+      ).join("")+'</div>'
+    : '<div class="note-box">No brand browsing signals yet.</div>';
+
+  const modelHtml=models.length
+    ? models.map(m=>
+        '<div class="deal-card"><strong>'+safe(m.make)+' '+safe(m.model)+'</strong>'+
+        '<div class="small">'+Number(m.page_views||0)+' page views · '+Number(m.motorcycles_viewed||0)+' motorcycles · '+fmtSeconds(m.active_seconds)+'</div>'+
+        '<div class="small">Last viewed: '+fmtDate(m.last_viewed_at)+'</div></div>'
+      ).join("")
+    : '<div class="note-box">No model browsing signals yet.</div>';
+
+  const discoveryHtml=discovery.length
+    ? discovery.map(d=>
+        '<div class="deal-card"><strong>'+safe(d.source_name||d.response_text||"Buyer discovery response")+'</strong>'+
+        '<div class="small">'+safe(d.channel_type||d.response_type)+(d.country?' · '+safe(d.country):"")+'</div>'+
+        (d.source_url?'<div class="intel-source-url">'+safe(d.source_url)+'</div>':"")+
+        (d.heard_about_anybike?'<div class="small">First heard about AnyBike: '+safe(d.heard_about_anybike)+'</div>':"")+
+        '<div class="small">Recorded '+fmtDate(d.created_at)+' · '+safe(d.identity_source||"Customer")+'</div></div>'
+      ).join("")
+    : '<div class="note-box">No buyer-discovery response recorded yet.</div>';
+
+  const journeyHtml=pages.length
+    ? pages.slice(0,20).map(p=>
+        '<div class="timeline-item"><strong>'+fmtDate(p.entered_at)+' · '+fmtSeconds(p.active_seconds)+'</strong>'+
+        '<div class="small">'+safe(friendlyIntelPageName(p.page_title||p.path))+'</div>'+
+        '<div class="intel-journey-path">'+safe(p.path)+'</div>'+
+        '<div class="small">'+safe(p.identity_source||"Logged in")+'</div></div>'
+      ).join("")
+    : '<div class="note-box">No linked journey recorded in this period.</div>';
+
+  const sourceMeta=[];
+  if(origin.source_record)sourceMeta.push(safe(origin.source_record));
+  if(origin.origin_page_type)sourceMeta.push(safe(origin.origin_page_type));
+  if(first.identity_source)sourceMeta.push(safe(first.identity_source));
+  if(origin.event_at)sourceMeta.push(fmtDate(origin.event_at));
+  else if(first.started_at)sourceMeta.push(fmtDate(first.started_at));
+
+  return '<h3>Customer Intelligence</h3>'+
+    '<div class="intel-summary-grid">'+
+      '<div class="intel-card"><span>Sessions</span><strong>'+Number(summary.sessions||0)+'</strong></div>'+
+      '<div class="intel-card"><span>Page Views</span><strong>'+Number(summary.page_views||0)+'</strong></div>'+
+      '<div class="intel-card"><span>Active Time</span><strong>'+fmtSeconds(summary.active_seconds)+'</strong></div>'+
+      '<div class="intel-card"><span>Linked Guest Views</span><strong>'+Number(summary.linked_guest_page_views||0)+'</strong></div>'+
+      '<div class="intel-card"><span>Visitor Links</span><strong>'+Number(summary.linked_visitor_ids||0)+'</strong></div>'+
+      '<div class="intel-card"><span>Market Context</span><strong>'+safe(market)+'</strong></div>'+
+    '</div>'+
+
+    '<h3 class="section-title">Source & Attribution</h3>'+
+    '<div class="note-box intel-source">'+
+      '<div class="intel-source-title">'+safe(sourceTitle)+'</div>'+
+      (sourceUrl?'<div class="intel-source-url">'+safe(sourceUrl)+'</div>':"")+
+      (first.referrer?'<div class="intel-source-url" style="margin-top:6px">Referrer: '+safe(first.referrer)+'</div>':"")+
+      (sourceMeta.length?'<div class="intel-meta">'+sourceMeta.map(x=>'<span>'+x+'</span>').join("")+'</div>':"")+
+    '</div>'+
+
+    '<div class="intel-columns" style="margin-top:14px">'+
+      '<div>'+
+        '<div class="intel-section-card">'+
+          '<h3 style="margin-top:0">Top Brands</h3>'+brandHtml+
+          '<h3 class="section-title">Top Models</h3>'+modelHtml+
+        '</div>'+
+      '</div>'+
+      '<div>'+
+        '<div class="intel-section-card intel-discovery">'+
+          '<h3 style="margin-top:0">Where this buyer shops</h3>'+discoveryHtml+
+        '</div>'+
+      '</div>'+
+    '</div>'+
+
+    '<h3 class="section-title">Recent Journey</h3>'+
+    '<div class="intel-section-card"><div class="intel-journey">'+journeyHtml+'</div></div>';
+}
+
+function groupRecentMotorcycleViews(items){
+  const map=new Map();
+  (items||[]).forEach(item=>{
+    const bike=item.available_stock||{};
+    const key=String(item.bike_id||bike.id||"unknown");
+    if(!map.has(key)){
+      map.set(key,{bike,item,count:0,lastViewed:item.viewed_at});
+    }
+    const row=map.get(key);
+    row.count+=1;
+    if(new Date(item.viewed_at||0)>new Date(row.lastViewed||0))row.lastViewed=item.viewed_at;
+  });
+  return [...map.values()].sort((a,b)=>new Date(b.lastViewed||0)-new Date(a.lastViewed||0));
+}
+
+function groupTimelineEvents(events){
+  const out=[];
+  let visitGroup=null;
+
+  function flush(){
+    if(visitGroup){
+      out.push(visitGroup);
+      visitGroup=null;
+    }
+  }
+
+  (events||[]).forEach(e=>{
+    const isVisit=String(e.type||"").toLowerCase()==="visit";
+    const time=new Date(e.event_at||0).getTime();
+
+    if(!isVisit){
+      flush();
+      out.push({kind:"event",event:e});
+      return;
+    }
+
+    if(!visitGroup){
+      visitGroup={kind:"visits",start:e.event_at,end:e.event_at,count:1,pages:[e.detail||e.title||"Website page"]};
+      return;
+    }
+
+    const prev=new Date(visitGroup.end||0).getTime();
+    const gap=Math.abs(prev-time);
+    if(gap<=30*60*1000){
+      visitGroup.end=e.event_at;
+      visitGroup.count+=1;
+      const label=e.detail||e.title||"Website page";
+      if(!visitGroup.pages.includes(label) && visitGroup.pages.length<5)visitGroup.pages.push(label);
+    }else{
+      flush();
+      visitGroup={kind:"visits",start:e.event_at,end:e.event_at,count:1,pages:[e.detail||e.title||"Website page"]};
+    }
+  });
+
+  flush();
+  return out;
+}
+
+function localMoney(v,currency){
+  const n=Number(v);
+  if(!Number.isFinite(n))return "-";
+  try{return new Intl.NumberFormat(undefined,{style:"currency",currency:currency||"GBP",maximumFractionDigits:0}).format(n)}
+  catch{return String(currency||"")+" "+n.toLocaleString(undefined,{maximumFractionDigits:0})}
+}
+function renderBuyerCommercialIntelligence(ci){
+  const targets=Array.isArray(ci?.shared_targets)?ci.shared_targets:[];
+  const h=ci?.response_history||{};
+  const historyCards=[
+    '<div class="commercial-card"><span>Interested matches</span><strong>'+Number(h.interested_count||0)+'</strong></div>',
+    '<div class="commercial-card"><span>Not interested</span><strong>'+Number(h.not_interested_count||0)+'</strong></div>',
+    '<div class="commercial-card"><span>Interested price range</span><strong>'+(h.interested_min_price_gbp!=null&&h.interested_max_price_gbp!=null?money(h.interested_min_price_gbp)+'–'+money(h.interested_max_price_gbp):'-')+'</strong></div>',
+    '<div class="commercial-card"><span>Average interested price</span><strong>'+(h.interested_avg_price_gbp!=null?money(h.interested_avg_price_gbp):'-')+'</strong></div>'
+  ].join("");
+
+  const targetHtml=targets.length?targets.map(t=>{
+    const cur=t.currency||"GBP";
+    const head=Number(t.commercial_headroom_gbp);
+    const headKnown=Number.isFinite(head);
+    const headClass=headKnown?(head>=0?"pos":"neg"):"";
+    const bike=safe([t.year,t.make,t.model,t.variant].filter(Boolean).join(" "));
+    return '<div class="commercial-target">'+
+      '<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap">'+
+        '<div><strong>'+bike+'</strong><div class="small">Buyer deliberately shared this target '+fmtDate(t.shared_at)+'</div></div>'+
+        '<div><strong>'+money(t.anybike_price_gbp)+'</strong><div class="small">Current shared AnyBike price</div></div>'+
+      '</div>'+
+      '<div class="commercial-grid">'+
+        '<div class="commercial-card"><span>Expected retail</span><strong>'+localMoney(t.expected_retail_price,cur)+'</strong></div>'+
+        '<div class="commercial-card"><span>Target gross margin</span><strong>'+(t.target_margin_pct!=null?Number(t.target_margin_pct).toFixed(1)+'%':'-')+'</strong></div>'+
+        '<div class="commercial-card"><span>Estimated landed cost</span><strong>'+localMoney(t.estimated_landed_cost,cur)+'</strong></div>'+
+        '<div class="commercial-card"><span>Expected profit</span><strong>'+localMoney(t.estimated_profit,cur)+'</strong></div>'+
+        '<div class="commercial-card"><span>Maximum viable AnyBike price</span><strong>'+(t.maximum_viable_anybike_price_gbp!=null?money(t.maximum_viable_anybike_price_gbp):'Retail price not supplied')+'</strong></div>'+
+        '<div class="commercial-card"><span>Commercial headroom</span><strong class="commercial-headroom '+headClass+'">'+(headKnown?money(head):'-')+'</strong></div>'+
+      '</div>'+
+      '<div class="small">Buyer assumptions: 1 GBP = '+safe(t.fx_rate)+' '+safe(cur)+' · shipping '+localMoney(t.shipping_cost,cur)+' · duty '+safe(t.duty_rate_pct)+'% · import tax '+safe(t.import_tax_rate_pct)+'% · port '+localMoney(t.local_port_collection_cost,cur)+' · prep '+localMoney(t.preparation_cost,cur)+' · warranty '+localMoney(t.warranty_cost,cur)+' · other '+localMoney(t.other_cost,cur)+'</div>'+
+    '</div>';
+  }).join(""):'<div class="note-box">No commercial targets have been deliberately shared by this buyer.</div>';
+
+  return '<div class="commercial-policy"><strong>Pricing guardrail:</strong> use shared targets to understand commercial fit and avoid unnecessary discounting. Do not increase a buyer price simply because their private economics show additional headroom. Calculator defaults that the buyer has not explicitly shared are not shown here.</div>'+
+    '<div class="commercial-grid">'+historyCards+'</div>'+
+    '<h3 class="section-title">Shared Commercial Targets</h3>'+targetHtml;
+}
+
+function renderCustomerWorkspace(customer){
+  const w=customerWorkspaceMap[String(customer.customerId)] || {};
+  customer.workspace=w;
+  const root=document.getElementById("customer-"+customer.id);
+  if(!root)return;
+
+  const setPanel=(name,html)=>{
+    const panel=root.querySelector('[data-panel="'+name+'"]');
+    if(panel)panel.innerHTML=html;
+  };
+
+  setPanel("intelligence",renderCustomerIntelligence(customer,w));
+
+  const messages=Array.isArray(w.messages)?w.messages:[];
+  setPanel("messages",
+    '<h3>Messages</h3>'+
+    (messages.length
+      ? messages.map(renderWorkspaceMessageThread).join("")
+      : '<div class="note-box">No Message Centre conversations recorded for this customer.</div>')
+  );
+
+  const enquiries=Array.isArray(w.enquiries)?w.enquiries:[];
+  setPanel("enquiries",
+    '<h3>Enquiries</h3>'+
+    (enquiries.length
+      ? enquiries.map(e=>`
+        <div class="deal-card">
+          <strong>Enquiry #${e.id} · ${safe(e.question_type || "Motorcycle enquiry")}</strong>
+          <div class="small">${fmtDate(e.created_at)} · ${safe(e.lead_status || e.status)}</div>
+          ${e.destination_country?'<div class="small">Destination: '+safe(e.destination_country)+'</div>':""}
+          ${e.message?'<div class="note-box" style="margin-top:8px;white-space:pre-wrap">'+safe(e.message)+'</div>':""}
+          <div style="margin-top:10px"><a class="btn" href="admin-enquiries.html?open=${encodeURIComponent(e.id)}">Open in Bike Sales HQ</a></div>
+        </div>`).join("")
+      : '<div class="note-box">No enquiries recorded for this customer.</div>')
+  );
+
+  const searches=Array.isArray(w.saved_searches)?w.saved_searches:[];
+  const searchHtml=searches.length ? searches.map(s=>`
+    <div class="deal-card">
+      <strong>🔎 ${safe([s.make,s.model,s.variant].filter(Boolean).join(" ") || "Saved buying requirement")}</strong>
+      <div class="small">${s.min_year||s.max_year?"Year: "+safe(s.min_year||"Any")+"–"+safe(s.max_year||"Any"):""} ${s.max_mileage?" · Max "+Number(s.max_mileage).toLocaleString("en-GB")+" miles":""}</div>
+      <div class="small">${s.destination_country?"Destination: "+safe(s.destination_country):""} ${s.buyer_type?" · "+safe(s.buyer_type):""}</div>
+      ${s.requirement_notes?'<div class="small" style="margin-top:5px">'+safe(s.requirement_notes)+'</div>':""}
+      <div class="small">Saved ${fmtDate(s.created_at)}</div>
+    </div>`).join("") : '<div class="note-box">No saved searches / buying requirements.</div>';
+
+  const watchHtml=customer.watchlistItems?.length ? customer.watchlistItems.map(item=>{
+    const bike=item.available_stock||{};
+    const bikeId=Number(item.bike_id || bike.id || 0);
+    const label=safe([bike.make,bike.model,bike.variant].filter(Boolean).join(" "));
+    const title=bikeId
+      ? `<a href="bike-details.html?id=${encodeURIComponent(bikeId)}" target="_blank" rel="noopener" style="color:#fff;text-decoration:underline;text-decoration-color:#ed1c24;text-underline-offset:3px">❤️ ${label}</a>`
+      : `❤️ ${label}`;
+    return `<div class="deal-card"><strong>${title}</strong><div class="small">${bike.year?"Year "+safe(bike.year):""} ${bike.mileage?" · "+Number(bike.mileage).toLocaleString("en-GB")+" miles":""}</div><div class="small">Added ${fmtDate(item.created_at)}</div></div>`;
+  }).join("") : '<div class="note-box">No Watchlist motorcycles.</div>';
+
+  const groupedRecent=groupRecentMotorcycleViews(customer.recentViewItems||[]);
+  const recentHtml=groupedRecent.length ? '<div class="interest-grid">'+groupedRecent.slice(0,12).map(row=>{
+    const item=row.item||{};
+    const bike=row.bike||{};
+    const bikeId=Number(item.bike_id || bike.id || 0);
+    const label=safe([bike.make,bike.model,bike.variant].filter(Boolean).join(" "));
+    const image=safe(bike.image_url||"");
+    const href=bikeId?"bike-details.html?id="+encodeURIComponent(bikeId):"#";
+    const meta=[
+      bike.year?"Year "+safe(bike.year):"",
+      bike.mileage?Number(bike.mileage).toLocaleString("en-GB")+" miles":""
+    ].filter(Boolean).join(" · ");
+
+    return '<div class="interest-card">'+
+      (image?'<img src="'+image+'" alt="">':'<div style="width:92px;height:72px;border-radius:10px;background:#0b0b0b"></div>')+
+      '<div><a href="'+href+'" target="_blank" rel="noopener">'+label+'</a>'+
+      (meta?'<div class="interest-meta">'+meta+'</div>':"")+
+      '<div class="interest-meta">Last viewed '+fmtDate(row.lastViewed)+'</div>'+
+      '<div class="interest-count">Viewed '+row.count+' time'+(row.count===1?"":"s")+'</div></div>'+
+    '</div>';
+  }).join("")+'</div>' : '<div class="note-box">No recently viewed motorcycles.</div>';
+
+  const commercialHtml=renderBuyerCommercialIntelligence(w.commercial_intelligence||{});
+  setPanel("interests",
+    '<h3>Motorcycle Interests</h3>'+
+    '<h3 class="section-title">💷 Buyer Commercial Intelligence</h3>'+commercialHtml+
+    '<h3 class="section-title">🔎 Saved Searches / Buying Requirements</h3>'+searchHtml+
+    '<h3 class="section-title">❤️ Watchlist</h3>'+watchHtml+
+    '<h3 class="section-title">👀 Recently Viewed</h3>'+recentHtml
+  );
+
+  const sentSelections=Array.isArray(w.sent_selections)?w.sent_selections:[];
+  setPanel("selections",
+    '<h3>Sent Selections</h3>'+
+    '<div class="note-box">Every hand-picked sourcing selection sent to this customer is listed here. These are internal records; the customer sees a private selection link without the internal batch number.</div>'+
+    (sentSelections.length
+      ? sentSelections.map(s=>{
+          const label=[s.make,s.model].filter(Boolean).join(" ")||s.title||"Hand-picked selection";
+          const meta=[
+            Number(s.total_matches||0)+" motorcycle"+(Number(s.total_matches||0)===1?"":"s"),
+            Number(s.interested_count||0)?Number(s.interested_count||0)+" interested":"",
+            Number(s.declined_count||0)?Number(s.declined_count||0)+" not interested":"",
+            Number(s.unanswered_count||0)?Number(s.unanswered_count||0)+" awaiting response":""
+          ].filter(Boolean).join(" · ");
+          return '<div class="deal-card">'+
+            '<strong>'+safe(label)+'</strong>'+
+            '<div class="small">Sent: '+fmtDate(s.shared_at)+'</div>'+
+            '<div class="small">'+safe(meta)+'</div>'+
+            '<div style="margin-top:10px"><a class="btn" href="admin-used-bike-scanner.html?batch='+encodeURIComponent(s.id)+'">Open sourcing batch</a></div>'+
+          '</div>';
+        }).join("")
+      : '<div class="note-box">No hand-picked sourcing selections have been sent to this customer yet.</div>')
+  );
+
+  const deals=Array.isArray(w.deals)?w.deals:[];
+  setPanel("deals",
+    '<h3>Deals</h3>'+
+    (deals.length ? deals.map(d=>{
+      const bikes=Array.isArray(d.motorcycles)?d.motorcycles:[];
+      const bikeHtml=bikes.length?bikes.map(b=>`
+        <div class="panel" style="margin-top:8px">
+          <strong>${safe([b.year,b.make,b.model,b.variant].filter(Boolean).join(" "))}</strong>
+          <div class="small">Status: ${safe(b.item_status)} · Buyer price: ${money(b.buyer_price_gbp)} · Secured: ${b.bike_secured?"Yes":"No"}</div>
+        </div>`).join(""):'<div class="small">No candidate motorcycles currently linked.</div>';
+      return `
+        <div class="deal-card">
+          <strong>${safe(d.deal_number || ("Deal #"+d.id))} · ${safe(d.title || "Sourcing Deal")}</strong>
+          <div class="small">Stage: ${safe(d.deal_stage)} · Status: ${safe(d.status)} · Updated: ${fmtDate(d.updated_at)}</div>
+          ${d.destination_country?'<div class="small">Destination: '+safe(d.destination_country)+'</div>':""}
+          <div style="margin-top:8px">${bikeHtml}</div>
+          <div style="margin-top:10px"><a class="btn" href="admin-enquiries.html">Open Bike Sales HQ</a></div>
+        </div>`;
+    }).join("") : '<div class="note-box">No Deal 360 records for this customer.</div>')
+  );
+
+  const shipping=w.shipping||{};
+  const move=Array.isArray(shipping.move_shipments)?shipping.move_shipments:[];
+  const auths=Array.isArray(shipping.shipper_authorisations)?shipping.shipper_authorisations:[];
+  let shippingHtml="";
+  if(deals.length){
+    shippingHtml += '<h3 class="section-title">Deal 360 Shipping Routes <span class="small" style="font-weight:700">· reference only</span></h3>'+
+      deals.filter(d=>d.shipping_route_status||d.freight_forwarder_name||d.uk_handover_port).map(d=>`
+        <div class="deal-card">
+          <strong>${safe(d.deal_number || ("Deal #"+d.id))}</strong>
+          <div class="small">Route status: ${safe(d.shipping_route_status)}</div>
+          <div class="small">UK handover: ${safe(d.uk_handover_port)}</div>
+          <div class="small">Forwarder: ${safe(d.freight_forwarder_name)} ${d.freight_forwarder_reference?" · Ref "+safe(d.freight_forwarder_reference):""}</div>
+          ${d.shipping_route_notes?'<div class="small">'+safe(d.shipping_route_notes)+'</div>':""}
+        </div>`).join("");
+  }
+  if(move.length){
+    shippingHtml += '<h3 class="section-title">Move Motorcycles</h3>'+
+      move.map(s=>`<div class="deal-card"><strong>${safe(s.tracking_no || s.reference_no || ("Move shipment #"+s.id))}</strong><div class="small">Status: ${safe(s.status)} · Booked: ${fmtDate(s.booked_at)}</div><div class="small">Delivery: ${safe([s.receiver_city,s.receiver_country].filter(Boolean).join(", "))}</div></div>`).join("");
+  }
+  if(auths.length){
+    shippingHtml += '<h3 class="section-title">Buyer Shipper Authorisations</h3>'+
+      auths.map(a=>`<div class="deal-card"><strong>${safe(a.shipper_name)}</strong><div class="small">Status: ${safe(a.status)} · Handover: ${safe(a.uk_handover_point)}</div><div class="small">${safe(a.shipper_email)} ${a.forwarder_reference?" · Ref "+safe(a.forwarder_reference):""}</div></div>`).join("");
+  }
+  setPanel("shipping",'<h3>Shipping</h3>'+(shippingHtml||'<div class="note-box">No shipping or shipper records yet.</div>'));
+  const embeddedShipping=root.querySelector("[data-buyer-review-shipping]");
+  if(embeddedShipping){
+    embeddedShipping.innerHTML=buyerReviewShippingHtml(customer,shippingHtml);
+  }
+
+  const docs=w.documents||{};
+  const cd=Array.isArray(docs.customer_documents)?docs.customer_documents:[];
+  const md=Array.isArray(docs.motorcycle_documents)?docs.motorcycle_documents:[];
+  const sd=Array.isArray(docs.shipper_documents)?docs.shipper_documents:[];
+  const inv=Array.isArray(docs.invoices)?docs.invoices:[];
+  let docsHtml="";
+  if(inv.length) docsHtml+='<h3 class="section-title">Invoices / Proformas</h3>'+inv.map(i=>`<div class="deal-card"><strong>${safe(i.invoice_number || i.invoice_type)}</strong><div class="small">${safe(i.invoice_status)} · ${money(i.gross_amount_gbp ?? i.total_gbp)} · ${fmtDate(i.issued_at || i.created_at)}</div></div>`).join("");
+  if(cd.length) docsHtml+='<h3 class="section-title">Customer Documents</h3>'+cd.map(d=>`<div class="deal-card"><strong>${safe(d.document_title || d.original_file_name || d.document_type)}</strong><div class="small">${safe(d.document_type)} · ${safe(d.verification_status || d.document_status)} · ${fmtDate(d.created_at)}</div></div>`).join("");
+  if(md.length) docsHtml+='<h3 class="section-title">Motorcycle Documents</h3>'+md.map(d=>`<div class="deal-card"><strong>${safe(d.document_title || d.original_file_name || d.document_type)}</strong><div class="small">${d.buyer_visible?"Buyer visible":"Internal"} · ${fmtDate(d.created_at)}</div></div>`).join("");
+  if(sd.length) docsHtml+='<h3 class="section-title">Shipper Documents</h3>'+sd.map(d=>`<div class="deal-card"><strong>${safe(d.file_name)}</strong><div class="small">${safe(d.mime_type)} · ${fmtDate(d.created_at)}</div></div>`).join("");
+  setPanel("documents",'<h3>Documents</h3>'+(docsHtml||'<div class="note-box">No documents or invoices recorded yet.</div>'));
+  const embeddedDocuments=root.querySelector("[data-buyer-review-documents]");
+  if(embeddedDocuments){
+    embeddedDocuments.innerHTML=buyerReviewDocumentsHtml(customer,w);
+  }
+
+  const notes=Array.isArray(w.notes)?w.notes:[];
+  setPanel("notes",`
+    <h3>Internal Notes</h3>
+    <div style="display:grid;gap:8px;margin-bottom:14px">
+      <textarea id="customerNote-${customer.id}" placeholder="Add an internal customer note..." style="min-height:90px"></textarea>
+      <div><button class="btn" type="button" onclick="saveCustomer360Note('${customer.id}')">Save Note</button></div>
+    </div>
+    <div id="customerNotesList-${customer.id}">
+      ${notes.length?notes.map(n=>`<div class="timeline-item"><strong>${fmtDate(n.created_at)} · ${safe(n.created_by_name || "Admin")}</strong><div class="small" style="white-space:pre-wrap">${safe(n.note)}</div></div>`).join(""):'<div class="note-box">No internal notes yet.</div>'}
+    </div>`
+  );
+
+  const visits=Array.isArray(w.visits)?w.visits:[];
+  const intel=contactIntel(customer);
+  const messageThreads=Array.isArray(w.messages)?w.messages:[];
+  const latestThread=messageThreads[0]||{};
+  const latestMessage=(Array.isArray(latestThread.messages)?latestThread.messages:[]).slice(-1)[0]||null;
+  setPanel("communication",`
+    <h3>Communication Intelligence</h3>
+    <div class="detail-grid">
+      <div class="panel"><span>Best Contact Window</span><strong>${intel.bestWindow}</strong></div>
+      <div class="panel"><span>Best Day</span><strong>${intel.bestDay}</strong></div>
+      <div class="panel"><span>Preferred Channel</span><strong>${intel.channel}</strong></div>
+      <div class="panel"><span>Confidence</span><strong>${intel.score}%</strong></div>
+      <div class="panel"><span>Message Threads</span><strong>${messageThreads.length}</strong></div>
+      <div class="panel"><span>Last Message</span><strong>${latestMessage?fmtDate(latestMessage.created_at):"-"}</strong></div>
+    </div>
+    <div class="note-box">🤖 ${intel.recommendation}</div>
+    <h3 class="section-title">Communication Basis</h3>
+    <div class="note-box">Contact timing uses recent AnyBike browsing patterns and customer reply times. Browsing detail now lives in Intelligence; this tab is focused on when and how to contact the customer.</div>`
+  );
+
+  const timeline=Array.isArray(w.timeline)?w.timeline:[];
+  const groupedTimeline=groupTimelineEvents(timeline);
+  setPanel("timeline",'<h3>Customer Timeline</h3><div class="timeline">'+
+    (groupedTimeline.length?groupedTimeline.map(item=>{
+      if(item.kind==="visits"){
+        const start=new Date(item.start||0);
+        const end=new Date(item.end||0);
+        const mins=Math.max(1,Math.round(Math.abs(start-end)/60000));
+        return '<div class="timeline-group"><strong>'+fmtDate(item.start)+' · Browsed AnyBike</strong>'+
+          '<div class="small">'+item.count+' page view'+(item.count===1?"":"s")+' · about '+mins+' min</div>'+
+          '<div class="timeline-group-pages">'+item.pages.map(friendlyIntelPageName).join(" · ")+'</div></div>';
+      }
+      const e=item.event||{};
+      return '<div class="timeline-item"><strong>'+fmtDate(e.event_at)+' · '+safe(e.title)+'</strong>'+
+        '<div class="small">'+safe(e.detail)+'</div>'+
+        (e.link?'<div style="margin-top:5px"><a class="btn" href="'+safe(e.link)+'">Open</a></div>':"")+
+      '</div>';
+    }).join(""):'<div class="note-box">No customer activity recorded yet.</div>')+
+    '</div>'
+  );
+}
+
+async function ensureCustomerWorkspace(id,force){
+  const customer=findCustomerRecord(id);
+  if(!customer)return;
+  const key=String(customer.customerId);
+
+  if(customerWorkspaceMap[key] && !force){
+    renderCustomerWorkspace(customer);
+    return;
+  }
+  if(customerWorkspaceLoading[key])return customerWorkspaceLoading[key];
+
+  customerWorkspaceLoading[key]=(async()=>{
+    const root=document.getElementById("customer-"+customer.id);
+    if(root){
+      ["intelligence","messages","enquiries","interests","selections","deals","shipping","documents","notes","timeline"].forEach(name=>{
+        const panel=root.querySelector('[data-panel="'+name+'"]');
+        if(panel && !customerWorkspaceMap[key])panel.innerHTML='<div class="note-box">Loading customer data…</div>';
+      });
+    }
+
+    const [workspaceResult,intelligenceResult,commercialResult,reviewDocumentsResult,selectionsResult]=await Promise.all([
+      sb.rpc("admin_get_customer_360_workspace_v1",{
+        p_customer_id:customer.customerId
+      }),
+      sb.rpc("admin_get_customer_intelligence_v1",{
+        p_customer_id:customer.customerId,
+        p_days:90
+      }),
+      sb.rpc("admin_get_customer_commercial_intelligence_v1",{
+        p_customer_id:customer.customerId
+      }),
+      sb.rpc("admin_get_customer_review_documents_v1",{
+        p_customer_id:customer.customerId
+      }),
+      sb.rpc("admin_get_customer_sourced_match_batches_v1",{
+        p_customer_id:customer.customerId
+      })
+    ]);
+
+    const data=workspaceResult.data;
+    const error=workspaceResult.error;
+
+    if(intelligenceResult.error){
+      console.warn("Customer intelligence could not be loaded",intelligenceResult.error);
+    }
+    if(commercialResult.error){
+      console.warn("Customer commercial intelligence could not be loaded",commercialResult.error);
+    }
+
+    if(error){
+      console.error("Customer 360 workspace could not be loaded",error);
+      if(root){
+        root.querySelectorAll(".tab-panel").forEach(panel=>{
+          if(panel.innerHTML.includes("Loading customer data")){
+            panel.innerHTML='<div class="note-box" style="color:#ff8b90">Could not load customer data: '+safe(error.message)+'</div>';
+          }
+        });
+      }
+      return;
+    }
+
+    customerWorkspaceMap[key]={
+      ...(data||{}),
+      intelligence:intelligenceResult?.data||{},
+      commercial_intelligence:commercialResult?.data||{},
+      review_documents:reviewDocumentsResult?.data||{},
+      sent_selections:selectionsResult?.error?[]:(selectionsResult?.data||[])
+    };
+    renderCustomerWorkspace(customer);
+  })();
+
+  try{
+    await customerWorkspaceLoading[key];
+  }finally{
+    delete customerWorkspaceLoading[key];
+  }
+}
+
+async function saveCustomer360Note(id){
+  const customer=findCustomerRecord(id);
+  if(!customer)return;
+  const input=document.getElementById("customerNote-"+customer.id);
+  const note=String(input?.value||"").trim();
+  if(!note){alert("Enter a note first.");return;}
+
+  const {error}=await sb.rpc("admin_save_customer_360_note_v1",{
+    p_customer_id:customer.customerId,
+    p_note:note
+  });
+
+  if(error){
+    alert("Note could not be saved: "+error.message);
+    return;
+  }
+
+  if(input)input.value="";
+  delete customerWorkspaceMap[String(customer.customerId)];
+  await ensureCustomerWorkspace(customer.id,true);
+}
+
+function contactIntel(c){
+  const ids = c.deals.map(d => Number(d.id));
+  const msgs = ids.flatMap(id => messageMap[String(id)] || [])
+    .filter(m => String(m.sender || "").toLowerCase().includes("customer"));
+
+  const visits = visitActivityMap[String(c.customerId)] || [];
+  const hourScores = {};
+  const dayScores = {};
+
+  function addSignal(value,weight){
+    const d = new Date(value);
+    if(!Number.isFinite(d.getTime())) return;
+
+    const h = d.getHours();
+    const day = d.toLocaleDateString("en-GB",{weekday:"long"});
+
+    hourScores[h] = (hourScores[h] || 0) + weight;
+    dayScores[day] = (dayScores[day] || 0) + weight;
+  }
+
+  // Browsing behaviour is useful early evidence. Longer active page visits
+  // carry a little more weight, but are capped so one long page does not dominate.
+  visits.forEach(v=>{
+    const active = Math.max(0,Number(v.active_seconds)||0);
+    const weight = Math.min(3,1 + (active / 120));
+    addSignal(v.entered_at,weight);
+  });
+
+  // An actual customer reply is a stronger indication of when they are
+  // genuinely available to communicate.
+  msgs.forEach(m=>addSignal(m.created_at,4));
+
+  const totalSignals = visits.length + msgs.length;
+
+  if(!totalSignals){
+    return {
+      bestWindow:"Not enough data",
+      bestDay:"Not enough data",
+      avgDelay:"Unknown",
+      channel:"Email / WhatsApp",
+      recommendation:"No browsing or reply pattern yet. Use normal business hours until activity is recorded.",
+      score:10
+    };
+  }
+
+  const bestHourEntry = Object.entries(hourScores).sort((a,b)=>b[1]-a[1])[0];
+  const bestDayEntry = Object.entries(dayScores).sort((a,b)=>b[1]-a[1])[0];
+
+  const bestHour = Number(bestHourEntry?.[0] ?? 9);
+  const bestDay = bestDayEntry?.[0] || "Not enough data";
+
+  const start = String(bestHour).padStart(2,"0") + ":00";
+  const endHour = (bestHour + 2) % 24;
+  const end = String(endHour).padStart(2,"0") + ":00";
+
+  // Confidence rises with repeated visits and especially with replies,
+  // but remains deliberately moderate when we only have browsing behaviour.
+  let score = 15 + Math.min(45,visits.length * 4) + Math.min(40,msgs.length * 12);
+  score = Math.min(100,Math.round(score));
+
+  const evidence = [];
+  if(visits.length) evidence.push(visits.length+" site page visit"+(visits.length===1?"":"s"));
+  if(msgs.length) evidence.push(msgs.length+" customer repl"+(msgs.length===1?"y":"ies"));
+
+  const basis = evidence.join(" and ");
+  const recommendation = msgs.length
+    ? `Based on ${basis}, this customer is most active around ${start}. Best contact window is ${start}–${end} UK time, especially on ${bestDay}.`
+    : `Based on ${basis}, this customer tends to browse AnyBike around ${start}. Try ${start}–${end} UK time, especially on ${bestDay}. Confidence will improve as more visits or replies are recorded.`;
+
+  return {
+    bestWindow:`${start}–${end} UK time`,
+    bestDay,
+    avgDelay:"To be calculated",
+    channel:"Email / WhatsApp",
+    recommendation,
+    score
+  };
+}
+
+async function loadVisitActivityForIntel(){
+  const {data,error}=await sb.rpc("admin_get_customer_visit_activity_v1",{
+    p_days:90
+  });
+
+  visitActivityMap={};
+
+  if(error){
+    console.warn("Customer visit activity could not be loaded",error.message);
+    return;
+  }
+
+  (data||[]).forEach(row=>{
+    if(!row.user_id) return;
+    const key=String(row.user_id);
+    if(!visitActivityMap[key]) visitActivityMap[key]=[];
+    visitActivityMap[key].push(row);
+  });
+}
+
+async function loadMessagesForIntel(){
+  const {data,error} = await sb
+    .from("enquiry_messages")
+    .select("enquiry_id,sender,created_at,message")
+    .order("created_at",{ascending:true});
+
+  messageMap = {};
+  if(error || !data) return;
+
+  data.forEach(m=>{
+    const key = String(m.enquiry_id);
+    if(!messageMap[key]) messageMap[key] = [];
+    messageMap[key].push(m);
+  });
+}
+
+async function loadCustomers(){
+  customerWorkspaceMap={};
+  customerWorkspaceLoading={};
+  customerAttentionMap={};
+  customerOnboardingMap={};
+  const [, , attentionResult, onboardingResult] = await Promise.all([
+    loadMessagesForIntel(),
+    loadVisitActivityForIntel(),
+    sb.rpc("admin_get_customer_needs_attention_v3"),
+    sb.rpc("admin_get_onboarding_pipeline_v1")
+  ]);
+  if(attentionResult?.error){
+    console.warn("Customer Needs Attention could not be loaded",attentionResult.error);
+  }else{
+    (attentionResult?.data||[]).forEach(row=>{
+      if(row.customer_id) customerAttentionMap[String(row.customer_id)]=row;
+    });
+  }
+
+  if(onboardingResult?.error){
+    console.warn("Customer onboarding state could not be loaded",onboardingResult.error);
+  }else{
+    (onboardingResult?.data||[]).forEach(row=>{
+      if(row.user_id) customerOnboardingMap[String(row.user_id)]=row;
+    });
+  }
+
+  const { data:profiles, error:profileError } = await sb
+    .from("customer_profiles")
+    .select(`
+      id,
+      email,
+      full_name,
+      phone,
+      country,
+      city,
+      region,
+      business_name,
+      preferred_currency,
+      preferred_language,
+      preferred_shipping_company,
+      shipping_contact_name,
+      shipping_contact_email,
+      shipping_contact_phone,
+      preferred_uk_collection_point,
+      shipping_address_line1,
+      shipping_address_line2,
+      shipping_city,
+      shipping_region,
+      shipping_postcode,
+      shipping_country,
+      live_source_enabled,
+      created_at
+    `)
+    .order("created_at",{ascending:false});
+
+  if(profileError){
+    document.getElementById("customers").innerHTML =
+      "<div style='color:#ff7676;font-weight:900'>"+profileError.message+"</div>";
+    return;
+  }
+  const { data:visitors, error:visitorError } = await sb
+    .from("website_visitors")
+    .select(`
+      user_id,
+      last_seen_at,
+      current_path,
+      page_title,
+      country,
+      region,
+      city,
+      latitude,
+      longitude,
+      device_type,
+      browser,
+      pageviews,
+      message_thread_id,
+      chat_status
+    `)
+    .not("user_id","is",null)
+    .order("last_seen_at",{ascending:false});
+
+  if(visitorError){
+    console.error("Could not load website visitor data:", visitorError);
+  }
+  const { data:watchlist, error:watchlistError } = await sb
+  .from("customer_watchlist")
+  .select(`
+    id,
+    customer_id,
+    bike_id,
+    created_at,
+    available_stock(
+      id,
+      make,
+      model,
+      variant,
+      year,
+      mileage,
+      price_gbp,
+      image_url,
+      vat_status,
+      lifecycle_status
+    )
+  `)
+  .order("created_at",{ascending:false});
+
+if(watchlistError){
+  console.error("Could not load customer watchlist:", watchlistError);
+}
+
+const { data:recentViews, error:recentViewsError } = await sb
+  .from("recently_viewed_bikes")
+  .select(`
+    id,
+    customer_id,
+    bike_id,
+    viewed_at,
+    available_stock(
+      id,
+      make,
+      model,
+      variant,
+      year,
+      mileage,
+      price_gbp,
+      image_url,
+      vat_status,
+      lifecycle_status
+    )
+  `)
+  .order("viewed_at",{ascending:false});
+
+if(recentViewsError){
+  console.error("Could not load recently viewed bikes:", recentViewsError);
+}
+  const { data:enquiries, error:enquiryError } = await sb
+    .from("bike_enquiries")
+    .select(`
+      id,
+      created_at,
+      customer_id,
+      customer_name,
+      customer_email,
+      customer_phone,
+      destination_country,
+      customer_region,
+      customer_city,
+      status,
+      assigned_to,
+      message,
+      question_type,
+      offer_amount,
+      deal_total_income,
+      deal_net_profit,
+      deal_saved_by,
+      deposit_received,
+      completed_at,
+      available_stock(
+        id,
+        make,
+        model,
+        variant,
+        year,
+        price_gbp,
+        image_url
+      )
+    `)
+    .order("created_at",{ascending:false});
+
+  if(enquiryError){
+    document.getElementById("customers").innerHTML =
+      "<div style='color:#ff7676;font-weight:900'>"+enquiryError.message+"</div>";
+    return;
+  }
+
+  const enquiriesByCustomer = {};
+
+  (enquiries || []).forEach(e=>{
+    if(!e.customer_id) return;
+
+    const key = String(e.customer_id);
+
+    if(!enquiriesByCustomer[key]){
+      enquiriesByCustomer[key] = [];
+    }
+
+        enquiriesByCustomer[key].push(e);
+  });
+
+  const watchlistByCustomer = {};
+
+  (watchlist || []).forEach(item=>{
+    if(!item.customer_id) return;
+
+    const key = String(item.customer_id);
+
+    if(!watchlistByCustomer[key]){
+      watchlistByCustomer[key] = [];
+    }
+
+    watchlistByCustomer[key].push(item);
+  });
+
+  const recentViewsByCustomer = {};
+
+  (recentViews || []).forEach(item=>{
+    if(!item.customer_id) return;
+
+    const key = String(item.customer_id);
+
+    if(!recentViewsByCustomer[key]){
+      recentViewsByCustomer[key] = [];
+    }
+
+    recentViewsByCustomer[key].push(item);
+  });
+
+  const latestVisitorByCustomer = {};
+
+  (visitors || []).forEach(v=>{
+    if(!v.user_id) return;
+
+    const key = String(v.user_id);
+
+    if(!latestVisitorByCustomer[key]){
+      latestVisitorByCustomer[key] = v;
+    }
+  });
+ allCustomers = (profiles || []).map(profile=>{
+  const deals = enquiriesByCustomer[String(profile.id)] || [];
+
+  const watchlistItems =
+    watchlistByCustomer[String(profile.id)] || [];
+
+  const recentViewItems =
+    recentViewsByCustomer[String(profile.id)] || [];
+
+    const latestDeal = deals[0] || null;
+    const latestVisitor =
+  latestVisitorByCustomer[String(profile.id)] || null;
+
+    const committedDeals = deals.filter(d=>
+      Number(d.deposit_received || 0) > 0 ||
+      !!d.completed_at ||
+      String(d.status || "").toLowerCase() === "completed"
+    );
+
+    const totalValue = committedDeals.reduce(
+      (sum,d)=>sum + Number(d.deal_total_income || 0),
+      0
+    );
+
+    const totalProfit = committedDeals.reduce(
+      (sum,d)=>sum + Number(d.deal_net_profit || 0),
+      0
+    );
+
+const latestCandidates = [
+  latestDeal?.created_at,
+  latestVisitor?.last_seen_at,
+  profile.created_at
+].filter(Boolean);
+
+const latest = latestCandidates.length
+  ? latestCandidates.sort(
+      (a,b)=>new Date(b)-new Date(a)
+    )[0]
+  : profile.created_at;
+
+const firstSeen =
+  deals.length
+    ? deals
+        .map(d=>d.created_at)
+        .sort()[0]
+    : profile.created_at;
+
+    return {
+      id: cleanId(profile.id),
+
+      customerId: profile.id,
+
+      name:
+        profile.full_name ||
+        latestDeal?.customer_name ||
+        profile.email ||
+        "Unknown Customer",
+
+      email:
+        profile.email ||
+        latestDeal?.customer_email ||
+        "",
+
+      phone:
+        profile.phone ||
+        latestDeal?.customer_phone ||
+        "",
+
+      country:
+        profile.country ||
+        "",
+
+      region:
+        profile.region ||
+        "",
+
+      city:
+        profile.city ||
+        "",
+
+      businessName:
+        profile.business_name ||
+        "",
+
+      liveSourceEnabled:
+        Boolean(profile.live_source_enabled),
+
+      preferredCurrency:
+        profile.preferred_currency ||
+        "",
+
+      preferredLanguage:
+        profile.preferred_language ||
+        "",
+
+      shippingCompany:
+        profile.preferred_shipping_company || "",
+
+      shippingContactName:
+        profile.shipping_contact_name || "",
+
+      shippingContactEmail:
+        profile.shipping_contact_email || "",
+
+      shippingContactPhone:
+        profile.shipping_contact_phone || "",
+
+      shippingCollectionPoint:
+        profile.preferred_uk_collection_point || "",
+
+      shippingAddress1:
+        profile.shipping_address_line1 || "",
+
+      shippingAddress2:
+        profile.shipping_address_line2 || "",
+
+      shippingCity:
+        profile.shipping_city || "",
+
+      shippingRegion:
+        profile.shipping_region || "",
+
+      shippingPostcode:
+        profile.shipping_postcode || "",
+
+      shippingCountry:
+        profile.shipping_country || "United Kingdom",
+
+      latestVisitor,
+
+      lastSeenAt:
+        latestVisitor?.last_seen_at ||
+        "",
+
+      lastSeenCountry:
+        latestVisitor?.country ||
+        "",
+
+      lastSeenRegion:
+        latestVisitor?.region ||
+        "",
+
+      lastSeenCity:
+        latestVisitor?.city ||
+        "",
+
+      lastSeenLatitude:
+        latestVisitor?.latitude != null
+          ? Number(latestVisitor.latitude)
+          : null,
+
+      lastSeenLongitude:
+        latestVisitor?.longitude != null
+          ? Number(latestVisitor.longitude)
+          : null,
+
+      lastSeenPage:
+        latestVisitor?.current_path ||
+        "",
+
+      lastSeenPageTitle:
+        latestVisitor?.page_title ||
+        "",
+
+      lastSeenDevice:
+        latestVisitor?.device_type ||
+        "",
+
+            lastSeenBrowser:
+        latestVisitor?.browser ||
+        "",
+
+      lastSeenPageviews:
+        Number(latestVisitor?.pageviews || 0),
+
+      deals,
+      watchlistItems,
+      recentViewItems,
+
+      totalValue,
+      totalProfit,
+      latest,
+      firstSeen,
+
+      destinationCountry:
+        latestDeal?.destination_country ||
+        ""
+    };
+  });
+
+  allCustomers.sort(
+    (a,b)=>new Date(b.latest)-new Date(a.latest)
+  );
+
+  populateCountries();
+  updateStats();
+  renderMap();
+  updateNeedsAttentionBanner();
+  renderCustomers();
+}
+
+function populateCountries(){
+  const select=document.getElementById("countryFilter");
+  select.innerHTML=`<option value="">All Countries</option>`;
+  [...new Set(allCustomers.map(c=>c.country).filter(Boolean))].sort().forEach(c=>{
+    const opt=document.createElement("option");
+    opt.value=c; opt.textContent=c; select.appendChild(opt);
+  });
+}
+
+function updateStats(){
+  const totalCustomers = allCustomers.length;
+  const vipCustomers = allCustomers.filter(c=>customerStatus(c)==="VIP").length;
+  const totalPipeline = allCustomers.reduce((s,c)=>s+c.totalValue,0);
+  const totalProfit = allCustomers.reduce((s,c)=>s+c.totalProfit,0);
+
+  document.getElementById("totalCustomers").textContent=totalCustomers;
+  document.getElementById("vipCustomers").textContent=vipCustomers;
+  document.getElementById("totalPipeline").textContent=money(totalPipeline);
+  document.getElementById("totalProfit").textContent=money(totalProfit);
+
+  if(document.getElementById("deptTotalCustomers")) document.getElementById("deptTotalCustomers").textContent=totalCustomers;
+  if(document.getElementById("deptVipCustomers")) document.getElementById("deptVipCustomers").textContent=vipCustomers;
+  if(document.getElementById("deptPipeline")) document.getElementById("deptPipeline").textContent=money(totalPipeline);
+  if(document.getElementById("deptProfit")) document.getElementById("deptProfit").textContent=money(totalProfit);
+}
+
+let customerLeafletMap = null;
+let customerMapLayer = null;
+function escapeHtml(value){
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+function openCustomerFromMap(customerId){
+  const customer = allCustomers.find(
+    c => String(c.customerId) === String(customerId)
+  );
+
+  if(!customer) return;
+
+  ensureCustomerWorkspace(customer.id);
+
+  const search = document.getElementById("search");
+
+  if(search){
+    search.value = customer.email || customer.name || "";
+  }
+
+  renderCustomers();
+
+  setTimeout(()=>{
+    const card = document.getElementById(`customer-${customer.id}`);
+
+    if(!card) return;
+
+    card.classList.add("open");
+
+    card.style.border = "2px solid #ed1c24";
+    card.style.boxShadow = "0 0 24px rgba(237,28,36,.55)";
+
+    const action=new URLSearchParams(window.location.search).get("action");
+    const reviewPanel=card.querySelector("[data-buyer-setup-review]");
+
+    if(action==="review-setup" && reviewPanel){
+      switchTab(customer.id,"profile");
+      setTimeout(function(){
+        reviewPanel.scrollIntoView({behavior:"smooth",block:"start"});
+        reviewPanel.style.outline="3px solid #ed1c24";
+        reviewPanel.style.outlineOffset="3px";
+        setTimeout(function(){
+          reviewPanel.style.outline="";
+          reviewPanel.style.outlineOffset="";
+        },3500);
+      },120);
+    }else{
+      card.scrollIntoView({behavior:"smooth",block:"center"});
+    }
+
+    const requestedAttention=customerAttention(customer);
+    const bannerTitle=document.getElementById("customerNeedsAttentionTitle");
+    const bannerText=document.getElementById("customerNeedsAttentionText");
+    const bannerLink=document.querySelector("#customerNeedsAttentionBanner a");
+    if(bannerTitle&&bannerText&&bannerLink){
+      bannerTitle.textContent=(customer.name||"Customer")+" · "+requestedAttention.title;
+      bannerText.textContent=requestedAttention.detail;
+      if(requestedAttention.onboarding){
+        bannerLink.textContent="Open Onboarding →";
+        bannerLink.href="admin-onboarding.html?customer="+encodeURIComponent(customer.customerId);
+        bannerLink.onclick=null;
+      }
+    }
+
+    setTimeout(()=>{
+      card.style.border = "";
+      card.style.boxShadow = "";
+    },5000);
+
+  },100);
+}
+
+function renderMap(){
+  const list = document.getElementById("countryList");
+  const mapEl = document.getElementById("customerMap");
+
+  if(!mapEl) return;
+
+  const counts = {};
+
+  allCustomers.forEach(c=>{
+    const country = (c.country || "").trim();
+    if(!country || country.toLowerCase() === "other") return;
+
+    counts[country] = (counts[country] || 0) + 1;
+  });
+
+  const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+
+  const unknownCount = allCustomers.filter(c=>{
+    const country = (c.country || "").trim().toLowerCase();
+    return !country || country === "other";
+  }).length;
+
+ list.innerHTML = `
+  ${sorted.map(([country,count])=>`
+    <a
+      class="country-row"
+      href="#"
+      data-country="${encodeURIComponent(country)}"
+    >
+      <span>${countryFlag(country)} ${escapeHtml(country)}</span>
+      <span class="country-count">${count}</span>
+    </a>
+  `).join("")}
+
+  ${unknownCount ? `
+    <div class="country-row" style="cursor:default;opacity:.7;">
+      <span>❓ Unknown / Other</span>
+      <span class="country-count">${unknownCount}</span>
+    </div>
+  ` : ""}
+`;
+
+list.querySelectorAll("a.country-row[data-country]").forEach(row=>{
+  row.addEventListener("click", function(e){
+    e.preventDefault();
+
+    const country = decodeURIComponent(this.dataset.country);
+
+    const filter = document.getElementById("countryFilter");
+
+    if(filter){
+      filter.value = country;
+    }
+
+    renderCustomers();
+
+    const countryLocations = allCustomers
+      .filter(c =>
+        (c.country || "").trim() === country &&
+        c.lastSeenLatitude != null &&
+        c.lastSeenLongitude != null &&
+        Number.isFinite(c.lastSeenLatitude) &&
+        Number.isFinite(c.lastSeenLongitude)
+      )
+      .map(c => [
+        c.lastSeenLatitude,
+        c.lastSeenLongitude
+      ]);
+
+    if(countryLocations.length === 1){
+      customerLeafletMap.flyTo(
+        countryLocations[0],
+        7,
+        { duration:1.2 }
+      );
+    }
+
+    if(countryLocations.length > 1){
+      customerLeafletMap.flyToBounds(
+        countryLocations,
+        {
+          padding:[60,60],
+          maxZoom:8,
+          duration:1.2
+        }
+      );
+    }
+  });
+});
+
+  if(!customerLeafletMap){
+    customerLeafletMap = L.map("customerMap", {
+      worldCopyJump:true,
+      minZoom:2,
+      zoomControl:true
+    }).setView([25, 10], 2);
+
+    L.tileLayer(
+      "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+      {
+        maxZoom:19,
+        attribution:"&copy; OpenStreetMap contributors"
+      }
+    ).addTo(customerLeafletMap);
+  }
+
+  if(customerMapLayer){
+    customerMapLayer.clearLayers();
+  } else {
+    customerMapLayer = L.layerGroup().addTo(customerLeafletMap);
+  }
+  const markerBounds = [];
+
+  allCustomers.forEach(customer => {
+    const lat = customer.lastSeenLatitude;
+    const lng = customer.lastSeenLongitude;
+
+    if(
+      lat == null ||
+      lng == null ||
+      !Number.isFinite(lat) ||
+      !Number.isFinite(lng)
+    ){
+      return;
+    }
+
+const marker = L.circleMarker([lat, lng], {
+  radius: 9,
+  weight: 3,
+  fillOpacity: 0.9
+});
+
+    const locationText = [
+      customer.lastSeenCity,
+      customer.lastSeenRegion,
+      customer.lastSeenCountry
+    ].filter(Boolean).join(", ");
+
+marker.bindPopup(`
+  <div style="min-width:220px;">
+    <strong>${escapeHtml(customer.name || "Customer")}</strong><br>
+
+    ${customer.email ? escapeHtml(customer.email) + "<br>" : ""}
+
+    <br>
+
+    <strong>Last seen location:</strong><br>
+    ${escapeHtml(locationText || "Location unavailable")}
+
+    <br><br>
+
+    <strong>Last seen:</strong>
+    ${customer.lastSeenAt
+      ? new Date(customer.lastSeenAt).toLocaleString()
+      : "Unknown"
+    }
+
+    ${customer.lastSeenPage
+      ? `<br><strong>Page:</strong> ${escapeHtml(customer.lastSeenPage)}`
+      : ""
+    }
+
+    <br><br>
+
+    <button
+      type="button"
+      onclick="openCustomerFromMap('${customer.customerId}')"
+      style="
+        width:100%;
+        background:#ed1c24;
+        color:#fff;
+        border:none;
+        border-radius:8px;
+        padding:9px 12px;
+        font-weight:900;
+        cursor:pointer;
+      "
+    >
+      View Customer
+    </button>
+  </div>
+`);
+
+    marker.addTo(customerMapLayer);
+    markerBounds.push([lat, lng]);
+  });
+
+  if(markerBounds.length){
+    customerLeafletMap.fitBounds(markerBounds, {
+      padding:[40,40],
+      maxZoom:6
+    });
+  }
+  setTimeout(()=>{
+    customerLeafletMap.invalidateSize();
+  },100);
+}
+
+function renderCustomers(){
+  const q=document.getElementById("searchBox").value.toLowerCase();
+  const country=document.getElementById("countryFilter").value;
+  const status=document.getElementById("statusFilter").value;
+  const attentionFilter=document.getElementById("attentionFilter")?.value||"";
+  let rows=[...allCustomers];
+
+  if(q)rows=rows.filter(c=>(c.name||"").toLowerCase().includes(q)||(c.email||"").toLowerCase().includes(q)||(c.phone||"").toLowerCase().includes(q)||(c.country||"").toLowerCase().includes(q));
+  if(country)rows=rows.filter(c=>c.country===country);
+  if(status)rows=rows.filter(c=>String(customerAttentionMap[String(c.customerId)]?.buyer_stage||"Registered / Browsing")===status);
+  if(attentionFilter){
+    rows=rows.filter(c=>{
+      const a=customerAttention(c);
+      if(attentionFilter==="needs") return a.kind!=="clear";
+      if(attentionFilter==="clear") return a.kind==="clear";
+      return a.kind===attentionFilter;
+    });
+  }
+
+  const box=document.getElementById("customers");
+  if(!rows.length){box.innerHTML="<p>No customers found.</p>";return;}
+
+  box.innerHTML=rows.map(c=>{
+    const type=customerStatus(c);
+    const latestDeal=c.deals[0]||{};
+    const b=latestDeal.available_stock||{};
+    const intel = contactIntel(c);
+    const attention = customerAttention(c);
+
+    return `
+      <div class="customer-card" id="customer-${c.id}">
+        <div class="customer-summary" onclick="toggleCustomer('${c.id}')">
+          <div class="avatar">${initials(c.name)}</div>
+          <div><div class="customer-name">${safe(c.name)}</div><div class="small">${safe(c.email)}</div><div class="small">${safe(c.phone)}</div></div>
+          <div>${countryFlag(c.country)} ${safe(c.country)}<div class="small">${safe(c.city)} ${safe(c.region)}</div></div>
+          <div class="stat-mini"><strong>${c.deals.length}</strong><div class="small">Enquiries</div></div>
+          <div class="stat-mini"><strong>${money(c.totalValue)}</strong><div class="small">Committed</div></div>
+          <div class="stat-mini"><strong>${money(c.totalProfit)}</strong><div class="small">Projected profit</div></div>
+          <div><span class="badge ${badgeClass(type)}">${type}</span></div>
+        </div>
+
+        <div class="customer-workspace" onclick="event.stopPropagation()">
+          <div class="customer-next-action" style="margin-top:0">
+            <div>
+              <div class="eyebrow">Your next action</div>
+              <strong>${safe(attention.title)}</strong>
+              <span>${safe(attention.detail)}</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+              <span class="badge ${attention.kind==="clear"?"badge-green":"badge-red"}">${safe(attention.label)}</span>
+              <button type="button" onclick="openEditCustomer('${c.customerId}')">Edit customer</button>
+              ${customerOnboardingMap[String(c.customerId)]?.email_confirmed_at===null ? '<button type="button" style="background:#ed1c24;border-color:#ed1c24" onclick="generateConfirmationText(\''+c.customerId+'\')">Generate confirmation text</button>' : ""}
+              ${attention.onboarding ? '<a class="btn" style="background:#ed1c24;text-decoration:none" href="admin-onboarding.html?customer='+encodeURIComponent(c.customerId)+'">Open Onboarding →</a>' : (shouldShowBuyerSetupReview(c) ? '<button type="button" class="btn" style="background:#ed1c24" onclick="document.querySelector(\'#customer-'+c.id+' [data-buyer-setup-review]\')?.scrollIntoView({behavior:\'smooth\',block:\'start\'})">Review setup now →</button>' : "")}
+            </div>
+          </div>
+
+  <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
+    <button
+      type="button"
+      onclick="toggleCustomer('${c.id}')"
+      style="
+        background:#181818;
+        color:#fff;
+        border:1px solid #444;
+        border-radius:10px;
+        padding:9px 14px;
+        font-weight:900;
+        cursor:pointer;
+      "
+    >
+      ▲ Collapse Customer
+    </button>
+  </div>
+
+  <div class="workspace-layout">
+
+            <aside class="profile-side">
+              <div class="profile-avatar">${initials(c.name)}</div>
+              <h2>${safe(c.name)}</h2>
+              <div class="small">${countryFlag(c.country)} ${safe(c.country)}</div>
+
+              <div class="profile-row"><span>Email</span><strong>${safe(c.email)}</strong></div>
+              <div class="profile-row"><span>Phone / WhatsApp</span><strong>${safe(c.phone)}</strong></div>
+              <div class="profile-row"><span>Buyer Stage</span><strong>${safe(customerAttentionMap[String(c.customerId)]?.buyer_stage||"Registered / Browsing")}</strong></div>\n              <div class="profile-row"><span>CRM Activity</span><strong>${type}</strong></div>
+              <div class="profile-row"><span>Committed Sales</span><strong>${money(c.totalValue)}</strong></div>
+              <div class="profile-row"><span>Projected Profit</span><strong>${money(c.totalProfit)}</strong></div>
+              <div class="profile-row"><span>Latest Activity</span><strong>${c.latest?new Date(c.latest).toLocaleString("en-GB"):"-"}</strong></div>
+
+              <div class="comm-panel">
+                <h3>🕒 Best Contact</h3>
+                <div class="comm-compact">
+                  <strong>${intel.bestDay} · ${intel.bestWindow}</strong>
+                  <div class="small">${intel.channel} · ${intel.score}% confidence</div>
+                </div>
+                <div class="spark"><div style="width:${intel.score}%"></div></div>
+              </div>
+            </aside>
+
+            <section class="workspace-main">
+              <div class="tabs">
+                <button class="tab-btn active" data-tab="profile" onclick="switchTab('${c.id}','profile')">Profile</button>
+                <button class="tab-btn" data-tab="intelligence" onclick="switchTab('${c.id}','intelligence')">Intelligence</button>
+                <button class="tab-btn" data-tab="communication" onclick="switchTab('${c.id}','communication')">Communication</button>
+                <button class="tab-btn" data-tab="messages" onclick="switchTab('${c.id}','messages')">Messages</button>
+                <button class="tab-btn" data-tab="enquiries" onclick="switchTab('${c.id}','enquiries')">Enquiries</button>
+                <button class="tab-btn" data-tab="interests" onclick="switchTab('${c.id}','interests')">Motorcycle Interests</button>
+                <button class="tab-btn" data-tab="selections" onclick="switchTab('${c.id}','selections')">Sent Selections</button>
+                <button class="tab-btn" data-tab="deals" onclick="switchTab('${c.id}','deals')">Deals</button>
+                <button class="tab-btn" data-tab="shipping" onclick="switchTab('${c.id}','shipping')">Shipping</button>
+                <button class="tab-btn" data-tab="documents" onclick="switchTab('${c.id}','documents')">Documents</button>
+                <button class="tab-btn" data-tab="notes" onclick="switchTab('${c.id}','notes')">Notes</button>
+                <button class="tab-btn" data-tab="timeline" onclick="switchTab('${c.id}','timeline')">Timeline</button>
+                ${shouldShowBuyerSetupReview(c) ? '<button class="tab-btn" style="border-color:#ed1c24" onclick="openBuyerSetupReview(\''+c.id+'\')">Buyer Setup Review '+(String(customerAttentionMap[String(c.customerId)]?.approval_status||"").toLowerCase().startsWith("approved")?"✓":"")+'</button>' : ""}
+              </div>
+
+              ${shouldShowBuyerSetupReview(c) ? buyerSetupReviewHtml(c) : ""}
+
+              <div class="tab-panel active" data-panel="profile">
+                ${customerRequiredActionHtml(c)}
+                <h3>Profile Overview</h3>
+                <div class="detail-grid">
+                  <div class="panel"><span>Name</span><strong>${safe(c.name)}</strong></div>
+                  <div class="panel"><span>Email</span><strong>${safe(c.email)}</strong></div>
+                  <div class="panel"><span>Phone</span><strong>${safe(c.phone)}</strong></div>
+                  <div class="panel"><span>Country</span><strong>${safe(c.country)}</strong></div>
+                  <div class="panel"><span>City / Region</span><strong>${safe(c.city)} ${safe(c.region)}</strong></div>
+                  <div class="panel"><span>First Seen</span><strong>${c.firstSeen?new Date(c.firstSeen).toLocaleString("en-GB"):"-"}</strong></div>
+                  <div class="panel"><span>Latest Bike Interest</span><strong>${safe(b.make)} ${safe(b.model)}</strong></div>
+                  <div class="panel"><span>Customer Type</span><strong>${customerTypeDisplay(customerOnboardingMap[String(c.customerId)]?.customer_type)}</strong></div>
+                  <div class="panel"><span>Intent</span><strong>${customerIntentDisplay(customerOnboardingMap[String(c.customerId)]?.customer_intent)}</strong></div>
+                </div>
+              </div>
+
+              <div class="tab-panel" data-panel="intelligence">
+                <div class="note-box">Open this customer to load source, market and browsing intelligence.</div>
+              </div>
+
+              <div class="tab-panel" data-panel="communication">
+                <h3>Communication Intelligence</h3>
+                <div class="detail-grid">
+                  <div class="panel"><span>Best Contact Window</span><strong>${intel.bestWindow}</strong></div>
+                  <div class="panel"><span>Best Day</span><strong>${intel.bestDay}</strong></div>
+                  <div class="panel"><span>Preferred Channel</span><strong>${intel.channel}</strong></div>
+                  <div class="panel"><span>Confidence</span><strong>${intel.score}%</strong></div>
+                </div>
+                <div class="note-box">🤖 ${intel.recommendation}</div>
+                <h3 class="section-title">How this is calculated</h3>
+                <div class="note-box">Uses logged-in AnyBike browsing times from the last 90 days and customer reply times. Replies are weighted more strongly than browsing. The recommendation updates automatically as more activity is recorded.</div>
+              </div>
+
+              <div class="tab-panel" data-panel="messages">
+                <div class="note-box">Open this customer to load Message Centre history.</div>
+              </div>
+
+<div class="tab-panel" data-panel="enquiries">
+  <h3>Enquiries</h3>
+
+  ${
+    c.deals && c.deals.length
+      ? c.deals.map(d=>{
+          const bike = d.available_stock || {};
+
+          return `
+            <div class="deal-card">
+              <strong>
+                Enquiry #${d.id} — ${safe(bike.make)} ${safe(bike.model)}
+              </strong>
+
+              <div class="small">
+                Status: ${safe(d.status)}
+              </div>
+
+              <div class="small">
+                Question: ${safe(d.question_type)}
+              </div>
+
+              <br>
+
+              <a
+                class="btn"
+                href="admin-enquiries.html?status=${encodeURIComponent(d.status || "")}"
+              >
+                Open CRM Stage
+              </a>
+            </div>
+          `;
+        }).join("")
+      : `<div class="note-box">No enquiries recorded for this customer.</div>`
+  }
+</div>
+
+<div class="tab-panel" data-panel="interests">
+  <h3>Motorcycle Interests</h3>
+
+  <h3 class="section-title">❤️ Watchlist</h3>
+
+  ${
+    c.watchlistItems && c.watchlistItems.length
+      ? c.watchlistItems.map(item=>{
+          const bike = item.available_stock || {};
+
+          return `
+            <div class="deal-card">
+              <strong>
+                ${safe(bike.make)} ${safe(bike.model)} ${safe(bike.variant)}
+              </strong>
+
+              <div class="small">
+                ${bike.year ? "Year: " + safe(bike.year) : ""}
+                ${bike.mileage
+                  ? " • Mileage: " + Number(bike.mileage).toLocaleString("en-GB")
+                  : ""
+                }
+              </div>
+
+              <div class="small">
+                Price: ${money(bike.price_gbp)}
+              </div>
+
+              <div class="small">
+                VAT: ${safe(bike.vat_status)}
+              </div>
+
+              <div class="small">
+                Added to Watchlist:
+                ${
+                  item.created_at
+                    ? new Date(item.created_at).toLocaleString("en-GB")
+                    : "-"
+                }
+              </div>
+            </div>
+          `;
+        }).join("")
+      : `<div class="note-box">No motorcycles currently saved to this customer's Watchlist.</div>`
+  }
+
+  <h3 class="section-title">👀 Recently Viewed</h3>
+
+  ${
+    c.recentViewItems && c.recentViewItems.length
+      ? c.recentViewItems.slice(0,20).map(item=>{
+          const bike = item.available_stock || {};
+
+          return `
+            <div class="deal-card">
+              <strong>
+                ${safe(bike.make)} ${safe(bike.model)} ${safe(bike.variant)}
+              </strong>
+
+              <div class="small">
+                ${bike.year ? "Year: " + safe(bike.year) : ""}
+                ${bike.mileage
+                  ? " • Mileage: " + Number(bike.mileage).toLocaleString("en-GB")
+                  : ""
+                }
+              </div>
+
+              <div class="small">
+                Price: ${money(bike.price_gbp)}
+              </div>
+
+              <div class="small">
+                VAT: ${safe(bike.vat_status)}
+              </div>
+
+              <div class="small">
+                Viewed:
+                ${
+                  item.viewed_at
+                    ? new Date(item.viewed_at).toLocaleString("en-GB")
+                    : "-"
+                }
+              </div>
+            </div>
+          `;
+        }).join("")
+      : `<div class="note-box">No recently viewed motorcycles recorded for this customer.</div>`
+  }
+</div>
+
+<div class="tab-panel" data-panel="selections">
+  <div class="note-box">Open this customer to load sent sourcing selections.</div>
+</div>
+
+<div class="tab-panel" data-panel="deals">
+                <h3>Deals</h3>
+                <div class="detail-grid">
+                  <div class="panel"><span>Total Pipeline</span><strong>${money(c.totalValue)}</strong></div>
+                  <div class="panel"><span>Total Profit</span><strong>${money(c.totalProfit)}</strong></div>
+                  <div class="panel"><span>Total Enquiries</span><strong>${c.deals.length}</strong></div>
+                  <div class="panel"><span>Latest Bike</span><strong>${safe(b.make)} ${safe(b.model)}</strong></div>
+                </div>
+                ${c.deals.map(d=>{
+                  const bike=d.available_stock||{};
+                  return `<div class="deal-card"><strong>${safe(bike.make)} ${safe(bike.model)}</strong><div class="small">Deal Value: ${money(d.deal_total_income)}</div><div class="small">Net Profit: ${money(d.deal_net_profit)}</div><div class="small">Saved By: ${safe(d.deal_saved_by)}</div></div>`;
+                }).join("")}
+              </div>
+
+              <div class="tab-panel" data-panel="shipping">
+                <div class="note-box">Open this customer to load shipping history.</div>
+              </div>
+
+              <div class="tab-panel" data-panel="documents">
+                <div class="note-box">Open this customer to load documents and invoices.</div>
+              </div>
+
+              <div class="tab-panel" data-panel="notes">
+                <div class="note-box">Open this customer to load internal notes.</div>
+              </div>
+
+              <div class="tab-panel" data-panel="timeline">
+                <div class="note-box">Open this customer to load the complete timeline.</div>
+              </div>
+            </section>
+
+          </div>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+(async function startCustomer360(){
+  const allowed = await requireAdminSession();
+
+  if(!allowed){
+    return;
+  }
+
+  document.documentElement.classList.remove("admin-auth-pending");
+
+  await loadCustomers();
+
+  const requestedSearch=new URLSearchParams(window.location.search).get("search");
+  if(requestedSearch){
+    const searchBox=document.getElementById("searchBox");
+    if(searchBox){ searchBox.value=requestedSearch; renderCustomers(); }
+  }
+
+  const requestedCustomer=new URLSearchParams(window.location.search).get("customer");
+  if(requestedCustomer){
+    openCustomerFromMap(requestedCustomer);
+  }
+})();
+
+</script>
+
+</body>
+</html>
