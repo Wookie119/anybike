@@ -222,30 +222,54 @@ a{
 <script>
 const settingsClient=getAdminSupabaseClient();
 
+async function stockSettingsRpc(name,args){
+  if(!settingsClient)throw new Error("Admin connection is unavailable. Reload Administration HQ.");
+  const response=await Promise.race([
+    settingsClient.rpc(name,args||{}),
+    new Promise((_,reject)=>setTimeout(()=>reject(new Error("The settings request timed out. Please try again.")),12000))
+  ]);
+  if(response.error)throw response.error;
+  return response.data;
+}
 async function loadPublicStockVisibility(){
   const badge=document.getElementById("publicStockVisibilityBadge");
   const status=document.getElementById("publicStockVisibilityStatus");
-  const r=await settingsClient.rpc("admin_get_public_stock_visibility_v1");
-  if(r.error){
-    badge.textContent="Unavailable";
-    status.textContent=r.error.message;
-    return;
+  try{
+    const data=await stockSettingsRpc("admin_get_public_stock_visibility_v1");
+    const enabled=data?.enabled===true;
+    badge.textContent=enabled?"ON — public stock visible":"OFF — public stock hidden";
+    badge.style.background=enabled?"rgba(51,204,102,.16)":"rgba(237,28,36,.16)";
+    badge.style.border="1px solid "+(enabled?"rgba(51,204,102,.38)":"rgba(237,28,36,.38)");
+    badge.style.color=enabled?"#7ff0a8":"#ff8b90";
+    status.textContent=enabled
+      ?"Available Stock, public stock links and related public galleries are visible."
+      :"Available Stock, public stock links and related public galleries are hidden. Internal sourcing remains available.";
+  }catch(error){
+    badge.textContent="Status unavailable";
+    status.textContent="Could not check visibility: "+(error?.message||"Unknown error");
+    status.style.color="#ff8b90";
   }
-  const enabled=!!r.data?.enabled;
-  badge.textContent=enabled?"ON — public stock visible":"OFF — public stock hidden";
-  badge.style.background=enabled?"rgba(51,204,102,.16)":"rgba(237,28,36,.16)";
-  badge.style.border="1px solid "+(enabled?"rgba(51,204,102,.38)":"rgba(237,28,36,.38)");
-  badge.style.color=enabled?"#7ff0a8":"#ff8b90";
-  status.textContent=enabled
-    ?"Available Stock, public stock links and related public galleries are visible."
-    :"Available Stock, public stock links and related public galleries are hidden. Internal sourcing remains available.";
 }
 async function setPublicStockVisibility(enabled){
   const status=document.getElementById("publicStockVisibilityStatus");
+  const buttons=[document.getElementById("publicStockOnBtn"),document.getElementById("publicStockOffBtn")];
+  buttons.forEach(button=>button.disabled=true);
+  status.style.color="#fff";
   status.textContent=enabled?"Turning public stock on…":"Turning public stock off…";
-  const r=await settingsClient.rpc("admin_set_public_stock_visibility_v1",{p_enabled:enabled});
-  if(r.error){status.textContent=r.error.message;return}
-  await loadPublicStockVisibility();
+  try{
+    const {data:{session},error:sessionError}=await settingsClient.auth.getSession();
+    if(sessionError)throw sessionError;
+    if(!session?.user)throw new Error("Your administrator session has expired. Sign in again to change this setting.");
+    const result=await stockSettingsRpc("admin_set_public_stock_visibility_v1",{p_enabled:enabled});
+    if(result?.enabled!==enabled)throw new Error("The server did not confirm the requested setting.");
+    await loadPublicStockVisibility();
+  }catch(error){
+    status.textContent="Could not change setting: "+(error?.message||"Unknown error");
+    status.style.color="#ff8b90";
+    console.error("Public stock setting failed",error);
+  }finally{
+    buttons.forEach(button=>button.disabled=false);
+  }
 }
 
 (async function startAdministrationHQ(){
