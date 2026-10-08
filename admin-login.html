@@ -313,10 +313,15 @@ document
     setLoginStatus("Signing in...");
 
     try{
-      const {data,error} = await sb.auth.signInWithPassword({
+      const loginRequest=sb.auth.signInWithPassword({
         email:email,
         password:password
       });
+      const {data,error} = await Promise.race([
+        loginRequest,
+        new Promise((_,reject)=>setTimeout(()=>reject(new Error("Login service is taking too long. Please reload this page and try again.")),15000))
+      ]);
+      setLoginStatus("Checking administrator access...");
 
       if(error){
         setLoginStatus("Sign in failed: " + error.message,"bad");
@@ -324,7 +329,10 @@ document
       }
 
       const user = data?.user || data?.session?.user || null;
-      const adminRecord = await getActiveAdminRecord(user);
+      const adminRecord = await Promise.race([
+        getActiveAdminRecord(user),
+        new Promise((_,reject)=>setTimeout(()=>reject(new Error("Administrator verification timed out. Please retry.")),12000))
+      ]);
 
       if(!adminRecord){
         await rejectUnauthorisedAccount();
@@ -340,11 +348,9 @@ document
 
     }catch(error){
       console.error("Admin login failed",error);
-
-      await rejectUnauthorisedAccount(
-        "Admin access could not be verified: " +
-        (error?.message || "Unknown error")
-      );
+      // A timeout or temporary network problem does not prove the account is unauthorised.
+      // Keep the session intact so a slow response cannot unnecessarily sign out an admin.
+      setLoginStatus(error?.message || "Could not complete sign in. Please try again.","bad");
     }finally{
       button.disabled = false;
     }
