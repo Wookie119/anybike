@@ -456,6 +456,15 @@
             </div>
           </div>
 
+          <div id="tradeUnderwriteOptin" style="display:none;margin:12px 0;padding:12px 16px;border:1px solid #444;border-radius:10px;">
+            <label style="display:flex;align-items:center;gap:10px;font-weight:700;cursor:pointer;">
+              <input id="receiveTradeUnderwrites" type="checkbox" style="width:18px;height:18px;flex:none;">
+              Receive underwriting opportunities from AnyBike
+            </label>
+            <div style="font-size:12px;opacity:.8;margin:6px 0 0 28px;">UK trade dealers only. Opportunities are confidential; dealer verification and AnyBike approval are required before invitations start.</div>
+            <div id="tradeUnderwriteStatus" style="font-size:12px;margin:6px 0 0 28px;"></div>
+          </div>
+
           <div class="section-save-row setup-next-action">
             <div class="setup-next-copy">
               <span class="setup-next-eyebrow">YOUR NEXT ACTION</span>
@@ -1297,6 +1306,7 @@
       setValue("region", profile?.region);
       setValue("profileCustomerType", profile?.customer_type);
       setValue("profileCustomerIntent", profile?.customer_intent && profile?.customer_intent!=="unclear" ? profile.customer_intent : "");
+      await loadUnderwritePreference();
       setValue("buyerType", profile?.buyer_type);
       setValue("businessName", profile?.business_name);
       setValue("businessTradingName", profile?.business_trading_name);
@@ -1574,6 +1584,31 @@
       }
     }
 
+    function updateUnderwriteVisibility(){
+      const type=document.getElementById("profileCustomerType")?.value;
+      const area=document.getElementById("tradeUnderwriteOptin");
+      if(area)area.style.display=["uk_dealer","uk_distributor"].includes(type)?"":"none";
+    }
+    async function loadUnderwritePreference(){
+      updateUnderwriteVisibility();
+      if(!["uk_dealer","uk_distributor"].includes(document.getElementById("profileCustomerType")?.value))return;
+      const {data,error}=await sb.rpc("customer_trade_underwrite_preference_v1",{});
+      if(error)return;
+      document.getElementById("receiveTradeUnderwrites").checked=!!data?.receive;
+      document.getElementById("tradeUnderwriteStatus").textContent=data?.eligible?"✓ Enabled for verified dealer invitations":data?.receive?"Preference saved · awaiting verified dealer approval":"";
+    }
+    async function saveUnderwritePreference(){
+      if(!["uk_dealer","uk_distributor"].includes(document.getElementById("profileCustomerType")?.value))return true;
+      const checked=document.getElementById("receiveTradeUnderwrites").checked;
+      const {data,error}=await sb.rpc("customer_trade_underwrite_preference_v1",{p_receive:checked});
+      const status=document.getElementById("tradeUnderwriteStatus");
+      if(error){status.textContent="Could not save underwriting preference: "+error.message;return false;}
+      status.textContent=data?.eligible?"✓ Receiving verified trade invitations":checked?"✓ Interest saved · awaiting dealer verification":"✓ Underwriting invitations turned off";
+      return true;
+    }
+    document.getElementById("profileCustomerType").addEventListener("change",updateUnderwriteVisibility);
+    document.getElementById("receiveTradeUnderwrites").addEventListener("change",async function(){await saveUnderwritePreference();});
+
     async function saveProfileClassification(button){
       if(!currentUser)return;
       const customerType=document.getElementById("profileCustomerType")?.value||"";
@@ -1611,6 +1646,7 @@
       }
 
       await loadProfileUpdateStatus();
+      await saveUnderwritePreference();
       if(msg){msg.textContent="✓ Saved. Taking you to your next action…";msg.className="section-msg ok";}
       button.textContent="Saved ✓";
       button.closest(".section-save-row")?.classList.add("complete");
