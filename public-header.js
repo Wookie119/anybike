@@ -106,8 +106,19 @@ function anybikeMarkHiddenByStockToggle(element){
   element.style.setProperty("display","none","important");
 }
 
+function anybikeUpdatePublicStockMenu(enabled){
+  document.querySelectorAll('[data-anybike-public-stock-link="true"]').forEach(function(link){
+    if(enabled){
+      link.style.removeProperty("display");
+    }else{
+      link.style.setProperty("display","none","important");
+    }
+  });
+}
+
 function anybikeRestorePublicStockSurfaces(){
   document.documentElement.dataset.publicStockVisible="true";
+  anybikeUpdatePublicStockMenu(true);
 
   document.getElementById("anybikePublicStockVisibilityStyles")?.remove();
 
@@ -158,6 +169,7 @@ function anybikeRestorePublicStockSurfaces(){
 
 function anybikeHidePublicStockSurfaces(){
   document.documentElement.dataset.publicStockVisible="false";
+  anybikeUpdatePublicStockMenu(false);
 
   let style=document.getElementById("anybikePublicStockVisibilityStyles");
   if(!style){
