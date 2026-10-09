@@ -1652,7 +1652,7 @@ renderRoute('australia');
    // Larger separations need a wider camera; nearby countries can zoom closer.
    // Distance measured from Earth's surface, not an arbitrary point.
    const separation=2*angle/rad;
-   const altitude=separation<17?1.45:separation<38?1.9:separation<68?2.65:separation<105?3.55:4.8;
+   const altitude=separation<17?1.45:separation<38?1.9:separation<68?2.65:separation<105?3.55:separation<135?4.8:6.0;
    return {lat:Math.asin(v[2])/rad,lng:Math.atan2(v[1],v[0])/rad,altitude};
  };
  let globe=null;
@@ -1667,7 +1667,12 @@ renderRoute('australia');
     globe.pointOfView({lat:54,lng:-2,altitude:2.5},700);
     return;
   }
-  globe.arcsData([{startLat:uk[0],startLng:uk[1],endLat:p[0],endLng:p[1]}]);
+  const a=cart(uk),b=cart(p);
+  const separation=Math.acos(Math.max(-1,Math.min(1,a.reduce((sum,v,i)=>sum+v*b[i],0))))/rad;
+  // Lift long-distance routes above the horizon so the connection is not
+  // hidden behind the earth. The line illustrates the route, not a booked itinerary.
+  const routeHeight=separation>135?1.05:separation>95?.60:separation>55?.28:.12;
+  globe.arcsData([{startLat:uk[0],startLng:uk[1],endLat:p[0],endLng:p[1],height:routeHeight}]);
   globe.pointsData([{lat:uk[0],lng:uk[1]},{lat:p[0],lng:p[1]}]);
   globe.pointOfView(viewFor(p),1100);
  }
@@ -1684,8 +1689,8 @@ renderRoute('australia');
     .bumpImageUrl('https://unpkg.com/three-globe/example/img/earth-topology.png')
     .backgroundColor('rgba(0,0,0,0)').showAtmosphere(true)
     .atmosphereColor('#72b4e4').atmosphereAltitude(.095)
-    .arcsData([]).arcColor(()=>'#ed1c24').arcStroke(.6).arcAltitude(.15)
-    .arcDashLength(.8).arcDashGap(.1).arcDashAnimateTime(3800)
+    .arcsData([]).arcColor(()=>'#ed1c24').arcStroke(1.15).arcAltitude(d=>d.height)
+    .arcDashLength(1).arcDashGap(0).arcDashAnimateTime(0)
     .pointsData([]).pointColor(()=>'#ed1c24').pointRadius(.5).pointAltitude(.025);
    globe.controls().autoRotate=false;globe.controls().enablePan=false;
    globe.controls().enableZoom=false;globe.controls().enableRotate=false;
