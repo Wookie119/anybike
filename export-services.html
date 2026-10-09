@@ -817,6 +817,11 @@ footer{padding:18px 24px}
 .ab-earth-sphere.ab-real-globe{background:#081322}
 .ab-earth-sphere canvas{display:none!important}
 .ab-earth-origin,.ab-earth-routes{display:none!important}
+
+/* Realistic satellite globe, UK-to-destination fit on selection. */
+.ab-earth-sphere.ab-real-globe canvas{display:block!important}
+.ab-earth-sphere.ab-real-globe{background:#05101c!important}
+.ab-earth-sphere.ab-real-globe .scene-container{background:transparent!important}
 </style>
 <script type="application/ld+json">
 {
@@ -1565,19 +1570,82 @@ renderRoute('australia');
 
 
 <script>
-/* Safe premium globe preview: keep country selection in sync without claiming
-   an inaccurate plotted route. Real geographic routing can be added separately. */
+/* Satellite-style geographic camera: fit UK and selected destination on one globe face. */
 (function(){
  const picker=document.getElementById('mapCountrySelect');
  const label=document.getElementById('abEarthDestination');
- if(!picker||!label)return;
+ const sphere=document.querySelector('.ab-earth-sphere');
+ if(!picker||!label||!sphere)return;
+ const places={
+ germany:[51.16,10.45],monaco:[43.73,7.42],zimbabwe:[-19.02,29.15],
+ australia:[-25.27,133.78],canada:[56.13,-106.35],usa:[39.83,-98.58],
+ france:[46.6,2.2],italy:[42.83,12.83],"san-marino":[43.94,12.46],
+ ireland:[53.41,-8.24],spain:[40.46,-3.75],china:[35.86,104.19],
+ india:[20.59,78.96],japan:[36.2,138.25],brazil:[-14.24,-51.93],
+ reunion:[-21.12,55.54],uae:[23.42,53.85],singapore:[1.35,103.82],
+ "south-africa":[-30.56,22.94],"new-zealand":[-40.9,174.89],
+ mexico:[23.63,-102.55],portugal:[39.4,-8.22],netherlands:[52.13,5.29],
+ belgium:[50.5,4.47],switzerland:[46.82,8.23],norway:[60.47,8.47],
+ sweden:[60.13,18.64],oman:[21.47,55.98],thailand:[15.87,100.99],
+ malaysia:[4.21,101.98],indonesia:[-0.79,113.92],"united-states":[39.83,-98.58],
+ "united-arab-emirates":[23.42,53.85],austria:[47.52,14.55],denmark:[56.26,9.5],
+ finland:[61.92,25.75],poland:[51.92,19.15],greece:[39.07,21.82],
+ turkey:[38.96,35.24],"turkiye":[38.96,35.24],egypt:[26.82,30.8],
+ kenya:[-0.02,37.91],nigeria:[9.08,8.67],morocco:[31.79,-7.09],
+ "saudi-arabia":[23.89,45.08],bahrain:[26.07,50.56],qatar:[25.35,51.18],
+ kuwait:[29.31,47.48],israel:[31.05,34.85],pakistan:[30.38,69.35]
+ };
+ const uk=[54,-2],rad=Math.PI/180;
+ const cart=p=>{const a=p[0]*rad,b=p[1]*rad;return [Math.cos(a)*Math.cos(b),Math.cos(a)*Math.sin(b),Math.sin(a)]};
+ const viewFor=p=>{
+   const a=cart(uk),b=cart(p);
+   const sum=a.map((n,i)=>n+b[i]),len=Math.hypot(...sum);
+   if(len<.03)return {lat:30,lng:0,altitude:7};
+   const v=sum.map(n=>n/len);
+   const angle=Math.acos(Math.min(1,Math.max(-1,a.reduce((s,n,i)=>s+n*b[i],0))))/2;
+   const altitude=Math.max(1.9,Math.min(8,(Math.cos(angle)+Math.sin(angle)/Math.tan(22*rad))-1+.55));
+   return {lat:Math.asin(v[2])/rad,lng:Math.atan2(v[1],v[0])/rad,altitude};
+ };
+ let globe=null;
  function update(){
-   const option=picker.options[picker.selectedIndex];
-   if(option)label.textContent=option.textContent.trim();
+  const opt=picker.options[picker.selectedIndex];if(!opt)return;
+  const slug=picker.value;label.textContent=opt.textContent.trim();
+  if(!globe)return;
+  const p=places[slug];
+  if(!p){
+    globe.arcsData([]).pointsData([{lat:uk[0],lng:uk[1]}]);
+    label.textContent=opt.textContent.trim()+' · route preview coming soon';
+    globe.pointOfView({lat:54,lng:-2,altitude:2.5},700);
+    return;
+  }
+  globe.arcsData([{startLat:uk[0],startLng:uk[1],endLat:p[0],endLng:p[1]}]);
+  globe.pointsData([{lat:uk[0],lng:uk[1]},{lat:p[0],lng:p[1]}]);
+  globe.pointOfView(viewFor(p),1100);
  }
  window.AnyBikeUpdateExportGlobe=update;
  picker.addEventListener('change',update);
  picker.addEventListener('input',update);
+ const loader=document.createElement('script');
+ loader.src='https://unpkg.com/globe.gl@2.45.1/dist/globe.gl.min.js';
+ loader.onload=()=>{
+  try{
+   if(!window.Globe)return;
+   sphere.innerHTML='';sphere.classList.add('ab-real-globe');
+   globe=Globe()(sphere).globeImageUrl('https://unpkg.com/three-globe/example/img/earth-night.jpg')
+    .bumpImageUrl('https://unpkg.com/three-globe/example/img/earth-topology.png')
+    .backgroundColor('rgba(0,0,0,0)').showAtmosphere(true)
+    .atmosphereColor('#5298d6').atmosphereAltitude(.13)
+    .arcsData([]).arcColor(()=>'#ed1c24').arcStroke(.6).arcAltitude(.15)
+    .arcDashLength(.8).arcDashGap(.1).arcDashAnimateTime(3800)
+    .pointsData([]).pointColor(()=>'#ed1c24').pointRadius(.5).pointAltitude(.025);
+   globe.controls().autoRotate=false;globe.controls().enablePan=false;
+   globe.controls().enableZoom=false;globe.controls().enableRotate=false;
+   const resize=()=>{const w=sphere.clientWidth||650;globe.width(w).height(w)};
+   resize();window.addEventListener('resize',resize);
+   update();
+  }catch(error){console.warn('AnyBike satellite globe could not load',error)}
+ };
+ document.head.appendChild(loader);
  window.addEventListener('pageshow',update);
  update();
 })();
