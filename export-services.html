@@ -1069,7 +1069,7 @@ footer{padding:18px 24px}
 <div class="map-country-picker">
 <label for="mapCountrySelect">Choose a destination</label>
 <div class="map-country-picker-row">
-<select aria-label="Choose a live international market" id="mapCountrySelect"></select>
+<select aria-label="Choose a live international market" id="mapCountrySelect" onchange="window.AnyBikeUpdateExportGlobe?.(this.value)" oninput="window.AnyBikeUpdateExportGlobe?.(this.value)"></select>
 <a class="btn secondary" href="/markets/australia.html" id="mapCountryGuideButton">Open Guide</a>
 </div>
 <small>Select any live market to open its guide. Where mapped, the route preview updates instantly.</small>
@@ -1554,22 +1554,42 @@ renderRoute('australia');
 
 
 <script>
-/* Mirror the existing 217-market selector into the premium globe. */
+/* Keep the premium globe in sync with every destination selection. */
 (function(){
- const select=document.getElementById('mapCountrySelect'),label=document.getElementById('abEarthDestination'),link=document.getElementById('abEarthGuide'),arc=document.getElementById('abEarthArc'),dot=document.getElementById('abEarthDot');
+ const select=document.getElementById('mapCountrySelect');
+ const label=document.getElementById('abEarthDestination');
+ const arc=document.getElementById('abEarthArc');
+ const dot=document.getElementById('abEarthDot');
  if(!select||!label||!arc||!dot)return;
- const coords={australia:[485,500],usa:[170,340],canada:[185,230],new-zealand:[525,520],india:[475,360],japan:[530,290],south-africa:[405,505],brazil:[250,490],uae:[430,335],germany:[390,220],france:[345,245],reunion:[470,480]};
- function show(){
-  const option=select.options[select.selectedIndex],slug=select.value;if(!option)return;
-  label.textContent=option.textContent;if(link)link.href='/markets/'+encodeURIComponent(slug)+'.html';
-  const p=coords[slug]||[440,300],x=p[0],y=p[1];
-  arc.setAttribute('d','M 350 210 Q '+Math.round((x+350)/2+80)+' '+Math.round(Math.min(210,y)-120)+' '+x+' '+y);
-  dot.setAttribute('cx',x);dot.setAttribute('cy',y);
+ // Coordinates are visual previews on the globe (not shipping navigation).
+ const coords={australia:[485,500],usa:[170,340],canada:[185,230],"new-zealand":[525,520],india:[475,360],japan:[530,290],"south-africa":[405,505],brazil:[250,490],uae:[430,335],germany:[390,220],france:[345,245],reunion:[470,480],"san-marino":[379,235],italy:[392,255],spain:[333,265],ireland:[323,215],china:[505,267],singapore:[490,385]};
+ const source=[350,210];
+ const fallback=(slug)=>{
+   // Deterministic separate locations for markets not yet plotted.
+   let hash=0;for(let i=0;i<slug.length;i++)hash=(Math.imul(hash,31)+slug.charCodeAt(i))|0;
+   const angle=((hash>>>0)%360)*Math.PI/180;
+   const radius=145+((hash>>>8)%85);
+   return [Math.round(345+radius*Math.cos(angle)),Math.round(330+radius*Math.sin(angle))];
+ };
+ function show(slug){
+   slug=slug||select.value;
+   const opt=[...select.options].find(o=>o.value===slug);
+   if(!opt)return;
+   label.textContent=opt.textContent.trim();
+   const p=coords[slug]||fallback(slug),x=p[0],y=p[1];
+   const midX=(source[0]+x)/2;
+   const midY=Math.min(source[1],y)-Math.min(115,Math.abs(x-source[0])*.25+55);
+   arc.setAttribute('d','M '+source.join(' ')+' Q '+Math.round(midX)+' '+Math.round(midY)+' '+x+' '+y);
+   dot.setAttribute('cx',String(x));dot.setAttribute('cy',String(y));
+   dot.setAttribute('aria-label',opt.textContent.trim());
  }
- select.addEventListener('change',show);
- select.addEventListener('input',show);
- document.querySelectorAll('.live-market-links a[data-country]').forEach(a=>{a.addEventListener('mouseenter',()=>requestAnimationFrame(show));a.addEventListener('focus',()=>requestAnimationFrame(show))});
- requestAnimationFrame(show);
+ window.AnyBikeUpdateExportGlobe=show;
+ select.addEventListener('input',()=>show(select.value));
+ select.addEventListener('change',()=>show(select.value));
+ // The country selector is populated by an earlier script. Watch any later changes.
+ const observer=new MutationObserver(()=>show(select.value));
+ observer.observe(select,{childList:true,subtree:true});
+ show(select.value||'australia');
 })();
 </script>
 
