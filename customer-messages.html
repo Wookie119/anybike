@@ -1166,8 +1166,8 @@ footer{
 
 <main class="page-shell">
   <span data-anybike-next-action="messages-page-owned" style="display:none"></span>
-  <section id="shippingConversationHub" style="border:1px solid #333;border-radius:14px;padding:15px 18px;margin-bottom:14px;background:#121212"><strong style="font-size:18px;color:#fff">Shipping messages & quotations</strong><p style="color:#bbb;margin:7px 0">View shipper conversations, quotation details and attached PDFs in one place.</p><a href="/customer-shipping-conversations.html" style="display:inline-block;background:#ed1c24;color:#fff;text-decoration:none;padding:10px 15px;border-radius:8px;font-weight:800">Open Shipping Conversations →</a></section>
-  <div id="shippingQuoteAlerts" style="display:none;border:1px solid #ed1c24;background:#1c1113;border-radius:12px;padding:15px 18px;margin-bottom:16px"></div>
+  
+  
   <section class="messages-page-head">
     <div class="messages-page-inline-title">
       <span class="eyebrow">My AnyBike</span>
@@ -1196,6 +1196,7 @@ footer{
     <div id="customerEnquiries">Loading conversations...</div>
   </section>
 
+  <section class="panel messages-only-panel" style="margin:12px 0;padding:16px;border:1px solid #444;border-radius:14px"><h2>Shipping conversations & quotations</h2><p style="color:#bbb">Shipper replies, quotations and PDFs. Requests do not book transport.</p><div id="shippingConversationRows">Loading shipping conversations…</div><div id="shippingQuoteAlerts" style="display:none;border:1px solid #ed1c24;background:#1c1113;border-radius:12px;padding:15px 18px;margin-bottom:16px"></div></section>
   <section class="messages-return-hub">
     <div>
       <div class="eyebrow">What else needs your attention?</div>
@@ -4332,10 +4333,14 @@ setInterval(function(){
   const client=supabase.createClient("https://tuehtnezhdnkqbbhttgp.supabase.co","sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK");
   const {data:{user}}=await client.auth.getUser();if(!user)return;
   const {data:enquiries,error:eError}=await client.rpc("customer_get_shipping_conversations_v1");
-  if(eError||!enquiries?.length)return;
+  const rows=document.getElementById("shippingConversationRows");
+  if(eError){rows.textContent="Unable to load shipping conversations. Please refresh.";return}
+  if(!enquiries?.length){rows.textContent="No shipping conversations yet.";return}
+  const clean=v=>String(v??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
+  rows.innerHTML=enquiries.map(e=>'<a href="/customer-shipping-conversations.html?conversation='+encodeURIComponent(e.id)+'" style="display:block;border:1px solid #444;border-radius:10px;padding:14px;margin-bottom:9px;color:#fff;text-decoration:none"><strong>'+clean(e.shipper_name)+'</strong> · '+clean(e.destination_country)+' · '+clean(e.status||"Quote requested")+'<span style="display:block;color:#ff646b">Open conversation →</span></a>').join("");
   const ids=enquiries.map(e=>e.id);
   const {data:quotes,error:qError}=await client.from("shipping_partner_quotes").select("id,enquiry_id,currency,quote_amount,transit_time,inclusions,exclusions,receiving_company,receiving_address,notes,pdf_storage_path,pdf_filename,created_at").in("enquiry_id",ids).order("created_at",{ascending:false}).limit(30);
-  if(qError||!quotes?.length)return;
+  if(qError){console.warn("Quotes unavailable",qError.message);return} if(!quotes?.length)return;
   const byId=new Map(enquiries.map(e=>[Number(e.id),e]));
   const panel=document.getElementById("shippingQuoteAlerts");
   const escQuote=v=>String(v??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
