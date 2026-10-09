@@ -254,8 +254,9 @@ countrySearch.addEventListener("input",()=>{
    countryMatches.appendChild(button);
  });
  countryMatches.hidden=found.length===0;
- populateCountries("",query);
- if(found.length===1)selectDestination(found[0]);
+ // Searching must never clear a destination already selected by the customer.
+ // Only an explicit suggestion click or dropdown change changes the destination.
+ if(!country.value) populateCountries("",query);
 });
 countrySearch.addEventListener("keydown",event=>{
  if(event.key==="Enter"&&!countryMatches.hidden){
@@ -267,8 +268,9 @@ countrySearch.addEventListener("keydown",event=>{
  }
 });
 country.addEventListener("change",()=>{
- if(country.value)countrySearch.value=country.value==="Réunion"?"Réunion Island":country.value;
+ countrySearch.value=country.value?(country.value==="Réunion"?"Réunion Island":country.value):"";
  countryMatches.hidden=true;
+ populateCountries(country.value);
 });
 
 function populatePorts(selected=""){
@@ -302,8 +304,10 @@ if(portsError) console.warn("Could not load international ports",portsError);
 INTERNATIONAL_PORTS=Array.isArray(portsData)?portsData:[];
 const requestedCountry=String(params.get("country")||"").trim();
 const profileCountry=String(p?.business_country||"").trim();
-const initialCountry=requestedCountry==="United Kingdom"?"":requestedCountry;
+const normalizedRequested=requestedCountry.toLowerCase()==="reunion island"?"Réunion":requestedCountry;
+const initialCountry=COUNTRIES.includes(normalizedRequested)&&normalizedRequested!=="United Kingdom"?normalizedRequested:"";
 populateCountries(initialCountry);
+if(initialCountry) countrySearch.value=initialCountry==="Réunion"?"Réunion Island":initialCountry;
 populatePorts(p?.preferred_destination_port||"");
 country.addEventListener("change",()=>populatePorts(""));
 const {data:deals,error:dealError}=await sb.rpc("customer_get_shipping_eligible_deals_v1");
