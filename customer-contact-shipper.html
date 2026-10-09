@@ -181,6 +181,11 @@ textarea{
 
 /* UK departure is fixed; destination selection is separate. */
 #sendingFrom{background:#171717;border-color:#383838;color:#fff;font-weight:800;cursor:default}
+
+.country-matches{background:#181818;border:1px solid #484848;border-radius:10px;margin:-3px 0 10px;max-height:260px;overflow-y:auto}
+.country-matches[hidden]{display:none}
+.country-matches button{display:block;width:100%;padding:10px 13px;text-align:left;border:0;border-bottom:1px solid #333;background:transparent;color:#fff;cursor:pointer}
+.country-matches button:hover,.country-matches button:focus{background:#352022;color:#fff}
 </style></head><body><div id="publicHeader"></div><main>
 <section class="card"><div class="ey">AnyBike shipper introduction</div><h1>Contact Shipper</h1><p>Send your enquiry through AnyBike. The shipper, you and AnyBike will share one shipping conversation so we can step in if needed.</p></section>
 <section class="card"><h2 id="shipperName">Loading shipper…</h2><p id="shipperInfo"></p></section>
@@ -191,7 +196,7 @@ textarea{
   <label class="consent" style="margin:0 0 8px"><input type="checkbox" id="selectAllPurchases"><span><strong>Select all purchases</strong></span></label>
   <div id="purchaseList" style="display:grid;gap:8px"></div>
 </div>
-<div class="grid"><div class="full"><label for="sendingFrom">Sending from</label><input id="sendingFrom" value="United Kingdom" readonly aria-label="Sending from United Kingdom"><small style="display:block;color:#aaa;margin-top:6px">AnyBike coordinates collection and delivery within the UK to the agreed shipping provider.</small></div><div><label for="countrySearch">Find destination country or territory</label><input id="countrySearch" type="search" autocomplete="off" placeholder="Search all 249 countries and territories" aria-controls="country" style="margin-bottom:9px"><label for="country">Destination country *</label><select id="country"><option value="">Select destination country</option></select></div><div><label>Destination / arrival port</label><select id="port" disabled><option value="">Select destination country first</option></select></div><div class="full"><div class="note" id="portHelp" style="margin-bottom:0">Choose the overseas arrival port for this shipment. If you are unsure, select “Ask shipper to advise”.</div></div><div class="full"><label>Motorcycle details <span style="color:#999;font-weight:normal">(optional if an AB purchase is selected)</span></label><input id="bike" placeholder="e.g. 2024 BMW S1000RR"></div><div class="full"><label>Your message *</label><textarea id="message" placeholder="Tell the shipper what you need..."></textarea></div></div>
+<div class="grid"><div class="full"><label for="sendingFrom">Sending from</label><input id="sendingFrom" value="United Kingdom" readonly aria-label="Sending from United Kingdom"><small style="display:block;color:#aaa;margin-top:6px">AnyBike coordinates collection and delivery within the UK to the agreed shipping provider.</small></div><div><label for="countrySearch">Find destination country or territory</label><input id="countrySearch" type="search" autocomplete="off" placeholder="Search all 249 countries and territories" aria-controls="country" style="margin-bottom:9px"><div id="countryMatches" class="country-matches" hidden></div><label for="country">Destination country *</label><select id="country"><option value="">Select destination country</option></select></div><select id="port" hidden aria-hidden="true"><option value="">No specific port selected</option></select><div id="portHelp" hidden></div><div class="full"><label>Motorcycle details <span style="color:#999;font-weight:normal">(optional if an AB purchase is selected)</span></label><input id="bike" placeholder="e.g. 2024 BMW S1000RR"></div><div class="full"><label>Your message *</label><textarea id="message" placeholder="Tell the shipper what you need..."></textarea></div></div>
 <label class="consent"><input type="checkbox" id="consent"><span>I agree that AnyBike may share my profile contact/business details with this shipper for this shipping enquiry.</span></label>
 <div class="actions"><button class="btn" id="send">Start Shipping Conversation →</button><a class="btn" style="background:#222;border-color:#333" href="/freight-forwarders.html">Back to Shippers</a></div><div class="status" id="status"></div></section>
 </main><script src="/public-header.js?v=12006"></script><script>
@@ -210,10 +215,43 @@ function populateCountries(selected="",filter=""){
   if(selected&&COUNTRIES.includes(selected))country.value=selected;
 }
 const countrySearch=document.getElementById("countrySearch");
+const countryMatches=document.getElementById("countryMatches");
+function selectDestination(value){
+  if(!COUNTRIES.includes(value))return;
+  populateCountries(value);
+  country.value=value;
+  countrySearch.value=value==="Réunion"?"Réunion Island":value;
+  countryMatches.hidden=true;
+  populatePorts("");
+  country.dispatchEvent(new Event("change",{bubbles:true}));
+}
 countrySearch.addEventListener("input",()=>{
- const previouslySelected=country.value;
- populateCountries(previouslySelected,countrySearch.value);
- // Preserve the user's selection and dependent arrival port until they actually change it.
+ const query=countrySearch.value.trim();
+ const normalized=s=>s.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+ const found=query?COUNTRIES.filter(x=>normalized(x).includes(normalized(query))||(x==="Réunion"&&"reunion island".includes(normalized(query)))):[];
+ countryMatches.innerHTML="";
+ found.slice(0,8).forEach(name=>{
+   const button=document.createElement("button");
+   button.type="button";button.textContent=name==="Réunion"?"Réunion Island":name;
+   button.addEventListener("click",()=>selectDestination(name));
+   countryMatches.appendChild(button);
+ });
+ countryMatches.hidden=found.length===0;
+ populateCountries("",query);
+ if(found.length===1)selectDestination(found[0]);
+});
+countrySearch.addEventListener("keydown",event=>{
+ if(event.key==="Enter"&&!countryMatches.hidden){
+  event.preventDefault();
+  const query=countrySearch.value.trim();
+  const chosen=COUNTRIES.find(x=>x.toLowerCase()===query.toLowerCase())||
+    (country.options.length===2?country.options[1].value:null);
+  if(chosen)selectDestination(chosen);
+ }
+});
+country.addEventListener("change",()=>{
+ if(country.value)countrySearch.value=country.value==="Réunion"?"Réunion Island":country.value;
+ countryMatches.hidden=true;
 });
 
 function populatePorts(selected=""){
@@ -247,7 +285,7 @@ if(portsError) console.warn("Could not load international ports",portsError);
 INTERNATIONAL_PORTS=Array.isArray(portsData)?portsData:[];
 const requestedCountry=String(params.get("country")||"").trim();
 const profileCountry=String(p?.business_country||"").trim();
-const initialCountry=requestedCountry||(profileCountry==="United Kingdom"?"":profileCountry);
+const initialCountry=requestedCountry||"";
 populateCountries(initialCountry);
 populatePorts(p?.preferred_destination_port||"");
 country.addEventListener("change",()=>populatePorts(""));
