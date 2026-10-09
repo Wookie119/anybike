@@ -810,6 +810,13 @@ footer{padding:18px 24px}
 /* True geographic globe overlay: marker positions follow latitude/longitude. */
 .ab-earth-sphere.ab-real-globe{background:#091425;overflow:hidden;box-shadow:0 0 55px #356d9e50,inset 0 0 20px #000}
 .ab-earth-sphere.ab-real-globe canvas{display:block;outline:none}
+
+/* Restore the premium restrained globe instead of misaligned moving 3D routing. */
+.ab-earth-sphere{background:#081322}
+.ab-earth-texture{animation:none!important;background-position:52% center!important}
+.ab-earth-sphere.ab-real-globe{background:#081322}
+.ab-earth-sphere canvas{display:none!important}
+.ab-earth-origin,.ab-earth-routes{display:none!important}
 </style>
 <script type="application/ld+json">
 {
@@ -927,9 +934,9 @@ footer{padding:18px 24px}
 <div class="map-card map-card-enhanced map-card-full">
 <div class="map-overlay-note">Choose a destination to preview its route from the UK.</div>
 <div class="ab-earth-scene" aria-label="Interactive Earth-inspired export route preview">
-  <div class="ab-earth-copy"><span class="ab-earth-kicker">ANYBIKE · INTERNATIONAL EXPORT</span><h3>Global export routes <em>from the UK.</em></h3><p>Select any live international market to preview an illustrative route and open its country guide.</p><div class="ab-earth-destination"><span class="ab-earth-pin">●</span><div><small>Selected destination</small><strong id="abEarthDestination">Australia</strong></div><span class="ab-earth-explore">Explore destinations below ↓</span></div></div>
-  <div class="ab-earth-sphere" aria-hidden="true"><div class="ab-earth-texture"></div><div class="ab-earth-shadow"></div><div class="ab-earth-origin">● <span>UK · AnyBike</span></div><svg class="ab-earth-routes" viewBox="0 0 650 650" preserveAspectRatio="xMidYMid meet"><path id="abEarthArc" d="M 350 210 Q 570 170 470 480" fill="none" stroke="#fa2634" stroke-width="2.5" stroke-linecap="round"/><circle id="abEarthDot" cx="470" cy="480" r="6" fill="#ff3445" stroke="#fff" stroke-width="2"/></svg></div>
-  <div class="ab-earth-caption">Illustrative route preview · Actual shipping routes and services depend on your freight forwarder and destination</div>
+  <div class="ab-earth-copy"><span class="ab-earth-kicker">ANYBIKE · INTERNATIONAL EXPORT</span><h3>Global export routes <em>from the UK.</em></h3><p>Explore live international markets and choose a destination below. AnyBike coordinates UK collection and delivery to your nominated shipping provider.</p><div class="ab-earth-destination"><span class="ab-earth-pin">●</span><div><small>Selected destination</small><strong id="abEarthDestination">Australia</strong></div><span class="ab-earth-explore">Select a destination below ↓</span></div></div>
+  <div class="ab-earth-sphere" aria-hidden="true"><div class="ab-earth-texture"></div><div class="ab-earth-shadow"></div></div>
+  <div class="ab-earth-caption">UK motorcycle sourcing and export coordination · Freight options depend on your chosen destination and shipping provider</div>
 </div>
 <svg aria-label="Interactive world map showing motorcycle export routes from the United Kingdom to live destination guides, with major UK export ports highlighted" class="world-map enhanced-map realmap-view" id="exportRouteMap" role="img" viewBox="0 0 1000 560">
 <defs>
@@ -1558,77 +1565,21 @@ renderRoute('australia');
 
 
 <script>
-/* Geography-based globe. Never plot a made-up position. */
+/* Safe premium globe preview: keep country selection in sync without claiming
+   an inaccurate plotted route. Real geographic routing can be added separately. */
 (function(){
- const picker=document.getElementById('mapCountrySelect'),title=document.getElementById('abEarthDestination');
- const sphere=document.querySelector('.ab-earth-sphere');
- if(!picker||!title||!sphere)return;
- const coordinates={
- 'united-kingdom':[54,-2],germany:[51.2,10.45],monaco:[43.73,7.42],zimbabwe:[-19.02,29.15],
- australia:[-25.27,133.78],canada:[56.13,-106.35],usa:[39.8,-98.6],
- 'united-states':[39.8,-98.6],france:[46.6,2.2],italy:[42.8,12.6],
- 'san-marino':[43.94,12.46],ireland:[53.4,-8.2],spain:[40.4,-3.7],
- china:[35.9,104.2],india:[21,78],japan:[36.2,138.25],
- brazil:[-14.2,-51.9],reunion:[-21.12,55.54],uae:[23.42,53.85],
- singapore:[1.35,103.82],'south-africa':[-30.56,22.94],
- 'new-zealand':[-40.9,174.9],mexico:[23.6,-102.55],
- portugal:[39.5,-8],netherlands:[52.2,5.3],belgium:[50.5,4.47],
- switzerland:[46.8,8.23],norway:[60.47,8.46],sweden:[60.13,18.64],
- 'united-arab-emirates':[23.42,53.85],oman:[21.47,55.98],
- thailand:[15.87,100.99],malaysia:[4.2,101.98],indonesia:[-0.79,113.92]
- };
- const origin={lat:54,lng:-2};
- let globe=null;
- function install(){
-   if(!window.Globe)return false;
-   sphere.innerHTML='';
-   sphere.classList.add('ab-real-globe');
-   globe=Globe()(sphere)
-    .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg')
-    .bumpImageUrl('https://unpkg.com/three-globe/example/img/earth-topology.png')
-    .backgroundColor('rgba(0,0,0,0)')
-    .showAtmosphere(true).atmosphereColor('#74b5e9').atmosphereAltitude(.14)
-    .arcsData([]).arcColor(()=>'#ff2736').arcStroke(.65).arcAltitude(.18)
-    .arcDashLength(.55).arcDashGap(.12).arcDashAnimateTime(2200)
-    .pointsData([{lat:origin.lat,lng:origin.lng}]).pointColor(()=>'#ff2736')
-    .pointAltitude(.025).pointRadius(.42);
-   const resize=()=>{const width=sphere.clientWidth||650;globe.width(width).height(width)};
-   resize();window.addEventListener('resize',resize);
-   // Fixed UK-facing view: no automatic spin, user drag or zoom.
-   // The UK origin remains in exactly the same geographic position.
-   globe.controls().autoRotate=false;
-   globe.controls().enableRotate=false;
-   globe.controls().enableZoom=false;
-   globe.controls().enablePan=false;
-   globe.pointOfView({lat:54,lng:-2,altitude:2.15},0);
-   return true;
+ const picker=document.getElementById('mapCountrySelect');
+ const label=document.getElementById('abEarthDestination');
+ if(!picker||!label)return;
+ function update(){
+   const option=picker.options[picker.selectedIndex];
+   if(option)label.textContent=option.textContent.trim();
  }
- function draw(){
-   const slug=picker.value;
-   const selected=picker.options[picker.selectedIndex];
-   if(!selected)return;
-   title.textContent=selected.textContent.trim();
-   if(!globe)return;
-   const p=coordinates[slug];
-   if(!p){
-     globe.arcsData([]).pointsData([{lat:origin.lat,lng:origin.lng}]);
-     title.textContent=selected.textContent.trim()+' · route not mapped yet';
-     return;
-   }
-   globe.arcsData([{startLat:origin.lat,startLng:origin.lng,endLat:p[0],endLng:p[1]}]);
-   globe.pointsData([{lat:origin.lat,lng:origin.lng},{lat:p[0],lng:p[1]}]);
-   // Do not turn the globe on selection. Far-side destinations may be
-   // obscured by Earth rather than shown at an inaccurate position.
- }
- window.AnyBikeUpdateExportGlobe=()=>draw();
- picker.addEventListener('change',draw);
- picker.addEventListener('input',draw);
- const loader=document.createElement('script');
- loader.src='https://unpkg.com/globe.gl@2.45.1/dist/globe.gl.min.js';
- loader.onload=()=>{try{if(install())draw()}catch(e){console.warn('AnyBike globe unavailable',e)}};
- loader.onerror=()=>console.warn('3D globe library unavailable; leaving static illustration');
- document.head.appendChild(loader);
- window.addEventListener('pageshow',draw);
+ window.AnyBikeUpdateExportGlobe=update;
+ picker.addEventListener('change',update);
+ picker.addEventListener('input',update);
+ window.addEventListener('pageshow',update);
+ update();
 })();
 </script>
 
