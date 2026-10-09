@@ -91,7 +91,7 @@ async function open(id,quiet=false){
         (q.pdf_storage_path?'<button class="btn admin-quote-pdf" type="button" data-quote-id="'+Number(q.id)+'" style="border-radius:8px">View formal PDF quotation</button>':"")+
       '</div>').join("");
     quotePanel.querySelectorAll(".admin-quote-pdf").forEach(button=>button.onclick=async()=>{
-      const tab=window.open("about:blank","_blank");
+      const pdfWindow=window.open("about:blank","_blank");
       const previous=button.textContent;button.disabled=true;button.textContent="Opening PDF…";
       const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),12000);
       try{
@@ -104,10 +104,10 @@ async function open(id,quiet=false){
         });
         const data=await response.json();
         if(!response.ok||!data?.url)throw new Error(data?.error||"Unable to open PDF.");
-        if(tab)tab.location.href=data.url;else location.href=data.url;
+        if(pdfWindow && pdfWindow.location && typeof pdfWindow.location.replace==="function"){pdfWindow.location.replace(data.url);}else{window.location.assign(data.url);}
       }catch(err){
-        if(tab)tab.close();
-        msg.textContent="PDF could not open: "+(err.name==="AbortError"?"Request timed out.":err.message||"Please retry.");
+        if(pdfWindow && typeof pdfWindow.close==="function")pdfWindow.close();
+        msg.textContent="PDF could not open: "+(err.name==="AbortError"?"Request timed out.":err?.message||"Please retry.");
       }finally{clearTimeout(timeout);button.disabled=false;button.textContent=previous}
     });
   }else{quotePanel.style.display="none";quotePanel.innerHTML="";if(quoteError)console.warn("Admin quotation retrieval",quoteError.message)}
