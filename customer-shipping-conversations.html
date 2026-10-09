@@ -35,9 +35,15 @@ async function open(id,quiet=false){
       (q.pdf_storage_path?'<button type="button" class="btn quote-pdf" data-path="'+esc(q.pdf_storage_path)+'" style="border-radius:9px">View formal PDF quotation</button>':"")+
       '</div>').join("");
     quoteList.querySelectorAll(".quote-pdf").forEach(button=>button.onclick=async()=>{
+      const tab=window.open("about:blank","_blank");
       const {data:pdf,error:pdfError}=await sb.storage.from("shipping-quote-pdfs").createSignedUrl(button.dataset.path,120);
-      if(pdfError||!pdf?.signedUrl){status.textContent="Could not open the private PDF quotation.";return}
-      window.open(pdf.signedUrl,"_blank","noopener,noreferrer");
+      if(pdfError||!pdf?.signedUrl){
+        if(tab)tab.close();
+        status.textContent="Could not open the private PDF quotation: "+(pdfError?.message||"Please try again.");
+        return;
+      }
+      if(tab)tab.location.replace(pdf.signedUrl);
+      else window.location.href=pdf.signedUrl;
     });
   }else{quoteList.style.display="none";quoteList.innerHTML="";}
   liveState.textContent="Last checked "+new Date().toLocaleTimeString()+" · "+(data||[]).length+" messages";
