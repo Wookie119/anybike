@@ -32,18 +32,17 @@ async function open(id,quiet=false){
       (q.receiving_company?'<p><b>UK receiver:</b> '+esc(q.receiving_company)+'</p>':"")+
       (q.receiving_address?'<p><b>UK handover address:</b> '+esc(q.receiving_address)+'</p>':"")+
       (q.notes?'<p><b>Terms:</b> '+esc(q.notes)+'</p>':"")+
-      (q.pdf_storage_path?'<button type="button" class="btn quote-pdf" data-path="'+esc(q.pdf_storage_path)+'" style="border-radius:9px">View formal PDF quotation</button>':"")+
+      (q.pdf_storage_path?'<button type="button" class="btn quote-pdf" data-quote-id="'+Number(q.id)+'" style="border-radius:9px">View formal PDF quotation</button>':"")+
       '</div>').join("");
     quoteList.querySelectorAll(".quote-pdf").forEach(button=>button.onclick=async()=>{
       const tab=window.open("about:blank","_blank");
-      const {data:pdf,error:pdfError}=await sb.storage.from("shipping-quote-pdfs").createSignedUrl(button.dataset.path,120);
-      if(pdfError||!pdf?.signedUrl){
+      const {data,error}=await sb.functions.invoke("open-shipping-quote-pdf",{body:{quote_id:Number(button.dataset.quoteId)}});
+      if(error||data?.error||!data?.url){
         if(tab)tab.close();
-        status.textContent="Could not open the private PDF quotation: "+(pdfError?.message||"Please try again.");
+        status.textContent="Unable to open PDF: "+(data?.error||error?.message||"Please try again.");
         return;
       }
-      if(tab)tab.location.replace(pdf.signedUrl);
-      else window.location.href=pdf.signedUrl;
+      if(tab)tab.location.replace(data.url);else location.href=data.url;
     });
   }else{quoteList.style.display="none";quoteList.innerHTML="";}
   liveState.textContent="Last checked "+new Date().toLocaleTimeString()+" · "+(data||[]).length+" messages";
