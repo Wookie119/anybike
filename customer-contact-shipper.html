@@ -391,7 +391,48 @@ addMotorcycle.onclick=()=>addMotorcycleRow();
 addMotorcycleRow();
 
 function safe(v){return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]))}
-send.onclick=async()=>{status.className="status";status.textContent="";if(!consent.checked){status.textContent="Please confirm that AnyBike may share your contact details.";status.className="status bad";return}if(!country.value.trim()||country.value==="United Kingdom"||!message.value.trim()){status.textContent="Destination country and message are required.";status.className="status bad";return}
-send.disabled=true;send.textContent="Sending…";const dealIds=Array.from(document.querySelectorAll(".purchase-check:checked")).map(x=>Number(x.value)).filter(Number.isFinite);const {data,error}=await sb.functions.invoke("send-shipper-enquiry",{body:{forwarder_id:id,destination_country:country.value.trim(),destination_port:port.value.trim()||null,motorcycle_details:getMotorcycleDetails()||null,message:message.value.trim(),deal_ids:dealIds}});
-if(error||data?.error){status.textContent=data?.error||error.message;status.className="status bad";send.disabled=false;send.textContent="Start Shipping Conversation →";return}
-status.textContent=data?.notification_pending?"Your shipping conversation has been saved. The shipper notification needs AnyBike follow-up.": "Conversation started. The shipper has been emailed by AnyBike.";status.className=data?.notification_pending?"status bad":"status good";if(data?.enquiry_id){setTimeout(()=>location.href="/customer-shipping-conversations.html?conversation="+encodeURIComponent(data.enquiry_id),1500)}else{send.disabled=false;send.textContent="Start Shipping Conversation →"}};</script></body></html>
+const submitButton=document.getElementById("send");
+const feedback=document.getElementById("status");
+const destination=document.getElementById("country");
+const enquiryMessage=document.getElementById("message");
+const consentCheckbox=document.getElementById("consent");
+let submitting=false;
+function showSubmissionStatus(text,isError=false){
+ feedback.textContent=text;
+ feedback.className="status "+(isError?"bad":"good");
+ feedback.setAttribute("role","status");
+ feedback.scrollIntoView({block:"nearest",behavior:"smooth"});
+}
+submitButton.addEventListener("click",async()=>{
+ if(submitting)return;
+ if(!destination.value||destination.value==="United Kingdom"){
+   showSubmissionStatus("Please select your destination country above.",true);
+   destination.focus();return;
+ }
+ if(!enquiryMessage.value.trim()){
+   showSubmissionStatus("Please write a short message for the shipper above.",true);
+   enquiryMessage.focus();return;
+ }
+ if(!consentCheckbox.checked){
+   showSubmissionStatus("Please tick the consent box before sending.",true);
+   consentCheckbox.focus();return;
+ }
+ submitting=true;submitButton.disabled=true;submitButton.textContent="Sending enquiry…";
+ showSubmissionStatus("Sending your enquiry. Please wait…");
+ try{
+   const dealIds=Array.from(document.querySelectorAll(".purchase-check:checked")).map(x=>Number(x.value)).filter(Number.isFinite);
+   const {data,error}=await sb.functions.invoke("send-shipper-enquiry",{body:{
+     forwarder_id:id,destination_country:destination.value,destination_port:null,
+     motorcycle_details:getMotorcycleDetails()||null,message:enquiryMessage.value.trim(),deal_ids:dealIds
+   }});
+   if(error||data?.error)throw new Error(data?.error||error?.message||"Unable to submit enquiry.");
+   if(!data?.enquiry_id)throw new Error("The server did not confirm a conversation. Please contact AnyBike before retrying to avoid a duplicate.");
+   const link="/customer-shipping-conversations.html?conversation="+encodeURIComponent(data.enquiry_id);
+   showSubmissionStatus(data.notification_pending?"Enquiry saved successfully. AnyBike needs to follow up on the shipper email. Opening your conversation…":"Enquiry sent successfully. Opening your shipping conversation…");
+   submitButton.textContent="Message sent ✓";
+   setTimeout(()=>{location.href=link},1100);
+ }catch(error){
+   showSubmissionStatus("Could not confirm the enquiry: "+(error?.message||"Please try again."),true);
+   submitting=false;submitButton.disabled=false;submitButton.textContent="Start Shipping Conversation →";
+ }
+});</script></body></html>
