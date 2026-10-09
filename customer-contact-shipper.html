@@ -206,7 +206,7 @@ main{width:min(96vw,1440px);padding:24px 0 45px}
 
 .motorcycle-entry{position:relative;background:#151515;border:1px solid #333;border-radius:12px;padding:15px;margin-top:10px}.motorcycle-entry h3{font-size:16px;margin:0 0 12px}.motorcycle-entry .remove-motorcycle{background:transparent;border:1px solid #555;border-radius:8px;color:#fff;padding:7px 10px;cursor:pointer}.motorcycle-entry .remove-motorcycle:hover{border-color:#ed1c24}.motorcycle-entry .row-head{display:flex;justify-content:space-between;align-items:center;gap:10px}.motorcycle-entry input{min-width:0}#addMotorcycle{width:auto}@media(max-width:700px){#addMotorcycle{width:100%}}
 </style></head><body><div id="publicHeader"></div><main>
-<section class="card"><div class="ey">AnyBike shipper introduction</div><h1>Contact Shipper</h1><p>Send your enquiry through AnyBike. The shipper, you and AnyBike will share one shipping conversation so we can step in if needed.</p></section>
+<section class="card"><div class="ey">AnyBike shipper introduction</div><h1>Request Shipping Quote</h1><p>Ask this provider for a shipping quotation through AnyBike. You, the shipper and AnyBike can discuss the price, delivery point, crating and insurance in one conversation. You can request quotes from other providers separately; this does not book shipping.</p></section>
 <section class="card"><h2 id="shipperName">Loading shipper…</h2><p id="shipperInfo"></p></section>
 <section class="card"><div class="note"><strong>AnyBike introduction:</strong> “AnyBike has recommended your company to support one of our clients with an international motorcycle shipment.”</div>
 <div id="purchaseWrap" class="full" style="display:none;margin-bottom:16px">
@@ -219,7 +219,7 @@ main{width:min(96vw,1440px);padding:24px 0 45px}
 <div class="grid"><div class="full"><label for="ukReceivingType">UK delivery / receiving location</label><select id="ukReceivingType"><option value="To be confirmed by the shipper">Ask shipper to confirm receiving location</option><option value="Freight forwarder premises">Freight forwarder premises</option><option value="Shipping partner or receiving warehouse">Shipping partner or receiving warehouse</option><option value="Export crating / packing company">Export crating / packing company</option><option value="Port / container terminal">Port / container terminal</option><option value="Other approved UK handover location">Other approved UK handover location</option></select></div><div><label for="ukReceivingCompany">Receiving company (if known)</label><input id="ukReceivingCompany" placeholder="May be different from the freight forwarder"></div><div><label for="ukReceivingPostcode">UK receiving postcode (if known)</label><input id="ukReceivingPostcode" placeholder="e.g. SO15 1HJ"></div><div class="full"><label for="ukReceivingInstructions">Address / crating and delivery instructions (if known)</label><textarea id="ukReceivingInstructions" placeholder="UK receiving address, contact, booking reference, crate requirements or access instructions. Leave blank if shipper will advise."></textarea><small style="color:#aaa">These are enquiry details only, not a confirmed collection or delivery booking.</small></div></div>
 <div class="grid"><div class="full"><label for="sendingFrom">Sending from</label><input id="sendingFrom" value="United Kingdom" readonly aria-label="Sending from United Kingdom"><small style="display:block;color:#aaa;margin-top:6px">AnyBike coordinates collection and delivery within the UK to the agreed shipping provider.</small></div><div><label for="countrySearch">Find destination country or territory</label><input id="countrySearch" type="search" autocomplete="off" placeholder="Search all 249 countries and territories" aria-controls="country" style="margin-bottom:9px"><div id="countryMatches" class="country-matches" hidden></div><label for="country">Destination country *</label><select id="country"><option value="">Select destination country</option></select></div><select id="port" hidden aria-hidden="true"><option value="">No specific port selected</option></select><div id="portHelp" hidden></div><div class="full"><label>Motorcycles to ship <span style="color:#999;font-weight:normal">(optional if you selected AnyBike purchases above)</span></label><div id="motorcycleList"></div><button class="btn" id="addMotorcycle" type="button" style="background:#222;border-color:#555;border-radius:10px;margin-top:10px">+ Add Another Motorcycle</button><small id="motorcycleCount" style="display:block;color:#aaa;margin-top:8px">1 motorcycle</small></div><div class="full"><label>Your message *</label><textarea id="message" placeholder="Tell the shipper what you need..."></textarea></div></div>
 <label class="consent"><input type="checkbox" id="consent"><span>I agree that AnyBike may share my profile contact/business details with this shipper for this shipping enquiry.</span></label>
-<div class="actions"><button class="btn" id="send">Start Shipping Conversation →</button><a class="btn" style="background:#222;border-color:#333" href="/freight-forwarders.html">Back to Shippers</a></div><div class="status" id="status"></div></section>
+<div class="actions"><button class="btn" id="send">Send Quote Request →</button><a class="btn" style="background:#222;border-color:#333" href="/freight-forwarders.html">Back to Shippers</a></div><div class="status" id="status"></div></section>
 </main><script src="/public-header.js?v=12006"></script><script>
 const sb=supabase.createClient("https://tuehtnezhdnkqbbhttgp.supabase.co","sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK");
 const params=new URLSearchParams(location.search),id=Number(params.get("shipper")||0);
@@ -403,6 +403,7 @@ window.syncLinkedShippingMotorcycles=function(){
  const records=(window.anybikeEligibleShippingDeals||[]).filter(d=>selected.includes(Number(d.deal_id)));
  linkedSummary.style.display=records.length?"grid":"none";
  linkedSummary.style.gap="10px";
+ const previousInsurance=new Map(Array.from(linkedSummary.querySelectorAll(".linked-insurance")).map(el=>[el.dataset.dealId,el.value]));
  linkedSummary.innerHTML=records.map((d,i)=>'<div style="background:#191919;border:1px solid #414141;border-left:4px solid #ed1c24;border-radius:12px;padding:15px">'+
   '<strong style="display:block;margin-bottom:10px">Motorcycle '+(i+1)+' — '+safe(d.deal_number||"AnyBike purchase")+'</strong>'+
   '<div style="font-weight:800;font-size:17px">'+safe(d.motorcycle_details||"Motorcycle")+'</div>'+
@@ -410,6 +411,7 @@ window.syncLinkedShippingMotorcycles=function(){
   '<label style="display:block;margin-top:10px">Value for insurance (£) — optional, confirm with shipper</label>'+
   '<input type="number" class="linked-insurance" data-deal-id="'+Number(d.deal_id)+'" min="0" step="0.01" placeholder="Enter agreed insurance value if known">'+
   '</div>').join("");
+ linkedSummary.querySelectorAll(".linked-insurance").forEach(el=>{if(previousInsurance.has(el.dataset.dealId))el.value=previousInsurance.get(el.dataset.dealId)});
  if(originalManualLabel)originalManualLabel.innerHTML=records.length
   ? 'Additional motorcycles not included in My Purchases <span style="color:#aaa;font-weight:normal">(optional)</span>'
   : 'Motorcycles to ship <span style="color:#aaa;font-weight:normal">(optional if you selected AnyBike purchases above)</span>';
@@ -466,6 +468,6 @@ submitButton.addEventListener("click",async()=>{
    setTimeout(()=>{location.href=link},1100);
  }catch(error){
    showSubmissionStatus("Could not confirm the enquiry: "+(error?.message||"Please try again."),true);
-   submitting=false;submitButton.disabled=false;submitButton.textContent="Start Shipping Conversation →";
+   submitting=false;submitButton.disabled=false;submitButton.textContent="Send Quote Request →";
  }
 });</script></body></html>
