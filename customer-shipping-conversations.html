@@ -36,13 +36,17 @@ async function open(id,quiet=false){
       '</div>').join("");
     quoteList.querySelectorAll(".quote-pdf").forEach(button=>button.onclick=async()=>{
       const tab=window.open("about:blank","_blank");
-      const {data,error}=await sb.functions.invoke("open-shipping-quote-pdf",{body:{quote_id:Number(button.dataset.quoteId)}});
-      if(error||data?.error||!data?.url){
+      button.disabled=true;
+      const previous=button.textContent;
+      button.textContent="Opening PDF…";
+      try{
+        const {data,error}=await sb.functions.invoke("open-shipping-quote-pdf",{body:{quote_id:Number(button.dataset.quoteId)}});
+        if(error||data?.error||!data?.url)throw new Error(data?.error||error?.message||"Please try again.");
+        if(tab){tab.location.href=data.url;}else{window.location.href=data.url;}
+      }catch(err){
         if(tab)tab.close();
-        status.textContent="Unable to open PDF: "+(data?.error||error?.message||"Please try again.");
-        return;
-      }
-      if(tab)tab.location.replace(data.url);else location.href=data.url;
+        document.getElementById("status").textContent="Unable to open PDF: "+(err.message||"Please retry.");
+      }finally{button.disabled=false;button.textContent=previous;}
     });
   }else{quoteList.style.display="none";quoteList.innerHTML="";}
   liveState.textContent="Last checked "+new Date().toLocaleTimeString()+" · "+(data||[]).length+" messages";
