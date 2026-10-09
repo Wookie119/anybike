@@ -946,6 +946,13 @@ async function loadApprovedForwarders(){
     sortedCards.forEach(function(card){ providerGrid.appendChild(card); });
 
     refreshCountryFilter(records);
+    // Destination passed from an export enquiry or market guide is matched against
+    // shipper-declared coverage; only explicit coverage counts as a match.
+    const requestedCountry=String(new URLSearchParams(location.search).get("country")||"").trim().toLowerCase();
+    if(requestedCountry && requestedCountry!=="united kingdom"){
+      const match=Array.from(countrySelect.options).find(o=>o.value===requestedCountry || o.textContent.trim().toLowerCase()===requestedCountry);
+      if(match)countrySelect.value=match.value;
+    }
     cards=Array.from(document.querySelectorAll(".provider-card"));
     filterProviders();
   }catch(error){
@@ -984,7 +991,7 @@ function filterProviders(){
     const id=link.dataset.shipperId||"";
     const destination=selectedCountry && selectedCountry!=="United Kingdom" ? selectedCountry : "";
     link.href="/customer-contact-shipper.html?shipper="+encodeURIComponent(id)+(destination?"&country="+encodeURIComponent(destination):"")+(choosingForDeal?"&deal="+directoryDealId:"");
-    link.textContent=choosingForDeal?"Choose for This Purchase →":"Contact Shipper";
+    link.textContent=choosingForDeal?"Request Quote for This Purchase →":"Request Shipping Quote";
   });
   let visible = 0;
 
@@ -1001,10 +1008,7 @@ function filterProviders(){
     const matchesQuery = !query || searchable.includes(query);
     const matchesType = !type || (card.dataset.type || "").split(" ").includes(type);
     const matchesMethod = !method || (card.dataset.method || "").split(" ").includes(method);
-    const isUnitedKingdom = country === "united kingdom";
-    const isMoveMotorcycles = String(card.dataset.name || "").trim().toLowerCase() === "move motorcycles";
-    const matchesCountry = !country
-      || (isUnitedKingdom ? isMoveMotorcycles : (card.dataset.countries || "").split("|").includes(country));
+    const matchesCountry = !country || (card.dataset.countries || "").split("|").includes(country);
     const show = matchesQuery && matchesType && matchesMethod && matchesCountry;
 
     card.style.display = show ? "" : "none";
@@ -1033,7 +1037,7 @@ function filterProviders(){
         "&message="+encodeURIComponent("I need help finding a motorcycle shipper for "+selectedCountry+".");
     }
     noResults.style.display="block";
-    countNode.textContent="Motorcycle shipping specialists who may be able to help with "+selectedCountry;
+    countNode.textContent="No confirmed country matches · "+specialistCount+" motorcycle specialist"+(specialistCount===1?"":"s")+" shown as alternatives";
     return;
   }
 
@@ -1049,7 +1053,7 @@ function filterProviders(){
     }
   }
 
-  countNode.textContent = "Showing " + visible + " provider" + (visible === 1 ? "" : "s");
+  countNode.textContent = country ? ("Showing "+visible+" shipper"+(visible===1?"":"s")+" listing "+selectedCountry+" in their coverage — subject to quotation") : ("Showing " + visible + " provider" + (visible === 1 ? "" : "s"));
   noResults.style.display = visible === 0 ? "block" : "none";
 }
 
