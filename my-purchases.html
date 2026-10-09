@@ -2348,6 +2348,35 @@ async function loadPurchases(){
   }
 
   if(!purchases.length){
+    // Shipping-workflow test records have no accepted commercial offer and must
+    // never be passed through payment, invoice or normal purchase actions.
+    // Show them in a distinct, non-commercial test panel for their owner only.
+    try{
+      const testResult=await sb.rpc("customer_get_shipping_eligible_deals_v1");
+      const testDeals=(Array.isArray(testResult.data)?testResult.data:[]).filter(d=>
+        /^TEST ONLY\\b/i.test(String(d.deal_title||"")) &&
+        String(d.deal_status||"").toLowerCase()==="active"
+      );
+      if(!testResult.error && testDeals.length){
+        renderPurchaseNextActions([]);
+        purchasesBox.innerHTML='<div class="empty" style="text-align:left;border-color:#ed1c24;max-width:1100px;margin:auto">'+
+          '<strong style="display:block;font-size:18px;color:#fff;margin-bottom:8px">Shipping workflow — test records only</strong>'+
+          '<p style="color:#ccc;margin:0 0 16px">These are fictional shipping tests, not accepted purchases. No payment is due, no motorcycle is secured and no UK collection or shipping is authorised.</p>'+
+          testDeals.map(function(d){
+            const dealId=Number(d.deal_id);
+            return '<div style="border-top:1px solid #444;padding:15px 0">'+
+              '<strong style="display:block;color:#fff">'+safe(d.deal_title)+'</strong>'+
+              '<span style="display:block;color:#bbb;margin:5px 0 12px">'+safe(d.deal_number)+' · '+safe(d.motorcycle_details||"Test motorcycle")+'</span>'+
+              '<a href="/freight-forwarders.html?deal='+encodeURIComponent(dealId)+'" style="display:inline-flex;background:#ed1c24;color:#fff;padding:12px 16px;border-radius:8px;font-weight:800;text-decoration:none">Choose a shipper for this test →</a>'+
+            '</div>';
+          }).join("")+
+        '</div>';
+        return;
+      }
+    }catch(testErr){console.warn("Shipping test panel unavailable",testErr);}
+  }
+
+  if(!purchases.length){
 
     renderPurchaseNextActions([]);
 
