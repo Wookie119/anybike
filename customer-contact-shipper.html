@@ -315,12 +315,13 @@ if(initialCountry) countrySearch.value=initialCountry==="Réunion"?"Réunion Isl
 populatePorts(p?.preferred_destination_port||"");
 country.addEventListener("change",()=>populatePorts(""));
 const {data:deals,error:dealError}=await sb.rpc("customer_get_shipping_eligible_deals_v1");
+window.anybikeEligibleShippingDeals=Array.isArray(deals)?deals:[];
 if(!dealError && Array.isArray(deals) && deals.length){
   purchaseWrap.style.display="block";
   purchaseList.innerHTML=deals.map(d=>'<label class="consent" style="margin:0;padding:10px;border:1px solid var(--line);border-radius:10px;background:#0b0b0b"><input class="purchase-check" type="checkbox" value="'+Number(d.deal_id)+'"><span><strong>'+safe(d.deal_number)+'</strong> — '+safe(d.motorcycle_details)+' — Reg: '+safe(d.registration||"not recorded")+'</span></label>').join("");
   const checks=()=>Array.from(document.querySelectorAll(".purchase-check"));
-  selectAllPurchases.onchange=()=>checks().forEach(x=>x.checked=selectAllPurchases.checked);
-  purchaseList.addEventListener("change",()=>{const all=checks();selectAllPurchases.checked=all.length>0&&all.every(x=>x.checked)});
+  selectAllPurchases.onchange=()=>{checks().forEach(x=>x.checked=selectAllPurchases.checked);window.syncLinkedShippingMotorcycles?.()};
+  purchaseList.addEventListener("change",()=>{const all=checks();selectAllPurchases.checked=all.length>0&&all.every(x=>x.checked);window.syncLinkedShippingMotorcycles?.()});
   const requestedDeal=Number(params.get("deal")||0);
   if(requestedDeal>0){const match=checks().find(x=>Number(x.value)===requestedDeal);if(match){match.checked=true;purchaseList.dispatchEvent(new Event("change"));}}
 }
@@ -391,6 +392,32 @@ function getMotorcycleDetails(){
    b.insurance&&"Value for insurance (GBP): £"+Number(b.insurance).toLocaleString("en-GB",{minimumFractionDigits:2,maximumFractionDigits:2}),b.notes&&"Details: "+b.notes
  ].filter(Boolean).join(" | ")).join("\n");
 }
+// Link any number of checked purchases to individual auto-filled motorcycle cards.
+const linkedSummary=document.createElement("div");
+linkedSummary.id="linkedMotorcycleSummary";
+linkedSummary.style.cssText="display:none;margin-bottom:14px";
+motorcycleList.parentNode.insertBefore(linkedSummary,motorcycleList);
+const originalManualLabel=motorcycleList.previousElementSibling;
+window.syncLinkedShippingMotorcycles=function(){
+ const selected=Array.from(document.querySelectorAll(".purchase-check:checked")).map(x=>Number(x.value));
+ const records=(window.anybikeEligibleShippingDeals||[]).filter(d=>selected.includes(Number(d.deal_id)));
+ linkedSummary.style.display=records.length?"grid":"none";
+ linkedSummary.style.gap="10px";
+ linkedSummary.innerHTML=records.map((d,i)=>'<div style="background:#191919;border:1px solid #414141;border-left:4px solid #ed1c24;border-radius:12px;padding:15px">'+
+  '<strong style="display:block;margin-bottom:10px">Motorcycle '+(i+1)+' — '+safe(d.deal_number||"AnyBike purchase")+'</strong>'+
+  '<div style="font-weight:800;font-size:17px">'+safe(d.motorcycle_details||"Motorcycle")+'</div>'+
+  '<div style="color:#bbb;font-size:13px;margin-top:5px">Registration: '+safe(d.registration||"Not recorded")+'</div>'+
+  '<label style="display:block;margin-top:10px">Value for insurance (£) — optional, confirm with shipper</label>'+
+  '<input type="number" class="linked-insurance" data-deal-id="'+Number(d.deal_id)+'" min="0" step="0.01" placeholder="Enter agreed insurance value if known">'+
+  '</div>').join("");
+ if(originalManualLabel)originalManualLabel.innerHTML=records.length
+  ? 'Additional motorcycles not included in My Purchases <span style="color:#aaa;font-weight:normal">(optional)</span>'
+  : 'Motorcycles to ship <span style="color:#aaa;font-weight:normal">(optional if you selected AnyBike purchases above)</span>';
+ if(records.length){
+  motorcycleList.querySelectorAll(".motorcycle-entry").forEach(row=>{if(!row.querySelector(".motorcycle-make")?.value && !row.querySelector(".motorcycle-model")?.value && !row.querySelector(".motorcycle-year")?.value && !row.querySelector(".motorcycle-notes")?.value && !row.querySelector(".motorcycle-insurance")?.value)row.remove()});
+ }else if(!motorcycleList.querySelector(".motorcycle-entry"))addMotorcycleRow();
+ updateMotorcycleCount();
+};
 addMotorcycle.onclick=()=>addMotorcycleRow();
 addMotorcycleRow();
 
@@ -426,9 +453,10 @@ submitButton.addEventListener("click",async()=>{
  showSubmissionStatus("Sending your enquiry. Please wait…");
  try{
    const dealIds=Array.from(document.querySelectorAll(".purchase-check:checked")).map(x=>Number(x.value)).filter(Number.isFinite);
+   const insuranceNotes=Array.from(document.querySelectorAll(".linked-insurance")).filter(x=>Number(x.value)>0).map(x=>"Deal "+x.dataset.dealId+": requested insurance value GBP "+Number(x.value).toFixed(2));
    const {data,error}=await sb.functions.invoke("send-shipper-enquiry",{body:{
      forwarder_id:id,destination_country:destination.value,destination_port:null,
-     motorcycle_details:getMotorcycleDetails()||null,message:[enquiryMessage.value.trim(), "", "UK RECEIVING LOCATION — subject to shipper confirmation", "Type: "+document.getElementById("ukReceivingType").value, "Receiving company: "+(document.getElementById("ukReceivingCompany").value.trim()||"To be confirmed"), "UK postcode: "+(document.getElementById("ukReceivingPostcode").value.trim()||"To be confirmed"), "Receiving address / crating / handover instructions: "+(document.getElementById("ukReceivingInstructions").value.trim()||"Shipper to advise"), "Do not dispatch until AnyBike and the receiving party have confirmed the exact UK delivery point."].join("\n"),deal_ids:dealIds
+     motorcycle_details:getMotorcycleDetails()||null,message:[enquiryMessage.value.trim(),...(insuranceNotes.length?["","INSURANCE VALUES FOR LINKED MOTORCYCLES",...insuranceNotes]:[]), "", "UK RECEIVING LOCATION — subject to shipper confirmation", "Type: "+document.getElementById("ukReceivingType").value, "Receiving company: "+(document.getElementById("ukReceivingCompany").value.trim()||"To be confirmed"), "UK postcode: "+(document.getElementById("ukReceivingPostcode").value.trim()||"To be confirmed"), "Receiving address / crating / handover instructions: "+(document.getElementById("ukReceivingInstructions").value.trim()||"Shipper to advise"), "Do not dispatch until AnyBike and the receiving party have confirmed the exact UK delivery point."].join("\n"),deal_ids:dealIds
    }});
    if(error||data?.error)throw new Error(data?.error||error?.message||"Unable to submit enquiry.");
    if(!data?.enquiry_id)throw new Error("The server did not confirm a conversation. Please contact AnyBike before retrying to avoid a duplicate.");
