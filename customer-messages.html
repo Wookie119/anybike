@@ -4330,15 +4330,36 @@ setInterval(function(){
  try{
   const client=supabase.createClient("https://tuehtnezhdnkqbbhttgp.supabase.co","sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK");
   const {data:{user}}=await client.auth.getUser();if(!user)return;
-  const {data,error}=await client.from("customer_notifications").select("id,title,message,link,created_at").eq("customer_id",user.id).eq("is_read",false).eq("type","shipping_partner_quote").order("created_at",{ascending:false}).limit(5);
-  if(error||!data?.length)return;
+  const {data:enquiries,error:eError}=await client.from("shipping_partner_enquiries").select("id,shipper_name,destination_country").eq("customer_id",user.id).order("created_at",{ascending:false}).limit(100);
+  if(eError||!enquiries?.length)return;
+  const ids=enquiries.map(e=>e.id);
+  const {data:quotes,error:qError}=await client.from("shipping_partner_quotes").select("id,enquiry_id,currency,quote_amount,transit_time,inclusions,exclusions,receiving_company,receiving_address,notes,pdf_storage_path,pdf_filename,created_at").in("enquiry_id",ids).order("created_at",{ascending:false}).limit(30);
+  if(qError||!quotes?.length)return;
+  const byId=new Map(enquiries.map(e=>[Number(e.id),e]));
   const panel=document.getElementById("shippingQuoteAlerts");
   const escQuote=v=>String(v??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
-  panel.innerHTML='<strong style="display:block;margin-bottom:9px;font-size:17px;color:#fff">New shipping quotations</strong>'+data.map(row=>
-    '<a href="'+escQuote(row.link||"/customer-shipping-conversations.html")+'" style="display:block;padding:9px 0;border-top:1px solid #513034;color:#fff;text-decoration:none"><strong>'+escQuote(row.title)+'</strong><span style="color:#ccc;display:block;margin-top:3px">'+escQuote(row.message)+'</span><span style="color:#ff777d;font-weight:800">View quotation →</span></a>'
-  ).join("");
+  panel.innerHTML='<strong style="display:block;font-size:19px;color:#fff;margin-bottom:5px">Shipping quotations</strong>'+
+    '<p style="color:#ccc;margin:0 0 12px">Formal quotes received from shipping providers. These are quotations only, not transport bookings.</p>'+
+    quotes.map(q=>{
+      const e=byId.get(Number(q.enquiry_id))||{};
+      const price=Number(q.quote_amount).toLocaleString("en-GB",{minimumFractionDigits:2,maximumFractionDigits:2});
+      const details=[q.transit_time&&["Estimated transit",q.transit_time],q.inclusions&&["Included",q.inclusions],q.exclusions&&["Excluded",q.exclusions],q.receiving_company&&["UK receiving company",q.receiving_company],q.receiving_address&&["Receiving address",q.receiving_address],q.notes&&["Terms",q.notes]].filter(Boolean);
+      return '<article style="border-top:1px solid #513034;padding:15px 0">'+
+       '<strong style="color:#fff;display:block;font-size:17px">'+escQuote(e.shipper_name||"Shipping provider")+' · '+escQuote(e.destination_country||"Destination to confirm")+'</strong>'+
+       '<strong style="font-size:24px;color:#fff;display:block;margin:8px 0">'+escQuote(q.currency||"GBP")+' '+escQuote(price)+'</strong>'+
+       details.map(([label,value])=>'<div style="color:#ddd;padding:3px 0"><b>'+escQuote(label)+':</b> '+escQuote(value)+'</div>').join("")+
+       '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px"><a href="/customer-shipping-conversations.html?conversation='+encodeURIComponent(q.enquiry_id)+'" style="color:#fff;background:#ed1c24;padding:10px 14px;border-radius:8px;text-decoration:none;font-weight:800">Open conversation →</a>'+
+       (q.pdf_storage_path?'<button type="button" class="quote-message-pdf" data-path="'+escQuote(q.pdf_storage_path)+'" style="color:#fff;background:#292929;border:1px solid #777;padding:10px 14px;border-radius:8px;font-weight:800;cursor:pointer">View PDF quote</button>':'')+'</div></article>';
+    }).join("");
   panel.style.display="block";
- }catch(e){console.warn("Shipping quote message alerts unavailable",e)}
+  panel.querySelectorAll(".quote-message-pdf").forEach(button=>button.onclick=async()=>{
+    // Open the window immediately to avoid popup blockers during asynchronous signing.
+    const tab=window.open("about:blank","_blank");
+    const {data,error}=await client.storage.from("shipping-quote-pdfs").createSignedUrl(button.dataset.path,120);
+    if(error||!data?.signedUrl){if(tab)tab.close();button.textContent="PDF unavailable — please retry";return}
+    if(tab)tab.location.href=data.signedUrl;else location.href=data.signedUrl;
+  });
+ }catch(e){console.warn("Shipping quotes in message centre unavailable",e)}
 })();
 </script>
 </body>
