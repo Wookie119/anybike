@@ -321,6 +321,41 @@ if(!dealError && Array.isArray(deals) && deals.length){
   purchaseList.addEventListener("change",()=>{const all=checks();selectAllPurchases.checked=all.length>0&&all.every(x=>x.checked)});
 }
 })();
+const MOTORCYCLE_MODELS={
+"BMW":["S 1000 RR","M 1000 RR","S 1000 R","M 1000 R","R 1300 GS","R 1300 GS Adventure","R 1250 GS","R 1250 GS Adventure","K 1600 GT","K 1600 GTL","F 900 GS","F 900 R","F 800 GS","R 12","R 18"],
+"Honda":["CBR1000RR-R Fireblade","CBR650R","CB650R","CB1000 Hornet","Africa Twin","NT1100","Gold Wing","NC750X","Forza 750","PCX125"],
+"Yamaha":["YZF-R1","YZF-R6","YZF-R7","YZF-R3","MT-10","MT-09","MT-07","MT-03","Tracer 9","Tenere 700","XSR900","TMAX","VMAX"],
+"Kawasaki":["Ninja ZX-10R","Ninja ZX-6R","Ninja 1000SX","Ninja 650","Z H2","Z900","Z650","Versys 1000","Versys 650","Vulcan S"],
+"Suzuki":["GSX-R1000","GSX-R750","GSX-R600","GSX-8R","GSX-8S","GSX-S1000","V-Strom 1050","V-Strom 800","Hayabusa","SV650"],
+"Ducati":["Panigale V4","Panigale V2","Streetfighter V4","Monster","Multistrada V4","DesertX","Diavel V4","Scrambler"],
+"Triumph":["Street Triple","Speed Triple","Tiger 900","Tiger 1200","Trident 660","Daytona 660","Bonneville T120","Scrambler 1200","Rocket 3"],
+"Harley-Davidson":["Sportster S","Nightster","Street Glide","Road Glide","Pan America","Fat Boy","Low Rider S","Breakout"],
+"KTM":["1290 Super Duke R","1390 Super Duke R","890 Duke","790 Duke","1290 Super Adventure","890 Adventure","390 Duke"],
+"Aprilia":["RSV4","RS 660","Tuono V4","Tuono 660","Tuareg 660"],
+"Royal Enfield":["Interceptor 650","Continental GT 650","Himalayan","Classic 350","Hunter 350"],
+"Indian":["Scout","Chief","Chieftain","Roadmaster","FTR"],
+"Benelli":["TRK 502","TRK 702","Leoncino 500"],
+"Piaggio":["Beverly","MP3","Liberty"],"Vespa":["GTS","Primavera","Sprint"],
+"Moto Guzzi":["V7","V85 TT","V100 Mandello"],
+"Husqvarna":["Norden 901","Svartpilen 401","Vitpilen 401"],
+"VMoto":["Stash","TC Max","TS Street Hunter PRO","TC Wanderer PRO","CUx Pro","CPx","CPx Pro"]
+};
+const MOTORCYCLE_MAKES=Object.keys(MOTORCYCLE_MODELS).sort((a,b)=>a.localeCompare(b));
+function setModels(row){
+ const make=row.querySelector(".motorcycle-make").value;
+ const model=row.querySelector(".motorcycle-model"),other=row.querySelector(".motorcycle-model-other");
+ const models=MOTORCYCLE_MODELS[make]||[];
+ model.innerHTML='<option value="">Select model</option>'+models.map(m=>'<option value="'+safe(m)+'">'+safe(m)+'</option>').join("")+'<option value="Other">Other / not listed</option>';
+ model.value="";other.value="";other.hidden=true;
+}
+function configureMotorcycleSelectors(row){
+ const make=row.querySelector(".motorcycle-make"),model=row.querySelector(".motorcycle-model"),year=row.querySelector(".motorcycle-year");
+ make.innerHTML='<option value="">Select make</option>'+MOTORCYCLE_MAKES.map(m=>'<option value="'+safe(m)+'">'+safe(m)+'</option>').join("")+'<option value="Other">Other / not listed</option>';
+ year.innerHTML='<option value="">Select year</option>'+Array.from({length:new Date().getFullYear()-1950+2},(_,i)=>new Date().getFullYear()+1-i).map(y=>'<option value="'+y+'">'+y+'</option>').join("")+'<option value="Unknown">Not sure</option>';
+ make.onchange=()=>{row.querySelector(".motorcycle-make-other").hidden=make.value!=="Other";setModels(row)};
+ model.onchange=()=>{row.querySelector(".motorcycle-model-other").hidden=model.value!=="Other"};
+ setModels(row);
+}
 let motorcycleSerial=0;
 function updateMotorcycleCount(){
  const rows=[...motorcycleList.querySelectorAll(".motorcycle-entry")];
@@ -331,11 +366,12 @@ function addMotorcycleRow(values={}){
  const row=document.createElement("div");
  row.className="motorcycle-entry";row.dataset.entry=String(++motorcycleSerial);
  row.innerHTML='<div class="row-head"><h3>Motorcycle</h3><button type="button" class="remove-motorcycle">Remove</button></div>'+
- '<div class="grid"><div><label>Make</label><input class="motorcycle-make" autocomplete="off" placeholder="e.g. BMW"></div>'+
- '<div><label>Model</label><input class="motorcycle-model" autocomplete="off" placeholder="e.g. S 1000 RR"></div>'+
- '<div><label>Year</label><input class="motorcycle-year" inputmode="numeric" maxlength="4" placeholder="e.g. 2024"></div>'+
+ '<div class="grid"><div><label>Make</label><select class="motorcycle-make"><option value="">Select make</option></select><input class="motorcycle-make-other" hidden placeholder="Enter motorcycle make" style="margin-top:8px"></div>'+
+ '<div><label>Model</label><select class="motorcycle-model"><option value="">Select model</option></select><input class="motorcycle-model-other" hidden placeholder="Enter motorcycle model" style="margin-top:8px"></div>'+
+ '<div><label>Year</label><select class="motorcycle-year"><option value="">Select year</option></select></div>'+
  '<div><label>UK collection location</label><input class="motorcycle-location" placeholder="Dealer, town or postcode, if known"></div>'+
  '<div class="full"><label>Additional details</label><input class="motorcycle-notes" placeholder="Condition, crating requirements or other information"></div></div>';
+ configureMotorcycleSelectors(row);
  row.querySelector(".remove-motorcycle").onclick=()=>{row.remove();updateMotorcycleCount()};
  for(const [key,value] of Object.entries(values)){const input=row.querySelector(".motorcycle-"+key);if(input)input.value=String(value||"")}
  motorcycleList.appendChild(row);updateMotorcycleCount();
@@ -343,7 +379,7 @@ function addMotorcycleRow(values={}){
 function getMotorcycleDetails(){
  const rows=[...motorcycleList.querySelectorAll(".motorcycle-entry")];
  const entries=rows.map((row,i)=>{
-   const read=key=>row.querySelector(".motorcycle-"+key).value.trim();
+   const read=key=>{const value=row.querySelector(".motorcycle-"+key).value.trim();return value==="Other"?row.querySelector(".motorcycle-"+key+"-other").value.trim():value};
    return {number:i+1,make:read("make"),model:read("model"),year:read("year"),location:read("location"),notes:read("notes")};
  }).filter(b=>b.make||b.model||b.year||b.location||b.notes);
  return entries.map(b=>"Motorcycle "+b.number+": "+[
