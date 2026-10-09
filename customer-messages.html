@@ -1166,6 +1166,7 @@ footer{
 
 <main class="page-shell">
   <span data-anybike-next-action="messages-page-owned" style="display:none"></span>
+  <div id="shippingQuoteAlerts" style="display:none;border:1px solid #ed1c24;background:#1c1113;border-radius:12px;padding:15px 18px;margin-bottom:16px"></div>
   <section class="messages-page-head">
     <div class="messages-page-inline-title">
       <span class="eyebrow">My AnyBike</span>
@@ -4323,6 +4324,22 @@ setInterval(function(){
 },90000);
   
 
+</script>
+<script>
+(async()=>{
+ try{
+  const client=supabase.createClient("https://tuehtnezhdnkqbbhttgp.supabase.co","sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK");
+  const {data:{user}}=await client.auth.getUser();if(!user)return;
+  const {data,error}=await client.from("customer_notifications").select("id,title,message,link,created_at").eq("customer_id",user.id).eq("is_read",false).eq("type","shipping_partner_quote").order("created_at",{ascending:false}).limit(5);
+  if(error||!data?.length)return;
+  const panel=document.getElementById("shippingQuoteAlerts");
+  const escQuote=v=>String(v??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
+  panel.innerHTML='<strong style="display:block;margin-bottom:9px;font-size:17px;color:#fff">New shipping quotations</strong>'+data.map(row=>
+    '<a href="'+escQuote(row.link||"/customer-shipping-conversations.html")+'" style="display:block;padding:9px 0;border-top:1px solid #513034;color:#fff;text-decoration:none"><strong>'+escQuote(row.title)+'</strong><span style="color:#ccc;display:block;margin-top:3px">'+escQuote(row.message)+'</span><span style="color:#ff777d;font-weight:800">View quotation →</span></a>'
+  ).join("");
+  panel.style.display="block";
+ }catch(e){console.warn("Shipping quote message alerts unavailable",e)}
+})();
 </script>
 </body>
 </html>
