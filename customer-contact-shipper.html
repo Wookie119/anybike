@@ -225,16 +225,16 @@ let INTERNATIONAL_PORTS=[];
 function populateCountries(selected="",filter=""){
   const term=String(filter||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim();
   const normalized=value=>String(value).normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
-  const matches=COUNTRIES.filter(x=>!term||normalized(x).includes(term)||(x==="Réunion"&&"reunion island".includes(term)));
-  if(selected&&!matches.includes(selected)&&COUNTRIES.includes(selected))matches.unshift(selected);
+  const matches=COUNTRIES.filter(x=>x!=="United Kingdom"&&(!term||normalized(x).includes(term)||(x==="Réunion"&&"reunion island".includes(term))));
+  if(selected!=="United Kingdom"&&selected&&!matches.includes(selected)&&COUNTRIES.includes(selected))matches.unshift(selected);
   country.innerHTML='<option value="">'+(matches.length?'Select destination country':'No matching destinations')+'</option>'+
     matches.map(x=>'<option value="'+safe(x)+'">'+safe(x==="Réunion"?"Réunion Island":x)+'</option>').join("");
-  if(selected&&COUNTRIES.includes(selected))country.value=selected;
+  if(selected&&selected!=="United Kingdom"&&COUNTRIES.includes(selected))country.value=selected;
 }
 const countrySearch=document.getElementById("countrySearch");
 const countryMatches=document.getElementById("countryMatches");
 function selectDestination(value){
-  if(!COUNTRIES.includes(value))return;
+  if(!COUNTRIES.includes(value)||value==="United Kingdom")return;
   populateCountries(value);
   country.value=value;
   countrySearch.value=value==="Réunion"?"Réunion Island":value;
@@ -245,7 +245,7 @@ function selectDestination(value){
 countrySearch.addEventListener("input",()=>{
  const query=countrySearch.value.trim();
  const normalized=s=>s.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
- const found=query?COUNTRIES.filter(x=>normalized(x).includes(normalized(query))||(x==="Réunion"&&"reunion island".includes(normalized(query)))):[];
+ const found=query?COUNTRIES.filter(x=>x!=="United Kingdom"&&(normalized(x).includes(normalized(query))||(x==="Réunion"&&"reunion island".includes(normalized(query))))):[];
  countryMatches.innerHTML="";
  found.slice(0,8).forEach(name=>{
    const button=document.createElement("button");
@@ -302,7 +302,7 @@ if(portsError) console.warn("Could not load international ports",portsError);
 INTERNATIONAL_PORTS=Array.isArray(portsData)?portsData:[];
 const requestedCountry=String(params.get("country")||"").trim();
 const profileCountry=String(p?.business_country||"").trim();
-const initialCountry=requestedCountry||"";
+const initialCountry=requestedCountry==="United Kingdom"?"":requestedCountry;
 populateCountries(initialCountry);
 populatePorts(p?.preferred_destination_port||"");
 country.addEventListener("change",()=>populatePorts(""));
@@ -316,7 +316,7 @@ if(!dealError && Array.isArray(deals) && deals.length){
 }
 })();
 function safe(v){return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]))}
-send.onclick=async()=>{status.className="status";status.textContent="";if(!consent.checked){status.textContent="Please confirm that AnyBike may share your contact details.";status.className="status bad";return}if(!country.value.trim()||!message.value.trim()){status.textContent="Destination country and message are required.";status.className="status bad";return}
+send.onclick=async()=>{status.className="status";status.textContent="";if(!consent.checked){status.textContent="Please confirm that AnyBike may share your contact details.";status.className="status bad";return}if(!country.value.trim()||country.value==="United Kingdom"||!message.value.trim()){status.textContent="Destination country and message are required.";status.className="status bad";return}
 send.disabled=true;send.textContent="Sending…";const dealIds=Array.from(document.querySelectorAll(".purchase-check:checked")).map(x=>Number(x.value)).filter(Number.isFinite);const {data,error}=await sb.functions.invoke("send-shipper-enquiry",{body:{forwarder_id:id,destination_country:country.value.trim(),destination_port:port.value.trim()||null,motorcycle_details:bike.value.trim()||null,message:message.value.trim(),deal_ids:dealIds}});
 if(error||data?.error){status.textContent=data?.error||error.message;status.className="status bad";send.disabled=false;send.textContent="Start Shipping Conversation →";return}
 status.textContent="Conversation started. The shipper has been emailed by AnyBike.";status.className="status good";setTimeout(()=>location.href="/customer-shipping-conversations.html?conversation="+data.enquiry_id,700)};</script></body></html>
