@@ -806,6 +806,10 @@ footer{padding:18px 24px}
 @media(min-width:981px) and (max-width:1399px){#liveCountryGuides .live-market-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(min-width:601px) and (max-width:980px){#liveCountryGuides .live-market-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:600px){#liveCountryGuides .live-market-grid{grid-template-columns:1fr}}
+
+/* True geographic globe overlay: marker positions follow latitude/longitude. */
+.ab-earth-sphere.ab-real-globe{background:#091425;overflow:hidden;box-shadow:0 0 55px #356d9e50,inset 0 0 20px #000}
+.ab-earth-sphere.ab-real-globe canvas{display:block;outline:none}
 </style>
 <script type="application/ld+json">
 {
@@ -1554,52 +1558,73 @@ renderRoute('australia');
 
 
 <script>
-/* AnyBike globe destination sync: one controller for the visible Earth display. */
+/* Geography-based globe. Never plot a made-up position. */
 (function(){
-  const picker=document.getElementById('mapCountrySelect');
-  const title=document.getElementById('abEarthDestination');
-  const line=document.getElementById('abEarthArc');
-  const marker=document.getElementById('abEarthDot');
-  const earth=document.querySelector('.ab-earth-texture');
-  if(!picker||!title||!line||!marker)return;
-  const pins={
-    australia:[458,466],germany:[329,182],france:[310,196],italy:[343,213],
-    canada:[175,271],usa:[169,334],brazil:[221,449],india:[438,313],
-    china:[496,268],japan:[523,270],"new-zealand":[514,486],
-    "south-africa":[382,448],"san-marino":[343,210],ireland:[292,193],
-    reunion:[434,444],uae:[413,279],spain:[300,217],singapore:[470,383]
-  };
-  const start=[348,205];
-  let last='';
-  function draw(slug){
-    slug=slug||picker.value;
-    const option=Array.from(picker.options).find(o=>o.value===slug);
-    if(!option)return;
-    title.textContent=option.textContent.trim();
-    const found=pins[slug];
-    if(!found){
-      title.textContent=option.textContent.trim()+' · route to be confirmed';
-      line.setAttribute('visibility','hidden');
-      marker.setAttribute('visibility','hidden');
-    }else{
-      const [x,y]=found;
-      const bend=Math.max(35,Math.abs(x-start[0])*.35);
-      line.setAttribute('d','M '+start[0]+' '+start[1]+' Q '+Math.round((start[0]+x)/2)+' '+Math.round(Math.min(start[1],y)-bend)+' '+x+' '+y);
-      marker.setAttribute('cx',String(x));
-      marker.setAttribute('cy',String(y));
-      line.removeAttribute('visibility');
-      marker.removeAttribute('visibility');
-    }
-    if(earth)earth.style.animationPlayState='paused';
-    last=slug;
-  }
-  window.AnyBikeUpdateExportGlobe=draw;
-  picker.addEventListener('change',()=>draw(picker.value));
-  picker.addEventListener('input',()=>draw(picker.value));
-  document.addEventListener('change',e=>{if(e.target===picker)draw(picker.value)},true);
-  // Browsers can restore a previously selected option without firing change.
-  window.addEventListener('pageshow',()=>draw(picker.value));
-  draw(picker.value||'australia');
+ const picker=document.getElementById('mapCountrySelect'),title=document.getElementById('abEarthDestination');
+ const sphere=document.querySelector('.ab-earth-sphere');
+ if(!picker||!title||!sphere)return;
+ const coordinates={
+ 'united-kingdom':[54,-2],germany:[51.2,10.45],monaco:[43.73,7.42],zimbabwe:[-19.02,29.15],
+ australia:[-25.27,133.78],canada:[56.13,-106.35],usa:[39.8,-98.6],
+ 'united-states':[39.8,-98.6],france:[46.6,2.2],italy:[42.8,12.6],
+ 'san-marino':[43.94,12.46],ireland:[53.4,-8.2],spain:[40.4,-3.7],
+ china:[35.9,104.2],india:[21,78],japan:[36.2,138.25],
+ brazil:[-14.2,-51.9],reunion:[-21.12,55.54],uae:[23.42,53.85],
+ singapore:[1.35,103.82],'south-africa':[-30.56,22.94],
+ 'new-zealand':[-40.9,174.9],mexico:[23.6,-102.55],
+ portugal:[39.5,-8],netherlands:[52.2,5.3],belgium:[50.5,4.47],
+ switzerland:[46.8,8.23],norway:[60.47,8.46],sweden:[60.13,18.64],
+ 'united-arab-emirates':[23.42,53.85],oman:[21.47,55.98],
+ thailand:[15.87,100.99],malaysia:[4.2,101.98],indonesia:[-0.79,113.92]
+ };
+ const origin={lat:54,lng:-2};
+ let globe=null;
+ function install(){
+   if(!window.Globe)return false;
+   sphere.innerHTML='';
+   sphere.classList.add('ab-real-globe');
+   globe=Globe()(sphere)
+    .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg')
+    .bumpImageUrl('https://unpkg.com/three-globe/example/img/earth-topology.png')
+    .backgroundColor('rgba(0,0,0,0)')
+    .showAtmosphere(true).atmosphereColor('#74b5e9').atmosphereAltitude(.14)
+    .arcsData([]).arcColor(()=>'#ff2736').arcStroke(.65).arcAltitude(.18)
+    .arcDashLength(.55).arcDashGap(.12).arcDashAnimateTime(2200)
+    .pointsData([{lat:origin.lat,lng:origin.lng}]).pointColor(()=>'#ff2736')
+    .pointAltitude(.025).pointRadius(.42);
+   const resize=()=>{const width=sphere.clientWidth||650;globe.width(width).height(width)};
+   resize();window.addEventListener('resize',resize);
+   globe.controls().autoRotate=false;
+   globe.controls().enableZoom=false;
+   globe.pointOfView({lat:31,lng:10,altitude:2.15},0);
+   return true;
+ }
+ function draw(){
+   const slug=picker.value;
+   const selected=picker.options[picker.selectedIndex];
+   if(!selected)return;
+   title.textContent=selected.textContent.trim();
+   if(!globe)return;
+   const p=coordinates[slug];
+   if(!p){
+     globe.arcsData([]).pointsData([{lat:origin.lat,lng:origin.lng}]);
+     title.textContent=selected.textContent.trim()+' · route not mapped yet';
+     return;
+   }
+   globe.arcsData([{startLat:origin.lat,startLng:origin.lng,endLat:p[0],endLng:p[1]}]);
+   globe.pointsData([{lat:origin.lat,lng:origin.lng},{lat:p[0],lng:p[1]}]);
+   // Centre the chosen country, but keep a visible UK-to-destination arc.
+   globe.pointOfView({lat:(origin.lat+p[0])/2,lng:p[1],altitude:2.2},900);
+ }
+ window.AnyBikeUpdateExportGlobe=()=>draw();
+ picker.addEventListener('change',draw);
+ picker.addEventListener('input',draw);
+ const loader=document.createElement('script');
+ loader.src='https://unpkg.com/globe.gl@2.45.1/dist/globe.gl.min.js';
+ loader.onload=()=>{try{if(install())draw()}catch(e){console.warn('AnyBike globe unavailable',e)}};
+ loader.onerror=()=>console.warn('3D globe library unavailable; leaving static illustration');
+ document.head.appendChild(loader);
+ window.addEventListener('pageshow',draw);
 })();
 </script>
 
