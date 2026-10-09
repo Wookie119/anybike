@@ -1069,7 +1069,7 @@ footer{padding:18px 24px}
 <div class="map-country-picker">
 <label for="mapCountrySelect">Choose a destination</label>
 <div class="map-country-picker-row">
-<select aria-label="Choose a live international market" id="mapCountrySelect" onchange="window.AnyBikeUpdateExportGlobe?.(this.value)" oninput="window.AnyBikeUpdateExportGlobe?.(this.value)"></select>
+<select aria-label="Choose a live international market" id="mapCountrySelect"></select>
 <a class="btn secondary" href="/markets/australia.html" id="mapCountryGuideButton">Open Guide</a>
 </div>
 <small>Select any live market to open its guide. Where mapped, the route preview updates instantly.</small>
@@ -1554,42 +1554,52 @@ renderRoute('australia');
 
 
 <script>
-/* Keep the premium globe in sync with every destination selection. */
+/* AnyBike globe destination sync: one controller for the visible Earth display. */
 (function(){
- const select=document.getElementById('mapCountrySelect');
- const label=document.getElementById('abEarthDestination');
- const arc=document.getElementById('abEarthArc');
- const dot=document.getElementById('abEarthDot');
- if(!select||!label||!arc||!dot)return;
- // Coordinates are visual previews on the globe (not shipping navigation).
- const coords={australia:[485,500],usa:[170,340],canada:[185,230],"new-zealand":[525,520],india:[475,360],japan:[530,290],"south-africa":[405,505],brazil:[250,490],uae:[430,335],germany:[390,220],france:[345,245],reunion:[470,480],"san-marino":[379,235],italy:[392,255],spain:[333,265],ireland:[323,215],china:[505,267],singapore:[490,385]};
- const source=[350,210];
- const fallback=(slug)=>{
-   // Deterministic separate locations for markets not yet plotted.
-   let hash=0;for(let i=0;i<slug.length;i++)hash=(Math.imul(hash,31)+slug.charCodeAt(i))|0;
-   const angle=((hash>>>0)%360)*Math.PI/180;
-   const radius=145+((hash>>>8)%85);
-   return [Math.round(345+radius*Math.cos(angle)),Math.round(330+radius*Math.sin(angle))];
- };
- function show(slug){
-   slug=slug||select.value;
-   const opt=[...select.options].find(o=>o.value===slug);
-   if(!opt)return;
-   label.textContent=opt.textContent.trim();
-   const p=coords[slug]||fallback(slug),x=p[0],y=p[1];
-   const midX=(source[0]+x)/2;
-   const midY=Math.min(source[1],y)-Math.min(115,Math.abs(x-source[0])*.25+55);
-   arc.setAttribute('d','M '+source.join(' ')+' Q '+Math.round(midX)+' '+Math.round(midY)+' '+x+' '+y);
-   dot.setAttribute('cx',String(x));dot.setAttribute('cy',String(y));
-   dot.setAttribute('aria-label',opt.textContent.trim());
- }
- window.AnyBikeUpdateExportGlobe=show;
- select.addEventListener('input',()=>show(select.value));
- select.addEventListener('change',()=>show(select.value));
- // The country selector is populated by an earlier script. Watch any later changes.
- const observer=new MutationObserver(()=>show(select.value));
- observer.observe(select,{childList:true,subtree:true});
- show(select.value||'australia');
+  const picker=document.getElementById('mapCountrySelect');
+  const title=document.getElementById('abEarthDestination');
+  const line=document.getElementById('abEarthArc');
+  const marker=document.getElementById('abEarthDot');
+  const earth=document.querySelector('.ab-earth-texture');
+  if(!picker||!title||!line||!marker)return;
+  const pins={
+    australia:[458,466],germany:[329,182],france:[310,196],italy:[343,213],
+    canada:[175,271],usa:[169,334],brazil:[221,449],india:[438,313],
+    china:[496,268],japan:[523,270],"new-zealand":[514,486],
+    "south-africa":[382,448],"san-marino":[343,210],ireland:[292,193],
+    reunion:[434,444],uae:[413,279],spain:[300,217],singapore:[470,383]
+  };
+  const start=[348,205];
+  let last='';
+  function draw(slug){
+    slug=slug||picker.value;
+    const option=Array.from(picker.options).find(o=>o.value===slug);
+    if(!option)return;
+    title.textContent=option.textContent.trim();
+    const found=pins[slug];
+    if(!found){
+      title.textContent=option.textContent.trim()+' · route to be confirmed';
+      line.setAttribute('visibility','hidden');
+      marker.setAttribute('visibility','hidden');
+    }else{
+      const [x,y]=found;
+      const bend=Math.max(35,Math.abs(x-start[0])*.35);
+      line.setAttribute('d','M '+start[0]+' '+start[1]+' Q '+Math.round((start[0]+x)/2)+' '+Math.round(Math.min(start[1],y)-bend)+' '+x+' '+y);
+      marker.setAttribute('cx',String(x));
+      marker.setAttribute('cy',String(y));
+      line.removeAttribute('visibility');
+      marker.removeAttribute('visibility');
+    }
+    if(earth)earth.style.animationPlayState='paused';
+    last=slug;
+  }
+  window.AnyBikeUpdateExportGlobe=draw;
+  picker.addEventListener('change',()=>draw(picker.value));
+  picker.addEventListener('input',()=>draw(picker.value));
+  document.addEventListener('change',e=>{if(e.target===picker)draw(picker.value)},true);
+  // Browsers can restore a previously selected option without firing change.
+  window.addEventListener('pageshow',()=>draw(picker.value));
+  draw(picker.value||'australia');
 })();
 </script>
 
