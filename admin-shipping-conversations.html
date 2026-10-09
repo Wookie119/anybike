@@ -86,13 +86,13 @@ async function open(id,quiet=false){
         (q.receiving_company?'<p><b>UK receiver:</b> '+esc(q.receiving_company)+'</p>':"")+
         (q.receiving_address?'<p><b>UK handover address:</b> '+esc(q.receiving_address)+'</p>':"")+
         (q.notes?'<p><b>Terms:</b> '+esc(q.notes)+'</p>':"")+
-        (q.pdf_storage_path?'<button class="btn admin-quote-pdf" type="button" data-path="'+esc(q.pdf_storage_path)+'" style="border-radius:8px">View formal PDF quotation</button>':"")+
+        (q.pdf_storage_path?'<button class="btn admin-quote-pdf" type="button" data-quote-id="'+Number(q.id)+'" style="border-radius:8px">View formal PDF quotation</button>':"")+
       '</div>').join("");
     quotePanel.querySelectorAll(".admin-quote-pdf").forEach(button=>button.onclick=async()=>{
       const tab=window.open("about:blank","_blank");
-      const {data:doc,error:docError}=await sb.storage.from("shipping-quote-pdfs").createSignedUrl(button.dataset.path,120);
-      if(docError||!doc?.signedUrl){if(tab)tab.close();msg.textContent="Could not open PDF: "+(docError?.message||"Access denied");return}
-      if(tab)tab.location.replace(doc.signedUrl);else location.href=doc.signedUrl;
+      const {data:doc,error:docError}=await sb.functions.invoke("open-shipping-quote-pdf",{body:{quote_id:Number(button.dataset.quoteId)}});
+      if(docError||doc?.error||!doc?.url){if(tab)tab.close();msg.textContent="Could not open PDF: "+(doc?.error||docError?.message||"Access denied");return}
+      if(tab)tab.location.replace(doc.url);else location.href=doc.url;
     });
   }else{quotePanel.style.display="none";quotePanel.innerHTML="";if(quoteError)console.warn("Admin quotation retrieval",quoteError.message)}
   liveState.textContent="Last checked "+new Date().toLocaleTimeString()+" · "+(data||[]).length+" messages";
