@@ -4350,15 +4350,15 @@ setInterval(function(){
        '<strong style="font-size:24px;color:#fff;display:block;margin:8px 0">'+escQuote(q.currency||"GBP")+' '+escQuote(price)+'</strong>'+
        details.map(([label,value])=>'<div style="color:#ddd;padding:3px 0"><b>'+escQuote(label)+':</b> '+escQuote(value)+'</div>').join("")+
        '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px"><a href="/customer-shipping-conversations.html?conversation='+encodeURIComponent(q.enquiry_id)+'" style="color:#fff;background:#ed1c24;padding:10px 14px;border-radius:8px;text-decoration:none;font-weight:800">Open conversation →</a>'+
-       (q.pdf_storage_path?'<button type="button" class="quote-message-pdf" data-path="'+escQuote(q.pdf_storage_path)+'" style="color:#fff;background:#292929;border:1px solid #777;padding:10px 14px;border-radius:8px;font-weight:800;cursor:pointer">View PDF quote</button>':'')+'</div></article>';
+       (q.pdf_storage_path?'<button type="button" class="quote-message-pdf" data-quote-id="'+Number(q.id)+'" style="color:#fff;background:#292929;border:1px solid #777;padding:10px 14px;border-radius:8px;font-weight:800;cursor:pointer">View PDF quote</button>':'')+'</div></article>';
     }).join("");
   panel.style.display="block";
   panel.querySelectorAll(".quote-message-pdf").forEach(button=>button.onclick=async()=>{
     // Open the window immediately to avoid popup blockers during asynchronous signing.
     const tab=window.open("about:blank","_blank");
-    const {data,error}=await client.storage.from("shipping-quote-pdfs").createSignedUrl(button.dataset.path,120);
-    if(error||!data?.signedUrl){if(tab)tab.close();button.textContent="PDF unavailable — please retry";return}
-    if(tab)tab.location.href=data.signedUrl;else location.href=data.signedUrl;
+    const {data,error}=await client.functions.invoke("open-shipping-quote-pdf",{body:{quote_id:Number(button.dataset.quoteId)}});
+    if(error||!data?.url){if(tab)tab.close();button.textContent="PDF unavailable — please retry";return}
+    if(tab)tab.location.href=data.url;else location.href=data.url;
   });
  }catch(e){console.warn("Shipping quotes in message centre unavailable",e)}
 })();
