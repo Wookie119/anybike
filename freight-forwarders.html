@@ -960,6 +960,19 @@ async function loadApprovedForwarders(){
   }
 }
 
+// A purchase-specific visit gets an explanation, not an extra action on every card.
+const directoryDealId=Number(new URLSearchParams(location.search).get("deal")||0);
+const choosingForDeal=Number.isSafeInteger(directoryDealId)&&directoryDealId>0;
+if(choosingForDeal){
+  const toolbar=document.querySelector(".directory-toolbar");
+  if(toolbar){
+    const hint=document.createElement("div");
+    hint.setAttribute("role","status");
+    hint.style.cssText="background:#181818;border:1px solid #ed1c24;border-radius:12px;padding:14px 18px;color:#fff;margin-bottom:14px;font-size:15px;line-height:1.5";
+    hint.innerHTML="<strong style='color:#fff'>Choose a shipper for your motorcycle purchase</strong><div style='color:#ccc;margin-top:4px'>Use the red button on your chosen provider below. Your motorcycle purchase will be carried into the enquiry. No enquiry is sent until you review the details and press Start Shipping Conversation.</div>";
+    toolbar.parentNode.insertBefore(hint,toolbar);
+  }
+}
 function filterProviders(){
   const query = searchInput.value.trim().toLowerCase();
   const type = typeSelect.value;
@@ -970,8 +983,8 @@ function filterProviders(){
   document.querySelectorAll(".contact-shipper").forEach(function(link){
     const id=link.dataset.shipperId||"";
     const destination=selectedCountry && selectedCountry!=="United Kingdom" ? selectedCountry : "";
-    const selectedDeal=Number(new URLSearchParams(location.search).get("deal")||0);
-    link.href="/customer-contact-shipper.html?shipper="+encodeURIComponent(id)+(destination?"&country="+encodeURIComponent(destination):"")+(Number.isSafeInteger(selectedDeal)&&selectedDeal>0?"&deal="+selectedDeal:"");
+    link.href="/customer-contact-shipper.html?shipper="+encodeURIComponent(id)+(destination?"&country="+encodeURIComponent(destination):"")+(choosingForDeal?"&deal="+directoryDealId:"");
+    link.textContent=choosingForDeal?"Choose for This Purchase →":"Contact Shipper";
   });
   let visible = 0;
 
