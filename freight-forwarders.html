@@ -1018,7 +1018,8 @@ function filterProviders(){
   if(country && visible===0){
     let specialistCount=0;
     cards.forEach(function(card){
-      const specialist=(card.dataset.type || "").split(" ").includes("motorcycle");
+      const searchable=[card.dataset.name||"",card.dataset.type||"",card.dataset.method||"",card.dataset.keywords||"",card.textContent||""].join(" ").toLowerCase();
+      const specialist=(card.dataset.type || "").split(" ").includes("motorcycle") && (!query || searchable.includes(query)) && (!type || (card.dataset.type||"").split(" ").includes(type)) && (!method || (card.dataset.method||"").split(" ").includes(method));
       card.style.display=specialist ? "" : "none";
       if(specialist) specialistCount++;
     });
@@ -1028,8 +1029,8 @@ function filterProviders(){
     const text=document.getElementById("noResultsText");
     const ask=document.getElementById("noResultsAsk");
 
-    if(title) title.textContent="We don’t currently have a confirmed shipping partner for "+selectedCountry+".";
-    if(text) text.textContent="Below are motorcycle shipping specialists who may be able to help. Please contact them directly to confirm they can ship to "+selectedCountry+", or ask AnyBike and we’ll help you find a suitable route.";
+    if(title) title.textContent="No providers list "+selectedCountry+" for the selected filters.";
+    if(text) text.textContent=specialistCount?"These motorcycle specialists are suggestions only — they have not listed this destination. Confirm the route directly, or ask AnyBike to help.":"No suggested specialists match your other filters. Clear them or ask AnyBike to help find a route.";
     if(ask){
       ask.textContent="Ask AnyBike about shipping to "+selectedCountry;
       ask.href="/customer-messages.html?new=1&subject="+encodeURIComponent("Shipping or Export")+
@@ -1037,7 +1038,7 @@ function filterProviders(){
         "&message="+encodeURIComponent("I need help finding a motorcycle shipper for "+selectedCountry+".");
     }
     noResults.style.display="block";
-    countNode.textContent="No confirmed country matches · "+specialistCount+" motorcycle specialist"+(specialistCount===1?"":"s")+" shown as alternatives";
+    countNode.textContent="No declared destination matches · "+specialistCount+" motorcycle specialist"+(specialistCount===1?"":"s")+" shown as alternatives";
     return;
   }
 
