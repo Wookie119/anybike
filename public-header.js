@@ -1139,6 +1139,7 @@ async function setupPublicHeader(){
     mobileLoggedInMenu?.classList.remove("hidden");
 
     await addMyDealershipMenuIfEligible(user);
+    document.documentElement.classList.add("anybike-home-audience-resolved");
     await loadCustomerHeaderActivity(user);
     bindHeaderMessagePageUnreadSync();
     startCustomerHeaderRealtime(user);
@@ -1158,6 +1159,7 @@ async function setupPublicHeader(){
     },5000);
 
   }else{
+    document.documentElement.classList.add("anybike-home-audience-resolved");
     loggedOutMenu?.classList.remove("hidden");
     loggedInMenu?.classList.add("hidden");
     mobileLoggedOutMenu?.classList.remove("hidden");
