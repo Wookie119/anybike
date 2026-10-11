@@ -5165,6 +5165,7 @@ function setDashboardJourneyNext(){}
 function setDefaultDashboardJourney(){}
 
 function renderCustomerNextActions(){
+  if(window.anybikeUKDealerDashboard)return;
   const panel=document.getElementById("customerNextActionsPanel");
   const list=document.getElementById("customerNextActionsList");
   const summary=document.getElementById("customerNextActionsSummary");
@@ -6331,6 +6332,27 @@ async function loadUser(){
   currentProfile=profile || {
     email:currentUser.email || ""
   };
+  // UK dealers use a separate, focused workspace. Preserve the export-buyer
+  // workspace unchanged for all other customer types.
+  if(["uk_dealer","uk_distributor"].includes(String(currentProfile?.customer_type||"").trim())){
+    const nextPanel=document.getElementById("customerNextActionsPanel");
+    if(nextPanel){
+      nextPanel.innerHTML='<div class="panel-head"><div><div class="eyebrow">UK DEALERSHIP</div><h2>Your dealership workspace</h2></div></div>'+
+        '<p style="color:#ccc;margin:8px 0 18px">Buy and sell motorcycles, manage stock and take part in underwriting through your trade account.</p>'+
+        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px">'+
+        '<a href="/my-dealership.html" style="padding:20px;border:1px solid #ed1c24;border-radius:12px;text-decoration:none;color:#fff"><strong>My Dealership →</strong><p style="color:#bbb">Stock, selling and trade services</p></a>'+
+        '<a href="/dealer-underwrite.html" style="padding:20px;border:1px solid #555;border-radius:12px;text-decoration:none;color:#fff"><strong>Submit an underwrite →</strong><p style="color:#bbb">Offer a motorcycle for review</p></a>'+
+        '<a href="/my-dealership-access.html" style="padding:20px;border:1px solid #555;border-radius:12px;text-decoration:none;color:#fff"><strong>Underwriting access →</strong><p style="color:#bbb">Check your approved permissions</p></a>'+
+        '<a href="/customer-messages.html" style="padding:20px;border:1px solid #555;border-radius:12px;text-decoration:none;color:#fff"><strong>Messages →</strong><p style="color:#bbb">Speak with AnyBike</p></a></div>'+
+        '<div style="margin-top:20px;border-left:4px solid #ed1c24;padding:12px 16px;background:#181818"><strong>YOUR NEXT ACTION</strong><p style="margin:6px 0">Open My Dealership and choose how you want to supply stock or use underwriting.</p><a href="/my-dealership.html" style="color:#ff4248;font-weight:bold">OPEN MY DEALERSHIP →</a></div>';
+    }
+    ["buyerSetupBanner","sourcing-progress","hand-picked","buyer-potential-matches","my-offers","my-purchases","accounts-documents","recommended-for-you","recently-viewed","earlyShippingPanel","buyerReferralPanel"].forEach(function(id){
+      const el=document.getElementById(id);
+      if(el)el.style.display="none";
+    });
+    // Existing asynchronous buyer renderers must not repopulate this panel.
+    window.anybikeUKDealerDashboard=true;
+  }
   // Show the dealer-specific introduction only to UK dealer accounts.
   if(["uk_dealer","uk_distributor"].includes(String(currentProfile?.customer_type||""))){
     const welcome=document.getElementById("welcomeText");
