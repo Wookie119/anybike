@@ -795,20 +795,27 @@ const setupHelpTemplates=[
 ]
 function openSetupHelp(userId,isResend=false){
   const r=rows.find(x=>x.user_id===userId);if(!r)return;
+  if(!r.email_confirmed_at){
+    alert("This customer must confirm their email first. Use Send confirmation email on their onboarding card.");
+    return;
+  }
   if(isResend){
     const count=Number(r.reminder_count||0);
     const when=r.last_reminder_at?new Date(r.last_reminder_at).toLocaleString("en-GB"):"previously";
-    if(!confirm("Setup help has already been sent to this customer "+count+" time"+(count===1?"":"s")+" (last sent "+when+").\n\nSend it again?"))return;
+    if(!confirm("Setup help has already been sent "+count+" time"+(count===1?"":"s")+" (last sent "+when+"). Send again?"))return;
   }
   setupHelpUserId=userId;
-  setupHelpTemplate=recommendedTemplate(r);
+  const recommended=recommendedTemplate(r);
+  const keys=[...new Set([recommended,"complete_profile","clarify_use"])].slice(0,3);
+  const choices=keys.map(key=>setupHelpTemplates.find(t=>t[0]===key)).filter(Boolean);
+  setupHelpTemplate=choices[0]?.[0]||"complete_profile";
   document.getElementById("setupHelpTitle").textContent="Send setup help · "+(r.full_name||r.business_name||r.email||"Customer");
-  document.getElementById("setupHelpContext").textContent=customerTypeLabel(r.customer_type)+" · "+intentLabel(r.customer_intent||"unclear")+" · "+(r.onboarding_stage||"");
-  document.getElementById("setupHelpChoices").innerHTML=setupHelpTemplates.map(t=>
-    '<button type="button" class="message-choice '+(t[0]===setupHelpTemplate?'selected':'')+'" onclick="selectSetupHelpTemplate(\''+t[0]+'\',this)">'+
-      '<strong>'+esc(t[1])+(t[0]===recommendedTemplate(r)?' · Recommended':'')+'</strong>'+
+  document.getElementById("setupHelpContext").textContent="Choose one message · "+customerTypeLabel(r.customer_type);
+  document.getElementById("setupHelpChoices").innerHTML=choices.map((t,i)=>
+    '<button type="button" class="message-choice '+(i===0?'selected':'')+'" onclick="selectSetupHelpTemplate(\\''+t[0]+'\\',this)">'+
+      '<strong>'+esc(t[1])+(i===0?' · Recommended':'')+'</strong>'+
       '<span>'+esc(t[2])+'</span>'+
-      '<div class="actual-copy"><strong style="font-size:11px;color:#fff;margin-bottom:4px">What the customer receives</strong>'+esc(t[3])+'</div>'+
+      '<div class="actual-copy" style="'+(i===0?'':'display:none;')+'">'+esc(t[3])+'</div>'+
     '</button>'
   ).join("");
   document.getElementById("setupHelpModal").classList.add("open");
@@ -818,6 +825,8 @@ function selectSetupHelpTemplate(key,el){
   setupHelpTemplate=key;
   document.querySelectorAll(".message-choice").forEach(x=>x.classList.remove("selected"));
   el?.classList.add("selected");
+  document.querySelectorAll("#setupHelpChoices .actual-copy").forEach(x=>x.style.display="none");
+  const preview=el?.querySelector(".actual-copy");if(preview)preview.style.display="";
 }
 function closeSetupHelp(){
   document.getElementById("setupHelpModal").classList.remove("open");
