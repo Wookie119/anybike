@@ -727,6 +727,15 @@ function escapeAdminHtml(value){
           <option value="freight_logistics">Freight / logistics</option>
         </select>
       </label>
+      <div style="grid-column:1/-1;border:1px solid #555;padding:14px;border-radius:12px;margin-top:10px">
+        <strong>Account access — Level 1 / Level 2</strong>
+        <p class="small">Level 2 is for approved trade customers only. Underwriting permissions are separate.</p>
+        <label>Access level<select id="editDealerLevel"><option value="1">Level 1 — Standard customer</option><option value="2">Level 2 — Approved trade customer</option></select></label>
+        <label><input type="checkbox" id="editDealerSubmit" style="width:auto"> Submit motorcycles for underwriting</label>
+        <label><input type="checkbox" id="editDealerView" style="width:auto"> View underwriting opportunities</label>
+        <label><input type="checkbox" id="editDealerOffer" style="width:auto"> Make underwriting offers (agreement also required)</label>
+        <p id="dealerAccessStatus" class="small"></p>
+      </div>
       <label style="grid-column:1/-1">
         <span style="display:flex;align-items:center;gap:10px;background:#151515;border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:12px 14px;cursor:pointer">
           <input id="editLiveSourceEnabled" type="checkbox" style="width:auto;margin:0">
@@ -817,6 +826,18 @@ function openEditCustomer(userId){
   document.getElementById("editCustomerType").value=onboarding.customer_type||"";
   document.getElementById("editCustomerIntent").value=onboarding.customer_intent||"unclear";
   document.getElementById("editLiveSourceEnabled").checked=Boolean(c.liveSourceEnabled);
+  document.getElementById("editDealerLevel").value="1";
+  ["editDealerSubmit","editDealerView","editDealerOffer"].forEach(id=>document.getElementById(id).checked=false);
+  document.getElementById("dealerAccessStatus").textContent="Loading access permissions…";
+  sb.rpc("admin_get_dealer_access_v1",{p_user_id:String(userId)}).then(({data,error})=>{
+    if(editingCustomerId!==String(userId))return;
+    document.getElementById("dealerAccessStatus").textContent=error?error.message:"";
+    if(error)return;
+    document.getElementById("editDealerLevel").value=String(data?.level||1);
+    document.getElementById("editDealerSubmit").checked=!!data?.can_submit_underwrites;
+    document.getElementById("editDealerView").checked=!!data?.can_view_underwrites;
+    document.getElementById("editDealerOffer").checked=!!data?.can_offer_underwrites;
+  });
   const modal=document.getElementById("editCustomerModal");
   if(!modal){alert("Edit Customer window is not available. Refresh the page and try again.");return;}
   modal.classList.add("open");
@@ -830,6 +851,12 @@ function closeEditCustomer(){
 }
 async function saveEditedCustomer(){
   if(!editingCustomerId)return;
+  const dealerLevel=Number(document.getElementById("editDealerLevel").value);
+  const submitPermission=document.getElementById("editDealerSubmit").checked;
+  const viewPermission=document.getElementById("editDealerView").checked;
+  const offerPermission=document.getElementById("editDealerOffer").checked;
+  if(dealerLevel===2 && !confirm("Approve this customer for Level 2 trade access with the selected permissions?"))return;
+
   const liveSourceEnabled=Boolean(document.getElementById("editLiveSourceEnabled")?.checked);
   const {error}=await sb.rpc("admin_update_customer_profile_v1",{
     p_user_id:editingCustomerId,
