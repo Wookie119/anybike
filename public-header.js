@@ -842,7 +842,7 @@ async function addMyDealershipMenuIfEligible(user){
     const dealership=Array.isArray(dealerResult.data)?dealerResult.data[0]:dealerResult.data;
     const customerType=String(profileResult.data?.customer_type||user.user_metadata?.customer_type||"");
     if(!dealership && !["uk_dealer","uk_distributor"].includes(customerType))return;
-    const href=dealership?"/my-dealership-stock.html":"/uk-dealer-guide.html";
+    const href="/my-dealership.html";
     for(const menuId of ["loggedInMenu","mobileLoggedInMenu"]){
       const menu=document.getElementById(menuId);
       if(!menu)continue;
