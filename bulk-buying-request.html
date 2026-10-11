@@ -867,65 +867,285 @@ async function detectCountry(){
   }
 }
 
-async function loadMakesFromStock(){
-  try{
-    const grouped={};
-    const batchSize=1000;
-    let from=0;
-    let keepGoing=true;
-
-    while(keepGoing){
-      const { data, error } = await sb
-        .from("public_available_stock")
-        .select("make,model")
-        .not("make","is",null)
-        .not("model","is",null)
-        .range(from, from + batchSize - 1);
-
-      if(error){
-        console.warn("Could not load makes/models from stock", error);
-        break;
-      }
-
-      if(!data || !data.length){
-        keepGoing=false;
-        break;
-      }
-
-      data.forEach(r=>{
-        const make=String(r.make || "").trim();
-        const model=String(r.model || "").trim();
-        if(!make || !model) return;
-        if(!grouped[make]) grouped[make]=new Set();
-        grouped[make].add(model);
-      });
-
-      if(data.length < batchSize){
-        keepGoing=false;
-      }else{
-        from += batchSize;
-      }
-    }
-
-    const final={};
-    Object.keys(grouped).sort().forEach(make=>{
-      final[make]=[...grouped[make]].sort();
-    });
-
-    if(Object.keys(final).length){
-      makeModels=final;
-
-      document.querySelectorAll('[id^="request-make-"]').forEach(sel=>{
-        const id=sel.id.replace("request-make-","");
-        const current=sel.value;
-        sel.innerHTML=`<option value="">Select make</option>` + Object.keys(makeModels).map(m=>`<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join("");
-        if(makeModels[current]) sel.value=current;
-        updateRequestModels(id);
-      });
-    }
-  }catch(e){
-    console.warn("Could not load makes/models from stock",e);
+// Static, lightweight model catalogue shared with the manufacturer guides.
+// No public Available Stock requests are made to populate the dropdowns.
+// The existing fallback list provides older model variants as well.
+const curatedManufacturerModels={
+  "Aprilia": [
+    "RS 660",
+    "RSV4",
+    "Tuono 660",
+    "Tuono V4",
+    "Tuareg 660",
+    "Caponord 1200",
+    "Shiver 900",
+    "Dorsoduro 900",
+    "SR GT"
+  ],
+  "Benelli": [
+    "TRK 502",
+    "TRK 702",
+    "TRK 702 X",
+    "Leoncino 500",
+    "Leoncino 800",
+    "TNT 125",
+    "752S"
+  ],
+  "Bimota": [
+    "KB4",
+    "KB998 Rimini",
+    "Tesi H2",
+    "DB7",
+    "DB8"
+  ],
+  "BSA": [
+    "Gold Star 650",
+    "Gold Star",
+    "Bantam",
+    "Rocket 3",
+    "A10"
+  ],
+  "Ducati": [
+    "Panigale V2",
+    "Panigale V4",
+    "SuperSport 950",
+    "1199 Panigale",
+    "916",
+    "Multistrada V2",
+    "Multistrada V4",
+    "DesertX",
+    "Monster",
+    "Streetfighter V2",
+    "Streetfighter V4",
+    "Hypermotard 698 Mono",
+    "Diavel V4",
+    "Scrambler Icon"
+  ],
+  "Harley-Davidson": [
+    "Street Glide",
+    "Road Glide",
+    "Electra Glide",
+    "Ultra Limited",
+    "Softail Standard",
+    "Fat Boy",
+    "Low Rider S",
+    "Breakout",
+    "Sportster S",
+    "Iron 883",
+    "Pan America 1250"
+  ],
+  "Honda": [
+    "Africa Twin CRF1100L",
+    "NC750X",
+    "XL750 Transalp",
+    "CB500X",
+    "NX500",
+    "Varadero",
+    "CBR1000RR Fireblade",
+    "CBR600RR",
+    "CBR650R",
+    "CBR500R",
+    "VFR800",
+    "CB650R",
+    "CB1000R",
+    "Hornet CB750",
+    "CB500F",
+    "Rebel CMX500",
+    "Gold Wing GL1800",
+    "NT1100",
+    "ST1300 Pan European",
+    "Forza 350",
+    "X-ADV",
+    "PCX125",
+    "SH125i",
+    "CRF450R",
+    "CRF250R",
+    "CRF300L"
+  ],
+  "Husqvarna": [
+    "Svartpilen 401",
+    "Vitpilen 401",
+    "Svartpilen 801",
+    "FE 350",
+    "FE 501",
+    "TE 300",
+    "TC 250",
+    "FC 450",
+    "Norden 901"
+  ],
+  "Indian Motorcycle": [
+    "Scout",
+    "Scout Bobber",
+    "Chief",
+    "Sport Chief",
+    "Super Chief",
+    "Chieftain",
+    "Roadmaster",
+    "Challenger",
+    "Pursuit",
+    "FTR"
+  ],
+  "Kawasaki": [
+    "Ninja ZX-10R",
+    "Ninja ZX-6R",
+    "Ninja 650",
+    "Ninja 400",
+    "Ninja 1000SX",
+    "Z900",
+    "Z650",
+    "Z1000",
+    "Z H2",
+    "Versys 650",
+    "Versys 1000",
+    "KLR650",
+    "Z900RS",
+    "W800",
+    "KX450",
+    "KX250"
+  ],
+  "KTM": [
+    "390 Adventure",
+    "790 Adventure",
+    "890 Adventure",
+    "1290 Super Adventure",
+    "390 Duke",
+    "790 Duke",
+    "890 Duke R",
+    "1290 Super Duke R",
+    "RC 390",
+    "RC 8C",
+    "EXC-F 350",
+    "300 EXC",
+    "450 SX-F"
+  ],
+  "Moto Guzzi": [
+    "V85 TT",
+    "Stelvio",
+    "V7 Stone",
+    "V7 Special",
+    "V9 Bobber",
+    "Griso",
+    "California 1400",
+    "Norge 1200"
+  ],
+  "MV Agusta": [
+    "F3 800",
+    "F4",
+    "Superveloce",
+    "Brutale 800",
+    "Brutale 1000",
+    "Dragster 800",
+    "Enduro Veloce",
+    "Turismo Veloce"
+  ],
+  "Norton": [
+    "Commando 961",
+    "Commando 850",
+    "Dominator",
+    "Manx",
+    "V4SV",
+    "V4CR"
+  ],
+  "Royal Enfield": [
+    "Himalayan 450",
+    "Himalayan 411",
+    "Scram 411",
+    "Classic 350",
+    "Bullet 350",
+    "Interceptor 650",
+    "Continental GT 650",
+    "Meteor 350",
+    "Super Meteor 650",
+    "Hunter 350",
+    "Shotgun 650"
+  ],
+  "Suzuki": [
+    "V-Strom 1050",
+    "V-Strom 800DE",
+    "V-Strom 650",
+    "DR-Z400",
+    "GSX-R1000",
+    "GSX-R750",
+    "GSX-R600",
+    "Hayabusa",
+    "GSX-8R",
+    "GSX-S1000",
+    "GSX-8S",
+    "SV650",
+    "Bandit 1250",
+    "GSX-S1000GT",
+    "Burgman 400"
+  ],
+  "Triumph": [
+    "Tiger 900",
+    "Tiger 1200",
+    "Tiger Sport 660",
+    "Tiger 800",
+    "Daytona 660",
+    "Daytona 675",
+    "Speed Triple 1200 RR",
+    "Street Triple 765",
+    "Speed Triple 1200 RS",
+    "Trident 660",
+    "Bonneville T120",
+    "Bonneville T100",
+    "Scrambler 900",
+    "Scrambler 1200",
+    "Thruxton",
+    "Speed Twin 1200",
+    "Rocket 3",
+    "Bonneville Bobber"
+  ],
+  "Vespa": [
+    "Primavera 125",
+    "Sprint 125",
+    "GTS 125",
+    "GTS 300",
+    "GTV 300",
+    "PX 125"
+  ],
+  "Yamaha": [
+    "YZF-R1",
+    "YZF-R6",
+    "YZF-R7",
+    "YZF-R3",
+    "YZF-R125",
+    "MT-09",
+    "MT-07",
+    "MT-10",
+    "MT-03",
+    "XSR900",
+    "XSR700",
+    "Ténéré 700",
+    "Tracer 9",
+    "Tracer 7",
+    "XT660Z Ténéré",
+    "FJR1300",
+    "Niken",
+    "XMAX 300",
+    "TMAX",
+    "NMAX 125",
+    "WR450F",
+    "YZ450F",
+    "YZ250F"
+  ]
+};
+function loadMakesFromStock(){
+  const merged={};
+  for(const [make,models] of Object.entries({...fallbackMakes,...curatedManufacturerModels})){
+    merged[make]=[...new Set([...(fallbackMakes[make]||[]),...models])].sort((a,b)=>a.localeCompare(b));
   }
+  makeModels=Object.fromEntries(Object.entries(merged).sort(([a],[b])=>a.localeCompare(b)));
+  document.querySelectorAll('[id^="request-make-"]').forEach(sel=>{
+    const id=sel.id.replace("request-make-","");
+    const previousMake=sel.value;
+    const previousModel=document.getElementById("request-model-"+id)?.value||"";
+    sel.innerHTML='<option value="">Select make</option>'+Object.keys(makeModels).map(m=>'<option value="'+escapeHtml(m)+'">'+escapeHtml(m)+'</option>').join("");
+    if(makeModels[previousMake])sel.value=previousMake;
+    updateRequestModels(id);
+    const modelSelect=document.getElementById("request-model-"+id);
+    if(modelSelect && [...modelSelect.options].some(o=>o.value===previousModel))modelSelect.value=previousModel;
+  });
 }
 
 function addRequestMotorcycleBlock(){
