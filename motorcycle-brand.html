@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Motorcycle Brand Guide | AnyBike</title>
-<meta name="description" content="Explore UK motorcycles by manufacturer, popular models and motorcycles currently available through AnyBike.">
+<meta name="description" content="Explore motorcycle manufacturers and models available for UK sourcing requests through AnyBike.">
 <meta name="robots" content="index,follow">
 <link rel="canonical" id="canonicalLink" href="https://www.anybike.co.uk/motorcycle-brand.html">
 <link rel="stylesheet" href="/public-header.css?v=202610112145">
@@ -12,42 +12,64 @@
 <style>
 :root{--red:#ed1c24;--bg:#080808;--panel:#111;--line:rgba(255,255,255,.12);--muted:#aaa}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:#fff;font-family:Arial,Helvetica,sans-serif}a{color:inherit;text-decoration:none}
-main{width:min(1500px,94vw);margin:auto;padding:52px 0 70px}.eyebrow{color:var(--red);font-weight:950;text-transform:uppercase;letter-spacing:.12em;font-size:12px}
+main{width:min(1720px,calc(100% - 36px));margin:auto;padding:22px 0 70px}.eyebrow{color:var(--red);font-weight:950;text-transform:uppercase;letter-spacing:.12em;font-size:12px}
 h1{font-size:clamp(40px,6vw,72px);margin:8px 0 12px;line-height:.98}p{color:var(--muted);line-height:1.55}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin-top:24px}
 .card{display:block;border:1px solid var(--line);border-radius:18px;background:var(--panel);padding:18px}.card:hover{border-color:var(--red)}.card strong{font-size:20px}.card span{display:block;color:#aaa;margin-top:7px}
 .stock{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-top:18px}.bike{overflow:hidden;border:1px solid var(--line);border-radius:18px;background:#111}.bike img{width:100%;aspect-ratio:4/3;object-fit:cover;background:#eee}.copy{padding:16px}.copy h3{margin:0 0 8px}.price{font-size:22px;font-weight:950;margin-top:9px}.section{margin-top:42px}.btn{display:inline-block;margin-top:18px;background:var(--red);padding:12px 16px;border-radius:999px;font-weight:950}
+.crumb{font-size:13px;color:#aaa;margin-bottom:19px}.crumb a{text-decoration:underline}.intro{border:1px solid #393939;border-radius:17px;padding:28px;background:#111}.intro p{max-width:1100px}.actions{display:flex;gap:13px;flex-wrap:wrap;align-items:center}.secondary{padding:12px 16px;border:1px solid #555;border-radius:8px}.note{font-size:13px}.section{margin-top:35px}.section h2{font-size:30px}.family{margin-top:24px}.family h3{font-size:22px;margin:0}.card{border-radius:12px;background:#171717;border-color:#393939}.card span{color:#ddd;font-size:13px}.card:hover{border-color:#ed1c24}.info{padding:24px;border:1px solid #393939;border-radius:14px;background:#111}.info a{color:#ff565d;font-weight:700}.btn{border-radius:9px}.section>p{max-width:1060px}@media(max-width:620px){.intro{padding:18px}h1{font-size:35px}}
 </style>
 </head>
 <body>
 <header id="publicHeader"></header>
 <main>
-  <div class="eyebrow">AnyBike Manufacturer Guide</div>
-  <h1 id="title">Motorcycle brand</h1>
-  <p id="intro">Explore models and motorcycles currently available from this manufacturer in the United Kingdom.</p>
-  <div id="models" class="grid"></div>
-
+  <nav class="crumb"><a href="/">AnyBike</a> / <a href="/bmw-motorcycles.html">Manufacturers</a> / <span id="crumbMake">Motorcycles</span></nav>
+  <section class="intro"><div class="eyebrow">AnyBike · UK Motorcycle Sourcing</div><h1 id="title">Motorcycle manufacturers</h1><p id="intro">Explore manufacturer model guides and ask AnyBike to source motorcycles from UK suppliers.</p>
+  <div class="actions"><a class="btn" id="requestLink" href="/bulk-buying-request.html">Request motorcycles from the UK →</a><a class="secondary" href="#models">Explore models ↓</a></div>
+  <p class="note">For international motorcycle dealers and trade buyers. All makes and models can be requested, whether or not featured in this guide. Availability and purchase terms are confirmed separately.</p></section>
+  <section class="section" id="models"><div class="eyebrow">Manufacturer model library</div><h2 id="modelsTitle">Motorcycle models</h2><p>Explore the main model families, including older and discontinued motorcycles. Choose a model to send a sourcing request.</p><div id="modelGroups"></div></section>
+  <section class="section info"><h2>How sourcing works with AnyBike</h2><p>Tell us which motorcycle you need, your preferred year, specification and quantity. AnyBike checks suitable UK supply, shares potential matches and verifies availability and seller terms before making a formal offer. When agreed, we arrange the UK collection and delivery to your chosen UK port or approved shipper. International shipping may be quoted separately where available.</p><a href="/how-anybike-export-works.html">How AnyBike Export works →</a></section>
 </main>
 <script>
-const sb=supabase.createClient("https://tuehtnezhdnkqbbhttgp.supabase.co","sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK");
-const params=new URLSearchParams(location.search);const make=(params.get("make")||"").trim();
-function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
-function money(v){return window.AnyBikeCurrency?.formatGBP?window.AnyBikeCurrency.formatGBP(v):"£"+Number(v||0).toLocaleString("en-GB")}
-async function load(){
- if(String(make).toLowerCase()==="bmw" || String(make).toLowerCase()==="bmw motorrad"){window.location.replace("/bmw-motorcycles.html");return}
- if(!make){document.getElementById("title").textContent="Motorcycle manufacturers";return}
- document.title=make+" Motorcycles from the UK | AnyBike";
- document.querySelector('meta[name="description"]').content="Explore "+make+" motorcycles, models and current UK stock available through AnyBike.";
+(function(){
+ const guides={
+ "Aprilia":{Sport:["RS 660","RSV4","Tuono 660","Tuono V4"],Adventure:["Tuareg 660","Caponord 1200"],Other:["Shiver 900","Dorsoduro 900","SR GT"]},
+ "Benelli":{Adventure:["TRK 502","TRK 702","TRK 702 X"],Road:["Leoncino 500","Leoncino 800","TNT 125","752S"]},
+ "Bimota":{Sport:["KB4","KB998 Rimini","Tesi H2","DB7","DB8"]},
+ "BSA":{Classic:["Gold Star 650","Gold Star","Bantam","Rocket 3","A10"]},
+ "Ducati":{Sport:["Panigale V2","Panigale V4","SuperSport 950","1199 Panigale","916"],Adventure:["Multistrada V2","Multistrada V4","DesertX"],Road:["Monster","Streetfighter V2","Streetfighter V4","Hypermotard 698 Mono","Diavel V4","Scrambler Icon"]},
+ "Harley-Davidson":{Touring:["Street Glide","Road Glide","Electra Glide","Ultra Limited"],Cruiser:["Softail Standard","Fat Boy","Low Rider S","Breakout","Sportster S","Iron 883"],Adventure:["Pan America 1250"]},
+ "Honda":{Adventure:["Africa Twin CRF1100L","NC750X","XL750 Transalp","CB500X","NX500","Varadero"],Sport:["CBR1000RR Fireblade","CBR600RR","CBR650R","CBR500R","VFR800"],Road:["CB650R","CB1000R","Hornet CB750","CB500F","Rebel CMX500"],Touring:["Gold Wing GL1800","NT1100","ST1300 Pan European"],Scooters:["Forza 350","X-ADV","PCX125","SH125i"],Offroad:["CRF450R","CRF250R","CRF300L"]},
+ "Husqvarna":{Road:["Svartpilen 401","Vitpilen 401","Svartpilen 801"],Offroad:["FE 350","FE 501","TE 300","TC 250","FC 450"],Adventure:["Norden 901"]},
+ "Indian Motorcycle":{Cruiser:["Scout","Scout Bobber","Chief","Sport Chief","Super Chief"],Touring:["Chieftain","Roadmaster","Challenger","Pursuit"],Classic:["FTR"]},
+ "Kawasaki":{Sport:["Ninja ZX-10R","Ninja ZX-6R","Ninja 650","Ninja 400","Ninja 1000SX"],Road:["Z900","Z650","Z1000","Z H2"],Adventure:["Versys 650","Versys 1000","KLR650"],Classic:["Z900RS","W800"],Offroad:["KX450","KX250"]},
+ "KTM":{Adventure:["390 Adventure","790 Adventure","890 Adventure","1290 Super Adventure"],Road:["390 Duke","790 Duke","890 Duke R","1290 Super Duke R"],Sport:["RC 390","RC 8C"],Offroad:["EXC-F 350","300 EXC","450 SX-F"]},
+ "Moto Guzzi":{Adventure:["V85 TT","Stelvio"],Road:["V7 Stone","V7 Special","V9 Bobber","Griso"],Touring:["California 1400","Norge 1200"]},
+ "MV Agusta":{Sport:["F3 800","F4","Superveloce"],Road:["Brutale 800","Brutale 1000","Dragster 800"],Adventure:["Enduro Veloce","Turismo Veloce"]},
+ "Norton":{Classic:["Commando 961","Commando 850","Dominator","Manx"],Sport:["V4SV","V4CR"]},
+ "Royal Enfield":{Adventure:["Himalayan 450","Himalayan 411","Scram 411"],Classic:["Classic 350","Bullet 350","Interceptor 650","Continental GT 650","Meteor 350","Super Meteor 650"],Road:["Hunter 350","Shotgun 650"]},
+ "Suzuki":{Adventure:["V-Strom 1050","V-Strom 800DE","V-Strom 650","DR-Z400"],Sport:["GSX-R1000","GSX-R750","GSX-R600","Hayabusa","GSX-8R"],Road:["GSX-S1000","GSX-8S","SV650","Bandit 1250"],Touring:["GSX-S1000GT","Burgman 400"]},
+ "Triumph":{Adventure:["Tiger 900","Tiger 1200","Tiger Sport 660","Tiger 800"],Sport:["Daytona 660","Daytona 675","Speed Triple 1200 RR"],Road:["Street Triple 765","Speed Triple 1200 RS","Trident 660"],Classic:["Bonneville T120","Bonneville T100","Scrambler 900","Scrambler 1200","Thruxton","Speed Twin 1200"],Cruiser:["Rocket 3","Bonneville Bobber"]},
+ "Vespa":{Scooters:["Primavera 125","Sprint 125","GTS 125","GTS 300","GTV 300","PX 125"]},
+ "Yamaha":{Sport:["YZF-R1","YZF-R6","YZF-R7","YZF-R3","YZF-R125"],Road:["MT-09","MT-07","MT-10","MT-03","XSR900","XSR700"],Adventure:["Ténéré 700","Tracer 9","Tracer 7","XT660Z Ténéré"],Touring:["FJR1300","Niken"],Scooters:["XMAX 300","TMAX","NMAX 125"],Offroad:["WR450F","YZ450F","YZ250F"]}
+ };
+ const requested=(new URLSearchParams(location.search).get("make")||"").trim();
+ if(requested.toLowerCase()==="bmw" || requested.toLowerCase()==="bmw motorrad"){location.replace("/bmw-motorcycles.html");return;}
+ const key=Object.keys(guides).find(x=>x.toLowerCase()===requested.toLowerCase());
+ const make=key||requested;
+ function esc(s){return String(s).replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));}
+ if(!make){document.getElementById("title").textContent="Motorcycle manufacturers";document.getElementById("modelsTitle").textContent="Explore our manufacturer guides";document.getElementById("modelGroups").innerHTML='<p>Select a manufacturer from the menu above, or submit your motorcycle sourcing request.</p>';return;}
+ const request="/bulk-buying-request.html?make="+encodeURIComponent(make);
+ document.title=make+" Motorcycles from the UK | Models & Sourcing | AnyBike";
+ document.querySelector('meta[name="description"]').content="Explore "+make+" motorcycle models and ask AnyBike to source them from UK sellers for international trade buyers.";
  document.getElementById("canonicalLink").href="https://www.anybike.co.uk/motorcycle-brand.html?make="+encodeURIComponent(make);
- document.getElementById("title").textContent=make+" Motorcycles";
- document.getElementById("intro").textContent="Explore "+make+" models attracting buyer interest and motorcycles currently available in the United Kingdom.";
-
- const {data,error}=await sb.from("public_available_stock").select("id,make,model,variant,year,mileage,price_gbp,image_url").eq("make",make).order("year",{ascending:false}).limit(80);
- if(error)throw error; const rows=data||[];
- const models=[...new Set(rows.map(x=>x.model).filter(Boolean))].sort();
- document.getElementById("models").innerHTML=models.length?models.map(model=>'<a class="card" href="/motorcycle-model.html?make='+encodeURIComponent(make)+'&model='+encodeURIComponent(model)+'"><strong>'+esc(model)+'</strong><span>View '+esc(make)+' '+esc(model)+' guide →</span></a>').join(""):'<div class="card"><strong>No current models to show</strong><span>Browse available motorcycles or send AnyBike your requirements and we can help source the model you need.</span></div>';
-
-}
-load().catch(e=>{document.getElementById("models").innerHTML='<div class="card">Could not load this manufacturer.</div>'});
+ document.getElementById("crumbMake").textContent=make;
+ document.getElementById("title").textContent=make+" Motorcycles from the UK";
+ document.getElementById("intro").textContent="Explore "+make+" motorcycle families and popular models. AnyBike can source current, used, classic and discontinued models from the UK on request, subject to seller availability.";
+ document.getElementById("modelsTitle").textContent="Explore "+make+" models";
+ document.getElementById("requestLink").href=request;
+ const groups=key?guides[key]:{"All models":[]};
+ document.getElementById("modelGroups").innerHTML=Object.entries(groups).map(([category,models])=>'<div class="family"><h3>'+esc(category)+'</h3><div class="grid">'+models.map(model=>'<a class="card" href="'+request+'&model='+encodeURIComponent(model)+'"><strong>'+esc(model)+'</strong><span>Check availability from the UK market →</span></a>').join("")+'</div></div>').join("")+(key?"":'<p>Our detailed model guide for this manufacturer is being prepared. You can already request any model using the sourcing form.</p>');
+})();
 </script>
 <script src="/public-header.js?v=202610112205"></script>
 </body></html>
