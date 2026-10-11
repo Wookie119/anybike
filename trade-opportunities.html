@@ -22,6 +22,7 @@ input,textarea{width:100%;background:#090909;color:#fff;border:1px solid #333;bo
 textarea{min-height:68px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}button,.btn{border:0;border-radius:10px;padding:10px 13px;background:#292929;color:#fff;font-weight:900;cursor:pointer;text-decoration:none}.red{background:var(--red)}
 .notice{padding:12px;border:1px solid var(--line);border-radius:12px;margin-bottom:14px;color:#bbb}.empty{padding:25px;border:1px dashed #333;border-radius:16px;text-align:center;color:#aaa;min-width:0}.status-panel{grid-column:1/-1;width:100%;max-width:none!important;text-align:left!important;display:block}.status-panel h2{font-size:23px;margin:0 0 10px}.status-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:20px}.status-actions .btn{display:inline-flex;align-items:center;min-height:44px}.status-panel p{max-width:1100px}
 @media(max-width:1000px){.grid{grid-template-columns:1fr 1fr}}@media(max-width:680px){.grid{grid-template-columns:1fr}.wrap{width:calc(100% - 24px);padding:14px 0}.status-actions{flex-direction:column;align-items:stretch}.status-actions .btn{justify-content:center}}
+.offer-tabs{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 14px}.offer-tabs button{border:1px solid #454545;padding:13px 18px}.offer-tabs button.active{background:#ed1c24;border-color:#ed1c24}.my-offers-summary{margin:0 0 14px;color:#ccc;font-size:15px}.bid-status{font-weight:800;color:#9be7b1;margin:7px 0}
 </style>
 </head>
 <body>
@@ -34,6 +35,11 @@ textarea{min-height:68px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top
   </section>
   <div class="notice">You may win a bike, or you may not. If your offer is successful, AnyBike will be in touch to confirm the purchase and arrange delivery to your showroom door, subject to agreed delivery arrangements. Offers are reviewed by AnyBike and are not automatically accepted.</div>
   <div id="confirmations"></div>
+  <nav class="offer-tabs" aria-label="Underwriting views">
+    <button type="button" id="allOffersTab" class="active" onclick="showOfferView('all')">Available motorcycles</button>
+    <button type="button" id="myOffersTab" onclick="showOfferView('mine')">My Underwriting Offers <span id="myBidCount"></span></button>
+  </nav>
+  <p id="myOffersIntro" class="my-offers-summary" style="display:none">Manage the offers you have already made. Your bids remain confidential. Other dealers’ amounts and rankings are not disclosed.</p>
   <div id="opportunityFilters" class="notice" style="display:none"><label for="opportunitySearch" style="display:block;font-weight:700">Find a motorcycle</label><input id="opportunitySearch" type="search" placeholder="Search by make, model or year…" aria-label="Search underwriting motorcycles"></div>
   <div id="grid" class="grid"><div class="empty">Loading…</div></div>
 </main>
@@ -46,6 +52,30 @@ const esc=v=>String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&
 const money=v=>v===null||v===undefined?"—":"£"+Number(v).toLocaleString("en-GB",{maximumFractionDigits:0});
 function countdown(v){if(!v)return"—";const ms=new Date(v)-Date.now();if(ms<=0)return"Closed";const h=Math.floor(ms/3600000),m=Math.floor(ms%3600000/60000);return h+"h "+m+"m";}
 
+let offerView=new URLSearchParams(location.search).get("view")==="mine"?"mine":"all";
+let currentOpportunities=[];
+function showOfferView(view){
+  offerView=view==="mine"?"mine":"all";
+  document.getElementById("allOffersTab").classList.toggle("active",offerView==="all");
+  document.getElementById("myOffersTab").classList.toggle("active",offerView==="mine");
+  document.getElementById("myOffersIntro").style.display=offerView==="mine"?"block":"none";
+  history.replaceState(null,"",location.pathname+(offerView==="mine"?"?view=mine":""));
+  renderOpportunities(currentOpportunities);
+  document.querySelector(".offer-tabs").scrollIntoView({behavior:"smooth",block:"start"});
+}
+function renderOpportunities(rows){
+ const host=document.getElementById("grid");
+ const own=rows.filter(r=>r.my_bid_gbp!==null&&r.my_bid_gbp!==undefined&&Number(r.my_bid_gbp)>0);
+ document.getElementById("myBidCount").textContent="("+own.length+")";
+ const display=offerView==="mine"?own:rows;
+ const filter=document.getElementById("opportunityFilters");
+ if(filter)filter.style.display=offerView==="all"&&display.length?"block":"none";
+ if(!display.length){
+   host.innerHTML='<div class="empty">'+(offerView==="mine"?"You have no active underwriting offers. Select Available motorcycles to browse and make an offer.":"No private trade opportunities are currently available to your dealership.")+'</div>';
+   return;
+ }
+ renderBikeCards(display);
+}
 async function load(){
   const {data:session}=await sb.auth.getSession();
   if(!session?.session){location.replace("/customer-register.html?return="+encodeURIComponent(location.pathname));return;}
@@ -63,10 +93,14 @@ async function load(){
     }
     return;
   }
-  const rows=data||[];
-  const filter=document.getElementById('opportunityFilters');
-  if(filter)filter.style.display=rows.length?'block':'none';
-  if(!rows.length){host.innerHTML='<div class="empty">No private trade opportunities are currently available to your dealership.</div>';return;}
+  currentOpportunities=data||[];
+  document.getElementById("allOffersTab").classList.toggle("active",offerView==="all");
+  document.getElementById("myOffersTab").classList.toggle("active",offerView==="mine");
+  document.getElementById("myOffersIntro").style.display=offerView==="mine"?"block":"none";
+  renderOpportunities(currentOpportunities);
+}
+function renderBikeCards(rows){
+  const host=document.getElementById("grid");
   host.innerHTML=rows.map(r=>'<article class="card" data-bike-search="'+esc([r.make,r.model,r.variant,r.bike_year].filter(Boolean).join(' ').toLowerCase())+'">'+
     '<div class="img"><img src="'+esc(r.image_url||"/anybike-image-coming-soon.png")+'" alt="" onerror="this.src=\'/anybike-image-coming-soon.png\'"></div>'+
     '<div class="body">'+
@@ -80,8 +114,8 @@ async function load(){
       '<div class="actions"><button class="red" onclick="submitBid('+r.opportunity_id+')">'+(r.my_bid_gbp?"Update My Bid":"Submit Bid")+'</button>'+
       (r.my_bid_gbp?'<button onclick="withdrawBid('+r.opportunity_id+')">Withdraw My Bid</button>':'')+
       '</div>'+
-      (r.my_bid_gbp?'<div class="meta" style="margin-top:8px">Your current live bid: '+money(r.my_bid_gbp)+'</div>':'')+
-      '<div style="margin-top:12px;padding:11px;border:1px solid #444;border-radius:10px;background:#101010"><strong>Your Next Action →</strong><p style="margin:6px 0;font-size:13px">'+(r.my_bid_gbp?'Your bid is saved. You can update it before closing. Once closed, AnyBike confirms seller availability and HPI before a buyer is selected.':'Review the motorcycle and submit your confidential offer before the countdown ends. Final seller and HPI checks are required before any buyer is chosen.')+'</p><button type="button" onclick="document.getElementById(\'bid-'+r.opportunity_id+'\').focus()">GO TO MY BID →</button></div>'+
+      (r.my_bid_gbp?'<div class="bid-status">Your active offer: '+money(r.my_bid_gbp)+' · Awaiting AnyBike review</div>':'')+
+      '<div style="margin-top:12px;padding:11px;border:1px solid #444;border-radius:10px;background:#101010"><strong>Your Next Action →</strong><p style="margin:6px 0;font-size:13px">'+(r.my_bid_gbp?'Your bid is saved. You can update it before closing. Once closed, AnyBike confirms seller availability and HPI before a buyer is selected.':'Review the motorcycle and submit your confidential offer before the countdown ends. Final seller and HPI checks are required before any buyer is chosen.')+'</p>'+(r.my_bid_gbp?'<button type="button" onclick="showOfferView(\'mine\')">View My Underwriting Offers →</button>':'')+'</div>'+
 
     '</div></article>').join("");
   const search=document.getElementById('opportunitySearch');
