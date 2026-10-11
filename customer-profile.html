@@ -1648,7 +1648,24 @@
       return true;
     }
     document.getElementById("profileCustomerType").addEventListener("change",updateUnderwriteVisibility);
-    document.getElementById("receiveTradeUnderwrites").addEventListener("change",async function(){await saveUnderwritePreference();});
+    document.getElementById("receiveTradeUnderwrites").addEventListener("change",async function(){
+      const status=document.getElementById("tradeUnderwriteStatus");
+      const customerType=document.getElementById("profileCustomerType")?.value;
+      if(!["uk_dealer","uk_distributor"].includes(customerType))return;
+      if(status)status.textContent="Saving your trade preference…";
+      // Persist the selected Trade classification before the restricted preference RPC.
+      // This records interest only; actual dealer approval remains an admin action.
+      const intent=document.getElementById("profileCustomerIntent")?.value||"explore";
+      const {error}=await sb.rpc("customer_save_profile_classification_v1",{
+        p_customer_type:customerType,p_customer_intent:intent
+      });
+      if(error){
+        if(status)status.textContent="Please save your Trade account type first: "+error.message;
+        return;
+      }
+      await loadProfileUpdateStatus();
+      await saveUnderwritePreference();
+    });
 
     async function saveProfileClassification(button){
       if(!currentUser)return;
