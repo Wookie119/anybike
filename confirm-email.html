@@ -1,0 +1,39 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Confirm Your Email | AnyBike</title><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><style>*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#0b0b0b;color:#fff;font:16px Arial,sans-serif;padding:20px}.card{width:100%;max-width:530px;padding:30px;border:1px solid #444;border-radius:17px;background:#181818}img{max-height:65px;max-width:190px;display:block;margin:0 auto 25px}h1{text-align:center;font-size:30px;margin:8px 0 15px}p{line-height:1.5;color:#ddd}label{display:block;margin-top:20px;font-weight:700}input{width:100%;font-size:16px;margin-top:7px;padding:13px;border:1px solid #777;border-radius:9px;background:#222;color:white}button,.button{display:block;text-align:center;width:100%;padding:14px;margin-top:15px;background:#ed1c24;color:white;border:0;border-radius:9px;font-size:16px;font-weight:bold;text-decoration:none;cursor:pointer}.secondary{background:#303030}.status{padding:12px;border-radius:9px;margin-top:15px;display:none}.status.visible{display:block;background:#272727}.small{font-size:13px;color:#aaa}button:disabled{opacity:.6}</style></head><body><main class="card"><img src="/anybike-logo-new.jpg" alt="AnyBike"><h1>Confirm Your Email</h1><p id="intro">Please check your inbox for an email from AnyBike and open its confirmation link. If your link has expired or didn't work, request a new one below.</p><label for="email">Your registered email address</label><input id="email" type="email" autocomplete="email" placeholder="you@example.com"><button id="resend" type="button">Send a new confirmation email</button><div id="status" role="status" aria-live="polite" class="status"></div><a id="login" class="button secondary" href="/customer-login.html">Continue to login</a><p class="small">Check your spam folder if the email doesn't arrive. Never share your confirmation link with anyone.</p></main><script>
+const sb=supabase.createClient("https://tuehtnezhdnkqbbhttgp.supabase.co","sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK");
+const query=new URLSearchParams(location.search),hash=new URLSearchParams(location.hash.replace(/^#/,""));
+const emailField=document.getElementById("email"),status=document.getElementById("status"),resendBtn=document.getElementById("resend"),login=document.getElementById("login");
+emailField.value=query.get("email")||"";
+function message(v){status.textContent=v;status.classList.add("visible");}
+function safeReturn(){const path=query.get("return")||"/customer-profile.html#section-contact";return path.startsWith("/")&&!path.startsWith("//")&&!path.toLowerCase().includes("admin-")?path:"/customer-profile.html#section-contact"}
+function updateLogin(){const p=new URLSearchParams();p.set("return",safeReturn());if(emailField.value.trim())p.set("email",emailField.value.trim());login.href="/customer-login.html?"+p.toString();}
+emailField.addEventListener("input",updateLogin);updateLogin();
+async function handleCallback(){
+ const err=query.get("error_description")||hash.get("error_description")||query.get("error")||hash.get("error");
+ if(err){message("Your previous confirmation link could not be used. Request a fresh email below.");return;}
+ const token=query.get("token_hash"),type=query.get("type");
+ if(token && (type==="signup"||type==="email")){
+  const {error}=await sb.auth.verifyOtp({token_hash:token,type});
+  if(error){message("That confirmation link has expired or could not be verified. Request a new one below.");return;}
+  history.replaceState(null,"",location.pathname);message("Your email has been confirmed. You can now continue to login.");return;
+ }
+ if(query.has("code") || hash.has("access_token")){
+  // Supabase JS resolves the verification callback into a persisted session.
+  const {data,error}=await sb.auth.getSession();
+  if(data?.session?.user?.email_confirmed_at){history.replaceState(null,"",location.pathname);message("Your email has been confirmed. Continue to login.");return;}
+  message(error?"We could not verify this link. Request a new confirmation email.":"We could not confirm verification yet. Try logging in or request a fresh email.");
+  return;
+ }
+ const {data}=await sb.auth.getUser();
+ if(data?.user?.email_confirmed_at)message("Your email address is already confirmed. Continue to login.");
+}
+resendBtn.addEventListener("click",async()=>{
+ const email=emailField.value.trim().toLowerCase();if(!emailField.checkValidity()||!email){message("Enter a valid registered email address.");return;}
+ resendBtn.disabled=true;resendBtn.textContent="Requesting email…";
+ try{const {error}=await sb.auth.resend({type:"signup",email,options:{emailRedirectTo:location.origin+"/confirm-email.html"}});
+ if(error)message("Could not request an email: "+error.message+". Please try again later or contact AnyBike.");
+ else message("If your account still needs confirmation, we've requested a fresh email. Check your inbox and spam folder. Follow the newest confirmation link.");
+ }catch(e){message("Could not request confirmation right now. Please try again.");}
+ finally{resendBtn.disabled=false;resendBtn.textContent="Send a new confirmation email";}
+});
+handleCallback();
+</script></body></html>
