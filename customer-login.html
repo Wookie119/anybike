@@ -199,6 +199,34 @@ if(expectedEmail){
     emailInput.title="This setup link is for "+expectedEmail;
   }
 }
+async function handleEmailConfirmationReturn(){
+  const query=new URLSearchParams(window.location.search);
+  const hash=new URLSearchParams(window.location.hash.replace(/^#/,""));
+  const failure=query.get("error_description")||hash.get("error_description")||query.get("error")||hash.get("error");
+  if(failure){
+    showMsg("Your email confirmation link was not accepted ("+failure+"). Please enter your email address and select Resend confirmation email to request a fresh link.",false);
+    return;
+  }
+  // Support Supabase email templates using token_hash verification as well as its normal callback.
+  const tokenHash=query.get("token_hash");
+  const type=query.get("type");
+  if(tokenHash && (type==="signup"||type==="email")){
+    const {error}=await sb.auth.verifyOtp({token_hash:tokenHash,type:type==="email"?"email":"signup"});
+    if(error){showMsg("This confirmation link could not be verified: "+error.message+". Please request another using Resend confirmation email.",false);return;}
+    history.replaceState(null,"",window.location.pathname);
+    showMsg("Your email address has been confirmed. You can now log in to My AnyBike.");
+    return;
+  }
+  if(query.get("code") || hash.get("access_token")){
+    // Supabase JS processes the confirmation callback on initialization.
+    const {data}=await sb.auth.getSession();
+    if(data?.session){
+      history.replaceState(null,"",window.location.pathname);
+      showMsg("Your email address has been confirmed. You can now continue to My AnyBike.");
+    }
+  }
+}
 protectSetupLinkSession();
+handleEmailConfirmationReturn();
 document.addEventListener("keydown",e=>{if(e.key==="Enter"&&!formBusy) loginCustomer();});
 </script><script src="/visitor-tracker.js?v=1"></script>\n</body></html>
