@@ -45,7 +45,7 @@ textarea{min-height:68px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top
   <strong style="display:block;color:#fff;margin-bottom:12px">Find a motorcycle</strong>
   <div class="filter-grid">
     <label>Make<select id="filterMake" onchange="updateTradeFilters(true)"><option value="">All makes</option></select></label>
-    <label>Model<select id="filterModel" onchange="applyTradeFilters()"><option value="">All models</option></select></label>
+    <label>Model<select id="filterModel" onchange="updateTradeFilters(false)"><option value="">All models</option></select></label>
     <label>Year<select id="filterYear" onchange="applyTradeFilters()"><option value="">All years</option></select></label>
     <label>Search<input id="opportunitySearch" type="search" oninput="applyTradeFilters()" placeholder="Keywords or reference…" aria-label="Search underwriting motorcycles"></label>
   </div>
@@ -143,11 +143,21 @@ function updateTradeFilters(makeChanged){
  const make=document.getElementById("filterMake");
  const model=document.getElementById("filterModel");
  const year=document.getElementById("filterYear");
- setFilterOptions(make,[...new Set(rows.map(r=>String(r.make||"").trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b)),"All makes");
- if(makeChanged)model.value="";
- const applicable=rows.filter(r=>!make.value||String(r.make||"").trim()===make.value);
- setFilterOptions(model,[...new Set(applicable.map(r=>String(r.model||"").trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b)),"All models");
- setFilterOptions(year,[...new Set(applicable.map(r=>String(r.bike_year||"").trim()).filter(Boolean))].sort((a,b)=>Number(b)-Number(a)),"All years");
+ // Preserve the chosen make before rebuilding its options.
+ const chosenMake=make.value;
+ const chosenModel=makeChanged?"":model.value;
+ const chosenYear=year.value;
+ const makeNames=[...new Set(rows.map(r=>String(r.make||"").trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+ setFilterOptions(make,makeNames,"All makes");
+ make.value=makeNames.includes(chosenMake)?chosenMake:"";
+ const matchingMake=rows.filter(r=>!make.value||String(r.make||"").trim().toLowerCase()===make.value.toLowerCase());
+ const models=[...new Set(matchingMake.map(r=>String(r.model||"").trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+ setFilterOptions(model,models,make.value?"All "+make.value+" models":"All models");
+ model.value=models.includes(chosenModel)?chosenModel:"";
+ const matchingModel=matchingMake.filter(r=>!model.value||String(r.model||"").trim()===model.value);
+ const years=[...new Set(matchingModel.map(r=>String(r.bike_year||"").trim()).filter(Boolean))].sort((a,b)=>Number(b)-Number(a));
+ setFilterOptions(year,years,"All years");
+ year.value=years.includes(chosenYear)?chosenYear:"";
  applyTradeFilters();
 }
 function applyTradeFilters(){
