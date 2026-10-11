@@ -1338,7 +1338,7 @@
       }
       intentSelect.value=savedIntent==="unclear"?"explore":savedIntent;
       await loadUnderwritePreference();
-      setValue("buyerType", profile?.buyer_type);
+      setValue("buyerType", profile?.buyer_type || (selectedAccountRole==="trade"?"Motorcycle Dealer / Trader":""));
       setValue("businessName", profile?.business_name);
       setValue("businessTradingName", profile?.business_trading_name);
       setValue("businessRegistrationNumber", profile?.business_registration_number);
@@ -1346,7 +1346,8 @@
       setValue("businessEmail", profile?.business_email || profile?.email || user.email || "");
       setValue("businessPhone", profile?.business_phone || profile?.phone || "");
       setValue("businessWebsite", profile?.business_website);
-      setValue("businessAddress1", profile?.business_address_line1 || profile?.business_address);
+      const savedBusinessAddress=profile?.business_address_line1 || profile?.business_address || "";
+      setValue("businessAddress1", /^(united kingdom|uk|great britain)$/i.test(String(savedBusinessAddress).trim())?"":savedBusinessAddress);
       setValue("businessAddress2", profile?.business_address_line2);
       setValue("businessCity", profile?.business_city);
       setValue("businessRegion", profile?.business_region);
@@ -1625,6 +1626,10 @@
       const actual=locationChoice==="uk"?(selectedAccountRole==="trade"?"uk_dealer":"uk_private"):
         locationChoice==="international"?(selectedAccountRole==="trade"?"intl_dealer":"intl_private"):"";
       document.getElementById("profileCustomerType").value=actual;
+      const buyerType=document.getElementById("buyerType");
+      if(actual==="uk_dealer"||actual==="intl_dealer"){
+        if(buyerType && !buyerType.value)buyerType.value="Motorcycle Dealer / Trader";
+      }
       const label=document.getElementById("accountCountryLabel");
       if(label)label.textContent=locationChoice==="uk"?"United Kingdom":locationChoice==="international"?"International — check your country in Contact Details":"Please choose your country";
       ["accountTrade","accountRetail"].forEach((id,i)=>{
