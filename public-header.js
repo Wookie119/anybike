@@ -909,7 +909,7 @@ async function addMyDealershipMenuIfEligible(user){
           ["Offer Bikes to Trade","/offer-bikes-to-trade.html"],
           ["Request Underwrite","/dealer-underwrite.html"],
           ["Make Trade Offers","/trade-opportunities.html"],
-          ["Connect Stock Internationally","/dealer-connect-stock.html"],
+          ["Connect Stock","/dealer-connect-stock.html"],
           ["Add VAT Qualifying Stock","/dealer-connect-stock.html?focus=vq"]
         ];
         dealerShortcuts.forEach(function(entry){
