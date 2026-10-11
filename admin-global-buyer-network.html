@@ -2304,6 +2304,10 @@ function isBuyerArchived(b){return !!(b && b.archived_at);}
 function safe(v){return String(v ?? "").replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
 function money(v){const n=Number(v);return v==null||v===""||!Number.isFinite(n)?"-":"£"+n.toFixed(2);}
 function dateTxt(v){return v?new Date(v).toLocaleString():"-";}
+// Avoid rerunning the costly stock-enrichment query for the same buyer
+// requirements when this admin page refreshes within a short interval.
+// Sensitive seller data stays in memory only, never browser storage.
+let relevantStockCache={key:"",at:0,rows:null,pending:null};
 async function loadRelevantBuyerStock(requestItems){
   const makes=[
     ...new Set(
@@ -2315,6 +2319,15 @@ async function loadRelevantBuyerStock(requestItems){
 
   if(!makes.length){
     return [];
+  }
+
+  const cacheKey=JSON.stringify(makes.slice().sort());
+  const now=Date.now();
+  if(relevantStockCache.key===cacheKey){
+    if(relevantStockCache.pending) return relevantStockCache.pending;
+    if(relevantStockCache.rows && now-relevantStockCache.at<2*60*1000){
+      return relevantStockCache.rows;
+    }
   }
 
   const rows=[];
@@ -2350,6 +2363,7 @@ async function loadRelevantBuyerStock(requestItems){
     }
   }
 
+  relevantStockCache={key:cacheKey,at:Date.now(),rows:rows,pending:null};
   return rows;
 }
 
