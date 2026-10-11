@@ -824,6 +824,15 @@ function anybikeSortAccountMenuAlphabetically(menu){
   }
 }
 
+// Scope top-level menu visibility to signed-in UK dealer accounts only.
+// !important prevents navigation hover/display rules restoring hidden links.
+(function installUkDealerNavStyle(){
+  if(document.getElementById("anybikeUkDealerNavRule"))return;
+  const style=document.createElement("style");
+  style.id="anybikeUkDealerNavRule";
+  style.textContent='html.anybike-uk-dealer .public-nav > a[href="/vmoto.html"],html.anybike-uk-dealer .public-nav > a[href="/buy-motorcycles.html"],html.anybike-uk-dealer .mobile-nav > a[href="/vmoto.html"],html.anybike-uk-dealer .mobile-nav > a[href="/buy-motorcycles.html"]{display:none!important}';
+  document.head.appendChild(style);
+})();
 function anybikeSortMyAnyBikeMenus(){
   anybikeSortAccountMenuAlphabetically(document.getElementById("loggedInMenu"));
   anybikeSortAccountMenuAlphabetically(document.getElementById("mobileLoggedInMenu"));
@@ -859,6 +868,7 @@ async function addMyDealershipMenuIfEligible(user){
       // The UK dealer account uses its own workspace, so omit export-buyer
       // shortcuts from its account menu. Do not change other account types.
       if(["uk_dealer","uk_distributor"].includes(customerType)){
+        document.documentElement.classList.add("anybike-uk-dealer");
         // Hide only UK dealer top-level public Trade and VMoto links (desktop/mobile).
         for(const navSelector of [".public-nav",".mobile-nav"]){
           const nav=document.querySelector(navSelector);
