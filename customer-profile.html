@@ -419,7 +419,7 @@
             <div>
               <div class="eyebrow">Profile Update</div>
               <h2>How do you use AnyBike?</h2>
-              <p class="card-intro">Just choose Trade or Retail, and whether you are UK based or International. You can use more than one AnyBike service.</p>
+              <p class="card-intro">We use your saved country where available. Confirm whether you are Trade or Retail. You can use more than one AnyBike service.</p>
             </div>
             <span class="section-state" id="state-profile-update">Needs attention</span>
           </div>
@@ -437,13 +437,7 @@
                   <option value="intl_private">Retail — International</option>
                   <option value="intl_dealer">Trade — International</option>
                 </optgroup>
-                <optgroup label="Existing account classifications">
-                  <option value="uk_distributor">UK distributor (existing)</option>
-                  <option value="uk_manufacturer">UK manufacturer (existing)</option>
-                  <option value="uk_partner">UK partner (existing)</option>
-                  <option value="eu_dealer">European dealer (existing)</option>
-                  <option value="global_manufacturer">Global manufacturer (existing)</option>
-                </optgroup>
+
               </select>
             </div>
             <div class="full">
@@ -1311,7 +1305,31 @@
       populateCountrySelect("country", profile?.country);
       setValue("city", profile?.city);
       setValue("region", profile?.region);
-      setValue("profileCustomerType", profile?.customer_type);
+      // Existing customers keep their recorded classification. New customers
+      // get a country-based suggestion only when the saved country is known.
+      const typeSelect=document.getElementById("profileCustomerType");
+      const savedType=String(profile?.customer_type||user.user_metadata?.customer_type||"");
+      const knownTypes=["uk_private","uk_dealer","intl_private","intl_dealer"];
+      if(savedType && !knownTypes.includes(savedType) && typeSelect && !Array.from(typeSelect.options).some(o=>o.value===savedType)){
+        const legacyOption=document.createElement("option");
+        legacyOption.value=savedType;
+        legacyOption.textContent="Existing classification: "+savedType.replaceAll("_"," ");
+        typeSelect.appendChild(legacyOption);
+      }
+      const savedCountry=String(profile?.country||user.user_metadata?.country||"").trim().toLowerCase();
+      const isUK=["united kingdom","uk","great britain","england","scotland","wales","northern ireland"].includes(savedCountry);
+      const isKnownCountry=Boolean(savedCountry);
+      const intent=String(profile?.customer_intent||user.user_metadata?.customer_intent||"");
+      const likelyTrade=["buy","buy_supply","dealer_trade_supply","supply","dealer_underwrite","trade_underwriter"].includes(intent);
+      const suggestedType= isKnownCountry?(isUK?(likelyTrade?"uk_dealer":"uk_private"):(likelyTrade?"intl_dealer":"intl_private")):"";
+      setValue("profileCustomerType",savedType||suggestedType);
+      if(!savedType && suggestedType){
+        const suggestion=document.createElement("div");
+        suggestion.id="countryClassificationSuggestion";
+        suggestion.style.cssText="font-size:12px;color:#aaa;margin-top:6px";
+        suggestion.textContent="Suggested using your saved country: "+(profile?.country||user.user_metadata?.country)+". Please confirm or change.";
+        typeSelect?.insertAdjacentElement("afterend",suggestion);
+      }
       setValue("profileCustomerIntent", profile?.customer_intent && profile?.customer_intent!=="unclear" ? profile.customer_intent : "");
       await loadUnderwritePreference();
       setValue("buyerType", profile?.buyer_type);
