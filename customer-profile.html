@@ -426,34 +426,15 @@
 
           <div class="grid">
             <div class="full">
-              <label for="profileCustomerType">What type of customer are you?</label>
-              <select id="profileCustomerType">
-                <option value="">Select your customer type</option>
-                <optgroup label="United Kingdom">
-                  <option value="uk_private">Retail — UK based</option>
-                  <option value="uk_dealer">Trade — UK based</option>
-                </optgroup>
-                <optgroup label="International">
-                  <option value="intl_private">Retail — International</option>
-                  <option value="intl_dealer">Trade — International</option>
-                </optgroup>
-
-              </select>
-            </div>
-            <div class="full">
-              <label for="profileCustomerIntent">What would you like to do with AnyBike?</label>
-              <select id="profileCustomerIntent">
-                <option value="">Select what you would like to do</option>
-                <option value="buy">Buy motorcycles from AnyBike for trade / export</option>
-                <option value="dealer_trade_supply">Trade / sell motorcycles to AnyBike</option>
-                <option value="buy_supply">Buy motorcycles and trade / sell motorcycles to AnyBike</option>
-                <option value="dealer_underwrite">Use AnyBike to underwrite my part-exchanges</option>
-                <option value="trade_underwriter">Underwrite / bid on motorcycles offered to AnyBike</option>
-                <option value="vmoto_retail">Browse VMOTO Range in the UK</option>
-                <option value="new_uk_retail">Browse for a New Motorcycle or Scooter in the UK</option>
-                <option value="partnership">Discuss a partnership / integration</option>
-                <option value="freight_logistics">Freight / shipping / logistics partnership</option>
-              </select>
+              <label>Are you a Trade or Retail customer?</label>
+              <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">
+                <button type="button" id="accountTrade" onclick="chooseAccountClass('trade')" style="padding:14px 22px;border:1px solid #777;border-radius:10px;background:#202020;color:#fff;cursor:pointer">Trade / Dealer</button>
+                <button type="button" id="accountRetail" onclick="chooseAccountClass('retail')" style="padding:14px 22px;border:1px solid #777;border-radius:10px;background:#202020;color:#fff;cursor:pointer">Retail / Private</button>
+              </div>
+              <div style="font-size:13px;color:#aaa;margin-top:12px">Country: <strong id="accountCountryLabel">Not selected</strong> <button type="button" onclick="document.getElementById('accountCountryEdit').hidden=false" style="color:#fff;background:transparent;border:1px solid #777;border-radius:7px;padding:5px 9px;cursor:pointer">Change</button></div>
+              <div id="accountCountryEdit" hidden style="margin-top:9px"><select id="accountCountrySelect" onchange="updateAccountClass()"><option value="">Select location</option><option value="uk">United Kingdom</option><option value="international">International</option></select></div>
+              <select id="profileCustomerType" hidden aria-label="Saved customer classification"><option value=""></option><option value="uk_private"></option><option value="uk_dealer"></option><option value="intl_private"></option><option value="intl_dealer"></option></select>
+              <select id="profileCustomerIntent" hidden aria-label="Saved service interests"><option value="explore">Explore AnyBike</option></select>
             </div>
           </div>
 
@@ -1323,7 +1304,13 @@
       const likelyTrade=["buy","buy_supply","dealer_trade_supply","supply","dealer_underwrite","trade_underwriter"].includes(intent);
       const likelyRetail=["vmoto_retail","new_uk_retail"].includes(intent);
       const suggestedType= isKnownCountry && (likelyTrade||likelyRetail)?(isUK?(likelyTrade?"uk_dealer":"uk_private"):(likelyTrade?"intl_dealer":"intl_private")):"";
-      setValue("profileCustomerType",savedType||suggestedType);
+      const selected=savedType||suggestedType;
+      selectedAccountRole=selected.endsWith("_dealer")?"trade":selected.endsWith("_private")?"retail":"";
+      const currentCountry=String(profile?.country||"").trim();
+      const countryChoice=currentCountry? (isUK?"uk":"international"):(selected.startsWith("uk_")?"uk":selected.startsWith("intl_")?"international":"");
+      document.getElementById("accountCountrySelect").value=countryChoice;
+      if(!countryChoice)document.getElementById("accountCountryEdit").hidden=false;
+      updateAccountClass();
       if(!savedType && suggestedType){
         const suggestion=document.createElement("div");
         suggestion.id="countryClassificationSuggestion";
@@ -1331,7 +1318,12 @@
         suggestion.textContent="Suggested using your saved country: "+(profile?.country||user.user_metadata?.country)+". Please confirm or change.";
         typeSelect?.insertAdjacentElement("afterend",suggestion);
       }
-      setValue("profileCustomerIntent", profile?.customer_intent && profile?.customer_intent!=="unclear" ? profile.customer_intent : "");
+      const savedIntent=profile?.customer_intent||"explore";
+      const intentSelect=document.getElementById("profileCustomerIntent");
+      if(savedIntent && savedIntent!=="unclear" && savedIntent!=="explore"){
+        const option=document.createElement("option");option.value=savedIntent;option.textContent="Existing service";intentSelect.appendChild(option);
+      }
+      intentSelect.value=savedIntent==="unclear"?"explore":savedIntent;
       await loadUnderwritePreference();
       setValue("buyerType", profile?.buyer_type);
       setValue("businessName", profile?.business_name);
@@ -1610,6 +1602,25 @@
       }
     }
 
+    let selectedAccountRole="";
+    function chooseAccountClass(role){
+      selectedAccountRole=role;
+      updateAccountClass();
+    }
+    function updateAccountClass(){
+      const locationChoice=document.getElementById("accountCountrySelect")?.value||"";
+      const actual=locationChoice==="uk"?(selectedAccountRole==="trade"?"uk_dealer":"uk_private"):
+        locationChoice==="international"?(selectedAccountRole==="trade"?"intl_dealer":"intl_private"):"";
+      document.getElementById("profileCustomerType").value=actual;
+      const label=document.getElementById("accountCountryLabel");
+      if(label)label.textContent=locationChoice==="uk"?"United Kingdom":locationChoice==="international"?"International — check your country in Contact Details":"Please choose your country";
+      ["accountTrade","accountRetail"].forEach((id,i)=>{
+        const b=document.getElementById(id);if(!b)return;
+        const active=selectedAccountRole===(i===0?"trade":"retail");
+        b.style.background=active?"#ed1c24":"#202020";b.style.borderColor=active?"#ed1c24":"#777";
+      });
+      updateUnderwriteVisibility();
+    }
     function updateUnderwriteVisibility(){
       const type=document.getElementById("profileCustomerType")?.value;
       const area=document.getElementById("tradeUnderwriteOptin");
@@ -1679,7 +1690,7 @@
       updateSetupReminder();
 
       const isExportBuyerRoute=
-        !["uk_private","intl_private"].includes(customerType) &&
+        customerIntent!=="explore" && !["uk_private","intl_private"].includes(customerType) &&
         ["buy","buy_supply"].includes(customerIntent);
 
       // Route the customer to the part of AnyBike they told us they are interested in.
