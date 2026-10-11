@@ -24,7 +24,7 @@
     links.forEach(function(link){
       const href=String(link.getAttribute("href")||"");
       if(href.includes("public-header.css")){
-        link.setAttribute("href","/public-header.css?v=202610112125");
+        link.setAttribute("href","/public-header.css?v=202610112145");
       }
     });
   }catch(e){}
@@ -730,6 +730,32 @@ async function loadPublicHeader(){
     holder.innerHTML = await headerRes.text();
     try{await anybikeEnsureHeaderAuthClient();}catch(e){console.warn("Header authentication unavailable",e);}
     await setupPublicHeader();
+    // Keep the mega menu open briefly while the pointer crosses any header gap.
+    const manufacturerMenu=holder.querySelector(".public-manufacturers-menu");
+    const manufacturerPanel=manufacturerMenu?.querySelector(".manufacturers-dropdown");
+    if(manufacturerMenu && manufacturerPanel){
+      let closeTimer=null;
+      const open=()=>{
+        if(closeTimer!==null){clearTimeout(closeTimer);closeTimer=null;}
+        manufacturerMenu.classList.add("manufacturers-open");
+      };
+      const closeSoon=()=>{
+        if(closeTimer!==null)clearTimeout(closeTimer);
+        closeTimer=setTimeout(()=>{
+          manufacturerMenu.classList.remove("manufacturers-open");
+          closeTimer=null;
+        },450);
+      };
+      manufacturerMenu.addEventListener("pointerenter",open);
+      manufacturerPanel.addEventListener("pointerenter",open);
+      manufacturerMenu.addEventListener("pointerleave",closeSoon);
+      manufacturerPanel.addEventListener("pointerleave",closeSoon);
+      manufacturerMenu.addEventListener("focusin",open);
+      manufacturerMenu.addEventListener("focusout",event=>{
+        if(!manufacturerMenu.contains(event.relatedTarget))closeSoon();
+      });
+    }
+
     if(typeof window.AnyBikePublicStockVisible==="boolean") anybikeUpdatePublicStockMenu(window.AnyBikePublicStockVisible);
     setTimeout(anybikeEnsureCustomerNextAction,100);
 
