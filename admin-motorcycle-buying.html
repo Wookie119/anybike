@@ -17,6 +17,7 @@ body{margin:0;background:#070707;color:#fff;font-family:Arial,Helvetica,sans-ser
 .hero,.card{background:#111;border:1px solid var(--line);border-radius:20px}
 .hero{padding:16px 20px;margin-bottom:14px;background:radial-gradient(circle at top right,rgba(237,28,36,.18),transparent 36%),#111}
 .hero h1{font-size:30px;margin:4px 0 5px}.hero p{margin:0;line-height:1.4}
+.intake-gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px;margin:14px 0 22px}.intake-gallery-card{background:#151515;border:1px solid #363636;border-radius:14px;overflow:hidden;min-width:0}.intake-gallery-photo{height:160px;background:#0a0a0a;display:flex;align-items:center;justify-content:center;color:#aaa;font-size:13px}.intake-gallery-photo img{width:100%;height:100%;object-fit:cover}.intake-gallery-body{padding:13px}.intake-gallery-body h3{font-size:19px;margin:5px 0}.intake-gallery-body p{font-size:13px;margin:6px 0}.intake-gallery-body button{background:#ed1c24;border:0;border-radius:9px;color:#fff;font-weight:800;padding:10px 13px;cursor:pointer;margin-top:10px}.intake-toggle{background:#242424;color:#fff;border:1px solid #555;border-radius:8px;padding:10px 17px;cursor:pointer}.intake-toggle.active{background:#ed1c24;border-color:#ed1c24}
 #anybikeSharedNextAction.anybike-shared-next-action{padding:12px 16px!important;margin:0 0 14px!important;border-radius:14px!important}
 #anybikeSharedNextAction .abna-kicker{font-size:10px!important}
 #anybikeSharedNextAction h2{font-size:21px!important;margin:3px 0 4px!important}
@@ -131,6 +132,7 @@ label{display:block;color:#bbb;font-size:12px;font-weight:800}input{width:100%;m
       </div>
 
       <div id="underwriteSummary" class="sub" style="margin:12px 0;padding:12px 15px;border:1px solid #333;border-radius:12px">Loading underwriting overview…</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:12px 0"><button type="button" class="intake-toggle" id="showGallery" onclick="setIntakeView('gallery')">Motorcycle Gallery</button><button type="button" class="intake-toggle active" id="showList" onclick="setIntakeView('list')">Detailed List</button><span style="color:#aaa;font-size:13px">Both sources · Admin review only. Motorcycles go to dealers only after underwriting is opened.</span></div><div id="intakeGallery" class="intake-gallery" style="display:none"></div>
       <div id="queue" class="queue-list"><div class="empty">Loading…</div></div>
     </main>
   </div>
@@ -314,6 +316,32 @@ function renderUnderwriteSummary(){
  ).join("")+'</div>';
  host.querySelectorAll("[data-overview]").forEach(btn=>btn.addEventListener("click",()=>focusUnderwriteGroup(btn.dataset.overview)));
 }
+let intakeView="list";
+function setIntakeView(view){
+  intakeView=view==="gallery"?"gallery":"list";
+  document.getElementById("showGallery").classList.toggle("active",intakeView==="gallery");
+  document.getElementById("showList").classList.toggle("active",intakeView==="list");
+  document.getElementById("intakeGallery").style.display=intakeView==="gallery"?"grid":"none";
+  document.getElementById("queue").style.display=intakeView==="gallery"?"none":"block";
+  render();
+}
+function reviewIntakeFromGallery(id){
+  setIntakeView("list");
+  toggleSubmission(id);
+  document.getElementById("submission-row-"+id)?.scrollIntoView({behavior:"smooth",block:"center"});
+}
+function renderIntakeGallery(items){
+  const host=document.getElementById("intakeGallery");
+  host.innerHTML=items.length?items.map(r=>{
+    const id=Number(r.submission_id);
+    const src=r.source_channel==="dealer_underwrite"?"Dealer Underwrite":"Sell Your Bike";
+    const bike=[r.make,r.model,r.variant].filter(Boolean).join(" ")||"Motorcycle details pending";
+    const status=tradeOpportunityBySubmission.get(id);
+    const state=status?.opportunity_status||r.underwrite_status||"Awaiting review";
+    const photo=r.primary_display_image_url?'<img src="'+esc(r.primary_display_image_url)+'" alt="'+esc(bike)+'" loading="lazy">':'No motorcycle photo available';
+    return '<article class="intake-gallery-card"><div class="intake-gallery-photo">'+photo+'</div><div class="intake-gallery-body"><div class="eyebrow">'+esc(src)+'</div><h3>'+esc(bike)+'</h3><p>'+esc([r.bike_year,r.mileage===null?null:Number(r.mileage).toLocaleString("en-GB")+" miles"].filter(Boolean).join(" · "))+'</p><p>Reference: '+esc(r.reference)+'<br>Underwriting: '+esc(state)+'</p><button type="button" onclick="reviewIntakeFromGallery('+id+')">Review motorcycle →</button></div></article>';
+  }).join(""):'<div class="empty">No motorcycles match these filters.</div>';
+}
 function render(){
   const q=String(document.getElementById("search").value||"").trim().toLowerCase();
   const source=document.getElementById("sourceFilter").value;
@@ -349,6 +377,7 @@ function render(){
     if(notes.includes("[FINANCE DECLARATION] Seller unsure"))return "Finance status unknown · check required";
     return "Not declared · check required";
   };
+  renderIntakeGallery(list);
   const host=document.getElementById("queue");
   if(!list.length){host.innerHTML='<div class="empty">No submissions match these filters.</div>';return;}
 
