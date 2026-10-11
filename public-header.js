@@ -751,10 +751,11 @@ async function loadPublicHeader(){
           update();
         }
       });
-      manufacturerTrigger.addEventListener("click",event=>{
-        if(window.matchMedia("(min-width:951px)").matches){
-          event.preventDefault();
-          pinned=!pinned;
+      // The Manufacturers heading is a real index-page link.
+      // Hover still reveals the desktop mega menu; do not intercept navigation.
+      manufacturerTrigger.addEventListener("click",()=>{
+        if(pinned){
+          pinned=false;
           update();
         }
       });
