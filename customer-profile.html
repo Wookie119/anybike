@@ -675,7 +675,7 @@
             <div class="setup-next-copy">
               <span class="setup-next-eyebrow">YOUR NEXT ACTION</span>
               <strong>Save Display Preferences &amp; continue</strong>
-              <span>We’ll save your currency and language, then move you to Buyer &amp; Export Details.</span>
+              <span id="preferencesNextHint">We’ll save your currency and language, then move you to Buyer &amp; Export Details.</span>
             </div>
             <button type="button" class="section-save" data-save-section="preferences" onclick="saveSection('preferences',this)">Save &amp; Continue →</button>
             <div id="msg-preferences" class="section-msg"></div>
@@ -748,6 +748,13 @@
             <div id="msg-margin" class="section-msg"></div>
           </div>
 </section>
+
+        <section class="card setup-target" id="domesticTradeCompletion" style="display:none">
+          <h2>UK Dealer — Basic Setup Complete</h2>
+          <p>Your contact details, business information and preferences are saved. You don't need export documents to register as a UK dealer.</p>
+          <p>AnyBike can review your account for Level 2 underwriting buying permissions separately.</p>
+          <div class="section-save-row setup-next-action"><div class="setup-next-copy"><span class="setup-next-eyebrow">YOUR NEXT ACTION</span><strong>Continue to My AnyBike</strong><span>View your account while AnyBike reviews any trade access request.</span></div><a class="section-save" href="/customer-dashboard.html" style="text-decoration:none">Open My AnyBike →</a></div>
+        </section>
 
         <section class="card setup-target" id="buyer-onboarding" data-profile-section="buyer">
           <div class="section-head"><div><h2>4. Buyer & Export Details</h2><p class="card-intro">Tell us how you normally buy and export motorcycles. AnyBike's transport responsibility ends at the agreed UK delivery point unless a Formal Offer expressly states otherwise.</p></div><span class="section-state" id="state-buyer">Needs attention</span></div>
@@ -1642,6 +1649,7 @@
       if(headline)headline.textContent=selectedAccountRole==="trade"?"Save Trade account":selectedAccountRole==="retail"?"Save Retail account":"Choose Trade or Retail";
       if(explanation)explanation.textContent=selectedAccountRole==="trade"?"Save your Trade account type. Dealer verification and underwriting access can be requested separately.":"Save your account type and return to My AnyBike. No further setup is needed to browse.";
       updateUnderwriteVisibility();
+      updateDomesticOnboarding();
     }
     function updateUnderwriteVisibility(){
       const type=document.getElementById("profileCustomerType")?.value;
@@ -2218,11 +2226,24 @@
       if(field)setTimeout(()=>document.getElementById(field)?.focus({preventScroll:true}),350);
     }
 
+    function isDomesticTradeOnboarding(){
+      return document.getElementById("profileCustomerType")?.value==="uk_dealer";
+    }
+    function updateDomesticOnboarding(){
+      const domestic=isDomesticTradeOnboarding();
+      ["buyer-onboarding","section-shipping","section-margin-calculator","buyer-setup-summary"].forEach(id=>{
+        const el=document.getElementById(id);if(el)el.style.display=domestic?"none":"";
+      });
+      const info=document.getElementById("domesticTradeCompletion");
+      if(info)info.style.display=domestic?"block":"none";
+      const hint=document.getElementById("preferencesNextHint");
+      if(hint)hint.textContent=domestic?"Save your preferences to finish basic UK dealer setup. Export information is only needed if you later use export purchasing.":"We’ll save your currency and language, then move you to Buyer & Export Details.";
+    }
     function nextSectionAfter(section){
       const sequence={
         contact:["section-business","buyerType"],
         business:["section-preferences","currency"],
-        preferences:["buyer-onboarding","shippingMethod"],
+        preferences:isDomesticTradeOnboarding()?null:["buyer-onboarding","shippingMethod"],
         buyer:["section-shipping","shippingDirectorySelect"]
       };
       return sequence[section]||null;
@@ -2370,7 +2391,10 @@
         const saveRow=button.closest(".section-save-row");
         if(saveRow) saveRow.classList.add("complete");
         button.textContent="Saved ✓";
-        if(["contact","business","preferences","buyer"].includes(section)){
+        if(section==="preferences" && isDomesticTradeOnboarding()){
+          if(msg){msg.textContent="✓ UK Trade account details saved. No export paperwork is needed for basic dealer registration.";msg.className="section-msg ok";}
+          setTimeout(()=>focusProfileSection("domesticTradeCompletion","",true),350);
+        }else if(["contact","business","preferences","buyer"].includes(section)){
           const next=nextSectionAfter(section);
           if(next){
             setTimeout(()=>focusProfileSection(next[0],next[1],true),350);
