@@ -908,7 +908,9 @@ async function addMyDealershipMenuIfEligible(user){
         const dealerShortcuts=[
           ["Offer Bikes to Trade","/offer-bikes-to-trade.html"],
           ["Request Underwrite","/dealer-underwrite.html"],
-          ["View Underwriting Offers","/trade-opportunities.html"]
+          ["Make Trade Offers","/trade-opportunities.html"],
+          ["Connect Stock Internationally","/dealer-connect-stock.html"],
+          ["Add VAT Qualifying Stock","/dealer-connect-stock.html?focus=vq"]
         ];
         dealerShortcuts.forEach(function(entry){
           let shortcut=menu.querySelector('a[data-uk-dealer-shortcut="'+entry[1]+'"]');
