@@ -28,12 +28,13 @@ textarea{min-height:68px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top
 <div id="publicHeader"></div>
 <main class="wrap">
   <section class="hero">
-    <div class="eyebrow">Verified Trade Only</div>
-    <h1>Private Trade Opportunities</h1>
-    <p>Confidential AnyBike underwrite opportunities. The seller and other bidders are not identified. You can see and update only your dealership's own bid.</p>
+    <div class="eyebrow">For approved UK motorcycle dealers</div>
+    <h1>Motorcycles Available for Underwriting Offers</h1>
+    <p>When AnyBike adds a motorcycle that needs an underwriting offer, we’ll let participating dealers know by email. Follow the link in your email to view the motorcycles here, browse the gallery and make your best offer on any bike that interests you.</p>
   </section>
-  <div class="notice">These are not public classifieds. AnyBike controls the opportunity, communicates with the seller and decides whether to make an AnyBike purchase offer.</div>
+  <div class="notice">You may win a bike, or you may not. If your offer is successful, AnyBike will be in touch to confirm the purchase and arrange delivery to your showroom door, subject to agreed delivery arrangements. Offers are reviewed by AnyBike and are not automatically accepted.</div>
   <div id="confirmations"></div>
+  <div id="opportunityFilters" class="notice" style="display:none"><label for="opportunitySearch" style="display:block;font-weight:700">Find a motorcycle</label><input id="opportunitySearch" type="search" placeholder="Search by make, model or year…" aria-label="Search underwriting motorcycles"></div>
   <div id="grid" class="grid"><div class="empty">Loading…</div></div>
 </main>
 
@@ -56,15 +57,17 @@ async function load(){
   const host=document.getElementById("grid");
   if(error){
     if(/Verified trade account required/i.test(String(error.message||""))){
-      host.innerHTML='<section class="empty status-panel"><div class="eyebrow">Dealership setup</div><h2>Your trade account is approved</h2><p>AnyBike is completing your dealership setup. Underwriting opportunities will appear here when your dealership is connected and eligible opportunities are available. You do not need to register again.</p><div class="status-actions"><a class="btn red" href="/my-dealership.html">← My Dealership</a></div></section>';
+      host.innerHTML='<section class="empty status-panel"><div class="eyebrow">Your underwriting access</div><h2>There are no motorcycles to bid on here yet</h2><p>Your Level 2 account is approved. AnyBike is completing the dealership connection needed to show your private opportunities. Once that is ready, you can browse bikes and make your offers here.</p><div class="status-actions"><a class="btn red" href="/my-dealership.html">← My Dealership</a></div></section>';
     }else{
       host.innerHTML='<div class="empty">Unable to load opportunities right now. '+esc(error.message)+'</div>';
     }
     return;
   }
   const rows=data||[];
+  const filter=document.getElementById('opportunityFilters');
+  if(filter)filter.style.display=rows.length?'block':'none';
   if(!rows.length){host.innerHTML='<div class="empty">No private trade opportunities are currently available to your dealership.</div>';return;}
-  host.innerHTML=rows.map(r=>'<article class="card">'+
+  host.innerHTML=rows.map(r=>'<article class="card" data-bike-search="'+esc([r.make,r.model,r.variant,r.bike_year].filter(Boolean).join(' ').toLowerCase())+'">'+
     '<div class="img"><img src="'+esc(r.image_url||"/anybike-image-coming-soon.png")+'" alt="" onerror="this.src=\'/anybike-image-coming-soon.png\'"></div>'+
     '<div class="body">'+
       '<div class="meta">'+esc(r.reference)+' · closes in '+esc(countdown(r.closes_at))+'</div>'+
@@ -81,6 +84,8 @@ async function load(){
       '<div style="margin-top:12px;padding:11px;border:1px solid #444;border-radius:10px;background:#101010"><strong>Your Next Action →</strong><p style="margin:6px 0;font-size:13px">'+(r.my_bid_gbp?'Your bid is saved. You can update it before closing. Once closed, AnyBike confirms seller availability and HPI before a buyer is selected.':'Review the motorcycle and submit your confidential offer before the countdown ends. Final seller and HPI checks are required before any buyer is chosen.')+'</p><button type="button" onclick="document.getElementById(\'bid-'+r.opportunity_id+'\').focus()">GO TO MY BID →</button></div>'+
 
     '</div></article>').join("");
+  const search=document.getElementById('opportunitySearch');
+  if(search){search.oninput=function(){const query=this.value.toLowerCase().trim();host.querySelectorAll('article.card').forEach(card=>{card.style.display=card.dataset.bikeSearch.includes(query)?'':'none';});};}
 }
 
 function deliveryText(c){
