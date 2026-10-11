@@ -44,7 +44,12 @@ button,.link-button{width:100%;min-height:52px;padding:14px 20px;border:0;border
 </section></div></main><script>
 const SUPABASE_URL = "https://tuehtnezhdnkqbbhttgp.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// This page only performs login. Avoid a stalled cross-tab Web Lock from an
+// older open AnyBike tab blocking signInWithPassword indefinitely.
+// Supabase still validates the password and persists the normal browser session.
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: { lock: async (_name, _timeout, fn) => fn() }
+});
 let formBusy = false;
 const loginParams=new URLSearchParams(window.location.search);
 const expectedEmail=(loginParams.get("email")||"").trim().toLowerCase();
