@@ -810,6 +810,18 @@ function customerStatus(c){if(c.deals.length>=3)return"VIP";if(c.deals.some(d=>d
 function badgeClass(s){if(s==="VIP")return"badge-red";if(s==="Completed")return"badge-green";if(s==="Active")return"badge-amber";return""}
 
 
+function reviewDealerApproval(userId){
+  openEditCustomer(userId);
+  setTimeout(function(){
+    const level=document.getElementById("editDealerLevel");
+    if(level){
+      level.scrollIntoView({behavior:"smooth",block:"center"});
+      level.focus({preventScroll:true});
+    }
+    const status=document.getElementById("dealerAccessStatus");
+    if(status)status.textContent="Review the dealership details, choose Level 2 only after verification, select permitted underwriting actions, then save. Dealership stock access also requires a separately verified dealership organisation link.";
+  },150);
+}
 function openEditCustomer(userId){
   const customer=allCustomers.find(x=>String(x.customerId)===String(userId));
   if(!customer){alert("Customer record could not be found. Refresh Customer 360 and try again.");return;}
@@ -1009,15 +1021,17 @@ function customerRequiredActionHtml(c){
   const cards=checks.map(x=>
     '<div class="required-field '+(x[1]?"ok":"missing")+'"><strong>'+safe(x[0])+'</strong><span class="'+(x[1]?"state-ok":"state-missing")+'">'+(x[1]?"✓ Complete":"Required")+'</span></div>'
   ).join("");
+  const dealerReview=String(onboarding.customer_type||"")==="uk_dealer" || String(onboarding.customer_type||"")==="uk_distributor";
   const actions=[
+    dealerReview ? '<button type="button" class="primary" onclick="reviewDealerApproval(\''+c.customerId+'\')">Review / Approve Dealer →</button>' : '',
     '<button type="button" onclick="openEditCustomer(\''+c.customerId+'\')">Edit customer</button>',
     !confirmed ? '<button type="button" class="primary" onclick="generateConfirmationText(\''+c.customerId+'\')">Generate confirmation text</button>' : '',
     '<a href="admin-onboarding.html?customer='+encodeURIComponent(c.customerId)+'">Open Onboarding →</a>'
   ].join("");
   return '<div class="profile-required-action">'+
     '<div class="eyebrow">Your next action</div>'+
-    '<h3>'+(missing.length ? 'Complete '+missing.join(", ") : 'Core customer details complete')+'</h3>'+
-    '<p>'+(missing.length ? 'These are the minimum customer details AnyBike still needs before this account can move forward.' : 'The core customer record is complete. Continue with the appropriate onboarding route.')+'</p>'+
+    '<h3>'+(missing.length ? 'Complete '+missing.join(", ") : (dealerReview?'Review UK dealership approval':'Core customer details complete'))+'</h3>'+
+    '<p>'+(missing.length ? 'These are the minimum customer details AnyBike still needs before this account can move forward.' : (dealerReview?'Registration details are complete. Review trade access permissions below; linking and verifying the dealership organisation for stock management is a separate step.':'The core customer record is complete. Continue with the appropriate onboarding route.'))+'</p>'+
     '<div class="required-field-list">'+cards+'</div>'+
     '<div class="profile-required-actions">'+actions+'</div>'+
   '</div>';
