@@ -1701,6 +1701,7 @@
         return;
       }
 
+      accountClassificationSaved=true;
       await loadProfileUpdateStatus();
       await saveUnderwritePreference();
       if(msg){msg.textContent="✓ Saved. Taking you to your next action…";msg.className="section-msg ok";}
@@ -1847,7 +1848,20 @@
       setState("state-preferences",s.preferences);
       setState("state-buyer",s.buyer);
       setState("state-shipping",s.shipping);
-      if(isDomesticTradeOnboarding())updateDomesticOnboarding();
+      if(isDomesticTradeOnboarding()){
+        const completeClassification=accountClassificationSaved || (s.contact && s.business && s.preferences);
+        const status=document.getElementById("state-profile-update");
+        if(status && completeClassification){
+          status.textContent="✓ Complete";
+          status.classList.add("complete");
+          profileUpdateRequired=false;
+        }
+        const action=document.querySelector("#section-profile-update .section-save-row");
+        if(action && completeClassification)action.classList.add("complete");
+        const actionButton=action?.querySelector("button");
+        if(actionButton && completeClassification)actionButton.textContent="Saved ✓";
+        updateDomesticOnboarding();
+      }
       const marginState=document.querySelector("#section-margin-calculator .section-state");
       if(marginState){
         marginState.textContent=s.margin?"✓ Defaults complete":"Recommended";
@@ -2187,7 +2201,7 @@
       if(domestic){
         const saved=buyerSetupCompletion();
         const stages=[["Contact",saved.contact],["Business",saved.business],["Preferences",saved.preferences]];
-        const finished=accountClassificationSaved&&stages.every(x=>x[1]);
+        const finished=stages.every(x=>x[1]);
         const progressText=document.getElementById("ukDealerProgressText");
         if(progressText)progressText.textContent=finished?"✓ Basic UK Trade registration complete.":"Complete your contact, business and display preferences. Your information is saved as you continue.";
         const steps=document.getElementById("ukDealerProgressSteps");
