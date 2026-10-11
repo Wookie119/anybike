@@ -10,7 +10,7 @@
 <style>
 :root{--red:#ed1c24;--line:rgba(255,255,255,.12)}
 *{box-sizing:border-box}body{margin:0;background:#070707;color:#fff;font-family:Arial,Helvetica,sans-serif}#publicHeader img{max-width:180px;max-height:65px;object-fit:contain}#publicHeader{position:relative;z-index:20}
-.wrap{max-width:1300px;margin:auto;padding:24px}.hero,.card{background:#111;border:1px solid var(--line);border-radius:20px}
+.wrap{width:min(1720px,calc(100% - 32px));max-width:none;margin:auto;padding:20px 0 40px}.hero,.card{background:#111;border:1px solid var(--line);border-radius:20px}
 .hero{padding:24px;margin-bottom:16px;background:radial-gradient(circle at top right,rgba(237,28,36,.2),transparent 38%),#111}
 h1{margin:5px 0}.eyebrow{color:var(--red);font-weight:900;font-size:11px;letter-spacing:.12em;text-transform:uppercase}
 p{color:#bbb;line-height:1.5}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
@@ -20,8 +20,8 @@ p{color:#bbb;line-height:1.5}.grid{display:grid;grid-template-columns:repeat(3,m
 .box span{display:block;color:#777;font-size:9px;text-transform:uppercase;font-weight:900}.box strong{display:block;margin-top:3px}
 input,textarea{width:100%;background:#090909;color:#fff;border:1px solid #333;border-radius:10px;padding:11px;font:inherit;margin-top:6px}
 textarea{min-height:68px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}button,.btn{border:0;border-radius:10px;padding:10px 13px;background:#292929;color:#fff;font-weight:900;cursor:pointer;text-decoration:none}.red{background:var(--red)}
-.notice{padding:12px;border:1px solid var(--line);border-radius:12px;margin-bottom:14px;color:#bbb}.empty{padding:30px;border:1px dashed #333;border-radius:16px;text-align:center;color:#888}
-@media(max-width:1000px){.grid{grid-template-columns:1fr 1fr}}@media(max-width:680px){.grid{grid-template-columns:1fr}.wrap{padding:14px}}
+.notice{padding:12px;border:1px solid var(--line);border-radius:12px;margin-bottom:14px;color:#bbb}.empty{padding:25px;border:1px dashed #333;border-radius:16px;text-align:center;color:#aaa;min-width:0}.status-panel{grid-column:1/-1;width:100%;max-width:none!important;text-align:left!important;display:block}.status-panel h2{font-size:23px;margin:0 0 10px}.status-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:20px}.status-actions .btn{display:inline-flex;align-items:center;min-height:44px}.status-panel p{max-width:1100px}
+@media(max-width:1000px){.grid{grid-template-columns:1fr 1fr}}@media(max-width:680px){.grid{grid-template-columns:1fr}.wrap{width:calc(100% - 24px);padding:14px 0}.status-actions{flex-direction:column;align-items:stretch}.status-actions .btn{justify-content:center}}
 </style>
 </head>
 <body>
@@ -56,7 +56,7 @@ async function load(){
   const host=document.getElementById("grid");
   if(error){
     if(/Verified trade account required/i.test(String(error.message||""))){
-      host.innerHTML='<div class="empty" style="text-align:left;max-width:850px;margin:auto"><strong style="display:block;color:#fff;font-size:19px;margin-bottom:10px">Your trade account is approved — dealership link needed</strong><p>Your Level 2 trading approval is separate from the dealership organisation link used to assign private invitations and bids. Your dealership organisation has not yet been linked to this account.</p><p>AnyBike needs to link your approved account to the correct verified dealership. You do not need to register or apply for Level 2 again.</p><a class="btn red" href="/my-dealership-access.html">Review my trade access →</a> <a class="btn" href="/customer-messages.html">Message AnyBike →</a></div>';
+      host.innerHTML='<section class="empty status-panel"><div class="eyebrow">Dealership setup</div><h2>Level 2 approved — dealership connection required</h2><p>Your trading account is approved. AnyBike must now link it to the correct verified dealership before private underwriting bids and invitations can be displayed. <strong>You do not need to register again.</strong></p><div class="status-actions"><a class="btn red" href="/customer-messages.html">Contact AnyBike about dealership connection →</a><a class="btn" href="/my-dealership.html">← My Dealership</a></div></section>';
     }else{
       host.innerHTML='<div class="empty">Unable to load opportunities right now. '+esc(error.message)+'</div>';
     }
@@ -90,7 +90,7 @@ function deliveryText(c){
 }
 function renderConfirmations(rows,error){
   const host=document.getElementById("confirmations");
-  if(error){host.innerHTML='<div class="notice">'+esc(error.message)+'</div>';return;}
+  if(error){if(/Verified trade account required/i.test(String(error.message||""))){host.innerHTML="";return;}host.innerHTML='<div class="notice">Bid confirmation details could not be loaded: '+esc(error.message)+'</div>';return;}
   if(!rows.length){host.innerHTML="";return;}
   host.innerHTML='<section class="hero" style="padding:18px"><div class="eyebrow">Action Required</div><h2 style="margin:5px 0 10px">Confirm Your Bid</h2><p>AnyBike has selected one of your bids to progress. Please reconfirm your bid and confirm that the saved dealership delivery details below are still correct.</p></section>'+
   rows.map(c=>{
