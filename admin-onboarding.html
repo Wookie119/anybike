@@ -581,7 +581,7 @@ function render(){
     const reminder=r.last_reminder_at?new Date(r.last_reminder_at).toLocaleString("en-GB")+' · '+sentCount+' sent':"Never";
     const helpAlreadySent=sentCount>0;
     const canGenerateSetupLink=Boolean(r.has_profile);
-    const canHelp=Boolean(r.email);
+    const canHelp=Boolean(r.email && r.email_confirmed_at);
     const canClarify=r.has_profile&&r.email_confirmed_at&&!r.is_test_account&&r.route==="needs_clarification";
     const activity=[
       Number(r.request_count||0)?r.request_count+" request":"",Number(r.scan_batch_count||0)?r.scan_batch_count+" source batch":"",Number(r.deal_count||0)?r.deal_count+" deal":""
@@ -607,7 +607,8 @@ function render(){
       '<td><div class="actions">'+
         (r.has_profile?'<a class="btn dark" href="admin-customers.html?v=20261007-3&customer='+encodeURIComponent(r.user_id)+'&from=onboarding">Customer 360</a>':'')+
         (!r.email_confirmed_at && r.email
-          ? '<button class="btn" onclick="copyConfirmationHelpLink(\''+r.user_id+'\',this)">Copy confirm-email link</button>'
+          ? '<button class="btn" onclick="sendConfirmationEmail(\''+r.user_id+'\',this)">Send confirmation email</button>'+
+            '<button class="btn dark" onclick="copyConfirmationHelpLink(\''+r.user_id+'\',this)">Copy confirmation help link</button>'
           : '')+
         (canGenerateSetupLink
           ? '<button class="btn dark" onclick="copySetupLink(\''+r.user_id+'\',this)">Generate customer setup link</button>'
@@ -706,6 +707,20 @@ function setupLinkForCustomer(r){
   if(intent==="partnership")return "/partners-integrations.html";
   if(intent==="freight_logistics")return "/freight-forwarders.html";
   return "/customer-dashboard.html";
+}
+async function sendConfirmationEmail(userId,btn){
+  const r=rows.find(x=>x.user_id===userId);if(!r?.email)return;
+  if(!confirm("Send a new AnyBike email verification link to "+r.email+"?"))return;
+  const original=btn?.textContent||"Send confirmation email";
+  if(btn){btn.disabled=true;btn.textContent="Sending…";}
+  try{
+    const {data,error}=await sb.functions.invoke("admin-resend-confirmation",{body:{user_id:userId}});
+    if(error||data?.error)throw new Error(data?.error||error?.message||"Email request failed");
+    if(btn)btn.textContent="✓ Verification requested";
+    const status=document.getElementById("action-"+userId);
+    if(status)status.textContent="✓ Verification email requested for "+r.email;
+  }catch(e){alert("Could not send confirmation email: "+(e?.message||e));if(btn)btn.textContent=original;}
+  finally{if(btn){setTimeout(()=>{btn.disabled=false;btn.textContent=original;},2500);}}
 }
 async function copyConfirmationHelpLink(userId,btn){
   const r=rows.find(x=>x.user_id===userId);if(!r?.email)return;
