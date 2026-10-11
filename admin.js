@@ -701,6 +701,11 @@ async function anybikeRefreshAdminBellV2(){
         ? escapeNotificationHtml(new Date(n.created_at).toLocaleString("en-GB"))
         : "";
       let rawLink=String(n.link || "admin-dashboard.html");
+      // Old signup alerts still point at an obsolete Customer Database alias.
+      // Navigate directly to the canonical Customer 360 page, preserving its customer ID.
+      if(/^\/?admin-customers\.html(?:\?|#|$)/i.test(rawLink)){
+        rawLink=rawLink.replace(/^\/?admin-customers\.html/i,"/admin-customer-database.html");
+      }
       if(/Buyer interested/i.test(String(n.title||"")) && /admin-enquiries\.html\?deal=\d+/i.test(rawLink)){
         try{
           const parsed=new URL(rawLink,window.location.origin);
