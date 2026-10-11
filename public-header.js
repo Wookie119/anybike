@@ -904,6 +904,23 @@ async function addMyDealershipMenuIfEligible(user){
           if(!allowed.has(item.textContent.trim().toLowerCase()))item.style.display="none";
           else item.style.removeProperty("display");
         });
+        // UK dealer-only shortcuts. Never add these to international accounts.
+        const dealerShortcuts=[
+          ["Offer Bikes to Trade","/offer-bikes-to-trade.html"],
+          ["Request Underwrite","/dealer-underwrite.html"],
+          ["View Underwriting Offers","/trade-opportunities.html"]
+        ];
+        dealerShortcuts.forEach(function(entry){
+          let shortcut=menu.querySelector('a[data-uk-dealer-shortcut="'+entry[1]+'"]');
+          if(!shortcut){
+            shortcut=document.createElement("a");
+            shortcut.dataset.ukDealerShortcut=entry[1];
+            menu.appendChild(shortcut);
+          }
+          shortcut.href=entry[1];
+          shortcut.textContent=entry[0];
+          shortcut.style.removeProperty("display");
+        });
         const accountHome=menu.querySelector('[data-dealer-menu-link="true"]');
         if(accountHome)accountHome.textContent="My Dealership";
       }
