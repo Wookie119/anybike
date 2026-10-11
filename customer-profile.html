@@ -438,25 +438,12 @@
             </div>
           </div>
 
-          <div id="tradeUnderwriteOptin" style="display:none;margin:14px 0;">
-            <div style="font-size:15px;font-weight:800;margin-bottom:10px">Motorcycle underwriting — what would you like to do?</div>
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:12px">
-              <button type="button" class="underwrite-choice" data-underwrite-choice="selling" onclick="chooseUnderwriteService('selling')" style="background:#181818;border:1px solid #555;border-radius:12px;padding:18px;color:#fff;text-align:left;cursor:pointer">
-                <strong style="display:block;font-size:18px;margin-bottom:7px">Selling</strong>
-                <span style="font-size:13px;color:#ccc;line-height:1.5">Submit motorcycles to AnyBike for underwriting review.</span>
-              </button>
-              <button type="button" class="underwrite-choice" data-underwrite-choice="buying" onclick="chooseUnderwriteService('buying')" style="background:#181818;border:1px solid #555;border-radius:12px;padding:18px;color:#fff;text-align:left;cursor:pointer">
-                <strong style="display:block;font-size:18px;margin-bottom:7px">Buying</strong>
-                <span style="font-size:13px;color:#ccc;line-height:1.5">Apply to receive opportunities and make offers.</span>
-              </button>
-              <button type="button" class="underwrite-choice" data-underwrite-choice="both" onclick="chooseUnderwriteService('both')" style="background:#181818;border:1px solid #555;border-radius:12px;padding:18px;color:#fff;text-align:left;cursor:pointer">
-                <strong style="display:block;font-size:18px;margin-bottom:7px">Both</strong>
-                <span style="font-size:13px;color:#ccc;line-height:1.5">Submit motorcycles and apply to buy underwriting opportunities.</span>
-              </button>
-            </div>
-            <input id="receiveTradeUnderwrites" type="checkbox" hidden aria-label="Request underwriting buying opportunities">
-            <p id="underwriteChoiceNext" style="font-size:13px;color:#ccc;margin:12px 0 0">Choose an option above.</p>
-            <div id="tradeUnderwriteStatus" style="font-size:12px;color:#ccc;margin-top:5px"></div>
+          <div id="tradeUnderwriteOptin" style="display:none;margin:14px 0;padding:16px;border:1px solid #444;border-radius:12px;background:#181818">
+            <strong style="font-size:15px">UK Trade account includes</strong>
+            <p style="font-size:13px;line-height:1.7;color:#ddd;margin:8px 0">Buying used motorcycles · Selling overage stock · Submitting motorcycles for underwriting · Receiving underwriting opportunities and applying to make offers</p>
+            <p style="font-size:12px;color:#bbb;margin:0">These interests are included automatically. Confidential underwriting access and binding offers still require AnyBike Level 2 approval and the applicable trading agreement.</p>
+            <input id="receiveTradeUnderwrites" type="checkbox" hidden aria-label="Trade underwriting interest">
+            <div id="tradeUnderwriteStatus" style="font-size:12px;color:#ccc;margin-top:8px"></div>
           </div>
 
           <div class="section-save-row setup-next-action">
@@ -1661,39 +1648,17 @@
       const area=document.getElementById("tradeUnderwriteOptin");
       if(area)area.style.display=["uk_dealer","uk_distributor"].includes(type)?"":"none";
     }
-    let underwritingSelection="";
-    function showUnderwriteSelection(){
-      document.querySelectorAll(".underwrite-choice").forEach(el=>{
-        const active=el.dataset.underwriteChoice===underwritingSelection;
-        el.style.borderColor=active?"#ed1c24":"#555";
-        el.style.background=active?"#391416":"#181818";
-        el.setAttribute("aria-pressed",String(active));
-      });
-      const next=document.getElementById("underwriteChoiceNext");
-      if(next)next.textContent=underwritingSelection==="selling"?"You can submit a motorcycle for AnyBike review. No dealer bidding approval is required to submit.":
-       underwritingSelection==="buying"?"Your interest in buying will be saved. Making offers requires AnyBike Level 2 approval and a trading agreement.":
-       underwritingSelection==="both"?"You can submit motorcycles now. Buying opportunities require separate AnyBike Level 2 approval.":"Choose Selling, Buying or Both.";
-    }
-    function chooseUnderwriteService(selection){
-      underwritingSelection=selection;
-      showUnderwriteSelection();
-      const checkbox=document.getElementById("receiveTradeUnderwrites");
-      const wantsBuying=selection==="buying"||selection==="both";
-      if(checkbox.checked!==wantsBuying){checkbox.checked=wantsBuying;checkbox.dispatchEvent(new Event("change",{bubbles:true}));}
-    }
     async function loadUnderwritePreference(){
       updateUnderwriteVisibility();
       if(!["uk_dealer","uk_distributor"].includes(document.getElementById("profileCustomerType")?.value))return;
       const {data,error}=await sb.rpc("customer_trade_underwrite_preference_v1",{});
       if(error)return;
-      document.getElementById("receiveTradeUnderwrites").checked=!!data?.receive;
-      if(!underwritingSelection)underwritingSelection=data?.receive?"buying":"";
-      showUnderwriteSelection();
+      document.getElementById("receiveTradeUnderwrites").checked=true;
       document.getElementById("tradeUnderwriteStatus").textContent=data?.eligible?"✓ Enabled for verified dealer invitations":data?.receive?"Preference saved · awaiting verified dealer approval":"";
     }
     async function saveUnderwritePreference(){
       if(!["uk_dealer","uk_distributor"].includes(document.getElementById("profileCustomerType")?.value))return true;
-      const checked=document.getElementById("receiveTradeUnderwrites").checked;
+      const checked=true;
       const {data,error}=await sb.rpc("customer_trade_underwrite_preference_v1",{p_receive:checked});
       const status=document.getElementById("tradeUnderwriteStatus");
       if(error){status.textContent="Could not save underwriting preference: "+error.message;return false;}
@@ -1701,26 +1666,6 @@
       return true;
     }
     document.getElementById("profileCustomerType").addEventListener("change",updateUnderwriteVisibility);
-    document.getElementById("receiveTradeUnderwrites").addEventListener("change",async function(){
-      const status=document.getElementById("tradeUnderwriteStatus");
-      const customerType=document.getElementById("profileCustomerType")?.value;
-      if(!["uk_dealer","uk_distributor"].includes(customerType))return;
-      if(status)status.textContent="Saving your trade preference…";
-      // Persist the selected Trade classification before the restricted preference RPC.
-      // This records interest only; actual dealer approval remains an admin action.
-      const intent=document.getElementById("profileCustomerIntent")?.value||"explore";
-      const {error}=await sb.rpc("customer_save_profile_classification_v1",{
-        p_customer_type:customerType,p_customer_intent:intent
-      });
-      if(error){
-        if(status)status.textContent="Please save your Trade account type first: "+error.message;
-        return;
-      }
-      accountClassificationSaved=true;
-      await loadProfileUpdateStatus();
-      await saveUnderwritePreference();
-    });
-
     async function saveProfileClassification(button){
       if(!currentUser)return;
       const customerType=document.getElementById("profileCustomerType")?.value||"";
