@@ -23,6 +23,7 @@ textarea{min-height:68px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top
 .notice{padding:12px;border:1px solid var(--line);border-radius:12px;margin-bottom:14px;color:#bbb}.empty{padding:25px;border:1px dashed #333;border-radius:16px;text-align:center;color:#aaa;min-width:0}.status-panel{grid-column:1/-1;width:100%;max-width:none!important;text-align:left!important;display:block}.status-panel h2{font-size:23px;margin:0 0 10px}.status-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:20px}.status-actions .btn{display:inline-flex;align-items:center;min-height:44px}.status-panel p{max-width:1100px}
 @media(max-width:1000px){.grid{grid-template-columns:1fr 1fr}}@media(max-width:680px){.grid{grid-template-columns:1fr}.wrap{width:calc(100% - 24px);padding:14px 0}.status-actions{flex-direction:column;align-items:stretch}.status-actions .btn{justify-content:center}}
 .offer-tabs{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 14px}.offer-tabs button{border:1px solid #454545;padding:13px 18px}.offer-tabs button.active{background:#ed1c24;border-color:#ed1c24}.my-offers-summary{margin:0 0 14px;color:#ccc;font-size:15px}.bid-status{font-weight:800;color:#9be7b1;margin:7px 0}
+.filter-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;align-items:end}.filter-grid label{font-size:13px;color:#ddd;font-weight:700}.filter-grid select,.filter-grid input{width:100%;min-width:0;margin-top:7px;min-height:46px;background:#090909;color:#fff;border:1px solid #444;border-radius:10px;padding:10px 12px;font:inherit}.filter-bottom{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:12px;color:#aaa;font-size:13px}.filter-bottom button{padding:9px 13px;background:#262626}.filter-grid select:focus,.filter-grid input:focus{outline:2px solid #ed1c24;outline-offset:1px}@media(max-width:980px){.filter-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:560px){.filter-grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -40,7 +41,16 @@ textarea{min-height:68px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top
     <button type="button" id="myOffersTab" onclick="showOfferView('mine')">My Underwriting Offers <span id="myBidCount"></span></button>
   </nav>
   <p id="myOffersIntro" class="my-offers-summary" style="display:none">Manage the offers you have already made. Your bids remain confidential. Other dealers’ amounts and rankings are not disclosed.</p>
-  <div id="opportunityFilters" class="notice" style="display:none"><label for="opportunitySearch" style="display:block;font-weight:700">Find a motorcycle</label><input id="opportunitySearch" type="search" placeholder="Search by make, model or year…" aria-label="Search underwriting motorcycles"></div>
+  <section id="opportunityFilters" class="notice" style="display:none" aria-label="Filter motorcycles">
+  <strong style="display:block;color:#fff;margin-bottom:12px">Find a motorcycle</strong>
+  <div class="filter-grid">
+    <label>Make<select id="filterMake" onchange="updateTradeFilters(true)"><option value="">All makes</option></select></label>
+    <label>Model<select id="filterModel" onchange="applyTradeFilters()"><option value="">All models</option></select></label>
+    <label>Year<select id="filterYear" onchange="applyTradeFilters()"><option value="">All years</option></select></label>
+    <label>Search<input id="opportunitySearch" type="search" oninput="applyTradeFilters()" placeholder="Keywords or reference…" aria-label="Search underwriting motorcycles"></label>
+  </div>
+  <div class="filter-bottom"><span id="filterCount" aria-live="polite"></span><button type="button" onclick="resetTradeFilters()">Clear filters</button></div>
+</section>
   <div id="grid" class="grid"><div class="empty">Loading…</div></div>
 </main>
 
@@ -101,7 +111,7 @@ async function load(){
 }
 function renderBikeCards(rows){
   const host=document.getElementById("grid");
-  host.innerHTML=rows.map(r=>'<article class="card" data-bike-search="'+esc([r.make,r.model,r.variant,r.bike_year].filter(Boolean).join(' ').toLowerCase())+'">'+
+  host.innerHTML=rows.map(r=>'<article class="card" data-opportunity-id="'+esc(r.opportunity_id)+'">'+
     '<div class="img"><img src="'+esc(r.image_url||"/anybike-image-coming-soon.png")+'" alt="" onerror="this.src=\'/anybike-image-coming-soon.png\'"></div>'+
     '<div class="body">'+
       '<div class="meta">'+esc(r.reference)+' · closes in '+esc(countdown(r.closes_at))+'</div>'+
@@ -118,10 +128,46 @@ function renderBikeCards(rows){
       '<div style="margin-top:12px;padding:11px;border:1px solid #444;border-radius:10px;background:#101010"><strong>Your Next Action →</strong><p style="margin:6px 0;font-size:13px">'+(r.my_bid_gbp?'Your bid is saved. You can update it before closing. Once closed, AnyBike confirms seller availability and HPI before a buyer is selected.':'Review the motorcycle and submit your confidential offer before the countdown ends. Final seller and HPI checks are required before any buyer is chosen.')+'</p>'+(r.my_bid_gbp?'<button type="button" onclick="showOfferView(\'mine\')">View My Underwriting Offers →</button>':'')+'</div>'+
 
     '</div></article>').join("");
-  const search=document.getElementById('opportunitySearch');
-  if(search){search.oninput=function(){const query=this.value.toLowerCase().trim();host.querySelectorAll('article.card').forEach(card=>{card.style.display=card.dataset.bikeSearch.includes(query)?'':'none';});};}
+
 }
 
+function filterSource(){return offerView==="mine"?currentOpportunities.filter(r=>Number(r.my_bid_gbp)>0):currentOpportunities;}
+function setFilterOptions(el,values,label){
+ const previous=el.value;
+ el.innerHTML='<option value="">'+label+'</option>'+values.map(v=>'<option value="'+esc(v)+'">'+esc(v)+'</option>').join("");
+ el.value=values.includes(previous)?previous:"";
+}
+function updateTradeFilters(makeChanged){
+ const rows=filterSource();
+ const make=document.getElementById("filterMake");
+ const model=document.getElementById("filterModel");
+ const year=document.getElementById("filterYear");
+ setFilterOptions(make,[...new Set(rows.map(r=>String(r.make||"").trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b)),"All makes");
+ if(makeChanged)model.value="";
+ const applicable=rows.filter(r=>!make.value||String(r.make||"").trim()===make.value);
+ setFilterOptions(model,[...new Set(applicable.map(r=>String(r.model||"").trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b)),"All models");
+ setFilterOptions(year,[...new Set(applicable.map(r=>String(r.bike_year||"").trim()).filter(Boolean))].sort((a,b)=>Number(b)-Number(a)),"All years");
+ applyTradeFilters();
+}
+function applyTradeFilters(){
+ const make=document.getElementById("filterMake").value;
+ const model=document.getElementById("filterModel").value;
+ const year=document.getElementById("filterYear").value;
+ const query=document.getElementById("opportunitySearch").value.toLowerCase().trim();
+ let shown=0;
+ document.querySelectorAll("#grid article.card").forEach(card=>{
+   const r=currentOpportunities.find(o=>String(o.opportunity_id)===card.dataset.opportunityId);
+   if(!r)return;
+   const match=(!make||String(r.make||"").trim()===make)&&(!model||String(r.model||"").trim()===model)&&(!year||String(r.bike_year||"").trim()===year)&&(!query||[r.make,r.model,r.variant,r.bike_year,r.reference].join(" ").toLowerCase().includes(query));
+   card.style.display=match?"":"none";
+   if(match)shown++;
+ });
+ document.getElementById("filterCount").textContent=shown+" motorcycle"+(shown===1?"":"s")+" found";
+}
+function resetTradeFilters(){
+ for(const id of ["filterMake","filterModel","filterYear","opportunitySearch"])document.getElementById(id).value="";
+ updateTradeFilters(false);
+}
 function deliveryText(c){
   if(c.delivery_treatment==="included_by_anybike")return "Delivery to your confirmed dealership address is included by AnyBike.";
   if(c.delivery_treatment==="buyer_contribution")return "AnyBike will arrange delivery. Your delivery contribution is "+money(c.buyer_delivery_contribution_gbp)+".";
