@@ -1,0 +1,37 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Motorcycle Model Guide | AnyBike</title><meta name="description" content="Motorcycle model information, history and UK sourcing."><link rel="stylesheet" href="/public-header.css?v=20261011-menu49scroll"><style>:root{--red:#ed1c24;--panel:#151515}*{box-sizing:border-box}body{margin:0;background:#000;color:#fff;font:16px/1.6 Arial,Helvetica,sans-serif}main{max-width:1440px;padding:26px 27px 75px;margin:auto}a{color:var(--red)}.crumb{color:#ccc;font-size:13px}.hero,.card{background:var(--panel);border:1px solid #404040;border-radius:12px;padding:27px}.hero{margin-top:23px}.eyebrow{color:var(--red);font-size:12px;text-transform:uppercase;letter-spacing:.08em;font-weight:750}h1{font-size:clamp(33px,5vw,60px);line-height:1.1;margin:8px 0 16px}h2{margin:0 0 10px;font-size:25px}p{color:#ddd}.intro{max-width:950px;font-size:18px}.actions{display:flex;flex-wrap:wrap;gap:11px;margin-top:22px}.button{display:inline-block;border-radius:8px;background:var(--red);color:#fff;padding:12px 18px;font-weight:bold;text-decoration:none}.button.secondary{background:#292929;border:1px solid #555}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px;margin-top:21px}.card.feature{border-top:3px solid var(--red)}.meta{color:#aaa;font-size:13px}.facts{margin:16px 0 0}.facts li{margin:8px 0}.message{color:#ddd}@media(max-width:750px){.grid{grid-template-columns:1fr}main{padding:18px 15px 50px}.hero,.card{padding:20px}}</style></head><body><header id="publicHeader"></header><main><nav class="crumb"><a href="/">AnyBike</a> / <a href="/motorcycle-manufacturers.html">Manufacturers</a> / <a id="parent" href="/motorcycle-manufacturers.html">Manufacturer</a> / <span id="crumbModel">Motorcycle</span></nav><section class="hero"><span class="eyebrow" id="category">Motorcycle model</span><h1 id="heading">Motorcycle model</h1><p class="intro" id="summary">Loading motorcycle information…</p><div id="years"></div><div class="actions"><a id="source" class="button" href="/bulk-buying-request.html">Ask AnyBike to source this motorcycle →</a><a id="manufacturer" class="button secondary" href="/motorcycle-manufacturers.html">View manufacturer models →</a></div></section><div id="body" class="grid"></div></main><script>
+(async function(){
+const el=id=>document.getElementById(id);const esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const p=new URLSearchParams(location.search),make=(p.get("make")||"").trim(),model=(p.get("model")||"").trim();
+if(!make||!model){el("summary").textContent="Choose a motorcycle from a manufacturer page.";return}
+try{
+const [catalogueResponse,guideResponse]=await Promise.all([fetch("/data/motorcycle-catalogue-base.json",{cache:"no-store"}),fetch("/data/motorcycle-model-guides.json",{cache:"no-store"})]);
+if(!catalogueResponse.ok||!guideResponse.ok)throw Error("Catalogue unavailable");
+const catalogue=await catalogueResponse.json(),guides=await guideResponse.json();
+const row=catalogue.models.find(x=>x.make.toLowerCase()===make.toLowerCase()&&x.model.toLowerCase()===model.toLowerCase());
+const guideKey=make.toLowerCase()==="bmw"&&model.toLowerCase()==="s 1000 rr"?"bmw":make.toLowerCase()==="ducati"&&model.toLowerCase()==="panigale v4"?"ducati":make.toLowerCase()==="honda"&&["africa twin","africa twin crf1100l"].includes(model.toLowerCase())?"honda":null;
+const guide=guideKey?guides.models[guideKey]:null;
+if(!row&&!guide){el("heading").textContent=make+" "+model;el("summary").textContent="We could not find this motorcycle in our model library.";return}
+const actualMake=row?.make||guide.make,actualModel=row?.model||guide.model;
+document.title=actualMake+" "+actualModel+" | Motorcycle Model Guide | AnyBike";
+document.querySelector('meta[name="description"]').content="Learn about the "+actualMake+" "+actualModel+" and request UK motorcycle sourcing with AnyBike.";
+const brandUrl=actualMake==="BMW"?"/bmw-motorcycles.html":"/motorcycle-brand.html?make="+encodeURIComponent(actualMake);
+el("heading").textContent=actualMake+" "+actualModel;el("crumbModel").textContent=actualModel;el("category").textContent=row?.category||"Motorcycle model";
+el("parent").href=brandUrl;el("parent").textContent=actualMake;el("manufacturer").href=brandUrl;el("manufacturer").textContent="View "+actualMake+" models →";
+el("source").href="/bulk-buying-request.html?make="+encodeURIComponent(actualMake)+"&model="+encodeURIComponent(actualModel);
+el("summary").textContent=guide?.summary||"Learn about this motorcycle and its place in the "+actualMake+" model range. AnyBike can help international trade buyers enquire about motorcycles available from UK suppliers.";
+const add=(title,html,feature=false)=>{const item=document.createElement("section");item.className="card"+(feature?" feature":"");item.innerHTML="<h2>"+esc(title)+"</h2>"+html;el("body").appendChild(item)};
+if(guide){
+ el("years").textContent=guide.years;
+ const milestones=guide.production?.generation_milestones||[];
+ if(milestones.length)add("Model development",'<ul class="facts">'+milestones.map(g=>'<li><strong>'+esc(g.model_year)+(g.name?" · "+esc(g.name):"")+'</strong> — '+esc(g.change)+(g.source?' <a href="'+esc(g.source)+'" target="_blank" rel="noopener noreferrer">Manufacturer information ↗</a>':"")+'</li>').join("")+"</ul>",true);
+ const specs=guide.production?.specifications||[];
+ if(specs.length)add("Technical specifications",'<ul class="facts">'+specs.map(x=>'<li><strong>'+esc(x.model_year)+(x.variant?" · "+esc(x.variant):"")+'</strong> '+[x.engine_cc?x.engine_cc+"cc":"",x.power_hp?x.power_hp+" hp":"",x.torque_nm?x.torque_nm+" Nm":"",x.transmission||""].filter(Boolean).map(esc).join(" · ")+(x.source?' <a href="'+esc(x.source)+'" target="_blank" rel="noopener noreferrer">Manufacturer information ↗</a>':"")+'</li>').join("")+"</ul>");
+ const colours=guide.production?.official_colours||[];
+ if(colours.length)add("Factory colours",'<ul class="facts">'+colours.map(x=>'<li>'+esc(x.model_year)+" "+esc(x.variant||"")+" — "+esc(x.name)+(x.source?' <a href="'+esc(x.source)+'" target="_blank" rel="noopener noreferrer">Manufacturer information ↗</a>':"")+"</li>").join("")+"</ul>");
+ guide.sections.forEach(([title,description])=>add(title,"<p>"+esc(description)+"</p>"));
+}else{
+ add("About this model","<p>For details of model years, generations and variants, ask AnyBike about the specific motorcycle you're interested in.</p>",true);
+ add("Finding a motorcycle in the UK","<p>Tell us your preferred year, specification and budget. Our team can check suitable UK sourcing opportunities for international trade buyers.</p>");
+}
+}catch(err){el("summary").textContent="Motorcycle information is temporarily unavailable. You can still send AnyBike a sourcing enquiry.";}
+})();</script><script src="/public-header.js?v=202610112205"></script></body></html>
