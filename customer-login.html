@@ -144,26 +144,34 @@ async function loginCustomer(){
   if(!email||!password){showMsg("Enter your email address and password to log in.",false);return;}
   setBusy(true); showMsg("Logging you in...");
   try{
-    const controller=new AbortController();
-    const loginTimer=setTimeout(()=>controller.abort(),10000);
     let data,error;
-    try{
-      // Call GoTrue directly so a stalled SDK initialization or tab lock
-      // cannot prevent the password request from even reaching Supabase.
-      const response=await fetch(SUPABASE_URL+"/auth/v1/token?grant_type=password",{
-        method:"POST",signal:controller.signal,
-        headers:{"apikey":SUPABASE_ANON_KEY,"Content-Type":"application/json"},
-        body:JSON.stringify({email,password})
-      });
-      const body=await response.json();
-      if(!response.ok)throw new Error(body.msg||body.error_description||body.message||"Authentication failed ("+response.status+")");
-      if(!body.access_token||!body.refresh_token)throw new Error("Authentication response did not contain a session.");
-      const saved=await withLoginTimeout(sb.auth.setSession({access_token:body.access_token,refresh_token:body.refresh_token}),5000,"Saving browser session");
-      if(saved.error)throw saved.error;
-      data=saved.data;
-    }catch(e){
-      throw e.name==="AbortError"?new Error("Supabase authentication did not respond within 10 seconds. Please try again shortly."):e;
-    }finally{clearTimeout(loginTimer);}
+    // Give slower connections time to respond; retry only when the request times out.
+    let response,body;
+    for(let attempt=0;attempt<2;attempt++){
+      const controller=new AbortController();
+      const timer=setTimeout(()=>controller.abort(),20000);
+      try{
+        response=await fetch(SUPABASE_URL+"/auth/v1/token?grant_type=password",{
+          method:"POST",signal:controller.signal,
+          headers:{"apikey":SUPABASE_ANON_KEY,"Content-Type":"application/json"},
+          body:JSON.stringify({email,password})
+        });
+        body=await response.json();
+        break;
+      }catch(e){
+        if(e.name!=="AbortError"||attempt===1){
+          throw e.name==="AbortError"
+            ?new Error("The sign-in service is taking too long to respond. Please try again shortly.")
+            :e;
+        }
+        showMsg("Still connecting securely. Retrying sign-in…");
+      }finally{clearTimeout(timer);}
+    }
+    if(!response.ok)throw new Error(body.msg||body.error_description||body.message||"Authentication failed ("+response.status+")");
+    if(!body.access_token||!body.refresh_token)throw new Error("Authentication response did not contain a session.");
+    const saved=await withLoginTimeout(sb.auth.setSession({access_token:body.access_token,refresh_token:body.refresh_token}),10000,"Saving browser session");
+    if(saved.error)throw saved.error;
+    data=saved.data;
     
     if(error){showMsg(error.message+(String(error.message||"").toLowerCase().includes("email not confirmed")?" Select Confirm your email / Resend link below.":""),false);return;}
     if(!data.user || !data.session){showMsg("Login could not be completed. Please try again.",false);return;}
