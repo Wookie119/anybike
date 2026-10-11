@@ -39,7 +39,7 @@ button,.link-button{width:100%;min-height:52px;padding:14px 20px;border:0;border
 <div class="form-field"><label for="email">Email address</label><input id="email" type="email" placeholder="you@example.com" autocomplete="email"></div>
 <div class="form-field"><label for="password">Password</label><input id="password" type="password" placeholder="Your password" autocomplete="current-password"></div>
 </div>
-<div class="button-area"><button id="loginButton" class="primary-btn" type="button" onclick="loginCustomer()">Login</button><a id="registerLink" class="link-button secondary-btn" href="/customer-register.html">New to AnyBike? Register Free</a></div>
+<div class="button-area"><button id="loginButton" class="primary-btn" type="button" onclick="loginCustomer()">Login</button><button id="resendConfirmationButton" class="link-button secondary-btn" type="button" onclick="resendConfirmation()">Resend confirmation email</button><a id="registerLink" class="link-button secondary-btn" href="/customer-register.html">New to AnyBike? Register Free</a></div>
 <div id="msg" class="msg"></div>
 </section></div></main><script>
 const SUPABASE_URL = "https://tuehtnezhdnkqbbhttgp.supabase.co";
@@ -121,6 +121,18 @@ async function createCustomerProfileIfMissing(user){
   const {error}=await sb.from("customer_profiles").insert(profile);
   return error;
 }
+async function resendConfirmation(){
+  const email=document.getElementById("email").value.trim().toLowerCase();
+  if(!email){showMsg("Enter your registered email address first, then select Resend confirmation email.",false);document.getElementById("email").focus();return;}
+  const btn=document.getElementById("resendConfirmationButton");
+  btn.disabled=true;btn.textContent="Sending confirmation…";
+  try{
+    const {error}=await sb.auth.resend({type:"signup",email,options:{emailRedirectTo:window.location.origin+"/customer-login.html"}});
+    if(error){showMsg("We could not send the confirmation email: "+error.message+". Please contact AnyBike if this continues.",false);return;}
+    showMsg("If this address has an account awaiting confirmation, a new verification email has been requested. Check your inbox and spam folder, then open the confirmation link before signing in.");
+  }catch(e){showMsg("The confirmation request could not be completed. Please try again or contact AnyBike.",false);}
+  finally{btn.disabled=false;btn.textContent="Resend confirmation email";}
+}
 async function loginCustomer(){
   if(formBusy) return;
   clearMsg();
@@ -130,7 +142,7 @@ async function loginCustomer(){
   setBusy(true); showMsg("Logging you in...");
   try{
     const {data,error}=await sb.auth.signInWithPassword({email,password});
-    if(error){showMsg(error.message,false);return;}
+    if(error){showMsg(error.message+(String(error.message||"").toLowerCase().includes("email not confirmed")?" Use Resend confirmation email below and follow the link sent to your inbox.":""),false);return;}
     if(!data.user || !data.session){showMsg("Login could not be completed. Please try again.",false);return;}
 
     if(setupToken){
