@@ -391,8 +391,21 @@ async function loadUser(){
 }
 
 async function loadStockOptions(){
+  // Filter metadata only; never cache private stock, seller or price records.
+  // Reuse it briefly when navigating back to Saved Searches in this tab.
+  const cacheKey="anybike-saved-search-filter-options-v1";
+  try{
+    const cached=JSON.parse(sessionStorage.getItem(cacheKey)||"null");
+    if(cached && Array.isArray(cached.rows) && Date.now()-cached.at<5*60*1000){
+      stockOptions=cached.rows;
+      populateMakes();
+      populateModels();
+      return;
+    }
+  }catch(_){}
   let all=[];
   const size=1000;
+  let completed=true;
 
   for(let from=0; from<40000; from+=size){
     const to=from+size-1;
@@ -406,6 +419,7 @@ async function loadStockOptions(){
 
     if(error){
       console.error(error);
+      completed=false;
       break;
     }
 
@@ -415,6 +429,9 @@ async function loadStockOptions(){
   }
 
   stockOptions=all;
+  if(completed){
+    try{sessionStorage.setItem(cacheKey,JSON.stringify({at:Date.now(),rows:all}));}catch(_){}
+  }
 
   populateMakes();
   populateModels();
