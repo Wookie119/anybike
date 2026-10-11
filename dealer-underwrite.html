@@ -76,7 +76,7 @@ textarea{min-height:90px;resize:vertical}
 <div id="publicHeader"></div>
 <main class="wrap auth-pending" id="underwriteMain">
   <div class="underwrite-logo"><a href="/" aria-label="AnyBike home"><img src="/anybike-logo-new.jpg" alt="AnyBike"></a></div>
-  <a class="back" href="/my-dealership-stock.html">← My Dealership</a>
+  <a class="back" href="/my-dealership.html">← My Dealership</a>
 
   <section class="hero">
     <div class="eyebrow">My Dealership</div>
@@ -330,16 +330,26 @@ function clearUnderwriteDraft(){
   const main=document.getElementById("underwriteMain");
   const authCheck=document.getElementById("authCheck");
 
-  const {data:userData,error:userError}=await sb.auth.getUser();
-  if(userError || !userData?.user){
-    saveUnderwriteDraft();
-    location.replace("/customer-login.html?return="+encodeURIComponent("/underwrite.html"));
-    return;
+  // Never leave the form dimmed indefinitely if a session refresh stalls.
+  try{
+    const check=await Promise.race([
+      sb.auth.getUser(),
+      new Promise((_,reject)=>setTimeout(()=>reject(new Error("Sign-in check timed out")),10000))
+    ]);
+    if(check.error||!check.data?.user){
+      saveUnderwriteDraft();
+      location.replace("/customer-login.html?return="+encodeURIComponent("/dealer-underwrite.html"));
+      return;
+    }
+    restoreUnderwriteDraft();
+    main?.classList.remove("auth-pending");
+    if(authCheck)authCheck.style.display="none";
+  }catch(err){
+    if(authCheck){
+      authCheck.style.display="block";
+      authCheck.innerHTML='We could not confirm your sign-in. <button type="button" onclick="location.reload()" style="margin-left:8px">Try again</button> <a href="/customer-login.html?return=%2Fdealer-underwrite.html" style="color:#fff;margin-left:8px">Sign in</a>';
+    }
   }
-
-  restoreUnderwriteDraft();
-  main?.classList.remove("auth-pending");
-  if(authCheck)authCheck.style.display="none";
 
 })();
 
