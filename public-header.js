@@ -859,6 +859,15 @@ async function addMyDealershipMenuIfEligible(user){
       // The UK dealer account uses its own workspace, so omit export-buyer
       // shortcuts from its account menu. Do not change other account types.
       if(["uk_dealer","uk_distributor"].includes(customerType)){
+        // Hide only UK dealer top-level public Trade and VMoto links (desktop/mobile).
+        for(const navSelector of [".public-nav",".mobile-nav"]){
+          const nav=document.querySelector(navSelector);
+          if(!nav)continue;
+          [...nav.children].forEach(function(item){
+            const label=(item.querySelector(":scope > summary")?.textContent||item.textContent||"").trim().toLowerCase();
+            if(label==="trade"||label==="vmoto")item.style.display="none";
+          });
+        }
         const allowed=new Set(["my dealership","my profile","messages","accounts & documents","logout"]);
         [...menu.querySelectorAll("a")].forEach(function(item){
           if(!allowed.has(item.textContent.trim().toLowerCase()))item.style.display="none";
