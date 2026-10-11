@@ -691,6 +691,26 @@ window.AnyBikeCustomerNextAction={
 };
 
 
+async function anybikeEnsureHeaderAuthClient(){
+  // Public information pages may load the shared header without Supabase.
+  // Initialise its own client only on those pages; reuse existing page clients.
+  if(typeof sb!=="undefined" && sb?.auth)return;
+  if(!window.supabase?.createClient){
+    await new Promise(function(resolve,reject){
+      const script=document.createElement("script");
+      script.src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
+      script.onload=resolve;
+      script.onerror=()=>reject(new Error("Supabase library unavailable"));
+      document.head.appendChild(script);
+    });
+  }
+  if(typeof sb==="undefined" && window.supabase?.createClient){
+    window.sb=window.supabase.createClient(
+      "https://tuehtnezhdnkqbbhttgp.supabase.co",
+      "sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK"
+    );
+  }
+}
 async function loadPublicHeader(){
   const holder = document.getElementById("publicHeader");
 
@@ -708,6 +728,7 @@ async function loadPublicHeader(){
     }
 
     holder.innerHTML = await headerRes.text();
+    try{await anybikeEnsureHeaderAuthClient();}catch(e){console.warn("Header authentication unavailable",e);}
     await setupPublicHeader();
     if(typeof window.AnyBikePublicStockVisible==="boolean") anybikeUpdatePublicStockMenu(window.AnyBikePublicStockVisible);
     setTimeout(anybikeEnsureCustomerNextAction,100);
