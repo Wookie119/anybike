@@ -730,29 +730,47 @@ async function loadPublicHeader(){
     holder.innerHTML = await headerRes.text();
     try{await anybikeEnsureHeaderAuthClient();}catch(e){console.warn("Header authentication unavailable",e);}
     await setupPublicHeader();
-    // Keep the mega menu open briefly while the pointer crosses any header gap.
+    // Desktop manufacturer mega-menu: click to pin open until selection or outside click.
+    // Unlike hover-only menus, pointer movement across the header cannot close it.
     const manufacturerMenu=holder.querySelector(".public-manufacturers-menu");
     const manufacturerPanel=manufacturerMenu?.querySelector(".manufacturers-dropdown");
-    if(manufacturerMenu && manufacturerPanel){
-      let closeTimer=null;
-      const open=()=>{
-        if(closeTimer!==null){clearTimeout(closeTimer);closeTimer=null;}
-        manufacturerMenu.classList.add("manufacturers-open");
+    const manufacturerTrigger=manufacturerMenu?.querySelector(".manufacturers-menu-link");
+    if(manufacturerMenu && manufacturerPanel && manufacturerTrigger){
+      manufacturerTrigger.setAttribute("aria-haspopup","true");
+      manufacturerTrigger.setAttribute("aria-expanded","false");
+      let pinned=false;
+      const update=()=>{
+        manufacturerMenu.classList.toggle("manufacturers-open",pinned);
+        manufacturerTrigger.setAttribute("aria-expanded",String(pinned));
       };
-      const closeSoon=()=>{
-        if(closeTimer!==null)clearTimeout(closeTimer);
-        closeTimer=setTimeout(()=>{
-          manufacturerMenu.classList.remove("manufacturers-open");
-          closeTimer=null;
-        },450);
-      };
-      manufacturerMenu.addEventListener("pointerenter",open);
-      manufacturerPanel.addEventListener("pointerenter",open);
-      manufacturerMenu.addEventListener("pointerleave",closeSoon);
-      manufacturerPanel.addEventListener("pointerleave",closeSoon);
-      manufacturerMenu.addEventListener("focusin",open);
-      manufacturerMenu.addEventListener("focusout",event=>{
-        if(!manufacturerMenu.contains(event.relatedTarget))closeSoon();
+      manufacturerTrigger.addEventListener("click",event=>{
+        if(window.matchMedia("(min-width:951px)").matches){
+          event.preventDefault();
+          pinned=!pinned;
+          update();
+        }
+      });
+      manufacturerMenu.addEventListener("pointerenter",()=>{
+        if(window.matchMedia("(min-width:951px)").matches){
+          pinned=true;
+          update();
+        }
+      });
+      document.addEventListener("pointerdown",event=>{
+        if(pinned && !manufacturerMenu.contains(event.target)){
+          pinned=false;
+          update();
+        }
+      });
+      document.addEventListener("keydown",event=>{
+        if(event.key==="Escape" && pinned){
+          pinned=false;
+          update();
+          manufacturerTrigger.focus();
+        }
+      });
+      manufacturerPanel.addEventListener("click",event=>{
+        if(event.target.closest("a")){pinned=false;update();}
       });
     }
 
