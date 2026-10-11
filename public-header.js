@@ -856,6 +856,17 @@ async function addMyDealershipMenuIfEligible(user){
         else menu.appendChild(link);
       }
       link.href=href;
+      // The UK dealer account uses its own workspace, so omit export-buyer
+      // shortcuts from its account menu. Do not change other account types.
+      if(["uk_dealer","uk_distributor"].includes(customerType)){
+        const allowed=new Set(["my dealership","my profile","messages","accounts & documents","logout"]);
+        [...menu.querySelectorAll("a")].forEach(function(item){
+          if(!allowed.has(item.textContent.trim().toLowerCase()))item.style.display="none";
+          else item.style.removeProperty("display");
+        });
+        const accountHome=menu.querySelector('[data-dealer-menu-link="true"]');
+        if(accountHome)accountHome.textContent="My Dealership";
+      }
     }
     anybikeSortMyAnyBikeMenus();
   }catch(error){console.warn("Dealer menu check unavailable",error);}
