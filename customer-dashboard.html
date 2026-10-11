@@ -6330,6 +6330,18 @@ async function loadUser(){
     email:currentUser.email || ""
   };
 
+  // Level 2 access is granted by AnyBike administrators, not by customer profile fields.
+  sb.rpc("customer_my_dealer_access_v1").then(({data,error})=>{
+    if(error||data?.level!==2)return;
+    const welcome=document.getElementById("welcomeText");
+    if(!welcome||document.getElementById("approvedDealerAccessLink"))return;
+    const link=document.createElement("a");
+    link.id="approvedDealerAccessLink";
+    link.href="/my-dealership-access.html";
+    link.textContent="My Dealership — Level 2 Trade Access →";
+    link.style.cssText="display:inline-block;margin:12px 0;padding:12px 18px;background:#ed1c24;color:#fff;border-radius:9px;font-weight:bold;text-decoration:none";
+    welcome.insertAdjacentElement("afterend",link);
+  }).catch(e=>console.warn("Dealer access check unavailable",e));
   const displayName = getCustomerDisplayName();
 
   setUserAreaHtml(
