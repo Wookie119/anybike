@@ -851,7 +851,7 @@ function anybikeSortAccountMenuAlphabetically(menu){
   if(document.getElementById("anybikeUkDealerNavRule"))return;
   const style=document.createElement("style");
   style.id="anybikeUkDealerNavRule";
-  style.textContent='html.anybike-uk-dealer .public-nav > a[href="/vmoto.html"],html.anybike-uk-dealer .public-nav > a[href="/buy-motorcycles.html"],html.anybike-uk-dealer .mobile-nav > a[href="/vmoto.html"],html.anybike-uk-dealer .mobile-nav > a[href="/buy-motorcycles.html"],html.anybike-uk-dealer .public-top-left,html.anybike-uk-dealer .public-top-right > label:has(> #phCurrency){display:none!important}';
+  style.textContent='html.anybike-uk-dealer .public-nav > a[href="/vmoto.html"],html.anybike-uk-dealer .public-nav > a[href="/buy-motorcycles.html"],html.anybike-uk-dealer .mobile-nav > a[href="/vmoto.html"],html.anybike-uk-dealer .mobile-nav > a[href="/buy-motorcycles.html"],html.anybike-uk-dealer .public-nav > a[href="/sell-your-motorcycle.html"],html.anybike-uk-dealer .mobile-nav a[href="/sell-your-motorcycle.html"],html.anybike-uk-dealer .public-top-left,html.anybike-uk-dealer .public-top-right > label:has(> #phCurrency){display:none!important}';
   document.head.appendChild(style);
 })();
 function anybikeSortMyAnyBikeMenus(){
