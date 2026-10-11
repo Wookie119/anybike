@@ -1441,8 +1441,19 @@ function money(value){
 
 async function loadLiveStock(){
   const grid=document.getElementById("liveStockGrid");
-
   if(!grid) return;
+  // Do not query the stock catalogue while public stock visibility is disabled.
+  // A failed visibility check also prevents loading the catalogue.
+  try{
+    const check=await sb.rpc("public_get_public_stock_visibility_v1");
+    if(check.error || check.data?.enabled!==true){
+      grid.textContent="";
+      return;
+    }
+  }catch(error){
+    grid.textContent="";
+    return;
+  }
 
   try{
     let rows=[];
