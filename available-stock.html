@@ -1402,6 +1402,19 @@ function applyLanguage(){
 }
 
 async function loadFilterOptions(){
+  // Reuse short-lived non-sensitive filter metadata on repeat visits.
+  // Stock listings, availability and pricing continue to load normally.
+  const cacheKey = "anybike-stock-filter-options-v1";
+  try{
+    const cached = JSON.parse(sessionStorage.getItem(cacheKey) || "null");
+    if(cached && Array.isArray(cached.rows) && Date.now()-cached.at < 5*60*1000){
+      filterRows = cached.rows;
+      populateMakes();
+      populateYears();
+      populateModels();
+      return;
+    }
+  }catch(_){}
   let all = [];
   const size = 1000;
 
@@ -1426,6 +1439,7 @@ async function loadFilterOptions(){
   }
 
   filterRows = all;
+  try{sessionStorage.setItem(cacheKey,JSON.stringify({at:Date.now(),rows:all}));}catch(_){}
   populateMakes();
   populateYears();
   populateModels();
