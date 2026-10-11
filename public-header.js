@@ -740,9 +740,17 @@ async function loadPublicHeader(){
       manufacturerTrigger.setAttribute("aria-expanded","false");
       let pinned=false;
       const update=()=>{
-        manufacturerMenu.classList.toggle("manufacturers-open",pinned);
-        manufacturerTrigger.setAttribute("aria-expanded",String(pinned));
+        const open=pinned && window.matchMedia("(min-width:951px)").matches;
+        manufacturerMenu.classList.toggle("manufacturers-open",open);
+        manufacturerTrigger.setAttribute("aria-expanded",String(open));
+        document.documentElement.classList.toggle("anybike-manufacturers-scroll-locked",open);
       };
+      window.addEventListener("resize",()=>{
+        if(!window.matchMedia("(min-width:951px)").matches && pinned){
+          pinned=false;
+          update();
+        }
+      });
       manufacturerTrigger.addEventListener("click",event=>{
         if(window.matchMedia("(min-width:951px)").matches){
           event.preventDefault();
