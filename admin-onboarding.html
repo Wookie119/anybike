@@ -606,6 +606,9 @@ function render(){
       '<td><div class="name">'+esc(activity)+'</div><div class="status-line">Last setup request: '+esc(reminder)+'</div></td>'+
       '<td><div class="actions">'+
         (r.has_profile?'<a class="btn dark" href="admin-customers.html?v=20261007-3&customer='+encodeURIComponent(r.user_id)+'&from=onboarding">Customer 360</a>':'')+
+        (!r.email_confirmed_at && r.email
+          ? '<button class="btn" onclick="copyConfirmationHelpLink(\''+r.user_id+'\',this)">Copy confirm-email link</button>'
+          : '')+
         (canGenerateSetupLink
           ? '<button class="btn dark" onclick="copySetupLink(\''+r.user_id+'\',this)">Generate customer setup link</button>'
           : '<button class="btn dark" type="button" disabled>Generate customer setup link</button>')+
@@ -703,6 +706,13 @@ function setupLinkForCustomer(r){
   if(intent==="partnership")return "/partners-integrations.html";
   if(intent==="freight_logistics")return "/freight-forwarders.html";
   return "/customer-dashboard.html";
+}
+async function copyConfirmationHelpLink(userId,btn){
+  const r=rows.find(x=>x.user_id===userId);if(!r?.email)return;
+  const params=new URLSearchParams({email:r.email,return:setupLinkForCustomer(r)});
+  const url="https://www.anybike.co.uk/confirm-email.html?"+params.toString();
+  try{await navigator.clipboard.writeText(url);if(btn){const prior=btn.textContent;btn.textContent="✓ Link copied";setTimeout(()=>btn.textContent=prior,2200);}}
+  catch(e){prompt("Copy this confirmation-help link:",url);}
 }
 async function copySetupLink(userId,btn){
   const r=rows.find(x=>x.user_id===userId);if(!r)return;
