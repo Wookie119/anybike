@@ -1237,12 +1237,31 @@ function removeRequestMotorcycleBlock(id){
   if(el) el.remove();
 }
 
+function updateSpecificModelYears(id){
+  const make=String(document.getElementById(`request-make-${id}`)?.value||"").trim().toLowerCase();
+  const model=String(document.getElementById(`request-model-${id}`)?.value||"").trim().toLowerCase();
+  const choices=document.querySelector(`#request-bike-block-${id} .year-checks`);
+  if(!choices)return;
+  // Only this limited-production model is restricted; other makes retain existing choices.
+  const special=make==="bimota" && model==="tesi h2";
+  const valid= special?["2020","2021","Other year / registration"]:["2026","2025","2024","2023","2022","2021","2020","2019","2018","Older"];
+  const checked=new Set([...choices.querySelectorAll('input:checked')].map(e=>e.value));
+  choices.innerHTML=valid.map(y=>`<label><input type="checkbox" value="${y}" class="request-year-${id}"${checked.has(y)?' checked':''}> ${y}</label>`).join("");
+  let note=choices.parentElement.querySelector(".bimota-year-note");
+  if(special){
+    if(!note){note=document.createElement("small");note.className="bimota-year-note";choices.insertAdjacentElement("afterend",note)}
+    note.textContent="The Tesi H2 was launched for customers in 2020, with UK Carbon deliveries in 2021. Later registrations may exist; availability and build year will be verified.";
+  }else if(note){note.remove()}
+}
+
 function updateRequestModels(id){
   const make=document.getElementById(`request-make-${id}`)?.value;
   const model=document.getElementById(`request-model-${id}`);
   if(!make || !model) return;
   const models=makeModels[make] || [];
   model.innerHTML=`<option value="">Select model</option>` + models.map(m=>`<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join("");
+  model.onchange=()=>updateSpecificModelYears(id);
+  updateSpecificModelYears(id);
 }
 
 function collectRequestMotorcycles(){
@@ -1806,6 +1825,7 @@ function prefillManufacturerRequest(){
     if(![...model.options].some(o=>o.value.toLowerCase()===requestedModel.toLowerCase()))model.add(new Option(requestedModel,requestedModel));
     model.value=[...model.options].find(o=>o.value.toLowerCase()===requestedModel.toLowerCase())?.value||requestedModel;
   }
+  updateSpecificModelYears(1);
   // Keep guide selections visible and selected without requiring a second click.
   make.dispatchEvent(new Event("input",{bubbles:true}));
   model.dispatchEvent(new Event("input",{bubbles:true}));
