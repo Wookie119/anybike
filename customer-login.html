@@ -144,7 +144,7 @@ async function loginCustomer(){
   if(!email||!password){showMsg("Enter your email address and password to log in.",false);return;}
   setBusy(true); showMsg("Logging you in...");
   try{
-    const {data,error}=await withLoginTimeout(sb.auth.signInWithPassword({email,password}),15000,"Sign in");
+    const {data,error}=await withLoginTimeout(sb.auth.signInWithPassword({email,password}),10000,"Sign in");
     if(error){showMsg(error.message+(String(error.message||"").toLowerCase().includes("email not confirmed")?" Select Confirm your email / Resend link below.":""),false);return;}
     if(!data.user || !data.session){showMsg("Login could not be completed. Please try again.",false);return;}
 
@@ -157,21 +157,8 @@ async function loginCustomer(){
       }
     }
 
-    // Confirm the browser has persisted the customer session before leaving
-    // the login page. This avoids the protected dashboard racing the auth write.
-    let confirmedSession=null;
-    for(let attempt=0;attempt<6;attempt++){
-      const sessionResult=await withLoginTimeout(sb.auth.getSession(),6000,"Session check");
-      confirmedSession=sessionResult?.data?.session || null;
-      if(confirmedSession?.user?.id===data.user.id) break;
-      await new Promise(resolve=>setTimeout(resolve,150));
-    }
-
-    if(!confirmedSession){
-      showMsg("Your login was accepted, but the browser session could not be saved. Please try again.",false);
-      return;
-    }
-
+    // Supabase signInWithPassword has already returned a valid session and
+    // persisted it. Avoid repeated getSession reads that delay or stall login.
     // Noncritical profile creation and referral claims must not block a valid login.
     // The dashboard/profile pages will load their own account data.
     const requestedDestination=getSafeReturnUrl();
