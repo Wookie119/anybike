@@ -389,6 +389,13 @@
           <a class="back-btn" href="/customer-dashboard.html">← Back to My AnyBike</a>
         </section>
 
+        <section class="card" id="ukDealerProgress" style="display:none">
+          <div class="eyebrow">UK Trade Registration</div>
+          <h2 style="margin:6px 0">Your account setup</h2>
+          <p id="ukDealerProgressText" class="card-intro">Checking saved details…</p>
+          <div id="ukDealerProgressSteps" style="display:flex;gap:10px;flex-wrap:wrap;font-size:13px"></div>
+        </section>
+
         <section class="card setup-summary" id="buyer-setup-summary">
           <div class="setup-summary-head">
             <div>
@@ -740,7 +747,7 @@
           <h2>UK Dealer — Basic Setup Complete</h2>
           <p>Your contact details, business information and preferences are saved. You don't need export documents to register as a UK dealer.</p>
           <p>AnyBike can review your account for Level 2 underwriting buying permissions separately.</p>
-          <div class="section-save-row setup-next-action"><div class="setup-next-copy"><span class="setup-next-eyebrow">YOUR NEXT ACTION</span><strong>Continue to My AnyBike</strong><span>View your account while AnyBike reviews any trade access request.</span></div><a class="section-save" href="/customer-dashboard.html" style="text-decoration:none">Open My AnyBike →</a></div>
+          <div class="section-save-row setup-next-action"><div class="setup-next-copy"><span class="setup-next-eyebrow">YOUR NEXT ACTION</span><strong>Registration complete — open My AnyBike</strong><span>Your basic UK Trade account is ready. AnyBike approval for restricted trading services is handled separately.</span></div><a class="section-save" href="/customer-dashboard.html" style="text-decoration:none">Open My AnyBike →</a></div>
         </section>
 
         <section class="card setup-target" id="buyer-onboarding" data-profile-section="buyer">
@@ -2183,6 +2190,17 @@
     }
     function updateDomesticOnboarding(){
       const domestic=isDomesticTradeOnboarding();
+      const progressBox=document.getElementById("ukDealerProgress");
+      if(progressBox)progressBox.style.display=domestic?"":"none";
+      if(domestic){
+        const saved=buyerSetupCompletion();
+        const stages=[["Contact",saved.contact],["Business",saved.business],["Preferences",saved.preferences]];
+        const finished=accountClassificationSaved&&stages.every(x=>x[1]);
+        const progressText=document.getElementById("ukDealerProgressText");
+        if(progressText)progressText.textContent=finished?"✓ Basic UK Trade registration complete.":"Complete your contact, business and display preferences. Your information is saved as you continue.";
+        const steps=document.getElementById("ukDealerProgressSteps");
+        if(steps)steps.innerHTML=stages.map(([label,done])=>'<span style="border:1px solid '+(done?'#3b8f63':'#555')+';border-radius:8px;padding:7px 11px">'+(done?'✓ ':'○ ')+label+'</span>').join("");
+      }
       ["buyer-onboarding","section-shipping","section-margin-calculator","buyer-setup-summary"].forEach(id=>{
         const el=document.getElementById(id);if(el)el.style.display=domestic?"none":"";
       });
