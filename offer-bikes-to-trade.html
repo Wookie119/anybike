@@ -21,8 +21,8 @@ button,.btn{border:0;border-radius:10px;background:#ed1c24;color:#fff;padding:12
 <div class="price"><label for="minimumPrice">Minimum trade price (£)</label><input id="minimumPrice" type="number" min="1" step="1" inputmode="numeric" required placeholder="e.g. 5500"><p class="small">Confidential to AnyBike. Not shown to bidders.</p></div>
 <div class="actions"><button type="submit">Add to test list →</button><button type="button" class="secondary" id="testExample">Use Michael's test advert</button></div></form>
 <p id="feedback" role="status" class="small"></p></section>
-<section class="card"><h2>Motorcycles added <span id="count">(0)</span></h2><p class="small">This is a preview on this device only. It does not send bikes to Admin, publish opportunities, or invite bids.</p>
-<div id="list" class="notice">No motorcycles added yet.</div><div class="actions"><button type="button" class="secondary" id="clear">Clear test list</button><button type="button" disabled title="Admin submission is not connected yet">Submit to AnyBike (coming next)</button></div></section>
+<section class="card"><h2>Motorcycles added <span id="count">(0)</span></h2><p class="small">Review your motorcycles before sending them to AnyBike.</p>
+<div id="list" class="notice">No motorcycles added yet.</div><div class="actions"><button type="button" class="secondary" id="clear">Clear list</button></div></section>
 
 </main>
 <script>
@@ -34,7 +34,7 @@ button,.btn{border:0;border-radius:10px;background:#ed1c24;color:#fff;padding:12
  const esc=v=>String(v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
  function render(){
   document.getElementById("count").textContent="("+items.length+")";
-  list.innerHTML=items.length?'<div class="scroll"><table><thead><tr><th>Advert</th><th>Minimum trade price</th><th>Status</th><th></th></tr></thead><tbody>'+items.map((x,i)=>'<tr><td><a href="'+esc(x.url)+'" target="_blank" rel="noopener noreferrer">'+esc(x.id?"Auto Trader #"+x.id:x.host)+'</a></td><td>£'+Number(x.price).toLocaleString("en-GB")+'</td><td>Test draft · not submitted</td><td><button type="button" class="secondary" data-remove="'+i+'">Remove</button></td></tr>').join("")+'</tbody></table></div>':'No motorcycles added yet.';
+  list.innerHTML=items.length?'<div class="scroll"><table><thead><tr><th>Advert</th><th>Make</th><th>Model</th><th>Year</th><th>Minimum trade price</th><th>Status</th><th></th></tr></thead><tbody>'+items.map((x,i)=>'<tr><td><a href="'+esc(x.url)+'" target="_blank" rel="noopener noreferrer">'+esc(x.id?"Auto Trader #"+x.id:x.host)+'</a></td><td><input aria-label="Make" data-index="'+i+'" data-field="make" value="'+esc(x.make||"")+'" placeholder="Make" style="min-width:115px"></td><td><input aria-label="Model" data-index="'+i+'" data-field="model" value="'+esc(x.model||"")+'" placeholder="Model" style="min-width:130px"></td><td><input aria-label="Year" data-index="'+i+'" data-field="year" type="number" min="1900" max="2100" value="'+esc(x.year||"")+'" placeholder="Year" style="min-width:95px"></td><td>£'+Number(x.price).toLocaleString("en-GB")+'</td><td>Test draft · not submitted</td><td><button type="button" class="secondary" data-remove="'+i+'">Remove</button></td></tr>').join("")+'</tbody></table></div>':'No motorcycles added yet.';
   localStorage.setItem(key,JSON.stringify(items));
  }
  document.getElementById("testExample").onclick=()=>{url.value=example;url.focus();feedback.textContent="Michael's test advertisement link entered. Add a minimum trade price before adding it to the test list.";};
@@ -48,6 +48,7 @@ button,.btn{border:0;border-radius:10px;background:#ed1c24;color:#fff;padding:12
   if(items.some(x=>x.url===clean)){feedback.textContent="That advertisement is already in the test list.";return;}
   items.push({url:clean,id:match?match[1]:"",host,price:amount});render();url.value="";price.value="";feedback.textContent="Added to the test list only. No listing has been submitted or published.";
  };
+ list.addEventListener("input",e=>{const input=e.target.closest("[data-field]");if(!input)return;const bike=items[Number(input.dataset.index)];if(!bike)return;bike[input.dataset.field]=input.value.trim();localStorage.setItem(key,JSON.stringify(items));});
  list.addEventListener("click",e=>{const b=e.target.closest("[data-remove]");if(!b)return;items.splice(Number(b.dataset.remove),1);render();});
  document.getElementById("clear").onclick=()=>{items=[];render();feedback.textContent="Test list cleared.";};
  render();
