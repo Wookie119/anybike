@@ -84,6 +84,9 @@ function buildPageUrl(page){
   return page+"?"+params.toString();
 }
 
+function withLoginTimeout(promise,ms,label){
+  return Promise.race([promise,new Promise((_,reject)=>setTimeout(()=>reject(new Error(label+" timed out. Please retry, or refresh this page.")),ms))]);
+}
 function setBusy(v){
   formBusy=v;
   const b=document.getElementById("loginButton");
@@ -136,7 +139,7 @@ async function loginCustomer(){
   if(!email||!password){showMsg("Enter your email address and password to log in.",false);return;}
   setBusy(true); showMsg("Logging you in...");
   try{
-    const {data,error}=await sb.auth.signInWithPassword({email,password});
+    const {data,error}=await withLoginTimeout(sb.auth.signInWithPassword({email,password}),15000,"Sign in");
     if(error){showMsg(error.message+(String(error.message||"").toLowerCase().includes("email not confirmed")?" Select Confirm your email / Resend link below.":""),false);return;}
     if(!data.user || !data.session){showMsg("Login could not be completed. Please try again.",false);return;}
 
@@ -153,7 +156,7 @@ async function loginCustomer(){
     // the login page. This avoids the protected dashboard racing the auth write.
     let confirmedSession=null;
     for(let attempt=0;attempt<6;attempt++){
-      const sessionResult=await sb.auth.getSession();
+      const sessionResult=await withLoginTimeout(sb.auth.getSession(),6000,"Session check");
       confirmedSession=sessionResult?.data?.session || null;
       if(confirmedSession?.user?.id===data.user.id) break;
       await new Promise(resolve=>setTimeout(resolve,150));
@@ -164,26 +167,22 @@ async function loginCustomer(){
       return;
     }
 
-    const profileError=await createCustomerProfileIfMissing(data.user);
-    if(profileError) console.error("Missing profile could not be created:",profileError);
-
-    const referralCode=getShipperReferralCode() || data.user.user_metadata?.shipper_referral_code || "";
-    if(referralCode){
-      const {error:referralError}=await sb.rpc("customer_claim_shipper_referral_v1",{p_ref:referralCode});
-      if(referralError) console.error("Shipper referral could not be recorded:",referralError);
+    // Noncritical profile creation and referral claims must not block a valid login.
+    // The dashboard/profile pages will load their own account data.
+    const requestedDestination=getSafeReturnUrl();
+    let destination=requestedDestination;
+    if(requestedDestination==="/customer-dashboard.html"){
+      // Always take UK dealers to their dedicated workspace.
+      try{
+        const profileResult=await withLoginTimeout(sb.from("customer_profiles").select("customer_type").eq("id",data.user.id).maybeSingle(),3500,"Profile lookup");
+        if(["uk_dealer","uk_distributor"].includes(String(profileResult.data?.customer_type||"")))destination="/my-dealership.html";
+      }catch(e){console.warn("Dealer destination lookup skipped",e);}
     }
-
-    const buyerReferralCode=data.user.user_metadata?.buyer_referral_source_code || "";
-    if(buyerReferralCode){
-      const {error:buyerReferralError}=await sb.rpc("customer_claim_buyer_referral_v1",{p_ref:buyerReferralCode});
-      if(buyerReferralError) console.error("Dealer referral could not be recorded:",buyerReferralError);
-    }
-
-    showMsg("Logged in successfully. Opening My AnyBike...");
-    window.location.replace(getSafeReturnUrl());
+    showMsg("Logged in successfully. Opening your account...");
+    window.location.replace(destination);
   }catch(error){
     console.error("Login failed:",error);
-    showMsg("Something went wrong while logging in. Please try again.",false);
+    showMsg(error?.message || "Something went wrong while logging in. Please try again.",false);
   }finally{setBusy(false);}
 }
 document.getElementById("registerLink").href=buildPageUrl("/customer-register.html");
