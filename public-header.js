@@ -830,80 +830,36 @@ function anybikeSortMyAnyBikeMenus(){
 }
 
 async function addMyDealershipMenuIfEligible(user){
-
-  if(!user || typeof sb === "undefined"){
-    return;
-  }
-
+  if(!user || typeof sb === "undefined")return;
   try{
-
-    const {
-      data,
-      error
-    } =
-      await sb.rpc(
-        "dealer_get_my_dealership"
-      );
-
-    if(error){
-      return;
+    // Verified dealer organisations can open live dealership stock management.
+    // Newly registered UK dealers have a visible dealership entry with setup guidance,
+    // but are never granted stock or bidding permissions by navigation alone.
+    const [dealerResult,profileResult]=await Promise.all([
+      sb.rpc("dealer_get_my_dealership"),
+      sb.from("customer_profiles").select("customer_type").eq("id",user.id).maybeSingle()
+    ]);
+    const dealership=Array.isArray(dealerResult.data)?dealerResult.data[0]:dealerResult.data;
+    const customerType=String(profileResult.data?.customer_type||user.user_metadata?.customer_type||"");
+    if(!dealership && !["uk_dealer","uk_distributor"].includes(customerType))return;
+    const href=dealership?"/my-dealership-stock.html":"/uk-dealer-guide.html";
+    for(const menuId of ["loggedInMenu","mobileLoggedInMenu"]){
+      const menu=document.getElementById(menuId);
+      if(!menu)continue;
+      let link=menu.querySelector('[data-dealer-menu-link="true"]');
+      if(!link){
+        link=document.createElement("a");
+        link.dataset.dealerMenuLink="true";
+        link.textContent="My Dealership";
+        const anchor=menu.querySelector('[data-dealer-menu-anchor="true"]');
+        if(anchor)anchor.insertAdjacentElement("afterend",link);
+        else menu.appendChild(link);
+      }
+      link.href=href;
     }
-
-    const dealership =
-      Array.isArray(data)
-        ? data[0]
-        : data;
-
-    if(!dealership){
-      return;
-    }
-
-    const desktopMenu =
-      document.getElementById(
-        "loggedInMenu"
-      );
-
-    const mobileMenu =
-      document.getElementById(
-        "mobileLoggedInMenu"
-      );
-
-    const linkHtml =
-      '<a href="my-dealership-stock.html" data-dealer-menu-link="true" data-i18n="dealership">My Dealership</a>';
-
-    if(
-      desktopMenu &&
-      !desktopMenu.querySelector(
-        '[data-dealer-menu-link="true"]'
-      )
-    ){
-      const anchor=desktopMenu.querySelector('[data-dealer-menu-anchor="true"]');
-      if(anchor)anchor.insertAdjacentHTML("afterend",linkHtml);
-      else desktopMenu.insertAdjacentHTML("beforeend",linkHtml);
-    }
-
-    if(
-      mobileMenu &&
-      !mobileMenu.querySelector(
-        '[data-dealer-menu-link="true"]'
-      )
-    ){
-      const anchor=mobileMenu.querySelector('[data-dealer-menu-anchor="true"]');
-      if(anchor)anchor.insertAdjacentHTML("afterend",linkHtml);
-      else mobileMenu.insertAdjacentHTML("beforeend",linkHtml);
-    }
-
     anybikeSortMyAnyBikeMenus();
-
-  }catch(error){
-
-    console.warn(
-      "Dealer menu check unavailable",
-      error
-    );
-  }
+  }catch(error){console.warn("Dealer menu check unavailable",error);}
 }
-
 
 async function setupPublicHeader(){
   const mobileMenuButton = document.getElementById("mobileMenuButton");
