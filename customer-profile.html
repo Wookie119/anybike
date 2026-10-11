@@ -1021,6 +1021,7 @@
         finalMessage.classList.add("profile-final-message");
         page.appendChild(finalMessage);
       }
+      updateDomesticOnboarding();
     }
 
     function value(id){
@@ -1311,6 +1312,7 @@
       // get a country-based suggestion only when the saved country is known.
       const typeSelect=document.getElementById("profileCustomerType");
       const savedType=String(profile?.customer_type||user.user_metadata?.customer_type||"");
+      accountClassificationSaved=Boolean(profile?.customer_type && profile?.customer_intent && profile.customer_intent!=="unclear");
       const knownTypes=["uk_private","uk_dealer","intl_private","intl_dealer"];
       if(savedType && !knownTypes.includes(savedType) && typeSelect && !Array.from(typeSelect.options).some(o=>o.value===savedType)){
         const legacyOption=document.createElement("option");
@@ -1617,6 +1619,7 @@
       }
       profileUpdateStatus=Array.isArray(data)?data[0]:data;
       profileUpdateRequired=Boolean(profileUpdateStatus?.update_required);
+      if(isDomesticTradeOnboarding() && accountClassificationSaved)profileUpdateRequired=false;
       const state=document.getElementById("state-profile-update");
       if(state){
         state.textContent=profileUpdateRequired?"Needs attention":"✓ Complete";
@@ -1625,6 +1628,7 @@
     }
 
     let selectedAccountRole="";
+    let accountClassificationSaved=false;
     function chooseAccountClass(role){
       selectedAccountRole=role;
       updateAccountClass();
@@ -1712,6 +1716,7 @@
         if(status)status.textContent="Please save your Trade account type first: "+error.message;
         return;
       }
+      accountClassificationSaved=true;
       await loadProfileUpdateStatus();
       await saveUnderwritePreference();
     });
@@ -1898,6 +1903,7 @@
       setState("state-preferences",s.preferences);
       setState("state-buyer",s.buyer);
       setState("state-shipping",s.shipping);
+      if(isDomesticTradeOnboarding())updateDomesticOnboarding();
       const marginState=document.querySelector("#section-margin-calculator .section-state");
       if(marginState){
         marginState.textContent=s.margin?"✓ Defaults complete":"Recommended";
@@ -2236,7 +2242,14 @@
         const el=document.getElementById(id);if(el)el.style.display=domestic?"none":"";
       });
       const info=document.getElementById("domesticTradeCompletion");
-      if(info)info.style.display=domestic?"block":"none";
+      if(info){
+        const done=buyerSetupCompletion();
+        info.style.display=domestic && done.contact && done.business && done.preferences && accountClassificationSaved?"block":"none";
+      }
+      const oldActions=document.querySelector(".profile-final-actions");
+      if(oldActions)oldActions.style.display=domestic?"none":"";
+      const oldMessage=document.querySelector(".profile-final-message");
+      if(oldMessage)oldMessage.style.display=domestic?"none":"";
       const hint=document.getElementById("preferencesNextHint");
       if(hint)hint.textContent=domestic?"Save your preferences to finish basic UK dealer setup. Export information is only needed if you later use export purchasing.":"We’ll save your currency and language, then move you to Buyer & Export Details.";
     }
