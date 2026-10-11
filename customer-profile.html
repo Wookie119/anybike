@@ -516,7 +516,7 @@
             </div>
 
             <div>
-              <label for="region">Region / State / County</label>
+              <label for="region" id="contactRegionLabel">Region / State / County</label>
               <input id="region" autocomplete="address-level1">
             </div>
 
@@ -614,7 +614,7 @@
             </div>
 
             <div>
-              <label for="businessRegion">Region / State / County</label>
+              <label for="businessRegion" id="businessRegionLabel">Region / State / County</label>
               <input id="businessRegion" autocomplete="address-level1">
             </div>
 
@@ -929,7 +929,7 @@
             </div>
 
             <div>
-              <label for="shippingRegion">Region / State / County</label>
+              <label for="shippingRegion" id="shippingRegionLabel">Region / State / County</label>
               <input id="shippingRegion" autocomplete="address-level1">
             </div>
 
@@ -1296,6 +1296,7 @@
       setValue("contactAddress2", profile?.contact_address_line2);
       setValue("contactPostcode", profile?.contact_postcode);
       populateCountrySelect("country", profile?.country);
+      updateRegionLabels();
       setValue("city", profile?.city);
       setValue("region", profile?.region);
       // Existing customers keep their recorded classification. New customers
@@ -2086,6 +2087,21 @@
       return true;
     }
 
+    function regionLabelForCountry(country){
+      const value=String(country||"").trim().toLowerCase();
+      if(["united kingdom","uk","great britain","england","scotland","wales","northern ireland"].includes(value))return "County";
+      if(["united states","united states of america","usa","us","australia","india"].includes(value))return "State";
+      if(["canada","south africa"].includes(value))return "Province";
+      return "Region / State / County";
+    }
+    function updateRegionLabels(){
+      for(const [countryId,labelId] of [["country","contactRegionLabel"],["businessCountry","businessRegionLabel"],["shippingCountry","shippingRegionLabel"]]){
+        const label=document.getElementById(labelId);
+        if(label)label.textContent=regionLabelForCountry(document.getElementById(countryId)?.value);
+      }
+    }
+    ["country","businessCountry","shippingCountry"].forEach(id=>document.getElementById(id)?.addEventListener("change",updateRegionLabels));
+
     function missingFieldsForSection(section){
       const groups={
         contact:[
@@ -2093,7 +2109,7 @@
           ["phone","Main phone"],
           ["contactAddress1","Address line 1"],
           ["city","Town / City"],
-          ["region","Region / State / County"],
+          ["region",regionLabelForCountry(document.getElementById("country")?.value)],
           ["contactPostcode","Postcode / ZIP"],
           ["country","Country"]
         ],
@@ -2104,7 +2120,7 @@
           ["businessPhone","Business phone / WhatsApp"],
           ["businessAddress1","Business address line 1"],
           ["businessCity","Town / City"],
-          ["businessRegion","Region / State / County"],
+          ["businessRegion",regionLabelForCountry(document.getElementById("businessCountry")?.value)],
           ["businessPostcode","Postcode / ZIP"],
           ["businessCountry","Business country"]
         ],
