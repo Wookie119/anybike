@@ -6332,9 +6332,15 @@ async function loadUser(){
   currentProfile=profile || {
     email:currentUser.email || ""
   };
+  // Account geography and type, not Level 2 status, determine the workspace.
+  const dashboardCustomerType=String(currentProfile?.customer_type||"").trim();
+  const ukDealerWorkspace=["uk_dealer","uk_distributor"].includes(dashboardCustomerType);
+  const internationalDealerWorkspace=["intl_dealer","intl_distributor","eu_dealer","eu_distributor"].includes(dashboardCustomerType);
+  document.body.dataset.anybikeWorkspace=ukDealerWorkspace?"uk-dealer":internationalDealerWorkspace?"international-dealer":"customer";
+
   // UK dealers use a separate, focused workspace. Preserve the export-buyer
   // workspace unchanged for all other customer types.
-  if(["uk_dealer","uk_distributor"].includes(String(currentProfile?.customer_type||"").trim())){
+  if(ukDealerWorkspace){
     const nextPanel=document.getElementById("customerNextActionsPanel");
     if(nextPanel){
       nextPanel.innerHTML='<div class="panel-head"><div><div class="eyebrow">UK DEALERSHIP</div><h2>Your dealership workspace</h2></div></div>'+
@@ -6354,7 +6360,7 @@ async function loadUser(){
     window.anybikeUKDealerDashboard=true;
   }
   // Show the dealer-specific introduction only to UK dealer accounts.
-  if(["uk_dealer","uk_distributor"].includes(String(currentProfile?.customer_type||""))){
+  if(ukDealerWorkspace){
     const welcome=document.getElementById("welcomeText");
     if(welcome && !document.getElementById("ukDealerGuideLink")){
       const link=document.createElement("a");
@@ -6369,7 +6375,7 @@ async function loadUser(){
 
   // Level 2 access is granted by AnyBike administrators, not by customer profile fields.
   sb.rpc("customer_my_dealer_access_v1").then(({data,error})=>{
-    if(error||data?.level!==2)return;
+    if(error||data?.level!==2||!ukDealerWorkspace)return;
     const welcome=document.getElementById("welcomeText");
     if(!welcome||document.getElementById("approvedDealerAccessLink"))return;
     const link=document.createElement("a");
