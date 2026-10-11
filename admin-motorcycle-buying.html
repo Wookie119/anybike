@@ -309,7 +309,8 @@ function renderUnderwriteSummary(){
  const live=rows.filter(r=>String(r.underwrite_status||"")==="live").length;
  const waiting=rows.filter(r=>!["live","completed","closed","cancelled"].includes(String(r.underwrite_status||""))).length;
  const bids=Array.from(tradeOpportunityBySubmission.values()).reduce((sum,o)=>sum+Number(o.live_bid_count||0),0);
- const tiles=[["All submissions",rows.length,"all"],["Dealer part-exchanges",dealer,"dealer"],["Private motorcycles",privateBikes,"private"],["Awaiting review",waiting,"waiting"],["Open for trade offers",live,"live"]];
+ const withBids=rows.filter(r=>Number(tradeOpportunityBySubmission.get(Number(r.submission_id))?.live_bid_count||0)>0).length;
+ const tiles=[["All submissions",rows.length,"all"],["Dealer part-exchanges",dealer,"dealer"],["Private motorcycles",privateBikes,"private"],["Awaiting review",waiting,"waiting"],["Open for trade offers",live,"live"],["Motorcycles with offers",withBids,"bids"]];
  host.innerHTML='<div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:10px"><strong>Underwriting overview</strong><span style="color:#aaa;font-size:12px">'+bids+' current confidential trade offers · Offer details are internal</span></div>'+
  '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px">'+tiles.map(t=>
  '<button type="button" data-overview="'+t[2]+'" style="text-align:left;background:#171717;color:#fff;border:1px solid #393939;border-radius:9px;padding:10px 12px;cursor:pointer"><span style="font-size:12px;color:#aaa;display:block">'+t[0]+'</span><strong style="font-size:23px">'+t[1]+'</strong></button>'
@@ -338,6 +339,7 @@ function renderIntakeGallery(items){
     const bike=[r.make,r.model,r.variant].filter(Boolean).join(" ")||"Motorcycle details pending";
     const status=tradeOpportunityBySubmission.get(id);
     const state=status?.opportunity_status||r.underwrite_status||"Awaiting review";
+    const bidCount=Number(status?.live_bid_count||0);
     const photo=r.primary_display_image_url?'<img src="'+esc(r.primary_display_image_url)+'" alt="'+esc(bike)+'" loading="lazy">':'No motorcycle photo available';
     return '<article class="intake-gallery-card"><div class="intake-gallery-photo">'+photo+'</div><div class="intake-gallery-body"><div class="eyebrow">'+esc(src)+'</div><h3>'+esc(bike)+'</h3><p>'+esc([r.bike_year,r.mileage===null?null:Number(r.mileage).toLocaleString("en-GB")+" miles"].filter(Boolean).join(" · "))+'</p><p>Reference: '+esc(r.reference)+'<br>Underwriting: '+esc(state)+'</p><button type="button" onclick="reviewIntakeFromGallery('+id+')">Review motorcycle →</button></div></article>';
   }).join(""):'<div class="empty">No motorcycles match these filters.</div>';
@@ -356,6 +358,7 @@ function render(){
   ].join(" ").toLowerCase().includes(q));
 
   if(source)list=list.filter(r=>r.source_channel===source);
+  if(summaryGroup==="bids")list=list.filter(r=>Number(tradeOpportunityBySubmission.get(Number(r.submission_id))?.live_bid_count||0)>0);
   if(summaryGroup==="waiting")list=list.filter(r=>!["live","completed","closed","cancelled"].includes(String(r.underwrite_status||"")));
   if(status)list=list.filter(r=>String(r.status||"")===status);
   if(uw)list=list.filter(r=>String(r.underwrite_status||"")===uw);
@@ -453,7 +456,7 @@ function render(){
         '<div class="row-cell mobile-hide">'+esc(r.registration||"—")+'</div>'+
         '<div class="row-cell mobile-hide">'+esc(r.bike_year||"—")+'</div>'+
         '<div class="row-cell mobile-hide">'+esc(seller)+'</div>'+
-        '<div class="row-cell mobile-hide"><strong>'+esc(String(r.underwrite_status||"").replaceAll("_"," "))+'</strong><small>'+Number(r.unique_buyer_match_count||0)+' buyer match'+(Number(r.unique_buyer_match_count||0)===1?"":"es")+'</small></div>'+
+        '<div class="row-cell mobile-hide"><strong>'+esc(String(r.underwrite_status||"").replaceAll("_"," "))+'</strong><small>'+Number(r.unique_buyer_match_count||0)+' buyer match'+(Number(r.unique_buyer_match_count||0)===1?"":"es")+'</small>'+(Number(tradeOpportunityBySubmission.get(Number(r.submission_id))?.live_bid_count||0)>0?'<small style="color:#91edaf;font-weight:800;margin-top:5px">'+Number(tradeOpportunityBySubmission.get(Number(r.submission_id)).live_bid_count)+' confidential trade offer(s)</small>':'')+'</div>'+
         '<button type="button" class="row-next" data-action="review-submission" data-id="'+Number(r.submission_id)+'">YOUR NEXT ACTION →<small style="display:block;font-weight:500;margin-top:3px">'+esc(r.underwrite_status==="live"?"Review live bids":!r.make||!r.model?"Complete bike details":"Review & prepare")+'</small></button>'+
       '</div>'+
       detail+
