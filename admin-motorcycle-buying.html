@@ -62,7 +62,7 @@ button.red,.btn.red{background:var(--red)}
 .review-flow{margin:14px 0 12px;border:1px solid #2b2b2b;border-radius:14px;background:#0a0a0a;padding:12px}
 .review-flow h4{margin:0 0 9px;font-size:15px}.review-steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
 .review-step{border:1px solid #292929;border-radius:10px;padding:9px;background:#101010}.review-step strong{display:block;font-size:12px}.review-step span{display:block;color:#8d8d8d;font-size:10px;line-height:1.35;margin-top:4px}.review-step.done{border-color:rgba(51,204,102,.38)}.review-step.next{border-color:rgba(237,28,36,.6);background:rgba(237,28,36,.07)}
-.submission-gallery{margin:13px 0}.submission-gallery-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}.submission-gallery-head strong{font-size:14px}.submission-gallery-grid{display:grid;grid-template-columns:repeat(6,minmax(110px,1fr));gap:8px}.submission-photo{aspect-ratio:4/3;border:1px solid #2d2d2d;border-radius:10px;overflow:hidden;background:#080808;cursor:pointer;position:relative}.submission-photo img{width:100%;height:100%;object-fit:cover;display:block}.submission-photo span{position:absolute;left:6px;bottom:6px;background:rgba(0,0,0,.78);padding:3px 5px;border-radius:6px;font-size:9px;font-weight:900}.submission-photo.placeholder{display:flex;align-items:center;justify-content:center;color:#888;font-size:10px;text-align:center;padding:8px;cursor:default}
+.submission-gallery{margin:13px 0}.submission-gallery-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}.submission-gallery-head strong{font-size:14px}.submission-gallery-grid{display:grid;grid-template-columns:repeat(6,minmax(110px,1fr));gap:8px}.submission-photo{aspect-ratio:4/3;border:1px solid #2d2d2d;border-radius:10px;overflow:hidden;background:#080808;cursor:pointer;position:relative}.submission-photo img{width:100%;height:100%;object-fit:cover;display:block}.submission-photo span{position:absolute;left:6px;bottom:6px;background:rgba(0,0,0,.78);padding:3px 5px;border-radius:6px;font-size:9px;font-weight:900}.submission-photo-wrap{min-width:0}.submission-photo-wrap>.submission-photo{width:100%;display:block}.rotate-photo{width:100%;margin-top:6px;padding:7px 5px;background:#242424;color:#fff;border:1px solid #555;border-radius:8px;cursor:pointer}.rotate-photo:disabled{opacity:.5}.submission-photo.placeholder{display:flex;align-items:center;justify-content:center;color:#888;font-size:10px;text-align:center;padding:8px;cursor:default}
 .image-lightbox{position:fixed;inset:0;background:rgba(0,0,0,.92);display:none;align-items:center;justify-content:center;padding:24px;z-index:10000}.image-lightbox.open{display:flex}.image-lightbox img{max-width:94vw;max-height:90vh;object-fit:contain;border-radius:12px}.image-lightbox button{position:absolute;top:18px;right:18px;background:#222;border:1px solid #555}
 .comps{border-top:1px solid var(--line);padding-top:12px;margin-top:12px}
 .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
@@ -473,7 +473,7 @@ async function loadSubmissionImages(id){
 
   let images=submissionImages.get(id);
   if(!images){
-    const {data,error}=await sb.rpc("admin_get_seller_submission_images_v1",{p_submission_id:id});
+    const {data,error}=await sb.rpc("admin_get_seller_submission_images_v2",{p_submission_id:id});
     if(error){
       grid.innerHTML='<div class="submission-photo placeholder">Could not load images</div>';
       status.textContent=error.message;
@@ -494,16 +494,27 @@ async function loadSubmissionImages(id){
     if(!approved){
       return '<div class="submission-photo placeholder">'+esc("Photo "+img.image_position+" · "+String(img.final_status||"processing").replaceAll("_"," "))+'</div>';
     }
-    return '<button type="button" class="submission-photo" onclick="openImageLightbox(\''+esc(img.buyer_safe_url)+'\')">'+
-      '<img src="'+esc(img.buyer_safe_url)+'" alt="Motorcycle photo '+Number(img.image_position||0)+'">'+
-      '<span>Photo '+Number(img.image_position||0)+'</span>'+
-    '</button>';
+    return '<div class="submission-photo-wrap"><button type="button" class="submission-photo" onclick="openImageLightbox(\''+esc(img.buyer_safe_url)+'\','+Number(img.rotation_degrees||0)+')">'+
+      '<img src="'+esc(img.buyer_safe_url)+'" style="transform:rotate('+Number(img.rotation_degrees||0)+'deg)" alt="Motorcycle photo '+Number(img.image_position||0)+'">'+
+      '<span>Photo '+Number(img.image_position||0)+'</span></button>'+
+      '<button type="button" class="rotate-photo" onclick="rotateSellerPhoto('+id+','+Number(img.image_id)+',this)" title="Rotate this photo 90 degrees clockwise">↻ Rotate 90°</button></div>';
   }).join("");
   status.textContent=images.filter(img=>img.final_status==="approved").length+" approved · click any photo to enlarge";
 }
 
-function openImageLightbox(url){
+async function rotateSellerPhoto(submissionId,imageId,button){
+  if(button.disabled)return;
+  button.disabled=true;button.textContent="Saving rotation…";
+  try{
+    const {data,error}=await sb.rpc("admin_rotate_seller_submission_image_v1",{p_image_id:imageId,p_direction:90});
+    if(error)throw error;
+    submissionImages.delete(Number(submissionId));
+    await loadSubmissionImages(submissionId);
+  }catch(error){button.disabled=false;button.textContent="↻ Rotate 90°";alert("Could not save the photo rotation: "+String(error.message||error))}
+}
+function openImageLightbox(url,degrees=0){
   document.getElementById("imageLightboxImg").src=url;
+  document.getElementById("imageLightboxImg").style.transform="rotate("+Number(degrees||0)+"deg)";
   document.getElementById("imageLightbox").classList.add("open");
 }
 function closeImageLightbox(){
@@ -559,13 +570,20 @@ document.getElementById("queue").addEventListener("click",function(e){
 
 async function startUnderwrite(id){
   const hours=Number(document.getElementById("underwrite-hours-"+id)?.value||48);
-  if(!confirm("Open this motorcycle to verified UK trade members for "+hours+" hours? Seller identity and confidential price expectations stay private."))return;
+  if(window.anybikeUnderwritePending?.has(Number(id)))return;
+  window.anybikeUnderwritePending=window.anybikeUnderwritePending||new Set();
+  window.anybikeUnderwritePending.add(Number(id));
+  const buttons=[...document.querySelectorAll('[data-action="start-underwrite"][data-id="'+Number(id)+'"]')];
+  buttons.forEach(b=>{b.disabled=true;b.textContent="Starting trade bidding…"});
+  const actionStatus=document.getElementById("action-status-"+id);
+  if(actionStatus)actionStatus.textContent="Sending invitations to verified trade dealers…";
   const {data,error}=await sb.rpc("admin_create_trade_underwrite_v1",{
     p_submission_id:Number(id),
     p_duration_hours:hours,
     p_invitation_mode:"all_verified_trade"
   });
-  if(error){alert(error.message);return;}
+  if(error){window.anybikeUnderwritePending.delete(Number(id));buttons.forEach(b=>{b.disabled=false;b.textContent="Start Trade Bidding →"});if(actionStatus)actionStatus.textContent="Could not start bidding: "+error.message;return;}
+  window.anybikeUnderwritePending.delete(Number(id));
   alert("Underwrite "+data.reference+" opened. "+Number(data.invited_count||0)+" verified trade dealer"+(Number(data.invited_count||0)===1?" was":"s were")+" invited.");
   await loadQueue();
 }
