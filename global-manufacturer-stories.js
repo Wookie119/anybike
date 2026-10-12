@@ -11,8 +11,8 @@ const label=brand==="BMW"?"BMW":brand;
 const encode=s=>String(s||"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
 const slug=s=>normal(s).replace(/\s+/g,"-").slice(0,72);
 function matches(article){
- const declared=normal(article.getAttribute("data-manufacturer")||"");
- if(declared)return declared.split(/\s*,\s*/).some(x=>x===brandKey);
+ const declared=article.getAttribute("data-manufacturer");
+ if(declared)return declared.split(",").some(x=>normal(x)===brandKey);
  const tag=normal(article.querySelector(".tag")?.textContent);
  const title=normal(article.querySelector("h3")?.textContent);
  const text=normal(article.textContent);
