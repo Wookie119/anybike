@@ -4,10 +4,12 @@ const el=id=>document.getElementById(id);const esc=x=>String(x??"").replace(/[&<
 const p=new URLSearchParams(location.search),make=(p.get("make")||"").trim(),model=(p.get("model")||"").trim();
 if(!make||!model){el("summary").textContent="Choose a motorcycle from a manufacturer page.";el("nextAction").hidden=true;return}
 try{
-const [catalogueResponse,guideResponse]=await Promise.all([fetch("/data/motorcycle-catalogue-base.json",{cache:"default"}),fetch("/data/motorcycle-model-guides.json",{cache:"default"})]);
-if(!catalogueResponse.ok||!guideResponse.ok)throw Error("Catalogue unavailable");
-const catalogue=await catalogueResponse.json(),guides=await guideResponse.json();
-const row=catalogue.models.find(x=>x.make.toLowerCase()===make.toLowerCase()&&x.model.toLowerCase()===model.toLowerCase());
+const [catalogueResult,guideResult]=await Promise.allSettled([fetch("/data/motorcycle-catalogue-base.json",{cache:"default"}),fetch("/data/motorcycle-model-guides.json",{cache:"default"})]);
+if(guideResult.status!=="fulfilled"||!guideResult.value.ok)throw Error("Guides unavailable");
+const guides=await guideResult.value.json();
+let catalogue={models:[]};
+if(catalogueResult.status==="fulfilled"&&catalogueResult.value.ok){try{const value=await catalogueResult.value.json();if(Array.isArray(value.models))catalogue=value}catch(error){console.warn("Model catalogue fallback",error)}}
+const row=catalogue.models.find(x=>x.make?.toLowerCase()===make.toLowerCase()&&x.model?.toLowerCase()===model.toLowerCase());
 const guide=Object.values(guides.models).find(g=>g.make.toLowerCase()===make.toLowerCase()&&(g.model.toLowerCase()===model.toLowerCase()||(make.toLowerCase()==="honda"&&model.toLowerCase()==="africa twin crf1100l"&&g.model==="Africa Twin")))||null;
 if(!row&&!guide){el("heading").textContent=make+" "+model;el("summary").textContent="We could not find this motorcycle in our model library.";el("nextAction").hidden=true;return}
 const actualMake=row?.make||guide.make,actualModel=row?.model||guide.model;
