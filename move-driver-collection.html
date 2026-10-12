@@ -79,6 +79,14 @@ textarea{width:100%;min-height:90px;border:1px solid rgba(160,140,88,.45);border
           <button id="problemBtn" class="btn danger" onclick="doAction('visual_discrepancy')">Save Discrepancy</button>
         </div>
         <p class="status" id="visualStatus"></p>
+        <div id="chipsProposalBox" class="notice hidden" style="margin-top:12px">
+          <strong>CHIPS — Proposed purchase price adjustment</strong>
+          <p>Only report actual discrepancies. AnyBike must approve the adjustment and the seller must agree. A proposal does not change payment or authorise collection.</p>
+          <label for="chipsAmount">Proposed reduction (£)</label><input id="chipsAmount" type="number" min="0.01" step="0.01" style="width:100%;margin:7px 0">
+          <label for="chipsIssue">Describe the discrepancy</label><textarea id="chipsIssue" placeholder="Condition difference, missing document or worn component"></textarea>
+          <div class="actions"><button type="button" class="btn secondary" id="chipsSubmit" onclick="submitChipsProposal()">Submit CHIPS for AnyBike review</button></div>
+          <p id="chipsFeedback" class="status"></p>
+        </div>
         <div id="discrepancyActions" class="hidden">
           <div class="notice" style="margin-top:10px"><strong>Discrepancy saved.</strong> Call the buyer/client and explain the issue. You may continue checking the documents and taking condition photos, but <strong>do not load the motorcycle</strong> until they have been informed and you have recorded it below.</div>
           <div class="actions"><a id="callCustomerBtn" class="btn danger" href="#">Call Buyer / Client</a></div>
@@ -464,12 +472,37 @@ async function recordDriverEta(){
   }
 }
 
+async function refreshChipsEligibility(){
+ const box=document.getElementById("chipsProposalBox");
+ if(!box)return;
+ box.classList.add("hidden");
+ if(!current?.status?.discrepancy_recorded_at)return;
+ try{
+  const {data,error}=await sb.rpc("move_driver_chips_eligibility_v1",{p_token:token});
+  if(!error&&data===true)box.classList.remove("hidden");
+ }catch(_){}
+}
+async function submitChipsProposal(){
+ const btn=document.getElementById("chipsSubmit"),msg=document.getElementById("chipsFeedback");
+ const amount=Number(document.getElementById("chipsAmount").value),issue=document.getElementById("chipsIssue").value.trim();
+ if(!Number.isFinite(amount)||amount<=0||issue.length<10){msg.textContent="Enter a positive reduction and explain the issue (at least 10 characters).";return}
+ btn.disabled=true;msg.textContent="Submitting for review…";
+ try{
+  const {data,error}=await sb.rpc("move_driver_propose_chips_v1",{p_token:token,p_amount:amount,p_issue:issue});
+  if(error)throw error;
+  msg.textContent="CHIPS proposal #"+data.proposal_id+" recorded for AnyBike review. No price or payment has changed.";
+  document.getElementById("chipsAmount").value="";
+  document.getElementById("chipsIssue").value="";
+ }catch(e){msg.textContent="Could not submit CHIPS: "+String(e.message||e)}
+ finally{btn.disabled=false}
+}
 async function loadJob(){
   try{
     const r=await sb.rpc("move_driver_collection_get_v3",{p_token:token});
     if(r.error)throw r.error;
     current=r.data;
     render();
+    await refreshChipsEligibility();
     await loadHandoverNotes();
     await maybeAutoCompletePhotoStage();
   }catch(e){showError(e.message||String(e));}
