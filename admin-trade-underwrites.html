@@ -47,7 +47,17 @@ input{background:#090909;color:#fff;border:1px solid #333;border-radius:10px;pad
 <div id="grid" class="grid"><div class="empty">Loading…</div></div>
 </main></div></div>
 
-<div id="finalCheckModal" class="modal"><div class="modal-box" style="width:min(680px,100%)">
+<div id="reserveReviewModal" class="modal"><div class="modal-box" style="width:min(720px,100%)"><div class="top"><h3 id="reserveReviewTitle">Reserve &amp; Margin Assessment</h3><button type="button" onclick="document.getElementById('reserveReviewModal').classList.remove('open')">Close</button></div><p>Admin only. Calculations use the best live dealer bid. Seller minimum and costs stay confidential.</p>
+<div class="transport-fields">
+<label>Proposed seller payment (£)<input id="rvSeller" type="number" min="0" step="0.01"></label>
+<label>Collection &amp; delivery (£)<input id="rvTransport" type="number" min="0" step="0.01" value="250"></label>
+<label>Other costs (£)<input id="rvOther" type="number" min="0" step="0.01" value="0"></label>
+<label>Required margin (£)<input id="rvMargin" type="number" min="0" step="0.01" value="250"></label>
+<label>Seller transport contribution (£)<input id="rvSellerTransport" type="number" min="0" step="0.01" value="0"></label>
+<label>Dealer transport contribution (£)<input id="rvDealerTransport" type="number" min="0" step="0.01" value="0"></label>
+</div>
+<label style="display:flex;align-items:center;gap:8px;margin:14px 0"><input type="checkbox" id="rvConfirmed"> Seller's current minimum is confirmed for this review</label>
+<div class="actions"><button type="button" class="red" id="rvSave" onclick="saveReserveReview()">Save commercial assessment</button></div><p id="rvResult" role="status"></p><p style="font-size:12px">This does not send an offer, select a dealer, accept any contribution or promise the seller a sale.</p></div></div><div id="finalCheckModal" class="modal"><div class="modal-box" style="width:min(680px,100%)">
 <div class="top"><h3 id="finalCheckTitle">Seller Confirmation / HPI Check</h3><button onclick="closeFinalCheck()">Close</button></div>
 <p>Complete after bidding closes. No winner can be selected until the seller and commercial checks are confirmed. Outstanding finance must be cleared before release.</p>
 <div class="final-check" id="finalCheckFields">
@@ -141,7 +151,7 @@ async function load(){
  (r.opportunity_status==="completed"?'<button class="red" onclick="openUnderwriteDeal('+r.opportunity_id+')">Create / Open Deal 360</button>':'')+
  (r.opportunity_status==='live'?'<button onclick="adjustUnderwriteDeadline('+r.opportunity_id+')">Adjust Countdown</button>':'')+
  (r.opportunity_status==='live'?'<button onclick="closeUnderwrite('+r.opportunity_id+')">Close Underwrite</button>':'')+
- '<button class="red" onclick="openOffer('+r.opportunity_id+','+(r.highest_live_bid_gbp??"null")+')">Make AnyBike Offer</button>'+
+ '<button onclick="openReserveReview('+r.opportunity_id+')">Reserve &amp; Margin Assessment</button>'+'<button class="red" onclick="openOffer('+r.opportunity_id+','+(r.highest_live_bid_gbp??"null")+')">Make AnyBike Offer</button>'+
  (r.latest_offer_amount_gbp?'<span class="btn">Latest seller offer '+money(r.latest_offer_amount_gbp)+' · '+esc(r.latest_offer_status)+(r.seller_counter_gbp?' · counter '+money(r.seller_counter_gbp):'')+'</span>':'')+
  (r.latest_offer_id&&["sent","countered"].includes(r.latest_offer_status)
    ?'<button onclick="recordSellerResponse('+Number(r.latest_offer_id)+',\'accepted\')">Seller Accepted</button><button onclick="recordSellerResponse('+Number(r.latest_offer_id)+',\'declined\')">Seller Declined</button><button onclick="recordSellerCounter('+Number(r.latest_offer_id)+')">Seller Countered</button>'
@@ -317,6 +327,31 @@ async function saveOffer(){
  closeOffer();await load();
 }
 
+let reserveReviewId=null;
+function openReserveReview(id){
+ const row=rows.find(r=>Number(r.opportunity_id)===Number(id));if(!row)return;
+ reserveReviewId=Number(id);
+ document.getElementById("reserveReviewTitle").textContent="Reserve & Margin Assessment · "+row.reference;
+ document.getElementById("rvSeller").value=Number(row.seller_price_wanted_gbp||0);
+ document.getElementById("rvResult").textContent="Best active dealer bid: "+money(row.highest_live_bid_gbp)+". Review costs and margin before saving.";
+ document.getElementById("rvConfirmed").checked=false;
+ document.getElementById("reserveReviewModal").classList.add("open");
+}
+async function saveReserveReview(){
+ if(!reserveReviewId)return;
+ const n=id=>Number(document.getElementById(id).value);
+ const args={p_opportunity_id:reserveReviewId,p_seller_payment_gbp:n("rvSeller"),p_transport_cost_gbp:n("rvTransport"),p_other_costs_gbp:n("rvOther"),p_seller_contribution_gbp:n("rvSellerTransport"),p_dealer_contribution_gbp:n("rvDealerTransport"),p_minimum_margin_gbp:n("rvMargin"),p_seller_minimum_confirmed:document.getElementById("rvConfirmed").checked};
+ if(Object.values(args).some(v=>typeof v==="number"&&(!Number.isFinite(v)||v<0))){document.getElementById("rvResult").textContent="Enter valid non-negative amounts.";return}
+ const btn=document.getElementById("rvSave");btn.disabled=true;btn.textContent="Saving…";
+ try{
+ const {data,error}=await sb.rpc("admin_save_underwrite_commercial_review_v1",args);
+ if(error)throw error;
+ const outcome=data.reserve_met?"✓ Reserve met — internal review passed.":"Reserve not met — no seller-facing confirmation.";
+ const result=document.getElementById("rvResult");result.textContent=outcome+" Calculated margin: "+money(data.calculated_margin_gbp)+". Best live bid: "+money(data.bid_gbp)+".";
+ result.style.color=data.reserve_met?"#87eca4":"#ffbaaa";
+ }catch(e){document.getElementById("rvResult").textContent="Could not save: "+String(e.message||e)}
+ finally{btn.disabled=false;btn.textContent="Save commercial assessment";}
+}
 async function openUnderwriteDeal(opportunityId){
   const {data,error}=await sb.rpc("admin_promote_trade_underwrite_to_deal_v1",{p_opportunity_id:Number(opportunityId)});
   if(error){alert(error.message);return;}
