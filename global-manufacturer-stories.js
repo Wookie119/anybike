@@ -26,7 +26,7 @@ fetch("/anybike-global.html",{cache:"no-cache"}).then(r=>{if(!r.ok)throw Error("
  const articles=[...page.querySelectorAll("article.tile")];
  const items=articles.filter(a=>a.querySelector("h3")&&a.querySelector("p")&&matches(a))
  .map((article,index)=>({article,index,date:article.getAttribute("data-published")||""}))
- .sort((a,b)=>{const ad=/^\\d{4}-\\d{2}-\\d{2}$/.test(a.date)?a.date:"";const bd=/^\\d{4}-\\d{2}-\\d{2}$/.test(b.date)?b.date:"";return bd.localeCompare(ad)||a.index-b.index;})
+ .sort((a,b)=>{const ad=/^\d{4}-\d{2}-\d{2}$/.test(a.date)?a.date:"";const bd=/^\d{4}-\d{2}-\d{2}$/.test(b.date)?b.date:"";return bd.localeCompare(ad)||a.index-b.index;})
  .map(item=>item.article);
  if(!items.length){root.hidden=true;return}
  const cards=items.slice(0,3).map(article=>{
