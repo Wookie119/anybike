@@ -62,7 +62,7 @@ button.red,.btn.red{background:var(--red)}
 .review-flow{margin:14px 0 12px;border:1px solid #2b2b2b;border-radius:14px;background:#0a0a0a;padding:12px}
 .review-flow h4{margin:0 0 9px;font-size:15px}.review-steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
 .review-step{border:1px solid #292929;border-radius:10px;padding:9px;background:#101010}.review-step strong{display:block;font-size:12px}.review-step span{display:block;color:#8d8d8d;font-size:10px;line-height:1.35;margin-top:4px}.review-step.done{border-color:rgba(51,204,102,.38)}.review-step.next{border-color:rgba(237,28,36,.6);background:rgba(237,28,36,.07)}
-.submission-gallery{margin:13px 0}.submission-gallery-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}.submission-gallery-head strong{font-size:14px}.submission-gallery-grid{display:grid;grid-template-columns:repeat(6,minmax(110px,1fr));gap:8px}.submission-photo{aspect-ratio:4/3;border:1px solid #2d2d2d;border-radius:10px;overflow:hidden;background:#080808;cursor:pointer;position:relative}.submission-photo img{width:100%;height:100%;object-fit:cover;display:block}.submission-photo span{position:absolute;left:6px;bottom:6px;background:rgba(0,0,0,.78);padding:3px 5px;border-radius:6px;font-size:9px;font-weight:900}.submission-photo-wrap{min-width:0}.submission-photo-wrap>.submission-photo{width:100%;display:block}.rotate-photo{width:50%;display:block;margin:3px auto 0;padding:4px 3px;font-size:11px;line-height:1.15;background:#242424;color:#fff;border:1px solid #555;border-radius:6px;cursor:pointer}.rotate-photo:disabled{opacity:.5}.submission-photo.placeholder{display:flex;align-items:center;justify-content:center;color:#888;font-size:10px;text-align:center;padding:8px;cursor:default}
+.submission-gallery{margin:13px 0}.submission-gallery-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}.submission-gallery-head strong{font-size:14px}.submission-gallery-grid{display:grid;grid-template-columns:repeat(6,minmax(110px,1fr));gap:8px}.submission-photo{aspect-ratio:4/3;border:1px solid #2d2d2d;border-radius:10px;overflow:hidden;background:#080808;cursor:pointer;position:relative}.submission-photo img{width:100%;height:100%;object-fit:cover;display:block}.submission-photo span{position:absolute;left:6px;bottom:6px;background:rgba(0,0,0,.78);padding:3px 5px;border-radius:6px;font-size:9px;font-weight:900}.submission-photo-wrap{min-width:0}.submission-photo-wrap>.submission-photo{width:100%;display:block}.rotate-photo{width:50%;display:block;margin:3px auto 0;padding:4px 3px;font-size:11px;line-height:1.15;background:#242424;color:#fff;border:1px solid #555;border-radius:6px;cursor:pointer}.rotate-photo:disabled{opacity:.5}.photo-actions{display:flex;gap:4px;margin-top:4px}.photo-actions .rotate-photo{width:50%;margin:0;padding:4px 2px}.reject-photo{width:50%;padding:4px 2px;font-size:11px;line-height:1.15;background:#281316;color:#ffb5b8;border:1px solid #80353a;border-radius:6px;cursor:pointer}.reject-photo:disabled{opacity:.5}.submission-photo.placeholder{display:flex;align-items:center;justify-content:center;color:#888;font-size:10px;text-align:center;padding:8px;cursor:default}
 .image-lightbox{position:fixed;inset:0;background:rgba(0,0,0,.92);display:none;align-items:center;justify-content:center;padding:24px;z-index:10000}.image-lightbox.open{display:flex}.image-lightbox img{max-width:94vw;max-height:90vh;object-fit:contain;border-radius:12px}.image-lightbox button{position:absolute;top:18px;right:18px;background:#222;border:1px solid #555}
 .comps{border-top:1px solid var(--line);padding-top:12px;margin-top:12px}
 .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
@@ -391,7 +391,7 @@ function render(){
         '</div>'+
         '<div class="submission-gallery" id="submission-gallery-'+Number(r.submission_id)+'">'+
           '<div class="submission-gallery-head"><strong>Motorcycle photos · '+Number(r.image_total||0)+'</strong><span class="sub">Loading all images…</span></div>'+
-          '<div class="submission-gallery-grid"><div class="submission-photo placeholder">Loading photos…</div></div>'+
+          (r.message_thread_id?'<a class="btn" style="display:inline-block;margin-bottom:10px" href="/admin-message-centre.html?thread='+Number(r.message_thread_id)+'&photo_request=1&reference='+encodeURIComponent(r.reference||'')+'">Ask Seller for More Photos →</a>':'')+'<div class="submission-gallery-grid"><div class="submission-photo placeholder">Loading photos…</div></div>'+
         '</div>'+
         (hasComps
           ?'<div class="data"><div class="box"><span>Comparable count</span><strong>'+Number(r.latest_comparable_count||0)+'</strong></div><div class="box"><span>Median ask</span><strong>'+money(r.latest_median_ask_gbp)+'</strong></div><div class="box"><span>Range</span><strong>'+money(r.latest_lowest_ask_gbp)+' – '+money(r.latest_highest_ask_gbp)+'</strong></div><div class="box"><span>Average</span><strong>'+money(r.latest_average_ask_gbp)+'</strong></div></div>'
@@ -465,11 +465,19 @@ async function loadSubmissionImages(id){
     return '<div class="submission-photo-wrap"><button type="button" class="submission-photo" onclick="openImageLightbox(\''+esc(img.buyer_safe_url)+'\','+Number(img.rotation_degrees||0)+')">'+
       '<img src="'+esc(img.buyer_safe_url)+'" style="transform:rotate('+Number(img.rotation_degrees||0)+'deg)" alt="Motorcycle photo '+Number(img.image_position||0)+'">'+
       '<span>Photo '+Number(img.image_position||0)+'</span></button>'+
-      '<button type="button" class="rotate-photo" onclick="rotateSellerPhoto('+id+','+Number(img.image_id)+',this)" title="Rotate this photo 90 degrees clockwise">↻ Rotate 90°</button></div>';
+      '<div class="photo-actions"><button type="button" class="rotate-photo" onclick="rotateSellerPhoto('+id+','+Number(img.image_id)+',this)" title="Rotate this photo 90 degrees clockwise">↻ Rotate</button><button type="button" class="reject-photo" onclick="rejectSellerPhoto('+id+','+Number(img.image_id)+',this)" title="Remove this photo from dealer view">✕ Reject</button></div></div>';
   }).join("");
   status.textContent=images.filter(img=>img.final_status==="approved").length+" approved · click any photo to enlarge";
 }
 
+async function rejectSellerPhoto(submissionId,imageId,button){
+  if(button.disabled)return;
+  button.disabled=true;button.textContent="Rejecting…";
+  const {error}=await sb.rpc("admin_reject_seller_submission_image_v1",{p_image_id:imageId,p_reason:"Unsuitable or poor-quality photo — replacement may be requested"});
+  if(error){button.disabled=false;button.textContent="✕ Reject";alert(error.message);return;}
+  submissionImages.delete(Number(submissionId));
+  await loadSubmissionImages(submissionId);
+}
 async function rotateSellerPhoto(submissionId,imageId,button){
   if(button.disabled)return;
   button.disabled=true;button.textContent="Saving rotation…";
