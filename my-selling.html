@@ -35,6 +35,31 @@
     description.append(title,hint);step.append(dot,description);timeline.append(step);
    });
    card.append(heading,details,state,timeline);
+   if(Number(item.price_wanted_gbp)>0 && ["live","eligible","closed","expired"].includes(stage)){
+     const section=document.createElement("section");section.className="seller-price-review";
+     const title=document.createElement("h3");title.textContent="Review your minimum selling price";
+     const current=document.createElement("p");current.textContent="Your current minimum: £"+Number(item.price_wanted_gbp).toLocaleString("en-GB",{minimumFractionDigits:2,maximumFractionDigits:2});
+     const guidance=document.createElement("p");guidance.textContent="Consider lowering your minimum price to give your motorcycle a better chance of selling. It's entirely your choice. This does not accept any trade offer.";
+     const form=document.createElement("form");form.style.display="flex";form.style.flexWrap="wrap";form.style.gap="8px";
+     const input=document.createElement("input");input.type="number";input.min="1";input.step="0.01";input.max=String(item.price_wanted_gbp);input.placeholder="New lower price (£)";input.required=true;input.style.cssText="background:#080808;color:#fff;border:1px solid #777;border-radius:8px;padding:11px;flex:1;min-width:170px";
+     const button=document.createElement("button");button.type="submit";button.className="button";button.style.border="0";button.style.cursor="pointer";button.textContent="Save lower price";
+     const feedback=document.createElement("p");feedback.setAttribute("role","status");feedback.style.fontWeight="700";
+     form.append(input,button);section.append(title,current,guidance,form,feedback);card.append(section);
+     form.addEventListener("submit",async event=>{
+       event.preventDefault();const next=Number(input.value),prior=Number(item.price_wanted_gbp);
+       if(!Number.isFinite(next)||next<=0||next>=prior){feedback.textContent="Please enter an amount below your current minimum.";feedback.style.color="#ff9399";return}
+       if(!confirm("Change your minimum selling price from £"+prior.toFixed(2)+" to £"+next.toFixed(2)+"? This does not accept a dealer offer."))return;
+       button.disabled=true;button.textContent="Saving…";
+       try{
+         const {data,error}=await client.rpc("seller_lower_price_v1",{p_reference:item.reference,p_price:next});
+         if(error)throw error;
+         item.price_wanted_gbp=Number(data.price_wanted_gbp);
+         current.textContent="Your current minimum: £"+Number(item.price_wanted_gbp).toLocaleString("en-GB",{minimumFractionDigits:2,maximumFractionDigits:2});
+         feedback.textContent="✓ Your new minimum has been saved.";feedback.style.color="#87eca4";input.value="";
+       }catch(error){feedback.textContent="Could not save the change: "+String(error.message||error);feedback.style.color="#ff9399"}
+       finally{button.disabled=false;button.textContent="Save lower price"}
+     });
+   }
    // Prompt only after bidding has stopped; active bidding should not pressure the seller.
    if(["closed","completed","expired"].includes(stage)&&!["offer_ready","offer_sent","offer_made"].includes(stage)){
      const review=document.createElement("section");review.className="seller-price-review";
