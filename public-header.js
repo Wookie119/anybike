@@ -730,59 +730,8 @@ async function loadPublicHeader(){
     holder.innerHTML = await headerRes.text();
     try{await anybikeEnsureHeaderAuthClient();}catch(e){console.warn("Header authentication unavailable",e);}
     await setupPublicHeader();
-    // Desktop manufacturer mega-menu: click to pin open until selection or outside click.
-    // Unlike hover-only menus, pointer movement across the header cannot close it.
-    const manufacturerMenu=holder.querySelector(".public-manufacturers-menu");
-    const manufacturerPanel=manufacturerMenu?.querySelector(".manufacturers-dropdown");
-    const manufacturerTrigger=manufacturerMenu?.querySelector(".manufacturers-menu-link");
-    if(manufacturerMenu && manufacturerPanel && manufacturerTrigger){
-      manufacturerTrigger.setAttribute("aria-haspopup","true");
-      manufacturerTrigger.setAttribute("aria-expanded","false");
-      let pinned=false;
-      const update=()=>{
-        const open=pinned && window.matchMedia("(min-width:951px)").matches;
-        manufacturerMenu.classList.toggle("manufacturers-open",open);
-        manufacturerTrigger.setAttribute("aria-expanded",String(open));
-        document.documentElement.classList.toggle("anybike-manufacturers-scroll-locked",open);
-      };
-      window.addEventListener("resize",()=>{
-        if(!window.matchMedia("(min-width:951px)").matches && pinned){
-          pinned=false;
-          update();
-        }
-      });
-      // The Manufacturers heading is a real index-page link.
-      // Hover still reveals the desktop mega menu; do not intercept navigation.
-      manufacturerTrigger.addEventListener("click",()=>{
-        if(pinned){
-          pinned=false;
-          update();
-        }
-      });
-      manufacturerMenu.addEventListener("pointerenter",()=>{
-        if(window.matchMedia("(min-width:951px)").matches){
-          pinned=true;
-          update();
-        }
-      });
-      document.addEventListener("pointerdown",event=>{
-        if(pinned && !manufacturerMenu.contains(event.target)){
-          pinned=false;
-          update();
-        }
-      });
-      document.addEventListener("keydown",event=>{
-        if(event.key==="Escape" && pinned){
-          pinned=false;
-          update();
-          manufacturerTrigger.focus();
-        }
-      });
-      manufacturerPanel.addEventListener("click",event=>{
-        if(event.target.closest("a")){pinned=false;update();}
-      });
-    }
-
+    // Manufacturers uses the same hover/focus mega-menu behaviour as Markets.
+    // No pointer-enter pinning or background scroll lock.
     if(typeof window.AnyBikePublicStockVisible==="boolean") anybikeUpdatePublicStockMenu(window.AnyBikePublicStockVisible);
     setTimeout(anybikeEnsureCustomerNextAction,100);
 
