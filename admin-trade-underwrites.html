@@ -20,12 +20,30 @@ table{width:100%;border-collapse:collapse;margin-top:12px}th,td{padding:9px;bord
 input{background:#090909;color:#fff;border:1px solid #333;border-radius:10px;padding:10px}.empty{padding:25px;text-align:center;color:#888;border:1px dashed #333;border-radius:14px}
 @media(max-width:950px){.grid{grid-template-columns:1fr}.data{grid-template-columns:1fr 1fr}}@media(max-width:600px){.admin-page-content{padding:14px}}
 .next-step{margin-top:12px;padding:12px;border:1px solid #5c2527;border-radius:10px;background:#1b1010}.next-step strong{display:block;margin-bottom:5px}.next-step p{margin:5px 0 9px;font-size:13px}.final-check{padding:12px;margin:10px 0;background:#0b0b0b;border:1px solid #333;border-radius:10px}.final-check label{display:flex;align-items:center;gap:8px;margin:7px 0;font-size:13px}.final-check input[type=checkbox]{width:18px;height:18px}.final-check textarea{width:100%;min-height:55px;background:#080808;color:white;border:1px solid #444;border-radius:8px;padding:8px}
-</style></head>
+.transport-calc{margin:0 0 16px;padding:18px;background:#111;border:1px solid #563034;border-radius:16px}.transport-calc h2{margin:0 0 5px;font-size:19px}.transport-calc .hint{font-size:12px;color:#aaa;margin:0 0 14px}.transport-fields{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.transport-fields label{display:block;font-size:12px;color:#ccc;font-weight:700}.transport-fields input{display:block;margin-top:6px;width:100%}.transport-results{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:13px}.transport-result{padding:12px;border-radius:10px;background:#080808;border:1px solid #333}.transport-result small{display:block;color:#aaa;margin-bottom:6px}.transport-result strong{font-size:20px}.transport-share{display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin-top:14px}.transport-share input{flex:1;min-width:140px;accent-color:#ed1c24}.transport-calc .transport-notice{font-size:12px;color:#aaa;margin:12px 0 0}@media(max-width:850px){.transport-fields,.transport-results{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:480px){.transport-fields,.transport-results{grid-template-columns:1fr}}</style></head>
 <body>
 <div class="admin-shell"><div id="adminSidebar"></div><div class="admin-main"><div id="adminTopbar"></div>
 <main class="admin-page-content">
 <section class="hero"><div class="eyebrow">AnyBike Buying Team</div><h1>Trade Underwrite Desk</h1>
 <p>AnyBike sees the commercial market. Sellers do not see bidder identities or bid values; they may only be told the number of genuine live bids. Any AnyBike offer is a separate decision.</p><a href="admin-motorcycle-buying.html" style="display:inline-block;margin-top:13px;padding:10px 14px;background:#ed1c24;color:#fff;border-radius:10px;font-weight:800;text-decoration:none">← Back to Motorcycle Buying</a></section>
+<section class="transport-calc" aria-labelledby="transportCalcTitle">
+<h2 id="transportCalcTitle">Transport Cost &amp; Contribution Calculator <span style="font-size:11px;color:#bbb;font-weight:400">· Admin only</span></h2>
+<p class="hint">Plan the collection and delivery economics of a trade underwrite. Enter agreed charges independently; the seller and dealer do not see each other's figures.</p>
+<div class="transport-fields">
+<label>Actual collection &amp; delivery cost (£)<input id="tcCost" type="number" min="0" step="0.01" value="250"></label>
+<label>Seller contribution (£)<input id="tcSeller" type="number" min="0" step="0.01" value="125"></label>
+<label>Dealer contribution (£)<input id="tcDealer" type="number" min="0" step="0.01" value="125"></label>
+<label>Other transport costs (£)<input id="tcOther" type="number" min="0" step="0.01" value="0"></label>
+</div>
+<div class="transport-share"><label for="tcShare">Quick split (seller share of the actual transport cost): <strong id="tcShareValue">50%</strong></label><input type="range" id="tcShare" min="0" max="100" step="5" value="50"><button type="button" id="tcReset">Reset</button></div>
+<div class="transport-results" aria-live="polite">
+<div class="transport-result"><small>Total transport cost</small><strong id="tcTotal">£250.00</strong></div>
+<div class="transport-result"><small>Total contributions</small><strong id="tcRecovered">£250.00</strong></div>
+<div class="transport-result"><small>AnyBike pays / (surplus)</small><strong id="tcNet">£0.00</strong></div>
+<div class="transport-result"><small>Transport recovery margin</small><strong id="tcMargin">£0.00</strong></div>
+</div>
+<p class="transport-notice">Planning only — figures are not saved, do not change any bid, and are never sent to a seller or dealer. Enter VAT-inclusive or VAT-exclusive amounts consistently. Confirm tax treatment and final agreed charges separately.</p>
+</section>
 <div id="grid" class="grid"><div class="empty">Loading…</div></div>
 </main></div></div>
 
@@ -334,5 +352,34 @@ async function recordSellerCounter(offerId){
   alert("Seller counter recorded at "+money(amount)+". Reserve bids remain live.");
   await load();
 }
+(function(){
+ const keys=["tcCost","tcSeller","tcDealer","tcOther"];
+ const el=id=>document.getElementById(id);
+ const number=id=>Math.max(0,Number(el(id).value)||0);
+ const money=n=>new Intl.NumberFormat("en-GB",{style:"currency",currency:"GBP"}).format(n);
+ const refresh=()=>{
+  const cost=number("tcCost")+number("tcOther"),received=number("tcSeller")+number("tcDealer");
+  const balance=cost-received;
+  el("tcTotal").textContent=money(cost);
+  el("tcRecovered").textContent=money(received);
+  el("tcNet").textContent=money(balance);
+  el("tcMargin").textContent=money(-balance);
+  el("tcMargin").style.color=balance<=0?"#87eca4":"#ffb1b5";
+ };
+ for(const key of keys)el(key).addEventListener("input",refresh);
+ el("tcShare").addEventListener("input",function(){
+  const pct=Number(this.value);
+  const base=number("tcCost");
+  el("tcShareValue").textContent=pct+"%";
+  const seller=Math.round(base*pct)/100;
+  el("tcSeller").value=seller.toFixed(2);
+  el("tcDealer").value=(Math.round(base*100)/100-seller).toFixed(2);
+  refresh();
+ });
+ el("tcReset").addEventListener("click",function(){
+  el("tcCost").value="250";el("tcOther").value="0";el("tcSeller").value="125";el("tcDealer").value="125";el("tcShare").value="50";el("tcShareValue").textContent="50%";refresh();
+ });
+ refresh();
+})();
 (async()=>{const ok=await requireAdminSession();if(!ok)return;document.documentElement.classList.remove("admin-auth-pending");await load();})();
 </script></body></html>
