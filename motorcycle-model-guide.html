@@ -24,14 +24,16 @@ if(guide){
  const generations=guide.production?.generations||[];
  if(generations.length){
   el("generationPanel").hidden=false;
+  if(generations.length===1){el("generationPanel").querySelector("h2").textContent="Documented model specification";el("generationPanel").querySelector("p").textContent="Specifications shown are for this documented version and may differ by year, market and equipment.";}
   const buttons=el("generationControls"),detail=el("generationDetail");
   const showGeneration=index=>{
    const g=generations[index];if(!g)return;
    Array.from(buttons.children).forEach((button,i)=>button.setAttribute("aria-pressed",String(i===index)));
-   const specs=[g.engine_cc?g.engine_cc+" cc":"",g.power_hp?g.power_hp+" hp":"",g.torque_nm?g.torque_nm+" Nm":"",g.transmission||"",g.body_type||""].filter(Boolean);
+   const specs=[g.engine_cc?g.engine_cc+" cc":"",g.power_hp?g.power_hp+" hp":"",g.torque_nm?g.torque_nm+" Nm":"",g.transmission||"",g.body_type||"",g.battery_kwh?g.battery_kwh+" kWh battery":"",g.market?"Market: "+g.market:""].filter(Boolean);
    detail.innerHTML="<h3>"+esc(g.label)+"</h3><p class='meta'>"+esc(g.model_year||"Documented version")+(g.announcement_year?" · Announced "+esc(g.announcement_year):"")+"</p><div class='generation-specs'>"+specs.map(x=>"<span>"+esc(x)+"</span>").join("")+"</div><p>"+esc(g.description||"")+"</p>"+(g.source?'<a href="'+esc(g.source)+'" target="_blank" rel="noopener noreferrer">BMW manufacturer reference ↗</a>':"");
   };
   generations.forEach((g,i)=>{const button=document.createElement("button");button.type="button";button.className="generation-choice";button.textContent=g.label;button.addEventListener("click",()=>showGeneration(i));buttons.appendChild(button)});
+  if(generations.length===1)buttons.hidden=true;
   showGeneration(0);
  }
 
