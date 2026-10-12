@@ -361,7 +361,7 @@ function openReserveReview(id){
 }
 async function loadReserveDraft(id){
  try{
-  const {data,error}=await sb.rpc("admin_get_underwrite_commercial_draft_v1",{p_opportunity_id:id});
+  const {data,error}=await sb.rpc("admin_get_underwrite_commercial_saved_v1",{p_opportunity_id:id});
   if(error||!data||reserveReviewId!==id)return;
   const fields={rvSeller:"seller_payment_gbp",rvTransport:"transport_cost_gbp",rvOther:"other_costs_gbp",rvSellerTransport:"seller_contribution_gbp",rvDealerTransport:"dealer_contribution_gbp",rvMargin:"minimum_margin_gbp"};
   Object.entries(fields).forEach(([element,key])=>{document.getElementById(element).value=data[key]??"";});
@@ -369,7 +369,7 @@ async function loadReserveDraft(id){
   document.getElementById("rvContributionsAgreed").checked=!!data.contributions_agreed;
   document.querySelectorAll(".margin-preset").forEach(b=>{b.classList.remove("selected");b.setAttribute("aria-pressed","false");});
   updateReservePreview();
-  document.getElementById("rvResult").textContent="Draft restored from "+(data.saved_at?new Date(data.saved_at).toLocaleString("en-GB"):"previous save")+". No reserve confirmed.";
+  document.getElementById("rvResult").textContent=(data.record_type==="draft"?"Draft":"Previous assessment")+" restored from "+(data.saved_at?new Date(data.saved_at).toLocaleString("en-GB"):"previous save")+". Figures are recalculated against the current live bid; reserve must be reassessed.";
  }catch(e){console.warn("Could not load underwrite draft",e)}
 }
 function updateReservePreview(){
