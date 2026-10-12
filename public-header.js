@@ -933,6 +933,35 @@ async function addMyDealershipMenuIfEligible(user){
   }catch(error){console.warn("Dealer menu check unavailable",error);}
 }
 
+async function anybikeApplyPrivateCustomerMenu(user){
+ if(!user||!window.sb?.from)return;
+ try{
+  const {data,error}=await window.sb.from("customer_profiles").select("customer_type").eq("id",user.id).maybeSingle();
+  if(error||data?.customer_type!=="uk_private")return;
+  const links=[
+   ["My Dashboard","/private-dashboard.html"],
+   ["Sell My Motorbike","/uk-motorcycle-selling.html"],
+   ["My Motorcycles / My Selling","/my-selling.html"],
+   ["My Messages","/customer-messages.html"],
+   ["My Purchases","/my-purchases.html"],
+   ["My Profile","/customer-profile.html"],
+   ["Logout","#"]
+  ];
+  for(const id of ["loggedInMenu","mobileLoggedInMenu"]){
+   const menu=document.getElementById(id);if(!menu)continue;
+   const existingLogout=menu.querySelector('a[id*="Logout"]');
+   const logoutClick=existingLogout?()=>existingLogout.click():null;
+   for(const node of [...menu.children]){
+    if(node.matches("a")||node.hasAttribute("data-dealer-menu-anchor"))node.remove();
+   }
+   links.forEach(([label,href])=>{
+    const a=document.createElement("a");a.textContent=label;a.href=href;
+    if(label==="Logout"){a.href="#";a.addEventListener("click",async e=>{e.preventDefault();if(logoutClick){logoutClick();return}await window.sb.auth.signOut();location.assign("/")})}
+    menu.appendChild(a);
+   });
+  }
+ }catch(e){console.warn("Private customer menu unavailable",e)}
+}
 async function setupPublicHeader(){
   const mobileMenuButton = document.getElementById("mobileMenuButton");
   const mobileMenuClose = document.getElementById("mobileMenuClose");
@@ -1141,6 +1170,7 @@ async function setupPublicHeader(){
     mobileLoggedInMenu?.classList.remove("hidden");
 
     await addMyDealershipMenuIfEligible(user);
+    await anybikeApplyPrivateCustomerMenu(user);
     document.documentElement.classList.add("anybike-home-audience-resolved");
     await loadCustomerHeaderActivity(user);
     bindHeaderMessagePageUnreadSync();
