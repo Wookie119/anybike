@@ -552,8 +552,16 @@ async function startUnderwrite(id){
   });
   if(error){window.anybikeUnderwritePending.delete(Number(id));buttons.forEach(b=>{b.disabled=false;b.textContent="Start Trade Bidding →"});if(actionStatus)actionStatus.textContent="Could not start bidding: "+error.message;return;}
   window.anybikeUnderwritePending.delete(Number(id));
-  alert("Underwrite "+data.reference+" opened. "+Number(data.invited_count||0)+" verified trade dealer"+(Number(data.invited_count||0)===1?" was":"s were")+" invited.");
-  await loadQueue();
+  const successMessage="✓ Trade bidding started — "+Number(data.invited_count||0)+" verified UK dealer"+(Number(data.invited_count||0)===1?" invited.":"s invited.");
+  if(actionStatus){actionStatus.textContent=successMessage;actionStatus.style.color="#91e6a4";}
+  buttons.forEach(b=>{b.disabled=true;b.textContent="✓ Trade Bidding Started";});
+  try{
+    await loadQueue();
+    const updatedStatus=document.getElementById("action-status-"+id);
+    if(updatedStatus){updatedStatus.textContent=successMessage;updatedStatus.style.color="#91e6a4";}
+  }catch(refreshError){
+    if(actionStatus){actionStatus.textContent=successMessage+" Refresh the queue to see its status.";actionStatus.style.color="#91e6a4";}
+  }
 }
 async function captureComps(id){
   id=Number(id);
