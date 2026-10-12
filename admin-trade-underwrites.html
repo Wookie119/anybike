@@ -125,14 +125,15 @@ async function load(){
    });
    return;
  }
+ const priority=rows.find(r=>r.opportunity_status==="live"&&Number(r.live_bid_count)>0)||rows.find(r=>r.opportunity_status==="live")||rows[0];
+ const hasBids=Number(priority.live_bid_count)>0;
  window.AnyBikeNextAction?.set({
-   title:"Review the next live underwrite",
-   text:"Review the first live opportunity below for bids, confirmations or seller-offer action.",
-   waitingFor:"AnyBike",
-   label:"REVIEW LIVE UNDERWRITE →",
-   selector:"#grid .card"
+ title:hasBids?"Review "+priority.reference+" commercial assessment":"Check underwrite invitations",
+ text:hasBids?"Review active dealer bids and the Move quotation. No offer or sale is automatically agreed.":"No dealer bids yet for the next opportunity. Review invitations and bidding progress.",
+ waitingFor:"AnyBike",label:hasBids?"REVIEW ACTIVE BIDS →":"REVIEW UNDERWRITE →",
+ selector:"#underwrite-"+priority.opportunity_id
  });
- host.innerHTML=rows.map(r=>'<article class="card"><div class="top"><div><div class="ref">'+esc(r.reference)+'</div><div class="meta">'+esc(r.submission_reference)+' · '+esc(r.opportunity_status)+'</div></div><strong>'+esc(r.live_bid_count)+' live bid'+(Number(r.live_bid_count)===1?'':'s')+'</strong></div>'+
+ host.innerHTML=rows.map(r=>'<article class="card" id="underwrite-'+r.opportunity_id+'"><div class="top"><div><div class="ref">'+esc(r.reference)+'</div><div class="meta">'+esc(r.submission_reference)+' · '+esc(r.opportunity_status)+'</div></div><strong>'+esc(r.live_bid_count)+' live bid'+(Number(r.live_bid_count)===1?'':'s')+'</strong></div>'+
  '<div class="bike">'+esc([r.make,r.model,r.variant].filter(Boolean).join(" "))+'</div><div class="meta">'+esc(r.registration||"")+(r.bike_year?' · '+r.bike_year:'')+(r.mileage!==null?' · '+Number(r.mileage).toLocaleString("en-GB")+' miles':'')+'</div>'+
  '<div class="data"><div class="box"><span>Seller wants</span><strong>'+money(r.seller_price_wanted_gbp)+'</strong></div><div class="box"><span>Invited</span><strong>'+r.invited_trade_count+'</strong></div><div class="box"><span>Bid range</span><strong>'+money(r.lowest_live_bid_gbp)+' – '+money(r.highest_live_bid_gbp)+'</strong></div><div class="box"><span>Average</span><strong>'+money(r.average_live_bid_gbp)+'</strong></div></div>'+
  '<div class="meta">Seller-visible genuine bid count: '+r.seller_visible_bid_count+' only. Bid amounts remain internal.</div>'+
@@ -145,7 +146,15 @@ async function load(){
  (r.latest_offer_id&&["sent","countered"].includes(r.latest_offer_status)
    ?'<button onclick="recordSellerResponse('+Number(r.latest_offer_id)+',\'accepted\')">Seller Accepted</button><button onclick="recordSellerResponse('+Number(r.latest_offer_id)+',\'declined\')">Seller Declined</button><button onclick="recordSellerCounter('+Number(r.latest_offer_id)+')">Seller Countered</button>'
    :'')+
- '</div><div class="next-step"><strong>Your Next Action →</strong><p>'+((r.latest_offer_status==="accepted")?"Complete Seller Confirmation / HPI Check, then select the buyer.":"Review confidential bids, reconfirm seller availability and agree AnyBike purchase price before selecting a buyer.")+'</p><button class="red" onclick="openFinalCheck('+r.opportunity_id+')">Seller Confirmation / HPI Check →</button> <button onclick="viewBids('+r.opportunity_id+')">Review Bids →</button></div></article>').join("");
+ '</div><div class="next-step"><strong>Your Next Action</strong><p>'+(
+ r.latest_offer_status==="accepted"?"Complete seller confirmation and HPI checks before proceeding.":
+ Number(r.live_bid_count)===0?"Waiting for the first dealer bid. Review invitations or adjust the countdown.":
+ "Review active bids and Move's transport quote. Confirm the seller's price, HPI and commercial viability before any offer."
+ )+'</p>'+(
+ r.latest_offer_status==="accepted"?'<button class="red" onclick="openFinalCheck('+r.opportunity_id+')">Seller and HPI checks</button>':
+ Number(r.live_bid_count)===0?'<button onclick="viewBids('+r.opportunity_id+')">Review bidding activity</button>':
+ '<button class="red" onclick="openReserveReview('+r.opportunity_id+')">Reserve assessment</button> <button onclick="openFinalCheck('+r.opportunity_id+')">Seller and HPI checks</button>'
+ )+'</div></article>').join("");
 }
 async function adjustUnderwriteDeadline(id){
  const h=prompt("Set bidding to close in how many hours from now? Choose 12, 24, 48, 72 or 96.","48");
