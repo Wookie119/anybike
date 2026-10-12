@@ -33,6 +33,20 @@ async function setupCatalogue(){
  const option=[...model.options].find(x=>norm(x.value)===norm(incomingModel));
  if(option)model.value=option.value;
  else if(incomingModel&&!el("otherModel").value)el("otherModel").value=incomingModel;
+ const hasModelFromPage=!!(qs.get("make")&&qs.get("model")&&selectedMake&&option);
+ const summary=el("selectedModelSummary");
+ const showMakeModel=()=>{
+   summary.style.display="none";
+   el("makeField").style.display="";
+   el("modelField").style.display="";
+ };
+ if(hasModelFromPage){
+   el("selectedModelLabel").textContent="Your motorcycle: "+make.value+" "+model.value;
+   summary.style.display="";
+   el("makeField").style.display="none";
+   el("modelField").style.display="none";
+   el("changeSelectedModel").addEventListener("click",showMakeModel);
+ }
  el("catalogueStatus").textContent=fromFile?"Choose your make and model from the AnyBike catalogue.":"Make and model choices loaded. Exact variants should still be confirmed.";
  updateDealer();
 }
