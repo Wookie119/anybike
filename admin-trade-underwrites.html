@@ -46,7 +46,7 @@ input{background:#090909;color:#fff;border:1px solid #333;border-radius:10px;pad
 </div>
 <div id="rvPreview" role="status" style="padding:12px;background:#151515;border:1px solid #555;border-radius:8px;margin:12px 0">Enter the figures to preview the margin.</div>
 
-<div class="actions"><button type="button" class="red" id="rvSave" onclick="saveReserveReview()">Save commercial assessment</button></div><p id="rvResult" role="status"></p><p style="font-size:12px">This does not send an offer, select a dealer, accept any contribution or promise the seller a sale.</p></div></div><div id="finalCheckModal" class="modal"><div class="modal-box" style="width:min(680px,100%)">
+<div class="actions"><button type="button" id="rvDraft" onclick="saveReserveReview(true)">Save draft</button><button type="button" class="red" id="rvSave" onclick="saveReserveReview(false)">Confirm reserve assessment</button></div><p id="rvResult" role="status"></p><p style="font-size:12px">This does not send an offer, select a dealer, accept any contribution or promise the seller a sale.</p></div></div><div id="finalCheckModal" class="modal"><div class="modal-box" style="width:min(680px,100%)">
 <div class="top"><h3 id="finalCheckTitle">Seller Confirmation / HPI Check</h3><button onclick="closeFinalCheck()">Close</button></div>
 <p>Complete after bidding closes. No winner can be selected until the seller and commercial checks are confirmed. Outstanding finance must be cleared before release.</p>
 <div class="final-check" id="finalCheckFields">
@@ -372,22 +372,23 @@ function updateReservePreview(){
 }
 document.getElementById("reserveReviewModal").addEventListener("input",event=>{if(event.target.id==="rvMargin")document.querySelectorAll(".margin-preset").forEach(b=>{b.classList.remove("selected");b.setAttribute("aria-pressed","false")});updateReservePreview()});
 document.getElementById("reserveReviewModal").addEventListener("change",updateReservePreview);
-async function saveReserveReview(){
+async function saveReserveReview(asDraft=false){
  if(!reserveReviewId)return;
  const n=id=>Number(document.getElementById(id).value);
- const args={p_opportunity_id:reserveReviewId,p_seller_payment_gbp:n("rvSeller"),p_transport_cost_gbp:n("rvTransport"),p_other_costs_gbp:n("rvOther"),p_seller_contribution_gbp:n("rvSellerTransport"),p_dealer_contribution_gbp:n("rvDealerTransport"),p_minimum_margin_gbp:n("rvMargin"),p_move_quote_confirmed:document.getElementById("rvQuoteStatus").value==="confirmed",p_contributions_agreed:document.getElementById("rvContributionsAgreed").checked};
+ const args={p_opportunity_id:reserveReviewId,p_seller_payment_gbp:n("rvSeller"),p_transport_cost_gbp:document.getElementById("rvTransport").value===""?null:n("rvTransport"),p_other_costs_gbp:n("rvOther"),p_seller_contribution_gbp:n("rvSellerTransport"),p_dealer_contribution_gbp:n("rvDealerTransport"),p_minimum_margin_gbp:n("rvMargin"),p_move_quote_confirmed:document.getElementById("rvQuoteStatus").value==="confirmed",p_contributions_agreed:document.getElementById("rvContributionsAgreed").checked};
  if(Object.values(args).some(v=>typeof v==="number"&&(!Number.isFinite(v)||v<0))){document.getElementById("rvResult").textContent="Enter valid non-negative amounts.";return}
- if(document.getElementById("rvTransport").value==="" || document.getElementById("rvQuoteStatus").value!=="confirmed"){document.getElementById("rvResult").textContent="Enter a Move quotation and confirm its status before saving.";return}
- if((n("rvSellerTransport")>0||n("rvDealerTransport")>0)&&!document.getElementById("rvContributionsAgreed").checked){document.getElementById("rvResult").textContent="Confirm any contributions are agreed before saving.";return}
- const btn=document.getElementById("rvSave");btn.disabled=true;btn.textContent="Saving…";
+ if(!asDraft&&(document.getElementById("rvTransport").value==="" || document.getElementById("rvQuoteStatus").value!=="confirmed")){document.getElementById("rvResult").textContent="Enter a Move quotation and confirm its status before saving.";return}
+ if(!asDraft&&(n("rvSellerTransport")>0||n("rvDealerTransport")>0)&&!document.getElementById("rvContributionsAgreed").checked){document.getElementById("rvResult").textContent="Confirm any contributions are agreed before saving.";return}
+ const btn=document.getElementById(asDraft?"rvDraft":"rvSave");btn.disabled=true;const previousLabel=btn.textContent;btn.textContent="Saving…";
  try{
- const {data,error}=await sb.rpc("admin_save_underwrite_commercial_review_v2",args);
+ const {data,error}=await sb.rpc(asDraft?"admin_save_underwrite_commercial_draft_v1":"admin_save_underwrite_commercial_review_v2",args);
  if(error)throw error;
+ if(asDraft){const result=document.getElementById("rvResult");result.textContent="✓ Draft saved. No reserve confirmed, offer sent or price changed.";result.style.color="#87eca4";return;}
  const outcome=data.reserve_met?"✓ Reserve met — internal review passed.":"Reserve not met — no seller-facing confirmation.";
  const result=document.getElementById("rvResult");result.textContent=outcome+" Calculated margin: "+money(data.calculated_margin_gbp)+". Best live bid: "+money(data.bid_gbp)+".";
  result.style.color=data.reserve_met?"#87eca4":"#ffbaaa";
  }catch(e){document.getElementById("rvResult").textContent="Could not save: "+String(e.message||e)}
- finally{btn.disabled=false;btn.textContent="Save commercial assessment";}
+ finally{btn.disabled=false;btn.textContent=previousLabel;}
 }
 async function openUnderwriteDeal(opportunityId){
   const {data,error}=await sb.rpc("admin_promote_trade_underwrite_to_deal_v1",{p_opportunity_id:Number(opportunityId)});
