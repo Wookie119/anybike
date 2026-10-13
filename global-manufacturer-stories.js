@@ -5,11 +5,14 @@ const root=document.querySelector("[data-global-stories-brand]");
 if(!root)return;
 const brand=(root.getAttribute("data-global-stories-brand")||new URLSearchParams(location.search).get("make")||"").trim();
 if(!brand)return;
+const grid=root.querySelector("[data-global-stories-list]");
+const fallback=()=>{if(grid&&!grid.children.length)grid.innerHTML='<article class="global-story-card"><div class="global-story-tag">AnyBike Global</div><h3>Explore '+encode(brand)+' stories and comparisons</h3><p>No dedicated stories are available here yet. Browse AnyBike Global for motorcycle features and comparisons.</p><a href="/anybike-global.html">Explore AnyBike Global →</a></article>';root.hidden=false};
 const normal=s=>String(s||"").toLocaleLowerCase("en-GB").replace(/&amp;/g,"&").replace(/[^a-z0-9]+/g," ").trim();
 const brandKey=normal(brand);
 const label=brand==="BMW"?"BMW":brand;
 const encode=s=>String(s||"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
 const slug=s=>normal(s).replace(/\s+/g,"-").slice(0,72);
+fallback();
 function matches(article){
  const declared=article.getAttribute("data-manufacturer");
  if(declared)return declared.split(",").some(x=>normal(x)===brandKey);
@@ -28,7 +31,7 @@ fetch("/anybike-global.html",{cache:"no-cache"}).then(r=>{if(!r.ok)throw Error("
  .map((article,index)=>({article,index,date:article.getAttribute("data-published")||""}))
  .sort((a,b)=>{const ad=/^\d{4}-\d{2}-\d{2}$/.test(a.date)?a.date:"";const bd=/^\d{4}-\d{2}-\d{2}$/.test(b.date)?b.date:"";return bd.localeCompare(ad)||a.index-b.index;})
  .map(item=>item.article);
- if(!items.length){const grid=root.querySelector("[data-global-stories-list]");if(grid)grid.innerHTML='<article class="global-story-card"><div class="global-story-tag">AnyBike Global</div><h3>'+encode(label)+' stories and comparisons</h3><p>Dedicated '+encode(label)+' articles are being prepared. Explore existing motorcycle features and comparisons on AnyBike Global in the meantime.</p><a href="/anybike-global.html">Explore AnyBike Global →</a></article>';root.hidden=false;return}
+ if(!items.length){if(grid)grid.innerHTML='<article class="global-story-card"><div class="global-story-tag">AnyBike Global</div><h3>'+encode(label)+' stories and comparisons</h3><p>Dedicated '+encode(label)+' articles are being prepared. Explore existing motorcycle features and comparisons on AnyBike Global in the meantime.</p><a href="/anybike-global.html">Explore AnyBike Global →</a></article>';root.hidden=false;return}
  const cards=items.slice(0,3).map(article=>{
   const title=article.querySelector("h3").textContent.trim();
   const tag=article.querySelector(".tag")?.textContent.trim()||"AnyBike Global";
@@ -42,5 +45,5 @@ fetch("/anybike-global.html",{cache:"no-cache"}).then(r=>{if(!r.ok)throw Error("
  grid.innerHTML=cards.join("");
  root.querySelector("[data-global-stories-title]").textContent=label+" stories from AnyBike Global";
  root.hidden=false;
-}).catch(()=>{root.hidden=true});
+}).catch(()=>{fallback()});
 })();
