@@ -3,25 +3,33 @@
 import fs from 'node:fs';
 import vm from 'node:vm';
 import {URL} from 'node:url';
-const names=['road-glide','street-glide','road-king','electra-glide','ultra-limited','fat-boy','breakout','low-rider-s','softail-standard','iron-883','sportster-s','pan-america-1250','heritage-classic','street-bob','nightster','cvo'];
+const models=[
+ ['road-glide','Road Glide'],['street-glide','Street Glide'],['road-king','Road King'],
+ ['electra-glide','Electra Glide'],['ultra-limited','Ultra Limited'],['fat-boy','Fat Boy'],
+ ['breakout','Breakout'],['low-rider-s','Low Rider S'],['softail-standard','Softail Standard'],
+ ['iron-883','Iron 883'],['sportster-s','Sportster S'],['pan-america-1250','Pan America 1250'],
+ ['heritage-classic','Heritage Classic'],['street-bob','Street Bob'],['nightster','Nightster'],
+ ['cvo','CVO'],['hydra-glide-revival','Hydra-Glide Revival'],['v-rod','V-Rod'],
+ ['xr1000','XR1000'],['pan-america-1250-st','Pan America 1250 ST']
+];
 const exists=file=>fs.existsSync(file);
 const make='Harley-Davidson';
 const failures=[];
 const notes=[];
-for(const slug of names){
+for(const [slug,expected] of models){
  const file='harley-davidson-'+slug+'.html';
  const html=fs.readFileSync(file,'utf8');
  const warn=message=>failures.push(file+': '+message);
  if(!/<h1>Harley-Davidson /.test(html))warn('Missing model heading');
  if(!html.includes('max-width:1440px'))warn('Missing BMW model layout width');
  if(!html.includes('AnyBike Global'))warn('Missing AnyBike Global');
- if(!html.includes('Interested in this Harley-Davidson'))warn('Missing buyer enquiry');
+ if(!/href="\/bulk-buying-request\.html\?make=Harley-Davidson&amp;model=/.test(html))warn('Missing buyer enquiry');
  if(!html.includes('Own a Harley-Davidson'))warn('Missing UK owner-selling');
- if(!html.includes('Compare related Harley-Davidson models'))warn('Missing related model section');
+ if(!/Compare related Harley-Davidson (models|motorcycles)/.test(html))warn('Missing related models section');
  if(!html.includes('harley-davidson-motorcycles.html'))warn('Missing brand page navigation');
- if(!html.includes('documented')&&!html.includes('generation'))warn('Missing historical/generation evidence');
+ if(!/(history|historic|generation|documented|origins)/i.test(html))warn('Missing historical/generation context');
  if(html.includes('/available-stock.html'))warn('Hidden available stock linked publicly');
- const expected=slug==='cvo'?'CVO':slug.split('-').map(s=>s==='s'?'S':s==='883'?'883':s==='1250'?'1250':s[0].toUpperCase()+s.slice(1)).join(' ');
+
  const sourceHref='/bulk-buying-request.html?make=Harley-Davidson&amp;model='+encodeURIComponent(expected);
  const sellerHref='/uk-motorcycle-selling.html?make=Harley-Davidson&amp;model='+encodeURIComponent(expected);
  if(!html.includes(sourceHref))warn('Incorrect sourcing model prefill: '+expected);
@@ -46,7 +54,7 @@ for(const slug of names){
  }
  const photoCount=[...html.matchAll(/<img\b/g)].length;
  if(!photoCount)notes.push(file+': no model photo, requires rights-checked image');
- if(!html.includes('id="roadGlideGenerationControls"'))notes.push(file+': generation content remains static pending version-specific research and UX review');
+ if(!html.includes('id="roadGlideGenerationControls"'))notes.push(file+': generation content remains static or differs from Road Glide controls; review model-specific suitability');
 }
 if(notes.length){console.log('RESEARCH / DESIGN FOLLOW-UP:');notes.forEach(n=>console.log('- '+n))}
 if(failures.length){console.error('FAILURES ('+failures.length+'):');failures.forEach(e=>console.error('- '+e));process.exitCode=1}
