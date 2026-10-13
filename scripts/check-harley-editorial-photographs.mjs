@@ -5,8 +5,6 @@ const manufacturer=readFileSync('harley-davidson-motorcycles.html','utf8');
 const global=readFileSync('anybike-global.html','utf8');
 const errors=[];
 const disallowed={
- 'V-Rod: Revolution engine and Porsche collaboration':true,
- 'XR1000: race engineering for the road':true,
  '1957 · Sportster begins':true,
  '2017 · Milwaukee-Eight Touring':true,
  'Superchargers and turbochargers':true
@@ -16,6 +14,15 @@ for(const [title] of Object.entries(disallowed)){
  const at=manufacturer.indexOf(heading);
  if(at<0){errors.push('Missing historical section '+title);continue}
  if(manufacturer.slice(at+heading.length,at+heading.length+65).includes('harley-editorial-photo'))errors.push('Unverified illustrated photograph immediately after '+title);
+}
+// Two formerly unillustrated articles now have model-specific Commons sources.
+for(const [heading,source] of [
+ ['V-Rod: Revolution engine and Porsche collaboration','Harley-Davidson%20V-Rod.jpg'],
+ ['XR1000: race engineering for the road','1984%20Harley-Davidson%20XR-1000%20Sportsters%20Front.jpg']
+]){
+ const at=manufacturer.indexOf('<h3>'+heading+'</h3>');
+ const article=manufacturer.slice(at,manufacturer.indexOf('</div>',at));
+ if(at<0||!article.includes(source)||!article.includes('Photo and licence details'))errors.push('Missing identified historic editorial photograph: '+heading);
 }
 const turbo=global.indexOf('<h3>Harley-Davidson superchargers and turbochargers</h3>');
 if(turbo<0)errors.push('Global forced-induction story missing');
