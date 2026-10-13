@@ -733,6 +733,16 @@ async function loadPublicHeader(){
     anybikeShowPublicSignedInIdentity().catch(()=>{});
     await setupPublicHeader();
     anybikeShowPublicSignedInIdentity().catch(()=>{});
+    // Allow time to travel from the nav label to a manufacturer link.
+    document.querySelectorAll(".public-manufacturers-menu").forEach(function(menu){
+      if(menu.dataset.hoverDelayReady)return;
+      menu.dataset.hoverDelayReady="1";
+      let closeTimer=null;
+      menu.addEventListener("pointerenter",function(){clearTimeout(closeTimer);menu.classList.add("menu-open");});
+      menu.addEventListener("pointerleave",function(){clearTimeout(closeTimer);closeTimer=setTimeout(function(){if(!menu.matches(":hover")&&!menu.contains(document.activeElement))menu.classList.remove("menu-open");},650);});
+      menu.addEventListener("focusin",function(){clearTimeout(closeTimer);menu.classList.add("menu-open");});
+      menu.addEventListener("focusout",function(){clearTimeout(closeTimer);closeTimer=setTimeout(function(){if(!menu.contains(document.activeElement)&&!menu.matches(":hover"))menu.classList.remove("menu-open");},250);});
+    });
     // Manufacturers uses the same hover/focus mega-menu behaviour as Markets.
     // No pointer-enter pinning or background scroll lock.
     if(typeof window.AnyBikePublicStockVisible==="boolean") anybikeUpdatePublicStockMenu(window.AnyBikePublicStockVisible);
