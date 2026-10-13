@@ -55,5 +55,31 @@ for(const anchor of nav.matchAll(/href="#([^"]+)"/g)){
 }
 if(manufacturer.includes('/available-stock.html'))errors.push('Hidden Available Stock leaked from Harley manufacturer page');
 
+
+// Validate the complete model catalogue, not just hand-written editorial figures.
+const dataset=manufacturer.match(/const curatedHarley=(\[[^\n]+\]);/);
+if(!dataset)errors.push('Harley model catalogue data missing');
+else {
+ let families=[];
+ try{families=JSON.parse(dataset[1])}catch(e){errors.push('Model catalogue JSON invalid: '+e.message)}
+ const entries=families.flatMap(f=>f.entries||[]);
+ if(entries.length!==20)errors.push('Expected 20 Harley model cards; found '+entries.length);
+ const unique=new Set(entries.map(x=>x.url));
+ if(unique.size!==entries.length)errors.push('Duplicate Harley model guide card URL');
+ const mustRemainUnillustrated=['V-Rod','XR1000','Hydra-Glide Revival','Pan America 1250 ST'];
+ for(const entry of entries){
+   if(!entry.url?.startsWith('/harley-davidson-')||!entry.url.endsWith('.html'))errors.push('Invalid guide route: '+entry.name);
+   if(entry.photo){
+     const p=entry.photo;
+     if(!p.src?.startsWith('https://commons.wikimedia.org/wiki/Special:FilePath/'))errors.push(entry.name+': image not traceable to Commons');
+     if(!p.source?.startsWith('https://commons.wikimedia.org/wiki/File:'))errors.push(entry.name+': original image attribution missing');
+     if(!p.author||!p.license||!p.licenseUrl)errors.push(entry.name+': credit/licence metadata incomplete');
+     if(mustRemainUnillustrated.includes(entry.name))errors.push(entry.name+': requires specific image identification and licence review first');
+     if(entry.name==='Pan America 1250 ST'&&/Special/i.test(p.src))errors.push('Wrong Pan America version on ST card');
+   }
+ }
+ console.log('Harley catalogue photo coverage: '+entries.filter(x=>x.photo).length+'/'+entries.length+' credited; '+entries.filter(x=>!x.photo).map(x=>x.name).join(', ')+' awaiting verified images.');
+}
+
 if(errors.length){errors.forEach(e=>console.error('FAIL '+e));process.exitCode=1}
 else console.log('PASS: Harley editorial image mismatch guard is satisfied.');
