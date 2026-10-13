@@ -66,10 +66,11 @@ else {
  if(entries.length!==20)errors.push('Expected 20 Harley model cards; found '+entries.length);
  const unique=new Set(entries.map(x=>x.url));
  if(unique.size!==entries.length)errors.push('Duplicate Harley model guide card URL');
- const mustRemainUnillustrated=['XR1000','Pan America 1250 ST'];
+ const mustRemainUnillustrated=['Pan America 1250 ST'];
  // Do not fill historical or variant-specific gaps with a different motorcycle.
  const verifiedHistoricalSources=new Map([
   ['V-Rod','https://commons.wikimedia.org/wiki/File:Harley-Davidson_V-Rod.jpg'],
+  ['XR1000','https://commons.wikimedia.org/wiki/File:1984_Harley-Davidson_XR-1000_Sportsters_Front.jpg'],
   ['Hydra-Glide Revival','https://commons.wikimedia.org/wiki/File:Harley-Davidson_Museum_May_2024_31_(2024_Hydra-Glide_Revival).jpg']
  ]);
  const verifiedVRodSource='https://commons.wikimedia.org/wiki/File:Harley-Davidson_V-Rod.jpg';
