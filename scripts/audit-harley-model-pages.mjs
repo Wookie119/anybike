@@ -58,4 +58,4 @@ for(const [slug,expected] of models){
 }
 if(notes.length){console.log('RESEARCH / DESIGN FOLLOW-UP:');notes.forEach(n=>console.log('- '+n))}
 if(failures.length){console.error('FAILURES ('+failures.length+'):');failures.forEach(e=>console.error('- '+e));process.exitCode=1}
-else console.log('PASS: 16 Harley-Davidson model guides have model-specific sourcing, UK selling, AnyBike Global and valid local references.');
+else console.log('PASS: 20 Harley-Davidson model guides have model-specific sourcing, UK selling, AnyBike Global and valid local references.');
