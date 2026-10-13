@@ -730,6 +730,7 @@ async function loadPublicHeader(){
     holder.innerHTML = await headerRes.text();
     try{await anybikeEnsureHeaderAuthClient();}catch(e){console.warn("Header authentication unavailable",e);}
     await setupPublicHeader();
+    anybikeShowPublicSignedInIdentity().catch(()=>{});
     // Manufacturers uses the same hover/focus mega-menu behaviour as Markets.
     // No pointer-enter pinning or background scroll lock.
     if(typeof window.AnyBikePublicStockVisible==="boolean") anybikeUpdatePublicStockMenu(window.AnyBikePublicStockVisible);
@@ -2678,3 +2679,25 @@ document.addEventListener("visibilitychange",function(){
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",start,{once:true});
   else start();
 })();
+
+
+/* Account identity for testing multiple customer/dealer browsers. Display only, not authorisation. */
+async function anybikeShowPublicSignedInIdentity(){
+  const header=document.getElementById("publicHeader");
+  if(!header || !window.sb?.auth)return;
+  const session=await window.sb.auth.getSession();
+  const user=session?.data?.session?.user;
+  let strip=document.getElementById("anybikePublicSignedInIdentity");
+  if(!strip){strip=document.createElement("div");strip.id="anybikePublicSignedInIdentity";strip.style.cssText="background:#1a1a1a;color:#fff;border-bottom:1px solid #474747;padding:7px 16px;text-align:center;font:700 12px/1.45 Arial,sans-serif;overflow-wrap:anywhere";header.insertAdjacentElement("afterend",strip);}
+  if(!user){strip.textContent="SIGNED IN · Guest / Not signed in";return;}
+  const response=await window.sb.from("customer_profiles").select("customer_type,full_name").eq("id",user.id).maybeSingle();
+  const profile=response?.data||{};
+  const roles={uk_private:"UK PRIVATE",uk_private_customer:"UK PRIVATE",uk_dealer:"UK DEALER",uk_distributor:"UK DISTRIBUTOR",international_dealer:"INTERNATIONAL DEALER",european_dealer:"EUROPEAN DEALER",international_motorcycle_dealer:"INTERNATIONAL DEALER"};
+  let key=String(profile.customer_type||"").toLowerCase();
+  let role=roles[key]||key.replaceAll("_"," ").toUpperCase()||"CUSTOMER";
+  if(!profile.customer_type)role="CUSTOMER · ROLE NOT SET";
+  strip.style.borderBottomColor=key==="uk_dealer"?"#bf8f36":"#8b2730";
+  strip.textContent="SIGNED IN · "+role+" · "+(profile.full_name||"")+" · "+(user.email||"Email unavailable");
+  const refresh=()=>anybikeShowPublicSignedInIdentity().catch(()=>{});
+  if(!window.__anybikeIdentityWatcher){window.__anybikeIdentityWatcher=true;window.sb.auth.onAuthStateChange(()=>{setTimeout(refresh,0);});}
+}
