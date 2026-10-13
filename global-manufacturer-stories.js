@@ -28,7 +28,7 @@ fetch("/anybike-global.html",{cache:"no-cache"}).then(r=>{if(!r.ok)throw Error("
  .map((article,index)=>({article,index,date:article.getAttribute("data-published")||""}))
  .sort((a,b)=>{const ad=/^\d{4}-\d{2}-\d{2}$/.test(a.date)?a.date:"";const bd=/^\d{4}-\d{2}-\d{2}$/.test(b.date)?b.date:"";return bd.localeCompare(ad)||a.index-b.index;})
  .map(item=>item.article);
- if(!items.length){root.hidden=true;return}
+ if(!items.length){const grid=root.querySelector("[data-global-stories-list]");if(grid)grid.innerHTML='<article class="global-story-card"><div class="global-story-tag">AnyBike Global</div><h3>'+encode(label)+' stories and comparisons</h3><p>Dedicated '+encode(label)+' articles are being prepared. Explore existing motorcycle features and comparisons on AnyBike Global in the meantime.</p><a href="/anybike-global.html">Explore AnyBike Global →</a></article>';root.hidden=false;return}
  const cards=items.slice(0,3).map(article=>{
   const title=article.querySelector("h3").textContent.trim();
   const tag=article.querySelector(".tag")?.textContent.trim()||"AnyBike Global";
