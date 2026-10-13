@@ -36,9 +36,13 @@ fetch("/anybike-global.html",{cache:"no-cache"}).then(r=>{if(!r.ok)throw Error("
   const title=article.querySelector("h3").textContent.trim();
   const tag=article.querySelector(".tag")?.textContent.trim()||"AnyBike Global";
   const description=article.querySelector("p")?.textContent.trim()||"";
+  const photo=article.getAttribute("data-photo")||"";
+  const photoSource=article.getAttribute("data-photo-source")||"";
+  const photoCredit=article.getAttribute("data-photo-credit")||"";
+  const photoMarkup=photo&&photo.startsWith("https://commons.wikimedia.org/")?'<figure class="global-story-figure"><img loading="lazy" decoding="async" src="'+encode(photo)+'" alt="Illustrative motorcycle photograph"><figcaption>Illustrative photograph · '+encode(photoCredit)+(photoSource?' · <a href="'+encode(photoSource)+'" target="_blank" rel="noopener noreferrer">Photo and licence details ↗</a>':'')+'</figcaption></figure>':"";
   const standalone=[...article.querySelectorAll('a[href^="/global/"]')][0];
   const target=standalone?.getAttribute("href")||("/anybike-global.html#"+(article.id||("global-story-"+slug(title))));
-  return '<article class="global-story-card"><div class="global-story-tag">'+encode(tag)+'</div><h3>'+encode(title)+'</h3><p>'+encode(description)+'</p><a href="'+encode(target)+'">Read the Global story →</a></article>';
+  return '<article class="global-story-card">'+photoMarkup+'<div class="global-story-tag">'+encode(tag)+'</div><h3>'+encode(title)+'</h3><p>'+encode(description)+'</p><a href="'+encode(target)+'">Read the Global story →</a></article>';
  });
  const grid=root.querySelector("[data-global-stories-list]");
  if(!grid)return;
