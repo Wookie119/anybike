@@ -222,7 +222,9 @@ emailEl.textContent = anybikeAdminUser.email || "";
 emailEl.title = anybikeAdminUser.email || "";
 }
 // Visible identity for multi-browser testing; never grants permissions.
+const showTestIdentity=["mocp@hotmail.co.uk","andy.gifford@yahoo.co.uk","sales@anybike.co.uk"].includes(String(anybikeAdminUser.email||"").trim().toLowerCase());
 let identity=document.getElementById("anybikeAdminSignedInIdentity");
+if(!showTestIdentity){identity?.remove();return;}
 const topbar=document.getElementById("adminTopbar");
 if(topbar && !identity){
   identity=document.createElement("div");identity.id="anybikeAdminSignedInIdentity";
