@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Add Motorcycle Photographs | AnyBike</title><link rel="stylesheet" href="/public-header.css"><style>
+*{box-sizing:border-box}body{margin:0;background:#080808;color:#fff;font:16px/1.5 Arial,sans-serif}main{max-width:900px;margin:auto;padding:22px 18px 65px}h1{margin:8px 0 10px;font-size:clamp(27px,4vw,40px)}.card{background:#151515;border:1px solid #393939;border-radius:14px;padding:22px;margin:18px 0}p{color:#ccc}.muted{color:#aaa}a{color:#ff777b}input[type=file]{width:100%;border:1px dashed #777;border-radius:10px;padding:20px;color:white;background:#111}button,.btn{background:#ed1c24;color:#fff;border:none;border-radius:9px;font-weight:800;padding:12px 18px;cursor:pointer;display:inline-block;text-decoration:none}button:disabled{opacity:.55;cursor:wait}.status{padding:12px;border-radius:9px;margin-top:14px;display:none}.status.ok{display:block;background:#102b1a;border:1px solid #368b51;color:#baffcd}.status.bad{display:block;background:#2a1012;border:1px solid #903b42;color:#ffc5c5}.checks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px 18px;padding:0;list-style:none}.checks li:before{content:"✓ ";color:#8ee5a6}.preview{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:15px 0}.preview img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:9px;background:#222}@media(max-width:600px){.checks{grid-template-columns:1fr}.preview{grid-template-columns:repeat(2,minmax(0,1fr))}.card{padding:16px}}
+</style></head><body><header id="publicHeader"></header><main>
+<div style="color:#ed1c24;font-size:13px;font-weight:800">UK Private Motorcycle Selling</div><h1>Add photographs to your motorcycle</h1><p>Additional photographs will be linked to your existing motorcycle submission. You will not have to submit the bike again or change your minimum selling price.</p>
+<section class="card"><h2 id="bike">Checking your motorcycle…</h2><p id="authStatus" class="muted">Checking your signed-in AnyBike account.</p><p>For a full trade assessment, please provide clear photographs of:</p>
+<ul class="checks"><li>Front of motorcycle</li><li>Rear of motorcycle</li><li>Left side</li><li>Right side</li><li>Dashboard and mileage</li><li>Tyres, service records and any damage</li></ul>
+<form id="photoForm" hidden><label for="photos"><strong>Select additional motorcycle photographs</strong></label><input type="file" id="photos" name="photos" multiple accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif" required><p class="muted">Up to 12 photos at once, maximum 10 MB each. New images are checked by AnyBike before they can be shown to dealers.</p><div id="previews" class="preview"></div><button id="send" type="submit">Upload Photos for AnyBike Review →</button><div id="uploadStatus" role="status" aria-live="polite" class="status"></div></form>
+<p id="signin" hidden>Please <a href="/login.html">sign in with the same private seller account</a> that submitted this motorcycle, then return to this page.</p></section>
+<a href="/my-selling.html" class="btn" style="background:#292929">← Back to My Selling</a>
+</main><script src="/public-header.js?v=20261012-private-menu1"></script><script>
+(async function(){
+const ref=new URLSearchParams(location.search).get("reference")||"";
+const name=document.getElementById("bike"),auth=document.getElementById("authStatus"),form=document.getElementById("photoForm"),signin=document.getElementById("signin"),input=document.getElementById("photos"),status=document.getElementById("uploadStatus"),previews=document.getElementById("previews"),send=document.getElementById("send");
+function say(message,ok){status.className="status "+(ok?"ok":"bad");status.textContent=message;}
+if(!/^AB-S-\d{6}$/i.test(ref)){name.textContent="Invalid motorcycle link";auth.textContent="Open the photo upload link for your motorcycle from your AnyBike messages or My Selling.";return;}
+name.textContent="Motorcycle "+ref;
+let client=null;for(let i=0;i<50;i++){if(window.sb?.auth?.getSession){client=window.sb;break;}await new Promise(r=>setTimeout(r,200));}
+if(!client){auth.textContent="Account sign-in is currently unavailable. Please try again.";return;}
+let token=null;try{const {data}=await client.auth.getSession();token=data?.session?.access_token;}catch(e){}
+if(!token){auth.textContent="Sign in to upload photographs securely.";signin.hidden=false;return;}
+try{
+const response=await fetch("https://tuehtnezhdnkqbbhttgp.supabase.co/functions/v1/seller-my-submissions",{headers:{"Authorization":"Bearer "+token,"apikey":"sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK"},cache:"no-store"});
+if(!response.ok)throw Error("Cannot verify your account.");
+const data=await response.json(),match=(data.submissions||[]).find(x=>x.reference===ref);
+if(!match){auth.textContent="This submission is not linked to your account. Please use the original seller login.";return;}
+name.textContent=[match.reference,match.make,match.model,match.variant,match.bike_year].filter(Boolean).join(" · ");
+auth.textContent="Verified seller account · photos will attach to this motorcycle only.";form.hidden=false;
+}catch(e){auth.textContent="Your seller account could not be verified. Please refresh and try again.";return;}
+input.addEventListener("change",()=>{previews.replaceChildren();const files=[...input.files];for(const file of files.slice(0,12)){if(!file.type.startsWith("image/"))continue;const img=document.createElement("img");img.alt=file.name;const src=URL.createObjectURL(file);img.src=src;img.onload=()=>URL.revokeObjectURL(src);previews.append(img);}status.className="status";});
+form.addEventListener("submit",async event=>{event.preventDefault();const files=[...input.files];if(!files.length||files.length>12){say("Please choose 1 to 12 photographs.",false);return;}if(files.some(f=>f.size>10485760)){say("Each photograph must be under 10 MB.",false);return;}send.disabled=true;send.textContent="Uploading…";status.className="status";try{
+const {data:session}=await client.auth.getSession();const bearer=session?.session?.access_token;if(!bearer)throw Error("Your login has expired. Please sign in again.");
+const body=new FormData();body.set("reference",ref);files.forEach(f=>body.append("photos",f));
+const result=await fetch("https://tuehtnezhdnkqbbhttgp.supabase.co/functions/v1/seller-add-photos",{method:"POST",headers:{"Authorization":"Bearer "+bearer,"apikey":"sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK"},body});
+const payload=await result.json();if(!result.ok||!payload.success)throw Error(payload.error||"Upload failed");
+say("✓ "+payload.photos_received+" photograph(s) uploaded to "+ref+". AnyBike will review them before sharing with trade dealers.",true);form.reset();previews.replaceChildren();
+}catch(e){say(String(e.message||e),false);}finally{send.disabled=false;send.textContent="Upload Photos for AnyBike Review →";}});
+})();
+</script></body></html>
