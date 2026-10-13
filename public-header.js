@@ -2688,6 +2688,8 @@ async function anybikeShowPublicSignedInIdentity(){
   const session=await window.sb.auth.getSession();
   const user=session?.data?.session?.user;
   let strip=document.getElementById("anybikePublicSignedInIdentity");
+  const showTestIdentity=!!user && ["mocp@hotmail.co.uk","andy.gifford@yahoo.co.uk","sales@anybike.co.uk"].includes(String(user.email||"").trim().toLowerCase());
+  if(!showTestIdentity){strip?.remove();return;}
   if(!strip){strip=document.createElement("div");strip.id="anybikePublicSignedInIdentity";strip.style.cssText="background:#1a1a1a;color:#fff;border-bottom:1px solid #474747;padding:7px 16px;text-align:center;font:700 12px/1.45 Arial,sans-serif;overflow-wrap:anywhere";header.insertAdjacentElement("afterend",strip);}
   if(!user){strip.textContent="SIGNED IN · Guest / Not signed in";return;}
   const response=await window.sb.from("customer_profiles").select("customer_type,full_name").eq("id",user.id).maybeSingle();
