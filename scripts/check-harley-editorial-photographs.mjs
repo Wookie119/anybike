@@ -67,6 +67,11 @@ else {
  const unique=new Set(entries.map(x=>x.url));
  if(unique.size!==entries.length)errors.push('Duplicate Harley model guide card URL');
  const mustRemainUnillustrated=['XR1000','Pan America 1250 ST'];
+ // Do not fill historical or variant-specific gaps with a different motorcycle.
+ const verifiedHistoricalSources=new Map([
+  ['V-Rod','https://commons.wikimedia.org/wiki/File:Harley-Davidson_V-Rod.jpg'],
+  ['Hydra-Glide Revival','https://commons.wikimedia.org/wiki/File:Harley-Davidson_Museum_May_2024_31_(2024_Hydra-Glide_Revival).jpg']
+ ]);
  const verifiedVRodSource='https://commons.wikimedia.org/wiki/File:Harley-Davidson_V-Rod.jpg';
  for(const entry of entries){
    if(!entry.url?.startsWith('/harley-davidson-')||!entry.url.endsWith('.html'))errors.push('Invalid guide route: '+entry.name);
@@ -75,9 +80,10 @@ else {
      if(!p.src?.startsWith('https://commons.wikimedia.org/wiki/Special:FilePath/'))errors.push(entry.name+': image not traceable to Commons');
      if(!p.source?.startsWith('https://commons.wikimedia.org/wiki/File:'))errors.push(entry.name+': original image attribution missing');
      if(!p.author||!p.license||!p.licenseUrl)errors.push(entry.name+': credit/licence metadata incomplete');
+     if(!/^https:\/\/creativecommons\.org\//.test(p.licenseUrl))errors.push(entry.name+': unknown reuse-licence destination');
+     if(!/^(CC BY|CC0|Public domain)/i.test(p.license))errors.push(entry.name+': reuse rights require separate review');
      if(mustRemainUnillustrated.includes(entry.name))errors.push(entry.name+': requires specific image identification and licence review first');
-     if(entry.name==='Hydra-Glide Revival'&&p.source!=="https://commons.wikimedia.org/wiki/File:Harley-Davidson_Museum_May_2024_31_(2024_Hydra-Glide_Revival).jpg")errors.push('Hydra-Glide Revival image source changed: recheck identity and licence');
-     if(entry.name==='V-Rod'&&p.source!==verifiedVRodSource)errors.push('V-Rod photograph changed; recheck exact motorcycle and licensing');
+     if(verifiedHistoricalSources.has(entry.name)&&p.source!==verifiedHistoricalSources.get(entry.name))errors.push(entry.name+': approved image source changed; recheck identity and licence');
      if(entry.name==='Pan America 1250 ST'&&/Special/i.test(p.src))errors.push('Wrong Pan America version on ST card');
    }
  }
