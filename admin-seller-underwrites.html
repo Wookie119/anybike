@@ -411,7 +411,7 @@ function render(){
           (r.message_thread_id?'<a class="btn" href="/admin-message-centre.html?thread='+Number(r.message_thread_id)+'">Open Message</a>':"")+
           '<button type="button" data-action="collapse" data-id="'+Number(r.submission_id)+'">▲ Collapse submission</button>'+
         '</div>'+
-        '<div style="margin-top:12px;padding:10px 12px;border:1px solid #5a2b2d;border-radius:10px;background:#1b1010"><strong>Your Next Action →</strong><p style="margin:5px 0 9px;font-size:13px">'+(r.underwrite_status==="live"?"The trade bidding is live. Review bids in the Trade Underwrite Desk, then complete Seller Confirmation / HPI Check before selecting a buyer.":"Review the bike and its buyer-safe photos. Choose a bidding duration and invite verified UK dealers to offer. Stock comparisons are not required.")+'</p>'+(r.underwrite_status==="live"?'<a class="btn" href="/admin-trade-underwrites.html">OPEN TRADE UNDERWRITE DESK →</a>':(!r.make||!r.model?'<button type="button" data-action="edit-bike" data-id="'+Number(r.submission_id)+'">COMPLETE MOTORCYCLE DETAILS →</button>' :'<button type="button" data-action="start-underwrite" data-id="'+Number(r.submission_id)+'">START TRADE BIDDING →</button>'))+'</div>'+ 
+        '<div style="margin-top:12px;padding:10px 12px;border:1px solid #5a2b2d;border-radius:10px;background:#1b1010"><strong>Your Next Action →</strong><p style="margin:5px 0 9px;font-size:13px">'+(r.underwrite_status==="live"?"The trade bidding is live. Review bids in the Trade Underwrite Desk, then complete Seller Confirmation / HPI Check before selecting a buyer.":"Review the motorcycle details and buyer-safe photographs first. Starting trade bidding will invite verified UK dealers; you will be asked to confirm before any invitations are sent. Stock comparisons are optional.")+'</p>'+(r.underwrite_status==="live"?'<a class="btn" href="/admin-trade-underwrites.html">OPEN TRADE UNDERWRITE DESK →</a>':(!r.make||!r.model?'<button type="button" data-action="edit-bike" data-id="'+Number(r.submission_id)+'">COMPLETE MOTORCYCLE DETAILS →</button>' :'<button type="button" data-action="start-underwrite" data-id="'+Number(r.submission_id)+'">START TRADE BIDDING →</button>'))+'</div>'+ 
         '<div id="action-status-'+Number(r.submission_id)+'" class="sub" style="margin-top:8px;min-height:16px"></div>'+
       '</article>'+
     '</div>';
@@ -546,7 +546,17 @@ document.getElementById("queue").addEventListener("click",function(e){
 },true);
 
 async function startUnderwrite(id){
+  const submission=rows.find(r=>Number(r.submission_id)===Number(id));
+  if(!submission)return;
   const hours=Number(document.getElementById("underwrite-hours-"+id)?.value||48);
+  const bike=[submission.make,submission.model,submission.variant].filter(Boolean).join(" ");
+  const photoCount=Number(submission.image_approved||0);
+  if(!submission.make||!submission.model||photoCount<1){
+    const status=document.getElementById("action-status-"+id);
+    if(status)status.textContent="Review required: confirm the make, model and at least one approved buyer-safe photograph before inviting dealers.";
+    return;
+  }
+  if(!window.confirm("Final Admin check for "+(submission.reference||"this motorcycle")+" — "+bike+"\n\n"+photoCount+" approved photo(s); "+hours+"-hour bidding window.\n\nHave you checked the details and buyer-safe photographs, and do you want to invite verified UK trade dealers now?\n\nCancel keeps this motorcycle in Admin review."))return;
   if(window.anybikeUnderwritePending?.has(Number(id)))return;
   window.anybikeUnderwritePending=window.anybikeUnderwritePending||new Set();
   window.anybikeUnderwritePending.add(Number(id));
