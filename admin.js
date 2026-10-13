@@ -221,6 +221,15 @@ if(emailEl){
 emailEl.textContent = anybikeAdminUser.email || "";
 emailEl.title = anybikeAdminUser.email || "";
 }
+// Visible identity for multi-browser testing; never grants permissions.
+let identity=document.getElementById("anybikeAdminSignedInIdentity");
+const topbar=document.getElementById("adminTopbar");
+if(topbar && !identity){
+  identity=document.createElement("div");identity.id="anybikeAdminSignedInIdentity";
+  identity.style.cssText="background:#291013;border:1px solid #8b2730;border-radius:8px;color:#fff;padding:7px 12px;margin:7px 12px;font:700 12px/1.5 Arial,sans-serif;overflow-wrap:anywhere";
+  topbar.insertAdjacentElement("afterend",identity);
+}
+if(identity){identity.textContent="SIGNED IN · ADMIN · "+displayName+" · "+(anybikeAdminUser.email||"Email unavailable");}
 }
 
 async function adminLogout(){
