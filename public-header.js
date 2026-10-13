@@ -24,7 +24,7 @@
     links.forEach(function(link){
       const href=String(link.getAttribute("href")||"");
       if(href.includes("public-header.css")){
-        link.setAttribute("href","/public-header.css?v=20261013-manufacturers-hover");
+        link.setAttribute("href","/public-header.css?v=20261013-manufacturers-panel2");
       }
     });
   }catch(e){}
@@ -738,7 +738,7 @@ async function loadPublicHeader(){
       if(menu.dataset.hoverDelayReady)return;
       menu.dataset.hoverDelayReady="1";
       let closeTimer=null;
-      menu.addEventListener("pointerenter",function(){clearTimeout(closeTimer);menu.classList.add("menu-open");});
+      menu.addEventListener("pointerenter",function(){clearTimeout(closeTimer);const nav=document.querySelector(".public-header");if(nav)menu.style.setProperty("--anybike-manufacturer-top",Math.round(nav.getBoundingClientRect().bottom)+"px");menu.classList.add("menu-open");});
       menu.addEventListener("pointerleave",function(){clearTimeout(closeTimer);closeTimer=setTimeout(function(){if(!menu.matches(":hover")&&!menu.contains(document.activeElement))menu.classList.remove("menu-open");},650);});
       menu.addEventListener("focusin",function(){clearTimeout(closeTimer);menu.classList.add("menu-open");});
       menu.addEventListener("focusout",function(){clearTimeout(closeTimer);closeTimer=setTimeout(function(){if(!menu.contains(document.activeElement)&&!menu.matches(":hover"))menu.classList.remove("menu-open");},250);});
