@@ -66,7 +66,7 @@ else {
  if(entries.length!==20)errors.push('Expected 20 Harley model cards; found '+entries.length);
  const unique=new Set(entries.map(x=>x.url));
  if(unique.size!==entries.length)errors.push('Duplicate Harley model guide card URL');
- const mustRemainUnillustrated=['XR1000','Hydra-Glide Revival','Pan America 1250 ST'];
+ const mustRemainUnillustrated=['XR1000','Pan America 1250 ST'];
  const verifiedVRodSource='https://commons.wikimedia.org/wiki/File:Harley-Davidson_V-Rod.jpg';
  for(const entry of entries){
    if(!entry.url?.startsWith('/harley-davidson-')||!entry.url.endsWith('.html'))errors.push('Invalid guide route: '+entry.name);
@@ -76,6 +76,7 @@ else {
      if(!p.source?.startsWith('https://commons.wikimedia.org/wiki/File:'))errors.push(entry.name+': original image attribution missing');
      if(!p.author||!p.license||!p.licenseUrl)errors.push(entry.name+': credit/licence metadata incomplete');
      if(mustRemainUnillustrated.includes(entry.name))errors.push(entry.name+': requires specific image identification and licence review first');
+     if(entry.name==='Hydra-Glide Revival'&&p.source!=="https://commons.wikimedia.org/wiki/File:Harley-Davidson_Museum_May_2024_31_(2024_Hydra-Glide_Revival).jpg")errors.push('Hydra-Glide Revival image source changed: recheck identity and licence');
      if(entry.name==='V-Rod'&&p.source!==verifiedVRodSource)errors.push('V-Rod photograph changed; recheck exact motorcycle and licensing');
      if(entry.name==='Pan America 1250 ST'&&/Special/i.test(p.src))errors.push('Wrong Pan America version on ST card');
    }
