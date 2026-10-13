@@ -729,6 +729,8 @@ async function loadPublicHeader(){
 
     holder.innerHTML = await headerRes.text();
     try{await anybikeEnsureHeaderAuthClient();}catch(e){console.warn("Header authentication unavailable",e);}
+    // Identify approved test accounts before slower navigation/profile setup.
+    anybikeShowPublicSignedInIdentity().catch(()=>{});
     await setupPublicHeader();
     anybikeShowPublicSignedInIdentity().catch(()=>{});
     // Manufacturers uses the same hover/focus mega-menu behaviour as Markets.
