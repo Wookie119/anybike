@@ -5,7 +5,8 @@ const ids=['road-glide','street-glide','road-king','electra-glide','ultra-limite
 const required=['/uk-motorcycle-selling.html?make=Harley-Davidson','/bulk-buying-request.html?make=Harley-Davidson','AnyBike Global','/harley-davidson-motorcycles.html'];
 // The manufacturer catalogue is the canonical visible list. Ensure the audit inventory cannot fall behind.
 const catalogue=readFileSync('harley-davidson-motorcycles.html','utf8');
-const published=[...catalogue.matchAll(/"url":"\\/harley-davidson-([^"]+)\\.html"/g)].map(x=>x[1]);
+const dataset=catalogue.match(/const curatedHarley=(\[[^\n]+\]);/);
+const published=dataset?JSON.parse(dataset[1]).flatMap(group=>(group.entries||[]).map(entry=>entry.url.replace('/harley-davidson-','').replace('.html',''))):[];
 if(new Set(published).size!==ids.length||ids.some(id=>!published.includes(id))){
  console.error('FAIL: model-audit inventory differs from Harley manufacturer catalogue');process.exitCode=1;
 }
