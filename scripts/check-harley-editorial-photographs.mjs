@@ -70,10 +70,10 @@ else {
  let families=[];
  try{families=JSON.parse(dataset[1])}catch(e){errors.push('Model catalogue JSON invalid: '+e.message)}
  const entries=families.flatMap(f=>f.entries||[]);
- if(entries.length!==20)errors.push('Expected 20 Harley model cards; found '+entries.length);
+ if(entries.length!==21)errors.push('Expected 21 Harley model guides; found '+entries.length);
  const unique=new Set(entries.map(x=>x.url));
  if(unique.size!==entries.length)errors.push('Duplicate Harley model guide card URL');
- const mustRemainUnillustrated=['Pan America 1250 ST'];
+ const mustRemainUnillustrated=[]; // Exact-model user-supplied images are approved, but must be identified as edited where applicable.
  // Do not fill historical or variant-specific gaps with a different motorcycle.
  const verifiedHistoricalSources=new Map([
   ['V-Rod','https://commons.wikimedia.org/wiki/File:Harley-Davidson_V-Rod.jpg'],
@@ -85,11 +85,15 @@ else {
    if(!entry.url?.startsWith('/harley-davidson-')||!entry.url.endsWith('.html'))errors.push('Invalid guide route: '+entry.name);
    if(entry.photo){
      const p=entry.photo;
-     if(!p.src?.startsWith('https://commons.wikimedia.org/wiki/Special:FilePath/'))errors.push(entry.name+': image not traceable to Commons');
-     if(!p.source?.startsWith('https://commons.wikimedia.org/wiki/File:'))errors.push(entry.name+': original image attribution missing');
+     const commons=p.src?.startsWith('https://commons.wikimedia.org/wiki/Special:FilePath/');
+     const local=p.src?.startsWith('/assets/');
+     if(!commons&&!local)errors.push(entry.name+': image must be traceable to Commons or AnyBike assets');
+     if(commons&&!p.source?.startsWith('https://commons.wikimedia.org/wiki/File:'))errors.push(entry.name+': Commons image attribution missing');
+     if(local&&p.source!==p.src)errors.push(entry.name+': local image source attribution mismatch');
      if(!p.author||!p.license||!p.licenseUrl)errors.push(entry.name+': credit/licence metadata incomplete');
-     if(!/^https:\/\/creativecommons\.org\//.test(p.licenseUrl))errors.push(entry.name+': unknown reuse-licence destination');
-     if(!/^(CC BY|CC0|Public domain)/i.test(p.license))errors.push(entry.name+': reuse rights require separate review');
+     if(commons&&!/^https:\/\/creativecommons\.org\//.test(p.licenseUrl))errors.push(entry.name+': Commons licence destination missing');
+     if(commons&&!/^(CC BY|CC0|Public domain)/i.test(p.license))errors.push(entry.name+': Commons reuse rights require review');
+     if(local&&!/AnyBike|illustrat|artwork|Photo supplied|edited/i.test([p.author,p.license].join(' ')))errors.push(entry.name+': local image must identify editorial origin or editing');
      if(mustRemainUnillustrated.includes(entry.name))errors.push(entry.name+': requires specific image identification and licence review first');
      if(verifiedHistoricalSources.has(entry.name)&&p.source!==verifiedHistoricalSources.get(entry.name))errors.push(entry.name+': approved image source changed; recheck identity and licence');
      if(entry.name==='Pan America 1250 ST'&&/Special/i.test(p.src))errors.push('Wrong Pan America version on ST card');
