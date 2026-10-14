@@ -232,6 +232,7 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
             Select all visible
           </label>
           <button class="btn" onclick="clearSelected()">Clear</button>
+          <button type="button" class="btn" id="reviewStockBtn" onclick="reviewSelectedStock()">Review for Available Stock</button>
           <button class="btn red" id="prepareSelectedBtn" onclick="createBatch()">Prepare selected bikes</button>
         </div>
         <div class="bikes" id="bikes"><div class="empty">Loading…</div></div>
@@ -987,6 +988,26 @@ function clearDealerFilters(){
 }
 function applyDealerFilter(){
   loadItems(true);
+}
+
+async function reviewSelectedStock(){
+ const chosen=[...selected].map(Number);
+ const result=document.getElementById("singleBikePhotoStatus");
+ if(!chosen.length){result.className="status bad";result.textContent="Tick one or more motorcycles to review for Available Stock.";return;}
+ const matches=items.filter(i=>chosen.includes(Number(i.id)));
+ const {data,error}=await sb().from("anybike_international_vq_gallery").select("live_source_item_id,published,checked_at,anybike_price_gbp").in("live_source_item_id",chosen);
+ if(error){result.className="status bad";result.textContent="Could not read Available Stock publication status: "+error.message;return;}
+ const published=new Map((data||[]).map(v=>[Number(v.live_source_item_id),v]));
+ const lines=matches.map(i=>{
+  const record=published.get(Number(i.id));
+  return [i.year,i.make,i.model].filter(Boolean).join(" ")+" (#"+i.id+"): "+(record?.published?"Already published — update existing listing":record?"Draft — publication review required":"Not yet in Available Stock — publication review required")+
+   " | source "+String(i.source_status||"unknown")+
+   " | last seen "+(i.last_seen_at?new Date(i.last_seen_at).toLocaleDateString("en-GB"):"unknown")+
+   " | AnyBike price "+(record?.anybike_price_gbp?"£"+Number(record.anybike_price_gbp).toLocaleString("en-GB",{minimumFractionDigits:2}):"not set");
+ }).join("\n");
+ result.className="status";
+ result.style.whiteSpace="pre-line";
+ result.textContent=lines+"\nPublication is not changed here. Confirm current seller availability and buyer-safe images before approving any new listing.";
 }
 
 async function processOneBikePhotos(){
