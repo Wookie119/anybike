@@ -1,13 +1,15 @@
 // Run from repo root: node scripts/check-manufacturer-dom-integrity.mjs
 // Regression guard: deleting visible elements must never break manufacturer/model data rendering.
 import fs from 'node:fs';
-const pages=['motorcycle-brand.html','motorcycle-guide-preview.html','motorcycle-manufacturers.html'];
+const pages=['motorcycle-brand.html','motorcycle-guide-preview.html','motorcycle-model-guide.html','motorcycle-manufacturers.html'];
 const problems=[];
 for(const path of pages){
  const html=fs.readFileSync(path,'utf8');
  const ids=new Set([...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]));
  const references=[...html.matchAll(/(?:document\.)?getElementById\s*\(\s*["']([^"']+)["']\s*\)/g)].map(m=>m[1]);
  for(const id of new Set(references))if(!ids.has(id))problems.push(path+': script references missing element #'+id);
+ const aliasReferences=[...html.matchAll(/\bel\s*\(\s*["']([^"']+)["']\s*\)/g)].map(m=>m[1]);
+ for(const id of new Set(aliasReferences))if(!ids.has(id))problems.push(path+': script helper references missing element #'+id);
  if(/<nav\b[^>]*class="[^"]*\bcrumb\b/i.test(html))problems.push(path+': unwanted breadcrumb returned');
 }
 const brand=fs.readFileSync('motorcycle-brand.html','utf8');
