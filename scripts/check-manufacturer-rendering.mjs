@@ -9,7 +9,8 @@ const script=[...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)]
   .map(m=>m[1]).find(x=>x.includes('const guides='));
 assert(script,'Shared manufacturer rendering code not found');
 const ids=new Set([...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]));
-const makes=['KTM','Honda','Yamaha','Suzuki','Kawasaki','Ducati','Triumph','Aprilia','Royal Enfield','Benelli','BSA','Moto Guzzi','Husqvarna','Indian Motorcycle'];
+const brandData=script.slice(script.indexOf('const guides='),script.indexOf('const histories='));
+const makes=[...brandData.matchAll(/"([^"]+)":\\{/g)].map(m=>m[1]).filter(make=>make!=='Harley-Davidson'&&make!=='BMW');
 for(const make of makes){
   const elements=new Map();
   for(const id of ids)elements.set(id,{
@@ -29,9 +30,12 @@ for(const make of makes){
   const groups=elements.get('modelGroups').innerHTML;
   const cards=elements.get('categoryCards').innerHTML;
   assert(groups.includes('href='),make+': no rendered model links');
+  assert(groups.includes('manufacturer-model-card'),make+': enhanced model cards missing');
   assert(cards.includes('category-card'),make+': no rendered category cards');
   assert(!groups.includes('Loading manufacturer models'),make+': loading placeholder never replaced');
   assert(elements.get('title').textContent.startsWith(make+' '),make+': wrong manufacturer H1');
+  assert(elements.get('brandOgTitle').content.includes(make),make+': model-specific social title missing');
+  assert(elements.get('brandOgUrl').content.includes(encodeURIComponent(make)),make+': social canonical URL wrong');
   assert(elements.get('requestLink').href.includes('make='+encodeURIComponent(make)),make+': sourcing link lacks manufacturer');
 }
 console.log('PASS: '+makes.length+' manufacturer pages execute and populate model groups and category cards.');
