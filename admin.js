@@ -273,7 +273,7 @@ function ensureFreshAdminShellCss(){
   var link=document.createElement("link");
   link.id="anybike-admin-shell-refresh";
   link.rel="stylesheet";
-  link.href="admin-shell.css?v=202610071152";
+  link.href="admin-shell.css?v=20261014-flat-admin-bg";
   document.head.appendChild(link);
 }
 
