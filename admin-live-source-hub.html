@@ -6,7 +6,7 @@
 <title>Live Source Hub | AnyBike Admin</title>
 <meta name="robots" content="noindex,nofollow">
 <script>document.documentElement.classList.add("admin-auth-pending");</script>
-<style>html.admin-auth-pending body{visibility:hidden}</style>
+<style>html.admin-auth-pending body{visibility:hidden}.single-bike-photo-tools{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin:14px 0 8px;padding:13px 14px;border:1px solid #4d3031;border-radius:10px;background:#111}.single-bike-photo-tools strong{font-size:14px;white-space:nowrap}.single-bike-photo-tools .small{flex:1 1 400px;line-height:1.4}.single-bike-photo-tools .status{flex-basis:100%}.single-bike-photo-tools .status:empty{display:none}</style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="admin.js?v=202610071152"></script>
@@ -212,6 +212,12 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
             <button type="button" class="btn" onclick="clearDealerFilters()">Clear</button>
           </div>
           <div id="dealerFilterChecks" class="dealer-filter-checks"><span class="small">Dealer filters will appear after the source loads.</span></div>
+        </div>
+        <div class="single-bike-photo-tools">
+          <strong>Process photographs for one motorcycle</strong>
+          <span class="small">1. Choose BMW source, make and model above · 2. Tick one dealer · 3. Tick one motorcycle below · 4. Process its photos. Buyer-safe cleaning runs without publishing the bike or refreshing the source feed.</span>
+          <button type="button" class="btn red" id="processOneBikePhotosBtn" onclick="processOneBikePhotos()">Process selected motorcycle photos</button>
+          <span class="status" id="singleBikePhotoStatus" role="status" aria-live="polite"></span>
         </div>
         <div class="toolbar">
           <span id="poolStatus" class="status">Loading source pool…</span>
@@ -981,6 +987,30 @@ function clearDealerFilters(){
 }
 function applyDealerFilter(){
   loadItems(true);
+}
+
+async function processOneBikePhotos(){
+  const result=document.getElementById("singleBikePhotoStatus");
+  const btn=document.getElementById("processOneBikePhotosBtn");
+  const report=(msg,bad=true)=>{result.className="status "+(bad?"bad":"good");result.textContent=msg;};
+  const make=document.getElementById("makeFilter").value;
+  const model=document.getElementById("modelFilter").value;
+  const chosen=[...selected].map(Number);
+  if(!isBmwConnector())return report("Choose the BMW Approved Used source. Single-bike retrieval and cleaning is currently available for BMW only.");
+  if(!make||!model||model==="__request_family__")return report("Choose a make and exact model before processing.");
+  if(selectedDealers.size!==1)return report("Tick exactly one dealer in the internal dealer filter.");
+  if(chosen.length!==1)return report("Tick exactly one motorcycle below ("+chosen.length+" selected).");
+  const bike=items.find(i=>Number(i.id)===chosen[0]);
+  if(!bike||bike.source_status!=="live"||bike.make!==make||bike.model!==model||!selectedDealers.has(String(bike.seller_name||"").trim()))return report("The selected motorcycle must match the chosen make, model, dealer and live source.");
+  btn.disabled=true;btn.textContent="Processing photographs…";
+  report("Loading genuine source photographs and preparing buyer-safe copies for bike #"+bike.id+".",false);
+  try{
+    await cleanSelectedImages();
+    const status=document.getElementById("poolStatus");
+    result.className=status.className;
+    result.textContent=status.textContent+" · Bike #"+bike.id+". Review and approve images before publishing.";
+  }catch(e){report("Photo processing could not complete: "+String(e?.message||e));}
+  finally{btn.disabled=false;btn.textContent="Process selected motorcycle photos";}
 }
 
 async function cleanSelectedImages(){
