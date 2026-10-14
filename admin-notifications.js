@@ -608,21 +608,9 @@ document.addEventListener(
     */
     consumeAdminNotificationReadParam();
 
-    setTimeout(function(){
-      loadSharedAdminNotifications();
-      enableAdminNotificationHover();
-    },500);
-
-    if(anybikeAdminNotificationRefreshTimer){
-      clearInterval(
-        anybikeAdminNotificationRefreshTimer
-      );
-    }
-
-    anybikeAdminNotificationRefreshTimer =
-      setInterval(
-        loadSharedAdminNotifications,
-        5000
-      );
+    // admin.js owns the single 15-second bell refresh and immediate initial load.
+    // Keep this script's hover and explicit notification actions, but do not
+    // launch a second timer or race another renderer against the shared bell.
+    setTimeout(enableAdminNotificationHover,500);
   }
 );
