@@ -223,7 +223,7 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
         <section class="stock-photo-queue">
           <div class="stock-photo-queue-head"><strong>Customer photo requests</strong><button class="btn" type="button" onclick="loadStockPhotoRequests()">Check requests</button></div>
           <div id="stockPhotoQueueStatus" class="small" role="status">Select Check requests to view pending buyer enquiries.</div>
-          <div id="stockPhotoQueueRows"></div>
+          <div id="stockPhotoQueueRows"></div><div id="photoDemandSummary" class="small" style="margin-top:10px" aria-live="polite"></div>
         </section>
         <section id="bmwWeeklySummary" class="bmw-weekly-summary" hidden>
           <strong>BMW stock update · last completed check</strong>
@@ -710,6 +710,12 @@ async function loadStockPhotoRequests(){
   const rows=data||[];
   status.textContent=rows.length?rows.length+" pending photo request"+(rows.length===1?"":"s"):"No pending photo requests.";
   out.innerHTML=rows.map(r=>'<div class="stock-photo-request-row"><div><strong>'+esc([r.year,r.make,r.model].filter(Boolean).join(" "))+'</strong><div class="small">Motorcycle #'+Number(r.item_id)+' · '+Number(r.approved_photo_count||0)+' approved images · '+esc(new Date(r.requested_at).toLocaleString("en-GB"))+'</div><div class="small">Country: '+esc(r.buyer_country||'Not provided')+' · '+esc(r.request_status)+'</div></div><div><button class="btn" onclick="prepareRequestPhotos('+Number(r.request_id)+','+Number(r.item_id)+',this)">Process requested photos</button> <button class="btn" onclick="markPhotoRequestUnavailable('+Number(r.request_id)+',this)">No further images</button></div></div>').join("");
+  const demand=document.getElementById("photoDemandSummary");
+  const d=await sb().rpc("admin_stock_photo_demand_by_country_v1");
+  if(!d.error){
+    const countryRows=(d.data||[]).slice(0,8);
+    demand.innerHTML=countryRows.length?'<strong>Photo-request demand by country and model</strong><div>'+countryRows.map(x=>esc(x.country)+' · '+esc(x.make)+' '+esc(x.model)+' — '+Number(x.unique_buyers)+' buyer'+(Number(x.unique_buyers)===1?'':'s')).join(' &nbsp; | &nbsp; ')+'</div>':'No country-level photo requests recorded yet.';
+  }
  }catch(e){status.textContent="Could not load photo requests: "+String(e.message||e);}
 }
 async function prepareRequestPhotos(requestId,itemId,btn){
