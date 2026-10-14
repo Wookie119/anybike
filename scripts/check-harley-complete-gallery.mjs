@@ -6,7 +6,7 @@ const match=brand.match(/const curatedHarley=(\[[^\n]+\]);/);
 if(!match) throw new Error('Missing Harley manufacturer model catalogue');
 const cards=JSON.parse(match[1]).flatMap(group=>group.entries||[]);
 const problems=[],warnings=[],seenPhotos=new Map(),seenUrls=new Set();
-if(cards.length!==20) problems.push('Expected 20 catalogue models; found '+cards.length);
+if(cards.length!==21) problems.push('Expected 21 catalogue guides; found '+cards.length);
 for(const card of cards){
  const route=(card.url||'').replace(/^\//,'');
  if(seenUrls.has(route))problems.push('Duplicate model card URL: '+route);
