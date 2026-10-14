@@ -89,8 +89,8 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
  <div class="stock-photo-queue-head"><strong>BMW VAT reclaimable — candidate matching</strong><button class="btn" type="button" onclick="checkBmwVatFilter(this)">Test BMW VAT filter</button><button class="btn" type="button" onclick="loadBmwVatCandidates()">View candidates</button></div>
  <p class="small">BMW showed 306 VAT reclaimable motorcycles in the checked search. Use confirmed advert IDs to match existing Live Source records; this does not change verified VAT status, images or publication.</p>
  <a href="https://approvedused.bmw-motorrad.co.uk/UK/ergebnisse.cshtml" target="_blank" rel="noopener noreferrer" class="small">Open BMW VAT reclaimable search ↗</a>
- <label class="small" style="display:block;margin:9px 0 5px" for="bmwVatCandidateInput">BMW advert links or advert IDs — one per line</label>
- <textarea id="bmwVatCandidateInput" rows="3" placeholder="https://approvedused.bmw-motorrad.co.uk/UK/detail.cshtml?on=573808"></textarea>
+ <label class="small" style="display:block;margin:9px 0 5px" for="bmwVatCandidateInput">BMW search results HTML, advert links or IDs</label>
+ <textarea id="bmwVatCandidateInput" rows="3" placeholder="Paste copied BMW results HTML, advert links or BMW bike IDs"></textarea>
  <div class="toolbar"><button type="button" class="btn" onclick="previewBmwVatCandidates()">Preview matches</button><button type="button" class="btn red" onclick="saveBmwVatCandidates()">Save candidates (not publish)</button></div>
  <p id="bmwVatFilterDiagnosticStatus" class="small" role="status"></p><p id="bmwVatCandidateStatus" class="small" role="status"></p><div id="bmwVatCandidateAudit" class="small" style="padding:8px 0"></div><div id="bmwVatCandidateMatches"></div>
  </section>
@@ -726,11 +726,11 @@ async function checkBmwVatFilter(btn){
 function parseBmwVatCandidateIds(){
  const raw=String(document.getElementById("bmwVatCandidateInput")?.value||"");
  const ids=new Set();
+ for(const match of raw.matchAll(/ShowResOvDetail\s*\(\s*['"]([0-9]{4,12})['"]/gi))ids.add(match[1]);
+ for(const match of raw.replace(/&amp;/gi,"&").matchAll(/(?:[?&]on=)([0-9]{4,12})/gi))ids.add(match[1]);
  for(const row of raw.split(/[\n,;]+/)){
-  const text=row.trim();if(!text)continue;
-  const urlMatch=text.match(/(?:[?&]on=)([0-9]{4,12})/i);
-  const plain=/^[0-9]{4,12}$/.test(text)?text:null;
-  if(urlMatch||plain)ids.add(urlMatch?urlMatch[1]:plain);
+  const value=row.trim();
+  if(/^[0-9]{4,12}$/.test(value))ids.add(value);
  }
  return [...ids].slice(0,400);
 }
