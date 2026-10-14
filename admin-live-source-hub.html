@@ -63,7 +63,7 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
 .source-accordion-body{padding:14px}.source-accordion-body iframe{width:100%;height:85vh;min-height:790px;background:#080808;border:0;border-radius:10px;display:block}
 #liveSourcesSection>.source-accordion-body{padding:0}
 </style>
-<style>.stock-review-panel{margin:12px 0 18px;padding:15px;border:1px solid #6d3536;border-radius:12px;background:#101010}.stock-review-panel[hidden]{display:none}.stock-review-panel h3{margin:0 0 7px}.stock-review-bike{display:grid;grid-template-columns:1.3fr .7fr 1.3fr;gap:16px;align-items:center;border-top:1px solid #353535;padding:14px 0}.stock-review-bike p{margin:6px 0}.stock-review-bike input[type=number]{width:100%;max-width:220px}.stock-review-confirm{display:flex;align-items:flex-start;gap:8px;font-size:12px;line-height:1.4;margin:0 0 10px}.stock-review-confirm input{flex:0 0 auto;width:auto;margin:2px 0}.stock-review-bike button{margin-right:10px}.stock-review-bike .small{line-height:1.4}@media(max-width:800px){.stock-review-bike{grid-template-columns:1fr}}</style><style>.bmw-weekly-summary{display:flex;align-items:center;flex-wrap:wrap;gap:10px;background:#101010;border:1px solid #393939;border-radius:10px;margin:10px 0;padding:11px 13px}.bmw-weekly-summary[hidden]{display:none}.bmw-weekly-summary strong{font-size:13px}.bmw-weekly-summary .small{font-size:12px;color:#aaa}.bmw-weekly-summary #bmwWeeklyCounts{color:#f1f1f1}</style><style>.stock-photo-queue{background:#111;border:1px solid #493737;border-radius:11px;padding:12px 14px;margin:10px 0}.stock-photo-queue-head{display:flex;align-items:center;gap:12px;justify-content:space-between}.stock-photo-request-row{display:flex;align-items:center;justify-content:space-between;gap:15px;border-top:1px solid #333;padding:10px 0}.stock-photo-request-row .small{font-size:12px;color:#bbb;margin-top:4px}.stock-photo-request-row button{margin:3px}@media(max-width:700px){.stock-photo-request-row{align-items:stretch;flex-direction:column}}</style><style>.bmw-vat-candidates{background:#101010;border:1px solid #544522;border-radius:11px;padding:13px 15px;margin:10px 0}.bmw-vat-candidates textarea{width:100%;min-height:76px;margin:8px 0;background:#080808;color:white;border:1px solid #444;border-radius:9px;padding:10px}.bmw-vat-candidates .toolbar{margin:6px 0 10px}</style></head>
+<style>.stock-review-panel{margin:12px 0 18px;padding:15px;border:1px solid #6d3536;border-radius:12px;background:#101010}.stock-review-panel[hidden]{display:none}.stock-review-panel h3{margin:0 0 7px}.stock-review-bike{display:grid;grid-template-columns:1.3fr .7fr 1.3fr;gap:16px;align-items:center;border-top:1px solid #353535;padding:14px 0}.stock-review-bike p{margin:6px 0}.stock-review-bike input[type=number]{width:100%;max-width:220px}.stock-review-confirm{display:flex;align-items:flex-start;gap:8px;font-size:12px;line-height:1.4;margin:0 0 10px}.stock-review-confirm input{flex:0 0 auto;width:auto;margin:2px 0}.stock-review-bike button{margin-right:10px}.stock-review-bike .small{line-height:1.4}@media(max-width:800px){.stock-review-bike{grid-template-columns:1fr}}</style><style>.bmw-weekly-summary{display:flex;align-items:center;flex-wrap:wrap;gap:10px;background:#101010;border:1px solid #393939;border-radius:10px;margin:10px 0;padding:11px 13px}.bmw-weekly-summary[hidden]{display:none}.bmw-weekly-summary strong{font-size:13px}.bmw-weekly-summary .small{font-size:12px;color:#aaa}.bmw-weekly-summary #bmwWeeklyCounts{color:#f1f1f1}</style><style>.stock-photo-queue{background:#111;border:1px solid #493737;border-radius:11px;padding:12px 14px;margin:10px 0}.stock-photo-queue-head{display:flex;align-items:center;gap:12px;justify-content:space-between}.stock-photo-request-row{display:flex;align-items:center;justify-content:space-between;gap:15px;border-top:1px solid #333;padding:10px 0}.stock-photo-request-row .small{font-size:12px;color:#bbb;margin-top:4px}.stock-photo-request-row button{margin:3px}@media(max-width:700px){.stock-photo-request-row{align-items:stretch;flex-direction:column}}</style><style>.bmw-vat-candidates{background:#101010;border:1px solid #544522;border-radius:11px;padding:13px 15px;margin:10px 0}.bmw-vat-candidates textarea{width:100%;min-height:76px;margin:8px 0;background:#080808;color:white;border:1px solid #444;border-radius:9px;padding:10px}.bmw-vat-candidates .toolbar{margin:6px 0 10px}</style><style>.single-bike-photo-tools[hidden]{display:none!important}</style></head>
 <body>
 <div class="page">
   <div id="adminSidebar"></div>
@@ -825,19 +825,15 @@ async function loadBmwWeeklySummary(){
  area.hidden=false;label.textContent="Checking last BMW update…";
  try{
    const cid=Number(document.getElementById("connectorFilter").value||0);
-   const {data,error}=await sb().from("live_source_sync_runs")
-    .select("completed_at,status,discovered_count,new_count,changed_count,ended_count,details")
-    .eq("connector_id",cid).eq("status","completed").order("completed_at",{ascending:false}).limit(1);
+   const {data,error}=await sb().rpc("admin_bmw_weekly_sync_summary_v1",{p_connector_id:cid});
    if(error)throw error;
-   const x=data?.[0];
-   if(!x){label.textContent="No completed BMW stock refresh recorded.";return;}
-   const safe=!!x.details?.full_catalogue_run;
-   label.textContent="Last run: "+new Date(x.completed_at).toLocaleString("en-GB")+
-    " · "+Number(x.discovered_count||0).toLocaleString("en-GB")+" discovered"+
-    " · "+Number(x.new_count||0)+" new"+
-    " · "+Number(x.changed_count||0)+" changed"+
-    " · "+Number(x.ended_count||0)+" ended"+
-    (safe?" · Full catalogue":" · Partial / review required");
+   if(!data?.found){label.textContent="No completed BMW stock refresh recorded.";return;}
+   label.textContent="Last run: "+new Date(data.completed_at).toLocaleString("en-GB")+
+    " · "+Number(data.discovered_count||0).toLocaleString("en-GB")+" discovered"+
+    " · "+Number(data.new_count||0)+" new"+
+    " · "+Number(data.changed_count||0)+" changed"+
+    " · "+Number(data.ended_count||0)+" ended"+
+    (data.full_catalogue_run?" · Full catalogue":" · Partial / review required");
  }catch(e){label.textContent="Update totals unavailable: "+String(e.message||e);}
 }
 function syncSourceSpecificControls(){
@@ -1365,6 +1361,8 @@ async function loadItems(preserveDealerOptions=false){
     }
   }
 
+  const singleBikeTools=document.querySelector(".single-bike-photo-tools");
+  if(singleBikeTools)singleBikeTools.hidden=(vatFilter==="bmw_candidate");
   if(vatFilter==="bmw_candidate"){
     const {data:candidates,error:candidateError}=await sb().rpc("admin_list_bmw_vat_candidates_v1");
     if(candidateError){st.className="status bad";st.textContent="Could not load BMW reclaimable candidates: "+candidateError.message;return;}
