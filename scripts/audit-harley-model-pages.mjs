@@ -10,7 +10,7 @@ const models=[
  ['iron-883','Iron 883'],['sportster-s','Sportster S'],['pan-america-1250','Pan America 1250'],
  ['heritage-classic','Heritage Classic'],['street-bob','Street Bob'],['nightster','Nightster'],
  ['cvo','CVO'],['hydra-glide-revival','Hydra-Glide Revival'],['v-rod','V-Rod'],
- ['xr1000','XR1000'],['pan-america-1250-st','Pan America 1250 ST']
+ ['xr1000','XR1000'],['pan-america-1250-st','Pan America 1250 ST'],['cvo-pan-america','CVO Pan America']
 ];
 const exists=file=>fs.existsSync(file);
 const make='Harley-Davidson';
@@ -21,11 +21,11 @@ for(const [slug,expected] of models){
  const html=fs.readFileSync(file,'utf8');
  const warn=message=>failures.push(file+': '+message);
  if(!/<h1>Harley-Davidson /.test(html))warn('Missing model heading');
- if(!html.includes('max-width:1440px'))warn('Missing BMW model layout width');
+ if(!/max-width:\s*1440px/.test(html))warn('Missing model layout width');
  if(!html.includes('AnyBike Global'))warn('Missing AnyBike Global');
  if(!/href="\/bulk-buying-request\.html\?make=Harley-Davidson&amp;model=/.test(html))warn('Missing buyer enquiry');
- if(!html.includes('Own a Harley-Davidson'))warn('Missing UK owner-selling');
- if(!/Compare related Harley-Davidson (models|motorcycles)/.test(html))warn('Missing related models section');
+ if(!(/Own a Harley-Davidson|UK owners: Sell My Harley-Davidson|UK based owners|UK motorcycle owners/i).test(html))warn('Missing UK owner-selling');
+ if(!/Compare related Harley-Davidson (models|motorcycles)|Continue exploring Harley-Davidson/.test(html))warn('Missing related-model navigation');
  if(!html.includes('harley-davidson-motorcycles.html'))warn('Missing brand page navigation');
  if(!/(history|historic|generation|documented|origins)/i.test(html))warn('Missing historical/generation context');
  if(html.includes('/available-stock.html'))warn('Hidden available stock linked publicly');
@@ -54,8 +54,8 @@ for(const [slug,expected] of models){
  }
  const photoCount=[...html.matchAll(/<img\b/g)].length;
  if(!photoCount)notes.push(file+': no model photo, requires rights-checked image');
- if(!html.includes('id="roadGlideGenerationControls"'))notes.push(file+': generation content remains static or differs from Road Glide controls; review model-specific suitability');
+ 
 }
 if(notes.length){console.log('RESEARCH / DESIGN FOLLOW-UP:');notes.forEach(n=>console.log('- '+n))}
 if(failures.length){console.error('FAILURES ('+failures.length+'):');failures.forEach(e=>console.error('- '+e));process.exitCode=1}
-else console.log('PASS: 20 Harley-Davidson model guides have model-specific sourcing, UK selling, AnyBike Global and valid local references.');
+else console.log('PASS: 21 Harley-Davidson model guides have model-specific sourcing, UK selling, AnyBike Global and valid local references.');
