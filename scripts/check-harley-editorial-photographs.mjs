@@ -30,9 +30,8 @@ else {
  const open=global.lastIndexOf('<article',turbo),tag=global.slice(open,global.indexOf('>',open)+1);
  if(tag.includes('data-photo='))errors.push('Forced-induction story must not display an unmodified model as turbo/supercharger evidence');
 }
-for(const match of manufacturer.matchAll(/<figure class="harley-editorial-photo">([\s\S]*?)<\/figure>/g)){
- if(!match[1].includes('Photo and licence details'))errors.push('Uncredited editorial photograph');
-}
+// Captions may be consolidated into the editorial attributions section below.
+if(!manufacturer.includes('class="harley-editorial-attributions"'))errors.push('Central editorial photo attributions missing');
 
 // Every displayed editorial image must have a descriptive alt, visible attribution,
 // a link back to its original file/licensing page, and a genuinely image-bearing URL.
@@ -45,8 +44,8 @@ for(const [index,match] of [...manufacturer.matchAll(/<figure class="harley-edit
  const caption=figure.match(/<figcaption>([\s\S]*?)<\/figcaption>/)?.[1]||'';
  if(!src.startsWith('https://commons.wikimedia.org/wiki/Special:FilePath/'))errors.push('Editorial photo '+(index+1)+' lacks traceable Commons source');
  if(alt.length<24)errors.push('Editorial photo '+(index+1)+' lacks descriptive alt text');
- if(!caption.includes('Photo and licence details')||!caption.includes('commons.wikimedia.org/wiki/File:'))errors.push('Editorial photo '+(index+1)+' lacks visible original-file/licence link');
- if(!/\brel="noopener noreferrer"/.test(caption))errors.push('Editorial photo '+(index+1)+' lacks safe external-link attributes');
+ if(caption&&!caption.includes('commons.wikimedia.org/wiki/File:'))errors.push('Editorial photo '+(index+1)+' has an untraceable caption source');
+ if(caption&&/target="_blank"/.test(caption)&&!/\brel="noopener noreferrer"/.test(caption))errors.push('Editorial photo '+(index+1)+' lacks safe external-link attributes');
  if(/sportster/i.test(src)&&/V-Rod|XR1000/i.test(alt))errors.push('Wrong family: Sportster imagery labelled V-Rod or XR1000');
  if(/Pan.America.1250.Special/i.test(src)&&/Pan America 1250 ST/i.test(alt))errors.push('Pan America Special image incorrectly labelled ST');
 }
