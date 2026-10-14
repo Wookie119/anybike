@@ -86,7 +86,7 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
           <summary><span><b>2. Live Sources</b><small>Search dealer stock, refresh channels and prepare motorcycles</small></span></summary>
           <div class="source-accordion-body">
         <section class="bmw-vat-candidates">
- <div class="stock-photo-queue-head"><strong>BMW VAT reclaimable — candidate matching</strong><button class="btn" type="button" onclick="probeBmwVatResult(this)">Test 15 F 900 GS results</button><button class="btn" type="button" onclick="probeAllBmwVatResult(this)">Test all BMW models (read-only)</button><button class="btn" type="button" onclick="checkBmwVatFilter(this)">Test BMW VAT filter</button><button class="btn" type="button" onclick="loadBmwVatCandidates()">View candidates</button></div>
+ <div class="stock-photo-queue-head"><strong>BMW VAT reclaimable — candidate matching</strong><button class="btn" type="button" onclick="probeBmwVatResult(this)">Test 15 F 900 GS results</button><button class="btn" type="button" onclick="probeAllBmwVatResult(this)">Scan all BMW VAT pages (read-only)</button><button class="btn" type="button" onclick="checkBmwVatFilter(this)">Test BMW VAT filter</button><button class="btn" type="button" onclick="loadBmwVatCandidates()">View candidates</button></div>
  <p class="small">BMW showed 306 VAT reclaimable motorcycles in the checked search. Use confirmed advert IDs to match existing Live Source records; this does not change verified VAT status, images or publication.</p>
  <a href="https://approvedused.bmw-motorrad.co.uk/UK/ergebnisse.cshtml" target="_blank" rel="noopener noreferrer" class="small">Open BMW VAT reclaimable search ↗</a>
  <label class="small" style="display:block;margin:9px 0 5px" for="bmwVatCandidateInput">BMW search results HTML, advert links or IDs</label>
@@ -712,15 +712,25 @@ function isBmwConnector(){
 }
 async function probeAllBmwVatResult(btn){
  const out=document.getElementById("bmwVatFilterDiagnosticStatus");
- btn.disabled=true;out.textContent="Checking the first BMW VAT reclaimable results page. No stock refresh…";
+ btn.disabled=true;out.textContent="Reading BMW VAT reclaimable search pages — no database changes…";
  try{
-  const {data,error}=await sb().functions.invoke("bmw-vat-result-probe",{body:{scope:"all_bmw"}});
+  const {data,error}=await sb().functions.invoke("bmw-vat-result-probe",{body:{scope:"all_bmw",paginate:true}});
   if(error)throw error;
-  if(!data?.ok){out.textContent="All-model test failed: "+(data?.error||"Unknown error");return;}
-  const found=(data.attempts||[]).find(x=>x.count>0);
-  const ids=found?.ids||[];
-  out.textContent=ids.length?("All-model first-page test returned "+ids.length+" advert IDs. This is NOT the complete VAT candidate list, and none have been saved."):("All-model BMW filter returned no extractable advert IDs. No changes.");
- }catch(e){out.textContent="BMW all-model test failed: "+String(e.message||e);}
+  if(!data?.ok){out.textContent="BMW scan failed: "+(data?.error||"Unknown error");return;}
+  const scan=data.allPages;
+  if(!scan){out.textContent="BMW returned no complete-page scan. No candidates changed.";return;}
+  const ids=scan.ids||[];
+  const known=["580234","580229","576442","579662","578357","578006","577098","577687","576483","575677","575507","573808","573952","569046","567057"];
+  const checked=known.filter(id=>ids.includes(id)).length;
+  const reported=Number(data.eval_count||0);
+  const complete=reported>0&&ids.length===reported&&checked===15&&ids.length>=200&&ids.length<=450&&scan.stop_reason!=="repeated";
+  window.bmwVatAllModelScan=complete?ids:null;
+  out.textContent=ids.length+" unique BMW advert IDs across "+(scan.pages||[]).length+" page(s) · "+checked+"/15 known F 900 GS IDs present · BMW reported "+(reported||"unknown")+" results · "+(complete?"Full result set passed count and known-ID checks. Ready for admin preview and save.":"NOT verified for import; no records changed.")+" End: "+scan.stop_reason+".";
+  if(complete){
+   document.getElementById("bmwVatCandidateInput").value=ids.join("\n");
+   await previewBmwVatCandidates();
+  }
+ }catch(e){out.textContent="BMW all-page check failed: "+String(e.message||e);}
  finally{btn.disabled=false;}
 }
 async function probeBmwVatResult(btn){
