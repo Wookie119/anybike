@@ -10,7 +10,7 @@ const script=[...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)]
 assert(script,'Shared manufacturer rendering code not found');
 const ids=new Set([...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]));
 const brandData=script.slice(script.indexOf('const guides='),script.indexOf('const histories='));
-const makes=[...brandData.matchAll(/"([^"]+)":\\{/g)].map(m=>m[1]).filter(make=>make!=='Harley-Davidson'&&make!=='BMW');
+const makes=[...brandData.matchAll(/"([^"]+)":\{/g)].map(m=>m[1]).filter(make=>make!=='Harley-Davidson'&&make!=='BMW');
 for(const make of makes){
   const elements=new Map();
   for(const id of ids)elements.set(id,{
