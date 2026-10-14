@@ -222,7 +222,7 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
         <div class="toolbar">
           <span id="poolStatus" class="status">Loading source pool…</span>
           <button class="btn green" id="loadPhotosBtn" onclick="loadBmwPhotos()">Load BMW source photos (internal)</button>
-          <button class="btn green" id="cleanSelectedBtn" onclick="cleanSelectedImages()">Clean selected images</button>
+          <button class="btn green" id="cleanSelectedBtn" onclick="cleanSelectedImages()">Retrieve &amp; clean selected photos</button>
           <label class="btn" style="display:flex;align-items:center;gap:8px;cursor:pointer">
             <input id="buyerSafeOnlyCheck" type="checkbox" style="width:auto" onchange="loadItems(true)">
             Clean images ready only
@@ -1062,10 +1062,21 @@ async function cleanSelectedImages(){
       }
     }
 
+    const {data:existingSafe,error:existingError}=await sb().rpc("admin_get_live_source_buyer_safe_images_v1",{p_item_ids:ids});
+    const safeCounts=new Map();
+    if(!existingError)(existingSafe||[]).forEach(row=>safeCounts.set(Number(row.live_source_item_id),(safeCounts.get(Number(row.live_source_item_id))||0)+1));
+    let unchanged=0;
     for(let i=0;i<ids.length;i++){
       const id=ids[i];
       const item=items.find(x=>Number(x.id)===id);
       const hasReal=(item?.source_image_urls||[]).some(u=>/\/api\/Image\/GetImg\?imgId=/i.test(String(u)));
+      const rawCount=[...new Set((item?.source_image_urls||[]).filter(u=>/\/api\/Image\/GetImg\?imgId=/i.test(String(u))))].length;
+      const existing=safeCounts.get(id)||0;
+      if(existing>0&&rawCount>0&&existing>=rawCount){
+        unchanged++;ready++;st.className="status good";
+        st.textContent="Bike #"+id+": "+existing+" approved photo"+(existing===1?"":"s")+" already available. No additional source images found to clean.";
+        continue;
+      }
 
       if(!hasReal){
         attention++;
@@ -1101,11 +1112,11 @@ async function cleanSelectedImages(){
     await loadItems(true);
 
     st.className=attention===0?"status good":(ready>0?"status good":"status bad");
-    st.textContent=ready+" clean image"+(ready===1?"":"s")+" ready"+
+    st.textContent=ready+" motorcycle"+(ready===1?"":"s")+" with approved images"+(unchanged?" · "+unchanged+" already prepared; no new source photos":"")+
       (attention?" · "+attention+" need attention":"")+
       (lastError?" — "+lastError:"");
   }finally{
-    if(btn){btn.disabled=false;btn.textContent="Clean selected images";}
+    if(btn){btn.disabled=false;btn.textContent="Retrieve & clean selected photos";}
   }
 }
 
