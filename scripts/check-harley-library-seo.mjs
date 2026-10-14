@@ -1,5 +1,5 @@
 // Run from the repository root: node scripts/check-harley-library-seo.mjs
-// Static guard for 20 public Harley guides. No network, auth, stock or database access.
+// Static guard for 21 public Harley guides. No network, auth, stock or database access.
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -7,13 +7,13 @@ const manufacturer=fs.readFileSync('harley-davidson-motorcycles.html','utf8');
 const match=manufacturer.match(/const curatedHarley=(\[[^\n]+\]);/);
 assert(match,'Harley model catalogue not found');
 const entries=JSON.parse(match[1]).flatMap(f=>f.entries);
-assert.equal(entries.length,20,'The Harley library must contain 20 guides');
+assert.equal(entries.length,21,'The Harley library must contain 21 guides');
 const errors=[];
 for(const entry of entries){
  const file=entry.url.replace(/^\//,'');
  if(!fs.existsSync(file)){errors.push(file+' not found');continue}
  const html=fs.readFileSync(file,'utf8');
- const expected=encodeURIComponent(entry.name);
+ const expected=encodeURIComponent(entry.url==='/harley-davidson-cvo.html'?'CVO':entry.url==='/harley-davidson-cvo-pan-america.html'?'CVO Pan America':entry.name);
  const fragment='?make=Harley-Davidson&amp;model='+expected;
  const require=(condition,detail)=>{if(!condition)errors.push(file+': '+detail)};
  require(html.includes('<title>')&&html.includes('</title>'),'Missing title');
@@ -33,4 +33,4 @@ for(const entry of entries){
  }
 }
 if(errors.length){for(const error of errors)console.error('FAIL '+error);process.exitCode=1}
-else console.log('PASS: 20 Harley guides retain SEO, model-specific trade sourcing, confidential UK selling and links without public stock leakage.');
+else console.log('PASS: 21 Harley guides retain SEO, model-specific trade sourcing, confidential UK selling and links without public stock leakage.');
