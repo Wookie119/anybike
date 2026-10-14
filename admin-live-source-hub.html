@@ -63,7 +63,7 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
 .source-accordion-body{padding:14px}.source-accordion-body iframe{width:100%;height:85vh;min-height:790px;background:#080808;border:0;border-radius:10px;display:block}
 #liveSourcesSection>.source-accordion-body{padding:0}
 </style>
-<style>.stock-review-panel{margin:12px 0 18px;padding:15px;border:1px solid #6d3536;border-radius:12px;background:#101010}.stock-review-panel[hidden]{display:none}.stock-review-panel h3{margin:0 0 7px}.stock-review-bike{display:grid;grid-template-columns:1.3fr .7fr 1.3fr;gap:16px;align-items:center;border-top:1px solid #353535;padding:14px 0}.stock-review-bike p{margin:6px 0}.stock-review-bike input[type=number]{width:100%;max-width:220px}.stock-review-confirm{display:flex;align-items:flex-start;gap:8px;font-size:12px;line-height:1.4;margin:0 0 10px}.stock-review-confirm input{flex:0 0 auto;width:auto;margin:2px 0}.stock-review-bike button{margin-right:10px}.stock-review-bike .small{line-height:1.4}@media(max-width:800px){.stock-review-bike{grid-template-columns:1fr}}</style></head>
+<style>.stock-review-panel{margin:12px 0 18px;padding:15px;border:1px solid #6d3536;border-radius:12px;background:#101010}.stock-review-panel[hidden]{display:none}.stock-review-panel h3{margin:0 0 7px}.stock-review-bike{display:grid;grid-template-columns:1.3fr .7fr 1.3fr;gap:16px;align-items:center;border-top:1px solid #353535;padding:14px 0}.stock-review-bike p{margin:6px 0}.stock-review-bike input[type=number]{width:100%;max-width:220px}.stock-review-confirm{display:flex;align-items:flex-start;gap:8px;font-size:12px;line-height:1.4;margin:0 0 10px}.stock-review-confirm input{flex:0 0 auto;width:auto;margin:2px 0}.stock-review-bike button{margin-right:10px}.stock-review-bike .small{line-height:1.4}@media(max-width:800px){.stock-review-bike{grid-template-columns:1fr}}</style><style>.bmw-weekly-summary{display:flex;align-items:center;flex-wrap:wrap;gap:10px;background:#101010;border:1px solid #393939;border-radius:10px;margin:10px 0;padding:11px 13px}.bmw-weekly-summary[hidden]{display:none}.bmw-weekly-summary strong{font-size:13px}.bmw-weekly-summary .small{font-size:12px;color:#aaa}.bmw-weekly-summary #bmwWeeklyCounts{color:#f1f1f1}</style></head>
 <body>
 <div class="page">
   <div id="adminSidebar"></div>
@@ -220,6 +220,12 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
           <button type="button" class="btn red" id="processOneBikePhotosBtn" onclick="processOneBikePhotos()">Process selected motorcycle photos</button>
           <span class="status" id="singleBikePhotoStatus" role="status" aria-live="polite"></span>
         </div>
+        <section id="bmwWeeklySummary" class="bmw-weekly-summary" hidden>
+          <strong>BMW stock update · last completed check</strong>
+          <span id="bmwWeeklyCounts" class="small" role="status">Checking last update…</span>
+          <button class="btn" type="button" onclick="loadBmwWeeklySummary()">Refresh summary</button>
+          <span class="small">Manual stock refresh only. Source listings missing from a partial scan are preserved.</span>
+        </section>
         <div class="toolbar">
           <span id="poolStatus" class="status">Loading source pool…</span>
           <button class="btn green" id="loadPhotosBtn" onclick="loadBmwPhotos()">Load BMW source photos (internal)</button>
@@ -690,12 +696,37 @@ function isBmwConnector(){
   const connector=currentConnector();
   return id===1 || connector?.adapter_key==="bmw-approved-used-uk" || /BMW Motorrad Approved Used/i.test(String(connector?.name||document.getElementById("activeSourceLabel")?.textContent||""));
 }
+async function loadBmwWeeklySummary(){
+ const area=document.getElementById("bmwWeeklySummary"),label=document.getElementById("bmwWeeklyCounts");
+ if(!area||!label)return;
+ if(!isBmwConnector()){area.hidden=true;return;}
+ area.hidden=false;label.textContent="Checking last BMW update…";
+ try{
+   const cid=Number(document.getElementById("connectorFilter").value||0);
+   const {data,error}=await sb().from("live_source_sync_runs")
+    .select("completed_at,status,discovered_count,new_count,changed_count,ended_count,details")
+    .eq("connector_id",cid).eq("status","completed").order("completed_at",{ascending:false}).limit(1);
+   if(error)throw error;
+   const x=data?.[0];
+   if(!x){label.textContent="No completed BMW stock refresh recorded.";return;}
+   const safe=!!x.details?.full_catalogue_run;
+   label.textContent="Last run: "+new Date(x.completed_at).toLocaleString("en-GB")+
+    " · "+Number(x.discovered_count||0).toLocaleString("en-GB")+" discovered"+
+    " · "+Number(x.new_count||0)+" new"+
+    " · "+Number(x.changed_count||0)+" changed"+
+    " · "+Number(x.ended_count||0)+" ended"+
+    (safe?" · Full catalogue":" · Partial / review required");
+ }catch(e){label.textContent="Update totals unavailable: "+String(e.message||e);}
+}
 function syncSourceSpecificControls(){
   const bmw=isBmwConnector();
   const photoBtn=document.getElementById("loadPhotosBtn");
   const cleanBtn=document.getElementById("cleanSelectedBtn");
   if(photoBtn)photoBtn.style.display=bmw?"":"none";
   if(cleanBtn)cleanBtn.style.display=bmw?"":"none";
+  const summary=document.getElementById("bmwWeeklySummary");
+  if(summary)summary.hidden=!bmw;
+  if(bmw)loadBmwWeeklySummary();
 }
 function firstImg(i){
   if(i.buyer_safe_url)return i.buyer_safe_url;
