@@ -1159,7 +1159,7 @@ footer{
 }
 </style>
 
-</head>
+<style>.photo-thread-next-action{margin-top:18px;padding:17px;border:1px solid #454545;border-radius:12px;background:#111}.photo-next-eyebrow{font-size:12px;font-weight:800;color:#ddd;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}.photo-thread-next-action strong{display:block;font-size:18px}.photo-thread-next-action p{color:#bbb;line-height:1.5;margin:7px 0 15px}.photo-thread-cta{display:inline-block;background:#ed1c24;border:1px solid #ed1c24;color:white!important;text-decoration:none!important;border-radius:9px;padding:12px 17px;font-weight:800}</style></head>
 
 <body>
 <div id="publicHeader"></div>
@@ -2089,6 +2089,17 @@ function globalBuyerConversationHtml(thread){
   const subject=String(thread.subject||"").toLowerCase();
   const isGlobal=source.includes("global buyer") || String(thread.department||"").toLowerCase().includes("global buyer");
   const isFormalOffer=source.includes("deal360") && subject.includes("formal offer");
+  const isPhotoRequest=source==="stock_photo_request";
+  const motorcycleId=Number(thread.related_bike_id||0);
+  const validPhotoBike=isPhotoRequest&&Number.isSafeInteger(motorcycleId)&&motorcycleId>0;
+  const photoAction=validPhotoBike
+    ? `<div class="photo-thread-next-action">
+       <div class="photo-next-eyebrow">Your next action</div>
+       <strong>Continue viewing this motorcycle</strong>
+       <p>Additional photographs aren't currently available. You can still view the motorcycle and register your interest, or check your existing enquiry.</p>
+       <a class="photo-thread-cta" href="/international-vq-motorcycle.html?id=${motorcycleId}">View ${safe([thread.bike_make,thread.bike_model].filter(Boolean).join(" ")||"motorcycle")} →</a>
+      </div>`
+    : "";
   const typeLabel=isGlobal ? "🌍 Global Buyer Network" : (isFormalOffer ? "AnyBike Formal Offer" : "💬 AnyBike Message");
 
   return `
@@ -2126,7 +2137,7 @@ function globalBuyerConversationHtml(thread){
 
           <div style="margin-bottom:15px">
             <strong>${isGlobal ? "Global Buyer Network conversation" : "Conversation with AnyBike"}</strong><br>
-            <span class="muted">${isGlobal ? "Continue discussing motorcycle requirements, stock matches and shipping with AnyBike." : "Continue your conversation with the AnyBike team."}</span>
+            <span class="muted">${isPhotoRequest ? "Your photograph request update." : (isGlobal ? "Continue discussing motorcycle requirements, stock matches and shipping with AnyBike." : "Continue your conversation with the AnyBike team.")}</span>
           </div>
 
           <div class="message-thread" id="global-messages-${thread.id}">
@@ -2143,7 +2154,7 @@ function globalBuyerConversationHtml(thread){
             <label>Reply to AnyBike</label>
             <textarea id="global-customer-msg-${thread.id}" placeholder="Type your reply here..."></textarea>
 
-            <div class="document-upload-box">
+            ${isPhotoRequest ? '<div style="display:none">' : '<div class="document-upload-box">'}
               <div class="document-upload-title">📎 Attach a private document</div>
 
               <div class="document-upload-grid">
@@ -2190,6 +2201,7 @@ function globalBuyerConversationHtml(thread){
               Send Reply
             </button>
             <div class="reply-status" id="global-reply-status-${thread.id}"></div>
+            ${photoAction}
           </div>
 
         </div>
