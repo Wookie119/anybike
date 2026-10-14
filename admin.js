@@ -646,7 +646,11 @@ return String(value || "")
   already verified by admin.js.
 */
 
+let anybikeAdminBellRefreshInFlight=false;
+let anybikeAdminBellCleanupAttempted=false;
+
 async function anybikeRefreshAdminBellV2(){
+  if(document.visibilityState==="hidden" || anybikeAdminBellRefreshInFlight || !anybikeAdminUser) return;
   const client=getAdminSupabaseClient();
 
   if(!client){
@@ -661,11 +665,18 @@ async function anybikeRefreshAdminBellV2(){
     return;
   }
 
+  anybikeAdminBellRefreshInFlight=true;
   try{
-    try{
-      await client.rpc("admin_cleanup_orphaned_deal_notifications_v1");
-    }catch(cleanupError){
-      console.warn("Orphaned deal notification cleanup failed",cleanupError);
+    // Orphan cleanup is a maintenance operation, not a five-second bell query.
+    // Run it at most once per admin page load, after authentication succeeds.
+    if(!anybikeAdminBellCleanupAttempted){
+      anybikeAdminBellCleanupAttempted=true;
+      try{
+        const cleanup=await client.rpc("admin_cleanup_orphaned_deal_notifications_v1");
+        if(cleanup.error) console.warn("Orphaned deal notification cleanup failed",cleanup.error);
+      }catch(cleanupError){
+        console.warn("Orphaned deal notification cleanup failed",cleanupError);
+      }
     }
 
     const {data,error}=await client
@@ -760,6 +771,8 @@ async function anybikeRefreshAdminBellV2(){
     if(statusEl){
       statusEl.textContent="Error";
     }
+  }finally{
+    anybikeAdminBellRefreshInFlight=false;
   }
 }
 
@@ -926,9 +939,10 @@ async function initialiseAdmin(){
 
     loadAdminShell();
 
+    // Single shared bell poller; hidden tabs and concurrent refreshes are skipped.
     anybikeAdminNotificationTimer=setInterval(
       anybikeRefreshAdminBellV2,
-      5000
+      15000
     );
   }
 }
