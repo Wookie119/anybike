@@ -176,14 +176,14 @@ function anybikeHidePublicStockSurfaces(){
     style=document.createElement("style");
     style.id="anybikePublicStockVisibilityStyles";
     style.textContent=[
-      'a[href="/available-stock.html"],a[href^="/available-stock.html?"],a[href^="available-stock.html"],a[href^="/bike-details.html?id="]{display:none!important}',
+      'a[href="/available-stock.html"]:not(.anybike-international-vq-link),a[href^="/available-stock.html?"]:not(.anybike-international-vq-link),a[href^="available-stock.html"]:not(.anybike-international-vq-link),a[href^="/bike-details.html?id="]{display:none!important}',
       '.market-selection,#countryBuyerInterestSection,.ab-stock-grid,.ab-stock-label,.ab-stock-card{display:none!important}'
     ].join("");
     document.head.appendChild(style);
   }
 
   const path=window.location.pathname.toLowerCase();
-  if(path.endsWith("/available-stock.html")||path.endsWith("/bike-details.html")){
+  if(path.endsWith("/bike-details.html")){
     window.location.replace("/buy-motorcycles.html");
     return;
   }
@@ -732,6 +732,16 @@ async function loadPublicHeader(){
     // Identify approved test accounts before slower navigation/profile setup.
     anybikeShowPublicSignedInIdentity().catch(()=>{});
     await setupPublicHeader();
+    // International VQ gallery is separately secured and must not enable the legacy public stock feed.
+    document.querySelectorAll(".export-dropdown-links,.mobile-export-links").forEach(function(host){
+      if(host.querySelector(".anybike-international-vq-link"))return;
+      const link=document.createElement("a");
+      link.href="/available-stock.html";
+      link.className="anybike-international-vq-link";
+      link.textContent="Available Stock — VAT Qualifying";
+      link.setAttribute("aria-label","International VAT Qualifying motorcycle gallery");
+      host.appendChild(link);
+    });
     anybikeShowPublicSignedInIdentity().catch(()=>{});
     // Allow time to travel from the nav label to a manufacturer link.
     document.querySelectorAll(".public-manufacturers-menu").forEach(function(menu){
