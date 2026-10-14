@@ -213,7 +213,7 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
           <div class="field"><label>Make</label><select id="makeFilter" onchange="refreshModelOptions()"><option value="">All makes</option></select></div>
           <div class="field"><label>Model</label><select id="modelFilter"><option value="">All models</option></select></div>
           <div class="field"><label>Status</label><select id="statusFilter"><option value="live">Live only</option><option value="">All</option><option value="ended">No longer listed</option><option value="review">Needs review</option></select></div>
-          <div class="field"><label>VAT status</label><select id="vatFilter"><option value="">All VAT statuses</option><option value="vq">VAT Qualifying only</option><option value="non_vq">VQ not confirmed</option></select></div>
+          <div class="field"><label>VAT status</label><select id="vatFilter"><option value="">All VAT statuses</option><option value="vq">Verified VAT Qualifying</option><option value="bmw_candidate">BMW VAT reclaimable candidates</option><option value="non_vq">VQ not confirmed</option></select></div>
           <button class="btn red" onclick="loadItems()">Search</button>
           <button type="button" class="btn" id="yamahaPhotoLoader" style="display:none;white-space:nowrap" onclick="loadYamahaPhotos(Number(document.getElementById('connectorFilter').value),this)">Load Yamaha photos</button>
         </div>
@@ -1326,7 +1326,7 @@ async function loadItems(preserveDealerOptions=false){
   const model=modelRaw==="__request_family__"?null:modelRaw;
   const status=document.getElementById("statusFilter").value||null;
   const vatFilter=document.getElementById("vatFilter")?.value||"";
-  const coverageNote=document.getElementById("vqCoverageNote");if(coverageNote)coverageNote.style.display=vatFilter==="vq"?"block":"none";
+  const coverageNote=document.getElementById("vqCoverageNote");if(coverageNote){coverageNote.style.display=(vatFilter==="vq"||vatFilter==="bmw_candidate")?"block":"none";coverageNote.textContent=vatFilter==="bmw_candidate"?"BMW VAT reclaimable candidates are dealer-advertised only; confirm VAT status before applying AnyBike's verified VAT Qualifying badge.":"Verified VAT Qualifying results are based on existing supplier evidence.";}
   const {data,error}=await sb().rpc("admin_get_live_source_items_v1",{p_connector_id:cid,p_make:make,p_model:model,p_status:status,p_limit:2000});
   if(error){st.className="status bad";st.textContent=error.message;return}
   let rows=data||[];
@@ -1344,6 +1344,12 @@ async function loadItems(preserveDealerOptions=false){
     }
   }
 
+  if(vatFilter==="bmw_candidate"){
+    const {data:candidates,error:candidateError}=await sb().rpc("admin_list_bmw_vat_candidates_v1");
+    if(candidateError){st.className="status bad";st.textContent="Could not load BMW reclaimable candidates: "+candidateError.message;return;}
+    const candidateIds=new Set((candidates||[]).map(x=>Number(x.item_id)).filter(Boolean));
+    rows=rows.filter(i=>candidateIds.has(Number(i.id)));
+  }
   if(vatFilter==="vq") rows=rows.filter(i=>i.vat_qualifying===true);
   else if(vatFilter==="non_vq") rows=rows.filter(i=>i.vat_qualifying!==true);
 
