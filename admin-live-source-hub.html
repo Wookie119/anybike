@@ -63,7 +63,7 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
 .source-accordion-body{padding:14px}.source-accordion-body iframe{width:100%;height:85vh;min-height:790px;background:#080808;border:0;border-radius:10px;display:block}
 #liveSourcesSection>.source-accordion-body{padding:0}
 </style>
-<style>.stock-review-panel{margin:12px 0 18px;padding:15px;border:1px solid #6d3536;border-radius:12px;background:#101010}.stock-review-panel[hidden]{display:none}.stock-review-panel h3{margin:0 0 7px}.stock-review-bike{display:grid;grid-template-columns:1.3fr .7fr 1.3fr;gap:16px;align-items:center;border-top:1px solid #353535;padding:14px 0}.stock-review-bike p{margin:6px 0}.stock-review-bike input[type=number]{width:100%;max-width:220px}.stock-review-confirm{display:flex;align-items:flex-start;gap:8px;font-size:12px;line-height:1.4;margin:0 0 10px}.stock-review-confirm input{flex:0 0 auto;width:auto;margin:2px 0}.stock-review-bike button{margin-right:10px}.stock-review-bike .small{line-height:1.4}@media(max-width:800px){.stock-review-bike{grid-template-columns:1fr}}</style><style>.bmw-weekly-summary{display:flex;align-items:center;flex-wrap:wrap;gap:10px;background:#101010;border:1px solid #393939;border-radius:10px;margin:10px 0;padding:11px 13px}.bmw-weekly-summary[hidden]{display:none}.bmw-weekly-summary strong{font-size:13px}.bmw-weekly-summary .small{font-size:12px;color:#aaa}.bmw-weekly-summary #bmwWeeklyCounts{color:#f1f1f1}</style></head>
+<style>.stock-review-panel{margin:12px 0 18px;padding:15px;border:1px solid #6d3536;border-radius:12px;background:#101010}.stock-review-panel[hidden]{display:none}.stock-review-panel h3{margin:0 0 7px}.stock-review-bike{display:grid;grid-template-columns:1.3fr .7fr 1.3fr;gap:16px;align-items:center;border-top:1px solid #353535;padding:14px 0}.stock-review-bike p{margin:6px 0}.stock-review-bike input[type=number]{width:100%;max-width:220px}.stock-review-confirm{display:flex;align-items:flex-start;gap:8px;font-size:12px;line-height:1.4;margin:0 0 10px}.stock-review-confirm input{flex:0 0 auto;width:auto;margin:2px 0}.stock-review-bike button{margin-right:10px}.stock-review-bike .small{line-height:1.4}@media(max-width:800px){.stock-review-bike{grid-template-columns:1fr}}</style><style>.bmw-weekly-summary{display:flex;align-items:center;flex-wrap:wrap;gap:10px;background:#101010;border:1px solid #393939;border-radius:10px;margin:10px 0;padding:11px 13px}.bmw-weekly-summary[hidden]{display:none}.bmw-weekly-summary strong{font-size:13px}.bmw-weekly-summary .small{font-size:12px;color:#aaa}.bmw-weekly-summary #bmwWeeklyCounts{color:#f1f1f1}</style><style>.stock-photo-queue{background:#111;border:1px solid #493737;border-radius:11px;padding:12px 14px;margin:10px 0}.stock-photo-queue-head{display:flex;align-items:center;gap:12px;justify-content:space-between}.stock-photo-request-row{display:flex;align-items:center;justify-content:space-between;gap:15px;border-top:1px solid #333;padding:10px 0}.stock-photo-request-row .small{font-size:12px;color:#bbb;margin-top:4px}.stock-photo-request-row button{margin:3px}@media(max-width:700px){.stock-photo-request-row{align-items:stretch;flex-direction:column}}</style></head>
 <body>
 <div class="page">
   <div id="adminSidebar"></div>
@@ -220,6 +220,11 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
           <button type="button" class="btn red" id="processOneBikePhotosBtn" onclick="processOneBikePhotos()">Process selected motorcycle photos</button>
           <span class="status" id="singleBikePhotoStatus" role="status" aria-live="polite"></span>
         </div>
+        <section class="stock-photo-queue">
+          <div class="stock-photo-queue-head"><strong>Customer photo requests</strong><button class="btn" type="button" onclick="loadStockPhotoRequests()">Check requests</button></div>
+          <div id="stockPhotoQueueStatus" class="small" role="status">Select Check requests to view pending buyer enquiries.</div>
+          <div id="stockPhotoQueueRows"></div>
+        </section>
         <section id="bmwWeeklySummary" class="bmw-weekly-summary" hidden>
           <strong>BMW stock update · last completed check</strong>
           <span id="bmwWeeklyCounts" class="small" role="status">Checking last update…</span>
@@ -695,6 +700,38 @@ function isBmwConnector(){
   const id=Number(document.getElementById("connectorFilter")?.value||0);
   const connector=currentConnector();
   return id===1 || connector?.adapter_key==="bmw-approved-used-uk" || /BMW Motorrad Approved Used/i.test(String(connector?.name||document.getElementById("activeSourceLabel")?.textContent||""));
+}
+async function loadStockPhotoRequests(){
+ const out=document.getElementById("stockPhotoQueueRows"),status=document.getElementById("stockPhotoQueueStatus");
+ status.textContent="Loading photo requests…";out.innerHTML="";
+ try{
+  const {data,error}=await sb().rpc("admin_list_stock_photo_requests_v1");
+  if(error)throw error;
+  const rows=data||[];
+  status.textContent=rows.length?rows.length+" pending photo request"+(rows.length===1?"":"s"):"No pending photo requests.";
+  out.innerHTML=rows.map(r=>'<div class="stock-photo-request-row"><div><strong>'+esc([r.year,r.make,r.model].filter(Boolean).join(" "))+'</strong><div class="small">Motorcycle #'+Number(r.item_id)+' · '+Number(r.approved_photo_count||0)+' approved images · '+esc(new Date(r.requested_at).toLocaleString("en-GB"))+'</div><div class="small">Buyer '+esc(String(r.buyer_id).slice(0,8))+'… · '+esc(r.request_status)+'</div></div><div><button class="btn" onclick="prepareRequestPhotos('+Number(r.request_id)+','+Number(r.item_id)+',this)">Process requested photos</button> <button class="btn" onclick="markPhotoRequestUnavailable('+Number(r.request_id)+',this)">No further images</button></div></div>').join("");
+ }catch(e){status.textContent="Could not load photo requests: "+String(e.message||e);}
+}
+async function prepareRequestPhotos(requestId,itemId,btn){
+ if(!window.confirm("Retrieve and prepare additional genuine photographs for motorcycle #"+itemId+"? Images will not be published automatically."))return;
+ btn.disabled=true;btn.textContent="Processing…";
+ try{
+  const {data,error}=await sb().functions.invoke("prepare-live-source-buyer-safe-images",{body:{live_source_item_id:itemId,target_safe_count:4}});
+  if(error||data?.error)throw new Error(data?.error||error?.message||"Preparation failed");
+  const count=Number(data?.safe_count||0);
+  const next=count>1?"ready":"requested";
+  if(next==="ready"){const x=await sb().rpc("admin_set_stock_photo_request_status_v1",{p_request_id:requestId,p_status:"ready"});if(x.error)throw x.error;}
+  alert(count>1?count+" approved images now recorded. Check the motorcycle gallery and notify the buyer through Message Centre.":"No additional approved photographs found. Request remains open for review.");
+  await loadStockPhotoRequests();
+ }catch(e){alert("Unable to process photographs: "+String(e.message||e));}
+ finally{btn.disabled=false;btn.textContent="Process requested photos";}
+}
+async function markPhotoRequestUnavailable(requestId,btn){
+ if(!window.confirm("Mark this request as having no additional photographs available?"))return;
+ btn.disabled=true;
+ const {error}=await sb().rpc("admin_set_stock_photo_request_status_v1",{p_request_id:requestId,p_status:"unavailable"});
+ if(error){alert(error.message);btn.disabled=false;return;}
+ await loadStockPhotoRequests();
 }
 async function loadBmwWeeklySummary(){
  const area=document.getElementById("bmwWeeklySummary"),label=document.getElementById("bmwWeeklyCounts");
