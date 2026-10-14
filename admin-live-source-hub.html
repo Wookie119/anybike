@@ -90,7 +90,7 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
  <p class="small">BMW showed 306 VAT reclaimable motorcycles in the checked search. Use confirmed advert IDs to match existing Live Source records; this does not change verified VAT status, images or publication.</p>
  <a href="https://approvedused.bmw-motorrad.co.uk/UK/ergebnisse.cshtml" target="_blank" rel="noopener noreferrer" class="small">Open BMW VAT reclaimable search ↗</a>
  <label class="small" style="display:block;margin:9px 0 5px" for="bmwVatCandidateInput">BMW search results HTML, advert links or IDs</label>
- <textarea id="bmwVatCandidateInput" rows="3" placeholder="Paste copied BMW results HTML, advert links or BMW bike IDs"></textarea>
+ <input type="file" id="bmwVatResultFile" accept=".html,.htm,.txt" onchange="importBmwVatResultFile(this)" aria-label="Choose BMW VAT reclaimable results HTML" style="display:block;margin:8px 0"><p class="small">Or choose a saved BMW search-results HTML file. Only motorcycles found in that file will be matched; one saved page may not contain all 306 results.</p><textarea id="bmwVatCandidateInput" rows="3" placeholder="Paste copied BMW results HTML, advert links or BMW bike IDs"></textarea>
  <div class="toolbar"><button type="button" class="btn" onclick="previewBmwVatCandidates()">Preview matches</button><button type="button" class="btn red" onclick="saveBmwVatCandidates()">Save candidates (not publish)</button></div>
  <p id="bmwVatFilterDiagnosticStatus" class="small" role="status"></p><p id="bmwVatCandidateStatus" class="small" role="status"></p><div id="bmwVatCandidateAudit" class="small" style="padding:8px 0"></div><div id="bmwVatCandidateMatches"></div>
  </section>
@@ -723,6 +723,13 @@ async function checkBmwVatFilter(btn){
  }catch(e){out.textContent="BMW check could not complete: "+String(e.message||e);}
  finally{btn.disabled=false;}
 }
+async function importBmwVatResultFile(input){
+ const out=document.getElementById("bmwVatCandidateStatus"),file=input.files?.[0];
+ if(!file)return;
+ if(file.size>5000000){out.textContent="File over 5 MB. Use a smaller BMW results HTML file.";return;}
+ const area=document.getElementById("bmwVatCandidateInput");area.value=await file.text();
+ await previewBmwVatCandidates();
+}
 function parseBmwVatCandidateIds(){
  const raw=String(document.getElementById("bmwVatCandidateInput")?.value||"");
  const ids=new Set();
@@ -737,14 +744,13 @@ function parseBmwVatCandidateIds(){
 async function previewBmwVatCandidates(){
  const status=document.getElementById("bmwVatCandidateStatus"),list=document.getElementById("bmwVatCandidateMatches");
  const ids=parseBmwVatCandidateIds();
- if(!ids.length){status.textContent="Paste BMW advert IDs or links first.";list.innerHTML="";return;}
- status.textContent="Checking "+ids.length+" advert IDs against existing BMW source records…";
- const {data,error}=await sb().from("live_source_items").select("id,make,model,seller_name,source_stock_id,source_status,vat_qualifying").eq("make","BMW").in("source_stock_id",ids).limit(400);
- if(error){status.textContent=error.message;return;}
- const byId=new Map((data||[]).map(x=>[String(x.source_stock_id),x]));
- const found=ids.filter(x=>byId.has(x)).length;
- status.textContent=found+" matched existing BMW motorcycles · "+(ids.length-found)+" not currently matched. These are BMW-advertised candidates, not verified VQ.";
- list.innerHTML=ids.slice(0,30).map(id=>{const x=byId.get(id);return '<div class="small" style="border-top:1px solid #303030;padding:5px 0">'+esc(id)+' · '+(x?esc(x.make+' '+x.model+' · '+(x.seller_name||'Dealer unknown')+' · '+x.source_status):'Not in Live Source Hub')+'</div>';}).join("")+(ids.length>30?'<p class="small">Showing first 30 of '+ids.length+' candidates.</p>':'');
+ if(!ids.length){status.textContent="No BMW advert IDs detected. The saved page may not contain the loaded search results.";list.innerHTML="";return;}
+ status.textContent="Securely checking "+ids.length+" BMW advert IDs…";
+ const {data,error}=await sb().rpc("admin_preview_bmw_vat_candidates_v1",{p_ids:ids});
+ if(error){status.textContent="Preview failed: "+error.message;return;}
+ const rows=data||[],found=rows.filter(x=>x.item_id).length,verified=rows.filter(x=>x.already_verified).length;
+ status.textContent=rows.length+" VAT reclaimable advert IDs extracted · "+found+" existing BMW records matched · "+(rows.length-found)+" unmatched · "+verified+" already VAT verified. "+(rows.length===306?"The extracted count matches the observed 306-result search.":"This is not yet a complete 306-result import.");
+ list.innerHTML=rows.slice(0,40).map(x=>'<div class="small" style="border-top:1px solid #303030;padding:5px 0">'+esc(x.advert_id)+' · '+esc([x.make,x.model].filter(Boolean).join(" ")||"Not matched")+' · '+esc(x.dealer||"")+' · '+(x.already_verified?"VQ verified":"VAT reclaimable candidate only")+'</div>').join("")+(rows.length>40?'<p class="small">Showing first 40 results.</p>':'');
 }
 async function saveBmwVatCandidates(){
  const ids=parseBmwVatCandidateIds(),status=document.getElementById("bmwVatCandidateStatus");
