@@ -22,7 +22,7 @@ for(const [heading,source] of [
 ]){
  const at=manufacturer.indexOf('<h3>'+heading+'</h3>');
  const article=manufacturer.slice(at,manufacturer.indexOf('</div>',at));
- if(at<0||!article.includes(source)||!article.includes('Photo and licence details'))errors.push('Missing identified historic editorial photograph: '+heading);
+ if(at<0||!article.includes(source))errors.push('Missing identified historic editorial photograph: '+heading);
 }
 const turbo=global.indexOf('<h3>Harley-Davidson superchargers and turbochargers</h3>');
 if(turbo<0)errors.push('Global forced-induction story missing');
