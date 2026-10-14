@@ -12,6 +12,27 @@
 <link rel="canonical" href="https://www.anybike.co.uk/available-stock.html">
 <meta name="description" content="Browse UK motorcycle stock available from AnyBike for international trade and UK motorcycle trade buyers.">
 <meta name="robots" content="noindex, nofollow, noarchive">
+<!-- Redirect old Available Stock URLs to motorcycle guides while public stock is OFF.
+     The same public RPC used by the site header controls this; ON preserves stock. -->
+<style id="anybikeStockGateStyle">html{visibility:hidden}</style>
+<script>
+(function(){
+  var params=new URLSearchParams(window.location.search);
+  var make=String(params.get("make")||"").trim();
+  var known=["BMW","Honda","Yamaha","Kawasaki","Suzuki","Triumph","Ducati","KTM","Harley-Davidson"];
+  var matched=known.find(function(name){return name.toLowerCase()===make.toLowerCase()});
+  var destination=matched==="BMW"?"/bmw-motorcycles.html":matched==="Harley-Davidson"?"/harley-davidson-motorcycles.html":matched?"/motorcycle-brand.html?make="+encodeURIComponent(matched):"/motorcycle-manufacturers.html";
+  function showStock(){document.getElementById("anybikeStockGateStyle")?.remove();}
+  function divert(){window.location.replace(destination);}
+  fetch("https://tuehtnezhdnkqbbhttgp.supabase.co/rest/v1/rpc/public_get_public_stock_visibility_v1",{
+    method:"POST",
+    headers:{"apikey":"sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK","Content-Type":"application/json"},
+    body:"{}",cache:"no-store"
+  }).then(function(response){if(!response.ok)throw Error("visibility lookup failed");return response.json();})
+    .then(function(data){if(data&&data.enabled===true)showStock();else divert();})
+    .catch(function(){divert();});
+})();
+</script>
 <title>Available Stock | AnyBike International & Trade Motorcycles</title>
 <link rel="icon" href="/anybike-logo-new.jpg">
 <link rel="shortcut icon" href="/anybike-logo-new.jpg">
