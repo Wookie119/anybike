@@ -63,7 +63,7 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
 .source-accordion-body{padding:14px}.source-accordion-body iframe{width:100%;height:85vh;min-height:790px;background:#080808;border:0;border-radius:10px;display:block}
 #liveSourcesSection>.source-accordion-body{padding:0}
 </style>
-</head>
+<style>.stock-review-panel{margin:12px 0 18px;padding:15px;border:1px solid #6d3536;border-radius:12px;background:#101010}.stock-review-panel[hidden]{display:none}.stock-review-panel h3{margin:0 0 7px}.stock-review-bike{display:grid;grid-template-columns:1.3fr .7fr 1.3fr;gap:16px;align-items:center;border-top:1px solid #353535;padding:14px 0}.stock-review-bike p{margin:6px 0}.stock-review-bike input[type=number]{width:100%;max-width:220px}.stock-review-confirm{display:flex;align-items:flex-start;gap:8px;font-size:12px;line-height:1.4;margin:0 0 10px}.stock-review-confirm input{flex:0 0 auto;width:auto;margin:2px 0}.stock-review-bike button{margin-right:10px}.stock-review-bike .small{line-height:1.4}@media(max-width:800px){.stock-review-bike{grid-template-columns:1fr}}</style></head>
 <body>
 <div class="page">
   <div id="adminSidebar"></div>
@@ -236,6 +236,7 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
           <button type="button" class="btn" id="reviewStockBtn" onclick="reviewSelectedStock()">Review for Available Stock</button>
           <button class="btn red" id="prepareSelectedBtn" onclick="createBatch()">Prepare selected bikes</button>
         </div>
+        <section id="stockReviewPanel" hidden class="stock-review-panel" aria-label="Review selected motorcycles for Available Stock"><h3>Review for Available Stock</h3><p id="stockReviewStatus" class="small" role="status"></p><div id="stockReviewRows"></div></section>
         <div class="bikes" id="bikes"><div class="empty">Loading…</div></div>
       </section>
 
@@ -992,23 +993,57 @@ function applyDealerFilter(){
 }
 
 async function reviewSelectedStock(){
- const chosen=[...selected].map(Number);
- const result=document.getElementById("singleBikePhotoStatus");
- if(!chosen.length){result.className="status bad";result.textContent="Tick one or more motorcycles to review for Available Stock.";return;}
- const matches=items.filter(i=>chosen.includes(Number(i.id)));
- const {data,error}=await sb().from("anybike_international_vq_gallery").select("live_source_item_id,published,checked_at,anybike_price_gbp").in("live_source_item_id",chosen);
- if(error){result.className="status bad";result.textContent="Could not read Available Stock publication status: "+error.message;return;}
- const published=new Map((data||[]).map(v=>[Number(v.live_source_item_id),v]));
- const lines=matches.map(i=>{
-  const record=published.get(Number(i.id));
-  return [i.year,i.make,i.model].filter(Boolean).join(" ")+" (#"+i.id+"): "+(record?.published?"Already published — update existing listing":record?"Draft — publication review required":"Not yet in Available Stock — publication review required")+
-   " | source "+String(i.source_status||"unknown")+
-   " | last seen "+(i.last_seen_at?new Date(i.last_seen_at).toLocaleDateString("en-GB"):"unknown")+
-   " | AnyBike price "+(record?.anybike_price_gbp?"£"+Number(record.anybike_price_gbp).toLocaleString("en-GB",{minimumFractionDigits:2}):"not set");
- }).join("\n");
- result.className="status";
- result.style.whiteSpace="pre-line";
- result.textContent=lines+"\nPublication is not changed here. Confirm current seller availability and buyer-safe images before approving any new listing.";
+ const ids=[...selected].map(Number);
+ const output=document.getElementById("stockReviewPanel");
+ const status=document.getElementById("stockReviewStatus");
+ if(!ids.length){output.hidden=false;status.textContent="Tick one or more motorcycles before reviewing for Available Stock.";document.getElementById("stockReviewRows").innerHTML="";return;}
+ output.hidden=false;
+ status.textContent="Checking existing stock records…";
+ try{
+  const [candidateResult,priceResult]=await Promise.all([
+    sb().rpc("admin_list_vq_gallery_candidates_v1"),
+    sb().rpc("admin_get_vq_gallery_prices_v1")
+  ]);
+  if(candidateResult.error)throw candidateResult.error;
+  if(priceResult.error)throw priceResult.error;
+  const candidateMap=new Map((candidateResult.data||[]).map(v=>[Number(v.item_id),v]));
+  const priceMap=new Map((priceResult.data||[]).map(v=>[Number(v.id),Number(v.price)]));
+  const bikes=items.filter(i=>ids.includes(Number(i.id)));
+  document.getElementById("stockReviewRows").innerHTML=bikes.map(i=>{
+    const id=Number(i.id),c=candidateMap.get(id),price=priceMap.get(id);
+    const title=[i.year,i.make,i.model].filter(Boolean).join(" ");
+    const good=!!c&&!!c.vat_qualifying&&c.source_status==="live"&&!!c.safe_image_url;
+    return '<div class="stock-review-bike" data-review-id="'+id+'">'+
+      '<div><strong>'+esc(title)+'</strong> <span class="small">#'+id+'</span><p class="small">'+esc(i.seller_name||"Unknown dealer")+' · '+esc(i.source_stock_id||"")+' · '+(c?.published?'Already published — update existing listing':'Not published')+'</p>'+
+      '<p class="small">'+(good?'✓ Verified VQ record, live source and approved photo':'Needs review: VQ confirmation, live status or safe image missing')+'</p>'+
+      '<a class="small" href="'+esc(i.source_url||"#")+'" target="_blank" rel="noopener noreferrer">Check dealer advert ↗</a></div>'+
+      '<div><label class="small" for="stockPrice'+id+'">AnyBike selling price (£)</label><input type="number" id="stockPrice'+id+'" min="1" max="1000000" step="0.01" value="'+(price>0?price.toFixed(2):'')+'" placeholder="Final buyer price"></div>'+
+      '<div><label class="stock-review-confirm"><input type="checkbox" id="stockConfirm'+id+'"> I checked availability with the seller and reviewed VAT status, approved photographs and price</label>'+
+      '<button type="button" class="btn red" '+(!good?'disabled':'')+' onclick="publishReviewedStock('+id+',this)">'+(c?.published?'Save & refresh published listing':'Publish to Available Stock')+'</button><span class="small" id="stockRowStatus'+id+'" role="status"></span></div>'+
+    '</div>';
+  }).join("");
+  status.textContent=bikes.length+" motorcycle"+(bikes.length===1?"":"s")+" ready for individual review. Nothing is published or changed until you confirm a motorcycle and press its button.";
+ }catch(e){status.textContent="Review could not load: "+String(e.message||e);}
+}
+async function publishReviewedStock(id,btn){
+ const label=document.getElementById("stockRowStatus"+id);
+ const confirmEl=document.getElementById("stockConfirm"+id);
+ const input=document.getElementById("stockPrice"+id);
+ const price=Number(input?.value);
+ if(!confirmEl?.checked){label.textContent="Confirm the seller availability and buyer-safe checks first.";return;}
+ if(!Number.isFinite(price)||price<=0||price>1000000){label.textContent="Enter a valid final AnyBike price.";return;}
+ if(!window.confirm("Confirm seller availability, VAT and approved photographs for motorcycle #"+id+"? Save £"+price.toFixed(2)+" as the AnyBike buyer price and publish or update its existing listing?"))return;
+ btn.disabled=true;label.textContent="Saving…";
+ try{
+   const save=await sb().rpc("admin_set_vq_gallery_price_v1",{p_item_id:id,p_price:price});
+   if(save.error)throw save.error;
+   const published=await sb().rpc("admin_set_vq_gallery_publication_v1",{p_item_id:id,p_publish:true});
+   if(published.error)throw published.error;
+   label.textContent="✓ Available Stock updated. No duplicate listing created.";
+   label.style.color="#89e5a7";
+   btn.textContent="Published ✓";
+ }catch(e){label.textContent="Not published: "+String(e.message||e);}
+ finally{btn.disabled=false;}
 }
 
 async function processOneBikePhotos(){
