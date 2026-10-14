@@ -2036,7 +2036,13 @@ async function loadLiveVisitors(){
       Number(summary.countries_today ?? 0) || 0;
 
     renderVisitors(latestVisitors);
-    loadVisitorHistory();
+    // History is a much larger query (up to 2,000 rows); refresh it at most
+    // once a minute instead of on every live-visitor refresh.
+    const now=Date.now();
+    if(now-lastVisitorHistoryAutoRefresh>=60000){
+      lastVisitorHistoryAutoRefresh=now;
+      loadVisitorHistory();
+    }
 
     status.textContent =
       "Updated " +
@@ -2059,6 +2065,16 @@ async function loadLiveVisitors(){
   }
 }
 
+let lastVisitorHistoryAutoRefresh=0;
+const visitorPollingInFlight={live:false,alerts:false,top:false};
+function scheduledVisitorRefresh(type,fn){
+  if(document.visibilityState!=="visible" || visitorPollingInFlight[type])return;
+  visitorPollingInFlight[type]=true;
+  Promise.resolve().then(fn).catch(function(error){
+    console.warn("Visitor dashboard refresh failed",error);
+  }).finally(function(){visitorPollingInFlight[type]=false;});
+}
+
 async function startLiveVisitors(){
   const ok = await verifyAdminSession();
 
@@ -2076,9 +2092,10 @@ async function startLiveVisitors(){
     loadUnusualActivity()
   ]);
 
-  setInterval(loadLiveVisitors,10000);
-  setInterval(loadUnusualActivity,30000);
-  setInterval(loadTopVisitors,30000);
+  // Keep live visitors responsive, but avoid parallel or hidden-tab reads.
+  setInterval(function(){scheduledVisitorRefresh("live",loadLiveVisitors);},15000);
+  setInterval(function(){scheduledVisitorRefresh("alerts",loadUnusualActivity);},60000);
+  setInterval(function(){scheduledVisitorRefresh("top",loadTopVisitors);},60000);
 
   const requestedSession=new URLSearchParams(location.search).get("session");
   const requestedVisitor=new URLSearchParams(location.search).get("visitor");
@@ -2091,9 +2108,9 @@ async function startLiveVisitors(){
 
   document.addEventListener("visibilitychange",function(){
     if(document.visibilityState === "visible"){
-      loadLiveVisitors();
-      loadUnusualActivity();
-      loadTopVisitors();
+      scheduledVisitorRefresh("live",loadLiveVisitors);
+      scheduledVisitorRefresh("alerts",loadUnusualActivity);
+      scheduledVisitorRefresh("top",loadTopVisitors);
     }
   });
 }
