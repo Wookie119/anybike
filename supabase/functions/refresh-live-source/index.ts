@@ -102,7 +102,7 @@ async function upsertItem(admin:any,connectorId:number,item:any){
   if(!key) return {ok:false,isNew:false,changed:false};
 
   const {data:existing,error:findError}=await admin.from("live_source_items")
-    .select("id,source_price_gbp,mileage,source_url")
+    .select("id,source_price_gbp,mileage,source_url,source_image_urls")
     .eq("connector_id",connectorId).eq("source_key",key).maybeSingle();
   if(findError) throw findError;
 
@@ -131,7 +131,7 @@ async function upsertItem(admin:any,connectorId:number,item:any){
     source_listed_at_source:item?.extraction?.source_listed_at_source||item?.source_listed_at_source||null,
     description_original:item.description_original||null,
     specification:item.specification||{},
-    source_image_urls:Array.isArray(item.source_image_urls)?item.source_image_urls:[],
+    source_image_urls:Array.isArray(item.source_image_urls)&&item.source_image_urls.length>0?item.source_image_urls:(existing?.source_image_urls||[]),
     raw_data:item
   };
 
