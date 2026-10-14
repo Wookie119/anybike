@@ -21,7 +21,7 @@ for(const card of cards){
  for(const [,anchor] of html.matchAll(/href="#([^"]+)"/g))if(!html.includes('id="'+anchor+'"'))problems.push(route+': broken fragment #'+anchor);
  const images=[...html.matchAll(/<img\b[^>]*\bsrc="([^"]+)"[^>]*>/g)];
  if(!images.length) warnings.push(card.name+': no identified model photograph');
- for(const [,src,tag] of images){
+ for(const [tag,src] of images){
    if(!/\balt="[^"]+"/.test(tag))problems.push(route+': photo without alt');
    const normalized=src.split('?')[0];
    if(seenPhotos.has(normalized))problems.push('Photo reused between '+seenPhotos.get(normalized)+' and '+card.name);
