@@ -92,7 +92,7 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
  <label class="small" style="display:block;margin:9px 0 5px" for="bmwVatCandidateInput">BMW search results HTML, advert links or IDs</label>
  <input type="file" id="bmwVatResultFile" accept=".html,.htm,.txt" onchange="importBmwVatResultFile(this)" aria-label="Choose BMW VAT reclaimable results HTML" style="display:block;margin:8px 0"><p class="small">Or choose a saved BMW search-results HTML file. Only motorcycles found in that file will be matched; one saved page may not contain all 306 results.</p><textarea id="bmwVatCandidateInput" rows="3" placeholder="Paste copied BMW results HTML, advert links or BMW bike IDs"></textarea>
  <div class="toolbar"><button type="button" class="btn" onclick="previewBmwVatCandidates()">Preview matches</button><button type="button" class="btn red" onclick="saveBmwVatCandidates()">Save candidates (not publish)</button></div>
- <p id="bmwVatFilterDiagnosticStatus" class="small" role="status"></p><p id="bmwVatCandidateStatus" class="small" role="status"></p><div id="bmwVatCandidateAudit" class="small" style="padding:8px 0"></div><div id="bmwVatCandidateMatches"></div>
+ <p id="bmwVatFilterDiagnosticStatus" class="small" role="status"></p><p id="bmwVatCandidateStatus" class="small" role="status"></p><div id="bmwVatCandidateAudit" class="small" style="padding:8px 0"></div><div id="bmwVatCandidateMatches"></div><div style="margin-top:10px"><button class="btn" type="button" onclick="loadBmwVatExceptions()">Review unmatched and ended adverts</button><p id="bmwVatExceptionSummary" class="small" role="status"></p><div id="bmwVatExceptionRows"></div></div>
  </section>
  <section class="stock-photo-queue">
           <div class="stock-photo-queue-head"><strong>Customer photo requests — Admin queue</strong><button class="btn" type="button" onclick="loadStockPhotoRequests()">Check requests</button></div>
@@ -801,6 +801,16 @@ async function saveBmwVatCandidates(){
  if(error){status.textContent="Could not save candidates: "+error.message;return;}
  status.textContent=data.imported+" candidates saved · "+data.matched+" matched existing stock · "+data.unmatched+" unmatched · No publication changes.";
  await loadBmwVatCandidates();
+}
+async function loadBmwVatExceptions(){
+ const summary=document.getElementById("bmwVatExceptionSummary"),rows=document.getElementById("bmwVatExceptionRows");
+ summary.textContent="Checking BMW candidate exceptions…";rows.innerHTML="";
+ const {data,error}=await sb().rpc("admin_bmw_vat_exceptions_v1");
+ if(error){summary.textContent="Review unavailable: "+error.message;return;}
+ const list=data||[],counts={unmatched:0,suspect_data:0,ended_recheck:0};
+ list.forEach(x=>{if(Object.prototype.hasOwnProperty.call(counts,x.issue))counts[x.issue]++;});
+ summary.textContent=list.length+" needing review · "+counts.unmatched+" not matched · "+counts.ended_recheck+" ended needing availability check · "+counts.suspect_data+" suspect source records. No records changed.";
+ rows.innerHTML=list.map(x=>'<div class="small" style="padding:7px 0;border-top:1px solid #333">'+esc(x.advert_id)+' · '+esc(x.model||"Model not verified")+' · '+esc(x.dealer||"Dealer not known")+' · <strong>'+esc(x.issue==="unmatched"?"Not imported":x.issue==="suspect_data"?"Suspect data — do not publish":"Ended — check availability")+'</strong> · <a target="_blank" rel="noopener noreferrer" href="https://approvedused.bmw-motorrad.co.uk/UK/detail.cshtml?on='+encodeURIComponent(x.advert_id)+'">BMW advert ↗</a></div>').join("");
 }
 async function loadBmwCandidateAudit(){
  const el=document.getElementById("bmwVatCandidateAudit");
