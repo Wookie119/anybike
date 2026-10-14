@@ -709,7 +709,7 @@ async function loadStockPhotoRequests(){
   if(error)throw error;
   const rows=data||[];
   status.textContent=rows.length?rows.length+" pending photo request"+(rows.length===1?"":"s"):"No pending photo requests.";
-  out.innerHTML=rows.map(r=>'<div class="stock-photo-request-row"><div><strong>'+esc([r.year,r.make,r.model].filter(Boolean).join(" "))+'</strong><div class="small">Motorcycle #'+Number(r.item_id)+' · '+Number(r.approved_photo_count||0)+' approved images · '+esc(new Date(r.requested_at).toLocaleString("en-GB"))+'</div><div class="small">Country: '+esc(r.buyer_country||'Not provided')+' · '+esc(r.request_status)+'</div></div><div><button class="btn" onclick="prepareRequestPhotos('+Number(r.request_id)+','+Number(r.item_id)+',this)">Process requested photos</button> <button class="btn" onclick="markPhotoRequestUnavailable('+Number(r.request_id)+',this)">No further images</button></div></div>').join("");
+  out.innerHTML=rows.map(r=>'<div class="stock-photo-request-row"><div><strong>'+esc([r.year,r.make,r.model].filter(Boolean).join(" "))+'</strong><div class="small">Motorcycle #'+Number(r.item_id)+' · '+Number(r.approved_photo_count||0)+' approved images · '+esc(new Date(r.requested_at).toLocaleString("en-GB"))+'</div><div class="small">Country: '+esc(r.buyer_country||'Not provided')+' · '+esc(r.request_status)+'</div></div><div><button class="btn" onclick="prepareRequestPhotos('+Number(r.request_id)+','+Number(r.item_id)+',this)">Process requested photos</button> <button class="btn" onclick="notifyPhotoRequestReady('+Number(r.request_id)+',this)">Notify: photos ready</button> <button class="btn" onclick="markPhotoRequestUnavailable('+Number(r.request_id)+',this)">Notify: no further images</button></div></div>').join("");
   const demand=document.getElementById("photoDemandSummary");
   const d=await sb().rpc("admin_stock_photo_demand_by_country_v1");
   if(!d.error){
@@ -725,19 +725,27 @@ async function prepareRequestPhotos(requestId,itemId,btn){
   const {data,error}=await sb().functions.invoke("prepare-live-source-buyer-safe-images",{body:{live_source_item_id:itemId,target_safe_count:4}});
   if(error||data?.error)throw new Error(data?.error||error?.message||"Preparation failed");
   const count=Number(data?.safe_count||0);
-  const next=count>1?"ready":"requested";
-  if(next==="ready"){const x=await sb().rpc("admin_set_stock_photo_request_status_v1",{p_request_id:requestId,p_status:"ready"});if(x.error)throw x.error;}
-  alert(count>1?count+" approved images now recorded. Check the motorcycle gallery and notify the buyer through Message Centre.":"No additional approved photographs found. Request remains open for review.");
+  alert(count>1?count+" approved photographs recorded. Review the motorcycle gallery, then choose Notify: photos ready to message the buyer.":"No additional approved photographs found. Request remains open until you choose an outcome.");
   await loadStockPhotoRequests();
  }catch(e){alert("Unable to process photographs: "+String(e.message||e));}
  finally{btn.disabled=false;btn.textContent="Process requested photos";}
 }
+async function notifyPhotoRequestReady(requestId,btn){
+ await completePhotoRequest(requestId,"ready",btn);
+}
 async function markPhotoRequestUnavailable(requestId,btn){
- if(!window.confirm("Mark this request as having no additional photographs available?"))return;
+ await completePhotoRequest(requestId,"unavailable",btn);
+}
+async function completePhotoRequest(requestId,outcome,btn){
+ const label=outcome==="ready"?"additional photographs are ready":"no further photographs are available";
+ if(!window.confirm("Notify the buyer that "+label+"? This sends an AnyBike notification and closes the request."))return;
  btn.disabled=true;
- const {error}=await sb().rpc("admin_set_stock_photo_request_status_v1",{p_request_id:requestId,p_status:"unavailable"});
- if(error){alert(error.message);btn.disabled=false;return;}
- await loadStockPhotoRequests();
+ try{
+  const {data,error}=await sb().rpc("admin_complete_stock_photo_request_v1",{p_request_id:requestId,p_outcome:outcome});
+  if(error)throw error;
+  alert(data?.already_completed?"This request was already completed. No duplicate notification was sent.":"Buyer notified and photo request completed.");
+  await loadStockPhotoRequests();
+ }catch(e){alert("Could not complete request: "+String(e.message||e));btn.disabled=false;}
 }
 async function loadBmwWeeklySummary(){
  const area=document.getElementById("bmwWeeklySummary"),label=document.getElementById("bmwWeeklyCounts");
