@@ -89,10 +89,12 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
  <div style="border-bottom:1px solid #333;padding-bottom:12px;margin-bottom:12px">
   <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap"><div><strong>BMW VAT reclaimable stock</strong><p class="small" style="margin:4px 0 0">17 motorcycles · 102 BMW photo links · unpublished</p></div><span class="small">Admin review only</span></div>
   <div style="display:flex;gap:9px;flex-wrap:wrap;margin:12px 0 0">
-   <button class="btn red" type="button" onclick="showBmwSidePhotoReview()">Choose main photos</button>
+   <button class="btn red" id="bmwVatMainPhotoBtn" type="button" onclick="showBmwSidePhotoReview()">Choose main photos</button>
    <button class="btn" type="button" onclick="reviewImportedBmwVat()">Review bikes &amp; prices</button>
    <button class="btn" type="button" onclick="loadBmwVatCandidates()">View candidates</button>
   </div>
+  <div id="bmwPhotoReviewNotice" class="small" role="status" aria-live="polite" style="margin-top:8px"></div>
+  <div id="bmwPhotoReviewMount" style="margin-top:10px"></div>
   <details style="margin-top:12px"><summary style="cursor:pointer;font-weight:700">Older checks and diagnostic tools</summary>
    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
     <button class="btn" type="button" onclick="loadBmwVatExceptions()">Review unmatched and ended adverts</button>
@@ -874,15 +876,20 @@ async function checkImportedBmwPhotoSources(btn){
  finally{btn.disabled=false;}
 }
 async function showBmwSidePhotoReview(){
- const status=document.getElementById("bmwVatExceptionSummary");
- const old=document.getElementById("bmwSidePhotoReview");if(old)old.remove();
- status.textContent="Loading BMW original photographs and previously saved choices…";
+ const status=document.getElementById("bmwPhotoReviewNotice");
+ const mount=document.getElementById("bmwPhotoReviewMount");
+ const trigger=document.getElementById("bmwVatMainPhotoBtn");
+ if(!status||!mount)return;
+ if(trigger)trigger.disabled=true;
+ mount.replaceChildren();
+ status.textContent="Loading the 17 BMW motorcycles and their photographs…";
+ const loading=document.createElement("p");loading.className="small";loading.textContent="Please wait — retrieving BMW photo links from Supabase.";mount.appendChild(loading);
  let source,saved;
  try {
   source=await sb().rpc("admin_bmw_vat_photo_selection_v1");
   if(source.error)throw source.error;
   saved=await sb().rpc("admin_bmw_vat_photo_choices_v1");
- } catch(e){status.textContent="Could not load BMW photo review: "+String(e.message||e);return;}
+ } catch(e){mount.replaceChildren();status.textContent="Could not load BMW photo review: "+String(e.message||e);if(trigger)trigger.disabled=false;return;}
  const bikes=Array.isArray(source.data)?source.data:[];
  const choices=new Map((Array.isArray(saved?.data)?saved.data:[]).map(x=>[Number(x.id),Number(x.photo_index)]));
  if(saved?.error)status.textContent="Photographs loaded, but previously saved choices could not be retrieved: "+saved.error.message;
@@ -925,8 +932,8 @@ async function showBmwSidePhotoReview(){
   }
   if(!photos.children.length)message.textContent="No valid source photos for this motorcycle. Nothing selected.";
  });
- holder.append(note,summary,choose,photos,message);status.after(holder);updateSummary();
- status.textContent=bikes.length+" BMW motorcycles ready for review · no new storage files, cleaned images or publication.";
+ holder.append(note,summary,choose,photos,message);mount.replaceChildren(holder);updateSummary();if(trigger)trigger.disabled=false;
+ status.textContent=bikes.length+" BMW motorcycles loaded. Choose a motorcycle from the dropdown below. No photos approved or published.";
 }
 async function reviewImportedBmwVat(){
  const status=document.getElementById("bmwVatExceptionSummary");
