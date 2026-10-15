@@ -93,7 +93,7 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
    <button class="btn" type="button" onclick="reviewImportedBmwVat()">Review bikes &amp; prices</button>
    <button class="btn" type="button" onclick="reviewCleanedBmwVatPilot(this)">Review cleaned photo</button>
    <button class="btn" type="button" onclick="showBmwSidePhotoReview()">Change main photo</button>
-   <button class="btn red" type="button" onclick="cleanFiveBmwPhotos(this)">Clean 5 selected photos</button>
+   
    <button class="btn" type="button" onclick="loadBmwVatCandidates()">View candidates</button>
   </div>
   <div id="bmwPhotoReviewNotice" class="small" role="status" aria-live="polite" style="margin-top:8px"></div>
@@ -1020,7 +1020,27 @@ async function showFastBmwVatReview(){
  function paint(){const r=reviews.get(id);line.textContent="Photo "+(index||"?")+" · "+(r&&r.photo_index===index?r.decision.replaceAll("_"," "):"not reviewed");for(const [button,value] of buttons){button.style.background=r&&r.photo_index===index&&r.decision===value?"#197344":"";}}
  for(const [value,label] of [["original_clear","Clear"],["cleaning_required","Clean"],["hold_review","Hold"]]){
  const btn=document.createElement("button");btn.type="button";btn.className="btn";btn.textContent=label;btn.style.padding="6px 10px";
- btn.onclick=async()=>{for(const [x] of buttons)x.disabled=true;line.textContent="Saving…";const result=await sb().rpc("admin_bmw_vat_triage_main_photo_v1",{p_item_id:id,p_decision:value});if(result.error){line.textContent="Error: "+result.error.message;}else{reviews.set(id,{decision:value,photo_index:index});paint();summary();}for(const [x] of buttons)x.disabled=false;};
+ btn.onclick=async()=>{for(const [x] of buttons)x.disabled=true;line.textContent="Saving…";const result=await sb().rpc("admin_bmw_vat_triage_main_photo_v1",{p_item_id:id,p_decision:value});if(result.error){line.textContent="Error: "+result.error.message;}else{
+ reviews.set(id,{decision:value,photo_index:index});paint();summary();
+ if(value==="cleaning_required"){
+  line.textContent="Photo "+index+" · checking cleaning status…";
+  try{
+   const state=await sb().rpc("admin_bmw_vat_pilot_image_status_v1",{p_advert_id:String(bike.advert_id)});
+   if(state.error)throw state.error;
+   if(state.data?.buyer_safe_status==="safe"){line.textContent="Photo "+index+" · already cleaned ✓";}
+   else if(state.data?.processing_error){line.textContent="Photo "+index+" · held: "+state.data.processing_error;}
+   else if(state.data?.buyer_safe_status!=="waiting"){line.textContent="Photo "+index+" · marked for cleaning; job requires preparation.";}
+   else{
+    const enabled=await sb().rpc("admin_bmw_vat_enable_cleaning_photo_v1",{p_advert_id:String(bike.advert_id)});
+    if(enabled.error||!enabled.data?.junction_stock_id)throw new Error(enabled.error?.message||"Cleaning job unavailable");
+    line.textContent="Photo "+index+" · cleaning selected photo…";
+    const run=await sb().functions.invoke("process-buyer-safe-image",{body:{junction_stock_id:enabled.data.junction_stock_id}});
+    const after=await sb().rpc("admin_bmw_vat_pilot_image_status_v1",{p_advert_id:String(bike.advert_id)});
+    line.textContent=after.data?.buyer_safe_status==="safe"?"Photo "+index+" · cleaned ✓":"Photo "+index+" · requires review: "+(after.data?.processing_error||run.data?.error||run.error?.message||"not approved");
+   }
+  }catch(e){line.textContent="Photo "+index+" · cleaning held: "+String(e.message||e);}
+ }
+}for(const [x] of buttons)x.disabled=false;};
  buttons.push([btn,value]);bar.appendChild(btn);}
  card.append(name,img,line,bar);grid.appendChild(card);paint();
  }
