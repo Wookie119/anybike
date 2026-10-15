@@ -61,6 +61,18 @@ textarea{min-height:68px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top
 #grid>.card .body>div:last-child{border-color:#8d2228!important;background:#1c0e10!important}
 #grid>.card .body>div:last-child>strong{color:#ff646b}
 @media(min-width:1100px){#grid>.card>.img{border-bottom:2px solid #ed1c24}#grid>.card>.gallery-thumbnails{border-right:1px solid #782026}}
+
+/* Single self-contained gallery column, avoiding inherited spanning grid rows. */
+#grid>.card{display:grid!important;grid-template-columns:minmax(0,43%) minmax(0,57%)!important;grid-template-rows:auto!important;align-items:start!important;width:100%;max-width:none!important}
+#grid>.card>.photo-column{grid-column:1!important;grid-row:1!important;min-width:0;display:flex;flex-direction:column;align-self:start;background:#110b0c;border-right:1px solid #782026}
+#grid>.card>.photo-column>.img{width:100%;height:auto!important;aspect-ratio:4/3!important;flex:0 0 auto;overflow:hidden;position:relative;border-bottom:2px solid #ed1c24}
+#grid>.card>.photo-column>.img img{display:block;width:100%;height:100%;object-fit:contain}
+#grid>.card>.photo-column>.gallery-thumbnails{display:flex;flex-wrap:nowrap;min-width:0;max-width:100%;width:100%;overflow-x:auto;align-self:auto;padding:10px;border-right:0}
+#grid>.card>.body{grid-column:2!important;grid-row:1!important;min-width:0;align-self:start;padding:16px 20px}
+#grid>.card>.body .data{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+#grid>.card>.body .box strong{overflow-wrap:anywhere}
+@media(min-width:1500px){#grid>.card>.body .data{grid-template-columns:repeat(5,minmax(0,1fr))}}
+@media(max-width:900px){#grid>.card{grid-template-columns:minmax(0,1fr)!important}#grid>.card>.photo-column{grid-column:1!important;grid-row:1!important;border-right:none}#grid>.card>.body{grid-column:1!important;grid-row:2!important}}
 </style>
 </head>
 <body>
@@ -189,8 +201,9 @@ function hideGalleryPhoto(){document.getElementById("tradeGalleryViewer").classL
 function renderBikeCards(rows){
   const host=document.getElementById("grid");
   host.innerHTML=rows.map(r=>'<article class="card" data-opportunity-id="'+esc(r.opportunity_id)+'">'+
-    '<div class="img"><img src="'+esc((approvedGalleries[r.opportunity_id]||[])[0]?.photo_url||r.image_url||"/anybike-image-coming-soon.png")+'" alt="Motorcycle photograph" onclick="showGalleryPhoto('+r.opportunity_id+',0)" style="cursor:zoom-in" onerror="this.src=\'/anybike-image-coming-soon.png\'"></div>'+
+    '<div class="photo-column"><div class="img"><img src="'+esc((approvedGalleries[r.opportunity_id]||[])[0]?.photo_url||r.image_url||"/anybike-image-coming-soon.png")+'" alt="Motorcycle photograph" onclick="showGalleryPhoto('+r.opportunity_id+',0)" style="cursor:zoom-in" onerror="this.src=\'/anybike-image-coming-soon.png\'"></div>'+
     '<div class="gallery-thumbnails">'+(approvedGalleries[r.opportunity_id]||[]).map((p,i)=>'<button type="button" title="Enlarge photo '+(i+1)+'" onclick="showGalleryPhoto('+r.opportunity_id+','+i+')"><img loading="lazy" src="'+esc(p.photo_url)+'" alt="Photo '+(i+1)+'"></button>').join("")+'</div>'+
+    '</div>'+ 
     '<div class="body">'+
       '<div class="meta">'+esc(r.reference)+' · closes in '+esc(countdown(r.closes_at))+'</div>'+
       '<div class="bike">'+esc([r.make,r.model,r.variant].filter(Boolean).join(" "))+'</div>'+
