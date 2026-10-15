@@ -985,11 +985,13 @@ async function showBmwSidePhotoReview(){
  const bikes=Array.isArray(source.data)?source.data:[];
  const choices=new Map((Array.isArray(saved?.data)?saved.data:[]).map(x=>[Number(x.id),Number(x.photo_index)]));
  if(saved?.error)status.textContent="Photographs loaded, but previously saved choices could not be retrieved: "+saved.error.message;
+ const triaged=await sb().rpc("admin_bmw_vat_main_photo_triage_list_v1");
+ const inspected=new Map((Array.isArray(triaged.data)?triaged.data:[]).map(x=>[Number(x.live_source_item_id),x.decision]));
  const holder=document.createElement("div");holder.id="bmwSidePhotoReview";
  const note=document.createElement("p");note.className="small";
  note.textContent="Choose the complete right-hand side of the actual motorcycle (both wheels visible). Left-hand side only if necessary. Saving records a proposed source URL, NOT photo approval, cleaning or publication.";
  const summary=document.createElement("p");summary.className="small";
- const updateSummary=()=>{summary.textContent=choices.size+" / "+bikes.length+" source photos selected · all remain unapproved and unpublished.";};
+ const updateSummary=()=>{summary.textContent=choices.size+" / "+bikes.length+" main photos selected · "+inspected.size+" inspected · "+Math.max(0,bikes.length-inspected.size)+" awaiting inspection · all unpublished.";};
  const choose=document.createElement("select");choose.style.cssText="max-width:100%;padding:10px;margin:8px 0;color:#222;background:#fff";
  const start=document.createElement("option");start.textContent="Choose a motorcycle to review";start.value="";choose.appendChild(start);
  for(let i=0;i<bikes.length;i++){
@@ -1014,7 +1016,7 @@ async function showBmwSidePhotoReview(){
     button.disabled=true;message.textContent="Saving source photo choice only…";
     const {data,error}=await sb().rpc("admin_bmw_vat_save_photo_choice_v1",{p_item_id:Number(bike.id),p_photo_index:index+1});
     if(error||!data?.saved){message.textContent="Could not save: "+(error?.message||"Unknown issue");button.disabled=false;return;}
-    choices.set(Number(bike.id),index+1);
+    inspected.delete(Number(bike.id));choices.set(Number(bike.id),index+1);
     Array.from(choose.options).forEach(o=>{if(o.value===choose.value)o.textContent=bike.advert_id+" · "+bike.model+" · selected";});
     message.textContent="Photo "+(index+1)+" saved for advert "+bike.advert_id+". Not approved or published.";
     updateSummary();choose.dispatchEvent(new Event("change"));
@@ -1028,7 +1030,7 @@ async function showBmwSidePhotoReview(){
        action.addEventListener("click",async()=>{
          action.disabled=true;message.textContent="Saving private image inspection…";
          const result=await sb().rpc("admin_bmw_vat_triage_main_photo_v1",{p_item_id:Number(bike.id),p_decision:value});
-         message.textContent=result.error?"Could not save decision: "+result.error.message:"Inspection recorded for BMW "+bike.advert_id+" — "+title+". No processing or publication triggered.";
+         if(!result.error){inspected.set(Number(bike.id),value);updateSummary();}message.textContent=result.error?"Could not save decision: "+result.error.message:"Inspection recorded for BMW "+bike.advert_id+" — "+title+". No processing or publication triggered.";
          action.disabled=false;
        });triage.appendChild(action);
      }
@@ -1041,7 +1043,7 @@ async function showBmwSidePhotoReview(){
        if(!confirm("Record an admin QR warning override for this selected photo? No image will be published."))return;
        override.disabled=true;message.textContent="Recording QR review override…";
        const result=await sb().rpc("admin_bmw_vat_qr_override_v1",{p_item_id:Number(bike.id),p_reason:reason.trim()});
-       message.textContent=result.error?"Override not saved: "+result.error.message:"QR review override recorded. No image processed or published.";
+       if(!result.error){inspected.set(Number(bike.id),"original_clear");updateSummary();}message.textContent=result.error?"Override not saved: "+result.error.message:"QR review override recorded. No image processed or published.";
        override.disabled=false;
      });
      triage.prepend(override);
