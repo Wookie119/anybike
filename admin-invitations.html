@@ -17,7 +17,7 @@
 <button class="primary" id="prepare" type="button">Prepare invitation →</button><p id="status" class="status" role="status"></p></section>
 <section class="panel"><h2>2. Preview and copy</h2><p class="muted">These are draft messages. Copying does not send anything.</p>
 <label>Registration link<input id="link" readonly aria-label="Registration link"></label><button id="copylink" type="button">Copy link</button>
-<label>Email subject<input id="subject" readonly></label><div id="emailbody" class="preview">Complete the fields and select Prepare invitation.</div><button id="copyemail" type="button">Copy email</button>
+<label>Email subject<input id="subject" readonly></label><div id="emailbody" class="preview" style="background:#080808;color:#fff;border:1px solid #444">Complete the fields and select Prepare invitation.</div><button id="copyemail" type="button">Copy email text</button><button id="copybranded" class="primary" type="button">Copy branded email</button>
 <label>SMS / WhatsApp message<textarea id="sms" readonly></textarea></label><button id="copysms" type="button">Copy text message</button>
 <p class="muted small">Buyer and seller links go to AnyBike registration. Dealer invitations for an individual motorcycle are generated from that motorcycle's admin record, with access restricted to verified dealers.</p></section></div>
 </main></div></div><script>
@@ -25,6 +25,7 @@ const $=id=>document.getElementById(id);
 const base="https://www.anybike.co.uk";
 let ready=false;
 const enc=encodeURIComponent;
+function safeText(v){return String(v??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
 function prepare(){
  const type=$("type").value,name=$("name").value.trim(),email=$("email").value.trim(),mobile=$("mobile").value.trim(),business=$("business").value.trim(),ref=$("reference").value.trim();
  if(!name&&!email&&!mobile){$("status").textContent="Enter a contact name, email or mobile number before preparing.";return;}
@@ -36,12 +37,13 @@ function prepare(){
  const subject=type==="seller"?"Your AnyBike seller account invitation"+(ref?" · "+ref:""):type==="dealer"?"Invitation to join AnyBike as a UK motorcycle dealer":"Invitation to join AnyBike";
  const body=greeting+"\n\nWe'd like to invite you to "+about+".\n\nTo create your account, please use the link below:\n"+url+suffix+"\n\nKind regards,\nAnyBike Team";
  const sms=greeting+" AnyBike invites you to "+(type==="seller"?"activate your seller account":type==="dealer"?"register your dealership":"register as a buyer")+". "+(ref?"Reference "+ref+". ":"")+"Sign up: "+url+" — AnyBike";
- $("link").value=url;$("subject").value=subject;$("emailbody").textContent=body;$("sms").value=sms;$("status").textContent="Invitation prepared"+(mobile?" for "+mobile:"")+". Nothing has been sent.";ready=true;
+ $("link").value=url;$("subject").value=subject;$("emailbody").innerHTML='<div style="background:#080808;color:#fff;padding:22px;font:15px/1.6 Arial,sans-serif"><img src="https://www.anybike.co.uk/assets/Anybike-email-logo-white.png" alt="AnyBike" width="190" style="width:190px;max-width:90%;height:auto;display:block"><div style="height:3px;background:#ed1c24;margin:16px 0"></div><p>'+safeText(greeting)+'</p><p>We would like to invite you to '+safeText(about)+'.</p><p><a href="'+safeText(url)+'" style="display:inline-block;background:#d21f29;color:#fff;text-decoration:none;font-weight:bold;padding:13px 18px;border-radius:8px">Activate your AnyBike account →</a></p>'+(ref?'<p>Existing motorcycle reference: <strong>'+safeText(ref)+'</strong>. Your motorcycle and photos are already recorded. Please contact AnyBike after registering so we can securely link your account.</p>':'')+'<p style="color:#ddd;font-size:12px;overflow-wrap:anywhere">If the button does not work, use: '+safeText(url)+'</p><p>Kind regards,<br>AnyBike Team</p><p style="border-top:1px solid #444;padding-top:12px;color:#aaa;font-size:12px">www.anybike.co.uk</p></div>';$("sms").value=sms;$("status").textContent="Invitation prepared"+(mobile?" for "+mobile:"")+". Nothing has been sent.";ready=true;
 }
 async function copy(value){if(!ready){$("status").textContent="Prepare an invitation first.";return;}try{await navigator.clipboard.writeText(value);$("status").textContent="Copied. Nothing sent.";}catch(e){window.prompt("Copy this text:",value);}}
 $("prepare").addEventListener("click",prepare);
 $("copylink").addEventListener("click",()=>copy($("link").value));
-$("copyemail").addEventListener("click",()=>copy("Subject: "+$("subject").value+"\n\n"+$("emailbody").textContent));
+$("copyemail").addEventListener("click",()=>copy("Subject: "+$("subject").value+"\n\n"+$("emailbody").innerText));
+$("copybranded").addEventListener("click",async()=>{if(!ready){$("status").textContent="Prepare an invitation first.";return;}try{const html=$("emailbody").innerHTML;await navigator.clipboard.write([new ClipboardItem({"text/html":new Blob([html],{type:"text/html"}),"text/plain":new Blob([$("emailbody").innerText],{type:"text/plain"})})]);$("status").textContent="Branded email copied, including the AnyBike logo. Nothing sent.";}catch(e){$("status").textContent="Your browser cannot copy formatted email here. Use Copy email text instead.";}});
 $("copysms").addEventListener("click",()=>copy($("sms").value));
 const params=new URLSearchParams(location.search);if(params.get("type"))$("type").value=params.get("type");for(const key of ["name","email","mobile","business","reference"]){if(params.has(key))$(key).value=params.get(key);}
 (async()=>{try{const allowed=await requireAdminSession();if(!allowed)return;document.documentElement.classList.remove("admin-auth-pending");if(params.has("name")||params.has("email"))prepare();}catch(e){document.documentElement.classList.remove("admin-auth-pending");$("status").textContent="Admin authentication required: "+String(e.message||e);}})();
