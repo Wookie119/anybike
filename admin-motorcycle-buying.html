@@ -213,6 +213,7 @@ label{display:block;color:#bbb;font-size:12px;font-weight:800}input{width:100%;m
       <label>Variant<input id="mVariant"></label>
       <label>Year<input id="mYear" type="number"></label>
       <label>Mileage<input id="mMileage" type="number"></label>
+      <label class="full" style="display:block">Motorcycle description — visible to invited UK dealers<textarea id="mDealerDescription" maxlength="3000" rows="7" placeholder="Describe condition, service history, equipment, keys and paperwork. Do not include seller identity, private offers or internal price guidance." style="display:block;width:100%;min-height:180px;resize:vertical;margin-top:8px;background:#070707;color:white;border:1px solid #ed1c24;border-radius:10px;padding:14px;font:inherit"></textarea></label>
       <div class="full actions">
         <button class="red" onclick="saveVehicle()">Save</button>
         <button onclick="closeModal()">Cancel</button>
@@ -855,6 +856,8 @@ function editVehicle(id){
   document.getElementById("mVariant").value=r.variant||"";
   document.getElementById("mYear").value=r.bike_year||"";
   document.getElementById("mMileage").value=r.mileage??"";
+  document.getElementById("mDealerDescription").value="";
+  sb.rpc("admin_get_seller_trade_description_v1",{p_submission_id:editId}).then(({data,error})=>{if(!error&&editId===Number(id))document.getElementById("mDealerDescription").value=data||"";});
   document.getElementById("modal").classList.add("open");
 }
 function closeModal(){document.getElementById("modal").classList.remove("open");editId=null;}
@@ -871,6 +874,8 @@ async function saveVehicle(){
   };
   const {error}=await sb.rpc("admin_update_seller_submission_vehicle_v1",args);
   if(error){alert(error.message);return;}
+  const {error:descriptionError}=await sb.rpc("admin_set_seller_trade_description_v1",{p_submission_id:editId,p_description:document.getElementById("mDealerDescription").value.trim()});
+  if(descriptionError){alert("Vehicle saved, but dealer description could not be saved: "+descriptionError.message);return;}
   const savedId=editId;
   closeModal();
   await loadQueue();
