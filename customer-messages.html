@@ -2642,18 +2642,21 @@ async function renderSellerOfferPanel(threadId){
  if(error){target.textContent="Offer details unavailable: "+error.message;return;}
  if(!data){target.innerHTML="";return;}
  const amount=Number(data.amount_gbp).toLocaleString("en-GB",{style:"currency",currency:"GBP"});
- const deposit=Math.min(100,Number(data.amount_gbp));
- const balance=Number(data.amount_gbp)-deposit;
+ const standardDeposit=Math.min(100,Number(data.amount_gbp));
+
  const gbp=n=>n.toLocaleString("en-GB",{style:"currency",currency:"GBP"});
  const expires=new Date(data.valid_until);
  const expiry=expires.toLocaleString("en-GB",{timeZone:"Europe/London",day:"numeric",month:"long",year:"numeric",hour:"2-digit",minute:"2-digit"})+" UK time";
  const {data:depositRequest}=await sb.rpc("customer_get_underwrite_deposit_request_v1",{p_offer_id:Number(data.offer_id)});
  const pendingDeposit=depositRequest?.status==="pending";
+ const proposalDeposit=depositRequest?.status==="proposed";
+ const deposit=depositRequest?.status==="approved"?Number(depositRequest.amount):depositRequest?.status==="seller_agreed"?Number(depositRequest.proposed):standardDeposit;
+ const balance=Number(data.amount_gbp)-deposit;
  const open=data.status==="sent"&&Date.now()<=expires.getTime();
  const state=data.status==="accepted"?"✓ Offer accepted":data.status==="declined"?"Offer declined":open?"Your next action · Review and respond":"Offer no longer available";
  const terms='<div style="margin-top:20px;padding:18px;border:1px solid #555;border-radius:9px;background:#101010">'+
  '<h4 style="font-size:19px;margin:0 0 12px;color:#fff">Purchase offer terms</h4>'+
- '<p><strong>Deposit:</strong> AnyBike will pay a standard '+safe(gbp(deposit))+' deposit within 24 hours after successful completion of the required seller, ownership and motorcycle checks and approval to proceed.</p>'+
+ '<p><strong>Deposit:</strong> AnyBike will pay an agreed '+safe(gbp(deposit))+' deposit within 24 hours after successful completion of the required seller, ownership and motorcycle checks and approval to proceed.</p>'+
  '<p><strong>Collection:</strong> AnyBike aims to collect within 7 working days after the motorcycle is cleared and ready for collection, unless a different date is agreed with you.</p>'+
  '<p><strong>Balance:</strong> The remaining '+safe(gbp(balance))+' will be paid by bank transfer before the motorcycle is released to AnyBike or its authorised collection agent.</p>'+
  '<p><strong>Checks:</strong> This offer is subject to satisfactory HPI, ownership, condition and documentation checks. Any material discrepancies must be discussed and agreed before proceeding.</p>'+
@@ -2664,14 +2667,21 @@ async function renderSellerOfferPanel(threadId){
  '<h3 style="font-size:24px;margin:12px 0 4px">'+safe(data.motorcycle)+'</h3><div>Reference: '+safe(data.reference)+'</div>'+
  '<div style="font-size:36px;font-weight:900;margin:15px 0">'+safe(amount)+'</div>'+
  '<p>Offer expires: '+safe(expiry)+'</p><strong>'+safe(state)+'</strong>'+terms+
- (open?'<label style="display:flex;align-items:center;gap:10px;margin:18px 0;font-weight:700"><input type="checkbox" id="sellerTermsAgree-'+Number(data.offer_id)+'" style="width:20px;height:20px"> I have read and agree to the purchase offer terms above.</label>'+
+ (open&&!pendingDeposit&&!proposalDeposit?'<label style="display:flex;align-items:center;gap:10px;margin:18px 0;font-weight:700"><input type="checkbox" id="sellerTermsAgree-'+Number(data.offer_id)+'" style="width:20px;height:20px"> I have read and agree to the purchase offer terms above.</label>'+
  '<div style="display:flex;flex-wrap:wrap;gap:12px"><button type="button" style="background:#ed1c24;color:white;padding:13px 24px;border-radius:8px;font-weight:800" onclick="respondSellerUnderwriteOffer('+Number(data.offer_id)+','+Number(threadId)+',\'accepted\')">Accept Offer</button>'+
  '<button type="button" style="background:#333;color:white;padding:13px 24px;border-radius:8px" onclick="respondSellerUnderwriteOffer('+Number(data.offer_id)+','+Number(threadId)+',\'declined\')">Decline Offer</button></div>':'')+
- (open ? (pendingDeposit
+ (open ? (proposalDeposit
+  ? '<p>AnyBike proposes '+safe(gbp(Number(depositRequest.proposed)))+' as the deposit. Please respond before accepting the motorcycle offer.</p><button type="button" onclick="replySellerDepositProposal('+Number(data.offer_id)+','+Number(threadId)+',true)">Agree to deposit</button> <button type="button" onclick="replySellerDepositProposal('+Number(data.offer_id)+','+Number(threadId)+',false)">Keep standard deposit</button>'
+  : pendingDeposit
   ? '<p style="color:#9decaf;font-weight:700">✓ Deposit request of '+safe(gbp(Number(depositRequest.amount)))+' awaiting AnyBike approval.</p>'
   : '<div style="border:1px solid #555;border-radius:8px;padding:12px;margin-top:15px"><strong>Would you prefer a larger deposit?</strong><p>Request a different deposit without declining the purchase price.</p><input id="sellerRequestedDeposit-'+Number(data.offer_id)+'" type="number" min="100.01" max="'+Number(data.amount_gbp)+'" step="0.01" placeholder="Deposit amount (£)" style="background:#090909;color:white;padding:9px;border:1px solid #666"><button type="button" style="padding:10px;margin-left:10px;background:#333;color:white" onclick="requestSellerDeposit('+Number(data.offer_id)+','+Number(threadId)+')">Request different deposit</button></div>'
  ) : '')+
  '<p style="font-size:12px;color:#ccc;margin-top:18px">For questions or alternative arrangements, reply to AnyBike in this conversation before accepting.</p></section>';
+}
+async function replySellerDepositProposal(offerId,threadId,agree){
+ const {error}=await sb.rpc("customer_respond_seller_deposit_proposal_v1",{p_offer_id:offerId,p_agree:agree});
+ if(error){alert(error.message);return;}
+ await renderSellerOfferPanel(threadId);
 }
 async function requestSellerDeposit(offerId,threadId){
  const amount=Number(document.getElementById("sellerRequestedDeposit-"+offerId)?.value);
