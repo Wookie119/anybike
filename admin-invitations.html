@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Invitations | AnyBike Admin</title><meta name="robots" content="noindex,nofollow">
+<script>document.documentElement.classList.add("admin-auth-pending")</script><style>html.admin-auth-pending body{visibility:hidden}</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="/admin.js?v=12001"></script><link rel="stylesheet" href="/admin-shell.css?v=12001">
+<style>*{box-sizing:border-box}body{margin:0;background:#090909;color:#f5f5f5;font:15px Arial,sans-serif}.admin-page-content{padding:22px;max-width:1500px}.hero,.panel{border:1px solid #333;background:#121212;border-radius:14px;padding:18px;margin-bottom:16px}.hero{border-top:3px solid #ed1c24}.hero h1{margin:5px 0 8px;font-size:28px}.muted{color:#aaa;line-height:1.5}.grid{display:grid;grid-template-columns:minmax(270px,1fr) minmax(320px,1fr);gap:16px}@media(max-width:850px){.grid{grid-template-columns:1fr}}label{display:block;margin:12px 0;color:#ccc;font-size:13px;font-weight:bold}input,select,textarea{display:block;width:100%;margin-top:6px;background:#080808;border:1px solid #484848;border-radius:8px;color:#fff;padding:12px;font:inherit}textarea{min-height:120px;resize:vertical}button,.btn{background:#202020;color:#fff;border:1px solid #666;padding:11px 15px;border-radius:9px;cursor:pointer;font-weight:bold;margin:4px 5px 4px 0}.primary{background:#c81820;border-color:#c81820}.status{min-height:24px;color:#91e6a4;font-size:13px}.notice{padding:12px;background:#191919;border-left:3px solid #ed1c24;margin:12px 0}.preview{white-space:pre-wrap;overflow-wrap:anywhere;background:#090909;border:1px solid #333;border-radius:10px;padding:16px;line-height:1.6}.small{font-size:12px}a{color:#ff7278}</style></head>
+<body><div class="admin-shell"><div id="adminSidebar"></div><div class="admin-main"><div id="adminTopbar"></div><main class="admin-page-content">
+<section class="hero"><div style="color:#ed1c24;font-weight:bold;letter-spacing:1px;font-size:11px">ANYBIKE · CUSTOMER RELATIONSHIPS</div><h1>Invitations</h1><p class="muted">Prepare registration invitations for buyers, private sellers and UK dealers. Copy an email, SMS/WhatsApp message or direct link. Nothing is emailed or texted from this page.</p><a href="/admin-onboarding.html">Open existing Onboarding →</a> · <a href="/admin-motorcycle-buying.html?submission=27">Peter Stagg's motorcycle →</a></section>
+<div class="grid"><section class="panel"><h2>1. Prepare invitation</h2>
+<label>Invitation type<select id="type"><option value="buyer">Motorcycle buyer</option><option value="seller">Private motorcycle seller</option><option value="dealer">UK motorcycle dealer</option></select></label>
+<label>Contact name<input id="name" placeholder="e.g. Peter Stagg"></label>
+<label>Email address (optional)<input id="email" type="email" placeholder="Contact email"></label>
+<label>Dealership or business (optional)<input id="business" placeholder="e.g. Sykes Harley-Davidson"></label>
+<label>Existing motorcycle reference (optional)<input id="reference" placeholder="e.g. AB-S-000027"></label>
+<div class="notice small">For sellers who already submitted a motorcycle, registration alone does not automatically claim an old submission. AnyBike must verify and link the account before showing the existing motorcycle in My Selling. Never ask them to submit it again.</div>
+<button class="primary" id="prepare" type="button">Prepare invitation →</button><p id="status" class="status" role="status"></p></section>
+<section class="panel"><h2>2. Preview and copy</h2><p class="muted">These are draft messages. Copying does not send anything.</p>
+<label>Registration link<input id="link" readonly aria-label="Registration link"></label><button id="copylink" type="button">Copy link</button>
+<label>Email subject<input id="subject" readonly></label><div id="emailbody" class="preview">Complete the fields and select Prepare invitation.</div><button id="copyemail" type="button">Copy email</button>
+<label>SMS / WhatsApp message<textarea id="sms" readonly></textarea></label><button id="copysms" type="button">Copy text message</button>
+<p class="muted small">Buyer and seller links go to AnyBike registration. Dealer invitations for an individual motorcycle are generated from that motorcycle's admin record, with access restricted to verified dealers.</p></section></div>
+</main></div></div><script>
+const $=id=>document.getElementById(id);
+const base="https://www.anybike.co.uk";
+let ready=false;
+const enc=encodeURIComponent;
+function prepare(){
+ const type=$("type").value,name=$("name").value.trim(),email=$("email").value.trim(),business=$("business").value.trim(),ref=$("reference").value.trim();
+ if(!name&&!email){$("status").textContent="Enter a contact name or email before preparing.";return;}
+ const url=base+"/customer-register.html?return="+enc(type==="seller"?"/my-selling.html":type==="dealer"?"/my-dealership.html":"/customer-dashboard.html");
+ const greeting=name?"Hi "+name.split(/\s+/)[0]+",":"Hello,";
+ const identity=type==="dealer"?(business||"your dealership"):name||"you";
+ const about=type==="seller"?"activate your free AnyBike private seller account and follow the progress of your motorcycle":type==="dealer"?"register "+identity+" with AnyBike for verification and future confidential trade opportunities":"register with AnyBike to enquire about motorcycles and manage your buying requirements";
+ const suffix=type==="seller"&&ref?"\n\nYour existing motorcycle reference is "+ref+". Your motorcycle and photos are already recorded. Contact AnyBike after registration so we can securely link it to your new login.":"";
+ const subject=type==="seller"?"Your AnyBike seller account invitation"+(ref?" · "+ref:""):type==="dealer"?"Invitation to join AnyBike as a UK motorcycle dealer":"Invitation to join AnyBike";
+ const body=greeting+"\n\nWe'd like to invite you to "+about+".\n\nTo create your account, please use the link below:\n"+url+suffix+"\n\nKind regards,\nAnyBike Team";
+ const sms=greeting+" AnyBike invites you to "+(type==="seller"?"activate your seller account":type==="dealer"?"register your dealership":"register as a buyer")+". "+(ref?"Reference "+ref+". ":"")+"Sign up: "+url+" — AnyBike";
+ $("link").value=url;$("subject").value=subject;$("emailbody").textContent=body;$("sms").value=sms;$("status").textContent="Invitation prepared. Nothing has been sent.";ready=true;
+}
+async function copy(value){if(!ready){$("status").textContent="Prepare an invitation first.";return;}try{await navigator.clipboard.writeText(value);$("status").textContent="Copied. Nothing sent.";}catch(e){window.prompt("Copy this text:",value);}}
+$("prepare").addEventListener("click",prepare);
+$("copylink").addEventListener("click",()=>copy($("link").value));
+$("copyemail").addEventListener("click",()=>copy("Subject: "+$("subject").value+"\n\n"+$("emailbody").textContent));
+$("copysms").addEventListener("click",()=>copy($("sms").value));
+const params=new URLSearchParams(location.search);if(params.get("type"))$("type").value=params.get("type");for(const key of ["name","email","business","reference"]){if(params.has(key))$(key).value=params.get(key);}
+(async()=>{try{const allowed=await requireAdminSession();if(!allowed)return;document.documentElement.classList.remove("admin-auth-pending");if(params.has("name")||params.has("email"))prepare();}catch(e){document.documentElement.classList.remove("admin-auth-pending");$("status").textContent="Admin authentication required: "+String(e.message||e);}})();
+</script></body></html>
