@@ -668,22 +668,22 @@ async function startUnderwrite(id){
     if(status)status.textContent="Review required: confirm the make, model and at least one approved buyer-safe photograph before inviting dealers.";
     return;
   }
-  if(!window.confirm("Final Admin check for "+(submission.reference||"this motorcycle")+" — "+bike+"\n\n"+photoCount+" approved photo(s); "+hours+"-hour bidding window.\n\nHave you checked the details and buyer-safe photographs, and do you want to invite verified UK trade dealers now?\n\nCancel keeps this motorcycle in Admin review."))return;
+  if(!window.confirm("Final Admin check for "+(submission.reference||"this motorcycle")+" — "+bike+"\n\n"+photoCount+" approved photo(s); "+hours+"-hour bidding window.\n\nHave you checked the details and buyer-safe photographs, and do you want to open bidding for specifically selected dealers only? No invitations will be sent automatically.\n\nCancel keeps this motorcycle in Admin review."))return;
   if(window.anybikeUnderwritePending?.has(Number(id)))return;
   window.anybikeUnderwritePending=window.anybikeUnderwritePending||new Set();
   window.anybikeUnderwritePending.add(Number(id));
   const buttons=[...document.querySelectorAll('[data-action="start-underwrite"][data-id="'+Number(id)+'"]')];
   buttons.forEach(b=>{b.disabled=true;b.textContent="Starting trade bidding…"});
   const actionStatus=document.getElementById("action-status-"+id);
-  if(actionStatus)actionStatus.textContent="Sending invitations to verified trade dealers…";
+  if(actionStatus)actionStatus.textContent="Opening selected-dealer bidding without sending invitations…";
   const {data,error}=await sb.rpc("admin_create_trade_underwrite_v1",{
     p_submission_id:Number(id),
     p_duration_hours:hours,
-    p_invitation_mode:"all_verified_trade"
+    p_invitation_mode:"selected"
   });
   if(error){window.anybikeUnderwritePending.delete(Number(id));buttons.forEach(b=>{b.disabled=false;b.textContent="Start Trade Bidding →"});if(actionStatus)actionStatus.textContent="Could not start bidding: "+error.message;return;}
   window.anybikeUnderwritePending.delete(Number(id));
-  const successMessage="✓ Trade bidding started — "+Number(data.invited_count||0)+" verified UK dealer"+(Number(data.invited_count||0)===1?" invited.":"s invited.");
+  const successMessage="✓ Selected-dealer bidding opened. No automatic invitations sent. Invite chosen dealers separately.";
   if(actionStatus){actionStatus.textContent=successMessage;actionStatus.style.color="#91e6a4";}
   buttons.forEach(b=>{b.disabled=true;b.textContent="✓ Trade Bidding Started";});
   try{
