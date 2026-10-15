@@ -6,7 +6,8 @@
 <script>document.documentElement.classList.add("admin-auth-pending");</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/admin.js?v=12001"></script><link rel="stylesheet" href="/admin-shell.css?v=12001">
-<style id="anybikeTradeEmbedStyles">html.trade-embedded .admin-sidebar,html.trade-embedded #adminTopbar{display:none!important}html.trade-embedded .admin-shell{display:block!important}html.trade-embedded .admin-main{margin:0!important;width:100%!important;min-width:0!important}html.trade-embedded .admin-page-content{padding:12px!important;max-width:none!important}html.trade-embedded .hero{padding:12px 16px!important;margin-bottom:10px!important}html.trade-embedded .hero>a{display:none!important}html.trade-embedded .hero h1{font-size:22px!important}html.trade-embedded .hero p{font-size:12px!important}</style><script>if(new URLSearchParams(location.search).has("embedded"))document.documentElement.classList.add("trade-embedded");</script>
+<style id="anybikeTradeEmbedStyles">html.trade-embedded .admin-sidebar,html.trade-embedded #adminTopbar{display:none!important}html.trade-embedded .admin-shell{display:block!important}html.trade-embedded .admin-main{margin:0!important;width:100%!important;min-width:0!important}html.trade-embedded .admin-page-content{padding:12px!important;max-width:none!important}html.trade-embedded .hero{padding:12px 16px!important;margin-bottom:10px!important}html.trade-embedded .hero>a{display:none!important}html.trade-embedded .hero h1{font-size:22px!important}html.trade-embedded .hero p{font-size:12px!important}.auction-time-bar{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;background:#1c1212;border:1px solid #6a3032;border-radius:12px;padding:16px;margin:14px 0}.auction-time-bar strong{font-size:14px}.auction-countdown{font-size:clamp(24px,3vw,38px);font-weight:800;font-variant-numeric:tabular-nums;color:#fff;margin:5px 0}.auction-time-bar small{color:#bcbcbc}.auction-time-bar button{min-width:200px}@media(max-width:650px){.auction-time-bar button{width:100%}}
+</style><script>if(new URLSearchParams(location.search).has("embedded"))document.documentElement.classList.add("trade-embedded");</script>
 <style>
 :root{--red:#ed1c24;--line:rgba(255,255,255,.12)}*{box-sizing:border-box}body{margin:0;background:#070707;color:#fff;font-family:Arial,Helvetica,sans-serif}
 .admin-page-content{padding:24px;max-width:1750px;margin:auto}.hero,.card{background:#111;border:1px solid var(--line);border-radius:20px}.hero{padding:25px;margin-bottom:16px;background:radial-gradient(circle at top right,rgba(237,28,36,.2),transparent 35%),#111}
@@ -136,6 +137,7 @@ async function load(){
  });
  host.innerHTML=rows.map(r=>'<article class="card" id="underwrite-'+r.opportunity_id+'"><div class="top"><div><div class="ref">'+esc(r.reference)+'</div><div class="meta">'+esc(r.submission_reference)+' · '+esc(r.opportunity_status)+'</div></div><strong>'+esc(r.live_bid_count)+' live bid'+(Number(r.live_bid_count)===1?'':'s')+'</strong></div>'+
  '<div class="bike">'+esc([r.make,r.model,r.variant].filter(Boolean).join(" "))+'</div><div class="meta">'+esc(r.registration||"")+(r.bike_year?' · '+r.bike_year:'')+(r.mileage!==null?' · '+Number(r.mileage).toLocaleString("en-GB")+' miles':'')+'</div>'+
+ (r.opportunity_status==='live'?'<div class="auction-time-bar"><div><strong>Time remaining</strong><div class="auction-countdown" data-closes-at="'+esc(r.closes_at||'')+'">Calculating…</div><small>Closes: '+(r.closes_at?new Date(r.closes_at).toLocaleString("en-GB",{dateStyle:"medium",timeStyle:"short"}):"Not set")+'</small></div><button class="red" onclick="adjustUnderwriteDeadline('+r.opportunity_id+')">Add / Change Time →</button></div>':'')+
  '<div class="data"><div class="box"><span>Seller wants</span><strong>'+money(r.seller_price_wanted_gbp)+'</strong></div><div class="box"><span>Invited</span><strong>'+r.invited_trade_count+'</strong></div><div class="box"><span>Bid range</span><strong>'+money(r.lowest_live_bid_gbp)+' – '+money(r.highest_live_bid_gbp)+'</strong></div><div class="box"><span>Average</span><strong>'+money(r.average_live_bid_gbp)+'</strong></div></div>'+
  '<div class="meta">Seller-visible genuine bid count: '+r.seller_visible_bid_count+' only. Bid amounts remain internal.</div>'+
  '<details class="secondary-actions"><summary>More actions</summary><div class="actions"><button onclick="viewBids('+r.opportunity_id+')">View Confidential Bids</button>'+
@@ -150,13 +152,15 @@ async function load(){
  '</div></details><div class="next-step"><strong>Your Next Action</strong><p>'+(
  r.latest_offer_status==="accepted"?"Complete seller confirmation and HPI checks before proceeding.":
  Number(r.live_bid_count)===0?"Waiting for the first dealer bid. Review invitations or adjust the countdown.":
- "Review active bids and Move's transport quote. Confirm the seller's price, HPI and commercial viability before any offer."
+ "Review active bids and Move's transport quote. Confirm the seller's price, HPI and commercial viability beupdateAuctionCountdowns();fore any offer."
  )+'</p>'+(
  r.latest_offer_status==="accepted"?'<button class="red" onclick="openFinalCheck('+r.opportunity_id+')">Seller and HPI checks</button>':
  Number(r.live_bid_count)===0?'<button onclick="viewBids('+r.opportunity_id+')">Review bidding activity</button>':
  '<button class="red" onclick="openReserveReview('+r.opportunity_id+')">Reserve assessment</button> <button onclick="openFinalCheck('+r.opportunity_id+')">Seller and HPI checks</button>'
  )+'</div></article>').join("");
 }
+function updateAuctionCountdowns(){document.querySelectorAll(".auction-countdown[data-closes-at]").forEach(el=>{const end=Date.parse(el.dataset.closesAt||"");if(!Number.isFinite(end)){el.textContent="No closing deadline";return;}const left=Math.max(0,Math.ceil((end-Date.now())/1000));if(!left){el.textContent="Deadline reached";return;}const days=Math.floor(left/86400),hours=Math.floor(left%86400/3600),mins=Math.floor(left%3600/60),secs=left%60;el.textContent=(days?days+"d ":"")+String(hours).padStart(2,"0")+"h "+String(mins).padStart(2,"0")+"m "+String(secs).padStart(2,"0")+"s";});}
+setInterval(updateAuctionCountdowns,1000);
 async function adjustUnderwriteDeadline(id){
  const h=prompt("Set bidding to close in how many hours from now? Choose 12, 24, 48, 72 or 96.","48");
  if(h===null)return;
