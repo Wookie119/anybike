@@ -28,7 +28,7 @@
 
 /* AnyBike red pinstripe around each underwriting motorcycle card. */
 #grid > .card{border:2px solid #ed1c24;box-shadow:inset 0 0 0 1px rgba(237,28,36,.08)}
-</style><script>if(new URLSearchParams(location.search).has("embedded"))document.documentElement.classList.add("trade-embedded");</script>
+.reserve-save-status{padding:10px 14px;margin:10px 0;border:1px solid #7a3434;border-radius:8px;color:#fff;background:#1b1212;font-size:13px}.reserve-save-status.saved{border-color:#368451;color:#94f1ac;background:#0d2115}</style><script>if(new URLSearchParams(location.search).has("embedded"))document.documentElement.classList.add("trade-embedded");</script>
 <style>
 :root{--red:#ed1c24;--line:rgba(255,255,255,.12)}*{box-sizing:border-box}body{margin:0;background:#070707;color:#fff;font-family:Arial,Helvetica,sans-serif}
 .admin-page-content{padding:24px;max-width:1750px;margin:auto}.hero,.card{background:#111;border:1px solid var(--line);border-radius:20px}.hero{padding:25px;margin-bottom:16px;background:radial-gradient(circle at top right,rgba(237,28,36,.2),transparent 35%),#111}
@@ -51,7 +51,7 @@ input{background:#090909;color:#fff;border:1px solid #333;border-radius:10px;pad
 <div id="grid" class="grid"><div class="empty">Loading…</div></div>
 </main></div></div>
 
-<div id="dealerInviteModal" class="modal"><div class="modal-box" style="max-width:760px"><div class="top"><h2>Invite UK Dealer</h2><button onclick="closeDealerInvites()">Close</button></div><p id="dealerInviteTitle"></p><p>Choose an approved dealership. You will confirm before any messages or notifications are sent.</p><input id="dealerInviteSearch" type="search" oninput="drawDealerInvites()" placeholder="Search dealership…" style="width:100%"><div id="dealerInviteList" style="max-height:350px;overflow:auto"></div><p id="dealerInviteStatus" aria-live="polite"></p></div></div><div id="reserveReviewModal" class="modal reserve-review-modal"><div class="modal-box" style="width:min(1480px,100%)"><div class="top"><h3 id="reserveReviewTitle">Reserve &amp; Margin Assessment</h3><button type="button" onclick="document.getElementById('reserveReviewModal').classList.remove('open')">Close</button></div><p>Admin only. Calculations use the best live dealer bid. Seller minimum and costs stay confidential.</p>
+<div id="dealerInviteModal" class="modal"><div class="modal-box" style="max-width:760px"><div class="top"><h2>Invite UK Dealer</h2><button onclick="closeDealerInvites()">Close</button></div><p id="dealerInviteTitle"></p><p>Choose an approved dealership. You will confirm before any messages or notifications are sent.</p><input id="dealerInviteSearch" type="search" oninput="drawDealerInvites()" placeholder="Search dealership…" style="width:100%"><div id="dealerInviteList" style="max-height:350px;overflow:auto"></div><p id="dealerInviteStatus" aria-live="polite"></p></div></div><div id="reserveReviewModal" class="modal reserve-review-modal"><div class="modal-box" style="width:min(1480px,100%)"><div class="top"><h3 id="reserveReviewTitle">Reserve &amp; Margin Assessment</h3><button type="button" onclick="document.getElementById('reserveReviewModal').classList.remove('open')">Close</button></div><p>Admin only. Calculations use the best live dealer bid. Seller minimum and costs stay confidential.</p><p id="rvSaveStatus" role="status" aria-live="polite" class="reserve-save-status">Not saved during this session. Review figures before confirming.</p>
 <div class="transport-fields">
 <label>Proposed seller payment (£)<input id="rvSeller" type="number" min="0" step="0.01"></label>
 <div class="transport-allowance"><label>Move transport capacity allowance (£)<input id="rvTransport" type="number" min="0" step="0.01" placeholder="Estimated Move allowance"></label><div class="move-allowance-presets"><button type="button" data-transport="229" onclick="setMoveAllowance(229)">£229</button><button type="button" data-transport="289" onclick="setMoveAllowance(289)">£289</button><button type="button" data-transport="349" onclick="setMoveAllowance(349)">£349</button><span id="moveAllowanceCustom" class="move-custom">Custom amount</span></div><small>Indicative commercial capacity charge, not necessarily an external invoice. Adjust for collection and delivery locations.</small></div>
@@ -560,6 +560,8 @@ function openReserveReview(id){
  document.getElementById("rvSeller").value=Number(row.seller_price_wanted_gbp||0);
  setReserveMarginPercent(8);
  document.getElementById("rvResult").textContent="Best active dealer bid: "+money(row.highest_live_bid_gbp)+". Review costs and margin before saving.";
+ document.getElementById("rvSaveStatus").textContent="Not saved during this session. Review figures before confirming.";
+ document.getElementById("rvSaveStatus").classList.remove("saved");
 
  document.getElementById("rvQuoteStatus").value="estimate";
  document.getElementById("rvContributionsAgreed").checked=false;
@@ -581,6 +583,7 @@ async function loadReserveDraft(id){
   syncMoveAllowancePreset();
   updateReservePreview();
   document.getElementById("rvResult").textContent=(data.record_type==="draft"?"Draft":"Previous assessment")+" restored from "+(data.saved_at?new Date(data.saved_at).toLocaleString("en-GB"):"previous save")+". Figures are recalculated against the current live bid; reserve must be reassessed.";
+ const saved=document.getElementById("rvSaveStatus");saved.textContent="✓ "+(data.record_type==="draft"?"Draft":"Assessment")+" previously saved"+(data.saved_at?" · "+new Date(data.saved_at).toLocaleString("en-GB"):"")+". Review before confirming.";saved.classList.add("saved");
  }catch(e){console.warn("Could not load underwrite draft",e)}
 }
 function updateReservePreview(){
@@ -622,10 +625,11 @@ async function saveReserveReview(asDraft=false){
  try{
  const {data,error}=await sb.rpc(asDraft?"admin_save_underwrite_commercial_draft_v1":"admin_save_underwrite_commercial_review_v2",args);
  if(error)throw error;
- if(asDraft){const result=document.getElementById("rvResult");result.textContent="✓ Draft saved. No reserve confirmed, offer sent or price changed.";result.style.color="#87eca4";return;}
+ if(asDraft){const result=document.getElementById("rvResult");result.textContent="✓ Draft saved. No reserve confirmed, offer sent or price changed.";result.style.color="#87eca4";const indicator=document.getElementById("rvSaveStatus");indicator.textContent="✓ Draft saved to Supabase · "+new Date().toLocaleString("en-GB");indicator.classList.add("saved");return;}
  const outcome=data.reserve_met?"✓ Reserve met — internal review passed.":"Reserve not met — no seller-facing confirmation.";
  const result=document.getElementById("rvResult");result.textContent=outcome+" Calculated margin: "+money(data.calculated_margin_gbp)+". Best live bid: "+money(data.bid_gbp)+".";
  result.style.color=data.reserve_met?"#87eca4":"#ffbaaa";
+ const indicator=document.getElementById("rvSaveStatus");indicator.textContent="✓ Reserve assessment saved to Supabase · "+new Date().toLocaleString("en-GB");indicator.classList.add("saved");
  }catch(e){document.getElementById("rvResult").textContent="Could not save: "+String(e.message||e)}
  finally{btn.disabled=false;btn.textContent=previousLabel;}
 }
