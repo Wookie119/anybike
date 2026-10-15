@@ -1020,7 +1020,21 @@ async function showBmwSidePhotoReview(){
     updateSummary();choose.dispatchEvent(new Event("change"));
     message.textContent="Photo "+(index+1)+" saved for advert "+bike.advert_id+". Not approved or published.";
    });
-   box.append(img,label,button);photos.appendChild(box);
+   box.append(img,label,button);
+   if(current===index+1){
+     const triage=document.createElement("div");triage.style.cssText="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px";
+     for(const [value,title] of [["original_clear","Original is clear"],["cleaning_required","Needs cleaning"],["hold_review","Hold for review"]]){
+       const action=document.createElement("button");action.type="button";action.className="btn";action.textContent=title;
+       action.addEventListener("click",async()=>{
+         action.disabled=true;message.textContent="Saving private image inspection…";
+         const result=await sb().rpc("admin_bmw_vat_triage_main_photo_v1",{p_item_id:Number(bike.id),p_decision:value});
+         message.textContent=result.error?"Could not save decision: "+result.error.message:"Inspection recorded for BMW "+bike.advert_id+" — "+title+". No processing or publication triggered.";
+         action.disabled=false;
+       });triage.appendChild(action);
+     }
+     box.appendChild(triage);
+   }
+   photos.appendChild(box);
   }
   if(!photos.children.length)message.textContent="No valid source photos for this motorcycle. Nothing selected.";
  });
