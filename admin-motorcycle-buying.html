@@ -382,6 +382,17 @@ function renderIntakeGallery(items){
     return '<article class="intake-gallery-card"><div class="intake-gallery-photo">'+photo+'</div><div class="intake-gallery-body"><div class="eyebrow">'+esc(src)+'</div><h3>'+esc(bike)+'</h3><p>'+esc([r.bike_year,r.mileage===null?null:Number(r.mileage).toLocaleString("en-GB")+" miles"].filter(Boolean).join(" · "))+'</p><p>Reference: '+esc(r.reference)+'<br>Underwriting: '+esc(state)+'</p><button type="button" onclick="reviewIntakeFromGallery('+id+')">Review motorcycle →</button></div></article>';
   }).join(""):'<div class="empty">No motorcycles match these filters.</div>';
 }
+function sellerNotesHtml(notes){
+ const raw=String(notes||"");
+ const preference=(raw.match(/\[SELLER PREFERENCE\]([^\[\r\n]*)/)||[])[1]?.trim()||"";
+ const finance=(raw.match(/\[FINANCE DECLARATION\]([^\[\r\n]*)/)||[])[1]?.trim()||"";
+ const internal=(raw.match(/\[INTERNAL SELLER PRICE GUIDANCE[^\]]*\]([\s\S]*?)(?=\[[A-Z][A-Z ]+\]|$)/)||[])[1]?.trim()||"";
+ const comments=raw.replace(/\[SELLER PREFERENCE\][^\[\r\n]*/g,"").replace(/\[FINANCE DECLARATION\][^\[\r\n]*/g,"").replace(/\[INTERNAL SELLER PRICE GUIDANCE[^\]]*\][\s\S]*$/g,"").trim();
+ return '<section style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px;margin:14px 0">'+
+ '<div class="box"><strong>Seller comments</strong><p>'+esc(comments||"No additional comments")+'</p>'+(preference?'<small>'+esc(preference)+'</small>':'')+'</div>'+
+ '<div class="box"><strong>Finance &amp; history</strong><p>'+esc(finance||"Finance not declared")+'</p><small>Seller declaration only — verify before completion.</small></div>'+
+ '<div class="box" style="border:1px solid #b87034"><strong>Confidential AnyBike notes — never share with dealers</strong><p>'+esc(internal||"No confidential price guidance recorded")+'</p></div></section>';
+}
 function render(){
   const q=String(document.getElementById("search").value||"").trim().toLowerCase();
   const source=document.getElementById("sourceFilter").value;
@@ -466,7 +477,7 @@ function render(){
         (hasComps
           ?'<div class="data"><div class="box"><span>Comparable count</span><strong>'+Number(r.latest_comparable_count||0)+'</strong></div><div class="box"><span>Median ask</span><strong>'+money(r.latest_median_ask_gbp)+'</strong></div><div class="box"><span>Range</span><strong>'+money(r.latest_lowest_ask_gbp)+' – '+money(r.latest_highest_ask_gbp)+'</strong></div><div class="box"><span>Average</span><strong>'+money(r.latest_average_ask_gbp)+'</strong></div></div>'
           :'<div class="sub">Trade price will be established from confidential UK dealer bids. No stock comparison is required.</div>')+
-        (r.notes?'<p>'+esc(r.notes)+'</p>':"")+
+        (r.notes?sellerNotesHtml(r.notes):"")+
         (dealer && r.underwrite_status!=="live" && r.make && r.model?'<div class="underwrite-ready-note">Ready to invite trade offers. The current system still applies an initial bidding deadline; reserve-triggered timing is under development.</div>':'')+
         '<div class="actions">'+
           (r.message_thread_id?'<a class="btn red photo-request-action" href="/admin-message-centre.html?thread='+Number(r.message_thread_id)+'&photo_request=1&reference='+encodeURIComponent(r.reference||'')+'">📷 Request More Photos →</a>':'')+
