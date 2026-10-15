@@ -2634,6 +2634,7 @@ function customerMessageAttachmentsHtml(messageId,byMessage){
   `;
 }
 
+const SELLER_OFFER_TERMS_VERSION="seller_purchase_v1_100deposit_7workingdays";
 async function renderSellerOfferPanel(threadId){
  const target=document.getElementById("seller-offer-panel-"+threadId);
  if(!target||!currentUser)return;
@@ -2641,20 +2642,39 @@ async function renderSellerOfferPanel(threadId){
  if(error){target.textContent="Offer details unavailable: "+error.message;return;}
  if(!data){target.innerHTML="";return;}
  const amount=Number(data.amount_gbp).toLocaleString("en-GB",{style:"currency",currency:"GBP"});
+ const deposit=Math.min(100,Number(data.amount_gbp));
+ const balance=Number(data.amount_gbp)-deposit;
+ const gbp=n=>n.toLocaleString("en-GB",{style:"currency",currency:"GBP"});
  const expires=new Date(data.valid_until);
- const expiresText=expires.toLocaleString("en-GB",{timeZone:"Europe/London",day:"numeric",month:"long",year:"numeric",hour:"2-digit",minute:"2-digit"})+" UK time";
+ const expiry=expires.toLocaleString("en-GB",{timeZone:"Europe/London",day:"numeric",month:"long",year:"numeric",hour:"2-digit",minute:"2-digit"})+" UK time";
  const open=data.status==="sent"&&Date.now()<=expires.getTime();
- const state=data.status==="accepted"?"✓ Offer accepted":data.status==="declined"?"Offer declined":open?"Your next action · Review this offer":"Offer no longer available";
- target.innerHTML='<section style="border:2px solid #ed1c24;border-radius:12px;padding:20px;margin-bottom:18px;background:#160e0e;color:#fff"><div style="color:#ff525a;font-weight:900;font-size:12px">ANYBIKE PURCHASE OFFER</div><h3 style="margin:12px 0 4px">'+safe(data.motorcycle)+'</h3><div>Reference: '+safe(data.reference)+'</div><div style="font-size:34px;font-weight:900;margin:15px 0">'+safe(amount)+'</div><p>Expires: '+safe(expiresText)+'</p><strong>'+safe(state)+'</strong>'+
- (open?'<div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:15px"><button type="button" style="background:#ed1c24;color:white" onclick="respondSellerUnderwriteOffer('+Number(data.offer_id)+','+Number(threadId)+',\'accepted\')">Accept Offer</button><button type="button" onclick="respondSellerUnderwriteOffer('+Number(data.offer_id)+','+Number(threadId)+',\'declined\')">Decline Offer</button></div>':'')+
- '<p style="font-size:12px;color:#ccc;margin-top:15px">Acceptance records your agreement to the offered price. AnyBike will complete the required history, ownership, condition and handover checks before purchase completion.</p></section>';
+ const state=data.status==="accepted"?"✓ Offer accepted":data.status==="declined"?"Offer declined":open?"Your next action · Review and respond":"Offer no longer available";
+ const terms='<div style="margin-top:20px;padding:18px;border:1px solid #555;border-radius:9px;background:#101010">'+
+ '<h4 style="font-size:19px;margin:0 0 12px;color:#fff">Purchase offer terms</h4>'+
+ '<p><strong>Deposit:</strong> AnyBike will pay a standard '+safe(gbp(deposit))+' deposit within 24 hours after successful completion of the required seller, ownership and motorcycle checks and approval to proceed.</p>'+
+ '<p><strong>Collection:</strong> AnyBike aims to collect within 7 working days after the motorcycle is cleared and ready for collection, unless a different date is agreed with you.</p>'+
+ '<p><strong>Balance:</strong> The remaining '+safe(gbp(balance))+' will be paid by bank transfer before the motorcycle is released to AnyBike or its authorised collection agent.</p>'+
+ '<p><strong>Checks:</strong> This offer is subject to satisfactory HPI, ownership, condition and documentation checks. Any material discrepancies must be discussed and agreed before proceeding.</p>'+
+ '<p><strong>Offer deadline:</strong> You must respond before '+safe(expiry)+'. Accepting records your agreement to the offered price and these terms; it does not mean the motorcycle has already been paid for or collected.</p>'+
+ '</div>';
+ target.innerHTML='<section style="border:2px solid #ed1c24;border-radius:12px;padding:22px;margin-bottom:18px;background:#160e0e;color:#fff">'+
+ '<div style="color:#ff525a;font-weight:900;font-size:12px;letter-spacing:1px">ANYBIKE PURCHASE OFFER</div>'+
+ '<h3 style="font-size:24px;margin:12px 0 4px">'+safe(data.motorcycle)+'</h3><div>Reference: '+safe(data.reference)+'</div>'+
+ '<div style="font-size:36px;font-weight:900;margin:15px 0">'+safe(amount)+'</div>'+
+ '<p>Offer expires: '+safe(expiry)+'</p><strong>'+safe(state)+'</strong>'+terms+
+ (open?'<label style="display:flex;align-items:center;gap:10px;margin:18px 0;font-weight:700"><input type="checkbox" id="sellerTermsAgree-'+Number(data.offer_id)+'" style="width:20px;height:20px"> I have read and agree to the purchase offer terms above.</label>'+
+ '<div style="display:flex;flex-wrap:wrap;gap:12px"><button type="button" style="background:#ed1c24;color:white;padding:13px 24px;border-radius:8px;font-weight:800" onclick="respondSellerUnderwriteOffer('+Number(data.offer_id)+','+Number(threadId)+',\'accepted\')">Accept Offer</button>'+
+ '<button type="button" style="background:#333;color:white;padding:13px 24px;border-radius:8px" onclick="respondSellerUnderwriteOffer('+Number(data.offer_id)+','+Number(threadId)+',\'declined\')">Decline Offer</button></div>':'')+
+ '<p style="font-size:12px;color:#ccc;margin-top:18px">For questions or alternative arrangements, reply to AnyBike in this conversation before accepting.</p></section>';
 }
 async function respondSellerUnderwriteOffer(offerId,threadId,response){
- if(!confirm("Are you sure you want to "+(response==="accepted"?"accept":"decline")+" this offer?"))return;
- const {error}=await sb.rpc("customer_respond_underwrite_offer_v1",{p_offer_id:offerId,p_response:response});
- if(error){alert("Could not save response: "+error.message);return;}
+ const agreed=Boolean(document.getElementById("sellerTermsAgree-"+offerId)?.checked);
+ if(response==="accepted"&&!agreed){alert("Please read and agree to the purchase offer terms before accepting.");return;}
+ if(!confirm("Are you sure you want to "+(response==="accepted"?"accept":"decline")+" this purchase offer?"))return;
+ const {error}=await sb.rpc("customer_respond_underwrite_offer_v1",{p_offer_id:offerId,p_response:response,p_terms_version:SELLER_OFFER_TERMS_VERSION,p_terms_accepted:response==="accepted"&&agreed});
+ if(error){alert("Could not save your response: "+error.message);return;}
  await renderSellerOfferPanel(threadId);
- alert(response==="accepted"?"✓ Your offer acceptance has been recorded.":"Your decision has been recorded.");
+ alert(response==="accepted"?"✓ Your offer acceptance and agreement to the purchase terms have been recorded.":"Your decision has been recorded.");
 }
 async function loadGlobalBuyerMessages(threadId){
   if(!currentUser){
