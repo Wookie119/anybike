@@ -660,6 +660,39 @@ function renderSelectOptions(options,current){
   }).join("");
 }
 
+
+async function renderAdminSellerDepositDecision(thread){
+ const panel=document.getElementById("sellerDepositDecisionPanel");
+ if(!panel||thread?.source_type!=="AnyBike Internal Buying")return;
+ const opportunity=Number(String(thread.related_page_url||"").match(/underwrite-(\d+)/)?.[1]);
+ if(!opportunity)return;
+ const {data,error}=await sb.rpc("admin_get_seller_deposit_request_v1",{p_opportunity_id:opportunity});
+ if(error){panel.textContent="Could not load deposit request: "+error.message;return;}
+ if(!data){return;}
+ const amount=n=>Number(n).toLocaleString("en-GB",{style:"currency",currency:"GBP"});
+ const pending=data.status==="pending";
+ panel.innerHTML='<div class="section" style="border:2px solid #d53135;background:#1b1112;border-radius:14px;padding:20px">'+
+ '<h3>Seller deposit counter-request</h3>'+
+ '<p>Purchase price: <strong>'+amount(data.offer_amount)+'</strong> · Standard deposit: £100.00</p>'+
+ '<p>Seller requested: <strong style="font-size:27px;color:#fff">'+amount(data.requested)+'</strong> · Remaining balance if approved: '+amount(Number(data.offer_amount)-Number(data.requested))+'</p>'+
+ '<p>Status: <strong>'+safe(data.status.toUpperCase())+'</strong></p>'+
+ (pending?'<div style="display:flex;gap:10px;flex-wrap:wrap;margin:15px 0"><button type="button" style="background:#bd282e;color:white;padding:12px" onclick="decideAdminSellerDeposit('+Number(data.id)+',\'approved\')">Approve '+amount(data.requested)+'</button>'+
+ '<button type="button" style="padding:12px" onclick="decideAdminSellerDeposit('+Number(data.id)+',\'declined\')">Decline Request</button></div>'+
+ '<label>Propose a different deposit (£)</label><input id="adminSellerDepositProposal" type="number" min="0.01" max="'+Number(data.offer_amount)+'" step="0.01" placeholder="Enter proposed deposit" style="margin:8px 10px 8px 0;padding:10px;background:#111;color:white;border:1px solid #777">'+
+ '<button type="button" onclick="decideAdminSellerDeposit('+Number(data.id)+',\'proposed\')">Send different proposal</button>':'<p>The deposit decision has been recorded. No payment has been initiated.</p>')+
+ '</div>';
+}
+async function decideAdminSellerDeposit(id,decision){
+ let amount=null;
+ if(decision==="proposed"){
+  amount=Number(document.getElementById("adminSellerDepositProposal")?.value);
+  if(!Number.isFinite(amount)||amount<=0){alert("Enter a valid deposit amount.");return;}
+ }
+ if(!confirm(decision==="approved"?"Approve the seller deposit request?":decision==="declined"?"Decline this deposit request?":"Record this alternative deposit proposal?"))return;
+ const {error}=await sb.rpc("admin_decide_seller_deposit_v1",{p_request_id:id,p_decision:decision,p_amount:amount});
+ if(error){alert("Deposit decision could not be saved: "+error.message);return;}
+ await openThread(selectedThread.id);
+}
 async function openThread(id){
   selectedThread = allThreads.find(function(t){
     return Number(t.id) === Number(id);
@@ -1006,6 +1039,8 @@ async function openThread(id){
         : ""
     }
 
+    <div id="sellerDepositDecisionPanel"></div>
+
     <div class="section">
       <h3>Conversation</h3>
       <div class="messages" id="conversationMessages">
@@ -1137,6 +1172,7 @@ async function openThread(id){
   `;
 
   updateQuickReplies();
+  await renderAdminSellerDepositDecision(t);
 
   if(window.innerWidth <= 950){
     setTimeout(function(){
