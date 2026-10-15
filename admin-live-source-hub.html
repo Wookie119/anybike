@@ -1032,6 +1032,19 @@ async function showBmwSidePhotoReview(){
          action.disabled=false;
        });triage.appendChild(action);
      }
+     const override=document.createElement("button");override.type="button";override.className="btn";override.textContent="Override QR warning";
+     override.title="Admin review only — does not approve or publish the image";
+     override.addEventListener("click",async()=>{
+       const reason=prompt("Confirm why this partial QR warning is acceptable. Check that no readable dealer name, contact details or usable QR code remain. This records an admin-only override; it does not publish the photo.");
+       if(reason===null)return;
+       if(reason.trim().length<12){message.textContent="Please provide a specific review reason (at least 12 characters).";return;}
+       if(!confirm("Record an admin QR warning override for this selected photo? No image will be published."))return;
+       override.disabled=true;message.textContent="Recording QR review override…";
+       const result=await sb().rpc("admin_bmw_vat_qr_override_v1",{p_item_id:Number(bike.id),p_reason:reason.trim()});
+       message.textContent=result.error?"Override not saved: "+result.error.message:"QR review override recorded. No image processed or published.";
+       override.disabled=false;
+     });
+     triage.appendChild(override);
      box.appendChild(triage);
    }
    photos.appendChild(box);
