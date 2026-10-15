@@ -423,7 +423,7 @@ function render(){
               ?'<select id="underwrite-hours-'+Number(r.submission_id)+'" aria-label="Bidding time" style="max-width:185px"><option value="12" '+(String(r.notes||"").includes("Urgency: urgent")?"selected":"")+'>Urgent · 12 hours</option><option value="24">24 hours</option><option value="48" '+(!String(r.notes||"").includes("Urgency: urgent")&&!String(r.notes||"").includes("Urgency: flexible")?"selected":"")+'>Standard · 48 hours</option><option value="72">72 hours</option><option value="96" '+(String(r.notes||"").includes("Urgency: flexible")?"selected":"")+'>Flexible · 96 hours</option></select>'
               :'<button type="button" class="red" data-action="edit-bike" data-id="'+Number(r.submission_id)+'">Complete Bike Details</button>')
             :'<a class="btn" href="/admin-trade-underwrites.html">Open Underwrite Desk</a>')+
-          '<button type="button" data-action="refresh-demand" data-id="'+Number(r.submission_id)+'">Refresh Buyer Match</button>'+
+          '<button type="button" data-action="copy-dealer-invite" data-id="'+Number(r.submission_id)+'">Copy dealer invitation link</button>'+ '<button type="button" data-action="refresh-demand" data-id="'+Number(r.submission_id)+'">Refresh Buyer Match</button>'+
           (Number(r.unique_buyer_match_count||0)>0?'<button type="button" data-action="view-demand" data-id="'+Number(r.submission_id)+'">View '+Number(r.unique_buyer_match_count)+' Buyer Match'+(Number(r.unique_buyer_match_count)===1?'':'es')+'</button>':'')+
           '<button type="button" data-action="edit-bike" data-id="'+Number(r.submission_id)+'">Edit Bike Details</button>'+
           (r.message_thread_id?'<a class="btn" href="/admin-message-centre.html?thread='+Number(r.message_thread_id)+'">Open Message</a>':"")+
@@ -558,6 +558,13 @@ document.getElementById("queue").addEventListener("click",function(e){
 
   if(action==="comparables"){captureComps(id);return;}
   if(action==="start-underwrite"){startUnderwrite(id);return;}
+  if(action==="copy-dealer-invite"){
+    const {data,error}=await sb.rpc("admin_create_seller_dealer_invite_link_v1",{p_submission_id:Number(id)});
+    if(error){alert("Could not create dealer link: "+error.message);return;}
+    try{await navigator.clipboard.writeText(String(data));alert("Dealer registration and bidding link copied. Send it directly to the dealer you know.");}
+    catch(e){prompt("Copy this private dealer invitation link:",String(data));}
+    return;
+  }
   if(action==="refresh-demand"){refreshDemand(id);return;}
   if(action==="view-demand"){viewDemand(id);return;}
   if(action==="edit-bike"){editVehicle(id);return;}
