@@ -2084,7 +2084,8 @@ function bikeEnquiryHtml(r){
 function globalBuyerConversationHtml(thread){
   const key=`global-${thread.id}`;
   const title=anybikeCustomerThreadTitle(thread);
-  const preview=String(thread.last_message||"").trim();
+  const rawPreview=String(thread.last_message||"").trim();
+  const preview=/ANYBIKE\s*\|\s*MOTORCYCLE PURCHASE OFFER/i.test(rawPreview)?"Your AnyBike purchase offer is ready. Open to accept or decline.":rawPreview;
   const source=String(thread.source_type||"").toLowerCase();
   const subject=String(thread.subject||"").toLowerCase();
   const isGlobal=source.includes("global buyer") || String(thread.department||"").toLowerCase().includes("global buyer");
@@ -2140,6 +2141,7 @@ function globalBuyerConversationHtml(thread){
             <span class="muted">${isPhotoRequest ? "Your photograph request update." : (isGlobal ? "Continue discussing motorcycle requirements, stock matches and shipping with AnyBike." : "Continue your conversation with the AnyBike team.")}</span>
           </div>
 
+          <div id="seller-offer-panel-${thread.id}"></div>
           <div class="message-thread" id="global-messages-${thread.id}">
             Loading messages...
           </div>
@@ -2624,6 +2626,28 @@ function customerMessageAttachmentsHtml(messageId,byMessage){
   `;
 }
 
+async function renderSellerOfferPanel(threadId){
+ const target=document.getElementById("seller-offer-panel-"+threadId);
+ if(!target||!currentUser)return;
+ const {data,error}=await sb.rpc("customer_get_underwrite_offer_v1",{p_thread_id:Number(threadId)});
+ if(error){target.textContent="Offer details unavailable: "+error.message;return;}
+ if(!data){target.innerHTML="";return;}
+ const amount=Number(data.amount_gbp).toLocaleString("en-GB",{style:"currency",currency:"GBP"});
+ const expires=new Date(data.valid_until);
+ const expiresText=expires.toLocaleString("en-GB",{timeZone:"Europe/London",day:"numeric",month:"long",year:"numeric",hour:"2-digit",minute:"2-digit"})+" UK time";
+ const open=data.status==="sent"&&Date.now()<=expires.getTime();
+ const state=data.status==="accepted"?"✓ Offer accepted":data.status==="declined"?"Offer declined":open?"Your next action · Review this offer":"Offer no longer available";
+ target.innerHTML='<section style="border:2px solid #ed1c24;border-radius:12px;padding:20px;margin-bottom:18px;background:#160e0e;color:#fff"><div style="color:#ff525a;font-weight:900;font-size:12px">ANYBIKE PURCHASE OFFER</div><h3 style="margin:12px 0 4px">'+safe(data.motorcycle)+'</h3><div>Reference: '+safe(data.reference)+'</div><div style="font-size:34px;font-weight:900;margin:15px 0">'+safe(amount)+'</div><p>Expires: '+safe(expiresText)+'</p><strong>'+safe(state)+'</strong>'+
+ (open?'<div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:15px"><button type="button" style="background:#ed1c24;color:white" onclick="respondSellerUnderwriteOffer('+Number(data.offer_id)+','+Number(threadId)+',\'accepted\')">Accept Offer</button><button type="button" onclick="respondSellerUnderwriteOffer('+Number(data.offer_id)+','+Number(threadId)+',\'declined\')">Decline Offer</button></div>':'')+
+ '<p style="font-size:12px;color:#ccc;margin-top:15px">Acceptance records your agreement to the offered price. AnyBike will complete the required history, ownership, condition and handover checks before purchase completion.</p></section>';
+}
+async function respondSellerUnderwriteOffer(offerId,threadId,response){
+ if(!confirm("Are you sure you want to "+(response==="accepted"?"accept":"decline")+" this offer?"))return;
+ const {error}=await sb.rpc("customer_respond_underwrite_offer_v1",{p_offer_id:offerId,p_response:response});
+ if(error){alert("Could not save response: "+error.message);return;}
+ await renderSellerOfferPanel(threadId);
+ alert(response==="accepted"?"✓ Your offer acceptance has been recorded.":"Your decision has been recorded.");
+}
 async function loadGlobalBuyerMessages(threadId){
   if(!currentUser){
     redirectToCustomerLogin();
@@ -2660,6 +2684,7 @@ async function loadGlobalBuyerMessages(threadId){
   }
 
   const messages=data||[];
+  await renderSellerOfferPanel(threadId);
   const messageMatchAttachments=await loadCustomerMessageMatchAttachments(threadId);
   window.anybikeCustomerThreadMessages[String(threadId)]=messages;
 
