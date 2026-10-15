@@ -331,19 +331,27 @@ async function viewBids(id){
  if(confirmationError)console.warn('Bid confirmation details unavailable:',confirmationError.message);
 
  if(deliveryError)console.warn('Bid delivery details unavailable:',deliveryError.message);
- const list=bids||[];
+ const list=(bids||[]).filter(b=>b.status==="live");
+ const historicCount=(bids||[]).length-list.length;
  const dMap=new Map((deliveries||[]).map(x=>[Number(x.dealer_organisation_id),x]));
  const cMap=new Map((confirmations||[]).map(x=>[Number(x.bid_id),x]));
- if(!list.length){document.getElementById("bidList").innerHTML='<div class="empty">No bids submitted.</div>';return;}
+ if(!list.length){document.getElementById("bidList").innerHTML='<div class="empty">No current live bids. Older bids are retained in the audit history.</div>';return;}
+ const reliabilityRows=await Promise.all([...new Set(list.map(b=>Number(b.dealer_organisation_id)))].map(async dealerId=>({dealerId,result:await sb.rpc("admin_get_dealer_reliability_v1",{p_dealer_id:dealerId})})));
+ const reliabilityMap=new Map(reliabilityRows.map(x=>[x.dealerId,x.result.error?null:x.result.data]));
 
  document.getElementById("bidList").innerHTML=
- '<div style="border:1px solid #b93439;border-radius:12px;background:#180e0f;padding:16px;margin-bottom:15px"><strong style="font-size:19px">Choose your buying dealer</strong><p style="margin:8px 0">Review each current bid, then open that dealer’s details. Request purchase confirmation from the preferred dealer; only select them for the transaction after they confirm.</p><small>Move allowance is an internal transport cost, not a delivery booking. Earlier superseded bids are retained in history.</small></div>'+
+ '<div style="border:1px solid #b93439;border-radius:12px;background:#180e0f;padding:16px;margin-bottom:15px"><strong style="font-size:19px">Choose your buying dealer</strong><p style="margin:8px 0">Review each current bid, then open that dealer’s details. Request purchase confirmation from the preferred dealer; only select them for the transaction after they confirm.</p><small>Move allowance is an internal transport cost, not a delivery booking. Superseded bids are hidden here but retained in the audit history.</small></div>'+
  '<div style="display:flex;flex-direction:column;gap:12px">'+
    list.map(b=>{
      const conf=cMap.get(Number(b.bid_id));
      const delivery=dMap.get(Number(b.dealer_organisation_id))||{};
      const profile=delivery.profile_allowance_gbp;
      const dealerId=Number(b.dealer_organisation_id);
+     const reliability=reliabilityMap.get(dealerId);
+     const payEvents=(reliability?.events||[]).filter(e=>["payment_late","payment_default","payment_on_time"].includes(e.type));
+     const late=payEvents.some(e=>e.type==="payment_late"||e.type==="payment_default");
+     const payerLabel=!payEvents.length?"Payment history not yet recorded":late?"Payment issues recorded":"✓ On-time payments recorded";
+     const payerColour=!payEvents.length?"#d0d0d0":late?"#ffb8a0":"#8ae9ad";
      const profileNotice=profile==null
        ?'<div class="status warn" style="color:#ffca80;font-size:12px">⚠ No nationwide allowance on dealer profile — please add one</div>'
        :'<div class="status" style="color:#87eca4;font-size:12px">From dealer profile: '+money(profile)+'</div>';
@@ -388,7 +396,7 @@ async function viewBids(id){
        '<span style="flex:2;min-width:190px"><strong style="font-size:18px">'+esc(b.dealer_name)+'</strong><small style="display:block;color:#aaa;margin-top:5px">'+historyText+'</small></span>'+
        '<strong style="font-size:20px;min-width:110px">'+money(b.amount_gbp)+'</strong>'+
        '<span style="min-width:175px;color:'+(conf?.status==="confirmed"||conf?.status==="selected_for_transaction"?'#86e5a5':'#ffe1a0')+';font-weight:800">'+badge+'</span>'+
-       '<span style="color:#ff8589;font-weight:800">View dealer details ▾</span></summary>'+
+       '<span style="color:'+payerColour+';font-size:12px;font-weight:800">'+payerLabel+'</span><span style="color:#ff8589;font-weight:800">View dealer details ▾</span></summary>'+
        '<div style="padding:18px 20px;border-top:1px solid #444">'+
        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:18px">'+
        '<div><strong>Bidder</strong><p>'+esc(b.bidder_email||"Not provided")+'</p><strong>Dealer confirmation</strong><p>'+confLabel+effective+'</p>'+
