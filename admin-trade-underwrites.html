@@ -30,6 +30,7 @@
 #grid > .card{border:2px solid #ed1c24;box-shadow:inset 0 0 0 1px rgba(237,28,36,.08)}
 .reserve-save-status{padding:10px 14px;margin:10px 0;border:1px solid #7a3434;border-radius:8px;color:#fff;background:#1b1212;font-size:13px}.reserve-save-status.saved{border-color:#368451;color:#94f1ac;background:#0d2115}.reserve-explain{display:block;font-size:13px;color:#d4d4d4;line-height:1.5;margin:4px 0 8px}
 .seller-minimum-edit{display:block;margin-top:7px;font-size:12px;min-height:27px;padding:4px 9px!important;border:1px solid #ed1c24;border-radius:7px;background:transparent;color:white;cursor:pointer}
+input[type="number"]{-moz-appearance:textfield;appearance:textfield}input[type="number"]::-webkit-inner-spin-button,input[type="number"]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 </style><script>if(new URLSearchParams(location.search).has("embedded"))document.documentElement.classList.add("trade-embedded");</script>
 <style>
 :root{--red:#ed1c24;--line:rgba(255,255,255,.12)}*{box-sizing:border-box}body{margin:0;background:#070707;color:#fff;font-family:Arial,Helvetica,sans-serif}
@@ -118,7 +119,7 @@ input{background:#090909;color:#fff;border:1px solid #333;border-radius:10px;pad
 
 <div id="offerModal" class="modal"><div class="modal-box" style="width:min(560px,100%)"><h3>Make AnyBike Offer to Seller</h3>
 <p>This is AnyBike's own offer. The seller will not see trade bids or bidder identities.</p>
-<label>AnyBike offer (£)<input id="offerAmount" type="number" min="1" step="1"></label>
+<label>Offer to seller (£)<input id="offerAmount" type="number" min="1" step="0.01"></label><p id="offerSellerPriceHelp" role="status" style="font-size:12px;color:#ddd;margin:6px 0">Seller payment must be checked before sending.</p>
 <label style="margin-left:10px">Valid for hours<input id="offerHours" type="number" value="24" min="1" max="168"></label>
 <div class="actions"><button class="red" onclick="saveOffer()">Create AnyBike Offer</button><button onclick="closeOffer()">Cancel</button></div></div></div>
 
@@ -169,7 +170,7 @@ async function load(){
  '<button onclick="viewBids('+r.opportunity_id+')">View '+Number(r.live_bid_count)+' Confidential Bid'+(Number(r.live_bid_count)===1?'':'s')+' →</button>'+
  '<button onclick="editDealerDescription('+r.submission_id+')">Edit Dealer Description →</button>'+
  '<button onclick="openReserveReview('+r.opportunity_id+')">Reserve &amp; Margin Assessment</button>'+
- '<button class="red" onclick="openOffer('+r.opportunity_id+','+(r.highest_live_bid_gbp??"null")+')">Make AnyBike Offer</button>'+
+ '<button class="red" onclick="openOffer('+r.opportunity_id+')">Make AnyBike Offer</button>'+
  (r.opportunity_status==='completed'?'<button class="red" onclick="openUnderwriteDeal('+r.opportunity_id+')">Create / Open Deal 360</button>':'')+
  (r.latest_offer_id&&["sent","countered"].includes(r.latest_offer_status)?'<button onclick="recordSellerResponse('+Number(r.latest_offer_id)+',\'accepted\')">Seller Accepted</button><button onclick="recordSellerResponse('+Number(r.latest_offer_id)+',\'declined\')">Seller Declined</button><button onclick="recordSellerCounter('+Number(r.latest_offer_id)+')">Seller Countered</button>':'')+
  '</div>'+
@@ -499,7 +500,30 @@ async function submitEarlyClose(){
  }catch(e){status.textContent="Could not end bidding: "+(e.message||e);}
  finally{submit.disabled=false;}
 }
-function openOffer(id,high){offerId=id;document.getElementById("offerAmount").value=high||"";document.getElementById("offerModal").classList.add("open");}
+async function openOffer(id){
+ offerId=id;
+ const amountInput=document.getElementById("offerAmount");
+ const status=document.getElementById("offerSellerPriceHelp");
+ amountInput.value="";
+ status.textContent="Loading saved seller payment…";
+ document.getElementById("offerModal").classList.add("open");
+ const row=rows.find(r=>Number(r.opportunity_id)===Number(id));
+ try{
+  const {data,error}=await sb.rpc("admin_get_underwrite_commercial_saved_v1",{p_opportunity_id:Number(id)});
+  if(error)throw error;
+  if(offerId!==id)return;
+  const sellerPayment=Number(data?.seller_payment_gbp);
+  if(data&&sellerPayment>0){
+   amountInput.value=sellerPayment.toFixed(2);
+   status.textContent="Prefilled from saved seller payment assessment. Confirm this is the agreed offer to the seller.";
+  }else if(Number(row?.seller_price_wanted_gbp)>0){
+   amountInput.value=Number(row.seller_price_wanted_gbp).toFixed(2);
+   status.textContent="Prefilled from seller minimum. Confirm the amount before sending.";
+  }else{
+   status.textContent="No seller payment saved. Enter the agreed seller offer amount before sending.";
+  }
+ }catch(e){if(offerId===id)status.textContent="Unable to load seller assessment. Check the seller price before sending.";}
+}
 function closeOffer(){offerId=null;document.getElementById("offerModal").classList.remove("open");}
 async function saveOffer(){
  const amount=Number(document.getElementById("offerAmount").value),hours=Number(document.getElementById("offerHours").value)||24;if(!amount){alert("Enter the AnyBike offer amount.");return;}
