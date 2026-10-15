@@ -282,7 +282,7 @@ function loadAdminShell(){
 ensureFreshAdminShellCss();
 
 Promise.all([
-  fetch("admin-sidebar.html?v=202610082300",{cache:"no-store"}).then(function(res){ return res.text(); }),
+  fetch("admin-sidebar.html?v=20261015-invitations",{cache:"no-store"}).then(function(res){ return res.text(); }),
   fetch("admin-topbar.html?v=202610071152",{cache:"no-store"}).then(function(res){ return res.text(); })
 ])
 .then(function(parts){
@@ -533,7 +533,7 @@ function setupAdminSearch(){
   ["Customer 360","admin-customers.html"],["Message Centre","admin-message-centre.html"],
   ["Operations","admin-logistics.html"],["Accounts HQ","admin-accounts.html"],
   ["Trade Underwrite Desk","admin-trade-underwrites.html"],["Live Source Hub","admin-live-source-hub.html"],
-  ["Onboarding","admin-onboarding.html"],["Market Intelligence","admin-market-intelligence.html"]
+  ["Onboarding","admin-onboarding.html"],["Invitations","admin-invitations.html"],["Market Intelligence","admin-market-intelligence.html"]
  ];
  const hide=()=>{results.style.display="none";};
  const draw=(items,message)=>{
