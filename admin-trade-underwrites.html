@@ -337,8 +337,8 @@ async function viewBids(id){
  if(!list.length){document.getElementById("bidList").innerHTML='<div class="empty">No bids submitted.</div>';return;}
 
  document.getElementById("bidList").innerHTML=
-   '<div class="delivery-admin-reminder"><strong>Before dealer confirmation or sale:</strong> Check the dealership delivery postcode, confirm the Move delivery arrangements and record any agreed transport allowance. A confirmed Move allowance does not mean delivery is booked.</div>'+
-   '<table><thead><tr><th>Dealer</th><th>Bidder</th><th>Amount</th><th>Bid</th><th>Confirmation</th><th>Move delivery allowance (Admin)</th><th>Notes</th><th></th></tr></thead><tbody>'+
+ '<div style="border:1px solid #b93439;border-radius:12px;background:#180e0f;padding:16px;margin-bottom:15px"><strong style="font-size:19px">Choose your buying dealer</strong><p style="margin:8px 0">Review each current bid, then open that dealer’s details. Request purchase confirmation from the preferred dealer; only select them for the transaction after they confirm.</p><small>Move allowance is an internal transport cost, not a delivery booking. Earlier superseded bids are retained in history.</small></div>'+
+ '<div style="display:flex;flex-direction:column;gap:12px">'+
    list.map(b=>{
      const conf=cMap.get(Number(b.bid_id));
      const delivery=dMap.get(Number(b.dealer_organisation_id))||{};
@@ -362,7 +362,7 @@ async function viewBids(id){
       '<button type="button" onclick="saveBidDelivery('+Number(id)+','+Number(b.dealer_organisation_id)+')">Save allowance</button>'+
       '<small id="mvBidStatus'+Number(b.dealer_organisation_id)+'">'+(delivery.allowance_gbp==null?(profile==null?"No allowance yet — save before assessment":"Suggested from dealer profile; save for this bike"):"Bike-specific estimate saved")+'</small></div>')
       :'<span class="meta">Previous bid</span>';
-     const confLabel=conf?esc(String(conf.status).replaceAll("_"," ")):"Reserve";
+     const confLabel=conf?esc(String(conf.status).replaceAll("_"," ")):"Not yet requested";
      const effective=conf&&conf.effective_return_gbp!==null
        ?'<div class="meta">Effective return '+money(conf.effective_return_gbp)+'</div>'
        :"";
@@ -376,22 +376,29 @@ async function viewBids(id){
          ?'<button class="red" onclick="selectConfirmed('+Number(conf.confirmation_id)+')">Select for Transaction</button>'
          :'<span class="meta">Confirmed — reserves stay live until seller accepts AnyBike offer</span>';
      }else if(conf.status==="requested"){
-       action='<span class="meta">Awaiting dealer confirmation</span>';
+       action='<strong style="color:#ffe0a0">Awaiting dealer response — no action needed</strong>';
      }else if(conf.status==="selected_for_transaction"){
        action='<span class="meta">Selected for transaction</span>';
      }
-     return '<tr>'+
-       '<td>'+esc(b.dealer_name)+'</td>'+
-       '<td>'+esc(b.bidder_email||"")+'</td>'+
-       '<td><strong>'+money(b.amount_gbp)+'</strong></td>'+
-       '<td>'+(b.status==="live"?'<strong style="color:#83e5a0">● Live bid</strong>':'<span class="meta">'+esc(b.status==="superseded"?"Superseded — previous offer":b.status)+'</span>')+'</td>'+
-       '<td>'+confLabel+effective+'</td>'+ 
-       '<td>'+deliveryCell+'</td>'+
-       '<td>'+esc(b.notes||"")+'</td>'+
-       '<td>'+action+(b.status==="live"?'<button type="button" onclick="reviewDealer('+Number(b.dealer_organisation_id)+','+Number(id)+')">Buyer history</button>':'')+'</td>'+
-     '</tr>';
+     const live=b.status==="live";
+     const historyText=live?'Current bid':(b.status==="superseded"?'Previous bid — superseded':esc(b.status));
+     const badge=conf?.status==="selected_for_transaction"?'✓ Selected buying dealer':conf?.status==="confirmed"?'✓ Dealer confirmed':conf?.status==="requested"?'Awaiting dealer response':live?'Not yet confirmed':'Historical bid';
+     return '<details '+(live?'':'class="historical-bid" ')+'style="border:1px solid '+(live?'#6b3437':'#343434')+';border-radius:12px;background:#131313;overflow:hidden">'+
+       '<summary style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;padding:17px 20px;list-style:none">'+
+       '<span style="flex:2;min-width:190px"><strong style="font-size:18px">'+esc(b.dealer_name)+'</strong><small style="display:block;color:#aaa;margin-top:5px">'+historyText+'</small></span>'+
+       '<strong style="font-size:20px;min-width:110px">'+money(b.amount_gbp)+'</strong>'+
+       '<span style="min-width:175px;color:'+(conf?.status==="confirmed"||conf?.status==="selected_for_transaction"?'#86e5a5':'#ffe1a0')+';font-weight:800">'+badge+'</span>'+
+       '<span style="color:#ff8589;font-weight:800">View dealer details ▾</span></summary>'+
+       '<div style="padding:18px 20px;border-top:1px solid #444">'+
+       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:18px">'+
+       '<div><strong>Bidder</strong><p>'+esc(b.bidder_email||"Not provided")+'</p><strong>Dealer confirmation</strong><p>'+confLabel+effective+'</p>'+
+       (b.notes?'<strong>Notes</strong><p>'+esc(b.notes)+'</p>':'')+'</div>'+
+       '<div style="min-width:0"><strong>Move transport and delivery</strong>'+deliveryCell+'</div>'+
+       '<div><strong>Next action for this dealer</strong><p style="font-size:13px;color:#ccc">'+(live?'Ask this dealer to commit to their latest bid. Once they confirm, select them as the buying dealer.':'This bid has been superseded and is retained for audit only.')+'</p>'+action+
+       (live?'<div style="margin-top:12px"><button type="button" onclick="reviewDealer('+dealerId+','+Number(id)+')">View Buyer History</button></div>':'')+
+       '</div></div></div></details>';
    }).join("")+
-   '</tbody></table>';
+   '</div>';
 }
 function showLinkedUnderwrite(){
  const id=Number(String(location.hash||"").match(/^#underwrite-(\d+)$/)?.[1]||0);
