@@ -89,7 +89,15 @@ function renderOpportunities(rows){
 }
 async function load(){
   const {data:session}=await sb.auth.getSession();
-  if(!session?.session){location.replace("/customer-register.html?return="+encodeURIComponent(location.pathname));return;}
+  if(!session?.session){location.replace("/customer-register.html?return="+encodeURIComponent(location.pathname+location.search));return;}
+  const inviteToken=new URLSearchParams(location.search).get("invite");
+  if(inviteToken){
+    const {data:claim,error:claimError}=await sb.rpc("trade_claim_seller_dealer_invite_v1",{p_token:inviteToken});
+    const notice=document.getElementById("dealerInviteNotice")||document.createElement("div");
+    notice.id="dealerInviteNotice";notice.className="notice";notice.setAttribute("role","status");
+    notice.textContent=claimError?"Private dealer invitation: "+claimError.message:(claim?.message||"Invitation checked.");
+    const grid=document.getElementById("grid");grid.parentNode.insertBefore(notice,grid);
+  }
   const [{data,error},{data:confirmations,error:confirmationError}]=await Promise.all([
     sb.rpc("trade_get_my_underwrite_opportunities_v3"),
     sb.rpc("trade_get_my_bid_confirmations_v1")
