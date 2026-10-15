@@ -86,7 +86,7 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
           <summary><span><b>2. Live Sources</b><small>Search dealer stock, refresh channels and prepare motorcycles</small></span></summary>
           <div class="source-accordion-body">
         <section class="bmw-vat-candidates">
- <div class="stock-photo-queue-head"><strong>BMW VAT reclaimable — candidate matching</strong><button class="btn" type="button" onclick="probeBmwVatResult(this)">Test 15 F 900 GS results</button><button class="btn" type="button" onclick="probeAllBmwVatResult(this)">Scan all BMW VAT pages (read-only)</button><button class="btn" type="button" onclick="checkBmwVatFilter(this)">Test BMW VAT filter</button><button class="btn" type="button" onclick="loadBmwVatCandidates()">View candidates</button><button class="btn" type="button" onclick="loadBmwVatExceptions()">Review unmatched and ended adverts</button></div>
+ <div class="stock-photo-queue-head"><strong>BMW VAT reclaimable — candidate matching</strong><button class="btn" type="button" onclick="probeBmwVatResult(this)">Test 15 F 900 GS results</button><button class="btn" type="button" onclick="probeAllBmwVatResult(this)">Scan all BMW VAT pages (read-only)</button><button class="btn" type="button" onclick="checkBmwVatFilter(this)">Test BMW VAT filter</button><button class="btn" type="button" onclick="loadBmwVatCandidates()">View candidates</button><button class="btn" type="button" onclick="loadBmwVatExceptions()">Review unmatched and ended adverts</button><button class="btn" type="button" onclick="checkBmwVatExceptions(this)">Check 42 BMW adverts (read-only)</button></div>
  <p class="small">BMW showed 306 VAT reclaimable motorcycles in the checked search. Use confirmed advert IDs to match existing Live Source records; this does not change verified VAT status, images or publication.</p>
  <a href="https://approvedused.bmw-motorrad.co.uk/UK/ergebnisse.cshtml" target="_blank" rel="noopener noreferrer" class="small">Open BMW VAT reclaimable search ↗</a>
  <label class="small" style="display:block;margin:9px 0 5px" for="bmwVatCandidateInput">BMW search results HTML, advert links or IDs</label>
@@ -801,6 +801,25 @@ async function saveBmwVatCandidates(){
  if(error){status.textContent="Could not save candidates: "+error.message;return;}
  status.textContent=data.imported+" candidates saved · "+data.matched+" matched existing stock · "+data.unmatched+" unmatched · No publication changes.";
  await loadBmwVatCandidates();
+}
+async function checkBmwVatExceptions(btn){
+ const summary=document.getElementById("bmwVatExceptionSummary");
+ btn.disabled=true;summary.textContent="Checking 18 unmatched and 24 ended BMW detail URLs. This may take a short while…";
+ try{
+  const {data,error}=await sb().functions.invoke("bmw-vat-exception-check",{body:{}});
+  if(error)throw error;
+  if(!data?.ok){summary.textContent="BMW checks failed: "+(data?.error||"Unknown issue");return;}
+  const rows=data.results||[];
+  const ok=rows.filter(x=>x.http_status===200&&x.advert_id_in_response).length;
+  const unusable=rows.filter(x=>x.http_status!==200||!x.advert_id_in_response).length;
+  summary.textContent=data.checked+" BMW detail pages checked · "+ok+" returned matching page references · "+unusable+" unconfirmed · 2 suspect excluded. HTTP responses alone do not confirm motorcycles are available. No records changed.";
+  const existing=document.getElementById("bmwVatExceptionChecks");
+  if(existing)existing.remove();
+  const el=document.createElement("div");el.id="bmwVatExceptionChecks";
+  el.innerHTML=rows.map(x=>'<div class="small" style="padding:5px 0;border-top:1px solid #333">'+esc(x.advert_id)+' · '+esc(x.issue)+' · '+esc(x.http_status?"HTTP "+x.http_status:"Connection error")+' · '+esc(x.advert_id_in_response?"Advert ID in response":"Availability not confirmed")+'</div>').join("");
+  summary.after(el);
+ }catch(e){summary.textContent="BMW checks failed: "+String(e.message||e);}
+ finally{btn.disabled=false;}
 }
 async function loadBmwVatExceptions(){
  const summary=document.getElementById("bmwVatExceptionSummary"),rows=document.getElementById("bmwVatExceptionRows");
