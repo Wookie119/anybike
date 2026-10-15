@@ -96,6 +96,8 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
   <div id="bmwRefreshProgressBox" style="display:none;margin:10px 0;padding:12px;border:1px solid #444;border-radius:10px"><div id="bmwRefreshProgressLabel" class="small" role="status">Preparing BMW refresh…</div><progress id="bmwRefreshProgress" max="100" style="width:100%;height:20px;margin-top:7px;accent-color:#ed1c24"></progress></div>
   <div id="bmwWeeklyPrepNotice" class="small" style="margin-top:10px">17 BMW candidates staged privately · VAT confirmation pending · no publication.</div>
 
+  <div style="margin-top:14px"><button class="btn red" type="button" onclick="showAllBmwVatGalleryPhotoReview()">Review all BMW VAT photographs →</button><p class="small">All saved BMW VAT candidates. Mark each image Clean or No cleaning needed; saves your choice without processing images.</p></div>
+  <div id="bmwFullPhotoReview" style="margin-top:12px"></div>
   <div id="bmwPhotoReviewNotice" class="small" role="status" aria-live="polite" style="margin-top:8px"></div>
   <div id="bmwPhotoReviewMount" style="margin-top:10px"></div>
   <details style="margin-top:14px"><summary style="cursor:pointer;font-weight:700">Photo reviews and advanced tools</summary>
@@ -1040,6 +1042,36 @@ async function refreshBmwWeeklyPreparation(){
  if(result.error){el.textContent="BMW weekly preparation unavailable: "+result.error.message;return;}
  const d=result.data||{};
  el.textContent=(d.prepared||0)+" BMW motorcycles staged · "+(d.original_photos||0)+" original photos · "+(d.need_cleaning||0)+" require cleaning · "+(d.vat_pending||0)+" VAT confirmations pending · unpublished.";
+}
+async function showAllBmwVatGalleryPhotoReview(){
+ const root=document.getElementById("bmwFullPhotoReview");root.textContent="Loading all BMW VAT candidates…";
+ try{
+ const {data,error}=await sb().rpc("admin_bmw_vat_gallery_photo_review_v1");
+ if(error)throw error;const rows=data||[];let page=0;const size=36;
+ const nav=document.createElement("div"),grid=document.createElement("div");nav.style.cssText="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:12px 0";grid.style.cssText="display:grid;grid-template-columns:repeat(auto-fill,minmax(205px,1fr));gap:12px";
+ root.replaceChildren(nav,grid);
+ function draw(){
+  const reviewed=rows.filter(r=>r.decision).length;nav.replaceChildren();
+  const prev=document.createElement("button");prev.className="btn";prev.textContent="← Previous";prev.disabled=page===0;prev.onclick=()=>{page--;draw();};
+  const info=document.createElement("strong");info.textContent=rows.length+" BMW VAT candidates · "+reviewed+" reviewed · Page "+(page+1)+"/"+Math.ceil(rows.length/size);
+  const next=document.createElement("button");next.className="btn";next.textContent="Next →";next.disabled=(page+1)*size>=rows.length;next.onclick=()=>{page++;draw();};
+  nav.append(prev,info,next);grid.replaceChildren();
+  rows.slice(page*size,(page+1)*size).forEach(r=>{
+   const card=document.createElement("div");card.style.cssText="border:1px solid #555;border-radius:10px;padding:10px;background:#141414";
+   const heading=document.createElement("strong");heading.textContent=(r.make||"BMW")+" "+(r.model||"Advert not matched")+" · "+r.advert_id;
+   const img=document.createElement("img");img.loading="lazy";img.alt="BMW advert "+r.advert_id;img.style.cssText="display:block;width:100%;height:150px;object-fit:contain;margin:8px 0;background:#202020";img.src=r.image_url||"/anybike-image-coming-soon.png";img.onerror=()=>{img.onerror=null;img.src="/anybike-image-coming-soon.png";};
+   const status=document.createElement("div");status.className="small";status.textContent=r.decision==="no_clean"?"No cleaning needed ✓":r.decision==="clean"?"Cleaning required":"Not reviewed";
+   const buttons=document.createElement("div");buttons.style.cssText="display:flex;gap:8px;margin-top:9px;flex-wrap:wrap";
+   for(const [choice,label] of [["no_clean","No cleaning needed"],["clean","Clean"]]){
+    const btn=document.createElement("button");btn.type="button";btn.className="btn";btn.textContent=label;btn.style.cssText="font-size:12px;padding:7px 9px"+(r.decision===choice?";border:2px solid #4ade80":"");
+    btn.disabled=!r.item_id;btn.onclick=async()=>{buttons.querySelectorAll("button").forEach(x=>x.disabled=true);status.textContent="Saving…";const res=await sb().rpc("admin_set_bmw_vat_gallery_photo_review_v1",{p_item_id:r.item_id,p_decision:choice});if(res.error){status.textContent="Save failed: "+res.error.message;buttons.querySelectorAll("button").forEach(x=>x.disabled=false);}else{r.decision=choice;draw();}};
+    buttons.append(btn);
+   }
+   card.append(heading,img,status,buttons);grid.append(card);
+  });
+ }
+ draw();
+ }catch(e){root.textContent="Photo review unavailable: "+String(e.message||e);}
 }
 async function showFastBmwVatReview(){
  const status=document.getElementById("bmwPhotoReviewNotice"),mount=document.getElementById("bmwPhotoReviewMount");
