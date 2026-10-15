@@ -2733,7 +2733,15 @@ async function loadGlobalBuyerMessages(threadId){
     card.classList.toggle("has-unread",isUnread);
   }
 
-  box.innerHTML=messages.map(message=>{
+  // Seller offers have their own structured action panel; don't repeat every
+  // automated offer dispatch as a large conversation bubble.
+  const offerPanel=document.getElementById("seller-offer-panel-"+threadId);
+  const structuredOfferVisible=Boolean(offerPanel?.querySelector("section"));
+  const isOfferDispatch=message=>String(message?.message||"").trim().startsWith("ANYBIKE | MOTORCYCLE PURCHASE OFFER");
+  const visibleMessages=structuredOfferVisible
+    ? messages.filter(message=>!isOfferDispatch(message))
+    : messages.filter((message,index)=>!isOfferDispatch(message)||index===messages.findLastIndex(isOfferDispatch));
+  box.innerHTML=visibleMessages.map(message=>{
     const isCustomer=isCustomerMessageSender(message);
     const label=isCustomer
       ? "You"
