@@ -581,7 +581,16 @@ function toggleSubmission(id){
     detail.classList.add("open");
     row.classList.add("open");
     loadSubmissionImages(id);
+    const current=rows.find(r=>Number(r.submission_id)===Number(id));
+    if(current?.seller_type==="private_seller")showSellerBiddingPermission(id);
   }
+}
+async function showSellerBiddingPermission(id){
+  const host=document.getElementById("action-status-"+Number(id));if(!host)return;
+  const {data,error}=await sb.rpc("admin_seller_bidding_authorisation_status_v1",{p_submission_id:Number(id)});
+  if(error){host.textContent="Seller authorisation status unavailable — do not start bidding.";return;}
+  host.textContent=data?.ready?"✓ Seller account linked and explicit bidding authorisation recorded.":"Awaiting seller account activation and explicit permission to approach dealers. Bidding is blocked until both are confirmed.";
+  host.style.color=data?.ready?"#91e6a4":"#ffc56d";
 }
 
 document.getElementById("queue").addEventListener("click",async function(e){
@@ -636,6 +645,10 @@ document.getElementById("queue").addEventListener("click",async function(e){
 async function startUnderwrite(id){
   const submission=rows.find(r=>Number(r.submission_id)===Number(id));
   if(!submission)return;
+  if(submission.seller_type==="private_seller"){
+    const {data:consent,error:consentError}=await sb.rpc("admin_seller_bidding_authorisation_status_v1",{p_submission_id:Number(id)});
+    if(consentError||!consent?.ready){const el=document.getElementById("action-status-"+id);if(el)el.textContent="Cannot start: seller must activate their account and explicitly authorise trade bidding in My Selling.";return;}
+  }
   const hours=Number(document.getElementById("underwrite-hours-"+id)?.value||48);
   const bike=[submission.make,submission.model,submission.variant].filter(Boolean).join(" ");
   const photoCount=Number(submission.image_approved||0);
