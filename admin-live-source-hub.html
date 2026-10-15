@@ -91,6 +91,7 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
   <div style="display:flex;gap:9px;flex-wrap:wrap;margin:12px 0 0">
    <button class="btn red" type="button" onclick="updateBmwStockWeekly(this)">BMW VAT refresh pending</button>
    <button class="btn" type="button" onclick="refreshBmwWeeklyPreparation()">Check preparation</button>
+   <button class="btn" type="button" onclick="verifyBmwVatSourceFilter(this)">Check VAT filter (read-only)</button>
   </div>
   <div id="bmwRefreshProgressBox" style="display:none;margin:10px 0;padding:12px;border:1px solid #444;border-radius:10px"><div id="bmwRefreshProgressLabel" class="small" role="status">Preparing BMW refresh…</div><progress id="bmwRefreshProgress" max="100" style="width:100%;height:20px;margin-top:7px;accent-color:#ed1c24"></progress></div>
   <div id="bmwWeeklyPrepNotice" class="small" style="margin-top:10px">17 BMW candidates staged privately · VAT confirmation pending · no publication.</div>
@@ -764,11 +765,10 @@ async function probeAllBmwVatResult(btn){
   const checked=known.filter(id=>ids.includes(id)).length;
   const reported=Number(data.eval_count||0);
   const complete=reported>0&&ids.length===reported&&checked===15&&ids.length>=200&&ids.length<=450&&scan.stop_reason!=="repeated";
-  window.bmwVatAllModelScan=complete?ids:null;
-  out.textContent=ids.length+" unique BMW advert IDs across "+(scan.pages||[]).length+" page(s) · "+checked+"/15 known F 900 GS IDs present · BMW reported "+(reported||"unknown")+" results · "+(complete?"Full result set passed count and known-ID checks. Ready for admin preview and save.":"NOT verified for import; no records changed.")+" End: "+scan.stop_reason+".";
+  window.bmwVatAllModelScan=null; // Read-only diagnostic: no import from count-only match.
+  out.textContent=ids.length+" unique BMW advert IDs across "+(scan.pages||[]).length+" page(s) · "+checked+"/15 known F 900 GS IDs present · BMW reported "+(reported||"unknown")+" results · "+(complete?"Count and known IDs match, but VAT classification is not independently verified. No import authorised.":"NOT verified for import; no records changed.")+" End: "+scan.stop_reason+".";
   if(complete){
-   document.getElementById("bmwVatCandidateInput").value=ids.join("\n");
-   await previewBmwVatCandidates();
+   // Do not prefill import field from unverified remote result.
   }
  }catch(e){out.textContent="BMW all-page check failed: "+String(e.message||e);}
  finally{btn.disabled=false;}
@@ -1011,6 +1011,18 @@ async function cleanFiveBmwPhotos(button){
    finished++;bar.value=finished;
   }
  }finally{title.textContent="Batch finished · "+safe+" safe · "+errors+" need attention · no stock published";button.disabled=false;}
+}
+async function verifyBmwVatSourceFilter(btn){
+ const out=document.getElementById("bmwWeeklyPrepNotice");
+ btn.disabled=true;out.textContent="Checking BMW VAT-reclaimable filter · read-only, first page only…";
+ try{
+  const {data,error}=await sb().functions.invoke("bmw-vat-result-probe",{body:{scope:"all_bmw",paginate:false}});
+  if(error||data?.error)throw error||new Error(data.error);
+  const count=Number(data.eval_count||0);
+  const first=(data.attempts||[]).find(a=>a.count>0);
+  out.textContent="BMW filter check: "+(count?count+" results reported":"result count unavailable")+" · "+(first?first.count+" IDs on first page":"no first-page IDs")+" · "+(data.filter_confirmed?"Search parameters look consistent, but individual VAT status still requires dealer confirmation.":"VAT filter could not be confirmed.")+" No import, image processing or publication.";
+ }catch(e){out.textContent="BMW VAT check unavailable: "+String(e.message||e)+". No stock changed.";}
+ finally{btn.disabled=false;}
 }
 async function updateBmwStockWeekly(button){
  const el=document.getElementById("bmwWeeklyPrepNotice");
