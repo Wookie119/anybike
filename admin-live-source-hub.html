@@ -879,14 +879,29 @@ async function checkImportedBmwPhotoSources(btn){
 async function processFirstBmwVatPilot(btn){
  const status=document.getElementById("bmwPhotoReviewNotice");
  if(!status)return;
- if(!confirm("Process ONE previously selected BMW photograph for advert 531905? This uses buyer-safe cleaning and may store the original and one cleaned derivative. No stock will be published."))return;
- btn.disabled=true;status.textContent="Processing one private BMW pilot photograph (531905)…";
- try {
+ if(!confirm("Check or process ONE selected BMW photograph for advert 531905? This may save one original and one cleaned image. No motorcycle will be published."))return;
+ btn.disabled=true;
+ const panel=document.createElement("div");panel.setAttribute("role","status");panel.style.cssText="margin:12px 0;padding:12px;border:1px solid #555;border-radius:8px";
+ const label=document.createElement("div");label.textContent="Checking BMW 531905 buyer-safe image…";
+ const progress=document.createElement("progress");progress.style.cssText="display:block;width:100%;height:18px;margin:9px 0";progress.setAttribute("aria-label","Image processing in progress");
+ const detail=document.createElement("div");detail.className="small";detail.textContent="The cleaner works remotely. Exact percentage is not available; this bar indicates that the request is running.";
+ panel.append(label,progress,detail);status.replaceChildren(panel);
+ try{
+  const {data:before,error:beforeError}=await sb().rpc("admin_bmw_vat_pilot_image_status_v1",{p_advert_id:"531905"});
+  if(!beforeError&&before?.buyer_safe_status==="safe"){
+    progress.value=100;progress.max=100;
+    label.textContent="BMW 531905 already processed successfully";
+    detail.textContent="A buyer-safe image is saved. No second processing or additional storage was triggered.";
+    return;
+  }
+  label.textContent="Cleaning the selected BMW photograph…";
   const {data,error}=await sb().functions.invoke("process-buyer-safe-image",{body:{junction_stock_id:95}});
   if(error)throw error;
-  if(!data?.success)throw new Error(data?.error||"Image processing did not complete");
-  status.textContent=data.processed===1?"BMW 531905: processing complete. Review buyer-safe image quality before any approval.":"BMW 531905: "+(data.message||"No image processed");
- } catch(e){status.textContent="Pilot image processing stopped: "+String(e.message||e);}
+  if(!data?.success)throw new Error(data?.error||"Processing did not complete");
+  progress.value=100;progress.max=100;
+  if(data.processed===1){label.textContent="BMW 531905 image processing finished";detail.textContent="Check the image quality before publication.";}
+  else {label.textContent="No waiting image to process";detail.textContent="The image may already be processed. Refresh the page or check its saved status.";}
+ }catch(e){progress.removeAttribute("value");label.textContent="BMW image processing stopped";detail.textContent=String(e.message||e);}
  finally{btn.disabled=false;}
 }
 async function showBmwSidePhotoReview(){
