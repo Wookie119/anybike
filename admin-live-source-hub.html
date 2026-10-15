@@ -92,6 +92,7 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
    <button class="btn red" id="bmwVatMainPhotoBtn" type="button" onclick="showBmwSidePhotoReview()">Choose main photos</button>
    <button class="btn" type="button" onclick="reviewImportedBmwVat()">Review bikes &amp; prices</button>
    <button class="btn" type="button" onclick="reviewCleanedBmwVatPilot(this)">Review cleaned photo</button>
+   <button class="btn red" type="button" onclick="processBmwVatPilotBatch(this)">Process next 2 photos</button>
    <button class="btn" type="button" onclick="loadBmwVatCandidates()">View candidates</button>
   </div>
   <div id="bmwPhotoReviewNotice" class="small" role="status" aria-live="polite" style="margin-top:8px"></div>
@@ -874,6 +875,35 @@ async function checkImportedBmwPhotoSources(btn){
   summary.after(section);
   summary.textContent=rows.filter(x=>x.candidates.length>0).length+"/17 BMW adverts returned possible image URLs · "+rows.filter(x=>x.candidates.length===0).length+" have none. Zero photos approved or published. Review original images before processing.";
  }catch(e){summary.textContent="Photo source review stopped: "+String(e.message||e)+". No records changed."}
+ finally{btn.disabled=false;}
+}
+async function processBmwVatPilotBatch(btn){
+ const status=document.getElementById("bmwPhotoReviewNotice");
+ if(!status)return;
+ btn.disabled=true;
+ const jobs=[{advert:"540397",id:96},{advert:"553645",id:97}];
+ const panel=document.createElement("div");panel.style.cssText="padding:12px;border:1px solid #555;border-radius:8px;margin-top:8px";
+ const title=document.createElement("strong");title.textContent="BMW photo batch · 0 / 2 checked";
+ const progress=document.createElement("progress");progress.max=2;progress.value=0;progress.style.cssText="width:100%;height:18px;display:block;margin:10px 0";
+ const log=document.createElement("div");log.className="small";log.setAttribute("role","status");
+ panel.append(title,progress,log);status.replaceChildren(panel);
+ try{
+  let completed=0;
+  for(const job of jobs){
+   log.textContent="Checking BMW "+job.advert+"…";
+   const {data:before,error:checkError}=await sb().rpc("admin_bmw_vat_pilot_image_status_v1",{p_advert_id:job.advert});
+   if(checkError)throw checkError;
+   if(before?.buyer_safe_status!=="safe"){
+    log.textContent="Cleaning BMW "+job.advert+"…";
+    const {data,error}=await sb().functions.invoke("process-buyer-safe-image",{body:{junction_stock_id:job.id}});
+    if(error||!data?.success)throw new Error(job.advert+": "+(error?.message||data?.error||"Processing failed"));
+   }
+   const {data:after,error:afterError}=await sb().rpc("admin_bmw_vat_pilot_image_status_v1",{p_advert_id:job.advert});
+   if(afterError||after?.buyer_safe_status!=="safe")throw new Error(job.advert+": image not yet safe; stopping batch.");
+   completed++;progress.value=completed;title.textContent="BMW photo batch · "+completed+" / 2 processed";
+  }
+  log.textContent="Both photographs processed. They still require visual review; no stock published.";
+ }catch(e){log.textContent="Batch stopped: "+String(e.message||e)+". Completed images remain saved; no publication.";}
  finally{btn.disabled=false;}
 }
 async function reviewCleanedBmwVatPilot(btn){
