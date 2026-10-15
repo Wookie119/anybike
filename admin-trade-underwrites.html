@@ -62,13 +62,12 @@ input{background:#090909;color:#fff;border:1px solid #333;border-radius:10px;pad
 <label>Dealer transport contribution (£)<input id="rvDealerTransport" type="number" min="0" step="0.01" value="0"></label>
 </div>
 <div style="margin:12px 0;padding:12px;background:#0a0a0a;border:1px solid #444;border-radius:10px">
-<strong style="display:block;margin-bottom:8px">1. Has Move confirmed the transport cost?</strong>
-<label for="rvQuoteStatus" class="reserve-explain">The £229 shown above is the cost allowed for collection and delivery. Choose confirmed only after Move has agreed that cost for this motorcycle and route.</label>
-<select id="rvQuoteStatus" style="width:100%;margin:8px 0 16px;background:#090909;color:#fff;border:1px solid #444;border-radius:8px;padding:10px"><option value="estimate">Not confirmed by Move — estimate only</option><option value="confirmed">Yes — Move has confirmed the transport allowance</option></select>
-<strong style="display:block;margin-bottom:8px">2. Is anyone contributing towards delivery?</strong>
-<p id="rvContributionHelp" class="reserve-explain">If both transport contribution fields above are £0, nothing needs agreeing here.</p>
-<label style="display:flex;gap:8px;align-items:center;font-size:13px"><input type="checkbox" id="rvContributionsAgreed"> Seller and dealer have agreed to any amounts entered as transport contributions above</label>
-<p class="reserve-explain" style="margin-top:10px">These are internal commercial checks. Confirming a cost is <strong>not</strong> a transport booking or acceptance of a dealer's bid.</p>
+<label for="rvQuoteStatus" style="display:block;font-weight:800;margin-bottom:8px">Move delivery cost</label>
+<select id="rvQuoteStatus" style="width:100%;background:#090909;color:#fff;border:1px solid #555;border-radius:8px;padding:12px"><option value="estimate">Not yet confirmed by Move</option><option value="confirmed">✓ Confirmed by Move</option></select>
+<div id="rvContributionWrap" hidden style="margin-top:14px">
+<label style="display:flex;gap:8px;align-items:center;font-size:13px"><input type="checkbox" id="rvContributionsAgreed"> Seller/dealer delivery contributions agreed</label>
+</div>
+<p class="reserve-explain">Confirming the cost does not book delivery.</p>
 </div>
 <div id="rvActualPercent" role="status" style="padding:12px 16px;margin:12px 0;border:1px solid #555;border-radius:10px;background:#151515;font-size:20px;font-weight:800">Projected gross profit: —</div>
 <div id="rvPreview" role="status" style="padding:12px;background:#151515;border:1px solid #555;border-radius:8px;margin:12px 0">Enter the figures to preview the margin.</div>
@@ -598,8 +597,9 @@ function updateReservePreview(){
  const margin=bid+n("rvDealerTransport")+n("rvSellerTransport")-n("rvSeller")-n("rvTransport")-n("rvOther");
  const confirmed=document.getElementById("rvQuoteStatus").value==="confirmed";
  const contributions=(n("rvDealerTransport")===0&&n("rvSellerTransport")===0)||document.getElementById("rvContributionsAgreed").checked;
- const contributionHelp=document.getElementById("rvContributionHelp");
- if(contributionHelp)contributionHelp.textContent=n("rvDealerTransport")===0&&n("rvSellerTransport")===0?"Both contributions are £0. No checkbox needed.":"Check the box only after the relevant parties have agreed these contributions.";
+ const contributionsPresent=n("rvDealerTransport")>0||n("rvSellerTransport")>0;
+ document.getElementById("rvContributionWrap").hidden=!contributionsPresent;
+ if(!contributionsPresent)document.getElementById("rvContributionsAgreed").checked=false;
  const valid=bid>0&&n("rvSeller")>=Number(r?.seller_price_wanted_gbp||0)&&margin>=n("rvMargin")&&confirmed&&contributions&&document.getElementById("rvTransport").value!=="";
  document.querySelectorAll(".margin-preset").forEach(button=>{
   const target=Math.round(bid*Number(button.dataset.margin))/100;
