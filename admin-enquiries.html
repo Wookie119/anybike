@@ -231,7 +231,7 @@ html.admin-auth-pending body{
   }
 }
 
-</style>
+\n.sales-compact-pipeline .uk-deal-stage-payment{margin:0;flex:0 0 auto;padding:7px 10px;border:1px solid #ed1c24;border-radius:999px;background:#ed1c24;color:white;font-size:11px;font-weight:900;cursor:pointer;white-space:nowrap}\n.sales-compact-pipeline .uk-deal-stage-payment:focus-visible{outline:2px solid white;outline-offset:3px}\n</style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="admin.js?v=202610071152"></script>
 <link rel="stylesheet" href="admin-shell.css?v=12001">
@@ -17391,10 +17391,18 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
     ["complete","Complete",complete&&finalInvoiceIssued]
   ];
 
+  const ukSellerDepositGuide=ukUnderwriteCompleted?
+    '<section class="sales-what-next" style="margin:12px 0;border-left:4px solid #ed1c24"><strong>AnyBike Admin — seller deposit £250.00</strong><span>Pay the private seller from the AnyBike business bank account after independently verifying their bank details. Suggested reference: AB-S-000017. This is an outgoing seller payment, NOT a customer receipt. After the transfer, record the date, amount and reference in the seller payment records. Seller balance after the deposit: £650.00. Separately, Gifford Motorcycles Ltd owes AnyBike £1,400.00; do not mark that as received until it reaches the bank.</span></section>' : '';
+  const ukPaymentHeading=ukUnderwriteCompleted?
+    '<div class="sales-payment-phase"><strong>Stage 6 — Seller payment and dealer receipt are separate</strong><span>The seller deposit is paid by AnyBike; the £1,400 dealer balance is received by AnyBike. Neither payment has been confirmed here.</span></div>' : '';
+
   const pipelineHtml=pipeline.map(function(item,index){
     const key=item[0], label=item[1], done=!!item[2];
     const cls=key===current?"current":done?"done":"";
     const statePrefix=done ? "✓ " : "";
+    if(ukUnderwriteCompleted && key==="payment"){
+      return '<button type="button" class="uk-deal-stage-payment '+cls+'" title="Open Stage 6 payment instructions" onclick="bikeSalesJourneyTab(\''+dealId+'\',\'payment\');this.closest(\'.sales-journey\').querySelector(\'.sales-tab-panel[data-tab=\\\"payment\\\"]\')?.scrollIntoView({behavior:\'smooth\',block:\'start\'});">'+statePrefix+(index+1)+'. '+escapeAdminHtml(label)+'</button>';
+    }
     return '<span class="'+cls+'" title="'+(done?"Complete":key===current?"Current stage":"Not reached yet")+'">'+statePrefix+(index+1)+'. '+escapeAdminHtml(label)+'</span>';
   }).join("");
   const progressDone=pipeline.filter(function(item){return !!item[2];}).length;
@@ -17470,6 +17478,9 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
     )+renderAnyBikeDealCommercialSetup(deal)+renderAnyBikeDealExportTaxIdentity(deal)+renderAnyBikeDealExportVatClearance(deal)+renderAnyBikeDealSellerCheckPanel(deal)+renderAnyBikeDealFinancialPanel(deal))+
     panel("offer",renderDealOfferWorkspace(deal,bikes)+(!offerAccepted?'<div class="sales-what-next"><strong>What happens next?</strong><span>When the formal offer is sent, the buyer reviews the price and terms. Their response returns to AnyBike through the Message Centre and bell.</span></div>':'')+'<details class="sales-payment-advanced"><summary>Stage override / exceptional use only</summary>'+stageControl+'</details>')+
     panel("payment",(function(){
+      if(ukUnderwriteCompleted){
+        return ukPaymentHeading+ukSellerDepositGuide+renderAnyBikeDealCustomerAccount(deal)+renderAnyBikeDealCustomerLedger(deal)+renderAnyBikeDealInvoiceDocuments(deal);
+      }
       const depositComplete=depositRequired<=0 || depositOutstanding<=0.009;
       if(!offerAccepted){
         return renderAnyBikeDealCustomerAccount(deal)+
