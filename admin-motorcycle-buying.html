@@ -487,6 +487,7 @@ function render(){
               ?'<select id="underwrite-hours-'+Number(r.submission_id)+'" aria-label="Bidding time" style="max-width:185px"><option value="12" '+(String(r.notes||"").includes("Urgency: urgent")?"selected":"")+'>Urgent · 12 hours</option><option value="24">24 hours</option><option value="48" '+(!String(r.notes||"").includes("Urgency: urgent")&&!String(r.notes||"").includes("Urgency: flexible")?"selected":"")+'>Standard · 48 hours</option><option value="72">72 hours</option><option value="96" '+(String(r.notes||"").includes("Urgency: flexible")?"selected":"")+'>Flexible · 96 hours</option></select>'
               :'<button type="button" class="red" data-action="edit-bike" data-id="'+Number(r.submission_id)+'">Complete Bike Details</button>')
             :'<a class="btn" href="/admin-trade-underwrites.html">Open Underwrite Desk</a>')+
+          (r.seller_type==="private_seller"?'<button type="button" data-action="record-phone-authorisation" data-id="'+Number(r.submission_id)+'">Record telephone authorisation</button>':'')+
           '<button type="button" data-action="copy-dealer-invite" data-id="'+Number(r.submission_id)+'">Copy dealer invitation link</button>'+'<button type="button" data-action="copy-dealer-sms" data-id="'+Number(r.submission_id)+'">Copy dealer text message</button>'+ '<button type="button" class="red" data-action="refresh-demand" data-id="'+Number(r.submission_id)+'">Refresh Buyer Match</button>'+
           (Number(r.unique_buyer_match_count||0)>0?'<button type="button" class="red" data-action="view-demand" data-id="'+Number(r.submission_id)+'">View '+Number(r.unique_buyer_match_count)+' Buyer Match'+(Number(r.unique_buyer_match_count)===1?'':'es')+'</button>':'')+
           '<button type="button" class="red" data-action="edit-bike" data-id="'+Number(r.submission_id)+'">Edit Bike Details</button>'+
@@ -600,7 +601,7 @@ async function showSellerBiddingPermission(id){
   const host=document.getElementById("action-status-"+Number(id));if(!host)return;
   const {data,error}=await sb.rpc("admin_seller_bidding_authorisation_status_v1",{p_submission_id:Number(id)});
   if(error){host.textContent="Seller authorisation status unavailable — do not start bidding.";return;}
-  host.textContent=data?.ready?"✓ Seller account linked and explicit bidding authorisation recorded.":"Awaiting seller account activation and explicit permission to approach dealers. Bidding is blocked until both are confirmed.";
+  host.textContent=data?.ready?("✓ Seller authorisation recorded ("+(data.authorisation_method==="telephone"?"telephone":"online")+")."):"Awaiting seller authorisation. Record a genuine telephone conversation or obtain consent in My Selling.";
   host.style.color=data?.ready?"#91e6a4":"#ffc56d";
 }
 
@@ -629,6 +630,24 @@ document.getElementById("queue").addEventListener("click",async function(e){
     return;
   }
 
+  if(action==="record-phone-authorisation"){
+    const bike=rows.find(r=>Number(r.submission_id)===id);
+    if(!bike||bike.seller_type!=="private_seller")return;
+    const sellerName=String(bike.seller_name||"").trim();
+    if(!sellerName){alert("Seller name is missing. Complete the seller record first.");return;}
+    const dateString=prompt("Enter the date and time the seller authorised dealer offers by telephone (UK local time, YYYY-MM-DD HH:MM):","");
+    if(!dateString)return;
+    if(!/^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}$/.test(dateString)){alert("Use YYYY-MM-DD HH:MM.");return;}
+    const when=new Date(dateString.replace(" ","T"));
+    if(!Number.isFinite(when.getTime())||when.getTime()>Date.now()){alert("Enter a valid past call date/time.");return;}
+    const attestation="I personally spoke with this seller and they explicitly authorised AnyBike to approach verified motorcycle dealers for confidential offers, without agreeing to a sale.";
+    if(!confirm("Record YOUR telephone conversation with "+sellerName+"?\\n\\n"+attestation+"\\n\\nThis records authorisation for dealer offers, NOT agreement to sell. An audit record will identify your admin account."))return;
+    const {data,error}=await sb.rpc("admin_record_seller_phone_authorisation_v1",{p_submission_id:id,p_obtained_at:when.toISOString(),p_seller_name:sellerName,p_attestation:attestation});
+    if(error){alert("Could not record authorisation: "+error.message);return;}
+    alert("Telephone authorisation recorded. You may now review and open selected-dealer bidding. Nothing has been sent.");
+    await showSellerBiddingPermission(id);
+    return;
+  }
   if(action==="comparables"){captureComps(id);return;}
   if(action==="start-underwrite"){startUnderwrite(id);return;}
   if(action==="copy-dealer-sms"){
@@ -658,7 +677,7 @@ async function startUnderwrite(id){
   if(!submission)return;
   if(submission.seller_type==="private_seller"){
     const {data:consent,error:consentError}=await sb.rpc("admin_seller_bidding_authorisation_status_v1",{p_submission_id:Number(id)});
-    if(consentError||!consent?.ready){const el=document.getElementById("action-status-"+id);if(el)el.textContent="Cannot start: seller must activate their account and explicitly authorise trade bidding in My Selling.";return;}
+    if(consentError||!consent?.ready){const el=document.getElementById("action-status-"+id);if(el)el.textContent="Cannot start: seller authorisation not recorded. Use Record telephone authorisation for a confirmed call, or obtain online consent in My Selling.";return;}
   }
   const hours=Number(document.getElementById("underwrite-hours-"+id)?.value||48);
   const bike=[submission.make,submission.model,submission.variant].filter(Boolean).join(" ");
