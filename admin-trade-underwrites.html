@@ -300,6 +300,18 @@ async function saveFinalCheck(){
  el.textContent=data?.approved?"✓ Approved. Next: review bids and select confirmed buyer.":"Saved as incomplete. Finish the remaining checks before announcing any winner.";
  if(data?.approved){const id=finalCheckId;closeFinalCheck();await load();viewBids(id);}
 }
+async function reviewDealer(dealerId,opportunityId){
+ const {data,error}=await sb.rpc("admin_get_dealer_reliability_v1",{p_dealer_id:dealerId});
+ if(error){alert(error.message);return;}
+ const history=(data.events||[]).slice(0,8).map(e=>e.type.replaceAll("_"," ")+": "+e.reason).join("\n");
+ const type=prompt("Dealer reliability "+data.score+"/100"+(data.provisional?" (provisional)":"")+"\n"+(history||"No history yet")+"\n\nTo record an event enter: payment_late, payment_default, buyer_withdrew, bid_withdrawn, payment_on_time, purchase_completed, dealer_confirmed or admin_exonerated.\nCancel to close.");
+ if(!type)return;
+ const allowed=["payment_late","payment_default","buyer_withdrew","bid_withdrawn","payment_on_time","purchase_completed","dealer_confirmed","admin_exonerated"];
+ if(!allowed.includes(type)){alert("Unknown event type");return;}
+ const reason=prompt("Record the verified facts and reason (at least 8 characters):");if(!reason||reason.trim().length<8)return;
+ const result=await sb.rpc("admin_log_dealer_reliability_v1",{p_dealer_id:dealerId,p_opportunity_id:opportunityId,p_event_type:type,p_reason:reason.trim(),p_evidence:null});
+ alert(result.error?"Not saved: "+result.error.message:"✓ Verified buyer history saved");
+}
 async function viewBids(id){
  const r=rows.find(x=>Number(x.opportunity_id)===Number(id));
  document.getElementById("bidTitle").textContent=(r?.reference||"Underwrite")+" · Confidential Bids";
@@ -372,7 +384,7 @@ async function viewBids(id){
        '<td>'+confLabel+effective+'</td>'+ 
        '<td>'+deliveryCell+'</td>'+
        '<td>'+esc(b.notes||"")+'</td>'+
-       '<td>'+action+'</td>'+
+       '<td>'+action+(b.status==="live"?'<button type="button" onclick="reviewDealer('+Number(b.dealer_organisation_id)+','+Number(id)+')">Buyer history</button>':'')+'</td>'+
      '</tr>';
    }).join("")+
    '</tbody></table>';
