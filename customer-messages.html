@@ -2647,6 +2647,8 @@ async function renderSellerOfferPanel(threadId){
  const gbp=n=>n.toLocaleString("en-GB",{style:"currency",currency:"GBP"});
  const expires=new Date(data.valid_until);
  const expiry=expires.toLocaleString("en-GB",{timeZone:"Europe/London",day:"numeric",month:"long",year:"numeric",hour:"2-digit",minute:"2-digit"})+" UK time";
+ const {data:depositRequest}=await sb.rpc("customer_get_underwrite_deposit_request_v1",{p_offer_id:Number(data.offer_id)});
+ const pendingDeposit=depositRequest?.status==="pending";
  const open=data.status==="sent"&&Date.now()<=expires.getTime();
  const state=data.status==="accepted"?"✓ Offer accepted":data.status==="declined"?"Offer declined":open?"Your next action · Review and respond":"Offer no longer available";
  const terms='<div style="margin-top:20px;padding:18px;border:1px solid #555;border-radius:9px;background:#101010">'+
@@ -2665,7 +2667,19 @@ async function renderSellerOfferPanel(threadId){
  (open?'<label style="display:flex;align-items:center;gap:10px;margin:18px 0;font-weight:700"><input type="checkbox" id="sellerTermsAgree-'+Number(data.offer_id)+'" style="width:20px;height:20px"> I have read and agree to the purchase offer terms above.</label>'+
  '<div style="display:flex;flex-wrap:wrap;gap:12px"><button type="button" style="background:#ed1c24;color:white;padding:13px 24px;border-radius:8px;font-weight:800" onclick="respondSellerUnderwriteOffer('+Number(data.offer_id)+','+Number(threadId)+',\'accepted\')">Accept Offer</button>'+
  '<button type="button" style="background:#333;color:white;padding:13px 24px;border-radius:8px" onclick="respondSellerUnderwriteOffer('+Number(data.offer_id)+','+Number(threadId)+',\'declined\')">Decline Offer</button></div>':'')+
+ (open ? (pendingDeposit
+  ? '<p style="color:#9decaf;font-weight:700">✓ Deposit request of '+safe(gbp(Number(depositRequest.amount)))+' awaiting AnyBike approval.</p>'
+  : '<div style="border:1px solid #555;border-radius:8px;padding:12px;margin-top:15px"><strong>Would you prefer a larger deposit?</strong><p>Request a different deposit without declining the purchase price.</p><input id="sellerRequestedDeposit-'+Number(data.offer_id)+'" type="number" min="100.01" max="'+Number(data.amount_gbp)+'" step="0.01" placeholder="Deposit amount (£)" style="background:#090909;color:white;padding:9px;border:1px solid #666"><button type="button" style="padding:10px;margin-left:10px;background:#333;color:white" onclick="requestSellerDeposit('+Number(data.offer_id)+','+Number(threadId)+')">Request different deposit</button></div>'
+ ) : '')+
  '<p style="font-size:12px;color:#ccc;margin-top:18px">For questions or alternative arrangements, reply to AnyBike in this conversation before accepting.</p></section>';
+}
+async function requestSellerDeposit(offerId,threadId){
+ const amount=Number(document.getElementById("sellerRequestedDeposit-"+offerId)?.value);
+ if(!Number.isFinite(amount)||amount<=100){alert("Enter a deposit greater than £100.");return;}
+ const {error}=await sb.rpc("customer_request_seller_deposit_v1",{p_offer_id:offerId,p_amount:amount});
+ if(error){alert("Could not submit deposit request: "+error.message);return;}
+ await renderSellerOfferPanel(threadId);
+ alert("✓ Deposit request recorded for AnyBike review. Not yet approved.");
 }
 async function respondSellerUnderwriteOffer(offerId,threadId,response){
  const agreed=Boolean(document.getElementById("sellerTermsAgree-"+offerId)?.checked);
