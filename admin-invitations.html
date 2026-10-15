@@ -10,6 +10,7 @@
 <label>Invitation type<select id="type"><option value="buyer">Motorcycle buyer</option><option value="seller">Private motorcycle seller</option><option value="dealer">UK motorcycle dealer</option></select></label>
 <label>Contact name<input id="name" placeholder="e.g. Peter Stagg"></label>
 <label>Email address (optional)<input id="email" type="email" placeholder="Contact email"></label>
+<label>Mobile number (optional)<input id="mobile" type="tel" autocomplete="tel" placeholder="e.g. 07700 900123"></label>
 <label>Dealership or business (optional)<input id="business" placeholder="e.g. Sykes Harley-Davidson"></label>
 <label>Existing motorcycle reference (optional)<input id="reference" placeholder="e.g. AB-S-000027"></label>
 <div class="notice small">For sellers who already submitted a motorcycle, registration alone does not automatically claim an old submission. AnyBike must verify and link the account before showing the existing motorcycle in My Selling. Never ask them to submit it again.</div>
@@ -25,8 +26,8 @@ const base="https://www.anybike.co.uk";
 let ready=false;
 const enc=encodeURIComponent;
 function prepare(){
- const type=$("type").value,name=$("name").value.trim(),email=$("email").value.trim(),business=$("business").value.trim(),ref=$("reference").value.trim();
- if(!name&&!email){$("status").textContent="Enter a contact name or email before preparing.";return;}
+ const type=$("type").value,name=$("name").value.trim(),email=$("email").value.trim(),mobile=$("mobile").value.trim(),business=$("business").value.trim(),ref=$("reference").value.trim();
+ if(!name&&!email&&!mobile){$("status").textContent="Enter a contact name, email or mobile number before preparing.";return;}
  const url=base+"/customer-register.html?return="+enc(type==="seller"?"/my-selling.html":type==="dealer"?"/my-dealership.html":"/customer-dashboard.html");
  const greeting=name?"Hi "+name.split(/\s+/)[0]+",":"Hello,";
  const identity=type==="dealer"?(business||"your dealership"):name||"you";
@@ -35,13 +36,13 @@ function prepare(){
  const subject=type==="seller"?"Your AnyBike seller account invitation"+(ref?" · "+ref:""):type==="dealer"?"Invitation to join AnyBike as a UK motorcycle dealer":"Invitation to join AnyBike";
  const body=greeting+"\n\nWe'd like to invite you to "+about+".\n\nTo create your account, please use the link below:\n"+url+suffix+"\n\nKind regards,\nAnyBike Team";
  const sms=greeting+" AnyBike invites you to "+(type==="seller"?"activate your seller account":type==="dealer"?"register your dealership":"register as a buyer")+". "+(ref?"Reference "+ref+". ":"")+"Sign up: "+url+" — AnyBike";
- $("link").value=url;$("subject").value=subject;$("emailbody").textContent=body;$("sms").value=sms;$("status").textContent="Invitation prepared. Nothing has been sent.";ready=true;
+ $("link").value=url;$("subject").value=subject;$("emailbody").textContent=body;$("sms").value=sms;$("status").textContent="Invitation prepared"+(mobile?" for "+mobile:"")+". Nothing has been sent.";ready=true;
 }
 async function copy(value){if(!ready){$("status").textContent="Prepare an invitation first.";return;}try{await navigator.clipboard.writeText(value);$("status").textContent="Copied. Nothing sent.";}catch(e){window.prompt("Copy this text:",value);}}
 $("prepare").addEventListener("click",prepare);
 $("copylink").addEventListener("click",()=>copy($("link").value));
 $("copyemail").addEventListener("click",()=>copy("Subject: "+$("subject").value+"\n\n"+$("emailbody").textContent));
 $("copysms").addEventListener("click",()=>copy($("sms").value));
-const params=new URLSearchParams(location.search);if(params.get("type"))$("type").value=params.get("type");for(const key of ["name","email","business","reference"]){if(params.has(key))$(key).value=params.get(key);}
+const params=new URLSearchParams(location.search);if(params.get("type"))$("type").value=params.get("type");for(const key of ["name","email","mobile","business","reference"]){if(params.has(key))$(key).value=params.get(key);}
 (async()=>{try{const allowed=await requireAdminSession();if(!allowed)return;document.documentElement.classList.remove("admin-auth-pending");if(params.has("name")||params.has("email"))prepare();}catch(e){document.documentElement.classList.remove("admin-auth-pending");$("status").textContent="Admin authentication required: "+String(e.message||e);}})();
 </script></body></html>
