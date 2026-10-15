@@ -73,6 +73,29 @@ textarea{min-height:68px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top
 #grid>.card>.body .box strong{overflow-wrap:anywhere}
 @media(min-width:1500px){#grid>.card>.body .data{grid-template-columns:repeat(5,minmax(0,1fr))}}
 @media(max-width:900px){#grid>.card{grid-template-columns:minmax(0,1fr)!important}#grid>.card>.photo-column{grid-column:1!important;grid-row:1!important;border-right:none}#grid>.card>.body{grid-column:1!important;grid-row:2!important}}
+
+/* Final structural layout: photo and summary share a top row; bidding follows below. */
+#grid>.card{display:block!important;width:100%;max-width:none;border:1px solid #b3212b;background:#100d0e}
+#grid>.card .opportunity-main{display:grid;grid-template-columns:minmax(0,43%) minmax(0,57%);align-items:start}
+#grid>.card .opportunity-main>.photo-column{min-width:0;display:flex;flex-direction:column;align-self:start;background:#100b0c;border-right:1px solid #782026}
+#grid>.card .opportunity-main .img{height:auto!important;aspect-ratio:4/3!important;flex:0 0 auto;position:relative;overflow:hidden;border-bottom:2px solid #ed1c24}
+#grid>.card .opportunity-main .img img{display:block;width:100%;height:100%;object-fit:contain}
+#grid>.card .opportunity-main .img::after{content:"Click to enlarge";position:absolute;bottom:12px;left:12px;background:#b7111a;padding:6px 10px;border-radius:6px;font-size:12px;font-weight:700;pointer-events:none}
+#grid>.card .opportunity-main .gallery-thumbnails{display:flex;flex-wrap:nowrap;overflow-x:auto;min-width:0;width:100%;gap:8px;padding:10px;border-top:2px solid #ed1c24;background:#170d0e}
+#grid>.card .opportunity-main .gallery-thumbnails button{flex:0 0 80px;width:80px;height:66px;border:2px solid #6e252b;border-radius:7px;padding:0}
+#grid>.card .opportunity-main .gallery-thumbnails button:hover{border-color:#ed1c24}
+#grid>.card .opportunity-main>.body{min-width:0;padding:16px 20px}
+#grid>.card .opportunity-main .data{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+#grid>.card .opportunity-main .box{background:#160d0e;border:1px solid #67232b}
+#grid>.card .opportunity-main .box span{color:#f27379}
+#grid>.card .opportunity-main .box strong{overflow-wrap:anywhere}
+#grid>.card .bid-panel{display:grid;grid-template-columns:minmax(220px,1fr) minmax(260px,1.5fr);gap:12px 20px;align-items:start;padding:16px 20px;background:#170d0f;border-top:2px solid #ed1c24}
+#grid>.card .bid-panel label{display:block;min-width:0}
+#grid>.card .bid-panel textarea{min-height:74px}
+#grid>.card .bid-panel .actions,#grid>.card .bid-panel .bid-status,#grid>.card .bid-panel .next-action{grid-column:1/-1}
+#grid>.card .bid-panel .next-action{padding:12px;border:1px solid #8d2228;border-radius:10px;background:#1c0e10}
+@media(min-width:1500px){#grid>.card .opportunity-main .data{grid-template-columns:repeat(5,minmax(0,1fr))}}
+@media(max-width:900px){#grid>.card .opportunity-main{grid-template-columns:minmax(0,1fr)}#grid>.card .opportunity-main>.photo-column{border-right:0}#grid>.card .bid-panel{grid-template-columns:minmax(0,1fr)}}
 </style>
 </head>
 <body>
@@ -201,7 +224,7 @@ function hideGalleryPhoto(){document.getElementById("tradeGalleryViewer").classL
 function renderBikeCards(rows){
   const host=document.getElementById("grid");
   host.innerHTML=rows.map(r=>'<article class="card" data-opportunity-id="'+esc(r.opportunity_id)+'">'+
-    '<div class="photo-column"><div class="img"><img src="'+esc((approvedGalleries[r.opportunity_id]||[])[0]?.photo_url||r.image_url||"/anybike-image-coming-soon.png")+'" alt="Motorcycle photograph" onclick="showGalleryPhoto('+r.opportunity_id+',0)" style="cursor:zoom-in" onerror="this.src=\'/anybike-image-coming-soon.png\'"></div>'+
+    '<div class="opportunity-main"><div class="photo-column"><div class="img"><img src="'+esc((approvedGalleries[r.opportunity_id]||[])[0]?.photo_url||r.image_url||"/anybike-image-coming-soon.png")+'" alt="Motorcycle photograph" onclick="showGalleryPhoto('+r.opportunity_id+',0)" style="cursor:zoom-in" onerror="this.src=\'/anybike-image-coming-soon.png\'"></div>'+
     '<div class="gallery-thumbnails">'+(approvedGalleries[r.opportunity_id]||[]).map((p,i)=>'<button type="button" title="Enlarge photo '+(i+1)+'" onclick="showGalleryPhoto('+r.opportunity_id+','+i+')"><img loading="lazy" src="'+esc(p.photo_url)+'" alt="Photo '+(i+1)+'"></button>').join("")+'</div>'+
     '</div>'+ 
     '<div class="body">'+
@@ -209,15 +232,16 @@ function renderBikeCards(rows){
       '<div class="bike">'+esc([r.make,r.model,r.variant].filter(Boolean).join(" "))+'</div>'+
       '<div class="data"><div class="box"><span>Make</span><strong>'+esc(r.make||"—")+'</strong></div><div class="box"><span>Model</span><strong>'+esc(r.model||"—")+'</strong></div><div class="box"><span>Year</span><strong>'+esc(r.bike_year||"To confirm")+'</strong></div><div class="box"><span>Registration</span><strong>'+esc((approvedGalleries[r.opportunity_id]||[])[0]?.registration||"To confirm")+'</strong></div><div class="box"><span>Mileage</span><strong>'+(r.mileage===null?"—":Number(r.mileage).toLocaleString("en-GB"))+'</strong></div></div>'+
       '<section class="dealer-description"><strong>Motorcycle description</strong><p>'+esc(dealerDescriptions[r.opportunity_id]||'Motorcycle details are being prepared by AnyBike. Please review the approved photographs and specifications.')+'</p><div class="delivered-note">✓ Your trade offer includes delivery to your dealership, subject to agreed UK delivery arrangements.</div></section>'+
-      '<div class="hpi-status '+(r.hpi_clear===true?'clear':'pending')+'">'+(r.hpi_clear===true?'✓ HPI clear (seller declaration — verification pending)':'HPI check pending')+'</div>'+
+      '<div class="hpi-status '+(r.hpi_clear===true?'clear':'pending')+'">'+(r.hpi_clear===true?'✓ Seller declares HPI clear — verification pending':'HPI check pending')+'</div>'+
       
-      '<label>Your confidential bid (£)<input id="bid-'+r.opportunity_id+'" type="number" min="1" step="1" value="'+esc(r.my_bid_gbp??"")+'" placeholder="Enter amount"></label>'+
-      '<label style="display:block;margin-top:10px">Notes to AnyBike only<textarea id="note-'+r.opportunity_id+'" placeholder="Optional conditions or notes"></textarea></label>'+
+      '</div></div><div class="bid-panel">'+
+       '<label>Your confidential bid (£)<input id="bid-'+r.opportunity_id+'" type="number" min="1" step="1" value="'+esc(r.my_bid_gbp??"")+'" placeholder="Enter amount"></label>'+
+      '<label>Notes to AnyBike only<textarea id="note-'+r.opportunity_id+'" placeholder="Optional conditions or notes"></textarea></label>'+
       '<div class="actions"><button class="red" onclick="submitBid('+r.opportunity_id+')">'+(r.my_bid_gbp?"Update My Bid":"Submit Bid")+'</button>'+
       (r.my_bid_gbp?'<button onclick="withdrawBid('+r.opportunity_id+')">Withdraw My Bid</button>':'')+
       '</div>'+
       (r.my_bid_gbp?'<div class="bid-status">Your active offer: '+money(r.my_bid_gbp)+' · Awaiting AnyBike review</div>':'')+
-      '<div style="margin-top:12px;padding:11px;border:1px solid #444;border-radius:10px;background:#101010"><strong>Your Next Action →</strong><p style="margin:6px 0;font-size:13px">'+(r.my_bid_gbp?'Your bid has been saved. Please enter your best and maximum offer before bidding closes — we want to give you the best opportunity to buy this motorcycle. Once bidding finishes, AnyBike reviews the offers and completes the necessary seller, history and condition checks. If your offer is successful, we will notify you by email, confirm the purchase and issue your invoice. Your motorcycle will then be delivered to your dealership with the available keys and documents, in line with the agreed delivery arrangements.':'Review the motorcycle and submit your confidential offer before the countdown ends. Final seller and HPI checks are required before any buyer is chosen.')+'</p>'+(r.my_bid_gbp?'<button type="button" onclick="showOfferView(\'mine\')">View My Trade Offers →</button>':'')+'</div>'+
+      '<div class="next-action"><strong>Your Next Action →</strong><p style="margin:6px 0;font-size:13px">'+(r.my_bid_gbp?'Your bid has been saved. Please enter your best and maximum offer before bidding closes — we want to give you the best opportunity to buy this motorcycle. Once bidding finishes, AnyBike reviews the offers and completes the necessary seller, history and condition checks. If your offer is successful, we will notify you by email, confirm the purchase and issue your invoice. Your motorcycle will then be delivered to your dealership with the available keys and documents, in line with the agreed delivery arrangements.':'Review the motorcycle and submit your confidential offer before the countdown ends. Final seller and HPI checks are required before any buyer is chosen.')+'</p>'+(r.my_bid_gbp?'<button type="button" onclick="showOfferView(\'mine\')">View My Trade Offers →</button>':'')+'</div>'+
 
     '</div></article>').join("");
 
