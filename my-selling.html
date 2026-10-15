@@ -12,6 +12,33 @@
   const rows=payload.submissions||[];
   status.textContent=rows.length?"✓ "+rows.length+" motorcycle submission(s) linked to your account.":"No submitted motorcycles are linked to this account.";
   if(rows.length)status.className="saved-ok";
+  try{
+    const {data:pending,error:consentError}=await client.rpc("seller_get_pending_bidding_authorisation_v1");
+    if(!consentError && Array.isArray(pending) && pending.length){
+      const approval=document.createElement("section");approval.className="card";approval.style.borderTopColor="#ed1c24";
+      const header=document.createElement("h2");header.textContent="Authorise AnyBike to seek trade offers";
+      const description=document.createElement("p");description.textContent="AnyBike can present your motorcycle details and approved photographs to verified UK motorcycle dealers and collect confidential trade offers. AnyBike will review them and may present you with its own offer. You do not have to accept any offer.";
+      approval.append(header,description);
+      for(const r of pending){
+        const part=document.createElement("div");part.style.cssText="padding:12px 0;border-top:1px solid #444";
+        const title=document.createElement("strong");title.textContent=[r.reference,r.make,r.model].filter(Boolean).join(" · ");
+        const note=document.createElement("p");note.className="muted";note.textContent=r.authorised_at?"✓ You have authorised AnyBike to seek confidential offers. Awaiting AnyBike review.":"Your permission is required before AnyBike starts approaching dealers.";
+        part.append(title,note);
+        if(!r.authorised_at){
+          const check=document.createElement("label");check.style.cssText="display:flex;gap:9px;align-items:flex-start;margin:15px 0";
+          const checkbox=document.createElement("input");checkbox.type="checkbox";checkbox.style.marginTop="5px";
+          const caption=document.createElement("span");caption.textContent="I authorise AnyBike to present this motorcycle and its approved photographs to verified UK dealers to seek confidential trade offers. I understand I am not obliged to accept any offer.";
+          check.append(checkbox,caption);
+          const button=document.createElement("button");button.type="button";button.className="button";button.textContent="Authorise AnyBike to seek offers →";button.disabled=true;checkbox.onchange=()=>{button.disabled=!checkbox.checked};
+          button.onclick=async()=>{button.disabled=true;const {error}=await client.rpc("seller_authorise_trade_bidding_v1",{p_submission_id:r.submission_id});if(error){note.textContent="Unable to save permission: "+error.message;button.disabled=false;return;}note.textContent="✓ Authorisation saved. AnyBike can now review and open dealer bidding.";check.remove();button.remove();};
+          part.append(check,button);
+        }
+        approval.append(part);
+      }
+      holder.before(approval);
+    }
+  }catch(e){console.warn("Seller consent panel unavailable",e)}
+
   holder.replaceChildren();
   for(const item of rows){
    const card=document.createElement("div");card.className="card";card.style.margin="12px 0";
