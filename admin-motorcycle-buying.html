@@ -66,7 +66,7 @@ button.red,.btn.red{background:var(--red)}
 .image-lightbox{position:fixed;inset:0;background:rgba(0,0,0,.92);display:none;align-items:center;justify-content:center;padding:24px;z-index:10000}.image-lightbox.open{display:flex}.image-lightbox img{max-width:94vw;max-height:90vh;object-fit:contain;border-radius:12px}.image-lightbox button{position:absolute;top:18px;right:18px;background:#222;border:1px solid #555}
 .comps{border-top:1px solid var(--line);padding-top:12px;margin-top:12px}
 .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
-.grouped-bike-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-top:16px;padding:16px;border:1px solid #343434;border-radius:12px;background:#141414}
+.bike-quick-tools{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:15px}.bike-quick-tools>*{max-width:240px!important;min-width:180px}.bike-more-tools{margin-top:12px;border:1px solid #333;border-radius:10px;padding:12px 15px;background:#131313}.bike-more-tools summary{cursor:pointer;font-weight:700;color:#ddd;padding:4px 0}.bike-more-tools:not([open]) .grouped-bike-actions{display:none}.grouped-bike-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-top:16px;padding:16px;border:1px solid #343434;border-radius:12px;background:#141414}
 .grouped-bike-actions>button,.grouped-bike-actions>a,.grouped-bike-actions>select{width:100%;max-width:none!important;min-width:0;margin:0;text-align:center;font-size:13px;padding:11px 8px;white-space:normal}
 .grouped-bike-actions .red{background:#292929!important;border-color:#555!important;box-shadow:none!important}
 @media(max-width:1100px){.grouped-bike-actions{grid-template-columns:repeat(2,minmax(0,1fr))}}
@@ -487,7 +487,7 @@ function render(){
         (dealer && r.underwrite_status!=="live" && r.make && r.model?'<div class="underwrite-ready-note">Ready to invite trade offers. The current system still applies an initial bidding deadline; reserve-triggered timing is under development.</div>':'')+
         '<div style="margin-top:16px;padding:18px;border:1px solid #5a2b2d;border-radius:10px;background:#1b1010"><strong>Next step · Trade bidding</strong><p style="margin:5px 0 9px;font-size:13px">'+(r.underwrite_status==="live"?"The trade bidding is live. Review bids in the Trade Underwrite Desk, then complete Seller Confirmation / HPI Check before selecting a buyer.":"Review the motorcycle details and buyer-safe photographs first. Starting trade bidding invites verified UK dealers after your final confirmation. Stock comparisons are optional.")+'</p>'+(r.underwrite_status==="live"?'<a class="btn" href="/admin-trade-underwrites.html">OPEN TRADE UNDERWRITE DESK →</a>':(!r.make||!r.model?'<button type="button" data-action="edit-bike" data-id="'+Number(r.submission_id)+'">COMPLETE MOTORCYCLE DETAILS →</button>' :'<button type="button" class="red" data-action="start-underwrite" data-id="'+Number(r.submission_id)+'">START TRADE BIDDING →</button>'))+'</div>'+ 
         '<div id="action-status-'+Number(r.submission_id)+'" class="sub" style="margin:8px 0 12px;min-height:16px"></div>'+ 
-        '<div class="actions grouped-bike-actions">'+
+        '<div class="bike-quick-tools">'+
           (r.message_thread_id?'<a class="btn red photo-request-action" href="/admin-message-centre.html?thread='+Number(r.message_thread_id)+'&photo_request=1&reference='+encodeURIComponent(r.reference||'')+'">📷 Request More Photos →</a>':'')+
           '<button type="button" data-action="comparables" data-id="'+Number(r.submission_id)+'">Optional Stock Comparison</button>'+
           (r.underwrite_status!=="live"
@@ -495,13 +495,20 @@ function render(){
               ?'<select id="underwrite-hours-'+Number(r.submission_id)+'" aria-label="Bidding time" style="max-width:185px"><option value="12" '+(String(r.notes||"").includes("Urgency: urgent")?"selected":"")+'>Urgent · 12 hours</option><option value="24">24 hours</option><option value="48" '+(!String(r.notes||"").includes("Urgency: urgent")&&!String(r.notes||"").includes("Urgency: flexible")?"selected":"")+'>Standard · 48 hours</option><option value="72">72 hours</option><option value="96" '+(String(r.notes||"").includes("Urgency: flexible")?"selected":"")+'>Flexible · 96 hours</option></select>'
               :'<button type="button" data-action="edit-bike" data-id="'+Number(r.submission_id)+'">Complete Bike Details</button>')
             :'<a class="btn" href="/admin-trade-underwrites.html">Open Underwrite Desk</a>')+
+          '<a class="btn" href="/admin-trade-underwrites.html">Trade Underwrite Desk →</a>'+
+        '</div>'+
+        '<details class="bike-more-tools"><summary>More options</summary><div class="actions grouped-bike-actions">'+
+          (r.message_thread_id?'<a class="btn photo-request-action" href="/admin-message-centre.html?thread='+Number(r.message_thread_id)+'&photo_request=1&reference='+encodeURIComponent(r.reference||'')+'">Request More Photos</a>':'')+
+          '<button type="button" data-action="comparables" data-id="'+Number(r.submission_id)+'">Stock Comparison</button>'+
           (r.seller_type==="private_seller"?'<button type="button" data-action="record-phone-authorisation" data-id="'+Number(r.submission_id)+'">Record telephone authorisation</button>':'')+
-          '<button type="button" data-action="copy-dealer-invite" data-id="'+Number(r.submission_id)+'">Copy dealer invitation link</button>'+'<button type="button" data-action="copy-dealer-sms" data-id="'+Number(r.submission_id)+'">Copy dealer text message</button>'+ '<button type="button" data-action="refresh-demand" data-id="'+Number(r.submission_id)+'">Refresh Buyer Match</button>'+
+          '<button type="button" data-action="refresh-demand" data-id="'+Number(r.submission_id)+'">Refresh Buyer Match</button>'+
           (Number(r.unique_buyer_match_count||0)>0?'<button type="button" class="red" data-action="view-demand" data-id="'+Number(r.submission_id)+'">View '+Number(r.unique_buyer_match_count)+' Buyer Match'+(Number(r.unique_buyer_match_count)===1?'':'es')+'</button>':'')+
           '<button type="button" class="red" data-action="edit-bike" data-id="'+Number(r.submission_id)+'">Edit Bike Details</button>'+
           (r.message_thread_id?'<a class="btn red" href="/admin-message-centre.html?thread='+Number(r.message_thread_id)+'">Open Message</a>':"")+
-          '<button type="button" data-action="collapse" data-id="'+Number(r.submission_id)+'">▲ Collapse submission</button>'+
-        '</div>'+
+          '<button type="button" data-action="copy-dealer-invite" data-id="'+Number(r.submission_id)+'">Copy dealer invitation link</button>'+
+          '<button type="button" data-action="copy-dealer-sms" data-id="'+Number(r.submission_id)+'">Copy dealer text message</button>'+
+          '<button type="button" data-action="collapse" data-id="'+Number(r.submission_id)+'">Collapse submission</button>'+
+        '</div></details>'+
 
       '</article>'+
     '</div>';
