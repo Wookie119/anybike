@@ -17362,11 +17362,17 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
   if(primary==="Complete Delivery / Handover") activeTab="delivery";
   if(primary==="Start Purchase & Collection") activeTab="collection";
 
+  // UK trade-underwrite deals have already passed seller/HPI and commercial checks before promotion to Deal 360.
+  // This is a display-only exception; export and retail deals keep their original validation.
+  const ukUnderwriteCompleted=offerAccepted && (bikes||[]).some(row=>Number(row.underwrite_opportunity_id)>0);
+  const sellerStageLabel=ukUnderwriteCompleted?"Purchase & Profit Check":"Seller / Commercial";
+  const sellerStageComplete=ukUnderwriteCompleted || (sellerDone&&commercialReady&&vatDone);
+
   const pipeline=[
     ["request","Request",true],
     ["sourcing","Sourcing",hasMotorcycle],
     ["interest","Interested",hasMotorcycle],
-    ["seller","Seller / Commercial",sellerDone&&commercialReady&&vatDone],
+    ["seller",sellerStageLabel,sellerStageComplete],
     ["offer","Offer",offerAccepted],
     ["payment","Payment",customerPaid],
     ["collection","Collection",collected],
@@ -17427,7 +17433,7 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
     '<details class="sales-workspace-menu"><summary>View / change deal section</summary><div class="sales-workspace-row"><div class="sales-row-label">Deal Sections</div><nav class="sales-work-tabs" aria-label="Deal sections">'+
       tabButton("request","Request")+
       tabButton("sourcing","Sourcing")+
-      tabButton("seller","Seller / Commercial")+
+      tabButton("seller",sellerStageLabel)+
       tabButton("offer","Offer")+
       tabButton("payment","Payment")+
       tabButton("collection","Collection")+
