@@ -1074,6 +1074,27 @@ async function showAllBmwVatGalleryPhotoReview(){
     btn.disabled=!r.item_id||(!validPhoto&&choice!=="placeholder");btn.onclick=async()=>{buttons.querySelectorAll("button").forEach(x=>x.disabled=true);status.textContent="Saving…";const res=await sb().rpc("admin_set_bmw_vat_gallery_photo_review_v1",{p_item_id:r.item_id,p_decision:choice});if(res.error){status.textContent="Save failed: "+res.error.message;buttons.querySelectorAll("button").forEach(x=>x.disabled=false);}else{r.decision=choice;draw();}};
     buttons.append(btn);
    }
+   if(isBmwLoader||!validPhoto){
+    const find=document.createElement("button");find.type="button";find.className="btn";find.textContent="Find real BMW photo";find.style.cssText="font-size:12px;margin-top:8px;padding:8px 10px";find.disabled=!r.item_id;
+    find.onclick=async()=>{
+      find.disabled=true;find.textContent="Checking BMW advert…";status.textContent="Retrieving images for this one motorcycle only…";
+      try{
+        const {data,error}=await sb().functions.invoke("refresh-bmw-live-source-images",{body:{connector_id:1,item_ids:[Number(r.item_id)],vat_reclaimable_only:true}});
+        if(error||!data?.success)throw error||new Error(data?.error||"BMW service could not complete");
+        const fresh=await sb().rpc("admin_bmw_vat_gallery_photo_review_v1");
+        if(fresh.error)throw fresh.error;
+        const match=(fresh.data||[]).find(x=>Number(x.item_id)===Number(r.item_id));
+        if(match&&match.image_url&&!/(pageloader|spinner|loading|bmw_head|tiparrow|facebook|twitter|instagram|logo|placeholder|no.image|\\/img\\/)/i.test(match.image_url)){
+          r.image_url=match.image_url;
+          r.decision=null;
+          status.textContent="Real photograph found — review it before publication.";
+          draw();
+        }else{status.textContent="No genuine photograph returned. Existing public placeholder stays.";find.textContent="Check again later";}
+      }catch(e){status.textContent="BMW photo check unavailable: "+String(e.message||e);find.textContent="Try again later";}
+      finally{find.disabled=false;}
+    };
+    card.append(find);
+   }
    card.append(heading,img,status,buttons);grid.append(card);
   });
  }
