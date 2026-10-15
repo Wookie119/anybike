@@ -893,10 +893,16 @@ async function processBmwVatPilotBatch(btn){
    log.textContent="Checking BMW "+job.advert+"…";
    const {data:before,error:checkError}=await sb().rpc("admin_bmw_vat_pilot_image_status_v1",{p_advert_id:job.advert});
    if(checkError)throw checkError;
+   if(before?.buyer_safe_status==="failed"&&before?.processing_error){
+    throw new Error(job.advert+": "+before.processing_error+". This photograph will not be retried automatically.");
+   }
    if(before?.buyer_safe_status!=="safe"){
     log.textContent="Cleaning BMW "+job.advert+"…";
     const {data,error}=await sb().functions.invoke("process-buyer-safe-image",{body:{junction_stock_id:job.id}});
-    if(error||!data?.success)throw new Error(job.advert+": "+(error?.message||data?.error||"Processing failed"));
+    if(error||!data?.success){
+      const {data:diagnostic}=await sb().rpc("admin_bmw_vat_pilot_image_status_v1",{p_advert_id:job.advert});
+      throw new Error(job.advert+": "+(diagnostic?.processing_error||data?.error||error?.message||"Processing failed"));
+    }
    }
    const {data:after,error:afterError}=await sb().rpc("admin_bmw_vat_pilot_image_status_v1",{p_advert_id:job.advert});
    if(afterError||after?.buyer_safe_status!=="safe")throw new Error(job.advert+": image not yet safe; stopping batch.");
