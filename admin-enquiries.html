@@ -231,7 +231,11 @@ html.admin-auth-pending body{
   }
 }
 
-\n.sales-compact-pipeline .uk-deal-stage-payment{margin:0;flex:0 0 auto;padding:7px 10px;border:1px solid #ed1c24;border-radius:999px;background:#ed1c24;color:white;font-size:11px;font-weight:900;cursor:pointer;white-space:nowrap}\n.sales-compact-pipeline .uk-deal-stage-payment:focus-visible{outline:2px solid white;outline-offset:3px}\n</style>
+\n.sales-compact-pipeline .uk-deal-stage-payment{margin:0;flex:0 0 auto;padding:7px 10px;border:1px solid #ed1c24;border-radius:999px;background:#ed1c24;color:white;font-size:11px;font-weight:900;cursor:pointer;white-space:nowrap}\n.sales-compact-pipeline .uk-deal-stage-payment:focus-visible{outline:2px solid white;outline-offset:3px}\n.sales-compact-pipeline .sales-stage-pill{margin:0;flex:0 0 auto;padding:7px 10px;border:1px solid #ed1c24;border-radius:999px;background:rgba(237,28,36,.14);color:#ff8d91;font-size:11px;font-weight:900;cursor:pointer;white-space:nowrap}
+.sales-compact-pipeline .sales-stage-pill.done{background:#173d22;border-color:#45985e;color:#9af0b2}
+.sales-compact-pipeline .sales-stage-pill.current{background:#ed1c24;border-color:#ff555b;color:#fff;box-shadow:0 0 0 2px rgba(237,28,36,.2)}
+.sales-compact-pipeline .sales-stage-pill:focus-visible{outline:2px solid white;outline-offset:3px}
+</style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="admin.js?v=202610071152"></script>
 <link rel="stylesheet" href="admin-shell.css?v=12001">
@@ -17397,13 +17401,12 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
     '<div class="sales-payment-phase"><strong>Stage 6 — Seller payment and dealer receipt are separate</strong><span>The seller deposit is paid by AnyBike; the £1,400 dealer balance is received by AnyBike. Neither payment has been confirmed here.</span></div>' : '';
 
   const pipelineHtml=pipeline.map(function(item,index){
-    const key=item[0], label=item[1], done=!!item[2];
+    const key=item[0],label=item[1],done=!!item[2];
     const cls=key===current?"current":done?"done":"";
-    const statePrefix=done ? "✓ " : "";
-    if(ukUnderwriteCompleted && key==="payment"){
-      return '<button type="button" class="uk-deal-stage-payment '+cls+'" title="Open Stage 6 payment instructions" onclick="bikeSalesJourneyTab(\''+dealId+'\',\'payment\');this.closest(\'.sales-journey\').querySelector(\'.sales-tab-panel[data-tab=\\\"payment\\\"]\')?.scrollIntoView({behavior:\'smooth\',block:\'start\'});">'+statePrefix+(index+1)+'. '+escapeAdminHtml(label)+'</button>';
-    }
-    return '<span class="'+cls+'" title="'+(done?"Complete":key===current?"Current stage":"Not reached yet")+'">'+statePrefix+(index+1)+'. '+escapeAdminHtml(label)+'</span>';
+    const statePrefix=done?"✓ ":"";
+    // Every journey pill opens its corresponding workspace; historical stages stay accessible.
+    const target=key==="interest"?"sourcing":key==="complete"?"timeline":key;
+    return '<button type="button" class="sales-stage-pill '+cls+'" title="Open '+escapeAdminHtml(label)+'" onclick="bikeSalesJourneyTab(\''+dealId+'\',\''+target+'\');this.closest(\'.sales-journey\').querySelector(\'.sales-tab-panel[data-tab=\\\"'+target+'\\\"]\')?.scrollIntoView({behavior:\'smooth\',block:\'start\'});">'+statePrefix+(index+1)+'. '+escapeAdminHtml(label)+'</button>';
   }).join("");
   const progressDone=pipeline.filter(function(item){return !!item[2];}).length;
   const progressPercent=Math.max(0,Math.min(100,Math.round((progressDone/pipeline.length)*100)));
