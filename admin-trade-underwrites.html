@@ -30,7 +30,7 @@ input{background:#090909;color:#fff;border:1px solid #333;border-radius:10px;pad
 <div id="grid" class="grid"><div class="empty">Loading…</div></div>
 </main></div></div>
 
-<div id="reserveReviewModal" class="modal reserve-review-modal"><div class="modal-box" style="width:min(1480px,100%)"><div class="top"><h3 id="reserveReviewTitle">Reserve &amp; Margin Assessment</h3><button type="button" onclick="document.getElementById('reserveReviewModal').classList.remove('open')">Close</button></div><p>Admin only. Calculations use the best live dealer bid. Seller minimum and costs stay confidential.</p>
+<div id="dealerInviteModal" class="modal"><div class="modal-box" style="max-width:760px"><div class="top"><h2>Invite UK Dealer</h2><button onclick="closeDealerInvites()">Close</button></div><p id="dealerInviteTitle"></p><p>Choose an approved dealership. You will confirm before any messages or notifications are sent.</p><input id="dealerInviteSearch" type="search" oninput="drawDealerInvites()" placeholder="Search dealership…" style="width:100%"><div id="dealerInviteList" style="max-height:350px;overflow:auto"></div><p id="dealerInviteStatus" aria-live="polite"></p></div></div><div id="reserveReviewModal" class="modal reserve-review-modal"><div class="modal-box" style="width:min(1480px,100%)"><div class="top"><h3 id="reserveReviewTitle">Reserve &amp; Margin Assessment</h3><button type="button" onclick="document.getElementById('reserveReviewModal').classList.remove('open')">Close</button></div><p>Admin only. Calculations use the best live dealer bid. Seller minimum and costs stay confidential.</p>
 <div class="transport-fields">
 <label>Proposed seller payment (£)<input id="rvSeller" type="number" min="0" step="0.01"></label>
 <div class="transport-allowance"><label>Move transport capacity allowance (£)<input id="rvTransport" type="number" min="0" step="0.01" placeholder="Estimated Move allowance"></label><div class="move-allowance-presets"><button type="button" data-transport="229" onclick="setMoveAllowance(229)">£229</button><button type="button" data-transport="289" onclick="setMoveAllowance(289)">£289</button><button type="button" data-transport="349" onclick="setMoveAllowance(349)">£349</button><span id="moveAllowanceCustom" class="move-custom">Custom amount</span></div><small>Indicative commercial capacity charge, not necessarily an external invoice. Adjust for collection and delivery locations.</small></div>
@@ -139,6 +139,7 @@ async function load(){
  '<div class="bike">'+esc([r.make,r.model,r.variant].filter(Boolean).join(" "))+'</div><div class="meta">'+esc(r.registration||"")+(r.bike_year?' · '+r.bike_year:'')+(r.mileage!==null?' · '+Number(r.mileage).toLocaleString("en-GB")+' miles':'')+'</div>'+
  (r.opportunity_status==='live'?'<div class="auction-time-bar"><div><strong>Time remaining</strong><div class="auction-countdown" data-closes-at="'+esc(r.closes_at||'')+'">Calculating…</div><small>Closes: '+(r.closes_at?new Date(r.closes_at).toLocaleString("en-GB",{dateStyle:"medium",timeStyle:"short"}):"Not set")+'</small></div><button class="red" onclick="adjustUnderwriteDeadline('+r.opportunity_id+')">Add / Change Time →</button></div>':'')+
  '<div class="data"><div class="box"><span>Seller wants</span><strong>'+money(r.seller_price_wanted_gbp)+'</strong></div><div class="box"><span>Invited</span><strong>'+r.invited_trade_count+'</strong></div><div class="box"><span>Bid range</span><strong>'+money(r.lowest_live_bid_gbp)+' – '+money(r.highest_live_bid_gbp)+'</strong></div><div class="box"><span>Average</span><strong>'+money(r.average_live_bid_gbp)+'</strong></div></div>'+
+ (r.opportunity_status==='live'?'<div class="actions"><button class="red" onclick="openDealerInvites('+r.opportunity_id+')">Invite UK Dealers →</button></div>':'')+
  '<div class="meta">Seller-visible genuine bid count: '+r.seller_visible_bid_count+' only. Bid amounts remain internal.</div>'+
  '<details class="secondary-actions"><summary>More actions</summary><div class="actions"><button onclick="viewBids('+r.opportunity_id+')">View Confidential Bids</button>'+
  (r.opportunity_status==="completed"?'<button class="red" onclick="openUnderwriteDeal('+r.opportunity_id+')">Create / Open Deal 360</button>':'')+
@@ -162,6 +163,40 @@ async function load(){
 }
 function updateAuctionCountdowns(){document.querySelectorAll(".auction-countdown[data-closes-at]").forEach(el=>{const end=Date.parse(el.dataset.closesAt||"");if(!Number.isFinite(end)){el.textContent="No closing deadline";return;}const left=Math.max(0,Math.ceil((end-Date.now())/1000));if(!left){el.textContent="Deadline reached";return;}const days=Math.floor(left/86400),hours=Math.floor(left%86400/3600),mins=Math.floor(left%3600/60),secs=left%60;el.textContent=(days?days+"d ":"")+String(hours).padStart(2,"0")+"h "+String(mins).padStart(2,"0")+"m "+String(secs).padStart(2,"0")+"s";});}
 setInterval(updateAuctionCountdowns,1000);
+
+let dealerInviteOpportunity=0,dealerInviteRows=[],dealerInviteBusy=false;
+async function openDealerInvites(id){
+ dealerInviteOpportunity=Number(id);
+ document.getElementById("dealerInviteTitle").textContent=(rows.find(x=>Number(x.opportunity_id)===dealerInviteOpportunity)?.reference||"Opportunity")+" · verified UK dealers";
+ document.getElementById("dealerInviteSearch").value="";
+ document.getElementById("dealerInviteStatus").textContent="";
+ document.getElementById("dealerInviteList").textContent="Loading verified dealers…";
+ document.getElementById("dealerInviteModal").classList.add("open");
+ const {data,error}=await sb.rpc("admin_list_eligible_trade_dealers_v1");
+ if(error){document.getElementById("dealerInviteList").textContent=error.message;return;}
+ dealerInviteRows=data||[];drawDealerInvites();
+}
+function closeDealerInvites(){if(!dealerInviteBusy)document.getElementById("dealerInviteModal").classList.remove("open");}
+function drawDealerInvites(){
+ const q=document.getElementById("dealerInviteSearch").value.trim().toLowerCase();
+ const filtered=dealerInviteRows.filter(x=>String(x.dealer_name||"").toLowerCase().includes(q));
+ document.getElementById("dealerInviteList").innerHTML=filtered.map(d=>'<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;border-bottom:1px solid #333"><div><strong>'+esc(d.dealer_name)+'</strong><div class="meta">'+Number(d.contact_count)+' verified accounts · '+Number(d.invitation_count)+' previous invitations</div></div><button '+(dealerInviteBusy?'disabled':'')+' onclick="inviteOneDealer('+Number(d.dealer_id)+')">Invite →</button></div>').join("")||'<p>No eligible dealers found.</p>';
+}
+async function inviteOneDealer(id){
+ if(dealerInviteBusy)return;
+ const d=dealerInviteRows.find(x=>Number(x.dealer_id)===Number(id));
+ const op=rows.find(x=>Number(x.opportunity_id)===dealerInviteOpportunity);
+ if(!d||!op||!confirm("Invite "+d.dealer_name+" to "+op.reference+"? "+d.contact_count+" verified account(s) will receive a Message Centre message and bell notification."))return;
+ dealerInviteBusy=true;drawDealerInvites();
+ document.getElementById("dealerInviteStatus").textContent="Sending invitation…";
+ try{
+  const {data,error}=await sb.rpc("admin_invite_verified_trade_dealer_v1",{p_opportunity_id:dealerInviteOpportunity,p_dealer_id:Number(id)});
+  if(error)throw error;
+  document.getElementById("dealerInviteStatus").textContent=data?.status==="invited"?"✓ "+d.dealer_name+" invited. "+data.notified_users+" account(s) notified.":data?.status==="already_invited"?"Already invited: no duplicate sent.":"Please review invitation status.";
+  await load();
+ }catch(e){document.getElementById("dealerInviteStatus").textContent="Not confirmed: "+(e.message||e);}
+ finally{dealerInviteBusy=false;drawDealerInvites();}
+}
 async function adjustUnderwriteDeadline(id){
  const h=prompt("Set bidding to close in how many hours from now? Choose 12, 24, 48, 72 or 96.","48");
  if(h===null)return;
