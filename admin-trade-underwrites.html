@@ -75,7 +75,7 @@ input{background:#090909;color:#fff;border:1px solid #333;border-radius:10px;pad
 </div>
 <div class="actions"><button class="red" onclick="saveFinalCheck()">Save Checks &amp; Continue →</button><button onclick="closeFinalCheck()">Cancel</button></div><div id="fc-status" class="meta"></div>
 </div></div>
-<div id="earlyCloseModal" class="modal"><div class="modal-box" style="width:min(580px,100%);border:1px solid #a72b32"><div class="top"><h3 id="earlyCloseTitle">End bidding early</h3><button type="button" onclick="dismissEarlyClose()">✕ Close</button></div><p>Use only when the auction must end before its scheduled closing time. Existing bids remain recorded. No winning buyer is selected automatically.</p><label for="earlyCloseReason" style="display:block;font-weight:800;margin:15px 0 8px">Reason for ending bidding</label><select id="earlyCloseReason" style="width:100%;padding:12px;background:#090909;color:#fff;border:1px solid #ed1c24;border-radius:9px"><option value="">Select a reason…</option><option value="sold">Motorcycle sold</option><option value="seller_withdrew">Seller withdrew motorcycle</option><option value="admin_ended">AnyBike ended bidding</option></select><p class="meta">Closing bidding does not notify dealers automatically. Dealer notifications must be handled separately until that workflow is completed.</p><p id="earlyCloseStatus" role="status" aria-live="polite" style="color:#ffb8bd"></p><div class="actions"><button class="red" type="button" id="earlyCloseSubmit" onclick="submitEarlyClose()">Confirm — End Bidding</button><button type="button" onclick="dismissEarlyClose()">Cancel</button></div></div></div><div id="deadlineModal" class="modal"><div class="modal-box" style="width:min(560px,100%)"><div class="top"><h3 id="deadlineTitle">Auction closing date &amp; time</h3><button type="button" onclick="closeDeadlineModal()">✕ Close</button></div><p>Choose the date and time bidding should close. All times are UK local time (GMT/BST).</p><label class="deadline-label" for="deadlineDateTime">Closing date and time</label><input id="deadlineDateTime" type="datetime-local" step="60" required><p class="meta">Existing bids remain unchanged. You can adjust the deadline while bidding is live.</p><p id="deadlineStatus" role="status" aria-live="polite"></p><div class="actions"><button id="deadlineSave" type="button" class="red" onclick="saveExactDeadline()">Save closing date &amp; time</button><button type="button" onclick="closeDeadlineModal()">Cancel</button></div></div></div><div id="bidModal" class="modal"><div class="modal-box bid-modal-box"><div class="top"><div><div class="eyebrow">Confidential Trade Bids</div><h3 id="bidTitle" style="margin:5px 0">Bids</h3></div><button onclick="closeBids()">Close</button></div><div id="bidList"></div></div></div>
+<div id="earlyCloseModal" class="modal"><div class="modal-box" style="width:min(580px,100%);border:1px solid #a72b32"><div class="top"><h3 id="earlyCloseTitle">End bidding early</h3><button type="button" onclick="dismissEarlyClose()">✕ Close</button></div><p>Use only when the auction must end before its scheduled closing time. Existing bids remain recorded. No winning buyer is selected automatically.</p><label for="earlyCloseReason" style="display:block;font-weight:800;margin:15px 0 8px">Reason for ending bidding</label><select id="earlyCloseReason" onchange="toggleEarlyCloseBuyer()" style="width:100%;padding:12px;background:#090909;color:#fff;border:1px solid #ed1c24;border-radius:9px"><option value="">Select a reason…</option><option value="sold">Motorcycle sold</option><option value="seller_withdrew">Seller withdrew motorcycle</option><option value="admin_ended">AnyBike ended bidding</option></select><div id="earlyCloseBuyerWrap" hidden style="margin-top:14px"><label for="earlyCloseBuyer" style="display:block;font-weight:800;margin-bottom:8px">Choose buyer · active dealer offers</label><select id="earlyCloseBuyer" style="width:100%;padding:12px;background:#090909;color:#fff;border:1px solid #ed1c24;border-radius:9px"></select><p class="meta">The chosen bid will be recorded for this auction. Dealer confirmation, seller agreement, HPI and commercial checks remain required; choosing the bid does not complete the transaction.</p></div><p class="meta">Closing bidding does not notify dealers automatically. Dealer notifications must be handled separately until that workflow is completed.</p><p id="earlyCloseStatus" role="status" aria-live="polite" style="color:#ffb8bd"></p><div class="actions"><button class="red" type="button" id="earlyCloseSubmit" onclick="submitEarlyClose()">Confirm — End Bidding</button><button type="button" onclick="dismissEarlyClose()">Cancel</button></div></div></div><div id="deadlineModal" class="modal"><div class="modal-box" style="width:min(560px,100%)"><div class="top"><h3 id="deadlineTitle">Auction closing date &amp; time</h3><button type="button" onclick="closeDeadlineModal()">✕ Close</button></div><p>Choose the date and time bidding should close. All times are UK local time (GMT/BST).</p><label class="deadline-label" for="deadlineDateTime">Closing date and time</label><input id="deadlineDateTime" type="datetime-local" step="60" required><p class="meta">Existing bids remain unchanged. You can adjust the deadline while bidding is live.</p><p id="deadlineStatus" role="status" aria-live="polite"></p><div class="actions"><button id="deadlineSave" type="button" class="red" onclick="saveExactDeadline()">Save closing date &amp; time</button><button type="button" onclick="closeDeadlineModal()">Cancel</button></div></div></div><div id="bidModal" class="modal"><div class="modal-box bid-modal-box"><div class="top"><div><div class="eyebrow">Confidential Trade Bids</div><h3 id="bidTitle" style="margin:5px 0">Bids</h3></div><button onclick="closeBids()">Close</button></div><div id="bidList"></div></div></div>
 
 <div id="confirmModal" class="modal"><div class="modal-box" style="width:min(620px,100%)">
 <h3>Ask Trade Buyer to Confirm</h3>
@@ -451,8 +451,22 @@ function closeUnderwrite(id){
  const item=rows.find(r=>Number(r.opportunity_id)===Number(id));
  document.getElementById("earlyCloseTitle").textContent=(item?.reference||"Trade Underwrite")+" · End bidding early";
  document.getElementById("earlyCloseReason").value="";
+ document.getElementById("earlyCloseBuyerWrap").hidden=true;
+ document.getElementById("earlyCloseBuyer").innerHTML="";
  document.getElementById("earlyCloseStatus").textContent="";
  document.getElementById("earlyCloseModal").classList.add("open");
+}
+async function toggleEarlyCloseBuyer(){
+ const sold=document.getElementById("earlyCloseReason").value==="sold";
+ const wrap=document.getElementById("earlyCloseBuyerWrap"),select=document.getElementById("earlyCloseBuyer");
+ wrap.hidden=!sold;
+ if(!sold)return;
+ select.innerHTML='<option value="">Loading active bids…</option>';
+ const {data,error}=await sb.rpc("admin_get_trade_underwrite_bids_v1",{p_opportunity_id:earlyCloseOpportunityId});
+ if(error){select.innerHTML='<option value="">Unable to load bids</option>';document.getElementById("earlyCloseStatus").textContent=error.message;return;}
+ const active=(data||[]).filter(x=>x.status==="live");
+ select.innerHTML='<option value="">Select the buying dealership…</option>'+active.map(x=>'<option value="'+Number(x.bid_id)+'">'+esc(x.dealer_name||"Dealer")+' · '+money(x.amount_gbp)+'</option>').join("");
+ if(!active.length)document.getElementById("earlyCloseStatus").textContent="No active dealer bid is available. You cannot close as sold without choosing one.";
 }
 function dismissEarlyClose(){document.getElementById("earlyCloseModal").classList.remove("open");earlyCloseOpportunityId=null;}
 async function submitEarlyClose(){
@@ -460,13 +474,16 @@ async function submitEarlyClose(){
  const status=document.getElementById("earlyCloseStatus");
  const submit=document.getElementById("earlyCloseSubmit");
  if(!["sold","seller_withdrew","admin_ended"].includes(reason)){status.textContent="Please select a reason.";return;}
+ const selectedBid=reason==="sold"?Number(document.getElementById("earlyCloseBuyer").value):null;
+ if(reason==="sold"&&(!Number.isSafeInteger(selectedBid)||selectedBid<=0)){status.textContent="Select an active dealership bid before ending bidding as sold.";return;}
+ const selectedText=reason==="sold"?document.getElementById("earlyCloseBuyer").selectedOptions[0]?.textContent:"";
  const titles={sold:"Motorcycle sold",seller_withdrew:"Seller withdrew",admin_ended:"AnyBike ended bidding"};
  const id=earlyCloseOpportunityId;
  const item=rows.find(r=>Number(r.opportunity_id)===id);
- if(!confirm("Permanently end bidding for "+(item?.reference||"this opportunity")+"? Reason: "+titles[reason]+". Dealers will no longer be able to submit bids. This does not select a winning buyer or send a notification."))return;
+ if(!confirm("Permanently end bidding for "+(item?.reference||"this opportunity")+"? Reason: "+titles[reason]+". "+(selectedText?"Chosen dealership: "+selectedText+". ":"")+"Dealers will no longer be able to submit bids. Final transaction checks and notifications remain outstanding."))return;
  submit.disabled=true;status.textContent="Closing bidding…";
  try{
-  const {error}=await sb.rpc("admin_close_trade_underwrite_with_reason_v1",{p_opportunity_id:id,p_reason:reason});
+  const {error}=await sb.rpc("admin_close_trade_underwrite_with_reason_v1",{p_opportunity_id:id,p_reason:reason,p_selected_bid_id:selectedBid});
   if(error)throw error;
   dismissEarlyClose();await load();
  }catch(e){status.textContent="Could not end bidding: "+(e.message||e);}
