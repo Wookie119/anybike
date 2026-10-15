@@ -1546,7 +1546,8 @@ async function loadCustomerHeaderActivity(user){
       This is READ-ONLY header logic. It does not alter live messaging,
       Message Centre delivery, replies, realtime subscriptions or routing.
     */
-    const unreadMessageCount = await getHeaderUnreadMessageThreadCount(user);
+    const unreadMessageInfo = await getHeaderUnreadMessageThreadCount(user);
+    const unreadMessageCount = typeof unreadMessageInfo === "number" ? unreadMessageInfo : unreadMessageInfo.count;
     setMessageCount(unreadMessageCount);
 
     /*
@@ -1607,11 +1608,21 @@ async function loadCustomerHeaderActivity(user){
       });
 
     if(unreadMessageCount > 0){
-      bellItems.push({
+      const offerNotice=unreadMessageInfo && typeof unreadMessageInfo==="object" ? unreadMessageInfo.offer : null;
+      if(offerNotice){
+        bellItems.push({
+          id:"",
+          title:"Your AnyBike motorcycle purchase offer is ready",
+          message:offerNotice.motorcycle+" · Review your offer and respond securely.",
+          link:"/customer-messages.html?thread="+encodeURIComponent(offerNotice.threadId),
+          icon:"🏍",
+          date:new Date().toISOString()
+        });
+      }
+      const remaining=unreadMessageCount-(offerNotice?1:0);
+      if(remaining>0)bellItems.push({
         id:"",
-        title:unreadMessageCount === 1
-          ? "1 unread message from AnyBike"
-          : unreadMessageCount + " unread messages from AnyBike",
+        title:remaining===1?"1 unread message from AnyBike":remaining+" unread messages from AnyBike",
         message:"Open My Messages to read the latest conversation.",
         link:"/customer-messages.html",
         icon:"💬",
@@ -1785,6 +1796,7 @@ async function getHeaderUnreadMessageThreadCount(user){
 
     const readMap = getHeaderCustomerReadMessageMap();
     let unreadCount = 0;
+    let unreadOffer = null;
 
     /*
       Bike enquiry unread rule copied from customer-messages.html:
@@ -1821,10 +1833,15 @@ async function getHeaderUnreadMessageThreadCount(user){
 
       if(latestKey && readKey !== latestKey){
         unreadCount += 1;
+        const body=String(message?.message || "");
+        if(!unreadOffer && (/AnyBike Offer\s*[—-]/i.test(body) || /ANYBIKE\s*\|\s*MOTORCYCLE PURCHASE OFFER/i.test(body))){
+          const match=body.match(/(?:AnyBike Offer\s*[—-]\s*|Motorcycle:\s*)([^\n\r]+)/i);
+          unreadOffer={threadId:threadId,motorcycle:match?match[1].trim():"Your motorcycle"};
+        }
       }
     });
 
-    return unreadCount;
+    return {count:unreadCount,offer:unreadOffer};
 
   }catch(error){
     console.warn("Header unread message count unavailable",error);
