@@ -126,7 +126,7 @@ input{background:#090909;color:#fff;border:1px solid #333;border-radius:10px;pad
 
 <script>
 const SUPABASE_URL="https://tuehtnezhdnkqbbhttgp.supabase.co",SUPABASE_ANON_KEY="sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
-const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);let rows=[],offerId=null,confirmBidId=null;
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);let rows=[],offerId=null,confirmBidId=null;let approvedFinalChecks={};
 const esc=v=>String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
 const money=v=>v===null||v===undefined?"—":new Intl.NumberFormat("en-GB",{style:"currency",currency:"GBP",minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(v));
 async function load(){
@@ -143,6 +143,8 @@ async function load(){
    return;
  }
  rows=data||[];
+ approvedFinalChecks={};
+ await Promise.all(rows.filter(r=>r.latest_offer_status==="accepted").map(async r=>{const c=await sb.rpc("admin_underwrite_final_check_v1",{p_opportunity_id:Number(r.opportunity_id)});if(!c.error)approvedFinalChecks[r.opportunity_id]=!!c.data?.approved;}));
  if(!rows.length){
    host.innerHTML='<div class="empty">No live trade underwrites yet. Eligible dealer submissions are prepared in Seller & Underwrite Queue first.</div>';
    window.AnyBikeNextAction?.set({
@@ -178,12 +180,12 @@ async function load(){
  '<div class="meta">Seller-visible genuine bid count: '+r.seller_visible_bid_count+' only. Bid amounts remain internal.</div>'+
  (r.latest_offer_amount_gbp?'<div class="seller-offer-result '+(r.latest_offer_status==="sent"||r.latest_offer_status==="accepted"?'success':'')+'" role="status"><strong>'+(r.latest_offer_status==="sent"?'✓ Offer sent to seller':r.latest_offer_status==="accepted"?'✓ Seller accepted':'Seller offer · '+esc(r.latest_offer_status))+'</strong><span>'+money(r.latest_offer_amount_gbp)+(r.latest_offer_status==="sent"?' · Awaiting seller response':'')+'</span></div>':'')+
  '<div class="next-step"><strong>Your Next Action</strong><p>'+(
- r.latest_offer_status==="accepted"?"Complete seller confirmation and HPI checks before proceeding.":
+ r.latest_offer_status==="accepted"?(approvedFinalChecks[r.opportunity_id]?"✓ Seller and HPI checks complete. Next: confirm the buying dealer.":"Complete seller confirmation and HPI checks before proceeding."):
  r.latest_offer_status==="sent"?"Offer sent successfully. Await the seller’s acceptance, decline or counteroffer.":
  Number(r.live_bid_count)===0?"Waiting for the first dealer bid. Review invitations or adjust the countdown.":
  "Review active bids and Move's transport quote. Confirm the seller's price, HPI and commercial viability before any offer."
  )+'</p>'+(
- r.latest_offer_status==="accepted"?'<button class="red" onclick="openFinalCheck('+r.opportunity_id+')">Seller and HPI checks</button>':
+ r.latest_offer_status==="accepted"?(approvedFinalChecks[r.opportunity_id]?'<span style="color:#82e5aa;font-weight:800">✓ Seller and HPI checks complete</span> <button class="red" onclick="viewBids('+r.opportunity_id+')">Confirm Buying Dealer →</button>':'<button class="red" onclick="openFinalCheck('+r.opportunity_id+')">Seller and HPI checks</button>'):
  Number(r.live_bid_count)===0?'<button onclick="viewBids('+r.opportunity_id+')">Review bidding activity</button>':
  '<button class="red" onclick="openReserveReview('+r.opportunity_id+')">Reserve assessment</button> <button onclick="openFinalCheck('+r.opportunity_id+')">Seller and HPI checks</button>'
  )+'</div></article>').join("");
@@ -352,13 +354,13 @@ async function viewBids(id){
      const deliveryCell=b.status==="live"?
       '<div class="delivery-check-notice"><strong>Admin delivery check</strong><span>'+(delivery.delivery_postcode?'Verify the dealership delivery postcode and confirm the delivery arrangement before progressing this bid.':'Delivery postcode missing — obtain and verify the dealership delivery address before progressing this bid.')+'</span><small>A saved Move allowance is not confirmation that delivery is booked.</small></div>'+
       '<div class="meta">Collect '+esc(delivery.collection_postcode||"Not provided")+' → Deliver '+esc(delivery.delivery_postcode||"Postcode needed")+'</div>'+
-      profileNotice+profileEditor+
-      '<div class="move-bid-allowance" data-dealer="'+Number(b.dealer_organisation_id)+'">'+
+      profileNotice+(delivery.confirmed?'':profileEditor)+
+      (delivery.confirmed?'<div class="move-bid-allowance" style="color:#86e2a1"><strong>✓ Move allowance confirmed and saved: '+money(delivery.allowance_gbp)+'</strong><p style="font-size:12px;color:#ccc">Recorded for this bike. Collection and delivery are not yet booked.</p></div>':'<div class="move-bid-allowance" data-dealer="'+Number(b.dealer_organisation_id)+'">'+
       '<input type="number" step="0.01" min="0" id="mvBidAmount'+Number(b.dealer_organisation_id)+'" value="'+(delivery.allowance_gbp==null?(profile==null?"":esc(profile)):esc(delivery.allowance_gbp))+'" placeholder="Move £" style="width:105px" />'+
       '<div class="move-bid-presets">'+[229,289,349].map(v=>'<button type="button" onclick="document.getElementById(\'mvBidAmount'+Number(b.dealer_organisation_id)+'\').value='+v+'">£'+v+'</button>').join("")+'</div>'+
       '<label style="display:flex;gap:5px;align-items:center"><input type="checkbox" id="mvBidConfirm'+Number(b.dealer_organisation_id)+'" '+(delivery.confirmed?"checked":"")+' /> Move has confirmed this £229/entered allowance</label>'+
       '<button type="button" onclick="saveBidDelivery('+Number(id)+','+Number(b.dealer_organisation_id)+')">Save allowance</button>'+
-      '<small id="mvBidStatus'+Number(b.dealer_organisation_id)+'">'+(delivery.allowance_gbp==null?(profile==null?"No allowance yet — save before assessment":"Suggested from dealer profile; save for this bike"):delivery.confirmed?"Confirmed bike-specific allowance":"Bike-specific estimate saved")+'</small></div>'
+      '<small id="mvBidStatus'+Number(b.dealer_organisation_id)+'">'+(delivery.allowance_gbp==null?(profile==null?"No allowance yet — save before assessment":"Suggested from dealer profile; save for this bike"):"Bike-specific estimate saved")+'</small></div>')
       :'<span class="meta">Previous bid</span>';
      const confLabel=conf?esc(String(conf.status).replaceAll("_"," ")):"Reserve";
      const effective=conf&&conf.effective_return_gbp!==null
