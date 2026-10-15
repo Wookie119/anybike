@@ -86,7 +86,7 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
           <summary><span><b>2. Live Sources</b><small>Search dealer stock, refresh channels and prepare motorcycles</small></span></summary>
           <div class="source-accordion-body">
         <section class="bmw-vat-candidates">
- <div class="stock-photo-queue-head"><strong>BMW VAT reclaimable — candidate matching</strong><button class="btn" type="button" onclick="probeBmwVatResult(this)">Test 15 F 900 GS results</button><button class="btn" type="button" onclick="probeAllBmwVatResult(this)">Scan all BMW VAT pages (read-only)</button><button class="btn" type="button" onclick="checkBmwVatFilter(this)">Test BMW VAT filter</button><button class="btn" type="button" onclick="loadBmwVatCandidates()">View candidates</button><button class="btn" type="button" onclick="loadBmwVatExceptions()">Review unmatched and ended adverts</button><button class="btn" type="button" onclick="checkBmwVatExceptions(this)">Check 42 BMW adverts (read-only)</button></div>
+ <div class="stock-photo-queue-head"><strong>BMW VAT reclaimable — candidate matching</strong><button class="btn" type="button" onclick="probeBmwVatResult(this)">Test 15 F 900 GS results</button><button class="btn" type="button" onclick="probeAllBmwVatResult(this)">Scan all BMW VAT pages (read-only)</button><button class="btn" type="button" onclick="checkBmwVatFilter(this)">Test BMW VAT filter</button><button class="btn" type="button" onclick="loadBmwVatCandidates()">View candidates</button><button class="btn" type="button" onclick="loadBmwVatExceptions()">Review unmatched and ended adverts</button><button class="btn" type="button" onclick="checkBmwVatExceptions(this)">Check 42 BMW adverts (read-only)</button><button class="btn" type="button" onclick="scanBmwVatExceptionDetails(this)">Check 42 motorcycle details</button></div>
  <p class="small">BMW showed 306 VAT reclaimable motorcycles in the checked search. Use confirmed advert IDs to match existing Live Source records; this does not change verified VAT status, images or publication.</p>
  <a href="https://approvedused.bmw-motorrad.co.uk/UK/ergebnisse.cshtml" target="_blank" rel="noopener noreferrer" class="small">Open BMW VAT reclaimable search ↗</a>
  <label class="small" style="display:block;margin:9px 0 5px" for="bmwVatCandidateInput">BMW search results HTML, advert links or IDs</label>
@@ -801,6 +801,44 @@ async function saveBmwVatCandidates(){
  if(error){status.textContent="Could not save candidates: "+error.message;return;}
  status.textContent=data.imported+" candidates saved · "+data.matched+" matched existing stock · "+data.unmatched+" unmatched · No publication changes.";
  await loadBmwVatCandidates();
+}
+async function scanBmwVatExceptionDetails(btn){
+ const summary=document.getElementById("bmwVatExceptionSummary");
+ const old=document.getElementById("bmwVatExceptionDetailResults");
+ if(old)old.remove();
+ btn.disabled=true;
+ try{
+  summary.textContent="Retrieving BMW motorcycle details in small batches. No stock changes…";
+  const {data:exceptions,error}=await sb().rpc("admin_bmw_vat_exceptions_v1");
+  if(error)throw error;
+  const targets=(exceptions||[]).filter(x=>x.issue==="unmatched"||x.issue==="ended_recheck");
+  const outcomes=[];
+  for(let start=0;start<targets.length;start+=10){
+   const batch=targets.slice(start,start+10);
+   summary.textContent="Reading BMW motorcycle details "+(start+1)+"–"+Math.min(start+10,targets.length)+" of "+targets.length+"…";
+   const urls=batch.map(x=>"https://approvedused.bmw-motorrad.co.uk/UK/detail.cshtml?on="+encodeURIComponent(x.advert_id));
+   const {data:scan,error:scanError}=await sb().functions.invoke("scan-used-bike-advert",{body:{urls}});
+   if(scanError)throw scanError;
+   const results=scan?.results||[];
+   for(let j=0;j<batch.length;j++){
+    const x=batch[j],bike=results[j]||{};
+    const expected=String(x.advert_id);
+    let actual="";
+    try{actual=new URL(bike.source_url||bike.requested_url||"").searchParams.get("on")||"";}catch{}
+    const model=String(bike.model||"").trim(),dealer=String(bike.seller_name||"").trim();
+    const price=Number(bike.source_advertised_price_gbp);
+    const valid=bike.scan_status==="ready"&&actual===expected&&String(bike.make||"").toUpperCase()==="BMW"&&model.length>1&&dealer.length>2&&dealer.toLowerCase()!=="test"&&Number.isFinite(price)&&price>=1000&&price<=100000;
+    outcomes.push({id:expected,issue:x.issue,valid,model,dealer,price:valid?price:null,status:bike.scan_status||"no result",availability:String(bike.specification?.availability||"")});
+   }
+  }
+  const valid=outcomes.filter(x=>x.valid),missing=outcomes.filter(x=>!x.valid);
+  const box=document.createElement("div");box.id="bmwVatExceptionDetailResults";
+  const tags=outcomes.map(x=>'<div class="small" style="padding:6px 0;border-top:1px solid #333">'+esc(x.id)+' · '+esc(x.issue==="unmatched"?"Missing record":"Previously ended")+' · '+(x.valid?esc(x.model+" · "+x.dealer+" · £"+x.price.toLocaleString("en-GB",{minimumFractionDigits:2,maximumFractionDigits:2})):'<strong>Details not validated</strong>')+' · '+esc(x.valid?"Review before any stock change":x.status)+'</div>').join("");
+  box.innerHTML='<p class="small">'+valid.length+' records have complete BMW model/dealer/price details · '+missing.length+' failed validation. These results do not independently prove current availability. No records imported or restored.</p>'+tags;
+  summary.after(box);
+  summary.textContent="Checked "+outcomes.length+" BMW advert details · "+valid.length+" complete records · "+missing.length+" need further investigation · 2 suspect records excluded. No database changes.";
+ }catch(e){summary.textContent="BMW motorcycle detail check failed: "+String(e.message||e)+". No stock changes.";}
+ finally{btn.disabled=false;}
 }
 async function checkBmwVatExceptions(btn){
  const summary=document.getElementById("bmwVatExceptionSummary");
