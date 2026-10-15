@@ -86,7 +86,7 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
           <summary><span><b>2. Live Sources</b><small>Search dealer stock, refresh channels and prepare motorcycles</small></span></summary>
           <div class="source-accordion-body">
         <section class="bmw-vat-candidates">
- <div class="stock-photo-queue-head"><strong>BMW VAT reclaimable — candidate matching</strong><button class="btn" type="button" onclick="probeBmwVatResult(this)">Test 15 F 900 GS results</button><button class="btn" type="button" onclick="probeAllBmwVatResult(this)">Scan all BMW VAT pages (read-only)</button><button class="btn" type="button" onclick="checkBmwVatFilter(this)">Test BMW VAT filter</button><button class="btn" type="button" onclick="loadBmwVatCandidates()">View candidates</button><button class="btn" type="button" onclick="loadBmwVatExceptions()">Review unmatched and ended adverts</button><button class="btn" type="button" onclick="checkBmwVatExceptions(this)">Check 42 BMW adverts (read-only)</button><button class="btn" type="button" onclick="scanBmwVatExceptionDetails(this)">Check 42 motorcycle details</button><button class="btn" type="button" onclick="importMissingBmwVat(this)">Import 17 validated missing bikes</button><button class="btn" type="button" onclick="reviewImportedBmwVat()">Review 17 imported bikes</button><button class="btn" type="button" onclick="checkImportedBmwPhotoSources(this)">Check 17 BMW photo sources</button><button class="btn red" type="button" onclick="loadImportedBmwGalleryPhotos(this)">Load 17 BMW galleries</button><span id="bmwVatGalleryTopStatus" class="small" role="status" aria-live="polite" style="display:inline-block;margin-left:8px">Gallery loader ready</span></div>
+ <div class="stock-photo-queue-head"><strong>BMW VAT reclaimable — candidate matching</strong><button class="btn" type="button" onclick="probeBmwVatResult(this)">Test 15 F 900 GS results</button><button class="btn" type="button" onclick="probeAllBmwVatResult(this)">Scan all BMW VAT pages (read-only)</button><button class="btn" type="button" onclick="checkBmwVatFilter(this)">Test BMW VAT filter</button><button class="btn" type="button" onclick="loadBmwVatCandidates()">View candidates</button><button class="btn" type="button" onclick="loadBmwVatExceptions()">Review unmatched and ended adverts</button><button class="btn" type="button" onclick="checkBmwVatExceptions(this)">Check 42 BMW adverts (read-only)</button><button class="btn" type="button" onclick="scanBmwVatExceptionDetails(this)">Check 42 motorcycle details</button><button class="btn" type="button" onclick="importMissingBmwVat(this)">Import 17 validated missing bikes</button><button class="btn" type="button" onclick="reviewImportedBmwVat()">Review 17 imported bikes</button><button class="btn" type="button" onclick="checkImportedBmwPhotoSources(this)">Check 17 BMW photo sources</button><button class="btn red" type="button" onclick="loadImportedBmwGalleryPhotos(this)">Load missing 14 BMW galleries</button><span id="bmwVatGalleryTopStatus" class="small" role="status" aria-live="polite" style="display:inline-block;margin-left:8px">Gallery loader ready</span></div>
  <p class="small">BMW showed 306 VAT reclaimable motorcycles in the checked search. Use confirmed advert IDs to match existing Live Source records; this does not change verified VAT status, images or publication.</p>
  <a href="https://approvedused.bmw-motorrad.co.uk/UK/ergebnisse.cshtml" target="_blank" rel="noopener noreferrer" class="small">Open BMW VAT reclaimable search ↗</a>
  <label class="small" style="display:block;margin:9px 0 5px" for="bmwVatCandidateInput">BMW search results HTML, advert links or IDs</label>
@@ -806,22 +806,22 @@ async function loadImportedBmwGalleryPhotos(btn){
  const top=document.getElementById("bmwVatGalleryTopStatus");
  if(top)top.textContent="Button clicked — starting gallery loader…";
  const status=document.getElementById("bmwVatExceptionSummary");
- const ids=["531905","540397","553645","554756","559312","559697","560657","564126","564139","564144","564152","564154","565269","565466","579009","580611","580612"];
+ const ids=["531905","540397","553645","554756","559312","559697","560657","564126","564139","564144","564152","564154","565269","565466"];
  // This retrieves source images for 17 selected motorcycles only; it does not publish them.
  btn.disabled=true;
  try{
-  status.textContent="Finding the 17 imported BMW records…";
+  status.textContent="Finding the 14 BMW records without photographs…";
   const {data:items,error:findError}=await sb().rpc("admin_bmw_vat_photo_item_ids_v1");
   if(findError)throw findError;
   const found=new Map((items||[]).map(x=>[String(x.advert_id),Number(x.item_id)]));
-  if(ids.some(id=>!found.has(id))){status.textContent="Stopped: not all 17 BMW records were found. No image request sent.";return;}
-  status.textContent="Retrieving BMW catalogue and matched gallery images for the 17 motorcycles…";
+  if(ids.some(id=>!found.has(id))){status.textContent="Stopped: not all 14 BMW records were found. No image request sent.";return;}
+  status.textContent="Searching BMW VAT reclaimable results for the 14 missing galleries…";
   if(top)top.textContent="Contacting BMW gallery service…";
-  const {data,error}=await sb().functions.invoke("refresh-bmw-live-source-images",{body:{connector_id:1,item_ids:ids.map(id=>found.get(id))}});
+  const {data,error}=await sb().functions.invoke("refresh-bmw-live-source-images",{body:{connector_id:1,item_ids:ids.map(id=>found.get(id)),vat_reclaimable_only:true}});
   if(error)throw error;
   if(!data?.success){status.textContent="BMW photo loader stopped: "+(data?.error||"Unknown source issue");return;}
-  if(top)top.textContent="Gallery check complete: "+Number(data.updated||0)+"/17 received photos";
-  status.textContent=Number(data.updated||0)+"/17 BMW motorcycles received source image URLs · "+Number(data.missing||0)+" missing · "+Number(data.galleries||0)+" multi-image galleries · "+Number(data.total_gallery_images||0)+" images found. Images are source-only, not buyer-safe, and nothing was published.";
+  if(top)top.textContent="VAT gallery check: "+Number(data.updated||0)+"/14 found";
+  status.textContent=Number(data.updated||0)+"/14 BMW motorcycles received source image URLs · "+Number(data.missing||0)+" missing · "+Number(data.galleries||0)+" multi-image galleries · "+Number(data.total_gallery_images||0)+" images found. Images are source-only, not buyer-safe, and nothing was published.";
  }catch(e){if(top)top.textContent="Gallery error: "+String(e.message||e);status.textContent="BMW gallery loader failed: "+String(e.message||e)+". No publication triggered.";}
  finally{btn.disabled=false;}
 }
