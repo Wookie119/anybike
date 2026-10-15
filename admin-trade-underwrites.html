@@ -20,6 +20,11 @@
 @media(max-width:650px){#bidModal.modal.open{padding:7px}#bidModal .bid-modal-box{padding:12px}#bidModal .top{top:-7px}}
 .delivery-admin-reminder{padding:12px 15px;margin:14px 0 5px;border:1px solid #b52a32;border-left:4px solid #ed1c24;border-radius:9px;background:#190f11;color:#fff;font-size:13px;line-height:1.5}.delivery-check-notice{display:grid;gap:6px;margin:0 0 12px;padding:10px;border:1px solid #ae7625;border-radius:8px;background:#1c1710;line-height:1.4}.delivery-check-notice strong{color:#fff}.delivery-check-notice span{color:#ffe0a6;font-size:12px}.delivery-check-notice small{color:#ccc;font-size:11px}
 .auction-time-actions{display:flex;flex-direction:column;gap:10px;min-width:200px}.auction-time-actions button{width:100%}.auction-time-actions .early-close-button{background:#231517;border:1px solid #ed1c24;color:#fff}.auction-time-actions .early-close-button:hover{background:#702128}@media(max-width:650px){.auction-time-actions{width:100%}}
+
+.underwrite-action-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:14px 0 10px;align-items:stretch}
+.underwrite-action-grid>button{display:flex;align-items:center;justify-content:center;min-width:0;width:100%;min-height:52px;padding:12px 10px;text-align:center;white-space:normal;line-height:1.25}
+@media(max-width:1250px){.underwrite-action-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:520px){.underwrite-action-grid{grid-template-columns:minmax(0,1fr)}}
 </style><script>if(new URLSearchParams(location.search).has("embedded"))document.documentElement.classList.add("trade-embedded");</script>
 <style>
 :root{--red:#ed1c24;--line:rgba(255,255,255,.12)}*{box-sizing:border-box}body{margin:0;background:#070707;color:#fff;font-family:Arial,Helvetica,sans-serif}
@@ -152,20 +157,18 @@ async function load(){
  '<div class="bike">'+esc([r.make,r.model,r.variant].filter(Boolean).join(" "))+'</div><div class="meta">'+esc(r.registration||"")+(r.bike_year?' · '+r.bike_year:'')+(r.mileage!==null?' · '+Number(r.mileage).toLocaleString("en-GB")+' miles':'')+'</div>'+
  (r.opportunity_status==='live'?'<div class="auction-time-bar"><div><strong>Time remaining</strong><div class="auction-countdown" data-closes-at="'+esc(r.closes_at||'')+'">Calculating…</div><small>Closes: '+(r.closes_at?new Date(r.closes_at).toLocaleString("en-GB",{dateStyle:"medium",timeStyle:"short"}):"Not set")+'</small></div><div class="auction-time-actions"><button class="red" onclick="adjustUnderwriteDeadline('+r.opportunity_id+')">Add / Change Time →</button><button class="early-close-button" onclick="closeUnderwrite('+r.opportunity_id+')">End Bidding Early</button></div></div>':'')+
  '<div class="data"><div class="box"><span>Seller wants</span><strong>'+money(r.seller_price_wanted_gbp)+'</strong></div><div class="box"><span>Invited</span><strong>'+r.invited_trade_count+'</strong></div><div class="box"><span>Bid range</span><strong>'+money(r.lowest_live_bid_gbp)+' – '+money(r.highest_live_bid_gbp)+'</strong></div><div class="box"><span>Average</span><strong>'+money(r.average_live_bid_gbp)+'</strong></div></div>'+
- (r.opportunity_status==='live'?'<div class="actions"><button class="red" onclick="openDealerInvites('+r.opportunity_id+')">Invite UK Dealers →</button></div>':'')+
- (Number(r.live_bid_count)>0?'<div class="actions" style="margin:12px 0"><button class="red" onclick="viewBids('+r.opportunity_id+')">View '+Number(r.live_bid_count)+' Confidential Bid'+(Number(r.live_bid_count)===1?'':'s')+' →</button></div>':'')+
- '<div class="actions"><button onclick="editDealerDescription('+r.submission_id+')">Edit Dealer Description →</button></div>'+
+ '<div class="underwrite-action-grid">'+
+ (r.opportunity_status==='live'?'<button class="red" onclick="openDealerInvites('+r.opportunity_id+')">Invite UK Dealers →</button>':'')+
+ '<button onclick="viewBids('+r.opportunity_id+')">View '+Number(r.live_bid_count)+' Confidential Bid'+(Number(r.live_bid_count)===1?'':'s')+' →</button>'+
+ '<button onclick="editDealerDescription('+r.submission_id+')">Edit Dealer Description →</button>'+
+ '<button onclick="openReserveReview('+r.opportunity_id+')">Reserve &amp; Margin Assessment</button>'+
+ '<button class="red" onclick="openOffer('+r.opportunity_id+','+(r.highest_live_bid_gbp??"null")+')">Make AnyBike Offer</button>'+
+ (r.opportunity_status==='completed'?'<button class="red" onclick="openUnderwriteDeal('+r.opportunity_id+')">Create / Open Deal 360</button>':'')+
+ (r.latest_offer_id&&["sent","countered"].includes(r.latest_offer_status)?'<button onclick="recordSellerResponse('+Number(r.latest_offer_id)+',\'accepted\')">Seller Accepted</button><button onclick="recordSellerResponse('+Number(r.latest_offer_id)+',\'declined\')">Seller Declined</button><button onclick="recordSellerCounter('+Number(r.latest_offer_id)+')">Seller Countered</button>':'')+
+ '</div>'+
  '<div class="meta">Seller-visible genuine bid count: '+r.seller_visible_bid_count+' only. Bid amounts remain internal.</div>'+
- '<details class="secondary-actions"><summary>More actions</summary><div class="actions"><button onclick="viewBids('+r.opportunity_id+')">View Confidential Bids</button>'+
- (r.opportunity_status==="completed"?'<button class="red" onclick="openUnderwriteDeal('+r.opportunity_id+')">Create / Open Deal 360</button>':'')+
- (r.opportunity_status==='live'?'<button onclick="adjustUnderwriteDeadline('+r.opportunity_id+')">Adjust Countdown</button>':'')+
-
- '<button onclick="openReserveReview('+r.opportunity_id+')">Reserve &amp; Margin Assessment</button>'+'<button class="red" onclick="openOffer('+r.opportunity_id+','+(r.highest_live_bid_gbp??"null")+')">Make AnyBike Offer</button>'+
- (r.latest_offer_amount_gbp?'<span class="btn">Latest seller offer '+money(r.latest_offer_amount_gbp)+' · '+esc(r.latest_offer_status)+(r.seller_counter_gbp?' · counter '+money(r.seller_counter_gbp):'')+'</span>':'')+
- (r.latest_offer_id&&["sent","countered"].includes(r.latest_offer_status)
-   ?'<button onclick="recordSellerResponse('+Number(r.latest_offer_id)+',\'accepted\')">Seller Accepted</button><button onclick="recordSellerResponse('+Number(r.latest_offer_id)+',\'declined\')">Seller Declined</button><button onclick="recordSellerCounter('+Number(r.latest_offer_id)+')">Seller Countered</button>'
-   :'')+
- '</div></details><div class="next-step"><strong>Your Next Action</strong><p>'+(
+ (r.latest_offer_amount_gbp?'<div class="meta">Latest seller offer '+money(r.latest_offer_amount_gbp)+' · '+esc(r.latest_offer_status)+(r.seller_counter_gbp?' · counter '+money(r.seller_counter_gbp):'')+'</div>':'')+
+ '<div class="next-step"><strong>Your Next Action</strong><p>'+(
  r.latest_offer_status==="accepted"?"Complete seller confirmation and HPI checks before proceeding.":
  Number(r.live_bid_count)===0?"Waiting for the first dealer bid. Review invitations or adjust the countdown.":
  "Review active bids and Move's transport quote. Confirm the seller's price, HPI and commercial viability before any offer."
