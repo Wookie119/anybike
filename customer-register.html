@@ -292,6 +292,8 @@ button,
   >
 </div>
 
+<div class="form-field full-width" id="dealerBusinessField" hidden><label for="dealerBusinessName">Dealership / business name</label><input id="dealerBusinessName" type="text" autocomplete="organization" maxlength="160" placeholder="Your motorcycle dealership"></div>
+
 <div class="form-field">
   <label for="email">Email address</label>
   <input
@@ -608,6 +610,7 @@ function getFormValues(){
   return {
     full_name:
       document.getElementById("fullName").value.trim(),
+    business_name: document.getElementById("dealerBusinessName").value.trim(),
 
     email:
       document.getElementById("email")
@@ -679,8 +682,8 @@ async function createCustomerProfileIfMissing(user,values){
       values.customer_intent||
       user.user_metadata?.customer_intent||
       "unclear",
-    business_name:values.email==="mocp@hotmail.co.uk" ? "AnyBike Test Dealer" : null,
-    business_trading_name:values.email==="mocp@hotmail.co.uk" ? "AnyBike Test Dealer" : null,
+    business_name:values.business_name || (values.email==="mocp@hotmail.co.uk" ? "AnyBike Test Dealer" : null),
+    business_trading_name:values.business_name || (values.email==="mocp@hotmail.co.uk" ? "AnyBike Test Dealer" : null),
     is_test_account:values.email==="mocp@hotmail.co.uk",
     test_account_label:values.email==="mocp@hotmail.co.uk" ? "AnyBike Test Customer" : null
   };
@@ -711,6 +714,8 @@ async function registerCustomer(){
     showMsg("Please enter your email address.",false);
     return;
   }
+
+  if(values.customer_type==="uk_dealer"&&!values.business_name){showMsg("Please enter the name of your dealership.",false);return;}
 
   if(!values.password){
     showMsg("Please create a password.",false);
@@ -754,6 +759,8 @@ async function registerCustomer(){
         emailRedirectTo,
         data:{
           full_name:values.full_name,
+          business_name:values.business_name || null,
+          business_trading_name:values.business_name || null,
           country:values.country,
           preferred_currency:values.preferred_currency,
           preferred_language:values.preferred_language,
@@ -840,6 +847,8 @@ if(invitationParams.get("invite_type")==="seller"){
   }
 }
 if(invitationParams.get("invite_type")==="dealer"){
+  const business=(invitationParams.get("invite_business")||"").trim().slice(0,160);
+  if(business)document.getElementById("dealerBusinessName").value=business;
   const n=(invitationParams.get("invite_name")||"").trim().slice(0,120);
   const e=(invitationParams.get("invite_email")||"").trim().slice(0,200);
   if(n)document.getElementById("fullName").value=n;
@@ -848,6 +857,9 @@ if(invitationParams.get("invite_type")==="dealer"){
     const el=document.getElementById(id);if(el)el.value=value;
   }
 }
+function syncDealerBusinessField(){const dealer=document.getElementById("customerType").value==="uk_dealer"||invitationParams.get("invite_type")==="dealer";document.getElementById("dealerBusinessField").hidden=!dealer;document.getElementById("dealerBusinessName").required=dealer;}
+document.getElementById("customerType").addEventListener("change",syncDealerBusinessField);
+syncDealerBusinessField();
 const testRegistration=new URLSearchParams(window.location.search).get("test")==="1";
 if(testRegistration){
   const fullName=document.getElementById("fullName");
