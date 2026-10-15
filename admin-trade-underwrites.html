@@ -174,20 +174,21 @@ async function load(){
  '<button onclick="editDealerDescription('+r.submission_id+')">Edit Dealer Description →</button>'+
  '<button onclick="openReserveReview('+r.opportunity_id+')">Reserve &amp; Margin Assessment</button>'+
  (!r.latest_offer_id||["declined","expired","cancelled"].includes(r.latest_offer_status)?'<button class="red" onclick="openOffer('+r.opportunity_id+')">Make offer to seller</button>':'')+
- (r.opportunity_status==='completed'?'<button class="red" onclick="openUnderwriteDeal('+r.opportunity_id+')">Create / Open Deal 360</button>':'')+
+
  (r.latest_offer_id&&["sent","countered"].includes(r.latest_offer_status)?'<button onclick="recordSellerResponse('+Number(r.latest_offer_id)+',\'accepted\')">Seller Accepted</button><button onclick="recordSellerResponse('+Number(r.latest_offer_id)+',\'declined\')">Seller Declined</button><button onclick="recordSellerCounter('+Number(r.latest_offer_id)+')">Seller Countered</button>':'')+
  '</div>'+
  '<div class="meta">Seller-visible genuine bid count: '+r.seller_visible_bid_count+' only. Bid amounts remain internal.</div>'+
  (r.latest_offer_amount_gbp?'<div class="seller-offer-result '+(r.latest_offer_status==="sent"||r.latest_offer_status==="accepted"?'success':'')+'" role="status"><strong>'+(r.latest_offer_status==="sent"?'✓ Offer sent to seller':r.latest_offer_status==="accepted"?'✓ Seller accepted':'Seller offer · '+esc(r.latest_offer_status))+'</strong><span>'+money(r.latest_offer_amount_gbp)+(r.latest_offer_status==="sent"?' · Awaiting seller response':'')+'</span></div>':'')+
  '<div class="next-step"><strong>Your Next Action</strong><p>'+(
- r.latest_offer_status==="accepted"?(approvedFinalChecks[r.opportunity_id]?"✓ Seller and HPI checks complete. Next: confirm the buying dealer.":"Complete seller confirmation and HPI checks before proceeding."):
- r.latest_offer_status==="sent"?"Offer sent successfully. Await the seller’s acceptance, decline or counteroffer.":
- Number(r.live_bid_count)===0?"Waiting for the first dealer bid. Review invitations or adjust the countdown.":
- "Review active bids and Move's transport quote. Confirm the seller's price, HPI and commercial viability before any offer."
+ r.opportunity_status==="completed"?"✓ Buying dealer selected. Next: create or open Deal 360.":
+ r.latest_offer_status==="accepted"?(approvedFinalChecks[r.opportunity_id]?"✓ Seller and HPI checks complete. Next: select the buying dealer.":"Complete seller confirmation and HPI checks before proceeding."):
+ r.latest_offer_status==="sent"?"Offer sent successfully. Await the seller’s response.":
+ Number(r.live_bid_count)===0?"Waiting for the first dealer bid.":"Review bids and reserve assessment."
  )+'</p>'+(
- r.latest_offer_status==="accepted"?(approvedFinalChecks[r.opportunity_id]?'<span style="color:#82e5aa;font-weight:800">✓ Seller and HPI checks complete</span> <button class="red" onclick="viewBids('+r.opportunity_id+')">Confirm Buying Dealer →</button>':'<button class="red" onclick="openFinalCheck('+r.opportunity_id+')">Seller and HPI checks</button>'):
- Number(r.live_bid_count)===0?'<button onclick="viewBids('+r.opportunity_id+')">Review bidding activity</button>':
- '<button class="red" onclick="openReserveReview('+r.opportunity_id+')">Reserve assessment</button> <button onclick="openFinalCheck('+r.opportunity_id+')">Seller and HPI checks</button>'
+ r.opportunity_status==="completed"?'<span style="color:#82e5aa;font-weight:800">✓ Buying dealer selected</span> <button class="red" onclick="openUnderwriteDeal('+r.opportunity_id+')">Create / Open Deal 360 →</button>':
+ r.latest_offer_status==="accepted"?(approvedFinalChecks[r.opportunity_id]?'<span style="color:#82e5aa;font-weight:800">✓ Seller and HPI checks complete</span> <button class="red" onclick="viewBids('+r.opportunity_id+')">Select Buying Dealer →</button>':'<button class="red" onclick="openFinalCheck('+r.opportunity_id+')">Seller and HPI checks</button>'):
+ Number(r.live_bid_count)===0?'<button onclick="viewBids('+r.opportunity_id+')">Review bidding</button>':
+ '<button class="red" onclick="openReserveReview('+r.opportunity_id+')">Reserve assessment</button>'
  )+'</div></article>').join("");
  updateAuctionCountdowns();
 }
