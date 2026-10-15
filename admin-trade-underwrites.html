@@ -140,6 +140,7 @@ async function load(){
  (r.opportunity_status==='live'?'<div class="auction-time-bar"><div><strong>Time remaining</strong><div class="auction-countdown" data-closes-at="'+esc(r.closes_at||'')+'">Calculating…</div><small>Closes: '+(r.closes_at?new Date(r.closes_at).toLocaleString("en-GB",{dateStyle:"medium",timeStyle:"short"}):"Not set")+'</small></div><button class="red" onclick="adjustUnderwriteDeadline('+r.opportunity_id+')">Add / Change Time →</button></div>':'')+
  '<div class="data"><div class="box"><span>Seller wants</span><strong>'+money(r.seller_price_wanted_gbp)+'</strong></div><div class="box"><span>Invited</span><strong>'+r.invited_trade_count+'</strong></div><div class="box"><span>Bid range</span><strong>'+money(r.lowest_live_bid_gbp)+' – '+money(r.highest_live_bid_gbp)+'</strong></div><div class="box"><span>Average</span><strong>'+money(r.average_live_bid_gbp)+'</strong></div></div>'+
  (r.opportunity_status==='live'?'<div class="actions"><button class="red" onclick="openDealerInvites('+r.opportunity_id+')">Invite UK Dealers →</button></div>':'')+
+ (Number(r.live_bid_count)>0?'<div class="actions" style="margin:12px 0"><button class="red" onclick="viewBids('+r.opportunity_id+')">View '+Number(r.live_bid_count)+' Confidential Bid'+(Number(r.live_bid_count)===1?'':'s')+' →</button></div>':'')+
  '<div class="meta">Seller-visible genuine bid count: '+r.seller_visible_bid_count+' only. Bid amounts remain internal.</div>'+
  '<details class="secondary-actions"><summary>More actions</summary><div class="actions"><button onclick="viewBids('+r.opportunity_id+')">View Confidential Bids</button>'+
  (r.opportunity_status==="completed"?'<button class="red" onclick="openUnderwriteDeal('+r.opportunity_id+')">Create / Open Deal 360</button>':'')+
@@ -153,7 +154,7 @@ async function load(){
  '</div></details><div class="next-step"><strong>Your Next Action</strong><p>'+(
  r.latest_offer_status==="accepted"?"Complete seller confirmation and HPI checks before proceeding.":
  Number(r.live_bid_count)===0?"Waiting for the first dealer bid. Review invitations or adjust the countdown.":
- "Review active bids and Move's transport quote. Confirm the seller's price, HPI and commercial viability beupdateAuctionCountdowns();fore any offer."
+ "Review active bids and Move's transport quote. Confirm the seller's price, HPI and commercial viability before any offer."
  )+'</p>'+(
  r.latest_offer_status==="accepted"?'<button class="red" onclick="openFinalCheck('+r.opportunity_id+')">Seller and HPI checks</button>':
  Number(r.live_bid_count)===0?'<button onclick="viewBids('+r.opportunity_id+')">Review bidding activity</button>':
@@ -244,9 +245,9 @@ async function viewBids(id){
    sb.rpc("admin_get_underwrite_bid_delivery_v1",{p_opportunity_id:id})
  ]);
  if(error){document.getElementById("bidList").innerHTML='<div class="empty">'+esc(error.message)+'</div>';return;}
- if(confirmationError){document.getElementById("bidList").innerHTML='<div class="empty">'+esc(confirmationError.message)+'</div>';return;}
+ if(confirmationError)console.warn('Bid confirmation details unavailable:',confirmationError.message);
 
- if(deliveryError){document.getElementById("bidList").innerHTML='<div class="empty">'+esc(deliveryError.message)+'</div>';return;}
+ if(deliveryError)console.warn('Bid delivery details unavailable:',deliveryError.message);
  const list=bids||[];
  const dMap=new Map((deliveries||[]).map(x=>[Number(x.dealer_organisation_id),x]));
  const cMap=new Map((confirmations||[]).map(x=>[Number(x.bid_id),x]));
