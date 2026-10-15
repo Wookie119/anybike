@@ -91,6 +91,7 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
   <div style="display:flex;gap:9px;flex-wrap:wrap;margin:12px 0 0">
    <button class="btn red" id="bmwVatMainPhotoBtn" type="button" onclick="showBmwSidePhotoReview()">Choose main photos</button>
    <button class="btn" type="button" onclick="reviewImportedBmwVat()">Review bikes &amp; prices</button>
+   <button class="btn" type="button" id="bmwVatPilotProcessBtn" onclick="processFirstBmwVatPilot(this)">Process first pilot photo</button>
    <button class="btn" type="button" onclick="loadBmwVatCandidates()">View candidates</button>
   </div>
   <div id="bmwPhotoReviewNotice" class="small" role="status" aria-live="polite" style="margin-top:8px"></div>
@@ -873,6 +874,19 @@ async function checkImportedBmwPhotoSources(btn){
   summary.after(section);
   summary.textContent=rows.filter(x=>x.candidates.length>0).length+"/17 BMW adverts returned possible image URLs · "+rows.filter(x=>x.candidates.length===0).length+" have none. Zero photos approved or published. Review original images before processing.";
  }catch(e){summary.textContent="Photo source review stopped: "+String(e.message||e)+". No records changed."}
+ finally{btn.disabled=false;}
+}
+async function processFirstBmwVatPilot(btn){
+ const status=document.getElementById("bmwPhotoReviewNotice");
+ if(!status)return;
+ if(!confirm("Process ONE previously selected BMW photograph for advert 531905? This uses buyer-safe cleaning and may store the original and one cleaned derivative. No stock will be published."))return;
+ btn.disabled=true;status.textContent="Processing one private BMW pilot photograph (531905)…";
+ try {
+  const {data,error}=await sb().functions.invoke("process-buyer-safe-image",{body:{junction_stock_id:95}});
+  if(error)throw error;
+  if(!data?.success)throw new Error(data?.error||"Image processing did not complete");
+  status.textContent=data.processed===1?"BMW 531905: processing complete. Review buyer-safe image quality before any approval.":"BMW 531905: "+(data.message||"No image processed");
+ } catch(e){status.textContent="Pilot image processing stopped: "+String(e.message||e);}
  finally{btn.disabled=false;}
 }
 async function showBmwSidePhotoReview(){
