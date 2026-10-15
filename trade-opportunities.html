@@ -116,6 +116,17 @@ textarea{min-height:68px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top
 .mine-editor label{font-size:13px}.mine-editor textarea{min-height:62px}.mine-editor button{justify-self:start}
 @media(max-width:1050px){#grid.mine-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:650px){#grid.mine-grid{grid-template-columns:minmax(0,1fr)}}
+
+/* Isolated My Trade Offers layout: stronger than legacy single-card :has() rules. */
+#grid.grid.mine-grid,#grid.grid.mine-grid:has(>article:only-child){display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;grid-template-rows:auto!important;width:100%;max-width:none!important;gap:16px!important;align-items:start!important}
+#grid.grid.mine-grid>.mine-card,#grid.grid.mine-grid:has(>article:only-child)>.mine-card{display:block!important;width:100%!important;min-width:0!important;max-width:none!important;grid-column:auto!important;grid-row:auto!important;border:1px solid #3c3c3c!important;border-radius:12px!important;background:#101010!important;overflow:hidden!important}
+#grid.grid.mine-grid>.mine-card:hover{border-color:#ed1c24!important}
+#grid.grid.mine-grid>.mine-card>.mine-image{width:100%;height:auto;aspect-ratio:auto;overflow:hidden}
+#grid.grid.mine-grid>.mine-card>.mine-image>img{display:block;width:100%!important;height:auto!important;aspect-ratio:16/9!important;object-fit:cover!important;max-height:none!important}
+#grid.grid.mine-grid .mine-body{padding:13px 15px 15px}
+#grid.grid.mine-grid .mine-body h2{font-size:clamp(16px,1.4vw,20px);margin:0}
+@media(max-width:1050px){#grid.grid.mine-grid,#grid.grid.mine-grid:has(>article:only-child){grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+@media(max-width:650px){#grid.grid.mine-grid,#grid.grid.mine-grid:has(>article:only-child){grid-template-columns:minmax(0,1fr)!important}}
 </style>
 </head>
 <body>
@@ -245,7 +256,7 @@ function hideGalleryPhoto(){document.getElementById("tradeGalleryViewer").classL
 function renderMyTradeOffers(rows){
  document.getElementById('grid').innerHTML=rows.map(r=>{
  const id=Number(r.opportunity_id),photos=approvedGalleries[id]||[],bike=[r.make,r.model,r.variant].filter(Boolean).join(' '),url=photos[0]?.photo_url||r.image_url||'/anybike-image-coming-soon.png';
- const open=r.status==='live'&&(!r.closes_at||new Date(r.closes_at)>new Date());
+ const open=r.closes_at?new Date(r.closes_at).getTime()>Date.now():true;
  return '<article class="mine-card" data-opportunity-id="'+id+'"><div class="mine-image"><img src="'+esc(url)+'" alt="'+esc(bike)+'" loading="lazy" onclick="showGalleryPhoto('+id+',0)" onerror="this.src=\'/anybike-image-coming-soon.png\'"><span>'+photos.length+' photos</span></div><div class="mine-body"><div class="mine-heading"><h2>'+esc(bike)+'</h2><b>'+(open?'Live':'Closed')+'</b></div><p class="mine-meta">'+esc(r.reference)+' · '+esc(r.bike_year||'Year TBC')+' · '+(r.mileage==null?'Mileage TBC':Number(r.mileage).toLocaleString('en-GB')+' miles')+'</p><div class="mine-bottom"><div><small>Your confidential offer</small><strong>'+money(r.my_bid_gbp)+'</strong></div><span>'+(open?'Closes in '+esc(countdown(r.closes_at)):'Bidding closed')+'</span></div><div class="mine-actions">'+(open?'<button type="button" class="mine-change" onclick="toggleMineEditor('+id+')">Change my offer →</button><button type="button" onclick="withdrawBid('+id+')">Withdraw</button>':'<small>Awaiting AnyBike review</small>')+'</div>'+(open?'<div id="mine-editor-'+id+'" class="mine-editor" hidden><label>Maximum offer (£)<input id="bid-'+id+'" type="number" min="1" step="1" value="'+esc(r.my_bid_gbp)+'"></label><label>Private note to AnyBike<textarea id="note-'+id+'" placeholder="Optional conditions"></textarea></label><button class="red" onclick="submitBid('+id+')">Save updated offer</button></div>':'')+'<a class="mine-detail" href="/trade-opportunities.html?opportunity='+id+'">View motorcycle and photographs →</a></div></article>';
  }).join('');
 }
