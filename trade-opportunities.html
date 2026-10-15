@@ -96,6 +96,26 @@ textarea{min-height:68px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top
 #grid>.card .bid-panel .next-action{padding:12px;border:1px solid #8d2228;border-radius:10px;background:#1c0e10}
 @media(min-width:1500px){#grid>.card .opportunity-main .data{grid-template-columns:repeat(5,minmax(0,1fr))}}
 @media(max-width:900px){#grid>.card .opportunity-main{grid-template-columns:minmax(0,1fr)}#grid>.card .opportunity-main>.photo-column{border-right:0}#grid>.card .bid-panel{grid-template-columns:minmax(0,1fr)}}
+
+#grid.mine-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-items:start}
+#grid.mine-grid>.mine-card{background:#101010;border:1px solid #363636;border-radius:12px;overflow:hidden;min-width:0}
+#grid.mine-grid>.mine-card:hover{border-color:#ed1c24}
+.mine-image{position:relative;background:#0b0b0b}.mine-image img{display:block;width:100%;aspect-ratio:1.78;object-fit:cover;cursor:zoom-in}
+.mine-image span{position:absolute;bottom:8px;right:8px;background:#090909dc;color:#eee;padding:5px 9px;border-radius:5px;font-size:11px}
+.mine-body{padding:13px 14px 15px}
+.mine-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.mine-heading h2{margin:0;font-size:clamp(16px,1.4vw,21px);line-height:1.24;overflow-wrap:anywhere}
+.mine-heading b{color:#96e9ac;background:#102016;border:1px solid #397847;padding:5px 9px;border-radius:30px;font-size:11px}
+.mine-meta{font-size:12px;color:#aaa;margin:8px 0 12px}
+.mine-bottom{display:flex;justify-content:space-between;align-items:end;gap:8px;border-top:1px solid #333;padding-top:11px}
+.mine-bottom small{display:block;color:#aaa;font-size:11px}.mine-bottom strong{display:block;color:#ed1c24;font-size:27px;margin-top:3px}
+.mine-bottom span{font-size:12px;color:#ddd;text-align:right}
+.mine-actions{display:flex;gap:8px;margin-top:13px}.mine-actions button{flex:1;border:1px solid #555;background:#191919;font-size:12px}.mine-actions .mine-change{border-color:#ed1c24}.mine-actions .mine-change:hover{background:#ed1c24}
+.mine-detail{display:block;margin-top:12px;color:#ddd;font-size:12px;text-decoration:none}.mine-detail:hover{text-decoration:underline}
+.mine-editor[hidden]{display:none}.mine-editor{display:grid;gap:9px;margin-top:12px;padding:12px;background:#190e10;border:1px solid #ad282e;border-radius:9px}
+.mine-editor label{font-size:13px}.mine-editor textarea{min-height:62px}.mine-editor button{justify-self:start}
+@media(max-width:1050px){#grid.mine-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:650px){#grid.mine-grid{grid-template-columns:minmax(0,1fr)}}
 </style>
 </head>
 <body>
@@ -155,7 +175,8 @@ function renderOpportunities(rows){
    host.innerHTML='<div class="empty">'+(offerView==="mine"?"You have no active underwriting offers. Select Available motorcycles to browse and make an offer.":"No private trade opportunities are currently available to your dealership.")+'</div>';
    return;
  }
- renderBikeCards(display);
+ host.classList.toggle('mine-grid',offerView==='mine');
+ if(offerView==='mine')renderMyTradeOffers(display);else renderBikeCards(display);
  const target=new URLSearchParams(location.search).get("opportunity");
  if(target && /^\d+$/.test(target) && offerView==="all"){
   const card=Array.from(host.querySelectorAll("[data-opportunity-id]")).find(el=>el.dataset.opportunityId===target);
@@ -221,6 +242,15 @@ function showGalleryPhoto(id,index){
 }
 function stepGalleryPhoto(step){const el=document.getElementById("tradeGalleryViewer"),list=approvedGalleries[el.dataset.id]||[];if(list.length)showGalleryPhoto(el.dataset.id,(Number(el.dataset.index)+step+list.length)%list.length);}
 function hideGalleryPhoto(){document.getElementById("tradeGalleryViewer").classList.remove("open");}
+function renderMyTradeOffers(rows){
+ document.getElementById('grid').innerHTML=rows.map(r=>{
+ const id=Number(r.opportunity_id),photos=approvedGalleries[id]||[],bike=[r.make,r.model,r.variant].filter(Boolean).join(' '),url=photos[0]?.photo_url||r.image_url||'/anybike-image-coming-soon.png';
+ const open=r.status==='live'&&(!r.closes_at||new Date(r.closes_at)>new Date());
+ return '<article class="mine-card" data-opportunity-id="'+id+'"><div class="mine-image"><img src="'+esc(url)+'" alt="'+esc(bike)+'" loading="lazy" onclick="showGalleryPhoto('+id+',0)" onerror="this.src=\'/anybike-image-coming-soon.png\'"><span>'+photos.length+' photos</span></div><div class="mine-body"><div class="mine-heading"><h2>'+esc(bike)+'</h2><b>'+(open?'Live':'Closed')+'</b></div><p class="mine-meta">'+esc(r.reference)+' · '+esc(r.bike_year||'Year TBC')+' · '+(r.mileage==null?'Mileage TBC':Number(r.mileage).toLocaleString('en-GB')+' miles')+'</p><div class="mine-bottom"><div><small>Your confidential offer</small><strong>'+money(r.my_bid_gbp)+'</strong></div><span>'+(open?'Closes in '+esc(countdown(r.closes_at)):'Bidding closed')+'</span></div><div class="mine-actions">'+(open?'<button type="button" class="mine-change" onclick="toggleMineEditor('+id+')">Change my offer →</button><button type="button" onclick="withdrawBid('+id+')">Withdraw</button>':'<small>Awaiting AnyBike review</small>')+'</div>'+(open?'<div id="mine-editor-'+id+'" class="mine-editor" hidden><label>Maximum offer (£)<input id="bid-'+id+'" type="number" min="1" step="1" value="'+esc(r.my_bid_gbp)+'"></label><label>Private note to AnyBike<textarea id="note-'+id+'" placeholder="Optional conditions"></textarea></label><button class="red" onclick="submitBid('+id+')">Save updated offer</button></div>':'')+'<a class="mine-detail" href="/trade-opportunities.html?opportunity='+id+'">View motorcycle and photographs →</a></div></article>';
+ }).join('');
+}
+function toggleMineEditor(id){const el=document.getElementById('mine-editor-'+id);if(el)el.hidden=!el.hidden;}
+
 function renderBikeCards(rows){
   const host=document.getElementById("grid");
   host.innerHTML=rows.map(r=>'<article class="card" data-opportunity-id="'+esc(r.opportunity_id)+'">'+
