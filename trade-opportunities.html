@@ -363,12 +363,16 @@ async function load(){
     return;
   }
   currentOpportunities=data||[];
+  const linkedId=new URLSearchParams(location.search).get("opportunity");
+  const linkedBike=linkedId&&currentOpportunities.find(r=>String(r.opportunity_id)===linkedId);
+  if(linkedBike&&Number(linkedBike.my_bid_gbp)>0)offerView="mine";
   document.body.classList.toggle('my-trade-offers-view',offerView==='mine');
   document.getElementById("allOffersTab").classList.toggle("active",offerView==="all");
   document.getElementById("myOffersTab").classList.toggle("active",offerView==="mine");
 
   renderOpportunities(currentOpportunities);
   try{await loadApprovedGalleries(currentOpportunities);renderOpportunities(currentOpportunities);}catch(e){console.error('Gallery details unavailable',e);}
+  if(linkedBike&&offerView==="mine")openMineDetails(Number(linkedId));
 }
 let approvedGalleries={},dealerDescriptions={};
 async function loadApprovedGalleries(rows){
