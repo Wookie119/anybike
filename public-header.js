@@ -1989,21 +1989,25 @@ function renderNotificationList(items){
   }).join("");
 
   list.querySelectorAll("[data-notification-id]").forEach(function(item){
-    item.addEventListener("click",function(){
-      const notificationId = item.getAttribute("data-notification-id");
-
-      if(notificationId && anybikeHeaderUser){
-        sb
-          .from("customer_notifications")
+    item.addEventListener("click",async function(event){
+      if(event.defaultPrevented||event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;
+      const notificationId=item.getAttribute("data-notification-id");
+      const destination=item.href;
+      if(!notificationId||!anybikeHeaderUser)return;
+      event.preventDefault();
+      try{
+        const {error}=await sb.from("customer_notifications")
           .update({is_read:true})
           .eq("id",notificationId)
-          .eq("customer_id",anybikeHeaderUser.id)
-          .then(function(){})
-          .catch(function(error){
-            console.warn("Notification could not be marked read",error);
-          });
+          .eq("customer_id",anybikeHeaderUser.id);
+        if(error)throw error;
+        item.remove();
+        await loadCustomerHeaderActivity(anybikeHeaderUser);
+      }catch(error){
+        console.warn("Notification could not be marked read",error);
+      }finally{
+        window.location.assign(destination);
       }
-      // Allow the browser to follow the href immediately.
     });
   });
 }
