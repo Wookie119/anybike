@@ -34,7 +34,7 @@ let ready=false;
 const enc=encodeURIComponent;
 function safeText(v){return String(v??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
 function prepare(){
- let type=$("type").value; if(type!=="seller" && /^AB-S-\d+$/i.test($("reference").value.trim())){type="seller";$("type").value="seller";$("reference").closest("label").hidden=false;document.querySelector(".notice.small").hidden=false;} const name=$("name").value.trim(),email=$("email").value.trim(),mobile=$("mobile").value.trim(),business=$("business").value.trim(),ref=$("reference").value.trim();
+ const type=$("type").value; const name=$("name").value.trim(),email=$("email").value.trim(),mobile=$("mobile").value.trim(),business=$("business").value.trim(),ref=$("reference").value.trim();
  if(!name&&!email&&!mobile){$("status").textContent="Enter a contact name, email or mobile number before preparing.";return;}
  const url=base+"/customer-register.html?return="+enc(type==="seller"?"/my-selling.html":type==="dealer"?"/my-dealership.html":"/customer-dashboard.html")+(type==="seller"?"&invite_type=seller&invite_name="+enc(name)+"&invite_email="+enc(email):"");
  const greeting=name?"Hi "+name.split(/\s+/)[0]+",":"Hello,";
@@ -57,7 +57,7 @@ function prepare(){
 async function copy(value){if(!ready){$("status").textContent="Prepare an invitation first.";return;}try{await navigator.clipboard.writeText(value);$("status").textContent="Copied. Nothing sent.";}catch(e){window.prompt("Copy this text:",value);}}
 $("type").addEventListener("change",()=>{
  const isSeller=$("type").value==="seller";
- $("reference").closest("label").hidden=!isSeller;
+ $("reference").closest("label").hidden=!isSeller;$("reference").disabled=!isSeller;
  document.querySelector(".notice.small").hidden=!isSeller;
  $("link").value="";$("subject").value="";$("emailbody").textContent="Select Prepare invitation to preview this invitation type.";$("sms").value="";
  ready=false;$("status").textContent="Invitation type changed. Prepare a new preview before copying.";
@@ -67,6 +67,6 @@ $("copylink").addEventListener("click",()=>copy($("link").value));
 $("copyemail").addEventListener("click",()=>copy("Subject: "+$("subject").value+"\n\n"+$("emailbody").innerText));
 $("copybranded").addEventListener("click",async()=>{if(!ready){$("status").textContent="Prepare an invitation first.";return;}try{const html=$("emailbody").innerHTML;await navigator.clipboard.write([new ClipboardItem({"text/html":new Blob([html],{type:"text/html"}),"text/plain":new Blob([$("emailbody").innerText],{type:"text/plain"})})]);$("status").textContent="Branded email copied with the latest registration link. Nothing sent.";}catch(e){$("status").textContent="Your browser cannot copy formatted email here. Use Copy email text instead.";}});
 $("copysms").addEventListener("click",()=>copy($("sms").value));
-const params=new URLSearchParams(location.search);if(["buyer","seller","dealer"].includes(params.get("type")))$("type").value=params.get("type");$("reference").closest("label").hidden=$("type").value!=="seller";document.querySelector(".notice.small").hidden=$("type").value!=="seller";for(const key of ["name","email","mobile","business","reference"]){if(params.has(key))$(key).value=params.get(key);}
+const params=new URLSearchParams(location.search);if(["buyer","seller","dealer"].includes(params.get("type")))$("type").value=params.get("type");$("reference").closest("label").hidden=$("type").value!=="seller";$("reference").disabled=$("type").value!=="seller";document.querySelector(".notice.small").hidden=$("type").value!=="seller";for(const key of ["name","email","mobile","business","reference"]){if(params.has(key))$(key).value=params.get(key);}
 (async()=>{try{const allowed=await requireAdminSession();if(!allowed)return;document.documentElement.classList.remove("admin-auth-pending");if(params.has("name")||params.has("email"))prepare();}catch(e){document.documentElement.classList.remove("admin-auth-pending");$("status").textContent="Admin authentication required: "+String(e.message||e);}})();
 </script></body></html>
