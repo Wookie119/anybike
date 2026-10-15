@@ -6556,6 +6556,7 @@ const dealStageSaveBusy = new Set();
 let adminDealFinancialStatus = [];
 const dealVatSaveBusy = new Set();
 let adminDealMotorcycles = [];
+let adminCompletedUnderwriteDealIds = new Set();
 let adminDealCandidates = [];
 let adminDealRequirements = [];
 const dealRequirementSaveBusy = new Set();
@@ -12519,6 +12520,15 @@ async function loadAdminDealQueue(){
   }
 
 
+  try {
+    const completed = await sb.rpc("admin_completed_underwrite_deal_ids_v1");
+    if(completed.error) throw completed.error;
+    adminCompletedUnderwriteDealIds = new Set((completed.data||[]).map(String));
+  } catch(error) {
+    console.warn("Could not verify completed UK underwrite deals:",error);
+    adminCompletedUnderwriteDealIds = new Set();
+  }
+
   try{
     const result = await sb.rpc("admin_get_deal_candidates_v1", { p_deal_id:null });
     if(result.error){ throw result.error; }
@@ -17364,7 +17374,7 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
 
   // UK trade-underwrite deals have already passed seller/HPI and commercial checks before promotion to Deal 360.
   // This is a display-only exception; export and retail deals keep their original validation.
-  const ukUnderwriteCompleted=offerAccepted && (bikes||[]).some(row=>Number(row.underwrite_opportunity_id)>0);
+  const ukUnderwriteCompleted=offerAccepted && adminCompletedUnderwriteDealIds.has(String(dealId));
   const sellerStageLabel=ukUnderwriteCompleted?"Purchase & Profit Check":"Seller / Commercial";
   const sellerStageComplete=ukUnderwriteCompleted || (sellerDone&&commercialReady&&vatDone);
 
