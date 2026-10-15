@@ -215,8 +215,24 @@ const esc=v=>String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&
 const money=v=>v===null||v===undefined||v===""?"—":"£"+Number(v).toLocaleString("en-GB",{maximumFractionDigits:0});
 
 async function loadQueue(){
-  const {data,error}=await sb.rpc("admin_get_seller_submission_queue_v5",{p_limit:150});
-  if(error){document.getElementById("queue").innerHTML='<div class="empty">'+esc(error.message)+'</div>';return;}
+  const queueHost=document.getElementById("queue");
+  queueHost.innerHTML='<div class="empty">Loading motorcycle submissions…</div>';
+  let response;
+  try{
+    response=await Promise.race([
+      sb.rpc("admin_get_seller_submission_queue_v5",{p_limit:150}),
+      new Promise((_,reject)=>setTimeout(()=>reject(new Error("The motorcycle queue did not respond within 15 seconds.")),15000))
+    ]);
+    if(response.error)throw response.error;
+  }catch(e){
+    const message=document.createElement("div");message.className="empty";
+    message.textContent=String(e.message||e)+" Your submissions have not been changed. ";
+    const retry=document.createElement("button");retry.type="button";retry.className="btn red";retry.textContent="Retry loading";retry.onclick=()=>loadQueue();
+    message.append(retry);queueHost.replaceChildren(message);
+    document.getElementById("underwriteSummary").textContent="Motorcycle queue temporarily unavailable — retry below.";
+    return;
+  }
+  const {data}=response;
   rows=data||[];
   tradeOpportunityBySubmission=new Map();
   try{
