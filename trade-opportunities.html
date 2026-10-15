@@ -127,6 +127,29 @@ textarea{min-height:68px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top
 #grid.grid.mine-grid .mine-body h2{font-size:clamp(16px,1.4vw,20px);margin:0}
 @media(max-width:1050px){#grid.grid.mine-grid,#grid.grid.mine-grid:has(>article:only-child){grid-template-columns:repeat(2,minmax(0,1fr))!important}}
 @media(max-width:650px){#grid.grid.mine-grid,#grid.grid.mine-grid:has(>article:only-child){grid-template-columns:minmax(0,1fr)!important}}
+
+.mine-editor-top{display:flex;justify-content:space-between;align-items:center;gap:10px}.mine-editor-top .mine-editor-close{width:auto;padding:7px 10px;border:1px solid #a32b32;background:#211013;color:#fff;font-size:12px}
+.mine-detail{width:100%;border:1px solid #b52229!important;background:#141010!important;text-align:center;margin-top:12px;color:#fff!important;font-size:13px;padding:11px;border-radius:7px;cursor:pointer}
+.mine-detail:hover{background:#ed1c24!important}
+.mine-detail-overlay[hidden]{display:none!important}
+.mine-detail-overlay{position:fixed;inset:0;z-index:99990;background:rgba(0,0,0,.94);overflow-y:auto;padding:22px}
+body.mine-detail-open{overflow:hidden}
+.mine-detail-shell{max-width:1450px;margin:auto;background:#0e0e0e;border:1px solid #b8222a;border-radius:13px;overflow:hidden}
+.mine-detail-bar{display:flex;justify-content:space-between;align-items:center;gap:12px;background:#1c1012;border-bottom:2px solid #ed1c24;padding:12px 18px}
+.mine-detail-bar button{border:1px solid #ed1c24;background:#250e11;font-size:14px}
+.mine-detail-columns{display:grid;grid-template-columns:minmax(0,52%) minmax(0,48%);align-items:start}
+.mine-detail-photos{min-width:0;border-right:1px solid #5b2529}
+.mine-detail-stage{position:relative;aspect-ratio:4/3;background:#090909;display:flex;align-items:center;justify-content:center}
+.mine-detail-stage>img{max-width:100%;max-height:100%;width:100%;height:100%;object-fit:contain}
+.mine-detail-stage button{position:absolute;top:45%;font-size:30px;background:rgba(0,0,0,.7);border:1px solid #b5262d;padding:5px 14px}
+.mine-prev{left:9px}.mine-next{right:9px}.mine-detail-stage span{position:absolute;bottom:10px;right:10px;background:#111d;padding:7px 10px;border-radius:5px;font-size:12px}
+.mine-detail-thumbs{display:flex;gap:8px;padding:11px;overflow-x:auto;border-top:2px solid #ed1c24}
+.mine-detail-thumbs button{flex:0 0 90px;width:90px;height:72px;padding:0;border:2px solid #5f282c;overflow:hidden}
+.mine-detail-thumbs button.active{border-color:#ed1c24}.mine-detail-thumbs img{width:100%;height:100%;object-fit:cover}
+.mine-detail-info{min-width:0;padding:20px}.mine-detail-info h2{font-size:clamp(22px,2.3vw,34px);margin:0 0 8px}.mine-detail-info>p{margin:0 0 14px}
+.mine-detail-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.mine-detail-fields>div{padding:10px;border-bottom:1px solid #444}.mine-detail-fields small{display:block;color:#aaa;font-size:12px}.mine-detail-fields strong{display:block;margin-top:5px;overflow-wrap:anywhere}
+.mine-detail-offer{padding:13px;border-top:1px solid #66242a;margin-top:15px}.mine-detail-offer>span{display:block;font-size:12px;color:#ccc}.mine-detail-offer>strong{display:block;font-size:30px;color:#ed1c24}
+@media(max-width:850px){.mine-detail-overlay{padding:6px}.mine-detail-columns{grid-template-columns:minmax(0,1fr)}.mine-detail-photos{border-right:0}.mine-detail-info{padding:15px}}
 </style>
 </head>
 <body>
@@ -137,7 +160,7 @@ textarea{min-height:68px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top
     <h1>Motorcycles to Underwrite</h1>
     <p>Explore motorcycles available to your dealership. View photographs and details, then submit your confidential trade offer.</p>
   </section>
-  <div id="confirmations"></div>
+  <div id="confirmations"></div><div id="mineDetailOverlay" class="mine-detail-overlay" hidden role="dialog" aria-modal="true" aria-label="Motorcycle details"></div>
   <nav class="offer-tabs" aria-label="Underwriting views">
     <button type="button" id="allOffersTab" class="active" onclick="showOfferView('all')">Available motorcycles</button>
     <button type="button" id="myOffersTab" onclick="showOfferView('mine')">My Trade Offers <span id="myBidCount"></span></button>
@@ -257,10 +280,38 @@ function renderMyTradeOffers(rows){
  document.getElementById('grid').innerHTML=rows.map(r=>{
  const id=Number(r.opportunity_id),photos=approvedGalleries[id]||[],bike=[r.make,r.model,r.variant].filter(Boolean).join(' '),url=photos[0]?.photo_url||r.image_url||'/anybike-image-coming-soon.png';
  const open=r.closes_at?new Date(r.closes_at).getTime()>Date.now():true;
- return '<article class="mine-card" data-opportunity-id="'+id+'"><div class="mine-image"><img src="'+esc(url)+'" alt="'+esc(bike)+'" loading="lazy" onclick="showGalleryPhoto('+id+',0)" onerror="this.src=\'/anybike-image-coming-soon.png\'"><span>'+photos.length+' photos</span></div><div class="mine-body"><div class="mine-heading"><h2>'+esc(bike)+'</h2><b>'+(open?'Live':'Closed')+'</b></div><p class="mine-meta">'+esc(r.reference)+' · '+esc(r.bike_year||'Year TBC')+' · '+(r.mileage==null?'Mileage TBC':Number(r.mileage).toLocaleString('en-GB')+' miles')+'</p><div class="mine-bottom"><div><small>Your confidential offer</small><strong>'+money(r.my_bid_gbp)+'</strong></div><span>'+(open?'Closes in '+esc(countdown(r.closes_at)):'Bidding closed')+'</span></div><div class="mine-actions">'+(open?'<button type="button" class="mine-change" onclick="toggleMineEditor('+id+')">Change my offer →</button><button type="button" onclick="withdrawBid('+id+')">Withdraw</button>':'<small>Awaiting AnyBike review</small>')+'</div>'+(open?'<div id="mine-editor-'+id+'" class="mine-editor" hidden><label>Maximum offer (£)<input id="bid-'+id+'" type="number" min="1" step="1" value="'+esc(r.my_bid_gbp)+'"></label><label>Private note to AnyBike<textarea id="note-'+id+'" placeholder="Optional conditions"></textarea></label><button class="red" onclick="submitBid('+id+')">Save updated offer</button></div>':'')+'<a class="mine-detail" href="/trade-opportunities.html?opportunity='+id+'">View motorcycle and photographs →</a></div></article>';
+ return '<article class="mine-card" data-opportunity-id="'+id+'"><div class="mine-image"><img src="'+esc(url)+'" alt="'+esc(bike)+'" loading="lazy" onclick="showGalleryPhoto('+id+',0)" onerror="this.src=\'/anybike-image-coming-soon.png\'"><span>'+photos.length+' photos</span></div><div class="mine-body"><div class="mine-heading"><h2>'+esc(bike)+'</h2><b>'+(open?'Live':'Closed')+'</b></div><p class="mine-meta">'+esc(r.reference)+' · '+esc(r.bike_year||'Year TBC')+' · '+(r.mileage==null?'Mileage TBC':Number(r.mileage).toLocaleString('en-GB')+' miles')+'</p><div class="mine-bottom"><div><small>Your confidential offer</small><strong>'+money(r.my_bid_gbp)+'</strong></div><span>'+(open?'Closes in '+esc(countdown(r.closes_at)):'Bidding closed')+'</span></div><div class="mine-actions">'+(open?'<button type="button" class="mine-change" onclick="toggleMineEditor('+id+')">Change my offer →</button><button type="button" onclick="withdrawBid('+id+')">Withdraw</button>':'<small>Awaiting AnyBike review</small>')+'</div>'+(open?'<div id="mine-editor-'+id+'" class="mine-editor" hidden><div class="mine-editor-top"><strong>Change your confidential offer</strong><button type="button" class="mine-editor-close" aria-label="Close offer editor" onclick="toggleMineEditor('+id+',false)">✕ Close</button></div><label>Maximum offer (£)<input id="bid-'+id+'" type="number" min="1" step="1" value="'+esc(r.my_bid_gbp)+'"></label><label>Private note to AnyBike<textarea id="note-'+id+'" placeholder="Optional conditions"></textarea></label><button class="red" onclick="submitBid('+id+')">Save updated offer</button></div>':'')+'<button class="mine-detail" type="button" onclick="openMineDetails('+id+')">View motorcycle and photographs →</button></div></article>';
  }).join('');
 }
-function toggleMineEditor(id){const el=document.getElementById('mine-editor-'+id);if(el)el.hidden=!el.hidden;}
+function toggleMineEditor(id,show){const el=document.getElementById('mine-editor-'+id);if(el){el.hidden=typeof show==='boolean'?!show:!el.hidden;}}
+
+
+let mineDetailIndex=0,mineDetailId=null;
+function openMineDetails(id){
+ const r=currentOpportunities.find(x=>Number(x.opportunity_id)===Number(id));
+ if(!r)return;
+ mineDetailId=Number(id);mineDetailIndex=0;
+ const images=approvedGalleries[id]||[];
+ const bike=[r.make,r.model,r.variant].filter(Boolean).join(' ');
+ const overlay=document.getElementById('mineDetailOverlay');
+ overlay.innerHTML='<div class="mine-detail-shell"><div class="mine-detail-bar"><strong>Motorcycle details · '+esc(r.reference)+'</strong><button type="button" onclick="closeMineDetails()" aria-label="Close motorcycle details">✕ Close</button></div>'+
+ '<div class="mine-detail-columns"><div class="mine-detail-photos"><div class="mine-detail-stage"><img id="mineDetailPhoto" src="'+esc(images[0]?.photo_url||r.image_url||'/anybike-image-coming-soon.png')+'" alt="'+esc(bike)+'"><button type="button" class="mine-prev" onclick="stepMineDetails(-1)" aria-label="Previous photograph">‹</button><button type="button" class="mine-next" onclick="stepMineDetails(1)" aria-label="Next photograph">›</button><span id="minePhotoCount">1 of '+images.length+' photographs</span></div><div class="mine-detail-thumbs">'+images.map((p,i)=>'<button type="button" class="'+(i===0?'active':'')+'" onclick="showMinePhoto('+i+')"><img src="'+esc(p.photo_url)+'" alt="Photo '+(i+1)+'" loading="lazy"></button>').join('')+'</div></div>'+
+ '<div class="mine-detail-info"><h2>'+esc(bike)+'</h2><p>'+esc(r.bike_year||'Year TBC')+' · '+(r.mileage==null?'Mileage to confirm':Number(r.mileage).toLocaleString('en-GB')+' miles')+'</p><div class="mine-detail-fields"><div><small>Make</small><strong>'+esc(r.make||'—')+'</strong></div><div><small>Model</small><strong>'+esc(r.model||'—')+'</strong></div><div><small>Year</small><strong>'+esc(r.bike_year||'—')+'</strong></div><div><small>Registration</small><strong>'+esc(images[0]?.registration||'To confirm')+'</strong></div><div><small>Mileage</small><strong>'+(r.mileage==null?'—':Number(r.mileage).toLocaleString('en-GB'))+'</strong></div></div>'+
+ '<div class="dealer-description"><strong>Motorcycle description</strong><p>'+esc(dealerDescriptions[id]||'Motorcycle details are being prepared by AnyBike.')+'</p><div class="delivered-note">Your confidential offer includes agreed UK delivery to your dealership.</div></div>'+
+ '<div class="hpi-status '+(r.hpi_clear===true?'clear':'pending')+'">'+(r.hpi_clear===true?'Seller declares HPI clear — independent check pending':'HPI check pending')+'</div>'+
+ '<div class="mine-detail-offer"><span>Your active confidential offer</span><strong>'+money(r.my_bid_gbp)+'</strong><p>'+(r.closes_at?'Bidding closes in '+esc(countdown(r.closes_at)):'Auction closing time to confirm')+'</p><button type="button" class="red" onclick="closeMineDetails();toggleMineEditor('+id+',true);document.getElementById(\'mine-editor-'+id+'\').scrollIntoView({behavior:\'smooth\',block:\'center\'})">Change my offer</button></div></div></div></div>';
+ overlay.hidden=false;document.body.classList.add('mine-detail-open');
+}
+function closeMineDetails(){document.getElementById('mineDetailOverlay').hidden=true;document.body.classList.remove('mine-detail-open');mineDetailId=null;}
+function showMinePhoto(index){
+ const images=approvedGalleries[mineDetailId]||[];if(!images.length)return;
+ mineDetailIndex=(index+images.length)%images.length;
+ document.getElementById('mineDetailPhoto').src=images[mineDetailIndex].photo_url;
+ document.getElementById('minePhotoCount').textContent=(mineDetailIndex+1)+' of '+images.length+' photographs';
+ document.querySelectorAll('.mine-detail-thumbs button').forEach((el,i)=>el.classList.toggle('active',i===mineDetailIndex));
+}
+function stepMineDetails(step){showMinePhoto(mineDetailIndex+step);}
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&mineDetailId!==null)closeMineDetails();else if(mineDetailId!==null&&e.key==='ArrowLeft')stepMineDetails(-1);else if(mineDetailId!==null&&e.key==='ArrowRight')stepMineDetails(1);});
 
 function renderBikeCards(rows){
   const host=document.getElementById("grid");
