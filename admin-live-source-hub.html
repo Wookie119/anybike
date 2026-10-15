@@ -96,6 +96,7 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
    
    <button class="btn" type="button" onclick="loadBmwVatCandidates()">View candidates</button>
   </div>
+  <div id="bmwRefreshProgressBox" style="display:none;margin:10px 0;padding:12px;border:1px solid #444;border-radius:10px"><div id="bmwRefreshProgressLabel" class="small" role="status">Preparing BMW refresh…</div><progress id="bmwRefreshProgress" max="100" style="width:100%;height:20px;margin-top:7px;accent-color:#ed1c24"></progress></div>
   <div id="bmwWeeklyPrepNotice" class="small" style="margin-top:10px">17 BMW candidates staged privately · VAT confirmation pending · no publication.</div>
   <button class="btn" type="button" onclick="refreshBmwWeeklyPreparation()">Check weekly BMW preparation</button>
   <button class="btn" type="button" onclick="compareBmwWeeklyStock()">Compare BMW Stock</button>
@@ -1503,6 +1504,15 @@ async function loadYamahaPhotos(id,button){
   }catch(e){if(st){st.className="status error";st.textContent="Yamaha photo loading paused at "+offset+": "+String(e?.message||e)};}
   finally{sourceRefreshInProgress=false;if(button){button.disabled=false;button.textContent="Load Yamaha photos";}}
 }
+function setBmwRefreshProgress(done,total,message,complete=false){
+ const box=document.getElementById("bmwRefreshProgressBox"),bar=document.getElementById("bmwRefreshProgress"),label=document.getElementById("bmwRefreshProgressLabel");
+ if(!box||!bar||!label)return;
+ box.style.display="block";
+ if(Number.isFinite(total)&&total>0){bar.max=total;bar.value=Math.min(total,Math.max(0,done||0));}
+ else{bar.removeAttribute("value");}
+ label.textContent=message||(Number.isFinite(total)&&total>0?(done||0).toLocaleString("en-GB")+" / "+total.toLocaleString("en-GB")+" BMW motorcycles processed":"Connecting to BMW source…");
+ if(complete&&total>0)bar.value=total;
+}
 async function refreshSource(id,event,button){
   if(event){event.preventDefault();event.stopPropagation();}
   const st=document.getElementById("refresh-"+id);
@@ -1521,6 +1531,7 @@ async function refreshSource(id,event,button){
   sourceRefreshInProgress=true;
   if(btn){btn.disabled=true;btn.textContent="Refreshing…";}
   st.className="status";st.textContent="Starting source refresh…";
+  if(isBmw)setBmwRefreshProgress(0,0,"Connecting to BMW catalogue…");
 
   try{
     let finalData=null;
@@ -1541,6 +1552,7 @@ async function refreshSource(id,event,button){
           lastError=result.error || new Error(result.data?.error||"Refresh request failed");
           st.className="status";
           st.textContent="BMW refresh is still saved. Temporary request problem — retrying "+attempt+" / 4…";
+          setBmwRefreshProgress(0,0,"BMW connection delayed; retry "+attempt+" of 4…");
           await new Promise(resolve=>setTimeout(resolve,1000*attempt));
         }
         if(lastError)throw lastError;
@@ -1550,6 +1562,7 @@ async function refreshSource(id,event,button){
         st.textContent=finalData.completed
           ?(finalData.message||"Source refresh completed.")
           :("Refreshing source… "+cursor.toLocaleString("en-GB")+" / "+total.toLocaleString("en-GB")+" motorcycles processed");
+        setBmwRefreshProgress(cursor,total,finalData.completed?"BMW source refresh completed.":("BMW source refresh · "+cursor.toLocaleString("en-GB")+" / "+total.toLocaleString("en-GB")+" motorcycles processed"),finalData.completed);
         if(finalData.completed)break;
         await new Promise(resolve=>setTimeout(resolve,250));
       }
@@ -1588,6 +1601,7 @@ async function refreshSource(id,event,button){
   }catch(e){
     st.className="status bad";
     st.textContent="Refresh failed: "+(e?.context?.body?.error||e?.message||String(e));
+    if(isBmw)setBmwRefreshProgress(0,0,"BMW refresh paused: "+(e?.message||String(e)));
     return false;
   }finally{
     sourceRefreshInProgress=false;
