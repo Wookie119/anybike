@@ -635,11 +635,28 @@ document.getElementById("queue").addEventListener("click",async function(e){
     if(!bike||bike.seller_type!=="private_seller")return;
     const sellerName=String(bike.seller_name||"").trim();
     if(!sellerName){alert("Seller name is missing. Complete the seller record first.");return;}
-    const dateString=prompt("Enter the date and time the seller authorised dealer offers by telephone (UK local time, YYYY-MM-DD HH:MM):","");
-    if(!dateString)return;
-    if(!/^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}$/.test(dateString)){alert("Use YYYY-MM-DD HH:MM.");return;}
-    const when=new Date(dateString.replace(" ","T"));
-    if(!Number.isFinite(when.getTime())||when.getTime()>Date.now()){alert("Enter a valid past call date/time.");return;}
+    const now=new Date();
+    const modal=document.createElement("div");
+    modal.style.cssText="position:fixed;inset:0;z-index:99999;background:#000c;display:flex;align-items:center;justify-content:center;padding:16px";
+    modal.innerHTML='<div role="dialog" aria-modal="true" aria-label="Telephone authorisation" style="width:min(440px,100%);background:#151515;border:1px solid #555;border-radius:12px;padding:22px;color:white;font:15px Arial,sans-serif"><h2>Telephone authorisation</h2><p>Choose the date and approximate time of your call with the seller.</p><label style="display:block;margin:12px 0">Date <input id="callDate" type="date" style="display:block;width:100%;padding:12px;margin-top:6px;color:white;background:#242424;border:1px solid #666;border-radius:7px"></label><div style="display:flex;gap:12px"><label style="flex:1">Hour <select id="callHour" style="display:block;width:100%;padding:12px;margin-top:6px;color:white;background:#242424"></select></label><label style="flex:1">Minute <select id="callMinute" style="display:block;width:100%;padding:12px;margin-top:6px;color:white;background:#242424"></select></label></div><p id="callError" style="color:#ff9393"></p><div style="display:flex;gap:12px;margin-top:18px"><button type="button" id="cancelCall">Cancel</button><button type="button" id="confirmCall" style="background:#d71920;color:white">Confirm call time →</button></div></div>';
+    document.body.appendChild(modal);
+    const dateInput=modal.querySelector("#callDate"), hourInput=modal.querySelector("#callHour"), minuteInput=modal.querySelector("#callMinute");
+    const dateStr=d=>[d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),String(d.getDate()).padStart(2,"0")].join("-");
+    dateInput.value=dateStr(now);dateInput.max=dateStr(now);
+    for(let h=0;h<24;h++)hourInput.add(new Option(String(h).padStart(2,"0"),String(h).padStart(2,"0")));
+    for(let m=0;m<60;m+=5)minuteInput.add(new Option(String(m).padStart(2,"0"),String(m).padStart(2,"0")));
+    hourInput.value=String(now.getHours()).padStart(2,"0");
+    minuteInput.value=String(Math.floor(now.getMinutes()/5)*5).padStart(2,"0");
+    const when=await new Promise(resolve=>{
+      modal.querySelector("#cancelCall").onclick=()=>resolve(null);
+      modal.querySelector("#confirmCall").onclick=()=>{
+        const selected=new Date(dateInput.value+"T"+hourInput.value+":"+minuteInput.value+":00");
+        if(!dateInput.value||!Number.isFinite(selected.getTime())||selected.getTime()>Date.now()){modal.querySelector("#callError").textContent="Select a valid past date and time.";return;}
+        resolve(selected);
+      };
+    });
+    modal.remove();
+    if(!when)return;
     const attestation="I personally spoke with this seller and they explicitly authorised AnyBike to approach verified motorcycle dealers for confidential offers, without agreeing to a sale.";
     if(!confirm("Record YOUR telephone conversation with "+sellerName+"?\\n\\n"+attestation+"\\n\\nThis records authorisation for dealer offers, NOT agreement to sell. An audit record will identify your admin account."))return;
     const {data,error}=await sb.rpc("admin_record_seller_phone_authorisation_v1",{p_submission_id:id,p_obtained_at:when.toISOString(),p_seller_name:sellerName,p_attestation:attestation});
