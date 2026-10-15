@@ -87,8 +87,18 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
           <div class="source-accordion-body">
         <section class="bmw-vat-candidates">
  <div style="border-bottom:1px solid #333;padding-bottom:12px;margin-bottom:12px">
-  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap"><div><strong>BMW VAT reclaimable stock</strong><p class="small" style="margin:4px 0 0">17 motorcycles · 102 BMW photo links · unpublished</p></div><span class="small">Admin review only</span></div>
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap"><div><strong>BMW weekly VAT stock</strong><p class="small" style="margin:4px 0 0">17 privately staged · VAT confirmation required before publication</p></div><span class="small">Admin review only</span></div>
   <div style="display:flex;gap:9px;flex-wrap:wrap;margin:12px 0 0">
+   <button class="btn red" type="button" onclick="updateBmwStockWeekly(this)">Update BMW Stock</button>
+   <button class="btn" type="button" onclick="refreshBmwWeeklyPreparation()">Check preparation</button>
+  </div>
+  <div id="bmwRefreshProgressBox" style="display:none;margin:10px 0;padding:12px;border:1px solid #444;border-radius:10px"><div id="bmwRefreshProgressLabel" class="small" role="status">Preparing BMW refresh…</div><progress id="bmwRefreshProgress" max="100" style="width:100%;height:20px;margin-top:7px;accent-color:#ed1c24"></progress></div>
+  <div id="bmwWeeklyPrepNotice" class="small" style="margin-top:10px">17 BMW candidates staged privately · VAT confirmation pending · no publication.</div>
+
+  <div id="bmwPhotoReviewNotice" class="small" role="status" aria-live="polite" style="margin-top:8px"></div>
+  <div id="bmwPhotoReviewMount" style="margin-top:10px"></div>
+  <details style="margin-top:14px"><summary style="cursor:pointer;font-weight:700">Photo reviews and advanced tools</summary>
+    <div style="display:flex;gap:9px;flex-wrap:wrap;margin:12px 0 0">
    <button class="btn red" id="bmwVatMainPhotoBtn" type="button" onclick="showFastBmwVatReview()">Review all 17 photos</button>
    <button class="btn" type="button" onclick="reviewImportedBmwVat()">Review bikes &amp; prices</button>
    <button class="btn" type="button" onclick="reviewCleanedBmwVatPilot(this)">Review cleaned photo</button>
@@ -96,14 +106,9 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
    
    <button class="btn" type="button" onclick="loadBmwVatCandidates()">View candidates</button>
   </div>
-  <div id="bmwRefreshProgressBox" style="display:none;margin:10px 0;padding:12px;border:1px solid #444;border-radius:10px"><div id="bmwRefreshProgressLabel" class="small" role="status">Preparing BMW refresh…</div><progress id="bmwRefreshProgress" max="100" style="width:100%;height:20px;margin-top:7px;accent-color:#ed1c24"></progress></div>
-  <div id="bmwWeeklyPrepNotice" class="small" style="margin-top:10px">17 BMW candidates staged privately · VAT confirmation pending · no publication.</div>
-  <button class="btn" type="button" onclick="refreshBmwWeeklyPreparation()">Check weekly BMW preparation</button>
-  <button class="btn" type="button" onclick="compareBmwWeeklyStock()">Compare BMW Stock</button>
-  <button class="btn red" type="button" onclick="updateBmwStockWeekly(this)">Update BMW Stock</button>
-  <div id="bmwPhotoReviewNotice" class="small" role="status" aria-live="polite" style="margin-top:8px"></div>
-  <div id="bmwPhotoReviewMount" style="margin-top:10px"></div>
-  <details style="margin-top:12px"><summary style="cursor:pointer;font-weight:700">Older checks and diagnostic tools</summary>
+
+  <div style="margin-top:8px"><button class="btn" type="button" onclick="compareBmwWeeklyStock()">Compare saved BMW records</button></div>
+    <details style="margin-top:12px"><summary style="cursor:pointer;font-weight:700">Older checks and diagnostic tools</summary>
    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
     <button class="btn" type="button" onclick="loadBmwVatExceptions()">Review unmatched and ended adverts</button>
     <button class="btn" type="button" onclick="checkImportedBmwPhotoSources(this)">Check 17 BMW photo sources</button>
@@ -117,13 +122,17 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
     <span id="bmwVatGalleryTopStatus" class="small" role="status">Gallery loader ready</span>
    </div>
   </details>
+
  </div>
+  <details style="margin-top:12px"><summary style="cursor:pointer">Manual BMW import and archived checks</summary>
  <p class="small">BMW showed 306 VAT reclaimable motorcycles in the checked search. Use confirmed advert IDs to match existing Live Source records; this does not change verified VAT status, images or publication.</p>
  <a href="https://approvedused.bmw-motorrad.co.uk/UK/ergebnisse.cshtml" target="_blank" rel="noopener noreferrer" class="small">Open BMW VAT reclaimable search ↗</a>
  <label class="small" style="display:block;margin:9px 0 5px" for="bmwVatCandidateInput">BMW search results HTML, advert links or IDs</label>
  <input type="file" id="bmwVatResultFile" accept=".html,.htm,.txt" onchange="importBmwVatResultFile(this)" aria-label="Choose BMW VAT reclaimable results HTML" style="display:block;margin:8px 0"><p class="small">Or choose a saved BMW search-results HTML file. Only motorcycles found in that file will be matched; one saved page may not contain all 306 results.</p><textarea id="bmwVatCandidateInput" rows="3" placeholder="Paste copied BMW results HTML, advert links or BMW bike IDs"></textarea>
  <div class="toolbar"><button type="button" class="btn" onclick="previewBmwVatCandidates()">Preview matches</button><button type="button" class="btn red" onclick="saveBmwVatCandidates()">Save candidates (not publish)</button></div>
  <p id="bmwVatFilterDiagnosticStatus" class="small" role="status"></p><p id="bmwVatCandidateStatus" class="small" role="status"></p><div id="bmwVatCandidateAudit" class="small" style="padding:8px 0"></div><div id="bmwVatCandidateMatches"></div><div style="margin-top:10px"><p id="bmwVatExceptionSummary" class="small" role="status"></p><div id="bmwVatExceptionRows"></div></div>
+  </details>
+  </details>
  </section>
  <section class="stock-photo-queue">
           <div class="stock-photo-queue-head"><strong>Customer photo requests — Admin queue</strong><button class="btn" type="button" onclick="loadStockPhotoRequests()">Check requests</button></div>
