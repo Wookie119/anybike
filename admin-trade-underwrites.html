@@ -7,6 +7,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/admin.js?v=12001"></script><link rel="stylesheet" href="/admin-shell.css?v=12001">
 <style id="anybikeTradeEmbedStyles">html.trade-embedded .admin-sidebar,html.trade-embedded #adminTopbar{display:none!important}html.trade-embedded .admin-shell{display:block!important}html.trade-embedded .admin-main{margin:0!important;width:100%!important;min-width:0!important}html.trade-embedded .admin-page-content{padding:12px!important;max-width:none!important}html.trade-embedded .hero{padding:12px 16px!important;margin-bottom:10px!important}html.trade-embedded .hero>a{display:none!important}html.trade-embedded .hero h1{font-size:22px!important}html.trade-embedded .hero p{font-size:12px!important}.auction-time-bar{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;background:#1c1212;border:1px solid #6a3032;border-radius:12px;padding:16px;margin:14px 0}.auction-time-bar strong{font-size:14px}.auction-countdown{font-size:clamp(24px,3vw,38px);font-weight:800;font-variant-numeric:tabular-nums;color:#fff;margin:5px 0}.auction-time-bar small{color:#bcbcbc}.auction-time-bar button{min-width:200px}@media(max-width:650px){.auction-time-bar button{width:100%}}
+.deadline-label{display:block;font-weight:800;margin:15px 0 8px}#deadlineDateTime{display:block;width:100%;min-height:50px;font:inherit;border:1px solid #ed1c24;background:#090909;color:#fff;border-radius:9px;padding:10px}#deadlineStatus{color:#f2b2b4;font-size:13px}#deadlineSave:disabled{opacity:.55}
 </style><script>if(new URLSearchParams(location.search).has("embedded"))document.documentElement.classList.add("trade-embedded");</script>
 <style>
 :root{--red:#ed1c24;--line:rgba(255,255,255,.12)}*{box-sizing:border-box}body{margin:0;background:#070707;color:#fff;font-family:Arial,Helvetica,sans-serif}
@@ -62,7 +63,7 @@ input{background:#090909;color:#fff;border:1px solid #333;border-radius:10px;pad
 </div>
 <div class="actions"><button class="red" onclick="saveFinalCheck()">Save Checks &amp; Continue →</button><button onclick="closeFinalCheck()">Cancel</button></div><div id="fc-status" class="meta"></div>
 </div></div>
-<div id="bidModal" class="modal"><div class="modal-box"><div class="top"><div><div class="eyebrow">Confidential Trade Bids</div><h3 id="bidTitle" style="margin:5px 0">Bids</h3></div><button onclick="closeBids()">Close</button></div><div id="bidList"></div></div></div>
+<div id="deadlineModal" class="modal"><div class="modal-box" style="width:min(560px,100%)"><div class="top"><h3 id="deadlineTitle">Auction closing date &amp; time</h3><button type="button" onclick="closeDeadlineModal()">✕ Close</button></div><p>Choose the date and time bidding should close. All times are UK local time (GMT/BST).</p><label class="deadline-label" for="deadlineDateTime">Closing date and time</label><input id="deadlineDateTime" type="datetime-local" step="60" required><p class="meta">Existing bids remain unchanged. You can adjust the deadline while bidding is live.</p><p id="deadlineStatus" role="status" aria-live="polite"></p><div class="actions"><button id="deadlineSave" type="button" class="red" onclick="saveExactDeadline()">Save closing date &amp; time</button><button type="button" onclick="closeDeadlineModal()">Cancel</button></div></div></div><div id="bidModal" class="modal"><div class="modal-box"><div class="top"><div><div class="eyebrow">Confidential Trade Bids</div><h3 id="bidTitle" style="margin:5px 0">Bids</h3></div><button onclick="closeBids()">Close</button></div><div id="bidList"></div></div></div>
 
 <div id="confirmModal" class="modal"><div class="modal-box" style="width:min(620px,100%)">
 <h3>Ask Trade Buyer to Confirm</h3>
@@ -207,16 +208,47 @@ async function inviteOneDealer(id){
  }catch(e){document.getElementById("dealerInviteStatus").textContent="Not confirmed: "+(e.message||e);}
  finally{dealerInviteBusy=false;drawDealerInvites();}
 }
-async function adjustUnderwriteDeadline(id){
- const h=prompt("Set bidding to close in how many hours from now? Choose 12, 24, 48, 72 or 96.","48");
- if(h===null)return;
- const hours=Number(h);
- if(![12,24,48,72,96].includes(hours)){alert("Choose 12, 24, 48, 72 or 96 hours.");return;}
- if(!confirm("Update the countdown on this live underwriting opportunity to "+hours+" hours from now? Existing bids will remain recorded."))return;
- const {data,error}=await sb.rpc("admin_adjust_trade_underwrite_deadline_v1",{p_opportunity_id:Number(id),p_hours:hours});
- if(error){alert(error.message);return;}
- await load();
- alert("Countdown updated. Bidding closes "+new Date(data.closes_at).toLocaleString("en-GB")+".");
+let deadlineOpportunityId=null;
+function ukDisplayParts(date){
+ return new Intl.DateTimeFormat("en-GB",{timeZone:"Europe/London",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).formatToParts(date).reduce((acc,p)=>(acc[p.type]=p.value,acc),{});
+}
+function toUkInput(date){const p=ukDisplayParts(date);return p.year+"-"+p.month+"-"+p.day+"T"+p.hour+":"+p.minute;}
+function ukInputToIso(value){
+ if(!/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}$/.test(value))return null;
+ const provisional=new Date(value+":00Z");
+ if(Number.isNaN(provisional.getTime()))return null;
+ const tzParts=new Intl.DateTimeFormat("en",{timeZone:"Europe/London",timeZoneName:"shortOffset"}).formatToParts(provisional);
+ const tz=tzParts.find(p=>p.type==="timeZoneName")?.value||"GMT";
+ const match=tz.match(/GMT([+-]\\d{1,2})/),hours=match?Number(match[1]):0;
+ const utc=new Date(provisional.getTime()-hours*3600000);
+ if(toUkInput(utc)!==value)return null;
+ return utc.toISOString();
+}
+function adjustUnderwriteDeadline(id){
+ const row=rows.find(r=>Number(r.opportunity_id)===Number(id));
+ deadlineOpportunityId=Number(id);
+ document.getElementById("deadlineTitle").textContent=(row?.reference||"Trade Underwrite")+" · Closing date & time";
+ document.getElementById("deadlineDateTime").value=toUkInput(row?.closes_at?new Date(row.closes_at):new Date(Date.now()+48*3600000));
+ document.getElementById("deadlineStatus").textContent="";
+ document.getElementById("deadlineModal").classList.add("open");
+}
+function closeDeadlineModal(){document.getElementById("deadlineModal").classList.remove("open");deadlineOpportunityId=null;}
+async function saveExactDeadline(){
+ const field=document.getElementById("deadlineDateTime"),status=document.getElementById("deadlineStatus"),button=document.getElementById("deadlineSave");
+ const iso=ukInputToIso(field.value);
+ if(!iso){status.textContent="Choose a valid UK date and time.";return;}
+ const when=new Date(iso),remaining=when.getTime()-Date.now();
+ if(remaining<=5*60000||remaining>30*86400000){status.textContent="Choose a time between 5 minutes and 30 days from now.";return;}
+ const readable=when.toLocaleString("en-GB",{timeZone:"Europe/London",dateStyle:"full",timeStyle:"short"});
+ if(!confirm("Set bidding to close on "+readable+" (UK time)? Existing bids will remain recorded."))return;
+ button.disabled=true;status.textContent="Saving…";
+ try{
+  const {data,error}=await sb.rpc("admin_set_trade_underwrite_deadline_v1",{p_opportunity_id:deadlineOpportunityId,p_closes_at:iso});
+  if(error)throw error;
+  closeDeadlineModal();
+  await load();
+ }catch(e){status.textContent="Could not update: "+(e.message||e);}
+ finally{button.disabled=false;}
 }
 let finalCheckId=null;
 const finalCheckFields=["available","price_agreed","history_checked","finance_plan_checked","condition_checked","margin_checked"];
