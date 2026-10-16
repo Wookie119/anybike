@@ -17605,6 +17605,21 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
         const sellerName=String(domesticSellerIdentity.get(dealId)?.seller_name||'Seller name unavailable');
         const buyerAccount=adminDealCustomerAccounts.get(dealId)||{};
         const buyerDue=anyBikeAccountNumber(buyerAccount,["customer_balance_due_gbp","balance_due_gbp"],dealerCost);
+        const buyerTerms=domesticBuyerTerms.get(dealId)||{};
+        const termsPlan=String(buyerTerms.plan||"");
+        const termsDeposit=Number(buyerTerms.deposit||0);
+        const buyerReceived=Math.max(0,Number(dealerCost)-Number(buyerDue));
+        const termsLabels={advance:"100% before delivery",on_delivery:"100% on delivery",fifty_fifty:"50% deposit / 50% on delivery",custom:"Custom split"};
+        const termsPreview=buyerTerms.error
+          ? '<p style="padding:12px 18px;color:#ff8585">Buyer payment terms could not be loaded. Do not rely on an assumed payment schedule.</p>'
+          : !termsPlan
+          ? '<p style="padding:12px 18px;color:#ffc56f">Buyer payment terms not selected. Return to Stage 5 to propose terms before scheduling handover.</p>'
+          : '<div style="padding:12px 18px;display:flex;flex-wrap:wrap;gap:18px;align-items:center;border-bottom:1px solid #333">'+
+            '<strong>Proposed: '+escapeAdminHtml(termsLabels[termsPlan]||"Custom")+'</strong>'+
+            '<span>Deposit '+anyBikeDealMoney(termsDeposit)+'</span>'+
+            '<span>Delivery balance '+anyBikeDealMoney(Math.max(0,dealerCost-termsDeposit))+'</span>'+
+            '<span>Received '+anyBikeDealMoney(buyerReceived)+'</span>'+
+            '<strong style="color:#ffc56f">Not buyer-agreed — no release authorisation</strong></div>';
         const domesticForm=domesticState.error
           ? '<p style="color:#ff8585">Payment records unavailable: '+escapeAdminHtml(domesticState.error)+'</p>'
           : alreadyPaid
@@ -17617,6 +17632,7 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
         const sellerDeposit=Math.min(250,sellerCost);
         return '<section class="anybike-payment-panel" data-domestic-seller-deposit style="margin-top:12px;scroll-margin-top:85px"><div class="anybike-payment-head"><div><span>SELLER · '+escapeAdminHtml(sellerName)+' · OUTGOING</span><h4>'+(alreadyPaid?'Seller Deposit Recorded — '+anyBikeDealMoney(paidSupplier):'Pay Seller Deposit — '+anyBikeDealMoney(sellerDeposit))+'</h4></div><div class="anybike-payment-status neutral">'+(alreadyPaid?"✓ Deposit paid":"Bank transfer not confirmed")+'</div></div><div class="anybike-payment-grid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px"><div class="anybike-payment-metric"><span class="anybike-payment-label">Seller agreed price</span><strong>'+anyBikeDealMoney(sellerCost)+'</strong></div><div class="anybike-payment-metric"><span class="anybike-payment-label">'+(alreadyPaid?'Seller deposit paid':'Seller deposit to pay')+'</span><strong>'+anyBikeDealMoney(alreadyPaid?paidSupplier:Math.max(0,sellerDeposit-paidSupplier))+'</strong></div><div class="anybike-payment-metric"><span class="anybike-payment-label">Seller balance outstanding</span><strong>'+anyBikeDealMoney(Math.max(0,sellerCost-paidSupplier))+'</strong></div></div><div style="padding:14px 18px;line-height:1.6">'+(alreadyPaid?'<strong>Deposit recorded.</strong> Review the seller balance and incoming dealer funds before collection.':'<strong>Step 1 — Confirm seller bank details:</strong> Verify beneficiary name, sort code and account number using a trusted independent source. <strong>Step 2 — Make the transfer:</strong> Pay £250 through company banking, using the Deal reference. <strong>Step 3 — Record confirmation:</strong> After sending the bank transfer, enter the date and payment reference below to record it. <strong>Do not mark it paid until the bank transfer is confirmed.</strong><p style="margin:10px 0 0;color:#aab">Bank transfers must be completed separately. This form records a confirmed outgoing seller payment only; it does not initiate one.</p>')+'</div>'+domesticForm+'</section>'+
           '<section class="anybike-payment-panel" style="margin-top:12px;scroll-margin-top:85px"><div class="anybike-payment-head"><div><span>BUYER · '+escapeAdminHtml(buyerName)+' · INCOMING</span><h4>Dealer Payment — '+anyBikeDealMoney(dealerCost)+'</h4></div><strong style="color:#ffc56f">'+anyBikeDealMoney(buyerDue)+' due</strong></div>'+
+          termsPreview+
           renderAnyBikeDealCustomerAccount(deal)+
           '<details class="sales-payment-advanced" style="margin:12px 18px"><summary style="cursor:pointer;font-weight:800;color:#fff">Record dealer payment received →</summary><div style="margin-top:12px">'+renderAnyBikeDealCustomerLedger(deal)+'</div></details>'+
           '<p style="padding:0 18px 14px;color:#aab">Only record money actually received into the company account. Allocate the receipt to the Suzuki after recording.</p></section>';
