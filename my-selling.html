@@ -39,6 +39,13 @@
     }
   }catch(e){console.warn("Seller consent panel unavailable",e)}
 
+  let progressBySubmission=new Map();
+  try{
+    const result=await client.rpc("seller_my_deal_progress_v1");
+    if(result.error)throw result.error;
+    progressBySubmission=new Map((result.data||[]).map(row=>[String(row.submission_id),row]));
+  }catch(error){console.warn("Seller Deal 360 progress unavailable:",error.message);}
+
   holder.replaceChildren();
   for(const item of rows){
    const card=document.createElement("div");card.className="card";card.style.margin="12px 0";
@@ -62,7 +69,17 @@
     const hint=document.createElement("small");hint.textContent=index<current?"Completed":index===current?"Current stage":index===3?"Only confirmed when AnyBike has reviewed costs and the seller's agreed reserve":index===4?"Awaiting a formal offer from AnyBike":"Not started";
     description.append(title,hint);step.append(dot,description);timeline.append(step);
    });
-   card.append(heading,details,state,timeline); const upload=document.createElement("a");upload.href="/seller-add-photos.html?reference="+encodeURIComponent(item.reference);upload.className="button";upload.textContent="Add more motorcycle photos →";upload.style.marginTop="10px";card.append(upload); if(item.reserve_met===true && stage==="live"){const reserve=document.createElement("p");reserve.className="ok";reserve.style.cssText="padding:14px;border:1px solid #368451;border-radius:10px;margin:14px 0";reserve.textContent="✓ Reserve met — AnyBike has completed a positive assessment. This is not yet a formal offer or an agreed sale. We will contact you when an offer is ready.";card.insertBefore(reserve,timeline);} if(stage==='live'){const count=Number(item.active_offer_count||0);const panel=document.createElement('div');panel.className='offer-highlight';const number=document.createElement('strong');number.className='offer-highlight-number';number.textContent=String(count);const text=document.createElement('div');const label=document.createElement('strong');label.textContent=count===0?'Waiting for dealer offers':count===1?'We are receiving offers from 1 dealer':'We are receiving offers from '+count+' dealers';const note=document.createElement('small');note.textContent='Verified UK dealer interest · Offer amounts and identities remain private';text.append(label,note);panel.append(number,text);card.insertBefore(panel,timeline);}
+   card.append(heading,details,state,timeline);
+   const sellerDeal=progressBySubmission.get(String(item.id||item.submission_id));
+   if(sellerDeal){
+     const pane=document.createElement("section");pane.className="seller-price-review";
+     pane.style.cssText="padding:15px;border:1px solid #35664b;border-radius:10px;margin:15px 0;background:#0e1b14";
+     const title=document.createElement("h3");title.textContent="Your sale progress · "+String(sellerDeal.deal_number||"");
+     const summary=document.createElement("p");summary.textContent=String(sellerDeal.sale_status||"AnyBike progressing sale");
+     const finances=document.createElement("p");finances.textContent="Agreed seller price £"+Number(sellerDeal.seller_price_gbp||0).toFixed(2)+" · Paid to you £"+Number(sellerDeal.seller_paid_gbp||0).toFixed(2)+" · Outstanding £"+Number(sellerDeal.seller_balance_gbp||0).toFixed(2);
+     const note=document.createElement("small");note.textContent="Only your seller-side progress and payments are shown. Buyer identity, buyer payments and AnyBike margin remain private.";
+     pane.append(title,summary,finances,note);card.append(pane);
+   } const upload=document.createElement("a");upload.href="/seller-add-photos.html?reference="+encodeURIComponent(item.reference);upload.className="button";upload.textContent="Add more motorcycle photos →";upload.style.marginTop="10px";card.append(upload); if(item.reserve_met===true && stage==="live"){const reserve=document.createElement("p");reserve.className="ok";reserve.style.cssText="padding:14px;border:1px solid #368451;border-radius:10px;margin:14px 0";reserve.textContent="✓ Reserve met — AnyBike has completed a positive assessment. This is not yet a formal offer or an agreed sale. We will contact you when an offer is ready.";card.insertBefore(reserve,timeline);} if(stage==='live'){const count=Number(item.active_offer_count||0);const panel=document.createElement('div');panel.className='offer-highlight';const number=document.createElement('strong');number.className='offer-highlight-number';number.textContent=String(count);const text=document.createElement('div');const label=document.createElement('strong');label.textContent=count===0?'Waiting for dealer offers':count===1?'We are receiving offers from 1 dealer':'We are receiving offers from '+count+' dealers';const note=document.createElement('small');note.textContent='Verified UK dealer interest · Offer amounts and identities remain private';text.append(label,note);panel.append(number,text);card.insertBefore(panel,timeline);}
    if(Number(item.price_wanted_gbp)>0 && ["live","closed","expired"].includes(stage)){
      const section=document.createElement("section");section.className="seller-price-review";
      const title=document.createElement("h3");title.textContent="Review your minimum selling price";
