@@ -763,8 +763,11 @@ function escapeAdminHtml(value){
   <div class="admin-customer-modal-box" role="dialog" aria-modal="true" aria-labelledby="confirmationLinkTitle">
     <div class="eyebrow">Email Confirmation</div>
     <h2 id="confirmationLinkTitle" style="margin:5px 0 6px">Email verification</h2>
-    <p class="small" style="margin:0 0 12px">Create a secure AnyBike verification link for any customer type. Copy the message or choose to send an SMS after confirming the recipient.</p>
-    <textarea id="confirmationMessage" class="confirmation-output" readonly></textarea>
+    <p class="small" style="margin:0 0 12px">Choose whether to send a verification SMS now, or copy the message to send yourself.</p>
+    <div id="confirmationSendState" role="status" aria-live="polite" style="padding:15px 18px;margin:10px 0 14px;background:#272019;border:1px solid #a06a21;border-radius:12px;font-size:17px;font-weight:800">NOT SENT FROM THIS WINDOW</div>
+    <div id="confirmationRecipient" class="small" style="margin-bottom:12px"></div>
+    <details style="margin:12px 0"><summary style="cursor:pointer;font-weight:700">Show verification message and link</summary>
+    <textarea id="confirmationMessage" class="confirmation-output" readonly></textarea></details>
     <div id="confirmationLinkStatus" class="small" style="margin-top:8px"></div>
     <div class="modal-row-actions">
       <button type="button" class="btn dark" onclick="closeConfirmationLink()">Close</button>
@@ -990,6 +993,10 @@ async function generateConfirmationText(userId){
 
   generatedConfirmationLink="";
   generatedConfirmationUserId=String(userId);
+  const sendState=document.getElementById("confirmationSendState");
+  const recipient=allCustomers.find(c=>String(c.customerId)===String(userId));
+  document.getElementById("confirmationRecipient").textContent="SMS recipient: "+(recipient?.phone||"No mobile number saved");
+  if(sendState){sendState.textContent="NOT SENT FROM THIS WINDOW — creating a link does not send an SMS. Any earlier SMS is not tracked here.";sendState.style.borderColor="#a06a21";sendState.style.background="#272019";}
   output.value="Creating secure AnyBike verification link…";
   if(status)status.textContent="";
   modal.classList.add("open");
@@ -1019,6 +1026,7 @@ async function generateConfirmationText(userId){
 async function quickSendConfirmationSms(){
   const status=document.getElementById("confirmationLinkStatus");
   const button=document.getElementById("quickSendConfirmationBtn");
+  const sendState=document.getElementById("confirmationSendState");
   if(!generatedConfirmationUserId){
     if(status)status.textContent="Generate the confirmation text first.";
     return;
@@ -1026,7 +1034,8 @@ async function quickSendConfirmationSms(){
   const recipient=(allCustomers.find(c=>String(c.customerId)===String(generatedConfirmationUserId))||{}).phone||"the customer’s saved mobile number";
   if(!confirm("Send an SMS containing a secure AnyBike sign-in link to "+recipient+"? This will contact the customer immediately."))return;
   if(button){button.disabled=true;button.textContent="Sending…";}
-  if(status)status.textContent="Sending confirmation link by SMS…";
+  if(status)status.textContent="Contacting ClickSend…";
+  if(sendState)sendState.textContent="SENDING SMS — waiting for provider response…";
 
   try{
     const {data,error}=await sb.functions.invoke("admin-send-customer-confirmation-sms",{
@@ -1035,10 +1044,12 @@ async function quickSendConfirmationSms(){
     if(error)throw error;
     if(data?.error)throw new Error(data.error);
     if(data?.success!==true || data?.sent!==true)throw new Error("SMS provider has not confirmed acceptance. Please check before trying again.");
-    if(status)status.textContent="SMS accepted by ClickSend for "+String(data.to||recipient)+". Delivery and email verification are not yet confirmed.";
+    if(status)status.textContent="Provider accepted at "+new Date().toLocaleTimeString("en-GB")+(data.message_id?" · Reference: "+data.message_id:"")+". Delivery and email verification are not confirmed.";
+    if(sendState){sendState.textContent="SMS ACCEPTED BY CLICKSEND — "+String(data.to||recipient);sendState.style.borderColor="#237d4b";sendState.style.background="#10271b";}
     if(button)button.textContent="Send another SMS…";
   }catch(e){
     if(status)status.textContent="SMS not confirmed: "+(e?.message||String(e));
+    if(sendState){sendState.textContent="SMS STATUS UNKNOWN / FAILED — check before retrying";sendState.style.borderColor="#d04a4a";sendState.style.background="#301516";}
     if(button)button.textContent="Send confirmation SMS…";
   }finally{
     if(button)button.disabled=false;
