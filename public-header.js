@@ -960,18 +960,14 @@ async function addMyDealershipMenuIfEligible(user){
           }
         }
         // Keep one concise, alphabetical UK trade menu on both desktop and mobile.
+        // Service actions live on My Dealership, not in the account dropdown.
         const entries=[
           ["Accounts & Documents","/accounts-documents.html"],
-          ["Add VAT Qualifying Stock","/dealer-connect-stock.html?focus=vq"],
-          ["Connect Stock","/dealer-connect-stock.html"],
-          ["Make Trade Offers","/trade-opportunities.html"],
           ["Messages","/customer-messages.html"],
           ["My Dealership","/my-dealership.html"],
           ["My Profile","/customer-profile.html"],
           ["My Purchases","/my-purchases.html"],
-          ["My Selling","/my-selling.html"],
-          ["Offer Bikes to Trade","/offer-bikes-to-trade.html"],
-          ["Request Underwrite","/dealer-underwrite.html"]
+          ["My Selling","/my-selling.html"]
         ];
         const logout=menu.querySelector('a[id*="Logout"], a[href="#"][data-i18n="logout"]');
         [...menu.querySelectorAll("a")].forEach(a=>{if(a!==logout)a.remove()});
