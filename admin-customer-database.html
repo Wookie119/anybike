@@ -856,6 +856,7 @@ function openEditCustomer(userId){
   document.getElementById("editDealerLevel").value="1";
   ["editDealerSubmit","editDealerView","editDealerOffer"].forEach(id=>document.getElementById(id).checked=false);
   document.getElementById("dealerAccessStatus").textContent="Loading access permissions…";
+  window.anybikeDealerAccessOriginal=null;
   sb.rpc("admin_get_dealer_access_v1",{p_user_id:String(userId)}).then(({data,error})=>{
     if(editingCustomerId!==String(userId))return;
     document.getElementById("dealerAccessStatus").textContent=error?error.message:"";
@@ -864,6 +865,7 @@ function openEditCustomer(userId){
     document.getElementById("editDealerSubmit").checked=!!data?.can_submit_underwrites;
     document.getElementById("editDealerView").checked=!!data?.can_view_underwrites;
     document.getElementById("editDealerOffer").checked=!!data?.can_offer_underwrites;
+    window.anybikeDealerAccessOriginal={userId:String(userId),level:Number(data?.level||1),submit:!!data?.can_submit_underwrites,view:!!data?.can_view_underwrites,offer:!!data?.can_offer_underwrites};
   });
   const modal=document.getElementById("editCustomerModal");
   if(!modal){alert("Edit Customer window is not available. Refresh the page and try again.");return;}
@@ -886,12 +888,18 @@ async function saveEditedCustomer(){
   const customer=allCustomers.find(x=>String(x.customerId)===String(editingCustomerId));
   const verified=Boolean(onboarding.email_confirmed_at);
   const phone=String(document.getElementById("editPhone").value||"").trim();
-  const dealerAccessRequested=dealerLevel===2 || submitPermission || viewPermission || offerPermission;
+  // Contact/profile edits must never be blocked by pre-existing access checkboxes.
+  // Access privileges are handled only when the user explicitly changes them.
+  const original=window.anybikeDealerAccessOriginal||null;
+  const accessChanged=!!original && original.userId===String(editingCustomerId) &&
+    (original.level!==dealerLevel || original.submit!==submitPermission ||
+     original.view!==viewPermission || original.offer!==offerPermission);
+  const dealerAccessRequested=accessChanged && (dealerLevel===2 || submitPermission || viewPermission || offerPermission);
   if(dealerAccessRequested && (!verified || !phone || !String(customer?.name||"").trim() || !String(document.getElementById("editCountry").value||"").trim())){
-    alert("Dealer access is not available yet. Confirm the customer's email and complete the required phone and profile details first. You may still save profile changes at Level 1 without trade permissions.");
+    alert("Save the customer's contact details first. Dealer access can be reviewed after email confirmation.");
     return;
   }
-  if(dealerLevel===2 && !confirm("Approve this customer for Level 2 trade access with the selected permissions?"))return;
+  if(accessChanged && dealerLevel===2 && !confirm("Approve this customer for Level 2 trade access with the selected permissions?"))return;
 
   const liveSourceEnabled=Boolean(document.getElementById("editLiveSourceEnabled")?.checked);
   const ukDealer=["uk_dealer","uk_distributor"].includes(String(document.getElementById("editCustomerType").value||""));
@@ -918,11 +926,13 @@ async function saveEditedCustomer(){
     if(liveSourceError){alert("Customer details were saved, but Live Source Hub access could not be updated: "+liveSourceError.message);return;}
   }
 
-  const {error:dealerAccessError}=await sb.rpc("admin_set_dealer_access_v1",{
-    p_user_id:editingCustomerId,p_level:dealerLevel,p_submit:submitPermission,
-    p_view:viewPermission,p_offer:offerPermission
-  });
-  if(dealerAccessError){alert("Customer details were saved, but trade access was not changed: "+dealerAccessError.message);return;}
+  if(accessChanged){
+    const {error:dealerAccessError}=await sb.rpc("admin_set_dealer_access_v1",{
+      p_user_id:editingCustomerId,p_level:dealerLevel,p_submit:submitPermission,
+      p_view:viewPermission,p_offer:offerPermission
+    });
+    if(dealerAccessError){alert("Customer details were saved, but trade access was not changed: "+dealerAccessError.message);return;}
+  }
   const keepId=editingCustomerId;
   closeEditCustomer();
   await loadCustomers();
