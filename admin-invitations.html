@@ -22,7 +22,7 @@
 <button type="button" onclick="selectAllDealerInvites(true)">Select listed</button>
 <button type="button" onclick="selectAllDealerInvites(false)">Clear selection</button>
 </div>
-<div id="dealerInviteStatus" class="status" role="status">No contacts loaded.</div>
+<div id="dealerInviteStatus" class="status" role="status">No contacts loaded.</div><div id="dealerDirectoryProgress" class="notice small">Load saved dealers to see directory completeness.</div><p class="muted small">For franchise verification: <a href="https://www.bmw-motorrad.co.uk/en/public-pool/content-pool/dealerlocator.html" target="_blank" rel="noopener">Official BMW retailer locator ↗</a> · <a href="https://www.triumphmotorcycles.co.uk/dealers/dealer-search" target="_blank" rel="noopener">Official Triumph dealer locator ↗</a>. Names alone are not proof of an authorised franchise.</p>
 <div style="overflow:auto;max-height:400px;border:1px solid #333;border-radius:10px">
 <table style="width:100%;border-collapse:collapse;min-width:680px"><thead><tr><th style="padding:12px;text-align:left">Select</th><th style="text-align:left">Dealership</th><th style="text-align:left">Contact</th><th style="text-align:left">Email</th><th style="text-align:left">Phone</th><th style="text-align:left">Action</th></tr></thead><tbody id="dealerInviteRows"><tr><td colspan="6" style="padding:15px">Load saved dealers to begin.</td></tr></tbody></table>
 </div>
@@ -133,16 +133,18 @@ async function loadDealerInviteContacts(){
  }
  }
  const franchises=[...new Set(dealerInviteContacts.flatMap(r=>r.franchises))].filter(Boolean).sort((a,b)=>a.localeCompare(b));
- $("dealerInviteFranchise").innerHTML='<option value="">All franchises</option>'+franchises.map(brand=>'<option value="'+dealerInviteEscape(brand)+'">'+dealerInviteEscape(brand)+'</option>').join("")+'<option value="__unclassified">Franchise not recorded</option>';
+ $("dealerInviteFranchise").innerHTML='<option value="">All franchises</option>'+franchises.map(brand=>'<option value="'+dealerInviteEscape(brand)+'">'+dealerInviteEscape(brand)+'</option>').join("")+'<option value="__bmw_review">BMW name matches — review</option><option value="__triumph_review">Triumph name matches — review</option><option value="__unclassified">Franchise not recorded</option>';
  dealerInviteSelected.clear();dealerInviteQueue=[];dealerInvitePosition=0;$("nextDealerInviteDraft").disabled=true;
  renderDealerInviteContacts();
+ const total=(orgs||[]).length,withEmail=new Set(dealerInviteContacts.filter(r=>r.email).map(r=>r.orgId)).size,withPhone=(orgs||[]).filter(o=>!!String(o.telephone||"").trim()).length,withFranchise=new Set(dealerInviteContacts.filter(r=>r.franchises.length).map(r=>r.orgId)).size;
+ $("dealerDirectoryProgress").textContent="Directory health: "+total+" dealerships · "+withEmail+" with email · "+withPhone+" with telephone (not necessarily mobile) · "+withFranchise+" with confirmed franchise entries · "+(total-withEmail)+" needing email. No invitations sent.";
  status.textContent=dealerInviteContacts.length+" dealer directory entries; "+dealerInviteContacts.filter(r=>r.email).length+" with email and "+dealerInviteContacts.filter(r=>!r.email).length+" needing an email."+ (contactError?" Named contacts are restricted, so only organisation emails are shown.":"")+(brandError?" Franchise records could not be loaded.":"")+(franchises.length===0?" No verified franchises recorded yet.":"")+" Select who to invite. Nothing sent.";
  }catch(e){status.textContent="Could not load dealer directory: "+(e.message||e);}
 }
 function dealerInviteFiltered(){
  const q=String($("dealerInviteSearch").value||"").toLowerCase().trim();
  const brand=$("dealerInviteFranchise").value;
- return dealerInviteContacts.filter(r=>(!q||[r.business,r.contact,r.email].some(x=>String(x).toLowerCase().includes(q)))&&(!brand||(brand==="__unclassified"?!r.franchises.length:r.franchises.includes(brand))));
+ return dealerInviteContacts.filter(r=>(!q||[r.business,r.contact,r.email].some(x=>String(x).toLowerCase().includes(q)))&&(!brand||(brand==="__unclassified"?!r.franchises.length:brand==="__bmw_review"?/\\b(bmw|motorrad|bahnstormer|wollaston|vines|sycamore|balmer lawn|halliwell jones|ocean plymouth|dick lovett|lloyd|vertu|williams manchester|group 1 reading|group 1 brighton)\\b/i.test(r.business):brand==="__triumph_review"?/\\btriumph\\b/i.test(r.business):r.franchises.includes(brand))));
 }
 function renderDealerInviteContacts(){
  const rows=dealerInviteFiltered(); const tbody=$("dealerInviteRows");
