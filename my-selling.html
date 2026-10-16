@@ -9,7 +9,17 @@
   const response=await fetch("https://tuehtnezhdnkqbbhttgp.supabase.co/functions/v1/seller-my-submissions",{headers:{"Authorization":"Bearer "+token,"apikey":"sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK"},cache:"no-store"});
   if(!response.ok)throw Error("History unavailable");
   const payload=await response.json();if(!payload.success)throw Error("Unable to verify history");
-  const rows=payload.submissions||[];
+  const rows=Array.isArray(payload.submissions)?payload.submissions.slice():[];
+  try{
+    const linked=await client.rpc("seller_my_linked_sales_v1");
+    if(linked.error)throw linked.error;
+    const present=new Set(rows.map(item=>String(item.id||item.submission_id||item.reference)));
+    for(const sale of linked.data||[]){
+      if(present.has(String(sale.id))||present.has(String(sale.reference)))continue;
+      rows.push(sale);
+      present.add(String(sale.id));
+    }
+  }catch(error){console.warn("Linked seller sales could not be loaded:",error.message);}
   status.textContent=rows.length?"✓ "+rows.length+" motorcycle submission(s) linked to your account.":"No submitted motorcycles are linked to this account.";
   if(rows.length)status.className="saved-ok";
   try{
