@@ -4163,6 +4163,7 @@ body{
 .ab-customer-ledger-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;padding:14px 16px;background:linear-gradient(135deg,#151515,#080808);border-bottom:1px solid rgba(237,28,36,.5)}
 .ab-customer-ledger-head span{display:block;color:#ed1c24;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.08em}.ab-customer-ledger-head h4{margin:4px 0 0;color:#fff;font-size:17px}.ab-customer-ledger-head>strong{color:#ffc76b;font-size:12px}
 .ab-receipt-form{display:grid;grid-template-columns:130px 140px 150px minmax(170px,1fr) 190px minmax(180px,1fr) 190px;gap:9px;align-items:end;padding:14px 16px}.ab-receipt-form label{display:block;margin-bottom:5px;color:#9aa3ae;font-size:9px;font-weight:900;text-transform:uppercase}.ab-receipt-form input,.ab-receipt-form select,.ab-ledger-allocate input,.ab-ledger-allocate select{width:100%;box-sizing:border-box;border:1px solid #353535;border-radius:8px;background:#111;color:#fff;padding:9px 10px;font:inherit}.ab-receipt-form button,.ab-ledger-allocate button{margin:0;border:0;border-radius:8px;background:#ed1c24;color:#fff;padding:10px 12px;font-weight:900;cursor:pointer}.ab-receipt-form button:disabled,.ab-ledger-allocate button:disabled{opacity:.55;cursor:wait}
+.ab-customer-ledger .ab-receipt-form{grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.ab-customer-ledger .ab-receipt-form>div{min-width:0}.ab-customer-ledger .ab-receipt-form>button{grid-column:1/-1;justify-self:end;min-width:210px}.ab-customer-ledger .ab-received-at-wrap{display:flex;gap:5px;min-width:0}.ab-customer-ledger .ab-received-at-wrap input{min-width:0;flex:1;width:100%}.ab-customer-ledger .ab-date-helper{flex:0 0 auto}@media(max-width:740px){.ab-customer-ledger .ab-receipt-form{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:490px){.ab-customer-ledger .ab-receipt-form{grid-template-columns:minmax(0,1fr)}.ab-customer-ledger .ab-receipt-form>button{width:100%}}
 .ab-ledger-warning{padding:10px 16px;border-top:1px solid #292929;border-bottom:1px solid #292929;color:#aaa;font-size:11px}.ab-ledger-warning strong{color:#ff6b71}
 .ab-ledger-row{display:grid;grid-template-columns:minmax(170px,.8fr) minmax(240px,1.3fr) minmax(150px,.7fr);gap:10px;padding:11px 16px;border-top:1px solid #292929;background:#0d0d0d}.ab-ledger-row:first-child{border-top:0}.ab-ledger-row span{display:block;color:#8f8f8f;font-size:9px;font-weight:900;text-transform:uppercase}.ab-ledger-row strong{display:block;margin-top:4px;color:#fff;font-size:12px}.ab-ledger-row small{display:block;margin-top:4px;color:#9d9d9d;font-size:10px}.ab-ledger-allocate{grid-column:1/-1;display:grid;grid-template-columns:minmax(240px,1fr) 140px 170px 110px;gap:8px;align-items:center}.ab-ledger-empty{padding:12px 16px;color:#999;font-size:11px}
 @media(max-width:1250px){.ab-receipt-form{grid-template-columns:1fr 1fr 1fr}.ab-receipt-form button{grid-column:1/-1}.ab-ledger-row{grid-template-columns:1fr 1fr}.ab-ledger-allocate{grid-template-columns:1fr 1fr}}
@@ -13022,6 +13023,12 @@ function renderAnyBikeDealCustomerLedger(deal){
   const received = anyBikeAccountNumber(account,["customer_money_received_gbp"],0);
   const cashDue = Math.max(dealValue-received,0);
   const busy = dealCustomerReceiptBusy.has(dealId);
+  const domesticDeal=String(deal.sale_route||"")==="UK_DOMESTIC_TRADE";
+  const buyerTerms=domesticDeal?(domesticBuyerTerms.get(dealId)||{}):{};
+  const buyerAgreed=String(buyerTerms.status||"").toLowerCase()==="agreed";
+  const depositOutstanding=Math.max(0,Number(buyerTerms.deposit||0)-received);
+  const defaultPurpose=domesticDeal&&buyerAgreed&&depositOutstanding>0.009?"Deposit":"Balance";
+  const defaultAmount=domesticDeal?(buyerAgreed?(depositOutstanding>0.009?depositOutstanding:cashDue):0):cashDue;
 
   const rows = payments.length ? payments.map(function(p){
     const paymentId = Number(p.payment_id);
@@ -13100,14 +13107,15 @@ function renderAnyBikeDealCustomerLedger(deal){
       <strong>${anyBikeDealMoney(cashDue)} cash still due</strong>
     </div>
 
+    ${domesticDeal&&!buyerAgreed?'<div style="padding:10px 16px;color:#ffc76b">Buyer terms proposed only — receipt entry locked until genuine agreement. Do not record test payments.</div>':""}
     <div class="ab-receipt-form">
-      <div><label>Purpose</label><select id="ab-receipt-purpose-${dealId}"><option value="Balance">Balance</option><option value="Full Payment">Full Payment</option><option value="Additional Payment">Additional Payment</option><option value="Deposit">Deposit</option></select></div>
-      <div><label>Amount Received</label><input id="ab-receipt-amount-${dealId}" type="number" min="0.01" step="0.01" value="${cashDue > 0 ? cashDue.toFixed(2) : ""}"></div>
+      <div><label>Purpose</label><select id="ab-receipt-purpose-${dealId}"><option value="Deposit" ${defaultPurpose==="Deposit"?"selected":""}>Deposit</option><option value="Balance" ${defaultPurpose==="Balance"?"selected":""}>Balance</option><option value="Full Payment">Full Payment</option><option value="Additional Payment">Additional Payment</option></select></div>
+      <div><label>Amount Received</label><input id="ab-receipt-amount-${dealId}" type="number" min="0.01" step="0.01" value="${defaultAmount>0?defaultAmount.toFixed(2):""}"></div>
       <div><label>Method</label><select id="ab-receipt-method-${dealId}"><option value="Bank Transfer">Bank Transfer</option><option value="Card">Card</option><option value="Cash">Cash</option><option value="Other">Other</option></select></div>
       <div><label>Reference</label><input id="ab-receipt-reference-${dealId}" type="text" maxlength="200" placeholder="Bank / card / internal reference"></div>
       <div><label>Received At</label><div class="ab-received-at-wrap"><input id="ab-receipt-date-${dealId}" type="datetime-local"><button type="button" class="ab-date-helper" onclick="openDealReceiptPicker(${Number(deal.deal_id)});return false;">📅</button><button type="button" class="ab-date-helper ab-now" onclick="setDealReceiptNow(${Number(deal.deal_id)});return false;">Now</button></div></div>
       <div><label>Notes</label><input id="ab-receipt-notes-${dealId}" type="text" maxlength="500" placeholder="Optional internal note"></div>
-      <button type="button" ${busy ? "disabled" : ""} onclick="recordDealCustomerReceipt(${Number(deal.deal_id)});return false;">${busy ? "Recording..." : "Record Customer Payment"}</button>
+      <button type="button" ${busy || (domesticDeal&&!buyerAgreed) ? "disabled" : ""} onclick="recordDealCustomerReceipt(${Number(deal.deal_id)});return false;">${busy ? "Recording..." : "Record Customer Payment"}</button>
     </div>
 
     <div class="ab-ledger-warning"><strong>Customer payment does not secure a motorcycle.</strong> New Deal-level receipts are recorded first, then allocated to the relevant motorcycle(s).</div>
