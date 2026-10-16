@@ -734,7 +734,7 @@ function escapeAdminHtml(value){
         <label><input type="checkbox" id="editDealerSubmit" style="width:auto"> Submit motorcycles for underwriting</label>
         <label><input type="checkbox" id="editDealerView" style="width:auto"> View underwriting opportunities</label>
         <label><input type="checkbox" id="editDealerOffer" style="width:auto"> Make underwriting offers (agreement also required)</label>
-        <p id="dealerAccessStatus" class="small"></p>
+        <p id="dealerAccessStatus" class="small"></p><button type="button" class="btn dark" id="saveDealerAccessButton" onclick="saveDealerAccessChanges()">Save access permissions separately →</button>
       </div>
       <label id="editLiveSourceRow" style="grid-column:1/-1">
         <span style="display:flex;align-items:center;gap:10px;background:#151515;border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:12px 14px;cursor:pointer">
@@ -745,7 +745,7 @@ function escapeAdminHtml(value){
     </div>
     <div class="modal-row-actions">
       <button type="button" class="btn dark" onclick="closeEditCustomer()">Cancel</button>
-      <button type="button" class="btn" onclick="saveEditedCustomer()">Save customer</button>
+      <button type="button" class="btn" onclick="saveEditedCustomer()">Save customer profile</button>
     </div>
   </div>
 </div>
@@ -878,29 +878,36 @@ function closeEditCustomer(){
   modal?.setAttribute("aria-hidden","true");
   editingCustomerId=null;
 }
-async function saveEditedCustomer(){
+async function saveDealerAccessChanges(){
   if(!editingCustomerId)return;
-  const dealerLevel=Number(document.getElementById("editDealerLevel").value);
-  const submitPermission=document.getElementById("editDealerSubmit").checked;
-  const viewPermission=document.getElementById("editDealerView").checked;
-  const offerPermission=document.getElementById("editDealerOffer").checked;
+  const level=Number(document.getElementById("editDealerLevel").value);
+  const submit=document.getElementById("editDealerSubmit").checked;
+  const view=document.getElementById("editDealerView").checked;
+  const offer=document.getElementById("editDealerOffer").checked;
   const onboarding=customerOnboardingMap[String(editingCustomerId)]||{};
-  const customer=allCustomers.find(x=>String(x.customerId)===String(editingCustomerId));
-  const verified=Boolean(onboarding.email_confirmed_at);
+  const name=String(document.getElementById("editFullName").value||"").trim();
   const phone=String(document.getElementById("editPhone").value||"").trim();
-  // Contact/profile edits must never be blocked by pre-existing access checkboxes.
-  // Access privileges are handled only when the user explicitly changes them.
-  const original=window.anybikeDealerAccessOriginal||null;
-  const accessChanged=!!original && original.userId===String(editingCustomerId) &&
-    (original.level!==dealerLevel || original.submit!==submitPermission ||
-     original.view!==viewPermission || original.offer!==offerPermission);
-  const dealerAccessRequested=accessChanged && (dealerLevel===2 || submitPermission || viewPermission || offerPermission);
-  if(dealerAccessRequested && (!verified || !phone || !String(customer?.name||"").trim() || !String(document.getElementById("editCountry").value||"").trim())){
-    alert("Save the customer's contact details first. Dealer access can be reviewed after email confirmation.");
+  const country=String(document.getElementById("editCountry").value||"").trim();
+  if((level===2||submit||view||offer) && (!onboarding.email_confirmed_at||!name||!phone||!country)){
+    document.getElementById("dealerAccessStatus").textContent="Trade approval requires confirmed email and completed name, phone and country. You can still save the customer profile separately.";
     return;
   }
-  if(accessChanged && dealerLevel===2 && !confirm("Approve this customer for Level 2 trade access with the selected permissions?"))return;
-
+  if(!confirm("Save these dealership access and underwriting permissions?"))return;
+  const button=document.getElementById("saveDealerAccessButton");
+  button.disabled=true;
+  try{
+    const {error}=await sb.rpc("admin_set_dealer_access_v1",{
+      p_user_id:editingCustomerId,p_level:level,p_submit:submit,p_view:view,p_offer:offer
+    });
+    if(error)throw error;
+    document.getElementById("dealerAccessStatus").textContent="✓ Dealer access settings saved.";
+    window.anybikeDealerAccessOriginal={userId:String(editingCustomerId),level,submit,view,offer};
+  }catch(e){
+    document.getElementById("dealerAccessStatus").textContent="Dealer access not saved: "+(e.message||String(e));
+  }finally{button.disabled=false;}
+}
+async function saveEditedCustomer(){
+  if(!editingCustomerId)return;
   const liveSourceEnabled=Boolean(document.getElementById("editLiveSourceEnabled")?.checked);
   const ukDealer=["uk_dealer","uk_distributor"].includes(String(document.getElementById("editCustomerType").value||""));
   const {error}=await sb.rpc("admin_update_customer_profile_v1",{
@@ -926,13 +933,6 @@ async function saveEditedCustomer(){
     if(liveSourceError){alert("Customer details were saved, but Live Source Hub access could not be updated: "+liveSourceError.message);return;}
   }
 
-  if(accessChanged){
-    const {error:dealerAccessError}=await sb.rpc("admin_set_dealer_access_v1",{
-      p_user_id:editingCustomerId,p_level:dealerLevel,p_submit:submitPermission,
-      p_view:viewPermission,p_offer:offerPermission
-    });
-    if(dealerAccessError){alert("Customer details were saved, but trade access was not changed: "+dealerAccessError.message);return;}
-  }
   const keepId=editingCustomerId;
   closeEditCustomer();
   await loadCustomers();
