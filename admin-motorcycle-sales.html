@@ -17575,7 +17575,7 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
   }else if(primary==="Waiting for Formal Offer Response"){
     nextText="The Formal Offer has been sent. Wait for the buyer to accept, decline or ask a question; their response will appear in Message Centre and the admin bell.";
   }
-  if(domestic) nextText=domesticDepositPaid ? "£250 seller deposit recorded as paid. Review the £650 seller balance and £1,400 dealer payment before collection." : "Verify the seller bank details and record the £250 deposit only after transfer confirmation.";
+  if(domestic){ const domesticTerms=domesticBuyerTerms.get(String(dealId))||{}; const account=adminDealCustomerAccounts.get(String(dealId))||{}; const due=anyBikeAccountNumber(account,["customer_balance_due_gbp","balance_due_gbp"],Number(domesticTerms.total||0)); const received=Math.max(0,Number(domesticTerms.total||0)-due); nextText=domesticDepositPaid?domesticBuyerPaymentProgress(domesticTerms,received).next:"Verify the seller bank details and record the seller deposit only after transfer confirmation."; }
   const waiting=!domestic&&(primary==="Waiting for Buyer Response" || primary==="Waiting for Formal Offer Response");
   let activeTab=current==="complete"?"timeline":current;
   if(!hasMotorcycle && ["Check Seller Availability","Select Motorcycle for Sale","Waiting for Buyer Response","Find Potential Matches"].includes(primary)){
@@ -17644,13 +17644,13 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
   function panel(key,body){
     const index=cardPositions[key],position=pipeline[index],done=!!position[2],active=key===current;
     const next=pipeline[index+1],nextLabel=next?((index+2)+". "+next[1]):"Deal completed";
-    const nextHelp=done?(next?"Next: "+nextLabel:"All stages complete"):(active?nextText:"Review this stage when its required work is ready.");
+    const nextHelp=domestic&&key==="payment"?nextText:(done?(next?"Next: "+nextLabel:"All stages complete"):(active?nextText:"Review this stage when its required work is ready."));
     const completion=done?'<span class="sales-stage-complete">✓ Complete</span>':active?'<span class="sales-stage-pending">● In progress</span>':'<span class="sales-stage-pending">Not complete</span>';
     return '<section class="sales-tab-panel active" data-tab="'+key+'" id="deal-stage-'+dealId+'-'+key+'">'+
       '<div class="sales-stage-title" onclick="toggleDealStageCard(this)" role="button" tabindex="0" onkeydown="if(event.key===\'Enter\'){this.click()}">'+
       '<div><strong>'+(index+1)+'. '+escapeAdminHtml(position[1])+'</strong><small>'+escapeAdminHtml(cardOwners[key])+'</small></div>'+completion+'</div>'+
       '<div class="sales-stage-body" '+(!active?'hidden':'')+'>'+body+'</div>'+
-      (active?'<div class="sales-stage-footer"><button type="button" onclick="saveDealStageCard('+Number(dealId)+',\''+key+'\');return false;">Save & Continue</button>'+
+      (active?'<div class="sales-stage-footer">'+(domestic&&key==="payment"?'':'<button type="button" onclick="saveDealStageCard('+Number(dealId)+',\''+key+'\');return false;">Save & Continue</button>')+
       '<div class="sales-stage-next"><strong>Your Next Action →</strong><span>'+escapeAdminHtml(nextHelp)+'</span></div></div>':'')+'</section>';
   }
 
