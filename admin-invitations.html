@@ -18,7 +18,7 @@
 <p class="muted">Load saved dealer organisations and contacts, select the dealers you want, then prepare personalised Outlook email drafts. The dealership, name and email come from saved records. Nothing is sent until you send each email in Outlook.</p>
 <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
 <button class="primary" type="button" onclick="loadDealerInviteContacts()">Load saved dealers</button>
-<input id="dealerInviteSearch" oninput="renderDealerInviteContacts()" placeholder="Filter by dealership, contact or email" style="max-width:440px;margin:0">
+<input id="dealerInviteSearch" oninput="renderDealerInviteContacts()" placeholder="Filter by dealership, contact or email" style="max-width:440px;margin:0"><label style="margin:0">Franchise <select id="dealerInviteFranchise" onchange="renderDealerInviteContacts()" style="min-width:220px"><option value="">All franchises</option></select></label>
 <button type="button" onclick="selectAllDealerInvites(true)">Select listed</button>
 <button type="button" onclick="selectAllDealerInvites(false)">Clear selection</button>
 </div>
@@ -115,6 +115,9 @@ async function loadDealerInviteContacts(){
  let contacts=[];
  const {data:contactRows,error:contactError}=await sb.from("anybike_dealer_contact_emails").select("dealer_organisation_id,email,contact_name,is_primary,can_receive_invites").limit(2000);
  if(!contactError)contacts=contactRows||[];
+ const {data:brandRows,error:brandError}=await sb.from("dealer_brand_capabilities").select("dealer_organisation_id,brand,authorised_franchise").limit(3000);
+ const brandsByOrg=new Map();
+ if(!brandError)for(const row of brandRows||[]){if(row.authorised_franchise!==true)continue;const id=String(row.dealer_organisation_id);if(!brandsByOrg.has(id))brandsByOrg.set(id,[]);brandsByOrg.get(id).push(String(row.brand||"").trim());}
  const grouped=new Map();
  for(const entry of contacts){if(entry.can_receive_invites===false || !String(entry.email||"").includes("@"))continue;const id=String(entry.dealer_organisation_id);if(!grouped.has(id))grouped.set(id,[]);grouped.get(id).push(entry);}
  dealerInviteContacts=[];
@@ -126,17 +129,20 @@ async function loadDealerInviteContacts(){
  for(const rec of recipients){
  const email=String(rec.email||"").trim().toLowerCase();
  if(!email||seen.has(email))continue;
- seen.add(email);dealerInviteContacts.push({id:String(org.id)+":"+email,orgId:org.id,business,contact:String(rec.contact_name||"").trim(),email,phone:org.telephone||""});
+ seen.add(email);dealerInviteContacts.push({id:String(org.id)+":"+email,orgId:org.id,business,contact:String(rec.contact_name||"").trim(),email,phone:org.telephone||"",franchises:brandsByOrg.get(String(org.id))||[]});
  }
  }
+ const franchises=[...new Set(dealerInviteContacts.flatMap(r=>r.franchises))].filter(Boolean).sort((a,b)=>a.localeCompare(b));
+ $("dealerInviteFranchise").innerHTML='<option value="">All franchises</option>'+franchises.map(brand=>'<option value="'+dealerInviteEscape(brand)+'">'+dealerInviteEscape(brand)+'</option>').join("")+'<option value="__unclassified">Franchise not recorded</option>';
  dealerInviteSelected.clear();dealerInviteQueue=[];dealerInvitePosition=0;$("nextDealerInviteDraft").disabled=true;
  renderDealerInviteContacts();
- status.textContent=dealerInviteContacts.length+" dealer email contacts available."+ (contactError?" Named contacts are restricted, so only organisation emails are shown.":"")+" Select who to invite. Nothing sent.";
+ status.textContent=dealerInviteContacts.length+" dealer email contacts available."+ (contactError?" Named contacts are restricted, so only organisation emails are shown.":"")+(brandError?" Franchise records could not be loaded.":"")+(franchises.length===0?" No verified franchises recorded yet.":"")+" Select who to invite. Nothing sent.";
  }catch(e){status.textContent="Could not load dealer directory: "+(e.message||e);}
 }
 function dealerInviteFiltered(){
  const q=String($("dealerInviteSearch").value||"").toLowerCase().trim();
- return dealerInviteContacts.filter(r=>!q||[r.business,r.contact,r.email].some(x=>String(x).toLowerCase().includes(q)));
+ const brand=$("dealerInviteFranchise").value;
+ return dealerInviteContacts.filter(r=>(!q||[r.business,r.contact,r.email].some(x=>String(x).toLowerCase().includes(q)))&&(!brand||(brand==="__unclassified"?!r.franchises.length:r.franchises.includes(brand))));
 }
 function renderDealerInviteContacts(){
  const rows=dealerInviteFiltered(); const tbody=$("dealerInviteRows");
