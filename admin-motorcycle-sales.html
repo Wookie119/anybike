@@ -16259,7 +16259,8 @@ function domesticBuyerBreakdownChanged(id){
 async function saveDomesticBuyerTerms(id){
  const plan=document.getElementById("buyer-plan-"+id)?.value;
  const value=Number(document.getElementById("buyer-deposit-"+id)?.value);
- if(!plan){alert("Select the buyer payment terms first.");return;}
+ if(String(domesticBuyerTerms.get(String(id))?.status||"").toLowerCase()==="agreed"){alert("Buyer-agreed terms are locked. Do not replace them with a proposal.");return;}
+  if(!plan){alert("Select the buyer payment terms first.");return;}
  if(!Number.isFinite(value)||value<0){alert("Enter a valid deposit.");return;}
  if(!confirm("Save proposed buyer payment terms? This does not mark them agreed or received."))return;
  const {data,error}=await sb.rpc("admin_domestic_buyer_payment_terms_v1",{p_deal_id:Number(id),p_plan:plan,p_deposit:value});
@@ -16274,14 +16275,52 @@ function renderDomesticBuyerTerms(deal,bikes){
  const saved=domesticBuyerTerms.get(id)||{};
  if(saved.error)return '<p>Buyer payment terms unavailable: '+escapeAdminHtml(saved.error)+'</p>';
  const plan=String(saved.plan||""),deposit=Number(saved.deposit??0);
- const choices=[["advance","100% before delivery"],["on_delivery","100% on delivery"],["fifty_fifty","50% deposit / 50% on delivery"],["custom","Custom split"]];
+ const isAgreed=String(saved.status||"").toLowerCase()==="agreed";
+  const choices=[["advance","100% before delivery"],["on_delivery","100% on delivery"],["fifty_fifty","50% deposit / 50% on delivery"],["custom","Custom split"]];
  return '<section class="anybike-payment-panel" style="margin:10px 0"><div class="anybike-payment-head"><div><span>BUYER PAYMENT TERMS</span><h4>Proposed payment arrangement · '+anyBikeDealMoney(total)+'</h4></div><strong>'+escapeAdminHtml(saved.status||"Not Set")+'</strong></div>'+
  '<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:end;padding:14px">'+
  '<label style="flex:2;min-width:210px">Payment choice<select id="buyer-plan-'+id+'" onchange="domesticBuyerPlanChanged('+Number(id)+')" style="display:block;width:100%;padding:10px;background:#111;color:white;border:1px solid #555">'+'<option value="" '+(!plan?'selected':'')+'>Select payment terms</option>'+choices.map(([v,t])=>'<option value="'+v+'" '+(plan===v?"selected":"")+'>'+t+'</option>').join("")+'</select></label>'+
  '<label style="flex:1;min-width:130px">Buyer deposit (£)<input id="buyer-deposit-'+id+'" data-total="'+total.toFixed(2)+'" type="number" min="0" max="'+total+'" step=".01" value="'+(plan?deposit.toFixed(2):"")+'" oninput="domesticBuyerBreakdownChanged('+Number(id)+')" '+(plan==="custom"?"":"disabled")+' style="display:block;width:100%;padding:10px;background:#111;color:white;border:1px solid #555"></label>'+
- '<button type="button" onclick="saveDomesticBuyerTerms('+Number(id)+')" style="padding:11px 18px;border:0;border-radius:8px;background:#ed1c24;color:white;font-weight:bold">Save proposed terms</button></div>'+
+ '<button type="button" '+(isAgreed?'disabled title="Agreed terms are locked"':'')+' onclick="saveDomesticBuyerTerms('+Number(id)+')" style="padding:11px 18px;border:0;border-radius:8px;background:#ed1c24;color:white;font-weight:bold">Save proposed terms</button></div>'+
  '<p id="buyer-breakdown-'+id+'" style="padding:0 14px 8px;color:#fff;font-weight:750">'+(plan?'Buyer deposit: '+anyBikeDealMoney(deposit)+' · Remaining on delivery: '+anyBikeDealMoney(total-deposit):'Select payment terms to preview the split.')+'</p>'+ 
  '<p style="padding:0 14px 12px;color:#aaa">These are proposed terms only. Buyer agreement, payment receipt and motorcycle release require separate confirmation.</p></section>';
+}
+
+// Domestic buyer agreement is distinct from offer acceptance and from bank receipts.
+async function confirmDomesticBuyerAgreement(id){
+  const evidence=(document.getElementById("buyer-agreement-evidence-"+id)?.value||"").trim();
+  const checked=document.getElementById("buyer-agreement-verified-"+id)?.checked;
+  if(!checked || evidence.length<12){alert("Only confirm after actual buyer agreement. Tick verification and provide dated evidence (email, message or signed terms).");return;}
+  if(!confirm("Has the buyer ACTUALLY agreed to these exact payment terms?\n\nDo not confirm test scenarios as real agreements."))return;
+  const {error}=await sb.rpc("admin_domestic_buyer_terms_agreement_v1",{p_deal_id:Number(id),p_evidence:evidence,p_confirm:true});
+  if(error){alert("Buyer agreement NOT recorded: "+error.message);return;}
+  await loadDomesticBuyerTerms();
+  openAnyBikeDealId=String(id);
+  renderAdminDealQueue();
+  bikeSalesJourneyTab(String(id),"payment",false);
+}
+function copyDomesticBuyerProposal(id){
+ const terms=domesticBuyerTerms.get(String(id))||{};
+ if(!terms.plan){alert("Save proposed payment terms first.");return;}
+ const names={advance:"100% before delivery",on_delivery:"100% on delivery",fifty_fifty:"50% deposit / 50% on delivery",custom:"Custom payment split"};
+ const deal=(adminDealQueue||[]).find(d=>Number(d.deal_id)===Number(id))||{};
+ const ref=String(deal.deal_number||"Deal "+id);
+ const copy=ref+" — proposed UK trade buyer payment terms:\nPurchase price "+anyBikeDealMoney(terms.total)+
+ "\nPayment arrangement: "+(names[terms.plan]||terms.plan)+
+ "\nDeposit: "+anyBikeDealMoney(terms.deposit)+
+ "\nRemaining payable on delivery: "+anyBikeDealMoney(Math.max(0,Number(terms.total)-Number(terms.deposit)))+
+ "\nPlease reply confirming you agree to these payment terms. No payment has been received or delivery authorised by this proposal.";
+ if(navigator.clipboard?.writeText){navigator.clipboard.writeText(copy).then(()=>alert("Proposal copied. Send using your existing customer communication channel. Sending is NOT automatic."),()=>prompt("Copy these terms:",copy));}
+ else prompt("Copy these terms:",copy);
+}
+function domesticBuyerPaymentProgress(terms,received){
+ const agreed=String(terms.status||"").toLowerCase()==="agreed";
+ const deposit=Number(terms.deposit||0),total=Number(terms.total||0);
+ if(!terms.plan)return {label:"Terms not selected",next:"Select and save proposed buyer payment terms.",agreed:false};
+ if(!agreed)return {label:"Proposed",next:"Send the proposed terms to the buyer and obtain their explicit agreement. Do not record payment or release the motorcycle.",agreed:false};
+ if(received+0.009<deposit)return {label:"Deposit Due",next:"Request "+anyBikeDealMoney(deposit-received)+" deposit; record only cleared buyer funds through the existing payment ledger.",agreed:true};
+ if(received+0.009<total)return {label:deposit>0?"Deposit Paid · Balance Due":"Balance Due",next:deposit>0?"Deposit requirement met. Collection may be prepared; Move must not hand over until the remaining "+anyBikeDealMoney(total-received)+" is verified or separately authorised.":"No advance deposit required. Schedule collection; Move must not hand over without delivery-payment authorisation.",agreed:true};
+ return {label:"Paid in Full",next:"Buyer funds fully received; verify Move delivery and handover instructions.",agreed:true};
 }
 const domesticSellerIdentity=new Map();
 async function loadDomesticSellerIdentities(){
@@ -17674,17 +17713,20 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
         const termsPlan=String(buyerTerms.plan||"");
         const termsDeposit=Number(buyerTerms.deposit||0);
         const buyerReceived=Math.max(0,Number(dealerCost)-Number(buyerDue));
+        const paymentProgress=domesticBuyerPaymentProgress(buyerTerms,buyerReceived);
         const termsLabels={advance:"100% before delivery",on_delivery:"100% on delivery",fifty_fifty:"50% deposit / 50% on delivery",custom:"Custom split"};
         const termsPreview=buyerTerms.error
           ? '<p style="padding:12px 18px;color:#ff8585">Buyer payment terms could not be loaded. Do not rely on an assumed payment schedule.</p>'
           : !termsPlan
           ? '<p style="padding:12px 18px;color:#ffc56f">Buyer payment terms not selected. Return to Stage 5 to propose terms before scheduling handover.</p>'
           : '<div style="padding:12px 18px;display:flex;flex-wrap:wrap;gap:18px;align-items:center;border-bottom:1px solid #333">'+
-            '<strong>Proposed: '+escapeAdminHtml(termsLabels[termsPlan]||"Custom")+'</strong>'+
+            '<strong>'+escapeAdminHtml(paymentProgress.label)+': '+escapeAdminHtml(termsLabels[termsPlan]||"Custom")+'</strong>'+
             '<span>Deposit '+anyBikeDealMoney(termsDeposit)+'</span>'+
             '<span>Delivery balance '+anyBikeDealMoney(Math.max(0,dealerCost-termsDeposit))+'</span>'+
             '<span>Received '+anyBikeDealMoney(buyerReceived)+'</span>'+
-            '<strong style="color:#ffc56f">Not buyer-agreed — no release authorisation</strong></div>';
+            '<strong style="color:'+(paymentProgress.agreed?'#a1f0b5':'#ffc56f')+'">'+(paymentProgress.agreed?'Buyer terms agreed · Handover still requires payment clearance':'Not buyer-agreed — no release authorisation')+'</strong></div>'+ 
+            '<div style="padding:12px 18px;border-bottom:1px solid #333"><strong>Your Next Action → </strong>'+escapeAdminHtml(paymentProgress.next)+'</div>'+
+            (!paymentProgress.agreed ? '<div style="padding:12px 18px;display:flex;flex-wrap:wrap;gap:10px;align-items:end"><button type="button" onclick="copyDomesticBuyerProposal('+Number(dealId)+')" style="padding:10px 14px;background:#ed1c24;color:#fff;border:0;border-radius:8px;cursor:pointer">Copy proposal to send</button><label style="flex:2;min-width:230px">Buyer acceptance evidence (date + message/reference)<input id="buyer-agreement-evidence-'+dealId+'" placeholder="Only after buyer actually agrees" style="display:block;width:100%;padding:9px;background:#111;color:#fff;border:1px solid #666"></label><label><input type="checkbox" id="buyer-agreement-verified-'+dealId+'"> Actual buyer acceptance verified (not testing)</label><button type="button" onclick="confirmDomesticBuyerAgreement('+Number(dealId)+')" style="padding:10px 14px;background:#333;color:#fff;border:1px solid #777;border-radius:8px">Record buyer agreement</button></div>' : '');
         const domesticForm=domesticState.error
           ? '<p style="color:#ff8585">Payment records unavailable: '+escapeAdminHtml(domesticState.error)+'</p>'
           : alreadyPaid
