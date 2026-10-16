@@ -1480,7 +1480,7 @@ function supplierCard(row){
         ? `<div class="supplier-summary">
             <div class="mini"><span>Supplier</span><strong>${esc(row.supplier_name||"—")}</strong></div>
             <div class="mini"><span>Document</span><strong>${esc(row.document_type||"—")} ${row.supplier_document_number?"· "+esc(row.supplier_document_number):""}</strong></div>
-            <div class="mini"><span>Document Date</span><strong>${esc(niceDate(row.supplier_document_date))}</strong></div>
+            <div class="mini"><span>Document Date</span><strong>${esc(niceDate(row.supplier_document_date))}</strong></div><div class="mini"><span>Original file</span><strong>${row.evidence_file_name?'<button type="button" onclick="viewSupplierInvoiceEvidence('+id+')">Open secure copy</button>':"Not attached"}</strong></div>
             <div class="mini"><span>Purchase Gross</span><strong>${money(row.purchase_gross_gbp)}</strong></div>
             <div class="mini"><span>VAT Treatment</span><strong>${esc(row.document_vat_treatment||"—")}</strong></div>
           </div>
@@ -1499,8 +1499,9 @@ function supplierCard(row){
             <div class="field span4"><label>Verification Notes</label><textarea id="supplierNotes-${id}" placeholder="What evidence supports this VAT treatment?">${esc(row.verification_notes||"")}</textarea></div>
           </div>
 
-          <div class="supplier-actions">
+          <div class="supplier-actions">${row.evidence_file_name?'<button type="button" onclick="viewSupplierInvoiceEvidence('+id+')">View attached invoice</button>':""}
             <button type="button" onclick="saveSupplierPurchase(${id})">Save Purchase Record</button>
+            <label class="primary" style="cursor:pointer;display:inline-block;padding:11px 14px;border-radius:8px;background:#303030;color:#fff">Attach original invoice <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" style="display:none" onchange="uploadSupplierInvoiceEvidence(${id},this)"></label>
             <button class="primary" type="button" onclick="verifySupplierPurchase(${id})">${row.purchase_document_id?"Verify Purchase Evidence":"Save & Verify"}</button>
           </div>`
       }
@@ -1561,6 +1562,33 @@ function recalcSupplierVat(id){
   document.getElementById("supplierVat-"+id).value=vat.toFixed(2);
 }
 
+async function uploadSupplierInvoiceEvidence(id,input){
+ const file=input.files&&input.files[0];if(!file)return;
+ if(!["application/pdf","image/jpeg","image/png","image/webp"].includes(file.type)||file.size>10485760){alert("Choose PDF, JPG, PNG or WEBP, maximum 10MB.");input.value="";return;}
+ if(!confirm("Save the ORIGINAL supplier purchase evidence securely? This will not verify the VAT position or create a payment.")){input.value="";return;}
+ try{
+   await saveSupplierPurchase(id,true);
+   await loadSupplierQueue();
+   const row=supplierRows.find(r=>Number(r.deal_motorcycle_id)===Number(id));
+   const docId=Number(row&&row.purchase_document_id);if(!docId)throw Error("Save supplier document first, then attach invoice.");
+   if(row.verification_status==="Verified")throw Error("Verified purchase evidence is locked.");
+   const ext=file.type==="application/pdf"?"pdf":file.type==="image/png"?"png":file.type==="image/webp"?"webp":"jpg";
+   const path="accounting/suppliers/"+docId+"/"+Date.now()+"-"+Math.random().toString(36).slice(2,12)+"."+ext;
+   const upload=await sb.storage.from("deal-files").upload(path,file,{contentType:file.type,upsert:false});
+   if(upload.error)throw upload.error;
+   const result=await sb.rpc("admin_attach_supplier_invoice_file_v1",{p_purchase_document_id:docId,p_storage_path:path,p_file_name:file.name});
+   if(result.error)throw result.error;
+   alert("Original supplier evidence attached to the correct Deal securely. VAT status has not been verified.");
+   await loadSupplierQueue();
+ }catch(error){alert("Invoice attachment failed: "+(error.message||error));}finally{input.value="";}
+}
+async function viewSupplierInvoiceEvidence(id){
+ const row=supplierRows.find(r=>Number(r.deal_motorcycle_id)===Number(id));
+ if(!row||!row.evidence_storage_path){alert("No original supplier invoice is attached.");return;}
+ const result=await sb.storage.from("deal-files").createSignedUrl(row.evidence_storage_path,60);
+ if(result.error){alert("Secure document unavailable: "+result.error.message);return;}
+ window.open(result.data.signedUrl,"_blank","noopener");
+}
 function supplierFormPayload(id){
   return {
     p_deal_motorcycle_id:Number(id),
