@@ -16228,6 +16228,18 @@ function setBikeSalesView(view,button){
   }
 }
 
+const domesticMovePaymentGates=new Map();
+function renderDomesticMoveGate(deal){
+ const id=String(deal.deal_id),gate=domesticMovePaymentGates.get(id);
+ if(!gate)return '<div class="deal-step-instruction">Move payment safety check unavailable. Collection and driver handover remain unauthorised.</div>';
+ if(gate.error)return '<div class="deal-step-instruction">Move payment safety check failed: '+escapeAdminHtml(gate.error)+'. Do not authorise release.</div>';
+ const collection=gate.collection_preparation_allowed===true,handover=gate.driver_handover_allowed===true;
+ return '<section class="anybike-payment-panel" style="margin:10px 0"><div class="anybike-payment-head"><div><span>MOVE · UK DOMESTIC PAYMENT CONTROL</span><h4>Collection preparation / Driver release</h4></div><strong style="color:'+(handover?'#a1f0b5':'#ffc56f')+'">'+(handover?'Payment gate clear':'Handover blocked')+'</strong></div>'+
+ '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:12px 16px">'+
+ '<div class="anybike-payment-metric"><span class="anybike-payment-label">Collection preparation</span><strong style="color:'+(collection?'#a1f0b5':'#ffc56f')+'">'+(collection?'✓ Payment gate passed':'Blocked — agreement/deposit outstanding')+'</strong></div>'+
+ '<div class="anybike-payment-metric"><span class="anybike-payment-label">Driver handover / release</span><strong style="color:'+(handover?'#a1f0b5':'#ff8585')+'">'+(handover?'✓ Buyer payment gate passed':'BLOCKED — Do not hand over')+'</strong></div></div>'+
+ '<p style="padding:0 16px 12px;color:#bbb">Cleared buyer receipts allocated to this Deal: '+anyBikeDealMoney(gate.buyer_received_allocated_gbp)+' · Remaining: '+anyBikeDealMoney(gate.buyer_balance_gbp)+'. '+escapeAdminHtml(gate.reason||'')+'. This is a financial readiness indicator, not a driver release instruction; other operational approvals are still required.</p></section>';
+}
 const domesticBuyerTerms=new Map();
 async function loadDomesticBuyerTerms(){
  const rows=(adminDealQueue||[]).filter(x=>x.sale_route==="UK_DOMESTIC_TRADE");
@@ -16235,6 +16247,8 @@ async function loadDomesticBuyerTerms(){
   const key=String(x.deal_id);
   const {data,error}=await sb.rpc("admin_domestic_buyer_payment_terms_v1",{p_deal_id:Number(key)});
   domesticBuyerTerms.set(key,error?{error:error.message}:(data||{}));
+   const gate=await sb.rpc("admin_domestic_move_payment_gate_v1",{p_deal_id:Number(key)});
+   domesticMovePaymentGates.set(key,gate.error?{error:gate.error.message}:(gate.data||{}));
  }));
 }
 function domesticBuyerPlanChanged(id){
@@ -17611,9 +17625,11 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
 
   const stageControl='<div class="anybike-presale-panel" style="margin-top:0"><div class="anybike-presale-head"><div><span>Exceptional override</span><h4>'+escapeAdminHtml(dealNumber)+'</h4></div><div><div class="anybike-stage-control"><select id="deal-stage-select-'+deal.deal_id+'" '+(dealStageSaveBusy.has(String(deal.deal_id))?"disabled":"")+'>'+anyBikeDealStageOptions(rawStage)+'</select><button type="button" '+(dealStageSaveBusy.has(String(deal.deal_id))?"disabled":"")+' onclick="saveDealStage('+deal.deal_id+');return false;">'+(dealStageSaveBusy.has(String(deal.deal_id))?"Saving...":"Save Stage")+'</button></div><div class="anybike-stage-help">Use only when a genuine exception requires a manual override.</div></div></div></div>';
 
-  const operationsBody=(domestic ? false : customerPaid)
+  const domesticGate=domesticMovePaymentGates.get(String(dealId))||{};
+  const canPrepareCollection=domestic ? domesticGate.collection_preparation_allowed===true : customerPaid;
+  const operationsBody=canPrepareCollection
     ? (typeof renderAnyBikeOperationsPanel==="function" ? renderAnyBikeOperationsPanel(deal) : '<div id="anybike-operations-'+escapeAdminHtml(dealId)+'"><div class="deal-step-instruction">Loading Purchase &amp; Collection…</div></div>')
-    : '<div class="deal-step-instruction">Collection becomes active after the required customer funds are cleared.</div>';
+    : '<div class="deal-step-instruction">'+(domestic?'Move collection preparation is locked until actual buyer agreement and the required allocated deposit are verified.':'Collection becomes active after the required customer funds are cleared.')+'</div>';
 
   const timelineRows=[
     ["Request received",true,"Buyer requirement recorded."],
@@ -17764,8 +17780,8 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
         renderAnyBikeDealBalanceRequestGuide(deal)+
         renderAnyBikeDealInvoiceDocuments(deal);
     })())+
-    panel("collection",renderAnyBikePurchaseActionGuide(deal)+renderAnyBikeDealTransactionCompletion(deal)+operationsBody)+
-    panel("delivery",(typeof renderAnyBikeDeliveryStatusPanel==="function"?renderAnyBikeDeliveryStatusPanel(deal):"")+renderAnyBikeDealShippingRoutePanel(deal)+(collected?'<div class="sales-what-next"><strong>What happens next?</strong><span>Complete the agreed UK handover / delivery, confirm depot/storage where applicable, then record the final handover milestone.</span></div>':'<div class="sales-what-next"><strong>What happens next?</strong><span>Delivery becomes active after the motorcycle has been purchased and collected.</span></div>'))+
+    panel("collection",(domestic?renderDomesticMoveGate(deal):"")+renderAnyBikePurchaseActionGuide(deal)+renderAnyBikeDealTransactionCompletion(deal)+operationsBody)+
+    panel("delivery",(domestic?renderDomesticMoveGate(deal):"")+(domestic&&domesticGate.driver_handover_allowed!==true?'<div class="deal-step-instruction" style="color:#ff8585">DRIVER RELEASE BLOCKED: buyer payment clearance has not been verified. This screen must not be used to authorise handover.</div>':"")+(typeof renderAnyBikeDeliveryStatusPanel==="function"?renderAnyBikeDeliveryStatusPanel(deal):"")+renderAnyBikeDealShippingRoutePanel(deal)+(collected?'<div class="sales-what-next"><strong>What happens next?</strong><span>Complete the agreed UK handover / delivery, confirm depot/storage where applicable, then record the final handover milestone.</span></div>':'<div class="sales-what-next"><strong>What happens next?</strong><span>Delivery becomes active after the motorcycle has been purchased and collected.</span></div>'))+
     panel("invoice",renderFinalInvoiceStageStatus(deal,collected,complete)+renderFinalInvoiceReadinessPanel(deal)+renderAnyBikeDealInvoiceDocuments(deal))+
     panel("complete",renderAdminMotorcycleJourneys(deal,bikes)+renderDealRequirementWorkspace(deal)+'<div class="sales-timeline">'+timelineHtml+'</div><div class="sales-what-next"><strong>What happens next?</strong><span>'+escapeAdminHtml(nextText)+'</span></div>')+
   '</section>';
