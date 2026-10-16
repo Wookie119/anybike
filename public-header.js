@@ -924,30 +924,25 @@ async function addMyDealershipMenuIfEligible(user){
             if(label==="trade"||label==="vmoto")item.style.display="none";
           });
         }
-        const allowed=new Set(["my dealership","my profile","messages","accounts & documents","logout"]);
-        [...menu.querySelectorAll("a")].forEach(function(item){
-          if(!allowed.has(item.textContent.trim().toLowerCase()))item.style.display="none";
-          else item.style.removeProperty("display");
-        });
-        // UK dealer-only shortcuts. Never add these to international accounts.
-        const dealerShortcuts=[
-          ["Offer Bikes to Trade","/offer-bikes-to-trade.html"],
-          ["Request Underwrite","/dealer-underwrite.html"],
-          ["Make Trade Offers","/trade-opportunities.html"],
+        // Keep one concise, alphabetical UK trade menu on both desktop and mobile.
+        const entries=[
+          ["Accounts & Documents","/accounts-documents.html"],
+          ["Add VAT Qualifying Stock","/dealer-connect-stock.html?focus=vq"],
+          ["AnyBike International Tour","/uk-dealer-international-tour.html"],
           ["Connect Stock","/dealer-connect-stock.html"],
-          ["Add VAT Qualifying Stock","/dealer-connect-stock.html?focus=vq"]
+          ["Make Trade Offers","/trade-opportunities.html"],
+          ["Messages","/customer-messages.html"],
+          ["My Dealership","/my-dealership.html"],
+          ["My Profile","/customer-profile.html"],
+          ["My Purchases","/my-purchases.html"],
+          ["My Selling","/my-selling.html"],
+          ["Offer Bikes to Trade","/offer-bikes-to-trade.html"],
+          ["Request Underwrite","/dealer-underwrite.html"]
         ];
-        dealerShortcuts.forEach(function(entry){
-          let shortcut=menu.querySelector('a[data-uk-dealer-shortcut="'+entry[1]+'"]');
-          if(!shortcut){
-            shortcut=document.createElement("a");
-            shortcut.dataset.ukDealerShortcut=entry[1];
-            menu.appendChild(shortcut);
-          }
-          shortcut.href=entry[1];
-          shortcut.textContent=entry[0];
-          shortcut.style.removeProperty("display");
-        });
+        const logout=menu.querySelector('a[id*="Logout"], a[href="#"][data-i18n="logout"]');
+        [...menu.querySelectorAll("a")].forEach(a=>{if(a!==logout)a.remove()});
+        entries.forEach(([label,href])=>{const a=document.createElement("a");a.href=href;a.textContent=label;a.dataset.ukDealerShortcut=href;menu.insertBefore(a,logout||null)});
+        if(logout){logout.style.removeProperty("display");logout.textContent="Logout";}
         const accountHome=menu.querySelector('[data-dealer-menu-link="true"]');
         if(accountHome)accountHome.textContent="My Dealership";
       }
