@@ -16355,14 +16355,14 @@ function saveDealStageCard(id,key){
  const body=card.querySelector(".sales-stage-body");
  if(body?.hidden){body.hidden=false;body.scrollIntoView({block:"start",behavior:"smooth"});return;}
  const saves=[...body.querySelectorAll("button")].filter(b=>!b.disabled && /^(save|save & continue)/i.test((b.textContent||"").trim()));
- if(saves.length===1){saves[0].scrollIntoView({block:"center",behavior:"smooth"});saves[0].focus();alert("Use this section's existing Save control to validate and save its information. This card cannot be marked complete until the actual required work is confirmed.");return;}
+ if(saves.length===1){saves[0].scrollIntoView({block:"center",behavior:"smooth"});saves[0].click();return;}
  alert(saves.length>1?"This stage has multiple Save controls. Save each required section using its own button.":"There is no unsaved stage form here. Completion updates from the real deal actions, not this button.");
 }
 function bikeSalesJourneyTab(dealId,tab,updateUrl){
   const root=document.querySelector('.sales-journey[data-deal-id="'+String(dealId)+'"]');
   if(!root){return;}
-  const validTabs=["request","sourcing","seller","offer","payment","collection","invoice","delivery","timeline"];
-  const target=validTabs.includes(String(tab||""))?String(tab):"timeline";
+  const validTabs=["request","sourcing","interest","seller","offer","payment","collection","invoice","delivery","complete","timeline"];
+  const target=validTabs.includes(String(tab||""))?String(tab):"payment";
   root.querySelectorAll(".sales-work-tabs button").forEach(function(btn){
     btn.classList.toggle("active",btn.dataset.tab===target);
   });
@@ -17564,7 +17564,7 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
     const key=item[0], label=item[1], done=!!item[2];
     const cls=key===current?"current":done?"done":"";
     const statePrefix=done ? "✓ " : "";
-    return domestic ? '<button type="button" class="'+cls+'" style="flex:1 1 0;min-width:0;white-space:nowrap;padding:8px 4px;font-size:12px;cursor:pointer" onclick="bikeSalesJourneyTab(\''+dealId+'\',\''+(key==="interest"?"sourcing":key==="complete"?"timeline":key)+'\');return false;" title="'+(done?"Complete":key===current?"Current stage":"Not reached yet")+'">'+statePrefix+(index+1)+'. '+escapeAdminHtml(label)+'</button>' : '<span class="'+cls+'" title="'+(done?"Complete":key===current?"Current stage":"Not reached yet")+'">'+statePrefix+(index+1)+'. '+escapeAdminHtml(label)+'</span>';
+    return domestic ? '<button type="button" class="'+cls+'" style="flex:1 1 0;min-width:0;white-space:nowrap;padding:8px 4px;font-size:12px;cursor:pointer" onclick="bikeSalesJourneyTab(\''+dealId+'\',\''+(key)+'\');return false;" title="'+(done?"Complete":key===current?"Current stage":"Not reached yet")+'">'+statePrefix+(index+1)+'. '+escapeAdminHtml(label)+'</button>' : '<span class="'+cls+'" title="'+(done?"Complete":key===current?"Current stage":"Not reached yet")+'">'+statePrefix+(index+1)+'. '+escapeAdminHtml(label)+'</span>';
   }).join("");
   const progressDone=pipeline.filter(function(item){return !!item[2];}).length;
   const progressPercent=Math.max(0,Math.min(100,Math.round((progressDone/pipeline.length)*100)));
@@ -17723,8 +17723,8 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
         renderAnyBikeDealInvoiceDocuments(deal);
     })())+
     panel("collection",renderAnyBikePurchaseActionGuide(deal)+renderAnyBikeDealTransactionCompletion(deal)+operationsBody)+
-    panel("invoice",renderFinalInvoiceStageStatus(deal,collected,complete)+renderFinalInvoiceReadinessPanel(deal)+renderAnyBikeDealInvoiceDocuments(deal))+
     panel("delivery",(typeof renderAnyBikeDeliveryStatusPanel==="function"?renderAnyBikeDeliveryStatusPanel(deal):"")+renderAnyBikeDealShippingRoutePanel(deal)+(collected?'<div class="sales-what-next"><strong>What happens next?</strong><span>Complete the agreed UK handover / delivery, confirm depot/storage where applicable, then record the final handover milestone.</span></div>':'<div class="sales-what-next"><strong>What happens next?</strong><span>Delivery becomes active after the motorcycle has been purchased and collected.</span></div>'))+
+    panel("invoice",renderFinalInvoiceStageStatus(deal,collected,complete)+renderFinalInvoiceReadinessPanel(deal)+renderAnyBikeDealInvoiceDocuments(deal))+
     panel("complete",renderAdminMotorcycleJourneys(deal,bikes)+renderDealRequirementWorkspace(deal)+'<div class="sales-timeline">'+timelineHtml+'</div><div class="sales-what-next"><strong>What happens next?</strong><span>'+escapeAdminHtml(nextText)+'</span></div>')+
   '</section>';
 };
