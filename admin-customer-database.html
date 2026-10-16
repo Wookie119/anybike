@@ -867,6 +867,15 @@ async function saveEditedCustomer(){
   const submitPermission=document.getElementById("editDealerSubmit").checked;
   const viewPermission=document.getElementById("editDealerView").checked;
   const offerPermission=document.getElementById("editDealerOffer").checked;
+  const onboarding=customerOnboardingMap[String(editingCustomerId)]||{};
+  const customer=allCustomers.find(x=>String(x.customerId)===String(editingCustomerId));
+  const verified=Boolean(onboarding.email_confirmed_at);
+  const phone=String(document.getElementById("editPhone").value||"").trim();
+  const dealerAccessRequested=dealerLevel===2 || submitPermission || viewPermission || offerPermission;
+  if(dealerAccessRequested && (!verified || !phone || !String(customer?.name||"").trim() || !String(document.getElementById("editCountry").value||"").trim())){
+    alert("Dealer access is not available yet. Confirm the customer's email and complete the required phone and profile details first. You may still save profile changes at Level 1 without trade permissions.");
+    return;
+  }
   if(dealerLevel===2 && !confirm("Approve this customer for Level 2 trade access with the selected permissions?"))return;
 
   const liveSourceEnabled=Boolean(document.getElementById("editLiveSourceEnabled")?.checked);
@@ -1023,7 +1032,7 @@ function customerRequiredActionHtml(c){
   ).join("");
   const dealerReview=String(onboarding.customer_type||"")==="uk_dealer" || String(onboarding.customer_type||"")==="uk_distributor";
   const actions=[
-    dealerReview ? '<button type="button" class="primary" onclick="reviewDealerApproval(\''+c.customerId+'\')">Review / Approve Dealer →</button>' : '',
+    dealerReview && !missing.length ? '<button type="button" class="primary" onclick="reviewDealerApproval(\''+c.customerId+'\')">Review / Approve Dealer →</button>' : '',
     '<button type="button" onclick="openEditCustomer(\''+c.customerId+'\')">Edit customer</button>',
     !confirmed ? '<button type="button" class="primary" onclick="generateConfirmationText(\''+c.customerId+'\')">Generate confirmation text</button>' : '',
     '<a href="admin-onboarding.html?customer='+encodeURIComponent(c.customerId)+'">Open Onboarding →</a>'
@@ -2939,19 +2948,6 @@ function renderCustomers(){
         </div>
 
         <div class="customer-workspace" onclick="event.stopPropagation()">
-          <div class="customer-next-action" style="margin-top:0">
-            <div>
-              <div class="eyebrow">Your next action</div>
-              <strong>${safe(attention.title)}</strong>
-              <span>${safe(attention.detail)}</span>
-            </div>
-            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-              <span class="badge ${attention.kind==="clear"?"badge-green":"badge-red"}">${safe(attention.label)}</span>
-              <button type="button" onclick="openEditCustomer('${c.customerId}')">Edit customer</button>
-              ${customerOnboardingMap[String(c.customerId)]?.email_confirmed_at===null ? '<button type="button" style="background:#ed1c24;border-color:#ed1c24" onclick="generateConfirmationText(\''+c.customerId+'\')">Generate confirmation text</button>' : ""}
-              ${attention.onboarding ? '<a class="btn" style="background:#ed1c24;text-decoration:none" href="admin-onboarding.html?customer='+encodeURIComponent(c.customerId)+'">Open Onboarding →</a>' : (shouldShowBuyerSetupReview(c) ? '<button type="button" class="btn" style="background:#ed1c24" onclick="document.querySelector(\'#customer-'+c.id+' [data-buyer-setup-review]\')?.scrollIntoView({behavior:\'smooth\',block:\'start\'})">Review setup now →</button>' : "")}
-            </div>
-          </div>
 
   <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
     <button
