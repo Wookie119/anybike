@@ -17594,7 +17594,17 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
       ? renderAnyBikeBuyerOnboardingPanel(deal)
       : '<section class="anybike-commercial-panel" style="margin-top:14px"><div class="anybike-commercial-head"><div><span>Buyer Verification</span><h4>Purchase clearance will be required later</h4></div><div class="anybike-commercial-status">NOT REQUIRED YET</div></div><div style="padding:14px 16px;color:#aaa;line-height:1.5">Continue with seller availability, commercial setup and the Formal Offer. Buyer verification becomes a required staff action only after the buyer accepts the offer and before AnyBike commits to purchasing the motorcycle.</div></section>'
     ))+renderAnyBikeDealCommercialSetup(deal)+(domestic?"":renderAnyBikeDealExportTaxIdentity(deal)+renderAnyBikeDealExportVatClearance(deal))+renderAnyBikeDealSellerCheckPanel(deal)+renderAnyBikeDealFinancialPanel(deal))+
-    panel("offer",(domestic?renderDomesticBuyerTerms(deal,bikes):"")+renderDealOfferWorkspace(deal,bikes)+(!offerAccepted?'<div class="sales-what-next"><strong>What happens next?</strong><span>When the formal offer is sent, the buyer reviews the price and terms. Their response returns to AnyBike through the Message Centre and bell.</span></div>':'')+'<details class="sales-payment-advanced"><summary>Stage override / exceptional use only</summary>'+stageControl+'</details>')+
+    panel("offer",domestic
+      ? renderDomesticBuyerTerms(deal,bikes)+
+        '<section class="anybike-payment-panel" style="margin:12px 0;padding:16px 20px">'+
+        '<div style="font-weight:800;font-size:18px;margin-bottom:12px">UK Trade Sale Agreement</div>'+
+        '<div style="display:flex;gap:28px;flex-wrap:wrap;margin-bottom:12px">'+
+        '<div><small>Motorcycle</small><div><strong>'+escapeAdminHtml((bikes||[]).map(b=>[b.year,b.make,b.model].filter(Boolean).join(" ")).join(", "))+'</strong></div></div>'+
+        '<div><small>Dealer purchase price</small><div><strong>'+anyBikeDealMoney((bikes||[]).reduce((sum,b)=>sum+Number(b.buyer_price_gbp||0),0))+'</strong></div></div>'+
+        '<div><small>Current offer stage</small><div><strong>'+(offerAccepted?'Offer accepted':'Awaiting buyer agreement')+'</strong></div></div></div>'+
+        '<p style="margin:0;color:#aaa">Buyer payment terms above are proposed separately and require agreement. No export sourcing fee is added to this UK dealer sale.</p>'+
+        '</section>'
+      : renderDealOfferWorkspace(deal,bikes)+(!offerAccepted?'<div class="sales-what-next"><strong>What happens next?</strong><span>When the formal offer is sent, the buyer reviews the price and terms. Their response returns to AnyBike through the Message Centre and bell.</span></div>':'')+'<details class="sales-payment-advanced"><summary>Stage override / exceptional use only</summary>'+stageControl+'</details>')+
     panel("payment",(function(){
       if(domestic){
         const sellerCost=(bikes||[]).reduce(function(sum,b){return sum+Number(b.seller_price_gbp||0);},0);
