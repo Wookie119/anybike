@@ -692,7 +692,7 @@ function escapeAdminHtml(value){
 <div id="editCustomerModal" class="admin-customer-modal" aria-hidden="true">
   <div class="admin-customer-modal-box" role="dialog" aria-modal="true" aria-labelledby="editCustomerTitle">
     <div class="eyebrow">Customer 360</div>
-    <h2 id="editCustomerTitle" style="margin:5px 0 14px">Edit customer</h2>
+    <h2 id="editCustomerTitle" style="margin:5px 0 14px">Edit customer</h2><p id="customerProfileSaveStatus" role="status" style="color:#71e99e;font-weight:bold"></p><button type="button" class="btn" onclick="saveEditedCustomer()" style="margin-bottom:12px">Save customer details →</button>
     <div class="admin-customer-form">
       <label>Full name<input id="editFullName" autocomplete="name"></label>
       <label>Business name<input id="editBusinessName" autocomplete="organization"></label>
@@ -727,15 +727,15 @@ function escapeAdminHtml(value){
           <option value="freight_logistics">Freight / logistics</option>
         </select>
       </label>
-      <div style="grid-column:1/-1;border:1px solid #555;padding:14px;border-radius:12px;margin-top:10px">
-        <strong>Account access — Level 1 / Level 2</strong>
+      <details id="editTradeAccessDetails" style="grid-column:1/-1;border:1px solid #555;padding:14px;border-radius:12px;margin-top:10px">
+        <summary style="cursor:pointer;font-weight:bold">Dealer approval &amp; underwriting permissions (separate)</summary>
         <p class="small">Level 2 is for approved trade customers only. Underwriting permissions are separate.</p>
         <label>Access level<select id="editDealerLevel"><option value="1">Level 1 — Standard customer</option><option value="2">Level 2 — Approved trade customer</option></select></label>
         <label><input type="checkbox" id="editDealerSubmit" style="width:auto"> Submit motorcycles for underwriting</label>
         <label><input type="checkbox" id="editDealerView" style="width:auto"> View underwriting opportunities</label>
         <label><input type="checkbox" id="editDealerOffer" style="width:auto"> Make underwriting offers (agreement also required)</label>
         <p id="dealerAccessStatus" class="small"></p><button type="button" class="btn dark" id="saveDealerAccessButton" onclick="saveDealerAccessChanges()">Save access permissions separately →</button>
-      </div>
+      </details>
       <label id="editLiveSourceRow" style="grid-column:1/-1">
         <span style="display:flex;align-items:center;gap:10px;background:#151515;border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:12px 14px;cursor:pointer">
           <input id="editLiveSourceEnabled" type="checkbox" style="width:auto;margin:0">
@@ -813,6 +813,7 @@ function badgeClass(s){if(s==="VIP")return"badge-red";if(s==="Completed")return"
 function reviewDealerApproval(userId){
   openEditCustomer(userId);
   setTimeout(function(){
+    document.getElementById("editTradeAccessDetails").open=true;
     const level=document.getElementById("editDealerLevel");
     if(level){
       level.scrollIntoView({behavior:"smooth",block:"center"});
@@ -835,6 +836,8 @@ function openEditCustomer(userId){
   const c=customer;
   const onboarding=customerOnboardingMap[String(userId)]||{};
   editingCustomerId=String(userId);
+  document.getElementById("editTradeAccessDetails").open=false;
+  document.getElementById("customerProfileSaveStatus").textContent="";
   document.getElementById("editCustomerTitle").textContent="Edit customer · "+(c.name||c.email||"Customer");
   document.getElementById("editFullName").value=c.name==="Unknown Customer"?"":(c.name||"");
   document.getElementById("editBusinessName").value=c.businessName||"";
@@ -910,6 +913,8 @@ async function saveEditedCustomer(){
   if(!editingCustomerId)return;
   const liveSourceEnabled=Boolean(document.getElementById("editLiveSourceEnabled")?.checked);
   const ukDealer=["uk_dealer","uk_distributor"].includes(String(document.getElementById("editCustomerType").value||""));
+  const saveStatus=document.getElementById("customerProfileSaveStatus");
+  saveStatus.textContent="Saving customer details…";
   const {error}=await sb.rpc("admin_update_customer_profile_v1",{
     p_user_id:editingCustomerId,
     p_full_name:document.getElementById("editFullName").value,
@@ -921,7 +926,8 @@ async function saveEditedCustomer(){
     p_customer_type:document.getElementById("editCustomerType").value,
     p_customer_intent:document.getElementById("editCustomerIntent").value
   });
-  if(error){alert("Could not save customer: "+error.message);return;}
+  if(error){saveStatus.textContent="Save failed: "+error.message;return;}
+  saveStatus.textContent="✓ Customer details saved successfully.";
 
   // Live Source Hub is unrelated to UK dealership onboarding.
   // Do not overwrite the existing sourcing preference when editing a UK dealer.
@@ -933,6 +939,7 @@ async function saveEditedCustomer(){
     if(liveSourceError){alert("Customer details were saved, but Live Source Hub access could not be updated: "+liveSourceError.message);return;}
   }
 
+  // Profile changes are complete; no underwriting permission changes are made here.
   const keepId=editingCustomerId;
   closeEditCustomer();
   await loadCustomers();
