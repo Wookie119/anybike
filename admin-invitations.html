@@ -15,7 +15,7 @@
 
 <section class="hero"><div style="color:#ed1c24;font-weight:bold;letter-spacing:1px;font-size:11px">ANYBIKE · CUSTOMER RELATIONSHIPS</div><h1>Invitations</h1><p class="muted">Prepare registration invitations for buyers, private sellers and UK dealers. Copy an email, SMS/WhatsApp message or direct link. Nothing is emailed or texted from this page.</p><a href="/admin-onboarding.html">View registered accounts in Onboarding →</a> <a href="/admin-email-intake.html" style="margin-left:18px">Motorcycle Email Intake →</a><p class="muted small">Dealer organisations saved by AnyBike do not appear in Onboarding until a dealer representative registers. Invitation drafts are not customer accounts.</p><div class="invite-next-action"><span>YOUR NEXT ACTION</span><strong>Prepare and copy your invitation</strong><button type="button" onclick="document.getElementById('type').focus();document.getElementById('type').scrollIntoView({behavior:'smooth',block:'center'})">Start invitation →</button></div></section><section class="panel" style="border-top:3px solid #ed1c24"><div class="eyebrow" style="color:#ed1c24;font-size:12px;font-weight:800">READY TO PREPARE</div><h2>Invite Craig Latter to AnyBike</h2><p class="muted">Prepare an invitation for Craig to join as a UK motorcycle dealer and express interest in Peter's Harley-Davidson Iron 883.</p><button class="primary" type="button" onclick="prepareCraigInvite()">Prepare Craig's invitation →</button><p class="muted small">This invitation introduces the dealer to AnyBike. It does not grant access to the named motorcycle. After the dealer registers and is verified, Admin must separately invite their dealership to that live underwriting opportunity. No invitation is sent automatically.</p></section><section class="panel" id="bulkDealerInvites" style="border-top:3px solid #ed1c24">
 <h2>Bulk dealer invitations</h2>
-<p class="muted">Load saved dealer organisations and contacts, select the dealers you want, then prepare personalised Outlook email drafts. The dealership, name and email come from saved records. Nothing is sent until you send each email in Outlook.</p>
+<p class="muted">Load saved dealer organisations and contacts, select the dealers you want, then prepare personalised Outlook email drafts. The dealership, name and email come from saved records. Missing contact details are shown for completion. Nothing is sent until you send each email in Outlook.</p>
 <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
 <button class="primary" type="button" onclick="loadDealerInviteContacts()">Load saved dealers</button>
 <input id="dealerInviteSearch" oninput="renderDealerInviteContacts()" placeholder="Filter by dealership, contact or email" style="max-width:440px;margin:0"><label style="margin:0">Franchise <select id="dealerInviteFranchise" onchange="renderDealerInviteContacts()" style="min-width:220px"><option value="">All franchises</option></select></label>
@@ -125,18 +125,18 @@ async function loadDealerInviteContacts(){
  for(const org of orgs||[]){
  const business=org.trading_name||org.legal_name||"Dealer";
  const list=grouped.get(String(org.id))||[];
- const recipients=list.length?list:(org.email?[{email:org.email,contact_name:"",is_primary:true}]:[]);
+ const recipients=list.length?list:(org.email?[{email:org.email,contact_name:"",is_primary:true}]:[{email:"",contact_name:"",is_primary:false}]);
  for(const rec of recipients){
  const email=String(rec.email||"").trim().toLowerCase();
- if(!email||seen.has(email))continue;
- seen.add(email);dealerInviteContacts.push({id:String(org.id)+":"+email,orgId:org.id,business,contact:String(rec.contact_name||"").trim(),email,phone:org.telephone||"",franchises:brandsByOrg.get(String(org.id))||[]});
+ if(email&&seen.has(email))continue;
+ if(email)seen.add(email);dealerInviteContacts.push({id:String(org.id)+":"+email,orgId:org.id,business,contact:String(rec.contact_name||"").trim(),email,phone:org.telephone||"",franchises:brandsByOrg.get(String(org.id))||[]});
  }
  }
  const franchises=[...new Set(dealerInviteContacts.flatMap(r=>r.franchises))].filter(Boolean).sort((a,b)=>a.localeCompare(b));
  $("dealerInviteFranchise").innerHTML='<option value="">All franchises</option>'+franchises.map(brand=>'<option value="'+dealerInviteEscape(brand)+'">'+dealerInviteEscape(brand)+'</option>').join("")+'<option value="__unclassified">Franchise not recorded</option>';
  dealerInviteSelected.clear();dealerInviteQueue=[];dealerInvitePosition=0;$("nextDealerInviteDraft").disabled=true;
  renderDealerInviteContacts();
- status.textContent=dealerInviteContacts.length+" dealer email contacts available."+ (contactError?" Named contacts are restricted, so only organisation emails are shown.":"")+(brandError?" Franchise records could not be loaded.":"")+(franchises.length===0?" No verified franchises recorded yet.":"")+" Select who to invite. Nothing sent.";
+ status.textContent=dealerInviteContacts.length+" dealer directory entries; "+dealerInviteContacts.filter(r=>r.email).length+" with email and "+dealerInviteContacts.filter(r=>!r.email).length+" needing an email."+ (contactError?" Named contacts are restricted, so only organisation emails are shown.":"")+(brandError?" Franchise records could not be loaded.":"")+(franchises.length===0?" No verified franchises recorded yet.":"")+" Select who to invite. Nothing sent.";
  }catch(e){status.textContent="Could not load dealer directory: "+(e.message||e);}
 }
 function dealerInviteFiltered(){
@@ -146,11 +146,11 @@ function dealerInviteFiltered(){
 }
 function renderDealerInviteContacts(){
  const rows=dealerInviteFiltered(); const tbody=$("dealerInviteRows");
- tbody.innerHTML=rows.length?rows.map(r=>'<tr style="border-top:1px solid #333"><td style="padding:10px"><input type="checkbox" style="width:auto" data-invite-id="'+dealerInviteEscape(r.id)+'" '+(dealerInviteSelected.has(r.id)?"checked":"")+' onchange="toggleDealerInvite(this)"></td><td>'+dealerInviteEscape(r.business)+'</td><td>'+dealerInviteEscape(r.contact||"Contact not recorded")+'</td><td>'+dealerInviteEscape(r.email)+'</td><td>'+dealerInviteEscape(r.phone)+'</td><td><button type="button" data-invite-id="'+dealerInviteEscape(r.id)+'" onclick="prefillDealerInvite(this.dataset.inviteId)">Use details</button></td></tr>').join(""):'<tr><td colspan="6" style="padding:15px">No matching eligible dealer contacts found.</td></tr>';
+ tbody.innerHTML=rows.length?rows.map(r=>'<tr style="border-top:1px solid #333"><td style="padding:10px"><input type="checkbox" style="width:auto" data-invite-id="'+dealerInviteEscape(r.id)+'" '+(dealerInviteSelected.has(r.id)?"checked":"")+(r.email?"":" disabled title=\"Add email before inviting\"")+' onchange="toggleDealerInvite(this)"></td><td>'+dealerInviteEscape(r.business)+'</td><td>'+dealerInviteEscape(r.contact||"Contact not recorded")+'</td><td>'+dealerInviteEscape(r.email)+'</td><td>'+dealerInviteEscape(r.phone)+'</td><td><button type="button" data-invite-id="'+dealerInviteEscape(r.id)+'" onclick="prefillDealerInvite(this.dataset.inviteId)">Use details</button></td></tr>').join(""):'<tr><td colspan="6" style="padding:15px">No matching eligible dealer contacts found.</td></tr>';
  $("dealerInviteProgress").textContent=dealerInviteSelected.size+" selected";
 }
 function toggleDealerInvite(el){el.checked?dealerInviteSelected.add(el.dataset.inviteId):dealerInviteSelected.delete(el.dataset.inviteId);$("dealerInviteProgress").textContent=dealerInviteSelected.size+" selected";}
-function selectAllDealerInvites(yes){for(const r of dealerInviteFiltered()){if(yes)dealerInviteSelected.add(r.id);else dealerInviteSelected.delete(r.id);}renderDealerInviteContacts();}
+function selectAllDealerInvites(yes){for(const r of dealerInviteFiltered()){if(yes&&r.email)dealerInviteSelected.add(r.id);else dealerInviteSelected.delete(r.id);}renderDealerInviteContacts();}
 function prefillDealerInvite(id){
  const r=dealerInviteContacts.find(x=>x.id===id);if(!r)return;
  $("type").value="dealer";$("type").dispatchEvent(new Event("change"));$("name").value=r.contact;$("email").value=r.email;$("mobile").value="";$("business").value=r.business;prepare();
@@ -169,7 +169,7 @@ function dealerInviteEmail(r){
  return {subject,body};
 }
 function startDealerInviteBatch(){
- dealerInviteQueue=dealerInviteContacts.filter(r=>dealerInviteSelected.has(r.id));
+ dealerInviteQueue=dealerInviteContacts.filter(r=>r.email&&dealerInviteSelected.has(r.id));
  dealerInvitePosition=0;
  if(!dealerInviteQueue.length){$("dealerInviteStatus").textContent="Select at least one dealer contact.";return;}
  if(!confirm("Prepare "+dealerInviteQueue.length+" personalised email drafts in Outlook? No emails will be sent automatically."))return;
