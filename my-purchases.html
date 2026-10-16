@@ -1313,8 +1313,10 @@ function deliveryLabel(value){
 
 function purchaseState(purchase){
 
-  const depositRequired=!!purchase.deposit_required;
-  const depositDue=Number(purchase.deposit_due_gbp||0);
+  const domesticTerms=purchase._domestic_terms||null;
+  const domesticProposed=!!domesticTerms && String(domesticTerms.terms_status||"").toLowerCase()!=="agreed";
+  const depositRequired=domesticTerms?Number(domesticTerms.deposit_gbp||0)>0:!!purchase.deposit_required;
+  const depositDue=Number(domesticTerms?domesticTerms.deposit_gbp:purchase.deposit_due_gbp||0);
   const moneyReceived=Number(purchase.customer_money_received_deal_gbp||0);
   const allocated=Number(purchase.customer_allocated_motorcycle_gbp||0);
   const depositAllocated=Math.min(Math.max(allocated,Number(purchase.deposit_allocated_gbp||0)),Math.max(depositDue,0));
@@ -1341,13 +1343,16 @@ function purchaseState(purchase){
   const completed=String(purchase.deal_status||"").toLowerCase()==="completed" ||
     String(purchase.deal_stage||"").toLowerCase()==="completed" ||
     !!purchase.operations_complete;
-  const depositSatisfied=!depositRequired || depositDue<=0 || allocated>=depositDue || balance<=0 || depositOutstanding<=0;
+  const depositSatisfied=domesticProposed?false:(!depositRequired || depositDue<=0 || allocated>=depositDue || balance<=0 || depositOutstanding<=0);
   const fullyPaid=balance<=0 && allocated>0;
 
   let heading="Purchase in Progress";
   let message="Your AnyBike purchase is progressing.";
 
-  if(completed){
+  if(domesticProposed){
+    heading="Payment Terms Proposed";
+    message="AnyBike has proposed a payment arrangement. No buyer deposit or balance is confirmed as paid; the terms are not yet agreed.";
+  }else if(completed){
     heading="Completed";
     message="Your AnyBike purchase and UK handover are complete.";
   }else if(delivered){
@@ -1380,12 +1385,13 @@ function purchaseState(purchase){
   }
 
   let paymentStatus="Balance Due";
-  if(fullyPaid) paymentStatus="Paid in Full";
+  if(domesticProposed) paymentStatus="Terms Proposed";
+  else if(fullyPaid) paymentStatus="Paid in Full";
   else if(!depositSatisfied) paymentStatus=pendingDepositAdvice?"Deposit Reported":"Deposit Due";
   else if(allocated>0 || moneyReceived>0) paymentStatus="Part Paid";
 
   return {
-    depositRequired,depositDue,depositAllocated,depositOutstanding,depositSatisfied,
+    domesticProposed,domesticTerms,depositRequired,depositDue,depositAllocated,depositOutstanding,depositSatisfied,
     pendingPaymentAdvice,pendingPaymentAdviceAmount,pendingPaymentAdvicePurpose,
     pendingDepositAdvice,pendingDepositAdviceAmount:pendingPaymentAdviceAmount,
     pendingDepositAdviceNumber:String(purchase.pending_payment_advice_number||""),
@@ -1441,7 +1447,11 @@ function journeyHtml(purchase,state){
   let actionHref="";
   let actionLabel="";
 
-  if(!state.depositSatisfied && state.pendingDepositAdvice){
+  if(state.domesticProposed){
+    current="deposit";customerAction=false;
+    nextTitle="Awaiting agreement on payment terms";
+    nextText="AnyBike has proposed a payment plan. It has not been agreed, and no payment is confirmed. Wait for AnyBike to confirm the arrangement.";
+  }else if(!state.depositSatisfied && state.pendingDepositAdvice){
     current="deposit";
     customerAction=false;
     nextTitle="Deposit reported · awaiting AnyBike verification";
@@ -2116,6 +2126,9 @@ function purchaseNextAction(purchase){
   const balance=Number(state.balance||0);
   const depositOutstanding=Number(state.depositOutstanding||state.depositDue||0);
 
+  if(state.domesticProposed){
+    return {priority:30,waiting:true,deal,identity:bike,title:"Payment terms awaiting agreement",text:"The proposed payment arrangement is not yet agreed. No buyer deposit has been confirmed as received.",href:"/my-purchases.html?deal="+encodeURIComponent(purchase.deal_id||""),cta:"View purchase →"};
+  }
   if(!state.depositSatisfied && state.pendingDepositAdvice){
     return {
       priority:30,waiting:true,deal:deal,identity:bike,
@@ -2266,10 +2279,11 @@ async function loadPurchases(){
 
   }
 
-  const [purchaseResult,collectionJobsResult,identityResult]=await Promise.all([
+  const [purchaseResult,collectionJobsResult,identityResult,domesticTermsResult]=await Promise.all([
     sb.rpc("get_my_purchases_v7"),
     sb.rpc("get_my_collection_jobs_v1"),
-    sb.rpc("customer_get_purchase_identity_details_v1")
+    sb.rpc("customer_get_purchase_identity_details_v1"),
+    sb.rpc("customer_my_domestic_buyer_terms_v1")
   ]);
   const data=purchaseResult.data;
   const error=purchaseResult.error;
@@ -2307,6 +2321,14 @@ async function loadPurchases(){
             ? [data]
             : []
         );
+
+  if(domesticTermsResult.error){
+    console.warn("Domestic purchase payment terms unavailable:",domesticTermsResult.error.message);
+  }
+  const domesticTermsByDeal=new Map((domesticTermsResult.data||[]).map(row=>[String(row.deal_id),row]));
+  purchases.forEach(purchase=>{
+    purchase._domestic_terms=domesticTermsByDeal.get(String(purchase.deal_id))||null;
+  });
 
   const identityByMotorcycle={};
   if(!identityResult.error){
