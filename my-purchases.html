@@ -957,6 +957,7 @@ main{
 .purchase-action-row.action>a{background:var(--red);border:1px solid var(--red)}
 .purchase-action-row.waiting>a{background:#171717;border:1px solid #444}
 
+.buyer-journey-cards{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin:10px 0 17px}.buyer-journey-card{min-width:0;display:flex;align-items:flex-start;gap:9px;padding:13px 12px;background:#101010;border:1px solid #343434;border-top:3px solid #424242;border-radius:10px}.buyer-journey-card.done{border-top-color:#36d37e}.buyer-journey-card.current{border:1px solid #ed1c24;border-top:3px solid #ed1c24;background:#211012}.buyer-journey-card .number{flex:none;display:grid;place-items:center;width:25px;height:25px;border:1px solid #555;border-radius:50%;font-size:11px;font-weight:900}.buyer-journey-card.done .number{background:#163624;color:#a1ffc5;border-color:#36d37e}.buyer-journey-card.current .number{background:#ed1c24;border-color:#ed1c24;color:#fff}.buyer-journey-card .stage-label{font-size:12px;font-weight:850;color:#d7d7d7;line-height:1.25}.buyer-journey-card small{display:block;color:#989898;font-size:10px;margin-top:5px}.buyer-journey-card.current small{color:#ffabab}@media(max-width:1100px){.buyer-journey-cards{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:680px){.buyer-journey-cards{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:420px){.buyer-journey-cards{grid-template-columns:1fr}}
 .journey-integrated{padding:16px;margin-top:14px}
 .journey-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:14px}
 .journey-integrated .journey-title{margin:0;color:#fff;font-size:13px;letter-spacing:.08em}
@@ -1513,10 +1514,7 @@ function journeyHtml(purchase,state){
     const done=state.completed || index<journeyState.currentIndex;
     const isCurrent=!state.completed && index===journeyState.currentIndex;
     const cls=done?"done":(isCurrent?"current":"todo");
-    return '<div class="journey-stage '+cls+'">'+
-      '<div class="journey-stage-dot">'+(done?"✓":String(index+1))+'</div>'+
-      '<div class="journey-stage-label">'+safe(label)+'</div>'+
-    '</div>';
+    return '<div class="buyer-journey-card '+cls+'"><span class="number">'+(done?"✓":String(index+1))+'</span><div><div class="stage-label">'+safe(label)+'</div><small>'+(done?"Completed":isCurrent?"Current stage":"Not started")+'</small></div></div>';
   }).join("");
 
   const price=Number(purchase.motorcycle_price_gbp||0)+Number(purchase.delivery_charge_gbp||0);
@@ -1536,7 +1534,7 @@ function journeyHtml(purchase,state){
         </div>
       </div>
 
-      <div class="journey-track">${stepHtml}</div>
+      <div class="buyer-journey-cards" aria-label="Purchase stages">${stepHtml}</div>
 
       <div class="journey-next ${panelClass}">
         <span>${kicker}</span>
@@ -1787,7 +1785,7 @@ function purchaseCard(purchase){
             </span>
           </summary>
           <div class="purchase-more-body">
-            ${state.balance>0 && purchase.deal_number ? `
+            ${state.balance>0 && purchase.deal_number && !state.domesticProposed ? `
               <div class="purchase-payment-action">
                 <div>
                   <span>Remaining to pay</span>
