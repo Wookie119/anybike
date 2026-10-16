@@ -736,7 +736,7 @@ function escapeAdminHtml(value){
         <label><input type="checkbox" id="editDealerOffer" style="width:auto"> Make underwriting offers (agreement also required)</label>
         <p id="dealerAccessStatus" class="small"></p>
       </div>
-      <label style="grid-column:1/-1">
+      <label id="editLiveSourceRow" style="grid-column:1/-1">
         <span style="display:flex;align-items:center;gap:10px;background:#151515;border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:12px 14px;cursor:pointer">
           <input id="editLiveSourceEnabled" type="checkbox" style="width:auto;margin:0">
           <span><strong style="display:block">Show in Live Source Hub</strong><span class="small">Only tick this for customers AnyBike actively sources motorcycles for. Unticked customers will not appear in the Live Source Hub buyer dropdown.</span></span>
@@ -845,6 +845,14 @@ function openEditCustomer(userId){
   document.getElementById("editCustomerType").value=onboarding.customer_type||"";
   document.getElementById("editCustomerIntent").value=onboarding.customer_intent||"unclear";
   document.getElementById("editLiveSourceEnabled").checked=Boolean(c.liveSourceEnabled);
+  const isUKDealer=["uk_dealer","uk_distributor"].includes(String(onboarding.customer_type||""));
+  document.getElementById("editLiveSourceRow").hidden=isUKDealer;
+  document.getElementById("editLiveSourceRow").style.display=isUKDealer?"none":"";
+  document.getElementById("editCustomerType").onchange=function(){
+    const dealer=["uk_dealer","uk_distributor"].includes(this.value);
+    document.getElementById("editLiveSourceRow").hidden=dealer;
+    document.getElementById("editLiveSourceRow").style.display=dealer?"none":"";
+  };
   document.getElementById("editDealerLevel").value="1";
   ["editDealerSubmit","editDealerView","editDealerOffer"].forEach(id=>document.getElementById(id).checked=false);
   document.getElementById("dealerAccessStatus").textContent="Loading access permissions…";
@@ -886,6 +894,7 @@ async function saveEditedCustomer(){
   if(dealerLevel===2 && !confirm("Approve this customer for Level 2 trade access with the selected permissions?"))return;
 
   const liveSourceEnabled=Boolean(document.getElementById("editLiveSourceEnabled")?.checked);
+  const ukDealer=["uk_dealer","uk_distributor"].includes(String(document.getElementById("editCustomerType").value||""));
   const {error}=await sb.rpc("admin_update_customer_profile_v1",{
     p_user_id:editingCustomerId,
     p_full_name:document.getElementById("editFullName").value,
@@ -899,11 +908,15 @@ async function saveEditedCustomer(){
   });
   if(error){alert("Could not save customer: "+error.message);return;}
 
-  const {error:liveSourceError}=await sb.rpc("admin_set_live_source_buyer_v1",{
-    p_user_id:editingCustomerId,
-    p_enabled:liveSourceEnabled
-  });
-  if(liveSourceError){alert("Customer details were saved, but Live Source Hub access could not be updated: "+liveSourceError.message);return;}
+  // Live Source Hub is unrelated to UK dealership onboarding.
+  // Do not overwrite the existing sourcing preference when editing a UK dealer.
+  if(!ukDealer){
+    const {error:liveSourceError}=await sb.rpc("admin_set_live_source_buyer_v1",{
+      p_user_id:editingCustomerId,
+      p_enabled:liveSourceEnabled
+    });
+    if(liveSourceError){alert("Customer details were saved, but Live Source Hub access could not be updated: "+liveSourceError.message);return;}
+  }
 
   const {error:dealerAccessError}=await sb.rpc("admin_set_dealer_access_v1",{
     p_user_id:editingCustomerId,p_level:dealerLevel,p_submit:submitPermission,
