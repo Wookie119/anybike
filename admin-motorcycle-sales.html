@@ -16321,6 +16321,45 @@ async function confirmDomesticBuyerAgreement(id){
   renderAdminDealQueue();
   bikeSalesJourneyTab(String(id),"payment",false);
 }
+const dealAccountingReviewCache=new Map();
+async function loadDealAccountingReview(id){
+ const out=document.getElementById("deal-accounting-review-"+id);
+ if(!out)return;
+ out.textContent="Loading purchase orders, supplier documents and sales invoices…";
+ const [pos,supplier,invoices]=await Promise.all([
+   sb.rpc("admin_get_deal_purchase_orders_v1",{p_deal_id:Number(id)}),
+   sb.rpc("admin_get_supplier_purchase_queue_v1",{p_deal_id:Number(id)}),
+   sb.from("anybike_invoices").select("id,invoice_type,invoice_number,invoice_status,total_gbp,issued_at,customer_name_snapshot").eq("deal_id",Number(id)).order("created_at",{ascending:false})
+ ]);
+ if(pos.error||supplier.error||invoices.error){
+   out.textContent="Accounting records unavailable. "+[pos.error,supplier.error,invoices.error].filter(Boolean).map(e=>e.message).join("; ");
+   return;
+ }
+ const poRows=pos.data||[],supRows=supplier.data||[],saleRows=invoices.data||[];
+ dealAccountingReviewCache.set(String(id),{poRows,supRows,saleRows});
+ const safe=x=>escapeAdminHtml(String(x??"—"));
+ const row=(name,detail,state)=>'<div style="display:grid;grid-template-columns:minmax(130px,1fr) minmax(220px,2fr) minmax(110px,1fr);gap:12px;padding:10px;border-top:1px solid #333"><strong>'+safe(name)+'</strong><span>'+safe(detail)+'</span><span>'+safe(state)+'</span></div>';
+ out.innerHTML='<div style="margin-bottom:10px;color:#aaa">Accountant-facing source register. A purchase order does not prove payment; the original supplier invoice and verified payment records are separate.</div>'+
+ '<h5 style="margin:8px 0">Purchase orders</h5>'+(poRows.length?poRows.map(p=>row(p.purchase_order_number,p.supplier_name+' · '+anyBikeDealMoney(p.purchase_gross_gbp),p.purchase_order_status)).join(""):'<p>No purchase order attached yet. Do not assume one has been issued.</p>')+
+ '<h5 style="margin:14px 0 8px">Supplier invoice / purchase evidence</h5>'+(supRows.length?supRows.map(p=>row(p.supplier_document_number||p.motorcycle,p.supplier_name||p.motorcycle,(p.verification_status||"Not verified")+(p.evidence_file_name?" · File on record":" · Source invoice missing"))).join(""):'<p>No supplier document found.</p>')+
+ '<h5 style="margin:14px 0 8px">Buyer sales invoices</h5>'+(saleRows.length?saleRows.map(p=>row(p.invoice_number||"Draft",p.customer_name_snapshot+' · '+anyBikeDealMoney(p.total_gbp),p.invoice_type+' · '+p.invoice_status)).join(""):'<p>No sales invoice issued.</p>')+
+ '<button type="button" onclick="downloadDealAccountingCsv('+Number(id)+')" style="margin-top:14px;background:#ed1c24;color:#fff;padding:10px 14px;border:0;border-radius:7px;font-weight:800">Download accounting register CSV</button>';
+}
+function downloadDealAccountingCsv(id){
+ const data=dealAccountingReviewCache.get(String(id));
+ if(!data){alert("Load accounting records first.");return;}
+ const rows=[["Type","Reference","Counterparty","Amount GBP","Status"]];
+ data.poRows.forEach(p=>rows.push(["Purchase order",p.purchase_order_number,p.supplier_name,p.purchase_gross_gbp,p.purchase_order_status]));
+ data.supRows.forEach(p=>rows.push(["Supplier document",p.supplier_document_number,p.supplier_name,p.purchase_gross_gbp,p.verification_status]));
+ data.saleRows.forEach(p=>rows.push(["Sales invoice",p.invoice_number,p.customer_name_snapshot,p.total_gbp,p.invoice_status]));
+ const csv="\uFEFF"+rows.map(row=>row.map(v=>'"'+String(v??"").replace(/"/g,'""')+'"').join(",")).join("\r\n");
+ const url=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));
+ const a=document.createElement("a");a.href=url;a.download="AnyBike-Deal-"+id+"-Accounting-Register.csv";a.click();URL.revokeObjectURL(url);
+}
+function renderDealAccountingReview(deal){
+ const id=Number(deal.deal_id);
+ return '<details class="sales-payment-advanced" style="margin:12px 0"><summary style="cursor:pointer;font-weight:800">Accounting records · Purchase order / Supplier invoice / Sales invoice</summary><div style="padding:14px;border:1px solid #333;border-radius:8px"><button type="button" onclick="loadDealAccountingReview('+id+')" style="border:0;background:#ed1c24;color:#fff;padding:9px 14px;border-radius:7px">Load accounting records</button><div id="deal-accounting-review-'+id+'" style="padding-top:12px"></div></div></details>';
+}
 function domesticBuyerProposalText(id){
  const t=domesticBuyerTerms.get(String(id))||{};
  const labels={advance:"100% before delivery",on_delivery:"100% on delivery",fifty_fifty:"50% deposit / 50% on delivery",custom:"Custom payment split"};
@@ -17811,7 +17850,7 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
     })())+
     panel("collection",(domestic?renderDomesticMoveGate(deal):"")+renderAnyBikePurchaseActionGuide(deal)+renderAnyBikeDealTransactionCompletion(deal)+operationsBody)+
     panel("delivery",(domestic?renderDomesticMoveGate(deal):"")+(domestic&&domesticGate.driver_handover_allowed!==true?'<div class="deal-step-instruction" style="color:#ff8585">DRIVER RELEASE BLOCKED: buyer payment clearance has not been verified. This screen must not be used to authorise handover.</div>':"")+(typeof renderAnyBikeDeliveryStatusPanel==="function"?renderAnyBikeDeliveryStatusPanel(deal):"")+renderAnyBikeDealShippingRoutePanel(deal)+(collected?'<div class="sales-what-next"><strong>What happens next?</strong><span>Complete the agreed UK handover / delivery, confirm depot/storage where applicable, then record the final handover milestone.</span></div>':'<div class="sales-what-next"><strong>What happens next?</strong><span>Delivery becomes active after the motorcycle has been purchased and collected.</span></div>'))+
-    panel("invoice",renderFinalInvoiceStageStatus(deal,collected,complete)+renderFinalInvoiceReadinessPanel(deal)+renderAnyBikeDealInvoiceDocuments(deal))+
+    panel("invoice",renderDealAccountingReview(deal)+renderFinalInvoiceStageStatus(deal,collected,complete)+renderFinalInvoiceReadinessPanel(deal)+renderAnyBikeDealInvoiceDocuments(deal))+
     panel("complete",renderAdminMotorcycleJourneys(deal,bikes)+renderDealRequirementWorkspace(deal)+'<div class="sales-timeline">'+timelineHtml+'</div><div class="sales-what-next"><strong>What happens next?</strong><span>'+escapeAdminHtml(nextText)+'</span></div>')+
   '</section>';
 };
