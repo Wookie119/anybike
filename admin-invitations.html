@@ -111,16 +111,17 @@ async function loadDealerInviteContacts(){
  const sb=window.supabase.createClient("https://tuehtnezhdnkqbbhttgp.supabase.co","sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK");
  const {data:orgs,error:orgError}=await sb.from("dealer_organisations").select("id,legal_name,trading_name,email,telephone,active").eq("active",true).order("trading_name").limit(1000);
  if(orgError)throw orgError;
- const {data:contacts,error:contactError}=await sb.from("anybike_dealer_contact_emails").select("dealer_organisation_id,email,contact_name,is_primary,can_receive_invites").limit(2000);
- if(contactError)throw contactError;
+ // Named contact records may be protected. Do not let that block authorised organisation records.
+ let contacts=[];
+ const {data:contactRows,error:contactError}=await sb.from("anybike_dealer_contact_emails").select("dealer_organisation_id,email,contact_name,is_primary,can_receive_invites").limit(2000);
+ if(!contactError)contacts=contactRows||[];
  const grouped=new Map();
- for(const entry of contacts||[]){if(entry.can_receive_invites===false || !String(entry.email||"").includes("@"))continue;const id=String(entry.dealer_organisation_id);if(!grouped.has(id))grouped.set(id,[]);grouped.get(id).push(entry);}
+ for(const entry of contacts){if(entry.can_receive_invites===false || !String(entry.email||"").includes("@"))continue;const id=String(entry.dealer_organisation_id);if(!grouped.has(id))grouped.set(id,[]);grouped.get(id).push(entry);}
  dealerInviteContacts=[];
  const seen=new Set();
  for(const org of orgs||[]){
  const business=org.trading_name||org.legal_name||"Dealer";
  const list=grouped.get(String(org.id))||[];
- // Prefer named invite-enabled contacts; fall back to an organisation email only if no named contact exists.
  const recipients=list.length?list:(org.email?[{email:org.email,contact_name:"",is_primary:true}]:[]);
  for(const rec of recipients){
  const email=String(rec.email||"").trim().toLowerCase();
@@ -130,7 +131,7 @@ async function loadDealerInviteContacts(){
  }
  dealerInviteSelected.clear();dealerInviteQueue=[];dealerInvitePosition=0;$("nextDealerInviteDraft").disabled=true;
  renderDealerInviteContacts();
- status.textContent=dealerInviteContacts.length+" dealer contacts available. Select the people to invite. No messages sent.";
+ status.textContent=dealerInviteContacts.length+" dealer email contacts available."+ (contactError?" Named contacts are restricted, so only organisation emails are shown.":"")+" Select who to invite. Nothing sent.";
  }catch(e){status.textContent="Could not load dealer directory: "+(e.message||e);}
 }
 function dealerInviteFiltered(){
