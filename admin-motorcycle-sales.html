@@ -12460,7 +12460,7 @@ async function loadAdminDealQueue(){
       }
     }));
 
-    await loadDomesticSellerDeposits();
+    await Promise.all([loadDomesticSellerDeposits(),loadDomesticSellerIdentities()]);
     await loadDealShippingRoutes();
     await loadDealExportVatDocuments();
     await loadCompanyExportIdentity();
@@ -15634,6 +15634,8 @@ function clearAnyBikeDealTableFilters(){
 
 function anyBikeDealSellerNames(dealId){
   const names=[];
+  const identity=domesticSellerIdentity.get(String(dealId));
+  if(identity?.seller_name) names.push(String(identity.seller_name));
   adminDealMotorcycles
     .filter(function(bike){ return String(bike.deal_id || "")===String(dealId || ""); })
     .forEach(function(bike){
@@ -16203,6 +16205,15 @@ function setBikeSalesView(view,button){
   }
 }
 
+const domesticSellerIdentity=new Map();
+async function loadDomesticSellerIdentities(){
+  const deals=(adminDealQueue||[]).filter(d=>String(d.sale_route)==="UK_DOMESTIC_TRADE");
+  await Promise.all(deals.map(async d=>{
+    const id=String(d.deal_id);
+    const {data,error}=await sb.rpc("admin_deal_seller_identity_v1",{p_deal_id:Number(id)});
+    if(!error && data) domesticSellerIdentity.set(id,data);
+  }));
+}
 const domesticSellerDepositState=new Map();
 async function loadDomesticSellerDeposits(){
   const deals=(adminDealQueue||[]).filter(d=>String(d.sale_route)==="UK_DOMESTIC_TRADE");
