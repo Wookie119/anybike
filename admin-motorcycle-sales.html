@@ -17295,6 +17295,7 @@ function renderAnyBikeGuidedJourney(deal,bikes,bikeRows,dealNumber,buyerName,raw
 /* SALES OVERHAUL: compact, tabbed journey using existing protected data/functions. */
 renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,rawStage,stage,status){
   const dealId=String(deal.deal_id||"");
+  const domestic=String(deal.sale_route||"")==="UK_DOMESTIC_TRADE";
   const action=anyBikeDealNextActionFor(dealId);
   const candidateState=bikeSalesCandidateStateForDeal(dealId);
   let primary=String(action?.primary_action||"");
@@ -17336,7 +17337,7 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
   const accountStatus=String(onboardingRow.account_status||"Active");
   const offerSent=String(rawStage||"")==="Proposal Sent";
   const flags={depositOutstanding,depositRequired,sellerDone,commercialReady,shippingDone,vatDone,secured,hasMotorcycle,offerSent,offerAccepted,customerPaid,collected,complete,finalInvoiceIssued,onboardingApproved,firstOrderGraceActive:anyBikeFirstOrderGraceActive(deal),purchaseClearanceAllowed:anyBikePurchaseClearanceAllowed(deal),accountStopped:accountStatus==="Stopped",accountOnHold:accountStatus==="On Hold"};
-  primary=bikeSalesEffectivePrimary(action,flags,deal);
+  primary=domestic ? "Pay Seller Deposit — £250" : bikeSalesEffectivePrimary(action,flags,deal);
   const effectiveAction=Object.assign({},action||{},{primary_action:primary});
   const current=bikeSalesJourneyStage(effectiveAction,deal,flags);
   let nextText=bikeSalesJourneyInstruction(effectiveAction,flags);
@@ -17353,11 +17354,13 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
   }else if(primary==="Waiting for Formal Offer Response"){
     nextText="The Formal Offer has been sent. Wait for the buyer to accept, decline or ask a question; their response will appear in Message Centre and the admin bell.";
   }
-  const waiting=primary==="Waiting for Buyer Response" || primary==="Waiting for Formal Offer Response";
+  if(domestic) nextText="Verify the private seller’s bank details and transfer reference. Record the £250 deposit only after the transfer is confirmed. £650 seller balance remains separate.";
+  const waiting=!domestic&&(primary==="Waiting for Buyer Response" || primary==="Waiting for Formal Offer Response");
   let activeTab=current==="complete"?"timeline":current;
   if(!hasMotorcycle && ["Check Seller Availability","Select Motorcycle for Sale","Waiting for Buyer Response","Find Potential Matches"].includes(primary)){
     activeTab="sourcing";
   }
+  if(domestic) activeTab="payment";
   if(primary==="Issue Final Invoice") activeTab="invoice";
   if(primary==="Complete Delivery / Handover") activeTab="delivery";
   if(primary==="Start Purchase & Collection") activeTab="collection";
@@ -17366,9 +17369,9 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
     ["request","Request",true],
     ["sourcing","Sourcing",hasMotorcycle],
     ["interest","Interested",hasMotorcycle],
-    ["seller","Seller / Commercial",sellerDone&&commercialReady&&vatDone],
+    ["seller",domestic?"Purchase & Profit Check":"Seller / Commercial",domestic ? offerAccepted : sellerDone&&commercialReady&&vatDone],
     ["offer","Offer",offerAccepted],
-    ["payment","Payment",customerPaid],
+    ["payment","Payment",domestic ? false : customerPaid],
     ["collection","Collection",collected],
     ["delivery","Delivery",complete],
     ["invoice","Final Invoice",finalInvoiceIssued],
@@ -17379,7 +17382,7 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
     const key=item[0], label=item[1], done=!!item[2];
     const cls=key===current?"current":done?"done":"";
     const statePrefix=done ? "✓ " : "";
-    return '<span class="'+cls+'" title="'+(done?"Complete":key===current?"Current stage":"Not reached yet")+'">'+statePrefix+(index+1)+'. '+escapeAdminHtml(label)+'</span>';
+    return domestic ? '<button type="button" class="'+cls+'" style="flex:1 1 0;min-width:0;white-space:nowrap;padding:8px 4px;font-size:12px;cursor:pointer" onclick="bikeSalesJourneyTab(\''+dealId+'\',\''+(key==="interest"?"sourcing":key==="complete"?"timeline":key)+'\');return false;" title="'+(done?"Complete":key===current?"Current stage":"Not reached yet")+'">'+statePrefix+(index+1)+'. '+escapeAdminHtml(label)+'</button>' : '<span class="'+cls+'" title="'+(done?"Complete":key===current?"Current stage":"Not reached yet")+'">'+statePrefix+(index+1)+'. '+escapeAdminHtml(label)+'</span>';
   }).join("");
   const progressDone=pipeline.filter(function(item){return !!item[2];}).length;
   const progressPercent=Math.max(0,Math.min(100,Math.round((progressDone/pipeline.length)*100)));
@@ -17387,7 +17390,7 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
 
   const stageControl='<div class="anybike-presale-panel" style="margin-top:0"><div class="anybike-presale-head"><div><span>Exceptional override</span><h4>'+escapeAdminHtml(dealNumber)+'</h4></div><div><div class="anybike-stage-control"><select id="deal-stage-select-'+deal.deal_id+'" '+(dealStageSaveBusy.has(String(deal.deal_id))?"disabled":"")+'>'+anyBikeDealStageOptions(rawStage)+'</select><button type="button" '+(dealStageSaveBusy.has(String(deal.deal_id))?"disabled":"")+' onclick="saveDealStage('+deal.deal_id+');return false;">'+(dealStageSaveBusy.has(String(deal.deal_id))?"Saving...":"Save Stage")+'</button></div><div class="anybike-stage-help">Use only when a genuine exception requires a manual override.</div></div></div></div>';
 
-  const operationsBody=customerPaid
+  const operationsBody=(domestic ? false : customerPaid)
     ? (typeof renderAnyBikeOperationsPanel==="function" ? renderAnyBikeOperationsPanel(deal) : '<div id="anybike-operations-'+escapeAdminHtml(dealId)+'"><div class="deal-step-instruction">Loading Purchase &amp; Collection…</div></div>')
     : '<div class="deal-step-instruction">Collection becomes active after the required customer funds are cleared.</div>';
 
@@ -17422,7 +17425,7 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
   return '<section class="sales-journey" data-deal-id="'+escapeAdminHtml(dealId)+'">'+
     '<div class="sales-journey-head"><div class="sales-journey-headline"><div><h3>'+escapeAdminHtml(dealNumber)+' · '+escapeAdminHtml(buyerName)+'</h3><p>'+escapeAdminHtml(status)+' · '+escapeAdminHtml(stage)+'</p></div>'+
     '<div class="sales-next-action '+(waiting?"waiting":"action")+'" role="button" tabindex="0" title="Click to proceed to the next task" onclick="openBikeSalesNextTask(\''+dealId+'\');return false;" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();openBikeSalesNextTask(\''+dealId+'\');}"><span class="sales-next-action-copy"><strong>'+(waiting?"Waiting / Next":"Your next action")+': '+escapeAdminHtml(primary||"Review sale")+'</strong><span>'+escapeAdminHtml(nextText)+'</span></span><span class="sales-next-action-cta">Proceed →</span></div></div></div>'+
-    '<div class="sales-row-with-label"><div class="sales-row-label">Deal Journey</div><div class="sales-compact-pipeline">'+pipelineHtml+'</div></div>'+
+    (domestic ? '<div class="sales-compact-pipeline" style="display:flex;width:100%;gap:4px;overflow:visible;flex-wrap:nowrap">'+pipelineHtml+'</div>' : '<div class="sales-row-with-label"><div class="sales-row-label">Deal Journey</div><div class="sales-compact-pipeline">'+pipelineHtml+'</div></div>')+
     '<div class="sales-guidance-line"><strong>How to read this Deal</strong><span>Green journey boxes are complete. Red boxes still need work. The highlighted red box is the current stage. Every working section should tell you exactly what to do next.</span></div>'+
     '<details class="sales-workspace-menu"><summary>View / change deal section</summary><div class="sales-workspace-row"><div class="sales-row-label">Deal Sections</div><nav class="sales-work-tabs" aria-label="Deal sections">'+
       tabButton("request","Request")+
@@ -17448,12 +17451,19 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
         '<span>These tools keep this sale and buyer context while you source.</span></div>'+
         '<div class="anybike-deal-bike-list">'+bikeRows+'</div>'+renderAnyBikeDealCandidatePanel(deal);
     })())+
-    panel("seller",(offerAccepted
+    panel("seller",(domestic ? "" : (offerAccepted
       ? renderAnyBikeBuyerOnboardingPanel(deal)
       : '<section class="anybike-commercial-panel" style="margin-top:14px"><div class="anybike-commercial-head"><div><span>Buyer Verification</span><h4>Purchase clearance will be required later</h4></div><div class="anybike-commercial-status">NOT REQUIRED YET</div></div><div style="padding:14px 16px;color:#aaa;line-height:1.5">Continue with seller availability, commercial setup and the Formal Offer. Buyer verification becomes a required staff action only after the buyer accepts the offer and before AnyBike commits to purchasing the motorcycle.</div></section>'
-    )+renderAnyBikeDealCommercialSetup(deal)+renderAnyBikeDealExportTaxIdentity(deal)+renderAnyBikeDealExportVatClearance(deal)+renderAnyBikeDealSellerCheckPanel(deal)+renderAnyBikeDealFinancialPanel(deal))+
+    ))+renderAnyBikeDealCommercialSetup(deal)+(domestic?"":renderAnyBikeDealExportTaxIdentity(deal)+renderAnyBikeDealExportVatClearance(deal))+renderAnyBikeDealSellerCheckPanel(deal)+renderAnyBikeDealFinancialPanel(deal))+
     panel("offer",renderDealOfferWorkspace(deal,bikes)+(!offerAccepted?'<div class="sales-what-next"><strong>What happens next?</strong><span>When the formal offer is sent, the buyer reviews the price and terms. Their response returns to AnyBike through the Message Centre and bell.</span></div>':'')+'<details class="sales-payment-advanced"><summary>Stage override / exceptional use only</summary>'+stageControl+'</details>')+
     panel("payment",(function(){
+      if(domestic){
+        const sellerCost=(bikes||[]).reduce(function(sum,b){return sum+Number(b.seller_price_gbp||0);},0);
+        const dealerCost=(bikes||[]).reduce(function(sum,b){return sum+Number(b.buyer_price_gbp||0);},0);
+        const paidSupplier=adminDealSellerPaymentStatus.filter(function(p){return String(p.deal_id)===dealId;}).reduce(function(sum,p){return sum+Number(p.total_supplier_payments_gbp||0);},0);
+        const sellerDeposit=Math.min(250,sellerCost);
+        return '<section class="anybike-payment-panel" style="margin-top:12px"><div class="anybike-payment-head"><div><span>UK DOMESTIC TRADE · OUTGOING SELLER PAYMENT</span><h4>Pay Seller Deposit — '+anyBikeDealMoney(sellerDeposit)+'</h4></div><div class="anybike-payment-status neutral">Bank transfer not confirmed</div></div><div class="anybike-payment-grid" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px"><div class="anybike-payment-metric"><span class="anybike-payment-label">Seller agreed price</span><strong>'+anyBikeDealMoney(sellerCost)+'</strong></div><div class="anybike-payment-metric"><span class="anybike-payment-label">Seller deposit to pay</span><strong>'+anyBikeDealMoney(Math.max(0,sellerDeposit-paidSupplier))+'</strong></div><div class="anybike-payment-metric"><span class="anybike-payment-label">Seller balance after deposit</span><strong>'+anyBikeDealMoney(Math.max(0,sellerCost-sellerDeposit))+'</strong></div><div class="anybike-payment-metric"><span class="anybike-payment-label">Incoming dealer purchase</span><strong>'+anyBikeDealMoney(dealerCost)+'</strong></div></div><div style="padding:14px 18px;line-height:1.6"><strong>Next action:</strong> Verify the seller’s beneficiary name, sort code and account number against a trusted source, then transfer the deposit through your bank. <strong>Do not mark it paid until the bank transfer is confirmed.</strong><p style="margin:10px 0 0;color:#aab">Payment recording is locked while domestic-specific bank verification, audit and notification controls are being built. The £650 seller balance is not part of this deposit.</p></div></section>'+renderAnyBikeDealCustomerAccount(deal)+'<div class="sales-payment-phase"><strong>Dealer payment · '+anyBikeDealMoney(dealerCost)+' incoming</strong><span>This is money AnyBike must receive from Gifford Motorcycles Ltd, not money paid to the private seller. No dealer receipt should be marked paid until confirmed.</span></div>';
+      }
       const depositComplete=depositRequired<=0 || depositOutstanding<=0.009;
       if(!offerAccepted){
         return renderAnyBikeDealCustomerAccount(deal)+
