@@ -12460,7 +12460,7 @@ async function loadAdminDealQueue(){
       }
     }));
 
-    await Promise.all([loadDomesticSellerDeposits(),loadDomesticSellerIdentities()]);
+    await Promise.all([loadDomesticSellerDeposits(),loadDomesticSellerIdentities(),loadDomesticBuyerTerms()]);
     await loadDealShippingRoutes();
     await loadDealExportVatDocuments();
     await loadCompanyExportIdentity();
@@ -16205,6 +16205,49 @@ function setBikeSalesView(view,button){
   }
 }
 
+const domesticBuyerTerms=new Map();
+async function loadDomesticBuyerTerms(){
+ const rows=(adminDealQueue||[]).filter(x=>x.sale_route==="UK_DOMESTIC_TRADE");
+ await Promise.all(rows.map(async x=>{
+  const key=String(x.deal_id);
+  const {data,error}=await sb.rpc("admin_domestic_buyer_payment_terms_v1",{p_deal_id:Number(key)});
+  domesticBuyerTerms.set(key,error?{error:error.message}:(data||{}));
+ }));
+}
+function domesticBuyerPlanChanged(id){
+ const sel=document.getElementById("buyer-plan-"+id),field=document.getElementById("buyer-deposit-"+id);
+ if(!sel||!field)return;
+ const total=Number(field.dataset.total||0);
+ field.disabled=sel.value!=="custom";
+ if(sel.value==="advance")field.value=total.toFixed(2);
+ if(sel.value==="on_delivery")field.value="0.00";
+ if(sel.value==="fifty_fifty")field.value=(Math.round(total*50)/100).toFixed(2);
+}
+async function saveDomesticBuyerTerms(id){
+ const plan=document.getElementById("buyer-plan-"+id)?.value;
+ const value=Number(document.getElementById("buyer-deposit-"+id)?.value);
+ if(!Number.isFinite(value)||value<0){alert("Enter a valid deposit.");return;}
+ if(!confirm("Save proposed buyer payment terms? This does not mark them agreed or received."))return;
+ const {data,error}=await sb.rpc("admin_domestic_buyer_payment_terms_v1",{p_deal_id:Number(id),p_plan:plan,p_deposit:value});
+ if(error){alert("Terms not saved: "+error.message);return;}
+ domesticBuyerTerms.set(String(id),data);
+ openAnyBikeDealId=String(id);renderAdminDealQueue();
+ const row=document.getElementById("anybike-deal-"+id);
+ if(row){row.classList.add("open");bikeSalesJourneyTab(String(id),"offer",false);}
+}
+function renderDomesticBuyerTerms(deal,bikes){
+ const id=String(deal.deal_id),total=(bikes||[]).reduce((a,b)=>a+Number(b.buyer_price_gbp||0),0);
+ const saved=domesticBuyerTerms.get(id)||{};
+ if(saved.error)return '<p>Buyer payment terms unavailable: '+escapeAdminHtml(saved.error)+'</p>';
+ const plan=String(saved.plan||"on_delivery"),deposit=Number(saved.deposit??0);
+ const choices=[["advance","100% before delivery"],["on_delivery","100% on delivery"],["fifty_fifty","50% deposit / 50% on delivery"],["custom","Custom split"]];
+ return '<section class="anybike-payment-panel" style="margin:10px 0"><div class="anybike-payment-head"><div><span>BUYER PAYMENT TERMS</span><h4>Proposed payment arrangement · '+anyBikeDealMoney(total)+'</h4></div><strong>'+escapeAdminHtml(saved.status||"Not Set")+'</strong></div>'+
+ '<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:end;padding:14px">'+
+ '<label style="flex:2;min-width:210px">Payment choice<select id="buyer-plan-'+id+'" onchange="domesticBuyerPlanChanged('+Number(id)+')" style="display:block;width:100%;padding:10px;background:#111;color:white;border:1px solid #555">'+choices.map(([v,t])=>'<option value="'+v+'" '+(plan===v?"selected":"")+'>'+t+'</option>').join("")+'</select></label>'+
+ '<label style="flex:1;min-width:130px">Buyer deposit (£)<input id="buyer-deposit-'+id+'" data-total="'+total.toFixed(2)+'" type="number" min="0" max="'+total+'" step=".01" value="'+deposit.toFixed(2)+'" '+(plan==="custom"?"":"disabled")+' style="display:block;width:100%;padding:10px;background:#111;color:white;border:1px solid #555"></label>'+
+ '<button type="button" onclick="saveDomesticBuyerTerms('+Number(id)+')" style="padding:11px 18px;border:0;border-radius:8px;background:#ed1c24;color:white;font-weight:bold">Save proposed terms</button></div>'+
+ '<p style="padding:0 14px 12px;color:#aaa">These are proposed terms only. Buyer agreement, payment receipt and motorcycle release require separate confirmation.</p></section>';
+}
 const domesticSellerIdentity=new Map();
 async function loadDomesticSellerIdentities(){
   const deals=(adminDealQueue||[]).filter(d=>String(d.sale_route)==="UK_DOMESTIC_TRADE");
@@ -17539,7 +17582,7 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
       ? renderAnyBikeBuyerOnboardingPanel(deal)
       : '<section class="anybike-commercial-panel" style="margin-top:14px"><div class="anybike-commercial-head"><div><span>Buyer Verification</span><h4>Purchase clearance will be required later</h4></div><div class="anybike-commercial-status">NOT REQUIRED YET</div></div><div style="padding:14px 16px;color:#aaa;line-height:1.5">Continue with seller availability, commercial setup and the Formal Offer. Buyer verification becomes a required staff action only after the buyer accepts the offer and before AnyBike commits to purchasing the motorcycle.</div></section>'
     ))+renderAnyBikeDealCommercialSetup(deal)+(domestic?"":renderAnyBikeDealExportTaxIdentity(deal)+renderAnyBikeDealExportVatClearance(deal))+renderAnyBikeDealSellerCheckPanel(deal)+renderAnyBikeDealFinancialPanel(deal))+
-    panel("offer",renderDealOfferWorkspace(deal,bikes)+(!offerAccepted?'<div class="sales-what-next"><strong>What happens next?</strong><span>When the formal offer is sent, the buyer reviews the price and terms. Their response returns to AnyBike through the Message Centre and bell.</span></div>':'')+'<details class="sales-payment-advanced"><summary>Stage override / exceptional use only</summary>'+stageControl+'</details>')+
+    panel("offer",(domestic?renderDomesticBuyerTerms(deal,bikes):"")+renderDealOfferWorkspace(deal,bikes)+(!offerAccepted?'<div class="sales-what-next"><strong>What happens next?</strong><span>When the formal offer is sent, the buyer reviews the price and terms. Their response returns to AnyBike through the Message Centre and bell.</span></div>':'')+'<details class="sales-payment-advanced"><summary>Stage override / exceptional use only</summary>'+stageControl+'</details>')+
     panel("payment",(function(){
       if(domestic){
         const sellerCost=(bikes||[]).reduce(function(sum,b){return sum+Number(b.seller_price_gbp||0);},0);
