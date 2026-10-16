@@ -16217,15 +16217,26 @@ async function loadDomesticBuyerTerms(){
 function domesticBuyerPlanChanged(id){
  const sel=document.getElementById("buyer-plan-"+id),field=document.getElementById("buyer-deposit-"+id);
  if(!sel||!field)return;
- const total=Number(field.dataset.total||0);
- field.disabled=sel.value!=="custom";
- if(sel.value==="advance")field.value=total.toFixed(2);
- if(sel.value==="on_delivery")field.value="0.00";
- if(sel.value==="fifty_fifty")field.value=(Math.round(total*50)/100).toFixed(2);
+ const total=Number(field.dataset.total||0),plan=sel.value;
+ field.disabled=plan!=="custom";
+ if(plan==="advance")field.value=total.toFixed(2);
+ if(plan==="on_delivery")field.value="0.00";
+ if(plan==="fifty_fifty")field.value=(Math.round(total*50)/100).toFixed(2);
+ if(plan==="")field.value="";
+ domesticBuyerBreakdownChanged(id);
+}
+function domesticBuyerBreakdownChanged(id){
+ const field=document.getElementById("buyer-deposit-"+id),sel=document.getElementById("buyer-plan-"+id);
+ const target=document.getElementById("buyer-breakdown-"+id);
+ if(!field||!sel||!target)return;
+ const total=Number(field.dataset.total||0),amount=Number(field.value);
+ const valid=sel.value!==""&&field.value!==""&&Number.isFinite(amount)&&amount>=0&&amount<=total;
+ target.textContent=valid?"Buyer deposit: "+anyBikeDealMoney(amount)+" · Remaining on delivery: "+anyBikeDealMoney(total-amount):"Select payment terms to preview the split.";
 }
 async function saveDomesticBuyerTerms(id){
  const plan=document.getElementById("buyer-plan-"+id)?.value;
  const value=Number(document.getElementById("buyer-deposit-"+id)?.value);
+ if(!plan){alert("Select the buyer payment terms first.");return;}
  if(!Number.isFinite(value)||value<0){alert("Enter a valid deposit.");return;}
  if(!confirm("Save proposed buyer payment terms? This does not mark them agreed or received."))return;
  const {data,error}=await sb.rpc("admin_domestic_buyer_payment_terms_v1",{p_deal_id:Number(id),p_plan:plan,p_deposit:value});
@@ -16239,13 +16250,14 @@ function renderDomesticBuyerTerms(deal,bikes){
  const id=String(deal.deal_id),total=(bikes||[]).reduce((a,b)=>a+Number(b.buyer_price_gbp||0),0);
  const saved=domesticBuyerTerms.get(id)||{};
  if(saved.error)return '<p>Buyer payment terms unavailable: '+escapeAdminHtml(saved.error)+'</p>';
- const plan=String(saved.plan||"on_delivery"),deposit=Number(saved.deposit??0);
+ const plan=String(saved.plan||""),deposit=Number(saved.deposit??0);
  const choices=[["advance","100% before delivery"],["on_delivery","100% on delivery"],["fifty_fifty","50% deposit / 50% on delivery"],["custom","Custom split"]];
  return '<section class="anybike-payment-panel" style="margin:10px 0"><div class="anybike-payment-head"><div><span>BUYER PAYMENT TERMS</span><h4>Proposed payment arrangement · '+anyBikeDealMoney(total)+'</h4></div><strong>'+escapeAdminHtml(saved.status||"Not Set")+'</strong></div>'+
  '<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:end;padding:14px">'+
- '<label style="flex:2;min-width:210px">Payment choice<select id="buyer-plan-'+id+'" onchange="domesticBuyerPlanChanged('+Number(id)+')" style="display:block;width:100%;padding:10px;background:#111;color:white;border:1px solid #555">'+choices.map(([v,t])=>'<option value="'+v+'" '+(plan===v?"selected":"")+'>'+t+'</option>').join("")+'</select></label>'+
- '<label style="flex:1;min-width:130px">Buyer deposit (£)<input id="buyer-deposit-'+id+'" data-total="'+total.toFixed(2)+'" type="number" min="0" max="'+total+'" step=".01" value="'+deposit.toFixed(2)+'" '+(plan==="custom"?"":"disabled")+' style="display:block;width:100%;padding:10px;background:#111;color:white;border:1px solid #555"></label>'+
+ '<label style="flex:2;min-width:210px">Payment choice<select id="buyer-plan-'+id+'" onchange="domesticBuyerPlanChanged('+Number(id)+')" style="display:block;width:100%;padding:10px;background:#111;color:white;border:1px solid #555">'<option value="" '+(!plan?'selected':'')+'>Select payment terms</option>'+choices.map(([v,t])=>'<option value="'+v+'" '+(plan===v?"selected":"")+'>'+t+'</option>').join("")+'</select></label>'+
+ '<label style="flex:1;min-width:130px">Buyer deposit (£)<input id="buyer-deposit-'+id+'" data-total="'+total.toFixed(2)+'" type="number" min="0" max="'+total+'" step=".01" value="'+(plan?deposit.toFixed(2):"")+'" oninput="domesticBuyerBreakdownChanged('+Number(id)+')" '+(plan==="custom"?"":"disabled")+' style="display:block;width:100%;padding:10px;background:#111;color:white;border:1px solid #555"></label>'+
  '<button type="button" onclick="saveDomesticBuyerTerms('+Number(id)+')" style="padding:11px 18px;border:0;border-radius:8px;background:#ed1c24;color:white;font-weight:bold">Save proposed terms</button></div>'+
+ '<p id="buyer-breakdown-'+id+'" style="padding:0 14px 8px;color:#fff;font-weight:750">'+(plan?'Buyer deposit: '+anyBikeDealMoney(deposit)+' · Remaining on delivery: '+anyBikeDealMoney(total-deposit):'Select payment terms to preview the split.')+'</p>'+ 
  '<p style="padding:0 14px 12px;color:#aaa">These are proposed terms only. Buyer agreement, payment receipt and motorcycle release require separate confirmation.</p></section>';
 }
 const domesticSellerIdentity=new Map();
@@ -17294,7 +17306,7 @@ function renderDealOfferWorkspace(deal,bikes){
     let note="Review the commercial position, deposit and terms before sending anything to the buyer.";
     if(["Payment / Deposit","Operations","Shipping","Completed"].includes(stage)){
       status="Offer Accepted";
-      note=Number(action.deposit_outstanding_gbp||0)>0
+      note=String(deal.sale_route||"")==="UK_DOMESTIC_TRADE" ? "Offer accepted. Buyer payment terms and receipts must be checked separately; no buyer payment is implied." : Number(action.deposit_outstanding_gbp||0)>0
         ? "The buyer accepted the offer. The required deposit is now the active customer action."
         : "The offer has been accepted and the deposit requirement is satisfied.";
     }else if(stage==="Proposal Sent" || String(bike.negotiation_status||"").toLowerCase().includes("negotiat")){
@@ -17308,11 +17320,11 @@ function renderDealOfferWorkspace(deal,bikes){
     const price=Number(commercial.anybike_sale_price_gbp ?? bike.buyer_price_gbp ?? 0);
     const delivery=Number(commercial.delivery_charge_gbp ?? bike.delivery_charge_gbp ?? 0);
 
-    return '<article class="offer-workspace-card">'+
-      '<div><span>Motorcycle '+(index+1)+'</span><strong>'+escapeAdminHtml(title)+'</strong><small>'+escapeAdminHtml(status)+'</small></div>'+
-      '<div class="offer-workspace-money"><span>Motorcycle</span><strong>'+(price>0?anyBikeDealMoney(price):"Not agreed")+'</strong></div>'+
-      '<div class="offer-workspace-money"><span>Delivery</span><strong>'+anyBikeDealMoney(delivery)+'</strong></div>'+
-      '<div class="offer-workspace-copy">'+escapeAdminHtml(note)+'</div>'+
+    return '<article class="offer-workspace-card" style="display:flex;flex-wrap:wrap;align-items:center;gap:14px;padding:16px;border:1px solid #333;border-radius:10px;margin:10px 0">'+
+      '<div style="display:flex;flex-direction:column;gap:4px;flex:2;min-width:240px"><span>Motorcycle '+(index+1)+'</span><strong>'+escapeAdminHtml(title)+'</strong><small>'+escapeAdminHtml(status)+'</small></div>'+
+      '<div class="offer-workspace-money" style="display:flex;flex-direction:column;gap:4px;min-width:130px"><span>Motorcycle</span><strong>'+(price>0?anyBikeDealMoney(price):"Not agreed")+'</strong></div>'+
+      '<div class="offer-workspace-money" style="display:flex;flex-direction:column;gap:4px;min-width:110px"><span>Delivery</span><strong>'+anyBikeDealMoney(delivery)+'</strong></div>'+
+      '<div class="offer-workspace-copy" style="flex-basis:100%;line-height:1.5">'+escapeAdminHtml(note)+'</div>'+
       '<button type="button" onclick="openDealOfferModal('+bikeId+');return false;">'+(status==="Offer Sent"||status==="Offer Accepted"?"View / Review Formal Offer":"Prepare Formal Offer")+'</button>'+
     '</article>';
   }).join("");
