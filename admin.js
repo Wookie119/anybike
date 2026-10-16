@@ -531,7 +531,7 @@ function setupAdminSearch(){
   ["Motorcycle Buying","admin-motorcycle-buying.html"],["Motorcycle Sales","admin-motorcycle-sales.html"],
   ["Available Stock","admin-stock.html"],["Motorcycle 360","admin-motorcycle-360.html"],
   ["Customer 360","admin-customers.html"],["Message Centre","admin-message-centre.html"],
-  ["Operations","admin-logistics.html"],["Accounts HQ","admin-accounts.html"],
+  ["Operations","admin-logistics.html"],["Accounts HQ","admin-accounts.html"],["Accounting HQ","admin-accounting.html"],
   ["Trade Underwrite Desk","admin-trade-underwrites.html"],["Live Source Hub","admin-live-source-hub.html"],
   ["Onboarding","admin-onboarding.html"],["Invitations","admin-invitations.html"],["Market Intelligence","admin-market-intelligence.html"]
  ];
