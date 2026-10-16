@@ -12055,6 +12055,7 @@ async function saveDealExportVatClearance(dealId){
     });
     if(result.error) throw result.error;
 
+    await loadDomesticSellerDeposits();
     await loadDealShippingRoutes();
     await loadAdminDealQueue();
     renderAdminDealQueue();
@@ -16201,6 +16202,44 @@ function setBikeSalesView(view,button){
   }
 }
 
+const domesticSellerDepositState=new Map();
+async function loadDomesticSellerDeposits(){
+  const deals=(adminDealQueue||[]).filter(d=>String(d.sale_route)==="UK_DOMESTIC_TRADE");
+  await Promise.all(deals.map(async d=>{
+    const id=String(d.deal_id);
+    const {data,error}=await sb.rpc("admin_domestic_seller_deposit_v1",{p_deal_id:Number(id)});
+    if(error){console.warn("Domestic seller deposit",id,error); domesticSellerDepositState.set(id,{error:error.message});}
+    else domesticSellerDepositState.set(id,data||{});
+  }));
+}
+function domesticDepositDateValue(){
+  const d=new Date(), local=new Date(d.getTime()-d.getTimezoneOffset()*60000);
+  return local.toISOString().slice(0,16);
+}
+async function recordDomesticSellerDeposit(dealId){
+  const id=String(dealId);
+  const confirmed=document.getElementById("domestic-bank-verified-"+id)?.checked;
+  const reference=document.getElementById("domestic-transfer-ref-"+id)?.value?.trim();
+  const date=document.getElementById("domestic-transfer-date-"+id)?.value;
+  if(!confirmed){alert("Confirm that you independently verified the seller bank details.");return;}
+  if(!reference||reference.length<3||!date){alert("Enter the bank transfer date and reference.");return;}
+  const paidAt=new Date(date);
+  if(!Number.isFinite(paidAt.getTime())||paidAt>Date.now()+300000){alert("Enter a valid transfer date, not in the future.");return;}
+  if(!confirm("Have you actually sent £250.00 from the company bank account to the verified seller?\n\nThis records an outgoing seller payment. It does not send money."))return;
+  const btn=document.getElementById("domestic-record-btn-"+id);
+  if(btn){btn.disabled=true;btn.textContent="Recording…";}
+  try{
+    const {data,error}=await sb.rpc("admin_domestic_seller_deposit_v1",{p_deal_id:Number(id),p_payment_reference:reference,p_paid_at:paidAt.toISOString(),p_bank_verified:true,p_confirm_paid:true});
+    if(error)throw error;
+    domesticSellerDepositState.set(id,data||{});
+    renderAdminDealQueue();
+    openDomesticSellerDepositTask(id);
+    alert("Seller deposit recorded as paid: £250.00. Seller balance: "+anyBikeDealMoney(data.seller_balance)+".");
+  }catch(error){
+    alert("Deposit was NOT recorded. "+(error.message||error));
+    if(btn){btn.disabled=false;btn.textContent="Record £250 paid";}
+  }
+}
 function openDomesticSellerDepositTask(dealId){
   bikeSalesJourneyTab(dealId,"payment",false);
   const root=document.querySelector('.sales-journey[data-deal-id="'+String(dealId)+'"]');
@@ -17490,9 +17529,20 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
       if(domestic){
         const sellerCost=(bikes||[]).reduce(function(sum,b){return sum+Number(b.seller_price_gbp||0);},0);
         const dealerCost=(bikes||[]).reduce(function(sum,b){return sum+Number(b.buyer_price_gbp||0);},0);
-        const paidSupplier=adminDealSellerPaymentStatus.filter(function(p){return String(p.deal_id)===dealId;}).reduce(function(sum,p){return sum+Number(p.total_supplier_payments_gbp||0);},0);
+        const domesticState=domesticSellerDepositState.get(dealId)||{};
+        const paidSupplier=Number(domesticState.deposit_paid||0);
+        const alreadyPaid=paidSupplier>0;
+        const domesticForm=domesticState.error
+          ? '<p style="color:#ff8585">Payment records unavailable: '+escapeAdminHtml(domesticState.error)+'</p>'
+          : alreadyPaid
+            ? '<div style="padding:12px;color:#a1f0b5"><strong>✓ Seller deposit PAID '+anyBikeDealMoney(paidSupplier)+'</strong> · '+escapeAdminHtml(domesticState.reference||"")+' · '+escapeAdminHtml(domesticState.deposit_paid_at?new Date(domesticState.deposit_paid_at).toLocaleString("en-GB"):"")+'</div>'
+            : '<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:end;padding:14px 18px;border-top:1px solid #333">'+
+              '<label style="flex:1;min-width:180px">Bank transfer date<br><input type="datetime-local" id="domestic-transfer-date-'+dealId+'" value="'+domesticDepositDateValue()+'" style="width:100%;padding:11px;background:#111;color:#fff;border:1px solid #666"></label>'+
+              '<label style="flex:1;min-width:180px">Bank transfer reference<br><input id="domestic-transfer-ref-'+dealId+'" maxlength="100" placeholder="Actual bank transfer reference" style="width:100%;padding:11px;background:#111;color:#fff;border:1px solid #666"></label>'+
+              '<label style="flex:2;min-width:250px"><input type="checkbox" id="domestic-bank-verified-'+dealId+'"> I verified the seller bank details and confirm the £250 was transferred</label>'+
+              '<button type="button" id="domestic-record-btn-'+dealId+'" onclick="recordDomesticSellerDeposit('+Number(dealId)+');return false;" style="padding:12px 20px;background:#ed1c24;color:#fff;border:0;border-radius:9px;font-weight:800;cursor:pointer">Record £250 paid</button></div>';
         const sellerDeposit=Math.min(250,sellerCost);
-        return '<section class="anybike-payment-panel" data-domestic-seller-deposit style="margin-top:12px;scroll-margin-top:85px"><div class="anybike-payment-head"><div><span>UK DOMESTIC TRADE · OUTGOING SELLER PAYMENT</span><h4>Pay Seller Deposit — '+anyBikeDealMoney(sellerDeposit)+'</h4></div><div class="anybike-payment-status neutral">Bank transfer not confirmed</div></div><div class="anybike-payment-grid" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px"><div class="anybike-payment-metric"><span class="anybike-payment-label">Seller agreed price</span><strong>'+anyBikeDealMoney(sellerCost)+'</strong></div><div class="anybike-payment-metric"><span class="anybike-payment-label">Seller deposit to pay</span><strong>'+anyBikeDealMoney(Math.max(0,sellerDeposit-paidSupplier))+'</strong></div><div class="anybike-payment-metric"><span class="anybike-payment-label">Seller balance after deposit</span><strong>'+anyBikeDealMoney(Math.max(0,sellerCost-sellerDeposit))+'</strong></div><div class="anybike-payment-metric"><span class="anybike-payment-label">Incoming dealer purchase</span><strong>'+anyBikeDealMoney(dealerCost)+'</strong></div></div><div style="padding:14px 18px;line-height:1.6"><strong>Step 1 — Confirm seller bank details:</strong> Verify beneficiary name, sort code and account number using a trusted independent source. <strong>Step 2 — Make the transfer:</strong> Pay £250 through company banking, using the Deal reference. <strong>Step 3 — Record confirmation:</strong> The recording control remains unavailable until the secure domestic payment workflow is implemented. <strong>Do not mark it paid until the bank transfer is confirmed.</strong><p style="margin:10px 0 0;color:#aab">Payment recording is locked while domestic-specific bank verification, audit and notification controls are being built. The £650 seller balance is not part of this deposit.</p></div></section>'+renderAnyBikeDealCustomerAccount(deal)+'<div class="sales-payment-phase"><strong>Dealer payment · '+anyBikeDealMoney(dealerCost)+' incoming</strong><span>This is money AnyBike must receive from Gifford Motorcycles Ltd, not money paid to the private seller. No dealer receipt should be marked paid until confirmed.</span></div>';
+        return '<section class="anybike-payment-panel" data-domestic-seller-deposit style="margin-top:12px;scroll-margin-top:85px"><div class="anybike-payment-head"><div><span>UK DOMESTIC TRADE · OUTGOING SELLER PAYMENT</span><h4>Pay Seller Deposit — '+anyBikeDealMoney(sellerDeposit)+'</h4></div><div class="anybike-payment-status neutral">'+(alreadyPaid?"✓ Deposit paid":"Bank transfer not confirmed")+'</div></div><div class="anybike-payment-grid"' style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px"><div class="anybike-payment-metric"><span class="anybike-payment-label">Seller agreed price</span><strong>'+anyBikeDealMoney(sellerCost)+'</strong></div><div class="anybike-payment-metric"><span class="anybike-payment-label">Seller deposit to pay</span><strong>'+anyBikeDealMoney(Math.max(0,sellerDeposit-paidSupplier))+'</strong></div><div class="anybike-payment-metric"><span class="anybike-payment-label">Seller balance after deposit</span><strong>'+anyBikeDealMoney(Math.max(0,sellerCost-sellerDeposit))+'</strong></div><div class="anybike-payment-metric"><span class="anybike-payment-label">Incoming dealer purchase</span><strong>'+anyBikeDealMoney(dealerCost)+'</strong></div></div><div style="padding:14px 18px;line-height:1.6"><strong>Step 1 — Confirm seller bank details:</strong> Verify beneficiary name, sort code and account number using a trusted independent source. <strong>Step 2 — Make the transfer:</strong> Pay £250 through company banking, using the Deal reference. <strong>Step 3 — Record confirmation:</strong> The recording control remains unavailable until the secure domestic payment workflow is implemented. <strong>Do not mark it paid until the bank transfer is confirmed.</strong><p style="margin:10px 0 0;color:#aab">Bank transfers must be completed separately. This form records a confirmed outgoing seller payment only; it does not initiate one.</p></div>'+domesticForm+'</section>'+renderAnyBikeDealCustomerAccount(deal)+'<div class="sales-payment-phase"><strong>Dealer payment · '+anyBikeDealMoney(dealerCost)+' incoming</strong><span>This is money AnyBike must receive from Gifford Motorcycles Ltd, not money paid to the private seller. No dealer receipt should be marked paid until confirmed.</span></div>';
       }
       const depositComplete=depositRequired<=0 || depositOutstanding<=0.009;
       if(!offerAccepted){
