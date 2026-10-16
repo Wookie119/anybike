@@ -927,10 +927,14 @@ async function addMyDealershipMenuIfEligible(user){
         // UK dealership header: the Tour replaces research menus here only.
         const desktopNav=document.querySelector(".public-nav");
         if(desktopNav){
-          for(const selector of [".public-manufacturers-menu",".public-markets-menu"]){
+          for(const selector of [".public-manufacturers-menu",".public-markets-menu",".public-export-menu"]){
             const el=desktopNav.querySelector(selector);
             if(el)el.style.display="none";
           }
+          // Freight forwarding is explained in the Tour for UK dealerships.
+          [...desktopNav.querySelectorAll(":scope > a")].forEach(function(link){
+            if((link.textContent||"").trim().toLowerCase()==="freight forwarders")link.style.display="none";
+          });
           let tour=desktopNav.querySelector('[data-uk-dealer-tour="true"]');
           if(!tour){
             tour=document.createElement("a");
@@ -945,7 +949,7 @@ async function addMyDealershipMenuIfEligible(user){
         if(mobileNav){
           for(const el of [...mobileNav.children]){
             const label=(el.querySelector(":scope > summary")?.textContent||el.textContent||"").trim().toLowerCase();
-            if(label==="manufacturers"||label==="markets"||el.classList.contains("mobile-manufacturers-menu"))el.style.display="none";
+            if(label==="manufacturers"||label==="markets"||label==="export"||label==="export services"||label==="freight forwarders"||el.classList.contains("mobile-manufacturers-menu"))el.style.display="none";
           }
           if(!mobileNav.querySelector('[data-uk-dealer-tour="true"]')){
             const tour=document.createElement("a");
