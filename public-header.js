@@ -24,7 +24,7 @@
     links.forEach(function(link){
       const href=String(link.getAttribute("href")||"");
       if(href.includes("public-header.css")){
-        link.setAttribute("href","/public-header.css?v=20261016-dealer-menu-compact");
+        link.setAttribute("href","/public-header.css?v=20261016-dealer-nav-tight");
       }
     });
   }catch(e){}
