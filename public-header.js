@@ -924,11 +924,41 @@ async function addMyDealershipMenuIfEligible(user){
             if(label==="trade"||label==="vmoto")item.style.display="none";
           });
         }
+        // UK dealership header: the Tour replaces research menus here only.
+        const desktopNav=document.querySelector(".public-nav");
+        if(desktopNav){
+          for(const selector of [".public-manufacturers-menu",".public-markets-menu"]){
+            const el=desktopNav.querySelector(selector);
+            if(el)el.style.display="none";
+          }
+          let tour=desktopNav.querySelector('[data-uk-dealer-tour="true"]');
+          if(!tour){
+            tour=document.createElement("a");
+            tour.dataset.ukDealerTour="true";
+            tour.href="/uk-dealer-international-tour.html";
+            tour.textContent="Tour";
+            const account=desktopNav.querySelector(".public-account");
+            desktopNav.insertBefore(tour,account||null);
+          }
+        }
+        const mobileNav=document.querySelector(".mobile-nav");
+        if(mobileNav){
+          for(const el of [...mobileNav.children]){
+            const label=(el.querySelector(":scope > summary")?.textContent||el.textContent||"").trim().toLowerCase();
+            if(label==="manufacturers"||label==="markets"||el.classList.contains("mobile-manufacturers-menu"))el.style.display="none";
+          }
+          if(!mobileNav.querySelector('[data-uk-dealer-tour="true"]')){
+            const tour=document.createElement("a");
+            tour.dataset.ukDealerTour="true";
+            tour.href="/uk-dealer-international-tour.html";
+            tour.textContent="Tour";
+            mobileNav.appendChild(tour);
+          }
+        }
         // Keep one concise, alphabetical UK trade menu on both desktop and mobile.
         const entries=[
           ["Accounts & Documents","/accounts-documents.html"],
           ["Add VAT Qualifying Stock","/dealer-connect-stock.html?focus=vq"],
-          ["AnyBike International Tour","/uk-dealer-international-tour.html"],
           ["Connect Stock","/dealer-connect-stock.html"],
           ["Make Trade Offers","/trade-opportunities.html"],
           ["Messages","/customer-messages.html"],
