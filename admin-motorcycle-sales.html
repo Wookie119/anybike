@@ -231,6 +231,22 @@ html.admin-auth-pending body{
   }
 }
 
+
+/* Deal 360 stacked stage cards: existing section controls remain the source of truth. */
+.sales-journey.stacked-deal .sales-workspace-menu{display:none!important}
+.sales-journey.stacked-deal .sales-tab-panel{display:block!important;background:#101010!important;margin:12px 16px;border:1px solid #363636;border-top:4px solid #ed1c24;border-radius:14px;padding:0!important;scroll-margin-top:100px;overflow:hidden}
+.sales-journey.stacked-deal .sales-stage-title{padding:14px 18px;display:flex;justify-content:space-between;align-items:center;gap:10px;cursor:pointer;background:#151515}
+.sales-journey.stacked-deal .sales-stage-title strong{font-size:17px;color:#fff}
+.sales-journey.stacked-deal .sales-stage-title small{color:#aab;display:block;margin-top:4px;font-size:12px}
+.sales-journey.stacked-deal .sales-stage-body{padding:12px 18px}
+.sales-journey.stacked-deal .sales-stage-footer{padding:13px 18px;border-top:1px solid #303030;background:#111}
+.sales-journey.stacked-deal .sales-stage-footer button{background:#ed1c24;color:#fff;border:0;border-radius:9px;padding:10px 18px;font-weight:800;cursor:pointer}
+.sales-journey.stacked-deal .sales-stage-next{margin-top:12px;display:flex;flex-direction:column;gap:4px}
+.sales-journey.stacked-deal .sales-stage-next strong{color:#fff;font-size:13px}
+.sales-journey.stacked-deal .sales-stage-next span{color:#aaa;font-size:12px}
+.sales-journey.stacked-deal .sales-stage-complete{color:#87eba5;font-weight:800}
+.sales-journey.stacked-deal .sales-stage-pending{color:#ffc0c0;font-weight:800}
+
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="admin.js?v=202610071152"></script>
@@ -16328,6 +16344,20 @@ function openDomesticSellerDepositTask(dealId){
   const first=target.querySelector("button");
   if(first)first.focus({preventScroll:true});
 }
+function toggleDealStageCard(title){
+ const body=title?.parentElement?.querySelector(".sales-stage-body");if(!body)return;
+ body.hidden=!body.hidden;
+}
+function saveDealStageCard(id,key){
+ const root=document.querySelector('.sales-journey[data-deal-id="'+id+'"]');
+ const card=root?.querySelector('.sales-tab-panel[data-tab="'+key+'"]');
+ if(!card)return;
+ const body=card.querySelector(".sales-stage-body");
+ if(body?.hidden){body.hidden=false;body.scrollIntoView({block:"start",behavior:"smooth"});return;}
+ const saves=[...body.querySelectorAll("button")].filter(b=>!b.disabled && /^(save|save & continue)/i.test((b.textContent||"").trim()));
+ if(saves.length===1){saves[0].scrollIntoView({block:"center",behavior:"smooth"});saves[0].focus();alert("Use this section's existing Save control to validate and save its information. This card cannot be marked complete until the actual required work is confirmed.");return;}
+ alert(saves.length>1?"This stage has multiple Save controls. Save each required section using its own button.":"There is no unsaved stage form here. Completion updates from the real deal actions, not this button.");
+}
 function bikeSalesJourneyTab(dealId,tab,updateUrl){
   const root=document.querySelector('.sales-journey[data-deal-id="'+String(dealId)+'"]');
   if(!root){return;}
@@ -16336,9 +16366,15 @@ function bikeSalesJourneyTab(dealId,tab,updateUrl){
   root.querySelectorAll(".sales-work-tabs button").forEach(function(btn){
     btn.classList.toggle("active",btn.dataset.tab===target);
   });
-  root.querySelectorAll(".sales-tab-panel").forEach(function(panel){
-    panel.classList.toggle("active",panel.dataset.tab===target);
-  });
+  if(root.classList.contains("stacked-deal")){
+    const mapped=target==="timeline"?"complete":target;
+    const panel=root.querySelector('.sales-tab-panel[data-tab="'+mapped+'"]');
+    if(panel){panel.querySelector(".sales-stage-body")?.removeAttribute("hidden");panel.scrollIntoView({block:"start",behavior:"smooth"});}
+  }else{
+    root.querySelectorAll(".sales-tab-panel").forEach(function(panel){
+      panel.classList.toggle("active",panel.dataset.tab===target);
+    });
+  }
   if(updateUrl!==false){
     const url=new URL(window.location.href);
     url.searchParams.set("deal",String(dealId));
@@ -17564,11 +17600,22 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
   function tabButton(key,label){
     return '<button type="button" data-tab="'+key+'" class="'+(activeTab===key?"active":"")+'" onclick="bikeSalesJourneyTab(\''+dealId+'\',\''+key+'\');return false;">'+label+'</button>';
   }
+  const cardPositions={request:0,sourcing:1,interest:2,seller:3,offer:4,payment:5,collection:6,delivery:7,invoice:8,complete:9};
+  const cardOwners={request:"BUYER / ANYBIKE",sourcing:"ANYBIKE",interest:"BUYER",seller:"SELLER / ANYBIKE",offer:"BUYER / ANYBIKE",payment:"BUYER / SELLER",collection:"SELLER / MOVE",delivery:"BUYER / MOVE",invoice:"ANYBIKE / BUYER",complete:"ALL PARTIES"};
   function panel(key,body){
-    return '<section class="sales-tab-panel '+(activeTab===key?"active":"")+'" data-tab="'+key+'">'+body+'</section>';
+    const index=cardPositions[key],position=pipeline[index],done=!!position[2],active=key===current;
+    const next=pipeline[index+1],nextLabel=next?((index+2)+". "+next[1]):"Deal completed";
+    const nextHelp=done?(next?"Next: "+nextLabel:"All stages complete"):(active?nextText:"Review this stage when its required work is ready.");
+    const completion=done?'<span class="sales-stage-complete">✓ Complete</span>':active?'<span class="sales-stage-pending">● In progress</span>':'<span class="sales-stage-pending">Not complete</span>';
+    return '<section class="sales-tab-panel active" data-tab="'+key+'" id="deal-stage-'+dealId+'-'+key+'">'+
+      '<div class="sales-stage-title" onclick="toggleDealStageCard(this)" role="button" tabindex="0" onkeydown="if(event.key===\'Enter\'){this.click()}">'+
+      '<div><strong>'+(index+1)+'. '+escapeAdminHtml(position[1])+'</strong><small>'+escapeAdminHtml(cardOwners[key])+'</small></div>'+completion+'</div>'+
+      '<div class="sales-stage-body" '+(!active&&key!=="payment"?'hidden':'')+'>'+body+'</div>'+
+      '<div class="sales-stage-footer"><button type="button" onclick="saveDealStageCard('+Number(dealId)+',\''+key+'\');return false;">Save & Continue</button>'+
+      '<div class="sales-stage-next"><strong>Your Next Action →</strong><span>'+escapeAdminHtml(nextHelp)+'</span></div></div></section>';
   }
 
-  return '<section class="sales-journey" data-deal-id="'+escapeAdminHtml(dealId)+'">'+
+  return '<section class="sales-journey stacked-deal" data-deal-id="'+escapeAdminHtml(dealId)+'">'+
     '<div class="sales-journey-head"><div class="sales-journey-headline"><div><h3>'+escapeAdminHtml(dealNumber)+' · '+escapeAdminHtml(buyerName)+'</h3><p>'+escapeAdminHtml(status)+' · '+escapeAdminHtml(stage)+'</p></div>'+
     '<div class="sales-next-action '+(waiting?"waiting":"action")+'" role="button" tabindex="0" title="Click to proceed to the next task" onclick="'+(domestic?"openDomesticSellerDepositTask("+dealId+")":"openBikeSalesNextTask("+dealId+")")+' ;return false;" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();this.click();}"><span class="sales-next-action-copy"><strong>'+(waiting?"Waiting / Next":"Your next action")+': '+escapeAdminHtml(primary||"Review sale")+'</strong><span>'+escapeAdminHtml(nextText)+'</span></span><span class="sales-next-action-cta">Proceed →</span></div></div></div>'+
     (domestic ? '<div class="sales-compact-pipeline" style="display:flex;width:100%;gap:4px;overflow:visible;flex-wrap:nowrap">'+pipelineHtml+'</div>' : '<div class="sales-row-with-label"><div class="sales-row-label">Deal Journey</div><div class="sales-compact-pipeline">'+pipelineHtml+'</div></div>')+
@@ -17597,6 +17644,7 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
         '<span>These tools keep this sale and buyer context while you source.</span></div>'+
         '<div class="anybike-deal-bike-list">'+bikeRows+'</div>'+renderAnyBikeDealCandidatePanel(deal);
     })())+
+    panel("interest",'<p>Buyer interest is tracked from the selected sourcing matches and the accepted deal motorcycle.</p>')+
     panel("seller",(domestic ? "" : (offerAccepted
       ? renderAnyBikeBuyerOnboardingPanel(deal)
       : '<section class="anybike-commercial-panel" style="margin-top:14px"><div class="anybike-commercial-head"><div><span>Buyer Verification</span><h4>Purchase clearance will be required later</h4></div><div class="anybike-commercial-status">NOT REQUIRED YET</div></div><div style="padding:14px 16px;color:#aaa;line-height:1.5">Continue with seller availability, commercial setup and the Formal Offer. Buyer verification becomes a required staff action only after the buyer accepts the offer and before AnyBike commits to purchasing the motorcycle.</div></section>'
@@ -17677,7 +17725,7 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
     panel("collection",renderAnyBikePurchaseActionGuide(deal)+renderAnyBikeDealTransactionCompletion(deal)+operationsBody)+
     panel("invoice",renderFinalInvoiceStageStatus(deal,collected,complete)+renderFinalInvoiceReadinessPanel(deal)+renderAnyBikeDealInvoiceDocuments(deal))+
     panel("delivery",(typeof renderAnyBikeDeliveryStatusPanel==="function"?renderAnyBikeDeliveryStatusPanel(deal):"")+renderAnyBikeDealShippingRoutePanel(deal)+(collected?'<div class="sales-what-next"><strong>What happens next?</strong><span>Complete the agreed UK handover / delivery, confirm depot/storage where applicable, then record the final handover milestone.</span></div>':'<div class="sales-what-next"><strong>What happens next?</strong><span>Delivery becomes active after the motorcycle has been purchased and collected.</span></div>'))+
-    panel("timeline",renderAdminMotorcycleJourneys(deal,bikes)+renderDealRequirementWorkspace(deal)+'<div class="sales-timeline">'+timelineHtml+'</div><div class="sales-what-next"><strong>What happens next?</strong><span>'+escapeAdminHtml(nextText)+'</span></div>')+
+    panel("complete",renderAdminMotorcycleJourneys(deal,bikes)+renderDealRequirementWorkspace(deal)+'<div class="sales-timeline">'+timelineHtml+'</div><div class="sales-what-next"><strong>What happens next?</strong><span>'+escapeAdminHtml(nextText)+'</span></div>')+
   '</section>';
 };
 
