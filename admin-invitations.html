@@ -22,7 +22,7 @@
 <button type="button" onclick="selectAllDealerInvites(true)">Select listed</button>
 <button type="button" onclick="selectAllDealerInvites(false)">Clear selection</button>
 </div>
-<div id="dealerInviteStatus" class="status" role="status">No contacts loaded.</div><div id="dealerInlineEditor" class="notice" hidden><h3>Edit dealership</h3><div class="invitation-fields"><label>Dealership name<input id="dealerEditName"></label><label>Organisation email<input id="dealerEditEmail" type="email"></label><label>Telephone<input id="dealerEditPhone"></label></div><button class="primary" onclick="saveDealerInlineEdit()">Save dealership</button><button onclick="document.getElementById('dealerInlineEditor').hidden=true">Cancel</button><span class="status" id="dealerEditStatus"></span></div><div id="dealerAddContact" class="notice" hidden><h3 id="dealerAddHeading">Add another contact</h3><div class="invitation-fields"><label>Contact name<input id="dealerNewContactName"></label><label>Email address<input id="dealerNewContactEmail" type="email"></label></div><p class="muted small">Adds an email under this dealership; bulk invitation permission starts OFF.</p><button class="primary" onclick="saveAnotherDealerContact()">Save contact</button><button onclick="document.getElementById('dealerAddContact').hidden=true">Cancel</button><span class="status" id="dealerAddStatus"></span></div><div id="dealerDirectoryProgress" class="notice small">Load saved dealers to see directory completeness.</div><p class="muted small">For franchise verification: <a href="https://www.bmw-motorrad.co.uk/en/public-pool/content-pool/dealerlocator.html" target="_blank" rel="noopener">Official BMW retailer locator ↗</a> · <a href="https://www.triumphmotorcycles.co.uk/dealers/dealer-search" target="_blank" rel="noopener">Official Triumph dealer locator ↗</a>. Names alone are not proof of an authorised franchise.</p>
+<div id="dealerInviteStatus" class="status" role="status">No contacts loaded.</div><div id="dealerInlineEditor" class="notice" hidden><h3>Edit dealership</h3><div class="invitation-fields"><label>Dealership name<input id="dealerEditName"></label><label>Organisation email<input id="dealerEditEmail" type="email"></label><label>Contact name for selected email<input id="dealerEditContactName" placeholder="Enter the person’s name"></label><label>Telephone<input id="dealerEditPhone"></label></div><button class="primary" onclick="saveDealerInlineEdit()">Save dealership</button><button onclick="document.getElementById('dealerInlineEditor').hidden=true">Cancel</button><span class="status" id="dealerEditStatus"></span></div><div id="dealerAddContact" class="notice" hidden><h3 id="dealerAddHeading">Add another contact</h3><div class="invitation-fields"><label>Contact name<input id="dealerNewContactName"></label><label>Email address<input id="dealerNewContactEmail" type="email"></label></div><p class="muted small">Adds an email under this dealership; bulk invitation permission starts OFF.</p><button class="primary" onclick="saveAnotherDealerContact()">Save contact</button><button onclick="document.getElementById('dealerAddContact').hidden=true">Cancel</button><span class="status" id="dealerAddStatus"></span></div><div id="dealerDirectoryProgress" class="notice small">Load saved dealers to see directory completeness.</div><p class="muted small">For franchise verification: <a href="https://www.bmw-motorrad.co.uk/en/public-pool/content-pool/dealerlocator.html" target="_blank" rel="noopener">Official BMW retailer locator ↗</a> · <a href="https://www.triumphmotorcycles.co.uk/dealers/dealer-search" target="_blank" rel="noopener">Official Triumph dealer locator ↗</a>. Names alone are not proof of an authorised franchise.</p>
 <div style="overflow:auto;max-height:400px;border:1px solid #333;border-radius:10px">
 <table style="width:100%;border-collapse:collapse;min-width:680px"><thead><tr><th style="padding:12px;text-align:left">Select</th><th style="text-align:left">Dealership</th><th style="text-align:left">Contact</th><th style="text-align:left">Email</th><th style="text-align:left">Phone</th><th style="text-align:left">Personal intro from Andy</th><th style="text-align:left">Action</th></tr></thead><tbody id="dealerInviteRows"><tr><td colspan="7" style="padding:15px">Load saved dealers to begin.</td></tr></tbody></table>
 </div>
@@ -153,16 +153,18 @@ function renderDealerInviteContacts(){
  $("dealerInviteProgress").textContent=dealerInviteSelected.size+" selected";
 }
 
-let editingDealerOrganisationId=null,addingDealerOrganisationId=null;
+let editingDealerOrganisationId=null,editingDealerContactEmail="",addingDealerOrganisationId=null;
 const dealerDirectoryClient=()=>supabase.createClient("https://tuehtnezhdnkqbbhttgp.supabase.co","sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK");
 function editDealerRow(id){
  const record=dealerInviteContacts.find(x=>x.id===id);if(!record)return;
  const org=dealerInviteOrganisations.find(x=>String(x.id)===String(record.orgId));if(!org)return;
  editingDealerOrganisationId=org.id;
+ editingDealerContactEmail=record.email||"";
  $("dealerAddContact").hidden=true;$("dealerInlineEditor").hidden=false;
  $("dealerEditName").value=org.trading_name||org.legal_name||"";
  $("dealerEditEmail").value=org.email||"";
  $("dealerEditPhone").value=org.telephone||"";
+ $("dealerEditContactName").value=record.contact||"";
  $("dealerEditStatus").textContent="";
  $("dealerInlineEditor").scrollIntoView({behavior:"smooth",block:"center"});
 }
@@ -171,6 +173,12 @@ async function saveDealerInlineEdit(){
  const status=$("dealerEditStatus");status.textContent="Saving…";
  const {error}=await dealerDirectoryClient().rpc("admin_update_dealer_directory_row_v1",{p_dealer_id:editingDealerOrganisationId,p_trading_name:$("dealerEditName").value,p_email:$("dealerEditEmail").value,p_telephone:$("dealerEditPhone").value});
  if(error){status.textContent="Save failed: "+error.message;return;}
+ const person=$("dealerEditContactName").value.trim();
+ if(person){
+   const targetEmail=editingDealerContactEmail||$("dealerEditEmail").value.trim();
+   const {error:contactError}=await dealerDirectoryClient().rpc("admin_set_dealer_contact_name_v1",{p_dealer_id:editingDealerOrganisationId,p_email:targetEmail,p_contact_name:person});
+   if(contactError){status.textContent="Dealership saved, but contact name not saved: "+contactError.message;return;}
+ }
  await loadDealerInviteContacts();$("dealerInlineEditor").hidden=true;
  $("dealerInviteStatus").textContent="✓ Dealership saved. Other contacts preserved. Nothing sent.";
 }
