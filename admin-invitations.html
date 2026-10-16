@@ -113,23 +113,23 @@ async function loadDealerInviteContacts(){
  if(orgError)throw orgError;
  // Named contact records may be protected. Do not let that block authorised organisation records.
  let contacts=[];
- const {data:contactRows,error:contactError}=await sb.from("anybike_dealer_contact_emails").select("dealer_organisation_id,email,contact_name,is_primary,can_receive_invites").limit(2000);
+ const {data:contactRows,error:contactError}=await sb.rpc("admin_dealer_contacts_directory_v1");
  if(!contactError)contacts=contactRows||[];
  const {data:brandRows,error:brandError}=await sb.from("dealer_brand_capabilities").select("dealer_organisation_id,brand,authorised_franchise").limit(3000);
  const brandsByOrg=new Map();
  if(!brandError)for(const row of brandRows||[]){if(row.authorised_franchise!==true)continue;const id=String(row.dealer_organisation_id);if(!brandsByOrg.has(id))brandsByOrg.set(id,[]);brandsByOrg.get(id).push(String(row.brand||"").trim());}
  const grouped=new Map();
- for(const entry of contacts){if(entry.can_receive_invites===false || !String(entry.email||"").includes("@"))continue;const id=String(entry.dealer_organisation_id);if(!grouped.has(id))grouped.set(id,[]);grouped.get(id).push(entry);}
+ for(const entry of contacts){if(!String(entry.email||"").includes("@"))continue;const id=String(entry.dealer_organisation_id);if(!grouped.has(id))grouped.set(id,[]);grouped.get(id).push(entry);}
  dealerInviteContacts=[];
  const seen=new Set();
  for(const org of orgs||[]){
  const business=org.trading_name||org.legal_name||"Dealer";
  const list=grouped.get(String(org.id))||[];
- const recipients=list.length?list:(org.email?[{email:org.email,contact_name:"",is_primary:true}]:[{email:"",contact_name:"",is_primary:false}]);
+ const recipients=[...list];if(org.email&&!recipients.some(p=>String(p.email||"").toLowerCase()===String(org.email).toLowerCase()))recipients.push({email:org.email,contact_name:"",can_receive_invites:false});if(!recipients.length)recipients.push({email:"",contact_name:"",can_receive_invites:false});
  for(const rec of recipients){
  const email=String(rec.email||"").trim().toLowerCase();
- if(email&&seen.has(email))continue;
- if(email)seen.add(email);dealerInviteContacts.push({id:String(org.id)+":"+email,orgId:org.id,business,contact:String(rec.contact_name||"").trim(),email,phone:org.telephone||"",franchises:brandsByOrg.get(String(org.id))||[]});
+ if(email&&seen.has(String(org.id)+":"+email))continue;
+ if(email)seen.add(String(org.id)+":"+email);dealerInviteContacts.push({id:String(org.id)+":"+email,orgId:org.id,business,contact:String(rec.contact_name||"").trim(),email,phone:org.telephone||"",canInvite:rec.can_receive_invites===true,franchises:brandsByOrg.get(String(org.id))||[]});
  }
  }
  const franchises=[...new Set(dealerInviteContacts.flatMap(r=>r.franchises))].filter(Boolean).sort((a,b)=>a.localeCompare(b));
@@ -138,7 +138,7 @@ async function loadDealerInviteContacts(){
  renderDealerInviteContacts();
  const total=(orgs||[]).length,withEmail=new Set(dealerInviteContacts.filter(r=>r.email).map(r=>r.orgId)).size,withPhone=(orgs||[]).filter(o=>!!String(o.telephone||"").trim()).length,withFranchise=new Set(dealerInviteContacts.filter(r=>r.franchises.length).map(r=>r.orgId)).size;
  $("dealerDirectoryProgress").textContent="Directory health: "+total+" dealerships · "+withEmail+" with email · "+withPhone+" with telephone (not necessarily mobile) · "+withFranchise+" with confirmed franchise entries · "+(total-withEmail)+" needing email. No invitations sent.";
- status.textContent=dealerInviteContacts.length+" dealer directory entries; "+dealerInviteContacts.filter(r=>r.email).length+" with email and "+dealerInviteContacts.filter(r=>!r.email).length+" needing an email."+ (contactError?" Named contacts are restricted, so only organisation emails are shown.":"")+(brandError?" Franchise records could not be loaded.":"")+(franchises.length===0?" No verified franchises recorded yet.":"")+" Select who to invite. Nothing sent.";
+ status.textContent=dealerInviteContacts.length+" dealer directory entries; "+dealerInviteContacts.filter(r=>r.email).length+" with email, "+dealerInviteContacts.filter(r=>!r.email).length+" missing email, "+dealerInviteContacts.filter(r=>r.email&&!r.canInvite).length+" awaiting invitation permission."+ (contactError?" Named contacts unavailable; please retry.":"")+(brandError?" Franchise records could not be loaded.":"")+(franchises.length===0?" No verified franchises recorded yet.":"")+" Select who to invite. Nothing sent.";
  }catch(e){status.textContent="Could not load dealer directory: "+(e.message||e);}
 }
 function dealerInviteFiltered(){
@@ -148,11 +148,11 @@ function dealerInviteFiltered(){
 }
 function renderDealerInviteContacts(){
  const rows=dealerInviteFiltered(); const tbody=$("dealerInviteRows");
- tbody.innerHTML=rows.length?rows.map(r=>'<tr style="border-top:1px solid #333"><td style="padding:10px"><input type="checkbox" style="width:auto" data-invite-id="'+dealerInviteEscape(r.id)+'" '+(dealerInviteSelected.has(r.id)?"checked":"")+(r.email?"":" disabled title=\"Add email before inviting\"")+' onchange="toggleDealerInvite(this)"></td><td>'+dealerInviteEscape(r.business)+'</td><td>'+dealerInviteEscape(r.contact||"Contact not recorded")+'</td><td>'+(r.email?dealerInviteEscape(r.email):'<span style="color:#ff9d64">Email needed</span>')+'</td><td>'+dealerInviteEscape(r.phone)+'</td><td><button type="button" data-invite-id="'+dealerInviteEscape(r.id)+'" onclick="prefillDealerInvite(this.dataset.inviteId)">Use details</button></td></tr>').join(""):'<tr><td colspan="6" style="padding:15px">No matching eligible dealer contacts found.</td></tr>';
+ tbody.innerHTML=rows.length?rows.map(r=>'<tr style="border-top:1px solid #333"><td style="padding:10px"><input type="checkbox" style="width:auto" data-invite-id="'+dealerInviteEscape(r.id)+'" '+(dealerInviteSelected.has(r.id)?"checked":"")+(r.email&&r.canInvite?"":" disabled title=\"Email missing or invitation permission not approved\"")+' onchange="toggleDealerInvite(this)"></td><td>'+dealerInviteEscape(r.business)+'</td><td>'+dealerInviteEscape(r.contact||"Contact not recorded")+'</td><td>'+(r.email?dealerInviteEscape(r.email):'<span style="color:#ff9d64">Email needed</span>')+'</td><td>'+dealerInviteEscape(r.phone)+'</td><td><button type="button" data-invite-id="'+dealerInviteEscape(r.id)+'" onclick="prefillDealerInvite(this.dataset.inviteId)">Use details</button></td></tr>').join(""):'<tr><td colspan="6" style="padding:15px">No matching eligible dealer contacts found.</td></tr>';
  $("dealerInviteProgress").textContent=dealerInviteSelected.size+" selected";
 }
 function toggleDealerInvite(el){el.checked?dealerInviteSelected.add(el.dataset.inviteId):dealerInviteSelected.delete(el.dataset.inviteId);$("dealerInviteProgress").textContent=dealerInviteSelected.size+" selected";}
-function selectAllDealerInvites(yes){for(const r of dealerInviteFiltered()){if(yes&&r.email)dealerInviteSelected.add(r.id);else dealerInviteSelected.delete(r.id);}renderDealerInviteContacts();}
+function selectAllDealerInvites(yes){for(const r of dealerInviteFiltered()){if(yes&&r.email&&r.canInvite)dealerInviteSelected.add(r.id);else dealerInviteSelected.delete(r.id);}renderDealerInviteContacts();}
 function prefillDealerInvite(id){
  const r=dealerInviteContacts.find(x=>x.id===id);if(!r)return;
  $("type").value="dealer";$("type").dispatchEvent(new Event("change"));$("name").value=r.contact;$("email").value=r.email;$("mobile").value="";$("business").value=r.business;prepare();
@@ -171,7 +171,7 @@ function dealerInviteEmail(r){
  return {subject,body};
 }
 function startDealerInviteBatch(){
- dealerInviteQueue=dealerInviteContacts.filter(r=>r.email&&dealerInviteSelected.has(r.id));
+ dealerInviteQueue=dealerInviteContacts.filter(r=>r.email&&r.canInvite&&dealerInviteSelected.has(r.id));
  dealerInvitePosition=0;
  if(!dealerInviteQueue.length){$("dealerInviteStatus").textContent="Select at least one dealer contact.";return;}
  if(!confirm("Prepare "+dealerInviteQueue.length+" personalised email drafts in Outlook? No emails will be sent automatically."))return;
