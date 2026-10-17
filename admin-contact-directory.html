@@ -41,7 +41,7 @@ function reviewInvitations(){
  const canEmail=queue.some(t=>t.id===r.id),canSms=smsQueue.some(t=>t.id===r.id);
  return '<article style="border:1px solid #555;border-radius:9px;padding:14px;background:#191919"><h3>'+esc(r.company||'Dealership')+' — '+esc([r.first_name,r.last_name].filter(Boolean).join(' ')||'Contact')+'</h3>'+
  (canEmail?'<div style="margin:12px 0"><b>Email to: '+esc(r.email)+'</b><p><b>Subject:</b> Invitation to join the AnyBike motorcycle trade network</p><div style="background:#fff;color:#222;padding:14px;border-radius:6px">'+richInvitationHtml(r)+'</div><button data-copy-rich="'+r.id+'">Copy formatted email (with button)</button><button data-open-email="'+r.id+'">Open plain-text Outlook draft</button></div>':'')+
- (canSms?'<div style="margin:12px 0"><b>SMS to: '+esc(r.phone)+'</b><pre style="white-space:pre-wrap;overflow-wrap:anywhere;font:13px Arial;background:#fff;color:#222;padding:12px;border-radius:6px">'+esc(smsMessage(r))+'</pre><button data-open-sms="'+r.id+'">Open SMS draft</button><button data-copy-sms="'+r.id+'">Copy SMS text</button></div>':'')+
+ (canSms?'<div style="margin:12px 0"><b>SMS to: '+esc(r.phone)+'</b><pre style="white-space:pre-wrap;overflow-wrap:anywhere;font:13px Arial;background:#fff;color:#222;padding:12px;border-radius:6px">'+esc(smsMessage(r))+'</pre><button data-send-sms="'+r.id+'" style="background:#ad252d;color:white;border-color:#d54049">Send SMS from AnyBike</button><button data-open-sms="'+r.id+'">Open SMS draft</button><button data-copy-sms="'+r.id+'">Copy SMS text</button></div>':'')+
  '</article>';
  }).join('');
  $('invitePreviews').querySelectorAll('[data-copy-rich]').forEach(btn=>btn.onclick=async()=>{const r=queue.find(x=>x.id===Number(btn.dataset.copyRich));const html=richInvitationHtml(r);try{if(!window.ClipboardItem||!navigator.clipboard?.write)throw Error('Rich clipboard unsupported');await navigator.clipboard.write([new ClipboardItem({'text/html':new Blob([html],{type:'text/html'}),'text/plain':new Blob([emailBody(r)],{type:'text/plain'})})]);$('queue').textContent='Formatted email copied for '+r.email+'. Open a new message FROM sales@anybike.co.uk, address it to '+r.email+', and paste with Ctrl+V. The red button should be included. Your Outlook signature can stay underneath.'}catch(e){$('queue').textContent='Could not copy formatted HTML. Please try Edge or Chrome over HTTPS. Nothing sent.'}});
@@ -49,6 +49,17 @@ function reviewInvitations(){
  const r=queue.find(x=>x.id===Number(btn.dataset.openEmail));
  window.location.href='mailto:'+encodeURIComponent(r.email)+'?subject='+encodeURIComponent('Invitation to join the AnyBike motorcycle trade network')+'&body='+encodeURIComponent(emailBody(r));
  $('queue').textContent='Email draft requested for '+r.email+'. Check that From is sales@anybike.co.uk before sending. Outlook may default to your personal account.';
+ });
+ $('invitePreviews').querySelectorAll('[data-send-sms]').forEach(btn=>btn.onclick=async()=>{
+ const r=smsQueue.find(x=>x.id===Number(btn.dataset.sendSms));
+ if(!r||!confirm('Send this SMS now to '+r.phone+' for '+(r.company||r.first_name)+' via AnyBike? This is a REAL chargeable SMS.'))return;
+ btn.disabled=true;btn.textContent='Sending SMS…';
+ try{
+ const {data,error}=await db.functions.invoke('anybike-send-dealer-invitation-sms',{body:{contact_id:r.id,confirm_send:true}});
+ if(error)throw Error(data?.error||error.message||'SMS sending failed');
+ if(!data?.success)throw Error(data?.error||'SMS not accepted by provider');
+ btn.textContent='SMS submitted ✓';$('queue').textContent='ClickSend accepted the SMS to '+r.phone+'. Provider reference: '+(data.message_id||data.log_id)+'. This confirms submission, not handset delivery.';
+ }catch(e){btn.disabled=false;btn.textContent='Retry Send SMS';$('queue').textContent='SMS NOT confirmed as sent: '+e.message+' Check any previous attempt before retrying.';}
  });
  $('invitePreviews').querySelectorAll('[data-open-sms]').forEach(btn=>btn.onclick=()=>{
  const r=smsQueue.find(x=>x.id===Number(btn.dataset.openSms));
