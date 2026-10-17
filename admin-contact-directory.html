@@ -40,12 +40,27 @@ function reviewInvitations(){
  $('invitePreviews').innerHTML=recipients.map(r=>{
  const canEmail=queue.some(t=>t.id===r.id),canSms=smsQueue.some(t=>t.id===r.id);
  return '<article style="border:1px solid #555;border-radius:9px;padding:14px;background:#191919"><h3>'+esc(r.company||'Dealership')+' — '+esc([r.first_name,r.last_name].filter(Boolean).join(' ')||'Contact')+'</h3>'+
- (canEmail?'<div style="margin:12px 0"><b>Email to: '+esc(r.email)+'</b><p><b>Subject:</b> Invitation to join the AnyBike motorcycle trade network</p><div style="background:#fff;color:#222;padding:14px;border-radius:6px">'+richInvitationHtml(r)+'</div><button data-copy-rich="'+r.id+'">Copy formatted email (with button)</button><a href="mailto:'+encodeURIComponent(r.email)+'?subject='+encodeURIComponent("Invitation to join the AnyBike motorcycle trade network")+'&body='+encodeURIComponent(emailBody(r))+'" data-open-email="'+r.id+'" style="display:inline-block;background:#742027;border:1px solid #a33;color:#fff;text-decoration:none;border-radius:5px;padding:10px 14px;margin:4px">Open Outlook email draft</a></div>':'')+
+ (canEmail?'<div style="margin:12px 0"><b>Email to: '+esc(r.email)+'</b><p><b>Subject:</b> Invitation to join the AnyBike motorcycle trade network</p><div style="background:#fff;color:#222;padding:14px;border-radius:6px">'+richInvitationHtml(r)+'</div><button data-copy-rich="'+r.id+'">Copy formatted email (with button)</button><button data-open-email="'+r.id+'" style="background:#9c2630;color:white;border:1px solid #b44">Prepare Outlook draft with button</button></div>':'')+
  (canSms?'<div style="margin:12px 0"><b>SMS to: '+esc(r.phone)+'</b><pre style="white-space:pre-wrap;overflow-wrap:anywhere;font:13px Arial;background:#fff;color:#222;padding:12px;border-radius:6px">'+esc(smsMessage(r))+'</pre><button data-send-sms="'+r.id+'" style="background:#ad252d;color:white;border-color:#d54049">Send SMS from AnyBike</button><button data-open-sms="'+r.id+'">Open SMS draft</button><button data-copy-sms="'+r.id+'">Copy SMS text</button></div>':'')+
  '</article>';
  }).join('');
  $('invitePreviews').querySelectorAll('[data-copy-rich]').forEach(btn=>btn.onclick=async()=>{const r=queue.find(x=>x.id===Number(btn.dataset.copyRich));const html=richInvitationHtml(r);try{if(!window.ClipboardItem||!navigator.clipboard?.write)throw Error('Rich clipboard unsupported');await navigator.clipboard.write([new ClipboardItem({'text/html':new Blob([html],{type:'text/html'}),'text/plain':new Blob([emailBody(r)],{type:'text/plain'})})]);$('queue').textContent='Formatted email copied for '+r.email+'. Open a new message FROM sales@anybike.co.uk, address it to '+r.email+', and paste with Ctrl+V. The red button should be included. Your Outlook signature can stay underneath.'}catch(e){$('queue').textContent='Could not copy formatted HTML. Please try Edge or Chrome over HTTPS. Nothing sent.'}});
- $('invitePreviews').querySelectorAll('[data-open-email]').forEach(link=>link.addEventListener('click',()=>{$('queue').textContent='Outlook email draft requested. Check the From address is sales@anybike.co.uk. This draft uses plain text; for the red registration button, use Copy formatted email.';}));
+ $('invitePreviews').querySelectorAll('[data-open-email]').forEach(btn=>btn.onclick=async()=>{
+ const r=queue.find(x=>x.id===Number(btn.dataset.openEmail));if(!r)return;
+ const html=richInvitationHtml(r);
+ const subject='Invitation to join the AnyBike motorcycle trade network';
+ const compose='mailto:'+encodeURIComponent(r.email)+'?subject='+encodeURIComponent(subject);
+ btn.disabled=true;
+ try{
+  if(!window.ClipboardItem||!navigator.clipboard?.write)throw Error('Formatted clipboard unavailable');
+  await navigator.clipboard.write([new ClipboardItem({'text/html':new Blob([html],{type:'text/html'}),'text/plain':new Blob([emailBody(r)],{type:'text/plain'})})]);
+  $('queue').textContent='Formatted invitation with the red button copied. Outlook will open with recipient and subject. Click in the message body and press Ctrl+V to insert the invitation. Check From: sales@anybike.co.uk.';
+  window.location.href=compose;
+ }catch(e){
+  $('queue').textContent='Could not copy the formatted email. Use Copy formatted email (with button), then open Outlook and paste. No draft opened.';
+ }
+ btn.disabled=false;
+ });
  $('invitePreviews').querySelectorAll('[data-send-sms]').forEach(btn=>btn.onclick=async()=>{
  const r=smsQueue.find(x=>x.id===Number(btn.dataset.sendSms));
  if(!r||!confirm('Send this SMS now to '+r.phone+' for '+(r.company||r.first_name)+' via AnyBike? This is a REAL chargeable SMS.'))return;
