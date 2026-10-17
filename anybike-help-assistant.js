@@ -24,8 +24,23 @@ const topics=[
 {keys:['how long','when approved','approval time'],title:'Approval times',answer:'AnyBike reviews trade account information before granting access to restricted services. The timing depends on the information supplied and any checks required; we cannot promise an approval date.',link:'/customer-profile.html',label:'Check profile'}
 ];
 function add(text,me=false,link){const p=document.createElement('p');if(me)p.className='user';p.appendChild(document.createTextNode(text));if(link){const a=document.createElement('a');a.href=link.link;a.textContent=' '+link.label+' →';p.appendChild(a)}feed.appendChild(p);feed.scrollTop=feed.scrollHeight;}
-function answer(q){add(q,true);const v=q.toLowerCase().trim();const hit=topics.map(t=>({t,score:t.keys.reduce((n,k)=>n+(v.includes(k)?k.length:0),0)})).sort((a,b)=>b.score-a.score)[0];if(hit&&hit.score){add(hit.t.answer,false,hit.t)}else add('I can help with registration, profile setup, trade approval, bidding, buying, selling and payments. For a specific account or deal problem, please contact the AnyBike team at sales@anybike.co.uk. I only use approved public help answers; I cannot inspect private accounts, see internal notes or make changes.');}
-const prompts=['How do I register?','Help with onboarding','How can I bid?','How does shipping work?','Contact AnyBike team'];prompts.forEach(t=>{const b=document.createElement('button');b.type='button';b.textContent=t;b.onclick=()=>answer(t);choices.appendChild(b)});
+function nextOnboardingAction(){
+ const progress=document.getElementById('setupProgressText');
+ const title=document.getElementById('setupNextTitle');
+ const detail=document.getElementById('setupNextText');
+ const button=document.getElementById('setupNextButton');
+ if(!progress||!title)return false;
+ const info=[progress.textContent,title.textContent,detail?.textContent].filter(Boolean).join(' — ');
+ add('Your profile currently shows: '+info+'. Use the Continue button in your profile to go to the next step. This is based only on progress displayed on this page; I cannot see private admin review notes.',false,{link:'/customer-profile.html',label:'View profile'});
+ if(button&&!button.disabled){const action=document.createElement('button');action.type='button';action.textContent='Go to my next step →';action.style.cssText='padding:9px;background:#c71922;color:#fff;border:0;border-radius:7px;cursor:pointer;margin-bottom:12px';action.onclick=()=>{panel.classList.remove('open');button.click()};feed.appendChild(action);feed.scrollTop=feed.scrollHeight;}
+ return true;
+}
+function answer(q){add(q,true);const v=q.toLowerCase().trim();
+ if(/(what.*(next|left|missing)|my progress|onboarding status|which section|what do i need)/i.test(v)){
+   if(nextOnboardingAction())return;
+   add('Sign in and open your profile to see exactly which sections still need completing. Your next action is shown on that page.',false,{link:'/customer-profile.html',label:'My profile'});return;
+ }const hit=topics.map(t=>({t,score:t.keys.reduce((n,k)=>n+(v.includes(k)?k.length:0),0)})).sort((a,b)=>b.score-a.score)[0];if(hit&&hit.score){add(hit.t.answer,false,hit.t)}else add('I can help with registration, profile setup, trade approval, bidding, buying, selling and payments. For a specific account or deal problem, please contact the AnyBike team at sales@anybike.co.uk. I only use approved public help answers; I cannot inspect private accounts, see internal notes or make changes.');}
+const prompts=['What do I need to do next?','How do I register?','Help with onboarding','How can I bid?','How does shipping work?','Contact AnyBike team'];prompts.forEach(t=>{const b=document.createElement('button');b.type='button';b.textContent=t;b.onclick=()=>answer(t);choices.appendChild(b)});
 add('Hello! I am the AnyBike automated help assistant. I can guide you through registering, completing your profile and using AnyBike. I do not have access to your private account.');
 launcher.onclick=()=>{panel.classList.toggle('open');if(panel.classList.contains('open'))panel.querySelector('input').focus()};
 panel.querySelector('#anybike-help-close').onclick=()=>panel.classList.remove('open');
