@@ -488,7 +488,7 @@ textarea{width:100%;min-height:120px}
 #editCustomerModal #editTradeAccessDetails label{display:flex;align-items:center;gap:10px;margin-top:9px}
 #editCustomerModal #editTradeAccessDetails input[type=checkbox]{width:18px;height:18px;flex:none;margin:0}
 @media(max-width:700px){#editCustomerModal .admin-customer-form{grid-template-columns:1fr}#editCustomerModal{padding:8px}#editCustomerModal .admin-customer-modal-box{padding:14px}}
-</style>
+#editCustomerModal.uk-dealer-mode #editTradeAccessDetails,#editCustomerModal.uk-dealer-mode #editLiveSourceRow{display:none!important}#editCustomerModal.uk-dealer-mode #editCustomerIntent{pointer-events:none;opacity:.9}</style>
 <link rel="stylesheet" href="admin-shell.css?v=12001">
 </head>
 
@@ -843,6 +843,18 @@ function openCustomerPhoneEditor(userId){
   const phone=document.getElementById("editPhone");
   if(phone){phone.scrollIntoView({behavior:"smooth",block:"center"});phone.focus({preventScroll:true});}
 }
+function syncUKDealerEditMode(){
+ const type=document.getElementById('editCustomerType').value;
+ const isDealer=type==='uk_dealer';
+ const isDistributor=type==='uk_distributor';
+ const simple=isDealer||isDistributor;
+ document.getElementById('editCustomerModal').classList.toggle('uk-dealer-mode',simple);
+ const intent=document.getElementById('editCustomerIntent');
+ if(simple){intent.value='buy_supply';intent.disabled=true;}
+ else{intent.disabled=false;}
+ document.getElementById('editTradeAccessDetails').hidden=simple;
+ document.getElementById('editLiveSourceRow').hidden=simple;
+}
 function openEditCustomer(userId){
   const customer=allCustomers.find(x=>String(x.customerId)===String(userId));
   if(!customer){alert("Customer record could not be found. Refresh Customer 360 and try again.");return;}
@@ -860,6 +872,7 @@ function openEditCustomer(userId){
   document.getElementById("editRegion").value=c.region||"";
   document.getElementById("editCustomerType").value=onboarding.customer_type||"";
   document.getElementById("editCustomerIntent").value=onboarding.customer_intent||"unclear";
+  syncUKDealerEditMode();
   document.getElementById("editLiveSourceEnabled").checked=Boolean(c.liveSourceEnabled);
   const isUKDealer=["uk_dealer","uk_distributor"].includes(String(onboarding.customer_type||""));
   document.getElementById('editTradeAccessDetails').hidden=isUKDealer;
@@ -867,6 +880,7 @@ function openEditCustomer(userId){
   document.getElementById("editLiveSourceRow").hidden=isUKDealer;
   document.getElementById("editLiveSourceRow").style.display=isUKDealer?"none":"";
   document.getElementById("editCustomerType").onchange=function(){
+    syncUKDealerEditMode();
     const dealer=["uk_dealer","uk_distributor"].includes(this.value);
     document.getElementById("editLiveSourceRow").hidden=dealer;
     document.getElementById("editLiveSourceRow").style.display=dealer?"none":"";
@@ -890,11 +904,13 @@ function openEditCustomer(userId){
   const modal=document.getElementById("editCustomerModal");
   if(!modal){alert("Edit Customer window is not available. Refresh the page and try again.");return;}
   modal.classList.add("open");
+  syncUKDealerEditMode();
   modal.setAttribute("aria-hidden","false");
 }
 function closeEditCustomer(){
   const modal=document.getElementById("editCustomerModal");
   modal?.classList.remove("open");
+  modal?.classList.remove("uk-dealer-mode");
   modal?.setAttribute("aria-hidden","true");
   editingCustomerId=null;
 }
