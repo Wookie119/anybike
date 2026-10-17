@@ -9,7 +9,18 @@ const feed=panel.querySelector('#anybike-help-feed'),choices=panel.querySelector
 const db=window.supabase?.createClient?.('https://tuehtnezhdnkqbbhttgp.supabase.co','sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK');
 let member=null,approvedFaq=[];
 (async()=>{if(!db)return;try{const {data}=await db.auth.getUser();member=data?.user||null;const {data:faqs}=await db.from('anybike_assistant_faq').select('question,answer,keywords').eq('published',true).limit(200);approvedFaq=faqs||[];if(member){const {data:replies}=await db.from('anybike_assistant_questions').select('question,answer,answered_at').eq('status','answered').order('answered_at',{ascending:false}).limit(5);if(replies?.length){add('You have '+replies.length+' answered question(s) waiting in AnyBike Assistant.');replies.forEach(x=>add('Your question: '+x.question+' — Answer: '+x.answer));}}}catch(e){}})();
-async function saveQuestion(q){if(!db||!member){add('This question needs the AnyBike team. Please sign in to save it for a reply here, or contact sales@anybike.co.uk.',false,{link:'/customer-login.html',label:'Sign in'});return;}const {error}=await db.from('anybike_assistant_questions').insert({user_id:member.id,question:q});add(error?'Your question could not be saved. Please contact sales@anybike.co.uk.':'Your question has been saved for review. You can leave this page; your approved answer will appear in this assistant when you return. Email notifications are not active yet.');}
+async function saveQuestion(q){
+ if(!db){add('Question not submitted: help service is unavailable. Please contact sales@anybike.co.uk.');return;}
+ try{
+  const {data:auth,error:authError}=await db.auth.getUser();
+  const user=auth?.user;
+  if(authError||!user){add('This question was not saved because your sign-in could not be confirmed. Please sign in again and retry.',false,{link:'/customer-login.html',label:'Sign in'});return;}
+  const {error}=await db.from('anybike_assistant_questions').insert({user_id:user.id,question:q});
+  if(error){add('Question not saved: '+error.message+'. Please contact sales@anybike.co.uk.');return;}
+  add('✓ Your question has been saved for AnyBike review. You can leave this page. The answer will appear here when you return and reopen the assistant. Email notification is not yet active.');
+ }catch(e){add('Question not saved due to a connection problem. Please try again later or contact sales@anybike.co.uk.');}
+}
+
 const topics=[
 {keys:['register','join','create account','sign up'],title:'Joining AnyBike',answer:'Create your free AnyBike account, confirm your email if prompted, and complete your profile. UK dealers can join the trade network, but trading privileges require AnyBike verification.',link:'/customer-register.html',label:'Register'},
 {keys:['onboard','profile','complete','save','setup','set up'],title:'Completing your profile',answer:'Open your profile and work through the sections. Use Save & Continue after each section. You can return later to finish missing information. Your account may need approval before trade services become available.',link:'/customer-profile.html',label:'Open profile'},
@@ -43,7 +54,8 @@ function answer(q){add(q,true);const v=q.toLowerCase().trim();
  if(/(what.*(next|left|missing)|my progress|onboarding status|which section|what do i need)/i.test(v)){
    if(nextOnboardingAction())return;
    add('Open My Profile to see which setup sections still need completing. Your next action will be shown there. I cannot see private profile details from this page.',false,{link:'/customer-profile.html',label:'My profile'});return;
- }const hit=topics.map(t=>({t,score:t.keys.reduce((n,k)=>n+(((' '+v.replace(/[^a-z0-9]+/g,' ')+' ').includes(' '+k+' '))?k.length:0),0)})).sort((a,b)=>b.score-a.score)[0];const faq=approvedFaq.map(t=>({t,score:String(t.question+' '+t.keywords).toLowerCase().split(/[, ]+/).filter(w=>w.length>4&&v.includes(w)).length})).sort((a,b)=>b.score-a.score)[0];if(hit&&hit.score){add(hit.t.answer,false,hit.t)}else if(faq&&faq.score>=2){add(faq.t.answer)}else {add('I do not have an approved answer for that question yet. Would you like to save it for the AnyBike team to review?');const b=document.createElement('button');b.type='button';b.textContent='Save question for an answer';b.style.cssText='padding:9px;background:#c71922;color:white;border:0;border-radius:7px;cursor:pointer;margin-bottom:12px';b.onclick=()=>{b.disabled=true;saveQuestion(q)};feed.appendChild(b);}}
+ }const hit=topics.map(t=>({t,score:t.keys.reduce((n,k)=>n+(((' '+v.replace(/[^a-z0-9]+/g,' ')+' ').includes(' '+k+' '))?k.length:0),0)})).sort((a,b)=>b.score-a.score)[0];const faq=approvedFaq.map(t=>({t,score:String(t.question+' '+t.keywords).toLowerCase().split(/[, ]+/).filter(w=>w.length>4&&v.includes(w)).length})).sort((a,b)=>b.score-a.score)[0];if(hit&&hit.score){add(hit.t.answer,false,hit.t)}else if(faq&&faq.score>=2){add(faq.t.answer)}else {add('I do not have an approved answer yet. I will check whether your question can be saved for the AnyBike team.');void saveQuestion(q);}}
+
 const prompts=['Ask a different question','What do I need to do next?','How do I register?','Help with onboarding','How can I bid?','How does shipping work?','Contact AnyBike team'];prompts.forEach(t=>{const b=document.createElement('button');b.type='button';b.textContent=t;b.onclick=()=>{if(t==='Ask a different question'){panel.querySelector('#anybike-help-question').focus();return;}answer(t)};choices.appendChild(b)});
 add('Hello! I am the AnyBike automated help assistant. I can guide you through registering, completing your profile and using AnyBike. I do not have access to your private account.');
 launcher.onclick=()=>{panel.classList.toggle('open');document.body.classList.toggle('anybike-help-open',panel.classList.contains('open'));if(panel.classList.contains('open'))panel.querySelector('input').focus()};
