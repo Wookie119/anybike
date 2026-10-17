@@ -30,7 +30,19 @@ $('cancel').onclick=()=>$('editor').hidden=true;
 $('save').onclick=async()=>{let p={approved_for_invitation:$('approved').checked,personal_intro:$('personal').checked};$('fields').querySelectorAll('[data-field]').forEach(x=>p[x.dataset.field]=x.value);if(p.approved_for_invitation&&!confirm('Confirm lawful invitation permission for this contact?'))return;let {data,error}=await db.from('anybike_master_contacts').update(p).eq('id',editId).select().single();$('editMsg').textContent=error?error.message:'Saved';if(!error){Object.assign(items.find(x=>x.id===editId),data);render()}};
 function emailBody(r){return 'Hello '+(r.first_name||'there')+',\n\n'+inviteIntro(r)+'We would like to invite '+(r.company||'your dealership')+' to join AnyBike, a UK motorcycle trade network. Registered and approved dealers can explore suitable trade opportunities and submit confidential offers on motorcycles.\n\nYou can learn more and register here:\nhttps://www.anybike.co.uk/uk-dealer-welcome.html\n\nRegistration is free. Access to restricted trade services is subject to AnyBike verification and approval.\n\nKind regards,\nThe AnyBike Team'}
 function richInvitationHtml(r){const url='https://www.anybike.co.uk/uk-dealer-welcome.html';return '<div style="background:#fff;color:#222;font:16px Arial,sans-serif;line-height:1.55">'+emailBody(r).split('\n\n').map(p=>p.includes('You can learn more and register here:')?'<p>You can learn more and register below:</p><p style="margin:24px 0"><a href="'+url+'" style="display:inline-block;background:#b71925;color:#fff;text-decoration:none;font-weight:bold;padding:14px 22px;border-radius:5px">Register with AnyBike &rarr;</a></p><p style="font-size:12px;color:#555">If the button does not work: <a href="'+url+'">'+url+'</a></p>':'<p>'+esc(p).replace(/\n/g,'<br>')+'</p>').join('')+'</div>'}
-function reviewInvitations(){
+let smsHistory=new Map();
+async function refreshSmsHistory(){
+ const ids=[...new Set(items.filter(r=>r.sms_invite_selected).map(r=>r.id))];
+ smsHistory=new Map();
+ for(let i=0;i<ids.length;i+=200){
+  const {data,error}=await db.from('anybike_invitation_sms_log').select('id,contact_id,recipient,status,requested_at,sent_at,provider_message_id,error_message').in('contact_id',ids.slice(i,i+200)).order('requested_at',{ascending:false}).limit(1000);
+  if(error)throw error;
+  for(const record of data||[])if(!smsHistory.has(record.contact_id))smsHistory.set(record.contact_id,record);
+ }
+}
+async function reviewInvitations(){
+ try{await refreshSmsHistory()}catch(e){$('queue').textContent='SMS history unavailable: '+e.message+'. No invitations can be sent until this is resolved.';$('invitePreviews').innerHTML='';return;}
+
  const approved=items.filter(r=>r.approved_for_invitation);
  queue=approved.filter(r=>chosen.has(r.id)&&r.email&&!String(r.email).toLowerCase().startsWith('unknown@'));
  smsQueue=approved.filter(r=>r.sms_invite_selected&&/^07\d{9}$/.test(String(r.phone||'').replace(/\s/g,'')));
@@ -41,7 +53,7 @@ function reviewInvitations(){
  const canEmail=queue.some(t=>t.id===r.id),canSms=smsQueue.some(t=>t.id===r.id);
  return '<article style="border:1px solid #555;border-radius:9px;padding:14px;background:#191919"><h3>'+esc(r.company||'Dealership')+' — '+esc([r.first_name,r.last_name].filter(Boolean).join(' ')||'Contact')+'</h3>'+
  (canEmail?'<div style="margin:12px 0"><b>Email to: '+esc(r.email)+'</b><p><b>Subject:</b> Invitation to join the AnyBike motorcycle trade network</p><div style="background:#fff;color:#222;padding:14px;border-radius:6px">'+richInvitationHtml(r)+'</div><button data-copy-rich="'+r.id+'">Copy formatted email (with button)</button><button data-open-email="'+r.id+'" style="background:#9c2630;color:white;border:1px solid #b44">Prepare Outlook draft with button</button></div>':'')+
- (canSms?'<div style="margin:12px 0"><b>SMS to: '+esc(r.phone)+'</b><pre style="white-space:pre-wrap;overflow-wrap:anywhere;font:13px Arial;background:#fff;color:#222;padding:12px;border-radius:6px">'+esc(smsMessage(r))+'</pre><button data-send-sms="'+r.id+'" style="background:#ad252d;color:white;border-color:#d54049">Send SMS from AnyBike</button><button data-open-sms="'+r.id+'">Open SMS draft</button><button data-copy-sms="'+r.id+'">Copy SMS text</button></div>':'')+
+ (canSms?'<div style="margin:12px 0"><b>SMS to: '+esc(r.phone)+'</b>'+(smsHistory.has(r.id)?'<p style="color:#a7e7ab">Previous SMS: '+esc(smsHistory.get(r.id).status)+' · '+esc(smsHistory.get(r.id).sent_at||smsHistory.get(r.id).requested_at||'')+' · Ref '+esc(smsHistory.get(r.id).provider_message_id||smsHistory.get(r.id).id)+'</p>':'<p>No ClickSend invitation recorded.</p>')<pre style="white-space:pre-wrap;overflow-wrap:anywhere;font:13px Arial;background:#fff;color:#222;padding:12px;border-radius:6px">'+esc(smsMessage(r))+'</pre><button data-send-sms="'+r.id+'" '+(smsHistory.has(r.id)&&['sending','submitted','delivered'].includes(smsHistory.get(r.id).status)?'disabled title="Previous SMS recorded — check status before resending"':'')+' style="background:#ad252d;color:white;border-color:#d54049">'+(smsHistory.has(r.id)&&['sending','submitted','delivered'].includes(smsHistory.get(r.id).status)?'SMS already submitted — check history':'Send SMS from AnyBike')+'</button><button data-open-sms="'+r.id+'">Open SMS draft</button><button data-copy-sms="'+r.id+'">Copy SMS text</button></div>':'')+
  '</article>';
  }).join('');
  $('invitePreviews').querySelectorAll('[data-copy-rich]').forEach(btn=>btn.onclick=async()=>{const r=queue.find(x=>x.id===Number(btn.dataset.copyRich));const html=richInvitationHtml(r);try{if(!window.ClipboardItem||!navigator.clipboard?.write)throw Error('Rich clipboard unsupported');await navigator.clipboard.write([new ClipboardItem({'text/html':new Blob([html],{type:'text/html'}),'text/plain':new Blob([emailBody(r)],{type:'text/plain'})})]);$('queue').textContent='Formatted email copied for '+r.email+'. Open a new message FROM sales@anybike.co.uk, address it to '+r.email+', and paste with Ctrl+V. The red button should be included. Your Outlook signature can stay underneath.'}catch(e){$('queue').textContent='Could not copy formatted HTML. Please try Edge or Chrome over HTTPS. Nothing sent.'}});
@@ -69,7 +81,7 @@ function reviewInvitations(){
  const {data,error}=await db.functions.invoke('anybike-send-dealer-invitation-sms',{body:{contact_id:r.id,confirm_send:true}});
  if(error)throw Error(data?.error||error.message||'SMS sending failed');
  if(!data?.success)throw Error(data?.error||'SMS not accepted by provider');
- btn.textContent='SMS submitted ✓';$('queue').textContent='ClickSend accepted the SMS to '+r.phone+'. Provider reference: '+(data.message_id||data.log_id)+'. This confirms submission, not handset delivery.';
+ smsHistory.set(r.id,{status:'submitted',sent_at:new Date().toISOString(),provider_message_id:data.message_id,id:data.log_id});btn.textContent='SMS submitted ✓';$('queue').textContent='ClickSend accepted the SMS to '+r.phone+'. Provider reference: '+(data.message_id||data.log_id)+'. This confirms submission, not handset delivery.';
  }catch(e){btn.disabled=false;btn.textContent='Retry Send SMS';$('queue').textContent='SMS NOT confirmed as sent: '+e.message+' Check any previous attempt before retrying.';}
  });
  $('invitePreviews').querySelectorAll('[data-open-sms]').forEach(btn=>btn.onclick=()=>{
