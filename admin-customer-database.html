@@ -754,6 +754,7 @@ function escapeAdminHtml(value){
     </div>
     <div class="modal-row-actions">
       <button type="button" class="btn dark" onclick="closeEditCustomer()">Cancel</button>
+      <button type="button" class="btn" id="approveUKDealerButton" onclick="approveUKDealer()">Approve UK Dealer →</button>
       <button type="button" class="btn" onclick="saveEditedCustomer()">Save customer and permissions</button>
     </div>
   </div>
@@ -892,6 +893,47 @@ function closeEditCustomer(){
   modal?.classList.remove("open");
   modal?.setAttribute("aria-hidden","true");
   editingCustomerId=null;
+}
+async function approveUKDealer(){
+ if(!editingCustomerId)return;
+ const userId=editingCustomerId;
+ const onboarding=customerOnboardingMap[String(userId)]||{};
+ const name=String(document.getElementById('editFullName').value||'').trim();
+ const phone=String(document.getElementById('editPhone').value||'').trim();
+ const country=String(document.getElementById('editCountry').value||'').trim();
+ const business=String(document.getElementById('editBusinessName').value||'').trim();
+ const status=document.getElementById('customerProfileSaveStatus');
+ const accessStatus=document.getElementById('dealerAccessStatus');
+ if(!onboarding.email_confirmed_at||!name||!phone||!country||!business){
+   status.textContent='Cannot approve yet: confirmed email, contact name, telephone, country and dealership name are required.';return;
+ }
+ if(!confirm('Approve '+business+' as a UK motorcycle dealer, with buy/sell/trade and underwriting access? Dealer agreements remain the customer’s responsibility.'))return;
+ const button=document.getElementById('approveUKDealerButton');
+ button.disabled=true;status.textContent='Saving UK dealer classification…';accessStatus.textContent='';
+ try{
+   const {error:profileError}=await sb.rpc('admin_update_customer_profile_v1',{
+     p_user_id:userId,p_full_name:name,p_phone:phone,p_country:country,
+     p_city:document.getElementById('editCity').value,
+     p_region:document.getElementById('editRegion').value,
+     p_business_name:business,p_customer_type:'uk_dealer',p_customer_intent:'buy_supply'
+   });
+   if(profileError)throw Error('Dealer classification could not be saved: '+profileError.message);
+   status.textContent='Dealer type saved. Applying trade access…';
+   const {error:accessError}=await sb.rpc('admin_set_dealer_access_v1',{
+      p_user_id:userId,p_level:2,p_submit:true,p_view:true,p_offer:true
+   });
+   if(accessError)throw Error('Dealer profile saved but trade permissions failed: '+accessError.message+'. Review permissions before proceeding.');
+   document.getElementById('editCustomerType').value='uk_dealer';
+   document.getElementById('editCustomerIntent').value='buy_supply';
+   document.getElementById('editDealerLevel').value='2';
+   ['editDealerSubmit','editDealerView','editDealerOffer'].forEach(id=>document.getElementById(id).checked=true);
+   window.anybikeDealerAccessOriginal={userId:String(userId),level:2,submit:true,view:true,offer:true};
+   status.textContent='✓ UK Dealer approved with buy, sell and trade permissions. Customer agreements are still required where applicable.';
+   await loadCustomers();
+   closeEditCustomer();
+   openCustomerFromMap(userId);
+ }catch(error){status.textContent=error.message||String(error);accessStatus.textContent='Review the permission status before trying again.';}
+ finally{button.disabled=false;}
 }
 async function saveDealerAccessChanges(){
   if(!editingCustomerId)return;
