@@ -56,7 +56,7 @@ function answer(q){add(q,true);const v=q.toLowerCase().trim();
    add('Open My Profile to see which setup sections still need completing. Your next action will be shown there. I cannot see private profile details from this page.',false,{link:'/customer-profile.html',label:'My profile'});return;
  }const norm=t=>' '+String(t).toLowerCase().replace(/[^a-z0-9]+/g,' ').trim()+' ';
  const normalized=norm(v);
- if(/(dealer|dealership|motorcycle trader|bike trader|motorcycle business|trade account|trade buyer)/i.test(v)&&/(register|registration|sign ?up|join|create|open.*account|become.*member|account.*set ?up|how.*start|what.*need.*join|free to join)/i.test(v)){
+ if(/(dealer|dealership|motorcycle trader|bike trader|motorcycle business|bike business|bike shop|trade account|trade buyer)/i.test(v)&&/(register|registration|sign ?up|join|create|open.*account|become.*member|account.*set ?up|set ?up.*account|how.*start|what.*need.*join|free to join)/i.test(v)){
   add('UK motorcycle dealers can register with AnyBike for free. Choose “UK Based Motorcycle Dealer” on the registration form, enter your name, dealership or business name, email and other requested details, then confirm your email if prompted. Sign in and complete your dealership profile using Save & Continue. AnyBike reviews trade eligibility before granting restricted bidding or underwriting access. Registration alone is not approval.',false,{link:'/customer-register.html',label:'Register as a UK dealer'});return;
  }
  if(/(dealer|dealership|trade|bid|underwriting)/i.test(v)&&/(why.*(can.t|cannot|not able|unable)|can.t|cannot|not.*see|not.*allowed|when.*(approved|bid)|how.*(approved|bid)|approval|access|verify|verification)/i.test(v)&&/(bid|offer|approv|trade|access|underwrit)/i.test(v)){
