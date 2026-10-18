@@ -752,6 +752,18 @@ function escapeAdminHtml(value){
         </span>
       </label>
     </div>
+    <div id="ukDealerServiceReview" style="padding:13px 15px;margin:14px 0;border:1px solid #ed1c24;border-radius:11px;background:#171010">
+  <strong>Level 2 dealership service permissions</strong>
+  <p class="small">Choose what this dealership is authorised to do before approval. These are Admin permissions, not marketing preferences. They can be edited later in Dealership Permissions.</p>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px">
+    <label><input type="checkbox" id="approveServiceBuy" checked style="width:auto"> Buy motorcycles</label>
+    <label><input type="checkbox" id="approveServiceSell" checked style="width:auto"> Sell motorcycles</label>
+    <label><input type="checkbox" id="approveServiceTrade" checked style="width:auto"> Trade / Underwrite</label>
+    <label><input type="checkbox" id="approveServiceBid" checked style="width:auto"> Bid on auctions</label>
+    <label><input type="checkbox" id="approveServiceVq" checked style="width:auto"> International / VQ stock</label>
+  </div>
+  <p class="small">Auction notification opt-in and reminder preferences remain separate. Approval itself sends no auction invitation.</p>
+</div>
     <div class="modal-row-actions">
       <button type="button" class="btn dark" onclick="closeEditCustomer()">Cancel</button>
       <button type="button" class="btn" id="approveUKDealerButton" onclick="approveUKDealer()">Approve UK Dealer →</button>
@@ -927,7 +939,14 @@ async function approveUKDealer(){
  if(!onboarding.email_confirmed_at||!name||!phone||!country||!business){
    status.textContent='Cannot approve yet: confirmed email, contact name, telephone, country and dealership name are required.';return;
  }
- if(!confirm('Approve '+business+' as a UK motorcycle dealer, with buy/sell/trade and underwriting access? Dealer agreements remain the customer’s responsibility.'))return;
+ const services={
+   buy:document.getElementById('approveServiceBuy').checked,
+   sell:document.getElementById('approveServiceSell').checked,
+   trade:document.getElementById('approveServiceTrade').checked,
+   bid:document.getElementById('approveServiceBid').checked,
+   vq:document.getElementById('approveServiceVq').checked
+ };
+ if(!confirm('Approve '+business+' as a UK motorcycle dealer at Level 2?\\n\\nAuthorised: '+Object.entries(services).filter(([k,v])=>v).map(([k])=>({buy:'Buy',sell:'Sell',trade:'Trade / Underwrite',bid:'Bid on auctions',vq:'International / VQ'})[k]).join(', ')+'.\\n\\nOther services will not be authorised in the new permissions register. No invitations will be sent.'))return;
  const button=document.getElementById('approveUKDealerButton');
  button.disabled=true;status.textContent='Saving UK dealer classification…';accessStatus.textContent='';
  try{
@@ -940,18 +959,24 @@ async function approveUKDealer(){
    if(profileError)throw Error('Dealer classification could not be saved: '+profileError.message);
    status.textContent='Dealer type saved. Applying trade access…';
    const {error:accessError}=await sb.rpc('admin_set_dealer_access_v1',{
-      p_user_id:userId,p_level:2,p_submit:true,p_view:true,p_offer:true
+      p_user_id:userId,p_level:2,p_submit:services.trade,p_view:services.bid,p_offer:services.bid
    });
    if(accessError)throw Error('Dealer profile saved but trade permissions failed: '+accessError.message+'. Review permissions before proceeding.');
+    const {error:serviceError}=await sb.rpc('admin_set_dealer_service_permissions_for_user_v1',{
+      p_user_id:userId,p_buy:services.buy,p_sell:services.sell,p_trade:services.trade,p_bid:services.bid,p_international_vq:services.vq
+    });
+    if(serviceError)throw Error('Level 2 account access saved, but dealership service permissions were NOT saved: '+serviceError.message+' Please resolve the dealership link and retry before treating this review as complete.');
    document.getElementById('editCustomerType').value='uk_dealer';
    document.getElementById('editCustomerIntent').value='buy_supply';
    document.getElementById('editDealerLevel').value='2';
-   ['editDealerSubmit','editDealerView','editDealerOffer'].forEach(id=>document.getElementById(id).checked=true);
-   window.anybikeDealerAccessOriginal={userId:String(userId),level:2,submit:true,view:true,offer:true};
+   document.getElementById('editDealerSubmit').checked=services.trade;
+    document.getElementById('editDealerView').checked=services.bid;
+    document.getElementById('editDealerOffer').checked=services.bid;
+   window.anybikeDealerAccessOriginal={userId:String(userId),level:2,submit:services.trade,view:services.bid,offer:services.bid};
    status.textContent='✓ UK Dealer approved with buy, sell and trade permissions. Customer agreements are still required where applicable.';
    await loadCustomers();
    openCustomerFromMap(userId);
-   status.textContent='✓ Dealer approved successfully. Level 2: submit, view and bid enabled. Close this window when ready.';
+   status.textContent='✓ Level 2 approved. Five dealership service permissions saved. Close this window when ready.';
    accessStatus.textContent='Approved — your changes are saved.';
  }catch(error){status.textContent=error.message||String(error);accessStatus.textContent='Review the permission status before trying again.';}
  finally{button.disabled=false;}
