@@ -293,7 +293,11 @@ body.my-trade-offers-view #grid.mine-grid{margin-top:12px}
     <button type="button" id="allOffersTab" class="active" onclick="showOfferView('all')">Available motorcycles</button>
     <button type="button" id="myOffersTab" onclick="showOfferView('mine')">My Trade Offers <span id="myBidCount"></span></button>
   </nav>
-  
+  <div id="auctionEncouragementPreference" style="padding:10px 15px;margin:9px 0;border:1px solid #333;border-radius:9px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+    <label style="display:flex;align-items:center;gap:9px"><input type="checkbox" id="pauseAuctionEncouragement" style="width:18px;height:18px"> Pause optional auction encouragement messages</label>
+    <small>Essential invitations, results and transaction updates will continue.</small>
+    <span id="auctionPreferenceStatus" role="status" style="font-size:12px"></span>
+  </div>
   <section id="opportunityFilters" class="notice" style="display:none" aria-label="Filter motorcycles">
   <strong style="display:block;color:#fff;margin-bottom:12px">Find a motorcycle</strong>
   <div class="filter-grid">
@@ -360,9 +364,23 @@ function renderOpportunities(rows){
  }
  if(offerView==="all") updateTradeFilters(false);
 }
+async function loadAuctionEncouragementPreference(){
+ const {data,error}=await sb.rpc("dealer_get_auction_encouragement_paused_v1");
+ const control=document.getElementById("pauseAuctionEncouragement");
+ if(error){document.getElementById("auctionEncouragementPreference").hidden=true;return;}
+ control.checked=data===true;
+ control.onchange=async()=>{
+  control.disabled=true;
+  const {data:updated,error:saveError}=await sb.rpc("dealer_set_auction_encouragement_paused_v1",{p_paused:control.checked});
+  control.disabled=false;
+  if(saveError||!updated?.success){control.checked=!control.checked;document.getElementById("auctionPreferenceStatus").textContent="Could not save preference.";return;}
+  document.getElementById("auctionPreferenceStatus").textContent=control.checked?"Encouragement messages paused ✓":"Encouragement messages enabled ✓";
+ };
+}
 async function load(){
   const {data:session}=await sb.auth.getSession();
   if(!session?.session){location.replace("/customer-register.html?return="+encodeURIComponent(location.pathname+location.search));return;}
+  loadAuctionEncouragementPreference();
   const inviteToken=new URLSearchParams(location.search).get("invite");
   if(inviteToken){
     const {data:claim,error:claimError}=await sb.rpc("trade_claim_seller_dealer_invite_v1",{p_token:inviteToken});
