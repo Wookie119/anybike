@@ -832,7 +832,7 @@ function openReserveReview(id){
  document.getElementById("reserveReviewTitle").textContent="Buying price & gross margin · "+row.reference;
  document.getElementById("rvSeller").value=Number(row.seller_price_wanted_gbp)>0?Number(row.seller_price_wanted_gbp).toFixed(2):"";
  if(document.querySelector(".margin-preset-buttons"))setReserveMarginPercent(8);
- document.getElementById("rvResult").textContent="Best active dealer bid: "+money(row.highest_live_bid_gbp)+". Review costs and margin before saving.";
+ document.getElementById("rvResult").textContent="No offer will be sent. Save the buying price when ready.";
  document.getElementById("rvSaveStatus").textContent="Not saved during this session. Review figures before confirming.";
  document.getElementById("rvSaveStatus").classList.remove("saved");
 
@@ -860,38 +860,15 @@ async function loadReserveDraft(id){
  }catch(e){console.warn("Could not load underwrite draft",e)}
 }
 function updateReservePreview(){
- syncMoveAllowancePreset();
- const n=id=>Number(document.getElementById(id).value)||0;
- const r=rows.find(x=>Number(x.opportunity_id)===reserveReviewId);
- const bid=Number(r?.highest_live_bid_gbp)||0;
- const margin=bid+n("rvDealerTransport")+n("rvSellerTransport")-n("rvSeller")-n("rvTransport")-n("rvOther");
- const grossMargin=bid-n("rvSeller");
+ const row=rows.find(r=>Number(r.opportunity_id)===reserveReviewId);
+ const bid=Number(row?.highest_live_bid_gbp)||0;
+ const buying=Number(document.getElementById("rvSeller").value)||0;
+ const gross=bid-buying;
  document.getElementById("rvHighestBid").textContent=bid>0?money(bid):"No bid";
- document.getElementById("rvBuyingPrice").textContent=money(n("rvSeller"));
- const grossNode=document.getElementById("rvGrossMargin");grossNode.textContent=money(grossMargin);grossNode.style.color=grossMargin>=0?"#84e7a6":"#ff8181";
- const confirmed=document.getElementById("rvQuoteStatus").value==="confirmed";
- const contributions=(n("rvDealerTransport")===0&&n("rvSellerTransport")===0)||document.getElementById("rvContributionsAgreed").checked;
- const contributionsPresent=n("rvDealerTransport")>0||n("rvSellerTransport")>0;
- document.getElementById("rvContributionWrap").hidden=!contributionsPresent;
- if(!contributionsPresent)document.getElementById("rvContributionsAgreed").checked=false;
- const valid=bid>0&&n("rvSeller")>=Number(r?.seller_price_wanted_gbp||0)&&margin>=n("rvMargin")&&confirmed&&contributions&&document.getElementById("rvTransport").value!=="";
- document.querySelectorAll(".margin-preset").forEach(button=>{
-  const target=Math.round(bid*Number(button.dataset.margin))/100;
-  const difference=Math.round((margin-target)*100)/100;
-  const achieved=difference>=0;
-  const status=button.querySelector(".margin-preset-status");
-  status.textContent=achieved?"✓ "+money(difference)+" above":money(-difference)+" short";
-  status.style.color=achieved?"#87eca4":"#ffaaaa";
-  button.setAttribute("aria-label",button.dataset.margin+"% target "+money(target)+", "+status.textContent);
- });
- const marginPercent=bid>0?margin/bid*100:null;
- const percentEl=document.getElementById("rvActualPercent");
- const combinedMargin=margin+n("rvTransport");
- percentEl.innerHTML="Combined deal margin: "+money(combinedMargin)+"<div style='font-size:15px;font-weight:600;margin-top:8px;color:#fff'>AnyBike allocation: "+money(margin)+" · Move allocation: "+money(n("rvTransport"))+"</div><small style='display:block;font-size:12px;color:#bcbcbc;font-weight:400;margin-top:5px'>Before Move operating costs. Transport allowance is allocated within the deal margin, not added twice.</small>";
- percentEl.style.color=margin>=0?"#87eca4":"#ffaaaa";
- const el=document.getElementById("rvPreview");
- el.textContent="Best active bid "+money(bid)+" · Combined deal margin "+money(combinedMargin)+" (AnyBike "+money(margin)+" + Move "+money(n("rvTransport"))+") · "+(valid?"Commercial criteria ready for admin save":"Not yet cleared for confirmed Reserve Met");
- el.style.borderColor=valid?"#368451":"#555";
+ document.getElementById("rvBuyingPrice").textContent=money(buying);
+ const result=document.getElementById("rvGrossMargin");
+ result.textContent=money(gross);
+ result.style.color=gross>=0?"#84e7a6":"#ff8181";
 }
 document.getElementById("reserveReviewModal").addEventListener("input",event=>{if(event.target.id==="rvMargin")document.querySelectorAll(".margin-preset").forEach(b=>{b.classList.remove("selected");b.setAttribute("aria-pressed","false")});updateReservePreview()});
 document.getElementById("reserveReviewModal").addEventListener("change",updateReservePreview);
