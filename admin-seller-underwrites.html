@@ -507,7 +507,11 @@ async function cleanSellerPhoto(submissionId,imageId,button){
  button.disabled=true;const old=button.textContent;button.textContent="Cleaning…";
  try{
    const {data,error}=await sb.functions.invoke("admin-clean-seller-photo",{body:{image_id:imageId}});
-   if(error||!data?.success)throw new Error(data?.error||error?.message||"Image repair failed");
+   if(error||!data?.success){
+     let detail=data?.error||"";
+     if(error?.context?.json){try{const body=await error.context.json();detail=body?.error||body?.message||detail;}catch(_){}}
+     throw new Error(detail||error?.message||"Image repair failed");
+   }
    alert("Cleaned copy created. Please review the result in Photo Cleaner before approving.");
    submissionImages.delete(Number(submissionId));await loadSubmissionImages(submissionId);
  }catch(error){alert("Cleaning could not complete: "+error.message);button.disabled=false;button.textContent=old;}
