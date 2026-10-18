@@ -32,6 +32,23 @@
 .seller-minimum-edit{display:block;margin-top:7px;font-size:12px;min-height:27px;padding:4px 9px!important;border:1px solid #ed1c24;border-radius:7px;background:transparent;color:white;cursor:pointer}
 input[type="number"]{-moz-appearance:textfield;appearance:textfield}input[type="number"]::-webkit-inner-spin-button,input[type="number"]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 .seller-offer-result{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:12px 15px;margin:10px 0;border:1px solid #5e3535;border-radius:9px;color:white}.seller-offer-result.success{border-color:#28864b;background:#0c2417;color:#95f2b4}.seller-offer-result strong{font-size:15px}
+
+/* Compact auction gallery: expand a bike only when Admin needs full controls. */
+#grid.grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;align-items:start}
+#grid>.card{min-width:0;border-width:1px;border-top:3px solid #ed1c24;border-radius:12px;padding:13px}
+#grid>.card .ref{font-size:14px}#grid>.card .bike{font-size:17px;margin:9px 0 5px;line-height:1.2}
+#grid>.card .top{gap:6px}#grid>.card .top>strong{font-size:12px;white-space:nowrap;color:#96e9ac}
+#grid>.card .meta{overflow-wrap:anywhere}#grid .auction-compact-countdown{font-size:13px;font-weight:800;color:#fff;margin:11px 0 9px}
+#grid .auction-compact-countdown .auction-countdown{font-size:18px;color:#fff;margin:2px 0}
+#grid .auction-expand>summary{cursor:pointer;background:#242424;border:1px solid #575757;border-radius:8px;text-align:center;padding:11px 8px;font-weight:800;font-size:12px;list-style:none}
+#grid .auction-expand>summary::-webkit-details-marker{display:none}#grid .auction-expand[open]>summary{background:#421316;border-color:#ed1c24;margin-bottom:12px}
+#grid .auction-expand .auction-time-bar{padding:10px;gap:9px;margin:8px 0}#grid .auction-expand .auction-time-bar button{min-width:0}
+#grid .auction-expand .auction-time-actions{min-width:0;width:100%;flex-direction:row;flex-wrap:wrap}#grid .auction-expand .auction-time-actions button{flex:1;min-width:110px;font-size:11px}
+#grid .auction-expand .data{grid-template-columns:repeat(2,minmax(0,1fr))}#grid .auction-expand .underwrite-action-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+#grid .auction-expand .underwrite-action-grid>button{min-height:38px;padding:7px 5px;font-size:11px}
+@media(max-width:1450px){#grid.grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:990px){#grid.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:610px){#grid.grid{grid-template-columns:1fr}}
 </style><script>if(new URLSearchParams(location.search).has("embedded"))document.documentElement.classList.add("trade-embedded");</script>
 <style>
 :root{--red:#ed1c24;--line:rgba(255,255,255,.12)}*{box-sizing:border-box}body{margin:0;background:#070707;color:#fff;font-family:Arial,Helvetica,sans-serif}
@@ -181,6 +198,8 @@ async function load(){
  });
  host.innerHTML=rows.map(r=>'<article class="card" id="underwrite-'+r.opportunity_id+'"><div class="top"><div><div class="ref">'+esc(r.reference)+'</div><div class="meta">'+esc(r.submission_reference)+' · '+esc(r.opportunity_status)+'</div></div><strong>'+esc(r.live_bid_count)+' live bid'+(Number(r.live_bid_count)===1?'':'s')+'</strong></div>'+
  '<div class="bike">'+esc([r.make,r.model,r.variant].filter(Boolean).join(" "))+'</div><div class="meta">'+esc(r.registration||"")+(r.bike_year?' · '+r.bike_year:'')+(r.mileage!==null?' · '+Number(r.mileage).toLocaleString("en-GB")+' miles':'')+'</div>'+
+ (r.opportunity_status==='live'?'<div class="auction-compact-countdown">Closes in <div class="auction-countdown" data-closes-at="'+esc(r.closes_at||'')+'">Calculating…</div></div>':'')+
+ '<details class="auction-expand"><summary>Manage motorcycle &amp; bidders →</summary>'+
  (r.opportunity_status==='live'?'<div class="auction-time-bar"><div><strong>Time remaining</strong><div class="auction-countdown" data-closes-at="'+esc(r.closes_at||'')+'">Calculating…</div><small>Closes: '+(r.closes_at?new Date(r.closes_at).toLocaleString("en-GB",{dateStyle:"medium",timeStyle:"short"}):"Not set")+'</small></div><div class="auction-time-actions"><button class="red" onclick="adjustUnderwriteDeadline('+r.opportunity_id+')">Add / Change Time →</button><button class="early-close-button" onclick="closeUnderwrite('+r.opportunity_id+')">End Bidding Early</button></div></div>':'')+
  '<div class="data"><div class="box"><span>Seller minimum (internal)</span><strong>'+money(r.seller_price_wanted_gbp)+'</strong><button type="button" class="seller-minimum-edit" onclick="editSellerMinimum('+Number(r.opportunity_id)+')">'+(Number(r.seller_price_wanted_gbp)>0?'Edit':'Set minimum')+'</button></div><div class="box"><span>Invited</span><strong>'+r.invited_trade_count+'</strong></div><div class="box"><span>Bid range</span><strong>'+money(r.lowest_live_bid_gbp)+' – '+money(r.highest_live_bid_gbp)+'</strong></div><div class="box"><span>Average</span><strong>'+money(r.average_live_bid_gbp)+'</strong></div></div>'+
  '<div class="underwrite-action-grid">'+
@@ -204,7 +223,7 @@ async function load(){
  r.latest_offer_status==="accepted"?(approvedFinalChecks[r.opportunity_id]?'<span style="color:#82e5aa;font-weight:800">✓ Seller and HPI checks complete</span> <button class="red" onclick="viewBids('+r.opportunity_id+')">Select Buying Dealer →</button>':'<button class="red" onclick="openFinalCheck('+r.opportunity_id+')">Seller and HPI checks</button>'):
  Number(r.live_bid_count)===0?'<button onclick="viewBids('+r.opportunity_id+')">Review bidding</button>':
  '<button class="red" onclick="openReserveReview('+r.opportunity_id+')">Reserve assessment</button>'
- )+'</div></article>').join("");
+ )+'</div></details></article>').join("");
  updateAuctionCountdowns();
 }
 function updateAuctionCountdowns(){document.querySelectorAll(".auction-countdown[data-closes-at]").forEach(el=>{const end=Date.parse(el.dataset.closesAt||"");if(!Number.isFinite(end)){el.textContent="No closing deadline";return;}const left=Math.max(0,Math.ceil((end-Date.now())/1000));if(!left){el.textContent="Deadline reached";return;}const days=Math.floor(left/86400),hours=Math.floor(left%86400/3600),mins=Math.floor(left%3600/60),secs=left%60;el.textContent=(days?days+"d ":"")+String(hours).padStart(2,"0")+"h "+String(mins).padStart(2,"0")+"m "+String(secs).padStart(2,"0")+"s";});}
