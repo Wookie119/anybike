@@ -499,7 +499,24 @@ async function openFinalCheck(id){
  const sellerInfo=document.getElementById("fc-seller-confirmation");
  const reply=await sb.rpc("admin_read_seller_final_v1",{p_opportunity_id:finalCheckId});
  const confirmed=!reply.error&&reply.data?.confirmed;
- sellerInfo.textContent=confirmed?"✓ Seller declarations received. Check the underlying details and independently verify HPI, finance, ownership and condition.":"Awaiting seller's availability, ownership, mileage/condition and finance disclosures in My Selling. Do not approve checks until received.";
+ sellerInfo.replaceChildren();
+ const heading=document.createElement("strong");heading.textContent=confirmed?"✓ Seller declarations received":"Awaiting seller declarations from My Selling";sellerInfo.append(heading);
+ if(confirmed){
+   const details=[
+    ["Seller confirmations","Availability, right to sell, mileage/condition and finance disclosure submitted"],
+    ["Finance status",reply.data.finance_status==="none"?"Seller declared no outstanding finance":reply.data.finance_status==="outstanding"?"Seller declared finance outstanding":"Finance status not yet separately declared"],
+    ["Settlement amount",reply.data.finance_status==="outstanding"&&reply.data.settlement_amount_gbp!==null?"£"+Number(reply.data.settlement_amount_gbp).toFixed(2):"—"],
+    ["Finance company",reply.data.finance_company||"—"],
+    ["Agreement reference",reply.data.finance_agreement_reference||"—"],
+    ["Electronic signature",reply.data.signed?(reply.data.signed_name||"Signed")+" · "+new Date(reply.data.signed_at).toLocaleString("en-GB"):"Not yet signed"],
+    ["Additional seller information",reply.data.finance_details||"None supplied"]
+   ];
+   const list=document.createElement("dl");list.style.cssText="display:grid;grid-template-columns:minmax(120px,35%) 1fr;gap:7px 13px;margin:12px 0;overflow-wrap:anywhere";
+   for(const [label,value] of details){const dt=document.createElement("dt");dt.textContent=label;dt.style.color="#bbb";const dd=document.createElement("dd");dd.textContent=value;dd.style.margin=0;list.append(dt,dd);}
+   sellerInfo.append(list);
+   if(!reply.data.signed){const notice=document.createElement("p");notice.textContent="Finance declaration and electronic signature still required from the seller. Do not approve final checks yet.";notice.style.color="#ffc58d";sellerInfo.append(notice);}
+ }else{const msg=document.createElement("p");msg.textContent="Seller must confirm availability, ownership, mileage/condition and finance disclosure in My Selling.";sellerInfo.append(msg);}
+ sellerInfo.dataset.signed=String(!!reply.data?.signed);
  sellerInfo.style.borderColor=confirmed?"#368b57":"#b75353";
  sellerInfo.dataset.confirmed=String(confirmed);
  document.getElementById("fc-status").textContent=data?.approved?"✓ Checks approved. You can return to the bids and select a confirmed dealer.":"Complete all checks before selecting a winner.";
@@ -508,7 +525,7 @@ function closeFinalCheck(){document.getElementById("finalCheckModal").classList.
 async function saveFinalCheck(){
  if(!finalCheckId)return;
  const sellerInfo=document.getElementById("fc-seller-confirmation");
- if(sellerInfo.dataset.confirmed!=="true"){document.getElementById("fc-status").textContent="Waiting for seller declarations in My Selling. Admin must not confirm the final checks on the seller's behalf.";return;}
+ if(sellerInfo.dataset.confirmed!=="true"||sellerInfo.dataset.signed!=="true"){document.getElementById("fc-status").textContent="Waiting for seller declarations in My Selling. Admin must not confirm the final checks on the seller's behalf.";return;}
  const args={p_opportunity_id:finalCheckId,p_notes:document.getElementById("fc-notes").value};
  finalCheckFields.forEach(f=>args["p_"+f]=document.getElementById("fc-"+f).checked);
  const {data,error}=await sb.rpc("admin_underwrite_final_check_v1",args);
