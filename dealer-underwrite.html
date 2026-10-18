@@ -315,7 +315,7 @@ async function importTradeAdvert(){
       const note=document.createElement("p");
       note.className="small";
       note.style.width="100%";
-      note.textContent="Advert photo previews only — these are not yet attached to your motorcycle submission. You can upload original photos below.";
+      note.textContent="Imported photographs appear in the Photos section below when successfully attached. Please check you have permission to submit the advert photos, and remove any unsuitable images before submitting.";
       let loaded=0,failed=0;
       for(let index=0;index<urls.length;index++){
         counter.textContent="Loading photograph "+(index+1)+" of "+urls.length+" · "+loaded+" displayed";
@@ -332,11 +332,28 @@ async function importTradeAdvert(){
           img.onerror=()=>finish(false);
           img.src=urls[index];
         });
-        if(success){gallery.append(img);loaded++;}else failed++;
+        if(success){
+          gallery.append(img);loaded++;
+          if(selectedPhotoFiles.length<12){
+            try{
+              const photoResponse=await fetch(SUPABASE_URL+"/functions/v1/fetch-dealer-advert-photo",{
+                method:"POST",
+                headers:{"authorization":"Bearer "+token,"apikey":SUPABASE_ANON_KEY,"content-type":"application/json"},
+                body:JSON.stringify({image_url:urls[index],advert_url:source})
+              });
+              if(photoResponse.ok){
+                const blob=await photoResponse.blob();
+                const ext=blob.type==="image/png"?"png":blob.type==="image/webp"?"webp":"jpg";
+                const file=new File([blob],"advert-photo-"+String(index+1).padStart(2,"0")+"."+ext,{type:blob.type});
+                if(file.size>0){addPhotoFiles([file]);progressCaption.textContent="Imported "+selectedPhotoFiles.length+" of "+urls.length+" photographs into your submission"; }
+              }
+            }catch(error){console.warn("Advert photo could not be attached",error);}
+          }
+        }else failed++;
       }
       gallery.append(note);
-      counter.textContent=loaded+" photo"+(loaded===1?"":"s")+" displayed"+(failed?" · "+failed+" unavailable":"");
-      progressCaption.textContent="Mileage: "+(result.mileage?"found":"not available")+" · "+loaded+" photo previews displayed"+(failed?" · "+failed+" unavailable":"")+" · Photos not attached to submission";
+      counter.textContent=loaded+" preview"+(loaded===1?"":"s")+" displayed · "+selectedPhotoFiles.length+" photo"+(selectedPhotoFiles.length===1?"":"s")+" attached to submission"+(failed?" · "+failed+" unavailable":"");
+      progressCaption.textContent="Mileage: "+(result.mileage?"found":"not available")+" · "+selectedPhotoFiles.length+" photos attached of "+loaded+" displayed"+(failed?" · "+failed+" unavailable":"");
     }else{
       progressCaption.textContent="Mileage: "+(result.mileage?"found":"not available")+" · No advert photo links available · Upload original photos below.";
     }
