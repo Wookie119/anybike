@@ -2038,7 +2038,9 @@ function renderNotificationList(items){
     item.addEventListener("click",async function(event){
       if(event.defaultPrevented||event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;
       const notificationId=item.getAttribute("data-notification-id");
-      const destination=item.href;
+      const destination=new URL(item.href,window.location.href);
+      const isCustomerMessages=destination.pathname==="/customer-messages.html";
+      if(isCustomerMessages && notificationId)destination.searchParams.set("notification_id",notificationId);
       if(!notificationId||!anybikeHeaderUser)return;
       event.preventDefault();
       try{
@@ -2052,7 +2054,7 @@ function renderNotificationList(items){
       }catch(error){
         console.warn("Notification could not be marked read",error);
       }finally{
-        window.location.assign(destination);
+        window.location.assign(destination.toString());
       }
     });
   });
