@@ -1,3 +1,27 @@
+
+// Version customer Message Centre links consistently across public pages.
+// A different query URL avoids stale cached HTML for the unversioned path.
+(function versionCustomerMessageLinks(){
+  const version="20261018c";
+  function updateLinks(root){
+    if(!root?.querySelectorAll)return;
+    root.querySelectorAll('a[href]').forEach(function(a){
+      try{
+        const u=new URL(a.getAttribute("href"),location.href);
+        if(u.origin!==location.origin || u.pathname!=="/customer-messages.html")return;
+        if(u.searchParams.has("debug_load"))return;
+        u.searchParams.set("v",version);
+        a.href=u.pathname+u.search+u.hash;
+      }catch(_){}
+    });
+  }
+  document.addEventListener("click",function(e){
+    const a=e.target.closest?.('a[href]');
+    if(a)updateLinks({querySelectorAll:()=>[a]});
+  },true);
+  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",()=>updateLinks(document));
+  else updateLinks(document);
+})();
 (function loadMarketPageStandardisation(){
   try{
     if(!window.location.pathname.toLowerCase().includes("/markets/"))return;
