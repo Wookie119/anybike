@@ -14,41 +14,29 @@ button,.btn{border:0;border-radius:10px;background:#ed1c24;color:#fff;padding:12
 </style></head>
 <body><div id="publicHeader"></div><main>
 <p><a href="/my-dealership.html">← My Dealership</a></p>
-<header class="hero"><div class="eyebrow">My Dealership · Trade services</div><h1>Offer Bikes to Trade</h1><p>Have motorcycles you'd like to move on? Add their advertisements and tell AnyBike the minimum trade price you'd accept for each one.</p><span class="tag">Import test · no motorcycles will be published</span></header>
-<section class="card"><h2>Add a motorcycle from an existing advert</h2><p>Paste an advert link and enter your minimum trade price. The advert can be reviewed before any motorcycle is offered to trade members.</p>
+<header class="hero"><div class="eyebrow">My Dealership · Trade services</div><h1>Offer Bikes to Trade</h1><p>Have motorcycles you'd like to move on? Add their advertisements and tell AnyBike the minimum trade price you'd accept for each one.</p><span class="tag">Admin review required · not published automatically</span></header>
+<section class="card"><h2>Add a motorcycle from an existing advert</h2><p>Paste your advert link and minimum trade price. Then complete the motorcycle details and photos before AnyBike reviews it for confidential trade bidding.</p>
 <form id="addForm" class="formgrid">
-<div><label for="advertUrl">Advertisement link</label><input id="advertUrl" type="url" required placeholder="https://www.autotrader.co.uk/bike-details/..." autocomplete="off"><p class="small">Auto Trader links supported for identification in this test. Motorcycle data and photos are not imported automatically yet.</p></div>
+<div><label for="advertUrl">Advertisement link</label><input id="advertUrl" type="url" required placeholder="https://www.autotrader.co.uk/bike-details/..." autocomplete="off"><p class="small">Motorcycle details and photos are completed in the next step. An advert link alone cannot verify a motorcycle.</p></div>
 <div class="price"><label for="minimumPrice">Minimum trade price (£)</label><input id="minimumPrice" type="number" min="1" step="1" inputmode="numeric" required placeholder="e.g. 5500"><p class="small">Confidential to AnyBike. Not shown to bidders.</p></div>
-<div class="actions"><button type="submit">Add to test list →</button></div></form>
+<div class="actions"><button type="submit">Continue to motorcycle details →</button></div></form>
 <p id="feedback" role="status" class="small"></p></section>
-<section class="card"><h2>Motorcycles added <span id="count">(0)</span></h2><p class="small">Review your motorcycles before sending them to AnyBike.</p>
-<div id="list" class="notice">No motorcycles added yet.</div><div class="actions"><button type="button" class="secondary" id="clear">Clear list</button></div></section>
-
+<section class="card"><h2>What happens next?</h2><p>Complete motorcycle details, condition and photographs, then submit securely for AnyBike review. Once approved, AnyBike can open confidential bidding to eligible UK dealers. Nothing is published automatically.</p><p><a href="/dealer-underwrite.html">Request an Underwrite instead →</a></p></section>
 </main>
 <script>
 (function(){
- const key="anybike-trade-offer-import-test-v1";
- const url=document.getElementById("advertUrl"),price=document.getElementById("minimumPrice"),list=document.getElementById("list"),feedback=document.getElementById("feedback");
- let items=[];try{items=JSON.parse(localStorage.getItem(key)||"[]");if(!Array.isArray(items))items=[];}catch(_){items=[];}
- const esc=v=>String(v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
- function render(){
-  document.getElementById("count").textContent="("+items.length+")";
-  list.innerHTML=items.length?'<div class="scroll"><table><thead><tr><th>Advert</th><th>Motorcycle</th><th>Minimum trade price</th><th>Status</th><th></th></tr></thead><tbody>'+items.map((x,i)=>'<tr><td><a href="'+esc(x.url)+'" target="_blank" rel="noopener noreferrer">'+esc(x.id?"Auto Trader #"+x.id:x.host)+'</a></td><td>'+(x.detailsVerified&&x.make&&x.model&&x.year?esc(x.make+" "+x.model+" · "+x.year):'<span style="color:#edba70">Advert details not available</span>')+'</td><td>£'+Number(x.price).toLocaleString("en-GB")+'</td><td>Awaiting advert details</td><td><button type="button" class="secondary" data-remove="'+i+'">Remove</button></td></tr>').join("")+'</tbody></table></div>':'No motorcycles added yet.';
-  localStorage.setItem(key,JSON.stringify(items));
- }
- document.getElementById("addForm").onsubmit=e=>{
-  e.preventDefault();let parsed;try{parsed=new URL(url.value.trim());}catch(_){feedback.textContent="Enter a valid advertisement link.";return;}
-  if(parsed.protocol!=="https:"&&parsed.protocol!=="http:"){feedback.textContent="Use an HTTP or HTTPS advert link.";return;}
-  const host=parsed.hostname.toLowerCase();const isAT=host==="autotrader.co.uk"||host==="www.autotrader.co.uk";const match=isAT?parsed.pathname.match(/^\/bike-details\/(\d+)\/?$/):null;
-  if(isAT&&!match){feedback.textContent="This does not look like an Auto Trader motorcycle advertisement.";return;}
-  const amount=Number(price.value);if(!Number.isFinite(amount)||amount<=0){feedback.textContent="Enter a minimum trade price above £0.";return;}
-  const clean=parsed.origin+parsed.pathname;
-  if(items.some(x=>x.url===clean)){feedback.textContent="That advertisement is already in the test list.";return;}
-  items.push({url:clean,id:match?match[1]:"",host,price:amount});render();url.value="";price.value="";feedback.textContent="Advert saved. Motorcycle details could not yet be retrieved from this link.";
- };
-
- list.addEventListener("click",e=>{const b=e.target.closest("[data-remove]");if(!b)return;items.splice(Number(b.dataset.remove),1);render();});
- document.getElementById("clear").onclick=()=>{items=[];render();feedback.textContent="Test list cleared.";};
- render();
+ const url=document.getElementById("advertUrl"),price=document.getElementById("minimumPrice"),feedback=document.getElementById("feedback");
+ document.getElementById("addForm").addEventListener("submit",function(e){
+  e.preventDefault();
+  let parsed;try{parsed=new URL(url.value.trim())}catch(_){feedback.textContent="Enter a valid advertisement link.";return}
+  if(!["https:","http:"].includes(parsed.protocol)){feedback.textContent="Enter a valid HTTP or HTTPS advert link.";return}
+  const amount=Number(price.value);
+  if(!Number.isFinite(amount)||amount<=0){feedback.textContent="Enter your confidential minimum trade price.";return}
+  const dest=new URL("/dealer-underwrite.html",location.origin);
+  dest.searchParams.set("route","trade");
+  dest.searchParams.set("advert",parsed.href);
+  dest.searchParams.set("minimum_price",String(amount));
+  location.assign(dest.pathname+dest.search);
+ });
 })();
 </script><script src="/public-header.js"></script></body></html>
