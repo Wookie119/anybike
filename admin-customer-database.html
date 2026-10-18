@@ -950,8 +950,9 @@ async function approveUKDealer(){
    window.anybikeDealerAccessOriginal={userId:String(userId),level:2,submit:true,view:true,offer:true};
    status.textContent='✓ UK Dealer approved with buy, sell and trade permissions. Customer agreements are still required where applicable.';
    await loadCustomers();
-   closeEditCustomer();
    openCustomerFromMap(userId);
+   status.textContent='✓ Dealer approved successfully. Level 2: submit, view and bid enabled. Close this window when ready.';
+   accessStatus.textContent='Approved — your changes are saved.';
  }catch(error){status.textContent=error.message||String(error);accessStatus.textContent='Review the permission status before trying again.';}
  finally{button.disabled=false;}
 }
@@ -1183,7 +1184,7 @@ function customerRequiredActionHtml(c){
     !String(c.phone||"").trim() ? '<button type="button" class="primary" onclick="openCustomerPhoneEditor(\''+c.customerId+'\')">Add phone / WhatsApp →</button>' : '',
     '<button type="button" onclick="openEditCustomer(\''+c.customerId+'\')">Edit customer</button>',
     !confirmed ? '<button type="button" class="primary" onclick="generateConfirmationText(\''+c.customerId+'\')">Create verification link</button>' : '',
-    '<a href="admin-onboarding.html?customer='+encodeURIComponent(c.customerId)+'">Open Onboarding →</a>'
+    '<a title="Review setup progress, missing details and send help or reminders" href="admin-onboarding.html?customer='+encodeURIComponent(c.customerId)+'">View setup progress &amp; reminders →</a>'
   ].join("");
   return '<div class="profile-required-action">'+
     '<div class="eyebrow">Your next action</div>'+
@@ -2818,6 +2819,19 @@ function openCustomerFromMap(customerId){
 
     const action=new URLSearchParams(window.location.search).get("action");
     const reviewPanel=card.querySelector("[data-buyer-setup-review]");
+    if(reviewPanel && ["uk_dealer","uk_distributor"].includes(String(customerOnboardingMap[String(customer.customerId)]?.customer_type||""))){
+      sb.rpc("admin_get_dealer_access_v1",{p_user_id:String(customer.customerId)}).then(({data,error})=>{
+        if(error||!data||Number(data.level)<2)return;
+        const panel=card.querySelector("[data-buyer-setup-review]");
+        if(!panel)return;
+        const heading=panel.querySelector("h3");
+        if(heading)heading.textContent="✓ UK dealership approved — Level 2";
+        const description=panel.querySelector("p");
+        if(description)description.textContent="Dealer can buy, sell and trade. Underwriting submission, viewing and bidding permissions: "+(data.can_submit_underwrites&&data.can_view_underwrites&&data.can_offer_underwrites?"all enabled.":"review access settings.");
+        const btn=panel.querySelector('button[onclick^="reviewDealerApproval"]');
+        if(btn){btn.textContent="Review dealer permissions →";btn.classList.remove("primary");}
+      });
+    }
 
     if(action==="review-setup" && reviewPanel){
       switchTab(customer.id,"profile");
