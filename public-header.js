@@ -1661,10 +1661,13 @@ async function loadCustomerHeaderActivity(user){
     setNotificationCount(bellCount);
     renderNotificationList(bellItems);
 
+    const messageNotificationCount=activeNotificationRows.filter(row=>String(row.type||"").toLowerCase().includes("message")).length;
+    const displayedMessageCount=Math.max(unreadMessageCount,messageNotificationCount);
+    window.anybikeCustomerUnreadSnapshot={count:bellCount,messageCount:displayedMessageCount,notificationCount:bellCount};
     window.dispatchEvent(new CustomEvent("anybikeCustomerUnreadChanged",{
       detail:{
         count:bellCount,
-        messageCount:unreadMessageCount,
+        messageCount:displayedMessageCount,
         notificationCount:bellCount,
         items:bellItems
       }
