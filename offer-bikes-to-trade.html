@@ -14,12 +14,12 @@ button,.btn{border:0;border-radius:10px;background:#ed1c24;color:#fff;padding:12
 </style></head>
 <body><div id="publicHeader"></div><main>
 <p><a href="/my-dealership.html">← My Dealership</a></p>
-<header class="hero"><div class="eyebrow">My Dealership · Trade services</div><h1>Offer Bikes to Trade</h1><p>Have motorcycles you'd like to move on? Add their advertisements and tell AnyBike the minimum trade price you'd accept for each one.</p><span class="tag">Admin review required · not published automatically</span></header>
-<section class="card"><h2>Add a motorcycle from an existing advert</h2><p>Paste your advert link and minimum trade price. Then complete the motorcycle details and photos before AnyBike reviews it for confidential trade bidding.</p>
+<header class="hero"><div class="eyebrow">My Dealership · Trade services</div><h1>Offer Bikes to Trade</h1><p>Have motorcycles you'd like to move on? Submit their details or existing advertisements and tell AnyBike the minimum trade price you'd accept for each one.</p><span class="tag">Admin review required · not published automatically</span></header>
+<section class="card"><h2>Add a motorcycle to trade</h2><p>Enter your confidential minimum trade price. An advert link is optional: paste one if you have it, or continue directly to motorcycle details and upload photographs.</p>
 <form id="addForm" class="formgrid">
-<div><label for="advertUrl">Advertisement link</label><input id="advertUrl" type="url" required placeholder="https://www.autotrader.co.uk/bike-details/..." autocomplete="off"><p class="small">Motorcycle details and photos are completed in the next step. An advert link alone cannot verify a motorcycle.</p></div>
+<div><label for="advertUrl">Existing advertisement link (optional)</label><input id="advertUrl" type="url" placeholder="https://www.autotrader.co.uk/bike-details/..." autocomplete="off"><p class="small">Any public motorcycle advert webpage can be supplied. Some websites block automatic photo access; you can always upload photos yourself.</p></div>
 <div class="price"><label for="minimumPrice">Minimum trade price (£)</label><input id="minimumPrice" type="number" min="1" step="1" inputmode="numeric" required placeholder="e.g. 5500"><p class="small">Confidential to AnyBike. Not shown to bidders.</p></div>
-<div class="actions"><button type="submit">Continue to motorcycle details →</button></div></form>
+<div class="actions"><button type="submit">Continue to motorcycle details & photos →</button></div></form>
 <p id="feedback" role="status" class="small"></p></section>
 <section class="card"><h2>What happens next?</h2><p>Complete motorcycle details, condition and photographs, then submit securely for AnyBike review. Once approved, AnyBike can open confidential bidding to eligible UK dealers. Nothing is published automatically.</p><p><a href="/dealer-underwrite.html">Request an Underwrite instead →</a></p></section>
 </main>
@@ -28,13 +28,12 @@ button,.btn{border:0;border-radius:10px;background:#ed1c24;color:#fff;padding:12
  const url=document.getElementById("advertUrl"),price=document.getElementById("minimumPrice"),feedback=document.getElementById("feedback");
  document.getElementById("addForm").addEventListener("submit",function(e){
   e.preventDefault();
-  let parsed;try{parsed=new URL(url.value.trim())}catch(_){feedback.textContent="Enter a valid advertisement link.";return}
-  if(!["https:","http:"].includes(parsed.protocol)){feedback.textContent="Enter a valid HTTP or HTTPS advert link.";return}
+  let parsed=null;if(url.value.trim()){try{parsed=new URL(url.value.trim())}catch(_){feedback.textContent="Enter a valid advertisement link, or leave it blank.";return}if(!["https:","http:"].includes(parsed.protocol)){feedback.textContent="Enter an HTTP or HTTPS advert link.";return}}
   const amount=Number(price.value);
   if(!Number.isFinite(amount)||amount<=0){feedback.textContent="Enter your confidential minimum trade price.";return}
   const dest=new URL("/dealer-underwrite.html",location.origin);
   dest.searchParams.set("route","trade");
-  dest.searchParams.set("advert",parsed.href);
+  if(parsed)dest.searchParams.set("advert",parsed.href);
   dest.searchParams.set("minimum_price",String(amount));
   location.assign(dest.pathname+dest.search);
  });
