@@ -1949,7 +1949,7 @@ async function loadCustomerEnquiries(){
         const subject=String(thread.subject||"").toLowerCase();
 
        return source.includes("trade_underwrite_invitation") ||
-  return source.includes("anybike welcome") ||
+  source.includes("anybike welcome") ||
   source.includes("stock_photo_request") ||
   source.includes("global buyer") ||
   source.includes("live chat") ||
@@ -2017,23 +2017,18 @@ async function loadCustomerEnquiries(){
 
   // Paint the inbox immediately. Load conversation bodies and attachments after
   // the browser has had an opportunity to render the list.
-  const hydrateConversations=()=>{
-    bikeRows.forEach(row=>{
-      Promise.allSettled([
-        loadCustomerMessages(row.data.id),
-        loadBikeConversationDocuments(row.data.id),
-        loadBikeSharedMotorcycleDocuments(row.data.id)
-      ]);
-    });
-    globalRows.forEach(row=>{
-      Promise.allSettled([
-        loadGlobalBuyerMessages(row.data.id),
-        loadGlobalConversationDocuments(row.data.id),
-        loadGlobalSharedMotorcycleDocuments(row.data.id)
-      ]);
-    });
-  };
-  setTimeout(hydrateConversations,0);
+  // Fetch a conversation only when it is opened, rather than fetching every
+  // message body and document for every thread on initial page load.
+  const requestedConversation=openConversationKey;
+  if(requestedConversation){
+    const id=Number(String(requestedConversation).replace(/^(global|bike)-/,""));
+    if(id>0){
+      const loaders=String(requestedConversation).startsWith("global-")
+        ?[loadGlobalBuyerMessages(id),loadGlobalConversationDocuments(id),loadGlobalSharedMotorcycleDocuments(id)]
+        :[loadCustomerMessages(id),loadBikeConversationDocuments(id),loadBikeSharedMotorcycleDocuments(id)];
+      Promise.allSettled(loaders);
+    }
+  }
 
   updateCustomerUnreadMessageCount();
 
