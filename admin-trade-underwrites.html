@@ -180,13 +180,19 @@ function openAuctionSellerChecks(id){
  card.classList.add("decision-target-card");
  window.setTimeout(()=>card.classList.remove("decision-target-card"),4500);
 }
+async function requestSellerMinimumPrompt(opportunityId){
+ if(!confirm("Send one confidential minimum-price reminder to the verified seller through their AnyBike notification bell? No prices or dealer bids will be disclosed."))return;
+ const {data,error}=await sb.rpc("admin_request_seller_minimum_for_auction_v1",{p_opportunity_id:Number(opportunityId)});
+ if(error){alert("Could not request seller minimum: "+error.message);return;}
+ alert(data?"Seller reminder added. The seller can set their minimum in My Selling.":"No reminder sent: the minimum is already recorded, the seller is not linked, or a reminder has already been sent.");
+}
 function auctionNineSteps(r){
  const id=Number(r.opportunity_id),bids=Number(r.live_bid_count||0),invited=Number(r.invited_trade_count||0)>0;
  const sellerPrice=Number(r.seller_price_wanted_gbp)>0,offer=String(r.latest_offer_status||""),accepted=offer==="accepted";
  const offerSent=["sent","accepted","countered"].includes(offer),checked=!!approvedFinalChecks[id],completed=r.opportunity_status==="completed";
  const actions=[
  ["Motorcycle received","Motorcycle entered into AnyBike",true,null],
- ["Seller minimum","Confirm the lowest price the seller will accept",sellerPrice,"editSellerMinimum("+id+")"],
+ ["Seller minimum","Ask the seller to set a confidential minimum if not supplied",sellerPrice,"requestSellerMinimumPrompt("+id+")"],
  ["Invite dealers","Invite verified dealers to bid privately",invited,"openDealerInvites("+id+")"],
  ["Review trade offers","Review confidential dealer bids",bids>0,"viewBids("+id+")"],
  ["Costs and margin","Check collection, costs and whether the deal makes sense",false,"openReserveReview("+id+")"],
