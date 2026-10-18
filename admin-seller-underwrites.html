@@ -441,7 +441,7 @@ function render(){
           (r.message_thread_id?'<a class="btn" href="/admin-message-centre.html?thread='+Number(r.message_thread_id)+'">Open Message</a>':"")+
           '<button type="button" data-action="collapse" data-id="'+Number(r.submission_id)+'">▲ Collapse submission</button>'+
         '</div>'+
-        '<div style="margin-top:12px;padding:10px 12px;border:1px solid #5a2b2d;border-radius:10px;background:#1b1010"><strong>Your Next Action →</strong><p style="margin:5px 0 9px;font-size:13px">'+(r.underwrite_status==="live"?"The trade bidding is live. Review bids in the Trade Underwrite Desk, then complete Seller Confirmation / HPI Check before selecting a buyer.":"Review the motorcycle details and buyer-safe photographs first. Starting trade bidding will invite verified UK dealers; you will be asked to confirm before any invitations are sent. Stock comparisons are optional.")+'</p>'+(r.underwrite_status==="live"?'<a class="btn" href="/admin-trade-underwrites.html">OPEN TRADE UNDERWRITE DESK →</a>':(!r.make||!r.model?'<button type="button" data-action="edit-bike" data-id="'+Number(r.submission_id)+'">COMPLETE MOTORCYCLE DETAILS →</button>' :'<button type="button" data-action="start-underwrite" data-id="'+Number(r.submission_id)+'">START TRADE BIDDING →</button>'))+'</div>'+ 
+        '<div style="margin-top:12px;padding:10px 12px;border:1px solid #5a2b2d;border-radius:10px;background:#1b1010"><strong>Your Next Action →</strong><p style="margin:5px 0 9px;font-size:13px">'+(r.underwrite_status==="live"?"The trade bidding is live. Review bids in the Trade Underwrite Desk, then complete Seller Confirmation / HPI Check before selecting a buyer.":"Check the existing motorcycle gallery: approved photos are ready; rotate or reject any unsuitable images. Then start UK trade bidding to invite only verified dealerships opted in by Admin. You will confirm before invitations are sent.")+'</p>'+(r.underwrite_status==="live"?'<a class="btn" href="/admin-trade-underwrites.html">OPEN TRADE UNDERWRITE DESK →</a>':(!r.make||!r.model?'<button type="button" data-action="edit-bike" data-id="'+Number(r.submission_id)+'">COMPLETE MOTORCYCLE DETAILS →</button>' :'<button type="button" data-action="start-underwrite" data-id="'+Number(r.submission_id)+'">START TRADE BIDDING →</button>'))+'</div>'+ 
         (dealer?'<button type="button" data-international-id="'+Number(r.submission_id)+'" onclick="toggleInternationalConsideration('+Number(r.submission_id)+')" style="margin-top:8px">'+(internationalSelections.get(Number(r.submission_id))?'✓ International consideration selected — Remove':'Consider for international buyers later')+'</button><div class="sub">Admin-only shortlist. Does not publish or contact buyers.</div>':'')+'<div id="action-status-'+Number(r.submission_id)+'" class="sub" style="margin-top:8px;min-height:16px"></div>'+
       '</article>'+
     '</div>';
@@ -600,7 +600,7 @@ async function startUnderwrite(id){
   const buttons=[...document.querySelectorAll('[data-action="start-underwrite"][data-id="'+Number(id)+'"]')];
   buttons.forEach(b=>{b.disabled=true;b.textContent="Starting trade bidding…"});
   const actionStatus=document.getElementById("action-status-"+id);
-  if(actionStatus)actionStatus.textContent="Sending invitations to verified trade dealers…";
+  if(actionStatus)actionStatus.textContent="Inviting verified UK trade-auction recipients selected by Admin…";
   const {data,error}=await sb.rpc("admin_create_trade_underwrite_v1",{
     p_submission_id:Number(id),
     p_duration_hours:hours,
@@ -608,7 +608,7 @@ async function startUnderwrite(id){
   });
   if(error){window.anybikeUnderwritePending.delete(Number(id));buttons.forEach(b=>{b.disabled=false;b.textContent="Start Trade Bidding →"});if(actionStatus)actionStatus.textContent="Could not start bidding: "+error.message;return;}
   window.anybikeUnderwritePending.delete(Number(id));
-  const successMessage="✓ Trade bidding started — "+Number(data.invited_count||0)+" verified UK dealer"+(Number(data.invited_count||0)===1?" invited.":"s invited.");
+  const successMessage="✓ Trade bidding started — "+Number(data.invited_count||0)+" opted-in verified UK dealer"+(Number(data.invited_count||0)===1?" invited.":"s invited.");
   if(actionStatus){actionStatus.textContent=successMessage;actionStatus.style.color="#91e6a4";}
   buttons.forEach(b=>{b.disabled=true;b.textContent="✓ Trade Bidding Started";});
   try{
