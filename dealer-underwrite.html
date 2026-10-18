@@ -71,7 +71,7 @@ textarea{min-height:90px;resize:vertical}
 .auth-pending #underwriteForm{opacity:.45;pointer-events:none}
 .auth-check{display:none;margin-bottom:14px;padding:12px 14px;border:1px solid #333;border-radius:12px;background:#0d0d0d;color:#bbb}
 .auth-pending .auth-check{display:block}
-.trade-import-progress{display:none;margin:0 0 16px;padding:14px 18px;background:#111;border:1px solid #333;border-radius:12px}.trade-import-progress strong{display:block;margin-bottom:9px}.trade-progress-track{height:9px;background:#343434;overflow:hidden;border-radius:20px}.trade-progress-fill{height:100%;width:12%;background:#ed1c24;border-radius:20px}.trade-import-progress.loading .trade-progress-fill{width:36%;animation:tradeLoading 1.5s ease-in-out infinite alternate}.trade-import-progress.complete .trade-progress-fill{width:100%;animation:none}@keyframes tradeLoading{from{transform:translateX(-80%)}to{transform:translateX(240%)}}.trade-progress-caption{color:#bbb;font-size:12px;margin-top:8px}
+.trade-import-progress{display:none;margin:12px 0 12px;padding:14px 18px;background:#111;border:1px solid #333;border-radius:12px}.trade-import-progress strong{display:block;margin-bottom:9px}.trade-progress-track{height:9px;background:#343434;overflow:hidden;border-radius:20px}.trade-progress-fill{height:100%;width:12%;background:#ed1c24;border-radius:20px}.trade-import-progress.loading .trade-progress-fill{width:36%;animation:tradeLoading 1.5s ease-in-out infinite alternate}.trade-import-progress.complete .trade-progress-fill{width:100%;animation:none}@keyframes tradeLoading{from{transform:translateX(-80%)}to{transform:translateX(240%)}}.trade-progress-caption{color:#bbb;font-size:12px;margin-top:8px}
 </style>
 </head>
 <body>
@@ -80,7 +80,7 @@ textarea{min-height:90px;resize:vertical}
   <div class="underwrite-logo"><a href="/" aria-label="AnyBike home"><img src="/anybike-logo-new.jpg" alt="AnyBike"></a></div>
   <a class="back" href="/my-dealership.html">← My Dealership</a>
 
-  <div id="tradeImportProgress" class="trade-import-progress" role="status" aria-live="polite"><strong id="tradeProgressHeading">Checking motorcycle advert…</strong><div class="trade-progress-track"><div class="trade-progress-fill"></div></div><div id="tradeProgressCaption" class="trade-progress-caption">Looking for motorcycle details and photographs</div></div>
+  
 
   <section class="hero">
     <div class="eyebrow">My Dealership</div>
@@ -94,7 +94,7 @@ textarea{min-height:90px;resize:vertical}
     <a id="submitAnother" class="btn" href="/underwrite.html" style="display:none;margin:0 0 14px;text-align:center;text-decoration:none">Submit Another Motorcycle →</a>
 
     <form id="underwriteForm">
-      <div id="advertImportPanel" class="field" style="display:none;grid-column:1/-1;border:1px solid #555;border-radius:12px;padding:16px;background:#171717"><strong>Importing motorcycle advert details…</strong><p id="advertImportStatus" class="small" role="status">You can complete this form while we check the link.</p><div id="advertImportImages" style="display:flex;flex-wrap:wrap;gap:9px"></div></div>
+      <div id="advertImportPanel" class="field" style="display:none;grid-column:1/-1;border:1px solid #555;border-radius:12px;padding:16px;background:#171717"><strong id="advertImportHeading">Importing motorcycle advert details…</strong><div id="tradeImportProgress" class="trade-import-progress" role="status" aria-live="polite"><strong id="tradeProgressHeading">Checking motorcycle advert…</strong><div class="trade-progress-track"><div class="trade-progress-fill"></div></div><div id="tradeProgressCaption" class="trade-progress-caption">Looking for motorcycle details and photographs</div></div><p id="advertImportStatus" class="small" role="status">You can complete this form while we check the link.</p><div id="advertImportImages" style="display:flex;flex-wrap:wrap;gap:9px"></div></div>
       <div class="field">
         <label for="registration">Registration</label>
         <input id="registration" name="registration" required autocomplete="off" value="TBC" placeholder="TBC">
@@ -291,7 +291,7 @@ async function importTradeAdvert(){
   try{
     const response=await fetch(SUPABASE_URL+"/functions/v1/preview-dealer-advert",{method:"POST",headers:{"authorization":"Bearer "+token,"apikey":SUPABASE_ANON_KEY,"content-type":"application/json"},body:JSON.stringify({url:source})});
     const result=await response.json();
-    if(!result.success){status.textContent=result.error||"Automatic import unavailable. Continue manually.";progress.classList.remove("loading");progressHead.textContent="Advert import unavailable";progressCaption.textContent="Enter motorcycle details manually below.";return;}
+    if(!result.success){status.textContent=result.error||"Automatic import unavailable. Continue manually.";progress.classList.remove("loading");progressHead.textContent="Advert import unavailable";document.getElementById("advertImportHeading").textContent="Motorcycle advert details";progressCaption.textContent="Enter motorcycle details manually below.";return;}
     const set=(id,v)=>{const e=document.getElementById(id);if(e&&v&&(!e.value||(id==="registration"&&e.value==="TBC")))e.value=String(v);};
     const make=document.getElementById("make"),model=document.getElementById("model");
     const brand=String(result.make||"").trim();const makeOption=[...make.options].find(o=>o.value.toLowerCase()===brand.toLowerCase());
@@ -301,7 +301,7 @@ async function importTradeAdvert(){
     set("bike_year",result.year);set("mileage",String(result.mileage||"").replace(/[^0-9]/g,""));set("registration",result.registration);
     const notes=document.getElementById("notes");if(notes&&result.description&&!notes.value.includes(result.description))notes.value=(notes.value?notes.value+"\n":"")+result.description;
     progress.classList.remove("loading");progress.classList.add("complete");
-    progressHead.textContent="Advert check complete";
+    progressHead.textContent="Advert check complete";document.getElementById("advertImportHeading").textContent="Motorcycle advert details";
     progressCaption.textContent="Mileage: "+(result.mileage?"found":"not available")+" · Photos: "+(Array.isArray(result.images)&&result.images.length?result.images.length+" links found (not attached)":"not available")+" · You can complete the remaining details below.";
     if(result.title)status.textContent="Found: "+result.title+". Please verify every detail and photo before submitting.";
     else status.textContent="Advert details checked. Please confirm and complete missing fields.";
