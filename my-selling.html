@@ -38,6 +38,8 @@ main{max-width:none;width:100%;margin:0;padding:18px 22px 48px}
     if(ownError)throw ownError;
     const present=new Set(rows.map(item=>String(item.id||item.submission_id||item.reference)));
     for(const sale of allOwn||[]){
+      const existing=rows.find(x=>String(x.id||x.submission_id)===String(sale.id)||x.reference===sale.reference);
+      if(existing){existing.asking_price_gbp=sale.asking_price_gbp;existing.price_wanted_gbp=sale.price_wanted_gbp;continue;}
       if(present.has(String(sale.id))||present.has(String(sale.reference)))continue;
       rows.push(sale);present.add(String(sale.id));present.add(String(sale.reference));
     }
@@ -146,27 +148,43 @@ main{max-width:none;width:100%;margin:0;padding:18px 22px 48px}
    }
    if(!saleAgreed){
      const section=document.createElement("section");section.className="seller-help-item";section.id="price-"+item.reference;
-     const title=document.createElement("h4");title.textContent=Number(item.price_wanted_gbp)>0?"Lower your minimum selling price":"Set your minimum selling price";
-     const current=document.createElement("p");current.textContent=Number(item.price_wanted_gbp)>0?"Your current minimum: £"+Number(item.price_wanted_gbp).toLocaleString("en-GB",{minimumFractionDigits:2,maximumFractionDigits:2}):"No minimum selling price recorded yet.";
-     const guidance=document.createElement("p");guidance.textContent=Number(item.price_wanted_gbp)>0?"You may lower your minimum if you wish. This does not commit you to a sale.":"Tell AnyBike the minimum you would be happy to receive. This is optional, confidential and does not commit you to selling.";
-     const form=document.createElement("form");form.style.display="flex";form.style.flexWrap="wrap";form.style.gap="8px";
-     const input=document.createElement("input");input.type="number";input.min="1";input.step="0.01";if(Number(item.price_wanted_gbp)>0)input.max=String(item.price_wanted_gbp);input.placeholder=Number(item.price_wanted_gbp)>0?"New lower price (£)":"Your minimum price (£)";input.required=true;input.style.cssText="background:#080808;color:#fff;border:1px solid #777;border-radius:8px;padding:11px;flex:1;min-width:170px";
-     const button=document.createElement("button");button.type="submit";button.className="button";button.style.border="0";button.style.cursor="pointer";button.textContent=Number(item.price_wanted_gbp)>0?"Save lower price":"Save minimum price";
-     const feedback=document.createElement("p");feedback.setAttribute("role","status");feedback.style.fontWeight="700";
-     form.append(input,button);section.append(title,current,guidance,form,feedback);helpGrid.append(section);
+     const title=document.createElement("h4");title.textContent="Your selling prices";
+     const explanation=document.createElement("p");explanation.textContent="Asking price: what you would like to receive. Minimum price: the lowest amount you would consider. Both are private to AnyBike, optional and do not commit you to selling.";
+     const form=document.createElement("form");form.style.cssText="display:grid;grid-template-columns:repeat(2,minmax(150px,1fr));gap:12px;width:100%";
+     const priceFormat=n=>"£"+Number(n).toLocaleString("en-GB",{minimumFractionDigits:2,maximumFractionDigits:2});
+     function priceField(caption,value){
+       const label=document.createElement("label");label.style.cssText="display:grid;gap:6px;width:100%;font-size:13px;font-weight:700";
+       label.textContent=caption;
+       const input=document.createElement("input");input.type="number";input.min="1";input.max="9999999";input.step="0.01";input.placeholder="£";input.value=Number(value)>0?Number(value).toFixed(2):"";
+       input.style.cssText="width:100%;background:#080808;color:white;border:1px solid #777;border-radius:8px;padding:11px";
+       label.append(input);form.append(label);return input;
+     }
+     const asking=priceField("Asking price (£)",item.asking_price_gbp);
+     const minimum=priceField("Minimum selling price (£)",item.price_wanted_gbp);
+     const button=document.createElement("button");button.type="submit";button.className="button";button.style.cssText="border:0;cursor:pointer;justify-self:start";button.textContent="Save my prices";
+     const feedback=document.createElement("p");feedback.setAttribute("role","status");feedback.style.cssText="font-weight:700;grid-column:1/-1";
+     form.append(button,feedback);section.append(title,explanation,form);helpGrid.append(section);
      form.addEventListener("submit",async event=>{
-       event.preventDefault();const next=Number(input.value),prior=Number(item.price_wanted_gbp);
-       if(!Number.isFinite(next)||next<=0||(prior>0&&next>=prior)){feedback.textContent=prior>0?"Please enter an amount below your current minimum.":"Please enter a positive minimum selling price.";feedback.style.color="#ff9399";return}
-       if(!confirm((prior>0?"Lower your minimum selling price from £"+prior.toFixed(2):"Set your minimum selling price")+" to £"+next.toFixed(2)+"? This does not accept a dealer offer."))return;
+       event.preventDefault();
+       const rawAsk=asking.value.trim(),rawMin=minimum.value.trim();
+       const nextAsk=rawAsk===""?null:Number(rawAsk),nextMin=rawMin===""?null:Number(rawMin);
+       const prevAsk=Number(item.asking_price_gbp)||0,prevMin=Number(item.price_wanted_gbp)||0;
+       if(nextAsk===null&&nextMin===null){feedback.textContent="Enter at least one price.";return;}
+       if((nextAsk!==null&&(!Number.isFinite(nextAsk)||nextAsk<=0))||(nextMin!==null&&(!Number.isFinite(nextMin)||nextMin<=0))){feedback.textContent="Please enter valid positive amounts.";return;}
+       if(nextMin!==null&&prevMin>0&&nextMin>prevMin){feedback.textContent="You can lower your minimum here, but not raise an existing minimum.";return;}
+       if((nextAsk??prevAsk)>0&&(nextMin??prevMin)>0&&(nextAsk??prevAsk)<(nextMin??prevMin)){feedback.textContent="Asking price must be at least your minimum.";return;}
+       const summary=[nextAsk!==null?"Asking price: "+priceFormat(nextAsk):"",nextMin!==null?"Minimum: "+priceFormat(nextMin):""].filter(Boolean).join(" · ");
+       if(!confirm("Save "+summary+" for "+item.reference+"? Your prices stay confidential and this does not agree a sale."))return;
        button.disabled=true;button.textContent="Saving…";
        try{
-         const {data,error}=await client.rpc("seller_set_or_lower_minimum_v1",{p_reference:item.reference,p_price:next});
+         const {data,error}=await client.rpc("seller_save_price_preferences_v1",{p_reference:item.reference,p_asking_price:nextAsk,p_minimum_price:nextMin});
          if(error)throw error;
-         item.price_wanted_gbp=Number(data.price_wanted_gbp);
-         current.textContent="Your current minimum: £"+Number(item.price_wanted_gbp).toLocaleString("en-GB",{minimumFractionDigits:2,maximumFractionDigits:2});
-         feedback.textContent="✓ Your minimum selling price has been saved.";title.textContent="Lower your minimum selling price";input.placeholder="New lower price (£)";input.max=String(item.price_wanted_gbp);feedback.style.color="#87eca4";input.value="";
-       }catch(error){feedback.textContent="Could not save the change: "+String(error.message||error);feedback.style.color="#ff9399"}
-       finally{button.disabled=false;button.textContent="Save lower price"}
+         item.asking_price_gbp=data.asking_price_gbp;item.price_wanted_gbp=data.price_wanted_gbp;
+         asking.value=Number(item.asking_price_gbp)>0?Number(item.asking_price_gbp).toFixed(2):"";
+         minimum.value=Number(item.price_wanted_gbp)>0?Number(item.price_wanted_gbp).toFixed(2):"";
+         feedback.textContent="✓ Your private selling prices have been saved.";feedback.style.color="#87eca4";
+       }catch(error){feedback.textContent="Could not save prices: "+String(error.message||error);feedback.style.color="#ff9399";}
+       finally{button.disabled=false;button.textContent="Save my prices";}
      });
    }
    if(!saleAgreed && helpGrid && helpGrid.children.length===1 && false){
