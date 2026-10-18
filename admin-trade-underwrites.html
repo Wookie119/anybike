@@ -227,20 +227,17 @@ async function openDealerInvites(id){
  document.getElementById("dealerInviteStatus").textContent="Checking invitation history and eligible dealers…";
  document.getElementById("dealerInviteList").textContent="Loading…";
  document.getElementById("dealerInviteModal").classList.add("open");
- const [eligible,history,seller]=await Promise.all([
+ const [eligible,safety]=await Promise.all([
    sb.rpc("admin_list_eligible_trade_dealers_v1"),
-   sb.from("anybike_trade_underwrite_invitations").select("dealer_organisation_id").eq("opportunity_id",dealerInviteOpportunity),
-   sb.from("seller_motorcycle_submissions").select("dealer_organisation_id").eq("id",Number(op?.submission_id||0)).maybeSingle()
+   sb.rpc("admin_trade_invite_safety_v1",{p_opportunity_id:dealerInviteOpportunity})
  ]);
- if(eligible.error){document.getElementById("dealerInviteList").textContent=eligible.error.message;return;}
- // If existing-invitation or ownership verification fails, do not permit sending.
- if(history.error||seller.error){
-   document.getElementById("dealerInviteList").textContent="Invitation safety check unavailable. Retry later.";
-   document.getElementById("dealerInviteStatus").textContent=(history.error||seller.error).message;return;
+ if(eligible.error||safety.error){
+   document.getElementById("dealerInviteList").textContent="Dealer eligibility or invitation safety check unavailable. Retry later.";
+   document.getElementById("dealerInviteStatus").textContent=(eligible.error||safety.error).message;return;
  }
  dealerInviteRows=eligible.data||[];
- dealerInviteExisting=new Set((history.data||[]).map(i=>Number(i.dealer_organisation_id)));
- dealerInviteSellerId=Number(seller.data?.dealer_organisation_id)||null;
+ dealerInviteExisting=new Set((safety.data?.invited_dealer_ids||[]).map(Number));
+ dealerInviteSellerId=Number(safety.data?.seller_dealer_id)||null;
  document.getElementById("dealerInviteStatus").textContent="Choose dealers, then review the exact recipients before sending. No messages are sent by selecting.";
  drawDealerInvites();
 }
