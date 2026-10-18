@@ -1,0 +1,1 @@
+alter table public.anybike_dealer_service_permissions add column if not exists move_delivery_interest boolean not null default false;
