@@ -164,6 +164,13 @@ input{background:#090909;color:#fff;border:1px solid #333;border-radius:10px;pad
 <p>This is AnyBike's own offer. The seller will not see trade bids or bidder identities.</p>
 <label>Offer to seller (£)<input id="offerAmount" type="number" min="1" step="0.01"></label><p id="offerSellerPriceHelp" role="status" style="font-size:12px;color:#ddd;margin:6px 0">Seller payment must be checked before sending.</p>
 <label style="margin-left:10px">Valid for hours<input id="offerHours" type="number" value="24" min="1" max="168"></label>
+<div id="offerCommercialConfirm" style="border:1px solid #555;border-radius:9px;padding:13px;margin-top:12px">
+<strong>Commercial confirmation required</strong>
+<p style="font-size:12px;color:#bbb">The saved buying price is a draft. Before creating an offer, confirm the Move collection and delivery allowance. This does not book transport or send an offer.</p>
+<label>Confirmed Move transport cost (£)<input id="offerConfirmedTransport" type="number" min="0" step="0.01" placeholder="Enter confirmed amount"></label>
+<label style="display:flex;align-items:center;gap:9px;margin:11px 0"><input type="checkbox" id="offerMoveQuoteConfirmed"> I have checked and confirmed the Move transport cost</label>
+<button type="button" id="offerConfirmCommercial" onclick="confirmOfferCommercial()">Confirm commercial figures →</button>
+<p id="offerCommercialStatus" role="status" style="font-size:12px"></p></div>
 <div class="actions"><button class="red" onclick="saveOffer()">Create AnyBike Offer</button><button onclick="closeOffer()">Cancel</button></div></div></div>
 
 <script>
@@ -750,6 +757,12 @@ async function openOffer(id){
  amountInput.value="";
  status.textContent="Loading saved seller payment…";
  document.getElementById("offerModal").classList.add("open");
+ const confirmation=document.getElementById("offerCommercialConfirm");
+ confirmation.dataset.confirmedAmount="";
+ confirmation.dataset.confirmedTransport="";
+ document.getElementById("offerConfirmedTransport").value="";
+ document.getElementById("offerMoveQuoteConfirmed").checked=false;
+ document.getElementById("offerCommercialStatus").textContent="";
  const row=rows.find(r=>Number(r.opportunity_id)===Number(id));
  try{
   const {data,error}=await sb.rpc("admin_get_underwrite_commercial_saved_v1",{p_opportunity_id:Number(id)});
@@ -768,8 +781,33 @@ async function openOffer(id){
  }catch(e){if(offerId===id)status.textContent="Unable to load seller assessment. Check the seller price before sending.";}
 }
 function closeOffer(){offerId=null;document.getElementById("offerModal").classList.remove("open");}
+async function confirmOfferCommercial(){
+ const amount=Number(document.getElementById("offerAmount").value);
+ const transportText=document.getElementById("offerConfirmedTransport").value.trim();
+ const cost=Number(transportText);
+ const checked=document.getElementById("offerMoveQuoteConfirmed").checked;
+ const status=document.getElementById("offerCommercialStatus");
+ if(!Number.isFinite(amount)||amount<=0){status.textContent="Enter a valid offer price.";return;}
+ if(!transportText||!Number.isFinite(cost)||cost<0||!checked){status.textContent="Enter the confirmed Move transport cost and tick confirmation.";return;}
+ if(!confirm("Confirm buying price £"+amount.toFixed(2)+" and Move transport cost £"+cost.toFixed(2)+" for internal commercial review? This does not send a seller offer."))return;
+ const button=document.getElementById("offerConfirmCommercial");button.disabled=true;
+ const args={p_opportunity_id:Number(offerId),p_seller_payment_gbp:amount,p_transport_cost_gbp:cost,p_other_costs_gbp:0,p_seller_contribution_gbp:0,p_dealer_contribution_gbp:0,p_minimum_margin_gbp:0,p_move_quote_confirmed:true,p_contributions_agreed:false};
+ try{
+  const {data,error}=await sb.rpc("admin_save_underwrite_commercial_review_v2",args);
+  if(error)throw error;
+  if(!data?.reserve_met){status.textContent="Commercial review did not pass. Check seller minimum and dealer bid before proceeding.";return;}
+  status.textContent="✓ Commercial figures confirmed. You may now review and create the seller offer.";
+  status.style.color="#87eca4";
+  document.getElementById("offerCommercialConfirm").dataset.confirmedAmount=amount.toFixed(2);
+  document.getElementById("offerCommercialConfirm").dataset.confirmedTransport=cost.toFixed(2);
+  assessmentStageIds.add(Number(offerId));
+ }catch(error){status.textContent="Cannot confirm: "+String(error.message||error);}
+ finally{button.disabled=false;}
+}
 async function saveOffer(){
  const amount=Number(document.getElementById("offerAmount").value),hours=Number(document.getElementById("offerHours").value)||24;if(!amount){alert("Enter the AnyBike offer amount.");return;}
+ const confirmed=document.getElementById("offerCommercialConfirm");
+ if(confirmed.dataset.confirmedAmount!==amount.toFixed(2)){document.getElementById("offerCommercialStatus").textContent="Confirm the commercial figures before creating this offer.";return;}
  const {data,error}=await sb.rpc("admin_create_seller_underwrite_offer_v2",{p_opportunity_id:offerId,p_amount_gbp:amount,p_valid_hours:hours,p_internal_basis:{created_from:"trade_underwrite_desk"}});
  if(error){alert(error.message);return;}
  const {data:sessionData}=await sb.auth.getSession();
