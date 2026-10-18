@@ -168,7 +168,7 @@ input{background:#090909;color:#fff;border:1px solid #333;border-radius:10px;pad
 
 <script>
 const SUPABASE_URL="https://tuehtnezhdnkqbbhttgp.supabase.co",SUPABASE_ANON_KEY="sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
-const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);let rows=[],offerId=null,confirmBidId=null;let approvedFinalChecks={};
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);let assessmentStageIds=new Set();let rows=[],offerId=null,confirmBidId=null;let approvedFinalChecks={};
 const esc=v=>String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
 const money=v=>v===null||v===undefined?"—":new Intl.NumberFormat("en-GB",{style:"currency",currency:"GBP",minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(v));
 function openAuctionSellerChecks(id){
@@ -189,19 +189,19 @@ async function requestSellerMinimumPrompt(opportunityId){
 function auctionNineSteps(r){
  const id=Number(r.opportunity_id),bids=Number(r.live_bid_count||0),invited=Number(r.invited_trade_count||0)>0;
  const sellerPrice=Number(r.seller_price_wanted_gbp)>0,offer=String(r.latest_offer_status||""),accepted=offer==="accepted";
- const offerSent=["sent","accepted","countered"].includes(offer),checked=!!approvedFinalChecks[id],completed=r.opportunity_status==="completed";
+ const offerSent=["sent","accepted","countered"].includes(offer),assessmentSaved=assessmentStageIds.has(id),checked=!!approvedFinalChecks[id],completed=r.opportunity_status==="completed";
  const actions=[
  ["Motorcycle received","Motorcycle entered into AnyBike",true,null],
  ["Seller minimum","Ask the seller to set a confidential minimum if not supplied",sellerPrice,"requestSellerMinimumPrompt("+id+")"],
  ["Invite dealers","Invite verified dealers to bid privately",invited,"openDealerInvites("+id+")"],
  ["Review trade offers","Review confidential dealer bids",bids>0,"viewBids("+id+")"],
- ["Costs and margin","Check collection, costs and whether the deal makes sense",false,"openReserveReview("+id+")"],
+ ["Costs and margin","Buying price and gross margin saved for Admin review",assessmentSaved,"openReserveReview("+id+")"],
  ["Offer to seller","Prepare an offer for the seller — no automatic sending",offerSent,"openOffer("+id+")"],
  ["Seller acceptance","Record the seller's actual response",accepted,null],
  ["Vehicle and seller checks","Confirm HPI, finance, availability and agreed price",checked,"openFinalCheck("+id+")"],
  ["Choose buyer and Deal 360","Confirm the buying dealer, then progress the transaction",completed,completed?"openUnderwriteDeal("+id+")":"viewBids("+id+")"]
  ];
- const current=completed?9:!sellerPrice?2:!invited?3:!bids?4:!offerSent?5:!accepted?7:!checked?8:9;
+ const current=completed?9:!sellerPrice?2:!invited?3:!bids?4:!assessmentSaved?5:!offerSent?6:!accepted?7:!checked?8:9;
  return '<div class="auction-nine-steps" aria-label="Nine-stage motorcycle journey"><div class="journey-heading"><strong>Motorcycle journey · 9 steps</strong><small>Follow the highlighted step. Nothing is sent automatically.</small></div>'+
  actions.map((item,i)=>{const n=i+1,done=item[2],active=n===current;
  const action=active&&item[3]?'<button type="button" class="journey-step-go" onclick="'+item[3]+'">Next → '+esc(item[0])+'</button>':'';
@@ -291,6 +291,9 @@ async function load(){
    return;
  }
  rows=data||[];
+ const assessmentResults=await sb.rpc("admin_list_underwrite_assessment_stage_v1");
+ if(assessmentResults.error){console.warn("Assessment stage unavailable:",assessmentResults.error.message);assessmentStageIds=new Set();}
+ else assessmentStageIds=new Set((assessmentResults.data||[]).filter(r=>r.has_assessment).map(r=>Number(r.opportunity_id)));
  renderQuickAuctions();
  renderDecisionQueue();
  approvedFinalChecks={};
@@ -933,7 +936,7 @@ async function saveReserveReview(asDraft=false){
  try{
  const {data,error}=await sb.rpc(asDraft?"admin_save_underwrite_commercial_draft_v1":"admin_save_underwrite_commercial_review_v2",args);
  if(error)throw error;
- if(asDraft){const result=document.getElementById("rvResult");result.textContent="✓ Draft saved. No reserve confirmed, offer sent or price changed.";result.style.color="#87eca4";const indicator=document.getElementById("rvSaveStatus");indicator.textContent="✓ Draft saved to Supabase · "+new Date().toLocaleString("en-GB");indicator.classList.add("saved");return;}
+ if(asDraft){const result=document.getElementById("rvResult");result.textContent="✓ Draft saved. No reserve confirmed, offer sent or price changed.";result.style.color="#87eca4";const indicator=document.getElementById("rvSaveStatus");indicator.textContent="✓ Draft saved to Supabase · "+new Date().toLocaleString("en-GB");indicator.classList.add("saved");assessmentStageIds.add(Number(reserveReviewId));document.getElementById("reserveReviewModal").classList.remove("open");await load();return;}
  const outcome=data.reserve_met?"✓ Reserve met — internal review passed.":"Reserve not met — no seller-facing confirmation.";
  const result=document.getElementById("rvResult");result.textContent=outcome+" Combined deal margin: "+money(Number(data.calculated_margin_gbp)+n("rvTransport"))+" (AnyBike "+money(data.calculated_margin_gbp)+" + Move "+money(n("rvTransport"))+"), before actual Move operating costs. Best bid: "+money(data.bid_gbp)+".";
  result.style.color=data.reserve_met?"#87eca4":"#ffbaaa";
