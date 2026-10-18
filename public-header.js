@@ -2017,7 +2017,7 @@ function renderNotificationList(items){
 
     if(lowerLink.includes("accounts") || lowerTitle.includes("proforma") || lowerTitle.includes("payment")){
       actionLabel="View payment details →";
-    }else if(lowerTitle.includes("offer") || lowerLink.includes("offer")){
+    }else if(lowerLink.includes("/my-selling.html") || lowerTitle.includes("a dealer has made an offer on your motorcycle") || lowerTitle.includes("bidding has finished for your motorcycle")){\n      actionLabel="View bidding progress →";\n    }else if(lowerTitle.includes("offer") || lowerLink.includes("offer")){
       actionLabel="Review offer →";
     }else if(lowerLink.includes("sourced") || lowerTitle.includes("hand-picked") || lowerTitle.includes("match")){
       actionLabel="View motorcycles →";
