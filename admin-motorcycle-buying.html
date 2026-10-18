@@ -145,6 +145,22 @@ label{display:block;color:#bbb;font-size:12px;font-weight:800}input{width:100%;m
 .submission-detail .actions .red,.submission-detail .actions .btn.red,.submission-detail [data-action="start-underwrite"].red{background:#d71920;color:#fff;border:1px solid #fa4248;box-shadow:0 1px 0 rgba(255,255,255,.12) inset}
 .submission-detail .actions .red:hover,.submission-detail .actions .btn.red:hover,.submission-detail [data-action="start-underwrite"].red:hover{background:#f1262f}
 .submission-detail .actions .photo-request-action{white-space:normal}
+
+/* Advert-style primary review: undo the old narrow image sidebar and display prominent approved photograph. */
+.submission-detail .card:has(>.submission-gallery){display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;column-gap:20px!important;align-items:start}
+.submission-detail .card:has(>.submission-gallery)>.top,.submission-detail .card:has(>.submission-gallery)>.bike,.submission-detail .card:has(>.submission-gallery)>.sub:first-of-type{grid-column:1/-1!important;grid-row:auto!important}
+.submission-detail .card:has(>.submission-gallery)>.submission-gallery{grid-column:1!important;grid-row:4 / span 4!important;min-width:0!important;margin:5px 0!important}
+.submission-detail .card:has(>.submission-gallery)>.data{grid-column:2!important;grid-row:4!important;grid-template-columns:repeat(2,minmax(0,1fr))!important}
+.submission-detail .card:has(>.submission-gallery)>.seller-notes-compact{grid-column:2!important;grid-row:5!important;display:block!important;min-width:0}
+.submission-detail .card:has(>.submission-gallery)>.seller-notes-compact .box{margin-bottom:8px!important}
+.submission-detail .seller-notes-compact p{overflow-wrap:anywhere!important;word-break:break-word;max-height:none!important;overflow:visible!important}
+.submission-detail .card:has(>.submission-gallery)>.trade-bidding-primary,.submission-detail .card:has(>.submission-gallery)>.bike-quick-tools,.submission-detail .card:has(>.submission-gallery)>.bike-more-tools,.submission-detail .card:has(>.submission-gallery)>[id^="action-status-"]{grid-column:1/-1!important;grid-row:auto!important}
+.submission-detail .card:has(>.submission-gallery)>.bike-quick-tools{display:flex!important;flex-wrap:wrap;gap:12px;align-items:center}
+.submission-detail .card:has(>.submission-gallery)>.bike-quick-tools>*{width:auto!important;max-width:260px!important;background:#191919!important;color:white!important;border:1px solid #555!important}
+.submission-detail .card:has(>.submission-gallery)>.bike-more-tools>.grouped-bike-actions{display:flex!important;flex-wrap:wrap!important}
+.submission-gallery-hero{aspect-ratio:4/3;margin:0 0 10px;background:#090909;border:1px solid #444;border-radius:10px;overflow:hidden}
+.submission-gallery-hero img{width:100%;height:100%;object-fit:contain}
+@media(max-width:940px){.submission-detail .card:has(>.submission-gallery){display:block!important}.submission-detail .card:has(>.submission-gallery)>*{margin-bottom:12px!important}}
 </style>
 </head>
 <body>
@@ -444,9 +460,9 @@ function sellerNotesHtml(notes){
  const preference=(raw.match(/\[SELLER PREFERENCE\]([^\[\r\n]*)/)||[])[1]?.trim()||"";
  const finance=(raw.match(/\[FINANCE DECLARATION\]([^\[\r\n]*)/)||[])[1]?.trim()||"";
  const internal=(raw.match(/\[INTERNAL SELLER PRICE GUIDANCE[^\]]*\]([\s\S]*?)(?=\[[A-Z][A-Z ]+\]|$)/)||[])[1]?.trim()||"";
- const comments=raw.replace(/\[SELLER PREFERENCE\][^\[\r\n]*/g,"").replace(/\[FINANCE DECLARATION\][^\[\r\n]*/g,"").replace(/\[INTERNAL SELLER PRICE GUIDANCE[^\]]*\][\s\S]*$/g,"").trim();
+ const comments=raw.replace(/\\r\\n/g,"\n").split("\n").map(x=>x.trim()).filter(x=>x&&!x.startsWith("[")&&!/^https?:\/\//i.test(x)&&!/(searchId=|backLinkQueryParams=|calc-deposit=|postcode=|advertising-location=)/i.test(x)&&!/^Urgency:/i.test(x)).join(" ").slice(0,650).trim();
  return '<section class="seller-notes-compact" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px;margin:14px 0;align-items:start">'+
- '<div class="box"><strong>Seller comments</strong><p>'+esc(comments||"No additional comments")+'</p>'+(preference?'<small>'+esc(preference)+'</small>':'')+'</div>'+
+ '<div class="box"><strong>Seller comments</strong><p>'+esc(comments||"Advert description needs Admin review")+'</p>'+(preference?'<small>'+esc(preference)+'</small>':'')+'</div>'+
  '<div class="box"><strong>Finance &amp; history</strong><p>'+esc(finance||"Finance not declared")+'</p><small>Seller declaration only — verify before completion.</small></div>'+
  '<div class="box" style="border:1px solid #b87034"><details class="internal-review-notes"><summary><strong>Confidential AnyBike notes</strong> <small>— admin only · expand</small></summary><p>'+esc(internal||"No confidential price guidance recorded")+'</p></details></div></section>';
 }
@@ -519,7 +535,7 @@ function render(){
         '<div class="bike">'+esc(bike)+'</div>'+
         '<div class="sub">'+esc(r.registration||"No registration")+(r.bike_year?" · "+esc(r.bike_year):"")+(r.mileage!==null?" · "+Number(r.mileage).toLocaleString("en-GB")+" miles":"")+'</div>'+
         '<div class="data">'+
-          '<div class="box"><span>Seller price expectation</span><strong>'+(r.price_wanted_gbp===null||r.price_wanted_gbp===undefined?"Not provided":money(r.price_wanted_gbp))+'</strong>'+(tradeOpportunityBySubmission.has(Number(r.submission_id))?'<div style="margin-top:8px"><a class="btn" style="font-size:12px;padding:7px" href="/admin-trade-underwrites.html#underwrite-'+Number(tradeOpportunityBySubmission.get(Number(r.submission_id)).opportunity_id)+'">Set seller minimum · '+esc(tradeOpportunityBySubmission.get(Number(r.submission_id)).reference)+' →</a></div>':'')+'</div>'+
+          '<div class="box"><span>Seller price expectation</span><strong>'+(r.price_wanted_gbp===null||r.price_wanted_gbp===undefined?(dealer?"Not set — dealer bidding will establish value":"Not provided"):money(r.price_wanted_gbp))+'</strong>'+(tradeOpportunityBySubmission.has(Number(r.submission_id))?'<div style="margin-top:8px"><a class="btn" style="font-size:12px;padding:7px" href="/admin-trade-underwrites.html#underwrite-'+Number(tradeOpportunityBySubmission.get(Number(r.submission_id)).opportunity_id)+'">Set seller minimum · '+esc(tradeOpportunityBySubmission.get(Number(r.submission_id)).reference)+' →</a></div>':'')+'</div>'+
           '<div class="box"><span>Seller</span><strong>'+esc(seller)+'</strong><div style="margin-top:7px;font-size:12px">'+(r.seller_email?'<a style="color:#ff696e" href="mailto:'+encodeURIComponent(r.seller_email)+'">Email seller</a> ':'')+(r.seller_phone?'<a style="color:#ff696e;margin-left:10px" href="tel:'+esc(r.seller_phone)+'">Call seller</a> ':'')+(r.message_thread_id?'<a style="color:#ff696e;margin-left:10px" href="/admin-message-centre.html?thread='+Number(r.message_thread_id)+'">Conversation →</a>':'')+'</div></div>'+
 
           '<div class="box"><span>History check</span><strong>'+esc(r.hpi_clear===true?"Seller HPI clear indicated":"Not verified")+'</strong></div>'+
@@ -545,7 +561,7 @@ function render(){
               ?'<select id="underwrite-hours-'+Number(r.submission_id)+'" aria-label="Bidding time" style="max-width:185px"><option value="12">Urgent · 12 hours</option><option value="24">24 hours</option><option value="48" selected>Standard · 48 hours</option><option value="72">72 hours</option><option value="96">96 hours</option></select>'
               :'<button type="button" data-action="edit-bike" data-id="'+Number(r.submission_id)+'">Complete Motorcycle Details →</button>'))+
         '</div>'+
-        '<details class="bike-more-tools"><summary>More options</summary><div class="actions grouped-bike-actions">'+
+        '<details class="bike-more-tools" open><summary>Admin tools</summary><div class="actions grouped-bike-actions">'+
           (r.message_thread_id?'<a class="btn photo-request-action" href="/admin-message-centre.html?thread='+Number(r.message_thread_id)+'&photo_request=1&reference='+encodeURIComponent(r.reference||'')+'">Request More Photos</a>':'')+
           '<button type="button" data-action="comparables" data-id="'+Number(r.submission_id)+'">Stock Comparison</button>'+
           (r.seller_type==="private_seller"?'<button type="button" data-action="record-phone-authorisation" data-id="'+Number(r.submission_id)+'">Record telephone authorisation</button>':'')+
@@ -602,6 +618,10 @@ async function loadSubmissionImages(id){
     return;
   }
 
+  const approved=images.filter(img=>img.final_status==="approved"&&img.buyer_safe_url);
+  let hero=gallery.querySelector(".submission-gallery-hero");
+  if(!hero){hero=document.createElement("div");hero.className="submission-gallery-hero";grid.before(hero);}
+  hero.innerHTML=approved.length?'<img alt="Main approved motorcycle photograph" src="'+esc(approved[0].buyer_safe_url)+'">':'<div style="padding:35px;color:#bbb">Photographs awaiting review. No approved main photograph yet.</div>';
   grid.innerHTML=images.filter(img=>String(img.final_status||"")!=="rejected").map(img=>{
     const hasPreview=Boolean(img.buyer_safe_url);
     if(!hasPreview){
