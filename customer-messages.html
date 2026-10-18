@@ -2006,22 +2006,25 @@ async function loadCustomerEnquiries(){
     return globalBuyerConversationHtml(row.data);
   }).join("");
 
-  bikeRows.forEach(row=>{
-    loadCustomerMessages(row.data.id);
-    loadBikeConversationDocuments(row.data.id);
-    loadBikeSharedMotorcycleDocuments(row.data.id);
-  });
-  await Promise.allSettled(
-    globalRows.map(async row=>{
-      // Independent content can load together; document lookups must not
-      // block message retrieval for the selected conversation.
-      await Promise.allSettled([
+  // Paint the inbox immediately. Load conversation bodies and attachments after
+  // the browser has had an opportunity to render the list.
+  const hydrateConversations=()=>{
+    bikeRows.forEach(row=>{
+      Promise.allSettled([
+        loadCustomerMessages(row.data.id),
+        loadBikeConversationDocuments(row.data.id),
+        loadBikeSharedMotorcycleDocuments(row.data.id)
+      ]);
+    });
+    globalRows.forEach(row=>{
+      Promise.allSettled([
         loadGlobalBuyerMessages(row.data.id),
         loadGlobalConversationDocuments(row.data.id),
         loadGlobalSharedMotorcycleDocuments(row.data.id)
       ]);
-    })
-  );
+    });
+  };
+  setTimeout(hydrateConversations,0);
 
   updateCustomerUnreadMessageCount();
 
