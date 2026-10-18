@@ -222,13 +222,12 @@ emailEl.textContent = anybikeAdminUser.email || "";
 emailEl.title = anybikeAdminUser.email || "";
 }
 // Visible identity for multi-browser testing; never grants permissions.
-const showTestIdentity=["mocp@hotmail.co.uk","andy.gifford@yahoo.co.uk","sales@anybike.co.uk"].includes(String(anybikeAdminUser.email||"").trim().toLowerCase());
+// Available to every authenticated administrator; this display grants no permissions.
 let identity=document.getElementById("anybikeAdminSignedInIdentity");
-if(!showTestIdentity){identity?.remove();return;}
 const topbar=document.getElementById("adminTopbar");
 if(topbar && !identity){
   identity=document.createElement("div");identity.id="anybikeAdminSignedInIdentity";
-  identity.style.cssText="background:#171717;border:1px solid #444;border-radius:8px;color:#fff;padding:7px 12px;margin:7px 12px;font:700 12px/1.5 Arial,sans-serif;overflow-wrap:anywhere";
+  identity.style.cssText="background:#101010;border-bottom:1px solid #303030;color:#ddd;padding:5px 18px;margin:0;text-align:right;font:600 11px/1.4 Arial,sans-serif;overflow-wrap:anywhere";
   topbar.insertAdjacentElement("afterend",identity);
 }
 if(identity){identity.textContent="SIGNED IN · ADMIN · "+displayName+" · "+(anybikeAdminUser.email||"Email unavailable");}
