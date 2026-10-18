@@ -279,6 +279,8 @@ body.my-trade-offers-view #grid.mine-grid{margin-top:12px}
  .mine-detail-bid-form #mineDetailBidStatus{flex-shrink:0}
 }
 .cheap-price-card{display:block;width:100%;margin-top:8px;background:#151515;border:1px solid #666;color:white;padding:12px;border-radius:9px;font-weight:700;cursor:pointer}.cheap-price-card:hover{border-color:#ed1c24}.cheap-price-prompt:hover{border-color:#fff!important}
+
+.quick-bid-panel{margin:16px 0;border:1px solid #a42b33;border-radius:12px;background:#121212;padding:16px}.quick-bid-panel[hidden]{display:none}.quick-bid-panel h2{margin:0}.quick-bid-row{display:grid;grid-template-columns:minmax(190px,2fr) 100px minmax(125px,1fr) minmax(110px,1fr) 90px;gap:10px;align-items:center;padding:10px 5px;border-bottom:1px solid #333}.quick-bid-row small{display:block;margin-top:4px;color:#aaa}.quick-bid-row select,.quick-bid-row input{width:100%;min-width:0;padding:10px;background:#090909;color:#fff;border:1px solid #555;border-radius:8px;font-size:14px}.quick-bid-row button,.quick-bid-footer button{padding:10px;background:#ed1c24;border:0;color:white;border-radius:8px;cursor:pointer;font-weight:800}.quick-bid-footer{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:14px}@media(max-width:780px){.quick-bid-head{display:none}.quick-bid-row{grid-template-columns:repeat(2,minmax(0,1fr))}.quick-bid-row>div:first-child{grid-column:1/-1}}
 </style>
 </head>
 <body>
@@ -292,6 +294,7 @@ body.my-trade-offers-view #grid.mine-grid{margin-top:12px}
   <div id="mineDetailOverlay" class="mine-detail-overlay" hidden role="dialog" aria-modal="true" aria-label="Motorcycle details"></div>
   <nav class="offer-tabs" aria-label="Underwriting views">
     <button type="button" id="allOffersTab" class="active" onclick="showOfferView('all')">Available motorcycles</button>
+    <button type="button" id="quickBidTab" onclick="showQuickBidList()">Quick Bid List →</button>
     <button type="button" id="myOffersTab" onclick="showOfferView('mine')">My Trade Offers <span id="myBidCount"></span></button>
   </nav>
   <div id="auctionEncouragementPreference" style="padding:10px 15px;margin:9px 0;border:1px solid #333;border-radius:9px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
@@ -299,6 +302,7 @@ body.my-trade-offers-view #grid.mine-grid{margin-top:12px}
     <small>Essential invitations, results and transaction updates will continue.</small>
     <span id="auctionPreferenceStatus" role="status" style="font-size:12px"></span>
   </div>
+  <section id="quickBidPanel" class="quick-bid-panel" hidden><h2>Quick Bid List</h2><p>Enter different prices for each bike. Choose Standard or Cheeky offer. Blank rows are skipped.</p><div id="quickBidRows"></div><div class="quick-bid-footer"><span id="quickBidCount">No offers entered</span><button type="button" onclick="reviewQuickBids()">Review all offers →</button></div><p id="quickBidStatus" role="status"></p></section>
   <section id="opportunityFilters" class="notice" style="display:none" aria-label="Filter motorcycles">
   <strong style="display:block;color:#fff;margin-bottom:12px">Find a motorcycle</strong>
   <div class="filter-grid">
@@ -334,6 +338,46 @@ function showOfferView(view){
   history.replaceState(null,"",location.pathname+(offerView==="mine"?"?view=mine":""));
   renderOpportunities(currentOpportunities);
   document.querySelector(".offer-tabs").scrollIntoView({behavior:"smooth",block:"start"});
+}
+let quickBidVisible=false;
+const quickBidValues=new Map();
+function showQuickBidList(){
+ quickBidVisible=!quickBidVisible;
+ const panel=document.getElementById("quickBidPanel");panel.hidden=!quickBidVisible;
+ document.getElementById("quickBidTab").textContent=quickBidVisible?"Hide Quick Bid List ↑":"Quick Bid List →";
+ if(quickBidVisible){renderQuickBidList();panel.scrollIntoView({behavior:"smooth",block:"start"});}
+}
+function updateQuickBid(id,key,value){
+ const prior=quickBidValues.get(Number(id))||{amount:"",kind:"standard"};
+ prior[key]=value;quickBidValues.set(Number(id),prior);
+ const count=[...quickBidValues.values()].filter(x=>String(x.amount).trim()).length;
+ document.getElementById("quickBidCount").textContent=count+" motorcycle"+(count===1?"":"s")+" selected";
+}
+function renderQuickBidList(){
+ const host=document.getElementById("quickBidRows");if(!host)return;
+ host.innerHTML='<div class="quick-bid-row quick-bid-head"><b>Motorcycle</b><b>Closes in</b><b>Offer type</b><b>Your price (£)</b><b></b></div>'+
+ currentOpportunities.filter(r=>r.closes_at&&new Date(r.closes_at).getTime()>Date.now()).map(r=>{
+ const id=Number(r.opportunity_id),entry=quickBidValues.get(id)||{amount:"",kind:"standard"};
+ return '<div class="quick-bid-row"><div><strong>'+esc([r.make,r.model,r.variant].filter(Boolean).join(" "))+'</strong><small>'+esc(r.reference)+' · '+esc(r.bike_year||"")+'</small></div><span class="quick-bid-countdown" data-closes="'+esc(r.closes_at)+'">'+esc(countdown(r.closes_at))+'</span><select aria-label="Offer type for '+esc(r.make+" "+r.model)+'" onchange="updateQuickBid('+id+',\'kind\',this.value)"><option value="standard"'+(entry.kind==="standard"?" selected":"")+'>Normal bid</option><option value="cheeky"'+(entry.kind==="cheeky"?" selected":"")+'>Cheeky offer</option></select><input type="number" min="1" step="0.01" inputmode="decimal" aria-label="Price for '+esc(r.make+" "+r.model)+'" placeholder="£ Your price" value="'+esc(entry.amount)+'" oninput="updateQuickBid('+id+',\'amount\',this.value)"><button type="button" onclick="openMineDetails('+id+')">View →</button></div>';
+ }).join("");
+ const count=[...quickBidValues.values()].filter(x=>String(x.amount).trim()).length;document.getElementById("quickBidCount").textContent=count+" motorcycles selected";
+}
+async function reviewQuickBids(){
+ const picked=[...quickBidValues.entries()].filter(([id,entry])=>String(entry.amount).trim()).map(([id,entry])=>({auction:currentOpportunities.find(r=>Number(r.opportunity_id)===id),amount:Number(entry.amount),kind:entry.kind}));
+ const status=document.getElementById("quickBidStatus");
+ if(!picked.length){status.textContent="Enter a price for at least one motorcycle.";return;}
+ if(picked.some(x=>!x.auction||!Number.isFinite(x.amount)||x.amount<=0||new Date(x.auction.closes_at).getTime()<=Date.now())){status.textContent="Check prices and closing times before submitting.";return;}
+ const summary=picked.map(x=>(x.kind==="cheeky"?"Cheeky":"Normal")+" · "+[x.auction.make,x.auction.model].filter(Boolean).join(" ")+" — "+moneyPrecise(x.amount)).join("\n");
+ if(!confirm("REVIEW CONFIDENTIAL BIDS\n\n"+summary+"\n\nSubmit "+picked.length+" separate genuine bids? They may be accepted subject to AnyBike checks."))return;
+ const btn=document.querySelector("#quickBidPanel .quick-bid-footer button");btn.disabled=true;status.textContent="Submitting bids individually…";
+ let saved=0;const errors=[];
+ for(const x of picked){
+  const {error}=await sb.rpc("trade_submit_underwrite_bid_v2",{p_opportunity_id:Number(x.auction.opportunity_id),p_amount_gbp:x.amount,p_notes:x.kind==="cheeky"?"Cheeky offer — genuine buy price":"Quick Bid List — normal offer"});
+  if(error){errors.push(x.auction.reference+": "+error.message);}else{saved++;quickBidValues.delete(Number(x.auction.opportunity_id));}
+ }
+ btn.disabled=false;status.textContent=saved+" bids saved."+(errors.length?" Errors: "+errors.join("; "):"");
+ if(saved)await load();
+ if(quickBidVisible)renderQuickBidList();
 }
 function renderOpportunities(rows){
  const host=document.getElementById("grid");
