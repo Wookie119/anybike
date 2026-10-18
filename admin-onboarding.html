@@ -122,7 +122,7 @@ td:last-child{vertical-align:top;background:rgba(255,255,255,.025)}td:last-child
             <button class="btn" type="button" onclick="openInviteProspect()">Add dealer / user</button>
           </div>
         </div>
-        <div id="inviteProspectsList" class="invite-list"><div class="small">Loading invited prospects…</div></div>
+        <div id="inviteProspectsList" class="invite-list"><div class="small">Loading invited prospects…</div></div><div style="padding:14px;border-top:1px solid #333"><h3>Dealer buyer confidence</h3><p class="small">Internal assessment saved against each dealership and shown when reviewing bids. Not a credit score.</p><div id="dealerConfidenceList" class="invite-list">Loading dealerships…</div></div>
       </section>
 
       <div class="toolbar">
@@ -293,6 +293,25 @@ function inviteStatusLabel(c){
   if(c.invite_status==="invited")return c.invite_sent_at?"Invited "+new Date(c.invite_sent_at).toLocaleDateString("en-GB"):"Invited";
   return "Not invited";
 }
+async function loadDealerConfidence(){
+ const host=document.getElementById("dealerConfidenceList");if(!host)return;
+ const {data,error}=await sb.rpc("admin_list_dealer_buyer_confidence_v1");
+ if(error){host.textContent="Could not load dealer confidence: "+error.message;return;}
+ host.replaceChildren();
+ (data||[]).forEach(dealer=>{
+  const row=document.createElement("div");row.style.cssText="display:flex;gap:12px;align-items:center;justify-content:space-between;border-bottom:1px solid #303030;padding:10px 0";
+  const name=document.createElement("strong");name.textContent=dealer.dealer_name||"Dealer #"+dealer.dealer_organisation_id;
+  const sel=document.createElement("select");sel.className="route-select";sel.setAttribute("aria-label","Buyer confidence for "+name.textContent);
+  [["unreviewed","Not reviewed"],["known","Known dealer — confident"],["new","New dealer — not yet known"],["concern","Concern about completion"]].forEach(([v,t])=>{const o=document.createElement("option");o.value=v;o.textContent=t;sel.append(o)});
+  sel.value=dealer.confidence||"unreviewed";
+  sel.addEventListener("change",async()=>{
+   const next=sel.value;sel.disabled=true;
+   const {error}=await sb.rpc("admin_set_dealer_buyer_confidence_v1",{p_dealer_organisation_id:dealer.dealer_organisation_id,p_confidence:next});
+   sel.disabled=false;if(error){sel.value=dealer.confidence||"unreviewed";alert("Could not save: "+error.message)}else dealer.confidence=next;
+  });
+  row.append(name,sel);host.append(row);
+ });
+}
 async function loadInviteProspects(){
   const host=document.getElementById("inviteProspectsList");
   if(!host)return;
@@ -449,7 +468,7 @@ async function importInviteCsv(input){
   const {data,error}=await sb.rpc("admin_import_invite_prospects_v1",{p_rows:payload});
   if(error){alert("CSV import failed: "+error.message);return;}
   alert((data?.imported||payload.length)+" business prospect"+((data?.imported||payload.length)===1?"":"s")+" imported.");
-  await loadInviteProspects();
+  await loadInviteProspects();loadDealerConfidence();
 }
 
 function customerTypeLabel(v){return ({
