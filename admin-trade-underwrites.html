@@ -874,6 +874,8 @@ async function loadReserveDraft(id){
  const saved=document.getElementById("rvSaveStatus");saved.textContent="✓ "+(data.record_type==="draft"?"Draft":"Assessment")+" previously saved"+(data.saved_at?" · "+new Date(data.saved_at).toLocaleString("en-GB"):"")+". Review before confirming.";saved.classList.add("saved");
  }catch(e){console.warn("Could not load underwrite draft",e)}
 }
+const reserveDealerConfidence=new Map();
+function setReserveDealerConfidence(dealerId,value){reserveDealerConfidence.set(Number(dealerId),value);}
 function showReserveBackupBids(){
  const panel=document.getElementById("rvLeadingDealer");
  const list=window.reserveLiveDealers||[];
@@ -884,8 +886,8 @@ function showReserveBackupBids(){
  panel.innerHTML='<strong>'+profitable.length+' of '+list.length+' dealers bidding above buying price</strong><p style="font-size:12px;color:#bbb">These are potential buyers, not guaranteed sales. Gross margins shown before collection, delivery or other costs.</p>'+
  '<div class="rv-backup-bids">'+list.slice(0,8).map((b,i)=>{
  const margin=Number(b.amount_gbp)-buying;
- return '<div class="rv-backup-row"><div><strong>'+(i+1)+'. '+esc(b.dealer_name||"Unknown dealership")+'</strong><small>'+esc(i===0?"Leading bidder":"Backup bidder")+'</small></div><strong>'+money(b.amount_gbp)+'</strong><strong style="color:'+(margin>0?"#85e7a2":"#ff9a9a")+'">'+money(margin)+'</strong><select aria-label="Confidence in '+esc(b.dealer_name||"dealer")+'" data-confidence-dealer="'+Number(b.dealer_organisation_id)+'"><option value="">Buyer confidence — not reviewed</option><option value="known">Known dealer — confident</option><option value="new">New dealer — not yet known</option><option value="concern">Concern about completion</option></select></div>';
- }).join('')+'</div><p style="font-size:12px;color:#bbb">Buyer confidence is an Admin judgement, not a credit score. Confirm payment arrangements before committing to the seller.</p>'+
+ return '<div class="rv-backup-row"><div><strong>'+(i+1)+'. '+esc(b.dealer_name||"Unknown dealership")+'</strong><small>'+esc(i===0?"Leading bidder":"Backup bidder")+'</small></div><strong>'+money(b.amount_gbp)+'</strong><strong style="color:'+(margin>0?"#85e7a2":"#ff9a9a")+'">'+money(margin)+'</strong><select aria-label="Confidence in '+esc(b.dealer_name||"dealer")+'" data-confidence-dealer="'+Number(b.dealer_organisation_id)+'" onchange="setReserveDealerConfidence(this.dataset.confidenceDealer,this.value)"><option value="">Buyer confidence — not reviewed</option><option value="known">Known dealer — confident</option><option value="new">New dealer — not yet known</option><option value="concern">Concern about completion</option></select></div>';
+ }).join('')+'</div><p style="font-size:12px;color:#bbb">Buyer confidence is an Admin judgement, not a credit score. Your selection is for this review only, not saved to dealer records. Confirm payment before committing to the seller.</p>'+
  '<button type="button" onclick="document.getElementById(\'reserveReviewModal\').classList.remove(\'open\');viewBids('+id+')">View all bidders →</button> '+
  '<button type="button" onclick="document.getElementById(\'reserveReviewModal\').classList.remove(\'open\');openOffer('+id+')" '+(!profitable.length?'disabled':'')+'>Review &amp; prepare seller offer →</button>';
 }
