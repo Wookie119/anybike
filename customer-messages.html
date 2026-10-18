@@ -4393,6 +4393,24 @@ function anybikeMessageTiming(label){
     el.style.cssText="position:fixed;left:12px;bottom:12px;z-index:99999;background:#171717;color:white;border:2px solid #ed1c24;border-radius:9px;padding:12px;max-width:480px;font:14px Arial;white-space:pre-line";
     document.body.appendChild(el);
   }
+  if(!el.dataset.navigationLogged){
+    const nav=performance.getEntriesByType("navigation")[0];
+    const details=[];
+    if(nav){
+      details.push("Server response: "+(nav.responseStart/1000).toFixed(2)+"s");
+      details.push("HTML received: "+(nav.responseEnd/1000).toFixed(2)+"s");
+      details.push("Scripts / parsing: "+(performance.now()/1000).toFixed(2)+"s");
+    }
+    try{
+      const previous=JSON.parse(sessionStorage.getItem("anybike_messages_nav_timing")||"null");
+      if(previous&&Date.now()-previous.at<60000){
+        details.unshift("Click to inbox: "+((Date.now()-previous.at)/1000).toFixed(2)+"s");
+        sessionStorage.removeItem("anybike_messages_nav_timing");
+      }
+    }catch(e){}
+    el.textContent=details.join("\\n");
+    el.dataset.navigationLogged="1";
+  }
   el.textContent+="\\n"+label+": "+((performance.now()-anybikeMessageT0)/1000).toFixed(2)+"s";
 }
 (async function init(){
