@@ -414,6 +414,7 @@ function reviewIntakeFromGallery(id){
   toggleSubmission(id);
   document.getElementById("submission-row-"+id)?.scrollIntoView({behavior:"smooth",block:"center"});
 }
+function auctionTimeRemaining(closesAt){if(!closesAt)return "Closing time not set";const ms=new Date(closesAt).getTime()-Date.now();if(!Number.isFinite(ms))return "Closing time unavailable";if(ms<=0)return "Bidding time elapsed";const m=Math.ceil(ms/60000);const d=Math.floor(m/1440),h=Math.floor(m%1440/60),min=m%60;return (d?d+"d ":"")+h+"h "+min+"m remaining";}
 function renderIntakeGallery(items){
   const host=document.getElementById("intakeGallery");
   host.innerHTML=items.length?items.map(r=>{
@@ -423,10 +424,13 @@ function renderIntakeGallery(items){
     const status=tradeOpportunityBySubmission.get(id);
     const state=status?.opportunity_status||r.underwrite_status||"Awaiting review";
     const bidCount=Number(status?.live_bid_count||0);
+    const invitedCount=Number(status?.invited_trade_count||0);
+    const auctionInfo=state==="live"?'<div style="margin:10px 0;padding:10px;border:1px solid #9b292d;border-radius:9px;background:#211314"><strong>⏱ <span class="gallery-auction-countdown" data-closes="'+esc(status?.closes_at||'')+'">'+esc(auctionTimeRemaining(status?.closes_at))+'</span></strong><div style="margin-top:6px">'+bidCount+' confidential bid'+(bidCount===1?'':'s')+' · '+invitedCount+' dealer'+(invitedCount===1?'':'s')+' invited</div></div>':'';
     const photo=r.primary_display_image_url?'<img src="'+esc(r.primary_display_image_url)+'" alt="'+esc(bike)+'" loading="lazy">':'No motorcycle photo available';
-    return '<article class="intake-gallery-card"><div class="intake-gallery-photo">'+photo+'</div><div class="intake-gallery-body"><div class="eyebrow">'+esc(src)+'</div><h3>'+esc(bike)+'</h3><p>'+esc([r.bike_year,r.mileage===null?null:Number(r.mileage).toLocaleString("en-GB")+" miles"].filter(Boolean).join(" · "))+'</p><p>Reference: '+esc(r.reference)+'<br>Underwriting: '+esc(state)+'</p><button type="button" onclick="reviewIntakeFromGallery('+id+')">Review motorcycle →</button></div></article>';
+    return '<article class="intake-gallery-card"><div class="intake-gallery-photo">'+photo+'</div><div class="intake-gallery-body"><div class="eyebrow">'+esc(src)+'</div><h3>'+esc(bike)+'</h3><p>'+esc([r.bike_year,r.mileage===null?null:Number(r.mileage).toLocaleString("en-GB")+" miles"].filter(Boolean).join(" · "))+'</p><p>Reference: '+esc(r.reference)+'<br>Underwriting: '+esc(state)+'</p>'+auctionInfo+'<button type="button" onclick="reviewIntakeFromGallery('+id+')">Review motorcycle →</button></div></article>';
   }).join(""):'<div class="empty">No motorcycles match these filters.</div>';
 }
+setInterval(()=>{document.querySelectorAll(".gallery-auction-countdown[data-closes]").forEach(el=>el.textContent=auctionTimeRemaining(el.dataset.closes));},30000);
 function sellerNotesHtml(notes){
  const raw=String(notes||"");
  const preference=(raw.match(/\[SELLER PREFERENCE\]([^\[\r\n]*)/)||[])[1]?.trim()||"";
