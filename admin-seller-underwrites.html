@@ -141,6 +141,24 @@ label{display:block;color:#bbb;font-size:12px;font-weight:800}input{width:100%;m
 .advert-preview-section h3{border-left:3px solid #ed1c24;padding-left:9px;margin:0 0 10px}
 @media(max-width:740px){#advertPreviewOverlay{padding:6px}.advert-preview-sheet{padding:11px}.advert-preview-columns{grid-template-columns:1fr}.advert-preview-thumbs{grid-template-columns:repeat(4,minmax(0,1fr))}}
 .advert-preview-sheet{box-shadow:0 15px 60px #000}.advert-preview-top button{background:#252525;color:white;padding:10px 14px;border:1px solid #777;border-radius:8px;cursor:pointer}.advert-preview-privacy{margin-top:15px;padding:12px;border:1px solid #743339;border-radius:9px;background:#190e10;color:#f5c6c8;font-size:13px}.advert-preview-thumbs button{cursor:pointer}.advert-preview-thumbs button:focus-visible{outline:3px solid #ed1c24}
+
+/* Admin advert review: reset legacy two-column rules, then display clean buyer-style layout. */
+.submission-detail .card:has(>.submission-gallery){display:grid!important;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr)!important;gap:12px 20px!important;align-items:start}
+.submission-detail .card:has(>.submission-gallery)>.top,
+.submission-detail .card:has(>.submission-gallery)>.bike,
+.submission-detail .card:has(>.submission-gallery)>.sub:first-of-type,
+.submission-detail .card:has(>.submission-gallery)>.actions,
+.submission-detail .card:has(>.submission-gallery)>.admin-source-details,
+.submission-detail .card:has(>.submission-gallery)>[style*="margin-top:12px"]{grid-column:1/-1!important;grid-row:auto!important}
+.submission-detail .card:has(>.submission-gallery)>.submission-gallery{grid-column:1!important;grid-row:4 / span 4!important;margin:0!important}
+.submission-detail .card:has(>.submission-gallery)>.data{grid-column:2!important;grid-row:4!important;grid-template-columns:repeat(2,minmax(0,1fr));margin:0!important}
+.submission-detail .card:has(>.submission-gallery)>.admin-advert-description{grid-column:2!important;grid-row:5!important;margin:0!important}
+.submission-detail .card:has(>.submission-gallery)>.admin-advert-description p{max-height:none!important;overflow:visible!important;overflow-wrap:anywhere}
+.submission-detail .card:has(>.submission-gallery)>.actions{display:flex!important;flex-wrap:wrap!important;gap:9px!important;margin:14px 0!important}
+.submission-detail .card:has(>.submission-gallery)>.actions>*{min-height:42px}
+.submission-detail .card:has(>.submission-gallery) select{background:#151515!important;color:#fff!important;border:1px solid #555!important;max-width:240px!important}
+.submission-detail .card:has(>.submission-gallery)>.admin-source-details{max-width:100%;overflow-wrap:anywhere}
+@media(max-width:900px){.submission-detail .card:has(>.submission-gallery){display:block!important}.submission-detail .card:has(>.submission-gallery)>*{margin-bottom:12px!important}.submission-detail .card:has(>.submission-gallery)>.data{grid-template-columns:repeat(2,minmax(0,1fr))}}
 </style>
 </head>
 <body>
@@ -388,6 +406,12 @@ function renderUnderwriteSummary(){
  ).join("")+'</div>';
  host.querySelectorAll("[data-overview]").forEach(btn=>btn.addEventListener("click",()=>focusUnderwriteGroup(btn.dataset.overview)));
 }
+function cleanUnderwriteAdvertDescription(notes){
+ const raw=String(notes||"").replace(/\\r\\n/g,"\n").replace(/\\n/g,"\n");
+ const candidate=raw.split("\n").map(x=>x.trim()).filter(x=>x&&!x.startsWith("[")&&!/^https?:\/\//i.test(x)&&!/(searchId=|backLinkQueryParams=|calc-deposit=|postcode=|advertising-location=)/i.test(x)&&!/^Urgency:/i.test(x));
+ const content=candidate.join(" ").trim();
+ return content&&content.length<1300?content:"Description requires Admin review before advertisement.";
+}
 function render(){
   const q=String(document.getElementById("search").value||"").trim().toLowerCase();
   const source=document.getElementById("sourceFilter").value;
@@ -471,7 +495,8 @@ function render(){
         (hasComps
           ?'<div class="data"><div class="box"><span>Comparable count</span><strong>'+Number(r.latest_comparable_count||0)+'</strong></div><div class="box"><span>Median ask</span><strong>'+money(r.latest_median_ask_gbp)+'</strong></div><div class="box"><span>Range</span><strong>'+money(r.latest_lowest_ask_gbp)+' – '+money(r.latest_highest_ask_gbp)+'</strong></div><div class="box"><span>Average</span><strong>'+money(r.latest_average_ask_gbp)+'</strong></div></div>'
           :'<div class="sub">Trade price will be established from confidential UK dealer bids. No stock comparison is required.</div>')+
-        (r.notes?'<section class="admin-advert-description"><h3>Motorcycle description</h3><p>'+esc(String(r.notes).split(/\\r?\\n|\\\\r\\\\n/).filter(line=>line.trim()&&!/^(\\[TRADE OFFER ADVERT\\]|https?:\\/\\/|\\[TRADE OFFER|\\[DEALER TIMING\\]|\\[SELLER PREFERENCE\\]|\\[FINANCE DECLARATION\\])/.test(line.trim())).join("\\n").trim()||"No additional motorcycle description provided.")+'</p></section><details class="admin-source-details"><summary>Original advert link and submission metadata (Admin only)</summary><p>'+esc(r.notes)+'</p></details>':"")+
+                '<section class="admin-advert-description"><h3>Motorcycle description</h3><p>'+esc(cleanUnderwriteAdvertDescription(r.notes))+'</p></section>'+
+        (r.notes?'<details class="admin-source-details"><summary>Original source information · Admin only</summary><p>'+esc(r.notes)+'</p></details>':'')+
         (dealer && r.underwrite_status!=="live" && r.make && r.model?'<div class="underwrite-ready-note">Ready to invite trade offers. The current system still applies an initial bidding deadline; reserve-triggered timing is under development.</div>':'')+
         '<div class="actions">'+
           '<button type="button" data-action="comparables" data-id="'+Number(r.submission_id)+'">Optional Stock Comparison</button>'+
