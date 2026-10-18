@@ -95,7 +95,7 @@ main{max-width:none;width:100%;margin:0;padding:18px 22px 48px}
   // Quick Sell List: compact, multi-motorcycle price management (seller-owned records only).
   const quickHost=document.getElementById("quickSellList");
   if(quickHost&&isDealerSeller){
-    const unsold=rows.filter(x=>!["accepted","sold","completed","sale_agreed"].includes(String(x.status||"").toLowerCase()));
+    const unsold=rows.slice();
     quickHost.replaceChildren();
     if(unsold.length){
       const heading=document.createElement("h2");heading.textContent="Quick Sell List";
@@ -125,6 +125,8 @@ main{max-width:none;width:100%;margin:0;padding:18px 22px 48px}
         closes.textContent=deadline?"Checking…":"—";
         const [askCell,ask]=makeInput(item.asking_price_gbp,"Asking price");
         const [minCell,min]=makeInput(item.price_wanted_gbp,"Minimum price");
+        const isSold=["accepted","sold","completed","sale_agreed"].includes(String(item.status||"").toLowerCase());
+        if(isSold){ask.disabled=true;min.disabled=true;status.textContent="Sold";}
         const detailCell=document.createElement("td"),detail=document.createElement("a");detail.href="#selling-"+item.reference;detail.textContent="View →";detail.className="button";
         detail.addEventListener("click",()=>{const details=document.getElementById("detail-"+item.reference);if(details)details.open=true;});detail.style.padding="8px 12px";detailCell.append(detail);
         tr.append(bike,status,closes,askCell,minCell,detailCell);tbody.append(tr);
@@ -191,7 +193,7 @@ main{max-width:none;width:100%;margin:0;padding:18px 22px 48px}
         save.textContent="Review price changes →";changed();
       });
       footer.append(count,save,feedback);
-      quickHost.append(heading,help,scroll,footer);
+      quickHost.prepend(heading,help);quickHost.append(scroll,footer);
     }else{quickHost.hidden=true;}
   }
   holder.replaceChildren();
