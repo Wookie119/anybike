@@ -38,6 +38,12 @@ document.documentElement.classList.add("customer-auth-pending");
 html.customer-auth-pending body{
   visibility:hidden;
 }
+
+/* A conversation uses the normal page scroll, never a nested scrollbox. */
+#customerEnquiries .customer-enquiry-detail,
+#customerEnquiries .customer-expanded-inner,
+#customerEnquiries .message-thread {max-height:none!important;overflow:visible!important;height:auto!important;}
+#customerEnquiries .customer-enquiry.open {overflow:visible!important;}
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -1612,6 +1618,14 @@ function openGlobalBuyerThread(threadId){
   document.querySelectorAll("#customerEnquiries .customer-enquiry.open").forEach(other=>other.classList.remove("open"));
   card.classList.add("open");
   openConversationKey=key;
+  const box=document.getElementById("global-messages-"+threadId);
+  if(box)box.textContent="Loading conversation…";
+  loadGlobalBuyerMessages(threadId).catch(error=>{
+    console.error("Message load failed",error);
+    if(box)box.textContent="Could not load this conversation. Please try opening it again.";
+  });
+  loadGlobalConversationDocuments(threadId).catch(error=>console.warn("Document load failed",error));
+  loadGlobalSharedMotorcycleDocuments(threadId).catch(error=>console.warn("Shared documents unavailable",error));
   markCustomerThreadRead(String(threadId));
   setTimeout(()=>{
     const thread=document.getElementById("global-messages-"+threadId);
