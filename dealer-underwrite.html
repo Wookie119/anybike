@@ -112,7 +112,7 @@ textarea{min-height:90px;resize:vertical}
 
       <div class="field">
         <label for="variant">Variant <span style="font-weight:400">(optional)</span></label>
-        <input id="variant" name="variant" type="text" maxlength="100" autocomplete="off" placeholder="Exact variant, if known">
+        <input id="variant" name="variant" type="text" maxlength="100" autocomplete="off" list="knownModelVariants" placeholder="Exact variant, if known"><datalist id="knownModelVariants"></datalist><div id="variantSourceHint" class="small">Choose a recorded model variant or enter the exact name.</div>
       </div>
 
       <div class="field">
@@ -229,7 +229,23 @@ const make=document.getElementById("make"),model=document.getElementById("model"
 const add=(parent,value,label)=>{const o=document.createElement("option");o.value=value;o.textContent=label||value;parent.appendChild(o);};
 Object.keys(catalogue).sort().forEach(k=>add(make,k));
 function refreshModels(){const existing=model.value;model.replaceChildren();add(model,"","Select model");(catalogue[make.value]||[]).forEach(v=>add(model,v));model.disabled=!make.value;if(catalogue[make.value]?.includes(existing))model.value=existing;refreshVariants();}
-function refreshVariants(){ /* Exact variant is optional free text; never guess generic trims. */ }
+let variantLoadIndex=0;
+async function refreshVariants(){
+  const makeName=make.value,modelName=model.value;
+  const list=document.getElementById("knownModelVariants"),hint=document.getElementById("variantSourceHint");
+  const current=++variantLoadIndex;
+  list.replaceChildren();
+  if(!makeName||!modelName){hint.textContent="Select a make and model first, or enter an exact variant.";return;}
+  hint.textContent="Checking recorded variants for this motorcycle…";
+  try{
+    const {data,error}=await window.anybikeVariantClient.rpc("dealer_known_model_variants_v1",{p_make:makeName,p_model:modelName});
+    if(current!==variantLoadIndex)return;
+    if(error)throw error;
+    const names=[...new Set((data||[]).map(r=>String(r.variant||"").trim()).filter(Boolean))];
+    names.forEach(value=>{const option=document.createElement("option");option.value=value;list.appendChild(option);});
+    hint.textContent=names.length?names.length+" recorded variant"+(names.length===1?"":"s")+" available for this model. You can also type the exact variant.":"No recorded variants for this model yet — enter the exact variant if known.";
+  }catch(error){if(current===variantLoadIndex)hint.textContent="Variant suggestions unavailable. You can still type the exact variant.";}
+}
 const upper=new Date().getFullYear()+1;for(let y=upper;y>=1950;y--)add(year,String(y));
 make.addEventListener("change",refreshModels);model.addEventListener("change",refreshVariants);
 refreshModels();
@@ -240,6 +256,7 @@ window.anybikeRefreshMotorcycleSelectors=function(){refreshModels();refreshVaria
 const SUPABASE_URL="https://tuehtnezhdnkqbbhttgp.supabase.co";
 const SUPABASE_ANON_KEY="sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+window.anybikeVariantClient=sb;
 const dealerTradeRoute=new URLSearchParams(location.search).get("route")==="trade";
 if(dealerTradeRoute){
   document.querySelector('input[name="source_channel"]').value="dealer_underwrite";
