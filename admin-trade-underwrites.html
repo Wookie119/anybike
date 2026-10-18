@@ -120,12 +120,12 @@ input{background:#090909;color:#fff;border:1px solid #333;border-radius:10px;pad
 <div class="actions"><button type="button" id="rvDraft" class="red" onclick="saveReserveReview(true)">Save buying price →</button></div><p id="rvResult" role="status"></p><p style="font-size:12px">Saving records a draft only. It does not confirm transport, approve a sale or send an offer.</p></div></div><div id="finalCheckModal" class="modal"><div class="modal-box" style="width:min(680px,100%)">
 <div class="top"><h3 id="finalCheckTitle">Seller Confirmation / HPI Check</h3><button onclick="closeFinalCheck()">Close</button></div>
 <p>Complete after bidding closes. No winner can be selected until the seller and commercial checks are confirmed. Outstanding finance must be cleared before release.</p>
-<div class="final-check" id="finalCheckFields">
-<label><input type="checkbox" id="fc-available"> Seller confirms motorcycle is still available</label>
-<label><input type="checkbox" id="fc-price_agreed"> Seller agrees AnyBike purchase price</label>
-<label><input type="checkbox" id="fc-history_checked"> Vehicle history / HPI checked</label>
-<label><input type="checkbox" id="fc-finance_plan_checked"> Finance status checked and settlement plan confirmed where required</label>
-<label><input type="checkbox" id="fc-condition_checked"> Ownership, mileage and condition reviewed</label>
+<div id="fc-seller-confirmation" style="padding:12px;border:1px solid #555;border-radius:9px;margin:12px 0">Checking seller declarations…</div><div class="final-check" id="finalCheckFields">
+<label><input type="checkbox" id="fc-available"> AnyBike verified seller’s availability confirmation</label>
+<label><input type="checkbox" id="fc-price_agreed"> Seller accepted the formal AnyBike purchase offer (verify recorded acceptance)</label>
+<label><input type="checkbox" id="fc-history_checked"> AnyBike independently completed vehicle history / HPI check</label>
+<label><input type="checkbox" id="fc-finance_plan_checked"> AnyBike verified finance and any settlement requirements</label>
+<label><input type="checkbox" id="fc-condition_checked"> AnyBike independently reviewed ownership, mileage and condition</label>
 <label><input type="checkbox" id="fc-margin_checked"> AnyBike margin and collection costs checked</label>
 <label for="fc-notes" style="display:block;margin-top:10px">Internal notes</label><textarea id="fc-notes" placeholder="HPI result, finance settlement reference, availability call, agreed seller price…"></textarea>
 </div>
@@ -496,11 +496,19 @@ async function openFinalCheck(id){
  if(error){document.getElementById("fc-status").textContent=error.message;return;}
  finalCheckFields.forEach(f=>document.getElementById("fc-"+f).checked=!!data?.[f]);
  document.getElementById("fc-notes").value=data?.notes||"";
+ const sellerInfo=document.getElementById("fc-seller-confirmation");
+ const reply=await sb.rpc("admin_read_seller_final_v1",{p_opportunity_id:finalCheckId});
+ const confirmed=!reply.error&&reply.data?.confirmed;
+ sellerInfo.textContent=confirmed?"✓ Seller declarations received. Check the underlying details and independently verify HPI, finance, ownership and condition.":"Awaiting seller's availability, ownership, mileage/condition and finance disclosures in My Selling. Do not approve checks until received.";
+ sellerInfo.style.borderColor=confirmed?"#368b57":"#b75353";
+ sellerInfo.dataset.confirmed=String(confirmed);
  document.getElementById("fc-status").textContent=data?.approved?"✓ Checks approved. You can return to the bids and select a confirmed dealer.":"Complete all checks before selecting a winner.";
 }
 function closeFinalCheck(){document.getElementById("finalCheckModal").classList.remove("open");}
 async function saveFinalCheck(){
  if(!finalCheckId)return;
+ const sellerInfo=document.getElementById("fc-seller-confirmation");
+ if(sellerInfo.dataset.confirmed!=="true"){document.getElementById("fc-status").textContent="Waiting for seller declarations in My Selling. Admin must not confirm the final checks on the seller's behalf.";return;}
  const args={p_opportunity_id:finalCheckId,p_notes:document.getElementById("fc-notes").value};
  finalCheckFields.forEach(f=>args["p_"+f]=document.getElementById("fc-"+f).checked);
  const {data,error}=await sb.rpc("admin_underwrite_final_check_v1",args);
