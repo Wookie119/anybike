@@ -832,6 +832,11 @@ function openReserveReview(id){
  reserveReviewId=Number(id);
  const dealerPanel=document.getElementById("rvLeadingDealer");
  dealerPanel.textContent="Checking live bids from different dealerships…";
+ sb.rpc("admin_list_dealer_buyer_confidence_v1").then(({data,error})=>{
+  if(error||reserveReviewId!==Number(id))return;
+  (data||[]).forEach(d=>reserveDealerConfidence.set(Number(d.dealer_organisation_id),d.confidence==="unreviewed"?"":d.confidence));
+  if(window.reserveLiveDealers?.length)showReserveBackupBids();
+ });
  window.reserveLiveDealers=[];
  sb.rpc("admin_get_trade_underwrite_bids_v1",{p_opportunity_id:Number(id)}).then(({data,error})=>{
   if(reserveReviewId!==Number(id))return;
@@ -875,7 +880,13 @@ async function loadReserveDraft(id){
  }catch(e){console.warn("Could not load underwrite draft",e)}
 }
 const reserveDealerConfidence=new Map();
-function setReserveDealerConfidence(dealerId,value){reserveDealerConfidence.set(Number(dealerId),value);}
+async function setReserveDealerConfidence(dealerId,value){
+ dealerId=Number(dealerId);
+ const prior=reserveDealerConfidence.get(dealerId)||"unreviewed";
+ reserveDealerConfidence.set(dealerId,value);
+ const {error}=await sb.rpc("admin_set_dealer_buyer_confidence_v1",{p_dealer_organisation_id:dealerId,p_confidence:value});
+ if(error){reserveDealerConfidence.set(dealerId,prior);showReserveBackupBids();alert("Could not save dealer confidence: "+error.message);}
+}
 function showReserveBackupBids(){
  const panel=document.getElementById("rvLeadingDealer");
  const list=window.reserveLiveDealers||[];
@@ -887,7 +898,7 @@ function showReserveBackupBids(){
  '<div class="rv-backup-bids">'+list.slice(0,8).map((b,i)=>{
  const margin=Number(b.amount_gbp)-buying;
  return '<div class="rv-backup-row"><div><strong>'+(i+1)+'. '+esc(b.dealer_name||"Unknown dealership")+'</strong><small>'+esc(i===0?"Leading bidder":"Backup bidder")+'</small></div><strong>'+money(b.amount_gbp)+'</strong><strong style="color:'+(margin>0?"#85e7a2":"#ff9a9a")+'">'+money(margin)+'</strong><select aria-label="Confidence in '+esc(b.dealer_name||"dealer")+'" data-confidence-dealer="'+Number(b.dealer_organisation_id)+'" onchange="setReserveDealerConfidence(this.dataset.confidenceDealer,this.value)"><option value="">Buyer confidence — not reviewed</option><option value="known">Known dealer — confident</option><option value="new">New dealer — not yet known</option><option value="concern">Concern about completion</option></select></div>';
- }).join('')+'</div><p style="font-size:12px;color:#bbb">Buyer confidence is an Admin judgement, not a credit score. Your selection is for this review only, not saved to dealer records. Confirm payment before committing to the seller.</p>'+
+ }).join('')+'</div><p style="font-size:12px;color:#bbb">Buyer confidence is an Admin judgement, not a credit score. Your confidence selection is saved to the dealership record and reused on other motorcycles. Confirm payment before committing to the seller.</p>'+
  '<button type="button" onclick="document.getElementById(\'reserveReviewModal\').classList.remove(\'open\');viewBids('+id+')">View all bidders →</button> '+
  '<button type="button" onclick="document.getElementById(\'reserveReviewModal\').classList.remove(\'open\');openOffer('+id+')" '+(!profitable.length?'disabled':'')+'>Review &amp; prepare seller offer →</button>';
 }
