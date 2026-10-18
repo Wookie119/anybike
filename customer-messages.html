@@ -2013,9 +2013,13 @@ async function loadCustomerEnquiries(){
   });
   await Promise.allSettled(
     globalRows.map(async row=>{
-      await loadGlobalBuyerMessages(row.data.id);
-      await loadGlobalConversationDocuments(row.data.id);
-      await loadGlobalSharedMotorcycleDocuments(row.data.id);
+      // Independent content can load together; document lookups must not
+      // block message retrieval for the selected conversation.
+      await Promise.allSettled([
+        loadGlobalBuyerMessages(row.data.id),
+        loadGlobalConversationDocuments(row.data.id),
+        loadGlobalSharedMotorcycleDocuments(row.data.id)
+      ]);
     })
   );
 
