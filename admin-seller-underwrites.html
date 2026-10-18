@@ -204,16 +204,27 @@ const SUPABASE_ANON_KEY="sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 let rows=[];
 let tradeOpportunityBySubmission=new Map();
+let internationalSelections=new Map();
 let editId=null;
 const submissionImages=new Map();
 const esc=v=>String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
 const money=v=>v===null||v===undefined||v===""?"—":"£"+Number(v).toLocaleString("en-GB",{maximumFractionDigits:0});
 
+async function toggleInternationalConsideration(id){
+ const next=!internationalSelections.get(Number(id));
+ const b=document.querySelector('[data-international-id="'+Number(id)+'"]');
+ if(b){b.disabled=true;b.textContent="Saving…";}
+ const {error}=await sb.rpc("admin_set_trade_international_consideration_v1",{p_submission_id:Number(id),p_selected:next});
+ if(error){alert("Could not change international consideration: "+error.message);if(b)b.disabled=false;return;}
+ internationalSelections.set(Number(id),next);
+ if(b){b.disabled=false;b.textContent=next?"✓ International consideration selected — Remove":"Consider for international buyers later";}
+}
 async function loadQueue(){
   const {data,error}=await sb.rpc("admin_get_seller_submission_queue_v5",{p_limit:150});
   if(error){document.getElementById("queue").innerHTML='<div class="empty">'+esc(error.message)+'</div>';return;}
   rows=data||[];
   tradeOpportunityBySubmission=new Map();
+  try{const q=await sb.rpc("admin_list_trade_international_consideration_v1");if(!q.error)internationalSelections=new Map((q.data||[]).map(x=>[Number(x.submission_id),!!x.selected]));}catch(e){console.warn("International shortlist unavailable",e);}
   try{
     const opportunities=await sb.rpc("admin_get_trade_underwrite_queue_v2");
     if(!opportunities.error)(opportunities.data||[]).forEach(function(o){tradeOpportunityBySubmission.set(Number(o.submission_id),o);});
@@ -430,7 +441,7 @@ function render(){
           '<button type="button" data-action="collapse" data-id="'+Number(r.submission_id)+'">▲ Collapse submission</button>'+
         '</div>'+
         '<div style="margin-top:12px;padding:10px 12px;border:1px solid #5a2b2d;border-radius:10px;background:#1b1010"><strong>Your Next Action →</strong><p style="margin:5px 0 9px;font-size:13px">'+(r.underwrite_status==="live"?"The trade bidding is live. Review bids in the Trade Underwrite Desk, then complete Seller Confirmation / HPI Check before selecting a buyer.":"Review the motorcycle details and buyer-safe photographs first. Starting trade bidding will invite verified UK dealers; you will be asked to confirm before any invitations are sent. Stock comparisons are optional.")+'</p>'+(r.underwrite_status==="live"?'<a class="btn" href="/admin-trade-underwrites.html">OPEN TRADE UNDERWRITE DESK →</a>':(!r.make||!r.model?'<button type="button" data-action="edit-bike" data-id="'+Number(r.submission_id)+'">COMPLETE MOTORCYCLE DETAILS →</button>' :'<button type="button" data-action="start-underwrite" data-id="'+Number(r.submission_id)+'">START TRADE BIDDING →</button>'))+'</div>'+ 
-        '<div id="action-status-'+Number(r.submission_id)+'" class="sub" style="margin-top:8px;min-height:16px"></div>'+
+        (dealer?'<button type="button" data-international-id="'+Number(r.submission_id)+'" onclick="toggleInternationalConsideration('+Number(r.submission_id)+')" style="margin-top:8px">'+(internationalSelections.get(Number(r.submission_id))?'✓ International consideration selected — Remove':'Consider for international buyers later')+'</button><div class="sub">Admin-only shortlist. Does not publish or contact buyers.</div>':'')+'<div id="action-status-'+Number(r.submission_id)+'" class="sub" style="margin-top:8px;min-height:16px"></div>'+
       '</article>'+
     '</div>';
 
