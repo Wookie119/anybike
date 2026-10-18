@@ -33,6 +33,15 @@ main{max-width:none;width:100%;margin:0;padding:18px 22px 48px}
       present.add(String(sale.id));
     }
   }catch(error){console.warn("Linked seller sales could not be loaded:",error.message);}
+  try{
+    const {data:allOwn,error:ownError}=await client.rpc("seller_my_dashboard_submissions_v1");
+    if(ownError)throw ownError;
+    const present=new Set(rows.map(item=>String(item.id||item.submission_id||item.reference)));
+    for(const sale of allOwn||[]){
+      if(present.has(String(sale.id))||present.has(String(sale.reference)))continue;
+      rows.push(sale);present.add(String(sale.id));present.add(String(sale.reference));
+    }
+  }catch(error){console.warn("Complete seller dashboard list unavailable:",error.message);}
   status.textContent=rows.length?"✓ "+rows.length+" motorcycle submission(s) linked to your account.":"No submitted motorcycles are linked to this account.";
   if(rows.length)status.className="saved-ok";
   try{
