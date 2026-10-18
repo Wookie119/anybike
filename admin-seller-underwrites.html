@@ -97,6 +97,21 @@ label{display:block;color:#bbb;font-size:12px;font-weight:800}input{width:100%;m
  .submission-detail .submission-gallery .btn{font-size:12px;padding:8px 10px}
 }
 @media(min-width:1050px) and (max-width:1450px){.submission-detail .card:has(> .submission-gallery) > .data{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* Advert-style Admin review: main motorcycle details above a full-width photograph gallery. */
+.submission-detail .card:has(> .submission-gallery){display:block!important}
+.submission-detail .card:has(> .submission-gallery)>*{grid-column:auto!important;grid-row:auto!important;min-width:0}
+.submission-detail .card:has(> .submission-gallery)>.submission-gallery{width:100%;margin:14px 0!important;padding:12px;border:1px solid #353535;border-radius:12px;background:#0b0b0b}
+.submission-detail .card:has(> .submission-gallery)>.data{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin:12px 0}
+.submission-detail .card:has(> .submission-gallery) .submission-gallery-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.submission-detail .card:has(> .submission-gallery) .submission-gallery-head{margin-bottom:11px}
+.submission-detail .admin-advert-description{margin:12px 0;padding:14px;border:1px solid #343434;border-radius:11px;overflow-wrap:anywhere}
+.submission-detail .admin-advert-description h3{margin:0 0 8px;font-size:15px}
+.submission-detail .admin-advert-description p{margin:0;white-space:pre-wrap;line-height:1.5}
+.submission-detail .admin-source-details{margin:10px 0;font-size:12px;overflow-wrap:anywhere}
+.submission-detail .admin-source-details summary{cursor:pointer;color:#c8c8c8}
+@media(max-width:1050px){.submission-detail .card:has(> .submission-gallery)>.data{grid-template-columns:repeat(2,minmax(0,1fr))}.submission-detail .card:has(> .submission-gallery) .submission-gallery-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:620px){.submission-detail .card:has(> .submission-gallery)>.data{grid-template-columns:1fr 1fr}.submission-detail .card:has(> .submission-gallery) .submission-gallery-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 </style>
 </head>
 <body>
@@ -411,7 +426,7 @@ function render(){
         '<div class="bike">'+esc(bike)+'</div>'+
         '<div class="sub">'+esc(r.registration||"No registration")+(r.bike_year?" · "+esc(r.bike_year):"")+(r.mileage!==null?" · "+Number(r.mileage).toLocaleString("en-GB")+" miles":"")+'</div>'+
         '<div class="data">'+
-          '<div class="box"><span>Seller price expectation</span><strong>'+(r.price_wanted_gbp===null||r.price_wanted_gbp===undefined?"Not provided":money(r.price_wanted_gbp))+'</strong></div>'+
+          '<div class="box"><span>Seller price expectation</span><strong>'+(r.price_wanted_gbp===null||r.price_wanted_gbp===undefined?(dealer?"To be determined from trade bids":"Not provided"):money(r.price_wanted_gbp))+'</strong></div>'+
           '<div class="box"><span>Seller</span><strong>'+esc(seller)+'</strong><div style="margin-top:7px;font-size:12px">'+(r.seller_email?'<a style="color:#ff696e" href="mailto:'+encodeURIComponent(r.seller_email)+'">Email seller</a> ':'')+(r.seller_phone?'<a style="color:#ff696e;margin-left:10px" href="tel:'+esc(r.seller_phone)+'">Call seller</a> ':'')+(r.message_thread_id?'<a style="color:#ff696e;margin-left:10px" href="/admin-message-centre.html?thread='+Number(r.message_thread_id)+'">Conversation →</a>':'')+'</div></div>'+
 
           '<div class="box"><span>History check</span><strong>'+esc(r.hpi_clear===true?"Seller HPI clear indicated":"Not verified")+'</strong></div>'+
@@ -426,7 +441,7 @@ function render(){
         (hasComps
           ?'<div class="data"><div class="box"><span>Comparable count</span><strong>'+Number(r.latest_comparable_count||0)+'</strong></div><div class="box"><span>Median ask</span><strong>'+money(r.latest_median_ask_gbp)+'</strong></div><div class="box"><span>Range</span><strong>'+money(r.latest_lowest_ask_gbp)+' – '+money(r.latest_highest_ask_gbp)+'</strong></div><div class="box"><span>Average</span><strong>'+money(r.latest_average_ask_gbp)+'</strong></div></div>'
           :'<div class="sub">Trade price will be established from confidential UK dealer bids. No stock comparison is required.</div>')+
-        (r.notes?'<p>'+esc(r.notes)+'</p>':"")+
+        (r.notes?'<section class="admin-advert-description"><h3>Motorcycle description</h3><p>'+esc(String(r.notes).split(/\\r?\\n|\\\\r\\\\n/).filter(line=>line.trim()&&!/^(\\[TRADE OFFER ADVERT\\]|https?:\\/\\/|\\[TRADE OFFER|\\[DEALER TIMING\\]|\\[SELLER PREFERENCE\\]|\\[FINANCE DECLARATION\\])/.test(line.trim())).join("\\n").trim()||"No additional motorcycle description provided.")+'</p></section><details class="admin-source-details"><summary>Original advert link and submission metadata (Admin only)</summary><p>'+esc(r.notes)+'</p></details>':"")+
         (dealer && r.underwrite_status!=="live" && r.make && r.model?'<div class="underwrite-ready-note">Ready to invite trade offers. The current system still applies an initial bidding deadline; reserve-triggered timing is under development.</div>':'')+
         '<div class="actions">'+
           '<button type="button" data-action="comparables" data-id="'+Number(r.submission_id)+'">Optional Stock Comparison</button>'+
