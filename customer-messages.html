@@ -1940,7 +1940,8 @@ async function loadCustomerEnquiries(){
         const department=String(thread.department||"").toLowerCase();
         const subject=String(thread.subject||"").toLowerCase();
 
-       return source.includes("stock_photo_request") ||
+       return source.includes("anybike welcome") ||
+  source.includes("stock_photo_request") ||
   source.includes("global buyer") ||
   source.includes("live chat") ||
   source.includes("bulk") ||
@@ -1977,6 +1978,15 @@ async function loadCustomerEnquiries(){
       }));
   }else{
     console.warn("Could not load Global Buyer conversations",globalThreadResult.error.message);
+  }
+
+  // Deep links select only conversations returned for the signed-in customer.
+  const urlParams=new URLSearchParams(location.search);
+  const linkedId=urlParams.get("thread");
+  if(linkedId && /^\\d+$/.test(linkedId) && globalRows.some(row=>String(row.data.id)===linkedId))openConversationKey="global-"+linkedId;
+  else if(urlParams.get("welcome")==="1"){
+    const welcomeRow=globalRows.find(row=>String(row.data.source_type||"").toLowerCase()==="anybike welcome");
+    if(welcomeRow)openConversationKey="global-"+welcomeRow.data.id;
   }
 
   const rows=[...bikeRows,...globalRows].sort((a,b)=>{
