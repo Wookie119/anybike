@@ -370,7 +370,7 @@ sent to an external translation service.
 
   function loadAllLanguagesExpansion(){
     const name=location.pathname.split("/").pop();
-    if(!["customer-dashboard.html","customer-messages.html","my-searches.html","my-watchlist.html","my-purchases.html","accounts-documents.html","buy-motorcycles.html","sell-your-motorcycle.html","partners-integrations.html","freight-forwarders.html","services-and-fees.html","privacy-policy.html"].includes(name)){ return; }
+    if(name.startsWith("admin-")){ return; }
     if(document.querySelector('script[data-anybike-all-languages-expansion="true"]')){ return; }
     const script=document.createElement("script");
     script.src="/public-all-languages-expansion.js?v=20260920-1";
@@ -394,7 +394,7 @@ sent to an external translation service.
       "/public-language-supplement-de-es.js?v=20260920-2",
       "/public-language-supplement-ar-id.js?v=20260920-2",
       "/public-language-supplement-ms-zh.js?v=20260920-2",
-      "/public-language-pack-runtime.js?v=20260920-1"
+      "/public-language-pack-runtime.js?v=20261018-global1"
     ];
     files.forEach((src,index)=>{
       const script=document.createElement("script");
