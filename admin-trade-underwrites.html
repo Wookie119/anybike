@@ -936,7 +936,20 @@ async function saveReserveReview(asDraft=false){
  try{
  const {data,error}=await sb.rpc(asDraft?"admin_save_underwrite_commercial_draft_v1":"admin_save_underwrite_commercial_review_v2",args);
  if(error)throw error;
- if(asDraft){const result=document.getElementById("rvResult");result.textContent="✓ Draft saved. No reserve confirmed, offer sent or price changed.";result.style.color="#87eca4";const indicator=document.getElementById("rvSaveStatus");indicator.textContent="✓ Draft saved to Supabase · "+new Date().toLocaleString("en-GB");indicator.classList.add("saved");assessmentStageIds.add(Number(reserveReviewId));document.getElementById("reserveReviewModal").classList.remove("open");await load();return;}
+ if(asDraft){const result=document.getElementById("rvResult");result.textContent="✓ Draft saved. No reserve confirmed, offer sent or price changed.";result.style.color="#87eca4";const indicator=document.getElementById("rvSaveStatus");indicator.textContent="✓ Draft saved to Supabase · "+new Date().toLocaleString("en-GB");indicator.classList.add("saved");const savedId=Number(reserveReviewId);
+ assessmentStageIds.add(savedId);
+ document.getElementById("reserveReviewModal").classList.remove("open");
+ await load();
+ const savedCard=document.getElementById("underwrite-"+savedId);
+ if(savedCard){
+   const expanded=savedCard.querySelector("details.auction-expand");
+   if(expanded)expanded.open=true;
+   const nextStep=savedCard.querySelector(".journey-stage.journey-active");
+   (nextStep||savedCard).scrollIntoView({behavior:"smooth",block:"center"});
+   savedCard.classList.add("decision-target-card");
+   window.setTimeout(()=>savedCard.classList.remove("decision-target-card"),3500);
+ }
+ return;}
  const outcome=data.reserve_met?"✓ Reserve met — internal review passed.":"Reserve not met — no seller-facing confirmation.";
  const result=document.getElementById("rvResult");result.textContent=outcome+" Combined deal margin: "+money(Number(data.calculated_margin_gbp)+n("rvTransport"))+" (AnyBike "+money(data.calculated_margin_gbp)+" + Move "+money(n("rvTransport"))+"), before actual Move operating costs. Best bid: "+money(data.bid_gbp)+".";
  result.style.color=data.reserve_met?"#87eca4":"#ffbaaa";
