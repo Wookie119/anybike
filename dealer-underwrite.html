@@ -91,6 +91,7 @@ textarea{min-height:90px;resize:vertical}
     <a id="submitAnother" class="btn" href="/underwrite.html" style="display:none;margin:0 0 14px;text-align:center;text-decoration:none">Submit Another Motorcycle →</a>
 
     <form id="underwriteForm">
+      <div id="advertImportPanel" class="field" style="display:none;grid-column:1/-1;border:1px solid #555;border-radius:12px;padding:16px;background:#171717"><strong>Importing motorcycle advert details…</strong><p id="advertImportStatus" class="small" role="status">You can complete this form while we check the link.</p><div id="advertImportImages" style="display:flex;flex-wrap:wrap;gap:9px"></div></div>
       <div class="field">
         <label for="registration">Registration</label>
         <input id="registration" name="registration" required autocomplete="off" placeholder="AB12 CDE">
@@ -264,6 +265,30 @@ if(dealerTradeRoute){
 }
 
 
+async function importTradeAdvert(){
+  if(!dealerTradeRoute)return;
+  const source=new URLSearchParams(location.search).get("advert");if(!source)return;
+  const panel=document.getElementById("advertImportPanel"),status=document.getElementById("advertImportStatus"),gallery=document.getElementById("advertImportImages");
+  panel.style.display="block";
+  const {data:session}=await sb.auth.getSession(),token=session?.session?.access_token;
+  if(!token){status.textContent="Please sign in to import advert details. You can enter them manually.";return;}
+  try{
+    const response=await fetch(SUPABASE_URL+"/functions/v1/preview-dealer-advert",{method:"POST",headers:{"authorization":"Bearer "+token,"apikey":SUPABASE_ANON_KEY,"content-type":"application/json"},body:JSON.stringify({url:source})});
+    const result=await response.json();
+    if(!result.success){status.textContent=result.error||"Automatic import unavailable. Continue manually.";return;}
+    const set=(id,v)=>{const e=document.getElementById(id);if(e&&v&&!e.value)e.value=String(v);};
+    const make=document.getElementById("make"),model=document.getElementById("model");
+    const brand=String(result.make||"").trim();const makeOption=[...make.options].find(o=>o.value.toLowerCase()===brand.toLowerCase());
+    if(makeOption&&!make.value){make.value=makeOption.value;window.anybikeRefreshMotorcycleSelectors?.();}
+    const chosenModel=String(result.model||"").trim();
+    if(chosenModel&&make.value&&!model.value){let opt=[...model.options].find(o=>o.value.toLowerCase()===chosenModel.toLowerCase());if(!opt){opt=new Option(chosenModel,chosenModel);model.add(opt);}model.value=opt.value;window.anybikeRefreshMotorcycleSelectors?.();}
+    set("bike_year",result.year);set("mileage",result.mileage);
+    const notes=document.getElementById("notes");if(notes&&result.description&&!notes.value.includes(result.description))notes.value=(notes.value?notes.value+"\n":"")+result.description;
+    if(result.title)status.textContent="Found: "+result.title+". Please verify every detail and photo before submitting.";
+    else status.textContent="Advert details checked. Please confirm and complete missing fields.";
+    if(Array.isArray(result.images)&&result.images.length){gallery.replaceChildren();for(const url of result.images){const img=document.createElement("img");img.src=url;img.alt="Advert photograph for review";img.loading="lazy";img.referrerPolicy="no-referrer";img.style.cssText="width:125px;height:95px;object-fit:cover;border:1px solid #444;border-radius:8px";gallery.append(img);}const note=document.createElement("p");note.className="small";note.textContent="These are reference previews only. To include photographs in the submitted motorcycle, add your original images below. Automatic image attachment is not available from every website.";gallery.append(note);}
+  }catch(e){status.textContent="The website could not be imported. Continue manually — no link is required.";}
+}
 function messageText(value,fallback){
   if(typeof value==="string" && value.trim()) return value.trim();
   if(value && typeof value==="object"){
@@ -404,6 +429,7 @@ function clearUnderwriteDraft(){
       return;
     }
     restoreUnderwriteDraft();
+    importTradeAdvert();
     const incoming=new URLSearchParams(location.search);
     for(const field of ["make","model"]){const value=(incoming.get(field)||"").trim().slice(0,100);const input=document.getElementById(field);if(value&&input&&!input.value)input.value=value;}
     if(incoming.get("make")||incoming.get("model"))saveUnderwriteDraft();
