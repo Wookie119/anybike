@@ -418,6 +418,16 @@ function checkDimensionMatch(card){
 }
 
 const sellerReviewId=Number(new URLSearchParams(location.search).get("submission")||0);
+async function cleanSellerPhoto(imageId,button){
+ if(button.disabled)return;
+ button.disabled=true;const previous=button.textContent;button.textContent="Cleaning photograph…";
+ try{
+  const {data,error}=await sb.functions.invoke("admin-clean-seller-photo",{body:{image_id:imageId}});
+  if(error||!data?.success)throw new Error(data?.error||error?.message||"Cleaner could not complete");
+  await loadSellerSubmissionComparisons();
+  alert("Cleaned buyer-safe version created. Compare it with the original before approving.");
+ }catch(error){alert("Cleaning failed: "+error.message);button.disabled=false;button.textContent=previous;}
+}
 async function loadSellerSubmissionComparisons(){
   const host=$("compareList");
   host.innerHTML='<div class="empty">Loading submission photographs…</div>';
