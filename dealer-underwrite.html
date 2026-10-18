@@ -359,6 +359,7 @@ async function importTradeAdvert(){
                 headers:{"authorization":"Bearer "+token,"apikey":SUPABASE_ANON_KEY,"content-type":"application/json"},
                 body:JSON.stringify({image_url:urls[index],advert_url:source})
               });
+              if(!photoResponse.ok){const failure=await photoResponse.json().catch(()=>({}));console.warn("Advert photo import rejected",failure.error||photoResponse.status);}
               if(photoResponse.ok){
                 const blob=await photoResponse.blob();
                 if(tradeSubmissionCompleted)return;
@@ -371,6 +372,10 @@ async function importTradeAdvert(){
         }else failed++;
       }
       gallery.append(note);
+      if(loaded && selectedPhotoFiles.length===0){
+        note.textContent="⚠ These are advert previews only. None of the photographs was attached to the submission. The photo service could not retrieve the originals. You may submit without photographs, but AnyBike will need them before photographic approval. You can also upload files using Add Photos below.";
+        note.style.color="#ffb75e";note.style.fontWeight="bold";
+      }
       counter.textContent=loaded+" preview"+(loaded===1?"":"s")+" displayed · "+selectedPhotoFiles.length+" photo"+(selectedPhotoFiles.length===1?"":"s")+" attached to submission"+(failed?" · "+failed+" unavailable":"");
       progressCaption.textContent="Mileage: "+(result.mileage?"found":"not available")+" · "+selectedPhotoFiles.length+" photos attached of "+loaded+" displayed"+(failed?" · "+failed+" unavailable":"");
     }else{
