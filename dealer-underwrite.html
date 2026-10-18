@@ -170,8 +170,8 @@ textarea{min-height:90px;resize:vertical}
       </div>
 
       <div class="field">
-        <label for="notes">Notes <span style="font-weight:400">(optional)</span></label>
-        <textarea id="notes" name="notes" placeholder="Part exchange, available now, damage, deadline, extras…"></textarea>
+        <label for="notes">Motorcycle description and condition <span style="font-weight:400">(editable)</span></label>
+        <textarea id="notes" name="notes" rows="6" style="width:100%;min-height:145px;resize:vertical" placeholder="Advert description, condition, service history, accessories, faults and additional information…"></textarea>
       </div>
 
       <div class="field">
@@ -318,15 +318,24 @@ async function importTradeAdvert(){
     if(!result.success){status.textContent=result.error||"Automatic import unavailable. Continue manually.";progress.classList.remove("loading");progressHead.textContent="Advert import unavailable";document.getElementById("advertImportHeading").textContent="Motorcycle advert details";progressCaption.textContent="Enter motorcycle details manually below.";return;}
     const set=(id,v)=>{const e=document.getElementById(id);if(e&&v&&(!e.value||(id==="registration"&&e.value==="TBC")))e.value=String(v);};
     const make=document.getElementById("make"),model=document.getElementById("model");
-    const brand=String(result.make||"").trim();const makeOption=[...make.options].find(o=>o.value.toLowerCase()===brand.toLowerCase());
+    const advertTitle=String(result.title||"").trim();
+    const titleNorm=advertTitle.toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
+    const hasPhrase=(phrase)=>(" "+titleNorm+" ").includes(" "+phrase.toLowerCase().replace(/[^a-z0-9]+/g," ")+" ");
+    const titleBrand=[...make.options].map(o=>o.value).filter(v=>v&&v!=="__custom__").sort((a,b)=>b.length-a.length).find(hasPhrase)||"";
+    const brand=String(result.make||titleBrand||"").trim();
+    const makeOption=[...make.options].find(o=>o.value.toLowerCase()===brand.toLowerCase());
     if(brand&&!make.value){
       if(!makeOption)make.add(new Option(brand,brand),make.options[make.options.length-1]);
       make.value=makeOption?.value||brand;
       window.anybikeRefreshMotorcycleSelectors?.();
     }
-    const chosenModel=String(result.model||"").trim();
+    const titleModel=(catalogue[make.value]||[]).slice().sort((a,b)=>b.length-a.length).find(hasPhrase)||"";
+    const chosenModel=String(result.model||titleModel||"").trim();
     if(chosenModel&&make.value&&!model.value){let opt=[...model.options].find(o=>o.value.toLowerCase()===chosenModel.toLowerCase());if(!opt){opt=new Option(chosenModel,chosenModel);model.add(opt);}model.value=opt.value;}
-    set("bike_year",result.year);set("mileage",String(result.mileage||"").replace(/[^0-9]/g,""));set("registration",result.registration);
+    const titleYear=advertTitle.match(/\b(?:19|20)\d{2}\b/)?.[0]||"";
+    const mileageText=[String(result.description||""),advertTitle].join(" ");
+    const mileageMatch=mileageText.match(/\b(?:mileage|odometer)\s*[:\-]?\s*([\d,]+)\s*(?:miles|mi)?\b/i)||mileageText.match(/\b([\d,]+)\s*(?:miles|mi)\b/i);
+    set("bike_year",result.year||titleYear);set("mileage",String(result.mileage||mileageMatch?.[1]||"").replace(/[^0-9]/g,""));set("registration",result.registration);
     const notes=document.getElementById("notes");if(notes&&result.description&&!notes.value.includes(result.description))notes.value=(notes.value?notes.value+"\n":"")+result.description;
     progress.classList.remove("loading");progress.classList.add("complete");
     progressHead.textContent="Advert check complete";document.getElementById("advertImportHeading").textContent="Motorcycle advert details";
