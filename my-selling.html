@@ -336,6 +336,40 @@ main{max-width:none;width:100%;margin:0;padding:18px 22px 48px}
        form.addEventListener("submit",async e=>{e.preventDefault();if(checks.some(c=>!c.checked)){feedback.textContent="Please review and tick each confirmation.";return;}if(!confirm("Submit these seller declarations to AnyBike for "+item.reference+"?"))return;submit.disabled=true;const {error}=await client.rpc("seller_confirm_underwrite_final_v1",{p_reference:item.reference,p_available:true,p_ownership:true,p_condition:true,p_finance:true,p_finance_details:notes.value});submit.disabled=false;if(error){feedback.textContent="Could not submit: "+error.message;return;}form.remove();const done=document.createElement("p");done.textContent="✓ Your seller confirmations have been saved. AnyBike will complete the independent purchase checks.";done.style.color="#a4e9b5";block.append(done);});
        block.append(form);
      }
+     const finance=document.createElement("section");finance.style.cssText="margin-top:16px;padding-top:16px;border-top:1px solid #444";
+     const financeTitle=document.createElement("h4");financeTitle.textContent="Finance declaration and electronic signature";finance.append(financeTitle);
+     if(sellerFinal.data.signed){const message=document.createElement("p");message.textContent="✓ Electronically signed by "+String(sellerFinal.data.signed_name||"seller")+". AnyBike will verify the finance information.";message.style.color="#96eaaa";finance.append(message);}
+     else {
+       const form=document.createElement("form");form.style.cssText="display:grid;gap:12px;max-width:850px";
+       const status=document.createElement("select");status.required=true;
+       for(const [value,label] of [["","Select finance status"],["none","No outstanding finance"],["outstanding","Finance outstanding"]]){const option=document.createElement("option");option.value=value;option.textContent=label;status.append(option);}
+       const detail=document.createElement("div");detail.style.cssText="display:none;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px";
+       const amount=document.createElement("input");amount.type="number";amount.min="0";amount.step="0.01";amount.placeholder="Finance settlement figure (£)";
+       const company=document.createElement("input");company.placeholder="Finance company";
+       const reference=document.createElement("input");reference.placeholder="Agreement number";
+       for(const input of [amount,company,reference])detail.append(input);
+       status.onchange=()=>{detail.style.display=status.value==="outstanding"?"grid":"none"};
+       const name=document.createElement("input");name.placeholder="Your full name (electronic signature)";name.maxLength=160;
+       for(const input of [status,amount,company,reference,name])input.style.cssText="background:#090909;color:#fff;border:1px solid #666;border-radius:8px;padding:11px;width:100%;box-sizing:border-box";
+       const agree=document.createElement("label");agree.style.cssText="display:flex;gap:9px;align-items:center";
+       const check=document.createElement("input");check.type="checkbox";agree.append(check,document.createTextNode("I confirm this declaration is accurate and electronically sign it."));
+       const save=document.createElement("button");save.type="submit";save.className="button";save.textContent="Sign and save finance details →";save.style.cssText="justify-self:start;max-width:360px";
+       const feedback=document.createElement("p");feedback.setAttribute("role","status");
+       if(!sellerFinal.data.confirmed){save.disabled=true;feedback.textContent="Complete your motorcycle confirmations above before signing.";}
+       form.append(status,detail,name,agree,save,feedback);
+       form.addEventListener("submit",async event=>{
+         event.preventDefault();
+         if(!status.value||!check.checked||name.value.trim().length<3){feedback.textContent="Choose finance status, enter your full name and tick the signature declaration.";return;}
+         if(status.value==="outstanding"&&(amount.value.trim()===""||!company.value.trim()||!reference.value.trim())){feedback.textContent="Complete the settlement figure, finance company and agreement number.";return;}
+         if(!confirm("Electronically sign and submit your finance declaration to AnyBike?"))return;
+         save.disabled=true;
+         const {error}=await client.rpc("seller_sign_finance_declaration_v1",{p_reference:item.reference,p_finance_status:status.value,p_settlement_amount:status.value==="outstanding"?Number(amount.value):null,p_finance_company:company.value,p_agreement_reference:reference.value,p_signed_name:name.value});
+         if(error){feedback.textContent="Could not save: "+error.message;save.disabled=false;return;}
+         form.replaceChildren();const done=document.createElement("p");done.textContent="✓ Finance declaration signed and saved. AnyBike will independently check it.";done.style.color="#96eaaa";form.append(done);
+       });
+       finance.append(form);
+     }
+     block.append(finance);
      card.append(block);
    }
    if(isDealerSeller){
