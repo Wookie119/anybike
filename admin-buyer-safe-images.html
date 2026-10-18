@@ -217,6 +217,7 @@ button:disabled{
   .stats{grid-template-columns:repeat(2,1fr)}
 }
 #anybikeSharedNextAction{display:none!important}
+.seller-clean-progress{margin:10px 0 0;width:min(360px,100%)}.seller-clean-progress-track{height:9px;background:#303030;border-radius:20px;overflow:hidden}.seller-clean-progress-fill{height:100%;width:8%;background:#ed1c24;border-radius:20px;animation:cleanWaiting 1.6s ease-in-out infinite alternate}.seller-clean-progress-label{font-size:12px;color:#ddd;margin:6px 0 0}@keyframes cleanWaiting{from{width:8%}to{width:85%}}
 </style>
 </head>
 <body>
@@ -430,7 +431,12 @@ async function reviewSellerPhoto(imageId,action,button){
 }
 async function cleanSellerPhoto(imageId,button){
  if(button.disabled)return;
- button.disabled=true;const previous=button.textContent;button.textContent="Repairing from original…";
+ button.disabled=true;const previous=button.textContent;button.textContent="Cleaning…";
+ const progress=document.createElement("div");
+ progress.className="seller-clean-progress";
+ progress.setAttribute("role","status");
+ progress.innerHTML='<div class="seller-clean-progress-track"><div class="seller-clean-progress-fill"></div></div><div class="seller-clean-progress-label">Cleaning photograph… awaiting image repair</div>';
+ button.parentElement.appendChild(progress);
  try{
   const {data,error}=await sb.functions.invoke("admin-clean-seller-photo",{body:{image_id:imageId}});
   if(error||!data?.success){
@@ -438,9 +444,10 @@ async function cleanSellerPhoto(imageId,button){
      if(error?.context?.json){try{const body=await error.context.json();detail=body?.error||body?.message||detail;}catch(_){}}
      throw new Error(detail||error?.message||"Image repair failed");
    }
+  progress.querySelector(".seller-clean-progress-fill").style.cssText="animation:none;width:100%";
+  progress.querySelector(".seller-clean-progress-label").textContent="Cleaning complete — ready for review";
   await loadSellerSubmissionComparisons();
-  alert("Cleaned buyer-safe version created. Compare it with the original before approving.");
- }catch(error){alert("Cleaning failed: "+error.message);button.disabled=false;button.textContent=previous;}
+ }catch(error){progress.querySelector(".seller-clean-progress-fill").style.cssText="animation:none;width:100%;background:#a33";progress.querySelector(".seller-clean-progress-label").textContent="Cleaning failed: "+error.message;button.disabled=false;button.textContent=previous;}
 }
 async function loadSellerSubmissionComparisons(){
   const host=$("compareList");
