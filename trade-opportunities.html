@@ -288,7 +288,7 @@ body.my-trade-offers-view #grid.mine-grid{margin-top:12px}
     <h1>Motorcycles to Underwrite</h1>
     
   </section>
-  <div id="confirmations"></div><div id="mineDetailOverlay" class="mine-detail-overlay" hidden role="dialog" aria-modal="true" aria-label="Motorcycle details"></div>
+  <div id="mineDetailOverlay" class="mine-detail-overlay" hidden role="dialog" aria-modal="true" aria-label="Motorcycle details"></div>
   <nav class="offer-tabs" aria-label="Underwriting views">
     <button type="button" id="allOffersTab" class="active" onclick="showOfferView('all')">Available motorcycles</button>
     <button type="button" id="myOffersTab" onclick="showOfferView('mine')">My Trade Offers <span id="myBidCount"></span></button>
@@ -304,7 +304,7 @@ body.my-trade-offers-view #grid.mine-grid{margin-top:12px}
   </div>
   <div class="filter-bottom"><span id="filterCount" aria-live="polite"></span><button type="button" onclick="resetTradeFilters()">Clear filters</button></div>
 </section>
-  <div id="grid" class="grid"><div class="empty">Loading…</div></div>
+  <div id="confirmations" hidden></div><div id="grid" class="grid"><div class="empty">Loading…</div></div>
 </main>
 
 <script>
@@ -321,6 +321,8 @@ let currentOpportunities=[];
 function showOfferView(view){
   offerView=view==="mine"?"mine":"all";
   document.body.classList.toggle('my-trade-offers-view',offerView==='mine');
+  const confirmations=document.getElementById("confirmations");
+  if(confirmations)confirmations.hidden=offerView!=="mine";
   document.getElementById("allOffersTab").classList.toggle("active",offerView==="all");
   document.getElementById("myOffersTab").classList.toggle("active",offerView==="mine");
 
@@ -374,6 +376,7 @@ async function load(){
     sb.rpc("trade_get_my_bid_confirmations_v1")
   ]);
   renderConfirmations(confirmations||[],confirmationError);
+  document.getElementById("confirmations").hidden=offerView!=="mine";
   const host=document.getElementById("grid");
   if(error){
     if(/Verified trade account required/i.test(String(error.message||""))){
@@ -529,7 +532,7 @@ function renderConfirmations(rows,error){
   if(error){if(/Verified trade account required/i.test(String(error.message||""))){host.innerHTML="";return;}host.innerHTML='<div class="notice">Bid confirmation details could not be loaded: '+esc(error.message)+'</div>';return;}
   if(!rows.length){host.innerHTML="";return;}
   const outstanding=rows.some(c=>c.confirmation_status==='requested');
-  host.innerHTML=(outstanding?'<section class="hero" style="padding:14px 18px"><div class="eyebrow">Action Required</div><h2 style="margin:5px 0 8px">Confirm Your Bid</h2><p>AnyBike has selected a bid to progress. Please confirm your bid and saved dealership delivery details.</p></section>':'<div class="notice" style="margin:5px 0 12px;padding:11px 15px">✓ Previous bid confirmations are recorded. No further action is required for those confirmations.</div>')+
+  host.innerHTML=(outstanding?'<section class="hero" style="padding:14px 18px"><div class="eyebrow">Action Required</div><h2 style="margin:5px 0 8px">Confirm Your Bid</h2><p>AnyBike has selected a bid to progress. Please confirm your bid and saved dealership delivery details.</p></section>':'')+
   rows.map(c=>{
     const requested=c.confirmation_status==="requested";
     const address=[c.delivery_address_1,c.delivery_address_2,c.delivery_city,c.delivery_county,c.delivery_postcode,c.delivery_country].filter(Boolean).join(", ");
