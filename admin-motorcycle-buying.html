@@ -594,17 +594,17 @@ async function loadSubmissionImages(id){
   }
 
   grid.innerHTML=images.filter(img=>String(img.final_status||"")!=="rejected").map(img=>{
-    const approved=String(img.final_status||"")==="approved" && img.buyer_safe_url;
-    if(!approved){
+    const hasPreview=Boolean(img.buyer_safe_url);
+    if(!hasPreview){
       return '<div class="submission-photo-wrap"><div class="submission-photo placeholder">'+esc("Photo "+img.image_position+" · "+String(img.final_status||"processing").replaceAll("_"," "))+'</div>'+
         (String(img.final_status||"")==="review_required"?'<div class="photo-actions"><button type="button" class="reject-photo" style="width:100%" onclick="rejectSellerPhoto('+id+','+Number(img.image_id)+',this)" title="Reject this unapproved photograph">✕ Reject photo</button></div>':'')+'</div>';
     }
     return '<div class="submission-photo-wrap"><button type="button" class="submission-photo" onclick="openImageLightbox(\''+esc(img.buyer_safe_url)+'\','+Number(img.rotation_degrees||0)+')">'+
       '<img src="'+esc(img.buyer_safe_url)+'" style="transform:rotate('+Number(img.rotation_degrees||0)+'deg)" alt="Motorcycle photo '+Number(img.image_position||0)+'">'+
-      '<span>Photo '+Number(img.image_position||0)+'</span></button>'+
+      '<span>Photo '+Number(img.image_position||0)+(img.final_status!=="approved"?' · REVIEW REQUIRED':'')+'</span></button>'+
       '<div class="photo-actions"><button type="button" class="rotate-photo" onclick="rotateSellerPhoto('+id+','+Number(img.image_id)+',this)" title="Rotate this photo 90 degrees clockwise">↻ Rotate</button><button type="button" class="reject-photo" onclick="rejectSellerPhoto('+id+','+Number(img.image_id)+',this)" title="Remove this photo from dealer view">✕ Reject</button></div></div>';
   }).join("");
-  status.textContent=images.filter(img=>img.final_status==="approved").length+" approved · click any photo to enlarge";
+  status.textContent=images.filter(img=>img.final_status==="approved").length+" approved · "+images.filter(img=>img.final_status==="review_required").length+" awaiting review · click available photos to enlarge";
 }
 
 async function rejectSellerPhoto(submissionId,imageId,button){
