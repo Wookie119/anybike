@@ -260,13 +260,13 @@ button,input,select,textarea{font:inherit}
 .message-thread{
   display:flex;flex-direction:column;gap:8px;margin-top:14px;
   background:#0d0d0d;border-radius:12px;padding:12px;
-  max-height:420px;
-  overflow-y:auto;
-  overflow-x:hidden;
-  scrollbar-width:none;
+  max-height:none;
+  overflow:visible;
   -ms-overflow-style:none;
 }
 .message-thread::-webkit-scrollbar{display:none}
+.customer-enquiry-detail{max-height:none!important;overflow:visible!important}
+.customer-enquiry.open{overflow:visible!important}
 .msg{max-width:78%;padding:11px;border-radius:13px;line-height:1.45;word-break:break-word}
 .msg.customer{align-self:flex-start;background:#222}
 .msg.admin{align-self:flex-end;background:var(--red)}
@@ -1634,9 +1634,15 @@ function toggleCustomerEnquiry(key){
 
     if(String(key).startsWith("global-")){
       const threadId=String(key).replace("global-","");
+      loadGlobalBuyerMessages(threadId);
+      loadGlobalConversationDocuments(threadId);
+      loadGlobalSharedMotorcycleDocuments(threadId);
       markCustomerThreadRead(threadId);
     }else if(String(key).startsWith("bike-")){
       const enquiryId=String(key).replace("bike-","");
+      loadCustomerMessages(enquiryId);
+      loadBikeConversationDocuments(enquiryId);
+      loadBikeSharedMotorcycleDocuments(enquiryId);
       markCustomerBikeEnquiryRead(enquiryId);
     }
   }else{
@@ -2822,8 +2828,9 @@ async function loadGlobalBuyerMessages(threadId){
   }
 
   const messages=data||[];
-  await renderSellerOfferPanel(threadId);
-  const messageMatchAttachments=await loadCustomerMessageMatchAttachments(threadId);
+  // Do not delay rendering of the actual message while loading optional offer/attachment panels.
+  const messageMatchAttachments=[];
+  Promise.allSettled([renderSellerOfferPanel(threadId),loadCustomerMessageMatchAttachments(threadId)]);
   window.anybikeCustomerThreadMessages[String(threadId)]=messages;
 
   if(!messages.length){
