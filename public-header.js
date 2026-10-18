@@ -1594,12 +1594,12 @@ async function loadCustomerHeaderActivity(user){
       throw error;
     }
 
-    const activeNotificationRows = await anybikeFilterCompletedActionNotifications(
-      (data || []).filter(function(notification){
-        const type = String(notification.type || "").toLowerCase();
-        return !type.includes("message");
-      })
-    );
+    // Message notifications are real bell items too. Previously every type="message"
+    // row was excluded, so an admin's bell test disappeared despite being saved.
+    const activeNotificationRows = await anybikeFilterCompletedActionNotifications(data || []);
+    const hasMessageNotifications = activeNotificationRows.some(function(notification){
+      return String(notification.type || "").toLowerCase().includes("message");
+    });
 
     const notifications = activeNotificationRows
       .map(function(notification){
@@ -1633,7 +1633,7 @@ async function loadCustomerHeaderActivity(user){
         return Number(!!b.directSourcing)-Number(!!a.directSourcing);
       });
 
-    if(unreadMessageCount > 0){
+    if(unreadMessageCount > 0 && !hasMessageNotifications){
       const offerNotice=unreadMessageInfo && typeof unreadMessageInfo==="object" ? unreadMessageInfo.offer : null;
       if(offerNotice){
         bellItems.push({
@@ -1656,7 +1656,7 @@ async function loadCustomerHeaderActivity(user){
       });
     }
 
-    const bellCount = unreadMessageCount + notifications.length;
+    const bellCount = notifications.length + (hasMessageNotifications ? 0 : unreadMessageCount);
 
     setNotificationCount(bellCount);
     renderNotificationList(bellItems);
