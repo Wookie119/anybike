@@ -1,0 +1,30 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Seller View Preview | AnyBike Admin</title><script>document.documentElement.classList.add("admin-auth-pending");</script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="/admin.js?v=12001"></script><link rel="stylesheet" href="/admin-shell.css?v=12001"><style>
+body{background:#090909;color:#fff;font:15px/1.5 Arial,sans-serif}main{max-width:1240px;margin:0 auto;padding:28px 20px 70px}h1{font-size:30px;margin:4px 0}h2{margin:0 0 8px}.muted{color:#bbb}.head{display:flex;justify-content:space-between;gap:14px;align-items:center;flex-wrap:wrap}.admin-note{border:1px solid #a82931;background:#231214;border-radius:10px;padding:13px;margin:16px 0}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:18px}.bike{background:#151515;border:1px solid #424242;border-top:4px solid #d9232d;padding:22px;border-radius:12px}.ref{color:#ff9398;font-size:12px}.status{padding:13px;background:#11291b;border:1px solid #357b51;border-radius:9px;margin:14px 0}.count{font-size:38px;color:#9cf0b4;font-weight:800}.stages{list-style:none;padding:0;margin:12px 0;display:grid;gap:7px}.stages li{padding:10px 12px;border:1px solid #393939;border-radius:7px;color:#aaa}.stages li.done{color:#a3eab6;border-color:#285d41}.stages li.current{color:#fff;border-color:#c62a33;background:#281316}.btn{display:inline-block;padding:10px 14px;border-radius:7px;background:#bc202b;color:#fff;text-decoration:none;font-weight:700}small{color:#bbb} .warning{color:#f5c18b}
+</style></head><body><header id="publicHeader"></header><main><div class="head"><div><small style="color:#f44">AnyBike Admin · Read-only preview</small><h1>What the seller sees</h1></div><a class="btn" href="/admin-trade-underwrites.html">← Trade Underwrite Desk</a></div><div class="admin-note">This is an <b>Admin-only preview</b> for the two test motorcycles, not a login as either seller. No dealer identities, bid values, AnyBike buying prices or margins are shown. No offers are sent.</div><p id="state">Checking Admin access and loading selling progress…</p><div id="cards" class="grid"></div></main><script>
+const steps=["Motorcycle received","AnyBike review","Confidential trade bidding","Reserve assessment","Formal AnyBike offer","Sale agreed"];
+function node(tag,cls,value){let e=document.createElement(tag);if(cls)e.className=cls;if(value!==undefined)e.textContent=value;return e;}
+function showBike(b){
+ const box=node("section","bike");
+ box.append(node("div","ref",b.reference),node("h2","",[b.make,b.model,b.variant,b.bike_year].filter(Boolean).join(" · ")));
+ const stage=String(b.underwrite_status||"").toLowerCase();const live=stage==="live";const done=stage==="completed"||stage==="sold";
+ const header=node("div","status");
+ header.append(node("strong","",live?"Confidential trade bidding underway":done?"Motorcycle sale progressed":stage==="eligible"?"Reviewed by AnyBike — preparing next stage":"AnyBike reviewing your motorcycle"));
+ if(live){const offerCount=Number(b.live_offer_count||0);const inviteCount=Number(b.invited_dealer_count||0);header.append(node("div","count",String(offerCount)),node("div","",offerCount===1?"1 dealership has submitted an offer":offerCount+" dealerships have submitted offers"));if(inviteCount)header.append(node("small","",inviteCount+" dealerships invited"));if(b.closes_at)header.append(node("p","", "Bidding closes "+new Date(b.closes_at).toLocaleString("en-GB",{dateStyle:"medium",timeStyle:"short"})+". AnyBike will review the offers and contact you if a formal offer is available."));}
+ box.append(header);
+ let current=done?5:live?2:stage==="eligible"?1:0;
+ const ol=node("ol","stages");steps.forEach((step,i)=>ol.append(node("li",i<current?"done":i===current?"current":"", (i<current?"✓ ":i===current?"● ":"– ")+step)));box.append(ol);
+ box.append(node("p","muted","Dealer bid amounts and identities remain confidential. Nothing shown here means a sale has been agreed."));
+ return box;
+}
+(async()=>{
+ const status=document.getElementById("state");
+ try{
+  const allowed=await requireAdminSession();if(!allowed){status.textContent="Admin access required.";return;}
+  document.documentElement.classList.remove("admin-auth-pending");
+  const {data,error}=await sb.rpc("admin_preview_seller_progress_v1");if(error)throw error;
+  const list=Array.isArray(data)?data:[];
+  status.textContent=list.length?"Previewing "+list.length+" motorcycle selling journeys.":"No test motorcycle records available.";
+  list.forEach(b=>document.getElementById("cards").append(showBike(b)));
+ }catch(e){status.textContent="Unable to load seller preview: "+String(e.message||e);}
+})();
+</script></body></html>
