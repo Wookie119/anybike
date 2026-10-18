@@ -94,7 +94,7 @@ textarea{min-height:90px;resize:vertical}
       <div id="advertImportPanel" class="field" style="display:none;grid-column:1/-1;border:1px solid #555;border-radius:12px;padding:16px;background:#171717"><strong>Importing motorcycle advert details…</strong><p id="advertImportStatus" class="small" role="status">You can complete this form while we check the link.</p><div id="advertImportImages" style="display:flex;flex-wrap:wrap;gap:9px"></div></div>
       <div class="field">
         <label for="registration">Registration</label>
-        <input id="registration" name="registration" required autocomplete="off" placeholder="AB12 CDE">
+        <input id="registration" name="registration" required autocomplete="off" value="TBC" placeholder="TBC">
       </div>
 
       <div class="field">
@@ -119,7 +119,7 @@ textarea{min-height:90px;resize:vertical}
 
       <div class="field">
         <label for="mileage">Mileage</label>
-        <input id="mileage" name="mileage" type="number" min="0" inputmode="numeric" required placeholder="12500">
+        <input id="mileage" name="mileage" type="text" inputmode="numeric" pattern="[0-9,]*" required placeholder="12500">
       </div>
 
       <div class="field minimum-price-field">
@@ -276,13 +276,13 @@ async function importTradeAdvert(){
     const response=await fetch(SUPABASE_URL+"/functions/v1/preview-dealer-advert",{method:"POST",headers:{"authorization":"Bearer "+token,"apikey":SUPABASE_ANON_KEY,"content-type":"application/json"},body:JSON.stringify({url:source})});
     const result=await response.json();
     if(!result.success){status.textContent=result.error||"Automatic import unavailable. Continue manually.";return;}
-    const set=(id,v)=>{const e=document.getElementById(id);if(e&&v&&!e.value)e.value=String(v);};
+    const set=(id,v)=>{const e=document.getElementById(id);if(e&&v&&(!e.value||(id==="registration"&&e.value==="TBC")))e.value=String(v);};
     const make=document.getElementById("make"),model=document.getElementById("model");
     const brand=String(result.make||"").trim();const makeOption=[...make.options].find(o=>o.value.toLowerCase()===brand.toLowerCase());
     if(makeOption&&!make.value){make.value=makeOption.value;window.anybikeRefreshMotorcycleSelectors?.();}
     const chosenModel=String(result.model||"").trim();
     if(chosenModel&&make.value&&!model.value){let opt=[...model.options].find(o=>o.value.toLowerCase()===chosenModel.toLowerCase());if(!opt){opt=new Option(chosenModel,chosenModel);model.add(opt);}model.value=opt.value;window.anybikeRefreshMotorcycleSelectors?.();}
-    set("bike_year",result.year);set("mileage",result.mileage);
+    set("bike_year",result.year);set("mileage",String(result.mileage||"").replace(/[^0-9]/g,""));set("registration",result.registration);
     const notes=document.getElementById("notes");if(notes&&result.description&&!notes.value.includes(result.description))notes.value=(notes.value?notes.value+"\n":"")+result.description;
     if(result.title)status.textContent="Found: "+result.title+". Please verify every detail and photo before submitting.";
     else status.textContent="Advert details checked. Please confirm and complete missing fields.";
@@ -475,7 +475,7 @@ document.getElementById("underwriteForm").addEventListener("submit",async functi
   btn.textContent="Sending…";
 
   try{
-    const fd=new FormData(this);
+    const fd=new FormData(this);\n    fd.set("mileage",String(fd.get("mileage")||"").replace(/,/g,""));
     const urgency=document.getElementById("sale_urgency").value;
     const priceType=document.getElementById("price_expectation").value;
     const finance=document.getElementById("finance_status").value;
