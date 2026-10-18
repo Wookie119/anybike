@@ -99,12 +99,12 @@ textarea{min-height:90px;resize:vertical}
 
       <div class="field">
         <label for="make">Make</label>
-        <select id="make" name="make" required><option value="">Select make</option></select>
+        <select id="make" name="make" required><option value="">Select make</option></select><input id="customMake" type="text" maxlength="80" placeholder="Enter exact make" style="display:none;margin-top:7px" autocomplete="off">
       </div>
 
       <div class="field">
         <label for="model">Model</label>
-        <select id="model" name="model" required disabled><option value="">Select make first</option></select>
+        <select id="model" name="model" required disabled><option value="">Select make first</option></select><input id="customModel" type="text" maxlength="100" placeholder="Enter exact model" style="display:none;margin-top:7px" autocomplete="off">
       </div>
 
       <div class="field">
@@ -229,8 +229,8 @@ const make=document.getElementById("make"),model=document.getElementById("model"
 const add=(parent,value,label)=>{const o=document.createElement("option");o.value=value;o.textContent=label||value;parent.appendChild(o);};
 const additionalManufacturers=["AJS","Bajaj","Bimota","BSA","Can-Am","CFMoto","Daelim","Derbi","Fantic","GasGas","Gilera","Herald","Husqvarna","Hyosung","Keeway","Kymco","Lambretta","Lexmoto","Lifan","Mash","MBK","Mutt","MV Agusta","Norton","Peugeot","QJMotor","Rieju","Sherco","Sinnis","SYM","SWM","Zero Motorcycles","Zontes"];
 additionalManufacturers.forEach(name=>{if(!catalogue[name])catalogue[name]=[];});
-Object.keys(catalogue).sort().forEach(k=>add(make,k));
-function refreshModels(){const existing=model.value;model.replaceChildren();add(model,"","Select model");(catalogue[make.value]||[]).forEach(v=>add(model,v));if(make.value)add(model,"Other / Not listed","Other / Enter exact model in Variant");model.disabled=!make.value;if(catalogue[make.value]?.includes(existing))model.value=existing;refreshVariants();}
+Object.keys(catalogue).sort().forEach(k=>add(make,k));add(make,"__custom__","Other make / Not listed");
+function refreshModels(){const existing=model.value;model.replaceChildren();add(model,"","Select model");(catalogue[make.value]||[]).forEach(v=>add(model,v));if(make.value&&make.value!=="__custom__")add(model,"__custom__","Other model / Not listed");model.disabled=!make.value;if(catalogue[make.value]?.includes(existing))model.value=existing;refreshVariants();}
 let variantLoadIndex=0;
 async function refreshVariants(){
   const makeName=make.value,modelName=model.value;
@@ -249,7 +249,14 @@ async function refreshVariants(){
   }catch(error){if(current===variantLoadIndex)hint.textContent="Variant suggestions unavailable. You can still type the exact variant.";}
 }
 const upper=new Date().getFullYear()+1;for(let y=upper;y>=1950;y--)add(year,String(y));
-make.addEventListener("change",refreshModels);model.addEventListener("change",refreshVariants);
+const customMake=document.getElementById("customMake"),customModel=document.getElementById("customModel");
+function chooseExact(select,input,placeholder){
+ const value=input.value.trim();if(!value)return;
+ const option=new Option(value,value);select.add(option);select.value=value;input.style.display="none";input.value="";if(select===make)refreshModels();else refreshVariants();
+}
+make.addEventListener("change",()=>{customMake.style.display=make.value==="__custom__"?"block":"none";if(make.value==="__custom__")customMake.focus();refreshModels();});
+model.addEventListener("change",()=>{customModel.style.display=model.value==="__custom__"?"block":"none";if(model.value==="__custom__")customModel.focus();refreshVariants();});
+customMake.addEventListener("change",()=>chooseExact(make,customMake));customModel.addEventListener("change",()=>chooseExact(model,customModel));
 refreshModels();
 window.anybikeRefreshMotorcycleSelectors=function(){refreshModels();refreshVariants();};
 })();
@@ -312,9 +319,13 @@ async function importTradeAdvert(){
     const set=(id,v)=>{const e=document.getElementById(id);if(e&&v&&(!e.value||(id==="registration"&&e.value==="TBC")))e.value=String(v);};
     const make=document.getElementById("make"),model=document.getElementById("model");
     const brand=String(result.make||"").trim();const makeOption=[...make.options].find(o=>o.value.toLowerCase()===brand.toLowerCase());
-    if(makeOption&&!make.value){make.value=makeOption.value;window.anybikeRefreshMotorcycleSelectors?.();}
+    if(brand&&!make.value){
+      if(!makeOption)make.add(new Option(brand,brand),make.options[make.options.length-1]);
+      make.value=makeOption?.value||brand;
+      window.anybikeRefreshMotorcycleSelectors?.();
+    }
     const chosenModel=String(result.model||"").trim();
-    if(chosenModel&&make.value&&!model.value){let opt=[...model.options].find(o=>o.value.toLowerCase()===chosenModel.toLowerCase());if(!opt){opt=new Option(chosenModel,chosenModel);model.add(opt);}model.value=opt.value;window.anybikeRefreshMotorcycleSelectors?.();}
+    if(chosenModel&&make.value&&!model.value){let opt=[...model.options].find(o=>o.value.toLowerCase()===chosenModel.toLowerCase());if(!opt){opt=new Option(chosenModel,chosenModel);model.add(opt);}model.value=opt.value;}
     set("bike_year",result.year);set("mileage",String(result.mileage||"").replace(/[^0-9]/g,""));set("registration",result.registration);
     const notes=document.getElementById("notes");if(notes&&result.description&&!notes.value.includes(result.description))notes.value=(notes.value?notes.value+"\n":"")+result.description;
     progress.classList.remove("loading");progress.classList.add("complete");
