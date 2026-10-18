@@ -165,9 +165,17 @@ async function load(){
  }
  const priority=rows.find(r=>r.opportunity_status==="live"&&Number(r.live_bid_count)>0&&Number(r.seller_price_wanted_gbp)>0)||rows.find(r=>r.opportunity_status==="live"&&Number(r.live_bid_count)>0)||rows.find(r=>r.opportunity_status==="live")||rows[0];
  const hasBids=Number(priority.live_bid_count)>0;
+ const confirmedMinimum=Number(priority.seller_price_wanted_gbp)>0;
+ let savedCommercialDraft=null;
+ if(hasBids&&!confirmedMinimum){
+   try{
+     const {data,error}=await sb.rpc("admin_get_underwrite_commercial_saved_v1",{p_opportunity_id:Number(priority.opportunity_id)});
+     if(!error&&data?.record_type==="draft")savedCommercialDraft=data;
+   }catch(e){console.warn("Commercial draft status unavailable",e);}
+ }
  window.AnyBikeNextAction?.set({
- title:hasBids&&Number(priority.seller_price_wanted_gbp)>0?"Assess "+priority.reference+" commercial viability":hasBids?"Confirm seller minimum for "+priority.reference:"Check underwrite invitations",
- text:hasBids&&Number(priority.seller_price_wanted_gbp)>0?"Check seller minimum, dealer bid, Move quote and margin before any reserve decision.":hasBids?"A bid exists but the seller minimum is missing. Confirm it before assessing the reserve.":"No dealer bids yet. Review invitations and bidding progress.",
+ title:hasBids&&confirmedMinimum?"Assess "+priority.reference+" commercial viability":savedCommercialDraft?"Review saved assessment for "+priority.reference:hasBids?"Confirm seller minimum for "+priority.reference:"Check underwrite invitations",
+ text:hasBids&&confirmedMinimum?"Check seller minimum, dealer bid, Move quote and margin before any reserve decision.":savedCommercialDraft?"Your commercial draft was saved. The seller minimum is still unconfirmed. Review the assessment and confirm the seller minimum before a reserve decision.":hasBids?"A bid exists but the seller minimum is missing. Confirm it before assessing the reserve.":"No dealer bids yet. Review invitations and bidding progress.",
  waitingFor:"AnyBike",label:hasBids?"REVIEW ACTIVE BIDS →":"REVIEW UNDERWRITE →",
  selector:"#underwrite-"+priority.opportunity_id
  });
