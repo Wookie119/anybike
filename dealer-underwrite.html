@@ -113,7 +113,7 @@ textarea{min-height:90px;resize:vertical}
       <div id="advertImportPanel" class="field" style="display:none;grid-column:1/-1;border:1px solid #555;border-radius:12px;padding:16px;background:#171717"><strong id="advertImportHeading">Importing motorcycle advert details…</strong><div id="tradeImportProgress" class="trade-import-progress" role="status" aria-live="polite"><strong id="tradeProgressHeading">Checking motorcycle advert…</strong><div class="trade-progress-track"><div class="trade-progress-fill"></div></div><div id="tradeProgressCaption" class="trade-progress-caption">Looking for motorcycle details and photographs</div></div><p id="advertImportStatus" class="small" role="status">You can complete this form while we check the link.</p><div id="advertImportImages" style="display:flex;flex-wrap:wrap;gap:9px"></div></div>
       <div class="field">
         <label for="registration">Registration</label>
-        <input id="registration" name="registration" required autocomplete="off" placeholder="Required — enter registration">
+        <input id="registration" name="registration" required autocomplete="off" placeholder="REQUIRED">
       </div>
 
       <div class="field">
@@ -558,7 +558,7 @@ function restoreUnderwriteDraft(){
     const raw=localStorage.getItem(UNDERWRITE_DRAFT_KEY);
     if(!raw)return;
     const draft=JSON.parse(raw);
-    if(draft.registration)document.getElementById("registration").value=draft.registration;
+    if(draft.registration && !/^(TBC|REQUIRED)$/i.test(String(draft.registration).trim()))document.getElementById("registration").value=draft.registration;
     if(draft.make){document.getElementById("make").value=draft.make;window.anybikeRefreshMotorcycleSelectors?.();}
     if(draft.model){document.getElementById("model").value=draft.model;window.anybikeRefreshMotorcycleSelectors?.();}
     if(draft.variant)document.getElementById("variant").value=draft.variant;
@@ -619,6 +619,8 @@ document.getElementById("underwriteForm").addEventListener("submit",async functi
   const files=Array.from(document.getElementById("photos").files||[]);
   if(files.length>12){showMsg("Please choose no more than 12 photos.",false);return;}
 
+  const registrationInput=document.getElementById("registration");
+  if(!registrationInput.value.trim() || /^(TBC|REQUIRED)$/i.test(registrationInput.value.trim())){showMsg("Enter the motorcycle registration before submitting.",false);registrationInput.focus();return;}
   const minimumPrice=Number(document.getElementById("price_wanted_gbp").value);
   if(!Number.isFinite(minimumPrice)||minimumPrice<=0){
     showMsg("Enter the confidential minimum selling price before submitting.",false);
