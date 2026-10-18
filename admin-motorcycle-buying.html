@@ -492,9 +492,17 @@ async function editUnderwriteBuyerDescription(submissionId){
    const saved=await sb.rpc("admin_save_underwrite_buyer_description_v1",{p_submission_id:Number(submissionId),p_description:text});
    button.disabled=false;
    if(saved.error||!saved.data?.success){status.textContent="Could not save: "+(saved.error?.message||"Unknown error");return;}
-   status.textContent="Saved as an Admin-reviewed draft. Not published.";setTimeout(close,800);
+   buyerDescriptions.set(Number(submissionId),text);const preview=document.getElementById("buyer-advert-description-"+Number(submissionId));if(preview)preview.textContent=text;status.textContent="Saved. Advert preview updated immediately; not published.";setTimeout(close,800);
  };
  field.focus();
+}
+const buyerDescriptions=new Map();
+async function loadBuyerDescription(id){
+ const {data,error}=await sb.rpc("admin_get_underwrite_buyer_description_v1",{p_submission_id:Number(id)});
+ if(error)return;
+ buyerDescriptions.set(Number(id),String(data||""));
+ const el=document.getElementById("buyer-advert-description-"+Number(id));
+ if(el)el.textContent=String(data||"Description awaiting preparation.");
 }
 function sellerNotesHtml(notes,submissionId){
  const raw=String(notes||"");
@@ -503,7 +511,7 @@ function sellerNotesHtml(notes,submissionId){
  const internal=(raw.match(/\[INTERNAL SELLER PRICE GUIDANCE[^\]]*\]([\s\S]*?)(?=\[[A-Z][A-Z ]+\]|$)/)||[])[1]?.trim()||"";
  const comments=raw.replace(/\\r\\n/g,"\n").split("\n").map(x=>x.trim()).filter(x=>x&&!x.startsWith("[")&&!/^https?:\/\//i.test(x)&&!/(searchId=|backLinkQueryParams=|calc-deposit=|postcode=|advertising-location=)/i.test(x)&&!/^Urgency:/i.test(x)).join(" ").slice(0,650).trim();
  return '<section class="seller-notes-compact" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px;margin:14px 0;align-items:start">'+
- '<div class="box"><strong>Original seller comments (Admin only)</strong><p>'+esc(comments||"No useful description supplied")+'</p><button type="button" onclick="editUnderwriteBuyerDescription('+Number(submissionId)+')" style="margin-top:10px;background:#ed1c24">Prepare buyer-safe description →</button>'+(preference?'<small>'+esc(preference)+'</small>':'')+'</div>'+
+ '<div class="box"><strong>Advert description · Buyer view</strong><p id="buyer-advert-description-'+Number(submissionId)+'">'+esc(buyerDescriptions.get(Number(submissionId))||"Description awaiting preparation.")+'</p><button type="button" onclick="editUnderwriteBuyerDescription('+Number(submissionId)+')" style="margin-top:10px;background:#ed1c24">Edit advert description →</button><details style="margin-top:12px"><summary>Original seller comments · Admin only</summary><p>'+esc(comments||"No useful description supplied")+'</p></details>'+(preference?'<small>'+esc(preference)+'</small>':'')+'</div>'+
  '<div class="box"><strong>Finance &amp; history</strong><p>'+esc(finance||"Finance not declared")+'</p><small>Seller declaration only — verify before completion.</small></div>'+
  '<div class="box" style="border:1px solid #b87034"><details class="internal-review-notes"><summary><strong>Confidential AnyBike notes</strong> <small>— admin only · expand</small></summary><p>'+esc(internal||"No confidential price guidance recorded")+'</p></details></div></section>';
 }
@@ -732,6 +740,7 @@ function toggleSubmission(id){
     detail.classList.add("open");
     row.classList.add("open");
     loadSubmissionImages(id);
+    loadBuyerDescription(id);
     const current=rows.find(r=>Number(r.submission_id)===Number(id));
     if(current?.seller_type==="private_seller")showSellerBiddingPermission(id);
   }
