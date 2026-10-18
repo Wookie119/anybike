@@ -75,6 +75,7 @@ input[type="number"]{-moz-appearance:textfield;appearance:textfield}input[type="
 .decision-target-card{outline:3px solid #ed1c24!important;outline-offset:3px;scroll-margin-top:90px}
 .auction-nine-steps{margin:12px 0 18px;border:1px solid #444;border-radius:10px;overflow:hidden}.journey-heading{padding:12px;background:#151515;display:flex;justify-content:space-between;gap:9px;flex-wrap:wrap}.journey-heading small{color:#bbb}.journey-stage{display:flex;align-items:center;gap:12px;padding:9px 12px;border-top:1px solid #333}.journey-number{flex:none;display:grid;place-items:center;background:#292929;border-radius:50%;width:27px;height:27px;font-weight:800}.journey-info{flex:1;display:flex;flex-direction:column;gap:5px}.journey-info strong{font-size:13px}.journey-info small{font-size:12px;color:#ccc}.journey-done .journey-number{background:#153b2d;color:#90f0b2}.journey-tick{color:#90f0b2}.journey-active{background:#221012;border-left:4px solid #ed1c24}.journey-active .journey-number{background:#ed1c24;color:white}.journey-state{font-size:12px;color:#ff9999;font-weight:700}.journey-step-go{align-self:flex-start;background:#ed1c24;color:#fff;padding:9px 13px;border:0;border-radius:7px;font-weight:800;cursor:pointer}.reserve-review-modal .rv-advanced{margin:12px 0;border:1px solid #444;border-radius:10px;padding:11px 14px;background:#111}.reserve-review-modal .rv-advanced summary{cursor:pointer;font-weight:800;color:#fff}.reserve-review-modal .rv-advanced summary span{font-size:12px;font-weight:400;color:#aaa;margin-left:12px}.reserve-review-modal .rv-advanced>.transport-fields{margin-top:12px}.reserve-review-modal .modal-box{width:min(920px,100%)!important}.reserve-review-modal .transport-fields{grid-template-columns:repeat(3,minmax(0,1fr))}@media(max-width:700px){.reserve-review-modal .transport-fields{grid-template-columns:1fr}}
 .rv-simple-prices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:12px 0}.rv-simple-prices>div{border:1px solid #454545;border-radius:10px;padding:14px;background:#111;display:flex;flex-direction:column;gap:5px}.rv-simple-prices small{font-size:12px;color:#bbb;font-weight:700}.rv-simple-prices strong{font-size:24px;color:#fff}.rv-simple-prices span{font-size:12px;color:#aaa}@media(max-width:650px){.rv-simple-prices{grid-template-columns:1fr}}
+.rv-backup-bids{display:grid;gap:7px;margin:10px 0}.rv-backup-row{display:grid;grid-template-columns:minmax(140px,1.7fr) 95px 95px minmax(160px,1.3fr);gap:9px;align-items:center;padding:9px;border:1px solid #333;border-radius:7px;background:#0b0b0b}.rv-backup-row small{display:block;color:#aaa}.rv-backup-row select{width:100%;min-width:0;background:#151515;color:white;border:1px solid #555;padding:9px;border-radius:7px}@media(max-width:700px){.rv-backup-row{grid-template-columns:1fr 1fr}.rv-backup-row select{grid-column:1/-1}}
 </style><script>if(new URLSearchParams(location.search).has("embedded"))document.documentElement.classList.add("trade-embedded");</script>
 <style>
 :root{--red:#ed1c24;--line:rgba(255,255,255,.12)}*{box-sizing:border-box}body{margin:0;background:#070707;color:#fff;font-family:Arial,Helvetica,sans-serif}
@@ -830,15 +831,19 @@ function openReserveReview(id){
  const row=rows.find(r=>Number(r.opportunity_id)===Number(id));if(!row)return;
  reserveReviewId=Number(id);
  const dealerPanel=document.getElementById("rvLeadingDealer");
- dealerPanel.textContent="Checking leading dealership…";
+ dealerPanel.textContent="Checking live bids from different dealerships…";
+ window.reserveLiveDealers=[];
  sb.rpc("admin_get_trade_underwrite_bids_v1",{p_opportunity_id:Number(id)}).then(({data,error})=>{
   if(reserveReviewId!==Number(id))return;
-  if(error){dealerPanel.textContent="Dealer information unavailable — use Manage Bidders.";return;}
-  const live=(data||[]).filter(b=>b.status==="live").sort((a,b)=>Number(b.amount_gbp)-Number(a.amount_gbp));
-  const leader=live[0];
-  if(!leader){dealerPanel.textContent="No current live bidder. Review bidder history.";return;}
-  dealerPanel.innerHTML='<strong>Leading dealership: '+esc(leader.dealer_name||"Unknown")+'</strong><span style="display:block;font-size:12px;color:#bbb">Bid: '+money(leader.amount_gbp)+' · Dealer credit rating not available. Verify payment arrangements before confirming a sale.</span><button type="button" onclick="document.getElementById(\'reserveReviewModal\').classList.remove(\'open\');viewBids('+Number(id)+')" style="margin-top:8px">View all bidders →</button>';
- }).catch(()=>{dealerPanel.textContent="Dealer information unavailable.";});
+  if(error){dealerPanel.textContent="Bidder information unavailable — use Manage Bidders.";return;}
+  const byDealer=new Map();
+  (data||[]).filter(b=>b.status==="live").forEach(b=>{
+   const key=Number(b.dealer_organisation_id);
+   if(!byDealer.has(key)||Number(b.amount_gbp)>Number(byDealer.get(key).amount_gbp))byDealer.set(key,b);
+  });
+  window.reserveLiveDealers=[...byDealer.values()].sort((a,b)=>Number(b.amount_gbp)-Number(a.amount_gbp));
+  showReserveBackupBids();
+ }).catch(()=>{dealerPanel.textContent="Bidder information unavailable.";});
  document.getElementById("reserveReviewTitle").textContent="Buying price & gross margin · "+row.reference;
  document.getElementById("rvSeller").value=Number(row.seller_price_wanted_gbp)>0?Number(row.seller_price_wanted_gbp).toFixed(2):"";
  if(document.querySelector(".margin-preset-buttons"))setReserveMarginPercent(8);
@@ -869,6 +874,21 @@ async function loadReserveDraft(id){
  const saved=document.getElementById("rvSaveStatus");saved.textContent="✓ "+(data.record_type==="draft"?"Draft":"Assessment")+" previously saved"+(data.saved_at?" · "+new Date(data.saved_at).toLocaleString("en-GB"):"")+". Review before confirming.";saved.classList.add("saved");
  }catch(e){console.warn("Could not load underwrite draft",e)}
 }
+function showReserveBackupBids(){
+ const panel=document.getElementById("rvLeadingDealer");
+ const list=window.reserveLiveDealers||[];
+ const buying=Number(document.getElementById("rvSeller").value)||0;
+ const profitable=list.filter(b=>Number(b.amount_gbp)>buying);
+ const id=Number(reserveReviewId);
+ if(!list.length){panel.textContent="No current live bids from verified distinct dealerships.";return;}
+ panel.innerHTML='<strong>'+profitable.length+' of '+list.length+' dealers bidding above buying price</strong><p style="font-size:12px;color:#bbb">These are potential buyers, not guaranteed sales. Gross margins shown before collection, delivery or other costs.</p>'+
+ '<div class="rv-backup-bids">'+list.slice(0,8).map((b,i)=>{
+ const margin=Number(b.amount_gbp)-buying;
+ return '<div class="rv-backup-row"><div><strong>'+(i+1)+'. '+esc(b.dealer_name||"Unknown dealership")+'</strong><small>'+esc(i===0?"Leading bidder":"Backup bidder")+'</small></div><strong>'+money(b.amount_gbp)+'</strong><strong style="color:'+(margin>0?"#85e7a2":"#ff9a9a")+'">'+money(margin)+'</strong><select aria-label="Confidence in '+esc(b.dealer_name||"dealer")+'" data-confidence-dealer="'+Number(b.dealer_organisation_id)+'"><option value="">Buyer confidence — not reviewed</option><option value="known">Known dealer — confident</option><option value="new">New dealer — not yet known</option><option value="concern">Concern about completion</option></select></div>';
+ }).join('')+'</div><p style="font-size:12px;color:#bbb">Buyer confidence is an Admin judgement, not a credit score. Confirm payment arrangements before committing to the seller.</p>'+
+ '<button type="button" onclick="document.getElementById(\'reserveReviewModal\').classList.remove(\'open\');viewBids('+id+')">View all bidders →</button> '+
+ '<button type="button" onclick="document.getElementById(\'reserveReviewModal\').classList.remove(\'open\');openOffer('+id+')" '+(!profitable.length?'disabled':'')+'>Review &amp; prepare seller offer →</button>';
+}
 function updateReservePreview(){
  const row=rows.find(r=>Number(r.opportunity_id)===reserveReviewId);
  const bid=Number(row?.highest_live_bid_gbp)||0;
@@ -879,6 +899,7 @@ function updateReservePreview(){
  const result=document.getElementById("rvGrossMargin");
  result.textContent=money(gross);
  result.style.color=gross>=0?"#84e7a6":"#ff8181";
+ if(window.reserveLiveDealers?.length)showReserveBackupBids();
 }
 document.getElementById("reserveReviewModal").addEventListener("input",event=>{if(event.target.id==="rvMargin")document.querySelectorAll(".margin-preset").forEach(b=>{b.classList.remove("selected");b.setAttribute("aria-pressed","false")});updateReservePreview()});
 document.getElementById("reserveReviewModal").addEventListener("change",updateReservePreview);
