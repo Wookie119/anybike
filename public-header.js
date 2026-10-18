@@ -2757,9 +2757,9 @@ async function anybikeShowPublicSignedInIdentity(){
   const session=await client.auth.getSession();
   const user=session?.data?.session?.user;
   let strip=document.getElementById("anybikePublicSignedInIdentity");
-  const showTestIdentity=!!user && ["mocp@hotmail.co.uk","andy.gifford@yahoo.co.uk","sales@anybike.co.uk"].includes(String(user.email||"").trim().toLowerCase());
-  if(!showTestIdentity){strip?.remove();return;}
-  if(!strip){strip=document.createElement("div");strip.id="anybikePublicSignedInIdentity";strip.style.cssText="background:#1a1a1a;color:#fff;border-bottom:1px solid #474747;padding:7px 16px;text-align:center;font:700 12px/1.45 Arial,sans-serif;overflow-wrap:anywhere";header.insertAdjacentElement("afterend",strip);}
+  // Show a discreet account identifier to every signed-in customer, never to guests.
+  if(!user){strip?.remove();return;}
+  if(!strip){strip=document.createElement("div");strip.id="anybikePublicSignedInIdentity";strip.style.cssText="background:#101010;color:#ddd;border-bottom:1px solid #303030;padding:5px 18px;text-align:right;font:600 11px/1.4 Arial,sans-serif;overflow-wrap:anywhere";header.insertAdjacentElement("afterend",strip);}
   if(!user){strip.textContent="SIGNED IN · Guest / Not signed in";return;}
   const response=await client.from("customer_profiles").select("customer_type,full_name").eq("id",user.id).maybeSingle();
   const profile=response?.data||{};
@@ -2767,7 +2767,7 @@ async function anybikeShowPublicSignedInIdentity(){
   let key=String(profile.customer_type||"").toLowerCase();
   let role=roles[key]||key.replaceAll("_"," ").toUpperCase()||"CUSTOMER";
   if(!profile.customer_type)role="CUSTOMER · ROLE NOT SET";
-  strip.style.borderBottomColor=key==="uk_dealer"?"#bf8f36":"#8b2730";
+  strip.style.borderBottomColor="#303030";
   strip.textContent="SIGNED IN · "+role+" · "+(profile.full_name||"")+" · "+(user.email||"Email unavailable");
   const refresh=()=>anybikeShowPublicSignedInIdentity().catch(()=>{});
   if(!window.__anybikeIdentityWatcher){window.__anybikeIdentityWatcher=true;client.auth.onAuthStateChange(()=>{setTimeout(refresh,0);});}
