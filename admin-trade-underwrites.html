@@ -178,17 +178,34 @@ function renderQuickAuctions(){
 function prepareBidderMessage(opportunityId,button){
  const auction=rows.find(r=>Number(r.opportunity_id)===Number(opportunityId));
  const dealer=button.dataset.dealer||"Dealer";
- const text="Hello, thank you for your interest in "+[auction?.make,auction?.model].filter(Boolean).join(" ")+". Your offer is recorded. If you would like to improve your chance of securing this motorcycle, you may review your best confidential offer before bidding closes. Kind regards, AnyBike.";
- const node=document.getElementById("bidder-message-draft-"+Number(opportunityId));
- if(node)node.remove();
+ const dealerId=Number(button.dataset.dealerId);
+ if(!Number.isSafeInteger(dealerId)||dealerId<1){alert("Dealer identity unavailable");return;}
+ const bike=[auction?.make,auction?.model].filter(Boolean).join(" ");
+ const drafts={
+ thanks:"Hello, thank you for your interest in "+bike+". Your confidential offer has been recorded. Kind regards, AnyBike.",
+ improve:"Hello, thank you for your interest in "+bike+". If you wish, you can review your maximum confidential offer before bidding closes. Kind regards, AnyBike.",
+ interest:"Hello, there is interest in "+bike+". Please consider submitting your best confidential offer before bidding closes. Kind regards, AnyBike."
+ };
+ document.getElementById("bidder-message-draft-"+Number(opportunityId))?.remove();
  const panel=document.createElement("div");panel.id="bidder-message-draft-"+Number(opportunityId);
  panel.style.cssText="border:1px solid #ed1c24;border-radius:10px;padding:12px;margin-top:12px;background:#171010";
- panel.innerHTML='<strong>Message draft for '+esc(dealer)+' · NOT SENT</strong><p style="font-size:12px">Review privately. Copying does not send a message.</p><textarea rows="4" style="display:block;width:100%;padding:10px;background:#090909;color:#fff;border:1px solid #555;border-radius:8px;margin:9px 0"></textarea><button type="button" class="bidder-copy">Copy draft</button> <button type="button" class="bidder-close">Close</button>';
- panel.querySelector("textarea").value=text;
- panel.querySelector(".bidder-copy").onclick=()=>{navigator.clipboard.writeText(panel.querySelector("textarea").value).then(()=>{panel.querySelector(".bidder-copy").textContent="Copied ✓";}).catch(()=>{panel.querySelector("textarea").select();document.execCommand("copy");});};
+ panel.innerHTML='<strong>Message to '+esc(dealer)+' · NOT SENT</strong><p style="font-size:12px">Choose a template, edit your message, then review before sending. No bid amounts or rankings are disclosed.</p><select class="bidder-template" style="background:#111;color:#fff;padding:10px;border:1px solid #555"><option value="thanks">Thank you for bidding</option><option value="improve">Review your best offer</option><option value="interest">Strong interest</option></select><textarea rows="5" style="display:block;width:100%;padding:10px;background:#090909;color:#fff;border:1px solid #555;border-radius:8px;margin:9px 0;font:14px/1.5 Arial"></textarea><p class="bidder-status" role="status"></p><button type="button" class="bidder-review">Review &amp; Send →</button> <button type="button" class="bidder-copy">Copy draft</button> <button type="button" class="bidder-close">Close</button>';
+ const area=panel.querySelector("textarea");area.value=drafts.thanks;
+ panel.querySelector(".bidder-template").onchange=e=>{area.value=drafts[e.target.value];};
+ panel.querySelector(".bidder-review").onclick=async()=>{
+  const body=area.value.trim();const status=panel.querySelector(".bidder-status");
+  if(body.length<10){status.textContent="Enter a longer message.";return;}
+  if(!confirm("SEND VIA ANYBIKE MESSAGE CENTRE?\\n\\nRecipient: "+dealer+"\\nMotorcycle: "+bike+"\\n\\n"+body+"\\n\\nThis sends a REAL message to the dealership."))return;
+  const btn=panel.querySelector(".bidder-review");btn.disabled=true;status.textContent="Sending…";
+  const {data,error}=await sb.rpc("admin_send_trade_bidder_encouragement_v1",{p_opportunity_id:Number(opportunityId),p_dealer_id:dealerId,p_body:body});
+  btn.disabled=false;
+  if(error||!data?.success){status.textContent="Not sent: "+(error?.message||"Unknown error");return;}
+  status.textContent="Sent in Message Centre ✓";btn.disabled=true;
+  if(data.thread_id){const link=document.createElement("a");link.href="/admin-message-centre.html?thread="+Number(data.thread_id);link.textContent="Open conversation →";link.style.cssText="display:inline-block;color:#ff7575;margin-left:10px";status.append(link);}
+ };
+ panel.querySelector(".bidder-copy").onclick=()=>navigator.clipboard.writeText(area.value).then(()=>{panel.querySelector(".bidder-copy").textContent="Copied ✓";}).catch(()=>{area.focus();area.select();});
  panel.querySelector(".bidder-close").onclick=()=>panel.remove();
- button.closest("table").after(panel);
- panel.querySelector("textarea").focus();
+ button.closest("table").after(panel);area.focus();
 }
 async function toggleInlineAuctionBids(id){
  const row=document.getElementById("auction-inline-bids-"+Number(id));
@@ -203,7 +220,7 @@ async function toggleInlineAuctionBids(id){
  const past=(data||[]).length-live.length;
  cell.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap"><strong>Confidential bidders · Admin only</strong><div><button type="button" onclick="viewBids('+Number(id)+')">Manage Bidders →</button> <button type="button" onclick="toggleInlineAuctionBids('+Number(id)+')">Close ↑</button></div></div>'+
  (live.length?'<table style="width:100%;margin-top:8px;font-size:12px"><thead><tr><th>Dealership</th><th>Current offer</th><th>Submitted</th><th>Notes</th><th>Message draft</th></tr></thead><tbody>'+
- live.map(b=>'<tr><td>'+esc(b.dealer_name)+'</td><td style="text-align:center">'+money(b.amount_gbp)+'</td><td style="text-align:center">'+esc(b.submitted_at?new Date(b.submitted_at).toLocaleString("en-GB"):"—")+'</td><td>'+esc(b.notes||"—")+'</td><td><button type="button" onclick="prepareBidderMessage('+Number(id)+',this)" data-dealer="'+esc(b.dealer_name||"Dealer")+'">Prepare message →</button></td></tr>').join('')+'</tbody></table>':'<p>No live bids.</p>')+
+ live.map(b=>'<tr><td>'+esc(b.dealer_name)+'</td><td style="text-align:center">'+money(b.amount_gbp)+'</td><td style="text-align:center">'+esc(b.submitted_at?new Date(b.submitted_at).toLocaleString("en-GB"):"—")+'</td><td>'+esc(b.notes||"—")+'</td><td><button type="button" onclick="prepareBidderMessage('+Number(id)+',this)" data-dealer="'+esc(b.dealer_name||"Dealer")+'" data-dealer-id="'+Number(b.dealer_organisation_id)+'">Prepare message →</button></td></tr>').join('')+'</tbody></table>':'<p>No live bids.</p>')+
  (past?'<small class="meta">'+past+' previous/superseded bids remain in audit history.</small>':'');
 }
 async function load(){
