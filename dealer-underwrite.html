@@ -201,6 +201,29 @@ textarea{min-height:90px;resize:vertical}
 const SUPABASE_URL="https://tuehtnezhdnkqbbhttgp.supabase.co";
 const SUPABASE_ANON_KEY="sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+const dealerTradeRoute=new URLSearchParams(location.search).get("route")==="trade";
+if(dealerTradeRoute){
+  document.querySelector('input[name="source_channel"]').value="dealer_underwrite";
+  const title=document.querySelector("h1");
+  if(title)title.textContent="Offer Bikes to Trade";
+  const submit=document.querySelector('#underwriteForm button[type="submit"]');
+  if(submit)submit.textContent="Submit for AnyBike auction review →";
+  const params=new URLSearchParams(location.search);
+  const price=params.get("minimum_price");
+  if(price && /^\\d+(?:\\.\\d{1,2})?$/.test(price))
+    document.getElementById("price_wanted_gbp").value=price;
+  const advert=params.get("advert");
+  if(advert){
+    try{
+      const parsed=new URL(advert);
+      if(["https:","http:"].includes(parsed.protocol)){
+        const notes=document.querySelector('#underwriteForm [name="notes"]');
+        if(notes)notes.value=(notes.value?notes.value+"\\n":"")+"[TRADE OFFER ADVERT] "+parsed.href;
+      }
+    }catch(_){}
+  }
+}
+
 
 function messageText(value,fallback){
   if(typeof value==="string" && value.trim()) return value.trim();
@@ -399,11 +422,11 @@ document.getElementById("underwriteForm").addEventListener("submit",async functi
     const paidBy=document.getElementById("paid_collected_by").value;
     if(paidBy&&arrival&&paidBy<arrival){
       showMsg("The paid-and-collected deadline cannot be before the expected arrival date.",false);
-      btn.disabled=false;btn.textContent="Request Underwrite";return;
+      btn.disabled=false;btn.textContent=dealerTradeRoute?"Submit for AnyBike auction review →":"Request Underwrite";return;
     }
-    fd.set("notes","[DEALER TIMING] Position: "+position+(position!=="onsite"&&arrival?" | Expected arrival: "+arrival:"")+(paidBy?" | Collection and payment requested by: "+paidBy:"")+"\n[SELLER PREFERENCE] Urgency: "+urgency+" | Price basis: "+priceType+"\n[FINANCE DECLARATION] "+financeDetail+"\n"+String(fd.get("notes")||"").trim());
+    fd.set("notes",(dealerTradeRoute?"[TRADE OFFER — ADMIN REVIEW REQUIRED]\\n":"")+"[DEALER TIMING] Position: "+position+(position!=="onsite"&&arrival?" | Expected arrival: "+arrival:"")+(paidBy?" | Collection and payment requested by: "+paidBy:"")+"\n[SELLER PREFERENCE] Urgency: "+urgency+" | Price basis: "+priceType+"\n[FINANCE DECLARATION] "+financeDetail+"\n"+String(fd.get("notes")||"").trim());
     fd.set("legal_owner_confirmed","true");
-    fd.set("source_url",location.href);
+    fd.set("source_url",location.origin+(dealerTradeRoute?"/offer-bikes-to-trade.html":"/dealer-underwrite.html"));
     fd.set("country","United Kingdom");
 
     const response=await fetch(SUPABASE_URL+"/functions/v1/seller-quick-intake",{
