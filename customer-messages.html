@@ -4249,46 +4249,10 @@ async function refreshSharedCustomerHeader(){
 }
 
 async function markConversationNotificationsRead(threadId){
-  if(!currentUser || !threadId) return;
-
-  const wantedThread=String(threadId).trim();
-
-  const {data,error}=await sb
-    .from("customer_notifications")
-    .select("id,link")
-    .eq("customer_id",currentUser.id)
-    .eq("is_read",false);
-
-  if(error){
-    console.warn("Could not check conversation notifications",error.message);
-    return;
-  }
-
-  const ids=(data || [])
-    .filter(row=>{
-      const link=String(row.link || "");
-      return (
-        link.includes(`thread=${wantedThread}`) ||
-        link.includes(`thread%3D${wantedThread}`)
-      );
-    })
-    .map(row=>row.id)
-    .filter(Boolean);
-
-  if(ids.length){
-    const {error:updateError}=await sb
-      .from("customer_notifications")
-      .update({is_read:true})
-      .eq("customer_id",currentUser.id)
-      .in("id",ids);
-
-    if(updateError){
-      console.warn("Could not clear conversation notifications",updateError.message);
-      return;
-    }
-  }
-
-  await refreshSharedCustomerHeader();
+  // Reading a conversation is not equivalent to dismissing each bell notification.
+  // Multiple notifications may link to the same thread. Bell clicks mark only
+  // their own notification ID read in public-header.js.
+  return;
 }
 
 async function markBikeEnquiryNotificationsRead(enquiryId){
