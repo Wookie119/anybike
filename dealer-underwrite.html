@@ -322,15 +322,15 @@ async function importTradeAdvert(){
     const titleNorm=advertTitle.toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
     const hasPhrase=(phrase)=>(" "+titleNorm+" ").includes(" "+phrase.toLowerCase().replace(/[^a-z0-9]+/g," ")+" ");
     const titleBrand=[...make.options].map(o=>o.value).filter(v=>v&&v!=="__custom__").sort((a,b)=>b.length-a.length).find(hasPhrase)||"";
-    const brand=String(result.make||titleBrand||"").trim();
+    const brand=String(titleBrand||result.make||"").trim();
     const makeOption=[...make.options].find(o=>o.value.toLowerCase()===brand.toLowerCase());
     if(brand&&!make.value){
       if(!makeOption)make.add(new Option(brand,brand),make.options[make.options.length-1]);
       make.value=makeOption?.value||brand;
       window.anybikeRefreshMotorcycleSelectors?.();
     }
-    const titleModel=(catalogue[make.value]||[]).slice().sort((a,b)=>b.length-a.length).find(hasPhrase)||"";
-    const chosenModel=String(result.model||titleModel||"").trim();
+    const titleModel=[...model.options].map(o=>o.value).filter(v=>v&&v!=="__custom__").sort((a,b)=>b.length-a.length).find(hasPhrase)||"";
+    const chosenModel=String(titleModel||result.model||"").trim();
     if(chosenModel&&make.value&&!model.value){let opt=[...model.options].find(o=>o.value.toLowerCase()===chosenModel.toLowerCase());if(!opt){opt=new Option(chosenModel,chosenModel);model.add(opt);}model.value=opt.value;}
     const titleYear=advertTitle.match(/\b(?:19|20)\d{2}\b/)?.[0]||"";
     const mileageText=[String(result.description||""),advertTitle].join(" ");
@@ -344,7 +344,13 @@ async function importTradeAdvert(){
     else status.textContent="Advert details checked. Please confirm and complete missing fields.";
     if(Array.isArray(result.images)&&result.images.length){
       gallery.replaceChildren();
-      const urls=result.images.filter(url=>typeof url==="string"&&/^https:\/\//i.test(url)).slice(0,12);
+      const rankedImages=new Map();
+      for(const imageUrl of result.images.filter(url=>typeof url==="string"&&/^https:\/\//i.test(url))){
+        let identity=imageUrl,rank=0;
+        try{const u=new URL(imageUrl);if(u.hostname==="m.atcdn.co.uk"){identity=u.pathname.replace(/\/w\d+\//,"/");rank=Number(u.pathname.match(/\/w(\d+)\//)?.[1]||0);}}catch(_){}
+        if(!rankedImages.has(identity)||rank>rankedImages.get(identity).rank)rankedImages.set(identity,{url:imageUrl,rank});
+      }
+      const urls=[...rankedImages.values()].map(x=>x.url).slice(0,12);
       const counter=document.createElement("p");
       counter.className="small";
       counter.style.cssText="width:100%;margin:4px 0 8px";
@@ -399,7 +405,7 @@ async function importTradeAdvert(){
         note.style.color="#ffb75e";note.style.fontWeight="bold";
       }
       counter.textContent=loaded+" preview"+(loaded===1?"":"s")+" displayed · "+selectedPhotoFiles.length+" original photo"+(selectedPhotoFiles.length===1?"":"s")+" attached"+(blocked?" · "+blocked+" blocked by source":"")+(failed?" · "+failed+" previews unavailable":"");
-      progressCaption.textContent="Mileage: "+(result.mileage?"found":"not available")+" · "+selectedPhotoFiles.length+" originals attached · "+blocked+" source downloads blocked"+(failed?" · "+failed+" previews unavailable":"");
+      progressCaption.textContent="Mileage: "+(result.mileage?"found":"not available")+" · "+selectedPhotoFiles.length+" distinct photos attached · "+blocked+" source downloads blocked"+(failed?" · "+failed+" previews unavailable":"");
     }else{
       progressCaption.textContent="Mileage: "+(result.mileage?"found":"not available")+" · No advert photo links available · Upload original photos below.";
     }
