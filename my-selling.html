@@ -144,32 +144,32 @@ main{max-width:none;width:100%;margin:0;padding:18px 22px 48px}
      if(bidding.closes_at){const closes=document.createElement("p");closes.style.fontSize="12px";closes.textContent=(stage==="live"?"Bidding closes ":"Bidding closed ")+new Date(bidding.closes_at).toLocaleString("en-GB",{dateStyle:"medium",timeStyle:"short"})+". AnyBike will review the offers and contact you if a formal offer is available.";body.append(closes);}
      panel.append(number,body);card.insertBefore(panel,timeline);
    }
-   if(!saleAgreed && Number(item.price_wanted_gbp)>0 && ["live","closed","expired"].includes(stage)){
-     const section=document.createElement("section");section.className="seller-help-item";
-     const title=document.createElement("h4");title.textContent="Review your minimum selling price";
-     const current=document.createElement("p");current.textContent="Your current minimum: £"+Number(item.price_wanted_gbp).toLocaleString("en-GB",{minimumFractionDigits:2,maximumFractionDigits:2});
+   if(!saleAgreed && ["live","closed","expired","eligible"].includes(stage)){
+     const section=document.createElement("section");section.className="seller-help-item";section.id="price-"+item.reference;
+     const title=document.createElement("h4");title.textContent=Number(item.price_wanted_gbp)>0?"Lower your minimum selling price":"Set your minimum selling price";
+     const current=document.createElement("p");current.textContent=Number(item.price_wanted_gbp)>0?"Your current minimum: £"+Number(item.price_wanted_gbp).toLocaleString("en-GB",{minimumFractionDigits:2,maximumFractionDigits:2}):"No minimum selling price recorded yet.";
      const guidance=document.createElement("p");guidance.textContent="Consider lowering your minimum price to give your motorcycle a better chance of selling. It's entirely your choice. This does not accept any trade offer.";
      const form=document.createElement("form");form.style.display="flex";form.style.flexWrap="wrap";form.style.gap="8px";
-     const input=document.createElement("input");input.type="number";input.min="1";input.step="0.01";input.max=String(item.price_wanted_gbp);input.placeholder="New lower price (£)";input.required=true;input.style.cssText="background:#080808;color:#fff;border:1px solid #777;border-radius:8px;padding:11px;flex:1;min-width:170px";
-     const button=document.createElement("button");button.type="submit";button.className="button";button.style.border="0";button.style.cursor="pointer";button.textContent="Save lower price";
+     const input=document.createElement("input");input.type="number";input.min="1";input.step="0.01";if(Number(item.price_wanted_gbp)>0)input.max=String(item.price_wanted_gbp);input.placeholder=Number(item.price_wanted_gbp)>0?"New lower price (£)":"Your minimum price (£)";input.required=true;input.style.cssText="background:#080808;color:#fff;border:1px solid #777;border-radius:8px;padding:11px;flex:1;min-width:170px";
+     const button=document.createElement("button");button.type="submit";button.className="button";button.style.border="0";button.style.cursor="pointer";button.textContent=Number(item.price_wanted_gbp)>0?"Save lower price":"Save minimum price";
      const feedback=document.createElement("p");feedback.setAttribute("role","status");feedback.style.fontWeight="700";
      form.append(input,button);section.append(title,current,guidance,form,feedback);helpGrid.append(section);
      form.addEventListener("submit",async event=>{
        event.preventDefault();const next=Number(input.value),prior=Number(item.price_wanted_gbp);
-       if(!Number.isFinite(next)||next<=0||next>=prior){feedback.textContent="Please enter an amount below your current minimum.";feedback.style.color="#ff9399";return}
-       if(!confirm("Change your minimum selling price from £"+prior.toFixed(2)+" to £"+next.toFixed(2)+"? This does not accept a dealer offer."))return;
+       if(!Number.isFinite(next)||next<=0||(prior>0&&next>=prior)){feedback.textContent=prior>0?"Please enter an amount below your current minimum.":"Please enter a positive minimum selling price.";feedback.style.color="#ff9399";return}
+       if(!confirm((prior>0?"Lower your minimum selling price from £"+prior.toFixed(2):"Set your minimum selling price")+" to £"+next.toFixed(2)+"? This does not accept a dealer offer."))return;
        button.disabled=true;button.textContent="Saving…";
        try{
-         const {data,error}=await client.rpc("seller_lower_price_v1",{p_reference:item.reference,p_price:next});
+         const {data,error}=await client.rpc("seller_set_or_lower_minimum_v1",{p_reference:item.reference,p_price:next});
          if(error)throw error;
          item.price_wanted_gbp=Number(data.price_wanted_gbp);
          current.textContent="Your current minimum: £"+Number(item.price_wanted_gbp).toLocaleString("en-GB",{minimumFractionDigits:2,maximumFractionDigits:2});
-         feedback.textContent="✓ Your new minimum has been saved.";feedback.style.color="#87eca4";input.value="";
+         feedback.textContent="✓ Your minimum selling price has been saved.";title.textContent="Lower your minimum selling price";input.placeholder="New lower price (£)";input.max=String(item.price_wanted_gbp);feedback.style.color="#87eca4";input.value="";
        }catch(error){feedback.textContent="Could not save the change: "+String(error.message||error);feedback.style.color="#ff9399"}
        finally{button.disabled=false;button.textContent="Save lower price"}
      });
    }
-   if(!saleAgreed && helpGrid && helpGrid.children.length===1){
+   if(!saleAgreed && helpGrid && helpGrid.children.length===1 && !["live","closed","expired","eligible"].includes(stage)){
      const review=document.createElement("div");review.className="seller-help-item";
      const title=document.createElement("h4");title.textContent="Review your minimum selling price";
      const detail=document.createElement("p");detail.textContent="Review the price you've asked for and discuss any changes with AnyBike. Your price will never be changed without your agreement.";
@@ -177,7 +177,7 @@ main{max-width:none;width:100%;margin:0;padding:18px 22px 48px}
      review.append(title,detail,action);helpGrid.append(review);
    }
    // Prompt only after bidding has stopped; active bidding should not pressure the seller.
-   if(!saleAgreed && ["closed","completed","expired"].includes(stage) && !(Number(item.price_wanted_gbp)>0 && ["live","closed","expired"].includes(stage)) && !["offer_ready","offer_sent","offer_made"].includes(stage)){
+   if(!saleAgreed && ["completed"].includes(stage) && !["offer_ready","offer_sent","offer_made"].includes(stage)){
      const review=document.createElement("section");review.className="seller-help-item";
      const title=document.createElement("h4");title.textContent="Review your minimum selling price";
      const message=document.createElement("p");message.textContent="If AnyBike has not been able to secure a suitable offer, consider lowering your minimum acceptable price to give your motorcycle a better chance of selling. You do not have to change it. AnyBike will never lower your price or accept an offer without your agreement.";
@@ -186,8 +186,9 @@ main{max-width:none;width:100%;margin:0;padding:18px 22px 48px}
    }
    holder.append(card);
   }
-  const requested=new URLSearchParams(location.search).get("reference");
-  if(requested){const target=document.getElementById("selling-"+requested.replace(/[^a-zA-Z0-9-]/g,""));if(target){target.style.outline="2px solid #ed1c24";target.scrollIntoView({behavior:"smooth",block:"start"});}}
+  const params=new URLSearchParams(location.search);
+  const requested=params.get("reference");
+  if(requested){const target=document.getElementById("selling-"+requested.replace(/[^a-zA-Z0-9-]/g,""));if(target){target.style.outline="2px solid #ed1c24";const scrollTarget=params.get("action")==="price"?document.getElementById("price-"+requested):target;(scrollTarget||target).scrollIntoView({behavior:"smooth",block:"center"});}}
   document.getElementById("receipt").hidden=true;
   document.getElementById("noReceipt").hidden=true;
  }catch(e){status.textContent="Secure account history could not be loaded. Please try again after signing in."}
