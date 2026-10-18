@@ -112,6 +112,21 @@ label{display:block;color:#bbb;font-size:12px;font-weight:800}input{width:100%;m
 .submission-detail .admin-source-details summary{cursor:pointer;color:#c8c8c8}
 @media(max-width:1050px){.submission-detail .card:has(> .submission-gallery)>.data{grid-template-columns:repeat(2,minmax(0,1fr))}.submission-detail .card:has(> .submission-gallery) .submission-gallery-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:620px){.submission-detail .card:has(> .submission-gallery)>.data{grid-template-columns:1fr 1fr}.submission-detail .card:has(> .submission-gallery) .submission-gallery-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* Advert-inspired Admin review: photographic hero on left, bike facts on right. */
+.submission-detail .card:has(> .submission-gallery){display:grid!important;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:10px 22px;align-items:start}
+.submission-detail .card:has(> .submission-gallery)>.top,.submission-detail .card:has(> .submission-gallery)>.bike,.submission-detail .card:has(> .submission-gallery)>.sub:first-of-type{grid-column:1/-1!important}
+.submission-detail .card:has(> .submission-gallery)>.submission-gallery{grid-column:1!important;grid-row:4 / span 5!important;margin:0!important}
+.submission-detail .card:has(> .submission-gallery)>.data{grid-column:2!important;grid-row:4!important;grid-template-columns:repeat(2,minmax(0,1fr));margin:0!important}
+.submission-detail .card:has(> .submission-gallery)>.submission-gallery~:not(.data){grid-column:2!important}
+.submission-detail .card:has(> .submission-gallery)>.submission-gallery~.actions,.submission-detail .card:has(> .submission-gallery)>.submission-gallery~[style*="margin-top:12px"],.submission-detail .card:has(> .submission-gallery)>.submission-gallery~.admin-source-details{grid-column:1/-1!important}
+.submission-detail .card:has(> .submission-gallery) .submission-gallery-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}
+.submission-gallery-hero{position:relative;aspect-ratio:4/3;background:#050505;border:1px solid #4a4a4a;border-radius:10px;overflow:hidden;margin-bottom:9px}
+.submission-gallery-hero img{width:100%;height:100%;object-fit:contain;display:block}
+.submission-gallery-hero .hero-status{position:absolute;left:10px;bottom:10px;background:#171717e8;border-radius:6px;padding:6px 9px;font-weight:800;font-size:12px}
+.submission-gallery-hero .hero-empty{display:grid;place-items:center;height:100%;color:#aaa;text-align:center;padding:24px}
+.submission-detail .admin-advert-description p{max-height:220px;overflow:auto}
+@media(max-width:1000px){.submission-detail .card:has(> .submission-gallery){grid-template-columns:1fr}.submission-detail .card:has(> .submission-gallery)>*{grid-column:1!important;grid-row:auto!important}.submission-detail .card:has(> .submission-gallery)>.data{grid-column:1!important;grid-row:auto!important}}
 </style>
 </head>
 <body>
@@ -502,6 +517,11 @@ async function loadSubmissionImages(id){
     return;
   }
 
+  const available=images.filter(img=>String(img.final_status||"")==="approved"&&img.buyer_safe_url);
+  let hero=gallery.querySelector(".submission-gallery-hero");
+  if(!hero){hero=document.createElement("div");hero.className="submission-gallery-hero";grid.before(hero);}
+  const main=available[0];
+  hero.innerHTML=main?'<img src="'+esc(main.buyer_safe_url)+'" alt="Approved motorcycle photograph" style="transform:rotate('+Number(main.rotation_degrees||0)+'deg)"><span class="hero-status">Approved photograph · '+available.length+' available</span>':'<div class="hero-empty">No approved photograph available yet. Review the originals in the photo cleaner.</div>';
   grid.innerHTML=images.filter(img=>String(img.final_status||"")!=="rejected").map(img=>{
     const hasPreview=Boolean(img.buyer_safe_url);
     if(!hasPreview){
