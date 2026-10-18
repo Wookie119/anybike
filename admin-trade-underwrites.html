@@ -228,7 +228,7 @@ async function openDealerInvites(id){
  document.getElementById("dealerInviteList").textContent="Loading…";
  document.getElementById("dealerInviteModal").classList.add("open");
  const [eligible,safety]=await Promise.all([
-   sb.rpc("admin_list_eligible_trade_dealers_v1"),
+   sb.rpc("admin_list_verified_trade_dealers_for_invites_v1"),
    sb.rpc("admin_trade_invite_safety_v1",{p_opportunity_id:dealerInviteOpportunity})
  ]);
  if(eligible.error||safety.error){
@@ -238,22 +238,22 @@ async function openDealerInvites(id){
  dealerInviteRows=eligible.data||[];
  dealerInviteExisting=new Set((safety.data?.invited_dealer_ids||[]).map(Number));
  dealerInviteSellerId=Number(safety.data?.seller_dealer_id)||null;
- document.getElementById("dealerInviteStatus").textContent="Choose dealers, then review the exact recipients before sending. No messages are sent by selecting.";
+ document.getElementById("dealerInviteStatus").textContent="All verified dealerships are listed. Only opted-in eligible dealerships can be selected. No messages are sent by selecting.";
  drawDealerInvites();
 }
 function closeDealerInvites(){if(!dealerInviteBusy)document.getElementById("dealerInviteModal").classList.remove("open");}
-function canSelectInviteDealer(d){return Number(d.contact_count)>0&&!dealerInviteExisting.has(Number(d.dealer_id))&&Number(d.dealer_id)!==dealerInviteSellerId;}
+function canSelectInviteDealer(d){return d.auction_opted_in===true&&Number(d.contact_count)>0&&!dealerInviteExisting.has(Number(d.dealer_id))&&Number(d.dealer_id)!==dealerInviteSellerId;}
 function drawDealerInvites(){
  const q=document.getElementById("dealerInviteSearch").value.trim().toLowerCase();
  const filtered=dealerInviteRows.filter(x=>String(x.dealer_name||"").toLowerCase().includes(q));
  document.getElementById("dealerInviteList").innerHTML=filtered.map(d=>{
    const id=Number(d.dealer_id),blocked=!canSelectInviteDealer(d);
-   const reason=dealerInviteExisting.has(id)?"Already invited":id===dealerInviteSellerId?"Seller — cannot bid":Number(d.contact_count)<1?"No verified account":"Eligible";
+   const reason=dealerInviteExisting.has(id)?"Already invited":id===dealerInviteSellerId?"Seller — cannot bid":!d.auction_opted_in?"Not opted in":Number(d.contact_count)<1?"No verified account":"Eligible";
    return '<label style="display:flex;gap:12px;align-items:center;padding:12px;border-bottom:1px solid #333;cursor:pointer"><input type="checkbox" data-invite-dealer="'+id+'" '+(dealerInviteSelected.has(id)?"checked":"")+' '+(blocked||dealerInviteBusy?"disabled":"")+' style="width:20px;height:20px;accent-color:#ed1c24"><span><strong>'+esc(d.dealer_name)+'</strong><span class="meta" style="display:block">'+Number(d.contact_count)+' verified account(s) · '+esc(reason)+'</span></span></label>';
  }).join("")||'<p>No matching dealers found.</p>';
  document.getElementById("dealerInviteSelection").textContent=dealerInviteSelected.size+" selected";
  const button=document.getElementById("dealerInviteSend");button.disabled=dealerInviteBusy||!dealerInviteSelected.size;
- button.textContent="Review & Send "+dealerInviteSelected.size+" Invitation"+(dealerInviteSelected.size===1?"":"s")+" →";
+ button.textContent=dealerInviteSelected.size?"Review Invitations ("+dealerInviteSelected.size+") →":"Review Invitations →";
 }
 document.getElementById("dealerInviteList").addEventListener("change",e=>{
  const input=e.target.closest("[data-invite-dealer]");if(!input||dealerInviteBusy)return;
