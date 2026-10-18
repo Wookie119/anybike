@@ -216,6 +216,7 @@ button:disabled{
 @media(max-width:800px){
   .stats{grid-template-columns:repeat(2,1fr)}
 }
+#anybikeSharedNextAction{display:none!important}
 </style>
 </head>
 <body>
@@ -431,7 +432,8 @@ async function loadSellerSubmissionComparisons(){
     const {data:signed,error:signedError}=await sb.storage.from("seller-intake").createSignedUrl(path,600);
     return {...item,original_url:signedError?null:signed?.signedUrl};
   }));
-  host.innerHTML=records.length?records.map(item=>'<article class="compare-item"><div class="compare-head"><div><strong>Photo '+Number(item.image_position)+' · AB-S-'+String(sellerReviewId).padStart(6,"0")+'</strong><div class="compare-meta">Review: '+esc(item.final_status)+' · '+esc(item.processing_status)+'</div></div></div><div class="compare-grid">'+imagePanel("Original seller photograph — private",item.original_url,"seller-orig-"+item.image_id)+imagePanel("Existing buyer-safe preview — not approved until reviewed",item.buyer_safe_url,"seller-safe-"+item.image_id)+'</div></article>').join(""):'<div class="empty">No photographs recorded for this submission.</div>';
+  host.insertAdjacentHTML("beforebegin",'<p style="color:#ffb020">Processed previews may still contain watermarks or branding. Review required does not mean cleaned.</p>');
+  host.innerHTML=records.length?records.map(item=>'<article class="compare-item"><div class="compare-head"><div><strong>Photo '+Number(item.image_position)+' · AB-S-'+String(sellerReviewId).padStart(6,"0")+'</strong><div class="compare-meta">Review: '+esc(item.final_status)+' · '+esc(item.processing_status)+'</div></div></div><div class="compare-grid">'+imagePanel("Original seller photograph — private",item.original_url,"seller-orig-"+item.image_id)+imagePanel("Processed preview — cleaning not confirmed",item.buyer_safe_url,"seller-safe-"+item.image_id)+'</div></article>').join(""):'<div class="empty">No photographs recorded for this submission.</div>';
 }
 async function loadComparisons(){
   if(sellerReviewId)return loadSellerSubmissionComparisons();
