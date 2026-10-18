@@ -104,7 +104,7 @@ input{background:#090909;color:#fff;border:1px solid #333;border-radius:10px;pad
 <div><small>Highest dealer bid</small><strong id="rvHighestBid">—</strong><span>Current leading confidential bid</span></div>
 <div><small>Gross margin before costs</small><strong id="rvGrossMargin">—</strong><span>Highest bid minus buying price</span></div>
 </div>
-<div id="rvBuyingPrice" hidden></div>
+<div id="rvBuyingPrice" hidden></div><div id="rvLeadingDealer" style="border:1px solid #444;border-radius:9px;padding:12px;margin:11px 0;color:#eee" role="status">Checking leading dealership…</div>
 <div class="rv-legacy-fields" hidden aria-hidden="true">
 <input id="rvTransport" type="number" value="0"><input id="rvOther" type="number" value="0"><input id="rvMargin" type="number" value="0">
 <input id="rvSellerTransport" type="number" value="0"><input id="rvDealerTransport" type="number" value="0">
@@ -116,7 +116,7 @@ input{background:#090909;color:#fff;border:1px solid #333;border-radius:10px;pad
 </div>
 <div id="rvActualPercent" hidden></div><div id="rvPreview" hidden></div>
 <p style="color:#bbb;font-size:13px">Gross margin is before collection, delivery and any other costs. It does not mean the deal is sold.</p>
-<div class="actions"><button type="button" id="rvDraft" class="red" onclick="saveReserveReview(true)">Save buying price →</button><button type="button" id="rvSave" hidden disabled>Legacy confirmation unavailable</button></div><p id="rvResult" role="status"></p><p style="font-size:12px">Saving records a draft only. It does not confirm transport, approve a sale or send an offer.</p></div></div><div id="finalCheckModal" class="modal"><div class="modal-box" style="width:min(680px,100%)">
+<div class="actions"><button type="button" id="rvDraft" class="red" onclick="saveReserveReview(true)">Save buying price →</button></div><p id="rvResult" role="status"></p><p style="font-size:12px">Saving records a draft only. It does not confirm transport, approve a sale or send an offer.</p></div></div><div id="finalCheckModal" class="modal"><div class="modal-box" style="width:min(680px,100%)">
 <div class="top"><h3 id="finalCheckTitle">Seller Confirmation / HPI Check</h3><button onclick="closeFinalCheck()">Close</button></div>
 <p>Complete after bidding closes. No winner can be selected until the seller and commercial checks are confirmed. Outstanding finance must be cleared before release.</p>
 <div class="final-check" id="finalCheckFields">
@@ -829,6 +829,16 @@ async function editSellerMinimum(id){
 function openReserveReview(id){
  const row=rows.find(r=>Number(r.opportunity_id)===Number(id));if(!row)return;
  reserveReviewId=Number(id);
+ const dealerPanel=document.getElementById("rvLeadingDealer");
+ dealerPanel.textContent="Checking leading dealership…";
+ sb.rpc("admin_get_trade_underwrite_bids_v1",{p_opportunity_id:Number(id)}).then(({data,error})=>{
+  if(reserveReviewId!==Number(id))return;
+  if(error){dealerPanel.textContent="Dealer information unavailable — use Manage Bidders.";return;}
+  const live=(data||[]).filter(b=>b.status==="live").sort((a,b)=>Number(b.amount_gbp)-Number(a.amount_gbp));
+  const leader=live[0];
+  if(!leader){dealerPanel.textContent="No current live bidder. Review bidder history.";return;}
+  dealerPanel.innerHTML='<strong>Leading dealership: '+esc(leader.dealer_name||"Unknown")+'</strong><span style="display:block;font-size:12px;color:#bbb">Bid: '+money(leader.amount_gbp)+' · Dealer credit rating not available. Verify payment arrangements before confirming a sale.</span><button type="button" onclick="document.getElementById(\'reserveReviewModal\').classList.remove(\'open\');viewBids('+Number(id)+')" style="margin-top:8px">View all bidders →</button>';
+ }).catch(()=>{dealerPanel.textContent="Dealer information unavailable.";});
  document.getElementById("reserveReviewTitle").textContent="Buying price & gross margin · "+row.reference;
  document.getElementById("rvSeller").value=Number(row.seller_price_wanted_gbp)>0?Number(row.seller_price_wanted_gbp).toFixed(2):"";
  if(document.querySelector(".margin-preset-buttons"))setReserveMarginPercent(8);
