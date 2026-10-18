@@ -416,7 +416,26 @@ function checkDimensionMatch(card){
   result.className=same?'dim-good':'dim-bad';
 }
 
+const sellerReviewId=Number(new URLSearchParams(location.search).get("submission")||0);
+async function loadSellerSubmissionComparisons(){
+  const host=$("compareList");
+  host.innerHTML='<div class="empty">Loading submission photographs…</div>';
+  const {data,error}=await sb.rpc("admin_get_seller_submission_images_v2",{p_submission_id:sellerReviewId});
+  if(error){host.textContent="Could not load seller photographs: "+error.message;return;}
+  const {data:paths, error:pathError}=await sb.rpc("admin_get_seller_original_paths_v1",{p_submission_id:sellerReviewId});
+  if(pathError){host.textContent="Could not load original photograph paths: "+pathError.message;return;}
+  const originals=new Map((paths||[]).map(x=>[Number(x.image_id),x.original_storage_path]));
+  const records=await Promise.all((data||[]).map(async item=>{
+    const path=originals.get(Number(item.image_id));
+    if(!path)return {...item,original_url:null};
+    const {data:signed,error:signedError}=await sb.storage.from("seller-intake").createSignedUrl(path,600);
+    return {...item,original_url:signedError?null:signed?.signedUrl};
+  }));
+  host.innerHTML=records.length?records.map(item=>'<article class="compare-item"><div class="compare-head"><div><strong>Photo '+Number(item.image_position)+' · AB-S-'+String(sellerReviewId).padStart(6,"0")+'</strong><div class="compare-meta">Review: '+esc(item.final_status)+' · '+esc(item.processing_status)+'</div></div></div><div class="compare-grid">'+imagePanel("Original seller photograph — private",item.original_url,"seller-orig-"+item.image_id)+imagePanel("Existing buyer-safe preview — not approved until reviewed",item.buyer_safe_url,"seller-safe-"+item.image_id)+'</div></article>').join(""):'<div class="empty">No photographs recorded for this submission.</div>';
+}
 async function loadComparisons(){
+  if(sellerReviewId)return loadSellerSubmissionComparisons();
+
   const wrap=$('compareList');
   wrap.innerHTML='<div class="empty">Loading image comparisons…</div>';
 
@@ -628,7 +647,14 @@ async function processAll(){
   document.documentElement.classList.remove('admin-auth-pending');
 
   try{
-    await refreshAll();
+    if(sellerReviewId){
+      document.querySelector(".hero h1").textContent="Seller photo cleaner · AB-S-"+String(sellerReviewId).padStart(6,"0");
+      document.querySelector(".hero p").textContent="Review original seller photographs alongside existing processed previews. Images under review remain unavailable to bidders.";
+      document.querySelector(".stats").style.display="none";
+      document.querySelectorAll(".card")[0].style.display="none";
+      document.querySelector(".compare-toolbar h2").textContent="Seller originals vs buyer-safe photographs";
+      await loadSellerSubmissionComparisons();
+    }else await refreshAll();
   }catch(e){
     console.error(e);
     $('status').innerHTML='<span class="bad">Could not load buyer-safe image data: '+esc(String(e?.message||e))+'</span>';
