@@ -466,14 +466,30 @@ function renderIntakeGallery(items){
   }).join(""):'<div class="empty">No motorcycles match these filters.</div>';
 }
 setInterval(()=>{document.querySelectorAll(".gallery-auction-countdown[data-closes]").forEach(el=>el.textContent=auctionTimeRemaining(el.dataset.closes));},30000);
-function sellerNotesHtml(notes){
+async function editUnderwriteBuyerDescription(submissionId){
+ const r=rows.find(row=>Number(row.submission_id)===Number(submissionId));
+ if(!r)return;
+ const {data,error}=await sb.rpc("admin_get_underwrite_buyer_description_v1",{p_submission_id:Number(submissionId)});
+ if(error){alert("Could not open description: "+error.message);return;}
+ const raw=String(r.notes||"");
+ const suggestion=raw.replace(/\\\\r\\\\n/g,"\n").replace(/\\r\\n/g,"\n").split("\n").map(x=>x.trim())
+  .filter(x=>x&&!x.startsWith("[")&&!/^https?:\/\//i.test(x)&&!/(searchId=|backLinkQueryParams=|calc-deposit=|postcode=|advertising-location=)/i.test(x)&&!/^Urgency:/i.test(x))
+  .join(" ").trim();
+ const text=window.prompt("BUYER-SAFE MOTORCYCLE DESCRIPTION\n\nReview and rewrite this text before saving. Remove seller identity, contact details, advertising claims and unrelated information. Saving does NOT publish or notify anyone.",String(data||suggestion||""));
+ if(text===null)return;
+ if(/(?:https?:\/\/|www\.|@|\b0\d{9,10}\b)/i.test(text)){alert("Please remove URLs, email addresses and telephone numbers.");return;}
+ const saved=await sb.rpc("admin_save_underwrite_buyer_description_v1",{p_submission_id:Number(submissionId),p_description:text});
+ if(saved.error||!saved.data?.success){alert("Could not save: "+(saved.error?.message||"Unknown error"));return;}
+ alert("Buyer-safe description draft saved. It is not published. The original seller notes remain unchanged.");
+}
+function sellerNotesHtml(notes,submissionId){
  const raw=String(notes||"");
  const preference=(raw.match(/\[SELLER PREFERENCE\]([^\[\r\n]*)/)||[])[1]?.trim()||"";
  const finance=(raw.match(/\[FINANCE DECLARATION\]([^\[\r\n]*)/)||[])[1]?.trim()||"";
  const internal=(raw.match(/\[INTERNAL SELLER PRICE GUIDANCE[^\]]*\]([\s\S]*?)(?=\[[A-Z][A-Z ]+\]|$)/)||[])[1]?.trim()||"";
  const comments=raw.replace(/\\r\\n/g,"\n").split("\n").map(x=>x.trim()).filter(x=>x&&!x.startsWith("[")&&!/^https?:\/\//i.test(x)&&!/(searchId=|backLinkQueryParams=|calc-deposit=|postcode=|advertising-location=)/i.test(x)&&!/^Urgency:/i.test(x)).join(" ").slice(0,650).trim();
  return '<section class="seller-notes-compact" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px;margin:14px 0;align-items:start">'+
- '<div class="box"><strong>Seller comments</strong><p>'+esc(comments||"Advert description needs Admin review")+'</p>'+(preference?'<small>'+esc(preference)+'</small>':'')+'</div>'+
+ '<div class="box"><strong>Original seller comments (Admin only)</strong><p>'+esc(comments||"No useful description supplied")+'</p><button type="button" onclick="editUnderwriteBuyerDescription('+Number(submissionId)+')" style="margin-top:10px;background:#ed1c24">Prepare buyer-safe description →</button>'+(preference?'<small>'+esc(preference)+'</small>':'')+'</div>'+
  '<div class="box"><strong>Finance &amp; history</strong><p>'+esc(finance||"Finance not declared")+'</p><small>Seller declaration only — verify before completion.</small></div>'+
  '<div class="box" style="border:1px solid #b87034"><details class="internal-review-notes"><summary><strong>Confidential AnyBike notes</strong> <small>— admin only · expand</small></summary><p>'+esc(internal||"No confidential price guidance recorded")+'</p></details></div></section>';
 }
@@ -561,7 +577,7 @@ function render(){
         (hasComps
           ?'<div class="data"><div class="box"><span>Comparable count</span><strong>'+Number(r.latest_comparable_count||0)+'</strong></div><div class="box"><span>Median ask</span><strong>'+money(r.latest_median_ask_gbp)+'</strong></div><div class="box"><span>Range</span><strong>'+money(r.latest_lowest_ask_gbp)+' – '+money(r.latest_highest_ask_gbp)+'</strong></div><div class="box"><span>Average</span><strong>'+money(r.latest_average_ask_gbp)+'</strong></div></div>'
           :'<div class="sub">Trade price will be established from confidential UK dealer bids. No stock comparison is required.</div>')+
-        (r.notes?sellerNotesHtml(r.notes):"")+
+        (r.notes?sellerNotesHtml(r.notes,r.submission_id):"")+
         (dealer && r.underwrite_status!=="live" && r.make && r.model?'<div class="underwrite-ready-note">Ready to invite trade offers. The current system still applies an initial bidding deadline; reserve-triggered timing is under development.</div>':'')+
         '<div class="trade-bidding-primary" style="margin-top:16px;padding:18px;border:1px solid #5a2b2d;border-radius:10px;background:#1b1010"><strong>Next step · Trade bidding</strong><p style="margin:5px 0 9px;font-size:13px">'+(r.underwrite_status==="live"?"The trade bidding is live. Review bids in the Trade Underwrite Desk, then complete Seller Confirmation / HPI Check before selecting a buyer.":"Review the motorcycle details and buyer-safe photographs first. Starting trade bidding invites verified UK dealers after your final confirmation. Stock comparisons are optional.")+'</p>'+(["closed","completed","cancelled"].includes(String(r.underwrite_status||"").toLowerCase())?'<span class="sub">Trade bidding closed — review historical bids in the Trade Underwrite Desk.</span>':r.underwrite_status==="live"?'<a class="btn" href="/admin-trade-underwrites.html">OPEN TRADE UNDERWRITE DESK →</a>':(!r.make||!r.model?'<button type="button" data-action="edit-bike" data-id="'+Number(r.submission_id)+'">COMPLETE MOTORCYCLE DETAILS →</button>' :'<button type="button" class="red" data-action="start-underwrite" data-id="'+Number(r.submission_id)+'">START TRADE BIDDING →</button>'))+'</div>'+ 
         '<div id="action-status-'+Number(r.submission_id)+'" class="sub" style="margin:8px 0 12px;min-height:16px"></div>'+ 
