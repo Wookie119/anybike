@@ -1260,6 +1260,10 @@ body{background:#090909!important}.page-shell{width:100%!important;max-width:non
     </div>
   </section>
 
+  <section class="panel messages-only-panel" id="sellerBiddingUpdates" hidden style="margin-bottom:15px">
+    <div class="panel-head"><div><h2>Your motorcycle selling updates</h2><p>Private progress notifications about motorcycles you have offered to AnyBike. Confidential dealer bids and internal notes are never shown here.</p></div></div>
+    <div id="sellerBiddingUpdatesList" style="padding:14px">Loading…</div>
+  </section>
   <section class="panel messages-only-panel" id="messages">
     <div class="panel-head">
       <div>
@@ -4600,6 +4604,34 @@ setInterval(function(){
     if(tab)tab.location.href=data.url;else location.href=data.url;
   });
  }catch(e){console.warn("Shipping quotes in message centre unavailable",e)}
+})();
+</script>
+<script>
+(async function loadSellerBiddingUpdates(){
+ for(let n=0;n<35 && !window.sb?.auth?.getSession;n++)await new Promise(r=>setTimeout(r,250));
+ const client=window.sb;if(!client?.auth?.getSession)return;
+ const {data:session}=await client.auth.getSession();
+ const uid=session?.session?.user?.id;if(!uid)return;
+ try{
+  const {data,error}=await client.from("customer_notifications")
+   .select("id,title,message,created_at,link")
+   .eq("customer_id",uid)
+   .in("type",["seller_bidding_progress","seller_bidding_closed"])
+   .order("created_at",{ascending:false}).limit(20);
+  if(error)throw error;
+  if(!data?.length)return;
+  const area=document.getElementById("sellerBiddingUpdates"),list=document.getElementById("sellerBiddingUpdatesList");
+  area.hidden=false;list.replaceChildren();
+  data.forEach(item=>{
+   const row=document.createElement("article");
+   row.style.cssText="border-bottom:1px solid #383838;padding:12px 0";
+   const heading=document.createElement("strong");heading.textContent=item.title||"Selling update";
+   const date=document.createElement("small");date.style.cssText="display:block;color:#aaa";date.textContent=new Date(item.created_at).toLocaleString("en-GB");
+   const detail=document.createElement("p");detail.textContent=item.message||"";
+   const link=document.createElement("a");link.href="/my-selling.html";link.textContent="View My Selling →";link.style.color="#ff656b";
+   row.append(heading,date,detail,link);list.append(row);
+  });
+ }catch(error){console.warn("Selling updates could not be loaded",error);}
 })();
 </script>
 </body>
