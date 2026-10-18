@@ -4,12 +4,9 @@ Applies full language packs to current public/customer pages.
 */
 (function(){
   const path=String(location.pathname||"").toLowerCase();
-  const supported=new Set([
-    "/customer-dashboard.html","/customer-messages.html","/my-searches.html","/my-watchlist.html",
-    "/my-purchases.html","/accounts-documents.html","/buy-motorcycles.html","/sell-your-motorcycle.html",
-    "/partners-integrations.html","/freight-forwarders.html","/services-and-fees.html","/privacy-policy.html"
-  ]);
-  if(!supported.has(path)) return;
+  // Reuse language dictionaries across public pages, not only the original shortlist.
+  // Never translate administrator screens or user-authored form content.
+  if(path.startsWith("/admin-") || path.startsWith("/admin/")) return;
 
   window.AnyBikeLanguagePacks=window.AnyBikeLanguagePacks||{};
 
@@ -50,7 +47,8 @@ Applies full language packs to current public/customer pages.
     });
 
     document.documentElement.lang=lang;
-    document.documentElement.dir=lang==="ar"?"rtl":"ltr";
+    // Keep the existing AnyBike left-to-right layout in every locale.
+    document.documentElement.dir="ltr";
   }
 
   function schedule(){
