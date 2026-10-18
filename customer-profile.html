@@ -508,7 +508,7 @@
             </div>
 
             <div>
-              <label for="region" id="contactRegionLabel">Region / State / County</label>
+              <label for="region" id="contactRegionLabel">Region / State / County (optional)</label>
               <input id="region" autocomplete="address-level1">
             </div>
 
@@ -590,6 +590,7 @@
               <input id="businessWebsite" type="url" placeholder="https://">
             </div>
 
+            <div class="full" style="margin:5px 0 10px"><label style="display:flex;align-items:center;gap:10px;cursor:pointer"><input type="checkbox" id="businessSameAsContact" style="width:20px;height:20px;accent-color:#ed1c24"> Same contact details and address as above</label><small style="color:#aaa">Copies your saved contact details into the business fields. You can edit any field afterwards.</small></div>
             <div class="full">
               <label for="businessAddress1">Business address line 1</label>
               <input id="businessAddress1" autocomplete="address-line1">
@@ -606,7 +607,7 @@
             </div>
 
             <div>
-              <label for="businessRegion" id="businessRegionLabel">Region / State / County</label>
+              <label for="businessRegion" id="businessRegionLabel">Region / State / County (optional)</label>
               <input id="businessRegion" autocomplete="address-level1">
             </div>
 
@@ -2078,6 +2079,15 @@
     }
     ["country","businessCountry","shippingCountry"].forEach(id=>document.getElementById(id)?.addEventListener("change",updateRegionLabels));
 
+    document.getElementById("businessSameAsContact")?.addEventListener("change",function(){
+      if(!this.checked)return;
+      const fields=[["phone","businessPhone"],["email","businessEmail"],["contactAddress1","businessAddress1"],["contactAddress2","businessAddress2"],["city","businessCity"],["region","businessRegion"],["contactPostcode","businessPostcode"],["country","businessCountry"]];
+      fields.forEach(([source,target])=>{
+        const from=document.getElementById(source),to=document.getElementById(target);
+        if(from&&to){to.value=from.value;to.dispatchEvent(new Event("change",{bubbles:true}));}
+      });
+      if(typeof updateRegionLabels==="function")updateRegionLabels();
+    });
     function missingFieldsForSection(section){
       const groups={
         contact:[
@@ -2085,8 +2095,7 @@
           ["phone","Main phone"],
           ["contactAddress1","Address line 1"],
           ["city","Town / City"],
-          ["region",regionLabelForCountry(document.getElementById("country")?.value)],
-          ["contactPostcode","Postcode / ZIP"],
+                    ["contactPostcode","Postcode / ZIP"],
           ["country","Country"]
         ],
         business:[
@@ -2096,8 +2105,7 @@
           ["businessPhone","Business phone / WhatsApp"],
           ["businessAddress1","Business address line 1"],
           ["businessCity","Town / City"],
-          ["businessRegion",regionLabelForCountry(document.getElementById("businessCountry")?.value)],
-          ["businessPostcode","Postcode / ZIP"],
+                    ["businessPostcode","Postcode / ZIP"],
           ["businessCountry","Business country"]
         ],
         preferences:[
