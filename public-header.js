@@ -911,6 +911,7 @@ async function addMyDealershipMenuIfEligible(user){
         else menu.appendChild(link);
       }
       link.href=href;
+      link.textContent=(ANYBIKE_HEADER_TRANSLATIONS[normaliseLanguage(window.anybikeLanguage||localStorage.getItem('anybikeLanguage'))]||ANYBIKE_HEADER_TRANSLATIONS.en).dealership||'My Dealership';
       // The UK dealer account uses its own workspace, so omit export-buyer
       // shortcuts from its account menu. Do not change other account types.
       if(["uk_dealer","uk_distributor"].includes(customerType)){
@@ -2189,6 +2190,22 @@ function applyHeaderLanguage(language){
 
   Object.keys(translations).forEach(function(key){
     setText("[data-i18n='" + key + "']",translations[key]);
+  });
+  // Account items added by the dealer flow share the selected site language.
+  const sharedExtraLabels={
+    en:{mySelling:"My Selling",vatExportGuide:"VAT Export Guide"},
+    fr:{mySelling:"Mes ventes",vatExportGuide:"Guide TVA à l’exportation"},
+    de:{mySelling:"Meine Verkäufe",vatExportGuide:"Leitfaden zur Export-Umsatzsteuer"},
+    es:{mySelling:"Mis ventas",vatExportGuide:"Guía de IVA para exportaciones"},
+    ar:{mySelling:"مبيعاتي",vatExportGuide:"دليل ضريبة القيمة المضافة للتصدير"},
+    id:{mySelling:"Penjualan saya",vatExportGuide:"Panduan PPN ekspor"},
+    ms:{mySelling:"Jualan saya",vatExportGuide:"Panduan VAT eksport"},
+    zh:{mySelling:"我的销售",vatExportGuide:"出口增值税指南"}
+  };
+  const extra=sharedExtraLabels[language]||sharedExtraLabels.en;
+  Object.keys(extra).forEach(function(key){setText("[data-i18n='"+key+"']",extra[key]);});
+  document.querySelectorAll('[data-dealer-menu-link="true"]').forEach(function(link){
+    link.textContent=translations.dealership||"My Dealership";
   });
 
   window.dispatchEvent(new CustomEvent("anybikeLanguageChanged",{
