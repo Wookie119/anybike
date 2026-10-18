@@ -73,7 +73,7 @@ input[type="number"]{-moz-appearance:textfield;appearance:textfield}input[type="
 @media(max-width:820px){#grid.grid{grid-template-columns:repeat(2,minmax(0,1fr))}#grid>.card:has(>.auction-expand[open]){grid-column:span 2}}
 @media(max-width:560px){#grid.grid{grid-template-columns:minmax(0,1fr)}#grid>.card:has(>.auction-expand[open]){grid-column:span 1}#grid .auction-expand[open] .data{grid-template-columns:repeat(2,minmax(0,1fr))}#grid .auction-expand[open] .underwrite-action-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .decision-target-card{outline:3px solid #ed1c24!important;outline-offset:3px;scroll-margin-top:90px}
-</style><script>if(new URLSearchParams(location.search).has("embedded"))document.documentElement.classList.add("trade-embedded");</script>
+.auction-nine-steps{margin:12px 0 18px;border:1px solid #444;border-radius:10px;overflow:hidden}.journey-heading{padding:12px;background:#151515;display:flex;justify-content:space-between;gap:9px;flex-wrap:wrap}.journey-heading small{color:#bbb}.journey-stage{display:flex;align-items:center;gap:12px;padding:9px 12px;border-top:1px solid #333}.journey-number{flex:none;display:grid;place-items:center;background:#292929;border-radius:50%;width:27px;height:27px;font-weight:800}.journey-info{flex:1;display:flex;flex-direction:column;gap:5px}.journey-info strong{font-size:13px}.journey-info small{font-size:12px;color:#ccc}.journey-done .journey-number{background:#153b2d;color:#90f0b2}.journey-tick{color:#90f0b2}.journey-active{background:#221012;border-left:4px solid #ed1c24}.journey-active .journey-number{background:#ed1c24;color:white}.journey-state{font-size:12px;color:#ff9999;font-weight:700}.journey-step-go{align-self:flex-start;background:#ed1c24;color:#fff;padding:9px 13px;border:0;border-radius:7px;font-weight:800;cursor:pointer}</style><script>if(new URLSearchParams(location.search).has("embedded"))document.documentElement.classList.add("trade-embedded");</script>
 <style>
 :root{--red:#ed1c24;--line:rgba(255,255,255,.12)}*{box-sizing:border-box}body{margin:0;background:#070707;color:#fff;font-family:Arial,Helvetica,sans-serif}
 .admin-page-content{padding:24px;max-width:1750px;margin:auto}.hero,.card{background:#111;border:1px solid var(--line);border-radius:20px}.hero{padding:25px;margin-bottom:16px;background:radial-gradient(circle at top right,rgba(237,28,36,.2),transparent 35%),#111}
@@ -178,6 +178,28 @@ function openAuctionSellerChecks(id){
  card.scrollIntoView({behavior:"smooth",block:"start"});
  card.classList.add("decision-target-card");
  window.setTimeout(()=>card.classList.remove("decision-target-card"),4500);
+}
+function auctionNineSteps(r){
+ const id=Number(r.opportunity_id),bids=Number(r.live_bid_count||0),invited=Number(r.invited_trade_count||0)>0;
+ const sellerPrice=Number(r.seller_price_wanted_gbp)>0,offer=String(r.latest_offer_status||""),accepted=offer==="accepted";
+ const offerSent=["sent","accepted","countered"].includes(offer),checked=!!approvedFinalChecks[id],completed=r.opportunity_status==="completed";
+ const actions=[
+ ["Motorcycle received","Motorcycle entered into AnyBike",true,null],
+ ["Seller minimum","Confirm the lowest price the seller will accept",sellerPrice,"editSellerMinimum("+id+")"],
+ ["Invite dealers","Invite verified dealers to bid privately",invited,"openDealerInvites("+id+")"],
+ ["Review trade offers","Review confidential dealer bids",bids>0,"viewBids("+id+")"],
+ ["Costs and margin","Check collection, costs and whether the deal makes sense",false,"openReserveReview("+id+")"],
+ ["Offer to seller","Prepare an offer for the seller — no automatic sending",offerSent,"openOffer("+id+")"],
+ ["Seller acceptance","Record the seller's actual response",accepted,null],
+ ["Vehicle and seller checks","Confirm HPI, finance, availability and agreed price",checked,"openFinalCheck("+id+")"],
+ ["Choose buyer and Deal 360","Confirm the buying dealer, then progress the transaction",completed,completed?"openUnderwriteDeal("+id+")":"viewBids("+id+")"]
+ ];
+ const current=completed?9:!sellerPrice?2:!invited?3:!bids?4:!offerSent?5:!accepted?7:!checked?8:9;
+ return '<div class="auction-nine-steps" aria-label="Nine-stage motorcycle journey"><div class="journey-heading"><strong>Motorcycle journey · 9 steps</strong><small>Follow the highlighted step. Nothing is sent automatically.</small></div>'+
+ actions.map((item,i)=>{const n=i+1,done=item[2],active=n===current;
+ const action=active&&item[3]?'<button type="button" class="journey-step-go" onclick="'+item[3]+'">Next → '+esc(item[0])+'</button>':'';
+ return '<div class="journey-stage '+(done?'journey-done':active?'journey-active':'')+'"><span class="journey-number">'+n+'</span><div class="journey-info"><strong>'+esc(item[0])+'</strong>'+(active?'<small>'+esc(item[1])+'</small><span class="journey-state">Your next action</span>'+action:'')+'</div>'+(done?'<span class="journey-tick">✓</span>':'')+'</div>';
+ }).join('')+'</div>';
 }
 function renderDecisionQueue(){
  const host=document.getElementById("decisionQueueRows");if(!host)return;
@@ -304,7 +326,7 @@ async function load(){
  host.innerHTML=rows.map(r=>'<article class="card" id="underwrite-'+r.opportunity_id+'"><div class="top"><div><div class="ref">'+esc(r.reference)+'</div><div class="meta">'+esc(r.submission_reference)+' · '+esc(r.opportunity_status)+'</div></div><strong>'+esc(r.live_bid_count)+' live bid'+(Number(r.live_bid_count)===1?'':'s')+'</strong></div>'+
  '<div class="bike">'+esc([r.make,r.model,r.variant].filter(Boolean).join(" "))+'</div><div class="meta">'+esc(r.registration||"")+(r.bike_year?' · '+r.bike_year:'')+(r.mileage!==null?' · '+Number(r.mileage).toLocaleString("en-GB")+' miles':'')+'</div>'+
  (r.opportunity_status==='live'?'<div class="auction-compact-countdown">Closes in <div class="auction-countdown" data-closes-at="'+esc(r.closes_at||'')+'">Calculating…</div></div>':'')+
- '<details class="auction-expand"><summary>Manage motorcycle &amp; bidders →</summary>'+
+ '<details class="auction-expand"><summary>Manage motorcycle &amp; bidders →</summary>'+auctionNineSteps(r)+
  (r.opportunity_status==='live'?'<div class="auction-time-bar"><div><strong>Time remaining</strong><div class="auction-countdown" data-closes-at="'+esc(r.closes_at||'')+'">Calculating…</div><small>Closes: '+(r.closes_at?new Date(r.closes_at).toLocaleString("en-GB",{dateStyle:"medium",timeStyle:"short"}):"Not set")+'</small></div><div class="auction-time-actions"><button class="red" onclick="adjustUnderwriteDeadline('+r.opportunity_id+')">Add / Change Time →</button><button class="early-close-button" onclick="closeUnderwrite('+r.opportunity_id+')">End Bidding Early</button></div></div>':'')+
  '<div class="data"><div class="box"><span>Seller minimum (internal)</span><strong>'+money(r.seller_price_wanted_gbp)+'</strong><button type="button" class="seller-minimum-edit" onclick="editSellerMinimum('+Number(r.opportunity_id)+')">'+(Number(r.seller_price_wanted_gbp)>0?'Edit':'Set minimum')+'</button></div><div class="box"><span>Invited</span><strong>'+r.invited_trade_count+'</strong></div><div class="box"><span>Bid range</span><strong>'+money(r.lowest_live_bid_gbp)+' – '+money(r.highest_live_bid_gbp)+'</strong></div><div class="box"><span>Average</span><strong>'+money(r.average_live_bid_gbp)+'</strong></div></div>'+
  '<div class="underwrite-action-grid">'+
@@ -318,17 +340,7 @@ async function load(){
  '</div>'+
  '<div class="meta">Seller-visible genuine bid count: '+r.seller_visible_bid_count+' only. Bid amounts remain internal.</div>'+
  (r.latest_offer_amount_gbp?'<div class="seller-offer-result '+(r.latest_offer_status==="sent"||r.latest_offer_status==="accepted"?'success':'')+'" role="status"><strong>'+(r.latest_offer_status==="sent"?'✓ Offer sent to seller':r.latest_offer_status==="accepted"?'✓ Seller accepted':'Seller offer · '+esc(r.latest_offer_status))+'</strong><span>'+money(r.latest_offer_amount_gbp)+(r.latest_offer_status==="sent"?' · Awaiting seller response':'')+'</span></div>':'')+
- '<div class="next-step"><strong>Your Next Action</strong><p>'+(
- r.opportunity_status==="completed"?"✓ Buying dealer selected. Next: create or open Deal 360.":
- r.latest_offer_status==="accepted"?(approvedFinalChecks[r.opportunity_id]?"✓ Seller and HPI checks complete. Next: select the buying dealer.":"Complete seller confirmation and HPI checks before proceeding."):
- r.latest_offer_status==="sent"?"Offer sent successfully. Await the seller’s response.":
- r.opportunity_status!=="live"&&Number(r.live_bid_count)===0?"Bidding has closed. Review the auction history.":Number(r.live_bid_count)===0?"No current live bids. Review bidder history or invite additional dealers while bidding is open.":"You have "+Number(r.live_bid_count)+" recorded live bid(s). Compare the top trade offer "+money(r.highest_live_bid_gbp)+" with the seller minimum "+money(r.seller_price_wanted_gbp)+". Check collection, preparation and required margin before preparing a seller offer. This step does not send anything or select a buyer."
- )+'</p>'+(
- r.opportunity_status==="completed"?'<span style="color:#82e5aa;font-weight:800">✓ Buying dealer selected</span> <button class="red" onclick="openUnderwriteDeal('+r.opportunity_id+')">Create / Open Deal 360 →</button>':
- r.latest_offer_status==="accepted"?(approvedFinalChecks[r.opportunity_id]?'<span style="color:#82e5aa;font-weight:800">✓ Seller and HPI checks complete</span> <button class="red" onclick="viewBids('+r.opportunity_id+')">Select Buying Dealer →</button>':'<button class="red" onclick="openFinalCheck('+r.opportunity_id+')">Seller and HPI checks</button>'):
- Number(r.live_bid_count)===0?'<button onclick="viewBids('+r.opportunity_id+')">View bid history</button>':
- '<button class="red" onclick="openReserveReview('+r.opportunity_id+')">Complete Reserve &amp; Margin Assessment →</button>'
- )+'</div><button type="button" class="auction-collapse" onclick="collapseAuctionCard(this)">Close ↑</button></details></article>').join("");
+ ''button type="button" class="auction-collapse" onclick="collapseAuctionCard(this)">Close ↑</button></details></article>').join("");
  updateAuctionCountdowns();
 }
 function collapseAuctionCard(button){const details=button.closest("details.auction-expand");if(details){details.open=false;details.closest(".card")?.scrollIntoView({block:"nearest",behavior:"smooth"});}}
