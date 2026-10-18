@@ -367,6 +367,8 @@ async function reviewQuickBids(){
  const status=document.getElementById("quickBidStatus");
  if(!picked.length){status.textContent="Enter a price for at least one motorcycle.";return;}
  if(picked.some(x=>!x.auction||!Number.isFinite(x.amount)||x.amount<=0||new Date(x.auction.closes_at).getTime()<=Date.now())){status.textContent="Check prices and closing times before submitting.";return;}
+ const lower=picked.filter(x=>Number(x.auction.my_bid_gbp)>0&&x.amount<Number(x.auction.my_bid_gbp));
+ if(lower.length){status.textContent="Not submitted: your new offer is lower than your current bid on "+lower.map(x=>[x.auction.make,x.auction.model].filter(Boolean).join(" ")+" ("+moneyPrecise(x.auction.my_bid_gbp)+")").join(", ")+". Keep the higher bid, or enter an equal/higher amount.";return;}
  const summary=picked.map(x=>(x.kind==="cheeky"?"Cheeky":"Normal")+" · "+[x.auction.make,x.auction.model].filter(Boolean).join(" ")+" — "+moneyPrecise(x.amount)).join("\n");
  if(!confirm("REVIEW CONFIDENTIAL BIDS\n\n"+summary+"\n\nSubmit "+picked.length+" separate genuine bids? They may be accepted subject to AnyBike checks."))return;
  const btn=document.querySelector("#quickBidPanel .quick-bid-footer button");btn.disabled=true;status.textContent="Submitting bids individually…";
