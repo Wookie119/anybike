@@ -127,6 +127,19 @@ label{display:block;color:#bbb;font-size:12px;font-weight:800}input{width:100%;m
 .submission-gallery-hero .hero-empty{display:grid;place-items:center;height:100%;color:#aaa;text-align:center;padding:24px}
 .submission-detail .admin-advert-description p{max-height:220px;overflow:auto}
 @media(max-width:1000px){.submission-detail .card:has(> .submission-gallery){grid-template-columns:1fr}.submission-detail .card:has(> .submission-gallery)>*{grid-column:1!important;grid-row:auto!important}.submission-detail .card:has(> .submission-gallery)>.data{grid-column:1!important;grid-row:auto!important}}
+
+/* Advert presentation preview: separate from administrative review and private data. */
+#advertPreviewOverlay{display:none;position:fixed;inset:0;z-index:20000;overflow:auto;background:rgba(0,0,0,.94);padding:20px}
+#advertPreviewOverlay.open{display:block}.advert-preview-sheet{max-width:1180px;margin:auto;background:#070707;color:#fff;border:1px solid #ed1c24;border-radius:14px;padding:16px}
+.advert-preview-top{display:flex;justify-content:space-between;align-items:center;gap:12px;border-bottom:2px solid #ed1c24;padding-bottom:12px;margin-bottom:18px}
+.advert-preview-columns{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:25px}
+.advert-preview-main{width:100%;aspect-ratio:4/3;object-fit:contain;background:#101010;border-radius:9px}
+.advert-preview-thumbs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin-top:8px}
+.advert-preview-thumbs button{padding:0;border:1px solid #555;border-radius:6px;overflow:hidden;aspect-ratio:4/3}.advert-preview-thumbs img{width:100%;height:100%;object-fit:cover}
+.advert-preview-heading{font-size:clamp(24px,3vw,38px);line-height:1.1;margin:0 0 10px;text-transform:uppercase}
+.advert-preview-facts{font-size:18px;font-weight:800}.advert-preview-section{margin-top:17px;border:1px solid #393939;border-radius:9px;padding:15px;line-height:1.5;overflow-wrap:anywhere}
+.advert-preview-section h3{border-left:3px solid #ed1c24;padding-left:9px;margin:0 0 10px}
+@media(max-width:740px){#advertPreviewOverlay{padding:6px}.advert-preview-sheet{padding:11px}.advert-preview-columns{grid-template-columns:1fr}.advert-preview-thumbs{grid-template-columns:repeat(4,minmax(0,1fr))}}
 </style>
 </head>
 <body>
@@ -439,6 +452,7 @@ function render(){
       '<article class="card">'+
         '<div class="top"><div><div class="ref">'+esc(r.reference)+'</div><div class="meta">'+new Date(r.created_at).toLocaleString("en-GB")+'</div></div><div style="display:flex;gap:8px;align-items:center"><span class="badge '+(dealer?"dealer":"")+'">'+esc(dealer?"Dealer Underwrite":"Sell Your Bike")+'</span><button type="button" class="btn" data-action="collapse" data-id="'+Number(r.submission_id)+'">▲ Collapse</button></div></div>'+
         '<div class="bike">'+esc(bike)+'</div>'+
+        '<button type="button" class="red" onclick="openSubmissionAdvertPreview('+Number(r.submission_id)+')" style="margin:9px 0 12px">View motorcycle advert preview →</button>'+
         '<div class="sub">'+esc(r.registration||"No registration")+(r.bike_year?" · "+esc(r.bike_year):"")+(r.mileage!==null?" · "+Number(r.mileage).toLocaleString("en-GB")+" miles":"")+'</div>'+
         '<div class="data">'+
           '<div class="box"><span>Seller price expectation</span><strong>'+(r.price_wanted_gbp===null||r.price_wanted_gbp===undefined?(dealer?"To be determined from trade bids":"Not provided"):money(r.price_wanted_gbp))+'</strong></div>'+
@@ -797,6 +811,21 @@ async function saveVehicle(){
   }
 }
 
+async function openSubmissionAdvertPreview(id){
+ const r=rows.find(x=>Number(x.submission_id)===Number(id));
+ if(!r)return;
+ let images=submissionImages.get(Number(id));
+ if(!images){const response=await sb.rpc("admin_get_seller_submission_images_v2",{p_submission_id:Number(id)});if(response.error){alert("Photographs unavailable: "+response.error.message);return;}images=response.data||[];submissionImages.set(Number(id),images);}
+ const approved=images.filter(x=>x.final_status==="approved"&&x.buyer_safe_url);
+ const bike=[r.make,r.model,r.variant].filter(Boolean).join(" ");
+ const notes=String(r.notes||"");
+ const description=notes.split(/\\r?\\n|\\\\r\\\\n/).filter(x=>x.trim()&&!/^\\s*(?:\\[|https?:\\/\\/)/.test(x)).join(" ").replace(/\\s+/g," ").trim();
+ let el=document.getElementById("advertPreviewOverlay");
+ if(!el){el=document.createElement("div");el.id="advertPreviewOverlay";document.body.append(el);}
+ el.innerHTML='<div class="advert-preview-sheet"><div class="advert-preview-top"><strong>ANYBIKE · MOTORCYCLE ADVERT PREVIEW</strong><button type="button" onclick="closeSubmissionAdvertPreview()">✕ Close preview</button></div><div class="advert-preview-columns"><div><img id="advertPreviewMain" class="advert-preview-main" src="'+esc(approved[0]?.buyer_safe_url||"/anybike-image-coming-soon.png")+'" alt="'+esc(bike)+'"><div class="advert-preview-thumbs">'+approved.map((x,i)=>'<button type="button" onclick="document.getElementById(\\'advertPreviewMain\\').src=this.querySelector(\\'img\\').src" aria-label="Show photograph '+(i+1)+'"><img src="'+esc(x.buyer_safe_url)+'" alt="Approved motorcycle photograph '+(i+1)+'"></button>').join("")+'</div><small>'+approved.length+' approved photos · '+(images.length-approved.length)+' not approved for display</small></div><div><h1 class="advert-preview-heading">'+esc(bike)+'</h1><div class="advert-preview-facts">'+esc([r.bike_year,r.mileage==null?"":Number(r.mileage).toLocaleString("en-GB")+" miles",r.registration&&r.registration!=="TBC"?r.registration:""].filter(Boolean).join(" · "))+'</div><div class="advert-preview-section"><h3>Description</h3><p>'+esc(description||"Description awaiting review.")+'</p></div><div class="advert-preview-section"><h3>History & checks</h3><p>'+(r.hpi_clear===true?"Seller declares HPI Clear — AnyBike verification pending.":"Independent HPI verification pending.")+'</p></div><div class="advert-preview-section"><h3>Advert readiness</h3><p>Internal preview only — not published. Buyer pricing, seller identity and confidential bidding are excluded.</p></div></div></div></div>';
+ el.classList.add("open");document.body.style.overflow="hidden";
+}
+function closeSubmissionAdvertPreview(){document.getElementById("advertPreviewOverlay")?.classList.remove("open");document.body.style.overflow="";}
 (async function init(){
   try{
     const allowed=await requireAdminSession();
