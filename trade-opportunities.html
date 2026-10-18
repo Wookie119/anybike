@@ -339,7 +339,7 @@ function renderOpportunities(rows){
    host.innerHTML='<div class="empty">'+(offerView==="mine"?"You have no active underwriting offers. Select Available motorcycles to browse and make an offer.":"No private trade opportunities are currently available to your dealership.")+'</div>';
    return;
  }
- host.classList.toggle('mine-grid',offerView==='mine');
+ host.classList.add('mine-grid');
  if(offerView==='mine')renderMyTradeOffers(display);else renderBikeCards(display);
  const target=new URLSearchParams(location.search).get("opportunity");
  if(target && /^\d+$/.test(target) && offerView==="all"){
@@ -456,29 +456,20 @@ function stepMineDetails(step){showMinePhoto(mineDetailIndex+step);}
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&mineDetailId!==null)closeMineDetails();else if(mineDetailId!==null&&e.key==='ArrowLeft')stepMineDetails(-1);else if(mineDetailId!==null&&e.key==='ArrowRight')stepMineDetails(1);});
 
 function renderBikeCards(rows){
-  const host=document.getElementById("grid");
-  host.innerHTML=rows.map(r=>'<article class="card" data-opportunity-id="'+esc(r.opportunity_id)+'">'+
-    '<div class="opportunity-main"><div class="photo-column"><div class="img"><img src="'+esc((approvedGalleries[r.opportunity_id]||[])[0]?.photo_url||r.image_url||"/anybike-image-coming-soon.png")+'" alt="Motorcycle photograph" onclick="showGalleryPhoto('+r.opportunity_id+',0)" style="cursor:zoom-in" onerror="this.src=\'/anybike-image-coming-soon.png\'"></div>'+
-    '<div class="gallery-thumbnails">'+(approvedGalleries[r.opportunity_id]||[]).map((p,i)=>'<button type="button" title="Enlarge photo '+(i+1)+'" onclick="showGalleryPhoto('+r.opportunity_id+','+i+')"><img loading="lazy" src="'+esc(p.photo_url)+'" alt="Photo '+(i+1)+'"></button>').join("")+'</div>'+
-    '</div>'+ 
-    '<div class="body">'+
-      '<div class="meta">'+esc(r.reference)+' · closes in '+esc(countdown(r.closes_at))+'</div>'+
-      '<div class="bike">'+esc([r.make,r.model,r.variant].filter(Boolean).join(" "))+'</div>'+
-      '<div class="data"><div class="box"><span>Make</span><strong>'+esc(r.make||"—")+'</strong></div><div class="box"><span>Model</span><strong>'+esc(r.model||"—")+'</strong></div><div class="box"><span>Year</span><strong>'+esc(r.bike_year||"To confirm")+'</strong></div><div class="box"><span>Mileage</span><strong>'+(r.mileage===null?"—":Number(r.mileage).toLocaleString("en-GB"))+'</strong></div></div>'+
-      '<section class="dealer-description"><strong>Motorcycle description</strong><p>'+esc(dealerDescriptions[r.opportunity_id]||'Motorcycle details are being prepared by AnyBike. Please review the approved photographs and specifications.')+'</p><div class="delivered-note">✓ Your trade offer includes delivery to your dealership, subject to agreed UK delivery arrangements.</div></section>'+
-      '<div class="hpi-status '+(r.hpi_clear===true?'clear':'pending')+'">'+(r.hpi_clear===true?'✓ Seller declares HPI clear — verification pending':'HPI check pending')+'</div>'+
-      
-      '</div></div><div class="bid-panel">'+
-       '<label>Your confidential bid (£)<input id="bid-'+r.opportunity_id+'" type="number" min="1" step="1" value="'+esc(r.my_bid_gbp??"")+'" placeholder="Enter amount"></label>'+
-      '<label>Notes to AnyBike only<textarea id="note-'+r.opportunity_id+'" placeholder="Optional conditions or notes"></textarea></label>'+
-      '<div class="actions"><button class="red" onclick="submitBid('+r.opportunity_id+')">'+(r.my_bid_gbp?"Update My Bid":"Submit Bid")+'</button>'+
-      (r.my_bid_gbp?'<button onclick="withdrawBid('+r.opportunity_id+')">Withdraw My Bid</button>':'')+
-      '</div>'+
-      (r.my_bid_gbp?'<div class="bid-status">Your active offer: '+money(r.my_bid_gbp)+' · Awaiting AnyBike review</div>':'')+
-      '<div class="next-action"><strong>Your Next Action →</strong><p style="margin:6px 0;font-size:13px">'+(r.my_bid_gbp?'Your offer is saved. Submit your strongest bid now; bidding may end early if an acceptable offer is agreed. Other dealers’ bids remain confidential. Once bidding finishes, AnyBike reviews the offers and completes the necessary seller, history and condition checks. If your offer is successful, we will notify you by email, confirm the purchase and issue your invoice. Your motorcycle will then be delivered to your dealership with the available keys and documents, in line with the agreed delivery arrangements.':'Place your strongest confidential offer from the outset. Bidding may end early if an acceptable offer is agreed. Other dealers’ bids remain confidential, and all seller and HPI checks must be completed before a sale.')+'</p>'+(r.my_bid_gbp?'<button type="button" onclick="showOfferView(\'mine\')">View My Trade Offers →</button>':'')+'</div>'+
-
-    '</div></article>').join("");
-
+ const host=document.getElementById("grid");
+ host.innerHTML=rows.map(r=>{
+  const id=Number(r.opportunity_id),photos=approvedGalleries[id]||[];
+  const bike=[r.make,r.model,r.variant].filter(Boolean).join(" ");
+  const url=photos[0]?.photo_url||r.image_url||"/anybike-image-coming-soon.png";
+  const hasOffer=Number(r.my_bid_gbp)>0;
+  return '<article class="mine-card" data-opportunity-id="'+id+'">'+
+    '<div class="mine-image"><img src="'+esc(url)+'" alt="'+esc(bike)+'" loading="lazy" onclick="openMineDetails('+id+')" onerror="this.onerror=null;this.src=\'/anybike-image-coming-soon.png\'"><span>'+photos.length+' photos</span></div>'+
+    '<div class="mine-body"><div class="mine-heading"><h2>'+esc(bike)+'</h2><b>Live</b></div>'+
+    '<p class="mine-meta">'+esc(r.reference)+' · '+esc(r.bike_year||"Year TBC")+' · '+(r.mileage==null?"Mileage TBC":Number(r.mileage).toLocaleString("en-GB")+" miles")+'</p>'+
+    '<div class="mine-bottom"><div class="mine-offer-amount"><small>'+(hasOffer?"Your confidential offer":"Confidential trade bidding")+'</small><strong>'+(hasOffer?moneyPrecise(r.my_bid_gbp):"Open for offers")+'</strong></div><div class="mine-time"><strong>Closes in '+esc(countdown(r.closes_at))+'</strong></div></div>'+
+    '<p class="mine-bidding-policy">Confidential best-offer bidding. Review the approved photographs, condition and history before making your offer.</p>'+
+    '<button type="button" class="mine-detail" onclick="openMineDetails('+id+')">'+(hasOffer?"View motorcycle / change offer":"View motorcycle & submit bid")+' →</button></div></article>';
+ }).join("");
 }
 
 function filterSource(){return offerView==="mine"?currentOpportunities.filter(r=>Number(r.my_bid_gbp)>0):currentOpportunities;}
@@ -515,7 +506,7 @@ function applyTradeFilters(){
  const year=document.getElementById("filterYear").value;
  const query=document.getElementById("opportunitySearch").value.toLowerCase().trim();
  let shown=0;
- document.querySelectorAll("#grid article.card").forEach(card=>{
+ document.querySelectorAll("#grid article[data-opportunity-id]").forEach(card=>{
    const r=currentOpportunities.find(o=>String(o.opportunity_id)===card.dataset.opportunityId);
    if(!r)return;
    const match=(!make||String(r.make||"").trim()===make)&&(!model||String(r.model||"").trim()===model)&&(!year||String(r.bike_year||"").trim()===year)&&(!query||[r.make,r.model,r.variant,r.bike_year,r.reference].join(" ").toLowerCase().includes(query));
@@ -537,11 +528,12 @@ function renderConfirmations(rows,error){
   const host=document.getElementById("confirmations");
   if(error){if(/Verified trade account required/i.test(String(error.message||""))){host.innerHTML="";return;}host.innerHTML='<div class="notice">Bid confirmation details could not be loaded: '+esc(error.message)+'</div>';return;}
   if(!rows.length){host.innerHTML="";return;}
-  host.innerHTML='<section class="hero" style="padding:18px"><div class="eyebrow">Action Required</div><h2 style="margin:5px 0 10px">Confirm Your Bid</h2><p>AnyBike has selected one of your bids to progress. Please reconfirm your bid and confirm that the saved dealership delivery details below are still correct.</p></section>'+
+  const outstanding=rows.some(c=>c.confirmation_status==='requested');
+  host.innerHTML=(outstanding?'<section class="hero" style="padding:14px 18px"><div class="eyebrow">Action Required</div><h2 style="margin:5px 0 8px">Confirm Your Bid</h2><p>AnyBike has selected a bid to progress. Please confirm your bid and saved dealership delivery details.</p></section>':'<div class="notice" style="margin:5px 0 12px;padding:11px 15px">✓ Previous bid confirmations are recorded. No further action is required for those confirmations.</div>')+
   rows.map(c=>{
     const requested=c.confirmation_status==="requested";
     const address=[c.delivery_address_1,c.delivery_address_2,c.delivery_city,c.delivery_county,c.delivery_postcode,c.delivery_country].filter(Boolean).join(", ");
-    return '<article class="card" style="margin-bottom:14px"><div class="body">'+
+    return requested?'<article class="card" style="margin-bottom:14px"><div class="body">'+
       '<div class="meta">'+esc(c.underwrite_reference)+' · '+esc(String(c.confirmation_type).replaceAll("_"," "))+'.</div>'+
       '<div class="bike">'+esc([c.make,c.model,c.variant].filter(Boolean).join(" "))+'.</div>'+
       '<div class="data"><div class="box"><span>Your bid</span><strong>'+money(c.bid_amount_gbp)+'</strong></div><div class="box"><span>Status</span><strong>'+esc(c.confirmation_status)+'</strong></div></div>'+
@@ -552,7 +544,7 @@ function renderConfirmations(rows,error){
         '<label style="display:block;margin-top:8px">One-off delivery note<textarea id="delivery-notes-'+c.confirmation_id+'" placeholder="Optional note for this delivery only"></textarea></label>'+
         '<div class="actions"><button class="red" onclick="respondConfirmation('+c.confirmation_id+',\'confirm\')">Confirm Bid & Saved Delivery Details</button><button onclick="respondConfirmation('+c.confirmation_id+',\'decline\')">No Longer Available</button></div>'+
       '</div>':'<div class="notice">Your bid and saved dealership delivery details are confirmed. AnyBike will contact you if the transaction progresses.</div>')+
-    '</div></article>';
+    '</div></article>':'<div class="notice" style="padding:12px 15px;margin-bottom:10px">✓ '+esc([c.make,c.model,c.variant].filter(Boolean).join(' '))+' · '+esc(c.underwrite_reference)+' · '+money(c.bid_amount_gbp)+' — bid and delivery details confirmed. Awaiting AnyBike.</div>';
   }).join("");
 }
 async function respondConfirmation(id,action){
