@@ -151,7 +151,23 @@ function renderQuickAuctions(){
  const node=document.getElementById("quickAuctionRows");if(!node)return;
  const query=String(document.getElementById("auctionQuickSearch")?.value||"").toLowerCase();
  const list=rows.filter(r=>r.opportunity_status==="live"&&[r.reference,r.submission_reference,r.make,r.model,r.seller_name,r.dealer_name].join(" ").toLowerCase().includes(query)).sort((a,b)=>new Date(a.closes_at||"2999-01-01")-new Date(b.closes_at||"2999-01-01"));
- node.innerHTML=list.length?'<table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr><th style="text-align:left;padding:9px">Motorcycle</th><th>Closes</th><th>Invited</th><th>Bids</th><th>Highest bid · Admin only</th><th>Actions</th></tr></thead><tbody>'+list.map(r=>'<tr style="border-top:1px solid #333"><td style="padding:9px"><strong>'+esc([r.make,r.model,r.variant].filter(Boolean).join(" "))+'</strong><div class="meta">'+esc(r.submission_reference)+'</div></td><td style="text-align:center">'+esc(r.closes_at?new Date(r.closes_at).toLocaleString("en-GB",{dateStyle:"short",timeStyle:"short"}):"Not set")+'</td><td style="text-align:center">'+Number(r.invited_trade_count||0)+'</td><td style="text-align:center">'+Number(r.live_bid_count||0)+'</td><td style="text-align:center">'+money(r.highest_live_bid_gbp)+'</td><td style="white-space:nowrap;text-align:right"><button onclick="viewBids('+Number(r.opportunity_id)+')">Bids</button> <button onclick="openDealerInvites('+Number(r.opportunity_id)+')">Invite</button> <a href="#underwrite-'+Number(r.opportunity_id)+'" style="color:white">Details →</a></td></tr>').join('')+'</tbody></table>':'<p class="meta">No matching live auctions.</p>';
+ node.innerHTML=list.length?'<table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr><th style="text-align:left;padding:9px">Motorcycle</th><th>Closes</th><th>Invited</th><th>Bids</th><th>Highest bid · Admin only</th><th>Actions</th></tr></thead><tbody>'+list.map(r=>'<tr style="border-top:1px solid #333"><td style="padding:9px"><strong>'+esc([r.make,r.model,r.variant].filter(Boolean).join(" "))+'</strong><div class="meta">'+esc(r.submission_reference)+'</div></td><td style="text-align:center">'+esc(r.closes_at?new Date(r.closes_at).toLocaleString("en-GB",{dateStyle:"short",timeStyle:"short"}):"Not set")+'</td><td style="text-align:center">'+Number(r.invited_trade_count||0)+'</td><td style="text-align:center">'+Number(r.live_bid_count||0)+'</td><td style="text-align:center">'+money(r.highest_live_bid_gbp)+'</td><td style="white-space:nowrap;text-align:right"><button onclick="toggleInlineAuctionBids('+Number(r.opportunity_id)+')">Bidders ▾</button> <button onclick="openDealerInvites('+Number(r.opportunity_id)+')">Invite</button> <a href="#underwrite-'+Number(r.opportunity_id)+'" style="color:white">Details →</a></td></tr><tr id="auction-inline-bids-'+Number(r.opportunity_id)+'" style="display:none"><td colspan="6" style="background:#0c0c0c;border-bottom:2px solid #ed1c24;padding:14px"></td></tr>').join('')+'</tbody></table>':'<p class="meta">No matching live auctions.</p>';
+}
+async function toggleInlineAuctionBids(id){
+ const row=document.getElementById("auction-inline-bids-"+Number(id));
+ if(!row)return;
+ if(row.style.display!=="none"){row.style.display="none";return;}
+ row.style.display="table-row";
+ const cell=row.querySelector("td");cell.textContent="Loading confidential bidder information…";
+ const {data,error}=await sb.rpc("admin_get_trade_underwrite_bids_v1",{p_opportunity_id:Number(id)});
+ if(row.style.display==="none")return;
+ if(error){cell.textContent="Unable to load bids: "+error.message;return;}
+ const live=(data||[]).filter(b=>b.status==="live");
+ const past=(data||[]).length-live.length;
+ cell.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap"><strong>Confidential bidders · Admin only</strong><div><button type="button" onclick="viewBids('+Number(id)+')">Full bidder management →</button> <button type="button" onclick="toggleInlineAuctionBids('+Number(id)+')">Close ↑</button></div></div>'+
+ (live.length?'<table style="width:100%;margin-top:8px;font-size:12px"><thead><tr><th>Dealership</th><th>Current offer</th><th>Submitted</th><th>Notes</th></tr></thead><tbody>'+
+ live.map(b=>'<tr><td>'+esc(b.dealer_name)+'</td><td style="text-align:center">'+money(b.amount_gbp)+'</td><td style="text-align:center">'+esc(b.submitted_at?new Date(b.submitted_at).toLocaleString("en-GB"):"—")+'</td><td>'+esc(b.notes||"—")+'</td></tr>').join('')+'</tbody></table>':'<p>No live bids.</p>')+
+ (past?'<small class="meta">'+past+' previous/superseded bids remain in audit history.</small>':'');
 }
 async function load(){
  const {data,error}=await sb.rpc("admin_get_trade_underwrite_queue_v2");const host=document.getElementById("grid");
