@@ -46,6 +46,7 @@ input[type="number"]{-moz-appearance:textfield;appearance:textfield}input[type="
 #grid .auction-expand .auction-time-actions{min-width:0;width:100%;flex-direction:row;flex-wrap:wrap}#grid .auction-expand .auction-time-actions button{flex:1;min-width:110px;font-size:11px}
 #grid .auction-expand .data{grid-template-columns:repeat(2,minmax(0,1fr))}#grid .auction-expand .underwrite-action-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
 #grid .auction-expand .underwrite-action-grid>button{min-height:38px;padding:7px 5px;font-size:11px}
+#grid .auction-collapse{display:block;width:100%;margin-top:12px;padding:11px;border:1px solid #ed1c24;border-radius:8px;background:#251214;color:#fff;font-weight:800;cursor:pointer}#grid .auction-collapse:hover{background:#74212a}
 @media(max-width:1450px){#grid.grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:990px){#grid.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:610px){#grid.grid{grid-template-columns:1fr}}
@@ -232,9 +233,10 @@ async function load(){
  r.latest_offer_status==="accepted"?(approvedFinalChecks[r.opportunity_id]?'<span style="color:#82e5aa;font-weight:800">✓ Seller and HPI checks complete</span> <button class="red" onclick="viewBids('+r.opportunity_id+')">Select Buying Dealer →</button>':'<button class="red" onclick="openFinalCheck('+r.opportunity_id+')">Seller and HPI checks</button>'):
  Number(r.live_bid_count)===0?'<button onclick="viewBids('+r.opportunity_id+')">Review bidding</button>':
  '<button class="red" onclick="openReserveReview('+r.opportunity_id+')">Reserve assessment</button>'
- )+'</div></details></article>').join("");
+ )+'</div><button type="button" class="auction-collapse" onclick="collapseAuctionCard(this)">Close ↑</button></details></article>').join("");
  updateAuctionCountdowns();
 }
+function collapseAuctionCard(button){const details=button.closest("details.auction-expand");if(details){details.open=false;details.closest(".card")?.scrollIntoView({block:"nearest",behavior:"smooth"});}}
 function updateAuctionCountdowns(){document.querySelectorAll(".auction-countdown[data-closes-at]").forEach(el=>{const end=Date.parse(el.dataset.closesAt||"");if(!Number.isFinite(end)){el.textContent="No closing deadline";return;}const left=Math.max(0,Math.ceil((end-Date.now())/1000));if(!left){el.textContent="Deadline reached";return;}const days=Math.floor(left/86400),hours=Math.floor(left%86400/3600),mins=Math.floor(left%3600/60),secs=left%60;el.textContent=(days?days+"d ":"")+String(hours).padStart(2,"0")+"h "+String(mins).padStart(2,"0")+"m "+String(secs).padStart(2,"0")+"s";});}
 setInterval(updateAuctionCountdowns,1000);
 
