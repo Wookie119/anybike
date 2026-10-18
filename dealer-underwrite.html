@@ -305,7 +305,41 @@ async function importTradeAdvert(){
     progressCaption.textContent="Mileage: "+(result.mileage?"found":"not available")+" · Photos: "+(Array.isArray(result.images)&&result.images.length?result.images.length+" links found (not attached)":"not available")+" · You can complete the remaining details below.";
     if(result.title)status.textContent="Found: "+result.title+". Please verify every detail and photo before submitting.";
     else status.textContent="Advert details checked. Please confirm and complete missing fields.";
-    if(Array.isArray(result.images)&&result.images.length){gallery.replaceChildren();for(const url of result.images){const img=document.createElement("img");img.src=url;img.alt="Advert photograph for review";img.loading="lazy";img.referrerPolicy="no-referrer";img.style.cssText="width:125px;height:95px;object-fit:cover;border:1px solid #444;border-radius:8px";gallery.append(img);}const note=document.createElement("p");note.className="small";note.textContent="These are reference previews only. To include photographs in the submitted motorcycle, add your original images below. Automatic image attachment is not available from every website.";gallery.append(note);}
+    if(Array.isArray(result.images)&&result.images.length){
+      gallery.replaceChildren();
+      const urls=result.images.filter(url=>typeof url==="string"&&/^https:\/\//i.test(url)).slice(0,12);
+      const counter=document.createElement("p");
+      counter.className="small";
+      counter.style.cssText="width:100%;margin:4px 0 8px";
+      gallery.append(counter);
+      const note=document.createElement("p");
+      note.className="small";
+      note.style.width="100%";
+      note.textContent="Advert photo previews only — these are not yet attached to your motorcycle submission. You can upload original photos below.";
+      let loaded=0,failed=0;
+      for(let index=0;index<urls.length;index++){
+        counter.textContent="Loading photograph "+(index+1)+" of "+urls.length+" · "+loaded+" displayed";
+        progressCaption.textContent="Mileage: "+(result.mileage?"found":"not available")+" · Loading advert photos "+(index+1)+"/"+urls.length+" · "+loaded+" displayed";
+        const img=document.createElement("img");
+        img.alt="Advert photograph "+(index+1)+" for review";
+        img.referrerPolicy="no-referrer";
+        img.style.cssText="width:125px;height:95px;object-fit:cover;border:1px solid #444;border-radius:8px";
+        const success=await new Promise(resolve=>{
+          let finished=false;
+          const finish=ok=>{if(finished)return;finished=true;clearTimeout(timer);img.onload=null;img.onerror=null;resolve(ok);};
+          const timer=setTimeout(()=>finish(false),6000);
+          img.onload=()=>finish(true);
+          img.onerror=()=>finish(false);
+          img.src=urls[index];
+        });
+        if(success){gallery.append(img);loaded++;}else failed++;
+      }
+      gallery.append(note);
+      counter.textContent=loaded+" photo"+(loaded===1?"":"s")+" displayed"+(failed?" · "+failed+" unavailable":"");
+      progressCaption.textContent="Mileage: "+(result.mileage?"found":"not available")+" · "+loaded+" photo previews displayed"+(failed?" · "+failed+" unavailable":"")+" · Photos not attached to submission";
+    }else{
+      progressCaption.textContent="Mileage: "+(result.mileage?"found":"not available")+" · No advert photo links available · Upload original photos below.";
+    }
   }catch(e){status.textContent="The website could not be imported. Continue manually — no link is required.";progress.classList.remove("loading");progressHead.textContent="Advert import unavailable";progressCaption.textContent="Enter motorcycle details manually below.";}
 }
 function messageText(value,fallback){
