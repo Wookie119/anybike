@@ -4380,11 +4380,28 @@ function startCustomerMessageRealtime(){
     });
 }
 
+// Optional read-only load timing: add ?debug_load=1 to identify the slow stage.
+const anybikeMessageDebug=new URLSearchParams(location.search).get("debug_load")==="1";
+const anybikeMessageT0=performance.now();
+function anybikeMessageTiming(label){
+  if(!anybikeMessageDebug)return;
+  let el=document.getElementById("anybikeMessageTiming");
+  if(!el){
+    el=document.createElement("div");
+    el.id="anybikeMessageTiming";
+    el.setAttribute("role","status");
+    el.style.cssText="position:fixed;left:12px;bottom:12px;z-index:99999;background:#171717;color:white;border:2px solid #ed1c24;border-radius:9px;padding:12px;max-width:480px;font:14px Arial;white-space:pre-line";
+    document.body.appendChild(el);
+  }
+  el.textContent+="\\n"+label+": "+((performance.now()-anybikeMessageT0)/1000).toFixed(2)+"s";
+}
 (async function init(){
   try{
+    anybikeMessageTiming('Startup');
     // Authentication uses its own Supabase client and does not require the
     // retired #userArea header element. Waiting for it cost up to six seconds.
     const ok=await loadUser();
+    anybikeMessageTiming('Authentication and customer profile');
 
     if(!ok){
       return;
@@ -4396,12 +4413,14 @@ function startCustomerMessageRealtime(){
     }
 
     await claimRequestedMessageThread();
+    anybikeMessageTiming('Requested thread resolved');
 
     document.documentElement.classList.remove("customer-auth-pending");
     applyMessagePrefillFromUrl();
 
     try{
       await loadCustomerEnquiries();
+      anybikeMessageTiming('Inbox list rendered');
     }catch(error){
       console.error("Customer conversations failed to load",error);
       const welcome=document.getElementById("welcomeText");
@@ -4425,6 +4444,7 @@ function startCustomerMessageRealtime(){
 
     try{
       await refreshSharedCustomerHeader();
+      anybikeMessageTiming('Notification refresh');
     }catch(error){
       console.warn("Customer header activity refresh failed",error);
     }
