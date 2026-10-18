@@ -69,6 +69,12 @@ main{max-width:none;width:100%;margin:0;padding:18px 22px 48px}
     progressBySubmission=new Map((result.data||[]).map(row=>[String(row.submission_id),row]));
   }catch(error){console.warn("Seller Deal 360 progress unavailable:",error.message);}
 
+  let biddingBySubmission=new Map();
+  try{
+    const {data:bidding,error:biddingError}=await client.rpc("seller_my_bidding_progress_v1");
+    if(biddingError)throw biddingError;
+    biddingBySubmission=new Map((bidding||[]).map(b=>[String(b.submission_id),b]));
+  }catch(e){console.warn("Secure seller bidding progress unavailable:",e.message);}
   holder.replaceChildren();
   for(const item of rows){
    const card=document.createElement("div");card.className="card";card.style.margin="12px 0";
@@ -116,7 +122,19 @@ main{max-width:none;width:100%;margin:0;padding:18px 22px 48px}
      const upload=document.createElement("a");upload.href="/seller-add-photos.html?reference="+encodeURIComponent(item.reference);upload.className="button";upload.textContent="Add Photos →";
      photos.append(photosTitle,photosText,upload);helpGrid.append(photos);
      helpPanel.append(helpTitle,helpIntro,helpGrid);card.append(helpPanel);
-   } if(item.reserve_met===true && stage==="live"){const reserve=document.createElement("p");reserve.className="ok";reserve.style.cssText="padding:14px;border:1px solid #368451;border-radius:10px;margin:14px 0";reserve.textContent="✓ Reserve met — AnyBike has completed a positive assessment. This is not yet a formal offer or an agreed sale. We will contact you when an offer is ready.";card.insertBefore(reserve,timeline);} if(stage==='live'){const count=Number(item.active_offer_count||0);const panel=document.createElement('div');panel.className='offer-highlight';const number=document.createElement('strong');number.className='offer-highlight-number';number.textContent=String(count);const text=document.createElement('div');const label=document.createElement('strong');label.textContent=count===0?'Waiting for dealer offers':count===1?'We are receiving offers from 1 dealer':'We are receiving offers from '+count+' dealers';const note=document.createElement('small');note.textContent='Verified UK dealer interest · Offer amounts and identities remain private';text.append(label,note);panel.append(number,text);card.insertBefore(panel,timeline);}
+   } if(item.reserve_met===true && stage==="live"){const reserve=document.createElement("p");reserve.className="ok";reserve.style.cssText="padding:14px;border:1px solid #368451;border-radius:10px;margin:14px 0";reserve.textContent="✓ Reserve met — AnyBike has completed a positive assessment. This is not yet a formal offer or an agreed sale. We will contact you when an offer is ready.";card.insertBefore(reserve,timeline);} const bidding=biddingBySubmission.get(String(item.id||item.submission_id));
+   if(bidding && ["live","closed","expired","completed"].includes(stage)){
+     const count=Number(bidding.live_dealer_count||0), invited=Number(bidding.invited_dealer_count||0);
+     const panel=document.createElement("section");panel.className="offer-highlight";
+     const number=document.createElement("strong");number.className="offer-highlight-number";number.textContent=String(count);
+     const body=document.createElement("div");
+     const title=document.createElement("strong");title.textContent=stage==="live"?"Confidential trade bidding underway":"Trade bidding completed — AnyBike reviewing offers";
+     const detail=document.createElement("p");detail.style.margin="5px 0";detail.textContent=count===1?"1 dealership has submitted an offer":count+" dealerships have submitted offers";
+     const note=document.createElement("small");note.textContent=invited+" dealerships invited · Dealer identities and bid amounts remain confidential";
+     body.append(title,detail,note);
+     if(bidding.closes_at){const closes=document.createElement("p");closes.style.fontSize="12px";closes.textContent=(stage==="live"?"Bidding closes ":"Bidding closed ")+new Date(bidding.closes_at).toLocaleString("en-GB",{dateStyle:"medium",timeStyle:"short"})+". AnyBike will review the offers and contact you if a formal offer is available.";body.append(closes);}
+     panel.append(number,body);card.insertBefore(panel,timeline);
+   }
    if(!saleAgreed && Number(item.price_wanted_gbp)>0 && ["live","closed","expired"].includes(stage)){
      const section=document.createElement("section");section.className="seller-help-item";
      const title=document.createElement("h4");title.textContent="Review your minimum selling price";
