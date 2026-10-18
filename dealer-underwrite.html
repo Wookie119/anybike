@@ -90,9 +90,6 @@ textarea{min-height:90px;resize:vertical}
 
   <section class="card">
     <div id="authCheck" class="auth-check">Checking your AnyBike sign-in…</div>
-    <div id="msg" class="msg"></div>
-    <a id="submitAnother" class="btn" href="/underwrite.html" style="display:none;margin:0 0 14px;text-align:center;text-decoration:none">Submit Another Motorcycle →</a>
-
     <form id="underwriteForm">
       <div id="advertImportPanel" class="field" style="display:none;grid-column:1/-1;border:1px solid #555;border-radius:12px;padding:16px;background:#171717"><strong id="advertImportHeading">Importing motorcycle advert details…</strong><div id="tradeImportProgress" class="trade-import-progress" role="status" aria-live="polite"><strong id="tradeProgressHeading">Checking motorcycle advert…</strong><div class="trade-progress-track"><div class="trade-progress-fill"></div></div><div id="tradeProgressCaption" class="trade-progress-caption">Looking for motorcycle details and photographs</div></div><p id="advertImportStatus" class="small" role="status">You can complete this form while we check the link.</p><div id="advertImportImages" style="display:flex;flex-wrap:wrap;gap:9px"></div></div>
       <div class="field">
@@ -199,6 +196,8 @@ textarea{min-height:90px;resize:vertical}
       <button class="btn" type="submit">Request Underwrite</button>
       <div class="small">By submitting, you confirm you are authorised by your dealership to offer this motorcycle. Bid values remain private to AnyBike.</div>
     </form>
+    <div id="msg" class="msg" role="status" aria-live="polite" style="margin-top:20px"></div>
+    <a id="submitAnother" class="btn" href="/underwrite.html" style="display:none;margin-top:12px;text-align:center;text-decoration:none">Submit Another Motorcycle →</a>
   </section>
 </main>
 
@@ -292,6 +291,7 @@ if(dealerTradeRoute){
 }
 
 
+let tradeSubmissionCompleted=false;
 async function importTradeAdvert(){
   if(!dealerTradeRoute)return;
   const source=new URLSearchParams(location.search).get("advert");if(!source)return;
@@ -304,6 +304,7 @@ async function importTradeAdvert(){
   try{
     const response=await fetch(SUPABASE_URL+"/functions/v1/preview-dealer-advert",{method:"POST",headers:{"authorization":"Bearer "+token,"apikey":SUPABASE_ANON_KEY,"content-type":"application/json"},body:JSON.stringify({url:source})});
     const result=await response.json();
+    if(tradeSubmissionCompleted)return;
     if(!result.success){status.textContent=result.error||"Automatic import unavailable. Continue manually.";progress.classList.remove("loading");progressHead.textContent="Advert import unavailable";document.getElementById("advertImportHeading").textContent="Motorcycle advert details";progressCaption.textContent="Enter motorcycle details manually below.";return;}
     const set=(id,v)=>{const e=document.getElementById(id);if(e&&v&&(!e.value||(id==="registration"&&e.value==="TBC")))e.value=String(v);};
     const make=document.getElementById("make"),model=document.getElementById("model");
@@ -331,6 +332,7 @@ async function importTradeAdvert(){
       note.textContent="Imported photographs appear in the Photos section below when successfully attached. Please check you have permission to submit the advert photos, and remove any unsuitable images before submitting.";
       let loaded=0,failed=0;
       for(let index=0;index<urls.length;index++){
+        if(tradeSubmissionCompleted)return;
         counter.textContent="Loading photograph "+(index+1)+" of "+urls.length+" · "+loaded+" displayed";
         progressCaption.textContent="Mileage: "+(result.mileage?"found":"not available")+" · Loading advert photos "+(index+1)+"/"+urls.length+" · "+loaded+" displayed";
         const img=document.createElement("img");
@@ -345,6 +347,7 @@ async function importTradeAdvert(){
           img.onerror=()=>finish(false);
           img.src=urls[index];
         });
+        if(tradeSubmissionCompleted)return;
         if(success){
           gallery.append(img);loaded++;
           if(selectedPhotoFiles.length<12){
@@ -356,6 +359,7 @@ async function importTradeAdvert(){
               });
               if(photoResponse.ok){
                 const blob=await photoResponse.blob();
+                if(tradeSubmissionCompleted)return;
                 const ext=blob.type==="image/png"?"png":blob.type==="image/webp"?"webp":"jpg";
                 const file=new File([blob],"advert-photo-"+String(index+1).padStart(2,"0")+"."+ext,{type:blob.type});
                 if(file.size>0){addPhotoFiles([file]);progressCaption.textContent="Imported "+selectedPhotoFiles.length+" of "+urls.length+" photographs into your submission"; }
@@ -588,7 +592,14 @@ document.getElementById("underwriteForm").addEventListener("submit",async functi
       throw new Error(messageText(result?.error||result,"Underwrite request could not be sent."));
     }
 
+    tradeSubmissionCompleted=true;
     this.reset();
+    document.getElementById("registration").value="TBC";
+    window.anybikeRefreshMotorcycleSelectors?.();
+    document.getElementById("knownModelVariants")?.replaceChildren();
+    document.getElementById("advertImportImages").replaceChildren();
+    document.getElementById("advertImportPanel").style.display="none";
+    const cleanUrl=new URL(location.href);cleanUrl.searchParams.delete("advert");cleanUrl.searchParams.delete("minimum_price");history.replaceState(null,"",cleanUrl.pathname+cleanUrl.search);
     document.getElementById("finance_detail_wrap").style.display="none";
     document.getElementById("expectedArrivalWrap").style.display="none";
     clearUnderwriteDraft();
@@ -601,6 +612,7 @@ document.getElementById("underwriteForm").addEventListener("submit",async functi
       (Number(result.photos_received||0)?" Photos received for safety checking.":""),
       true
     );
+    document.getElementById("msg").scrollIntoView({behavior:"smooth",block:"center"});
 
     const repeat=document.getElementById("submitAnother");
     if(repeat){
