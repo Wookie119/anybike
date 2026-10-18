@@ -440,7 +440,7 @@ sent to an external translation service.
     if(!["/","/index.html"].includes(location.pathname)){ return; }
     if(document.querySelector('script[data-anybike-home-translations="true"]')){ return; }
     const script=document.createElement("script");
-    script.src="/public-home-translations.js?v=20261018-dealer-language1";
+    script.src="/public-home-translations.js?v=20261018-dealer-language2";
     script.async=false;
     script.dataset.anybikeHomeTranslations="true";
     document.head.appendChild(script);
