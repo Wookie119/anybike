@@ -256,6 +256,7 @@ const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 let rows=[];
 let tradeOpportunityBySubmission=new Map();
 let editId=null;
+let collectionStageBySubmission=new Map();
 const submissionImages=new Map();
 const esc=v=>String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
 const money=v=>v===null||v===undefined||v===""?"—":"£"+Number(v).toLocaleString("en-GB",{maximumFractionDigits:0});
@@ -285,6 +286,8 @@ async function loadQueue(){
     const opportunities=await sb.rpc("admin_get_trade_underwrite_queue_v2");
     if(!opportunities.error)(opportunities.data||[]).forEach(function(o){tradeOpportunityBySubmission.set(Number(o.submission_id),o);});
   }catch(err){console.warn("Trade offers summary unavailable",err);}
+  collectionStageBySubmission=new Map();
+  try{const stages=await sb.rpc("admin_motorcycle_gallery_collection_stages_v1");if(!stages.error)(stages.data||[]).forEach(row=>collectionStageBySubmission.set(Number(row.submission_id),row));}catch(error){console.warn("Collection stages unavailable",error);}
   render();
   updateNextAction();
   const requestedSubmission=Number(new URLSearchParams(location.search).get("submission"));
@@ -426,8 +429,13 @@ function renderIntakeGallery(items){
     const bidCount=Number(status?.live_bid_count||0);
     const invitedCount=Number(status?.invited_trade_count||0);
     const auctionInfo=state==="live"?'<div style="margin:10px 0;padding:10px;border:1px solid #9b292d;border-radius:9px;background:#211314"><strong>⏱ <span class="gallery-auction-countdown" data-closes="'+esc(status?.closes_at||'')+'">'+esc(auctionTimeRemaining(status?.closes_at))+'</span></strong><div style="margin-top:6px">'+bidCount+' confidential bid'+(bidCount===1?'':'s')+' · '+invitedCount+' dealer'+(invitedCount===1?'':'s')+' invited</div></div>':'';
+    const saleState=String(r.status||"").toLowerCase(), sold=["sold","completed"].includes(saleState),agreed=saleState==="accepted";
+    const collection=collectionStageBySubmission.get(id);
+    const collected=!!collection?.collection_actual_at||["collected","at_depot","delivered"].includes(String(collection?.collection_status||"").toLowerCase());
+    const booked=["booked","collection_booked","scheduled","confirmed"].includes(String(collection?.collection_status||"").toLowerCase());
+    const lifecycle=(sold||agreed||collected||booked)?'<div style="margin:9px 0;display:flex;gap:6px;flex-wrap:wrap">'+(sold||agreed?'<span style="background:#176b3a;color:white;padding:7px 10px;border-radius:8px;font-weight:800">'+(sold?'✓ Sold':'✓ Sale agreed')+'</span>':'')+(collected||booked?'<span style="background:#123d2a;color:#c3ffdb;padding:7px 10px;border-radius:8px">'+(collected?'Collected':'Collection booked')+'</span>':'')+'</div>':'';
     const photo=r.primary_display_image_url?'<img src="'+esc(r.primary_display_image_url)+'" alt="'+esc(bike)+'" loading="lazy">':'No motorcycle photo available';
-    return '<article class="intake-gallery-card"><div class="intake-gallery-photo">'+photo+'</div><div class="intake-gallery-body"><div class="eyebrow">'+esc(src)+'</div><h3>'+esc(bike)+'</h3><p>'+esc([r.bike_year,r.mileage===null?null:Number(r.mileage).toLocaleString("en-GB")+" miles"].filter(Boolean).join(" · "))+'</p><p>Reference: '+esc(r.reference)+'<br>Underwriting: '+esc(state)+'</p>'+auctionInfo+'<button type="button" onclick="reviewIntakeFromGallery('+id+')">Review motorcycle →</button></div></article>';
+    return '<article class="intake-gallery-card"><div class="intake-gallery-photo">'+photo+'</div><div class="intake-gallery-body"><div class="eyebrow">'+esc(src)+'</div><h3>'+esc(bike)+'</h3><p>'+esc([r.bike_year,r.mileage===null?null:Number(r.mileage).toLocaleString("en-GB")+" miles"].filter(Boolean).join(" · "))+'</p><p>Reference: '+esc(r.reference)+'<br>Underwriting: '+esc(state)+'</p>'+lifecycle+auctionInfo+'<button type="button" '+(sold?'style="background:#176b3a" ':'')+'onclick="reviewIntakeFromGallery('+id+')">'+(sold?'✓ Sold · View record →':agreed?'Sale agreed · View record →':'Review motorcycle →')+'</button></div></article>';
   }).join(""):'<div class="empty">No motorcycles match these filters.</div>';
 }
 setInterval(()=>{document.querySelectorAll(".gallery-auction-countdown[data-closes]").forEach(el=>el.textContent=auctionTimeRemaining(el.dataset.closes));},30000);
