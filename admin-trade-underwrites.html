@@ -312,6 +312,17 @@ async function load(){
    return;
  }
  rows=data||[];
+ // Stored summary may lag actual live bids; use the exact bidder records for admin display.
+ await Promise.all(rows.filter(r=>r.opportunity_status==="live").map(async r=>{
+   const {data:allBids,error:bidError}=await sb.rpc("admin_get_trade_underwrite_bids_v1",{p_opportunity_id:Number(r.opportunity_id)});
+   if(bidError){console.warn("Bid reconciliation unavailable:",r.reference,bidError.message);return;}
+   const live=(allBids||[]).filter(b=>b.status==="live");
+   r.live_bid_count=live.length;
+   const amounts=live.map(b=>Number(b.amount_gbp));
+   r.highest_live_bid_gbp=amounts.length?Math.max(...amounts):null;
+   r.lowest_live_bid_gbp=amounts.length?Math.min(...amounts):null;
+   r.average_live_bid_gbp=amounts.length?amounts.reduce((sum,amount)=>sum+amount,0)/amounts.length:null;
+ }));
  const assessmentResults=await sb.rpc("admin_list_underwrite_assessment_stage_v1");
  if(assessmentResults.error){console.warn("Assessment stage unavailable:",assessmentResults.error.message);assessmentStageIds=new Set();}
  else assessmentStageIds=new Set((assessmentResults.data||[]).filter(r=>r.has_assessment).map(r=>Number(r.opportunity_id)));
