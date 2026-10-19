@@ -152,17 +152,20 @@ body{margin:0;background:#ececec;color:#111;font-family:Arial,Helvetica,sans-ser
     const forwarderContact=String(md.freight_forwarder_contact||"").trim();
     const forwarderReference=String(md.freight_forwarder_reference||"").trim();
     const destinationCountry=String(md.destination_country||"").trim();
-    const handoverHtml=(handoverPort||forwarderName||destinationCountry)
-      ? '<section class="meta"><div class="box"><h3>UK Delivery / Handover</h3><p><strong>'+
-          esc(handoverPort||"Agreed UK handover point")+
-          '</strong></p>'+
-          (destinationCountry?'<p>Destination country: '+esc(destinationCountry)+'</p>':'')+
-          '</div><div class="box"><h3>Freight Forwarder / Shipping Agent</h3><p><strong>'+
-          esc(forwarderName||"To be confirmed")+
-          '</strong></p>'+
-          (forwarderContact?'<p>'+esc(forwarderContact)+'</p>':'')+
-          (forwarderReference?'<p>Shipping reference: '+esc(forwarderReference)+'</p>':'')+
-          '</div></section>'
+    // Show only genuinely recorded logistics details. A domestic UK sale with
+    // destinationCountry alone must not display empty export/forwarder panels.
+    const hasHandover=!!handoverPort;
+    const hasForwarder=!!(forwarderName||forwarderContact||forwarderReference);
+    const handoverHtml=(hasHandover||hasForwarder)
+      ? '<section class="meta">'+
+          (hasHandover?'<div class="box"><h3>UK Delivery / Handover</h3><p><strong>'+esc(handoverPort)+'</strong></p>'+
+            (destinationCountry?'<p>Destination country: '+esc(destinationCountry)+'</p>':'')+'</div>':'')+
+          (hasForwarder?'<div class="box"><h3>Freight Forwarder / Shipping Agent</h3>'+
+            (forwarderName?'<p><strong>'+esc(forwarderName)+'</strong></p>':'')+
+            (forwarderContact?'<p>'+esc(forwarderContact)+'</p>':'')+
+            (forwarderReference?'<p>Shipping reference: '+esc(forwarderReference)+'</p>':'')+
+            '</div>':'')+
+          '</section>'
       : '';
     const depositDue=(Array.isArray(d.lines)?d.lines:[]).reduce(function(found,line){
       if(found>0)return found;
