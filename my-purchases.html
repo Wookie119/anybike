@@ -1317,6 +1317,7 @@ function purchaseState(purchase){
   // The Honda trade-underwrite pilot must never inherit export deposit completion.
   // Keep this scoped to the verified pilot until the customer purchase RPC exposes sale_route.
   const ukTradeUnderwritePilot=String(purchase.deal_number||"")==="AB-26-B2802EC7";
+  const proformaIssued=!!purchase._issued_proforma;
   const domesticTerms=purchase._domestic_terms||null;
   const domesticProposed=!!domesticTerms && String(domesticTerms.terms_status||"").toLowerCase()!=="agreed";
   const depositRequired=domesticTerms?Number(domesticTerms.deposit_gbp||0)>0:!!purchase.deposit_required;
@@ -1354,8 +1355,8 @@ function purchaseState(purchase){
   let message="Your AnyBike purchase is progressing.";
 
   if(ukTradeUnderwritePilot && !fullyPaid){
-    heading="Awaiting Dealer Proforma";
-    message="Your offer is accepted. AnyBike is reviewing VAT and preparing your proforma. No payment has been confirmed as received.";
+    heading=proformaIssued?"Proforma Issued — Payment Due":"Awaiting Dealer Proforma";
+    message=proformaIssued?"Your proforma has been issued. Open Accounts & Documents to view it. No payment has been confirmed as received.":"Your offer is accepted. AnyBike is reviewing VAT and preparing your proforma. No payment has been confirmed as received.";
   }else if(domesticProposed){
     heading="Payment Terms Proposed";
     message="AnyBike has proposed a payment arrangement. No buyer deposit or balance is confirmed as paid; the terms are not yet agreed.";
@@ -1399,7 +1400,7 @@ function purchaseState(purchase){
   else if(allocated>0 || moneyReceived>0) paymentStatus="Part Paid";
 
   return {
-    ukTradeUnderwritePilot,domesticProposed,domesticTerms,depositRequired,depositDue,depositAllocated,depositOutstanding,depositSatisfied,
+    ukTradeUnderwritePilot,proformaIssued,domesticProposed,domesticTerms,depositRequired,depositDue,depositAllocated,depositOutstanding,depositSatisfied,
     pendingPaymentAdvice,pendingPaymentAdviceAmount,pendingPaymentAdvicePurpose,
     pendingDepositAdvice,pendingDepositAdviceAmount:pendingPaymentAdviceAmount,
     pendingDepositAdviceNumber:String(purchase.pending_payment_advice_number||""),
@@ -1469,8 +1470,8 @@ function journeyHtml(purchase,state){
 
   if(state.ukTradeUnderwritePilot && !state.fullyPaid){
     current="deposit";customerAction=false;
-    nextTitle="AnyBike prepares the dealer proforma";
-    nextText="No payment has been verified. AnyBike must confirm VAT treatment and issue the correct proforma before you are asked to pay.";
+    nextTitle=state.proformaIssued?"Proforma issued — payment due":"AnyBike prepares the dealer proforma";
+    nextText=state.proformaIssued?"Your proforma is available under Accounts & Documents. No payment has been confirmed.":"No payment has been verified. AnyBike must confirm VAT treatment and issue the correct proforma before you are asked to pay.";
   }else if(state.domesticProposed){
     current="deposit";customerAction=false;
     nextTitle="Awaiting agreement on payment terms";
@@ -2149,9 +2150,9 @@ function purchaseNextAction(purchase){
 
   if(state.ukTradeUnderwritePilot && !state.fullyPaid){
     return {priority:20,waiting:true,deal,identity:bike,
-      title:"AnyBike is preparing your proforma",
-      text:"Your agreed purchase is "+money(1300)+". "+money(balance)+" is outstanding. No payment has been confirmed. AnyBike will confirm VAT treatment and make the correct proforma available before asking for payment.",
-      href:"/my-purchases.html?deal="+encodeURIComponent(purchase.deal_id||""),cta:"View purchase →"};
+      title:state.proformaIssued?"Your proforma is ready — payment due":"AnyBike is preparing your proforma",
+      text:state.proformaIssued?"Your issued proforma is available under Accounts & Documents. "+money(balance)+" is outstanding; no payment has been confirmed.":"Your agreed purchase is "+money(1300)+". "+money(balance)+" is outstanding. No payment has been confirmed. AnyBike will confirm VAT treatment and make the correct proforma available before asking for payment.",
+      href:state.proformaIssued?"/accounts-documents.html":"/my-purchases.html?deal="+encodeURIComponent(purchase.deal_id||""),cta:state.proformaIssued?"View proforma →":"View purchase →"};
   }
   if(state.domesticProposed){
     return {priority:30,waiting:true,deal,identity:bike,title:"Payment terms awaiting agreement",text:"The proposed payment arrangement is not yet agreed. No buyer deposit has been confirmed as received.",href:"/my-purchases.html?deal="+encodeURIComponent(purchase.deal_id||""),cta:"View purchase →"};
@@ -2308,11 +2309,12 @@ async function loadPurchases(){
 
   }
 
-  const [purchaseResult,collectionJobsResult,identityResult,domesticTermsResult]=await Promise.all([
+  const [purchaseResult,collectionJobsResult,identityResult,domesticTermsResult,invoicesResult]=await Promise.all([
     sb.rpc("get_my_purchases_v7"),
     sb.rpc("get_my_collection_jobs_v1"),
     sb.rpc("customer_get_purchase_identity_details_v1"),
-    sb.rpc("customer_my_domestic_buyer_terms_v1")
+    sb.rpc("customer_my_domestic_buyer_terms_v1"),
+    sb.rpc("customer_my_accounting_invoices_v1")
   ]);
   const data=purchaseResult.data;
   const error=purchaseResult.error;
@@ -2357,6 +2359,12 @@ async function loadPurchases(){
   const domesticTermsByDeal=new Map((domesticTermsResult.data||[]).map(row=>[String(row.deal_id),row]));
   purchases.forEach(purchase=>{
     purchase._domestic_terms=domesticTermsByDeal.get(String(purchase.deal_id))||null;
+  });
+
+  if(invoicesResult.error) console.warn("Issued documents could not be loaded:",invoicesResult.error.message);
+  const issuedInvoices=Array.isArray(invoicesResult.data)?invoicesResult.data:[];
+  purchases.forEach(purchase=>{
+    purchase._issued_proforma=issuedInvoices.find(invoice=>String(invoice.invoice_type).toLowerCase()==="proforma" && String(invoice.deal_numbers||"").includes(String(purchase.deal_number||"")))||null;
   });
 
   const identityByMotorcycle={};
