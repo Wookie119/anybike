@@ -17410,10 +17410,12 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
     ["complete","Complete",complete&&finalInvoiceIssued]
   ];
 
+  // UK underwrite: never carry payment amounts or seller identities from a different deal.
+  // Proforma issuance, receipt allocation and seller disbursement remain separate verified actions.
   const ukSellerDepositGuide=ukUnderwriteCompleted?
-    '<section class="sales-what-next" style="margin:12px 0;border-left:4px solid #ed1c24"><strong>AnyBike Admin — seller deposit £250.00</strong><span>Pay the private seller from the AnyBike business bank account after independently verifying their bank details. Suggested reference: AB-S-000017. This is an outgoing seller payment, NOT a customer receipt. After the transfer, record the date, amount and reference in the seller payment records. Seller balance after the deposit: £650.00. Separately, Gifford Motorcycles Ltd owes AnyBike £1,400.00; do not mark that as received until it reaches the bank.</span></section>' : '';
+    '<section class="sales-what-next" style="margin:12px 0;border-left:4px solid #ed1c24"><strong>Seller payment — separate outgoing transaction</strong><span>Review the seller agreement and exact purchase price for this deal. Verify payee bank details independently. Do not pay a default deposit or mark the seller paid automatically. Collection and delivery must only be booked when authorised.</span></section>' : '';
   const ukPaymentHeading=ukUnderwriteCompleted?
-    '<div class="sales-payment-phase"><strong>Stage 6 — Seller payment and dealer receipt are separate</strong><span>The seller deposit is paid by AnyBike; the £1,400 dealer balance is received by AnyBike. Neither payment has been confirmed here.</span></div>' : '';
+    '<div class="sales-payment-phase"><strong>Stage 6 — UK Trade Underwrite payments</strong><span>Confirm the accepted dealer purchase amount and VAT treatment before preparing a proforma. A proforma is not proof of receipt. Only verified bank receipts may be allocated to this deal; seller payments are outgoing and must never count as dealer receipts.</span></div>' : '';
 
   const pipelineHtml=pipeline.map(function(item,index){
     const key=item[0],label=item[1],done=!!item[2];
@@ -18014,8 +18016,8 @@ function renderAdminDealQueue(){
               <h3>${escapeAdminHtml(dealDisplayTitle)}</h3>
               <p>${motorcycleCount} motorcycle${motorcycleCount === 1 ? "" : "s"} · ${acceptedCount} accepted · ${securedCount} secured · ${escapeAdminHtml(vatSummary)}</p>
               <div class="anybike-sale-route-wrap">
-                <span class="anybike-sale-route-badge ${String(deal.sale_route||"")==="NEW_RETAIL_B2C" ? "retail" : ""}">${escapeAdminHtml(deal.sale_route_label || anyBikeSaleRouteLabel(deal.sale_route))}</span>
-                <span class="anybike-sale-route-headline">${escapeAdminHtml(deal.sale_route_headline || anyBikeSaleRouteHeadline(deal.sale_route))}</span>
+                <span class="anybike-sale-route-badge ${String(deal.sale_route||"")==="NEW_RETAIL_B2C" ? "retail" : ""}">${adminCompletedUnderwriteDealIds.has(String(dealId)) ? "UK Trade Underwrite — B2B" : escapeAdminHtml(deal.sale_route_label || anyBikeSaleRouteLabel(deal.sale_route))}</span>
+                <span class="anybike-sale-route-headline">${adminCompletedUnderwriteDealIds.has(String(dealId)) ? "UK dealer purchase — VAT review required before proforma" : escapeAdminHtml(deal.sale_route_headline || anyBikeSaleRouteHeadline(deal.sale_route))}</span>
                 <select class="anybike-sale-route-select" onchange="setAnyBikeDealSaleRoute('${dealId}',this.value);event.stopPropagation();" onclick="event.stopPropagation();" aria-label="Deal Sale Route">
                   <option value="USED_EXPORT_B2B" ${String(deal.sale_route||"USED_EXPORT_B2B")==="USED_EXPORT_B2B" ? "selected" : ""}>Used Bike Export — B2B</option>
                   <option value="NEW_RETAIL_B2C" ${String(deal.sale_route||"")==="NEW_RETAIL_B2C" ? "selected" : ""}>New Motorcycle Retail — B2C</option>
