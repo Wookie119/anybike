@@ -1469,7 +1469,8 @@ function journeyHtml(purchase,state){
   let actionLabel="";
 
   if(state.ukTradeUnderwritePilot && !state.fullyPaid){
-    current="deposit";customerAction=false;
+    current="deposit";customerAction=!!state.proformaIssued;
+    if(state.proformaIssued){actionHref="/accounts-documents.html?deal="+encodeURIComponent(purchase.deal_number||"");actionLabel="View proforma & payment instructions →";}
     nextTitle=state.proformaIssued?"Proforma issued — payment due":"AnyBike prepares the dealer proforma";
     nextText=state.proformaIssued?"Your proforma is available under Accounts & Documents. No payment has been confirmed.":"No payment has been verified. AnyBike must confirm VAT treatment and issue the correct proforma before you are asked to pay.";
   }else if(state.domesticProposed){
@@ -1554,7 +1555,7 @@ function journeyHtml(purchase,state){
       <div class="journey-head">
         <div>
           <div class="journey-title">Your motorcycle journey</div>
-          <div class="journey-count">${journeyState.completedCount} / ${journeyState.steps.length} stages</div>
+          <div class="journey-count">${state.completed?"Complete — "+journeyState.steps.length+" of "+journeyState.steps.length:"Stage "+(journeyState.currentIndex+1)+" of "+journeyState.steps.length+" — "+journeyState.steps[journeyState.currentIndex][1]}</div>
         </div>
       </div>
 
@@ -2149,10 +2150,10 @@ function purchaseNextAction(purchase){
   const depositOutstanding=Number(state.depositOutstanding||state.depositDue||0);
 
   if(state.ukTradeUnderwritePilot && !state.fullyPaid){
-    return {priority:20,waiting:true,deal,identity:bike,
+    return {priority:20,waiting:!state.proformaIssued,deal,identity:bike,
       title:state.proformaIssued?"Your proforma is ready — payment due":"AnyBike is preparing your proforma",
       text:state.proformaIssued?"Your issued proforma is available under Accounts & Documents. "+money(balance)+" is outstanding; no payment has been confirmed.":"Your agreed purchase is "+money(1300)+". "+money(balance)+" is outstanding. No payment has been confirmed. AnyBike will confirm VAT treatment and make the correct proforma available before asking for payment.",
-      href:state.proformaIssued?"/accounts-documents.html":"/my-purchases.html?deal="+encodeURIComponent(purchase.deal_id||""),cta:state.proformaIssued?"View proforma →":"View purchase →"};
+      href:state.proformaIssued?"/accounts-documents.html":"/my-purchases.html?deal="+encodeURIComponent(purchase.deal_id||""),cta:state.proformaIssued?"View proforma & payment instructions →":"View purchase →"};
   }
   if(state.domesticProposed){
     return {priority:30,waiting:true,deal,identity:bike,title:"Payment terms awaiting agreement",text:"The proposed payment arrangement is not yet agreed. No buyer deposit has been confirmed as received.",href:"/my-purchases.html?deal="+encodeURIComponent(purchase.deal_id||""),cta:"View purchase →"};
