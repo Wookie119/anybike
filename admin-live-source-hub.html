@@ -2464,21 +2464,51 @@ async function openBmwVatPhotoReviewSafe(button){
       const title=document.createElement("h3");title.textContent="BMW photographs awaiting review";
       const intro=document.createElement("p");intro.textContent=rows.filter(r=>!r.decision).length+" waiting · "+rows.length+" candidates. No photos have been approved or published by opening this view.";
       root.append(title,intro);
-      for(const row of rows.filter(r=>!r.decision)){
+      const pending=rows.filter(r=>!r.decision);
+      if(!pending.length){const done=document.createElement("p");done.textContent="No pending BMW photograph decisions.";root.append(done);}
+      for(const row of pending){
         const card=document.createElement("div");
-        card.style.cssText="border:1px solid #555;border-radius:10px;padding:12px;margin:10px 0";
-        const heading=document.createElement("strong");
-        heading.textContent=[row.advert_id,row.make,row.model,row.year].filter(Boolean).join(" · ");
-        const description=document.createElement("p");
-        description.className="small";
-        description.textContent="Photo decision pending. Open the advanced review tools to record a decision.";
-        card.append(heading,description);
-        if(typeof row.image_url==="string" && /^https:\/\//.test(row.image_url)){
-          const img=document.createElement("img");
-          img.src=row.image_url;img.alt="BMW candidate photograph";img.loading="lazy";
-          img.style.cssText="display:block;max-width:320px;max-height:220px;object-fit:contain;margin-top:10px";
-          card.append(img);
+        card.style.cssText="border:1px solid #555;border-radius:10px;padding:15px;margin:10px 0;background:#141414;max-width:850px";
+        const heading=document.createElement("h3");
+        heading.style.margin="0 0 8px";
+        heading.textContent=[row.make||"BMW",row.model,row.year,"Advert "+row.advert_id].filter(Boolean).join(" · ");
+        const img=document.createElement("img");
+        img.alt="BMW candidate photograph";
+        img.loading="lazy";
+        img.style.cssText="display:block;width:100%;max-height:340px;object-fit:contain;background:#080808;border-radius:8px";
+        const usable=typeof row.image_url==="string" && /^https:\/\//i.test(row.image_url) && !/(pageloader|spinner|loading|bmw_head|tiparrow|facebook|twitter|instagram|logo|placeholder|no.image|\/img\/)/i.test(row.image_url);
+        img.src=usable?row.image_url:"/anybike-image-coming-soon.png";
+        img.onerror=()=>{img.onerror=null;img.src="/anybike-image-coming-soon.png";};
+        const status=document.createElement("p");
+        status.className="small";
+        status.textContent=usable?"Review the image carefully before deciding.":"No verified motorcycle photograph is currently available. A placeholder can be selected, or the item can remain pending.";
+        const controls=document.createElement("div");
+        controls.style.cssText="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px";
+        for(const [decision,label] of [["no_clean","No cleaning needed"],["clean","Clean image"],["placeholder","Use AnyBike placeholder"]]){
+          const choose=document.createElement("button");
+          choose.type="button";choose.className="btn";choose.textContent=label;
+          choose.disabled=!row.item_id || (!usable&&decision!=="placeholder");
+          choose.onclick=async()=>{
+            controls.querySelectorAll("button").forEach(b=>b.disabled=true);
+            status.textContent="Saving photo decision…";
+            try{
+              const result=await client.rpc("admin_set_bmw_vat_gallery_photo_review_v1",{p_item_id:row.item_id,p_decision:decision});
+              if(result.error)throw result.error;
+              status.textContent="Decision saved: "+label+". This has NOT published the motorcycle.";
+              card.style.borderColor="#368451";
+              controls.replaceChildren();
+              const again=document.createElement("button");again.type="button";again.className="btn";again.textContent="Review remaining →";
+              again.onclick=()=>openBmwVatPhotoReviewSafe(button);
+              controls.append(again);
+            }catch(e){
+              status.textContent="Could not save: "+String(e?.message||e);
+              controls.querySelectorAll("button").forEach(b=>b.disabled=false);
+              if(!usable)controls.querySelectorAll("button").forEach(b=>{b.disabled=b.textContent!=="Use AnyBike placeholder";});
+            }
+          };
+          controls.append(choose);
         }
+        card.append(heading,img,status,controls);
         root.append(card);
       }
       if(!rows.length)root.append("No saved candidates returned.");
