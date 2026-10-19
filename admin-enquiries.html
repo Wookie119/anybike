@@ -251,6 +251,22 @@ html.admin-auth-pending body{
 .sales-journey-stage-row .sales-compact-pipeline button.sales-stage-pill{display:inline-flex!important;flex:0 1 auto!important;width:auto!important;min-width:0!important;max-width:100%!important;margin:0!important;padding:6px 9px!important;font-family:inherit!important;font-size:11px!important;line-height:1.15!important;font-weight:850!important;white-space:nowrap!important;border-radius:999px!important}
 @media(max-width:1200px){.sales-journey-stage-row .sales-compact-pipeline{justify-content:flex-start!important;gap:5px!important}.sales-journey-stage-row .sales-compact-pipeline button.sales-stage-pill{font-size:10px!important;padding:5px 7px!important}}
 .ab-completed-section{margin:10px 0;border:1px solid #246a42;border-left:4px solid #38be79;border-radius:10px;background:#0c1912;overflow:hidden}.ab-completed-section>summary{cursor:pointer;display:block;padding:15px 18px;color:#86edaa;font-weight:800;list-style:none}.ab-completed-section>summary::-webkit-details-marker{display:none}.ab-completed-section[open]>summary{border-bottom:1px solid #246a42}.ab-completed-section .anybike-customer-account,.ab-completed-section .ab-customer-ledger{margin:10px}
+.sales-journey .sales-tab-panel.ab-stacked-stage{display:block;margin:10px 0;padding:0;background:#111;border:1px solid #444;border-radius:12px;overflow:hidden}
+.sales-journey .ab-stacked-stage>summary{display:flex;align-items:center;gap:14px;padding:17px 20px;cursor:pointer;list-style:none;color:#fff}
+.sales-journey .ab-stacked-stage>summary::-webkit-details-marker{display:none}
+.sales-journey .ab-stage-number{display:flex;align-items:center;justify-content:center;width:35px;height:35px;flex:none;border:2px solid #777;border-radius:50%;font-weight:800}
+.sales-journey .ab-stage-label{flex:1;font-weight:800;font-size:17px}
+.sales-journey .ab-stage-state{font-size:13px;color:#aaa;font-weight:700}
+.sales-journey .ab-stage-chevron{font-size:23px;color:#aaa}
+.sales-journey .ab-stacked-stage[open] .ab-stage-chevron{transform:rotate(180deg)}
+.sales-journey .ab-stacked-stage.ab-stage-done{border-color:#2e8851;background:#101d15}
+.sales-journey .ab-stacked-stage.ab-stage-done .ab-stage-number{border-color:#55c680;color:#89efa9}
+.sales-journey .ab-stacked-stage.ab-stage-done .ab-stage-state{color:#89efa9}
+.sales-journey .ab-stacked-stage.active:not(.ab-stage-done){border-color:#ed1c24}
+.sales-journey .ab-stacked-stage.active:not(.ab-stage-done) .ab-stage-number{background:#ed1c24;border-color:#ed1c24}
+.sales-journey .ab-stage-content{padding:14px;border-top:1px solid #393939;background:#171717}
+.sales-journey .sales-workspace-menu{display:none}
+.sales-journey .ab-stacked-guide{margin:10px 0;color:#aaa;font-size:13px}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="admin.js?v=202610071152"></script>
@@ -16223,6 +16239,7 @@ function bikeSalesJourneyTab(dealId,tab,updateUrl){
   });
   root.querySelectorAll(".sales-tab-panel").forEach(function(panel){
     panel.classList.toggle("active",panel.dataset.tab===target);
+    if(panel.classList.contains("ab-stacked-stage"))panel.open=panel.dataset.tab===target;
   });
   if(updateUrl!==false){
     const url=new URL(window.location.href);
@@ -17462,14 +17479,20 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
     return '<button type="button" data-tab="'+key+'" class="'+(activeTab===key?"active":"")+'" onclick="bikeSalesJourneyTab(\''+dealId+'\',\''+key+'\');return false;">'+label+'</button>';
   }
   function panel(key,body){
-    return '<section class="sales-tab-panel '+(activeTab===key?"active":"")+'" data-tab="'+key+'">'+body+'</section>';
+    const numbers={request:1,sourcing:2,seller:4,offer:5,payment:6,collection:7,delivery:8,invoice:9,timeline:10};
+    const names={request:"Request",sourcing:"Sourcing",seller:sellerStageLabel,offer:"Offer",payment:"Payment",collection:"Collection",delivery:"Delivery",invoice:"Final Invoice",timeline:"Complete / Timeline"};
+    const matched=pipeline.find(item=>item[0]===key);
+    const done=!!matched?.[2];
+    const open=key===current || (activeTab===key && !done);
+    return '<details class="sales-tab-panel ab-stacked-stage '+(done?'ab-stage-done ':'')+(open?'active':'')+'" data-tab="'+key+'" '+(open?'open':'')+'>'+
+      '<summary class="ab-stage-summary"><span class="ab-stage-number">'+numbers[key]+'</span><span class="ab-stage-label">'+escapeAdminHtml(names[key])+'</span><span class="ab-stage-state">'+(done?'✓ Completed':open?'Your next action':'Not started')+'</span><span class="ab-stage-chevron">⌄</span></summary>'+
+      '<div class="ab-stage-content">'+body+'</div></details>';
   }
 
   return '<section class="sales-journey" data-deal-id="'+escapeAdminHtml(dealId)+'">'+
     '<div class="sales-journey-head"><div class="sales-journey-headline"><div><h3>'+escapeAdminHtml(dealNumber)+' · '+escapeAdminHtml(buyerName)+'</h3><p>'+escapeAdminHtml(status)+' · '+escapeAdminHtml(stage)+'</p></div>'+
     (ukUnderwriteCompleted?'':'<div class="sales-next-action '+(waiting?"waiting":"action")+'" role="button" tabindex="0" title="Click to proceed to the next task" onclick="openBikeSalesNextTask(\''+dealId+'\');return false;" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();openBikeSalesNextTask(\''+dealId+'\');}"><span class="sales-next-action-copy"><strong>'+(waiting?"Waiting / Next":"Your next action")+': '+escapeAdminHtml(primary||"Review sale")+'</strong><span>'+escapeAdminHtml(nextText)+'</span></span><span class="sales-next-action-cta">Proceed →</span></div>')+'</div></div>'+
-    '<div class="sales-row-with-label sales-journey-stage-row"><div class="sales-compact-pipeline" aria-label="Deal stages">'+pipelineHtml+'</div></div>'+
-    '<div class="sales-guidance-line"><strong>How to read this Deal</strong><span>Green journey boxes are complete. Red boxes still need work. The highlighted red box is the current stage. Every working section should tell you exactly what to do next.</span></div>'+
+    '<div class="ab-stacked-guide">Completed stages are green and closed. Open any stage to review it. The current stage shows your next action.</div>'+
     '<details class="sales-workspace-menu"><summary>View / change deal section</summary><div class="sales-workspace-row"><div class="sales-row-label">Deal Sections</div><nav class="sales-work-tabs" aria-label="Deal sections">'+
       tabButton("request","Request")+
       tabButton("sourcing","Sourcing")+
