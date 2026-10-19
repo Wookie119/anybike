@@ -166,7 +166,7 @@ async function adminLogout(){
 
 function loadAdminShell(){
 
-  fetch("admin-sidebar.html?v=20261019-sidebar-repair",{cache:"no-store"})
+  fetch("admin-sidebar.html?v=20261019-password-reset",{cache:"no-store"})
     .then(function(res){
       return res.text();
     })
@@ -176,6 +176,19 @@ function loadAdminShell(){
 
       if(sidebar){
         sidebar.innerHTML = html;
+    // Admin emergency recovery link: also insert when an older sidebar fragment is cached.
+    var managementMenu=sidebar.querySelector("#managementMenu");
+    if(managementMenu && !managementMenu.querySelector('a[href*="customer-forgot-password.html"]')){
+      var resetLink=document.createElement("a");
+      resetLink.href="https://www.anybike.co.uk/customer-forgot-password.html";
+      resetLink.target="_blank";
+      resetLink.rel="noopener noreferrer";
+      resetLink.setAttribute("data-emergency-password-reset","true");
+      resetLink.textContent="Customer Password Reset (Emergency) ↗";
+      var settingsLink=managementMenu.querySelector('a[href="admin-settings.html"]');
+      managementMenu.insertBefore(resetLink,settingsLink||null);
+    }
+
         setupAdminFolders();
       }
 
