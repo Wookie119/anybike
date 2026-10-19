@@ -606,7 +606,7 @@ async function viewBids(id){
  if(confirmationError)console.warn('Bid confirmation details unavailable:',confirmationError.message);
 
  if(deliveryError)console.warn('Bid delivery details unavailable:',deliveryError.message);
- const list=(bids||[]).filter(b=>b.status==="live");
+ const list=(bids||[]).filter(b=>b.status==="live").sort((a,b)=>Number(b.amount_gbp)-Number(a.amount_gbp)||new Date(a.submitted_at||0)-new Date(b.submitted_at||0));
  const historicCount=(bids||[]).length-list.length;
  const dMap=new Map((deliveries||[]).map(x=>[Number(x.dealer_organisation_id),x]));
  const cMap=new Map((confirmations||[]).map(x=>[Number(x.bid_id),x]));
@@ -615,7 +615,7 @@ async function viewBids(id){
  const reliabilityMap=new Map(reliabilityRows.map(x=>[x.dealerId,x.result.error?null:x.result.data]));
 
  document.getElementById("bidList").innerHTML=
- '<div style="border:1px solid #b93439;border-radius:12px;background:#180e0f;padding:16px;margin-bottom:15px"><strong style="font-size:19px">Choose your buying dealer</strong><p style="margin:8px 0">Review the latest live bid from each dealer and select your preferred buyer. The submitted bid is already their offer; no second bid confirmation is required.</p><small>Delivery details are shown for reference. Superseded bids are retained in the audit history.</small></div>'+
+ '<div style="border:1px solid #b93439;border-radius:12px;background:#180e0f;padding:16px;margin-bottom:15px"><strong style="font-size:19px">Choose your buying dealer</strong><p style="margin:8px 0">Review the latest live bid from each dealer and select your preferred buyer. The submitted bid is already their offer; no second bid confirmation is required.</p><small>Highest current bid appears first. Viewing dealer details does not select a buyer. Delivery details are for reference; superseded bids remain in the audit history.</small></div>'+
  '<div style="display:flex;flex-direction:column;gap:12px">'+
    list.map(b=>{
      const conf=cMap.get(Number(b.bid_id));
@@ -635,7 +635,9 @@ async function viewBids(id){
        ?'<div class="meta">Effective return '+money(conf.effective_return_gbp)+'</div>'
        :"";
      let action="";
-     if(b.status!=="live"){
+     if(r?.opportunity_status==="live" || (r?.closes_at && new Date(r.closes_at).getTime()>Date.now())){
+       action='<span class="meta">Bidding is still open — buyer selection locked until the deadline</span>';
+     }else if(b.status!=="live"){
        action='<span class="meta">Historical bid — no action</span>';
      }else if(!conf||["declined","expired","cancelled"].includes(conf.status)){
        action=r?.latest_offer_status==="accepted"&&approvedFinalChecks[Number(id)]?'<button class="red" onclick="selectLiveUnderwriteBid('+Number(b.bid_id)+','+Number(id)+')">Select Buying Dealer →</button>':'<span class="meta">Complete seller acceptance and checks before selecting</span>';
