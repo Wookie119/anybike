@@ -250,6 +250,7 @@ html.admin-auth-pending body{
 .sales-journey-stage-row .sales-compact-pipeline{display:flex!important;flex-wrap:wrap!important;justify-content:space-between!important;align-items:center!important;gap:5px!important;overflow:visible!important;width:100%!important;box-sizing:border-box!important;padding:9px 12px!important;scrollbar-width:none!important}
 .sales-journey-stage-row .sales-compact-pipeline button.sales-stage-pill{display:inline-flex!important;flex:0 1 auto!important;width:auto!important;min-width:0!important;max-width:100%!important;margin:0!important;padding:6px 9px!important;font-family:inherit!important;font-size:11px!important;line-height:1.15!important;font-weight:850!important;white-space:nowrap!important;border-radius:999px!important}
 @media(max-width:1200px){.sales-journey-stage-row .sales-compact-pipeline{justify-content:flex-start!important;gap:5px!important}.sales-journey-stage-row .sales-compact-pipeline button.sales-stage-pill{font-size:10px!important;padding:5px 7px!important}}
+.ab-completed-section{margin:10px 0;border:1px solid #246a42;border-left:4px solid #38be79;border-radius:10px;background:#0c1912;overflow:hidden}.ab-completed-section>summary{cursor:pointer;display:block;padding:15px 18px;color:#86edaa;font-weight:800;list-style:none}.ab-completed-section>summary::-webkit-details-marker{display:none}.ab-completed-section[open]>summary{border-bottom:1px solid #246a42}.ab-completed-section .anybike-customer-account,.ab-completed-section .ab-customer-ledger{margin:10px}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="admin.js?v=202610071152"></script>
@@ -17367,7 +17368,8 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
   const flags={depositOutstanding,depositRequired,sellerDone,commercialReady,shippingDone,vatDone,secured,hasMotorcycle,offerSent,offerAccepted,customerPaid,collected,complete,finalInvoiceIssued,onboardingApproved,firstOrderGraceActive:anyBikeFirstOrderGraceActive(deal),purchaseClearanceAllowed:anyBikePurchaseClearanceAllowed(deal),accountStopped:accountStatus==="Stopped",accountOnHold:accountStatus==="On Hold"};
   primary=bikeSalesEffectivePrimary(action,flags,deal);
   const effectiveAction=Object.assign({},action||{},{primary_action:primary});
-  const current=bikeSalesJourneyStage(effectiveAction,deal,flags);
+  let current=bikeSalesJourneyStage(effectiveAction,deal,flags);
+  if(customerPaid && current==="payment") current="collection";
   let nextText=bikeSalesJourneyInstruction(effectiveAction,flags);
   if(!hasMotorcycle){
     if(primary==="Check Seller Availability"){
@@ -17499,7 +17501,12 @@ renderAnyBikeGuidedJourney = function(deal,bikes,bikeRows,dealNumber,buyerName,r
     panel("offer",renderDealOfferWorkspace(deal,bikes)+(!offerAccepted?'<div class="sales-what-next"><strong>What happens next?</strong><span>When the formal offer is sent, the buyer reviews the price and terms. Their response returns to AnyBike through the Message Centre and bell.</span></div>':'')+'<details class="sales-payment-advanced"><summary>Stage override / exceptional use only</summary>'+stageControl+'</details>')+
     panel("payment",(function(){
       if(ukUnderwriteCompleted){
-        return ukPaymentHeading+ukSellerDepositGuide+renderAnyBikeDealCustomerAccount(deal)+renderAnyBikeDealCustomerLedger(deal)+renderAnyBikeDealInvoiceDocuments(deal);
+        return ukPaymentHeading+ukSellerDepositGuide+
+          (customerPaid
+            ? '<details class="ab-completed-section"><summary>✓ Customer receipts — Paid in Full · '+anyBikeDealMoney(0)+' outstanding</summary>'+renderAnyBikeDealCustomerAccount(deal)+'</details>'+
+              '<details class="ab-completed-section"><summary>✓ Customer payment ledger — £1,300.00 allocated</summary>'+renderAnyBikeDealCustomerLedger(deal)+'</details>'
+            : renderAnyBikeDealCustomerAccount(deal)+renderAnyBikeDealCustomerLedger(deal))+
+          renderAnyBikeDealInvoiceDocuments(deal);
       }
       const depositComplete=depositRequired<=0 || depositOutstanding<=0.009;
       if(!offerAccepted){
