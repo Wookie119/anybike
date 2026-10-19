@@ -281,7 +281,7 @@ function loadAdminShell(){
 ensureFreshAdminShellCss();
 
 Promise.all([
-  fetch("admin-sidebar.html?v=20261015-invitations",{cache:"no-store"}).then(function(res){ return res.text(); }),
+  fetch("admin-sidebar.html?v=20261019-sidebar-repair",{cache:"no-store"}).then(function(res){ return res.text(); }),
   fetch("admin-topbar.html?v=202610071152",{cache:"no-store"}).then(function(res){ return res.text(); })
 ])
 .then(function(parts){
