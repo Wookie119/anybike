@@ -884,3 +884,11 @@ Frontend alignment completed:
 - Enquiry flows to the existing sourcing funnel, Customer 360, notifications, Live Source Hub and Deal 360; never create a parallel manufacturer enquiry system.
 - Show a visible saved/received confirmation and the buyer's next action. Admin should see buyer qualification and enquiry-source context and receive an actionable notification.
 - Before launch, test the full sequence with new visitor, registered incomplete user, approved buyer, interrupted/returning onboarding and retry/duplicate submission, including row-level access controls and protection of unclaimed drafts.
+
+## 19 October 2026 — BMW VAT photo review parked; UK trade invoicing priority
+
+- BMW weekly VAT alert opened the review area. The original button failed; a fallback review was committed in admin-live-source-hub.html. It exposes 306 saved candidates, with **one pending**: advert **564138**.
+- Advert 564138 shows no verified BMW photograph and no motorcycle model. All photo-decision controls are disabled, apparently because its gallery row has no linked live_source_item_id. **Investigate the candidate-to-live-source link, do not create duplicate records, do not approve/publish a placeholder automatically.** Prior attempt to add explicit missing-link guidance was blocked and is not committed.
+- Leave BMW candidate pending and avoid automatic BMW refresh/scanning; separately verify whether the notification represents new stock or a pending-record reminder.
+- Resume priority: **UK Trade Underwrite Deal AB-26-B2802EC7**, underwrite AB-UW-000019, submission AB-S-000028, 2023 Honda Forza 350, Quotes Motorbikes, buyer agreed £1,300.00, seller purchase test price £3.00, dealer received £0.00. Existing DB route UK_DOMESTIC_TRADE. Buyer page awaits dealer proforma, seller acceptance complete.
+- Next: verify VAT/margin-scheme eligibility from actual purchase and seller records; prepare a non-issued preview first. Do not issue/send an invoice, allocate receipts, pay the seller, book Move or publish anything without explicit approval. Generalise buyer-side route detection beyond Honda-only hardcoding.
