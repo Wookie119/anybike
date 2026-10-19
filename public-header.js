@@ -2010,7 +2010,12 @@ function renderNotificationList(items){
   }
 
   list.innerHTML = items.slice(0,12).map(function(item){
-    const link = item.link || "/customer-messages.html";
+    const originalLink = item.link || "/customer-messages.html";
+    const sellerReference=String(item.message||"").match(/AB-S-\d{6}/i)?.[0] || "";
+    const sellerNotice=/bidding has finished for your motorcycle|a dealer has made an offer on your motorcycle/i.test(String(item.title||""));
+    const link=sellerNotice && sellerReference && String(originalLink).includes("/my-selling.html") && !String(originalLink).includes("reference=")
+      ? "/my-selling.html?reference="+encodeURIComponent(sellerReference)
+      : originalLink;
     const lowerLink=String(link).toLowerCase();
     const lowerTitle=String(item.title||"").toLowerCase();
     let actionLabel="Open →";
@@ -2018,7 +2023,7 @@ function renderNotificationList(items){
     if(lowerLink.includes("accounts") || lowerTitle.includes("proforma") || lowerTitle.includes("payment")){
       actionLabel="View payment details →";
     }else if(lowerLink.includes("/my-selling.html") || lowerTitle.includes("a dealer has made an offer on your motorcycle") || lowerTitle.includes("bidding has finished for your motorcycle")){
-      actionLabel="View bidding progress →";
+      actionLabel="View motorcycle progress →";
     }else if(lowerTitle.includes("offer") || lowerLink.includes("offer")){
       actionLabel="Review offer →";
     }else if(lowerLink.includes("sourced") || lowerTitle.includes("hand-picked") || lowerTitle.includes("match")){
