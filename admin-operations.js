@@ -836,8 +836,8 @@
         <div class="ab-move-field"><label>Seller Landline</label><input value="${esc(sender.landline||"")}" readonly></div>
         <div class="ab-move-field"><label>Seller Email</label><input id="ab-move-sender-email-${id}" type="email" value="${esc(sender.email||"")}"></div>
 
-        <div class="ab-move-section" id="ab-move-section-receiver-${id}">Deliver to buyer's shipper / freight forwarder</div>
-        <div class="ab-move-field"><label>Shipper / Receiver Name *</label><input id="ab-move-receiver-name-${id}" value="${esc(receiver.name||"")}"></div>
+        <div class="ab-move-section" id="ab-move-section-receiver-${id}">${data.sale_route==="UK_DOMESTIC_TRADE"?"Deliver to buying dealership":"Deliver to buyer\'s shipper / freight forwarder"}</div>
+        <div class="ab-move-field"><label>${data.sale_route==="UK_DOMESTIC_TRADE"?"Buying dealership / Receiver Name *":"Shipper / Receiver Name *"}</label><input id="ab-move-receiver-name-${id}" value="${esc(receiver.name||"")}"></div>
         <div class="ab-move-field"><label>Contact Name</label><input id="ab-move-receiver-contact-${id}" value="${esc(receiver.contact_name||"")}"></div>
         <div class="ab-move-field"><label>Street Address *</label><input id="ab-move-receiver-street-${id}" value="${esc(receiver.street_address||"")}" placeholder="${esc(receiver.handover_point||"")}"></div>
         <div class="ab-move-field"><label>City *</label><input id="ab-move-receiver-city-${id}" value="${esc(receiver.city||"")}"></div>
