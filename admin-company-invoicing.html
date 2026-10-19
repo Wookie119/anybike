@@ -1,0 +1,42 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Company & Invoicing | AnyBike Admin</title><script>document.documentElement.classList.add("admin-auth-pending")</script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="/admin.js?v=12001"></script><style>body{margin:0;background:#080808;color:#fff;font:16px Arial,sans-serif}main{max-width:1180px;margin:35px auto;padding:20px}h1{margin-bottom:8px}p{color:#c6c6c6;line-height:1.6}.panel{background:#151515;border:1px solid #444;border-radius:14px;padding:23px;margin-top:20px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}label{display:flex;flex-direction:column;gap:7px;color:#ddd;font-size:14px;font-weight:700}input,textarea{width:100%;box-sizing:border-box;padding:12px;border-radius:8px;background:#090909;color:#fff;border:1px solid #666;font:16px Arial}button{padding:13px 20px;background:#ed1c24;color:white;border:0;border-radius:9px;font-size:16px;font-weight:bold;cursor:pointer}button:disabled{opacity:.5}#status{margin:16px 0;color:#adf4b8}a{color:#fff}@media(max-width:700px){.grid{grid-template-columns:1fr}}</style></head><body><main><p><a href="/admin-dashboard.html">← Admin dashboard</a></p><h1>Settings · Company & Invoicing</h1><p>Update the legal issuer, contact information, payment instructions and invoice defaults for future documents. Existing issued invoices remain frozen. Confirm all details against official company and banking records before using them.</p><div class="panel"><h2>Invoice company settings</h2><form id="settingsForm"><div class="grid"><label>Legal company name<input id="legal_company_name" type="text" autocomplete="off"></label>
+<label>Trading name<input id="trading_name" type="text" autocomplete="off"></label>
+<label>Business / registered address<textarea id="business_address" rows="2"></textarea></label>
+<label>Company number<input id="company_number" type="text" autocomplete="off"></label>
+<label>VAT number<input id="vat_number" type="text" autocomplete="off"></label>
+<label>Invoice email<input id="email" type="text" autocomplete="off"></label>
+<label>Telephone<input id="phone" type="text" autocomplete="off"></label>
+<label>Website<input id="website" type="text" autocomplete="off"></label>
+<label>Bank account name<input id="bank_account_name" type="text" autocomplete="off"></label>
+<label>Sort code<input id="bank_sort_code" type="text" autocomplete="off"></label>
+<label>Account number<input id="bank_account_number" type="text" autocomplete="off"></label>
+<label>IBAN<input id="bank_iban" type="text" autocomplete="off"></label>
+<label>BIC / SWIFT<input id="bank_bic" type="text" autocomplete="off"></label>
+<label>Payment terms<textarea id="payment_terms" rows="2"></textarea></label>
+<label>Invoice footer<textarea id="invoice_footer" rows="2"></textarea></label></div><p id="status" role="status">Loading settings…</p><button id="saveBtn" disabled type="submit">Save company & invoice settings</button></form></div><p>Bank-detail changes affect where future payments may be sent. Check them independently before issuing any customer documents.</p></main><script>
+(async function(){
+ const keys=["legal_company_name","trading_name","business_address","company_number","vat_number","email","phone","website","bank_account_name","bank_sort_code","bank_account_number","bank_iban","bank_bic","payment_terms","invoice_footer"];
+ const status=document.getElementById('status'),button=document.getElementById('saveBtn');
+ try{
+   const allowed=await requireAdminSession();
+   if(!allowed)return;
+   document.documentElement.classList.remove('admin-auth-pending');
+   const client=getAdminSupabaseClient();
+   const loaded=await client.rpc('admin_get_company_invoice_settings_v1');
+   if(loaded.error)throw loaded.error;
+   keys.forEach(k=>document.getElementById(k).value=loaded.data?.[k]??'');
+   status.textContent="Settings loaded. Changes affect future documents only.";
+   button.disabled=false;
+   document.getElementById('settingsForm').addEventListener('submit',async e=>{
+     e.preventDefault();button.disabled=true;status.textContent="Saving…";
+     try{
+       const record=Object.fromEntries(keys.map(k=>[k,document.getElementById(k).value]));
+       if(!confirm("Save AnyBike company and invoicing details for future documents? Verify bank details carefully.")){status.textContent="No changes saved.";return;}
+       const result=await client.rpc('admin_save_company_invoice_settings_v1',{p_settings:record});
+       if(result.error)throw result.error;
+       status.textContent="Saved successfully. Existing issued documents are unchanged.";
+     }catch(err){status.textContent="Could not save: "+(err.message||String(err));}
+     finally{button.disabled=false;}
+   });
+ }catch(err){document.documentElement.classList.remove('admin-auth-pending');status.textContent="Could not load settings: "+(err.message||String(err));}
+})();
+</script></body></html>
