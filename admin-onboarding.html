@@ -100,6 +100,11 @@ td:last-child{vertical-align:top;background:rgba(255,255,255,.025)}td:last-child
         <p>See every signup from email confirmation through Buyer Setup and approval. Clarify whether each prospect wants to buy/export, sell/supply motorcycles to AnyBike, or buy VMoto — then move them forward from one place.</p>
       </section>
 
+      <section id="dealer-login-followups" style="border:1px solid #444;border-radius:10px;padding:16px;margin:14px 0;background:#171717">
+        <h2 style="margin:0 0 6px">Dealer login follow-ups</h2>
+        <p style="color:#bbb;margin:0 0 12px">Dealers who have signed in. Open their account to help them start underwriting, trading or bidding. No messages are sent automatically.</p>
+        <div id="dealerLoginFollowupList">Loading dealer logins…</div>
+      </section>
       <section class="kpis">
         <button type="button" class="kpi active" data-kpi-filter="all" onclick="applyKpiFilter('all',this)"><strong id="kTotal">0</strong><span>Setup help not sent</span></button>
         <button type="button" class="kpi" data-kpi-filter="unconfirmed" onclick="applyKpiFilter('unconfirmed',this)"><strong id="kUnconfirmed">0</strong><span>Email confirmation required</span></button>
@@ -944,12 +949,20 @@ function updateNextAction(){
 
 ["searchBox","stageFilter","typeFilter","intentFilter","showInternal"].forEach(id=>document.getElementById(id)?.addEventListener(id==="searchBox"?"input":"change",render));
 
+async function loadDealerLoginFollowups(){
+ const host=document.getElementById('dealerLoginFollowupList');if(!host)return;
+ const {data,error}=await sb.rpc('admin_dealer_login_followups_v1');
+ if(error){host.textContent='Could not load dealer logins: '+error.message;return;}
+ const dealers=Array.isArray(data)?data:[];
+ if(!dealers.length){host.textContent='No dealer logins recorded.';return;}
+ host.innerHTML='<div style="display:grid;gap:8px">'+dealers.map(d=>'<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;padding:10px;border:1px solid #444;border-radius:8px"><div><strong>'+esc(d.dealership||d.email)+'</strong><div style="color:#bbb;font-size:12px">'+esc(d.email)+' · Last login: '+(d.last_login?new Date(d.last_login).toLocaleString('en-GB',{timeZone:'Europe/London'}):'Not recorded')+' · '+(Number(d.access_level)>=2?'Level 2 approved':'Approval needed')+'</div></div><a style="color:#9ee5ab" href="/admin-customers.html?customer='+encodeURIComponent(d.user_id)+'">Open Customer 360 →</a></div>').join('')+'</div>';
+}
 (async function(){
   const allowed=await requireAdminSession();
   if(!allowed)return;
   document.documentElement.classList.remove("admin-auth-pending");
   // Allow each section to finish or report its own error; one failing request must not leave other sections stuck on Loading.
-  const tasks=[['Onboarding pipeline','tableWrap',loadOnboarding],['Invited prospects','inviteProspectsList',loadInviteProspects],['Dealer confidence','dealerConfidenceList',loadDealerConfidence]];
+  const tasks=[['Onboarding pipeline','tableWrap',loadOnboarding],['Invited prospects','inviteProspectsList',loadInviteProspects],['Dealer confidence','dealerConfidenceList',loadDealerConfidence],['Dealer logins','dealerLoginFollowupList',loadDealerLoginFollowups]];
   await Promise.all(tasks.map(async ([name,id,fn])=>{try{await fn()}catch(error){console.error(name+' failed',error);const host=document.getElementById(id);if(host)host.textContent='Could not load '+name.toLowerCase()+': '+(error?.message||error)+'. Refresh to retry.';}}));
 })();
 </script>
