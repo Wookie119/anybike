@@ -990,13 +990,36 @@ function updateNextAction(){
 
 async function loadDealerLoginFollowups(){
  const host=document.getElementById('dealerLoginFollowupList');if(!host)return;
- const {data,error}=await sb.rpc('admin_dealer_login_followups_v1');
- if(error){host.textContent='Could not load dealer logins: '+error.message;return;}
- const dealers=Array.isArray(data)?data:[];
+ const [loginsResult,followupsResult]=await Promise.all([sb.rpc('admin_dealer_login_followups_v1'),sb.rpc('admin_get_dealer_followups_v1')]);
+ if(loginsResult.error){host.textContent='Could not load dealer logins: '+loginsResult.error.message;return;}
+ const dealers=Array.isArray(loginsResult.data)?loginsResult.data:[];
  approvedDealerUsers=new Set(dealers.filter(d=>Number(d.access_level)>=2).map(d=>String(d.user_id)));
  if(rows.length)render();
  if(!dealers.length){host.textContent='No dealer logins recorded.';return;}
- host.innerHTML='<div style="display:grid;gap:8px">'+dealers.map(d=>'<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;padding:10px;border:1px solid #444;border-radius:8px"><div><strong>'+esc(d.dealership||d.email)+'</strong><div style="color:#bbb;font-size:12px">'+esc(d.email)+' · Last login: '+(d.last_login?new Date(d.last_login).toLocaleString('en-GB',{timeZone:'Europe/London'}):'Not recorded')+' · '+(Number(d.access_level)>=2?'Level 2 approved':'Approval needed')+'</div></div><a style="color:#9ee5ab" href="/admin-customers.html?customer='+encodeURIComponent(d.user_id)+'">Open Customer 360 →</a></div>').join('')+'</div>';
+ const followups=new Map((followupsResult.data||[]).map(f=>[String(f.user_id),f]));
+ if(followupsResult.error){host.textContent='Could not load follow-up notes: '+followupsResult.error.message;return;}
+ host.replaceChildren();
+ const grid=document.createElement('div');grid.style.cssText='display:grid;gap:8px';host.append(grid);
+ for(const dealer of dealers){
+  const f=followups.get(String(dealer.user_id))||{};
+  const card=document.createElement('div');card.style.cssText='border:1px solid #444;border-radius:8px;padding:10px 12px;display:grid;gap:10px';
+  const header=document.createElement('div');header.style.cssText='display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px';
+  const desc=document.createElement('div');
+  const name=document.createElement('strong');name.textContent=dealer.dealership||dealer.email;
+  const small=document.createElement('div');small.style.cssText='font-size:12px;color:#bbb';
+  small.textContent=dealer.email+' · Last login: '+(dealer.last_login?new Date(dealer.last_login).toLocaleString('en-GB',{timeZone:'Europe/London'}):'Not recorded')+' · '+(Number(dealer.access_level)>=2?'Level 2 approved':'Approval needed');
+  desc.append(name,small);
+  const link=document.createElement('a');link.href='/admin-customers.html?customer='+encodeURIComponent(dealer.user_id);link.textContent='Open Customer 360 →';link.style.color='#9ee5ab';
+  header.append(desc,link);card.append(header);
+  const controls=document.createElement('div');controls.style.cssText='display:grid;grid-template-columns:minmax(110px,.6fr) minmax(220px,2fr) minmax(150px,.8fr) auto;align-items:end;gap:8px';
+  const contactedLabel=document.createElement('label');contactedLabel.style.cssText='display:flex;gap:7px;align-items:center;padding-bottom:10px;font-size:12px';const contacted=document.createElement('input');contacted.type='checkbox';contacted.checked=!!f.contacted;contactedLabel.append(contacted,document.createTextNode('Contacted'));
+  const noteLabel=document.createElement('label');noteLabel.textContent='Follow-up note';noteLabel.style.fontSize='12px';const note=document.createElement('input');note.type='text';note.value=f.followup_note||'';note.placeholder='What help does this dealer need?';note.maxLength=2000;note.style.cssText='display:block;width:100%;min-width:0;padding:9px;margin-top:4px';noteLabel.append(note);
+  const dateLabel=document.createElement('label');dateLabel.textContent='Next contact';dateLabel.style.fontSize='12px';const date=document.createElement('input');date.type='date';date.value=f.next_contact_date||'';date.style.cssText='display:block;width:100%;padding:9px;margin-top:4px';dateLabel.append(date);
+  const save=document.createElement('button');save.type='button';save.className='btn dark';save.textContent='Save';save.style.minHeight='37px';
+  const message=document.createElement('span');message.style.cssText='font-size:12px;color:#9ee5ab';
+  save.addEventListener('click',async()=>{save.disabled=true;message.textContent='Saving…';const {error}=await sb.rpc('admin_save_dealer_followup_v1',{p_user_id:dealer.user_id,p_contacted:contacted.checked,p_note:note.value,p_next_date:date.value||null});save.disabled=false;message.textContent=error?'Could not save: '+error.message:'✓ Saved';});
+  controls.append(contactedLabel,noteLabel,dateLabel,save);card.append(controls,message);grid.append(card);
+ }
 }
 (async function(){
   const allowed=await requireAdminSession();
