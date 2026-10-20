@@ -127,7 +127,7 @@ td:last-child{vertical-align:top;background:rgba(255,255,255,.025)}td:last-child
             <button class="btn" type="button" onclick="openInviteProspect()">Add dealer / user</button>
           </div>
         </div>
-        <div id="inviteProspectsList" class="invite-list"><div class="small">Loading invited prospects…</div></div><div style="padding:14px;border-top:1px solid #333"><h3>Dealer buyer confidence</h3><p class="small">Internal assessment saved against each dealership and shown when reviewing bids. Not a credit score.</p><div id="dealerConfidenceList" class="invite-list">Loading dealerships…</div></div>
+        <div id="inviteProspectsList" class="invite-list"><div class="small">Loading invited prospects…</div></div><details id="dealerConfidencePanel" style="padding:14px;border-top:1px solid #333"><summary style="cursor:pointer;font-weight:800;font-size:18px">Dealer buyer confidence <span id="dealerConfidenceCount" style="font-size:12px;color:#aaa;font-weight:400">Loading…</span></summary><p class="small">Internal assessment shown when reviewing bids. Not a credit score.</p><input id="dealerConfidenceSearch" placeholder="Search dealerships…" aria-label="Search dealer confidence" style="width:min(100%,480px);padding:10px;margin:8px 0"><div id="dealerConfidenceList" class="invite-list" style="display:grid;gap:8px">Loading dealerships…</div></details>
       </section>
 
       <div class="toolbar">
@@ -303,21 +303,25 @@ async function loadDealerConfidence(){
  const result=await Promise.race([sb.rpc("admin_list_dealer_buyer_confidence_v1"),new Promise(resolve=>setTimeout(()=>resolve({error:{message:"Request timed out. Please retry."}}),12000))]);
  const {data,error}=result;
  if(error){host.textContent="Could not load dealer confidence: "+error.message;return;}
+ const count=document.getElementById("dealerConfidenceCount");if(count)count.textContent=Array.isArray(data)?data.length+" dealerships":"";
  host.replaceChildren();
- if(!Array.isArray(data)||!data.length){host.textContent="No dealerships available for buyer confidence review.";return;}
- (data||[]).forEach(dealer=>{
-  const row=document.createElement("div");row.style.cssText="display:flex;gap:12px;align-items:center;justify-content:space-between;border-bottom:1px solid #303030;padding:10px 0";
-  const name=document.createElement("strong");name.textContent=dealer.dealer_name||"Dealer #"+dealer.dealer_organisation_id;
-  const sel=document.createElement("select");sel.className="route-select";sel.setAttribute("aria-label","Buyer confidence for "+name.textContent);
-  [["unreviewed","Not reviewed"],["known","Known dealer — confident"],["new","New dealer — not yet known"],["concern","Concern about completion"]].forEach(([v,t])=>{const o=document.createElement("option");o.value=v;o.textContent=t;sel.append(o)});
-  sel.value=dealer.confidence||"unreviewed";
-  sel.addEventListener("change",async()=>{
-   const next=sel.value;sel.disabled=true;
-   const {error}=await sb.rpc("admin_set_dealer_buyer_confidence_v1",{p_dealer_organisation_id:dealer.dealer_organisation_id,p_confidence:next});
-   sel.disabled=false;if(error){sel.value=dealer.confidence||"unreviewed";alert("Could not save: "+error.message)}else dealer.confidence=next;
-  });
-  row.append(name,sel);host.append(row);
- });
+ if(!Array.isArray(data)||!data.length){host.textContent="No dealerships available.";return;}
+ const search=document.getElementById("dealerConfidenceSearch");
+ function draw(){
+  host.replaceChildren();const term=String(search?.value||"").toLowerCase().trim();
+  const filtered=data.filter(d=>String(d.dealer_name||"").toLowerCase().includes(term));
+  for(const dealer of filtered){
+   const card=document.createElement("div");card.style.cssText="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border:1px solid #404040;border-radius:9px;background:#191919";
+   const name=document.createElement("strong");name.textContent=dealer.dealer_name||"Dealer #"+dealer.dealer_organisation_id;
+   const sel=document.createElement("select");sel.className="route-select";sel.style.maxWidth="300px";sel.setAttribute("aria-label","Buyer confidence for "+name.textContent);
+   [["unreviewed","Not reviewed"],["known","Known dealer — confident"],["new","New dealer — not yet known"],["concern","Concern about completion"]].forEach(([v,t])=>{const o=document.createElement("option");o.value=v;o.textContent=t;sel.append(o)});
+   sel.value=dealer.confidence||"unreviewed";
+   sel.addEventListener("change",async()=>{const next=sel.value;sel.disabled=true;const {error}=await sb.rpc("admin_set_dealer_buyer_confidence_v1",{p_dealer_organisation_id:dealer.dealer_organisation_id,p_confidence:next});sel.disabled=false;if(error){sel.value=dealer.confidence||"unreviewed";alert("Could not save: "+error.message)}else dealer.confidence=next;});
+   card.append(name,sel);host.append(card);
+  }
+  if(!filtered.length)host.textContent="No matching dealerships.";
+ }
+ if(search)search.oninput=draw;draw();
 }
 async function loadInviteProspects(){
   const host=document.getElementById("inviteProspectsList");
