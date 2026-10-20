@@ -300,9 +300,11 @@ function inviteStatusLabel(c){
 }
 async function loadDealerConfidence(){
  const host=document.getElementById("dealerConfidenceList");if(!host)return;
- const {data,error}=await sb.rpc("admin_list_dealer_buyer_confidence_v1");
+ const result=await Promise.race([sb.rpc("admin_list_dealer_buyer_confidence_v1"),new Promise(resolve=>setTimeout(()=>resolve({error:{message:"Request timed out. Please retry."}}),12000))]);
+ const {data,error}=result;
  if(error){host.textContent="Could not load dealer confidence: "+error.message;return;}
  host.replaceChildren();
+ if(!Array.isArray(data)||!data.length){host.textContent="No dealerships available for buyer confidence review.";return;}
  (data||[]).forEach(dealer=>{
   const row=document.createElement("div");row.style.cssText="display:flex;gap:12px;align-items:center;justify-content:space-between;border-bottom:1px solid #303030;padding:10px 0";
   const name=document.createElement("strong");name.textContent=dealer.dealer_name||"Dealer #"+dealer.dealer_organisation_id;
