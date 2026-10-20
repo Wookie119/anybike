@@ -992,7 +992,7 @@ function updateNextAction(){
 
 async function loadDealerLoginFollowups(){
  const host=document.getElementById('dealerLoginFollowupList');if(!host)return;
- const [loginsResult,followupsResult,interestsResult]=await Promise.all([sb.rpc('admin_dealer_login_followups_v1'),sb.rpc('admin_get_dealer_followups_v1'),sb.rpc('admin_get_dealer_interests_v1')]);
+ const [loginsResult,followupsResult,interestsResult,responsesResult]=await Promise.all([sb.rpc('admin_dealer_login_followups_v1'),sb.rpc('admin_get_dealer_followups_v1'),sb.rpc('admin_get_dealer_interests_v1'),sb.rpc('admin_dealer_service_responses_v1')]);
  if(loginsResult.error){host.textContent='Could not load dealer logins: '+loginsResult.error.message;return;}
  const dealers=Array.isArray(loginsResult.data)?loginsResult.data:[];
  approvedDealerUsers=new Set(dealers.filter(d=>Number(d.access_level)>=2).map(d=>String(d.user_id)));
@@ -1000,8 +1000,10 @@ async function loadDealerLoginFollowups(){
  if(!dealers.length){host.textContent='No dealer logins recorded.';return;}
  const followups=new Map((followupsResult.data||[]).map(f=>[String(f.user_id),f]));
  const interestsByUser=new Map((interestsResult.data||[]).map(f=>[String(f.user_id),f.service_interests||[]]));
+ const serviceResponses=new Map((responsesResult.data||[]).map(x=>[String(x.user_id),x]));
  if(followupsResult.error){host.textContent='Could not load follow-up notes: '+followupsResult.error.message;return;}
  if(interestsResult.error){host.textContent='Could not load interests: '+interestsResult.error.message;return;}
+ if(responsesResult.error){host.textContent='Could not load submitted responses: '+responsesResult.error.message;return;}
  host.replaceChildren();
  const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/London',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
  const statusOf=d=>{const f=followups.get(String(d.user_id))||{};if(f.next_contact_date&&f.next_contact_date<today)return 'overdue';if(f.next_contact_date===today)return 'due';if(!f.contacted)return 'not-contacted';return 'contacted';};
@@ -1035,6 +1037,14 @@ async function loadDealerLoginFollowups(){
   const message=document.createElement('span');message.style.cssText='font-size:12px;color:#9ee5ab';
   save.addEventListener('click',async()=>{save.disabled=true;message.textContent='Saving…';const {error}=await sb.rpc('admin_save_dealer_followup_v1',{p_user_id:dealer.user_id,p_contacted:contacted.checked,p_note:note.value,p_next_date:date.value||null});save.disabled=false;message.textContent=error?'Could not save: '+error.message:'✓ Saved';});
   controls.append(contactedLabel,noteLabel,dateLabel,save);card.append(controls,message);
+  const formRow=document.createElement('div');formRow.style.cssText='border-top:1px solid #333;padding-top:8px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap';
+  const answered=serviceResponses.get(String(dealer.user_id));
+  const labels={buy:'Buy motorcycles',trade_sell:'Offer to trade',underwrite:'Underwriting',source:'Source a bike',transport:'Transport',vat_export_stock:'VAT stock for international buyers',browsing:'Just looking'};
+  const formText=document.createElement('span');formText.style.fontSize='12px';formText.style.color=answered?'#9ee5ab':'#bbb';
+  formText.textContent=answered?'Dealer submitted: '+(answered.service_interests||[]).map(x=>labels[x]||x).join(' · '):'No dealer form response yet';
+  const formLink=document.createElement('button');formLink.type='button';formLink.className='btn dark';formLink.textContent='Copy services form link';
+  formLink.addEventListener('click',async()=>{try{await navigator.clipboard.writeText('https://www.anybike.co.uk/uk-dealer-services.html');formLink.textContent='✓ Link copied';}catch(e){formLink.textContent='Copy failed';}});
+  formRow.append(formText,formLink);card.append(formRow);
   grid.append(card);
  }
 }
