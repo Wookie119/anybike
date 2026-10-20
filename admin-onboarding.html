@@ -24,6 +24,10 @@
 .onboarding-more-actions{border:1px solid #444;border-radius:8px;background:#181818}
 .onboarding-more-actions summary{cursor:pointer;padding:10px 12px;font-weight:700;font-size:12px}
 .onboarding-more-actions-body{display:grid;gap:7px;padding:0 8px 8px}
+
+/* Five-column onboarding rows; origin is inside Show details. */
+.onboarding-table col:nth-child(1){width:21%}.onboarding-table col:nth-child(2){width:22%}.onboarding-table col:nth-child(3){width:24%}.onboarding-table col:nth-child(4){width:17%}.onboarding-table col:nth-child(5){width:16%}
+.onboarding-table .customer-main-row td:nth-child(4) .route-select{width:100%!important;max-width:none!important}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="admin.js?v=202610071152"></script>
@@ -611,7 +615,7 @@ function render(){
     return new Date(b.auth_created_at)-new Date(a.auth_created_at);
   });
   if(!data.length){tableWrap.innerHTML='<div class="empty">No onboarding records match this view.</div>';return;}
-  tableWrap.innerHTML='<table class="onboarding-table"><colgroup><col><col><col><col><col><col></colgroup><thead><tr><th>Person / business<br><button type="button" class="country-sort '+(countrySortDirection?'active':'')+'" onclick="event.stopPropagation();toggleCountrySort()">Country '+(countrySortDirection===1?'A–Z':countrySortDirection===-1?'Z–A':'↕')+'</button></th><th>Stage & setup</th><th>Enquiry / origin</th><th>Classification</th><th>Activity</th><th>Actions</th></tr></thead><tbody>'+
+  tableWrap.innerHTML='<table class="onboarding-table"><colgroup><col><col><col><col><col></colgroup><thead><tr><th>Person / business<br><button type="button" class="country-sort '+(countrySortDirection?'active':'')+'" onclick="event.stopPropagation();toggleCountrySort()">Country '+(countrySortDirection===1?'A–Z':countrySortDirection===-1?'Z–A':'↕')+'</button></th><th>Stage & setup</th><th>Classification</th><th>Activity</th><th>Actions</th></tr></thead><tbody>'+
   data.map(r=>{
     const priority=Number(r.request_count||0)>0||Number(r.scan_batch_count||0)>0;
     const cls=priority?"priority-row":(r.is_test_account?"test-row":(isInternal(r)?"internal-row":""));
@@ -646,10 +650,7 @@ function render(){
         (r.business_name?'<div class="status-line">'+esc(r.business_name)+'</div>':'')+
       '</td>'+
       '<td><div class="stage-setup"><div><span class="badge '+(isApprovedDealer?'green':stageClass(r.onboarding_stage))+'">'+(isApprovedDealer?'✓ Level 2 approved':esc(r.onboarding_stage))+'</span><div class="status-line">'+(r.email_confirmed_at?"Email confirmed":"Email not confirmed")+(r.has_profile?" · Profile created":" · No profile")+'</div></div><div class="setup-summary">'+setupHtml+'</div></div></td>'+
-      '<td><div class="name">'+esc(r.origin_label||"Source not recorded")+'</div>'+
-        (r.origin_detail?'<div class="status-line">'+esc(r.origin_detail)+'</div>':'')+
-        (r.origin_page?'<div class="status-line"><strong>Source page:</strong> '+esc(r.origin_page)+'</div>':'<div class="status-line">Source page not recorded</div>')+
-      '</td>'+
+      
       '<td><div class="classification-stack"><label>Customer type<select class="route-select" onchange="setClassification(\''+r.user_id+'\',this.value,null)">'+
         '<option value="">Not classified</option>'+
         ['uk_private','uk_dealer','uk_distributor','uk_manufacturer','uk_partner','eu_dealer','intl_dealer','global_manufacturer'].map(v=>'<option value="'+v+'" '+(r.customer_type===v?'selected':'')+'>'+customerTypeLabel(v)+'</option>').join("")+
@@ -681,7 +682,7 @@ function render(){
           : (isApprovedDealer?'':canHelp?'No setup request sent yet':'Customer email is missing'))+
       '</div></td>'+
     '</tr>'+
-    '<tr class="note-row '+cls+'" data-note-user-id="'+esc(r.user_id)+'" style="display:none" onclick="selectCustomerCard(\''+r.user_id+'\')"><td colspan="6"><div class="note-strip"><div class="note-strip-label">Admin note</div><textarea class="notes" id="note-'+r.user_id+'" placeholder="Internal onboarding note">'+esc(r.admin_notes||"")+'</textarea><button class="btn dark" onclick="saveNote(\''+r.user_id+'\')">Save note</button></div></td></tr>';
+    '<tr class="note-row '+cls+'" data-note-user-id="'+esc(r.user_id)+'" style="display:none" onclick="selectCustomerCard(\''+r.user_id+'\')"><td colspan="5"><div class="status-line" style="padding:4px 0 12px"><strong>Enquiry / origin:</strong> '+esc(r.origin_label||"Source not recorded")+(r.origin_detail?' · '+esc(r.origin_detail):'')+(r.origin_page?' · '+esc(r.origin_page):'')+'</div><div class="note-strip"><div class="note-strip-label">Admin note</div><textarea class="notes" id="note-'+r.user_id+'" placeholder="Internal onboarding note">'+esc(r.admin_notes||"")+'</textarea><button class="btn dark" onclick="saveNote(\''+r.user_id+'\')">Save note</button></div></td></tr>';
   }).join("")+'</tbody></table>';
 
   const requested=new URLSearchParams(location.search).get("customer");
