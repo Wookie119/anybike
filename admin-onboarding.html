@@ -948,7 +948,9 @@ function updateNextAction(){
   const allowed=await requireAdminSession();
   if(!allowed)return;
   document.documentElement.classList.remove("admin-auth-pending");
-  await Promise.all([loadOnboarding(),loadInviteProspects(),loadDealerConfidence()]);
+  // Allow each section to finish or report its own error; one failing request must not leave other sections stuck on Loading.
+  const tasks=[['Onboarding pipeline','tableWrap',loadOnboarding],['Invited prospects','inviteProspectsList',loadInviteProspects],['Dealer confidence','dealerConfidenceList',loadDealerConfidence]];
+  await Promise.all(tasks.map(async ([name,id,fn])=>{try{await fn()}catch(error){console.error(name+' failed',error);const host=document.getElementById(id);if(host)host.textContent='Could not load '+name.toLowerCase()+': '+(error?.message||error)+'. Refresh to retry.';}}));
 })();
 </script>
 <a href="/admin-assistant-questions.html" style="position:fixed;right:18px;bottom:18px;z-index:110;background:#ba1f28;color:#fff;padding:12px 17px;border-radius:8px;font-weight:800;text-decoration:none;box-shadow:0 5px 22px #000b">Assistant Questions →</a></body>
