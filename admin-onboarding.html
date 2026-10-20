@@ -255,6 +255,7 @@ const SUPABASE_ANON_KEY="sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 let rows=[];
 let approvedDealerUsers=new Set();
+let dealerOrgByUser=new Map(),dealerConfidenceByOrg=new Map();
 let inviteProspects=[];
 let editingInviteProspectId=null;
 let setupHelpUserId=null;
@@ -304,6 +305,8 @@ async function loadDealerConfidence(){
  const result=await Promise.race([sb.rpc("admin_list_dealer_buyer_confidence_v1"),new Promise(resolve=>setTimeout(()=>resolve({error:{message:"Request timed out. Please retry."}}),12000))]);
  const {data,error}=result;
  if(error){host.textContent="Could not load dealer confidence: "+error.message;return;}
+ dealerConfidenceByOrg=new Map((data||[]).map(d=>[Number(d.dealer_organisation_id),d]));
+ if(rows.length)render();
  const count=document.getElementById("dealerConfidenceCount");if(count)count.textContent=Array.isArray(data)?data.length+" dealerships":"";
  host.replaceChildren();
  if(!Array.isArray(data)||!data.length){host.textContent="No dealerships available.";return;}
@@ -601,6 +604,8 @@ function render(){
     const dots=Array.from({length:6},(_,i)=>'<span class="dot '+(i<completeCount?"on":"")+'"></span>').join("");
     const isExportRoute=String(r.route||"")==="buyer_export";
     const isApprovedDealer=approvedDealerUsers.has(String(r.user_id));
+    const dealerOrgId=dealerOrgByUser.get(String(r.user_id));
+    const confidenceRecord=dealerOrgId?dealerConfidenceByOrg.get(dealerOrgId):null;
     const setupHtml=isApprovedDealer?'<div class="status-line">Dealer approved · trade services available according to saved permissions</div>':isExportRoute
       ? '<strong>'+Number(r.sections_complete||0)+' of 6 sections fully complete</strong>'+
         '<div class="progress">'+dots+'</div>'+
@@ -636,7 +641,7 @@ function render(){
       '</select></label><label>Intent<select class="route-select" onchange="setClassification(\''+r.user_id+'\',null,this.value)">'+
         ['unclear','buy','dealer_trade_supply','buy_supply','dealer_underwrite','trade_underwriter','vmoto_retail','new_uk_retail','partnership','freight_logistics'].map(v=>'<option value="'+v+'" '+((r.customer_intent||"unclear")===v?'selected':'')+'>'+intentLabel(v)+'</option>').join("")+
       '</select></label></div></td>'+
-      '<td><div class="name">'+esc(activity)+'</div><div class="status-line">Last setup request: '+esc(reminder)+'</div></td>'+
+      '<td><div class="name">'+esc(activity)+'</div><div class="status-line">Last setup request: '+esc(reminder)+'</div>'+(dealerOrgId?'<label class="status-line" style="display:block;margin-top:9px">Dealer buyer confidence<select class="route-select" style="max-width:230px;display:block;margin-top:4px" onchange="saveInlineDealerConfidence('+dealerOrgId+',this)">'+[['unreviewed','Not reviewed'],['known','Known dealer — confident'],['new','New dealer — not yet known'],['concern','Concern about completion']].map(([v,t])=>'<option value="'+v+'" '+((confidenceRecord?.confidence||'unreviewed')===v?'selected':'')+'>'+t+'</option>').join('')+'</select></label>':'')+'</td>'+
       '<td><div class="actions">'+
         (r.has_profile?'<a class="btn dark" href="admin-customers.html?v=20261007-3&customer='+encodeURIComponent(r.user_id)+'&from=onboarding">Customer 360</a>':'')+
         (!r.email_confirmed_at && r.email
@@ -670,6 +675,7 @@ function render(){
     }
   }
 }
+async function saveInlineDealerConfidence(orgId,select){const before=dealerConfidenceByOrg.get(Number(orgId))?.confidence||'unreviewed';const next=select.value;select.disabled=true;const {error}=await sb.rpc('admin_set_dealer_buyer_confidence_v1',{p_dealer_organisation_id:Number(orgId),p_confidence:next});select.disabled=false;if(error){select.value=before;alert('Could not save buyer confidence: '+error.message);return;}const record=dealerConfidenceByOrg.get(Number(orgId));if(record)record.confidence=next;loadDealerConfidence();}
 function toggleOnboardingDetails(userId,button){const main=tableWrap.querySelector('tr[data-user-id="'+CSS.escape(userId)+'"]');const note=tableWrap.querySelector('tr[data-note-user-id="'+CSS.escape(userId)+'"]');const open=note?.style.display!=='none';if(note)note.style.display=open?'none':'table-row';if(main)main.classList.toggle('details-open',!open);button.textContent=open?'Show details ▾':'Hide details ▴';}
 function selectCustomerCard(userId){
   document.querySelectorAll(".customer-main-row.selected-customer,.note-row.selected-customer").forEach(el=>el.classList.remove("selected-customer"));
@@ -976,6 +982,7 @@ async function loadDealerLoginFollowups(){
   if(!allowed)return;
   document.documentElement.classList.remove("admin-auth-pending");
   // Allow each section to finish or report its own error; one failing request must not leave other sections stuck on Loading.
+  const {data:orgMappings,error:orgMapError}=await sb.rpc('admin_onboarding_dealer_org_map_v1');if(!orgMapError)dealerOrgByUser=new Map((orgMappings||[]).map(x=>[String(x.user_id),Number(x.dealer_organisation_id)]));else console.warn('Dealer organisation mapping unavailable',orgMapError.message);
   const tasks=[['Onboarding pipeline','tableWrap',loadOnboarding],['Invited prospects','inviteProspectsList',loadInviteProspects],['Dealer confidence','dealerConfidenceList',loadDealerConfidence],['Dealer logins','dealerLoginFollowupList',loadDealerLoginFollowups]];
   await Promise.all(tasks.map(async ([name,id,fn])=>{try{await fn()}catch(error){console.error(name+' failed',error);const host=document.getElementById(id);if(host)host.textContent='Could not load '+name.toLowerCase()+': '+(error?.message||error)+'. Refresh to retry.';}}));
 })();
