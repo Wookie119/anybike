@@ -1001,16 +1001,28 @@ async function loadDealerLoginFollowups(){
  const followups=new Map((followupsResult.data||[]).map(f=>[String(f.user_id),f]));
  if(followupsResult.error){host.textContent='Could not load follow-up notes: '+followupsResult.error.message;return;}
  host.replaceChildren();
+ const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/London',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+ const statusOf=d=>{const f=followups.get(String(d.user_id))||{};if(f.next_contact_date&&f.next_contact_date<today)return 'overdue';if(f.next_contact_date===today)return 'due';if(!f.contacted)return 'not-contacted';return 'contacted';};
+ const weight={overdue:0,due:1,'not-contacted':2,contacted:3};
+ const ordered=[...dealers].sort((a,b)=>weight[statusOf(a)]-weight[statusOf(b)]||String(a.dealership||a.email).localeCompare(String(b.dealership||b.email)));
+ const counts={overdue:0,due:0,'not-contacted':0,contacted:0};ordered.forEach(d=>counts[statusOf(d)]++);
+ const summary=document.createElement('p');summary.style.cssText='font-size:12px;color:#bbb;margin:0 0 10px';
+ summary.textContent=counts.overdue+' overdue · '+counts.due+' due today · '+counts['not-contacted']+' not yet contacted · '+counts.contacted+' contacted';
+ host.append(summary);
  const grid=document.createElement('div');grid.style.cssText='display:grid;gap:8px';host.append(grid);
- for(const dealer of dealers){
+ for(const dealer of ordered){
   const f=followups.get(String(dealer.user_id))||{};
-  const card=document.createElement('div');card.style.cssText='border:1px solid #444;border-radius:8px;padding:10px 12px;display:grid;gap:10px';
+  const state=statusOf(dealer);
+  const card=document.createElement('div');card.style.cssText='border:1px solid '+(state==='overdue'?'#b74242':state==='due'?'#a87832':'#444')+';border-radius:8px;padding:10px 12px;display:grid;gap:10px';
   const header=document.createElement('div');header.style.cssText='display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px';
   const desc=document.createElement('div');
   const name=document.createElement('strong');name.textContent=dealer.dealership||dealer.email;
   const small=document.createElement('div');small.style.cssText='font-size:12px;color:#bbb';
   small.textContent=dealer.email+' · Last login: '+(dealer.last_login?new Date(dealer.last_login).toLocaleString('en-GB',{timeZone:'Europe/London'}):'Not recorded')+' · '+(Number(dealer.access_level)>=2?'Level 2 approved':'Approval needed');
   desc.append(name,small);
+  const flag=document.createElement('span');flag.style.cssText='display:inline-block;margin-top:5px;font-size:12px;font-weight:700;color:'+(state==='overdue'?'#ff9191':state==='due'?'#f3c57a':state==='not-contacted'?'#ddd':'#9ee5ab');
+  flag.textContent=state==='overdue'?'Follow-up overdue':state==='due'?'Follow-up due today':state==='not-contacted'?'Not yet contacted':'Contacted';
+  desc.append(flag);
   const link=document.createElement('a');link.href='/admin-customers.html?customer='+encodeURIComponent(dealer.user_id);link.textContent='Open Customer 360 →';link.style.color='#9ee5ab';
   header.append(desc,link);card.append(header);
   const controls=document.createElement('div');controls.style.cssText='display:grid;grid-template-columns:minmax(110px,.6fr) minmax(220px,2fr) minmax(150px,.8fr) auto;align-items:end;gap:8px';
