@@ -254,6 +254,7 @@ const SUPABASE_URL="https://tuehtnezhdnkqbbhttgp.supabase.co";
 const SUPABASE_ANON_KEY="sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK";
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 let rows=[];
+let approvedDealerUsers=new Set();
 let inviteProspects=[];
 let editingInviteProspectId=null;
 let setupHelpUserId=null;
@@ -599,7 +600,8 @@ function render(){
     const completeCount=Math.max(0,Math.min(6,Number(r.sections_complete||0)));
     const dots=Array.from({length:6},(_,i)=>'<span class="dot '+(i<completeCount?"on":"")+'"></span>').join("");
     const isExportRoute=String(r.route||"")==="buyer_export";
-    const setupHtml=isExportRoute
+    const isApprovedDealer=approvedDealerUsers.has(String(r.user_id));
+    const setupHtml=isApprovedDealer?'<span class="badge green">✓ Level 2 dealership approved</span><div class="status-line">'+(isExportRoute&&completeCount<6?'Export buyer setup incomplete · separate from dealer approval':'Trading access approved · optional setup tracked separately')+'</div>':isExportRoute
       ? '<strong>'+Number(r.sections_complete||0)+' of 6 sections fully complete</strong>'+
         '<div class="progress">'+dots+'</div>'+
         '<div class="status-line">'+(Number(r.sections_complete||0)>0
@@ -618,12 +620,12 @@ function render(){
       Number(r.request_count||0)?r.request_count+" request":"",Number(r.scan_batch_count||0)?r.scan_batch_count+" source batch":"",Number(r.deal_count||0)?r.deal_count+" deal":""
     ].filter(Boolean).join(" · ")||"No buying activity yet";
     return '<tr class="customer-main-row '+cls+'" data-user-id="'+esc(r.user_id)+'" onclick="selectCustomerCard(\''+r.user_id+'\')">'+
-      '<td><div class="name">'+esc(displayPersonName(r.full_name)||r.business_name||"Registration only")+(priority?' <span class="badge red">PRIORITY</span>':'')+'</div>'+
+      '<td><button type="button" class="btn dark" style="padding:5px 9px;margin:0 0 7px" onclick="event.stopPropagation();toggleOnboardingDetails(\''+r.user_id+'\',this)">Show details ▾</button><div class="name">'+esc(displayPersonName(r.full_name)||r.business_name||"Registration only")+(priority?' <span class="badge red">PRIORITY</span>':'')+'</div>'+
         '<div class="country-line">'+countryFlagHtml(r.country)+'<span>'+esc(r.country||"Country not recorded")+'</span></div>'+
         '<div class="email">'+esc(r.email||"")+'</div>'+
         (r.business_name?'<div class="status-line">'+esc(r.business_name)+'</div>':'')+
       '</td>'+
-      '<td><div class="stage-setup"><div><span class="badge '+stageClass(r.onboarding_stage)+'">'+esc(r.onboarding_stage)+'</span><div class="status-line">'+(r.email_confirmed_at?"Email confirmed":"Email not confirmed")+(r.has_profile?" · Profile created":" · No profile")+'</div></div><div class="setup-summary">'+setupHtml+'</div></div></td>'+
+      '<td><div class="stage-setup"><div><span class="badge '+(isApprovedDealer?'green':stageClass(r.onboarding_stage))+'">'+(isApprovedDealer?'✓ Level 2 approved':esc(r.onboarding_stage))+'</span><div class="status-line">'+(r.email_confirmed_at?"Email confirmed":"Email not confirmed")+(r.has_profile?" · Profile created":" · No profile")+'</div></div><div class="setup-summary">'+setupHtml+'</div></div></td>'+
       '<td><div class="name">'+esc(r.origin_label||"Source not recorded")+'</div>'+
         (r.origin_detail?'<div class="status-line">'+esc(r.origin_detail)+'</div>':'')+
         (r.origin_page?'<div class="status-line"><strong>Source page:</strong> '+esc(r.origin_page)+'</div>':'<div class="status-line">Source page not recorded</div>')+
@@ -655,7 +657,7 @@ function render(){
           : (canHelp?'No setup request sent yet':'Customer email is missing'))+
       '</div></td>'+
     '</tr>'+
-    '<tr class="note-row '+cls+'" data-note-user-id="'+esc(r.user_id)+'" onclick="selectCustomerCard(\''+r.user_id+'\')"><td colspan="6"><div class="note-strip"><div class="note-strip-label">Admin note</div><textarea class="notes" id="note-'+r.user_id+'" placeholder="Internal onboarding note">'+esc(r.admin_notes||"")+'</textarea><button class="btn dark" onclick="saveNote(\''+r.user_id+'\')">Save note</button></div></td></tr>';
+    '<tr class="note-row '+cls+'" data-note-user-id="'+esc(r.user_id)+'" style="display:none" onclick="selectCustomerCard(\''+r.user_id+'\')"><td colspan="6"><div class="note-strip"><div class="note-strip-label">Admin note</div><textarea class="notes" id="note-'+r.user_id+'" placeholder="Internal onboarding note">'+esc(r.admin_notes||"")+'</textarea><button class="btn dark" onclick="saveNote(\''+r.user_id+'\')">Save note</button></div></td></tr>';
   }).join("")+'</tbody></table>';
 
   const requested=new URLSearchParams(location.search).get("customer");
@@ -666,6 +668,7 @@ function render(){
     }
   }
 }
+function toggleOnboardingDetails(userId,button){const main=tableWrap.querySelector('tr[data-user-id="'+CSS.escape(userId)+'"]');const note=tableWrap.querySelector('tr[data-note-user-id="'+CSS.escape(userId)+'"]');const open=note?.style.display!=='none';if(note)note.style.display=open?'none':'table-row';if(main)main.classList.toggle('details-open',!open);button.textContent=open?'Show details ▾':'Hide details ▴';}
 function selectCustomerCard(userId){
   document.querySelectorAll(".customer-main-row.selected-customer,.note-row.selected-customer").forEach(el=>el.classList.remove("selected-customer"));
   const main=tableWrap.querySelector('tr[data-user-id="'+CSS.escape(userId)+'"]');
@@ -961,6 +964,8 @@ async function loadDealerLoginFollowups(){
  const {data,error}=await sb.rpc('admin_dealer_login_followups_v1');
  if(error){host.textContent='Could not load dealer logins: '+error.message;return;}
  const dealers=Array.isArray(data)?data:[];
+ approvedDealerUsers=new Set(dealers.filter(d=>Number(d.access_level)>=2).map(d=>String(d.user_id)));
+ if(rows.length)render();
  if(!dealers.length){host.textContent='No dealer logins recorded.';return;}
  host.innerHTML='<div style="display:grid;gap:8px">'+dealers.map(d=>'<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;padding:10px;border:1px solid #444;border-radius:8px"><div><strong>'+esc(d.dealership||d.email)+'</strong><div style="color:#bbb;font-size:12px">'+esc(d.email)+' · Last login: '+(d.last_login?new Date(d.last_login).toLocaleString('en-GB',{timeZone:'Europe/London'}):'Not recorded')+' · '+(Number(d.access_level)>=2?'Level 2 approved':'Approval needed')+'</div></div><a style="color:#9ee5ab" href="/admin-customers.html?customer='+encodeURIComponent(d.user_id)+'">Open Customer 360 →</a></div>').join('')+'</div>';
 }
