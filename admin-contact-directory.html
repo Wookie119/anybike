@@ -161,7 +161,10 @@ async function reviewInvitations(){
  const {data,error}=await db.functions.invoke('anybike-send-dealer-invitation-sms',{body:{contact_id:r.id,confirm_send:true}});
  if(error)throw Error(data?.error||error.message||'SMS sending failed');
  if(!data?.success)throw Error(data?.error||'SMS not accepted by provider');
- smsHistory.set(r.id,{status:'submitted',sent_at:new Date().toISOString(),provider_message_id:data.message_id,id:data.log_id});btn.textContent='SMS submitted ✓';$('queue').textContent='ClickSend accepted the SMS to '+r.phone+'. Provider reference: '+(data.message_id||data.log_id)+'. This confirms submission, not handset delivery.';
+ smsHistory.set(r.id,{status:'submitted',sent_at:new Date().toISOString(),provider_message_id:data.message_id,id:data.log_id});lastSmsByContact.set(r.id,{status:'submitted',sent_at:new Date().toISOString()});btn.textContent='SMS submitted ✓';$('queue').textContent='ClickSend accepted the SMS to '+r.phone+'. Provider reference: '+(data.message_id||data.log_id)+'. This confirms submission, not handset delivery.';
+ // Remove invitation selection only after provider accepted the SMS; preserve personal intro and permission settings for later.
+ const {data:saved,error:clearError}=await db.from('anybike_master_contacts').update({sms_invite_selected:false}).eq('id',r.id).select().single();
+ if(clearError){$('queue').textContent+=' The SMS was submitted, but its selection could not be cleared: '+clearError.message;}else{Object.assign(r,saved);smsChosen.delete(r.id);render();}
  }catch(e){btn.disabled=false;btn.textContent='Retry Send SMS';$('queue').textContent='SMS NOT confirmed as sent: '+e.message+' Check any previous attempt before retrying.';}
  });
  $('invitePreviews').querySelectorAll('[data-open-sms]').forEach(btn=>btn.onclick=()=>{
