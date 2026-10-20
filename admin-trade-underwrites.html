@@ -226,13 +226,19 @@ async function manageBikePhoto(action,imageId){
   else if(action==='approve'||action==='approve_cleaned')response=await sb.rpc('admin_review_seller_cleaned_photo_v1',{p_image_id:imageId,p_action:action==='approve'?'cleaning_not_needed':'approve_cleaned'});
   else if(action==='placeholder')response=await sb.rpc('admin_auction_photo_placeholder_v1',{p_opportunity_id:editingBikeOpportunity,p_image_id:imageId});
   else response=await sb.rpc('admin_manage_auction_photo_v1',{p_opportunity_id:editingBikeOpportunity,p_image_id:imageId,p_action:action});
-  if(response.error||response.data?.success===false)throw new Error(response.error?.message||response.data?.error||'Unknown error');
+  if(response.error||response.data?.success===false){
+   let detail=response.data?.error||response.error?.message||'Unknown error';
+   const status=response.error?.context?.status;
+   if(response.error?.context?.json){try{const payload=await response.error.context.json();detail=payload?.error||payload?.message||detail;}catch(_){}}
+   if(isCleaning&&status===422)detail='No seller or dealership branding was detected. This photo has not been changed. Inspect the original and use "Cleaning not needed — approve" only if it is safe for dealers.';
+   throw new Error(detail);
+  }
   if(isCleaning){progressFill.style.animation='none';progressFill.style.width='100%';progressText.textContent='Cleaning service responded';progressHint.textContent='Review the processed photo before approving it for dealers.';}
   message.textContent=isCleaning?'Cleaning response received. Review the photograph before approval.':action==='placeholder'?'Placeholder selected. The image is no longer available to dealers.':'Photo change saved.';
   await loadBikePhotoGallery();
  }catch(error){
   message.textContent='Photo action failed: '+String(error.message||error);
-  if(isCleaning){progressFill.style.animation='none';progressFill.style.width='100%';progressText.textContent='Cleaning failed';progressHint.textContent=String(error.message||error);}
+  if(isCleaning){progressFill.style.animation='none';progressFill.style.width='100%';progressText.textContent='Cleaning not completed';progressHint.textContent=String(error.message||error);}
  }
 }
 const motorcycleEditFields=[
