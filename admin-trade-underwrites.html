@@ -193,9 +193,9 @@ async function loadBikePhotoGallery(){
  data.forEach(img=>{
  const card=document.createElement('div');card.style.cssText='border:1px solid #444;border-radius:10px;padding:10px;background:#111';
  const preview=document.createElement('div');preview.style.cssText='height:136px;display:flex;align-items:center;justify-content:center;background:#080808;overflow:hidden';
- if(img.buyer_safe_url){const pic=document.createElement('img');pic.src=img.buyer_safe_url;pic.alt='Photograph '+img.image_position;pic.style.cssText='max-width:100%;max-height:100%;object-fit:contain;transform:rotate('+Number(img.rotation_degrees||0)+'deg)';preview.append(pic);}
+ if(img.buyer_safe_url){const pic=document.createElement('img');pic.src=img.buyer_safe_url+(img.buyer_safe_url.includes('?')?'&':'?')+'review='+encodeURIComponent(img.image_id+'-'+img.final_status);pic.alt='Photograph '+img.image_position;pic.style.cssText='max-width:100%;max-height:100%;object-fit:contain;transform:rotate('+Number(img.rotation_degrees||0)+'deg)';preview.append(pic);}
  else preview.textContent='Awaiting clean photograph';
- card.append(preview);
+ card.append(preview); if(img.buyer_safe_url){const link=document.createElement('a');link.href=img.buyer_safe_url;link.target='_blank';link.rel='noopener';link.textContent='View full-size image ↗';link.style.cssText='display:block;margin-top:6px;color:#ff9b9b;font-size:12px';card.append(link);}
  const label=document.createElement('p');label.textContent='Photo '+img.image_position+' · '+String(img.final_status||'Pending').replaceAll('_',' ');label.style.cssText='font-size:12px';card.append(label);
  const buttons=document.createElement('div');buttons.style.cssText='display:flex;flex-wrap:wrap;gap:4px';
  buttons.append(makeButton('← Earlier','left',img.image_id),makeButton('Later →','right',img.image_id),makeButton('↻ Rotate','rotate',img.image_id));
@@ -234,8 +234,8 @@ async function manageBikePhoto(action,imageId){
    if(isCleaning&&status===422)detail='No seller or dealership branding was detected. This photo has not been changed. Inspect the original and use "Cleaning not needed — approve" only if it is safe for dealers.';
    throw new Error(detail);
   }
-  if(isCleaning){progressFill.style.animation='none';progressFill.style.width='100%';progressText.textContent='Cleaning service responded';progressHint.textContent='Review the processed photo before approving it for dealers.';}
-  message.textContent=isCleaning?'Cleaning response received. Review the photograph before approval.':action==='placeholder'?'Placeholder selected. The image is no longer available to dealers.':'Photo change saved.';
+  if(isCleaning){progressFill.style.animation='none';progressFill.style.width='100%';progressText.textContent='Cleaned copy saved — approval needed';progressHint.textContent='The new cleaned copy is saved for review, but is NOT published to dealers. Open the preview below and approve only if branding is removed.';}
+  message.textContent=isCleaning?'New cleaned copy saved for review. Scroll to the updated photograph and inspect it before approval.':action==='placeholder'?'Placeholder selected. The image is no longer available to dealers.':'Photo change saved.';
   await loadBikePhotoGallery();
  }catch(error){
   message.textContent='Photo action failed: '+String(error.message||error);
