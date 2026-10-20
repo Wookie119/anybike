@@ -992,14 +992,16 @@ function updateNextAction(){
 
 async function loadDealerLoginFollowups(){
  const host=document.getElementById('dealerLoginFollowupList');if(!host)return;
- const [loginsResult,followupsResult]=await Promise.all([sb.rpc('admin_dealer_login_followups_v1'),sb.rpc('admin_get_dealer_followups_v1')]);
+ const [loginsResult,followupsResult,interestsResult]=await Promise.all([sb.rpc('admin_dealer_login_followups_v1'),sb.rpc('admin_get_dealer_followups_v1'),sb.rpc('admin_get_dealer_interests_v1')]);
  if(loginsResult.error){host.textContent='Could not load dealer logins: '+loginsResult.error.message;return;}
  const dealers=Array.isArray(loginsResult.data)?loginsResult.data:[];
  approvedDealerUsers=new Set(dealers.filter(d=>Number(d.access_level)>=2).map(d=>String(d.user_id)));
  if(rows.length)render();
  if(!dealers.length){host.textContent='No dealer logins recorded.';return;}
  const followups=new Map((followupsResult.data||[]).map(f=>[String(f.user_id),f]));
+ const interestsByUser=new Map((interestsResult.data||[]).map(f=>[String(f.user_id),f.service_interests||[]]));
  if(followupsResult.error){host.textContent='Could not load follow-up notes: '+followupsResult.error.message;return;}
+ if(interestsResult.error){host.textContent='Could not load interests: '+interestsResult.error.message;return;}
  host.replaceChildren();
  const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/London',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
  const statusOf=d=>{const f=followups.get(String(d.user_id))||{};if(f.next_contact_date&&f.next_contact_date<today)return 'overdue';if(f.next_contact_date===today)return 'due';if(!f.contacted)return 'not-contacted';return 'contacted';};
@@ -1032,7 +1034,23 @@ async function loadDealerLoginFollowups(){
   const save=document.createElement('button');save.type='button';save.className='btn dark';save.textContent='Save';save.style.minHeight='37px';
   const message=document.createElement('span');message.style.cssText='font-size:12px;color:#9ee5ab';
   save.addEventListener('click',async()=>{save.disabled=true;message.textContent='Saving…';const {error}=await sb.rpc('admin_save_dealer_followup_v1',{p_user_id:dealer.user_id,p_contacted:contacted.checked,p_note:note.value,p_next_date:date.value||null});save.disabled=false;message.textContent=error?'Could not save: '+error.message:'✓ Saved';});
-  controls.append(contactedLabel,noteLabel,dateLabel,save);card.append(controls,message);grid.append(card);
+  controls.append(contactedLabel,noteLabel,dateLabel,save);card.append(controls,message);
+  const services=[['buy','Buy motorcycles'],['trade_sell','Offer bikes to trade'],['underwrite','Request underwriting'],['source','Source a bike'],['international','International trade'],['transport','Motorcycle transport'],['browsing','Just looking']];
+  const interestPanel=document.createElement('details');interestPanel.style.cssText='padding-top:8px;border-top:1px solid #444';
+  const interestHeading=document.createElement('summary');interestHeading.style.cssText='cursor:pointer;font-size:13px;font-weight:700';
+  const interestSaved=interestsByUser.get(String(dealer.user_id))||[];
+  interestHeading.textContent='Services of interest'+(interestSaved.length?' · '+services.filter(x=>interestSaved.includes(x[0])).map(x=>x[1]).join(', '):' · Ask dealer');
+  interestPanel.append(interestHeading);
+  const interestChoices=document.createElement('div');interestChoices.style.cssText='display:flex;gap:8px 20px;flex-wrap:wrap;margin:10px 0';
+  const interestControls=services.map(([key,title])=>{const l=document.createElement('label');l.style.cssText='display:flex;gap:6px;align-items:center;font-size:12px';const c=document.createElement('input');c.type='checkbox';c.checked=interestSaved.includes(key);l.append(c,document.createTextNode(title));interestChoices.append(l);return {key,title,c};});
+  const interestActions=document.createElement('div');interestActions.style.cssText='display:flex;gap:8px;align-items:center;flex-wrap:wrap';
+  const interestSave=document.createElement('button');interestSave.type='button';interestSave.className='btn dark';interestSave.textContent='Save interests';
+  const interestCopy=document.createElement('button');interestCopy.type='button';interestCopy.className='btn dark';interestCopy.textContent='Copy welcome question';
+  const interestStatus=document.createElement('span');interestStatus.style.cssText='font-size:12px';
+  interestSave.addEventListener('click',async()=>{interestSave.disabled=true;interestStatus.textContent='Saving…';const chosen=interestControls.filter(x=>x.c.checked);const {error}=await sb.rpc('admin_save_dealer_interests_v1',{p_user_id:dealer.user_id,p_interests:chosen.map(x=>x.key)});interestSave.disabled=false;interestStatus.textContent=error?'Could not save: '+error.message:'✓ Saved';if(!error)interestHeading.textContent='Services of interest'+(chosen.length?' · '+chosen.map(x=>x.title).join(', '):' · Ask dealer');});
+  interestCopy.addEventListener('click',async()=>{const msg=['Hello,','','Which AnyBike services would interest your dealership? Buying motorcycles, offering bikes to trade, requesting underwriting, sourcing bikes, international trade, or motorcycle transport? Choose as many as you like, or just look around for now.','','Reply to let us know, and we will help you get started.','','The AnyBike Team'].join('\n');try{await navigator.clipboard.writeText(msg);interestStatus.textContent='✓ Copied — paste into email or Message Centre';}catch(e){interestStatus.textContent='Copy unavailable in this browser';}});
+  interestActions.append(interestSave,interestCopy,interestStatus);interestPanel.append(interestChoices,interestActions);card.append(interestPanel);
+  grid.append(card);
  }
 }
 document.getElementById('legacyCsvButton')?.addEventListener('click',()=>document.getElementById('inviteCsvFile')?.click());
