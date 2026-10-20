@@ -1042,8 +1042,26 @@ async function loadDealerLoginFollowups(){
   const labels={buy:'Buy motorcycles',trade_sell:'Offer to trade',underwrite:'Underwriting',source:'Source a bike',transport:'Transport',vat_export_stock:'VAT stock for international buyers',browsing:'Just looking'};
   const formText=document.createElement('span');formText.style.fontSize='12px';formText.style.color=answered?'#9ee5ab':'#bbb';
   formText.textContent=answered?'Dealer submitted: '+(answered.service_interests||[]).map(x=>labels[x]||x).join(' · '):'No dealer form response yet';
-  const formLink=document.createElement('button');formLink.type='button';formLink.className='btn dark';formLink.textContent='Copy services form link';
-  formLink.addEventListener('click',async()=>{try{await navigator.clipboard.writeText('https://www.anybike.co.uk/uk-dealer-services.html');formLink.textContent='✓ Link copied';}catch(e){formLink.textContent='Copy failed';}});
+  const formLink=document.createElement('button');formLink.type='button';formLink.className='btn dark';formLink.textContent='Send services form';
+  formLink.addEventListener('click',async()=>{
+    if(!confirm('Send the UK Dealer Services questionnaire to '+(dealer.dealership||dealer.email)+' via Message Centre and email?'))return;
+    formLink.disabled=true;formLink.textContent='Sending…';
+    const {data,error}=await sb.rpc('admin_send_dealer_services_form_v1',{p_user_id:dealer.user_id});
+    if(error){formLink.disabled=false;formLink.textContent='Send services form';alert('Message not sent: '+error.message);return;}
+    const item=Array.isArray(data)?data[0]:data;
+    const threadId=Number(item?.thread_id);
+    let emailOK=false;let emailError='';
+    if(threadId){
+      const result=await sb.functions.invoke('admin-send-onboarding-email',{body:{user_id:dealer.user_id,thread_id:threadId,link:'/customer-messages.html?thread='+threadId,title:'Please choose your AnyBike dealer services'}});
+      emailError=result.error?.message||result.data?.error||'';
+      emailOK=!emailError;
+    }
+    formLink.disabled=false;formLink.textContent='Send again';
+    const info=document.createElement('span');info.style.cssText='font-size:12px;color:#9ee5ab';
+    info.textContent=emailOK?'✓ Message and email sent':'✓ Message Centre sent; email not confirmed'+(emailError?' ('+emailError+')':'');
+    formRow.prepend(info);
+    if(threadId){const threadLink=document.createElement('a');threadLink.href='/admin-message-centre.html?thread='+threadId;threadLink.textContent='Open thread →';threadLink.style.cssText='color:#9ee5ab;font-size:12px';formRow.append(threadLink);}
+  });
   formRow.append(formText,formLink);card.append(formRow);
   grid.append(card);
  }
