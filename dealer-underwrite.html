@@ -392,7 +392,8 @@ async function importTradeAdvert(){
         if(!rankedImages.has(identity)||rank>rankedImages.get(identity).rank)rankedImages.set(identity,{url:imageUrl,rank});
       }
       const isDealerGraphic=url=>/logo|badge|award|highly.rated|customer.service|autotrader.*rated|trustpilot|rating|review|banner|icon|medal|sprite|accredit|brand|favicon/i.test(decodeURIComponent(url));
-      const urls=[...rankedImages.values()].map(x=>x.url).filter(url=>!isDealerGraphic(url)).slice(0,12);
+      const isPlaceholderImage=url=>{try{const u=new URL(url);const raw=decodeURIComponent(u.href);return /\{\{|\}\}|%7b|%7d|\bundefined\b|\bnull\b|\[video\]|\/vi\/\{|img\.youtube\.com|youtube\.com\/vi\/|placeholder|default-image|no-image/i.test(raw);}catch(_){return true;}};
+      const urls=[...rankedImages.values()].map(x=>x.url).filter(url=>!isDealerGraphic(url)&&!isPlaceholderImage(url)).slice(0,12);
       const counter=document.createElement("p");
       counter.className="small";
       counter.style.cssText="width:100%;margin:4px 0 8px";
@@ -401,7 +402,7 @@ async function importTradeAdvert(){
       note.className="small";
       note.style.width="100%";
       note.textContent="Imported photographs appear in the Photos section below when successfully attached. Please check you have permission to submit the advert photos, and remove any unsuitable images before submitting.";
-      let loaded=0,failed=0,blocked=0;
+      let loaded=0,failed=0,blocked=0;\n      if(!urls.length){counter.textContent="No usable motorcycle photographs found. Please upload your own photographs below.";progressCaption.textContent="Advert details found · Photographs need to be uploaded manually.";}
       for(let index=0;index<urls.length;index++){
         if(tradeSubmissionCompleted)return;
         counter.textContent="Loading photograph "+(index+1)+" of "+urls.length+" · "+loaded+" displayed";
