@@ -2739,7 +2739,7 @@ document.addEventListener("visibilitychange",function(){
     ].filter(Boolean).join(" ").toLowerCase();
     if(input.dataset.currency==="GBP"||input.dataset.currency==="gbp") return true;
     if(/[£]|\bgbp\b/.test(nearby)) return true;
-    const money=/(price|fee|cost|amount|deposit|balance|charge|payment|customer total|quote|offer value|sale value)/.test(nearby);
+    const money=/(price|\bfee\b|cost|amount|deposit|balance|charge|payment|customer total|quote|offer value|sale value)/.test(nearby);
     const nonMoney=/(percent|percentage|mileage|miles|max miles|year|quantity|qty|engine|cc|phone|mobile|postcode)/.test(nearby);
     return money&&!nonMoney;
   }
