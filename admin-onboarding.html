@@ -992,7 +992,7 @@ function updateNextAction(){
 
 async function loadDealerLoginFollowups(){
  const host=document.getElementById('dealerLoginFollowupList');if(!host)return;
- const [loginsResult,followupsResult,interestsResult,responsesResult]=await Promise.all([sb.rpc('admin_dealer_login_followups_v1'),sb.rpc('admin_get_dealer_followups_v1'),sb.rpc('admin_get_dealer_interests_v1'),sb.rpc('admin_dealer_service_responses_v1')]);
+ const [loginsResult,followupsResult,interestsResult,responsesResult,activationResult]=await Promise.all([sb.rpc('admin_dealer_login_followups_v1'),sb.rpc('admin_get_dealer_followups_v1'),sb.rpc('admin_get_dealer_interests_v1'),sb.rpc('admin_dealer_service_responses_v1'),sb.rpc('admin_dealer_activation_progress_v1')]);
  if(loginsResult.error){host.textContent='Could not load dealer logins: '+loginsResult.error.message;return;}
  const dealers=Array.isArray(loginsResult.data)?loginsResult.data:[];
  approvedDealerUsers=new Set(dealers.filter(d=>Number(d.access_level)>=2).map(d=>String(d.user_id)));
@@ -1001,9 +1001,11 @@ async function loadDealerLoginFollowups(){
  const followups=new Map((followupsResult.data||[]).map(f=>[String(f.user_id),f]));
  const interestsByUser=new Map((interestsResult.data||[]).map(f=>[String(f.user_id),f.service_interests||[]]));
  const serviceResponses=new Map((responsesResult.data||[]).map(x=>[String(x.user_id),x]));
+ const activationByUser=new Map((activationResult.data||[]).map(x=>[String(x.user_id),x]));
  if(followupsResult.error){host.textContent='Could not load follow-up notes: '+followupsResult.error.message;return;}
  if(interestsResult.error){host.textContent='Could not load interests: '+interestsResult.error.message;return;}
  if(responsesResult.error){host.textContent='Could not load submitted responses: '+responsesResult.error.message;return;}
+ if(activationResult.error){host.textContent='Could not load dealer activation: '+activationResult.error.message;return;}
  host.replaceChildren();
  const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/London',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
  const statusOf=d=>{const f=followups.get(String(d.user_id))||{};if(f.next_contact_date&&f.next_contact_date<today)return 'overdue';if(f.next_contact_date===today)return 'due';if(!f.contacted)return 'not-contacted';return 'contacted';};
@@ -1063,6 +1065,25 @@ async function loadDealerLoginFollowups(){
     if(threadId){const threadLink=document.createElement('a');threadLink.href='/admin-message-centre.html?thread='+threadId;threadLink.textContent='Open thread →';threadLink.style.cssText='color:#9ee5ab;font-size:12px';formRow.append(threadLink);}
   });
   formRow.append(formText,formLink);card.append(formRow);
+  if(answered){
+   const progress=activationByUser.get(String(dealer.user_id))||{};
+   const progressRow=document.createElement('div');progressRow.style.cssText='display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:12px;border-top:1px solid #333;padding-top:8px';
+   const progressText=document.createElement('span');progressText.style.color='#ddd';
+   const labelFor=key=>labels[key]||key;
+   progressText.textContent=progress.first_action_completed?'✓ First action completed: '+labelFor(progress.first_action_completed)+' · '+new Date(progress.first_action_completed_at).toLocaleDateString('en-GB'):progress.first_service_opened?'First step opened: '+labelFor(progress.first_service_opened)+' · Completion not yet confirmed':'Awaiting first action';
+   progressRow.append(progressText);
+   if(progress.first_service_opened&&!progress.first_action_completed){
+    const confirmBtn=document.createElement('button');confirmBtn.type='button';confirmBtn.className='btn dark';confirmBtn.textContent='Confirm first action completed';
+    confirmBtn.title='Use only after verifying that the dealer submitted a real bid, motorcycle or sourcing request';
+    confirmBtn.addEventListener('click',async()=>{
+     if(!confirm('Have you verified that this dealer completed a real '+labelFor(progress.first_service_opened)+' action? Opening a page does not count.'))return;
+     confirmBtn.disabled=true;const {error}=await sb.rpc('admin_confirm_dealer_first_action_v1',{p_user_id:dealer.user_id,p_service:progress.first_service_opened});
+     if(error){alert('Could not confirm first action: '+error.message);confirmBtn.disabled=false;return}
+     progressText.textContent='✓ First action completed: '+labelFor(progress.first_service_opened);confirmBtn.remove();
+    });progressRow.append(confirmBtn);
+   }
+   card.append(progressRow);
+  }
   grid.append(card);
  }
 }
