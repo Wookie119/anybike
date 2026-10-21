@@ -653,6 +653,9 @@ function populateChannelChooser(){
     return '<option value="'+Number(c.id)+'">'+esc(c.name+suffix)+'</option>';
   }).join("");
   if(current && [...el.options].some(o=>o.value===current))el.value=current;
+  const help=document.getElementById("channelChooserHelp");
+  if(help && !connectors.length)help.innerHTML='No active sourcing channels returned. <button type="button" class="btn" onclick="loadHub()">Retry loading channels</button>';
+  else if(help)help.textContent="Choose the website or approved-used network first. AnyBike will then guide you to the buyer and their request.";
 }
 async function chooseChannelFromGuide(){
   const el=document.getElementById("channelChooserSelect");
@@ -1529,7 +1532,7 @@ function refreshModelOptions(previousModel){
 }
 async function loadHub(){
   const {data,error}=await sb().rpc("admin_get_live_source_hub_v1");
-  if(error){document.getElementById("sources").innerHTML='<div class="status bad">'+esc(error.message)+'</div>';return}
+  if(error){document.getElementById("sources").innerHTML='<div class="status bad">'+esc(error.message)+'</div>';const chooser=document.getElementById("channelChooserSelect");if(chooser)chooser.innerHTML='<option value="">Channels unavailable — retry loading</option>';const help=document.getElementById("channelChooserHelp");if(help)help.innerHTML='Could not load sourcing channels. <button type="button" class="btn" onclick="loadHub()">Retry loading channels</button>';return}
   hub=data||{connectors:[]};
   const cs=hub.connectors||[];
   populateChannelChooser();
