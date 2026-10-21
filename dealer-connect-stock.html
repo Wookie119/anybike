@@ -14,16 +14,21 @@
  let headers=[],rows=[];const tradeSelections=new Map();const norm=x=>String(x??'').trim().toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  async function loadPhotoRows(uploadId){
  const panel=document.getElementById('vqPhotos'),out=document.getElementById('vqPhotoStatus');
- panel.hidden=false;panel.scrollIntoView({behavior:'smooth',block:'start'});out.textContent='Loading motorcycles…';
+ panel.hidden=false;panel.dataset.uploadId=uploadId;panel.scrollIntoView({behavior:'smooth',block:'start'});out.textContent='Loading motorcycles…';
  const {data,error}=await sb.rpc('dealer_vq_my_upload_rows_v1',{p_upload_id:uploadId});
  if(error){out.textContent=error.message;return;}
  const list=document.getElementById('vqBikePhotoList');out.textContent='';
  list.innerHTML=(data||[]).map(r=>'<div class="vq-bike-photo" data-bike-row="'+r.id+'"><div><strong>'+esc([r.registration,r.model,r.stock_ref].filter(Boolean).join(' · ')||'Motorcycle '+r.id)+'</strong><span class="vq-existing" aria-live="polite"> · Checking photos…</span></div><input type="file" accept="image/jpeg,image/png,image/webp" multiple aria-label="Photos for '+esc(r.registration||r.model||'motorcycle')+'"><button class="btn" type="button" data-upload-bike="'+r.id+'">Upload photos →</button><div class="vq-bike-result" role="status"></div><progress value="0" max="1" hidden></progress><div class="fine vq-bike-count"></div></div>').join('')||'<p>No motorcycles found in this upload.</p>';
  const {data:{user}}=await sb.auth.getUser();if(!user)return;
- await Promise.all([...list.querySelectorAll('[data-bike-row]')].map(async card=>{
- const {data:photos,error:listingError}=await sb.storage.from('dealer-vq-photos').list(user.id+'/'+card.dataset.bikeRow,{limit:100});
- const number=(photos||[]).length;card.classList.toggle('has-photos',!listingError&&number>0);card.classList.toggle('no-photos',!listingError&&number===0);card.querySelector('.vq-existing').textContent=listingError?' · Photo count unavailable':number?' · ✓ '+number+' photos saved':' · No photos yet';card.querySelector('[data-upload-bike]').textContent=number?'✓ Photos saved · Add more':'Upload photos →';
- }));
+ const {data:photoCounts,error:countError}=await sb.rpc('dealer_vq_photo_counts_v1',{p_upload_id:uploadId});
+ if(countError){out.textContent='Could not load saved photo counts. Please refresh.';return;}
+ const counts=new Map((photoCounts||[]).map(x=>[String(x.row_id),Number(x.photo_count)||0]));
+ [...list.querySelectorAll('[data-bike-row]')].forEach(card=>{
+ const number=counts.get(card.dataset.bikeRow)||0;
+ card.classList.toggle('has-photos',number>0);card.classList.toggle('no-photos',number===0);
+ card.querySelector('.vq-existing').textContent=number?' · ✓ '+number+' photos saved':' · No photos yet';
+ card.querySelector('[data-upload-bike]').textContent=number?'✓ Photos saved · Add more':'Upload photos →';
+ });
  updateVqPhotoSummary();
 }
 function updateVqPhotoSummary(){const cards=[...document.querySelectorAll('#vqBikePhotoList [data-bike-row]')],done=cards.filter(c=>c.classList.contains('has-photos')).length;document.getElementById('vqPhotoSummary').textContent=done+' of '+cards.length+' motorcycles have photographs · '+(cards.length-done)+' still need photos';}
@@ -47,8 +52,8 @@ document.getElementById('vqBikePhotoList').addEventListener('click',async e=>{
   }
   if(!failed)out.textContent='✓ '+completed+' photos saved for this motorcycle. Nothing published.';
   if(completed){
-   const {data:photos}=await sb.storage.from('dealer-vq-photos').list(user.id+'/'+rowId,{limit:100});
-   const number=(photos||[]).length;card.classList.toggle('has-photos',number>0);card.classList.toggle('no-photos',number===0);card.querySelector('.vq-existing').textContent=' · ✓ '+number+' photos saved';btn.textContent='✓ Photos saved · Add more';updateVqPhotoSummary();
+   const {data:photoCounts}=await sb.rpc('dealer_vq_photo_counts_v1',{p_upload_id:Number(card.closest('#vqPhotos').dataset.uploadId)});
+   const number=Number((photoCounts||[]).find(x=>String(x.row_id)===rowId)?.photo_count)||completed;card.classList.toggle('has-photos',number>0);card.classList.toggle('no-photos',number===0);card.querySelector('.vq-existing').textContent=' · ✓ '+number+' photos saved';btn.textContent='✓ Photos saved · Add more';updateVqPhotoSummary();
    document.getElementById('vqNextAction').hidden=false;
    document.getElementById('vqNextDetail').textContent='Photographs saved against the selected motorcycles for Admin review. Add photos to another motorcycle, or finish now.';
   }
