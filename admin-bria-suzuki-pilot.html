@@ -13,6 +13,15 @@ function checkForegroundPixels(){
  const ac=a.getContext("2d",{willReadFrequently:true}),bc=b.getContext("2d",{willReadFrequently:true});
  ac.drawImage(original,0,0,w,h);bc.drawImage(layer,0,0,w,h);
  const src=ac.getImageData(0,0,w,h).data,fg=bc.getImageData(0,0,w,h).data;
+ // Suzuki pilot: the dealer logo is on the unobstructed upper-left wall.
+ // Foreground extraction must NOT include that wall/sign, or compositing will restore branding.
+ let wallOpaque=0,wallTotal=0;
+ for(let y=Math.floor(h*.19);y<Math.floor(h*.32);y+=2){
+  for(let x=Math.floor(w*.30);x<Math.floor(w*.45);x+=2){
+   wallTotal++;if(fg[(y*w+x)*4+3]>80)wallOpaque++;
+  }
+ }
+ if(wallTotal&&wallOpaque/wallTotal>.04)throw new Error("Motorcycle protection layer includes dealership wall/sign ("+Math.round(100*wallOpaque/wallTotal)+"%). Result rejected.");
  let protectedCount=0,differentCount=0;
  for(let i=0;i<src.length;i+=4){
   if(fg[i+3]<250)continue;
