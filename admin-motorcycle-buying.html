@@ -596,7 +596,7 @@ function render(){
         '</div>'+
         '<div class="submission-gallery" id="submission-gallery-'+Number(r.submission_id)+'">'+
           '<div class="submission-gallery-head"><strong>Motorcycle photos · '+Number(r.image_total||0)+'</strong><span class="sub">Loading all images…</span></div>'+
-          '<div class="submission-gallery-grid"><div class="submission-photo placeholder">Loading photos…</div></div>'+
+          '<div class="submission-gallery-grid"><div class="submission-photo placeholder">Loading photos…</div></div>'+(Number(r.submission_id)===34?'<button type="button" class="btn" style="margin-top:10px" onclick="recoverSuzukiPhotos(this)">Recover 3 Suzuki advert photos →</button>':'')+
         '</div>'+
         (hasComps
           ?'<div class="data"><div class="box"><span>Comparable count</span><strong>'+Number(r.latest_comparable_count||0)+'</strong></div><div class="box"><span>Median ask</span><strong>'+money(r.latest_median_ask_gbp)+'</strong></div><div class="box"><span>Range</span><strong>'+money(r.latest_lowest_ask_gbp)+' – '+money(r.latest_highest_ask_gbp)+'</strong></div><div class="box"><span>Average</span><strong>'+money(r.latest_average_ask_gbp)+'</strong></div></div>'
@@ -654,6 +654,21 @@ function render(){
   }).join("");
 }
 
+async function recoverSuzukiPhotos(button){
+ if(!confirm("Recover the three original Suzuki advert photographs into AB-S-000034 for private Admin review? They will not be approved or published."))return;
+ button.disabled=true;button.textContent="Recovering photographs…";
+ try{
+  const {data:{session}}=await sb.auth.getSession();
+  if(!session?.access_token)throw new Error("Admin sign-in required");
+  const response=await fetch(SUPABASE_URL+"/functions/v1/admin-recover-suzuki-photos",{method:"POST",headers:{"authorization":"Bearer "+session.access_token,"apikey":SUPABASE_ANON_KEY,"content-type":"application/json"},body:JSON.stringify({reference:"AB-S-000034"})});
+  const result=await response.json();
+  if(!response.ok||!result.success)throw new Error(result.error||result.errors?.join("; ")||"Photo recovery incomplete");
+  submissionImages.delete(34);
+  await loadSubmissionImages(34);
+  button.textContent="Photographs recovered · Admin review required";
+  button.disabled=true;
+ }catch(e){button.disabled=false;button.textContent="Retry Suzuki photo recovery →";alert("Recovery: "+(e?.message||"Could not recover photos"));}
+}
 async function loadSubmissionImages(id){
   id=Number(id);
   const gallery=document.getElementById("submission-gallery-"+id);
