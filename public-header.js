@@ -1013,6 +1013,15 @@ async function addMyDealershipMenuIfEligible(user){
         }
       }
       document.querySelectorAll('.public-nav a[href="/sell-your-motorcycle.html"],.mobile-nav a[href="/sell-your-motorcycle.html"]').forEach(a=>a.style.display="none");
+      for(const navSelector of [".public-nav",".mobile-nav"]){
+        const nav=document.querySelector(navSelector);if(!nav)continue;
+        if(!nav.querySelector('[data-international-available-stock="true"]')){
+          const a=document.createElement("a");a.href="/available-stock.html?vat=qualifying";
+          a.textContent="Available Stock";a.dataset.internationalAvailableStock="true";
+          const home=nav.querySelector('a[data-page="home"],a[href="/"]');
+          if(home)home.insertAdjacentElement("afterend",a);else nav.prepend(a);
+        }
+      }
     }
     anybikeSortMyAnyBikeMenus();
   }catch(error){console.warn("Dealer menu check unavailable",error);}
