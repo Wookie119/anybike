@@ -291,7 +291,7 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
           <div class="field"><label>Model</label><select id="modelFilter"><option value="">All models</option></select></div>
           <div class="field"><label>Status</label><select id="statusFilter"><option value="live">Live only</option><option value="">All</option><option value="ended">No longer listed</option><option value="review">Needs review</option></select></div>
           <div class="field"><label>VAT status</label><select id="vatFilter"><option value="">All VAT statuses</option><option value="vq">Verified VAT Qualifying</option><option value="bmw_candidate">BMW VAT reclaimable candidates</option><option value="non_vq">VQ not confirmed</option></select></div>
-          <div class="field"><label>Motorcycle type</label><select id="bikeTypeFilter" onchange="loadItems(true)"><option value="">All types</option><option value="adventure">Adventure</option><option value="sport">Sports</option></select></div><div class="field"><label>Sort by price</label><select id="priceSort" onchange="loadItems(true)"><option value="">Default</option><option value="asc">Lowest first</option><option value="desc">Highest first</option></select></div><button class="btn red" onclick="loadItems()">Search</button>
+          <div class="field"><label>Motorcycle type</label><select id="bikeTypeFilter" onchange="loadItems(true)"><option value="">All types</option><option value="adventure">Adventure</option><option value="sport">Sport</option><option value="tour">Tourer / Luxury tourer</option><option value="roadster">Roadster / Naked bike</option><option value="cruiser">Cruiser / Chopper</option><option value="urban">Urban</option><option value="heritage">Heritage</option><option value="other">Other</option></select></div><div class="field"><label>Sort by price</label><select id="priceSort" onchange="loadItems(true)"><option value="">Default</option><option value="asc">Lowest first</option><option value="desc">Highest first</option></select></div><button class="btn red" onclick="loadItems()">Search</button>
           <button type="button" class="btn" id="yamahaPhotoLoader" style="display:none;white-space:nowrap" onclick="loadYamahaPhotos(Number(document.getElementById('connectorFilter').value),this)">Load Yamaha photos</button>
         </div>
 <div id="vqCoverageNote" class="small" style="margin-top:8px;color:#e6be62;display:none">VQ filter shows only motorcycles explicitly confirmed as VAT Qualifying in our records. Other dealer stock may still qualify — VAT status must be verified from the supplier invoice before publication.</div>
@@ -2061,19 +2061,30 @@ async function loadItems(preserveDealerOptions=false){
 
   // Client-side display filters; source records and publication status remain unchanged.
   // BMW Motorrad official model families, using the actual model values in Live Source.
+  // Align filtering with BMW Approved Used's own "Segments" options.
   const bikeType=document.getElementById("bikeTypeFilter")?.value||"";
   if(bikeType){
-    rows=rows.filter(i=>{
-      const model=String(i.model||"").trim().toUpperCase().split(" ").filter(Boolean).join(" ");
-      if(String(i.make||"").trim().toUpperCase()==="BMW"){
-        const adventure=["R 1300 GS","R 1250 GS","R 1200 GS","F 450 GS","F 750 GS","F 800 GS","F 850 GS","F 900 GS","G 310 GS","R 12 G/S"];
-        const sport=["S 1000 RR","S 1000 XR","F 900 XR","R 1250 RS","R 1300 RS","M 1000 RR","M 1000 R","M 1000 XR"];
-        const families=bikeType==="adventure"?adventure:sport;
-        return families.some(family=>model===family||model.startsWith(family+" "));
+    const groups={
+      adventure:["R 1300 GS","R 1250 GS","R 1200 GS","F 450 GS","F 650 GS","F 700 GS","F 750 GS","F 800 GS","F 850 GS","F 900 GS","G 310 GS","R12 G/S","R 12 G/S"],
+      sport:["S 1000 RR","S 1000 XR","F 900 XR","R 1250 RS","R 1300 RS","M 1000 RR","M 1000 XR","M 1000 R"],
+      tour:["K 1600","R 1300 RT","R 1250 RT","R 1200 RT"],
+      roadster:["S 1000 R","F 900 R","F 800 R","R 1300 R","R 1250 R","R 1200 R","G 310 R"],
+      cruiser:["R 18"],
+      urban:["C 400","CE 02","CE 04","C 650","C 600"],
+      heritage:["R 12","R12","R NINET","R NINE T","R 18"]
+    };
+    function bmwSegment(row){
+      const m=String(row.model||"").trim().toUpperCase().replace(/\\s+/g," ");
+      // More-specific family matches first: R 18 belongs to Cruiser rather than generic Heritage.
+      for(const [category,families] of Object.entries(groups)){
+        if(families.some(f=>m===f||m.startsWith(f+" ")))return category;
       }
-      const name=[i.model,i.variant].filter(Boolean).join(" ").toUpperCase();
-      const keywords=bikeType==="adventure"?["ADVENTURE","AFRICA TWIN","TRANSALP","TENERE","TÉNÉRÉ","V-STROM","VERSYS","DESERTX","TIGER","MULTISTRADA","PAN AMERICA"]:["SPORT","SUPERSPORT","PANIGALE","RSV4","GSX-R","FIREBLADE","DAYTONA","NINJA","YZF"];
-      return keywords.some(k=>name.includes(k));
+      return "other";
+    }
+    rows=rows.filter(i=>{
+      if(String(i.make||"").trim().toUpperCase()==="BMW")return bmwSegment(i)===bikeType;
+      if(bikeType==="other")return false;
+      return false;
     });
   }
   const priceSort=document.getElementById("priceSort")?.value||"";
