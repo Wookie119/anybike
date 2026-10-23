@@ -78,7 +78,11 @@ footer{padding:24px;text-align:center;color:#999;border-top:1px solid var(--line
 <footer>AnyBike • New VMoto Retail • Nationwide delivery from £99</footer>
 <script>
 const sb=supabase.createClient("https://tuehtnezhdnkqbbhttgp.supabase.co","sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK");
-const slug=new URLSearchParams(location.search).get("model")||"";
+const modelParams=new URLSearchParams(location.search);
+const slug=modelParams.get("model")||"";
+const edition=(["tc","tsx"].includes(slug)&&["60v","72v"].includes(modelParams.get("edition")))?modelParams.get("edition"):"";
+const editionName=edition?(slug.toUpperCase()+" "+edition):"";
+const isSplitEdition=Boolean(edition);
 const esc=v=>String(v??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
 const money=v=>{const n=Number(v);return Number.isFinite(n)&&n>0?n.toLocaleString("en-GB",{style:"currency",currency:"GBP",maximumFractionDigits:0}):"Price on request"};
 const lifestyleImages={
@@ -291,8 +295,8 @@ async function load(){
   if(modelRes.error)throw modelRes.error;
   const m=modelRes.data||{};
   if(!m.id){document.getElementById("page").innerHTML='<section class="hero"><div class="wrap"><div class="empty">This VMoto model is not currently published.</div></div></section>';return}
-  document.title=(m.model_name||"VMoto")+" | AnyBike UK Retail";
-  const variants=Array.isArray(m.variants)?m.variants:[];
+  document.title=(editionName||m.model_name||"VMoto")+" | AnyBike UK Retail";
+  const variants=isSplitEdition?[]:(Array.isArray(m.variants)?m.variants:[]);
   const faqs=Array.isArray(faqRes.data)?faqRes.data:[];
   const img=m.hero_image_url?'<img id="vmotoHeroImage" src="'+esc(m.hero_image_url)+'" alt="'+esc(m.model_name)+'">':'⚡';
   const variantHtml=variants.length?variants.map(v=>{
@@ -321,15 +325,15 @@ async function load(){
       '<div class="stock '+(liveStock.length?'':'unknown')+'">'+esc(status)+'</div>'+
       '<div class="cta"><a class="btn" data-vmoto-enquire data-model="'+esc(m.model_name)+'" data-variant="'+esc(v.variant_name)+'" href="/vmoto.html#vmoto-enquiry" onclick="sessionStorage.setItem(\'vmotoSelectedModel\',this.dataset.model);sessionStorage.setItem(\'vmotoSelectedVariant\',this.dataset.variant)">Enquire About This Version</a></div></article>'
   }).join(""):'<div class="empty">Ask AnyBike about the available versions, battery specification and colours for this model.</div>';
-  const faqHtml=faqs.length?faqs.map(f=>'<details class="faq"><summary>'+esc(f.question)+'</summary><div class="answer">'+esc(f.answer)+'</div></details>').join(""):'<div class="empty">Have a question about this model? Start an enquiry and AnyBike will help.</div>';
+  const faqHtml=isSplitEdition?'<div class="empty">Contact AnyBike for confirmed '+esc(editionName)+' information.</div>':faqs.length?faqs.map(f=>'<details class="faq"><summary>'+esc(f.question)+'</summary><div class="answer">'+esc(f.answer)+'</div></details>').join(""):'<div class="empty">Have a question about this model? Start an enquiry and AnyBike will help.</div>';
   document.getElementById("page").innerHTML=
-    '<section class="hero"><div class="wrap hero-grid"><div><div class="kicker">VMOTO • UK RETAIL</div><h1>'+esc(m.model_name)+'</h1><p class="lead">'+esc(m.short_description||"Contact AnyBike for current specification, availability and pricing.")+'</p><div class="price">'+money(publishedRetailPrice(slug,m.base_retail_price_gbp))+'<small>Recommended retail price. Final on-the-road and delivery total confirmed before order.</small></div><div class="cta"><a class="btn" data-vmoto-enquire data-model="'+esc(m.model_name)+'" href="/vmoto.html#vmoto-enquiry" onclick="sessionStorage.setItem(\'vmotoSelectedModel\',this.dataset.model)">Start an Enquiry</a><a class="btn alt" href="/vmoto.html">Back to VMoto World</a></div></div><div class="hero-img">'+img+'</div></div></section>'+
+    '<section class="hero"><div class="wrap hero-grid"><div><div class="kicker">VMOTO • UK RETAIL</div><h1>'+esc(m.model_name)+'</h1><p class="lead">'+esc(m.short_description||"Contact AnyBike for current specification, availability and pricing.")+'</p><div class="price">'+money(isSplitEdition?3090:publishedRetailPrice(slug,m.base_retail_price_gbp))+'<small>Recommended retail price. Final on-the-road and delivery total confirmed before order.</small></div><div class="cta"><a class="btn" data-vmoto-enquire data-model="'+esc(m.model_name)+'" href="/vmoto.html#vmoto-enquiry" onclick="sessionStorage.setItem(\'vmotoSelectedModel\',this.dataset.model)">Start an Enquiry</a><a class="btn alt" href="/vmoto.html">Back to VMoto World</a></div></div><div class="hero-img">'+img+'</div></div></section>'+
     vmotoGalleryHtml(m)+
     (lifestyleImages[slug]?'<section class="lifestyle"><div class="wrap"><div class="lifestyle-card"><img src="'+esc(lifestyleImages[slug])+'" alt="'+esc(m.model_name)+' lifestyle image" loading="lazy"><div class="lifestyle-copy"><h2>'+esc(m.model_name)+' in the real world.</h2><p>Explore the design, detail and everyday character of this VMoto model, then ask AnyBike to confirm current UK availability and your delivered-to-door price.</p></div></div></div></section>':'')+
-    '<section class="section"><div class="wrap"><h2>Technical specification.</h2><p class="intro">Current UK specification compiled from VMoto and current UK dealer information. Specification can vary by production batch and homologation, so AnyBike confirms the exact bike before order.</p><div class="tech-grid">'+Object.entries(technicalSpecs[slug]||{}).map(([k,v])=>'<div class="tech-item"><span>'+esc(k)+'</span><strong>'+esc(v)+'</strong></div>').join("")+'</div><div class="tech-note">'+esc(technicalNote(slug))+'</div></div></section>'+
+    '<section class="section"><div class="wrap"><h2>Technical specification.</h2><p class="intro">Current UK specification compiled from VMoto and current UK dealer information. Specification can vary by production batch and homologation, so AnyBike confirms the exact bike before order.</p><div class="tech-grid">'+Object.entries(isSplitEdition?{}:(technicalSpecs[slug]||{})).map(([k,v])=>'<div class="tech-item"><span>'+esc(k)+'</span><strong>'+esc(v)+'</strong></div>').join("")+'</div><div class="tech-note">'+esc(technicalNote(slug))+'</div></div></section>'+
     '<section class="section light"><div class="wrap"><h2>Battery options & colours.</h2><p class="intro">See the current UK battery configuration, charging information and colour range for this model. Availability of individual colours can change, and AnyBike confirms the exact specification before you proceed.</p><div class="variant-grid">'+variantHtml+'</div></div></section>'+
     '<section class="section"><div class="wrap"><h2>'+esc(m.model_name)+' FAQs.</h2><p class="intro">General VMoto answers plus model-specific answers approved for this model.</p><div class="faq-list">'+faqHtml+'</div></div></section>';
-  wireVmotoGallery(m.model_name);
+  wireVmotoGallery(editionName||m.model_name);
   updateVmotoEnquiryLinks();
 }
 load().catch(error=>{console.error(error);document.getElementById("page").innerHTML='<section class="hero"><div class="wrap"><div class="empty">The VMoto model page could not be loaded right now.</div></div></section>'});
