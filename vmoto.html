@@ -95,7 +95,7 @@ footer{padding:26px 20px;border-top:1px solid var(--line);color:#999;text-align:
 <section class="section light" id="range">
   <div class="wrap">
     <h2>Explore the VMoto range.</h2>
-    <p class="section-intro">Browse available VMoto motorcycles and scooters, compare versions and colours, and enquire about the model that suits you.</p>
+    <p class="section-intro">Browse the latest VMoto UK retail RRPs, including VAT. Prices exclude delivery; final specification, stock and delivered price are confirmed before purchase.</p>
     <div class="model-grid" id="vmotoModelGrid">
       <article class="model-card"><div class="model-image">⚡</div><div class="model-body"><h3>VMoto range</h3><p>Model information is being updated. If you already know which VMoto you are interested in, send us an enquiry and we will help with availability and pricing.</p><div class="model-status">Enquiries welcome</div></div></article>
     </div>
@@ -360,32 +360,52 @@ function populateVmotoVariantAndColours(preferredVariant,preferredColour,preferr
   }
   populateVmotoBatteryOptions(model,preferredBattery||"");
 }
-async function loadVmotoCatalogue(){
+// Retail RRPs supplied by VMoto UK dealer price list (October 2026). No dealer costs are published.
+const vmotoOctoberRetail=[["CPX 74v","cpx-74v",3590],["CPX Explorer","cpx-explorer",4290],["VS3","vs3",5000],["VS2 CITI","vs2-citi",2980],["CITI","citi",3250],["Stash","stash",5995],["TS Street Hunter Pro","ts-street-hunter-pro",3990],["TC Wanderer Pro","tc-wanderer-pro",3390],["TC 60v","tc-60v",3090],["TSX 60v","tsx-60v",3090],["TC 72v","tc-72v",3090],["TSX 72v","tsx-72v",3090],["CUX Pro New","cux-pro-new",1590],["TC Max","tc-max",3990]];
+function vmotoRetailCatalogue(models){
+  const normalise=s=>String(s||"").toLowerCase().replace(/[^a-z0-9]/g,"");
+  const selected=new Set();
+  return vmotoOctoberRetail.map(([name,slug,rrp])=>{
+    const aliases={
+      "cpx-74v":["cpx74v","cpx"],"cpx-explorer":["cpxexplorer"],"cux-pro-new":["cuxpronew","cuxpro"],
+      "tc-60v":["tc60v"],"tsx-60v":["tsx60v"],"tc-72v":["tc72v"],"tsx-72v":["tsx72v"]
+    };
+    const keys=[normalise(name),...(aliases[slug]||[])];
+    let match=models.find(m=>!selected.has(m.slug)&&keys.includes(normalise(m.model_name)));
+    if(!match)match=models.find(m=>!selected.has(m.slug)&&keys.includes(normalise(m.slug)));
+    if(match)selected.add(match.slug);
+    return {name,slug,rrp,match};
+  });
+}
+function renderVmotoRetailCards(models){
   const grid=document.getElementById("vmotoModelGrid");
-  if(!grid) return;
+  if(!grid)return;
+  grid.innerHTML=vmotoRetailCatalogue(models).map(item=>{
+    const model=item.match;
+    const photo=model?.hero_image_url
+      ? '<img src="'+vmotoEsc(model.hero_image_url)+'" alt="'+vmotoEsc(item.name)+'" loading="lazy" style="width:100%;height:100%;object-fit:contain;background:#fff;padding:10px">'
+      : '<div class="model-placeholder"><strong>'+vmotoEsc(item.name)+'</strong><span>VMoto electric</span></div>';
+    const href=model?.slug?'/vmoto-model.html?model='+encodeURIComponent(model.slug):'#vmoto-enquiry';
+    return '<a class="model-card" href="'+href+'">'+
+      '<div class="model-image">'+photo+'</div>'+
+      '<div class="model-body"><h3>'+vmotoEsc(item.name)+'</h3>'+
+      '<p>UK retail model. Ask AnyBike to confirm the exact specification, colours and availability.</p>'+
+      '<div class="model-status">RRP incl. VAT '+vmotoMoney(item.rrp)+'</div>'+
+      '<div style="font-size:12px;color:#666">Availability confirmed on enquiry · '+(model?'View model →':'Enquire →')+'</div></div></a>';
+  }).join("");
+}
+async function loadVmotoCatalogue(){
   try{
     const {data,error}=await vmotoSb.rpc("public_get_vmoto_catalogue_v1");
-    if(error) throw error;
+    if(error)throw error;
     const models=Array.isArray(data)?data:[];
-    if(!models.length){
-      grid.innerHTML='<article class="model-card"><div class="model-image">⚡</div><div class="model-body"><h3>VMoto range</h3><p>Model information is being updated. If you already know which VMoto you are interested in, send us an enquiry and we will help with availability and pricing.</p><div class="model-status">Enquiries welcome</div></div></article>';
-      return;
-    }
     window.vmotoPublicModels=models;
     populateVmotoEnquiryOptions(models);
-    grid.innerHTML=models.map(function(model){
-      const variants=Array.isArray(model.variants)?model.variants:[];
-      const image=model.hero_image_url
-        ? '<img src="'+vmotoEsc(model.hero_image_url)+'" alt="'+vmotoEsc(model.model_name)+'" style="width:100%;height:100%;object-fit:contain;background:#fff;padding:10px">'
-        : '<div class="model-placeholder"><strong>'+vmotoEsc(model.model_name)+'</strong><span>'+vmotoEsc(model.model_type||"VMoto")+'</span></div>';
-      return '<a class="model-card" href="/vmoto-model.html?model='+encodeURIComponent(model.slug)+'">'+
-        '<div class="model-image">'+image+'</div>'+
-        '<div class="model-body"><h3>'+vmotoEsc(model.model_name)+'</h3>'+
-        '<p>'+vmotoEsc(model.short_description||"Explore this VMoto model, colours and approved FAQs.")+'</p>'+
-        '<div class="model-status">'+(Number(model.base_retail_price_gbp)>0?'RRP '+vmotoMoney(model.base_retail_price_gbp):vmotoMoney(model.base_retail_price_gbp))+'</div></div></a>';
-    }).join("");
+    renderVmotoRetailCards(models);
   }catch(error){
     console.error("VMoto catalogue could not be loaded",error);
+    // Keep retail prices visible if catalogue service is temporarily unavailable.
+    renderVmotoRetailCards([]);
   }
 }
 
