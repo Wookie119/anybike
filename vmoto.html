@@ -527,7 +527,15 @@ document.getElementById("vmotoRetailForm")?.addEventListener("submit",async func
       p_delivery_postcode:document.getElementById("vmotoPostcode").value,
       p_delivery_city:document.getElementById("vmotoCity").value || null,
       p_delivery_address_1:document.getElementById("vmotoAddress").value || null,
-      p_customer_notes:document.getElementById("vmotoNotes").value || null,
+      p_customer_notes:(()=>{
+        const name=document.getElementById("vmotoModel").value;
+        const edition=document.getElementById("vmotoVariant").value;
+        const notes=document.getElementById("vmotoNotes").value.trim();
+        const exactEdition=/^(TC|TSX)$/i.test(name)&&/^(60v|72v)$/i.test(edition)
+          ? "Selected VMoto version: "+name.toUpperCase()+" "+edition.toUpperCase()+". Exact battery specification to be confirmed."
+          : "";
+        return [exactEdition,notes].filter(Boolean).join("\\n")||null;
+      })(),
       p_origin_page_url:window.location.pathname
     };
     const {data,error}=await vmotoSb.rpc("public_submit_vmoto_retail_enquiry_v1",payload);
