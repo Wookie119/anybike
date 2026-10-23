@@ -321,6 +321,7 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
           <span id="poolStatus" class="status">Loading source pool…</span>
           <button class="btn green" id="loadPhotosBtn" onclick="loadBmwPhotos()">Load BMW source photos (internal)</button>
           <button class="btn green" id="cleanSelectedBtn" onclick="cleanSelectedImages()">Retrieve &amp; clean selected photos</button>
+          <label class="btn" style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="unpublishedOnlyCheck" style="width:auto" onchange="loadItems(true)"> Not yet on Available Stock</label>
           <label class="btn" style="display:flex;align-items:center;gap:8px;cursor:pointer">
             <input id="buyerSafeOnlyCheck" type="checkbox" style="width:auto" onchange="loadItems(true)">
             Clean images ready only
@@ -2046,6 +2047,18 @@ async function loadItems(preserveDealerOptions=false){
     });
   }
 
+  // Show existing publication state without creating or duplicating stock listings.
+  if(rows.length){
+    try{
+      const pub=await sb().rpc("admin_list_vq_gallery_candidates_v1");
+      if(!pub.error){
+        const publishedIds=new Set((pub.data||[]).filter(x=>x.published).map(x=>Number(x.item_id)));
+        rows=rows.map(i=>({...i,already_published:publishedIds.has(Number(i.id))}));
+        if(document.getElementById("unpublishedOnlyCheck")?.checked)rows=rows.filter(i=>!i.already_published);
+      }
+    }catch(e){console.warn("Available Stock status unavailable",e);}
+  }
+
   // Always render source matches immediately. BMW photo retrieval is manual via the
   // dedicated photo controls; never block searches or trigger an automatic 20-bike scan.
 
@@ -2080,7 +2093,7 @@ function renderItems(){
           ?'<div class="status good" style="margin-top:5px;font-weight:800">✓ Buyer-safe image</div>'
           :'<div class="status" style="margin-top:5px">Raw source image</div>')+
     '</div>'+
-    '<div><div class="bike-title">'+esc(cleanLiveTitle([i.year,i.make,i.model,(/^Yamaha$/i.test(String(i.make||""))?"":i.variant)].filter(Boolean).join(" ")))+'</div><div class="small">'+esc([i.mileage!=null?Number(i.mileage).toLocaleString("en-GB")+" miles":"",i.colour].filter(Boolean).join(" · "))+'</div>'+vatBadgeHtml(i)+'</div>'+
+    '<div>'+(i.already_published?'<div class="status good" style="font-weight:800;margin-bottom:6px">✓ Already on Available Stock</div>':'<div class="status" style="margin-bottom:6px;color:#e6be62">Not yet published</div>')+'<div class="bike-title">'+esc(cleanLiveTitle([i.year,i.make,i.model,(/^Yamaha$/i.test(String(i.make||""))?"":i.variant)].filter(Boolean).join(" ")))+'</div><div class="small">'+esc([i.mileage!=null?Number(i.mileage).toLocaleString("en-GB")+" miles":"",i.colour].filter(Boolean).join(" · "))+'</div>'+vatBadgeHtml(i)+'</div>'+
     '<div class="optional"><div class="small">Source price</div><div class="money">'+gbp(i.source_price_gbp)+'</div>'+
       '<div class="field" style="margin-top:8px"><label>UK delivery</label><input type="text" inputmode="decimal" value="'+esc(formatDeliveryAllowance(deliveryAllowances.has(Number(i.id))?deliveryAllowances.get(Number(i.id)):250))+'" onfocus="deliveryInputFocus(this)" onblur="deliveryInputBlur('+i.id+',this)"></div></div>'+
     '<div class="optional"><div class="small secret">Internal source</div><div>'+esc(i.seller_name||i.source_domain||"")+'</div><div class="small">'+esc(i.source_stock_id||"")+'</div></div>'+
