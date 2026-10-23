@@ -2269,7 +2269,7 @@ function deliveryInputBlur(id,input){
   deliveryAllowances.set(Number(id),value);
   input.value=formatDeliveryAllowance(value);
 }
-function toggle(id,on){if(on&&selected.size>=20){alert("Maximum 20 motorcycles per buyer batch.");renderItems();return}on?selected.add(id):selected.delete(id);document.getElementById("poolStatus").textContent=items.length+" motorcycles shown · "+selected.size+" selected";updateLiveSourceNextAction()}
+function toggle(id,on){on?selected.add(id):selected.delete(id);document.getElementById("poolStatus").textContent=items.length+" motorcycles shown · "+selected.size+" selected";syncSelectAllVisibleState();updateLiveSourceNextAction()}
 function syncSelectAllVisibleState(){
   const cb=document.getElementById("selectAllVisibleCheck");
   if(!cb)return;
@@ -2280,7 +2280,7 @@ function syncSelectAllVisibleState(){
 function toggleSelectAllVisible(on){
   if(on){
     for(const i of items){
-      if(i.source_status==="live"&&selected.size<20)selected.add(i.id);
+      if(i.source_status==="live")selected.add(i.id);
     }
   }else{
     for(const i of items)selected.delete(i.id);
@@ -2466,6 +2466,7 @@ async function createBatch(){
 
   const ids=syncSelectedFromVisibleCheckboxes();
   if(!ids.length){st.className="status bad";st.textContent="Select at least one live motorcycle.";return}
+  if(ids.length>20){st.className="status bad";st.textContent="Buyer batches allow up to 20 motorcycles. Available Stock review supports the full selection.";return;}
 
   // Enrich selected BMW bikes with their full unique source galleries before
   // buyer-safe cleaning starts. This keeps the source pool lightweight while
