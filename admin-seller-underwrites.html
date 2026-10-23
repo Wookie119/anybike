@@ -497,7 +497,7 @@ function render(){
         (hasComps
           ?'<div class="data"><div class="box"><span>Comparable count</span><strong>'+Number(r.latest_comparable_count||0)+'</strong></div><div class="box"><span>Median ask</span><strong>'+money(r.latest_median_ask_gbp)+'</strong></div><div class="box"><span>Range</span><strong>'+money(r.latest_lowest_ask_gbp)+' – '+money(r.latest_highest_ask_gbp)+'</strong></div><div class="box"><span>Average</span><strong>'+money(r.latest_average_ask_gbp)+'</strong></div></div>'
           :'<div class="sub">Trade price will be established from confidential UK dealer bids. No stock comparison is required.</div>')+
-                '<section class="admin-advert-description"><h3>Motorcycle description</h3><p>'+esc(cleanUnderwriteAdvertDescription(r.notes))+'</p></section>'+
+                '<section class="admin-advert-description"><h3>Motorcycle description</h3><p>'+esc(cleanUnderwriteAdvertDescription(r.notes))+'</p><button type="button" class="btn" data-action="edit-description" data-id="'+Number(r.submission_id)+'">Edit Description →</button></section>'+
         (r.notes?'<details class="admin-source-details"><summary>Original source information · Admin only</summary><p>'+esc(r.notes)+'</p></details>':'')+
         (dealer && !["live","closed","completed","cancelled"].includes(String(r.underwrite_status||"").toLowerCase()) && r.make && r.model?'<div class="underwrite-ready-note">Ready to invite trade offers. The current system still applies an initial bidding deadline; reserve-triggered timing is under development.</div>':'')+
         '<div class="actions">'+
@@ -700,6 +700,16 @@ document.getElementById("queue").addEventListener("click",async function(e){
   }
   if(action==="refresh-demand"){refreshDemand(id);return;}
   if(action==="view-demand"){viewDemand(id);return;}
+  if(action==="edit-description"){
+    const item=rows.find(x=>Number(x.submission_id)===Number(id));
+    if(!item)return;
+    const revised=window.prompt("Edit motorcycle description shown to buyers. Remove WhatsApp details and direct-contact requests. Original wording is retained in the audit history.",cleanUnderwriteAdvertDescription(item.notes));
+    if(revised===null)return;
+    const {error}=await sb.rpc("admin_edit_seller_description_v1",{p_submission_id:Number(id),p_description:revised.trim()});
+    if(error){alert("Could not save description: "+error.message);return;}
+    await loadQueue();
+    return;
+  }
   if(action==="edit-bike"){editVehicle(id);return;}
 },true);
 
