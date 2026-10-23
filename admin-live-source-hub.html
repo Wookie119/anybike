@@ -1797,7 +1797,7 @@ async function reviewSelectedStock(){
       '<p class="small">'+checkHtml+'</p>'+
       '<a class="small" href="'+esc(i.source_url||"#")+'" target="_blank" rel="noopener noreferrer">Check dealer advert ↗</a></div>'+
       '<div><div class="small">Dealer source price: <strong>'+gbp(i.source_price_gbp)+'</strong></div><label class="small" for="stockDelivery'+id+'">UK delivery allowance (£)</label><input type="number" id="stockDelivery'+id+'" min="0" step="0.01" value="'+normaliseDeliveryValue(deliveryAllowances.has(id)?deliveryAllowances.get(id):250).toFixed(2)+'" oninput="updateReviewedStockPrice('+id+')"><div class="small">AnyBike fees after UK delivery: <strong id="stockFee'+id+'"></strong></div><div class="small" style="margin:7px 0;font-weight:bold;color:#fff">AnyBike gross margin (including UK delivery): <strong id="stockGross'+id+'"></strong></div><label class="small" for="stockPrice'+id+'">AnyBike selling price (£)</label><input type="number" id="stockPrice'+id+'" min="1" max="1000000" step="0.01" value="'+(price>0?price.toFixed(2):'')+'" data-source="'+Number(i.source_price_gbp||0)+'" data-base-delivery="'+normaliseDeliveryValue(deliveryAllowances.has(id)?deliveryAllowances.get(id):250)+'" oninput="updateReviewedStockFee('+id+')" placeholder="Final buyer price"></div>'+
-      '<div><label class="stock-review-confirm"><input type="checkbox" id="stockConfirm'+id+'"> I checked availability with the seller and reviewed VAT status, approved photographs and price</label>'+
+      '<div><p class="small">VAT status and approved photograph checked from saved records. Confirm availability when publishing.</p>'+ 
       '<button type="button" class="btn red" '+(!good?'disabled':'')+' onclick="publishReviewedStock('+id+',this)">'+(c?.published?'Save & refresh published listing':'Publish to Available Stock')+'</button><span class="small" id="stockRowStatus'+id+'" role="status"></span></div>'+
     '</div>';
   }).join("");
@@ -1809,12 +1809,10 @@ function updateReviewedStockFee(id){const price=document.getElementById("stockPr
 function updateReviewedStockPrice(id){const price=document.getElementById("stockPrice"+id),delivery=document.getElementById("stockDelivery"+id);if(!price||!delivery)return;const fee=Number(price.dataset.fee);const total=Number(price.dataset.source)+Number(delivery.value)+fee;if(Number.isFinite(total)&&total>0)price.value=total.toFixed(2);updateReviewedStockFee(id);}
 async function publishReviewedStock(id,btn){
  const label=document.getElementById("stockRowStatus"+id);
- const confirmEl=document.getElementById("stockConfirm"+id);
  const input=document.getElementById("stockPrice"+id);
  const price=Number(input?.value);
- if(!confirmEl?.checked){label.textContent="Confirm the seller availability and buyer-safe checks first.";return;}
  if(!Number.isFinite(price)||price<=0||price>1000000){label.textContent="Enter a valid final AnyBike price.";return;}
- if(!window.confirm("Confirm seller availability, VAT and approved photographs for motorcycle #"+id+"? Save £"+price.toFixed(2)+" as the AnyBike buyer price and publish or update its existing listing?"))return;
+ if(!window.confirm("Confirm seller availability for motorcycle #"+id+"? Save £"+price.toFixed(2)+" as the AnyBike buyer price and publish or update its existing listing?"))return;
  btn.disabled=true;label.textContent="Saving…";
  try{
    const save=await sb().rpc("admin_set_vq_gallery_price_v1",{p_item_id:id,p_price:price});
