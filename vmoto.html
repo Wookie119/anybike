@@ -325,7 +325,8 @@ function populateVmotoBatteryOptions(model,preferredBattery){
     if(help)help.textContent="Only battery configurations confirmed for the selected VMoto are shown.";
     return;
   }
-  const configured=vmotoBatteryOptions[model.slug]||[];
+  const configured=(["tc","tsx"].includes(model.slug)&&["60v","72v"].includes(document.getElementById("vmotoVariant")?.value))
+    ? [] : (vmotoBatteryOptions[model.slug]||[]);
   const variants=Array.isArray(model.variants)?model.variants:[];
   const selectedVariant=document.getElementById("vmotoVariant")?.value||"";
   const variant=variants.find(v=>v.variant_name===selectedVariant)||variants[0];
@@ -362,6 +363,14 @@ function populateVmotoVariantAndColours(preferredVariant,preferredColour,preferr
     const colours=[...new Set(colourSource.flatMap(v=>(Array.isArray(v.colours)?v.colours:[]).map(c=>c.colour_name)).filter(Boolean))];
     colourEl.innerHTML='<option value="">No colour preference</option>'+colours.map(x=>'<option value="'+vmotoEsc(x)+'">'+vmotoEsc(x)+'</option>').join("");
     if(preferredColour&&colours.includes(preferredColour))colourEl.value=preferredColour;
+  }
+  // Dealer-sheet TC/TSX voltage versions must remain distinct on enquiry.
+  if(variantEl && /^(tc|tsx)$/i.test(modelName.trim())){
+    const existing=new Set([...variantEl.options].map(o=>o.value.toLowerCase()));
+    for(const voltage of ["60v","72v"]){
+      if(!existing.has(voltage))variantEl.add(new Option(voltage.toUpperCase(),voltage));
+    }
+    if(["60v","72v"].includes(String(preferredVariant).toLowerCase()))variantEl.value=String(preferredVariant).toLowerCase();
   }
   populateVmotoBatteryOptions(model,preferredBattery||"");
 }
