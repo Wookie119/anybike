@@ -1787,10 +1787,13 @@ async function reviewSelectedStock(){
   document.getElementById("stockReviewRows").innerHTML=bikes.map(i=>{
     const id=Number(i.id),c=candidateMap.get(id),price=priceMap.get(id);
     const title=[i.year,i.make,i.model].filter(Boolean).join(" ");
-    const good=!!c&&!!c.vat_qualifying&&c.source_status==="live"&&!!c.safe_image_url;
+    const vatOk=!!c?.vat_qualifying,liveOk=c?.source_status==="live",photoOk=!!c?.safe_image_url;
+    const good=vatOk&&liveOk&&photoOk;
+    const checks=[['VAT qualifying',vatOk],['Live source',liveOk],['Approved buyer-safe photo',photoOk]];
+    const checkHtml=checks.map(([name,ok])=>'<span style="display:inline-block;margin:3px 8px 3px 0;color:'+(ok?'#74de96':'#f6bd69')+'">'+(ok?'✓ ':'✕ ')+name+'</span>').join('');
     return '<div class="stock-review-bike" data-review-id="'+id+'">'+
       '<div><strong>'+esc(title)+'</strong> <span class="small">#'+id+'</span><p class="small">'+esc(i.seller_name||"Unknown dealer")+' · '+esc(i.source_stock_id||"")+' · '+(c?.published?'Already published — update existing listing':'Not published')+'</p>'+
-      '<p class="small">'+(good?'✓ Verified VQ record, live source and approved photo':'Needs review: VQ confirmation, live status or safe image missing')+'</p>'+
+      '<p class="small">'+checkHtml+'</p>'+
       '<a class="small" href="'+esc(i.source_url||"#")+'" target="_blank" rel="noopener noreferrer">Check dealer advert ↗</a></div>'+
       '<div><label class="small" for="stockPrice'+id+'">AnyBike selling price (£)</label><input type="number" id="stockPrice'+id+'" min="1" max="1000000" step="0.01" value="'+(price>0?price.toFixed(2):'')+'" placeholder="Final buyer price"></div>'+
       '<div><label class="stock-review-confirm"><input type="checkbox" id="stockConfirm'+id+'"> I checked availability with the seller and reviewed VAT status, approved photographs and price</label>'+
