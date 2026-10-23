@@ -200,7 +200,7 @@ function anybikeHidePublicStockSurfaces(){
     style=document.createElement("style");
     style.id="anybikePublicStockVisibilityStyles";
     style.textContent=[
-      'a[href="/available-stock.html"]:not(.anybike-international-vq-link),a[href^="/available-stock.html?"]:not(.anybike-international-vq-link),a[href^="available-stock.html"]:not(.anybike-international-vq-link),a[href^="/bike-details.html?id="]{display:none!important}',
+      'html:not(.anybike-international-dealer) a[href="/available-stock.html"]:not(.anybike-international-vq-link),html:not(.anybike-international-dealer) a[href^="/available-stock.html?"]:not(.anybike-international-vq-link),html:not(.anybike-international-dealer) a[href^="available-stock.html"]:not(.anybike-international-vq-link),a[href^="/bike-details.html?id="]{display:none!important}',
       '.market-selection,#countryBuyerInterestSection,.ab-stock-grid,.ab-stock-label,.ab-stock-card{display:none!important}'
     ].join("");
     document.head.appendChild(style);
