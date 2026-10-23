@@ -1788,7 +1788,7 @@ async function reviewSelectedStock(){
   document.getElementById("stockReviewRows").innerHTML=bikes.map(i=>{
     const id=Number(i.id),c=candidateMap.get(id),price=priceMap.get(id);
     const title=[i.year,i.make,i.model].filter(Boolean).join(" ");
-    const vatOk=!!c?.vat_qualifying,liveOk=c?.source_status==="live",photoOk=!!c?.safe_image_url;
+    const vatOk=c?c.vat_qualifying===true:i.vat_qualifying===true,liveOk=(c?.source_status||i.source_status)==="live",photoOk=!!(c?.safe_image_url||i.buyer_safe_url);
     const good=vatOk&&liveOk&&photoOk;
     const checks=[['VAT qualifying',vatOk],['Live source',liveOk],['Approved buyer-safe photo',photoOk]];
     const checkHtml=checks.map(([name,ok])=>'<span style="display:inline-block;margin:3px 8px 3px 0;color:'+(ok?'#74de96':'#f6bd69')+'">'+(ok?'✓ ':'✕ ')+name+'</span>').join('');
@@ -1796,14 +1796,17 @@ async function reviewSelectedStock(){
       '<div><strong>'+esc(title)+'</strong> <span class="small">#'+id+'</span><p class="small">'+esc(i.seller_name||"Unknown dealer")+' · '+esc(i.source_stock_id||"")+' · '+(c?.published?'Already published — update existing listing':'Not published')+'</p>'+
       '<p class="small">'+checkHtml+'</p>'+
       '<a class="small" href="'+esc(i.source_url||"#")+'" target="_blank" rel="noopener noreferrer">Check dealer advert ↗</a></div>'+
-      '<div><label class="small" for="stockPrice'+id+'">AnyBike selling price (£)</label><input type="number" id="stockPrice'+id+'" min="1" max="1000000" step="0.01" value="'+(price>0?price.toFixed(2):'')+'" placeholder="Final buyer price"></div>'+
+      '<div><div class="small">Dealer source price: <strong>'+gbp(i.source_price_gbp)+'</strong></div><label class="small" for="stockDelivery'+id+'">UK delivery allowance (£)</label><input type="number" id="stockDelivery'+id+'" min="0" step="0.01" value="'+normaliseDeliveryValue(deliveryAllowances.has(id)?deliveryAllowances.get(id):250).toFixed(2)+'" oninput="updateReviewedStockPrice('+id+')"><div class="small">AnyBike fees / margin: <strong id="stockFee'+id+'"></strong></div><label class="small" for="stockPrice'+id+'">AnyBike selling price (£)</label><input type="number" id="stockPrice'+id+'" min="1" max="1000000" step="0.01" value="'+(price>0?price.toFixed(2):'')+'" data-source="'+Number(i.source_price_gbp||0)+'" data-base-delivery="'+normaliseDeliveryValue(deliveryAllowances.has(id)?deliveryAllowances.get(id):250)+'" oninput="updateReviewedStockFee('+id+')" placeholder="Final buyer price"></div>'+
       '<div><label class="stock-review-confirm"><input type="checkbox" id="stockConfirm'+id+'"> I checked availability with the seller and reviewed VAT status, approved photographs and price</label>'+
       '<button type="button" class="btn red" '+(!good?'disabled':'')+' onclick="publishReviewedStock('+id+',this)">'+(c?.published?'Save & refresh published listing':'Publish to Available Stock')+'</button><span class="small" id="stockRowStatus'+id+'" role="status"></span></div>'+
     '</div>';
   }).join("");
+  bikes.forEach(i=>updateReviewedStockFee(Number(i.id)));
   status.textContent=bikes.length+" motorcycle"+(bikes.length===1?"":"s")+" ready for individual review. Nothing is published or changed until you confirm a motorcycle and press its button.";
  }catch(e){status.textContent="Review could not load: "+String(e.message||e);}
 }
+function updateReviewedStockFee(id){const price=document.getElementById("stockPrice"+id),delivery=document.getElementById("stockDelivery"+id),fee=document.getElementById("stockFee"+id);if(!price||!delivery||!fee)return;const margin=Number(price.value)-Number(price.dataset.source)-Number(delivery.value);fee.textContent=Number.isFinite(margin)?"£"+margin.toLocaleString("en-GB",{minimumFractionDigits:2,maximumFractionDigits:2}):"—";price.dataset.fee=String(margin);}
+function updateReviewedStockPrice(id){const price=document.getElementById("stockPrice"+id),delivery=document.getElementById("stockDelivery"+id);if(!price||!delivery)return;const fee=Number(price.dataset.fee);const total=Number(price.dataset.source)+Number(delivery.value)+fee;if(Number.isFinite(total)&&total>0)price.value=total.toFixed(2);updateReviewedStockFee(id);}
 async function publishReviewedStock(id,btn){
  const label=document.getElementById("stockRowStatus"+id);
  const confirmEl=document.getElementById("stockConfirm"+id);
