@@ -419,6 +419,49 @@ function checkDimensionMatch(card){
 }
 
 const sellerReviewId=Number(new URLSearchParams(location.search).get("submission")||0);
+let cropEditor=null;
+async function cropSellerPhoto(imageId,button){
+ const card=button.closest(".compare-item"),source=card?.querySelector(".image-panel img");
+ if(!source?.src){alert("Original photograph unavailable.");return;}
+ if(cropEditor)cropEditor.remove();
+ const modal=document.createElement("div");cropEditor=modal;
+ modal.style.cssText="position:fixed;inset:0;z-index:11000;background:rgba(0,0,0,.96);overflow:auto;padding:18px;color:white";
+ modal.innerHTML='<div style="max-width:1000px;margin:auto"><h2>Crop Photo · '+imageId+'</h2><p>Drag across the image to choose the area to keep. The original photo is preserved.</p><canvas id="sellerCropCanvas" style="display:block;max-width:100%;touch-action:none;border:1px solid #777;background:#111"></canvas><p id="sellerCropMessage" role="status">Loading original…</p><button type="button" id="sellerCropSave" disabled>Save cropped photo</button> <button type="button" class="dark" id="sellerCropReset">Reset selection</button> <button type="button" class="dark" id="sellerCropClose">Cancel</button></div>';
+ document.body.append(modal);
+ const canvas=modal.querySelector("canvas"),ctx=canvas.getContext("2d"),msg=modal.querySelector("#sellerCropMessage"),save=modal.querySelector("#sellerCropSave");
+ modal.querySelector("#sellerCropClose").onclick=()=>{modal.remove();cropEditor=null};
+ let url;
+ try{
+  const response=await fetch(source.src);
+  if(!response.ok)throw Error("Could not load original image");
+  url=URL.createObjectURL(await response.blob());
+  const img=new Image();img.src=url;await img.decode();
+  const ratio=Math.min(1,900/img.naturalWidth,650/img.naturalHeight);
+  canvas.width=Math.round(img.naturalWidth*ratio);canvas.height=Math.round(img.naturalHeight*ratio);
+  let box=null,start=null;
+  const point=e=>{const r=canvas.getBoundingClientRect();return {x:Math.max(0,Math.min(canvas.width,(e.clientX-r.left)*canvas.width/r.width)),y:Math.max(0,Math.min(canvas.height,(e.clientY-r.top)*canvas.height/r.height))}};
+  function draw(){ctx.clearRect(0,0,canvas.width,canvas.height);ctx.drawImage(img,0,0,canvas.width,canvas.height);if(box){ctx.fillStyle="rgba(0,0,0,.45)";ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(img,box.x,box.y,box.w,box.h,box.x,box.y,box.w,box.h);ctx.strokeStyle="#ed1c24";ctx.lineWidth=3;ctx.strokeRect(box.x,box.y,box.w,box.h);}}
+  canvas.onpointerdown=e=>{start=point(e);canvas.setPointerCapture(e.pointerId);box=null;save.disabled=true;draw()};
+  canvas.onpointermove=e=>{if(!start)return;let end=point(e);box={x:Math.min(start.x,end.x),y:Math.min(start.y,end.y),w:Math.abs(end.x-start.x),h:Math.abs(end.y-start.y)};draw()};
+  canvas.onpointerup=()=>{start=null;save.disabled=!box||box.w<30||box.h<30;msg.textContent=save.disabled?"Choose a larger crop.":"Crop selected — save when ready."};
+  modal.querySelector("#sellerCropReset").onclick=()=>{box=null;start=null;save.disabled=true;draw();msg.textContent="Select the area to keep."};
+  draw();msg.textContent="Drag a rectangle around the motorcycle.";
+  save.onclick=async()=>{
+   if(!box||save.disabled)return;
+   save.disabled=true;msg.textContent="Saving cropped photograph…";
+   try{
+    const sx=img.naturalWidth/canvas.width,sy=img.naturalHeight/canvas.height;
+    const out=document.createElement("canvas");out.width=Math.round(box.w*sx);out.height=Math.round(box.h*sy);
+    out.getContext("2d").drawImage(img,Math.round(box.x*sx),Math.round(box.y*sy),out.width,out.height,0,0,out.width,out.height);
+    const imageData=out.toDataURL("image/jpeg",.88);
+    const {data,error}=await sb.functions.invoke("admin-crop-seller-photo",{body:{image_id:imageId,image_data:imageData}});
+    if(error||!data?.success)throw Error(data?.error||error?.message||"Could not save crop");
+    msg.textContent="✓ Cropped photograph saved.";modal.remove();cropEditor=null;await loadSellerSubmissionComparisons();
+   }catch(e){msg.textContent="Crop not saved: "+(e.message||e);save.disabled=false;}
+  };
+ }catch(e){msg.textContent="Could not open image: "+e.message;}
+ finally{if(url)URL.revokeObjectURL(url)}
+}
 async function reviewSellerPhoto(imageId,action,button){
  const labels={cleaning_not_needed:"Approve existing photo without cleaning?",placeholder:"Replace bidder display with the AnyBike placeholder?",approve_cleaned:"Approve the cleaned photograph for bidders?"};
  if(!confirm(labels[action]||"Confirm photo review action?"))return;
@@ -470,7 +513,7 @@ async function loadSellerSubmissionComparisons(){
     return {...item,original_url:signedError?null:signed?.signedUrl};
   }));
   host.insertAdjacentHTML("beforebegin",'<p style="color:#ffb020">Processed previews may still contain watermarks or branding. Review required does not mean cleaned.</p>');
-  host.innerHTML=records.length?records.map(item=>'<article class="compare-item"><div class="compare-head"><div><strong>Photo '+Number(item.image_position)+' · AB-S-'+String(sellerReviewId).padStart(6,"0")+'</strong><div class="compare-meta">Review: '+esc(item.final_status)+' · '+esc(item.processing_status)+'</div></div></div><div style="padding:12px"><button type="button" onclick="cleanSellerPhoto('+Number(item.image_id)+',this)">'+(item.rejection_reason==="Cleaned copy created; pending admin approval"?"Re-clean from original":"Clean")+'</button> <button type="button" class="dark" onclick="reviewSellerPhoto('+Number(item.image_id)+',\'cleaning_not_needed\',this)">Cleaning not needed</button> <button type="button" class="dark" onclick="reviewSellerPhoto('+Number(item.image_id)+',\'placeholder\',this)">Placeholder</button> <button type="button" class="dark" style="border:1px solid #a33;color:#ffb8bb" onclick="rejectSellerPhotoInCleaner('+Number(item.image_id)+',this)">✕ Reject photograph</button>'+ (item.rejection_reason==="Cleaned copy created; pending admin approval"?'<button type="button" onclick="reviewSellerPhoto('+Number(item.image_id)+',\'approve_cleaned\',this)">Approve cleaned copy</button>':'')+'</div><div class="compare-grid">'+imagePanel("Original seller photograph — private",item.original_url,"seller-orig-"+item.image_id)+imagePanel("Processed preview — cleaning not confirmed",item.buyer_safe_url,"seller-safe-"+item.image_id)+'</div></article>').join(""):'<div class="empty">No photographs recorded for this submission.</div>';
+  host.innerHTML=records.length?records.map(item=>'<article class="compare-item"><div class="compare-head"><div><strong>Photo '+Number(item.image_position)+' · AB-S-'+String(sellerReviewId).padStart(6,"0")+'</strong><div class="compare-meta">Review: '+esc(item.final_status)+' · '+esc(item.processing_status)+'</div></div></div><div style="padding:12px"><button type="button" onclick="cleanSellerPhoto('+Number(item.image_id)+',this)">'+(item.rejection_reason==="Cleaned copy created; pending admin approval"?"Re-clean from original":"Clean")+'</button> <button type="button" class="dark" onclick="cropSellerPhoto('+Number(item.image_id)+',this)">✂ Crop Photo</button> <button type="button" class="dark" onclick="reviewSellerPhoto('+Number(item.image_id)+',\'cleaning_not_needed\',this)">Cleaning not needed</button> <button type="button" class="dark" onclick="reviewSellerPhoto('+Number(item.image_id)+',\'placeholder\',this)">Placeholder</button> <button type="button" class="dark" style="border:1px solid #a33;color:#ffb8bb" onclick="rejectSellerPhotoInCleaner('+Number(item.image_id)+',this)">✕ Reject photograph</button>'+ (item.rejection_reason==="Cleaned copy created; pending admin approval"?'<button type="button" onclick="reviewSellerPhoto('+Number(item.image_id)+',\'approve_cleaned\',this)">Approve cleaned copy</button>':'')+'</div><div class="compare-grid">'+imagePanel("Original seller photograph — private",item.original_url,"seller-orig-"+item.image_id)+imagePanel("Processed preview — cleaning not confirmed",item.buyer_safe_url,"seller-safe-"+item.image_id)+'</div></article>').join(""):'<div class="empty">No photographs recorded for this submission.</div>';
 }
 async function loadComparisons(){
   if(sellerReviewId)return loadSellerSubmissionComparisons();
