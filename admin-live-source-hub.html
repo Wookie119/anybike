@@ -2044,51 +2044,8 @@ async function loadItems(preserveDealerOptions=false){
     });
   }
 
-  if(isBmwConnector() && rows.length){
-    let photoCandidates=[...rows];
-    if(request){
-      const preferredColours=String(request.preferred_colour||"")
-        .split(",").map(x=>x.trim().toLowerCase()).filter(Boolean);
-      if(preferredColours.length){
-        const preferredRows=photoCandidates.filter(i=>{
-          const colour=String(i.colour||"").toLowerCase();
-          return preferredColours.some(x=>colour.includes(x));
-        });
-        if(preferredRows.length) photoCandidates=preferredRows;
-      }
-      if(request.max_price_gbp){
-        photoCandidates=photoCandidates.filter(i=>Number(i.source_price_gbp||0)<=Number(request.max_price_gbp));
-      }
-    }
-
-    const missingPhotoIds=photoCandidates
-      .filter(i=>{
-        if(i.buyer_safe_url)return false;
-        const hasReal=(Array.isArray(i.source_image_urls)?i.source_image_urls:[])
-          .some(u=>/\/api\/Image\/GetImg\?imgId=/i.test(String(u)));
-        return !hasReal && !autoBmwPhotoRequested.has(Number(i.id));
-      })
-      .slice(0,20)
-      .map(i=>Number(i.id));
-
-    if(missingPhotoIds.length){
-      missingPhotoIds.forEach(id=>autoBmwPhotoRequested.add(id));
-      st.className="status";
-      st.textContent="Loading BMW motorcycle photos for "+missingPhotoIds.length+" matching bike"+(missingPhotoIds.length===1?"":"s")+"…";
-      try{
-        const {data:photoData,error:photoError}=await sb().functions.invoke("refresh-bmw-live-source-images",{
-          body:{connector_id:cid,item_ids:missingPhotoIds}
-        });
-        if(!photoError && !photoData?.error){
-          await loadItems(true);
-          return;
-        }
-        console.warn("Automatic BMW photo loading paused",photoData?.error||photoError);
-      }catch(photoLoadError){
-        console.warn("Automatic BMW photo loading failed",photoLoadError);
-      }
-    }
-  }
+  // Always render source matches immediately. BMW photo retrieval is manual via the
+  // dedicated photo controls; never block searches or trigger an automatic 20-bike scan.
 
   items=rows;
   [...selected].forEach(function(id){
