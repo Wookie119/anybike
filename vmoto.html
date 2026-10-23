@@ -412,24 +412,30 @@ async function loadVmotoCatalogue(){
   }
 }
 
-async function loadVmotoFaqs(){
+async // October 2026 VMoto UK list: public RRPs and model descriptors only.
+const vmotoDealerSheetFaqs=[
+ {category:"2026 model range",question:"Which VMoto models and prices are listed for UK buyers?",answer:"The UK range price list includes CPX 74v (£3,590), CPX Explorer (£4,290), VS3 (£5,000), VS2 CITI (£2,980), CITI (£3,250), Stash (£5,995), TS Street Hunter Pro (£3,990), TC Wanderer Pro (£3,390), TC 60v and TC 72v (£3,090 each), TSX 60v and TSX 72v (£3,090 each), CUX Pro New (£1,590), and TC Max (£3,990). All figures are recommended retail prices including VAT. Delivery and final on-the-road costs are confirmed before purchase."},
+ {category:"Choosing a model",question:"What is the difference between TC 60v, TC 72v, TSX 60v and TSX 72v?",answer:"VMoto lists the TC and TSX 60v and 72v as four distinct L1e versions, each with a UK RRP of £3,090 including VAT. We will confirm the exact specification and battery configuration for the version you choose before ordering, rather than substitute details from another version."},
+ {category:"Model types",question:"Which models are L1e, L2e or L3e?",answer:"The dealer price list identifies TC 60v, TC 72v, TSX 60v, TSX 72v and CUX Pro New as L1e; VS3 as L2e; and CPX 74v, CPX Explorer, VS2 CITI, CITI, Stash, TS Street Hunter Pro, TC Wanderer Pro and TC Max as L3e. Licence and registration requirements should be checked for your circumstances."},
+ {category:"Colours",question:"Which VMoto colours are listed in the UK price list?",answer:"The supplier lists CPX 74v in black; CPX Explorer in sky blue and white; Stash in black and red; TC Wanderer Pro in black and white; TC 60v in black and blue; TSX 60v in grey; TC 72v in green and black; TSX 72v in black and orange; and CUX Pro New in black, blue, grey and white. These are supplier-listed colours, not a guarantee of current stock."},
+ {category:"Availability",question:"Are all 14 VMoto models available to order today?",answer:"Not necessarily. The supplied October 2026 list includes in-stock, low-stock, out-of-stock and incoming models. Availability changes frequently, so AnyBike checks the selected model, colour and specification with VMoto before confirming an order. No payment is taken simply to make an enquiry."},
+ {category:"Price and delivery",question:"Does the advertised VMoto price include VAT and delivery?",answer:"The advertised RRP includes UK VAT, but specialist delivery and any applicable on-the-road charges are quoted separately. AnyBike will confirm your final delivered price before you commit."}
+];
+function loadVmotoFaqs(){
   const list=document.getElementById("vmotoFaqList");
   if(!list) return;
   try{
     const {data,error}=await vmotoSb.rpc("public_get_vmoto_faqs_v1",{p_model_slug:null,p_territory_slug:null});
     if(error) throw error;
     const rows=Array.isArray(data)?data:[];
-    if(!rows.length){
-      list.innerHTML='<div class="faq-empty">Have a question about VMoto? Use the form alongside and AnyBike will help.</div>';
-      return;
-    }
+    // Always show up-to-date supplier-sheet answers even if the general FAQ database is empty.
     const esc=function(v){return String(v??"").replace(/[&<>"']/g,function(ch){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch];});};
-    list.innerHTML=rows.map(function(row){
+    list.innerHTML=[...vmotoDealerSheetFaqs,...rows.filter(row=>!vmotoDealerSheetFaqs.some(f=>f.question===row.question))].map(function(row){
       return '<details class="faq-item"><summary><span class="faq-category">'+esc(row.category||"General")+'</span><br>'+esc(row.question||"")+'</summary><div class="faq-answer">'+esc(row.answer||"")+'</div></details>';
     }).join("");
   }catch(error){
     console.error("VMoto FAQ could not be loaded",error);
-    list.innerHTML='<div class="faq-empty">FAQ answers could not be loaded right now. Please use Ask a question.</div>';
+    list.innerHTML=vmotoDealerSheetFaqs.map(row=>'<details class="faq-item"><summary><span class="faq-category">'+vmotoEsc(row.category)+'</span><br>'+vmotoEsc(row.question)+'</summary><div class="faq-answer">'+vmotoEsc(row.answer)+'</div></details>').join("");
   }
 }
 
