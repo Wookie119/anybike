@@ -1002,6 +1002,18 @@ async function addMyDealershipMenuIfEligible(user){
         if(accountHome)accountHome.textContent="My Dealership";
       }
     }
+    if(["intl_dealer","intl_distributor","eu_dealer","eu_distributor"].includes(customerType)){
+      for(const menuId of ["loggedInMenu","mobileLoggedInMenu"]){
+        const menu=document.getElementById(menuId);if(!menu)continue;
+        menu.querySelectorAll('a[href="/my-selling.html"],a[href="/sell-your-motorcycle.html"]').forEach(a=>a.remove());
+        if(!menu.querySelector('[data-international-stock-menu="true"]')){
+          const a=document.createElement("a");a.href="/available-stock.html?vat=qualifying";
+          a.textContent="Available Stock";a.dataset.internationalStockMenu="true";
+          menu.prepend(a);
+        }
+      }
+      document.querySelectorAll('.public-nav a[href="/sell-your-motorcycle.html"],.mobile-nav a[href="/sell-your-motorcycle.html"]').forEach(a=>a.style.display="none");
+    }
     anybikeSortMyAnyBikeMenus();
   }catch(error){console.warn("Dealer menu check unavailable",error);}
 }
