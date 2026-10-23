@@ -2820,6 +2820,8 @@ async function anybikeShowPublicSignedInIdentity(){
   let key=String(profile.customer_type||"").toLowerCase();
   let role=roles[key]||key.replaceAll("_"," ").toUpperCase()||"CUSTOMER";
   if(!profile.customer_type)role="CUSTOMER · ROLE NOT SET";
+  // An admin does not need a customer type: use the authenticated admin role.
+  try{const adminResult=await client.rpc("anybike_is_admin");if(!adminResult.error&&adminResult.data===true)role="ADMIN";}catch(_){}
   strip.style.borderBottomColor="#303030";
   strip.textContent="SIGNED IN · "+role+" · "+(profile.full_name||"")+" · "+(user.email||"Email unavailable");
   const refresh=()=>anybikeShowPublicSignedInIdentity().catch(()=>{});
