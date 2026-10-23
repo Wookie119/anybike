@@ -1951,6 +1951,8 @@ async function cleanSelectedImages(){
   }
 }
 
+
+function rememberLiveSourcePhotoReturn(){try{sessionStorage.setItem("anybikeLiveSourceReturn",JSON.stringify({source:document.getElementById("connectorFilter").value,make:document.getElementById("makeFilter").value,model:document.getElementById("modelFilter").value,status:document.getElementById("statusFilter").value,vat:document.getElementById("vatFilter")?.value||"",scroll:window.scrollY}));}catch(_){}}
 async function loadItems(preserveDealerOptions=false){
   const st=document.getElementById("poolStatus");st.textContent="Loading…";
   const cid=document.getElementById("connectorFilter").value?Number(document.getElementById("connectorFilter").value):null;
@@ -2071,7 +2073,7 @@ function renderItems(){
   if(!items.length){el.innerHTML='<div class="empty">No motorcycles in this source pool yet. Use the Scanner to add tested adverts while the source adapter is being expanded.</div>';return}
   el.innerHTML=items.map(i=>'<article class="bike">'+
     '<input type="checkbox" class="bike-select-checkbox" data-bike-id="'+i.id+'" '+(selected.has(i.id)?"checked":"")+' '+(i.source_status!=="live"?"disabled":"")+' onchange="toggle('+i.id+',this.checked)">'+
-    '<div><a href="/admin-crop-live-source-photo.html?item='+Number(i.id)+'" title="Open full-size photograph and crop"><img src="'+esc(firstImg(i))+'" alt="Open full-size photograph and crop" style="cursor:zoom-in" onerror="this.src=\'/anybike-logo-new.jpg\'"></a><div><a class="small" href="/admin-crop-live-source-photo.html?item='+Number(i.id)+'">Open full photo / crop ↗</a></div>'+ 
+    '<div><a href="/admin-crop-live-source-photo.html?item='+Number(i.id)+'" onclick="rememberLiveSourcePhotoReturn()" title="Open full-size photograph and crop"><img src="'+esc(firstImg(i))+'" alt="Open full-size photograph and crop" style="cursor:zoom-in" onerror="this.src=\'/anybike-logo-new.jpg\'"></a><div><a class="small" href="/admin-crop-live-source-photo.html?item='+Number(i.id)+'" onclick="rememberLiveSourcePhotoReturn()">Open full photo / crop ↗</a></div>'+ 
           (i.preparation_status==="Buyer Ready"
         ?'<div class="status good" style="margin-top:5px;font-weight:900">✓ Buyer Ready</div>'
         :i.buyer_safe_url
@@ -2281,8 +2283,15 @@ async function applySelectedBuyerRequest(){
       modelEl.value="__request_family__";
     }
   }
-  document.getElementById("statusFilter").value="live";
+  document.getElementById("statusFilter").value=photoReturn?.status??"live";
+  if(photoReturn && requestedSource===String(photoReturn.source)){
+    const make=document.getElementById("makeFilter");
+    if([...make.options].some(o=>o.value===photoReturn.make))make.value=photoReturn.make;
+    refreshModelOptions(photoReturn.model||"");
+    if(document.getElementById("vatFilter"))document.getElementById("vatFilter").value=photoReturn.vat||"";
+  }
   await loadItems();
+  if(photoReturn&&requestedSource===String(photoReturn.source)){requestAnimationFrame(()=>window.scrollTo(0,Number(photoReturn.scroll)||0));}
 }
 
 document.getElementById("buyerSelect").addEventListener("change",async function(){
@@ -2389,7 +2398,8 @@ async function createBatch(){
   syncSourcingNav();
   // Source selection must load independently of buyer-request queue latency.
   await Promise.allSettled([loadHub(),loadBuyers(),loadBuyerSourcingQueue()]);
-  const requestedSource=sourcingParams.get("source");
+  let photoReturn=null;try{photoReturn=JSON.parse(sessionStorage.getItem("anybikeLiveSourceReturn")||"null");}catch(_){}
+  const requestedSource=sourcingParams.get("source")||(photoReturn?.source||"");
   if(requestedSource && (hub?.connectors||[]).some(x=>String(x.id)===String(requestedSource))){
     await selectSourceChannel(Number(requestedSource));
   }
