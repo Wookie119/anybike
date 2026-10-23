@@ -334,6 +334,7 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
           <button type="button" class="btn" id="reviewStockBtn" onclick="reviewSelectedStock()">Review for Available Stock</button>
           <button class="btn red" id="prepareSelectedBtn" onclick="createBatch()">Prepare selected bikes</button>
         </div>
+        <section id="cleanedPhotoReview" hidden style="margin:15px 0;padding:15px;border:1px solid #555;border-radius:10px"><h3>Cleaning results — review photos</h3><p id="cleanedPhotoReviewSummary" class="small"></p><div id="cleanedPhotoReviewGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px"></div></section>
         <section id="stockReviewPanel" hidden class="stock-review-panel" aria-label="Review selected motorcycles for Available Stock"><h3>Review for Available Stock</h3><p id="stockReviewStatus" class="small" role="status"></p><div id="stockReviewRows"></div></section>
         <div class="bikes" id="bikes"><div class="empty">Loading…</div></div>
       </section>
@@ -1964,6 +1965,27 @@ async function cleanSelectedImages(){
 
     updateProgress(total,"Photo preparation complete. Updating results…");
     await loadItems(true);
+    // Immediately show the selected batch's actual saved photographs; no further search or checkbox.
+    const review=document.getElementById("cleanedPhotoReview");
+    const grid=document.getElementById("cleanedPhotoReviewGrid");
+    const summary=document.getElementById("cleanedPhotoReviewSummary");
+    if(review&&grid){
+      review.hidden=false;
+      try{
+        const {data:checked,error:checkError}=await sb().rpc("admin_get_live_source_buyer_safe_images_v1",{p_item_ids:ids});
+        if(checkError)throw checkError;
+        const photos=new Map();
+        (checked||[]).forEach(x=>{if(x.buyer_safe_url&&!photos.has(Number(x.live_source_item_id)))photos.set(Number(x.live_source_item_id),x.buyer_safe_url);});
+        summary.textContent=photos.size+" motorcycles with saved buyer-safe photographs · "+(ids.length-photos.size)+" needing attention. Open each full-size photo to inspect before publication.";
+        grid.innerHTML=ids.map(id=>{
+          const source=items.find(x=>Number(x.id)===id);
+          const name=esc([source?.year,source?.make,source?.model].filter(Boolean).join(" ")||"Motorcycle");
+          const url=photos.get(id);
+          return '<div style="background:#181818;border:1px solid #444;padding:10px;border-radius:8px"><strong>'+name+' · #'+id+'</strong>'+(url?'<a style="display:block;margin:10px 0" href="/admin-crop-live-source-photo.html?item='+id+'" onclick="rememberLiveSourcePhotoReturn()"><img src="'+esc(url)+'" style="width:100%;aspect-ratio:4/3;object-fit:contain" alt="Buyer-safe image"></a><a class="btn" href="/admin-crop-live-source-photo.html?item='+id+'" onclick="rememberLiveSourcePhotoReturn()">View larger / crop ↗</a>':'<p style="color:#eeb67b">No approved image available — needs attention</p>')+'</div>';
+        }).join("");
+      }catch(e){summary.textContent="Unable to load cleaned previews: "+String(e.message||e);}
+      review.scrollIntoView({behavior:"smooth",block:"start"});
+    }
 
     st.className=attention===0?"status good":(ready>0?"status good":"status bad");
     updateProgress(total,"Finished · "+ready+" ready · "+attention+" need attention");
