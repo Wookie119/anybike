@@ -335,7 +335,7 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
           <button class="btn red" id="prepareSelectedBtn" onclick="createBatch()">Prepare selected bikes</button>
         </div>
         <section id="cleanedPhotoReview" hidden style="margin:15px 0;padding:15px;border:1px solid #555;border-radius:10px"><h3>Cleaning results — review photos</h3><p id="cleanedPhotoReviewSummary" class="small"></p><div id="cleanedPhotoReviewGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px"></div></section>
-        <section id="stockReviewPanel" hidden class="stock-review-panel" aria-label="Review selected motorcycles for Available Stock"><h3>Review for Available Stock</h3><p id="stockReviewStatus" class="small" role="status"></p><div id="stockReviewRows"></div></section>
+        <section id="stockReviewPanel" hidden class="stock-review-panel" aria-label="Review selected motorcycles for Available Stock"><h3>Review for Available Stock</h3><p id="stockReviewStatus" class="small" role="status"></p><div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin:12px 0"><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="stockSelectAllReady" onchange="toggleAllReadyForPublication(this.checked)"> Select all ready to publish</label><button type="button" class="btn red" id="stockPublishSelected" onclick="publishSelectedReviewedStock()" disabled>Publish selected (0)</button><span id="stockBulkStatus" class="small" role="status"></span></div><div id="stockReviewRows"></div></section>
         <div class="bikes" id="bikes"><div class="empty">Loading…</div></div>
       </section>
 
@@ -1792,7 +1792,7 @@ async function reviewSelectedStock(){
     const good=vatOk&&liveOk&&photoOk;
     const checks=[['VAT qualifying',vatOk],['Live source',liveOk],['Approved buyer-safe photo',photoOk]];
     const checkHtml=checks.map(([name,ok])=>'<span style="display:inline-block;margin:3px 8px 3px 0;color:'+(ok?'#74de96':'#f6bd69')+'">'+(ok?'✓ ':'✕ ')+name+'</span>').join('');
-    return '<div class="stock-review-bike" data-review-id="'+id+'">'+
+    return '<div class="stock-review-bike" data-review-id="'+id+'" data-ready="'+good+'" data-published="'+Boolean(c?.published||i.already_published)+'"><div><label class="small"><input type="checkbox" class="stock-bulk-check" data-item-id="'+id+'" '+(!good||c?.published||i.already_published?'disabled':'')+' onchange="updateStockBulkSelection()"> Select to publish</label></div>'+
       '<div><strong>'+esc(title)+'</strong> <span class="small">#'+id+'</span><p class="small">'+esc(i.seller_name||"Unknown dealer")+' · '+esc(i.source_stock_id||"")+' · '+(c?.published?'Already published — update existing listing':'Not published')+'</p>'+
       '<p class="small">'+checkHtml+'</p>'+
       '<a class="small" href="'+esc(i.source_url||"#")+'" target="_blank" rel="noopener noreferrer">Check dealer advert ↗</a></div>'+
@@ -1802,11 +1802,50 @@ async function reviewSelectedStock(){
     '</div>';
   }).join("");
   bikes.forEach(i=>updateReviewedStockFee(Number(i.id)));
+  updateStockBulkSelection();
   status.textContent=bikes.length+" motorcycle"+(bikes.length===1?"":"s")+" ready for individual review. Nothing is published or changed until you confirm a motorcycle and press its button.";
  }catch(e){status.textContent="Review could not load: "+String(e.message||e);}
 }
 function updateReviewedStockFee(id){const price=document.getElementById("stockPrice"+id),delivery=document.getElementById("stockDelivery"+id),fee=document.getElementById("stockFee"+id);if(!price||!delivery||!fee)return;const margin=Number(price.value)-Number(price.dataset.source)-Number(delivery.value);fee.textContent=Number.isFinite(margin)?"£"+margin.toLocaleString("en-GB",{minimumFractionDigits:2,maximumFractionDigits:2}):"—";const gross=document.getElementById("stockGross"+id);if(gross){const value=Number(price.value)-Number(price.dataset.source);gross.textContent=Number.isFinite(value)?"£"+value.toLocaleString("en-GB",{minimumFractionDigits:2,maximumFractionDigits:2}):"—";}price.dataset.fee=String(margin);}
 function updateReviewedStockPrice(id){const price=document.getElementById("stockPrice"+id),delivery=document.getElementById("stockDelivery"+id);if(!price||!delivery)return;const fee=Number(price.dataset.fee);const total=Number(price.dataset.source)+Number(delivery.value)+fee;if(Number.isFinite(total)&&total>0)price.value=total.toFixed(2);updateReviewedStockFee(id);}
+function updateStockBulkSelection(){
+ const available=[...document.querySelectorAll("#stockReviewRows .stock-bulk-check:not(:disabled)")];
+ const selectedChecks=available.filter(x=>x.checked);
+ const all=document.getElementById("stockSelectAllReady");
+ const btn=document.getElementById("stockPublishSelected");
+ if(all){all.checked=available.length>0&&selectedChecks.length===available.length;all.indeterminate=selectedChecks.length>0&&selectedChecks.length<available.length;}
+ if(btn){btn.disabled=selectedChecks.length===0;btn.textContent="Publish selected ("+selectedChecks.length+")";}
+}
+function toggleAllReadyForPublication(checked){
+ document.querySelectorAll("#stockReviewRows .stock-bulk-check:not(:disabled)").forEach(x=>{x.checked=checked;});
+ updateStockBulkSelection();
+}
+async function publishSelectedReviewedStock(){
+ const checks=[...document.querySelectorAll("#stockReviewRows .stock-bulk-check:checked:not(:disabled)")];
+ if(!checks.length)return;
+ const rows=checks.map(x=>{const id=Number(x.dataset.itemId);return {id,price:Number(document.getElementById("stockPrice"+id)?.value)};});
+ if(rows.some(x=>!Number.isSafeInteger(x.id)||!Number.isFinite(x.price)||x.price<=0||x.price>1000000)){document.getElementById("stockBulkStatus").textContent="Check selling prices before publishing.";return;}
+ const total=rows.reduce((sum,x)=>sum+x.price,0);
+ if(!window.confirm("Publish "+rows.length+" selected motorcycles to Available Stock at their displayed prices (combined £"+total.toLocaleString("en-GB",{minimumFractionDigits:2,maximumFractionDigits:2})+")? Confirm each motorcycle is still available from its seller. Only ready, unpublished motorcycles are included."))return;
+ const btn=document.getElementById("stockPublishSelected"),status=document.getElementById("stockBulkStatus");
+ btn.disabled=true;let done=0,errors=[];
+ for(const {id,price} of rows){
+  status.textContent="Publishing "+(done+errors.length+1)+" of "+rows.length+"…";
+  const label=document.getElementById("stockRowStatus"+id);
+  try{
+   const save=await sb().rpc("admin_set_vq_gallery_price_v1",{p_item_id:id,p_price:price});
+   if(save.error)throw save.error;
+   const result=await sb().rpc("admin_set_vq_gallery_publication_v1",{p_item_id:id,p_publish:true});
+   if(result.error)throw result.error;
+   done++;
+   if(label){label.textContent="Published ✓";label.style.color="#89e5a7";}
+   const check=document.querySelector('#stockReviewRows .stock-bulk-check[data-item-id="'+id+'"]');
+   if(check){check.checked=false;check.disabled=true;}
+  }catch(e){errors.push("#"+id+": "+String(e.message||e));if(label)label.textContent="Not published: "+String(e.message||e);}
+ }
+ status.textContent=done+" published"+(errors.length?" · "+errors.length+" failed: "+errors.join("; "):" · all selected listings saved");
+ updateStockBulkSelection();
+}
 async function publishReviewedStock(id,btn){
  const label=document.getElementById("stockRowStatus"+id);
  const input=document.getElementById("stockPrice"+id);
