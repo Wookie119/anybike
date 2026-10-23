@@ -426,7 +426,7 @@ async function cropSellerPhoto(imageId,button){
  if(cropEditor)cropEditor.remove();
  const modal=document.createElement("div");cropEditor=modal;
  modal.style.cssText="position:fixed;inset:0;z-index:11000;background:rgba(0,0,0,.96);overflow:auto;padding:18px;color:white";
- modal.innerHTML='<div style="max-width:1000px;margin:auto"><h2>Crop Photo · '+imageId+'</h2><p>Drag across the image to choose the area to keep. The original photo is preserved.</p><canvas id="sellerCropCanvas" style="display:block;max-width:100%;touch-action:none;border:1px solid #777;background:#111"></canvas><p id="sellerCropMessage" role="status">Loading original…</p><button type="button" id="sellerCropSave" disabled>Save cropped photo</button> <button type="button" class="dark" id="sellerCropReset">Reset selection</button> <button type="button" class="dark" id="sellerCropClose">Cancel</button></div>';
+ modal.innerHTML='<div style="max-width:1000px;margin:auto"><h2>Crop Photo · '+imageId+'</h2><p>Drag across the image to choose the area to keep. The original photo is preserved.</p><canvas id="sellerCropCanvas" style="display:block;max-width:100%;touch-action:none;border:1px solid #777;background:#111"></canvas><div style="position:sticky;bottom:0;z-index:3;background:#161616;border-top:2px solid #ed1c24;padding:12px;margin-top:10px;display:flex;flex-wrap:wrap;align-items:center;gap:9px"><span id="sellerCropMessage" role="status" style="flex:1 1 100%;color:white">Loading original…</span><button type="button" id="sellerCropSave" disabled style="font-size:16px;padding:14px 20px">Save cropped photo ✓</button><button type="button" class="dark" id="sellerCropReset">Reset selection</button><button type="button" class="dark" id="sellerCropClose">Cancel</button></div></div>';
  document.body.append(modal);
  const canvas=modal.querySelector("canvas"),ctx=canvas.getContext("2d"),msg=modal.querySelector("#sellerCropMessage"),save=modal.querySelector("#sellerCropSave");
  modal.querySelector("#sellerCropClose").onclick=()=>{modal.remove();cropEditor=null};
@@ -436,14 +436,14 @@ async function cropSellerPhoto(imageId,button){
   if(!response.ok)throw Error("Could not load original image");
   url=URL.createObjectURL(await response.blob());
   const img=new Image();img.src=url;await img.decode();
-  const ratio=Math.min(1,900/img.naturalWidth,650/img.naturalHeight);
+  const ratio=Math.min(1,900/img.naturalWidth,520/img.naturalHeight);
   canvas.width=Math.round(img.naturalWidth*ratio);canvas.height=Math.round(img.naturalHeight*ratio);
   let box=null,start=null;
   const point=e=>{const r=canvas.getBoundingClientRect();return {x:Math.max(0,Math.min(canvas.width,(e.clientX-r.left)*canvas.width/r.width)),y:Math.max(0,Math.min(canvas.height,(e.clientY-r.top)*canvas.height/r.height))}};
   function draw(){ctx.clearRect(0,0,canvas.width,canvas.height);ctx.drawImage(img,0,0,canvas.width,canvas.height);if(box){ctx.fillStyle="rgba(0,0,0,.45)";ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(img,box.x,box.y,box.w,box.h,box.x,box.y,box.w,box.h);ctx.strokeStyle="#ed1c24";ctx.lineWidth=3;ctx.strokeRect(box.x,box.y,box.w,box.h);}}
   canvas.onpointerdown=e=>{start=point(e);canvas.setPointerCapture(e.pointerId);box=null;save.disabled=true;draw()};
   canvas.onpointermove=e=>{if(!start)return;let end=point(e);box={x:Math.min(start.x,end.x),y:Math.min(start.y,end.y),w:Math.abs(end.x-start.x),h:Math.abs(end.y-start.y)};draw()};
-  canvas.onpointerup=()=>{start=null;save.disabled=!box||box.w<30||box.h<30;msg.textContent=save.disabled?"Choose a larger crop.":"Crop selected — save when ready."};
+  canvas.onpointerup=()=>{start=null;save.disabled=!box||box.w<8||box.h<8;msg.textContent=save.disabled?"Drag around the area to keep.":"Crop selected — click Save cropped photo below."};
   modal.querySelector("#sellerCropReset").onclick=()=>{box=null;start=null;save.disabled=true;draw();msg.textContent="Select the area to keep."};
   draw();msg.textContent="Drag a rectangle around the motorcycle.";
   save.onclick=async()=>{
