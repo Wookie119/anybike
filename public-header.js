@@ -760,7 +760,7 @@ async function loadPublicHeader(){
     document.querySelectorAll(".export-dropdown-links,.mobile-export-links").forEach(function(host){
       if(host.querySelector(".anybike-international-vq-link"))return;
       const link=document.createElement("a");
-      link.href="/available-stock.html";
+      link.href="/available-stock.html?vat=qualifying";
       link.className="anybike-international-vq-link";
       link.textContent="Available Stock — VAT Qualifying";
       link.setAttribute("aria-label","International VAT Qualifying motorcycle gallery");
