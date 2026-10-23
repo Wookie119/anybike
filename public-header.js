@@ -1003,6 +1003,7 @@ async function addMyDealershipMenuIfEligible(user){
       }
     }
     if(["intl_dealer","intl_distributor","eu_dealer","eu_distributor"].includes(customerType)){
+      document.documentElement.classList.add("anybike-international-dealer");
       for(const menuId of ["loggedInMenu","mobileLoggedInMenu"]){
         const menu=document.getElementById(menuId);if(!menu)continue;
         menu.querySelectorAll('a[href="/my-selling.html"],a[href="/sell-your-motorcycle.html"]').forEach(a=>a.remove());
