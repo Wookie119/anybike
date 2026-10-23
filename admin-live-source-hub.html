@@ -291,7 +291,7 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
           <div class="field"><label>Model</label><select id="modelFilter"><option value="">All models</option></select></div>
           <div class="field"><label>Status</label><select id="statusFilter"><option value="live">Live only</option><option value="">All</option><option value="ended">No longer listed</option><option value="review">Needs review</option></select></div>
           <div class="field"><label>VAT status</label><select id="vatFilter"><option value="">All VAT statuses</option><option value="vq">Verified VAT Qualifying</option><option value="bmw_candidate">BMW VAT reclaimable candidates</option><option value="non_vq">VQ not confirmed</option></select></div>
-          <button class="btn red" onclick="loadItems()">Search</button>
+          <div class="field"><label>Motorcycle type</label><select id="bikeTypeFilter" onchange="loadItems(true)"><option value="">All types</option><option value="adventure">Adventure</option><option value="sport">Sports</option></select></div><div class="field"><label>Sort by price</label><select id="priceSort" onchange="loadItems(true)"><option value="">Default</option><option value="asc">Lowest first</option><option value="desc">Highest first</option></select></div><button class="btn red" onclick="loadItems()">Search</button>
           <button type="button" class="btn" id="yamahaPhotoLoader" style="display:none;white-space:nowrap" onclick="loadYamahaPhotos(Number(document.getElementById('connectorFilter').value),this)">Load Yamaha photos</button>
         </div>
 <div id="vqCoverageNote" class="small" style="margin-top:8px;color:#e6be62;display:none">VQ filter shows only motorcycles explicitly confirmed as VAT Qualifying in our records. Other dealer stock may still qualify — VAT status must be verified from the supplier invoice before publication.</div>
@@ -1953,7 +1953,7 @@ async function cleanSelectedImages(){
 }
 
 
-function rememberLiveSourcePhotoReturn(){try{sessionStorage.setItem("anybikeLiveSourceReturn",JSON.stringify({source:document.getElementById("connectorFilter").value,make:document.getElementById("makeFilter").value,model:document.getElementById("modelFilter").value,status:document.getElementById("statusFilter").value,vat:document.getElementById("vatFilter")?.value||"",scroll:window.scrollY}));}catch(_){}}
+function rememberLiveSourcePhotoReturn(){try{sessionStorage.setItem("anybikeLiveSourceReturn",JSON.stringify({source:document.getElementById("connectorFilter").value,make:document.getElementById("makeFilter").value,model:document.getElementById("modelFilter").value,status:document.getElementById("statusFilter").value,vat:document.getElementById("vatFilter")?.value||"",bikeType:document.getElementById("bikeTypeFilter")?.value||"",priceSort:document.getElementById("priceSort")?.value||"",scroll:window.scrollY}));}catch(_){}}
 async function loadItems(preserveDealerOptions=false){
   const st=document.getElementById("poolStatus");st.textContent="Loading…";
   const cid=document.getElementById("connectorFilter").value?Number(document.getElementById("connectorFilter").value):null;
@@ -2057,6 +2057,27 @@ async function loadItems(preserveDealerOptions=false){
         if(document.getElementById("unpublishedOnlyCheck")?.checked)rows=rows.filter(i=>!i.already_published);
       }
     }catch(e){console.warn("Available Stock status unavailable",e);}
+  }
+
+  // Client-side display filters; source records and publication status remain unchanged.
+  const bikeType=document.getElementById("bikeTypeFilter")?.value||"";
+  if(bikeType){
+    rows=rows.filter(i=>{
+      const name=[i.make,i.model,i.variant].filter(Boolean).join(" ").toUpperCase();
+      if(bikeType==="adventure")return /(?:^|\\W)(?:GS|GSA|ADVENTURE|MULTISTRADA|TIGER|AFRICA TWIN|TRANSALP|TENERE|TÉNÉRÉ|V.STROM|VERSYS|DESERTX|PAN AMERICA)(?:\\W|$)/i.test(name);
+      if(bikeType==="sport")return /(?:^|\\W)(?:S\\s*1000\\s*RR|M\\s*1000\\s*RR|S\\s*1000\\s*R|M\\s*1000\\s*R|RSV4|PANIGALE|FIREBLADE|GSX.?R|ZX.?[0-9]|YZF.?R|DAYTONA|SUPERSPORT)(?:\\W|$)/i.test(name);
+      return true;
+    });
+  }
+  const priceSort=document.getElementById("priceSort")?.value||"";
+  if(priceSort==="asc"||priceSort==="desc"){
+    rows.sort((a,b)=>{
+      const x=Number(a.source_price_gbp),y=Number(b.source_price_gbp);
+      const ax=Number.isFinite(x)&&x>0?x:null,by=Number.isFinite(y)&&y>0?y:null;
+      if(ax===null)return by===null?0:1;
+      if(by===null)return -1;
+      return priceSort==="asc"?ax-by:by-ax;
+    });
   }
 
   // Always render source matches immediately. BMW photo retrieval is manual via the
@@ -2302,6 +2323,8 @@ async function applySelectedBuyerRequest(){
     if([...make.options].some(o=>o.value===photoReturn.make))make.value=photoReturn.make;
     refreshModelOptions(photoReturn.model||"");
     if(document.getElementById("vatFilter"))document.getElementById("vatFilter").value=photoReturn.vat||"";
+    if(document.getElementById("bikeTypeFilter"))document.getElementById("bikeTypeFilter").value=photoReturn.bikeType||"";
+    if(document.getElementById("priceSort"))document.getElementById("priceSort").value=photoReturn.priceSort||"";
   }
   await loadItems();
   if(photoReturn&&requestedSource===String(photoReturn.source)){requestAnimationFrame(()=>window.scrollTo(0,Number(photoReturn.scroll)||0));}
