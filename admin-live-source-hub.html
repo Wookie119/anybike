@@ -323,7 +323,7 @@ h1{margin:6px 0 8px;font-size:34px}.muted{color:#aaa;line-height:1.5}.sources{di
           <button class="btn green" id="cleanSelectedBtn" onclick="cleanSelectedImages()">Retrieve &amp; clean selected photos</button>
           <label class="btn" style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="unpublishedOnlyCheck" style="width:auto" onchange="loadItems(true)"> Not yet on Available Stock</label>
           <label class="btn" style="display:flex;align-items:center;gap:8px;cursor:pointer">
-            <input id="buyerSafeOnlyCheck" type="checkbox" style="width:auto" onchange="loadItems(true)">
+            <input id="buyerSafeOnlyCheck" type="checkbox" style="width:auto" onchange="filterCleanedPhotoReview();loadItems(true)">
             Clean images ready only
           </label>
           <label class="btn" style="display:flex;align-items:center;gap:8px;cursor:pointer">
@@ -2021,8 +2021,9 @@ async function cleanSelectedImages(){
           const source=items.find(x=>Number(x.id)===id);
           const name=esc([source?.year,source?.make,source?.model].filter(Boolean).join(" ")||"Motorcycle");
           const url=photos.get(id);
-          return '<div style="background:#181818;border:1px solid #444;padding:10px;border-radius:8px"><strong>'+name+' · #'+id+'</strong>'+(url?'<a style="display:block;margin:10px 0" href="/admin-crop-live-source-photo.html?item='+id+'" onclick="rememberLiveSourcePhotoReturn()"><img src="'+esc(url)+'" style="width:100%;aspect-ratio:4/3;object-fit:contain" alt="Buyer-safe image"></a><a class="btn" href="/admin-crop-live-source-photo.html?item='+id+'" onclick="rememberLiveSourcePhotoReturn()">View larger / crop ↗</a>':'<p style="color:#eeb67b">No approved image available — needs attention</p>')+'</div>';
+          return '<div data-clean-photo-card data-has-photo="'+Boolean(url)+'" style="background:#181818;border:1px solid #444;padding:10px;border-radius:8px"><strong>'+name+' · #'+id+'</strong>'+(url?'<a style="display:block;margin:10px 0" href="/admin-crop-live-source-photo.html?item='+id+'" onclick="rememberLiveSourcePhotoReturn()"><img src="'+esc(url)+'" style="width:100%;aspect-ratio:4/3;object-fit:contain" alt="Buyer-safe image"></a><a class="btn" href="/admin-crop-live-source-photo.html?item='+id+'" onclick="rememberLiveSourcePhotoReturn()">View larger / crop ↗</a>':'<p style="color:#eeb67b">No approved image available — needs attention</p>')+'</div>';
         }).join("");
+        filterCleanedPhotoReview();
       }catch(e){summary.textContent="Unable to load cleaned previews: "+String(e.message||e);}
       review.scrollIntoView({behavior:"smooth",block:"start"});
     }
@@ -2038,6 +2039,7 @@ async function cleanSelectedImages(){
 }
 
 
+function filterCleanedPhotoReview(){const grid=document.getElementById("cleanedPhotoReviewGrid");const panel=document.getElementById("cleanedPhotoReview");if(!grid||!panel||panel.hidden)return;const only=document.getElementById("buyerSafeOnlyCheck")?.checked;let visible=0;grid.querySelectorAll("[data-clean-photo-card]").forEach(card=>{card.hidden=!!only&&card.dataset.hasPhoto!=="true";if(!card.hidden)visible++;});const status=document.getElementById("cleanedPhotoReviewSummary");if(status){const total=grid.querySelectorAll("[data-clean-photo-card]").length;const ready=grid.querySelectorAll('[data-clean-photo-card][data-has-photo="true"]').length;status.textContent=only?ready+" motorcycles with saved buyer-safe photographs shown · "+(total-ready)+" without photos hidden.":ready+" motorcycles with saved buyer-safe photographs · "+(total-ready)+" needing attention.";}}
 function rememberLiveSourcePhotoReturn(){try{sessionStorage.setItem("anybikeLiveSourceReturn",JSON.stringify({source:document.getElementById("connectorFilter").value,make:document.getElementById("makeFilter").value,model:document.getElementById("modelFilter").value,status:document.getElementById("statusFilter").value,vat:document.getElementById("vatFilter")?.value||"",bikeType:document.getElementById("bikeTypeFilter")?.value||"",priceSort:document.getElementById("priceSort")?.value||"",scroll:window.scrollY}));}catch(_){}}
 async function loadItems(preserveDealerOptions=false){
   const st=document.getElementById("poolStatus");st.textContent="Loading…";
