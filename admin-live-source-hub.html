@@ -2060,13 +2060,20 @@ async function loadItems(preserveDealerOptions=false){
   }
 
   // Client-side display filters; source records and publication status remain unchanged.
+  // BMW Motorrad official model families, using the actual model values in Live Source.
   const bikeType=document.getElementById("bikeTypeFilter")?.value||"";
   if(bikeType){
     rows=rows.filter(i=>{
-      const name=[i.make,i.model,i.variant].filter(Boolean).join(" ").toUpperCase();
-      if(bikeType==="adventure")return /(?:^|\\W)(?:GS|GSA|ADVENTURE|MULTISTRADA|TIGER|AFRICA TWIN|TRANSALP|TENERE|TÉNÉRÉ|V.STROM|VERSYS|DESERTX|PAN AMERICA)(?:\\W|$)/i.test(name);
-      if(bikeType==="sport")return /(?:^|\\W)(?:S\\s*1000\\s*RR|M\\s*1000\\s*RR|S\\s*1000\\s*R|M\\s*1000\\s*R|RSV4|PANIGALE|FIREBLADE|GSX.?R|ZX.?[0-9]|YZF.?R|DAYTONA|SUPERSPORT)(?:\\W|$)/i.test(name);
-      return true;
+      const model=String(i.model||"").trim().toUpperCase().split(" ").filter(Boolean).join(" ");
+      if(String(i.make||"").trim().toUpperCase()==="BMW"){
+        const adventure=["R 1300 GS","R 1250 GS","R 1200 GS","F 450 GS","F 750 GS","F 800 GS","F 850 GS","F 900 GS","G 310 GS","R 12 G/S"];
+        const sport=["S 1000 RR","S 1000 XR","F 900 XR","R 1250 RS","R 1300 RS","M 1000 RR","M 1000 R","M 1000 XR"];
+        const families=bikeType==="adventure"?adventure:sport;
+        return families.some(family=>model===family||model.startsWith(family+" "));
+      }
+      const name=[i.model,i.variant].filter(Boolean).join(" ").toUpperCase();
+      const keywords=bikeType==="adventure"?["ADVENTURE","AFRICA TWIN","TRANSALP","TENERE","TÉNÉRÉ","V-STROM","VERSYS","DESERTX","TIGER","MULTISTRADA","PAN AMERICA"]:["SPORT","SUPERSPORT","PANIGALE","RSV4","GSX-R","FIREBLADE","DAYTONA","NINJA","YZF"];
+      return keywords.some(k=>name.includes(k));
     });
   }
   const priceSort=document.getElementById("priceSort")?.value||"";
