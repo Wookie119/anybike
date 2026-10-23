@@ -325,11 +325,11 @@ function populateVmotoBatteryOptions(model,preferredBattery){
     if(help)help.textContent="Only battery configurations confirmed for the selected VMoto are shown.";
     return;
   }
-  const voltageEdition=["tc","tsx"].includes(model.slug)&&["60v","72v"].includes(String(document.getElementById("vmotoVariant")?.value||"").toLowerCase());
-  if(voltageEdition){
+  // TC/TSX voltage editions have no verified pack details in the supplier pricing sheet.
+  if(["TC","TSX"].includes(String(document.getElementById("vmotoModel")?.value||"").trim().toUpperCase())){
     batteryEl.disabled=true;
     batteryEl.innerHTML='<option value="">Exact battery specification to be confirmed</option>';
-    if(help)help.textContent="The selected 60V or 72V version is recorded. AnyBike will confirm the matching battery specification before purchase.";
+    if(help)help.textContent="AnyBike will confirm the battery for your selected 60V or 72V model before purchase.";
     return;
   }
   const configured=(["tc","tsx"].includes(model.slug)&&["60v","72v"].includes(document.getElementById("vmotoVariant")?.value))
@@ -371,13 +371,11 @@ function populateVmotoVariantAndColours(preferredVariant,preferredColour,preferr
     colourEl.innerHTML='<option value="">No colour preference</option>'+colours.map(x=>'<option value="'+vmotoEsc(x)+'">'+vmotoEsc(x)+'</option>').join("");
     if(preferredColour&&colours.includes(preferredColour))colourEl.value=preferredColour;
   }
-  // Dealer-sheet TC/TSX voltage versions must remain distinct on enquiry.
+  // Supplier lists exactly two voltage editions for both TC and TSX.
   if(variantEl && /^(tc|tsx)$/i.test(modelName.trim())){
-    const existing=new Set([...variantEl.options].map(o=>o.value.toLowerCase()));
-    for(const voltage of ["60v","72v"]){
-      if(!existing.has(voltage))variantEl.add(new Option(voltage.toUpperCase(),voltage));
-    }
-    if(["60v","72v"].includes(String(preferredVariant).toLowerCase()))variantEl.value=String(preferredVariant).toLowerCase();
+    const choice=String(preferredVariant||variantEl.value||"").toLowerCase();
+    variantEl.innerHTML='<option value="">Choose 60V or 72V</option><option value="60v">60V</option><option value="72v">72V</option>';
+    variantEl.value=["60v","72v"].includes(choice)?choice:"";
   }
   populateVmotoBatteryOptions(model,preferredBattery||"");
 }
