@@ -2430,8 +2430,8 @@ async function createBatch(){
 (async()=>{
   const allowed=await requireAdminSession();if(!allowed)return;
   syncSourcingNav();
-  await loadBuyerSourcingQueue();
-  await Promise.all([loadHub(),loadBuyers()]);
+  // Source selection must load independently of buyer-request queue latency.
+  await Promise.allSettled([loadHub(),loadBuyers(),loadBuyerSourcingQueue()]);
   const requestedSource=sourcingParams.get("source");
   if(requestedSource && (hub?.connectors||[]).some(x=>String(x.id)===String(requestedSource))){
     await selectSourceChannel(Number(requestedSource));
