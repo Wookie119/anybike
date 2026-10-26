@@ -892,3 +892,14 @@ Frontend alignment completed:
 - Leave BMW candidate pending and avoid automatic BMW refresh/scanning; separately verify whether the notification represents new stock or a pending-record reminder.
 - Resume priority: **UK Trade Underwrite Deal AB-26-B2802EC7**, underwrite AB-UW-000019, submission AB-S-000028, 2023 Honda Forza 350, Quotes Motorbikes, buyer agreed £1,300.00, seller purchase test price £3.00, dealer received £0.00. Existing DB route UK_DOMESTIC_TRADE. Buyer page awaits dealer proforma, seller acceptance complete.
 - Next: verify VAT/margin-scheme eligibility from actual purchase and seller records; prepare a non-issued preview first. Do not issue/send an invoice, allocate receipts, pay the seller, book Move or publish anything without explicit approval. Generalise buyer-side route detection beyond Honda-only hardcoding.
+
+## Future development schedule — International stock and manufacturer coverage (added 26 October 2026)
+
+**Status: Scheduled backlog only — not authorised to implement yet.** No automatic stock scanning, scheduled refreshes, or publication changes.
+
+1. **Finish manufacturer and model pages first.** Audit the existing BMW and Harley-Davidson pages and complete missing models, verified specifications, approved photographs and model-page links. Preserve current pages and enquiry flows.
+2. **Connect model pages to Available Stock.** Link each manufacturer/model page to relevant *approved published* stock and retain the existing international buyer enquiry → Message Centre → Deal 360 journey.
+3. **Expand VAT Qualifying Available Stock beyond BMW gradually.** Candidate brands: Harley-Davidson, Ducati, Triumph, KTM, Honda, Yamaha, Kawasaki and Suzuki. Prioritise trusted dealer-supplied CSV/Excel stock feeds and the existing manual review/publish controls, with verified VAT status, price and photographs.
+4. **Safeguards.** Avoid automated crawling or heavy Supabase refreshes; never expose dealer costs or supplier identities, and do not disturb the working BMW gallery, UK user restrictions, or international account permissions.
+
+**Timing:** Future phase, no specific date or automatic reminder. **Immediate priority:** real international buyer enquiries and progressing deals.
