@@ -903,3 +903,16 @@ Frontend alignment completed:
 4. **Safeguards.** Avoid automated crawling or heavy Supabase refreshes; never expose dealer costs or supplier identities, and do not disturb the working BMW gallery, UK user restrictions, or international account permissions.
 
 **Timing:** Future phase, no specific date or automatic reminder. **Immediate priority:** real international buyer enquiries and progressing deals.
+
+
+## Youles Motorcycles — Level 2 dealer activation follow-up (26 October 2026)
+
+**Status:** Level 2 approval completed in Admin Customer 360 for Joe Youles, Youles Motorcycles Ltd, Blackburn; screenshot confirms UK dealership approved, buying/selling/trading and underwriting submit/view/bid enabled, and six core details complete. Do not approve again or alter permissions without review.
+
+**Next actions (not completed):**
+1. Review the individual dealership service permissions, specifically Offer Bikes to Trade, Request Underwrite, Make Trade Offers, auction bids, and International / VAT Qualifying access. Verify against the saved permission record, not just the summary banner.
+2. Check the existing dealer welcome/onboarding process and whether Joe has a welcome thread in the AnyBike Message Centre. Avoid duplicate or unsolicited invitations.
+3. Encourage one practical first action (submit a motorcycle for underwriting or offer stock to other UK dealers), using the existing Message Centre and deep links to permitted dealer services. Keep messages concise, avoid spam.
+4. Confirm his approved account sees the appropriate UK Dealer dashboard and services. Note the Customer 360 buyer-stage label still reads “Registered / Browsing” after Level 2 approval; assess whether that is a separate CRM stage or a presentation inconsistency, without redesigning the page.
+
+**Safeguards:** Genuine dealer; no test bids, permission changes, automatic outgoing messages or site redesigns without explicit approval.
