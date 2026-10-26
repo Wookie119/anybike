@@ -4054,6 +4054,16 @@ body{
 .anybike-retail-journey .anybike-commercial-grid>label>select{display:block;width:100%;max-width:100%;min-width:0;box-sizing:border-box}
 @media(max-width:1000px){.anybike-retail-journey .anybike-commercial-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:650px){.anybike-retail-journey .anybike-commercial-grid{grid-template-columns:1fr}}
+.vmoto-stock-check{margin:14px 16px;padding:16px;border:1px solid #4a4a4a;border-radius:12px;background:#151515;color:#fff}
+.vmoto-stock-check h4{margin:0 0 6px;font-size:16px}.vmoto-stock-check p{color:#bbb;font-size:12px;margin:0 0 14px}
+.vmoto-stock-check-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.vmoto-stock-check-grid label{display:flex;flex-direction:column;gap:6px;min-width:0;font-size:12px;color:#ddd}
+.vmoto-stock-check-grid input,.vmoto-stock-check-grid textarea{box-sizing:border-box;width:100%;min-width:0;border:1px solid #777;border-radius:7px;background:#fff;color:#111;padding:9px;font:inherit}
+.vmoto-stock-check-notes{grid-column:span 2}
+.vmoto-stock-check-actions{display:flex;gap:12px;justify-content:flex-end;align-items:center;flex-wrap:wrap;margin-top:14px}
+.vmoto-stock-check-actions span{font-size:12px;color:#ddd}
+@media(max-width:900px){.vmoto-stock-check-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.vmoto-stock-check-grid{grid-template-columns:1fr}.vmoto-stock-check-notes{grid-column:auto}}
 .anybike-retail-launch-note{margin:0 14px 14px;padding:12px;border:1px solid rgba(237,28,36,.35);border-radius:10px;background:rgba(237,28,36,.06);color:#d7d7d7;font-size:11px;line-height:1.5}
 @media(max-width:1200px){.anybike-retail-steps{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:700px){.anybike-retail-steps{grid-template-columns:1fr}}
@@ -17982,6 +17992,43 @@ async function saveAnyBikeRetailOrder(dealId){
   }
 }
 
+async function saveAnyBikeVmotoStockCheck(dealId){
+  const id=String(dealId||"");
+  const order=adminRetailOrders.get(id);
+  if(!order) return alert("Retail order not found.");
+  const field=name=>document.getElementById("vmoto-check-"+name+"-"+id);
+  const btn=field("save");
+  const status=field("status");
+  const value=name=>field(name)?.value?.trim()||null;
+  const data={
+    p_retail_order_id:Number(order.id),
+    p_contact_name:value("contact"),
+    p_contact_date:value("date"),
+    p_preparation_lead_days:value("lead")===null?null:Number(value("lead")),
+    p_collection_ready_date:value("ready"),
+    p_stock_check_notes:value("notes"),
+    p_dealer_cost_gbp:value("cost")===null?null:Number(value("cost"))
+  };
+  if(btn.disabled) return;
+  btn.disabled=true;
+  status.textContent="Saving stock check…";
+  try{
+    const result=await sb.rpc("admin_save_vmoto_stock_check_v1",data);
+    if(result.error) throw result.error;
+    Object.assign(order,{
+      vmoto_contact_name:data.p_contact_name,
+      vmoto_contact_date:data.p_contact_date,
+      vmoto_preparation_lead_days:data.p_preparation_lead_days,
+      vmoto_collection_ready_date:data.p_collection_ready_date,
+      vmoto_stock_check_notes:data.p_stock_check_notes,
+      vmoto_dealer_cost_gbp:data.p_dealer_cost_gbp
+    });
+    status.textContent="✓ Stock call details saved. Stock status and journey stage were not changed.";
+  }catch(error){
+    status.textContent="Unable to save: "+(error?.message||error);
+  }finally{btn.disabled=false;}
+}
+
 function renderAnyBikeRetailGuidedJourney(deal,bikes){
   const route=String(deal?.sale_route||"");
   if(route!=="NEW_RETAIL_B2C"){ return ""; }
@@ -18038,6 +18085,15 @@ function renderAnyBikeRetailGuidedJourney(deal,bikes){
       '<label>Delivery Charge (£)<input id="retail-delivery-'+dealId+'" type="number" min="0" step="0.01" value="'+anyBikeRetailMoneyInputValue(order.delivery_charge_gbp)+'" placeholder="From 99.00"></label>'+
       '<label>Current Customer Total<strong>'+(total>0?anyBikeDealMoney(total):"Not priced yet")+'</strong></label>'+
     '</div>'+
+    '<div class="vmoto-stock-check"><h4>VMoto Stock Confirmation · Internal Only</h4><p>Call VMoto to check live stock and when the selected motorcycle will be ready for Move to collect. The CSV is not a live stock guarantee.</p>'+
+      '<div class="vmoto-stock-check-grid">'+
+        '<label>VMoto Contact<input id="vmoto-check-contact-'+dealId+'" maxlength="120" value="'+escapeAdminHtml(order.vmoto_contact_name||"")+'" placeholder="Who confirmed the information?"></label>'+
+        '<label>Call Date<input id="vmoto-check-date-'+dealId+'" type="date" value="'+escapeAdminHtml(order.vmoto_contact_date||"")+'"></label>'+
+        '<label>Preparation / PDI (days)<input id="vmoto-check-lead-'+dealId+'" type="number" min="0" max="365" value="'+escapeAdminHtml(order.vmoto_preparation_lead_days??"")+'" placeholder="Days"></label>'+
+        '<label>Expected Collection-Ready Date<input id="vmoto-check-ready-'+dealId+'" type="date" value="'+escapeAdminHtml(order.vmoto_collection_ready_date||"")+'"></label>'+
+        '<label>Dealer Purchase Cost (£) · Admin Only<input id="vmoto-check-cost-'+dealId+'" type="number" min="0" max="1000000" step="0.01" value="'+escapeAdminHtml(order.vmoto_dealer_cost_gbp??"")+'" placeholder="Confidential"></label>'+
+        '<label class="vmoto-stock-check-notes">Stock Call Notes<textarea id="vmoto-check-notes-'+dealId+'" maxlength="2000" rows="2" placeholder="Confirmed model/version/colour, availability, stock location, and any qualifications">'+escapeAdminHtml(order.vmoto_stock_check_notes||"")+'</textarea></label>'+
+      '</div><div class="vmoto-stock-check-actions"><span id="vmoto-check-status-'+dealId+'" role="status"></span><button type="button" class="btn" id="vmoto-check-save-'+dealId+'" onclick="saveAnyBikeVmotoStockCheck(\\''+dealId+'\\')">Save Stock Check</button></div></div>'+
     '<label style="display:block;margin-top:12px">Internal Retail Notes<textarea id="retail-notes-'+dealId+'" style="width:100%;min-height:70px">'+escapeAdminHtml(order.internal_notes||"")+'</textarea></label>'+
     '<div style="display:flex;justify-content:flex-end;margin-top:12px"><button type="button" class="btn" '+(busy?'disabled':'')+' onclick="saveAnyBikeRetailOrder(\''+dealId+'\')">'+(busy?'Saving…':'Save Retail Deal')+'</button></div>'+
   '</div>' : '<div class="anybike-retail-launch-note"><strong>Retail order record not found.</strong> This Deal may have been manually switched to B2C rather than created through the VMoto retail enquiry flow.</div>';
