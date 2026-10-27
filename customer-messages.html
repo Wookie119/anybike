@@ -1685,7 +1685,7 @@ function openGlobalBuyerThread(threadId){
     const thread=document.getElementById("global-messages-"+threadId);
     const latest=thread?.querySelector(".msg:last-child");
     if(thread)thread.scrollTop=thread.scrollHeight;
-    if(new URLSearchParams(location.search).get("thread")===threadId){card.scrollIntoView({behavior:"smooth",block:"start"});}else if(window.innerWidth<900){(latest||thread||card).scrollIntoView({behavior:"smooth",block:"center"});}
+    if(new URLSearchParams(location.search).get("thread")!==threadId && window.innerWidth<900){(latest||thread||card).scrollIntoView({behavior:"smooth",block:"center"});}
   },120);
 }
 
@@ -2977,7 +2977,16 @@ async function loadGlobalBuyerMessages(threadId){
   if(linkedThread===String(threadId) && card?.classList.contains("open")){
     const newest=box.querySelector(".msg:last-child");
     if(newest){
-      newest.scrollIntoView({behavior:"smooth",block:"center"});
+      // Avoid racing the delayed card focus and asynchronously hydrated previews.
+      // Set the page position after layout, not via a cancellable smooth scroll.
+      newest.style.scrollMarginTop="90px";
+      requestAnimationFrame(()=>{
+        requestAnimationFrame(()=>{
+          if(new URLSearchParams(location.search).get("thread")===String(threadId)){
+            newest.scrollIntoView({behavior:"instant",block:"center"});
+          }
+        });
+      });
     }
   }
 
