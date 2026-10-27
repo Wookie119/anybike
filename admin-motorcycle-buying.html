@@ -247,7 +247,7 @@ label{display:block;color:#bbb;font-size:12px;font-weight:800}input{width:100%;m
 
       <div id="underwriteSummary" class="sub" style="margin:12px 0;padding:12px 15px;border:1px solid #333;border-radius:12px">Loading underwriting overview…</div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:12px 0"><button type="button" class="intake-toggle" id="showGallery" onclick="setIntakeView('gallery')">Motorcycle Gallery</button><button type="button" class="intake-toggle active" id="showList" onclick="setIntakeView('list')">Detailed List</button><span style="color:#aaa;font-size:13px">Both sources · Admin review only. Motorcycles go to dealers only after underwriting is opened.</span></div><div id="intakeGallery" class="intake-gallery" style="display:none"></div>
-      <div id="queue" class="queue-list"><div class="empty">Loading…</div></div>
+      <section id="messageBikeEnquiries" style="margin:16px 0 20px;padding:16px;border:1px solid #555;border-top:3px solid #ed1c24;border-radius:10px;background:#171717"><div style="font-size:18px;font-weight:700;margin-bottom:6px">Motorcycle enquiries from Message Centre</div><div style="color:#bbb;font-size:13px;margin-bottom:12px">Motorcycle offers or sale enquiries without a linked motorcycle submission. Open the conversation, collect the guide price and photographs, then create or complete the listing for admin review.</div><div id="messageBikeEnquiriesList" style="color:#ccc">Loading enquiries…</div></section><div id="queue" class="queue-list"><div class="empty">Loading…</div></div>
     </main>
   </div>
 </div>
@@ -329,6 +329,7 @@ async function loadQueue(){
   }
   const {data}=response;
   rows=data||[];
+  loadMotorcycleMessageEnquiries();
   tradeOpportunityBySubmission=new Map();
   try{
     const opportunities=await sb.rpc("admin_get_trade_underwrite_queue_v2");
@@ -345,6 +346,16 @@ async function loadQueue(){
   }
 }
 
+async function loadMotorcycleMessageEnquiries(){
+ const host=document.getElementById("messageBikeEnquiriesList");
+ if(!host)return;
+ try{
+  const {data,error}=await sb.rpc("admin_get_motorcycle_message_enquiries_v1",{p_limit:100});
+  if(error)throw error;
+  if(!data?.length){host.textContent="No unlinked motorcycle enquiries in Message Centre.";return;}
+  host.innerHTML=data.map(t=>'<div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;border-top:1px solid #353535;padding:11px 2px"><div><strong>'+esc(t.subject||"Motorcycle enquiry")+'</strong><div style="font-size:12px;color:#aaa;margin-top:4px">'+esc(t.customer_name||t.customer_email||"Customer")+' · '+esc(t.created_at?new Date(t.created_at).toLocaleDateString("en-GB"):"")+'</div></div><a class="btn" style="padding:8px 12px;font-size:12px" href="/admin-message-centre.html?thread='+Number(t.thread_id)+'">Review enquiry →</a></div>').join("");
+ }catch(e){host.textContent="Could not load motorcycle enquiries: "+String(e.message||e);}
+}
 function updateNextAction(){
   if(!rows.length){
     window.AnyBikeNextAction?.set({
