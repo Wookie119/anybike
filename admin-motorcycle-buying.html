@@ -247,7 +247,7 @@ label{display:block;color:#bbb;font-size:12px;font-weight:800}input{width:100%;m
 
       <div id="underwriteSummary" class="sub" style="margin:12px 0;padding:12px 15px;border:1px solid #333;border-radius:12px">Loading underwriting overview…</div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:12px 0"><button type="button" class="intake-toggle" id="showGallery" onclick="setIntakeView('gallery')">Motorcycle Gallery</button><button type="button" class="intake-toggle active" id="showList" onclick="setIntakeView('list')">Detailed List</button><span style="color:#aaa;font-size:13px">Both sources · Admin review only. Motorcycles go to dealers only after underwriting is opened.</span></div><div id="intakeGallery" class="intake-gallery" style="display:none"></div>
-      <section id="messageBikeEnquiries" style="margin:16px 0 20px;padding:16px;border:1px solid #555;border-top:3px solid #ed1c24;border-radius:10px;background:#171717"><div style="font-size:18px;font-weight:700;margin-bottom:6px">Motorcycle enquiries from Message Centre</div><div style="color:#bbb;font-size:13px;margin-bottom:12px">Motorcycle offers or sale enquiries without a linked motorcycle submission. Open the conversation, collect the guide price and photographs, then create or complete the listing for admin review.</div><div id="messageBikeEnquiriesList" style="color:#ccc">Loading enquiries…</div></section><div id="queue" class="queue-list"><div class="empty">Loading…</div></div>
+      <div id="queue" class="queue-list"><div class="empty">Loading…</div></div>
     </main>
   </div>
 </div>
@@ -346,15 +346,14 @@ async function loadQueue(){
   }
 }
 
+let messageBikeEnquiries=[];
 async function loadMotorcycleMessageEnquiries(){
- const host=document.getElementById("messageBikeEnquiriesList");
- if(!host)return;
  try{
-  const {data,error}=await sb.rpc("admin_get_motorcycle_message_enquiries_v1",{p_limit:100});
-  if(error)throw error;
-  if(!data?.length){host.textContent="No unlinked motorcycle enquiries in Message Centre.";return;}
-  host.innerHTML=data.map(t=>'<div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;border-top:1px solid #353535;padding:11px 2px"><div><strong>'+esc(t.subject||"Motorcycle enquiry")+'</strong><div style="font-size:12px;color:#aaa;margin-top:4px">'+esc(t.customer_name||t.customer_email||"Customer")+' · '+esc(t.created_at?new Date(t.created_at).toLocaleDateString("en-GB"):"")+'</div></div><a class="btn" style="padding:8px 12px;font-size:12px" href="/admin-message-centre.html?thread='+Number(t.thread_id)+'">Review enquiry →</a></div>').join("");
- }catch(e){host.textContent="Could not load motorcycle enquiries: "+String(e.message||e);}
+ const {data,error}=await sb.rpc("admin_get_motorcycle_message_enquiries_v1",{p_limit:100});
+ if(error)throw error;
+ messageBikeEnquiries=data||[];
+ render();
+ }catch(e){console.warn("Motorcycle enquiries unavailable",e);}
 }
 function updateNextAction(){
   if(!rows.length){
@@ -583,8 +582,9 @@ function render(){
     return "Not declared · check required";
   };
   renderIntakeGallery(list);
+  const messageList=(!source&&!status&&!uw&&!summaryGroup&&!hpi&&!buyer&&images!=="approved"&&images!=="review")?messageBikeEnquiries.filter(t=>[t.subject,t.customer_name,t.registration,t.make,t.model].join(" ").toLowerCase().includes(q)):[];
   const host=document.getElementById("queue");
-  if(!list.length){host.innerHTML='<div class="empty">No submissions match these filters.</div>';return;}
+  if(!list.length&&!messageList.length){host.innerHTML='<div class="empty">No submissions match these filters.</div>';return;}
 
   const head='<div class="queue-head">'+
     '<div>Image</div><div>Reference</div><div>Motorcycle</div><div>Reg</div><div>Year</div>'+
@@ -592,7 +592,22 @@ function render(){
   '</div>';
 
   renderUnderwriteSummary();
-  host.innerHTML=head+list.map(r=>{
+  const messageRows=messageList.map(t=>{
+   const hasDetails=!!(t.make&&t.model);
+   const bike=[t.make,t.model].filter(Boolean).join(" ")||t.subject||"Motorcycle enquiry";
+   const photoStatus=t.has_photos?"Photos received":"Photos needed";
+   return '<div class="submission-wrap"><div class="submission-row">'+
+    '<div class="row-image"><span>'+esc(photoStatus)+'</span></div>'+
+    '<div class="row-cell mobile-hide"><strong>MSG-'+Number(t.thread_id)+'</strong><small>Message Centre</small></div>'+
+    '<div class="row-main"><strong>'+esc(bike)+'</strong><small>'+esc(t.mileage!=null?Number(t.mileage).toLocaleString("en-GB")+" miles · ":"")+esc(photoStatus)+(t.asking_price!=null?" · "+money(t.asking_price):"")+'</small></div>'+
+    '<div class="row-cell mobile-hide">'+esc(t.registration||"—")+'</div>'+
+    '<div class="row-cell mobile-hide">'+esc(t.bike_year||"—")+'</div>'+
+    '<div class="row-cell mobile-hide">'+esc(t.customer_name||"—")+'</div>'+
+    '<div class="row-cell mobile-hide"><strong>Details needed</strong><small>'+esc(photoStatus)+'</small></div>'+
+    '<a class="row-next" style="text-decoration:none;display:flex;align-items:center;justify-content:center;text-align:center" href="/admin-message-centre.html?thread='+Number(t.thread_id)+'">'+(hasDetails&&!t.has_photos?"REQUEST PHOTOS →":"REVIEW ENQUIRY →")+'</a>'+
+   '</div></div>';
+  }).join("");
+  host.innerHTML=head+messageRows+list.map(r=>{
     const dealer=r.source_channel==="dealer_underwrite";
     const imageText=Number(r.image_total||0)===0
       ?"No photos"
