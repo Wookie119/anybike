@@ -713,6 +713,7 @@ function escapeAdminHtml(value){
         <select id="editCustomerType">
           <option value="">Not classified</option>
           <option value="uk_private">UK Based Private User</option>
+          <option value="intl_private">International Private Buyer</option>
           <option value="uk_dealer">UK Based Motorcycle Dealer</option>
           <option value="uk_distributor">UK Motorcycle Distributor</option>
           <option value="uk_manufacturer">UK Motorcycle Manufacturer</option>
@@ -766,6 +767,7 @@ function escapeAdminHtml(value){
 </div>
     <div class="modal-row-actions">
       <button type="button" class="btn dark" onclick="closeEditCustomer()">Cancel</button>
+      <button type="button" class="btn" id="approveIntlPrivateButton" onclick="approveInternationalPrivateBuyer()">Approve International Private Buyer →</button>
       <button type="button" class="btn" id="approveUKDealerButton" onclick="approveUKDealer()">Approve UK Dealer →</button>
       <button type="button" class="btn" onclick="saveEditedCustomer()">Save customer and permissions</button>
     </div>
@@ -927,6 +929,38 @@ function closeEditCustomer(){
   modal?.classList.remove("uk-dealer-mode");
   modal?.setAttribute("aria-hidden","true");
   editingCustomerId=null;
+}
+async function approveInternationalPrivateBuyer(){
+  if(!editingCustomerId)return;
+  const userId=editingCustomerId;
+  const name=String(document.getElementById('editFullName').value||'').trim();
+  const country=String(document.getElementById('editCountry').value||'').trim();
+  const type=document.getElementById('editCustomerType').value;
+  const status=document.getElementById('customerProfileSaveStatus');
+  const button=document.getElementById('approveIntlPrivateButton');
+  if(!name||!country){status.textContent='Name and country are required before approval.';return;}
+  if(['uk_dealer','uk_distributor','intl_dealer','eu_dealer'].includes(type)){
+    status.textContent='This account is currently classified as a dealer. Review its trade permissions before changing the account type.';return;
+  }
+  if(!confirm('Classify '+name+' ('+country+') as an International Private Buyer?\\n\\nThis sets the buying journey only. It does not grant any dealership or underwriting permissions.'))return;
+  button.disabled=true;
+  status.textContent='Saving international private buyer classification…';
+  try{
+    const {error}=await sb.rpc('admin_update_customer_profile_v1',{
+      p_user_id:userId,p_full_name:name,
+      p_phone:document.getElementById('editPhone').value,
+      p_country:country,p_city:document.getElementById('editCity').value,
+      p_region:document.getElementById('editRegion').value,
+      p_business_name:document.getElementById('editBusinessName').value,
+      p_customer_type:'intl_private',p_customer_intent:'buy'
+    });
+    if(error)throw error;
+    document.getElementById('editCustomerType').value='intl_private';
+    document.getElementById('editCustomerIntent').value='buy';
+    status.textContent='✓ International Private Buyer saved. No dealer permissions were granted.';
+    await loadCustomers();
+  }catch(e){status.textContent='Could not save classification: '+(e.message||String(e));}
+  finally{button.disabled=false;}
 }
 async function approveUKDealer(){
  if(!editingCustomerId)return;
