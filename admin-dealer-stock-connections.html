@@ -4,12 +4,13 @@ const e=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt
 try{
  const client=typeof getAdminSupabaseClient==="function"?getAdminSupabaseClient():null;
  if(!client)throw Error("Admin session unavailable");
- const {data:auth}=await client.auth.getUser();
+ const bounded=(job,label)=>Promise.race([Promise.resolve(job),new Promise((_,reject)=>setTimeout(()=>reject(new Error(label+" timed out. Please refresh the page.")),12000))]);
+ const {data:auth}=await bounded(client.auth.getUser(),"Admin session");
  if(!auth?.user){location.replace("/admin-login.html?return="+encodeURIComponent(location.pathname));return;}
  const [out,req,feed]=await Promise.all([
- client.from("admin_dealer_stock_outreach").select("*").order("dealer_name"),
- client.from("message_centre_threads").select("id,customer_name,subject,lead_status,stock_status_check_count,stock_status_checked_at,created_at").eq("source_type","Dealer feed request").order("created_at",{ascending:false}).limit(100),
- client.from("stock_source_connections").select("id,connection_name,dealer_name,public_enabled,integration_enabled,test_enabled").order("id",{ascending:false}).limit(100)
+ bounded(client.from("admin_dealer_stock_outreach").select("*").order("dealer_name"),"Dealer follow-ups"),
+ bounded(client.from("message_centre_threads").select("id,customer_name,subject,lead_status,stock_status_check_count,stock_status_checked_at,created_at").eq("source_type","Dealer feed request").order("created_at",{ascending:false}).limit(100),"Provider requests").catch(err=>({error:err})),
+ bounded(client.from("stock_source_connections").select("id,connection_name,dealer_name,public_enabled,integration_enabled,test_enabled").order("id",{ascending:false}).limit(100),"Technical feeds").catch(err=>({error:err}))
  ]);
  if(out.error)throw out.error;
  const opts=["Registration invitation sent","Awaiting provider details","Dealer asked to request feed","Request prepared","Provider contacted","Test feed arranged","Feed connected","Paused"];
@@ -33,6 +34,6 @@ try{
  document.getElementById("approvedGroups").innerHTML=grouped.map(b=>'<h3>'+e(b)+' Approved Used ('+approved.filter(r=>brandOf(r)===b).length+')</h3><div class="tablewrap"><table><thead><tr><th>Connection</th><th>Dealer</th><th>Mode</th><th>Public</th></tr></thead><tbody>'+approved.filter(r=>brandOf(r)===b).map(feedRow).join("")+'</tbody></table></div>').join("")||'<p class="small">No matching manufacturer feeds.</p>';};
  ["feedSearch","feedBrand","feedMode","feedPublic"].forEach(id=>document.getElementById(id).addEventListener(id==="feedSearch"?"input":"change",renderFeeds));renderFeeds();}
 
-}catch(err){document.getElementById("outreachRows").innerHTML='<tr><td colspan="7">'+String(err.message||err).replace(/</g,"&lt;")+'</td></tr>';}
+}catch(err){document.getElementById("outreachCount").textContent="!";document.getElementById("outreachRows").innerHTML='<tr><td colspan="7">'+String(err.message||err).replace(/</g,"&lt;")+'</td></tr>';}
 })();
 </script></body></html>
