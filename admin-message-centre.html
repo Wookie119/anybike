@@ -721,7 +721,30 @@ async function decideAdminSellerDeposit(id,decision){
  if(error){alert("Deposit decision could not be saved: "+error.message);return;}
  await openThread(selectedThread.id);
 }
-async function openThread(id){
+async async function prepareDealerProviderEmail(){
+ const t=selectedThread;
+ if(!t||t.source_type!=="Dealer feed request")return;
+ const info=String(t.last_message||"");
+ const field=(label,next)=>{const start=info.indexOf(label);if(start<0)return "";const value=info.slice(start+label.length);const end=next?value.indexOf(next):-1;return (end>=0?value.slice(0,end):value).trim();};
+ const provider=field("Provider: ",". Provider account:");
+ const account=field("Provider account: ",". Provider email:");
+ const email=field("Provider email: ",". Notes:");
+ if(!email||!email.includes("@")){alert("Provider email is missing from this request.");return;}
+ const name=t.customer_name||"the dealership";
+ const subject="Motorcycle stock feed for "+name+" — account "+account;
+ const body="Hello,\n\nI'm contacting you from AnyBike regarding a permanent motorcycle stock feed for "+name+".\n\nDealership: "+name+"\nProvider: "+provider+"\nProvider account reference: "+account+"\n\nThe dealership prepared a request to connect its stock to AnyBike. Could you advise how we can arrange an ongoing feed for available motorcycles, retail prices, stock references, sold status, VAT status where available and original photographs?\n\nPlease let us know how we can coordinate a sample feed and regular updates. We will confirm the dealership's authorisation before any data is shared.\n\nKind regards,\nAnyBike\nsales@anybike.co.uk";
+ window.location.href="mailto:"+encodeURIComponent(email)+"?subject="+encodeURIComponent(subject)+"&body="+encodeURIComponent(body);
+}
+async function saveDealerFeedStage(){
+ if(!selectedThread||selectedThread.source_type!=="Dealer feed request")return;
+ const stage=document.getElementById("dealerFeedStage").value;
+ const status=document.getElementById("dealerFeedStageStatus");
+ const {error}=await sb.from("message_centre_threads").update({lead_status:stage}).eq("id",selectedThread.id);
+ if(error){status.textContent="Could not save: "+error.message;return;}
+ selectedThread.lead_status=stage;
+ status.textContent="✓ Saved: "+stage;
+}
+function openThread(id){
   selectedThread = allThreads.find(function(t){
     return Number(t.id) === Number(id);
   });
@@ -746,6 +769,7 @@ async function openThread(id){
   }
 
   const t = selectedThread;
+  // The progress selector is populated after the conversation is rendered.
 
   /*
     Deal 360 bridge.
@@ -1090,6 +1114,20 @@ async function openThread(id){
       </div>
     </div>
 
+    ${t.source_type === "Dealer feed request" ? `
+    <div class="section" style="border:1px solid #ed1c24;border-radius:12px;padding:16px">
+      <h3>Permanent Stock Feed — Admin Follow-up</h3>
+      <p>Request prepared by the dealer. Opening a draft does not mean an email has been sent.</p>
+      <button type="button" onclick="prepareDealerProviderEmail()">Prepare Provider Email →</button>
+      <label for="dealerFeedStage" style="display:block;margin-top:14px">Connection progress</label>
+      <select id="dealerFeedStage">
+        <option value="Request prepared">Request prepared</option>
+        <option value="Provider contacted">Provider contacted</option>
+        <option value="Feed connected">Feed connected</option>
+      </select>
+      <button type="button" onclick="saveDealerFeedStage()">Save progress</button>
+      <p id="dealerFeedStageStatus" aria-live="polite"></p>
+    </div>` : ""}
     <div class="section">
       <h3>📎 Customer Documents</h3>
 
