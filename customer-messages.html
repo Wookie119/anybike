@@ -2095,6 +2095,9 @@ async function loadCustomerEnquiries(){
   // message body and document for every thread on initial page load.
   const requestedConversation=openConversationKey;
   if(requestedConversation){
+    // Expand before asynchronous loading: otherwise a fast message query
+    // finishes before the .open class exists and suppresses deep-link focus.
+    document.getElementById("customer-enquiry-"+requestedConversation)?.classList.add("open");
     const id=Number(String(requestedConversation).replace(/^(global|bike)-/,""));
     if(id>0){
       const loaders=String(requestedConversation).startsWith("global-")
@@ -2108,37 +2111,7 @@ async function loadCustomerEnquiries(){
 
   updateConversationCount();
 
-if(openConversationKey){
-  setTimeout(()=>{
-    const card = document.getElementById(
-      `customer-enquiry-${openConversationKey}`
-    );
 
-    if(card){
-      card.classList.add("open");
-
-      if(String(openConversationKey).startsWith("global-")){
-        markCustomerThreadRead(String(openConversationKey).replace("global-",""));
-      }else if(String(openConversationKey).startsWith("bike-")){
-        markCustomerBikeEnquiryRead(String(openConversationKey).replace("bike-",""));
-      }
-
-      if(String(openConversationKey).startsWith("global-")){
-        const threadId=String(openConversationKey).replace("global-","");
-        const thread=document.getElementById("global-messages-"+threadId);
-        const latest=thread?.querySelector(".msg:last-child");
-        if(thread)thread.scrollTop=thread.scrollHeight;
-        if(window.innerWidth<900)(latest||thread||card).scrollIntoView({behavior:"smooth",block:"center"});
-      }else{
-        card.scrollIntoView({
-          behavior: "smooth",
-          block: "start"
-        });
-      }
-    }
-  },300);
-}
-}
 
 function bikeEnquiryHtml(r){
   const b=r.available_stock||{};
