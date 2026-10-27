@@ -410,16 +410,25 @@ function adminNotificationUrl(n){
 }
 
 
-function markSharedAdminNotificationRead(
-  event,
-  id
-){
-  /*
-    Navigation must be immediate. The destination page consumes
-    ?notification_read=<id> and clears the alert there, so opening a
-    notification never waits on a database round-trip first.
-  */
-  return true;
+async function markSharedAdminNotificationRead(event,id){
+  // Acknowledge the bell on click before navigating; do not close the review task.
+  const anchor=event?.currentTarget;
+  const destination=anchor?.href;
+  if(!destination||!id)return true;
+  if(event.ctrlKey||event.metaKey||event.shiftKey||event.altKey||event.button!==0)return true;
+  event.preventDefault();
+  const client=getSharedAdminNotificationClient();
+  try{
+    if(client){
+      const {error}=await client.from("admin_notifications").update({is_read:true}).eq("id",id);
+      if(error)console.warn("Admin notification acknowledgement failed:",error);
+    }
+  }catch(error){
+    console.warn("Admin notification acknowledgement failed:",error);
+  }finally{
+    window.location.assign(destination);
+  }
+  return false;
 }
 
 
