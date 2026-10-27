@@ -462,6 +462,30 @@ async function cropSellerPhoto(imageId,button){
  }catch(e){msg.textContent="Could not open image: "+e.message;}
  finally{if(url)URL.revokeObjectURL(url)}
 }
+async function preparePetroAdvertCopy(imageId,button){
+ if(!confirm("Create a resized metadata-free advert copy for admin review? No automatic approval."))return;
+ const article=button.closest(".compare-item");
+ const image=article?.querySelector(".compare-grid img");
+ if(!image?.src){alert("Original image not available");return;}
+ button.disabled=true;const old=button.textContent;button.textContent="Preparing…";
+ try{
+ const res=await fetch(image.src,{mode:"cors"});if(!res.ok)throw Error("Cannot access private original");
+ const bitmap=await createImageBitmap(await res.blob());
+ const scale=Math.min(1,1400/Math.max(bitmap.width,bitmap.height));
+ const canvas=document.createElement("canvas");canvas.width=Math.round(bitmap.width*scale);canvas.height=Math.round(bitmap.height*scale);
+ canvas.getContext("2d").drawImage(bitmap,0,0,canvas.width,canvas.height);bitmap.close();
+ const blob=await new Promise(resolve=>canvas.toBlob(resolve,"image/jpeg",0.75));
+ if(!blob)throw Error("JPEG generation failed");
+ const bytes=new Uint8Array(await blob.arrayBuffer());let str="";
+ for(let i=0;i<bytes.length;i+=32768)str+=String.fromCharCode(...bytes.subarray(i,i+32768));
+ const {data:{session}}=await sb.auth.getSession();
+ if(!session?.access_token)throw Error("Sign-in needed");
+ const response=await fetch(SUPABASE_URL+"/functions/v1/admin-prepare-petro-advert-photo",{method:"POST",headers:{"Authorization":"Bearer "+session.access_token,"apikey":SUPABASE_ANON_KEY,"Content-Type":"application/json"},body:JSON.stringify({image_id:Number(imageId),jpeg_base64:btoa(str)})});
+ const data=await response.json().catch(()=>({}));if(!response.ok||!data.success)throw Error(data.error||"Could not save image");
+ await loadSellerSubmissionComparisons();
+ alert("Copy ready for review. Check the processed preview, then approve if suitable.");
+ }catch(e){alert("Could not prepare copy: "+e.message);button.disabled=false;button.textContent=old;}
+}
 async function reviewSellerPhoto(imageId,action,button){
  const labels={cleaning_not_needed:"Approve existing photo without cleaning?",placeholder:"Replace bidder display with the AnyBike placeholder?",approve_cleaned:"Approve the cleaned photograph for bidders?"};
  if(!confirm(labels[action]||"Confirm photo review action?"))return;
@@ -513,7 +537,7 @@ async function loadSellerSubmissionComparisons(){
     return {...item,original_url:signedError?null:signed?.signedUrl};
   }));
   host.insertAdjacentHTML("beforebegin",'<p style="color:#ffb020">Processed previews may still contain watermarks or branding. Review required does not mean cleaned.</p>');
-  host.innerHTML=records.length?records.map(item=>'<article class="compare-item"><div class="compare-head"><div><strong>Photo '+Number(item.image_position)+' · AB-S-'+String(sellerReviewId).padStart(6,"0")+'</strong><div class="compare-meta">Review: '+esc(item.final_status)+' · '+esc(item.processing_status)+'</div></div></div><div style="padding:12px"><button type="button" onclick="cleanSellerPhoto('+Number(item.image_id)+',this)">'+(item.rejection_reason==="Cleaned copy created; pending admin approval"?"Re-clean from original":"Clean")+'</button> <button type="button" class="dark" onclick="cropSellerPhoto('+Number(item.image_id)+',this)">✂ Crop Photo</button> <button type="button" class="dark" onclick="reviewSellerPhoto('+Number(item.image_id)+',\'cleaning_not_needed\',this)">Cleaning not needed</button> <button type="button" class="dark" onclick="reviewSellerPhoto('+Number(item.image_id)+',\'placeholder\',this)">Placeholder</button> <button type="button" class="dark" style="border:1px solid #a33;color:#ffb8bb" onclick="rejectSellerPhotoInCleaner('+Number(item.image_id)+',this)">✕ Reject photograph</button>'+ (item.rejection_reason==="Cleaned copy created; pending admin approval"?'<button type="button" onclick="reviewSellerPhoto('+Number(item.image_id)+',\'approve_cleaned\',this)">Approve cleaned copy</button>':'')+'</div><div class="compare-grid">'+imagePanel("Original seller photograph — private",item.original_url,"seller-orig-"+item.image_id)+imagePanel("Processed preview — cleaning not confirmed",item.buyer_safe_url,"seller-safe-"+item.image_id)+'</div></article>').join(""):'<div class="empty">No photographs recorded for this submission.</div>';
+  host.innerHTML=records.length?records.map(item=>'<article class="compare-item"><div class="compare-head"><div><strong>Photo '+Number(item.image_position)+' · AB-S-'+String(sellerReviewId).padStart(6,"0")+'</strong><div class="compare-meta">Review: '+esc(item.final_status)+' · '+esc(item.processing_status)+'</div></div></div><div style="padding:12px">'+(sellerReviewId===37?'<button type="button" class="dark" onclick="preparePetroAdvertCopy('+Number(item.image_id)+',this)">Prepare advert copy →</button> ':'')+'<button type="button" onclick="cleanSellerPhoto('+Number(item.image_id)+',this)">'+(item.rejection_reason==="Cleaned copy created; pending admin approval"?"Re-clean from original":"Clean")+'</button> <button type="button" class="dark" onclick="cropSellerPhoto('+Number(item.image_id)+',this)">✂ Crop Photo</button> <button type="button" class="dark" onclick="reviewSellerPhoto('+Number(item.image_id)+',\'cleaning_not_needed\',this)">Cleaning not needed</button> <button type="button" class="dark" onclick="reviewSellerPhoto('+Number(item.image_id)+',\'placeholder\',this)">Placeholder</button> <button type="button" class="dark" style="border:1px solid #a33;color:#ffb8bb" onclick="rejectSellerPhotoInCleaner('+Number(item.image_id)+',this)">✕ Reject photograph</button>'+ (item.rejection_reason==="Cleaned copy created; pending admin approval"?'<button type="button" onclick="reviewSellerPhoto('+Number(item.image_id)+',\'approve_cleaned\',this)">Approve cleaned copy</button>':'')+'</div><div class="compare-grid">'+imagePanel("Original seller photograph — private",item.original_url,"seller-orig-"+item.image_id)+imagePanel("Processed preview — cleaning not confirmed",item.buyer_safe_url,"seller-safe-"+item.image_id)+'</div></article>').join(""):'<div class="empty">No photographs recorded for this submission.</div>';
 }
 async function loadComparisons(){
   if(sellerReviewId)return loadSellerSubmissionComparisons();
