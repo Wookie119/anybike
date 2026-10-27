@@ -663,7 +663,7 @@ function render(){
           (r.underwrite_status==="live"
             ?'<a class="btn red" href="/admin-trade-underwrites.html">Review Trade Bidding →</a>'
             :(r.make&&r.model
-              ?'<select id="underwrite-hours-'+Number(r.submission_id)+'" aria-label="Bidding time" style="max-width:185px"><option value="12">Urgent · 12 hours</option><option value="24">24 hours</option><option value="48" selected>Standard · 48 hours</option><option value="72">72 hours</option><option value="96">96 hours</option></select>'
+              ?'<select id="underwrite-hours-'+Number(r.submission_id)+'" aria-label="Bidding time" style="max-width:185px"><option value="12">Urgent · 12 hours</option><option value="24">24 hours</option><option value="48">48 hours</option><option value="72">72 hours</option><option value="96">96 hours</option><option value="168" selected>7 days · Standard</option><option value="336">14 days</option></select>'
               :'<button type="button" data-action="edit-bike" data-id="'+Number(r.submission_id)+'">Complete Motorcycle Details →</button>'))+
         '</div>'+
         '<details class="bike-more-tools" open><summary>Admin tools</summary><div class="actions grouped-bike-actions">'+
@@ -916,7 +916,7 @@ async function startUnderwrite(id){
     const {data:consent,error:consentError}=await sb.rpc("admin_seller_bidding_authorisation_status_v1",{p_submission_id:Number(id)});
     if(consentError||!consent?.ready){const el=document.getElementById("action-status-"+id);if(el)el.textContent="Cannot start: seller authorisation not recorded. Use Record telephone authorisation for a confirmed call, or obtain online consent in My Selling.";return;}
   }
-  const hours=Number(document.getElementById("underwrite-hours-"+id)?.value||48);
+  const hours=Number(document.getElementById("underwrite-hours-"+id)?.value||168);
   const bike=[submission.make,submission.model,submission.variant].filter(Boolean).join(" ");
   const photoCount=Number(submission.image_approved||0);
   if(!submission.make||!submission.model||photoCount<1){
@@ -924,22 +924,22 @@ async function startUnderwrite(id){
     if(status)status.textContent="Review required: confirm the make, model and at least one approved buyer-safe photograph before inviting dealers.";
     return;
   }
-  if(!window.confirm("Final Admin check for "+(submission.reference||"this motorcycle")+" — "+bike+"\n\n"+photoCount+" approved photo(s); "+hours+"-hour bidding window.\n\nHave you checked the details and buyer-safe photographs, and do you want to open bidding for specifically selected dealers only? No invitations will be sent automatically.\n\nCancel keeps this motorcycle in Admin review."))return;
+  if(!window.confirm("Final Admin check for "+(submission.reference||"this motorcycle")+" — "+bike+"\n\n"+photoCount+" approved photo(s); "+hours+"-hour bidding window.\n\nHave you checked the details and buyer-safe photographs, and do you want to open confidential bidding for eligible verified UK trade dealers? Eligible dealers will be notified.\n\nCancel keeps this motorcycle in Admin review."))return;
   if(window.anybikeUnderwritePending?.has(Number(id)))return;
   window.anybikeUnderwritePending=window.anybikeUnderwritePending||new Set();
   window.anybikeUnderwritePending.add(Number(id));
   const buttons=[...document.querySelectorAll('[data-action="start-underwrite"][data-id="'+Number(id)+'"]')];
   buttons.forEach(b=>{b.disabled=true;b.textContent="Starting trade bidding…"});
   const actionStatus=document.getElementById("action-status-"+id);
-  if(actionStatus)actionStatus.textContent="Opening selected-dealer bidding without sending invitations…";
+  if(actionStatus)actionStatus.textContent="Opening confidential bidding and notifying eligible trade dealers…";
   const {data,error}=await sb.rpc("admin_create_trade_underwrite_v1",{
     p_submission_id:Number(id),
     p_duration_hours:hours,
-    p_invitation_mode:"selected"
+    p_invitation_mode:"all_verified_trade"
   });
   if(error){window.anybikeUnderwritePending.delete(Number(id));buttons.forEach(b=>{b.disabled=false;b.textContent="Start Trade Bidding →"});if(actionStatus)actionStatus.textContent="Could not start bidding: "+error.message;return;}
   window.anybikeUnderwritePending.delete(Number(id));
-  const successMessage="✓ Selected-dealer bidding opened. No automatic invitations sent. Invite chosen dealers separately.";
+  const successMessage="✓ Confidential bidding opened for eligible verified trade dealers.";
   if(actionStatus){actionStatus.textContent=successMessage;actionStatus.style.color="#91e6a4";}
   buttons.forEach(b=>{b.disabled=true;b.textContent="✓ Trade Bidding Started";});
   try{
