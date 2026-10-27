@@ -1230,7 +1230,30 @@ async function openThread(id){
 
       <label>Reply</label>
       
-      <label for="anybikeDealerLetterTemplate">Message templates (drafts)</label><div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px"><select id="anybikeDealerLetterTemplate" onchange="insertDealerOnboardingLetter()" style="flex:1;min-width:210px"><option value="">Select a letter…</option><option value="welcome">Level 2 approval — welcome to dealer services</option><option value="stock-invite">Stock connection invitation — full benefits letter</option><option value="stock-reminder">Stock connection — gentle follow-up</option><option value="trade">Offer motorcycles to the UK trade</option><option value="provider-next">Stock provider request — what happens next</option><option value="first-trade">First trade opportunity — make an offer</option><option value="first-listed">First motorcycle listed — confirmation</option><option value="feed-connected">Stock feed connected — confirmation</option><optgroup label="INTERNATIONAL LEVEL 2"><option value="international-welcome">International buyer — welcome and requirements</option></optgroup><optgroup label="UK PRIVATE CUSTOMERS"><option value="private-welcome">UK private — welcome</option><option value="private-selling">UK private — selling your motorcycle</option><option value="private-buying">UK private — finding a motorcycle</option><option value="private-selling-progress">UK private — selling progress update</option></optgroup></select><button type="button" onclick="insertDealerOnboardingLetter()" style="background:#262626;border:1px solid #666;color:#fff;border-radius:8px;padding:9px 13px;font-weight:700;cursor:pointer">Insert draft</button></div><p style="font-size:12px;color:#aaa;margin:0 0 10px">Review the recipient and wording before sending. Inserting a draft does not send a message.</p><textarea id="replyBox" placeholder="Write a response..."></textarea>
+      <label for="anybikeTemplateAudience">Message template</label>
+      <div style="display:grid;grid-template-columns:minmax(130px,180px) minmax(0,1fr);gap:8px;margin:7px 0 10px">
+       <select id="anybikeTemplateAudience" onchange="filterAnybikeTemplates()" style="width:100%;min-width:0">
+        <option value="dealer">UK Dealer</option><option value="international">International</option><option value="private">UK Private</option>
+       </select>
+       <select id="anybikeDealerLetterTemplate" onchange="insertDealerOnboardingLetter()" style="width:100%;min-width:0">
+        <option value="">Choose message…</option>
+        <option data-audience="dealer" value="welcome">Level 2 welcome — dealer services</option>
+        <option data-audience="dealer" value="stock-invite">Stock invitation — full benefits</option>
+        <option data-audience="dealer" value="stock-reminder">Stock connection follow-up</option>
+        <option data-audience="dealer" value="trade">Offer bikes to trade</option>
+        <option data-audience="dealer" value="provider-next">Stock provider — next steps</option>
+        <option data-audience="dealer" value="first-trade">First trade opportunity</option>
+        <option data-audience="dealer" value="first-listed">First motorcycle listed</option>
+        <option data-audience="dealer" value="feed-connected">Stock feed connected</option>
+        <option data-audience="international" value="international-welcome">Level 2 international welcome</option>
+        <option data-audience="private" value="private-welcome">Private customer welcome</option>
+        <option data-audience="private" value="private-selling">Selling a motorcycle</option>
+        <option data-audience="private" value="private-buying">Finding a motorcycle</option>
+        <option data-audience="private" value="private-selling-progress">Selling progress</option>
+       </select>
+      </div>
+      <p style="font-size:12px;color:#aaa;margin:0 0 10px">Choosing a letter fills the reply box. Nothing sends until you click Send Reply.</p>
+      <textarea id="replyBox" placeholder="Write a response..."></textarea>
 
    <div class="actions">
   <button type="button" onclick="saveRoute()">Save Route / Status</button>
@@ -1741,6 +1764,13 @@ function getQuickRepliesForStatus(status){
   ];
 }
 
+function filterAnybikeTemplates(){
+ const audience=document.getElementById("anybikeTemplateAudience");
+ const letters=document.getElementById("anybikeDealerLetterTemplate");
+ if(!audience||!letters)return;
+ letters.value="";
+ Array.from(letters.options).forEach(o=>{if(o.value)o.hidden=o.dataset.audience!==audience.value;});
+}
 function insertDealerOnboardingLetter(){
  const box=document.getElementById("replyBox"),sel=document.getElementById("anybikeDealerLetterTemplate");
  if(!box||!sel||!sel.value)return;
@@ -2478,5 +2508,6 @@ startMessageCentreRealtime();
     rows.innerHTML=items.map(e=>'<a href="/admin-shipping-conversations.html?conversation='+encodeURIComponent(e.id)+'" style="display:block;padding:10px 0;color:#fff;text-decoration:none;border-top:1px solid #333"><b>'+safe(e.business_name||e.buyer_name||"Buyer")+' ↔ '+safe(e.shipper_name)+'</b><span style="color:#bbb;display:block">Destination: '+safe(e.destination_country)+' · '+safe(e.status)+' · Open shipping messages and quotes →</span></a>').join("");
   }catch(err){const el=document.getElementById("adminShippingRows");if(el)el.textContent="Shipping correspondence unavailable. Please refresh."}
 })();
+document.addEventListener("change",function(e){if(e.target?.id==="anybikeTemplateAudience")filterAnybikeTemplates();});
 </script></body>
 </html>
