@@ -492,7 +492,7 @@ function render(){
         '</div>'+
         '<div class="submission-gallery" id="submission-gallery-'+Number(r.submission_id)+'">'+
           '<div class="submission-gallery-head"><strong>Motorcycle photos · '+Number(r.image_total||0)+'</strong><span class="sub">Loading all images…</span></div>'+
-          (r.reference==="AB-S-000037"?'<div style="margin:9px 0 14px;padding:13px;background:#161616;border:1px solid #444;border-radius:9px"><strong>Petro photo recovery</strong><button type="button" class="btn" onclick="processPetroImages(this)">Process 6 photos →</button><span id="petro-recovery-status" style="display:block;color:#bbb;font-size:12px">Originals retained. No automatic publication.</span></div>':'')+
+          (r.reference==="AB-S-000037"?'<div style="margin:9px 0 14px;padding:13px;background:#161616;border:1px solid #444;border-radius:9px"><strong>Petro photo recovery</strong><button type="button" class="btn" onclick="reviewPetroOriginals(this)">View 6 original photos →</button><div id="petro-originals-review" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:12px"></div><span id="petro-recovery-status" style="display:block;color:#bbb;font-size:12px">Originals retained. No automatic publication.</span></div>':'')+
           (r.message_thread_id?'<a class="btn" style="display:inline-block;margin-bottom:10px" href="/admin-message-centre.html?thread='+Number(r.message_thread_id)+'&photo_request=1&reference='+encodeURIComponent(r.reference||'')+'">Ask Seller for More Photos →</a>':'')+'<div class="submission-gallery-grid"><div class="submission-photo placeholder">Loading photos…</div></div>'+(Number(r.submission_id)===34?'<button type="button" class="btn" style="margin-top:10px" onclick="recoverSuzukiPhotos(this)">Recover 3 Suzuki advert photos →</button>':'')+
         '</div>'+
         (hasComps
@@ -562,6 +562,25 @@ async function recoverSuzukiPhotos(button){
   submissionImages.delete(34);await loadSubmissionImages(34);
   button.textContent="Photos recovered · awaiting Admin review";button.disabled=true;
  }catch(e){button.disabled=false;button.textContent="Retry Suzuki photo recovery →";alert("Recovery: "+(e?.message||"Could not recover photos"));}
+}
+async function reviewPetroOriginals(button){
+ button.disabled=true;const old=button.textContent;button.textContent="Loading original photos…";
+ const area=document.getElementById("petro-originals-review");
+ try{
+  const {data:{session}}=await sb.auth.getSession();
+  if(!session?.access_token)throw new Error("Admin sign-in required");
+  const response=await fetch(SUPABASE_URL+"/functions/v1/admin-process-petro-photos",{method:"POST",headers:{"Authorization":"Bearer "+session.access_token,"apikey":SUPABASE_ANON_KEY,"Content-Type":"application/json"},body:JSON.stringify({action:"review"})});
+  const data=await response.json();
+  if(!response.ok)throw new Error(data.error||"Could not load originals");
+  area.replaceChildren();
+  for(const photo of data.photos||[]){
+    const image=document.createElement("img");image.src=photo.url;image.alt="Original photo "+photo.position;image.loading="lazy";image.style.cssText="width:100%;height:220px;object-fit:contain;background:#080808;border:1px solid #333;border-radius:8px";
+    const cell=document.createElement("div");cell.appendChild(image);
+    const title=document.createElement("div");title.textContent="Photo "+photo.position+" · Original (private review)";title.style.cssText="font-size:12px;color:#ccc;padding:6px";cell.appendChild(title);area.appendChild(cell);
+  }
+  if(!data.photos?.length)throw new Error("No original photos were available");
+ }catch(e){area.textContent="Originals could not be loaded: "+e.message;}
+ finally{button.disabled=false;button.textContent=old;}
 }
 async function processPetroImages(button){
  if(button.disabled)return;
