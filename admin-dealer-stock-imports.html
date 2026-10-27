@@ -10,6 +10,12 @@ async function load(){
   const {data,error}=await Promise.race([request,timeout]);
   if(error)throw error;
   imports.innerHTML=(data||[]).length?data.map(u=>'<button class="batch" data-id="'+u.id+'"><strong>'+esc(u.filename)+'</strong><br>'+esc(u.selected_count)+' motorcycles · '+esc(u.status)+'<br><span class="small">'+esc(new Date(u.created_at).toLocaleString())+'</span></button>').join(''):'No dealer spreadsheets submitted.';
+  const requestedId=Number(new URLSearchParams(location.search).get('upload'));
+  if(Number.isSafeInteger(requestedId)&&requestedId>0){
+    const selected=imports.querySelector('.batch[data-id="'+requestedId+'"]');
+    if(selected){selected.click();selected.scrollIntoView({block:'nearest'});}
+    else message.textContent='Upload #'+requestedId+' is not available in this review list.';
+  }
  }catch(e){
   message.textContent='Could not load dealer stock imports: '+(e.message||String(e));
   imports.innerHTML='<p class="small">The spreadsheet list could not load.</p><button type="button" id="retryStockImports">Retry loading spreadsheets</button>';
