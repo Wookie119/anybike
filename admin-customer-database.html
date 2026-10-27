@@ -958,7 +958,15 @@ async function approveInternationalPrivateBuyer(){
     if(error)throw error;
     document.getElementById('editCustomerType').value='intl_private';
     document.getElementById('editCustomerIntent').value='buy';
-    status.textContent='✓ International Private Buyer saved. No dealer permissions were granted.';
+    status.textContent='International Private Buyer saved. Sending welcome notification…';
+    const {data:notification,error:notificationError}=await sb.rpc('admin_notify_international_private_approval_v1',{p_user_id:userId});
+    if(notificationError){
+      status.textContent='✓ Buyer classification saved, but welcome notification failed: '+notificationError.message;
+    }else{
+      status.textContent=notification?.already_notified
+        ? '✓ International Private Buyer saved. Welcome notification was already issued.'
+        : '✓ International Private Buyer saved. Welcome notification added to customer account.';
+    }
     await loadCustomers();
   }catch(e){status.textContent='Could not save classification: '+(e.message||String(e));}
   finally{button.disabled=false;}
