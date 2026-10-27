@@ -14,5 +14,44 @@ if(pendingUploads.length){
   confirmation.hidden=false;
 }
 uploadRows.innerHTML=uploadError?'<tr><td colspan="5">Could not load stock uploads.</td></tr>':(uploads||[]).map(x=>'<tr><td>'+esc(x.feed_name||x.filename||('Stock list '+x.id))+'</td><td>'+Number(x.total_checked||0)+'</td><td>'+esc(x.created_at?new Date(x.created_at).toLocaleDateString("en-GB"):'—')+'</td><td>'+esc(x.status||'pending review')+'</td><td><a href="/dealer-connect-stock.html#myStockUploads">View upload →</a></td></tr>').join("")||'<tr><td colspan="5">No submitted stock lists yet.</td></tr>';
+if(!uploadError){
+  const reviewUploads=(uploads||[]).filter(x=>x.status!=='withdrawn');
+  for(const upload of reviewUploads){
+    const {data:bikeRows,error:bikeError}=await sb.rpc('dealer_vq_my_upload_rows_v1',{p_upload_id:upload.id});
+    const tr=document.createElement('tr');
+    const td=document.createElement('td');
+    td.colSpan=5;
+    td.style.padding='8px 14px 18px';
+    if(bikeError){
+      td.textContent='Could not load motorcycles for stock list '+upload.id+'.';
+    }else{
+      const details=document.createElement('details');
+      const summary=document.createElement('summary');
+      summary.style.cursor='pointer';summary.style.fontWeight='bold';
+      summary.textContent='View '+(bikeRows||[]).length+' motorcycles in '+(upload.feed_name||upload.filename||('Stock list '+upload.id));
+      details.append(summary);
+      const info=document.createElement('p');
+      info.className='quiet';
+      info.textContent='For review only — motorcycles are not published. Trade pricing controls will be added separately.';
+      details.append(info);
+      const table=document.createElement('table');
+      table.style.minWidth='520px';
+      const head=document.createElement('thead');
+      head.innerHTML='<tr><th>Stock ref</th><th>Motorcycle</th><th>Registration</th><th>Review status</th></tr>';
+      table.append(head);
+      const body=document.createElement('tbody');
+      for(const bike of (bikeRows||[])){
+        const row=document.createElement('tr');
+        for(const value of [bike.stock_ref||'—',bike.model||'—',bike.registration||'—','Awaiting AnyBike review']){
+          const cell=document.createElement('td');cell.textContent=String(value);row.append(cell);
+        }
+        body.append(row);
+      }
+      table.append(body);
+      const wrapper=document.createElement('div');wrapper.className='scroll';wrapper.append(table);details.append(wrapper);td.append(details);
+    }
+    tr.append(td);uploadRows.append(tr);
+  }
+}
 const {data:submitted,error:submittedError}=await sb.rpc("dealer_manage_submissions_v1");const submissionRows=document.getElementById("submissionRows");submissionRows.innerHTML=submittedError?'<tr><td colspan="6">Could not load submissions.</td></tr>':(submitted||[]).map(x=>'<tr><td>'+esc(x.reference)+'</td><td>'+esc([x.make,x.model,x.variant].filter(Boolean).join(" "))+'</td><td>'+esc(x.registration||"—")+'</td><td>'+Number(x.photo_count||0)+'</td><td>'+esc(x.status)+'</td><td><a href="/my-selling.html">My Selling →</a></td></tr>').join("")||'<tr><td colspan="6">No submitted motorcycles yet.</td></tr>';notice.textContent=stock.length?"Manage your dealership stock below.":"No imported motorcycles yet. Use the red Upload Motorcycle Stock button above to add a CSV or Excel file, or connect your stock provider for automatic updates.";render();}catch(e){notice.textContent="Unable to load stock: "+(e.message||e);}})();
 </script></body></html>
