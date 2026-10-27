@@ -18,6 +18,10 @@ if(!uploadError){
   const reviewUploads=(uploads||[]).filter(x=>x.status!=='withdrawn');
   for(const upload of reviewUploads){
     const {data:bikeRows,error:bikeError}=await sb.rpc('dealer_vq_my_upload_rows_v1',{p_upload_id:upload.id});
+    const {data:options,error:optionsError}=upload.status==='pending_review'
+      ?await sb.rpc('dealer_my_upload_trade_options_v1',{p_upload_id:upload.id})
+      :{data:[],error:null};
+    const optionMap=new Map((options||[]).map(x=>[Number(x.upload_row_id),x]));
     const tr=document.createElement('tr');
     const td=document.createElement('td');
     td.colSpan=5;
@@ -32,12 +36,12 @@ if(!uploadError){
       details.append(summary);
       const info=document.createElement('p');
       info.className='quiet';
-      info.textContent='For review only — motorcycles are not published. Trade pricing controls will be added separately.';
+      info.textContent='Choose bikes to offer to UK trade and save a confidential minimum price. AnyBike must review before trade bidding. Nothing is published automatically.';
       details.append(info);
       const table=document.createElement('table');
       table.style.minWidth='520px';
       const head=document.createElement('thead');
-      head.innerHTML='<tr><th>Stock ref</th><th>Motorcycle</th><th>Registration</th><th>Review status</th></tr>';
+      head.innerHTML='<tr><th>Stock ref</th><th>Motorcycle</th><th>Registration</th><th>Offer to UK trade</th><th>Minimum trade price (£)</th><th>Action</th></tr>';
       table.append(head);
       const body=document.createElement('tbody');
       for(const bike of (bikeRows||[])){
@@ -45,6 +49,26 @@ if(!uploadError){
         for(const value of [bike.stock_ref||'—',bike.model||'—',bike.registration||'—','Awaiting AnyBike review']){
           const cell=document.createElement('td');cell.textContent=String(value);row.append(cell);
         }
+        const option=optionMap.get(Number(bike.id));
+        const checked=!!option&&option.trade_status==='pending_admin_review';
+        const locked=upload.status!=='pending_review'||!!optionsError||['approved_for_auction','rejected'].includes(option?.trade_status);
+        const toggleCell=document.createElement('td');
+        const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.checked=checked;checkbox.disabled=locked;checkbox.setAttribute('aria-label','Offer '+(bike.model||'motorcycle')+' to UK trade');checkbox.style.width='20px';
+        toggleCell.append(checkbox);row.append(toggleCell);
+        const priceCell=document.createElement('td');
+        const input=document.createElement('input');input.type='number';input.min='1';input.step='0.01';input.placeholder='Confidential price';input.value=option?.minimum_price_gbp??'';input.disabled=locked||!checked;input.style.width='150px';priceCell.append(input);row.append(priceCell);
+        checkbox.addEventListener('change',()=>{input.disabled=!checkbox.checked;});
+        const actionCell=document.createElement('td');
+        const button=document.createElement('button');button.type='button';button.textContent='Save trade choice';button.disabled=locked;button.style.whiteSpace='nowrap';
+        const result=document.createElement('div');result.className='quiet';result.setAttribute('role','status');
+        button.addEventListener('click',async()=>{
+          if(checkbox.checked&&(!Number.isFinite(Number(input.value))||Number(input.value)<=0)){result.textContent='Enter a valid minimum trade price.';return;}
+          button.disabled=true;result.textContent='Saving…';
+          const {error}=await sb.rpc('dealer_save_upload_trade_option_v1',{p_upload_row_id:bike.id,p_offer:checkbox.checked,p_minimum_price:checkbox.checked?Number(input.value):null});
+          result.textContent=error?'Could not save: '+error.message:'✓ Saved for AnyBike review. Not published.';
+          button.disabled=false;
+        });
+        actionCell.append(button,result);row.append(actionCell);
         body.append(row);
       }
       table.append(body);
