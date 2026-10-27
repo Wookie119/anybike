@@ -257,6 +257,14 @@ html.admin-auth-pending body{
         </section>
 
         <div id="projectPlanWorkspace" style="display:none;">
+          <section class="project-plan-instructions" aria-label="Onboarding automation status">
+            <h2>Onboarding Automation · Live Status</h2>
+            <p>Read-only monitoring of scheduled messages and email delivery. This page cannot send messages or enable automation.</p>
+            <div id="onboardingHealthState" class="project-plan-status">Loading onboarding health...</div>
+            <div id="onboardingHealthGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;margin-top:14px"></div>
+            <button class="project-plan-btn" type="button" onclick="loadOnboardingHealth()" style="margin-top:14px">Refresh status</button>
+          </section>
+
 
           <section class="project-plan-instructions">
             <h2>How to use this page</h2>
@@ -408,6 +416,44 @@ async function checkProjectPlanAccess(){
   setProjectPlanPageStatus("Secure access confirmed.", "ok");
 
   await loadProjectPlan();
+  await loadOnboardingHealth();
+}
+
+
+async function loadOnboardingHealth(){
+  const state=document.getElementById("onboardingHealthState");
+  const grid=document.getElementById("onboardingHealthGrid");
+  if(!currentUser || !grid || !state)return;
+  state.textContent="Checking onboarding status...";
+  const {data,error}=await sb.rpc("anybike_admin_onboarding_health");
+  if(error){
+    state.textContent="Could not load onboarding status: "+error.message;
+    grid.replaceChildren();
+    return;
+  }
+  state.textContent=data.sending_enabled
+    ?"AUTOMATIC SENDING ENABLED — review live delivery carefully"
+    :"AUTOMATIC SENDING OFF — no scheduled customer messages will be sent";
+  state.style.color=data.sending_enabled?"#ed1c24":"#36d37e";
+  const fields=[
+    ["Pending messages","queue_pending"],["Due now","queue_due"],
+    ["Sent messages","queue_sent"],["Skipped","queue_skipped"],
+    ["Failed messages","queue_failed"],["Pending emails","email_pending"],
+    ["Emails submitted","email_submitted"],["Failed emails","email_failed"],
+    ["Uncertain emails","email_unknown"],["Stalled emails","email_stalled"]
+  ];
+  grid.replaceChildren();
+  for(const [label,key] of fields){
+    const item=document.createElement("div");
+    item.style.cssText="border:1px solid rgba(255,255,255,.16);border-radius:9px;padding:13px;background:#181818;color:white";
+    const value=document.createElement("strong");
+    value.textContent=String(data[key]??0);
+    value.style.cssText="display:block;font-size:24px;font-weight:750;line-height:1.2";
+    const title=document.createElement("span");
+    title.textContent=label;
+    title.style.cssText="font-size:12px;color:#bbb";
+    item.append(value,title);grid.appendChild(item);
+  }
 }
 
 async function loadProjectPlan(){
