@@ -264,10 +264,10 @@ html.admin-auth-pending body{
             <div id="onboardingHealthGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;margin-top:14px"></div>
             <button class="project-plan-btn" type="button" onclick="loadOnboardingHealth()" style="margin-top:14px">Refresh status</button>
             <div style="margin-top:20px;border-top:1px solid rgba(255,255,255,.15);padding-top:14px">
-              <h3>One-time Quotes test</h3>
-              <p>Send exactly one controlled onboarding test to quotes@movemotorcycles.co.uk only. This does not enable general onboarding.</p>
+              <h3>Quotes branded email test</h3>
+              <p>Send a branded UK Dealer Services test email to quotes@movemotorcycles.co.uk. This does not enable general onboarding.</p>
               <div id="quotesTestStatus" class="project-plan-status">Checking test status...</div>
-              <button id="quotesTestButton" class="project-plan-btn" type="button" onclick="sendQuotesOnboardingTest()" disabled>Send one test message + email</button>
+              <button id="quotesTestButton" class="project-plan-btn" type="button" onclick="sendQuotesOnboardingTest()" disabled>Send branded test email</button>
             </div>
           </section>
 
@@ -434,34 +434,29 @@ async function checkProjectPlanAccess(){
 
 
 
-const QUOTES_TEST_URL="https://tuehtnezhdnkqbbhttgp.supabase.co/functions/v1/anybike-quotes-isolated-test";
-async function quotesTestRequest(method){
-  const {data:{session},error}=await sb.auth.getSession();
-  if(error||!session?.access_token)throw new Error("Please sign in again.");
-  const response=await fetch(QUOTES_TEST_URL,{method,headers:{"Authorization":"Bearer "+session.access_token,"apikey":SUPABASE_ANON_KEY,"Content-Type":"application/json"}});
-  const data=await response.json().catch(()=>({}));
-  if(!response.ok)throw new Error(data.error||"Test request failed.");
-  return data;
-}
 async function loadQuotesTestStatus(){
-  const el=document.getElementById("quotesTestStatus"),btn=document.getElementById("quotesTestButton");
-  if(!currentUser||!el||!btn)return;
-  btn.disabled=true;el.textContent="Checking...";
-  try{
-    const data=await quotesTestRequest("GET");
-    el.textContent=data.used?"Test used · message "+(data.message_id||"unknown")+" · email "+data.email_status:"Ready · one test available · normal onboarding OFF";
-    btn.disabled=!!data.used;
-  }catch(e){el.textContent=String(e.message);btn.disabled=true;}
+ const el=document.getElementById("quotesTestStatus"),btn=document.getElementById("quotesTestButton");
+ if(!currentUser||!el||!btn)return;
+ const {data,error}=await sb.from("anybike_onboarding_settings").select("sending_enabled").eq("id",true).single();
+ if(error){el.textContent="Unable to verify sending safety: "+error.message;btn.disabled=true;return;}
+ btn.disabled=data.sending_enabled!==false;
+ el.textContent=btn.disabled?"General automation must be OFF before testing.":"Ready to send a branded test email to Quotes. General automation OFF.";
 }
 async function sendQuotesOnboardingTest(){
-  const el=document.getElementById("quotesTestStatus"),btn=document.getElementById("quotesTestButton");
-  if(!confirm("Send ONE real test email to quotes@movemotorcycles.co.uk and create a Message Centre bell alert?"))return;
-  btn.disabled=true;el.textContent="Sending one controlled test...";
-  try{
-    const data=await quotesTestRequest("POST");
-    el.textContent="Message "+data.message_id+" created; email "+data.email_status+". Verify receipt and Message Centre thread "+data.thread_id+".";
-  }catch(e){el.textContent="Test status: "+e.message+" — check before retrying.";}
-  await loadQuotesTestStatus();
+ const el=document.getElementById("quotesTestStatus"),btn=document.getElementById("quotesTestButton");
+ if(!confirm("Send a REAL branded UK Dealer Services email to quotes@movemotorcycles.co.uk?"))return;
+ btn.disabled=true;el.textContent="Sending to Quotes...";
+ try{
+   const {data,error}=await sb.functions.invoke("admin-send-onboarding-email",{body:{
+     user_id:"dbe90033-721e-4b11-9b5a-c1a30ffb1d99",
+     thread_id:265,
+     title:"Your AnyBike UK dealer services",
+     link:"/customer-messages.html?thread=265"
+   }});
+   if(error||!data?.success)throw new Error(data?.error||error?.message||"Email was not accepted");
+   el.textContent="Email submitted to "+data.to+" · reference "+(data.email_id||"pending")+". Check your inbox.";
+ }catch(e){el.textContent="Unable to send: "+e.message;}
+ await loadQuotesTestStatus();
 }
 
 async function loadOnboardingHealth(){
