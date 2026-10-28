@@ -115,14 +115,14 @@ Deno.serve(async(req:Request)=>{
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#f4f4f4">
 <tr><td align="center" style="padding:30px 15px">
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:660px;background:#fff;border:1px solid #e5e5e5;border-radius:12px;overflow:hidden">
-<tr><td align="center" style="padding:25px 28px 18px"><img src="https://www.anybike.co.uk/assets/Anybike-email-logo-white.png" alt="AnyBike" width="320" style="display:block;width:100%;max-width:320px;height:auto;border:0"></td></tr>
-<tr><td style="height:4px;background:#cc1118"></td></tr>
+<tr><td align="center" bgcolor="#111111" style="padding:25px 28px 22px;background:#111111"><img src="https://www.anybike.co.uk/assets/Anybike-email-logo-white.png" alt="AnyBike" width="320" style="display:block;width:100%;max-width:320px;height:auto;border:0"></td></tr>
+<tr><td style="height:4px;background:#ed1c24"></td></tr>
 <tr><td style="padding:32px 36px 36px">
-<div style="font-size:12px;font-weight:700;letter-spacing:1.4px;color:#cc1118;text-transform:uppercase;margin-bottom:10px">Account Setup</div>
+<div style="font-size:12px;font-weight:700;letter-spacing:1.4px;color:#ed1c24;text-transform:uppercase;margin-bottom:10px">Account Setup</div>
 <h1 style="margin:0 0 20px;font-size:27px;line-height:1.25;color:#111">${esc(title)}</h1>
 <p style="margin:0 0 16px;font-size:16px;line-height:1.6">Hi ${esc(firstName)},</p>
 <p style="margin:0 0 24px;font-size:16px;line-height:1.65">${esc(message)}</p>
-<p style="margin:0 0 28px"><a href="${esc(setupUrl)}" style="display:inline-block;background:#cc1118;color:#fff;text-decoration:none;font-weight:700;font-size:15px;padding:14px 24px;border-radius:7px">Continue Your AnyBike Setup</a></p>
+<p style="margin:0 0 28px"><a href="${esc(setupUrl)}" style="display:inline-block;background:#ed1c24;color:#fff;text-decoration:none;font-weight:700;font-size:15px;padding:14px 24px;border-radius:7px">Continue Your AnyBike Setup</a></p>
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#f7f7f7;border-radius:8px"><tr><td style="padding:15px 17px;font-size:13px;line-height:1.6;color:#555">This email relates to the AnyBike account you registered. If you need help completing your details, sign in to My AnyBike and reply through Message Centre.</td></tr></table>
 </td></tr>
 <tr><td style="padding:21px 36px;background:#111;color:#fff"><div style="font-size:15px;font-weight:700">AnyBike.co.uk</div><div style="font-size:12px;line-height:1.6;color:#bbb;margin-top:5px">Motorcycle sourcing, trade and export.</div></td></tr>
