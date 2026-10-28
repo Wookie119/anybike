@@ -416,7 +416,7 @@ Deno.serve(async (req: Request) => {
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:620px;background:#fff;border:1px solid #ddd;border-radius:10px;overflow:hidden">
 
 <tr>
-<td align="center" style="padding:22px 24px;background:#111111">
+<td align="center" bgcolor="#ffffff" style="padding:22px 24px;background:#ffffff">
 <img
 src="cid:anybike-email-logo"
 alt="AnyBike"
