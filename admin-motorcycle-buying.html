@@ -821,7 +821,7 @@ async function showSellerBiddingPermission(id){
   const host=document.getElementById("action-status-"+Number(id));if(!host)return;
   const {data,error}=await sb.rpc("admin_seller_bidding_authorisation_status_v1",{p_submission_id:Number(id)});
   if(error){host.textContent="Seller authorisation status unavailable — do not start bidding.";return;}
-  host.textContent=data?.ready?("✓ Seller authorisation recorded ("+(data.authorisation_method==="telephone"?"telephone":"online")+")."):"Awaiting seller authorisation. Record a genuine telephone conversation or obtain consent in My Selling.";
+  host.textContent=data?.ready?("✓ Seller authorisation recorded ("+(data.authorisation_method==="telephone"?"telephone":"online")+")."):"Seller authorisation not recorded. Admin may seek indicative trade offers; do not represent the seller as committed to sell. Record consent before finalising any sale.";
   host.style.color=data?.ready?"#91e6a4":"#ffc56d";
 }
 
@@ -919,10 +919,6 @@ document.getElementById("queue").addEventListener("click",async function(e){
 async function startUnderwrite(id){
   const submission=rows.find(r=>Number(r.submission_id)===Number(id));
   if(!submission)return;
-  if(submission.seller_type==="private_seller"){
-    const {data:consent,error:consentError}=await sb.rpc("admin_seller_bidding_authorisation_status_v1",{p_submission_id:Number(id)});
-    if(consentError||!consent?.ready){const el=document.getElementById("action-status-"+id);if(el)el.textContent="Cannot start: seller authorisation not recorded. Use Record telephone authorisation for a confirmed call, or obtain online consent in My Selling.";return;}
-  }
   const hours=Number(document.getElementById("underwrite-hours-"+id)?.value||168);
   const bike=[submission.make,submission.model,submission.variant].filter(Boolean).join(" ");
   const photoCount=Number(submission.image_approved||0);
@@ -931,7 +927,7 @@ async function startUnderwrite(id){
     if(status)status.textContent="Review required: confirm the make, model and at least one approved buyer-safe photograph before inviting dealers.";
     return;
   }
-  if(!window.confirm("Final Admin check for "+(submission.reference||"this motorcycle")+" — "+bike+"\n\n"+photoCount+" approved photo(s); "+hours+"-hour bidding window.\n\nHave you checked the details and buyer-safe photographs, and do you want to open confidential bidding for eligible verified UK trade dealers? Eligible dealers will be notified.\n\nCancel keeps this motorcycle in Admin review."))return;
+  if(!window.confirm("Final Admin check for "+(submission.reference||"this motorcycle")+" — "+bike+"\n\n"+photoCount+" approved photo(s); "+hours+"-hour bidding window.\n\nHave you checked the details and buyer-safe photographs? This seeks indicative confidential trade offers; it does not commit the seller to a sale. Eligible dealers will be notified. Confirm you want to start bidding now.\n\nCancel keeps this motorcycle in Admin review."))return;
   if(window.anybikeUnderwritePending?.has(Number(id)))return;
   window.anybikeUnderwritePending=window.anybikeUnderwritePending||new Set();
   window.anybikeUnderwritePending.add(Number(id));
