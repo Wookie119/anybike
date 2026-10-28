@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Quotes Email Test | AnyBike Admin</title>
+<script>document.documentElement.classList.add("admin-auth-pending")</script><style>html.admin-auth-pending body{visibility:hidden}body{font:15px Arial,sans-serif;background:#080808;color:#fff;margin:0}.wrap{max-width:680px;margin:70px auto;padding:24px;background:#151515;border:1px solid #444;border-top:4px solid #ed1c24;border-radius:12px}button{background:#ed1c24;color:#fff;border:0;padding:15px 25px;border-radius:8px;font-weight:bold;cursor:pointer}button:disabled{opacity:.5;cursor:wait}p{line-height:1.6}a{color:#fff}#status{margin-top:18px;white-space:pre-wrap}</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="/admin.js?v=12001"></script></head><body><main class="wrap"><p><a href="/admin-message-centre.html">← Message Centre</a></p><h1>Quotes branded email test</h1><p>Recipient: <strong>quotes@movemotorcycles.co.uk</strong></p><p>Uses the previously working AnyBike branded-email sender, with the embedded logo. Sends only when you press the button. Other customers are unaffected.</p><button id="send" disabled>Checking admin session…</button><p id="status" role="status"></p></main>
+<script>
+(async function(){
+ const button=document.getElementById("send"),status=document.getElementById("status");
+ const client=getAdminSupabaseClient();
+ if(!client){status.textContent="Admin client unavailable";return}
+ const ok=await requireAdminSession();if(!ok)return;
+ button.disabled=false;button.textContent="Send one test email to Quotes";
+ button.onclick=async function(){
+   button.disabled=true;button.textContent="Sending…";status.textContent="Submitting via AnyBike email sender…";
+   try{
+     const {data:sessionData}=await client.auth.getSession();
+     const token=sessionData?.session?.access_token;
+     if(!token)throw Error("Admin sign-in expired");
+     const response=await fetch("https://tuehtnezhdnkqbbhttgp.supabase.co/functions/v1/admin-send-onboarding-email",{
+       method:"POST",
+       headers:{"Authorization":"Bearer "+token,"apikey":"sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK","Content-Type":"application/json"},
+       body:JSON.stringify({user_id:"dbe90033-721e-4b11-9b5a-c1a30ffb1d99",thread_id:265,title:"TEST — AnyBike branded email",link:"/customer-messages.html?thread=265"})
+     });
+     const result=await response.json();
+     if(!response.ok||!result.success)throw Error(result.error||JSON.stringify(result.details)||"Email provider rejected request");
+     status.textContent="Email accepted by provider. To: "+result.to+"\nProvider ID: "+(result.email_id||"Not returned")+"\nCheck the Quotes inbox for the logo.";
+     button.textContent="Test submitted";button.disabled=true;
+   }catch(err){status.textContent="Email not sent: "+(err?.message||String(err));button.textContent="Retry test";button.disabled=false;}
+ };
+})();
+</script></body></html>
