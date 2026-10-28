@@ -9,6 +9,8 @@ Deno.serve(async(req:Request)=>{
  const {count,error:ce}=await db.from("anybike_onboarding_message_queue").select("id",{count:"exact",head:true}).eq("status","pending").lte("due_at",new Date().toISOString());
  if(ce)return Response.json({error:ce.message},{status:500});
  if(!setting?.sending_enabled)return Response.json({action:"dry_run",sending_enabled:false,pending_due:count||0,messages_sent:0,emails_sent:0});
+ // Separate production approval gate: global setting alone must never activate real dealer emails.
+ if(Deno.env.get("ANYBIKE_ONBOARDING_PRODUCTION_APPROVED")!=="true")return Response.json({action:"awaiting_production_approval",messages_sent:0,emails_sent:0},{status:409});
  const staleCutoff=new Date(Date.now()-24*60*60*1000).toISOString();
  const {count:oldCount,error:oldError}=await db.from("anybike_onboarding_message_queue").select("id",{count:"exact",head:true}).eq("status","pending").lt("due_at",staleCutoff);
  if(oldError)return Response.json({error:"queue_safety_check_failed"},{status:500});
