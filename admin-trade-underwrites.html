@@ -415,6 +415,19 @@ function openAuctionManagement(id){
  if(record&&record.opportunity_status!=="live"&&history){history.checked=true;renderAuctionManagement();}
  requestAnimationFrame(()=>document.getElementById("underwrite-"+Number(id))?.scrollIntoView({behavior:"smooth",block:"start"}));
 }
+async function restartAuction(id){
+ const auction=rows.find(r=>Number(r.opportunity_id)===Number(id));
+ if(!auction)return;
+ const answer=window.prompt("Restart "+(auction.reference||"auction")+" for how many days?\nChoose 1, 7, 14 or 30.","14");
+ if(answer===null)return;
+ const days=Number(answer);
+ if(![1,7,14,30].includes(days)){alert("Choose 1, 7, 14 or 30 days.");return;}
+ if(!confirm("Restart confidential bidding for "+[auction.make,auction.model].filter(Boolean).join(" ")+" for "+days+" day(s)?\n\nPrevious live offers will be kept in the audit history but will not carry into the new round. Eligible invited dealers will be notified again.\n\nNo seller sale is agreed by doing this."))return;
+ const {data,error}=await sb.rpc("admin_restart_trade_underwrite_v1",{p_opportunity_id:Number(id),p_duration_hours:days*24});
+ if(error||!data?.success){alert("Auction not restarted: "+(error?.message||data?.error||"Unknown error"));return;}
+ alert("✓ Auction restarted. "+Number(data.notified_accounts||0)+" dealer account notification(s) created.");
+ await load();
+}
 function renderAuctionManagement(){
  const host=document.getElementById("grid");
  if(!host)return;
@@ -583,6 +596,7 @@ async function load(){
  }
  host.innerHTML=rows.map(r=>'<article class="card" id="underwrite-'+r.opportunity_id+'"><div class="top"><div><div class="ref">'+esc(r.reference)+'</div><div class="meta">'+esc(r.submission_reference)+' · '+esc(r.opportunity_status)+'</div></div><strong>'+esc(r.live_bid_count)+' live bid'+(Number(r.live_bid_count)===1?'':'s')+'</strong></div>'+
  '<div class="bike">'+esc([r.make,r.model,r.variant].filter(Boolean).join(" "))+'</div><div class="meta">'+esc(r.registration||"")+(r.bike_year?' · '+r.bike_year:'')+(r.mileage!==null?' · '+Number(r.mileage).toLocaleString("en-GB")+' miles':'')+'</div>'+
+ ((r.opportunity_status==='closed'||(r.opportunity_status==='live'&&r.closes_at&&new Date(r.closes_at).getTime()<=Date.now()))?'<div style="margin-top:10px"><button type="button" class="red" onclick="restartAuction('+Number(r.opportunity_id)+')">↻ Restart Auction →</button></div>':'')+
  (r.opportunity_status==='live'?'<div class="auction-compact-countdown">Closes in <div class="auction-countdown" data-closes-at="'+esc(r.closes_at||'')+'">Calculating…</div></div>':'')+
  (r.opportunity_status==='completed'?'<div class="buyer-selected-success" role="status"><strong>✓ Buyer selected — bidding complete</strong><span>Buying dealer recorded. No payment or collection has been arranged.</span><button type="button" onclick="openUnderwriteDeal('+Number(r.opportunity_id)+')">Continue to Deal 360 →</button></div>':'')+
  '<div style="margin-top:12px"><button type="button" onclick="openBikeEditor('+Number(r.opportunity_id)+')">Edit all motorcycle details →</button></div>'+ '<details class="auction-expand"><summary>'+(r.opportunity_status==='completed'?'View completed selection &amp; journey →':'Manage motorcycle &amp; bidders →')+'</summary>'+auctionNineSteps(r)+
