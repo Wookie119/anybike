@@ -75,7 +75,37 @@ function renderRecruitmentSummary(){
 }
 function render(){renderRecruitmentSummary();$('columnMode').value==='compact'?document.querySelector('.scroll').classList.add('compact-contacts'):document.querySelector('.scroll').classList.remove('compact-contacts');
  let v=view(),keys=$('columnMode').value==='all'?[...new Set([...cols,...items.flatMap(x=>Object.keys(x.source_data||{}))])].filter(k=>!['approved_for_invitation','personal_intro'].includes(k)):['company','first_name','email','phone'],shown=v.slice(page*pageSize(),page*pageSize()+pageSize());
- $('head').innerHTML='<tr><th class="fixed">Select</th><th class="fixed-edit">Edit row</th><th>Permission approved</th><th>Personal intro from Andy</th><th>Invite by SMS</th><th>Email invitation</th><th>Recruitment status</th><th>Last contacted</th><th>AnyBike account</th><th>Dealer review</th>'+keys.map(k=>'<th data-key="'+esc(k)+'">'+esc(k)+(sort===k?(asc?' ▲':' ▼'):'')+'</th>').join('')+'</tr>';
+ $('head').innerHTML='<tr><th class="fixed"><label title="Select all contacts on this page"><input type="checkbox" id="allPick" aria-label="Select all visible contacts"> Select</label></th><th class="fixed-edit">Edit row</th><th><label title="Set permission for contacts on this page"><input type="checkbox" id="allPermission" aria-label="Approve permission for all visible contacts"> Permission approved</label></th><th><label title="Set personal intro for contacts on this page"><input type="checkbox" id="allPersonal" aria-label="Personal intro for all visible contacts"> Personal intro from Andy</label></th><th><label title="Select eligible contacts for SMS drafts only; no messages sent"><input type="checkbox" id="allSms" aria-label="Select all visible eligible UK mobiles for SMS"> Invite by SMS</label></th><th>Email invitation</th><th>Recruitment status</th><th>Last contacted</th><th>AnyBike account</th><th>Dealer review</th>'+keys.map(k=>'<th data-key="'+esc(k)+'">'+esc(k)+(sort===k?(asc?' ▲':' ▼'):'')+'</th>').join('')+'</tr>';
+ const visible=shown;
+ const allPick=$('allPick'),allPermission=$('allPermission'),allPersonal=$('allPersonal'),allSms=$('allSms');
+ allPick.checked=visible.length>0&&visible.every(r=>chosen.has(r.id));
+ allPermission.checked=visible.length>0&&visible.every(r=>!!r.approved_for_invitation);
+ allPersonal.checked=visible.length>0&&visible.every(r=>!!r.personal_intro);
+ const smsEligible=visible.filter(r=>/^07\\d{9}$/.test(String(r.phone||'').replace(/\\s/g,'')));
+ allSms.checked=smsEligible.length>0&&smsEligible.every(r=>smsChosen.has(r.id));
+ allSms.disabled=!smsEligible.length;
+ allPick.onchange=()=>{visible.forEach(r=>allPick.checked?chosen.add(r.id):chosen.delete(r.id));render()};
+ async function bulkFlag(field,checked,box){
+  if(!visible.length)return;
+  if(!confirm((checked?'Set ':'Clear ')+(field==='approved_for_invitation'?'invitation permission':'personal introduction')+' for '+visible.length+' visible contacts? This saves records but sends no messages.')){render();return;}
+  box.disabled=true;
+  const ids=visible.map(r=>r.id);
+  const {data,error}=await db.from('anybike_master_contacts').update({[field]:checked}).in('id',ids).select();
+  if(error||!data||data.length!==ids.length){alert('Bulk update could not be fully verified. Refresh before retrying. '+(error?.message||''));await load();return;}
+  const byId=new Map(data.map(r=>[r.id,r]));visible.forEach(r=>Object.assign(r,byId.get(r.id)||{}));render();
+ }
+ allPermission.onchange=()=>bulkFlag('approved_for_invitation',allPermission.checked,allPermission);
+ allPersonal.onchange=()=>bulkFlag('personal_intro',allPersonal.checked,allPersonal);
+ allSms.onchange=async()=>{
+  const checked=allSms.checked;if(!smsEligible.length)return;
+  if(!confirm((checked?'Select ':'Clear ')+smsEligible.length+' visible UK mobile contacts for SMS drafts? No texts will be sent.')){render();return;}
+  allSms.disabled=true;
+  const ids=smsEligible.map(r=>r.id);
+  const {data,error}=await db.from('anybike_master_contacts').update({sms_invite_selected:checked}).in('id',ids).select();
+  if(error||!data||data.length!==ids.length){alert('SMS selections could not be fully verified. Refresh before retrying. '+(error?.message||''));await load();return;}
+  const byId=new Map(data.map(r=>[r.id,r]));
+  smsEligible.forEach(r=>{Object.assign(r,byId.get(r.id)||{});checked?smsChosen.add(r.id):smsChosen.delete(r.id)});render();
+ };
  $('head').querySelectorAll('[data-key]').forEach(x=>x.onclick=()=>{if(sort===x.dataset.key)asc=!asc;else{sort=x.dataset.key;asc=true}page=0;render()});
  $('body').innerHTML=shown.map(r=>'<tr><td class="fixed"><input type="checkbox" data-pick="'+r.id+'" '+(chosen.has(r.id)?'checked':'')+'></td><td class="fixed-edit"><button type="button" data-edit="'+r.id+'">Edit</button><button type="button" data-duplicate="'+r.id+'" title="Create another contact at this dealership">Duplicate Contact</button></td><td><input type="checkbox" aria-label="Approve invitation permission for '+esc(r.company||r.email)+'" data-flag="approved_for_invitation" data-id="'+r.id+'" '+(r.approved_for_invitation?'checked':'')+'></td><td><input type="checkbox" aria-label="Personal intro from Andy for '+esc(r.company||r.email)+'" data-flag="personal_intro" data-id="'+r.id+'" '+(r.personal_intro?'checked':'')+'></td><td><input type="checkbox" data-sms="'+r.id+'" aria-label="Invite by SMS" '+(r.sms_invite_selected?'checked':'')+' '+(/^07\d{9}$/.test(String(r.phone||'').replace(/\s/g,''))?'':'disabled title="Valid UK 07 mobile required"')+'></td><td>'+(r.email_invite_sent_at?'✓ Sent '+esc(new Date(r.email_invite_sent_at).toLocaleDateString('en-GB')):'Not recorded')+'</td><td>'+esc(({not_invited:'Not invited (recorded)',invited:'Invited / awaiting registration',registered:'Registered / awaiting approval',approved:'Approved dealer',unknown:'Registered · approval status unavailable'})[contactRecruitmentStatus(r)])+'</td><td>'+esc(contactDate(r))+'</td><td>'+(()=>{const p=matchingDealer(r);return p?'<a style="color:#9ee5ab" href="/admin-customers.html?customer='+encodeURIComponent(p.id)+'">Registered ✓'+(approvedCustomerIds.has(p.id)?' / Approved ✓':'')+' · Customer 360 →</a>':'—'})()+'</td><td>'+(()=>{const p=matchingDealer(r);return p&&['uk_dealer','intl_dealer'].includes(String(p.customer_type||'').toLowerCase())?'<button type="button" data-dealer-review="'+r.id+'">'+(expandedDealerId===r.id?'Close':'Review')+'</button>':'—'})()+'</td>'+keys.map(k=>'<td>'+esc(r[k]??r.source_data?.[k]??'').slice(0,130)+'</td>').join('')+'</tr>').join('');
  $('body').querySelectorAll('[data-pick]').forEach(x=>x.onchange=()=>{let id=+x.dataset.pick;x.checked?chosen.add(id):chosen.delete(id);$('count').textContent=v.length+' matching · '+chosen.size+' email selected · '+smsChosen.size+' SMS selected'});
