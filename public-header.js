@@ -2975,6 +2975,18 @@ async function anybikeShowPublicSignedInIdentity(){
       {title:'Buying a used Fat Boy',body:'Review VIN, ownership, finance status, service history, engine configuration and any custom work before purchase.'}
      ];
     }
+    if(safe(make)==='honda'&&safe(model)==='africatwincrf1100l'){
+     cardNotes=[
+      {title:'2020 — CRF1100L introduction',body:'The 1,084 cc parallel-twin Africa Twin replaced the earlier CRF1000L generation, with updated electronics and a lighter platform.'},
+      {title:'2020 — Standard Africa Twin',body:'The standard CRF1100L emphasises adventure riding. Check the specific year, suspension, wheels and fitted accessories.'},
+      {title:'2020 — Adventure Sports',body:'The CRF1100L Adventure Sports version is designed with longer-distance touring equipment. Tank size and features vary by model year.'},
+      {title:'Manual and DCT versions',body:'The CRF1100L has been offered with a conventional manual gearbox or Honda’s Dual Clutch Transmission. Confirm which is fitted.'},
+      {title:'2022 — Equipment updates',body:'Later CRF1100L versions received changes to equipment and transmission calibration. Verify the exact year and market specification.'},
+      {title:'2024 — Adventure Sports changes',body:'The updated Adventure Sports adopted a 19-inch front wheel and revised road-touring focus; check the model year carefully.'},
+      {title:'Riding modes and electronics',body:'Electronic rider aids and riding modes differ by version. Check traction control, ABS and display functionality on the actual bike.'},
+      {title:'Used CRF1100L checks',body:'Confirm service history, mileage, luggage and accessories, suspension condition and any off-road damage before purchasing.'}
+     ];
+    }
     if(safe(make)==='honda'&&safe(model)==='africatwin'){
      cardNotes=[
       {title:'1988 — XRV650',body:'The original Africa Twin generation established the model’s rally-inspired adventure motorcycle identity.'},
