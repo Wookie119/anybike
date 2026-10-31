@@ -313,8 +313,8 @@
       <div class="stockGrid" style="margin-top:12px;">
         <input id="s_stock_no" placeholder="Stock no">
         <input id="s_registration" placeholder="Registration">
-        <input id="s_make" placeholder="Make">
-        <input id="s_model" placeholder="Model">
+        <select id="s_make" required><option value="">Loading manufacturers…</option></select>
+        <select id="s_model" required disabled><option value="">Select manufacturer first</option></select>
         <input id="s_year" type="number" placeholder="Year">
         <input id="s_mileage" type="number" placeholder="Mileage">
         <input id="s_purchase" type="number" placeholder="Purchase price GBP">
@@ -477,6 +477,46 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
+<script>
+(function(){
+ const make=document.getElementById("s_make"),model=document.getElementById("s_model");
+ const norm=x=>String(x||"").toLowerCase().replace(/[^a-z0-9]/g,"");
+ let groups=new Map(),ready=false;
+ const sort=(a,b)=>a.localeCompare(b,undefined,{numeric:true});
+ function setModels(selected=""){
+  model.replaceChildren(new Option("Select model",""));
+  for(const value of [...(groups.get(make.value)||[])].sort(sort))model.add(new Option(value,value));
+  model.disabled=!ready||!make.value;
+  const match=[...model.options].find(o=>norm(o.value)===norm(selected));
+  if(match)model.value=match.value;
+ }
+ make.addEventListener("change",()=>setModels());
+ window.anybikeStockSetMotorcycle=function(m,mn){
+  if(!ready)return;
+  const option=[...make.options].find(o=>norm(o.value)===norm(m));
+  make.value=option?.value||"";
+  setModels(mn);
+ };
+ fetch("/data/motorcycle-catalogue-master.json",{cache:"no-cache"}).then(r=>{
+  if(!r.ok)throw Error("Master catalogue unavailable");return r.json();
+ }).then(data=>{
+  if(!Array.isArray(data.models)||!data.models.length)throw Error("Invalid catalogue");
+  for(const row of data.models){
+   if(!row.make||!row.model)continue;
+   if(!groups.has(row.make))groups.set(row.make,new Set());
+   groups.get(row.make).add(row.model);
+  }
+  make.replaceChildren(new Option("Select manufacturer",""));
+  for(const value of [...groups.keys()].sort(sort))make.add(new Option(value,value));
+  ready=true;
+  window.anybikeStockSetMotorcycle(make.value,model.value);
+ }).catch(e=>{console.error(e);make.replaceChildren(new Option("Catalogue unavailable",""));make.disabled=true;model.disabled=true;});
+})();
+</script>
+<style>
+#s_make,#s_model{background:#262626!important;color:#fff!important;border:1px solid #555!important;color-scheme:dark}
+#s_make option,#s_model option{background:#262626;color:#fff}
+</style>
 <script type="module">
   import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -1230,8 +1270,7 @@ function renderStats(){
     selectedStock = b;
     $("s_stock_no").value = b.stock_no || "";
     $("s_registration").value = b.registration || "";
-    $("s_make").value = b.make || "";
-    $("s_model").value = b.model || "";
+    window.anybikeStockSetMotorcycle?.(b.make || "", b.model || "");
     $("s_year").value = b.year || "";
     $("s_mileage").value = b.mileage || "";
     $("s_purchase").value = b.purchase_price_gbp || "";
