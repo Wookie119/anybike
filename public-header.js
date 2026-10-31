@@ -2871,9 +2871,24 @@ async function anybikeShowPublicSignedInIdentity(){
   section.innerHTML='<h2>'+make+' '+model+' motorcycles available internationally</h2><p>Browse published motorcycles from UK suppliers. Overseas visitors can enquire or request to purchase without registering.</p><div class="anybike-model-stock-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px"></div><h2>Enquire about this model</h2><form class="anybike-model-guest-form" style="display:grid;gap:9px;max-width:550px"><input name="website" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px"><label>Full name<input name="name" required minlength="2"></label><label>Email<input name="email" type="email" required></label><label>Country<input name="country" required minlength="2"></label><label>Phone / WhatsApp<input name="phone"></label><label>Request type<select name="kind"><option>Motorcycle Enquiry</option><option>Purchase Request</option></select></label><label>Message<textarea name="message" required minlength="5" rows="3"></textarea></label><button type="submit" style="background:#ed1c24;color:white;border:0;padding:12px;font-weight:bold;cursor:pointer">Send enquiry →</button><p role="status"></p></form>';
   section.querySelectorAll('input:not([name="website"]),select,textarea').forEach(el=>{el.style.cssText='display:block;width:100%;box-sizing:border-box;background:#292929;color:white;border:1px solid #777;border-radius:6px;padding:11px;margin-top:5px'});
   section.querySelectorAll('label').forEach(el=>el.style.cssText='display:block;font-weight:600;color:white');
-  const insertion=harley?(document.querySelector('main .harley-related-pill-nav')||document.querySelector('main .image-attribution')||document.querySelector('main .end-action')):document.getElementById('nextAction');
+  const insertion=harley?(document.querySelector('main .image-attribution')||document.querySelector('main .harley-related-pill-nav')):document.getElementById('nextAction');
   if(!insertion)return;
-  insertion.before(section);
+  if(harley){
+   insertion.after(section);
+   const form=section.querySelector('form');
+   const formPanel=document.createElement('section');formPanel.className='end-action';
+   formPanel.style.cssText='background:#171717;color:#fff;border:1px solid #363636;border-top:3px solid #ed1c24;border-radius:12px;margin:18px 0;padding:22px';
+   const title=document.createElement('h2');title.textContent='Enquire about a '+make+' '+model;
+   const intro=document.createElement('p');intro.textContent='International buyers can send an enquiry or purchase request without creating an account.';
+   formPanel.append(title,intro,form);section.after(formPanel);
+   const source=document.createElement('section');source.className='end-action';
+   source.style.cssText='margin:18px 0;padding:22px;background:#171717;color:#fff;border:1px solid #363636;border-radius:12px';
+   const h=document.createElement('h2');h.textContent='International buyer interested in a '+make+' '+model+'?';
+   const p=document.createElement('p');p.textContent='Tell AnyBike your preferred model year and specification. We can search the UK market for suitable '+make+' '+model+' motorcycles and share potential matches with you.';
+   const a=document.createElement('a');a.className='button';a.href='/bulk-buying-request.html?make='+encodeURIComponent(make)+'&model='+encodeURIComponent(model);a.textContent='Ask AnyBike to source this motorcycle →';
+   source.append(h,p,a);formPanel.after(source);
+   const leftover=section.querySelector('h2:nth-of-type(2)');if(leftover)leftover.remove();
+  }else{insertion.before(section);}
   const endpoint='https://tuehtnezhdnkqbbhttgp.supabase.co/functions/v1/';
   const client=window.supabase?.createClient?.('https://tuehtnezhdnkqbbhttgp.supabase.co','sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK');
   async function token(){return (await client?.auth.getSession())?.data?.session?.access_token}
