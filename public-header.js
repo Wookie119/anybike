@@ -2896,13 +2896,6 @@ async function anybikeShowPublicSignedInIdentity(){
    const title=document.createElement('h2');title.textContent='Enquire about a '+make+' '+model;
    const intro=document.createElement('p');intro.textContent='International buyers can send an enquiry or purchase request without creating an account.';
    formPanel.id='international-model-enquiry';formPanel.append(title,intro,form);formPanel.style.display='none';section.after(formPanel);
-   const source=document.createElement('section');source.className='end-action';
-   source.style.cssText='margin:18px 0;padding:22px;background:#171717;color:#fff;border:1px solid #363636;border-radius:12px';
-   const h=document.createElement('h2');h.textContent='International buyer interested in a '+make+' '+model+'?';
-   const p=document.createElement('p');p.textContent='Tell AnyBike your preferred model year and specification. We can search the UK market for suitable '+make+' '+model+' motorcycles and share potential matches with you.';
-   const a=document.createElement('a');a.className='button';a.href='/bulk-buying-request.html?make='+encodeURIComponent(make)+'&model='+encodeURIComponent(model);a.textContent='Ask AnyBike to source this motorcycle →';
-   if(model.toLowerCase()!=='fat boy'){source.append(h,p,a);source.style.display='none';formPanel.after(source);}
-
    const leftover=section.querySelector('h2:nth-of-type(2)');if(leftover)leftover.remove();
   }else{
    insertion.before(section);
