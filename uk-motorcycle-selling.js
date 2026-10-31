@@ -6,7 +6,7 @@ if(old.year)yearSelect.value=old.year;
 async function setupCatalogue(){
  let fromFile=false;
  try{
-  const response=await fetch("/data/motorcycle-catalogue-base.json",{cache:"no-cache"});
+  const response=await fetch("/data/motorcycle-catalogue-master.json",{cache:"no-cache"});
   if(!response.ok)throw Error("Catalogue unavailable");
   const data=await response.json();
   if(!Array.isArray(data.models)||!data.models.length)throw Error("Empty catalogue");
