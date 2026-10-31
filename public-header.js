@@ -2900,11 +2900,21 @@ async function anybikeShowPublicSignedInIdentity(){
    const a=document.createElement('a');a.className='button';a.href='/bulk-buying-request.html?make='+encodeURIComponent(make)+'&model='+encodeURIComponent(model);a.textContent='Ask AnyBike to source this motorcycle →';
    source.append(h,p,a);formPanel.after(source);
    const leftover=section.querySelector('h2:nth-of-type(2)');if(leftover)leftover.remove();
-  }else{insertion.before(section);}
+  }else{
+   insertion.before(section);
+   const form=section.querySelector('form');
+   const formPanel=document.createElement('section');formPanel.className='end-action';
+   formPanel.style.cssText='background:#171717;color:#fff;border:1px solid #363636;border-top:3px solid #ed1c24;border-radius:12px;margin:18px 0;padding:22px';
+   const title=document.createElement('h2');title.textContent='Enquire about a '+make+' '+model;
+   const intro=document.createElement('p');intro.textContent='International buyers can send an enquiry or purchase request without creating an account.';
+   form.style.cssText='display:grid;gap:12px;width:100%;max-width:820px;margin:22px auto 0;color:#fff';
+   formPanel.append(title,intro,form);section.after(formPanel);
+   const leftover=section.querySelector('h2:nth-of-type(2)');if(leftover)leftover.remove();
+  }
   const endpoint='https://tuehtnezhdnkqbbhttgp.supabase.co/functions/v1/';
   const client=window.supabase?.createClient?.('https://tuehtnezhdnkqbbhttgp.supabase.co','sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK');
   async function token(){return (await client?.auth.getSession())?.data?.session?.access_token}
-  const form=harley?document.querySelector('main .anybike-model-guest-form'):section.querySelector('form');
+  const form=document.querySelector('main .anybike-model-guest-form');
   form.addEventListener('submit',async event=>{
    event.preventDefault();const btn=form.querySelector('button'),status=form.querySelector('[role="status"]');btn.disabled=true;status.textContent='Sending…';
    try{
@@ -2925,7 +2935,14 @@ async function anybikeShowPublicSignedInIdentity(){
     const label=document.createElement('div');label.textContent=[x.make,x.model,x.year].filter(Boolean).join(' ');a.append(label);
     const price=document.createElement('strong');price.textContent=Number(x.price)>0?Number(x.price).toLocaleString('en-GB',{style:'currency',currency:'GBP'}):'Price on request';a.append(price);
     const view=document.createElement('div');view.textContent='View motorcycle →';a.append(view);grid.append(a);
-   });}else{grid.innerHTML='<div style="grid-column:1/-1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px">'+Array.from({length:3},()=>'<div style="border:1px solid #444;border-radius:9px;background:#222;padding:16px;text-align:center"><img src="/anybike-image-coming-soon.png" alt="AnyBike image coming soon" loading="lazy" style="height:120px;max-width:100%;object-fit:contain"><div style="font-weight:bold">'+make+' '+model+'</div><small style="color:#bbb">Awaiting approved stock</small></div>').join('')+'</div>';}
+   });}
+   for(let i=matches.length;i<6;i++){
+    const card=document.createElement('div');card.style.cssText='background:#242424;border:1px solid #555;border-radius:8px;padding:12px;text-align:center;min-height:220px;display:flex;flex-direction:column;justify-content:center;gap:8px';
+    const brand=document.createElement('div');brand.style.cssText='font-size:22px;font-weight:900;letter-spacing:.08em;color:'+(harley?'#ff6600':'#ed1c24');brand.textContent='ANYBIKE';
+    const name=document.createElement('strong');name.textContent=make+' '+model;
+    const status=document.createElement('small');status.style.color='#ccc';status.textContent='Additional motorcycles may be available — enquire with AnyBike';
+    card.append(brand,name,status);grid.append(card);
+   }
   }catch(error){section.remove();}})();
  }
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
