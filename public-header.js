@@ -2998,6 +2998,14 @@ async function anybikeShowPublicSignedInIdentity(){
      ];
     }
    }
+   if(!cardNotes.length&&harley){
+    const sections=[...document.querySelectorAll('main .card')];
+    cardNotes=sections.map(el=>{
+     const h=el.querySelector('h2,h3');
+     const p=el.querySelector('p');
+     return h&&p?{title:h.textContent.trim(),body:p.textContent.trim()}:null;
+    }).filter(x=>x&&x.body.length>35&&x.body.length<450&&!/interested|sourcing|photograph policy|uk owners|what to verify/i.test(x.title)).slice(0,12);
+   }
    const emptyCardCount=cardNotes.length||(!matches.length?1:0);
    if(cardNotes.length){const heading=document.createElement('h3');heading.textContent=make+' '+model+' — model years and specifications';heading.style.cssText='grid-column:1/-1;margin:14px 0 0';grid.append(heading);}
    for(let i=0;i<emptyCardCount;i++){
