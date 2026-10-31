@@ -1267,6 +1267,7 @@ async function setupPublicHeader(){
 
     await addMyDealershipMenuIfEligible(user);
     await anybikeApplyPrivateCustomerMenu(user);
+    document.documentElement.classList.add("anybike-home-account-resolved");
     document.documentElement.classList.add("anybike-home-audience-resolved");
     await loadCustomerHeaderActivity(user);
     bindHeaderMessagePageUnreadSync();
@@ -1287,6 +1288,7 @@ async function setupPublicHeader(){
     },5000);
 
   }else{
+    document.documentElement.classList.add("anybike-home-account-resolved");
     document.documentElement.classList.add("anybike-home-audience-resolved");
     loggedOutMenu?.classList.remove("hidden");
     loggedInMenu?.classList.add("hidden");
