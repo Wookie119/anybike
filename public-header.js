@@ -2942,7 +2942,7 @@ async function anybikeShowPublicSignedInIdentity(){
     const price=document.createElement('strong');price.textContent=Number(x.price)>0?Number(x.price).toLocaleString('en-GB',{style:'currency',currency:'GBP'}):'Price on request';a.append(price);
     const view=document.createElement('div');view.textContent='View motorcycle →';a.append(view);grid.append(a);
    });}
-   if(matches.length===0){
+   if(matches.length===0&&!document.querySelector('main .harley-generation-reference, main #softail-generation-comparison, main #harley-generation-comparison')){
     const yearsPanel=document.createElement('section');yearsPanel.className='anybike-model-year-guide';
     yearsPanel.style.cssText='background:#1b1b1b;border:1px solid #484848;border-radius:10px;padding:18px;margin:16px 0;color:white';
     const yh=document.createElement('h3');yh.textContent=make+' '+model+' — model years and generations';
@@ -2976,9 +2976,9 @@ async function anybikeShowPublicSignedInIdentity(){
       const already=document.querySelector('main #generationPanel:not([hidden])');
       if(sourceYearText){detail.textContent=sourceYearText;}
       else if(already){detail.textContent='See the model-generation comparison earlier on this page for documented specifications.';}
-      else{detail.textContent='Year-by-year specifications are being prepared for this model. Tell us the year you are interested in and we can help check available UK motorcycles.';}
+      else{yearsPanel.remove();}
      }
-    }catch(err){detail.textContent='Detailed model-year information is temporarily unavailable. Ask AnyBike about the exact year and specification you are looking for.';}
+    }catch(err){yearsPanel.remove();}
    }
    for(let i=matches.length;i<6;i++){
     const card=document.createElement('div');card.style.cssText='background:#242424;border:1px solid #555;border-radius:8px;padding:12px;text-align:center;min-height:220px;display:flex;flex-direction:column;justify-content:center;gap:8px';
