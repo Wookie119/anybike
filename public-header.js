@@ -2883,6 +2883,7 @@ async function anybikeShowPublicSignedInIdentity(){
    notice.textContent='The Harley-Davidson Fat Boy motorcycles displayed on AnyBike are only a selection of those available through UK suppliers. Other Fat Boys may be available even if none are currently shown here. The Fat Boy is one of Harley-Davidson’s distinctive cruiser models, with different generations, engines and specifications available across the UK market. Whether you are looking for an earlier Fat Boy, a Fat Boy 114 or a later Milwaukee-Eight model, tell us your preferred year, specification, mileage and budget. Thousands of motorcycles are available across the UK, and AnyBike displays only a selection online. Send us an enquiry and we can search our UK supplier network for a suitable Fat Boy.';
    notice.style.cssText='color:#ff6600;font-weight:600;line-height:1.7';
   }
+  section.style.display='none';
   section.querySelectorAll('input:not([name="website"]),select,textarea').forEach(el=>{el.style.cssText='display:block;width:100%;box-sizing:border-box;background:#292929;color:white;border:1px solid #777;border-radius:6px;padding:11px;margin-top:5px'});
   section.querySelectorAll('label').forEach(el=>el.style.cssText='display:block;font-weight:600;color:white');
   const insertion=harley?(document.querySelector('main .image-attribution')||document.querySelector('main .harley-related-pill-nav')):document.getElementById('nextAction');
@@ -2894,13 +2895,13 @@ async function anybikeShowPublicSignedInIdentity(){
    formPanel.style.cssText='background:#171717;color:#fff;border:1px solid #363636;border-top:3px solid #ff6600;border-radius:12px;margin:18px 0;padding:22px';
    const title=document.createElement('h2');title.textContent='Enquire about a '+make+' '+model;
    const intro=document.createElement('p');intro.textContent='International buyers can send an enquiry or purchase request without creating an account.';
-   formPanel.append(title,intro,form);section.after(formPanel);
+   formPanel.append(title,intro,form);formPanel.style.display='none';section.after(formPanel);
    const source=document.createElement('section');source.className='end-action';
    source.style.cssText='margin:18px 0;padding:22px;background:#171717;color:#fff;border:1px solid #363636;border-radius:12px';
    const h=document.createElement('h2');h.textContent='International buyer interested in a '+make+' '+model+'?';
    const p=document.createElement('p');p.textContent='Tell AnyBike your preferred model year and specification. We can search the UK market for suitable '+make+' '+model+' motorcycles and share potential matches with you.';
    const a=document.createElement('a');a.className='button';a.href='/bulk-buying-request.html?make='+encodeURIComponent(make)+'&model='+encodeURIComponent(model);a.textContent='Ask AnyBike to source this motorcycle →';
-   source.append(h,p,a);formPanel.after(source);
+   source.append(h,p,a);source.style.display='none';formPanel.after(source);
    const leftover=section.querySelector('h2:nth-of-type(2)');if(leftover)leftover.remove();
   }else{
    insertion.before(section);
@@ -2913,6 +2914,9 @@ async function anybikeShowPublicSignedInIdentity(){
    formPanel.append(title,intro,form);section.after(formPanel);
    const leftover=section.querySelector('h2:nth-of-type(2)');if(leftover)leftover.remove();
   }
+  const attached=section.parentElement?[section,section.nextElementSibling,harley?section.nextElementSibling?.nextElementSibling:null].filter(Boolean):[];
+  const reveal=()=>attached.forEach(el=>el.style.removeProperty('display'));
+  const hide=()=>attached.forEach(el=>el.remove());
   const endpoint='https://tuehtnezhdnkqbbhttgp.supabase.co/functions/v1/';
   const client=window.supabase?.createClient?.('https://tuehtnezhdnkqbbhttgp.supabase.co','sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK');
   async function token(){return (await client?.auth.getSession())?.data?.session?.access_token}
@@ -2928,7 +2932,7 @@ async function anybikeShowPublicSignedInIdentity(){
   });
   (async()=>{try{
    const jwt=await token();const res=await fetch(endpoint+'international-public-stock',{cache:'no-store',headers:jwt?{'Authorization':'Bearer '+jwt}:{}});
-   if(!res.ok){section.remove();return;}
+   if(!res.ok){hide();return;}
    const data=await res.json(),grid=section.querySelector('.anybike-model-stock-grid');
    const matches=(data.items||[]).filter(x=>safe(x.make)===safe(make)&&safe(x.model).includes(safe(model))).slice(0,6);
    if(matches.length){matches.forEach(x=>{
@@ -2945,7 +2949,8 @@ async function anybikeShowPublicSignedInIdentity(){
     const status=document.createElement('small');status.style.color='#ccc';status.textContent='Additional motorcycles may be available — enquire with AnyBike';
     card.append(brand,name,status);grid.append(card);
    }
-  }catch(error){section.remove();}})();
+   reveal();
+  }catch(error){hide();}})();
  }
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })();
