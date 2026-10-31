@@ -44,6 +44,11 @@ for(const [fragment,reason] of [
  ["const reveal=()", 'Gallery visibility handling removed']
 ])assert(gallery.includes(fragment),reason);
 assert(!gallery.includes('for(let i=matches.length;i<6;i++)'),'Do not restore six repetitive placeholders');
+const r1300=fs.readFileSync('bmw-r1300gs.html','utf8');
+assert(r1300.includes('id="internationalModelCards"'),'R 1300 GS published stock gallery missing');
+assert(r1300.includes('id="r1300gsModelHistory"'),'R 1300 GS model history cards missing');
+assert(r1300.includes('BMW R 1300 GS — model years and specifications'),'R 1300 GS history heading missing');
+assert(r1300.includes('internationalGuestRequestForm'),'R 1300 GS guest enquiry missing');
 console.log('PASS: international model galleries, Fat Boy/Africa Twin year cards, real-stock priority and enquiry hooks are preserved.');
 
 console.log('PASS: existing detailed-model routes, fallback sourcing and both model-specific customer journeys are intact.');
