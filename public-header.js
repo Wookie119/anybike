@@ -2944,7 +2944,7 @@ async function anybikeShowPublicSignedInIdentity(){
    });}
    for(let i=matches.length;i<6;i++){
     const card=document.createElement('div');card.style.cssText='background:#242424;border:1px solid #555;border-radius:8px;padding:12px;text-align:center;min-height:220px;display:flex;flex-direction:column;justify-content:center;gap:8px';
-    const brand=document.createElement('img');brand.src='/anybike-logo-new.jpg';brand.alt='AnyBike';brand.loading='lazy';brand.style.cssText='display:block;width:min(170px,85%);height:100px;object-fit:contain;margin:0 auto;background:#fff;border-radius:6px;padding:8px';
+    const brand=document.createElement('img');brand.src='/anybike-logo-new.jpg';brand.alt='AnyBike';brand.loading='lazy';brand.style.cssText='display:block;width:min(170px,85%);height:100px;object-fit:contain;margin:0 auto;background:transparent;border:0;border-radius:0;padding:0';
     const name=document.createElement('strong');name.textContent=make+' '+model;
     const status=document.createElement('small');status.style.color='#ccc';status.textContent='Additional motorcycles may be available — enquire with AnyBike';
     card.append(brand,name,status);grid.append(card);
