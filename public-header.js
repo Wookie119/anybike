@@ -2946,7 +2946,7 @@ async function anybikeShowPublicSignedInIdentity(){
     const view=document.createElement('div');view.textContent='View motorcycle →';a.append(view);grid.append(a);
    });}
    let cardNotes=[];
-   if(matches.length===0){
+   {
     try{
      const response=await fetch('/data/motorcycle-model-guides.json',{cache:'default'});
      if(response.ok){
@@ -2998,7 +2998,8 @@ async function anybikeShowPublicSignedInIdentity(){
      ];
     }
    }
-   const emptyCardCount=matches.length?0:(cardNotes.length||1);
+   const emptyCardCount=cardNotes.length||(!matches.length?1:0);
+   if(cardNotes.length){const heading=document.createElement('h3');heading.textContent=make+' '+model+' — model years and specifications';heading.style.cssText='grid-column:1/-1;margin:14px 0 0';grid.append(heading);}
    for(let i=0;i<emptyCardCount;i++){
     const card=document.createElement('div');card.style.cssText='background:#242424;border:1px solid #555;border-radius:8px;padding:12px;text-align:center;min-height:220px;display:flex;flex-direction:column;justify-content:center;gap:8px';
     const brand=document.createElement('img');brand.src='/anybike-logo-new.jpg';brand.alt='AnyBike';brand.loading='lazy';brand.style.cssText='display:block;width:min(170px,85%);height:100px;object-fit:contain;margin:0 auto;background:transparent;border:0;border-radius:0;padding:0';
