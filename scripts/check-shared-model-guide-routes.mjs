@@ -35,7 +35,7 @@ for(const [fragment,reason] of [
  ["if(matches.length===0)", 'Empty-stock model-year cards removed'],
  ["if(safe(make)==='honda'&&safe(model)==='africatwin')", 'Africa Twin generation cards missing'],
  ["if(safe(make)==='harleydavidson'&&safe(model)==='fatboy')", 'Fat Boy generation cards missing'],
- ["const emptyCardCount=matches.length?0:(cardNotes.length||1)", 'Variable-length informational cards or stock priority broken'],
+ ["const emptyCardCount=cardNotes.length||(!matches.length?1:0)", 'Variable-length informational cards or stock priority broken'],
  ["name.textContent=note.title||make+' '+model", 'Distinct model-year card titles missing'],
  ["status.textContent=note.body", 'Distinct model-year descriptions missing'],
  ["brand.src='/anybike-logo-new.jpg'", 'Approved AnyBike placeholder logo missing'],
