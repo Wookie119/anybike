@@ -308,6 +308,29 @@ make.addEventListener("change",()=>{customMake.style.display=make.value==="__cus
 model.addEventListener("change",()=>{customModel.style.display=model.value==="__custom__"?"block":"none";if(model.value==="__custom__")customModel.focus();refreshVariants();});
 customMake.addEventListener("change",()=>chooseExact(make,customMake));customModel.addEventListener("change",()=>chooseExact(model,customModel));
 refreshModels();
+// The single master list replaces legacy embedded options when available.
+// Legacy entries remain only as an offline fallback if the file cannot load.
+fetch("/data/motorcycle-catalogue-master.json",{cache:"no-cache"}).then(response=>{
+ if(!response.ok)throw Error("Master catalogue unavailable");
+ return response.json();
+}).then(data=>{
+ if(data.schema_version!==1||!Array.isArray(data.models)||!data.models.length)throw Error("Invalid master catalogue");
+ const previousMake=make.value,previousModel=model.value;
+ Object.keys(catalogue).forEach(name=>delete catalogue[name]);
+ data.models.forEach(item=>{
+  if(!item.make||!item.model)return;
+  if(!catalogue[item.make])catalogue[item.make]=[];
+  catalogue[item.make].push(item.model);
+ });
+ Object.values(catalogue).forEach(models=>models.sort((a,b)=>a.localeCompare(b,undefined,{numeric:true})));
+ make.replaceChildren();add(make,"","Select make");
+ Object.keys(catalogue).sort((a,b)=>a.localeCompare(b)).forEach(name=>add(make,name));
+ add(make,"__custom__","Other make / Not listed");
+ if([...make.options].some(option=>option.value===previousMake))make.value=previousMake;
+ refreshModels();
+ if([...model.options].some(option=>option.value===previousModel))model.value=previousModel;
+ refreshVariants();
+}).catch(error=>console.warn("Using offline motorcycle selector fallback:",error.message));
 window.anybikeRefreshMotorcycleSelectors=function(){refreshModels();refreshVariants();};
 })();
 </script>
