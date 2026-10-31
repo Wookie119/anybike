@@ -2854,6 +2854,7 @@ async function anybikeShowPublicSignedInIdentity(){
 }
 
 
+/* PROTECTED MODEL GALLERY: preserve real-stock priority, model-specific year cards, branding, and quick enquiry. Before edits run: node scripts/check-shared-model-guide-routes.mjs. Never replace with generic placeholders or remove cards during sourcing-link changes. */
 /* International model stock and guest enquiries: model guides only. */
 (function(){
  function start(){
