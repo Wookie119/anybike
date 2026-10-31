@@ -2980,11 +2980,36 @@ async function anybikeShowPublicSignedInIdentity(){
      }
     }catch(err){yearsPanel.remove();}
    }
+   let cardNotes=[];
+   if(matches.length<6){
+    try{
+     const response=await fetch('/data/motorcycle-model-guides.json',{cache:'default'});
+     if(response.ok){
+      const all=await response.json();
+      const found=Object.values(all.models||{}).find(g=>safe(g.make)===safe(make)&&safe(g.model)===safe(model));
+      if(found){
+       const generations=(found.production?.generations||[]).filter(g=>g.description);
+       cardNotes=generations.map(g=>({title:g.model_year||g.label,body:g.description}));
+       if(cardNotes.length<6)cardNotes.push(...(found.sections||[]).filter(x=>Array.isArray(x)&&x[1]).map(x=>({title:x[0],body:x[1]})));
+      }
+     }
+    }catch(e){/* Non-critical guidance remains optional. */}
+    if(safe(make)==='honda'&&safe(model)==='africatwin'){
+     cardNotes=[
+      {title:'1988 — XRV650',body:'The original Africa Twin generation established the model’s rally-inspired adventure motorcycle identity.'},
+      {title:'1990–2003 — XRV750',body:'The Africa Twin developed into the XRV750, with several updates across its production years.'},
+      {title:'2016–2017 — CRF1000L',body:'Honda revived the Africa Twin with the CRF1000L parallel-twin adventure motorcycle.'},
+      {title:'2018–2019 — CRF1000L',body:'Later CRF1000L model years included specification updates and an Adventure Sports version.'},
+      {title:'2020 onward — CRF1100L',body:'The CRF1100L succeeded the CRF1000L with a larger engine and revised electronics.'},
+      {title:'Adventure Sports',body:'The touring-focused Adventure Sports has year-dependent equipment; compare the exact model year and specification.'}
+     ];
+    }
+   }
    for(let i=matches.length;i<6;i++){
     const card=document.createElement('div');card.style.cssText='background:#242424;border:1px solid #555;border-radius:8px;padding:12px;text-align:center;min-height:220px;display:flex;flex-direction:column;justify-content:center;gap:8px';
     const brand=document.createElement('img');brand.src='/anybike-logo-new.jpg';brand.alt='AnyBike';brand.loading='lazy';brand.style.cssText='display:block;width:min(170px,85%);height:100px;object-fit:contain;margin:0 auto;background:transparent;border:0;border-radius:0;padding:0';
     const name=document.createElement('strong');name.textContent=make+' '+model;
-    const status=document.createElement('small');status.style.color='#ccc';status.textContent='Additional motorcycles may be available — enquire with AnyBike';
+    const status=document.createElement('small');status.style.cssText='color:#ddd;line-height:1.5';const note=cardNotes[i-matches.length];if(note){name.textContent=note.title||make+' '+model;status.textContent=note.body;}else{status.textContent='Additional '+make+' '+model+' motorcycles may be available — enquire with AnyBike';}
     card.append(brand,name,status);grid.append(card);
    }
    reveal();
