@@ -984,7 +984,7 @@ async function addMyDealershipMenuIfEligible(user){
             mobileNav.appendChild(tour);
           }
         }
-        // Keep one concise, alphabetical UK trade menu on both desktop and mobile.
+        // Keep one concise UK dealer account menu on both desktop and mobile, including the service guide.
         // Service actions live on My Dealership, not in the account dropdown.
         const entries=[
           ["Accounts & Documents","/accounts-documents.html"],
@@ -992,7 +992,8 @@ async function addMyDealershipMenuIfEligible(user){
           ["My Dealership","/my-dealership.html"],
           ["My Profile","/customer-profile.html"],
           ["My Purchases","/my-purchases.html"],
-          ["My Selling","/my-selling.html"]
+          ["My Selling","/my-selling.html"],
+          ["Start Here","/dealer-welcome.html"]
         ];
         const logout=menu.querySelector('a[id*="Logout"], a[href="#"][data-i18n="logout"]');
         [...menu.querySelectorAll("a")].forEach(a=>{if(a!==logout)a.remove()});
