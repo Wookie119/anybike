@@ -2956,6 +2956,22 @@ async function anybikeShowPublicSignedInIdentity(){
       }
      }
     }catch(e){/* Non-critical guidance remains optional. */}
+    if(safe(make)==='harleydavidson'&&safe(model)==='fatboy'){
+     cardNotes=[
+      {title:'1990 — Original FLSTF',body:'The original Fat Boy arrived with Evolution power, Softail construction and distinctive solid-look wheels.'},
+      {title:'1991–1999 — Evolution era',body:'Classic Evolution-powered Fat Boys retained the early Softail character. Check originality, service history and modifications.'},
+      {title:'2000–2006 — Twin Cam',body:'The Twin Cam era brought a different engine family from the early Evolution models. Confirm the exact factory specification.'},
+      {title:'2007–2017 — Later Twin Cam',body:'Later Twin Cam Fat Boys evolved through engine and equipment updates. Compare the model year and original components.'},
+      {title:'Fat Boy Lo',body:'The Fat Boy Lo offered a lower, darker-styled take on the cruiser. Check the year and actual factory equipment.'},
+      {title:'2018 — Softail redesign',body:'A redesigned Softail chassis introduced a hidden rear monoshock and Milwaukee-Eight power.'},
+      {title:'2018 — 107 and 114',body:'The redesigned Fat Boy range included different Milwaukee-Eight engine versions. Verify whether the bike is a 107 or 114.'},
+      {title:'2021–2024 — Fat Boy 114',body:'The 114 became a prominent modern Fat Boy version. Confirm model-year equipment, mileage and accessories.'},
+      {title:'Anniversary and special editions',body:'Special finishes and limited editions need year-specific checks of factory trim, documentation and originality.'},
+      {title:'2025 onward — Later Fat Boy',body:'More recent Fat Boy motorcycles have updated specifications. Confirm the exact engine and market specification before buying.'},
+      {title:'Wheels and styling',body:'Solid-look wheels are a signature Fat Boy design feature; check condition and any aftermarket replacements.'},
+      {title:'Buying a used Fat Boy',body:'Review VIN, ownership, finance status, service history, engine configuration and any custom work before purchase.'}
+     ];
+    }
     if(safe(make)==='honda'&&safe(model)==='africatwin'){
      cardNotes=[
       {title:'1988 — XRV650',body:'The original Africa Twin generation established the model’s rally-inspired adventure motorcycle identity.'},
