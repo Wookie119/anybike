@@ -2933,9 +2933,41 @@ async function anybikeShowPublicSignedInIdentity(){
     status.textContent='Enquiry received · Reference '+result.reference+'. AnyBike will contact you.';form.reset();
    }catch(error){status.textContent=error.message||'Unable to send your enquiry';}finally{btn.disabled=false;}
   });
+  async function showUKModelGallery(){
+   if(make!=='BMW'||document.getElementById('ukModelHistoryShared'))return;
+   const seller=document.querySelector('main section[aria-label="UK motorcycle selling"]');
+   if(!seller)return;
+   const panel=document.createElement('section');panel.id='ukModelHistoryShared';panel.className='end-action';
+   panel.style.cssText='background:#171717;color:#fff;border:1px solid #444;border-left:3px solid #ed1c24;border-radius:10px;margin:20px 0;padding:22px';
+   const title=document.createElement('h2');title.textContent=make+' '+model+' — model years and specifications';
+   const grid=document.createElement('div');grid.style.cssText='display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px';
+   panel.append(title,grid);seller.before(panel);
+   let notes=[];
+   try{
+    const resp=await fetch('/data/motorcycle-model-guides.json',{cache:'default'});
+    if(resp.ok){
+     const data=await resp.json();
+     const guide=Object.values(data.models||{}).find(g=>safe(g.make)===safe(make)&&safe(g.model)===safe(model));
+     notes=(guide?.production?.generations||[]).filter(g=>g.description).map(g=>({title:g.model_year||g.label,body:g.description}));
+     if(notes.length<3)notes.push(...(guide?.sections||[]).filter(x=>Array.isArray(x)&&x[1]).map(x=>({title:x[0],body:x[1]})));
+    }
+   }catch(e){console.warn('UK model history unavailable',e)}
+   if(!notes.length){
+    notes=[...document.querySelectorAll('main #body .card')].map(el=>({title:el.querySelector('h2')?.textContent?.trim(),body:el.querySelector('p')?.textContent?.trim()})).filter(n=>n.title&&n.body).slice(0,8);
+   }
+   if(!notes.length){panel.remove();return;}
+   notes.slice(0,16).forEach(n=>{
+    const card=document.createElement('article');card.style.cssText='background:#242424;border:1px solid #555;border-radius:8px;padding:12px;text-align:center;min-height:210px;display:flex;flex-direction:column;justify-content:center;gap:8px';
+    const logo=document.createElement('img');logo.src='/anybike-logo-new.jpg';logo.alt='AnyBike';logo.loading='lazy';logo.style.cssText='display:block;width:min(170px,85%);height:90px;object-fit:contain;margin:0 auto';
+    const h=document.createElement('strong');h.textContent=n.title;const p=document.createElement('span');p.textContent=n.body;p.style.cssText='color:#ddd;font-size:14px;line-height:1.5';
+    card.append(logo,h,p);grid.append(card);
+   });
+   document.getElementById('nextAction')?.setAttribute('hidden','');
+   document.querySelectorAll('main a[href*="bulk-buying-request.html"]').forEach(a=>{a.hidden=true});
+  }
   (async()=>{try{
    const jwt=await token();const res=await fetch(endpoint+'international-public-stock',{cache:'no-store',headers:jwt?{'Authorization':'Bearer '+jwt}:{}});
-   if(!res.ok){hide();return;}
+   if(!res.ok){hide();if(res.status===403)await showUKModelGallery();return;}
    const data=await res.json(),grid=section.querySelector('.anybike-model-stock-grid');
    const matches=(data.items||[]).filter(x=>safe(x.make)===safe(make)&&safe(x.model).includes(safe(model))).slice(0,6);
    if(matches.length){matches.forEach(x=>{
