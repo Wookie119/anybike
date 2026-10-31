@@ -2852,3 +2852,48 @@ async function anybikeShowPublicSignedInIdentity(){
   const refresh=()=>anybikeShowPublicSignedInIdentity().catch(()=>{});
   if(!window.__anybikeIdentityWatcher){window.__anybikeIdentityWatcher=true;client.auth.onAuthStateChange(()=>{setTimeout(refresh,0);});}
 }
+
+
+/* International model stock and guest enquiries: model guides only. */
+(function(){
+ function start(){
+  if(!document.getElementById('generationPanel')||!document.getElementById('nextAction')||document.getElementById('internationalGuestRequest'))return;
+  const heading=(document.getElementById('heading')?.textContent||'').trim();
+  const make=heading.split(' ')[0],model=heading.slice(make.length).trim();
+  if(!make||!model)return;
+  const safe=val=>String(val||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+  const section=document.createElement('section');
+  section.className='end-action';section.style.cssText='background:#171717;color:white;border-top:3px solid #ed1c24;border-radius:10px;margin:20px 0;padding:20px';
+  section.innerHTML='<h2>International available stock</h2><p>Published UK motorcycles for international buyers. No registration needed to enquire.</p><div class="anybike-model-stock-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px"></div><h2>Enquire about this model</h2><form class="anybike-model-guest-form" style="display:grid;gap:9px;max-width:550px"><input name="website" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px"><label>Full name<input name="name" required minlength="2"></label><label>Email<input name="email" type="email" required></label><label>Country<input name="country" required minlength="2"></label><label>Phone / WhatsApp<input name="phone"></label><label>Request type<select name="kind"><option>Motorcycle Enquiry</option><option>Purchase Request</option></select></label><label>Message<textarea name="message" required minlength="5" rows="3"></textarea></label><button type="submit" style="background:#ed1c24;color:white;border:0;padding:12px;font-weight:bold;cursor:pointer">Send enquiry →</button><p role="status"></p></form>';
+  section.querySelectorAll('input:not([name="website"]),select,textarea').forEach(el=>{el.style.cssText='display:block;width:100%;box-sizing:border-box;background:#292929;color:white;border:1px solid #777;border-radius:6px;padding:11px;margin-top:5px'});
+  section.querySelectorAll('label').forEach(el=>el.style.cssText='display:block;font-weight:600;color:white');
+  document.getElementById('nextAction').before(section);
+  const endpoint='https://tuehtnezhdnkqbbhttgp.supabase.co/functions/v1/';
+  const client=window.supabase?.createClient?.('https://tuehtnezhdnkqbbhttgp.supabase.co','sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK');
+  async function token(){return (await client?.auth.getSession())?.data?.session?.access_token}
+  const form=section.querySelector('form');
+  form.addEventListener('submit',async event=>{
+   event.preventDefault();const btn=form.querySelector('button'),status=form.querySelector('[role="status"]');btn.disabled=true;status.textContent='Sending…';
+   try{
+    const values=Object.fromEntries(new FormData(form).entries()),jwt=await token();
+    const res=await fetch(endpoint+'international-guest-enquiry',{method:'POST',headers:{'Content-Type':'application/json',...(jwt?{'Authorization':'Bearer '+jwt}:{})},body:JSON.stringify({...values,make,model,page:location.href})});
+    const result=await res.json();if(!res.ok||!result.ok)throw Error(result.error||'Unable to send');
+    status.textContent='Enquiry received · Reference '+result.reference+'. AnyBike will contact you.';form.reset();
+   }catch(error){status.textContent=error.message||'Unable to send your enquiry';}finally{btn.disabled=false;}
+  });
+  (async()=>{try{
+   const jwt=await token();const res=await fetch(endpoint+'international-public-stock',{cache:'no-store',headers:jwt?{'Authorization':'Bearer '+jwt}:{}});
+   if(!res.ok){section.remove();return;}
+   const data=await res.json(),grid=section.querySelector('.anybike-model-stock-grid');
+   const matches=(data.items||[]).filter(x=>safe(x.make)===safe(make)&&safe(x.model).includes(safe(model))).slice(0,6);
+   if(matches.length){matches.forEach(x=>{
+    const a=document.createElement('a');a.href='/international-vq-motorcycle.html?id='+encodeURIComponent(x.item_id);a.style.cssText='color:white;background:#242424;border:1px solid #555;border-radius:8px;padding:12px;text-decoration:none';
+    if(x.image_url){const im=document.createElement('img');im.src=x.image_url;im.alt=[x.make,x.model].join(' ');im.loading='lazy';im.style.cssText='width:100%;height:145px;object-fit:contain';a.append(im);}
+    const label=document.createElement('div');label.textContent=[x.make,x.model,x.year].filter(Boolean).join(' ');a.append(label);
+    const price=document.createElement('strong');price.textContent=Number(x.price)>0?Number(x.price).toLocaleString('en-GB',{style:'currency',currency:'GBP'}):'Price on request';a.append(price);
+    const view=document.createElement('div');view.textContent='View motorcycle →';a.append(view);grid.append(a);
+   });}else{grid.textContent='No matching published motorcycles currently available. You can still enquire about this model.';}
+  }catch(error){section.remove();}})();
+ }
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
+})();
