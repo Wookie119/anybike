@@ -2857,9 +2857,13 @@ async function anybikeShowPublicSignedInIdentity(){
 /* International model stock and guest enquiries: model guides only. */
 (function(){
  function start(){
-  if(!document.getElementById('generationPanel')||!document.getElementById('nextAction')||document.getElementById('internationalGuestRequest'))return;
-  const heading=(document.getElementById('heading')?.textContent||'').trim();
-  const make=heading.split(' ')[0],model=heading.slice(make.length).trim();
+  if(document.getElementById('internationalGuestRequest')||document.querySelector('.anybike-model-guest-form'))return;
+  const harley=/^\/harley-davidson-[a-z0-9-]+\.html$/i.test(location.pathname);
+  const standard=!!document.getElementById('generationPanel')&&!!document.getElementById('nextAction');
+  if(!harley&&!standard)return;
+  const heading=(document.getElementById('heading')?.textContent||document.querySelector('main h1')?.textContent||'').trim();
+  const make=harley?'Harley-Davidson':heading.split(' ')[0];
+  const model=harley?heading.replace(/^Harley-Davidson\s*/i,'').trim():heading.slice(make.length).trim();
   if(!make||!model)return;
   const safe=val=>String(val||'').toLowerCase().replace(/[^a-z0-9]/g,'');
   const section=document.createElement('section');
@@ -2867,7 +2871,9 @@ async function anybikeShowPublicSignedInIdentity(){
   section.innerHTML='<h2>International available stock</h2><p>Published UK motorcycles for international buyers. No registration needed to enquire.</p><div class="anybike-model-stock-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px"></div><h2>Enquire about this model</h2><form class="anybike-model-guest-form" style="display:grid;gap:9px;max-width:550px"><input name="website" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px"><label>Full name<input name="name" required minlength="2"></label><label>Email<input name="email" type="email" required></label><label>Country<input name="country" required minlength="2"></label><label>Phone / WhatsApp<input name="phone"></label><label>Request type<select name="kind"><option>Motorcycle Enquiry</option><option>Purchase Request</option></select></label><label>Message<textarea name="message" required minlength="5" rows="3"></textarea></label><button type="submit" style="background:#ed1c24;color:white;border:0;padding:12px;font-weight:bold;cursor:pointer">Send enquiry →</button><p role="status"></p></form>';
   section.querySelectorAll('input:not([name="website"]),select,textarea').forEach(el=>{el.style.cssText='display:block;width:100%;box-sizing:border-box;background:#292929;color:white;border:1px solid #777;border-radius:6px;padding:11px;margin-top:5px'});
   section.querySelectorAll('label').forEach(el=>el.style.cssText='display:block;font-weight:600;color:white');
-  document.getElementById('nextAction').before(section);
+  const insertion=harley?(document.querySelector('main .harley-related-pill-nav')||document.querySelector('main .image-attribution')||document.querySelector('main .end-action')):document.getElementById('nextAction');
+  if(!insertion)return;
+  insertion.before(section);
   const endpoint='https://tuehtnezhdnkqbbhttgp.supabase.co/functions/v1/';
   const client=window.supabase?.createClient?.('https://tuehtnezhdnkqbbhttgp.supabase.co','sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK');
   async function token(){return (await client?.auth.getSession())?.data?.session?.access_token}
