@@ -2895,7 +2895,7 @@ async function anybikeShowPublicSignedInIdentity(){
    formPanel.style.cssText='background:#171717;color:#fff;border:1px solid #363636;border-top:3px solid #ff6600;border-radius:12px;margin:18px 0;padding:22px';
    const title=document.createElement('h2');title.textContent='Enquire about a '+make+' '+model;
    const intro=document.createElement('p');intro.textContent='International buyers can send an enquiry or purchase request without creating an account.';
-   formPanel.append(title,intro,form);formPanel.style.display='none';section.after(formPanel);
+   formPanel.id='international-model-enquiry';formPanel.append(title,intro,form);formPanel.style.display='none';section.after(formPanel);
    const source=document.createElement('section');source.className='end-action';
    source.style.cssText='margin:18px 0;padding:22px;background:#171717;color:#fff;border:1px solid #363636;border-radius:12px';
    const h=document.createElement('h2');h.textContent='International buyer interested in a '+make+' '+model+'?';
@@ -2912,11 +2912,21 @@ async function anybikeShowPublicSignedInIdentity(){
    const title=document.createElement('h2');title.textContent='Enquire about a '+make+' '+model;
    const intro=document.createElement('p');intro.textContent='International buyers can send an enquiry or purchase request without creating an account.';
    form.style.cssText='display:grid;gap:12px;width:100%;max-width:820px;margin:22px auto 0;color:#fff';
-   if(model.toLowerCase()==='fat boy')formPanel.id='international-fat-boy-enquiry';
+   formPanel.id='international-model-enquiry';
    formPanel.append(title,intro,form);section.after(formPanel);
    const leftover=section.querySelector('h2:nth-of-type(2)');if(leftover)leftover.remove();
   }
-  const attached=section.parentElement?[section,section.nextElementSibling,harley?section.nextElementSibling?.nextElementSibling:null].filter(Boolean):[];
+  const formPanel=section.nextElementSibling;
+  const oldSourcing=!harley?document.getElementById('nextAction'):null;
+  if(oldSourcing)oldSourcing.hidden=true;
+  const sourcing=document.createElement('section');sourcing.className='end-action anybike-detailed-sourcing';
+  sourcing.style.cssText='background:#171717;color:#fff;border:1px solid #444;border-radius:12px;margin:18px 0;padding:22px';
+  const sourcingTitle=document.createElement('h2');sourcingTitle.textContent='Motorcycle Sourcing Request — '+make+' '+model;
+  const sourcingText=document.createElement('p');sourcingText.textContent='Buying for your dealership or need regular supply? Submit a detailed sourcing request with quantities, acceptable model years, budgets and shipping preferences.';
+  const sourcingButton=document.createElement('a');sourcingButton.className='button';sourcingButton.textContent='Submit a Motorcycle Sourcing Request →';sourcingButton.href='/bulk-buying-request.html?make='+encodeURIComponent(make)+'&model='+encodeURIComponent(model);
+  if(harley)sourcingButton.style.cssText='background:#ff6600;color:#fff';
+  sourcing.append(sourcingTitle,sourcingText,sourcingButton);sourcing.style.display='none';formPanel.after(sourcing);
+  const attached=section.parentElement?[section,formPanel,sourcing].filter(Boolean):[];
   const reveal=()=>attached.forEach(el=>el.style.removeProperty('display'));
   const hide=()=>attached.forEach(el=>el.remove());
   const endpoint='https://tuehtnezhdnkqbbhttgp.supabase.co/functions/v1/';
