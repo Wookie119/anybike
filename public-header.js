@@ -2981,7 +2981,7 @@ async function anybikeShowPublicSignedInIdentity(){
     }catch(err){yearsPanel.remove();}
    }
    let cardNotes=[];
-   if(matches.length<6){
+   if(matches.length===0){
     try{
      const response=await fetch('/data/motorcycle-model-guides.json',{cache:'default'});
      if(response.ok){
@@ -2990,7 +2990,7 @@ async function anybikeShowPublicSignedInIdentity(){
       if(found){
        const generations=(found.production?.generations||[]).filter(g=>g.description);
        cardNotes=generations.map(g=>({title:g.model_year||g.label,body:g.description}));
-       if(cardNotes.length<6)cardNotes.push(...(found.sections||[]).filter(x=>Array.isArray(x)&&x[1]).map(x=>({title:x[0],body:x[1]})));
+       if(!cardNotes.length)cardNotes=(found.sections||[]).filter(x=>Array.isArray(x)&&x[1]).map(x=>({title:x[0],body:x[1]}));
       }
      }
     }catch(e){/* Non-critical guidance remains optional. */}
@@ -3005,11 +3005,12 @@ async function anybikeShowPublicSignedInIdentity(){
      ];
     }
    }
-   for(let i=matches.length;i<6;i++){
+   const emptyCardCount=matches.length?0:(cardNotes.length||1);
+   for(let i=0;i<emptyCardCount;i++){
     const card=document.createElement('div');card.style.cssText='background:#242424;border:1px solid #555;border-radius:8px;padding:12px;text-align:center;min-height:220px;display:flex;flex-direction:column;justify-content:center;gap:8px';
     const brand=document.createElement('img');brand.src='/anybike-logo-new.jpg';brand.alt='AnyBike';brand.loading='lazy';brand.style.cssText='display:block;width:min(170px,85%);height:100px;object-fit:contain;margin:0 auto;background:transparent;border:0;border-radius:0;padding:0';
     const name=document.createElement('strong');name.textContent=make+' '+model;
-    const status=document.createElement('small');status.style.cssText='color:#ddd;line-height:1.5';const note=cardNotes[i-matches.length];if(note){name.textContent=note.title||make+' '+model;status.textContent=note.body;}else{status.textContent='Additional '+make+' '+model+' motorcycles may be available — enquire with AnyBike';}
+    const status=document.createElement('small');status.style.cssText='color:#ddd;line-height:1.5';const note=cardNotes[i];if(note){name.textContent=note.title||make+' '+model;status.textContent=note.body;}else{status.textContent='Additional '+make+' '+model+' motorcycles may be available — enquire with AnyBike';}
     card.append(brand,name,status);grid.append(card);
    }
    reveal();
