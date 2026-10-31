@@ -2862,8 +2862,10 @@ async function anybikeShowPublicSignedInIdentity(){
   const standard=!!document.getElementById('generationPanel')&&!!document.getElementById('nextAction');
   if(!harley&&!standard)return;
   const heading=(document.getElementById('heading')?.textContent||document.querySelector('main h1')?.textContent||'').trim();
-  const make=harley?'Harley-Davidson':heading.split(' ')[0];
-  const model=harley?heading.replace(/^Harley-Davidson\s*/i,'').trim():heading.slice(make.length).trim();
+  const guided=location.pathname==='/motorcycle-model-guide.html';
+  const params=new URLSearchParams(location.search);
+  const make=guided?(params.get('make')||'').trim():harley?'Harley-Davidson':heading.split(' ')[0];
+  const model=guided?(params.get('model')||'').trim():harley?heading.replace(/^Harley-Davidson\s*/i,'').trim():heading.slice(make.length).trim();
   if(!make||!model)return;
   const safe=val=>String(val||'').toLowerCase().replace(/[^a-z0-9]/g,'');
   const section=document.createElement('section');
