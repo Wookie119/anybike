@@ -2942,44 +2942,6 @@ async function anybikeShowPublicSignedInIdentity(){
     const price=document.createElement('strong');price.textContent=Number(x.price)>0?Number(x.price).toLocaleString('en-GB',{style:'currency',currency:'GBP'}):'Price on request';a.append(price);
     const view=document.createElement('div');view.textContent='View motorcycle →';a.append(view);grid.append(a);
    });}
-   if(matches.length===0&&!document.querySelector('main .harley-generation-reference, main #softail-generation-comparison, main #harley-generation-comparison')){
-    const yearsPanel=document.createElement('section');yearsPanel.className='anybike-model-year-guide';
-    yearsPanel.style.cssText='background:#1b1b1b;border:1px solid #484848;border-radius:10px;padding:18px;margin:16px 0;color:white';
-    const yh=document.createElement('h3');yh.textContent=make+' '+model+' — model years and generations';
-    const yp=document.createElement('p');yp.textContent='Explore documented model-year changes and specifications. Always verify the exact year and equipment of an individual motorcycle.';
-    const tabs=document.createElement('div');tabs.style.cssText='display:flex;flex-wrap:wrap;gap:8px;margin:12px 0';
-    const detail=document.createElement('div');detail.setAttribute('aria-live','polite');detail.style.cssText='border-top:1px solid #555;padding-top:12px;line-height:1.65';
-    yearsPanel.append(yh,yp,tabs,detail);section.insertBefore(yearsPanel,grid);
-    try{
-     const guidesResponse=await fetch('/data/motorcycle-model-guides.json',{cache:'default'});
-     const guides=guidesResponse.ok?await guidesResponse.json():null;
-     const guide=Object.values(guides?.models||{}).find(g=>safe(g.make)===safe(make)&&safe(g.model)===safe(model));
-     const generations=(guide?.production?.generations||[]).filter(g=>g.model_year||g.label).slice(0,5);
-     if(generations.length){
-      generations.forEach((g,i)=>{
-       const btn=document.createElement('button');btn.type='button';btn.textContent=g.model_year||g.label;
-       btn.style.cssText='background:#292929;border:1px solid #777;border-radius:6px;color:white;padding:10px 13px;cursor:pointer';
-       btn.addEventListener('click',()=>{
-        tabs.querySelectorAll('button').forEach(b=>{b.style.borderColor='#777';b.setAttribute('aria-pressed','false')});
-        btn.style.borderColor=harley?'#ff6600':'#ed1c24';btn.setAttribute('aria-pressed','true');
-        detail.replaceChildren();
-        const h=document.createElement('strong');h.textContent=g.label||g.model_year;
-        const p=document.createElement('p');p.textContent=g.description||'Check the exact factory model-year specification.';
-        const spec=document.createElement('p');spec.textContent=[g.engine_cc?g.engine_cc+' cc':'',g.power_hp?g.power_hp+' hp':'',g.torque_nm?g.torque_nm+' Nm':'',g.transmission||''].filter(Boolean).join(' · ');
-        detail.append(h,p);if(spec.textContent)detail.append(spec);
-        if(g.source&&/^https:\/\//.test(g.source)){const a=document.createElement('a');a.href=g.source;a.target='_blank';a.rel='noopener noreferrer';a.textContent='Manufacturer reference →';a.style.color=harley?'#ff6600':'#ed1c24';detail.append(a);}
-       });
-       tabs.append(btn);if(i===0)btn.click();
-      });
-     }else{
-      const sourceYearText=(guide?.years||'').trim();
-      const already=document.querySelector('main #generationPanel:not([hidden])');
-      if(sourceYearText){detail.textContent=sourceYearText;}
-      else if(already){detail.textContent='See the model-generation comparison earlier on this page for documented specifications.';}
-      else{yearsPanel.remove();}
-     }
-    }catch(err){yearsPanel.remove();}
-   }
    let cardNotes=[];
    if(matches.length===0){
     try{
