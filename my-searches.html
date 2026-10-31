@@ -390,7 +390,18 @@ async function loadUser(){
   return true;
 }
 
+let masterSearchOptions=null;
+async function loadMasterSearchOptions(){
+  try{
+    const response=await fetch("/data/motorcycle-catalogue-master.json",{cache:"no-cache"});
+    if(!response.ok)throw Error("Master unavailable");
+    const data=await response.json();
+    if(!Array.isArray(data.models)||!data.models.length)throw Error("Empty master");
+    masterSearchOptions=data.models.map(row=>({make:row.make,model:row.model}));
+  }catch(error){console.warn("Using stock-derived search options:",error.message);}
+}
 async function loadStockOptions(){
+  await loadMasterSearchOptions();
   // Filter metadata only; never cache private stock, seller or price records.
   // Reuse it briefly when navigating back to Saved Searches in this tab.
   const cacheKey="anybike-saved-search-filter-options-v1";
@@ -439,7 +450,7 @@ async function loadStockOptions(){
 
 function populateMakes(){
   const makes=[...new Set(
-    stockOptions.map(row=>safe(row.make)).filter(Boolean)
+    (masterSearchOptions||stockOptions).map(row=>safe(row.make)).filter(Boolean)
   )].sort();
 
   document.getElementById("make").innerHTML =
@@ -451,7 +462,7 @@ function populateModels(){
   const selectedMake=document.getElementById("make").value;
 
   const models=[...new Set(
-    stockOptions
+    (masterSearchOptions||stockOptions)
       .filter(row=>!selectedMake || row.make===selectedMake)
       .map(row=>safe(row.model))
       .filter(Boolean)
