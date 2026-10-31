@@ -481,7 +481,7 @@
 (function(){
  const make=document.getElementById("s_make"),model=document.getElementById("s_model");
  const norm=x=>String(x||"").toLowerCase().replace(/[^a-z0-9]/g,"");
- let groups=new Map(),ready=false;
+ let groups=new Map(),ready=false,pending=null;
  const sort=(a,b)=>a.localeCompare(b,undefined,{numeric:true});
  function setModels(selected=""){
   model.replaceChildren(new Option("Select model",""));
@@ -492,7 +492,7 @@
  }
  make.addEventListener("change",()=>setModels());
  window.anybikeStockSetMotorcycle=function(m,mn){
-  if(!ready)return;
+  if(!ready){pending=[m,mn];return;}
   const option=[...make.options].find(o=>norm(o.value)===norm(m));
   make.value=option?.value||"";
   setModels(mn);
@@ -509,7 +509,8 @@
   make.replaceChildren(new Option("Select manufacturer",""));
   for(const value of [...groups.keys()].sort(sort))make.add(new Option(value,value));
   ready=true;
-  window.anybikeStockSetMotorcycle(make.value,model.value);
+  if(pending){const values=pending;pending=null;window.anybikeStockSetMotorcycle(...values);}
+  else window.anybikeStockSetMotorcycle(make.value,model.value);
  }).catch(e=>{console.error(e);make.replaceChildren(new Option("Catalogue unavailable",""));make.disabled=true;model.disabled=true;});
 })();
 </script>
@@ -1259,6 +1260,7 @@ function renderStats(){
   function clearStockForm(){
     selectedStock = null;
     ["s_stock_no","s_registration","s_make","s_model","s_year","s_mileage","s_purchase","s_sale","s_transport","s_prep","s_location","s_country","s_photo","s_notes"].forEach(id => { if($(id)) $(id).value=""; });
+    window.anybikeStockSetMotorcycle?.("","");
     $("s_currency").value = "GBP";
     $("s_status").value = "In Stock";
     $("stockSaveBtn").textContent = "Add Stock Bike";
