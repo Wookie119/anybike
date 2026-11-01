@@ -300,6 +300,31 @@ catch(e){document.getElementById("internationalGuestRequest").hidden=true;consol
   }
  });
  uk.append(copy);
+ // Progressive enrichment: approved editorial photographs from the shared bank.
+ // Existing image/placeholder remains intact if the request fails.
+ (async()=>{
+  try{
+   const factory=window.supabase?.createClient;
+   if(!factory)return;
+   const client=factory("https://tuehtnezhdnkqbbhttgp.supabase.co","sb_publishable_mrkBKDxEPVmdj2n7gPWsbg_l4CShtcK");
+   const {data,error}=await client.from("anybike_editorial_photo_bank")
+    .select("asset_key,model,subject_category,image_url,source_page_url,attribution,model_year_start,model_year_end")
+    .eq("approval_status","approved").eq("manufacturer","BMW").eq("model","R 1300 GS").limit(30);
+   if(error||!Array.isArray(data))return;
+   const categories=["whole_motorcycle","engine","suspension","equipment","transmission","inspection"];
+   copy.querySelectorAll(".model-note-cards article").forEach((card,index)=>{
+    const chosen=data.find(p=>p.subject_category===categories[index]&&(!p.model_year_start||p.model_year_start<=2024)&&(!p.model_year_end||p.model_year_end>=2024));
+    if(!chosen)return;
+    const img=card.querySelector(".model-card-bike-photo");
+    if(!img)return;
+    if(img.src!==chosen.image_url){img.src=chosen.image_url;img.alt=chosen.title||"BMW R 1300 GS "+categories[index];}
+    img.classList.remove("model-card-placeholder");
+    let credit=card.querySelector(".model-card-photo-credit");
+    if(!credit){credit=document.createElement("a");credit.className="model-card-photo-credit";card.insertBefore(credit,img.nextSibling);}
+    credit.href=chosen.source_page_url;credit.target="_blank";credit.rel="noopener noreferrer";credit.textContent="Photograph: "+chosen.attribution;
+   });
+  }catch(e){console.warn("Approved photo bank unavailable; retaining existing card images",e);}
+ })();
  function update(){
   const internationalVisible=!stock.hidden;
   uk.hidden=internationalVisible;
