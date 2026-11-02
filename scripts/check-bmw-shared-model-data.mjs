@@ -39,6 +39,8 @@ assert.ok(preview.includes("guide.development_section_labels||{}"),"Timeline and
 assert.ok(preview.includes("guide.model_section_introductions||{}"),"Timeline and documented specification introductions must come from Supabase");
 assert.ok(preview.includes("guide.page_metadata?.description"),"Preview metadata description must come from Supabase");
 assert.ok(preview.includes("guide.supplemental_factory_colours||{}"),"2026 colour additions must originate in Supabase");
+assert.ok(preview.includes("guide.section_rendering_rules?.hidden_legacy_sections"),"Suppressed duplicate sections must come from Supabase");
+assert.ok(preview.includes("guide.section_rendering_rules?.highlight_last_section"),"Final editorial card treatment must come from Supabase");
 assert.ok(preview.includes("guide.production?.reference_model_year"),"Reference technical year must be model data, not fixed to 2024");
 assert.ok(!preview.includes('if(!(actualMake==="BMW"&&actualModel==="R 1300 GS"))el("summary")'),"Hero summary must not be gated by literal model identity");
 assert.ok(!preview.includes('const additions=[{name:"Racingred non-metallic"'),"Factory colour additions cannot be hardcoded in the preview");
